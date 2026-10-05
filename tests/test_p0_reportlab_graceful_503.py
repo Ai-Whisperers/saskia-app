@@ -5,9 +5,9 @@ The PDF endpoints must:
   2. Return a clean 503 with install hint when reportlab is missing
      (instead of 500 with stack trace)
 """
+
 from __future__ import annotations
 
-import importlib
 import sys
 from typing import Any
 

@@ -1,4 +1,5 @@
 """tests/test_prime_cost.py — Phase 1.D Prime Cost calculation."""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -14,9 +15,18 @@ def setup_product_with_recipe(session_factory):
     """Seed: a flour ingredient @ Gs 5000/kg + a recipe yielding 10 muffins + a product @ Gs 30000."""
     Session = session_factory
 
-    def _setup(*, ingredients=None, yield_qty=10, labor_minutes=None,
-               yield_pct=None, labor_rate=25000, overhead_pct=15, sale_price=30000,
-               recipe_name="Test Recipe", product_name="Test Muffin"):
+    def _setup(
+        *,
+        ingredients=None,
+        yield_qty=10,
+        labor_minutes=None,
+        yield_pct=None,
+        labor_rate=25000,
+        overhead_pct=15,
+        sale_price=30000,
+        recipe_name="Test Recipe",
+        product_name="Test Muffin",
+    ):
         # Ensure compliance info exists with test rates
         with Session() as s:
             ci = s.get(ComplianceInfo, 1)
@@ -27,14 +37,16 @@ def setup_product_with_recipe(session_factory):
         with Session() as s:
             # Create ingredient(s)
             ing_ids = []
-            for ing_def in (ingredients or [{"name": "harina", "price": 5000, "qty": 0.5}]):
+            for ing_def in ingredients or [{"name": "harina", "price": 5000, "qty": 0.5}]:
                 ing = Ingredient(
                     name=ing_def["name"],
                     unit="kg",
                     stock_qty=10.0,
                     purchase_price_gs=ing_def["price"],
                 )
-                s.add(ing); s.commit(); s.refresh(ing)
+                s.add(ing)
+                s.commit()
+                s.refresh(ing)
                 ing_ids.append((ing.id, ing_def["qty"]))
 
             # Create recipe
@@ -45,7 +57,9 @@ def setup_product_with_recipe(session_factory):
                 yield_percentage=yield_pct,
                 direct_labor_minutes=labor_minutes,
             )
-            s.add(r); s.commit(); s.refresh(r)
+            s.add(r)
+            s.commit()
+            s.refresh(r)
 
             for ing_id, qty in ing_ids:
                 rl = RecipeLine(
@@ -65,7 +79,9 @@ def setup_product_with_recipe(session_factory):
                 portion_label="1 und",
                 recipe_id=r.id,
             )
-            s.add(p); s.commit(); s.refresh(p)
+            s.add(p)
+            s.commit()
+            s.refresh(p)
             return p.id
 
     return _setup
@@ -89,7 +105,9 @@ class TestPrimeCostBasic:
         Session = session_factory
         with Session() as s:
             p = Product(name="Manual item", sale_price_gs=5000, portion_label="1 und")
-            s.add(p); s.commit(); s.refresh(p)
+            s.add(p)
+            s.commit()
+            s.refresh(p)
             pc = compute_prime_cost(s, p.id)
         assert pc.materials_cost_gs is None
         assert pc.prime_cost_gs is None
@@ -99,7 +117,9 @@ class TestPrimeCostBasic:
         Session = session_factory
         with Session() as s:
             p = Product(name="Free sample", sale_price_gs=0, portion_label="1 und")
-            s.add(p); s.commit(); s.refresh(p)
+            s.add(p)
+            s.commit()
+            s.refresh(p)
             pc = compute_prime_cost(s, p.id)
         assert pc.sale_price_gs == 0  # Stored, not None
         assert pc.gross_margin_pct is None  # Can't compute pct when sale is 0
@@ -109,9 +129,7 @@ class TestPrimeCostWithRecipe:
     def test_simple_recipe_prime_cost(self, session_factory, setup_product_with_recipe):
         """harina 0.5kg × Gs 5000/kg = Gs 2500 materials.
         No yield, no labor, no overhead → prime = 2500."""
-        pid = setup_product_with_recipe(ingredients=[
-            {"name": "harina", "price": 5000, "qty": 0.5}
-        ])
+        pid = setup_product_with_recipe(ingredients=[{"name": "harina", "price": 5000, "qty": 0.5}])
         with session_factory() as s:
             pc = compute_prime_cost(s, pid)
         assert pc.materials_cost_gs == 2500
@@ -134,7 +152,9 @@ class TestPrimeCostWithRecipe:
 
 
 class TestPrimeCostWithYieldCorrection:
-    def test_yield_85pct_corrects_materials_upward(self, session_factory, setup_product_with_recipe):
+    def test_yield_85pct_corrects_materials_upward(
+        self, session_factory, setup_product_with_recipe
+    ):
         """0.5kg × Gs 5000 = Gs 2500 materials.
         yield_pct=0.85 → corrected = 2500 / 0.85 = 2941.176 → rounds to 2941.
         Overhead 15% × 2500 = 375.
@@ -183,7 +203,9 @@ class TestPrimeCostWithYieldCorrection:
 
 
 class TestPrimeCostEdgeCases:
-    def test_invalid_yield_percentage_falls_back_to_no_correction(self, session_factory, setup_product_with_recipe):
+    def test_invalid_yield_percentage_falls_back_to_no_correction(
+        self, session_factory, setup_product_with_recipe
+    ):
         """yield_pct > 1.0 is invalid; should fall back to no correction."""
         pid = setup_product_with_recipe(
             ingredients=[{"name": "harina", "price": 5000, "qty": 0.5}],
@@ -194,7 +216,9 @@ class TestPrimeCostEdgeCases:
         assert pc.yield_corrected_cost_gs is None
         assert any("inválido" in n for n in pc.notes)
 
-    def test_zero_yield_percentage_falls_back_to_no_correction(self, session_factory, setup_product_with_recipe):
+    def test_zero_yield_percentage_falls_back_to_no_correction(
+        self, session_factory, setup_product_with_recipe
+    ):
         pid = setup_product_with_recipe(
             ingredients=[{"name": "harina", "price": 5000, "qty": 0.5}],
             yield_pct=0.0,  # Invalid
@@ -208,13 +232,19 @@ class TestPrimeCostEdgeCases:
         Session = session_factory
         with Session() as s:
             ing = Ingredient(name="mystery", unit="kg", stock_qty=5.0, purchase_price_gs=None)
-            s.add(ing); s.commit(); s.refresh(ing)
+            s.add(ing)
+            s.commit()
+            s.refresh(ing)
             r = Recipe(name="R", yield_qty=10, yield_unit="und")
-            s.add(r); s.commit(); s.refresh(r)
+            s.add(r)
+            s.commit()
+            s.refresh(r)
             rl = RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id, qty=1.0)
             s.add(rl)
             p = Product(name="P", sale_price_gs=5000, portion_label="1 und", recipe_id=r.id)
-            s.add(p); s.commit(); s.refresh(p)
+            s.add(p)
+            s.commit()
+            s.refresh(p)
             pc = compute_prime_cost(s, p.id)
         assert pc.materials_cost_gs is None
         assert any("Faltan precios" in n for n in pc.notes)

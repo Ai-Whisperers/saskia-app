@@ -1,19 +1,4 @@
-<!-- ROADMAP-REDIRECT -->
-# ⚠️ Moved / Superseded
-
-**This file has been moved or superseded.** The canonical location is:
-
-> **`docs/roadmap/audits/SASKIA_COMPLETE_APP_MAP_2026-09-22.md`**
-
-App map; current routes/models are reflected in `docs/roadmap/STATUS.md`.
-
-See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
-
----
-
-<!-- ORIGINAL CONTENT BELOW -->
-
-# Saskia RMS — Complete Page & Element Map
+# Sazón — Complete Page & Element Map
 
 ## How to read this
 - **Page** = route → template file

@@ -48,7 +48,9 @@ def ingredient_dietary_set(ing: object) -> frozenset[str]:
     Original implementation lived in tag_algebra.py. Now delegates to
     normalize_all() from the public tagging/classify surface.
     """
-    return normalize_all(getattr(ing, "dietary_tags", None))
+    from app.rms.tagging.classify import normalize_all as _impl
+
+    return _impl(getattr(ing, "dietary_tags", None))
 
 
 # Legacy private alias kept for any module still using the old name.

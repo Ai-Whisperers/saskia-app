@@ -16,8 +16,9 @@ from app.rms.config import ASUNCION_TZ
 
 
 def _kyrian_id(session_factory, qseed):
-    from app.seed.kyrian import KYRIAN_PHONE
     from app.rms.models import Customer
+    from app.seed.kyrian import KYRIAN_PHONE
+
     qseed("with_kyrian_full")
     with session_factory() as s:
         return s.query(Customer).filter_by(phone=KYRIAN_PHONE).one().id
@@ -25,7 +26,7 @@ def _kyrian_id(session_factory, qseed):
 
 def test_inicio_renders_frequent_customer_card(client, qseed, session_factory):
     """Kyrian's seed creates 14 sales in the last 30d → she's a regular."""
-    cid = _kyrian_id(session_factory, qseed)
+    _kyrian_id(session_factory, qseed)
     r = client.get("/inicio")
     assert r.status_code == 200
     html = r.text
@@ -44,11 +45,12 @@ def test_inicio_card_has_pedido_cta(client, qseed, session_factory):
 
 def test_inicio_card_shows_visit_count(client, qseed, session_factory):
     """Each row displays the visit count + lifetime spend."""
-    cid = _kyrian_id(session_factory, qseed)
+    _kyrian_id(session_factory, qseed)
     r = client.get("/inicio")
     html = r.text
     # Look for visit count pattern — should be a number >= 1 followed by "visita"
     import re
+
     assert re.search(r"\d+\s+visitas?\b", html), "Expected visit count in /inicio"
 
 
@@ -64,21 +66,23 @@ def test_inicio_empty_state_for_fresh_db(client):
 def test_inicio_card_displays_at_most_5(client, qseed, session_factory):
     """The card limits to top 5 (the 'regulars_count_total' shows full count)."""
     # Add 7 extra customers with 3+ sales each so we exceed 5
-    from app.rms.models import Customer, Product
     from app.rms.costing import apply_sale
+    from app.rms.models import Customer, Product
 
     qseed("with_kyrian_full")
     with session_factory() as s:
         prod = s.execute(__import__("sqlalchemy").text("SELECT id FROM product LIMIT 1")).scalar()
         if prod is None:
             p = Product(name="Bulk Product", sale_price_gs=10000)
-            s.add(p); s.flush()
+            s.add(p)
+            s.flush()
             prod = p.id
 
         now = datetime.now(ASUNCION_TZ)
         for i in range(7):
             c = Customer(name=f"Regular {i:02d}", phone=f"099{i:08d}")
-            s.add(c); s.flush()
+            s.add(c)
+            s.flush()
             for j in range(3):
                 apply_sale(
                     session=s,

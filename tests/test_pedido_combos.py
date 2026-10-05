@@ -3,13 +3,13 @@
 import pytest
 
 
-
 def test_product_api_search_returns_matches(qseed, authed_client):
     """GET /productos/api/search?q=muffin returns matching products."""
     data = qseed("basic")
     # qseed("basic") creates 1 product called "Producto QA"
     # create a couple more products with names we search for
     from app.rms.models import Product
+
     sf = qseed.session_factory
     with sf() as s:
         s.add(Product(name="Muffin Test", sale_price_gs=3000, is_available=True))
@@ -39,6 +39,7 @@ def test_product_api_search_returns_empty_for_no_match(qseed, authed_client):
 def test_product_api_search_limit_param(qseed, authed_client):
     """limit param caps result count."""
     from app.rms.models import Product
+
     sf = qseed.session_factory
     with sf() as s:
         for i in range(75):
@@ -55,6 +56,7 @@ def test_product_api_search_limit_param(qseed, authed_client):
 def test_product_api_search_does_not_match_qs(qseed, authed_client):
     """Empty query returns all products up to limit."""
     from app.rms.models import Product
+
     sf = qseed.session_factory
     with sf() as s:
         for i in range(20):
@@ -75,11 +77,11 @@ def test_pedido_nuevo_renders_combobox_not_select(qseed, authed_client):
     assert r.status_code == 200
     body = r.text
     # Generic combo markers (reusable component)
-    assert "saskia-combo" in body
+    assert "ui-combo" in body
     assert "combo-input" in body
     # Customer + product combobox instances
-    assert "saskia-customer-combo" in body
-    assert "saskia-product-combo" in body
+    assert "ui-customer-combo" in body
+    assert "sazon-product-combo" in body
     # Data attributes wire up to the right APIs
     assert 'data-source="/customers/api/search"' in body
     assert 'data-source="/productos/api/search"' in body
@@ -111,11 +113,7 @@ def test_pedido_nuevo_includes_pedido_combos_js(qseed, authed_client):
     r2 = authed_client.get("/static/pedido-combos.js")
     assert r2.status_code == 200
     # Check for one of the class names the pedido-specific bindings use
-    assert (
-        "saskia-combo" in r2.text
-        or "SaskiaCombo" in r2.text
-        or "setupCustomerCombo" in r2.text
-    )
+    assert "ui-combo" in r2.text or "UICombo" in r2.text or "setupCustomerCombo" in r2.text
 
 
 def test_pedido_create_with_combobox_customer(qseed, authed_client):
@@ -123,13 +121,16 @@ def test_pedido_create_with_combobox_customer(qseed, authed_client):
     from datetime import datetime, timedelta, timezone
 
     from app.rms.models import Customer, Ingredient, Pedido, Product
+
     sf = qseed.session_factory
     with sf() as s:
         ing = s.query(Ingredient).filter_by(name="harina QA").first()
         if ing is None:
-            ing = Ingredient(name="harina QA", unit="kg", stock_qty=10,
-                             min_stock_qty=1, purchase_price_gs=3000)
-            s.add(ing); s.flush()
+            ing = Ingredient(
+                name="harina QA", unit="kg", stock_qty=10, min_stock_qty=1, purchase_price_gs=3000
+            )
+            s.add(ing)
+            s.flush()
         prod = s.query(Product).filter_by(name="Producto QA").first()
         if prod is None:
             prod = Product(name="Producto QA", sale_price_gs=2500, is_available=True)

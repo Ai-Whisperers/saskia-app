@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
-import pytest
 from sqlalchemy import text
 
 
@@ -39,7 +36,9 @@ def test_business_settings_change_is_audited(client, session_factory):
 
     with session_factory() as s:
         rows = s.execute(
-            text("SELECT detail FROM audit_log WHERE action = 'settings.business.change' ORDER BY id DESC LIMIT 1")
+            text(
+                "SELECT detail FROM audit_log WHERE action = 'settings.business.change' ORDER BY id DESC LIMIT 1"
+            )
         ).all()
         assert rows, "No audit row recorded for settings.business.change"
         detail_text = str(rows[0][0])
@@ -57,7 +56,9 @@ def test_seed_demo_is_audited(client, session_factory):
 
     with session_factory() as s:
         rows = s.execute(
-            text("SELECT detail FROM audit_log WHERE action = 'settings.seed_demo' ORDER BY id DESC LIMIT 1")
+            text(
+                "SELECT detail FROM audit_log WHERE action = 'settings.seed_demo' ORDER BY id DESC LIMIT 1"
+            )
         ).all()
         assert rows, "No audit row recorded for settings.seed_demo"
         assert "overwrite" in str(rows[0][0])
@@ -74,7 +75,9 @@ def test_fiscal_settings_change_still_audited(client, session_factory):
 
     with session_factory() as s:
         rows = s.execute(
-            text("SELECT detail FROM audit_log WHERE action IN ('settings.change', 'settings.create') ORDER BY id DESC LIMIT 5")
+            text(
+                "SELECT detail FROM audit_log WHERE action IN ('settings.change', 'settings.create') ORDER BY id DESC LIMIT 5"
+            )
         ).all()
         assert rows
 
@@ -90,6 +93,8 @@ def test_theme_settings_change_still_audited(client, session_factory):
 
     with session_factory() as s:
         rows = s.execute(
-            text("SELECT detail FROM audit_log WHERE action IN ('settings.change', 'settings.create') ORDER BY id DESC LIMIT 5")
+            text(
+                "SELECT detail FROM audit_log WHERE action IN ('settings.change', 'settings.create') ORDER BY id DESC LIMIT 5"
+            )
         ).all()
         assert rows

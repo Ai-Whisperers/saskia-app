@@ -26,10 +26,11 @@ All models here share the same declarative Base as the rest of the
 project — see app/rms/models/core.py.
 """
 
+
 class ProductionCompletion(Base):
     """How much of a planned product was actually produced on a given day.
 
-    Saskia review T5: "Al final del dia debe registrarse cuanto de la
+    the operator review T5: "Al final del dia debe registrarse cuanto de la
     produccion se completo". One row per (product, date) — re-recording
     updates in place via upsert_completion().
     """
@@ -44,6 +45,17 @@ class ProductionCompletion(Base):
     completed_qty: Mapped[float] = mapped_column(Float, nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # PRODUCCION-V2 Fase 2: end-of-shift closure. 'open' = cook hasn't
+    # finished reviewing the day; 'done' = "yes, this is what we
+    # baked"; 'cancelled' = "we baked 0 of this; here's why". The
+    # closure_notes is the cook's optional free-text justification
+    # (NULL when blank). updated_at is the most recent write (set on
+    # upsert and on close-day).
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, default="open", server_default="open"
+    )
+    closure_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     __table_args__ = (
         CheckConstraint("completed_qty >= 0", name="ck_completion_qty_nonneg"),
@@ -52,6 +64,7 @@ class ProductionCompletion(Base):
 
     # Relationships
     product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+
 
 class ProductionPlanTemplate(Base):
     """PRO-01: Repeating weekly production plan template.
@@ -83,6 +96,7 @@ class ProductionPlanTemplate(Base):
     # Relationships
     product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
 
+
 class ProductionPlanOverride(Base):
     """PRO-01: Per-date override of the weekly template.
 
@@ -110,6 +124,7 @@ class ProductionPlanOverride(Base):
     # Relationships
     product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
 
+
 class ProductionPlan(Base):
     """A planned batch — output of the Production Planner.
 
@@ -121,9 +136,7 @@ class ProductionPlan(Base):
     __tablename__ = "production_plan"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    recipe_id: Mapped[int] = mapped_column(
-        ForeignKey("recipe.id"), nullable=False, index=True
-    )
+    recipe_id: Mapped[int] = mapped_column(ForeignKey("recipe.id"), nullable=False, index=True)
     batches_qty: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     planned_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="planned")
@@ -142,3 +155,4 @@ class ProductionPlan(Base):
             name="ck_plan_status",
         ),
     )
+

@@ -1,6 +1,6 @@
 """app/rms/analytics.py — Operational analytics queries.
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E8.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E8.
 
 Pure query layer: takes a Session, returns dataclasses. No FastAPI
 deps so the same functions can be used by reports, dashboards,
@@ -9,6 +9,7 @@ cron jobs, and tests without ceremony.
 All currency in Paraguayan guaraní (Gs., integer). All quantities
 in the same unit as stored on Ingredient (kg, l, g, ml, und).
 """
+
 from __future__ import annotations
 
 import math
@@ -128,9 +129,7 @@ class AuditOperatorActivity:
 # --- Public query functions ---
 
 
-def stock_turnover(
-    session: Session, ingredient_id: int, days: int = 30
-) -> StockTurnover | None:
+def stock_turnover(session: Session, ingredient_id: int, days: int = 30) -> StockTurnover | None:
     """Return StockTurnover for one ingredient over the last `days` days.
 
     Returns None if the ingredient does not exist.
@@ -143,14 +142,17 @@ def stock_turnover(
     # Sum qty over the period (negative values). Use StockMovement (the
     # unified ledger since BACKLOG #1 migration 090) instead of the
     # dropped SaleStockMove stub.
-    consumed = session.execute(
-        select(func.coalesce(func.sum(StockMovement.qty), 0.0)).where(
-            StockMovement.ingredient_id == ingredient_id,
-            StockMovement.qty < 0,
-            StockMovement.reference_type == "sale",
-            StockMovement.recorded_at >= cutoff.replace(tzinfo=None),
-        )
-    ).scalar() or 0.0
+    consumed = (
+        session.execute(
+            select(func.coalesce(func.sum(StockMovement.qty), 0.0)).where(
+                StockMovement.ingredient_id == ingredient_id,
+                StockMovement.qty < 0,
+                StockMovement.reference_type == "sale",
+                StockMovement.recorded_at >= cutoff.replace(tzinfo=None),
+            )
+        ).scalar()
+        or 0.0
+    )
     consumed_abs = abs(float(consumed))
 
     current_stock = float(ing.stock_qty)
@@ -214,9 +216,9 @@ def batch_stock_turnover(
     # Single query: get all ingredient data at once
     ingredients = {
         ing.id: ing
-        for ing in session.execute(
-            select(Ingredient).where(Ingredient.id.in_(ingredient_ids))
-        ).scalars().all()
+        for ing in session.execute(select(Ingredient).where(Ingredient.id.in_(ingredient_ids)))
+        .scalars()
+        .all()
     }
 
     result = {}
@@ -253,9 +255,7 @@ def batch_stock_turnover(
 def all_stock_turnover(session: Session, days: int = 30) -> list[StockTurnover]:
     """Return StockTurnover for every ingredient that had consumption in the period."""
     ingredient_ids = session.execute(select(Ingredient.id)).scalars().all()
-    return [
-        st for iid in ingredient_ids if (st := stock_turnover(session, iid, days)) is not None
-    ]
+    return [st for iid in ingredient_ids if (st := stock_turnover(session, iid, days)) is not None]
 
 
 def dead_stock(session: Session, threshold_days: int = 30) -> list[DeadStockRow]:
@@ -275,7 +275,9 @@ def dead_stock(session: Session, threshold_days: int = 30) -> list[DeadStockRow]
                 StockMovement.reference_type == "sale",
             )
             .distinct()
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
 
     rows: list[DeadStockRow] = []
@@ -286,8 +288,7 @@ def dead_stock(session: Session, threshold_days: int = 30) -> list[DeadStockRow]
             days_since: int | None = (datetime.now(timezone.utc) - last).days
         else:
             last_move = session.execute(
-                select(func.max(StockMovement.recorded_at))
-                .where(
+                select(func.max(StockMovement.recorded_at)).where(
                     StockMovement.ingredient_id == ing.id,
                     StockMovement.reference_type == "sale",
                 )
@@ -315,9 +316,7 @@ def dead_stock(session: Session, threshold_days: int = 30) -> list[DeadStockRow]
     return rows
 
 
-def margin_erosion_alerts(
-    session: Session, threshold_pct: float = 5.0
-) -> list[MarginErosionAlert]:
+def margin_erosion_alerts(session: Session, threshold_pct: float = 5.0) -> list[MarginErosionAlert]:
     """Return products whose margin dropped > threshold_pct due to ingredient price changes.
 
     Heuristic: compare the current ingredient purchase_price_gs against
@@ -341,13 +340,17 @@ def margin_erosion_alerts(
 
     for ing in recent_ingredients:
         # Find products that use this ingredient
-        products = session.execute(
-            select(Product)
-            .join(Recipe, Recipe.id == Product.recipe_id)
-            .join(RecipeLine, RecipeLine.recipe_id == Recipe.id)
-            .where(RecipeLine.line_kind == "ingredient", RecipeLine.line_ref_id == ing.id)
-            .distinct()
-        ).scalars().all()
+        products = (
+            session.execute(
+                select(Product)
+                .join(Recipe, Recipe.id == Product.recipe_id)
+                .join(RecipeLine, RecipeLine.recipe_id == Recipe.id)
+                .where(RecipeLine.line_kind == "ingredient", RecipeLine.line_ref_id == ing.id)
+                .distinct()
+            )
+            .scalars()
+            .all()
+        )
 
         new_price = ing.purchase_price_gs or 0
         # We don't have a stored "old price" so estimate: if min_stock_qty > 0
@@ -366,9 +369,7 @@ def margin_erosion_alerts(
             new_margin = product.sale_price_gs - int(cost_change_per_unit)
             old_margin = product.sale_price_gs
             margin_delta_pct = (
-                ((new_margin - old_margin) / old_margin * 100)
-                if old_margin > 0
-                else 0.0
+                ((new_margin - old_margin) / old_margin * 100) if old_margin > 0 else 0.0
             )
 
             alerts.append(
@@ -443,7 +444,9 @@ def top_margin_products(
         cost_per_unit = _quick_cost_estimate(session, product)
         if cost_per_unit is None:
             cost_per_unit = int(product.sale_price_gs * Decimal("0.4"))
-        margin_gs = to_int_gs(Decimal(str(qty)) * (Decimal(str(product.sale_price_gs)) - Decimal(str(cost_per_unit))))
+        margin_gs = to_int_gs(
+            Decimal(str(qty)) * (Decimal(str(product.sale_price_gs)) - Decimal(str(cost_per_unit)))
+        )
         margin_pct = (
             (product.sale_price_gs - cost_per_unit) / product.sale_price_gs
             if product.sale_price_gs > 0
@@ -489,10 +492,7 @@ def _quick_cost_estimate(session: Session, product: Product) -> int | None:
         # lifetime. Falls back to purchase_price_gs when avg is NULL
         # (fresh installs, backfilled rows where the migration ran but
         # no waste event has fired yet, or legacy data from before v89).
-        price_unit = (
-            ing.avg_cost_gs if ing.avg_cost_gs is not None
-            else ing.purchase_price_gs
-        )
+        price_unit = ing.avg_cost_gs if ing.avg_cost_gs is not None else ing.purchase_price_gs
         batch_cost += line.qty * _D(price_unit)
     return int(batch_cost / _D(recipe.yield_qty))
 

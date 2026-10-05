@@ -8,7 +8,7 @@ Covers:
 - Inventory POST creates a 'manual' price event
 - Migration v18 idempotency + table creation
 
-Refs: Saskia review round 1 (Thu 18-sep) — Q1 (c) restock + price history
+Refs: operator review round N (Thu 18-sep) — Q1 (c) restock + price history
 + reports + insight. Phase B ships the schema + helper; Phase D wires the
 restock form surface and the dashboard sparkline.
 """
@@ -81,9 +81,7 @@ def test_record_price_event_updates_ingredient(session_factory):
         # DB stores naive UTC; compare like-for-like. event.recorded_at
         # is tz-aware UTC; strip tz for the comparison.
         naive_recorded = event.recorded_at.replace(tzinfo=None)
-        assert ing_fresh.purchase_price_updated_at >= (
-            original_updated_at or naive_recorded
-        )
+        assert ing_fresh.purchase_price_updated_at >= (original_updated_at or naive_recorded)
 
 
 def test_record_price_event_default_source_is_restock(session_factory):
@@ -92,7 +90,6 @@ def test_record_price_event_default_source_is_restock(session_factory):
     from app.rms.price_history import record_price_event
 
     with session_factory() as s:
-
         ing = make_ingredient(s, name="X", unit="kg", stock_qty=0.0)
         s.add(ing)
         s.commit()
@@ -107,7 +104,6 @@ def test_record_price_event_validates_source(session_factory):
     from app.rms.price_history import record_price_event
 
     with session_factory() as s:
-
         ing = make_ingredient(s, name="X", unit="kg", stock_qty=0.0)
         s.add(ing)
         s.commit()
@@ -257,7 +253,6 @@ def test_inventory_create_writes_manual_price_event(session_factory):
     # We test the wiring directly via the helper rather than driving the HTTP
     # form — the router calls record_price_event(..., source='manual').
     with session_factory() as s:
-
         ing = make_ingredient(s, name="Harina", unit="kg", stock_qty=5.0)
         s.add(ing)
         s.commit()
@@ -293,9 +288,7 @@ def test_inventory_router_calls_record_price_event(client, session_factory):
     with session_factory() as s:
         ing = s.query(Ingredient).filter_by(name="Azúcar").first()
         assert ing is not None
-        events = (
-            s.query(IngredientPriceEvent).filter_by(ingredient_id=ing.id).all()
-        )
+        events = s.query(IngredientPriceEvent).filter_by(ingredient_id=ing.id).all()
         assert len(events) == 1
         assert events[0].source == "manual"
         assert events[0].price_gs == 4500
@@ -322,9 +315,7 @@ def test_inventory_router_no_event_when_no_price(client, session_factory):
     with session_factory() as s:
         ing = s.query(Ingredient).filter_by(name="SinPrecio").first()
         assert ing is not None
-        events = (
-            s.query(IngredientPriceEvent).filter_by(ingredient_id=ing.id).all()
-        )
+        events = s.query(IngredientPriceEvent).filter_by(ingredient_id=ing.id).all()
         assert len(events) == 0
 
 
@@ -367,9 +358,7 @@ def test_inventory_update_writes_price_event_on_price_change(client, session_fac
     assert r.status_code in (303, 302), r.text
 
     with session_factory() as s:
-        events = (
-            s.query(IngredientPriceEvent).filter_by(ingredient_id=ing_id).all()
-        )
+        events = s.query(IngredientPriceEvent).filter_by(ingredient_id=ing_id).all()
         assert len(events) == 2
         prices = sorted(e.price_gs for e in events)
         assert prices == [5000, 6500]
@@ -391,9 +380,7 @@ def test_migration_v18_creates_ingredient_price_event_table(tmp_path):
     init_db(engine)
 
     with engine.connect() as conn:
-        rows = conn.execute(
-            text("SELECT name FROM sqlite_master WHERE type='table'")
-        ).all()
+        rows = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'")).all()
         names = {r[0] for r in rows}
     assert "ingredient_price_event" in names
 
@@ -405,9 +392,7 @@ def test_migration_v18_index_exists(tmp_path):
     init_db(engine)
 
     with engine.connect() as conn:
-        rows = conn.execute(
-            text("SELECT name FROM sqlite_master WHERE type='index'")
-        ).all()
+        rows = conn.execute(text("SELECT name FROM sqlite_master WHERE type='index'")).all()
         names = {r[0] for r in rows}
     # Index naming follows SQLAlchemy default; we just need *some* index
     # touching ingredient_price_event
@@ -453,9 +438,7 @@ def test_inventory_edit_route_writes_event_on_price_change(client, session_facto
     assert r.status_code in (303, 302), r.text
 
     with session_factory() as s:
-        events = (
-            s.query(IngredientPriceEvent).filter_by(ingredient_id=ing_id).all()
-        )
+        events = s.query(IngredientPriceEvent).filter_by(ingredient_id=ing_id).all()
         assert len(events) == 2
         sources = sorted(e.source for e in events)
         assert sources == ["manual", "restock"]
@@ -502,9 +485,7 @@ def test_inventory_edit_route_records_event_when_price_unchanged(client, session
     assert r.status_code in (303, 302), r.text
 
     with session_factory() as s:
-        events = (
-            s.query(IngredientPriceEvent).filter_by(ingredient_id=ing_id).all()
-        )
+        events = s.query(IngredientPriceEvent).filter_by(ingredient_id=ing_id).all()
         # Sibling's path: every save → audit trail event. 1 (restock) + 1 (manual save)
         assert len(events) == 2
         sources = sorted(e.source for e in events)
@@ -551,9 +532,7 @@ def test_variant_edit_preferred_writes_event(client, session_factory):
     assert r.status_code in (303, 302), r.text
 
     with session_factory() as s:
-        events = (
-            s.query(IngredientPriceEvent).filter_by(ingredient_id=ing_id).all()
-        )
+        events = s.query(IngredientPriceEvent).filter_by(ingredient_id=ing_id).all()
         assert len(events) == 2
         # The new event is from manual source (variant edit mirrors to parent).
         latest = max(events, key=lambda e: e.id)

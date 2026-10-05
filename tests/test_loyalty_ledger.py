@@ -35,6 +35,7 @@ def test_award_points_writes_ledger_row_and_credits_balance(session_factory):
 
     with session_factory() as s:
         from app.rms.models import Customer
+
         cust = s.get(Customer, cust_id)
         pts = award_points(s, cust, total_gs=25_000, sale_id=None, actor="test")
         s.commit()
@@ -43,6 +44,7 @@ def test_award_points_writes_ledger_row_and_credits_balance(session_factory):
 
     with session_factory() as s:
         from app.rms.models import Customer
+
         cust = s.get(Customer, cust_id)
         assert cust.loyalty_points == 25
 
@@ -68,6 +70,7 @@ def test_award_points_zero_when_below_threshold(session_factory):
 
     with session_factory() as s:
         from app.rms.models import Customer
+
         cust = s.get(Customer, cust_id)
         pts = award_points(s, cust, total_gs=500, sale_id=None)
         s.commit()
@@ -95,7 +98,9 @@ def test_redeem_points_writes_ledger_row_and_debits_balance(session_factory):
 
     with session_factory() as s:
         cust = s.get(Customer, cust_id)
-        redeemed, discount = redeem_points(s, cust, 10, actor="saskia", notes="descuento cumpleaños")
+        redeemed, discount = redeem_points(
+            s, cust, 10, actor="demo", notes="descuento cumpleaños"
+        )
         s.commit()
 
     assert redeemed == 10
@@ -109,11 +114,7 @@ def test_redeem_points_writes_ledger_row_and_debits_balance(session_factory):
         cust = s.get(Customer, cust_id)
         assert cust.loyalty_points == 40
 
-        rows = (
-            s.query(LoyaltyTransaction)
-            .filter_by(customer_id=cust_id, reason="redeem")
-            .all()
-        )
+        rows = s.query(LoyaltyTransaction).filter_by(customer_id=cust_id, reason="redeem").all()
         assert len(rows) == 1
         assert rows[0].delta == -10
         assert rows[0].notes == "descuento cumpleaños"
@@ -158,13 +159,13 @@ def test_redeem_points_raises_on_zero_or_negative(session_factory):
 def test_reverse_points_for_void_writes_negative_ledger(session_factory, qseed):
     """When a sale that earned points is voided, reverse the points via a void_reversal ledger row."""
     from datetime import datetime as _dt
+
     from app.rms.costing import apply_sale
     from app.rms.customers import (
         award_points,
-        ensure_customer,
         reverse_points_for_void,
     )
-    from app.rms.models import Customer, LoyaltyTransaction, Sale
+    from app.rms.models import Customer, LoyaltyTransaction
 
     data = qseed("basic")
     prod = data["product"]
@@ -195,9 +196,7 @@ def test_reverse_points_for_void_writes_negative_ledger(session_factory, qseed):
     # Verify the earn_sale row exists with the right sale_id.
     with sf() as s:
         earn = (
-            s.query(LoyaltyTransaction)
-            .filter_by(customer_id=cust.id, reason="earn_sale")
-            .first()
+            s.query(LoyaltyTransaction).filter_by(customer_id=cust.id, reason="earn_sale").first()
         )
         assert earn is not None and earn.sale_id == sale_id
         # Re-fetch the customer in this session (committed by the prior session).
@@ -218,14 +217,10 @@ def test_reverse_points_for_void_writes_negative_ledger(session_factory, qseed):
         assert cust.loyalty_points == 0, "balance back to zero after void reversal"
 
         earn_rows = (
-            s.query(LoyaltyTransaction)
-            .filter_by(customer_id=cust.id, reason="earn_sale")
-            .all()
+            s.query(LoyaltyTransaction).filter_by(customer_id=cust.id, reason="earn_sale").all()
         )
         void_rows = (
-            s.query(LoyaltyTransaction)
-            .filter_by(customer_id=cust.id, reason="void_reversal")
-            .all()
+            s.query(LoyaltyTransaction).filter_by(customer_id=cust.id, reason="void_reversal").all()
         )
         assert len(earn_rows) == 1 and earn_rows[0].delta == 50
         assert len(void_rows) == 1 and void_rows[0].delta == -50
@@ -249,9 +244,7 @@ def test_reverse_points_for_void_noop_when_no_earn(session_factory):
 
     assert result == 0
     with session_factory() as s:
-        rows = (
-            s.query(LoyaltyTransaction).filter_by(customer_id=cust_id).all()
-        )
+        rows = s.query(LoyaltyTransaction).filter_by(customer_id=cust_id).all()
         assert len(rows) == 0
 
 
@@ -260,8 +253,8 @@ def test_reconcile_loyalty_balance_rebuilds_from_ledger(session_factory):
     from app.rms.customers import (
         award_points,
         ensure_customer,
-        redeem_points,
         reconcile_loyalty_balance,
+        redeem_points,
     )
     from app.rms.models import Customer
 
@@ -328,9 +321,11 @@ def test_loyalty_transaction_check_constraint_rejects_zero_delta():
     been dropped by migration 075. If you run this against a DB at
     schema_version < 75, the test will SKIP (it's an old schema).
     """
-    from app.rms.config import DB_PATH
-    from sqlalchemy import create_engine, text
     import datetime as _dt
+
+    from sqlalchemy import create_engine, text
+
+    from app.rms.config import DB_PATH
 
     eng = create_engine(f"sqlite:///{DB_PATH}")
     with eng.connect() as c:
@@ -385,7 +380,7 @@ def test_loyalty_transaction_check_constraint_rejects_zero_delta():
                 {"cid": cust_id},
             )
             c.commit()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             pytest.fail(
                 f"migration 075 should have dropped ck_loyalty_delta_nonzero, "
                 f"but manual_adjust delta=0 still failed: {exc}"
@@ -416,11 +411,7 @@ def test_redeem_endpoint_writes_ledger_and_redirects(authed_client, qseed):
     assert resp.status_code in (303, 307), resp.text
 
     with sf() as s:
-        rows = (
-            s.query(LoyaltyTransaction)
-            .filter_by(customer_id=cust_id, reason="redeem")
-            .all()
-        )
+        rows = s.query(LoyaltyTransaction).filter_by(customer_id=cust_id, reason="redeem").all()
         assert len(rows) == 1
         assert rows[0].delta == -10
         assert rows[0].notes == "test redemption"
@@ -480,7 +471,7 @@ def test_customer_detail_shows_ledger_table(authed_client, qseed):
 
 def test_sale_creation_credits_points_to_customer(authed_client, qseed):
     """End-to-end: POST a sale with a customer attached → ledger earn_sale row."""
-    from app.rms.models import Customer, LoyaltyTransaction
+    from app.rms.models import LoyaltyTransaction
 
     data = qseed("basic")
     prod = data["product"]
@@ -501,9 +492,7 @@ def test_sale_creation_credits_points_to_customer(authed_client, qseed):
 
     with sf() as s:
         earn_rows = (
-            s.query(LoyaltyTransaction)
-            .filter_by(customer_id=cust.id, reason="earn_sale")
-            .all()
+            s.query(LoyaltyTransaction).filter_by(customer_id=cust.id, reason="earn_sale").all()
         )
         assert len(earn_rows) >= 1, "expected at least one earn_sale ledger row"
         total_earned = sum(r.delta for r in earn_rows)

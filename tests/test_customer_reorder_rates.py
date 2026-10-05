@@ -14,8 +14,9 @@ The helper returns:
 - top_repeaters (top N customers by total_orders)
 
 All bucketing must use Asunción local time since that's the unit
-operators reason about ("Saskia usually orders on Saturdays").
+operators reason about ("the operator usually orders on Saturdays").
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -64,7 +65,7 @@ def test_customer_reorder_rate_counts_repeats(session_factory):
         now = datetime.now(ASUNCION_TZ)
         # 3 orders spaced 7 days apart
         for i in range(3):
-            t = (now - timedelta(days=14) + i * timedelta(days=7))
+            t = now - timedelta(days=14) + i * timedelta(days=7)
             make_sale(
                 s,
                 product=product,
@@ -76,12 +77,8 @@ def test_customer_reorder_rate_counts_repeats(session_factory):
             s.query(type(customer)).filter_by(id=cid).first()
         # Re-fetch and tag the sales with customer_id
         from app.rms.models import Sale
-        sales = (
-            s.query(Sale)
-            .filter(Sale.product_id == product.id)
-            .order_by(Sale.sold_at)
-            .all()
-        )
+
+        sales = s.query(Sale).filter(Sale.product_id == product.id).order_by(Sale.sold_at).all()
         for sale in sales:
             sale.customer_id = cid
         s.commit()

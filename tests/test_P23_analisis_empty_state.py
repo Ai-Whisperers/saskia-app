@@ -18,6 +18,7 @@ These tests verify:
 5. Currency values use the "Gs." prefix.
 6. Sections that have content use real numbers, not "-0%" sentinels.
 """
+
 from __future__ import annotations
 
 import re
@@ -51,13 +52,8 @@ def test_peak_hour_label_is_unambiguous(client):
         assert m is not None
         # Check the next ~30 chars after the match for a disambiguator
         idx = m.end()
-        window = body[idx:idx + 30]
-        assert (
-            "hs" in window.lower()
-            or "AM" in window
-            or "PM" in window
-            or "—" in window
-        ), (
+        window = body[idx : idx + 30]
+        assert "hs" in window.lower() or "AM" in window or "PM" in window or "—" in window, (
             "Peak hour shows bare 'HH:00' which is ambiguous "
             "(audit #9). Add 'hs' (e.g. '10:00 hs') or AM/PM."
         )
@@ -76,7 +72,7 @@ def test_erosion_alerts_section_guarded_by_truthiness(client):
         idx = body.find("Alerta: margen cayendo")
         # Look forward up to the next </section>
         end = body.find("</section>", idx)
-        chunk = body[idx:end if end > 0 else idx + 5000]
+        chunk = body[idx : end if end > 0 else idx + 5000]
         # Count rows with "-0%" or "—" in the Δ Margen column
         sentinel_rows = len(re.findall(r"badge[^>]*>↓\s*-?\d+%\s*<", chunk))
         em_dash_rows = len(re.findall(r">—</span>", chunk))
@@ -100,7 +96,7 @@ def test_turnover_section_uses_real_numbers_or_empty_state(client):
         # The section is present. Check whether all rows show 0.0/0.
         idx = body.find("Rotación de stock")
         end = body.find("</section>", idx)
-        chunk = body[idx:end if end > 0 else idx + 5000]
+        chunk = body[idx : end if end > 0 else idx + 5000]
         # Look for the data rows (each <tr> in the table)
         rows = re.findall(r"<tr>(.+?)</tr>", chunk, re.DOTALL)
         if len(rows) > 1:  # first is the header
@@ -125,8 +121,7 @@ def test_analisis_uses_guarani_currency_format(client):
     # Check that at least one currency value uses 'Gs.'
     if "Gs." not in body and "PYG" not in body:
         pytest.fail(
-            "No currency formatting on /analisis. "
-            "Use 'Gs. 20.000' (dot separator, no decimals)."
+            "No currency formatting on /analisis. Use 'Gs. 20.000' (dot separator, no decimals)."
         )
 
 

@@ -4,6 +4,7 @@ After every successful sale, the system should attempt to send a
 receipt to the configured printer. Failures are logged but do NOT
 block the sale (the printer is operational, not transactional).
 """
+
 from __future__ import annotations
 
 
@@ -26,6 +27,7 @@ def test_sale_creation_triggers_printer(client, session_factory, monkeypatch):
 
     # Patch send_to_printer to record calls
     calls = []
+
     def fake_send(payload, config):
         calls.append((payload, config))
         return {"sent": True, "sink": "test"}
@@ -46,6 +48,7 @@ def test_sale_creation_triggers_printer(client, session_factory, monkeypatch):
 def test_sale_failure_does_not_trigger_printer(client, monkeypatch):
     """Failed POST (validation) does NOT fire the printer."""
     calls = []
+
     def fake_send(payload, config):
         calls.append(payload)
         return {"sent": True}

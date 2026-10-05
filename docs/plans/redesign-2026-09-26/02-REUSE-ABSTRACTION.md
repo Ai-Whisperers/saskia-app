@@ -54,7 +54,7 @@ Location: extend `app/services/template_render.py` (registered as Jinja globals 
 | `category_picker` / `tag_picker` (tags.html) | form pickers | |
 | `week_grid` / `month_grid` (calendar.html) | calendar | |
 | `confirm_modal` (confirm_modal.html) + `SaskiaConfirmModal.show()` JS | destructive confirms | MANDATE (H-track) |
-| `saskia-combo` (JS) | selects | zero-native-select invariant |
+| `ui-combo` (JS) | selects | zero-native-select invariant |
 | `customer_picker` (_customer_picker.html) | client search | reuse on pedidos-nuevo |
 
 ## 3.2 New atoms to BUILD (Phase 0 — before any page work)
@@ -127,7 +127,7 @@ Location: `app/rms/nav.py` (new). One edit updates nav + crumbs + menu + search 
 
 # 8. WHAT EXISTS TODAY AND MUST NOT BE REBUILT (avoid duplication)
 
-- money/qty display (macros), combos (saskia-combo), confirm modal + reason field, calendar grids, tag/category pickers, customer picker, chart_card + freshness, delta_pill, insight cards, sidebar/topbar shell (app-shell.css), dark theme via tokens, ⌘K search modal (JS exists), Nuevo dropdown (JS exists), pagination pattern, quick-sell grid (ventas), escandallo live-calc JS (receta form), tabs JS (pedidos), shoot-all-pages + zip pipeline, Playwright page-object layer, factories/flows test lib, route-manifest, prod deploy flow (tag :prod + update --force).
+- money/qty display (macros), combos (ui-combo), confirm modal + reason field, calendar grids, tag/category pickers, customer picker, chart_card + freshness, delta_pill, insight cards, sidebar/topbar shell (app-shell.css), dark theme via tokens, ⌘K search modal (JS exists), Nuevo dropdown (JS exists), pagination pattern, quick-sell grid (ventas), escandallo live-calc JS (receta form), tabs JS (pedidos), shoot-all-pages + zip pipeline, Playwright page-object layer, factories/flows test lib, route-manifest, prod deploy flow (tag :prod + update --force).
 - Every redesign PR that touches these EXTENDS them; none forks them.
 
 # 9. BUILD ORDER (atomic PR sequence for Phase 0)

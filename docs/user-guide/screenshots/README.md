@@ -36,8 +36,8 @@ For each section of the user guide, capture the corresponding page:
 
 ## How to capture
 
-1. Run `scripts/capture_screenshots.py` (logs in as `saskia@paragu-ai.com`).
-2. Save raw HTML output to `/tmp/saskia_pages/`.
+1. Run `scripts/capture_screenshots.py` (logs in as `demo@sazon.app`).
+2. Save raw HTML output to `/tmp/sazon_pages/`.
 3. Use a headless browser (e.g. `playwright` or `chromium --headless`)
    to render HTML → PNG.
 4. Drop PNGs into this directory.

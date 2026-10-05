@@ -23,9 +23,14 @@ from app.rms.tagging import (
 
 def _ing(session, name, *, allergens=None, dietary=None, packaging=False, may_contain=False):
     i = Ingredient(
-        name=name, unit="g", stock_qty=10, purchase_price_gs=100,
-        allergens=allergens, dietary_tags=dietary,
-        is_packaging=packaging, may_contain_gluten=may_contain,
+        name=name,
+        unit="g",
+        stock_qty=10,
+        purchase_price_gs=100,
+        allergens=allergens,
+        dietary_tags=dietary,
+        is_packaging=packaging,
+        may_contain_gluten=may_contain,
     )
     session.add(i)
     session.flush()
@@ -43,6 +48,7 @@ def _recipe(session, name, lines, yield_qty=10):
 
 
 # ── Allergen union ─────────────────────────────────────────────────────────
+
 
 def test_allergen_union_across_lines(session_factory):
     with session_factory() as s:
@@ -73,12 +79,15 @@ def test_undeclared_allergens_tracked(session_factory):
 
 # ── Dietary intersection ───────────────────────────────────────────────────
 
+
 def test_dietary_intersection_keeps_common_tags(session_factory):
     with session_factory() as s:
         a = _ing(s, "Harina de arroz", dietary="sin gluten,sin tacc,sin lactosa")
         b = _ing(s, "Agua")
         _recipe(s, "Sin gluten ok", [("ingredient", a.id, 200), ("ingredient", b.id, 100)])
-        d = derive_recipe_tags(s, 1, candidate_tags=["sin gluten", "sin tacc", "sin lactosa", "vegano"])
+        d = derive_recipe_tags(
+            s, 1, candidate_tags=["sin gluten", "sin tacc", "sin lactosa", "vegano"]
+        )
         assert "sin gluten" in d.dietary
         assert "sin tacc" in d.dietary
         assert "sin lactosa" in d.dietary
@@ -101,7 +110,11 @@ def test_neutral_ingredients_never_block(session_factory):
         rice = _ing(s, "Harina de arroz", dietary="sin gluten")
         sal = _ing(s, "Sal fina", dietary=None)  # undeclared but neutral
         agua = _ing(s, "Agua", dietary=None)
-        _recipe(s, "Salado", [("ingredient", rice.id, 200), ("ingredient", sal.id, 5), ("ingredient", agua.id, 300)])
+        _recipe(
+            s,
+            "Salado",
+            [("ingredient", rice.id, 200), ("ingredient", sal.id, 5), ("ingredient", agua.id, 300)],
+        )
         d = derive_recipe_tags(s, 1, candidate_tags=["sin gluten"])
         assert "sin gluten" in d.dietary
 
@@ -140,6 +153,7 @@ def test_packaging_excluded_from_claims(session_factory):
 
 # ── Tree walker ────────────────────────────────────────────────────────────
 
+
 def test_walk_resolves_nested_subrecipes(session_factory):
     with session_factory() as s:
         a = _ing(s, "Ing A", dietary="vegano")
@@ -165,6 +179,7 @@ def test_cycle_guard_cuts_and_reports(session_factory):
 
 
 # ── Cascade ────────────────────────────────────────────────────────────────
+
 
 def test_cascade_refresh_touches_transitive_parents(session_factory):
     with session_factory() as s:
@@ -201,11 +216,13 @@ def test_ingredient_blocks_unit_semantics():
         name = "Sal gruesa"
         dietary_tags = None
         may_contain_gluten = False
+
     assert ingredient_blocks(FakeIng(), "vegano") is False  # neutral never blocks
 
     class FakeWheat:
         name = "Harina 000"
         dietary_tags = "integral"
         may_contain_gluten = False
+
     assert ingredient_blocks(FakeWheat(), "sin gluten") is True
     assert ingredient_blocks(FakeWheat(), "integral") is False

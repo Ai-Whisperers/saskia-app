@@ -11,6 +11,7 @@ Scope of the range mode:
 - Bad dates fall back to checklist mode
 - Start > end falls back to checklist mode
 """
+
 # allow-hardcoded-dates: range tests use literal 2026-09 dates.
 from __future__ import annotations
 
@@ -20,8 +21,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from datetime import datetime, timedelta, timezone
-
-import pytest
 
 from app.rms.models import Sale, WasteLog
 
@@ -37,17 +36,28 @@ def test_eod_default_is_checklist_mode(client):
 def test_eod_range_mode_renders_summary(client, session_factory):
     """With start+end the page renders range-mode header + totals."""
     from tests.factories import make_sellable
+
     with session_factory() as s:
         product = make_sellable(s)
         today = datetime.now(timezone.utc)
-        s.add(Sale(
-            product_id=product.id, qty=2.0, unit_price_gs=10000,
-            sold_at=today - timedelta(days=1), voided_at=None,
-        ))
-        s.add(WasteLog(
-            ingredient_id=1, qty=0.5, reason="vencido",
-            cost_gs=5000, recorded_at=today - timedelta(days=1),
-        ))
+        s.add(
+            Sale(
+                product_id=product.id,
+                qty=2.0,
+                unit_price_gs=10000,
+                sold_at=today - timedelta(days=1),
+                voided_at=None,
+            )
+        )
+        s.add(
+            WasteLog(
+                ingredient_id=1,
+                qty=0.5,
+                reason="vencido",
+                cost_gs=5000,
+                recorded_at=today - timedelta(days=1),
+            )
+        )
         s.commit()
     today_d = datetime.now().date()
     start = (today_d - timedelta(days=3)).isoformat()
@@ -65,15 +75,21 @@ def test_eod_range_mode_renders_summary(client, session_factory):
 def test_eod_range_mode_aggregates_sales(client, session_factory):
     """Sum of ventas in range = sum of (qty * unit_price_gs) for in-range sales."""
     from tests.factories import make_sellable
+
     with session_factory() as s:
         product = make_sellable(s)
         today = datetime.now(timezone.utc)
         # 2 sales × Gs. 10000 = Gs. 20000 total
-        for i in range(2):
-            s.add(Sale(
-                product_id=product.id, qty=1.0, unit_price_gs=10000,
-                sold_at=today - timedelta(days=1), voided_at=None,
-            ))
+        for _i in range(2):
+            s.add(
+                Sale(
+                    product_id=product.id,
+                    qty=1.0,
+                    unit_price_gs=10000,
+                    sold_at=today - timedelta(days=1),
+                    voided_at=None,
+                )
+            )
         s.commit()
     today_d = datetime.now().date()
     start = (today_d - timedelta(days=3)).isoformat()

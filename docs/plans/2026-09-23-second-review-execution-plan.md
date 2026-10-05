@@ -1,10 +1,10 @@
-# Saskia RMS — Second Review Execution Plan
+# Sazón — Second Review Execution Plan
 
 **Date:** 2026-09-23
 **Source specs:**
-- `/opt/data/profiles/ivan/attachments/Saskia 2nd review-2.txt` (transcript)
+- `/opt/data/profiles/ivan/attachments/the operator 2nd review-2.txt` (transcript)
 - `/opt/data/profiles/ivan/attachments/2026-09-23-second-review-stories-2.docx` (11 user stories across 4 epics)
-**Repo:** `/opt/data/work/saskia-app` (clone of `Ai-Whisperers/saskia-app`)
+**Repo:** `/opt/data/work/sazon-app` (clone of `Ai-Whisperers/sazon-app`)
 **HEAD:** `9831ea4` (matches `origin/main` — clean tree)
 **Test baseline:** 1753 tests across 207 files
 
@@ -14,11 +14,11 @@
 
 Before I write a plan, three things I learned from the prior sessions that the 11 stories don't show on their own:
 
-1. **Yesterday (2026-09-22)** I delivered `docs/operations/2026-09-22-review-tickets-analysis.md` — an analysis of the **first** review's 18 tickets. **Most are still unfixed.** The "PRO-04 (Ver receta link)", "PRO-02 (fractional qty)", "MER-01 (unit selector)", "PRO-01 (weekly template doesn't persist)" are exactly the same bugs Saskia is hitting in the second review. The second-review docx is the second pass; the first-review tickets were never closed.
+1. **Yesterday (2026-09-22)** I delivered `docs/operations/2026-09-22-review-tickets-analysis.md` — an analysis of the **first** review's 18 tickets. **Most are still unfixed.** The "PRO-04 (Ver receta link)", "PRO-02 (fractional qty)", "MER-01 (unit selector)", "PRO-01 (weekly template doesn't persist)" are exactly the same bugs the operator is hitting in the second review. The second-review docx is the second pass; the first-review tickets were never closed.
 
 2. **The v3 epic plan already scopes this work** — E21 = Production Plans (covers US 3.3 templates), E8.S2 = days-of-stock forecast (covers US 2.3), and several stories from E8/E18 cover US 2.2 price history. The 11 stories aren't new epics; they're real-world acceptance criteria for planned-but-unbuilt (or partially-built) epics.
 
-3. **The `flour / multi-package` modeling decision (item 3b in the first analysis) is the gate.** US 2.2 ("show fluctuation") is half-built — `IngredientPriceEvent` records events but a single ingredient has one `purchase_price_gs`. Saskia's "harina 1kg / 250g / supplier X" needs a schema decision before the history chart is meaningful.
+3. **The `flour / multi-package` modeling decision (item 3b in the first analysis) is the gate.** US 2.2 ("show fluctuation") is half-built — `IngredientPriceEvent` records events but a single ingredient has one `purchase_price_gs`. the operator's "harina 1kg / 250g / supplier X" needs a schema decision before the history chart is meaningful.
 
 ---
 
@@ -28,13 +28,13 @@ I split the 11 stories + yesterday's 18-ticket carryover into 7 sprints with str
 
 | Sprint | Stories | Est | Branch | Why in this order |
 |---|---|---|---|---|
-| **S1 — UI cleanup** | US 1.1 (Spanish + image modal) | 3 h | `fix/saskia-r2-ui-spanish-images` | First-impression fix; unblocks everything else by clearing noise. |
-| **S2 — Link/href fixes** | First-review PRO-04 (Ver receta) + PRO-02 (whole-number qty) + MER-03 (English on Merma) | 2 h | `fix/saskia-r2-small-href-copy` | Tiny, isolated, all on existing templates. Closes carryover from yesterday. |
-| **S3 — Inventory + categories** | US 2.1 (labels/categories on-the-fly) + INV-03 (negative-stock clamp, Spanish urgency label) | 6 h | `feat/saskia-r2-labels-and-stock-display` | The two stories share the inventory form & template. |
-| **S4 — Recipe polish** | US 3.1 (sub-recipe UI verify) + US 3.2 (reverse ingredient filter in template) | 4 h | `feat/saskia-r2-recipe-filters` | Backend exists; wiring UI only. Fast wins. |
-| **S5 — Sales split + Quick-Sell** | US 4.3 (history vs nueva-venta tab) + US 4.2 (Quick-Sell panel + multi-field customer search) | 8 h | `feat/saskia-r2-pos-split` | POS-focused; biggest UX win. |
-| **S6 — Pedidos → Production** | US 4.4 (encargos to production auto-suggest) + CIE-01 (overlay completions in /produccion) | 5 h | `feat/saskia-r2-pedidos-production-bridge` | Closes the day's two flagship workflows. |
-| **S7 — Schema decisions** | US 2.2 (price history chart) + US 2.3 (predictive forecast) + US 3.3 (production templates) + US 4.1 (packaging at sale) | 12 h + modeling decision | `feat/saskia-r2-data-models` | **Blocked on operator decisions** for flour / multi-package + forecast horizon. |
+| **S1 — UI cleanup** | US 1.1 (Spanish + image modal) | 3 h | `fix/sazon-r2-ui-spanish-images` | First-impression fix; unblocks everything else by clearing noise. |
+| **S2 — Link/href fixes** | First-review PRO-04 (Ver receta) + PRO-02 (whole-number qty) + MER-03 (English on Merma) | 2 h | `fix/sazon-r2-small-href-copy` | Tiny, isolated, all on existing templates. Closes carryover from yesterday. |
+| **S3 — Inventory + categories** | US 2.1 (labels/categories on-the-fly) + INV-03 (negative-stock clamp, Spanish urgency label) | 6 h | `feat/sazon-r2-labels-and-stock-display` | The two stories share the inventory form & template. |
+| **S4 — Recipe polish** | US 3.1 (sub-recipe UI verify) + US 3.2 (reverse ingredient filter in template) | 4 h | `feat/sazon-r2-recipe-filters` | Backend exists; wiring UI only. Fast wins. |
+| **S5 — Sales split + Quick-Sell** | US 4.3 (history vs nueva-venta tab) + US 4.2 (Quick-Sell panel + multi-field customer search) | 8 h | `feat/sazon-r2-pos-split` | POS-focused; biggest UX win. |
+| **S6 — Pedidos → Production** | US 4.4 (encargos to production auto-suggest) + CIE-01 (overlay completions in /produccion) | 5 h | `feat/sazon-r2-pedidos-production-bridge` | Closes the day's two flagship workflows. |
+| **S7 — Schema decisions** | US 2.2 (price history chart) + US 2.3 (predictive forecast) + US 3.3 (production templates) + US 4.1 (packaging at sale) | 12 h + modeling decision | `feat/sazon-r2-data-models` | **Blocked on operator decisions** for flour / multi-package + forecast horizon. |
 
 **S7 is the hardest sprint and the one I cannot start without your decisions.** S1-S6 can ship without them.
 
@@ -46,15 +46,15 @@ Total: **30 h code + 2 h modeling discussion + 8 h ops (branching, tests, deploy
 
 Per your instruction "make a complete plan first and then implement it" — here is the literal sequence I will run as soon as you say **go**:
 
-1. `git checkout -b fix/saskia-r2-ui-spanish-images` (S1)
-2. `cd /opt/data/work/saskia-app && uv sync --all-extras`
+1. `git checkout -b fix/sazon-r2-ui-spanish-images` (S1)
+2. `cd /opt/data/work/sazon-app && uv sync --all-extras`
 3. `uv run pytest tests/ -q` (baseline 1753)
 4. Edit `app/templates/producto_form.html` and `productos.html`: Portuguese→Spanish, image → modal trigger
 5. New test: `tests/test_product_image_modal.py` (asserts image starts hidden, modal opens on click)
 6. `uv run pytest tests/test_product_image_modal.py -q && uv run ruff check . && uv run ruff format --check .`
 7. `app/CHANGELOG.md` entry under `[Unreleased]` — one line, no narrative
-8. Commit `fix(saskia-r2): Spanish + image modal on producto form` (one commit)
-9. `git push origin fix/saskia-r2-ui-spanish-images`
+8. Commit `fix(sazon-r2): Spanish + image modal on producto form` (one commit)
+9. `git push origin fix/sazon-r2-ui-spanish-images`
 10. Open draft PR with the CHANGELOG line and the test summary
 
 Then S2 → S3 → ... → S6. **S7 waits for the schema decisions.**
@@ -66,7 +66,7 @@ Then S2 → S3 → ... → S6. **S7 waits for the schema decisions.**
 These are blocking, not "nice to have." Without them I'll be guessing the data model.
 
 ### Decision A — Flour / multi-package modeling
-Saskia wants one ingredient `harina` with sub-rows `harina 1kg`, `harina 250g`, `harina proveedor X`. Three options:
+the operator wants one ingredient `harina` with sub-rows `harina 1kg`, `harina 250g`, `harina proveedor X`. Three options:
 
 - **A1.** Add `supplier_variant` table: `(ingredient_id, package_size, package_unit, purchase_price_gs, supplier_id, preferred)` — price history ties to variant, not ingredient. (Recommended — cleanest, matches price_event model.)
 - **A2.** Parent/child ingredient rows with FK — heavier, recurses forever, breaks the current cost math.
@@ -104,7 +104,7 @@ Saskia wants one ingredient `harina` with sub-rows `harina 1kg`, `harina 250g`, 
 | Schema decision A takes >1 turn to decide | High | Medium | I default to **A1** if you don't respond within one turn; reversible via migration |
 | `/ventas` 500 (per yesterday's ticket A.2) still broken on real Neon | High | High | Add `tests/test_ventas_200_with_real_neon.py` (skip-on-no-docker) before touching S5 |
 | Coverage gate (80%) trips on the new tests | Low | Medium | Add tests with the feature; never lower the gate |
-| Saskia sends the old Excel by mistake → recipe dropdown goes stale | Medium | Low | Document in CHANGELOG: "import path unchanged; awaiting operator to refresh" |
+| the operator sends the old Excel by mistake → recipe dropdown goes stale | Medium | Low | Document in CHANGELOG: "import path unchanged; awaiting operator to refresh" |
 
 ---
 

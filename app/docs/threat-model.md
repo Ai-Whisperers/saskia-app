@@ -1,4 +1,4 @@
-# Threat model — Saskia RMS
+# Threat model — Sazón
 
 > **For Kiki and any future agent reading the app repo.** Defines what we defend
 > against, what we deliberately don't defend against, and why.
@@ -24,7 +24,7 @@ to keep the laptop itself private. We don't add login screens.
 | Negative stock after sales | Allowed (kitchen reality > accounting purity) but red-flash alert on dashboard. |
 | Auto-overwrite of recipes during re-import | Confirmation modal showing diff; auto-backup before mutation. |
 | Silent PII in PRs | Pre-commit hook blocks `.env`, `credentials.json`, `id_rsa`. Reviewer blocks accidental commits of PII. |
-| Logging PII to third parties | Logs are local-only (loguru → `~/AppData/Local/AIW-Saskia/logs/app.log`). No Sentry, no Datadog, no third-party telemetry. |
+| Logging PII to third parties | Logs are local-only (loguru → `~/AppData/Local/aiw-restaurant/logs/app.log`). No Sentry, no Datadog, no third-party telemetry. |
 | CloudFlare R2 holding plaintext data | Encrypted with `age` on her laptop BEFORE upload. R2 holds ciphertext only. |
 | CloudFlare R2 breach leaking data | Same: ciphertext is useless without the `age` key, which is on her laptop. |
 
@@ -44,14 +44,14 @@ to keep the laptop itself private. We don't add login screens.
 
 | Tier | Examples | Where it lives |
 |---|---|---|
-| **PII (private)** | Saskia's name, address, phone, bank account, ID | `saskia-context` (private repo), never in `saskia-app` |
+| **PII (private)** | the operator's name, address, phone, bank account, ID | `sazon-context` (private repo), never in `sazon-app` |
 | **Operational (private-but-local)** | Recipe ingredients, supplier names, sale history | Local SQLite on her PC. Encrypted R2 snapshots. |
 | **Anonymized aggregates** (NOT YET BUILT) | "Top 5 products by margin" | Could be derived from operational data. Not built in fase 1. |
-| **Public** | The app's source code | `saskia-app` (public repo). No PII. |
+| **Public** | The app's source code | `sazon-app` (public repo). No PII. |
 
 ## Incident response
 
-If PII is accidentally committed to `saskia-app` (which is public):
+If PII is accidentally committed to `sazon-app` (which is public):
 
 1. Reviewer MUST block the PR.
 2. Notify operator (Ivan) immediately via WhatsApp.
@@ -61,12 +61,12 @@ If PII is accidentally committed to `saskia-app` (which is public):
 5. Lower exposure: was it a private repo? Was it pushed only to a feature branch?
    Was it tagged?
 6. If pushed to public main: GH Archive, Software Heritage already cached. Focus
-   becomes damage control (Saskia notification, bank statement fraud alerts, etc.).
+   becomes damage control (the operator notification, bank statement fraud alerts, etc.).
 7. Add post-mortem to `docs/sessions/` (the post-mortem itself contains no PII).
 
 ## Audit trail
 
-- Every commit in `saskia-app` is public + signed by GitHub user `Ivan van der Pol`.
+- Every commit in `sazon-app` is public + signed by GitHub user `Ivan van der Pol`.
 - Every PR has review before merge (Kiki or operator).
 - Auto-backup events are logged in `app.log` with timestamp + filename (no PII).
 - R2 uploads are logged with the timestamp and ciphertext filename (no plaintext).
@@ -76,4 +76,4 @@ If PII is accidentally committed to `saskia-app` (which is public):
 
 When in doubt: **assume the OS user account is the trust boundary.** Don't build
 auth in the app. Don't build RBAC. Don't build audit logs beyond what we already have.
-If Saskia wants multi-user in the future, that's a Fase 2 quote.
+If the operator wants multi-user in the future, that's a Fase 2 quote.

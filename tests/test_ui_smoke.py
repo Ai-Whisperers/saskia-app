@@ -34,15 +34,22 @@ def _seed_min_catalog(session_factory):
     from tests.factories import ing_line, make_ingredient, make_product, make_recipe, make_sale
 
     with session_factory() as s:
-        flour = make_ingredient(s, name="Harina", unit="kg", stock_qty=2.0,
-                                purchase_price_gs=5000, min_stock_qty=1.0)
-        egg = make_ingredient(s, name="Huevo", unit="und", stock_qty=20.0,
-                              purchase_price_gs=1500, min_stock_qty=0.0)
-        recipe = make_recipe(s, name="Muffin", yield_qty=12.0, yield_unit="und",
-                             lines=[ing_line(flour, qty=0.3, unit="kg"),
-                                    ing_line(egg, qty=2.0, unit="und")])
-        product = make_product(s, name="Muffin", recipe=recipe, sale_price_gs=8000,
-                               portion_label="1 muffin")
+        flour = make_ingredient(
+            s, name="Harina", unit="kg", stock_qty=2.0, purchase_price_gs=5000, min_stock_qty=1.0
+        )
+        egg = make_ingredient(
+            s, name="Huevo", unit="und", stock_qty=20.0, purchase_price_gs=1500, min_stock_qty=0.0
+        )
+        recipe = make_recipe(
+            s,
+            name="Muffin",
+            yield_qty=12.0,
+            yield_unit="und",
+            lines=[ing_line(flour, qty=0.3, unit="kg"), ing_line(egg, qty=2.0, unit="und")],
+        )
+        product = make_product(
+            s, name="Muffin", recipe=recipe, sale_price_gs=8000, portion_label="1 muffin"
+        )
         sale = make_sale(s, product=product, qty=2.0)
         s.commit()
         return flour.id, egg.id, recipe.id, product.id, sale.id

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 
@@ -30,19 +30,21 @@ def _walk_recipe_ids(session: Session, recipe_ids: list[int]) -> set[int]:
             break
         out.update(batch)
         # Children: sub_recipe lines FROM these recipes point at their children.
-        rows = session.execute(
-            select(RecipeLine.line_ref_id).where(
-                RecipeLine.line_kind == "sub_recipe",
-                RecipeLine.recipe_id.in_(batch),
+        rows = (
+            session.execute(
+                select(RecipeLine.line_ref_id).where(
+                    RecipeLine.line_kind == "sub_recipe",
+                    RecipeLine.recipe_id.in_(batch),
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         frontier = list(set(rows))
     return out
 
 
-def product_cost_freshness(
-    session: Session, products: list
-) -> dict[int, datetime | None]:
+def product_cost_freshness(session: Session, products: list) -> dict[int, datetime | None]:
     """Map product_id → latest ingredient-price timestamp (or None).
 
     None means: no recipe, or the recipe tree has zero priced events —
@@ -65,23 +67,26 @@ def product_cost_freshness(
                 RecipeLine.recipe_id.in_(all_recipe_ids),
                 RecipeLine.line_kind == "ingredient",
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     if not ingredient_ids:
         return {p.id: None for p in products}
 
     # latest event per ingredient, then we walk product→recipe→ingredients
     # in Python using the identity maps (still O(1) queries).
-    latest_by_ingredient: dict[int, datetime] = {}
-    for ing_id, recorded_at in session.execute(
-        select(
-            IngredientPriceEvent.ingredient_id,
-            func_max_recorded_at(),
-        )
-        .where(IngredientPriceEvent.ingredient_id.in_(ingredient_ids))
-        .group_by(IngredientPriceEvent.ingredient_id)
-    ).all():
-        latest_by_ingredient[ing_id] = recorded_at
+    latest_by_ingredient: dict[int, datetime] = {
+        ing_id: recorded_at
+        for ing_id, recorded_at in session.execute(
+            select(
+                IngredientPriceEvent.ingredient_id,
+                func_max_recorded_at(),
+            )
+            .where(IngredientPriceEvent.ingredient_id.in_(ingredient_ids))
+            .group_by(IngredientPriceEvent.ingredient_id)
+        ).all()
+    }
 
     # recipe → ingredient ids
     recipe_ings: dict[int, set[int]] = {}
@@ -103,12 +108,16 @@ def product_cost_freshness(
             if not batch:
                 break
             seen.update(batch)
-            children = session.execute(
-                select(RecipeLine.line_ref_id).where(
-                    RecipeLine.line_kind == "sub_recipe",
-                    RecipeLine.recipe_id.in_(batch),
+            children = (
+                session.execute(
+                    select(RecipeLine.line_ref_id).where(
+                        RecipeLine.line_kind == "sub_recipe",
+                        RecipeLine.recipe_id.in_(batch),
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             frontier = list(set(children))
         return seen
 
@@ -121,17 +130,13 @@ def product_cost_freshness(
         ings: set[int] = set()
         for rid in tree_ids:
             ings |= recipe_ings.get(rid, set())
-        stamps = [
-            latest_by_ingredient[i] for i in ings if i in latest_by_ingredient
-        ]
+        stamps = [latest_by_ingredient[i] for i in ings if i in latest_by_ingredient]
         result[p.id] = max(stamps) if stamps else None
     return result
 
 
-def func_max_recorded_at():
+def func_max_recorded_at() -> "func":
     """max(IngredientPriceEvent.recorded_at) — small helper for readability."""
-    from sqlalchemy import func
-
     from app.rms.models import IngredientPriceEvent
 
     return func.max(IngredientPriceEvent.recorded_at)

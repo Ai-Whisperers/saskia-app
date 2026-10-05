@@ -3,7 +3,7 @@
 **Date:** 2026-09-17
 **Author:** Hermes (research + audit)
 **Status:** research memo — for operator review
-**Scope:** Visual / UX / interaction patterns of the three dominant cloud restaurant-management platforms, compared against the 3 Visual Revolution phases we just shipped to Saskia RMS Fase1.
+**Scope:** Visual / UX / interaction patterns of the three dominant cloud restaurant-management platforms, compared against the 3 Visual Revolution phases we just shipped to Sazón Fase1.
 
 This is a **research memo**, not a code PR. No templates, CSS, or routes were touched. All findings are concrete and tied to evidence in the cited sources.
 
@@ -11,7 +11,7 @@ This is a **research memo**, not a code PR. No templates, CSS, or routes were to
 
 ## TL;DR
 
-| Dimension | Toast | Square (Market) | Lightspeed (Restaurant O-Series) | **Saskia RMS (post-Phase0–5)** |
+| Dimension | Toast | Square (Market) | Lightspeed (Restaurant O-Series) | **Sazón (post-Phase0–5)** |
 |---|---|---|---|---|
 | Visual identity | Vibrant orange CTA pills, bento-style landing layouts (Reigel Design Web Refresh 2.5) | Black + cream `#f7f6f5` canvas, serif display headlines (Exact Block), blue `#006aff` used as a *scarce* brand colour (~19 uses/page) | Clean blue + green palette, iOS-native feel, large floor plans, dense dashboards | **Orange-700 `#c2410c` brand, full token system, dark mode complete, hand-rolled SVG charts** |
 | Dashboard shape | "Weekly Overview" with 4 key-metric sections (Sales / Labor / Guest Count / Top Items) | Customizable dashboard of metric cards + line/bar visualizations | "Customizable assortment of graphs and stats" + Upserve-inherited Advanced Insights cards | **5-card dashboard grid (hourly bars / 30-day trend / payment donut / top products / low-stock alerts) + 3 metric cards + 4 insight cards + period toggle** |
@@ -27,7 +27,7 @@ This is a **research memo**, not a code PR. No templates, CSS, or routes were to
 | Theme | Light only (Toast brand) | Light + Dark (Market system) | Light only | **Light + Dark + High-contrast** + reduced-motion respect |
 | Accessibility | No public WCAG audit found | Strong (Market public design system, EU EAA compliant) | iOS-native (some keyboard shortcuts via iPad) | **WCAG AA contrast verified** (5.18:1 on white, 6.49:1 dark), keyboard shortcuts, skip-link, landmarks, aria-live |
 
-**Headline:** Saskia RMS now sits in the **top 20–30%** of the visual quality range among cloud restaurant-management platforms — comparable to Lightspeed's modernized O-Series navigation, behind Square's market-leading brand expression (Exact Block serif + 50px cards + cream canvas), and competitive with Toast's weekly-overview structure. **The biggest visual gap remaining is brand expression** — Square's bespoke typography system and Toast's continuous visual refinement (Web Refresh 2.5, redesigned Register UI March 2024, voice-ordering kiosks October 2025) demonstrate that visual quality is a continuous investment, not a one-time project.
+**Headline:** Sazón now sits in the **top 20–30%** of the visual quality range among cloud restaurant-management platforms — comparable to Lightspeed's modernized O-Series navigation, behind Square's market-leading brand expression (Exact Block serif + 50px cards + cream canvas), and competitive with Toast's weekly-overview structure. **The biggest visual gap remaining is brand expression** — Square's bespoke typography system and Toast's continuous visual refinement (Web Refresh 2.5, redesigned Register UI March 2024, voice-ordering kiosks October 2025) demonstrate that visual quality is a continuous investment, not a one-time project.
 
 ---
 
@@ -47,20 +47,20 @@ Toast's **Weekly Overview** is the canonical reporting shape:
 - **Top Selling Items section** displays the 7 highest-selling items with quantity sold per day, net sales, and percent change
 - Refreshes hourly
 
-> **What this means for Saskia:** Toast's "weekly overview + 4 key sections" is the industry-standard dashboard layout. We have the 4-section shape but per-day, not per-week. **Recommendation:** add a "Semana" toggle that's the default, with comparison vs. last week (one extra query + one comparison widget).
+> **What this means for the operator:** Toast's "weekly overview + 4 key sections" is the industry-standard dashboard layout. We have the 4-section shape but per-day, not per-week. **Recommendation:** add a "Semana" toggle that's the default, with comparison vs. last week (one extra query + one comparison widget).
 
 ### 1.3 Visual hierarchy on operational screens
 - "Color and information on the header of the ticket can be configured — typically restaurants configure the color to change depending on how long a ticket has been waiting — green at first, then orange and red as the wait progresses" (Toast KDS case study, Nikhila Nyapathy)
 - **Status color coding** (green/orange/red by wait time) is a deliberate visual signal. Toast uses color as a *functional* signal, not just decoration.
 
-> **Gap for Saskia:** our sale status is binary (Activa / Anulada badge). **Recommendation:** add color-coded prep/rush status indicators on the ventas table for kitchens running on tablet — green ≤ 5min, amber ≤ 15min, red > 15min since `sold_at`. Out of scope for Fase1 (no kitchen display in the codebase yet) but a Fase2 ticket.
+> **Gap for the operator:** our sale status is binary (Activa / Anulada badge). **Recommendation:** add color-coded prep/rush status indicators on the ventas table for kitchens running on tablet — green ≤ 5min, amber ≤ 15min, red > 15min since `sold_at`. Out of scope for Fase1 (no kitchen display in the codebase yet) but a Fase2 ticket.
 
 ### 1.4 Known visual issues (per verified practitioner research, 2023–2026)
 - **Toast Register UI** — September 2025 forced rollout produced "product search delays of two to three seconds" and "the cash drawer … opened at the end" of the transaction sequence (Creative Navy POS UX Benchmarking 2026). Multiple verified Square Community forum users cited as a regression.
 - **Toast KDS color change** — also broke cashier conditioning.
 - **Toast printer error account** — "persisted for two years across multiple support escalations, with delivery receipts printing to the wrong device throughout" (Capterra).
 
-> **Insight:** Toast has a *release velocity* problem that produces sense decay — the POS UX Benchmarking 2026 explicitly warns that "rapid release cycles that drive forced deployments without adequate transition support is transferring retraining cost to the operator on every cycle." **Saskia's Fase1 release discipline (15 fail-closed hotfix tests, 80% coverage gate, lockfile-pinned deps) is the opposite of this pattern** and is a quiet strength we should preserve.
+> **Insight:** Toast has a *release velocity* problem that produces sense decay — the POS UX Benchmarking 2026 explicitly warns that "rapid release cycles that drive forced deployments without adequate transition support is transferring retraining cost to the operator on every cycle." **the operator's Fase1 release discipline (15 fail-closed hotfix tests, 80% coverage gate, lockfile-pinned deps) is the opposite of this pattern** and is a quiet strength we should preserve.
 
 ---
 
@@ -85,9 +85,9 @@ From *Market — Square (Block) Design System Breakdown* (DesignSystems.one) and
 - **July 2025:** second redesign of Square POS app + Square Dashboard, described by Square's Head of Product for POS as "simplifying complex operations"
 - **October 2025:** "the platform's largest food and beverage release" — added AI-powered voice ordering, redesigned kiosk interface with larger fonts + picture-based categories, real-time menu sync across channels
 
-### 2.3 Patterns Saskia can borrow (low-effort wins)
+### 2.3 Patterns the operator can borrow (low-effort wins)
 
-| Square pattern | Saskia adaptation |
+| Square pattern | the operator adaptation |
 |---|---|
 | 3-tier typography split | Currently single stack — but **we have a `--font-display` token unused**. Adding a serif for `h1` only (24px+) on dashboard and key headings would add the visual rhythm without changing the body readability. |
 | Cream canvas `#f7f6f5` | **Already implemented** in our token system (`--cream`). |
@@ -98,7 +98,7 @@ From *Market — Square (Block) Design System Breakdown* (DesignSystems.one) and
 
 ### 2.4 Patterns to *not* copy
 - Square's 3-font-family system requires paid font licensing (Exact Block is in-house at Block). We deliberately avoid that.
-- Square's bespoke photography is impractical for a single-tenant Fase1 system with no brand assets yet. Saskia can defer this until Fase2 if she acquires brand assets.
+- Square's bespoke photography is impractical for a single-tenant Fase1 system with no brand assets yet. the operator can defer this until Fase2 if she acquires brand assets.
 
 ---
 
@@ -118,7 +118,7 @@ This is Lightspeed's competitive moat:
 - **Repeat Customer Tracking** — visit frequency, favorite items, lifetime value
 - **Peak hour analysis** with **15-minute granularity** (vs. our hourly buckets)
 
-> **Gap for Saskia:** we're nowhere close to per-server performance. But the *shape* — "specific alerts: 'Your Tuesday lunch sales are down 12% vs last month.' 'Your food cost on salmon is 38% (target: 30%).'" — is what Lightspeed calls "actionable insights" and is **the model we should target for Fase2** (the existing `app/rms/insights.py` already produces some of this — Stars, Dogs, Rising, Churning, ProductionTomorrow).
+> **Gap for the operator:** we're nowhere close to per-server performance. But the *shape* — "specific alerts: 'Your Tuesday lunch sales are down 12% vs last month.' 'Your food cost on salmon is 38% (target: 30%).'" — is what Lightspeed calls "actionable insights" and is **the model we should target for Fase2** (the existing `app/rms/insights.py` already produces some of this — Stars, Dogs, Rising, Churning, ProductionTomorrow).
 
 ### 3.3 Recent visual upgrades (2026)
 - **Lightspeed Tempo** now puts KPIs "front and center" and introduces new insight cards for **Emptiest Tables** and **Longest Service Gaps** (Aug 2026 release)
@@ -130,15 +130,15 @@ This is Lightspeed's competitive moat:
 - **15-minute granularity** for peak-hour analysis — restaurants operate in quarter-hour windows during rush
 - **Auto-generated reports** — staff can ask "Show my top 10 items this month" via AI
 
-> **What Saskia should steal:** the **insight-card shape** (an icon + headline + 1-sentence actionable text). Right now our `insights.stars` and `insights.dogs` show as raw `<ul>` lists. Wrap each insight in `.insight-card.severity-warn` / `.severity-danger` / `.severity-ok` with a 1-sentence recommendation and it instantly becomes "Lightspeed-quality."
+> **What the operator should steal:** the **insight-card shape** (an icon + headline + 1-sentence actionable text). Right now our `insights.stars` and `insights.dogs` show as raw `<ul>` lists. Wrap each insight in `.insight-card.severity-warn` / `.severity-danger` / `.severity-ok` with a 1-sentence recommendation and it instantly becomes "Lightspeed-quality."
 
 ---
 
-## 4. Where Saskia now sits — quantified scorecard
+## 4. Where the operator now sits — quantified scorecard
 
 Scoring on 10 dimensions, 1–5 scale (5 = best in class):
 
-| Dimension | Saskia pre-Phase0 | **Saskia post-Phase0–5** | Toast | Square | Lightspeed |
+| Dimension | the operator pre-Phase0 | **the operator post-Phase0–5** | Toast | Square | Lightspeed |
 |---|---|---|---|---|---|
 | Visual identity / brand | 1 | **3** | 4 | 5 | 3 |
 | Dashboard structure | 1 | **4** | 5 | 4 | 4 |
@@ -152,11 +152,11 @@ Scoring on 10 dimensions, 1–5 scale (5 = best in class):
 | Accessibility (WCAG AA + keyboard) | 2 | **5** | 2 | 5 | 3 |
 | **Total (out of 50)** | **13** | **38** | **38** | **49** | **33** |
 
-**Interpretation:** Saskia post-Phase0–5 ties with Toast on total score (38/50), trails Square (49/50 — their bespoke brand and Market design system are unbeatable), and beats Lightspeed (33/50 — denser dashboards, stronger insights, but visually more conservative). The score gap with Toast is in different dimensions: Toast wins on **brand identity** (4 vs our 3) and **data visualisation polish** (5 vs our 4); Saskia wins on **accessibility** (5 vs Toast's 2) and **card / surface design** (4 — same as Toast, but our token system is more flexible for Fase2 customisation).
+**Interpretation:** the operator post-Phase0–5 ties with Toast on total score (38/50), trails Square (49/50 — their bespoke brand and Market design system are unbeatable), and beats Lightspeed (33/50 — denser dashboards, stronger insights, but visually more conservative). The score gap with Toast is in different dimensions: Toast wins on **brand identity** (4 vs our 3) and **data visualisation polish** (5 vs our 4); the operator wins on **accessibility** (5 vs Toast's 2) and **card / surface design** (4 — same as Toast, but our token system is more flexible for Fase2 customisation).
 
 ---
 
-## 5. Concrete recommendations for Saskia Fase2
+## 5. Concrete recommendations for the operator Fase2
 
 ### P0 — cheap wins (< 2 hours each, can ship in 1 PR)
 
@@ -172,7 +172,7 @@ Scoring on 10 dimensions, 1–5 scale (5 = best in class):
 
 ### P1 — medium wins (1–2 days each, ship in next 1–2 PRs)
 
-6. **Add per-server performance** if Saskia has employee IDs in sales (check `app/rms/sales_intel.py`) — server check size, table turn time, upsell rate. Lightspeed's #1 feature.
+6. **Add per-server performance** if the operator has employee IDs in sales (check `app/rms/sales_intel.py`) — server check size, table turn time, upsell rate. Lightspeed's #1 feature.
 
 7. **Add food cost alerts** — already have the data in `app/rms/food_cost.py` and `app/rms/insights.py`. Surface as a top-of-dashboard card: "Tu food cost en salmón es 38% (objetivo: 30%)" — Lightspeed-style actionable copy.
 
@@ -184,7 +184,7 @@ Scoring on 10 dimensions, 1–5 scale (5 = best in class):
 
 ### P2 — strategic (Fase2 — 1+ week each)
 
-11. **Acquire brand assets** — Saskia needs at minimum a logo (SVG), 3–5 high-quality photos of her restaurant's actual food / staff / interior. Without these, we can't reach the top visual tier. Square's merchant photography is the differentiator; Saskia should match.
+11. **Acquire brand assets** — the operator needs at minimum a logo (SVG), 3–5 high-quality photos of her restaurant's actual food / staff / interior. Without these, we can't reach the top visual tier. Square's merchant photography is the differentiator; the operator should match.
 
 12. **3-tier typography** — pick one display serif (free options: Source Serif Pro, Tiempos Headline, Spectral). Use it only on `h1` + brand mark. Don't mix families — that breaks Square's "strict separation" rule.
 
@@ -231,8 +231,8 @@ Scoring on 10 dimensions, 1–5 scale (5 = best in class):
 - SelectHub — *NCR Voyix vs Galley* (2026 comparison)
 - Faun.dev — *Resengo vs SevenRooms: Restaurant Reservations Comparison* (2026)
 
-### Saskia RMS prior art (what we're comparing against)
-- `docs/plans/2026-09-17-saskia-visual-revolution-plan.md` — the plan
+### Sazón prior art (what we're comparing against)
+- `docs/plans/2026-09-17-sazon-visual-revolution-plan.md` — the plan
 - `app/static/app.css` (Phase 0 token system, 25 KB minified)
 - `app/templates/_components/icons.svg` (28 hand-authored SVG icons)
 - `app/templates/errors/{404,500}.html` (styled error pages)
@@ -244,11 +244,11 @@ Scoring on 10 dimensions, 1–5 scale (5 = best in class):
 
 ## 7. Recommended operator decisions
 
-1. **Do we want per-server performance?** (P1 item 6.) — Saskia operates the restaurant; she is the only server. But she's also the operator — knowing that "Saskia averages Gs. 35k per check vs. the Gs. 28k average" matters even for a single-server setup. **Recommendation:** build it; it's just a query.
+1. **Do we want per-server performance?** (P1 item 6.) — the operator operates the restaurant; she is the only server. But she's also the operator — knowing that "the operator averages Gs. 35k per check vs. the Gs. 28k average" matters even for a single-server setup. **Recommendation:** build it; it's just a query.
 
-2. **Do we want 15-minute peak-hour granularity?** (P1 item 9.) — Lightspeed's standard. For Saskia's small operation, hourly is probably fine. **Recommendation:** defer; revisit when she has a kitchen display.
+2. **Do we want 15-minute peak-hour granularity?** (P1 item 9.) — Lightspeed's standard. For the operator's small operation, hourly is probably fine. **Recommendation:** defer; revisit when she has a kitchen display.
 
-3. **Should we acquire brand assets now or after Fase2?** (P2 item 11.) — Brand assets are the single biggest visual differentiator. If Saskia can spare a Saturday to photograph her restaurant + 3–5 of her best-selling plates, the visual jump is significant. **Recommendation:** schedule for Fase2 kickoff.
+3. **Should we acquire brand assets now or after Fase2?** (P2 item 11.) — Brand assets are the single biggest visual differentiator. If the operator can spare a Saturday to photograph her restaurant + 3–5 of her best-selling plates, the visual jump is significant. **Recommendation:** schedule for Fase2 kickoff.
 
 4. **Is the `?` keyboard shortcuts modal enough, or should we add a visible "?" icon-button?** (P1 item 8.) — The modal exists; the icon doesn't. Discoverability is the issue. **Recommendation:** add the icon — 5-minute change.
 

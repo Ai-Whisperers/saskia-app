@@ -7,7 +7,7 @@ the running container — not a synthetic ping.
 ## Quick health check
 
 ```bash
-curl -s https://saskia-vps.paragu-ai.com/healthz/db | jq
+curl -s https://sazon-vps.paragu-ai.com/healthz/db | jq
 ```
 
 A 200 means the DB is reachable and the schema is consistent. A 503 means
@@ -36,7 +36,7 @@ The DB engine couldn't answer a trivial query. This is almost always:
 
 1. **Disk full** — VPS disk at 100%. `df -h /` on the host. Free space or extend.
 2. **Container can't reach the DB volume** — Swarm bind mount gone.
-   `docker service inspect saskia-vps_web | jq '.[0].Spec.TaskTemplate.Mounts'`.
+   `docker service inspect sazon-vps_web | jq '.[0].Spec.TaskTemplate.Mounts'`.
 3. **Postgres connection refused** (hosted) — Supabase project paused or
    network ACL change. Check Supabase dashboard.
 
@@ -50,9 +50,9 @@ skipped. Fix:
 # SSH into the VPS
 ssh root@38.9.96.179
 # Force a one-shot migration run inside the container:
-docker exec $(docker ps -q -f name=saskia-vps_web) aiw-saskia migrate
+docker exec $(docker ps -q -f name=sazon-vps_web) sazon migrate
 # Verify:
-curl -s https://saskia-vps.paragu-ai.com/healthz/db | jq '.migrations_pending'
+curl -s https://sazon-vps.paragu-ai.com/healthz/db | jq '.migrations_pending'
 ```
 
 If migrate keeps failing, the migration SQL is incompatible with the
@@ -65,7 +65,7 @@ Concurrent writes are unsafe. Restart triggers the post-Migration
 post-migration script didn't execute — check the container startup log:
 
 ```bash
-docker logs $(docker ps -q -f name=saskia-vps_web) --tail=200 | grep -i wal
+docker logs $(docker ps -q -f name=sazon-vps_web) --tail=200 | grep -i wal
 ```
 
 ### `last_audit_at` is hours/days old
@@ -84,7 +84,7 @@ than 200. Recommended config:
 | Setting          | Value                                  |
 |------------------|----------------------------------------|
 | Monitor type     | HTTPS                                  |
-| URL              | `https://saskia-vps.paragu-ai.com/healthz/db` |
+| URL              | `https://sazon-vps.paragu-ai.com/healthz/db` |
 | Monitoring interval | 5 minutes                           |
 | Timeout         | 10 seconds                              |
 | Alert contacts   | Telegram bot + email                   |
@@ -99,7 +99,7 @@ already using 4.
 Alerts come in via the AIW Telegram bot. When you see one:
 
 1. Open the runbook above.
-2. Run `curl -s https://saskia-vps.paragu-ai.com/healthz/db | jq`.
+2. Run `curl -s https://sazon-vps.paragu-ai.com/healthz/db | jq`.
 3. Follow the matching failure-mode section.
 4. After fixing, watch for one more 5-minute cycle to confirm recovery.
 

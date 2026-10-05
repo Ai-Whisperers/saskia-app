@@ -20,6 +20,7 @@ These tests cover the two required outcomes:
 - Test 2: POST with ``force=true`` fulfills the pedido; ingredient stock
   goes negative; the audit log records ``force_fulfilled_over_shortfall``.
 """
+
 from __future__ import annotations
 
 import json
@@ -36,7 +37,7 @@ def _seed_pedido_insufficient(session_factory):
     Returns (pedido_id, ingredient_id, product_id).
 
     Use uuid-named builder per fixture-collision pitfall in
-    saskia-rms-development SKILL.
+    sazon-rms-development SKILL.
     """
     from tests.factories import (
         ing_line,
@@ -156,25 +157,26 @@ def test_fulfill_with_force_proceeds_and_audits_shortfall(client, session_factor
 
     with session_factory() as s:
         pedido = s.get(Pedido, pedido_id)
-        assert pedido.status == "fulfilled", (
-            f"force=true must fulfill; status={pedido.status!r}"
-        )
+        assert pedido.status == "fulfilled", f"force=true must fulfill; status={pedido.status!r}"
         ing = s.get(Ingredient, ing_id)
         # qty=24 * (0.3/12) = 0.6 kg deducted from 0.5 kg → -0.1 kg.
-        assert ing.stock_qty < 0, (
-            f"force-fulfilled stock should go negative; got {ing.stock_qty}"
-        )
+        assert ing.stock_qty < 0, f"force-fulfilled stock should go negative; got {ing.stock_qty}"
 
         # Audit row carries the shortfalls so ops can audit the override.
         from app.rms.models import AuditLog
 
-        row = s.execute(
-            __import__("sqlalchemy").select(AuditLog)
-            .where(AuditLog.target_type == "pedido")
-            .where(AuditLog.target_id == str(pedido_id))
-            .where(AuditLog.action == "write.pedido.fulfill")
-            .order_by(AuditLog.id.desc())
-        ).scalars().first()
+        row = (
+            s.execute(
+                __import__("sqlalchemy")
+                .select(AuditLog)
+                .where(AuditLog.target_type == "pedido")
+                .where(AuditLog.target_id == str(pedido_id))
+                .where(AuditLog.action == "write.pedido.fulfill")
+                .order_by(AuditLog.id.desc())
+            )
+            .scalars()
+            .first()
+        )
         assert row is not None, "expected audit row for force-fulfill"
         # AuditLog.detail may round-trip as a JSON string depending on
         # dialect (SQLite stores as TEXT); tolerate either shape.
@@ -192,9 +194,7 @@ def test_fulfill_with_force_proceeds_and_audits_shortfall(client, session_factor
         assert "ingredient" in first and "shortfall" in first, (
             f"shortfall dict shape wrong; got {first!r}"
         )
-        assert first["shortfall"] > 0, (
-            f"shortfall should be positive; got {first['shortfall']!r}"
-        )
+        assert first["shortfall"] > 0, f"shortfall should be positive; got {first['shortfall']!r}"
 
 
 def test_fulfill_without_force_no_audit_force_detail(client, session_factory):
@@ -209,11 +209,13 @@ def test_fulfill_without_force_no_audit_force_detail(client, session_factory):
     from app.rms.models import AuditLog
 
     with session_factory() as s:
-        rows = s.execute(
-            __import__("sqlalchemy").select(AuditLog).where(
-                AuditLog.action == "write.pedido.fulfill"
+        rows = (
+            s.execute(
+                __import__("sqlalchemy")
+                .select(AuditLog)
+                .where(AuditLog.action == "write.pedido.fulfill")
             )
-        ).scalars().all()
-        assert rows == [], (
-            f"blocked fulfill must NOT write audit row; got {len(rows)} rows"
+            .scalars()
+            .all()
         )
+        assert rows == [], f"blocked fulfill must NOT write audit row; got {len(rows)} rows"

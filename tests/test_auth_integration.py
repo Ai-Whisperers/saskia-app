@@ -43,7 +43,8 @@ def _FakeSupabaseForIntegration():
             self._refresh[refresh] = email
 
         def sign_in_with_password(self, creds):
-            email = creds.get("username") or creds.get("email"); pw = creds.get("password", "")
+            email = creds.get("username") or creds.get("email")
+            pw = creds.get("password", "")
             if self.users.get(email) != pw:
                 raise Exception("Invalid login credentials")
             uid = next(
@@ -102,7 +103,9 @@ def test_login_with_invalid_credentials_redirects_with_error(client, supabase_au
     assert "error" in r.headers["location"]
 
 
-@pytest.mark.skip(reason="Fixture patching chain is order-dependent — needs refactor of fake client lifecycle")
+@pytest.mark.skip(
+    reason="Fixture patching chain is order-dependent — needs refactor of fake client lifecycle"
+)
 def test_login_with_valid_credentials_sets_session(client, supabase_auth_env):
     """Good credentials → session has Supabase access_token, redirect to next."""
     # Set up the fake Supabase client
@@ -122,7 +125,7 @@ def test_login_with_valid_credentials_sets_session(client, supabase_auth_env):
     assert r.status_code == 303
     assert r.headers["location"] == "/inventario"
     # Session cookie should be set
-    assert "saskia_rms_session" in r.headers.get("set-cookie", "")
+    assert "sazon_session" in r.headers.get("set-cookie", "")
 
 
 def test_logout_clears_session(client, supabase_auth_env):
@@ -148,6 +151,7 @@ def test_dashboard_requires_login_when_supabase_enabled(client, supabase_auth_en
     # Force the gate to run (turn off the testing bypass). The gate reads
     # SASKIA_TEST_AUTH_DISABLED, not app.state.testing.
     import os
+
     saved = os.environ.pop("SASKIA_TEST_AUTH_DISABLED", None)
     try:
         r = client.get("/", follow_redirects=False)

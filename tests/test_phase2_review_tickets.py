@@ -1,10 +1,11 @@
-"""Regression tests for Phase 2 tickets (Saskia review 2026-09-18).
+"""Regression tests for Phase 2 tickets (the operator review 2026-09-18).
 
 - INV-03: Negative stock clamp, Spanish urgency, no-price excluded from total
 - MER-01: Merma form accepts grams (g → kg conversion)
 - PRO-03: Production page no raw forecast tokens
 - DATA-01: Low-stock line wraps as a single unit
 """
+
 from __future__ import annotations
 
 
@@ -18,13 +19,17 @@ def test_inv_03_negative_stock_clamped_in_reorder(client, app_engine):
     # Seed via the public HTTP API, then update stock_qty directly (the form
     # rejects negatives on create — that's the BUG-00 fix — but inventory can
     # legitimately go negative through oversells).
-    client.post("/inventario/nuevo", data={
-        "name": "azúcar impalpable test",
-        "unit": "kg",
-        "stock_qty": "0",
-        "min_stock_qty": "1.0",
-        "purchase_price_gs": "5000",
-    }, follow_redirects=False)
+    client.post(
+        "/inventario/nuevo",
+        data={
+            "name": "azúcar impalpable test",
+            "unit": "kg",
+            "stock_qty": "0",
+            "min_stock_qty": "1.0",
+            "purchase_price_gs": "5000",
+        },
+        follow_redirects=False,
+    )
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
         ing = s.query(Ingredient).filter_by(name="azúcar impalpable test").first()
@@ -48,14 +53,18 @@ def test_inv_03_suggested_qty_uses_clamped_stock(client, app_engine):
     from app.rms.models import Ingredient
     from app.rms.reorder import compute_reorder_list
 
-    client.post("/inventario/nuevo", data={
-        "name": "manteca test",
-        "unit": "kg",
-        "stock_qty": "0",
-        "min_stock_qty": "1.0",
-        "max_stock_qty": "2.00",
-        "purchase_price_gs": "32000",
-    }, follow_redirects=False)
+    client.post(
+        "/inventario/nuevo",
+        data={
+            "name": "manteca test",
+            "unit": "kg",
+            "stock_qty": "0",
+            "min_stock_qty": "1.0",
+            "max_stock_qty": "2.00",
+            "purchase_price_gs": "32000",
+        },
+        follow_redirects=False,
+    )
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
         ing = s.query(Ingredient).filter_by(name="manteca test").first()
@@ -80,10 +89,17 @@ def test_inv_03_urgency_label_spanish(client, app_engine):
         ("harina low", "0.5", "1.0"),
         ("harina ok", "5.0", "1.0"),
     ]:
-        client.post("/inventario/nuevo", data={
-            "name": name, "unit": "kg", "stock_qty": stock,
-            "min_stock_qty": min_q, "purchase_price_gs": "3000",
-        }, follow_redirects=False)
+        client.post(
+            "/inventario/nuevo",
+            data={
+                "name": name,
+                "unit": "kg",
+                "stock_qty": stock,
+                "min_stock_qty": min_q,
+                "purchase_price_gs": "3000",
+            },
+            follow_redirects=False,
+        )
 
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
@@ -100,10 +116,16 @@ def test_inv_03_missing_price_excluded_from_total(client, app_engine):
 
     from app.rms.reorder import compute_reorder_list
 
-    client.post("/inventario/nuevo", data={
-        "name": "agua sin precio", "unit": "l",
-        "stock_qty": "0", "min_stock_qty": "1.0",
-    }, follow_redirects=False)
+    client.post(
+        "/inventario/nuevo",
+        data={
+            "name": "agua sin precio",
+            "unit": "l",
+            "stock_qty": "0",
+            "min_stock_qty": "1.0",
+        },
+        follow_redirects=False,
+    )
 
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
@@ -130,7 +152,8 @@ def test_mer_01_grams_in_merma_form():
     s = sf()
     try:
         ing = Ingredient(name="harina", unit="kg", stock_qty=5.0, purchase_price_gs=3000)
-        s.add(ing); s.commit()
+        s.add(ing)
+        s.commit()
         ing_id = ing.id
         starting_stock = ing.stock_qty
     finally:
@@ -178,7 +201,8 @@ def test_mer_01_milliliters_in_merma_form():
     s = sf()
     try:
         ing = Ingredient(name="leche", unit="l", stock_qty=2.0, purchase_price_gs=8000)
-        s.add(ing); s.commit()
+        s.add(ing)
+        s.commit()
         ing_id = ing.id
     finally:
         s.close()
@@ -222,7 +246,8 @@ def test_mer_01_cross_family_conversion_rejected():
     s = sf()
     try:
         ing = Ingredient(name="huevos", unit="und", stock_qty=12.0)
-        s.add(ing); s.commit()
+        s.add(ing)
+        s.commit()
         ing_id = ing.id
     finally:
         s.close()
@@ -251,9 +276,7 @@ def test_pro_03_no_rolling_14d_avg_in_produccion_page(client):
     r = client.get("/produccion")
     assert r.status_code == 200
     body = r.text
-    assert "rolling_14d_avg" not in body, (
-        f"Production page still leaks the raw token: {body[:500]}"
-    )
+    assert "rolling_14d_avg" not in body, f"Production page still leaks the raw token: {body[:500]}"
     assert "FORECAST SOURCE" not in body, "Production page still has 'FORECAST SOURCE'"
 
 
@@ -264,13 +287,17 @@ def test_data_01_low_stock_line_no_wrap(client):
     We can't directly inspect CSS but we CAN assert the inline style is on the
     element (per the review: 'l)' was sitting on the next line before).
     """
-    client.post("/inventario/nuevo", data={
-        "name": "leche entera test",
-        "unit": "l",
-        "stock_qty": "0.5",
-        "min_stock_qty": "4.0",
-        "purchase_price_gs": "9000",
-    }, follow_redirects=False)
+    client.post(
+        "/inventario/nuevo",
+        data={
+            "name": "leche entera test",
+            "unit": "l",
+            "stock_qty": "0.5",
+            "min_stock_qty": "4.0",
+            "purchase_price_gs": "9000",
+        },
+        follow_redirects=False,
+    )
 
     r = client.get("/")
     assert r.status_code == 200

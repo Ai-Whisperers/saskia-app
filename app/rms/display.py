@@ -12,13 +12,16 @@ Contracts (02-REUSE-ABSTRACTION.md §2):
   entity_name(x)     guards "Producto 9ab34f11"-style hash names
   status_es(v)       re-exported from nav.SS-3
 """
+
 from __future__ import annotations
 
 import re
 from datetime import date, datetime
 from typing import Any
 
-_HASH_NAME = re.compile(r"^(Producto|Ingrediente|Receta|Proveedor|Cliente)\s+[0-9a-f]{8}$", re.IGNORECASE)
+_HASH_NAME = re.compile(
+    r"^(Producto|Ingrediente|Receta|Proveedor|Cliente)\s+[0-9a-f]{8}$", re.IGNORECASE
+)
 
 _DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 _MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
@@ -78,7 +81,7 @@ def fmt_date(d: Any, mode: str = "table") -> str:
     if mode == "iso":
         return d.strftime("%Y-%m-%d")
     if mode == "prose":
-        return f"{_DIAS[d.weekday()][:3]} {d.day} {_MESES[d.month-1]} {d.year}"
+        return f"{_DIAS[d.weekday()][:3]} {d.day} {_MESES[d.month - 1]} {d.year}"
     return d.strftime("%d/%m/%Y")
 
 
@@ -109,7 +112,11 @@ def entity_name(x: Any) -> str:
     """Guard hash-suffixed seed names: 'Producto 99b78b3b' → 'Producto sin nombre'."""
     if x is None:
         return "—"
-    name = x if isinstance(x, str) else (x.get("name") if isinstance(x, dict) else getattr(x, "name", None)) or ""
+    name = (
+        x
+        if isinstance(x, str)
+        else (x.get("name") if isinstance(x, dict) else getattr(x, "name", None)) or ""
+    )
     name = name.strip()
     if not name:
         return "Sin nombre"

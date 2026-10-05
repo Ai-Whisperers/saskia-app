@@ -4,6 +4,7 @@ Verifies migration 015 lands 'channel' on Sale, the form defaults to
 'mostrador', and the POST handler accepts the 5 allowed values and
 rejects unknowns.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -36,12 +37,14 @@ def test_default_channel_is_mostrador(session_factory):
         p = Product(name="Default Channel Test", sale_price_gs=10000, recipe_id=None)
         s.add(p)
         s.flush()
-        s.add(Sale(
-            product_id=p.id,
-            qty=1,
-            unit_price_gs=10000,
-            sold_at=datetime.now(timezone.utc),
-        ))
+        s.add(
+            Sale(
+                product_id=p.id,
+                qty=1,
+                unit_price_gs=10000,
+                sold_at=datetime.now(timezone.utc),
+            )
+        )
         s.commit()
 
     with session_factory() as s:
@@ -172,7 +175,7 @@ def test_ventas_page_renders_channel_select(client):
     body = resp.text
     assert "channel" in body  # Look for the combo
     for ch in ("mostrador", "mostrador-encargo", "whatsapp", "pedidosya", "monchis"):
-        # The saskia-combo serialises each option as {value, label}
+        # The ui-combo serialises each option as {value, label}
         assert f'"value": "{ch}"' in body or f"'{ch}'" in body, f"missing channel option for {ch}"
 
 
@@ -194,13 +197,15 @@ def test_csv_export_includes_channel_column(client, session_factory):
         p = Product(name="CSV Channel Test", sale_price_gs=10000, recipe_id=None)
         s.add(p)
         s.flush()
-        s.add(Sale(
-            product_id=p.id,
-            qty=1,
-            unit_price_gs=10000,
-            sold_at=datetime.now(timezone.utc),
-            channel="whatsapp",
-        ))
+        s.add(
+            Sale(
+                product_id=p.id,
+                qty=1,
+                unit_price_gs=10000,
+                sold_at=datetime.now(timezone.utc),
+                channel="whatsapp",
+            )
+        )
         s.commit()
 
     resp = client.get("/ventas/export.csv")

@@ -11,6 +11,7 @@ forensics) can distinguish bad-password from corruption. The original
 `verify_password` keeps its contract (returns False on any error)
 to avoid breaking existing call sites.
 """
+
 from __future__ import annotations
 
 import pytest

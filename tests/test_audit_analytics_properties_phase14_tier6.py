@@ -21,6 +21,7 @@ What this catches going forward:
   - The IpCount dataclass accidentally accepting non-int counts
   - Period-days inconsistency
 """
+
 from __future__ import annotations
 
 import pytest
@@ -33,7 +34,6 @@ from app.rms.audit_analytics import (
     IpCount,
     OperatorActivity,
 )
-
 
 # --- strategies ---
 
@@ -55,12 +55,17 @@ _action = st.text(min_size=1, max_size=64)
 )
 @settings(max_examples=100)
 def test_ip_count_construction(
-    ip: str, n_events: int, n_logins_failed: int, n_logins_success: int,
+    ip: str,
+    n_events: int,
+    n_logins_failed: int,
+    n_logins_success: int,
 ) -> None:
     """IpCount stores all four fields exactly."""
     ic = IpCount(
-        ip=ip, n_events=n_events,
-        n_logins_failed=n_logins_failed, n_logins_success=n_logins_success,
+        ip=ip,
+        n_events=n_events,
+        n_logins_failed=n_logins_failed,
+        n_logins_success=n_logins_success,
     )
     assert ic.ip == ip
     assert ic.n_events == n_events
@@ -86,7 +91,8 @@ def test_action_count_construction(action: str, n_events: int) -> None:
 )
 @settings(max_examples=100)
 def test_n_login_failures_sums_all_ips(
-    n_logins_failed_per_ip: list[int], n_logins_success_per_ip: list[int],
+    n_logins_failed_per_ip: list[int],
+    n_logins_success_per_ip: list[int],
 ) -> None:
     """n_login_failures == sum of n_logins_failed across top_ips.
 
@@ -101,7 +107,7 @@ def test_n_login_failures_sums_all_ips(
             n_logins_success=s,
         )
         for i, (f, s) in enumerate(
-            zip(n_logins_failed_per_ip[:n], n_logins_success_per_ip[:n]),
+            zip(n_logins_failed_per_ip[:n], n_logins_success_per_ip[:n], strict=False),
         )
     ]
     report = AuditAnalyticsReport(
@@ -111,12 +117,8 @@ def test_n_login_failures_sums_all_ips(
         top_actions=[],
         operator_activity=[],
     )
-    assert report.n_login_failures == sum(
-        ip.n_logins_failed for ip in top_ips
-    )
-    assert report.n_login_successes == sum(
-        ip.n_logins_success for ip in top_ips
-    )
+    assert report.n_login_failures == sum(ip.n_logins_failed for ip in top_ips)
+    assert report.n_login_successes == sum(ip.n_logins_success for ip in top_ips)
 
 
 @given(
@@ -125,7 +127,8 @@ def test_n_login_failures_sums_all_ips(
 )
 @settings(max_examples=100)
 def test_login_failure_rate_in_unit_interval(
-    n_logins_failed: int, n_logins_success: int,
+    n_logins_failed: int,
+    n_logins_success: int,
 ) -> None:
     """When login_total > 0, login_failure_rate in [0, 1].
 
@@ -153,7 +156,8 @@ def test_login_failure_rate_in_unit_interval(
 )
 @settings(max_examples=100)
 def test_login_failure_rate_with_zero_total_is_none(
-    n_logins_failed: int, n_logins_success: int,
+    n_logins_failed: int,
+    n_logins_success: int,
 ) -> None:
     """When login_total == 0 (no login events), failure rate is None —
     not 0.0 (which would falsely suggest 'no failures' instead of
@@ -189,7 +193,9 @@ def test_period_days_preserved(period_days: int) -> None:
 )
 @settings(max_examples=100)
 def test_operator_activity_construction(
-    user_id: str, n_events: int, distinct_actions: int,
+    user_id: str,
+    n_events: int,
+    distinct_actions: int,
 ) -> None:
     """OperatorActivity stores fields exactly (last_seen_at nullable)."""
     oa = OperatorActivity(

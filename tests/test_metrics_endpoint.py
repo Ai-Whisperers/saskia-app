@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 
 def test_metrics_endpoint_returns_prometheus_format(client):
     r = client.get("/metrics")
@@ -14,7 +12,7 @@ def test_metrics_endpoint_returns_prometheus_format(client):
     assert "# HELP rms_requests_total" in body
     assert "# TYPE rms_request_duration_seconds histogram" in body
     assert "rms_db_up 1" in body
-    assert 'rms_app_info{' in body
+    assert "rms_app_info{" in body
 
 
 def test_metrics_records_get_request(client):

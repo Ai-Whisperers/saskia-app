@@ -220,10 +220,10 @@
       }
     });
 
-    // Delivery zone — special: it's a saskia-combo (web component) so
+    // Delivery zone — special: it's a ui-combo (web component) so
     // we have to use its setValue API, not the native value setter.
     if (prefill.delivery_zone_id) {
-      const combo = document.querySelector("saskia-combo#delivery_zone_combo");
+      const combo = document.querySelector("ui-combo#delivery_zone_combo");
       if (combo && typeof combo.setValue === "function") {
         combo.setValue(String(prefill.delivery_zone_id));
       }

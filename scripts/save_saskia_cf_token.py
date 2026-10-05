@@ -14,7 +14,7 @@ Usage:
     5. python3 scripts/save_saskia_cf_token.py
     6. shred -u /tmp/cf_token.txt
 
-Mirrors scripts/save_saskia_db_url.py (same Pattern 5: file-based).
+Mirrors scripts/save_sazon_db_url.py (same Pattern 5: file-based).
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, "/opt/data/.venv/lib/python3.11/site-packages")
 
-from bitwarden_sdk import BitwardenClient, ClientSettings, DeviceType  # noqa: E402
+from bitwarden_sdk import BitwardenClient, ClientSettings, DeviceType
 
 TOKEN_FILE = Path("/tmp/cf_token.txt")
 BWS_TOKEN_PATH = Path("/opt/data/.hermes/inbox/bws-token.secret")
@@ -33,7 +33,7 @@ ORG_ID_PATH = Path("/opt/data/.hermes/inbox/org-id.txt")
 PROJECT_ID_PATH = Path("/opt/data/.hermes/inbox/bws-project-id-hermes.txt")
 SECRET_NAME = "SASKIA_CF_TUNNEL_TOKEN"
 SECRET_NOTE = (
-    "Cloudflare Tunnel token for saskia-rms.paragu-ai.com. "
+    "Cloudflare Tunnel token for sazon-rms.paragu-ai.com. "
     "Used by cloudflared on Ivan's box. Generated 2026-09-02."
 )
 
@@ -68,7 +68,7 @@ def main() -> int:
         ClientSettings(
             api_url="https://api.bitwarden.com",
             identity_url="https://identity.bitwarden.com",
-            user_agent="saskia-deploy/4",
+            user_agent="sazon-deploy/4",
             device_type=DeviceType.SERVER,
         )
     )

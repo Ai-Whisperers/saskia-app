@@ -24,6 +24,7 @@ This file covers:
 
 Conventions match tests/test_sale_via_sku.py and tests/test_loyalty_ledger.py.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -36,9 +37,7 @@ pytestmark = pytest.mark.crud
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_pos_redeem_deducts_points_and_writes_ledger_row(
-    session_factory, client, qseed
-):
+def test_pos_redeem_deducts_points_and_writes_ledger_row(session_factory, client, qseed):
     """Cashier redeems 10 points → 10.000 Gs. discount + ledger row."""
     from app.rms.customers import ensure_customer
     from app.rms.loyalty import award_points
@@ -56,7 +55,6 @@ def test_pos_redeem_deducts_points_and_writes_ledger_row(
         p = Product(name="POSRedeem", sale_price_gs=50_000, sku="POS-001")
         s.add(p)
         s.commit()
-        pid = p.id
 
     # POST: redeem 10 points
     resp = client.post(
@@ -82,11 +80,7 @@ def test_pos_redeem_deducts_points_and_writes_ledger_row(
         )
 
         # Verify: ledger row written with delta=-10
-        rows = (
-            s.query(LoyaltyTransaction)
-            .filter_by(customer_id=cust_id, sale_id=sale.id)
-            .all()
-        )
+        rows = s.query(LoyaltyTransaction).filter_by(customer_id=cust_id, sale_id=sale.id).all()
         # Two rows: earn_sale (+points on POST-discount) and redeem (-points)
         reasons = {r.reason for r in rows}
         assert "redeem" in reasons, f"Missing redeem row, got: {reasons}"
@@ -121,7 +115,6 @@ def test_pos_redeem_zero_points_is_noop(session_factory, client, qseed):
         p = Product(name="POSNoRedeem", sale_price_gs=30_000, sku="POS-002")
         s.add(p)
         s.commit()
-        pid = p.id
 
     resp = client.post(
         "/ventas/nueva",
@@ -139,11 +132,7 @@ def test_pos_redeem_zero_points_is_noop(session_factory, client, qseed):
     with session_factory() as s:
         sale = s.query(Sale).one()
         assert sale.discount_gs == 0
-        rows = (
-            s.query(LoyaltyTransaction)
-            .filter_by(customer_id=cust_id, reason="redeem_pos")
-            .all()
-        )
+        rows = s.query(LoyaltyTransaction).filter_by(customer_id=cust_id, reason="redeem_pos").all()
         assert rows == [], "No redeem ledger row should be written when points=0"
         cust = s.get(Customer, cust_id)
         # 30.000 Gs. earn → 30 points; balance stays at 30
@@ -215,7 +204,7 @@ def test_pos_redeem_combined_with_manual_discount(session_factory, client, qseed
     """Points discount + manual discount add together; both applied."""
     from app.rms.customers import ensure_customer
     from app.rms.loyalty import award_points
-    from app.rms.models import Customer, LoyaltyTransaction, Product, Sale
+    from app.rms.models import Customer, Product, Sale
 
     with session_factory() as s:
         cust = ensure_customer(s, "Cliente POS Combo", phone="+595****0204")
@@ -245,8 +234,7 @@ def test_pos_redeem_combined_with_manual_discount(session_factory, client, qseed
     with session_factory() as s:
         sale = s.query(Sale).one()
         assert sale.discount_gs == 7_000, (
-            f"Expected discount=7_000 (5 pts × 1000 + 2000 manual), "
-            f"got {sale.discount_gs}"
+            f"Expected discount=7_000 (5 pts × 1000 + 2000 manual), got {sale.discount_gs}"
         )
 
         # Only one ledger row tagged to this sale should be the redeem
@@ -259,9 +247,7 @@ def test_pos_redeem_combined_with_manual_discount(session_factory, client, qseed
         )
 
 
-def test_pos_redeem_exceeds_max_discount_returns_400(
-    session_factory, client, qseed
-):
+def test_pos_redeem_exceeds_max_discount_returns_400(session_factory, client, qseed):
     """Massive redeem that pushes discount_gs past MAX_DISCOUNT_GS → 400."""
     from app.rms.customers import ensure_customer
     from app.rms.loyalty import award_points
@@ -303,13 +289,10 @@ def test_pos_redeem_exceeds_max_discount_returns_400(
         assert s.query(Sale).count() == 0
 
 
-def test_pos_redeem_uses_post_discount_total_for_award(
-    session_factory, client, qseed
-):
+def test_pos_redeem_uses_post_discount_total_for_award(session_factory, client, qseed):
     """The points redeemed REDUCE the sale total, and points are earned
     on the POST-discount total (industry norm)."""
     from app.rms.customers import ensure_customer
-    from app.rms.loyalty import award_points
     from app.rms.models import Customer, LoyaltyTransaction, Product, Sale
 
     with session_factory() as s:
@@ -326,12 +309,19 @@ def test_pos_redeem_uses_post_discount_total_for_award(
     # Manually grant 30 points so we can redeem them
     with session_factory() as s:
         from app.rms.models import Customer
+
         c = s.get(Customer, cust_id)
         c.loyalty_points = 30
-        s.add(LoyaltyTransaction(
-            customer_id=cust_id, delta=30, reason="earn_sale",
-            sale_id=None, actor="seed", notes="seed",
-        ))
+        s.add(
+            LoyaltyTransaction(
+                customer_id=cust_id,
+                delta=30,
+                reason="earn_sale",
+                sale_id=None,
+                actor="seed",
+                notes="seed",
+            )
+        )
         s.commit()
 
     # Redeem 10 points (10.000 Gs.) on a 20.000 Gs. sale

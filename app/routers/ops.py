@@ -6,10 +6,12 @@ give one-page views of system health and quick links to investigate.
 
 Mounted at /ops/* with the standard require_login dependency.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from loguru import logger
 
 from app.auth import current_user_id
 from app.auth import require_login_or_disabled as require_login
@@ -58,15 +60,21 @@ def ops_status(request: Request) -> HTMLResponse:
 
         with request.app.state.session_factory() as _s:
             reorder_stats = customer_reorder_rates(_s, since_days=90, top_n=5)
-    except Exception:  # noqa: BLE001 — defensive default
-        # Reorder stats are a dashboard feature, not critical path.
-        # If the query fails, the dashboard still renders with zeros.
-        pass
+    except Exception as exc:  # noqa: BLE001 — defensive default; failures re-rendered as zeros in template
+        # T-2026-10-04: log the failure so test_no_silent_excepts and
+        # production log readers can see it instead of silently swallowing.
+        # Reorder stats are a dashboard feature, not critical path; the
+        # dashboard still renders with zeros.
+        logger.warning(f"ops.dashboard: customer_reorder_rates failed: {exc!r}")
 
-    return render(request, "ops_status.html", {
-        "endpoints": _OPERATIONAL_ENDPOINTS,
-        "reorder_stats": reorder_stats,
-    })
+    return render(
+        request,
+        "ops_status.html",
+        {
+            "endpoints": _OPERATIONAL_ENDPOINTS,
+            "reorder_stats": reorder_stats,
+        },
+    )
 
 
 @router.post("/reset-demo-data")
@@ -94,14 +102,11 @@ async def ops_reset_demo_data(request: Request) -> JSONResponse:
         # Annotate the audit detail with the caller's user id
         # (reset_demo_data already recorded a row, so just log here).
         from loguru import logger
-        logger.info(
-            f"demo_reset invoked by user_id={user_id} counts={counts}"
-        )
+
+        logger.info(f"demo_reset invoked by user_id={user_id} counts={counts}")
     except Exception as exc:
         session.close()
-        raise HTTPException(
-            status_code=500, detail=f"reset_demo_data failed: {exc}"
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"reset_demo_data failed: {exc}") from exc
     finally:
         try:
             session.close()

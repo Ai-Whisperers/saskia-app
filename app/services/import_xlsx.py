@@ -69,6 +69,7 @@ ImportModeAll = Literal["FULL", "PATCH", "APPEND"]
 @dataclass
 class DryRunResult:
     """Result of a dry-run import validation."""
+
     errors: list[dict] = field(default_factory=list)  # [{row, field, message}]
     warnings: list[dict] = field(default_factory=list)  # [{row, field, message}]
 
@@ -87,7 +88,9 @@ class ImportResult:
     customers: int = 0
     sales: int = 0
     stock_moves: int = 0
-    warnings: list[str | dict] = field(default_factory=list)  # mix of strings and {row,field,message} dicts
+    warnings: list[str | dict] = field(
+        default_factory=list
+    )  # mix of strings and {row,field,message} dicts
 
     def row_counts(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -234,7 +237,11 @@ def _validate_workbook(wb: object, mode: str) -> tuple[list[dict], list[dict]]:
             _warn(row_num, "recipe_name", "recipe_name vacío")
         line_kind = _opt_str(row.get("line_kind"))
         if line_kind and line_kind not in ("ingredient", "sub_recipe"):
-            _err(row_num, "line_kind", f"line_kind debe ser 'ingredient' o 'sub_recipe', recibido: {line_kind!r}")
+            _err(
+                row_num,
+                "line_kind",
+                f"line_kind debe ser 'ingredient' o 'sub_recipe', recibido: {line_kind!r}",
+            )
         qty = _opt_float(row.get("qty"))
         if qty is not None and qty <= 0:
             _err(row_num, "qty", f"qty debe ser > 0, recibido: {qty}")
@@ -276,6 +283,7 @@ def _validate_workbook(wb: object, mode: str) -> tuple[list[dict], list[dict]]:
 # APPEND mode — insert rows without updating existing
 # --------------------------------------------------------------------------
 
+
 def _import_append(session: Session, wb: object, result: ImportResult) -> None:
     """APPEND mode: insert new rows without modifying existing ones.
 
@@ -295,9 +303,8 @@ def _import_append(session: Session, wb: object, result: ImportResult) -> None:
     # Clientes — insert only if phone not already in DB
     customers_index: dict[str, int] = {}
     existing_phones = {
-        r[0] for r in session.execute(
-            select(Customer.phone).where(Customer.phone.isnot(None))
-        ).all()
+        r[0]
+        for r in session.execute(select(Customer.phone).where(Customer.phone.isnot(None))).all()
     }
     for row in _rows(_sheet(wb, "Clientes")):
         phone = _opt_str(row.get("telefono")) or _opt_str(row.get("phone"))
@@ -335,7 +342,9 @@ def _import_append(session: Session, wb: object, result: ImportResult) -> None:
             result.warnings.append("Ventas: fila sin product_id, saltada")
             continue
         qty = _opt_float(row.get("qty")) or 1.0
-        unit_price = _money_int_gs(row.get("unit_price_gs"), field_name="Ventas.unit_price", warnings=result.warnings)
+        unit_price = _money_int_gs(
+            row.get("unit_price_gs"), field_name="Ventas.unit_price", warnings=result.warnings
+        )
         if unit_price is None:
             result.warnings.append("Ventas: unit_price_gs requerido")
             continue
@@ -553,19 +562,11 @@ def _product_lookup(session: Session) -> tuple[dict[str, Product], dict[str, Pro
 
 
 def _ingredient_lookup(session: Session) -> dict[str, Ingredient]:
-    return {
-        i.name.strip().lower(): i
-        for i in session.scalars(select(Ingredient)).all()
-        if i.name
-    }
+    return {i.name.strip().lower(): i for i in session.scalars(select(Ingredient)).all() if i.name}
 
 
 def _recipe_lookup(session: Session) -> dict[str, Recipe]:
-    return {
-        r.name.strip().lower(): r
-        for r in session.scalars(select(Recipe)).all()
-        if r.name
-    }
+    return {r.name.strip().lower(): r for r in session.scalars(select(Recipe)).all() if r.name}
 
 
 def _customer_lookup(session: Session) -> dict[str, Customer]:
@@ -670,9 +671,7 @@ def _import_patch_clientes(session: Session, wb: object, result: ImportResult) -
             existing.updated_at = datetime.now(timezone.utc)
         else:
             if not name:
-                warnings.append(
-                    f"Clientes: phone={phone!r} nuevo pero sin name, saltada: {row}"
-                )
+                warnings.append(f"Clientes: phone={phone!r} nuevo pero sin name, saltada: {row}")
                 continue
             new = Customer(
                 name=name,
@@ -843,9 +842,7 @@ def from_file(
         return DryRunResult(errors=errors, warnings=warnings)
 
     warnings: list[str] = []
-    result = ImportResult(
-        batch_id=-1, source_filename=path.name, mode=str(mode), warnings=warnings
-    )
+    result = ImportResult(batch_id=-1, source_filename=path.name, mode=str(mode), warnings=warnings)
 
     mode_upper = str(mode).upper()
     if mode_upper == "PATCH":

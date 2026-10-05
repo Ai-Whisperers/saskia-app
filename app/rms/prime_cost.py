@@ -13,6 +13,7 @@ References:
 - CIA (Culinary Institute of America) food cost guidelines
 - Paraguay bakery industry benchmarks (25-35% materials + 25-30% labor + 10-15% overhead)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -35,18 +36,21 @@ class PrimeCostBreakdown:
 
     All values are integer Gs. None means "unknown" (missing price / yield / labor).
     """
+
     product_id: int
-    materials_cost_gs: int | None       # raw materials (no yield correction)
-    yield_corrected_cost_gs: int | None # materials × (1 / yield_percentage) — what 1 portion actually costs after moisture loss
-    labor_cost_gs: int | None           # direct_labor_minutes × (labor_rate / 60)
-    overhead_cost_gs: int | None        # materials × overhead_multiplier_pct / 100
-    prime_cost_gs: int | None           # yield_corrected + labor + overhead
+    materials_cost_gs: int | None  # raw materials (no yield correction)
+    yield_corrected_cost_gs: (
+        int | None
+    )  # materials × (1 / yield_percentage) — what 1 portion actually costs after moisture loss
+    labor_cost_gs: int | None  # direct_labor_minutes × (labor_rate / 60)
+    overhead_cost_gs: int | None  # materials × overhead_multiplier_pct / 100
+    prime_cost_gs: int | None  # yield_corrected + labor + overhead
 
     # Profitability (None when sale_price or prime_cost missing)
     sale_price_gs: int | None
-    gross_margin_gs: int | None          # sale - prime_cost
-    gross_margin_pct: float | None       # (sale - prime) / sale × 100
-    prime_cost_pct_of_sale: float | None # prime / sale × 100
+    gross_margin_gs: int | None  # sale - prime_cost
+    gross_margin_pct: float | None  # (sale - prime) / sale × 100
+    prime_cost_pct_of_sale: float | None  # prime / sale × 100
 
     # Diagnostic flags
     notes: list[str]
@@ -71,11 +75,16 @@ def compute_prime_cost(session: Session, product_id: int) -> PrimeCostBreakdown:
     product = session.get(Product, product_id)
     if product is None:
         return PrimeCostBreakdown(
-            product_id=product_id, materials_cost_gs=None,
-            yield_corrected_cost_gs=None, labor_cost_gs=None,
-            overhead_cost_gs=None, prime_cost_gs=None,
-            sale_price_gs=None, gross_margin_gs=None,
-            gross_margin_pct=None, prime_cost_pct_of_sale=None,
+            product_id=product_id,
+            materials_cost_gs=None,
+            yield_corrected_cost_gs=None,
+            labor_cost_gs=None,
+            overhead_cost_gs=None,
+            prime_cost_gs=None,
+            sale_price_gs=None,
+            gross_margin_gs=None,
+            gross_margin_pct=None,
+            prime_cost_pct_of_sale=None,
             notes=["producto no existe"],
         )
 
@@ -108,9 +117,7 @@ def compute_prime_cost(session: Session, product_id: int) -> PrimeCostBreakdown:
     yield_corrected = None
     if materials is not None and yield_pct is not None and yield_pct > 0:
         # Cost scales by 1/yield (e.g. 0.85 yield → multiply cost by 1.176)
-        yield_corrected = _round_half_up(
-            Decimal(str(materials)) / Decimal(str(yield_pct))
-        )
+        yield_corrected = _round_half_up(Decimal(str(materials)) / Decimal(str(yield_pct)))
 
     # Labor cost: direct_labor_minutes × (labor_rate / 60)
     ci = session.get(ComplianceInfo, 1)
@@ -122,7 +129,9 @@ def compute_prime_cost(session: Session, product_id: int) -> PrimeCostBreakdown:
         recipe = session.get(Recipe, product.recipe_id)
         if recipe and recipe.direct_labor_minutes is not None and recipe.direct_labor_minutes > 0:
             labor = _round_half_up(
-                Decimal(str(recipe.direct_labor_minutes)) * Decimal(str(labor_rate_gs_per_h)) / Decimal("60")
+                Decimal(str(recipe.direct_labor_minutes))
+                * Decimal(str(labor_rate_gs_per_h))
+                / Decimal("60")
             )
         else:
             notes.append("sin tiempo de mano de obra (informal — no bloquea)")
@@ -130,7 +139,9 @@ def compute_prime_cost(session: Session, product_id: int) -> PrimeCostBreakdown:
     # Overhead: pct of materials (not yield-corrected — overhead is fixed cost)
     overhead = None
     if materials is not None:
-        overhead = _round_half_up(Decimal(str(materials)) * Decimal(str(overhead_pct)) / Decimal("100"))
+        overhead = _round_half_up(
+            Decimal(str(materials)) * Decimal(str(overhead_pct)) / Decimal("100")
+        )
 
     # Prime cost = yield_corrected + labor + overhead
     prime = None
@@ -190,9 +201,7 @@ def batch_compute_prime_cost(
 
     # 1 query: ComplianceInfo (singleton)
     ci = session.get(ComplianceInfo, 1)
-    labor_rate_gs_per_h = (
-        ci.labor_cost_per_hour_gs if ci else DEFAULT_LABOR_COST_PER_HOUR_GS
-    )
+    labor_rate_gs_per_h = ci.labor_cost_per_hour_gs if ci else DEFAULT_LABOR_COST_PER_HOUR_GS
     overhead_pct = ci.overhead_multiplier_pct if ci else DEFAULT_OVERHEAD_MULTIPLIER_PCT
 
     result: dict[int, PrimeCostBreakdown] = {}
@@ -213,9 +222,7 @@ def batch_compute_prime_cost(
             if batch.batch_cost_gs is not None:
                 materials = batch.batch_cost_gs
             elif batch.missing_ingredient_names:
-                notes.append(
-                    "Faltan precios en: " + ", ".join(batch.missing_ingredient_names)
-                )
+                notes.append("Faltan precios en: " + ", ".join(batch.missing_ingredient_names))
             elif batch.cycle_detected:
                 notes.append("Ciclo detectado en receta")
         else:
@@ -226,20 +233,20 @@ def batch_compute_prime_cost(
         if recipe is not None and recipe.yield_percentage is not None:
             yield_pct = recipe.yield_percentage
             if yield_pct <= 0 or yield_pct > 1.0:
-                notes.append(
-                    f"yield_percentage inválido: {yield_pct} (debe estar entre 0 y 1)"
-                )
+                notes.append(f"yield_percentage inválido: {yield_pct} (debe estar entre 0 y 1)")
                 yield_pct = None
 
         yield_corrected = None
         if materials is not None and yield_pct is not None and yield_pct > 0:
-            yield_corrected = _round_half_up(
-                Decimal(str(materials)) / Decimal(str(yield_pct))
-            )
+            yield_corrected = _round_half_up(Decimal(str(materials)) / Decimal(str(yield_pct)))
 
         # Labor cost
         labor = None
-        if recipe is not None and recipe.direct_labor_minutes is not None and recipe.direct_labor_minutes > 0:
+        if (
+            recipe is not None
+            and recipe.direct_labor_minutes is not None
+            and recipe.direct_labor_minutes > 0
+        ):
             labor = _round_half_up(
                 Decimal(str(recipe.direct_labor_minutes))
                 * Decimal(str(labor_rate_gs_per_h))
@@ -293,4 +300,4 @@ def batch_compute_prime_cost(
     return result
 
 
-__all__ = ["PrimeCostBreakdown", "compute_prime_cost", "batch_compute_prime_cost"]
+__all__ = ["PrimeCostBreakdown", "batch_compute_prime_cost", "compute_prime_cost"]

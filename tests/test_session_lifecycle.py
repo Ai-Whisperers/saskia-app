@@ -1,4 +1,5 @@
 """Session lifecycle tests — verify auth gate behavior."""
+
 from __future__ import annotations
 
 
@@ -39,7 +40,7 @@ def test_healthz_routes_skip_auth(client):
 
 
 def test_session_cookie_name(client):
-    """Session cookie must be named 'saskia_rms_session' (not generic 'session')."""
+    """Session cookie must be named 'sazon_session' (not generic 'session')."""
     # Get login page, check cookies set
     r = client.get("/login")
     # Session cookie should NOT be set yet on GET /login
@@ -55,6 +56,4 @@ def test_login_creates_session_cookie(client):
         follow_redirects=False,
     )
     # Cookie may or may not be set (depends on flow). Just verify no crash.
-    assert r.status_code in (200, 303, 422), (
-        f"POST /login crashed: {r.status_code}"
-    )
+    assert r.status_code in (200, 303, 422), f"POST /login crashed: {r.status_code}"

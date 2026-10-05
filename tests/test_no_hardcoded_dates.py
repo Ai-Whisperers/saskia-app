@@ -20,6 +20,7 @@ hardcoded date object. Allowed:
   date-arithmetic fixtures like calendar grid layout, leap-year edges,
   etc.).
 """
+
 from __future__ import annotations
 
 import re
@@ -41,8 +42,8 @@ ALLOW_MARKER = re.compile(r"#\s*allow-hardcoded-dates\s*:\s*(.+?)$", re.MULTILIN
 
 # What we look for:
 DATE_PATTERNS = [
-    re.compile(r'datetime\(20[2-9]\d'),           # datetime(2026, 9, 21)
-    re.compile(r'date\(20[2-9]\d'),               # date(2026, 9, 21)
+    re.compile(r"datetime\(20[2-9]\d"),  # datetime(2026, 9, 21)
+    re.compile(r"date\(20[2-9]\d"),  # date(2026, 9, 21)
     re.compile(r"['\"]20[2-9]\d-[01]\d-[0-3]\d"),  # "2026-09-21"
     re.compile(r"['\"]20[2-9]\d/[01]\d/[0-3]\d"),  # "2026/09/21"
     re.compile(r"['\"]20[2-9]\d-[01]\d-[0-3]\dT"),  # "2026-09-21T10:00"
@@ -85,13 +86,11 @@ def test_no_hardcoded_dates_in_tests(test_path: Path) -> None:
         if stripped.startswith("#"):
             continue
         for pat in DATE_PATTERNS:
-            for m in pat.finditer(line):
+            for _m in pat.finditer(line):
                 findings.append((line_no, line.strip()[:80]))
 
     if findings:
-        msg = "\n".join(
-            f"  line {ln}: {snippet!r}" for ln, snippet in findings[:5]
-        )
+        msg = "\n".join(f"  line {ln}: {snippet!r}" for ln, snippet in findings[:5])
         more = f"\n  ... and {len(findings) - 5} more" if len(findings) > 5 else ""
         pytest.fail(
             f"{test_path} has {len(findings)} hardcoded date literal(s):\n"
@@ -106,12 +105,12 @@ def test_no_hardcoded_dates_in_tests(test_path: Path) -> None:
 
 def test_patterns_are_correct() -> None:
     """Sanity check: our patterns match the documented cases."""
-    sample = '''
+    sample = """
     d = datetime(2026, 9, 21)
     today = date(2025, 12, 1)
     stamp = "2024-03-15"
     full = "2026-09-21T10:30"
-    '''
+    """
     matches = []
     for pat in DATE_PATTERNS:
         matches.extend(pat.findall(sample))

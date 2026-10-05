@@ -110,7 +110,9 @@ The 4 new KPI cards (shopping list, wishlist, risks, benchmarks) were 6 N+1 quer
 session.execute(
     select(
         sa_func.count(ShoppingListItem.id),
-        sa_func.coalesce(sa_func.sum(ShoppingListItem.qty_to_buy * Ingredient.purchase_price_gs), 0),
+        sa_func.coalesce(
+            sa_func.sum(ShoppingListItem.qty_to_buy * Ingredient.purchase_price_gs), 0
+        ),
     )
     .join(Ingredient, ...)
     .where(ShoppingListItem.purchased.is_(False))

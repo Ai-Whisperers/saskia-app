@@ -24,7 +24,6 @@ running on a single VPS.
 from __future__ import annotations
 
 import threading
-import time as _time
 from collections import defaultdict
 from typing import Any
 
@@ -41,9 +40,7 @@ _lock = threading.Lock()
 _count_total: dict[tuple[str, str, int], int] = defaultdict(int)
 # Histogram: (path, method) -> [<bucket_1>, ..., <bucket_N>, <+Inf>, <sum>, <count>]
 # Layout: N buckets (one per _BUCKETS_S) + 1 +Inf + 1 sum + 1 count = N+3
-_hist: dict[tuple[str, str], list[float]] = defaultdict(
-    lambda: [0.0] * (len(_BUCKETS_S) + 3)
-)
+_hist: dict[tuple[str, str], list[float]] = defaultdict(lambda: [0.0] * (len(_BUCKETS_S) + 3))
 _db_up: int = 1
 _app_info: dict[str, str] = {}
 
@@ -126,9 +123,7 @@ def render() -> str:
 
         # --- rms_app_info ---
         if _app_info:
-            labels = ",".join(
-                f'{k}="{_escape(v)}"' for k, v in sorted(_app_info.items())
-            )
+            labels = ",".join(f'{k}="{_escape(v)}"' for k, v in sorted(_app_info.items()))
             lines.append("# HELP rms_app_info App version metadata.")
             lines.append("# TYPE rms_app_info gauge")
             lines.append(f"rms_app_info{{{labels}}} 1")

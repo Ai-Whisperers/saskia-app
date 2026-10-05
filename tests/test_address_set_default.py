@@ -4,11 +4,13 @@ Tests for the new POST /clientes/api/{customer_id}/addresses/{address_id}/defaul
 endpoint (the existing address_create + address_delete tests already cover
 the other CRUD).
 """
+
 import uuid as _uuid
 
 
 def _make_customer(session_factory):
     from app.rms.models import Customer
+
     name = "Phase14Addr " + _uuid.uuid4().hex[:6]
     with session_factory() as s:
         c = Customer(name=name, phone="+595 981 000000")
@@ -20,6 +22,7 @@ def _make_customer(session_factory):
 
 def _make_address(session_factory, customer_id, address_text, is_default=False):
     from app.rms.models import CustomerAddress
+
     with session_factory() as s:
         a = CustomerAddress(
             customer_id=customer_id,
@@ -36,11 +39,11 @@ def _make_address(session_factory, customer_id, address_text, is_default=False):
 def _csrf_token(client):
     """Pull the CSRF token from the cliente_editar form. The conftest
     client fixture sets one when auth is bypassed."""
-    cid = 1  # placeholder — caller will navigate to the right page
     r = client.get("/clientes/1/editar")
     if r.status_code != 200:
         return None
     import re
+
     m = re.search(r'name="csrf_token"\s+value="([^"]+)"', r.text)
     return m.group(1) if m else None
 
@@ -48,6 +51,7 @@ def _csrf_token(client):
 def test_set_default_clears_other_defaults(client, session_factory):
     """Setting an address default clears the previous default."""
     from app.rms.models import CustomerAddress
+
     cid = _make_customer(session_factory)
     a1 = _make_address(session_factory, cid, "Casa principal", is_default=True)
     a2 = _make_address(session_factory, cid, "Oficina")

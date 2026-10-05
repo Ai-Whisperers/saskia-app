@@ -26,16 +26,14 @@ from app.rms.db import _bump_schema_version
 def _migration_061_tag_validation(conn: Any) -> None:
     """Add ingredient.tag_validation_issues (TEXT, nullable)."""
     try:
-        conn.execute(
-            text("ALTER TABLE ingredient ADD COLUMN tag_validation_issues TEXT")
-        )
-    except Exception:  # noqa: BLE001, S110 — column may already exist
+        conn.execute(text("ALTER TABLE ingredient ADD COLUMN tag_validation_issues TEXT"))
+    except Exception:  # noqa: S110 — column may already exist
         pass
 
     _bump_schema_version(conn, 61)
 
 
-def run_post_migration(session) -> int:
+def run_post_migration(session: Any) -> int:
     """Backfill tag_validation_issues for every ingredient.
 
     Called from the migration runner after _migration_061_tag_validation.

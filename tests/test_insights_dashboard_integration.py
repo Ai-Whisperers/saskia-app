@@ -12,17 +12,14 @@ from app.rms.models import (
 
 def _setup(session):
     """Minimal seed for insights build."""
-    ing = Ingredient(name="di_ing_xyz", unit="kg",
-                     purchase_price_gs=1000, stock_qty=5)
+    ing = Ingredient(name="di_ing_xyz", unit="kg", purchase_price_gs=1000, stock_qty=5)
     session.add(ing)
     session.flush()
     r = Recipe(name="di_r_xyz", yield_qty=10, yield_unit="und")
     session.add(r)
     session.flush()
-    session.add(RecipeLine(recipe_id=r.id, line_kind="ingredient",
-                           line_ref_id=ing.id, qty=0.1))
-    p = Product(name="di_p_xyz", portion_label="und",
-                sale_price_gs=5000, recipe_id=r.id)
+    session.add(RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.1))
+    p = Product(name="di_p_xyz", portion_label="und", sale_price_gs=5000, recipe_id=r.id)
     session.add(p)
     session.commit()
     return p, r, ing
@@ -44,6 +41,7 @@ def test_dashboard_route_renders_insights_panel(client):
 def test_dashboard_insights_with_seed(client):
     """With seeded data, panel renders actual numbers."""
     from app.rms import main as main_module
+
     sf = main_module.app.state.session_factory
     with sf() as s:
         _setup(s)
@@ -83,6 +81,7 @@ def test_dashboard_panel_contains_quadrant_names(client):
 def test_dashboard_insights_food_cost_in_html(client):
     """Food cost percentage appears in HTML output."""
     from app.rms import main as main_module
+
     sf = main_module.app.state.session_factory
     with sf() as s:
         _setup(s)

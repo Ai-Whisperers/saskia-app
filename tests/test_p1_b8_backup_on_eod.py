@@ -1,6 +1,6 @@
 """P1-B8 — backup fires automatically when EOD checklist completes.
 
-The roadmap (saskia-only-roadmap.md) requires:
+The roadmap (sazon-only-roadmap.md) requires:
 > Backup local AES-256 + cron diario (no al startup)
 
 We don't have a system cron in the container, so we hook the backup
@@ -13,13 +13,13 @@ This module verifies:
 3. Backup failure (R2 unreachable) does NOT block the EOD save
 4. When a backup runs (last_backup_at cleared), the audit row contains the trigger tag
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_p1_b8_backup_on_eod.py -v
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_p1_b8_backup_on_eod.py -v
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
-import pytest
 from sqlalchemy import select
 
 from app.rms.eod_closed import eod_is_day_closed
@@ -29,6 +29,7 @@ from app.rms.workflow import fresh_eod_checklist
 
 def _today_local() -> str:
     from app.rms.config import ASUNCION_TZ
+
     return datetime.now(ASUNCION_TZ).date().isoformat()
 
 
@@ -57,8 +58,8 @@ def test_eod_save_succeeds_when_all_items_checked(client) -> None:
 def test_day_not_closed_when_only_some_items_checked(client, session_factory) -> None:
     """Only some items checked → day NOT marked closed."""
     _check_only_first_today(client)
-    from datetime import date as _date
     from app.rms.config import ASUNCION_TZ
+
     today = datetime.now(ASUNCION_TZ).date()
     with session_factory() as s:
         assert eod_is_day_closed(s, today) is False
@@ -82,14 +83,16 @@ def test_eod_save_succeeds_when_backup_throws(client, session_factory, monkeypat
     data = {item.key: "on" for item in items}
     data["notes_for_next"] = "with backup failure"
     r = client.post("/eod/check", data=data, follow_redirects=False)
-    assert r.status_code == 303, f"EOD save must succeed even when backup fails: {r.status_code} {r.text[:200]}"
+    assert r.status_code == 303, (
+        f"EOD save must succeed even when backup fails: {r.status_code} {r.text[:200]}"
+    )
 
     # Verify the checklist WAS persisted (the operator can save their day)
     today = _today_local()
     with session_factory() as s:
-        saved_keys = list(s.scalars(
-            select(AppMeta).where(AppMeta.key.like(f"eod_check_{today}_%"))
-        ))
+        saved_keys = list(
+            s.scalars(select(AppMeta).where(AppMeta.key.like(f"eod_check_{today}_%")))
+        )
     assert len(saved_keys) == len(checkable_items), (
         f"All {len(checkable_items)} checkable items must be persisted, got {len(saved_keys)}"
     )
@@ -98,8 +101,6 @@ def test_eod_save_succeeds_when_backup_throws(client, session_factory, monkeypat
 def test_backup_audit_row_contains_trigger_tag(client, session_factory) -> None:
     """When a backup runs (not skipped), the audit row detail contains 'eod_checklist_complete'."""
     # Force a backup by clearing last_backup_at metadata
-    from datetime import date as _date
-    from app.rms.config import ASUNCION_TZ
     with session_factory() as s:
         row = s.scalar(select(AppMeta).where(AppMeta.key == "last_backup_at"))
         if row:
@@ -110,15 +111,22 @@ def test_backup_audit_row_contains_trigger_tag(client, session_factory) -> None:
 
     # The backup should have fired (we cleared last_backup_at). Look for the audit row.
     with session_factory() as s:
-        rows = list(s.scalars(
-            select(AuditLog)
-            .where(AuditLog.action == "write.backup.triggered")
-            .where(AuditLog.target_type == "backup")
-        ))
-    assert len(rows) >= 1, "Expected at least one backup audit row after EOD close + cleared last_backup_at"
+        rows = list(
+            s.scalars(
+                select(AuditLog)
+                .where(AuditLog.action == "write.backup.triggered")
+                .where(AuditLog.target_type == "backup")
+            )
+        )
+    assert len(rows) >= 1, (
+        "Expected at least one backup audit row after EOD close + cleared last_backup_at"
+    )
     # Check that at least one row has the trigger tag
     found = any(
-        r.detail and "eod_checklist_complete" in (r.detail if isinstance(r.detail, str) else str(r.detail))
+        r.detail
+        and "eod_checklist_complete" in (r.detail if isinstance(r.detail, str) else str(r.detail))
         for r in rows
     )
-    assert found, f"Expected eod_checklist_complete trigger in at least one backup audit row, got details: {[r.detail for r in rows]}"
+    assert found, (
+        f"Expected eod_checklist_complete trigger in at least one backup audit row, got details: {[r.detail for r in rows]}"
+    )

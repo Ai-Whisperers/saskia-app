@@ -82,8 +82,15 @@ def _post_json(client: TestClient, url: str, payload: dict) -> FlowResult:
 # ---------------------------------------------------------------------------
 
 
-def api_crud(client: TestClient, path: str, payload: dict, update: dict,
-             *, id_key: str = "id", list_params: dict | None = None) -> int:
+def api_crud(
+    client: TestClient,
+    path: str,
+    payload: dict,
+    update: dict,
+    *,
+    id_key: str = "id",
+    list_params: dict | None = None,
+) -> int:
     """Create → read → update → delete one /api/<entity> row. Returns id."""
     r = _post_json(client, f"/api/{path}", payload)
     assert r.status_code in (200, 201), f"create {path}: {r.status_code} {r.body[:200]}"
@@ -151,23 +158,47 @@ def _get(client: TestClient, url: str, **kw):
 # ---------------------------------------------------------------------------
 
 
-def create_ingredient(client: TestClient, *, name: str, unit: str = "kg",
-                      stock_qty: float = 0, min_stock_qty: float = 0,
-                      purchase_price_gs: str = "", **extra) -> FlowResult:
-    data = {"name": name, "unit": unit, "stock_qty": str(stock_qty),
-            "min_stock_qty": str(min_stock_qty),
-            "purchase_price_gs": purchase_price_gs, **extra}
+def create_ingredient(
+    client: TestClient,
+    *,
+    name: str,
+    unit: str = "kg",
+    stock_qty: float = 0,
+    min_stock_qty: float = 0,
+    purchase_price_gs: str = "",
+    **extra,
+) -> FlowResult:
+    data = {
+        "name": name,
+        "unit": unit,
+        "stock_qty": str(stock_qty),
+        "min_stock_qty": str(min_stock_qty),
+        "purchase_price_gs": purchase_price_gs,
+        **extra,
+    }
     return _post(client, "/inventario/nuevo", data)
 
 
-def create_recipe(client: TestClient, *, name: str, yield_qty: float = 12,
-                  yield_unit: str = "und",
-                  lines: list[dict] | None = None) -> FlowResult:
+def create_recipe(
+    client: TestClient,
+    *,
+    name: str,
+    yield_qty: float = 12,
+    yield_unit: str = "und",
+    lines: list[dict] | None = None,
+) -> FlowResult:
     """lines: list of {target_id, kind='ingredient'|'sub_recipe', qty, unit}."""
     # Lines are repeated form fields (route uses form.getlist). httpx's
     # supported repeated-field encoding is dict-of-lists: a=1&a=2.
-    data: dict = {"name": name, "yield_qty": str(yield_qty), "yield_unit": yield_unit,
-                  "line_kind": [], "line_target_id": [], "line_qty": [], "line_unit": []}
+    data: dict = {
+        "name": name,
+        "yield_qty": str(yield_qty),
+        "yield_unit": yield_unit,
+        "line_kind": [],
+        "line_target_id": [],
+        "line_qty": [],
+        "line_unit": [],
+    }
     for ln in lines or []:
         data["line_kind"].append(ln.get("kind", "ingredient"))
         data["line_target_id"].append(str(ln["target_id"]))
@@ -176,10 +207,10 @@ def create_recipe(client: TestClient, *, name: str, yield_qty: float = 12,
     return _post(client, "/recetas/nueva", data)
 
 
-def create_product(client: TestClient, *, name: str, sale_price_gs: int,
-                   recipe_id: int | None = None, **extra) -> FlowResult:
-    data = {"name": name, "sale_price_gs": str(sale_price_gs),
-            "portion_label": "1 unidad"}
+def create_product(
+    client: TestClient, *, name: str, sale_price_gs: int, recipe_id: int | None = None, **extra
+) -> FlowResult:
+    data = {"name": name, "sale_price_gs": str(sale_price_gs), "portion_label": "1 unidad"}
     if recipe_id:
         data["recipe_id"] = str(recipe_id)
     data.update(extra)
@@ -191,21 +222,38 @@ def create_product(client: TestClient, *, name: str, sale_price_gs: int,
 # ---------------------------------------------------------------------------
 
 
-def adjust_stock(client: TestClient, ing_id: int, adjustment: float, *,
-                 reason: str = "reposición", confirm_negative: bool = False) -> FlowResult:
-    return _post(client, f"/inventario/{ing_id}/ajustar", {
-        "adjustment": str(adjustment),
-        "reason": reason,
-        **({"confirm_negative": "yes"} if confirm_negative else {}),
-    })
+def adjust_stock(
+    client: TestClient,
+    ing_id: int,
+    adjustment: float,
+    *,
+    reason: str = "reposición",
+    confirm_negative: bool = False,
+) -> FlowResult:
+    return _post(
+        client,
+        f"/inventario/{ing_id}/ajustar",
+        {
+            "adjustment": str(adjustment),
+            "reason": reason,
+            **({"confirm_negative": "yes"} if confirm_negative else {}),
+        },
+    )
 
 
-def register_merma(client: TestClient, ing_id: int, qty: float, *,
-                   reason: str = "vencida", qty_unit: str = "") -> FlowResult:
-    return _post(client, "/merma/registrar", {
-        "ingredient_id": str(ing_id), "qty": str(qty),
-        "reason": reason, "qty_unit": qty_unit,
-    })
+def register_merma(
+    client: TestClient, ing_id: int, qty: float, *, reason: str = "vencida", qty_unit: str = ""
+) -> FlowResult:
+    return _post(
+        client,
+        "/merma/registrar",
+        {
+            "ingredient_id": str(ing_id),
+            "qty": str(qty),
+            "reason": reason,
+            "qty_unit": qty_unit,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -213,20 +261,34 @@ def register_merma(client: TestClient, ing_id: int, qty: float, *,
 # ---------------------------------------------------------------------------
 
 
-def create_pedido(client: TestClient, *, promised_date: str,
-                  lines: list[dict], customer_id: int | str = "",
-                  customer_name: str = "", customer_phone: str = "",
-                  promised_time: str = "10:00", channel: str = "whatsapp") -> FlowResult:
+def create_pedido(
+    client: TestClient,
+    *,
+    promised_date: str,
+    lines: list[dict],
+    customer_id: int | str = "",
+    customer_name: str = "",
+    customer_phone: str = "",
+    promised_time: str = "10:00",
+    channel: str = "whatsapp",
+) -> FlowResult:
     """lines: list of {product_id, qty, unit_price_gs}.
 
     The route reads repeated (product_id, qty, unit_price_gs) sets from the
     raw form; httpx dict-of-lists is the encoding for repeated keys.
     """
-    data: dict = {"promised_date": promised_date, "promised_time": promised_time,
-                  "channel": channel, "customer_id": str(customer_id),
-                  "customer_name": customer_name, "customer_phone": customer_phone,
-                  "payment_intent": "efectivo",
-                  "line_product_id": [], "line_qty": [], "line_unit_price_gs": []}
+    data: dict = {
+        "promised_date": promised_date,
+        "promised_time": promised_time,
+        "channel": channel,
+        "customer_id": str(customer_id),
+        "customer_name": customer_name,
+        "customer_phone": customer_phone,
+        "payment_intent": "efectivo",
+        "line_product_id": [],
+        "line_qty": [],
+        "line_unit_price_gs": [],
+    }
     for ln in lines:
         data["line_product_id"].append(str(ln["product_id"]))
         data["line_qty"].append(str(ln.get("qty", 1)))
@@ -234,10 +296,14 @@ def create_pedido(client: TestClient, *, promised_date: str,
     return _post(client, "/pedidos/nuevo", data)
 
 
-def set_pedido_status(client: TestClient, pedido_id: int, status: str,
-                      cancel_reason: str = "") -> FlowResult:
-    return _post(client, f"/pedidos/{pedido_id}/status",
-                 {"new_status": status, "cancel_reason": cancel_reason})
+def set_pedido_status(
+    client: TestClient, pedido_id: int, status: str, cancel_reason: str = ""
+) -> FlowResult:
+    return _post(
+        client,
+        f"/pedidos/{pedido_id}/status",
+        {"new_status": status, "cancel_reason": cancel_reason},
+    )
 
 
 def fulfill_pedido(client: TestClient, pedido_id: int) -> FlowResult:
@@ -249,14 +315,26 @@ def fulfill_pedido(client: TestClient, pedido_id: int) -> FlowResult:
 # ---------------------------------------------------------------------------
 
 
-def sell(client: TestClient, product_id: int, qty: float = 1, *,
-         customer_id: int | None = None, payment_method: str = "efectivo",
-         discount_gs: int = 0) -> FlowResult:
-    return _post(client, "/ventas/nueva", {
-        "product_id": str(product_id), "qty": str(qty),
-        "payment_method": payment_method, "discount_gs": str(discount_gs),
-        **({"customer_id": str(customer_id)} if customer_id else {}),
-    })
+def sell(
+    client: TestClient,
+    product_id: int,
+    qty: float = 1,
+    *,
+    customer_id: int | None = None,
+    payment_method: str = "efectivo",
+    discount_gs: int = 0,
+) -> FlowResult:
+    return _post(
+        client,
+        "/ventas/nueva",
+        {
+            "product_id": str(product_id),
+            "qty": str(qty),
+            "payment_method": payment_method,
+            "discount_gs": str(discount_gs),
+            **({"customer_id": str(customer_id)} if customer_id else {}),
+        },
+    )
 
 
 def void_sale(client: TestClient, sale_id: int, *, reason: str) -> FlowResult:
@@ -277,10 +355,10 @@ def page(client: TestClient, url: str):
 # ---------------------------------------------------------------------------
 
 
-def update_product(client: TestClient, product_id: int, *, name: str,
-                   sale_price_gs: int, **extra) -> FlowResult:
-    data = {"name": name, "sale_price_gs": str(sale_price_gs),
-            "portion_label": "1 unidad", **extra}
+def update_product(
+    client: TestClient, product_id: int, *, name: str, sale_price_gs: int, **extra
+) -> FlowResult:
+    data = {"name": name, "sale_price_gs": str(sale_price_gs), "portion_label": "1 unidad", **extra}
     return _post(client, f"/productos/{product_id}/editar", data)
 
 
@@ -288,26 +366,43 @@ def delete_product(client: TestClient, product_id: int) -> FlowResult:
     return _post(client, f"/productos/{product_id}/eliminar", {})
 
 
-def update_customer(client: TestClient, customer_id: int, *, name: str,
-                    phone: str = "", notes: str = "", **extra) -> FlowResult:
-    return _post(client, f"/clientes/{customer_id}/editar",
-                 {"name": name, "phone": phone, "notes": notes, **extra})
+def update_customer(
+    client: TestClient, customer_id: int, *, name: str, phone: str = "", notes: str = "", **extra
+) -> FlowResult:
+    return _post(
+        client,
+        f"/clientes/{customer_id}/editar",
+        {"name": name, "phone": phone, "notes": notes, **extra},
+    )
 
 
-def create_supplier(client: TestClient, *, name: str, phone: str = "",
-                    email: str = "", notes: str = "") -> FlowResult:
-    return _post(client, "/suppliers/nuevo",
-                 {"name": name, "phone": phone, "email": email, "notes": notes})
+def create_supplier(
+    client: TestClient, *, name: str, phone: str = "", email: str = "", notes: str = ""
+) -> FlowResult:
+    return _post(
+        client, "/suppliers/nuevo", {"name": name, "phone": phone, "email": email, "notes": notes}
+    )
 
 
-def update_supplier(client: TestClient, supplier_id: int, *, name: str,
-                    phone: str = "", email: str = "", notes: str = "") -> FlowResult:
-    return _post(client, f"/suppliers/{supplier_id}/editar",
-                 {"name": name, "phone": phone, "email": email, "notes": notes})
+def update_supplier(
+    client: TestClient,
+    supplier_id: int,
+    *,
+    name: str,
+    phone: str = "",
+    email: str = "",
+    notes: str = "",
+) -> FlowResult:
+    return _post(
+        client,
+        f"/suppliers/{supplier_id}/editar",
+        {"name": name, "phone": phone, "email": email, "notes": notes},
+    )
 
 
-def restock(client: TestClient, ingredient_id: int, qty: float, *,
-            price_gs: int | None = None) -> FlowResult:
+def restock(
+    client: TestClient, ingredient_id: int, qty: float, *, price_gs: int | None = None
+) -> FlowResult:
     """Reorder→restock flow (positive adjustment with optional price event)."""
     data: dict = {"adjustment": str(qty), "reason": "reposición"}
     if price_gs is not None:
@@ -325,6 +420,9 @@ def eod_checklist_complete(client: TestClient) -> FlowResult:
 
 def export_csv(client: TestClient, kind: str = "ventas") -> FlowResult:
     r = client.get(f"/export/{kind}.csv", follow_redirects=False)
-    return FlowResult(status_code=r.status_code, location=r.headers.get("location"),
-                      body=r.text if r.status_code >= 400 else "",
-                      _json=r.text if "json" in r.headers.get("content-type", "") else "")
+    return FlowResult(
+        status_code=r.status_code,
+        location=r.headers.get("location"),
+        body=r.text if r.status_code >= 400 else "",
+        _json=r.text if "json" in r.headers.get("content-type", "") else "",
+    )

@@ -1,6 +1,6 @@
-# Saskia RMS — single-paste deploy
+# Sazón — single-paste deploy
 
-Everything you need to take https://saskia-vps.paragu-ai.com from
+Everything you need to take https://sazon-vps.paragu-ai.com from
 the current broken state (receta page renders empty, productos 500s,
 inventario shows 30/78 ingredients) to fully live.
 
@@ -11,34 +11,34 @@ this entire block. The `set -e` makes it stop on any error.
 
 ```bash
 set -e
-cd /opt/build-apps/saskia-rms
+cd /opt/build-apps/sazon-rms
 
 echo "==> git pull"
 git pull origin main
 
 echo "==> docker build"
-docker build -t saskia-rms:prod .
+docker build -t sazon-rms:prod .
 
 echo "==> docker stack deploy"
-docker stack deploy -c docker-stack.yml saskia-vps --resolve-image=never
+docker stack deploy -c docker-stack.yml sazon-vps --resolve-image=never
 
 echo "==> waiting 8s for container to come up"
 sleep 8
 
 echo "==> running seed (recipe.instructions + allergens + tag_links + cascade)"
-docker exec $(docker ps -qf name=saskia-rms) \
-  bash -c "AIW_SASKIA_DB_PATH=/opt/data/.local/share/AIW-Saskia/rms.sqlite \
+docker exec $(docker ps -qf name=sazon-rms) \
+  bash -c "AIW_RMS_DB_PATH=/opt/data/.local/share/aiw-restaurant/rms.sqlite \
     python /app/scripts/seed_full_recipe_data.py" \
   || echo "(seed ran with warnings — that's ok, it's idempotent)"
 
 echo "==> verification"
-curl -sk https://saskia-vps.paragu-ai.com/recetas/6 | wc -c
+curl -sk https://sazon-vps.paragu-ai.com/recetas/6 | wc -c
 echo "(expect ~48000 bytes — was 39924 before fix)"
 
-curl -sk https://saskia-vps.paragu-ai.com/recetas/6 | grep -c "Ingredientes y sub-recetas"
+curl -sk https://sazon-vps.paragu-ai.com/recetas/6 | grep -c "Ingredientes y sub-recetas"
 echo "(expect 1 — was 0 before fix)"
 
-curl -sk https://saskia-vps.paragu-ai.com/recetas/6 | grep "Costo del lote" -A 6 | head -10
+curl -sk https://sazon-vps.paragu-ai.com/recetas/6 | grep "Costo del lote" -A 6 | head -10
 echo "(expect Gs. 19.750 — was Gs. 0 before fix)"
 ```
 
@@ -47,8 +47,8 @@ echo "(expect Gs. 19.750 — was Gs. 0 before fix)"
 From your laptop (NOT inside the Servarica console), one command:
 
 ```bash
-curl -F "file=@/opt/data/profiles/ivan/scratch/saskia-app-work/deliverables/saskia-rms-starter-2026-09-29.xlsx" \
-  https://saskia-vps.paragu-ai.com/excel/importar?mode=patch
+curl -F "file=@/opt/data/profiles/ivan/scratch/sazon-app-work/deliverables/sazon-rms-starter-2026-09-29.xlsx" \
+  https://sazon-vps.paragu-ai.com/excel/importar?mode=patch
 ```
 
 What this does:
@@ -61,7 +61,7 @@ What this does:
 ## Step 3 — Verify (in the same Servarica console or from laptop)
 
 ```bash
-curl -sk https://saskia-vps.paragu-ai.com/excel/exportar -o /tmp/vps.xlsx
+curl -sk https://sazon-vps.paragu-ai.com/excel/exportar -o /tmp/vps.xlsx
 python3 -c "from openpyxl import load_workbook; \
   wb = load_workbook('/tmp/vps.xlsx'); \
   print({n: wb[n].max_row - 1 for n in wb.sheetnames})"
@@ -110,7 +110,7 @@ sheet — paste the response body.
 
 After Step 1 + Step 2 + Step 3, every page that was broken will
 work the same as in the local sandbox. The 4 things that will
-still need Saskia's manual input:
+still need the operator's manual input:
 1. Real stock_qty for each ingredient (UI or xlsx)
 2. Photos for the 13 recipes without image_url
 3. Supplier RUC numbers (for Paraguay legal invoices)

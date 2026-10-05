@@ -1,10 +1,10 @@
 # UI copy bank — Paraguayan Spanish (vos)
 
-> **For Kiki or Saskia to fill.** This is the canonical Spanish (vos) UI string table. Every user-facing string in the app should reference this bank.
+> **For Kiki or the operator to fill.** This is the canonical Spanish (vos) UI string table. Every user-facing string in the app should reference this bank.
 >
-> **Why this matters:** the dev plan says "Spanish (vos)" but doesn't define which vos. Paraguayan Spanish ≠ Argentine Spanish ≠ Mexican Spanish. Without a copy bank approved by Saskia, every UI screen becomes a debate.
+> **Why this matters:** the dev plan says "Spanish (vos)" but doesn't define which vos. Paraguayan Spanish ≠ Argentine Spanish ≠ Mexican Spanish. Without a copy bank approved by the operator, every UI screen becomes a debate.
 >
-> **How to fill:** for each string, replace `<...>` with the actual Spanish (vos) copy Saskia would naturally read. Use Paraguayan conventions ("guardá", "tenés", "querés", period as thousands separator). Money format: "Gs. 729.167" (period thousands sep, no decimals). Date format: "31/08/2026" (DD/MM/YYYY).
+> **How to fill:** for each string, replace `<...>` with the actual Spanish (vos) copy the operator would naturally read. Use Paraguayan conventions ("guardá", "tenés", "querés", period as thousands separator). Money format: "Gs. 729.167" (period thousands sep, no decimals). Date format: "31/08/2026" (DD/MM/YYYY).
 
 ---
 
@@ -151,11 +151,11 @@ Vista previa:
 ## How to commit
 
 1. Save filled version at `app/docs/copy-vos.md` (or this same path in the engagement repo).
-2. Saskia reviews and ticks each line: ✅ or "change to X".
+2. the operator reviews and ticks each line: ✅ or "change to X".
 3. Kiki implements per the copy bank.
 4. Round 2 of dev plan review = copy review.
 
 ---
 
-*Filled by: _____________________ (Saskia or Kiki, Paraguayan Spanish speaker)*
+*Filled by: _____________________ (the operator or Kiki, Paraguayan Spanish speaker)*
 *Date: _____________________*

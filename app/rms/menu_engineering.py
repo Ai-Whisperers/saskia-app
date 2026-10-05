@@ -56,9 +56,9 @@ class MenuEngineeringReport:
 
     @property
     def total_margin_gs(self) -> int:
-        return sum(p.margin_gs for q in (self.star, self.plowhorse,
-                                          self.puzzle, self.dog)
-                   for p in q)
+        return sum(
+            p.margin_gs for q in (self.star, self.plowhorse, self.puzzle, self.dog) for p in q
+        )
 
     @property
     def counts(self) -> dict[str, int]:
@@ -100,8 +100,7 @@ class MenuEngineeringReport:
 _VOLUME_WINDOW_DAYS: Final[int] = 90  # last 90 days of sales
 
 
-def _product_volume(session: Session, product_id: int,
-                    days: int = _VOLUME_WINDOW_DAYS) -> int:
+def _product_volume(session: Session, product_id: int, days: int = _VOLUME_WINDOW_DAYS) -> int:
     """Units sold in the last N days (excluding voided sales)."""
     from datetime import datetime, timedelta, timezone
 
@@ -136,6 +135,7 @@ def _product_margin(session: Session, product: Product) -> tuple[int, int | None
 # ---------------------------------------------------------------------------
 # classify + report
 # ---------------------------------------------------------------------------
+
 
 def classify_products(session: Session) -> list[ProductClassification]:
     """Compute quadrant for every product.
@@ -174,16 +174,18 @@ def classify_products(session: Session) -> list[ProductClassification]:
         margin_gs, margin_ratio = margin_pair
         if margin_gs is None:
             margin_gs = p.sale_price_gs or 0
-        classifications.append(ProductClassification(
-            product_id=p.id,
-            product_name=p.name,
-            quadrant=Quadrant.DOG,  # placeholder, set after median threshold
-            volume=vol,
-            margin_gs=margin_gs,
-            margin_ratio=margin_ratio or 0.0,
-            sale_price_gs=p.sale_price_gs or 0,
-            cost_gs=cost_gs,
-        ))
+        classifications.append(
+            ProductClassification(
+                product_id=p.id,
+                product_name=p.name,
+                quadrant=Quadrant.DOG,  # placeholder, set after median threshold
+                volume=vol,
+                margin_gs=margin_gs,
+                margin_ratio=margin_ratio or 0.0,
+                sale_price_gs=p.sale_price_gs or 0,
+                cost_gs=cost_gs,
+            )
+        )
 
     # Compute medians for threshold.
     volumes = sorted(c.volume for c in classifications)
@@ -233,14 +235,10 @@ def menu_engineering_report(session: Session) -> MenuEngineeringReport:
 # ---------------------------------------------------------------------------
 
 RECOMMENDATIONS: Final[dict[str, str]] = {
-    Quadrant.STAR.value:
-        "Promote and protect — these are your winners.",
-    Quadrant.PLOWHORSE.value:
-        "Consider repricing or reducing cost — high volume, thin margin.",
-    Quadrant.PUZZLE.value:
-        "Push harder on marketing — high margin, low visibility.",
-    Quadrant.DOG.value:
-        "Consider removing from menu or rebranding — low margin, low volume.",
+    Quadrant.STAR.value: "Promote and protect — these are your winners.",
+    Quadrant.PLOWHORSE.value: "Consider repricing or reducing cost — high volume, thin margin.",
+    Quadrant.PUZZLE.value: "Push harder on marketing — high margin, low visibility.",
+    Quadrant.DOG.value: "Consider removing from menu or rebranding — low margin, low volume.",
 }
 
 

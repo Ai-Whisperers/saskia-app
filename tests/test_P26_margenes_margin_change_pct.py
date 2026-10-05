@@ -56,8 +56,9 @@ def test_margenes_page_handles_none_margin_change_pct(client, session_factory):
         ing = make_ingredient(
             s, unit="kg", stock_qty=10.0, min_stock_qty=2.0, purchase_price_gs=3000
         )
-        rec = make_recipe(s, lines=[ing_line(ing, qty=0.3, unit="kg")],
-                          yield_qty=12, yield_unit="und")
+        rec = make_recipe(
+            s, lines=[ing_line(ing, qty=0.3, unit="kg")], yield_qty=12, yield_unit="und"
+        )
         prod_priced = make_product(s, sale_price_gs=5000, recipe_id=rec.id)
         prod_priced_name = prod_priced.name
 
@@ -68,13 +69,15 @@ def test_margenes_page_handles_none_margin_change_pct(client, session_factory):
         # 3 sales at varying prices for prod_priced so price_change_pct is non-null
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         for i, p in enumerate([5000, 5500, 6000]):
-            make_sale(s, product=prod_priced, qty=1, unit_price_gs=p,
-                      at=now - timedelta(days=i * 5))
+            make_sale(
+                s, product=prod_priced, qty=1, unit_price_gs=p, at=now - timedelta(days=i * 5)
+            )
 
         # 2 sales for prod_norecipe — enough to be included in margin_drift_all
         for i, p in enumerate([2000, 2200]):
-            make_sale(s, product=prod_norecipe, qty=1, unit_price_gs=p,
-                      at=now - timedelta(days=i * 3))
+            make_sale(
+                s, product=prod_norecipe, qty=1, unit_price_gs=p, at=now - timedelta(days=i * 3)
+            )
 
         s.commit()
 

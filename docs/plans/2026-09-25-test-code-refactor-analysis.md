@@ -1,4 +1,4 @@
-# Saskia RMS — Test-Code Deep Analysis: Refactors & Abstractions
+# Sazón — Test-Code Deep Analysis: Refactors & Abstractions
 
 **Date:** 2026-09-25
 **Baseline:** 233 test files in `tests/` + 7 in `tests/e2e/`; 2,231 tests green

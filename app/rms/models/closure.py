@@ -11,7 +11,7 @@ from app.rms.models_legacy import Base
 
 class MonthlyClosure(Base):
     """Monthly financial closure record."""
-    
+
     __tablename__ = "monthly_closure"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -34,9 +34,7 @@ class MonthlyClosure(Base):
     reopened_by_user_id: Mapped[Optional[str]] = mapped_column(
         String(64), nullable=True, default=None
     )
-    reopen_reason: Mapped[Optional[str]] = mapped_column(
-        String(255), nullable=True, default=None
-    )
+    reopen_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, default=None)
 
     __table_args__ = (
         CheckConstraint(
@@ -50,7 +48,7 @@ class MonthlyClosure(Base):
     def is_closed(self) -> bool:
         return self.closed_at is not None and self.reopened_at is None
 
-    @property 
+    @property
     def is_open(self) -> bool:
         return self.closed_at is None
 

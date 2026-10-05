@@ -15,6 +15,7 @@ session.add(SaleStockMove(...)) raises InvalidRequestError. The actual
 sale-driven stock-out is now on stock_movement with movement_type='sale'
 and reference_type='sale'. Migration 092 dropped the table itself.
 """
+
 from app.rms.models_legacy import *  # noqa: F403 — legacy compatibility layer, all names re-exported intentionally
 
 # Also export names legacy __all__ may miss
@@ -27,11 +28,12 @@ from app.rms.models_legacy import (
     CommunicationLog,  # noqa: F401 — re-exported via __all__
     ComplianceInfo,  # noqa: F401 — re-exported via __all__
     Customer,  # noqa: F401 — re-exported via __all__
-    DateRangePreset,  # noqa: F401 — re-exported via __all__
     CustomerAddress,  # noqa: F401 — re-exported via __all__
     CustomerInvoiceProfile,  # noqa: F401 — Phase 13 multiple invoice profiles
+    DateRangePreset,  # noqa: F401 — re-exported via __all__
     DeliveryZone,  # noqa: F401 — re-exported via __all__
     Expense,  # noqa: F401 — Phase 14 operating-expense rows
+    FreezerTemperatureLog,  # noqa: F401 — B.6 HACCP freezer temp log
     ImportBatch,  # noqa: F401 — re-exported via __all__
     Ingredient,  # noqa: F401 — re-exported via __all__
     IngredientPriceEvent,  # noqa: F401 — re-exported via __all__
@@ -46,6 +48,7 @@ from app.rms.models_legacy import (
     PedidoLine,  # noqa: F401 — re-exported via __all__
     PriceHistory,  # noqa: F401 — re-exported via __all__
     Product,  # noqa: F401 — re-exported via __all__
+    ProductionClosedDay,  # noqa: F401 — re-exported via __all__
     ProductionCompletion,  # noqa: F401 — re-exported via __all__
     ProductionPlan,  # noqa: F401 — re-exported via __all__
     ProductionPlanOverride,  # noqa: F401 — re-exported via __all__
@@ -71,8 +74,9 @@ from app.rms.models_legacy import (
     WasteLog,  # noqa: F401 — re-exported via __all__
     WishlistItem,  # noqa: F401 — re-exported via __all__
 )
-from app.rms.models_legacy import __all__ as _legacy_all  # noqa: F401 — re-exported via __all__
+from app.rms.models_legacy import __all__ as _legacy_all
 
 # Also export new models not in legacy
 from .closure import MonthlyClosure
-__all__ = _legacy_all + ["MonthlyClosure"]
+
+__all__ = [*_legacy_all, "MonthlyClosure"]

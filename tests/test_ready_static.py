@@ -1,4 +1,5 @@
 """tests/test_ready_static.py — verify /static/* returns 503 during cold-start."""
+
 from __future__ import annotations
 
 
@@ -44,11 +45,12 @@ def test_static_asset_returns_503_when_not_ready():
     # Make a fake mounted StaticFiles subclass instance for testing.
     import os
     import tempfile
+
     with tempfile.TemporaryDirectory() as tmpdir:
         # Write a tiny file.
         path = os.path.join(tmpdir, "test.css")
-        with open(path, 'w') as f:
-            f.write('body { color: red; }')
+        with open(path, "w") as f:
+            f.write("body { color: red; }")
         ready_static = ReadyStaticFiles(directory=tmpdir)
 
         async def run_scope(ready_flag):

@@ -53,7 +53,17 @@
 
     <dt>Total</dt>
     <dd><strong>{{ m.gs(sale.total_gs - (sale.discount_gs or 0)) }}</strong></dd>
+  </dl>
 
+  {# T-2026-10-04: separate "Pago y canal" sub-section so the operator
+     sees the payment + sales channel info as a logical group, not
+     mixed with the totals. #}
+  <h3 style="margin:var(--space-3) var(--space-4) 0; font-size:0.95rem;
+             font-weight:600; color:var(--color-text-muted, #6b7280);
+             text-transform:uppercase; letter-spacing:0.05em;">
+    Pago y canal
+  </h3>
+  <dl class="kv-grid" style="display:grid;grid-template-columns:max-content 1fr;gap:var(--space-2) var(--space-4);padding:var(--space-2) var(--space-4) var(--space-3);">
     <dt>Forma de pago</dt>
     <dd>{{ sale.payment_method or '—' }}</dd>
 
@@ -70,7 +80,7 @@
   <div class="voided-banner" role="alert"
        style="margin:var(--space-3) var(--space-4);padding:var(--space-3);border:1px solid var(--color-warn,#c33);border-radius:6px;background:rgba(204,51,51,0.08);">
     <strong>ANULADA</strong>
-    <span>el {{ sale.voided_at_str }}{% if sale.void_reason %} — {{ sale.void_reason }}{% endif %}</span>
+    <span>el {{ sale.voided_at_str }}{% if sale.voided_by %} por {{ sale.voided_by }}{% endif %}{% if sale.void_reason %} — {{ sale.void_reason }}{% endif %}</span>
   </div>
   {% endif %}
 </div>

@@ -14,7 +14,7 @@ See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
 <!-- ORIGINAL CONTENT BELOW -->
 
 # COMPREHENSIVE UI ANALYSIS REPORT
-## Saskia RMS Application Forms and UI Elements
+## Sazón Application Forms and UI Elements
 
 ### 📊 EXECUTIVE SUMMARY
 
@@ -131,7 +131,7 @@ See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
 <input type="text" name="cliente" placeholder="Nombre del cliente">
 
 <!-- Recommended: Single field with auto-detection -->
-<div class="saskia-combo" data-source="/customers/api/search">
+<div class="ui-combo" data-source="/customers/api/search">
   <input type="text" name="customer_name" placeholder="Search customer...">
   <input type="hidden" name="customer_id">
 </div>

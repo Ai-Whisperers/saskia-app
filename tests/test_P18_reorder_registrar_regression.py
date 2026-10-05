@@ -7,6 +7,7 @@ Tests:
 - No Python errors
 """
 
+
 def test_reorder_renders(client):
     """P-18: Reorder page renders."""
     r = client.get("/reorder")
@@ -18,8 +19,12 @@ def test_reorder_renders_in_spanish(client):
     r = client.get("/reorder")
     assert r.status_code == 200
     body = r.text
-    assert "Reponer" in body or "reorder" in body.lower() or "reposici" in body.lower() or "stock" in body.lower(), \
-        "Page not in Spanish"
+    assert (
+        "Reponer" in body
+        or "reorder" in body.lower()
+        or "reposici" in body.lower()
+        or "stock" in body.lower()
+    ), "Page not in Spanish"
 
 
 def test_reorder_has_ingredient_list(client):
@@ -28,9 +33,7 @@ def test_reorder_has_ingredient_list(client):
     assert r.status_code == 200
     body = r.text
     assert (
-        "ingrediente" in body.lower()
-        or "ingredient" in body.lower()
-        or "stock" in body.lower()
+        "ingrediente" in body.lower() or "ingredient" in body.lower() or "stock" in body.lower()
     ), "Ingredient list not found"
 
 
@@ -74,10 +77,13 @@ def test_reorder_no_python_errors(client):
 
 def test_reorder_post_registrar(client):
     """P-18: POST /reorder/registrar doesn't crash."""
-    r = client.post("/reorder/registrar", data={
-        "ingredient_id": "1",
-        "cantidad": "10",
-    })
+    r = client.post(
+        "/reorder/registrar",
+        data={
+            "ingredient_id": "1",
+            "cantidad": "10",
+        },
+    )
     assert r.status_code != 500, "POST /reorder/registrar returned 500"
 
 
@@ -99,5 +105,6 @@ def test_reorder_template_renders(client):
     r = client.get("/reorder")
     assert r.status_code == 200
     body = r.text
-    assert "TemplateSyntaxError" not in body and "UndefinedError" not in body, \
+    assert "TemplateSyntaxError" not in body and "UndefinedError" not in body, (
         "Jinja template error detected"
+    )

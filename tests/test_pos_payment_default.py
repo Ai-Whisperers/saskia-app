@@ -4,6 +4,7 @@ El 98,7% de las ventas de prod quedaron con payment_method=NULL porque
 /nueva/multi guardaba None silencioso. Ahora el default (is_default →
 'efectivo') llena el método cuando el operador no lo elige.
 """
+
 from __future__ import annotations
 
 from sqlalchemy.orm import sessionmaker
@@ -36,6 +37,7 @@ def test_venta_sin_pago_usa_default_efectivo(authed_client, session_factory):
     s2 = sessionmaker(bind=session_factory.kw["bind"])()
     try:
         from app.rms.models_legacy import Sale
+
         sale = s2.query(Sale).order_by(Sale.id.desc()).first()
         assert sale is not None
         assert sale.payment_method == "efectivo", (
@@ -61,6 +63,7 @@ def test_venta_con_pago_explorado_lo_respeta(authed_client, session_factory):
     s2 = sessionmaker(bind=session_factory.kw["bind"])()
     try:
         from app.rms.models_legacy import Sale
+
         sale = s2.query(Sale).order_by(Sale.id.desc()).first()
         assert sale.payment_method == "qr"
     finally:

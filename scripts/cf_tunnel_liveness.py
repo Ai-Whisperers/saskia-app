@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """scripts/cf_tunnel_liveness.py — Phase 14 (2026-10-01).
 
-Proactive CF-Tunnel liveness check for saskia-vps.paragu-ai.com.
+Proactive CF-Tunnel liveness check for sazon-vps.paragu-ai.com.
 
 Background:
   The CF-Tunnel between the public URL and the Docker Swarm can fail
@@ -15,9 +15,9 @@ Background:
 
 What this script does:
   Runs 3 probes:
-    P1: Public URL — `curl -sk https://saskia-vps.paragu-ai.com/healthz`
+    P1: Public URL — `curl -sk https://sazon-vps.paragu-ai.com/healthz`
         should return `{"status":"ok"}`.
-    P2: DNS — `dig +short CNAME saskia-vps.paragu-ai.com` should
+    P2: DNS — `dig +short CNAME sazon-vps.paragu-ai.com` should
         resolve to a *.cfargotunnel.com endpoint.
     P3: App on the swarm — `curl -sk http://127.0.0.1:<port>/healthz/db`
         should return JSON with schema_version present (proves the
@@ -45,6 +45,7 @@ Cron wiring:
   probe so a flap is detected within 30 min. Cron registration is
   documented in docs/operations/2026-10-01-phase14-cf-tunnel-cron.md.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -54,14 +55,10 @@ import re
 import subprocess
 import sys
 import time
-from pathlib import Path
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-
-PUBLIC_URL = os.environ.get(
-    "SASKIA_PUBLIC_URL", "https://saskia-vps.paragu-ai.com"
-)
+PUBLIC_URL = os.environ.get("SASKIA_PUBLIC_URL", "https://sazon-vps.paragu-ai.com")
 PUBLIC_HOST = re.sub(r"^https?://", "", PUBLIC_URL).rstrip("/")
 LOCAL_PROBE_PORT = int(os.environ.get("SASKIA_LOCAL_HEALTH_PORT", "8080"))
 TIMEOUT_S = int(os.environ.get("SASKIA_PROBE_TIMEOUT_S", "15"))
@@ -69,7 +66,10 @@ TIMEOUT_S = int(os.environ.get("SASKIA_PROBE_TIMEOUT_S", "15"))
 # INSIDE the swarm (the container's 127.0.0.1 is the loopback of
 # its own network namespace, not the swarm's published port).
 SKIP_LOCAL = os.environ.get("SASKIA_SKIP_LOCAL", "").lower() in (
-    "1", "true", "yes", "on",
+    "1",
+    "true",
+    "yes",
+    "on",
 )
 
 
@@ -89,7 +89,7 @@ def probe_public() -> tuple[bool, str]:
         return False, f"public /healthz unreachable: {exc}"
     except (json.JSONDecodeError, ValueError) as exc:
         return False, f"public /healthz non-JSON: {exc}"
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, f"public /healthz unexpected: {exc}"
 
 
@@ -137,14 +137,13 @@ def probe_local() -> tuple[bool, str]:
             return True, f"local /healthz/db ok (schema {data['schema_version']})"
     except URLError as exc:
         return False, f"local /healthz/db unreachable: {exc}"
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, f"local /healthz/db error: {exc}"
 
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--quiet", action="store_true",
-                   help="one-line output (cron-friendly)")
+    p.add_argument("--quiet", action="store_true", help="one-line output (cron-friendly)")
     return p
 
 

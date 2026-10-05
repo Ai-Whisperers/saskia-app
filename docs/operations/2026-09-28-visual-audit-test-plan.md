@@ -1,5 +1,5 @@
-# Saskia RMS — Visual & Behavioral Test Plan
-**Date:** 2026-09-28 · **Audit session:** `20260927_182227_f40eb1` · **Live URL:** https://saskia-vps.paragu-ai.com
+# Sazón — Visual & Behavioral Test Plan
+**Date:** 2026-09-28 · **Audit session:** `20260927_182227_f40eb1` · **Live URL:** https://sazon-vps.paragu-ai.com
 
 ---
 
@@ -151,16 +151,16 @@ Test infrastructure assumptions (matches `tests/conftest.py`):
 
 ## P-03 · `/productos` & `/productos/nuevo` — combo getSelectedData regression
 
-**Why:** Today's fix (`d2b2e0c`) added `getSelectedData()` to `saskia-combo.js`. Without a regression test, the next refactor strips it again and `ventas.html:301` silently TypeError-crashes (the bug audit caught).
+**Why:** Today's fix (`d2b2e0c`) added `getSelectedData()` to `ui-combo.js`. Without a regression test, the next refactor strips it again and `ventas.html:301` silently TypeError-crashes (the bug audit caught).
 
 **Pre-conditions:** Seed 5 products via `make_product()`, browser client (TestClient doesn't run JS — use Playwright per `cart-smoke.js` pattern).
 
 **Action steps:**
 ```
-1. Boot Playwright Chromium against https://saskia-vps.paragu-ai.com
+1. Boot Playwright Chromium against https://sazon-vps.paragu-ai.com
 2. Login as demo
 3. GET /productos/nuevo
-4. Inspect the <saskia-combo> element via JS:
+4. Inspect the <ui-combo> element via JS:
    - Get the `__comboInstance` reference (or invoke the API directly)
    - Call `instance.setOptionsData([{value:1, label:"prod1", sale_price_gs:1000}, ...])`
    - Open the dropdown, click item
@@ -607,7 +607,7 @@ Test infrastructure assumptions (matches `tests/conftest.py`):
 3. Assert response body does NOT contain "value='4500'" or similar raw Jinja leakage
 4. For each restock row, the form must have:
    - <input type="number" name="qty" value="<suggested_qty>"> properly closed
-   - <saskia-combo name="qty_unit"> with options matching the unit type
+   - <ui-combo name="qty_unit"> with options matching the unit type
    - <input type="number" name="price_gs" value="<purchase_price_gs>"> properly closed
    - <button>Reponer</button>
 5. Parse the rendered HTML with an HTML parser (BeautifulSoup or lxml) and assert the form is well-formed (no unclosed tags, no orphan attributes)
@@ -1002,7 +1002,7 @@ Test infrastructure assumptions (matches `tests/conftest.py`):
    - REFACTOR: clean up, run again, verify still green
    - Commit per cycle
 4. **Verify locally**: `./.venv/bin/python -m pytest tests/test_PXX_*.py -v --tb=short`
-5. **Deploy via the standard pipeline**: `vps-sync + docker build -t saskia-rms:v{N} . && docker service update --image saskia-rms:v{N} saskia-vps_web`
+5. **Deploy via the standard pipeline**: `vps-sync + docker build -t sazon-rms:v{N} . && docker service update --image sazon-rms:v{N} sazon-vps_web`
 6. **Verify in prod**: `./shoot_prod.py` + WCAG spot-check
 
 ---
@@ -1083,7 +1083,7 @@ Test infrastructure assumptions (matches `tests/conftest.py`):
 ## Verification command (run after all 30 are done)
 
 ```bash
-cd /opt/data/profiles/ivan/scratch/saskia-app-work
+cd /opt/data/profiles/ivan/scratch/sazon-app-work
 ./.venv/bin/python -m pytest tests/ -q -p no:randomly --tb=short 2>&1 | tail -30
 ```
 

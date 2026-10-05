@@ -32,10 +32,12 @@ def pytest_collection_modifyitems(config, items):
     """Mark the not-yet-shipped tests as xfail."""
     for item in items:
         if item.name in _NOT_SHIPPED:
-            item.add_marker(pytest.mark.xfail(
-                reason="US 4.2 Quick-Sell one-tap form & multi-field customer search not yet shipped",
-                strict=False,
-            ))
+            item.add_marker(
+                pytest.mark.xfail(
+                    reason="US 4.2 Quick-Sell one-tap form & multi-field customer search not yet shipped",
+                    strict=False,
+                )
+            )
 
 
 from datetime import datetime, timedelta, timezone
@@ -66,9 +68,9 @@ def test_historial_page_renders_history(client, session_factory):
     """US 4.3 — /ventas/historial renders the sales history table."""
     with session_factory() as s:
         p = Product(name="BrownieSplit", sale_price_gs=10000, recipe_id=None)
-        s.add(p); s.flush()
-        s.add(Sale(product_id=p.id, qty=2, unit_price_gs=10000,
-                   sold_at=datetime.now(timezone.utc)))
+        s.add(p)
+        s.flush()
+        s.add(Sale(product_id=p.id, qty=2, unit_price_gs=10000, sold_at=datetime.now(timezone.utc)))
         s.commit()
 
     resp = client.get("/ventas/historial")
@@ -106,10 +108,11 @@ def test_historial_anular_button_has_csrf_token(client, session_factory):
     """
     with session_factory() as s:
         p = Product(name="AnulameSplit", sale_price_gs=5000, recipe_id=None)
-        s.add(p); s.flush()
-        sale = Sale(product_id=p.id, qty=1, unit_price_gs=5000,
-                    sold_at=datetime.now(timezone.utc))
-        s.add(sale); s.commit()
+        s.add(p)
+        s.flush()
+        sale = Sale(product_id=p.id, qty=1, unit_price_gs=5000, sold_at=datetime.now(timezone.utc))
+        s.add(sale)
+        s.commit()
         sale_id = sale.id
 
     resp = client.get("/ventas/historial")
@@ -118,6 +121,7 @@ def test_historial_anular_button_has_csrf_token(client, session_factory):
     assert f'action="/ventas/{sale_id}/anular"' in body
     # CSRF token rendered server-side, must be non-empty (signed nonce)
     import re
+
     m = re.search(
         r'name="_csrf_token" value="([^"]*)"',
         body,
@@ -132,11 +136,12 @@ def test_historial_filter_returns_relevant_rows(client, session_factory):
     with session_factory() as s:
         p1 = Product(name="CakeSplit", sale_price_gs=10000, recipe_id=None)
         p2 = Product(name="BreadSplit", sale_price_gs=5000, recipe_id=None)
-        s.add_all([p1, p2]); s.flush()
-        s.add(Sale(product_id=p1.id, qty=1, unit_price_gs=10000,
-                   sold_at=datetime.now(timezone.utc)))
-        s.add(Sale(product_id=p2.id, qty=1, unit_price_gs=5000,
-                   sold_at=datetime.now(timezone.utc)))
+        s.add_all([p1, p2])
+        s.flush()
+        s.add(
+            Sale(product_id=p1.id, qty=1, unit_price_gs=10000, sold_at=datetime.now(timezone.utc))
+        )
+        s.add(Sale(product_id=p2.id, qty=1, unit_price_gs=5000, sold_at=datetime.now(timezone.utc)))
         s.commit()
 
     resp = client.get("/ventas/historial?q=CakeSplit")
@@ -151,7 +156,8 @@ def test_historial_days_filter_works(client, session_factory):
     """US 4.3 — /ventas/historial?days=7 accepts the days filter without 500."""
     with session_factory() as s:
         p = Product(name="OldSale", sale_price_gs=1000, recipe_id=None)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         old = datetime.now(timezone.utc) - timedelta(days=30)
         s.add(Sale(product_id=p.id, qty=1, unit_price_gs=1000, sold_at=old))
         s.commit()
@@ -169,7 +175,8 @@ def test_quick_sell_section_renders_on_pos(client, session_factory):
     """US 4.2 — POS page shows the Quick-Sell grid."""
     with session_factory() as s:
         p = Product(name="QS_Brownie", sale_price_gs=10000, recipe_id=None)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         now = datetime.now(timezone.utc)
         # Add 5 sales across 3 products so Quick-Sell has data to surface
         for _i in range(3):
@@ -194,7 +201,8 @@ def test_quick_sell_search_input_present(client, session_factory):
     """
     with session_factory() as s:
         p = Product(name="TortaInput", sale_price_gs=50000, recipe_id=None)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         now = datetime.now(timezone.utc)
         s.add(Sale(product_id=p.id, qty=1, unit_price_gs=50000, sold_at=now))
         s.commit()
@@ -211,7 +219,8 @@ def test_quick_sell_buttons_carry_product_id_and_qty(client, session_factory):
     """
     with session_factory() as s:
         p = Product(name="TortaQS", sale_price_gs=50000, recipe_id=None)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         now = datetime.now(timezone.utc)
         s.add(Sale(product_id=p.id, qty=1, unit_price_gs=50000, sold_at=now))
         s.commit()

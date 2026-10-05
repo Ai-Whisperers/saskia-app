@@ -437,15 +437,15 @@
           if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
         }).catch(function () { showInlineError("No se pudo eliminar."); });
       };
-      if (window.SaskiaConfirmModal) {
-        SaskiaConfirmModal.show({
+      if (window.UIConfirmModal) {
+        UIConfirmModal.show({
           title: "¿Eliminar esta dirección?",
           body: "La dirección se borrará del perfil del cliente.",
           confirmLabel: "Eliminar",
           danger: true
         }).then(function (ok) { if (ok) doDelete(); });
       } else {
-        // SaskiaConfirmModal unavailable (app-components.js failed to load):
+        // UIConfirmModal unavailable (app-components.js failed to load):
         // proceed directly — the delete is reversible by re-adding the address.
         doDelete();
       }
@@ -684,8 +684,8 @@
           showInlineError("No se pudo eliminar: " + e.message);
         });
       };
-      if (window.SaskiaConfirmModal) {
-        SaskiaConfirmModal.show({
+      if (window.UIConfirmModal) {
+        UIConfirmModal.show({
           title: "¿Eliminar este perfil de facturación?",
           body: "El perfil queda inactivo (soft-delete); se puede reactivar desde la base de datos.",
           confirmLabel: "Eliminar",

@@ -35,6 +35,7 @@ production DB already has the correct column types from prior manual
 migrations; SQLAlchemy doesn't try to ALTER existing columns on
 create_all (it skips them with IF NOT EXISTS semantics).
 """
+
 from __future__ import annotations
 
 # Re-export the full Base from models so Postgres create_all sees all tables.

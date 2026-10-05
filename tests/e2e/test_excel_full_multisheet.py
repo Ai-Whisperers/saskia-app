@@ -54,8 +54,13 @@ def _post(client, path, content, mode):
     return client.post(
         path,
         data={"mode": mode},
-        files={"file": ("multi.xlsx", content,
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={
+            "file": (
+                "multi.xlsx",
+                content,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
     )
 
 
@@ -109,8 +114,13 @@ def test_full_reimport_blocked_with_friendly_error(client, session_factory):
     r2 = client.post(
         "/excel/importar",
         data={"mode": "FULL"},
-        files={"file": ("multi.xlsx", x,
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={
+            "file": (
+                "multi.xlsx",
+                x,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
         follow_redirects=False,
     )
     assert r2.status_code == 400
@@ -118,7 +128,6 @@ def test_full_reimport_blocked_with_friendly_error(client, session_factory):
     with session_factory() as s:
         n = s.query(Ingredient).filter_by(name="Harina 000").count()
         assert n == 1, f"reimport duplicated rows: {n}"
-
 
 
 def test_dry_run_flags_invalid_line_kind(client, session_factory):

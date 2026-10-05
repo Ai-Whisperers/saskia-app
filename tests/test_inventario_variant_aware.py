@@ -15,6 +15,7 @@ view must:
    surfaces a flash notice.
 6. Legacy ingredients (no variants) still work exactly as before.
 """
+
 # allow-hardcoded-dates: variant math doesn't depend on calendar.
 from __future__ import annotations
 
@@ -24,7 +25,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import pytest
 
 from app.rms.models import Ingredient, IngredientVariant, Supplier
 
@@ -51,7 +51,9 @@ def _make_ingredient(s, name="harina-multi-001", unit="g"):
     return ing
 
 
-def _make_variant(s, ing_id, size, unit="g", supplier_id=None, price=10000, stock=0, preferred=False):
+def _make_variant(
+    s, ing_id, size, unit="g", supplier_id=None, price=10000, stock=0, preferred=False
+):
     v = IngredientVariant(
         ingredient_id=ing_id,
         package_size=size,
@@ -86,8 +88,9 @@ def test_list_shows_rollup_stock_when_variants_exist(client, session_factory):
     r = client.get("/inventario")
     assert r.status_code == 200
     # The variant count column (HTML may have <strong> tags around the count)
-    assert re.search(r"2(?:\s|<[^>]*>)*variantes", r.text), \
+    assert re.search(r"2(?:\s|<[^>]*>)*variantes", r.text), (
         f"Expected '2 variantes' in page (with optional HTML between), page contains 'variantes' at: {[m.start() for m in re.finditer(r'variantes', r.text)]}"
+    )
     # The row should show 6 kg as the rollup
     row = re.search(
         r"<tr[^>]*>(?:[^<]|<(?!tr))*?harina-list-001(?:[^<]|<(?!/tr))*?</tr>",
@@ -98,8 +101,9 @@ def test_list_shows_rollup_stock_when_variants_exist(client, session_factory):
     row_html = row.group(0)
     # The rollup is 6 kg = 6000 g. The cell renders {{ _stock|round(2) }} {{ i.unit }}
     # which gives "6.0 kg".
-    assert ("6 kg" in row_html) or ("6.0 kg" in row_html), \
+    assert ("6 kg" in row_html) or ("6.0 kg" in row_html), (
         f"Expected '6 kg' in row, got: {row_html[:800]}"
+    )
 
 
 # ── 2. Variantes column shows count + preferred summary ──────────────
@@ -109,12 +113,24 @@ def test_list_variantes_column_shows_preferred(client, session_factory):
         sup = _make_supplier(s, "Molino La Esperanza")
         ing = _make_ingredient(s, "harina-col-001", "kg")
         _make_variant(
-            s, ing.id, 1.0, "kg", supplier_id=sup.id,
-            price=12000, stock=5, preferred=True,
+            s,
+            ing.id,
+            1.0,
+            "kg",
+            supplier_id=sup.id,
+            price=12000,
+            stock=5,
+            preferred=True,
         )
         _make_variant(
-            s, ing.id, 0.5, "kg", supplier_id=None,
-            price=6500, stock=10, preferred=False,
+            s,
+            ing.id,
+            0.5,
+            "kg",
+            supplier_id=None,
+            price=6500,
+            stock=10,
+            preferred=False,
         )
         s.commit()
     r = client.get("/inventario")
@@ -128,8 +144,9 @@ def test_list_variantes_column_shows_preferred(client, session_factory):
     row_html = row.group(0)
     # Preferred variant details visible (Jinja may insert whitespace inside
     # the {{ v.package_size }}{{ v.package_unit }} output)
-    assert re.search(r"\b1\s*(?:kg|0\.?)\b|1\s*\.0\s*kg", row_html), \
+    assert re.search(r"\b1\s*(?:kg|0\.?)\b|1\s*\.0\s*kg", row_html), (
         f"Expected '1kg' (with whitespace tolerance) in row, got: {row_html[:800]}"
+    )
     assert "Molino La Esperanza" in row_html
     # Price may be rendered as 12,000 or 12000
     assert ("12,000 Gs" in row_html) or ("12000 Gs" in row_html)
@@ -144,9 +161,7 @@ def test_list_variantes_column_empty_when_no_variants(client, session_factory):
         s.commit()
     r = client.get("/inventario")
     assert r.status_code == 200
-    row = re.search(
-        r"<tr[^>]*>.*?harina-no-var-001.*?</tr>", r.text, re.DOTALL
-    )
+    row = re.search(r"<tr[^>]*>.*?harina-no-var-001.*?</tr>", r.text, re.DOTALL)
     assert row
     row_html = row.group(0)
     assert "+ variante" in row_html
@@ -160,12 +175,24 @@ def test_quick_receipt_form_renders_variant_picker(client, session_factory):
         sup = _make_supplier(s, "Sup A")
         ing = _make_ingredient(s, "harina-pick-001", "kg")
         v1 = _make_variant(
-            s, ing.id, 1.0, "kg", supplier_id=sup.id,
-            price=10000, stock=2, preferred=True,
+            s,
+            ing.id,
+            1.0,
+            "kg",
+            supplier_id=sup.id,
+            price=10000,
+            stock=2,
+            preferred=True,
         )
         v2 = _make_variant(
-            s, ing.id, 0.25, "kg", supplier_id=None,
-            price=3000, stock=8, preferred=False,
+            s,
+            ing.id,
+            0.25,
+            "kg",
+            supplier_id=None,
+            price=3000,
+            stock=8,
+            preferred=False,
         )
         s.commit()
         ing_id = ing.id
@@ -190,8 +217,7 @@ def test_quick_receipt_form_renders_variant_picker(client, session_factory):
     assert "Sup A" in fh
     # Unit label says "paq" (packages), not "kg". The span wraps the
     # literal, so the substring is just "paq" surrounded by whitespace.
-    assert re.search(r'>\s*paq\s*<', fh), \
-        f"Expected 'paq' unit label in form, got: {fh}"
+    assert re.search(r">\s*paq\s*<", fh), f"Expected 'paq' unit label in form, got: {fh}"
 
 
 def test_quick_receipt_form_no_picker_when_no_variants(client, session_factory):
@@ -213,8 +239,7 @@ def test_quick_receipt_form_no_picker_when_no_variants(client, session_factory):
     assert 'name="variant_id"' not in fh
     # Legacy unit shown (the unit from the ingredient, not 'paq').
     # The span wraps the literal so it's just the unit surrounded by whitespace.
-    assert re.search(r'>\s*g\s*<', fh), \
-        f"Expected 'g' unit label in form, got: {fh}"
+    assert re.search(r">\s*g\s*<", fh), f"Expected 'g' unit label in form, got: {fh}"
 
 
 # ── 4. POSTing with variant_id adds to that variant ───────────────────

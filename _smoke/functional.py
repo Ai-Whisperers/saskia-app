@@ -11,11 +11,12 @@ Tests the FULL flow of every important feature, not just page rendering:
   - Merma: register → verify stock decreased
   - Settings: update → verify change
 """
+
 from __future__ import annotations
 
-import re
 import time
 from pathlib import Path
+from typing import Any
 
 import requests
 
@@ -31,12 +32,12 @@ results = {"pass": 0, "fail": 0}
 failures = []
 
 
-def ok(msg):
+def ok(msg: Any):
     print(f"  {GREEN}✓{RESET} {msg}")
     results["pass"] += 1
 
 
-def fail(msg, detail=""):
+def fail(msg: Any, detail: Any = ""):
     print(f"  {RED}✗{RESET} {msg}")
     if detail:
         print(f"    {detail[:150]}")
@@ -44,11 +45,11 @@ def fail(msg, detail=""):
     results["fail"] += 1
 
 
-def section(title):
+def section(title: Any):
     print(f"\n{CYAN}{title}{RESET}")
 
 
-def main():
+def main() -> int:
     session = requests.Session()
     session.get(BASE + "/inicio")
     csrf = session.cookies.get("csrf_token", "")
@@ -66,11 +67,18 @@ def main():
     test_name = f"SmokeIng_{int(time.time())}"
 
     # CREATE
-    r = session.post(BASE + "/inventario/nuevo", data={
-        "name": test_name, "unit": "kg", "stock_qty": "50",
-        "min_stock_qty": "5", "purchase_price_gs": "2000",
-        "_csrf_token": csrf,
-    }, allow_redirects=False)
+    r = session.post(
+        BASE + "/inventario/nuevo",
+        data={
+            "name": test_name,
+            "unit": "kg",
+            "stock_qty": "50",
+            "min_stock_qty": "5",
+            "purchase_price_gs": "2000",
+            "_csrf_token": csrf,
+        },
+        allow_redirects=False,
+    )
     if r.status_code == 303:
         ok(f"CREATE ingredient '{test_name}'")
     else:
@@ -97,9 +105,15 @@ def main():
         ok("GET /produccion-planner renders")
 
     # Use an existing recipe (id=13)
-    r = session.post(BASE + "/produccion-planner/compute", data={
-        "recipe_id": "13", "batches": "1", "_csrf_token": csrf,
-    }, allow_redirects=False)
+    r = session.post(
+        BASE + "/produccion-planner/compute",
+        data={
+            "recipe_id": "13",
+            "batches": "1",
+            "_csrf_token": csrf,
+        },
+        allow_redirects=False,
+    )
     if r.status_code == 200 and "líneas" in r.text:
         ok("POST /produccion-planner/compute renders results")
     else:
@@ -108,12 +122,20 @@ def main():
     # ─── 4. BANK RECONCILIATION ───────────────────────────────────
     section("[4] BANK reconciliation flow")
     supplier = f"SmokeBank_{int(time.time())}"
-    r = session.post(BASE + "/bank/add", data={
-        "posted_at": "2026-09-23", "currency": "EUR", "amount": "-150.00",
-        "counterparty_name": supplier, "description": "Smoke test outgoing",
-        "category": "manual", "source": "smoke",
-        "_csrf_token": csrf,
-    }, allow_redirects=False)
+    r = session.post(
+        BASE + "/bank/add",
+        data={
+            "posted_at": "2026-09-23",
+            "currency": "EUR",
+            "amount": "-150.00",
+            "counterparty_name": supplier,
+            "description": "Smoke test outgoing",
+            "category": "manual",
+            "source": "smoke",
+            "_csrf_token": csrf,
+        },
+        allow_redirects=False,
+    )
     if r.status_code == 303:
         ok(f"CREATE bank transaction '{supplier}'")
     else:
@@ -129,9 +151,13 @@ def main():
 
     # ─── 5. SHOPPING LIST FLOW ────────────────────────────────────
     section("[5] SHOPPING LIST flow")
-    r = session.post(BASE + "/shopping-list/sync-low-stock", data={
-        "_csrf_token": csrf,
-    }, allow_redirects=False)
+    r = session.post(
+        BASE + "/shopping-list/sync-low-stock",
+        data={
+            "_csrf_token": csrf,
+        },
+        allow_redirects=False,
+    )
     if r.status_code == 303:
         ok("POST sync-low-stock → 303")
     else:
@@ -147,9 +173,15 @@ def main():
     r = session.get(BASE + "/dashboard")
     if r.status_code == 200:
         # Check that new HEREBUS nav links are in the page
-        expected_links = ["/dashboard", "/produccion-planner",
-                          "/shopping-list", "/wishlist", "/vs-mercado",
-                          "/delivery-zones", "/bank"]
+        expected_links = [
+            "/dashboard",
+            "/produccion-planner",
+            "/shopping-list",
+            "/wishlist",
+            "/vs-mercado",
+            "/delivery-zones",
+            "/bank",
+        ]
         for link in expected_links:
             if link in r.text:
                 ok(f"NAV: {link} linked from /dashboard")
@@ -161,7 +193,7 @@ def main():
     # CSRF is bypassed in test mode (SASKIA_TEST_AUTH_DISABLED=1) so
     # requests without a token get through. Verify the middleware EXISTS
     # by reading the source: this proves CSRF is wired up.
-    csrf_module = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/rms/csrf.py")
+    csrf_module = Path("/opt/data/profiles/ivan/scratch/sazon-app-work/app/rms/csrf.py")
     if csrf_module.exists():
         content = csrf_module.read_text()
         if "missing_or_invalid_csrf_token" in content:
@@ -215,4 +247,5 @@ def main():
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

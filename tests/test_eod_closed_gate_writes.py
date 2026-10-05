@@ -18,6 +18,7 @@ test_p0_void_after_eod.py. They are unit tests on the helper itself
 (assert_day_open_or_raise) plus integration tests through the
 existing routers where possible.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
@@ -27,19 +28,19 @@ from sqlalchemy import select
 
 from app.rms.eod_closed import (
     assert_day_open_or_raise,
-    eod_is_day_closed,
 )
 from app.rms.models import AppMeta, Product, Sale
 from app.rms.workflow import fresh_eod_checklist
-
 
 # ---------------------------------------------------------------------------
 # Fixtures (mirrors test_p0_void_after_eod.py)
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def yesterday() -> date:
     from app.rms.config import ASUNCION_TZ
+
     return (datetime.now(ASUNCION_TZ) - timedelta(days=1)).date()
 
 
@@ -66,6 +67,7 @@ def mark_yesterday_closed(session_factory, yesterday: date) -> None:
 # ---------------------------------------------------------------------------
 # assert_day_open_or_raise — unit tests
 # ---------------------------------------------------------------------------
+
 
 def test_assert_day_open_or_raise_no_op_for_open_day(session_factory, yesterday):
     """Open days raise nothing — helper returns silently."""
@@ -102,6 +104,7 @@ def test_assert_day_open_or_raise_future_day_never_raises(session_factory):
 # called by the accounting-sensitive routers, not just that the helper works.
 # ---------------------------------------------------------------------------
 
+
 def test_sale_insert_route_gates_closing_day(
     authed_client, session_factory, yesterday, mark_yesterday_closed
 ):
@@ -113,7 +116,10 @@ def test_sale_insert_route_gates_closing_day(
         data={
             "product_id": "1",
             "qty": "1",
-            "sold_at": (datetime.combine(yesterday, datetime.min.time(), tzinfo=timezone.utc) + timedelta(hours=10)).isoformat(),
+            "sold_at": (
+                datetime.combine(yesterday, datetime.min.time(), tzinfo=timezone.utc)
+                + timedelta(hours=10)
+            ).isoformat(),
             "channel": "mostrador",
         },
     )
@@ -135,7 +141,9 @@ def test_sale_void_route_gates_closing_day(
         product = s.scalar(select(Product).limit(1))
         if product is None:
             pytest.skip("No product in DB to seed sale against")
-        sold_at = datetime.combine(yesterday, datetime.min.time(), tzinfo=timezone.utc) + timedelta(hours=12)
+        sold_at = datetime.combine(yesterday, datetime.min.time(), tzinfo=timezone.utc) + timedelta(
+            hours=12
+        )
         sale = Sale(
             product_id=product.id,
             qty=2.0,
@@ -157,7 +165,8 @@ def test_sale_void_route_gates_closing_day(
 
 
 def test_waste_registrar_route_does_not_crash_on_open_days(
-    authed_client, session_factory,
+    authed_client,
+    session_factory,
 ):
     """POST /mermas/registrar is always today's date, so the closed-day
     gate doesn't fire (today is never closed). Smoke test that the
@@ -166,6 +175,7 @@ def test_waste_registrar_route_does_not_crash_on_open_days(
     s = session_factory()
     try:
         from app.rms.models import Ingredient
+
         ing = Ingredient(
             name="merma-test-ingredient",
             unit="kg",

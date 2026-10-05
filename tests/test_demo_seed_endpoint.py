@@ -10,8 +10,6 @@ Verify:
 
 from __future__ import annotations
 
-import pytest
-
 
 def test_demo_seed_status_when_disabled(client, monkeypatch):
     monkeypatch.setenv("AIW_DEMO_SEED_ENABLED", "")

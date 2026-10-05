@@ -8,6 +8,7 @@ request time using Python's markdown library (already pinned in
 pyproject.toml as a transitive dep of pytest — if not, see the
 fallback to plain-text rendering).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -35,6 +36,7 @@ def _md_to_html(md_text: str) -> str:
     pyproject.toml and replace this function.
     """
     import re
+
     lines = md_text.split("\n")
     out: list[str] = []
     in_list = False
@@ -52,7 +54,7 @@ def _md_to_html(md_text: str) -> str:
         # First row = headers.
         header = [c.strip() for c in rows[0].strip("|").split("|")]
         body_rows = [[c.strip() for c in r.strip("|").split("|")] for r in rows[1:]]
-        html = ["<table class=\"data\"><thead><tr>"]
+        html = ['<table class="data"><thead><tr>']
         html.extend(f"<th>{_inline(h)}</th>" for h in header)
         html.append("</tr></thead><tbody>")
         for row in body_rows:
@@ -180,7 +182,11 @@ def _md_to_html(md_text: str) -> str:
         # Default: paragraph text (accumulate until blank line).
         para: list[str] = [_inline(stripped)]
         i += 1
-        while i < len(lines) and lines[i].strip() and not re.match(r"^(#{1,6}\s|>|\s*[-*]\s|\s*\d+\.\s)", lines[i]):
+        while (
+            i < len(lines)
+            and lines[i].strip()
+            and not re.match(r"^(#{1,6}\s|>|\s*[-*]\s|\s*\d+\.\s)", lines[i])
+        ):
             para.append(_inline(lines[i].strip()))
             i += 1
         out.append(f"<p>{' '.join(para)}</p>")
@@ -216,22 +222,30 @@ def _read_section(slug: str) -> tuple[str, str]:
 def guia_index(request: Request) -> HTMLResponse:
     """Render the user-guide README as the index."""
     title, body_html = _read_section("README")
-    return render(request, "guia.html", {
-        "title": title,
-        "body_html": body_html,
-        "section": "README",
-    })
+    return render(
+        request,
+        "guia.html",
+        {
+            "title": title,
+            "body_html": body_html,
+            "section": "README",
+        },
+    )
 
 
 @router.get("/{section}", response_class=HTMLResponse)
 def guia_section(request: Request, section: str) -> HTMLResponse:
     """Render an individual user-guide section."""
     title, body_html = _read_section(section)
-    return render(request, "guia.html", {
-        "title": title,
-        "body_html": body_html,
-        "section": section,
-    })
+    return render(
+        request,
+        "guia.html",
+        {
+            "title": title,
+            "body_html": body_html,
+            "section": section,
+        },
+    )
 
 
 __all__ = ["router"]

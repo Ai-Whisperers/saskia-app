@@ -4,7 +4,7 @@
 
 ## Paso 1: Abrir la app
 
-Entrá a **`https://saskia-rms.paragu-ai.com`** desde cualquier navegador
+Entrá a **`https://sazon-rms.paragu-ai.com`** desde cualquier navegador
 (Chrome, Edge, Safari, Firefox). Si estás en el celular, abrila desde el
 ícono del navegador (no hay app nativa todavía).
 
@@ -20,7 +20,7 @@ dos campos:
 
 | Campo | Qué poner |
 |---|---|
-| **Correo electrónico** | `saskia@paragu-ai.com` |
+| **Correo electrónico** | `demo@sazon.app` |
 | **Contraseña** | La contraseña que Iván te pasó por WhatsApp (si no la tenés, pedila). |
 
 ![Pantalla de inicio de sesión (login).](screenshots/00-login.png)

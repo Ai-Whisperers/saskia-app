@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Saskia RMS — Status Dashboard</title>
+<title>the operator RMS — Status Dashboard</title>
 <style>
 :root { --ok: #10b981; --warn: #f59e0b; --err: #ef4444; --muted: #6b7280;
   --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --accent: #3b82f6; }
@@ -44,7 +44,7 @@ ul.checklist li.pending::before { content: "○ "; color: var(--muted); }
 </head>
 <body>
 
-<h1>Saskia RMS — Status Dashboard</h1>
+<h1>the operator RMS — Status Dashboard</h1>
 
 <div class="commit">
   <strong>Commit:</strong> <code>__HEAD_SHA__</code><br>
@@ -148,7 +148,7 @@ ul.checklist li.pending::before { content: "○ "; color: var(--muted); }
 <h2>What's Next</h2>
 <div class="section">
   <p><strong>Ready to start:</strong> Batch 2 (routers + UI templates). About 12 hours. Owner: Kiki or whoever is building.</p>
-  <p><strong>Blocked (waiting on Saskia):</strong></p>
+  <p><strong>Blocked (waiting on the operator):</strong></p>
   <ul>
     <li>Drive folder URL — needed for Task 6 import run</li>
     <li>WhatsApp MVP choice (A/B/C/D) — needed for Task 7 dashboard widget</li>
@@ -159,8 +159,8 @@ ul.checklist li.pending::before { content: "○ "; color: var(--muted); }
 
 <h2>How to refresh this dashboard</h2>
 <div class="section">
-  <pre><code>bash /opt/data/profiles/ivan/scratch/saskia-build-plan/dashboard/refresh.sh \
-     /opt/data/profiles/ivan/scratch/saskia-build-full/saskia-app</code></pre>
+  <pre><code>bash /opt/data/profiles/ivan/scratch/operator-build-plan/dashboard/refresh.sh \
+     /opt/data/profiles/ivan/scratch/operator-build-full/operator-app</code></pre>
   <p>The script runs ruff + pytest, gets the current commit SHA, and regenerates STATUS.md + STATUS.html with live values.</p>
 </div>
 

@@ -5,6 +5,7 @@ Per SASKIA_TEST_PLAN.md §5 #8 — every CSV export must:
 - Have non-empty body when there's data
 - Money columns as integers (Gs.) not formatted strings
 """
+
 from __future__ import annotations
 
 import pytest
@@ -24,8 +25,6 @@ CSV_ROUTES = [
 
 
 @pytest.mark.parametrize("route", CSV_ROUTES)
-
-
 def test_csv_endpoint_returns_csv_content_type(client, route):
     """Every CSV endpoint must return text/csv content-type."""
     r = client.get(route)
@@ -88,9 +87,7 @@ def test_ventas_export_csv_contains_money_columns(client, session_factory):
     if r.status_code == 200:
         body = r.text
         # Money should be plain integers, not formatted with thousands separator
-        assert "12.345" not in body, (
-            "Money columns should be plain integers, not formatted"
-        )
+        assert "12.345" not in body, "Money columns should be plain integers, not formatted"
         assert "12345" in body, "Sale price 12345 should appear in CSV"
 
 

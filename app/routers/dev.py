@@ -2,7 +2,7 @@
 
 These are wired only when DEV_COMBO_SMOKE=1 in the environment so they
 can't leak to production. Gates the smoke test page + a /api/lookup/*
-mock JSON endpoint the saskia-combo can hit.
+mock JSON endpoint the ui-combo can hit.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/dev", tags=["dev"])
 
 @router.get("/combo-smoke", response_class=HTMLResponse)
 def combo_smoke(request: Request) -> object:
-    """Renders the saskia-combo smoke test page. Dev-only."""
+    """Renders the ui-combo smoke test page. Dev-only."""
     if not os.getenv("DEV_COMBO_SMOKE"):
         return HTMLResponse("<h1>404</h1>", status_code=404)
 
@@ -74,7 +74,7 @@ api_router = APIRouter(prefix="/api/lookup", tags=["dev-api"])
 
 @api_router.get("/products")
 def lookup_products(q: str = Query(default=""), limit: int = 25) -> object:
-    """Mock server-side lookup endpoint for saskia-combo.
+    """Mock server-side lookup endpoint for ui-combo.
 
     Real implementation tomorrow: query the products table by name/CRE.
     For now, return a small mock dataset so the smoke page works.

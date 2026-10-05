@@ -7,9 +7,12 @@ Per SASKIA_TEST_PLAN.md §5 #12 — POST /pedidos/{id}/fulfill must atomically:
 - Update pedido status to fulfilled
 - Double-fulfill must return 4xx
 """
+
 from __future__ import annotations
 
-from datetime import date
+from datetime import datetime, timezone
+
+_UTC = timezone.utc
 
 from app.rms.models import Pedido, PedidoLine, Product, Sale
 
@@ -30,7 +33,7 @@ def test_pedidos_fulfill_creates_sale(authed_client, session_factory):
 
         pedido = Pedido(
             customer_name="Atomicity Customer 1",
-            promised_date=date.today(),
+            promised_date=datetime.now(_UTC).date(),
             channel="mostrador",
             status="pending",
         )
@@ -75,7 +78,7 @@ def test_pedidos_double_fulfill_returns_409(authed_client, session_factory):
 
         pedido = Pedido(
             customer_name="Atomicity Customer 2",
-            promised_date=date.today(),
+            promised_date=datetime.now(_UTC).date(),
             channel="mostrador",
             status="pending",
         )
@@ -121,7 +124,7 @@ def test_pedidos_fulfill_updates_status(authed_client, session_factory):
 
         pedido = Pedido(
             customer_name="Atomicity Customer 3",
-            promised_date=date.today(),
+            promised_date=datetime.now(_UTC).date(),
             channel="mostrador",
             status="confirmed",  # not pending - different starting state
         )

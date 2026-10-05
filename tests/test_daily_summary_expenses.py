@@ -10,6 +10,7 @@ not a real number.
 Fix: rename to expenses_placeholder_gs so callers + dashboards can
 distinguish "we don't track expenses yet" from "expenses = 0".
 """
+
 # allow-hardcoded-dates: daily rollups over a specific date range
 from __future__ import annotations
 
@@ -30,18 +31,23 @@ def _seed_sale(session_factory):
         s.add(RecipeLine(recipe_id=recipe.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.3))
         s.flush()
         product = Product(
-            name="TestMuffin", portion_label="1 muffin",
-            recipe_id=recipe.id, sale_price_gs=10000, iva_rate="10",
+            name="TestMuffin",
+            portion_label="1 muffin",
+            recipe_id=recipe.id,
+            sale_price_gs=10000,
+            iva_rate="10",
         )
         s.add(product)
         s.flush()
-        s.add(Sale(
-            product_id=product.id,
-            qty=1.0,
-            unit_price_gs=10000,
-            sold_at=datetime(2026, 9, 15, 14, 0, tzinfo=timezone.utc),
-            invoice_type="boleta_resimple",
-        ))
+        s.add(
+            Sale(
+                product_id=product.id,
+                qty=1.0,
+                unit_price_gs=10000,
+                sold_at=datetime(2026, 9, 15, 14, 0, tzinfo=timezone.utc),
+                invoice_type="boleta_resimple",
+            )
+        )
         s.commit()
 
 

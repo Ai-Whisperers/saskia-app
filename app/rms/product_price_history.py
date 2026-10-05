@@ -130,29 +130,32 @@ def margin_drift_all(
                 current_cost = int(entry[0].batch_cost_gs)
         first_margin = (int(first_sale) - current_cost) if current_cost is not None else None
         last_margin = (int(last_sale) - current_cost) if current_cost is not None else None
-        out.append(MarginDrift(
-            product_id=product_id,
-            product_name=prod.name,
-            first_price_gs=int(first_sale),
-            last_price_gs=int(last_sale),
-            price_change_gs=int(last_sale) - int(first_sale),
-            price_change_pct=(
-                (int(last_sale) - int(first_sale)) / int(first_sale)
-                if int(first_sale) > 0 else None
-            ),
-            first_margin_gs=int(first_margin) if first_margin is not None else None,
-            last_margin_gs=int(last_margin) if last_margin is not None else None,
-            margin_change_gs=(
-                int(last_margin) - int(first_margin)
-                if first_margin is not None and last_margin is not None
-                else None
-            ),
-            margin_change_pct=(
-                (int(last_margin) - int(first_margin)) / int(first_margin)
-                if first_margin is not None and int(first_margin) > 0
-                else None
-            ),
-        ))
+        out.append(
+            MarginDrift(
+                product_id=product_id,
+                product_name=prod.name,
+                first_price_gs=int(first_sale),
+                last_price_gs=int(last_sale),
+                price_change_gs=int(last_sale) - int(first_sale),
+                price_change_pct=(
+                    (int(last_sale) - int(first_sale)) / int(first_sale)
+                    if int(first_sale) > 0
+                    else None
+                ),
+                first_margin_gs=int(first_margin) if first_margin is not None else None,
+                last_margin_gs=int(last_margin) if last_margin is not None else None,
+                margin_change_gs=(
+                    int(last_margin) - int(first_margin)
+                    if first_margin is not None and last_margin is not None
+                    else None
+                ),
+                margin_change_pct=(
+                    (int(last_margin) - int(first_margin)) / int(first_margin)
+                    if first_margin is not None and int(first_margin) > 0
+                    else None
+                ),
+            )
+        )
     # interesting first: biggest margin erosion / growth
     out.sort(key=lambda d: d.margin_change_gs if d.margin_change_gs is not None else 0)
     return out

@@ -15,6 +15,7 @@ This test verifies the privacy guard and the labeling hygiene without
 assuming specific personal names — those are by design for THIS
 deployment (the bakery owner = account holder; this is not a SaaS app).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -98,9 +99,7 @@ def test_bank_has_category_input(client):
     # (audit wanted it but it's not strictly required for the page to
     # be functional — manual filter via query param works today).
     has_category_input = (
-        'name="category"' in body
-        or 'name="categoria"' in body
-        or 'name="cat"' in body
+        'name="category"' in body or 'name="categoria"' in body or 'name="cat"' in body
     )
     assert has_category_input, (
         "Missing category input on /bank. "

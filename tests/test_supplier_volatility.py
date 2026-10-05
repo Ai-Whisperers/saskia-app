@@ -15,11 +15,10 @@ volatility_score = (max-min) / avg  — high = erratic pricing
 trend_direction = "up" | "down" | "stable" (avg vs first price)
 days_since_last_event = days between window-end and last event
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-
-import pytest
 
 from app.rms.config import ASUNCION_TZ
 from app.rms.price_history import supplier_volatility

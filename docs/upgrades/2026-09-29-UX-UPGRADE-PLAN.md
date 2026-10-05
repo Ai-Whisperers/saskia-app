@@ -1,9 +1,9 @@
-# Saskia RMS — Complete UX/UI Upgrade Plan v2 (Full Catalog)
+# Sazón — Complete UX/UI Upgrade Plan v2 (Full Catalog)
 
 **Generated:** 2026-09-29 (rev 3 — full catalog sweep, ops triad blueprint integrated)
 **Author:** UX/UI Principal review (multi-hat analysis + Gemini QA on operational triad)
-**Repo:** `/opt/data/profiles/ivan/scratch/saskia-app-work`
-**Live:** `https://saskia-vps.paragu-ai.com` (Docker Swarm, image `saskia-rms:prod`, schema v60)
+**Repo:** `/opt/data/profiles/ivan/scratch/sazon-app-work`
+**Live:** `https://sazon-vps.paragu-ai.com` (Docker Swarm, image `sazon-rms:prod`, schema v60)
 
 ---
 
@@ -24,7 +24,7 @@
 | `REPORT.md` | 52 KB | 1,402 | route → router → template → context-keys reference |
 | `implementation-status-2026-09-27.md` + `-evening.md` | 18 KB | 279 | what got shipped 2026-09-27 |
 | `README.md` | — | 66 | overview |
-| `saskia-ux-audit-drop-2026-09-27.zip` | 9.5 MB | — | full bundle + 82 screenshots |
+| `sazon-ux-audit-drop-2026-09-27.zip` | 9.5 MB | — | full bundle + 82 screenshots |
 
 **Grand total:** 30 patterns · 10 macros · 219 QoL items · 18 P0 defects · 12 naming dimensions · 17 pages × 5-hat · 28 per-page audits · 4 state machines · 5 personas · 6 universal defects · 10 cross-page defects.
 
@@ -32,11 +32,11 @@
 
 ## What's already shipped (from session 20260927_182227 — 9 commits, ~165 files)
 
-**Web Components built (5):** `saskia-date` (12.9 KB · D1 fix) · `saskia-combo` (18.6 KB · D17 refactor in progress) · `saskia-month` (9.4 KB) · `saskia-skeleton` (6.0 KB) · `saskia-toast` (7.5 KB · D14 in progress)
+**Web Components built (5):** `ui-date` (12.9 KB · D1 fix) · `ui-combo` (18.6 KB · D17 refactor in progress) · `ui-month` (9.4 KB) · `ui-skeleton` (6.0 KB) · `ui-toast` (7.5 KB · D14 in progress)
 **CSS layers:** `app.css` 48 KB · `app-shell.css` 13.7 KB · `app-components.css` 28.3 KB · `app-improvements.css` 15.8 KB
 **Macros defined in atoms.html (18):** page_header · metric_card · kpi_strip · status_pill · status_pill_for · empty_state · report_source_footer · loading_state · skeleton_section · entity_link · filter_toolbar · data_table · row_actions · alert_row · stepper · tooltip · flash_toast · combo_field
 **Adoption (this session):** skeleton_section 41 templates · empty_state 26 · status_pill 19 · page_header 19 · combo_field 18 · report_source_footer 14 · metric_card 9 · alert_row 3 · entity_link 2 · **stub-only:** kpi_strip 1, filter_toolbar 1, data_table 1, row_actions 1, stepper 1, tooltip 1, loading_state 1 (these need `{% call %}` block refactor)
-**P0 defects fixed:** D1 native date → `<saskia-date>` ✅ · D4 slug names → `fmt.entity_name()` (65 refs) ✅ · D5 bilingual pedido status ✅ · D6 stock-preview 500 ✅ · D8 /riesgos CTA ✅ · D10 /bank empty state ✅ · D12 audit confirm modal ✅ · D16 date format drift ✅ (8/18)
+**P0 defects fixed:** D1 native date → `<ui-date>` ✅ · D4 slug names → `fmt.entity_name()` (65 refs) ✅ · D5 bilingual pedido status ✅ · D6 stock-preview 500 ✅ · D8 /riesgos CTA ✅ · D10 /bank empty state ✅ · D12 audit confirm modal ✅ · D16 date format drift ✅ (8/18)
 **P0 defects remaining:** D2 loading skeletons (39 pages) · D3 currency drift (mostly fixed) · D7 /dashboard decision · D9 /vs-mercado data layer · D13 empty-state counts · D14 toast feedback · D15 0 vs — · D17 native selects · D18 orphan text
 
 ---
@@ -156,17 +156,17 @@
 | 7 | `date_range_presets` | `(presets, target_input_from='#date_from', target_input_to='#date_to', custom_enabled=True, custom_label='Personalizado', on_apply=None, active_key=None)` | ❌ missing |
 | 8 | `severity_left_stripe` | `(severity, thickness='4px')` | ❌ missing |
 | 9 | `inline_warning` | `(tone, title=None, message=None, action=None, dismissible=False, tooltip=None, icon=None, expand=None)` | ⚠ stub |
-| 10 | `confirm_destructive` | `(trigger_label, title, body, confirm_label, cancel_label='Cancelar', confirm_action=None, confirm_method='POST', require_typed_confirmation=False, typed_phrase='ELIMINAR', icon='alert-triangle', trigger_tone='danger', trigger_icon='trash', trigger_variant='button', size='md', secondary_action=None)` | ❌ missing (close to `<saskia-confirm-modal>`) |
+| 10 | `confirm_destructive` | `(trigger_label, title, body, confirm_label, cancel_label='Cancelar', confirm_action=None, confirm_method='POST', require_typed_confirmation=False, typed_phrase='ELIMINAR', icon='alert-triangle', trigger_tone='danger', trigger_icon='trash', trigger_variant='button', size='md', secondary_action=None)` | ❌ missing (close to `<ui-confirm-modal>`) |
 
 **Per-macro work estimate (for the 6 stub/missing ones):**
 - **kpi_tile** — 1 day: define HTML/CSS, adopt in `inicio.html`, `analisis.html`, `bank.html` (3-4 templates)
 - **data_table** — 2 days: refactor as `{% call %}` block macro, migrate `inventario.html` (the gold standard) as reference, then 9 other list pages
 - **filter_chips** — 1.5 days: define HTML/CSS, add URL-state sync, migrate to `inventario.html`, `pedidos.html`, `reportes/index`
 - **bulk_action_bar** — 1 day: JS for selection state, sync with `data_table` selectable=True, migrate to `inventario`, `proveedores`, `auditoria`
-- **date_range_presets** — 1.5 days: chips + custom date range, sync with `<saskia-date>` components, 8 pages
+- **date_range_presets** — 1.5 days: chips + custom date range, sync with `<ui-date>` components, 8 pages
 - **severity_left_stripe** — 0.5 day: pure CSS wrapper, 7 pages
 - **inline_warning** — 1 day: tone variants + action CTA + dismissible, 5+ pages
-- **confirm_destructive** — 0.5 day: thin wrapper over `<saskia-confirm-modal>`, 1 page (auditoria already uses confirm modal)
+- **confirm_destructive** — 0.5 day: thin wrapper over `<ui-confirm-modal>`, 1 page (auditoria already uses confirm modal)
 
 **Total macro rollout: 8 days for all 10 to be production-ready across all pages.**
 
@@ -245,7 +245,7 @@
 
 | # | Defect | Status | Effort |
 |---|---|---|---|
-| D1 | Native `<input type="date">` — white triangle, English "mm/dd/yyyy" | ✅ FIXED (`<saskia-date>` × 24 inputs) | done |
+| D1 | Native `<input type="date">` — white triangle, English "mm/dd/yyyy" | ✅ FIXED (`<ui-date>` × 24 inputs) | done |
 | D2 | No loading skeletons across slow routes | ❌ 39 pages need `.skeleton` adoption | 1 week |
 | D3 | Currency drift (`Gs. 75` / `75` / `Gs. 75,00`) | ⚠ Mostly fixed; needs CI lint | 0.5d |
 | D4 | Slug display names ("Producto cfaf4b47") | ✅ FIXED (`fmt.entity_name()` × 65) | done |
@@ -256,12 +256,12 @@
 | D9 | /vs-mercado shows 1 row not 17 | ❌ Data-layer SQL fix | 4h |
 | D10 | /bank empty state | ✅ FIXED | done |
 | D11 | Suppliers duplicate routes | ❌ N/A (URLs 404) | 0 |
-| D12 | Audit confirm modal (native confirm) | ✅ FIXED (`<saskia-confirm-modal>`) | done |
+| D12 | Audit confirm modal (native confirm) | ✅ FIXED (`<ui-confirm-modal>`) | done |
 | D13 | Empty-state counts (no totals) | ❌ Design decision needed | 4h |
-| D14 | No toast feedback after save | ❌ Need `<saskia-toast>` adoption across saves | 1d |
+| D14 | No toast feedback after save | ❌ Need `<ui-toast>` adoption across saves | 1d |
 | D15 | "0" vs "—" ambiguity | ❌ Partial — formatter needed in atoms | 1d |
-| D16 | Date format drift | ✅ FIXED (`<saskia-date>`) | done |
-| D17 | Native select dropdowns | ❌ Refactor to `<saskia-combo>` | 1 week |
+| D16 | Date format drift | ✅ FIXED (`<ui-date>`) | done |
+| D17 | Native select dropdowns | ❌ Refactor to `<ui-combo>` | 1 week |
 | D18 | Orphaned text | ✅ N/A | done |
 
 **Fixed: 8/18 (44%) · Remaining: 7 P0 (5 days) + 3 P1**
@@ -335,26 +335,26 @@ Each persona has: ASCII wireframe (primary + sub-screens), keyboard map, cogniti
 
 | Status | Component | Size | Used in |
 |---|---|---|---|
-| ✅ Shipped | `saskia-date` | 12.9 KB | 24 inputs across 13 templates |
-| ✅ Shipped | `saskia-combo` | 18.6 KB | (partially) |
-| ✅ Shipped | `saskia-month` | 9.4 KB | inventario_movimientos, reportes |
-| ✅ Shipped | `saskia-skeleton` | 6.0 KB | (just shipped, adoption pending) |
-| ✅ Shipped | `saskia-toast` | 7.5 KB | (partial adoption) |
-| ✅ Shipped | `saskia-confirm-modal` | — | auditoria |
-| ❌ To build | `saskia-pill-cluster` | ~3 KB | derived tags, status |
-| ❌ To build | `saskia-kpi-card` | ~4 KB | KPI tiles with delta |
-| ❌ To build | `saskia-stripe-severity` | ~1 KB | left-edge color bar |
-| ❌ To build | `saskia-bulk-action-bar` | ~3 KB | bulk select toolbar |
-| ❌ To build | `saskia-date-range-presets` | ~5 KB | preset chips + custom range |
-| ❌ To build | `saskia-empty-state` | ~2 KB | icon + CTA + tip |
-| ❌ To build | `saskia-warning` | ~2 KB | inline_warning tone variants |
-| ❌ To build | `saskia-stepper` | ~2 KB | wizard steps |
-| ❌ To build | `saskia-tooltip` | ~1 KB | glossary ? |
-| ❌ To build | `saskia-fab` | ~2 KB | floating "+ Nuevo" |
-| ❌ To build | `saskia-bar-chart` | ~6 KB | SVG bar charts (7 pages) |
-| ❌ To build | `saskia-sparkline` | ~3 KB | KPI delta trend |
-| ❌ To build | `saskia-photo-placeholder` | ~1 KB | initials in colored box |
-| ❌ To build | `saskia-status-pill` | ~2 KB | (already exists as macro; consolidate) |
+| ✅ Shipped | `ui-date` | 12.9 KB | 24 inputs across 13 templates |
+| ✅ Shipped | `ui-combo` | 18.6 KB | (partially) |
+| ✅ Shipped | `ui-month` | 9.4 KB | inventario_movimientos, reportes |
+| ✅ Shipped | `ui-skeleton` | 6.0 KB | (just shipped, adoption pending) |
+| ✅ Shipped | `ui-toast` | 7.5 KB | (partial adoption) |
+| ✅ Shipped | `ui-confirm-modal` | — | auditoria |
+| ❌ To build | `ui-pill-cluster` | ~3 KB | derived tags, status |
+| ❌ To build | `ui-kpi-card` | ~4 KB | KPI tiles with delta |
+| ❌ To build | `ui-stripe-severity` | ~1 KB | left-edge color bar |
+| ❌ To build | `ui-bulk-action-bar` | ~3 KB | bulk select toolbar |
+| ❌ To build | `ui-date-range-presets` | ~5 KB | preset chips + custom range |
+| ❌ To build | `ui-empty-state` | ~2 KB | icon + CTA + tip |
+| ❌ To build | `ui-warning` | ~2 KB | inline_warning tone variants |
+| ❌ To build | `ui-stepper` | ~2 KB | wizard steps |
+| ❌ To build | `ui-tooltip` | ~1 KB | glossary ? |
+| ❌ To build | `ui-fab` | ~2 KB | floating "+ Nuevo" |
+| ❌ To build | `ui-bar-chart` | ~6 KB | SVG bar charts (7 pages) |
+| ❌ To build | `ui-sparkline` | ~3 KB | KPI delta trend |
+| ❌ To build | `ui-photo-placeholder` | ~1 KB | initials in colored box |
+| ❌ To build | `ui-status-pill` | ~2 KB | (already exists as macro; consolidate) |
 
 **Total new components to build: ~13 components × ~3 KB avg = ~40 KB new JS, ~10 days effort**
 
@@ -370,7 +370,7 @@ Each persona has: ASCII wireframe (primary + sub-screens), keyboard map, cogniti
 - **Defects:** no delta arrows on KPIs (P1)
 - **Patterns:** #1 (KPI delta) · #12 (KPI strip) · #30 (required-field markers)
 - **Code estimate:** 1 day refactor · template 200 LOC change · 1 test file 100 LOC
-- **Web components:** `<saskia-kpi-card>`, `<saskia-fab>`, `<saskia-sparkline>`
+- **Web components:** `<ui-kpi-card>`, `<ui-fab>`, `<ui-sparkline>`
 
 #### `/ventas` → `ventas.html` (656 LOC, 3 tests — POS, the most-used page)
 - **5-hat:** Counter needs category labels on chips · repeat customer indicator · refund/void flow · receipt email/SMS
@@ -378,7 +378,7 @@ Each persona has: ASCII wireframe (primary + sub-screens), keyboard map, cogniti
 - **Defects:** category labels missing (P1)
 - **Patterns:** #13 (inline warnings) · #16 (date presets) · #20 (print receipt)
 - **Code estimate:** 3 days · template 150 LOC change · 2 test files × 200 LOC
-- **Web components:** `<saskia-toast>`, `<saskia-confirm-modal>`
+- **Web components:** `<ui-toast>`, `<ui-confirm-modal>`
 
 #### `/pedidos` → `pedidos.html` (297 LOC, 3 tests)
 - **5-hat:** Status filter chips · bulk actions · calendar view · channel color-coding · KPI strip
@@ -386,7 +386,7 @@ Each persona has: ASCII wireframe (primary + sub-screens), keyboard map, cogniti
 - **Defects:** no filter chip rail (P0)
 - **Patterns:** #2 (filter chips) · #3 (severity stripe) · #14 (bulk action bar) · #26 (pagination)
 - **Code estimate:** 2 days · 1 test file × 150 LOC
-- **Web components:** `<saskia-filter-chips>`, `<saskia-bulk-action-bar>`, `<saskia-pagination>`
+- **Web components:** `<ui-filter-chips>`, `<ui-bulk-action-bar>`, `<ui-pagination>`
 
 #### `/pedidos/nuevo` → `pedidos_nuevo.html` (213 LOC, 1 test) — **OPS TRIAD**
 - **5-hat:** Counter needs fast order intake · Owner needs margin tracking · Baker needs production impact · Auditor needs source attribution
@@ -397,7 +397,7 @@ Each persona has: ASCII wireframe (primary + sub-screens), keyboard map, cogniti
 - **Defects:** no live total preview (P1) · ⚠ long vertical form fatigue (P0)
 - **Patterns:** #6 (live preview panel — RIGHT PANE) · #8 (sticky action cluster) · #30 (required-field)
 - **Code estimate:** 4 days · 1 test file × 300 LOC (full e2e)
-- **Web components:** `<saskia-combo>`, `<saskia-warning>`, `<saskia-toast>`
+- **Web components:** `<ui-combo>`, `<ui-warning>`, `<ui-toast>`
 
 #### `/pedidos/{id}` → `pedido_detalle.html` (196 LOC, 0 tests)
 - **5-hat:** Need payment recording · status transitions · WhatsApp deep-link · print receipt · production impact
@@ -405,7 +405,7 @@ Each persona has: ASCII wireframe (primary + sub-screens), keyboard map, cogniti
 - **Defects:** "Ver stock antes de cumplir" was 500 (now FIXED)
 - **Patterns:** #7 (source attribution) · #13 (inline warnings)
 - **Code estimate:** 2 days · 1 test file × 200 LOC (0 currently — test gap)
-- **Web components:** `<saskia-confirm-modal>`, `<saskia-pill-cluster>`
+- **Web components:** `<ui-confirm-modal>`, `<ui-pill-cluster>`
 
 #### `/pedidos/board` → `pedido_board.html` (335 LOC, 66 KB, 0 tests) — kanban — **TEST GAP**
 - **5-hat:** Counter needs 5 columns · drag-drop · live timer · channel color · KPI strip
@@ -413,7 +413,7 @@ Each persona has: ASCII wireframe (primary + sub-screens), keyboard map, cogniti
 - **Defects:** no drag-drop (P1) · 0 tests
 - **Patterns:** #29 (drag-drop) · #12 (KPI strip) · #13 (inline warnings)
 - **Code estimate:** 5 days · 1 test file × 400 LOC (test gap)
-- **Web components:** `<saskia-bar-chart>` (timer viz)
+- **Web components:** `<ui-bar-chart>` (timer viz)
 
 #### `/pedidos/{id}/stock-preview` → `pedido_stock_preview.html` (91 LOC, 1 test) — **WAS 500, now FIXED**
 - **Defects:** ✅ FIXED (demo pedido seeded, recipe/ingredient class-import fix)
@@ -427,7 +427,7 @@ Each persona has: ASCII wireframe (primary + sub-screens), keyboard map, cogniti
 - **Defects:** no progress bar (P1)
 - **Patterns:** #13 (inline warnings — disclaimers!) · state-machine-§3 (5 phases)
 - **Code estimate:** 3 days · 1 test file × 250 LOC
-- **Web components:** `<saskia-stepper>`, `<saskia-warning>`
+- **Web components:** `<ui-stepper>`, `<ui-warning>`
 
 #### `/dashboard` → `dashboard.html` (152 LOC, 1 test) — **REDUNDANT**
 - **Defect:** duplicates `/` and `/analisis` (P0)
@@ -663,7 +663,7 @@ All 8 insight pages are minimal placeholders:
 
 **Realistic 2-week sprint (top priorities, ~12 days):**
 1. Complete `data_table`, `filter_chips`, `bulk_action_bar` macros (3 days)
-2. Build `<saskia-kpi-card>`, `<saskia-pill-cluster>`, `<saskia-stripe-severity>`, `<saskia-bar-chart>` (4 days)
+2. Build `<ui-kpi-card>`, `<ui-pill-cluster>`, `<ui-stripe-severity>`, `<ui-bar-chart>` (4 days)
 3. Roll out macros to 6 P0 pages: inventario, productos, recetas, pedidos, clientes, auditoria (3 days)
 4. Fix 7 remaining P0 defects (2 days)
 5. Tests for new components + e2e for operacional triad (3 days × parallel)
@@ -688,7 +688,7 @@ All 8 insight pages are minimal placeholders:
 
 ## Lessons / pitfalls
 
-1. **Docker build cache gotcha** — `app/` changes may be served from cached COPY layer. Always `docker build --no-cache` + verify by exec'ing. (Saved to `saskia-rms-deploy-flow` skill.)
+1. **Docker build cache gotcha** — `app/` changes may be served from cached COPY layer. Always `docker build --no-cache` + verify by exec'ing. (Saved to `sazon-rms-deploy-flow` skill.)
 2. **SQLite rejects `ADD COLUMN IF NOT EXISTS`** — use inspector-based try/except.
 3. **Tag algebra EN→ES** — normalize at read boundary + migration v60.
 4. **Migration data steps need fresh code** — re-run manually if data is stale.
@@ -697,17 +697,17 @@ All 8 insight pages are minimal placeholders:
 7. **Format drift invisible in unit tests** — D3 only catches in screenshot review. Add CI lint rule.
 8. **Web components use CSS Custom Properties** — never hardcode colors, always `var(--color-*)`.
 9. **Jinja `{% call %}` blocks** — needed for `data_table`, `filter_chips`, `bulk_action_bar` (skip-these-stub-only macros).
-10. **`<saskia-date>` adoption worked** — 24 inputs in 13 templates converted without regressions.
+10. **`<ui-date>` adoption worked** — 24 inputs in 13 templates converted without regressions.
 
 ---
 
 ## Appendix A — File locations
 
-- **This document:** `/opt/data/profiles/ivan/scratch/saskia-app-work/docs/upgrades/2026-09-29-UX-UPGRADE-PLAN.md`
+- **This document:** `/opt/data/profiles/ivan/scratch/sazon-app-work/docs/upgrades/2026-09-29-UX-UPGRADE-PLAN.md`
 - **Source audits:** `/tmp/designer-drop/*.md` (14 files, 19,260 lines total)
-- **Bundle with screenshots:** `/tmp/saskia-ux-audit-drop-2026-09-27.zip` (9.5 MB)
+- **Bundle with screenshots:** `/tmp/sazon-ux-audit-drop-2026-09-27.zip` (9.5 MB)
 - **Existing atoms.html:** `app/templates/_components/atoms.html` (18 macros)
-- **Web components:** `app/static/saskia-{date,combo,month,skeleton,toast,confirm-modal}.js`
+- **Web components:** `app/static/ui-{date,combo,month,skeleton,toast,confirm-modal}.js`
 
 ## Appendix B — Test coverage gaps (top 10)
 

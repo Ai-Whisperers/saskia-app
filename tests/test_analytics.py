@@ -1,6 +1,6 @@
 """tests/test_analytics.py — verify app/rms/analytics.py queries.
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E8.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E8.
 
 Covers:
 - stock_turnover: returns per-ingredient consumption + days-of-stock
@@ -14,6 +14,7 @@ Covers:
 - empty-data: returns empty list (no exceptions) when DB is fresh
 - session_factory fixture driven by real init_db() + E6 seed
 """
+
 from __future__ import annotations
 
 import pytest

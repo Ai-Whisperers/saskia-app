@@ -109,7 +109,7 @@ W-0095 elevation demo page (internal /ops/design-system)
 ### A5 Focus/keyboard/aria (25)
 W-0096 tab-order audit: sidebar → main → toolbar
 W-0097 skip-link works with new shell (exists — verify)
-W-0098 combo (saskia-combo) keyboard: arrows/enter/escape on all instances
+W-0098 combo (ui-combo) keyboard: arrows/enter/escape on all instances
 W-0099 combo screen-reader labels
 W-0100 ⌘K palette keyboard nav + Ctrl K label on non-Mac
 W-0101 Nuevo menu keyboard/esc

@@ -15,10 +15,11 @@ from __future__ import annotations
 
 def test_available_addresses_populated(qseed, session_factory):
     """Kyrian has 2 addresses; prefill returns both."""
-    from app.seed.kyrian import KYRIAN_PHONE
-    from app.rms.models import Customer
-    from app.services.customer_prefill import compute_customer_defaults
     from datetime import date
+
+    from app.rms.models import Customer
+    from app.seed.kyrian import KYRIAN_PHONE
+    from app.services.customer_prefill import compute_customer_defaults
 
     qseed("with_kyrian_full")
     with session_factory() as s:
@@ -36,13 +37,15 @@ def test_available_addresses_populated(qseed, session_factory):
 
 def test_available_addresses_empty_for_new_customer(session_factory):
     """A new customer has no saved addresses."""
+    from datetime import date
+
     from app.rms.models import Customer
     from app.services.customer_prefill import compute_customer_defaults
-    from datetime import date
 
     with session_factory() as s:
         c = Customer(name="Sin Direccion", phone="0991112222")
-        s.add(c); s.commit()
+        s.add(c)
+        s.commit()
         cid = c.id
     with session_factory() as s:
         out = compute_customer_defaults(s, cid, today=date(2026, 10, 1))
@@ -57,10 +60,11 @@ def test_loyalty_balance_populated(qseed, session_factory):
     Kyrian's actual balance is well above the original 494 constant —
     we just verify the field is populated and reasonable.
     """
-    from app.seed.kyrian import KYRIAN_PHONE
-    from app.rms.models import Customer
-    from app.services.customer_prefill import compute_customer_defaults
     from datetime import date
+
+    from app.rms.models import Customer
+    from app.seed.kyrian import KYRIAN_PHONE
+    from app.services.customer_prefill import compute_customer_defaults
 
     qseed("with_kyrian_full")
     with session_factory() as s:
@@ -76,10 +80,11 @@ def test_loyalty_balance_populated(qseed, session_factory):
 
 def test_loyalty_projected_from_clone_lines(qseed, session_factory):
     """Projected points = sum(qty * unit_price) / 1000 of the clone lines."""
-    from app.seed.kyrian import KYRIAN_PHONE
-    from app.rms.models import Customer
-    from app.services.customer_prefill import compute_customer_defaults
     from datetime import date
+
+    from app.rms.models import Customer
+    from app.seed.kyrian import KYRIAN_PHONE
+    from app.services.customer_prefill import compute_customer_defaults
 
     qseed("with_kyrian_full")
     with session_factory() as s:
@@ -95,13 +100,15 @@ def test_loyalty_projected_from_clone_lines(qseed, session_factory):
 
 def test_loyalty_projected_zero_when_no_clone_lines(session_factory):
     """No clone lines → projected = 0."""
+    from datetime import date
+
     from app.rms.models import Customer
     from app.services.customer_prefill import compute_customer_defaults
-    from datetime import date
 
     with session_factory() as s:
         c = Customer(name="Sin Historial", phone="0992223333", loyalty_points=42)
-        s.add(c); s.commit()
+        s.add(c)
+        s.commit()
         cid = c.id
     with session_factory() as s:
         out = compute_customer_defaults(s, cid, today=date(2026, 10, 1))
@@ -112,8 +119,8 @@ def test_loyalty_projected_zero_when_no_clone_lines(session_factory):
 
 def test_endpoint_returns_new_fields(client, monkeypatch, qseed, session_factory):
     """The JSON endpoint exposes available_addresses + loyalty fields."""
-    from app.seed.kyrian import KYRIAN_PHONE
     from app.rms.models import Customer
+    from app.seed.kyrian import KYRIAN_PHONE
 
     qseed("with_kyrian_full")
     with session_factory() as s:
@@ -134,10 +141,11 @@ def test_endpoint_returns_new_fields(client, monkeypatch, qseed, session_factory
 def test_template_includes_prefill_blob_for_addresses(client, monkeypatch, qseed, session_factory):
     """GET /pedidos/nuevo?customer_id=X renders the prefill JSON blob
     which contains available_addresses for the JS picker to read."""
-    from app.seed.kyrian import KYRIAN_PHONE
-    from app.rms.models import Customer
     import json
     import re
+
+    from app.rms.models import Customer
+    from app.seed.kyrian import KYRIAN_PHONE
 
     qseed("with_kyrian_full")
     with session_factory() as s:
@@ -161,8 +169,7 @@ def test_template_includes_prefill_blob_for_addresses(client, monkeypatch, qseed
 
 def test_pedido_prefill_js_has_address_and_loyalty_handlers():
     """The JS file ships with Phase 7 + Phase 8 handlers."""
-    import os
-    path = "/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/pedido-prefill.js"
+    path = "/opt/data/profiles/ivan/scratch/sazon-app-work/app/static/pedido-prefill.js"
     with open(path) as f:
         content = f.read()
     assert "renderAddressPicker" in content

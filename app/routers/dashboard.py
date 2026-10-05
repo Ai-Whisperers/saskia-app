@@ -33,13 +33,20 @@ from app.rms.config import ASUNCION_TZ
 from app.rms.constants import DEFAULT_TAX_REGIME
 from app.rms.costing import batch_products_cost_margin, batch_recipes_cost
 from app.rms.dependencies import get_session
-from app.rms.insights import build_insights, build_actionable_insights
-from app.rms.models import Ingredient, Product, Recipe, RiskItem, Sale, ShoppingListItem, WishlistItem
+from app.rms.insights import build_actionable_insights, build_insights
+from app.rms.models import (
+    Ingredient,
+    Product,
+    Recipe,
+    RiskItem,
+    Sale,
+    ShoppingListItem,
+    WishlistItem,
+)
 from app.rms.money import to_int_gs
 from app.services.template_render import render
 
 router = APIRouter(dependencies=[Depends(require_login)])
-
 
 
 def _period_window(period: str) -> tuple[datetime, datetime]:
@@ -203,46 +210,59 @@ def _compliance_alerts(session: Session) -> list[dict]:
             continue
         days_left = (expiry - today).days
         if days_left < 0:
-            alerts.append({
-                "severity": "danger",
-                "icon": "⚠",
-                "message": f"{label} VENCIDO hace {abs(days_left)} días ({expiry.isoformat()}). Renová ya.",
-                "days_remaining": days_left,
-            })
+            alerts.append(
+                {
+                    "severity": "danger",
+                    "icon": "⚠",
+                    "message": f"{label} VENCIDO hace {abs(days_left)} días ({expiry.isoformat()}). Renová ya.",
+                    "days_remaining": days_left,
+                }
+            )
         elif days_left <= 30:
-            alerts.append({
-                "severity": "warn",
-                "icon": "⏰",
-                "message": f"{label} vence en {days_left} días ({expiry.isoformat()}). Programá renovación.",
-                "days_remaining": days_left,
-            })
+            alerts.append(
+                {
+                    "severity": "warn",
+                    "icon": "⏰",
+                    "message": f"{label} vence en {days_left} días ({expiry.isoformat()}). Programá renovación.",
+                    "days_remaining": days_left,
+                }
+            )
 
     # R.S.P.A. expiry check on products (only when requires_rspa=True)
     from app.rms.models import Product
-    for p in session.execute(
-        select(Product).where(
-            Product.requires_rspa.is_(True),
-            Product.rspa_expiry.is_not(None),
+
+    for p in (
+        session.execute(
+            select(Product).where(
+                Product.requires_rspa.is_(True),
+                Product.rspa_expiry.is_not(None),
+            )
         )
-    ).scalars().all():
+        .scalars()
+        .all()
+    ):
         expiry = _parse_iso(p.rspa_expiry)
         if expiry is None:
             continue
         days_left = (expiry - today).days
         if days_left < 0:
-            alerts.append({
-                "severity": "danger",
-                "icon": "⚠",
-                "message": f"R.S.P.A. de '{p.name}' VENCIDA hace {abs(days_left)} días ({expiry.isoformat()}).",
-                "days_remaining": days_left,
-            })
+            alerts.append(
+                {
+                    "severity": "danger",
+                    "icon": "⚠",
+                    "message": f"R.S.P.A. de '{p.name}' VENCIDA hace {abs(days_left)} días ({expiry.isoformat()}).",
+                    "days_remaining": days_left,
+                }
+            )
         elif days_left <= 30:
-            alerts.append({
-                "severity": "warn",
-                "icon": "⏰",
-                "message": f"R.S.P.A. de '{p.name}' vence en {days_left} días.",
-                "days_remaining": days_left,
-            })
+            alerts.append(
+                {
+                    "severity": "warn",
+                    "icon": "⏰",
+                    "message": f"R.S.P.A. de '{p.name}' vence en {days_left} días.",
+                    "days_remaining": days_left,
+                }
+            )
 
     # Missing critical IDs (info-level)
     missing = []
@@ -255,12 +275,14 @@ def _compliance_alerts(session: Session) -> list[dict]:
     if ci.tax_regime == DEFAULT_TAX_REGIME and not ci.timbrado_number:
         missing.append("Timbrado (RESIMPLE)")
     if missing and not alerts:
-        alerts.append({
-            "severity": "info",
-            "icon": "ℹ",
-            "message": f"Configurá: {', '.join(missing)} en Configuración → Información de Negocio.",
-            "days_remaining": None,
-        })
+        alerts.append(
+            {
+                "severity": "info",
+                "icon": "ℹ",
+                "message": f"Configurá: {', '.join(missing)} en Configuración → Información de Negocio.",
+                "days_remaining": None,
+            }
+        )
 
     return alerts
 
@@ -272,14 +294,13 @@ async def dashboard(
     period: str = Query("today", pattern="^(today|week|month|custom)$"),
     start: str | None = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     end: str | None = Query(None, description="End date for custom range (YYYY-MM-DD)"),
-    chart_preset: str = Query(
-        "30d", pattern="^(7d|30d|90d|current_month|last_month)$"
-    ),
+    chart_preset: str = Query("30d", pattern="^(7d|30d|90d|current_month|last_month)$"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     if period == "custom" and start and end:
         try:
             from datetime import datetime as dt_cls
+
             start_dt = dt_cls.strptime(start, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ)
             end_dt = dt_cls.strptime(end, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ)
             range_start = start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -316,12 +337,17 @@ async def dashboard(
                 "qty": 0.0,
                 "margen_ratio": None,
             }
-        ranking_dict[rid]["ventas_gs"] += to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs)))
+        ranking_dict[rid]["ventas_gs"] += to_int_gs(
+            Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))
+        )
         ranking_dict[rid]["qty"] += s.qty
         if s.product.recipe_id is not None:
             cost, _margin = batch_costs.get(rid, (None, (None, None)))
             if cost is not None and cost.batch_cost_gs is not None:
-                line_margin = to_int_gs(Decimal(str(s.qty)) * (Decimal(str(s.unit_price_gs)) - Decimal(str(cost.batch_cost_gs))))
+                line_margin = to_int_gs(
+                    Decimal(str(s.qty))
+                    * (Decimal(str(s.unit_price_gs)) - Decimal(str(cost.batch_cost_gs)))
+                )
                 ranking_dict[rid]["margen_gs"] += line_margin
 
     ranking = sorted(
@@ -347,9 +373,7 @@ async def dashboard(
     # - danger: any ingredient with negative stock (data integrity issue)
     # - warn:   1+ ingredients below min_stock_qty
     # - success: all tracked ingredients at or above min (or none tracked)
-    stock_negative_count = sum(
-        1 for i in stock_low if (i.stock_qty or 0) < 0
-    )
+    stock_negative_count = sum(1 for i in stock_low if (i.stock_qty or 0) < 0)
     if stock_negative_count > 0:
         stock_health_severity = "danger"
         stock_health_label = f"{stock_negative_count} en negativo"
@@ -365,14 +389,13 @@ async def dashboard(
     # A "regular" in a small bakery context = recurring, not lifetime one-timers.
     # Top 5 for the home card; full list is at /clientes.
     from app.rms.models import Customer as _Customer
+
     _thirty_days_ago = datetime.now(ASUNCION_TZ) - timedelta(days=30)
     regular_rows = session.execute(
         select(
             Sale.customer_id,
             func.count(Sale.id).label("n_visits"),
-            func.coalesce(func.sum(Sale.qty * Sale.unit_price_gs), 0).label(
-                "lifetime_spend_gs"
-            ),
+            func.coalesce(func.sum(Sale.qty * Sale.unit_price_gs), 0).label("lifetime_spend_gs"),
         )
         .where(
             Sale.customer_id.isnot(None),
@@ -388,21 +411,20 @@ async def dashboard(
     if regular_rows:
         _ids = [r.customer_id for r in regular_rows]
         _customers = {
-            c.id: c
-            for c in session.scalars(
-                select(_Customer).where(_Customer.id.in_(_ids))
-            ).all()
+            c.id: c for c in session.scalars(select(_Customer).where(_Customer.id.in_(_ids))).all()
         }
         for r in regular_rows:
             cust = _customers.get(r.customer_id)
             if cust is None:
                 continue
-            regulars.append({
-                "id": r.customer_id,
-                "name": (cust.name or "").strip(),
-                "n_visits": int(r.n_visits),
-                "lifetime_spend_gs": int(r.lifetime_spend_gs or 0),
-            })
+            regulars.append(
+                {
+                    "id": r.customer_id,
+                    "name": (cust.name or "").strip(),
+                    "n_visits": int(r.n_visits),
+                    "lifetime_spend_gs": int(r.lifetime_spend_gs or 0),
+                }
+            )
 
     # Batch-load all recipe costs (replaces per-recipe N+1).
     all_recipes = list(session.scalars(select(Recipe)).all())
@@ -453,10 +475,17 @@ async def dashboard(
     # Ops + ticket for TODAY regardless of the scrubber (the HOY band is
     # always "hoy"; scrubber-scoped numbers stay in the Ranking section).
     _today_start = datetime.now(ASUNCION_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
-    _today_sales = [s for s in sales if s.sold_at and s.sold_at >= _today_start] if period != "today" else sales
+    _today_sales = (
+        [s for s in sales if s.sold_at and s.sold_at >= _today_start]
+        if period != "today"
+        else sales
+    )
     ops_today = len(_today_sales)
     ticket_promedio_gs = (
-        int(sum(int(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in _today_sales) / len(_today_sales))
+        int(
+            sum(int(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in _today_sales)
+            / len(_today_sales)
+        )
         if _today_sales
         else 0
     )
@@ -503,11 +532,7 @@ async def dashboard(
         cierre_ayer_pendiente = False
 
     # Merma hoy
-    merma_hoy = bool(
-        session.execute(
-            select(WasteLog.id).limit(1)
-        ).first()
-    )
+    merma_hoy = bool(session.execute(select(WasteLog.id).limit(1)).first())
 
     # Por vencer 48 h (freshness proxy without the full report)
     vencer_48h_count = 0
@@ -519,7 +544,7 @@ async def dashboard(
                 vencer_48h_gs += int(f.value_at_risk_gs or 0)
     except Exception as exc:  # noqa: BLE001 — defensive default
         # Defensive: dashboard never fails because of analytics math.
-        # Logged at debug so it's traceable in saskia.log without spamming.
+        # Logged at debug so it's traceable in sazon.log without spamming.
         logger.debug("dashboard expiry scan skipped: {}", exc)
 
     # Costs completeness for the "provisional" pill
@@ -557,15 +582,17 @@ async def dashboard(
                 continue
         days_until = (bday - today).days
         if days_until <= 7:
-            birthdays.append({
-                "name": (c.name or "").title(),
-                "customer_id": c.id,
-                "days_until": days_until,
-                "when": "hoy" if days_until == 0 else (
-                    "mañana" if days_until == 1 else f"en {days_until} días"
-                ),
-                "consent": bool(c.marketing_consent),
-            })
+            birthdays.append(
+                {
+                    "name": (c.name or "").title(),
+                    "customer_id": c.id,
+                    "days_until": days_until,
+                    "when": "hoy"
+                    if days_until == 0
+                    else ("mañana" if days_until == 1 else f"en {days_until} días"),
+                    "consent": bool(c.marketing_consent),
+                }
+            )
     birthdays.sort(key=lambda b: b["days_until"])
 
     # Phase 4 B2 (2026-10-01): day-of-week-aware forecast headline for
@@ -574,20 +601,25 @@ async def dashboard(
     # None when there's not enough data so the UI can render an empty
     # state instead of misleading numbers.
     from datetime import datetime as _dt_b2
+
     from app.rms.config import ASUNCION_TZ as _tz_b2
     from app.rms.production import forecast_sales as _fs_b2
+
     _tomorrow_date = (_dt_b2.now(_tz_b2) + timedelta(days=1)).date()
     _tomorrow_dow = _tomorrow_date.weekday()
-    _tomorrow_label = ["lunes", "martes", "miércoles", "jueves",
-                       "viernes", "sábado", "domingo"][_tomorrow_dow]
+    _tomorrow_label = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"][
+        _tomorrow_dow
+    ]
     _forecast_units = 0.0
     _forecast_revenue_gs = 0
     _forecast_products_count = 0
     _forecast_top = []  # [(product_name, qty, revenue_gs)]
     for _prod in session.scalars(select(Product)).all():
         _qty = _fs_b2(
-            session, product_id=_prod.id,
-            days_history=84, target_weekday=_tomorrow_dow,
+            session,
+            product_id=_prod.id,
+            days_history=84,
+            target_weekday=_tomorrow_dow,
         )
         if _qty <= 0:
             continue
@@ -595,18 +627,22 @@ async def dashboard(
         _forecast_units += _qty
         _rev = int(_qty * (_prod.sale_price_gs or 0))
         _forecast_revenue_gs += _rev
-        _forecast_top.append({
-            "name": _prod.name,
-            "qty": _qty,
-            "revenue_gs": _rev,
-        })
+        _forecast_top.append(
+            {
+                "name": _prod.name,
+                "qty": _qty,
+                "revenue_gs": _rev,
+            }
+        )
     _forecast_top.sort(key=lambda x: -x["qty"])
     _forecast_top = _forecast_top[:5]
     # Confidence: count of products with at least 4 DOW-weeks of history
     # divided by total — rough heuristic. Same logic is in
     # production.py:_forecast_confidence() but per-product.
-    _forecast_confidence = "high" if _forecast_products_count >= 5 else (
-        "medium" if _forecast_products_count >= 2 else "low"
+    _forecast_confidence = (
+        "high"
+        if _forecast_products_count >= 5
+        else ("medium" if _forecast_products_count >= 2 else "low")
     )
 
     # Tier 3.1 (2026-10-01): enrollment KPI. Two numbers:
@@ -630,9 +666,7 @@ async def dashboard(
     ).one()
     total_today = int(enrollment_today_q.total or 0)
     with_today = int(enrollment_today_q.with_customer or 0)
-    enrollment_pct_today = (
-        round((with_today / total_today) * 100, 1) if total_today > 0 else None
-    )
+    enrollment_pct_today = round((with_today / total_today) * 100, 1) if total_today > 0 else None
 
     enrollment_prior_q = session.execute(
         select(
@@ -651,9 +685,7 @@ async def dashboard(
     ).one()
     total_prior = int(enrollment_prior_q.total or 0)
     with_prior = int(enrollment_prior_q.with_customer or 0)
-    enrollment_pct_prior = (
-        round((with_prior / total_prior) * 100, 1) if total_prior > 0 else None
-    )
+    enrollment_pct_prior = round((with_prior / total_prior) * 100, 1) if total_prior > 0 else None
 
     if enrollment_pct_today is not None and enrollment_pct_prior is not None:
         enrollment_delta_pp = round(enrollment_pct_today - enrollment_pct_prior, 1)
@@ -696,8 +728,7 @@ async def dashboard(
             "regulars": regulars,
             "regulars_count_total": (
                 session.scalar(
-                    select(func.count())
-                    .select_from(
+                    select(func.count()).select_from(
                         select(Sale.customer_id)
                         .where(
                             Sale.customer_id.isnot(None),
@@ -714,7 +745,7 @@ async def dashboard(
             # B2 (2026-10-01): day-of-week-aware forecast headline
             "forecast_tomorrow_label": _tomorrow_label,
             "forecast_tomorrow_date": _tomorrow_date.isoformat(),
-            "forecast_units": int(round(_forecast_units)),
+            "forecast_units": round(_forecast_units),
             "forecast_revenue_gs": _forecast_revenue_gs,
             "forecast_products_count": _forecast_products_count,
             "forecast_top": _forecast_top,
@@ -735,9 +766,12 @@ async def dashboard(
             "turnover": list(
                 batch_stock_turnover(
                     session,
-                    [ing.id for ing in session.scalars(
-                        select(Ingredient).where(Ingredient.stock_qty > 0).limit(8)
-                    ).all()],
+                    [
+                        ing.id
+                        for ing in session.scalars(
+                            select(Ingredient).where(Ingredient.stock_qty > 0).limit(8)
+                        ).all()
+                    ],
                     days=30,
                 ).values()
             ),
@@ -777,30 +811,41 @@ async def dashboard(
             # HEREBUS-folded KPIs (Wave 3): shopping list, wishlist, risk
             "sl_open_count": session.execute(
                 select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
-            ).scalars().all().__len__(),
+            )
+            .scalars()
+            .all()
+            .__len__(),
             "sl_total_gs": sum(
                 (i.qty_to_buy or 0) * (i.ingredient.purchase_price_gs or 0)
                 for i in session.execute(
                     select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
-                ).scalars().all()
+                )
+                .scalars()
+                .all()
             ),
             "wishlist_count": session.execute(
                 select(WishlistItem).where(WishlistItem.purchased.is_(False))
-            ).scalars().all().__len__(),
+            )
+            .scalars()
+            .all()
+            .__len__(),
             "wishlist_total_gs": sum(
                 (i.unit_price_gs or 0) * (i.quantity or 0)
                 for i in session.execute(
                     select(WishlistItem).where(WishlistItem.purchased.is_(False))
-                ).scalars().all()
+                )
+                .scalars()
+                .all()
             ),
-            "risk_count": session.execute(
-                select(RiskItem).where(RiskItem.status == "activo")
-            ).scalars().all().__len__(),
+            "risk_count": session.execute(select(RiskItem).where(RiskItem.status == "activo"))
+            .scalars()
+            .all()
+            .__len__(),
             "risk_severity_gs": sum(
                 (r.probability or 0) * (r.impact_gs or 0)
-                for r in session.execute(
-                    select(RiskItem).where(RiskItem.status == "activo")
-                ).scalars().all()
+                for r in session.execute(select(RiskItem).where(RiskItem.status == "activo"))
+                .scalars()
+                .all()
             ),
             "data_freshness": datetime.now(ASUNCION_TZ).strftime("%H:%M:%S"),
             # ── HOY band + Acciones del día (mockup plan 2026-09-25) ──
@@ -864,9 +909,7 @@ def _build_hourly_sales_chart(sales: list[Sale], tz: ZoneInfo) -> str:
     )
 
 
-def _build_30day_sales_chart(
-    session: Session, preset: str = "30d"
-) -> dict:
+def _build_30day_sales_chart(session: Session, preset: str = "30d") -> dict:
     """Build an SVG line chart for the dashboard over the given preset.
 
     Returns a dict ``{"html": str, "preset": str, "rows": list[dict]}``

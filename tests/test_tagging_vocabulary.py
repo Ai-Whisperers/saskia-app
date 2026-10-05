@@ -43,16 +43,14 @@ def test_sin_tacc_equivalent_to_sin_gluten():
 def test_alias_targets_are_canonical():
     """Every TAG_ALIASES value must be in CANONICAL_DIETARY_TAGS or be a self-map."""
     for src, dst in TAG_ALIASES.items():
-        assert dst in CANONICAL_DIETARY_TAGS or dst == src, (
-            f"alias {src!r} → {dst!r} not canonical"
-        )
+        assert dst in CANONICAL_DIETARY_TAGS or dst == src, f"alias {src!r} → {dst!r} not canonical"
 
 
 def test_alias_keys_are_unique_normalized():
     """No two keys should map to the same value under different case/hyphen forms."""
     seen = set()
     for src in TAG_ALIASES:
-        key = src.strip().lower().replace("-", " ").replace("_", " ")
+        src.strip().lower().replace("-", " ").replace("_", " ")
         # Allow multiple forms of the same canonical tag (sin gluten / sin-gluten / gluten_free).
         # But no duplicate EXACT key.
         assert src not in seen, f"duplicate alias key: {src!r}"
@@ -69,9 +67,7 @@ def test_allergen_codes_match_dtype():
 def test_blocker_keys_are_canonical():
     """TAG_ALLERGEN_BLOCKERS keys must all be in CANONICAL_DIETARY_TAGS."""
     for tag in TAG_ALLERGEN_BLOCKERS:
-        assert tag in CANONICAL_DIETARY_TAGS, (
-            f"blocker entry for non-canonical tag {tag!r}"
-        )
+        assert tag in CANONICAL_DIETARY_TAGS, f"blocker entry for non-canonical tag {tag!r}"
 
 
 def test_blocker_values_are_canonical_allergens():
@@ -86,9 +82,7 @@ def test_blocker_values_are_canonical_allergens():
 def test_customer_words_have_canonical_targets():
     """CUSTOMER_ALLERGEN_WORDS values must be in CANONICAL_ALLERGENS."""
     for word, code in CUSTOMER_ALLERGEN_WORDS.items():
-        assert code in CANONICAL_ALLERGENS, (
-            f"customer word {word!r} maps to non-canonical {code!r}"
-        )
+        assert code in CANONICAL_ALLERGENS, f"customer word {word!r} maps to non-canonical {code!r}"
 
 
 def test_neutral_keywords_lowercase_unique():

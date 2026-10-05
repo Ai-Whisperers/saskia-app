@@ -1,4 +1,5 @@
 """tests/test_sale_timezone_field.py — Sale.tz column for per-sale timezone tracking."""
+
 from __future__ import annotations
 
 
@@ -37,6 +38,7 @@ def test_sale_create_with_explicit_tz_persists(session_factory):
 
     with session_factory() as s:
         from sqlalchemy import select
+
         loaded = s.execute(select(Sale).where(Sale.id == sale_id)).scalar_one()
         assert loaded.tz == "America/New_York"
 
@@ -64,6 +66,7 @@ def test_sale_default_tz_is_paraguay(session_factory):
 
     with session_factory() as s:
         from sqlalchemy import select
+
         loaded = s.execute(select(Sale).where(Sale.id == sale_id)).scalar_one()
         assert loaded.tz == "America/Asuncion"
 
@@ -81,11 +84,20 @@ def test_groupby_tz_works(session_factory):
         s.add(p)
         s.flush()
         now = datetime.now(timezone.utc)
-        for tz, qty in [("America/Asuncion", 3.0), ("America/New_York", 2.0), ("America/Asuncion", 1.0)]:
-            s.add(Sale(
-                product_id=p.id, qty=qty, unit_price_gs=10000,
-                sold_at=now, tz=tz,
-            ))
+        for tz, qty in [
+            ("America/Asuncion", 3.0),
+            ("America/New_York", 2.0),
+            ("America/Asuncion", 1.0),
+        ]:
+            s.add(
+                Sale(
+                    product_id=p.id,
+                    qty=qty,
+                    unit_price_gs=10000,
+                    sold_at=now,
+                    tz=tz,
+                )
+            )
         s.commit()
 
     with session_factory() as s:

@@ -13,6 +13,7 @@ This test documents the race exists (verifies the current behavior matches
 the documented race description) and locks in the atomic-fix expectations.
 The actual atomic fix is tracked separately.
 """
+
 from __future__ import annotations
 
 # ─── Existing behavior lock-in (RED for the proper fix) ──────────────────────
@@ -99,7 +100,7 @@ def test_documented_race_check_then_act():
     # Read source and verify the check-then-act pattern exists
     from pathlib import Path
 
-    src = Path("/opt/data/scratch/saskia-app/app/rms/rate_limit.py").read_text()
+    src = Path("/opt/data/scratch/sazon-app/app/rms/rate_limit.py").read_text()
     # The race pattern: count query, then conditional return True/False
     assert "count()\n" in src or "count =" in src, (
         "is_write_rate_limited should query count then check limit"

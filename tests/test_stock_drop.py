@@ -235,6 +235,6 @@ def test_apply_sale_unknown_product_raises(session_factory):
 
     from app.rms.costing import apply_sale
 
-    with pytest.raises(ValueError, match="Product .* not found"):
+    with pytest.raises(ValueError, match=r"Product .* not found"):
         with session_factory() as s:
             apply_sale(s, 99999, qty=1.0, sold_at=datetime.now(timezone.utc))

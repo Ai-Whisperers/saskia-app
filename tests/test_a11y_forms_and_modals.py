@@ -1,4 +1,5 @@
 """A11y (accessibility) form tests."""
+
 from __future__ import annotations
 
 
@@ -8,7 +9,7 @@ def test_login_form_has_labels(client):
     assert r.status_code == 200
     body = r.text
     # Must have at least one label element
-    assert "<label" in body or 'aria-label' in body, (
+    assert "<label" in body or "aria-label" in body, (
         f"Login form missing labels/aria-label. Body: {body[:500]}"
     )
 
@@ -19,7 +20,7 @@ def test_login_form_has_aria_live_region(client):
     assert r.status_code == 200
     # Look for aria-live in error flash messages (login template)
     # This is optional - just verify the page is parseable
-    assert 'role="alert"' in r.text or 'aria-live' in r.text or 'declaracion' in r.text.lower(), (
+    assert 'role="alert"' in r.text or "aria-live" in r.text or "declaracion" in r.text.lower(), (
         "Login page missing accessibility features"
     )
 
@@ -57,6 +58,4 @@ def test_skip_link_present(client):
     assert r.status_code == 200
     body = r.text.lower()
     # Skip links usually contain "skip" text
-    assert "skip" in body or "saltar" in body, (
-        f"No skip link found. Body: {body[:500]}"
-    )
+    assert "skip" in body or "saltar" in body, f"No skip link found. Body: {body[:500]}"

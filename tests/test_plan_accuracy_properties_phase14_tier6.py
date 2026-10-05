@@ -22,6 +22,7 @@ What this catches going forward:
     under_baked + over_baked and forget to subtract from planned)
   - Rounding artifacts in nested aggregations
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -36,13 +37,10 @@ from app.rms.plan_accuracy import (
     ProductAccuracySummary,
 )
 
-
 # --- strategies ---
 
 # Non-negative floats, including 0 and small denormals.
-_nonneg = st.floats(
-    min_value=0.0, max_value=1e6, allow_nan=False, allow_infinity=False
-)
+_nonneg = st.floats(min_value=0.0, max_value=1e6, allow_nan=False, allow_infinity=False)
 
 # Strategy for (planned, completed, sold), all >= 0.
 _qty_triple = st.tuples(_nonneg, _nonneg, _nonneg)
@@ -81,7 +79,8 @@ def test_accuracy_returns_none_when_planned_zero(
 @given(planned=_nonneg, completed=_nonneg)
 @settings(max_examples=200)
 def test_accuracy_returns_completed_over_planned_when_planned_positive(
-    planned: float, completed: float,
+    planned: float,
+    completed: float,
 ) -> None:
     """planned > 0 → accuracy == round(completed / planned, 4)."""
     if planned <= 0:
@@ -110,7 +109,8 @@ def test_over_baked_never_negative(qt: tuple[float, float, float]) -> None:
 @given(planned=_nonneg, completed=_nonneg)
 @settings(max_examples=200)
 def test_under_baked_when_planned_exceeds_completed(
-    planned: float, completed: float,
+    planned: float,
+    completed: float,
 ) -> None:
     """planned > completed → under_baked == planned - completed."""
     if planned <= completed:
@@ -123,7 +123,8 @@ def test_under_baked_when_planned_exceeds_completed(
 @given(planned=_nonneg, completed=_nonneg)
 @settings(max_examples=200)
 def test_over_baked_when_completed_exceeds_planned(
-    planned: float, completed: float,
+    planned: float,
+    completed: float,
 ) -> None:
     """completed > planned → over_baked == completed - planned."""
     if completed <= planned:
@@ -149,7 +150,8 @@ def test_demand_met_returns_none_when_completed_zero(
 @given(completed=_nonneg, sold=_nonneg)
 @settings(max_examples=200)
 def test_demand_met_when_completed_positive(
-    completed: float, sold: float,
+    completed: float,
+    sold: float,
 ) -> None:
     """completed > 0 → demand_met == round(sold / completed, 4)."""
     if completed <= 0:
@@ -161,10 +163,12 @@ def test_demand_met_when_completed_positive(
 
 # --- THE conservation invariant ---
 
+
 @given(planned=_nonneg, completed=_nonneg)
 @settings(max_examples=200)
 def test_conservation_invariant_completed_equals_planned_minus_under_plus_over(
-    planned: float, completed: float,
+    planned: float,
+    completed: float,
 ) -> None:
     """THE invariant: completed = planned - under_baked + over_baked.
 
@@ -182,7 +186,9 @@ def test_conservation_invariant_completed_equals_planned_minus_under_plus_over(
 @given(planned=_nonneg, completed=_nonneg, sold=_nonneg)
 @settings(max_examples=200)
 def test_conservation_under_plus_over_equals_abs_gap(
-    planned: float, completed: float, sold: float,
+    planned: float,
+    completed: float,
+    sold: float,
 ) -> None:
     """under_baked + over_baked == |completed - planned|.
 
@@ -203,7 +209,8 @@ def test_conservation_under_plus_over_equals_abs_gap(
 @given(planned=_nonneg, completed=_nonneg)
 @settings(max_examples=200)
 def test_product_summary_total_accuracy_matches_completed_over_planned(
-    planned: float, completed: float,
+    planned: float,
+    completed: float,
 ) -> None:
     """Same property as row.accuracy, at the product-aggregate level."""
     summary = ProductAccuracySummary(
@@ -222,7 +229,8 @@ def test_product_summary_total_accuracy_matches_completed_over_planned(
         assert summary.total_accuracy is None
     else:
         assert summary.total_accuracy == pytest.approx(
-            round(completed / planned, 4), abs=1e-9,
+            round(completed / planned, 4),
+            abs=1e-9,
         )
 
 
@@ -232,7 +240,8 @@ def test_product_summary_total_accuracy_matches_completed_over_planned(
 @given(planned=_nonneg, completed=_nonneg)
 @settings(max_examples=200)
 def test_report_under_baked_pct_none_when_total_planned_zero(
-    planned: float, completed: float,
+    planned: float,
+    completed: float,
 ) -> None:
     """total_planned <= 0 → under_baked_pct is None."""
     if planned > 0:
@@ -251,7 +260,8 @@ def test_report_under_baked_pct_none_when_total_planned_zero(
 @given(planned=_nonneg, completed=_nonneg)
 @settings(max_examples=200)
 def test_report_under_baked_pct_in_unit_interval(
-    planned: float, completed: float,
+    planned: float,
+    completed: float,
 ) -> None:
     """under_baked_pct is in [0, 1] when planned > 0."""
     if planned <= 0:
@@ -272,7 +282,8 @@ def test_report_under_baked_pct_in_unit_interval(
 @given(planned=_nonneg, completed=_nonneg)
 @settings(max_examples=200)
 def test_report_under_baked_pct_zero_when_overbaked(
-    planned: float, completed: float,
+    planned: float,
+    completed: float,
 ) -> None:
     """When over-baked (completed >= planned), under_baked_pct is 0."""
     if planned <= 0 or completed < planned:

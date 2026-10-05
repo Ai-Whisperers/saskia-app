@@ -17,6 +17,7 @@ the unified behavior:
     (added in this refactor so the wrapper doesn't need its own prefix
     stripping)
 """
+
 from __future__ import annotations
 
 import pytest
@@ -24,7 +25,6 @@ from fastapi import HTTPException
 
 from app.rms.money import parse_gs
 from app.rms.validation import parse_money_gs
-
 
 # ─── Canonical grammar (parse_gs) — locked in tests ──────────────────────
 

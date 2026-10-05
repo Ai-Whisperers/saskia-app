@@ -114,10 +114,14 @@ def suppliers_volatility(
     """
     days = max(7, min(int(days), 365))
     rows = supplier_volatility(session, since_days=days)
-    return render(request, "suppliers_volatility.html", {
-        "rows": rows,
-        "days": days,
-    })
+    return render(
+        request,
+        "suppliers_volatility.html",
+        {
+            "rows": rows,
+            "days": days,
+        },
+    )
 
 
 @router.get("/{s_id}/editar", response_class=HTMLResponse)
@@ -248,7 +252,7 @@ def supplier_precios(
     """P1-B9: side-by-side price comparison per ingredient for this supplier.
 
     For each ingredient that this supplier sells, lists every other supplier's
-    price (sorted ASC) and surfaces the delta vs the cheapest — so Saskia can
+    price (sorted ASC) and surfaces the delta vs the cheapest — so the operator can
     spot when she's paying 500 Gs./kg more than Proveedor B for harina.
 
     When ``?supplier_id=N`` is present, that supplier's column is highlighted

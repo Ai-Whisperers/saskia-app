@@ -181,7 +181,7 @@
 ) }}
 {% endif %}
 
-{# Hidden include — loads the inline picker markup so saskia-combo
+{# Hidden include — loads the inline picker markup so ui-combo
    registers its custom element. (No more `<dialog>` modal.) #}
 <div hidden>{% include '_components/_customer_picker.html' %}</div>
 
@@ -189,7 +189,7 @@
 (function () {
   // SALES-UX-001: "Nuevo cliente" is now an in-page anchor that
   // scrolls to the inline picker (also reused by /ventas). The
-  // legacy SaskiaCustomerPicker modal API has been removed since
+  // legacy UICustomerPicker modal API has been removed since
   // the inline picker handles the same flow without screen-dimming
   // overlays.
 
@@ -211,7 +211,7 @@ function bulkDeleteClients() {
   var checked = Array.from(document.querySelectorAll('input[name=selected_clients]:checked'));
   if (!checked.length) return;
   var ids = checked.map(function (c) { return c.value; });
-  SaskiaConfirmModal.show({
+  UIConfirmModal.show({
     title: '¿Eliminar ' + ids.length + ' cliente(s)?',
     body: 'Se eliminarán los clientes que no tengan ventas registradas.',
     action: '/clientes/bulk-eliminar',

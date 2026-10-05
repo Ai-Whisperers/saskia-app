@@ -68,12 +68,8 @@ def test_dow_forecast_aggregates_only_target_weekday(session_factory, qseed):
         _make_sale(session_factory, prod_id, 0.5, wed)
 
     with session_factory() as s:
-        tue_pred = forecast_sales(
-            s, product_id=prod_id, days_history=90, target_weekday=1
-        )
-        wed_pred = forecast_sales(
-            s, product_id=prod_id, days_history=90, target_weekday=2
-        )
+        tue_pred = forecast_sales(s, product_id=prod_id, days_history=90, target_weekday=1)
+        wed_pred = forecast_sales(s, product_id=prod_id, days_history=90, target_weekday=2)
 
     assert tue_pred == pytest.approx(5.0, abs=0.1), f"Tue should be 5, got {tue_pred}"
     assert wed_pred == pytest.approx(0.5, abs=0.1), f"Wed should be 0.5, got {wed_pred}"
@@ -121,9 +117,7 @@ def test_dow_forecast_fallback_when_fewer_than_4_dow_weeks(session_factory, qsee
         _make_sale(session_factory, prod_id, 2.0, wed)
 
     with session_factory() as s:
-        mon_pred = forecast_sales(
-            s, product_id=prod_id, days_history=90, target_weekday=0
-        )
+        mon_pred = forecast_sales(s, product_id=prod_id, days_history=90, target_weekday=0)
 
     # Fallback fires (2 < 4) → all-DOW avg over 90d ≈ 222/90 = 2.47
     # Without fallback it would be 200/2 = 100.
@@ -162,9 +156,7 @@ def test_plan_production_uses_dow_forecast_when_flag_set(session_factory, qseed)
     tue_target = (last_tue + timedelta(days=7)).date()
 
     with session_factory() as s:
-        plan_dow = plan_production(
-            s, for_date=tue_target, days_history=84, use_dow_forecast=True
-        )
+        plan_dow = plan_production(s, for_date=tue_target, days_history=84, use_dow_forecast=True)
 
     prod_row = next((r for r in plan_dow.rows if r.product_id == prod_id), None)
     assert prod_row is not None, "expected the basic product in the plan"
@@ -199,9 +191,9 @@ def test_dow_forecast_12_week_window_smooths_recent_shift(session_factory, qseed
 
 def test_dow_forecast_does_not_count_voided_sales(session_factory, qseed):
     """Voided sales should not contribute to the DOW forecast."""
-    from app.rms.production import forecast_sales
     from app.rms.db import safe_commit
     from app.rms.models import Sale
+    from app.rms.production import forecast_sales
 
     data = qseed("basic")
     prod_id = data["product"].id
@@ -214,12 +206,16 @@ def test_dow_forecast_does_not_count_voided_sales(session_factory, qseed):
             _make_sale(session_factory, prod_id, 4.0, tue)
         else:
             with session_factory() as s:
-                s.add(Sale(
-                    product_id=prod_id, qty=99.0,
-                    sold_at=tue,
-                    unit_price_gs=2500, channel="mostrador",
-                    voided_at=datetime.now(timezone.utc),
-                ))
+                s.add(
+                    Sale(
+                        product_id=prod_id,
+                        qty=99.0,
+                        sold_at=tue,
+                        unit_price_gs=2500,
+                        channel="mostrador",
+                        voided_at=datetime.now(timezone.utc),
+                    )
+                )
                 safe_commit(s)
 
     with session_factory() as s:

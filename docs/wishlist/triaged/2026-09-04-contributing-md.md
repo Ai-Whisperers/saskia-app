@@ -18,4 +18,4 @@ Repo is public. Right now an outsider sees `README.md` → `AGENTS.md` but AGENT
 ## Triage
 
 **Moved to triaged:** 2026-09-09
-**Status:** SHIPPED — `CONTRIBUTING.md` covers bug reports, features, local dev (`make install` / `make migrate` / `make seed`), PR convention (`Saskia-eng-NNN` branch names), security disclosure. Verified by `tests/test_dev_tooling.test_contributing_md_exists`. Pre-existing prior to test_dev_tooling audit.
+**Status:** SHIPPED — `CONTRIBUTING.md` covers bug reports, features, local dev (`make install` / `make migrate` / `make seed`), PR convention (`ENG-NNN` branch names), security disclosure. Verified by `tests/test_dev_tooling.test_contributing_md_exists`. Pre-existing prior to test_dev_tooling audit.

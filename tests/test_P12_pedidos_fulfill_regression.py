@@ -7,6 +7,7 @@ Tests:
 - No Python errors
 """
 
+
 def test_pedidos_fulfill_endpoint_exists(client):
     """P-12: /pedidos/{id}/fulfill endpoint exists."""
     r = client.get("/pedidos/1/fulfill")
@@ -19,9 +20,10 @@ def test_pedidos_fulfill_renders_in_spanish(client):
     r = client.get("/pedidos/1/fulfill")
     if r.status_code == 200:
         body = r.text
-        assert any(w in body.lower() for w in [
-            "cumplir", "preparar", "fulfill", "pedido", "stock", "producir"
-        ]), "Page not in Spanish"
+        assert any(
+            w in body.lower()
+            for w in ["cumplir", "preparar", "fulfill", "pedido", "stock", "producir"]
+        ), "Page not in Spanish"
 
 
 def test_pedidos_fulfill_has_stock_check(client):
@@ -30,9 +32,7 @@ def test_pedidos_fulfill_has_stock_check(client):
     if r.status_code == 200:
         body = r.text
         assert (
-            "stock" in body.lower()
-            or "inventario" in body.lower()
-            or "disponible" in body.lower()
+            "stock" in body.lower() or "inventario" in body.lower() or "disponible" in body.lower()
         ), "Stock check not found"
 
 
@@ -79,5 +79,6 @@ def test_pedidos_fulfill_template_renders(client):
     r = client.get("/pedidos/1/fulfill")
     if r.status_code == 200:
         body = r.text
-        assert "TemplateSyntaxError" not in body and "UndefinedError" not in body, \
+        assert "TemplateSyntaxError" not in body and "UndefinedError" not in body, (
             "Jinja template error detected"
+        )

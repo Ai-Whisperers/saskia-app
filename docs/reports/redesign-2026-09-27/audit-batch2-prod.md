@@ -1,4 +1,4 @@
-# Saskia RMS — UX/UI Principal Audit (Batch 2: Inventory, Production, Orders, Recipes)
+# Sazón — UX/UI Principal Audit (Batch 2: Inventory, Production, Orders, Recipes)
 
 **Auditor role:** Senior UX/UI Principal + Lead QA Architect
 **Scope:** 14 canonical pages from `docs/user-guide/screenshots/all-pages/`

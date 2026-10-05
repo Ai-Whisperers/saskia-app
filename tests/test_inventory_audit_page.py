@@ -11,8 +11,6 @@ Two surfaces are tested:
 
 from __future__ import annotations
 
-from sqlalchemy import select
-
 from app.rms.models import Ingredient
 from app.rms.tagging.audit import audit_all_ingredients
 

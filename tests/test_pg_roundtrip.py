@@ -26,7 +26,6 @@ from datetime import datetime, timezone
 pytest_plugins = ["tests.conftest_pg"]
 
 
-
 def test_init_db_applies_all_migrations(pg_engine):
     """init_db() should run all migrations and bring schema_version to CURRENT_SCHEMA_VERSION.
 
@@ -101,8 +100,7 @@ def test_row_counts_json_jsonb_roundtrip_on_postgres(pg_session_factory):
         session.refresh(batch)
         # PG returns JSONB as a Python dict directly (not a string).
         assert batch.row_counts_json == counts, (
-            f"PG roundtrip altered the dict: "
-            f"in={counts} out={batch.row_counts_json!r}"
+            f"PG roundtrip altered the dict: in={counts} out={batch.row_counts_json!r}"
         )
 
 

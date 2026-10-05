@@ -260,7 +260,6 @@ __all__ = [
 ]
 
 
-
 # --- Daily sales series (E4.S2) ---
 
 
@@ -293,7 +292,7 @@ def _resolve_daily_range(
     Presets: "7d" | "30d" | "90d" | "current_month" | "last_month".
     ``today`` is a test seam; production callers pass nothing.
     """
-    today = today or date.today()
+    today = today or datetime.now(timezone.utc).date()
     if preset == "7d":
         return today - timedelta(days=6), today
     if preset == "30d":
@@ -356,20 +355,14 @@ def daily_sales_series(
     for s in sales:
         if s.sold_at is None:
             continue
-        local = (
-            s.sold_at.replace(tzinfo=timezone.utc)
-            .astimezone(tz)
-            .date()
-        )
+        local = s.sold_at.replace(tzinfo=timezone.utc).astimezone(tz).date()
         totals[local] = totals.get(local, 0) + to_int_gs(
             Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))
         )
         counts[local] = counts.get(local, 0) + 1
         if s.product_id is not None:
             prod_qty.setdefault(local, {})
-            prod_qty[local][s.product_id] = (
-                prod_qty[local].get(s.product_id, 0) + int(s.qty)
-            )
+            prod_qty[local][s.product_id] = prod_qty[local].get(s.product_id, 0) + int(s.qty)
             prod_name[s.product_id] = s.product.name if s.product else None
 
     out: list[DailySalesRow] = []
@@ -378,7 +371,7 @@ def daily_sales_series(
         # Pick the top product (most qty; ties broken by name).
         top_pid: int | None = None
         top_pname: str | None = None
-        if cur in prod_qty and prod_qty[cur]:
+        if prod_qty.get(cur):
             best_pid = max(
                 prod_qty[cur].items(),
                 key=lambda kv: (kv[1], prod_name.get(kv[0]) or ""),
@@ -400,11 +393,11 @@ def daily_sales_series(
 
 __all__ = [
     "DailySalesRow",
-    "StockoutRow",
     "MonthlySummary",
+    "StockoutRow",
     "daily_sales_series",
+    "days_in_month",
+    "month_label",
     "monthly_close_summary",
     "monthly_stockout_report",
-    "month_label",
-    "days_in_month",
 ]

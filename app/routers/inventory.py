@@ -5,14 +5,14 @@ Per dev plan §9 Task 3.
 
 from __future__ import annotations
 
-import csv
-import io
 from datetime import datetime, timezone
+from typing import Any
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Form, Query, Request, Response
+from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from loguru import logger
+from sqlalchemy import case as sql_case
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -60,23 +60,29 @@ def packaging_api_search(
                        "stock_qty": 5.0, "purchase_price_gs": 1500}, ...]
     """
     like = f"%{q.strip().lower()}%"
-    rows = session.execute(
-        select(Ingredient)
-        .where(Ingredient.is_packaging.is_(True))
-        .where(func.lower(Ingredient.name).like(like))
-        .order_by(Ingredient.name)
-        .limit(limit)
-    ).scalars().all()
-    return JSONResponse([
-        {
-            "id": r.id,
-            "name": r.name,
-            "unit": r.unit,
-            "stock_qty": r.stock_qty,
-            "purchase_price_gs": r.purchase_price_gs,
-        }
-        for r in rows
-    ])
+    rows = (
+        session.execute(
+            select(Ingredient)
+            .where(Ingredient.is_packaging.is_(True))
+            .where(func.lower(Ingredient.name).like(like))
+            .order_by(Ingredient.name)
+            .limit(limit)
+        )
+        .scalars()
+        .all()
+    )
+    return JSONResponse(
+        [
+            {
+                "id": r.id,
+                "name": r.name,
+                "unit": r.unit,
+                "stock_qty": r.stock_qty,
+                "purchase_price_gs": r.purchase_price_gs,
+            }
+            for r in rows
+        ]
+    )
 
 
 @router.post("/{ing_id}/toggle-packaging")
@@ -128,9 +134,7 @@ def ingredients_api_search(
     `read_rate_limit_dependency`.
     """
     if not q or q.strip() == "":
-        rows = session.scalars(
-            select(Ingredient).order_by(Ingredient.name).limit(limit)
-        ).all()
+        rows = session.scalars(select(Ingredient).order_by(Ingredient.name).limit(limit)).all()
     else:
         like = f"%{q.strip().lower()}%"
         rows = session.scalars(
@@ -183,9 +187,17 @@ def inventory_export_csv(
     return StreamingResponse(
         stream_csv_rows(
             [
-                "id", "name", "unit", "category", "stock_qty", "min_stock_qty",
-                "purchase_price_gs", "opening_stock_qty", "opening_stock_date",
-                "reorder_point", "notes",
+                "id",
+                "name",
+                "unit",
+                "category",
+                "stock_qty",
+                "min_stock_qty",
+                "purchase_price_gs",
+                "opening_stock_qty",
+                "opening_stock_date",
+                "reorder_point",
+                "notes",
             ],
             _iter(),
         ),
@@ -197,7 +209,9 @@ def inventory_export_csv(
 @router.get("", response_class=HTMLResponse)
 def inventory_list(
     request: Request,
-    sort: str | None = Query(None, description="Sort column: name, stock_qty, unit, min_stock_qty, purchase_price_gs"),
+    sort: str | None = Query(
+        None, description="Sort column: name, stock_qty, unit, min_stock_qty, purchase_price_gs"
+    ),
     dir: str = Query("asc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
     expiry: str = Query("all", pattern="^(all|7days|30days|expired)$"),
@@ -206,6 +220,7 @@ def inventory_list(
     """List all ingredients with stock badge. Paginated at 50/page."""
     PER_PAGE = 50
     from datetime import timedelta
+
     today = datetime.now(ASUNCION_TZ).date()
     week_from_now = today + timedelta(days=7)
     month_from_now = today + timedelta(days=30)
@@ -223,20 +238,16 @@ def inventory_list(
     # The exact variant counts are computed later (after price_info); we
     # use a conservative "ignore legacy-only zero" approach here and
     # re-pin both KPIs after rollup_ingredient_stock() runs.
-    loaded_ids = set(
-        session.scalars(
-            select(StockMovement.ingredient_id).distinct()
-        ).all()
-    )
+    loaded_ids = set(session.scalars(select(StockMovement.ingredient_id).distinct()).all())
     # Provisional never_loaded / critical counts. Both will be recomputed
     # once we know which ingredients actually have variants.
     never_loaded_ids = {
-        i.id for i in all_ings
-        if (i.stock_qty or 0) == 0 and i.id not in loaded_ids
+        i.id for i in all_ings if (i.stock_qty or 0) == 0 and i.id not in loaded_ids
     }
     kpi_never_loaded = len(never_loaded_ids)
     kpi_critical = sum(
-        1 for i in all_ings
+        1
+        for i in all_ings
         if i.stock_qty <= (i.min_stock_qty or 0) and i.id not in never_loaded_ids
     )
     kpi_no_cost = sum(1 for i in all_ings if not i.purchase_price_gs)
@@ -258,16 +269,14 @@ def inventory_list(
     # matches only if it carries EVERY selected tag. Both Spanish canonical
     # ("sin gluten") and legacy English codes ("gluten_free") accepted.
     from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
-    diet_sel = [
-        d.strip().lower()
-        for d in request.query_params.getlist("diet") if d.strip()
-    ]
 
-    def _ingredient_diet_tags(i) -> set[str]:
+    diet_sel = [d.strip().lower() for d in request.query_params.getlist("diet") if d.strip()]
+
+    def _ingredient_diet_tags(i: Any) -> set[str]:
         raw = (i.dietary_tags or "").lower()
         return {t.strip() for t in raw.split(",") if t.strip()}
 
-    def _matches_diet(i) -> bool:
+    def _matches_diet(i: Any) -> bool:
         if not diet_sel:
             return True
         tags = _ingredient_diet_tags(i)
@@ -300,7 +309,9 @@ def inventory_list(
             for estado in estados_sel:
                 if estado == "bajo" and i.stock_qty <= (i.min_stock_qty or 0):
                     ok = True
-                elif estado == "critico" and (i.stock_qty <= 0 or (i.min_stock_qty and i.stock_qty < i.min_stock_qty * 0.5)):
+                elif estado == "critico" and (
+                    i.stock_qty <= 0 or (i.min_stock_qty and i.stock_qty < i.min_stock_qty * 0.5)
+                ):
                     ok = True
                 elif estado == "negativo" and i.stock_qty < 0:
                     ok = True
@@ -327,9 +338,19 @@ def inventory_list(
             for expiry in expiries_sel:
                 if expiry == "expired" and i.expiry_date and i.expiry_date < today:
                     ok = True
-                elif expiry == "7days" and i.expiry_date and i.expiry_date <= week_from_now and i.expiry_date >= today:
+                elif (
+                    expiry == "7days"
+                    and i.expiry_date
+                    and i.expiry_date <= week_from_now
+                    and i.expiry_date >= today
+                ):
                     ok = True
-                elif expiry == "30days" and i.expiry_date and i.expiry_date <= month_from_now and i.expiry_date >= today:
+                elif (
+                    expiry == "30days"
+                    and i.expiry_date
+                    and i.expiry_date <= month_from_now
+                    and i.expiry_date >= today
+                ):
                     ok = True
                 if ok:
                     break
@@ -345,11 +366,14 @@ def inventory_list(
 
     # KPI: count ingredients expiring within 7 days
     expiring_soon = sum(
-        1 for i in all_ings
+        1
+        for i in all_ings
         if i.expiry_date and i.expiry_date <= week_from_now and i.expiry_date >= today
     )
 
-    categories = sorted({(i.category or "").strip() for i in all_ings if (i.category or "").strip()})
+    categories = sorted(
+        {(i.category or "").strip() for i in all_ings if (i.category or "").strip()}
+    )
     storages = sorted({(i.storage or "").strip() for i in all_ings if (i.storage or "").strip()})
 
     # Data-quality: duplicate ingredients (same name, case-insensitive)
@@ -357,9 +381,14 @@ def inventory_list(
     for i in all_ings:
         _by_norm.setdefault((i.name or "").strip().lower(), []).append(i)
     duplicates = [
-        {"name": k, "count": len(v), "units": sorted({x.unit or "" for x in v}),
-         "ids": [x.id for x in v]}
-        for k, v in _by_norm.items() if len(v) > 1
+        {
+            "name": k,
+            "count": len(v),
+            "units": sorted({x.unit or "" for x in v}),
+            "ids": [x.id for x in v],
+        }
+        for k, v in _by_norm.items()
+        if len(v) > 1
     ]
 
     # Data-quality: price per g/ml above Gs. 5.000 is almost certainly a per-kg/l
@@ -380,7 +409,7 @@ def inventory_list(
         "valor_gs": lambda i: (i.stock_qty or 0) * (i.purchase_price_gs or 0),
         "category": lambda i: (i.category or "").lower(),
         "expiry_date": lambda i: i.expiry_date.isoformat() if i.expiry_date else "",
-        "supplier": lambda i: (i.supplier.name.lower() if i.supplier and i.supplier.name else ""),
+        "supplier": lambda i: i.supplier.name.lower() if i.supplier and i.supplier.name else "",
     }
     if sort and sort in _sort_map:
         _filtered_all.sort(key=_sort_map[sort], reverse=(dir == "desc"))
@@ -394,9 +423,7 @@ def inventory_list(
     # under the price cell; >=3 events also get a sparkline SVG.
     price_info: dict[int, dict] = {}
     ing_ids_with_events = set(
-        session.scalars(
-            select(IngredientPriceEvent.ingredient_id).distinct()
-        ).all()
+        session.scalars(select(IngredientPriceEvent.ingredient_id).distinct()).all()
     )
     for ing in ingredients:
         if ing.id not in ing_ids_with_events:
@@ -421,6 +448,7 @@ def inventory_list(
     # rollup.variants is list[dict] with keys: variant_id, package_size,
     # package_unit, stock_qty, purchase_price_gs, supplier_id, preferred, label.
     from app.rms.variants import rollup_ingredient_stock
+
     effective_stock_qty: dict[int, float] = {}
     variants_by_ing_id: dict[int, list[dict]] = {}
     for ing in ingredients:
@@ -432,6 +460,7 @@ def inventory_list(
             _sup_names: dict[int, str] = {}
             if _sup_ids:
                 from app.rms.models import Supplier as _Supplier
+
                 _sup_names = {
                     s.id: s.name
                     for s in session.scalars(
@@ -472,7 +501,8 @@ def inventory_list(
     # is 0 — their stock may live entirely on a variant.
     _has_variant = {ing_id for ing_id, n in _variant_counts.items() if n > 0}
     never_loaded_ids = {
-        i.id for i in all_ings
+        i.id
+        for i in all_ings
         if (i.stock_qty or 0) == 0 and i.id not in loaded_ids and i.id not in _has_variant
     }
     kpi_never_loaded = len(never_loaded_ids)
@@ -480,7 +510,8 @@ def inventory_list(
     # this page; ingredients off-page still use legacy stock_qty as before,
     # which is fine — the user only ever sorts/views what they see).
     kpi_critical = sum(
-        1 for i in all_ings
+        1
+        for i in all_ings
         if effective_stock_qty.get(i.id, float(i.stock_qty or 0.0)) <= (i.min_stock_qty or 0)
         and i.id not in never_loaded_ids
     )
@@ -488,21 +519,19 @@ def inventory_list(
     # Wave 4 — Market reference price (Paraguay baseline). One row per
     # ingredient. Compute delta_pct = (our_price - market_price) / market * 100.
     from app.rms.models import MarketPriceReference
+
     market_refs: dict[int, dict] = {}
     ing_ids = [ing.id for ing in ingredients]
     if ing_ids:
         refs = session.scalars(
-            select(MarketPriceReference).where(
-                MarketPriceReference.ingredient_id.in_(ing_ids)
-            )
+            select(MarketPriceReference).where(MarketPriceReference.ingredient_id.in_(ing_ids))
         ).all()
         for r in refs:
             ing = next((i for i in ingredients if i.id == r.ingredient_id), None)
             if not ing or ing.purchase_price_gs is None:
                 continue
             delta_pct = (
-                (ing.purchase_price_gs - r.price_gs) / r.price_gs * 100
-                if r.price_gs > 0 else 0
+                (ing.purchase_price_gs - r.price_gs) / r.price_gs * 100 if r.price_gs > 0 else 0
             )
             market_refs[ing.id] = {
                 "market_price_gs": r.price_gs,
@@ -548,8 +577,12 @@ def inventory_list(
             "categories": categories,
             "storages": storages,
             "allergen_codes": [
-                ("gluten", "Gluten"), ("dairy", "Lácteos"), ("eggs", "Huevos"),
-                ("nuts", "Frutos secos"), ("soy", "Soja"), ("sesame", "Sésamo"),
+                ("gluten", "Gluten"),
+                ("dairy", "Lácteos"),
+                ("eggs", "Huevos"),
+                ("nuts", "Frutos secos"),
+                ("soy", "Soja"),
+                ("sesame", "Sésamo"),
                 ("sulfites", "Sulfitos"),
             ],
             "total_filtered": total,
@@ -564,7 +597,8 @@ def inventory_list(
                     Ingredient.tag_validation_issues.isnot(None),
                     Ingredient.tag_validation_issues != "",
                 )
-            ) or 0,
+            )
+            or 0,
             "total_all": total_all,
         },
     )
@@ -575,11 +609,10 @@ def carga_inicial_view(request: Request, session: Session = Depends(get_session)
     """PRO-INV: asisted initial stock load — list every ingredient that has
     zero movements in the ledger so the operator can load real opening counts
     in one screen (instead of 21 detail-page visits)."""
-    loaded_ids = set(
-        session.scalars(select(StockMovement.ingredient_id).distinct()).all()
-    )
+    loaded_ids = set(session.scalars(select(StockMovement.ingredient_id).distinct()).all())
     pendientes = [
-        i for i in session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
+        i
+        for i in session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
         if (i.stock_qty or 0) == 0 and i.id not in loaded_ids
     ]
     return render(request, "carga_inicial.html", {"pendientes": pendientes})
@@ -593,7 +626,7 @@ async def carga_inicial_save(
     """Save bulk initial stock. Form fields: qty_<id> per row (blank = skip)."""
     from app.auth import current_user_id
 
-    user_id = current_user_id(request) or "operator"
+    current_user_id(request) or "operator"
     saved = 0
     form = await request.form()
     for key in list(form.keys()):
@@ -616,18 +649,21 @@ async def carga_inicial_save(
         if ing is None:
             continue
         ing.stock_qty = qty
-        session.add(StockMovement(
-            ingredient_id=ing_id,
-            movement_type="initial",
-            qty=qty,
-            reason="carga inicial de inventario",
-            reference_id=None,
-            reference_type=None,
-            recorded_at=datetime.now(timezone.utc),
-        ))
+        session.add(
+            StockMovement(
+                ingredient_id=ing_id,
+                movement_type="initial",
+                qty=qty,
+                reason="carga inicial de inventario",
+                reference_id=None,
+                reference_type=None,
+                recorded_at=datetime.now(timezone.utc),
+            )
+        )
         saved += 1
     session.commit()
     from urllib.parse import urlencode
+
     params = urlencode({"flash": f"ok:Carga inicial guardada: {saved} ingredientes."})
     return RedirectResponse(url=f"/inventario?{params}", status_code=303)
 
@@ -686,7 +722,9 @@ def inventory_create(
     if stock_qty < 0:
         raise BadRequest("El stock no puede ser negativo.", context={"stock_qty": stock_qty})
     if min_stock_qty < 0:
-        raise BadRequest("El stock mínimo no puede ser negativo.", context={"min_stock_qty": min_stock_qty})
+        raise BadRequest(
+            "El stock mínimo no puede ser negativo.", context={"min_stock_qty": min_stock_qty}
+        )
 
     opening_qty = float(opening_stock_qty) if opening_stock_qty.strip() else None
     opening_date = opening_stock_date.strip() or None
@@ -741,13 +779,15 @@ def inventory_create(
     # immediately (e.g. operator claimed 'vegano' but allergens include dairy).
     try:
         from app.rms.tagging.classify import validate_ingredient
+
         issues = validate_ingredient(ing)
         if issues:
             ing.tag_validation_issues = "\n".join(issues)
             session.commit()
     except Exception:  # noqa: BLE001 — defensive default
         logger.warning(
-            "tag validation refresh failed for new ingredient ing_id=%s", ing.id,
+            "tag validation refresh failed for new ingredient ing_id=%s",
+            ing.id,
             exc_info=True,
         )
         session.rollback()
@@ -755,17 +795,24 @@ def inventory_create(
     # Audit + info log
     logger.info(
         "ingredient_created id={} name={!r} unit={} stock={}",
-        ing.id, ing.name, ing.unit, ing.stock_qty,
+        ing.id,
+        ing.name,
+        ing.unit,
+        ing.stock_qty,
     )
     record_audit(
-        request, session=session,
-        action="ingredient.create", target_type="Ingredient",
-        target_id=ing.id, detail={"name": ing.name, "unit": ing.unit},
+        request,
+        session=session,
+        action="ingredient.create",
+        target_type="Ingredient",
+        target_id=ing.id,
+        detail={"name": ing.name, "unit": ing.unit},
     )
 
     # Record an initial stock movement if opening stock was set
     if opening_qty is not None and opening_qty != stock_qty:
         from app.auth import current_user_id
+
         user_id = current_user_id(request) or "operator"
         movement = StockMovement(
             ingredient_id=ing.id,
@@ -790,7 +837,8 @@ def inventory_create(
             # Don't fail the whole request on a price-history write error.
             logger.warning(
                 "record_price_event failed for new ingredient ing_id={}",
-                ing.id, exc_info=True,
+                ing.id,
+                exc_info=True,
             )
 
     return RedirectResponse(url="/inventario", status_code=303)
@@ -928,11 +976,15 @@ def inventory_tag_audit_rerun(
 
     issues_count = backfill_validation_issues(session)
     session.commit()
-    return JSONResponse({
-        "repaired": len(changes),
-        "tags_removed": tags_removed,
-        "validation_issues": issues_count,
-    })
+    return JSONResponse(
+        {
+            "repaired": len(changes),
+            "tags_removed": tags_removed,
+            "validation_issues": issues_count,
+        }
+    )
+
+
 @router.get("/api/categories", response_class=JSONResponse)
 def ingredients_api_categories(
     q: str = Query("", description="Search query"),
@@ -983,18 +1035,21 @@ def inventory_detail(
     for line in recipe_lines:
         recipe = session.get(Recipe, line.recipe_id)
         if recipe:
-            recipes.append({
-                "id": recipe.id,
-                "name": recipe.name,
-                "qty": line.qty,
-                "line_unit": line.line_unit,
-            })
+            recipes.append(
+                {
+                    "id": recipe.id,
+                    "name": recipe.name,
+                    "qty": line.qty,
+                    "line_unit": line.line_unit,
+                }
+            )
 
     # S7 Decision B — forecast horizon computation (per-ingredient or default)
     from app.rms.variants import (
         days_until_short,
         rollup_ingredient_stock,
     )
+
     rollup = rollup_ingredient_stock(session, ing_id)
     forecast = days_until_short(session, ing_id)
 
@@ -1015,6 +1070,7 @@ def inventory_detail(
 def _price_stats_safe(session: Session, ing_id: int) -> object:
     try:
         from app.rms.price_history import price_stats
+
         return price_stats(session, ing_id, days=90)
     except Exception:  # noqa: BLE001 — defensive default
         return None
@@ -1114,7 +1170,7 @@ def inventory_update(
             logger.debug("inventory shelf_life_days parse failed: {}", exc)
     if allergens != "__unset__":
         # Empty string = explicitly cleared to "sin declarar" (None).
-        ing.allergens = allergens.strip() or ''  # '' = declared-neutral, never NULL
+        ing.allergens = allergens.strip() or ""  # '' = declared-neutral, never NULL
     if dietary_tags != "__unset__":
         ing.dietary_tags = dietary_tags.strip() or None
     ing.may_contain_gluten = may_contain_gluten == "1"
@@ -1135,7 +1191,7 @@ def inventory_update(
         cls = classify_ingredient(name_clean, session=session)
         ing.subcategory = cls["subcategory"]
         ing.role = cls["role"]
-        ing.allergens = ",".join(cls["allergens"]) or ''  # '' = declared-neutral, never NULL
+        ing.allergens = ",".join(cls["allergens"]) or ""  # '' = declared-neutral, never NULL
         ing.dietary_tags = ",".join(cls["dietary_tags"]) or None
         ing.shelf_life_days = cls["shelf_life_days"]
         ing.storage = cls["storage"]
@@ -1161,7 +1217,9 @@ def inventory_update(
         ing.opening_stock_date = None
 
     rp_raw = (reorder_point or "").strip()
-    ing.reorder_point = parse_quantity(rp_raw, field="punto de reorden", allow_zero=True) if rp_raw else None
+    ing.reorder_point = (
+        parse_quantity(rp_raw, field="punto de reorden", allow_zero=True) if rp_raw else None
+    )
 
     # Phase B — Q1 core: record a price event when the operator changes the
     # price. We always record when the new price is non-null — even if it
@@ -1184,20 +1242,23 @@ def inventory_update(
         except Exception:  # noqa: BLE001 — defensive default
             logger.warning(
                 "record_price_event failed for ingredient ing_id={} update",
-                ing.id, exc_info=True,
+                ing.id,
+                exc_info=True,
             )
 
     # Tag algebra (054): ingredient tags/allergens may have changed —
     # re-derive every recipe using it (transitively) and sync products.
     try:
         from app.rms.tag_algebra import _product_inherit_sync, cascade_refresh
+
         refreshed = cascade_refresh(session, ingredient_id=ing.id)
         for rid in refreshed:
             _product_inherit_sync(session, rid)
         session.commit()
     except Exception:  # noqa: BLE001 — defensive default
         logger.warning(
-            "tag cascade failed for ingredient ing_id=%s update", ing.id,
+            "tag cascade failed for ingredient ing_id=%s update",
+            ing.id,
             exc_info=True,
         )
         session.rollback()
@@ -1208,6 +1269,7 @@ def inventory_update(
     # column), so it's safe to run inline after the save commit.
     try:
         from app.rms.tagging.classify import validate_ingredient
+
         issues = validate_ingredient(ing)
         # Re-fetch in case the previous session.commit() reset the binding.
         ing_row = session.get(Ingredient, ing.id)
@@ -1216,7 +1278,8 @@ def inventory_update(
             session.commit()
     except Exception:  # noqa: BLE001 — defensive default
         logger.warning(
-            "tag validation refresh failed for ing_id=%s", ing.id,
+            "tag validation refresh failed for ing_id=%s",
+            ing.id,
             exc_info=True,
         )
         session.rollback()
@@ -1289,20 +1352,24 @@ def inventory_adjust(
 
     if adjustment == 0:
         # Don't silently accept a no-op. Tell the operator what happened.
-        params = urlencode({
-            "flash": "no_op:El ajuste fue 0 — no se modificó el stock.",
-            "ing_id": ing_id,
-        })
+        params = urlencode(
+            {
+                "flash": "no_op:El ajuste fue 0 — no se modificó el stock.",
+                "ing_id": ing_id,
+            }
+        )
         return RedirectResponse(url=f"/inventario?{params}", status_code=303)
 
     # Resolve variant: if the ingredient has variants and none specified,
     # auto-pick the preferred one. The list-view form sends variant_id
     # explicitly so this branch mainly affects the detail-page modal.
-    variants = list(session.scalars(
-        select(IngredientVariant)
-        .where(IngredientVariant.ingredient_id == ing_id)
-        .order_by(IngredientVariant.preferred.desc(), IngredientVariant.id)
-    ))
+    variants = list(
+        session.scalars(
+            select(IngredientVariant)
+            .where(IngredientVariant.ingredient_id == ing_id)
+            .order_by(IngredientVariant.preferred.desc(), IngredientVariant.id)
+        )
+    )
     target_variant: IngredientVariant | None = None
     auto_picked = False
     if variants:
@@ -1324,9 +1391,7 @@ def inventory_adjust(
                 )
         else:
             # Prefer the explicitly preferred variant, else the first.
-            target_variant = next(
-                (v for v in variants if v.preferred), variants[0]
-            )
+            target_variant = next((v for v in variants if v.preferred), variants[0])
             auto_picked = True
     else:
         target_variant = None  # legacy path
@@ -1344,13 +1409,15 @@ def inventory_adjust(
             which = f"{target_variant.package_size:g} {target_variant.package_unit}"
         else:
             which = ing.name
-        params = urlencode({
-            "flash": (
-                f"no_confirm:La operación llevaría stock de {which} a "
-                f"{pre + adjustment:.2f}. Confirmá haciendo click en Ajustar de nuevo."
-            ),
-            "ing_id": ing_id,
-        })
+        params = urlencode(
+            {
+                "flash": (
+                    f"no_confirm:La operación llevaría stock de {which} a "
+                    f"{pre + adjustment:.2f}. Confirmá haciendo click en Ajustar de nuevo."
+                ),
+                "ing_id": ing_id,
+            }
+        )
         return RedirectResponse(url=f"/inventario?{params}", status_code=303)
 
     from app.auth import current_user_id
@@ -1382,6 +1449,7 @@ def inventory_adjust(
         # Sync the legacy Ingredient.stock_qty column with the rollup so
         # any consumer still reading the legacy field sees the correct total.
         from app.rms.variants import rollup_ingredient_stock
+
         rollup = rollup_ingredient_stock(session, ing_id)
         if rollup is not None:
             ing.stock_qty = rollup.base_qty
@@ -1396,9 +1464,7 @@ def inventory_adjust(
             f"info:Sin variante elegida — se aplicó a la preferida "
             f"({target_variant.package_size:g} {target_variant.package_unit})."
         )
-    params = urlencode(
-        {"flash": flash_msg, "ing_id": ing_id}
-    ) if flash_msg else ""
+    params = urlencode({"flash": flash_msg, "ing_id": ing_id}) if flash_msg else ""
     target_url = f"/inventario?{params}" if params else "/inventario"
     return RedirectResponse(url=target_url, status_code=303)
 
@@ -1430,18 +1496,20 @@ def inventory_movements(
     for m in reversed(movements):
         prev_balance = balance
         balance = balance - m.qty  # reverse the movement to get prior state
-        enriched.append({
-            "id": m.id,
-            "movement_type": m.movement_type,
-            "qty": m.qty,
-            "reason": m.reason,
-            "reference_id": m.reference_id,
-            "reference_type": m.reference_type,
-            "recorded_at": m.recorded_at,
-            "created_by": m.created_by,
-            "balance_before": balance,
-            "balance_after": prev_balance,
-        })
+        enriched.append(
+            {
+                "id": m.id,
+                "movement_type": m.movement_type,
+                "qty": m.qty,
+                "reason": m.reason,
+                "reference_id": m.reference_id,
+                "reference_type": m.reference_type,
+                "recorded_at": m.recorded_at,
+                "created_by": m.created_by,
+                "balance_before": balance,
+                "balance_after": prev_balance,
+            }
+        )
 
     return render(
         request,
@@ -1458,7 +1526,7 @@ def inventory_movements(
 # S7 — IngredientVariant CRUD (Decision A1)
 # ---------------------------------------------------------------------------
 #
-# Saskia's audio reference:
+# the operator's audio reference:
 #   "harina 1kg / harina 250g / proveedor X — a single ingredient 'harina'
 #    with sub-rows for each package".
 #
@@ -1485,6 +1553,7 @@ def ingredient_variants(
     if ing is None:
         raise NotFound("Ingredient", id=ing_id)
     return RedirectResponse(url=f"/inventario/{ing_id}#variants", status_code=303)
+
 
 @router.post("/{ing_id}/variantes/nuevo")
 def ingredient_variant_create(
@@ -1519,7 +1588,9 @@ def ingredient_variant_create(
         raise BadRequest(f"Unidad inválida: {package_unit!r}")
 
     try:
-        price = int(purchase_price_gs.replace(".", "").replace(",", "")) if purchase_price_gs else None
+        price = (
+            int(purchase_price_gs.replace(".", "").replace(",", "")) if purchase_price_gs else None
+        )
     except ValueError:
         raise BadRequest(
             f"Precio inválido: {purchase_price_gs!r}",
@@ -1680,7 +1751,9 @@ def ingredient_variant_edit(
     if package_unit not in ("g", "kg", "ml", "l", "und"):
         raise BadRequest(f"Unidad inválida: {package_unit!r}")
     try:
-        price = int(purchase_price_gs.replace(".", "").replace(",", "")) if purchase_price_gs else None
+        price = (
+            int(purchase_price_gs.replace(".", "").replace(",", "")) if purchase_price_gs else None
+        )
     except ValueError:
         raise BadRequest(f"Precio inválido: {purchase_price_gs!r}") from None
     sup_id: int | None = None
@@ -1776,6 +1849,129 @@ def _parse_price(raw: str) -> int | None:
         return parse_gs(raw)
     except (ValueError, TypeError) as e:
         raise BadRequest(f"Precio inválido: {raw!r}", context={"raw": raw}, cause=e) from e
+
+
+# Additional search endpoints for Phase 2 completion
+
+
+@router.get("/api/search/by-category", response_class=JSONResponse)
+def ingredients_api_search_by_category(
+    category: str = Query("", description="Category to search within"),
+    q: str = Query("", description="Search query"),
+    limit: int = Query(50, ge=1, le=200),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Search ingredients by category and name for improved filtering.
+
+    Returns ingredients matching the category and optionally filtered by search term.
+    Useful for category-specific search in combo boxes.
+    """
+    # Get base query
+    stmt = select(Ingredient).where(Ingredient.category == category)
+
+    if q and q.strip():
+        like = f"%{q.strip().lower()}%"
+        stmt = stmt.where(func.lower(Ingredient.name).like(like))
+
+    # Order and limit
+    stmt = stmt.order_by(Ingredient.name).limit(limit)
+    rows = session.scalars(stmt).all()
+
+    payload = [
+        {
+            "id": ing.id,
+            "name": ing.name,
+            "unit": ing.unit,
+            "stock_qty": ing.stock_qty or 0.0,
+            "min_stock_qty": ing.min_stock_qty or 0.0,
+            "purchase_price_gs": ing.purchase_price_gs or 0,
+        }
+        for ing in rows
+    ]
+    return JSONResponse({"results": payload, "count": len(payload), "category": category})
+
+
+@router.get("/api/search/critical", response_class=JSONResponse)
+def ingredients_api_search_critical(
+    limit: int = Query(20, ge=1, le=50),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Search for ingredients with critical stock levels.
+
+    Returns ingredients that are at or below minimum stock levels,
+    prioritized by how critical the situation is.
+    """
+    # Get ingredients that are critical (stock <= min_stock) and have stock movements
+    loaded_ids = set(session.scalars(select(StockMovement.ingredient_id).distinct()).all())
+
+    critical_ingredients = session.scalars(
+        select(Ingredient)
+        .where(Ingredient.stock_qty <= (Ingredient.min_stock_qty or 0))
+        .where(Ingredient.id.in_(loaded_ids))
+        .order_by(
+            # Most critical first: negative stock, then very low stock.
+            # SQLAlchemy func.case() in this env doesn't take `else_=` —
+            # use raw SQL case for cross-dialect compatibility.
+            sql_case(
+                (Ingredient.stock_qty < 0, 1),
+                (Ingredient.stock_qty <= (Ingredient.min_stock_qty or 0) * 0.5, 2),
+                else_=3,
+            ),
+            Ingredient.name,
+        )
+        .limit(limit)
+    ).all()
+
+    payload = [
+        {
+            "id": ing.id,
+            "name": ing.name,
+            "unit": ing.unit,
+            "stock_qty": ing.stock_qty or 0.0,
+            "min_stock_qty": ing.min_stock_qty or 0.0,
+            "purchase_price_gs": ing.purchase_price_gs or 0,
+            "criticality": "negative"
+            if ing.stock_qty < 0
+            else "very_low"
+            if ing.stock_qty <= (ing.min_stock_qty or 0) * 0.5
+            else "low",
+        }
+        for ing in critical_ingredients
+    ]
+    return JSONResponse({"results": payload, "count": len(payload)})
+
+
+@router.get("/api/search/reorder", response_class=JSONResponse)
+def ingredients_api_search_reorder(
+    limit: int = Query(20, ge=1, le=50),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Search for ingredients that need reordering.
+
+    Returns ingredients that are at or below reorder point and have positive reorder points set.
+    Useful for reordering workflows.
+    """
+    reorder_ingredients = session.scalars(
+        select(Ingredient)
+        .where(Ingredient.reorder_point.isnot(None))
+        .where(Ingredient.reorder_point > 0)
+        .where(Ingredient.stock_qty <= (Ingredient.reorder_point or 0))
+        .order_by(Ingredient.name)
+        .limit(limit)
+    ).all()
+
+    payload = [
+        {
+            "id": ing.id,
+            "name": ing.name,
+            "unit": ing.unit,
+            "stock_qty": ing.stock_qty or 0.0,
+            "reorder_point": ing.reorder_point or 0.0,
+            "purchase_price_gs": ing.purchase_price_gs or 0,
+        }
+        for ing in reorder_ingredients
+    ]
+    return JSONResponse({"results": payload, "count": len(payload)})
 
 
 __all__ = ["router"]

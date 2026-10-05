@@ -12,6 +12,7 @@ Reproduction:
   3. BUG (pre-fix): two sets of Sales, double stock deduction, two pings.
   4. EXPECTED: exactly one fulfill, one set of Sales, single stock hit.
 """
+
 # allow-hardcoded-dates: idempotency key derives from fixed date
 from __future__ import annotations
 
@@ -43,8 +44,11 @@ def _seed_pedido_minimal(session_factory):
         s.flush()
 
         product = Product(
-            name="Muffin", portion_label="1 muffin", recipe_id=recipe.id,
-            sale_price_gs=10000, iva_rate="10",
+            name="Muffin",
+            portion_label="1 muffin",
+            recipe_id=recipe.id,
+            sale_price_gs=10000,
+            iva_rate="10",
         )
         s.add(product)
         s.flush()
@@ -62,10 +66,14 @@ def _seed_pedido_minimal(session_factory):
         s.add(pedido)
         s.flush()
 
-        s.add(PedidoLine(
-            pedido_id=pedido.id, product_id=product.id,
-            qty=2.0, unit_price_gs=10000,
-        ))
+        s.add(
+            PedidoLine(
+                pedido_id=pedido.id,
+                product_id=product.id,
+                qty=2.0,
+                unit_price_gs=10000,
+            )
+        )
         s.flush()
 
         pid = pedido.id
@@ -98,6 +106,7 @@ def test_same_idempotency_key_fulfills_once(client, session_factory):
     assert r2.status_code in (303, 302, 409)
 
     from app.rms.models import Pedido, Sale
+
     with session_factory() as s:
         pedido = s.get(Pedido, pedido_id)
         assert pedido.status == "fulfilled"
@@ -115,6 +124,7 @@ def test_same_idempotency_key_does_not_double_deduct_stock(client, session_facto
     _post_fulfill(client, pedido_id, idempotency_key=idem)
 
     from app.rms.models import Ingredient
+
     with session_factory() as s:
         ing = s.get(Ingredient, ing_id)
         # 10.0 starting. Recipe: yield 12, 0.3 kg per recipe. Per muffin = 0.025 kg.
@@ -148,6 +158,7 @@ def test_empty_idempotency_key_does_not_create_record(client, session_factory):
     assert r.status_code in (303, 302)
 
     from app.rms.models import AppMeta, Pedido
+
     with session_factory() as s:
         pedido = s.get(Pedido, pedido_id)
         assert pedido.status == "fulfilled"
@@ -169,15 +180,17 @@ def test_appmeta_record_exists_after_successful_fulfill(client, session_factory)
     assert r.status_code in (303, 302)
 
     from app.rms.models import AppMeta
+
     with session_factory() as s:
         row = s.scalar(
-            __import__("sqlalchemy").select(AppMeta).where(
-                AppMeta.key == f"pedido_fulfill_idem:{idem}"
-            )
+            __import__("sqlalchemy")
+            .select(AppMeta)
+            .where(AppMeta.key == f"pedido_fulfill_idem:{idem}")
         )
     assert row is not None, "idempotency record missing after fulfill"
     # Value is JSON (Phase 1B #10): {pedido_id, sale_id, request_id}
     import json as _json
+
     payload = _json.loads(row.value)
     assert payload["pedido_id"] == str(pedido_id), (
         f"expected pedido_id={pedido_id}, got {payload['pedido_id']}"
@@ -208,6 +221,7 @@ def test_concurrent_fulfills_one_winner_at_most(client, session_factory):
 
     # Exactly one fulfill (status=fulfilled), one set of sales.
     from app.rms.models import Pedido, Sale
+
     with session_factory() as s:
         pedido = s.get(Pedido, pedido_id)
         assert pedido.status == "fulfilled"

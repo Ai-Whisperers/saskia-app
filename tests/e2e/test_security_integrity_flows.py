@@ -34,11 +34,15 @@ pytestmark = [pytest.mark.security]
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("url,payload", [
-    ("/ventas/nueva", {"qty": "1"}),
-    ("/inventario/1/ajustar", {"adjustment": "5"}),
-    ("/shopping-list/add", {"ingredient_id": "1", "qty_to_buy": "1", "unit": "kg"}),
-], ids=["sale", "adjust", "shopping-add"])
+@pytest.mark.parametrize(
+    "url,payload",
+    [
+        ("/ventas/nueva", {"qty": "1"}),
+        ("/inventario/1/ajustar", {"adjustment": "5"}),
+        ("/shopping-list/add", {"ingredient_id": "1", "qty_to_buy": "1", "unit": "kg"}),
+    ],
+    ids=["sale", "adjust", "shopping-add"],
+)
 def test_post_without_csrf_cookie_rejected(client, session_factory, url, payload):
     """Strip the csrf cookie → every mutation POST must 403, not execute."""
     with flows.as_anonymous(client):
@@ -101,7 +105,7 @@ def test_garbage_session_cookie_redirects_not_500(client, session_factory):
     """Under the test auth-bypass the gate is skipped, but a corrupt session
     cookie must NEVER crash a route — any non-500 outcome is acceptable.
     (The strict 303-to-login variant lives in test_strict_auth.)"""
-    client.cookies.set("saskia_rms_session", "garbage.notsigned")
+    client.cookies.set("sazon_session", "garbage.notsigned")
     r = client.post("/ventas/nueva", data={"qty": "1"}, follow_redirects=False)
     assert r.status_code != 500, r.status_code
 
@@ -131,8 +135,7 @@ def test_public_pedido_token_no_enumeration(client, session_factory):
         ing = make_ingredient(s)
         rec = make_recipe(s, lines=[ing_line(ing)])
         prod = make_product(s, recipe=rec)
-        ped = make_pedido(s, customer=cust, items=[pedido_item(prod)],
-                          public_token="AAAA1111")
+        ped = make_pedido(s, customer=cust, items=[pedido_item(prod)], public_token="AAAA1111")
         s.commit()
         ped_id = ped.id
 
@@ -162,6 +165,7 @@ def test_fk_clean_after_day(client, session_factory, app_engine):
     assert flows.sell(client, pid, 1).ok
     with session_factory() as s:
         from app.rms.models import Sale
+
         sid = s.query(Sale).filter_by(product_id=pid).one().id
     assert flows.void_sale(client, sid, reason="e2e fk").ok
     assert flows.register_merma(client, cat["ingredient"].id, 0.1).ok
@@ -236,8 +240,7 @@ def test_concurrent_fulfill_and_adjust_race(client, session_factory):
     with session_factory() as s:
         cat = make_catalog(s, stock_qty=500.0)
         cust = make_customer(s)
-        ped = make_pedido(s, customer=cust,
-                          items=[pedido_item(cat["product"], qty=2)])
+        ped = make_pedido(s, customer=cust, items=[pedido_item(cat["product"], qty=2)])
         s.commit()
         ped_id, ing_id = ped.id, cat["ingredient"].id
 
@@ -254,9 +257,11 @@ def test_concurrent_fulfill_and_adjust_race(client, session_factory):
     def _adjuster():
         try:
             for _ in range(3):
-                r = client.post(f"/inventario/{ing_id}/ajustar",
-                                data={"adjustment": "1", "reason": "race"},
-                                follow_redirects=False)
+                r = client.post(
+                    f"/inventario/{ing_id}/ajustar",
+                    data={"adjustment": "1", "reason": "race"},
+                    follow_redirects=False,
+                )
                 if r.status_code not in (303, 400):
                     errors.append(f"adjust: {r.status_code}")
         except Exception as exc:
@@ -264,5 +269,8 @@ def test_concurrent_fulfill_and_adjust_race(client, session_factory):
 
     t1 = threading.Thread(target=_fulfiller)
     t2 = threading.Thread(target=_adjuster)
-    t1.start(); t2.start(); t1.join(); t2.join()
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
     assert not errors, errors

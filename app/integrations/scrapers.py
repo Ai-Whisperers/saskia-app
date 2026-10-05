@@ -32,6 +32,7 @@ Audit: every successful scrape writes an ``AuditLog`` row tagged
 ``read.scraper.run`` so the operator can see how often each source is
 actually producing data.
 """
+
 from __future__ import annotations
 
 import logging
@@ -231,8 +232,19 @@ _GURANI_SYMBOL_RE = re.compile(r"[\u20b2]\s*([\d][\d\.\,]*)")  # ₲ symbol
 # never get a closing tag, so they must NOT contribute to depth tracking.
 _VOID = frozenset(
     {
-        "area", "base", "br", "col", "embed", "hr", "img", "input",
-        "link", "meta", "source", "track", "wbr",
+        "area",
+        "base",
+        "br",
+        "col",
+        "embed",
+        "hr",
+        "img",
+        "input",
+        "link",
+        "meta",
+        "source",
+        "track",
+        "wbr",
     }
 )
 
@@ -240,10 +252,10 @@ _VOID = frozenset(
 def _extract_price_gs(raw: str) -> int | None:
     """Pull a price in Guaraníes out of any of these formats:
 
-      - ``₲ 3.600``     (Superseis data-product-price attr)
-      - ``3.600 Gs``    (rendered text)
-      - ``Gs. 3.600``   (older OpenCart themes)
-      - ``3,600``       (comma thousands)
+    - ``₲ 3.600``     (Superseis data-product-price attr)
+    - ``3.600 Gs``    (rendered text)
+    - ``Gs. 3.600``   (older OpenCart themes)
+    - ``3,600``       (comma thousands)
     """
     if not raw:
         return None
@@ -260,7 +272,7 @@ def _parse_superseis(html: str) -> list[ScrapedPrice]:
     parser = _SuperseisProductParser()
     try:
         parser.feed(html)
-    except Exception as e:  # never raise from inside the parser
+    except Exception as e:  # noqa: BLE001 — never raise from inside the parser
         logger.warning("superseis parser error: %s", e)
         return []
     out: list[ScrapedPrice] = []
@@ -308,9 +320,7 @@ def scrape_superseis(query: str) -> ScrapeResult:
             html = r.text
     except httpx.HTTPError as e:
         logger.warning("superseis fetch failed for %r: %s", query, e)
-        return ScrapeResult(
-            source="superseis", query=query, error=f"fetch failed: {e}"
-        )
+        return ScrapeResult(source="superseis", query=query, error=f"fetch failed: {e}")
     matches = _parse_superseis(html)
     return ScrapeResult(source="superseis", query=query, matches=tuple(matches))
 
@@ -430,9 +440,7 @@ def scrape_all(query: str, sources: Iterable[str] = ("superseis", "stock")) -> l
     for src in sources:
         fn = SCRAPERS.get(src)
         if fn is None:
-            results.append(
-                ScrapeResult(source=src, query=query, error=f"unknown source: {src}")
-            )
+            results.append(ScrapeResult(source=src, query=query, error=f"unknown source: {src}"))
             continue
         try:
             results.append(fn(query))
@@ -443,10 +451,10 @@ def scrape_all(query: str, sources: Iterable[str] = ("superseis", "stock")) -> l
 
 
 __all__ = [
-    "ScrapedPrice",
-    "ScrapeResult",
-    "scrape_superseis",
-    "scrape_stock",
-    "scrape_all",
     "SCRAPERS",
+    "ScrapeResult",
+    "ScrapedPrice",
+    "scrape_all",
+    "scrape_stock",
+    "scrape_superseis",
 ]

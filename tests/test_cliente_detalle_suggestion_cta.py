@@ -15,6 +15,8 @@ directly on the customer detail page.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 
 def _kyrian_customer_id(session_factory):
     """Return the Kyrian customer id from the with_kyrian_full seed."""
@@ -22,9 +24,7 @@ def _kyrian_customer_id(session_factory):
         from app.rms.models import Customer
 
         c = s.execute(
-            __import__("sqlalchemy").select(Customer).where(
-                Customer.name.ilike("%kyrian%")
-            )
+            __import__("sqlalchemy").select(Customer).where(Customer.name.ilike("%kyrian%"))
         ).scalar_one_or_none()
         assert c is not None, "Kyrian customer must exist in with_kyrian_full"
         return c.id
@@ -57,7 +57,8 @@ def test_detalle_suggestions_card_renders_when_multiple_suggestions(client, qsee
     days directly, so the rule engine fires BOTH cumpleaños + puntos
     dormidos — keeping both.
     """
-    from datetime import date, timedelta
+    from datetime import timedelta
+
     from app.rms.models import Customer
 
     qseed("with_kyrian_full")
@@ -66,7 +67,7 @@ def test_detalle_suggestions_card_renders_when_multiple_suggestions(client, qsee
     with session_factory() as s:
         cust = s.get(Customer, cid)
         # Birthday in 3 days → triggers cumpleaños_cerca
-        cust.birthday = (date.today() + timedelta(days=3)).strftime("%m-%d")
+        cust.birthday = (datetime.utcnow().date() + timedelta(days=3)).strftime("%m-%d")
         s.commit()
 
     r = client.get(f"/clientes/{cid}")
@@ -80,7 +81,8 @@ def test_detalle_suggestions_button_has_csrf_and_kind(client, qseed, session_fac
     """Each 'Aplicar sugerencia' button is a form POST that targets
     the suggestion-applied endpoint and carries the suggestion kind +
     discount_pct as hidden inputs."""
-    from datetime import date, timedelta
+    from datetime import timedelta
+
     from app.rms.models import Customer
 
     qseed("with_kyrian_full")
@@ -89,7 +91,7 @@ def test_detalle_suggestions_button_has_csrf_and_kind(client, qseed, session_fac
     with session_factory() as s:
         cust = s.get(Customer, cid)
         # Add a 2nd suggestion trigger so the card renders
-        cust.birthday = (date.today() + timedelta(days=3)).strftime("%m-%d")
+        cust.birthday = (datetime.utcnow().date() + timedelta(days=3)).strftime("%m-%d")
         s.commit()
 
     r = client.get(f"/clientes/{cid}")
@@ -141,7 +143,8 @@ def test_detalle_suggestion_post_endpoint_writes_ledger(client, qseed, session_f
         from app.rms.models import LoyaltyTransaction
 
         tx = s.execute(
-            __import__("sqlalchemy").select(LoyaltyTransaction)
+            __import__("sqlalchemy")
+            .select(LoyaltyTransaction)
             .where(LoyaltyTransaction.customer_id == cid)
             .where(LoyaltyTransaction.reason == "suggestion_applied")
         ).scalar_one_or_none()
@@ -170,7 +173,8 @@ def test_detalle_suggestion_form_post_endpoint_writes_correct_kind(client, qseed
         from app.rms.models import LoyaltyTransaction
 
         tx = s.execute(
-            __import__("sqlalchemy").select(LoyaltyTransaction)
+            __import__("sqlalchemy")
+            .select(LoyaltyTransaction)
             .where(LoyaltyTransaction.customer_id == cid)
             .where(LoyaltyTransaction.reason == "suggestion_applied")
             .where(LoyaltyTransaction.notes.like("%cumple%"))
@@ -198,11 +202,16 @@ def test_detalle_suggestion_form_post_empty_kind_is_unknown(client, qseed, sessi
     with session_factory() as s:
         from app.rms.models import LoyaltyTransaction
 
-        tx = s.execute(
-            __import__("sqlalchemy").select(LoyaltyTransaction)
-            .where(LoyaltyTransaction.customer_id == cid)
-            .where(LoyaltyTransaction.reason == "suggestion_applied")
-        ).scalars().all()
+        tx = (
+            s.execute(
+                __import__("sqlalchemy")
+                .select(LoyaltyTransaction)
+                .where(LoyaltyTransaction.customer_id == cid)
+                .where(LoyaltyTransaction.reason == "suggestion_applied")
+            )
+            .scalars()
+            .all()
+        )
         assert tx, "expected at least one row"
         # Latest row (most-recent) should be the unknown one
         latest = tx[-1]

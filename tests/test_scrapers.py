@@ -4,22 +4,23 @@ Most tests focus on the parser (pure function over HTML) so they're
 hermetic and fast. The dispatcher test exercises the live network
 with a marker so it can be skipped in CI via ``-m 'not network'``.
 """
+
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from app.integrations.scrapers import (
     SCRAPERS,
     ScrapeResult,
+    _normalize_price,
     _parse_stock,
     _parse_superseis,
-    _normalize_price,
     scrape_all,
     scrape_stock,
     scrape_superseis,
 )
-
 
 # ---------------------------------------------------------------------------
 # Pure helpers
@@ -56,6 +57,7 @@ class TestNormalizePrice:
 
 def _load_fixture(name: str) -> str:
     import pathlib
+
     p = pathlib.Path(__file__).parent / "fixtures" / name
     return p.read_text(encoding="utf-8")
 
@@ -113,6 +115,7 @@ class TestScrapeDispatch:
     def test_scrape_all_continues_on_one_source_failing(self, monkeypatch):
         """If one scraper raises, scrape_all reports it as a ScrapeResult
         with an error, NOT a crash."""
+
         def boom(query):
             raise RuntimeError("simulated crash")
 
@@ -169,7 +172,6 @@ class TestStock:
         because the parser isn't reliable for ASP.NET VIEWSTATE sites.
         This ensures the /reorder UI shows the CSV hint instead of 'no
         results'."""
-        import httpx as _hx
 
         class FakeResp:
             status_code = 200
@@ -221,6 +223,7 @@ def test_parse_stock_featured_grid_from_fixture():
     fixture = Path(__file__).parent / "fixtures" / "stock_featured.html"
     if not fixture.exists():
         import pytest
+
         pytest.skip("stock_featured.html fixture missing (network needed once)")
     html = fixture.read_text(encoding="utf-8")
     matches = _parse_stock(html)

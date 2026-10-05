@@ -2,7 +2,7 @@
 
 Regression for the 2026-09-08 audit finding:
 - `/login?error=...` rendered an `.alert-error` div with NO CSS (un-styled).
-- Title was duplicated ("Iniciar sesión — Saskia RMS — Saskia RMS").
+- Title was duplicated ("Iniciar sesión — Sazón — Sazón").
 - Forgot-password link existed but had no tests.
 
 These tests pin the fixes so they don't regress.
@@ -20,9 +20,7 @@ def test_login_error_renders_alert_error_class(client):
     resp = client.get("/login?error=credenciales+inv%C3%A1lidas")
     assert resp.status_code == 200
     body = resp.text
-    assert 'class="alert alert-error"' in body, (
-        "Error alert missing alert-error class"
-    )
+    assert 'class="alert alert-error"' in body, "Error alert missing alert-error class"
     # role=alert + aria-live for screen reader announcement
     assert 'role="alert"' in body
     assert 'aria-live="assertive"' in body
@@ -62,9 +60,7 @@ def test_login_no_error_no_aria_invalid(client):
     # Note: Jinja renders {% if error %}...{% else %}autofocus{% endif %}
     # as just `autofocus` when no error. The password input should NOT have autofocus.
     password_autofocus = re.search(r'<input\s+type="password"[^>]*autofocus', resp.text)
-    assert password_autofocus is None, (
-        "Password should NOT have autofocus when there's no error"
-    )
+    assert password_autofocus is None, "Password should NOT have autofocus when there's no error"
     # Username should have it (via required+autofocus attribute in template)
     # Just check that exactly one input has autofocus
     autofocus_count = resp.text.count("autofocus")
@@ -72,26 +68,26 @@ def test_login_no_error_no_aria_invalid(client):
 
 
 def test_login_title_not_duplicated(client):
-    """Title block must not include '— Saskia RMS' (base template adds it).
+    """Title block must not include '— Sazón' (base template adds it).
 
-    The full rendered <title> should be 'Iniciar sesión — Saskia RMS'
+    The full rendered <title> should be 'Iniciar sesión — Sazón'
     (block content + base template suffix). If the block also added the
-    suffix, we'd get 'Iniciar sesión — Saskia RMS — Saskia RMS'.
+    suffix, we'd get 'Iniciar sesión — Sazón — Sazón'.
     """
     resp = client.get("/login")
     m = re.search(r"<title>([^<]+)</title>", resp.text)
     assert m is not None
     title = m.group(1)
     # Should NOT be doubled
-    assert title.count("Saskia RMS") == 1, (
-        f"Title has 'Saskia RMS' {title.count('Saskia RMS')} times: {title!r}"
+    assert title.count("Sazón") == 1, (
+        f"Title has 'Sazón' {title.count('Sazón')} times: {title!r}"
     )
     # And should start with the page name
     assert title.startswith("Iniciar sesión")
 
 
 @pytest.mark.skip(reason="Fixture patching chain is order-dependent — needs refactor")
-def test_login_forgot_link_present_when_supabase(client, supabase_auth_env):
+def test_login_forgot_link_present_when_supabase(client, supabase_auth_env, monkeypatch):
     """For Supabase-auth mode, forgot-link should be present and labeled clearly."""
     # Force Supabase mode for this test
     monkeypatch.setattr("app.auth._supabase_enabled", lambda: True)
@@ -133,7 +129,7 @@ def test_forgot_password_no_email_enumeration_leak(client):
     """Whether email exists or not, response should look identical."""
     resp_real = client.post(
         "/forgot-password",
-        data={"email": "saskia@paragu-ai.com"},
+        data={"email": "demo@paragu-ai.com"},
         follow_redirects=False,
     )
     resp_fake = client.post(
@@ -180,9 +176,7 @@ def test_login_full_alert_block_visible(client):
     form_pos = body.find("<form")
     assert alert_pos != -1, "No alert-error div in HTML"
     assert form_pos != -1, "No form in HTML"
-    assert alert_pos < form_pos, (
-        "Alert must appear BEFORE the form so user sees it before retyping"
-    )
+    assert alert_pos < form_pos, "Alert must appear BEFORE the form so user sees it before retyping"
     # Must be inside main (not in a hidden offscreen element)
     main_pos = body.find("<main")
     assert main_pos < alert_pos, "Alert must be inside <main>"
@@ -191,4 +185,4 @@ def test_login_full_alert_block_visible(client):
 def test_login_form_has_novalidate_for_our_validation(client):
     """novalidate lets the browser's native required validation work but our server validates too."""
     resp = client.get("/login")
-    assert 'novalidate' in resp.text
+    assert "novalidate" in resp.text

@@ -7,15 +7,14 @@ Ventas + StockMoves sheets are filtered to the period.
 Ingredientes, Recetas, Productos, Clientes are always full state
 (close-out needs the catalog, not just the movements).
 """
+
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from openpyxl import load_workbook
 
 from app.services.export_xlsx import to_file
-
 
 # --- Period filter on the Ventas sheet ---
 
@@ -94,6 +93,7 @@ def test_export_period_invalid_raises(qseed, session_factory):
     Session = session_factory
     with Session() as s:
         import pytest
+
         with pytest.raises(ValueError):
             to_file(s, Path("/tmp/bad.xlsx"), period="garbage")
 
@@ -147,6 +147,7 @@ def test_export_endpoint_period_today_includes_today_sale(authed_client, qseed):
     assert r.status_code == 200
     # Save and parse to confirm today's sale is included
     import tempfile
+
     with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as f:
         f.write(r.content)
         path = f.name

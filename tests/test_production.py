@@ -1,6 +1,6 @@
 """tests/test_production.py — verify app/rms/production.py (E21).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E21.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E21.
 
 Covers:
 - forecast_sales: 0 sales returns 0; N sales over N days returns avg
@@ -10,6 +10,7 @@ Covers:
 - plan_production handles empty DB (returns empty plan)
 - plan_production surfaces seasonal notes
 """
+
 # allow-hardcoded-dates: production batch fixture uses fixed dates
 from __future__ import annotations
 
@@ -43,12 +44,14 @@ def test_forecast_sales_average_over_window(session_factory):
         s.flush()
         now = datetime.now(timezone.utc)
         for i in range(14):
-            s.add(Sale(
-                sold_at=now - timedelta(days=i),
-                product_id=prod.id,
-                qty=1,
-                unit_price_gs=2500,
-            ))
+            s.add(
+                Sale(
+                    sold_at=now - timedelta(days=i),
+                    product_id=prod.id,
+                    qty=1,
+                    unit_price_gs=2500,
+                )
+            )
         s.commit()
         f = forecast_sales(s, product_id=prod.id, days_history=14)
         assert abs(f - 1.0) < 0.01
@@ -65,25 +68,29 @@ def test_forecast_excludes_voided(session_factory):
         s.flush()
         now = datetime.now(timezone.utc)
         for i in range(10):
-            s.add(Sale(
-                sold_at=now - timedelta(days=i),
-                product_id=prod.id,
-                qty=1,
-                unit_price_gs=2500,
-            ))
+            s.add(
+                Sale(
+                    sold_at=now - timedelta(days=i),
+                    product_id=prod.id,
+                    qty=1,
+                    unit_price_gs=2500,
+                )
+            )
         # 5 voided
         for i in range(10, 15):
-            s.add(Sale(
-                sold_at=now - timedelta(days=i),
-                product_id=prod.id,
-                qty=1,
-                unit_price_gs=2500,
-                voided_at=now,
-            ))
+            s.add(
+                Sale(
+                    sold_at=now - timedelta(days=i),
+                    product_id=prod.id,
+                    qty=1,
+                    unit_price_gs=2500,
+                    voided_at=now,
+                )
+            )
         s.commit()
         # Only the 10 non-voided count
         f = forecast_sales(s, product_id=prod.id, days_history=14)
-        assert abs(f - (10/14)) < 0.01
+        assert abs(f - (10 / 14)) < 0.01
     finally:
         s.close()
 
@@ -108,22 +115,28 @@ def test_plan_production_computes_lines_from_recipes(session_factory):
         rec = Recipe(name="Muffin", yield_qty=12.0, yield_unit="und")
         s.add_all([ing, rec])
         s.flush()
-        s.add(RecipeLine(
-            recipe_id=rec.id, line_kind="ingredient",
-            line_ref_id=ing.id, qty=0.3,
-        ))
+        s.add(
+            RecipeLine(
+                recipe_id=rec.id,
+                line_kind="ingredient",
+                line_ref_id=ing.id,
+                qty=0.3,
+            )
+        )
         prod = make_product(s, name="Muffin", sale_price_gs=2500, recipe_id=rec.id)
         s.add(prod)
         s.flush()
         # 5 muffins sold today -> forecast ~0.36/day (rounded down)
         now = datetime.now(timezone.utc)
         for i in range(5):
-            s.add(Sale(
-                sold_at=now - timedelta(days=i),
-                product_id=prod.id,
-                qty=1,
-                unit_price_gs=2500,
-            ))
+            s.add(
+                Sale(
+                    sold_at=now - timedelta(days=i),
+                    product_id=prod.id,
+                    qty=1,
+                    unit_price_gs=2500,
+                )
+            )
         s.commit()
 
         plan = plan_production(s, for_date=date(2026, 6, 1))  # no event
@@ -150,22 +163,20 @@ def test_plan_production_with_seasonal_multiplier(session_factory):
         s.flush()
         now = datetime.now(timezone.utc)
         for i in range(7):
-            s.add(Sale(
-                sold_at=now - timedelta(days=i),
-                product_id=prod.id,
-                qty=1,
-                unit_price_gs=25000,
-            ))
+            s.add(
+                Sale(
+                    sold_at=now - timedelta(days=i),
+                    product_id=prod.id,
+                    qty=1,
+                    unit_price_gs=25000,
+                )
+            )
         s.commit()
 
         # Without seasonal (1.0): forecast = 7/14 = 0.5, rounds UP to 1
-        plan_normal = plan_production(
-            s, for_date=date(2026, 1, 1), seasonal_multiplier=1.0
-        )
+        plan_normal = plan_production(s, for_date=date(2026, 1, 1), seasonal_multiplier=1.0)
         # With 2x seasonal: forecast = 1.0, rounds UP to 1
-        plan_double = plan_production(
-            s, for_date=date(2026, 1, 1), seasonal_multiplier=2.0
-        )
+        plan_double = plan_production(s, for_date=date(2026, 1, 1), seasonal_multiplier=2.0)
         # PRO-02: both are now whole integers. Before the ceiling rule
         # these would have been 0.5 and 1.0 (asserting 0.5 < 1.0).
         assert plan_normal.rows[0].qty_to_produce == 1
@@ -177,12 +188,14 @@ def test_plan_production_with_seasonal_multiplier(session_factory):
         s.add(prod2)
         s.flush()
         for i in range(11):
-            s.add(Sale(
-                sold_at=now - timedelta(days=i % 14),
-                product_id=prod2.id,
-                qty=1,
-                unit_price_gs=50000,
-            ))
+            s.add(
+                Sale(
+                    sold_at=now - timedelta(days=i % 14),
+                    product_id=prod2.id,
+                    qty=1,
+                    unit_price_gs=50000,
+                )
+            )
         s.commit()
         plan2_normal = plan_production(s, for_date=date(2026, 1, 1), seasonal_multiplier=1.0)
         plan2_double = plan_production(s, for_date=date(2026, 1, 1), seasonal_multiplier=2.0)
@@ -205,12 +218,14 @@ def test_plan_production_with_manual_forecast_override(session_factory):
         # Some sales history
         now = datetime.now(timezone.utc)
         for i in range(3):
-            s.add(Sale(
-                sold_at=now - timedelta(days=i),
-                product_id=prod.id,
-                qty=1,
-                unit_price_gs=25000,
-            ))
+            s.add(
+                Sale(
+                    sold_at=now - timedelta(days=i),
+                    product_id=prod.id,
+                    qty=1,
+                    unit_price_gs=25000,
+                )
+            )
         s.commit()
 
         plan = plan_production(
@@ -233,10 +248,14 @@ def test_plan_production_stock_on_hand_subtracts_requirement(session_factory):
         rec = Recipe(name="Muffin", yield_qty=12.0, yield_unit="und")
         s.add_all([ing, rec])
         s.flush()
-        s.add(RecipeLine(
-            recipe_id=rec.id, line_kind="ingredient",
-            line_ref_id=ing.id, qty=0.05,  # 50g per muffin
-        ))
+        s.add(
+            RecipeLine(
+                recipe_id=rec.id,
+                line_kind="ingredient",
+                line_ref_id=ing.id,
+                qty=0.05,  # 50g per muffin
+            )
+        )
         prod = make_product(s, name="Muffin", sale_price_gs=2500, recipe_id=rec.id)
         s.add(prod)
         s.flush()

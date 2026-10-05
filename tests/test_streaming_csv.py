@@ -5,8 +5,6 @@ from __future__ import annotations
 import csv
 from io import StringIO
 
-import pytest
-
 from app.rms.streaming_csv import _join_row, stream_csv_rows
 
 
@@ -74,7 +72,7 @@ def test_join_row_no_trailing_newline():
 
 def test_large_iterable_does_not_buffer():
     """Streaming is key: a 100k-row iterable must yield incrementally."""
-    rows = ([[i, str(i)] for i in range(100_000)])
+    rows = [[i, str(i)] for i in range(100_000)]
 
     def it():
         for r in rows:

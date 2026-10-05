@@ -22,8 +22,8 @@ from app.rms.customer_dietary import (
 )
 from tests.factories import make_customer, make_product
 
-
 # ── Parsing helpers ──────────────────────────────────────────────────────
+
 
 def test_parse_restrictions_dedupes_and_strips():
     assert parse_restrictions("sin lactosa, sin gluten ,sin lactosa") == [
@@ -63,6 +63,7 @@ def test_load_profile_full():
 
 # ── Save via the edit form ───────────────────────────────────────────────
 
+
 def test_cliente_editar_saves_dietary_profile(client, session_factory):
     with session_factory() as s:
         c = make_customer(s, name="DietSave UX")
@@ -82,6 +83,7 @@ def test_cliente_editar_saves_dietary_profile(client, session_factory):
     )
     assert r.status_code == 303
     from app.rms.models import Customer
+
     with session_factory() as s:
         c = s.get(Customer, cid)
         assert "sin lactosa" in (c.dietary_restrictions or "")
@@ -100,11 +102,17 @@ def test_cliente_editar_clears_profile(client, session_factory):
         cid = c.id
     client.post(
         f"/clientes/{cid}/editar",
-        data={"name": "DietClear UX", "phone": "", "notes": "",
-              "dietary_restriction": [], "dietary_prefs_payload": ""},
+        data={
+            "name": "DietClear UX",
+            "phone": "",
+            "notes": "",
+            "dietary_restriction": [],
+            "dietary_prefs_payload": "",
+        },
         follow_redirects=False,
     )
     from app.rms.models import Customer
+
     with session_factory() as s:
         c = s.get(Customer, cid)
         assert c.dietary_restrictions is None
@@ -112,6 +120,7 @@ def test_cliente_editar_clears_profile(client, session_factory):
 
 
 # ── Display surfaces ─────────────────────────────────────────────────────
+
 
 def test_cliente_detalle_shows_dietary_alert(client, session_factory):
     with session_factory() as s:
@@ -169,14 +178,15 @@ def test_cliente_editar_form_renders_profile_ui(client, session_factory):
     assert "dietary-pref-add" in body
     assert "dietary_confirm_always" in body
     # the saved restriction is pre-checked
-    assert 'value="vegano" checked' in body or 'checked' in body and 'vegano' in body
+    assert 'value="vegano" checked' in body or ("checked" in body and "vegano" in body)
 
 
 # ── Pedidos form: dietary alert markup present ───────────────────────────
 
+
 def test_pedidos_nuevo_has_dietary_alert_element(client, session_factory):
     with session_factory() as s:
-        p = make_product(s, name="DietPedProd UX")
+        make_product(s, name="DietPedProd UX")
         s.commit()
     r = client.get("/pedidos/nuevo")
     assert r.status_code == 200

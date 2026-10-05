@@ -5,6 +5,7 @@ The script is the production cron probe for CF-Tunnel flap detection;
 the matrix below is the spec. Any future change must keep these
 mappings or update this test FIRST.
 """
+
 import importlib.util
 import sys
 from pathlib import Path
@@ -28,15 +29,18 @@ def _patch_probes(monkeypatch, *, public_ok, dns_ok, local_ok):
     """Replace probe_public/probe_dns/probe_local with canned values."""
     mod = _load_module()
     monkeypatch.setattr(
-        mod, "probe_public",
+        mod,
+        "probe_public",
         lambda: (public_ok, "mock public"),
     )
     monkeypatch.setattr(
-        mod, "probe_dns",
+        mod,
+        "probe_dns",
         lambda: (dns_ok, "mock dns"),
     )
     monkeypatch.setattr(
-        mod, "probe_local",
+        mod,
+        "probe_local",
         lambda: (local_ok, "mock local"),
     )
     return mod
@@ -87,17 +91,17 @@ def test_local_broken_outranks_dns(capsys, monkeypatch):
 def test_quiet_mode_one_line(capsys, monkeypatch):
     """--quiet output is exactly one line (cron log aggregator friendly)."""
     mod = _patch_probes(monkeypatch, public_ok=True, dns_ok=True, local_ok=True)
-    rc = mod.main(["--quiet"])
+    mod.main(["--quiet"])
     captured = capsys.readouterr()
     # Allow trailing newline (one newline after one print())
-    lines = [l for l in captured.out.split("\n") if l.strip()]
+    lines = [line for line in captured.out.split("\n") if line.strip()]
     assert len(lines) == 1
     assert lines[0].startswith("cf-tunnel-liveness[")
 
 
 def test_quiet_mode_marks_failure_class(capsys, monkeypatch):
     mod = _patch_probes(monkeypatch, public_ok=False, dns_ok=True, local_ok=True)
-    rc = mod.main(["--quiet"])
+    mod.main(["--quiet"])
     captured = capsys.readouterr()
     assert "[FAIL]" in captured.out
     assert "public=FAIL" in captured.out

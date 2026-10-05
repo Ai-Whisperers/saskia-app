@@ -248,7 +248,9 @@ def risk_list(request: Request, session: Session = Depends(get_session)) -> HTML
             "active_count": sum(1 for i in items if i.status == "activo"),
             "mitigated_count": sum(1 for i in items if i.status == "mitigated"),
             "closed_count": sum(1 for i in items if i.status == "cerrado"),
-            "flash": request.session.pop("flash_risk", None) if hasattr(request, "session") else None,
+            "flash": request.session.pop("flash_risk", None)
+            if hasattr(request, "session")
+            else None,
         },
     )
 
@@ -1123,6 +1125,14 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
     ).one()
     risk_count, risk_severity_gs = int(risk_agg[0] or 0), int(risk_agg[1] or 0)
 
+    # Sazon onboarding guard — show a small welcome banner if seed_sazon
+    # has been run (multi-tenant demo data loaded). The AppMeta row is
+    # written by app/rms/seed/sazon.py; see is_sazon_seeded() / sazon_meta().
+    from app.rms.seed.sazon import is_sazon_seeded, sazon_meta
+
+    sazon_seeded = is_sazon_seeded(session)
+    sazon_info = sazon_meta(session) if sazon_seeded else {}
+
     return render(
         request,
         "dashboard.html",
@@ -1152,6 +1162,10 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
             "wishlist_total_gs": wishlist_total_gs,
             "risk_count": risk_count,
             "risk_severity_gs": risk_severity_gs,
+            "sazon_seeded": sazon_seeded,
+            "sazon_tenant_name": sazon_info.get("sazon_tenant_name", ""),
+            "sazon_admin_user": sazon_info.get("sazon_admin_user", ""),
+            "sazon_seeded_at": sazon_info.get("sazon_seeded_at", ""),
         },
     )
 
@@ -1218,10 +1232,14 @@ def planner_compute(
         ing = ings.get(line.line_ref_id)
         if not ing:
             continue
-        qty_needed = (line.qty or 0) * batches
-        qty_available = ing.stock_qty
-        shortage = qty_needed - qty_available
-        shortage = max(0, shortage)
+        # Both `line.qty` and `ing.stock_qty` are Float columns, but SQLAlchemy
+        # can return Decimal when the underlying dialect says so (e.g., SQLite
+        # NUMERIC type affinity, or when a custom TypeDecorator wraps the
+        # column). Cast to float explicitly so the arithmetic is type-safe
+        # regardless of which dialect is active.
+        qty_needed = float(line.qty or 0) * batches
+        qty_available = float(ing.stock_qty or 0)
+        shortage = max(0, qty_needed - qty_available)
         unit_price = ing.purchase_price_gs or 0
         total_shortage_gs += shortage * (unit_price / 1.0)  # todo: unit normalization
         results.append(
@@ -1268,6 +1286,7 @@ def planner_compute(
         # Converge with the other flows (plan→list, auto-sync): merge
         # duplicate open items so the list shows one row per ingredient.
         from app.routers.shopping import consolidate_open_items
+
         consolidate_open_items(session)
 
     return render(

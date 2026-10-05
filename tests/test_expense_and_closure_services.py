@@ -11,20 +11,19 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.rms.models import Expense, MonthlyClosure
+from app.rms.models import Expense
 from app.rms.services.closures import (
     ClosureConflictError,
     ClosureValidationError,
     close_month,
     compute_month_totals,
-    get_closure,
     list_closures,
     reopen_month,
 )
 from app.rms.services.expenses import (
-    ExpenseValidationError,
     VALID_CATEGORIES,
     VALID_RECURRING,
+    ExpenseValidationError,
     create_expense,
     list_expenses,
     total_expenses_gs,
@@ -86,13 +85,17 @@ def test_create_expense_rejects_bad_category(session_factory):
 def test_create_expense_rejects_bad_recurring(session_factory):
     with session_factory() as s:
         with pytest.raises(ExpenseValidationError, match="recurring_period must be"):
-            create_expense(s, occurred_at=_now(), amount_gs=100, category="RENT", recurring_period="biweekly")
+            create_expense(
+                s, occurred_at=_now(), amount_gs=100, category="RENT", recurring_period="biweekly"
+            )
 
 
 def test_create_expense_requires_tz_aware_datetime(session_factory):
     with session_factory() as s:
         with pytest.raises(ExpenseValidationError, match="tz-aware"):
-            create_expense(s, occurred_at=datetime(2026, 10, 1, 12, 0), amount_gs=100, category="RENT")
+            create_expense(
+                s, occurred_at=datetime(2026, 10, 1, 12, 0), amount_gs=100, category="RENT"
+            )
 
 
 # ─── Service: Expense.list_expenses ──────────────────────────────────────
@@ -142,8 +145,12 @@ def test_list_expenses_filters_by_supplier(session_factory):
         sup_b = Supplier(name="B", ruc="222")
         s.add_all([sup_a, sup_b])
         s.commit()
-        create_expense(s, occurred_at=_now(), amount_gs=100, category="INGREDIENT", supplier_id=sup_a.id)
-        create_expense(s, occurred_at=_now(), amount_gs=200, category="INGREDIENT", supplier_id=sup_b.id)
+        create_expense(
+            s, occurred_at=_now(), amount_gs=100, category="INGREDIENT", supplier_id=sup_a.id
+        )
+        create_expense(
+            s, occurred_at=_now(), amount_gs=200, category="INGREDIENT", supplier_id=sup_b.id
+        )
         create_expense(s, occurred_at=_now(), amount_gs=300, category="RENT")
         s.commit()
 
@@ -220,9 +227,9 @@ def test_void_expense_double_void_raises(session_factory):
 
 def test_total_expenses_gs_skips_voided(session_factory):
     with session_factory() as s:
-        e1 = create_expense(s, occurred_at=_now(), amount_gs=100, category="RENT")
+        create_expense(s, occurred_at=_now(), amount_gs=100, category="RENT")
         e2 = create_expense(s, occurred_at=_now(), amount_gs=200, category="OTHER")
-        e3 = create_expense(s, occurred_at=_now(), amount_gs=300, category="RENT")
+        create_expense(s, occurred_at=_now(), amount_gs=300, category="RENT")
         s.commit()
 
     with session_factory() as s:
@@ -238,7 +245,9 @@ def test_total_expenses_gs_skips_voided(session_factory):
 
 
 def test_valid_categories_set():
-    assert VALID_CATEGORIES == frozenset({"INGREDIENT", "RENT", "UTILITIES", "PAYROLL", "PACKAGING", "OTHER"})
+    assert VALID_CATEGORIES == frozenset(
+        {"INGREDIENT", "RENT", "UTILITIES", "PAYROLL", "PACKAGING", "OTHER"}
+    )
 
 
 def test_valid_recurring_set():
@@ -258,6 +267,7 @@ def test_compute_totals_no_expenses(session_factory):
 
 def test_compute_totals_with_expenses(session_factory):
     from datetime import timedelta
+
     sept_15_local = datetime(2026, 9, 15, 12, 0, tzinfo=timezone(timedelta(hours=-4)))
     with session_factory() as s:
         create_expense(s, occurred_at=sept_15_local, amount_gs=100_000, category="RENT")
@@ -281,6 +291,7 @@ def test_compute_totals_with_expenses(session_factory):
 
 def test_compute_totals_excludes_other_months(session_factory):
     from datetime import timedelta
+
     aug_local = datetime(2026, 8, 15, 12, 0, tzinfo=timezone(timedelta(hours=-4)))
     sept_local = datetime(2026, 9, 15, 12, 0, tzinfo=timezone(timedelta(hours=-4)))
     with session_factory() as s:

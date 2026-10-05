@@ -127,7 +127,7 @@ def _resolve_export_range(
     """
     if period in (None, "", "all", "full"):
         return None, None
-    today = today or date.today()
+    today = today or datetime.now(timezone.utc).date()
     if period == "today":
         local_start = datetime.combine(today, time.min)
         local_end = datetime.combine(today, time.max)
@@ -148,15 +148,9 @@ def _resolve_export_range(
 
     # Convert Asunción local → UTC-naive
     start_utc = (
-        local_start.replace(tzinfo=ASUNCION_TZ)
-        .astimezone(timezone.utc)
-        .replace(tzinfo=None)
+        local_start.replace(tzinfo=ASUNCION_TZ).astimezone(timezone.utc).replace(tzinfo=None)
     )
-    end_utc = (
-        local_end.replace(tzinfo=ASUNCION_TZ)
-        .astimezone(timezone.utc)
-        .replace(tzinfo=None)
-    )
+    end_utc = local_end.replace(tzinfo=ASUNCION_TZ).astimezone(timezone.utc).replace(tzinfo=None)
     return start_utc, end_utc
 
 
@@ -183,7 +177,6 @@ def to_file(
 
     Returns the absolute Path of the written file.
     """
-    from app.rms.config import ASUNCION_TZ
 
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -270,14 +263,16 @@ def to_file(
     ws = wb.create_sheet("Clientes")
     _write_header(ws, CLIENTES_COLS)
     for cust in session.scalars(select(Customer).order_by(Customer.id)).all():
-        ws.append([
-            cust.id,
-            cust.phone,
-            cust.name,
-            getattr(cust, "email", None),
-            getattr(cust, "cedula", None),
-            cust.notes,
-        ])
+        ws.append(
+            [
+                cust.id,
+                cust.phone,
+                cust.name,
+                getattr(cust, "email", None),
+                getattr(cust, "cedula", None),
+                cust.notes,
+            ]
+        )
     _autosize(ws)
 
     # --- Ventas ---
@@ -286,9 +281,7 @@ def to_file(
     products_by_id = {prod.id: prod for prod in session.scalars(select(Product)).all()}
     sales_q = select(Sale).order_by(Sale.id)
     if sale_start is not None and sale_end is not None:
-        sales_q = sales_q.where(
-            Sale.sold_at >= sale_start, Sale.sold_at <= sale_end
-        )
+        sales_q = sales_q.where(Sale.sold_at >= sale_start, Sale.sold_at <= sale_end)
     for sale in session.scalars(sales_q).all():
         product = products_by_id.get(sale.product_id)
         ws.append(
@@ -305,10 +298,32 @@ def to_file(
         )
     _autosize(ws)
 
-    # NOTE: BACKLOG #1 (2026-10-02): SaleStockMove table dropped (migration 092).
-    # StockMoves are now derived from SaleStockMovement (via affected_recipe_id /
-    # ingredient_id) rather than Sale.stock_moves relationship. The StockMoves
-    # export sheet is no longer derivable from sales alone; nothing to do here.
+    # T-2026-10-04: StockMoves sheet was dropped from the export after
+    # migration 092 (BACKLOG #1) because the SaleStockMove table no
+    # longer exists. But the test suite (test_import_roundtrip) and
+    # external operators still expect a 7-sheet workbook. Re-add the
+    # sheet as a derived view of StockMovement with movement_type='sale'
+    # so a roundtrip (export → import) keeps the expected shape.
+    from app.rms.models import StockMovement
+
+    ws = wb.create_sheet("StockMoves")
+    _write_header(ws, STOCKMOVES_COLS)
+    moves_q = (
+        select(StockMovement)
+        .where(StockMovement.movement_type == "sale")
+        .order_by(StockMovement.id)
+    )
+    for mv in session.scalars(moves_q).all():
+        ws.append(
+            [
+                mv.id,
+                mv.reference_id,  # was sale_id on the legacy table
+                mv.affected_recipe_id,
+                mv.ingredient_id,
+                mv.qty,  # was qty_delta; sign convention matches (negative = out)
+            ]
+        )
+    _autosize(ws)
 
     wb.save(str(path))
     return path.resolve()
@@ -549,4 +564,3 @@ def patch_plantilla_bytes(session: Session) -> bytes:
 # Stream C prelaunch roadmap 2026-09-17. If we later decide to also export
 # customers in FULL, add a Clientes sheet here AND import handling in
 # import_xlsx._import_full.
-

@@ -4,6 +4,7 @@ Replaces hardcoded if-chain in app/rms/tags.py:378-382. Operators can
 adjust thresholds via /api/margin-tiers or /settings/catalog without
 code deploy.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

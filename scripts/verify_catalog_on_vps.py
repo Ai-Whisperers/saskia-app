@@ -35,14 +35,13 @@ Usage:
 
 The script is read-only. It never modifies state.
 """
+
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sqlite3
 import sys
-
 
 MIN_COUNTS = {
     "ingredient": 70,
@@ -52,10 +51,8 @@ MIN_COUNTS = {
     "customer": 5,
 }
 
-# Path default: matches AIW_SASKIA_DB_PATH env in the live container.
-DEFAULT_DB_PATH = os.environ.get(
-    "AIW_SASKIA_DB_PATH", "/data/rms.sqlite"
-)
+# Path default: matches AIW_RMS_DB_PATH env in the live container.
+DEFAULT_DB_PATH = os.environ.get("AIW_RMS_DB_PATH", "/data/rms.sqlite")
 
 
 def get_db_metadata(conn: sqlite3.Connection) -> dict:
@@ -69,9 +66,7 @@ def get_db_metadata(conn: sqlite3.Connection) -> dict:
     (default: read from app.rms.config if available).
     """
     out = {}
-    row = conn.execute(
-        "SELECT value FROM app_meta WHERE key = 'schema_version'"
-    ).fetchone()
+    row = conn.execute("SELECT value FROM app_meta WHERE key = 'schema_version'").fetchone()
     out["schema_version"] = int(row[0]) if row else None
     return out
 
@@ -86,15 +81,19 @@ def get_counts(conn: sqlite3.Connection) -> dict[str, int]:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--db", default=DEFAULT_DB_PATH,
-                   help=f"path to rms.sqlite (default: {DEFAULT_DB_PATH})")
-    p.add_argument("--quiet", action="store_true",
-                   help="one-line summary (cron-friendly)")
-    p.add_argument("--code-schema-version", type=int, default=None,
-                   help="Override expected schema version (default: "
-                        "from SASKIA_CODE_SCHEMA_VERSION env, then "
-                        "app.rms.config.CURRENT_SCHEMA_VERSION, "
-                        "else skip schema check).")
+    p.add_argument(
+        "--db", default=DEFAULT_DB_PATH, help=f"path to rms.sqlite (default: {DEFAULT_DB_PATH})"
+    )
+    p.add_argument("--quiet", action="store_true", help="one-line summary (cron-friendly)")
+    p.add_argument(
+        "--code-schema-version",
+        type=int,
+        default=None,
+        help="Override expected schema version (default: "
+        "from SASKIA_CODE_SCHEMA_VERSION env, then "
+        "app.rms.config.CURRENT_SCHEMA_VERSION, "
+        "else skip schema check).",
+    )
     args = p.parse_args(argv)
 
     if not os.path.exists(args.db):
@@ -152,13 +151,14 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"vps-catalog-verify[{status}] "
             f"sv={meta.get('schema_version')} "
-            f"code={code_sv} "
-            + " ".join(f"{t}={c}" for t, c in counts.items())
+            f"code={code_sv} " + " ".join(f"{t}={c}" for t, c in counts.items())
         )
     else:
         print(f"=== Catalog on VPS (db: {args.db}) ===")
-        print(f"  schema_version: {meta.get('schema_version')}"
-              + (f" (code: {code_sv})" if code_sv else ""))
+        print(
+            f"  schema_version: {meta.get('schema_version')}"
+            + (f" (code: {code_sv})" if code_sv else "")
+        )
         print("  catalog row counts:")
         for t, c in counts.items():
             minimum = MIN_COUNTS[t]

@@ -11,21 +11,22 @@ Verify the suscripcion->pedido bridge:
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date
 
-import pytest
-
-from app.rms.config import ASUNCION_TZ
 from app.rms.models import (
-    AppMeta, Customer, Pedido, PedidoEvent, Suscripcion,
+    Customer,
+    Pedido,
+    PedidoEvent,
+    Suscripcion,
 )
-
 
 # ---------- helpers ----------
 
+
 def _make_customer(s, name="Sub Test", phone="0997000001"):
     c = Customer(name=name, phone=phone)
-    s.add(c); s.flush()
+    s.add(c)
+    s.flush()
     return c
 
 
@@ -43,11 +44,13 @@ def _make_sub(s, customer_id, **kw):
     )
     defaults.update(kw)
     sub = Suscripcion(**defaults)
-    s.add(sub); s.flush()
+    s.add(sub)
+    s.flush()
     return sub
 
 
 # ---------- 1. Service unit tests ----------
+
 
 def test_dispatcher_generates_for_one_active_sub(session_factory):
     """One active suscripcion → one Pedido created."""
@@ -56,6 +59,7 @@ def test_dispatcher_generates_for_one_active_sub(session_factory):
         sub = _make_sub(s, c.id)
 
         from app.services.suscripcion_dispatcher import generate_weekly_pedidos
+
         result = generate_weekly_pedidos(s)
 
         assert result.total == 1
@@ -85,6 +89,7 @@ def test_dispatcher_is_idempotent_within_week(session_factory):
         sub = _make_sub(s, c.id)
 
         from app.services.suscripcion_dispatcher import generate_weekly_pedidos
+
         r1 = generate_weekly_pedidos(s)
         assert r1.total == 1
 
@@ -97,9 +102,10 @@ def test_dispatcher_skips_paused(session_factory):
     """A paused suscripcion doesn't generate."""
     with session_factory() as s:
         c = _make_customer(s, "Paused Sub")
-        sub = _make_sub(s, c.id, status="pausada")
+        _make_sub(s, c.id, status="pausada")
 
         from app.services.suscripcion_dispatcher import generate_weekly_pedidos
+
         result = generate_weekly_pedidos(s)
         assert result.total == 0
         # Only 'pausada' so it shouldn't even be queried as 'activa'.
@@ -113,6 +119,7 @@ def test_dispatcher_skips_past_end_date(session_factory):
         _make_sub(s, c.id, end_date=date(2020, 1, 1))
 
         from app.services.suscripcion_dispatcher import generate_weekly_pedidos
+
         result = generate_weekly_pedidos(s)
         assert result.total == 0
         assert result.skipped_past_end_date
@@ -127,6 +134,7 @@ def test_dispatcher_skips_non_weekly_for_now(session_factory):
         _make_sub(s, c2.id, cadence="mensual")
 
         from app.services.suscripcion_dispatcher import generate_weekly_pedidos
+
         result = generate_weekly_pedidos(s)
         assert result.total == 0
         # 2 skipped
@@ -140,8 +148,10 @@ def test_dispatcher_undo_for_pedido(session_factory):
         _make_sub(s, c.id)
 
         from app.services.suscripcion_dispatcher import (
-            generate_weekly_pedidos, undo_for_pedido,
+            generate_weekly_pedidos,
+            undo_for_pedido,
         )
+
         r1 = generate_weekly_pedidos(s)
         pedido_id = r1.generated[0].pedido_id
 
@@ -160,11 +170,13 @@ def test_dispatcher_undo_for_pedido(session_factory):
 
 # ---------- 2. HTTP endpoint ----------
 
+
 def test_http_dispatch_creates_pedidos(client, session_factory):
     """POST /suscripciones/dispatch generates pending pedidos."""
     with session_factory() as s:
         c = Customer(name="HTTP Sub", phone="0997000002")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
         cid = c.id
         _make_sub(s, cid)
         s.commit()  # ← flush only persists within this session
@@ -176,10 +188,14 @@ def test_http_dispatch_creates_pedidos(client, session_factory):
 
     with session_factory() as s:
         # One new pending pedido with [Auto-generado
-        n = s.query(Pedido).filter(
-            Pedido.notes.like("[Auto-generado desde suscripción%"),
-            Pedido.customer_id == cid,
-        ).count()
+        n = (
+            s.query(Pedido)
+            .filter(
+                Pedido.notes.like("[Auto-generado desde suscripción%"),
+                Pedido.customer_id == cid,
+            )
+            .count()
+        )
         assert n == 1
 
 
@@ -187,7 +203,8 @@ def test_http_dispatch_idempotent(client, session_factory):
     """POST twice → still 1 pedido, second shows in skipped_already_done."""
     with session_factory() as s:
         c = Customer(name="HTTP Idempotent Sub", phone="0997000003")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
         _make_sub(s, c.id)
         s.commit()
 

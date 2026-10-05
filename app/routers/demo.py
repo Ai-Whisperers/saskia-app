@@ -4,7 +4,7 @@ Exposes POST /demo/seed which builds the complete Kyrian demo customer
 via app.seed.kyrian.seed_kyrian().
 
 GATED by env var AIW_DEMO_SEED_ENABLED. Default OFF. Operator flips it
-in /opt/build-apps/saskia-rms/.env to enable the demo on a specific
+in /opt/build-apps/sazon-rms/.env to enable the demo on a specific
 environment. Production must never set this flag.
 
 Why a flag and not an admin role:
@@ -31,8 +31,9 @@ from __future__ import annotations
 
 import os
 import time
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
 from app.rms.dependencies import get_session
@@ -47,7 +48,7 @@ def _is_enabled() -> bool:
 
 
 @router.post("/seed")
-def demo_seed(session=Depends(get_session)):
+def demo_seed(session: Any = Depends(get_session)) -> JSONResponse:
     """Build the Kyrian demo customer. Idempotent.
 
     Returns a JSON summary of what was created/replaced. Errors with
@@ -58,7 +59,7 @@ def demo_seed(session=Depends(get_session)):
             status_code=403,
             detail=(
                 "Demo seed is disabled. Set AIW_DEMO_SEED_ENABLED=true "
-                "in /opt/build-apps/saskia-rms/.env to enable."
+                "in /opt/build-apps/sazon-rms/.env to enable."
             ),
         )
 
@@ -68,9 +69,7 @@ def demo_seed(session=Depends(get_session)):
         session.commit()
     except Exception as exc:
         session.rollback()
-        raise HTTPException(
-            status_code=500, detail=f"Demo seed failed: {exc!r}"
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Demo seed failed: {exc!r}") from exc
 
     return JSONResponse(
         {
@@ -89,7 +88,7 @@ def demo_seed(session=Depends(get_session)):
 
 
 @router.get("/seed/status")
-def demo_seed_status():
+def demo_seed_status() -> dict[str, Any]:
     """Tell the operator whether the demo seed endpoint is reachable.
 
     Returns:

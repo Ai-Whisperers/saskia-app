@@ -7,6 +7,7 @@ is to catch regressions in the script's allowlist and patterns.
 If this script breaks (false negatives or false positives), the D3 currency
 drift defect becomes undetectable again. Treat as P0.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -21,8 +22,8 @@ SCRIPT = REPO / "scripts" / "check_currency_drift.sh"
 def test_script_exists_and_executable():
     """The script must exist and be executable (CI runs it directly)."""
     assert SCRIPT.exists(), "scripts/check_currency_drift.sh is missing"
-    import os
     import stat
+
     mode = SCRIPT.stat().st_mode
     assert mode & stat.S_IXUSR, "script is not user-executable"
 
@@ -64,10 +65,12 @@ def test_allowlist_excludes_money_formatting_modules():
     The bash regex uses escaped dots (\\.) — the test checks for the bare path."""
     text = SCRIPT.read_text(encoding="utf-8")
     # bash-escaped: app/rms/money\.py
-    assert "app/rms/money\\.py" in text or "app/rms/money.py" in text, \
+    assert "app/rms/money\\.py" in text or "app/rms/money.py" in text, (
         "format_gs source module must be in allowlist (else self-lint fails)"
-    assert "app/rms/display\\.py" in text or "app/rms/display.py" in text, \
+    )
+    assert "app/rms/display\\.py" in text or "app/rms/display.py" in text, (
         "display formatter module must be in allowlist"
+    )
 
 
 def test_allowlist_excludes_receta_form():
@@ -75,8 +78,9 @@ def test_allowlist_excludes_receta_form():
     e2e tests (hat 7+28). The Gs. literals inside it are JS-updated placeholders.
     Excluded from lint until tests exist."""
     text = SCRIPT.read_text(encoding="utf-8")
-    assert "receta_form.html" in text, \
+    assert "receta_form.html" in text, (
         "receta_form.html must be in allowlist (untouchable until e2e tests)"
+    )
 
 
 def test_allowlist_excludes_changelog_and_tests():
@@ -91,19 +95,23 @@ def test_fixed_templates_use_money_macro():
     """The two drift violations fixed in Session A — pedido_stock_preview.html
     line 32 and produccion.html line 141 — must now use m.gs(), not raw Gs. {{}}."""
     preview = (REPO / "app/templates/pedido_stock_preview.html").read_text(encoding="utf-8")
-    assert "m.gs(consumed|sum" in preview, \
+    assert "m.gs(consumed|sum" in preview, (
         "pedido_stock_preview.html must use m.gs() (Session A fix)"
-    assert "Gs. {{ consumed|sum" not in preview, \
+    )
+    assert "Gs. {{ consumed|sum" not in preview, (
         "raw Gs. {{ consumed|sum still present (regression)"
+    )
 
     produccion = (REPO / "app/templates/produccion.html").read_text(encoding="utf-8")
-    assert "{% import \"_components/macros.html\" as m %}" in produccion, \
+    assert '{% import "_components/macros.html" as m %}' in produccion, (
         "produccion.html must import the money macros module"
+    )
     # 399941c moved the month sales/money block from produccion.html to
     # /reportes, so the old "m.gs(it.unit_price_gs)" line is gone. The
     # invariant that matters now: no raw "Gs. {{" renderings crept back in.
-    assert "Gs. {{" not in produccion, \
+    assert "Gs. {{" not in produccion, (
         "produccion.html must not render raw Gs. literals (regression)"
+    )
 
 
 def test_workflow_file_exists():
@@ -111,18 +119,20 @@ def test_workflow_file_exists():
     workflow = REPO / ".github/workflows/currency-drift.yml"
     assert workflow.exists(), "currency-drift.yml workflow is missing"
     text = workflow.read_text(encoding="utf-8")
-    assert "check_currency_drift.sh" in text, \
-        "workflow must invoke the drift script"
+    assert "check_currency_drift.sh" in text, "workflow must invoke the drift script"
     assert "pull_request" in text, "workflow must run on pull_request"
 
 
-@pytest.mark.parametrize("template", [
-    "app/templates/inicio.html",
-    "app/templates/analisis.html",
-    "app/templates/bank.html",
-])
+@pytest.mark.parametrize(
+    "template",
+    [
+        "app/templates/inicio.html",
+        "app/templates/analisis.html",
+        "app/templates/bank.html",
+    ],
+)
 def test_kpi_card_adoptions_use_format_gs(template):
-    """All three pages that adopted <saskia-kpi-card> in Session A must still
+    """All three pages that adopted <ui-kpi-card> in Session A must still
     use format_gs (m.gs_full or m.gs) for any currency rendering."""
     text = (REPO / template).read_text(encoding="utf-8")
     if template == "app/templates/bank.html":
@@ -134,7 +144,7 @@ def test_kpi_card_adoptions_use_format_gs(template):
 
 
 def test_kpi_card_host_is_block_in_grid():
-    """<saskia-kpi-card> custom elements default to display:inline, which
+    """<ui-kpi-card> custom elements default to display:inline, which
     breaks CSS Grid row-height alignment. The fix is two layered rules:
       (1) host: display:block + height:100% so the custom element participates
           as a real block-level grid item and fills the row track.
@@ -144,14 +154,15 @@ def test_kpi_card_host_is_block_in_grid():
     Flagged by the Session A screenshot subagent on the second pass."""
     css = (REPO / "app/static/app-components.css").read_text(encoding="utf-8")
     # Layer 1: host rule
-    assert "saskia-kpi-card" in css, \
-        "custom-element host rule missing — grid rows will misalign"
-    assert "saskia-kpi-card {" in css and "display: block" in css, \
+    assert "ui-kpi-card" in css, "custom-element host rule missing — grid rows will misalign"
+    assert "ui-kpi-card {" in css and "display: block" in css, (
         "host must be display:block (not inline)"
+    )
     # Layer 2: inner card fills host
     assert ".metric-card--kpi {" in css, "inner card rule missing"
     # The inner card rule must include height:100% — verify it's there
     # even if other declarations follow it on the same selector.
     inner_block = css.split(".metric-card--kpi {", 1)[1].split("}", 1)[0]
-    assert "height: 100%" in inner_block, \
+    assert "height: 100%" in inner_block, (
         "inner .metric-card--kpi must fill its host (height:100%) — otherwise host stretches but visible card stays at content height"
+    )

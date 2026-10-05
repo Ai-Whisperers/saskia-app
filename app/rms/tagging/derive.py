@@ -81,6 +81,7 @@ class TagDerivation:
 # Tree walker
 # ─────────────────────────────────────────────────────────────────────────
 
+
 def walk_recipe_tree(
     session: Session,
     recipe_id: int,
@@ -113,9 +114,7 @@ def walk_recipe_tree(
         path.append(label)
         try:
             lines = session.scalars(
-                select(RecipeLine)
-                .where(RecipeLine.recipe_id == rid)
-                .order_by(RecipeLine.id)
+                select(RecipeLine).where(RecipeLine.recipe_id == rid).order_by(RecipeLine.id)
             ).all()
             for line in lines:
                 if depth > 0 and line.line_kind == "sub_recipe":
@@ -128,11 +127,7 @@ def walk_recipe_tree(
                 target = _resolve(session, line)
                 if target is None:
                     continue
-                if (
-                    isinstance(target, Ingredient)
-                    and target.is_packaging
-                    and not include_packaging
-                ):
+                if isinstance(target, Ingredient) and target.is_packaging and not include_packaging:
                     continue
                 targets.append(LineTarget(line=line, target=target, depth=depth))
                 if line.line_kind == "sub_recipe" and depth < max_depth:
@@ -159,6 +154,7 @@ def _resolve(session: Session, line: object) -> object | None:
 # ─────────────────────────────────────────────────────────────────────────
 # The derivation
 # ─────────────────────────────────────────────────────────────────────────
+
 
 def _split(raw: str | None) -> list[str]:
     """Split a CSV string into a list of trimmed non-empty tokens."""
@@ -217,7 +213,7 @@ def derive_recipe_tags(
         if isinstance(t.target, Ingredient):
             # '' = operator saved it as declared-neutral; NULL = never touched.
             # (Backfill 2026-09-30 normalized all neutral rows to ''.)
-            if t.target.allergens is None or t.target.allergens == '':
+            if t.target.allergens is None or t.target.allergens == "":
                 result.undeclared.append(t.target.name)
                 # UI-V2 fix-at-source: keep the id parallel to the name so
                 # the warning can deep-link to /inventario/{id}/editar.
@@ -285,6 +281,7 @@ def derive_recipe_tags(
 # Cache refresh (writes — but isolated in this layer)
 # ─────────────────────────────────────────────────────────────────────────
 
+
 def refresh_recipe_tag_cache(session: Session, recipe_id: int) -> None:
     """Recompute + persist Recipe.allergens / derived tag cache.
 
@@ -302,12 +299,16 @@ def recipes_using_ingredient(session: Session, ingredient_id: int) -> list[int]:
     """Recipe IDs with a DIRECT line to this ingredient (for cascade)."""
     from app.rms.models import RecipeLine
 
-    rows = session.execute(
-        select(RecipeLine.recipe_id).where(
-            RecipeLine.line_kind == "ingredient",
-            RecipeLine.line_ref_id == ingredient_id,
+    rows = (
+        session.execute(
+            select(RecipeLine.recipe_id).where(
+                RecipeLine.line_kind == "ingredient",
+                RecipeLine.line_ref_id == ingredient_id,
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return sorted(set(rows))
 
 
@@ -315,12 +316,16 @@ def recipes_using_recipe(session: Session, sub_recipe_id: int) -> list[int]:
     """Recipe IDs with a DIRECT sub-recipe line to this one (for cascade)."""
     from app.rms.models import RecipeLine
 
-    rows = session.execute(
-        select(RecipeLine.recipe_id).where(
-            RecipeLine.line_kind == "sub_recipe",
-            RecipeLine.line_ref_id == sub_recipe_id,
+    rows = (
+        session.execute(
+            select(RecipeLine.recipe_id).where(
+                RecipeLine.line_kind == "sub_recipe",
+                RecipeLine.line_ref_id == sub_recipe_id,
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return sorted(set(rows))
 
 

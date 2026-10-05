@@ -14,8 +14,9 @@ With ``idempotency_key=<token>`` injected by the template:
     key → redirect with ``flash=cierre_duplicado`` → no audit row, no
     backup attempt.
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_eod_check_idempotency.py -v
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_eod_check_idempotency.py -v
 """
+
 from __future__ import annotations
 
 import secrets
@@ -38,11 +39,9 @@ def _check_all_with_key(client: TestClient, idempotency_key: str):
 
 
 def _audit_rows_for_today(session_factory, action: str) -> list:
-    today = datetime.now(ASUNCION_TZ).date().isoformat()
+    datetime.now(ASUNCION_TZ).date().isoformat()
     with session_factory() as s:
-        rows = list(s.scalars(
-            select(AuditLog).where(AuditLog.action == action)
-        ))
+        rows = list(s.scalars(select(AuditLog).where(AuditLog.action == action)))
     # Filter to today's EOD ones by parsing detail JSON — small dataset so OK
     return rows
 
@@ -71,8 +70,7 @@ def test_eod_save_double_click_returns_duplicate_redirect(client) -> None:
 
 
 def test_eod_save_double_click_does_not_write_duplicate_audit(client, session_factory) -> None:
-    """Two POSTs with the SAME idempotency_key → only ONE write.eod.checklist.save audit row.
-    """
+    """Two POSTs with the SAME idempotency_key → only ONE write.eod.checklist.save audit row."""
     key = secrets.token_urlsafe(16)
 
     # Count audit rows BEFORE
@@ -83,9 +81,7 @@ def test_eod_save_double_click_does_not_write_duplicate_audit(client, session_fa
 
     after = len(_audit_rows_for_today(session_factory, "write.eod.checklist.save"))
     new_rows = after - before
-    assert new_rows == 1, (
-        f"Double-click should write exactly 1 audit row; got {new_rows}"
-    )
+    assert new_rows == 1, f"Double-click should write exactly 1 audit row; got {new_rows}"
 
 
 def test_eod_save_without_key_still_works_legacy_path(client) -> None:
@@ -127,7 +123,5 @@ def test_eod_idem_key_reserved_in_appmeta(client, session_factory) -> None:
     _check_all_with_key(client, key)
 
     with session_factory() as s:
-        row = s.scalar(
-            select(AppMeta).where(AppMeta.key == f"eod_save_idem:{key}")
-        )
+        row = s.scalar(select(AppMeta).where(AppMeta.key == f"eod_save_idem:{key}"))
     assert row is not None, "AppMeta idem reservation row must exist after a successful save"

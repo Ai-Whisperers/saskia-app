@@ -1,6 +1,6 @@
 """tests/test_accounting.py — verify app/rms/accounting.py (E17).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E17.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E17.
 
 Covers:
 - extract_iva with tax_mode="included" (gross=11k, base=10k, iva=1k)
@@ -11,6 +11,7 @@ Covers:
 - daily_summary computes one day's metrics
 - product_margin_summary aggregates by product
 """
+
 # allow-hardcoded-dates: accounting period boundaries (month/quarter) need fixed dates
 from __future__ import annotations
 
@@ -61,6 +62,7 @@ def test_extract_iva_unknown_mode_raises():
 def test_paraguay_iva_rate_is_10_percent():
     """PY IVA = 10% (E17)."""
     from decimal import Decimal
+
     assert abs(PARAGUAY_IVA_RATE - Decimal("0.10")) < Decimal("1e-9")
 
 
@@ -72,14 +74,24 @@ def test_monthly_iva_breakdown_buckets_by_month(session_factory):
         s.add(prod)
         s.flush()
         now = datetime.now(timezone.utc)
-        s.add_all([
-            # March: 3 sales
-            Sale(sold_at=datetime(now.year, 3, 5), product_id=prod.id, qty=1, unit_price_gs=1100),
-            Sale(sold_at=datetime(now.year, 3, 10), product_id=prod.id, qty=1, unit_price_gs=1100),
-            Sale(sold_at=datetime(now.year, 3, 15), product_id=prod.id, qty=1, unit_price_gs=1100),
-            # April: 1 sale
-            Sale(sold_at=datetime(now.year, 4, 5), product_id=prod.id, qty=1, unit_price_gs=1100),
-        ])
+        s.add_all(
+            [
+                # March: 3 sales
+                Sale(
+                    sold_at=datetime(now.year, 3, 5), product_id=prod.id, qty=1, unit_price_gs=1100
+                ),
+                Sale(
+                    sold_at=datetime(now.year, 3, 10), product_id=prod.id, qty=1, unit_price_gs=1100
+                ),
+                Sale(
+                    sold_at=datetime(now.year, 3, 15), product_id=prod.id, qty=1, unit_price_gs=1100
+                ),
+                # April: 1 sale
+                Sale(
+                    sold_at=datetime(now.year, 4, 5), product_id=prod.id, qty=1, unit_price_gs=1100
+                ),
+            ]
+        )
         s.commit()
 
         start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
@@ -108,16 +120,20 @@ def test_monthly_iva_excludes_voided(session_factory):
         s.add(prod)
         s.flush()
         now = datetime.now(timezone.utc)
-        s.add_all([
-            Sale(sold_at=datetime(now.year, 3, 5), product_id=prod.id, qty=1, unit_price_gs=1100),
-            Sale(
-                sold_at=datetime(now.year, 3, 10),
-                product_id=prod.id,
-                qty=1,
-                unit_price_gs=1100,
-                voided_at=datetime.now(timezone.utc),
-            ),
-        ])
+        s.add_all(
+            [
+                Sale(
+                    sold_at=datetime(now.year, 3, 5), product_id=prod.id, qty=1, unit_price_gs=1100
+                ),
+                Sale(
+                    sold_at=datetime(now.year, 3, 10),
+                    product_id=prod.id,
+                    qty=1,
+                    unit_price_gs=1100,
+                    voided_at=datetime.now(timezone.utc),
+                ),
+            ]
+        )
         s.commit()
 
         start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
@@ -141,10 +157,20 @@ def test_libro_ventas_chronological_with_customer_name(session_factory):
         s.add(cust)
         s.flush()
         now = datetime.now(timezone.utc)
-        s.add_all([
-            Sale(sold_at=now - timedelta(days=3), product_id=prod.id, qty=1, unit_price_gs=25000, customer_id=cust.id),
-            Sale(sold_at=now - timedelta(days=2), product_id=prod.id, qty=1, unit_price_gs=25000),
-        ])
+        s.add_all(
+            [
+                Sale(
+                    sold_at=now - timedelta(days=3),
+                    product_id=prod.id,
+                    qty=1,
+                    unit_price_gs=25000,
+                    customer_id=cust.id,
+                ),
+                Sale(
+                    sold_at=now - timedelta(days=2), product_id=prod.id, qty=1, unit_price_gs=25000
+                ),
+            ]
+        )
         s.commit()
 
         rows = libro_ventas(
@@ -174,12 +200,14 @@ def test_daily_summary_for_one_day(session_factory):
         s.flush()
         day = datetime(2026, 3, 15)
         for hour in (9, 10, 11):
-            s.add(Sale(
-                sold_at=datetime(2026, 3, 15, hour, 0, tzinfo=timezone.utc),
-                product_id=prod.id,
-                qty=1,
-                unit_price_gs=1100,
-            ))
+            s.add(
+                Sale(
+                    sold_at=datetime(2026, 3, 15, hour, 0, tzinfo=timezone.utc),
+                    product_id=prod.id,
+                    qty=1,
+                    unit_price_gs=1100,
+                )
+            )
         s.commit()
 
         summary = daily_summary(s, day)
@@ -202,9 +230,13 @@ def test_product_margin_summary_per_product(session_factory):
         now = datetime.now(timezone.utc)
         # 4 muffins + 2 cheesecakes
         for _ in range(4):
-            s.add(Sale(sold_at=now - timedelta(days=1), product_id=p1.id, qty=1, unit_price_gs=2500))
+            s.add(
+                Sale(sold_at=now - timedelta(days=1), product_id=p1.id, qty=1, unit_price_gs=2500)
+            )
         for _ in range(2):
-            s.add(Sale(sold_at=now - timedelta(days=1), product_id=p2.id, qty=1, unit_price_gs=35000))
+            s.add(
+                Sale(sold_at=now - timedelta(days=1), product_id=p2.id, qty=1, unit_price_gs=35000)
+            )
         s.commit()
 
         margins = product_margin_summary(
@@ -229,19 +261,25 @@ def test_accounting_handles_empty_db(session_factory):
     s = session_factory()
     try:
         assert monthly_iva_breakdown(s) == []
-        assert libro_ventas(
-            s,
-            start_date=datetime.now(timezone.utc) - timedelta(days=10),
-            end_date=datetime.now(timezone.utc),
-        ) == []
+        assert (
+            libro_ventas(
+                s,
+                start_date=datetime.now(timezone.utc) - timedelta(days=10),
+                end_date=datetime.now(timezone.utc),
+            )
+            == []
+        )
         # daily_summary on empty DB
         ds = daily_summary(s, datetime.now(timezone.utc))
         assert ds.n_sales == 0
         assert ds.revenue_gross_gs == 0
-        assert product_margin_summary(
-            s,
-            start_date=datetime.now(timezone.utc) - timedelta(days=10),
-            end_date=datetime.now(timezone.utc),
-        ) == []
+        assert (
+            product_margin_summary(
+                s,
+                start_date=datetime.now(timezone.utc) - timedelta(days=10),
+                end_date=datetime.now(timezone.utc),
+            )
+            == []
+        )
     finally:
         s.close()

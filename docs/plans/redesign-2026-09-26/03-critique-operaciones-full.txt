@@ -1,6 +1,6 @@
 All 13 pages inspected (≈30 vision passes over tiled crops, plus full-page pass on the receipt). Report below.
 
-# Saskia RMS — Visual Audit (13 páginas, 1280px)
+# Sazón — Visual Audit (13 páginas, 1280px)
 
 **Método**: capturas leídas por visión artificial; etiquetas citadas textualmente. Los recortes laterales por tiling se descartaron; solo se reportan defectos confirmados en contexto de página completa.
 
@@ -92,7 +92,7 @@ All 13 pages inspected (≈30 vision passes over tiled crops, plus full-page pas
 
 ## 5. `/ventas/6/recibo` — venta-recibo.png
 
-**Layout**: breadcrumb "Inicio › Recibo", recibo centrado (~320px): card header con **ícono de corazón** + "Saskia RMS / Recibo de venta", card detalle ("VENTA", Número #6, Fecha, producto, subtotal), "¡Gracias por tu compra!", disclaimer fiscal, botón "Imprimir", link "Volver al historial".
+**Layout**: breadcrumb "Inicio › Recibo", recibo centrado (~320px): card header con **ícono de corazón** + "Sazón / Recibo de venta", card detalle ("VENTA", Número #6, Fecha, producto, subtotal), "¡Gracias por tu compra!", disclaimer fiscal, botón "Imprimir", link "Volver al historial".
 
 **Defectos**:
 - **Ícono de corazón** encabezando un recibo (semántica de favorito, no de comprobante).
@@ -285,4 +285,4 @@ All 13 pages inspected (≈30 vision passes over tiled crops, plus full-page pas
 4. **Disciplina de tablas**: right-align tabular-nums para dinero/cantidades, columna ACCIONES con menú "⋯", headers sin wrap, zebra + fila de totales, paginación.
 5. **Rediseñar `/` y `/dashboard` como una sola pantalla** con grilla KPI homogénea y alertas unificadas (severidad rojo/ámbar real, sin ceros en rojo), eliminando la duplicación actual ("Ventas de hoy" + "Lo que necesita tu atención" + franja "Operación" dicen tres veces lo mismo).
 
-*Nota de método: el vision backend sufrió timeouts intermitentes; se resolvió procesando recortes 640×480 con retries. Los recortes de tiling no se reportaron como defectos de la app (p. ej., el corte del footer "© 2026 Saskia RM[S]" es artefacto del muestreo, no de la página). Archivos temporales en `/opt/data/profiles/ivan/cache/scratch/saskia-tiles/` (92 tiles) — limpiar si no se reutilizan.*
+*Nota de método: el vision backend sufrió timeouts intermitentes; se resolvió procesando recortes 640×480 con retries. Los recortes de tiling no se reportaron como defectos de la app (p. ej., el corte del footer "© 2026 the operator RM[S]" es artefacto del muestreo, no de la página). Archivos temporales en `/opt/data/profiles/ivan/cache/scratch/ui-tiles/` (92 tiles) — limpiar si no se reutilizan.*

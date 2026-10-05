@@ -313,14 +313,16 @@ def _ensure_venta_libre(session_factory):
     with session_factory() as s:
         existing = s.query(Product).filter_by(sku="VAR-001").one_or_none()
         if existing is None:
-            s.add(Product(
-                name="Venta libre",
-                sku="VAR-001",
-                sale_price_gs=0,
-                is_available=True,
-                notes="Venta libre — definí el precio en el carrito.",
-                category="varios",
-            ))
+            s.add(
+                Product(
+                    name="Venta libre",
+                    sku="VAR-001",
+                    sale_price_gs=0,
+                    is_available=True,
+                    notes="Venta libre — definí el precio en el carrito.",
+                    category="varios",
+                )
+            )
             s.commit()
 
 
@@ -354,14 +356,12 @@ def test_ventas_page_has_venta_libre_button(client, session_factory):
 
     # The quick-sell-btn--varios variant class must be present in the page
     # (the tile is the only consumer of this class).
-    assert 'quick-sell-btn--varios' in body, (
+    assert "quick-sell-btn--varios" in body, (
         "venta-libre-btn must use the .quick-sell-btn--varios dashed-border variant"
     )
 
     # The data-product-id must be populated (so the JS click handler can add it)
-    m2 = re.search(
-        r'id="venta-libre-btn"[^>]*data-product-id="(\d+)"', body, re.DOTALL
-    )
+    m2 = re.search(r'id="venta-libre-btn"[^>]*data-product-id="(\d+)"', body, re.DOTALL)
     assert m2, "venta-libre-btn must carry data-product-id"
     pid = int(m2.group(1))
     assert pid > 0, f"data-product-id must be a positive integer, got {pid}"
@@ -380,9 +380,7 @@ def test_cart_price_input_rendered(client, session_factory):
     assert "Precio" in body, "Cart table must have a 'Precio' column header"
     # The render() JS uses this class — confirm the class string is in
     # the inline script so a typo on our side surfaces as a real failure.
-    assert "cart-price-input" in body, (
-        "Cart render JS must include cart-price-input markup"
-    )
+    assert "cart-price-input" in body, "Cart render JS must include cart-price-input markup"
 
 
 def test_sale_with_price_override_creates_correct_unit_price(client, session_factory):
@@ -432,20 +430,30 @@ def test_sale_without_price_override_uses_catalog_price(client, session_factory)
     catalog. This guards against the override accidentally overriding
     everything.
     """
-    from app.rms.models import Product, Recipe, RecipeLine, Sale, Ingredient
+    from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
 
     with session_factory() as s:
         # Build a small recipe tree so apply_sale can compute stock moves
-        ing = Ingredient(name="Harina vl-test", unit="kg", stock_qty=10.0,
-                         purchase_price_gs=5000)
-        s.add(ing); s.flush()
+        ing = Ingredient(name="Harina vl-test", unit="kg", stock_qty=10.0, purchase_price_gs=5000)
+        s.add(ing)
+        s.flush()
         recipe = Recipe(name="Receta vl-test", yield_qty=10, yield_unit="und")
-        s.add(recipe); s.flush()
-        s.add(RecipeLine(recipe_id=recipe.id, line_kind="ingredient",
-                         line_ref_id=ing.id, qty=0.1, line_unit="kg"))
-        prod = Product(name="Producto vl-test", sale_price_gs=12500,
-                       is_available=True, recipe_id=recipe.id)
-        s.add(prod); s.commit()
+        s.add(recipe)
+        s.flush()
+        s.add(
+            RecipeLine(
+                recipe_id=recipe.id,
+                line_kind="ingredient",
+                line_ref_id=ing.id,
+                qty=0.1,
+                line_unit="kg",
+            )
+        )
+        prod = Product(
+            name="Producto vl-test", sale_price_gs=12500, is_available=True, recipe_id=recipe.id
+        )
+        s.add(prod)
+        s.commit()
         prod_id = prod.id
 
     payload = {

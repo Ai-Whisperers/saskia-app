@@ -2,6 +2,7 @@
 
 Built on app/rms/audit.py list_recent() + AuditLog model.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -238,15 +239,15 @@ def auditoria_export_csv(
     Adds the missing endpoint that /auditoria.html already linked to. Columns:
     id, timestamp, user_id, action, target_type, target_id, ip, user_agent.
     """
-    import csv
-    import io as _io
 
     # Build the same row set as the index view, but bypass pagination — CSV
     # exports the entire matching set (up to a safety cap).
     if target_type and target_id:
         rows = list(search_by_target(session, target_type, target_id, limit=10_000))
     else:
-        rows = list(list_recent(session, limit=10_000, action_filter=action_filter, user_filter=user_filter))
+        rows = list(
+            list_recent(session, limit=10_000, action_filter=action_filter, user_filter=user_filter)
+        )
 
     # Apply date + IP filters in Python (matches the index view).
     sd = _parse_date(start_date)
@@ -271,7 +272,16 @@ def auditoria_export_csv(
     filename = f"auditoria_{datetime.now(timezone.utc).date().isoformat()}.csv"
     return StreamingResponse(
         stream_csv_rows(
-            ["id", "timestamp", "user_id", "action", "target_type", "target_id", "ip", "user_agent_short"],
+            [
+                "id",
+                "timestamp",
+                "user_id",
+                "action",
+                "target_type",
+                "target_id",
+                "ip",
+                "user_agent_short",
+            ],
             (
                 [
                     r.id,

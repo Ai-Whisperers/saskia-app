@@ -1,6 +1,6 @@
 """app/rms/workflow.py — Operator workflow helpers (E12).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E12.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E12.
 
 Adds:
 - EndOfDayChecklist: 10-item structured daily close (cash count,
@@ -9,6 +9,7 @@ Adds:
 - SeasonalCalendar: holiday/event awareness that hints at product
   demand changes (Navidad, Día de la Madre, Año Nuevo, etc.)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -127,11 +128,7 @@ def daily_summary_full(
     end = start + timedelta(days=1)
 
     sales = list(
-        session.execute(
-            select(Sale).where(
-                Sale.sold_at >= start, Sale.sold_at < end
-            )
-        ).scalars()
+        session.execute(select(Sale).where(Sale.sold_at >= start, Sale.sold_at < end)).scalars()
     )
     valid = [s for s in sales if s.voided_at is None]
     voided = [s for s in sales if s.voided_at is not None]
@@ -139,19 +136,33 @@ def daily_summary_full(
     revenue = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in valid)
 
     # COGS
-    from app.rms.models import SaleStockMove
+    # T-2026-10-04: BACKLOG #1 (migration 092) dropped the sale_stock_move
+    # table. Use StockMovement with movement_type='sale' as the
+    # authoritative source. The cost is approximated via the
+    # per-ingredient purchase_price_gs at sale time.
+    from app.rms.models import StockMovement
 
-    cogs = session.execute(
-        select(func.coalesce(func.sum(func.abs(SaleStockMove.qty_delta) * Ingredient.purchase_price_gs), 0))
-        .select_from(SaleStockMove)
-        .join(Sale, Sale.id == SaleStockMove.sale_id)
-        .join(Ingredient, Ingredient.id == SaleStockMove.ingredient_id)
-        .where(
-            Sale.sold_at >= start,
-            Sale.sold_at < end,
-            Sale.voided_at.is_(None),
-        )
-    ).scalar() or 0
+    cogs = (
+        session.execute(
+            select(
+                func.coalesce(
+                    func.sum(func.abs(StockMovement.qty) * Ingredient.purchase_price_gs),
+                    0,
+                )
+            )
+            .select_from(StockMovement)
+            .join(Sale, Sale.id == StockMovement.reference_id)
+            .join(Ingredient, Ingredient.id == StockMovement.ingredient_id)
+            .where(
+                StockMovement.movement_type == "sale",
+                StockMovement.reference_type == "sale",
+                Sale.sold_at >= start,
+                Sale.sold_at < end,
+                Sale.voided_at.is_(None),
+            )
+        ).scalar()
+        or 0
+    )
 
     margin = revenue - int(cogs)
     margin_pct = (margin / revenue * 100) if revenue > 0 else 0.0
@@ -196,12 +207,10 @@ def daily_summary_full(
     warnings: list[str] = []
     if len(voided) > len(valid) * 0.1 and len(valid) > 0:
         warnings.append(
-            f"Alto ratio de anulaciones: {len(voided)}/{len(sales)} ({len(voided)/len(sales)*100:.0f}%)"
+            f"Alto ratio de anulaciones: {len(voided)}/{len(sales)} ({len(voided) / len(sales) * 100:.0f}%)"
         )
     if margin_pct < 30 and revenue > 0:
-        warnings.append(
-            f"Margen bajo: {margin_pct:.1f}% (objetivo >= 30%)"
-        )
+        warnings.append(f"Margen bajo: {margin_pct:.1f}% (objetivo >= 30%)")
     if low_stock:
         warnings.append(f"{len(low_stock)} ingredientes bajo mínimo")
     if revenue == 0:
@@ -319,19 +328,13 @@ SEASONAL_CALENDAR_2026: list[SeasonalEvent] = [
 
 def active_events(day: date) -> list[SeasonalEvent]:
     """Return seasonal events active on a given day."""
-    return [
-        ev for ev in SEASONAL_CALENDAR_2026
-        if ev.start <= day <= ev.end
-    ]
+    return [ev for ev in SEASONAL_CALENDAR_2026 if ev.start <= day <= ev.end]
 
 
 def upcoming_events(day: date, *, days_ahead: int = 14) -> list[SeasonalEvent]:
     """Return events starting in the next N days."""
     horizon = day + timedelta(days=days_ahead)
-    return [
-        ev for ev in SEASONAL_CALENDAR_2026
-        if day < ev.start <= horizon
-    ]
+    return [ev for ev in SEASONAL_CALENDAR_2026 if day < ev.start <= horizon]
 
 
 def demand_multiplier(day: date) -> float:

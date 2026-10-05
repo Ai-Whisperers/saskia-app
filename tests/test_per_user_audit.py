@@ -4,6 +4,7 @@ Each router that mutates state must call audit_record with the user_id
 of the authenticated operator, not None. This is a security/compliance
 requirement: "who voided that sale" must be answerable from /auditoria.
 """
+
 from __future__ import annotations
 
 
@@ -34,6 +35,7 @@ def test_sale_create_records_operator(client, session_factory):
     # The most recent audit row for write.sale.create should NOT have user_id=None.
     with session_factory() as s:
         from sqlalchemy import select
+
         row = s.execute(
             select(AuditLog)
             .where(AuditLog.action == "write.sale.create")
@@ -70,6 +72,7 @@ def test_merma_register_records_operator(client, session_factory):
     assert resp.status_code == 303
 
     from sqlalchemy import select
+
     with session_factory() as s:
         row = s.execute(
             select(AuditLog)
@@ -95,6 +98,7 @@ def test_settings_update_records_operator(client, session_factory):
     )
 
     from sqlalchemy import select
+
     with session_factory() as s:
         row = s.execute(
             select(AuditLog)

@@ -6,6 +6,7 @@ the contract so a future refactor doesn't silently strip the JS
 handlers (which would cause the suggestion telemetry to lose its
 instant-feedback UX).
 """
+
 from __future__ import annotations
 
 import re
@@ -23,11 +24,11 @@ def test_template_loads_cliente_detalle_js():
     form handlers attach on DOMContentLoaded."""
     assert TEMPLATE.exists(), f"template missing: {TEMPLATE}"
     body = TEMPLATE.read_text(encoding="utf-8")
-    assert '/static/js/cliente_detalle.js' in body, (
+    assert "/static/js/cliente_detalle.js" in body, (
         "cliente_detalle.js must be <script>-included from the template; "
         "otherwise the suggestion-CTA button never disables on click."
     )
-    assert 'defer' in body, "the cliente_detalle.js tag should use defer"
+    assert "defer" in body, "the cliente_detalle.js tag should use defer"
 
 
 def test_template_uses_semantic_grid_class():
@@ -50,8 +51,7 @@ def test_cliente_detalle_js_exists_and_exports_no_globals():
     body = JS_FILE.read_text(encoding="utf-8")
     # IIFE wrapper
     assert re.search(r"\(function\s*\(\s*\)\s*\{", body), (
-        "expected cliente_detalle.js to wrap its body in an IIFE so it "
-        "doesn't pollute window.*"
+        "expected cliente_detalle.js to wrap its body in an IIFE so it doesn't pollute window.*"
     )
     # Handlers we promise
     assert "js-suggestion-form" in body
@@ -71,26 +71,27 @@ def seeded_customer(session_factory):
     """Seed a customer + an active subscription so the form renders."""
     from app.rms.models import Suscripcion
     from tests.factories import make_customer
+
     with session_factory() as s:
         c = make_customer(s, name="DetailJs UX", phone="0981112222")
         s.flush()
-        s.add(Suscripcion(
-            customer_id=c.id,
-            cadence="semanal",
-            status="activa",
-            product_summary="2 kg pan + 1 torta",
-            price_gs=250000,
-            preferred_day_of_week=2,
-            preferred_time="08:30",
-            notes="Entrega por la mañana",
-        ))
+        s.add(
+            Suscripcion(
+                customer_id=c.id,
+                cadence="semanal",
+                status="activa",
+                product_summary="2 kg pan + 1 torta",
+                price_gs=250000,
+                preferred_day_of_week=2,
+                preferred_time="08:30",
+                notes="Entrega por la mañana",
+            )
+        )
         s.commit()
         return c.id
 
 
-def test_subscription_form_present_when_activa(
-    client, seeded_customer
-):
+def test_subscription_form_present_when_activa(client, seeded_customer):
     """End-to-end: with one active subscription, the page renders the
     js-subscription-form with the customer_id query string."""
     r = client.get(f"/clientes/{seeded_customer}")

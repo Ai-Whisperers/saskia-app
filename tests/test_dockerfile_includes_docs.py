@@ -53,11 +53,14 @@ def test_help_route_uses_project_rooted_docs():
     )
 
 
-@pytest.mark.parametrize("section", [
-    "00-quickstart",
-    "01-dashboard",
-    "02-ventas",
-])
+@pytest.mark.parametrize(
+    "section",
+    [
+        "00-quickstart",
+        "01-dashboard",
+        "02-ventas",
+    ],
+)
 def test_user_guide_sections_exist_locally(section):
     """The markdown source files we need to ship into the image must exist."""
     md = Path(__file__).resolve().parents[1] / "docs" / "user-guide" / f"{section}.md"

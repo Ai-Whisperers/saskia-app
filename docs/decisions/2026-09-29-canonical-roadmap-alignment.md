@@ -1,9 +1,9 @@
-# Saskia RMS — Consolidated Decisions & Roadmap Alignment
+# Sazón — Consolidated Decisions & Roadmap Alignment
 
 **Generated:** 2026-09-29 (this turn)
 **Author:** Session A retrospective after Ivan's "what to do next" prompt
 **Purpose:** Reconcile Session A's 40-hats decisions (made in isolation) with
-the **canonical Saskia-only-roadmap.md** that Ivan wrote on 2026-09-29
+the **canonical the operator-only-roadmap.md** that Ivan wrote on 2026-09-29
 (answering the scoping questions in session
 `@session:ivan/20260929_171036_409944`). The canonical roadmap wins.
 
@@ -13,7 +13,7 @@ the **canonical Saskia-only-roadmap.md** that Ivan wrote on 2026-09-29
 
 | # | Session A's decision (made in isolation) | Canonical Ivan's answer | Action |
 |---|---|---|---|
-| 1 | Rescope `/dashboard` → `/mostrador` role-aware | Saskia = single user, no cashier/manager | **Drop /mostrador — not needed**. Rescope kept for "show pending at counter" via unified `/inicio`. |
+| 1 | Rescope `/dashboard` → `/mostrador` role-aware | the operator = single user, no cashier/manager | **Drop /mostrador — not needed**. Rescope kept for "show pending at counter" via unified `/inicio`. |
 | 4 | Chips everywhere | Same — `filter_chips` macro | ✅ Aligned |
 | 5 | Ship `/riesgos` flag-gated | **Lower priority** than cerrar-puertas P0 | **Defer to P3** |
 | 6 | Delete `produccion_calendario.html` | Same | ✅ Aligned (5 min) |
@@ -32,11 +32,11 @@ the **canonical Saskia-only-roadmap.md** that Ivan wrote on 2026-09-29
 
 ---
 
-## The canonical priority order (Ivan's `saskia-only-roadmap.md`)
+## The canonical priority order (Ivan's `sazon-only-roadmap.md`)
 
 ### P0 — esta semana (~2 días, ship BEFORE anything else)
 
-These are "cerrar puertas" — prevent the next disaster. Saskia can lose a day's data with one wrong click today.
+These are "cerrar puertas" — prevent the next disaster. the operator can lose a day's data with one wrong click today.
 
 | # | Item | Effort | Why P0 |
 |---|---|---|---|
@@ -44,10 +44,10 @@ These are "cerrar puertas" — prevent the next disaster. Saskia can lose a day'
 | A.2 | CSRF token en todos los `<form method="post">` (~30 forms lo olvidan) | S | El token ya existe, falta inyectarlo |
 | A.3 | Audit log comprehensivo (12 acciones hoy no loggean: `product.create/update/delete`, `customer.merge`, `bank.categorize`, `eod.close`, `production.override.set`, `production.completion.record`, `merma.create/delete`, `excel.import.complete`) | S | Sin audit = no forensics cuando algo se rompe |
 | A.4 | Rate limit en `/login` (5/min por IP, exponential backoff después de 3 fallos) | XS | Defensa básica |
-| A.5 | Bug: `void_sale` no respeta cierre del día — Saskia puede anular una venta del lunes DESPUÉS del cierre del lunes | S | Violación contable; mencion explícito en roadmap |
+| A.5 | Bug: `void_sale` no respeta cierre del día — the operator puede anular una venta del lunes DESPUÉS del cierre del lunes | S | Violación contable; mencion explícito en roadmap |
 | A.6 | Loading skeletons en `/dashboard`, `/ventas`, `/productos`, `/reportes` | S | UX base |
 
-> **Status Session A:** Confirmé el bug del void-after-cierre (`app/routers/sales.py:1093`) — `void_sale()` no consulta si la venta pertenece a un día con EOD cerrado. Confirmé que solo 4 routers usan `record_audit` (eod/users/health/auditoria) — falta en los 12 módulos críticos. Confirmé que el bug `combo.js` preload NO existe — base.html:304 carga `saskia-combo.js` que sí existe.
+> **Status Session A:** Confirmé el bug del void-after-cierre (`app/routers/sales.py:1093`) — `void_sale()` no consulta si la venta pertenece a un día con EOD cerrado. Confirmé que solo 4 routers usan `record_audit` (eod/users/health/auditoria) — falta en los 12 módulos críticos. Confirmé que el bug `combo.js` preload NO existe — base.html:304 carga `ui-combo.js` que sí existe.
 
 ### P1 — este mes (~12-17 días, los más valiosos)
 
@@ -90,11 +90,11 @@ These are "cerrar puertas" — prevent the next disaster. Saskia can lose a day'
 
 ---
 
-## DESCARTADO DEFINITIVAMENTE (el contexto Saskia-single-user-single-location)
+## DESCARTADO DEFINITIVAMENTE (el contexto the operator-single-user-single-location)
 
-Verificado contra sombreros y contra `saskia-only-roadmap.md`. **No perder tiempo en estas features:**
+Verificado contra sombreros y contra `sazon-only-roadmap.md`. **No perder tiempo en estas features:**
 
-- ❌ RBAC real (admin/manager/cashier) — Saskia es la única usuaria
+- ❌ RBAC real (admin/manager/cashier) — the operator es la única usuaria
 - ❌ Multi-warehouse / multi-location — 1 ubicación
 - ❌ Multi-moneda (USD/EUR/BRL/ARS) — solo Gs; USD/EUR se cambian al tipo de cambio
 - ❌ Multi-idioma (en/pt) — 100% hispanohablante (guaraní solo si aparece cliente)
@@ -103,7 +103,7 @@ Verificado contra sombreros y contra `saskia-only-roadmap.md`. **No perder tiemp
 - ❌ Devoluciones parciales — anulación total + merma alcanza
 - ❌ PWA offline — internet razonablemente estable
 - ❌ WhatsApp Business API / NLP bot — tipear 30 pedidos/día no es cuello de botella
-- ❌ Suscripciones automáticas (cron) — modelo sin cron; Saskia abre y click manual
+- ❌ Suscripciones automáticas (cron) — modelo sin cron; the operator abre y click manual
 - ❌ Impresión térmica ESC/POS — `window.print()` alcanza para el volumen
 - ❌ Co-occurrence matrix, cohort retention, churn prediction, real-time polling
 - ❌ Catálogo de 9 insights — reducir a 3 (los descritos en P1)
@@ -117,11 +117,11 @@ Verificado contra sombreros y contra `saskia-only-roadmap.md`. **No perder tiemp
 - ❌ Rotación GitHub App tokens, dependabot
 - ❌ Multi-tenant, OpenTelemetry, mobile app nativa, integración delivery apps (PedidosYa/Hugo)
 - ❌ Cohort/churn/elasticidad — 30 ventas/día no tiene suficiente data para ML
-- ❌ Email semanal — Saskia no lee email; comunicación = WhatsApp
+- ❌ Email semanal — the operator no lee email; comunicación = WhatsApp
 - ❌ Referral program — clientela de barrio
 - ❌ Trazabilidad bidireccional harina→pan terminado (sombrero HACCP) — auditoría 1 vez/año, no justifica
 - ❌ Sensor Bluetooth temperatura heladera (sombrero HACCP) — overkill
-- ❌ Comparativa precios competencia — Saskia los mira en persona
+- ❌ Comparativa precios competencia — the operator los mira en persona
 - ❌ Reporte huella de carbono
 - ❌ Carta de cierre / migración BD si cierra panadería — planificación de salida
 
@@ -140,7 +140,7 @@ Estos archivos existen pero no se usan en UI. La mayoría son enchufables (no re
 | `recipe_intel.py` | Sub-receta cost breakdown, no se muestra | Mostrar en `receta_detalle.html` | S | Decisión "qué producir" más informada |
 | `insights.py` | Insights definidos, no se renderizan | Renderizar los 3 priorizados en `/inicio` y `/analisis` | S (2d) | B.7 de P1 |
 | `price_history.py` + `IngredientPriceEvent` | 0 rows en BD | Detector de sobreprecio silencioso | S | Gs. 4.3M/año (B.9 de P1) |
-| `services/r2_backup.py` | Existe pero sin snapshot automático | Decidir: R2 vs local. Saskia descarga mensual → **local + cron diario** | S (1d) | B.8 de P1 |
+| `services/r2_backup.py` | Existe pero sin snapshot automático | Decidir: R2 vs local. the operator descarga mensual → **local + cron diario** | S (1d) | B.8 de P1 |
 | `services/auto_backup.py` | Corre al startup, **no diario** | Cambiar a cron o hook en EOD close | XS | B.8 de P1 |
 | `sale_stock_move` | **6,177 rows** en BD | **Oro para entrenar modelo de demanda** (BACKLOG #26) | XL | AI-driven P3 |
 
@@ -157,17 +157,17 @@ Estos archivos existen pero no se usan en UI. La mayoría son enchufables (no re
 **Sesión G** 🟡 P2: Sentry + vista tablet + arqueo + food_cost semáforo — 5h
 **Sesión H** 🟡 P2: test gaps (eod_completions, reorder, excel_modes, recipes, csrf, xss) — 5h
 
-> **Más realista que las 4 sesiones originales** — refleja el canon Ivan-aprobado en `saskia-only-roadmap.md`.
+> **Más realista que las 4 sesiones originales** — refleja el canon Ivan-aprobado en `sazon-only-roadmap.md`.
 
 ---
 
 ## Source documents
 
-- `@session:ivan/20260929_171036_409944` — Ivan answered 5 scoping questions → produced `saskia-only-roadmap.md`
+- `@session:ivan/20260929_171036_409944` — Ivan answered 5 scoping questions → produced `sazon-only-roadmap.md`
 - `@session:ivan/20260927_182227_f40eb1` — 9 commits, 165 files, 7/18 P0 defects closed, 377 bank tests passing
-- `/opt/data/profiles/ivan/cache/scratch/saskia-only-roadmap.md` — 268 lines, Ivan-approved canonical
+- `/opt/data/profiles/ivan/cache/scratch/sazon-only-roadmap.md` — 268 lines, Ivan-approved canonical
 - `/opt/data/profiles/ivan/cache/scratch/saskia_sombreros_analysis.md` — 369 lines, 120 ideas concretas de 40 sombreros
-- `/opt/data/profiles/ivan/cache/scratch/saskia-master-menu.md` — menú completo con checkboxes
+- `/opt/data/profiles/ivan/cache/scratch/ui-master-menu.md` — menú completo con checkboxes
 - `/opt/data/profiles/ivan/cache/scratch/audit-batch2-prod.md` (78 KB) + `audit-batch3-reports.md` (69 KB)
 - `/opt/data/profiles/ivan/cache/scratch/cross-page-wishlist-consolidation.md` — top 30 patterns + top 10 macros
 - `/opt/data/profiles/ivan/cache/scratch/macro-contracts-2026-09-27.md` (126 KB) — 10 atomic contracts

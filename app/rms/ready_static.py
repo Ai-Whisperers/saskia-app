@@ -10,6 +10,7 @@ parse as CSS → it logs 503 for every retry.
 Fix: subclass StaticFiles to check request.app.state.ready first. If not
 ready, raise 503 (HTML for browsers, JSON for monitoring tools).
 """
+
 from __future__ import annotations
 
 from fastapi import Request

@@ -10,12 +10,10 @@
 
 from __future__ import annotations
 
-import pytest
-
 from tests.factories import make_customer, make_product
 
-
 # ── POST /pedidos/nuevo with delivery fields ────────────────────────────
+
 
 def test_pedido_create_persists_address_window_ruc(client, session_factory):
     with session_factory() as s:
@@ -43,6 +41,7 @@ def test_pedido_create_persists_address_window_ruc(client, session_factory):
     )
     assert r.status_code in (302, 303), r.status_code
     from app.rms.models import Pedido
+
     with session_factory() as s:
         ped = s.query(Pedido).order_by(Pedido.id.desc()).first()
         assert ped is not None
@@ -73,7 +72,8 @@ def test_pedido_save_address_creates_customer_address(client, session_factory):
         follow_redirects=False,
     )
     assert r.status_code in (302, 303)
-    from app.rms.models import CustomerAddress, Customer
+    from app.rms.models import Customer, CustomerAddress
+
     with session_factory() as s:
         cust = s.query(Customer).filter_by(name="Cliente AddrBook UX").one()
         addrs = s.query(CustomerAddress).filter_by(customer_id=cust.id).all()
@@ -102,21 +102,30 @@ def test_pedido_save_address_requires_customer_and_text(client, session_factory)
     )
     assert r.status_code in (302, 303)
     from app.rms.models import CustomerAddress
+
     with session_factory() as s:
         assert s.query(CustomerAddress).count() == 0
 
 
 # ── Addresses API ────────────────────────────────────────────────────────
 
+
 def test_customer_addresses_api_roundtrip(client, session_factory):
     from app.rms.models import CustomerAddress
+
     with session_factory() as s:
         cust = make_customer(s, name="AddrApi UX", phone="0981")
         s.flush()
-        s.add(CustomerAddress(customer_id=cust.id, label="oficina",
-                              address_text="Edificio Torre, piso 3"))
-        s.add(CustomerAddress(customer_id=cust.id, label="casa",
-                              address_text="Barrio Obrero", is_default=True))
+        s.add(
+            CustomerAddress(
+                customer_id=cust.id, label="oficina", address_text="Edificio Torre, piso 3"
+            )
+        )
+        s.add(
+            CustomerAddress(
+                customer_id=cust.id, label="casa", address_text="Barrio Obrero", is_default=True
+            )
+        )
         s.commit()
         cid = cust.id
     r = client.get(f"/pedidos/api/customer/{cid}/addresses")
@@ -134,11 +143,12 @@ def test_customer_addresses_api_roundtrip(client, session_factory):
 
 # ── Product favorites ────────────────────────────────────────────────────
 
+
 def test_product_is_favorite_filter(client, session_factory):
     with session_factory() as s:
         fav = make_product(s, name="FavPan UX", sale_price_gs=8000)
         fav.is_favorite = True
-        plain = make_product(s, name="FavCafe UX", sale_price_gs=12000)
+        make_product(s, name="FavCafe UX", sale_price_gs=12000)
         s.commit()
     r = client.get("/ventas?fav=1")
     assert r.status_code == 200

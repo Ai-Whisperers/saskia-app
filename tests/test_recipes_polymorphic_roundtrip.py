@@ -3,6 +3,7 @@
 Tests that RecipeLine.line_kind can be 'ingredient' OR 'sub_recipe',
 and that batch_cost/unit_cost compute correctly.
 """
+
 from __future__ import annotations
 
 import pytest

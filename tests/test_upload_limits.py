@@ -16,8 +16,12 @@ from app.rms.upload_limits import (
 )
 
 
-def _make_upload(content: bytes, *, content_type: str = "text/csv", filename: str = "test.csv") -> UploadFile:
-    return UploadFile(filename=filename, file=io.BytesIO(content), headers={"content-type": content_type})
+def _make_upload(
+    content: bytes, *, content_type: str = "text/csv", filename: str = "test.csv"
+) -> UploadFile:
+    return UploadFile(
+        filename=filename, file=io.BytesIO(content), headers={"content-type": content_type}
+    )
 
 
 def test_accepts_csv_under_limit():
@@ -64,8 +68,14 @@ def test_rejects_non_upload_object():
 
 def test_receipt_limit_accepts_5mb():
     """5MB is the receipt cap (PDF + images)."""
-    raw = _make_upload(b"x" * (RECEIPT_LIMIT_5MB - 1), content_type="application/pdf", filename="comprobante.pdf")
-    out = validate_upload(raw, allowed_types=("application/pdf", "image/png", "image/jpeg"), max_size=RECEIPT_LIMIT_5MB)
+    raw = _make_upload(
+        b"x" * (RECEIPT_LIMIT_5MB - 1), content_type="application/pdf", filename="comprobante.pdf"
+    )
+    out = validate_upload(
+        raw,
+        allowed_types=("application/pdf", "image/png", "image/jpeg"),
+        max_size=RECEIPT_LIMIT_5MB,
+    )
     assert out is raw
 
 

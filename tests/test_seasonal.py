@@ -1,6 +1,6 @@
 """tests/test_seasonal.py — verify app/rms/seasonal.py (E19).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E19.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E19.
 
 Covers:
 - serialize_event: includes all fields + duration_days
@@ -10,6 +10,7 @@ Covers:
 - upcoming_calendar_json: shape + next_event populated
 - product_hints_for_event: keyword matching
 """
+
 # allow-hardcoded-dates: seasonal analysis needs a fixed full-year date range
 from __future__ import annotations
 

@@ -12,8 +12,8 @@ Examples:
     # List all secrets in the default Hermes BWS project
     python3 scripts/bws_list_names.py
 
-    # Find anything saskia-related
-    python3 scripts/bws_list_names.py --search saskia
+    # Find anything sazon-related
+    python3 scripts/bws_list_names.py --search sazon
 
     # Find anything r2-related
     python3 scripts/bws_list_names.py --search r2
@@ -31,7 +31,7 @@ from pathlib import Path
 # Make BWS SDK importable from the system venv
 sys.path.insert(0, "/opt/data/.venv/lib/python3.11/site-packages")
 
-from bitwarden_sdk import BitwardenClient, ClientSettings, DeviceType  # noqa: E402
+from bitwarden_sdk import BitwardenClient, ClientSettings, DeviceType
 
 BWS_TOKEN_PATH = Path("/opt/data/.hermes/inbox/bws-token.secret")
 ORG_ID_PATH = Path("/opt/data/.hermes/inbox/org-id.txt")
@@ -58,7 +58,7 @@ def main() -> int:
         ClientSettings(
             api_url="https://api.bitwarden.com",
             identity_url="https://identity.bitwarden.com",
-            user_agent="saskia-bws-list/1",
+            user_agent="sazon-bws-list/1",
             device_type=DeviceType.SERVER,
         )
     )

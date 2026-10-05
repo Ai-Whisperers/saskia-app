@@ -1,4 +1,5 @@
 """Test the dialect-aware /healthz/db fix (live-site bug)."""
+
 import json
 
 from app.routers.health import _healthz_payload
@@ -7,7 +8,7 @@ from app.routers.health import _healthz_payload
 def test_healthz_payload_shape():
     payload = _healthz_payload()
     assert payload["status"] == "ok"
-    assert payload["service"] == "aiw-saskia-rms"
+    assert payload["service"] == "sazon-rms"
 
 
 def test_healthz_payload_serializeable():

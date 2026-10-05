@@ -13,8 +13,8 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import inspect, text
 
-
 # ---------- 1. Migration shape ----------
+
 
 def test_migration_077_bumps_schema_version(session_factory):
     """Fresh DB starts at 77 (or higher)."""
@@ -50,10 +50,11 @@ def test_pedido_event_has_indexes(session_factory):
 
 # ---------- 2. Service API ----------
 
+
 def test_service_record_creates_row(qseed, session_factory):
     """PedidoEventService.record appends a row + flushes."""
-    from app.seed.kyrian import KYRIAN_PHONE
     from app.rms.models import Customer, Pedido
+    from app.seed.kyrian import KYRIAN_PHONE
     from app.services.pedido_events import PedidoEventService
 
     qseed("with_kyrian_full")
@@ -63,8 +64,7 @@ def test_service_record_creates_row(qseed, session_factory):
         pid = pedido.id
 
         evt = PedidoEventService.record(
-            s, pid, "note_edited", actor="demo",
-            payload={"from": "", "to": "sin cebolla"}
+            s, pid, "note_edited", actor="demo", payload={"from": "", "to": "sin cebolla"}
         )
         s.commit()
         assert evt is not None
@@ -76,8 +76,8 @@ def test_service_record_creates_row(qseed, session_factory):
 
 def test_service_invalid_event_type_raises(qseed, session_factory):
     """Typos in event_type raise ValueError, not DB error."""
-    from app.seed.kyrian import KYRIAN_PHONE
     from app.rms.models import Customer, Pedido
+    from app.seed.kyrian import KYRIAN_PHONE
     from app.services.pedido_events import PedidoEventService
 
     qseed("with_kyrian_full")
@@ -96,22 +96,27 @@ def test_service_cascades_on_pedido_delete(qseed, session_factory):
     so the cascade can run cleanly. The seeded Kyrian pedidos have lots
     of FK references that complicate direct deletion in a unit test.
     """
+    from datetime import datetime
+
+    from app.rms.config import ASUNCION_TZ
     from app.rms.models import Customer, Pedido, PedidoEvent
     from app.services.pedido_events import PedidoEventService
-    from app.rms.config import ASUNCION_TZ
-    from datetime import datetime
 
     with session_factory() as s:
         c = Customer(name="Cascade Test", phone="0999000001")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
 
         p = Pedido(
-            customer_id=c.id, customer_name="Cascade Test",
+            customer_id=c.id,
+            customer_name="Cascade Test",
             customer_phone="0999000001",
             promised_date=datetime.now(ASUNCION_TZ).date(),
-            status="pending", public_token="cascade-delete-test-token-177",
+            status="pending",
+            public_token="cascade-delete-test-token-177",
         )
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         pid = p.id
 
         # Record 3 events on this pedido
@@ -134,10 +139,20 @@ def test_service_cascades_on_pedido_delete(qseed, session_factory):
 def test_valid_event_types_match_constraint():
     """VALID_EVENT_TYPES has all 13 events declared in the constraint."""
     from app.services.pedido_events import VALID_EVENT_TYPES
+
     expected = {
-        "created", "status_change", "line_added", "line_removed",
-        "line_qty_changed", "line_price_changed", "note_edited",
-        "address_changed", "window_changed", "customer_changed",
-        "payment_intent_set", "cancelled", "duplicated",
+        "created",
+        "status_change",
+        "line_added",
+        "line_removed",
+        "line_qty_changed",
+        "line_price_changed",
+        "note_edited",
+        "address_changed",
+        "window_changed",
+        "customer_changed",
+        "payment_intent_set",
+        "cancelled",
+        "duplicated",
     }
     assert expected == set(VALID_EVENT_TYPES)

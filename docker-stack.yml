@@ -1,19 +1,19 @@
 version: "3.9"
 
-# ── Saskia RMS — ServaRica VPS Swarm stack ──
+# ── Sazón — ServaRica VPS Swarm stack ──
 # Parallel run alongside Render. Uses a NEW hostname so Render keeps
-# serving saskia-rms.paragu-ai.com while we verify VPS works at
-# saskia-vps.paragu-ai.com.
+# serving sazon-rms.paragu-ai.com while we verify VPS works at
+# sazon-vps.paragu-ai.com.
 #
 # Traefik routes:
-#   - saskia-vps.paragu-ai.com → this stack (port 8000)
+#   - sazon-vps.paragu-ai.com → this stack (port 8000)
 #
-# DNS: saskia-vps.paragu-ai.com needs to point to 38.9.96.179.
+# DNS: sazon-vps.paragu-ai.com needs to point to 38.9.96.179.
 # Cloudflare already manages paragu-ai.com so we add a CNAME there.
 
 services:
   web:
-    image: saskia-rms:prod
+    image: sazon-rms:prod
     build:
       context: .
       dockerfile: Dockerfile
@@ -34,29 +34,29 @@ services:
         - "traefik.enable=true"
         - "traefik.swarm.network=traefik-public"
         # Headers
-        - "traefik.http.middlewares.saskia-headers.headers.contentSecurityPolicy=default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'self';"
-        - "traefik.http.middlewares.saskia-headers.headers.contentTypeNosniff=true"
-        - "traefik.http.middlewares.saskia-headers.headers.frameDeny=true"
-        - "traefik.http.middlewares.saskia-headers.headers.referrerPolicy=strict-origin-when-cross-origin"
-        - "traefik.http.middlewares.saskia-headers.headers.stsIncludeSubdomains=true"
-        - "traefik.http.middlewares.saskia-headers.headers.stsSeconds=31536000"
+        - "traefik.http.middlewares.ui-headers.headers.contentSecurityPolicy=default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'self';"
+        - "traefik.http.middlewares.ui-headers.headers.contentTypeNosniff=true"
+        - "traefik.http.middlewares.ui-headers.headers.frameDeny=true"
+        - "traefik.http.middlewares.ui-headers.headers.referrerPolicy=strict-origin-when-cross-origin"
+        - "traefik.http.middlewares.ui-headers.headers.stsIncludeSubdomains=true"
+        - "traefik.http.middlewares.ui-headers.headers.stsSeconds=31536000"
         # Router — VPS hostname (parallel run)
-        - "traefik.http.routers.saskia-vps.entrypoints=websecure"
-        - "traefik.http.routers.saskia-vps.rule=Host(`saskia-vps.paragu-ai.com`)"
-        - "traefik.http.routers.saskia-vps.tls=true"
-        - "traefik.http.routers.saskia-vps.tls.certresolver=le"
-        - "traefik.http.routers.saskia-vps.middlewares=saskia-headers@swarm"
-        - "traefik.http.routers.saskia-vps.service=saskia-web"
+        - "traefik.http.routers.sazon-vps.entrypoints=websecure"
+        - "traefik.http.routers.sazon-vps.rule=Host(`sazon-vps.paragu-ai.com`)"
+        - "traefik.http.routers.sazon-vps.tls=true"
+        - "traefik.http.routers.sazon-vps.tls.certresolver=le"
+        - "traefik.http.routers.sazon-vps.middlewares=ui-headers@swarm"
+        - "traefik.http.routers.sazon-vps.service=sazon-web"
         # Service
-        - "traefik.http.services.saskia-web.loadbalancer.server.port=8000"
-        - "traefik.http.services.saskia-web.loadbalancer.healthcheck.path=/healthz"
-        - "traefik.http.services.saskia-web.loadbalancer.healthcheck.interval=30s"
+        - "traefik.http.services.sazon-web.loadbalancer.server.port=8000"
+        - "traefik.http.services.sazon-web.loadbalancer.healthcheck.path=/healthz"
+        - "traefik.http.services.sazon-web.loadbalancer.healthcheck.interval=30s"
     environment:
-      - AIW_SASKIA_DB_PATH=/data/rms.sqlite
+      - AIW_RMS_DB_PATH=/data/rms.sqlite
       - BIND_HOST=0.0.0.0
       - PORT=8000
       - PYTHONUNBUFFERED=1
-      - AIW_SASKIA_LOG_DIR=/var/log/saskia
+      - AIW_RMS_LOG_DIR=/var/log/sazon
       # Auth: bypass mode for dev. PRO-SEC boot guard (commit 90c131f,
       # 2026-09-30) refuses to start if this is set OUTSIDE a pytest run.
       # Prod uses bcrypt login via app/auth.py. Keep commented for safety.
@@ -66,11 +66,11 @@ services:
       - SUPABASE_URL=https://aiwhisperers.supabase.co
       - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpd2hpc3BlcmVycyIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzAxMDAwMDAwLCJleHAiOjE3MDAwMDAwMDB9.placeholder
       - SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpd2hpc3BlcmVycyIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE3MDEwMDAwMDAsImV4cCI6MTcwMDAwMDAwMH0.placeholder
-      - SESSION_SECRET=change-me-in-prod-saskia-vps-deploy-2026
+      - SESSION_SECRET=change-me-in-prod-sazon-vps-deploy-2026
       - FERNET_KEY=placeholder-fernet-key-replace-me-32bytes-base64==
     volumes:
-      - saskia-data:/data
-      - saskia-logs:/var/log/saskia
+      - sazon-data:/data
+      - sazon-logs:/var/log/sazon
     networks:
       - traefik-public
     healthcheck:
@@ -81,8 +81,8 @@ services:
       start_period: 30s
 
 volumes:
-  saskia-data:
-  saskia-logs:
+  sazon-data:
+  sazon-logs:
 
 networks:
   traefik-public:

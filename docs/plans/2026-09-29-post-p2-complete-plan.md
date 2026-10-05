@@ -1,4 +1,4 @@
-# Saskia RMS — Post-P2 Complete Plan (all 4 sessions)
+# Sazón — Post-P2 Complete Plan (all 4 sessions)
 
 **Date:** 2026-09-29
 **Scope:** Status of every open item from sessions
@@ -10,9 +10,9 @@
 **Repo state:**
 - origin/main = `f86f0c9` (13 commits ahead of where session 2 left off)
 - Local main = `f86f0c9` (clean)
-- Production worktree feature/saskia-master-menu = `f86f0c9` (clean)
+- Production worktree feature/ui-master-menu = `f86f0c9` (clean)
 - Scratch worktree main = `1ebf07c` (5 commits behind — needs `git fetch && git reset --hard origin/main` to catch up)
-- Live container = `saskia-rms:prod` Running 45s ago (deployed 22:38 UTC)
+- Live container = `sazon-rms:prod` Running 45s ago (deployed 22:38 UTC)
 
 ---
 
@@ -46,9 +46,9 @@
 | Commit | Files | What it does |
 |---|---|---|
 | `a3006ef` | .gitignore, debug_bank.py | Drop dev artifacts, gitignore debug scripts |
-| `9c67045` | saskia-combo.js, combobox.css, combo-rows.js, atoms.html, base.html, test_combo_extension | New combo Web Component + legacy alias + endpoint variant + row-label |
+| `9c67045` | ui-combo.js, combobox.css, combo-rows.js, atoms.html, base.html, test_combo_extension | New combo Web Component + legacy alias + endpoint variant + row-label |
 | `4e4abe7` | inventory.py, recipes.py, inventario_form.html, receta_form.html, atoms.html | New `/api/categories` + `/api/families` endpoints, dropdowns now reflect actual data |
-| `ddefe77` | insights.py, app/routers/insights.py, saskia-insight-card.js | Synced to prod worktree (was only in scratch) |
+| `ddefe77` | insights.py, app/routers/insights.py, ui-insight.js | Synced to prod worktree (was only in scratch) |
 | `2bdb440` | app/routers/suscripciones.py | Synced to prod worktree (was only in scratch) |
 | `24ceb76` | ventas.html, ventas_historial.html, pedidos.html | Heading, CSRF rename, tabs JS restore |
 | `75d4d30` | produccion.html, produccion_manana.html, test_saskia_r2_pos_split.py | Page header + view tabs + fmt_qty macro + R2 split test |
@@ -173,10 +173,10 @@
 
 **Source:** This session
 **Severity:** Operational — next sibling session will see stale code
-**File:** `/opt/data/profiles/ivan/scratch/saskia-app-work`
+**File:** `/opt/data/profiles/ivan/scratch/sazon-app-work`
 **Action:** Ivan (or cron):
 ```bash
-cd /opt/data/profiles/ivan/scratch/saskia-app-work
+cd /opt/data/profiles/ivan/scratch/sazon-app-work
 git fetch origin
 git reset --hard origin/main  # safe — origin/main is now the source of truth
 git status -sb  # should show 0/0
@@ -190,7 +190,7 @@ git status -sb  # should show 0/0
 #### P3-3 — `.scratch/` directory cleanup
 
 **Source:** Multiple sessions
-**Action:** `rm -rf /opt/data/work/saskia-app/.scratch /opt/data/profiles/ivan/scratch/*` (after backing up anything important)
+**Action:** `rm -rf /opt/data/work/sazon-app/.scratch /opt/data/profiles/ivan/scratch/*` (after backing up anything important)
 
 ---
 
@@ -215,7 +215,7 @@ After landing the P0 fixes:
 
 ```bash
 # Local
-cd /opt/data/work/saskia-app
+cd /opt/data/work/sazon-app
 .venv/bin/python -m pytest tests/ --tb=short -q \
   --ignore=tests/test_performance.py --ignore=tests/browser
 # Expect 3500+/3541+ passing
@@ -223,7 +223,7 @@ cd /opt/data/work/saskia-app
 # Live
 for path in /healthz /inicio /analisis /suscripciones /api/insights \
             /m/muffin-vainilla /ventas/qa /inventario/auditoria-etiquetas; do
-  curl -sk -o /dev/null -w "$path: %{http_code}\n" "https://saskia-vps.paragu-ai.com$path"
+  curl -sk -o /dev/null -w "$path: %{http_code}\n" "https://sazon-vps.paragu-ai.com$path"
 done
 # Expect 200, 200, 200, 200, 307, 200, 200, 200
 ```

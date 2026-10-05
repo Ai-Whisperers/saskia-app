@@ -4,6 +4,7 @@
 Captures the rendered HTML for every authenticated page. Used to build
 the user guide with realistic copy.
 """
+
 from __future__ import annotations
 
 import json
@@ -13,21 +14,23 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-BASE = "https://saskia-rms.paragu-ai.com"
-OUTPUT = Path("/tmp/saskia_pages")
+BASE = "https://sazon-rms.paragu-ai.com"
+OUTPUT = Path("/tmp/sazon_pages")
 
 
 def login_and_capture():
     OUTPUT.mkdir(exist_ok=True)
-    pwd = Path("/tmp/_saskia_pwd").read_text()
+    pwd = Path("/tmp/_sazon_pwd").read_text()
 
     # Login
     cookie_jar = {}
 
-    login_data = urllib.parse.urlencode({
-        "username": "saskia@paragu-ai.com",
-        "password": pwd,
-    }).encode()
+    login_data = urllib.parse.urlencode(
+        {
+            "username": "demo@paragu-ai.com",
+            "password": pwd,
+        }
+    ).encode()
     req = urllib.request.Request(
         f"{BASE}/login",
         data=login_data,
@@ -94,7 +97,11 @@ def login_and_capture():
         print(f"  {path:40s} HTTP {status} {len(body):>7d} bytes")
 
     out = OUTPUT / "summary.json"
-    out.write_text(json.dumps({p: {"status": r["status"], "size": r["size"]} for p, r in results.items()}, indent=2))
+    out.write_text(
+        json.dumps(
+            {p: {"status": r["status"], "size": r["size"]} for p, r in results.items()}, indent=2
+        )
+    )
     print(f"\nSummary: {out}")
     return results
 

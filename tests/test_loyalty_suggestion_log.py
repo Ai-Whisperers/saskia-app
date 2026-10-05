@@ -19,13 +19,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import pytest
-
 
 def test_suggestion_applied_writes_ledger_row(client, session_factory):
     """Happy path: POST logs a suggestion_applied row."""
-    from app.rms.models import Customer, LoyaltyTransaction
     from sqlalchemy import select as _sa_select
+
+    from app.rms.models import Customer, LoyaltyTransaction
 
     with session_factory() as s:
         c = Customer(name="Test Cust", phone="0981123456", loyalty_points=50)
@@ -41,8 +40,7 @@ def test_suggestion_applied_writes_ledger_row(client, session_factory):
     assert body.get("ok") is True
     with session_factory() as s2:
         rows = s2.scalars(
-            _sa_select(LoyaltyTransaction)
-            .where(LoyaltyTransaction.customer_id == cid)
+            _sa_select(LoyaltyTransaction).where(LoyaltyTransaction.customer_id == cid)
         ).all()
     assert len(rows) == 1
     row = rows[0]
@@ -62,12 +60,11 @@ def test_suggestion_applied_404_when_customer_missing(client, session_factory):
     assert r.json().get("error") == "not_found"
 
 
-def test_suggestion_applied_does_not_crash_on_bad_payload(
-    client, session_factory
-):
+def test_suggestion_applied_does_not_crash_on_bad_payload(client, session_factory):
     """Empty payload → still 200, falls back to defaults (kind=unknown)."""
-    from app.rms.models import Customer, LoyaltyTransaction
     from sqlalchemy import select as _sa_select
+
+    from app.rms.models import Customer, LoyaltyTransaction
 
     with session_factory() as s:
         c = Customer(name="Test Cust 2", phone="0981567890", loyalty_points=0)
@@ -81,8 +78,7 @@ def test_suggestion_applied_does_not_crash_on_bad_payload(
     assert r.status_code == 200
     with session_factory() as s2:
         rows = s2.scalars(
-            _sa_select(LoyaltyTransaction)
-            .where(LoyaltyTransaction.customer_id == cid)
+            _sa_select(LoyaltyTransaction).where(LoyaltyTransaction.customer_id == cid)
         ).all()
     assert len(rows) == 1
     assert rows[0].reason == "suggestion_applied"

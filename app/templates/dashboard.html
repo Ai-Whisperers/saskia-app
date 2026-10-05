@@ -1,55 +1,47 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
-{% block title %}Dashboard · Saskia RMS{% endblock %}
+{% block title %}Dashboard · Sazón{% endblock %}
 {% block content %}
 <div class="page-header">
   <h1><svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>  Dashboard — {{ month_label }}</h1>
   <p class="muted">KPIs en vivo · datos del local</p>
 </div>
 
-{# ── Empty state for fresh DB ────────────────────────────────────────── #}
-{% if revenue_gs == 0 and unique_customers == 0 %}
-<section class="empty-state" role="status" aria-live="polite">
-  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
-  <h2>Sin datos este mes todavía</h2>
-  <p>Registrá tu primera venta o cargá el catálogo para ver los KPIs en vivo.</p>
-  <div class="empty-state__actions">
-    <a href="/ventas" class="btn btn-primary">Registrar venta</a>
-    <a href="/productos" class="btn">Ver catálogo</a>
+{# Sazon onboarding banner — only renders when seed_sazon has populated
+   this DB. Dismissible via localStorage so it only flashes on first run. #}
+{% if sazon_seeded %}
+<aside class="sazon-welcome-banner" role="status" data-sazon-welcome
+     style="background:#fff7ed;border:1px solid #fdba74;border-radius:.5rem;padding:.75rem 1rem;margin-bottom:1rem;display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+  <span style="font-size:1.5rem;" aria-hidden="true">🐄</span>
+  <div style="flex:1;min-width:240px;">
+    <strong>{{ sazon_tenant_name }}</strong> está lista.
+    <span class="muted" style="color:#6b7280;">
+      Sembrado el {{ sazon_seeded_at[:10] if sazon_seeded_at else '—' }} ·
+      acceso admin: <code>{{ sazon_admin_user }}</code>
+    </span>
   </div>
-</section>
-{# P-35.1: even in empty state, show the group structure so a first-run
-   admin sees where the KPIs will land once data is loaded. #}
-<section class="kpi-group" data-group="dinero" hidden>
-  <h3 class="kpi-group__title">Dinero</h3>
-</section>
-<section class="kpi-group" data-group="actividad" hidden>
-  <h3 class="kpi-group__title">Actividad</h3>
-</section>
-<section class="kpi-group" data-group="costos" hidden>
-  <h3 class="kpi-group__title">Costos</h3>
-</section>
-{% else %}
-
-{# ── Alertas de margen ──────────────────────────────────────────────── #}
-{% if erosion_alerts %}
-<div class="alert alert-warning" style="margin:1rem 0;padding:0.75rem 1rem;border-left:4px solid #d97706;">
-  <strong>⚠️ Márgenes en riesgo</strong> — {{ erosion_alerts|length }} producto{{ 's' if erosion_alerts|length > 1 }} perdió margen por suba de insumos:
-  <ul style="margin:0.5rem 0 0 1.2rem;">
-    {% for a in erosion_alerts[:5] %}
-    <li>
-      <a href="/reportes/margenes/{{ a.product_id }}">{{ a.product_name }}</a>
-      — {{ a.ingredient_name }} subió
-      {% if a.price_delta_pct is not none %}{{ "%.0f"|format(a.price_delta_pct) }}%{% else %}de precio{% endif %}
-      {% if a.margin_delta_pct is not none %}(margen {{ "%+.0f"|format(a.margin_delta_pct) }}%){% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-  <a href="/reportes/margenes">Ver deriva completa →</a>
-</div>
+  <a class="btn" href="/admin/branding" style="text-decoration:none;background:#7b3f00;color:#fff;padding:.35rem .75rem;border-radius:.25rem;font-size:.9rem;">
+    Personalizar marca
+  </a>
+  <button type="button" aria-label="Cerrar" data-sazon-dismiss
+          style="background:transparent;border:0;font-size:1.2rem;cursor:pointer;color:#6b7280;line-height:1;">×</button>
+</aside>
+<script>
+(function() {
+  var key = 'sazon-welcome-dismissed-at';
+  var banner = document.querySelector('[data-sazon-welcome]');
+  if (!banner) return;
+  if (localStorage.getItem(key)) { banner.remove(); return; }
+  var btn = banner.querySelector('[data-sazon-dismiss]');
+  if (btn) btn.addEventListener('click', function() {
+    localStorage.setItem(key, new Date().toISOString());
+    banner.remove();
+  });
+})();
+</script>
 {% endif %}
 
-<div class="kpi-row" style="display:flex;flex-direction:column;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
+<div class="kpi-row" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
   {{ ui.skeleton_section(id="dashboard-kpis", variant="kpi", count=4, label="Cargando indicadores del mes") }}
   <div data-loaded-section="dashboard-kpis">
     {# P-35.1: KPIs grouped into 3 named sections so operator's eye can

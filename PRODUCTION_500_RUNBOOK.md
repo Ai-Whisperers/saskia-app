@@ -17,7 +17,7 @@ See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
 
 ## What's happening
 
-The live site at `https://saskia-rms.paragu-ai.com` has been returning 500 errors on:
+The live site at `https://sazon-rms.paragu-ai.com` has been returning 500 errors on:
 - `/ventas` (TemplateRuntimeError — fixed in code)
 - `/pedidos/bulk-cancel` (ProgrammingError — fixed by migration 32)
 - `/produccion-planner/compute` (IntegrityError — fixed in code)
@@ -67,7 +67,7 @@ Then `/healthz/db` will report:
 ```bash
 # From the project root, on the prod server or via Render one-off shell:
 DATABASE_URL='postgresql://user:pass@host:5432/db' \
-  uv run aiw-saskia migrate
+  uv run sazon migrate
 ```
 
 Expected output:
@@ -82,7 +82,7 @@ schema applied at version 32
 
 ## Verify after deploy
 
-1. Hit `https://saskia-rms.paragu-ai.com/healthz/db` — expect `migrations_pending: 0`
+1. Hit `https://sazon-rms.paragu-ai.com/healthz/db` — expect `migrations_pending: 0`
 2. Navigate to `/ventas` — should render with the 30-day default
 3. Navigate to `/produccion-planner` — should render
 4. POST to `/pedidos/bulk-cancel` with `reason=...` — should redirect

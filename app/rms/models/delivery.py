@@ -22,6 +22,7 @@ All models here share the same declarative Base as the rest of the
 project — see app/rms/models/core.py.
 """
 
+
 class DeliveryZone(Base):
     """A delivery zone (HEREBUS ZONAS_DELIVERY sheet).
 
@@ -45,9 +46,7 @@ class DeliveryZone(Base):
 
     pedidos: Mapped[list["Pedido"]] = relationship(back_populates="delivery_zone")  # noqa: F821 — SQLAlchemy 2.0 forward ref
 
-    __table_args__ = (
-        Index("ix_delivery_zone_active", "is_active", "position"),
-    )
+    __table_args__ = (Index("ix_delivery_zone_active", "is_active", "position"),)
 
 
 # NOTE: `delivery_zone_id` is added to Pedido class below (forward ref).

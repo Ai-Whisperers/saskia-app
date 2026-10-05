@@ -4,6 +4,7 @@ Un producto con is_available=False (oculto del menú/POS) con ventas
 históricas NO debe recibir sugerencia automática en el plan de producción.
 Si la operadora lo fuerza con un override/template/manual, sí aparece.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -34,7 +35,7 @@ def test_plan_auto_no_sugiere_ocultos(session_factory):
 
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
-        activo, oculto = _seed(s)
+        _activo, _oculto = _seed(s)
         plan = plan_production(s)
         nombres = {r.product_name for r in plan.rows if r.qty_to_produce > 0}
         assert any("activo" in n for n in nombres), f"activo debería planificar: {nombres}"
@@ -47,14 +48,14 @@ def test_plan_auto_no_sugiere_ocultos(session_factory):
 
 def test_plan_override_fuerza_oculto(client, session_factory):
     """Con override explícito para la fecha, el oculto SÍ aparece."""
-    from app.rms.production import plan_production, upsert_override
     from datetime import datetime
 
     from app.rms.config import ASUNCION_TZ
+    from app.rms.production import plan_production, upsert_override
 
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
-        activo, oculto = _seed(s)
+        _activo, oculto = _seed(s)
         manana = datetime.now(ASUNCION_TZ).date() + timedelta(days=1)
         upsert_override(s, for_date=manana, product_id=oculto.id, qty=6.0, updated_by="test")
         plan = plan_production(s, for_date=manana)

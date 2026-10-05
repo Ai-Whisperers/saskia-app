@@ -1,6 +1,6 @@
 """app/services/export_csv.py — write all tables as CSVs.
 
-Per docs/operations/2026-09-02-saskia-stack-audit.md (Change 1).
+Per docs/operations/2026-09-02-sazon-stack-audit.md (Change 1).
 
 Adds CSV export alongside xlsx. CSVs are diffable, restorable row-by-row,
 and importable anywhere (Excel, pandas, psql \\copy). The xlsx export

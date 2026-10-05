@@ -15,6 +15,7 @@ or derived from Production Planner shortfalls.
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -67,15 +68,17 @@ def consolidate_open_items(session: Session) -> int:
     """
     import re as _re
 
-    open_items = session.execute(
-        select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
-    ).scalars().all()
+    open_items = (
+        session.execute(select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False)))
+        .scalars()
+        .all()
+    )
     buckets: dict[tuple, list] = {}
     for it in open_items:
         buckets.setdefault((it.ingredient_id, it.unit), []).append(it)
 
     deleted = 0
-    for (ing_id, _unit), rows in buckets.items():
+    for rows in buckets.values():
         if len(rows) < 2:
             # Still clean float garbage in single rows.
             for it in rows:
@@ -100,7 +103,7 @@ def consolidate_open_items(session: Session) -> int:
     return deleted
 
 
-def _whatsapp_href(supplier, rows) -> str | None:
+def _whatsapp_href(supplier: Any, rows: Any) -> str | None:
     """Prefilled wa.me link for a supplier's open items (Py py-side so no
     custom Jinja filter is needed). Normalizes PY phones: 9-digit local
     numbers get 595 prefix; already-international (starts with +) keep."""
@@ -134,7 +137,7 @@ def shopping_list_index(
     """Show the shopping list. Default = open only (purchased=0).
 
     Starts by consolidating duplicate open items (planner + auto-sync +
-    plan→list flows each wrote their own rows) so Saskia always sees one
+    plan→list flows each wrote their own rows) so the operator always sees one
     row per ingredient.
     """
     consolidate_open_items(session)
@@ -149,8 +152,7 @@ def shopping_list_index(
     items = session.execute(stmt).scalars().all()
 
     total_gs = sum(
-        price_field(i.qty_to_buy or 0) * (i.ingredient.purchase_price_gs or 0)
-        for i in items
+        price_field(i.qty_to_buy or 0) * (i.ingredient.purchase_price_gs or 0) for i in items
     )
 
     by_ingredient = {}
@@ -158,7 +160,7 @@ def shopping_list_index(
         by_ingredient[i.ingredient_id] = by_ingredient.get(i.ingredient_id, 0) + i.qty_to_buy
 
     # Sprint shopping-list: group open items by the ingredient's supplier so
-    # Saskia can call each proveedor once. Open (unpurchased) items group
+    # the operator can call each proveedor once. Open (unpurchased) items group
     # first (that's the calling list); purchased items land in "Comprados".
     supplier_groups: list[dict] = []
     if items:
@@ -213,12 +215,18 @@ def mark_purchased(
     session.commit()
     logger.info(
         "shopping_item_purchased id={} ingredient_id={} qty={} {}",
-        item.id, item.ingredient_id, item.qty_to_buy, item.unit,
+        item.id,
+        item.ingredient_id,
+        item.qty_to_buy,
+        item.unit,
     )
     record_audit(
-        request, session=session,
-        action="shopping.mark_purchased", target_type="ShoppingListItem",
-        target_id=item.id, detail={"ingredient_id": item.ingredient_id},
+        request,
+        session=session,
+        action="shopping.mark_purchased",
+        target_type="ShoppingListItem",
+        target_id=item.id,
+        detail={"ingredient_id": item.ingredient_id},
     )
     return RedirectResponse(url="/shopping-list", status_code=303)
 
@@ -238,8 +246,10 @@ def unmark_purchased(
     session.commit()
     logger.info("shopping_item_unmarked id={}", item.id)
     record_audit(
-        request, session=session,
-        action="shopping.unmark", target_type="ShoppingListItem",
+        request,
+        session=session,
+        action="shopping.unmark",
+        target_type="ShoppingListItem",
         target_id=item.id,
     )
     return RedirectResponse(url="/shopping-list", status_code=303)
@@ -258,8 +268,10 @@ def delete_item(
     session.commit()
     logger.info("shopping_item_deleted id={}", item_id)
     record_audit(
-        request, session=session,
-        action="shopping.delete", target_type="ShoppingListItem",
+        request,
+        session=session,
+        action="shopping.delete",
+        target_type="ShoppingListItem",
         target_id=item_id,
     )
     return RedirectResponse(url="/shopping-list", status_code=303)
@@ -279,13 +291,13 @@ def from_production_plan(
     ingredient already on the open list is topped up to the max of the
     two quantities, never duplicated).
 
-    purpose_text carries the date so Saskia can see WHY she's buying
+    purpose_text carries the date so the operator can see WHY she's buying
     ("Plan producción 2026-09-30"). Items are NOT tied to a
     ProductionPlan row because the day plan is computed on the fly, not
     persisted; the FK stays for the recipe-planner flow.
     """
-    from app.rms.rate_limit import is_write_rate_limited
     from app.rms.production import plan_production
+    from app.rms.rate_limit import is_write_rate_limited
 
     if is_write_rate_limited(session, request, max_per_minute=10):
         raise HTTPException(
@@ -301,14 +313,16 @@ def from_production_plan(
             status_code=303,
         )
 
-    existing = session.execute(
-        select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
-    ).scalars().all()
+    existing = (
+        session.execute(select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False)))
+        .scalars()
+        .all()
+    )
     existing_by_ing = {}
     for i in existing:
-        existing_by_ing[i.ingredient_id] = existing_by_ing.get(
-            i.ingredient_id, 0
-        ) + float(i.qty_to_buy)
+        existing_by_ing[i.ingredient_id] = existing_by_ing.get(i.ingredient_id, 0) + float(
+            i.qty_to_buy
+        )
 
     purpose = f"Plan producción {for_date.isoformat()}"
     added = 0
@@ -352,16 +366,22 @@ def sync_low_stock(
     """
     from app.rms.models import Ingredient
 
-    low_stock = session.execute(
-        select(Ingredient).where(
-            Ingredient.min_stock_qty > 0,
-            Ingredient.stock_qty < Ingredient.min_stock_qty,
+    low_stock = (
+        session.execute(
+            select(Ingredient).where(
+                Ingredient.min_stock_qty > 0,
+                Ingredient.stock_qty < Ingredient.min_stock_qty,
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
-    existing = session.execute(
-        select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
-    ).scalars().all()
+    existing = (
+        session.execute(select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False)))
+        .scalars()
+        .all()
+    )
     existing_ing_ids = {i.ingredient_id for i in existing}
 
     added = 0

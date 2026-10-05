@@ -6,11 +6,10 @@ Pins the dashboard refresh to:
 - All substituted placeholders resolve (no orphan __FOO__ left)
 - New wishlist fields (raw / triaged / rejected) are wired
 """
+
 from __future__ import annotations
 
 import re
-import shutil
-import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -29,8 +28,8 @@ def test_status_template_exists():
 
 def test_refresh_script_exists_and_executable():
     assert REFRESH_SH.exists()
-    import os
     import stat
+
     mode = REFRESH_SH.stat().st_mode
     assert mode & stat.S_IXUSR, "refresh.sh must be executable"
 
@@ -77,7 +76,7 @@ def test_status_md_template_includes_wishlist_block():
 def test_refresh_script_uses_documented_saskia_app_path():
     refresh = _read(REFRESH_SH)
     # The default path should match the convention so it Just Works locally.
-    assert "saskia-app" in refresh
+    assert "sazon-app" in refresh
 
 
 def test_no_orphan_placeholders_in_generated_html():
@@ -88,9 +87,7 @@ def test_no_orphan_placeholders_in_generated_html():
     refresh = _read(REFRESH_SH)
     for p in placeholders:
         # Check if the placeholder is referenced in refresh.sh anywhere
-        assert f"__{p}__" in refresh, (
-            f"placeholder __{p}__ has no substitution in refresh.sh"
-        )
+        assert f"__{p}__" in refresh, f"placeholder __{p}__ has no substitution in refresh.sh"
 
 
 def test_wishlist_dir_scanning_works():
@@ -98,7 +95,7 @@ def test_wishlist_dir_scanning_works():
     # Confirm the wishlist dir exists for the script to scan
     raw = REPO_ROOT / "docs" / "wishlist" / "raw"
     triaged = REPO_ROOT / "docs" / "wishlist" / "triaged"
-    rejected = REPO_ROOT / "docs" / "wishlist" / "rejected"
+    REPO_ROOT / "docs" / "wishlist" / "rejected"
     assert raw.exists() or triaged.exists(), (
         "wishlist directory missing — refresh.sh has nothing to count"
     )

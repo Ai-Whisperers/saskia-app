@@ -1,4 +1,5 @@
 """tests/test_csrf.py — CSRF middleware tests."""
+
 from __future__ import annotations
 
 import pytest
@@ -11,6 +12,7 @@ def _clean_client(client):
     from starlette.testclient import TestClient
 
     from app.rms.main import app
+
     return TestClient(app, raise_server_exceptions=False)
 
 
@@ -35,9 +37,7 @@ def test_post_without_csrf_cookie_rejected(client):
     """
     fresh = _clean_client(client)
     resp = fresh.post("/ventas/nueva", data={"product_id": "1", "qty": "1"})
-    assert resp.status_code == 403, (
-        f"Expected 403 from CSRF guard, got {resp.status_code}"
-    )
+    assert resp.status_code == 403, f"Expected 403 from CSRF guard, got {resp.status_code}"
 
 
 def test_post_with_valid_csrf_cookie_proceeds_to_route(client):

@@ -1,7 +1,7 @@
 """P0 audit log coverage tests — verify record_audit() fires on each
 critical write action that was previously silent.
 
-Per saskia-only-roadmap.md P0 (cerrar-puertas / forensic gap): 16 silent
+Per sazon-only-roadmap.md P0 (cerrar-puertas / forensic gap): 16 silent
 write actions now write to AuditLog. These tests POST each action and
 query the audit_log table to confirm the row landed.
 
@@ -17,7 +17,7 @@ Conventions:
 from __future__ import annotations
 
 import io
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -38,7 +38,6 @@ def _seed_basic(session_factory):
 
     Returns the dict so tests can grab the entity ids.
     """
-    from decimal import Decimal
 
     from app.rms.models import Customer, Ingredient, Product, Recipe, RecipeLine
 
@@ -309,7 +308,7 @@ def test_supplier_create_audited(authed_client, session_factory):
 
     Supplier is the parent entity behind ingredients (audit item 284)
     plus the lookup table for reorder suggestions and price comparison.
-    Until this audit was wired up, Saskia could silently lose or rename
+    Until this audit was wired up, the operator could silently lose or rename
     a supplier with zero forensic trace. Now there is one.
     """
     r = authed_client.post(
@@ -411,7 +410,7 @@ def test_supplier_delete_audited(authed_client, session_factory):
 
 def test_eod_save_audited(authed_client, session_factory):
     """POST /eod/check writes a write.eod.checklist.save audit row."""
-    today = date.today().isoformat()
+    datetime.utcnow().date().isoformat()
     r = authed_client.post(
         "/eod/check",
         data={
@@ -440,7 +439,7 @@ def test_eod_complete_audited(authed_client, session_factory, qseed):
     """POST /eod/completar writes a write.eod.complete audit row."""
     data = qseed("basic")
     product_id = data["product"].id
-    today = date.today().isoformat()
+    today = datetime.utcnow().date().isoformat()
 
     r = authed_client.post(
         "/eod/completar",
@@ -536,7 +535,7 @@ def test_production_override_audited(authed_client, session_factory, qseed):
     """POST /produccion/override writes a write.production.override.set row."""
     data = qseed("basic")
     product_id = data["product"].id
-    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    tomorrow = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
 
     r = authed_client.post(
         "/produccion/override",
@@ -570,7 +569,7 @@ def test_production_completion_audited(authed_client, session_factory, qseed):
     """
     data = qseed("basic")
     product_id = data["product"].id
-    today = date.today().isoformat()
+    today = datetime.utcnow().date().isoformat()
 
     r = authed_client.post(
         "/eod/completar",

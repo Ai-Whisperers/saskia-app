@@ -18,7 +18,7 @@ NOTE — coverage-gap closure, NOT TDD: the behavior shipped in Phases B–D.
 These tests are expected to pass immediately; they exist to pin the
 composition so a regression in any link fails loudly.
 
-Refs: Saskia review round 1 (Thu 18-sep) — Q1 + T1. Spanish quotes in the
+Refs: operator review round N (Thu 18-sep) — Q1 + T1. Spanish quotes in the
 feature tests: 'cada vez que la clienta restockea tiene que cargar los
 precios, y así puede ver en los paneles de gestión cuánto está ganando
 realmente aunque los precios fluctúen'.
@@ -90,11 +90,13 @@ def test_restock_chain_price_event_to_insight_card(client, session_factory):
     assert _restock(client, ing_id, "2", "6000").status_code == 303
 
     with session_factory() as s:
-        events = s.execute(
-            select(IngredientPriceEvent).where(
-                IngredientPriceEvent.ingredient_id == ing_id
+        events = (
+            s.execute(
+                select(IngredientPriceEvent).where(IngredientPriceEvent.ingredient_id == ing_id)
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert [e.price_gs for e in events] == [5000, 5500, 6000]
         assert all(e.source == "restock" for e in events)
         ing = s.get(Ingredient, ing_id)
@@ -139,26 +141,22 @@ def test_restock_chain_price_event_to_insight_card(client, session_factory):
 
 
 def test_mixed_unit_recipe_costs_and_plans_consistently(session_factory):
-    """Recipe 'Pan' with mixed units (Saskia's T1 complaint):
+    """Recipe 'Pan' with mixed units (the operator's T1 complaint):
     - harina stored in kg @ 5000 Gs/kg, recipe line 500 g
-    - leche stored in l  @ 8000 Gs/l,  recipe line 250 ml
+    - leche stored in line  @ 8000 Gs/line,  recipe line 250 ml
     - yield 12 und
 
     Batch cost via costing walk = 0.5×5000 + 0.25×8000 = 4500 Gs.
     plan_production for 24 portions (2 batches) must require exactly
-    1.0 kg harina and 0.5 l leche — same normalization, both engines.
+    1.0 kg harina and 0.5 line leche — same normalization, both engines.
     """
     from app.rms.costing import recipe_batch_cost_gs
     from app.rms.models import Product, Recipe, RecipeLine
 
     s = session_factory()
     try:
-        harina = Ingredient(
-            name="Harina g", unit="kg", stock_qty=5.0, purchase_price_gs=5000
-        )
-        leche = Ingredient(
-            name="Leche ml", unit="l", stock_qty=2.0, purchase_price_gs=8000
-        )
+        harina = Ingredient(name="Harina g", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
+        leche = Ingredient(name="Leche ml", unit="l", stock_qty=2.0, purchase_price_gs=8000)
         rec = Recipe(name="Pan mixto", yield_qty=12.0, yield_unit="und")
         s.add_all([harina, leche, rec])
         s.flush()
@@ -192,9 +190,7 @@ def test_mixed_unit_recipe_costs_and_plans_consistently(session_factory):
     try:
         result = recipe_batch_cost_gs(s, recipe_id)
         assert result.batch_cost_gs is not None, f"missing: {result.missing_ingredient_names}"
-        assert result.batch_cost_gs == 4500, (
-            f"expected 4500, got {result.batch_cost_gs}"
-        )
+        assert result.batch_cost_gs == 4500, f"expected 4500, got {result.batch_cost_gs}"
     finally:
         s.close()
 
@@ -207,25 +203,15 @@ def test_mixed_unit_recipe_costs_and_plans_consistently(session_factory):
             manual_forecast={product_id: 24.0},
         )
         # lines are keyed by ingredient name in the plan output
-        harina_line = next(
-            (l for l in plan.lines if "Harina" in l.ingredient_name), None
-        )
-        leche_line = next(
-            (l for l in plan.lines if "Leche" in l.ingredient_name), None
-        )
+        harina_line = next((line for line in plan.lines if "Harina" in line.ingredient_name), None)
+        leche_line = next((line for line in plan.lines if "Leche" in line.ingredient_name), None)
         assert harina_line is not None, f"no harina line in {plan.lines}"
         assert leche_line is not None, f"no leche line in {plan.lines}"
         # 500 g × 2 batches = 1.0 kg (ingredient unit); 250 ml × 2 = 0.5 l
-        assert abs(harina_line.qty_required - 1.0) < 1e-6, (
-            f"harina {harina_line.qty_required}"
-        )
-        assert abs(leche_line.qty_required - 0.5) < 1e-6, (
-            f"leche {leche_line.qty_required}"
-        )
+        assert abs(harina_line.qty_required - 1.0) < 1e-6, f"harina {harina_line.qty_required}"
+        assert abs(leche_line.qty_required - 0.5) < 1e-6, f"leche {leche_line.qty_required}"
         # Cross-check: quantities priced at ingredient prices == 2 × batch cost
-        priced = (
-            harina_line.qty_required * 5000 + leche_line.qty_required * 8000
-        )
+        priced = harina_line.qty_required * 5000 + leche_line.qty_required * 8000
         assert abs(priced - 2 * 4500) < 1e-6
     finally:
         s.close()

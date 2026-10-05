@@ -4,6 +4,7 @@ Regression: any future route handler that holds a session outside a
 context manager would leak connections. This test scans the source tree
 for unsafe patterns and fails on them.
 """
+
 from __future__ import annotations
 
 import re
@@ -12,7 +13,7 @@ from pathlib import Path
 
 def _collect_app_py_files() -> list[Path]:
     """All .py files under app/ (production code, not tests/scripts)."""
-    root = Path("/opt/data/work/saskia-app/app")
+    root = Path("/opt/data/work/sazon-app/app")
     return sorted(p for p in root.rglob("*.py") if "__pycache__" not in str(p))
 
 
@@ -47,7 +48,9 @@ def test_no_bare_session_assignments_in_app():
             if in_def and "session" in in_def.lower():
                 # Factory function — OK.
                 continue
-            violations.append(f"{p}:{line_no}: {indent}{m.group(2)} = session_factory() — needs 'with' block")
+            violations.append(
+                f"{p}:{line_no}: {indent}{m.group(2)} = session_factory() — needs 'with' block"
+            )
 
     assert not violations, "\n".join(violations)
 
@@ -61,7 +64,7 @@ def test_all_engine_connect_uses_context_manager():
         # by searching for the pattern.
         for m in re.finditer(r"(\s+)engine\.connect\(\)", src):
             # Find the next 80 chars
-            rest = src[m.end(): m.end() + 100]
+            rest = src[m.end() : m.end() + 100]
             assert " as " in rest, (
                 f"{p}: bare engine.connect() needs `with` block. Found at: {m.group(0)}"
             )
@@ -84,7 +87,7 @@ def test_no_session_commit_without_close_in_app():
     from pathlib import Path
 
     violations = []
-    for py_file in sorted(Path("/opt/data/work/saskia-app/app").rglob("*.py")):
+    for py_file in sorted(Path("/opt/data/work/sazon-app/app").rglob("*.py")):
         if "__pycache__" in str(py_file):
             continue
         try:
@@ -96,9 +99,9 @@ def test_no_session_commit_without_close_in_app():
         with_line_numbers: set[int] = set()
 
         class WithVisitor(ast.NodeVisitor):
-            def visit_With(self, node):
+            def visit_With(self, node, _add=with_line_numbers.add):
                 for lineno in range(node.lineno, node.end_lineno + 1):
-                    with_line_numbers.add(lineno)
+                    _add(lineno)
                 self.generic_visit(node)
 
         WithVisitor().visit(tree)

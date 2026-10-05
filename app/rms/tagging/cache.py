@@ -21,6 +21,8 @@ those are in derive.py.
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -28,7 +30,7 @@ from sqlalchemy.orm import Session
 def persist_recipe_cache(
     session: Session,
     recipe_id: int,
-    derivation,
+    derivation: Any,
 ) -> None:
     """Write Recipe.allergens and Recipe.derived_dietary_tags from a
     TagDerivation result. Operator-claimed dietary_tags is preserved
@@ -61,9 +63,7 @@ def sync_product_inheritance(session: Session, recipe_id: int) -> list[int]:
     allergens = _split(r.allergens or "")
     value = ",".join(inherited + [f"al:{a}" for a in allergens]) or None
 
-    products = session.scalars(
-        select(Product).where(Product.recipe_id == recipe_id)
-    ).all()
+    products = session.scalars(select(Product).where(Product.recipe_id == recipe_id)).all()
     for p_ in products:
         p_.inherited_tags = value
     return [p_.id for p_ in products]

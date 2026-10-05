@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import pytest
 from sqlalchemy import text
 
 
 def _make_sale(session_factory, *, with_stock_moves=False):
     """Insert a product + sale via the test factories; returns the sale id."""
-    from tests.factories import make_ingredient, make_product, make_recipe, make_sale
     from app.rms.models import StockMovement
+    from tests.factories import make_ingredient, make_product, make_recipe, make_sale
 
     sid = None
     with session_factory() as s:
@@ -22,15 +21,17 @@ def _make_sale(session_factory, *, with_stock_moves=False):
         if with_stock_moves:
             # BACKLOG #1: sale_stock_move replaced with StockMovement.
             # Use StockMovement to simulate what apply_sale would write
-            s.add(StockMovement(
-                ingredient_id=ing.id,
-                movement_type="sale",
-                qty=-0.5,
-                reason=f"Venta #{sid}",
-                reference_id=sid,
-                reference_type="sale",
-                affected_recipe_id=recipe.id,
-            ))
+            s.add(
+                StockMovement(
+                    ingredient_id=ing.id,
+                    movement_type="sale",
+                    qty=-0.5,
+                    reason=f"Venta #{sid}",
+                    reference_id=sid,
+                    reference_type="sale",
+                    affected_recipe_id=recipe.id,
+                )
+            )
         s.commit()
     return sid
 
@@ -53,13 +54,16 @@ def test_ventas_detail_shows_voided_banner(client, session_factory):
     """When sale.voided_at is set, show the ANULADO banner."""
     sid = _make_sale(session_factory)
     with session_factory() as s:
-        s.execute(text(
-            "UPDATE sale SET voided_at = CURRENT_TIMESTAMP, voided_by = 'tester', void_reason = 'client cancel' WHERE id = :id"
-        ), {"id": sid})
+        s.execute(
+            text(
+                "UPDATE sale SET voided_at = CURRENT_TIMESTAMP, voided_by = 'tester', void_reason = 'client cancel' WHERE id = :id"
+            ),
+            {"id": sid},
+        )
         s.commit()
     r = client.get(f"/ventas/{sid}")
     assert r.status_code == 200
-    assert "ANULADO" in r.text
+    assert "ANULADA" in r.text  # Spanish feminine ("la venta"); template has ANULADA
     assert "tester" in r.text
     # Anular button must be hidden for voided sales
     assert "Anular venta" not in r.text
@@ -70,7 +74,7 @@ def test_ventas_detail_renders_stock_moves(client, session_factory):
     sid = _make_sale(session_factory, with_stock_moves=True)
     r = client.get(f"/ventas/{sid}")
     assert r.status_code == 200
-    assert "Stock moves" in r.text
+    assert "Movimientos de stock" in r.text  # Spanish; section heading
 
 
 def test_ventas_detail_recibo_link(client, session_factory):

@@ -79,18 +79,22 @@ async def excel_home(request: Request, session: Session = Depends(get_session)) 
             except (json.JSONDecodeError, TypeError):
                 warnings_raw = [warnings_raw] if warnings_raw else []
 
-        import_history.append({
-            "id": b.id,
-            "filename": b.source_filename,
-            "imported_at_str": b.imported_at.strftime("%d/%m/%Y %H:%M") if b.imported_at else "",
-            "mode": counts.get("mode", "FULL"),
-            "ingredients": counts.get("ingredients", 0),
-            "recipes": counts.get("recipes", 0),
-            "lines": counts.get("lines", 0),
-            "products": counts.get("products", 0),
-            "customers": counts.get("customers", 0),
-            "warnings": warnings_raw,
-        })
+        import_history.append(
+            {
+                "id": b.id,
+                "filename": b.source_filename,
+                "imported_at_str": b.imported_at.strftime("%d/%m/%Y %H:%M")
+                if b.imported_at
+                else "",
+                "mode": counts.get("mode", "FULL"),
+                "ingredients": counts.get("ingredients", 0),
+                "recipes": counts.get("recipes", 0),
+                "lines": counts.get("lines", 0),
+                "products": counts.get("products", 0),
+                "customers": counts.get("customers", 0),
+                "warnings": warnings_raw,
+            }
+        )
 
     return render(request, "excel.html", {"import_history": import_history})
 
@@ -107,7 +111,7 @@ async def excel_mode_guidance(request: Request) -> HTMLResponse:
             "label": "Actualizar por nombre (PATCH)",
             "summary": "Recomendado para mantener tus datos actualizados.",
             "how": "Compara por nombre (productos, ingredientes, recetas) o teléfono (clientes). "
-                   "Actualiza las celdas que editás en el archivo. No borra nada existente.",
+            "Actualiza las celdas que editás en el archivo. No borra nada existente.",
             "use_case": "Editaste precios de productos en la планilla y querés subir los cambios.",
             "danger": "safe",
             "color": "#22c55e",
@@ -117,7 +121,7 @@ async def excel_mode_guidance(request: Request) -> HTMLResponse:
             "label": "Reemplazar todo (FULL)",
             "summary": "Añade filas del archivo SIN pisar las anteriores. No recomendado para actualizaciones.",
             "how": "Añade todas las filas del archivo a las tablas existentes. "
-                   "Si ya existe un producto con el mismo nombre, se crea otro igual (duplicado).",
+            "Si ya existe un producto con el mismo nombre, se crea otro igual (duplicado).",
             "use_case": "Necesitás restaurar un backup completo sin perder datos previos.",
             "danger": "caution",
             "color": "#f59e0b",
@@ -127,7 +131,7 @@ async def excel_mode_guidance(request: Request) -> HTMLResponse:
             "label": "Solo añadir (APPEND)",
             "summary": "Añade filas únicamente — sin actualizar nada existente.",
             "how": "Toma cada fila del archivo y la inserta como nueva. "
-                   "Los datos existentes quedan intactos.",
+            "Los datos existentes quedan intactos.",
             "use_case": "Cargaste clientes nuevos a la планilla y querés agregarlos sin tocar los existentes.",
             "danger": "safe",
             "color": "#22c55e",
@@ -165,7 +169,7 @@ async def excel_validate(
     errors: list[dict] = []
     warnings: list[dict] = []
 
-    with tempfile.TemporaryDirectory(prefix="saskia-validate-") as tmp_dir:
+    with tempfile.TemporaryDirectory(prefix="sazon-validate-") as tmp_dir:
         save_path = Path(tmp_dir) / filename
         save_path.write_bytes(content)
         try:
@@ -185,13 +189,17 @@ async def excel_validate(
                 context={"original_error": str(exc)},
             ) from exc
 
-    return render(request, "excel_validate.html", {
-        "filename": filename,
-        "mode": resolved_mode,
-        "errors": errors,
-        "warnings": warnings,
-        "has_errors": bool(errors),
-    })
+    return render(
+        request,
+        "excel_validate.html",
+        {
+            "filename": filename,
+            "mode": resolved_mode,
+            "errors": errors,
+            "warnings": warnings,
+            "has_errors": bool(errors),
+        },
+    )
 
 
 # ─── Actual import (with audit log) ─────────────────────────────────────────
@@ -226,7 +234,7 @@ async def excel_import(
 
     row_counts: dict = {}
 
-    with tempfile.TemporaryDirectory(prefix="saskia-import-") as tmp_dir:
+    with tempfile.TemporaryDirectory(prefix="sazon-import-") as tmp_dir:
         save_path = Path(tmp_dir) / filename
         save_path.write_bytes(content)
         try:
@@ -249,13 +257,14 @@ async def excel_import(
             raise HTTPException(
                 status_code=400,
                 detail="El archivo tiene filas que ya existen (nombres duplicados). "
-                       "Usá modo PATCH para actualizar, o revisá los nombres.",
+                "Usá modo PATCH para actualizar, o revisá los nombres.",
             ) from exc
 
     # Record import in audit log
     batch_id = row_counts.get("batch_id", 0)
     rows_imported = sum(
-        v for k, v in row_counts.items()
+        v
+        for k, v in row_counts.items()
         if k in {"ingredients", "recipes", "lines", "products", "customers", "sales"}
     )
     warnings_count = len(row_counts.get("warnings", []))
@@ -296,7 +305,7 @@ async def excel_export(
     """
     from app.services.export_xlsx import to_file
 
-    fd, tmp_path_str = tempfile.mkstemp(prefix="saskia-export-", suffix=".xlsx")
+    fd, tmp_path_str = tempfile.mkstemp(prefix="sazon-export-", suffix=".xlsx")
     os.close(fd)
     tmp_path = Path(tmp_path_str)
     try:
@@ -304,11 +313,11 @@ async def excel_export(
         # Filename reflects the chosen period so operators can keep multiple
         # exports side-by-side without renaming.
         filename = {
-            "current_month": "saskia-rms-export-mes-actual.xlsx",
-            "last_month": "saskia-rms-export-mes-anterior.xlsx",
-            "30d": "saskia-rms-export-30d.xlsx",
-            "today": "saskia-rms-export-hoy.xlsx",
-            "all": "saskia-rms-export-completo.xlsx",
+            "current_month": "sazon-rms-export-mes-actual.xlsx",
+            "last_month": "sazon-rms-export-mes-anterior.xlsx",
+            "30d": "sazon-rms-export-30d.xlsx",
+            "today": "sazon-rms-export-hoy.xlsx",
+            "all": "sazon-rms-export-completo.xlsx",
         }[period]
         return FileResponse(
             path=str(written),
@@ -336,7 +345,7 @@ async def excel_plantilla(
 
     body = patch_plantilla_bytes(session)
     today = datetime.now(timezone.utc).strftime("%Y%m%d")
-    filename = f"saskia-import-{today}.xlsx"
+    filename = f"sazon-import-{today}.xlsx"
     return Response(
         content=body,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

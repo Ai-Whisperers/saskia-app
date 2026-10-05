@@ -27,14 +27,14 @@ Used by:
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass, field, asdict
-from datetime import date, datetime, time, timedelta
+from dataclasses import asdict, dataclass, field
+from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from app.rms.models import Customer, CustomerAddress, Pedido, PedidoLine
 from app.rms.config import ASUNCION_TZ
+from app.rms.models import Customer, CustomerAddress, Pedido, PedidoLine
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -141,9 +141,9 @@ def _default_address(session: Session, customer_id: int) -> CustomerAddress | No
 
 def _pedido_lines_as_dicts(pedido_id: int, session: Session) -> list[dict]:
     """Return pedido lines as JSON-safe dicts for JS to recreate the rows."""
-    lines = session.execute(
-        select(PedidoLine).where(PedidoLine.pedido_id == pedido_id)
-    ).scalars().all()
+    lines = (
+        session.execute(select(PedidoLine).where(PedidoLine.pedido_id == pedido_id)).scalars().all()
+    )
     return [
         {
             "product_id": line.product_id,
@@ -190,9 +190,11 @@ def compute_customer_defaults(
 
     # --- Delivery ---
     out.delivery_zone_id = customer.preferred_zone_id
-    all_addresses = session.execute(
-        select(CustomerAddress).where(CustomerAddress.customer_id == customer_id)
-    ).scalars().all()
+    all_addresses = (
+        session.execute(select(CustomerAddress).where(CustomerAddress.customer_id == customer_id))
+        .scalars()
+        .all()
+    )
     out.available_addresses = [
         {
             "id": addr.id,
@@ -222,12 +224,17 @@ def compute_customer_defaults(
 
     # --- Invoice profiles (Phase 13) ---
     from app.rms.models import CustomerInvoiceProfile as _InvoiceProfile
-    all_profiles = session.execute(
-        select(_InvoiceProfile)
-        .where(_InvoiceProfile.customer_id == customer_id)
-        .where(_InvoiceProfile.is_active.is_(True))
-        .order_by(_InvoiceProfile.is_default.desc(), _InvoiceProfile.alias)
-    ).scalars().all()
+
+    all_profiles = (
+        session.execute(
+            select(_InvoiceProfile)
+            .where(_InvoiceProfile.customer_id == customer_id)
+            .where(_InvoiceProfile.is_active.is_(True))
+            .order_by(_InvoiceProfile.is_default.desc(), _InvoiceProfile.alias)
+        )
+        .scalars()
+        .all()
+    )
     out.invoice_profiles = [
         {
             "id": prof.id,
@@ -257,12 +264,16 @@ def compute_customer_defaults(
     # --- When ---
     # Promised date: customer's average lead time (today → pedido.promised_date)
     # defaults to today if we have no history.
-    pedidos = session.execute(
-        select(Pedido)
-        .where(Pedido.customer_id == customer_id, Pedido.status != "cancelled")
-        .order_by(Pedido.promised_date.desc())
-        .limit(20)
-    ).scalars().all()
+    pedidos = (
+        session.execute(
+            select(Pedido)
+            .where(Pedido.customer_id == customer_id, Pedido.status != "cancelled")
+            .order_by(Pedido.promised_date.desc())
+            .limit(20)
+        )
+        .scalars()
+        .all()
+    )
     if pedidos:
         lead_days = [(p.promised_date - p.created_at.date()).days for p in pedidos if p.created_at]
         avg_lead = round(sum(lead_days) / len(lead_days)) if lead_days else 0
@@ -311,10 +322,7 @@ def compute_customer_defaults(
     out.loyalty_points_balance = int(customer.loyalty_points or 0)
     # Projected: 1 point / 1.000 Gs. (matches the migration 074 earn rate).
     # Estimate the pedido total from the cloned lines, or 0 if none.
-    projected_gs = sum(
-        ln.get("qty", 0) * ln.get("unit_price_gs", 0)
-        for ln in out.clone_lines
-    )
+    projected_gs = sum(ln.get("qty", 0) * ln.get("unit_price_gs", 0) for ln in out.clone_lines)
     out.loyalty_points_projected = int(projected_gs // 1000)
 
     # Tier 6.4 (2026-10-01): tier display.

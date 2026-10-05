@@ -45,17 +45,11 @@ def _migration_091_backfill_stock_movement_recipe(conn: Any) -> None:
     dialect = conn.dialect.name if hasattr(conn, "dialect") else None
     if dialect == "sqlite":
         present = conn.execute(
-            text(
-                "SELECT 1 FROM sqlite_schema "
-                "WHERE type='table' AND name='sale_stock_move'"
-            )
+            text("SELECT 1 FROM sqlite_schema WHERE type='table' AND name='sale_stock_move'")
         ).first()
     else:
         present = conn.execute(
-            text(
-                "SELECT 1 FROM information_schema.tables "
-                "WHERE table_name='sale_stock_move'"
-            )
+            text("SELECT 1 FROM information_schema.tables WHERE table_name='sale_stock_move'")
         ).first()
     if present is not None:
         conn.execute(

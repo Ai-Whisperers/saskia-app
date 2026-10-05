@@ -1,4 +1,4 @@
-# pyproject.toml — Saskia RMS fase 1
+# pyproject.toml — Sazón fase 1
 # Per tech-stack-review recommendations (#1, #2, #5, #10):
 # - Use uv for install (10-100× faster than pip; reproducible lockfile)
 # - Pin openpyxl >=3.1,<4 (3.x stable, 4.x may break)
@@ -8,9 +8,9 @@
 # - Phase 1: pure server-rendered HTML (NOT HTMX)
 
 [project]
-name = "aiw-saskia-rms"
+name = "sazon-rms"
 version = "0.1.0"
-description = "Sistema de gestión de restaurante — Saskia Weiss Vander — Fase 1"
+description = "Sistema de gestión de restaurante — multi-tenant"
 requires-python = ">=3.13,<3.14"
 authors = [
     {name = "AI Whisperers", email = "ivan@ai-whisperers.dev"},
@@ -38,20 +38,16 @@ dependencies = [
     "reportlab>=4.0,<6",           # PDF generation for /reportes/iva/pdf + /reportes/diario/pdf
 ]
 
-# Development dependencies
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.3,<10",                 # Test framework
-    "pytest-cov>=6,<8",                # Coverage reporting
-    "hypothesis>=6.115,<7",          # Property-based testing (per tech-stack-review #9)
-    "ruff>=0.7,<1",                   # Linting
-    "httpx>=0.27,<1",                  # TestClient (FastAPI)
-    "testcontainers[postgresql]>=4.8,<5",  # E2.S2 — boots real PG in CI for hotfix regression coverage
-]
+# Development dependencies are in [dependency-groups] below (PEP 735).
+# dev-base: minimum for CI (no Playwright).
+# dev: full setup including Playwright + httpx + hypothesis + testcontainers.
+# This block is intentionally empty for backward compatibility with
+# older `uv sync --extra dev` invocations; the real deps are in
+# [dependency-groups] which uv reads by default.
 
 # Entry point for uvicorn (run from project root: uvicorn app.rms.main:app --reload)
 [project.scripts]
-aiw-saskia = "app.rms.main:run"
+sazon = "app.rms.main:run"
 
 [build-system]
 requires = ["hatchling"]
@@ -72,6 +68,7 @@ markers = [
     "browser: runs in a real headless browser via Playwright",
     "pg: real Postgres tests (testcontainers); skipped locally without Docker, run in CI",
     "smoke: end-to-end smoke tests (run on every commit)",
+    "smoke_generated: auto-generated route smoke tests (run on every commit)",
     "crud: CRUD roundtrip tests (run on every commit)",
     "analytics: analytics correctness (run before deploy)",
     "perf: performance budget tests (run nightly)",
@@ -103,6 +100,9 @@ filterwarnings = [
 [tool.ruff]
 line-length = 100
 target-version = "py313"
+extend-exclude = [
+    ".github",  # GitHub Actions YAML files - ruff doesn't parse YAML
+]
 
 [tool.ruff.lint]
 # Rule families enabled:
@@ -147,16 +147,43 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а"]
     "E402",    # test files may have non-top imports
     "ANN",     # test ergonomics — don't annotate every helper
     "S",       # bandit relaxed for tests
-    "DTZ005",  # tests use datetime.now() without TZ for "today" arithmetic
+    "DTZ",     # tests use naive datetime for fixture math (legacy contract)
     "B011",    # tests assert on raises(NotImplementedError) sometimes
+    "PERF401", # tests: build-then-iterate is fine, no need for list comp
+    "BLE001",  # tests: defensive excepts are fine in fixture setup / teardown
 ]
 "app/migrations/**/*.py" = [
+    "E402", "ANN", "S608",   # migration SQL is hand-rolled
+    "BLE001",                # migrations swallow known schema errors
+]
+"app/rms/migrations/**/*.py" = [
     "E402", "ANN", "S608",   # migration SQL is hand-rolled
     "BLE001",                # migrations swallow known schema errors
 ]
 "app/routers/dev.py" = [
     "S105", "S106",    # dev-only mock data
     "ANN",             # dev routes are throwaway
+]
+"_smoke/*.py" = [
+    "ANN",     # smoke scripts — ad-hoc utilities, no need for annotations
+    "S",       # bandit relaxed — ad-hoc curl/subprocess patterns
+    "DTZ",     # smoke scripts use naive datetime for ad-hoc timing
+    "E501",    # long console lines are fine in smoke output
+    "BLE001",  # smoke scripts intentionally swallow broad excepts
+]
+"scripts/*.py" = [
+    "ANN",     # scripts are ad-hoc utilities, no need for annotations
+    "S",       # bandit relaxed — scripts intentionally shell out / curl
+    "BLE001",  # scripts may swallow errors with broad except
+    "DTZ",     # scripts use naive datetime for ad-hoc timing
+]
+"docs/**/*.py" = [
+    "BLE001",  # docs helper scripts: same rationale as scripts/
+    "S",       # docs scripts: ad-hoc Playwright patterns
+    "E501",    # long console output lines are fine
+]
+"run_migration.py" = [
+    "BLE001",  # ad-hoc top-level migration runner, errors are diagnostic
 ]
 "app/rms/db.py" = [
     "S608",            # SQL builder helpers (text() calls are intentional)
@@ -191,10 +218,24 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 
 [dependency-groups]
+# dev-base: minimum needed to run the test suite in CI. No Playwright
+# (134 MB wheel + 656 MB browser binaries), no pytest-randomly (disabled
+# via -p no:randomly in addopts). Run by every CI job.
+dev-base = [
+    "pytest>=8.3,<10",        # Test framework
+    "pytest-cov>=6,<8",       # Coverage reporting + --cov-fail-under gate
+    "pytest-xdist>=3.8.0",    # Parallel test runner
+    "ruff>=0.7,<1",           # Linting (ruff check + format)
+]
+# dev: full developer setup, including the browser stack. Local devs do
+# `uv sync --group dev`; CI runs `uv sync --group dev-base` instead.
 dev = [
-    "playwright>=1.62.0",
-    "pytest-randomly>=5.0.0",
-    "pytest-xdist>=3.8.0",
+    {include-group = "dev-base"},
+    "httpx>=0.27,<1",         # TestClient (FastAPI)
+    "hypothesis>=6.115,<7",   # Property-based testing
+    "playwright>=1.62.0",     # 9 browser tests; 134 MB wheel
+    "pytest-randomly>=5.0.0", # currently disabled via -p no:randomly
+    "testcontainers[postgresql]>=4.8,<5",  # 2 PG tests
 ]
 
 # Coverage config — see docs/plans/2026-10-01-phase14-coverage-strategy.md
@@ -210,7 +251,7 @@ omit = [
 ]
 # CI runners and hermes's sandbox sometimes can't write to CWD.
 # Use /tmp explicitly so the coverage data file is always writable.
-data_file = "/tmp/.coverage-saskia"
+data_file = "/tmp/.coverage-sazon"
 
 [tool.coverage.report]
 show_missing = true

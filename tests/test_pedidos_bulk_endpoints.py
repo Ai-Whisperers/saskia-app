@@ -1,7 +1,10 @@
 """Pedidos bulk endpoints tests."""
+
 from __future__ import annotations
 
-from datetime import date
+from datetime import datetime, timezone
+
+_UTC = timezone.utc
 
 from app.rms.models import Pedido
 
@@ -9,17 +12,13 @@ from app.rms.models import Pedido
 def test_pedidos_bulk_fulfill_no_500(authed_client, session_factory):
     """POST /pedidos/bulk-fulfill with empty selection must not 500."""
     r = authed_client.post("/pedidos/bulk-fulfill", data={"selected": []})
-    assert r.status_code < 500, (
-        f"/pedidos/bulk-fulfill returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"/pedidos/bulk-fulfill returned {r.status_code}: {r.text[:200]}"
 
 
 def test_pedidos_bulk_cancel_no_500(authed_client, session_factory):
     """POST /pedidos/bulk-cancel with empty selection must not 500."""
     r = authed_client.post("/pedidos/bulk-cancel", data={"selected": []})
-    assert r.status_code < 500, (
-        f"/pedidos/bulk-cancel returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"/pedidos/bulk-cancel returned {r.status_code}: {r.text[:200]}"
 
 
 def test_pedidos_board_page_loads(authed_client):
@@ -40,7 +39,7 @@ def test_pedidos_detail_page_loads(authed_client, session_factory):
     with session_factory() as s:
         pedido = Pedido(
             customer_name="Bulk Test",
-            promised_date=date.today(),
+            promised_date=datetime.now(_UTC).date(),
             channel="mostrador",
             status="pending",
         )

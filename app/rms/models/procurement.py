@@ -27,6 +27,7 @@ All models here share the same declarative Base as the rest of the
 project — see app/rms/models/core.py.
 """
 
+
 class ImportBatch(Base):
     """Audit of a Drive-Excel import run."""
 
@@ -44,6 +45,7 @@ class ImportBatch(Base):
 # We import bcrypt inside the methods (not at module top) because bcrypt
 # 5.x changed its API and the lazy import lets tests monkeypatch easily.
 # This mirrors the bcrypt helpers in app.auth.
+
 
 class Supplier(Base):
     """A supplier / proveed for ingredients (audit item 284).
@@ -68,9 +70,8 @@ class Supplier(Base):
     # Relationships
     ingredients: Mapped[list["Ingredient"]] = relationship(back_populates="supplier")  # noqa: F821 — SQLAlchemy 2.0 forward ref
 
-    __table_args__ = (
-        Index("ix_supplier_name", "name"),
-    )
+    __table_args__ = (Index("ix_supplier_name", "name"),)
+
 
 class WasteLog(Base):
     """A waste event (E22).
@@ -105,6 +106,7 @@ class WasteLog(Base):
 # HEREBUS Drive integration — new modules (migration 029)
 # ──────────────────────────────────────────────────────────────────
 
+
 class ShoppingListItem(Base):
     """Items to buy, linked optionally to a ProductionPlan or generic."""
 
@@ -122,9 +124,7 @@ class ShoppingListItem(Base):
     purpose_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     purchased: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     purchased_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     ingredient: Mapped["Ingredient"] = relationship("Ingredient")  # noqa: F821 — SQLAlchemy 2.0 forward ref
     production_plan: Mapped[Optional["ProductionPlan"]] = relationship(  # noqa: F821 — SQLAlchemy 2.0 forward ref
@@ -135,6 +135,7 @@ class ShoppingListItem(Base):
         CheckConstraint("qty_to_buy > 0", name="ck_shopping_qty_positive"),
         Index("ix_shopping_open", "purchased", "created_at"),
     )
+
 
 class StockMovement(Base):
     """Append-only stock movement ledger for auditability.

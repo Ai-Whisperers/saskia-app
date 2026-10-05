@@ -1,9 +1,9 @@
-"""Tests/conftest.py — shared pytest fixtures for the Saskia RMS test suite.
+"""Tests/conftest.py — shared pytest fixtures for the Sazón test suite.
 
 Per docs/operations/2026-09-fase-1-specs.md §9 (test-suite minimum).
 
 Key principle: tests must NEVER write to the production DB path
-(`~/.local/share/AIW-Saskia/rms.sqlite`). The `tmp_db_path` fixture
+(`~/.local/share/aiw-restaurant/rms.sqlite`). The `tmp_db_path` fixture
 forces every test to use a temp directory.
 """
 
@@ -64,9 +64,6 @@ class _SilenceUnraisable:
         _sys.__excepthook__(unraisable.exc_type, unraisable.exc_value, unraisable.exc_traceback)
 
 
-
-
-
 @pytest.fixture(autouse=True)
 def _silence_unraisable_resource_warnings():
     """Suppress ResourceWarning emitted by leaked sqlite3 sessions at GC.
@@ -95,17 +92,18 @@ def _silence_unraisable_resource_warnings():
     finally:
         _sys.unraisablehook = prev_hook
 
+
 @pytest.fixture(autouse=True)
 def tmp_db_path(tmp_path, monkeypatch):
     """Force every test to use a fresh temp DB.
 
-    Sets AIW_SASKIA_DB_PATH and AIW_SASKIA_DATA_DIR/BACKUP_DIR/LOG_DIR
+    Sets AIW_RMS_DB_PATH and AIW_RMS_DATA_DIR/BACKUP_DIR/LOG_DIR
     to tmp_path. autouse=True means every test gets this isolation.
     """
-    monkeypatch.setenv("AIW_SASKIA_DB_PATH", str(tmp_path / "test.sqlite"))
-    monkeypatch.setenv("AIW_SASKIA_DATA_DIR", str(tmp_path / "data"))
-    monkeypatch.setenv("AIW_SASKIA_BACKUP_DIR", str(tmp_path / "backups"))
-    monkeypatch.setenv("AIW_SASKIA_LOG_DIR", str(tmp_path / "logs"))
+    monkeypatch.setenv("AIW_RMS_DB_PATH", str(tmp_path / "test.sqlite"))
+    monkeypatch.setenv("AIW_RMS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("AIW_RMS_BACKUP_DIR", str(tmp_path / "backups"))
+    monkeypatch.setenv("AIW_RMS_LOG_DIR", str(tmp_path / "logs"))
     monkeypatch.setenv("BIND_HOST", "127.0.0.1")
     monkeypatch.setenv("PORT", "8765")
     return tmp_path
@@ -128,6 +126,7 @@ def freeze_asuncion(monkeypatch):
 
     def _freeze(d: date):
         import app.routers.produccion as prod_mod
+
         monkeypatch.setattr(prod_mod, "_asuncion_today", lambda: d)
         return d
 
@@ -170,6 +169,22 @@ def app_engine(tmp_db_path):
     return engine
 
 
+@pytest.fixture(scope="session")
+def app_engine_session(tmp_path_factory):
+    """Session-scoped engine + DB for expensive seed fixtures.
+
+    Use only when the seeder takes >10s and is idempotent (e.g. the
+    multi-tenant sazon seeder). Function-scoped `app_engine` is
+    preferred for normal tests so each test gets a clean DB.
+    """
+    from app.rms.db import init_db, make_engine
+
+    db_dir = tmp_path_factory.mktemp("sazon_db")
+    engine = make_engine(f"sqlite:///{db_dir}/sazon.sqlite")
+    init_db(engine)
+    yield engine
+
+
 @pytest.fixture
 def session_factory(app_engine):
     """sessionmaker bound to the app_engine fixture.
@@ -186,6 +201,7 @@ def session_factory(app_engine):
 
     factory = make_session_factory(app_engine)
     tracked: "weakref.WeakSet" = weakref.WeakSet()
+
     class TrackedFactory:
         def __call__(self, *args, **kwargs):
             s = factory(*args, **kwargs)
@@ -294,6 +310,7 @@ def client(session_factory, monkeypatch):
             if not c.cookies.get("csrf_token"):
                 # As a last resort, generate and inject.
                 from app.rms.csrf import generate_csrf_token
+
                 c.cookies.set("csrf_token", generate_csrf_token())
         except Exception:
             pass
@@ -368,6 +385,7 @@ def qseed(session_factory):
 
 # --- Shared Supabase fake for integration tests ---
 
+
 def _FakeSupabaseForIntegration():
     """Factory — instantiated once per fixture for test isolation."""
 
@@ -384,6 +402,7 @@ def _FakeSupabaseForIntegration():
             if self.users.get(email) != pw:
                 raise Exception("Invalid login credentials")
             import uuid
+
             uid = str(uuid.uuid4())
             self._tokens[uid] = {
                 "access_token": f"fake-access-{uid}",
@@ -441,6 +460,7 @@ def supabase_auth_env(monkeypatch):
     import importlib
 
     import app.auth_supabase as au
+
     importlib.reload(au)
 
     # Save original _client value for restoration later
@@ -456,6 +476,7 @@ def supabase_auth_env(monkeypatch):
 
     # Patch using_supabase so the router dispatches to _login_supabase (not _login_local)
     import app.auth
+
     monkeypatch.setattr(app.auth, "using_supabase", lambda: True)
 
     yield au

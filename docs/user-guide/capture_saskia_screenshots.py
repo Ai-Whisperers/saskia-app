@@ -3,20 +3,18 @@
 Auth via curl cookie jar → inject into Playwright → screenshot each route.
 Outputs PNGs into docs/user-guide/screenshots/, full_page=True for tall dashboards.
 """
+
 from __future__ import annotations
 
 import json
-import os
-import re
-import subprocess
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-BASE = "https://saskia-vps.paragu-ai.com"
-OUT = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/docs/user-guide/screenshots")
+BASE = "https://sazon-vps.paragu-ai.com"
+OUT = Path("/opt/data/profiles/ivan/scratch/sazon-app-work/docs/user-guide/screenshots")
 OUT.mkdir(parents=True, exist_ok=True)
-JAR = Path("/tmp/saskia-jar.txt")
+JAR = Path("/tmp/sazon-jar.txt")
 CHROME = "/opt/data/home/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome"
 
 # 14 daily-use routes (paths + label slug + wait_ms for slow pages)
@@ -52,23 +50,25 @@ def load_cookies() -> list[dict]:
             is_http_only = False
             if line.startswith("#HttpOnly_"):
                 is_http_only = True
-                line = line[len("#HttpOnly_"):]
+                line = line[len("#HttpOnly_") :]
             if line.startswith("#"):
                 continue
             parts = line.split("\t")
             if len(parts) < 7:
                 continue
             domain, _flag, path, secure, expires, name_, value = parts[:7]
-            cookies.append({
-                "name": name_,
-                "value": value,
-                "domain": domain,
-                "path": path,
-                "expires": int(expires) if expires.isdigit() else -1,
-                "httpOnly": is_http_only,
-                "secure": secure.upper() == "TRUE",
-                "sameSite": "Lax",
-            })
+            cookies.append(
+                {
+                    "name": name_,
+                    "value": value,
+                    "domain": domain,
+                    "path": path,
+                    "expires": int(expires) if expires.isdigit() else -1,
+                    "httpOnly": is_http_only,
+                    "secure": secure.upper() == "TRUE",
+                    "sameSite": "Lax",
+                }
+            )
     assert len(cookies) >= 1, f"cookie jar empty: {JAR}"
     return cookies
 
@@ -123,7 +123,9 @@ def capture() -> dict:
                 }
                 if is_error_page:
                     entry["errors"].append("error page rendered")
-                    manifest["bugs_found"].append({"path": path, "issue": "5xx / traceback in body"})
+                    manifest["bugs_found"].append(
+                        {"path": path, "issue": "5xx / traceback in body"}
+                    )
                 manifest["routes"].append(entry)
                 print(f"  {path:30s} -> {status} ({size_kb:,}KB)")
             except Exception as e:

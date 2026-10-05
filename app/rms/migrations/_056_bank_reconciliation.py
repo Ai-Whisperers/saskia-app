@@ -13,6 +13,7 @@ which works on Postgres / MySQL but is rejected by SQLite (``near
 that read the column list from the connection inspector before issuing
 the ALTER — works on every dialect we support (sqlite, postgresql).
 """
+
 from typing import Any
 
 from sqlalchemy import inspect, text

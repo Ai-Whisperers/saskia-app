@@ -8,6 +8,7 @@ Loyalty tier is computed from lifetime_spend_gs:
 
 Tier 4.1 (2026-10-01): extracted from app/rms/customers.py.
 """
+
 from __future__ import annotations
 
 from enum import Enum
@@ -42,4 +43,4 @@ def tier_for_spend(lifetime_spend_gs: int) -> LoyaltyTier:
     return LoyaltyTier.BRONZE
 
 
-__all__ = ["LoyaltyTier", "TIER_THRESHOLDS", "tier_for_spend"]
+__all__ = ["TIER_THRESHOLDS", "LoyaltyTier", "tier_for_spend"]

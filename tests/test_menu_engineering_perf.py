@@ -1,4 +1,5 @@
 """tests/test_menu_engineering_perf.py — regression test for classify_products N+1."""
+
 from __future__ import annotations
 
 from sqlalchemy import event
@@ -28,10 +29,14 @@ def test_classify_products_uses_batch_load(client, session_factory):
             s.add(p)
             s.flush()
             for j in range(3):
-                s.add(Sale(
-                    product_id=p.id, qty=1, unit_price_gs=1000,
-                    sold_at=datetime.now(timezone.utc) - timedelta(days=j),
-                ))
+                s.add(
+                    Sale(
+                        product_id=p.id,
+                        qty=1,
+                        unit_price_gs=1000,
+                        sold_at=datetime.now(timezone.utc) - timedelta(days=j),
+                    )
+                )
         s.commit()
 
     engine = session_factory.kw["bind"]
@@ -44,6 +49,7 @@ def test_classify_products_uses_batch_load(client, session_factory):
 
     try:
         from app.rms.menu_engineering import classify_products
+
         with session_factory() as s:
             classify_products(s)
     finally:
@@ -52,8 +58,7 @@ def test_classify_products_uses_batch_load(client, session_factory):
     # The bad pattern was: SELECT sale.qty FROM sale WHERE sale.product_id = ?
     # After fix: no per-product point queries — use IN clause or aggregation.
     per_product_point_queries = sum(
-        1 for q in queries
-        if 'FROM sale' in q and 'sale.product_id = ?' in q
+        1 for q in queries if "FROM sale" in q and "sale.product_id = ?" in q
     )
     assert per_product_point_queries == 0, (
         f"Found {per_product_point_queries} per-product point queries against "

@@ -1,6 +1,6 @@
 """app/rms/seasonal.py — Seasonal calendar HTTP helpers (E19).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E19.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E19.
 
 Most of E19 (the calendar data + seasonal_multiplier) was shipped in
 E12 (workflow.py). This module adds the HTTP-facing helpers:
@@ -14,6 +14,7 @@ The data lives in workflow.SEASONAL_CALENDAR_2026 today. This module
 will be the place to expand to multi-year calendars (2027, 2028) once
 we have them.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -60,14 +61,16 @@ def calendar_for_year(year: int, *, fallback_to_2026: bool = True) -> list[dict[
     for ev in SEASONAL_CALENDAR_2026:
         new_start = ev.start.replace(year=year)
         new_end = ev.end.replace(year=year)
-        shifted.append({
-            "name": ev.name,
-            "start": new_start.isoformat(),
-            "end": new_end.isoformat(),
-            "hint": ev.hint,
-            "multiplier": ev.multiplier,
-            "duration_days": (new_end - new_start).days + 1,
-        })
+        shifted.append(
+            {
+                "name": ev.name,
+                "start": new_start.isoformat(),
+                "end": new_end.isoformat(),
+                "hint": ev.hint,
+                "multiplier": ev.multiplier,
+                "duration_days": (new_end - new_start).days + 1,
+            }
+        )
     return shifted
 
 
@@ -89,9 +92,7 @@ def upcoming_calendar_json(
         "active_events": [serialize_event(e) for e in active],
         "upcoming_events": [serialize_event(e) for e in next_events],
         "demand_multiplier": demand_multiplier(today),
-        "next_event": (
-            serialize_event(next_events[0]) if next_events else None
-        ),
+        "next_event": (serialize_event(next_events[0]) if next_events else None),
     }
 
 
@@ -118,8 +119,16 @@ def product_hints_for_event(
 
     if product_names is None:
         product_names = [
-            "Muffin", "Torta", "Tostado", "Chipá", "Sopa paraguaya",
-            "Galleta", "Cupcake", "Pan dulce", "Rosca", "Huevo de Pascua",
+            "Muffin",
+            "Torta",
+            "Tostado",
+            "Chipá",
+            "Sopa paraguaya",
+            "Galleta",
+            "Cupcake",
+            "Pan dulce",
+            "Rosca",
+            "Huevo de Pascua",
         ]
 
     keywords = event.hint.lower()

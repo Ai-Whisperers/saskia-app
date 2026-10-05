@@ -6,19 +6,17 @@ revenue for sales with `discount_gs > 0`. This test pins the post-fix
 behavior: bucketing uses the post-discount line total so the dashboard
 matches /recibo and /ventas.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-
-import pytest
 
 from app.rms.models import Sale
 from app.routers.dashboard import (
     _build_hourly_sales_chart,
     _build_payment_methods_donut,
 )
-
 
 ASUNCION = ZoneInfo("America/Asuncion")
 
@@ -55,15 +53,21 @@ def test_hourly_chart_buckets_discount_correctly():
     noon_utc = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
     hour_later_utc = datetime(2026, 10, 1, 13, 0, tzinfo=timezone.utc)  # 10:00
     discounted = _sale(
-        qty=1, unit_price_gs=5000, discount_gs=1000,
-        sold_at=noon_utc, sale_id=1,
+        qty=1,
+        unit_price_gs=5000,
+        discount_gs=1000,
+        sold_at=noon_utc,
+        sale_id=1,
     )
     # Different hour so they get different buckets; same magnitude so
     # we can see the height difference between gross (5000) and
     # post-discount (4000) when normalized to the same max.
     full_price = _sale(
-        qty=1, unit_price_gs=5000, discount_gs=0,
-        sold_at=hour_later_utc, sale_id=2,
+        qty=1,
+        unit_price_gs=5000,
+        discount_gs=0,
+        sold_at=hour_later_utc,
+        sale_id=2,
     )
 
     chart = _build_hourly_sales_chart([discounted, full_price], ASUNCION)
@@ -74,8 +78,7 @@ def test_hourly_chart_buckets_discount_correctly():
     # discounted bar height = 4000/5000 * 132 = 105.6 → "105.6"
     # gross would be 132.0 (full bar)
     assert 'height="105.6"' in chart, (
-        f"discounted bar height should be 105.6 (4000/5000 * 132), "
-        f"got: {chart[:300]}"
+        f"discounted bar height should be 105.6 (4000/5000 * 132), got: {chart[:300]}"
     )
     # Full-price bar should be the full height (132.0)
     assert 'height="132.0"' in chart
@@ -92,8 +95,13 @@ def test_hourly_chart_no_discount_uses_gross():
 def test_hourly_chart_skips_sales_without_sold_at():
     """Sale rows with NULL sold_at must be silently skipped."""
     sale_no_time = Sale(
-        id=1, product_id=1, qty=1, unit_price_gs=1000, discount_gs=0,
-        sold_at=None, payment_method="efectivo",
+        id=1,
+        product_id=1,
+        qty=1,
+        unit_price_gs=1000,
+        discount_gs=0,
+        sold_at=None,
+        payment_method="efectivo",
     )
     chart = _build_hourly_sales_chart([sale_no_time], ASUNCION)
     assert "Sin ventas todavía" in chart
@@ -108,8 +116,13 @@ def test_hourly_chart_empty_list():
 def test_hourly_chart_all_zero_buckets_returns_empty_state():
     """Sales with NULL sold_at only → all-zero buckets → empty state."""
     sale_no_time = Sale(
-        id=1, product_id=1, qty=1, unit_price_gs=1000, discount_gs=0,
-        sold_at=None, payment_method="efectivo",
+        id=1,
+        product_id=1,
+        qty=1,
+        unit_price_gs=1000,
+        discount_gs=0,
+        sold_at=None,
+        payment_method="efectivo",
     )
     chart = _build_hourly_sales_chart([sale_no_time], ASUNCION)
     assert "Sin ventas todavía" in chart
@@ -118,12 +131,9 @@ def test_hourly_chart_all_zero_buckets_returns_empty_state():
 def test_payment_methods_donut_respects_discount():
     """Donut chart sums post-discount line totals per payment method."""
     sales = [
-        _sale(qty=1, unit_price_gs=10000, discount_gs=2000,
-              payment_method="efectivo", sale_id=1),
-        _sale(qty=1, unit_price_gs=5000, discount_gs=0,
-              payment_method="tarjeta", sale_id=2),
-        _sale(qty=2, unit_price_gs=3000, discount_gs=500,
-              payment_method="efectivo", sale_id=3),
+        _sale(qty=1, unit_price_gs=10000, discount_gs=2000, payment_method="efectivo", sale_id=1),
+        _sale(qty=1, unit_price_gs=5000, discount_gs=0, payment_method="tarjeta", sale_id=2),
+        _sale(qty=2, unit_price_gs=3000, discount_gs=500, payment_method="efectivo", sale_id=3),
     ]
     # efectivo: (10000-2000) + (2*3000-500) = 8000 + 5500 = 13500
     # tarjeta: 5000
@@ -140,7 +150,11 @@ def test_payment_methods_donut_handles_none_payment_method():
     """NULL payment_method must bucket as 'Sin especificar'."""
     sales = [
         Sale(
-            id=1, product_id=1, qty=1, unit_price_gs=1000, discount_gs=0,
+            id=1,
+            product_id=1,
+            qty=1,
+            unit_price_gs=1000,
+            discount_gs=0,
             sold_at=datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc),
             payment_method=None,
         ),

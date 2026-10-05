@@ -66,7 +66,7 @@ Sources: 4-section vision critique of all 84 screenshots (compras section comple
 - **S-31 Delete/void without danger pattern.** Some destructive buttons lack the confirm-modal+reason pattern that Anular already has. Mandate SaskiaConfirmModal for all destructive ops.
 - **S-32 Disabled buttons without reasons.** "Generar pedido por WhatsApp" disabled silently. Tooltip or helper text with the unblock condition.
 - **S-33 No loading states.** Wishlist silently showed 0s while data failed. Every async surface needs skeleton or explicit error card.
-- **S-34 No keyboard affordances on custom controls.** Combos (saskia-combo) exist; verify tab/arrow/escape on all; ⌘K palette needs arrow-key nav.
+- **S-34 No keyboard affordances on custom controls.** Combos (ui-combo) exist; verify tab/arrow/escape on all; ⌘K palette needs arrow-key nav.
 - **S-35 Tooltips nearly absent.** Dense tables (reorder, pricing) would benefit from cell tooltips (stock vs min; cost derivation). Systematic pass adding title= tooltips.
 
 ## 1.8 Charts & visualization
@@ -110,7 +110,7 @@ Sources: 4-section vision critique of all 84 screenshots (compras section comple
    WHY: 15-field blank forms cause drop-off (user audit said it).
 
 ## 2.3 Component inventory (existing macros to keep, extend, or add)
-KEEP: nav_link, chart_card, insight_card, stock_badge, gs/gs_full macros, delta_pill, top_list_card, SaskiaConfirmModal, saskia-combo (zero-native-select invariant).
+KEEP: nav_link, chart_card, insight_card, stock_badge, gs/gs_full macros, delta_pill, top_list_card, SaskiaConfirmModal, ui-combo (zero-native-select invariant).
 EXTEND:
 - **metric_card** → add optional delta pill + target bar (progress vs meta) + tooltip for "—" (missing vs zero). WHY: KPI strips everywhere; one component = one fix.
 - **filter_toolbar** (NEW macro) → search input + N selects + Filtrar + Limpiar. WHY: S-30; inventario version becomes the macro.

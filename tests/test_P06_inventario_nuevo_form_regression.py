@@ -7,6 +7,7 @@ Tests:
 - No Python errors
 """
 
+
 def test_inventario_nuevo_renders(client):
     """P-06: New inventory page renders."""
     r = client.get("/inventario/nuevo")
@@ -18,8 +19,9 @@ def test_inventario_nuevo_renders_in_spanish(client):
     r = client.get("/inventario/nuevo")
     assert r.status_code == 200
     body = r.text
-    assert "Inventario" in body or "nuevo" in body.lower() or "ingrediente" in body.lower(), \
+    assert "Inventario" in body or "nuevo" in body.lower() or "ingrediente" in body.lower(), (
         "Page not in Spanish"
+    )
 
 
 def test_inventario_nuevo_has_name_field(client):
@@ -61,11 +63,9 @@ def test_inventario_nuevo_has_stock_field(client):
     r = client.get("/inventario/nuevo")
     assert r.status_code == 200
     body = r.text
-    assert (
-        "stock" in body.lower()
-        or "cantidad" in body.lower()
-        or "quantity" in body.lower()
-    ), "Stock field not found"
+    assert "stock" in body.lower() or "cantidad" in body.lower() or "quantity" in body.lower(), (
+        "Stock field not found"
+    )
 
 
 def test_inventario_nuevo_has_allergen_field(client):
@@ -113,12 +113,15 @@ def test_inventario_nuevo_no_python_errors(client):
 
 def test_inventario_nuevo_post_no_crash(client):
     """P-06: POST to inventario/nuevo doesn't crash."""
-    r = client.post("/inventario/nuevo", data={
-        "name": "Test ingredient",
-        "unit": "kg",
-        "cost_per_unit": "1000",
-        "stock": "0",
-    })
+    r = client.post(
+        "/inventario/nuevo",
+        data={
+            "name": "Test ingredient",
+            "unit": "kg",
+            "cost_per_unit": "1000",
+            "stock": "0",
+        },
+    )
     assert r.status_code != 500, "POST returned 500"
 
 

@@ -9,7 +9,7 @@
 {% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
 {% block title %}
-{% if public_mode %}Recibo #{{ sale.id }} · Saskia RMS
+{% if public_mode %}Recibo #{{ sale.id }} · Sazón
 {% else %}Recibo #{{ sale.id }}{% endif %}
 {% endblock %}
 
@@ -59,7 +59,7 @@
   <div class="card" style="text-align: center;">
     <h1 style="font-size: var(--text-xl); margin-bottom: var(--space-2);">
       <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
-      {{ branding.business_name }}
+      Sazón
     </h1>
     {% if branding.ruc %}
     <p class="text-muted" style="font-size: var(--text-sm); margin: 0;">
@@ -134,7 +134,7 @@
   <div class="text-center text-muted" style="font-size: var(--text-xs); padding: var(--space-4) 0;">
     {# Tier 2.2 (2026-10-01): loyalty footer on the receipt. Hidden
        entirely when no customer / no ledger row exists. On a busy
-       sale this is the ONLY place Saskia tells the customer "vos
+       sale this is the ONLY place the operator tells the customer "vos
        ganaste 5 puntos" — so make it loud. #}
     {% if loyalty_snapshot and loyalty_snapshot.customer_name %}
     <div class="loyalty-receipt-footer" style="margin-top:var(--space-3);
@@ -185,7 +185,7 @@
     <a href="/ventas" class="btn btn-ghost mt-2 no-print">Volver al historial</a>
     {% else %}
     <p class="text-muted" style="font-size:var(--text-xs); margin-top:var(--space-3);">
-      Recibo digital · Saskia RMS
+      Recibo digital · Sazón
     </p>
     {% endif %}
   </div>

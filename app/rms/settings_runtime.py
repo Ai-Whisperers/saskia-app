@@ -11,6 +11,7 @@ The default fallback when the SettingsKV row is missing matches the legacy
 hardcoded behavior, so the migration to settings-based config is invisible
 to operators.
 """
+
 from __future__ import annotations
 
 import json
@@ -27,9 +28,7 @@ DEFAULT_PRICING_MARKUP = {"multiplier": 3.0, "round_to_gs": 1000}
 
 def settings_get(session: Session, key: str, default: Any = None) -> Any:
     """Read one key from settings_kv (parsed JSON). Returns default if missing."""
-    row = session.execute(
-        select(SettingsKV).where(SettingsKV.key == key)
-    ).scalar_one_or_none()
+    row = session.execute(select(SettingsKV).where(SettingsKV.key == key)).scalar_one_or_none()
     if row is None:
         return default
     try:
@@ -41,10 +40,9 @@ def settings_get(session: Session, key: str, default: Any = None) -> Any:
 def settings_set(session: Session, key: str, value: Any) -> None:
     """Upsert one key into settings_kv (serialized as JSON)."""
     import json as _json
+
     payload = _json.dumps(value)
-    row = session.execute(
-        select(SettingsKV).where(SettingsKV.key == key)
-    ).scalar_one_or_none()
+    row = session.execute(select(SettingsKV).where(SettingsKV.key == key)).scalar_one_or_none()
     if row is None:
         row = SettingsKV(key=key, value_json=payload)
         session.add(row)
@@ -76,9 +74,7 @@ def get_pricing_markup(session: Session) -> dict:
     return out
 
 
-def set_pricing_markup(
-    session: Session, multiplier: float, round_to_gs: int = 1000
-) -> dict:
+def set_pricing_markup(session: Session, multiplier: float, round_to_gs: int = 1000) -> dict:
     """Update the pricing markup config. Returns the new value."""
     if multiplier <= 0:
         raise ValueError("multiplier must be > 0")
@@ -112,21 +108,31 @@ def compute_suggested_price(cost_gs: int, markup_cfg: dict | None = None) -> int
         return round(cost_gs * mult)
     # Round up to the nearest round_to_gs step (mirrors Math.ceil behavior in JS)
     import math
+
     return int(math.ceil(cost_gs * mult / rnd) * rnd)
 
 
-
-
-
 # ─── Branding (Phase 5) ────────────────────────────────────────────────
+# All branding assets are loaded by get_branding() and exposed in templates
+# via {{ branding.* }}. Defaults match the Sazón starter; operators change
+# values via /admin/branding (settings_ui.py). File uploads (logo, favicon,
+# hero) land in app/static/branding/<id>/<filename>, served by /static/.
 
 DEFAULT_BRANDING = {
-    "business_name": "Saskia RMS",
+    # Identity (shown on login, sidebar, tickets, PDF)
+    "business_name": "Sazón",
     "tagline": "Panadería / Bakery — Sistema de gestión",
     "footer": "Sistema local",
-    "accent_color": "#f97316",
-    "logo_path": "",
-    "ruc": "",
+    "business_type": "restaurant",  # restaurant, panaderia, cafeteria, bar, etc.
+    # Visual assets (filenames inside app/static/branding/)
+    "accent_color": "#f97316",  # primary color hex (#RRGGBB)
+    "logo_filename": "",  # main logo (PNG/JPG/SVG, square ideal)
+    "favicon_filename": "",  # browser tab icon (ICO/PNG 32x32 or 192x192)
+    "hero_filename": "",  # login page background (1200x600 ideal)
+    # Contact info (tickets, PDF)
+    "contact_email": "",
+    "contact_phone": "",
+    "address": "",
 }
 
 
@@ -153,7 +159,9 @@ def get_branding(session: object) -> dict:
 def set_branding(session: object, **fields: object) -> dict:
     """Update branding fields. Returns the new full dict.
 
-    Allowed keys: business_name, tagline, footer, accent_color, logo_path.
+    Allowed keys: business_name, tagline, footer, business_type,
+    accent_color, logo_filename, favicon_filename, hero_filename,
+    contact_email, contact_phone, address.
     Each is validated to be a string and within reasonable length.
     """
     current = get_branding(session)
@@ -180,4 +188,3 @@ __all__ = [
     "settings_get",
     "settings_set",
 ]
-

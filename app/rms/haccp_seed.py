@@ -27,6 +27,7 @@ To use:
     from app.rms.haccp_seed import apply_haccp_defaults
     apply_haccp_defaults(session)  # idempotent: sets defaults for ingredients without values
 """
+
 from __future__ import annotations
 
 from sqlalchemy.orm import Session
@@ -36,20 +37,20 @@ from app.rms.models import Ingredient
 # Defaults by category. Tweak as the operator audits each ingredient.
 # Tuple order: (temp_min_c, temp_max_c, humidity_max_pct, water_activity_aw, lot_required)
 CATEGORY_HACCP: dict[str, tuple[float | None, float | None, float | None, float | None, bool]] = {
-    "lácteos":        (0.0,   5.0,   70.0, 0.97, True),
-    "carnes":         (0.0,   4.0,   75.0, 0.97, True),
-    "huevos":         (0.0,   5.0,   70.0, 0.97, True),
-    "frutas":         (4.0,   8.0,   85.0, 0.97, True),
-    "harinas":        (15.0,  25.0,  70.0, 0.65, False),
-    "endulzantes":    (15.0,  25.0,  70.0, 0.50, False),
-    "grasas":         (15.0,  25.0,  70.0, 0.40, False),
-    "leudantes":      (15.0,  25.0,  70.0, 0.65, False),
-    "especias":       (15.0,  25.0,  60.0, 0.40, False),
-    "frutos-secos":   (10.0,  20.0,  65.0, 0.60, False),
-    "decoración":     (15.0,  25.0,  70.0, 0.55, False),
-    "líquidos":       (0.0,   5.0,   75.0, 0.99, False),  # water — refrigerated after open
-    "semillas":       (10.0,  20.0,  65.0, 0.55, False),
-    "otros":          (15.0,  25.0,  70.0, 0.70, False),
+    "lácteos": (0.0, 5.0, 70.0, 0.97, True),
+    "carnes": (0.0, 4.0, 75.0, 0.97, True),
+    "huevos": (0.0, 5.0, 70.0, 0.97, True),
+    "frutas": (4.0, 8.0, 85.0, 0.97, True),
+    "harinas": (15.0, 25.0, 70.0, 0.65, False),
+    "endulzantes": (15.0, 25.0, 70.0, 0.50, False),
+    "grasas": (15.0, 25.0, 70.0, 0.40, False),
+    "leudantes": (15.0, 25.0, 70.0, 0.65, False),
+    "especias": (15.0, 25.0, 60.0, 0.40, False),
+    "frutos-secos": (10.0, 20.0, 65.0, 0.60, False),
+    "decoración": (15.0, 25.0, 70.0, 0.55, False),
+    "líquidos": (0.0, 5.0, 75.0, 0.99, False),  # water — refrigerated after open
+    "semillas": (10.0, 20.0, 65.0, 0.55, False),
+    "otros": (15.0, 25.0, 70.0, 0.70, False),
 }
 
 

@@ -6,6 +6,7 @@ Verifies:
 - Idempotent: re-running init_db doesn't fail
 - Backfill helper (future work) will be able to read from sale_stock_move
 """
+
 from __future__ import annotations
 
 from sqlalchemy import inspect, text
@@ -83,6 +84,7 @@ def test_migration_090_idempotent(tmp_path):
     """Re-running init_db on a DB already at schema 98 is a no-op."""
     from sqlalchemy import create_engine
 
+    from app.rms.config import CURRENT_SCHEMA_VERSION
     from app.rms.db import init_db
 
     db = tmp_path / "test.db"
@@ -92,5 +94,5 @@ def test_migration_090_idempotent(tmp_path):
     init_db(engine)
     with engine.connect() as conn:
         v = conn.execute(text("SELECT value FROM app_meta WHERE key='schema_version'")).scalar()
-    # Schema is now 98 (post-098 recovery on 2026-10-05).
-    assert int(v) == 98
+    # Schema is now CURRENT_SCHEMA_VERSION (migrations accumulate).
+    assert int(v) == CURRENT_SCHEMA_VERSION

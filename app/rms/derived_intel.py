@@ -85,13 +85,12 @@ def product_allergens(session: Session, product_id: int) -> list[str]:
             if r.allergens:
                 return _split_tags(r.allergens)
             from app.rms.tag_algebra import derive_recipe_tags
+
             return derive_recipe_tags(session, p.recipe_id).allergens
     return []
 
 
-def check_customer_risk(
-    session: Session, customer_id: int | None, product_id: int
-) -> AllergenRisk:
+def check_customer_risk(session: Session, customer_id: int | None, product_id: int) -> AllergenRisk:
     """POS guard: does this product contain anything this customer is allergic to?"""
     if customer_id is None:
         return AllergenRisk(safe=True)
@@ -109,6 +108,7 @@ def check_customer_risk(
 # ───────────────────────────────────────────────────────────────────────────
 # 2. Theoretical vs actual food cost
 # ───────────────────────────────────────────────────────────────────────────
+
 
 @dataclass
 class FoodCostVariance:
@@ -158,7 +158,9 @@ def theoretical_vs_actual(
     for pid, qty, name in rows:
         cost = unit_costs.get(pid, 0) * float(qty)
         theoretical += cost
-        by_product.append({"product_id": pid, "name": name, "qty": float(qty), "theoretical_gs": int(cost)})
+        by_product.append(
+            {"product_id": pid, "name": name, "qty": float(qty), "theoretical_gs": int(cost)}
+        )
 
     # Actual ingredient usage valued at purchase price.
     # SaleStockMove has no timestamp — join through Sale.sold_at.
@@ -176,11 +178,14 @@ def theoretical_vs_actual(
     actual = sum(abs(float(d)) * float(price or 0) for _, d, price in usage_rows)
 
     # Waste in window
-    waste_rows = session.execute(
-        select(func.sum(WasteLog.qty * Ingredient.purchase_price_gs))
-        .join(Ingredient, WasteLog.ingredient_id == Ingredient.id)
-        .where(WasteLog.recorded_at >= cutoff)
-    ).scalar() or 0
+    waste_rows = (
+        session.execute(
+            select(func.sum(WasteLog.qty * Ingredient.purchase_price_gs))
+            .join(Ingredient, WasteLog.ingredient_id == Ingredient.id)
+            .where(WasteLog.recorded_at >= cutoff)
+        ).scalar()
+        or 0
+    )
     waste = int(float(waste_rows))
 
     variance = int(actual + waste - theoretical)
@@ -199,6 +204,7 @@ def theoretical_vs_actual(
 # 3. Price-sensitivity cascade
 # ───────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class PriceImpact:
     ingredient_id: int
@@ -206,7 +212,9 @@ class PriceImpact:
     old_price_gs: int
     new_price_gs: int
     affected_recipes: list[dict] = field(default_factory=list)  # {id,name,delta_unit_cost}
-    affected_products: list[dict] = field(default_factory=list)  # {id,name,food_cost_pct,under_target,suggested_price}
+    affected_products: list[dict] = field(
+        default_factory=list
+    )  # {id,name,food_cost_pct,under_target,suggested_price}
 
 
 def _target_food_cost_pct(session: Session) -> float:
@@ -255,20 +263,26 @@ def price_change_impact(
             delta = new_cost - current_costs[rid]
             if abs(delta) < 1:  # skip noise
                 continue
-            impact.affected_recipes.append({
-                "id": rid, "name": r.name,
-                "delta_unit_cost_gs": int(delta),
-            })
+            impact.affected_recipes.append(
+                {
+                    "id": rid,
+                    "name": r.name,
+                    "delta_unit_cost_gs": int(delta),
+                }
+            )
             for p in session.scalars(select(Product).where(Product.recipe_id == rid)):
                 price = p.sale_price_gs or 0
                 fc_pct = (new_cost / price * 100) if price else 999.0
                 suggested = int(new_cost / target) if target else None
-                impact.affected_products.append({
-                    "id": p.id, "name": p.name,
-                    "food_cost_pct": round(fc_pct, 1),
-                    "under_target": fc_pct > target * 100,
-                    "suggested_price_gs": suggested,
-                })
+                impact.affected_products.append(
+                    {
+                        "id": p.id,
+                        "name": p.name,
+                        "food_cost_pct": round(fc_pct, 1),
+                        "under_target": fc_pct > target * 100,
+                        "suggested_price_gs": suggested,
+                    }
+                )
     finally:
         ing.purchase_price_gs = old_val
         session.flush()

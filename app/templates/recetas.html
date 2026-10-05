@@ -5,6 +5,11 @@
 
 {% block title %}Recetas{% endblock %}
 
+{% block head %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Recetas y gestión de productos de Sazón">
+{% endblock %}
+
 {% block content %}
 <h1>Recetas</h1>
 
@@ -51,7 +56,7 @@
   </div>
   {% endif %}
   {# P3 UX batch: ingredient filter is now a MULTI-select popover
-     (was a single saskia-combo). Checkbox semantics: recipe must use
+     (was a single ui-combo). Checkbox semantics: recipe must use
      ALL selected ingredients (same AND semantics the router already
      implements for ingredient_ids). The legacy single ingredient_id
      param still renders as a pre-checked option when present. #}

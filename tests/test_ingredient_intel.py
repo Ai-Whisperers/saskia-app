@@ -31,6 +31,7 @@ from app.rms.ingredient_intel import (
 # infer_category
 # ---------------------------------------------------------------------------
 
+
 def test_infer_category_dairy():
     assert infer_category("Leche entera") == "lácteos"
     assert infer_category("MANTECA") == "lácteos"
@@ -82,6 +83,7 @@ def test_infer_category_unknown_fallback():
 # infer_subcategory
 # ---------------------------------------------------------------------------
 
+
 def test_infer_subcategory_known():
     assert infer_subcategory("Leche entera") == "leche entera"
     assert infer_subcategory("Azúcar impalpable") == "azúcar impalpable"
@@ -95,6 +97,7 @@ def test_infer_subcategory_unknown():
 # ---------------------------------------------------------------------------
 # infer_role
 # ---------------------------------------------------------------------------
+
 
 def test_infer_role_leavening():
     assert infer_role("levadura") == "leavening"
@@ -131,6 +134,7 @@ def test_infer_role_other():
 # ---------------------------------------------------------------------------
 # infer_allergens
 # ---------------------------------------------------------------------------
+
 
 def test_infer_allergens_gluten():
     allergens = infer_allergens("harina")
@@ -169,6 +173,7 @@ def test_infer_allergens_returns_sorted():
 # ---------------------------------------------------------------------------
 # infer_dietary_tags
 # ---------------------------------------------------------------------------
+
 
 def test_dietary_tags_flour_is_not_vegan():
     tags = infer_dietary_tags("harina")
@@ -217,6 +222,7 @@ def test_dietary_tags_almendra_is_gluten_free():
 # infer_shelf_life_days + storage
 # ---------------------------------------------------------------------------
 
+
 def test_shelf_life_dairy():
     assert infer_shelf_life_days("leche entera") == CATEGORY_SHELF_LIFE["lácteos"]
     assert infer_shelf_life_days("leche entera") == 7
@@ -245,11 +251,17 @@ def test_storage_ambient():
 # classify_ingredient — composite
 # ---------------------------------------------------------------------------
 
+
 def test_classify_ingredient_has_all_keys():
     result = classify_ingredient("leche entera")
     assert set(result.keys()) == {
-        "category", "subcategory", "role", "allergens",
-        "dietary_tags", "shelf_life_days", "storage",
+        "category",
+        "subcategory",
+        "role",
+        "allergens",
+        "dietary_tags",
+        "shelf_life_days",
+        "storage",
     }
 
 
@@ -277,6 +289,7 @@ def test_classify_ingredient_flour():
 # find_substitutes_by_role (co-occurrence)
 # ---------------------------------------------------------------------------
 
+
 def test_find_substitutes_returns_list_for_unknown(session_factory):
     """If ingredient doesn't exist, returns empty list."""
     with session_factory() as s:
@@ -288,13 +301,10 @@ def test_find_substitutes_returns_list_for_known(session_factory):
     from app.rms.models import Ingredient
 
     with session_factory() as s:
-        s.add(Ingredient(name="solitaria_xyz", unit="kg", stock_qty=0,
-                         purchase_price_gs=1000))
+        s.add(Ingredient(name="solitaria_xyz", unit="kg", stock_qty=0, purchase_price_gs=1000))
         s.commit()
         ing = s.scalars(
-            __import__("sqlalchemy").select(Ingredient).where(
-                Ingredient.name == "solitaria_xyz"
-            )
+            __import__("sqlalchemy").select(Ingredient).where(Ingredient.name == "solitaria_xyz")
         ).one()
         assert find_substitutes_by_role(s, ing.id) == []
 
@@ -305,12 +315,9 @@ def test_find_substitutes_finds_pair(session_factory):
     from app.rms.models import Ingredient, Recipe, RecipeLine
 
     with session_factory() as s:
-        ing_a = Ingredient(name="mantequilla_xyz", unit="kg", stock_qty=1,
-                           purchase_price_gs=50000)
-        ing_b = Ingredient(name="margarina_xyz", unit="kg", stock_qty=1,
-                           purchase_price_gs=30000)
-        ing_c = Ingredient(name="aceite_xyz", unit="kg", stock_qty=1,
-                           purchase_price_gs=20000)
+        ing_a = Ingredient(name="mantequilla_xyz", unit="kg", stock_qty=1, purchase_price_gs=50000)
+        ing_b = Ingredient(name="margarina_xyz", unit="kg", stock_qty=1, purchase_price_gs=30000)
+        ing_c = Ingredient(name="aceite_xyz", unit="kg", stock_qty=1, purchase_price_gs=20000)
         s.add_all([ing_a, ing_b, ing_c])
         s.flush()
 
@@ -319,12 +326,16 @@ def test_find_substitutes_finds_pair(session_factory):
             r = Recipe(name=f"recipe_xyz_{i}", yield_qty=10, yield_unit="und")
             s.add(r)
             s.flush()
-            s.add_all([
-                RecipeLine(recipe_id=r.id, line_kind="ingredient",
-                           line_ref_id=ing_a.id, qty=0.5),
-                RecipeLine(recipe_id=r.id, line_kind="ingredient",
-                           line_ref_id=ing_b.id, qty=0.5),
-            ])
+            s.add_all(
+                [
+                    RecipeLine(
+                        recipe_id=r.id, line_kind="ingredient", line_ref_id=ing_a.id, qty=0.5
+                    ),
+                    RecipeLine(
+                        recipe_id=r.id, line_kind="ingredient", line_ref_id=ing_b.id, qty=0.5
+                    ),
+                ]
+            )
         s.commit()
 
         # A and B share role 'fat' and co-occur in 4 recipes → substitutable.
@@ -384,8 +395,14 @@ class TestWave1InferenceFixes:
         assert infer_category("Mandioca") == "harinas"
 
     def test_especias_category(self):
-        for name in ("Canela molida", "Vainilla en vaina", "Anís estrellado",
-                     "Pimienta negra", "Extracto de vainilla", "Nuez moscada"):
+        for name in (
+            "Canela molida",
+            "Vainilla en vaina",
+            "Anís estrellado",
+            "Pimienta negra",
+            "Extracto de vainilla",
+            "Nuez moscada",
+        ):
             assert infer_category(name) == "especias", f"{name} should be especias"
 
     def test_semillas_category(self):

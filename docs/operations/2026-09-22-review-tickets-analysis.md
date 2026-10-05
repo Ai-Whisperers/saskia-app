@@ -1,7 +1,7 @@
-# Saskia RMS — Review Tickets Comprehensive Analysis
+# Sazón — Review Tickets Comprehensive Analysis
 
 **Date:** 2026-09-22
-**Repo:** `/opt/data/profiles/ivan/scratch/saskia-app-work` (branch: `main`, HEAD: `9fc0caf`)
+**Repo:** `/opt/data/profiles/ivan/scratch/sazon-app-work` (branch: `main`, HEAD: `9fc0caf`)
 **Source spec:** `/opt/data/profiles/ivan/attachments/2026-09-18-first-review-fixes.md`
 **Tickets:** 18 (BUG-00, NAV-01, NAV-02, INV-01–03, VEN-01, VEN-02, PRO-01–04, CIE-01, CIE-02, MER-01–03, DATA-01)
 
@@ -97,7 +97,7 @@ The routes are still mounted and still serve HTML — only the **nav menu entrie
 
 ### Gap
 - The ticket's Done when says: "Hitting the old URLs shows the normal not-found page." — currently `GET /auditoria` returns 200 with the full audit log (no 404). `GET /ops/status` returns 200 with the ops page.
-- Routes render, but no nav surfaces them → Saskia can't reach them by accident. A power user typing the URL can still see them.
+- Routes render, but no nav surfaces them → the operator can't reach them by accident. A power user typing the URL can still see them.
 
 ### Est work
 ~0.5 h — either delete `app.include_router(...)` lines, or add an explicit 404 redirect for `/auditoria*` and `/ops*`.
@@ -473,7 +473,7 @@ Cross-page consistency has improved: dashboard reads the same `Sale` table as ve
 ### Gap
 - Done criterion: "A fixture with one sale today shows that sale in the hour chart, the top list, and the Gs. cards, and the same Gs. total as Ventas." — **partially passes**. The hour chart and metric cards use the same `sales` array, but the **top products list** (`top_products_revenue`) is built from `ranking` (sorted by margen, not by revenue). When there's exactly one sale, ranking = top_products = that one product. ✓.
 - Done criterion: "A fixture with no sales shows 'Sin ventas' on every Inicio card and no trend line." — **FAILS** for hour chart (says "Sin ventas todavía" not "Sin ventas"). Also, the 30-day trend returns `'Sin ventas en los últimos 30 días'` — slightly different.
-- Done criterion: "The leche entera alert renders as a single line." — **NOT VERIFIED**. The template has no `white-space:nowrap` on the `<li>`. CSS check: I scanned `/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/app.css` for `nowrap` rules on `.avisos li` — none. So the bug can still reproduce on narrow viewports.
+- Done criterion: "The leche entera alert renders as a single line." — **NOT VERIFIED**. The template has no `white-space:nowrap` on the `<li>`. CSS check: I scanned `/opt/data/profiles/ivan/scratch/sazon-app-work/app/static/app.css` for `nowrap` rules on `.avisos li` — none. So the bug can still reproduce on narrow viewports.
 
 ### Est work
 ~1.5 h — change all "Sin ventas todavía" → "Sin ventas", add `white-space: nowrap` to the low-stock `<li>`, remove "Food cost %" English label at `inicio.html:142-144`.
@@ -495,7 +495,7 @@ Cross-page consistency has improved: dashboard reads the same `Sale` table as ve
 
 **Severity:** High. Blocks the app after every deploy.
 
-The complete plan flagged this in §2.2.B but it remains unaddressed. `render.yaml` exists (`/opt/data/profiles/ivan/scratch/saskia-app-work/render.yaml`, 1,576 bytes) but only contains a minimal `env:` block, not the Supabase/Database credentials. There's also `cloudflare-tunnel.yml`. These should declare all `SUPABASE_*` env vars as `sync: false` and surface the manual step in deployment docs.
+The complete plan flagged this in §2.2.B but it remains unaddressed. `render.yaml` exists (`/opt/data/profiles/ivan/scratch/sazon-app-work/render.yaml`, 1,576 bytes) but only contains a minimal `env:` block, not the Supabase/Database credentials. There's also `cloudflare-tunnel.yml`. These should declare all `SUPABASE_*` env vars as `sync: false` and surface the manual step in deployment docs.
 
 ### A.2 — Live `/ventas` still returns 500 (TemplateRuntimeError) 🚨 HIGH
 
@@ -549,7 +549,11 @@ Tests: ✅ `tests/test_rate_limit.py`, `tests/test_rate_limit_write_endpoints.py
 
 `app/auth.py:48-50`:
 ```python
-SESSION_SECRET = os.getenv("SESSION_SECRET") or os.getenv("DEV_SESSION_SECRET") or "dev-only-not-secret-replace-in-prod-9f8e7d6c5b4a3920"
+SESSION_SECRET = (
+    os.getenv("SESSION_SECRET")
+    or os.getenv("DEV_SESSION_SECRET")
+    or "dev-only-not-secret-replace-in-prod-9f8e7d6c5b4a3920"
+)
 ```
 If neither env var is set, a hard-coded default is used.** Tests pass (the default is fine for test), but production must set `SESSION_SECRET`. No startup assertion guards against the default in production. Recommend: add `assert SESSION_SECRET != "dev-only-not-secret..."` when `DEBUG=0` (or equivalent).
 
@@ -659,7 +663,7 @@ Buttons use `--btn-height-sm:28px`, `--btn-height:36px`, `--btn-height-lg:44px`.
 
 ### F.2 — `AGENTS.md` references `SASKIA_TEST_PLAN.md`? 🟡 PARTIAL
 
-`AGENTS.md` mentions `docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md` and the dev plan, but not the test plan. `COMPLETE_PLAN.md` does reference it.
+`AGENTS.md` mentions `docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md` and the dev plan, but not the test plan. `COMPLETE_PLAN.md` does reference it.
 
 ### F.3 — No deployment-guide.md 🟡 MEDIUM
 
@@ -667,7 +671,7 @@ Per `COMPLETE_PLAN.md` §5.3 P3. Operators have to read `render.yaml` and `Docke
 
 ### F.4 — No incident playbook 🟡 MEDIUM
 
-No "what to do when X breaks" document. The `2026-09-22-saskia-decision-hosted-pivot.md` covers pivot, not incidents.
+No "what to do when X breaks" document. The `2026-09-22-sazon-decision-hosted-pivot.md` covers pivot, not incidents.
 
 ### F.5 — Module docstrings inconsistent 🟢 LOW
 

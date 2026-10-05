@@ -1,7 +1,7 @@
-# Saskia — Architecture & Design Principles Refactor Plan
+# the operator — Architecture & Design Principles Refactor Plan
 
 **Date:** 2026-09-24
-**Scope:** `/opt/data/scratch/saskia-app/app/` (~30K LOC, 1,999 tests, 6 in-flight branches)
+**Scope:** `/opt/data/scratch/sazon-app/app/` (~30K LOC, 1,999 tests, 6 in-flight branches)
 **Method:** 3 parallel subagents scanned SOLID/architecture, performance/concurrency, and types/validation. ~60 grounded findings with file:line, named principle, and worst-case consequence. This plan groups findings into actionable phases.
 
 ---
@@ -313,11 +313,16 @@ session.commit()  # ← race window begins
 
 # Idempotency check happens AFTER the sale exists
 idempotency_key = f"sale_create:{request_id}"
-existing = session.execute(text("SELECT value FROM app_meta WHERE key = :k"), {"k": idempotency_key}).first()
+existing = session.execute(
+    text("SELECT value FROM app_meta WHERE key = :k"), {"k": idempotency_key}
+).first()
 if existing:
     session.rollback()
     return RedirectResponse(f"/ventas/{existing.value}")
-session.execute(text("INSERT INTO app_meta(key, value) VALUES (:k, :v)"), {"k": idempotency_key, "v": str(sale.id)})
+session.execute(
+    text("INSERT INTO app_meta(key, value) VALUES (:k, :v)"),
+    {"k": idempotency_key, "v": str(sale.id)},
+)
 session.commit()  # ← race window ends here; duplicate sale already committed
 ```
 

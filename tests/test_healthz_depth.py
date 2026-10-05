@@ -9,9 +9,8 @@ Each test runs in-process via FastAPI TestClient with a SessionLocal
 backed by in-memory SQLite so the lifespan completes successfully and
 `/healthz/depth` returns 200 (not 503 warming_up).
 """
-from __future__ import annotations
 
-import os
+from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
@@ -48,7 +47,7 @@ def test_healthz_depth_includes_supabase_env(client: TestClient) -> None:
     assert "publishable_set" in body["supabase_env"]
     assert "secret_set" in body["supabase_env"]
     # All booleans, never strings
-    for k, v in body["supabase_env"].items():
+    for v in body["supabase_env"].values():
         assert isinstance(v, bool)
 
 
@@ -89,15 +88,15 @@ def test_healthz_depth_r2_reachable_ok(client: TestClient, monkeypatch) -> None:
     import threading
 
     class _OK(http.server.BaseHTTPRequestHandler):
-        def do_HEAD(self) -> None:  # noqa: N802
+        def do_HEAD(self) -> None:
             self.send_response(200)
             self.end_headers()
 
-        def do_GET(self) -> None:  # noqa: N802
+        def do_GET(self) -> None:
             self.send_response(200)
             self.end_headers()
 
-        def log_message(self, *args, **kwargs) -> None:  # noqa: D401
+        def log_message(self, *args, **kwargs) -> None:
             pass
 
     # ThreadingTCPServer so serve_forever runs in its own thread without

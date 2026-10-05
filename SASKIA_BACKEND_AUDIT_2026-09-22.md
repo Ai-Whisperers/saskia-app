@@ -1,19 +1,4 @@
-<!-- ROADMAP-REDIRECT -->
-# ⚠️ Moved / Superseded
-
-**This file has been moved or superseded.** The canonical location is:
-
-> **`docs/roadmap/audits/SASKIA_BACKEND_AUDIT_2026-09-22.md`**
-
-Audit, items extracted into `docs/roadmap/BACKLOG.md`.
-
-See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
-
----
-
-<!-- ORIGINAL CONTENT BELOW -->
-
-# Saskia RMS — Backend Logic & Data-Flow Audit (2026-09-22)
+# Sazón — Backend Logic & Data-Flow Audit (2026-09-22)
 
 **Scope.** Every `app/rms/*.py`, `app/routers/*.py`, `app/services/*.py`, plus
 `app/auth.py`, `app/auth_supabase.py`, all migrations in `app/rms/db.py`,
@@ -138,7 +123,7 @@ This violates the AGENTS.md hard rule "No other integer-cast for money is allowe
 
 ### A14 [P1] **`is_write_rate_limited` (`max_per_minute=10`) blocks the legitimate "enter 10 ventas after restock" burst**
 - **File:** `app/routers/sales.py:481`, `app/rms/rate_limit.py:141`
-- **Problem.** The limit was designed for brute-force on login but reused for sales. Saskia ringing up the morning is ≥30 ventas. At 1 per 6s, she'll silently lose 20 ventas.
+- **Problem.** The limit was designed for brute-force on login but reused for sales. the operator ringing up the morning is ≥30 ventas. At 1 per 6s, she'll silently lose 20 ventas.
 - **Fix.** Split rate limits: `is_write_rate_limited(action='sale.create', max_per_minute=30)` with per-action buckets; UI must show "Tenés X ventas en este minuto."
 - **Effort:** S — **Impact: P1** (real UX issue).
 
@@ -235,7 +220,7 @@ This violates the AGENTS.md hard rule "No other integer-cast for money is allowe
   ```python
   conn.execute(
       text("UPDATE app_meta SET value = \\'26\\', updated_at = :ts WHERE key = \\'schema_version\\'"),
-      ...
+      ...,
   )
   ```
   The backslashes in the f-string produce literal backslashes in the SQL — `SET value = \'26\''` is not valid SQL. The `text()` constructor doesn't strip the escape characters because they're inside the SQL, not the string literal. The migration will fail.
@@ -357,7 +342,7 @@ This violates the AGENTS.md hard rule "No other integer-cast for money is allowe
 - **Problem.** Per `auth_supabase.py`, the service-role client is created but never used (A7). The actual app bypasses Supabase RLS entirely by going through SQLAlchemy → DATABASE_URL → the same Postgres instance. So either (a) RLS is correctly disabled and the DATABASE_URL connection bypasses RLS (likely the case), OR (b) RLS is enabled and Supabase blocks reads from anon key — but we're reading via DATABASE_URL credentials which likely have BYPASSRLS.
 - **Audit needed:** confirm what role the DATABASE_URL uses and whether `pg_dump` of the schema shows `ENABLE ROW LEVEL SECURITY` on tables.
 - **Fix.** Document the trust model in `docs/architecture.md` (currently absent — see D8). Likely answer: single-tenant, the app handles auth, Supabase is only used as an auth backend.
-- **Effort:** XS — **Impact: P1** (compliance gap if Saskia ever audits for SOC2 / PCI).
+- **Effort:** XS — **Impact: P1** (compliance gap if the operator ever audits for SOC2 / PCI).
 
 ### C2 [P0] **Public-access tokens (`/p/{public_token}`) bypass Supabase Auth entirely — no per-pedido permission scope enforced**
 - **File:** `app/routers/pedidos.py:740+` (public_router)
@@ -372,7 +357,7 @@ This violates the AGENTS.md hard rule "No other integer-cast for money is allowe
 
 ### C4 [P1] **Supabase Storage NOT used for product images**
 - **Problem.** `Product.image_url` is `VARCHAR(256)` but nothing in the code uploads images. App needs an `/inventario/{id}/imagen` flow.
-- **Fix.** Two routes: `POST /api/products/{id}/image` → base64 → Supabase Storage `saskia-rms/products/{id}/main.{ext}`. Show in `/dashboard/products`.
+- **Fix.** Two routes: `POST /api/products/{id}/image` → base64 → Supabase Storage `sazon-rms/products/{id}/main.{ext}`. Show in `/dashboard/products`.
 - **Effort:** M — **Impact: P2**.
 
 ### C5 [P1] **No Supabase Edge Functions — but several CPU-bound or external-API-bound jobs would fit**
@@ -467,7 +452,7 @@ This violates the AGENTS.md hard rule "No other integer-cast for money is allowe
 
 ### D13 [P2] **Logger writes to stderr but no file sink** — Render aggregates stdout/stderr but local dev has no per-session log
 - **File:** `app/rms/main.py:73-104`
-- **Fix.** Add `logger.add(str(LOG_DIR / "saskia.log"), rotation="10 MB", retention=14)` for `dev` mode only.
+- **Fix.** Add `logger.add(str(LOG_DIR / "sazon.log"), rotation="10 MB", retention=14)` for `dev` mode only.
 - **Effort:** XS — **Impact: P3**.
 
 ### D14 [P2] **CSRF exemption list is hard-coded (`PUBLIC_PATH_PREFIXES = ("/static",)`) — but `/login`, `/logout`, `/forgot-password`, `/healthz`, `/p/{token}`, `/static/*` and webhook handlers are all implicit; verify nothing missing**

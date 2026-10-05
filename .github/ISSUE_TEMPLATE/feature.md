@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Propose a new feature for Saskia RMS (workshop: see docs/wishlist first)
+about: Propose a new feature for Sazón (workshop: see docs/wishlist first)
 title: "[FEATURE] "
 labels: ["enhancement"]
 assignees: []

@@ -42,9 +42,7 @@ def test_head_healthz_returns_200(client):
     Reverting f1af406 (removing the @router.head) would make this fail.
     """
     r = client.head("/healthz")
-    assert r.status_code == 200, (
-        "UptimeRobot probes with HEAD — must not 405. See commit f1af406."
-    )
+    assert r.status_code == 200, "UptimeRobot probes with HEAD — must not 405. See commit f1af406."
 
 
 def test_head_healthz_has_no_body(client):
@@ -142,7 +140,8 @@ def test_dockerfile_includes_supabase():
     raw = dockerfile.read_text()
     joined = re.sub(r"\\\n\s*", " ", raw)
     pip_lines = [
-        line for line in joined.splitlines()
+        line
+        for line in joined.splitlines()
         if "pip install" in line and not line.strip().startswith("#")
     ]
     assert pip_lines, "Dockerfile has no pip install lines at all"
@@ -170,6 +169,7 @@ def test_supabase_package_installed_in_env():
     """
     try:
         import supabase  # noqa: F401
+
         imported = True
     except ImportError:
         imported = False

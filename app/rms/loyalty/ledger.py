@@ -13,6 +13,7 @@ Suggestion-card logic lives in suggestions.py.
 
 Tier 4.1 (2026-10-01): extracted from app/rms/customers.py.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -45,7 +46,7 @@ from app.rms.models import Customer
 # so changing POINTS_VALUE_GS here changes the live floor behavior
 # instantly (no other code edits required).
 POINTS_PER_GS_EARN = 1 / 1000  # pts earned per Gs spent
-POINTS_VALUE_GS = 100           # Gs discount per redeemed point
+POINTS_VALUE_GS = 100  # Gs discount per redeemed point
 
 
 # Kept as a module alias so legacy imports (`from app.rms.loyalty.ledger

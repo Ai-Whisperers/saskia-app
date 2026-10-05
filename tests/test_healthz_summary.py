@@ -14,14 +14,13 @@ Covers:
 - _summary_payload() aggregator: ready=False short-circuits to all_ok=False
 - Each sub-check helper is patchable (mock_in_path to set fake values)
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from pathlib import Path
 from unittest.mock import patch
 
 from app.rms.config import ASUNCION_TZ
-
 
 # --- top-level endpoint ---
 
@@ -101,29 +100,22 @@ def test_healthz_summary_admin_backup_cta_when_stale(client):
 
 def test_summary_payload_short_circuits_when_not_ready(client):
     """ready=False on app.state → all_ok=False, checks empty."""
-    with patch.object(
-        client.app.state, "ready", False, create=False
-    ):
+    with patch.object(client.app.state, "ready", False, create=False):
         resp = client.get("/healthz/summary")
     assert resp.status_code == 200
     # Banner says "todavía está arrancando"
-    assert "todavía está arrancando" in resp.text or \
-        "todav" in resp.text
+    assert "todavía está arrancando" in resp.text or "todav" in resp.text
 
 
 def test_summary_payload_all_ok_true_when_every_check_passes(client):
     """When every sub-check is ok=True, all_ok=True → green banner."""
     ok_check = {"ok": True}
-    with patch(
-        "app.routers.health._summary_check_db", return_value=ok_check
-    ), patch(
-        "app.routers.health._summary_check_errors", return_value=ok_check
-    ), patch(
-        "app.routers.health._summary_check_backup", return_value=ok_check
-    ), patch(
-        "app.routers.health._summary_check_deps", return_value=ok_check
-    ), patch(
-        "app.routers.health._summary_check_disk", return_value=ok_check
+    with (
+        patch("app.routers.health._summary_check_db", return_value=ok_check),
+        patch("app.routers.health._summary_check_errors", return_value=ok_check),
+        patch("app.routers.health._summary_check_backup", return_value=ok_check),
+        patch("app.routers.health._summary_check_deps", return_value=ok_check),
+        patch("app.routers.health._summary_check_disk", return_value=ok_check),
     ):
         resp = client.get("/healthz/summary")
     assert "Todo en verde" in resp.text
@@ -133,16 +125,12 @@ def test_summary_payload_all_ok_false_when_one_check_fails(client):
     """One check ok=False → yellow banner."""
     ok = {"ok": True}
     bad = {"ok": False, "detail": "simulated failure"}
-    with patch(
-        "app.routers.health._summary_check_db", return_value=ok
-    ), patch(
-        "app.routers.health._summary_check_errors", return_value=ok
-    ), patch(
-        "app.routers.health._summary_check_backup", return_value=bad
-    ), patch(
-        "app.routers.health._summary_check_deps", return_value=ok
-    ), patch(
-        "app.routers.health._summary_check_disk", return_value=ok
+    with (
+        patch("app.routers.health._summary_check_db", return_value=ok),
+        patch("app.routers.health._summary_check_errors", return_value=ok),
+        patch("app.routers.health._summary_check_backup", return_value=bad),
+        patch("app.routers.health._summary_check_deps", return_value=ok),
+        patch("app.routers.health._summary_check_disk", return_value=ok),
     ):
         resp = client.get("/healthz/summary")
     assert "amarillo o rojo" in resp.text
@@ -151,16 +139,12 @@ def test_summary_payload_all_ok_false_when_one_check_fails(client):
 def test_summary_payload_all_red_still_renders(client):
     """Every check ok=False → page still returns 200 (no exception)."""
     bad = {"ok": False, "detail": "all red"}
-    with patch(
-        "app.routers.health._summary_check_db", return_value=bad
-    ), patch(
-        "app.routers.health._summary_check_errors", return_value=bad
-    ), patch(
-        "app.routers.health._summary_check_backup", return_value=bad
-    ), patch(
-        "app.routers.health._summary_check_deps", return_value=bad
-    ), patch(
-        "app.routers.health._summary_check_disk", return_value=bad
+    with (
+        patch("app.routers.health._summary_check_db", return_value=bad),
+        patch("app.routers.health._summary_check_errors", return_value=bad),
+        patch("app.routers.health._summary_check_backup", return_value=bad),
+        patch("app.routers.health._summary_check_deps", return_value=bad),
+        patch("app.routers.health._summary_check_disk", return_value=bad),
     ):
         resp = client.get("/healthz/summary")
     assert resp.status_code == 200
@@ -173,8 +157,9 @@ def test_summary_payload_all_red_still_renders(client):
 def test_summary_check_backup_marks_stale_for_old_timestamp():
     """_summary_check_backup correctly maps age > 24h → ok=False."""
     from app.routers import health as hb
+
     fake_req = _MockRequest()
-    now_iso = datetime.now(ASUNCION_TZ).isoformat()
+    datetime.now(ASUNCION_TZ).isoformat()
     old_iso = (datetime.now(ASUNCION_TZ) - timedelta(hours=48)).isoformat()
     with patch.object(hb, "_get_last_backup_at", return_value=old_iso):
         result = hb._summary_check_backup(fake_req)
@@ -185,6 +170,7 @@ def test_summary_check_backup_marks_stale_for_old_timestamp():
 def test_summary_check_backup_marks_fresh_for_new_timestamp():
     """_summary_check_backup ok=True when age < 24h."""
     from app.routers import health as hb
+
     fake_req = _MockRequest()
     fresh_iso = datetime.now(ASUNCION_TZ).isoformat()
     with patch.object(hb, "_get_last_backup_at", return_value=fresh_iso):
@@ -196,6 +182,7 @@ def test_summary_check_backup_marks_fresh_for_new_timestamp():
 def test_summary_check_backup_reports_never_when_missing():
     """When _get_last_backup_at returns None, ok=False with reason='never'."""
     from app.routers import health as hb
+
     fake_req = _MockRequest()
     with patch.object(hb, "_get_last_backup_at", return_value=None):
         result = hb._summary_check_backup(fake_req)
@@ -206,6 +193,7 @@ def test_summary_check_backup_reports_never_when_missing():
 def test_summary_check_backup_handles_unparseable():
     """Unparseable stored date → ok=False, reason='unparseable'."""
     from app.routers import health as hb
+
     fake_req = _MockRequest()
     with patch.object(hb, "_get_last_backup_at", return_value="not-a-date"):
         result = hb._summary_check_backup(fake_req)
@@ -216,12 +204,11 @@ def test_summary_check_backup_handles_unparseable():
 def test_summary_check_disk_marks_danger_above_90pct():
     """Disk > 90% → ok=False."""
     from app.routers import health as hb
+
     fake_req = _MockRequest()
     # Patchable via _disk_usage.
     with patch.object(hb, "_disk_usage") as fake_du:
-        fake_du.return_value = _FakeDiskUsage(
-            total=100, used=95, free=5
-        )
+        fake_du.return_value = _FakeDiskUsage(total=100, used=95, free=5)
         result = hb._summary_check_disk(fake_req)
     assert result["ok"] is False
     assert result["used_pct"] == 95.0
@@ -230,11 +217,10 @@ def test_summary_check_disk_marks_danger_above_90pct():
 def test_summary_check_disk_marks_ok_below_90pct():
     """Disk < 90% → ok=True."""
     from app.routers import health as hb
+
     fake_req = _MockRequest()
     with patch.object(hb, "_disk_usage") as fake_du:
-        fake_du.return_value = _FakeDiskUsage(
-            total=100, used=50, free=50
-        )
+        fake_du.return_value = _FakeDiskUsage(total=100, used=50, free=50)
         result = hb._summary_check_disk(fake_req)
     assert result["ok"] is True
     assert result["used_pct"] == 50.0
@@ -243,12 +229,14 @@ def test_summary_check_disk_marks_ok_below_90pct():
 def test_summary_check_deps_skips_when_no_env(client):
     """When SUPABASE_URL and R2_BUCKET are unset, deps returns 'skipped'."""
     import os
+
     saved = {}
     for k in ("SUPABASE_URL", "R2_BUCKET"):
         if k in os.environ:
             saved[k] = os.environ.pop(k)
     try:
         from app.routers import health as hb
+
         result = hb._summary_check_deps(_MockRequest())
     finally:
         for k, v in saved.items():
@@ -266,8 +254,10 @@ def test_summary_check_deps_supabase_dns_error_visible(client, monkeypatch):
     """
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     from app.routers import health as hb
+
     monkeypatch.setattr(
-        hb, "_check_supabase_reachable",
+        hb,
+        "_check_supabase_reachable",
         lambda url, timeout=2.0: {
             "ok": False,
             "http_status": None,
@@ -291,8 +281,10 @@ def test_healthz_summary_renders_supabase_error_class(client, monkeypatch):
     """
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     from app.routers import health as hb
+
     monkeypatch.setattr(
-        hb, "_check_supabase_reachable",
+        hb,
+        "_check_supabase_reachable",
         lambda url, timeout=2.0: {
             "ok": False,
             "http_status": None,
@@ -310,15 +302,22 @@ def test_healthz_summary_renders_supabase_error_class(client, monkeypatch):
 def test_summary_payload_keys(client):
     """_summary_payload returns {ready, all_ok, checks: {db, errors, backup, deps, disk}}."""
     from app.routers import health as hb
-    payload = hb._summary_payload(_MockRequest(
-        session_factory=client.app.state.session_factory,
-        engine=client.app.state.engine,
-        ready=True,
-    ))
+
+    payload = hb._summary_payload(
+        _MockRequest(
+            session_factory=client.app.state.session_factory,
+            engine=client.app.state.engine,
+            ready=True,
+        )
+    )
     assert payload["ready"] is True
     assert "all_ok" in payload
     assert set(payload["checks"].keys()) == {
-        "db", "errors", "backup", "deps", "disk",
+        "db",
+        "errors",
+        "backup",
+        "deps",
+        "disk",
     }
 
 
@@ -337,8 +336,7 @@ class _MockRequest:
                     "State",
                     (),
                     {
-                        "session_factory": session_factory
-                        or (lambda: _FakeSession()),
+                        "session_factory": session_factory or (lambda: _FakeSession()),
                         "engine": engine or _FakeEngine(),
                         "ready": ready,
                     },

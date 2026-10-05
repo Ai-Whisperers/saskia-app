@@ -1,13 +1,13 @@
-# Worktree Policy — saskia-app
+# Worktree Policy — sazon-app
 
-Two worktrees of the same repo exist. Each has a designated role. Drift between them caused 8+ hours of user-visible bugs (Panceta + Pan rallado flagged post-migration 062, B7 subagent's `app/routers/insights.py` + `saskia-insight-card.js` + `sascripciones.py` existed in scratch but not in this worktree, breaking local pytest after rebasing origin/main in 2026-09-29). This policy exists to prevent recurrence.
+Two worktrees of the same repo exist. Each has a designated role. Drift between them caused 8+ hours of user-visible bugs (Panceta + Pan rallado flagged post-migration 062, B7 subagent's `app/routers/insights.py` + `ui-insight.js` + `sascripciones.py` existed in scratch but not in this worktree, breaking local pytest after rebasing origin/main in 2026-09-29). This policy exists to prevent recurrence.
 
 ## Roles
 
 | Worktree | Path | Role | Deploys? | Push policy |
 |---|---|---|---|---|
-| Scratch | `/opt/data/profiles/ivan/scratch/saskia-app-work` | `main` branch — source of truth for live deploys | **Yes** | `git push origin HEAD` after every commit |
-| Production | `/opt/data/work/saskia-app` | Feature dev (`feature/*` branches) — local pytest + review | No (PR + merge → main → deploy) | Via PR only, no direct main push |
+| Scratch | `/opt/data/profiles/ivan/scratch/sazon-app-work` | `main` branch — source of truth for live deploys | **Yes** | `git push origin HEAD` after every commit |
+| Production | `/opt/data/work/sazon-app` | Feature dev (`feature/*` branches) — local pytest + review | No (PR + merge → main → deploy) | Via PR only, no direct main push |
 
 ## Rules
 
@@ -25,25 +25,25 @@ All new files MUST be created in scratch first. Then either:
 The deploy-after-commit discipline is in MEMORY.md but worth restating:
 
 ```bash
-cd /opt/data/profiles/ivan/scratch/saskia-app-work
-# rsync source to VPS, build, deploy (full path in saskia-rms-deploy-flow skill)
+cd /opt/data/profiles/ivan/scratch/sazon-app-work
+# rsync source to VPS, build, deploy (full path in sazon-rms-deploy-flow skill)
 tar --exclude='.git' --exclude='.venv' --exclude='receipts' \
     --exclude='__pycache__' --exclude='.pytest_cache' --exclude='.ruff_cache' \
     --exclude='*.db' --exclude='*.sqlite*' --exclude='tests' \
     --exclude='herbus_drive' --exclude='tmp' --exclude='.env' \
-    -czf /tmp/saskia-src.tar.gz .
-scp /tmp/saskia-src.tar.gz root@paragu-ai:/tmp/
-ssh root@paragu-ai "cd /opt/build-apps && rm -rf saskia-rms && mkdir saskia-rms && \
-  tar xzf /tmp/saskia-src.tar.gz -C saskia-rms/ && cd saskia-rms && \
-  DOCKER_BUILDKIT=0 docker build --no-cache -t saskia-rms:prod . && \
-  docker service update --image saskia-rms:prod saskia-vps_web --force"
+    -czf /tmp/sazon-src.tar.gz .
+scp /tmp/sazon-src.tar.gz root@paragu-ai:/tmp/
+ssh root@paragu-ai "cd /opt/build-apps && rm -rf sazon-rms && mkdir sazon-rms && \
+  tar xzf /tmp/sazon-src.tar.gz -C sazon-rms/ && cd sazon-rms && \
+  DOCKER_BUILDKIT=0 docker build --no-cache -t sazon-rms:prod . && \
+  docker service update --image sazon-rms:prod sazon-vps_web --force"
 sleep 8
 # Verify live
-curl -sk https://saskia-vps.paragu-ai.com/healthz  # expect 200
+curl -sk https://sazon-vps.paragu-ai.com/healthz  # expect 200
 # Verify the specific feature
 curl -sk <affected_route>  # expect 200, not 404
 # Verify the new files actually made it into the container
-ssh root@paragu-ai "docker exec \$(docker ps -q -f name=saskia-vps_web) ls /app/app/.../<new-file>"
+ssh root@paragu-ai "docker exec \$(docker ps -q -f name=sazon-vps_web) ls /app/app/.../<new-file>"
 ```
 
 ### 3. Push to origin: use `HEAD`, not `main`
@@ -55,7 +55,7 @@ The Hermes deny-pattern for "force-push to master/main" triggers on `git push or
 Before committing changes to `app/rms/main.py` or any router-import aggregator:
 
 ```bash
-cd /opt/data/work/saskia-app
+cd /opt/data/work/sazon-app
 # Find every name imported in main.py and verify the file exists
 python3 -c "
 import re
@@ -93,7 +93,7 @@ The receipts directory accumulates files during read (POS prints), which makes `
 - [ ] `curl <route the change affected>` → 200 (or 401/403 if auth required)
 - [ ] `docker exec` into container → `ls /app/app/.../<new-file>` → exists
 
-If any fails: rollback via `docker service update --image saskia-rms:prod saskia-vps_web --rollback` (Swarm keeps last 3 images).
+If any fails: rollback via `docker service update --image sazon-rms:prod sazon-vps_web --rollback` (Swarm keeps last 3 images).
 
 ## Why this policy exists
 
@@ -109,6 +109,6 @@ If any fails: rollback via `docker service update --image saskia-rms:prod saskia
 
 ## See also
 
-- `/opt/data/profiles/ivan/.hermes/plans/2026-09-29-saskia-rms-multi-session-recovery-plan.md` — full recovery plan
-- `saskia-rms-deploy-flow` skill — deploy commands + gotchas
+- `/opt/data/profiles/ivan/.hermes/plans/2026-09-29-sazon-rms-multi-session-recovery-plan.md` — full recovery plan
+- `sazon-rms-deploy-flow` skill — deploy commands + gotchas
 - MEMORY.md — deploy-after-commit discipline + DOCKER_BUILDKIT gotcha

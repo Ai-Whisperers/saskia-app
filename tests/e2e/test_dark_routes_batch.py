@@ -27,20 +27,16 @@ pytestmark = [pytest.mark.smoke]
 # ─── production planner ────────────────────────────────────────────────
 
 
-def test_planner_compute_shows_shortage_and_materializes_shopping_list(
-    client, session_factory
-):
+def test_planner_compute_shows_shortage_and_materializes_shopping_list(client, session_factory):
     with session_factory() as s:
-        ing = make_ingredient(s, name="Harina planner", stock_qty=1.0,
-                              purchase_price_gs=5000)
+        ing = make_ingredient(s, name="Harina planner", stock_qty=1.0, purchase_price_gs=5000)
         rec = make_recipe(s, name="Pan planner", lines=[ing_line(ing, qty=2.0)])
         rec.yield_qty = 1.0
         s.commit()
         rid = rec.id
 
     # 5 batches × 2 kg = 10 needed vs 1 in stock → 9 short
-    r = client.post("/produccion-planner/compute",
-                    data={"recipe_id": rid, "batches": 5})
+    r = client.post("/produccion-planner/compute", data={"recipe_id": rid, "batches": 5})
     assert r.status_code == 200
     assert "Harina planner" in r.text
     assert "9" in r.text  # shortage qty
@@ -59,19 +55,16 @@ def test_planner_compute_sufficient_stock_no_shopping_rows(client, session_facto
         s.commit()
         rid = rec.id
         iid = ing.id
-    r = client.post("/produccion-planner/compute",
-                    data={"recipe_id": rid, "batches": 2})
+    r = client.post("/produccion-planner/compute", data={"recipe_id": rid, "batches": 2})
     assert r.status_code == 200
     with session_factory() as s:
         assert s.query(ShoppingListItem).filter_by(ingredient_id=iid).count() == 0
 
 
 def test_planner_compute_bad_input_redirects(client):
-    r = client.post("/produccion-planner/compute",
-                    data={"recipe_id": 999999, "batches": 1})
+    r = client.post("/produccion-planner/compute", data={"recipe_id": 999999, "batches": 1})
     assert str(r.url).endswith("/produccion-planner")  # redirected
-    r2 = client.post("/produccion-planner/compute",
-                     data={"recipe_id": 1, "batches": 0})
+    r2 = client.post("/produccion-planner/compute", data={"recipe_id": 1, "batches": 0})
     assert str(r2.url).endswith("/produccion-planner")
 
 
@@ -84,11 +77,17 @@ def test_vs_mercado_save_persists_prices(client, session_factory):
         s.add(b)
         s.commit()
         bid = b.id
-    r = client.post(f"/vs-mercado/{bid}/save", data={
-        "our_wholesale_gs": 4000, "our_retail_gs": 5500,
-        "comp_min_gs": 5000, "comp_avg_gs": 6000, "market_avg_gs": 5800,
-        "source": "relevamiento local",
-    })
+    r = client.post(
+        f"/vs-mercado/{bid}/save",
+        data={
+            "our_wholesale_gs": 4000,
+            "our_retail_gs": 5500,
+            "comp_min_gs": 5000,
+            "comp_avg_gs": 6000,
+            "market_avg_gs": 5800,
+            "source": "relevamiento local",
+        },
+    )
     assert r.status_code == 200
     with session_factory() as s:
         b2 = s.get(MarketBenchmark, bid)
@@ -98,55 +97,65 @@ def test_vs_mercado_save_persists_prices(client, session_factory):
 
 
 def test_vs_mercado_save_unknown_redirects(client):
-    r = client.post("/vs-mercado/999999/save", data={
-        "our_wholesale_gs": 0, "our_retail_gs": 0, "comp_min_gs": 0,
-        "comp_avg_gs": 0, "market_avg_gs": 0, "source": "",
-    })
+    r = client.post(
+        "/vs-mercado/999999/save",
+        data={
+            "our_wholesale_gs": 0,
+            "our_retail_gs": 0,
+            "comp_min_gs": 0,
+            "comp_avg_gs": 0,
+            "market_avg_gs": 0,
+            "source": "",
+        },
+    )
     assert str(r.url).endswith("/vs-mercado")  # redirected (unknown id)
 
 
 # ─── wishlist → shopping list ──────────────────────────────────────────
 
 
-def test_wishlist_send_to_shopping_list_creates_equipment_row(
-    client, session_factory
-):
+def test_wishlist_send_to_shopping_list_creates_equipment_row(client, session_factory):
     with session_factory() as s:
-        w = WishlistItem(name="Batidora industrial", priority="must_have",
-                         quantity=1, unit_price_gs=1_500_000)
+        w = WishlistItem(
+            name="Batidora industrial", priority="must_have", quantity=1, unit_price_gs=1_500_000
+        )
         s.add(w)
         s.commit()
         wid = w.id
     r = client.post(f"/wishlist/{wid}/send-to-shopping-list")
     assert "shopping-list" in str(r.url)  # redirected to the list
     with session_factory() as s:
-        sl = s.query(ShoppingListItem).filter(
-            ShoppingListItem.purpose_text.like(f"Wishlist #{wid}%")
-        ).all()
+        sl = (
+            s.query(ShoppingListItem)
+            .filter(ShoppingListItem.purpose_text.like(f"Wishlist #{wid}%"))
+            .all()
+        )
         assert sl, "wishlist handoff did not create a shopping row"
         assert sl[0].qty_to_buy == 1
 
 
 def test_wishlist_send_twice_idempotent_no_dupes(client, session_factory):
     with session_factory() as s:
-        w = WishlistItem(name="Freezer", priority="nice_to_have",
-                         quantity=1, unit_price_gs=3_000_000)
+        w = WishlistItem(
+            name="Freezer", priority="nice_to_have", quantity=1, unit_price_gs=3_000_000
+        )
         s.add(w)
         s.commit()
         wid = w.id
     client.post(f"/wishlist/{wid}/send-to-shopping-list")
     client.post(f"/wishlist/{wid}/send-to-shopping-list")
     with session_factory() as s:
-        n = s.query(ShoppingListItem).filter(
-            ShoppingListItem.purpose_text.like(f"Wishlist #{wid}%")
-        ).count()
+        n = (
+            s.query(ShoppingListItem)
+            .filter(ShoppingListItem.purpose_text.like(f"Wishlist #{wid}%"))
+            .count()
+        )
         assert n == 1, f"double-send created {n} rows — equipment ingredient dupes"
 
 
 def test_wishlist_mark_purchased_flow(client, session_factory):
     with session_factory() as s:
-        w = WishlistItem(name="Moldes", priority="must_have",
-                         quantity=2, unit_price_gs=80_000)
+        w = WishlistItem(name="Moldes", priority="must_have", quantity=2, unit_price_gs=80_000)
         s.add(w)
         s.commit()
         wid = w.id
@@ -182,21 +191,18 @@ def test_product_upload_image_happy_path(client, session_factory):
 
 def test_product_upload_rejects_oversized(client):
     bomb = b"\x89PNG\r\n\x1a\n" + b"0" * (6 * 1024 * 1024)  # 6 MB > 5 MB
-    r = _upload(client, "/productos/upload-image", bomb, "image/png",
-                filename="bomb.png")
+    r = _upload(client, "/productos/upload-image", bomb, "image/png", filename="bomb.png")
     assert r.status_code == 413
 
 
 def test_product_upload_rejects_wrong_type(client):
     svg_xss = b'<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>'
-    r = _upload(client, "/productos/upload-image", svg_xss, "image/svg+xml",
-                filename="evil.svg")
+    r = _upload(client, "/productos/upload-image", svg_xss, "image/svg+xml", filename="evil.svg")
     assert r.status_code == 415
 
 
 def test_product_upload_rejects_empty(client):
-    r = _upload(client, "/productos/upload-image", b"", "image/png",
-                filename="empty.png")
+    r = _upload(client, "/productos/upload-image", b"", "image/png", filename="empty.png")
     assert r.status_code in (400, 422)
 
 

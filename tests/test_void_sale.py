@@ -141,7 +141,7 @@ def test_void_sale_unknown_raises(session_factory):
 
     from app.rms.costing import void_sale
 
-    with pytest.raises(ValueError, match="Sale .* not found"):
+    with pytest.raises(ValueError, match=r"Sale .* not found"):
         with session_factory() as s:
             void_sale(s, 99999)
 

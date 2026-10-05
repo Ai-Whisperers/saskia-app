@@ -14,6 +14,7 @@ Endpoints:
     POST /suscripciones/{id}/estado     — soft state transition
     POST /suscripciones/{id}/eliminar   — delete (only if status=cancelada)
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -122,9 +123,13 @@ def suscripciones_list(
     # then pausadas, then canceladas. Most-recently-updated first.
     order = {"activa": 0, "pausada": 1, "cancelada": 2}
 
-    def _sort_key(s: Suscripcion):
+    def _sort_key(s: Suscripcion) -> tuple[int, str, float]:
         cust_name = (s.customer.name if s.customer else "").lower()
-        return (order.get(s.status, 9), cust_name, -(s.updated_at.timestamp() if s.updated_at else 0))
+        return (
+            order.get(s.status, 9),
+            cust_name,
+            -(s.updated_at.timestamp() if s.updated_at else 0),
+        )
 
     rows.sort(key=_sort_key)
 
@@ -153,9 +158,7 @@ def suscripciones_list(
 @router.get("/nuevo", response_class=HTMLResponse)
 def suscripcion_new(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     """New suscripción form. Customer picker comes from app/rms/customers."""
-    customers = session.scalars(
-        select(Customer).order_by(Customer.name)
-    ).all()
+    customers = session.scalars(select(Customer).order_by(Customer.name)).all()
     return render(
         request,
         "suscripcion_form.html",
@@ -262,9 +265,7 @@ def suscripcion_edit(
     sub = session.get(Suscripcion, s_id)
     if sub is None:
         raise HTTPException(status_code=404, detail="Suscripción no encontrada")
-    customers = session.scalars(
-        select(Customer).order_by(Customer.name)
-    ).all()
+    customers = session.scalars(select(Customer).order_by(Customer.name)).all()
     return render(
         request,
         "suscripcion_form.html",
@@ -437,8 +438,8 @@ def suscripciones_dispatch(
     POST (not GET) because it's a write — creates Pedido rows + AppMeta
     dedupe keys + per-petido_event 'created' rows.
     """
-    from app.services.suscripcion_dispatcher import generate_weekly_pedidos
     from app.auth import current_user_id
+    from app.services.suscripcion_dispatcher import generate_weekly_pedidos
 
     actor = str(current_user_id(request) or "operator")
     result = generate_weekly_pedidos(session, actor=actor)
@@ -458,9 +459,7 @@ def suscripciones_dispatch(
         },
     )
     session.commit()
-    return RedirectResponse(
-        url=f"/suscripciones?dispatched={result.total}", status_code=303
-    )
+    return RedirectResponse(url=f"/suscripciones?dispatched={result.total}", status_code=303)
 
 
 __all__ = ["router"]

@@ -9,13 +9,31 @@ from tests.factories import make_ingredient
 
 def _seed(session_factory):
     with session_factory() as s:
-        make_ingredient(s, name="Harina 000", stock_qty=10.0, min_stock_qty=5.0,
-                        purchase_price_gs=18000, category="harinas")
-        make_ingredient(s, name="Levadura seca", stock_qty=0.4, min_stock_qty=1.0,
-                        purchase_price_gs=18000, category="leudantes")
-        make_ingredient(s, name="Almendra", stock_qty=2.0, min_stock_qty=1.0,
-                        purchase_price_gs=50000, category="frutos-secos",
-                        allergens="nuts")
+        make_ingredient(
+            s,
+            name="Harina 000",
+            stock_qty=10.0,
+            min_stock_qty=5.0,
+            purchase_price_gs=18000,
+            category="harinas",
+        )
+        make_ingredient(
+            s,
+            name="Levadura seca",
+            stock_qty=0.4,
+            min_stock_qty=1.0,
+            purchase_price_gs=18000,
+            category="leudantes",
+        )
+        make_ingredient(
+            s,
+            name="Almendra",
+            stock_qty=2.0,
+            min_stock_qty=1.0,
+            purchase_price_gs=50000,
+            category="frutos-secos",
+            allergens="nuts",
+        )
         s.commit()
 
 
@@ -68,7 +86,7 @@ def test_result_count_renders(client, session_factory):
     assert "3 de 3 ingredientes" in r.text
     # multi-select popover markup present, no native select regression
     assert 'name="categoria" value="harinas"' in r.text
-    assert 'data-saskia-combo' in r.text or "<select" not in r.text.split("mf-pop")[0] or True
+    assert "data-ui-combo" in r.text or "<select" not in r.text.split("mf-pop")[0] or True
 
 
 def test_zero_native_selects_still_hold(client, session_factory):
@@ -76,5 +94,6 @@ def test_zero_native_selects_still_hold(client, session_factory):
     r = client.get("/inventario")
     # any <select> on the page must carry the combo marker
     import re
+
     for m in re.finditer(r"<select[^>]*>", r.text):
-        assert "data-saskia-combo" in m.group(0), f"native select leaked: {m.group(0)}"
+        assert "data-ui-combo" in m.group(0), f"native select leaked: {m.group(0)}"

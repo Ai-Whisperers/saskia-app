@@ -3,6 +3,7 @@
 /auditoria only shows recent 100 entries by default. Operators
 investigating "what happened yesterday" need date filters.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -32,11 +33,13 @@ def test_auditoria_combined_filter(client, session_factory):
     from app.rms.models import AuditLog
 
     with session_factory() as s:
-        s.add(AuditLog(
-            occurred_at=datetime.now(timezone.utc) - timedelta(days=60),
-            action="login.success",
-            user_id=None,
-        ))
+        s.add(
+            AuditLog(
+                occurred_at=datetime.now(timezone.utc) - timedelta(days=60),
+                action="login.success",
+                user_id=None,
+            )
+        )
         s.commit()
 
     resp = client.get("/auditoria?action_filter=login.success&start_date=2020-01-01")

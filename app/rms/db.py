@@ -27,6 +27,17 @@ import sys
 from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
 from typing import Any
+
+from loguru import logger
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.rms.config import (
+    CURRENT_SCHEMA_VERSION,
+    DB_PATH,
+    ensure_dirs,
+)
 from app.rms.migrations._084_stock_qty_nonneg import _migration_084_stock_qty_nonneg
 from app.rms.migrations._085_sale_public_token import _migration_085_sale_public_token
 from app.rms.migrations._086_placeholder import _migration_086_placeholder
@@ -40,7 +51,9 @@ from app.rms.migrations._091_backfill_stock_movement_recipe import (
     _migration_091_backfill_stock_movement_recipe,
 )
 from app.rms.migrations._092_drop_sale_stock_move import _migration_092_drop_sale_stock_move
-from app.rms.migrations._093_expense_receipt_recurring import _migration_093_expense_receipt_recurring
+from app.rms.migrations._093_expense_receipt_recurring import (
+    _migration_093_expense_receipt_recurring,
+)
 from app.rms.migrations._094_monthly_closure import _migration_094_monthly_closure
 from app.rms.migrations._095_soft_delete_columns import _migration_095_soft_delete_columns
 from app.rms.migrations._096_audit_columns import _migration_096_audit_columns
@@ -51,6 +64,7 @@ from app.rms.migrations._099_production_completion_updated_at import _migration_
 from app.rms.migrations._100_freezer_temperature_log import _migration_100_freezer_temperature_log
 from app.rms.migrations._101_recipe_fermentation_minutes import _migration_101_recipe_fermentation_minutes
 from app.rms.migrations._102_waste_log_source import _migration_102_waste_log_source
+from app.rms.migrations._103_production_demand_split import _migration_103_production_demand_split
 
 from loguru import logger
 from sqlalchemy import create_engine, event, text
@@ -194,7 +208,9 @@ def _migration_002_audit_log(conn: Any) -> None:
             if existing is None:
                 conn.execute(text(f"CREATE INDEX {ix_name} ON {ix_table} ({ix_col})"))
     else:
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_occurred_at ON audit_log (occurred_at)"))
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_audit_log_occurred_at ON audit_log (occurred_at)")
+        )
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_user_id ON audit_log (user_id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_log_action ON audit_log (action)"))
     _bump_schema_version(conn, 2)
@@ -206,13 +222,64 @@ def _migration_007_product_sku(conn: Any) -> None:
     SKU is optional; most bakeries don't print barcodes on products but
     an operator may add them later. Unique when set.
     """
-    _add_column_if_missing(conn, "product", "sku",
-                           "VARCHAR(32)", "TEXT")
+    _add_column_if_missing(conn, "product", "sku", "VARCHAR(32)", "TEXT")
     _bump_schema_version(conn, 7)
 
 
-def _add_column_if_missing(conn: Any, table: str, column: str,
-                           pg_type: str, sqlite_type: str) -> None:
+def _dialect(conn: Any) -> str:
+    """Return the active dialect name (e.g. 'postgresql', 'sqlite').
+
+    The two dialects we support. Use this in migrations to branch on
+    dialect-specific SQL syntax. Default to 'sqlite' on any error so
+    existing migrations don't break if the engine is in a weird state.
+    """
+    try:
+        return conn.dialect.name
+    except Exception:
+        return "sqlite"
+
+
+def _serial_pk_type(conn: Any) -> str:
+    """Return the dialect-appropriate auto-incrementing primary key type.
+
+    Used in CREATE TABLE statements that need an `id` column. The
+    difference matters for Postgres (which has SERIAL/BIGSERIAL types
+    + sequences) and SQLite (which uses INTEGER PRIMARY KEY
+    AUTOINCREMENT).
+    """
+    if _dialect(conn) == "postgresql":
+        return "BIGSERIAL PRIMARY KEY"
+    return "INTEGER PRIMARY KEY AUTOINCREMENT"
+
+
+def _now_expr(conn: Any) -> str:
+    """Return the dialect-appropriate "current timestamp" SQL expression.
+
+    Both dialects support `CURRENT_TIMESTAMP`, but we expose this helper
+    so future migrations can branch (e.g., to use `now()::timestamptz` on
+    Postgres or `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')` on SQLite for
+    higher precision).
+    """
+    # Both dialects support CURRENT_TIMESTAMP; this is here for symmetry
+    # with the other _*_expr helpers and as an extension point.
+    return "CURRENT_TIMESTAMP"
+
+
+def _bool_literal(conn: Any, value: bool | int) -> str:
+    """Return a dialect-appropriate boolean literal.
+
+    SQLite accepts 0/1 in BOOLEAN columns. Postgres requires TRUE/FALSE
+    (or 't'/'f'/'true'/'false' with a cast). Use this when inserting
+    explicit boolean values.
+    """
+    if _dialect(conn) == "postgresql":
+        return "TRUE" if value else "FALSE"
+    return "1" if value else "0"
+
+
+def _add_column_if_missing(
+    conn: Any, table: str, column: str, pg_type: str, sqlite_type: str
+) -> None:
     """Add a column to a table if it doesn't already exist.
 
     Cross-dialect: SQLite uses PRAGMA table_info; Postgres uses
@@ -228,22 +295,17 @@ def _add_column_if_missing(conn: Any, table: str, column: str,
             {"t": table, "c": column},
         ).first()
         if not exists:
-            conn.execute(
-                text(f'ALTER TABLE {table} ADD COLUMN {column} {pg_type}')
-            )
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {pg_type}"))
     else:
         # SQLite
-        cols = [row[1] for row in conn.execute(text(f'PRAGMA table_info({table})')).fetchall()]
+        cols = [row[1] for row in conn.execute(text(f"PRAGMA table_info({table})")).fetchall()]
         if column not in cols:
-            conn.execute(
-                text(f'ALTER TABLE {table} ADD COLUMN {column} {sqlite_type}')
-            )
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {sqlite_type}"))
 
 
 def _migration_006_waste_log(conn: Any) -> None:
     """Add waste_log table (E22)."""
     _bump_schema_version(conn, 6)
-
 
 
 def _migration_004_tags(conn: Any) -> None:
@@ -290,7 +352,12 @@ def _migration_003_analytics_columns(conn: Any) -> None:
         try:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {decl}"))
         except Exception:
-            pass
+            # Column already exists. On Postgres this aborts the
+            # transaction, so rollback before continuing; on SQLite
+            # the transaction is implicitly rolled back per-statement
+            # and the next ALTER just works.
+            if dialect == "postgresql":
+                conn.rollback()
 
     # Index on last_consumed_at so dead_stock reports stay fast.
     # CREATE INDEX IF NOT EXISTS is SQLite syntax; on Postgres use a
@@ -305,10 +372,7 @@ def _migration_003_analytics_columns(conn: Any) -> None:
         ).first()
         if existing is None:
             conn.execute(
-                text(
-                    "CREATE INDEX ix_ingredient_last_consumed_at "
-                    "ON ingredient (last_consumed_at)"
-                )
+                text("CREATE INDEX ix_ingredient_last_consumed_at ON ingredient (last_consumed_at)")
             )
     else:
         conn.execute(
@@ -319,7 +383,6 @@ def _migration_003_analytics_columns(conn: Any) -> None:
         )
 
     _bump_schema_version(conn, 3)
-
 
 
 def _migration_008_tenant(conn: Any) -> None:
@@ -400,14 +463,18 @@ def _migration_012_sale_tz(conn: Any) -> None:
     """
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     try:
-        conn.execute(text("ALTER TABLE sale ADD COLUMN tz VARCHAR(64) DEFAULT 'America/Asuncion' NOT NULL"))
+        conn.execute(
+            text("ALTER TABLE sale ADD COLUMN tz VARCHAR(64) DEFAULT 'America/Asuncion' NOT NULL")
+        )
     except Exception:
         # Column already exists — idempotent.
         pass
     # SQLite ALTER TABLE doesn't support DEFAULT with NOT NULL; backfill explicitly.
     if dialect == "sqlite":
         try:
-            conn.execute(text("UPDATE sale SET tz = 'America/Asuncion' WHERE tz IS NULL OR tz = ''"))
+            conn.execute(
+                text("UPDATE sale SET tz = 'America/Asuncion' WHERE tz IS NULL OR tz = ''")
+            )
         except Exception:
             pass
     _bump_schema_version(conn, 12)
@@ -475,7 +542,9 @@ def _migration_015_sale_channel(conn: Any) -> None:
     # rows. Backfill explicitly so legacy rows have the right value.
     if dialect == "sqlite":
         try:
-            conn.execute(text("UPDATE sale SET channel = 'mostrador' WHERE channel IS NULL OR channel = ''"))
+            conn.execute(
+                text("UPDATE sale SET channel = 'mostrador' WHERE channel IS NULL OR channel = ''")
+            )
         except Exception:
             pass
 
@@ -502,8 +571,8 @@ def _migration_016_pedidos(conn: Any) -> None:
 def _migration_017_recipe_line_unit(conn: Any) -> None:
     """Add `line_unit` to recipe_line (Phase B — T1: recipe line unit selector).
 
-    Per Saskia's review ("Se debe de poder agregar en gramos la cantidad"), each
-    recipe line now stores the unit Saskia typed the qty in. Costing walks use
+    Per the operator's review ("Se debe de poder agregar en gramos la cantidad"), each
+    recipe line now stores the unit the operator typed the qty in. Costing walks use
     this to convert qty → ingredient unit before multiplying against the
     ingredient's per-unit price.
 
@@ -589,10 +658,7 @@ def _migration_018_price_event(conn: Any) -> None:
             )
         )
         existing = conn.execute(
-            text(
-                "SELECT 1 FROM pg_indexes WHERE schemaname='public' "
-                "AND indexname=:n"
-            ),
+            text("SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname=:n"),
             {"n": "ix_ingredient_price_event_ingredient_time"},
         ).first()
         if existing is None:
@@ -628,7 +694,7 @@ def _migration_018_price_event(conn: Any) -> None:
 
 
 def _migration_019_production_completion(conn: Any) -> None:
-    """Add production_completion table (Saskia review round 1, T5).
+    """Add production_completion table (operator review round N, T5).
 
     Table is created via create_all() in init_db() (the model class was
     added to models.py at the same time). This stub only bumps the
@@ -649,25 +715,18 @@ def _migration_020_sale_date_voided_index(conn: Any) -> None:
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     if dialect == "postgresql":
         existing = conn.execute(
-            text(
-                "SELECT 1 FROM pg_indexes WHERE schemaname='public' "
-                "AND indexname=:n"
-            ),
+            text("SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname=:n"),
             {"n": "ix_sale_sold_at_voided"},
         ).first()
         if existing is None:
             conn.execute(
                 text(
-                    "CREATE INDEX CONCURRENTLY ix_sale_sold_at_voided "
-                    "ON sale (sold_at, voided_at)"
+                    "CREATE INDEX CONCURRENTLY ix_sale_sold_at_voided ON sale (sold_at, voided_at)"
                 )
             )
     else:
         conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS ix_sale_sold_at_voided "
-                "ON sale (sold_at, voided_at)"
-            )
+            text("CREATE INDEX IF NOT EXISTS ix_sale_sold_at_voided ON sale (sold_at, voided_at)")
         )
 
     _bump_schema_version(conn, 20)
@@ -738,7 +797,11 @@ def _migration_022_user_roles(conn: Any) -> None:
     role: VARCHAR(32) NOT NULL DEFAULT 'admin'. Values: admin, cashier, manager.
     """
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
-    col_type = "VARCHAR(32) NOT NULL DEFAULT 'admin'" if dialect == "postgresql" else "TEXT DEFAULT 'admin' NOT NULL"
+    col_type = (
+        "VARCHAR(32) NOT NULL DEFAULT 'admin'"
+        if dialect == "postgresql"
+        else "TEXT DEFAULT 'admin' NOT NULL"
+    )
     try:
         conn.execute(text(f"ALTER TABLE user ADD COLUMN role {col_type}"))
     except Exception:
@@ -795,11 +858,15 @@ def _migration_023_supplier(conn: Any) -> None:
     try:
         if dialect == "postgresql":
             conn.execute(
-                text("ALTER TABLE ingredient ADD COLUMN supplier_id INTEGER REFERENCES supplier(id)")
+                text(
+                    "ALTER TABLE ingredient ADD COLUMN supplier_id INTEGER REFERENCES supplier(id)"
+                )
             )
         else:
             conn.execute(
-                text("ALTER TABLE ingredient ADD COLUMN supplier_id INTEGER REFERENCES supplier(id)")
+                text(
+                    "ALTER TABLE ingredient ADD COLUMN supplier_id INTEGER REFERENCES supplier(id)"
+                )
             )
     except Exception:
         pass  # already exists
@@ -852,7 +919,6 @@ def _migration_025_ingredient_opening_stock_reorder_point(conn: Any) -> None:
     _bump_schema_version(conn, 25)
 
 
-
 def _migration_026_product_audit_columns(conn: Any) -> None:
     """Add product columns used by audit-implemented features but never migrated.
 
@@ -879,14 +945,12 @@ def _migration_026_product_audit_columns(conn: Any) -> None:
     _bump_schema_version(conn, 26)
 
 
-
-
-
 def _migration_027_production_plan_template(conn: Any) -> None:
     """PRO-01: weekly repeating production plan template + per-date overrides."""
     dialect = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     if dialect == "postgresql":
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE TABLE IF NOT EXISTS production_plan_template (
                 id SERIAL PRIMARY KEY,
                 weekday INTEGER NOT NULL,
@@ -899,10 +963,20 @@ def _migration_027_production_plan_template(conn: Any) -> None:
                 CONSTRAINT ck_template_qty_nonneg CHECK (qty >= 0),
                 CONSTRAINT uq_template_weekday_product UNIQUE (weekday, product_id)
             )
-        """))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_template_weekday ON production_plan_template(weekday)"))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_template_product_id ON production_plan_template(product_id)"))
-        conn.execute(text("""
+        """)
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_production_plan_template_weekday ON production_plan_template(weekday)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_production_plan_template_product_id ON production_plan_template(product_id)"
+            )
+        )
+        conn.execute(
+            text("""
             CREATE TABLE IF NOT EXISTS production_plan_override (
                 id SERIAL PRIMARY KEY,
                 product_id INTEGER NOT NULL REFERENCES "product"(id),
@@ -914,11 +988,21 @@ def _migration_027_production_plan_template(conn: Any) -> None:
                 CONSTRAINT ck_override_qty_nonneg CHECK (qty >= 0),
                 CONSTRAINT uq_override_product_date UNIQUE (product_id, for_date)
             )
-        """))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_override_product_id ON production_plan_override(product_id)"))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_override_for_date ON production_plan_override(for_date)"))
+        """)
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_production_plan_override_product_id ON production_plan_override(product_id)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_production_plan_override_for_date ON production_plan_override(for_date)"
+            )
+        )
     else:
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE TABLE IF NOT EXISTS production_plan_template (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 weekday INTEGER NOT NULL,
@@ -931,10 +1015,20 @@ def _migration_027_production_plan_template(conn: Any) -> None:
                 CONSTRAINT ck_template_qty_nonneg CHECK (qty >= 0),
                 CONSTRAINT uq_template_weekday_product UNIQUE (weekday, product_id)
             )
-        """))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_template_weekday ON production_plan_template(weekday)"))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_template_product_id ON production_plan_template(product_id)"))
-        conn.execute(text("""
+        """)
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_production_plan_template_weekday ON production_plan_template(weekday)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_production_plan_template_product_id ON production_plan_template(product_id)"
+            )
+        )
+        conn.execute(
+            text("""
             CREATE TABLE IF NOT EXISTS production_plan_override (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 product_id INTEGER NOT NULL REFERENCES product(id),
@@ -946,9 +1040,18 @@ def _migration_027_production_plan_template(conn: Any) -> None:
                 CONSTRAINT ck_override_qty_nonneg CHECK (qty >= 0),
                 CONSTRAINT uq_override_product_date UNIQUE (product_id, for_date)
             )
-        """))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_override_product_id ON production_plan_override(product_id)"))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_production_plan_override_for_date ON production_plan_override(for_date)"))
+        """)
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_production_plan_override_product_id ON production_plan_override(product_id)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_production_plan_override_for_date ON production_plan_override(for_date)"
+            )
+        )
 
     _bump_schema_version(conn, 27)
 
@@ -976,7 +1079,8 @@ def _migration_028_recipe_yield_qty_check(conn: Any) -> None:
 
     if dialect_name == "sqlite":
         try:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE TRIGGER IF NOT EXISTS recipe_yield_qty_positive_update
                 BEFORE UPDATE OF yield_qty ON recipe
                 FOR EACH ROW
@@ -984,8 +1088,10 @@ def _migration_028_recipe_yield_qty_check(conn: Any) -> None:
                 BEGIN
                     SELECT RAISE(ABORT, 'recipe.yield_qty must be > 0 (or NULL for drafts)');
                 END
-            """))
-            conn.execute(text("""
+            """)
+            )
+            conn.execute(
+                text("""
                 CREATE TRIGGER IF NOT EXISTS recipe_line_qty_positive_update
                 BEFORE UPDATE OF qty ON recipe_line
                 FOR EACH ROW
@@ -993,7 +1099,8 @@ def _migration_028_recipe_yield_qty_check(conn: Any) -> None:
                 BEGIN
                     SELECT RAISE(ABORT, 'recipe_line.qty must be > 0 (or NULL)');
                 END
-            """))
+            """)
+            )
         except Exception:
             # Older engine without trigger support — Python-level validation
             # in apply_sale() / recipe CRUD continues to enforce.
@@ -1039,19 +1146,22 @@ def _migration_029_herebus_integration(conn: Any) -> None:
 
     # Pedido.delivery_zone_id — FK to new delivery_zone
     try:
-        conn.execute(text(
-            "ALTER TABLE pedido ADD COLUMN delivery_zone_id INTEGER "
-            "REFERENCES delivery_zone(id)"
-        ))
+        conn.execute(
+            text(
+                "ALTER TABLE pedido ADD COLUMN delivery_zone_id INTEGER "
+                "REFERENCES delivery_zone(id)"
+            )
+        )
     except Exception:
         pass
 
     # Index for delivery_zone lookups
     try:
-        conn.execute(text(
-            "CREATE INDEX IF NOT EXISTS ix_pedido_delivery_zone_id "
-            "ON pedido(delivery_zone_id)"
-        ))
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_pedido_delivery_zone_id ON pedido(delivery_zone_id)"
+            )
+        )
     except Exception:
         pass
 
@@ -1066,9 +1176,7 @@ def _migration_030_recipe_image_url(conn: Any) -> None:
     hand-photographed cookbook pages.
     """
     try:
-        conn.execute(text(
-            "ALTER TABLE recipe ADD COLUMN image_url VARCHAR(255)"
-        ))
+        conn.execute(text("ALTER TABLE recipe ADD COLUMN image_url VARCHAR(255)"))
     except Exception:
         pass
 
@@ -1081,13 +1189,20 @@ def _migration_031_risk_status_activo(conn: Any) -> None:
     Original constraint used ('active', 'mitigated', 'closed') but the
     spreadsheet uses 'activo'. This widens the constraint to allow both.
     """
+    dialect_name = conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
+    if dialect_name == "postgresql":
+        # Postgres was provisioned with the wider constraint from the
+        # start; nothing to migrate. Just bump the version.
+        _bump_schema_version(conn, 31)
+        return
     # Save current contents
     rows = conn.execute(text("SELECT * FROM risk_item")).fetchall()
     cols = [c for c in conn.execute(text("PRAGMA table_info(risk_item)")).fetchall()]
 
     # Drop and recreate with new constraint
     conn.execute(text("ALTER TABLE risk_item RENAME TO _risk_item_bk"))
-    conn.execute(text("""
+    conn.execute(
+        text("""
         CREATE TABLE risk_item (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             code VARCHAR(16),
@@ -1104,13 +1219,14 @@ def _migration_031_risk_status_activo(conn: Any) -> None:
             CHECK (impact_gs >= 0),
             CHECK (status IN ('active', 'activo', 'mitigated', 'closed'))
         )
-    """))
+    """)
+    )
     if rows:
-        placeholders = ','.join(['?'] * len(cols))
-        col_names = ','.join(c[1] for c in cols)
+        placeholders = ",".join(["?"] * len(cols))
+        col_names = ",".join(c[1] for c in cols)
         conn.execute(
             text(f"INSERT INTO risk_item ({col_names}) VALUES ({placeholders})"),
-            [tuple(r) for r in rows]
+            [tuple(r) for r in rows],
         )
     conn.execute(text("DROP TABLE _risk_item_bk"))
 
@@ -1128,11 +1244,11 @@ def _migration_032_pedido_cancel_reason(conn: Any) -> None:
     This migration adds the column idempotently. SQLite doesn't support
     IF NOT EXISTS on ADD COLUMN, so we check the schema first.
     """
-    cols = [c[1] for c in conn.execute(text("PRAGMA table_info(pedido)")).fetchall()]
-    if "cancel_reason" not in cols:
-        conn.execute(text("ALTER TABLE pedido ADD COLUMN cancel_reason TEXT"))
+    # Use the cross-dialect helper. On Postgres, the column already
+    # exists in fresh installs (was added in the create_all step);
+    # on SQLite, it might be missing from older databases.
+    _add_column_if_missing(conn, "pedido", "cancel_reason", "TEXT", "TEXT")
     _bump_schema_version(conn, 32)
-
 
 
 def _migration_033_ingredient_storage(conn: Any) -> None:
@@ -1152,8 +1268,6 @@ def _migration_033_ingredient_storage(conn: Any) -> None:
     _bump_schema_version(conn, 33)
 
 
-
-
 def _migration_034_market_price_reference(conn: Any) -> None:
     """Wave 4 — Add market_price_reference table for ingredient market prices.
 
@@ -1171,8 +1285,9 @@ def _migration_034_market_price_reference(conn: Any) -> None:
     dt = "TIMESTAMP"
     fk_ref = "INTEGER REFERENCES ingredient(id) ON DELETE CASCADE"
 
-    conn.execute(text(
-        f"""
+    conn.execute(
+        text(
+            f"""
         CREATE TABLE IF NOT EXISTS market_price_reference (
             id {pk_type},
             ingredient_id {fk_ref} NOT NULL,
@@ -1185,14 +1300,15 @@ def _migration_034_market_price_reference(conn: Any) -> None:
             updated_at {dt} NOT NULL
         )
         """
-    ))
-    conn.execute(text(
-        "CREATE INDEX IF NOT EXISTS ix_market_price_reference_ingredient_id "
-        "ON market_price_reference(ingredient_id)"
-    ))
+        )
+    )
+    conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_market_price_reference_ingredient_id "
+            "ON market_price_reference(ingredient_id)"
+        )
+    )
     _bump_schema_version(conn, 34)
-
-
 
 
 def _migration_035_compliance_info(conn: Any) -> None:
@@ -1216,8 +1332,9 @@ def _migration_035_compliance_info(conn: Any) -> None:
     bool_t = "BOOLEAN" if dialect != "sqlite" else "INTEGER"
     dt = "TIMESTAMP"
 
-    conn.execute(text(
-        f"""
+    conn.execute(
+        text(
+            f"""
         CREATE TABLE IF NOT EXISTS compliance_info (
             id {pk_type},
             ruc {str20},
@@ -1247,19 +1364,20 @@ def _migration_035_compliance_info(conn: Any) -> None:
             updated_at {dt} NOT NULL
         )
         """
-    ))
+        )
+    )
     # Idempotent: seed the single row if missing.
     has_row = conn.execute(text("SELECT COUNT(*) FROM compliance_info WHERE id = 1")).scalar()
     if not has_row:
-        conn.execute(text(
-            "INSERT INTO compliance_info (id, tax_regime, iva_default_rate, "
-            "next_boleta_resimple_number, next_factura_number, "
-            "labor_cost_per_hour_gs, overhead_multiplier_pct, sifen_test_mode, updated_at) "
-            "VALUES (1, 'resimple', '10', 1, 1, 25000, 15, 1, CURRENT_TIMESTAMP)"
-        ))
+        conn.execute(
+            text(
+                "INSERT INTO compliance_info (id, tax_regime, iva_default_rate, "
+                "next_boleta_resimple_number, next_factura_number, "
+                "labor_cost_per_hour_gs, overhead_multiplier_pct, sifen_test_mode, updated_at) "
+                "VALUES (1, 'resimple', '10', 1, 1, 25000, 15, 1, CURRENT_TIMESTAMP)"
+            )
+        )
     _bump_schema_version(conn, 35)
-
-
 
 
 def _migration_036_product_tax_haccp(conn: Any) -> None:
@@ -1273,14 +1391,16 @@ def _migration_036_product_tax_haccp(conn: Any) -> None:
 
     Idempotent: each column uses _add_column_if_missing so re-runs are no-ops.
     """
-    _add_column_if_missing(conn, "product", "iva_rate", "VARCHAR(8)", "VARCHAR(8) NOT NULL DEFAULT '10'")
-    _add_column_if_missing(conn, "product", "requires_rspa", "BOOLEAN", "BOOLEAN NOT NULL DEFAULT 0")
+    _add_column_if_missing(
+        conn, "product", "iva_rate", "VARCHAR(8)", "VARCHAR(8) NOT NULL DEFAULT '10'"
+    )
+    _add_column_if_missing(
+        conn, "product", "requires_rspa", "BOOLEAN", "BOOLEAN NOT NULL DEFAULT 0"
+    )
     _add_column_if_missing(conn, "product", "rspa_number", "VARCHAR(30)", "VARCHAR(30)")
     _add_column_if_missing(conn, "product", "rspa_expiry", "VARCHAR(10)", "VARCHAR(10)")
     _add_column_if_missing(conn, "product", "yield_percentage", "FLOAT", "FLOAT")
     _bump_schema_version(conn, 36)
-
-
 
 
 def _migration_037_sale_fiscal_invoice(conn: Any) -> None:
@@ -1289,16 +1409,22 @@ def _migration_037_sale_fiscal_invoice(conn: Any) -> None:
     Required for Paraguayan DNIT/SET bookkeeping (Ley 7165 — every sale
     needs a comprobante; Res 1421/05 — Libro IVA Ventas monthly).
     """
-    _add_column_if_missing(conn, "sale", "invoice_type", "VARCHAR(20)", "VARCHAR(20) NOT NULL DEFAULT 'boleta_resimple'")
+    _add_column_if_missing(
+        conn,
+        "sale",
+        "invoice_type",
+        "VARCHAR(20)",
+        "VARCHAR(20) NOT NULL DEFAULT 'boleta_resimple'",
+    )
     _add_column_if_missing(conn, "sale", "invoice_number", "INTEGER", "INTEGER")
     _add_column_if_missing(conn, "sale", "invoice_customer_ruc", "VARCHAR(20)", "VARCHAR(20)")
     _add_column_if_missing(conn, "sale", "invoice_customer_name", "VARCHAR(120)", "VARCHAR(120)")
-    _add_column_if_missing(conn, "sale", "iva_rate", "VARCHAR(8)", "VARCHAR(8) NOT NULL DEFAULT '10'")
+    _add_column_if_missing(
+        conn, "sale", "iva_rate", "VARCHAR(8)", "VARCHAR(8) NOT NULL DEFAULT '10'"
+    )
     _add_column_if_missing(conn, "sale", "iva_base_gs", "INTEGER", "INTEGER NOT NULL DEFAULT 0")
     _add_column_if_missing(conn, "sale", "iva_amount_gs", "INTEGER", "INTEGER NOT NULL DEFAULT 0")
     _bump_schema_version(conn, 37)
-
-
 
 
 def _migration_038_ingredient_haccp(conn: Any) -> None:
@@ -1313,7 +1439,9 @@ def _migration_038_ingredient_haccp(conn: Any) -> None:
     _add_column_if_missing(conn, "ingredient", "temp_max_c", "FLOAT", "FLOAT")
     _add_column_if_missing(conn, "ingredient", "humidity_max_pct", "FLOAT", "FLOAT")
     _add_column_if_missing(conn, "ingredient", "water_activity_aw", "FLOAT", "FLOAT")
-    _add_column_if_missing(conn, "ingredient", "lot_required", "BOOLEAN", "BOOLEAN NOT NULL DEFAULT 0")
+    _add_column_if_missing(
+        conn, "ingredient", "lot_required", "BOOLEAN", "BOOLEAN NOT NULL DEFAULT 0"
+    )
     _add_column_if_missing(conn, "recipe", "yield_percentage", "FLOAT", "FLOAT")
     _add_column_if_missing(conn, "recipe", "direct_labor_minutes", "INTEGER", "INTEGER")
     _bump_schema_version(conn, 38)
@@ -1336,7 +1464,7 @@ def _migration_050_sale_void_reason(conn: Any) -> None:
 def _migration_051_ingredient_variant(conn: Any) -> None:
     """Add ingredient_variant table (Sprint 7 — Decision A1).
 
-    Saskia's exact words from the audio review:
+    the operator's exact words from the audio review:
       "harina 1kg / harina 250g / proveedor X — a single ingredient 'harina'
        with sub-rows for each package".
 
@@ -1358,97 +1486,120 @@ def _migration_051_ingredient_variant(conn: Any) -> None:
     """
     dialect = conn.dialect.name
     if dialect == "postgresql":
-        conn.execute(text(
-            "CREATE TABLE IF NOT EXISTS ingredient_variant ("
-            "id SERIAL PRIMARY KEY,"
-            "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) ON DELETE CASCADE,"
-            "package_size DOUBLE PRECISION NOT NULL DEFAULT 1.0,"
-            "package_unit VARCHAR(8) NOT NULL DEFAULT 'und',"
-            "purchase_price_gs INTEGER,"
-            "supplier_id INTEGER REFERENCES supplier(id),"
-            "preferred BOOLEAN NOT NULL DEFAULT FALSE,"
-            "notes TEXT,"
-            "created_at TIMESTAMP NOT NULL DEFAULT NOW(),"
-            "updated_at TIMESTAMP NOT NULL DEFAULT NOW()"
-            ")"
-        ))
-        conn.execute(text(
-            "CREATE INDEX IF NOT EXISTS ix_ingredient_variant_ingredient "
-            "ON ingredient_variant(ingredient_id)"
-        ))
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS ingredient_variant ("
+                "id SERIAL PRIMARY KEY,"
+                "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) ON DELETE CASCADE,"
+                "package_size DOUBLE PRECISION NOT NULL DEFAULT 1.0,"
+                "package_unit VARCHAR(8) NOT NULL DEFAULT 'und',"
+                "purchase_price_gs INTEGER,"
+                "supplier_id INTEGER REFERENCES supplier(id),"
+                "preferred BOOLEAN NOT NULL DEFAULT FALSE,"
+                "notes TEXT,"
+                "created_at TIMESTAMP NOT NULL DEFAULT NOW(),"
+                "updated_at TIMESTAMP NOT NULL DEFAULT NOW()"
+                ")"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_ingredient_variant_ingredient "
+                "ON ingredient_variant(ingredient_id)"
+            )
+        )
         # MySQL / Postgres partial unique: at most one preferred per ingredient
         # Postgres supports this directly; SQLite emulates with a trigger.
-        conn.execute(text(
-            "CREATE UNIQUE INDEX IF NOT EXISTS uq_ingredient_variant_preferred "
-            "ON ingredient_variant(ingredient_id) WHERE preferred = TRUE"
-        ))
+        conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_ingredient_variant_preferred "
+                "ON ingredient_variant(ingredient_id) WHERE preferred = TRUE"
+            )
+        )
     else:
-        conn.execute(text(
-            "CREATE TABLE IF NOT EXISTS ingredient_variant ("
-            "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-            "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) ON DELETE CASCADE,"
-            "package_size REAL NOT NULL DEFAULT 1.0,"
-            "package_unit VARCHAR(8) NOT NULL DEFAULT 'und',"
-            "purchase_price_gs INTEGER,"
-            "supplier_id INTEGER REFERENCES supplier(id),"
-            "preferred BOOLEAN NOT NULL DEFAULT 0,"
-            "notes TEXT,"
-            "created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),"
-            "updated_at TIMESTAMP NOT NULL DEFAULT (datetime('now'))"
-            ")"
-        ))
-        conn.execute(text(
-            "CREATE INDEX IF NOT EXISTS ix_ingredient_variant_ingredient "
-            "ON ingredient_variant(ingredient_id)"
-        ))
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS ingredient_variant ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "ingredient_id INTEGER NOT NULL REFERENCES ingredient(id) ON DELETE CASCADE,"
+                "package_size REAL NOT NULL DEFAULT 1.0,"
+                "package_unit VARCHAR(8) NOT NULL DEFAULT 'und',"
+                "purchase_price_gs INTEGER,"
+                "supplier_id INTEGER REFERENCES supplier(id),"
+                "preferred BOOLEAN NOT NULL DEFAULT 0,"
+                "notes TEXT,"
+                "created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),"
+                "updated_at TIMESTAMP NOT NULL DEFAULT (datetime('now'))"
+                ")"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_ingredient_variant_ingredient "
+                "ON ingredient_variant(ingredient_id)"
+            )
+        )
         # SQLite doesn't support partial unique indexes before 3.8 — emulate
         # the "at most one preferred per ingredient" rule with a trigger.
-        conn.execute(text(
-            "CREATE TRIGGER IF NOT EXISTS trg_ingredient_variant_preferred "
-            "BEFORE INSERT ON ingredient_variant "
-            "WHEN NEW.preferred = 1 "
-            "BEGIN "
-            "  UPDATE ingredient_variant SET preferred = 0 "
-            "  WHERE ingredient_id = NEW.ingredient_id AND preferred = 1; "
-            "END"
-        ))
-        conn.execute(text(
-            "CREATE TRIGGER IF NOT EXISTS trg_ingredient_variant_preferred_upd "
-            "BEFORE UPDATE ON ingredient_variant "
-            "WHEN NEW.preferred = 1 "
-            "BEGIN "
-            "  UPDATE ingredient_variant SET preferred = 0 "
-            "  WHERE id != NEW.id AND ingredient_id = NEW.ingredient_id AND preferred = 1; "
-            "END"
-        ))
+        conn.execute(
+            text(
+                "CREATE TRIGGER IF NOT EXISTS trg_ingredient_variant_preferred "
+                "BEFORE INSERT ON ingredient_variant "
+                "WHEN NEW.preferred = 1 "
+                "BEGIN "
+                "  UPDATE ingredient_variant SET preferred = 0 "
+                "  WHERE ingredient_id = NEW.ingredient_id AND preferred = 1; "
+                "END"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TRIGGER IF NOT EXISTS trg_ingredient_variant_preferred_upd "
+                "BEFORE UPDATE ON ingredient_variant "
+                "WHEN NEW.preferred = 1 "
+                "BEGIN "
+                "  UPDATE ingredient_variant SET preferred = 0 "
+                "  WHERE id != NEW.id AND ingredient_id = NEW.ingredient_id AND preferred = 1; "
+                "END"
+            )
+        )
 
     # Backfill: for every existing Ingredient with a purchase_price_gs,
     # create a default variant. Done in SQL so it works without importing
     # the model layer (the migration must be self-contained).
+    #
+    # NOTE: SQLite's INSERT ... SELECT does NOT apply the column DEFAULT when
+    # columns are listed but omitted from the SELECT. The NOT NULL constraint
+    # then fails. We therefore include `datetime('now')` explicitly for the
+    # `created_at`/`updated_at` columns to keep this migration self-contained.
     if dialect == "postgresql":
-        conn.execute(text(
-            "INSERT INTO ingredient_variant "
-            "(ingredient_id, package_size, package_unit, purchase_price_gs, supplier_id, preferred) "
-            "SELECT id, 1.0, unit, purchase_price_gs, supplier_id, TRUE "
-            "FROM ingredient "
-            "WHERE purchase_price_gs IS NOT NULL "
-            "AND NOT EXISTS ("
-            "  SELECT 1 FROM ingredient_variant v "
-            "  WHERE v.ingredient_id = ingredient.id"
-            ")"
-        ))
+        conn.execute(
+            text(
+                "INSERT INTO ingredient_variant "
+                "(ingredient_id, package_size, package_unit, purchase_price_gs, supplier_id, preferred, created_at, updated_at) "
+                "SELECT id, 1.0, unit, purchase_price_gs, supplier_id, TRUE, NOW(), NOW() "
+                "FROM ingredient "
+                "WHERE purchase_price_gs IS NOT NULL "
+                "AND NOT EXISTS ("
+                "  SELECT 1 FROM ingredient_variant v "
+                "  WHERE v.ingredient_id = ingredient.id"
+                ")"
+            )
+        )
     else:
-        conn.execute(text(
-            "INSERT INTO ingredient_variant "
-            "(ingredient_id, package_size, package_unit, purchase_price_gs, supplier_id, preferred) "
-            "SELECT id, 1.0, unit, purchase_price_gs, supplier_id, 1 "
-            "FROM ingredient "
-            "WHERE purchase_price_gs IS NOT NULL "
-            "AND NOT EXISTS ("
-            "  SELECT 1 FROM ingredient_variant v "
-            "  WHERE v.ingredient_id = ingredient.id"
-            ")"
-        ))
+        conn.execute(
+            text(
+                "INSERT INTO ingredient_variant "
+                "(ingredient_id, package_size, package_unit, purchase_price_gs, supplier_id, preferred, created_at, updated_at) "
+                "SELECT id, 1.0, unit, purchase_price_gs, supplier_id, 1, datetime('now'), datetime('now') "
+                "FROM ingredient "
+                "WHERE purchase_price_gs IS NOT NULL "
+                "AND NOT EXISTS ("
+                "  SELECT 1 FROM ingredient_variant v "
+                "  WHERE v.ingredient_id = ingredient.id"
+                ")"
+            )
+        )
 
     _bump_schema_version(conn, 51)
 
@@ -1465,14 +1616,13 @@ def _migration_052_ingredient_forecast_horizon(conn: Any) -> None:
     from supplier B takes a week. A single horizon can't capture both.
     """
     _add_column_if_missing(
-        conn, "ingredient", "forecast_horizon_days",
-        "INTEGER", "INTEGER",
+        conn,
+        "ingredient",
+        "forecast_horizon_days",
+        "INTEGER",
+        "INTEGER",
     )
     _bump_schema_version(conn, 52)
-
-
-
-
 
 
 def _migration_039_category_table(conn: Any) -> None:
@@ -1501,8 +1651,9 @@ def _migration_039_category_table(conn: Any) -> None:
     pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
     bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
 
-    conn.execute(text(
-        f"""
+    conn.execute(
+        text(
+            f"""
         CREATE TABLE IF NOT EXISTS category (
             id {pk_type},
             name VARCHAR(64) NOT NULL,
@@ -1513,11 +1664,14 @@ def _migration_039_category_table(conn: Any) -> None:
             UNIQUE (scope, name)
         )
         """
-    ))
-    conn.execute(text(
-        "CREATE INDEX IF NOT EXISTS ix_category_scope_active "
-        "ON category (scope, is_active, sort_order)"
-    ))
+        )
+    )
+    conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_category_scope_active "
+            "ON category (scope, is_active, sort_order)"
+        )
+    )
 
     # Seed product categories
     product_cats = [
@@ -1562,7 +1716,9 @@ def _migration_039_category_table(conn: Any) -> None:
                 "INSERT OR IGNORE INTO category "
                 "(name, scope, sort_order, is_active, created_at) "
                 "VALUES (:n, 'product', :s, 1, CURRENT_TIMESTAMP)"
-            ) if dialect == "sqlite" else text(
+            )
+            if dialect == "sqlite"
+            else text(
                 "INSERT INTO category "
                 "(name, scope, sort_order, is_active, created_at) "
                 "VALUES (:n, 'product', :s, TRUE, CURRENT_TIMESTAMP) "
@@ -1576,7 +1732,9 @@ def _migration_039_category_table(conn: Any) -> None:
                 "INSERT OR IGNORE INTO category "
                 "(name, scope, sort_order, is_active, created_at) "
                 "VALUES (:n, 'recipe_family', :s, 1, CURRENT_TIMESTAMP)"
-            ) if dialect == "sqlite" else text(
+            )
+            if dialect == "sqlite"
+            else text(
                 "INSERT INTO category "
                 "(name, scope, sort_order, is_active, created_at) "
                 "VALUES (:n, 'recipe_family', :s, TRUE, CURRENT_TIMESTAMP) "
@@ -1591,6 +1749,7 @@ def _migration_039_category_table(conn: Any) -> None:
     try:
         # Use the same connection as the migration so it's in the same transaction.
         from app.rms.tagging import STARTER_TAGS
+
         for name, kind, color in STARTER_TAGS:
             try:
                 ensure_tag_with_conn(conn, name, kind, color)
@@ -1642,13 +1801,12 @@ def _migration_040_pricing_setting(conn: Any) -> None:
     if the value already matches.
     """
     import json as _json
+
     pricing_value = _json.dumps({"multiplier": 3.0, "round_to_gs": 1000})
     from app.rms.db import app_meta_write
+
     app_meta_write(conn, "pricing.suggested_markup", pricing_value)
     _bump_schema_version(conn, 40)
-
-
-
 
 
 def _migration_041_channel_catalog(conn: Any) -> None:
@@ -1670,8 +1828,9 @@ def _migration_041_channel_catalog(conn: Any) -> None:
     pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
     bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
 
-    conn.execute(text(
-        f"""
+    conn.execute(
+        text(
+            f"""
         CREATE TABLE IF NOT EXISTS channel (
             id {pk_type},
             code VARCHAR(32) NOT NULL UNIQUE,
@@ -1683,7 +1842,8 @@ def _migration_041_channel_catalog(conn: Any) -> None:
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
-    ))
+        )
+    )
 
     channels = [
         ("mostrador", "Mostrador", 10, True),
@@ -1697,7 +1857,9 @@ def _migration_041_channel_catalog(conn: Any) -> None:
             text(
                 "INSERT OR IGNORE INTO channel (code, label, sort_order, is_default, is_active, created_at) "
                 "VALUES (:c, :l, :s, :d, 1, CURRENT_TIMESTAMP)"
-            ) if dialect == "sqlite" else text(
+            )
+            if dialect == "sqlite"
+            else text(
                 "INSERT INTO channel (code, label, sort_order, is_default, is_active, created_at) "
                 "VALUES (:c, :l, :s, :d, TRUE, CURRENT_TIMESTAMP) "
                 "ON CONFLICT (code) DO NOTHING"
@@ -1726,8 +1888,9 @@ def _migration_042_payment_method_catalog(conn: Any) -> None:
     bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
     float_t = "FLOAT" if dialect == "sqlite" else "DOUBLE PRECISION"
 
-    conn.execute(text(
-        f"""
+    conn.execute(
+        text(
+            f"""
         CREATE TABLE IF NOT EXISTS payment_method (
             id {pk_type},
             code VARCHAR(32) NOT NULL UNIQUE,
@@ -1741,7 +1904,8 @@ def _migration_042_payment_method_catalog(conn: Any) -> None:
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
-    ))
+        )
+    )
 
     methods = [
         ("efectivo", "Efectivo", False, 0.0, True),
@@ -1756,24 +1920,25 @@ def _migration_042_payment_method_catalog(conn: Any) -> None:
                 "INSERT OR IGNORE INTO payment_method "
                 "(code, label, requires_reference, fee_pct, sort_order, is_default, is_active, created_at) "
                 "VALUES (:c, :l, :r, :f, :s, :d, 1, CURRENT_TIMESTAMP)"
-            ) if dialect == "sqlite" else text(
+            )
+            if dialect == "sqlite"
+            else text(
                 "INSERT INTO payment_method "
                 "(code, label, requires_reference, fee_pct, sort_order, is_default, is_active, created_at) "
                 "VALUES (:c, :l, :r, :f, :s, :d, TRUE, CURRENT_TIMESTAMP) "
                 "ON CONFLICT (code) DO NOTHING"
             ),
-            {"c": code, "l": label, "r": 1 if req_ref else 0, "f": fee, "s": 0, "d": 1 if is_default else 0},
+            {
+                "c": code,
+                "l": label,
+                "r": 1 if req_ref else 0,
+                "f": fee,
+                "s": 0,
+                "d": 1 if is_default else 0,
+            },
         )
 
     _bump_schema_version(conn, 42)
-
-
-
-
-
-
-
-
 
 
 def _migration_043_branding_setting(conn: Any) -> None:
@@ -1781,7 +1946,7 @@ def _migration_043_branding_setting(conn: Any) -> None:
 
     Seeds SettingsKV["branding"] with defaults that match the previous
     hardcoded copy in templates/login.html and templates/base.html:
-      - business_name: "Saskia RMS"
+      - business_name: "Sazón"
       - tagline: "Panadería / Bakery — Sistema de gestión"
       - footer: "Sistema local · 2026"
       - accent_color: "#f97316" (CSS --color-accent)
@@ -1791,19 +1956,18 @@ def _migration_043_branding_setting(conn: Any) -> None:
     deploy (Phase 5 follow-up UI page).
     """
     import json as _json
+
     branding = {
-        "business_name": "Saskia RMS",
+        "business_name": "Sazón",
         "tagline": "Panadería / Bakery — Sistema de gestión",
         "footer": "Sistema local",
         "accent_color": "#f97316",
         "logo_path": "",
     }
     from app.rms.db import app_meta_write
+
     app_meta_write(conn, "branding", _json.dumps(branding))
     _bump_schema_version(conn, 43)
-
-
-
 
 
 def _migration_044_message_templates(conn: Any) -> None:
@@ -1821,8 +1985,9 @@ def _migration_044_message_templates(conn: Any) -> None:
     conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     text_type = "TEXT"
 
-    conn.execute(text(
-        f"""
+    conn.execute(
+        text(
+            f"""
         CREATE TABLE IF NOT EXISTS message_template (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             channel VARCHAR(16) NOT NULL,
@@ -1837,63 +2002,76 @@ def _migration_044_message_templates(conn: Any) -> None:
             UNIQUE (channel, key, locale)
         )
         """
-    ))
+        )
+    )
 
     # Seed default templates (Paraguayan Spanish, es-PY)
     defaults = [
         # WhatsApp — pedido ready for pickup
         (
-            "whatsapp", "pedido_listo",
+            "whatsapp",
+            "pedido_listo",
             None,
             "¡Hola {customer_name}! Tu pedido #{pedido_id} ya está listo para retirar. "
             "Total: Gs. {total_gs}. ¡Gracias por confiar en {business_name}!",
-            "es-PY", 1,
+            "es-PY",
+            1,
             "Sent via WhatsApp when pedido is marked ready for pickup.",
         ),
         # WhatsApp — pedido confirmed
         (
-            "whatsapp", "pedido_confirmado",
+            "whatsapp",
+            "pedido_confirmado",
             None,
             "¡{customer_name}, tu pedido #{pedido_id} fue confirmado! "
             "Prometido para {promised_date}. Total: Gs. {total_gs}.",
-            "es-PY", 1,
+            "es-PY",
+            1,
             "Sent via WhatsApp when pedido is first created.",
         ),
         # WhatsApp — low stock alert (for supplier/internal)
         (
-            "whatsapp", "stock_bajo",
+            "whatsapp",
+            "stock_bajo",
             None,
             "⚠ Stock bajo: {ingredient_name}. Actual: {stock_qty} {unit} "
             "(mínimo: {min_stock_qty} {unit}). Reposición sugerida: {reorder_qty} {unit}.",
-            "es-PY", 1,
+            "es-PY",
+            1,
             "Sent to operator when an ingredient drops below minimum.",
         ),
         # Email — daily summary (subject + body)
         (
-            "email", "resumen_diario",
+            "email",
+            "resumen_diario",
             "Resumen del día — {date}",
             "Buen día, Iván.\n\n"
             "Ventas de ayer: {total_sales_gs} Gs. ({total_count} ventas).\n"
             "Stock bajo: {low_stock_count} ingredientes.\n"
             "Por vencer: {expiring_count} ingredientes.\n\n"
             "Detalle en {dashboard_url}.",
-            "es-PY", 1,
+            "es-PY",
+            1,
             "Daily morning email with key metrics.",
         ),
         # WhatsApp — customer order share link
         (
-            "whatsapp", "pedido_compartir",
+            "whatsapp",
+            "pedido_compartir",
             None,
             "Tu pedido #{pedido_id} en {business_name}: {public_url}",
-            "es-PY", 1,
+            "es-PY",
+            1,
             "Sent to customer with the public pickup-tracking link.",
         ),
         # Generic — fallback
         (
-            "email", "generic",
+            "email",
+            "generic",
             "Notificación de {business_name}",
             "{message_body}",
-            "es-PY", 1,
+            "es-PY",
+            1,
             "Generic email template. Subject + body interpolated.",
         ),
     ]
@@ -1905,13 +2083,18 @@ def _migration_044_message_templates(conn: Any) -> None:
                 "(channel, key, subject, body, locale, version, notes, is_active, updated_at) "
                 "VALUES (:ch, :k, :sub, :body, :loc, :v, :notes, 1, CURRENT_TIMESTAMP)"
             ),
-            {"ch": ch, "k": key, "sub": subject, "body": body, "loc": locale, "v": version, "notes": notes},
+            {
+                "ch": ch,
+                "k": key,
+                "sub": subject,
+                "body": body,
+                "loc": locale,
+                "v": version,
+                "notes": notes,
+            },
         )
 
     _bump_schema_version(conn, 44)
-
-
-
 
 
 def _migration_045_margin_tiers(conn: Any) -> None:
@@ -1930,8 +2113,9 @@ def _migration_045_margin_tiers(conn: Any) -> None:
     pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
     bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
 
-    conn.execute(text(
-        f"""
+    conn.execute(
+        text(
+            f"""
         CREATE TABLE IF NOT EXISTS margin_tier (
             id {pk_type},
             code VARCHAR(32) NOT NULL UNIQUE,
@@ -1944,7 +2128,8 @@ def _migration_045_margin_tiers(conn: Any) -> None:
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
-    ))
+        )
+    )
 
     tiers = [
         ("top_10", "Top 10% (más baratos)", 10000, 10),
@@ -1956,7 +2141,9 @@ def _migration_045_margin_tiers(conn: Any) -> None:
             text(
                 "INSERT OR IGNORE INTO margin_tier (code, label, max_cost_gs, sort_order, is_active, created_at) "
                 "VALUES (:c, :l, :cost, :s, 1, CURRENT_TIMESTAMP)"
-            ) if dialect == "sqlite" else text(
+            )
+            if dialect == "sqlite"
+            else text(
                 "INSERT INTO margin_tier (code, label, max_cost_gs, sort_order, is_active, created_at) "
                 "VALUES (:c, :l, :cost, :s, TRUE, CURRENT_TIMESTAMP) "
                 "ON CONFLICT (code) DO NOTHING"
@@ -1965,13 +2152,17 @@ def _migration_045_margin_tiers(conn: Any) -> None:
         )
     # bottom_25 has min_cost_gs, not max
     if dialect == "sqlite":
-        conn.execute(text(
-            "UPDATE margin_tier SET min_cost_gs = 1000, max_cost_gs = NULL WHERE code = 'bottom_25'"
-        ))
+        conn.execute(
+            text(
+                "UPDATE margin_tier SET min_cost_gs = 1000, max_cost_gs = NULL WHERE code = 'bottom_25'"
+            )
+        )
     else:
-        conn.execute(text(
-            "UPDATE margin_tier SET min_cost_gs = 1000, max_cost_gs = NULL WHERE code = 'bottom_25'"
-        ))
+        conn.execute(
+            text(
+                "UPDATE margin_tier SET min_cost_gs = 1000, max_cost_gs = NULL WHERE code = 'bottom_25'"
+            )
+        )
 
     _bump_schema_version(conn, 45)
 
@@ -1992,8 +2183,9 @@ def _migration_046_stock_status_config(conn: Any) -> None:
     bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
     float_t = "FLOAT" if dialect == "sqlite" else "DOUBLE PRECISION"
 
-    conn.execute(text(
-        f"""
+    conn.execute(
+        text(
+            f"""
         CREATE TABLE IF NOT EXISTS stock_status_config (
             id {pk_type},
             code VARCHAR(32) NOT NULL UNIQUE,
@@ -2006,7 +2198,8 @@ def _migration_046_stock_status_config(conn: Any) -> None:
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
-    ))
+        )
+    )
 
     statuses = [
         # code, label, ratio, days, sort
@@ -2021,7 +2214,9 @@ def _migration_046_stock_status_config(conn: Any) -> None:
                 "INSERT OR IGNORE INTO stock_status_config "
                 "(code, label, threshold_ratio, threshold_days, sort_order, is_active, updated_at) "
                 "VALUES (:c, :l, :r, :d, :s, 1, CURRENT_TIMESTAMP)"
-            ) if dialect == "sqlite" else text(
+            )
+            if dialect == "sqlite"
+            else text(
                 "INSERT INTO stock_status_config "
                 "(code, label, threshold_ratio, threshold_days, sort_order, is_active, updated_at) "
                 "VALUES (:c, :l, :r, :d, :s, TRUE, CURRENT_TIMESTAMP) "
@@ -2031,9 +2226,6 @@ def _migration_046_stock_status_config(conn: Any) -> None:
         )
 
     _bump_schema_version(conn, 46)
-
-
-
 
 
 def _migration_047_storage_types(conn: Any) -> None:
@@ -2054,8 +2246,9 @@ def _migration_047_storage_types(conn: Any) -> None:
     pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
     bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
 
-    conn.execute(text(
-        f"""
+    conn.execute(
+        text(
+            f"""
         CREATE TABLE IF NOT EXISTS storage_type (
             id {pk_type},
             code VARCHAR(32) NOT NULL UNIQUE,
@@ -2069,13 +2262,14 @@ def _migration_047_storage_types(conn: Any) -> None:
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
-    ))
+        )
+    )
 
     defaults = [
         # code, label, requires_temp_min, requires_temp_max, requires_humidity, sort
-        ("ambient",      "Ambiente (seco)",         0, 0, 0, 10),
-        ("refrigerated", "Refrigerado (2-8°C)",     1, 1, 0, 20),
-        ("frozen",       "Congelado (≤ -18°C)",     0, 1, 0, 30),
+        ("ambient", "Ambiente (seco)", 0, 0, 0, 10),
+        ("refrigerated", "Refrigerado (2-8°C)", 1, 1, 0, 20),
+        ("frozen", "Congelado (≤ -18°C)", 0, 1, 0, 30),
     ]
     for code, label, tmin, tmax, hum, sort in defaults:
         conn.execute(
@@ -2083,7 +2277,9 @@ def _migration_047_storage_types(conn: Any) -> None:
                 "INSERT OR IGNORE INTO storage_type "
                 "(code, label, requires_temp_min, requires_temp_max, requires_humidity_max, sort_order, is_active, created_at) "
                 "VALUES (:c, :l, :tmin, :tmax, :hum, :s, 1, CURRENT_TIMESTAMP)"
-            ) if dialect == "sqlite" else text(
+            )
+            if dialect == "sqlite"
+            else text(
                 "INSERT INTO storage_type "
                 "(code, label, requires_temp_min, requires_temp_max, requires_humidity_max, sort_order, is_active, created_at) "
                 "VALUES (:c, :l, :tmin, :tmax, :hum, :s, TRUE, CURRENT_TIMESTAMP) "
@@ -2109,8 +2305,9 @@ def _migration_048_date_range_presets(conn: Any) -> None:
     pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
     bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
 
-    conn.execute(text(
-        f"""
+    conn.execute(
+        text(
+            f"""
         CREATE TABLE IF NOT EXISTS date_range_preset (
             id {pk_type},
             code VARCHAR(32) NOT NULL UNIQUE,
@@ -2122,15 +2319,16 @@ def _migration_048_date_range_presets(conn: Any) -> None:
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
-    ))
+        )
+    )
 
     defaults = [
         # code, label, days, is_default, sort
-        ("today",    "Hoy",         1,   1, 10),
-        ("week",     "7 días",      7,   0, 20),
-        ("month",    "30 días",     30,  0, 30),
-        ("quarter",  "90 días",     90,  0, 40),
-        ("year",     "1 año",       365, 0, 50),
+        ("today", "Hoy", 1, 1, 10),
+        ("week", "7 días", 7, 0, 20),
+        ("month", "30 días", 30, 0, 30),
+        ("quarter", "90 días", 90, 0, 40),
+        ("year", "1 año", 365, 0, 50),
     ]
     for code, label, days, is_def, sort in defaults:
         conn.execute(
@@ -2138,7 +2336,9 @@ def _migration_048_date_range_presets(conn: Any) -> None:
                 "INSERT OR IGNORE INTO date_range_preset "
                 "(code, label, days, is_default, sort_order, is_active, created_at) "
                 "VALUES (:c, :l, :d, :def, :s, 1, CURRENT_TIMESTAMP)"
-            ) if dialect == "sqlite" else text(
+            )
+            if dialect == "sqlite"
+            else text(
                 "INSERT INTO date_range_preset "
                 "(code, label, days, is_default, sort_order, is_active, created_at) "
                 "VALUES (:c, :l, :d, :def, :s, TRUE, CURRENT_TIMESTAMP) "
@@ -2148,9 +2348,6 @@ def _migration_048_date_range_presets(conn: Any) -> None:
         )
 
     _bump_schema_version(conn, 48)
-
-
-
 
 
 def _migration_049_storage_keywords(conn: Any) -> None:
@@ -2171,8 +2368,9 @@ def _migration_049_storage_keywords(conn: Any) -> None:
     pk_type = "INTEGER PRIMARY KEY AUTOINCREMENT" if dialect == "sqlite" else "SERIAL PRIMARY KEY"
     bool_t = "INTEGER" if dialect == "sqlite" else "BOOLEAN"
 
-    conn.execute(text(
-        f"""
+    conn.execute(
+        text(
+            f"""
         CREATE TABLE IF NOT EXISTS storage_keyword (
             id {pk_type},
             storage_code VARCHAR(32) NOT NULL,
@@ -2182,7 +2380,8 @@ def _migration_049_storage_keywords(conn: Any) -> None:
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
-    ))
+        )
+    )
 
     # Seed data: (storage_code, keyword, sort_order)
     seeds = [
@@ -2208,7 +2407,9 @@ def _migration_049_storage_keywords(conn: Any) -> None:
             text(
                 "INSERT OR IGNORE INTO storage_keyword (storage_code, keyword, sort_order, is_active, created_at) "
                 "VALUES (:c, :k, :s, 1, CURRENT_TIMESTAMP)"
-            ) if dialect == "sqlite" else text(
+            )
+            if dialect == "sqlite"
+            else text(
                 "INSERT INTO storage_keyword (storage_code, keyword, sort_order, is_active, created_at) "
                 "VALUES (:c, :k, :s, TRUE, CURRENT_TIMESTAMP) "
                 "ON CONFLICT (storage_code, keyword) DO NOTHING"
@@ -2222,7 +2423,7 @@ def _migration_049_storage_keywords(conn: Any) -> None:
 def _migration_053_sale_packaging(conn: Any) -> None:
     """Sprint 8 — US 4.1: per-sale packaging.
 
-    Saskia's exact words from the audio review (paraphrased from the
+    the operator's exact words from the audio review (paraphrased from the
     Spanish audio):
 
       "In product I would put a compressor that is a package instead of in
@@ -2259,32 +2460,38 @@ def _migration_053_sale_packaging(conn: Any) -> None:
     """
     # 1. Ingredient.is_packaging — flag packaging items
     _add_column_if_missing(
-        conn, "ingredient", "is_packaging",
-        "BOOLEAN", "BOOLEAN NOT NULL DEFAULT 0",
+        conn,
+        "ingredient",
+        "is_packaging",
+        "BOOLEAN",
+        "BOOLEAN NOT NULL DEFAULT 0",
     )
     # 2. Sale.packaging_item_id — FK to ingredient
     _add_column_if_missing(
-        conn, "sale", "packaging_item_id",
-        "INTEGER", "INTEGER REFERENCES ingredient(id)",
+        conn,
+        "sale",
+        "packaging_item_id",
+        "INTEGER",
+        "INTEGER REFERENCES ingredient(id)",
     )
     # 3. Sale.packaging_qty
     _add_column_if_missing(
-        conn, "sale", "packaging_qty",
-        "FLOAT", "FLOAT",
+        conn,
+        "sale",
+        "packaging_qty",
+        "FLOAT",
+        "FLOAT",
     )
     # 4. Index for "list sales by packaging item" reporting
     if conn.dialect.name == "postgresql":
-        conn.execute(text(
-            "CREATE INDEX IF NOT EXISTS ix_sale_packaging_item "
-            "ON sale(packaging_item_id)"
-        ))
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_sale_packaging_item ON sale(packaging_item_id)")
+        )
     else:
-        conn.execute(text(
-            "CREATE INDEX IF NOT EXISTS ix_sale_packaging_item "
-            "ON sale(packaging_item_id)"
-        ))
+        conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_sale_packaging_item ON sale(packaging_item_id)")
+        )
     _bump_schema_version(conn, 53)
-
 
 
 def _migration_054_tag_algebra(conn: Any) -> None:
@@ -2296,6 +2503,7 @@ def _migration_054_tag_algebra(conn: Any) -> None:
     - product.inherited_tags (Text, nullable)
     No data backfill: caches populate lazily on first recipe save/visit.
     """
+
     def _add_column(table: str, col: str, ddl: str) -> None:
         # Idempotent: create_all may have already added the column via the
         # ORM model before migrations run; ALTER would then fail.
@@ -2303,6 +2511,7 @@ def _migration_054_tag_algebra(conn: Any) -> None:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
         except Exception:
             pass  # column already exists
+
     _add_column("recipe", "allergens", "TEXT")
     _add_column("recipe", "derived_dietary_tags", "TEXT")
     _add_column("ingredient", "may_contain_gluten", "BOOLEAN NOT NULL DEFAULT 0")
@@ -2316,6 +2525,7 @@ def _migration_055_supplier_ruc(conn: Any) -> None:
     RUC (Registro Único del Contribuyente) is required for legal invoices
     (factura legal) and supplier identification in Paraguay.
     """
+
     def _add_column(table: str, col: str, ddl: str) -> None:
         try:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
@@ -2335,6 +2545,7 @@ def _migration_056_bank_reconciliation(conn: Any) -> None:
     from app.rms.migrations._056_bank_reconciliation import (
         _migration_056_bank_reconciliation as _impl,
     )
+
     _impl(conn)
     _bump_schema_version(conn, 56)
 
@@ -2456,8 +2667,12 @@ def _clean_allergens_m60(raw: str | None) -> str | None:
         return raw
     drop = {"ninguno", "none", "null"}
     canon_map = {
-        "gluten": "gluten", "dairy": "dairy", "eggs": "eggs",
-        "nuts": "nuts", "soy": "soy", "soja": "soy",
+        "gluten": "gluten",
+        "dairy": "dairy",
+        "eggs": "eggs",
+        "nuts": "nuts",
+        "soy": "soy",
+        "soja": "soy",
     }
     parts: list[str] = []
     for p in raw.split(","):
@@ -2490,16 +2705,17 @@ def _migration_060_tag_normalization(conn: Any) -> None:
     Idempotent: each UPDATE keys on the prior value so re-runs are no-ops.
     """
     # (1) Ingredient.dietary_tags English→Spanish.
-    rows = conn.execute(text(
-        "SELECT id, dietary_tags FROM ingredient WHERE dietary_tags IS NOT NULL"
-    )).all()
+    rows = conn.execute(
+        text("SELECT id, dietary_tags FROM ingredient WHERE dietary_tags IS NOT NULL")
+    ).all()
     for r in rows:
         iid, raw = r
         canon = _to_canonical_m60(raw)
         if canon != raw:
-            conn.execute(text(
-                "UPDATE ingredient SET dietary_tags = :v WHERE id = :i"
-            ), {"v": canon, "i": iid})
+            conn.execute(
+                text("UPDATE ingredient SET dietary_tags = :v WHERE id = :i"),
+                {"v": canon, "i": iid},
+            )
 
     # (2) Recompute ingredient.dietary_tags from infer_dietary_tags(name)
     #     so the canonical claims match what the operator UI form would
@@ -2508,13 +2724,12 @@ def _migration_060_tag_normalization(conn: Any) -> None:
     #     no longer claims vegetariano.
     try:
         from app.rms.ingredient_intel import infer_dietary_tags
+
         have_intel = True
     except Exception:
         have_intel = False
     if have_intel:
-        rows = conn.execute(text(
-            "SELECT id, name FROM ingredient"
-        )).all()
+        rows = conn.execute(text("SELECT id, name FROM ingredient")).all()
         for r in rows:
             iid, name = r
             try:
@@ -2524,53 +2739,50 @@ def _migration_060_tag_normalization(conn: Any) -> None:
             new_value = _to_canonical_m60(",".join(tags)) if tags else None
             # SELECT prior value to skip no-op writes (Postgres triggers fire
             # on every UPDATE otherwise).
-            prior = conn.execute(text(
-                "SELECT dietary_tags FROM ingredient WHERE id = :i"
-            ), {"i": iid}).scalar()
+            prior = conn.execute(
+                text("SELECT dietary_tags FROM ingredient WHERE id = :i"), {"i": iid}
+            ).scalar()
             if prior != new_value:
-                conn.execute(text(
-                    "UPDATE ingredient SET dietary_tags = :v WHERE id = :i"
-                ), {"v": new_value, "i": iid})
+                conn.execute(
+                    text("UPDATE ingredient SET dietary_tags = :v WHERE id = :i"),
+                    {"v": new_value, "i": iid},
+                )
 
     # (3) Recipe.dietary_tags English→Spanish.
-    rows = conn.execute(text(
-        "SELECT id, dietary_tags FROM recipe WHERE dietary_tags IS NOT NULL"
-    )).all()
+    rows = conn.execute(
+        text("SELECT id, dietary_tags FROM recipe WHERE dietary_tags IS NOT NULL")
+    ).all()
     for r in rows:
         rid, raw = r
         canon = _to_canonical_m60(raw)
         if canon != raw:
-            conn.execute(text(
-                "UPDATE recipe SET dietary_tags = :v WHERE id = :i"
-            ), {"v": canon, "i": rid})
+            conn.execute(
+                text("UPDATE recipe SET dietary_tags = :v WHERE id = :i"), {"v": canon, "i": rid}
+            )
 
     # (4) recipe.allergens: strip 'Ninguno' + canonicalize casing.
-    rows = conn.execute(text(
-        "SELECT id, allergens FROM recipe WHERE allergens IS NOT NULL"
-    )).all()
+    rows = conn.execute(text("SELECT id, allergens FROM recipe WHERE allergens IS NOT NULL")).all()
     for r in rows:
         rid, raw = r
         cleaned = _clean_allergens_m60(raw)
         if cleaned is None:
-            conn.execute(text(
-                "UPDATE recipe SET allergens = NULL WHERE id = :i"
-            ), {"i": rid})
+            conn.execute(text("UPDATE recipe SET allergens = NULL WHERE id = :i"), {"i": rid})
         elif cleaned != raw:
-            conn.execute(text(
-                "UPDATE recipe SET allergens = :v WHERE id = :i"
-            ), {"v": cleaned, "i": rid})
+            conn.execute(
+                text("UPDATE recipe SET allergens = :v WHERE id = :i"), {"v": cleaned, "i": rid}
+            )
 
     # (5) ingredient.allergens: same canonicalization.
-    rows = conn.execute(text(
-        "SELECT id, allergens FROM ingredient WHERE allergens IS NOT NULL"
-    )).all()
+    rows = conn.execute(
+        text("SELECT id, allergens FROM ingredient WHERE allergens IS NOT NULL")
+    ).all()
     for r in rows:
         iid, raw = r
         cleaned = _clean_allergens_m60(raw)
         if cleaned != raw:
-            conn.execute(text(
-                "UPDATE ingredient SET allergens = :v WHERE id = :i"
-            ), {"v": cleaned, "i": iid})
+            conn.execute(
+                text("UPDATE ingredient SET allergens = :v WHERE id = :i"), {"v": cleaned, "i": iid}
+            )
 
     # (6) Refresh every recipe's derived_dietary_tags cache.
     # Wrapped: cascade_refresh reads Ingredient via ORM and may reference
@@ -2593,10 +2805,12 @@ def _migration_060_tag_normalization(conn: Any) -> None:
         for rid in ids:
             with SessionLocal() as s:
                 from app.rms.tag_algebra import cascade_refresh
+
                 cascade_refresh(s, recipe_id=rid)
                 s.commit()  # without commit, with-exit rolls back the writes
-    except Exception as exc:  # noqa: BLE001 — best-effort, log and continue
+    except Exception as exc:
         import sys as _sys
+
         print(
             f"MIGRATION v60 step (6) cascade_refresh skipped: {exc!r}",
             file=_sys.stderr,
@@ -2641,14 +2855,16 @@ def _migration_062_audit_repair(conn: Any) -> None:
         eng = _make_engine()
         SessionLocal = make_session_factory(eng)
         with SessionLocal() as s:
-            changes = repair_all_ingredients(s)
+            repair_all_ingredients(s)
             # Re-backfill the validation_issues column so the audit page
             # reflects the new state immediately.
             from app.rms.tagging.audit import backfill_validation_issues
+
             backfill_validation_issues(s)
             s.commit()
-    except Exception as exc:  # noqa: BLE001 — best-effort, log and continue
+    except Exception as exc:
         import sys as _sys
+
         print(
             f"MIGRATION v62 repair_all_ingredients skipped: {exc!r}",
             file=_sys.stderr,
@@ -2668,20 +2884,12 @@ def _migration_063_payment_receipt(conn: Any) -> None:
     Idempotent: ALTER try/except.
     """
     try:
-        conn.execute(
-            text(
-                "ALTER TABLE pedido ADD COLUMN payment_receipt_path TEXT"
-            )
-        )
-    except Exception:  # noqa: BLE001, S110
+        conn.execute(text("ALTER TABLE pedido ADD COLUMN payment_receipt_path TEXT"))
+    except Exception:
         pass
     try:
-        conn.execute(
-            text(
-                "ALTER TABLE pedido ADD COLUMN payment_receipt_uploaded_at TIMESTAMP"
-            )
-        )
-    except Exception:  # noqa: BLE001, S110
+        conn.execute(text("ALTER TABLE pedido ADD COLUMN payment_receipt_uploaded_at TIMESTAMP"))
+    except Exception:
         pass
     _bump_schema_version(conn, 63)
 
@@ -2713,31 +2921,24 @@ def _migration_066_product_tablet_slug(conn: Any) -> None:
     Idempotent: ALTER try/except.
     """
     try:
-        conn.execute(
-            text(
-                "ALTER TABLE product ADD COLUMN tablet_slug VARCHAR(60)"
-            )
-        )
-    except Exception:  # noqa: BLE001, S110
+        conn.execute(text("ALTER TABLE product ADD COLUMN tablet_slug VARCHAR(60)"))
+    except Exception:
         pass
     try:
         conn.execute(
-            text(
-                "ALTER TABLE product ADD COLUMN tablet_visible BOOLEAN NOT NULL DEFAULT 1"
-            )
+            text("ALTER TABLE product ADD COLUMN tablet_visible BOOLEAN NOT NULL DEFAULT 1")
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
     # Best-effort: index on tablet_slug for fast lookups. CREATE INDEX
     # is idempotent on its own (IF NOT EXISTS) on SQLite + Postgres.
     try:
         conn.execute(
             text(
-                "CREATE UNIQUE INDEX IF NOT EXISTS ix_product_tablet_slug "
-                "ON product (tablet_slug)"
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_product_tablet_slug ON product (tablet_slug)"
             )
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
     _bump_schema_version(conn, 66)
 
@@ -2768,13 +2969,8 @@ def _migration_067_pedido_public_token_expiry(conn: Any) -> None:
     # 1. Add the column. SQLite ALTER TABLE doesn't support DEFAULT
     # with expression backfill in older versions; safe to add nullable.
     try:
-        conn.execute(
-            text(
-                "ALTER TABLE pedido "
-                "ADD COLUMN public_token_expires_at TIMESTAMP"
-            )
-        )
-    except Exception:  # noqa: BLE001, S110
+        conn.execute(text("ALTER TABLE pedido ADD COLUMN public_token_expires_at TIMESTAMP"))
+    except Exception:
         pass
 
     # 2. Backfill: existing rows get created_at + 30 days.
@@ -2784,11 +2980,9 @@ def _migration_067_pedido_public_token_expiry(conn: Any) -> None:
     # handles the common SQLite formats ("2026-01-01 12:00:00").
     try:
         from datetime import datetime as _dt
+
         rows = conn.execute(
-            text(
-                "SELECT id, created_at FROM pedido "
-                "WHERE public_token_expires_at IS NULL"
-            )
+            text("SELECT id, created_at FROM pedido WHERE public_token_expires_at IS NULL")
         ).all()
         from datetime import timedelta as _td
 
@@ -2805,24 +2999,19 @@ def _migration_067_pedido_public_token_expiry(conn: Any) -> None:
                 except ValueError:
                     # Fallback: try the most common SQLite format.
                     from datetime import datetime as _dt2
-                    parsed = _dt2.strptime(normalized, "%Y-%m-%d %H:%M:%S")
+
+                    parsed = _dt2.strptime(normalized, "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007 — stored as naive UTC in DB
                 expires = parsed + _td(days=30)
             else:
                 expires = created + _td(days=30)
             conn.execute(
-                text(
-                    "UPDATE pedido SET public_token_expires_at = :exp "
-                    "WHERE id = :pid"
-                ),
+                text("UPDATE pedido SET public_token_expires_at = :exp WHERE id = :pid"),
                 {"exp": expires, "pid": row.id},
             )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         from loguru import logger as _lg
 
-        _lg.warning(
-            "migration 067 backfill failed (column may already be populated): "
-            f"{exc}"
-        )
+        _lg.warning(f"migration 067 backfill failed (column may already be populated): {exc}")
 
     # 3. Index for fast "is this token still valid" lookups.
     try:
@@ -2832,7 +3021,7 @@ def _migration_067_pedido_public_token_expiry(conn: Any) -> None:
                 "ON pedido (public_token, public_token_expires_at)"
             )
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
 
     _bump_schema_version(conn, 67)
@@ -2850,10 +3039,8 @@ def _migration_068_recipe_menu_tags(conn: Any) -> None:
     Idempotent: ALTER try/except (matches _migration_067 pattern).
     """
     try:
-        conn.execute(
-            text("ALTER TABLE recipe ADD COLUMN menu_tags TEXT")
-        )
-    except Exception:  # noqa: BLE001, S110
+        conn.execute(text("ALTER TABLE recipe ADD COLUMN menu_tags TEXT"))
+    except Exception:
         pass
 
     # Backfill: seed menu_tags from the legacy family so nothing the
@@ -2866,7 +3053,7 @@ def _migration_068_recipe_menu_tags(conn: Any) -> None:
                 "AND TRIM(family) <> ''"
             )
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
 
     _bump_schema_version(conn, 68)
@@ -2887,13 +3074,16 @@ def _migration_065_suscripciones(conn: Any) -> None:
     # create_all() in init_db() already creates the table from the
     # ORM model; this CREATE IF NOT EXISTS is the safety net for any
     # deployment that ran init_db before the Suscripcion class
-    # shipped. SQLite + Postgres both support IF NOT EXISTS for tables.
+    # shipped. Both dialects support IF NOT EXISTS for tables.
+    # Note: T-2026-10-04 the SERIAL/AUTOINCREMENT split is required —
+    # SQLite needs AUTOINCREMENT for ROWID behavior, Postgres needs
+    # SERIAL for sequence behavior. We pick via _serial_pk_type(conn).
     try:
         conn.execute(
             text(
-                """
+                f"""
                 CREATE TABLE IF NOT EXISTS suscripcion (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id {_serial_pk_type(conn)},
                     customer_id INTEGER NOT NULL REFERENCES customer(id) ON DELETE RESTRICT,
                     product_summary VARCHAR(500) NOT NULL,
                     cadence VARCHAR(16) NOT NULL,
@@ -2919,19 +3109,19 @@ def _migration_065_suscripciones(conn: Any) -> None:
                 """
             )
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
     try:
         conn.execute(
             text("CREATE INDEX IF NOT EXISTS ix_suscripcion_status ON suscripcion (status)")
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
     try:
         conn.execute(
             text("CREATE INDEX IF NOT EXISTS ix_suscripcion_customer ON suscripcion (customer_id)")
         )
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
     _bump_schema_version(conn, 65)
 
@@ -2954,9 +3144,7 @@ def _migration_061_tag_validation(conn: Any) -> None:
     """
     # (1) Add the column.
     try:
-        conn.execute(
-            text("ALTER TABLE ingredient ADD COLUMN tag_validation_issues TEXT")
-        )
+        conn.execute(text("ALTER TABLE ingredient ADD COLUMN tag_validation_issues TEXT"))
     except Exception:
         pass
 
@@ -2980,14 +3168,13 @@ def _migration_061_tag_validation(conn: Any) -> None:
             issues_by_id = audit_all_ingredients(s)
             for iid, issues in issues_by_id.items():
                 s.execute(
-                    text(
-                        "UPDATE ingredient SET tag_validation_issues = :v WHERE id = :i"
-                    ),
+                    text("UPDATE ingredient SET tag_validation_issues = :v WHERE id = :i"),
                     {"v": "\n".join(issues), "i": iid},
                 )
             s.commit()
-    except Exception as exc:  # noqa: BLE001 — best-effort, log and continue
+    except Exception as exc:
         import sys as _sys
+
         print(
             f"MIGRATION v61 audit_all_ingredients skipped: {exc!r}",
             file=_sys.stderr,
@@ -3018,21 +3205,25 @@ def _migration_069_customer_addresses_delivery_favorites(conn: Any) -> None:
 
     Idempotent: CREATE TABLE IF NOT EXISTS + ALTER try/except.
     """
-    conn.execute(text(
-        "CREATE TABLE IF NOT EXISTS customer_address ("
-        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
-        " customer_id INTEGER NOT NULL REFERENCES customer(id),"
-        " label VARCHAR(32) NOT NULL DEFAULT 'casa',"
-        " address_text TEXT NOT NULL,"
-        " zone_id INTEGER REFERENCES delivery_zone(id),"
-        " is_default INTEGER NOT NULL DEFAULT 0,"
-        " created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
-        ")"
-    ))
-    conn.execute(text(
-        "CREATE INDEX IF NOT EXISTS ix_customer_address_customer "
-        "ON customer_address(customer_id)"
-    ))
+    conn.execute(
+        text(
+            f"CREATE TABLE IF NOT EXISTS customer_address ("
+            f" id {_serial_pk_type(conn)},"
+            " customer_id INTEGER NOT NULL REFERENCES customer(id),"
+            " label VARCHAR(32) NOT NULL DEFAULT 'casa',"
+            " address_text TEXT NOT NULL,"
+            " zone_id INTEGER REFERENCES delivery_zone(id),"
+            " is_default INTEGER NOT NULL DEFAULT 0,"
+            " created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
+            ")"
+        )
+    )
+    conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_customer_address_customer "
+            "ON customer_address(customer_id)"
+        )
+    )
     for stmt in (
         "ALTER TABLE pedido ADD COLUMN address_text TEXT",
         "ALTER TABLE pedido ADD COLUMN delivery_window_start VARCHAR(8)",
@@ -3044,7 +3235,7 @@ def _migration_069_customer_addresses_delivery_favorites(conn: Any) -> None:
     ):
         try:
             conn.execute(text(stmt))
-        except Exception:  # noqa: BLE001, S110 — column already exists
+        except Exception:
             pass
 
     _bump_schema_version(conn, 69)
@@ -3070,7 +3261,7 @@ def _migration_070_customer_dietary_profile(conn: Any) -> None:
     ):
         try:
             conn.execute(text(stmt))
-        except Exception:  # noqa: BLE001, S110 — column already exists
+        except Exception:
             pass
 
     _bump_schema_version(conn, 70)
@@ -3091,7 +3282,7 @@ def _migration_071_customer_profile_completeness(conn: Any) -> None:
     ):
         try:
             conn.execute(text(stmt))
-        except Exception:  # noqa: BLE001, S110 — column already exists
+        except Exception:
             pass
 
     _bump_schema_version(conn, 71)
@@ -3102,7 +3293,7 @@ def _migration_072_reorder_supplier_tracking(conn: Any) -> None:
 
     Four new columns on `ingredient` (all NULL-safe so existing rows survive):
 
-      - `last_purchase_supplier_id` — the supplier Saskia actually bought
+      - `last_purchase_supplier_id` — the supplier the operator actually bought
         from in her most recent restock. Used to pre-select the dropdown
         on `/reorder`, and as the source of truth for the
         "specialty-only-here" auto-lock after 3 consecutive buys from the
@@ -3135,7 +3326,7 @@ def _migration_072_reorder_supplier_tracking(conn: Any) -> None:
     ):
         try:
             conn.execute(text(stmt))
-        except Exception:  # noqa: BLE001, S110 — column already exists
+        except Exception:
             pass
 
     # Backfill — best-effort. Empty DB → no rows affected; populated DB
@@ -3148,7 +3339,7 @@ def _migration_072_reorder_supplier_tracking(conn: Any) -> None:
                 "WHERE last_purchase_supplier_id IS NULL AND supplier_id IS NOT NULL"
             )
         )
-    except Exception as exc:  # noqa: BLE001, S110
+    except Exception as exc:
         logger.warning("migration 072: backfill of last_purchase_supplier_id failed: %s", exc)
 
     try:
@@ -3158,7 +3349,7 @@ def _migration_072_reorder_supplier_tracking(conn: Any) -> None:
                 "ON ingredient (last_purchase_supplier_id)"
             )
         )
-    except Exception as exc:  # noqa: BLE001, S110
+    except Exception as exc:
         logger.warning("migration 072: index creation failed: %s", exc)
 
     _bump_schema_version(conn, 72)
@@ -3194,7 +3385,7 @@ def _migration_073_ingredient_price_event_supplier(conn: Any) -> None:
     ):
         try:
             conn.execute(text(stmt))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             # CREATE INDEX IF NOT EXISTS is idempotent; ADD COLUMN raises
             # on second run which we tolerate.
             logger.debug("migration 073 stmt skipped: %s — %s", stmt.split()[2], exc)
@@ -3227,9 +3418,12 @@ def _migration_074_loyalty_transaction_ledger(conn: Any) -> None:
     will write a ledger row and reconcile. A periodic reconcile
     helper can rebuild the column from SUM(delta) if needed.
     """
+    # T-2026-10-04: cross-dialect via _serial_pk_type. AUTOINCREMENT
+    # works on SQLite; Postgres needs SERIAL.
+    _loyalty_pk = _serial_pk_type(conn)
     for stmt in (
-        """CREATE TABLE IF NOT EXISTS loyalty_transaction (
-            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        f"""CREATE TABLE IF NOT EXISTS loyalty_transaction (
+            id {_loyalty_pk},
             customer_id INTEGER NOT NULL REFERENCES customer(id) ON DELETE CASCADE,
             delta INTEGER NOT NULL,
             reason VARCHAR(24) NOT NULL,
@@ -3248,7 +3442,7 @@ def _migration_074_loyalty_transaction_ledger(conn: Any) -> None:
     ):
         try:
             conn.execute(text(stmt))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 074 stmt skipped: %s", exc)
 
     _bump_schema_version(conn, 74)
@@ -3315,25 +3509,29 @@ def _migration_075_suggestion_event_log(conn: Any) -> None:
         ):
             try:
                 conn.execute(text(stmt))
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("migration 075 stmt skipped: %s — %s", stmt[:60], exc)
     else:
         # Postgres / generic: just drop and re-add the constraint.
         try:
-            conn.execute(text(
-                "ALTER TABLE loyalty_transaction DROP CONSTRAINT IF EXISTS ck_loyalty_reason"
-            ))
-            conn.execute(text(
-                "ALTER TABLE loyalty_transaction ADD CONSTRAINT ck_loyalty_reason "
-                "CHECK (reason IN ('earn_sale','redeem','void_reversal','manual_adjust','suggestion_applied'))"
-            ))
-            conn.execute(text(
-                "ALTER TABLE loyalty_transaction DROP CONSTRAINT IF EXISTS ck_loyalty_delta_nonzero"
-            ))
+            conn.execute(
+                text("ALTER TABLE loyalty_transaction DROP CONSTRAINT IF EXISTS ck_loyalty_reason")
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE loyalty_transaction ADD CONSTRAINT ck_loyalty_reason "
+                    "CHECK (reason IN ('earn_sale','redeem','void_reversal','manual_adjust','suggestion_applied'))"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE loyalty_transaction DROP CONSTRAINT IF EXISTS ck_loyalty_delta_nonzero"
+                )
+            )
             # delta_nonzero constraint dropped entirely — suggestion_applied
             # events are zero-balance. Earn/redeem/void/manual_adjust code
             # never writes 0 anyway (guard in customers.py).
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 075 ALTER skipped: %s", exc)
 
     _bump_schema_version(conn, 75)
@@ -3372,7 +3570,7 @@ def _migration_076_sale_linked_pedido_id(conn: Any) -> None:
                 "ALTER TABLE sale ADD COLUMN IF NOT EXISTS linked_pedido_id INTEGER "
                 "REFERENCES pedido(id) ON DELETE SET NULL"
             )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         # Column already exists (re-run after partial apply)
         logger.debug("migration 076 ADD COLUMN skipped: %s", exc)
 
@@ -3380,7 +3578,7 @@ def _migration_076_sale_linked_pedido_id(conn: Any) -> None:
         conn.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS ix_sale_linked_pedido_id ON sale (linked_pedido_id)"
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 076 CREATE INDEX skipped: %s", exc)
 
     # Backfill: link any sale whose id matches a pedido.fulfilled_sale_id.
@@ -3398,7 +3596,7 @@ def _migration_076_sale_linked_pedido_id(conn: Any) -> None:
                 "FROM pedido p WHERE p.fulfilled_sale_id = sale.id "
                 "AND sale.linked_pedido_id IS NULL"
             )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 076 backfill skipped: %s", exc)
 
     _bump_schema_version(conn, 76)
@@ -3458,7 +3656,7 @@ def _migration_077_pedido_event_log(conn: Any) -> None:
 
     try:
         conn.exec_driver_sql(create_sql)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 077 CREATE TABLE pedido_event skipped: %s", exc)
 
     for idx_sql in (
@@ -3469,7 +3667,7 @@ def _migration_077_pedido_event_log(conn: Any) -> None:
     ):
         try:
             conn.exec_driver_sql(idx_sql)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 077 index skipped: %s", exc)
 
     _bump_schema_version(conn, 77)
@@ -3546,7 +3744,7 @@ def _migration_078_communication_log(conn: Any) -> None:
 
     try:
         conn.exec_driver_sql(create_sql)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 078 CREATE TABLE communication_log skipped: %s", exc)
 
     for idx_sql in (
@@ -3560,7 +3758,7 @@ def _migration_078_communication_log(conn: Any) -> None:
     ):
         try:
             conn.exec_driver_sql(idx_sql)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 078 index skipped: %s", exc)
 
     _bump_schema_version(conn, 78)
@@ -3626,7 +3824,7 @@ def _migration_079_customer_address_structured(conn: Any) -> None:
     for sql in add_columns_sql:
         try:
             conn.exec_driver_sql(sql)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 079 ADD COLUMN skipped: %s", exc)
 
     # Address_kind CHECK constraint is awkward to add idempotently on both
@@ -3708,20 +3906,20 @@ def _migration_080_customer_invoice_profile(conn: Any) -> None:
 
     try:
         conn.exec_driver_sql(create_sql)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 080 CREATE TABLE customer_invoice_profile skipped: %s", exc)
 
     for idx_sql in (
         "CREATE INDEX IF NOT EXISTS ix_customer_invoice_profile_customer_id "
-            "ON customer_invoice_profile (customer_id)",
+        "ON customer_invoice_profile (customer_id)",
         "CREATE INDEX IF NOT EXISTS ix_customer_invoice_profile_ruc_ci "
-            "ON customer_invoice_profile (ruc_ci)",
+        "ON customer_invoice_profile (ruc_ci)",
         "CREATE INDEX IF NOT EXISTS ix_customer_invoice_profile_customer_default "
-            "ON customer_invoice_profile (customer_id, is_default)",
+        "ON customer_invoice_profile (customer_id, is_default)",
     ):
         try:
             conn.exec_driver_sql(idx_sql)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 080 index skipped: %s", exc)
 
     # Backfill: every customer with invoice_ruc OR invoice_name set
@@ -3763,7 +3961,7 @@ def _migration_080_customer_invoice_profile(conn: Any) -> None:
             """,
             {"ts": ts},
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 080 backfill skipped: %s", exc)
 
     _bump_schema_version(conn, 80)
@@ -3809,7 +4007,7 @@ def _migration_081_pedido_delivery_window(conn: Any) -> None:
     for sql in add_columns_sql:
         try:
             conn.exec_driver_sql(sql)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 081 ADD COLUMN skipped: %s", exc)
 
     for idx_sql in (
@@ -3819,7 +4017,7 @@ def _migration_081_pedido_delivery_window(conn: Any) -> None:
     ):
         try:
             conn.exec_driver_sql(idx_sql)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 081 index skipped: %s", exc)
 
     _bump_schema_version(conn, 81)
@@ -3851,9 +4049,9 @@ def _migration_082_expense(conn: Any) -> None:
     """
     try:
         conn.exec_driver_sql(
-            """
+            f"""
             CREATE TABLE IF NOT EXISTS expense (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {_serial_pk_type(conn)},
                 occurred_at DATETIME NOT NULL,
                 category VARCHAR(32) NOT NULL,
                 description VARCHAR(255) NOT NULL DEFAULT '',
@@ -3863,21 +4061,19 @@ def _migration_082_expense(conn: Any) -> None:
             )
             """
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("migration 082 CREATE TABLE expense failed: %s", exc)
 
     try:
         conn.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS ix_expense_occurred_at ON expense(occurred_at)"
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 082 ix_expense_occurred_at skipped: %s", exc)
 
     try:
-        conn.exec_driver_sql(
-            "CREATE INDEX IF NOT EXISTS ix_expense_category ON expense(category)"
-        )
-    except Exception as exc:  # noqa: BLE001
+        conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_expense_category ON expense(category)")
+    except Exception as exc:
         logger.debug("migration 082 ix_expense_category skipped: %s", exc)
 
     _bump_schema_version(conn, 82)
@@ -3886,18 +4082,18 @@ def _migration_082_expense(conn: Any) -> None:
 def _migration_083_recipe_yield_qty_insert_guard(conn: Any) -> None:
     """BACKLOG #5 (gap-fix) — Migration 028 only added UPDATE triggers.
 
-    Migration 028 created triggers on `UPDATE OF yield_qty` /
-    `UPDATE OF qty` that fire `RAISE(ABORT, ...)` when setting to a
-    non-null value <= 0. But raw `INSERT INTO recipe (..., yield_qty, ...)
-VALUES (..., -1, ...)` slips past those triggers entirely — UPDATE
-triggers don't fire on INSERT. Same for `recipe_line.qty`.
+        Migration 028 created triggers on `UPDATE OF yield_qty` /
+        `UPDATE OF qty` that fire `RAISE(ABORT, ...)` when setting to a
+        non-null value <= 0. But raw `INSERT INTO recipe (..., yield_qty, ...)
+    VALUES (..., -1, ...)` slips past those triggers entirely — UPDATE
+    triggers don't fire on INSERT. Same for `recipe_line.qty`.
 
-    This migration adds the corresponding BEFORE INSERT triggers so
-    the guard covers both spell and logical write paths. Idempotent
-    (CREATE TRIGGER IF NOT EXISTS).
+        This migration adds the corresponding BEFORE INSERT triggers so
+        the guard covers both spell and logical write paths. Idempotent
+        (CREATE TRIGGER IF NOT EXISTS).
 
-    On Postgres the constraint lives in the model as a `CheckConstraint`
-    so this migration is a no-op there (we still bump the version).
+        On Postgres the constraint lives in the model as a `CheckConstraint`
+        so this migration is a no-op there (we still bump the version).
     """
     try:
         dialect_name = conn.dialect.name
@@ -3907,7 +4103,8 @@ triggers don't fire on INSERT. Same for `recipe_line.qty`.
     if dialect_name == "sqlite":
         # Recipe: yield_qty insert guard (NULL allowed for drafts).
         try:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE TRIGGER IF NOT EXISTS recipe_yield_qty_positive_insert
                 BEFORE INSERT ON recipe
                 FOR EACH ROW
@@ -3915,15 +4112,15 @@ triggers don't fire on INSERT. Same for `recipe_line.qty`.
                 BEGIN
                     SELECT RAISE(ABORT, 'recipe.yield_qty must be > 0 (or NULL for drafts)');
                 END
-            """))
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(
-                "migration 083 recipe_yield_qty_positive_insert skipped: %s", exc
+            """)
             )
+        except Exception as exc:
+            logger.warning("migration 083 recipe_yield_qty_positive_insert skipped: %s", exc)
 
         # RecipeLine: qty insert guard.
         try:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE TRIGGER IF NOT EXISTS recipe_line_qty_positive_insert
                 BEFORE INSERT ON recipe_line
                 FOR EACH ROW
@@ -3931,147 +4128,12 @@ triggers don't fire on INSERT. Same for `recipe_line.qty`.
                 BEGIN
                     SELECT RAISE(ABORT, 'recipe_line.qty must be > 0 (or NULL)');
                 END
-            """))
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(
-                "migration 083 recipe_line_qty_positive_insert skipped: %s", exc
+            """)
             )
+        except Exception as exc:
+            logger.warning("migration 083 recipe_line_qty_positive_insert skipped: %s", exc)
 
     _bump_schema_version(conn, 83)
-
-
-def _migration_093_expense_receipt_recurring(conn: Any) -> None:
-    """Wire migration 085 from ``migrations/_093_expense_receipt_recurring.py``.
-
-    The actual SQLAlchemy + PRAGMA logic lives in that module; here we
-    defer-import to avoid the circular import (db.py ↔ migrations package).
-    """
-    from app.rms.migrations._093_expense_receipt_recurring import (
-        _migration_093_expense_receipt_recurring as _impl,
-    )
-    _impl(conn)
-
-
-def _migration_084_stock_qty_nonneg(conn: Any) -> None:
-    """Wire migration 084 from ``migrations/_084_stock_qty_nonneg.py``.
-
-    Stub on this branch — the full implementation (SQLite triggers +
-    Postgres CheckConstraint) lives on main. This defer-import keeps the
-    migration registry continuous.
-    """
-    from app.rms.migrations._084_stock_qty_nonneg import (
-        _migration_084_stock_qty_nonneg as _impl,
-    )
-    _impl(conn)
-
-
-def _migration_094_monthly_closure(conn: Any) -> None:
-    """Wire migration 086 from ``migrations/_094_monthly_closure.py``.
-
-    The actual CREATE TABLE logic lives in that module; here we
-    defer-import to avoid the circular import.
-    """
-    from app.rms.migrations._094_monthly_closure import (
-        _migration_094_monthly_closure as _impl,
-    )
-    _impl(conn)
-
-
-def _migration_095_soft_delete_columns(conn: Any) -> None:
-    """Wire migration 087 from ``migrations/_095_soft_delete_columns.py``.
-
-    Sprint 3.2: adds ``deleted_at`` + ``deleted_by_user_id`` to owned
-    tables (ingredient, product, recipe, customer, supplier).
-    """
-    from app.rms.migrations._095_soft_delete_columns import (
-        _migration_095_soft_delete_columns as _impl,
-    )
-    _impl(conn)
-
-
-def _migration_096_audit_columns(conn: Any) -> None:
-    """Wire migration 088 from ``migrations/_096_audit_columns.py``.
-
-    Sprint 3.2: adds ``created_at`` / ``created_by_user_id`` /
-    ``updated_at`` / ``updated_by_user_id`` to owned tables.
-    """
-    from app.rms.migrations._096_audit_columns import (
-        _migration_096_audit_columns as _impl,
-    )
-    _impl(conn)
-
-
-def _migration_097_ingredient_avg_cost(conn: Any) -> None:
-    """Wire migration 089 from ``migrations/_097_ingredient_avg_cost.py``.
-
-    Sprint 4.4 (BACKLOG #13): adds ``avg_cost_gs`` to ingredient table
-    + backfills from ``purchase_price_gs`` so waste-event moving-average
-    tracking has a sane starting point for existing rows.
-    """
-    from app.rms.migrations._097_ingredient_avg_cost import (
-        _migration_097_ingredient_avg_cost as _impl,
-    )
-    _impl(conn)
-
-
-def _migration_089_ingredient_avg_cost(conn: Any) -> None:
-    """Wire migration 089 from ``migrations/_089_ingredient_avg_cost.py``.
-
-    Sprint 4.4 (BACKLOG #13): adds ``avg_cost_gs`` to ingredient table
-    + backfills from ``purchase_price_gs`` so waste-event moving-average
-    tracking has a sane starting point for existing rows.
-    """
-    from app.rms.migrations._089_ingredient_avg_cost import (
-        _migration_089_ingredient_avg_cost as _impl,
-    )
-    _impl(conn)
-
-
-def _migration_098_production_closed_day(conn: Any) -> None:
-    """Wire migration 098 Part 1: production_closed_day table.
-
-    RECOVERED 2026-10-05 from origin/feat/phase-3-ci-cleanup. The
-    branch diverged from main without being merged; the migration ran
-    on the prod DB (schema_version is 98 there) while the source was
-    lost. This restores the source to align with the live schema.
-    Idempotent: CREATE TABLE IF NOT EXISTS.
-
-    See ``migrations/_098_production_closed_day.py`` for full docs.
-    """
-    from app.rms.migrations._098_production_closed_day import (
-        _migration_098_production_closed_day as _impl,
-    )
-    _impl(conn)
-
-
-def _migration_098_customer_phone(conn: Any) -> None:
-    """Wire migration 098 Part 2: customer_phone table.
-
-    RECOVERED 2026-10-05 from origin/feat/phase-3-m1-product-detail.
-    See ``_migration_098_production_closed_day`` for the recovery
-    context. Idempotent: CREATE TABLE IF NOT EXISTS + NOT EXISTS
-    backfill. Schema-version bump is owned by Part 1 to avoid
-    double-bumping version 98.
-    """
-    from app.rms.migrations._098_customer_phone import (
-        _migration_098_customer_phone as _impl,
-    )
-    _impl(conn)
-
-
-def _migration_098_combined_098(conn: Any) -> None:
-    """Combined migration 098 — runs both Part 1 (closed_day) and
-    Part 2 (customer_phone). Used as the single MIGRATIONS[98] entry
-    because two functions can't share a dict key.
-
-    Both parts are idempotent; whichever one already ran on prod
-    (during a previous direct-to-VPS deploy that bypassed source
-    control) is a no-op CREATE TABLE IF NOT EXISTS the second time.
-    The schema-version bump is owned by Part 1.
-    """
-    _migration_098_production_closed_day(conn)
-    _migration_098_customer_phone(conn)
-
 
 
 MIGRATIONS = {
@@ -4172,11 +4234,12 @@ MIGRATIONS = {
     95: _migration_095_soft_delete_columns,
     96: _migration_096_audit_columns,
     97: _migration_097_ingredient_avg_cost,
-    98: _migration_098_combined_098,
+    98: _migration_098_production_closed_day,
     99: _migration_099_production_completion_updated_at,
     100: _migration_100_freezer_temperature_log,
     101: _migration_101_recipe_fermentation_minutes,
     102: _migration_102_waste_log_source,
+    103: _migration_103_production_demand_split,
 }
 
 
@@ -4341,9 +4404,7 @@ def app_meta_read(conn: Any, key: str) -> str | None:
 
     Dialect-agnostic. Returns str | None.
     """
-    row = conn.execute(
-        text("SELECT value FROM app_meta WHERE key = :key"), {"key": key}
-    ).first()
+    row = conn.execute(text("SELECT value FROM app_meta WHERE key = :key"), {"key": key}).first()
     return row[0] if row else None
 
 
@@ -4421,6 +4482,7 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
     with engine.connect() as probe_conn:
         probe_conn.commit()
         from app.rms.db import schema_version
+
         current = schema_version(probe_conn)
 
     # 3. Run each pending migration on its OWN connection (auto-committed).
@@ -4443,9 +4505,7 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
         except Exception as exc:
             # Don't fail the whole init_db — log and continue to next
             # migration. The lifespan will retry on next boot.
-            logger.warning(
-                f"migration v{v} failed: {exc!r}; continuing"
-            )
+            logger.warning(f"migration v{v} failed: {exc!r}; continuing")
             # Print to stderr so Render logs capture it
             print(f"MIGRATION v{v} FAILED: {exc!r}", file=sys.stderr)
             # Validation hook (Phase 14 #4): probe schema_version on a
@@ -4474,9 +4534,7 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
                 # migration on a partial baseline).
                 raise RuntimeError(msg) from exc
             elif probe_err is not None:
-                logger.debug(
-                    f"schema probe after v{v} failure: {probe_err!r}"
-                )
+                logger.debug(f"schema probe after v{v} failure: {probe_err!r}")
 
         # 3. Apply recommended Postgres indexes (idempotent).
         # Wrapped in its own connection so failure here doesn't undo migrations.
@@ -4484,6 +4542,7 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
             from sqlalchemy.orm import sessionmaker
 
             from app.rms.perf import apply_postgres_indexes
+
             Session = sessionmaker(bind=engine)()
             _ = apply_postgres_indexes(Session)
             Session.close()
@@ -4497,8 +4556,9 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
     # every insert/update of an owned table.
     try:
         from app.rms.models.common import register_audit_event_listeners
+
         register_audit_event_listeners()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning(f"register_audit_event_listeners failed (non-fatal): {exc!r}")
 
 
@@ -4585,7 +4645,7 @@ def _get_db_url_safe() -> str:
     import os
     from urllib.parse import urlsplit, urlunsplit
 
-    url = os.environ.get("AIW_SASKIA_DB_URL", "sqlite:///./saskia.db")
+    url = os.environ.get("AIW_RMS_DB_URL", "sqlite:///./sazon.db")
     if url.startswith("sqlite"):
         return "sqlite:///<local>"
     try:
@@ -4596,5 +4656,3 @@ def _get_db_url_safe() -> str:
         return url
     except Exception:
         return "<unknown>"
-
-

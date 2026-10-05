@@ -1,6 +1,6 @@
 """tests/test_printer.py — verify app/rms/printer.py (E18).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E18.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E18.
 
 Covers:
 - ESC/POS payload is non-empty + contains INIT_PRINTER + PARTIAL_CUT
@@ -10,6 +10,7 @@ Covers:
 - list_supported_vendors returns 4 entries
 - config_from_env reads AIW_PRINTER_* env vars
 """
+
 from __future__ import annotations
 
 import socket
@@ -35,13 +36,13 @@ def test_format_receipt_text_contains_key_fields():
         qty=2.0,
         unit_price_gs=2500,
         total_gs=5000,
-        cashier="Saskia",
+        cashier="the operator",
     )
     assert "HEREBUS Bakery" in text
     assert "Recibo #42" in text
     assert "Muffin" in text
     assert "5,000 Gs" in text or "5.000 Gs" in text or "5000 Gs" in text
-    assert "Saskia" in text
+    assert "the operator" in text
     assert "Gracias" in text
 
 
@@ -101,6 +102,7 @@ def test_send_to_printer_routes_network(monkeypatch):
         server.close()
 
     import threading
+
     t = threading.Thread(target=handle, daemon=True)
     t.start()
 
@@ -137,8 +139,14 @@ def test_list_supported_vendors_returns_4():
 
 
 def test_config_from_env_defaults_to_file(monkeypatch):
-    for k in ("AIW_PRINTER_KIND", "AIW_PRINTER_HOST", "AIW_PRINTER_PORT",
-              "AIW_PRINTER_VID", "AIW_PRINTER_PID", "AIW_PRINTER_DST"):
+    for k in (
+        "AIW_PRINTER_KIND",
+        "AIW_PRINTER_HOST",
+        "AIW_PRINTER_PORT",
+        "AIW_PRINTER_VID",
+        "AIW_PRINTER_PID",
+        "AIW_PRINTER_DST",
+    ):
         monkeypatch.delenv(k, raising=False)
     cfg = config_from_env()
     assert cfg.kind == PrinterKind.FILE

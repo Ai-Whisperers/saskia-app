@@ -77,10 +77,11 @@ def validate_product(
         from sqlalchemy import func
 
         from app.rms.models import Product
-        existing = session.scalar(
-            func.count()
-        ).select_from(Product).where(
-            func.lower(Product.name) == name_val.lower()
+
+        existing = (
+            session.scalar(func.count())
+            .select_from(Product)
+            .where(func.lower(Product.name) == name_val.lower())
         )
         if session.scalar(existing) > 0:
             errors["name"] = "Ya existe un producto con este nombre."

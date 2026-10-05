@@ -2,7 +2,7 @@
 
 T-2026-10-04 (B.6): Paraguay MSPBS HACCP exige registro de temperatura
 de heladeras/freezers donde se almacenan productos crudos, semi-elaborados
-y elaborados. Saskia opera con un freezer de masa y uno de productos
+y elaborados. el operador opera con un freezer de masa y uno de productos
 finales. Sin registro continuo, una inspección puede multar al local.
 
 Schema:

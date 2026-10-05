@@ -1,4 +1,4 @@
-# Saskia RMS — Batch 3 UX/UI Audit (Compras / Reportes / Admin)
+# Sazón — Batch 3 UX/UI Audit (Compras / Reportes / Admin)
 *Principal review by senior UX/UI lead + QA architect. 14 pages analyzed.*
 
 > **Reading note:** Several pages were screenshotted against an empty / newly-seeded database (Suppliers empty, Riesgos 0/0/0, Audit log "No hay entradas", Lista de compras vacía, Precios 0 recetas, vs-mercado 1 producto, Wishlist 0, Bank 0 txns). Where state is empty, the principal still scores **information architecture, navigation, density, and readiness for the populated state** — because a real bakery owner will see this UI immediately after install and judge it then. The principal's bar is "useful on Day 1 with no data", not "useful once data exists".
@@ -49,7 +49,7 @@
 - **Status dot** with semantic color (green active / amber stale / gray paused)
 
 ### Quality-of-life touches
-- Tiny green dot on the "Saskia RMS v1.0" footer pill (cute, but unexplained — needs a tooltip "online")
+- Tiny green dot on the "Sazón v1.0" footer pill (cute, but unexplained — needs a tooltip "online")
 - Add `⌘N` keyboard shortcut badge to "Nuevo proveedor" button (matches global ⌘K for search)
 - "Agregar el primero" → "Agregar mi primer proveedor" (warmer, more personal)
 - Hovering on a supplier row shows a subtle phone-icon with WhatsApp/call tooltip

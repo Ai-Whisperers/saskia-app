@@ -4,6 +4,7 @@ Sprint 2.4: split from monolithic seed_competitor_prices.py.
 
 58 rows: shopping centers.
 """
+
 COMPETITOR_SEED_SHOPPINGS = [
     (
         "La Vienesa",
@@ -644,5 +645,3 @@ COMPETITOR_SEED_SHOPPINGS = [
         "https://naeu.com.py/sol.pdf",
     ),
 ]
-
-

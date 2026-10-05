@@ -23,6 +23,7 @@ What's covered:
 Tests use factories.make_ingredient / make_supplier (uuid-named to avoid
 UNIQUE collisions in the shared DB).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -38,7 +39,6 @@ from app.rms.supplier_history import (
     unlock_supplier,
 )
 from tests.factories import make_ingredient, make_supplier
-
 
 # =========================================================================
 # Pure-Python tests — no HTTP, no DB schema beyond what's already there.
@@ -99,9 +99,7 @@ def test_effective_supplier_precedence(monkeypatch, session_factory):
         ing.supplier_id = None
         s.commit()
         s.refresh(ing)
-        assert get_effective_supplier_id(ing) is None, (
-            "all sources cleared → must return None"
-        )
+        assert get_effective_supplier_id(ing) is None, "all sources cleared → must return None"
     finally:
         s.close()
 
@@ -116,8 +114,11 @@ def test_streak_does_NOT_auto_lock(session_factory):
         tag = uuid.uuid4().hex[:8]
         sup_a = make_supplier(s, name=f"streak-a-{tag}")
         ing = make_ingredient(
-            s, name=f"streak-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"streak-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
         )
         ing.supplier_id = sup_a.id
         s.commit()
@@ -147,8 +148,11 @@ def test_streak_resets_on_supplier_switch(session_factory):
         sup_a = make_supplier(s, name=f"reset-a-{tag}")
         sup_b = make_supplier(s, name=f"reset-b-{tag}")
         ing = make_ingredient(
-            s, name=f"reset-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"reset-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
         )
         ing.supplier_id = sup_a.id
         s.commit()
@@ -186,8 +190,11 @@ def test_switching_suppliers_does_not_touch_existing_lock(session_factory):
         sup_a = make_supplier(s, name=f"unlock-a-{tag}")
         sup_b = make_supplier(s, name=f"unlock-b-{tag}")
         ing = make_ingredient(
-            s, name=f"unlock-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"unlock-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
         )
         ing.supplier_id = sup_a.id
         s.commit()
@@ -219,8 +226,11 @@ def test_lock_supplier_writes_audit_row(session_factory):
         tag = uuid.uuid4().hex[:8]
         sup = make_supplier(s, name=f"lock-audit-{tag}")
         ing = make_ingredient(
-            s, name=f"lock-audit-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"lock-audit-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
         )
         ing.supplier_id = sup.id
         s.commit()
@@ -229,9 +239,7 @@ def test_lock_supplier_writes_audit_row(session_factory):
         lock_supplier(s, ing_id, sup_id, actor="demo", reason="specialty import")
         s.commit()
 
-        rows = s.query(AuditLog).filter(
-            AuditLog.action == "ingredient.supplier.lock"
-        ).all()
+        rows = s.query(AuditLog).filter(AuditLog.action == "ingredient.supplier.lock").all()
         assert len(rows) == 1
         row = rows[0]
         assert row.target_id == str(ing_id)
@@ -250,8 +258,11 @@ def test_lock_is_idempotent(session_factory):
         tag = uuid.uuid4().hex[:8]
         sup = make_supplier(s, name=f"idem-{tag}")
         ing = make_ingredient(
-            s, name=f"idem-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"idem-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
         )
         ing.supplier_id = sup.id
         s.commit()
@@ -262,9 +273,7 @@ def test_lock_is_idempotent(session_factory):
         lock_supplier(s, ing_id, sup_id, actor="demo")
         s.commit()
 
-        rows = s.query(AuditLog).filter(
-            AuditLog.action == "ingredient.supplier.lock"
-        ).all()
+        rows = s.query(AuditLog).filter(AuditLog.action == "ingredient.supplier.lock").all()
         assert len(rows) == 1, "second lock to same supplier should no-op"
     finally:
         s.close()
@@ -278,8 +287,11 @@ def test_lock_overrides_existing_lock_and_audits_previous(session_factory):
         sup_a = make_supplier(s, name=f"swap-a-{tag}")
         sup_b = make_supplier(s, name=f"swap-b-{tag}")
         ing = make_ingredient(
-            s, name=f"swap-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"swap-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
         )
         ing.supplier_id = sup_a.id
         ing.locked_supplier_id = sup_a.id
@@ -291,9 +303,12 @@ def test_lock_overrides_existing_lock_and_audits_previous(session_factory):
 
         ing_now = s.get(Ingredient, ing_id)
         assert ing_now.locked_supplier_id == b_id
-        row = s.query(AuditLog).filter(
-            AuditLog.action == "ingredient.supplier.lock"
-        ).order_by(AuditLog.occurred_at.desc()).first()
+        row = (
+            s.query(AuditLog)
+            .filter(AuditLog.action == "ingredient.supplier.lock")
+            .order_by(AuditLog.occurred_at.desc())
+            .first()
+        )
         assert row.detail["previous_locked_supplier_id"] == a_id
         assert row.detail["supplier_id"] == b_id
     finally:
@@ -306,8 +321,11 @@ def test_unlock_writes_audit_row(session_factory):
         tag = uuid.uuid4().hex[:8]
         sup = make_supplier(s, name=f"unlock-audit-{tag}")
         ing = make_ingredient(
-            s, name=f"unlock-audit-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"unlock-audit-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
         )
         ing.supplier_id = sup.id
         ing.locked_supplier_id = sup.id
@@ -319,9 +337,7 @@ def test_unlock_writes_audit_row(session_factory):
 
         ing_now = s.get(Ingredient, ing_id)
         assert ing_now.locked_supplier_id is None
-        rows = s.query(AuditLog).filter(
-            AuditLog.action == "ingredient.supplier.unlock"
-        ).all()
+        rows = s.query(AuditLog).filter(AuditLog.action == "ingredient.supplier.unlock").all()
         assert len(rows) == 1
         assert rows[0].detail == {
             "previous_locked_supplier_id": sup_id,
@@ -338,8 +354,11 @@ def test_unlock_is_noop_when_unlocked(session_factory):
         tag = uuid.uuid4().hex[:8]
         sup = make_supplier(s, name=f"noop-{tag}")
         ing = make_ingredient(
-            s, name=f"noop-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"noop-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
         )
         ing.supplier_id = sup.id
         s.commit()
@@ -348,9 +367,7 @@ def test_unlock_is_noop_when_unlocked(session_factory):
         unlock_supplier(s, ing_id, actor="demo")
         s.commit()
 
-        rows = s.query(AuditLog).filter(
-            AuditLog.action == "ingredient.supplier.unlock"
-        ).all()
+        rows = s.query(AuditLog).filter(AuditLog.action == "ingredient.supplier.unlock").all()
         assert rows == [], "unlocking an unlocked ingredient must not audit"
     finally:
         s.close()
@@ -368,8 +385,11 @@ def test_reorder_renders_supplier_picker_per_row(client, session_factory):
         tag = uuid.uuid4().hex[:8]
         sup1 = make_supplier(s, name=f"pickr1-{tag}")
         ing = make_ingredient(
-            s, name=f"picker-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"picker-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
             purchase_price_gs=4500,
         )
         ing.supplier_id = sup1.id
@@ -384,13 +404,9 @@ def test_reorder_renders_supplier_picker_per_row(client, session_factory):
     assert 'class="supplier-picker"' in body, (
         "every reorder row must have a supplier-picker element"
     )
-    assert f"pickr1-{tag}" in body, (
-        "supplier name must appear inside the picker options"
-    )
+    assert f"pickr1-{tag}" in body, "supplier name must appear inside the picker options"
     # The Q1 inline-price pattern: '<supplier_name> — <price>' or 'sin registro'
-    assert "—" in body, (
-        "price separator (em-dash) must appear in the dropdown labels"
-    )
+    assert "—" in body, "price separator (em-dash) must appear in the dropdown labels"
 
 
 def test_reorder_renders_four_reponer_cells_per_row(client, session_factory):
@@ -400,8 +416,11 @@ def test_reorder_renders_four_reponer_cells_per_row(client, session_factory):
         tag = uuid.uuid4().hex[:8]
         sup = make_supplier(s, name=f"split-{tag}")
         ing = make_ingredient(
-            s, name=f"split-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"split-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
             purchase_price_gs=4500,
         )
         ing.supplier_id = sup.id
@@ -420,9 +439,7 @@ def test_reorder_renders_four_reponer_cells_per_row(client, session_factory):
     assert ">Confirmar<" in body, "Confirmar column header must render"
 
     # No more monolithic Reponer header (Q3 regression check)
-    assert "<th>Reponer</th>" not in body, (
-        "old single-column Reponer header must be gone"
-    )
+    assert "<th>Reponer</th>" not in body, "old single-column Reponer header must be gone"
 
 
 def test_reorder_renders_locked_badge_and_attribute(client, session_factory):
@@ -432,8 +449,11 @@ def test_reorder_renders_locked_badge_and_attribute(client, session_factory):
         tag = uuid.uuid4().hex[:8]
         sup = make_supplier(s, name=f"lock-{tag}")
         ing = make_ingredient(
-            s, name=f"lock-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"lock-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
             purchase_price_gs=4500,
         )
         ing.supplier_id = sup.id
@@ -454,9 +474,7 @@ def test_reorder_renders_locked_badge_and_attribute(client, session_factory):
         "supplier-picker must have data-locked=1 when ingredient is locked"
     )
     # Locked-row class
-    assert "reorder-row--locked" in body, (
-        "row must be marked reorder-row--locked when locked"
-    )
+    assert "reorder-row--locked" in body, "row must be marked reorder-row--locked when locked"
 
 
 def test_reorder_registrar_records_supplier(client, session_factory):
@@ -466,8 +484,11 @@ def test_reorder_registrar_records_supplier(client, session_factory):
         tag = uuid.uuid4().hex[:8]
         sup = make_supplier(s, name=f"post-{tag}")
         ing = make_ingredient(
-            s, name=f"post-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"post-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
             purchase_price_gs=4500,
         )
         ing.supplier_id = None  # no parent default
@@ -498,8 +519,7 @@ def test_reorder_registrar_records_supplier(client, session_factory):
         ing = s.get(Ingredient, ing_id)
         assert ing is not None
         assert ing.last_purchase_supplier_id == sup_id, (
-            f"POST must set last_purchase_supplier_id={sup_id}; "
-            f"got {ing.last_purchase_supplier_id}"
+            f"POST must set last_purchase_supplier_id={sup_id}; got {ing.last_purchase_supplier_id}"
         )
         assert ing.purchase_streak_count == 1
         assert ing.locked_supplier_id is None  # only 1 buy so far
@@ -507,17 +527,18 @@ def test_reorder_registrar_records_supplier(client, session_factory):
         s.close()
 
 
-def test_reorder_registrar_omitted_supplier_does_not_overwrite(
-    client, session_factory
-):
+def test_reorder_registrar_omitted_supplier_does_not_overwrite(client, session_factory):
     """Omitting supplier_id leaves the existing last_purchase pointer intact."""
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
         tag = uuid.uuid4().hex[:8]
         sup = make_supplier(s, name=f"keep-{tag}")
         ing = make_ingredient(
-            s, name=f"keep-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"keep-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
             purchase_price_gs=4500,
         )
         ing.supplier_id = sup.id
@@ -559,8 +580,11 @@ def test_reorder_json_exposes_supplier_options(client, session_factory):
         tag = uuid.uuid4().hex[:8]
         sup = make_supplier(s, name=f"json-{tag}")
         ing = make_ingredient(
-            s, name=f"json-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"json-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
         )
         ing.supplier_id = sup.id
         s.commit()
@@ -570,15 +594,13 @@ def test_reorder_json_exposes_supplier_options(client, session_factory):
     r = client.get("/reorder?format=json")
     assert r.status_code == 200
     payload = r.json()
-    assert "supplier_options" in payload, (
-        "JSON must expose supplier_options"
-    )
+    assert "supplier_options" in payload, "JSON must expose supplier_options"
     supplier_names = [o["name"] for o in payload["supplier_options"]]
     assert f"json-{tag}" in supplier_names, "newly created supplier must appear"
     # Items also include the effective supplier_id
-    assert all(
-        "effective_supplier_id" in item for item in payload["items"]
-    ), "every item must carry effective_supplier_id"
+    assert all("effective_supplier_id" in item for item in payload["items"]), (
+        "every item must carry effective_supplier_id"
+    )
     # Lock threshold surfaced for tooling (analytics-only now — locks
     # are a manual 🔒 toggle, not an automatic streak consequence).
     assert payload.get("lock_threshold") == LOCK_THRESHOLD
@@ -591,8 +613,11 @@ def test_reorder_template_has_cascade_banner(client, session_factory):
         tag = uuid.uuid4().hex[:8]
         sup = make_supplier(s, name=f"banner-{tag}")
         ing = make_ingredient(
-            s, name=f"banner-{tag}", unit="kg",
-            stock_qty=0.0, min_stock_qty=10.0,
+            s,
+            name=f"banner-{tag}",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=10.0,
         )
         ing.supplier_id = sup.id
         s.commit()
@@ -604,6 +629,4 @@ def test_reorder_template_has_cascade_banner(client, session_factory):
     assert 'id="supplier-cascade-banner"' in body, (
         "cascade banner element must exist in DOM for JS to populate"
     )
-    assert "cascadeSupplier" in body, (
-        "JS cascadeSupplier function must be inlined in the page"
-    )
+    assert "cascadeSupplier" in body, "JS cascadeSupplier function must be inlined in the page"

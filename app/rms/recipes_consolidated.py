@@ -96,9 +96,7 @@ def explode_recipe(
 
             line_unit = ln.line_unit or ing.unit
             try:
-                qty_in_ing_unit = float(
-                    normalize_recipe_line_qty(qty_scaled, line_unit, ing.unit)
-                )
+                qty_in_ing_unit = float(normalize_recipe_line_qty(qty_scaled, line_unit, ing.unit))
             except ValueError as exc:
                 key = f"err:{ing.id}"
                 row = acc.get(key)

@@ -16,6 +16,7 @@ Behavior:
 
 This test verifies BOTH paths.
 """
+
 from __future__ import annotations
 
 import re
@@ -44,7 +45,7 @@ def _kpi_block(body: str, label: str) -> str:
     label_pat = rf'<div class="metric-card__label">{re.escape(label)}</div>'
     m = re.search(label_pat, body)
     assert m, f"KPI label '{label}' not found in dashboard HTML"
-    rest = body[m.end():]
+    rest = body[m.end() :]
     # Find next metric-card OPEN (with space or > after the class name).
     # The "metric-card__label" / "metric-card__value" etc. won't match this.
     next_card = re.search(r'<div class="metric-card(?:\s|">)', rest)
@@ -63,12 +64,12 @@ def _kpi_has_bar(kpi_block: str) -> bool:
 
 
 def _kpi_severity(kpi_block: str) -> str | None:
-    m = re.search(r'metric-card__target-fill\s+(?P<s>is-ok|is-warn|is-danger)', kpi_block)
+    m = re.search(r"metric-card__target-fill\s+(?P<s>is-ok|is-warn|is-danger)", kpi_block)
     return m.group("s") if m else None
 
 
 def _kpi_bar_width(kpi_block: str) -> int | None:
-    m = re.search(r'width:\s*(?P<w>\d+)%', kpi_block)
+    m = re.search(r"width:\s*(?P<w>\d+)%", kpi_block)
     return int(m.group("w")) if m else None
 
 

@@ -1,4 +1,5 @@
 """Suppliers CRUD roundtrip tests."""
+
 from __future__ import annotations
 
 import pytest
@@ -41,14 +42,10 @@ def test_supplier_create_then_soft_delete(authed_client, session_factory):
 
     # DELETE endpoint — now a soft-delete
     r = authed_client.post(f"/suppliers/{sup_id}/eliminar")
-    assert r.status_code < 500, (
-        f"DELETE supplier returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"DELETE supplier returned {r.status_code}: {r.text[:200]}"
 
     with session_factory() as s:
-        row = s.execute(
-            Supplier.__table__.select().where(Supplier.id == sup_id)
-        ).fetchone()
+        row = s.execute(Supplier.__table__.select().where(Supplier.id == sup_id)).fetchone()
         assert row is not None, "soft-delete removed the row (should preserve history)"
         # The (id, name, ..., is_active, ...) tuple — assert is_active=False
         assert row.is_active is False or row[-1] is False, (
@@ -57,14 +54,10 @@ def test_supplier_create_then_soft_delete(authed_client, session_factory):
 
     # Reactivate — the same row, but is_active=True again
     r = authed_client.post(f"/suppliers/{sup_id}/reactivar")
-    assert r.status_code < 500, (
-        f"reactivar returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"reactivar returned {r.status_code}: {r.text[:200]}"
 
     with session_factory() as s:
-        row = s.execute(
-            Supplier.__table__.select().where(Supplier.id == sup_id)
-        ).fetchone()
+        row = s.execute(Supplier.__table__.select().where(Supplier.id == sup_id)).fetchone()
         assert row is not None, "reactivar removed the row"
         assert row.is_active is True or row[-1] is True, (
             f"is_active must be True after /reactivar; got row={row}"
@@ -86,9 +79,7 @@ def test_supplier_editar_form_loads(authed_client, session_factory):
         sup_id = sup.id
 
     r = authed_client.get(f"/suppliers/{sup_id}/editar")
-    assert r.status_code < 500, (
-        f"/suppliers/{sup_id}/editar returned {r.status_code}"
-    )
+    assert r.status_code < 500, f"/suppliers/{sup_id}/editar returned {r.status_code}"
 
 
 def test_supplier_orders_page_loads(authed_client, session_factory):
@@ -102,6 +93,4 @@ def test_supplier_orders_page_loads(authed_client, session_factory):
         sup_id = sup.id
 
     r = authed_client.get(f"/suppliers/{sup_id}/ordenes")
-    assert r.status_code < 500, (
-        f"/suppliers/{sup_id}/ordenes returned {r.status_code}"
-    )
+    assert r.status_code < 500, f"/suppliers/{sup_id}/ordenes returned {r.status_code}"

@@ -1,12 +1,14 @@
 """tests/test_backup_cron.py — scripts/backup.py is idempotent + auto-creates."""
+
 from __future__ import annotations
 
 
 def test_backup_script_imports():
     """The script can be imported without error."""
     import importlib.util
+
     spec = importlib.util.spec_from_file_location(
-        "backup", "/opt/data/work/saskia-app/scripts/backup.py"
+        "backup", "/opt/data/work/sazon-app/scripts/backup.py"
     )
     mod = importlib.util.module_from_spec(spec)
     # Don't execute main, just verify the module loads.
@@ -17,6 +19,7 @@ def test_backup_script_imports():
 def test_backup_module_exposes_run_backup():
     """The internal `run_backup` function exists for in-process invocation."""
     from app.services.backup_scheduler import run_backup
+
     assert callable(run_backup)
 
 
@@ -27,4 +30,5 @@ def test_backup_run_is_idempotent(tmp_path, monkeypatch):
     """
     # We just verify the function exists; live backup requires production creds.
     from app.services.backup_scheduler import run_backup
+
     assert callable(run_backup)

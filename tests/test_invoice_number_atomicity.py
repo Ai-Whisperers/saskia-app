@@ -20,6 +20,7 @@ This test verifies the fix on two layers:
 For a TRUE concurrency test on Postgres, see test_pg_invoice_number_race
 in tests/test_pg_*.py (uses real Postgres + threading).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -37,13 +38,15 @@ def _seed_compliance_info(session_factory):
         if existing:
             s.delete(existing)
             s.flush()
-        s.add(ComplianceInfo(
-            id=1,
-            tax_regime="general",
-            iva_default_rate="10",
-            next_boleta_resimple_number=1,
-            next_factura_number=1,
-        ))
+        s.add(
+            ComplianceInfo(
+                id=1,
+                tax_regime="general",
+                iva_default_rate="10",
+                next_boleta_resimple_number=1,
+                next_factura_number=1,
+            )
+        )
         s.commit()
 
 
@@ -156,7 +159,6 @@ def test_allocate_uses_with_for_update_on_postgres(monkeypatch):
     # OR: lockmode="update" (older SQLAlchemy)
     with_for_update = call_args.kwargs.get("with_for_update")
     assert with_for_update is True or with_for_update == {"key": True} or with_for_update == "*", (
-        f"with_for_update must be set for Postgres row-level locking; "
-        f"got call_args={call_args}"
+        f"with_for_update must be set for Postgres row-level locking; got call_args={call_args}"
     )
     assert result == 5, f"expected allocated number 5, got {result}"

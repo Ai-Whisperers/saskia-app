@@ -11,6 +11,7 @@ renders correctly and the CSV export endpoint works, without requiring
 Playwright for browser interactions.
 """
 
+
 def test_ventas_historial_renders(client):
     """P-09: Historial page renders 200."""
     r = client.get("/ventas/historial")
@@ -39,9 +40,8 @@ def test_ventas_historial_has_product_filter(client):
     r = client.get("/ventas/historial")
     assert r.status_code == 200
     body = r.text
-    # Check for product filter (saskia-combo or select)
-    assert 'name="product_id"' in body or 'Filtrar por producto' in body, \
-        "Product filter not found"
+    # Check for product filter (ui-combo or select)
+    assert 'name="product_id"' in body or "Filtrar por producto" in body, "Product filter not found"
 
 
 def test_ventas_historial_has_payment_filter(client):
@@ -50,8 +50,13 @@ def test_ventas_historial_has_payment_filter(client):
     assert r.status_code == 200
     body = r.text
     # Check for payment method or include-voided checkbox
-    assert "efectivo" in body.lower() or "tarjeta" in body.lower() or "transferencia" in body.lower() or "include_voided" in body or "anuladas" in body.lower(), \
-        "Payment filter not found"
+    assert (
+        "efectivo" in body.lower()
+        or "tarjeta" in body.lower()
+        or "transferencia" in body.lower()
+        or "include_voided" in body
+        or "anuladas" in body.lower()
+    ), "Payment filter not found"
 
 
 def test_ventas_historial_has_days_filter(client):
@@ -59,8 +64,8 @@ def test_ventas_historial_has_days_filter(client):
     r = client.get("/ventas/historial")
     assert r.status_code == 200
     body = r.text
-    # Check for days filter (saskia-combo with name="days")
-    assert 'name="days"' in body or 'Rango' in body, "Days filter not found"
+    # Check for days filter (ui-combo with name="days")
+    assert 'name="days"' in body or "Rango" in body, "Days filter not found"
 
 
 def test_ventas_historial_has_pagination(client):

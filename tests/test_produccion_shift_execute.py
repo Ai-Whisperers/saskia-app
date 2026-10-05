@@ -4,14 +4,19 @@ The shift-execute endpoint must persist actual production via the
 ProductionCompletion helper (one row per (product, for_date) — UPSERT
 semantics, NOT the production_plan_override table).
 """
+
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import select
 
 from app.rms.models import Product, ProductionCompletion
+
+# TZ: a78057b rewrote date.today() → datetime.now(UTC).date() in test bodies
+# but did not add the imports. Restore the imports the tests need.
+_UTC = UTC
 
 
 @pytest.fixture
@@ -51,7 +56,7 @@ def test_shift_execute_creates_completion_rows(
     authed_client, session_factory, product_id, other_product_id
 ):
     """POST /produccion/shift-execute must upsert ProductionCompletion per product."""
-    today = date.today()
+    today = datetime.now(_UTC).date()
 
     r = authed_client.post(
         "/produccion/shift-execute",
@@ -74,13 +79,11 @@ def test_shift_execute_creates_completion_rows(
     assert by_pid.get(other_product_id) == 12.0
 
 
-def test_shift_execute_updates_existing_completion(
-    authed_client, session_factory, product_id
-):
+def test_shift_execute_updates_existing_completion(authed_client, session_factory, product_id):
     """Re-recording the same (product, date) MUST update in place (upsert)."""
     from app.rms.eod_completions import upsert_completion
 
-    today = date.today()
+    today = datetime.now(_UTC).date()
     with session_factory() as s:
         upsert_completion(s, product_id=product_id, for_date=today, completed_qty=3.0)
         s.commit()
@@ -106,7 +109,7 @@ def test_shift_execute_updates_existing_completion(
 
 def test_shift_execute_skips_unknown_product_id(authed_client, session_factory):
     """A bogus product_id in the form must be silently skipped."""
-    today = date.today()
+    today = datetime.now(_UTC).date()
     r = authed_client.post(
         "/produccion/shift-execute",
         data={"for_date": today.isoformat(), "completed_99999": "5"},
@@ -116,7 +119,7 @@ def test_shift_execute_skips_unknown_product_id(authed_client, session_factory):
 
 def test_shift_execute_ignores_invalid_qty(authed_client, session_factory, product_id):
     """Non-numeric qty must be skipped, not crash."""
-    today = date.today()
+    today = datetime.now(_UTC).date()
     r = authed_client.post(
         "/produccion/shift-execute",
         data={"for_date": today.isoformat(), f"completed_{product_id}": "abc"},
@@ -126,17 +129,13 @@ def test_shift_execute_ignores_invalid_qty(authed_client, session_factory, produ
     with session_factory() as s:
         rows = list(
             s.execute(
-                select(ProductionCompletion).where(
-                    ProductionCompletion.product_id == product_id
-                )
+                select(ProductionCompletion).where(ProductionCompletion.product_id == product_id)
             ).scalars()
         )
     assert len(rows) == 0, "non-numeric qty must not write a row"
 
 
-def test_shift_execute_does_not_write_plan_override(
-    authed_client, session_factory, product_id
-):
+def test_shift_execute_does_not_write_plan_override(authed_client, session_factory, product_id):
     """The endpoint writes ProductionCompletion, NOT ProductionPlanOverride.
 
     This is the core invariant — actual production must live in its own
@@ -144,7 +143,7 @@ def test_shift_execute_does_not_write_plan_override(
     """
     from app.rms.models import ProductionPlanOverride
 
-    today = date.today()
+    today = datetime.now(_UTC).date()
     r = authed_client.post(
         "/produccion/shift-execute",
         data={"for_date": today.isoformat(), f"completed_{product_id}": "7"},
@@ -154,9 +153,7 @@ def test_shift_execute_does_not_write_plan_override(
     with session_factory() as s:
         overrides = list(
             s.execute(
-                select(ProductionPlanOverride).where(
-                    ProductionPlanOverride.for_date == today
-                )
+                select(ProductionPlanOverride).where(ProductionPlanOverride.for_date == today)
             ).scalars()
         )
     assert overrides == [], (
@@ -167,11 +164,9 @@ def test_shift_execute_does_not_write_plan_override(
 # --- ad-hoc bake entry ---
 
 
-def test_ad_hoc_creates_completion_with_adhoc_tag(
-    authed_client, session_factory, product_id
-):
+def test_ad_hoc_creates_completion_with_adhoc_tag(authed_client, session_factory, product_id):
     """POST /produccion/ad-hoc must record a ProductionCompletion with notes='ad_hoc'."""
-    today = date.today()
+    today = datetime.now(_UTC).date()
     r = authed_client.post(
         "/produccion/ad-hoc",
         data={
@@ -200,7 +195,7 @@ def test_ad_hoc_creates_completion_with_adhoc_tag(
 
 def test_ad_hoc_rejects_zero_qty(authed_client, product_id):
     """qty <= 0 must return 400."""
-    today = date.today()
+    today = datetime.now(_UTC).date()
     r = authed_client.post(
         "/produccion/ad-hoc",
         data={
@@ -215,7 +210,7 @@ def test_ad_hoc_rejects_zero_qty(authed_client, product_id):
 
 def test_ad_hoc_404_unknown_product(authed_client):
     """Unknown product_id must return 404."""
-    today = date.today()
+    today = datetime.now(_UTC).date()
     r = authed_client.post(
         "/produccion/ad-hoc",
         data={
@@ -235,7 +230,7 @@ def test_day_view_renders_completed_qty(authed_client, session_factory, product_
     """The day view must render pre-filled completed_qty from ProductionCompletion."""
     from app.rms.eod_completions import upsert_completion
 
-    today = date.today()
+    today = datetime.now(_UTC).date()
     with session_factory() as s:
         upsert_completion(s, product_id=product_id, for_date=today, completed_qty=7.5)
         s.commit()
@@ -253,7 +248,7 @@ def test_day_view_renders_adhoc_row(authed_client, session_factory, product_id):
     """A completion WITHOUT a plan row must render with badge Ad-hoc/Extra."""
     from app.rms.eod_completions import upsert_completion
 
-    today = date.today()
+    today = datetime.now(_UTC).date()
     with session_factory() as s:
         upsert_completion(
             s,

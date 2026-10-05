@@ -1,7 +1,7 @@
-# Saskia RMS — Operator Cheat Sheet: Loyalty & POS
+# Sazón — Operator Cheat Sheet: Loyalty & POS
 
 **Version:** 1.0 (2026-10-01)
-**Para:** Saskia, y quien esté en caja.
+**Para:** the operator, y quien esté en caja.
 **Cuando imprimir:** Primer día de uso. Después a la pared al lado del POS.
 
 ---

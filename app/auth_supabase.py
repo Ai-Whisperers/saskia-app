@@ -23,7 +23,7 @@ References:
 - https://supabase.com/docs/reference/python/auth-signinwithpassword
 
 Why server-side cookies, not client-side Supabase SDK:
-- Saskia doesn't need the full Supabase JS SDK
+- the operator doesn't need the full Supabase JS SDK
 - Our routes are server-rendered HTML, not SPA — no JS auth state needed
 - Server-side cookie keeps tokens out of XSS reach
 - Same SessionMiddleware pattern as the bcrypt path; easy to swap back
@@ -42,7 +42,9 @@ from loguru import logger
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_PUBLISHABLE_KEY")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_SECRET_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv(
+    "SUPABASE_SECRET_KEY"
+)
 
 
 def is_supabase_auth_enabled() -> bool:

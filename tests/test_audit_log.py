@@ -239,10 +239,12 @@ def test_record_extracts_client_ip_from_xff(session_factory, monkeypatch):
             self.headers = FakeHeaders(d)
             self.client = FakeClient()
 
-    req = FakeRequest({
-        "x-forwarded-for": "203.0.113.5, 198.51.100.1, 192.0.2.1",
-        "user-agent": "Mozilla/5.0 (test)",
-    })
+    req = FakeRequest(
+        {
+            "x-forwarded-for": "203.0.113.5, 198.51.100.1, 192.0.2.1",
+            "user-agent": "Mozilla/5.0 (test)",
+        }
+    )
     with session_factory() as s:
         record(s, user_id=None, action="ip.test", request=req)
         s.commit()

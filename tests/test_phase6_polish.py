@@ -1,4 +1,5 @@
 """tests/test_phase6_polish.py — Phase 6 nav/logout/responsive tests."""
+
 from __future__ import annotations
 
 
@@ -16,7 +17,7 @@ def test_css_has_mobile_media_query(client):
     body = resp.text
     assert "@media" in body
     # Accept either "max-width: 768px" or "max-width:768px" (minified).
-    assert ("max-width: 768px" in body or "max-width:768px" in body)
+    assert "max-width: 768px" in body or "max-width:768px" in body
 
 
 def test_css_has_print_styles(client):

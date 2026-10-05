@@ -23,55 +23,55 @@ PORT = int(os.getenv("PORT", "8765"))
 # Data dir (per-OS)
 def default_data_dir() -> Path:
     if os.name == "nt":
-        # Windows: %LOCALAPPDATA%\AIW-Saskia
+        # Windows: %LOCALAPPDATA%\aiw-restaurant
         base = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local")))
     elif os.uname().sysname == "Darwin":
-        # macOS: ~/Library/Application Support/AIW-Saskia
+        # macOS: ~/Library/Application Support/aiw-restaurant
         base = Path.home() / "Library" / "Application Support"
     else:
-        # Linux: ~/.local/share/AIW-Saskia
+        # Linux: ~/.local/share/aiw-restaurant
         base = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share")))
-    return base / "AIW-Saskia"
+    return base / "aiw-restaurant"
 
 
-DATA_DIR = Path(os.getenv("AIW_SASKIA_DATA_DIR", str(default_data_dir())))
+DATA_DIR = Path(os.getenv("AIW_RMS_DATA_DIR", str(default_data_dir())))
 
 # DB file path
-DB_PATH = Path(os.getenv("AIW_SASKIA_DB_PATH", str(DATA_DIR / "rms.sqlite")))
+DB_PATH = Path(os.getenv("AIW_RMS_DB_PATH", str(DATA_DIR / "rms.sqlite")))
 
 # Local backup dir
 BACKUP_DIR = Path(
     os.getenv(
-        "AIW_SASKIA_BACKUP_DIR",
-        str(Path.home() / "Documents" / "AIW-Saskia" / "backups"),
+        "AIW_RMS_BACKUP_DIR",
+        str(Path.home() / "Documents" / "aiw-restaurant" / "backups"),
     )
 )
 
 # Log dir
 LOG_DIR = Path(
     os.getenv(
-        "AIW_SASKIA_LOG_DIR",
+        "AIW_RMS_LOG_DIR",
         str(DATA_DIR / "logs"),
     )
 )
 
-# R2 (Cloudflare) backup config — read from ~/.config/aiw-saskia/r2.toml if present
+# R2 (Cloudflare) backup config — read from ~/.config/sazon/r2.toml if present
 R2_CONFIG_PATH = Path(
     os.getenv(
-        "AIW_SASKIA_R2_CONFIG",
-        str(Path.home() / ".config" / "aiw-saskia" / "r2.toml"),
+        "AIW_RMS_R2_CONFIG",
+        str(Path.home() / ".config" / "sazon" / "r2.toml"),
     )
 )
 
 # Behavior knobs
-BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_SASKIA_BACKUP_HOURS", "24"))
-KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_SASKIA_KEEP_LOCAL_DAYS", "30"))
+BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_RMS_BACKUP_HOURS", "24"))
+KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_RMS_KEEP_LOCAL_DAYS", "30"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 102  # 102 = waste_log.source denormalized (PROD-MERMA-2 Batch I)
-    # 086 = monthly_closure table (Sprint 3.1 BACKLOG #15)
-    # 087 = soft_delete_columns on owned tables (Sprint 3.2)
-    # 088 = audit_columns on owned tables (Sprint 3.2)
+CURRENT_SCHEMA_VERSION = 103  # 102 = waste_log.source denormalized (PROD-MERMA-2); 103 = production_demand_snapshot + production_plan_audit + completion.status (PRODUCCION-V2 Fase 1)
+# 086 = monthly_closure table (Sprint 3.1 BACKLOG #15)
+# 087 = soft_delete_columns on owned tables (Sprint 3.2)
+# 088 = audit_columns on owned tables (Sprint 3.2)
 
 
 def ensure_dirs() -> None:

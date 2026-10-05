@@ -37,7 +37,8 @@ def _all_routes():
                 # Mount or other non-API wrapper: skip.
                 continue
             methods = sorted(
-                m for m in getattr(r, "methods", []) or []
+                m
+                for m in getattr(r, "methods", []) or []
                 if m in ("GET", "POST", "PUT", "DELETE", "PATCH")
             )
             path = (prefix + (getattr(r, "path", "") or "")) or prefix
@@ -75,9 +76,7 @@ _EXEMPT = {
 
 
 def _test_corpus() -> str:
-    corpus = []
-    for f in pathlib.Path(__file__).parent.rglob("*.py"):
-        corpus.append(f.read_text())
+    corpus: list = [f.read_text() for f in pathlib.Path(__file__).parent.rglob("*.py")]
     return "\n".join(corpus)
 
 
@@ -94,8 +93,8 @@ def test_every_route_has_a_test_reference():
             seg = "/" + "/".join(path.strip("/").split("/")[:2])
         if seg not in corpus:
             missing.append(f"{method} {path}")
-    assert not missing, (
-        f"{len(missing)} route(s) have no test reference:\n  " + "\n  ".join(missing)
+    assert not missing, f"{len(missing)} route(s) have no test reference:\n  " + "\n  ".join(
+        missing
     )
 
 

@@ -19,9 +19,8 @@ def test_qseed_with_sale_creates_stock_move(qseed, session_factory):
     sale_id = data["sale"].sale_id
     with session_factory() as s:
         from app.rms.models import StockMovement
-        moves = s.query(StockMovement).filter_by(
-            reference_id=sale_id, reference_type="sale"
-        ).all()
+
+        moves = s.query(StockMovement).filter_by(reference_id=sale_id, reference_type="sale").all()
         assert len(moves) >= 1
 
 
@@ -49,11 +48,18 @@ def test_qseed_with_waste(qseed):
 def test_qseed_is_fast(qseed):
     """Quick seed should be <200ms (vs 2s for full seed_demo_data)."""
     import time
+
     t0 = time.perf_counter()
     for scenario in [
-        "basic", "with_sale", "with_low_stock", "with_pending_pedido",
-        "with_voided_sale", "with_waste", "with_customer",
-        "with_supplier", "with_audit_log",
+        "basic",
+        "with_sale",
+        "with_low_stock",
+        "with_pending_pedido",
+        "with_voided_sale",
+        "with_waste",
+        "with_customer",
+        "with_supplier",
+        "with_audit_log",
     ]:
         qseed(scenario)
     elapsed = time.perf_counter() - t0

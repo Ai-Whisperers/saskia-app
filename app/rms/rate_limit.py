@@ -26,16 +26,17 @@ app/routers/auth.py.
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
+from fastapi import Depends, HTTPException, Request
 from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.rms.audit import record as audit_record
-from app.rms.models import AuditLog
 from app.rms.dependencies import get_session  # for read_rate_limit_dependency
-from fastapi import Depends, HTTPException, Request
+from app.rms.models import AuditLog
 
 DEFAULT_LIMIT = 5
 DEFAULT_WINDOW_MINUTES = 5
@@ -148,7 +149,7 @@ def is_write_rate_limited(
     *,
     max_per_minute: int = 10,
     window_seconds: int = 60,
-    now: object=None,
+    now: object = None,
 ) -> bool:
     """Return True if this client has exceeded max_per_minute writes.
 
@@ -287,6 +288,7 @@ def is_read_rate_limited(
 
 # Read-endpoint audit helpers (cheap INSERTs; throttle on these).
 
+
 def record_read_heavy(session: Session, request: object, route_tag: str) -> None:
     """Append a `read.heavy.<route_tag>` audit row.
 
@@ -306,7 +308,11 @@ def record_read_heavy(session: Session, request: object, route_tag: str) -> None
         logger.warning(f"record_read_heavy({route_tag}) audit write failed")
 
 
-def read_rate_limit_dependency(max_per_minute: int, window_seconds: int = 60, route_tag: str = "default"):
+def read_rate_limit_dependency(
+    max_per_minute: int,
+    window_seconds: int = 60,
+    route_tag: str = "default",
+) -> Callable:
     """Return a FastAPI dependency that gates a route on the read limiter.
 
     Usage:
@@ -324,34 +330,40 @@ def read_rate_limit_dependency(max_per_minute: int, window_seconds: int = 60, ro
     FAIL OPEN: returns None on any DB error so a DB outage doesn't
     brick the route.
     """
+
     def _dep(request: Request, session: Session = Depends(get_session)) -> None:
         if is_disabled():
             return None
         decision = is_read_rate_limited(
-            session, request,
+            session,
+            request,
             max_per_minute=max_per_minute,
             window_seconds=window_seconds,
         )
         if not decision.allowed:
             raise HTTPException(
                 status_code=429,
-                detail={"reason": "rate_limited", "retry_after_seconds": decision.retry_after_seconds},
+                detail={
+                    "reason": "rate_limited",
+                    "retry_after_seconds": decision.retry_after_seconds,
+                },
                 headers={"Retry-After": str(decision.retry_after_seconds)},
             )
         record_read_heavy(session, request, route_tag=route_tag)
         return None
+
     return _dep
 
 
 __all__ = [
     "DEFAULT_LIMIT",
-    "DEFAULT_WINDOW_MINUTES",
     "DEFAULT_READ_LIMIT",
     "DEFAULT_READ_WINDOW_SECONDS",
+    "DEFAULT_WINDOW_MINUTES",
     "RateLimitDecision",
     "is_disabled",
     "is_rate_limited",
-    "is_write_rate_limited",
     "is_read_rate_limited",
+    "is_write_rate_limited",
     "record_read_heavy",
 ]

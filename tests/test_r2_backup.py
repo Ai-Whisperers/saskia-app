@@ -35,7 +35,7 @@ def test_encrypt_decrypt_roundtrip_preserves_bytes():
     """Encrypt then decrypt returns identical plaintext."""
     from app.services.r2_backup import decrypt_bytes, encrypt_bytes
 
-    plaintext = b"Saskia RMS - important business data"
+    plaintext = b"Sazon - important business data"
     # Generate a real key for the test
     from cryptography.fernet import Fernet
 
@@ -179,14 +179,14 @@ def test_load_r2_settings_returns_settings_when_present(tmp_path: Path, monkeypa
     cfg.write_text(
         "[r2]\n"
         'endpoint_url = "https://example.r2.cloudflarestorage.com"\n'
-        'bucket = "saskia-backups"\n'
+        'bucket = "sazon-backups"\n'
         'access_key_id = "AKIA..."\n'
         'secret_access_key = "secret"\n'
     )
     monkeypatch.setattr(r2_mod, "R2_CONFIG_PATH", cfg)
     s = load_r2_settings()
     assert s is not None
-    assert s.bucket == "saskia-backups"
+    assert s.bucket == "sazon-backups"
     assert s.endpoint_url.startswith("https://")
 
 

@@ -29,10 +29,10 @@
 .metric-card__target-fill.is-danger { background: var(--color-danger); }
 .metric-card__target-label { font-size: var(--text-xs); color: var(--color-text-subtle); }
 
-/* ═══ <saskia-kpi-card> styles (Session A — 2026-09-29) ═══ */
+/* ═══ <ui-kpi-card> styles (Session A — 2026-09-29) ═══ */
 /* Custom elements default to display:inline — without this they sit inside
    a CSS Grid cell as inline, which breaks row-height alignment. */
-saskia-kpi-card { display: block; height: 100%; }
+ui-kpi-card { display: block; height: 100%; }
 /* The inner visible card is a child div of the host — must also fill the host
    so the card surface (background, border, padding) stretches to the row track
    rather than only to its content. Without this, hosts align but inner cards
@@ -220,12 +220,12 @@ input[type="date"], input[type="datetime-local"] { color-scheme: light dark; }
 /* ── form input width discipline (numeric/categorical sized to data) ── */
 .inv-form-wrap input[type="number"] { max-width: 180px; }
 .inv-form-wrap .form-row input[type="date"] { max-width: 220px; }
-.inv-form-wrap .saskia-combo { max-width: 260px; }
+.inv-form-wrap .ui-combo { max-width: 260px; }
 .inv-form-wrap .form-row:first-child input[type="text"] { max-width: 420px; }
 
 /* ── 3. combobox dropdown affordance (chevron) ── */
-.saskia-combo .combo-input { padding-right: 2.25em; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75em center; }
-.saskia-combo .combo-input:focus { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='18 15 12 9 6 15'/%3E%3C/svg%3E"); }
+.ui-combo .combo-input { padding-right: 2.25em; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75em center; }
+.ui-combo .combo-input:focus { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='18 15 12 9 6 15'/%3E%3C/svg%3E"); }
 
 /* ── 4. dark-mode calendar picker indicator ── */
 :root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,

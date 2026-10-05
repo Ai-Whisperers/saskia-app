@@ -16,7 +16,7 @@ Tables:
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import (
     JSON,
@@ -167,9 +167,7 @@ class Ingredient(Base):
     last_purchase_supplier: Mapped[Optional["Supplier"]] = relationship(
         foreign_keys=[last_purchase_supplier_id]
     )
-    locked_supplier: Mapped[Optional["Supplier"]] = relationship(
-        foreign_keys=[locked_supplier_id]
-    )
+    locked_supplier: Mapped[Optional["Supplier"]] = relationship(foreign_keys=[locked_supplier_id])
     # S7 Decision A1 — one Ingredient has many IngredientVariants (1kg, 250g, etc).
     variants: Mapped[list["IngredientVariant"]] = relationship(
         back_populates="ingredient",
@@ -282,7 +280,16 @@ class Recipe(Base):
     # fermentation step; >0 = minutes of poolish/masa madre/levain.
     # Suggested: 240-480 (poolish), 720-960 (masa madre), 1440-4320 (levain).
     difficulty: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 1-5 scale
-    family: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # category (legacy, read-only)
+    # T-2026-10-05 (B.3): bulk-fermentation duration in minutes. NULL
+    # means no fermentation step (quick breads, cookies). >0 means the
+    # recipe needs N minutes of bulk rise — surfaced as a "Fermentar Xh
+    # — empezar 18:00 hoy, listo 06:00 mañana" reminder on /produccion.
+    # Suggested: 240-480 (poolish), 720-960 (masa madre), 1440-4320
+    # (levain builds).
+    fermentation_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    family: Mapped[Optional[str]] = mapped_column(
+        String(32), nullable=True
+    )  # category (legacy, read-only)
     # UI-V2 (migration 068): multi-select "Etiquetas de Menú" — comma-separated.
     menu_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     dietary_tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # comma-separated
@@ -334,7 +341,7 @@ class RecipeLine(Base):
     line_kind: Mapped[str] = mapped_column(String(16), nullable=False)
     line_ref_id: Mapped[int] = mapped_column(Integer, nullable=False)
     qty: Mapped[float] = mapped_column(Numeric(12, 4), nullable=False)
-    # Phase B — T1: per-line unit. Lets Saskia type "250 g" while the linked
+    # Phase B — T1: per-line unit. Lets the operator type "250 g" while the linked
     # ingredient is in "kg". Default "" for backward compat (legacy rows assume
     # the ingredient's unit at costing time). Allowed: g, kg, ml, l, und.
     line_unit: Mapped[str] = mapped_column(String(8), nullable=False, default="")
@@ -510,12 +517,8 @@ class Sale(Base):
     # public_token_shared_at records when the operator last generated
     # the URL (for "Last shared" display on /ventas/{id}).
     public_token: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    public_token_expires_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True
-    )
-    public_token_shared_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True
-    )
+    public_token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    public_token_shared_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     product: Mapped["Product"] = relationship(back_populates="sales")
@@ -571,7 +574,7 @@ class SaleStockMove(Base):
     # InstrumentedAttributes. See the post-class binding block at
     # the end of this file.
 
-    def __init__(self, *args, **kwargs):  # pragma: no cover — guard
+    def __init__(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover — guard
         raise TypeError(
             "SaleStockMove is deprecated — sale_stock_move table was "
             "dropped by migration 092. Use StockMovement with "
@@ -730,7 +733,7 @@ class IngredientPriceEvent(Base):
 class Customer(Base):
     """A customer record (E13).
 
-    Phone is the de-facto unique identifier (matches how Saskia
+    Phone is the de-facto unique identifier (matches how the operator
     identifies customers at the counter). Loyalty points are tracked
     in-app; lifetime spend is computed from sales at query time.
     """
@@ -766,9 +769,7 @@ class Customer(Base):
     invoice_ruc: Mapped[str | None] = mapped_column(String(20), nullable=True)
     dietary_restrictions: Mapped[str | None] = mapped_column(Text, nullable=True)
     dietary_preferences: Mapped[str | None] = mapped_column(Text, nullable=True)
-    dietary_confirm_always: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    dietary_confirm_always: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Relationships
     sales: Mapped[list["Sale"]] = relationship(back_populates="customer")
@@ -831,9 +832,21 @@ class TagLink(Base):
 class ProductionCompletion(Base):
     """How much of a planned product was actually produced on a given day.
 
-    Saskia review T5: "Al final del dia debe registrarse cuanto de la
+    the operator review T5: "Al final del dia debe registrarse cuanto de la
     produccion se completo". One row per (product, date) — re-recording
     updates in place via upsert_completion().
+
+    T-2026-10-04 (Tier 5-K): added ``updated_at`` so two cooks editing
+    the same shift in parallel don't silently overwrite each other.
+    Migration 099 adds the column on existing DBs. SQLAlchemy won't
+    enforce the default here — SQLite / Postgres handle DEFAULT.
+
+    PRODUCCION-V2 Fase 2 (2026-10-05): end-of-shift closure. ``status``
+    is 'open' (default) until the cook taps "Cerrar turno"; 'done'
+    means "this is what we baked"; 'cancelled' means "we baked 0 of
+    this, here's why". ``closure_notes`` is the cook's optional
+    free-text justification (NULL when blank). Migration 102 adds the
+    columns on existing DBs.
     """
 
     __tablename__ = "production_completion"
@@ -847,6 +860,10 @@ class ProductionCompletion(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, default="open", server_default="open"
+    )
+    closure_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
         CheckConstraint("completed_qty >= 0", name="ck_completion_qty_nonneg"),
@@ -863,11 +880,20 @@ class FreezerTemperatureLog(Base):
     Regulatory context: Paraguay MSPBS HACCP exige registro de temperatura
     de heladeras/freezers donde se almacenan productos crudos, semi-elaborados
     y elaborados. Sin registro continuo, una inspección puede multar al
-    local. Saskia opera con un freezer de masa y uno de productos finales.
+    local. the operator opera con un freezer de masa y uno de productos finales.
 
     One row per (location, for_date, shift) — el cocinero registra la
     temperatura 2 veces al día (apertura AM, cierre PM). Las filas se
     acumulan para auditoría MSPBS.
+
+    Schema:
+      - id, location (e.g. "freezer-1")
+      - temperature_c (float, obligatorio)
+      - for_date (date — día de operación)
+      - shift (AM|PM — cuándo se tomó)
+      - recorded_at (datetime — cuándo se tipeó, con fines de auditoría)
+      - recorded_by_user_id (FK user.id — quién lo tipeó)
+      - notes (text, opcional — "puerta quedó abierta 5 min" etc.)
     """
 
     __tablename__ = "freezer_temperature_log"
@@ -878,7 +904,7 @@ class FreezerTemperatureLog(Base):
     for_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     shift: Mapped[str] = mapped_column(String(8), nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    recorded_by_user_id: Mapped[Optional[int]] = mapped_column(
+    recorded_by_user_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("user.id"), nullable=True
     )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -947,6 +973,89 @@ class ProductionPlanOverride(Base):
 
     # Relationships
     product: Mapped["Product"] = relationship("Product")
+
+
+class ProductionClosedDay(Base):
+    """T-2026-10-04 (P1): Whole-day flag marking a date as closed.
+
+    Used for holidays, vacations, equipment failures, etc. When a date
+    has a row in this table, the production plan returns an empty plan
+    regardless of the weekly template or forecast.
+
+    One row per date (PRIMARY KEY on for_date) — there is no concept
+    of "closed for half a day" because the bakery either opens or
+    doesn't.
+    """
+
+    __tablename__ = "production_closed_day"
+
+    for_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    reason: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    closed_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    closed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class ProductionDemandSnapshot(Base):
+    """PRODUCCION-V2 Fase 3: TTL cache for `get_demand()`.
+
+    One row per (for_date, product_id). Populated by `get_demand()` after
+    each recompute; read on the next call if the cache is still fresh
+    (within `production.demand_snapshot_ttl_seconds`).
+
+    Why a table (not in-process memoize): the operator may open the
+    production page from two browser tabs, or refresh after editing a
+    pedido. An in-process cache would serve stale data to the second
+    tab; a DB row survives the request boundary AND can be inspected
+    with raw SQL when debugging ("why did the demand number change?").
+
+    Schema mirrors migration 102 exactly. PK is (for_date, product_id)
+    — clustered on SQLite, sufficient for our access pattern.
+    """
+
+    __tablename__ = "production_demand_snapshot"
+
+    for_date: Mapped[date] = mapped_column(Date, primary_key=True, nullable=False)
+    product_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("product.id"), primary_key=True, nullable=False
+    )
+    # Note: no `product_name` column. The migration 102 schema doesn't
+    # have it and adding it would require a new migration. Operators
+    # resolve product names via the FK + ORM Product.name when needed.
+    qty_forecast: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    qty_pedidos: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    qty_pedidos_confirmed: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    qty_evento: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    qty_total: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    confidence_pct: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="computed")
+    computed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class ProductionPlanAudit(Base):
+    """PRODUCCION-V2 Fase 1: append-only audit of plan qty changes.
+
+    Created by `app.routers.produccion` whenever the operator records a
+    production_qty for a (date, product). NOT updated by `get_demand()` —
+    the snapshot table is the demand cache, this table is the human-
+    change log. They live separately so the cache can be invalidated
+    and rewritten without losing history.
+    """
+
+    __tablename__ = "production_plan_audit"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    for_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    product_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("product.id"), nullable=False, index=True
+    )
+    old_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    new_qty: Mapped[float] = mapped_column(Float, nullable=False)
+    change_source: Mapped[str] = mapped_column(String(32), nullable=False)
+    changed_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class Supplier(Base):
@@ -1067,14 +1176,10 @@ class Expense(Base):
     # Optional bookkeeping: who logged it + an optional supplier FK
     # for INGREDIENT expenses (lets you trace flour from supplier X).
     created_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    supplier_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("supplier.id"), nullable=True
-    )
+    supplier_id: Mapped[Optional[int]] = mapped_column(ForeignKey("supplier.id"), nullable=True)
     # Sprint 3.1: receipt URL and recurring period tracking
     receipt_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
-    recurring_period: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="once"
-    )
+    recurring_period: Mapped[str] = mapped_column(String(32), nullable=False, default="once")
 
     __table_args__ = (
         CheckConstraint("amount_gs >= 0", name="ck_expense_amount_nonneg"),
@@ -1115,18 +1220,12 @@ class CustomerAddress(Base):
     __tablename__ = "customer_address"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    customer_id: Mapped[int] = mapped_column(
-        ForeignKey("customer.id"), nullable=False, index=True
-    )
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customer.id"), nullable=False, index=True)
     label: Mapped[str] = mapped_column(String(32), nullable=False, default="casa")
     address_text: Mapped[str] = mapped_column(Text, nullable=False)
-    zone_id: Mapped[int | None] = mapped_column(
-        ForeignKey("delivery_zone.id"), nullable=True
-    )
+    zone_id: Mapped[int | None] = mapped_column(ForeignKey("delivery_zone.id"), nullable=True)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     # ── Phase 13: structured address fields (research-backed)
     # MercadoLibre PY uses discrete street_name+street_number+floor+apartment;
@@ -1181,27 +1280,19 @@ class CustomerInvoiceProfile(Base):
     __tablename__ = "customer_invoice_profile"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    customer_id: Mapped[int] = mapped_column(
-        ForeignKey("customer.id"), nullable=False, index=True
-    )
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customer.id"), nullable=False, index=True)
     alias: Mapped[str] = mapped_column(String(64), nullable=False)
     ruc_ci: Mapped[str] = mapped_column(String(20), nullable=False)
     razon_social: Mapped[str] = mapped_column(String(160), nullable=False)
     # tipo_documento: 1:Cedula paraguaya, 2:Pasaporte, 3:Cedula extranjera,
     # 4:Carnet de residencia, 5:Innominado, 6:Tarjeta Diplomatica exoneracion,
     # 7:Otro — see SIFEN spec (https://sisfe.com.py/documentacion.html)
-    tipo_documento: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="CI_PARAGUAYA"
-    )
+    tipo_documento: Mapped[str] = mapped_column(String(32), nullable=False, default="CI_PARAGUAYA")
     # tipo_operacion: 1:B2B, 2:B2C, 3:B2G, 4:B2F (extranjero)
-    tipo_operacion: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="B2C"
-    )
+    tipo_operacion: Mapped[str] = mapped_column(String(16), nullable=False, default="B2C")
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
@@ -1439,7 +1530,7 @@ class ShoppingListItem(Base):
 class MarketBenchmark(Base):
     """Per-product pricing-vs-market row (HEREBUS Benchmarks_Market).
 
-    Allows Saskia to position each recipe relative to local competitors.
+    Allows the operator to position each recipe relative to local competitors.
     """
 
     __tablename__ = "market_benchmark"
@@ -1571,9 +1662,7 @@ class Pedido(Base):
     # promise — matches Instacart "desired windows"), 'scheduled' (future
     # date). See _render_ventana_preferida in app/templates for the
     # "ventana preferida: 14:00–16:00 (no es garantía)" rendering.
-    delivery_preference: Mapped[str | None] = mapped_column(
-        String(16), nullable=True
-    )
+    delivery_preference: Mapped[str | None] = mapped_column(String(16), nullable=True)
     delivery_scheduled_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
     # Phase 13: FKs linking the pedido to the chosen invoice profile
     # (multiple per customer, SIFEN-compliant) and chosen address
@@ -1593,9 +1682,7 @@ class Pedido(Base):
     public_token_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, index=True
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
@@ -2255,22 +2342,23 @@ __all__ = [
     "AuditLog",
     "BankTransaction",
     "Base",
-    "CommunicationLog",
     # Static-content-audit fix — migration 039
     "Category",
     # Static-content-audit Phase 4 — migrations 041, 042
     "Channel",
-    "ComplianceInfo",
+    "CommunicationLog",
     # market-intel 2026-09-30 — evidencia de competencia retail
     "CompetitorPriceObservation",
+    "ComplianceInfo",
     "Customer",
     # Phase 13 (2026-10-01): structured address fields on CustomerAddress
     "CustomerAddress",
     # Phase 13 (2026-10-01): multiple invoice profiles per customer
     "CustomerInvoiceProfile",
-    "DeliveryZone",
     # Static-content-audit Phase 9 — migration 048
     "DateRangePreset",
+    "DeliveryZone",
+    "FreezerTemperatureLog",  # B.6 HACCP freezer temp log
     "ImportBatch",
     "Ingredient",
     "IngredientPriceEvent",
@@ -2287,8 +2375,11 @@ __all__ = [
     "PedidoLine",
     "PriceHistory",
     "Product",
+    "ProductionClosedDay",
     "ProductionCompletion",
+    "ProductionDemandSnapshot",  # PRODUCCION-V2 Fase 3 — TTL cache
     "ProductionPlan",
+    "ProductionPlanAudit",  # PRODUCCION-V2 Fase 1 — append-only audit
     "ProductionPlanOverride",
     "ProductionPlanTemplate",
     "Recipe",
@@ -2367,8 +2458,8 @@ class MarketPriceReference(Base):
 class CompetitorPriceObservation(Base):
     """Market-intel — observación de precio retail de la competencia (append-only).
 
-    Fuente: repositorio de investigación saskia-market-intel
-    (/opt/data/work/research-repos/saskia-market-intel — cartas online
+    Fuente: repositorio de investigación sazon-market-intel
+    (/opt/data/work/research-repos/sazon-market-intel — cartas online
     verificadas de locales PY con URL y fecha) u observación manual del
     operador ("pasé por Karu: cheesecake 32.000").
 
@@ -2646,7 +2737,6 @@ class Refund(Base):
         # ix_refund_recorded_at removed (2026-01-02 fix; BACKLOG Tier-7
         # unblocks /healthz/depth tests by letting init_db complete).
     )
-
 
 
 # ---------------------------------------------------------------------------

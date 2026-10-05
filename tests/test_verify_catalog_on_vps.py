@@ -5,20 +5,17 @@ Validates the decision matrix of scripts/verify_catalog_on_vps.py
 any future change must keep these mappings or update this test
 FIRST.
 """
+
 import importlib.util
-import os
 import sqlite3
 import sys
-import tempfile
 from pathlib import Path
 
 SCRIPT_PATH = Path(__file__).parent.parent / "scripts" / "verify_catalog_on_vps.py"
 
 
 def _load_module():
-    spec = importlib.util.spec_from_file_location(
-        "verify_catalog_on_vps", SCRIPT_PATH
-    )
+    spec = importlib.util.spec_from_file_location("verify_catalog_on_vps", SCRIPT_PATH)
     if spec is None or spec.loader is None:  # pragma: no cover
         raise RuntimeError(f"could not load {SCRIPT_PATH}")
     module = importlib.util.module_from_spec(spec)
@@ -49,8 +46,7 @@ def _make_db(tmp_path: Path, *, schema_version="83", counts=None) -> str:
     counts = counts or {}
     # Create each tracked table with a single integer-id column so
     # we can insert COUNT rows.
-    for table in ("ingredient", "recipe", "supplier",
-                  "delivery_zone", "customer"):
+    for table in ("ingredient", "recipe", "supplier", "delivery_zone", "customer"):
         conn.execute(f"CREATE TABLE {table} (id INTEGER PRIMARY KEY)")
         for i in range(counts.get(table, 0)):
             conn.execute(f"INSERT INTO {table} (id) VALUES (?)", (i + 1,))
@@ -64,8 +60,7 @@ def test_ok_when_schema_matches_and_counts_meet_minimums(tmp_path, capsys):
     db = _make_db(
         tmp_path,
         schema_version="83",
-        counts={"ingredient": 76, "recipe": 22, "supplier": 8,
-                "delivery_zone": 6, "customer": 12},
+        counts={"ingredient": 76, "recipe": 22, "supplier": 8, "delivery_zone": 6, "customer": 12},
     )
     rc = mod.main(["--db", db, "--code-schema-version", "83"])
     assert rc == 0
@@ -83,8 +78,7 @@ def test_catalog_below_minimums_returns_2(tmp_path):
     db = _make_db(
         tmp_path,
         schema_version="83",
-        counts={"ingredient": 50, "recipe": 22, "supplier": 8,
-                "delivery_zone": 6, "customer": 12},
+        counts={"ingredient": 50, "recipe": 22, "supplier": 8, "delivery_zone": 6, "customer": 12},
     )
     rc = mod.main(["--db", db, "--code-schema-version", "83"])
     assert rc == 2
@@ -101,12 +95,11 @@ def test_quiet_one_line_output(tmp_path, capsys):
     db = _make_db(
         tmp_path,
         schema_version="83",
-        counts={"ingredient": 76, "recipe": 22, "supplier": 8,
-                "delivery_zone": 6, "customer": 12},
+        counts={"ingredient": 76, "recipe": 22, "supplier": 8, "delivery_zone": 6, "customer": 12},
     )
-    rc = mod.main(["--db", db, "--code-schema-version", "83", "--quiet"])
+    mod.main(["--db", db, "--code-schema-version", "83", "--quiet"])
     captured = capsys.readouterr()
-    lines = [l for l in captured.out.split("\n") if l.strip()]
+    lines = [line for line in captured.out.split("\n") if line.strip()]
     assert len(lines) == 1
     assert lines[0].startswith("vps-catalog-verify[OK]")
 
@@ -118,6 +111,6 @@ def test_quiet_marks_fail_when_counts_low(tmp_path, capsys):
         schema_version="83",
         counts={"ingredient": 5},  # way below minimum 70
     )
-    rc = mod.main(["--db", db, "--code-schema-version", "83", "--quiet"])
+    mod.main(["--db", db, "--code-schema-version", "83", "--quiet"])
     captured = capsys.readouterr()
     assert "[FAIL]" in captured.out

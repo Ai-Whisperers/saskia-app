@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a defect in Saskia RMS (login, import, costing, etc.)
+about: Report a defect in Sazón (login, import, costing, etc.)
 title: "[BUG] "
 labels: ["bug"]
 assignees: []
@@ -17,7 +17,7 @@ One-sentence description of the bug.
 
 ## Environment
 
-- Deployment: [ ] hosted (https://saskia-rms.paragu-ai.com) [ ] local install (run.bat / run.sh)
+- Deployment: [ ] hosted (https://sazon-rms.paragu-ai.com) [ ] local install (run.bat / run.sh)
 - Browser + version: e.g. Chrome 142 on Windows 11
 - App version / commit: `git rev-parse --short HEAD` from inside the project folder
 - Date observed: YYYY-MM-DD

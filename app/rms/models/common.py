@@ -9,16 +9,19 @@ Sprint 3.2: added SoftDeletable + AuditColumns mixins for soft-delete
 + audit-column support on owned tables.
 """
 
-from datetime import datetime
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Annotated, Any, Optional
 
 from sqlalchemy import DateTime, Float, String, event
 from sqlalchemy.orm import Mapped, mapped_column
 
 # Common timestamp fields with consistent typing
-CreatedTimestamp = Annotated[datetime, mapped_column(DateTime, nullable=False, default=datetime.now)]
-UpdatedTimestamp = Annotated[datetime, mapped_column(DateTime, nullable=False, default=datetime.now)]
+CreatedTimestamp = Annotated[
+    datetime, mapped_column(DateTime, nullable=False, default=datetime.now)
+]
+UpdatedTimestamp = Annotated[
+    datetime, mapped_column(DateTime, nullable=False, default=datetime.now)
+]
 
 # Common price field (consistent across all domains)
 PriceGs = Annotated[float, mapped_column(Float, nullable=False, default=0.0)]
@@ -75,9 +78,7 @@ class AuditColumns:
     ``*_by_user_id`` explicitly.
     """
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=_utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
     created_by_user_id: Mapped[Optional[str]] = mapped_column(
         String(64), nullable=True, default=None
     )

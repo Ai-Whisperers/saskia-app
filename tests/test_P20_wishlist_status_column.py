@@ -15,6 +15,7 @@ This test locks in the contract:
 3. After POSTing mark-purchased, the item row uses `is-purchased` class
    and shows "Comprado" badge.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -25,8 +26,9 @@ pytestmark = [pytest.mark.smoke]
 
 
 # Inline factory — factories.py does not include make_wishlist_item.
-def _make_wishlist(s, *, code: str, name: str, unit_price_gs: int,
-                    purchased: bool = False) -> WishlistItem:
+def _make_wishlist(
+    s, *, code: str, name: str, unit_price_gs: int, purchased: bool = False
+) -> WishlistItem:
     item = WishlistItem(
         code=code,
         name=name,
@@ -45,9 +47,12 @@ def test_wishlist_returns_200(client):
     r = client.get("/wishlist")
     assert r.status_code == 200, f"got {r.status_code}: {r.text[:300]}"
     # Page has the wishlist heading
-    assert ("Wishlist" in r.text) or ("Deseos" in r.text) or ("Lista de deseos" in r.text) or ("equipamiento" in r.text), (
-        "Wishlist page does not show wishlist heading text"
-    )
+    assert (
+        ("Wishlist" in r.text)
+        or ("Deseos" in r.text)
+        or ("Lista de deseos" in r.text)
+        or ("equipamiento" in r.text)
+    ), "Wishlist page does not show wishlist heading text"
 
 
 def test_pending_item_has_mark_purchased_action(client, session_factory):
@@ -68,7 +73,7 @@ def test_pending_item_has_mark_purchased_action(client, session_factory):
     body = r.text
     # Pending items: row has NO is-purchased class; "Pendiente" pill present
     # The action form points to /wishlist/{id}/mark-purchased
-    assert f'/wishlist/{item_id}/mark-purchased' in body, (
+    assert f"/wishlist/{item_id}/mark-purchased" in body, (
         f"Missing '/wishlist/{item_id}/mark-purchased' form action for pending item {item_id}"
     )
     # Submit button text is something like "Marcar comprado"
@@ -110,10 +115,7 @@ def test_purchased_item_renders_with_is_purchased_class(client, session_factory)
     # for THIS purchased item. But forms may include it via "send-to-shopping-list"
     # which the template also hides when purchased. So check the tr class.
     # Use a substring check: there must be an is-purchased tr for this code:
-    assert (
-        f'<code>{item_code}</code>' in body
-        and ("is-purchased" in body)
-    ), (
+    assert f"<code>{item_code}</code>" in body and ("is-purchased" in body), (
         "Purchased item rendered without 'is-purchased' class on its row"
     )
 
@@ -145,6 +147,7 @@ def test_mark_purchased_endpoint_persists(client, session_factory):
         # sqlite stores naive datetimes; tolerate either naive or aware.
         from datetime import datetime as _dt
         from datetime import timezone as _tz
+
         now_aware = _dt.now(_tz.utc)
         pa = item.purchased_at
         if pa.tzinfo is None:

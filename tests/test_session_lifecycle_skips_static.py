@@ -8,6 +8,7 @@ which:
 
 The fix mirrors request_log_middleware: skip /static/* and /healthz/*.
 """
+
 from __future__ import annotations
 
 
@@ -17,13 +18,12 @@ def test_middleware_skips_static_path():
     import inspect
 
     from app.rms.session_lifecycle import SessionLifecycleMiddleware
+
     src = inspect.getsource(SessionLifecycleMiddleware.dispatch)
     assert '"/static/"' in src or "'/static/'" in src, (
         f"Middleware should skip /static/*. Got:\n{src}"
     )
-    assert "/healthz" in src, (
-        f"Middleware should skip /healthz*. Got:\n{src}"
-    )
+    assert "/healthz" in src, f"Middleware should skip /healthz*. Got:\n{src}"
 
 
 def test_static_path_not_subject_to_gc(client):

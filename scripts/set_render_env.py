@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Set AIW_SASKIA_FORCE_SECURE_COOKIES=1 on Render.
+"""Set AIW_RMS_FORCE_SECURE_COOKIES=1 on Render.
 
 Without this env var, the CSRF middleware sets Secure=False on the
 csrf cookie. Browsers in HTTPS contexts (Render behind Cloudflare
@@ -8,6 +8,7 @@ TLS) reject non-Secure cookies, so every POST 403s.
 This is the runtime flag flipped ON for hosted deployments; local
 dev / tests leave it unset so plain HTTP works.
 """
+
 import json
 import os
 import sys
@@ -20,12 +21,14 @@ sys.path.insert(0, "/opt/data/.venv/lib/python3.11/site-packages")
 from bitwarden_sdk import BitwardenClient, ClientSettings, DeviceType
 
 token = Path("/opt/data/.hermes/inbox/bws-token.secret").read_text().strip()
-c = BitwardenClient(ClientSettings(
-    api_url="https://api.bitwarden.com",
-    identity_url="https://identity.bitwarden.com",
-    user_agent="ops/1",
-    device_type=DeviceType.SERVER,
-))
+c = BitwardenClient(
+    ClientSettings(
+        api_url="https://api.bitwarden.com",
+        identity_url="https://identity.bitwarden.com",
+        user_agent="ops/1",
+        device_type=DeviceType.SERVER,
+    )
+)
 c.auth().login_access_token(token, None)
 
 cache = {}
@@ -43,7 +46,7 @@ Path("/tmp/_rk").chmod(0o600)
 
 base = "https://api.render.com/v1/services/srv-dac8g2u7bikc73f3psf0/env-vars"
 req = urllib.request.Request(
-    base + "/AIW_SASKIA_FORCE_SECURE_COOKIES",
+    base + "/AIW_RMS_FORCE_SECURE_COOKIES",
     method="PUT",
     data=json.dumps({"value": "1"}).encode(),
     headers={
@@ -54,7 +57,7 @@ req = urllib.request.Request(
 )
 try:
     resp = urllib.request.urlopen(req, timeout=15)
-    print(f"PUT /AIW_SASKIA_FORCE_SECURE_COOKIES: HTTP {resp.status}")
+    print(f"PUT /AIW_RMS_FORCE_SECURE_COOKIES: HTTP {resp.status}")
     print(resp.read()[:200].decode())
 except urllib.error.HTTPError as e:
     print(f"PUT failed: HTTP {e.code}: {e.reason}")

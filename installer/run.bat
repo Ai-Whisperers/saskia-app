@@ -1,12 +1,12 @@
 @echo off
 REM ============================================================
-REM Saskia RMS - Unified launcher (Path C: hosted first, local fallback)
-REM Per docs/operations/2026-09-02-saskia-decision-hosted-pivot.md (Path C)
-REM Per docs/operations/2026-09-02-saskia-stack-audit.md (round-2 launcher fix)
-REM Per docs/operations/2026-09-02-saskia-deploy-runbook.md
+REM the operator RMS - Unified launcher (Path C: hosted first, local fallback)
+REM Per docs/operations/2026-09-02-sazon-decision-hosted-pivot.md (Path C)
+REM Per docs/operations/2026-09-02-sazon-stack-audit.md (round-2 launcher fix)
+REM Per docs/operations/2026-09-02-sazon-deploy-runbook.md
 REM
 REM Behavior (2026-09-02):
-REM   1. If hosted URL (saskia-rms.paragu-ai.com) is reachable AND returns 200
+REM   1. If hosted URL (sazon-rms.paragu-ai.com) is reachable AND returns 200
 REM      → open the browser to the hosted URL. No uvicorn started. This is
 REM      the "she just clicks the shortcut" experience.
 REM   2. If hosted URL is unreachable (no internet, DNS failure, 5xx, etc.)
@@ -26,10 +26,10 @@ set SCRIPT_DIR=%~dp0
 cd /d "%SCRIPT_DIR%.."
 
 REM --- Path C: hosted first ---
-REM The hosted URL is the source of truth for Saskia's data.
+REM The hosted URL is the source of truth for the operator's data.
 REM We probe it before falling back to local; this is the
 REM "she just clicks the shortcut and logs in" UX.
-set HOSTED_URL=https://saskia-rms.paragu-ai.com
+set HOSTED_URL=https://sazon-rms.paragu-ai.com
 
 REM Use PowerShell to do the reachability check (curl isn't on Windows by default).
 powershell -NoProfile -ExecutionPolicy ByPass -Command ^
@@ -40,7 +40,7 @@ powershell -NoProfile -ExecutionPolicy ByPass -Command ^
 if %ERRORLEVEL% EQU 0 (
     REM Hosted is alive: just open the browser to it.
     echo ============================================================
-    echo  Saskia RMS - Gestion Saskia
+    echo  the operator RMS - Gestion the operator
     echo ============================================================
     echo.
     echo  Conectando al servidor...
@@ -49,7 +49,7 @@ if %ERRORLEVEL% EQU 0 (
 )
 
 REM --- Path A: local fallback ---
-REM Hosted is unreachable. Start the local-first app so Saskia can
+REM Hosted is unreachable. Start the local-first app so the operator can
 REM still work offline / when the server is down.
 echo Hosted no disponible. Iniciando version local...
 
@@ -84,15 +84,15 @@ REM (4) Process tree: uvicorn is run via uv run, NOT via start /b. The shell
 REM     stays attached; killing the .bat cleanly stops uvicorn.
 set PYTHONPATH=.
 set HTTPS_ONLY=false
-set AIW_SASKIA_DATA_DIR=%LOCALAPPDATA%\AIW-Saskia
-set AIW_SASKIA_BACKUP_DIR=%USERPROFILE%\Documents\AIW-Saskia\backups
-set AIW_SASKIA_LOG_DIR=%LOCALAPPDATA%\AIW-Saskia\logs
+set AIW_SASKIA_DATA_DIR=%LOCALAPPDATA%\AIW-the operator
+set AIW_SASKIA_BACKUP_DIR=%USERPROFILE%\Documents\AIW-the operator\backups
+set AIW_SASKIA_LOG_DIR=%LOCALAPPDATA%\AIW-the operator\logs
 set BIND_HOST=127.0.0.1
 set PORT=8765
 
 echo.
 echo ============================================================
-echo  Saskia RMS - Sistema de gestion local
+echo  the operator RMS - Sistema de gestion local
 echo ============================================================
 echo.
 echo  Iniciando servidor en http://127.0.0.1:8765

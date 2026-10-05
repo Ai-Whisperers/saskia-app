@@ -1,6 +1,6 @@
 """Tests for S8 — US 4.1: per-sale packaging.
 
-Saskia's exact words from the audio review (paraphrased from the
+the operator's exact words from the audio review (paraphrased from the
 Spanish audio):
 
   "In product I would put a compressor that is a package instead of in
@@ -54,17 +54,27 @@ def product(session_factory):
     iname = _unique_name("i-s8")
     with session_factory() as s:
         ing = Ingredient(name=iname, unit="kg", stock_qty=10.0)
-        s.add(ing); s.flush()
+        s.add(ing)
+        s.flush()
         r = Recipe(name=rname, yield_qty=1.0, yield_unit="kg")
-        s.add(r); s.flush()
-        s.add(RecipeLine(
-            recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id,
-            qty=0.2,
-        ))
-        p = Product(
-            name=pname, sku=pname, sale_price_gs=5000, recipe_id=r.id,
+        s.add(r)
+        s.flush()
+        s.add(
+            RecipeLine(
+                recipe_id=r.id,
+                line_kind="ingredient",
+                line_ref_id=ing.id,
+                qty=0.2,
+            )
         )
-        s.add(p); s.commit()
+        p = Product(
+            name=pname,
+            sku=pname,
+            sale_price_gs=5000,
+            recipe_id=r.id,
+        )
+        s.add(p)
+        s.commit()
         return p
 
 
@@ -74,10 +84,14 @@ def box(session_factory):
     name = _unique_name("caja-torta")
     with session_factory() as s:
         ing = Ingredient(
-            name=name, unit="und", stock_qty=20.0, purchase_price_gs=1500,
+            name=name,
+            unit="und",
+            stock_qty=20.0,
+            purchase_price_gs=1500,
             is_packaging=True,
         )
-        s.add(ing); s.commit()
+        s.add(ing)
+        s.commit()
         return ing
 
 
@@ -87,10 +101,14 @@ def bag(session_factory):
     name = _unique_name("bolsa-papel")
     with session_factory() as s:
         ing = Ingredient(
-            name=name, unit="und", stock_qty=100.0, purchase_price_gs=200,
+            name=name,
+            unit="und",
+            stock_qty=100.0,
+            purchase_price_gs=200,
             is_packaging=True,
         )
-        s.add(ing); s.commit()
+        s.add(ing)
+        s.commit()
         return ing
 
 
@@ -100,9 +118,11 @@ def bag(session_factory):
 
 
 class TestApplySaleWithPackaging:
-
     def test_apply_sale_with_packaging_decrements_box_stock(
-        self, session_factory, product, box,
+        self,
+        session_factory,
+        product,
+        box,
     ):
         from app.rms.costing import apply_sale
 
@@ -110,9 +130,12 @@ class TestApplySaleWithPackaging:
         box_id = box.id
         with session_factory() as s:
             result = apply_sale(
-                s, product_id=product_id, qty=1.0,
+                s,
+                product_id=product_id,
+                qty=1.0,
                 sold_at=datetime.now(timezone.utc),
-                packaging_item_id=box_id, packaging_qty=1.0,
+                packaging_item_id=box_id,
+                packaging_qty=1.0,
             )
             s.commit()
             sale_id = result.sale_id
@@ -138,7 +161,10 @@ class TestApplySaleWithPackaging:
         assert "packaging" in mv[0].reason
 
     def test_apply_sale_without_packaging_leaves_box_alone(
-        self, session_factory, product, box,
+        self,
+        session_factory,
+        product,
+        box,
     ):
         """Eat-in sale (no packaging) must NOT touch the box stock."""
         from app.rms.costing import apply_sale
@@ -146,7 +172,9 @@ class TestApplySaleWithPackaging:
         box_id = box.id
         with session_factory() as s:
             apply_sale(
-                s, product_id=product.id, qty=1.0,
+                s,
+                product_id=product.id,
+                qty=1.0,
                 sold_at=datetime.now(timezone.utc),
             )
             s.commit()
@@ -155,7 +183,9 @@ class TestApplySaleWithPackaging:
             assert b.stock_qty == 20.0  # unchanged
 
     def test_apply_sale_rejects_non_packaging_ingredient(
-        self, session_factory, product,
+        self,
+        session_factory,
+        product,
     ):
         """Passing a regular food ingredient as packaging → ValueError."""
         from app.rms.costing import apply_sale
@@ -164,54 +194,79 @@ class TestApplySaleWithPackaging:
         n = _unique_name("harina-no-empaque")
         with session_factory() as s:
             ing = Ingredient(
-                name=n, unit="kg", stock_qty=5.0, is_packaging=False,
+                name=n,
+                unit="kg",
+                stock_qty=5.0,
+                is_packaging=False,
             )
-            s.add(ing); s.commit(); ing_id = ing.id
+            s.add(ing)
+            s.commit()
+            ing_id = ing.id
         with session_factory() as s:
             with pytest.raises(ValueError, match="not flagged as packaging"):
                 apply_sale(
-                    s, product_id=product.id, qty=1.0,
+                    s,
+                    product_id=product.id,
+                    qty=1.0,
                     sold_at=datetime.now(timezone.utc),
-                    packaging_item_id=ing_id, packaging_qty=1.0,
+                    packaging_item_id=ing_id,
+                    packaging_qty=1.0,
                 )
 
     def test_apply_sale_rejects_qty_without_item(
-        self, session_factory, product,
+        self,
+        session_factory,
+        product,
     ):
         from app.rms.costing import apply_sale
 
         with session_factory() as s:
             with pytest.raises(ValueError, match="without packaging_item_id"):
                 apply_sale(
-                    s, product_id=product.id, qty=1.0,
+                    s,
+                    product_id=product.id,
+                    qty=1.0,
                     sold_at=datetime.now(timezone.utc),
-                    packaging_item_id=None, packaging_qty=2.0,
+                    packaging_item_id=None,
+                    packaging_qty=2.0,
                 )
 
     def test_apply_sale_rejects_zero_packaging_qty(
-        self, session_factory, product, box,
+        self,
+        session_factory,
+        product,
+        box,
     ):
         from app.rms.costing import apply_sale
 
         with session_factory() as s:
             with pytest.raises(ValueError, match="packaging_qty must be > 0"):
                 apply_sale(
-                    s, product_id=product.id, qty=1.0,
+                    s,
+                    product_id=product.id,
+                    qty=1.0,
                     sold_at=datetime.now(timezone.utc),
-                    packaging_item_id=box.id, packaging_qty=0,
+                    packaging_item_id=box.id,
+                    packaging_qty=0,
                 )
 
     def test_apply_sale_rejects_negative_packaging_qty(
-        self, session_factory, product, box,
+        self,
+        session_factory,
+        product,
+        box,
     ):
         from app.rms.costing import apply_sale
 
         with session_factory() as s:
             with pytest.raises(ValueError, match="packaging_qty must be > 0"):
                 apply_sale(
-                    s, product_id=product.id, qty=1.0,
+                    s,
+                    product_id=product.id,
+                    qty=1.0,
                     sold_at=datetime.now(timezone.utc),
-                    packaging_item_id=box.id, packaging_qty=-1.0,
+                    packaging_item_id=box.id,
+                    packaging_qty=-1.0,
                 )
 
 
@@ -221,17 +276,22 @@ class TestApplySaleWithPackaging:
 
 
 class TestVoidSaleWithPackaging:
-
     def test_void_sale_restores_packaging_stock(
-        self, session_factory, product, box,
+        self,
+        session_factory,
+        product,
+        box,
     ):
         from app.rms.costing import apply_sale, void_sale
 
         with session_factory() as s:
             r = apply_sale(
-                s, product_id=product.id, qty=1.0,
+                s,
+                product_id=product.id,
+                qty=1.0,
                 sold_at=datetime.now(timezone.utc),
-                packaging_item_id=box.id, packaging_qty=1.0,
+                packaging_item_id=box.id,
+                packaging_qty=1.0,
             )
             s.commit()
             sale_id = r.sale_id
@@ -256,9 +316,12 @@ class TestVoidSaleWithPackaging:
 
 
 class TestPackagingAPI:
-
     def test_api_returns_only_packaging_flagged(
-        self, client, session_factory, box, bag,
+        self,
+        client,
+        session_factory,
+        box,
+        bag,
     ):
         """Regular ingredients excluded; only is_packaging=True rows returned."""
         # Create a regular (non-packaging) ingredient to make sure it's filtered
@@ -292,13 +355,14 @@ class TestPackagingAPI:
 
 
 class TestTogglePackaging:
-
     def test_toggle_flips_flag(self, client, session_factory):
         """POST flips is_packaging True↔False and returns 303."""
         n = _unique_name("toggle-test")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="und", stock_qty=1.0, is_packaging=False)
-            s.add(ing); s.commit(); ing_id = ing.id
+            s.add(ing)
+            s.commit()
+            ing_id = ing.id
         # First toggle → True
         resp = client.post(
             f"/inventario/{ing_id}/toggle-packaging",
@@ -332,9 +396,12 @@ class TestTogglePackaging:
 
 
 class TestSalePOSTPackaging:
-
     def test_sale_post_with_packaging_persists_both_columns(
-        self, client, session_factory, product, box,
+        self,
+        client,
+        session_factory,
+        product,
+        box,
     ):
         """POST /ventas/nueva accepts packaging_item_id + packaging_qty."""
         product_id = product.id
@@ -348,13 +415,18 @@ class TestSalePOSTPackaging:
         # This test confirms the helper accepts the kwargs (compile-time
         # check), so a routing/typing regression would surface here.
         from app.rms.costing import apply_sale
+
         with session_factory() as s:
             r = apply_sale(
-                s, product_id=product_id, qty=1.0,
+                s,
+                product_id=product_id,
+                qty=1.0,
                 sold_at=datetime.now(timezone.utc),
-                packaging_item_id=box_id, packaging_qty=2.0,
+                packaging_item_id=box_id,
+                packaging_qty=2.0,
             )
-            s.commit(); sale_id = r.sale_id
+            s.commit()
+            sale_id = r.sale_id
         with session_factory() as s:
             sale = s.get(Sale, sale_id)
             assert sale.packaging_item_id == box_id
@@ -367,15 +439,13 @@ class TestSalePOSTPackaging:
 
 
 class TestMigration042:
-
     def test_schema_version_42(self, session_factory):
         from app.rms.config import CURRENT_SCHEMA_VERSION
         from app.rms.models import AppMeta
+
         assert CURRENT_SCHEMA_VERSION >= 42
         with session_factory() as s:
-            row = s.scalar(
-                select(AppMeta.value).where(AppMeta.key == "schema_version")
-            )
+            row = s.scalar(select(AppMeta.value).where(AppMeta.key == "schema_version"))
         assert int(row) >= 42
 
     def test_is_packaging_column_exists(self, session_factory):
@@ -394,8 +464,7 @@ class TestMigration042:
     def test_packaging_index_exists(self, session_factory):
         with session_factory() as s:
             rows = s.execute(
-                text("SELECT name FROM sqlite_master WHERE type='index' "
-                     "AND tbl_name='sale'")
+                text("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='sale'")
             ).fetchall()
         names = {r[0] for r in rows}
         assert "ix_sale_packaging_item" in names

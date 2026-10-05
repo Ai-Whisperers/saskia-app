@@ -4,6 +4,7 @@ Verifies:
 - HTML responses are gzipped when client sends Accept-Encoding: gzip
 - CSS responses get Cache-Control: max-age=31536000, immutable (version-busted assets)
 """
+
 from __future__ import annotations
 
 
@@ -38,6 +39,4 @@ def test_static_cache_control_not_applied_to_routes(client):
     resp = client.get("/login")
     # /login should NOT have max-age=3600 (it's session-aware content).
     cc = resp.headers.get("cache-control", "")
-    assert "max-age=3600" not in cc, (
-        f"Static cache-control leaked to /login (got: {cc!r})"
-    )
+    assert "max-age=3600" not in cc, f"Static cache-control leaked to /login (got: {cc!r})"

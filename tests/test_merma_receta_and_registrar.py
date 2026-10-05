@@ -1,4 +1,5 @@
 """Merma (waste) and produccion (production) endpoint tests."""
+
 from __future__ import annotations
 
 
@@ -22,9 +23,7 @@ def test_merma_registrar_post_no_500(authed_client, session_factory):
         "/merma/registrar",
         data={"ingredient_id": str(ing_id), "qty": "1.0", "reason": "test"},
     )
-    assert r.status_code < 500, (
-        f"/merma/registrar returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"/merma/registrar returned {r.status_code}: {r.text[:200]}"
 
 
 def test_merma_receta_post_no_500(authed_client, session_factory):
@@ -41,9 +40,7 @@ def test_merma_receta_post_no_500(authed_client, session_factory):
         "/merma/receta",
         data={"recipe_id": str(recipe_id), "qty": "1.0"},
     )
-    assert r.status_code < 500, (
-        f"/merma/receta returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"/merma/receta returned {r.status_code}: {r.text[:200]}"
 
 
 def test_produccion_page_loads(authed_client):
@@ -59,9 +56,7 @@ def test_produccion_override_no_500(authed_client, session_factory):
         "/produccion/override",
         data={"recipe_id": "1", "qty": "5"},
     )
-    assert r.status_code < 500, (
-        f"/produccion/override returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"/produccion/override returned {r.status_code}: {r.text[:200]}"
 
 
 def test_reorder_page_loads(authed_client):
@@ -84,17 +79,13 @@ def test_reorder_registrar_no_500(authed_client, session_factory):
         "/reorder/registrar",
         data={"ingredient_id": str(ing_id), "qty": "20"},
     )
-    assert r.status_code < 500, (
-        f"/reorder/registrar returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"/reorder/registrar returned {r.status_code}: {r.text[:200]}"
 
 
 def test_reorder_generate_po_no_500(authed_client):
     """POST /reorder/generate-po must not 500."""
     r = authed_client.post("/reorder/generate-po")
-    assert r.status_code < 500, (
-        f"/reorder/generate-po returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"/reorder/generate-po returned {r.status_code}: {r.text[:200]}"
 
 
 def test_auditoria_filters_loads(authed_client):
@@ -106,6 +97,4 @@ def test_auditoria_filters_loads(authed_client):
 def test_auditoria_prune_post_no_500(authed_client):
     """POST /auditoria/prune must not 500."""
     r = authed_client.post("/auditoria/prune", data={"days": "30"})
-    assert r.status_code < 500, (
-        f"/auditoria/prune returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"/auditoria/prune returned {r.status_code}: {r.text[:200]}"

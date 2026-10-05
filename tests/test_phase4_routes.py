@@ -1,4 +1,5 @@
 """tests/test_phase4_routes.py — smoke tests for the 6 Phase-4 routes."""
+
 from __future__ import annotations
 
 

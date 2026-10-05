@@ -1,13 +1,18 @@
 """tests/test_uptimerobot_setup.py — verifies the ops script + documents monitoring."""
+
 from __future__ import annotations
 
 
 def test_uptimerobot_script_help_runs():
     """The setup script at scripts/uptimerobot_setup.py must run with --help."""
     import subprocess
+
     r = subprocess.run(
         ["uv", "run", "python", "scripts/uptimerobot_setup.py", "--help"],
-        capture_output=True, text=True, timeout=30, cwd="/opt/data/work/saskia-app",
+        capture_output=True,
+        text=True,
+        timeout=30,
+        cwd="/opt/data/work/sazon-app",
     )
     assert r.returncode == 0
     assert "UptimeRobot" in r.stdout or "monitor" in r.stdout.lower()

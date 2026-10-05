@@ -8,7 +8,7 @@
 
 ## What
 
-Right now there's exactly one Supabase-authenticated user (Saskia) who has all permissions. Future: a cashier who can register sales but not void sales; a second admin. Add a `role` field on a `User` table, gate routes by role, update the audit log to record acting user per action.
+Right now there's exactly one Supabase-authenticated user (the operator) who has all permissions. Future: a cashier who can register sales but not void sales; a second admin. Add a `role` field on a `User` table, gate routes by role, update the audit log to record acting user per action.
 
 ## Why not now
 
@@ -17,7 +17,7 @@ Fase 1's scope is single-operator. Adding RBAC adds complexity that isn't justif
 ## Repro / context
 
 - The Operator-only `/audit` view (E3.S1) is the first step toward a role system.
-- Needs Saskia to confirm she ever expects multiple people using the same install.
+- Needs the operator to confirm she ever expects multiple people using the same install.
 ## Triage
 
 **Moved to rejected:** 2026-09-09

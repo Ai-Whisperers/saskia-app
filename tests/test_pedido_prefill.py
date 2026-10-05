@@ -12,7 +12,7 @@ Verify the customer-prefill service computes the right defaults:
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date
 
 from app.services.customer_prefill import (
     CustomerPrefill,
@@ -25,6 +25,7 @@ def _make_full_customer(session_factory, qseed):
     qseed("with_kyrian_full")
     from app.rms.models import Customer
     from app.seed.kyrian import KYRIAN_PHONE
+
     with session_factory() as s:
         c = s.query(Customer).filter_by(phone=KYRIAN_PHONE).one()
         return c.id
@@ -77,9 +78,11 @@ def test_prefill_from_specific_pedido(qseed, session_factory):
     cid = _make_full_customer(session_factory, qseed)
     with session_factory() as s:
         from app.rms.models import Pedido
+
         # Pick the pedido from 25 days ago (the oldest pedido)
         target = s.execute(
-            __import__("sqlalchemy").select(Pedido)
+            __import__("sqlalchemy")
+            .select(Pedido)
             .where(Pedido.customer_id == cid)
             .order_by(Pedido.promised_date.asc())
             .limit(1)
@@ -105,6 +108,7 @@ def test_prefill_handles_unknown_customer(session_factory):
 def test_prefill_empty_history_returns_sensible_defaults(qseed, session_factory):
     """A customer with no pedidos gets tomorrow's date + empty channels."""
     from app.rms.models import Customer
+
     with session_factory() as s:
         c = Customer(name="Cliente Nuevo", phone="0991112222")
         s.add(c)
@@ -124,6 +128,7 @@ def test_prefill_empty_history_returns_sensible_defaults(qseed, session_factory)
 def test_prefill_to_dict_serializable(qseed, session_factory):
     """CustomerPrefill.to_dict() must be JSON-safe for the JS handoff."""
     import json
+
     cid = _make_full_customer(session_factory, qseed)
     with session_factory() as s:
         out = compute_customer_defaults(s, cid, today=date(2026, 10, 1))
@@ -151,9 +156,11 @@ def test_prefill_endpoint_with_from_param(client, monkeypatch, qseed, session_fa
     """GET /pedidos/api/customer-defaults/<id>?from=<pedido_id> clones that pedido."""
     cid = _make_full_customer(session_factory, qseed)
     from app.rms.models import Pedido
+
     with session_factory() as s:
         oldest = s.execute(
-            __import__("sqlalchemy").select(Pedido)
+            __import__("sqlalchemy")
+            .select(Pedido)
             .where(Pedido.customer_id == cid)
             .order_by(Pedido.promised_date.asc())
             .limit(1)

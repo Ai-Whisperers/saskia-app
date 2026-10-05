@@ -44,8 +44,8 @@ class VariantRollup:
     """Result of summing all variants of an Ingredient into the base unit."""
 
     ingredient_id: int
-    base_qty: float          # total stock across all variants in base unit
-    base_unit: str           # the Ingredient.unit
+    base_qty: float  # total stock across all variants in base unit
+    base_unit: str  # the Ingredient.unit
     variant_count: int
     preferred_price_gs: Optional[int]  # price from the preferred variant
     preferred_variant_id: Optional[int]
@@ -89,11 +89,13 @@ def rollup_ingredient_stock(
     ing = session.get(Ingredient, ingredient_id)
     if ing is None:
         return None
-    variants = list(session.scalars(
-        select(IngredientVariant)
-        .where(IngredientVariant.ingredient_id == ingredient_id)
-        .order_by(IngredientVariant.preferred.desc(), IngredientVariant.package_size)
-    ))
+    variants = list(
+        session.scalars(
+            select(IngredientVariant)
+            .where(IngredientVariant.ingredient_id == ingredient_id)
+            .order_by(IngredientVariant.preferred.desc(), IngredientVariant.package_size)
+        )
+    )
     if not variants:
         # No variants — fall back to the legacy Ingredient.stock_qty column.
         return VariantRollup(
@@ -117,9 +119,7 @@ def rollup_ingredient_stock(
         # E.g. package_size=1.0 kg, base=g → 1000.0 g per package.
         from_unit = Unit(v.package_unit)
         if can_convert(from_unit, base_unit):
-            size_in_base = float(convert_qty(
-                to_decimal(v.package_size), from_unit, base_unit
-            ))
+            size_in_base = float(convert_qty(to_decimal(v.package_size), from_unit, base_unit))
             # Total contribution: stock_qty is a COUNT of packages, so
             # multiply by size_in_base to get the quantity in base units.
             # DO NOT convert stock_qty separately — that would treat the
@@ -134,18 +134,20 @@ def rollup_ingredient_stock(
             size_in_base = float(v.package_size)
 
         total += to_decimal(str(total_in_base))
-        breakdown.append({
-            "variant_id": v.id,
-            "package_size": v.package_size,
-            "package_unit": v.package_unit,
-            "stock_qty": v.stock_qty,
-            "stock_in_base": total_in_base,  # each variant's contribution in base unit
-            "size_in_base": size_in_base,     # how many base units per package
-            "purchase_price_gs": v.purchase_price_gs,
-            "supplier_id": v.supplier_id,
-            "preferred": bool(v.preferred),
-            "notes": v.notes,
-        })
+        breakdown.append(
+            {
+                "variant_id": v.id,
+                "package_size": v.package_size,
+                "package_unit": v.package_unit,
+                "stock_qty": v.stock_qty,
+                "stock_in_base": total_in_base,  # each variant's contribution in base unit
+                "size_in_base": size_in_base,  # how many base units per package
+                "purchase_price_gs": v.purchase_price_gs,
+                "supplier_id": v.supplier_id,
+                "preferred": bool(v.preferred),
+                "notes": v.notes,
+            }
+        )
         if v.preferred:
             preferred_price = v.purchase_price_gs
             preferred_id = v.id
@@ -218,13 +220,13 @@ class ForecastResult:
 
     ingredient_id: int
     ingredient_name: str
-    current_stock_base: float       # current stock in ingredient's base unit
+    current_stock_base: float  # current stock in ingredient's base unit
     base_unit: str
-    avg_daily_consumption: float    # from last N days of SaleStockMove
-    days_remaining: Optional[float] # None if consumption = 0
-    horizon_days: int               # the horizon used (from forecast_horizon_days)
-    forecast_qty: float             # predicted consumption over the horizon
-    status: str                    # "ok" | "watch" | "short" | "dead"
+    avg_daily_consumption: float  # from last N days of SaleStockMove
+    days_remaining: Optional[float]  # None if consumption = 0
+    horizon_days: int  # the horizon used (from forecast_horizon_days)
+    forecast_qty: float  # predicted consumption over the horizon
+    status: str  # "ok" | "watch" | "short" | "dead"
 
 
 def _consumption_lookback_days(
@@ -292,7 +294,7 @@ def days_until_short(
       - "ok"     : otherwise
 
     The "short" + "watch" cutoffs use the *ingredient's own horizon* — so
-    if Saskia sets dulce_de_leche.forecast_horizon_days=21 and avg
+    if the operator sets dulce_de_leche.forecast_horizon_days=21 and avg
     consumption eats through current stock in 18 days, status is "short"
     (she needs to reorder within the 21-day supplier window).
     """

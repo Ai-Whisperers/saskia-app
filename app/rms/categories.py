@@ -8,6 +8,7 @@ Replaces the hardcoded lists previously in:
 
 Now operators can add/edit categories from /settings/categories without a code deploy.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -65,8 +66,12 @@ def get_or_create_category(
 
 
 def update_category(
-    session: Session, category_id: int, *, name: str | None = None,
-    sort_order: int | None = None, is_active: bool | None = None,
+    session: Session,
+    category_id: int,
+    *,
+    name: str | None = None,
+    sort_order: int | None = None,
+    is_active: bool | None = None,
 ) -> Category | None:
     """Update fields on an existing Category. Returns the updated row or None.
 

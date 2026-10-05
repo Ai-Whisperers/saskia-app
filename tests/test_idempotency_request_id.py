@@ -9,6 +9,7 @@ Implementation: store JSON {"sale_id": "1", "request_id": "..."} in the
 AppMeta.value column (Text → JSON string). Backwards-compat: legacy
 plain-string values are still readable.
 """
+
 from __future__ import annotations
 
 import json
@@ -29,16 +30,23 @@ def _seed_minimal_sale(session_factory):
         s.add(RecipeLine(recipe_id=recipe.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.3))
         s.flush()
         product = Product(
-            name="Muffin", portion_label="1 muffin", recipe_id=recipe.id,
-            sale_price_gs=10000, iva_rate="10",
+            name="Muffin",
+            portion_label="1 muffin",
+            recipe_id=recipe.id,
+            sale_price_gs=10000,
+            iva_rate="10",
         )
         s.add(product)
         s.flush()
-        s.add(Sale(
-            product_id=product.id, qty=1.0, unit_price_gs=10000,
-            sold_at=datetime.now(timezone.utc),
-            invoice_type="boleta_resimple",
-        ))
+        s.add(
+            Sale(
+                product_id=product.id,
+                qty=1.0,
+                unit_price_gs=10000,
+                sold_at=datetime.now(timezone.utc),
+                invoice_type="boleta_resimple",
+            )
+        )
         s.commit()
 
 
@@ -67,9 +75,7 @@ def test_idempotency_value_stores_request_id_in_json(client, session_factory):
 
     with session_factory() as s:
         row = s.scalar(
-            __import__("sqlalchemy").select(AppMeta).where(
-                AppMeta.key == f"sale_idem:{idem}"
-            )
+            __import__("sqlalchemy").select(AppMeta).where(AppMeta.key == f"sale_idem:{idem}")
         )
 
     assert row is not None
@@ -104,9 +110,7 @@ def test_idempotency_value_works_without_request_id_header(client, session_facto
 
     with session_factory() as s:
         row = s.scalar(
-            __import__("sqlalchemy").select(AppMeta).where(
-                AppMeta.key == f"sale_idem:{idem}"
-            )
+            __import__("sqlalchemy").select(AppMeta).where(AppMeta.key == f"sale_idem:{idem}")
         )
     payload = json.loads(row.value)
     # Generated request_id per app/rms/observability.py:33 is uuid4().hex[:12]
@@ -142,9 +146,7 @@ def test_existing_idempotency_record_reads_sale_id_back(client, session_factory)
 
     with session_factory() as s:
         row = s.scalar(
-            __import__("sqlalchemy").select(AppMeta).where(
-                AppMeta.key == f"sale_idem:{idem}"
-            )
+            __import__("sqlalchemy").select(AppMeta).where(AppMeta.key == f"sale_idem:{idem}")
         )
     payload = json.loads(row.value)
     sale_id = payload["sale_id"]

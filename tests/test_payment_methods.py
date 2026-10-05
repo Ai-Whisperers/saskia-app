@@ -1,15 +1,17 @@
 """tests/test_payment_methods.py — Spanish payment-method taxonomy.
 
 Verifies the /ventas form + POST handler accept the 5 Spanish values
-Saskia uses in Ciudad del Este (efectivo/transferencia/qr/tarjeta/otro),
+the operator uses in Ciudad del Este (efectivo/transferencia/qr/tarjeta/otro),
 reject unknown values, and default the form-select to 'efectivo'.
 """
+
 from __future__ import annotations
 
 
 def test_payment_methods_includes_qr():
     """The set must include qr alongside the 4 legacy values."""
     from app.rms.schemas import ALLOWED_PAYMENT_METHODS
+
     expected = {"efectivo", "transferencia", "qr", "tarjeta", "otro"}
     assert expected == set(ALLOWED_PAYMENT_METHODS)
 
@@ -17,12 +19,14 @@ def test_payment_methods_includes_qr():
 def test_payment_method_default_is_efectivo():
     """The form-select must default to 'efectivo' (most common)."""
     from app.rms.schemas import PAYMENT_METHOD_DEFAULT
+
     assert PAYMENT_METHOD_DEFAULT == "efectivo"
 
 
 def test_payment_methods_display_order():
     """Display order: efectivo first, the rest follow."""
     from app.rms.schemas import PAYMENT_METHODS_DISPLAY
+
     assert PAYMENT_METHODS_DISPLAY[0] == "efectivo"
     assert set(PAYMENT_METHODS_DISPLAY) == {"efectivo", "transferencia", "qr", "tarjeta", "otro"}
 
@@ -70,9 +74,7 @@ def test_post_sale_accepts_all_five_payment_methods(client, session_factory):
 
     with session_factory() as s:
         methods = sorted(
-            row.payment_method
-            for row in s.query(Sale).all()
-            if row.payment_method is not None
+            row.payment_method for row in s.query(Sale).all() if row.payment_method is not None
         )
     assert methods == ["efectivo", "otro", "qr", "tarjeta", "transferencia"]
 

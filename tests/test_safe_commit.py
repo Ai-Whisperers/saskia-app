@@ -9,6 +9,7 @@ commits), bare commit() outside try/except means an IntegrityError or
 DB error mid-handler raises an unhandled exception, leaving the session
 in an inconsistent state for the next pooled connection checkout.
 """
+
 # allow-hardcoded-dates: safe_commit timestamp fixtures need fixed values
 from __future__ import annotations
 
@@ -37,7 +38,9 @@ def test_safe_commit_commits_pending_changes(session_factory):
     assert result is True
 
     with session_factory() as s:
-        row = s.scalar(__import__("sqlalchemy").select(AppMeta).where(AppMeta.key == "safe_commit_test_1"))
+        row = s.scalar(
+            __import__("sqlalchemy").select(AppMeta).where(AppMeta.key == "safe_commit_test_1")
+        )
     assert row is not None
     assert row.value == "x"
 

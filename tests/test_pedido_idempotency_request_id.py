@@ -4,6 +4,7 @@ idempotency records carry request_id.
 Companion to tests/test_idempotency_request_id.py (which covers sales).
 Same JSON shape: {pedido_id, sale_id, request_id}.
 """
+
 # allow-hardcoded-dates: request id includes a fixed timestamp
 from __future__ import annotations
 
@@ -33,22 +34,32 @@ def _seed_pedido(session_factory):
         s.add(RecipeLine(recipe_id=recipe.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.3))
         s.flush()
         product = Product(
-            name="Muffin", portion_label="1 muffin", recipe_id=recipe.id,
-            sale_price_gs=10000, iva_rate="10",
+            name="Muffin",
+            portion_label="1 muffin",
+            recipe_id=recipe.id,
+            sale_price_gs=10000,
+            iva_rate="10",
         )
         s.add(product)
         s.flush()
         pedido = Pedido(
-            status="pending", notes="test", payment_intent="efectivo",
-            promised_date=date(2026, 9, 24), promised_time="14:00",
+            status="pending",
+            notes="test",
+            payment_intent="efectivo",
+            promised_date=date(2026, 9, 24),
+            promised_time="14:00",
             channel="whatsapp",
         )
         s.add(pedido)
         s.flush()
-        s.add(PedidoLine(
-            pedido_id=pedido.id, product_id=product.id,
-            qty=2.0, unit_price_gs=10000,
-        ))
+        s.add(
+            PedidoLine(
+                pedido_id=pedido.id,
+                product_id=product.id,
+                qty=2.0,
+                unit_price_gs=10000,
+            )
+        )
         s.flush()
         pid = pedido.id
         s.commit()
@@ -79,9 +90,9 @@ def test_pedido_idempotency_value_contains_request_id(client, session_factory):
 
     with session_factory() as s:
         row = s.scalar(
-            __import__("sqlalchemy").select(AppMeta).where(
-                AppMeta.key == f"pedido_fulfill_idem:{idem}"
-            )
+            __import__("sqlalchemy")
+            .select(AppMeta)
+            .where(AppMeta.key == f"pedido_fulfill_idem:{idem}")
         )
 
     assert row is not None
@@ -106,9 +117,9 @@ def test_pedido_idempotency_generates_request_id_when_missing(client, session_fa
 
     with session_factory() as s:
         row = s.scalar(
-            __import__("sqlalchemy").select(AppMeta).where(
-                AppMeta.key == f"pedido_fulfill_idem:{idem}"
-            )
+            __import__("sqlalchemy")
+            .select(AppMeta)
+            .where(AppMeta.key == f"pedido_fulfill_idem:{idem}")
         )
     payload = json.loads(row.value)
     assert payload["request_id"], "request_id should not be empty"

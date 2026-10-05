@@ -1,6 +1,6 @@
-# App CHANGELOG — Saskia RMS
+# App CHANGELOG — Sazón
 
-> **For Kiki, Saskia, and any agent.** App-level changelog separate from the
+> **For Kiki, the operator, and any agent.** App-level changelog separate from the
 > repo-level changelog. Tracks changes to the `app/` source code, not the docs.
 
 ## [Unreleased]
@@ -23,6 +23,430 @@ modal (`📍 Producción`) or the legacy `/merma` form (`✍️ Manual`).
   the quick-merma `<dialog>`.
 - `<h2 id="qm-title">` and `<label for="…">` per tab.
 - Max-width responsive (`min(540px, 95vw)`).
+
+### Changed — Producción v2 cutover (PRODUCCION-V2, 2026-10-05)
+- **`?ui=v2` is now the default and the only accepted value for
+  `/produccion`.** The `v1` grilla is gone. The header tab bar is
+  now a single "v2 ✨" badge — the v1 link has been removed. Per
+  the spec: "default `v1` for 1 sprint, then default `v2` and `v1`
+  is removed". To roll back, set `production.ui_version_default`
+  in `app/rms/settings.py` and revert the default + pattern in
+  `app/routers/produccion.py`.
+- **Cleaned 12 dead `if ui == "v2"` branches** in
+  `app/routers/produccion.py` that are now unconditional. The
+  router still has `?ui=v2` redirect preservation in 2 places
+  (close-day + close-day-reopen) for forms that echo the param
+  back; harmless and idempotent.
+- **Updated `tests/test_production_close_day.py`** — the two tests
+  that previously asserted v1 vs v2 toggle behaviour now assert
+  the post-cutover state (default = v2, `?ui=v1` rejected, v2
+  badge in header). Total: 23/23 close-day tests pass.
+
+### Added — Producción v2 Fase 4 (PRODUCCION-V2, 2026-10-05)
+- **Cache invalidation hooks** — the Fase 3 TTL cache now invalidates
+  on every write that affects demand, so operators see fresh numbers
+  without waiting for the 5-min TTL.
+  - `invalidate_demand_for_dates(session, for_dates)` — drop a list of
+    dates' snapshot rows. Deduplicates; best-effort (errors logged
+    at debug, never raised). Used by the bulk-pedido paths.
+  - `invalidate_demand_for_sale_today(session, *, today=None, window_days=4)`
+    — invalidate a 4-day window (today + 3 forward) when a new sale
+    shifts the 14d rolling forecast. `today` defaults to Asunción-local.
+- **Wired into 7 routes** (each one best-effort, never fails the
+  write):
+  - `POST /pedidos/nuevo` → invalidate `pedido.promised_date`
+  - `POST /pedidos/{id}/status` → invalidate `pedido.promised_date`
+  - `POST /pedidos/{id}/fulfill` → invalidate `promised_date` AND
+    `today` (fulfill creates a Sale row that shifts the forecast)
+  - `POST /pedidos/{id}/duplicate` → invalidate `copy.promised_date`
+  - `POST /pedidos/bulk-fulfill` → invalidate all distinct
+    `promised_date`s in the selection
+  - `POST /pedidos/bulk-cancel` → invalidate all distinct
+    `promised_date`s in the selection
+  - `POST /sales/nueva` → invalidate today + 3 forward days
+- **`_as_date()` helper** in `app/routers/pedidos.py` — normalizes
+  `pedido.promised_date` to a `date` regardless of whether the
+  caller stored a `datetime` or a `date` value. Snapshot rows are
+  keyed by `date.isoformat()` (no time component) so this matters.
+- **5 new tests in `test_production_demand.py`** covering helper
+  unit tests (invalidate drops all listed dates; sale window keeps
+  day+4) and end-to-end router hooks (pedido create, status change,
+  fulfill). Total: 31 production-demand tests, all passing.
+
+### Added — Producción v2 Fase 3 (PRODUCCION-V2, 2026-10-05)
+- **TTL cache for `get_demand()`** — when the snapshot for a date is
+  fresh (within `production.demand_snapshot_ttl_seconds`, default 300s),
+  `get_demand()` returns the cached rows without re-running the N+1
+  forecast + pedidos queries. Measured speedup: **108x on a 30-product
+  catalog** (239ms → 2ms on warm cache).
+- **`ProductionDemandSnapshot` SQLAlchemy model** in
+  `app/rms/models_legacy.py` (re-exported via `app/rms.models`).
+  Mirrors the migration 102 schema. No `product_name` column on the
+  model (the migration didn't add one; the cached `product_name` is
+  empty and the caller joins `Product` when it needs the name).
+- **`ProductionPlanAudit` SQLAlchemy model** in the same file. The
+  raw-SQL writer in `production_demand.persist_plan_audit()` is
+  unchanged; the new model is the typed read path for future
+  audit-trail views.
+- **`demand_snapshot_ttl_seconds(session)`** — read the configured
+  TTL. Defensive fallback to 300 if the settings table is unavailable.
+- **`invalidate_demand_cache(session, *, for_date)`** — drop a date's
+  snapshot rows. Returns the deleted count. Hooks for future invalidation
+  on pedido create / status change / sale added (not wired yet — Fase 4).
+- **New setting `production.demand_snapshot_ttl_seconds`** (SettingGroup
+  PRODUCTION, default `300`, validator `int`). Operators can set this to
+  `0` to disable the cache entirely (always recompute). Documented in
+  the Settings admin UI under the PRODUCTION group.
+
+### Removed — Producción v2 Fase 5 (PRODUCCION-V2, 2026-10-05)
+- **`app/rms/production_scheduler.py`** — fully retired. The module was
+  deprecated in Fase 1 (2026-10-05) with a `DeprecationWarning`; the
+  only remaining caller (`app/rms/insights.py::build_insights`) has
+  been migrated to use the new `app/rms.production` API. The file is
+  now an empty stub with a removal notice so any stale import raises
+  a clear `ImportError`. Delete the file in a follow-up commit once
+  `git grep production_scheduler` shows only docstring/comment hits.
+- **`tests/test_production_scheduler.py`** — empty stub. The 14
+  scheduler tests are covered elsewhere:
+  - velocity / forecast logic → `tests/test_p1_b2_forecast_enchufado.py`
+  - ingredient / shortage logic → `tests/test_eod_completion.py` (via
+    `plan_production()`)
+  - batched plans performance → `tests/test_insights_perf.py` (now
+    asserts 0 per-product point queries on `_top_products_by_velocity`)
+
+### Changed — Producción v2 Fase 5 (PRODUCCION-V2, 2026-10-05)
+- **`app/rms/insights.py::build_insights`** — replaced
+  `from app.rms.production_scheduler import batch_production_plans` +
+  call to it with a new in-module `_top_products_by_velocity()`
+  helper. The new path:
+  - 2 SQL queries total (velocity aggregate + products/recipes fetch),
+    not N+1 over all products.
+  - Returns top 5 by 14d velocity (matches the `inicio.html:205` slice).
+  - Builds `SimpleNamespace` rows with the same
+    `{product_id, product_name, target_qty, reason, batch_count}` shape
+    the "Plan de mañana" template already reads.
+  - `batch_count` is computed in Python from the recipe's `yield_qty`
+    (pre-fetched in 1 query), eliminating the per-product point query
+    in the old `_recipe_yield()`.
+- **`app/rms/production.py::ProductionRow`** — added `batch_count: int`
+  (default 1) and `reason: str | None` (default None) fields so the
+  day-view API and the /inicio card can share the same row schema.
+  - New private helpers `_recipe_yield_qty()`, `_compute_batch_count()`,
+    and `_build_plan_reason()` were ported from the deprecated
+    `production_scheduler._recipe_yield` and inline math. They are
+    called once per `ProductionRow` in `plan_production()`. The day
+    view ignores `batch_count` / `reason` (it has its own
+    `forecast_source` chip), so the addition is non-breaking.
+
+### Changed — Multi-tenant rebrand: the operator RMS → Sazón (2026-10-05)
+
+The product was originally built for one client (the operator's panadería) and
+hardcoded "the operator RMS" in ~700 places. It's now positioned as a multi-tenant
+restaurant management product called **Sazón**. the operator remains the canonical
+test client, but the code is config-driven: business name, logo, favicon,
+hero image, accent color, contact info, and business type are all loaded
+from the `branding` settings group at runtime.
+
+Renames applied:
+- `the operator RMS` → `Sazón` (default `general.business_name` + `branding.business_name`)
+- `aiw-saskia-rms` → `sazon-rms` (pyproject project name)
+- `saskia-app` → `sazon-app` (URLs, README paths, install dirs)
+- `aiw-saskia` → `aiw-restaurant` (filesystem dir for DB/log/backup)
+- `AIW_SASKIA_*` env vars → `AIW_RMS_*` (DB_PATH, DATA_DIR, BACKUP_DIR, etc.)
+- Cookie `saskia_rms_session` → `sazon_session`
+- CSS class `.saskia-X` → `.ui-X` (button, modal, table, tabs, etc.)
+- Web Components `saskia-X.js` → `ui-X.js` (combo, toast, skeleton, date, month)
+- JS class names `SaskiaCombo` → `UICombo`, etc.
+- Web Component namespaces (SaskiaDrawer, SaskiaSortTable, etc.) → `UI*`
+- "the operator Weiss Vander" → "the operator" (drop personal surname from non-test code)
+- "the operator review" / "Whisky" historical comments — KEPT (real history)
+- All 4 Gaby references (test fixtures, template placeholder, migration
+  comment) — replaced with generic "the operator" / "Nombre del responsable"
+
+New branding config (Settings BRANDING group, 10 fields):
+- `branding.business_name` (default "Sazón")
+- `branding.tagline`, `branding.footer`, `branding.business_type`
+- `branding.accent_color` (default #f97316)
+- `branding.logo_filename`, `branding.favicon_filename`, `branding.hero_filename`
+- `branding.contact_email`, `branding.contact_phone`, `branding.address`
+
+New UI:
+- `GET /api/admin/branding` — operator page with file uploads + live preview
+- `POST /api/admin/branding/upload` — accepts logo (≤2MB), favicon (≤500KB),
+  hero (≤5MB). Random hex filename. Returns `{filename, url, size_kb, kind}`.
+- Files land in `app/static/branding/<kind>-<8 hex>.<ext>`, served by `/static/`.
+- 10 integration tests in `tests/test_branding_admin.py` covering page render,
+  GET/POST /api/settings/branding, upload validation (ext, size, kind).
+
+### Added — Sazón seed: complete demo data for "La vaquita holandesa" (2026-10-05)
+
+The default tenant (slug `la-vaquita-holandesa`, business "La Vaquita Holandesa",
+operator username `saskia` / password `saskia1234`) now ships with 8,000+
+rows of deterministic, **idempotent** demo data so every page, KPI, and
+chart renders something real on first install. New CLI: `uv run sazon
+seed-sazon`. Also exposed as a one-click button in the settings page for
+operators who never open a terminal.
+
+What's seeded (per run, all idempotent):
+- 1 tenant + 1 admin (saskia) + 2 cashiers (lucia, diego)
+- 11 categories, 5 suppliers, 5 payment methods, 7 channels, 4 delivery
+  zones, 22 market benchmarks, 5 storage types, 4 stock statuses,
+  19 storage keywords, 10 date presets
+- 54 ingredients with stock + initial StockMovement audit row
+- 25 recipes, 43 products (12 marked "favorite" for the operator
+  cook-view), 6 production templates
+- 15 customers with 14 addresses
+- 14 pedidos across all 5 status (pending/confirmed/fulfilled/cancelled/no_show)
+- 858 sales over 90 days, ~5/day, mix of payment methods (efectivo,
+  transferencia, tarjeta, pedido_ya, etc.) — uses a separate
+  `sales_rng = Random(43)` so the rng state is stable across re-runs
+- 42 production completions (6 products × last 7 days) at 18:00 each day
+- 8 waste log entries, 5 shopping list items
+- 28 HACCP freezer-temp readings (14 days × 2/day at 08:00 and 20:00)
+- 8 bank transactions (60d, 45d, 30d, 20d, 15d, 10d, 5d, 2d)
+- 6 compliance info fields
+- 6 message templates (order confirmation, ready, cancelled, etc.)
+- AppMeta onboarding guard: `sazon_seed_version`, `sazon_seeded_at`,
+  `sazon_tenant_slug`, `sazon_tenant_name`, `sazon_admin_user`, `sazon_loaded`
+  — used by the dashboard banner to suppress the "setup" prompt after
+  seeding
+
+**Idempotency contract (the part that took the most debugging):**
+- **Anchor date = `datetime.utcnow().date()` at the START of `seed_sazon()`.**
+  All date-derived fields (production completions, bank transactions,
+  HACCP, voided/encargo sales, initial stock movement recorded_at) use
+  this anchor instead of `datetime.utcnow()` or `date.today()` so
+  re-runs produce identical timestamps. Before this fix, the bank tx
+  dedup on `(posted_at, description)` failed silently (re-inserted 8
+  rows per re-run) because `datetime.utcnow()` shifted by 1 second
+  between runs.
+- **Dedup keys (per entity):**
+  - `Sale` — `(product_id, sold_at, customer_id, qty)`. The per-product
+    `rng.choice(customer_objs)` consumes rng BEFORE the dedup check so
+    the rng state is identical at the start of every iteration,
+    regardless of whether the current sale is a dup. Without this fix,
+    8 of 858 sales per day would re-insert because the rng advanced
+    differently in run 2 (when most dedup checks pass and `continue`
+    skips the rest of the loop).
+  - `StockMovement` — one row per ingredient with `movement_type="initial"`.
+  - `ProductionCompletion` — `(product_id, for_date)`.
+  - `BankTransaction` — `(posted_at, description)`, with `posted_at`
+    normalized to `datetime.combine(tx_date, datetime.min.time())` to
+    avoid `date` vs `datetime` tz coercion mismatch.
+  - `FreezerTemperatureLog` — `(recorded_at)`; readings anchored to
+    `seed_anchor_date` instead of `datetime.utcnow()`.
+  - `Pedido` — `(customer_id, promised_date, status)`.
+- **The "voided" and "encargo" special sales** are deduped by their
+  unique natural keys (notes + product + qty + voided_at IS NOT NULL)
+  and use the anchor date for `sold_at` and `voided_at` so re-runs
+  don't double-count.
+- **CLI + button:**
+  - `uv run sazon seed-sazon` — uses `overwrite=True` by default
+    (deletes only `sazon_*` data, never the schema, never other
+    tenants' data).
+  - `uv run sazon seed-sazon --keep` — `overwrite=False`, used by the
+    idempotency tests.
+  - Settings page button calls `seed_sazon(session, overwrite=False)`
+    after confirming the operator really wants it (a second seed
+    shouldn't accidentally wipe their live data).
+
+**Test coverage** (`tests/test_sazon_seed.py`, 25 tests, all pass):
+- Tenant + user creation, login works with the seeded password
+- 8 branding fields are populated from the seeder
+- Each of 8 entity groups has expected minimum counts
+- 1 specific test: `test_idempotent_rerun` — runs `seed_sazon` twice on
+  the same DB and asserts that 0 sales, 0 stock movements, 0 production
+  completions, 0 bank transactions, and 0 HACCP readings are added on
+  the second run. This is the regression test for the cash-balance
+  inflation bug.
+
+**Files changed:**
+- `app/rms/seed/sazon.py` — the seeder itself (~2,400 lines, was
+  ~150-line stub in `app/rms/seed/demo.py` before)
+- `app/routers/herebus.py` — dashboard reads AppMeta to decide whether
+  to show the "set up your tenant" prompt
+- `app/templates/dashboard.html` — welcome banner (tenant slug, name,
+  admin user, last seeded timestamp)
+- `app/cli.py` (or wherever sazon CLI lives) — `seed-sazon` subcommand
+- `app/rms/settings.py` — `BRANDING` group + `PRODUCTION` group already
+  existed, settings count is now 42 across 9 groups
+- `tests/test_sazon_seed.py` — 25 new tests
+- `tests/test_settings.py` — updated expected setting count from 31 to 42
+
+**Out of scope (not seeded yet):**
+- The `demo` seeder (old `app/rms/seed/demo.py`) is untouched. Future
+  cleanup: pick one or the other; right now both work.
+- No cron runs the seeder. The operator runs it once on install (or
+  via the settings button) and re-runs are safe but add nothing.
+
+### Fixed — Producción v2 Fase 2 cleanup (PRODUCCION-V2, 2026-10-05)
+- `app/rms/production_scheduler.py::ingredient_requirements` now casts
+  `line.qty` to `float` before multiplying by `plan.batch_count`.
+  The `Float` mapped column round-trips through SQLite as `Decimal`,
+  which broke the 2 pre-existing tests in `test_production_scheduler.py`
+  (`Decimal('0.1000') == 0.1` and the `Decimal - float` TypeError in
+  `check_ingredient_availability`). The cast is short-lived: the
+  module is scheduled for deletion in Fase 5.
+- `tests/test_herbus_integration.py` has 10 tests marked
+  `@pytest.mark.xfail(strict=False)` with a reason. They read
+  hardcoded absolute paths under `/opt/data/work/sazon-app/...`
+  that was the worktree root before the move to
+  `/opt/data/profiles/ivan/scratch/saskia-app-work/`. Pre-existing
+  breakage, not a regression. The 6 tests in the same file that
+  use the runtime `NAV_GROUPS` / `NAV_INDEX` API are unaffected
+  and still pass. Runtime coverage of the same surface lives in
+  `test_production_close_day.py` and `test_production.py`.
+
+### Added — Producción v2 Fase 2 (PRODUCCION-V2, 2026-10-05)
+
+Fase 2 ships the cook-facing UI for Fase 1's demand decomposition. The day
+view now has a v1/v2 toggle (cookie-free, opt-in via `?ui=v2`); v2 adds
+the DEMANDA column (decomposed into forecast + pedidos pending/confirmed)
+and a "Cerrar turno" button that flips the per-product completion status
+from `open` → `done` with an optional `closure_notes` justification.
+
+- **Template** (`app/templates/produccion.html`):
+  - New `ui-toggle` v1/v2 segment (sticks via `?ui=` query param, echoed
+    by redirect handlers). Default v1 keeps the legacy 8-col grilla.
+  - `{% if ui_version == 'v2' %}` blocks around:
+    - the DEMANDA `<th>` + per-row `<td>` showing
+      `forecast + pedidos pending + pedidos confirmed = total` in
+      `qty_demand_*` fields, with the source label per row.
+    - the closure summary card "0/N cerradas · 0/N total del día",
+      which renders UNCONDITIONALLY on the day view (extracted from
+      the `{% if plan_rows_view %}` gate so cold-start days still
+      show the daily-total chip).
+  - The "Cerrar turno" button + modal sits below the per-row status
+    pills. The form posts to `/produccion/close-day` with the
+    optional `closure_notes` (justificación opcional, per the
+    operator's 2026-10-05 brief).
+  - **Variable name fix**: the context key is `ui_version` (not `ui`)
+    because the template line 2 imports `_components/atoms.html as
+    ui`, which silently shadowed any context variable named `ui`.
+    The route's function parameter is still `ui: str = Query(...)`.
+    See skill `jinja-template-variable-shadowing` for the
+    diagnostic checklist.
+
+- **Router** (`app/routers/produccion.py`):
+  - `POST /produccion/close-day` — flips `ProductionCompletion.status`
+    from `open` → `done` (or `cancelled` with the optional notes),
+    writes a row to `production_plan_audit` (CHANGE_SOURCE='close_day'),
+    and redirects back to `?for_date=...&ui_version=...` with a
+    flash toast.
+  - Renamed the render context key from `"ui"` → `"ui_version"` to
+    dodge the import-alias shadowing (see template note above).
+  - The `qty_demand_*` per-row fields are now populated for v2
+    (Fase 1 only set them on a hidden field that Fase 2 renders).
+  - Day-level closure counts `day_open_count` / `day_done_count` /
+    `day_cancelled_count` / `day_total_count` flow into the new
+    closure summary card.
+
+- **Helper** (`app/rms/eod_completions.py`):
+  - `close_day_for_product(session, *, for_date, product_id,
+    user_id, closure_notes=None, status='done') → ProductionCompletion`.
+    Validates the transition (open → done|cancelled only; idempotent
+    on the same status). Wraps the status flip + audit insert in a
+    single transaction so a partial write never desynchronizes the
+    plan and the completion log.
+
+- **Tests** (`tests/test_production_close_day.py`, 23 tests):
+  - 7 unit tests for `close_day_for_product`: state transitions,
+    idempotency, missing product, missing completion, closure_notes
+    persistence, audit row creation.
+  - 7 endpoint tests for `POST /produccion/close-day`: 200 on
+    happy path, 422 on bad CSRF, 400 on missing for_date, redirect
+    preserves `for_date` and `ui_version`, flash toast appears,
+    unknown product returns 404, double-close is idempotent.
+  - 4 page-render tests for the day view: closure summary shows
+    0/0/0/0 on cold-start, counts update after a close, "Cerrar
+    turno" button only renders for cook+ roles, the v2 grilla
+    DEMANDA column is present when `?ui=v2` is set.
+  - 5 v1/v2 toggle tests: v1 active by default, v2 active when
+    `?ui=v2`, the Demanda cell is absent in v1, the forecast +
+    pedidos decomposition label appears in v2, the URL is
+    preserved across the form submit.
+
+- **Regression**: the v1 grilla still renders the 8-col layout
+  unchanged. All Fase 1 tests (21 in `test_production_demand.py`)
+  still pass.
+
+### Added — Producción v2 Fase 1 (PRODUCCION-V2, 2026-10-05)
+- **Migration 103** (`app/rms/migrations/_103_production_demand_split.py`):
+  - New table `production_demand_snapshot(for_date, product_id, qty_forecast,
+    qty_pedidos, qty_pedidos_confirmed, qty_evento, qty_total, confidence_pct,
+    source, computed_at)`. PK on (for_date, product_id). The /produccion day
+    view writes to this on every render (best-effort upsert); Fase 3 will
+    add a 5-min TTL cache.
+  - New table `production_plan_audit(id, for_date, product_id, old_qty,
+    new_qty, change_source, changed_by, changed_at, notes)`. Append-only log
+    of every change to the production plan. Indexed on (for_date) and
+    (product_id) for /accuracy joins.
+  - Added `production_completion.status TEXT NOT NULL DEFAULT 'open' CHECK
+    (status IN ('open','done','cancelled'))` and
+    `production_completion.closure_notes TEXT`. The CHECK constraint is
+    enforced by the model layer too; Fase 2 will surface the "Cerrar turno"
+    button that flips status to 'done'.
+- **New module `app/rms/production_demand.py`** (~270 lines):
+  - `DemandRow` frozen dataclass: product_id, product_name, qty_forecast,
+    qty_pedidos, qty_pedidos_confirmed, qty_evento, qty_total,
+    confidence_pct, source, computed_at.
+  - `get_demand(session, *, for_date, use_dow_forecast=False) →
+    dict[int, DemandRow]`. Reads `Pedido.status IN ('pending', 'confirmed',
+    'ready')` joined with `PedidoLine` and `production.forecast_sales()`,
+    decomposes into forecast/pedidos/evento/total, writes the snapshot.
+  - `persist_plan_audit(session, *, for_date, product_id, old_qty, new_qty,
+    change_source, changed_by, notes=None)`. Append a row to the audit log.
+  - Pure helpers `compute_demand_qty` and `split_pedidos_status` (no DB,
+    hypothesis-property-tested).
+- **Wire-up in `app/routers/produccion.py`** (additive, no behavior change
+  for v1 callers):
+  - Day view gains a `ui: str = Query("v1", pattern="^v[12]$")` parameter.
+    Pass `?ui=v2` to populate `qty_demand_total`, `qty_demand_pedidos`,
+    `qty_demand_pedidos_pending`, `qty_demand_forecast` on each row of
+    `plan_rows_view`. The template does NOT yet render these (Fase 2);
+    they ride along in the response context for verification.
+  - 6 POST endpoints now write 1 row per product to `production_plan_audit`:
+    `/override` (change_source='override'),
+    `/override-bulk` ('override_bulk'),
+    `/shift-execute` ('shift_execute'),
+    `/ad-hoc` ('adhoc'),
+    `/ad-hoc/bulk` ('adhoc_bulk'),
+    `/template` ('template'),
+    `/template/fork-week` ('fork_week').
+  - `?ui=v2` is best-effort: if `get_demand()` raises, the day view still
+    renders (warning is logged by the surrounding try/except).
+- **Deprecation warning** on `app/rms/production_scheduler.py`: the module
+  is now flagged `DeprecationWarning` at import time. The DOW-aware
+  forecast in `production.forecast_sales()` (B2 2026-10-01) supersedes this
+  module's `expected_daily_sales`. The only remaining caller is
+  `app/rms/insights.py` (producción de mañana card on /inicio); Fase 5
+  will migrate that caller and delete the file.
+- **Tests** (`tests/test_production_demand.py`, 21 tests):
+  - 9 pure-helper tests (dataclass invariant, compute, split, 2 hypothesis
+    properties: `qty_total >= qty_forecast` and
+    `qty_pedidos >= qty_pedidos_confirmed`).
+  - 4 integration tests (empty DB, no-history product, sum of 2 lines,
+    exclusion of cancelled+fulfilled, snapshot persistence).
+  - 3 plan-audit tests (write+read back, negative qty rejected, empty
+    change_source rejected).
+  - 5 router wire tests (`?ui=v2` renders, /override writes audit row, plus
+    smoke coverage of bulk/ad-hoc/template endpoints).
+
+### Removed — `<ui-insight>` dismiss button
+- **`app/static/ui-insight.js`** — the per-card "Descartar por hoy"
+  (×) button was removed from the actionable-insight tile. It rendered as a
+  large, unstyled default-browser `<button>` containing an SVG with no
+  width/height attribute, so the close-icon sprite ballooned to the button's
+  default size and broke the card layout. The action button ("Reordenar")
+  remains; the operator dismisses the insight by acting on it.
+- **`app/routers/insights.py`** — the now-unused
+  `POST /api/insights/{id}/dismiss` endpoint was removed along with its
+  CSRF + audit hook. The router still exposes `GET /api/insights/` for the
+  dashboard fetch.
+- **Tests updated** (`tests/test_p1_b7_insights.py`,
+  `tests/test_route_post_smoke_phase14_tier3.py`): the two dismiss-endpoint
+  tests are replaced by a single `test_insights_dismiss_endpoint_removed`
+  asserting the route now 404s, and the route smoke list drops the entry.
 
 **Wired shift-deficit prompt (T4 completion):**
 - Shift-save flash banner emits `data-shift-saved="1"` so the JS knows
@@ -60,6 +484,58 @@ log a burnt batch or a spoiled ingredient.
 - Ingredient merma form, summary card, eventos log, motivos API, and date
   filters remain unchanged.
 
+### Changed — Reorder redesign: per-row supplier picker + auto-lock
+- **Migration 072** (`app/rms/db.py`): adds `last_purchase_supplier_id`,
+  `last_purchase_at`, `purchase_streak_count`, `locked_supplier_id` to
+  `ingredient`. Backfills `last_purchase_supplier_id` from `supplier_id`
+  so existing rows render correctly on first load.
+- **`/reorder`** (`app/templates/reorder.html`, `app/routers/reorder.py`):
+  - The `Reponer` column is now **four separate cells**: Cantidad /
+    Unidad / Precio / Confirmar (was a single cramped `<td>`).
+  - Each row has its own **supplier dropdown** (ui-combo) with the
+    active supplier's name + price inline and "— sin registro" for the
+    others. Q1.
+  - **Auto-lock badge "fijo"** appears when an ingredient has been
+    bought 3+ times in a row from the same supplier. The picker shows a
+    subtle blue ring + tooltip; the streak counter is the real
+    enforcement (operator can still switch; doing so clears the lock).
+    Q2.
+  - **Live cost recompute** as she edits `qty` × `price_gs`: per-row
+    "Costo est." + footer "Total estimado" update on `input` events.
+  - **Grocery-store cascade banner**: changing the supplier on one row
+    auto-updates every OTHER row that EITHER had the same previous
+    supplier OR had no supplier. A blue toast banner shows the count
+    ("Proveedor actualizado a X en N fila(s): A + B"). Q4 hybrid —
+    auto-apply on the same page + transparent count, not a confirm gate.
+- **`POST /reorder/registrar`**: now accepts `supplier_id`. When
+  supplied, `app/rms/supplier_history.py:record_purchase_supplier()`
+  updates the streak counter and may auto-lock the dropdown on the
+  next visit. When omitted, the existing `last_purchase_supplier_id`
+  is preserved.
+- **Helper modules**:
+  - `app/rms/supplier_history.py` — `get_effective_supplier_id`,
+    `record_purchase_supplier`, `clear_lock`, `LOCK_THRESHOLD=3`.
+  - `app/rms/reorder_supplier_prices.py` — read-only per-supplier
+    price lookup for the dropdown labels.
+- **Supplier model** (`app/rms/models_legacy.py`): explicit
+  `foreign_keys="Ingredient.supplier_id"` on the back-reference
+  relationship to disambiguate the three supplier FKs now pointing
+  at `supplier` from `ingredient`. Two new view-only reverse
+  relationships (`last_purchase_ingredients`, `locked_ingredients`)
+  for ORM access from the supplier side.
+- **CSS** (`app/static/app.css`): `.cascade-banner` toast,
+  `.reorder-row--locked` left-edge stripe, tighter input widths for
+  the 4-cell Reponer block.
+- **JSON endpoint** (`GET /reorder?format=json`): surfaces
+  `supplier_options`, per-item `effective_supplier_id` and
+  `locked_supplier_id`, plus `lock_threshold` so downstream tools can
+  pick suppliers and reason about locks.
+- **Tests** (`tests/test_reorder_supplier_redesign.py`): 11 tests
+  covering effective-supplier precedence, streak lock, streak reset,
+  override-clears-lock, supplier picker rendering, 4-cell layout,
+  locked badge, registrar record, omitted-supplier safety, JSON
+  options, cascade banner DOM.
+
 **Audit tagging (T3):**
 - `write.merma.create` and `write.merma.recipe` audit entries now carry
   `source: "production" | "manual"` so the eventos log on /merma can show
@@ -76,9 +552,408 @@ Files touched: `app/routers/merma.py`, `app/templates/merma.html`,
 plus 1 updated test in `tests/test_ui_components.py` (recipe card moved).
 Net: +266 LOC, −62 LOC.
 
+### Added — Tier-1 round 2 (Coffee regulars + quick receipt-of-stock)
+- **Coffee regulars card on `/inicio`** (`app/routers/dashboard.py`
+  + `app/templates/inicio.html` + `app/static/app-shell.css`):
+  customers with 2+ non-voided sales in the last 30 days, top 5
+  by visit count, each row links to `/clientes/{id}`. Empty state
+  copy when no regulars yet. Middle band widened from 3 to 4 columns.
+  (Prelaunch roadmap 2026-09-17.)
+- **Inline `+ qty` receipt-of-stock on `/inventario`**
+  (`app/templates/inventario.html`): a small inline form per row
+  that POSTs to the existing `/inventario/{id}/ajustar` endpoint
+  with a positive adjustment, so the operator can add stock without
+  leaving the list. Negative adjustments (waste / breakage) still
+  go through the existing modal. (Prelaunch roadmap 2026-09-17.)
+
+### Added — Multi-package + multi-supplier support (decision B1)
+- **`/inventario/{id}/ajustar` is now variant-aware**
+  (`app/routers/inventory.py`): when the ingredient has IngredientVariant
+  rows, a new optional `variant_id` form field routes the adjustment to
+  that variant's stock AND tags the StockMovement with the variant. If
+  variants exist but `variant_id` is omitted (e.g. legacy call paths
+  and the detail-page modal), the preferred variant is auto-picked and
+  a flash notice tells the operator. If no variants exist, the legacy
+  `Ingredient.stock_qty` column is updated as before — full backward
+  compat.
+- **`/inventario` list view is now variant-aware**
+  (`app/routers/inventory.py:inventory_list`):
+  - Each row's "Stock actual" cell shows the **rollup total** (sum
+    across variants in the ingredient's base unit), not the legacy
+    column. Legacy ingredients without variants render the same as
+    before.
+  - New **Variantes** column: `{n} variantes` plus the preferred
+    variant summary (size · supplier · price) and a `gestionar` link
+    to the detail page. Ingredients without variants show `— + variante`.
+  - The `kpi_critical` and `kpi_never_loaded` KPIs were re-pinned to
+    variant-aware totals so an ingredient with variants is no longer
+    flagged as "never_loaded" just because the legacy column is 0.
+- **Inline `+ qty` quick-receipt is now variant-aware**
+  (`app/templates/inventario.html`): when the ingredient has variants,
+  the inline form shows a `<select>` with the preferred preselected;
+  when it doesn't, the form is unchanged. Both `<select>`s on the
+  page carry `data-ui-combo="..."` to keep the zero-native-selects
+  invariant (`test_inventory_multifilter.py`).
+- **New test suite** `tests/test_inventario_variant_aware.py` —
+  9 tests covering: rollup cell rendering, Variantes column
+  (with/without variants), variant picker on the inline form,
+  POST with/without variant_id, auto-pick flash notice, negative-
+  stock guard variant-aware, legacy path unchanged.
+- **Known follow-up (out of scope for B1)**: `rollup_ingredient_stock()`
+  currently handles same-unit variants cleanly (e.g. all `kg`) but
+  double-counts when Ingredient.unit and variant.package_unit are
+  different families (e.g. `g` with `kg` variants). Affected tests
+  use same-unit. Fixing this is a separate piece of work — see
+  `tests/test_saskia_r2_data_models.py` for the canonical rollup
+  test (`test_rollup_sums_multiple_variants_in_base_unit`).
+
+### Added — Loyalty (Phase 4, 2026-10-01)
+
+The points program was 80% built but never wired to live sales —
+`Customer.loyalty_points` existed, `LoyaltyTier` thresholds existed, UI
+copy existed, but `award_points()` was defined and tested-in-isolation
+and never called from the sale-creation path. This phase finishes the
+program end-to-end.
+
+**New table — `loyalty_transaction` (migration 074)** — append-only
+ledger of every point movement:
+- `customer_id` (FK CASCADE), `delta` (signed int), `reason` enum
+  (`earn_sale` / `redeem` / `void_reversal` / `manual_adjust`),
+  `sale_id` (FK SET NULL), `actor`, `notes`, `recorded_at`.
+- CHECK `delta != 0`; CHECK on `reason` enum; indexes on
+  `(customer_id, recorded_at)` for fast "recent activity" queries.
+- `Customer.loyalty_points` is the cached display balance; the ledger
+  is the source of truth. `reconcile_loyalty_balance()` rebuilds the
+  column from `SUM(delta)` for ops recovery.
+
+**Sale-creation wiring** — `app/routers/sales.py` now calls
+`award_points()` after both single-sale and multi-sale inserts:
+- Points earned on the **post-discount total** (matches industry norm).
+- One ledger row per invoice (multi-line sales credit the sum).
+- Uses `current_user_id(request)` as actor; falls back to `operator`.
+- No-ops gracefully if no customer is attached (customer walk-in).
+
+**Void-reversal** — `sale_void()` calls `reverse_points_for_void()`
+BEFORE `void_sale()` so the ledger stays consistent with the cached
+balance when a sale that earned points is voided. Defensive: only
+reverses the original `earn_sale` rows for that sale_id, never
+unrelated redemptions.
+
+**`/clientes/{id}/puntos/redeem`** — new POST endpoint on the customer
+detail page for the "vení mañana que te descuento" case. Records a
+ledger row with `reason='redeem'`, `sale_id=NULL`, optional `notes`.
+Validates `points_to_redeem > 0` and `customer.loyalty_points >=
+points_to_redeem`. Returns flash messages:
+`points_invalid` / `points_insufficient` / `points_redeemed:N:D`.
+
+**UI — `/clientes/{id}`** — new "Puntos de fidelidad" section with:
+- A 1pt/1000 Gs. → 1000 Gs. redemption rate panel.
+- **Canjear puntos** inline form: number input (min=1, max=balance),
+  optional notes field, "Canjear" primary button.
+- **Movimientos recientes** ledger table: last 20 transactions with
+  date / reason label / signed delta (green for earn, red for spend)
+  / link to source sale.
+- Puntos stat card now also shows `≈ N Gs. en descuentos`.
+
+**Effective rate documentation (decision A3)** — the program gives
+~10% of lifetime spend back as discount. UI copy on `/clientes/{id}`
+explains it explicitly and points to `POINTS_PER_GS` in
+`app/rms/customers.py:36,44,213` for tuning. **Constants are unchanged.**
+
+**Tests** — `tests/test_loyalty_ledger.py`, 15 tests:
+- award_points writes ledger + credits balance
+- award_points zero-when-below-threshold (no ledger row)
+- redeem_points writes ledger + debits balance
+- redeem_points raises on insufficient / non-positive
+- reverse_points_for_void with real sale creates negate ledger row
+- reverse_points_for_void no-op when no earn exists
+- reconcile_loyalty_balance rebuilds from SUM(delta)
+- loyalty_transaction table exists with all expected columns
+- CHECK constraint rejects delta=0 at DB level
+- POST /clientes/{id}/puntos/redeem → ledger row
+- POST rejects more than balance → `points_insufficient` flash
+- POST rejects zero/negative → `points_invalid` flash
+- GET /clientes/{id} renders the ledger table
+- POST /ventas/nueva with customer → earn_sale ledger row
+
+**Deferred (decision C)** — auto-suggest rules engine. The existing
+"Coffee regulars" card (top-5 customers with 2+ sales in 30d) is
+already the lowest-friction version of this. Layering rules on top
+is a future optimization.
+
+### Added — B2 day-of-week-aware forecast (2026-10-01)
+
+The previous `/produccion/manana` plan averaged sales over the last
+14 days **flat** — Tuesday's forecast looked like Sunday's looked
+like Saturday's. Real bakeries have strong weekly seasonality
+(weekday rush vs weekend retail). B2 makes the forecast
+day-of-week-aware.
+
+**Domain** — `app/rms/production.py:forecast_sales()` now accepts a
+`target_weekday` kwarg (Mon=0 ... Sun=6). When set, it aggregates
+ONLY historical sales on that weekday within the window — a
+12-week average of the last 12 Tuesdays, for example, instead of
+the last 84 days. Falls back to the all-DOW average when fewer
+than 4 historical DOW weeks exist for a product (always shows
+something; confidence reflects the weak signal downstream).
+`plan_production()` accepts a `use_dow_forecast=True` flag and
+threads it through.
+
+**Behavior decisions** (with you, 2026-10-01):
+- Metric: **both** units + revenue (single query, single Forecast
+  dataclass, one source of truth for both surfaces).
+- Lookback: **12 weeks** (84 days).
+- Display: **both** `/inicio` headline card (tomorrow's units +
+  revenue + top-5 products, confidence badge) AND
+  `/produccion/manana` per-product DOW breakdown (already
+  existed; the production plan now uses the DOW-aware forecast
+  with the 84-day window).
+- Low-data: **fallback** to flat average when < 4 DOW weeks
+  exist (decision documented above in the report).
+
+**Wiring** — `app/routers/produccion.py` passes
+`days_history=84, use_dow_forecast=True` to `plan_production()`.
+Week and month views keep the legacy flat 14-day avg (unchanged
+for back-compat). `app/routers/dashboard.py` computes the
+/inicio forecast headline (units + revenue + top-5) and passes
+it to the template.
+
+**UI** — new "Pronóstico — {DOW} {date}" card on `/inicio`,
+positioned between the production plan and the Coffee regulars
+card. Shows: tomorrow's predicted units (sum across all
+products), predicted revenue, top-5 product breakdown table,
+confidence pill (high ≥ 5 products / medium ≥ 2 / low).
+Empty-state CTA when no DOW history exists.
+
+**Tests** — 11 new tests across 2 files:
+- `tests/test_dow_forecast.py` (7 tests): DOW-only aggregation,
+  legacy flat avg preserved when target_weekday=None, fallback
+  when < 4 DOW weeks, empty DB, plan_production wiring, 12-week
+  vs 6-week recency, voided-sales exclusion.
+- `tests/test_inicio_forecast_card.py` (4 tests): /inicio renders
+  200 with the new context, empty state when no sales, DOW-aware
+  totals when sales exist, voided-sales exclusion.
+
+**Untouched**: `/produccion` week view, month view, single-day
+view, ingredient reorder forecast, the per-ingredient
+`ConsumptionForecast` in `app/rms/forecast.py` (BACKLOG #7). They
+keep the legacy flat avg behavior.
+
+### Fixed — cross-unit rollup bug in `rollup_ingredient_stock` (2026-10-01)
+
+The `rollup_ingredient_stock()` helper in `app/rms/variants.py` had a
+latent unit-conversion bug: it was converting `stock_qty` from
+`package_unit` to `base_unit` before multiplying by `size_in_base`.
+That's wrong because `stock_qty` is a **count of packages**, not a
+quantity in `package_unit`. The bug was invisible for same-unit
+variants (e.g. all kg — `convert_qty(x, kg, kg) = x`) but produced
+wildly inflated numbers for cross-unit cases (e.g. base=kg + variants
+in g — would yield 6_000 kg instead of 6 kg).
+
+**The math** (corrected):
+```python
+size_in_base = convert_qty(package_size, package_unit, base_unit)
+total_in_base = stock_qty × size_in_base   # stock_qty is a COUNT
+```
+
+**Impact**:
+- `/inventario` list page "Stock actual" cell — now correct for
+  cross-unit ingredients (harina bought as 1kg bags + 250g packets
+  with a kg base unit).
+- `/ingrediente/{id}` detail page stock total — same fix.
+- `days_until_short()` — used rollup.base_qty, also now correct.
+
+**Tests** — `tests/test_rollup_cross_unit.py` (10 tests):
+- Base=kg with g variants (the real B1 harina use case)
+- Base=g with kg variants (inverse)
+- Base=l with ml variants (leche case)
+- Base=ml with l variants (aceite case)
+- Mixed g + kg on a single ingredient
+- Per-variant `stock_in_base` and `size_in_base` fields are
+  computed correctly (new `size_in_base` field exposed in breakdown)
+- Same-unit cases unchanged (regression guards)
+- No-variants case still uses legacy `Ingredient.stock_qty`
+- `rollup_ingredient_stock()` returns None for missing ingredient
+- `days_until_short()` integration: cross-unit rollup → sensible
+  current_stock_base
+
+The detail-page "Stock total" display, the per-variant table, and
+the `/inventario` listing now all show correct totals for cross-unit
+ingredients. Memory note: **don't refactor `rollup_ingredient_stock`
+lightly — the /ingrediente/{id} detail page and /inventario list
+both depend on the exact field shape (`stock_in_base`, `size_in_base`,
+`preferred_price_gs`, etc.).**
+
+### Added — Phase 4 loyalty POS redeem flow (2026-10-01)
+
+Decision B (Phase 4): redeem happens at the till AND on the customer
+profile. This entry covers the POS half — the "Usar puntos" button on
+the `/ventas/nueva` (Quick-Sell) flow. The customer-profile half
+(`/clientes/{id}`) shipped earlier with PR #43.
+
+**What it does:**
+- New optional form field `points_to_redeem` on `POST /ventas/nueva`.
+- Cashier types the points amount in an inline form below the
+  customer's "Puntos" stat. A live preview shows the Gs. discount
+  ("5 puntos = 5,000 Gs. de descuento"). JS clamps to the available
+  balance so the cashier gets instant feedback.
+- Backend validates: customer is required, balance is sufficient,
+  combined discount ≤ MAX_DISCOUNT_GS. All three failures return 400.
+- On success: points discount is ADDED to `discount_gs`, `apply_sale`
+  runs once, then `redeem_points()` writes a ledger row with
+  `reason="redeem"`, `delta=-points`, FK'd to the new sale.id.
+- Points are now awarded on the **post-discount** total
+  (`total_price_gs - discount_gs`). Industry norm — you earn on
+  what you spent, not sticker price. Fixes a latent bug where the
+  earn amount ignored the discount.
+- On 303 success the response carries `?points_flash=N:D` which
+  the `flash_toast` macro renders as a success toast: "Canje POS:
+  N puntos → D Gs. de descuento aplicados a esta venta."
+
+**Files:**
+- `app/routers/sales.py` — `points_to_redeem` form field, validation,
+  redeem ledger row, post-discount earn fix.
+- `app/templates/_components/_customer_picker.html` — inline "Usar
+  puntos" form + live preview JS + clamp to available.
+- `app/templates/_components/atoms.html` — POS toast renderer.
+- `tests/test_pos_redeem_flow.py` — 8 new tests covering success,
+  400 paths, no-op, combined discount, post-discount earn math.
+
+### Added — Decision C: auto-suggest rules engine (2026-10-01)
+
+Closes the deferred Phase 4 decision C. The "Coffee regulars" card
+on `/inicio` (top-5 customers with 2+ sales in 30d) stays as the
+discovery surface — but at the POS, when a cashier selects a
+customer, the inline card now surfaces up to 3 **auto-suggested
+offers** based on that customer's history. Tapping a suggestion
+pre-fills the existing `discount_gs` field on the sale form; the
+cashier confirms or ignores.
+
+**Five rule kinds** (priority order — first three win when all fire):
+
+| Kind | Trigger | Discount | Notes |
+|---|---|---|---|
+| 🎂 `cumple_cerca` | Birthday within 7 days | 15% | MM-DD and YYYY-MM-DD formats both supported; Feb 29 leap-year handled |
+| 💤 `vuelve_pronto` | No visit in N days (21 BRONZE / 30 SILVER / 45 GOLD) | 10 / 7 / 5 % | Higher tiers earn longer patience AND smaller discounts to protect margin |
+| ⭐ `puntos_dormidos` | ≥ 50 points AND didn't redeem on last visit | None (separate redeem UI) | Skipped when `redeemed_on_last_visit=True` |
+| 🛒 `cross_sell` | (deferred to C2) | — | Needs `/clientes/{id}` rule-builder UI |
+| 👑 `cliente_fiel` | GOLD + ≥ 10 sales | None | Recognition only — never discount top spenders |
+
+**Design rules (must read before extending):**
+- Pure function: `suggest_for_customer(customer, last_sale_at, n_sales, tier,
+  redeemed_on_last_visit, today=)` returns `list[Suggestion]`. No DB, no
+  FastAPI imports. Caller stitches the inputs.
+- Infallible: the /clientes/api/{id} endpoint wraps the call in
+  try/except + logs + returns `suggestions=[]` on failure. A bug in
+  any rule must never 500 the picker (it's hit on every selection).
+- Thresholds are module-level constants in `app/rms/loyalty_suggestions.py`
+  (no DB-driven rules — that's C2/C3 territory).
+- Suggestions **never bypass the cashier**. The click pre-fills the
+  existing `discount_gs` field with `round(unit_price × pct / 100)`.
+  The cashier still has to hit "Confirmar venta".
+- Maximum 3 returned (UI space constraint).
+
+**Files:**
+- `app/rms/loyalty_suggestions.py` — pure-function engine (340 lines).
+- `app/routers/customers.py` — payload wiring + `_redeemed_on_last_visit` helper.
+- `app/templates/_components/_customer_picker.html` — inline suggestions card +
+  click-to-apply JS.
+- `tests/test_loyalty_suggestions.py` — 26 tests (19 pure-function, 7 integration).
+
+### Housekeeping — orphan stash audit (2026-10-01)
+- **8 stale `git stash` entries on main** (oldest 13 days) audited.
+  7 dropped (work already shipped via other commits:
+  recipe_intel vocab + STATUS_TITLES, instructions ORM field +
+  recipe_phases, products api/tags + api/categories + bulk-edit +
+  mayorista_price + tag/category filters, RSPA fields, recipe
+  ZeroDivisionError guard, recipe_phases observability tests).
+  1 retained (`stash@{0}`: rotating file sink for loguru,
+  BACKLOG #45) — to be shipped in a dedicated PR.
+
+### Already shipped (cross-checked 2026-10-01, not rebuilt)
+- `/excel/importar?mode=PATCH` — supports PATCH (default), FULL, APPEND;
+  per-row validation + warnings are surfaced from `/excel` history and
+  `/excel/validar` dry-run. See `app/routers/excel_io.py` and
+  `app/rms/excel_import.py`.
+- Customer profile `/clientes/{id}` — already renders
+  `cliente_detalle.html` with lifetime spend, top products, dietary
+  alerts. See `app/routers/customers.py:660` and
+  `tests/test_cliente_detalle_*.py` / `tests/test_p3_customer_*.py`.
+
+### Fixed (2026-09-30 noche) — PRO-QS + PRO-PED-UX + CSRF fix
+
+- **Quick-sell sin recarga (PRO-QS)**: tap en producto del grid agrega la
+  línea al carrito AJAX (feedback visual en el badge) en vez de POST +
+  recarga por cada item. Sin JS el submit nativo sigue vendiendo en 1 tap.
+- **Pedidos nuevo: cliente ahora prellena (PRO-PED-UX)**: pedido-combos.js
+  buscaba la clase fantasma `.ui-customer-combo` (no existe en ningún
+  template) → seleccionar cliente nunca llenaba teléfono/RUC/hint. Ahora
+  matchea `ui-combo[name=customer_id]` y delega en su evento change.
+  SaskiaCombo expone `attach(el, opts)` para config por instancia.
+- **CSRF fix (regresión del PR #37)**: carga_inicial.html postea sin
+  csrf_token — detectado por el gate P0. Añadido.
+- Tests: test_qsell_pedidoux.py (4). 535 passed en regresión amplia; los
+  4 fallos restantes son pre-existentes en HEAD (verificados con stash).
+
+### Added (2026-09-30) — PRO-MERMA + PRO-PED: hábito con menos fricción
+
+- **Merma en 1 tap desde /inventario**: botón en cada fila → modal que
+  postea a /merma/registrar con qty_unit (g/ml si la unidad base es kg/l).
+  Antes: 2 páginas y 4 clics. Componente: _components/merma_modal.html.
+- **Card "Pedidos para mañana" en /produccion/manana**: pedidos
+  pending/confirmed/ready con entrega mañana (cliente, hora, canal, total,
+  link) en la misma pantalla del plan. Router: produccion.py PRO-PED.
+- Tests: tests/test_pro_merma_pedidos.py (3: botón+modal, POST merma,
+  card pedidos). La card de cumpleaños en Inicio ya existía (P3).
+
+### Fixed (2026-09-30) — PRO-POS: toda venta lleva forma de pago
+
+`/ventas/nueva/multi` guardaba `payment_method=NULL` cuando el operador no
+elegía uno (699/708 ventas de prod quedaron sin atribuir). Ahora el default
+del catálogo (`is_default` → 'efectivo') completa el método, y el combo del
+POS viene preseleccionado con ese default. Tests:
+tests/test_pos_payment_default.py (2: default + explícito respetado).
+
+### Added (2026-09-30) — PRO-INV: inventario distingue "sin carga inicial" de "agotado"
+
+El KPI "Stock crítico" mezclaba ingredientes nunca cargados (stock 0, cero
+movimientos) con agotados reales — el día 1 asustaba con 65 "críticos"
+cuando ~21 eran solo falta de carga inicial. Ahora:
+
+- Badge "Sin carga inicial" (neutral) para stock 0 sin movimientos en el
+  ledger `stock_movement`; los agotados reales siguen en rojo.
+- KPI separado con link al filtro `?estado=sincargar` (nueva opción).
+- **Carga inicial asistida**: `/inventario/carga-inicial` lista todo lo
+  nunca cargado en una sola pantalla con cantidad real por fila; guarda
+  todo de una y registra cada carga como movimiento `initial`.
+- Tests: tests/test_inventario_never_loaded.py (3).
+
+### Added (2026-09-30) — guards de seguridad/precio + ayudas de producción
+
+- **PRO-SEC**: guard de arranque en `app/rms/main.py` — la app se niega a
+  iniciar con SASKIA_TEST_AUTH_DISABLED fuera de pytest (incidente 09-30:
+  producción sirvió sin login por esa var en la spec Swarm). Test CI
+  (`tests/test_prod_security_gates.py`) falla si la var vuelve a aparecer en
+  Dockerfile/compose/deploy scripts.
+- **PRO-PRICE**: mismo test CI falla si algún producto ACTIVO queda con
+  precio < costo×1,1 (corre contra la DB de negocio si está disponible).
+- **/produccion**: banner que avisa cuando no hay plan semanal guardado para
+  el día (con ventas cargadas) — empuja el hábito del template.
+- **/productos**: semáforo de margen — badge ámbar cuando el margen cae bajo
+  40% (además del rojo existente para negativos).
+- Label "Oculto (sin auto-sugerencia)" para la fuente PRO-11 del plan.
+
+### Fixed (2026-09-30) — PRO-11: productos ocultos no reciben auto-sugerencia de producción
+
+`plan_production()` sugería cantidades para productos con `is_available=False`
+que tenían historial de ventas (aparecían en /produccion y /mañana aunque
+estuvieran fuera del menú). Ahora el branch de auto-forecast los salta
+(source="oculto"); override, template y manual siguen pudiendo forzarlos.
+Tests: tests/test_produccion_hidden_products.py (2).
+
 ### Added (2026-09-30) — market-intel: capa de evidencia de competencia en /vs-mercado
 
-Conecta el research repo `saskia-market-intel` (1.349 precios verificados de
+Conecta el research repo `sazon-market-intel` (1.349 precios verificados de
 48+ locales PY, corte 2026-09-30) con la app: nueva tabla
 `competitor_price_observation` (migration _063, append-only, fuente+fecha),
 vista `/vs-mercado/evidencia` (rangos p25/mediana/p75 por familia +
@@ -123,11 +998,11 @@ behavior (no sidebar on `/login`) instead of dev-mode behavior.
 
 **Legacy test updates:** 33 tests in `tests/test_combo_cache.py` (16)
 and `tests/test_combo_performance.py` (6) plus 11 affected tests marked
-`@pytest.mark.xfail` with reason "combo.js → saskia-combo.js refactor
+`@pytest.mark.xfail` with reason "combo.js → ui-combo.js refactor
 (D17, 2026-09-27). See tests/test_ui_components.py for current tests."
 
-**Hardcoded path fixes:** Replaced `/opt/data/profiles/ivan/scratch/saskia-app-work`
-with `/opt/data/work/saskia-app` in 15 test files so the test suite
+**Hardcoded path fixes:** Replaced `/opt/data/profiles/ivan/scratch/sazon-app-work`
+with `/opt/data/work/sazon-app` in 15 test files so the test suite
 runs in the active repo location.
 
 ### Fixed (2026-09-29, session 2) — Master-menu audit: 138 → 1 failing test
@@ -195,7 +1070,7 @@ test — passes or fails depending on environment. Not blocking.
 **Supplier CRUD now writes audit rows (A.3 forensic gap closed).**
 The 3 supplier endpoints (`/suppliers/nuevo`, `/suppliers/{id}/editar`,
 `/suppliers/{id}/eliminar`) previously wrote/deleted rows silently — if
-Saskia ever deleted a supplier by mistake there was zero forensic trace.
+the operator ever deleted a supplier by mistake there was zero forensic trace.
 
 - `app/routers/suppliers.py` — added `record_audit(...)` calls using the
   same double-commit pattern as `inventory.py:96` (commit the row,
@@ -231,17 +1106,17 @@ is pinned at the file/action level rather than discovered in production.
 
 ### Added (2026-09-29) — Session A: KPI web component + D3 currency lint gate
 
-**New web component: `<saskia-kpi-card>`**
-- `app/static/saskia-kpi-card.js` — KPI tile with label, value, optional
+**New web component: `<ui-kpi-card>`**
+- `app/static/ui-kpi-card.js` — KPI tile with label, value, optional
   delta arrow (↑/↓/—) + delta direction (up/down/flat/neutral) + delta
   prior label + severity (success/warn/danger) + optional href.
 - CSS in `app/static/app-components.css` (`.metric-card--kpi` block).
 - Registered globally via `base.html` (defer-loaded with `asset_version()`).
-- Tests: `tests/test_saskia_kpi_card.py` (21 tests, all green).
+- Tests: `tests/test_ui_kpi_card.py` (21 tests, all green).
 
 **Adoption (3 pages):**
 - `app/templates/inicio.html` — HOY band (Ventas, Operaciones, Ticket,
-  Margen) now uses `<saskia-kpi-card>`. Delta pill survives via
+  Margen) now uses `<ui-kpi-card>`. Delta pill survives via
   `delta-direction` + `delta-prior` attributes.
 - `app/templates/analisis.html` — 4 panorama KPIs (Capital inventario,
   Hora pico, Día pico, MP cost %) upgraded. Severity `warn` triggered
@@ -712,7 +1587,7 @@ Schema: v32 → v38. Migration 034 (market prices), 035 (compliance_info),
   preserved for Kiki/John to decide.
 
 **Open items (documented, not blocking):**
-- Render service still serves `saskia-rms.paragu-ai.com` but is out of
+- Render service still serves `sazon-rms.paragu-ai.com` but is out of
   sync (schema v27 on Neon, code is v48). The VPS is the live system.
 - Migrations 28-32 never applied to Neon Postgres. If Render is ever
   resurrected, those need to be applied first.
@@ -758,7 +1633,7 @@ UI rewrite of `app/templates/settings_catalog.html`:
 /ops routes in production. The env var gates sensitive internal routes
 behind a flag (defaults to off, set to 1 to enable).
 
-**Verified live on saskia-vps.paragu-ai.com**
+**Verified live on sazon-vps.paragu-ai.com**
 - Created then deleted test category, channel, payment method (soft delete)
 - Live update of margin tier 1 from 10000 → 12000 → 10000
 - /auditoria now returns 200 (was 404 before env var)
@@ -821,7 +1696,7 @@ range presets, and tax/invoice constants.
   Stock status, **Storage types (HACCP)**, **Date presets**,
   Tax config, **IVA rates**, Branding.
 
-**Verified live on saskia-vps.paragu-ai.com**
+**Verified live on sazon-vps.paragu-ai.com**
 - /api/storage-types → 3 codes + live-created "vacuum_sealed" (4 total)
 - /api/date-presets → 5 presets
 - /api/iva-rates → valid_rates ["10","5","exento"], default "10"
@@ -891,7 +1766,7 @@ hardcoded in Python logic.
   Stock status, Tax config (read-only), Branding.
 - New tabs render tables from the new API endpoints.
 
-**Verified live on saskia-vps.paragu-ai.com**
+**Verified live on sazon-vps.paragu-ai.com**
 - /api/margin-tiers returns 3 tiers with correct thresholds
 - /api/stock-status-config returns 4 statuses with ratios + days
 - /api/tax-config returns full tax/invoice/labor snapshot
@@ -974,13 +1849,13 @@ that previously required a code deploy is now DB-backed and operator-editable.
 **Phase 1+2+5 operator UI**
 - New `app/templates/settings_catalog.html` — single-page UI at
   /settings/catalog with 5 tabs: Categories, Channels, Payments,
-  Templates, Branding. Lets Kiki/Saskia manage all catalogs via
+  Templates, Branding. Lets Kiki/the operator manage all catalogs via
   browser without curl.
 - New nav link: "Catálogos" in base.html navbar.
 - All settings flow through the JSON API endpoints; the UI is a thin
   client.
 
-**Verified live on saskia-vps.paragu-ai.com**
+**Verified live on sazon-vps.paragu-ai.com**
 - /api/channels returns 5 channels
 - /api/payment-methods returns 5 methods (tarjeta fee=3%)
 - /api/settings/branding returns full dict; POST updates persist
@@ -988,8 +1863,8 @@ that previously required a code deploy is now DB-backed and operator-editable.
 - /ventas renders all 5 channels (mostrador, mostrador-encargo,
   whatsapp, pedidosya, monchis)
 - /recetas/nueva renders all 5 units (g, kg, ml, l, und)
-- /login reflects branding changes (operator can change "Saskia RMS" →
-  "Panadería Saskia" via POST API, refreshes page)
+- /login reflects branding changes (operator can change "Sazón" →
+  "Panadería the operator" via POST API, refreshes page)
 - /settings/catalog renders all 5 tabs
 
 CHANGELOG continues.
@@ -1043,7 +1918,7 @@ modify via code deploy. This change moves them to the database.
 - `app/templates/receta_form.html` JS now fetches markup from API
   instead of hardcoding `* 3`
 
-**Verified live at https://saskia-vps.paragu-ai.com:**
+**Verified live at https://sazon-vps.paragu-ai.com:**
 - GET /api/settings/pricing-markup → {"multiplier":3.0,"round_to_gs":1000}
 - POST same with multiplier=2.5 → persists, GET returns 2.5
 - GET /api/categories?scope=product → 13 product categories
@@ -1057,7 +1932,7 @@ modify via code deploy. This change moves them to the database.
 CHANGELOG entry continues.
 ### Added (2026-09-24) — second review: per-sale packaging (US 4.1, "the box for the cake")
 
-Saskia's exact words from the audio review (paraphrased from the
+the operator's exact words from the audio review (paraphrased from the
 Spanish audio):
 
   "In product I would put a compressor that is a package instead of
@@ -1135,7 +2010,7 @@ new button on an existing page.
 
 #### Decision A1 — IngredientVariant table (US 2.2)
 
-Saskia's exact words from the audio review:
+the operator's exact words from the audio review:
 
 > *"Harina is an example, but the same goes for milk or product X
 > that has 5 different sellers in pots of different sizes. I would
@@ -1183,7 +2058,7 @@ the preferred flag.
 
 The hardcoded 14-day production-plan window stays the global default.
 A new nullable column `ingredient.forecast_horizon_days` lets each
-ingredient override it — so Saskia sets `dulce_de_leche=21` (slow
+ingredient override it — so the operator sets `dulce_de_leche=21` (slow
 supplier) and `harina=7` (bought every Tuesday) without forcing the
 rest of the inventory into one size fits all.
 
@@ -1209,7 +2084,7 @@ rest of the inventory into one size fits all.
 > *"The next day is what you put the day before. You can update
 > the template."*
 
-Saskia finishes a week, sees what was actually produced (the
+the operator finishes a week, sees what was actually produced (the
 ProductionPlanOverride rows), and pushes that into the next week's
 template so she can tweak from there rather than type from scratch.
 
@@ -1268,7 +2143,7 @@ template so she can tweak from there rather than type from scratch.
 
 - **`/ventas` and `/ventas/historial` are now separate routes (US 4.3).** The
   previous single page mixed the POS form, Quick-Sell grid, sales history
-  table, and pagination on one screen — Saskia explicitly asked for the
+  table, and pagination on one screen — the operator explicitly asked for the
   history to move out so the counter view is uncluttered. Sales history
   now lives at `/ventas/historial` with its own summary card, filter
   form, CSV export, and per-row Anular button. The two routes share the
@@ -1313,7 +2188,7 @@ template so she can tweak from there rather than type from scratch.
 ### Changed (2026-09-23) — second review: inventory form combos (US 2.1, carryover)
 
 - **`/inventario/nuevo` and `/inventario/{id}/editar` no longer submit duplicate form fields.** The category combo's visible text input had `name="category"` AND the hidden input had `name="category"`. Same bug on the unit combo. This caused the router to receive `category=X&category=X` (last-wins) and the combo JS to fight the browser about which value wins. Removed `name=` from both visible inputs; the hidden inputs now carry the only `name=`, which the JS combo writes the selected/created value into on `change`.
-- **Pre-existing tests fixed** in `tests/test_inventory_combos.py`: `test_inventory_form_unit_combo` was asserting `data-saskia-combo` (never existed; the class is `saskia-combo`) and `test_inventory_form_structure` was asserting `combo.css` (actual file is `combobox.css`). Both were failing on `main` before this branch.
+- **Pre-existing tests fixed** in `tests/test_inventory_combos.py`: `test_inventory_form_unit_combo` was asserting `data-ui-combo` (never existed; the class is `ui-combo`) and `test_inventory_form_structure` was asserting `combo.css` (actual file is `combobox.css`). Both were failing on `main` before this branch.
 - **Closes US 2.1** "Assign and create categories and labels from the inventario form" by ensuring the on-the-fly create path (`data-allow-create="true"` on the category combo) reaches the router without interference.
 ### Changed (2026-09-23) — second review: i18n copy on dashboard/inicio (carryover from MER-03 + DATA-01)
 
@@ -1454,9 +2329,9 @@ Files touched:
   new sprite icons (icon-menu, icon-chevron-down). Mock approved by
   K.W. before implementation.
 
-### Added (2026-09-21) — Saskia review round 1 (Thu 18-sep)
+### Added (2026-09-21) — operator review round N (Thu 18-sep)
 
-- **/reportes/precios — price-history report** (Saskia review Q1). List view
+- **/reportes/precios — price-history report** (the operator review Q1). List view
   of every ingredient with price events (current/min/max/avg + last change,
   90d default, adjustable 7/30/90/365), detail view per ingredient with a
   line chart of the series and the event table (source labels in Spanish:
@@ -1464,12 +2339,12 @@ Files touched:
   /reportes/precios/csv following the ventas.csv pattern. Card added to the
   /reportes hub (topnav untouched).
 
-- **/inventario — price strip + sparkline** (Saskia review Q1). Under the
+- **/inventario — price strip + sparkline** (the operator review Q1). Under the
   purchase-price cell, ingredients with >=2 price events in the last 90 days
   show a muted "90d: min X · max Y" line (money via m.gs); >=3 events also
   render a sparkline SVG of the series (app/rms/charts.sparkline, ARIA-labeled).
 
-- **/reorder — restock flow (read-only → actionable)** (Saskia review Q1).
+- **/reorder — restock flow (read-only → actionable)** (the operator review Q1).
   The suggestions table now has a per-row "Reponer" form (qty prefilled with
   the suggested qty, price prefilled with the current purchase price).
   `POST /reorder/registrar` bumps `Ingredient.stock_qty`, appends a
@@ -1477,29 +2352,29 @@ Files touched:
   purchases), audits `write.reorder.restock`, and rate-limits 10/min.
   Validates qty>0 and price≥0 (400) and unknown ingredient (404).
 
-- **/produccion — "Ver receta" routes to the recipe, not the product** (Saskia
+- **/produccion — "Ver receta" routes to the recipe, not the product** (the operator
   feedback). `ProductionRow` now carries `recipe_id`; the action button links
   to `/recetas/{recipe_id}/editar` and hides when the product has no recipe.
 
-- **/pedidos — status filter (Pendientes / Terminados / Todos)** (Saskia
+- **/pedidos — status filter (Pendientes / Terminados / Todos)** (the operator
   feedback). New `?status_filter=` query param; "pendientes" is the default
   to preserve current behavior (pending/confirmed/ready). Visual: pill-row
   above the existing date-bucket cards.
 
 - **/settings — per-row form with labels, a11y, and visual-noise cleanup**
-  (Saskia feedback). Replaced the wide 5-column table with a stacked
+  (the operator feedback). Replaced the wide 5-column table with a stacked
   card-style list: each row has a `<label>`, helper text, and either a
   `<select>` (when the setting has bounded `choices`) or a labeled text
   input. Default value shown inline. "Reset" action moved to `formaction`
   on the same form (no second form per row). Responsive: collapses to
   one column under 768px. Removed the redundant "N ajustes" badge.
 
-- **Topnav cleanup** (Saskia feedback). Removed "Auditoría" and "Ops" links
+- **Topnav cleanup** (the operator feedback). Removed "Auditoría" and "Ops" links
   from the main topnav — both routes still work via direct URL.
 
-- **Recipe lines can be entered in any unit** (Saskia feedback: "Se debe de
+- **Recipe lines can be entered in any unit** (the operator feedback: "Se debe de
   poder agregar en gramos la cantidad"). New `recipe_line.line_unit`
-  column lets Saskia type `250 g` of flour even though flour is stored in
+  column lets the operator type `250 g` of flour even though flour is stored in
   `kg`. The recipe form gains a unit dropdown next to the qty input per
   line. The costing walk (and `plan_production`'s ingredient aggregator)
   normalize the line qty into the linked ingredient's unit before
@@ -1511,7 +2386,7 @@ Files touched:
   same-unit at qty time). Migration v17 backfills existing rows from
   the linked ingredient's unit.
 
-- **Ingredient purchase-price history** (Saskia feedback: restock + price
+- **Ingredient purchase-price history** (the operator feedback: restock + price
   history). New `ingredient_price_event(ingredient_id, price_gs,
   recorded_at, source)` table appended every time an operator changes
   an ingredient's purchase price via `/inventario`. Sources: `restock`,
@@ -1525,7 +2400,7 @@ Files touched:
   index. Phase D wires the restock form surface and the dashboard
   sparkline / fluctuation insight on top of these helpers.
 
-- **Calendar grid component shell** (Saskia feedback, Q2 (c)). New
+- **Calendar grid component shell** (the operator feedback, Q2 (c)). New
   `app/templates/_components/calendar.html` macro file with `week_grid`
   and `month_grid` macros — 7-column CSS grid, is-today / is-selected
   states, prev/next navigation, Spanish-vos copy, mobile collapse to
@@ -1535,7 +2410,7 @@ Files touched:
   per-product override editor on top of these macros.
 
 - **Production calendar (week + month views) + the multiplication bug
-  fix** (Saskia feedback, Q2 (c) + Q3). /produccion gains ?view=day|
+  fix** (the operator feedback, Q2 (c) + Q3). /produccion gains ?view=day|
   week|month with a Día|Semana|Mes pill switcher. Week view: 7-column
   grid (Lun-Dom) with per-day product counts; month view: full month
   grid; both link each day to the detailed day plan. Day view rows get
@@ -1543,15 +2418,15 @@ Files touched:
   persistence ov_{id}=qty — a what-if re-plan, not a DB edit).
   forecast_source now renders in Spanish ('Promedio 14 días' etc.)
   with an explanatory tooltip; column header 'Cómo se calcula'.
-  **Bug fixed (Saskia's report confirmed):** plan_production multiplied
+  **Bug fixed (the operator's report confirmed):** plan_production multiplied
   PORTIONS by per-batch line qty directly — producing 24 muffins
   demanded 7.2 kg flour instead of 0.6 kg (12x, the yield_qty). Now
   ingredient math divides by yield_qty first (batches = portions /
   yield). Regression test covers 2x and 0.5x scaling.
   Seasonal-multiplier editor intentionally absent — blocked on T-0.1
-  (forecast_source semantics clarification with Saskia).
+  (forecast_source semantics clarification with the operator).
 
-- **Dashboard 'Precios en alza' insight** (Saskia feedback, Q1 surface D4).
+- **Dashboard 'Precios en alza' insight** (the operator feedback, Q1 surface D4).
   build_insights() now computes price_fluctuation: ingredients whose
   current price is >20% above their 30-day average, sorted by pct.
   Rendered on /inicio as a severity-warn insight card ('Harina: +27%
@@ -1560,13 +2435,13 @@ Files touched:
 - **Schema-version test relaxed** to assert `>= 15` (was `== 15`) so it
   doesn't break on every future schema bump.
 
-- **EOD surfaces today's production plan** (Saskia feedback, T5).
-  `/eod` now shows the day's forecast next to the checklist so Saskia
+- **EOD surfaces today's production plan** (the operator feedback, T5).
+  `/eod` now shows the day's forecast next to the checklist so the operator
   can reconcile what was actually produced. The "Hecho" column is
   rendered with a `—` placeholder today; persisting completions is a
   separate model decision (deferred — see `.hermes/plans/`).
 
-- **Whole-batch merma flow** (Saskia feedback, T6 — "Aveces hay mermas
+- **Whole-batch merma flow** (the operator feedback, T6 — "Aveces hay mermas
   de recetas completas"). New `record_recipe_waste()` helper expands a
   recipe into per-ingredient `WasteLog` rows using the same walker as
   `apply_sale` (sub-recipes recurse). New `/merma/receta` POST +
@@ -1574,7 +2449,7 @@ Files touched:
   cover: expansion math, missing recipe, missing yield, zero/negative
   batch.
 
-- **Cross-page consistency pass** (Saskia feedback, T8 — "Debe coincidir
+- **Cross-page consistency pass** (the operator feedback, T8 — "Debe coincidir
   con los registros de las demás páginas"). Money formatting in
   `/clientes`, `/cliente_detalle`, `/merma`, `/reportes_diario`,
   `/reportes_iva`, `/reportes_libro_ventas` migrated from inline
@@ -1820,7 +2695,7 @@ Files touched:
   present (verified by test). 4 regression tests in `tests/test_phase6_polish.py`.
 
 - **Phase 7 UptimeRobot integration** — existing monitor
-  (id `803916096`) was already configured for `https://saskia-rms.paragu-ai.com/healthz`
+  (id `803916096`) was already configured for `https://sazon-rms.paragu-ai.com/healthz`
   every 5 min, keeping the free-tier Render container warm. Added
   `scripts/uptimerobot_setup.py` for idempotent verify / pause / delete
   operations (reads API key from BWS at runtime). 2 regression tests
@@ -1884,7 +2759,7 @@ Files touched:
 
 - **OUTAGE FIX: migrations auto-run on startup** — the lifespan
   now defaults to running `init_db()` on every boot (set
-  `AIW_SASKIA_RUN_MIGRATIONS=0` to disable). Previously gated behind
+  `AIW_RMS_RUN_MIGRATIONS=0` to disable). Previously gated behind
   `=1` opt-in, which left the production Neon DB at schema v10
   while the code expected v11 — causing `column sale.payment_method
   does not exist` 500s on the dashboard. Migration is wrapped in
@@ -2005,7 +2880,7 @@ Files touched:
 
 User-facing login was hostile: bad credentials rendered an unstyled text
 div with no visual prominence, the page title was doubled
-("Iniciar sesión — Saskia RMS — Saskia RMS"), and the forgot-password
+("Iniciar sesión — Sazón — Sazón"), and the forgot-password
 recovery link had no tests. This commit:
 
 - **`.alert-error` CSS rule added** — was completely missing. Now renders as
@@ -2021,7 +2896,7 @@ recovery link had no tests. This commit:
 - **Autofocus moves to password field on error** — more useful than
   re-focusing username (which already had the right value).
 - **`<title>` deduplicated** — login.html no longer includes
-  "— Saskia RMS" in its title block (base template adds the suffix).
+  "— Sazón" in its title block (base template adds the suffix).
 - **Forgot-password link rewritten** — action label "Recuperar contraseña"
   instead of question "¿Olvidaste tu contraseña?". Added explicit Iván
   contact (`mailto:ivan@ai-whisperers.dev`) and "5 minutes + spam" hint.
@@ -2038,7 +2913,7 @@ position (above form, inside main), and form novalidate.
 
 ### Operations
 
-- **One-time migration bootstrap hook** — added opt-in `AIW_SASKIA_RUN_MIGRATIONS=1`
+- **One-time migration bootstrap hook** — added opt-in `AIW_RMS_RUN_MIGRATIONS=1`
   env var that triggers `init_db()` from the FastAPI lifespan. Used to apply
   pending schema migrations (v8 → v10 for E26-E35 columns) on the deployed
   Render service, since Render doesn't expose a "run command" API and SSH
@@ -2052,11 +2927,13 @@ position (above form, inside main), and form novalidate.
   `{"db":"ok","server_version":"18.6 (c5250a2)","dialect":"postgresql"}`.
 - **Dead PAT stripped from `.git/config`** — found `ghp_u0Cs76...` (the
   known-dead PAT from the "Known dead values" table) embedded in the remote
-  URL. Stripped via `git remote set-url origin https://github.com/Ai-Whisperers/saskia-app.git`.
+  URL. Stripped via `git remote set-url origin https://github.com/Ai-Whisperers/sazon-app.git`.
   Re-authenticated via `git credential approve` with the live PAT from BWS.
   Push of 17 commits succeeded.
 
-### Fixed
+### Documentation
+- **User guide version sync** (2026-10-05): Updated all manual headers to schema 102 + commit 487079f to match current state. All 24 screenshots verified against live app.
+- **Repo cleanup pass** (2026-10-05): Removed 86 garbage files (~40MB) including: 6 root session screenshots (no refs), 126 zero-byte test uploads, 14 camera dump JPGs (37.5MB, no refs), app/rms/db.py.backup, 6 untracked test .db files, test_discovery_only.py, pr_body.txt, PAGE_ANALYSIS.json, and notifications_spool/history.jsonl (11d old, exceeds 7d retention). Archived 39 historical docs (3 root audit reports + 29 old docs/operations/ + 7 old docs/plans/) to `docs/archive/2026-09/` with git mv to preserve history.
 
 - **`_migration_007_product_sku` was a no-op** — bumped version but didn't
   add the `product.sku` column on existing databases (it relied on
@@ -2106,7 +2983,7 @@ direction (regression for the 404), and all 7 nav targets returning 200.
   auth router with X-Forwarded-For IP + truncated User-Agent. Append-only
   by convention; surfaced later via /audit admin view.
 - Schema migration `_migration_002_audit_log` (CURRENT_SCHEMA_VERSION
-  bumped 1 -> 2). Idempotent. `aiw-saskia migrate` applies it on first
+  bumped 1 -> 2). Idempotent. `sazon migrate` applies it on first
   run against existing DBs.
 - **Seasonal events HTTP seam (E19 final)** — serialize_event +
   calendar_for_year (auto-shifts 2026 calendar to N year) +
@@ -2179,7 +3056,7 @@ direction (regression for the 404), and all 7 nav targets returning 200.
   last_consumed_at (indexed), shelf_life_days (E22 prep), recipe.prep_minutes.
 
 - **Realistic demo data seed (E6)** — `app/rms/seed.py` +
-  `aiw-saskia seed [--reset]`. 30 ingredients, 12 recipes, 80
+  `sazon seed [--reset]`. 30 ingredients, 12 recipes, 80
   recipe_lines, 20 products, ~200 synthetic sales over 90 days with
   weekday/weekend skew + payday spikes, demo user, voided + encargo
   examples, import_batch + audit_log seed rows. Idempotent.
@@ -2188,7 +3065,7 @@ direction (regression for the 404), and all 7 nav targets returning 200.
   before DB compare (was treating Asunción-local as naive-UTC which
   broke `today` filter outside UTC midnight).
 
-- **Complete epic plan v3 (`docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md`)** —
+- **Complete epic plan v3 (`docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md`)** —
   25 epics across 6 phases, ~268h, no cap (gem project). Each epic has
   Why / Stories / Tasks / Effort / Depends on / Acceptance / Refs.
   Ticket convention `SASKIA-NNN` defined in `AGENTS.md`.
@@ -2258,7 +3135,7 @@ direction (regression for the 404), and all 7 nav targets returning 200.
 ## [Unreleased-pre-templates] — pre-signoff skeleton
 
 **Status:** Skeleton landed in pre-signoff commit `f82dfb3` of the engagement repo,
-which migrated to `saskia-app` repo. **Not yet on her PC.**
+which migrated to `sazon-app` repo. **Not yet on her PC.**
 
 ### Added
 
@@ -2365,18 +3242,18 @@ deleted; the package `app/rms/models/` is now in its place.
   alias, supabase in Dockerfile pip list, /healthz/deps fingerprint,
   row_counts_json JSONB match). Proven fail-closed by reverting the HEAD route
   and confirming 2 tests fail with the original 405.
-- **`tests/test_migrate_cli.py`** — 5 tests covering the new `aiw-saskia
+- **`tests/test_migrate_cli.py`** — 5 tests covering the new `sazon
   migrate` CLI (idempotent first/second run, schema detection across SQLite
   and Postgres dialects, argv dispatch).
 - **CLI dispatch in `app/rms/main.py`**: `run()` now dispatches on sys.argv —
-  `aiw-saskia migrate` invokes `migrate()` (idempotent schema apply);
-  `aiw-saskia serve` and bare `aiw-saskia` start uvicorn (backward compatible).
+  `sazon migrate` invokes `migrate()` (idempotent schema apply);
+  `sazon serve` and bare `sazon` start uvicorn (backward compatible).
 - **`migrate()` entry point** in `app/rms/main.py`: idempotent (checks
   schema_version; no-op if already at target); supports both `DATABASE_URL`
-  (Postgres) and `AIW_SASKIA_DB_PATH` (SQLite) so it works for hosted and
+  (Postgres) and `AIW_RMS_DB_PATH` (SQLite) so it works for hosted and
   local dev.
 - **CI: migrate smoke test** in `.github/workflows/ci.yml` — runs
-  `aiw-saskia migrate` against a fresh SQLite on every PR to catch migrate()
+  `sazon migrate` against a fresh SQLite on every PR to catch migrate()
   regressions.
 - **CI: CHANGELOG discipline check** — every PR touching `app/`, `scripts/`,
   `tests/`, or `.github/` must also touch `app/CHANGELOG.md` or CI fails.
@@ -2386,10 +3263,10 @@ deleted; the package `app/rms/models/` is now in its place.
 - **`scripts/apply_neon_schema.py`** — now a thin wrapper around `migrate()`
   with dialect-aware schema introspection (works on both PG and SQLite).
 - **`docs/operations/dashboard/refresh.sh`** — autodetects when `$PWD` is a
-  saskia-app git repo, falling back to the legacy scratch path only when
+  sazon-app git repo, falling back to the legacy scratch path only when
   both are absent. Previously the hard-coded path didn't exist.
 - **`installer/README.md`** — clone URL corrected from `saskia.git` to
-  `saskia-app.git` (commit `6fef4a2`).
+  `sazon-app.git` (commit `6fef4a2`).
 
 ### Test results
 

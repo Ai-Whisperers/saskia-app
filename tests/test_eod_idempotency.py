@@ -5,14 +5,15 @@ Per SASKIA_TEST_PLAN.md §5 #13 — POST /eod/completar must:
 - Second call same date: 422 (already done) or 4xx
 - Future date: 422 (invalid)
 """
+
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 
 
 def test_eod_completar_first_call_succeeds(authed_client):
     """P2 #1: POST /eod/completar for current date must return 303 or 200."""
-    today = date.today().isoformat()
+    today = datetime.utcnow().date().isoformat()
     r = authed_client.post("/eod/completar", data={"fecha": today})
     assert r.status_code in (200, 303, 400, 422), (
         f"EOD completar returned {r.status_code}: {r.text[:200]}"
@@ -21,7 +22,7 @@ def test_eod_completar_first_call_succeeds(authed_client):
 
 def test_eod_completar_future_date_rejected(authed_client):
     """P2 #2: POST /eod/completar with future date must return 422/400."""
-    future = (date.today() + timedelta(days=30)).isoformat()
+    future = (datetime.utcnow().date() + timedelta(days=30)).isoformat()
     r = authed_client.post("/eod/completar", data={"fecha": future})
     assert r.status_code in (200, 303, 400, 422), (
         f"Future EOD date returned {r.status_code}: {r.text[:200]}"
@@ -51,7 +52,7 @@ def test_eod_page_loads(authed_client):
 
 def test_eod_completar_double_call_idempotent(authed_client):
     """P2 #6: Second POST /eod/completar same date must not crash."""
-    today = date.today().isoformat()
+    today = datetime.utcnow().date().isoformat()
     # First call
     r1 = authed_client.post("/eod/completar", data={"fecha": today})
     # Second call (same date)

@@ -3,6 +3,7 @@
 Closes Phase-14 TODO #nav:217 — previously the topbar "+ Cliente" link
 went to /clientes (the listing) because /clientes/nuevo did not exist.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -23,14 +24,12 @@ def test_clientes_nuevo_get_renders_form(authed_client):
     assert 'name="email"' in r.text
     assert 'name="cedula"' in r.text
     # Submit button present:
-    assert "Crear cliente" in r.text or "type=\"submit\"" in r.text
+    assert "Crear cliente" in r.text or 'type="submit"' in r.text
     # Breadcrumb back to /clientes:
     assert "/clientes" in r.text
 
 
-def test_clientes_nuevo_post_creates_customer_and_redirects(
-    authed_client, session_factory
-):
+def test_clientes_nuevo_post_creates_customer_and_redirects(authed_client, session_factory):
     """POST /clientes/nuevo must create row + 303 to /clientes/{id}."""
     # Real-looking Paraguayan phone that passes validate_phone regex.
     payload = {
@@ -81,14 +80,13 @@ def test_clientes_nuevo_post_rejects_invalid_email(authed_client):
     assert "not-an-email" in r.text
 
 
-def test_clientes_nuevo_phone_match_updates_existing(
-    authed_client, session_factory
-):
+def test_clientes_nuevo_phone_match_updates_existing(authed_client, session_factory):
     """If phone matches an existing customer, that row is updated (not duplicated)."""
     # Seed an existing customer.
     with session_factory() as s:
         existing = Customer(
-            name="Old Name", phone="+595981234567",
+            name="Old Name",
+            phone="+595981234567",
             email="old@example.com",
         )
         s.add(existing)
@@ -109,18 +107,14 @@ def test_clientes_nuevo_phone_match_updates_existing(
     # Same id — updated, not duplicated.
     assert f"/clientes/{existing_id}" in r.headers.get("location", "")
     with session_factory() as s:
-        all_cust = s.query(Customer).filter(
-            Customer.phone == "+595981234567"
-        ).all()
+        all_cust = s.query(Customer).filter(Customer.phone == "+595981234567").all()
         assert len(all_cust) == 1
         assert all_cust[0].id == existing_id
         # Name was updated.
         assert all_cust[0].name == "New Name"
 
 
-def test_clientes_nuevo_idempotent_duplicate_post(
-    authed_client, session_factory
-):
+def test_clientes_nuevo_idempotent_duplicate_post(authed_client, session_factory):
     """Posting twice with same data → still one customer."""
     payload = {"name": "Idem Test", "phone": "+595981234577"}
     r1 = authed_client.post("/clientes/nuevo", data=payload, follow_redirects=False)

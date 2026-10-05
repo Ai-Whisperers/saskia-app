@@ -24,7 +24,7 @@ Design rules:
   - Maximum 3 returned per call (UI space constraint).
   - Priority order: cumpleaños → vuelve pronto → puntos dormidos →
     cross-sell → cliente fiel. Highest-priority suggestions win ties.
-  - All thresholds live as module-level constants so Saskia can tune
+  - All thresholds live as module-level constants so the operator can tune
     later (no DB-driven rules — that's C2/C3 territory).
   - Pure function: takes a Customer + sales-derived stats; no DB
     queries inside. Caller wires the data.
@@ -33,11 +33,12 @@ This module does NOT do I/O or import FastAPI. The router stitches
 the inputs and includes the result in the customer detail payload
 (``/clientes/api/{id}``).
 """
+
 from __future__ import annotations
 
 import datetime as _dt
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 # T-2026-10-01: use the live discount rate (POINTS_VALUE_GS) instead of
 # the old hardcoded 1000 Gs/point that gave a 100% return rate.
@@ -153,7 +154,7 @@ def suggest_for_customer(
       (stable). Empty list when no rule fires.
     """
     if today is None:
-        today = _dt.date.today()
+        today = _dt.datetime.now(_dt.UTC).date()
 
     out: list[Suggestion] = []
 
@@ -198,10 +199,7 @@ def suggest_for_customer(
     # card when it's one of multiple suggestions (it's still useful
     # as an action item in context) or when it carries a unique
     # algorithmic insight we don't surface elsewhere.
-    if (
-        len(out) == 1
-        and out[0].kind == KIND_PUNTOS_DORMIDOS
-    ):
+    if len(out) == 1 and out[0].kind == KIND_PUNTOS_DORMIDOS:
         return []
 
     return out[:MAX_SUGGESTIONS]
@@ -216,7 +214,7 @@ def _maybe_birthday(
 
     Soporta dos formatos almacenados en ``customer.birthday``:
       - "MM-DD" — cumpleaños sin año (caso normal, recurrente).
-      - "YYYY-MM-DD" — cumpleaños con año (cuando Saskia lo conoce).
+      - "YYYY-MM-DD" — cumpleaños con año (cuando the operator lo conoce).
     Para el primer caso, sólo nos importa mes+día; el año "actual"
     se calcula de forma que si el MM-DD ya pasó este año, el
     cumpleaños es el del año próximo (siempre dentro de la ventana).
@@ -254,9 +252,7 @@ def _maybe_birthday(
     )
 
 
-def _candidate_recurring_birthday(
-    month: int, day: int, today: _dt.date
-) -> _dt.date:
+def _candidate_recurring_birthday(month: int, day: int, today: _dt.date) -> _dt.date:
     """Pick the next occurrence of month/day on or after ``today``."""
     try:
         candidate = today.replace(month=month, day=day)
@@ -295,7 +291,9 @@ def _maybe_lapsed(
         threshold = LAPSED_DAYS_BRONZE
         pct = LAPSED_DISCOUNT_PCT_BRONZE
 
-    last_visit_date = last_sale_at.date() if isinstance(last_sale_at, _dt.datetime) else last_sale_at
+    last_visit_date = (
+        last_sale_at.date() if isinstance(last_sale_at, _dt.datetime) else last_sale_at
+    )
     days_since = (today - last_visit_date).days
     if days_since < threshold:
         return None
@@ -370,7 +368,7 @@ def _maybe_vip(*, n_sales: int, tier: str) -> Optional[Suggestion]:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def redeemed_on_last_visit(session, customer_id: int) -> bool:
+def redeemed_on_last_visit(session: Any, customer_id: int) -> bool:
     """True iff the customer's most recent non-voided sale had a
     ``LoyaltyTransaction(reason="redeem")`` row tied to it.
 
@@ -394,7 +392,9 @@ def redeemed_on_last_visit(session, customer_id: int) -> bool:
     """
     try:
         from sqlalchemy import select as _sa_select
+
         from app.rms.models import LoyaltyTransaction, Sale
+
         latest_sale = session.execute(
             _sa_select(Sale.id)
             .where(Sale.customer_id == customer_id)
@@ -411,5 +411,5 @@ def redeemed_on_last_visit(session, customer_id: int) -> bool:
             .limit(1)
         ).scalar_one_or_none()
         return redeem is not None
-    except Exception:
+    except Exception:  # noqa: BLE001 — return False on any DB error (rewards write collides etc.)
         return False

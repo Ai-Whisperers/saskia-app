@@ -4,7 +4,7 @@
 |# Include once per page that needs it.
 |#
 |# How to use:
-|#   SaskiaConfirmModal…show({ title: '¿Anular?', body: 'Se devuelve stock.',
+|#   UIConfirmModal…show({ title: '¿Anular?', body: 'Se devuelve stock.',
 |#     confirmLabel: 'Sí, anular', action: '/ventas/' + id + '/anular',
 |#     method: 'POST', danger: true, reasonField: true })
 |#     .then(function(result) { if (result.confirmed) { ... } });
@@ -69,10 +69,10 @@
     modal.close();
   }
 
-  // Public API: SaskiaConfirmModal…show({ title, body, confirmLabel, danger,
+  // Public API: UIConfirmModal…show({ title, body, confirmLabel, danger,
   //               action, method, extraInputs, formId, reasonField })
   // Returns a Promise that resolves to { confirmed: bool, reason: string }
-  window.SaskiaConfirmModal = {
+  window.UIConfirmModal = {
     show: function(opts) {
       opts = opts || {};
 

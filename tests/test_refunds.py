@@ -25,15 +25,17 @@ What's NOT covered (deferred):
   - UI template button (deferred to UI work)
   - Daily report subtracts refunds (deferred to M1+)
 """
+
 from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, event, select as sa_select, text
+from sqlalchemy import select as sa_select
+from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,8 +70,15 @@ def refund_session(refund_engine):
         s.close()
 
 
-def _make_sale(session, *, total_gs: int = 10_000, payment_method: str = "efectivo",
-               customer_id: int | None = None, qty: float = 1.0, voided: bool = False):
+def _make_sale(
+    session,
+    *,
+    total_gs: int = 10_000,
+    payment_method: str = "efectivo",
+    customer_id: int | None = None,
+    qty: float = 1.0,
+    voided: bool = False,
+):
     """Helper to create a minimal Sale row for refund tests.
 
     Ensures a Product row exists so the FK constraint is satisfied.
@@ -77,9 +86,7 @@ def _make_sale(session, *, total_gs: int = 10_000, payment_method: str = "efecti
     from app.rms.models_legacy import Product, Sale
 
     # Idempotent: only create the Product if it doesn't exist
-    existing_product = session.execute(
-        text("SELECT id FROM product WHERE id = 1")
-    ).first()
+    existing_product = session.execute(text("SELECT id FROM product WHERE id = 1")).first()
     if existing_product is None:
         product = Product(
             id=1,
@@ -94,7 +101,7 @@ def _make_sale(session, *, total_gs: int = 10_000, payment_method: str = "efecti
         product_id=1,
         qty=qty,
         unit_price_gs=total_gs,
-        sold_at=datetime.now(timezone.utc),
+        sold_at=datetime.utcnow(),
         payment_method=payment_method,
         customer_id=customer_id,
         discount_gs=0,
@@ -103,7 +110,7 @@ def _make_sale(session, *, total_gs: int = 10_000, payment_method: str = "efecti
         tz="America/Asuncion",
     )
     if voided:
-        sale.voided_at = datetime.now(timezone.utc)
+        sale.voided_at = datetime.utcnow()
     session.add(sale)
     session.flush()
     return sale
@@ -114,7 +121,7 @@ def _make_sale(session, *, total_gs: int = 10_000, payment_method: str = "efecti
 
 def test_refund_cap_rejects_when_exceeded(refund_session):
     """sum(amount_gs) > target_amount_gs must raise (DB or service)."""
-    from app.rms.refunds import create_refund, RefundError
+    from app.rms.refunds import RefundError, create_refund
 
     sale = _make_sale(refund_session, total_gs=10_000)
 
@@ -152,9 +159,9 @@ def test_refund_partial_then_full_works(refund_session):
 
 def test_refund_db_trigger_catches_bypass(refund_engine):
     """Direct INSERT bypassing the service layer must also fail via DB trigger."""
-    from datetime import date
+
     from sqlalchemy.exc import IntegrityError
-    from app.rms.models_legacy import Sale
+
     SessionLocal = sessionmaker(bind=refund_engine)
     s = SessionLocal()
     sale = _make_sale(s, total_gs=1_000)
@@ -163,20 +170,26 @@ def test_refund_db_trigger_catches_bypass(refund_engine):
 
     # First insert: 1000 — OK
     with refund_engine.begin() as conn:
-        conn.execute(text(
-            "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
-            "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed, eod_date) "
-            "VALUES ('sale', :sid, 1000, 1000, 'efectivo', 0, 0, :ts, 0, :d)"
-        ), {"sid": sale_id, "ts": datetime.now(timezone.utc), "d": date.today()})
+        conn.execute(
+            text(
+                "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
+                "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed, eod_date) "
+                "VALUES ('sale', :sid, 1000, 1000, 'efectivo', 0, 0, :ts, 0, :d)"
+            ),
+            {"sid": sale_id, "ts": datetime.utcnow(), "d": datetime.utcnow().date()},
+        )
 
     # Second insert: 1500 — must fail (would total 2500 > 1000)
     with pytest.raises(IntegrityError):
         with refund_engine.begin() as conn:
-            conn.execute(text(
-                "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
-                "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed, eod_date) "
-                "VALUES ('sale', :sid, 1000, 1500, 'efectivo', 0, 0, :ts, 0, :d)"
-            ), {"sid": sale_id, "ts": datetime.now(timezone.utc), "d": date.today()})
+            conn.execute(
+                text(
+                    "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
+                    "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed, eod_date) "
+                    "VALUES ('sale', :sid, 1000, 1500, 'efectivo', 0, 0, :ts, 0, :d)"
+                ),
+                {"sid": sale_id, "ts": datetime.utcnow(), "d": datetime.utcnow().date()},
+            )
 
 
 # --- 2. Voided sale rejection ---------------------------------------------
@@ -184,7 +197,7 @@ def test_refund_db_trigger_catches_bypass(refund_engine):
 
 def test_refund_voided_sale_rejected(refund_session):
     """A sale with voided_at set cannot be refunded (voids are separate from refunds)."""
-    from app.rms.refunds import create_refund, RefundError
+    from app.rms.refunds import RefundError, create_refund
 
     sale = _make_sale(refund_session, total_gs=5_000, voided=True)
     with pytest.raises(RefundError) as exc_info:
@@ -196,7 +209,7 @@ def test_refund_voided_sale_rejected(refund_session):
 
 
 def test_refund_unknown_sale_rejected(refund_session):
-    from app.rms.refunds import create_refund, RefundError
+    from app.rms.refunds import RefundError, create_refund
 
     with pytest.raises(RefundError) as exc_info:
         create_refund(refund_session, "sale", 99_999_999, 1_000, recorded_by="op")
@@ -204,7 +217,7 @@ def test_refund_unknown_sale_rejected(refund_session):
 
 
 def test_refund_invalid_target_type_rejected(refund_session):
-    from app.rms.refunds import create_refund, RefundError
+    from app.rms.refunds import RefundError, create_refund
 
     with pytest.raises(RefundError) as exc_info:
         create_refund(refund_session, "totally_not_valid", 1, 1_000, recorded_by="op")
@@ -216,8 +229,8 @@ def test_refund_invalid_target_type_rejected(refund_session):
 
 def test_refund_amount_must_be_positive(refund_session):
     """amount_gs <= 0 must raise (caught by either service or DB)."""
-    from app.rms.refunds import create_refund, RefundError
-    from sqlalchemy.exc import IntegrityError
+
+    from app.rms.refunds import RefundError, create_refund
 
     sale = _make_sale(refund_session, total_gs=5_000)
     # Service-layer check
@@ -228,9 +241,8 @@ def test_refund_amount_must_be_positive(refund_session):
 
 def test_refund_amount_zero_blocked_by_db(refund_engine):
     """DB trigger catches amount_gs=0 even if service is bypassed."""
-    from datetime import date
     from sqlalchemy.exc import IntegrityError
-    from app.rms.models_legacy import Sale
+
     SessionLocal = sessionmaker(bind=refund_engine)
     s = SessionLocal()
     sale = _make_sale(s, total_gs=5_000)
@@ -239,11 +251,14 @@ def test_refund_amount_zero_blocked_by_db(refund_engine):
     with refund_engine.connect() as conn:
         with pytest.raises(IntegrityError):
             with conn.begin():
-                conn.execute(text(
-                    "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
-                    "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed) "
-                    "VALUES ('sale', :sid, 5000, 0, 'efectivo', 0, 0, :ts, 0)"
-                ), {"sid": sale.id, "ts": datetime.now(timezone.utc)})
+                conn.execute(
+                    text(
+                        "INSERT INTO refund (target_type, target_id, target_amount_gs, amount_gs, "
+                        "payment_method, restock_qty, restocked_qty, recorded_at, loyalty_reversed) "
+                        "VALUES ('sale', :sid, 5000, 0, 'efectivo', 0, 0, :ts, 0)"
+                    ),
+                    {"sid": sale.id, "ts": datetime.utcnow()},
+                )
 
 
 # --- 5. Loyalty proportional reversal ------------------------------------
@@ -255,8 +270,8 @@ def test_refund_loyalty_reverses_proportionally(refund_session):
     With POINTS_PER_GS = 1/1000, a sale of 10_000 Gs earns 10 points.
     A 25% refund (2_500 Gs) should reverse floor(10 * 0.25) = 2 points.
     """
-    from app.rms.models_legacy import Customer, LoyaltyTransaction
     from app.rms.loyalty.ledger import award_points
+    from app.rms.models_legacy import Customer, LoyaltyTransaction
     from app.rms.refunds import create_refund
 
     # Create a customer
@@ -274,9 +289,7 @@ def test_refund_loyalty_reverses_proportionally(refund_session):
     assert pts_earned == 10  # sanity
 
     # Refund 25% of the sale (= 2_500 Gs) → should reverse floor(10 * 0.25) = 2 points
-    result = create_refund(
-        refund_session, "sale", sale.id, 2_500, recorded_by="op"
-    )
+    result = create_refund(refund_session, "sale", sale.id, 2_500, recorded_by="op")
     assert result.loyalty_reversed == 2
 
     # Customer balance should be 10 - 2 = 8
@@ -313,10 +326,10 @@ def test_sum_refunds_for_aggregates_correctly(refund_session):
 
 def test_refund_blocked_after_eod_close(refund_session):
     """A refund on a day whose EOD has been closed must be rejected."""
-    from app.rms.refunds import create_refund, RefundError
+    from app.rms.refunds import RefundError, create_refund
 
     sale = _make_sale(refund_session, total_gs=5_000)
-    sale.sold_at = datetime.now(timezone.utc) - timedelta(days=2)
+    sale.sold_at = datetime.utcnow() - timedelta(days=2)
     refund_session.flush()
 
     # Mark EOD closed for that day (all checklist items value="1")
@@ -349,10 +362,14 @@ def test_refund_with_restock_updates_stock(refund_session):
     refund_session.add(recipe)
     refund_session.flush()
     # RecipeLine uses polymorphic line_kind + line_ref_id (not ingredient_id)
-    refund_session.add(RecipeLine(
-        recipe_id=recipe.id, line_kind="ingredient",
-        line_ref_id=ing.id, qty=2.0,
-    ))
+    refund_session.add(
+        RecipeLine(
+            recipe_id=recipe.id,
+            line_kind="ingredient",
+            line_ref_id=ing.id,
+            qty=2.0,
+        )
+    )
     refund_session.flush()
 
     sale = _make_sale(refund_session, total_gs=10_000, qty=4.0)
@@ -374,12 +391,17 @@ def test_refund_with_restock_updates_stock(refund_session):
     assert initial_stock == 10.0
 
     from app.rms.refunds import create_refund
+
     # The service computes share = |qty_delta| / total_delta * restocked_qty.
     # With one move of qty_delta=-8.0 and restocked_qty=2.0, share = 2.0 kg.
     expected_share = 2.0
     result = create_refund(
-        refund_session, "sale", sale.id, 5_000,
-        restock_qty=True, restocked_qty=2.0,  # refund 2 of 4 portions
+        refund_session,
+        "sale",
+        sale.id,
+        5_000,
+        restock_qty=True,
+        restocked_qty=2.0,  # refund 2 of 4 portions
         recorded_by="op",
     )
 
@@ -395,6 +417,7 @@ def test_refund_with_restock_updates_stock(refund_session):
     # We filter by reference_type='refund_sale' so we don't pick up the
     # original sale's consumption row (which is reference_type='sale').
     from app.rms.models import StockMovement
+
     moves = refund_session.scalars(
         sa_select(StockMovement).where(
             StockMovement.reference_id == result.refund.id,

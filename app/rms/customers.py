@@ -12,11 +12,12 @@ of this module so existing ``from app.rms.customers import
 award_points`` callers keep working. New code should import from
 ``app.rms.loyalty``.
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -87,7 +88,9 @@ def ensure_customer(
             if name and name != existing.name:
                 logger.warning(
                     "ensure_customer: duplicate phone merge — phone=%r existing_name=%r incoming_name=%r",
-                    phone, existing.name, name,
+                    phone,
+                    existing.name,
+                    name,
                 )
             # Update name/email/notes/cedula if newly provided
             if name and name != existing.name:
@@ -100,7 +103,9 @@ def ensure_customer(
             if cedula_clean and cedula_clean != existing.cedula:
                 existing.cedula = cedula_clean
             return existing
-    cust = Customer(name=name, phone=phone, email=email, notes=notes, cedula=(cedula or "").strip() or None)
+    cust = Customer(
+        name=name, phone=phone, email=email, notes=notes, cedula=(cedula or "").strip() or None
+    )
     session.add(cust)
     session.flush()
     return cust
@@ -139,9 +144,7 @@ def search_customers(
 
 
 def find_customer_by_cedula(session: Session, cedula: str) -> Customer | None:
-    return session.execute(
-        select(Customer).where(Customer.cedula == cedula)
-    ).scalar_one_or_none()
+    return session.execute(select(Customer).where(Customer.cedula == cedula)).scalar_one_or_none()
 
 
 def get_customer(session: Session, customer_id: int) -> Customer | None:
@@ -149,9 +152,7 @@ def get_customer(session: Session, customer_id: int) -> Customer | None:
 
 
 def find_customer_by_phone(session: Session, phone: str) -> Customer | None:
-    return session.execute(
-        select(Customer).where(Customer.phone == phone)
-    ).scalar_one_or_none()
+    return session.execute(select(Customer).where(Customer.phone == phone)).scalar_one_or_none()
 
 
 def list_customers(
@@ -169,9 +170,8 @@ def list_customers(
 
 # --- Backward-compat re-exports (Tier 4.1, 2026-10-01) ---
 
-def batch_customer_stats(
-    session: Session, customers: list[Customer]
-) -> dict[int, CustomerStats]:
+
+def batch_customer_stats(session: Session, customers: list[Customer]) -> dict[int, CustomerStats]:
     """Compute stats for multiple customers in a single query.
 
     Replaces N calls to customer_stats() — 2 queries per customer → 1 query total.
@@ -191,8 +191,7 @@ def batch_customer_stats(
         .group_by(Sale.customer_id)
     ).all()
     stats_by_cid = {
-        r.customer_id: _raw_stats_to_customer_stats(session, r, customers)
-        for r in rows
+        r.customer_id: _raw_stats_to_customer_stats(session, r, customers) for r in rows
     }
     # Customers with zero sales won't appear in the aggregation — fill them in
     for c in customers:
@@ -238,8 +237,7 @@ def customer_stats(session: Session, customer: Customer) -> CustomerStats:
             func.count(Sale.id).label("n_sales"),
             func.coalesce(func.sum(Sale.qty * Sale.unit_price_gs), 0).label("lifetime_spend_gs"),
             func.max(Sale.sold_at).label("last_sale_at"),
-        )
-        .where(Sale.customer_id == customer.id, Sale.voided_at.is_(None))
+        ).where(Sale.customer_id == customer.id, Sale.voided_at.is_(None))
     ).one()
     lifetime_spend = int(rows.lifetime_spend_gs or 0)
     return CustomerStats(
@@ -255,9 +253,7 @@ def customer_stats(session: Session, customer: Customer) -> CustomerStats:
     )
 
 
-def customer_purchase_history(
-    session: Session, customer_id: int, limit: int = 50
-) -> list[Sale]:
+def customer_purchase_history(session: Session, customer_id: int, limit: int = 50) -> list[Sale]:
     """Return recent sales for one customer, newest first."""
     return list(
         session.execute(
@@ -281,14 +277,13 @@ def decorate_history(session: Session, sales: list) -> list[dict]:
     view: list[dict] = []
     for s in sales:
         prod = s.product
-        view.append({
-            "sale": s,
-            "product_name": (
-                prod.name if prod is not None
-                else f"(eliminado #{s.product_id})"
-            ),
-            "product_exists": prod is not None,
-        })
+        view.append(
+            {
+                "sale": s,
+                "product_name": (prod.name if prod is not None else f"(eliminado #{s.product_id})"),
+                "product_exists": prod is not None,
+            }
+        )
     return view
 
 
@@ -297,7 +292,7 @@ def decorate_history(session: Session, sales: list) -> list[dict]:
 # existing ``from app.rms.customers import award_points`` callers
 # keep working without breakage. New code should import from
 # ``app.rms.loyalty`` directly.
-from app.rms.loyalty import (  # noqa: E402, F401
+from app.rms.loyalty import (
     POINTS_PER_GS,
     TIER_THRESHOLDS,
     LoyaltyTier,
@@ -317,8 +312,8 @@ __all__ = [
     "award_points",
     "batch_customer_stats",
     "customer_purchase_history",
-    "decorate_history",
     "customer_stats",
+    "decorate_history",
     "ensure_customer",
     "find_customer_by_phone",
     "get_customer",

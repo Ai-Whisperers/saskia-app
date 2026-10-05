@@ -24,7 +24,7 @@ def test_inventory_search_endpoint_accepts_q_query_param(client, session_factory
     'Ha' (e.g. Harina). The QA report showed the dropdown list correctly
     contained 'Harina de trigo' but the search bar returned 'Sin resultados'.
 
-    The root cause was the saskia-combo web component concatenating the
+    The root cause was the ui-combo web component concatenating the
     query directly onto the endpoint URL, while the endpoint was registered
     at /inventario/api/search (no path param). The fix detects ?q= vs
     /{q}/ and strips trailing slashes from the endpoint attribute.
@@ -180,7 +180,7 @@ def test_sale_accepts_integer_qty(client, session_factory):
 def test_ventas_inline_customer_picker_no_modal(client):
     """SALES-UX-001: the ventas form must NOT contain the legacy
     `<dialog id=customer_picker_modal>` markup. It must contain the
-    inline `<saskia-combo name=customer_id_combo>` element instead.
+    inline `<ui-combo name=customer_id_combo>` element instead.
     """
     resp = client.get("/ventas")
     assert resp.status_code == 200
@@ -190,7 +190,7 @@ def test_ventas_inline_customer_picker_no_modal(client):
         "from /ventas (was hiding the sales form behind a screen-dimming overlay)."
     )
     assert "customer_id_combo" in body, (
-        "SALES-UX-001 regression: inline saskia-combo picker must be present."
+        "SALES-UX-001 regression: inline ui-combo picker must be present."
     )
     assert "inline-new-client" in body, (
         "SALES-UX-001 regression: inline anchor target for the legacy "

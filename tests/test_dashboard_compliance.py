@@ -1,7 +1,8 @@
 """tests/test_dashboard_compliance.py — Phase 1.A compliance alerts on dashboard."""
+
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from app.rms.config import ASUNCION_TZ
 from app.rms.models import ComplianceInfo, Product
@@ -10,12 +11,14 @@ from app.rms.models import ComplianceInfo, Product
 def _asuncion_today() -> date:
     """Route under test computes vs Asuncion date (not host UTC date).
 
-    Seeding with date.today() diverges near midnight UTC and flakes the
+    Seeding with datetime.utcnow().date() diverges near midnight UTC and flakes the
     day count by one.
     """
     from datetime import datetime
 
     return datetime.now(ASUNCION_TZ).date()
+
+
 from app.routers.dashboard import _compliance_alerts
 
 
@@ -73,7 +76,7 @@ class TestInanREExpiry:
         with Session() as s:
             ci = s.get(ComplianceInfo, 1)
             ci.inan_re_number = "8000/2024"
-            ci.inan_re_expiry = (date.today() + timedelta(days=60)).isoformat()
+            ci.inan_re_expiry = (datetime.utcnow().date() + timedelta(days=60)).isoformat()
             s.commit()
             alerts = _compliance_alerts(s)
         inan_alerts = [a for a in alerts if "INAN R.E." in a["message"]]
@@ -87,7 +90,7 @@ class TestTimbradoExpiry:
             ci = s.get(ComplianceInfo, 1)
             ci.tax_regime = "resimple"
             ci.timbrado_number = "12345678"
-            ci.timbrado_expiry = (date.today() - timedelta(days=5)).isoformat()
+            ci.timbrado_expiry = (datetime.utcnow().date() - timedelta(days=5)).isoformat()
             s.commit()
             alerts = _compliance_alerts(s)
         timbrado_alerts = [a for a in alerts if "Timbrado" in a["message"]]
@@ -101,7 +104,9 @@ class TestMunicipalExpiry:
         with Session() as s:
             ci = s.get(ComplianceInfo, 1)
             ci.municipal_habilitacion = "HAB-2024-001234"
-            ci.municipal_habilitacion_expiry = (date.today() + timedelta(days=7)).isoformat()
+            ci.municipal_habilitacion_expiry = (
+                datetime.utcnow().date() + timedelta(days=7)
+            ).isoformat()
             s.commit()
             alerts = _compliance_alerts(s)
         hab_alerts = [a for a in alerts if "Habilitación" in a["message"]]
@@ -125,11 +130,14 @@ class TestRSPAPerProduct:
                 portion_label="500g",
                 requires_rspa=True,
                 rspa_number="12345/2024",
-                rspa_expiry=(date.today() - timedelta(days=10)).isoformat(),
+                rspa_expiry=(datetime.utcnow().date() - timedelta(days=10)).isoformat(),
             )
-            s.add(p); s.commit()
+            s.add(p)
+            s.commit()
             alerts = _compliance_alerts(s)
-        rspa_alerts = [a for a in alerts if "R.S.P.A." in a["message"] and "Pan lactal" in a["message"]]
+        rspa_alerts = [
+            a for a in alerts if "R.S.P.A." in a["message"] and "Pan lactal" in a["message"]
+        ]
         assert len(rspa_alerts) == 1
         assert rspa_alerts[0]["severity"] == "danger"
 
@@ -146,9 +154,10 @@ class TestRSPAPerProduct:
                 portion_label="250g",
                 requires_rspa=True,
                 rspa_number="99999/2024",
-                rspa_expiry=(date.today() + timedelta(days=20)).isoformat(),
+                rspa_expiry=(datetime.utcnow().date() + timedelta(days=20)).isoformat(),
             )
-            s.add(p); s.commit()
+            s.add(p)
+            s.commit()
             alerts = _compliance_alerts(s)
         rspa_alerts = [a for a in alerts if "R.S.P.A." in a["message"]]
         assert len(rspa_alerts) == 1
@@ -167,9 +176,10 @@ class TestRSPAPerProduct:
                 sale_price_gs=5000,
                 portion_label="1 und",
                 requires_rspa=False,
-                rspa_expiry=(date.today() - timedelta(days=100)).isoformat(),
+                rspa_expiry=(datetime.utcnow().date() - timedelta(days=100)).isoformat(),
             )
-            s.add(p); s.commit()
+            s.add(p)
+            s.commit()
             alerts = _compliance_alerts(s)
         rspa_alerts = [a for a in alerts if "R.S.P.A." in a["message"]]
         assert len(rspa_alerts) == 0

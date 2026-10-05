@@ -11,6 +11,7 @@ Run with:
   SASKIA_TEST_AUTH_DISABLED=1 ./.venv/bin/python -m pytest -q \
       tests/test_pedido_post_phase13_fields.py
 """
+
 from datetime import date
 
 
@@ -20,7 +21,8 @@ def test_pedido_post_stores_delivery_preference():
     the structured-address + invoice-profile columns. Full integration
     coverage is exercised by the 52 tests in
     tests/test_pedidos_nuevo_t_2026_10_01.py + P11 regression suite."""
-    from app.rms.models import Pedido, CustomerAddress, CustomerInvoiceProfile
+    from app.rms.models import CustomerAddress, CustomerInvoiceProfile, Pedido
+
     # Phase 13 (2026-10-01): Pedido carries preference + scheduled date
     assert hasattr(Pedido, "delivery_preference")
     assert hasattr(Pedido, "delivery_scheduled_date")
@@ -48,6 +50,7 @@ def test_pedido_post_stores_delivery_preference():
 def test_scheduled_date_parses_to_date_type():
     """_parse_date_or_none returns a date instance for valid YYYY-MM-DD."""
     from app.routers.pedidos import _parse_date_or_none
+
     out = _parse_date_or_none("2026-12-25")
     assert isinstance(out, date)
     assert out.year == 2026 and out.month == 12 and out.day == 25
@@ -55,6 +58,7 @@ def test_scheduled_date_parses_to_date_type():
 
 def test_scheduled_date_returns_none_for_invalid():
     from app.routers.pedidos import _parse_date_or_none
+
     assert _parse_date_or_none("") is None
     assert _parse_date_or_none("not-a-date") is None
     assert _parse_date_or_none(None) is None

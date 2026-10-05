@@ -7,6 +7,7 @@ Tests:
 - No Python errors
 """
 
+
 def test_pedidos_renders(client):
     """P-10: Pedidos page renders."""
     r = client.get("/pedidos")
@@ -96,11 +97,7 @@ def test_pedidos_has_date_filter(client):
     r = client.get("/pedidos")
     assert r.status_code == 200
     body = r.text
-    has_date = (
-        'type="date"' in body
-        or "fecha" in body.lower()
-        or "date" in body.lower()
-    )
+    has_date = 'type="date"' in body or "fecha" in body.lower() or "date" in body.lower()
     assert has_date, "Date filter not found"
 
 
@@ -109,7 +106,4 @@ def test_pedidos_has_customer_column(client):
     r = client.get("/pedidos")
     assert r.status_code == 200
     body = r.text
-    assert (
-        "cliente" in body.lower()
-        or "customer" in body.lower()
-    ), "Customer column not found"
+    assert "cliente" in body.lower() or "customer" in body.lower(), "Customer column not found"

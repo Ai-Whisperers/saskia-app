@@ -12,7 +12,7 @@ Wires up:
 - Lifespan: init DB on startup, run backup scheduler
 
 Hosted vs local:
-- Local: BIND_HOST=127.0.0.1, SQLite via AIW_SASKIA_DB_PATH
+- Local: BIND_HOST=127.0.0.1, SQLite via AIW_RMS_DB_PATH
 - Hosted (Render/Fly): BIND_HOST=0.0.0.0, Postgres via DATABASE_URL,
   TLS terminated upstream by Cloudflare Tunnel
 
@@ -81,8 +81,8 @@ from app.routers import (
     produccion,
     products,
     recipes,
-    reorder,
     refund,  # app/routers/refunds.py → router name "refund"
+    reorder,
     reportes,
     sales,
     search,
@@ -106,7 +106,7 @@ def _configure_logging() -> None:
     A rotating file sink is ALWAYS added (BACKLOG #45) so that:
       - On Render / Fly, the platform keeps ~7 days of structured JSON
         before rotating out.
-      - On local dev, the file is ~/.local/share/AIW-Saskia/logs/app.log
+      - On local dev, the file is ~/.local/share/aiw-restaurant/logs/app.log
         (rotated after 50MB, keep 7 files = ~350MB max disk usage).
 
     Called once at module import. Idempotent on subsequent calls
@@ -141,6 +141,7 @@ def _configure_logging() -> None:
     if log_file is None:
         # Default location: <data_dir>/logs/app.log (created lazily).
         from app.rms.config import DATA_DIR  # local import to avoid cycle
+
         log_dir = DATA_DIR / "logs"
         log_file = str(log_dir / "app.log")
     if log_file:
@@ -158,11 +159,8 @@ def _configure_logging() -> None:
                 diagnose=False,  # never leak env vars to disk
                 format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <7} | {extra[request_id]} | {extra[user_id]} | {name}:{function}:{line} | {message}",
             )
-        except Exception as exc:
-            # Never break startup over a logging config failure.
-            sys.stderr.write(
-                f"WARN: could not initialise log file sink at {log_file!r}: {exc!r}\n"
-            )
+        except Exception as exc:  # noqa: BLE001 — defensive default: never break startup over a logging config failure.
+            sys.stderr.write(f"WARN: could not initialise log file sink at {log_file!r}: {exc!r}\n")
 
 
 _configure_logging()
@@ -172,10 +170,7 @@ _configure_logging()
 # the whole app served without login). Fail loudly at boot if it's ever set
 # OUTSIDE a pytest run (the test suite itself needs the bypass via conftest).
 _UNDER_PYTEST = "pytest" in sys.modules
-if (
-    os.getenv("SASKIA_TEST_AUTH_DISABLED") not in (None, "", "0")
-    and not _UNDER_PYTEST
-):
+if os.getenv("SASKIA_TEST_AUTH_DISABLED") not in (None, "", "0") and not _UNDER_PYTEST:
     raise RuntimeError(
         "SASKIA_TEST_AUTH_DISABLED está activo: este bypass es solo para tests. "
         "Producción nunca debe arrancar con esta variable definida."
@@ -221,7 +216,7 @@ async def lifespan(app: FastAPI):
                 dsn=sentry_dsn,
                 integrations=[FastApiIntegration(), SqlalchemyIntegration()],
                 traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
-                # Don't capture PII by default. Saskia's data is sensitive.
+                # Don't capture PII by default. the operator's data is sensitive.
                 send_default_pii=False,
                 environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
                 release=app.version,
@@ -240,14 +235,14 @@ async def lifespan(app: FastAPI):
     # Migration bootstrap. Always-run by default — migrations are idempotent
     # (each adds columns / INSERT/UPDATEs that no-op when not needed).
     #
-    # Set AIW_SASKIA_RUN_MIGRATIONS=0 only if you specifically need to
+    # Set AIW_RMS_RUN_MIGRATIONS=0 only if you specifically need to
     # pause migration application (e.g. during a maintenance window).
     #
     # History: previously this was gated behind a "1" flag, which left
     # the production DB out of sync with the code (the 2026-09-08 outage
     # where sale.payment_method didn't exist on Neon). Auto-running is
     # safer than opt-in.
-    if os.getenv("AIW_SASKIA_RUN_MIGRATIONS", "1") != "0":
+    if os.getenv("AIW_RMS_RUN_MIGRATIONS", "1") != "0":
         try:
             from app.rms.db import init_db, schema_version
 
@@ -328,7 +323,7 @@ async def lifespan(app: FastAPI):
         logger.exception("haccp seed failed (non-fatal)")
 
     # market-intel 2026-09-30 — evidencia de competencia retail
-    # (86 observaciones del research repo saskia-market-intel).
+    # (86 observaciones del research repo sazon-market-intel).
     # Idempotente + no-fatal: si el seed falla, /vs-mercado/evidencia
     # queda vacía pero la app arranca igual.
     try:
@@ -401,7 +396,7 @@ async def lifespan(app: FastAPI):
 
 # Build the app
 app = FastAPI(
-    title="Saskia RMS — Sistema de gestión",
+    title="Sazón — Sistema de gestión",
     description="Restaurant management system. Hosted (Neon Postgres + Cloudflare) or local.",
     version="2026.09.0",
     lifespan=lifespan,
@@ -607,7 +602,7 @@ class _NoVaryCookieSessionMiddleware(SessionMiddleware):
 app.add_middleware(
     _NoVaryCookieSessionMiddleware,
     secret_key=SESSION_SECRET,
-    session_cookie="saskia_rms_session",
+    session_cookie="sazon_session",
     max_age=60 * 60 * 24 * 7,  # 7 days
     same_site="lax",
     https_only=os.getenv("HTTPS_ONLY", "true").lower() == "true",
@@ -618,12 +613,12 @@ _static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
 if os.path.isdir(_static_dir):
     # ── combo component alias — must be registered BEFORE app.mount("/static")
     # so the explicit route wins over the StaticFiles catch-all. The combo
-    # Web Component lives at saskia-combo.js; /static/combo.js is kept as a
+    # Web Component lives at ui-combo.js; /static/combo.js is kept as a
     # legacy alias so existing templates + tests still resolve.
     @app.get("/static/combo.js", include_in_schema=False)
     def _combo_js_alias() -> FileResponse:
         return FileResponse(
-            os.path.join(_static_dir, "saskia-combo.js"),
+            os.path.join(_static_dir, "ui-combo.js"),
             media_type="application/javascript",
         )
 
@@ -731,7 +726,7 @@ app.include_router(herebus.planner_router)
 app.include_router(herebus.delivery_router)
 app.include_router(shopping.router)
 # NAV-02: Auditoría and Ops are internal-only. The product surface does
-# not include them (Saskia does not run audits). In production they
+# not include them (the operator does not run audits). In production they
 # 404; in tests / dev they are still mounted so the test suite can
 # exercise them.
 #
@@ -751,7 +746,7 @@ app.include_router(settings_runtime.router)
 # Phase 14 — Prometheus /metrics endpoint. Stdlib-only, no auth (the
 # endpoint reveals paths + status codes but no PII. If you want it
 # locked down, put it behind the same CF Tunnel that already protects
-# the rest of /saskia-vps).
+# the rest of /sazon-vps).
 @app.get("/metrics", include_in_schema=False)
 def metrics_endpoint() -> Response:
     from fastapi.responses import PlainTextResponse
@@ -785,7 +780,7 @@ app.include_router(pedidos.public_router)
 # stays short enough for a 1280×720 walk-in tablet to type / display.
 app.include_router(products.public_router)
 # BACKLOG #17 — public digital recibo at /r/{token}. Mounted at root so
-# the URL is short enough for WhatsApp messages (saskia-vps.paragu-ai.com/r/{token}).
+# the URL is short enough for WhatsApp messages (sazon-vps.paragu-ai.com/r/{token}).
 app.include_router(sales.public_router)
 app.include_router(pedidos.router)
 
@@ -1108,8 +1103,8 @@ def migrate() -> None:
     """Schema migration entry point. Idempotent.
 
     Usage:
-        uv run aiw-saskia migrate            # uses DATABASE_URL or AIW_SASKIA_DB_PATH
-        DATABASE_URL=postgres://... uv run aiw-saskia migrate
+        uv run sazon migrate            # uses DATABASE_URL or AIW_RMS_DB_PATH
+        DATABASE_URL=postgres://... uv run sazon migrate
     """
     import sys
 
@@ -1120,12 +1115,12 @@ def migrate() -> None:
 
     raw = os.environ.get("DATABASE_URL")
     if not raw:
-        local_db = os.environ.get("AIW_SASKIA_DB_PATH")
+        local_db = os.environ.get("AIW_RMS_DB_PATH")
         if local_db:
             raw = f"sqlite:///{local_db}"
         else:
             print(
-                "ERROR: DATABASE_URL (or AIW_SASKIA_DB_PATH) not set. "
+                "ERROR: DATABASE_URL (or AIW_RMS_DB_PATH) not set. "
                 "Cannot determine which DB to migrate.",
                 file=sys.stderr,
             )
@@ -1169,11 +1164,11 @@ def _serve() -> None:
 
 
 def run() -> None:
-    """Programmatic entry point (used by `uv run aiw-saskia` script entry).
+    """Programmatic entry point (used by `uv run sazon` script entry).
 
     Dispatches based on sys.argv:
-      - `aiw-saskia migrate`   -> apply schema migrations (idempotent)
-      - `aiw-saskia serve`     -> start uvicorn (default; backward compatible)
+      - `sazon migrate`   -> apply schema migrations (idempotent)
+      - `sazon serve`     -> start uvicorn (default; backward compatible)
       - (no argv)              -> start uvicorn (backward compatible)
 
     Reads BIND_HOST, PORT from config (which reads env vars). Asserts
@@ -1188,6 +1183,9 @@ def run() -> None:
     if argv and argv[0] in ("seed", "demo"):
         _seed()
         return
+    if argv and argv[0] == "seed-sazon":
+        _seed()
+        return
     if argv and argv[0] in ("serve", "run", "start"):
         _serve()
         return
@@ -1199,25 +1197,27 @@ def _seed() -> None:
     """Insert realistic demo data. Idempotent; --reset wipes seeded rows first.
 
     Usage:
-        uv run aiw-saskia seed                  # additive (skip existing)
-        uv run aiw-saskia seed --reset          # destructive: wipe + reseed
+        uv run sazon seed                  # additive (skip existing) — basic demo
+        uv run sazon seed --reset          # destructive: wipe + reseed basic demo
+        uv run sazon seed-sazon            # full multi-tenant seed (La Vaquita Holandesa)
+        uv run sazon seed-sazon --reset    # destructive: wipe + reseed full sazon
     """
     import sys
 
     from app.rms.db import make_session_factory
     from app.rms.db_dialect import make_engine
-    from app.rms.seed import SeedReport, seed_demo_data
 
+    is_sazon = "seed-sazon" in sys.argv
     overwrite = "--reset" in sys.argv
 
     raw = os.environ.get("DATABASE_URL")
     if not raw:
-        local_db = os.environ.get("AIW_SASKIA_DB_PATH")
+        local_db = os.environ.get("AIW_RMS_DB_PATH")
         if local_db:
             raw = f"sqlite:///{local_db}"
         else:
             print(
-                "ERROR: DATABASE_URL (or AIW_SASKIA_DB_PATH) not set. "
+                "ERROR: DATABASE_URL (or AIW_RMS_DB_PATH) not set. "
                 "Cannot determine which DB to seed.",
                 file=sys.stderr,
             )
@@ -1227,7 +1227,14 @@ def _seed() -> None:
     SessionLocal = make_session_factory(engine)
     session = SessionLocal()
     try:
-        report: SeedReport = seed_demo_data(session, overwrite=overwrite)
+        if is_sazon:
+            from app.rms.seed import SazonReport, seed_sazon
+
+            report: SazonReport = seed_sazon(session, overwrite=overwrite)
+        else:
+            from app.rms.seed import SeedReport, seed_demo_data
+
+            report: SeedReport = seed_demo_data(session, overwrite=overwrite)
         print(f"seed complete: {report.as_dict()}")
     finally:
         session.close()

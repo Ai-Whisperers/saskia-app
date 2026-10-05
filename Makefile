@@ -1,4 +1,4 @@
-# Saskia RMS — Makefile
+# Sazón RMS — Makefile
 # Shortcuts for common dev tasks. Run `make help` to see all targets.
 
 .PHONY: help install test test-verbose test-coverage test-fast lint lint-fix format check serve migrate seed seed-reset backup fixtures clean ci-smoke pre-commit stats smoke check-warnings check-secrets ci
@@ -14,11 +14,11 @@ install: ## Install all dependencies via uv.
 	$(UV) sync --all-extras
 
 test: ## Run the full test suite.
-	unset DATABASE_URL AIW_SASKIA_DB_PATH; \
+	unset DATABASE_URL AIW_RMS_DB_PATH; \
 	uv run pytest -q --no-header
 
 test-fast: ## Run tests without coverage (faster).
-	unset DATABASE_URL AIW_SASKIA_DB_PATH; \
+	unset DATABASE_URL AIW_RMS_DB_PATH; \
 	$(UV) run pytest -q --no-header --no-cov
 
 lint: ## Run ruff linter.
@@ -97,15 +97,15 @@ test-browser: ## Real-browser (Playwright/Chromium) front-end tests.
 	$(UV) run pytest tests/browser -m browser -q
 
 test-e2e: ## Run the E2E scenario suite only (tests/e2e/).
-	unset DATABASE_URL AIW_SASKIA_DB_PATH; \
+	unset DATABASE_URL AIW_RMS_DB_PATH; \
 	$(UV) run pytest tests/e2e/ -q --no-header --no-cov
 
 test-migration: ## Weekly: full migration replay sweep (all versions).
-	unset DATABASE_URL AIW_SASKIA_DB_PATH; \
+	unset DATABASE_URL AIW_RMS_DB_PATH; \
 	$(UV) run pytest tests/e2e/test_migration_archaeology.py -q --no-header --no-cov
 
 test-xdist: ## Parallel fast loop (-n 4 green since 2026-09-25).
-	unset DATABASE_URL AIW_SASKIA_DB_PATH; \
+	unset DATABASE_URL AIW_RMS_DB_PATH; \
 	$(UV) run pytest tests/ -q --no-header --no-cov -n 4 \
 	  --deselect tests/test_xlsx_fixtures.py --deselect tests/test_shopping_benchmarks.py
 

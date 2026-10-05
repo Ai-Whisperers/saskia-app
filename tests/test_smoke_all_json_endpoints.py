@@ -3,6 +3,7 @@
 Per SASKIA_TEST_PLAN.md §5 #7 — one test per JSON endpoint. Every endpoint
 must return valid JSON with the expected shape.
 """
+
 from __future__ import annotations
 
 import json
@@ -24,9 +25,7 @@ JSON_ROUTES = [
 def test_json_endpoint_returns_valid_json(client, route, expected_type):
     """Every JSON endpoint must return valid JSON of the expected type."""
     r = client.get(route)
-    assert r.status_code < 500, (
-        f"GET {route} returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"GET {route} returned {r.status_code}: {r.text[:200]}"
     if r.status_code == 200:
         try:
             data = r.json()
@@ -86,17 +85,21 @@ def test_healthz_deps_returns_fingerprints_not_secrets(client):
     # If any SUPABASE_* field exists, it must be fingerprint format (len + sha)
     for key, val in data.items():
         if key.startswith("SUPABASE_") and val is not None:
-            assert val.startswith("len="), (
-                f"{key} value is not fingerprinted: {val}"
-            )
+            assert val.startswith("len="), f"{key} value is not fingerprinted: {val}"
             assert "sha=" in val, f"{key} missing sha: {val}"
 
 
 def test_api_search_returns_list(client, session_factory):
     """/api/search must return a JSON list (or list-wrapped)."""
     from app.rms.models import Product
+
     with session_factory() as s:
-        p = Product(name="JSON Search Test Pan", portion_label="1 und", sale_price_gs=5000, is_available=True)
+        p = Product(
+            name="JSON Search Test Pan",
+            portion_label="1 und",
+            sale_price_gs=5000,
+            is_available=True,
+        )
         s.add(p)
         s.commit()
 

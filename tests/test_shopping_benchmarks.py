@@ -34,12 +34,6 @@ def client():
     return TestClient(app)
 
 
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-
 def test_benchmarks_import_present(dump):
     """Verify 17 benchmarks were imported from HEREBUS_Analisis."""
     bench = [s for s in dump if s.get("_file") == "HEREBUS_Analisis.xlsx"]
@@ -58,13 +52,15 @@ def test_benchmark_form_save_updates_row(dump):
 
 def test_shopping_list_route_in_app():
     """The /shopping-list route is registered."""
-    pytest.xfail("Route registration check is brittle in the test fixture; routes are confirmed via TestClient.")
+    pytest.xfail(
+        "Route registration check is brittle in the test fixture; routes are confirmed via TestClient."
+    )
     paths = {r.path for r in app.routes if hasattr(r, "path")}
     assert "/shopping-list" in paths
 
 
 @pytest.mark.xfail(reason="/benchmark/{id}/edit route not implemented", strict=False)
-@pytest.mark.xfail(reason='route /benchmarks/{id}/edit not implemented', strict=False)
+@pytest.mark.xfail(reason="route /benchmarks/{id}/edit not implemented", strict=False)
 def test_benchmark_edit_route_in_app():
     """The /benchmarks/{id}/edit route is registered."""
     paths = {r.path for r in app.routes if hasattr(r, "path")}
@@ -72,7 +68,7 @@ def test_benchmark_edit_route_in_app():
     assert has
 
 
-@pytest.mark.xfail(reason='route /benchmarks/{id}/save not implemented', strict=False)
+@pytest.mark.xfail(reason="route /benchmarks/{id}/save not implemented", strict=False)
 def test_benchmark_save_route_in_app():
     """The /benchmarks/{id}/save route is registered."""
     paths = {r.path for r in app.routes if hasattr(r, "path")}
@@ -84,10 +80,11 @@ def test_benchmark_save_route_in_app():
 def test_planner_to_shopping_pipeline_syntax():
     """Verify the planner template uses combo (no native select)."""
     from pathlib import Path
-    p = Path("/opt/data/work/saskia-app/app/templates/planner.html")
+
+    p = Path("/opt/data/work/sazon-app/app/templates/planner.html")
     content = p.read_text()
-    # Should have saskia-combo (recipe picker)
-    assert "saskia-combo" in content
+    # Should have ui-combo (recipe picker)
+    assert "ui-combo" in content
     # Should NOT have plain <select for recipe_id
     assert '<select name="recipe_id"' not in content
 
@@ -95,7 +92,8 @@ def test_planner_to_shopping_pipeline_syntax():
 def test_shopping_list_template_no_native_select():
     """Bank manual-entry uses combos not selects."""
     from pathlib import Path
-    p = Path("/opt/data/work/saskia-app/app/templates/bank.html")
+
+    p = Path("/opt/data/work/sazon-app/app/templates/bank.html")
     content = p.read_text()
     # After Phase D fix, the only <select> is gone (currency/category now combos)
     assert '<select id="currency"' not in content
@@ -107,15 +105,12 @@ def test_benchmarks_import_count(dump):
     sheets = [s for s in dump if s.get("_file") == "HEREBUS_Analisis.xlsx"]
     sheet = sheets[0].get("Benchmarks_Market", [])
     # The first 5 rows are title/instructions/headers; next 17 are data
-    bench_rows = [
-        row for row in sheet[6:]
-        if len(row) > 1 and row[1] and "—" not in str(row[1])
-    ]
+    bench_rows = [row for row in sheet[6:] if len(row) > 1 and row[1] and "—" not in str(row[1])]
     # Expect at least 17 entries
     assert len(bench_rows) >= 15
 
 
-@pytest.mark.xfail(reason='route /recetas/{id}/set-photo not implemented', strict=False)
+@pytest.mark.xfail(reason="route /recetas/{id}/set-photo not implemented", strict=False)
 def test_recipe_photo_picker_route_in_app():
     """The /recetas/{id}/set-photo route is registered."""
     paths = {r.path for r in app.routes if hasattr(r, "path")}
@@ -126,22 +121,23 @@ def test_recipe_photo_picker_route_in_app():
 def test_recipe_photos_template_exists():
     """The recipe_photos.html template is rendered."""
     from pathlib import Path
-    p = Path("/opt/data/work/saskia-app/app/templates/recipe_photos.html")
+
+    p = Path("/opt/data/work/sazon-app/app/templates/recipe_photos.html")
     assert p.exists()
     content = p.read_text()
     assert "{% for p in photos %}" in content
     # Should not contain any native <select> for photo picker
-    assert '<select' not in content
+    assert "<select" not in content
 
 
-@pytest.mark.xfail(reason='route /delivery-zones/api not implemented', strict=False)
+@pytest.mark.xfail(reason="route /delivery-zones/api not implemented", strict=False)
 def test_delivery_zones_api_route_in_app():
     """The /delivery-zones/api route is registered."""
     paths = {r.path for r in app.routes if hasattr(r, "path")}
     assert "/delivery-zones/api" in paths
 
 
-@pytest.mark.xfail(reason='route /shopping-list/save-plan not implemented', strict=False)
+@pytest.mark.xfail(reason="route /shopping-list/save-plan not implemented", strict=False)
 def test_shopping_list_save_plan_route():
     """Plan-to-shopping-list conversion route exists."""
     paths = {r.path for r in app.routes if hasattr(r, "path")}
@@ -149,21 +145,21 @@ def test_shopping_list_save_plan_route():
     assert has
 
 
-@pytest.mark.xfail(reason='route /shopping-list/sync-low-stock not implemented', strict=False)
+@pytest.mark.xfail(reason="route /shopping-list/sync-low-stock not implemented", strict=False)
 def test_sync_low_stock_route_in_app():
     """The /shopping-list/sync-low-stock route exists."""
     paths = {r.path for r in app.routes if hasattr(r, "path")}
     assert "/shopping-list/sync-low-stock" in paths
 
 
-@pytest.mark.xfail(reason='route /bank/add not implemented', strict=False)
+@pytest.mark.xfail(reason="route /bank/add not implemented", strict=False)
 def test_bank_add_route_in_app():
     """The /bank/add route exists."""
     paths = {r.path for r in app.routes if hasattr(r, "path")}
     assert "/bank/add" in paths
 
 
-@pytest.mark.xfail(reason='route /bank/categorize not implemented', strict=False)
+@pytest.mark.xfail(reason="route /bank/categorize not implemented", strict=False)
 def test_bank_categorize_route_in_app():
     """The /bank/{id}/categorize route exists."""
     paths = {r.path for r in app.routes if hasattr(r, "path")}
@@ -171,14 +167,15 @@ def test_bank_categorize_route_in_app():
     assert has
 
 
-@pytest.mark.xfail(reason='route /dashboard not implemented', strict=False)
+@pytest.mark.xfail(reason="route /dashboard not implemented", strict=False)
 def test_dashboard_kpis_present():
     """The dashboard route loads without error and has operational KPIs."""
     paths = {r.path for r in app.routes if hasattr(r, "path")}
     assert "/dashboard" in paths
     # The new operational KPIs are present in dashboard.html
     from pathlib import Path
-    p = Path("/opt/data/work/saskia-app/app/templates/dashboard.html")
+
+    p = Path("/opt/data/work/sazon-app/app/templates/dashboard.html")
     content = p.read_text()
     assert "sl_open_count" in content
     assert "wishlist_count" in content

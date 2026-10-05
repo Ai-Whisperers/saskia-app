@@ -1,19 +1,4 @@
-<!-- ROADMAP-REDIRECT -->
-# ⚠️ Moved / Superseded
-
-**This file has been moved or superseded.** The canonical location is:
-
-> **`docs/roadmap/BACKLOG.md`**
-
-The IMPROVEMENT_BACKLOG is one of two source files; the other is `docs/decisions/2026-09-29-canonical-roadmap-alignment.md`. Both are merged into the canonical `docs/roadmap/BACKLOG.md`.
-
-See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
-
----
-
-<!-- ORIGINAL CONTENT BELOW -->
-
-# Saskia RMS — Improvement Backlog (Operator-curated)
+# Sazón — Improvement Backlog (Operator-curated)
 
 **Last updated:** 2026-10-01
 **Source:** Iván's prioritized list from backend audit + product review
@@ -40,7 +25,7 @@ the code, and operator-ranked. Status is the latest known state.
 | 8 | `pedidos_fulfill` idempotency (double-click → double sale + double stock drop) | ✅ Done 5ce2885 | — |
 | 9 | No idempotency on `/eod/check` (double-click submits two checklists) | ✅ Done 2026-09-29 (F3 race + AppMeta unique-key reserve in `app/routers/eod.py`) | — |
 | 10 | Rate-limit on reads (`/ventas/export.csv` can be scraped 1000×/min, cheap DoS) | ✅ SHIPPED (2026-10-01, cea8111 — read_rate_limit_dependency on /api/search 60/min and /reportes/* 30/min) | S |
-| 11 | Sentry / error tracking (when /ventas 500s, neither Ivan nor Saskia sees the trace) | ✅ SHIPPED (2026-10-01, tests added in test_sentry_init.py — code in main.py:206-229, 917-928 was already there from a prior turn) | S |
+| 11 | Sentry / error tracking (when /ventas 500s, neither Ivan nor the operator sees the trace) | ✅ SHIPPED (2026-10-01, tests added in test_sentry_init.py — code in main.py:206-229, 917-928 was already there from a prior turn) | S |
 | 12 | Forward-only migrations — no rollback path (manual write required if 027 breaks) | ❌ TODO | L |
 
 ## Tier 3: P1 — Quality / refactoring
@@ -123,7 +108,7 @@ the code, and operator-ranked. Status is the latest known state.
 - A9 (grep for `request._\w+`): **only `product_bulk_edit` remained** after
   the Tier 3 catch. Clean now. Worth re-running this grep periodically
   (e.g. on each Phase sprint).
-- The deny-pattern for commit messages catches `saskia...delete` together
+- The deny-pattern for commit messages catches `sazon...delete` together
   in a single line. Use file-based commit pattern (`commit --file=...txt`)
-  for any commit whose body needs `delete` near `saskia`. Not a regression,
+  for any commit whose body needs `delete` near `sazon`. Not a regression,
   but a usability wart worth filing upstream.

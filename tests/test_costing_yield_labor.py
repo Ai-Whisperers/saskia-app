@@ -24,8 +24,11 @@ def _setup_recipe(session, *, yield_pct=None, labor_min=None, price=1000, qty=10
     session.add(ing)
     session.flush()
     r = Recipe(
-        name=f"Pan costo {n}", yield_qty=yield_qty, yield_unit="und",
-        yield_percentage=yield_pct, direct_labor_minutes=labor_min,
+        name=f"Pan costo {n}",
+        yield_qty=yield_qty,
+        yield_unit="und",
+        yield_percentage=yield_pct,
+        direct_labor_minutes=labor_min,
     )
     session.add(r)
     session.flush()
@@ -48,6 +51,7 @@ def test_null_yield_backward_compatible(session_factory):
         # Old formula: batch / yield_qty. New with defaults must equal it
         # (yield 1.0, labor 0).
         from app.rms.costing import recipe_batch_cost_gs
+
         batch = recipe_batch_cost_gs(s, r.id).batch_cost_gs
         assert base == _old_formula(batch, 10)
 
@@ -56,6 +60,7 @@ def _old_formula(batch, yield_qty):
     from decimal import Decimal
 
     from app.rms.money import to_int_gs
+
     return to_int_gs(Decimal(str(batch)) / Decimal(str(yield_qty)))
 
 

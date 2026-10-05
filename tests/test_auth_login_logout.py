@@ -8,6 +8,7 @@ Per SASKIA_TEST_PLAN.md §5 #10:
 - POST /logout clears cookie
 - POST /forgot-password returns ok JSON
 """
+
 from __future__ import annotations
 
 import pytest
@@ -62,9 +63,7 @@ def test_post_login_empty_password_rejected(client):
 def test_get_logout_returns_303(client):
     """GET /logout must return 303 redirect (or 200/401)."""
     r = client.get("/logout", follow_redirects=False)
-    assert r.status_code in (200, 303, 401), (
-        f"GET /logout returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code in (200, 303, 401), f"GET /logout returned {r.status_code}: {r.text[:200]}"
 
 
 def test_post_logout_returns_303(client):
@@ -80,8 +79,8 @@ def test_post_logout_clears_session_cookie(client):
     r = client.post("/logout", follow_redirects=False)
     # Check Set-Cookie header (may or may not be present)
     set_cookie = r.headers.get("set-cookie", "")
-    # Should contain saskia_rms_session with max-age=0 or expires= epoch
-    if "saskia_rms_session" in set_cookie.lower():
+    # Should contain sazon_session with max-age=0 or expires= epoch
+    if "sazon_session" in set_cookie.lower():
         assert "max-age=0" in set_cookie.lower() or "expires=" in set_cookie.lower(), (
             f"Session cookie not cleared on logout: {set_cookie}"
         )
@@ -110,6 +109,4 @@ def test_login_endpoint_does_not_leak_password_in_error(client):
         follow_redirects=False,
     )
     body = r.text
-    assert "supersecret123" not in body, (
-        f"Password leaked in login error response: {body[:500]}"
-    )
+    assert "supersecret123" not in body, f"Password leaked in login error response: {body[:500]}"

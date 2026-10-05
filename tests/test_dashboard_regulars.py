@@ -5,6 +5,7 @@ Prelaunch roadmap 2026-09-17 item: "Coffee regulars" card on dashboard.
 Definition: customers with 2+ non-voided sales in the last 30 days.
 Top 5 by visit count shown; total count surfaced via "Ver los N habituales".
 """
+
 # allow-hardcoded-dates: relative offsets only (timedelta from now).
 from __future__ import annotations
 
@@ -14,8 +15,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from datetime import datetime, timedelta, timezone
-
-import pytest
 
 from app.rms.models import Customer, Sale
 
@@ -28,17 +27,23 @@ def _make_customer(s, name, phone=None):
 
 
 def _make_sale(s, customer_id, product_id, qty=1.0, price=10000, when=None):
-    s.add(Sale(
-        customer_id=customer_id, product_id=product_id, qty=qty,
-        unit_price_gs=price, sold_at=when or datetime.now(timezone.utc),
-        voided_at=None,
-    ))
+    s.add(
+        Sale(
+            customer_id=customer_id,
+            product_id=product_id,
+            qty=qty,
+            unit_price_gs=price,
+            sold_at=when or datetime.now(timezone.utc),
+            voided_at=None,
+        )
+    )
     s.flush()
 
 
 def test_regulars_card_hidden_when_no_regulars(client, session_factory, qseed):
     """No customers with 2+ sales → empty state copy."""
     from tests.factories import make_sellable
+
     with session_factory() as s:
         product = make_sellable(s)
         # one customer with 1 sale only
@@ -54,6 +59,7 @@ def test_regulars_card_hidden_when_no_regulars(client, session_factory, qseed):
 def test_regulars_lists_top_by_visit_count(client, session_factory, qseed):
     """Customers with 2+ recent sales appear, sorted desc by visit count."""
     from tests.factories import make_sellable
+
     with session_factory() as s:
         product = make_sellable(s)
         alice = _make_customer(s, "Alice-3visits")
@@ -78,6 +84,7 @@ def test_regulars_lists_top_by_visit_count(client, session_factory, qseed):
 def test_regulars_excludes_one_time_buyers(client, session_factory, qseed):
     """Customers with only 1 sale in 30d are NOT regulars."""
     from tests.factories import make_sellable
+
     with session_factory() as s:
         product = make_sellable(s)
         regular = _make_customer(s, "RegularPerson")
@@ -97,13 +104,16 @@ def test_regulars_excludes_one_time_buyers(client, session_factory, qseed):
 def test_regulars_excludes_old_sales(client, session_factory, qseed):
     """Sales older than 30 days don't count toward 'regular' status."""
     from tests.factories import make_sellable
+
     with session_factory() as s:
         product = make_sellable(s)
         stale = _make_customer(s, "StaleCustomer")
         # 5 sales but all 60+ days old
         for _ in range(5):
             _make_sale(
-                s, stale.id, product_id=product.id,
+                s,
+                stale.id,
+                product_id=product.id,
                 when=datetime.now(timezone.utc) - timedelta(days=60),
             )
         s.commit()
@@ -115,14 +125,18 @@ def test_regulars_excludes_old_sales(client, session_factory, qseed):
 def test_regulars_excludes_voided_sales(client, session_factory, qseed):
     """Voided sales don't count."""
     from tests.factories import make_sellable
+
     with session_factory() as s:
         product = make_sellable(s)
         cancelled = _make_customer(s, "CancelledCustomer")
         # 3 sales but all voided
         for _ in range(3):
             sale = Sale(
-                customer_id=cancelled.id, product_id=product.id, qty=1.0,
-                unit_price_gs=10000, sold_at=datetime.now(timezone.utc),
+                customer_id=cancelled.id,
+                product_id=product.id,
+                qty=1.0,
+                unit_price_gs=10000,
+                sold_at=datetime.now(timezone.utc),
                 voided_at=datetime.now(timezone.utc),
             )
             s.add(sale)
@@ -135,6 +149,7 @@ def test_regulars_excludes_voided_sales(client, session_factory, qseed):
 def test_regulars_links_to_customer_profile(client, session_factory, qseed):
     """Each regular row is a link to /clientes/{id}."""
     from tests.factories import make_sellable
+
     with session_factory() as s:
         product = make_sellable(s)
         c = _make_customer(s, "ClickableCustomer")

@@ -1,4 +1,4 @@
-# Saskia RMS — Test-Suite Audit & E2E Strategy
+# Sazón — Test-Suite Audit & E2E Strategy
 
 **Date:** 2026-09-25
 **Status:** proposal (not yet executed)
@@ -22,7 +22,7 @@
 
 **W4 — Domain coverage gaps.** Files per domain (name-match): suppliers **1**, shopping **1**, customers 5, reports 3. Suppliers/shopping got big features (reorder loop, shopping list from demand forecast) with near-zero test surface.
 
-**W5 — Parallel (xdist) failures accepted as folklore.** Engine tests fail under `-n 4`, pass serially; we shrugged. That is a real isolation leak being masked — something shares state across workers (suspects: module-level caches in engines, log file paths under a shared `AIW_SASKIA_LOG_DIR`, or the `sys.modules` purge pattern that bit us in-process).
+**W5 — Parallel (xdist) failures accepted as folklore.** Engine tests fail under `-n 4`, pass serially; we shrugged. That is a real isolation leak being masked — something shares state across workers (suspects: module-level caches in engines, log file paths under a shared `AIW_RMS_LOG_DIR`, or the `sys.modules` purge pattern that bit us in-process).
 
 **W6 — No failure-path/invariant sweep at E2E level.** Allergen guard, CSRF rejection, double-void, delete-in-use product, negative stock — each has unit tests in isolation, but no scenario asserts *invariants across a whole session* (stock never negative, money always int, snapshot prices immutable).
 
@@ -56,7 +56,7 @@ Estimated: ~10 scenario tests, 1 factory module, +2-3 min suite time.
 Systematic: for each mutation route, the "hostile POST" (missing field, garbage money string, negative qty, non-existent FK). `app/rms/validation` centralizes this — test it once per validator plus one E2E per form.
 
 ### Tier 4 — Fix W5 (xdist)
-Bisect the shared state. Likely wins: make engine modules stateless-per-call (tag_algebra already moved to lazy imports for the same reason), isolate log dirs per worker (`AIW_SASKIA_LOG_DIR` under `tmp_path` — already autouse, so suspicion falls on module-level caches).
+Bisect the shared state. Likely wins: make engine modules stateless-per-call (tag_algebra already moved to lazy imports for the same reason), isolate log dirs per worker (`AIW_RMS_LOG_DIR` under `tmp_path` — already autouse, so suspicion falls on module-level caches).
 
 ## 3. The refactors that make all this cheap
 

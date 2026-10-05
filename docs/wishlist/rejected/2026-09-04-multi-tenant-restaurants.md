@@ -12,7 +12,7 @@ Multiple Saskias under one hosted deploy. Each `tenant_id` scopes all data; logi
 
 ## Why not now
 
-Saskia is the only customer. Multi-tenant is only worth building when we have ≥ 3 paying restaurants and a clear per-tenant pricing model. Schema accepts `tenant_id` later without breaking changes.
+the operator is the only customer. Multi-tenant is only worth building when we have ≥ 3 paying restaurants and a clear per-tenant pricing model. Schema accepts `tenant_id` later without breaking changes.
 ## Triage
 
 **Moved to rejected:** 2026-09-09

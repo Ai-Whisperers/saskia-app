@@ -17,6 +17,7 @@ Root cause hypothesis (verify before fixing):
 
 This test reproduces the bug. It must FAIL before the fix and PASS after.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -74,7 +75,7 @@ def test_public_route_does_not_render_sidebar(production_like_client, route):
 
     # The brand link goes to /, that's fine, but the brand-mark + brand-name
     # should still render (we want branding for the login screen, just not the nav).
-    assert "Saskia RMS" in body, f"{route} lost its branding"
+    assert "Sazón" in body, f"{route} lost its branding"
 
 
 def test_login_renders_brand_but_no_nav_items(production_like_client):
@@ -84,8 +85,7 @@ def test_login_renders_brand_but_no_nav_items(production_like_client):
     body = r.text
     # No nav-item links at all
     assert body.count('class="nav-item') == 0, (
-        f"/login renders {body.count(chr(34)+'nav-item')} nav-item links "
-        f"— full structure leak"
+        f"/login renders {body.count(chr(34) + 'nav-item')} nav-item links — full structure leak"
     )
     # The "Nuevo" button (topbar action menu) is also chrome — should be hidden
     assert "nuevo-btn" not in body, "/login renders the Nuevo dropdown — should be hidden"

@@ -17,20 +17,22 @@ def test_effective_ingredients_api_explodes_subrecipes(client, session_factory):
         harina = make_ingredient(s, name="EffHarina UX", unit="kg")
         azucar = make_ingredient(s, name="EffAzucar UX", unit="kg")
         # Base recipe: masa madre uses harina + the sub-recipe "crema"
-        crema = make_recipe(s, name="EffCrema UX", lines=[
-            ing_line(ingredient=azucar, qty=0.5)])
-        base = make_recipe(s, name="EffBase UX", lines=[
-            ing_line(ingredient=harina, qty=1.0)])
+        crema = make_recipe(s, name="EffCrema UX", lines=[ing_line(ingredient=azucar, qty=0.5)])
+        base = make_recipe(s, name="EffBase UX", lines=[ing_line(ingredient=harina, qty=1.0)])
         # add sub-recipe line directly (make_sub_line spec)
         from app.rms.models import RecipeLine
-        s.add(RecipeLine(
-            recipe_id=base.id, line_kind="sub_recipe", line_ref_id=crema.id,
-            qty=1.0, line_unit="und",
-        ))
+
+        s.add(
+            RecipeLine(
+                recipe_id=base.id,
+                line_kind="sub_recipe",
+                line_ref_id=crema.id,
+                qty=1.0,
+                line_unit="und",
+            )
+        )
         s.commit()
         rid = base.id
-        crema_id = crema.id
-        crema_yield = crema.yield_qty
 
     r = client.get(f"/recetas/api/{rid}/effective-ingredients")
     assert r.status_code == 200
@@ -48,15 +50,19 @@ def test_effective_ingredients_api_explodes_subrecipes(client, session_factory):
 def test_effective_ingredients_merges_duplicates(client, session_factory):
     with session_factory() as s:
         harina = make_ingredient(s, name="MergeHarina UX", unit="kg")
-        sub = make_recipe(s, name="MergeSub UX", lines=[
-            ing_line(ingredient=harina, qty=0.4)])
-        base = make_recipe(s, name="MergeBase UX", lines=[
-            ing_line(ingredient=harina, qty=1.0)])
+        sub = make_recipe(s, name="MergeSub UX", lines=[ing_line(ingredient=harina, qty=0.4)])
+        base = make_recipe(s, name="MergeBase UX", lines=[ing_line(ingredient=harina, qty=1.0)])
         from app.rms.models import RecipeLine
-        s.add(RecipeLine(
-            recipe_id=base.id, line_kind="sub_recipe", line_ref_id=sub.id,
-            qty=1.0, line_unit="und",
-        ))
+
+        s.add(
+            RecipeLine(
+                recipe_id=base.id,
+                line_kind="sub_recipe",
+                line_ref_id=sub.id,
+                qty=1.0,
+                line_unit="und",
+            )
+        )
         s.commit()
         rid = base.id
     r = client.get(f"/recetas/api/{rid}/effective-ingredients")
@@ -90,15 +96,19 @@ def test_form_renders_effective_panel(client, session_factory):
 def test_detail_consolidada_shows_merged_badge(client, session_factory):
     with session_factory() as s:
         harina = make_ingredient(s, name="BadgeHarina UX", unit="kg")
-        sub = make_recipe(s, name="BadgeSub UX", lines=[
-            ing_line(ingredient=harina, qty=0.4)])
-        base = make_recipe(s, name="BadgeBase UX", lines=[
-            ing_line(ingredient=harina, qty=1.0)])
+        sub = make_recipe(s, name="BadgeSub UX", lines=[ing_line(ingredient=harina, qty=0.4)])
+        base = make_recipe(s, name="BadgeBase UX", lines=[ing_line(ingredient=harina, qty=1.0)])
         from app.rms.models import RecipeLine
-        s.add(RecipeLine(
-            recipe_id=base.id, line_kind="sub_recipe", line_ref_id=sub.id,
-            qty=1.0, line_unit="und",
-        ))
+
+        s.add(
+            RecipeLine(
+                recipe_id=base.id,
+                line_kind="sub_recipe",
+                line_ref_id=sub.id,
+                qty=1.0,
+                line_unit="und",
+            )
+        )
         s.commit()
         rid = base.id
     r = client.get(f"/recetas/{rid}?vista=consolidada")

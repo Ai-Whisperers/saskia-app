@@ -34,9 +34,9 @@
   <a href="{{ preset_url_90 }}" class="btn btn-sm {% if days == 90 %}btn-primary{% else %}btn-ghost{% endif %}">90 días</a>
   <form method="get" action="/merma" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;">
     <label for="since">Desde:</label>
-    <saskia-date id="since" name="since" value="{{ since }}"></saskia-date>
+    <ui-date id="since" name="since" value="{{ since }}"></ui-date>
     <label for="until">Hasta:</label>
-    <saskia-date id="until" name="until" value="{{ until }}"></saskia-date>
+    <ui-date id="until" name="until" value="{{ until }}"></ui-date>
     <label for="reason_filter_combo">Motivo:</label>
     {{ ui.combo_field(
       name='reason',

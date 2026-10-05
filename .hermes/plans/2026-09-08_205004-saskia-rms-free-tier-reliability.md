@@ -53,12 +53,14 @@ Three tasks. Each task ends with `Commit`. After all three: run `unset DATABASE_
 
 ```python
 """tests/test_schema_version_helper.py — schema version drift detector."""
+
 from app.rms.db import schema_version, CURRENT_SCHEMA_VERSION, schema_version_mismatch
 
 
 def test_schema_version_returns_int(session_factory):
     """schema_version(session) returns the current row's value as int."""
     from app.rms.db import init_db
+
     engine = session_factory.kw["bind"]
     init_db(engine)
     with session_factory() as s:
@@ -70,6 +72,7 @@ def test_schema_version_returns_int(session_factory):
 def test_schema_version_mismatch_returns_diff(session_factory):
     """schema_version_mismatch(session) returns 0 when versions match."""
     from app.rms.db import init_db
+
     engine = session_factory.kw["bind"]
     init_db(engine)
     with session_factory() as s:
@@ -80,6 +83,7 @@ def test_schema_version_mismatch_returns_diff(session_factory):
 def test_schema_version_mismatch_returns_positive_when_drift(session_factory):
     """schema_version_mismatch returns CURRENT - DB when DB is behind."""
     from app.rms.db import init_db, _current_schema_version, app_meta_write
+
     engine = session_factory.kw["bind"]
     init_db(engine)
     # Force DB schema to an older version
@@ -92,6 +96,7 @@ def test_schema_version_mismatch_returns_positive_when_drift(session_factory):
 def test_app_meta_write_creates_row_if_missing(session_factory):
     """app_meta_write INSERTs a new row when key doesn't exist."""
     from app.rms.db import app_meta_write, app_meta_read
+
     with session_factory() as s:
         s.commit()
     with session_factory() as s:
@@ -116,9 +121,7 @@ def schema_version(conn) -> int:
 
 def app_meta_read(conn, key: str) -> str | None:
     """Read one key from app_meta. Returns None if missing."""
-    row = conn.execute(
-        text("SELECT value FROM app_meta WHERE key = :key"), {"key": key}
-    ).first()
+    row = conn.execute(text("SELECT value FROM app_meta WHERE key = :key"), {"key": key}).first()
     return row[0] if row else None
 
 
@@ -128,8 +131,10 @@ def app_meta_write(conn, key: str, value: str) -> None:
     ts = datetime.now(timezone.utc).isoformat()
     if dialect == "postgresql":
         conn.execute(
-            text("INSERT INTO app_meta (key, value, updated_at) VALUES (:k, :v, :ts) "
-                 "ON CONFLICT (key) DO UPDATE SET value=:v, updated_at=:ts"),
+            text(
+                "INSERT INTO app_meta (key, value, updated_at) VALUES (:k, :v, :ts) "
+                "ON CONFLICT (key) DO UPDATE SET value=:v, updated_at=:ts"
+            ),
             {"k": key, "v": value, "ts": ts},
         )
     else:
@@ -173,6 +178,7 @@ git commit -m "feat(db): schema_version helpers + dialect-agnostic app_meta upse
 
 ```python
 """tests/test_healthz_schema.py — /healthz/schema endpoint."""
+
 from app.rms.db import CURRENT_SCHEMA_VERSION
 
 
@@ -196,6 +202,7 @@ def test_healthz_schema_in_sync_returns_drift_zero(client):
 def test_healthz_schema_out_of_sync_returns_500(client, session_factory):
     """When DB is behind, /healthz/schema returns 500 with hint."""
     from app.rms.db import app_meta_write, CURRENT_SCHEMA_VERSION
+
     with session_factory() as s:
         app_meta_write(s.connection(), "schema_version", str(CURRENT_SCHEMA_VERSION - 1))
         s.commit()
@@ -282,6 +289,7 @@ It already creates monitor for `/healthz`. We'll add a `create_or_get_monitor()`
 Tests that scripts/uptimerobot_setup.py can be invoked with --dry-run
 and doesn't touch the network (no live API calls in CI).
 """
+
 import os
 import subprocess
 
@@ -290,7 +298,9 @@ def test_setup_dry_run_no_network():
     """--dry-run prints the create URLs but doesn't hit the API."""
     r = subprocess.run(
         ["python", "scripts/uptimerobot_setup.py", "--dry-run"],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
         cwd="/opt/data/profiles/ivan/scratch/saskia-app-work",
     )
     assert r.returncode == 0
@@ -304,8 +314,9 @@ def test_setup_dry_run_no_network():
 Add an `argparse` `--dry-run` flag. When set, the script fetches BWS keys (read-only), then prints what it WOULD create without calling UptimeRobot:
 
 ```python
-parser.add_argument("--dry-run", action="store_true",
-                    help="Print what would happen without making API calls")
+parser.add_argument(
+    "--dry-run", action="store_true", help="Print what would happen without making API calls"
+)
 ```
 
 And inside `main()`:
@@ -344,6 +355,7 @@ DEFAULT_MONITORS = [
     ("https://saskia-rms.paragu-ai.com/healthz/db", "saskia-rms /healthz/db"),
     ("https://saskia-rms.paragu-ai.com/healthz/schema", "saskia-rms /healthz/schema"),
 ]
+
 
 def main():
     # ... argparse setup ...
@@ -405,24 +417,39 @@ discounts, zero sales, integer overflow could pass silently.
 
 Post: Pydantic rejects bad input with 422 before the route handler runs.
 """
+
 from fastapi.testclient import TestClient
 
 
 def test_ventas_nueva_rejects_negative_discount(client):
     from app.rms.main import app
+
     tc = TestClient(app, raise_server_exceptions=False)
-    resp = tc.post("/ventas/nueva", data={
-        "product_id": "1", "qty": "1", "discount_gs": "-100", "payment_method": "cash",
-    })
+    resp = tc.post(
+        "/ventas/nueva",
+        data={
+            "product_id": "1",
+            "qty": "1",
+            "discount_gs": "-100",
+            "payment_method": "cash",
+        },
+    )
     assert resp.status_code == 422, f"Expected 422 for negative discount, got {resp.status_code}"
 
 
 def test_ventas_nueva_rejects_huge_qty(client):
     from app.rms.main import app
+
     tc = TestClient(app, raise_server_exceptions=False)
-    resp = tc.post("/ventas/nueva", data={
-        "product_id": "1", "qty": "99999999", "discount_gs": "0", "payment_method": "cash",
-    })
+    resp = tc.post(
+        "/ventas/nueva",
+        data={
+            "product_id": "1",
+            "qty": "99999999",
+            "discount_gs": "0",
+            "payment_method": "cash",
+        },
+    )
     assert resp.status_code == 422
 
 
@@ -434,6 +461,7 @@ def test_ventas_nueva_rejects_unknown_payment_method():
 
 def test_ventas_nueva_rejects_missing_product_id(client):
     from app.rms.main import app
+
     tc = TestClient(app, raise_server_exceptions=False)
     resp = tc.post("/ventas/nueva", data={"qty": "1"})
     assert resp.status_code == 422  # product_id is required
@@ -447,6 +475,7 @@ def test_pydantic_models_are_pydantic_v2():
     """All request models must be pydantic v2 (BaseModel)."""
     from app.rms.schemas import SaleCreateRequest
     from pydantic import BaseModel
+
     assert issubclass(SaleCreateRequest, BaseModel)
 ```
 
@@ -467,6 +496,7 @@ All fields are validated at type level. Custom validators enforce:
 - payment_method ∈ {cash, transfer, card, other}
 - product_id > 0
 """
+
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
@@ -536,19 +566,21 @@ __all__ = [
 ```python
 from app.rms.schemas import SaleCreateRequest
 
+
 @router.post("/nueva")
 async def sale_create(
     request: Request,
     form_data: SaleCreateRequest = Depends(SaleCreateRequest.as_form),  # noqa
     session: Session = Depends(get_session),
-) -> RedirectResponse:
-    ...
+) -> RedirectResponse: ...
 ```
 
 Since FastAPI's `Depends` doesn't natively handle Form → Pydantic, the most minimal-intrusion approach is:
 
 ```python
 from fastapi import Form
+
+
 @router.post("/nueva")
 async def sale_create(
     request: Request,
@@ -560,8 +592,7 @@ async def sale_create(
     notes: Optional[str] = Form(None, max_length=500),
     sold_at: Optional[str] = Form(None),
     session: Session = Depends(get_session),
-):
-    ...
+): ...
 ```
 
 Using FastAPI's `Form(...)` with constraints — FastAPI 0.115 + Pydantic 2 supports this. This makes validation happen at the framework layer. Same approach for other endpoints.
@@ -593,12 +624,14 @@ git commit -m "feat: Pydantic form validation on all state-changing endpoints"
 
 ```python
 """tests/test_rate_limit_write_endpoints.py — protect state-changing routes."""
+
 import time
 
 
 def test_ventas_nueva_rate_limited_after_burst(client, session_factory):
     """5 rapid POSTs/min should pass; the 6th should be 429."""
     from app.rms.models import Product
+
     with session_factory() as s:
         p = Product(name="TestBurst", sale_price_gs=10000, recipe_id=None)
         s.add(p)
@@ -607,19 +640,30 @@ def test_ventas_nueva_rate_limited_after_burst(client, session_factory):
     from app.rms.csrf import generate_csrf_token
     from app.rms.main import app
     from starlette.testclient import TestClient
+
     csrf = generate_csrf_token()
     tc = TestClient(app, raise_server_exceptions=False, cookies={"csrf_token": csrf})
     for i in range(5):
-        resp = tc.post("/ventas/nueva", data={
-            "product_id": str(pid), "qty": "1", "discount_gs": "0",
-            "payment_method": "cash",
-        })
+        resp = tc.post(
+            "/ventas/nueva",
+            data={
+                "product_id": str(pid),
+                "qty": "1",
+                "discount_gs": "0",
+                "payment_method": "cash",
+            },
+        )
         assert resp.status_code in (303, 400), f"i={i} expected 303/400 got {resp.status_code}"
     # 6th should be rate-limited.
-    resp = tc.post("/ventas/nueva", data={
-        "product_id": str(pid), "qty": "1", "discount_gs": "0",
-        "payment_method": "cash",
-    })
+    resp = tc.post(
+        "/ventas/nueva",
+        data={
+            "product_id": str(pid),
+            "qty": "1",
+            "discount_gs": "0",
+            "payment_method": "cash",
+        },
+    )
     assert resp.status_code == 429, f"expected 429 rate-limited, got {resp.status_code}"
 ```
 
@@ -639,15 +683,18 @@ def is_write_rate_limited(session, request: Request, *, max_per_minute: int = 5)
 
     ip = _client_ip(request) or "unknown"
     cutoff = datetime.utcnow() - timedelta(minutes=1)
-    n = session.execute(
-        select(func.count())
-        .select_from(AuditLog)
-        .where(
-            AuditLog.action.like("write.%"),
-            AuditLog.ip == ip,
-            AuditLog.occurred_at >= cutoff,
-        )
-    ).scalar() or 0
+    n = (
+        session.execute(
+            select(func.count())
+            .select_from(AuditLog)
+            .where(
+                AuditLog.action.like("write.%"),
+                AuditLog.ip == ip,
+                AuditLog.occurred_at >= cutoff,
+            )
+        ).scalar()
+        or 0
+    )
     return n >= max_per_minute
 ```
 
@@ -655,6 +702,7 @@ def is_write_rate_limited(session, request: Request, *, max_per_minute: int = 5)
 
 ```python
 from app.rms.rate_limit import is_write_rate_limited
+
 if is_write_rate_limited(session, request, max_per_minute=5):
     raise HTTPException(status_code=429, detail="Demasiadas ventas en 1 minuto. Esperá un momento.")
 ```
@@ -684,6 +732,7 @@ git commit -m "feat(rate-limit): protect /ventas/nueva + /merma/registrar from w
 
 ```python
 """tests/test_engine_pool_recycle.py — DB engine config is drift-resistant."""
+
 from app.rms.db_dialect import make_engine_dialect
 
 
@@ -757,6 +806,7 @@ git commit -m "test(db): regression for pool_pre_ping + pool_recycle settings"
 
 ```python
 """tests/test_csrf_local_dev.py — CSRF cookie works over plain HTTP (local dev)."""
+
 import os
 
 
@@ -766,6 +816,7 @@ def test_csrf_cookie_not_secure_in_test_env(monkeypatch):
     monkeypatch.setenv("AIW_SASKIA_DB_PATH", "/tmp/test_db.sqlite")
     from app.rms.main import app
     from fastapi.testclient import TestClient
+
     tc = TestClient(app, raise_server_exceptions=False)
     r = tc.get("/")
     set_cookies = r.headers.get_list("set-cookie")
@@ -787,7 +838,7 @@ def csrf_cookie_middleware(request, call_next):
     response.set_cookie(
         _CSRF_COOKIE,
         generate_csrf_token(),
-        max_age=60*60*24,
+        max_age=60 * 60 * 24,
         httponly=True,
         samesite="lax",
         secure=secure_cookie,
@@ -830,6 +881,7 @@ Three tasks. After phase: ~915 + 8 = 923 passed, ruff clean.
 
 ```python
 """tests/test_logging_config.py — loguru emits JSON to stderr."""
+
 import json
 import logging
 import io
@@ -839,6 +891,7 @@ import sys
 def test_logging_emits_json_to_stderr(capsys):
     """logger.error() should produce JSON-serializable line with level/ts."""
     from loguru import logger
+
     logger.remove()
     logger.add(sys.stderr, format="{message}", level="DEBUG", serialize=True)
     logger.error("test-event")
@@ -854,6 +907,7 @@ def test_logging_emits_json_to_stderr(capsys):
 ```python
 import sys
 from loguru import logger
+
 # Configure loguru once per process. JSON in prod (Render), human in dev.
 if os.getenv("AIW_SASKIA_LOG_FORMAT", "dev") == "prod":
     logger.remove()
@@ -902,6 +956,7 @@ git commit -m "feat(log): structured JSON logging in prod, human-readable in dev
 
 ```python
 """tests/test_audit_prune.py — retention policy deletes rows older than N days."""
+
 from datetime import datetime, timedelta
 from app.rms.models import AuditLog
 
@@ -916,6 +971,7 @@ def test_prune_keeps_recent_deletes_old(session_factory):
         s.commit()
 
     from app.rms.maintenance import prune_audit_log
+
     prune_audit_log(session_factory, retention_days=30)
 
     with session_factory() as s:
@@ -927,10 +983,13 @@ def test_prune_keeps_recent_deletes_old(session_factory):
 def test_prune_dry_run_does_not_delete(session_factory):
     """Dry run reports what would be deleted without removing anything."""
     with session_factory() as s:
-        s.add(AuditLog(occurred_at=datetime.utcnow() - timedelta(days=60), action="old", user_id=None))
+        s.add(
+            AuditLog(occurred_at=datetime.utcnow() - timedelta(days=60), action="old", user_id=None)
+        )
         s.commit()
 
     from app.rms.maintenance import prune_audit_log
+
     n = prune_audit_log(session_factory, retention_days=30, dry_run=True)
     assert n == 1
     with session_factory() as s:
@@ -943,6 +1002,7 @@ def test_prune_dry_run_does_not_delete(session_factory):
 
 ```python
 """app/rms/maintenance.py — periodic housekeeping."""
+
 from datetime import datetime, timedelta, timezone
 
 
@@ -959,9 +1019,12 @@ def prune_audit_log(session_factory, *, retention_days: int = 30, dry_run: bool 
         # Count first (always)
         stmt = delete(AuditLog).where(AuditLog.occurred_at < cutoff)
         if dry_run:
-            n = s.execute(
-                select(func.count()).select_from(AuditLog).where(AuditLog.occurred_at < cutoff)
-            ).scalar() or 0
+            n = (
+                s.execute(
+                    select(func.count()).select_from(AuditLog).where(AuditLog.occurred_at < cutoff)
+                ).scalar()
+                or 0
+            )
         else:
             result = s.execute(stmt)
             n = result.rowcount or 0
@@ -995,6 +1058,7 @@ Live: `python scripts/audit_prune.py --dry-run` to confirm pre-state; then `--da
 
 ```python
 """tests/test_auditoria_filters.py — /auditoria?start_date=&end_date= filter."""
+
 from datetime import datetime, timedelta
 from app.rms.models import AuditLog
 
@@ -1007,7 +1071,7 @@ def test_auditoria_filters_by_date_range(client, session_factory):
         s.add(AuditLog(occurred_at=now - timedelta(days=40), action="month_ago", user_id=None))
         s.commit()
 
-    resp = client.get(f"/auditoria?start_date={(now-timedelta(days=15)).date().isoformat()}")
+    resp = client.get(f"/auditoria?start_date={(now - timedelta(days=15)).date().isoformat()}")
     assert resp.status_code == 200
     body = resp.text
     assert "recent" in body
@@ -1018,11 +1082,13 @@ def test_auditoria_filters_by_date_range(client, session_factory):
 def test_auditoria_combined_filter_action_date(client, session_factory):
     """action_filter + date range together."""
     with session_factory() as s:
-        s.add(AuditLog(
-            occurred_at=datetime.utcnow() - timedelta(days=60),
-            action="login.success",
-            user_id=None,
-        ))
+        s.add(
+            AuditLog(
+                occurred_at=datetime.utcnow() - timedelta(days=60),
+                action="login.success",
+                user_id=None,
+            )
+        )
         s.commit()
 
     resp = client.get("/auditoria?action_filter=login.success&start_date=2026-09-01")
@@ -1045,6 +1111,7 @@ def auditoria_index(
 ) -> HTMLResponse:
     from datetime import datetime
     from app.rms.audit import list_recent
+
     rows = list_recent(
         session,
         limit=limit,
@@ -1057,13 +1124,17 @@ def auditoria_index(
     if end_date:
         ed = datetime.fromisoformat(end_date)
         rows = [r for r in rows if r.occurred_at and r.occurred_at <= ed]
-    return render(request, "auditoria.html", {
-        "rows": rows,
-        "limit": limit,
-        "action_filter": action_filter,
-        "start_date": start_date or "",
-        "end_date": end_date or "",
-    })
+    return render(
+        request,
+        "auditoria.html",
+        {
+            "rows": rows,
+            "limit": limit,
+            "action_filter": action_filter,
+            "start_date": start_date or "",
+            "end_date": end_date or "",
+        },
+    )
 ```
 
 **Step 4 — Update `app/templates/auditoria.html`** to render the filter UI (mirror what we did for `/ventas`).
@@ -1283,12 +1354,20 @@ git commit -m "docs: operator incident response playbook"
 
 ```python
 """tests/test_ops_status.py — one-page operator dashboard."""
+
+
 def test_ops_status_renders(client):
     resp = client.get("/ops/status")
     assert resp.status_code == 200
     body = resp.text
-    for label in ("/healthz", "/healthz/db", "/healthz/deps",
-                  "/healthz/schema", "/healthz/errors", "/auditoria"):
+    for label in (
+        "/healthz",
+        "/healthz/db",
+        "/healthz/deps",
+        "/healthz/schema",
+        "/healthz/errors",
+        "/auditoria",
+    ):
         assert label in body
 
 
@@ -1305,8 +1384,9 @@ def test_ops_status_html_includes_action_button(client):
 ```python
 # app/routers/ops.py
 @router.get("/ops/status", response_class=HTMLResponse)
-def ops_status(request, session = Depends(get_session)) -> HTMLResponse:
+def ops_status(request, session=Depends(get_session)) -> HTMLResponse:
     from app.rms.audit import _client_ip
+
     body = {
         "endpoints": [
             ("/healthz", "Liveness"),

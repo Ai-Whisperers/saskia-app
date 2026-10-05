@@ -1,4 +1,5 @@
 """tests/test_audit_analytics.py — BACKLOG #30 unit tests."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -14,8 +15,10 @@ from app.rms.models_legacy import AuditLog
 def audit_session():
     eng = make_engine("sqlite:///:memory:")
     from app.rms.db import init_db
+
     init_db(eng)
     from sqlalchemy.orm import sessionmaker
+
     return sessionmaker(bind=eng)()
 
 
@@ -35,7 +38,7 @@ def test_empty_db_returns_zero_report(audit_session):
 
 
 def test_top_ips_aggregates_correctly(audit_session):
-    now = datetime.now(timezone.utc)
+    datetime.now(timezone.utc)
     for _ in range(5):
         _add(audit_session, action="login.success", ip="1.2.3.4", user_id="u1")
     for _ in range(3):
@@ -109,9 +112,14 @@ def test_period_filter_excludes_old_events(audit_session):
     """Events older than the window are excluded."""
     old = datetime.now(timezone.utc) - timedelta(days=60)
     # Need to insert with explicit old timestamp
-    audit_session.add(AuditLog(
-        occurred_at=old, action="login.success", ip="1.1.1.1", user_id="u1",
-    ))
+    audit_session.add(
+        AuditLog(
+            occurred_at=old,
+            action="login.success",
+            ip="1.1.1.1",
+            user_id="u1",
+        )
+    )
     for _ in range(3):
         _add(audit_session, action="sale.create", user_id="u1")
     audit_session.commit()

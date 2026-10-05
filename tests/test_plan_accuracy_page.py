@@ -7,6 +7,7 @@ Covers:
   - empty DB → empty-state copy in HTML, not a crash
   - with seeded completions → product appears in the table
 """
+
 from __future__ import annotations
 
 import pytest
@@ -54,5 +55,4 @@ def test_accuracy_empty_db_empty_state(client):
     body = r.text
     # Either shows the empty state OR an empty table — but never a crash.
     assert "Algo salió mal" not in body
-    assert ("No hay datos de producción" in body
-            or "Precisión del plan" in body)
+    assert "No hay datos de producción" in body or "Precisión del plan" in body

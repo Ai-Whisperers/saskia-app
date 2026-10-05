@@ -1,6 +1,6 @@
 """app/rms/waste.py — Merma (waste) tracking (E22).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E22.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E22.
 
 Adds:
 - WasteLog model: ingredient, qty, reason, cost_gs (denormalized at
@@ -11,6 +11,7 @@ Adds:
   damage), receta_incompleta (recipe incomplete), otra (other)
 - Pure-Python helpers for CRUD + reporting
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -132,7 +133,7 @@ def record_waste(
             # Defensive: numerator shouldn't go negative (waste can't
             # cost more than the stock on hand), but if it does, clamp.
             numerator = max(0, numerator)
-            ing.avg_cost_gs = int(round(numerator / new_stock))
+            ing.avg_cost_gs = round(numerator / new_stock)
         elif ing.purchase_price_gs is not None:
             # No prior avg — initialize from purchase price.
             ing.avg_cost_gs = ing.purchase_price_gs
@@ -229,11 +230,14 @@ def waste_impact(
         total_cost += c
 
     # Total qty
-    qty_sum = session.execute(
-        select(func.sum(WasteLog.qty)).where(
-            WasteLog.recorded_at >= start_date, WasteLog.recorded_at <= end_date
-        )
-    ).scalar() or 0.0
+    qty_sum = (
+        session.execute(
+            select(func.sum(WasteLog.qty)).where(
+                WasteLog.recorded_at >= start_date, WasteLog.recorded_at <= end_date
+            )
+        ).scalar()
+        or 0.0
+    )
 
     return WasteImpact(
         n_events=n_events,
@@ -282,7 +286,7 @@ def record_recipe_waste(
     notes: str | None = None,
     source: str = "production",  # PROD-MERMA-2 (Batch I): recipe losses come from /produccion modal
 ) -> RecipeWasteResult:
-    """Log a whole-batch waste event for a recipe (Saskia review T6).
+    """Log a whole-batch waste event for a recipe (the operator review T6).
 
     A whole-batch waste ("se quemó la masa") reduces stock of every
     ingredient in the recipe proportionally. Implemented by walking the

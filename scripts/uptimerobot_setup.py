@@ -11,6 +11,7 @@ Usage:
     python scripts/uptimerobot_setup.py create-all
     python scripts/uptimerobot_setup.py --dry-run
 """
+
 from __future__ import annotations
 
 import argparse
@@ -25,9 +26,9 @@ API_URL = "https://api.uptimerobot.com/v2"
 
 # Each monitor: (url, friendly_name)
 DEFAULT_MONITORS = [
-    ("https://saskia-rms.paragu-ai.com/healthz", "saskia-rms /healthz"),
-    ("https://saskia-rms.paragu-ai.com/healthz/db", "saskia-rms /healthz/db"),
-    ("https://saskia-rms.paragu-ai.com/healthz/schema", "saskia-rms /healthz/schema"),
+    ("https://sazon-rms.paragu-ai.com/healthz", "sazon-rms /healthz"),
+    ("https://sazon-rms.paragu-ai.com/healthz/db", "sazon-rms /healthz/db"),
+    ("https://sazon-rms.paragu-ai.com/healthz/schema", "sazon-rms /healthz/schema"),
 ]
 
 
@@ -49,10 +50,13 @@ def find_monitor(api_key: str, url: str) -> dict | None:
     UptimeRobot's `url=` filter is substring match; we list all monitors
     and pick the one whose URL is character-for-character identical.
     """
-    resp = _post("getMonitors", {
-        "api_key": api_key,
-        "format": "json",
-    })
+    resp = _post(
+        "getMonitors",
+        {
+            "api_key": api_key,
+            "format": "json",
+        },
+    )
     if resp.get("stat") != "ok":
         return None
     for m in resp.get("monitors", []):
@@ -63,16 +67,19 @@ def find_monitor(api_key: str, url: str) -> dict | None:
 
 def create_monitor(api_key: str, *, url: str, friendly_name: str, interval: int = 300) -> dict:
     """Create a new HTTP monitor (5-min default). Returns API response."""
-    return _post("newMonitor", {
-        "api_key": api_key,
-        "format": "json",
-        "type": 1,
-        "url": url,
-        "friendly_name": friendly_name,
-        "interval": interval,
-        "timeout": 30,
-        "retention": 30,
-    })
+    return _post(
+        "newMonitor",
+        {
+            "api_key": api_key,
+            "format": "json",
+            "type": 1,
+            "url": url,
+            "friendly_name": friendly_name,
+            "interval": interval,
+            "timeout": 30,
+            "retention": 30,
+        },
+    )
 
 
 def ensure_monitors(api_key: str) -> None:
@@ -85,8 +92,8 @@ def ensure_monitors(api_key: str) -> None:
     read-only monitor-scope key — `newMonitor` returns
     `not_authorized`. Operator action: open UptimeRobot dashboard, log in
     with `weissvanderpol.ivan@gmail.com`, manually add 2 more monitors:
-      - type=HTTP url=https://saskia-rms.paragu-ai.com/healthz/db
-      - type=HTTP url=https://saskia-rms.paragu-ai.com/healthz/schema
+      - type=HTTP url=https://sazon-rms.paragu-ai.com/healthz/db
+      - type=HTTP url=https://sazon-rms.paragu-ai.com/healthz/schema
     Both at 5-minute interval. This script will then detect them and
     print "exists" on subsequent runs.
     """
@@ -133,7 +140,7 @@ def _fetch_api_key() -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Manage UptimeRobot monitors for saskia-rms")
+    parser = argparse.ArgumentParser(description="Manage UptimeRobot monitors for sazon-rms")
     parser.add_argument(
         "--dry-run",
         action="store_true",

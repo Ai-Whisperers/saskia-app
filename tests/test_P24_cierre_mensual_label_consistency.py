@@ -21,6 +21,7 @@ This test locks in the contract:
 4. Page must have an Exportar CSV button.
 5. Margen numbers must use the project's GS formatter (m.gs()): "Gs. 30.000".
 """
+
 from __future__ import annotations
 
 import re
@@ -67,7 +68,7 @@ def test_cierre_mensual_has_total_row(client):
     assert r.status_code == 200
     # The footer <tr> has the word TOTAL (template line 134)
     body = r.text
-    assert "<tfoot>" in body or 'TOTAL' in body, (
+    assert "<tfoot>" in body or "TOTAL" in body, (
         "Missing TOTAL footer row in cierre-mensual detail table"
     )
 
@@ -87,9 +88,7 @@ def test_cierre_mensual_currency_unit_labeled(client):
     r = client.get("/reportes/cierre-mensual")
     assert r.status_code == 200
     # Currency column headers must be labeled in Gs. (guaraní)
-    assert "Gs." in r.text, (
-        "Currency columns not labeled with 'Gs.' — bakery uses Gs., not $/€"
-    )
+    assert "Gs." in r.text, "Currency columns not labeled with 'Gs.' — bakery uses Gs., not $/€"
     # Confirm absence of wrong currency symbols
     assert "$" not in r.text, "Found '$' currency symbol — bakery uses Gs. not USD"
     # And no demo/foreign currency badges (EUR/USD)

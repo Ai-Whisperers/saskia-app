@@ -9,6 +9,7 @@ Usage:
     python scripts/check_warnings.py --max 5   # tolerate up to 5
     python scripts/check_warnings.py --verbose  # show the warnings
 """
+
 from __future__ import annotations
 
 import argparse
@@ -17,7 +18,7 @@ import subprocess
 import sys
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--max",
@@ -40,11 +41,18 @@ def main():
 
     result = subprocess.run(
         [
-            "uv", "run", "pytest", "-q", "--tb=no", "--no-header",
+            "uv",
+            "run",
+            "pytest",
+            "-q",
+            "--tb=no",
+            "--no-header",
             *args.test_paths,
         ],
-        capture_output=True, text=True, timeout=600,
-        cwd="/opt/data/profiles/ivan/scratch/saskia-app-work",
+        capture_output=True,
+        text=True,
+        timeout=600,
+        cwd="/opt/data/profiles/ivan/scratch/sazon-app-work",
     )
 
     # Parse "X passed, Y warnings in Zs" or "X passed in Zs" (zero warnings)

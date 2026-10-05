@@ -14,9 +14,6 @@ regularly?"
 
 from __future__ import annotations
 
-import datetime as _dt
-from decimal import Decimal
-
 
 def _kyrian_customer_id(session_factory):
     """Return the Kyrian customer id from the with_kyrian_full seed."""
@@ -24,9 +21,7 @@ def _kyrian_customer_id(session_factory):
         from app.rms.models import Customer
 
         c = s.execute(
-            __import__("sqlalchemy").select(Customer).where(
-                Customer.name.ilike("%kyrian%")
-            )
+            __import__("sqlalchemy").select(Customer).where(Customer.name.ilike("%kyrian%"))
         ).scalar_one_or_none()
         assert c is not None, "Kyrian customer must exist in with_kyrian_full"
         return c.id
@@ -135,7 +130,13 @@ def test_detalle_top_products_lists_product_with_sales(client, qseed, session_fa
     # these MUST be in the HTML (rendered inside the <details>
     # expansion). This proves the top_lines snapshot is wired through.
     body_text = body
-    expected_products = ["Appeltaart", "Babka de chocolate", "Cheesecake entera", "Pan lactal", "Stroopwafel"]
+    expected_products = [
+        "Appeltaart",
+        "Babka de chocolate",
+        "Cheesecake entera",
+        "Pan lactal",
+        "Stroopwafel",
+    ]
     assert any(prod in body_text for prod in expected_products), (
         f"Expected at least one of {expected_products} in the page (rendered "
         f"inside the new Pedidos recientes <details> expansion), but none "

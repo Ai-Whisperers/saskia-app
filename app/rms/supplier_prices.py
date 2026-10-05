@@ -1,6 +1,6 @@
 """app/rms/supplier_prices.py — supplier price comparison engine (P1-B9).
 
-Saskia buys from multiple suppliers per ingredient, but the price column in
+the operator buys from multiple suppliers per ingredient, but the price column in
 /inventario only shows the *current* supplier's price. To answer "is
 Proveedor B actually cheaper than Proveedor A for harina?", we need a side-by-
 side comparison per ingredient.
@@ -29,7 +29,6 @@ that supplier appears — so the route can answer "is *my* supplier overpriced?"
 
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -111,10 +110,12 @@ def _rows_for(session: Session) -> list[_PriceRow]:
     supplier_ids = {r[3] for r in variant_rows if r[3] is not None}
     suppliers_by_id: dict[int, str] = {}
     if supplier_ids:
-        for sup_id, sup_name in session.execute(
-            select(Supplier.id, Supplier.name).where(Supplier.id.in_(supplier_ids))
-        ).all():
-            suppliers_by_id[sup_id] = sup_name
+        suppliers_by_id = {
+            sup_id: sup_name
+            for sup_id, sup_name in session.execute(
+                select(Supplier.id, Supplier.name).where(Supplier.id.in_(supplier_ids))
+            ).all()
+        }
 
     for ing_id, ing_name, ing_unit, sup_id, price in variant_rows:
         if sup_id is None or price is None:
@@ -158,10 +159,12 @@ def _rows_for(session: Session) -> list[_PriceRow]:
         # Only fetch ones we don't already have.
         new_ids = fallback_supplier_ids - set(suppliers_by_id.keys())
         if new_ids:
-            for sup_id, sup_name in session.execute(
-                select(Supplier.id, Supplier.name).where(Supplier.id.in_(new_ids))
-            ).all():
-                fallback_suppliers[sup_id] = sup_name
+            fallback_suppliers = {
+                sup_id: sup_name
+                for sup_id, sup_name in session.execute(
+                    select(Supplier.id, Supplier.name).where(Supplier.id.in_(new_ids))
+                ).all()
+            }
         for sid, sname in suppliers_by_id.items():
             fallback_suppliers.setdefault(sid, sname)
 
@@ -229,12 +232,15 @@ def get_price_comparison(
 
     # Compute deltas + sort + filter to the requested supplier's ingredients.
     result: list[PriceComparisonGroup] = []
-    for ing_id, g in groups.items():
+    for g in groups.values():
         # De-dup by supplier — if the same supplier appears twice for one
         # ingredient (multiple package variants), keep the cheapest entry.
         by_supplier: dict[int, _SupplierPrice] = {}
         for sp in g.suppliers:
-            if sp.supplier_id not in by_supplier or sp.price_gs < by_supplier[sp.supplier_id].price_gs:
+            if (
+                sp.supplier_id not in by_supplier
+                or sp.price_gs < by_supplier[sp.supplier_id].price_gs
+            ):
                 by_supplier[sp.supplier_id] = sp
         unique_suppliers = list(by_supplier.values())
         unique_suppliers.sort(key=lambda s: s.price_gs)
@@ -247,9 +253,7 @@ def get_price_comparison(
             for s in g.suppliers:
                 s.delta_gs = s.price_gs - cheapest
                 s.delta_pct = (
-                    round((s.price_gs - cheapest) / cheapest * 100, 1)
-                    if cheapest > 0
-                    else 0.0
+                    round((s.price_gs - cheapest) / cheapest * 100, 1) if cheapest > 0 else 0.0
                 )
                 s.is_cheapest = s.price_gs == cheapest
             g.savings_gs_per_unit = most_expensive - cheapest

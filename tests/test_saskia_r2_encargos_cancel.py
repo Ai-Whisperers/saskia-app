@@ -17,7 +17,7 @@ CIE-01 acceptance criteria:
 - Already-voided sales still raise ValueError (idempotency preserved).
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -38,9 +38,10 @@ from app.rms.models import (
 
 
 def _asuncion_today() -> date:
-    from datetime import datetime, timezone
+    from datetime import datetime
     from zoneinfo import ZoneInfo
-    return datetime.now(timezone.utc).astimezone(ZoneInfo("America/Asuncion")).date()
+
+    return datetime.utcnow().astimezone(ZoneInfo("America/Asuncion")).date()
 
 
 def _seed_pedido(
@@ -61,13 +62,14 @@ def _seed_pedido(
     with session_factory() as s:
         c = Customer(name=customer_name, phone="0981112222")
         p = Product(name=product_name, sale_price_gs=50000, recipe_id=None)
-        s.add_all([c, p]); s.flush()
+        s.add_all([c, p])
+        s.flush()
         pedido = Pedido(
             customer_id=c.id,
             customer_name=customer_name,
             customer_phone="0981112222",
             # Seed in ASUNCIÓN local date — the /produccion route filters by
-            # Asunción today (_asuncion_today). Using date.today() (host
+            # Asunción today (_asuncion_today). Using datetime.utcnow().date() (host
             # local/UTC) diverges near midnight and flakes the suite.
             promised_date=promised_date or _asuncion_today(),
             promised_time=promised_time,
@@ -78,11 +80,16 @@ def _seed_pedido(
             # unique index on pedido.public_token fails when seeding N pedidos.
             public_token=_secrets.token_urlsafe(8)[:8],
         )
-        s.add(pedido); s.flush()
-        s.add(PedidoLine(
-            pedido_id=pedido.id, product_id=p.id,
-            qty=qty, unit_price_gs=50000,
-        ))
+        s.add(pedido)
+        s.flush()
+        s.add(
+            PedidoLine(
+                pedido_id=pedido.id,
+                product_id=p.id,
+                qty=qty,
+                unit_price_gs=50000,
+            )
+        )
         s.commit()
         return pedido.id
 
@@ -105,8 +112,11 @@ def test_produccion_day_shows_pedido_for_today(client, session_factory):
 def test_produccion_day_excludes_other_dates(client, session_factory):
     """US 4.4 — pedidos for OTHER dates do not appear in today's view."""
     # Pedido for tomorrow
-    _seed_pedido(session_factory, status="pending",
-                 promised_date=date.today() + timedelta(days=1))
+    _seed_pedido(
+        session_factory,
+        status="pending",
+        promised_date=datetime.utcnow().date() + timedelta(days=1),
+    )
     resp = client.get("/produccion")
     assert resp.status_code == 200
     body = resp.text
@@ -154,12 +164,16 @@ def test_produccion_day_pedidos_have_link_to_detail(client, session_factory):
 def test_produccion_day_sorts_by_promised_time_asc(client, session_factory):
     """US 4.4 — pedidos are sorted by promised_time ASC (earliest first)."""
     pid_late = _seed_pedido(
-        session_factory, status="pending",
-        customer_name="Late", promised_time="18:00",
+        session_factory,
+        status="pending",
+        customer_name="Late",
+        promised_time="18:00",
     )
     pid_early = _seed_pedido(
-        session_factory, status="pending",
-        customer_name="Early", promised_time="09:00",
+        session_factory,
+        status="pending",
+        customer_name="Early",
+        promised_time="09:00",
     )
     resp = client.get("/produccion")
     assert resp.status_code == 200
@@ -184,15 +198,17 @@ def test_produccion_day_no_pedidos_means_no_panel(client, session_factory):
 def _seed_sale(session_factory) -> int:
     with session_factory() as s:
         p = Product(name="BrownieAudit", sale_price_gs=10000, recipe_id=None)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         sale = Sale(
             product_id=p.id,
             qty=2,
             unit_price_gs=10000,
-            sold_at=datetime.now(timezone.utc),
+            sold_at=datetime.utcnow(),
             channel="mostrador",
         )
-        s.add(sale); s.commit()
+        s.add(sale)
+        s.commit()
         return sale.id
 
 
@@ -201,8 +217,9 @@ def test_void_sale_persists_reason_and_voided_by(session_factory):
     from app.rms.costing import void_sale
 
     sale_id = _seed_sale(session_factory)
-    void_sale(session_factory(), sale_id,
-              reason="Cliente devolvió producto", voided_by="operator42")
+    void_sale(
+        session_factory(), sale_id, reason="Cliente devolvió producto", voided_by="operator42"
+    )
 
     with session_factory() as s:
         sale = s.get(Sale, sale_id)
@@ -238,27 +255,35 @@ def test_void_sale_appends_reason_to_stock_movement(session_factory):
     with session_factory() as s:
         ing = Ingredient(name="CIE_Flour_audit", stock_qty=1000.0, unit="g")
         p = Product(name="CIE_Brownie_audit", sale_price_gs=10000, recipe_id=None)
-        s.add_all([ing, p]); s.flush()
+        s.add_all([ing, p])
+        s.flush()
         rcp = Recipe(name="CIE_Brownie_recipe", yield_qty=1, yield_unit="und")
-        s.add(rcp); s.flush()
+        s.add(rcp)
+        s.flush()
         p.recipe_id = rcp.id
-        s.add(RecipeLine(
-            recipe_id=rcp.id, line_kind="ingredient",
-            line_ref_id=ing.id, qty=50.0, line_unit="g",
-        ))
+        s.add(
+            RecipeLine(
+                recipe_id=rcp.id,
+                line_kind="ingredient",
+                line_ref_id=ing.id,
+                qty=50.0,
+                line_unit="g",
+            )
+        )
         s.commit()
         product_id = p.id
 
     with session_factory() as s:
         result = apply_sale(
-            s, product_id=product_id, qty=2.0,
+            s,
+            product_id=product_id,
+            qty=2.0,
             sold_at=datetime.now(ASUNCION_TZ),
         )
         s.commit()
         sale_id = result.sale_id
 
-    void_sale(session_factory(), sale_id,
-              reason="error de cobro", voided_by="operator")
+    void_sale(session_factory(), sale_id, reason="error de cobro", voided_by="operator")
 
     with session_factory() as s:
         moves = s.query(StockMovement).filter_by(reference_id=sale_id).all()
@@ -341,31 +366,39 @@ def test_void_sale_restores_stock_with_reason(session_factory):
     # Set up: 1 ingredient, product with recipe, sale decrements stock
     with session_factory() as s:
         ing = Ingredient(name="CIE_Flour", stock_qty=1000.0, unit="g")
-        s.add(ing); s.flush()
+        s.add(ing)
+        s.flush()
         # We don't actually need a recipe to test void restore; apply_sale
         # expects ingredient-level stock moves. Use the existing sale path
         # which writes stock_moves. We'll instead create the StockMove rows
         # directly to test the void restore path.
         p = Product(name="CIE_Brownie", sale_price_gs=10000, recipe_id=None)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         sale = Sale(
-            product_id=p.id, qty=5, unit_price_gs=10000,
-            sold_at=datetime.now(timezone.utc),
+            product_id=p.id,
+            qty=5,
+            unit_price_gs=10000,
+            sold_at=datetime.utcnow(),
         )
-        s.add(sale); s.flush()
-        s.add(StockMovement(
-            ingredient_id=ing.id, movement_type="sale",
-            qty=-100.0,  # sold 100g
-            reason=f"Sale #{sale.id}",
-            reference_id=sale.id, reference_type="sale",
-            recorded_at=datetime.now(timezone.utc),
-        ))
+        s.add(sale)
+        s.flush()
+        s.add(
+            StockMovement(
+                ingredient_id=ing.id,
+                movement_type="sale",
+                qty=-100.0,  # sold 100g
+                reason=f"Sale #{sale.id}",
+                reference_id=sale.id,
+                reference_type="sale",
+                recorded_at=datetime.utcnow(),
+            )
+        )
         s.commit()
         sale_id = sale.id
         ing_id = ing.id
 
-    void_sale(session_factory(), sale_id,
-              reason="error de cobro", voided_by="operator")
+    void_sale(session_factory(), sale_id, reason="error de cobro", voided_by="operator")
 
     with session_factory() as s:
         ing = s.get(Ingredient, ing_id)
@@ -378,8 +411,7 @@ def test_historial_renders_void_reason_and_by(client, session_factory):
     from app.rms.costing import void_sale
 
     sale_id = _seed_sale(session_factory)
-    void_sale(session_factory(), sale_id,
-              reason="prueba auditoría", voided_by="admin")
+    void_sale(session_factory(), sale_id, reason="prueba auditoría", voided_by="admin")
 
     resp = client.get("/ventas/historial")
     assert resp.status_code == 200

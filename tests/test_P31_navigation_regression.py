@@ -147,7 +147,9 @@ def test_productos_renders_with_products_table(client):
     assert "Algo sali" not in body, "500 error page rendered for /productos"
     # Should contain the products table or empty-state message
     has_table = "<table" in body or "table" in body.lower()
-    has_empty = "No hay productos" in body or "no hay" in body.lower() or "sin productos" in body.lower()
+    has_empty = (
+        "No hay productos" in body or "no hay" in body.lower() or "sin productos" in body.lower()
+    )
     has_heading = "Productos" in body
     assert has_table or has_empty or has_heading, (
         "/productos page rendered but contains no recognizable content"

@@ -16,16 +16,15 @@ What's NOT covered here (deferred):
   - libro_ventas refund section (fiscal report — needs separate design)
   - CSV export column ordering (deferred to librobased testing)
 """
+
 from __future__ import annotations
 
 import os
 import sys
 from datetime import datetime, timezone
-from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,6 +37,7 @@ os.environ.setdefault("SASKIA_TEST_AUTH_DISABLED", "1")
 @pytest.fixture()
 def acc_engine():
     from app.rms.db import init_db, make_engine
+
     engine = make_engine("sqlite:///:memory:")
     init_db(engine)
     yield engine
@@ -53,10 +53,15 @@ def acc_session(acc_engine):
         s.close()
 
 
-def _make_sale(s, *, total_gs=10_000, payment_method="efectivo",
-               customer_id=None, sold_at=None, voided=False):
+def _make_sale(
+    s, *, total_gs=10_000, payment_method="efectivo", customer_id=None, sold_at=None, voided=False
+):
     from app.rms.models_legacy import Product, Sale
-    if s.execute(__import__("sqlalchemy").text("SELECT id FROM product WHERE id=1")).first() is None:
+
+    if (
+        s.execute(__import__("sqlalchemy").text("SELECT id FROM product WHERE id=1")).first()
+        is None
+    ):
         s.add(Product(id=1, name="Test", sale_price_gs=total_gs, portion_label="unit"))
         s.flush()
     sale = Sale(
@@ -78,10 +83,19 @@ def _make_sale(s, *, total_gs=10_000, payment_method="efectivo",
     return sale
 
 
-def _make_refund(s, *, target_type, target_id, amount_gs,
-                 payment_method="efectivo", recorded_at=None, restock_qty=False,
-                 target_amount_gs=None):
+def _make_refund(
+    s,
+    *,
+    target_type,
+    target_id,
+    amount_gs,
+    payment_method="efectivo",
+    recorded_at=None,
+    restock_qty=False,
+    target_amount_gs=None,
+):
     from app.rms.models_legacy import Refund
+
     r = Refund(
         target_type=target_type,
         target_id=target_id,
@@ -107,8 +121,8 @@ def _make_refund(s, *, target_type, target_id, amount_gs,
 
 def test_daily_summary_subtracts_refunds(acc_session):
     """One sale + one full refund = NET revenue 0, not gross."""
+
     from app.rms.accounting import daily_summary
-    from datetime import date
 
     sale = _make_sale(acc_session, total_gs=10_000)
     _make_refund(acc_session, target_type="sale", target_id=sale.id, amount_gs=10_000)
@@ -157,13 +171,16 @@ def test_daily_summary_refund_on_different_day_doesnt_affect_today(acc_session):
     Fiscal practice: the day of the refund is when money actually left, so
     that's the day's revenue-impacting event.
     """
-    from app.rms.accounting import daily_summary
     from datetime import timedelta
+
+    from app.rms.accounting import daily_summary
 
     yesterday = datetime.now(timezone.utc) - timedelta(days=2)
     sale = _make_sale(acc_session, total_gs=10_000, sold_at=yesterday)
     _make_refund(
-        acc_session, target_type="sale", target_id=sale.id,
+        acc_session,
+        target_type="sale",
+        target_id=sale.id,
         amount_gs=10_000,
         recorded_at=yesterday + timedelta(hours=1),  # refund was on the same day as sale
     )
@@ -186,8 +203,11 @@ def test_payment_method_subtracts_refunds(acc_session):
 
     _make_sale(acc_session, total_gs=10_000, payment_method="efectivo")
     _make_refund(
-        acc_session, target_type="sale", target_id=1,
-        amount_gs=3_000, payment_method="efectivo",
+        acc_session,
+        target_type="sale",
+        target_id=1,
+        amount_gs=3_000,
+        payment_method="efectivo",
     )
 
     out = sales_by_payment_method(acc_session)
@@ -205,8 +225,11 @@ def test_payment_method_refund_without_sale(acc_session):
     from app.rms.accounting import sales_by_payment_method
 
     _make_refund(
-        acc_session, target_type="sale", target_id=99_999,
-        amount_gs=2_000, payment_method="tarjeta",
+        acc_session,
+        target_type="sale",
+        target_id=99_999,
+        amount_gs=2_000,
+        payment_method="tarjeta",
     )
 
     out = sales_by_payment_method(acc_session)
@@ -226,8 +249,11 @@ def test_payment_method_per_method_refund_split(acc_session):
     _make_sale(acc_session, total_gs=10_000, payment_method="tarjeta")
     # Refund tarjeta sale
     _make_refund(
-        acc_session, target_type="sale", target_id=2,
-        amount_gs=4_000, payment_method="tarjeta",
+        acc_session,
+        target_type="sale",
+        target_id=2,
+        amount_gs=4_000,
+        payment_method="tarjeta",
     )
 
     out = sales_by_payment_method(acc_session)

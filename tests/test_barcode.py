@@ -1,6 +1,6 @@
 """tests/test_barcode.py — verify app/rms/barcode.py (E23).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E23.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E23.
 
 Covers:
 - normalize_sku: uppercase, strip chars
@@ -10,6 +10,7 @@ Covers:
 - suggest_sku: produces a valid-format SKU
 - Product.sku column exists + indexed
 """
+
 from __future__ import annotations
 
 import pytest
@@ -158,6 +159,7 @@ def test_suggest_sku_from_empty_name():
 def test_product_sku_column_is_indexed(session_factory):
     """Product.sku should be indexed (for fast scanner lookup)."""
     from sqlalchemy import inspect
+
     # Note: this checks the model definition, not the SQLite index
     inspector = inspect(Product)
     cols = {c.name for c in inspector.columns}

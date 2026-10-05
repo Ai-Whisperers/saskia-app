@@ -20,6 +20,7 @@ Compatibility:
 - Skip the check on /healthz (monitoring).
 - Skip on the API docs if any.
 """
+
 from __future__ import annotations
 
 import os
@@ -32,15 +33,17 @@ from app.auth import SESSION_SECRET
 
 _CSRF_COOKIE = "csrf_token"
 _CSRF_FORM_FIELD = "csrf_token"
-_EXEMPT_PATHS = frozenset({
-    "/login",                  # first-time login (no cookie yet)
-    "/forgot-password",        # password recovery
-    "/healthz",
-    "/healthz/db",
-    "/healthz/deps",
-    "/healthz/migrate",        # emergency migration trigger (Render slow-to-deploy fallback)
-    "/demo/seed",              # operator-only demo seed; gated by AIW_DEMO_SEED_ENABLED (default off)
-})
+_EXEMPT_PATHS = frozenset(
+    {
+        "/login",  # first-time login (no cookie yet)
+        "/forgot-password",  # password recovery
+        "/healthz",
+        "/healthz/db",
+        "/healthz/deps",
+        "/healthz/migrate",  # emergency migration trigger (Render slow-to-deploy fallback)
+        "/demo/seed",  # operator-only demo seed; gated by AIW_DEMO_SEED_ENABLED (default off)
+    }
+)
 
 _serializer = URLSafeSerializer(SESSION_SECRET, salt="csrf-v1")
 
@@ -86,7 +89,7 @@ async def verify_form_csrf(request: Request) -> None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="csrf_form_unreadable",
-        )
+        ) from None
     form_token = form.get("_csrf_token") or form.get("csrf_token")
     if not form_token or not isinstance(form_token, str):
         raise HTTPException(
@@ -100,7 +103,7 @@ async def verify_form_csrf(request: Request) -> None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="missing_or_invalid_csrf_token",
-        )
+        ) from None
     if not secrets.compare_digest(cookie_payload, form_payload):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -118,9 +121,7 @@ async def csrf_cookie_middleware(request: Request, call_next: object) -> Respons
     path = request.url.path
 
     # Exempt paths bypass both priming and verification.
-    is_exempt = (
-        path in _EXEMPT_PATHS or path.startswith(("/static/", "/api/docs"))
-    )
+    is_exempt = path in _EXEMPT_PATHS or path.startswith(("/static/", "/api/docs"))
 
     if not is_exempt and method in ("POST", "PUT", "DELETE", "PATCH"):
         # Defense in depth:
@@ -150,10 +151,7 @@ async def csrf_cookie_middleware(request: Request, call_next: object) -> Respons
         # If the header is absent (regular form POST), skip the header
         # comparison — the route's verify_form_csrf dependency handles
         # the form-field check after the body is parsed.
-        header_token = (
-            request.headers.get("X-CSRF-Token")
-            or request.headers.get("X-CSRFToken")
-        )
+        header_token = request.headers.get("X-CSRF-Token") or request.headers.get("X-CSRFToken")
         if header_token:
             try:
                 cookie_payload = _serializer.loads(cookie_token)
@@ -162,7 +160,7 @@ async def csrf_cookie_middleware(request: Request, call_next: object) -> Respons
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="missing_or_invalid_csrf_token",
-                )
+                ) from None
             if not secrets.compare_digest(cookie_payload, header_payload):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -182,10 +180,10 @@ async def csrf_cookie_middleware(request: Request, call_next: object) -> Respons
                 httponly=True,
                 samesite="lax",
                 # Secure flag is opt-in. Hosted (Render) sets
-                # AIW_SASKIA_FORCE_SECURE_COOKIES=1 so the cookie is
+                # AIW_RMS_FORCE_SECURE_COOKIES=1 so the cookie is
                 # Secure-flagged (only sent on https). Local dev / tests
                 # leave the env unset, so plain HTTP can store the cookie.
-                secure=os.getenv("AIW_SASKIA_FORCE_SECURE_COOKIES") == "1",
+                secure=os.getenv("AIW_RMS_FORCE_SECURE_COOKIES") == "1",
             )
 
     return response

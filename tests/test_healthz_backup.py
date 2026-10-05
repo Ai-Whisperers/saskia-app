@@ -10,13 +10,12 @@ UptimeRobot) and add /admin/backup as an operator escape hatch
 (matches the /admin/migrate pattern). The lifespan call remains as a
 first-line guarantee on deploy.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 from app.rms.config import ASUNCION_TZ
 

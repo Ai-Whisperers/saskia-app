@@ -32,8 +32,15 @@ from app.rms.models import (
 
 
 def _ing(session, name, *, price=1000, stock=10, shelf=None, dietary=None, allergens=None):
-    i = Ingredient(name=name, unit="g", stock_qty=stock, purchase_price_gs=price,
-                   shelf_life_days=shelf, dietary_tags=dietary, allergens=allergens)
+    i = Ingredient(
+        name=name,
+        unit="g",
+        stock_qty=stock,
+        purchase_price_gs=price,
+        shelf_life_days=shelf,
+        dietary_tags=dietary,
+        allergens=allergens,
+    )
     session.add(i)
     session.flush()
     return i
@@ -57,14 +64,19 @@ def _product(session, name, recipe, price):
 
 
 def _sale(session, product, qty=1, days_ago=0):
-    s = Sale(product_id=product.id, qty=qty, unit_price_gs=product.sale_price_gs,
-             sold_at=datetime.now(ASUNCION_TZ) - timedelta(days=days_ago))
+    s = Sale(
+        product_id=product.id,
+        qty=qty,
+        unit_price_gs=product.sale_price_gs,
+        sold_at=datetime.now(ASUNCION_TZ) - timedelta(days=days_ago),
+    )
     session.add(s)
     session.flush()
     return s
 
 
 # ── Allergen guard ─────────────────────────────────────────────────────────
+
 
 def test_parse_customer_allergies_free_text():
     notes = "Alérgica al maní y a la lactosa. No gluten."
@@ -113,6 +125,7 @@ def test_allergen_guard_no_customer_data_passes(session_factory):
 
 # ── Theoretical vs actual ──────────────────────────────────────────────────
 
+
 def test_food_cost_variance_shape(session_factory):
     with session_factory() as s:
         h = _ing(s, "Harina var", price=1000)
@@ -133,14 +146,18 @@ def test_food_cost_variance_waste_counts(session_factory):
         r = _recipe_with(s, "Medialuna", [(h, 100)])
         p = _product(s, "Media", r, 4000)
         _sale(s, p, qty=2, days_ago=1)
-        s.add(WasteLog(ingredient_id=h.id, qty=2, reason="vencido",
-                       recorded_at=datetime.now(ASUNCION_TZ)))
+        s.add(
+            WasteLog(
+                ingredient_id=h.id, qty=2, reason="vencido", recorded_at=datetime.now(ASUNCION_TZ)
+            )
+        )
         s.commit()
         v = theoretical_vs_actual(s, days=30)
         assert v.waste_gs > 0
 
 
 # ── Price cascade ──────────────────────────────────────────────────────────
+
 
 def test_price_impact_lists_recipes_and_products(session_factory):
     with session_factory() as s:
@@ -159,6 +176,7 @@ def test_price_impact_lists_recipes_and_products(session_factory):
 
 
 # ── Demand ─────────────────────────────────────────────────────────────────
+
 
 def test_forecast_needs_min_history(session_factory):
     with session_factory() as s:
@@ -206,14 +224,18 @@ def test_shopping_list_shortfall(session_factory):
 
 # ── Freshness ──────────────────────────────────────────────────────────────
 
+
 def test_freshness_critical_flag(session_factory):
     with session_factory() as s:
         h = _ing(s, "Leche fresca test", price=1500, stock=4, shelf=5)
         # last price event 4 days ago → 1 day left → critical
-        s.add(IngredientPriceEvent(
-            ingredient_id=h.id, price_gs=1500,
-            recorded_at=datetime.now(ASUNCION_TZ) - timedelta(days=4),
-        ))
+        s.add(
+            IngredientPriceEvent(
+                ingredient_id=h.id,
+                price_gs=1500,
+                recorded_at=datetime.now(ASUNCION_TZ) - timedelta(days=4),
+            )
+        )
         s.commit()
         flags = freshness_flags(s)
         f = next(x for x in flags if x.name == "Leche fresca test")
@@ -233,10 +255,13 @@ def test_freshness_unknown_without_events(session_factory):
 def test_cook_today_suggestion(session_factory):
     with session_factory() as s:
         h = _ing(s, "Crema cocina", price=2000, stock=4, shelf=3)
-        s.add(IngredientPriceEvent(
-            ingredient_id=h.id, price_gs=2000,
-            recorded_at=datetime.now(ASUNCION_TZ) - timedelta(days=2),
-        ))
+        s.add(
+            IngredientPriceEvent(
+                ingredient_id=h.id,
+                price_gs=2000,
+                recorded_at=datetime.now(ASUNCION_TZ) - timedelta(days=2),
+            )
+        )
         _recipe_with(s, "Scones crema", [(h, 200)])
         s.commit()
         cook = cook_today_suggestions(s)
@@ -245,6 +270,7 @@ def test_cook_today_suggestion(session_factory):
 
 # ── Substitutions ──────────────────────────────────────────────────────────
 
+
 def test_substitutes_tag_preservation_priority(session_factory):
     with session_factory() as s:
         # Build 3 recipes sharing manteca+margarina vegana (co-occurrence ≥3)
@@ -252,9 +278,14 @@ def test_substitutes_tag_preservation_priority(session_factory):
         marg_v = _ing(s, "Margarina vegana", price=2500, dietary="vegano,sin lactosa")
         for n in range(3):
             r = Recipe(name=f"Rec cooc {n}", yield_qty=5, yield_unit="und")
-            s.add(r); s.flush()
-            s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=manteca.id, qty=100))
-            s.add(RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=marg_v.id, qty=100))
+            s.add(r)
+            s.flush()
+            s.add(
+                RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=manteca.id, qty=100)
+            )
+            s.add(
+                RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=marg_v.id, qty=100)
+            )
         s.commit()
         opts = substitutes_for(s, manteca.id)
         assert any(o.name == "Margarina vegana" for o in opts)

@@ -1,19 +1,4 @@
-<!-- ROADMAP-REDIRECT -->
-# ⚠️ Moved / Superseded
-
-**This file has been moved or superseded.** The canonical location is:
-
-> **`docs/roadmap/audits/2026-09-29/LOGGING_ERRORS_AUDIT_2026-09-29.md`**
-
-Audit, items extracted.
-
-See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
-
----
-
-<!-- ORIGINAL CONTENT BELOW -->
-
-# 🔬 Logging, Errors & Observability Audit — saskia-app
+# 🔬 Logging, Errors & Observability Audit — sazon-app
 
 **Date:** 2026-09-29
 **Auditor:** Hermes (Ivan's profile)
@@ -187,7 +172,7 @@ Ordered by leverage × effort. Effort estimates are `XS` (< 1h), `S` (< ½ day),
 3. **`auth_supabase.py` — log the Supabase failure.** XS. Same pattern: `logger.warning("supabase auth lookup failed uid={!r}: {!r}", uid, e)` at all 4 sites. Bonus: add `audit_record(session, action="login.supabase_error", user_id=None, detail={"err": str(e)[:200]}, request=request)` so the operator sees it in /auditoria.
 
 4. **Add `lifespan_startup_logs` to loguru file sink with size rotation.** S.
-   Today stderr only. Add a 50MB × 7-day rotating file at `./logs/saskia-{date}.log` so an operator who wasn't watching when the 500 happened can still pull the day. Crucial for a once-a-week baker who only opens the app briefly.
+   Today stderr only. Add a 50MB × 7-day rotating file at `./logs/sazon-{date}.log` so an operator who wasn't watching when the 500 happened can still pull the day. Crucial for a once-a-week baker who only opens the app briefly.
 
 ### P1 — extend the good infra to the remaining 75% (1-2 weeks)
 
@@ -209,13 +194,13 @@ Ordered by leverage × effort. Effort estimates are `XS` (< 1h), `S` (< ½ day),
    Today UptimeRobot hits `/healthz` (200/503 only). Add `/healthz/errors?threshold=10` that 503s when 1h http.500 count > threshold. Operators get a Slack alert before a user notices.
 
 10. **First-failure-toast component.** M.
-    A `<saskia-toast>` web component that listens on a `<div id="flash-data" data-flash='{"kind":"error","msg":"..."}'>` injected by every template. Today success uses `?flash=` query string; failures render the 500 page. Inline-form failures (e.g. submit a modal that fails) currently just disappear. The component would: read flash on load → show toast for 5s → dismiss. Reuses existing pattern.
+    A `<ui-toast>` web component that listens on a `<div id="flash-data" data-flash='{"kind":"error","msg":"..."}'>` injected by every template. Today success uses `?flash=` query string; failures render the 500 page. Inline-form failures (e.g. submit a modal that fails) currently just disappear. The component would: read flash on load → show toast for 5s → dismiss. Reuses existing pattern.
 
 11. **Audit-log analytics page.** L.
     The `AuditLog` table has months of data nobody queries. Build `/auditoria/analytics` with: failed-login heatmap by hour, top-10 most-mutated entity types, login-IP geo summary (Cloudflare `cf-ipcountry` header). Reference: `BACKLOG.md #30`.
 
 12. **Daily log rotate + archive to R2.** M.
-    The R2 backup scheduler already runs nightly. Extend it to also ship yesterday's `saskia-{date}.log` to R2 with the same encryption. 90 days online, 1 year in cold storage. Pairs with #4.
+    The R2 backup scheduler already runs nightly. Extend it to also ship yesterday's `sazon-{date}.log` to R2 with the same encryption. 90 days online, 1 year in cold storage. Pairs with #4.
 
 13. **Linter: ban bare `except: pass` in `app/routers/`.** XS.
     Add a `ruff` custom rule (or a pre-commit grep). Catches the next `search.py`-style silent failure at PR time. Document exception in `app/rms/db.py` with `# EXPECTED: <reason>` markers so reviewers can `git grep EXPECTED`.
@@ -283,5 +268,5 @@ time someone hits an error.
 
 I'd recommend: ship the §5 PR, then queue §6 (rollout messages.py + typed
 errors) as a single follow-up epic over the next sprint. The P2 monitoring
-items (#9-12) become worth it once Saskia is daily-active and we'd
+items (#9-12) become worth it once the operator is daily-active and we'd
 actually notice the gap.

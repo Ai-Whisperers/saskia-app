@@ -1,4 +1,4 @@
-# Saskia RMS — Visual Critique Batch: Operaciones
+# Sazón — Visual Critique Batch: Operaciones
 **Auditor:** UX/UI Principal + QA Architect
 **Scope:** 8 pages — merma, shopping-list, reorder, analisis, auditoria, ops/status, pricing, reportes
 **Method:** 5-hat analysis per page + defect log + wishlist

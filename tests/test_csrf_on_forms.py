@@ -2,6 +2,7 @@
 
 Per SASKIA_TEST_PLAN.md §5 #26 — every form endpoint must reject unprimed POSTs.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -23,14 +24,14 @@ def test_form_rejects_unprimed_post(client, route, data):
     """POST without CSRF cookie must be blocked (403/422, never 200)."""
     # Parse data string into dict
     from urllib.parse import parse_qsl
+
     form_data = dict(parse_qsl(data))
 
     r = client.post(route, data=form_data, follow_redirects=False)
     # 401 = CSRF or auth gate; 403 = CSRF blocked; 422 = validation rejected
     # 400 = our new BUG-00 Spanish 400 with field error; 404 = route gone
     assert r.status_code in (400, 401, 403, 422, 404), (
-        f"POST {route} returned {r.status_code}: {r.text[:200]}. "
-        f"CSRF must reject unprimed POSTs."
+        f"POST {route} returned {r.status_code}: {r.text[:200]}. CSRF must reject unprimed POSTs."
     )
 
 
@@ -42,9 +43,7 @@ def test_csrf_login_is_exempt(client):
         follow_redirects=False,
     )
     # /login is exempt from CSRF; should return 200/303, not 403
-    assert r.status_code in (200, 303, 422), (
-        f"/login POST returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code in (200, 303, 422), f"/login POST returned {r.status_code}: {r.text[:200]}"
 
 
 def test_csrf_get_does_not_check_csrf(client):

@@ -206,7 +206,9 @@ def require_login(request: Request) -> object:
         ip = request.client.host if request.client else "?"
         logger.warning(
             "auth_required_denied path={} method={} ip={}",
-            request.url.path, request.method, ip,
+            request.url.path,
+            request.method,
+            ip,
         )
         # HTML clients get a 303 redirect to /login (preserves the
         # "user navigated and got bounced" UX). API clients get a
@@ -272,6 +274,7 @@ def get_db_session(request: Request) -> Session:
 
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session as SQLASession
+
         db_url = os.getenv("DATABASE_URL")
         if not db_url:
             raise RuntimeError("DATABASE_URL env var not set")

@@ -1,12 +1,12 @@
-# Contributing to Saskia RMS
+# Contributing to Sazón
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E24.S2.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E24.S2.
 
 ## Quick start
 
 ```bash
-git clone https://github.com/Ai-Whisperers/saskia-app
-cd saskia-app
+git clone https://github.com/Ai-Whisperers/sazon-app
+cd sazon-app
 make install          # uv sync --dev
 make migrate          # apply schema migrations
 make seed             # populate demo data
@@ -30,7 +30,7 @@ make serve            # run on http://127.0.0.1:8765
 
 <body — what + why, not how>
 
-Refs: Saskia-eng-NNN
+Refs: ENG-NNN
 ```
 
 **Types**: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`, `ci`
@@ -83,7 +83,7 @@ Target: 80%+ coverage. New code must come with tests.
 
 ## Release process
 
-This is a "gem project" for Saskia. No formal releases — commits go to `main` via PR, CI must be green, and a `STATUS.html` is auto-refreshed by `make ci-smoke`.
+This is a "gem project" for the operator. No formal releases — commits go to `main` via PR, CI must be green, and a `STATUS.html` is auto-refreshed by `make ci-smoke`.
 
 ## Reporting issues
 

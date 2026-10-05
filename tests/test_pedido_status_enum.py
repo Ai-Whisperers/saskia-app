@@ -12,6 +12,7 @@ This test pins the BEHAVIOR (which transitions are valid) before the
 refactor, so we can ship the enum with confidence the state machine
 matches the dict's semantics.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -19,30 +20,33 @@ import pytest
 # ─── Behavior locks — must hold both before and after refactor ──────────────
 
 
-@pytest.mark.parametrize("from_status,to_status,allowed", [
-    # From pending: can confirm or cancel
-    ("pending", "confirmed", True),
-    ("pending", "cancelled", True),
-    ("pending", "ready", False),  # must go through confirmed
-    ("pending", "fulfilled", False),
-    # From confirmed: can mark ready or cancel
-    ("confirmed", "ready", True),
-    ("confirmed", "cancelled", True),
-    ("confirmed", "pending", False),  # no backward
-    ("confirmed", "fulfilled", False),  # must go through ready
-    # From ready: can fulfill or cancel
-    ("ready", "fulfilled", True),
-    ("ready", "cancelled", True),
-    ("ready", "confirmed", False),  # no backward
-    ("ready", "pending", False),
-    # fulfilled: terminal
-    ("fulfilled", "pending", False),
-    ("fulfilled", "cancelled", False),
-    ("fulfilled", "ready", False),
-    # cancelled: terminal
-    ("cancelled", "pending", False),
-    ("cancelled", "fulfilled", False),
-])
+@pytest.mark.parametrize(
+    "from_status,to_status,allowed",
+    [
+        # From pending: can confirm or cancel
+        ("pending", "confirmed", True),
+        ("pending", "cancelled", True),
+        ("pending", "ready", False),  # must go through confirmed
+        ("pending", "fulfilled", False),
+        # From confirmed: can mark ready or cancel
+        ("confirmed", "ready", True),
+        ("confirmed", "cancelled", True),
+        ("confirmed", "pending", False),  # no backward
+        ("confirmed", "fulfilled", False),  # must go through ready
+        # From ready: can fulfill or cancel
+        ("ready", "fulfilled", True),
+        ("ready", "cancelled", True),
+        ("ready", "confirmed", False),  # no backward
+        ("ready", "pending", False),
+        # fulfilled: terminal
+        ("fulfilled", "pending", False),
+        ("fulfilled", "cancelled", False),
+        ("fulfilled", "ready", False),
+        # cancelled: terminal
+        ("cancelled", "pending", False),
+        ("cancelled", "fulfilled", False),
+    ],
+)
 def test_transition_table(from_status, to_status, allowed):
     """Each (from, to) pair must produce the expected allow/deny."""
     from app.routers.pedidos import PEDIDO_TRANSITIONS

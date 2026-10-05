@@ -1,7 +1,7 @@
 """P0 fix — EOD closed-day protection for void_sale and other accounting-sensitive mutations.
 
-The roadmap (saskia-only-roadmap.md) flagged a critical violation: `void_sale()` does not
-check whether the sale belongs to a day whose EOD has been closed. Saskia could void a
+The roadmap (sazon-only-roadmap.md) flagged a critical violation: `void_sale()` does not
+check whether the sale belongs to a day whose EOD has been closed. the operator could void a
 Monday sale on Wednesday AFTER closing Monday's books.
 
 This module introduces a single source of truth: `eod_is_day_closed(session, day) ->
@@ -27,6 +27,7 @@ Edge cases:
 - Dates before EOD feature shipped: never closed (no rows means open)
 - Day with 0 checklist items: not closed (defensive; shouldn't happen)
 """
+
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -37,17 +38,18 @@ from sqlalchemy.orm import Session
 from app.rms.models import AppMeta
 from app.rms.workflow import fresh_eod_checklist
 
-# Default EOD clock — Asuncion (offset is what zoneinfo says: -3 or -4).
+
+# Default EOD clock — Asuncion (UTC-4 year-round). Same TZ used by eod.py.
 def _today_local() -> date:
-    """Return today's date in Asuncion, via the canonical clock module.
+    from datetime import datetime, timezone
 
-    Sprint 1.3: uses ``app.rms.clock.today_local`` (which itself uses the
-    IANA ``America/Asuncion`` zone). Avoids the deprecated
-    ``datetime.utcnow()`` fallback.
-    """
-    from app.rms.clock import today_local
+    try:
+        from app.rms.config import ASUNCION_TZ
 
-    return today_local().date()
+        return datetime.now(ASUNCION_TZ).date()
+    except ImportError:
+        # Fallback if config module is unavailable in tests.
+        return datetime.now(timezone.utc).date()
 
 
 def eod_is_day_closed(session: Session, day: date) -> bool:
@@ -76,9 +78,7 @@ def eod_is_day_closed(session: Session, day: date) -> bool:
 
     prefix = f"eod_check_{day.isoformat()}_"
     keys = [prefix + item.key for item in checkable_items]
-    rows = session.scalars(
-        select(AppMeta).where(AppMeta.key.in_(keys))
-    ).all()
+    rows = session.scalars(select(AppMeta).where(AppMeta.key.in_(keys))).all()
     completed_keys = {row.key for row in rows if row.value == "1"}
     return all(prefix + item.key in completed_keys for item in checkable_items)
 
@@ -106,9 +106,7 @@ class EODClosedError(ValueError):
     """
 
 
-def assert_day_open_or_raise(
-    session: Session, day: date | None, *, action: str
-) -> None:
+def assert_day_open_or_raise(session: Session, day: date | None, *, action: str) -> None:
     """Guard an accounting-sensitive write: raise EODClosedError if `day`
     is closed.
 
@@ -133,9 +131,7 @@ def assert_day_open_or_raise(
         return  # Treat unknown date as today — let the call site decide.
     if not eod_is_day_closed(session, day):
         return
-    raise EODClosedError(
-        f"eod_closed:{day.isoformat()}:{action}"
-    )
+    raise EODClosedError(f"eod_closed:{day.isoformat()}:{action}")
 
 
-__all__ = ["eod_is_day_closed", "eod_get_open_days", "assert_day_open_or_raise", "EODClosedError"]
+__all__ = ["EODClosedError", "assert_day_open_or_raise", "eod_get_open_days", "eod_is_day_closed"]

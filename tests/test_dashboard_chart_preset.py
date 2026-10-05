@@ -6,6 +6,7 @@ Verifies:
 - All 5 presets render without error
 - The chip for the current preset is marked chip--active
 """
+
 from __future__ import annotations
 
 

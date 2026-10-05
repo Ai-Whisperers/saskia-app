@@ -5,6 +5,7 @@ For each ingredient below min_stock, compute:
 This is the simple "fill back to max" heuristic. Operators then use
 this list to place manual orders with their suppliers.
 """
+
 from __future__ import annotations
 
 
@@ -13,12 +14,36 @@ def test_reorder_endpoint_lists_low_stock(client, session_factory):
     from app.rms.models import Ingredient
 
     with session_factory() as s:
-        s.add(Ingredient(name="Low_ing", unit="kg", stock_qty=2.0,
-                         purchase_price_gs=5000, min_stock_qty=5.0, max_stock_qty=20.0))
-        s.add(Ingredient(name="Ok_ing", unit="kg", stock_qty=15.0,
-                         purchase_price_gs=5000, min_stock_qty=5.0, max_stock_qty=20.0))
-        s.add(Ingredient(name="Critical_ing", unit="kg", stock_qty=0.0,
-                         purchase_price_gs=5000, min_stock_qty=5.0, max_stock_qty=20.0))
+        s.add(
+            Ingredient(
+                name="Low_ing",
+                unit="kg",
+                stock_qty=2.0,
+                purchase_price_gs=5000,
+                min_stock_qty=5.0,
+                max_stock_qty=20.0,
+            )
+        )
+        s.add(
+            Ingredient(
+                name="Ok_ing",
+                unit="kg",
+                stock_qty=15.0,
+                purchase_price_gs=5000,
+                min_stock_qty=5.0,
+                max_stock_qty=20.0,
+            )
+        )
+        s.add(
+            Ingredient(
+                name="Critical_ing",
+                unit="kg",
+                stock_qty=0.0,
+                purchase_price_gs=5000,
+                min_stock_qty=5.0,
+                max_stock_qty=20.0,
+            )
+        )
         s.commit()
 
     resp = client.get("/reorder")
@@ -34,8 +59,16 @@ def test_reorder_suggested_qty_is_max_minus_current(client, session_factory):
     from app.rms.models import Ingredient
 
     with session_factory() as s:
-        s.add(Ingredient(name="FillMeUp", unit="kg", stock_qty=3.0,
-                         purchase_price_gs=5000, min_stock_qty=5.0, max_stock_qty=20.0))
+        s.add(
+            Ingredient(
+                name="FillMeUp",
+                unit="kg",
+                stock_qty=3.0,
+                purchase_price_gs=5000,
+                min_stock_qty=5.0,
+                max_stock_qty=20.0,
+            )
+        )
         s.commit()
 
     resp = client.get("/reorder")
@@ -51,11 +84,27 @@ def test_reorder_sorted_by_urgency(client, session_factory):
 
     with session_factory() as s:
         # Less urgent: 4.9/5 = 0.98 ratio (just below min)
-        s.add(Ingredient(name="AlmostOK", unit="kg", stock_qty=4.9,
-                         purchase_price_gs=5000, min_stock_qty=5.0, max_stock_qty=20.0))
+        s.add(
+            Ingredient(
+                name="AlmostOK",
+                unit="kg",
+                stock_qty=4.9,
+                purchase_price_gs=5000,
+                min_stock_qty=5.0,
+                max_stock_qty=20.0,
+            )
+        )
         # Most urgent: 0/5 = 0 ratio (zero stock)
-        s.add(Ingredient(name="OutOfStock", unit="kg", stock_qty=0.0,
-                         purchase_price_gs=5000, min_stock_qty=5.0, max_stock_qty=20.0))
+        s.add(
+            Ingredient(
+                name="OutOfStock",
+                unit="kg",
+                stock_qty=0.0,
+                purchase_price_gs=5000,
+                min_stock_qty=5.0,
+                max_stock_qty=20.0,
+            )
+        )
         s.commit()
 
     resp = client.get("/reorder")
@@ -69,8 +118,16 @@ def test_reorder_json_format(client, session_factory):
     from app.rms.models import Ingredient
 
     with session_factory() as s:
-        s.add(Ingredient(name="Json_ing", unit="kg", stock_qty=1.0,
-                         purchase_price_gs=5000, min_stock_qty=5.0, max_stock_qty=20.0))
+        s.add(
+            Ingredient(
+                name="Json_ing",
+                unit="kg",
+                stock_qty=1.0,
+                purchase_price_gs=5000,
+                min_stock_qty=5.0,
+                max_stock_qty=20.0,
+            )
+        )
         s.commit()
 
     resp = client.get("/reorder?format=json")
@@ -93,8 +150,16 @@ def test_reorder_empty_when_all_stock_ok(client, session_factory):
     from app.rms.models import Ingredient
 
     with session_factory() as s:
-        s.add(Ingredient(name="Fine_ing", unit="kg", stock_qty=100.0,
-                         purchase_price_gs=5000, min_stock_qty=5.0, max_stock_qty=50.0))
+        s.add(
+            Ingredient(
+                name="Fine_ing",
+                unit="kg",
+                stock_qty=100.0,
+                purchase_price_gs=5000,
+                min_stock_qty=5.0,
+                max_stock_qty=50.0,
+            )
+        )
         s.commit()
 
     resp = client.get("/reorder?format=json")

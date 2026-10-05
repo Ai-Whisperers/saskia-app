@@ -8,10 +8,10 @@ guard the runbook + endpoint contract together:
 3. The runbook mentions the actual JSON fields the endpoint returns.
 4. The runbook mentions UptimeRobot with a 5-minute interval.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNBOOK_PATH = REPO_ROOT / "docs" / "operations" / "healthz-db-runbook.md"

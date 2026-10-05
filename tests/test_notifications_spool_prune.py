@@ -1,7 +1,10 @@
 """Verify _prune_spool removes only files older than retention."""
-import os, time, datetime
-from pathlib import Path
-from app.rms.notifications import _prune_spool, SPOOL_DIR, _SPOOL_RETENTION_DAYS
+
+import datetime
+import os
+
+from app.rms.notifications import SPOOL_DIR, _prune_spool
+
 
 def test_prune_drops_only_old_files(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)

@@ -27,6 +27,7 @@ All models here share the same declarative Base as the rest of the
 project — see app/rms/models/core.py.
 """
 
+
 class WishlistItem(Base):
     """Kitchen equipment wishlist (HEREBUS Wishlist sheet).
 
@@ -46,9 +47,7 @@ class WishlistItem(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     purchased: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     purchased_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
         CheckConstraint(
@@ -58,6 +57,7 @@ class WishlistItem(Base):
         CheckConstraint("quantity > 0", name="ck_wishlist_qty_positive"),
         CheckConstraint("unit_price_gs >= 0", name="ck_wishlist_price_nonneg"),
     )
+
 
 class RiskItem(Base):
     """An operational risk on the registry (HEREBUS Risk_Register sheet)."""
@@ -74,14 +74,10 @@ class RiskItem(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     owner: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
-        CheckConstraint(
-            "probability BETWEEN 1 AND 5", name="ck_risk_prob_range"
-        ),
+        CheckConstraint("probability BETWEEN 1 AND 5", name="ck_risk_prob_range"),
         CheckConstraint("impact_gs >= 0", name="ck_risk_impact_nonneg"),
         CheckConstraint(
             "status IN ('active', 'activo', 'mitigated', 'closed')",
@@ -89,10 +85,11 @@ class RiskItem(Base):
         ),
     )
 
+
 class MarketBenchmark(Base):
     """Per-product pricing-vs-market row (HEREBUS Benchmarks_Market).
 
-    Allows Saskia to position each recipe relative to local competitors.
+    Allows the operator to position each recipe relative to local competitors.
     """
 
     __tablename__ = "market_benchmark"
@@ -112,6 +109,7 @@ class MarketBenchmark(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+
 
 class BankTransaction(Base):
     """A bank transaction (Dutch TAB file or PY savings image import).
@@ -141,6 +139,7 @@ class BankTransaction(Base):
         Index("ix_bank_category", "category", "posted_at"),
     )
 
+
 class ComplianceInfo(Base):
     """Phase 1.A — Single-row table for Paraguayan tax / regulatory IDs.
 
@@ -155,6 +154,7 @@ class ComplianceInfo(Base):
     date fields are ISO strings (not Date columns) so an operator can paste
     "31/12/2027" or "2027-12-31" — we parse on save and reformat on display.
     """
+
     __tablename__ = "compliance_info"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
@@ -208,7 +208,10 @@ class ComplianceInfo(Base):
     sifen_test_mode: Mapped[bool] = mapped_column(default=True, nullable=False)
 
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow,
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
 
 
@@ -221,6 +224,7 @@ __all__ = [
     "RiskItem",
     "WishlistItem",
 ]
+
 
 class MarketPriceReference(Base):
     """Wave 4 — Market reference price per ingredient (Paraguay, Gs/kg or Gs/l or Gs/und).
@@ -239,11 +243,15 @@ class MarketPriceReference(Base):
         as_of: when the price was last verified
         created_at / updated_at: audit timestamps
     """
+
     __tablename__ = "market_price_reference"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     ingredient_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("ingredient.id", ondelete="CASCADE"), nullable=False, index=True,
+        Integer,
+        ForeignKey("ingredient.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     unit: Mapped[str] = mapped_column(String(16), nullable=False)
     price_gs: Mapped[float] = mapped_column(Float, nullable=False)
@@ -251,10 +259,15 @@ class MarketPriceReference(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     as_of: Mapped["Date"] = mapped_column(Date, nullable=False, default=date.today)
     created_at: Mapped["DateTime"] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False,
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
     )
     updated_at: Mapped["DateTime"] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False,
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
     )
 
     ingredient: Mapped["Ingredient"] = relationship("Ingredient")  # noqa: F821 — SQLAlchemy 2.0 forward ref

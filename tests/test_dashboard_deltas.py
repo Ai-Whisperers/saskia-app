@@ -5,6 +5,7 @@ Covers:
 - _delta_pct for new/decreased/increased/neutral cases
 - /inicio renders delta pills when prior + current differ
 """
+
 # allow-hardcoded-dates: delta computation needs a fixed anchor date
 from __future__ import annotations
 
@@ -58,9 +59,7 @@ def test_prior_period_month_is_previous_full_month():
     # If we're mid-month, prior window is a complete previous calendar month.
     now = datetime.now(ZoneInfo("America/Asuncion"))
     if now.day > 5:  # safe to check full prior month
-        (start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(
-            days=1
-        )
+        (start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
         # end is the 1st of the current month
         assert end.month == now.month
         # last day of prior month is start.month, last possible day
@@ -188,41 +187,39 @@ def _seed_sales_for_delta(s, *, today_qty: int, yesterday_qty: int):
     """Seed product+recipe+ingredient and 2 sales (today + yesterday)."""
     from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
 
-    ing = Ingredient(name="DeltaTestIng", unit="kg",
-                     purchase_price_gs=1000, stock_qty=10)
+    ing = Ingredient(name="DeltaTestIng", unit="kg", purchase_price_gs=1000, stock_qty=10)
     s.add(ing)
     s.flush()
     rec = Recipe(name="DeltaTestRec", yield_qty=10, yield_unit="und")
     s.add(rec)
     s.flush()
-    s.add(RecipeLine(recipe_id=rec.id, line_kind="ingredient",
-                     line_ref_id=ing.id, qty=0.1))
+    s.add(RecipeLine(recipe_id=rec.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.1))
     s.flush()
-    prod = Product(name="DeltaTestProd", portion_label="und",
-                   sale_price_gs=1000, recipe_id=rec.id)
+    prod = Product(name="DeltaTestProd", portion_label="und", sale_price_gs=1000, recipe_id=rec.id)
     s.add(prod)
     s.flush()
 
     now_local = datetime.now(ZoneInfo("America/Asuncion"))
-    now_utc_naive = now_local.astimezone(__import__("datetime").timezone.utc).replace(
-        tzinfo=None
+    now_utc_naive = now_local.astimezone(__import__("datetime").timezone.utc).replace(tzinfo=None)
+    yesterday_utc_naive = (
+        (now_local - timedelta(days=1))
+        .astimezone(__import__("datetime").timezone.utc)
+        .replace(tzinfo=None)
     )
-    yesterday_utc_naive = (now_local - timedelta(days=1)).astimezone(
-        __import__("datetime").timezone.utc
-    ).replace(tzinfo=None)
 
     if today_qty > 0:
-        s.add(Sale(product=prod, qty=today_qty, unit_price_gs=1000,
-                   sold_at=now_utc_naive))
+        s.add(Sale(product=prod, qty=today_qty, unit_price_gs=1000, sold_at=now_utc_naive))
     if yesterday_qty > 0:
-        s.add(Sale(product=prod, qty=yesterday_qty, unit_price_gs=1000,
-                   sold_at=yesterday_utc_naive))
+        s.add(
+            Sale(product=prod, qty=yesterday_qty, unit_price_gs=1000, sold_at=yesterday_utc_naive)
+        )
     s.commit()
 
 
 def test_dashboard_renders_delta_up_pill(client):
     """today=5, yesterday=1 → '400% arriba vs. ayer' on Ventas card."""
     from app.rms import main as main_module
+
     sf = main_module.app.state.session_factory
     with sf() as s:
         _seed_sales_for_delta(s, today_qty=5, yesterday_qty=1)
@@ -231,7 +228,7 @@ def test_dashboard_renders_delta_up_pill(client):
         resp = client.get("/?period=today")
     assert resp.status_code == 200
     body = resp.text
-    # d820a23 replaced metric-delta pills with the saskia-kpi-card component.
+    # d820a23 replaced metric-delta pills with the ui-kpi-card component.
     assert 'delta-direction="up"' in body, (
         "Expected delta-direction=up on the Ventas kpi-card with today>yesterday sales"
     )
@@ -241,6 +238,7 @@ def test_dashboard_renders_delta_up_pill(client):
 def test_dashboard_renders_delta_down_pill(client):
     """today=1, yesterday=5 → '80% abajo vs. ayer'."""
     from app.rms import main as main_module
+
     sf = main_module.app.state.session_factory
     with sf() as s:
         _seed_sales_for_delta(s, today_qty=1, yesterday_qty=5)
@@ -249,7 +247,7 @@ def test_dashboard_renders_delta_down_pill(client):
         resp = client.get("/?period=today")
     assert resp.status_code == 200
     body = resp.text
-    # d820a23 replaced metric-delta pills with the saskia-kpi-card component.
+    # d820a23 replaced metric-delta pills with the ui-kpi-card component.
     assert 'delta-direction="down"' in body, (
         "Expected delta-direction=down with today<yesterday sales"
     )

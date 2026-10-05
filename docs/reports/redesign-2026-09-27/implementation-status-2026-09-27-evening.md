@@ -1,8 +1,8 @@
-# Saskia RMS — Implementation Status (2026-09-27 evening, session 20260927_182227)
+# Sazón — Implementation Status (2026-09-27 evening, session 20260927_182227)
 
 **Author:** Hermes Agent
 **Session:** ivan / 20260927_182227_f40eb1
-**Repo:** `/opt/data/profiles/ivan/scratch/saskia-app-work`
+**Repo:** `/opt/data/profiles/ivan/scratch/sazon-app-work`
 **Goal:** "Implement the complete plan" — the 60-page redesign plans v3
 
 ---
@@ -13,7 +13,7 @@
 - **~165 files modified** (templates, JS, Python)
 - **0 page regressions** — every page that was 200 before is still 200
 - **7 of 18 P0 defects closed** (39% — see table below)
-- **3 new atomic systems shipped** (saskia-date Web Component, atoms.html macros adopted across 65 templates, fmt.entity_name wrap)
+- **3 new atomic systems shipped** (ui-date Web Component, atoms.html macros adopted across 65 templates, fmt.entity_name wrap)
 - **Demo pedido seeded** — `/pedidos/{id}/stock-preview` now returns 200
 
 ---
@@ -28,8 +28,8 @@
 | `8517b4c` | import atoms.html macros across all 65 templates | 66 | UI foundation |
 | `2bb678b` | page_header macro on 9 templates + Jinja expression fix | 9 | First real macro adoption |
 | `19c6288` | fix pedido_detalle Transiciones label shows Spanish (P0-D5 partial) | 1 | Bilingual fix |
-| `401fece` | `<saskia-date>` Web Component (Spanish locale, dd/mm/yyyy, a11y) | 3 | 12.9 KB new JS |
-| `4ac62dc` | adopt `<saskia-date>` across 13 templates (24 date inputs replaced) | 14 | D1 + D16 |
+| `401fece` | `<ui-date>` Web Component (Spanish locale, dd/mm/yyyy, a11y) | 3 | 12.9 KB new JS |
+| `4ac62dc` | adopt `<ui-date>` across 13 templates (24 date inputs replaced) | 14 | D1 + D16 |
 | `189969e` | adopt ui.empty_state macro on 13 templates | 13 | Empty states |
 | `c5d70b6` | adopt ui.metric_card + ui.status_pill across 30 templates | 19 | KPI strips + badges |
 | `9284d2d` | fix: auditoria.html destructive action uses SaskiaConfirmModal (P0-D12) | 2 | Modal over native confirm |
@@ -56,7 +56,7 @@
 
 | # | Defect | Status | Commit / Notes |
 |---|---|---|---|
-| D1 | Native `<input type="date">` | ✅ FIXED | `<saskia-date>` built (401fece) + 24 inputs converted (4ac62dc) |
+| D1 | Native `<input type="date">` | ✅ FIXED | `<ui-date>` built (401fece) + 24 inputs converted (4ac62dc) |
 | D2 | No loading skeletons | ❌ | Not done (1w effort, deferred) |
 | D3 | Currency drift | ✅ OK | `format_gs` + `m.gs` already consistent. Cell headers carry `Gs.` prefix so values render as `Gs. 75.000` (intentional) |
 | D4 | Slug display names | ✅ FIXED | `fmt.entity_name()` wraps 65 raw `.name` refs (8d25851) |
@@ -71,8 +71,8 @@
 | D13 | Empty state counts | ❌ | Not done (4h effort, deferred) |
 | D14 | No toast feedback | ❌ | Not done (1d effort, deferred) |
 | D15 | "0" vs "—" distinction | ❌ | Not done (already partially handled — "sin escandallo" exists in dashboard/inicio) |
-| D16 | Date format drift | ✅ FIXED | `<saskia-date>` covers this (4ac62dc) |
-| D17 | Native select dropdowns | ❌ | Not done (1w effort, deferred — needs `<saskia-combo>` refactor) |
+| D16 | Date format drift | ✅ FIXED | `<ui-date>` covers this (4ac62dc) |
+| D17 | Native select dropdowns | ❌ | Not done (1w effort, deferred — needs `<ui-combo>` refactor) |
 | D18 | Orphaned text | ❌ N/A | None found in current templates |
 
 **Fixed: 7/18 (39%) + 3 N/A**
@@ -91,7 +91,7 @@
 - **D2 loading skeletons** (1w) — affects 39 pages
 - **D9 vs-mercado data** (4h) — SQL query issue
 - **D13 empty-state counts** (4h) — needs design decision
-- **D14 toast feedback** (1d) — needs `<saskia-toast>` component
+- **D14 toast feedback** (1d) — needs `<ui-toast>` component
 - **D15 "0" vs "—"** (1d) — needs formatter logic in atoms
 - **D17 native selects** (1w) — needs combo refactor
 
@@ -118,7 +118,7 @@
 ### What the design plan got wrong
 - **Atoms.html usage**: Plan assumed 0 usages needed to be created. Reality: file already existed with 13 macros, but **0 templates imported it**. Foundation was built, just not adopted.
 - **P0 defects**: Many "defects" listed in design plans were based on screenshot snapshots that didn't reflect the actual code state. E.g. `m.gs` already produces "Gs. 1.234.567" — no currency drift.
-- **Macro coverage**: Plan recommended building 8 Web Components. Reality: `<saskia-combo>` already exists and is used in 17 templates, plus `<SaskiaConfirmModal>`, `<SaskiaDrawer>`.
+- **Macro coverage**: Plan recommended building 8 Web Components. Reality: `<ui-combo>` already exists and is used in 17 templates, plus `<SaskiaConfirmModal>`, `<SaskiaDrawer>`.
 
 ### What's genuinely good in the design plans
 - §5 Universal defects table is **very useful as a checklist** — accurate identification of cross-cutting concerns
@@ -138,7 +138,7 @@
 2. **Use `entity_name` and `format_gs`** as the canonical formatters; they're already in `app/rms/display.py` and `app/rms/money.py`
 3. **Stop writing design plans** — the live code is already substantially aligned with the plans
 4. **Focus on D2, D14, D17** — these are the biggest remaining gaps
-5. **Build `<saskia-toast>`** — it's the most-shared cross-cutting component that doesn't exist yet
+5. **Build `<ui-toast>`** — it's the most-shared cross-cutting component that doesn't exist yet
 
 ---
 
@@ -150,8 +150,8 @@ f0af825  feat: seed demo pedido + fix stock-preview 500 + migrate templates to a
 8517b4c  feat: import atoms.html macros across all 65 templates (UI foundation)
 2bb678b  feat: page_header macro on 9 templates + Jinja expression fix
 19c6288  fix: pedido_detalle.html Transiciones label shows Spanish (P0-D5 partial)
-401fece  feat: <saskia-date> Web Component (Spanish locale, dd/mm/yyyy, a11y)
-4ac62dc  feat: adopt <saskia-date> across 13 templates (24 date inputs replaced)
+401fece  feat: <ui-date> Web Component (Spanish locale, dd/mm/yyyy, a11y)
+4ac62dc  feat: adopt <ui-date> across 13 templates (24 date inputs replaced)
 189969e  feat: adopt ui.empty_state macro on 13 templates
 c5d70b6  feat: adopt ui.metric_card + ui.status_pill across 30 templates
 9284d2d  fix: auditoria.html destructive action uses SaskiaConfirmModal (P0-D12)

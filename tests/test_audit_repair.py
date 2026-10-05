@@ -7,8 +7,6 @@ specific live ingredients that triggered the audit page (#62 Panceta,
 
 from __future__ import annotations
 
-import pytest
-
 from app.rms.tagging.audit_repair import repair_ingredient
 
 
@@ -83,7 +81,7 @@ def test_sin_lactosa_dropped_when_dairy_allergen():
         dietary_tags="sin lactosa,vegano",
         category="lácteos",
     )
-    changes = repair_ingredient(ing)
+    repair_ingredient(ing)
     assert "sin lactosa" not in (ing.dietary_tags or "")
     assert "vegano" not in (ing.dietary_tags or "")
 
@@ -95,7 +93,7 @@ def test_sin_huevo_dropped_when_eggs_allergen():
         allergens="eggs",
         dietary_tags="sin huevo,vegano",
     )
-    changes = repair_ingredient(ing)
+    repair_ingredient(ing)
     assert "sin huevo" not in (ing.dietary_tags or "")
     assert "vegano" not in (ing.dietary_tags or "")
 
@@ -112,7 +110,7 @@ def test_sin_frutos_secos_dropped_when_nuts():
         dietary_tags="sin frutos secos,vegano,vegetariano",
         category="frutos-secos",
     )
-    changes = repair_ingredient(ing)
+    repair_ingredient(ing)
     assert "sin frutos secos" not in (ing.dietary_tags or "")
     # vegetariano + vegano stay (no contradiction flagged)
     assert "vegano" in (ing.dietary_tags or "")
@@ -128,7 +126,7 @@ def test_sin_frutos_secos_plus_dairy_drops_all():
         dietary_tags="sin frutos secos,vegano",
         category="frutos-secos",
     )
-    changes = repair_ingredient(ing)
+    repair_ingredient(ing)
     assert "sin frutos secos" not in (ing.dietary_tags or "")
     assert "vegano" not in (ing.dietary_tags or "")
 
@@ -141,7 +139,7 @@ def test_sin_tacc_dropped_when_gluten_allergen():
         allergens="gluten",
         dietary_tags="sin tacc,sin gluten,keto",
     )
-    changes = repair_ingredient(ing)
+    repair_ingredient(ing)
     assert "sin tacc" not in (ing.dietary_tags or "")
     assert "sin gluten" not in (ing.dietary_tags or "")
 
@@ -203,7 +201,7 @@ def test_panceta_category_correct_not_changed():
         dietary_tags="sin gluten,keto,vegano,vegetariano",
         category="carnes",
     )
-    changes = repair_ingredient(ing)
+    repair_ingredient(ing)
     # Tag changes are made, so category is NOT touched (operator should
     # review). The category was correct anyway.
     assert ing.category == "carnes"
@@ -229,6 +227,7 @@ def test_word_boundary_fix_no_longer_falsely_matches_res_in_fresco():
     After word-boundary fix, 'res' should NOT match in 'jengibre fresco'.
     """
     from app.rms.ingredient_intel import _keyword_in
+
     # 'res' is in carnes keywords but should NOT match inside 'fresco'
     assert not _keyword_in("res", "jengibre fresco")
     # But it should match standalone 'res' (for carne de res)

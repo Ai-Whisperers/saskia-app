@@ -1,4 +1,5 @@
 """tests/test_settings_ui.py — verify /settings route exists + works."""
+
 from __future__ import annotations
 
 
@@ -43,9 +44,7 @@ def test_settings_post_updates_value(client, session_factory):
         with session_factory() as s:
             # The actual stored key may differ; just verify no crash
             row = s.execute(
-                AppMeta.__table__.select().where(
-                    AppMeta.key.like("%business%")
-                )
+                AppMeta.__table__.select().where(AppMeta.key.like("%business%"))
             ).first()
             # Just verify the request didn't 500; data integrity preserved
             assert row is not None or True  # OK if no business row exists yet

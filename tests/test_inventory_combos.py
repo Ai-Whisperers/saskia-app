@@ -4,7 +4,6 @@ NOTE 2026-09-29: Combo conversion not yet shipped.
 """
 
 import pytest
-
 from fastapi.testclient import TestClient
 
 pytestmark = pytest.mark.xfail(
@@ -21,7 +20,7 @@ def test_inventory_form_unit_combo(client: TestClient):
     assert response.status_code == 200
 
     # Check for combobox elements instead of native selects
-    assert 'class="saskia-combo"' in response.text
+    assert 'class="ui-combo"' in response.text
     assert 'data-source="/recetas/api/units"' in response.text
     assert "unit_combo" in response.text
     assert "combo-input" in response.text
@@ -37,7 +36,7 @@ def test_inventory_form_category_combo(client: TestClient):
 
     # Check for category combobox
     assert "category_combo" in response.text
-    assert "data-allow-create=\"true\"" in response.text
+    assert 'data-allow-create="true"' in response.text
     assert "categoryRowLabel" in response.text
 
     # Should not contain native category select

@@ -1,123 +1,171 @@
-# app/ — Saskia RMS Fase 1
+# app/ — Sazón Fase 1-3 Core
 
-> **Local restaurant-management app** for Saskia Weiss Vander — installed on her PC, running at `127.0.0.1:8765`, no hosting, no monthly fee.
->
-> **Repo:** `Ai-Whisperers/saskia`
-> **Engagement:** Fase 1, Gs. 17.500.000 / 24 cuotas (per `docs/CURRENT-CONTEXT.md`)
-> **Plan:** `docs/plans/2026-08-31-rms-fase-1-dev-plan.md`
-> **Specs:** `docs/operations/2026-09-fase-1-specs.md`
+> **Restaurant management app core** for the operator · Built per `docs/plans/2026-08-31-rms-fase-1-dev-plan.md`  
+> **Local**: `127.0.0.1:8765` · **Hosted**: `https://sazon-vps.paragu-ai.com`  
+> **Scope**: 287 routes, 99 templates, 90 RMS modules, 102 migrations, 475 tests
 
-## What's in here (after build complete)
+## What this is
+
+The production-ready code for the operator's bakery management system. This is **not** a skeleton—it's a complete system with:
+
+- POS (Ventas) with void, refunds, sharing
+- Order management (Pedidos) with fulfillment tracking
+- Production planning and execution
+- Inventory management with variants and packaging
+- Recipe system with cost calculation
+- Customer CRM and subscriptions
+- Financial reports and analytics
+- Supplier management with price tracking
+- Waste logging (Merma)
+- Audit logging and compliance features
+
+## Architecture
 
 ```
 app/
-  README.md                 # this file
-  CHANGELOG.md              # app-level changelog (separate from repo-level)
-  pyproject.toml            # at repo root, not here
-  rms/
-    __init__.py
-    config.py               # paths, ports, env vars
-    db.py                   # engine, session, pragmas, versioned migrations
-    models.py               # SQLAlchemy ORM (ingredient, recipe, product, sale, ...)
-    money.py                # Decimal helpers + Gs. formatting (Paraguayan convention)
-    units.py                # Unit enum (g/kg/ml/l/und) with aliases
-    costing.py              # recipe_batch_cost_gs, product_unit_cost_gs, etc.
-    main.py                 # FastAPI app, lifespan, router mounts
-  routers/
-    health.py               # /healthz and /healthz/db
-    dashboard.py            # Inicio (today/week/month sales, ranking, alerts)
-    products.py             # Productos y precios (CRUD)
-    recipes.py              # Recetas (CRUD)
-    inventory.py            # Inventario (CRUD)
-    sales.py                # Ventas (entry + void)
-    excel_io.py             # Import/export
-  services/
-    auto_backup.py          # On-startup backup to ~/Documents/AIW-Saskia/backups/
-    import_xlsx.py          # Drive-Excel -> SQLite
-    export_xlsx.py          # SQLite -> Excel
-    reports.py              # Monthly stock-out, monthly close
-  templates/
-    base.html               # layout; child templates extend it
-    inicio.html
-    productos.html
-    recetas.html
-    inventario.html
-    ventas.html
-    excel.html
-    reports/
-      stockout.html
-  static/
-    app.css
-  docs/
-    copy-vos.md             # Paraguayan Spanish UI copy bank (filled by Saskia/Kiki)
-    architecture.md         # data flow, sources of truth, update paths
-    auto-backup-spec.md     # mirrors docs/operations/2026-09-fase-1-specs.md
-  installer/
-    README.md               # install-session checklist (Task 9)
-    run.bat                 # Windows: venv + uvicorn + start browser
-    shortcut-template.bat   # desktop shortcut generator
-tests/
-  conftest.py
-  test_money.py             # Decimal + format + parse
-  test_units.py             # Unit enum + aliases + conversions
-  test_costing.py           # recipe_batch_cost, product_unit_cost, margin
-  test_stock_drop.py        # apply_sale, void_sale, stock moves
-  test_import_roundtrip.py  # import -> export -> import (with synthetic mini.xlsx)
-  test_void_sale.py         # void semantics (per improvements §6.2)
-  test_healthz.py           # /healthz and /healthz/db
-  fixtures/
-    mini.xlsx               # synthetic, never her real Drive file
+├── rms/                    # Domain logic (no HTTP, no templates)
+│   ├── main.py            # FastAPI entry point
+│   ├── config.py          # constants, ASUNCION_TZ, schema version
+│   ├── db.py              # engine, migrations, session factory
+│   ├── models/            # SQLAlchemy 2.x models (15 files)
+│   ├── money.py           # Decimal helpers, Gs. formatting
+│   ├── units.py           # Unit enum with coerce()
+│   ├── services/          # cross-cutting services
+│   └── ... (~90 modules)
+├── routers/               # FastAPI routers (36 files, 287 routes)
+├── templates/            # Jinja2 templates (99 HTML + 11 components)
+├── static/               # CSS, JS, images, SVG assets
+├── auth.py               # Authentication layers
+└── integrations/         # External integrations
 ```
 
-## What's here NOW (this commit)
+### Tech stack
 
-The empty skeleton with:
-- `rms/money.py` — Decimal helpers (per spec §A)
-- `rms/units.py` — Unit enum (per spec §B)
-- `rms/__init__.py`
-- `routers/health.py` — /healthz + /healthz/db (per spec §C)
-- `services/auto_backup.py` — auto-backup on startup (per spec §1)
-- `tests/conftest.py`, `tests/test_money.py`, `tests/test_units.py` — per spec §9
-- `docs/copy-vos.md` — UI copy bank template (needs Kiki or Saskia to fill)
-- `installer/README.md` — install-session checklist
-- `installer/run.bat` — Windows launcher
+| Layer | Package | Purpose |
+|-------|---------|---------|
+| **Web framework** | FastAPI 0.115 | REST API, form handling, Jinja templating |
+| **ORM** | SQLAlchemy 2.x | Postgres/SQLite with Mapped[...] syntax |
+| **Templates** | Jinja2 | Server-rendered HTML with Paraguayan Spanish |
+| **CSS** | Custom | Design system, no framework dependencies |
+| **Auth** | itsdangerous | Session cookies; Supabase integration |
+| **Migrations** | Hand-rolled | Versioned migration functions in `db.py` |
+| **Tests** | pytest + hypothesis | 80% coverage gate, property-based |
+| **Lint** | ruff | Code quality, CI gate |
 
-Other modules are placeholders / will be added by Kiki per the dev plan tasks.
+## Development
 
-## How to run (after build complete)
-
-**Windows:**
-```cmd
-cd %USERPROFILE%\path\to\saskia
-run.bat
-```
-
-**Mac/Linux:**
-```bash
-cd /path/to/saskia
-uv sync
-uv run uvicorn app.rms.main:app --host 127.0.0.1 --port 8765 --reload
-```
-
-Browser opens to http://127.0.0.1:8765 automatically.
-
-## How to test
+### Quick start
 
 ```bash
-uv sync --all-extras
-uv run pytest --cov=app
+git clone https://github.com/Ai-Whisperers/sazon-app.git
+cd sazon-app
+make install               # uv sync --all-extras
+make migrate               # apply schema migrations (v102)
+make seed                  # populate demo data
+make serve                 # run on http://127.0.0.1:8765
 ```
 
-Coverage target: >80% (CI fails below).
+### Build and run
 
-## Operator note (recorded in this commit)
+```bash
+# Local development
+uv sync --dev                # install deps
+make migrate                 # apply schema migrations
+make seed                    # populate demo data
+make serve                   # run on http://127.0.0.1:8765
 
-This `app/` skeleton was committed to the engagement repo before the four
-clock-pause conditions in `docs/plans/2026-08-31-rms-fase-1-dev-plan.md §0`
-were satisfied (signed quote + first cuota + Drive + PC named). This was
-done at explicit operator override. The 70h build clock is NOT yet running.
-Any further work on `app/` after the operator override is still subject to
-the §0 gate.
+# Tests
+make test                    # full suite, ~70s
+make check                   # ruff + tests (CI gate)
+make test-coverage           # HTML coverage report
 
-See `docs/operations/2026-09-tech-stack-review.md` for the rationale of
-the chosen stack (uv, FastAPI, SQLite, openpyxl, etc.).
+# Targeted
+uv run pytest tests/test_X.py -v
+uv run ruff check path/to/file.py
+```
+
+### Database
+
+- Schema is hand-rolled; **do not use Alembic**. Migrations in `app/rms/db.py` as `_migration_NNN_*` functions
+- Bump `CURRENT_SCHEMA_VERSION` after adding a migration
+- Run `make migrate` after pulling to apply pending migrations
+
+### Key rules
+
+- **Money**: All calculations use `Decimal`, never `float`. Persistence through `app/rms/money.py:to_int_gs()`
+- **Time**: All datetime math uses `ASUNCION_TZ`. DB stores naive UTC
+- **Stock**: Moves are atomic with sale creation. Negative stock allowed
+- **Nav**: Never hardcode in templates—use `NAV_GROUPS` in `app/rms/nav.py`
+- **No async**: Sync handlers only (DB session lifecycle easier)
+
+## Testing
+
+- 475 tests across all modules
+- 80% coverage gate (CI fails below)
+- Property-based tests for money/units via hypothesis
+- Test conventions: `tests/test_<module>.py`
+
+## Deployment
+
+### Local
+```bash
+make serve      # http://127.0.0.1:8765
+```
+
+### Hosted
+```bash
+make deploy     # push + deploy to VPS
+```
+
+See `docs/operations/2026-09-24-deployment.md` for full topology.
+
+## What users can do
+
+### Core operations
+- **Ventas**: POS with void, refunds, receipt sharing
+- **Pedidos**: Take customer orders, track fulfillment
+- **Producción**: Plan and execute daily production
+- **Inventario**: Track stock, variants, packaging
+- **Merma**: Log waste by ingredient or recipe
+
+### Catalog management
+- **Productos**: CRUD with categories, tags, pricing
+- **Recetas**: Create recipes with costing, photos
+- **Ingredientes**: Stock tracking, alerts, variants
+
+### Sales & customers
+- **Clientes**: CRM with duplicate detection, points
+- **Suscripciones**: Subscriptions with invoicing
+
+### Purchasing
+- **Reponer**: Reorder management with supplier lock/unlock
+- **Proveedores**: Supplier CRUD, price volatility
+- **Shopping lists**: Auto-generate from production plans
+
+### Reports & analytics
+- **Reportes**: Sales, inventory, financial PDFs
+- **Análisis**: Insights, food cost, demand forecasting
+- **Dashboard**: KPIs, monthly metrics
+- **Auditoría**: Audit log, compliance
+
+## Recent updates (2026-09-10 - 2026-10-05)
+
+- **Phase 3 CI cleanup**: Ruff from 1910→0 errors, currency drift elimination, bug fixes
+- **Production v2**: Demand forecasting, production planning, audit log enhancements
+- **Static content audit**: 24 PNG screenshots, user guide completion
+- **Redesign hardening**: Visual polish, new components, accessibility improvements
+
+## Cross-references
+
+- **Main README**: Project overview, architecture, deployment
+- **[app/rms/AGENTS.md](app/rms/AGENTS.md)** — Engineering hard rules and patterns
+- **[CHANGELOG.md](CHANGELOG.md)** — App-level changelog (separate from repo)
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — Development workflow and conventions
+- **[docs/operations/](docs/operations/)** — Architecture, deployment, operations docs
+- **[docs/user-guide/](docs/user-guide/)** — User manual with screenshots
+
+---
+
+**Status**: Fase 1-3 complete · Fase 4 planning  
+**Visibility**: PUBLIC (no PII; build-only)  
+**Last update**: 2026-10-05 (CI cleanup, production v2)

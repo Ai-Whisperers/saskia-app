@@ -1,15 +1,14 @@
 """Comprehensive E2E smoke test — every page + every functionality."""
+
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 import sys
-import time
 from collections import defaultdict
 from pathlib import Path
 
-REPO = Path("/opt/data/profiles/ivan/scratch/saskia-app-work")
+REPO = Path("/opt/data/profiles/ivan/scratch/sazon-app-work")
 
 
 def discover_routes():
@@ -28,7 +27,9 @@ print(json.dumps(routes))
 """
     r = subprocess.run(
         ["uv", "run", "python", "-c", code],
-        capture_output=True, text=True, cwd=REPO,
+        capture_output=True,
+        text=True,
+        cwd=REPO,
     )
     if r.returncode != 0:
         print(f"Failed to discover routes: {r.stderr}")

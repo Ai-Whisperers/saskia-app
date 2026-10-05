@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import os
 
-RMS = "/opt/data/work/saskia-app/app/rms"
-INTEGRATIONS = "/opt/data/work/saskia-app/app/integrations"
+RMS = "/opt/data/work/sazon-app/app/rms"
+INTEGRATIONS = "/opt/data/work/sazon-app/app/integrations"
 
 
 def test_integrations_package_exists():
@@ -39,9 +39,7 @@ def test_rms_infra_files_gone():
 def test_api_package_gone():
     """The aspirational app/rms/api/ package had zero callers."""
     api_dir = os.path.join(RMS, "api")
-    assert not os.path.exists(api_dir), (
-        "app/rms/api/ was dead code (499 lines, no callers)"
-    )
+    assert not os.path.exists(api_dir), "app/rms/api/ was dead code (499 lines, no callers)"
 
 
 def test_seed_competitor_prices_split():
@@ -57,9 +55,9 @@ def test_seed_data_files_present():
     """The two data files + orchestrator exist with content."""
     seed_pkg = os.path.join(RMS, "seed")
     expected = [
-        "competitor_seed.py",        # 86 non-shopping entries
-        "competitor_shoppings.py",   # 58 shopping entries
-        "competitor_prices.py",      # orchestrator
+        "competitor_seed.py",  # 86 non-shopping entries
+        "competitor_shoppings.py",  # 58 shopping entries
+        "competitor_prices.py",  # orchestrator
     ]
     for name in expected:
         p = os.path.join(seed_pkg, name)
@@ -76,9 +74,7 @@ def test_competitor_seed_all_row_count():
     """
     from app.rms.seed.competitor_prices import COMPETITOR_SEED_ALL
 
-    assert len(COMPETITOR_SEED_ALL) == 144, (
-        f"expected 144 rows, got {len(COMPETITOR_SEED_ALL)}"
-    )
+    assert len(COMPETITOR_SEED_ALL) == 144, f"expected 144 rows, got {len(COMPETITOR_SEED_ALL)}"
 
 
 def test_competitor_seed_backward_compat():
@@ -119,18 +115,17 @@ def test_no_app_rms_api_references_in_codebase():
     import subprocess
 
     r = subprocess.run(
-        ["grep", "-rn", "app\\.rms\\.api\\.", "/opt/data/work/saskia-app/", "--include=*.py"],
+        ["grep", "-rn", "app\\.rms\\.api\\.", "/opt/data/work/sazon-app/", "--include=*.py"],
         capture_output=True,
         text=True,
     )
     # Filter out the test file's own assertion message
     lines = [
-        line for line in r.stdout.split("\n")
+        line
+        for line in r.stdout.split("\n")
         if line and "test_integrations_and_seed_split.py" not in line
     ]
-    assert not lines, (
-        f"stray references to app.rms.api.* found:\n{chr(10).join(lines)}"
-    )
+    assert not lines, f"stray references to app.rms.api.* found:\n{chr(10).join(lines)}"
 
 
 def test_no_app_rms_scrapers_references():
@@ -138,17 +133,16 @@ def test_no_app_rms_scrapers_references():
     import subprocess
 
     r = subprocess.run(
-        ["grep", "-rn", "app\\.rms\\.scrapers", "/opt/data/work/saskia-app/", "--include=*.py"],
+        ["grep", "-rn", "app\\.rms\\.scrapers", "/opt/data/work/sazon-app/", "--include=*.py"],
         capture_output=True,
         text=True,
     )
     lines = [
-        line for line in r.stdout.split("\n")
+        line
+        for line in r.stdout.split("\n")
         if line and "test_integrations_and_seed_split.py" not in line
     ]
-    assert not lines, (
-        f"stray references to app.rms.scrapers:\n{chr(10).join(lines)}"
-    )
+    assert not lines, f"stray references to app.rms.scrapers:\n{chr(10).join(lines)}"
 
 
 def test_no_app_rms_barcode_or_printer_references():
@@ -157,17 +151,22 @@ def test_no_app_rms_barcode_or_printer_references():
 
     for mod in ("barcode", "printer"):
         r = subprocess.run(
-            ["grep", "-rn", f"app\\.rms\\.{mod}\\b", "/opt/data/work/saskia-app/", "--include=*.py"],
+            [
+                "grep",
+                "-rn",
+                f"app\\.rms\\.{mod}\\b",
+                "/opt/data/work/sazon-app/",
+                "--include=*.py",
+            ],
             capture_output=True,
             text=True,
         )
         lines = [
-            line for line in r.stdout.split("\n")
+            line
+            for line in r.stdout.split("\n")
             if line and "test_integrations_and_seed_split.py" not in line
         ]
-        assert not lines, (
-            f"stray app.rms.{mod} references:\n{chr(10).join(lines)}"
-        )
+        assert not lines, f"stray app.rms.{mod} references:\n{chr(10).join(lines)}"
 
 
 def test_no_app_rms_seed_competitor_prices_references():
@@ -175,14 +174,19 @@ def test_no_app_rms_seed_competitor_prices_references():
     import subprocess
 
     r = subprocess.run(
-        ["grep", "-rn", "app\\.rms\\.seed_competitor_prices", "/opt/data/work/saskia-app/", "--include=*.py"],
+        [
+            "grep",
+            "-rn",
+            "app\\.rms\\.seed_competitor_prices",
+            "/opt/data/work/sazon-app/",
+            "--include=*.py",
+        ],
         capture_output=True,
         text=True,
     )
     lines = [
-        line for line in r.stdout.split("\n")
+        line
+        for line in r.stdout.split("\n")
         if line and "test_integrations_and_seed_split.py" not in line
     ]
-    assert not lines, (
-        f"stray app.rms.seed_competitor_prices references:\n{chr(10).join(lines)}"
-    )
+    assert not lines, f"stray app.rms.seed_competitor_prices references:\n{chr(10).join(lines)}"

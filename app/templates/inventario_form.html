@@ -36,7 +36,7 @@
   </div>
   <div class="form-row">
     <label for="unit">Unidad</label>
-    {# D17 migration: legacy saskia-combo div → <saskia-combo> Web Component via macro. #}
+    {# D17 migration: legacy ui-combo div → <ui-combo> Web Component via macro. #}
     {{ ui.combo_field(
       name='unit',
       value=ingredient.unit_display if ingredient else '',
@@ -60,7 +60,7 @@
   </div>
   <div class="form-row">
     <label for="opening_stock_date">Fecha de apertura</label>
-    <saskia-date id="opening_stock_date" name="opening_stock_date" value="{{ ingredient.opening_stock_date if ingredient and ingredient.opening_stock_date else '' }}"></saskia-date>
+    <ui-date id="opening_stock_date" name="opening_stock_date" value="{{ ingredient.opening_stock_date if ingredient and ingredient.opening_stock_date else '' }}"></ui-date>
     <small>Fecha en que se registró el stock de apertura.</small>
   </div>
   <div class="form-row">

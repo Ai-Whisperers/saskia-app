@@ -1,19 +1,4 @@
-<!-- ROADMAP-REDIRECT -->
-# ⚠️ Moved / Superseded
-
-**This file has been moved or superseded.** The canonical location is:
-
-> **`docs/roadmap/audits/CSS_AUDIT.md`**
-
-CSS audit, archived.
-
-See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
-
----
-
-<!-- ORIGINAL CONTENT BELOW -->
-
-# Saskia RMS — CSS Audit & Refactor Plan (2026-09-23)
+# Sazón — CSS Audit & Refactor Plan (2026-09-23)
 
 ## Audit summary
 

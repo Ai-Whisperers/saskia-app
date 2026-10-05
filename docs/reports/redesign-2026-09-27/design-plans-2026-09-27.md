@@ -1,4 +1,4 @@
-# Saskia RMS — Complete UX/UI Design Plans v2 (2026-09-27)
+# Sazón — Complete UX/UI Design Plans v2 (2026-09-27)
 
 **Scope:** 60 pages analyzed (32 directly via vision + 28 via subagents) + 3 cross-cutting audits.
 **Method:** UX/UI principal review per page, multi-hat analysis (counter, owner-finance, production-baker, new user, auditor), with cross-page pattern extraction.
@@ -20,7 +20,7 @@ This document is organized in **7 sections**:
 
 ---
 
-# Saskia RMS — Complete UX/UI Design Plans (2026-09-27)
+# Sazón — Complete UX/UI Design Plans (2026-09-27)
 
 **Scope:** 76 pages analyzed (5 personal + 3 subagent batches × 14 each = 47 more, plus consolidated reports).
 **Method:** UX/UI principal review with 5-hat analysis (counter staff, owner-finance, production-baker, new user, auditor) per page.
@@ -72,7 +72,7 @@ When you're done reading this, see `docs/reports/redesign-2026-09-26/01-ux-audit
 - **Top add:** **One-time interactive tour overlay** that highlights each region (KPIs, Acciones, Plan, Alertas, Operación) for 1.5s each on first 3 logins. Saved in localStorage. Dismissable.
 
 ### Auditor (traceability)
-- **Now:** Bottom status bar shows \"Saskia RMS v1.0 · Sistema local · estado · guía · ©\".
+- **Now:** Bottom status bar shows \"Sazón v1.0 · Sistema local · estado · guía · ©\".
 - **Missing:** No \"Quién está logueado\" / \"Última acción\" / \"Sesión iniciada hace X\". For audit, knowing who sees what is the first question.
 - **Top add:** **Active-session chip** in the top-right showing \"👤 Juan · sesión 04:32:11\" with a click-to-expand dropdown showing \"Cambiar de usuario\", \"Cerrar sesión\", \"Registro de actividad\".
 
@@ -190,7 +190,7 @@ When you're done reading this, see `docs/reports/redesign-2026-09-26/01-ux-audit
 ## 5-Hat Analysis
 
 ### Counter staff (speed)
-- **Now:** Two-column layout (Nueva venta / Venta rápida). \"Escanear SKU (opcional)\" is prominent. Fields: Producto (saskia-combo), Cantidad, Fecha y hora, Cliente, Canal de venta, Forma de pago, Comprobante fiscal, Descuento, Notas. \"Venta rápida\" shows top 5 productos with one-tap.
+- **Now:** Two-column layout (Nueva venta / Venta rápida). \"Escanear SKU (opcional)\" is prominent. Fields: Producto (ui-combo), Cantidad, Fecha y hora, Cliente, Canal de venta, Forma de pago, Comprobante fiscal, Descuento, Notas. \"Venta rápida\" shows top 5 productos with one-tap.
 - **Missing:** No barcode scanner attached to the SKU input (just text). No keyboard shortcut hint next to fields. No recent customers shown.
 - **Top add:** **Barcode scanner support** — make SKU input a real barcode-scanner target. Also: **Auto-focus first empty field** when page loads. Also: **Quick customer picker** at top with last 10 customers.
 
@@ -251,7 +251,7 @@ When you're done reading this, see `docs/reports/redesign-2026-09-26/01-ux-audit
 
 ## Defects
 - **P0:** No barcode scanner visible. Counter can't scan and sell. Fix: integrate Web API `BarcodeDetector` or accept any USB scanner as keyboard input.
-- **P0:** \"Fecha y hora\" shows `09/27/2026, 03:24 PM` — US locale, not Paraguayan. Fix: use `<saskia-date>` web component (D1).
+- **P0:** \"Fecha y hora\" shows `09/27/2026, 03:24 PM` — US locale, not Paraguayan. Fix: use `<ui-date>` web component (D1).
 - **P0:** Currency input shows raw \"0\" for precio — should show placeholder \"Gs. 0\" or \"0.000 Gs.\"
 - **P1:** \"Venta rápida\" only shows \"Producto cfaf4b47\" (seed leak) and only 1 item — should be 5 items or empty state
 - **P1:** No \"Venta recurrent\" toggle (e.g., for daily coffee customers)
@@ -532,7 +532,7 @@ When you're done reading this, see `docs/reports/redesign-2026-09-26/01-ux-audit
 ## 5-Hat Analysis
 
 ### Counter staff
-- **Now:** Form fields: Nombre (placeholder \"Ej: Muffin de chocolate\"), SKU/Código de barras (auto-generated hint), Categoría (saskia-combo), Etiquetas (16 pill toggles), Etiqueta de porción (auto-filled if recipe chosen), Precio de venta (Gs.), Receta (saskia-combo with \"Sin receta\" warning), Imagen del producto (drag-drop or URL), Disponible para venta checkbox, Notas. Save/Cancel buttons.
+- **Now:** Form fields: Nombre (placeholder \"Ej: Muffin de chocolate\"), SKU/Código de barras (auto-generated hint), Categoría (ui-combo), Etiquetas (16 pill toggles), Etiqueta de porción (auto-filled if recipe chosen), Precio de venta (Gs.), Receta (ui-combo with \"Sin receta\" warning), Imagen del producto (drag-drop or URL), Disponible para venta checkbox, Notas. Save/Cancel buttons.
 - **Missing:** Counter doesn't usually create products — owner does. But there's no role-context (this looks like the same form for everyone).
 - **Top add:** **Role indicator** at top (\"Estás creando como Dueño\") + **\"Quick mode\"** toggle (only required fields).
 
@@ -892,7 +892,7 @@ When you're done reading this, see `docs/reports/redesign-2026-09-26/01-ux-audit
 ## Quality-of-Life Touches
 - **RUC auto-format** (typing \"12345678\" → \"123456789-1\")
 - **Currency input with format helper**
-- **Date picker** (replace native with `<saskia-date>`)
+- **Date picker** (replace native with `<ui-date>`)
 - **Tab navigation** through fields in logical order
 - **Auto-save** every 30s to localStorage
 - **Browser back warning** if dirty
@@ -1114,7 +1114,7 @@ When you're done reading this, see `docs/reports/redesign-2026-09-26/01-ux-audit
 - **P0:** \"APPEND\" and \"FULL\" modes are advanced but no warning about their destructive nature.
 - **P1:** \"Descargar plantilla\" — does it come with realistic data or empty?
 - **P1:** No sample file for \"this is what an imported file looks like\".
-- **P2:** \"Modo de importación\" radio buttons — should be a saskia-combo for consistency with the rest of the app.
+- **P2:** \"Modo de importación\" radio buttons — should be a ui-combo for consistency with the rest of the app.
 
 ## Dependencies / Cross-Page Pattern
 - **Preview-before-import** is unique to /excel but the \"diff preview\" pattern applies to /recetas/{id}/editar (recipe change diff), /inventario/{id}/editar (price change diff).
@@ -1129,7 +1129,7 @@ When you're done reading this, see `docs/reports/redesign-2026-09-26/01-ux-audit
 ## 5-Hat Analysis
 
 ### Counter staff
-- **Now:** Saskia RMS logo, \"Panadería / Bakery — Sistema de gestión\" subtitle, \"Ingresá tu usuario para continuar\" callout, Usuario field, Contraseña field, \"Mantener sesión abierta\" checkbox (with warning \"No uses esto en equipos compartidos\"), \"Recordar este dispositivo\" checkbox, \"Ingresar\" button, \"Al usar este sistema aceptás los términos de accesibilidad\" footer, \"Declaración de accesibilidad\" link, \"¿Olvidaste tu contraseña? Contactá al administrador del local.\"
+- **Now:** Sazón logo, \"Panadería / Bakery — Sistema de gestión\" subtitle, \"Ingresá tu usuario para continuar\" callout, Usuario field, Contraseña field, \"Mantener sesión abierta\" checkbox (with warning \"No uses esto en equipos compartidos\"), \"Recordar este dispositivo\" checkbox, \"Ingresar\" button, \"Al usar este sistema aceptás los términos de accesibilidad\" footer, \"Declaración de accesibilidad\" link, \"¿Olvidaste tu contraseña? Contactá al administrador del local.\"
 - **Missing:** No \"scan QR\" for mobile login. No PIN option for fast counter login.
 - **Top add:** **PIN login option** (4-digit, fast for counter staff who don't want to type full password each time).
 
@@ -1202,7 +1202,7 @@ When you're done reading this, see `docs/reports/redesign-2026-09-26/01-ux-audit
 - **Top add:** **\"Lo más buscado\" widget** at top — 5 most-clicked articles by counter staff role.
 
 ### Owner-finance
-- **Now:** \"Guía de Saskia RMS — Para Saskia. Esta guía explica, página por página, todo lo que tiene la app y cómo usarlo en el día a día de la panadería.\" Plus 16-row \"Índice rápido\" with section + \"Cuándo leerla\" column. Plus \"Conceptos generales\" (Idioma, Zona horaria, UTC-4, Cómo se ve la app, Tres reglas de oro, Mapa visual).
+- **Now:** \"Guía de Sazón — Para Saskia. Esta guía explica, página por página, todo lo que tiene la app y cómo usarlo en el día a día de la panadería.\" Plus 16-row \"Índice rápido\" with section + \"Cuándo leerla\" column. Plus \"Conceptos generales\" (Idioma, Zona horaria, UTC-4, Cómo se ve la app, Tres reglas de oro, Mapa visual).
 - **Missing:** No search bar at top (mentioned in earlier audit, still missing).
 - **Top add:** **Search bar** (client-side, fuzzy match).
 
@@ -1212,9 +1212,9 @@ When you're done reading this, see `docs/reports/redesign-2026-09-26/01-ux-audit
 - **Top add:** **\"Si sos producción, empezá por acá\"** callout at top.
 
 ### New user
-- **Now:** \"URL: https://saskia-rms.paragu-ai.com\" — clear.
+- **Now:** \"URL: https://sazon-rms.paragu-ai.com\" — clear.
 - **Missing:** No video walkthrough.
-- **Top add:** **Embedded video** (3-minute \"Welcome to Saskia RMS\").
+- **Top add:** **Embedded video** (3-minute \"Welcome to Sazón\").
 
 ### Auditor
 - **Now:** No mention of audit log access from the guide.
@@ -1302,7 +1302,7 @@ When you're done reading this, see `docs/reports/redesign-2026-09-26/01-ux-audit
 
 ## Quality-of-Life Touches
 - **Date range presets** (Hoy, Ayer, Esta semana, Mes, Mes anterior, YTD, Custom)
-- **`<saskia-date>` web component** (replace native date picker — D1)
+- **`<ui-date>` web component** (replace native date picker — D1)
 - **Currency formatting** (120.000 with thousands separator — D3 fix)
 - **Sortable columns**
 - **Search product** (when 20+ products)
@@ -1319,7 +1319,7 @@ When you're done reading this, see `docs/reports/redesign-2026-09-26/01-ux-audit
 - **P2:** \"Ver\" button is small and far right.
 
 ## Dependencies / Cross-Page Pattern
-- **Date range presets + saskia-date** applies to every report.
+- **Date range presets + ui-date** applies to every report.
 - **Bar chart visualization** applies to /analisis, /dashboard.
 - **Source attribution** applies to every report.
 
@@ -1398,7 +1398,7 @@ When you're done reading this, see `docs/reports/redesign-2026-09-26/01-ux-audit
 ## Universal report-page patterns
 Every report page in the app should have:
 - **Date range presets** (Hoy, Ayer, Esta semana, Mes, Mes anterior, YTD, Custom)
-- **`<saskia-date>` web component** (replace native — D1 fix)
+- **`<ui-date>` web component** (replace native — D1 fix)
 - **Source attribution** footer (D3 fix: \"Source: X table, period Y to Z\")
 - **At least 1 visualization** (bar/line chart, not just table)
 - **Period comparison** (vs previous period — delta + arrow)
@@ -1519,15 +1519,15 @@ Extract these into the atoms file. Then refactor existing templates to use them.
 
 ## A3 — Web Components standardization
 Per AGENTS.md: no native `<select>`, native date pickers, etc. Web Components already exist for:
-- `<saskia-combo>` (dropdowns) — used inconsistently
-- `<saskia-date>` (date picker) — NOT yet built (D1)
+- `<ui-combo>` (dropdowns) — used inconsistently
+- `<ui-date>` (date picker) — NOT yet built (D1)
 
 Add:
-- `<saskia-tabs>` (for tab nav)
-- `<saskia-modal>` (for modals)
-- `<saskia-toast>` (for notifications)
-- `<saskia-combo-multi>` (for multi-select)
-- `<saskia-tag-input>` (for tag pills with autocomplete)
+- `<ui-tabs>` (for tab nav)
+- `<ui-modal>` (for modals)
+- `<ui-toast>` (for notifications)
+- `<ui-combo-multi>` (for multi-select)
+- `<ui-tag-input>` (for tag pills with autocomplete)
 
 ## A4 — JS behavior layer (`app-components.js`)
 Currently the app has scattered vanilla JS. Consolidate into:
@@ -1568,7 +1568,7 @@ For each page family, define one canonical layout:
 ### Report pages (`/reportes/*`)
 1. Breadcrumb
 2. Title + subtitle (period)
-3. Date range presets + saskia-date pickers
+3. Date range presets + ui-date pickers
 4. KPI strip (top-line numbers)
 5. Visualization (chart)
 6. Detail table (sortable)
@@ -2169,7 +2169,7 @@ These came up repeatedly. Tracking them so they can be triaged as a group:
 > **Source:** `qol-touches-catalog.md` (subagent audit, 16 categories × 8+ items each).
 > Comprehensive catalog of small touches that elevate the app from "functional" to "delightful".
 
-# Saskia RMS — Complete QOL Touches Catalog
+# Sazón — Complete QOL Touches Catalog
 
 **Compiled by:** Senior UX/UI Principal
 **Date:** 2026-09-27
@@ -2394,7 +2394,7 @@ These came up repeatedly. Tracking them so they can be triaged as a group:
 | 11.11 | **Export progress toast** ("Generando PDF… 47%") | Long-running exports | Stream progress to a persistent toast | S |
 | 11.12 | **Scheduled email reports** (weekly Resumen diario to owner's email) | Reportes | Cron-like setting per report card | L |
 | 11.13 | **Print preview before print** | All print actions | `window.print()` already triggers native preview | XS |
-| 11.14 | **Export filename convention** (e.g., `saskia-inventario-2026-09-27.csv`) | All exports | `<a download="saskia-<entity>-<date>.<ext>">` | XS |
+| 11.14 | **Export filename convention** (e.g., `sazon-inventario-2026-09-27.csv`) | All exports | `<a download="saskia-<entity>-<date>.<ext>">` | XS |
 
 ---
 
@@ -2635,7 +2635,7 @@ This section gives a one-line bottom line for 14 pages I analyzed via vision thi
 | **D14** | No toast/feedback after save, delete, or refresh on most pages | 25+ | 1d | User doesn't know if action succeeded. |
 | **D15** | "0" rendered identically for "no data yet" and "zero data" | 5+ (analisis, reportes/diario, reportes/freshness, inventario/{id}) | 1d | Counter can't distinguish "haven't logged" from "isn't used". |
 | **D16** | Date format drift: `dd/mm/yyyy`, `yyyy-mm-dd`, `mm/dd/yyyy` placeholder | 17 of 46 | 2d | Same data renders 3 ways. |
-| **D17** | Native `<select>` dropdowns in 5+ forms (should be `<saskia-combo>`) | pedido-nuevo, cliente-nuevo, supplier-nuevo, etc. | 1w | AGENTS.md violation; missing search/type-ahead. |
+| **D17** | Native `<select>` dropdowns in 5+ forms (should be `<ui-combo>`) | pedido-nuevo, cliente-nuevo, supplier-nuevo, etc. | 1w | AGENTS.md violation; missing search/type-ahead. |
 | **D18** | "Falta descripción" / "Necesita más análisis" appears as orphaned text on 3 pages | reportes/precios, reportes/margenes, reportes/freshness | 2h | Placeholder text leaked into production. |
 
 **Effort rollup:** ~3 weeks of focused work, 18 P0 issues closed.
@@ -2670,19 +2670,19 @@ These defect categories recur across the app. Each one has a known fix (typicall
 | Defect category | Pages affected | Fix (macro / component / process) |
 |---|---|---|
 | **Currency format drift** | 14+ | `format_gs` Jinja filter + CI lint rule |
-| **Date format drift** | 17 | `<saskia-date>` Web Component |
-| **Native pickers (date, select)** | 9+ | `<saskia-date>`, `<saskia-combo>` |
+| **Date format drift** | 17 | `<ui-date>` Web Component |
+| **Native pickers (date, select)** | 9+ | `<ui-date>`, `<ui-combo>` |
 | **No empty-state CTA** | 8+ | `<empty_state>` macro with action slot |
-| **No toast feedback** | 25+ | `<saskia-toast>` component |
-| **No confirm on destructive** | 17 | `<saskia-confirm>` modal |
-| **No loading skeleton** | 39 | `<saskia-skeleton>` macro |
+| **No toast feedback** | 25+ | `<ui-toast>` component |
+| **No confirm on destructive** | 17 | `<ui-confirm>` modal |
+| **No loading skeleton** | 39 | `<ui-skeleton>` macro |
 | **Slug-as-display-name** | 9 | Fix seeder to use Spanish names |
 | **Bilingual status pills** | 5 | `<status_pill>` macro with single source of vocab |
 | **"0" vs "—" ambiguity** | 5+ | Server-side `None` vs `0` distinction |
-| **Inconsistent breadcrumbs** | 9 | `<saskia-breadcrumb>` macro |
-| **Inconsistent button hierarchy** | 14 | `<saskia-button>` with `variant=primary|secondary|danger|ghost` |
+| **Inconsistent breadcrumbs** | 9 | `<ui-breadcrumb>` macro |
+| **Inconsistent button hierarchy** | 14 | `<ui-button>` with `variant=primary|secondary|danger|ghost` |
 | **Inconsistent terminology** | 28 | Glossary doc + code review checklist |
-| **No shortcut map** | 11 | `<saskia-shortcuts-modal>` triggered by `?` |
+| **No shortcut map** | 11 | `<ui-shortcuts-modal>` triggered by `?` |
 | **A11y missing (ARIA, focus)** | 60% | A11y lint rule + manual audit |
 | **No source attribution on reports** | 12 of 13 | `<report_footer>` macro |
 | **Placeholder text leaked to prod** | 3 | CI lint: error on TODO/FIXME in templates |
@@ -2902,17 +2902,17 @@ The system uses Paraguayan Guaraní (`Gs.`) as primary currency. Counts of each 
 | **`dd/mm/aaaa`** (Spanish placeholder) | `inventario-nuevo.png` (×2) | Subset's Spanish placeholders match Paraguayan expectation; consistent with display |
 | **`Sep 27, 2026`** | not seen in UI copy | Good |
 | **`27 de sep`** | seen in `inicio.png` subtitle ("domingo 27 sep 2026") |
-| **`saskia-date`** | `reportes-iva.png` (×3), `reportes-top-productos.png` (×2), `settings.png`, `ventas.png` — implementation reference to the shared date-picker component |
+| **`ui-date`** | `reportes-iva.png` (×3), `reportes-top-productos.png` (×2), `settings.png`, `ventas.png` — implementation reference to the shared date-picker component |
 
 - **Severity:** P0 (internationalization bug + `--` placeholder mix)
 - **Affected pages:** 17 of 46
 - **Recommended canonical pattern:**
   1. **Display:** `dd/mm/aaaa` (matches Paraguayan norm).
-  2. **Form inputs:** use `saskia-date` component (already in use) with the Spanish locale bundle.
+  2. **Form inputs:** use `ui-date` component (already in use) with the Spanish locale bundle.
   3. **API / database:** ISO 8601 `yyyy-mm-dd` (internally — not visible to user).
   4. Update all HTML `<input type="date">` placeholder text from `mm/dd/yyyy` (browser default) to `dd/mm/aaaa`.
   5. Add an E2E test that submits a form with each supported format and verifies it parses correctly.
-- **Effort:** ~4 hours for placeholder + format helper; <1 hour for saskia-date locale.
+- **Effort:** ~4 hours for placeholder + format helper; <1 hour for ui-date locale.
 
 **Specific bugs:**
 - **`inventario-nuevo.png` Fecha de apertura placeholder is `mm/dd/yyyy`** but other form fields around it use `dd/mm/aaaa`. In-page inconsistency.
@@ -3285,7 +3285,7 @@ This section defines the 5-layer architecture that the entire app should converg
 | `inline_warning` | `{{ inline_warning(message, severity="info") }}` | HACCP, allergen, expiry warnings |
 | `confirm_destructive` | `{{ confirm_destructive(message, on_confirm) }}` | All delete/cancel buttons (D12) |
 
-**Status:** ⚠️ Partially exists (`<saskia-combo>` is a Web Component, not a Jinja macro). **TODO:** Build the 10 macros over the 3-week P0 sprint, in this order: `kpi_tile` → `status_pill` → `empty_state` → `confirm_destructive` → `data_table` → `filter_chips` → `bulk_action_bar` → `date_range_presets` → `severity_left_stripe` → `inline_warning`.
+**Status:** ⚠️ Partially exists (`<ui-combo>` is a Web Component, not a Jinja macro). **TODO:** Build the 10 macros over the 3-week P0 sprint, in this order: `kpi_tile` → `status_pill` → `empty_state` → `confirm_destructive` → `data_table` → `filter_chips` → `bulk_action_bar` → `date_range_presets` → `severity_left_stripe` → `inline_warning`.
 
 **Effort:** ~3 weeks to build all 10 + rollout to 46 pages.
 
@@ -3293,18 +3293,18 @@ This section defines the 5-layer architecture that the entire app should converg
 
 ## Layer 3 — Web Components (`<saskia-*>`)
 
-**Location:** `app/static/js/saskia-components.js`
+**Location:** `app/static/js/ui-components.js`
 
 | Component | Purpose | Status |
 |---|---|---|
-| `<saskia-combo>` | Searchable select dropdown | ✅ Exists |
-| `<saskia-date>` | Custom date picker (dd/mm/yyyy, Spanish locale) | ❌ Missing — P0 #5 |
-| `<saskia-tabs>` | Tab nav with active underline | ❌ Missing — needed for 8 settings pages |
-| `<saskia-modal>` | Modal dialog with backdrop | ❌ Missing — needed for `confirm_destructive` macro |
-| `<saskia-toast>` | Notification toast | ❌ Missing — D14 |
-| `<saskia-table>` | Sortable, paginated data table | ❌ Missing — needed for `data_table` macro |
-| `<saskia-confirm>` | Confirm-on-destructive wrapper | ❌ Missing — D12 |
-| `<saskia-shortcuts-modal>` | Keyboard shortcut map (triggered by `?`) | ❌ Missing — P1-12 |
+| `<ui-combo>` | Searchable select dropdown | ✅ Exists |
+| `<ui-date>` | Custom date picker (dd/mm/yyyy, Spanish locale) | ❌ Missing — P0 #5 |
+| `<ui-tabs>` | Tab nav with active underline | ❌ Missing — needed for 8 settings pages |
+| `<ui-modal>` | Modal dialog with backdrop | ❌ Missing — needed for `confirm_destructive` macro |
+| `<ui-toast>` | Notification toast | ❌ Missing — D14 |
+| `<ui-table>` | Sortable, paginated data table | ❌ Missing — needed for `data_table` macro |
+| `<ui-confirm>` | Confirm-on-destructive wrapper | ❌ Missing — D12 |
+| `<ui-shortcuts-modal>` | Keyboard shortcut map (triggered by `?`) | ❌ Missing — P1-12 |
 
 **Effort:** ~4 weeks to build all 8 + register them globally.
 
@@ -3312,7 +3312,7 @@ This section defines the 5-layer architecture that the entire app should converg
 
 ## Layer 4 — JS behavior layer
 
-**Location:** `app/static/js/saskia-behavior.js`
+**Location:** `app/static/js/sazon-behavior.js`
 
 | Behavior | Purpose | Replaces |
 |---|---|---|
@@ -3390,7 +3390,7 @@ This is the recommended execution order. Each row is a commit-bound unit of work
 | Mon PM | `fix: seeder Spanish names (D4)` | Replace `cfaf4b47` → "Pan de queso" etc. | ~50 |
 | Tue | `feat: empty-state CTAs for /riesgos, /vs-mercado, /bank (D8/D9/D10)` | Add onboarding flows to 3 empty pages | ~150 |
 | Wed | `chore: redirect /dashboard to / (D7)` | Delete dashboard route, add 301 | ~10 |
-| Thu-Fri | `feat: saskia-date Web Component (D1)` | Build the missing date picker | ~300 |
+| Thu-Fri | `feat: ui-date Web Component (D1)` | Build the missing date picker | ~300 |
 
 ## Week 2 (P0 currency + confirmation)
 
@@ -3399,7 +3399,7 @@ This is the recommended execution order. Each row is a commit-bound unit of work
 | Mon-Tue | `feat: format_gs Jinja filter (D3)` | Add filter + replace ~200 manual format calls | ~500 |
 | Wed | `chore: format_gs CI lint rule` | Add CI step that fails templates with raw `Gs.` | ~80 |
 | Thu | `feat: server-side None vs 0 distinction (D15)` | Backend change + render layer | ~200 |
-| Fri | `feat: saskia-confirm modal (D12)` | Build confirm wrapper + wire to destructive actions | ~250 |
+| Fri | `feat: ui-confirm modal (D12)` | Build confirm wrapper + wire to destructive actions | ~250 |
 
 ## Week 3 (P0 architectural macros + a11y quick wins)
 
@@ -4468,7 +4468,7 @@ The 3-month P1 list (12 items) and 6-month P2 list (6 items) are in §5 and the 
 - **Status dot** with semantic color (green active / amber stale / gray paused)
 
 ### Quality-of-life touches
-- Tiny green dot on the "Saskia RMS v1.0" footer pill (cute, but unexplained — needs a tooltip "online")
+- Tiny green dot on the "Sazón v1.0" footer pill (cute, but unexplained — needs a tooltip "online")
 - Add `⌘N` keyboard shortcut badge to "Nuevo proveedor" button (matches global ⌘K for search)
 - "Agregar el primero" → "Agregar mi primer proveedor" (warmer, more personal)
 - Hovering on a supplier row shows a subtle phone-icon with WhatsApp/call tooltip
@@ -5428,11 +5428,11 @@ Several "Editar" CTAs (vs-mercado, supplier-nuevo) navigate to a full page. For 
 > **Source:** `state-machines-2026-09-27.md` — 54 KB formal state machine document.
 > **Why:** UI badges, filters, and dropdowns depend on these state enumerations being locked down BEFORE templates are refactored.
 
-# Saskia RMS — State Machines & Workflow Document
+# Sazón — State Machines & Workflow Document
 
 **Author:** Subagent (delegated from Iván's design session)
 **Date:** 2026-09-27
-**Scope:** Formal state machines for the three core operational entities in Saskia RMS:
+**Scope:** Formal state machines for the three core operational entities in Sazón:
 1. **Pedido** (custom order lifecycle)
 2. **Stock Movement Ledger** (immutable inventory ledger)
 3. **Cierre de Caja** (cash-register day-end reconciliation)
@@ -6223,7 +6223,7 @@ Render a single-card KPI metric (label + big number + optional Δ vs prior perio
 | `severity`        | `str`                         | `"neutral"`   | ❌       | One of `ok` / `info` / `warn` / `danger` / `neutral` / `muted`. Drives the left-border color + icon tint. |
 | `icon`            | `str \| None`                 | `None`        | ❌       | Lucide icon name (e.g., `"alert-triangle"`, `"trending-up"`). |
 | `href`            | `str \| None`                 | `None`        | ❌       | If present, whole tile becomes an `<a>`. |
-| `tooltip`         | `str \| None`                 | `None`        | ❌       | Hover explainer (max 140 chars). Rendered as `<abbr title>` + `<saskia-tooltip>`. |
+| `tooltip`         | `str \| None`                 | `None`        | ❌       | Hover explainer (max 140 chars). Rendered as `<abbr title>` + `<ui-tooltip>`. |
 | `count`           | `int \| None`                 | `None`        | ❌       | Sub-count (e.g., "3 ingredientes"). Shows below the value in muted text. |
 | `sublabel`        | `str \| None`                 | `None`        | ❌       | Right-aligned micro-context (e.g., "esta semana", "mes pasado"). |
 | `sparkline`       | `list[float] \| None`         | `None`        | ❌       | 8-30 numeric points → renders a 56×18 sparkline. |
@@ -6262,7 +6262,7 @@ Render a single-card KPI metric (label + big number + optional Δ vs prior perio
            {% if tooltip %}aria-describedby="kpi-tt-{{ label|lower|replace(' ', '-') }}"{% endif %}>
     {% if href %}<a class="kpi-tile__link" href="{{ href }}" aria-label="{{ label }}: {{ display_value }}">{% endif %}
       <header class="kpi-tile__head">
-        {% if icon %}<saskia-icon name="{{ icon }}" class="kpi-tile__icon" aria-hidden="true"></saskia-icon>{% endif %}
+        {% if icon %}<ui-icon name="{{ icon }}" class="kpi-tile__icon" aria-hidden="true"></ui-icon>{% endif %}
         <span class="kpi-tile__label"{% if tooltip %} title="{{ tooltip }}"{% endif %}>{{ label }}</span>
         {% if tooltip %}<span id="kpi-tt-{{ label|lower|replace(' ', '-') }}" hidden>{{ tooltip }}</span>{% endif %}
       </header>
@@ -6271,9 +6271,9 @@ Render a single-card KPI metric (label + big number + optional Δ vs prior perio
         {% if display_delta is not none %}
           <span class="kpi-tile__delta kpi-tile__delta--{{ eff_dir or 'flat' }}"
                 aria-label="{{ 'Subió' if eff_dir == 'up' else ('Bajó' if eff_dir == 'down' else 'Sin cambio') }} {{ display_delta }}">
-            {% if eff_dir == 'up' %}<saskia-icon name="arrow-up" aria-hidden="true"></saskia-icon>
-            {% elif eff_dir == 'down' %}<saskia-icon name="arrow-down" aria-hidden="true"></saskia-icon>
-            {% else %}<saskia-icon name="minus" aria-hidden="true"></saskia-icon>{% endif %}
+            {% if eff_dir == 'up' %}<ui-icon name="arrow-up" aria-hidden="true"></ui-icon>
+            {% elif eff_dir == 'down' %}<ui-icon name="arrow-down" aria-hidden="true"></ui-icon>
+            {% else %}<ui-icon name="minus" aria-hidden="true"></ui-icon>{% endif %}
             {{ display_delta }}
           </span>
         {% endif %}
@@ -6281,7 +6281,7 @@ Render a single-card KPI metric (label + big number + optional Δ vs prior perio
         {% if count is not none %}<span class="kpi-tile__count">{{ count }}</span>{% endif %}
       </footer>
       {% if sparkline %}
-        <saskia-sparkline data-points="{{ sparkline|tojson }}" aria-hidden="true"></saskia-sparkline>
+        <ui-sparkline data-points="{{ sparkline|tojson }}" aria-hidden="true"></ui-sparkline>
       {% endif %}
     {% if href %}</a>{% endif %}
   </article>
@@ -6312,7 +6312,7 @@ Rendered HTML (whitespace added for readability):
          aria-describedby="kpi-tt-stock-crítico">
   <a class="kpi-tile__link" href="/inventario?filter=critico" aria-label="Stock crítico: 1">
     <header class="kpi-tile__head">
-      <saskia-icon name="alert-triangle" class="kpi-tile__icon" aria-hidden="true"></saskia-icon>
+      <ui-icon name="alert-triangle" class="kpi-tile__icon" aria-hidden="true"></ui-icon>
       <span class="kpi-tile__label" title="Ingredientes con stock por debajo del mínimo">Stock crítico</span>
       <span id="kpi-tt-stock-crítico" hidden>Ingredientes con stock por debajo del mínimo</span>
     </header>
@@ -6320,7 +6320,7 @@ Rendered HTML (whitespace added for readability):
     <footer class="kpi-tile__foot">
       <span class="kpi-tile__delta kpi-tile__delta--down"
             aria-label="Bajó -1">
-        <saskia-icon name="arrow-down" aria-hidden="true"></saskia-icon>
+        <ui-icon name="arrow-down" aria-hidden="true"></ui-icon>
         -1
       </span>
       <span class="kpi-tile__sublabel">vs semana anterior</span>
@@ -6334,18 +6334,18 @@ Rendered HTML (whitespace added for readability):
 ```html
 <article class="kpi-tile kpi-tile--neutral">
   <header class="kpi-tile__head">
-    <saskia-icon name="coins" class="kpi-tile__icon" aria-hidden="true"></saskia-icon>
+    <ui-icon name="coins" class="kpi-tile__icon" aria-hidden="true"></ui-icon>
     <span class="kpi-tile__label">Costo total (batch)</span>
   </header>
   <div class="kpi-tile__value" aria-live="polite">Gs. 167.500</div>
   <footer class="kpi-tile__foot">
     <span class="kpi-tile__delta kpi-tile__delta--up" aria-label="Subió +12.300">
-      <saskia-icon name="arrow-up" aria-hidden="true"></saskia-icon>
+      <ui-icon name="arrow-up" aria-hidden="true"></ui-icon>
       +12.300
     </span>
     <span class="kpi-tile__sublabel">vs semana anterior</span>
   </footer>
-  <saskia-sparkline data-points="[142000,148500,153200,160000,167500]" aria-hidden="true"></saskia-sparkline>
+  <ui-sparkline data-points="[142000,148500,153200,160000,167500]" aria-hidden="true"></ui-sparkline>
 </article>
 ```
 
@@ -6354,7 +6354,7 @@ Rendered HTML (whitespace added for readability):
 ```html
 <article class="kpi-tile kpi-tile--muted">
   <header class="kpi-tile__head">
-    <saskia-icon name="users" class="kpi-tile__icon" aria-hidden="true"></saskia-icon>
+    <ui-icon name="users" class="kpi-tile__icon" aria-hidden="true"></ui-icon>
     <span class="kpi-tile__label">Proveedores</span>
   </header>
   <div class="kpi-tile__value" aria-live="polite">0</div>
@@ -6376,7 +6376,7 @@ Rendered HTML (whitespace added for readability):
 | `delta` is a pre-formatted `str`           | Rendered verbatim; **caller must set `delta_direction`**. |
 | `href` provided                            | Whole tile becomes a focusable element with `tabindex="0"`, `role="link"`, wrapped in `<a>`. |
 | `href is None`                             | Renders as a `<article>` — no link, no focus ring. |
-| `tooltip` longer than 140 chars            | Truncated with ellipsis at word boundary; tooltip text gets a `title` attribute (browser-native) and the longer text is also rendered in `<saskia-tooltip>` content slot for an expanded hover panel. |
+| `tooltip` longer than 140 chars            | Truncated with ellipsis at word boundary; tooltip text gets a `title` attribute (browser-native) and the longer text is also rendered in `<ui-tooltip>` content slot for an expanded hover panel. |
 | `severity` is invalid                      | Falls back to `neutral`, logs a console warning once. |
 | `sparkline` length                         | 1 point renders nothing; 2-7 points renders a placeholder "—"; 8-90 points renders at full fidelity. |
 | Negative `value`                           | Rendered with leading minus, **never** tinted red automatically (severity drives color). |
@@ -6387,7 +6387,7 @@ Rendered HTML (whitespace added for readability):
 - `aria-live="polite"` on value container so screen readers announce value updates.
 - Delta has full aria-label ("Subió 12", not just "↑").
 - `tabindex="0"` only when `href` is present (avoids trap of focusable non-links).
-- Tooltip is exposed via both `title` (instant) and `<saskia-tooltip>` (rich). Never render critical info only inside the title attribute.
+- Tooltip is exposed via both `title` (instant) and `<ui-tooltip>` (rich). Never render critical info only inside the title attribute.
 - Color is **never** the only signal: every tile has both an icon and a color.
 
 ### Locale
@@ -6414,9 +6414,9 @@ Rendered HTML (whitespace added for readability):
 
 ## Required Web Component / JS
 
-- **`<saskia-icon>`** — wraps Lucide icons (`name` attribute).
-- **`<saskia-tooltip>`** — rich tooltip with keyboard focus.
-- **`<saskia-sparkline>`** — accepts `data-points` JSON, renders SVG inside shadow DOM. No-op when fewer than 8 points.
+- **`<ui-icon>`** — wraps Lucide icons (`name` attribute).
+- **`<ui-tooltip>`** — rich tooltip with keyboard focus.
+- **`<ui-sparkline>`** — accepts `data-points` JSON, renders SVG inside shadow DOM. No-op when fewer than 8 points.
 - No global JS required for the macro's own logic (the `arrow-up/down/minus` icons are static markup).
 
 ## Anti-patterns
@@ -6473,7 +6473,7 @@ Render a compact colored pill indicating a state (order status, ingredient alert
      role="{% if href %}link{% else %}status{% endif %}"
      aria-label="{% if tone == 'ok' %}Correcto: {{ label }}{% elif tone == 'warn' %}Atención: {{ label }}{% elif tone == 'danger' %}Crítico: {{ label }}{% else %}{{ label }}{% endif %}">
     {% if dot %}<span class="pill__dot pill__dot--{{ tone }}" aria-hidden="true"></span>{% endif %}
-    {% if icon %}<saskia-icon name="{{ icon }}" class="pill__icon" aria-hidden="true"></saskia-icon>{% endif %}
+    {% if icon %}<ui-icon name="{{ icon }}" class="pill__icon" aria-hidden="true"></ui-icon>{% endif %}
     <span class="pill__label">{{ label }}</span>
   </{{ Tag }}>
 {% endmacro %}
@@ -6489,7 +6489,7 @@ Render a compact colored pill indicating a state (order status, ingredient alert
 <a class="pill pill--warn pill--md" href="/pedidos/1"
    title="Aún no confirmado por el cliente" data-tooltip="Aún no confirmado por el cliente"
    role="link" aria-label="Atención: Pendiente">
-  <saskia-icon name="clock" class="pill__icon" aria-hidden="true"></saskia-icon>
+  <ui-icon name="clock" class="pill__icon" aria-hidden="true"></ui-icon>
   <span class="pill__label">Pendiente</span>
 </a>
 ```
@@ -6502,7 +6502,7 @@ Render a compact colored pill indicating a state (order status, ingredient alert
 
 ```html
 <span class="pill pill--danger pill--sm" role="status">
-  <saskia-icon name="alert-triangle" class="pill__icon" aria-hidden="true"></saskia-icon>
+  <ui-icon name="alert-triangle" class="pill__icon" aria-hidden="true"></ui-icon>
   <span class="pill__label">Stock bajo</span>
 </span>
 ```
@@ -6540,7 +6540,7 @@ Render a compact colored pill indicating a state (order status, ingredient alert
 
 - `aria-label` is enriched with the tone: "Atención: Pendiente", "Crítico: Stock bajo". Screen-reader users don't need color.
 - `role="status"` (not `role="alert"`) on the non-link variant — this is an ambient indicator, not an interrupt.
-- Tooltip is exposed via both `title` and `data-tooltip` (the latter picked up by `<saskia-tooltip>` for richer hover).
+- Tooltip is exposed via both `title` and `data-tooltip` (the latter picked up by `<ui-tooltip>` for richer hover).
 
 ### Locale
 
@@ -6561,8 +6561,8 @@ Render a compact colored pill indicating a state (order status, ingredient alert
 
 ## Required Web Component / JS
 
-- **`<saskia-icon>`** — icons.
-- **`<saskia-tooltip>`** — picks up `data-tooltip` for richer hover (optional, falls back to native `title`).
+- **`<ui-icon>`** — icons.
+- **`<ui-tooltip>`** — picks up `data-tooltip` for richer hover (optional, falls back to native `title`).
 
 ## Anti-patterns
 
@@ -6606,18 +6606,18 @@ Render a sortable, paginated table with multi-select rows, inline row actions, o
 
 ```python
 {
-    "key": "nombre",            # required — matches row dict key
-    "label": "Nombre",          # required — header text
-    "sortable": True,           # optional, default False
-    "width": "30%",             # optional, CSS width or fr-unit
-    "align": "left" | "right" | "center",   # optional, default "left"
-    "render": "status_pill",    # optional — name of a macro to render the cell
-    "render_args": {...},       # optional — args dict merged with the row dict
-    "format": "money",          # optional — "money" | "date" | "datetime" | "percent" | "integer"
-    "tooltip": True,            # optional — show full cell value on hover
-    "truncate": 60,             # optional — max chars before ellipsis
-    "hide_on_mobile": False,    # optional
-    "css_class": "stock-col",   # optional
+    "key": "nombre",  # required — matches row dict key
+    "label": "Nombre",  # required — header text
+    "sortable": True,  # optional, default False
+    "width": "30%",  # optional, CSS width or fr-unit
+    "align": "left" | "right" | "center",  # optional, default "left"
+    "render": "status_pill",  # optional — name of a macro to render the cell
+    "render_args": {...},  # optional — args dict merged with the row dict
+    "format": "money",  # optional — "money" | "date" | "datetime" | "percent" | "integer"
+    "tooltip": True,  # optional — show full cell value on hover
+    "truncate": 60,  # optional — max chars before ellipsis
+    "hide_on_mobile": False,  # optional
+    "css_class": "stock-col",  # optional
 }
 ```
 
@@ -6626,11 +6626,11 @@ Render a sortable, paginated table with multi-select rows, inline row actions, o
 ```python
 {
     "label": "Ver",
-    "href": "/inventario/{id}",   # supports {id} interpolation
+    "href": "/inventario/{id}",  # supports {id} interpolation
     "icon": "eye",
-    "tone": "neutral",            # neutral | danger | warn
-    "confirm": False,             # if True, opens confirm_destructive on click
-    "permission": "view",         # server-side guard key
+    "tone": "neutral",  # neutral | danger | warn
+    "confirm": False,  # if True, opens confirm_destructive on click
+    "permission": "view",  # server-side guard key
 }
 ```
 
@@ -6640,11 +6640,11 @@ Render a sortable, paginated table with multi-select rows, inline row actions, o
 {
     "label": "Archivar",
     "action": "POST /inventario/bulk-archive",
-    "method": "POST",              # POST | GET | DELETE
+    "method": "POST",  # POST | GET | DELETE
     "icon": "archive",
     "tone": "neutral",
     "confirm": False,
-    "require_typed": None,         # optional destructive phrase
+    "require_typed": None,  # optional destructive phrase
 }
 ```
 
@@ -6655,8 +6655,8 @@ Render a sortable, paginated table with multi-select rows, inline row actions, o
     "page": 1,
     "per_page": 25,
     "total": 347,
-    "sizes": [10, 25, 50, 100],   # optional, default [25, 50, 100]
-    "param": "?page="             # optional, just for URL building hints
+    "sizes": [10, 25, 50, 100],  # optional, default [25, 50, 100]
+    "param": "?page=",  # optional, just for URL building hints
 }
 ```
 
@@ -6705,7 +6705,7 @@ Render a sortable, paginated table with multi-select rows, inline row actions, o
                   <button class="data-table__sort-btn" data-sort-trigger="{{ col.key }}" aria-label="Ordenar por {{ col.label }}">
                     {{ col.label }}
                     {% if sort and sort.key == col.key %}
-                      <saskia-icon name="arrow-{{ 'up' if sort.direction == 'asc' else 'down' }}" aria-hidden="true"></saskia-icon>
+                      <ui-icon name="arrow-{{ 'up' if sort.direction == 'asc' else 'down' }}" aria-hidden="true"></ui-icon>
                     {% endif %}
                   </button>
                 {% else %}
@@ -6747,7 +6747,7 @@ Render a sortable, paginated table with multi-select rows, inline row actions, o
                        href="{{ href }}"
                        {% if action.tooltip %}title="{{ action.tooltip }}"{% endif %}
                        aria-label="{{ action.label }}">
-                      {% if action.icon %}<saskia-icon name="{{ action.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+                      {% if action.icon %}<ui-icon name="{{ action.icon }}" aria-hidden="true"></ui-icon>{% endif %}
                       <span class="data-table__action-label">{{ action.label }}</span>
                     </a>
                   {% endfor %}
@@ -6781,10 +6781,10 @@ Render a sortable, paginated table with multi-select rows, inline row actions, o
     </div>
 
     {% if selectable and bulk_actions %}
-      <saskia-bulk-bar
+      <ui-bulk-bar
          data-actions='{{ bulk_actions|tojson }}'
          data-table-id="{{ table_id }}"
-         hidden></saskia-bulk-bar>
+         hidden></ui-bulk-bar>
     {% endif %}
   {% endif %}
 {% endmacro %}
@@ -6832,7 +6832,7 @@ Rendered HTML (truncated for length):
         <th scope="col" class="data-table__check"><input type="checkbox" aria-label="Seleccionar todas las filas" data-table-select-all></th>
         <th scope="col" class="data-table__th data-table__th--left data-table__th--sortable" style="width: 30%" data-sort-key="nombre" aria-sort="asc">
           <button class="data-table__sort-btn" data-sort-trigger="nombre" aria-label="Ordenar por Nombre">
-            Nombre <saskia-icon name="arrow-up" aria-hidden="true"></saskia-icon>
+            Nombre <ui-icon name="arrow-up" aria-hidden="true"></ui-icon>
           </button>
         </th>
         <th scope="col" class="data-table__th data-table__th--center" style="width: 8%">Unidad</th>
@@ -6853,10 +6853,10 @@ Rendered HTML (truncated for length):
         <td class="data-table__td data-table__td--center">kg</td>
         <td class="data-table__td data-table__td--right">100</td>
         <td class="data-table__td data-table__td--right">3.000</td>
-        <td class="data-table__td data-table__td--left"><span class="pill pill--ok pill--md" role="status"><saskia-icon name="check" class="pill__icon" aria-hidden="true"></saskia-icon><span class="pill__label">OK</span></span></td>
+        <td class="data-table__td data-table__td--left"><span class="pill pill--ok pill--md" role="status"><ui-icon name="check" class="pill__icon" aria-hidden="true"></ui-icon><span class="pill__label">OK</span></span></td>
         <td class="data-table__actions">
-          <a class="data-table__action data-table__action--neutral" href="/inventario/1" aria-label="Ver"><saskia-icon name="eye" aria-hidden="true"></saskia-icon><span class="data-table__action-label">Ver</span></a>
-          <a class="data-table__action data-table__action--neutral" href="/inventario/1/editar" aria-label="Editar"><saskia-icon name="pencil" aria-hidden="true"></saskia-icon><span class="data-table__action-label">Editar</span></a>
+          <a class="data-table__action data-table__action--neutral" href="/inventario/1" aria-label="Ver"><ui-icon name="eye" aria-hidden="true"></ui-icon><span class="data-table__action-label">Ver</span></a>
+          <a class="data-table__action data-table__action--neutral" href="/inventario/1/editar" aria-label="Editar"><ui-icon name="pencil" aria-hidden="true"></ui-icon><span class="data-table__action-label">Editar</span></a>
         </td>
       </tr>
       <!-- second row omitted for brevity -->
@@ -6873,7 +6873,7 @@ Rendered HTML (truncated for length):
       <li><a href="?page=14" aria-label="Última página">»</a></li>
     </ul>
   </nav>
-  <saskia-bulk-bar data-actions='[{"label":"Archivar","action":"POST /inventario/bulk-archive","icon":"archive"}]' data-table-id="data-table" hidden></saskia-bulk-bar>
+  <ui-bulk-bar data-actions='[{"label":"Archivar","action":"POST /inventario/bulk-archive","icon":"archive"}]' data-table-id="data-table" hidden></ui-bulk-bar>
 </div>
 ```
 
@@ -6881,7 +6881,7 @@ Rendered HTML (truncated for length):
 
 ```html
 <div class="empty-state">
-  <saskia-icon name="package-x" class="empty-state__icon" aria-hidden="true"></saskia-icon>
+  <ui-icon name="package-x" class="empty-state__icon" aria-hidden="true"></ui-icon>
   <h3 class="empty-state__title">Sin ingredientes</h3>
   <p class="empty-state__description">Empezá cargando tu primer ingrediente.</p>
   <a class="btn btn--primary" href="/inventario/nuevo">Agregá el primero</a>
@@ -6899,7 +6899,7 @@ Rendered HTML (truncated for length):
 | Cell value is `datetime`/`date` | Formatted via `format` directive; default `date` is `dd/mm/aaaa`. |
 | Cell value is `float` with `format='money'` | Rounded to integer, formatted `Gs. 1.234.567`. |
 | Column `sortable=True` | Renders a `<button>` inside `<th>` with `data-sort-trigger`; default sort behavior is full-page reload via URL (`?sort=nombre:asc`). |
-| `selectable=True` | First column is checkbox. The `<saskia-bulk-bar>` is hidden until ≥1 row is selected (JS in web component). |
+| `selectable=True` | First column is checkbox. The `<ui-bulk-bar>` is hidden until ≥1 row is selected (JS in web component). |
 | `bulk_actions` provided but `selectable=False` | Macro silently ignores bulk_actions and renders a console warning. |
 | `pagination` total = 0 | Pagination block is hidden. |
 | `pagination` total > 10.000 | Pagination collapses to jump-to-page input + total only (no per-page numbers). |
@@ -6946,9 +6946,9 @@ Every list page:
 
 ## Required Web Component / JS
 
-- **`<saskia-icon>`**
-- **`<saskia-bulk-bar>`** — listens to `change` events on checkboxes, slides up from bottom, hits the action endpoint.
-- **`<saskia-tooltip>`**
+- **`<ui-icon>`**
+- **`<ui-bulk-bar>`** — listens to `change` events on checkboxes, slides up from bottom, hits the action endpoint.
+- **`<ui-tooltip>`**
 - A small JS bootstrapper that:
   - wires `data-sort-trigger` to a URL push (`?sort=nombre:asc`).
   - wires `data-table-select-all` to check/uncheck all visible rows.
@@ -6991,12 +6991,12 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
 
 ```python
 {
-    "key": "bajo_minimo",      # required, URL-safe
-    "label": "Bajo mínimo",    # required, Spanish
-    "count": 3,                # optional, integer — shows " (3)" suffix
-    "tone": "warn",            # optional — colors the count + active state
+    "key": "bajo_minimo",  # required, URL-safe
+    "label": "Bajo mínimo",  # required, Spanish
+    "count": 3,  # optional, integer — shows " (3)" suffix
+    "tone": "warn",  # optional — colors the count + active state
     "icon": "alert-triangle",  # optional
-    "href": "?filter=bajo_minimo"  # optional, auto-built if missing
+    "href": "?filter=bajo_minimo",  # optional, auto-built if missing
 }
 ```
 
@@ -7029,7 +7029,7 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
              aria-selected="{{ 'true' if is_active else 'false' }}"
              aria-controls="filter-panel"
              data-filter-key="{{ chip.key }}">
-            {% if chip.icon %}<saskia-icon name="{{ chip.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+            {% if chip.icon %}<ui-icon name="{{ chip.icon }}" aria-hidden="true"></ui-icon>{% endif %}
             <span class="filter-chips__label">{{ chip.label }}</span>
             {% if chip.count is not none %}<span class="filter-chips__count">{{ chip.count }}</span>{% endif %}
           </a>
@@ -7038,7 +7038,7 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
       {% if saved_views %}
         <li class="filter-chips__item filter-chips__item--saved">
           <details class="filter-chips__saved">
-            <summary><saskia-icon name="star" aria-hidden="true"></saskia-icon> Vistas guardadas</summary>
+            <summary><ui-icon name="star" aria-hidden="true"></ui-icon> Vistas guardadas</summary>
             <ul>
               {% for sv in saved_views %}
                 <li><a href="{{ sv.href }}">{{ sv.label }}</a></li>
@@ -7056,7 +7056,7 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
     </ul>
     {% if search_input %}
       <form class="filter-chips__search" method="get" action="{{ url }}" role="search">
-        <saskia-icon name="search" aria-hidden="true"></saskia-icon>
+        <ui-icon name="search" aria-hidden="true"></ui-icon>
         <input type="search" name="q" value="{{ request.args.get('q', '') }}"
                placeholder="Buscar…"
                aria-label="Buscar en la lista">
@@ -7093,14 +7093,14 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
     </li>
     <li class="filter-chips__item">
       <a href="/inventario?filter=bajo_minimo" class="filter-chips__chip filter-chips__chip--warn is-active" role="tab" aria-selected="true" aria-controls="filter-panel" data-filter-key="bajo_minimo">
-        <saskia-icon name="alert-triangle" aria-hidden="true"></saskia-icon>
+        <ui-icon name="alert-triangle" aria-hidden="true"></ui-icon>
         <span class="filter-chips__label">Bajo mínimo</span><span class="filter-chips__count">3</span>
       </a>
     </li>
     <!-- other chips omitted -->
     <li class="filter-chips__item filter-chips__item--saved">
       <details class="filter-chips__saved">
-        <summary><saskia-icon name="star" aria-hidden="true"></saskia-icon> Vistas guardadas</summary>
+        <summary><ui-icon name="star" aria-hidden="true"></ui-icon> Vistas guardadas</summary>
         <ul>
           <li><a href="?saved=criticos">Mis críticos</a></li>
         </ul>
@@ -7108,7 +7108,7 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
     </li>
   </ul>
   <form class="filter-chips__search" method="get" action="/inventario" role="search">
-    <saskia-icon name="search" aria-hidden="true"></saskia-icon>
+    <ui-icon name="search" aria-hidden="true"></ui-icon>
     <input type="search" name="q" value="" placeholder="Buscar…" aria-label="Buscar en la lista">
   </form>
 </section>
@@ -7173,7 +7173,7 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
 
 ## Required Web Component / JS
 
-- **`<saskia-icon>`**
+- **`<ui-icon>`**
 - For client-side chip counts that update without reload: a small enhancement script (out of scope — chips work without JS; this is progressive enhancement only).
 - The macro emits plain `<a>` tags, so it works without any JS.
 
@@ -7184,7 +7184,7 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
 - ❌ **Don't** animate chip background on hover with a transition longer than 150ms — it feels sluggish.
 - ❌ **Don't** use chips where you need a multi-select dropdown. Single-select filters go through chips; multi-select goes through a dropdown panel (a separate pattern, not this macro).
 - ❌ **Don't** set `count=0` on a non-default chip — it's clearer to omit `count` (renders no badge) or hide the chip entirely.
-- ❌ **Don't** put more than one `<saskia-icon>` in a chip — too visually noisy. Pick icon OR count, not both as the dominant.
+- ❌ **Don't** put more than one `<ui-icon>` in a chip — too visually noisy. Pick icon OR count, not both as the dominant.
 - ❌ **Don't** rely on the `search_input` clearing itself between page loads — it preserves `request.args.q`. If the page should default to "no search", keep search input out of this macro or pass `default_query=''`.
 
 ---
@@ -7214,10 +7214,10 @@ Render the canonical empty-state block — icon + headline + 1-2 line explainer 
 ```python
 {
     "label": "Agregá el primero",
-    "href": "/inventario/nuevo",     # either href OR action
-    "action": "openWhatsAppPaste",   # either href OR action
-    "icon": "plus",                  # optional
-    "tone": "primary",               # primary | secondary | tertiary
+    "href": "/inventario/nuevo",  # either href OR action
+    "action": "openWhatsAppPaste",  # either href OR action
+    "icon": "plus",  # optional
+    "tone": "primary",  # primary | secondary | tertiary
 }
 ```
 
@@ -7241,7 +7241,7 @@ Render the canonical empty-state block — icon + headline + 1-2 line explainer 
       <img class="empty-state__illustration" src="/static/illustrations/{{ illustration }}" alt="{{ illustration_alt or title }}" loading="lazy" decoding="async">
     {% elif icon %}
       <div class="empty-state__icon-wrap">
-        <saskia-icon name="{{ icon }}" class="empty-state__icon" aria-hidden="true"></saskia-icon>
+        <ui-icon name="{{ icon }}" class="empty-state__icon" aria-hidden="true"></ui-icon>
       </div>
     {% endif %}
     <h3 id="es-title-{{ title|lower|replace(' ', '-') }}" class="empty-state__title">{{ title }}</h3>
@@ -7249,12 +7249,12 @@ Render the canonical empty-state block — icon + headline + 1-2 line explainer 
     {% if primary_cta %}
       {% if primary_cta.href %}
         <a class="btn btn--{{ primary_cta.tone or 'primary' }}" href="{{ primary_cta.href }}">
-          {% if primary_cta.icon %}<saskia-icon name="{{ primary_cta.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+          {% if primary_cta.icon %}<ui-icon name="{{ primary_cta.icon }}" aria-hidden="true"></ui-icon>{% endif %}
           {{ primary_cta.label }}
         </a>
       {% elif primary_cta.action %}
         <button class="btn btn--{{ primary_cta.tone or 'primary' }}" data-action="{{ primary_cta.action }}" type="button">
-          {% if primary_cta.icon %}<saskia-icon name="{{ primary_cta.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+          {% if primary_cta.icon %}<ui-icon name="{{ primary_cta.icon }}" aria-hidden="true"></ui-icon>{% endif %}
           {{ primary_cta.label }}
         </button>
       {% endif %}
@@ -7262,17 +7262,17 @@ Render the canonical empty-state block — icon + headline + 1-2 line explainer 
     {% if secondary_cta %}
       {% if secondary_cta.href %}
         <a class="btn btn--{{ secondary_cta.tone or 'secondary' }}" href="{{ secondary_cta.href }}">
-          {% if secondary_cta.icon %}<saskia-icon name="{{ secondary_cta.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+          {% if secondary_cta.icon %}<ui-icon name="{{ secondary_cta.icon }}" aria-hidden="true"></ui-icon>{% endif %}
           {{ secondary_cta.label }}
         </a>
       {% elif secondary_cta.action %}
         <button class="btn btn--{{ secondary_cta.tone or 'secondary' }}" data-action="{{ secondary_cta.action }}" type="button">
-          {% if secondary_cta.icon %}<saskia-icon name="{{ secondary_cta.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+          {% if secondary_cta.icon %}<ui-icon name="{{ secondary_cta.icon }}" aria-hidden="true"></ui-icon>{% endif %}
           {{ secondary_cta.label }}
         </button>
       {% endif %}
     {% endif %}
-    {% if tip %}<p class="empty-state__tip"><saskia-icon name="lightbulb" aria-hidden="true"></saskia-icon> {{ tip }}</p>{% endif %}
+    {% if tip %}<p class="empty-state__tip"><ui-icon name="lightbulb" aria-hidden="true"></ui-icon> {{ tip }}</p>{% endif %}
   </section>
 {% endmacro %}
 ```
@@ -7293,20 +7293,20 @@ Render the canonical empty-state block — icon + headline + 1-2 line explainer 
 ```html
 <section class="empty-state empty-state--md" role="region" aria-labelledby="es-title-no-hay-proveedores-todavía">
   <div class="empty-state__icon-wrap">
-    <saskia-icon name="truck" class="empty-state__icon" aria-hidden="true"></saskia-icon>
+    <ui-icon name="truck" class="empty-state__icon" aria-hidden="true"></ui-icon>
   </div>
   <h3 id="es-title-no-hay-proveedores-todavía" class="empty-state__title">No hay proveedores todavía</h3>
   <p class="empty-state__description">Agregá proveedores para poder contactarlos desde la página de reorden.</p>
   <a class="btn btn--primary" href="/proveedores/nuevo">
-    <saskia-icon name="plus" aria-hidden="true"></saskia-icon>
+    <ui-icon name="plus" aria-hidden="true"></ui-icon>
     Agregá el primero
   </a>
   <button class="btn btn--secondary" data-action="openWhatsAppPaste" type="button">
-    <saskia-icon name="message-circle" aria-hidden="true"></saskia-icon>
+    <ui-icon name="message-circle" aria-hidden="true"></ui-icon>
     Pegar lista de WhatsApp
   </button>
   <p class="empty-state__tip">
-    <saskia-icon name="lightbulb" aria-hidden="true"></saskia-icon>
+    <ui-icon name="lightbulb" aria-hidden="true"></ui-icon>
     Después podés asignarles categorías, RUC y horarios de entrega.
   </p>
 </section>
@@ -7387,7 +7387,7 @@ Render the canonical empty-state block — icon + headline + 1-2 line explainer 
 
 ## Required Web Component / JS
 
-- **`<saskia-icon>`**
+- **`<ui-icon>`**
 - For `data-action` CTAs: an event-delegation script on `document.body` that picks up `click` on `[data-action]` and invokes the named function.
 
 ## Anti-patterns
@@ -7415,7 +7415,7 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
 |------------------|-----------------|-------------|----------|-------|
 | `selected_count` | `int`           | —           | ✅       | Number of currently selected rows. Hidden when 0. |
 | `actions`        | `list[dict]`    | —           | ✅       | Bulk actions (typically forwarded from `data_table`'s `bulk_actions`). |
-| `on_clear`       | `str \| None`   | `None`      | ❌       | JS function name called when the user clears selection (default behavior is auto-cleared by `<saskia-bulk-bar>`). |
+| `on_clear`       | `str \| None`   | `None`      | ❌       | JS function name called when the user clears selection (default behavior is auto-cleared by `<ui-bulk-bar>`). |
 | `label_fmt`      | `str \| None`   | `None`      | ❌       | Custom copy template with `{count}` placeholder, e.g., `"{count} pedidos seleccionados"`. Default: `"{count} seleccionados"`. |
 | `position`       | `str`           | `"bottom"`  | ❌       | `bottom` (default) or `top`. |
 
@@ -7440,7 +7440,7 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
 {% macro bulk_action_bar(selected_count, actions, on_clear=None, label_fmt=None, position='bottom') %}
   {% set fmt = label_fmt or '{count} seleccionados' %}
   {% if selected_count > 0 %}
-    <saskia-bulk-bar
+    <ui-bulk-bar
        role="region"
        aria-live="polite"
        aria-label="Acciones en lote"
@@ -7450,11 +7450,11 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
        data-actions='{{ actions|tojson }}'>
       <div class="bulk-action-bar__inner">
         <span class="bulk-action-bar__count" aria-live="polite">
-          <saskia-icon name="check-square" aria-hidden="true"></saskia-icon>
+          <ui-icon name="check-square" aria-hidden="true"></ui-icon>
           {{ fmt|replace('{count}', selected_count|string) }}
         </span>
         <button type="button" class="bulk-action-bar__clear" data-bulk-clear>
-          <saskia-icon name="x" aria-hidden="true"></saskia-icon>
+          <ui-icon name="x" aria-hidden="true"></ui-icon>
           <span>Limpiar selección</span>
         </button>
         <div class="bulk-action-bar__actions">
@@ -7466,18 +7466,18 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
                     data-method="{{ action.method or 'POST' }}"
                     data-confirm="{{ 'true' if action.confirm else 'false' }}"
                     data-require-typed="{{ action.require_typed or '' }}">
-              {% if action.icon %}<saskia-icon name="{{ action.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+              {% if action.icon %}<ui-icon name="{{ action.icon }}" aria-hidden="true"></ui-icon>{% endif %}
               {{ action.label }}
             </button>
           {% endfor %}
         </div>
       </div>
-    </saskia-bulk-bar>
+    </ui-bulk-bar>
   {% endif %}
 {% endmacro %}
 ```
 
-> The macro renders nothing when `selected_count == 0`. The `<saskia-bulk-bar>` web component owns the show/hide animation.
+> The macro renders nothing when `selected_count == 0`. The `<ui-bulk-bar>` web component owns the show/hide animation.
 
 ### Rendered example 1 — selected 3 inventario items
 
@@ -7493,42 +7493,42 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
 ```
 
 ```html
-<saskia-bulk-bar role="region" aria-live="polite" aria-label="Acciones en lote"
+<ui-bulk-bar role="region" aria-live="polite" aria-label="Acciones en lote"
    class="bulk-action-bar bulk-action-bar--bottom"
    data-on-clear="clearSelection"
    data-selected-count="3"
    data-actions='[{"label":"Archivar",...}, ...]'>
   <div class="bulk-action-bar__inner">
     <span class="bulk-action-bar__count" aria-live="polite">
-      <saskia-icon name="check-square" aria-hidden="true"></saskia-icon>
+      <ui-icon name="check-square" aria-hidden="true"></ui-icon>
       3 seleccionados
     </span>
     <button type="button" class="bulk-action-bar__clear" data-bulk-clear>
-      <saskia-icon name="x" aria-hidden="true"></saskia-icon>
+      <ui-icon name="x" aria-hidden="true"></ui-icon>
       <span>Limpiar selección</span>
     </button>
     <div class="bulk-action-bar__actions">
       <button type="button" class="bulk-action-bar__action bulk-action-bar__action--neutral"
               data-bulk-action data-action="POST /inventario/bulk-archive" data-method="POST"
               data-confirm="false" data-require-typed="">
-        <saskia-icon name="archive" aria-hidden="true"></saskia-icon>
+        <ui-icon name="archive" aria-hidden="true"></ui-icon>
         Archivar
       </button>
       <button type="button" class="bulk-action-bar__action bulk-action-bar__action--danger"
               data-bulk-action data-action="POST /inventario/bulk-delete" data-method="POST"
               data-confirm="true" data-require-typed="">
-        <saskia-icon name="trash" aria-hidden="true"></saskia-icon>
+        <ui-icon name="trash" aria-hidden="true"></ui-icon>
         Eliminar
       </button>
       <button type="button" class="bulk-action-bar__action bulk-action-bar__action--neutral"
               data-bulk-action data-action="GET /inventario/bulk-export.csv" data-method="GET"
               data-confirm="false" data-require-typed="">
-        <saskia-icon name="download" aria-hidden="true"></saskia-icon>
+        <ui-icon name="download" aria-hidden="true"></ui-icon>
         Exportar CSV
       </button>
     </div>
   </div>
-</saskia-bulk-bar>
+</ui-bulk-bar>
 ```
 
 ### Rendered example 2 — destructive with typed confirmation
@@ -7547,14 +7547,14 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
 
 | Condition | Behavior |
 |-----------|----------|
-| `selected_count == 0` | Macro emits **nothing** (and `<saskia-bulk-bar>` remains hidden). |
+| `selected_count == 0` | Macro emits **nothing** (and `<ui-bulk-bar>` remains hidden). |
 | `selected_count == 1` | Pluralization shifts to singular ("1 seleccionado"). The macro doesn't enforce this — `label_fmt` must handle it. Default template uses "{count} seleccionados" which is fine for n≥2. |
 | `selected_count > 999` | Renders with thousands separator (`1.247`). |
 | Action with `confirm=True` | Click opens the `confirm_destructive` modal; if `require_typed` is set, the modal requires the typed phrase. |
-| Action with `method='GET'` | Triggers a normal download (the `<saskia-bulk-bar>` builds `<a download>` and clicks it). No confirmation. |
+| Action with `method='GET'` | Triggers a normal download (the `<ui-bulk-bar>` builds `<a download>` and clicks it). No confirmation. |
 | Action with `method='DELETE'` | Web component sends a fetch with the DELETE method; handles CSRF token automatically. |
 | User clears selection | `data-on-clear` fires; default `clearSelection()` clears DOM checkboxes and toggles bar hidden. |
-| Bar appears above keyboard-fold | Visible viewport reach — `<saskia-bulk-bar>` listens for `IntersectionObserver` to fade in from below. |
+| Bar appears above keyboard-fold | Visible viewport reach — `<ui-bulk-bar>` listens for `IntersectionObserver` to fade in from below. |
 | `selected_count > 0` + `actions is empty` | Macro renders count + clear button, no actions section. |
 | Bar overlaps page footer | `padding-bottom: 80px` is set on `<body>` while bar is open. |
 | Multiple `bulk_action_bar` on one page | Only one may be visible at a time; later instances take precedence (they're typically one per page anyway). |
@@ -7584,7 +7584,7 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
 
 ## Required Web Component / JS
 
-- **`<saskia-bulk-bar>`** — custom element that listens to checkbox events from `<saskia-data-table>`, animates itself in/out, fires `data-action` URLs with CSRF, and pipes destructive clicks through `confirm_destructive`.
+- **`<ui-bulk-bar>`** — custom element that listens to checkbox events from `<ui-data-table>`, animates itself in/out, fires `data-action` URLs with CSRF, and pipes destructive clicks through `confirm_destructive`.
 - The web component runs entirely client-side; the macro itself emits declarative markup.
 - The web component also handles the body padding shift.
 
@@ -7594,7 +7594,7 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
 - ❌ **Don't** put primary destructive actions first (e.g., "Eliminar 1.247 entradas") — they should be **last**, after safe ones like "Export".
 - ❌ **Don't** rely on `confirm=True` without providing a destructive phrase in `require_typed` for irreversible ops (purge, delete user, etc.).
 - ❌ **Don't** use `tone='primary'` on `Eliminar` — destructive actions always get `tone='danger'`.
-- ❌ **Don't** render this macro outside of a `<saskia-data-table>` context without care — the `<saskia-bulk-bar>` web component expects checkboxes named `selected_ids` on the same page (it dispatches `bulk:collect` and listens for `bulk:count` events).
+- ❌ **Don't** render this macro outside of a `<ui-data-table>` context without care — the `<ui-bulk-bar>` web component expects checkboxes named `selected_ids` on the same page (it dispatches `bulk:collect` and listens for `bulk:count` events).
 - ❌ **Don't** set `position='top'` if there's already a sticky table header — the two will fight in the viewport.
 - ❌ **Don't** create per-page copies of this macro — it must remain identical across every list page for muscle memory.
 
@@ -7625,7 +7625,7 @@ Render a chip rail of date-range presets (Hoy, Ayer, Esta semana, etc.) that aut
 {
     "key": "today",
     "label": "Hoy",
-    "from": "2026-09-27",   # ISO-8601, server-computed
+    "from": "2026-09-27",  # ISO-8601, server-computed
     "to": "2026-09-27",
 }
 ```
@@ -7937,9 +7937,9 @@ Render an inline callout that flags a derived condition the user should know abo
 ```python
 {
     "label": "Registrá consumo",
-    "href": "/inventario/{id}/movimientos/nuevo",   # supports {id} interpolation
-    "action": None,                                  # alternative: JS function name
-    "tone": "primary"                                # primary | secondary | tertiary
+    "href": "/inventario/{id}/movimientos/nuevo",  # supports {id} interpolation
+    "action": None,  # alternative: JS function name
+    "tone": "primary",  # primary | secondary | tertiary
 }
 ```
 
@@ -7965,7 +7965,7 @@ Render an inline callout that flags a derived condition the user should know abo
          {% if tone == 'danger' %}role="alert"{% else %}role="status"{% endif %}
          aria-live="{% if tone == 'danger' %}assertive{% else %}polite{% endif %}">
     <span class="inline-warning__icon" aria-hidden="true">
-      <saskia-icon name="{{ icon or default_icon }}"></saskia-icon>
+      <ui-icon name="{{ icon or default_icon }}"></ui-icon>
     </span>
     <div class="inline-warning__body">
       {% if title %}<h4 class="inline-warning__title"{% if tooltip %} title="{{ tooltip }}"{% endif %}>{{ title }}</h4>{% endif %}
@@ -7979,12 +7979,12 @@ Render an inline callout that flags a derived condition the user should know abo
       {% if action %}
         {% if action.href %}
           <a class="btn btn--{{ action.tone or 'primary' }} btn--sm" href="{{ action.href }}">
-            {% if action.icon %}<saskia-icon name="{{ action.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+            {% if action.icon %}<ui-icon name="{{ action.icon }}" aria-hidden="true"></ui-icon>{% endif %}
             {{ action.label }}
           </a>
         {% elif action.action %}
           <button type="button" class="btn btn--{{ action.tone or 'primary' }} btn--sm" data-action="{{ action.action }}">
-            {% if action.icon %}<saskia-icon name="{{ action.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+            {% if action.icon %}<ui-icon name="{{ action.icon }}" aria-hidden="true"></ui-icon>{% endif %}
             {{ action.label }}
           </button>
         {% endif %}
@@ -7992,7 +7992,7 @@ Render an inline callout that flags a derived condition the user should know abo
     </div>
     {% if dismissible %}
       <button type="button" class="inline-warning__dismiss" aria-label="Cerrar advertencia" data-inline-warning-dismiss="{{ id }}">
-        <saskia-icon name="x" aria-hidden="true"></saskia-icon>
+        <ui-icon name="x" aria-hidden="true"></ui-icon>
       </button>
     {% endif %}
   </aside>
@@ -8018,18 +8018,18 @@ Render an inline callout that flags a derived condition the user should know abo
 <aside class="inline-warning inline-warning--warn" id="iw-ing-1-no-consumo"
        role="status" aria-live="polite">
   <span class="inline-warning__icon" aria-hidden="true">
-    <saskia-icon name="alert-triangle"></saskia-icon>
+    <ui-icon name="alert-triangle"></ui-icon>
   </span>
   <div class="inline-warning__body">
     <h4 class="inline-warning__title" title="El pronóstico requiere al menos 3 días de historial.">Sin consumo reciente</h4>
     <p class="inline-warning__message">No hay registros de consumo para este ingrediente en los últimos 14 días. El pronóstico requiere al menos 3 días de historial.</p>
     <a class="btn btn--primary btn--sm" href="/inventario/1/movimientos/nuevo">
-      <saskia-icon name="plus" aria-hidden="true"></saskia-icon>
+      <ui-icon name="plus" aria-hidden="true"></ui-icon>
       Registrá consumo
     </a>
   </div>
   <button type="button" class="inline-warning__dismiss" aria-label="Cerrar advertencia" data-inline-warning-dismiss="ing-1-no-consumo">
-    <saskia-icon name="x" aria-hidden="true"></saskia-icon>
+    <ui-icon name="x" aria-hidden="true"></ui-icon>
   </button>
 </aside>
 ```
@@ -8104,7 +8104,7 @@ Render an inline callout that flags a derived condition the user should know abo
 
 ## Required Web Component / JS
 
-- **`<saskia-icon>`**
+- **`<ui-icon>`**
 - A small enhancement script for `data-inline-warning-dismiss` — toggles `hidden` and writes `localStorage['iw-dismissed:<id>'] = '1'`. On page load, reads and hides matching warnings.
 - `data-action` handler (shared with `empty_state`).
 
@@ -8125,7 +8125,7 @@ Render an inline callout that flags a derived condition the user should know abo
 
 ## Purpose
 
-Render a modal confirmation gate for destructive actions (delete, purge, cancel, archive-many) — prevents accidental irreversible operations. Reuses the `<saskia-confirm-modal>` web component behind the scenes.
+Render a modal confirmation gate for destructive actions (delete, purge, cancel, archive-many) — prevents accidental irreversible operations. Reuses the `<ui-confirm-modal>` web component behind the scenes.
 
 ## Arguments
 
@@ -8178,7 +8178,7 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
     {{ raise_msg }}
   {% endif %}
 
-  <saskia-confirm-modal
+  <ui-confirm-modal
      data-modal-id="confirm-{{ title|lower|replace(' ', '-') }}-{{ trigger_label|lower|replace(' ', '-')|trim }}"
      data-size="{{ size }}"
      data-icon="{{ icon }}"
@@ -8187,13 +8187,13 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
     {% if trigger_variant == 'button' %}
       <button type="button" class="btn btn--{{ trigger_tone }}" data-confirm-trigger
               aria-haspopup="dialog">
-        {% if trigger_icon %}<saskia-icon name="{{ trigger_icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+        {% if trigger_icon %}<ui-icon name="{{ trigger_icon }}" aria-hidden="true"></ui-icon>{% endif %}
         {{ trigger_label }}
       </button>
     {% elif trigger_variant == 'icon' %}
       <button type="button" class="btn btn--icon btn--{{ trigger_tone }}" data-confirm-trigger
               aria-label="{{ trigger_label }}" title="{{ trigger_label }}" aria-haspopup="dialog">
-        {% if trigger_icon %}<saskia-icon name="{{ trigger_icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+        {% if trigger_icon %}<ui-icon name="{{ trigger_icon }}" aria-hidden="true"></ui-icon>{% endif %}
       </button>
     {% elif trigger_variant == 'link' %}
       <a href="#" class="link link--{{ trigger_tone }}" data-confirm-trigger
@@ -8203,7 +8203,7 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
     <template data-confirm-content>
       <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
         <header class="confirm-modal__head">
-          <saskia-icon name="{{ icon }}" class="confirm-modal__icon" aria-hidden="true"></saskia-icon>
+          <ui-icon name="{{ icon }}" class="confirm-modal__icon" aria-hidden="true"></ui-icon>
           <h2 id="confirm-title" class="confirm-modal__title">{{ title }}</h2>
         </header>
         <div id="confirm-body" class="confirm-modal__body">{{ body|safe }}</div>
@@ -8224,7 +8224,7 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
           {% if secondary_action %}
             {% if secondary_action.href %}
               <a class="btn btn--tertiary" href="{{ secondary_action.href }}">
-                {% if secondary_action.icon %}<saskia-icon name="{{ secondary_action.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+                {% if secondary_action.icon %}<ui-icon name="{{ secondary_action.icon }}" aria-hidden="true"></ui-icon>{% endif %}
                 {{ secondary_action.label }}
               </a>
             {% endif %}
@@ -8243,7 +8243,7 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
         </footer>
       </div>
     </template>
-  </saskia-confirm-modal>
+  </ui-confirm-modal>
 {% endmacro %}
 ```
 
@@ -8266,16 +8266,16 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
 ```
 
 ```html
-<saskia-confirm-modal data-modal-id="confirm-eliminar-entradas-antiguas-de-auditoría-eliminar-entradas-de-más-de-1-año"
+<ui-confirm-modal data-modal-id="confirm-eliminar-entradas-antiguas-de-auditoría-eliminar-entradas-de-más-de-1-año"
    data-size="md" data-icon="alert-triangle" data-trigger-tone="danger">
   <button type="button" class="btn btn--danger" data-confirm-trigger aria-haspopup="dialog">
-    <saskia-icon name="trash" aria-hidden="true"></saskia-icon>
+    <ui-icon name="trash" aria-hidden="true"></ui-icon>
     Eliminar entradas de más de 1 año
   </button>
   <template data-confirm-content>
     <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
       <header class="confirm-modal__head">
-        <saskia-icon name="alert-triangle" class="confirm-modal__icon" aria-hidden="true"></saskia-icon>
+        <ui-icon name="alert-triangle" class="confirm-modal__icon" aria-hidden="true"></ui-icon>
         <h2 id="confirm-title" class="confirm-modal__title">Eliminar entradas antiguas de auditoría</h2>
       </header>
       <div id="confirm-body" class="confirm-modal__body">Vas a eliminar <strong>1.247 entradas</strong> con más de 1 año de antigüedad. Esta acción es irreversible y compromete la cadena de auditoría.</div>
@@ -8286,7 +8286,7 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
       <footer class="confirm-modal__foot">
         <button type="button" class="btn btn--secondary" data-confirm-cancel>Cancelar</button>
         <a class="btn btn--tertiary" href="/auditoria/export.csv?older=1y">
-          <saskia-icon name="download" aria-hidden="true"></saskia-icon>
+          <ui-icon name="download" aria-hidden="true"></ui-icon>
           Exportar antes
         </a>
         <button type="button" class="btn btn--danger confirm-modal__confirm"
@@ -8297,7 +8297,7 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
       </footer>
     </div>
   </template>
-</saskia-confirm-modal>
+</ui-confirm-modal>
 ```
 
 ### Rendered example 2 — Pedido cancel (icon trigger, smaller modal)
@@ -8367,13 +8367,13 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
 
 ## Required Web Component / JS
 
-- **`<saskia-confirm-modal>`** — a custom element that:
+- **`<ui-confirm-modal>`** — a custom element that:
   - Listens for `click` on `[data-confirm-trigger]` and opens the modal template content.
   - Wires `[data-confirm-cancel]` to close.
   - Wires `[data-confirm-ok]` to fire the fetch with CSRF.
   - Implements focus trap and `aria-modal` semantics.
   - Restores focus to the trigger on close.
-- **`<saskia-icon>`** for header/trigger icons.
+- **`<ui-icon>`** for header/trigger icons.
 - The web component lazy-loads on first use.
 
 ## Anti-patterns
@@ -8436,7 +8436,7 @@ Three densities — `compact`, `comfortable` (default), `spacious`. Macros that 
 
 ### Icon family
 
-All icons come from **Lucide** (lucide.dev). Names are kebab-case (`alert-triangle`, `arrow-up`). Macros never embed inline SVG — always use `<saskia-icon>`.
+All icons come from **Lucide** (lucide.dev). Names are kebab-case (`alert-triangle`, `arrow-up`). Macros never embed inline SVG — always use `<ui-icon>`.
 
 ### Spanish copy
 
@@ -8462,7 +8462,7 @@ All icons come from **Lucide** (lucide.dev). Names are kebab-case (`alert-triang
 | `status_pill` | Free-form tags ("Sin gluten", "Alto en proteína") — that's a different macro |
 | `data_table` | Kanban / board layouts (different macro) |
 | `filter_chips` | Multi-select dropdowns |
-| `empty_state` | Errors (use `inline_warning`); celebratory toasts (use `<saskia-toast>`) |
+| `empty_state` | Errors (use `inline_warning`); celebratory toasts (use `<ui-toast>`) |
 | `bulk_action_bar` | Persistent action strips unrelated to multi-select |
 | `date_range_presets` | Time-of-day pickers; absolute date range with no presets |
 | `severity_left_stripe` | Standalone visual decoration without a card |
@@ -8484,7 +8484,7 @@ All icons come from **Lucide** (lucide.dev). Names are kebab-case (`alert-triang
 | `inline_warning` | 80 | |
 | `confirm_destructive` | 120 | Web component does the heavy lifting |
 
-Total: ~700 lines of Jinja + ~50KB JS for the web components (`saskia-icon`, `saskia-tooltip`, `saskia-sparkline`, `saskia-bulk-bar`, `saskia-confirm-modal`).
+Total: ~700 lines of Jinja + ~50KB JS for the web components (`ui-icon`, `ui-tooltip`, `ui-sparkline`, `ui-bulk-bar`, `ui-confirm-modal`).
 
 ### Web component contract
 
@@ -8538,7 +8538,7 @@ Outcome: ~70% of P0+P1 wishlist items addressed without per-page rewrites.
 - **Sparkline** — a small inline line/bar chart without axes, used inside `kpi_tile`.
 - **Bulk action** — an operation that affects ≥2 selected rows at once.
 - **Preset (date)** — a named range shortcut that fills in date inputs.
-- **Modal** — a focus-trapped overlay blocking the rest of the page; only `<saskia-confirm-modal>` uses one.
+- **Modal** — a focus-trapped overlay blocking the rest of the page; only `<ui-confirm-modal>` uses one.
 - **Web Component** — a custom element with shadow-DOM encapsulation; the `<saskia-*>` namespace.
 - **Lucide icon** — open-source icon library; all icons in this spec use Lucide.
 
@@ -9092,7 +9092,7 @@ These sub-screens are full pages with their own density; the cockpit surfaces th
 
 ```
 ╔════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
-║  Saskia RMS · Cockpit              domingo 27 sep 2026 · 09:18          admin@panaderia.com  [⌘K] [⌘N]   ║
+║  Sazón · Cockpit              domingo 27 sep 2026 · 09:18          admin@panaderia.com  [⌘K] [⌘N]   ║
 ╠════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
 ║ KPI STRIP (96px, 7 tiles — each clickable)                                                          ║
 ║ ┌───────────┬───────────┬───────────┬───────────┬───────────┬───────────┬───────────┐                ║
@@ -9128,7 +9128,7 @@ These sub-screens are full pages with their own density; the cockpit surfaces th
 ║ │                              │                                 │ └──────────────────────────────┘ │   ║
 ║ └──────────────────────────────┴─────────────────────────────────┴──────────────────────────────────┘   ║
 ╠════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ FOOTER: Saskia RMS v1.0 · última sync 09:18 · 1 dispositivo activo · soporte: hola@saskia.com.py           ║
+║ FOOTER: Sazón v1.0 · última sync 09:18 · 1 dispositivo activo · soporte: hola@saskia.com.py           ║
 ╚════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 

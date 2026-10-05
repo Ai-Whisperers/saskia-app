@@ -1,4 +1,5 @@
 """tests/test_sentry_lazy_import.py — verify Sentry is loaded only when DSN set."""
+
 from __future__ import annotations
 
 
@@ -18,6 +19,7 @@ def test_sentry_lazy_when_dsn_unset():
 
     # Simulate lifespan startup without SENTRY_DSN set.
     import os
+
     old_dsn = os.environ.pop("SENTRY_DSN", None)
     try:
         # Walk the same import block the lifespan does.
@@ -26,9 +28,7 @@ def test_sentry_lazy_when_dsn_unset():
             import sentry_sdk  # noqa
         # Check: sentry must NOT be in sys.modules.
         sentry_modules = [m for m in sys.modules if m.startswith("sentry")]
-        assert not sentry_modules, (
-            f"sentry was imported despite no SENTRY_DSN: {sentry_modules}"
-        )
+        assert not sentry_modules, f"sentry was imported despite no SENTRY_DSN: {sentry_modules}"
     finally:
         if old_dsn:
             os.environ["SENTRY_DSN"] = old_dsn
@@ -52,7 +52,7 @@ def test_sentry_import_cost_is_real():
         ["uv", "run", "python", "-c", "import sentry_sdk"],
         capture_output=True,
         text=True,
-        cwd="/opt/data/work/saskia-app",
+        cwd="/opt/data/work/sazon-app",
         timeout=30,
     )
     elapsed_ms = (time.perf_counter() - t0) * 1000
@@ -70,6 +70,7 @@ def test_sentry_import_cost_is_real():
 def test_main_source_guards_sentry_behind_dsn_check():
     """app/rms/main.py must guard `import sentry_sdk` behind `if sentry_dsn:`."""
     from pathlib import Path
+
     src = Path("app/rms/main.py").read_text()
 
     # Find the Sentry block.

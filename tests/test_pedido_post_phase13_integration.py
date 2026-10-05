@@ -6,14 +6,17 @@ customer_address_id + structured address fields. Confirms the Pedido row
 carries them all, and GET /pedidos/{id} shows the ventana text with the
 "(no es garantía)" suffix.
 """
-from datetime import date, timedelta
+
+from datetime import datetime, timedelta
+
 from sqlalchemy import select
 
-from app.rms.models import Pedido, AppMeta
+from app.rms.models import Pedido
 
 
 def _seed_product(session_factory, name="Phase13Prod", price=12000):
     from app.rms.models import Product
+
     with session_factory() as s:
         p = Product(name=name, sale_price_gs=price)
         s.add(p)
@@ -27,7 +30,7 @@ def test_post_pedido_persists_delivery_preference_window(client, session_factory
     structured-address fields persists them on the Pedido row, and the
     detail page renders the ventana via ventana_text()."""
     pid = _seed_product(session_factory)
-    target = (date.today() + timedelta(days=2)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=2)).isoformat()
 
     idem = "phase13-window-1"
     data = {
@@ -87,8 +90,8 @@ def test_post_pedido_persists_scheduled_preference(client, session_factory):
     """delivery_preference=scheduled + scheduled_date + ventana start/end
     → all 3 fields persisted, detail shows the date + (no es garantía)."""
     pid = _seed_product(session_factory, name="Phase13SchedProd", price=8000)
-    target = (date.today() + timedelta(days=3)).isoformat()
-    schedule_for = (date.today() + timedelta(days=7)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=3)).isoformat()
+    schedule_for = (datetime.utcnow().date() + timedelta(days=7)).isoformat()
 
     idem = "phase13-scheduled-1"
     data = {
@@ -133,7 +136,7 @@ def test_post_pedido_persists_scheduled_preference(client, session_factory):
 def test_post_pedido_asap_persists_with_preference_asap(client, session_factory):
     """ASAP: detail page shows 'Lo antes posible' or equivalent."""
     pid = _seed_product(session_factory, name="Phase13Asap", price=5000)
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
     data = {
         "customer_name": "Cliente ASAP",
         "promised_date": target,

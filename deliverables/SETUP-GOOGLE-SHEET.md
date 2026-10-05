@@ -1,16 +1,16 @@
-# Saskia RMS — Google Sheets handoff (one-time setup)
+# Sazón — Google Sheets handoff (one-time setup)
 
 **Why this exists:** the xlsx upload path requires manual curl from Ivan's laptop.
-You asked to swap that for a Google Sheet Saskia edits directly. This doc is the
+You asked to swap that for a Google Sheet the operator edits directly. This doc is the
 **one-click path** to make that work.
 
 ## What's already done (2026-09-29)
 
-✅ **Code deployed to saskia-vps.paragu-ai.com** (image `saskia-rms:prod`, schema v59).
+✅ **Code deployed to sazon-vps.paragu-ai.com** (image `sazon-rms:prod`, schema v59).
 ✅ **Database seeded:** 21 recetas (176 líneas), 60 ingredientes, 28 productos, 9 clientes,
    701 ventas, 33 tags, 57 tag_links. The page renders recipe ingredient tables + real costs.
 ✅ **xlsx export ready** as data source for the Sheet:
-   `/opt/data/profiles/ivan/scratch/saskia-app-work/deliverables/saskia-rms-starter-2026-09-29.xlsx` (518 KB)
+   `/opt/data/profiles/ivan/scratch/sazon-app-work/deliverables/sazon-rms-starter-2026-09-29.xlsx` (518 KB)
 ✅ **Servarica deploy path proven:** SSH to Host A (38.9.96.179) → rsync → docker build →
    docker stack deploy. No more reCAPTCHA wall.
 
@@ -58,30 +58,41 @@ PY
 ### Step 3 — Once the refresh token is updated, I run:
 ```python
 # Create the Sheet
-sheet = drive.files().create(body={
-    'name': 'Saskia RMS — Datos',
-    'mimeType': 'application/vnd.google-apps.spreadsheet',
-}).execute()
-# Share with Saskia
-drive.permissions().create(fileId=sheet['id'], body={
-    'type': 'user', 'role': 'writer', 'emailAddress': 'saskia@saskia.com.py',
-}).execute()
+sheet = (
+    drive.files()
+    .create(
+        body={
+            "name": "Sazón — Datos",
+            "mimeType": "application/vnd.google-apps.spreadsheet",
+        }
+    )
+    .execute()
+)
+# Share with the operator
+drive.permissions().create(
+    fileId=sheet["id"],
+    body={
+        "type": "user",
+        "role": "writer",
+        "emailAddress": "demo@sazon.app",
+    },
+).execute()
 # Populate from xlsx
-for sheet_name in ['Ingredientes', 'Productos', 'Clientes']:
-    populate_from_xlsx(sheet['id'], sheet_name, xlsx_data[sheet_name])
+for sheet_name in ["Ingredientes", "Productos", "Clientes"]:
+    populate_from_xlsx(sheet["id"], sheet_name, xlsx_data[sheet_name])
 ```
 
-Saskia gets a link like `https://docs.google.com/spreadsheets/d/<id>/edit` and edits directly.
+the operator gets a link like `https://docs.google.com/spreadsheets/d/<id>/edit` and edits directly.
 When she saves changes, the app pulls the Sheet via Sheets API and updates the DB.
 
 ## Alternative if you don't want to re-authorize
 
-Tell me to skip the Google Sheet. The xlsx path works as-is — Saskia gets a spreadsheet,
-fills it in, returns it, you upload via `curl -F file=@<xlsx> https://saskia-vps.paragu-ai.com/excel/importar?mode=patch`.
+Tell me to skip the Google Sheet. The xlsx path works as-is — the operator gets a spreadsheet,
+fills it in, returns it, you upload via `curl -F file=@<xlsx> https://sazon-vps.paragu-ai.com/excel/importar?mode=patch`.
 
-The app already supports this flow end-to-end. The xlsx starter is ready to ship to Saskia.
+The app already supports this flow end-to-end. The xlsx starter is ready to ship to the operator.
 
 ## Files ready for you right now
-- `saskia-rms-starter-2026-09-29.xlsx` (518 KB, 6 sheets, sample data)
+- `sazon-rms-starter-2026-09-29.xlsx` (518 KB, 6 sheets, sample data)
 - `recipes-needing-photos.json` (13 recipes still needing product photos)
-- Live URL: https://saskia-vps.paragu-ai.com (now serving 200 on all major routes)
+- Live URL: https://sazon-vps.paragu-ai.com (now serving 200 on all major routes)

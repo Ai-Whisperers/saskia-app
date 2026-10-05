@@ -2,6 +2,7 @@
 
 Wraps FastAPI's Jinja2Templates with app-state globals (now_year, m, etc.).
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -98,7 +99,9 @@ def _make_money_helper() -> SimpleNamespace:
         """
         if value is None:
             return "—"
-        return f"{value:,}".replace(",", ".") if value >= 0 else f"-{abs(value):,}".replace(",", ".")
+        return (
+            f"{value:,}".replace(",", ".") if value >= 0 else f"-{abs(value):,}".replace(",", ".")
+        )
 
     def gs_full(value: object) -> str:
         """Alias for gs() — kept for templates that already use this name."""
@@ -131,23 +134,20 @@ def _make_money_helper() -> SimpleNamespace:
             return '<span class="badge--stock-low" title="Stock bajo el mínimo">Bajo</span>'
         return '<span class="badge--stock-ok" title="Stock suficiente">OK</span>'
 
-    def top_list_card(title: object, items: object, currency_prefix: object="", icon_id: object=None) -> str:
+    def top_list_card(
+        title: object, items: object, currency_prefix: object = "", icon_id: object = None
+    ) -> str:
         """Render a top-N list as a compact card. Pure string builder
         because Jinja macros would need an extra import."""
         if not items:
             return f'<div class="card"><h3>{title}</h3><p class="muted">Sin datos.</p></div>'
-        icon_html = (
-            f'<svg class="icon"><use href="#{icon_id}"/></svg>' if icon_id else ""
-        )
+        icon_html = f'<svg class="icon"><use href="#{icon_id}"/></svg>' if icon_id else ""
         rows = "".join(
             f'<li><span class="name">{it.get("name", "—")}</span>'
             f'<span class="value">{currency_prefix}{format_gs(it.get("value", 0))}</span></li>'
             for it in items
         )
-        return (
-            f'<div class="card top-list-card">{icon_html}'
-            f'<h3>{title}</h3><ol>{rows}</ol></div>'
-        )
+        return f'<div class="card top-list-card">{icon_html}<h3>{title}</h3><ol>{rows}</ol></div>'
 
     return SimpleNamespace(
         gs=gs,
@@ -188,9 +188,22 @@ def _now_str() -> str:
         from app.rms.config import ASUNCION_TZ
 
         _DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
-        _MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+        _MESES = [
+            "ene",
+            "feb",
+            "mar",
+            "abr",
+            "may",
+            "jun",
+            "jul",
+            "ago",
+            "sep",
+            "oct",
+            "nov",
+            "dic",
+        ]
         _n = datetime.now(ASUNCION_TZ)
-        return f"{_DIAS[_n.weekday()]} {_n.day} {_MESES[_n.month-1]} {_n.year} · {_n.strftime('%H:%M')}"  # locale set below
+        return f"{_DIAS[_n.weekday()]} {_n.day} {_MESES[_n.month - 1]} {_n.year} · {_n.strftime('%H:%M')}"  # locale set below
     except Exception:  # noqa: BLE001 — defensive default
         return datetime.now(ASUNCION_TZ).strftime("%d/%m/%Y %H:%M")
 
@@ -257,6 +270,11 @@ def render(
     """
     ctx = context or {}
     ctx.setdefault("request", request)
+    if "ui_version" in ctx:
+        # PRODUCCION-V2 Fase 2: ui_version='v1' (default) or 'v2'. Renders
+        # the 4-col grilla when set; v1 keeps the legacy 8-col layout.
+        pass
+
 
     ctx["csrf_token"] = _csrf_token_for_request(request)
     # Inject Asuncion-local time + tz-aware datetime on every render.
@@ -269,13 +287,14 @@ def render(
     # Pre-this-fix: hardcoded `*1000` literals in 4+ places caused a
     # 100% lifetime-spend return rate. The constants now live in
     # app/rms/loyalty/ledger.py; the routes are the single point of
-    # change when Saskia tunes the rate.
+    # change when the operator tunes the rate.
     try:
         from app.rms.loyalty import (
             POINTS_PER_GS_EARN,
             POINTS_VALUE_GS,
             effective_return_rate,
         )
+
         ctx.setdefault("POINTS_VALUE_GS", POINTS_VALUE_GS)
         ctx.setdefault("POINTS_PER_GS_EARN", POINTS_PER_GS_EARN)
         ctx.setdefault("LOYALTY_RETURN_RATE_PCT", effective_return_rate())
@@ -307,6 +326,7 @@ def render(
     if "nav_groups" not in ctx:
         try:
             from app.rms.nav import NAV_GROUPS
+
             ctx["nav_groups"] = NAV_GROUPS
         except Exception:  # noqa: BLE001 — defensive default
             ctx["nav_groups"] = []
@@ -315,6 +335,7 @@ def render(
         try:
             from app.rms.db import get_db_session, make_session_factory
             from app.rms.settings_runtime import get_branding
+
             engine = request.app.state.engine if hasattr(request.app.state, "engine") else None
             if engine is not None:
                 sf = make_session_factory(engine)
@@ -322,9 +343,11 @@ def render(
                     ctx["branding"] = get_branding(session)
             else:
                 from app.rms.settings_runtime import DEFAULT_BRANDING
+
                 ctx["branding"] = DEFAULT_BRANDING
         except Exception:  # noqa: BLE001 — defensive default
             from app.rms.settings_runtime import DEFAULT_BRANDING
+
             ctx["branding"] = DEFAULT_BRANDING
 
     return templates.TemplateResponse(request, template_name, ctx, status_code=status_code)

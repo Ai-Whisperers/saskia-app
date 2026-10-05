@@ -16,30 +16,26 @@ Three defensive features added together:
     same window with the same key, the second one redirects to the
     first pedido's detail page instead of creating a duplicate.
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work \\
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work \\
      && ./.venv/bin/python -m pytest tests/test_pedidos_nuevo_t_2026_10_01.py -v
 """
+
 from __future__ import annotations
 
-import re
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
-import pytest
 from sqlalchemy import select
 
 from app.rms.models import (
     AppMeta,
-    Customer,
     DeliveryZone,
     Ingredient,
     Pedido,
-    PedidoLine,
     Product,
     Recipe,
     RecipeLine,
     Sale,
 )
-
 
 # --------------------------------------------------------------------------- #
 # Fixtures / helpers
@@ -113,7 +109,7 @@ def _seed_product_with_recipe(
         # Seed enough sales history that the rolling-14-day average lands
         # near `avg_daily_sales` for tomorrow.
         for d in range(1, 15):
-            sold_day = date.today() - timedelta(days=d)
+            sold_day = datetime.utcnow().date() - timedelta(days=d)
             s.add(
                 Sale(
                     product_id=prod.id,
@@ -135,14 +131,10 @@ def _seed_product_with_recipe(
 
 def test_forecast_api_returns_plan_rows(client, session_factory):
     """GET /produccion/api/forecast returns qty_to_produce per product for a date."""
-    pid = _seed_product_with_recipe(
-        session_factory, name="ForecastCroissant", avg_daily_sales=10.0
-    )
-    target = (date.today() + timedelta(days=1)).isoformat()
+    pid = _seed_product_with_recipe(session_factory, name="ForecastCroissant", avg_daily_sales=10.0)
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
 
-    resp = client.get(
-        f"/produccion/api/forecast?for_date={target}&product_id={pid}"
-    )
+    resp = client.get(f"/produccion/api/forecast?for_date={target}&product_id={pid}")
     assert resp.status_code == 200, resp.text[:300]
     body = resp.json()
     assert body["for_date"] == target
@@ -152,13 +144,19 @@ def test_forecast_api_returns_plan_rows(client, session_factory):
         f"product {pid} missing from forecast; got {[r['product_id'] for r in rows]}"
     )
     for r in rows:
-        assert {"product_id", "product_name", "qty_to_produce", "forecast_source", "confidence_pct"} <= set(r)
+        assert {
+            "product_id",
+            "product_name",
+            "qty_to_produce",
+            "forecast_source",
+            "confidence_pct",
+        } <= set(r)
 
 
 def test_forecast_api_without_product_id_returns_all(client, session_factory):
     """No product_id filter → returns the full plan."""
     _seed_product_with_recipe(session_factory, name="ForecastMuffin", avg_daily_sales=5.0)
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
 
     resp = client.get(f"/produccion/api/forecast?for_date={target}")
     assert resp.status_code == 200
@@ -177,7 +175,7 @@ def test_forecast_api_filters_to_single_product(client, session_factory):
     """product_id filter narrows to just that row."""
     p1 = _seed_product_with_recipe(session_factory, name="FiltA", avg_daily_sales=10.0)
     _seed_product_with_recipe(session_factory, name="FiltB", avg_daily_sales=20.0)
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
 
     resp = client.get(f"/produccion/api/forecast?for_date={target}&product_id={p1}")
     assert resp.status_code == 200
@@ -193,7 +191,7 @@ def test_forecast_api_filters_to_single_product(client, session_factory):
 
 def test_pedidos_nuevo_renders_delivery_zones_data_block(client, session_factory):
     """The template ships a <script id="delivery-zones-data"> with each zone's min_order."""
-    zid = _seed_zone(
+    _seed_zone(
         session_factory,
         code="Z-DP-1",
         name="Asunción Centro",
@@ -238,7 +236,7 @@ def test_pedidos_nuevo_renders_line_stock_warning_row(client):
 def test_post_pedido_with_idempotency_key_creates_one_pedido(client, session_factory):
     """First POST with a key creates the pedido and stamps the cache row."""
     pid = _seed_product(session_factory, name="IdemProd", price=12000)
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
     idem_key = "11111111-1111-4111-8111-111111111111"
 
     resp = client.post(
@@ -266,11 +264,10 @@ def test_post_pedido_with_idempotency_key_creates_one_pedido(client, session_fac
         assert len(pedidos) == 1
         pedido_id = pedidos[0].id
 
-        cache = s.scalar(
-            select(AppMeta).where(AppMeta.key == f"pedido_idem:{idem_key}")
-        )
+        cache = s.scalar(select(AppMeta).where(AppMeta.key == f"pedido_idem:{idem_key}"))
         assert cache is not None, "idempotency cache row missing"
         import json
+
         payload = json.loads(cache.value)
         assert payload["pedido_id"] == pedido_id
 
@@ -281,7 +278,7 @@ def test_post_pedido_with_idempotency_key_creates_one_pedido(client, session_fac
 def test_post_pedido_repeated_idempotency_key_redirects_to_original(client, session_factory):
     """Second POST with the same key → 303 to the original pedido, no new pedido."""
     pid = _seed_product(session_factory, name="IdemProd2", price=8000)
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
     idem_key = "22222222-2222-4222-8222-222222222222"
 
     data = {
@@ -327,7 +324,7 @@ def test_post_pedido_repeated_idempotency_key_redirects_to_original(client, sess
 def test_post_pedido_without_idempotency_key_still_works(client, session_factory):
     """No key → still creates (back-compat: form works without it)."""
     pid = _seed_product(session_factory, name="NoKey", price=10000)
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
 
     resp = client.post(
         "/pedidos/nuevo",
@@ -353,7 +350,7 @@ def test_post_pedido_without_idempotency_key_still_works(client, session_factory
 def test_post_pedido_different_idempotency_keys_create_distinct_pedidos(client, session_factory):
     """Two requests, two different keys → two pedidos (no false dedup)."""
     pid = _seed_product(session_factory, name="TwoKeys", price=5000)
-    target = (date.today() + timedelta(days=1)).isoformat()
+    target = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
 
     for key in ["key-aaa-001", "key-bbb-002"]:
         resp = client.post(

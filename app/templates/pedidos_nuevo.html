@@ -62,7 +62,7 @@
 
   {# ── Crear cliente nuevo (colapsado) ─────────────────────────
      El combo de arriba ya soporta "tipear nombre libre → al guardar
-     crea el cliente", pero para pedidos donde Saskia quiere guardar
+     crea el cliente", pero para pedidos donde el operador quiere guardar
      teléfono / RUC / notas AHORA, este panel crea el cliente en
      su lugar. Al éxito, selecciona el cliente nuevo en el combo.
   #}
@@ -187,7 +187,7 @@
 
             // 1) Mismos handlers que usa el picker de búsqueda, así se
             //    autorrellenan teléfono / RUC / factura igual que si
-            //    Saskia lo hubiera elegido del dropdown.
+            //    el operador lo hubiera elegido del dropdown.
             //
             // El global window.customerPickHandlers a veces no se inicializa
             // en pedido-combos.js (pre-existing bug), así que siempre
@@ -226,7 +226,7 @@
             }
 
             // 3) Sincronizar el combo visible
-            var combo = document.querySelector('saskia-combo[name="customer_id"]');
+            var combo = document.querySelector('ui-combo[name="customer_id"]');
             if (combo && typeof combo.setValue === 'function') {
               combo.setValue(cid, cust.name || name);
             }
@@ -284,7 +284,7 @@
   <div class="grid grid-2">
     <div class="form-row">
       <label for="promised_date">Fecha prometida</label>
-      <saskia-date id="promised_date" name="promised_date" value="{{ default_promised_date }}"></saskia-date>
+      <ui-date id="promised_date" name="promised_date" value="{{ default_promised_date }}"></ui-date>
     </div>
     <div class="form-row">
       <label for="promised_time">Hora (opcional)</label>
@@ -428,9 +428,9 @@
           </div>
           <div class="form-row">
                     <label for="address_departamento_combo">Departamento</label>
-                    <saskia-combo id="address_departamento_combo" name="address_departamento"
+                    <ui-combo id="address_departamento_combo" name="address_departamento"
                                   value="Central" display="Central" data-id="address_departamento_combo"
-                                  src='{{ paraguay_departments_src|tojson }}'></saskia-combo>
+                                  src='{{ paraguay_departments_src|tojson }}'></ui-combo>
                   </div>
           <div class="form-row">
             <label for="address_codigo_postal">Código postal</label>
@@ -443,10 +443,10 @@
           </div>
           <div class="form-row">
             <label for="address_kind_combo">Tipo de dirección</label>
-            <saskia-combo id="address_kind_combo" name="address_kind"
+            <ui-combo id="address_kind_combo" name="address_kind"
                           value="HOME" display="Casa" placeholder="Elegí tipo…"
                           data-id="address_kind_combo"
-                          src='[{"value":"HOME","label":"🏠 Casa"},{"value":"WORK","label":"🏢 Trabajo"},{"value":"FAMILY","label":"👪 Familiar"},{"value":"OTHER","label":"📍 Otro"}]'></saskia-combo>
+                          src='[{"value":"HOME","label":"🏠 Casa"},{"value":"WORK","label":"🏢 Trabajo"},{"value":"FAMILY","label":"👪 Familiar"},{"value":"OTHER","label":"📍 Otro"}]'></ui-combo>
           </div>
         </div>
         <div class="form-row">

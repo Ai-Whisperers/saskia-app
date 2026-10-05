@@ -21,7 +21,6 @@ from app.rms.tagging.classify import (
     validate_ingredient,
 )
 
-
 # ─────────────────────────────────────────────────────────────────────────
 # normalize / normalize_all
 # ─────────────────────────────────────────────────────────────────────────
@@ -217,13 +216,24 @@ def test_bicarbonato_does_not_block_sin_huevo():
 
 
 def test_neutral_keywords_never_block():
-    for kw in ("Agua", "Sal", "Hielo", "Sal fina", "Sal gruesa",
-               "Canela", "Jengibre", "Nuez moscada", "Esencia",
-               "Bicarbonato de sodio", "Polvo de hornear",
-               "Levadura", "Vinagre", "Aceite vegetal"):
+    for kw in (
+        "Agua",
+        "Sal",
+        "Hielo",
+        "Sal fina",
+        "Sal gruesa",
+        "Canela",
+        "Jengibre",
+        "Nuez moscada",
+        "Esencia",
+        "Bicarbonato de sodio",
+        "Polvo de hornear",
+        "Levadura",
+        "Vinagre",
+        "Aceite vegetal",
+    ):
         ing = _ing(kw)
-        for tag in ("sin gluten", "sin huevo", "sin lactosa",
-                    "vegano", "keto", "vegetariano"):
+        for tag in ("sin gluten", "sin huevo", "sin lactosa", "vegano", "keto", "vegetariano"):
             assert ingredient_blocks(ing, tag) is False, (
                 f"neutral {kw!r} unexpectedly blocks {tag!r}"
             )
@@ -322,7 +332,7 @@ def test_dairy_free_alias_blocks_vegano_via_lactose_free_normalization():
 
 
 def test_validate_no_issues_when_consistent():
-    ing = _ing("Harina de almendras", allergens="gluten,nuts", dietary_tags="vegano")
+    _ing("Harina de almendras", allergens="gluten,nuts", dietary_tags="vegano")
     # It's a contradiction, but the function checks specific patterns
     # Let's test a clean one.
     clean = _ing("Harina de arroz", allergens="", dietary_tags="sin gluten,vegano")

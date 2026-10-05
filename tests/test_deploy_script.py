@@ -13,10 +13,10 @@ What's covered:
 5. --help prints usage
 7. Unknown flag → exits 2 (usage error)
 
-NOTE: This file is in the saskia-app test suite but executes against
+NOTE: This file is in the sazon-app test suite but executes against
 the deploy script in the WORKTREE the test runner is started in.
-Both /opt/data/work/saskia-app and /opt/data/profiles/ivan/scratch/
-saskia-app-work have the same deploy.sh; the test points at the one
+Both /opt/data/work/sazon-app and /opt/data/profiles/ivan/scratch/
+sazon-app-work have the same deploy.sh; the test points at the one
 shipped in the parent dir of the current worktree.
 """
 
@@ -29,12 +29,13 @@ from pathlib import Path
 
 import pytest
 
-
 # Resolve the deploy.sh path: it's always at <worktree>/scripts/deploy.sh
 DEPLOY_SH = Path(__file__).parent.parent / "scripts" / "deploy.sh"
 
 
-def _run(args: list[str], repo: Path | None = None, check: bool = True) -> subprocess.CompletedProcess:
+def _run(
+    args: list[str], repo: Path | None = None, check: bool = True
+) -> subprocess.CompletedProcess:
     """Run deploy.sh with optional --repo override. Returns CompletedProcess."""
     cmd = [str(DEPLOY_SH)]
     cmd.extend(args)
@@ -77,14 +78,18 @@ def test_dry_run_clean_main_repo(monkeypatch, tmp_path) -> None:
     # Skip if the worktree isn't on main (test environment).
     branch_proc = subprocess.run(
         ["git", "-C", str(worktree), "rev-parse", "--abbrev-ref", "HEAD"],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     if branch_proc.stdout.strip() != "main":
         pytest.skip(f"worktree is on '{branch_proc.stdout.strip()}', not 'main'")
     # Make sure no uncommitted changes in app/ or app/static/
     status_proc = subprocess.run(
         ["git", "-C", str(worktree), "status", "--porcelain", "--", "app", "app/static"],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     if status_proc.stdout.strip():
         pytest.skip("worktree has uncommitted changes in app/ or app/static/")
@@ -150,7 +155,7 @@ def test_dry_run_uncommitted_changes_exits_1(monkeypatch, tmp_path) -> None:
     assert "uncommitted changes" in out.lower() or "commit first" in out.lower()
 
 
-def test_dry_run_does_not_touch_network(monkeypatch) -> None:
+def test_dry_run_does_not_touch_network(monkeypatch, tmp_path) -> None:
     """Verify --dry-run doesn't actually invoke scp/ssh/curl/network.
     We do this by overriding PATH to a sandbox that contains only
     /bin/cat and /bin/echo. If deploy.sh tries to invoke scp/ssh/curl,
@@ -167,13 +172,17 @@ def test_dry_run_does_not_touch_network(monkeypatch) -> None:
     worktree = DEPLOY_SH.parent.parent
     branch_proc = subprocess.run(
         ["git", "-C", str(worktree), "rev-parse", "--abbrev-ref", "HEAD"],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     if branch_proc.stdout.strip() != "main":
         pytest.skip(f"worktree is on '{branch_proc.stdout.strip()}', not 'main'")
     status_proc = subprocess.run(
         ["git", "-C", str(worktree), "status", "--porcelain", "--", "app", "app/static"],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     if status_proc.stdout.strip():
         pytest.skip("worktree has uncommitted changes in app/ or app/static/")
@@ -196,7 +205,10 @@ def test_dry_run_does_not_touch_network(monkeypatch) -> None:
     env["PATH"] = str(sys_path)
     result = subprocess.run(
         [str(DEPLOY_SH), "--dry-run", f"--repo={worktree}"],
-        capture_output=True, text=True, env=env, check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
     )
     assert result.returncode == 0, (
         f"--dry-run touched the network or a missing tool. "

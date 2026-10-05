@@ -30,16 +30,17 @@ def seeded_month(session_factory):
         june = datetime(2026, 6, 15, 12, 0)
         ok_ids = []
         for i in range(3):
-            sale = make_sale(s, product=cat["product"], qty=1, at=june + timedelta(days=i),
-                             unit_price_gs=10_000)
+            sale = make_sale(
+                s, product=cat["product"], qty=1, at=june + timedelta(days=i), unit_price_gs=10_000
+            )
             ok_ids.append(sale.id)
-        voided = make_sale(s, product=cat["product"], qty=1,
-                           at=june + timedelta(days=3), unit_price_gs=10_000)
+        voided = make_sale(
+            s, product=cat["product"], qty=1, at=june + timedelta(days=3), unit_price_gs=10_000
+        )
         voided.voided_at = datetime(2026, 6, 20, 9, 0)
         voided.void_reason = "test"
         s.commit()
-        yield {"product": cat["product"], "ok_ids": ok_ids, "voided_id": voided.id,
-               "june": june}
+        yield {"product": cat["product"], "ok_ids": ok_ids, "voided_id": voided.id, "june": june}
 
 
 def test_cierre_mensual_shows_correct_totals(client, seeded_month):

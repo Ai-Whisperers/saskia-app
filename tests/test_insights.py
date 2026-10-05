@@ -13,17 +13,14 @@ from app.rms.models import (
 
 def _setup_minimal(session):
     """Minimal seed: 1 product with recipe + 1 ingredient."""
-    ing = Ingredient(name="ins_ing_xyz", unit="kg",
-                     purchase_price_gs=1000, stock_qty=10)
+    ing = Ingredient(name="ins_ing_xyz", unit="kg", purchase_price_gs=1000, stock_qty=10)
     session.add(ing)
     session.flush()
     r = Recipe(name="ins_r_xyz", yield_qty=10, yield_unit="und")
     session.add(r)
     session.flush()
-    session.add(RecipeLine(recipe_id=r.id, line_kind="ingredient",
-                           line_ref_id=ing.id, qty=0.1))
-    p = Product(name="ins_p_xyz", portion_label="und",
-                sale_price_gs=5000, recipe_id=r.id)
+    session.add(RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing.id, qty=0.1))
+    p = Product(name="ins_p_xyz", portion_label="und", sale_price_gs=5000, recipe_id=r.id)
     session.add(p)
     session.commit()
     return p, r, ing

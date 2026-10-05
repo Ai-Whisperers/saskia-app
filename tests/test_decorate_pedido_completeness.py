@@ -1,3 +1,7 @@
+from datetime import datetime, timezone
+
+_UTC = timezone.utc
+
 """tests/test_decorate_pedido_completeness.py — Phase 14 (2026-10-01) regression.
 
 Catches the class of bug Phase 13 hit: a new Pedido column (e.g.
@@ -11,7 +15,7 @@ The fix is twofold:
    (list, board, recibo, pedido_publico) renders identically.
 """
 import inspect
-from datetime import date, time
+
 from sqlalchemy import inspect as sqla_inspect
 
 
@@ -19,11 +23,13 @@ def _make_pedido(session_factory):
     """Insert a minimal pedido via the ORM (default values fill NOT NULLs)
     and return its id."""
     import uuid as _uuid
+
     from app.rms.models import Pedido
+
     with session_factory() as s:
         p = Pedido(
             customer_name="Fase14 Cliente",
-            promised_date=date.today(),
+            promised_date=datetime.now(_UTC).date(),
             promised_time="15:00",  # bound as string — sqlite3 stdlib rejects time()
             channel="whatsapp",
             payment_intent="efectivo",
@@ -98,6 +104,7 @@ def test_decorate_pedido_includes_payment_method_alias():
     Adding `payment_method` as an alias means the template shows the
     human label without a snake_case mismatch."""
     from app.routers.pedidos import _decorate_pedido
+
     src = inspect.getsource(_decorate_pedido)
     assert "payment_method" in src, (
         "_decorate_pedido should expose `payment_method` as an alias of "
@@ -109,6 +116,7 @@ def test_decorate_pedido_includes_phase13_fk_pointers():
     """Phase 13 FK pointers to the structured address + invoice profile
     are useful for cross-navigation (pedido → address edit page)."""
     from app.routers.pedidos import _decorate_pedido
+
     src = inspect.getsource(_decorate_pedido)
     for k in ("customer_address_id", "customer_invoice_profile_id"):
         assert k in src, f"_decorate_pedido should expose {k}"

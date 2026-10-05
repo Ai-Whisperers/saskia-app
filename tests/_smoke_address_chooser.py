@@ -11,6 +11,7 @@ This test pins the new contract so a future regression can't
 re-introduce duplicate pickers or stacked "— direcciones guardadas —"
 labels.
 """
+
 from __future__ import annotations
 
 import json
@@ -24,6 +25,7 @@ def test_datalist_present_and_empty_when_no_customer(client, session_factory):
     must exist (empty) so the input can be populated when a customer
     is later picked. No competing pickers."""
     from tests.factories import make_customer
+
     with session_factory() as s:
         cid = make_customer(s, name="NoAddr Test").id
         s.commit()
@@ -37,8 +39,7 @@ def test_datalist_present_and_empty_when_no_customer(client, session_factory):
     )
     # The address input references the datalist via `list=` attr
     assert 'list="customer-addresses"' in body, (
-        "Expected address_text input to use list='customer-addresses' "
-        "to bind it to the datalist."
+        "Expected address_text input to use list='customer-addresses' to bind it to the datalist."
     )
     # No JS-injected duplicates from pre-fix code
     assert 'id="address_quick_pick"' not in body
@@ -59,12 +60,14 @@ def test_datalist_populates_when_customer_has_addresses(client, session_factory)
             ("Oficina", "Mcal. López 456", False),
             ("Mamá", "Sajonia 789", False),
         ]:
-            s.add(CustomerAddress(
-                customer_id=c.id,
-                label=label,
-                address_text=addr,
-                is_default=is_def,
-            ))
+            s.add(
+                CustomerAddress(
+                    customer_id=c.id,
+                    label=label,
+                    address_text=addr,
+                    is_default=is_def,
+                )
+            )
         s.commit()
         cid = c.id
 
@@ -89,7 +92,8 @@ def test_datalist_populates_when_customer_has_addresses(client, session_factory)
     # The prefill JSON still carries the address book for other consumers
     m = re.search(
         r'<script id="customer-prefill" type="application/json">(.*?)</script>',
-        body, re.S,
+        body,
+        re.S,
     )
     assert m is not None, "customer-prefill JSON script block missing"
     data = json.loads(m.group(1))
@@ -106,11 +110,13 @@ def test_datalist_options_have_value_and_label(client, session_factory):
         c = Customer(name="Datalist Opts", phone="+595 9XX XXXX")
         s.add(c)
         s.flush()
-        s.add(CustomerAddress(
-            customer_id=c.id,
-            label="casa",
-            address_text="Edificio Villa Morra, Piso 7 of. 703",
-        ))
+        s.add(
+            CustomerAddress(
+                customer_id=c.id,
+                label="casa",
+                address_text="Edificio Villa Morra, Piso 7 of. 703",
+            )
+        )
         s.commit()
         cid = c.id
 
@@ -139,12 +145,13 @@ def test_no_duplicate_pickers_across_paths(client, session_factory):
     datalist — there should never be two pickers stacked on the page
     even after the customer is changed via the combo."""
     from tests.factories import make_customer
+
     # Two customers — switching between them must not accumulate pickers
     with session_factory() as s:
         c1 = make_customer(s, name="SwitchA", phone="+595****7101")
         c2 = make_customer(s, name="SwitchB", phone="+595****7102")
         s.commit()
-        cid1, cid2 = c1.id, c2.id
+        cid1, _cid2 = c1.id, c2.id
 
     r = client.get(f"/pedidos/nuevo?customer_id={cid1}")
     body = r.text

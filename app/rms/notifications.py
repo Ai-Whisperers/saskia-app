@@ -1,6 +1,6 @@
 """app/rms/notifications.py — WhatsApp-style daily summary (E14).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E14.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E14.
 
 Adds:
 - format_daily_summary_message(...): produce a concise text summary
@@ -15,6 +15,7 @@ external creds. Operator can switch by setting env vars:
     AIW_TWILIO_SID / AIW_TWILIO_TOKEN / AIW_TWILIO_FROM / AIW_TWILIO_TO
     AIW_SMTP_HOST / AIW_SMTP_PORT / AIW_SMTP_USER / AIW_SMTP_PASS
 """
+
 from __future__ import annotations
 
 import json
@@ -55,7 +56,9 @@ def format_daily_summary_message(
     if summary.top_products:
         lines.append("")
         lines.append("*Top productos:*")
-        lines.extend(f"• {row.product_name} x{row.qty_sold:.0f}" for row in summary.top_products[:3])
+        lines.extend(
+            f"• {row.product_name} x{row.qty_sold:.0f}" for row in summary.top_products[:3]
+        )
     if summary.low_stock_ingredients:
         lines.append("")
         names = ", ".join(summary.low_stock_ingredients[:5])
@@ -107,9 +110,7 @@ def _prune_spool(now: datetime | None = None) -> int:
     """Drop dryrun-* files older than _SPOOL_RETENTION_DAYS. Best-effort."""
     if not SPOOL_DIR.exists():
         return 0
-    cutoff = (now or datetime.now(timezone.utc)).timestamp() - (
-        _SPOOL_RETENTION_DAYS * 86400
-    )
+    cutoff = (now or datetime.now(timezone.utc)).timestamp() - (_SPOOL_RETENTION_DAYS * 86400)
     removed = 0
     for f in SPOOL_DIR.glob("dryrun-*"):
         try:
@@ -161,15 +162,20 @@ def send_whatsapp_summary(body: str, *, to: str | None = None) -> NotifyResult:
     import urllib.request
 
     url = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
-    payload = urllib.parse.urlencode({
-        "From": from_,
-        "To": to,
-        "Body": body,
-    }).encode()
+    payload = urllib.parse.urlencode(
+        {
+            "From": from_,
+            "To": to,
+            "Body": body,
+        }
+    ).encode()
     request = urllib.request.Request(
-        url, data=payload, method="POST",
+        url,
+        data=payload,
+        method="POST",
     )
     import base64
+
     auth = base64.b64encode(f"{sid}:{token}".encode()).decode()
     request.add_header("Authorization", f"Basic {auth}")
     request.add_header("Content-Type", "application/x-www-form-urlencoded")
@@ -212,7 +218,8 @@ def send_email_summary(
 
     if not (host and user and password and to):
         return NotifyResult(
-            ok=False, kind="email",
+            ok=False,
+            kind="email",
             detail="missing SMTP creds",
             error="missing AIW_SMTP_* env vars",
         )
@@ -230,14 +237,16 @@ def send_email_summary(
             server.send_message(msg)
         spool = _spool_message("email", body)
         return NotifyResult(
-            ok=True, kind="email",
+            ok=True,
+            kind="email",
             detail=f"sent to {to}; spool: {spool}",
             bytes_sent=len(body),
         )
     except Exception as e:  # noqa: BLE001 — defensive default
         spool = _spool_message("email-FAILED", body)
         return NotifyResult(
-            ok=False, kind="email",
+            ok=False,
+            kind="email",
             detail=f"smtp error; spool: {spool}",
             bytes_sent=len(body),
             error=str(e),
@@ -264,7 +273,8 @@ def send_notification(
     if kind_str == "dryrun":
         spool = _spool_message("dryrun", body)
         return NotifyResult(
-            ok=True, kind="dryrun",
+            ok=True,
+            kind="dryrun",
             detail=f"dry-run; spool: {spool}",
             bytes_sent=len(body),
         )
@@ -273,7 +283,9 @@ def send_notification(
     if kind_str == "email":
         return send_email_summary(body, to=to)
     return NotifyResult(
-        ok=False, kind=kind_str, detail="unknown kind",
+        ok=False,
+        kind=kind_str,
+        detail="unknown kind",
         error=f"unknown kind: {kind_str}",
     )
 

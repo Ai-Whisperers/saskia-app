@@ -17,6 +17,7 @@ the ComplianceInfo row's `next_boleta_resimple_number` or
 `next_factura_number` counter and returns the assigned number. Atomic via
 a SELECT-then-UPDATE inside the caller's transaction.
 """
+
 from __future__ import annotations
 
 from sqlalchemy.orm import Session
@@ -69,7 +70,12 @@ def compute_invoice_snapshot(
     net = max(0, gross - int(discount_gs or 0))
 
     if rate_str == "exento":
-        return {"iva_rate": "exento", "iva_base_gs": net, "iva_amount_gs": 0, "default_rate": default_rate}
+        return {
+            "iva_rate": "exento",
+            "iva_base_gs": net,
+            "iva_amount_gs": 0,
+            "default_rate": default_rate,
+        }
 
     # rate_str is "5" or "10"
     rate_pct = int(rate_str)
@@ -78,7 +84,12 @@ def compute_invoice_snapshot(
     # Python's int() floors; add 0.5 then int() for half-up.
     base = int(net * 100 / (100 + rate_pct) + 0.5)
     iva_amount = net - base
-    return {"iva_rate": rate_str, "iva_base_gs": base, "iva_amount_gs": iva_amount, "default_rate": default_rate}
+    return {
+        "iva_rate": rate_str,
+        "iva_base_gs": base,
+        "iva_amount_gs": iva_amount,
+        "default_rate": default_rate,
+    }
 
 
 def allocate_invoice_number(session: Session, invoice_type: str) -> int:

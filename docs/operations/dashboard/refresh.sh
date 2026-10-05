@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# refresh.sh — regenerate STATUS.md and STATUS.html for the Saskia engagement
-# Usage: bash refresh.sh [path-to-saskia-app-clone]
-# Default: /opt/data/profiles/ivan/scratch/saskia-build-full/saskia-app
+# refresh.sh — regenerate STATUS.md and STATUS.html for the the operator engagement
+# Usage: bash refresh.sh [path-to-sazon-app-clone]
+# Default: /opt/data/profiles/ivan/scratch/sazon-build-full/sazon-app
 #
 # What it does:
 #   - Gets HEAD commit SHA + message
@@ -11,13 +11,13 @@
 
 set -euo pipefail
 
-# Default: explicit arg, else PWD if it is a saskia-app git repo, else legacy scratch path
+# Default: explicit arg, else PWD if it is a sazon-app git repo, else legacy scratch path
 if [ -n "${1:-}" ]; then
   PROJECT_DIR="$1"
-elif [ -d "$PWD/.git" ] && [ "$(basename "$PWD")" = "saskia-app" ]; then
+elif [ -d "$PWD/.git" ] && [ "$(basename "$PWD")" = "sazon-app" ]; then
   PROJECT_DIR="$PWD"
 else
-  PROJECT_DIR="/opt/data/profiles/ivan/scratch/saskia-build-full/saskia-app"
+  PROJECT_DIR="/opt/data/profiles/ivan/scratch/sazon-build-full/sazon-app"
 fi
 DASHBOARD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

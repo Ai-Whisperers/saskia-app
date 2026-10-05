@@ -40,7 +40,7 @@ def _build_app_engine():
 
     from app.rms.db import init_db, make_engine
 
-    d = tempfile.mkdtemp(prefix="pw-saskia-")
+    d = tempfile.mkdtemp(prefix="pw-sazon-")
     engine = make_engine(f"sqlite:///{d}/pw.sqlite")
     init_db(engine)
     return engine
@@ -92,9 +92,7 @@ def pw_page(browser, request):
     fastapi_app.state.engine = engine
     fastapi_app.state.session_factory = sf
 
-    config = uvicorn.Config(
-        fastapi_app, host="127.0.0.1", port=0, log_level="warning"
-    )
+    config = uvicorn.Config(fastapi_app, host="127.0.0.1", port=0, log_level="warning")
     server = uvicorn.Server(config)
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
@@ -108,7 +106,7 @@ def pw_page(browser, request):
 
     ctx = browser.new_context(viewport={"width": 1280, "height": 900})
     page = ctx.new_page()
-    page._saskia_base = base          # stashed for the page objects
+    page._saskia_base = base  # stashed for the page objects
     page._saskia_factory = sf
     page.goto(base + "/dashboard")
 

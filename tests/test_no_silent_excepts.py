@@ -7,6 +7,7 @@ fails, the operator gets no log, no Sentry event, and no audit row.
 This test fails loudly if a router silently swallows an exception. It is
 the safety net for the ruff rule configured in pyproject.toml.
 """
+
 from __future__ import annotations
 
 import re
@@ -95,7 +96,7 @@ def _find_silent_passes(source: str) -> list[tuple[int, str]]:
                         has_log = True
             if first_pass_line is not None and not has_log and not has_raise:
                 window = textwrap.dedent(
-                    "\n".join(lines[max(0, node.lineno - 2): first_pass_line + 1])
+                    "\n".join(lines[max(0, node.lineno - 2) : first_pass_line + 1])
                 )
                 findings.append((first_pass_line, window))
     return findings
@@ -116,18 +117,14 @@ def _scan_file(path: Path) -> list[tuple[str, int, str]]:
 @pytest.mark.parametrize(
     "router_path",
     sorted(
-        p
-        for p in Path("app/routers").rglob("*.py")
-        if not any(ex in str(p) for ex in EXEMPT_FILES)
+        p for p in Path("app/routers").rglob("*.py") if not any(ex in str(p) for ex in EXEMPT_FILES)
     ),
 )
 def test_no_silent_except_in_routers(router_path: Path) -> None:
     """No silent except blocks in app/routers/ (BACKLOG #53)."""
     findings = _scan_file(router_path)
     if findings:
-        msgs = "\n".join(
-            f"  {p}:{ln}\n{window}\n" for p, ln, window in findings
-        )
+        msgs = "\n".join(f"  {p}:{ln}\n{window}\n" for p, ln, window in findings)
         pytest.fail(
             f"{router_path} has {len(findings)} silent except block(s):\n\n"
             f"{msgs}\n"
@@ -158,14 +155,11 @@ def test_full_audit_summary() -> None:
                 if not findings:
                     continue
                 bucket = (
-                    "routers" if "routers/" in str(p) else
-                    "tests" if "tests/" in str(p) else "rms"
+                    "routers" if "routers/" in str(p) else "tests" if "tests/" in str(p) else "rms"
                 )
                 counts[bucket].extend([(str(p), ln) for _, ln, _ in findings])
     # This test never fails; it prints the audit so CI captures the trend.
-    summary = ", ".join(
-        f"{k}={len(v)}" for k, v in counts.items()
-    )
+    summary = ", ".join(f"{k}={len(v)}" for k, v in counts.items())
     print(f"\nSilent pass audit (non-blocking): {summary}")
     for bucket, items in counts.items():
         if bucket == "routers" and items:

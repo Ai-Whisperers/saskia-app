@@ -32,8 +32,7 @@ def test_backup_then_boot_and_continue(tmp_db_path, session_factory, app_engine)
 
     with session_factory() as s:
         ing = make_ingredient(s, stock_qty=20.0, purchase_price_gs=5000)
-        prod = make_product(s, recipe=make_recipe(s, lines=[ing_line(ing)]),
-                            sale_price_gs=12000)
+        prod = make_product(s, recipe=make_recipe(s, lines=[ing_line(ing)]), sale_price_gs=12000)
         s.commit()
         prod_id = prod.id
 
@@ -56,6 +55,7 @@ def test_backup_then_boot_and_continue(tmp_db_path, session_factory, app_engine)
     # The restored DB must contain the product and accept new writes
     with sf2() as s2:
         from app.rms.models import Ingredient, Product
+
         p = s2.query(Product).filter_by(id=prod_id).one()
         assert p.sale_price_gs == 12000
         s2.add(Ingredient(name="Post-restore ingrediente", unit="kg"))
@@ -81,11 +81,13 @@ def test_audit_trail_covers_a_days_mutations(client, session_factory):
 
     with session_factory() as s:
         from app.rms.models import AuditLog, Sale
+
         sale = s.query(Sale).filter_by(product_id=pid).one()
         assert flows.void_sale(client, sale.id, reason="test audit").ok
 
     with session_factory() as s:
         from app.rms.models import AuditLog, StockMovement
+
         actions = {a.action for a in s.query(AuditLog).all()}
         # Stock adjustments are audited via the StockMovement ledger (the
         # route's own auditability mechanism), not the AuditLog.
@@ -125,11 +127,15 @@ def test_concurrent_sales_reconcile_stock(client, session_factory):
 
     t1 = threading.Thread(target=_burst, args=("t1",))
     t2 = threading.Thread(target=_burst, args=("t2",))
-    t1.start(); t2.start(); t1.join(); t2.join()
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
 
     assert not errors, errors
     with session_factory() as s:
         from app.rms.models import Ingredient, Sale
+
         n_sales = s.query(Sale).filter_by(product_id=pid, voided_at=None).count()
         assert n_sales == 8, f"lost sales: {n_sales}/8"
         stock = s.get(Ingredient, ing.id).stock_qty
@@ -155,8 +161,7 @@ def test_demand_report_reflects_observed_span(client, session_factory):
         base = datetime(2026, 9, 20, 12, 0, tzinfo=timezone.utc)
         for d in range(3):
             for _ in range(4):
-                make_sale(s, product=prod, qty=1,
-                          at=base + timedelta(days=d))
+                make_sale(s, product=prod, qty=1, at=base + timedelta(days=d))
         s.commit()
 
     r = client.get("/reportes/demand")

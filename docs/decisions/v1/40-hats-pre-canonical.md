@@ -1,6 +1,6 @@
 # 40-Hat Deliberation Decisions — 2026-09-29
 
-**Author:** Session A — Saskia RMS UX/UI Plan execution
+**Author:** Session A — Sazón UX/UI Plan execution
 **Purpose:** Single source of truth for the 18 open questions raised in
 the upgrade plan. Decisions are numbered and final; re-litigation only on
 material new info.
@@ -24,7 +24,7 @@ cierre progress, top alerts. Counter: pending orders, batch plan).
 insights). Never duplicate the same metric on both pages.
 **Rationale:** Hats 3 (owner), 33 (auditor). Auditor needs `/analisis`
 for retrospective audits; counter needs `/inicio` for live ops.
-**Effort:** Adopts naturally with `<saskia-kpi-card>` roll-out.
+**Effort:** Adopts naturally with `<ui-kpi-card>` roll-out.
 
 ## Decision 3: Recetas as primary entity
 **Decision:** YES for v2 (receta is what produces the producto). For v1
@@ -85,18 +85,18 @@ printers). Ship a `navigator.onLine` toast indicator only (QoL 10.10,
 
 ## Decision 10: WHICH 4 web components to build (not 13)
 **Decision:** Build exactly these 4:
-1. **`<saskia-kpi-card>`** — covers patterns #1 (KPI delta) and #12
+1. **`<ui-kpi-card>`** — covers patterns #1 (KPI delta) and #12
    (aggregated strip). Used by 9+ pages. ✅ SHIPPED Session A.
-2. **`<saskia-pill-cluster>`** — covers #11 (inline pill cluster).
+2. **`<ui-pill-cluster>`** — covers #11 (inline pill cluster).
    Used by 6+ pages. **Session C.**
-3. **`<saskia-warning>`** — covers #13 (inline warning). Used by 5+
+3. **`<ui-warning>`** — covers #13 (inline warning). Used by 5+
    pages. **Session C.**
-4. **`<saskia-bar-chart>`** — covers #17 (bar chart). Used by 7+ pages.
+4. **`<ui-bar-chart>`** — covers #17 (bar chart). Used by 7+ pages.
    **Session D.**
 
-**DEFER** the other 9: `saskia-stripe-severity`, `saskia-bulk-action-bar`,
-`saskia-date-range-presets`, `saskia-empty-state`, `saskia-stepper`,
-`saskia-tooltip`, `saskia-fab`, `saskia-sparkline`, `saskia-photo-placeholder`.
+**DEFER** the other 9: `ui-stripe-severity`, `ui-bulk-action-bar`,
+`ui-date-range-presets`, `ui-empty-state`, `ui-stepper`,
+`ui-tooltip`, `ui-fab`, `ui-sparkline`, `ui-photo-placeholder`.
 Implement as plain HTML+CSS for now. Component-ize later when pattern
 repeats 5+ times.
 **Rationale:** Hats 8 (frontend dev), 26 (architect), 39 (skeptic).
@@ -110,10 +110,10 @@ repeats 5+ times.
 3. **`bulk_action_bar`** — Required for inventario/proveedores/auditoria
    multi-select. 1 day. **Session B.**
 
-**DEFER** `date_range_presets` (use existing `<saskia-date>` × 2 until
+**DEFER** `date_range_presets` (use existing `<ui-date>` × 2 until
 chips pattern stabilizes), `severity_left_stripe` (5-line CSS, plain
 class is fine), `inline_warning` (use plain `alert_row` macro until
-pattern stabilizes), `confirm_destructive` (`saskia-confirm-modal` already
+pattern stabilizes), `confirm_destructive` (`ui-confirm-modal` already
 covers it).
 **Rationale:** Hats 8 (frontend), 31 (senior dev), 39 (skeptic).
 
@@ -130,7 +130,7 @@ produccion + eod) + bar-chart component.
 
 ## Decision 13: Kill or keep `/wishlist`?
 **Decision:** KEEP. Fix the broken `Gs. 50,000,000` display (wrap in
-`format_gs` + use `<saskia-kpi-card>`). 0.5 day. Real feature for
+`format_gs` + use `<ui-kpi-card>`). 0.5 day. Real feature for
 tracking customer wishlist revenue.
 **Rationale:** Hat 35 (pricing) — I overrode the kill instinct.
 It's a real feature, just has bad rendering.

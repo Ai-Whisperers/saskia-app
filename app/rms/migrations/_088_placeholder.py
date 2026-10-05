@@ -5,6 +5,7 @@ Schema version 88 must be registered so init_db() can advance from
 
 This is a stub. When real work for this slot lands, replace the body.
 """
+
 from typing import Any
 
 

@@ -1,4 +1,4 @@
-"""tests/e2e/test_excel_import_journey.py — Saskia's real ops path E2E.
+"""tests/e2e/test_excel_import_journey.py — the operator's real ops path E2E.
 
 Journey: vendor .xlsx (built in-test with openpyxl, same sheet contract as
 app/services/export_xlsx.py) → /excel/validar (dry-run) → /excel/importar
@@ -28,8 +28,9 @@ def _vendor_xlsx(rows: list[dict]) -> bytes:
     ws.title = "Ingredientes"
     ws.append(["name", "unit", "stock_qty", "purchase_price_gs"])
     for r in rows:
-        ws.append([r["name"], r.get("unit", "kg"), r.get("stock_qty", 0),
-                   r.get("purchase_price_gs", 0)])
+        ws.append(
+            [r["name"], r.get("unit", "kg"), r.get("stock_qty", 0), r.get("purchase_price_gs", 0)]
+        )
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
@@ -42,21 +43,24 @@ def _post(client, path, content, filename="vendor.xlsx", mode=None):
     return client.post(
         path,
         data=data,
-        files={"file": (filename, content,
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={
+            "file": (
+                filename,
+                content,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
     )
 
 
 def test_full_journey_validate_import_lands_idempotent(client, session_factory):
     from tests.factories import make_ingredient
 
-    # Saskia's catalog already has these rows (PATCH = update-by-name, no
+    # the operator's catalog already has these rows (PATCH = update-by-name, no
     # auto-create — unknown names land in warnings)
     with session_factory() as s:
-        make_ingredient(s, name="Harina 000", unit="kg", stock_qty=2.0,
-                        purchase_price_gs=5000)
-        make_ingredient(s, name="Sal fina", unit="kg", stock_qty=1.0,
-                        purchase_price_gs=2000)
+        make_ingredient(s, name="Harina 000", unit="kg", stock_qty=2.0, purchase_price_gs=5000)
+        make_ingredient(s, name="Sal fina", unit="kg", stock_qty=1.0, purchase_price_gs=2000)
         s.commit()
     rows = [
         {"name": "Harina 000", "unit": "kg", "stock_qty": 25, "purchase_price_gs": 6500},
@@ -97,10 +101,12 @@ def test_full_journey_validate_import_lands_idempotent(client, session_factory):
 
 
 def test_validation_catches_bad_rows_before_db(client, session_factory):
-    x = _vendor_xlsx([
-        {"name": "", "stock_qty": 1},  # name required
-        {"name": "Azucar", "stock_qty": -5},  # negative stock
-    ])
+    x = _vendor_xlsx(
+        [
+            {"name": "", "stock_qty": 1},  # name required
+            {"name": "Azucar", "stock_qty": -5},  # negative stock
+        ]
+    )
     rv = _post(client, "/excel/validar", x)
     assert rv.status_code == 200
     assert "Nombre requerido" in rv.text

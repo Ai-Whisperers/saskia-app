@@ -18,6 +18,7 @@ Exit codes:
     1 = some tests failed
     2 = pattern file missing or malformed
 """
+
 from __future__ import annotations
 
 import argparse
@@ -25,43 +26,43 @@ import re
 import sys
 from pathlib import Path
 
-
 PATTERN_FILE_DEFAULT = Path("/opt/data/profiles/ivan/custom-dangerous-patterns.yaml")
-PATTERN_PROPOSED = Path(
-    "/opt/data/profiles/ivan/cache/custom-dangerous-patterns.yaml.proposed"
-)
+PATTERN_PROPOSED = Path("/opt/data/profiles/ivan/cache/custom-dangerous-patterns.yaml.proposed")
 
 # Test battery: (command, should_block)
 # This is the same 26-case set I tuned against, encoded as data.
 TEST_CASES = [
     # Should be BLOCKED (real destruction)
-    ("rm -rf /opt/data/profiles/ivan/scratch/saskia-app-work/", True),
-    ("scp -i key file.tar root@vps:/var/backups/saskia-r2.dump", False),  # Trade-off: read direction allowed
-    ("rsync --delete /opt/backups/ /opt/data/profiles/ivan/scratch/saskia-app/", True),
-    ('ssh root@vps "rm -rf /opt/build-apps/saskia-rms"', True),
-    ("mv /var/backups/saskia-r2.tar.gz /tmp/old/", True),
-    ("cp /var/backups/saskia-r2.tar.gz /tmp/", True),
-    ("cp /var/backups/saskia-r2.tar.gz /dev/null", True),
+    ("rm -rf /opt/data/profiles/ivan/scratch/sazon-app-work/", True),
+    (
+        "scp -i key file.tar root@vps:/var/backups/sazon-r2.dump",
+        False,
+    ),  # Trade-off: read direction allowed
+    ("rsync --delete /opt/backups/ /opt/data/profiles/ivan/scratch/sazon-app/", True),
+    ('ssh root@vps "rm -rf /opt/build-apps/sazon-rms"', True),
+    ("mv /var/backups/sazon-r2.tar.gz /tmp/old/", True),
+    ("cp /var/backups/sazon-r2.tar.gz /tmp/", True),
+    ("cp /var/backups/sazon-r2.tar.gz /dev/null", True),
     ("tar czf backup.tar --remove-files saskia/", True),
     ("find /opt/backups/ -name 'saskia*' -delete", True),
     ("dd if=/dev/zero of=/var/backups/saskia.dump bs=1M", True),
-    ("shred -vfz /var/backups/saskia-r2.dump", True),
+    ("shred -vfz /var/backups/sazon-r2.dump", True),
     ("wipefs -a /dev/sda1  # saskia mounted here", True),
     # Should be ALLOWED (was incorrectly blocked)
-    ("grep -n delete /opt/data/profiles/ivan/scratch/saskia-app-work/README.md", False),
-    ("cat /opt/data/profiles/ivan/scratch/saskia-app-work/IMPROVEMENT_BACKLOG.md", False),
+    ("grep -n delete /opt/data/profiles/ivan/scratch/sazon-app-work/README.md", False),
+    ("cat /opt/data/profiles/ivan/scratch/sazon-app-work/IMPROVEMENT_BACKLOG.md", False),
     ('git commit -m "remove obsolete tier5 row mentioning saskia delete history"', False),
     ("pytest tests/test_crud_roundtrips_phase14_tier4.py", False),
     ("find /opt/backups/ -name '*saskia*' -print", False),
     ("rg delete app/rms/analytics.py", False),
-    ("less /var/backups/saskia-r2.tar.gz.sha256", False),
-    ("ssh root@vps 'systemctl restart saskia-vps_web'", False),
-    ("scp -i key root@vps:/opt/build-apps/saskia-rms/README.md ./local.md", False),
+    ("less /var/backups/sazon-r2.tar.gz.sha256", False),
+    ("ssh root@vps 'systemctl restart sazon-vps_web'", False),
+    ("scp -i key root@vps:/opt/build-apps/sazon-rms/README.md ./local.md", False),
     ('git commit -m "feat: backup tier5 tests" -m "delete unused fixtures"', False),
-    ("ls /opt/backups/saskia-r2.tar.gz", False),
-    ("tar tzf /var/backups/saskia-r2.tar.gz", False),
-    ("tar xzf /var/backups/saskia-r2.tar.gz -C /tmp/restore/", False),
-    ("rsync -avz /opt/data/profiles/ivan/scratch/saskia-app-work/ /tmp/mirror/", False),
+    ("ls /opt/backups/sazon-r2.tar.gz", False),
+    ("tar tzf /var/backups/sazon-r2.tar.gz", False),
+    ("tar xzf /var/backups/sazon-r2.tar.gz -C /tmp/restore/", False),
+    ("rsync -avz /opt/data/profiles/ivan/scratch/sazon-app-work/ /tmp/mirror/", False),
 ]
 
 # Line indices (0-based) where the description contains "saskia backup chain"
@@ -109,17 +110,16 @@ def extract_pattern(path: Path) -> tuple[int, str, str]:
             j = i
             while j < len(lines) - 1:
                 next_line = lines[j].strip()
-                if next_line.startswith("description:") or next_line.startswith("- pattern:"):
+                if next_line.startswith(("description:", "- pattern:")):
                     break
                 if next_line.startswith("#") or not next_line:
                     j += 1
                     continue
                 # Continuation
-                if next_line.startswith("'") or next_line.startswith('"'):
+                if next_line.startswith(("'", '"')):
                     # Closing quote ends the pattern; check
                     block_pattern = block_pattern.rstrip()
                     # Append remaining lines until quote closes or description starts
-                    pass
                 j += 1
         elif in_block:
             if line.startswith("description:"):
@@ -135,7 +135,7 @@ def extract_pattern(path: Path) -> tuple[int, str, str]:
                 block_pattern = ""
                 block_pattern_line = 0
                 block_description = ""
-            elif line.startswith("- pattern:") or line.startswith("patterns:") or line.startswith("deny_patterns:"):
+            elif line.startswith(("- pattern:", "patterns:", "deny_patterns:")):
                 in_block = False
                 block_pattern = ""
                 block_pattern_line = 0
@@ -165,7 +165,8 @@ def main() -> int:
         help="Test the proposed pattern at /opt/data/profiles/ivan/cache/custom-dangerous-patterns.yaml.proposed",
     )
     parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
         help="Show every test case, not just failures",
     )

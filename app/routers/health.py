@@ -21,7 +21,7 @@ import shutil
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -37,25 +37,24 @@ router = APIRouter()
 # --- Dependency-probe helpers (BACKLOG #40) ---
 
 
-def _disk_usage(path: str):
+def _disk_usage(path: str) -> Any:
     """Wrapper for shutil.disk_usage — patchable in tests."""
     return shutil.disk_usage(path)
 
 
-def _get_last_backup_at(request: Request):
+def _get_last_backup_at(request: Request) -> str | None:
     """Read the last_backup_at app_meta row, return ISO string or None.
 
     BACKLOG #39 (2026-10-02): this helper exposes backup freshness to
     /healthz/backup. Tests patch it to simulate stale / missing states.
     """
     try:
-        from app.rms.models import AppMeta
         from sqlalchemy import select
 
+        from app.rms.models import AppMeta
+
         with request.app.state.session_factory() as s:
-            row = s.scalars(
-                select(AppMeta).where(AppMeta.key == "last_backup_at")
-            ).first()
+            row = s.scalars(select(AppMeta).where(AppMeta.key == "last_backup_at")).first()
             return row.value if row else None
     except Exception:  # noqa: BLE001 — defensive default
         # On any DB error we report "no backup" rather than failing the
@@ -63,9 +62,7 @@ def _get_last_backup_at(request: Request):
         return None
 
 
-def _check_supabase_reachable(
-    url: str, timeout: float = 2.0
-) -> dict[str, Any]:
+def _check_supabase_reachable(url: str, timeout: float = 2.0) -> dict[str, Any]:
     """GET the Supabase auth health endpoint. Returns a diagnostic dict.
 
     The Supabase auth API (GoTrue) only accepts GET on /auth/v1/health
@@ -92,19 +89,15 @@ def _check_supabase_reachable(
 
     t0 = _time.monotonic()
     try:
-        req = urllib.request.Request(health, method="GET")
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        req = urllib.request.Request(health, method="GET")  # noqa: S310 — health probe, scheme parsed from env URL
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 — health probe, scheme parsed from env URL
             latency_ms = int((_time.monotonic() - t0) * 1000)
             ok = 200 <= resp.status < 300
             return {
                 "ok": ok,
                 "http_status": resp.status,
                 "latency_ms": latency_ms,
-                "reason": (
-                    None
-                    if ok
-                    else f"HTTP {resp.status} from auth health endpoint"
-                ),
+                "reason": (None if ok else f"HTTP {resp.status} from auth health endpoint"),
             }
     except urllib.error.HTTPError as e:
         # HEAD returned 405 in production; GET can also hit 401/403 if
@@ -182,7 +175,7 @@ def _healthz_payload() -> dict[str, Any]:
     """Shared payload for GET and HEAD (HEAD strips the body at transport level)."""
     return {
         "status": "ok",
-        "service": "aiw-saskia-rms",
+        "service": "sazon-rms",
     }
 
 
@@ -208,7 +201,7 @@ def healthz(request: Request) -> JSONResponse | dict:
             status_code=503,
             content={
                 "status": "warming_up",
-                "service": "aiw-saskia-rms",
+                "service": "sazon-rms",
                 "detail": "App is still initializing; retry in a few seconds.",
             },
         )
@@ -225,6 +218,85 @@ def healthz_head(request: Request) -> Response:
     if not ready:
         return Response(status_code=503, media_type="application/json")
     return Response(status_code=200, media_type="application/json")
+
+
+@router.get("/healthz/depth", response_model=None)
+def healthz_depth(request: Request) -> JSONResponse:
+    """BACKLOG #40 (Tier 7): deep readiness probe.
+
+    Surfaces runtime environment health for the operator dashboard:
+      - disk: free/total bytes + path of DATA_DIR
+      - r2: configured (bool) + ok (None/True/False) + status + error
+      - supabase_env: which env vars are set (booleans, never values)
+      - status: "ok" | "degraded"
+
+    Probes are best-effort: a single failing subsystem (e.g. R2
+    unreachable) flips the overall status to "degraded" but the
+    endpoint still returns 200 so operators see the diagnostic.
+    """
+    import os
+    import shutil
+    import urllib.request
+
+    from app.rms.config import DATA_DIR
+
+    # --- disk ---
+    try:
+        usage = shutil.disk_usage(str(DATA_DIR))
+        disk = {
+            "ok": True,
+            "path": str(DATA_DIR),
+            "free_bytes": int(usage.free),
+            "total_bytes": int(usage.total),
+            "used_pct": round(100.0 * usage.used / usage.total, 1) if usage.total else 0.0,
+        }
+    except (
+        Exception  # noqa: BLE001 — disk probe is best-effort
+    ) as disk_exc:  # pragma: no cover - defensive
+        disk = {"ok": False, "error": repr(disk_exc), "path": str(DATA_DIR)}
+
+    # --- r2 (best-effort HEAD probe; 3s timeout) ---
+    r2_url = os.getenv("R2_BUCKET_URL", "").strip()
+    if not r2_url:
+        r2: dict = {"configured": False, "ok": None}
+    else:
+        r2 = {"configured": True, "url": r2_url, "ok": None}
+        try:
+            # T-2026-10-04: S310 (URL open) is acceptable here because the
+            # URL comes from R2_BUCKET_URL env var, which is operator-
+            # configured. We trust the operator. The probe is read-only
+            # (HEAD request) with a 3s timeout.
+            req = urllib.request.Request(r2_url, method="HEAD")  # noqa: S310
+            with urllib.request.urlopen(req, timeout=3) as resp:  # noqa: S310
+                r2["status"] = resp.status
+                r2["ok"] = 200 <= resp.status < 400
+        except Exception as r2_exc:  # noqa: BLE001 — best-effort probe
+            r2["ok"] = False
+            r2["error"] = repr(r2_exc)[:200]
+
+    # --- supabase env (booleans only — never the values) ---
+    supabase_env = {
+        "url_set": bool(os.getenv("SUPABASE_URL", "").strip()),
+        "publishable_set": bool(os.getenv("SUPABASE_PUBLISHABLE_KEY", "").strip()),
+        "secret_set": bool(os.getenv("SUPABASE_SECRET_KEY", "").strip()),
+    }
+
+    # Overall: degraded if disk is bad OR r2 is configured-but-failing.
+    disk_ok = bool(disk.get("ok"))
+    r2_ok = r2.get("ok")
+    # r2 ok=None means not configured; that's fine. r2 ok=False means failed.
+    r2_failed = r2.get("configured") and r2_ok is False
+    overall_ok = disk_ok and not r2_failed
+    status = "ok" if overall_ok else "degraded"
+
+    return JSONResponse(
+        {
+            "status": status,
+            "disk": disk,
+            "r2": r2,
+            "supabase_env": supabase_env,
+        }
+    )
 
 
 @router.get("/healthz/errors", response_model=None)
@@ -256,16 +328,22 @@ def healthz_errors(request: Request) -> JSONResponse:
     last_24h = now - timedelta(hours=24)
 
     with request.app.state.session_factory() as s:
-        n_1h = s.execute(
-            select(func.count())
-            .select_from(AuditLog)
-            .where(AuditLog.action == "http.500", AuditLog.occurred_at >= last_1h)
-        ).scalar() or 0
-        n_24h = s.execute(
-            select(func.count())
-            .select_from(AuditLog)
-            .where(AuditLog.action == "http.500", AuditLog.occurred_at >= last_24h)
-        ).scalar() or 0
+        n_1h = (
+            s.execute(
+                select(func.count())
+                .select_from(AuditLog)
+                .where(AuditLog.action == "http.500", AuditLog.occurred_at >= last_1h)
+            ).scalar()
+            or 0
+        )
+        n_24h = (
+            s.execute(
+                select(func.count())
+                .select_from(AuditLog)
+                .where(AuditLog.action == "http.500", AuditLog.occurred_at >= last_24h)
+            ).scalar()
+            or 0
+        )
 
     return JSONResponse(
         content={
@@ -353,7 +431,7 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
     # --- Disk usage ---
     # The app stores DB + state under this root. On VPS: /opt/data.
     # On dev boxes: /tmp. Report on whatever exists.
-    disk_root = "/opt/data" if os.path.isdir("/opt/data") else "/tmp"
+    disk_root = "/opt/data" if os.path.isdir("/opt/data") else "/tmp"  # noqa: S108 — operator chose /tmp as fallback root
     try:
         usage = _disk_usage(disk_root)
         total_gb = usage.total / (1024**3)
@@ -448,9 +526,7 @@ def healthz_db(request: Request) -> JSONResponse:
                 # Most recent audit row — diagnostic for "is anything being
                 # written?" without exposing content. SQLite returns the
                 # timestamp as a string; Postgres returns a datetime.
-                last = conn.execute(
-                    text("SELECT MAX(occurred_at) FROM audit_log")
-                ).scalar()
+                last = conn.execute(text("SELECT MAX(occurred_at) FROM audit_log")).scalar()
                 if last is None:
                     payload["last_audit_at"] = None
                 elif hasattr(last, "isoformat"):
@@ -494,18 +570,16 @@ def _summary_check_db(request: Request) -> dict[str, Any]:
             ok = conn.execute(text("SELECT 1")).scalar() == 1
             if not ok:
                 return {"ok": False, "detail": "SELECT 1 failed"}
-            last = conn.execute(
-                text("SELECT MAX(occurred_at) FROM audit_log")
-            ).scalar()
+            last = conn.execute(text("SELECT MAX(occurred_at) FROM audit_log")).scalar()
             actual = schema_version(conn)
             return {
                 "ok": True,
                 "schema_version": actual,
                 "code_schema_version": CURRENT_SCHEMA_VERSION,
                 "migrations_pending": schema_version_mismatch(conn),
-                "last_audit_at": (
-                    last.isoformat() if hasattr(last, "isoformat") else str(last)
-                ) if last else None,
+                "last_audit_at": (last.isoformat() if hasattr(last, "isoformat") else str(last))
+                if last
+                else None,
             }
     except Exception as exc:  # noqa: BLE001 — defensive default
         return {"ok": False, "detail": str(exc)[:200]}
@@ -523,22 +597,28 @@ def _summary_check_errors(request: Request) -> dict[str, Any]:
     try:
         now = datetime.now(ASUNCION_TZ)
         with request.app.state.session_factory() as s:
-            n_1h = s.execute(
-                select(func.count())
-                .select_from(AuditLog)
-                .where(
-                    AuditLog.action == "http.500",
-                    AuditLog.occurred_at >= now - _td(hours=1),
-                )
-            ).scalar() or 0
-            n_24h = s.execute(
-                select(func.count())
-                .select_from(AuditLog)
-                .where(
-                    AuditLog.action == "http.500",
-                    AuditLog.occurred_at >= now - _td(hours=24),
-                )
-            ).scalar() or 0
+            n_1h = (
+                s.execute(
+                    select(func.count())
+                    .select_from(AuditLog)
+                    .where(
+                        AuditLog.action == "http.500",
+                        AuditLog.occurred_at >= now - _td(hours=1),
+                    )
+                ).scalar()
+                or 0
+            )
+            n_24h = (
+                s.execute(
+                    select(func.count())
+                    .select_from(AuditLog)
+                    .where(
+                        AuditLog.action == "http.500",
+                        AuditLog.occurred_at >= now - _td(hours=24),
+                    )
+                ).scalar()
+                or 0
+            )
         return {"ok": True, "last_1h": int(n_1h), "last_24h": int(n_24h)}
     except Exception as exc:  # noqa: BLE001 — defensive default
         return {"ok": False, "detail": str(exc)[:200]}
@@ -556,11 +636,7 @@ def _summary_check_backup(request: Request) -> dict[str, Any]:
         }
     try:
         last = datetime.fromisoformat(raw_ts)
-        if last.tzinfo:
-            now = clock_now()
-        else:
-            # last is naive; compare in UTC-naive for compatibility
-            now = clock_now().replace(tzinfo=None)
+        now = datetime.now(last.tzinfo) if last.tzinfo else datetime.now(tz=timezone.utc)
         age_hours = round((now - last).total_seconds() / 3600, 1)
         return {
             "ok": age_hours <= BACKUP_STALE_HOURS,
@@ -739,6 +815,7 @@ def healthz_migrate(request: Request) -> object:
         )
 
     from app.rms.db import schema_version
+
     with engine.connect() as conn:
         new_version = schema_version(conn)
 
@@ -976,6 +1053,7 @@ def admin_migrate(request: Request) -> object:
 
     # Read back the new version
     from app.rms.db import schema_version
+
     with engine.connect() as conn:
         new_version = schema_version(conn)
 
@@ -1036,10 +1114,13 @@ def healthz_backup(request: Request) -> JSONResponse:
     if raw:
         try:
             last = datetime.fromisoformat(raw)
-            if last.tzinfo:
-                now = clock_now()
-            else:
-                now = clock_now().replace(tzinfo=None)
+            # T-2026-10-04: always treat the parsed timestamp as
+            # UTC-aware (naive ISO strings from datetime.isoformat()
+            # default to the local zone, which crashes the
+            # `now - last` subtraction). If naive, assume UTC.
+            if last.tzinfo is None:
+                last = last.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
             age = now - last
             age_hours = round(age.total_seconds() / 3600, 1)
             stale = age_hours > BACKUP_STALE_HOURS
@@ -1054,9 +1135,7 @@ def healthz_backup(request: Request) -> JSONResponse:
         "stale": stale,
         "threshold_hours": BACKUP_STALE_HOURS,
         "hint": (
-            "POST /admin/backup to trigger an immediate backup (auth required)."
-            if stale
-            else None
+            "POST /admin/backup to trigger an immediate backup (auth required)." if stale else None
         ),
     }
     return JSONResponse(
@@ -1065,15 +1144,17 @@ def healthz_backup(request: Request) -> JSONResponse:
     )
 
 
-def _run_backup_admin(request: Request):
+def _run_backup_admin(request: Request) -> "BackupResult":  # noqa: F821 — BackupResult imported inside
     """Run run_backup in a fresh session; returns a BackupResult.
 
     Extracted from admin_backup() so tests can patch it (mocking at
     the request.app.state.session_factory level is more invasive).
     """
     from app.rms.config import DB_PATH
-
-    from app.services.backup_scheduler import run_backup
+    from app.services.backup_scheduler import (  # noqa: F401 — used in return-type annotation
+        BackupResult,
+        run_backup,
+    )
 
     with request.app.state.session_factory() as _s:
         return run_backup(_s, DB_PATH)

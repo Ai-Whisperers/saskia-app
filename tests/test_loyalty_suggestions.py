@@ -18,9 +18,11 @@ Rule coverage:
 
 Conventions match tests/test_loyalty_ledger.py and tests/test_pos_redeem_flow.py.
 """
+
 from __future__ import annotations
 
 import datetime as _dt
+from datetime import datetime
 
 import pytest
 
@@ -313,7 +315,7 @@ def test_points_dormant_threshold_is_50():
     out = suggest_for_customer(
         _FakeCustomer(loyalty_points=50),
         last_sale_at=_dt.datetime.combine(_today(), _dt.time()),
-        n_sales=12,           # → VIP rule also fires (cliente_fiel)
+        n_sales=12,  # → VIP rule also fires (cliente_fiel)
         tier="GOLD",
         redeemed_on_last_visit=False,
         today=_today(),
@@ -485,9 +487,7 @@ def test_returns_empty_list_never_raises():
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_cliente_api_payload_includes_suggestions_field(
-    session_factory, client, qseed
-):
+def test_cliente_api_payload_includes_suggestions_field(session_factory, client, qseed):
     """GET /clientes/api/{id} returns a 'suggestions' list in the payload.
 
     Smoke test that the JSON contract added by decision C is intact.
@@ -508,14 +508,12 @@ def test_cliente_api_payload_includes_suggestions_field(
     # no sales, no birthday, no points.
 
 
-def test_cliente_api_payload_suggestions_have_correct_shape(
-    session_factory, client, qseed
-):
+def test_cliente_api_payload_suggestions_have_correct_shape(session_factory, client, qseed):
     """When rules fire, the suggestion dicts have kind/title/body/discount_pct/payload."""
     from app.rms.customers import ensure_customer
     from app.rms.models import Customer
 
-    today = _dt.date.today()
+    today = _dt.datetime.now(_dt.UTC).date()
     bday_str = (today + _dt.timedelta(days=4)).strftime("%Y-%m-%d")
     with session_factory() as s:
         cust = ensure_customer(s, "Cliente Birthday", phone="+595****0302")
@@ -547,16 +545,15 @@ def test_cliente_api_endpoint_does_not_500_on_missing_customer(client, qseed):
     assert resp.status_code == 404
 
 
-def test_cliente_api_with_lapsed_bronze_returns_vuelve_pronto(
-    session_factory, client, qseed
-):
+def test_cliente_api_with_lapsed_bronze_returns_vuelve_pronto(session_factory, client, qseed):
     """End-to-end: a BRONZE customer with last sale 30 days ago → 'vuelve_pronto'."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
+
     from app.rms.customers import ensure_customer
     from app.rms.models import Product, Sale
 
-    today = _dt.date.today()
-    thirty_days_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
+    _dt.datetime.now(_dt.UTC).date()
+    thirty_days_ago = datetime.utcnow().replace(tzinfo=None) - timedelta(days=30)
 
     with session_factory() as s:
         cust = ensure_customer(s, "Cliente Lapsed", phone="+595****0303")
@@ -564,16 +561,18 @@ def test_cliente_api_with_lapsed_bronze_returns_vuelve_pronto(
         s.add(p)
         s.flush()
         # Seed a sale 30 days ago so the customer is "lapsed"
-        s.add(Sale(
-            sold_at=thirty_days_ago,
-            product_id=p.id,
-            qty=1,
-            unit_price_gs=12000,
-            customer_id=cust.id,
-            payment_method="efectivo",
-            discount_gs=0,
-            channel="mostrador",
-        ))
+        s.add(
+            Sale(
+                sold_at=thirty_days_ago,
+                product_id=p.id,
+                qty=1,
+                unit_price_gs=12000,
+                customer_id=cust.id,
+                payment_method="efectivo",
+                discount_gs=0,
+                channel="mostrador",
+            )
+        )
         s.commit()
         cust_id = cust.id
 
@@ -585,9 +584,7 @@ def test_cliente_api_with_lapsed_bronze_returns_vuelve_pronto(
     assert "vuelve_pronto" in kinds
 
 
-def test_cliente_api_with_dormant_points_returns_puntos_dormidos(
-    session_factory, client, qseed
-):
+def test_cliente_api_with_dormant_points_returns_puntos_dormidos(session_factory, client, qseed):
     """End-to-end: 50+ points + didn't redeem last visit → 'puntos_dormidos'.
 
     T-2026-10-01: the discount in the body now reflects POINTS_VALUE_GS
@@ -609,8 +606,9 @@ def test_cliente_api_with_dormant_points_returns_puntos_dormidos(
         # API endpoint also suppresses a lone points-dormant
         # suggestion. Add a birthday in 3 days so the cumple_cerca
         # rule fires alongside it.
-        from datetime import date, timedelta
-        cust_db.birthday = (date.today() + timedelta(days=3)).strftime("%m-%d")
+        from datetime import timedelta
+
+        cust_db.birthday = (datetime.utcnow().date() + timedelta(days=3)).strftime("%m-%d")
         s.commit()
         cust_id = cust.id
 

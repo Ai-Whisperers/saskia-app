@@ -7,7 +7,9 @@ docstring + __future__ imports), followed by a blank line.
 
 Also ensures `import pytest` exists.
 """
+
 from __future__ import annotations
+
 import re
 from pathlib import Path
 
@@ -88,7 +90,7 @@ def normalize(path: Path, marker: str) -> bool:
     lines = text.splitlines(keepends=True)
     out = []
     inserted = False
-    for i, line in enumerate(lines):
+    for _i, line in enumerate(lines):
         out.append(line)
         if not inserted and line.strip().startswith("import pytest"):
             out.append(f"\npytestmark = pytest.mark.{marker}\n")

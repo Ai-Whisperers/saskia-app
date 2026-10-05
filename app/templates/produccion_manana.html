@@ -42,24 +42,24 @@
 </div>
 
 <div class="kpi-row mb-4">
-  <saskia-kpi-card
+  <ui-kpi-card
     label="Productos a producir"
     value="{{ rows|length }}"
     {% if rows %}delta="{{ rows|length }}" delta-direction="flat"{% endif %}
-    ></saskia-kpi-card>
-  <saskia-kpi-card
+    ></ui-kpi-card>
+  <ui-kpi-card
     label="Ingreso estimado mañana"
     value="{% if estimated_revenue_gs %}{{ m.gs_full(estimated_revenue_gs) }}{% else %}—{% endif %}"
-    sub="precio catálogo × cantidad"></saskia-kpi-card>
-  <saskia-kpi-card
+    sub="precio catálogo × cantidad"></ui-kpi-card>
+  <ui-kpi-card
     label="Confianza media"
     value="{% if rows %}{{ (rows|sum(attribute='confidence_pct') / rows|length)|round(0, 'floor')|int }}%{% else %}—{% endif %}"
     {% if low_confidence_count > 0 %}severity="warn"{% endif %}
-    sub="{{ low_confidence_count }} con confianza <70%"></saskia-kpi-card>
-  <saskia-kpi-card
+    sub="{{ low_confidence_count }} con confianza <70%"></ui-kpi-card>
+  <ui-kpi-card
     label="Ingredientes necesarios"
     value="{{ plan.lines|length }}"
-    href="/produccion"></saskia-kpi-card>
+    href="/produccion"></ui-kpi-card>
 </div>
 
 {# PRO-PED: pedidos confirmados para mañana, en la misma pantalla del plan #}

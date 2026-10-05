@@ -27,54 +27,68 @@ from app.rms.models import (
 )
 
 
-def _make_quick_ingredient(s, name: str = "harina QA",
-                          unit: str = "kg",
-                          stock_qty: float = 10.0,
-                          min_stock_qty: float = 1.0,
-                          purchase_price_gs: int = 3000) -> Ingredient:
+def _make_quick_ingredient(
+    s,
+    name: str = "harina QA",
+    unit: str = "kg",
+    stock_qty: float = 10.0,
+    min_stock_qty: float = 1.0,
+    purchase_price_gs: int = 3000,
+) -> Ingredient:
     """Idempotent — returns existing or creates new."""
     existing = s.query(Ingredient).filter_by(name=name).first()
     if existing:
         return existing
     ing = Ingredient(
-        name=name, unit=unit, stock_qty=stock_qty,
-        min_stock_qty=min_stock_qty, purchase_price_gs=purchase_price_gs,
+        name=name,
+        unit=unit,
+        stock_qty=stock_qty,
+        min_stock_qty=min_stock_qty,
+        purchase_price_gs=purchase_price_gs,
     )
-    s.add(ing); s.flush()
+    s.add(ing)
+    s.flush()
     return ing
 
 
-def _make_quick_recipe(s, name: str, ing: Ingredient | None,
-                       yield_qty: float = 12.0, yield_unit: str = "und") -> Recipe:
+def _make_quick_recipe(
+    s, name: str, ing: Ingredient | None, yield_qty: float = 12.0, yield_unit: str = "und"
+) -> Recipe:
     existing = s.query(Recipe).filter_by(name=name).first()
     if existing:
         return existing
     rec = Recipe(name=name, yield_qty=yield_qty, yield_unit=yield_unit)
-    s.add(rec); s.flush()
+    s.add(rec)
+    s.flush()
     if ing is not None:
-        s.add(RecipeLine(
-            recipe_id=rec.id, line_kind="ingredient",
-            line_ref_id=ing.id, qty=0.3, line_unit="kg",
-        ))
+        s.add(
+            RecipeLine(
+                recipe_id=rec.id,
+                line_kind="ingredient",
+                line_ref_id=ing.id,
+                qty=0.3,
+                line_unit="kg",
+            )
+        )
     s.flush()
     return rec
 
 
-def _make_quick_product(s, name: str, recipe: Recipe | None,
-                         sale_price_gs: int = 2500) -> Product:
+def _make_quick_product(s, name: str, recipe: Recipe | None, sale_price_gs: int = 2500) -> Product:
     existing = s.query(Product).filter_by(name=name).first()
     if existing:
         return existing
     p = Product(
-        name=name, sale_price_gs=sale_price_gs,
+        name=name,
+        sale_price_gs=sale_price_gs,
         recipe_id=recipe.id if recipe else None,
     )
-    s.add(p); s.flush()
+    s.add(p)
+    s.flush()
     return p
 
 
-def quick_seed(session_factory, scenario: str = "basic",
-               seed: int = 42) -> dict:
+def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict:
     """Create minimal seed data based on scenario name.
 
     Returns a dict with all created entities for easy assertion.
@@ -125,10 +139,15 @@ def quick_seed(session_factory, scenario: str = "basic",
                 hour=12, minute=0, second=0, microsecond=0
             )
             sale = apply_sale(
-                s, product_id=p.id, qty=2.0,
+                s,
+                product_id=p.id,
+                qty=2.0,
                 sold_at=today_noon_utc,
-                notes=None, customer_id=None,
-                payment_method="efectivo", discount_gs=0, channel="Mostrador",
+                notes=None,
+                customer_id=None,
+                payment_method="efectivo",
+                discount_gs=0,
+                channel="Mostrador",
             )
             out["sale"] = sale
 
@@ -148,17 +167,24 @@ def quick_seed(session_factory, scenario: str = "basic",
                 channel="whatsapp",
                 notes="Pedido de prueba",
             )
-            s.add(ped); s.flush()
+            s.add(ped)
+            s.flush()
             out["pedido"] = ped
 
         elif scenario == "with_voided_sale":
             sale_result = apply_sale(
-                s, product_id=p.id, qty=1.0,
+                s,
+                product_id=p.id,
+                qty=1.0,
                 sold_at=now - timedelta(hours=2),
-                notes=None, customer_id=None,
-                payment_method="efectivo", discount_gs=0, channel="Mostrador",
+                notes=None,
+                customer_id=None,
+                payment_method="efectivo",
+                discount_gs=0,
+                channel="Mostrador",
             )
             from app.rms.costing import void_sale
+
             void_sale(s, sale_result.sale_id)
             out["voided_sale_id"] = sale_result.sale_id
 
@@ -196,10 +222,15 @@ def quick_seed(session_factory, scenario: str = "basic",
             rec2 = _make_quick_recipe(s, "Receta Compleja QA", ing, yield_qty=20.0)
             for nm in ["azúcar QA", "manteca QA", "huevo QA", "leche QA", "polvo QA"]:
                 ing_extra = _make_quick_ingredient(s, name=nm)
-                s.add(RecipeLine(
-                    recipe_id=rec2.id, line_kind="ingredient",
-                    line_ref_id=ing_extra.id, qty=0.1, line_unit="kg",
-                ))
+                s.add(
+                    RecipeLine(
+                        recipe_id=rec2.id,
+                        line_kind="ingredient",
+                        line_ref_id=ing_extra.id,
+                        qty=0.1,
+                        line_unit="kg",
+                    )
+                )
             s.flush()
             out["complex_recipe"] = rec2
 
@@ -207,6 +238,7 @@ def quick_seed(session_factory, scenario: str = "basic",
             # Phase 1 — Kyrian demo dataset (idempotent). See app/seed/kyrian.py.
             # Calls the full seed function which clears prior Kyrian data first.
             from app.seed.kyrian import seed_kyrian
+
             result = seed_kyrian(s)
             out["kyrian"] = result
 
@@ -219,7 +251,8 @@ def _make_or_get_customer(s, name: str) -> Customer:
     if c:
         return c
     c = Customer(name=name, phone="0980000000")
-    s.add(c); s.flush()
+    s.add(c)
+    s.flush()
     return c
 
 
@@ -228,7 +261,8 @@ def _make_or_get_supplier(s, name: str) -> Supplier:
     if sup:
         return sup
     sup = Supplier(name=name, phone="021000000")
-    s.add(sup); s.flush()
+    s.add(sup)
+    s.flush()
     return sup
 
 
@@ -241,6 +275,8 @@ def qseed(session_factory):
             data = qseed("basic")
             assert data["product"].name == "Producto QA"
     """
+
     def _seed(scenario: str = "basic") -> dict:
         return quick_seed(session_factory, scenario)
+
     return _seed

@@ -1,4 +1,4 @@
-# Saskia RMS — Complete QOL Touches Catalog
+# Sazón — Complete QOL Touches Catalog
 
 **Compiled by:** Senior UX/UI Principal
 **Date:** 2026-09-27
@@ -223,7 +223,7 @@
 | 11.11 | **Export progress toast** ("Generando PDF… 47%") | Long-running exports | Stream progress to a persistent toast | S |
 | 11.12 | **Scheduled email reports** (weekly Resumen diario to owner's email) | Reportes | Cron-like setting per report card | L |
 | 11.13 | **Print preview before print** | All print actions | `window.print()` already triggers native preview | XS |
-| 11.14 | **Export filename convention** (e.g., `saskia-inventario-2026-09-27.csv`) | All exports | `<a download="saskia-<entity>-<date>.<ext>">` | XS |
+| 11.14 | **Export filename convention** (e.g., `sazon-inventario-2026-09-27.csv`) | All exports | `<a download="saskia-<entity>-<date>.<ext>">` | XS |
 
 ---
 

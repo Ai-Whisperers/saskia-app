@@ -1,4 +1,5 @@
 """tests/test_healthz_schema.py — /healthz/schema endpoint."""
+
 from app.rms.db import CURRENT_SCHEMA_VERSION
 
 
@@ -22,6 +23,7 @@ def test_healthz_schema_in_sync_returns_drift_zero(client):
 def test_healthz_schema_out_of_sync_returns_500(client, session_factory):
     """When DB is behind, /healthz/schema returns 500 with hint."""
     from app.rms.db import app_meta_write
+
     with session_factory() as s:
         app_meta_write(s.connection(), "schema_version", str(CURRENT_SCHEMA_VERSION - 1))
         s.commit()

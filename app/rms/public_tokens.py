@@ -19,6 +19,7 @@ Why a shared module:
   - Tests in this module cover both routes' invariants; routers only
     test their own wiring.
 """
+
 from __future__ import annotations
 
 import secrets
@@ -30,7 +31,6 @@ from sqlalchemy.orm import Session
 
 from app.rms.models import AuditLog
 from app.rms.rate_limit import is_disabled as rate_limit_is_disabled
-
 
 # 96 bits of entropy. With birthday-paradox collision math,
 # ~10^14 tokens before 1% collision rate — effectively zero
@@ -59,7 +59,9 @@ def generate_public_token() -> str:
     return secrets.token_urlsafe(_TOKEN_BYTES)
 
 
-def issue_token(now: Optional[datetime] = None, ttl: timedelta = _DEFAULT_TTL) -> tuple[str, datetime]:
+def issue_token(
+    now: Optional[datetime] = None, ttl: timedelta = _DEFAULT_TTL
+) -> tuple[str, datetime]:
     """Return a fresh ``(token, expires_at)`` pair.
 
     ``expires_at`` is a timezone-aware UTC datetime so the column
@@ -90,7 +92,7 @@ def is_token_valid(expires_at: object, now: Optional[datetime] = None) -> bool:
         normalized = expires_at.replace("T", " ")
         for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
             try:
-                parsed = datetime.strptime(normalized, fmt)
+                parsed = datetime.strptime(normalized, fmt)  # noqa: DTZ007 — DB stores naive UTC
                 break
             except ValueError:
                 continue
@@ -110,14 +112,14 @@ def is_token_valid(expires_at: object, now: Optional[datetime] = None) -> bool:
 
 
 __all__ = [
-    "generate_public_token",
-    "issue_token",
-    "is_token_valid",
-    "client_ip",
-    "enforce_rate_limit",
     "_DEFAULT_TTL",
     "_RATE_LIMIT_THRESHOLD",
     "_RATE_LIMIT_WINDOW",
+    "client_ip",
+    "enforce_rate_limit",
+    "generate_public_token",
+    "is_token_valid",
+    "issue_token",
 ]
 
 

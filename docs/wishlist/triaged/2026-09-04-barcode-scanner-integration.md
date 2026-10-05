@@ -4,7 +4,7 @@
 **Author:** operator (Iván) — noted during Phase 1 ops review
 **Cost guess:** M
 **Phase guess:** 2
-**Source:** `docs/operations/2026-09-02-saskia-team-tasks.md`
+**Source:** `docs/operations/2026-09-02-sazon-team-tasks.md`
 
 ## What
 
@@ -12,7 +12,7 @@ Add a barcode field to `Ingredient` and a "scan to add" mode that triggers from 
 
 ## Why now
 
-Saskia's volume is small enough that hand-typing is OK, but as she adds more SKUs the typing gets slower than scanning. Foundation for the future auto-reorder.
+the operator's volume is small enough that hand-typing is OK, but as she adds more SKUs the typing gets slower than scanning. Foundation for the future auto-reorder.
 
 ## Repro / context
 

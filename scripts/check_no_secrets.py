@@ -91,7 +91,6 @@ SKIP_EXTS = {
     ".sqlite3",
     ".wal",
     ".shm",
-    ".ico",
     ".icns",
 }
 

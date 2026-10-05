@@ -1,4 +1,4 @@
-# Saskia RMS — Implementation Status (2026-09-27)
+# Sazón — Implementation Status (2026-09-27)
 
 **Author:** Hermes
 **Method:** Read the actual codebase, not just the screenshots. The v3 design plans were written by subagents based on visual screenshots and may have over-stated the implementation gap.
@@ -19,7 +19,7 @@ The "complete plan" suggested by the design audits was largely **already impleme
 | `m.margin_pct()` / `m.stock_badge()` | ✅ Exists | `template_render.py:2584, 2807` |
 | `fmt` namespace (money/qty/pct) | ✅ Exists | `template_render.py:5237` |
 | 13 atomic Jinja macros | ✅ Exists | `app/templates/_components/atoms.html` |
-| `<saskia-combo>` Web Component | ✅ Exists | `app/static/combo.js` + 17 templates use it |
+| `<ui-combo>` Web Component | ✅ Exists | `app/static/combo.js` + 17 templates use it |
 | Money: integer Gs. dot-sep convention | ✅ Standard | `"{:,.0f}".format(...).replace(",", ".")` |
 | Asuncion TZ / es-PY date formatting | ✅ Standard | `_now_str()` etc. in template_render.py |
 | Cookie-based session + CSRF + auth | ✅ Working | `app/rms/session_lifecycle.py`, `app/rms/csrf.py` |
@@ -35,8 +35,8 @@ The "complete plan" suggested by the design audits was largely **already impleme
 | **P0-4** | `/bank` empty transactions table renders nothing | Now has `{% else %}` empty branch (see bank.html) | ✅ Done this session |
 | **P0-5** | `/dashboard` is functional but redundant with `/` and `/analisis` | Code-level decision needed: delete vs deprecate | ~30min |
 | **P0-6** | `/suppliers-dup` and `/proveedores-alias` are byte-identical to `/suppliers` | Same screenshot, same template — needs investigation | ~1 hour |
-| **P0-7** | 33 native `<input type=date>` in 19 files (mostly reportes) | Per AGENTS.md should be `<saskia-date>` Web Component | ~1 week |
-| **P0-8** | 0 uses of `<saskia-confirm>` modal (defined in `app/static/app-components.js` as `SaskiaConfirmModal` but rarely called) | grep shows usage in 1 template (pedido_stock_preview) | ~1 week |
+| **P0-7** | 33 native `<input type=date>` in 19 files (mostly reportes) | Per AGENTS.md should be `<ui-date>` Web Component | ~1 week |
+| **P0-8** | 0 uses of `<ui-confirm>` modal (defined in `app/static/app-components.js` as `SaskiaConfirmModal` but rarely called) | grep shows usage in 1 template (pedido_stock_preview) | ~1 week |
 
 ---
 
@@ -98,9 +98,9 @@ Migrate the remaining 57 templates to use `atoms.html` macros. This is **the** t
 
 ### Week 4-5 (the polish)
 
-- `<saskia-date>` Web Component (replace 33 native date pickers)
-- `<saskia-confirm>` modal rollout (replace inline `confirm()`)
-- `<saskia-toast>` system (replace silent success)
+- `<ui-date>` Web Component (replace 33 native date pickers)
+- `<ui-confirm>` modal rollout (replace inline `confirm()`)
+- `<ui-toast>` system (replace silent success)
 - Loading skeletons (39 missing)
 - A11y audit + remediation
 

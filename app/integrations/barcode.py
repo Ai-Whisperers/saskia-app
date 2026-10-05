@@ -1,6 +1,6 @@
 """app/rms/barcode.py — Barcode / SKU lookup (E23).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E23.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E23.
 
 Most USB / Bluetooth barcode scanners act as keyboard emulators: they
 "type" the barcode + Enter. So at the routing level, E23 is mostly:
@@ -19,6 +19,7 @@ This module adds:
 - get_product_by_sku(session, sku) lookup with caching ready for v2
 - scan_to_cart(sku, qty=1) helper used by the future /sales/scan route
 """
+
 from __future__ import annotations
 
 import re
@@ -84,9 +85,7 @@ def get_product_by_sku(session: Session, sku: str) -> ScanResult:
     if err:
         return ScanResult(ok=False, error=err, normalized_sku=normalized)
 
-    p = session.execute(
-        select(Product).where(Product.sku == normalized)
-    ).scalar_one_or_none()
+    p = session.execute(select(Product).where(Product.sku == normalized)).scalar_one_or_none()
 
     if p is None:
         return ScanResult(ok=False, error="not_found", normalized_sku=normalized)

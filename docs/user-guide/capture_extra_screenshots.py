@@ -1,15 +1,18 @@
 """capture_extra_screenshots.py — login + dashboard + admin pages."""
+
 from __future__ import annotations
+
 from pathlib import Path
+
 from playwright.sync_api import sync_playwright
 
-BASE = "https://saskia-vps.paragu-ai.com"
-OUT = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/docs/user-guide/screenshots")
-JAR = Path("/tmp/saskia-jar.txt")
+BASE = "https://sazon-vps.paragu-ai.com"
+OUT = Path("/opt/data/profiles/ivan/scratch/sazon-app-work/docs/user-guide/screenshots")
+JAR = Path("/tmp/sazon-jar.txt")
 CHROME = "/opt/data/home/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome"
 
 EXTRA = [
-    ("/login", "00-login", 2000, False),     # no auth
+    ("/login", "00-login", 2000, False),  # no auth
     ("/", "00-dashboard", 3000, True),
     ("/auditoria", "19-auditoria", 3000, True),
     ("/settings", "20-settings", 3500, True),
@@ -18,7 +21,7 @@ EXTRA = [
 ]
 
 
-def load_cookies():
+def load_cookies() -> list:
     cookies = []
     with open(JAR) as f:
         for line in f:
@@ -28,23 +31,31 @@ def load_cookies():
             is_http_only = False
             if line.startswith("#HttpOnly_"):
                 is_http_only = True
-                line = line[len("#HttpOnly_"):]
+                line = line[len("#HttpOnly_") :]
             if line.startswith("#"):
                 continue
             parts = line.split("\t")
             if len(parts) < 7:
                 continue
-            cookies.append({
-                "name": parts[5], "value": parts[6], "domain": parts[0],
-                "path": parts[2], "expires": int(parts[4]) if parts[4].isdigit() else -1,
-                "httpOnly": is_http_only, "secure": parts[3].upper() == "TRUE",
-                "sameSite": "Lax",
-            })
+            cookies.append(
+                {
+                    "name": parts[5],
+                    "value": parts[6],
+                    "domain": parts[0],
+                    "path": parts[2],
+                    "expires": int(parts[4]) if parts[4].isdigit() else -1,
+                    "httpOnly": is_http_only,
+                    "secure": parts[3].upper() == "TRUE",
+                    "sameSite": "Lax",
+                }
+            )
     return cookies
 
 
 with sync_playwright() as pw:
-    browser = pw.chromium.launch(headless=True, executable_path=CHROME, args=["--no-sandbox", "--disable-dev-shm-usage"])
+    browser = pw.chromium.launch(
+        headless=True, executable_path=CHROME, args=["--no-sandbox", "--disable-dev-shm-usage"]
+    )
     ctx = browser.new_context(viewport={"width": 1440, "height": 900})
     auth_cookies = load_cookies()
     page = ctx.new_page()
@@ -62,4 +73,4 @@ with sync_playwright() as pw:
         print(f"  {path:30s} -> {out_path.name} ({size:,}KB)")
 
     browser.close()
-print('done')
+print("done")

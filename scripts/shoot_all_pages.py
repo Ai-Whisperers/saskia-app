@@ -10,14 +10,15 @@ Usage:
 
 Output: <dir>/*.png + index.html (contact sheet) + summary.json
 """
+
 from __future__ import annotations
 
 import json
-import re
 import sys
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "docs/user-guide/screenshots/all-pages")
 CHROME = "/opt/hermes/.playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell"
@@ -55,8 +56,9 @@ def boot_app():
 
     with sf() as s:
         cat = make_catalog(s, price_gs=10_000)
-        ing2 = make_ingredient(s, name="Levadura seca", stock_qty=0.4,
-                               min_stock_qty=1.0, purchase_price_gs=18_000)
+        ing2 = make_ingredient(
+            s, name="Levadura seca", stock_qty=0.4, min_stock_qty=1.0, purchase_price_gs=18_000
+        )
         make_product(s, name="Café con leche", sale_price_gs=7_000)
         make_recipe(s, name="Chipa guazú", lines=[ing_line(ing2, qty=0.05)])
         from tests.factories import pedido_item
@@ -68,18 +70,28 @@ def boot_app():
         for i in range(6):
             sale = make_sale(s, product=cat["product"], qty=2, at=t0 + timedelta(hours=i * 8))
             sale_ids.append(sale.id)
-        ped = make_pedido(s, customer=c1,
-                          items=[pedido_item(cat["product"])],
-                          promised_date=datetime.utcnow().date())
-        from app.rms.models import MarketBenchmark, Pedido
+        ped = make_pedido(
+            s,
+            customer=c1,
+            items=[pedido_item(cat["product"])],
+            promised_date=datetime.utcnow().date(),
+        )
+        from app.rms.models import MarketBenchmark
 
-        bench = MarketBenchmark(product_label="Chipa grande", our_retail_gs=5000,
-                                comp_min_gs=4500, comp_avg_gs=5500)
+        bench = MarketBenchmark(
+            product_label="Chipa grande", our_retail_gs=5000, comp_min_gs=4500, comp_avg_gs=5500
+        )
         s.add(bench)
         s.commit()
-        ids = {"product": cat["product"].id, "ingredient": cat["ingredient"].id,
-               "recipe": cat["recipe"].id, "customer": c1.id,
-               "sale": sale_ids[-1], "pedido": ped.id, "bench": bench.id}
+        ids = {
+            "product": cat["product"].id,
+            "ingredient": cat["ingredient"].id,
+            "recipe": cat["recipe"].id,
+            "customer": c1.id,
+            "sale": sale_ids[-1],
+            "pedido": ped.id,
+            "bench": bench.id,
+        }
 
     from app.rms import db as db_module
     from app.rms import main as main_module
@@ -100,7 +112,7 @@ def boot_app():
     return f"http://127.0.0.1:{port}", server, engine, ids
 
 
-def routes_to_shoot(ids):
+def routes_to_shoot(ids: Any):
     """(path, filename) for every renderable page; param routes use seeded ids."""
     return [
         ("/dashboard", "dashboard"),
@@ -176,7 +188,7 @@ def routes_to_shoot(ids):
         (f"/recetas/{ids['recipe']}/crear-producto", "receta-crear-producto"),
         (f"/recetas/{ids['recipe']}/set-photo", "receta-set-photo"),
         ("/suppliers/nuevo", "supplier-nuevo"),
-        (f"/suppliers/1/editar", "supplier-editar") if False else ("/suppliers", "suppliers-dup"),
+        ("/suppliers/1/editar", "supplier-editar") if False else ("/suppliers", "suppliers-dup"),
         (f"/reportes/margenes/{ids['product']}", "reportes-margenes-detalle"),
         (f"/reportes/price-impact/{ids['ingredient']}?new_price=7000", "reportes-price-impact"),
         (f"/vs-mercado/{ids['bench']}/edit", "vs-mercado-editar"),
@@ -205,12 +217,12 @@ def main():
                 page.goto(base + path)
                 try:
                     page.wait_for_load_state("networkidle")
-                except Exception:  # noqa: BLE001 — slow assets shouldn't kill the shot
+                except Exception:
                     pass
                 page.wait_for_timeout(250)
                 page.screenshot(path=str(OUT / f"{name}.png"), full_page=True)
                 status = "ok"
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 status = f"ERROR: {exc}"[:120]
             summary[path] = {"file": f"{name}.png", "status": status}
             print(f"  {path:42s} {status}")
@@ -239,13 +251,13 @@ def main():
                         page.goto("about:blank")
                         page.set_content(
                             f"<pre style='font:12px monospace;padding:16px'>"
-                            f"{text.replace('&','&amp;').replace('<','&lt;')}</pre>"
+                            f"{text.replace('&', '&amp;').replace('<', '&lt;')}</pre>"
                         )
                         page.screenshot(path=str(OUT / f"{fname[:-4]}.png"), full_page=True)
                     status = f"ok ({len(body)} bytes)"
                 else:
                     status = f"HTTP {resp.status}"
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 status = f"ERROR: {exc}"[:80]
             summary[f"EXPORT {path}"] = {"file": fname, "status": status}
             print(f"  {path:42s} {status}")
@@ -259,13 +271,14 @@ def main():
     # contact sheet
     cards = "\n".join(
         f'<figure><img src="{v["file"]}" loading="lazy"><figcaption>{k}</figcaption></figure>'
-        for k, v in summary.items() if v["status"].startswith("ok")
+        for k, v in summary.items()
+        if v["status"].startswith("ok")
     )
     (OUT / "index.html").write_text(
-        f"<!doctype html><meta charset='utf-8'><title>Saskia pages</title>"
+        f"<!doctype html><meta charset='utf-8'><title>the operator pages</title>"
         f"<style>body{{font-family:sans-serif;margin:20px}}figure{{margin:0 0 28px}}"
         f"img{{max-width:100%;border:1px solid #ccc}}figcaption{{font-size:13px;color:#556}}</style>"
-        f"<h1>Saskia RMS — {ok}/{len(summary)} pages</h1>{cards}"
+        f"<h1>Sazón — {ok}/{len(summary)} pages</h1>{cards}"
     )
     print(f"\n{ok}/{len(summary)} pages captured → {OUT.resolve()}")
     server.should_exit = True

@@ -8,11 +8,11 @@
 
 ## What
 
-Build a synthetic xlsx mirroring what Saskia keeps editing in Google Drive after import. Wire into `tests/test_import_xlsx.py`.
+Build a synthetic xlsx mirroring what the operator keeps editing in Google Drive after import. Wire into `tests/test_import_xlsx.py`.
 
 ## Why now
 
-The import is one of the few paths where Saskia regularly breaks things on her side — she edits the Drive file, then the next import has to gracefully merge.
+The import is one of the few paths where the operator regularly breaks things on her side — she edits the Drive file, then the next import has to gracefully merge.
 
 ## Repro / context
 

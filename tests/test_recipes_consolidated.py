@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-
 # ───────────────────────── helpers ─────────────────────────
+
 
 def _mk_ingredient(session, name: str, unit: str = "g", allergens=None, **kw):
     from app.rms.models import Ingredient
@@ -35,8 +35,11 @@ def _mk_line(session, recipe_id: int, kind: str, ref_id: int, qty: float, line_u
     from app.rms.models import RecipeLine
 
     ln = RecipeLine(
-        recipe_id=recipe_id, line_kind=kind, line_ref_id=ref_id,
-        qty=qty, line_unit=line_unit,
+        recipe_id=recipe_id,
+        line_kind=kind,
+        line_ref_id=ref_id,
+        qty=qty,
+        line_unit=line_unit,
     )
     session.add(ln)
     session.flush()
@@ -44,6 +47,7 @@ def _mk_line(session, recipe_id: int, kind: str, ref_id: int, qty: float, line_u
 
 
 # ───────────────────────── fix-at-source ─────────────────────────
+
 
 def test_derivation_includes_undeclared_ids(session_factory):
     """undeclared_ids runs parallel to undeclared names."""
@@ -82,6 +86,7 @@ def test_derivation_no_undeclared_when_all_declared(session_factory):
 
 
 # ───────────────────────── explode_recipe ─────────────────────────
+
 
 def test_explode_sums_duplicates_across_base_and_subrecipe(session_factory):
     """Azúcar in both the base and the glaseado consolidates into one row."""
@@ -177,6 +182,7 @@ def test_explode_cycle_guard(session_factory):
 
 # ───────────────────────── route integration ─────────────────────────
 
+
 def _seed_recipe_tree(session_factory):
     """Seed azúcar+glaseado carrot cake; returns (recipe_id, azucar_id)."""
     with session_factory() as session:
@@ -194,7 +200,7 @@ def _seed_recipe_tree(session_factory):
 
 def test_recipe_detail_consolidada_view_renders(client, session_factory):
     """?vista=consolidada renders the exploded list; default is estructural."""
-    r_id, azucar_id = _seed_recipe_tree(session_factory)
+    r_id, _azucar_id = _seed_recipe_tree(session_factory)
 
     resp = client.get(f"/recetas/{r_id}?vista=consolidada")
     assert resp.status_code == 200
@@ -221,5 +227,5 @@ def test_recipe_detail_undeclared_warning_links_to_edit(client, session_factory)
     assert resp.status_code == 200
     # Azúcar RT has allergens=None → warning with fix-at-source link
     assert "Sin alérgenos declarados" in resp.text
-    assert f'/inventario/{azucar_id}/editar' in resp.text
+    assert f"/inventario/{azucar_id}/editar" in resp.text
     assert "/inventario/None" not in resp.text

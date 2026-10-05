@@ -86,16 +86,28 @@ def multi_variant_ingredient(session_factory):
         s.flush()
         variants = [
             IngredientVariant(
-                ingredient_id=ing.id, package_size=1.0, package_unit="kg",
-                purchase_price_gs=8500, preferred=True, stock_qty=3.0,
+                ingredient_id=ing.id,
+                package_size=1.0,
+                package_unit="kg",
+                purchase_price_gs=8500,
+                preferred=True,
+                stock_qty=3.0,
             ),
             IngredientVariant(
-                ingredient_id=ing.id, package_size=0.250, package_unit="kg",
-                purchase_price_gs=2400, preferred=False, stock_qty=12.0,
+                ingredient_id=ing.id,
+                package_size=0.250,
+                package_unit="kg",
+                purchase_price_gs=2400,
+                preferred=False,
+                stock_qty=12.0,
             ),
             IngredientVariant(
-                ingredient_id=ing.id, package_size=5.0, package_unit="kg",
-                purchase_price_gs=40000, preferred=False, stock_qty=1.0,
+                ingredient_id=ing.id,
+                package_size=5.0,
+                package_unit="kg",
+                purchase_price_gs=40000,
+                preferred=False,
+                stock_qty=1.0,
             ),
         ]
         s.add_all(variants)
@@ -116,9 +128,11 @@ class TestIngredientVariantRollup:
         n = _unique_name("legacy")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="kg", stock_qty=42.0)
-            s.add(ing); s.commit()
+            s.add(ing)
+            s.commit()
             ing_id = ing.id
         from app.rms.variants import rollup_ingredient_stock
+
         with session_factory() as s:
             r = rollup_ingredient_stock(s, ing_id)
         assert r is not None
@@ -133,23 +147,42 @@ class TestIngredientVariantRollup:
         n = _unique_name("multi")
         with session_factory() as s:
             ing = Ingredient(
-                name=n, unit="kg", purchase_price_gs=8500, stock_qty=11.5,
+                name=n,
+                unit="kg",
+                purchase_price_gs=8500,
+                stock_qty=11.5,
             )
-            s.add(ing); s.flush(); ing_id = ing.id
-            s.add_all([
-                IngredientVariant(
-                    ingredient_id=ing_id, package_size=1.0, package_unit="kg",
-                    purchase_price_gs=8500, preferred=True, stock_qty=3.0,
-                ),
-                IngredientVariant(
-                    ingredient_id=ing_id, package_size=0.250, package_unit="kg",
-                    purchase_price_gs=2400, preferred=False, stock_qty=12.0,
-                ),
-                IngredientVariant(
-                    ingredient_id=ing_id, package_size=5.0, package_unit="kg",
-                    purchase_price_gs=40000, preferred=False, stock_qty=1.0,
-                ),
-            ])
+            s.add(ing)
+            s.flush()
+            ing_id = ing.id
+            s.add_all(
+                [
+                    IngredientVariant(
+                        ingredient_id=ing_id,
+                        package_size=1.0,
+                        package_unit="kg",
+                        purchase_price_gs=8500,
+                        preferred=True,
+                        stock_qty=3.0,
+                    ),
+                    IngredientVariant(
+                        ingredient_id=ing_id,
+                        package_size=0.250,
+                        package_unit="kg",
+                        purchase_price_gs=2400,
+                        preferred=False,
+                        stock_qty=12.0,
+                    ),
+                    IngredientVariant(
+                        ingredient_id=ing_id,
+                        package_size=5.0,
+                        package_unit="kg",
+                        purchase_price_gs=40000,
+                        preferred=False,
+                        stock_qty=1.0,
+                    ),
+                ]
+            )
             s.commit()
 
         with session_factory() as s:
@@ -168,49 +201,72 @@ class TestIngredientVariantRollup:
         n = _unique_name("price")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="kg", purchase_price_gs=0)
-            s.add(ing); s.flush(); ing_id = ing.id
-            s.add_all([
-                IngredientVariant(
-                    ingredient_id=ing_id, package_size=1.0, package_unit="kg",
-                    purchase_price_gs=1000, preferred=False, stock_qty=0.0,
-                ),
-                IngredientVariant(
-                    ingredient_id=ing_id, package_size=1.0, package_unit="kg",
-                    purchase_price_gs=2000, preferred=True, stock_qty=0.0,
-                ),
-            ])
+            s.add(ing)
+            s.flush()
+            ing_id = ing.id
+            s.add_all(
+                [
+                    IngredientVariant(
+                        ingredient_id=ing_id,
+                        package_size=1.0,
+                        package_unit="kg",
+                        purchase_price_gs=1000,
+                        preferred=False,
+                        stock_qty=0.0,
+                    ),
+                    IngredientVariant(
+                        ingredient_id=ing_id,
+                        package_size=1.0,
+                        package_unit="kg",
+                        purchase_price_gs=2000,
+                        preferred=True,
+                        stock_qty=0.0,
+                    ),
+                ]
+            )
             s.commit()
         with session_factory() as s:
             price = current_variant_price(s, ing_id)
         assert price == 2000
 
     def test_only_one_preferred_per_ingredient_enforced_db_triggers(
-        self, session_factory,
+        self,
+        session_factory,
     ):
         """The partial-unique index + trigger: only 1 preferred per ingredient."""
         n = _unique_name("pref")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="kg", stock_qty=0.0)
-            s.add(ing); s.flush()
+            s.add(ing)
+            s.flush()
             v1 = IngredientVariant(
-                ingredient_id=ing.id, package_size=1.0, package_unit="kg",
-                purchase_price_gs=1000, preferred=True, stock_qty=0.0,
+                ingredient_id=ing.id,
+                package_size=1.0,
+                package_unit="kg",
+                purchase_price_gs=1000,
+                preferred=True,
+                stock_qty=0.0,
             )
-            s.add(v1); s.commit()  # commit so the new session can see it
+            s.add(v1)
+            s.commit()  # commit so the new session can see it
             ing_id = ing.id
         # Now insert another variant flagged preferred — the DB trigger
         # should clear v1.preferred and set v2.preferred.
         with session_factory() as s:
             ing2 = s.get(Ingredient, ing_id)
             v2 = IngredientVariant(
-                ingredient_id=ing2.id, package_size=2.0, package_unit="kg",
-                purchase_price_gs=2000, preferred=True, stock_qty=0.0,
+                ingredient_id=ing2.id,
+                package_size=2.0,
+                package_unit="kg",
+                purchase_price_gs=2000,
+                preferred=True,
+                stock_qty=0.0,
             )
-            s.add(v2); s.commit()
+            s.add(v2)
+            s.commit()
         with session_factory() as s:
             all_v = s.scalars(
-                select(IngredientVariant)
-                .where(IngredientVariant.ingredient_id == ing_id)
+                select(IngredientVariant).where(IngredientVariant.ingredient_id == ing_id)
             ).all()
             preferred_count = sum(1 for x in all_v if x.preferred)
             assert preferred_count == 1
@@ -224,13 +280,15 @@ class TestIngredientVariantRollup:
 
 
 class TestForecastHorizon:
-
     def test_default_horizon_is_14_days(self, session_factory):
         from app.rms.variants import DEFAULT_FORECAST_HORIZON_DAYS, forecast_horizon_days
+
         n = _unique_name("horizon")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="kg", stock_qty=1.0)
-            s.add(ing); s.commit(); ing_id = ing.id
+            s.add(ing)
+            s.commit()
+            ing_id = ing.id
         with session_factory() as s:
             ing2 = s.get(Ingredient, ing_id)
             h = forecast_horizon_days(ing2)
@@ -239,22 +297,31 @@ class TestForecastHorizon:
 
     def test_per_ingredient_override(self, session_factory):
         from app.rms.variants import forecast_horizon_days
+
         n = _unique_name("horizon2")
         with session_factory() as s:
             ing = Ingredient(
-                name=n, unit="kg", stock_qty=1.0, forecast_horizon_days=21,
+                name=n,
+                unit="kg",
+                stock_qty=1.0,
+                forecast_horizon_days=21,
             )
-            s.add(ing); s.commit(); ing_id = ing.id
+            s.add(ing)
+            s.commit()
+            ing_id = ing.id
         with session_factory() as s:
             ing2 = s.get(Ingredient, ing_id)
             assert forecast_horizon_days(ing2) == 21
 
     def test_explicit_default_kwarg(self, session_factory):
         from app.rms.variants import forecast_horizon_days
+
         n = _unique_name("horizon3")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="kg", stock_qty=1.0)
-            s.add(ing); s.commit(); ing_id = ing.id
+            s.add(ing)
+            s.commit()
+            ing_id = ing.id
         with session_factory() as s:
             ing2 = s.get(Ingredient, ing_id)
             assert forecast_horizon_days(ing2, default=30) == 30
@@ -264,7 +331,7 @@ class TestForecastHorizon:
         from app.rms.variants import days_until_short
 
         n = _unique_name("depleted")
-        today = date.today()
+        today = datetime.utcnow().date()
         # Plant an ingredient at 5kg with horizon=14. Plant 7 days of 1kg
         # consumption via direct SaleStockMove rows (bypassing apply_sale
         # so we don't need a recipe).
@@ -273,32 +340,42 @@ class TestForecastHorizon:
         iname = n
         with session_factory() as s:
             r = Recipe(name=rname, yield_qty=1.0, yield_unit="kg")
-            s.add(r); s.flush()
-            p = Product(name=pname, sku=pname, recipe_id=r.id,
-                        sale_price_gs=1000)
-            s.add(p); s.flush()
+            s.add(r)
+            s.flush()
+            p = Product(name=pname, sku=pname, recipe_id=r.id, sale_price_gs=1000)
+            s.add(p)
+            s.flush()
             ing = Ingredient(
-                name=iname, unit="kg", stock_qty=5.0, forecast_horizon_days=14,
+                name=iname,
+                unit="kg",
+                stock_qty=5.0,
+                forecast_horizon_days=14,
             )
-            s.add(ing); s.flush()
-            s.commit(); ing_id = ing.id
+            s.add(ing)
+            s.flush()
+            s.commit()
+            ing_id = ing.id
             for d in range(7):
                 ds = today - timedelta(days=d)
                 sale = Sale(
-                    product_id=p.id, qty=1.0,
+                    product_id=p.id,
+                    qty=1.0,
                     unit_price_gs=1000,
                     sold_at=datetime.combine(ds, datetime.min.time()).replace(tzinfo=timezone.utc),
                 )
-                s.add(sale); s.flush()
-                s.add(StockMovement(
-                    movement_type="sale",
-                    ingredient_id=ing_id,
-                    qty=-1.0,
-                    reference_id=sale.id,
-                    reference_type="sale",
-                    affected_recipe_id=r.id,
-                    recorded_at=sale.sold_at,
-                ))
+                s.add(sale)
+                s.flush()
+                s.add(
+                    StockMovement(
+                        movement_type="sale",
+                        ingredient_id=ing_id,
+                        qty=-1.0,
+                        reference_id=sale.id,
+                        reference_type="sale",
+                        affected_recipe_id=r.id,
+                        recorded_at=sale.sold_at,
+                    )
+                )
             s.commit()
         with session_factory() as s:
             res = days_until_short(s, ing_id, today=today)
@@ -311,10 +388,13 @@ class TestForecastHorizon:
 
     def test_days_until_short_marks_dead_with_no_consumption(self, session_factory):
         from app.rms.variants import days_until_short
+
         n = _unique_name("dead")
         with session_factory() as s:
             ing = Ingredient(name=n, unit="kg", stock_qty=10.0)
-            s.add(ing); s.commit(); ing_id = ing.id
+            s.add(ing)
+            s.commit()
+            ing_id = ing.id
         with session_factory() as s:
             res = days_until_short(s, ing_id)
         assert res is not None
@@ -329,34 +409,44 @@ class TestForecastHorizon:
         n = _unique_name("plenty")
         rname = _unique_name("r-ok")
         pname = _unique_name("p-ok")
-        today = date.today()
+        today = datetime.utcnow().date()
         with session_factory() as s:
             r = Recipe(name=rname, yield_qty=1.0, yield_unit="kg")
-            s.add(r); s.flush()
-            p = Product(name=pname, sku=pname, recipe_id=r.id,
-                        sale_price_gs=1000)
-            s.add(p); s.flush()
+            s.add(r)
+            s.flush()
+            p = Product(name=pname, sku=pname, recipe_id=r.id, sale_price_gs=1000)
+            s.add(p)
+            s.flush()
             ing = Ingredient(
-                name=n, unit="kg", stock_qty=100.0, forecast_horizon_days=14,
+                name=n,
+                unit="kg",
+                stock_qty=100.0,
+                forecast_horizon_days=14,
             )
-            s.add(ing); s.flush(); ing_id = ing.id
+            s.add(ing)
+            s.flush()
+            ing_id = ing.id
             for d in range(14):
                 ds = today - timedelta(days=d)
                 sale = Sale(
-                    product_id=p.id, qty=0.2,
+                    product_id=p.id,
+                    qty=0.2,
                     unit_price_gs=1000,
                     sold_at=datetime.combine(ds, datetime.min.time()).replace(tzinfo=timezone.utc),
                 )
-                s.add(sale); s.flush()
-                s.add(StockMovement(
-                    movement_type="sale",
-                    ingredient_id=ing_id,
-                    qty=-0.2,
-                    reference_id=sale.id,
-                    reference_type="sale",
-                    affected_recipe_id=r.id,
-                    recorded_at=sale.sold_at,
-                ))
+                s.add(sale)
+                s.flush()
+                s.add(
+                    StockMovement(
+                        movement_type="sale",
+                        ingredient_id=ing_id,
+                        qty=-0.2,
+                        reference_id=sale.id,
+                        reference_type="sale",
+                        affected_recipe_id=r.id,
+                        recorded_at=sale.sold_at,
+                    )
+                )
             s.commit()
         with session_factory() as s:
             res = days_until_short(s, ing_id, today=today)
@@ -372,24 +462,29 @@ class TestForecastHorizon:
 def product(session_factory):
     with session_factory() as s:
         p = Product(
-            name=_unique_name("prod"), sku=_unique_name("sku"),
+            name=_unique_name("prod"),
+            sku=_unique_name("sku"),
             sale_price_gs=1000,
         )
-        s.add(p); s.commit(); return p
+        s.add(p)
+        s.commit()
+        return p
 
 
 @pytest.fixture
 def product2(session_factory):
     with session_factory() as s:
         p = Product(
-            name=_unique_name("prod2"), sku=_unique_name("sku2"),
+            name=_unique_name("prod2"),
+            sku=_unique_name("sku2"),
             sale_price_gs=2000,
         )
-        s.add(p); s.commit(); return p
+        s.add(p)
+        s.commit()
+        return p
 
 
 class TestForkWeek:
-
     def test_fork_sums_overrides_into_template(self, session_factory, product, product2):
         """Override at Mon=10 (prod A) + Mon=5 (prod B) → template[Mon,A]=10, template[Mon,B]=5.
 
@@ -397,18 +492,33 @@ class TestForkWeek:
         """
         monday = date(2026, 6, 1)
         with session_factory() as s:
-            s.add(ProductionPlanOverride(
-                product_id=product.id, for_date=monday,
-                qty=10.0, updated_at=datetime.now(timezone.utc), updated_by="op",
-            ))
-            s.add(ProductionPlanOverride(
-                product_id=product.id, for_date=monday + timedelta(days=2),  # Wed
-                qty=4.0, updated_at=datetime.now(timezone.utc), updated_by="op",
-            ))
-            s.add(ProductionPlanOverride(
-                product_id=product2.id, for_date=monday,
-                qty=5.0, updated_at=datetime.now(timezone.utc), updated_by="op",
-            ))
+            s.add(
+                ProductionPlanOverride(
+                    product_id=product.id,
+                    for_date=monday,
+                    qty=10.0,
+                    updated_at=datetime.utcnow(),
+                    updated_by="op",
+                )
+            )
+            s.add(
+                ProductionPlanOverride(
+                    product_id=product.id,
+                    for_date=monday + timedelta(days=2),  # Wed
+                    qty=4.0,
+                    updated_at=datetime.utcnow(),
+                    updated_by="op",
+                )
+            )
+            s.add(
+                ProductionPlanOverride(
+                    product_id=product2.id,
+                    for_date=monday,
+                    qty=5.0,
+                    updated_at=datetime.utcnow(),
+                    updated_by="op",
+                )
+            )
             s.commit()
 
         # Reach into the underlying function instead of POST
@@ -431,10 +541,12 @@ class TestForkWeek:
         #   (2, product.id) = 4  (Wednesday)
         #   (0, product2.id) = 5 (Monday)
         from app.rms.production import upsert_template_row
+
         with session_factory() as s:
             for (wd, pid), qty in bucket.items():
-                upsert_template_row(s, weekday=wd, product_id=pid, qty=qty,
-                                    notes=None, updated_by="op")
+                upsert_template_row(
+                    s, weekday=wd, product_id=pid, qty=qty, notes=None, updated_by="op"
+                )
             s.commit()
         with session_factory() as s:
             rows = s.scalars(select(ProductionPlanTemplate)).all()
@@ -448,14 +560,24 @@ class TestForkWeek:
         """POST /produccion/template/fork-week with from_date clones overrides → template."""
         monday = date(2026, 6, 1)  # known Monday
         with session_factory() as s:
-            s.add(ProductionPlanOverride(
-                product_id=product.id, for_date=monday,
-                qty=3.0, updated_at=datetime.now(timezone.utc), updated_by="op",
-            ))
-            s.add(ProductionPlanOverride(
-                product_id=product.id, for_date=monday + timedelta(days=1),  # Tue
-                qty=5.0, updated_at=datetime.now(timezone.utc), updated_by="op",
-            ))
+            s.add(
+                ProductionPlanOverride(
+                    product_id=product.id,
+                    for_date=monday,
+                    qty=3.0,
+                    updated_at=datetime.utcnow(),
+                    updated_by="op",
+                )
+            )
+            s.add(
+                ProductionPlanOverride(
+                    product_id=product.id,
+                    for_date=monday + timedelta(days=1),  # Tue
+                    qty=5.0,
+                    updated_at=datetime.utcnow(),
+                    updated_by="op",
+                )
+            )
             s.commit()
             product_id = product.id
 
@@ -468,8 +590,9 @@ class TestForkWeek:
 
         with session_factory() as s:
             rows = s.scalars(
-                select(ProductionPlanTemplate)
-                .where(ProductionPlanTemplate.product_id == product_id)
+                select(ProductionPlanTemplate).where(
+                    ProductionPlanTemplate.product_id == product_id
+                )
             ).all()
         assert len(rows) == 2  # Mon + Tue
         qtys = sorted(r.qty for r in rows)
@@ -503,7 +626,6 @@ class TestForkWeek:
 
 
 class TestMigrations:
-
     def test_schema_version_is_current(self, session_factory):
         """Schema version reflects CURRENT_SCHEMA_VERSION (42 after S8)."""
         from app.rms.config import CURRENT_SCHEMA_VERSION
@@ -511,15 +633,14 @@ class TestMigrations:
 
         assert CURRENT_SCHEMA_VERSION >= 42
         with session_factory() as s:
-            row = s.scalar(
-                select(AppMeta.value).where(AppMeta.key == "schema_version")
-            )
+            row = s.scalar(select(AppMeta.value).where(AppMeta.key == "schema_version"))
         assert int(row) == CURRENT_SCHEMA_VERSION
         assert int(row) == CURRENT_SCHEMA_VERSION
 
     def test_forecast_horizon_column_exists(self, session_factory):
         """Migration 041: ingredient.forecast_horizon_days column."""
         from sqlalchemy import text
+
         with session_factory() as s:
             rows = s.execute(text("PRAGMA table_info(ingredient)")).fetchall()
         cols = {r[1] for r in rows}
@@ -528,17 +649,18 @@ class TestMigrations:
     def test_ingredient_variant_table_exists(self, session_factory):
         """Migration 040: ingredient_variant table + index."""
         from sqlalchemy import text
+
         with session_factory() as s:
-            tables = s.execute(
-                text("SELECT name FROM sqlite_master WHERE type='table'")
-            ).fetchall()
+            tables = s.execute(text("SELECT name FROM sqlite_master WHERE type='table'")).fetchall()
             names = {r[0] for r in tables}
         assert "ingredient_variant" in names
         # Index too
         with session_factory() as s:
             idx = s.execute(
-                text("SELECT name FROM sqlite_master WHERE type='index' "
-                     "AND tbl_name='ingredient_variant'")
+                text(
+                    "SELECT name FROM sqlite_master WHERE type='index' "
+                    "AND tbl_name='ingredient_variant'"
+                )
             ).fetchall()
         assert any(r[0] == "ix_ingredient_variant_ingredient" for r in idx)
 
@@ -548,9 +670,7 @@ class TestMigrations:
         # Existing test ingredients should have at least 1 variant each by
         # the time the migration ran (in conftest, init_db() runs migrations).
         with session_factory() as s:
-            ing = s.scalar(
-                select(Ingredient).where(Ingredient.purchase_price_gs.is_not(None))
-            )
+            ing = s.scalar(select(Ingredient).where(Ingredient.purchase_price_gs.is_not(None)))
             if ing is None:
                 pytest.skip("no ingredient with price to backfill")
             v = s.scalar(
@@ -567,7 +687,6 @@ class TestMigrations:
 
 
 class TestIngredientDetailPage:
-
     def test_detail_page_shows_variants_panel(self, client, ingredient):
         resp = client.get(f"/inventario/{ingredient.id}")
         assert resp.status_code == 200

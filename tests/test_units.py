@@ -55,7 +55,7 @@ def test_unit_coerce_aliases(input_str, expected_unit):
     ["stones", "fahrenheit", "kg2", None, "", "litros_extra"],
 )
 def test_unit_coerce_rejects_unknown(bad_input):
-    with pytest.raises(ValueError, match="(unknown unit|empty unit)"):
+    with pytest.raises(ValueError, match=r"(unknown unit|empty unit)"):
         Unit.coerce(bad_input)
 
 

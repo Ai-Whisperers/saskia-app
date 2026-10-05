@@ -1,9 +1,9 @@
-# Round 2 Review — Saskia RMS
+# Round 2 Review — the operator RMS
 
-> **For Saskia and Kiki.** Working agreement for the **second review round** of Fase 1.5, building on `installer/ROUND-1-NOTES.md`.
+> **For the operator and Kiki.** Working agreement for the **second review round** of Fase 1.5, building on `installer/ROUND-1-NOTES.md`.
 >
 > **Period:** 30 days of daily use after Round 1 close.
-> **Focus:** Round 2 accepts **only Round-1-style "ship-it" items** (≤2h fix). Anything else moves to Fase 2 (gem-project backlog, `docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md`) or is rejected with rationale.
+> **Focus:** Round 2 accepts **only Round-1-style "ship-it" items** (≤2h fix). Anything else moves to Fase 2 (gem-project backlog, `docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md`) or is rejected with rationale.
 >
 > **Generated:** 2026-09-16 by AIW operator. Closes Phase 0 epic E4.S1.
 
@@ -15,8 +15,8 @@ Round 1 accepted anything in-scope — blockers, majors, minors, cosmetics. That
 
 Round 2's posture is **conservative**:
 
-- The gem-project plan (`docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md`) already covers ~390h of scoped work. Don't sneak Round 2 items into the bug-fix pipeline.
-- Saskia's daily use surfaces real bugs (cold-start races, mobile quirks, browser-specific layout breaks). Round 2 catches those cheaply.
+- The gem-project plan (`docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md`) already covers ~390h of scoped work. Don't sneak Round 2 items into the bug-fix pipeline.
+- the operator's daily use surfaces real bugs (cold-start races, mobile quirks, browser-specific layout breaks). Round 2 catches those cheaply.
 - Anything bigger than 2h is a **new ticket** linked from here, not a row in this file.
 
 ## Ship-it criteria (the only items that get fixed in Round 2)
@@ -35,7 +35,7 @@ If any criterion fails, the item is **out** of Round 2 — see [Routing out-of-s
 
 ## How Round 2 works
 
-1. **Saskia** sends feedback via WhatsApp. Operator (or Kiki) captures each item as a row in [Round 2 items](#round-2-items) below.
+1. **the operator** sends feedback via WhatsApp. Operator (or Kiki) captures each item as a row in [Round 2 items](#round-2-items) below.
 2. Operator does a **5-minute triage** on the item:
    - Meets all 5 ship-it criteria → mark `ACCEPTED`, create PR with `Refs #NNN`.
    - Fails any → mark `OUT-OF-SCOPE` with rationale, link to gem-project epic or reject.
@@ -51,7 +51,7 @@ If any criterion fails, the item is **out** of Round 2 — see [Routing out-of-s
 | `OUT-OF-SCOPE` | Fails ship-it; routed to gem-project backlog or rejected |
 | `FIXED` | Implemented; commit SHA noted |
 | `WONT-FIX` | Explicitly rejected with reason |
-| `NEEDS-INFO` | Can't reproduce or unclear; asked Saskia for more |
+| `NEEDS-INFO` | Can't reproduce or unclear; asked the operator for more |
 
 ## Severity ladder (same as Round 1)
 
@@ -72,10 +72,10 @@ When an item fails the ship-it criteria, link it from this file and route it:
 
 | Destination | When |
 |---|---|
-| **Gem-project backlog** | Real feature work. Add a `SASKIA-NNN` ticket under `docs/tickets/`. Reference the Epic+Story code from `2026-09-07-saskia-complete-epic-plan-v3.md`. |
+| **Gem-project backlog** | Real feature work. Add a `SASKIA-NNN` ticket under `docs/tickets/`. Reference the Epic+Story code from `2026-09-07-sazon-complete-epic-plan-v3.md`. |
 | **Rejected (WONT-FIX)** | Operator decision: cost > value. Document the reason in the row. |
 | **Deferred to Fase 2+** | Same as gem-project but explicitly out-of-Fase-1.5. |
-| **NEEDS-INFO** | Saskia didn't give enough detail. Ask once; if no answer in 48h, mark `WONT-FIX` with reason "no repro". |
+| **NEEDS-INFO** | the operator didn't give enough detail. Ask once; if no answer in 48h, mark `WONT-FIX` with reason "no repro". |
 
 ## Buffer
 
@@ -99,7 +99,7 @@ Copy this template for each new item:
 
 **Severity:** blocker | major | minor | cosmetic | data | perf
 **Reported:** YYYY-MM-DD via <WhatsApp | in-person | email>
-**Reported by:** Saskia | operator | Kiki
+**Reported by:** the operator | operator | Kiki
 **Status:** OPEN
 
 **Repro:**
@@ -135,4 +135,4 @@ Copy this template for each new item:
 
 **Doc version:** 2026-09-16 v1 (initial — closes Phase 0 epic E4.S1)
 **Owner:** Ivan (operator), Kiki (build agent for any PRs)
-**Refers to:** `installer/ROUND-1-NOTES.md`, `docs/operations/round-2-triage-process.md`, `docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md`
+**Refers to:** `installer/ROUND-1-NOTES.md`, `docs/operations/round-2-triage-process.md`, `docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md`

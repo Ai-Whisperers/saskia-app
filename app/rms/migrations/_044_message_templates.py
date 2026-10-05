@@ -18,8 +18,9 @@ def _migration_044_message_templates(conn: object):
     conn.dialect.name if hasattr(conn, "dialect") else "sqlite"
     text_type = "TEXT"
 
-    conn.execute(text(
-        f"""
+    conn.execute(
+        text(
+            f"""
         CREATE TABLE IF NOT EXISTS message_template (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             channel VARCHAR(16) NOT NULL,
@@ -34,7 +35,8 @@ def _migration_044_message_templates(conn: object):
             UNIQUE (channel, key, locale)
         )
         """
-    ))
+        )
+    )
 
     # Seed default templates (Paraguayan Spanish, es-PY)
     defaults = [

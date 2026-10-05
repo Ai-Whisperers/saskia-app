@@ -38,16 +38,18 @@ def stock_intel_view(
     turnover = all_stock_turnover(session, days=days)
     dead = dead_stock_rows(session, threshold_days=dead_days)
     # sort: slowest movers first (highest days_of_stock), then by value idle
-    turnover_sorted = sorted(
-        turnover, key=lambda t: (t.days_of_stock or 0), reverse=True
-    )
+    turnover_sorted = sorted(turnover, key=lambda t: t.days_of_stock or 0, reverse=True)
     dead_sorted = sorted(dead, key=lambda d: d.stock_qty or 0, reverse=True)
-    return render(request, "insight_stock.html", {
-        "turnover": turnover_sorted,
-        "dead": dead_sorted,
-        "days": days,
-        "dead_days": dead_days,
-    })
+    return render(
+        request,
+        "insight_stock.html",
+        {
+            "turnover": turnover_sorted,
+            "dead": dead_sorted,
+            "days": days,
+            "dead_days": dead_days,
+        },
+    )
 
 
 @router.get("/afinidades", response_class=HTMLResponse)
@@ -57,9 +59,13 @@ def afinidades_view(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     pairs = top_pairs(session, n=n)
-    return render(request, "insight_afinidades.html", {
-        "pairs": pairs,
-    })
+    return render(
+        request,
+        "insight_afinidades.html",
+        {
+            "pairs": pairs,
+        },
+    )
 
 
 @router.get("/margenes", response_class=HTMLResponse)
@@ -69,10 +75,14 @@ def margenes_view(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     drift = margin_drift_all(session, days=days)
-    return render(request, "insight_margenes.html", {
-        "drift": drift,
-        "days": days,
-    })
+    return render(
+        request,
+        "insight_margenes.html",
+        {
+            "drift": drift,
+            "days": days,
+        },
+    )
 
 
 @router.get("/margenes/{product_id}", response_class=HTMLResponse)
@@ -90,8 +100,12 @@ def margenes_product_view(
     if prod is None:
         raise HTTPException(404, "Producto no encontrado")
     hist = product_price_history(session, product_id, days=days)
-    return render(request, "insight_margenes_detalle.html", {
-        "product": prod,
-        "history": hist,
-        "days": days,
-    })
+    return render(
+        request,
+        "insight_margenes_detalle.html",
+        {
+            "product": prod,
+            "history": hist,
+            "days": days,
+        },
+    )

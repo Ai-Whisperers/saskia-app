@@ -10,6 +10,7 @@ Why not a top-level import in reportes.py? Reportlab pulls in a
 deploys time out if the import happens at module load. Lazy imports
 keep cold-start fast.
 """
+
 from __future__ import annotations
 
 from fastapi import HTTPException

@@ -19,6 +19,7 @@ We verify:
   - With form_opened_at > max(updated_at), no warning.
   - The day-view page renders a banner when ?concurrent_modify=1.
 """
+
 from datetime import date, datetime, timedelta, timezone
 
 import pytest  # noqa: F401 — fixtures via authed_client
@@ -77,13 +78,15 @@ def test_shift_execute_warning_when_form_opened_before_save(authed_client, sessi
         pid = prod.id
 
         now = datetime.now(timezone.utc)
-        s.add(ProductionCompletion(
-            product_id=pid,
-            for_date=date(2026, 10, 4),
-            completed_qty=5.0,
-            recorded_at=now,
-            updated_at=now + timedelta(minutes=10),  # edited 10min in the future
-        ))
+        s.add(
+            ProductionCompletion(
+                product_id=pid,
+                for_date=date(2026, 10, 4),
+                completed_qty=5.0,
+                recorded_at=now,
+                updated_at=now + timedelta(minutes=10),  # edited 10min in the future
+            )
+        )
         s.commit()
 
     form_opened = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()

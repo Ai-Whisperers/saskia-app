@@ -5,13 +5,14 @@ Tests for the new customer invoice-profile CRUD endpoints:
   POST /clientes/api/{customer_id}/invoice-profiles/{pid}/default
   DELETE /clientes/api/{customer_id}/invoice-profiles/{pid}
 """
-import json
 
 
 def _make_customer(client, session_factory):
     """Insert a customer via ORM and return its id."""
     import uuid as _uuid
+
     from app.rms.models import Customer
+
     name = "Phase14Inv " + _uuid.uuid4().hex[:6]
     with session_factory() as s:
         c = Customer(name=name, phone="+595 981 000000")
@@ -73,6 +74,7 @@ def test_set_default_clears_other_defaults(client, session_factory):
 
     # Verify A is no longer the default (read back from DB)
     from app.rms.models import CustomerInvoiceProfile
+
     with session_factory() as s:
         a = s.get(CustomerInvoiceProfile, r1["id"])
         b = s.get(CustomerInvoiceProfile, r2["id"])
@@ -97,7 +99,7 @@ def test_delete_non_default_profile_soft_deletes(client, session_factory):
     """Soft-delete sets is_active=False; row remains queryable but
     excluded from active lists."""
     cid = _make_customer(client, session_factory)
-    r1 = client.post(
+    client.post(
         f"/clientes/api/{cid}/invoice-profiles",
         json={"ruc_ci": "80011111-1", "razon_social": "Default S.A."},
     ).json()
@@ -109,6 +111,7 @@ def test_delete_non_default_profile_soft_deletes(client, session_factory):
     assert rd.status_code == 200
 
     from app.rms.models import CustomerInvoiceProfile
+
     with session_factory() as s:
         row = s.get(CustomerInvoiceProfile, r2["id"])
         assert row is not None
@@ -148,7 +151,5 @@ def test_set_default_404_for_wrong_customer(client, session_factory):
         f"/clientes/api/{cid_a}/invoice-profiles",
         json={"ruc_ci": "X", "razon_social": "Y"},
     ).json()
-    r = client.post(
-        f"/clientes/api/{cid_b}/invoice-profiles/{prof['id']}/default"
-    )
+    r = client.post(f"/clientes/api/{cid_b}/invoice-profiles/{prof['id']}/default")
     assert r.status_code == 404

@@ -2,6 +2,7 @@
 to N+1 queries. Asserts the dashboard route uses fewer than 20 queries
 for a typical seed dataset.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -47,8 +48,7 @@ def test_dashboard_renders_under_60_queries(client, session_factory):
     # against the real tree and document the new budget in the commit.
     real = [q for q in queries if not q.upper().startswith("PRAGMA")]
     assert len(real) < 100, (
-        f"Dashboard issued {len(real)} queries — N+1 regression. "
-        f"First 5 queries: {real[:5]}"
+        f"Dashboard issued {len(real)} queries — N+1 regression. First 5 queries: {real[:5]}"
     )
 
 
@@ -77,8 +77,7 @@ def test_dashboard_no_n_plus_1_in_cost_loop(client, session_factory):
     # The bad pattern was: SELECT ingredient ... WHERE id = ?  (per-sale)
     # After fix: SELECT ingredient ... WHERE id IN (...)  (batched)
     ingredient_point_queries = sum(
-        1 for q in queries
-        if 'FROM ingredient' in q and 'WHERE ingredient.id = ?' in q
+        1 for q in queries if "FROM ingredient" in q and "WHERE ingredient.id = ?" in q
     )
     assert ingredient_point_queries <= 2, (
         f"Found {ingredient_point_queries} point-queries against ingredient "

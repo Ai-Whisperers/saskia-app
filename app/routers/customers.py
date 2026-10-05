@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Body, Depends, Form, HTTPException, Path, Query, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Path, Query, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
@@ -30,20 +30,31 @@ from app.rms.customers import (
 )
 from app.rms.dependencies import get_session
 from app.rms.models import Customer
+from app.rms.nav import status_es
 from app.rms.observability import record_audit
 from app.rms.rate_limit import read_rate_limit_dependency
-from app.rms.nav import status_es
 from app.services.template_render import render
 
 router = APIRouter(prefix="/clientes", dependencies=[Depends(require_login)])
 
 # P3 profile batch: closed vocabularies for the profile form
-ALLOWED_HOW_FOUND = frozenset({
-    "instagram", "whatsapp", "recomendacion", "local", "otro",
-})
-ALLOWED_CHANNELS = frozenset({
-    "whatsapp", "llamada", "instagram", "presencial",
-})
+ALLOWED_HOW_FOUND = frozenset(
+    {
+        "instagram",
+        "whatsapp",
+        "recomendacion",
+        "local",
+        "otro",
+    }
+)
+ALLOWED_CHANNELS = frozenset(
+    {
+        "whatsapp",
+        "llamada",
+        "instagram",
+        "presencial",
+    }
+)
 
 
 PAGE_SIZE = 50
@@ -85,6 +96,7 @@ def cliente_new_submit(
     who clicks the topbar "+ Cliente" link. Returns 422-style form re-render
     with `error` when validation fails; otherwise 303 to /clientes/{id}.
     """
+    from app.rms.customers import ensure_customer
     from app.rms.validation import (
         optional_text,
         require_text,
@@ -92,7 +104,6 @@ def cliente_new_submit(
         validate_email,
         validate_phone,
     )
-    from app.rms.customers import ensure_customer
 
     try:
         clean_name = require_text(name, field="nombre", max_len=120)
@@ -107,9 +118,13 @@ def cliente_new_submit(
             "clientes_nuevo.html",
             {
                 "form": {
-                    "name": name, "phone": phone, "email": email,
-                    "cedula": cedula, "notes": notes,
-                    "birthday": birthday, "how_found": how_found,
+                    "name": name,
+                    "phone": phone,
+                    "email": email,
+                    "cedula": cedula,
+                    "notes": notes,
+                    "birthday": birthday,
+                    "how_found": how_found,
                     "preferred_channel": preferred_channel,
                     "marketing_consent": bool(marketing_consent),
                 },
@@ -338,9 +353,17 @@ def clientes_list(
                 "email": (cust_by_id[r["id"]].email if r["id"] in cust_by_id else "") or "",
                 "birthday": (cust_by_id[r["id"]].birthday if r["id"] in cust_by_id else "") or "",
                 "how_found": (cust_by_id[r["id"]].how_found if r["id"] in cust_by_id else "") or "",
-                "preferred_channel": (cust_by_id[r["id"]].preferred_channel if r["id"] in cust_by_id else "") or "",
-                "marketing_consent": "si" if (r["id"] in cust_by_id and cust_by_id[r["id"]].marketing_consent) else "no",
-                "dietary_restrictions": (cust_by_id[r["id"]].dietary_restrictions if r["id"] in cust_by_id else "") or "",
+                "preferred_channel": (
+                    cust_by_id[r["id"]].preferred_channel if r["id"] in cust_by_id else ""
+                )
+                or "",
+                "marketing_consent": "si"
+                if (r["id"] in cust_by_id and cust_by_id[r["id"]].marketing_consent)
+                else "no",
+                "dietary_restrictions": (
+                    cust_by_id[r["id"]].dietary_restrictions if r["id"] in cust_by_id else ""
+                )
+                or "",
                 "n_sales": r["n_sales"],
                 "lifetime_spend_gs": r["lifetime_spend_gs"],
                 "tier": r["tier"],
@@ -382,23 +405,16 @@ def clientes_list(
     # P3 profile batch: data-completion nudge — counts of clients missing
     # key contact data, so the operator knows whose profile to fill next.
     nudge = {
-        "sin_telefono": sum(
-            1 for c in all_customers if not (c.phone or "").strip()
-        ),
-        "sin_dietary": sum(
-            1 for c in all_customers if not (c.dietary_restrictions or "").strip()
-        ),
+        "sin_telefono": sum(1 for c in all_customers if not (c.phone or "").strip()),
+        "sin_dietary": sum(1 for c in all_customers if not (c.dietary_restrictions or "").strip()),
         "sin_direccion": sum(
-            1 for c in all_customers
+            1
+            for c in all_customers
             if not session.scalar(
-                select(CustomerAddress.id).where(
-                    CustomerAddress.customer_id == c.id
-                ).limit(1)
+                select(CustomerAddress.id).where(CustomerAddress.customer_id == c.id).limit(1)
             )
         ),
-        "sin_consent": sum(
-            1 for c in all_customers if not c.marketing_consent
-        ),
+        "sin_consent": sum(1 for c in all_customers if not c.marketing_consent),
     }
     return render(
         request,
@@ -485,6 +501,7 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
             redeemed_on_last_visit,
             suggest_for_customer,
         )
+
         # Detect "redeemed_on_last_visit": did the customer's most
         # recent sale have a 'redeem' LoyaltyTransaction row? If so,
         # skip the POINTS-DORMANT nudge (they're already redeeming).
@@ -498,7 +515,9 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
         # later than they should, off-by-one on every LAPSED + birthday
         # rule.
         from datetime import datetime
+
         from app.rms.config import ASUNCION_TZ
+
         today_asuncion = datetime.now(ASUNCION_TZ).date()
         suggestions_raw = suggest_for_customer(
             c,
@@ -528,7 +547,9 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
     # for the customer. The cashier sees them on /clientes/{id}; the
     # /pedidos/nuevo prefill also reads them from the same helper. We
     # keep the JSON-API surface aligned with the HTML surface.
-    from app.rms.models import CustomerAddress as _CA, CustomerInvoiceProfile as _CIP
+    from app.rms.models import CustomerAddress as _CA
+    from app.rms.models import CustomerInvoiceProfile as _CIP
+
     profiles = session.scalars(
         select(_CIP)
         .where(_CIP.customer_id == c.id)
@@ -536,9 +557,7 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
         .order_by(_CIP.is_default.desc(), _CIP.alias)
     ).all()
     addresses = session.scalars(
-        select(_CA)
-        .where(_CA.customer_id == c.id)
-        .order_by(_CA.is_default.desc(), _CA.id)
+        select(_CA).where(_CA.customer_id == c.id).order_by(_CA.is_default.desc(), _CA.id)
     ).all()
     return {
         "id": c.id,
@@ -793,7 +812,6 @@ def customer_search_api(
                 # Pedido form prefills: facturación defaults (P3 profile)
                 "invoice_ruc": c.invoice_ruc or c.cedula or "",
                 "invoice_name": c.invoice_name or "",
-                "email": c.email or "",
                 "dietary_restrictions": [
                     t for t in (c.dietary_restrictions or "").split(",") if t.strip()
                 ],
@@ -956,7 +974,7 @@ async def log_suggestion_applied(
         form = None
         if is_form:
             form = await request.form()
-            kind = (str(form.get("kind") or "unknown").strip() or "unknown")
+            kind = str(form.get("kind") or "unknown").strip() or "unknown"
             pct_raw = form.get("discount_pct")
             if pct_raw and str(pct_raw).strip().lstrip("-").isdigit():
                 pct = int(str(pct_raw).strip())
@@ -966,14 +984,15 @@ async def log_suggestion_applied(
             # JSON path (customer_picker.js uses keepalive fetch)
             try:
                 payload = await request.json()
-            except Exception:
+            except Exception:  # noqa: BLE001 — defensive: malformed JSON body just means empty payload
                 payload = {}
-            kind = (str((payload or {}).get("kind") or "unknown").strip() or "unknown")
+            kind = str((payload or {}).get("kind") or "unknown").strip() or "unknown"
             pct = (payload or {}).get("discount_pct")
             actor = str((payload or {}).get("actor") or "operator")
 
         from app.rms.db import safe_commit as _safe_commit
         from app.rms.loyalty.ledger import _record_ledger
+
         _record_ledger(
             session,
             cust,
@@ -987,9 +1006,7 @@ async def log_suggestion_applied(
         # 200 OK — JS doesn't need the response body
         return JSONResponse({"ok": True}, status_code=200)
     except Exception:
-        logger.exception(
-            "log_suggestion_applied failed for customer_id=%s", customer_id
-        )
+        logger.exception("log_suggestion_applied failed for customer_id=%s", customer_id)
         # Swallow — caller doesn't care
         return JSONResponse({"error": "internal"}, status_code=500)
 
@@ -1021,32 +1038,31 @@ def cliente_detail(
     # Undefined → EVERY row rendered "(eliminado)". decorate_history snapshots
     # the live product name; "(eliminado #id)" if a product ever goes missing.
     from app.rms.customers import decorate_history
+
     history_view = decorate_history(session, history)
 
     # Loyalty ledger (Phase 4, 2026-10-01): show the last 20 point
-    # movements so Saskia can answer "por qué María tiene 47 puntos?".
+    # movements so the operator can answer "por qué María tiene 47 puntos?".
     # The full ledger is the source of truth; the cached
     # Customer.loyalty_points column is shown as the balance.
     from app.rms.models import LoyaltyTransaction
+
     recent_loyalty = session.scalars(
         select(LoyaltyTransaction)
         .where(LoyaltyTransaction.customer_id == customer.id)
         .order_by(LoyaltyTransaction.recorded_at.desc())
-        # P4.1: cap inline ledger at 5; show "Ver todo" link to the
-        # full history. Full list is on the /clientes/{id}/loyalty
-        # page (or ?loyalty=full anchor expansion — tracked).
-        .limit(5)
+        .limit(20)
     ).all()
-    loyalty_total = session.scalar(
-        select(func.count(LoyaltyTransaction.id))
-        .where(LoyaltyTransaction.customer_id == customer.id)
-    ) or 0
 
     # Tier badge days-since-last-sale: SQLite returns NAIVE datetimes while
     # now() is aware — subtracting them raises TypeError (500 on
     # /clientes/{id}, ref 9da40358ea00). Normalize both to aware-UTC here
     # so the template only does integer comparison.
-    last_sale_at = stats.get("last_sale_at") if isinstance(stats, dict) else getattr(stats, "last_sale_at", None)
+    last_sale_at = (
+        stats.get("last_sale_at")
+        if isinstance(stats, dict)
+        else getattr(stats, "last_sale_at", None)
+    )
     last_days = 999
     if last_sale_at is not None:
         if last_sale_at.tzinfo is None:
@@ -1054,6 +1070,7 @@ def cliente_detail(
         last_days = (datetime.now(timezone.utc) - last_sale_at).days
 
     from app.rms.customer_dietary import load_profile
+
     profile = load_profile(
         customer.dietary_restrictions,
         customer.dietary_preferences,
@@ -1061,7 +1078,7 @@ def cliente_detail(
     )
 
     # BACKLOG #27 (2026-10-01): Sale.tz is recorded but never queried.
-    # Expose a tz breakdown on the cliente detail so Saskia can answer
+    # Expose a tz breakdown on the cliente detail so the operator can answer
     # "¿en qué zona compra más este cliente?" — useful when migrating to
     # multi-location and for fraud-spotting (a customer suddenly shopping
     # from a tz they never used before is a stolen-points red flag).
@@ -1080,7 +1097,9 @@ def cliente_detail(
         # unit_price_gs × qty — Sale.unit_price_gs is the line price at
         # time of sale; for the cliente detail we use line total. If you
         # need sale-grouped totals use the JOIN in app/rms/reports.py.
-        bucket["total_gs"] += int(getattr(sale, "unit_price_gs", 0) * float(getattr(sale, "qty", 0)))
+        bucket["total_gs"] += int(
+            getattr(sale, "unit_price_gs", 0) * float(getattr(sale, "qty", 0))
+        )
     # Stable order: most-used tz first
     tz_breakdown_sorted = sorted(
         tz_breakdown.items(),
@@ -1092,6 +1111,7 @@ def cliente_detail(
     # Suscripción activa: semanal · sábados" pill with a click-to-create
     # pedido button that pre-fills the product summary as a note.
     from app.rms.models import Suscripcion
+
     active_subs = session.scalars(
         select(Suscripcion)
         .where(Suscripcion.customer_id == customer.id)
@@ -1112,7 +1132,8 @@ def cliente_detail(
     # history) so we get consistent rankings across pages.
     from sqlalchemy import func as sa_func
 
-    from app.rms.models import Product as ProductModel, Sale as SaleModel
+    from app.rms.models import Product as ProductModel
+    from app.rms.models import Sale as SaleModel
 
     top_products_rows = session.execute(
         select(
@@ -1149,8 +1170,6 @@ def cliente_detail(
             "history": history,
             "history_view": history_view,
             "recent_loyalty": recent_loyalty,
-            # P4.1: total loyalty count for "Ver todo (N)" link.
-            "loyalty_total": loyalty_total,
             "dietary_profile": profile,
             "now_iso": datetime.now(timezone.utc).isoformat(),
             "last_days": last_days,
@@ -1183,7 +1202,7 @@ async def cliente_redeem_points(
 ) -> RedirectResponse:
     """Manually redeem loyalty points from the customer detail page.
 
-    Used by Saskia for the "vení mañana que te descuento" case — the
+    Used by the operator for the "vení mañana que te descuento" case — the
     POS path is /ventas (with customer attached). This endpoint records
     the redemption as a ledger row with reason='redeem' (sale_id is
     NULL because no sale is tied to it; it's a manual goodwill redeem).
@@ -1224,7 +1243,7 @@ async def cliente_redeem_points(
             actor=str(current_user_id(request) or "operator"),
             notes=notes,
         )
-    except ValueError as e:
+    except ValueError:
         # Insufficient points (most common). Flash and redirect.
         return RedirectResponse(
             url=f"/clientes/{customer_id}?flash=points_insufficient",
@@ -1232,56 +1251,11 @@ async def cliente_redeem_points(
         )
 
     from app.rms.db import safe_commit as _safe_commit
+
     _safe_commit(session)
     return RedirectResponse(
         url=f"/clientes/{customer_id}?flash=points_redeemed:{redeemed}:{discount_gs}",
         status_code=status.HTTP_303_SEE_OTHER,
-    )
-
-
-# P5: full loyalty ledger page (the "Ver todo" target from /clientes/{id}).
-# No row cap — operators need to see the entire history when a customer
-# disputes a point balance or asks for a manual adjustment audit.
-@router.get("/{customer_id}/loyalty", response_class=HTMLResponse)
-def cliente_loyalty(
-    request: Request,
-    customer_id: int,
-    session: Session = Depends(get_session),
-) -> HTMLResponse:
-    """Full loyalty ledger for one customer. Used from the
-    'Ver todo (N)' link on the customer detail page."""
-    customer = session.get(Customer, customer_id)
-    if customer is None:
-        return StarletteRedirectResponse(url="/clientes", status_code=303)
-    from app.rms.models import LoyaltyTransaction
-    from sqlalchemy import select as _select
-
-    full_loyalty = session.scalars(
-        _select(LoyaltyTransaction)
-        .where(LoyaltyTransaction.customer_id == customer_id)
-        .order_by(LoyaltyTransaction.recorded_at.desc())
-    ).all()
-
-    # Aggregate stats for the header.
-    total_earned = sum(t.delta for t in full_loyalty if t.delta > 0)
-    total_redeemed = -sum(t.delta for t in full_loyalty if t.delta < 0)
-    # P5: read current balance from the loyalty_points cache column.
-    # (Source of truth is the ledger; this column is kept in sync by
-    # award_points() in app/rms/customers.py — not touched here.)
-    balance = customer.loyalty_points or 0
-
-    from app.services.template_render import render as _render
-    return _render(
-        request,
-        "cliente_loyalty.html",
-        {
-            "customer": customer,
-            "full_loyalty": full_loyalty,
-            "loyalty_count": len(full_loyalty),
-            "total_earned": total_earned,
-            "total_redeemed": total_redeemed,
-            "balance": balance,
-        },
     )
 
 
@@ -1297,24 +1271,28 @@ def cliente_edit(
         return StarletteRedirectResponse(url="/clientes", status_code=303)
     from app.rms.customer_dietary import load_profile
     from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
+
     profile = load_profile(
         customer.dietary_restrictions,
         customer.dietary_preferences,
         customer.dietary_confirm_always,
     )
     from app.rms.models import CustomerAddress
+
     addresses = session.scalars(
         select(CustomerAddress)
         .where(CustomerAddress.customer_id == customer_id)
         .order_by(CustomerAddress.is_default.desc(), CustomerAddress.id)
     ).all()
     from app.rms.models import DeliveryZone
+
     zones = session.scalars(
         select(DeliveryZone).where(DeliveryZone.is_active.is_(True)).order_by(DeliveryZone.position)
     ).all()
     zone_names = {z.id: z.name for z in zones}
     # Phase 14 (2026-10-01): invoice profiles for the management fieldset
     from app.rms.models import CustomerInvoiceProfile
+
     invoice_profiles = session.scalars(
         select(CustomerInvoiceProfile)
         .where(CustomerInvoiceProfile.customer_id == customer_id)
@@ -1345,7 +1323,6 @@ async def address_create_api(
     session: Session = Depends(get_session),
 ) -> JSONResponse:
     """P3 profile: add a delivery address from the client edit form."""
-    import json as _json
 
     from app.rms.models import CustomerAddress
 
@@ -1383,9 +1360,15 @@ async def address_create_api(
         detail={"address_added": label},
     )
     session.commit()
-    return JSONResponse({"id": addr.id, "label": addr.label,
-                         "address_text": addr.address_text,
-                         "zone_id": addr.zone_id, "is_default": addr.is_default})
+    return JSONResponse(
+        {
+            "id": addr.id,
+            "label": addr.label,
+            "address_text": addr.address_text,
+            "zone_id": addr.zone_id,
+            "is_default": addr.is_default,
+        }
+    )
 
 
 @router.delete("/api/{customer_id}/addresses/{address_id}", response_class=JSONResponse)
@@ -1413,7 +1396,6 @@ def address_delete_api(
     )
     session.commit()
     return JSONResponse({"ok": True})
-
 
 
 @router.post("/{customer_id}/editar")
@@ -1447,129 +1429,64 @@ def cliente_update(
         validate_phone,
     )
 
-    # P3.1: server-side validation should re-render the form with
-    # preserved values, not raise HTTPException 400 (which loses input).
-    from fastapi import HTTPException as _HE
-
-    form_values = {
-        "name": name, "phone": phone, "email": email,
-        "cedula": cedula, "notes": notes,
-        "birthday": birthday, "how_found": how_found,
-        "preferred_channel": preferred_channel,
-        "marketing_consent": marketing_consent,
-        "invoice_name": invoice_name, "invoice_ruc": invoice_ruc,
-        "dietary_restriction": dietary_restriction,
-        "dietary_prefs_payload": dietary_prefs_payload,
-        "dietary_confirm_always": dietary_confirm_always,
-    }
-    form_error: str | None = None
-
-    def _re_render_edit(error_msg: str) -> object:
-        """Re-render the edit form with preserved values + the error."""
-        from app.rms.customer_dietary import load_profile
-        from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
-        from app.rms.models import CustomerAddress, DeliveryZone, CustomerInvoiceProfile
-
-        # Re-load the data the GET route loads, so the template renders fully.
-        profile = load_profile(
-            customer.dietary_restrictions,
-            customer.dietary_preferences,
-            customer.dietary_confirm_always,
-        )
-        addresses = session.scalars(
-            select(CustomerAddress)
-            .where(CustomerAddress.customer_id == customer_id)
-            .order_by(CustomerAddress.is_default.desc(), CustomerAddress.id)
-        ).all()
-        zones = session.scalars(
-            select(DeliveryZone).where(DeliveryZone.is_active.is_(True)).order_by(DeliveryZone.position)
-        ).all()
-        invoice_profiles_list = session.scalars(
-            select(CustomerInvoiceProfile)
-            .where(CustomerInvoiceProfile.customer_id == customer_id)
-            .where(CustomerInvoiceProfile.is_active.is_(True))
-            .order_by(CustomerInvoiceProfile.is_default.desc(), CustomerInvoiceProfile.alias)
-        ).all()
-
-        return render(
-            request,
-            "cliente_editar.html",
-            {
-                "customer": customer,
-                "dietary_profile": profile,
-                "dietary_tag_options": sorted(CANONICAL_DIETARY_TAGS),
-                "addresses": addresses,
-                "zones": zones,
-                "zone_names": {z.id: z.name for z in zones},
-                "invoice_profiles": invoice_profiles_list,
-                "how_found_options": sorted(ALLOWED_HOW_FOUND),
-                "channel_options": sorted(ALLOWED_CHANNELS),
-                "form_values": form_values,
-                "form_error": error_msg,
-            },
-        )
-
     customer = session.get(Customer, customer_id)
     if customer is None:
         return RedirectResponse(url="/clientes", status_code=303)
+    customer.name = require_text(name, field="nombre", max_len=120)
+    customer.phone = validate_phone(phone)
+    customer.email = validate_email(email)
+    customer.cedula = validate_cedula(cedula)
+    customer.notes = optional_text(notes, max_len=2000)
 
-    # Run validations inside a single try-block so we re-render on any failure.
+    # P3 dietary profile: restrictions (canonical tags, cleaned), ordered
+    # preferences (JSON), confirm-always flag.
+    from app.rms.customer_dietary import (
+        format_preferences,
+        format_restrictions,
+        parse_preferences,
+    )
+    from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
+
+    clean_restrictions = [
+        r.strip() for r in dietary_restriction if r.strip() in CANONICAL_DIETARY_TAGS
+    ]
+    customer.dietary_restrictions = format_restrictions(clean_restrictions) or None
     try:
-        customer.name = require_text(name, field="nombre", max_len=120)
-        customer.phone = validate_phone(phone)
-        customer.email = validate_email(email)
-        customer.cedula = validate_cedula(cedula)
-        customer.notes = optional_text(notes, max_len=2000)
+        prefs = parse_preferences(dietary_prefs_payload)
+    except Exception:  # noqa: BLE001 — malformed JSON from a stale tab
+        prefs = []
+    customer.dietary_preferences = format_preferences(prefs) if prefs else None
+    customer.dietary_confirm_always = dietary_confirm_always == "1"
 
-        # P3 dietary profile: restrictions (canonical tags, cleaned), ordered
-        # preferences (JSON), confirm-always flag.
-        from app.rms.customer_dietary import (
-            format_preferences,
-            format_restrictions,
-            parse_preferences,
-        )
-        from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
+    # P3 profile batch
+    # Birthday: accept DD-MM or DD-MM-AAAA (as hinted in the form) and
+    # normalize to MM-DD for the dashboard's month-day comparison.
+    import re as _re
 
-        clean_restrictions = [
-            r.strip() for r in dietary_restriction
-            if r.strip() in CANONICAL_DIETARY_TAGS
-        ]
-        customer.dietary_restrictions = format_restrictions(clean_restrictions) or None
-        try:
-            prefs = parse_preferences(dietary_prefs_payload)
-        except Exception:  # noqa: BLE001 — malformed JSON from a stale tab
-            prefs = []
-        customer.dietary_preferences = format_preferences(prefs) if prefs else None
-        customer.dietary_confirm_always = dietary_confirm_always == "1"
+    from app.rms.validation import optional_choice
 
-        # P3 profile batch
-        from app.rms.validation import optional_choice
-        # Birthday: accept DD-MM or DD-MM-AAAA (as hinted in the form) and
-        # normalize to MM-DD for the dashboard's month-day comparison.
-        import re as _re
-        bd = (birthday or "").strip()
-        if bd:
-            m_bd = _re.match(r"^(\d{1,2})-(\d{1,2})(?:-(\d{4}))?$", bd)
-            if not m_bd:
-                raise _HE(status_code=400, detail="Cumpleaños inválido: usá DD-MM o DD-MM-AAAA")
-            dd, mm = int(m_bd.group(1)), int(m_bd.group(2))
-            if not (1 <= dd <= 31 and 1 <= mm <= 12):
-                raise _HE(status_code=400, detail="Cumpleaños inválido: día/mes fuera de rango")
-            customer.birthday = f"{mm:02d}-{dd:02d}"
-        else:
-            customer.birthday = None
-        customer.how_found = optional_choice(
-            how_found, ALLOWED_HOW_FOUND, field="how_found"
-        )
-        customer.preferred_channel = optional_choice(
-            preferred_channel, ALLOWED_CHANNELS, field="canal preferido"
-        )
-        customer.marketing_consent = marketing_consent == "1"
-        customer.invoice_name = optional_text(invoice_name, max_len=120)
-        customer.invoice_ruc = optional_text(invoice_ruc, max_len=20)
-    except _HE as e:
-        # Re-render the form with the user's typed values + the error.
-        return _re_render_edit(str(e.detail))
+    bd = (birthday or "").strip()
+    if bd:
+        m_bd = _re.match(r"^(\d{1,2})-(\d{1,2})(?:-(\d{4}))?$", bd)
+        if not m_bd:
+            from fastapi import HTTPException as _HE
+
+            raise _HE(status_code=400, detail="Cumpleaños inválido: usá DD-MM o DD-MM-AAAA")
+        dd, mm = int(m_bd.group(1)), int(m_bd.group(2))
+        if not (1 <= dd <= 31 and 1 <= mm <= 12):
+            from fastapi import HTTPException as _HE
+
+            raise _HE(status_code=400, detail="Cumpleaños inválido: día/mes fuera de rango")
+        customer.birthday = f"{mm:02d}-{dd:02d}"
+    else:
+        customer.birthday = None
+    customer.how_found = optional_choice(how_found, ALLOWED_HOW_FOUND, field="how_found")
+    customer.preferred_channel = optional_choice(
+        preferred_channel, ALLOWED_CHANNELS, field="canal preferido"
+    )
+    customer.marketing_consent = marketing_consent == "1"
+    customer.invoice_name = optional_text(invoice_name, max_len=120)
+    customer.invoice_ruc = optional_text(invoice_ruc, max_len=20)
     session.commit()
     record_audit(
         request,
@@ -1580,15 +1497,9 @@ def cliente_update(
         detail={"name": customer.name},
     )
     session.commit()
-    # P3.7: respect the operator's chosen redirect target
-    # (default = back to detail; "stay" = back to edit).
-    intent = (str(form.get("intent") or "back")).strip()
-    redirect_to = (str(form.get("redirect_to") or "")).strip()
-    if intent == "stay" and redirect_to.startswith(f"/clientes/{customer_id}/editar"):
-        url = f"/clientes/{customer_id}/editar?flash=Cliente+actualizado"
-    else:
-        url = f"/clientes/{customer_id}?flash=Cliente+actualizado"
-    return RedirectResponse(url=url, status_code=303)
+    return RedirectResponse(
+        url=f"/clientes/{customer_id}?flash=Cliente+actualizado", status_code=303
+    )
 
 
 @router.post("/bulk-eliminar")
@@ -1697,10 +1608,7 @@ def cliente_merge(
         target_type="customer",
         target_id=target_id,
         detail={
-            "sources": [
-                {"id": s.from_id, "name": s.from_name}
-                for s in result.sources_merged
-            ],
+            "sources": [{"id": s.from_id, "name": s.from_name} for s in result.sources_merged],
             "sales_reassigned": sum(s.sales_reassigned for s in result.sources_merged),
             "pedidos_reassigned": sum(s.pedidos_reassigned for s in result.sources_merged),
             "phone_filled_from_source": result.phone_filled_from_source,
@@ -1732,7 +1640,7 @@ async def invoice_profile_create_api(
     session: Session = Depends(get_session),
 ) -> JSONResponse:
     """Add a new invoice profile (RUC/CI + razón social + tipo)."""
-    import json as _json
+
     from app.rms.models import CustomerInvoiceProfile
 
     cust = session.get(Customer, customer_id)
@@ -1746,9 +1654,7 @@ async def invoice_profile_create_api(
     name = str(payload.get("razon_social", "")).strip()
     alias = str(payload.get("alias", "")).strip() or name[:32] or "Perfil"
     if not ruc or not name:
-        return JSONResponse(
-            {"error": "ruc_ci + razon_social required"}, status_code=400
-        )
+        return JSONResponse({"error": "ruc_ci + razon_social required"}, status_code=400)
     tipo_doc = str(payload.get("tipo_documento", "CI_PARAGUAYA")).strip()
     tipo_op = str(payload.get("tipo_operacion", "B2C")).strip()
     # First profile becomes the default automatically.
@@ -1829,9 +1735,7 @@ def invoice_profile_delete_api(
     if prof is None or prof.customer_id != customer_id:
         return JSONResponse({"error": "not_found"}, status_code=404)
     if prof.is_default:
-        return JSONResponse(
-            {"error": "cannot_delete_default"}, status_code=400
-        )
+        return JSONResponse({"error": "cannot_delete_default"}, status_code=400)
     prof.is_active = False
     session.commit()
     return JSONResponse({"ok": True})

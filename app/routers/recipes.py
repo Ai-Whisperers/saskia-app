@@ -10,7 +10,12 @@ only handles single values.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
 from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -47,19 +52,9 @@ from app.services.template_render import render
 router = APIRouter(prefix="/recetas", dependencies=[Depends(require_login)])
 
 
-def _format_total_minutes(total_minutes: int | None) -> str:
-    """Format total minutes as 'Xh YYm' or 'Sin definir' if None."""
-    if total_minutes is None:
-        return "Sin definir"
-    hours = total_minutes // 60
-    minutes = total_minutes % 60
-    if hours > 0:
-        return f"{hours}h {minutes}m"
-    else:
-        return f"{minutes}m"
-
-
-def _decorate(session: Session, r: Recipe, batch: CostResult, unit: CostResult | None, line_count: int) -> dict:
+def _decorate(
+    session: Session, r: Recipe, batch: CostResult, unit: CostResult | None, line_count: int
+) -> dict:
     """Compute batch + unit cost for a recipe row (data passed in from batch loader)."""
     total_minutes = (
         (r.prep_minutes or 0) + (r.cook_minutes or 0) if (r.prep_minutes or r.cook_minutes) else None
@@ -96,11 +91,21 @@ async def recipes_list(
     request: Request,
     q: str = Query("", description="Search by recipe name"),
     familia: str = Query("", description="Filter by recipe family (comma-separated, OR semantics)"),
-    dificultad: str = Query("", description="Filter by difficulty 1-5, comma-separated multi (P3 UX batch)"),
-    dieteticas: str = Query("", description="Filter by dietary tags (comma-separated, AND semantics)"),
+    dificultad: str = Query(
+        "", description="Filter by difficulty 1-5, comma-separated multi (P3 UX batch)"
+    ),
+    dieteticas: str = Query(
+        "", description="Filter by dietary tags (comma-separated, AND semantics)"
+    ),
     ingredient_id: str = Query("", description="Filter by single ingredient ID (legacy)"),
-    ingredient_ids: str = Query("", description="Filter by multiple ingredient IDs (comma-separated). US 3.2: AND semantics — recipe must use ALL selected."),
-    sort: str = Query("name", pattern="^(name|yield_qty|batch_cost_gs|unit_cost_gs|prep_minutes|cook_minutes|difficulty|line_count)$"),
+    ingredient_ids: str = Query(
+        "",
+        description="Filter by multiple ingredient IDs (comma-separated). US 3.2: AND semantics — recipe must use ALL selected.",
+    ),
+    sort: str = Query(
+        "name",
+        pattern="^(name|yield_qty|batch_cost_gs|unit_cost_gs|prep_minutes|cook_minutes|difficulty|line_count)$",
+    ),
     dir: str = Query("asc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(50, ge=1, le=200, description="Items per page"),
@@ -153,7 +158,12 @@ async def recipes_list(
     # Base query — first count for pagination
     familias_sel = [x.strip() for x in familia.split(",") if x.strip()]
     # Accept both ?dificultad=1&dificultad=3 (repeated) and ?dificultad=1,3
-    dif_sel = [d.strip() for d in request.query_params.getlist("dificultad") for d in d.split(",") if d.strip()]
+    dif_sel = [
+        d.strip()
+        for d in request.query_params.getlist("dificultad")
+        for d in d.split(",")
+        if d.strip()
+    ]
     diet_sel = [x.strip() for x in dieteticas.split(",") if x.strip()]
 
     count_stmt = select(func.count(Recipe.id))
@@ -166,10 +176,7 @@ async def recipes_list(
         count_stmt = count_stmt.where(
             _or(
                 Recipe.family.in_(familias_sel),
-                *[
-                    Recipe.menu_tags.ilike(f"%{tag}%")
-                    for tag in familias_sel
-                ],
+                *[Recipe.menu_tags.ilike(f"%{tag}%") for tag in familias_sel],
             )
         )
     if dif_sel:
@@ -186,6 +193,7 @@ async def recipes_list(
         # AND semantics: recipe must use ALL of these ingredients.
         # Subquery: pick recipe_ids that have N distinct line_ref_id matches.
         from sqlalchemy import func as _func
+
         match_subq = (
             select(RecipeLine.recipe_id)
             .where(
@@ -212,10 +220,7 @@ async def recipes_list(
         stmt = stmt.where(
             _or(
                 Recipe.family.in_(familias_sel),
-                *[
-                    Recipe.menu_tags.ilike(f"%{tag}%")
-                    for tag in familias_sel
-                ],
+                *[Recipe.menu_tags.ilike(f"%{tag}%") for tag in familias_sel],
             )
         )
     if dif_sel:
@@ -231,6 +236,7 @@ async def recipes_list(
     # Ingredient filter: find recipes that use ALL of these ingredients
     if ing_id_ints:
         from sqlalchemy import func as _func
+
         match_subq = (
             select(RecipeLine.recipe_id)
             .where(
@@ -256,12 +262,12 @@ async def recipes_list(
 
     # Pagination
     offset = (page - 1) * page_size
-    recipes = session.scalars(
-        stmt.distinct().offset(offset).limit(page_size)
-    ).all()
+    recipes = session.scalars(stmt.distinct().offset(offset).limit(page_size)).all()
     batch_results = batch_recipes_cost(session, list(recipes))
     decorated = [
-        _decorate(session, r, batch_results[r.id][0], batch_results[r.id][1], batch_results[r.id][2])
+        _decorate(
+            session, r, batch_results[r.id][0], batch_results[r.id][1], batch_results[r.id][2]
+        )
         for r in recipes
     ]
 
@@ -285,42 +291,55 @@ async def recipes_list(
     # Ingredient list for filter dropdown
     all_ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
 
-    from app.rms.tagging import list_tags_for_kind
-    all_families = sorted({f for f, in session.execute(select(Recipe.family).where(Recipe.family.is_not(None)).distinct()) if f})
+    from app.rms.tags import list_tags_for_kind
+
+    all_families = sorted(
+        {
+            f
+            for (f,) in session.execute(
+                select(Recipe.family).where(Recipe.family.is_not(None)).distinct()
+            )
+            if f
+        }
+    )
     all_tags = [t.name for t in list_tags_for_kind(session, "recipe")]
     total_all = session.scalar(select(func.count(Recipe.id))) or 0
-    return render(request, "recetas.html", {
-        "recipes": decorated,
-        "q": q,
-        "familias_sel": familias_sel,
-        "dif_sel": dif_sel,
-        "ing_multi_sel": [str(i) for i in ing_id_ints],
-        "diet_sel": diet_sel,
-        "all_families": all_families,
-        "all_recipe_tags": all_tags,
-        "total_all": total_all,
-        "ingredient_id": ing_id_ints[0] if ing_id_ints else "",
-        "ingredient_ids": ",".join(str(i) for i in ing_id_ints),
-        "sort": sort,
-        "dir": dir,
-        "ingredients": all_ingredients,
-        "total": len(decorated),
-        "pagination": {
-            "total_count": total_count,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": max(1, (total_count + page_size - 1) // page_size),
+    return render(
+        request,
+        "recetas.html",
+        {
+            "recipes": decorated,
+            "q": q,
+            "familias_sel": familias_sel,
+            "dif_sel": dif_sel,
+            "ing_multi_sel": [str(i) for i in ing_id_ints],
+            "diet_sel": diet_sel,
+            "all_families": all_families,
+            "all_recipe_tags": all_tags,
+            "total_all": total_all,
+            "ingredient_id": ing_id_ints[0] if ing_id_ints else "",
+            "ingredient_ids": ",".join(str(i) for i in ing_id_ints),
+            "sort": sort,
+            "dir": dir,
+            "ingredients": all_ingredients,
+            "total": len(decorated),
+            "pagination": {
+                "total_count": total_count,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": max(1, (total_count + page_size - 1) // page_size),
+            },
+            "page_start": offset + 1 if decorated else 0,
+            "page_end": offset + len(decorated),
         },
-        "page_start": offset + 1 if decorated else 0,
-        "page_end": offset + len(decorated),
-    })
+    )
 
 
 @router.get("/nueva", response_class=HTMLResponse)
 async def recipe_new(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     """Show new-recipe form. Passes DB-driven catalogs:
-      - recipe_families: rows from `category` WHERE scope='recipe_family'
-      - dietary_tags: rows from `tag` WHERE kind='recipe'
+    - recipe_families: rows from `category` WHERE scope='recipe_family'
+    - dietary_tags: rows from `tag` WHERE kind='recipe'
     """
     from app.rms.categories import list_categories as list_cats
     from app.rms.tagging import list_tags_for_kind
@@ -330,6 +349,7 @@ async def recipe_new(request: Request, session: Session = Depends(get_session)) 
     # totals. preferred_price_gs is what the costing walk uses via
     # current_variant_price() — see app/rms/variants.py.
     from app.rms.variants import current_variant_price as _cvp_new
+
     for _ing in ingredients:
         _vp = _cvp_new(session, _ing.id)
         _ing.preferred_price_gs = int(_vp) if _vp else (_ing.purchase_price_gs or 0)
@@ -355,11 +375,7 @@ async def recipe_new(request: Request, session: Session = Depends(get_session)) 
                     for t in r_row.split(",")
                     if t.strip()
                 }
-                | {
-                    r_row
-                    for r_row in session.scalars(select(Recipe.family)).all()
-                    if r_row
-                }
+                | {r_row for r_row in session.scalars(select(Recipe.family)).all() if r_row}
             ),
         },
     )
@@ -434,7 +450,9 @@ async def recipe_create(
     # Validate: at least one valid line must exist
     valid_line_count = 0
     for i, kind in enumerate(form.getlist("line_kind")):
-        target = form.getlist("line_target_id")[i] if i < len(form.getlist("line_target_id")) else ""
+        target = (
+            form.getlist("line_target_id")[i] if i < len(form.getlist("line_target_id")) else ""
+        )
         qty_raw = form.getlist("line_qty")[i] if i < len(form.getlist("line_qty")) else ""
         try:
             if str(kind).strip() and str(target).strip() and float(str(qty_raw).strip()) > 0:
@@ -450,6 +468,7 @@ async def recipe_create(
     if skipped and valid_line_count == 0:
         session.rollback()
         from fastapi import HTTPException as _HTTPExc
+
         detail = "Algunas líneas no se pudieron guardar. " + "; ".join(skipped[:5])
         if len(skipped) > 5:
             detail += f" (y {len(skipped) - 5} más)"
@@ -459,6 +478,7 @@ async def recipe_create(
         # Roll back so the operator can fix and retry without orphans.
         session.rollback()
         from fastapi import HTTPException as _HTTPExc
+
         detail = "Algunas líneas no se pudieron guardar. " + "; ".join(skipped[:5])
         if len(skipped) > 5:
             detail += f" (y {len(skipped) - 5} más)"
@@ -468,9 +488,7 @@ async def recipe_create(
     cycle = _detect_sub_recipe_cycle(session, recipe.id)
     if cycle:
         session.rollback()
-        session.execute(
-            select(Recipe.name).where(Recipe.id.in_(cycle))
-        ).scalars().all()
+        session.execute(select(Recipe.name).where(Recipe.id.in_(cycle))).scalars().all()
         raise HTTPException(
             status_code=400,
             detail=RECIPE_CYCLE_DETECTED,
@@ -507,6 +525,7 @@ async def recipe_create(
     # cascade to parents, and update linked products' inherited tags.
     try:
         from app.rms.tag_algebra import _product_inherit_sync, cascade_refresh
+
         cascade_refresh(session, recipe_id=recipe.id)
         _product_inherit_sync(session, recipe.id)
         session.commit()
@@ -591,28 +610,31 @@ async def recipe_detail(
 
     # Resolve line targets for display
     from app.rms.costing import resolve_line_target
+
     resolved_lines = []
     for ln in lines:
         target = resolve_line_target(session, ln)
-        resolved_lines.append({
-            "line": ln,
-            "target": target,
-            "target_name": target.name if target else f"#{ln.line_ref_id}",
-            "is_ingredient": ln.line_kind == "ingredient",
-        })
+        resolved_lines.append(
+            {
+                "line": ln,
+                "target": target,
+                "target_name": target.name if target else f"#{ln.line_ref_id}",
+                "is_ingredient": ln.line_kind == "ingredient",
+            }
+        )
 
     # Cost breakdown
     from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
+
     batch_cost = recipe_batch_cost_gs(session, r_id)
     unit_cost = recipe_unit_cost_gs(session, r_id)
 
     # Used by products
-    products_using = session.scalars(
-        select(Product).where(Product.recipe_id == r_id)
-    ).all()
+    products_using = session.scalars(select(Product).where(Product.recipe_id == r_id)).all()
 
     # Tags for this recipe
     from app.rms.models import TagLink
+
     tag_links = session.scalars(
         select(TagLink).where(
             TagLink.target_kind == "recipe",
@@ -623,22 +645,28 @@ async def recipe_detail(
     tags = []
     if tag_ids:
         from app.rms.models import Tag
+
         tags = list(session.scalars(select(Tag).where(Tag.id.in_(tag_ids))))
 
     # Wave 3 — aggregate allergens from all ingredient lines so the recipe
     # detail page can show a "CONTIENE: gluten, dairy, eggs" summary required
     # by INAN Resolución S.G. N° 614/2023 for any retail food product.
     from app.rms.models import Ingredient as _Ingredient
-    ingredient_refs = {
-        ing.id: ing
-        for ing in session.scalars(
-            select(_Ingredient).where(
-                _Ingredient.id.in_([
-                    ln.line_ref_id for ln in r.lines if ln.line_kind == "ingredient"
-                ])
-            )
-        ).all()
-    } if r.lines else {}
+
+    ingredient_refs = (
+        {
+            ing.id: ing
+            for ing in session.scalars(
+                select(_Ingredient).where(
+                    _Ingredient.id.in_(
+                        [ln.line_ref_id for ln in r.lines if ln.line_kind == "ingredient"]
+                    )
+                )
+            ).all()
+        }
+        if r.lines
+        else {}
+    )
     aggregated_allergens: list[str] = []
     seen: set[str] = set()
     for line in r.lines:
@@ -655,41 +683,44 @@ async def recipe_detail(
                 seen.add(a_clean)
                 aggregated_allergens.append(a_clean)
 
-    from app.rms.tag_algebra import derive_recipe_tags as _derive_tags
     # UI-V2 dual view: ?vista=estructural (default, assembly) vs
     # ?vista=consolidada (exploded purchase list). Both computed here;
     # the template toggles which table renders.
     from app.rms.recipes_consolidated import explode_recipe
+    from app.rms.tag_algebra import derive_recipe_tags as _derive_tags
 
     vista = (request.query_params.get("vista") or "estructural").lower()
     if vista not in ("estructural", "consolidada"):
         vista = "estructural"
-    consolidated_lines = (
-        explode_recipe(session, r_id) if vista == "consolidada" else []
-    )
+    consolidated_lines = explode_recipe(session, r_id) if vista == "consolidada" else []
 
     # Parse instructions JSON for template
     recipe_phases = None
     try:
         if r.instructions:
             import json as _json
+
             recipe_phases = _json.loads(r.instructions)
     except Exception:  # noqa: BLE001 — defensive default
         recipe_phases = None
-    return render(request, "receta_detalle.html", {
-        "recipe": r,
-        "recipe_phases": recipe_phases,
-        "tag_derivation": _derive_tags(session, r_id),
-        "vista": vista,
-        "consolidated_lines": consolidated_lines,
-        "derived_tags": [t for t in (r.derived_dietary_tags or "").split(",") if t],
-        "resolved_lines": resolved_lines,
-        "batch_cost": batch_cost,
-        "unit_cost": unit_cost,
-        "products_using": [{"id": p.id, "name": p.name} for p in products_using],
-        "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in tags],
-        "aggregated_allergens": aggregated_allergens,
-    })
+    return render(
+        request,
+        "receta_detalle.html",
+        {
+            "recipe": r,
+            "recipe_phases": recipe_phases,
+            "tag_derivation": _derive_tags(session, r_id),
+            "vista": vista,
+            "consolidated_lines": consolidated_lines,
+            "derived_tags": [t for t in (r.derived_dietary_tags or "").split(",") if t],
+            "resolved_lines": resolved_lines,
+            "batch_cost": batch_cost,
+            "unit_cost": unit_cost,
+            "products_using": [{"id": p.id, "name": p.name} for p in products_using],
+            "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in tags],
+            "aggregated_allergens": aggregated_allergens,
+        },
+    )
 
 
 @router.get("/{r_id}/editar", response_class=HTMLResponse)
@@ -707,6 +738,7 @@ async def recipe_edit(
     # Resolve target names so the form shows "Harina" not "#34"
     from app.rms.costing import resolve_line_target
     from app.rms.variants import current_variant_price
+
     # Unit conversion factors for same-family normalization
     _UF = {"g": 1, "kg": 1000, "ml": 1, "l": 1000, "und": 1, "u": 1, "porcion": 1}
 
@@ -741,7 +773,11 @@ async def recipe_edit(
         lf = _UF.get(lu, 1)
         tf = _UF.get(tu, 1)
         # Same family: weight (g/kg) or volume (ml/l) — normalize
-        if lf != 1 and tf != 1 and (lu in ("und", "u", "porcion")) == (tu in ("und", "u", "porcion")):
+        if (
+            lf != 1
+            and tf != 1
+            and (lu in ("und", "u", "porcion")) == (tu in ("und", "u", "porcion"))
+        ):
             qty_norm = ln.qty * lf / tf
         else:
             qty_norm = ln.qty
@@ -750,7 +786,8 @@ async def recipe_edit(
     lines = []
     for ln in raw_lines:
         target = resolve_line_target(session, ln)
-        lines.append({
+        lines.append(
+            {
                 "id": ln.id,
                 "line_kind": ln.line_kind,
                 "line_ref_id": ln.line_ref_id,
@@ -758,19 +795,21 @@ async def recipe_edit(
                 "line_unit": ln.line_unit,
                 "note": ln.notes,
                 "target_name": target.name if target else f"#{ln.line_ref_id}",
-                "target_unit": target.unit if target and hasattr(target, 'unit') else ln.line_unit,
+                "target_unit": target.unit if target and hasattr(target, "unit") else ln.line_unit,
                 # cost_per_kg_gs: the ingredient's variant-aware purchase price per kg — what JS multiplies by qty_norm
                 # Use current_variant_price so it matches the line cost above AND the
                 # recipe_batch_cost_gs() walk in app/rms/costing.py.
                 "price_per_kg_gs": _variant_price_for_line(session, target, ln),
                 # unit_cost_gs: the normalized line total cost = qty_in_kg × price_per_kg_gs
                 "unit_cost_gs": _line_cost(ln, target),
-            })
+            }
+        )
     ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
     # Attach variant-aware price so the JS live cost matches server-side
     # batch/unit totals. preferred_price_gs is what the costing walk uses
     # via current_variant_price() — see app/rms/variants.py.
     from app.rms.variants import current_variant_price as _cvp
+
     for _ing in ingredients:
         _vp = _cvp(session, _ing.id)
         _ing.preferred_price_gs = int(_vp) if _vp else (_ing.purchase_price_gs or 0)
@@ -780,13 +819,12 @@ async def recipe_edit(
 
     # Cost breakdown for the recipe detail
     from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
+
     batch_cost = recipe_batch_cost_gs(session, r_id)
     unit_cost = recipe_unit_cost_gs(session, r_id)
 
     # Used by products
-    products_using = session.scalars(
-        select(Product).where(Product.recipe_id == r_id)
-    ).all()
+    products_using = session.scalars(select(Product).where(Product.recipe_id == r_id)).all()
 
     # Yield scaling: if scale param is passed, compute scaled quantities
     scale = request.query_params.get("scale", "1")
@@ -813,7 +851,8 @@ async def recipe_edit(
             "unit_cost_gs": unit_cost.batch_cost_gs if unit_cost else None,
             "suggested_price_gs": (
                 int((unit_cost.batch_cost_gs * 3 // 1000) * 1000)
-                if unit_cost and unit_cost.batch_cost_gs else None
+                if unit_cost and unit_cost.batch_cost_gs
+                else None
             ),
             "products_using": [{"id": p.id, "name": p.name} for p in products_using],
             "scale_factor": scale_factor,
@@ -829,11 +868,7 @@ async def recipe_edit(
                     for t in r_row.split(",")
                     if t.strip()
                 }
-                | {
-                    r_row
-                    for r_row in session.scalars(select(Recipe.family)).all()
-                    if r_row
-                }
+                | {r_row for r_row in session.scalars(select(Recipe.family)).all() if r_row}
             ),
         },
     )
@@ -898,7 +933,9 @@ async def recipe_update(
     # Validate: at least one valid line must exist
     valid_line_count = 0
     for i, kind in enumerate(form.getlist("line_kind")):
-        target = form.getlist("line_target_id")[i] if i < len(form.getlist("line_target_id")) else ""
+        target = (
+            form.getlist("line_target_id")[i] if i < len(form.getlist("line_target_id")) else ""
+        )
         qty_raw = form.getlist("line_qty")[i] if i < len(form.getlist("line_qty")) else ""
         try:
             if str(kind).strip() and str(target).strip() and float(str(qty_raw).strip()) > 0:
@@ -914,6 +951,7 @@ async def recipe_update(
     if skipped and valid_line_count == 0:
         session.rollback()
         from fastapi import HTTPException as _HTTPExc
+
         detail = "Algunas líneas no se pudieron guardar. " + "; ".join(skipped[:5])
         if len(skipped) > 5:
             detail += f" (y {len(skipped) - 5} más)"
@@ -921,6 +959,7 @@ async def recipe_update(
     if skipped:
         session.rollback()
         from fastapi import HTTPException as _HTTPExc
+
         detail = "Algunas líneas no se pudieron guardar. " + "; ".join(skipped[:5])
         if len(skipped) > 5:
             detail += f" (y {len(skipped) - 5} más)"
@@ -930,9 +969,7 @@ async def recipe_update(
     cycle = _detect_sub_recipe_cycle(session, r.id)
     if cycle:
         session.rollback()
-        session.execute(
-            select(Recipe.name).where(Recipe.id.in_(cycle))
-        ).scalars().all()
+        session.execute(select(Recipe.name).where(Recipe.id.in_(cycle))).scalars().all()
         raise HTTPException(
             status_code=400,
             detail=RECIPE_CYCLE_DETECTED,
@@ -942,6 +979,7 @@ async def recipe_update(
     # and sync linked products' inherited tags.
     try:
         from app.rms.tag_algebra import _product_inherit_sync, cascade_refresh
+
         refreshed = cascade_refresh(session, recipe_id=r.id)
         for rid in refreshed:
             _product_inherit_sync(session, rid)
@@ -950,9 +988,9 @@ async def recipe_update(
         logger.warning("tag cascade failed for recipe %s: %s", r.id, exc)
         session.rollback()
 
-    line_count = session.scalar(
-        select(func.count(RecipeLine.id)).where(RecipeLine.recipe_id == r.id)
-    ) or 0
+    line_count = (
+        session.scalar(select(func.count(RecipeLine.id)).where(RecipeLine.recipe_id == r.id)) or 0
+    )
     record_audit(
         request,
         session=session,
@@ -985,6 +1023,7 @@ async def recipe_create_product_redirect(
     # Compute suggested price: cost × SettingsKV-configured markup (default 3.0)
     from app.rms.costing import recipe_unit_cost_gs
     from app.rms.settings_runtime import compute_suggested_price, get_pricing_markup
+
     unit = recipe_unit_cost_gs(session, r_id)
     suggested_price = ""
     if unit.batch_cost_gs:
@@ -1045,9 +1084,7 @@ def _apply_lines_from_form(session: Session, recipe_id: int, form: "object") -> 
             qty = float(qty_raw)
             target_id = int(target)
         except ValueError:
-            skipped.append(
-                f"Línea {i + 1}: cantidad '{qty_raw}' o id '{target}' inválidos"
-            )
+            skipped.append(f"Línea {i + 1}: cantidad '{qty_raw}' o id '{target}' inválidos")
             continue
         if qty <= 0:
             skipped.append(f"Línea {i + 1}: cantidad debe ser mayor a 0")
@@ -1132,21 +1169,24 @@ def recipe_effective_ingredients(
     got merged arrive as one row with merged_count > 1.
     """
     from app.rms.recipes_consolidated import explode_recipe
+
     lines = explode_recipe(session, recipe_id)
-    return JSONResponse({
-        "lines": [
-            {
-                "ingredient_id": ln.ingredient_id,
-                "name": ln.name,
-                "unit": ln.unit,
-                "qty": round(ln.qty, 3),
-                "sources": ln.sources,
-                "merged_count": ln.merged_count,
-                "error": ln.error,
-            }
-            for ln in lines
-        ]
-    })
+    return JSONResponse(
+        {
+            "lines": [
+                {
+                    "ingredient_id": ln.ingredient_id,
+                    "name": ln.name,
+                    "unit": ln.unit,
+                    "qty": round(ln.qty, 3),
+                    "sources": ln.sources,
+                    "merged_count": ln.merged_count,
+                    "error": ln.error,
+                }
+                for ln in lines
+            ]
+        }
+    )
 
 
 @router.get(
@@ -1174,12 +1214,7 @@ def recipe_search_api(
     from sqlalchemy import bindparam as sa_bindparam, text as sa_text
 
     # Basic search by name
-    query = (
-        select(Recipe)
-        .where(Recipe.name.ilike(f"%{q}%"))
-        .order_by(Recipe.name)
-        .limit(limit)
-    )
+    query = select(Recipe).where(Recipe.name.ilike(f"%{q}%")).order_by(Recipe.name).limit(limit)
 
     recipes = session.scalars(query).all()
 
@@ -1225,10 +1260,7 @@ def recipe_search_api(
         for r in recipes
     ]
 
-    return JSONResponse({
-        "results": payload,
-        "count": len(payload)
-    })
+    return JSONResponse({"results": payload, "count": len(payload)})
 
 
 @router.get("/api/units", response_class=JSONResponse)
@@ -1247,10 +1279,7 @@ def units_api() -> JSONResponse:
         for unit in Unit
     ]
 
-    return JSONResponse({
-        "results": payload,
-        "count": len(payload)
-    })
+    return JSONResponse({"results": payload, "count": len(payload)})
 
 
 @router.get("/api/families", response_class=JSONResponse)
@@ -1288,8 +1317,9 @@ def recipes_export_csv(
     """Export all recipes as a CSV download (streaming)."""
     from datetime import datetime, timezone
 
-    from app.rms.streaming_csv import stream_csv_rows
     from starlette.responses import StreamingResponse
+
+    from app.rms.streaming_csv import stream_csv_rows
 
     recipes = session.scalars(select(Recipe).order_by(Recipe.name)).all()
 
@@ -1300,9 +1330,12 @@ def recipes_export_csv(
         for r in recipes:
             batch = recipe_batch_cost_gs(session, r.id)
             unit = recipe_unit_cost_gs(session, r.id)
-            line_count = session.scalar(
-                select(func.count(RecipeLine.id)).where(RecipeLine.recipe_id == r.id)
-            ) or 0
+            line_count = (
+                session.scalar(
+                    select(func.count(RecipeLine.id)).where(RecipeLine.recipe_id == r.id)
+                )
+                or 0
+            )
             yield [
                 r.id,
                 r.name,
@@ -1323,11 +1356,19 @@ def recipes_export_csv(
     return StreamingResponse(
         stream_csv_rows(
             [
-                "id", "name", "family", "difficulty",
-                "yield_qty", "yield_unit",
-                "prep_minutes", "cook_minutes",
-                "line_count", "batch_cost_gs", "unit_cost_gs",
-                "tags", "notes",
+                "id",
+                "name",
+                "family",
+                "difficulty",
+                "yield_qty",
+                "yield_unit",
+                "prep_minutes",
+                "cook_minutes",
+                "line_count",
+                "batch_cost_gs",
+                "unit_cost_gs",
+                "tags",
+                "notes",
             ],
             _iter(),
         ),

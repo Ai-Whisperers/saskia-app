@@ -29,6 +29,7 @@ audit found:
 
 Ref: plans/2026-10-02-backend-overhaul-master-plan.md, Sprint 1.2.
 """
+
 from __future__ import annotations
 
 import ast
@@ -60,6 +61,7 @@ def _collect_migration_definitions() -> dict[str, list[int]]:
     duplicate definitions have at least one statement that performs DDL
     or business logic (i.e. is not a pure import-and-forward call).
     """
+
     def _looks_like_wrapper(tree: ast.AST, func_node: ast.FunctionDef) -> bool:
         """A wrapper body is a sequence of `from x import y as z` and a
         single forward call. Real impls touch `conn` or call atomic helpers.
@@ -133,9 +135,7 @@ def test_no_duplicate_migration_function_definitions():
 def test_migration_numbers_form_contiguous_range():
     """All migration numbers from 1 to CURRENT_SCHEMA_VERSION exist exactly once."""
     defs = _collect_migration_definitions()
-    numbers = sorted(
-        n for name in defs for n in [_extract_migration_number(name)] if n is not None
-    )
+    numbers = sorted(n for name in defs for n in [_extract_migration_number(name)] if n is not None)
     assert numbers, "No migration functions found at all"
     expected = list(range(1, CURRENT_SCHEMA_VERSION + 1))
     missing = sorted(set(expected) - set(numbers))
@@ -167,8 +167,7 @@ def test_migration_dict_is_complete_and_in_order():
     keys = sorted(migrations.keys())
     expected = list(range(1, CURRENT_SCHEMA_VERSION + 1))
     assert keys == expected, (
-        f"MIGRATIONS dict is not contiguous 1..{CURRENT_SCHEMA_VERSION}. "
-        f"Got: {keys}"
+        f"MIGRATIONS dict is not contiguous 1..{CURRENT_SCHEMA_VERSION}. Got: {keys}"
     )
 
 
@@ -181,8 +180,10 @@ def test_each_migration_callable_takes_one_conn_arg():
 
         sig = inspect.signature(fn)
         params = [
-            p for p in sig.parameters.values()
-            if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+            p
+            for p in sig.parameters.values()
+            if p.kind
+            in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
         ]
         assert len(params) == 1, (
             f"Migration {version} ({fn.__name__}) takes {len(params)} positional "
@@ -219,9 +220,9 @@ def test_migration_run_against_fresh_db_succeeds(tmp_path):
         conn.close()
 
 
-@pytest.mark.parametrize("migration_name", sorted(
-    name for name in _collect_migration_definitions().keys()
-))
+@pytest.mark.parametrize(
+    "migration_name", sorted(name for name in _collect_migration_definitions().keys())
+)
 def test_migration_has_docstring(migration_name):
     """Every migration has a one-line docstring explaining what it does.
 

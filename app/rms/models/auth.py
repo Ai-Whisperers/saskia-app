@@ -23,6 +23,7 @@ All models here share the same declarative Base as the rest of the
 project — see app/rms/models/core.py.
 """
 
+
 class User(Base):
     """Single user per tenant in v1. Multi-tenant (Milestone 7) adds tenant_id."""
 
@@ -31,7 +32,9 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[str] = mapped_column(String(32), nullable=False, default="admin")  # admin, cashier, manager
+    role: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="admin"
+    )  # admin, cashier, manager
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
     last_login_at: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -52,6 +55,7 @@ class User(Base):
         if not self.password_hash:
             return False
         return bcrypt.checkpw(plain.encode("utf-8"), self.password_hash.encode("utf-8"))
+
 
 class AuditLog(Base):
     """Append-only log of security-relevant events.
@@ -98,6 +102,7 @@ class AuditLog(Base):
     ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     user_agent: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
 
+
 class SettingsKV(Base):
     """Single-row-per-key config (hours, pickup address, etc).
 
@@ -112,6 +117,7 @@ class SettingsKV(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+
 
 class Tenant(Base):
     """A multi-tenant boundary (E15).

@@ -1,4 +1,4 @@
-# Cross-Cutting Consistency Audit — Saskia RMS (2026-09-27)
+# Cross-Cutting Consistency Audit — Sazón (2026-09-27)
 
 **Scope:** 46 pages across three audit documents
 - **Batch 1** — `design-plans-2026-09-27.md` (18 personal pages, ~76-page master plan)
@@ -218,17 +218,17 @@ The system uses Paraguayan Guaraní (`Gs.`) as primary currency. Counts of each 
 | **`dd/mm/aaaa`** (Spanish placeholder) | `inventario-nuevo.png` (×2) | Subset's Spanish placeholders match Paraguayan expectation; consistent with display |
 | **`Sep 27, 2026`** | not seen in UI copy | Good |
 | **`27 de sep`** | seen in `inicio.png` subtitle ("domingo 27 sep 2026") |
-| **`saskia-date`** | `reportes-iva.png` (×3), `reportes-top-productos.png` (×2), `settings.png`, `ventas.png` — implementation reference to the shared date-picker component |
+| **`ui-date`** | `reportes-iva.png` (×3), `reportes-top-productos.png` (×2), `settings.png`, `ventas.png` — implementation reference to the shared date-picker component |
 
 - **Severity:** P0 (internationalization bug + `--` placeholder mix)
 - **Affected pages:** 17 of 46
 - **Recommended canonical pattern:**
   1. **Display:** `dd/mm/aaaa` (matches Paraguayan norm).
-  2. **Form inputs:** use `saskia-date` component (already in use) with the Spanish locale bundle.
+  2. **Form inputs:** use `ui-date` component (already in use) with the Spanish locale bundle.
   3. **API / database:** ISO 8601 `yyyy-mm-dd` (internally — not visible to user).
   4. Update all HTML `<input type="date">` placeholder text from `mm/dd/yyyy` (browser default) to `dd/mm/aaaa`.
   5. Add an E2E test that submits a form with each supported format and verifies it parses correctly.
-- **Effort:** ~4 hours for placeholder + format helper; <1 hour for saskia-date locale.
+- **Effort:** ~4 hours for placeholder + format helper; <1 hour for ui-date locale.
 
 **Specific bugs:**
 - **`inventario-nuevo.png` Fecha de apertura placeholder is `mm/dd/yyyy`** but other form fields around it use `dd/mm/aaaa`. In-page inconsistency.

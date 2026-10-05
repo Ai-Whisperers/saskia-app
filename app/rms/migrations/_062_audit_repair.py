@@ -25,8 +25,6 @@ Idempotent: re-running does nothing once all tags are consistent.
 
 from typing import Any
 
-from sqlalchemy import text
-
 from app.rms.db import _bump_schema_version
 
 
@@ -35,7 +33,7 @@ def _migration_062_audit_repair(conn: Any) -> None:
     _bump_schema_version(conn, 62)
 
 
-def run_post_migration(session) -> dict[str, int]:
+def run_post_migration(session: Any) -> dict[str, int]:
     """Run audit repair. Returns { 'repaired_ingredients': N, 'tags_removed': M }.
 
     Called from the migration runner after _migration_062_audit_repair.

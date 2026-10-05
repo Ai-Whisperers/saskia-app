@@ -7,6 +7,7 @@ Tests:
 - No Python errors
 """
 
+
 def test_recetas_renders(client):
     """P-04: Recetas page renders."""
     r = client.get("/recetas")
@@ -32,9 +33,10 @@ def test_recetas_nueva_has_combo(client):
     r = client.get("/recetas/nueva")
     assert r.status_code == 200
     body = r.text
-    # Check for saskia-combo or ingredient selector
-    assert "saskia-combo" in body or "combo" in body.lower() or "ingrediente" in body.lower(), \
+    # Check for ui-combo or ingredient selector
+    assert "ui-combo" in body or "combo" in body.lower() or "ingrediente" in body.lower(), (
         "Ingredient combo not found"
+    )
 
 
 def test_recetas_nueva_has_name_field(client):
@@ -50,8 +52,9 @@ def test_recetas_nueva_has_yield_field(client):
     r = client.get("/recetas/nueva")
     assert r.status_code == 200
     body = r.text
-    assert "yield" in body.lower() or "rendimiento" in body.lower() or "porciones" in body.lower(), \
-        "Yield field not found"
+    assert (
+        "yield" in body.lower() or "rendimiento" in body.lower() or "porciones" in body.lower()
+    ), "Yield field not found"
 
 
 def test_recetas_api_search(client):
@@ -79,9 +82,8 @@ def test_recetas_has_ingredient_lines(client):
     assert r.status_code == 200
     body = r.text
     # Check for ingredient line template or add-line button
-    has_lines = (
-        "ingredient" in body.lower()
-        and ("line" in body.lower() or "fila" in body.lower() or "row" in body.lower())
+    has_lines = "ingredient" in body.lower() and (
+        "line" in body.lower() or "fila" in body.lower() or "row" in body.lower()
     )
     assert has_lines, "Ingredient lines not found"
 

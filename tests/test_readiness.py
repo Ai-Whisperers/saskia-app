@@ -8,6 +8,7 @@ Post-fix: /healthz returns 503 while app.state.ready is False. Once the
 lifespan completes, it flips to 200. This lets operators distinguish
 "warming up" from "actually broken".
 """
+
 from __future__ import annotations
 
 

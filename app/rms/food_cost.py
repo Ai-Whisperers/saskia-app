@@ -31,20 +31,23 @@ from app.rms.models import (
 # Theoretical food cost (sales × recipe_cost)
 # ---------------------------------------------------------------------------
 
-def theoretical_food_cost(session: Session,
-                          start: datetime,
-                          end: datetime) -> int:
+
+def theoretical_food_cost(session: Session, start: datetime, end: datetime) -> int:
     """Total Gs. of ingredient cost implied by sales in [start, end).
 
     Walks each sale's product → recipe → ingredients → sum(qty × price).
     """
-    sales = list(session.execute(
-        select(Sale).where(
-            Sale.sold_at >= start,
-            Sale.sold_at < end,
-            Sale.voided_at.is_(None),
+    sales = list(
+        session.execute(
+            select(Sale).where(
+                Sale.sold_at >= start,
+                Sale.sold_at < end,
+                Sale.voided_at.is_(None),
+            )
         )
-    ).scalars().all())
+        .scalars()
+        .all()
+    )
 
     # Cache recipe costs per product (avoid repeating for each sale).
     product_cost_cache: dict[int, int | None] = {}
@@ -76,9 +79,8 @@ def _recipe_total_cost(session: Session, product: Product) -> int | None:
     if recipe is None or not recipe.yield_qty:
         return None
     from app.rms.models import RecipeLine
-    lines = session.scalars(
-        select(RecipeLine).where(RecipeLine.recipe_id == recipe.id)
-    ).all()
+
+    lines = session.scalars(select(RecipeLine).where(RecipeLine.recipe_id == recipe.id)).all()
     total = 0
     for line in lines:
         if line.line_kind != "ingredient":
@@ -98,9 +100,8 @@ def _recipe_total_cost(session: Session, product: Product) -> int | None:
 # Sales revenue
 # ---------------------------------------------------------------------------
 
-def sales_revenue(session: Session,
-                  start: datetime,
-                  end: datetime) -> int:
+
+def sales_revenue(session: Session, start: datetime, end: datetime) -> int:
     """Total Gs. revenue from sales in [start, end)."""
     rows = session.execute(
         select(Sale.qty, Sale.unit_price_gs).where(
@@ -116,9 +117,8 @@ def sales_revenue(session: Session,
 # Actual food cost (stock-move based)
 # ---------------------------------------------------------------------------
 
-def actual_ingredient_consumption(session: Session,
-                                   start: datetime,
-                                   end: datetime) -> int:
+
+def actual_ingredient_consumption(session: Session, start: datetime, end: datetime) -> int:
     """Sum of negative stock_movement (sale type) × ingredient_price.
 
     After BACKLOG #1 (sale_stock_move consolidated into stock_movement
@@ -129,8 +129,7 @@ def actual_ingredient_consumption(session: Session,
     therefore scanned the whole table — start/end were ignored).
     """
     rows = session.execute(
-        select(StockMovement.ingredient_id, StockMovement.qty)
-        .where(
+        select(StockMovement.ingredient_id, StockMovement.qty).where(
             StockMovement.movement_type == "sale",
             StockMovement.recorded_at >= start,
             StockMovement.recorded_at < end,
@@ -148,20 +147,20 @@ def actual_ingredient_consumption(session: Session,
     return total
 
 
-def waste_cost(session: Session,
-               start: datetime,
-               end: datetime) -> int:
+def waste_cost(session: Session, start: datetime, end: datetime) -> int:
     """Sum of waste_log.cost_gs in [start, end).
 
     Returns 0 if WasteLog table is empty or unavailable.
     """
     try:
-        rows = list(session.execute(
-            select(WasteLog.cost_gs).where(
-                WasteLog.recorded_at >= start,
-                WasteLog.recorded_at < end,
-            )
-        ).all())
+        rows = list(
+            session.execute(
+                select(WasteLog.cost_gs).where(
+                    WasteLog.recorded_at >= start,
+                    WasteLog.recorded_at < end,
+                )
+            ).all()
+        )
     except Exception:  # noqa: BLE001 — defensive default
         return 0
 
@@ -171,6 +170,7 @@ def waste_cost(session: Session,
 # ---------------------------------------------------------------------------
 # Combined report
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class FoodCostReport:
@@ -185,8 +185,7 @@ class FoodCostReport:
     ratio: float  # actual / theoretical
 
 
-def food_cost_report(session: Session,
-                     period_days: int = 30) -> FoodCostReport:
+def food_cost_report(session: Session, period_days: int = 30) -> FoodCostReport:
     """Build a FoodCostReport for the last N days."""
     end = datetime.now(timezone.utc)
     start = end - timedelta(days=period_days)

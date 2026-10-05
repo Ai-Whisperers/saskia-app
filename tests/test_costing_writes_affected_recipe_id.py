@@ -6,6 +6,7 @@ StockMovement row must carry the affected_recipe_id, so the read
 path can serve from stock_movement alone (after migration 091
 backfills historical rows).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -43,9 +44,7 @@ def test_complete_sale_writes_affected_recipe_id_on_stock_movement(session_facto
 
     session = session_factory()
     try:
-        ing = Ingredient(
-            name="CostingAffected", unit="kg", stock_qty=10, purchase_price_gs=1000
-        )
+        ing = Ingredient(name="CostingAffected", unit="kg", stock_qty=10, purchase_price_gs=1000)
         prod = None  # set after Recipe is created
         rec = Recipe(name="r_costing_affected", yield_qty=1, yield_unit="und")
         prod = Product(
@@ -94,8 +93,10 @@ def test_complete_sale_writes_affected_recipe_id_on_stock_movement(session_facto
         # We don't probe by name (cross-engine); instead we verify
         # the SaleStockMove class is the abstract stub that raises
         # on instantiation (the intended runtime guard).
-        from app.rms.models import SaleStockMove
         import pytest
+
+        from app.rms.models import SaleStockMove
+
         with pytest.raises(TypeError):
             SaleStockMove(
                 sale_id=result.sale_id,

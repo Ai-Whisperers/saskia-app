@@ -127,8 +127,8 @@ def make_pedido(session_factory):
 
 def test_merge_basic_two_customers(session_factory, make_customer, make_product, make_sale):
     """2 customers with 3 sales each merge into one → 6 sales reassigned, source deleted."""
-    from app.rms.models import Customer, Sale
     from app.rms.customer_merge import customer_merge
+    from app.rms.models import Customer, Sale
 
     target_id = make_customer("Maria A")
     source_id = make_customer("Maria A.")
@@ -152,12 +152,8 @@ def test_merge_basic_two_customers(session_factory, make_customer, make_product,
     with session_factory() as s:
         assert s.get(Customer, source_id) is None
         assert s.get(Customer, target_id) is not None
-        sales_target = s.scalars(
-            select(Sale).where(Sale.customer_id == target_id)
-        ).all()
-        sales_source = s.scalars(
-            select(Sale).where(Sale.customer_id == source_id)
-        ).all()
+        sales_target = s.scalars(select(Sale).where(Sale.customer_id == target_id)).all()
+        sales_source = s.scalars(select(Sale).where(Sale.customer_id == source_id)).all()
         assert len(sales_target) == 6
         assert len(sales_source) == 0
 
@@ -184,8 +180,8 @@ def test_merge_preserves_target_phone_when_source_has_phone(session_factory, mak
 
 def test_merge_fills_target_phone_from_source(session_factory, make_customer):
     """Target has no phone → take the first source's phone."""
-    from app.rms.models import Customer
     from app.rms.customer_merge import customer_merge
+    from app.rms.models import Customer
 
     target_id = make_customer("Maria A", phone=None)
     source_id = make_customer("Maria A.", phone="+595981234567")
@@ -203,8 +199,8 @@ def test_merge_fills_target_phone_from_source(session_factory, make_customer):
 
 def test_merge_fills_target_email_from_source(session_factory, make_customer):
     """Target has no email → take the first source's email."""
-    from app.rms.models import Customer
     from app.rms.customer_merge import customer_merge
+    from app.rms.models import Customer
 
     target_id = make_customer("Maria A", email=None)
     source_id = make_customer("Maria A.", email="maria@example.com")
@@ -222,8 +218,8 @@ def test_merge_fills_target_email_from_source(session_factory, make_customer):
 
 def test_merge_appends_notes_trail(session_factory, make_customer):
     """Source.notes appended to target.notes with separator."""
-    from app.rms.models import Customer
     from app.rms.customer_merge import customer_merge
+    from app.rms.models import Customer
 
     target_id = make_customer("Maria A", notes="VIP desde 2020")
     source_id = make_customer("Maria A.", notes="Cumpleaños: 15/03")
@@ -243,8 +239,8 @@ def test_merge_appends_notes_trail(session_factory, make_customer):
 
 def test_merge_with_pedidos(session_factory, make_customer, make_pedido):
     """Pedidos are reassigned along with sales (FK update)."""
-    from app.rms.models import Customer, Pedido
     from app.rms.customer_merge import customer_merge
+    from app.rms.models import Customer, Pedido
 
     target_id = make_customer("Maria A")
     source_id = make_customer("Maria A.")
@@ -258,9 +254,7 @@ def test_merge_with_pedidos(session_factory, make_customer, make_pedido):
     assert result.sources_merged[0].pedidos_reassigned == 2
 
     with session_factory() as s:
-        target_pedidos = s.scalars(
-            select(Pedido).where(Pedido.customer_id == target_id)
-        ).all()
+        target_pedidos = s.scalars(select(Pedido).where(Pedido.customer_id == target_id)).all()
         assert len(target_pedidos) == 2
         # Source row gone.
         assert s.get(Customer, source_id) is None
@@ -327,9 +321,7 @@ def test_clientes_duplicados_page_finds_duplicate_groups(
     assert f"id={c}" not in body or "Juan Perez" in body  # distractor name appears only as itself
 
 
-def test_clientes_duplicados_page_empty_when_no_duplicates(
-    authed_client, make_customer
-):
+def test_clientes_duplicados_page_empty_when_no_duplicates(authed_client, make_customer):
     """No duplicates → 200 with empty groups.
 
     Phones chosen so the first 5 chars differ ('+5959' vs '+5957').
@@ -392,9 +384,7 @@ def test_merge_endpoint_records_audit_log(
     assert resp.status_code == 303
 
     with session_factory() as s:
-        rows = s.scalars(
-            select(AuditLog).where(AuditLog.action == "write.customer.merge")
-        ).all()
+        rows = s.scalars(select(AuditLog).where(AuditLog.action == "write.customer.merge")).all()
         assert len(rows) == 1
         row = rows[0]
         assert row.target_type == "customer"
@@ -422,9 +412,7 @@ def test_merge_endpoint_requires_csrf(
     assert resp.status_code == 403
 
 
-def test_merge_endpoint_handles_value_error(
-    authed_client, session_factory, make_customer
-):
+def test_merge_endpoint_handles_value_error(authed_client, session_factory, make_customer):
     """POST with target_id in source_ids → redirect with error flash."""
     target_id = make_customer("Maria A")
     csrf = authed_client.cookies.get("csrf_token", "")

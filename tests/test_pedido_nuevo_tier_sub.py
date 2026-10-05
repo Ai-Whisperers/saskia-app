@@ -11,13 +11,12 @@ Both fields are part of the CustomerPrefill dataclass (computed server-
 side in app/services/customer_prefill.py) and rendered client-side by
 static/pedido-prefill.js.
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_pedido_nuevo_tier_sub.py -v
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_pedido_nuevo_tier_sub.py -v
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-
-import pytest
+from datetime import datetime
 
 from app.rms.models import Customer, Product, Sale, Suscripcion
 from app.services.customer_prefill import compute_customer_defaults
@@ -25,7 +24,6 @@ from app.services.customer_prefill import compute_customer_defaults
 
 def _make_customer_with_spend(session, lifetime_spend_gs: int) -> int:
     """Helper: create a customer whose lifetime spend equals the given Gs."""
-    from sqlalchemy.orm import Session
     cust = Customer(name=f"Cust {lifetime_spend_gs}", phone=f"+595****{lifetime_spend_gs:04d}")
     session.add(cust)
     session.flush()
@@ -33,15 +31,17 @@ def _make_customer_with_spend(session, lifetime_spend_gs: int) -> int:
     prod = Product(name=f"Prod {lifetime_spend_gs}", sale_price_gs=lifetime_spend_gs)
     session.add(prod)
     session.flush()
-    session.add(Sale(
-        customer_id=cust.id,
-        product_id=prod.id,
-        qty=1,
-        unit_price_gs=lifetime_spend_gs,
-        sold_at=datetime(2026, 9, 1, 10, 0),
-        channel="mostrador",
-        tz="America/Asuncion",
-    ))
+    session.add(
+        Sale(
+            customer_id=cust.id,
+            product_id=prod.id,
+            qty=1,
+            unit_price_gs=lifetime_spend_gs,
+            sold_at=datetime(2026, 9, 1, 10, 0),
+            channel="mostrador",
+            tz="America/Asuncion",
+        )
+    )
     session.commit()
     return cust.id
 
@@ -51,7 +51,6 @@ def _make_customer_with_spend(session, lifetime_spend_gs: int) -> int:
 
 def test_prefill_includes_tier_bronze(session_factory) -> None:
     """A new customer (no spend) has tier='bronze' in prefill."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         cust = Customer(name="Newbie", phone="+595****0001")
         s.add(cust)
@@ -94,33 +93,38 @@ def test_prefill_includes_tier_platinum(session_factory) -> None:
     with session_factory() as s:
         prefill = compute_customer_defaults(s, cid)
 
-    assert prefill.tier == "platinum", f"Expected tier='platinum' for 1.5M spend, got {prefill.tier}"
+    assert prefill.tier == "platinum", (
+        f"Expected tier='platinum' for 1.5M spend, got {prefill.tier}"
+    )
 
 
 def test_prefill_includes_active_subscriptions(session_factory) -> None:
     """A customer with an active suscripción has it in prefill.active_subscriptions."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         cust = Customer(name="Subber", phone="+595****0100")
         s.add(cust)
         s.flush()
-        s.add(Suscripcion(
-            customer_id=cust.id,
-            product_summary="1 kg chipas",
-            cadence="semanal",
-            preferred_day_of_week=5,  # Friday
-            price_gs=50000,
-            status="activa",
-            start_date=datetime(2026, 9, 1).date(),
-        ))
+        s.add(
+            Suscripcion(
+                customer_id=cust.id,
+                product_summary="1 kg chipas",
+                cadence="semanal",
+                preferred_day_of_week=5,  # Friday
+                price_gs=50000,
+                status="activa",
+                start_date=datetime(2026, 9, 1).date(),
+            )
+        )
         # And one INactiva — should NOT appear
-        s.add(Suscripcion(
-            customer_id=cust.id,
-            product_summary="Old cancelled sub",
-            cadence="mensual",
-            status="cancelada",
-            start_date=datetime(2026, 1, 1).date(),
-        ))
+        s.add(
+            Suscripcion(
+                customer_id=cust.id,
+                product_summary="Old cancelled sub",
+                cadence="mensual",
+                status="cancelada",
+                start_date=datetime(2026, 1, 1).date(),
+            )
+        )
         s.commit()
         cid = cust.id
 
@@ -141,17 +145,18 @@ def test_prefill_includes_active_subscriptions(session_factory) -> None:
 
 def test_prefill_excludes_paused_subscriptions(session_factory) -> None:
     """Only 'activa' status suscripciones show up in prefill."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         cust = Customer(name="Pauser", phone="+595****0200")
         s.add(cust)
         s.flush()
-        s.add(Suscripcion(
-            customer_id=cust.id,
-            product_summary="Paused sub",
-            cadence="mensual",
-            status="pausada",
-        ))
+        s.add(
+            Suscripcion(
+                customer_id=cust.id,
+                product_summary="Paused sub",
+                cadence="mensual",
+                status="pausada",
+            )
+        )
         s.commit()
         cid = cust.id
 
@@ -165,7 +170,6 @@ def test_prefill_excludes_paused_subscriptions(session_factory) -> None:
 
 def test_prefill_empty_for_customer_with_no_subs(session_factory) -> None:
     """A customer without any suscripción has empty active_subscriptions."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         cust = Customer(name="NoSub", phone="+595****0300")
         s.add(cust)
@@ -183,7 +187,6 @@ def test_prefill_empty_for_customer_with_no_subs(session_factory) -> None:
 
 def test_customer_defaults_api_includes_tier_and_subs(client, session_factory) -> None:
     """GET /pedidos/api/customer-defaults/<id> returns tier + active_subscriptions."""
-    from sqlalchemy.orm import Session
     with session_factory() as s:
         cust = Customer(name="APICust", phone="+595****0400")
         s.add(cust)
@@ -191,17 +194,25 @@ def test_customer_defaults_api_includes_tier_and_subs(client, session_factory) -
         prod = Product(name="APIProd", sale_price_gs=600_000)
         s.add(prod)
         s.flush()
-        s.add(Sale(
-            customer_id=cust.id, product_id=prod.id, qty=1,
-            unit_price_gs=600_000, sold_at=datetime(2026, 9, 1, 10, 0),
-            channel="mostrador", tz="America/Asuncion",
-        ))
-        s.add(Suscripcion(
-            customer_id=cust.id,
-            product_summary="API test sub",
-            cadence="quincenal",
-            status="activa",
-        ))
+        s.add(
+            Sale(
+                customer_id=cust.id,
+                product_id=prod.id,
+                qty=1,
+                unit_price_gs=600_000,
+                sold_at=datetime(2026, 9, 1, 10, 0),
+                channel="mostrador",
+                tz="America/Asuncion",
+            )
+        )
+        s.add(
+            Suscripcion(
+                customer_id=cust.id,
+                product_summary="API test sub",
+                cadence="quincenal",
+                status="activa",
+            )
+        )
         s.commit()
         cid = cust.id
 
@@ -242,11 +253,10 @@ def test_pedidos_nuevo_includes_updated_pedido_prefill_js(client) -> None:
 def test_pedido_prefill_js_has_tier_and_sub_renderers() -> None:
     """static/pedido-prefill.js exports the Tier 6.4 render functions."""
     from pathlib import Path
-    p = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/pedido-prefill.js")
+
+    p = Path("/opt/data/profiles/ivan/scratch/sazon-app-work/app/static/pedido-prefill.js")
     text = p.read_text(encoding="utf-8")
-    assert "function renderTierBadge" in text, (
-        "pedido-prefill.js must export renderTierBadge()"
-    )
+    assert "function renderTierBadge" in text, "pedido-prefill.js must export renderTierBadge()"
     assert "function renderSubscriptionPicker" in text, (
         "pedido-prefill.js must export renderSubscriptionPicker()"
     )

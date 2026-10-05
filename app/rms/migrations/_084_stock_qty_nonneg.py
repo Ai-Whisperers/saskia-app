@@ -28,28 +28,27 @@ from sqlalchemy import text
 
 def _migration_084_stock_qty_nonneg(conn: Any) -> None:
     """Add stock_qty >= 0 constraint via SQLite triggers or model CheckConstraint."""
-    
+
     # Detect dialect from the connection
     try:
         dialect_name = conn.dialect.name
     except Exception:
         dialect_name = "sqlite"
-    
+
     if dialect_name == "sqlite":
         # First, backfill existing negative stock_qty to 0
         try:
-            result = conn.execute(
-                text("UPDATE ingredient SET stock_qty = 0 WHERE stock_qty < 0")
-            )
+            result = conn.execute(text("UPDATE ingredient SET stock_qty = 0 WHERE stock_qty < 0"))
             backfilled_count = result.rowcount
             if backfilled_count > 0:
                 print(f"Backfilled {backfilled_count} ingredients with negative stock_qty to 0")
         except Exception as exc:
             print(f"Warning: Backfill of negative stock_qty failed: {exc}")
-        
+
         # Create trigger to prevent negative stock_qty on INSERT
         try:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE TRIGGER IF NOT EXISTS ingredient_stock_qty_positive_insert
                 BEFORE INSERT ON ingredient
                 FOR EACH ROW
@@ -57,13 +56,15 @@ def _migration_084_stock_qty_nonneg(conn: Any) -> None:
                 BEGIN
                     SELECT RAISE(ABORT, 'ingredient.stock_qty must be >= 0 (or NULL for unmanaged)');
                 END
-            """))
+            """)
+            )
         except Exception as exc:
             print(f"Warning: Could not create INSERT trigger: {exc}")
-        
+
         # Create trigger to prevent negative stock_qty on UPDATE
         try:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE TRIGGER IF NOT EXISTS ingredient_stock_qty_positive_update
                 BEFORE UPDATE ON ingredient
                 FOR EACH ROW
@@ -71,13 +72,14 @@ def _migration_084_stock_qty_nonneg(conn: Any) -> None:
                 BEGIN
                     SELECT RAISE(ABORT, 'ingredient.stock_qty must be >= 0 (or NULL for unmanaged)');
                 END
-            """))
+            """)
+            )
         except Exception as exc:
             print(f"Warning: Could not create UPDATE trigger: {exc}")
-    
+
     # For Postgres, the constraint is already in the model's CheckConstraint,
     # so no action needed here (just bump the version)
-    
+
     # Bump the schema version using the CANONICAL helper so init_db's
     # probe sees the migration applied. (TIER-4-PROPERTY-FIX 2026-10-01:
     # the previous inline `app_meta.current_schema_version` query used
@@ -87,26 +89,29 @@ def _migration_084_stock_qty_nonneg(conn: Any) -> None:
     # init_db kept reporting `migrations_pending=1`. This uses the
     # same helper as every other migration.)
     from app.rms.db import _bump_schema_version
+
     _bump_schema_version(conn, 84)
 
 
-def run_post_migration(session) -> dict[str, int]:
+def run_post_migration(session: Any) -> dict[str, int]:
     """Post-migration hook for migration 084.
-    
+
     Returns statistics about the migration.
     """
     stats = {}
-    
+
     # Count ingredients that were backfilled
     try:
-        result = session.execute(text(
-            "SELECT COUNT(*) as count FROM ingredient WHERE stock_qty = 0 "
-            "AND EXISTS (SELECT 1 FROM ingredient WHERE stock_qty < 0 LIMIT 1)"
-        )).fetchone()
-        
+        session.execute(
+            text(
+                "SELECT COUNT(*) as count FROM ingredient WHERE stock_qty = 0 "
+                "AND EXISTS (SELECT 1 FROM ingredient WHERE stock_qty < 0 LIMIT 1)"
+            )
+        ).fetchone()
+
         # This is a rough estimate - actual backfilled count would need to be tracked
         stats["estimated_backfilled"] = 0  # Will be set by migration output
     except Exception:
         stats["estimated_backfilled"] = 0
-    
+
     return stats

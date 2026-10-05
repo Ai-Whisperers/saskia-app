@@ -1,6 +1,6 @@
 """app/rms/accounting.py — Paraguay accounting/IVA reports (E17).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E17.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E17.
 
 Paraguay tax basics (10% IVA on most goods including prepared foods):
 - If prices are gross (IVA included in sale_price_gs):
@@ -21,6 +21,7 @@ Reports produced:
 - product_margin_summary: per-product margin in a window
 - daily_summary: revenue + iva + cost + margin for one day
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -151,7 +152,9 @@ def monthly_iva_breakdown(
 
     out: list[MonthlyIVA] = []
     for (year, month), month_sales in sorted(buckets.items()):
-        gross = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in month_sales)
+        gross = sum(
+            to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in month_sales
+        )
         iva = extract_iva(gross, tax_mode=tax_mode)
         out.append(
             MonthlyIVA(
@@ -210,11 +213,15 @@ def libro_ventas(
     # Resolve customer + product names (one query each)
     cust_ids = {r.customer_id for r in rows if r.customer_id}
     prod_ids = {r.product_id for r in rows}
-    custs = {
-        c.id: c.name
-        for c in session.execute(select(Customer).where(Customer.id.in_(cust_ids))).scalars()
+    custs = (
+        {
+            c.id: c.name
+            for c in session.execute(select(Customer).where(Customer.id.in_(cust_ids))).scalars()
+            if cust_ids
+        }
         if cust_ids
-    } if cust_ids else {}
+        else {}
+    )
     prods = {
         p.id: p.name
         for p in session.execute(select(Product).where(Product.id.in_(prod_ids))).scalars()
@@ -225,21 +232,24 @@ def libro_ventas(
     # (sum_gs, count)]. Defer Refund import to top of call so we don't
     # pay the cost on every ledger call.
     from app.rms.models_legacy import Refund
-    refund_rows = session.execute(
-        select(
-            Refund.target_id,
-            func.coalesce(func.sum(Refund.amount_gs), 0).label("sum_gs"),
-            func.count(Refund.id).label("n"),
-        )
-        .where(
-            Refund.target_type == "sale",
-            Refund.target_id.in_({r.id for r in rows}) if rows else False,
-        )
-        .group_by(Refund.target_id)
-    ).all() if rows else []
-    refunds_by_sale = {
-        rid: (int(s or 0), int(n or 0)) for rid, s, n in refund_rows
-    }
+
+    refund_rows = (
+        session.execute(
+            select(
+                Refund.target_id,
+                func.coalesce(func.sum(Refund.amount_gs), 0).label("sum_gs"),
+                func.count(Refund.id).label("n"),
+            )
+            .where(
+                Refund.target_type == "sale",
+                Refund.target_id.in_({r.id for r in rows}) if rows else False,
+            )
+            .group_by(Refund.target_id)
+        ).all()
+        if rows
+        else []
+    )
+    refunds_by_sale = {rid: (int(s or 0), int(n or 0)) for rid, s, n in refund_rows}
 
     out: list[LibroVentasRow] = []
     for r in rows:
@@ -297,7 +307,9 @@ class DailySummary:
     revenue_gross_gs: int  # NET — already subtracting refunds
     revenue_base_gs: int
     iva_gs: int  # NET — already subtracting refunds
-    cogs_gs: int  # Cost of goods sold (recipe cost x qty); NET — refunds that restocked are subtracted
+    cogs_gs: (
+        int  # Cost of goods sold (recipe cost x qty); NET — refunds that restocked are subtracted
+    )
     margin_gs: int
     # Real expenses pulled from the `expense` table (Phase 14, 2026-10-01).
     # The field name keeps the `_placeholder_` suffix for one release so
@@ -327,9 +339,8 @@ def expenses_in_window(
     mensuales can subtract real expenses from margin.
     """
     from app.rms.models import Expense
-    stmt = select(func.coalesce(func.sum(Expense.amount_gs), 0)).where(
-        Expense.occurred_at >= start
-    )
+
+    stmt = select(func.coalesce(func.sum(Expense.amount_gs), 0)).where(Expense.occurred_at >= start)
     if end_inclusive:
         stmt = stmt.where(Expense.occurred_at <= end)
     else:
@@ -351,8 +362,10 @@ def daily_summary(
 
     sales = sales_in_window(session, start=start, end=end, end_inclusive=False)
 
-    revenue_gross_int = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales)
-    iva = extract_iva(revenue_gross_int, tax_mode=tax_mode)
+    revenue_gross_int = sum(
+        to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales
+    )
+    extract_iva(revenue_gross_int, tax_mode=tax_mode)
 
     # M1 (2026-10-02): refunds subtract from gross revenue + IVA so the
     # daily report shows NET (not gross). Refunds in window: WHERE
@@ -360,6 +373,7 @@ def daily_summary(
     # refunded amount from revenue_gross and the same proportion from
     # base + IVA (so the net IVA matches the net gross).
     from app.rms.models_legacy import Refund
+
     refunds_in_window = session.execute(
         select(
             func.coalesce(func.sum(Refund.amount_gs), 0).label("total"),
@@ -380,18 +394,25 @@ def daily_summary(
     # stock_movement keyed by reference_type='sale'). qty is negative for
     # consumption so we abs() it. Join: StockMovement -> Ingredient for
     # purchase_price_gs. Filter by Sale.sold_at in window and Sale not voided.
-    cogs = session.execute(
-        select(func.coalesce(func.sum(func.abs(StockMovement.qty) * Ingredient.purchase_price_gs), 0))
-        .select_from(StockMovement)
-        .join(Sale, Sale.id == StockMovement.reference_id)
-        .join(Ingredient, Ingredient.id == StockMovement.ingredient_id)
-        .where(
-            StockMovement.reference_type == "sale",
-            Sale.sold_at >= start,
-            Sale.sold_at < end,
-            Sale.voided_at.is_(None),
-        )
-    ).scalar() or 0
+    cogs = (
+        session.execute(
+            select(
+                func.coalesce(
+                    func.sum(func.abs(StockMovement.qty) * Ingredient.purchase_price_gs), 0
+                )
+            )
+            .select_from(StockMovement)
+            .join(Sale, Sale.id == StockMovement.reference_id)
+            .join(Ingredient, Ingredient.id == StockMovement.ingredient_id)
+            .where(
+                StockMovement.reference_type == "sale",
+                Sale.sold_at >= start,
+                Sale.sold_at < end,
+                Sale.voided_at.is_(None),
+            )
+        ).scalar()
+        or 0
+    )
 
     # Phase 14 (2026-10-01): real expenses via Expense model (migration
     # 082). Sum everything in [start, end), excluding voided rows.
@@ -457,7 +478,10 @@ def product_margin_summary(
                 0,
             ),
         )
-        .join(StockMovement, (StockMovement.reference_id == Sale.id) & (StockMovement.reference_type == "sale"))
+        .join(
+            StockMovement,
+            (StockMovement.reference_id == Sale.id) & (StockMovement.reference_type == "sale"),
+        )
         .join(Ingredient, Ingredient.id == StockMovement.ingredient_id)
         .where(
             Sale.sold_at >= start_date,
@@ -472,8 +496,7 @@ def product_margin_summary(
     # Lookup product names for the result rows
     prod_ids = list(buckets.keys())
     prods = {
-        p.id: p
-        for p in session.execute(select(Product).where(Product.id.in_(prod_ids))).scalars()
+        p.id: p for p in session.execute(select(Product).where(Product.id.in_(prod_ids))).scalars()
     }
 
     out: list[ProductMarginRow] = []
@@ -481,7 +504,9 @@ def product_margin_summary(
         prod = prods.get(prod_id)
         if prod is None:
             continue
-        revenue = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales_list)
+        revenue = sum(
+            to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales_list
+        )
         cost = cost_by_prod.get(prod_id, 0)
         margin = revenue - cost
         margin_pct = (margin / revenue * 100) if revenue > 0 else 0.0
@@ -507,24 +532,30 @@ def cross_period_comparison(
     period2_end: datetime,
 ) -> dict:
     """Compare sales between two periods (this month vs last month)."""
+
     def _period_summary(s_start: object, s_end: object) -> dict:
-        sales = sales_in_window(
-            session, start=s_start, end=s_end, end_inclusive=False
-        )
+        sales = sales_in_window(session, start=s_start, end=s_end, end_inclusive=False)
         revenue = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales)
         iva = extract_iva(revenue)
-        cogs = session.execute(
-            select(func.coalesce(func.sum(func.abs(StockMovement.qty) * Ingredient.purchase_price_gs), 0))
-            .select_from(StockMovement)
-            .join(Sale, Sale.id == StockMovement.reference_id)
-            .join(Ingredient, Ingredient.id == StockMovement.ingredient_id)
-            .where(
-                StockMovement.reference_type == "sale",
-                Sale.sold_at >= s_start,
-                Sale.sold_at < s_end,
-                Sale.voided_at.is_(None),
-            )
-        ).scalar() or 0
+        cogs = (
+            session.execute(
+                select(
+                    func.coalesce(
+                        func.sum(func.abs(StockMovement.qty) * Ingredient.purchase_price_gs), 0
+                    )
+                )
+                .select_from(StockMovement)
+                .join(Sale, Sale.id == StockMovement.reference_id)
+                .join(Ingredient, Ingredient.id == StockMovement.ingredient_id)
+                .where(
+                    StockMovement.reference_type == "sale",
+                    Sale.sold_at >= s_start,
+                    Sale.sold_at < s_end,
+                    Sale.voided_at.is_(None),
+                )
+            ).scalar()
+            or 0
+        )
         return {
             "n_sales": len(sales),
             "revenue_gs": iva.gross_gs,
@@ -566,21 +597,27 @@ def top_products_report(
 
     by_product: dict[int, dict] = {}
     for s in sales:
-        d = by_product.setdefault(s.product_id, {"product_id": s.product_id, "n_sold": 0, "revenue_gs": 0})
+        d = by_product.setdefault(
+            s.product_id, {"product_id": s.product_id, "n_sold": 0, "revenue_gs": 0}
+        )
         d["n_sold"] += 1
         d["revenue_gs"] += to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs)))
 
     prod_ids = list(by_product.keys())
-    prods = {p.id: p for p in session.execute(select(Product).where(Product.id.in_(prod_ids))).scalars()}
+    prods = {
+        p.id: p for p in session.execute(select(Product).where(Product.id.in_(prod_ids))).scalars()
+    }
     rows = []
     for pid, d in by_product.items():
         prod = prods.get(pid)
-        rows.append({
-            "product_id": pid,
-            "product_name": prod.name if prod else f"#{pid}",
-            "n_sold": d["n_sold"],
-            "revenue_gs": d["revenue_gs"],
-        })
+        rows.append(
+            {
+                "product_id": pid,
+                "product_name": prod.name if prod else f"#{pid}",
+                "n_sold": d["n_sold"],
+                "revenue_gs": d["revenue_gs"],
+            }
+        )
     rows.sort(key=lambda r: r["revenue_gs"], reverse=True)
     return rows[:limit]
 
@@ -636,6 +673,7 @@ def sales_by_payment_method(
 
     # M1: refund subtotals by payment_method in same window
     from app.rms.models_legacy import Refund
+
     refund_rows = session.execute(
         select(
             Refund.payment_method,

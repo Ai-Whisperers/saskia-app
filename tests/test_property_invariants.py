@@ -17,6 +17,7 @@ Targets:
 Tagged with ``pytest.mark.analytics`` so the suite is gated under the
 ``analytics`` marker and runs in the pre-deploy analytics job.
 """
+
 # allow-hardcoded-dates: property test uses fixed date for the invariant
 from __future__ import annotations
 
@@ -37,7 +38,7 @@ from app.rms.validation import parse_money_gs
 # Local helper — scale_recipe is the recipe-form's quantity scaler
 # ---------------------------------------------------------------------------
 #
-# The Saskia recipe form (templates/receta_form.html) lets the user pick
+# The the operator recipe form (templates/receta_form.html) lets the user pick
 # a scale_factor from a [0.25, 10] dropdown, which scales every recipe
 # line's qty in the form before save. There is no Python function exported
 # for it (it's purely UI-side arithmetic), so we model it here as the
@@ -53,13 +54,35 @@ _NONNEG_GS: Final = st.integers(min_value=0, max_value=10**12)
 _VALID_TAX_MODES: Final = st.sampled_from(["included", "excluded"])
 _UNIT_ALIASES: Final = st.sampled_from(
     [
-        "g", "gramos", "gram", "gramo",
-        "kg", "kilo", "kilos", "kilogramo", "kilogramos",
-        "ml", "mililitro", "mililitros",
-        "l", "litro", "litros",
-        "und", "u", "unidad", "unidades", "porcion", "porciones",
-        "bandeja", "bandejas", "torta", "tortas",
-        "muffin", "muffins", "galleta", "galletas",
+        "g",
+        "gramos",
+        "gram",
+        "gramo",
+        "kg",
+        "kilo",
+        "kilos",
+        "kilogramo",
+        "kilogramos",
+        "ml",
+        "mililitro",
+        "mililitros",
+        "l",
+        "litro",
+        "litros",
+        "und",
+        "u",
+        "unidad",
+        "unidades",
+        "porcion",
+        "porciones",
+        "bandeja",
+        "bandejas",
+        "torta",
+        "tortas",
+        "muffin",
+        "muffins",
+        "galleta",
+        "galletas",
     ]
 )
 
@@ -159,9 +182,7 @@ def test_property_extract_iva_roundtrip(gross: int, tax_mode: str) -> None:
     assert calc.iva_gs >= 0
     # Sanity: for "included", iva should be ~9.09% of gross; for "excluded",
     # iva should be ~10% of gross (give or take a Gs of rounding).
-    expected_iva = (
-        round(gross * 0.10 / 1.10) if tax_mode == "included" else round(gross * 0.10)
-    )
+    expected_iva = round(gross * 0.10 / 1.10) if tax_mode == "included" else round(gross * 0.10)
     assert abs(calc.iva_gs - expected_iva) <= 1, (
         f"iva({calc.iva_gs}) deviated from expected_iva({expected_iva}) "
         f"by >1 (tax_mode={tax_mode!r})"
@@ -254,9 +275,7 @@ def test_property_apply_void_returns_stock_to_identical_state(
         s.add(flour)
         s.flush()
 
-        recipe = Recipe(
-            name=f"Receta-prop-{salt}", yield_qty=12.0, yield_unit="und"
-        )
+        recipe = Recipe(name=f"Receta-prop-{salt}", yield_qty=12.0, yield_unit="und")
         s.add(recipe)
         s.flush()
 

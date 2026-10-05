@@ -12,6 +12,7 @@ Covers the customer-picker overhaul on /ventas:
   the picked customer to the new Sale row.
 - /ventas page renders the picker component.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -67,10 +68,8 @@ def test_api_search_matches_by_cedula(client, session_factory):
 
 def test_api_search_matches_by_email_substring(client, session_factory):
     with session_factory() as s:
-        s.add(Customer(name="Con Email", phone="+595981000020",
-                       email="maria.gonzalez@example.com"))
-        s.add(Customer(name="Sin Match", phone="+595981000021",
-                       email="otro@elsewhere.com"))
+        s.add(Customer(name="Con Email", phone="+595981000020", email="maria.gonzalez@example.com"))
+        s.add(Customer(name="Sin Match", phone="+595981000021", email="otro@elsewhere.com"))
         s.commit()
 
     resp = client.get("/clientes/api/search", params={"q": "gonzalez"})
@@ -82,8 +81,7 @@ def test_api_search_matches_by_email_substring(client, session_factory):
 
 def test_api_search_matches_by_notes(client, session_factory):
     with session_factory() as s:
-        s.add(Customer(name="VIP cliente", phone="+595981000030",
-                       notes="Cumpleaños en noviembre"))
+        s.add(Customer(name="VIP cliente", phone="+595981000030", notes="Cumpleaños en noviembre"))
         s.add(Customer(name="Regular", phone="+595981000031"))
         s.commit()
 
@@ -177,9 +175,7 @@ def test_api_create_with_phone_duplicate_is_idempotent(client, session_factory):
 
     # No duplicate row
     with session_factory() as s:
-        rows = s.execute(
-            select(Customer).where(Customer.phone == "+595981000300")
-        ).scalars().all()
+        rows = s.execute(select(Customer).where(Customer.phone == "+595981000300")).scalars().all()
         assert len(rows) == 1
 
 
@@ -305,7 +301,7 @@ def test_ventas_page_renders_customer_picker(client):
     """/ventas page includes the customer picker component.
 
     c20f692 rewrote the picker from a modal (trigger/search/results IDs)
-    to an inline <saskia-combo> combo box. The functional contract that
+    to an inline <ui-combo> combo box. The functional contract that
     remains: the hidden customer_id field, the combo input, the hint,
     and the inline "Nuevo cliente" disclosure panel.
     """
@@ -313,11 +309,11 @@ def test_ventas_page_renders_customer_picker(client):
     assert resp.status_code == 200
     body = resp.text
     for marker in [
-        "customer-picker",          # component wrapper div/class
-        "customer_id",              # hidden field the form posts
-        "customer_id_combo",        # saskia-combo input
-        "customer_picker_hint",     # hint line
-        "customer_picker_new_panel" # inline new-customer disclosure
+        "customer-picker",  # component wrapper div/class
+        "customer_id",  # hidden field the form posts
+        "customer_id_combo",  # ui-combo input
+        "customer_picker_hint",  # hint line
+        "customer_picker_new_panel",  # inline new-customer disclosure
     ]:
         assert marker in body, f"Picker marker {marker!r} not found in /ventas"
 
@@ -367,10 +363,14 @@ def test_picker_js_bundle_is_served(client):
 
 def test_api_search_payload_shape(client, session_factory):
     with session_factory() as s:
-        s.add(Customer(
-            name="Shape Test", phone="+595981000600",
-            email="shape@test.com", cedula="9999",
-        ))
+        s.add(
+            Customer(
+                name="Shape Test",
+                phone="+595981000600",
+                email="shape@test.com",
+                cedula="9999",
+            )
+        )
         s.commit()
 
     resp = client.get("/clientes/api/search", params={"q": "Shape"})
@@ -379,9 +379,18 @@ def test_api_search_payload_shape(client, session_factory):
     assert set(data.keys()) == {"results", "count"}
     r = data["results"][0]
     expected_keys = {
-        "id", "name", "phone", "email", "cedula", "notes",
-        "loyalty_points", "n_sales", "lifetime_spend_gs",
-        "lifetime_label", "tier", "hint",
+        "id",
+        "name",
+        "phone",
+        "email",
+        "cedula",
+        "notes",
+        "loyalty_points",
+        "n_sales",
+        "lifetime_spend_gs",
+        "lifetime_label",
+        "tier",
+        "hint",
     }
     assert expected_keys.issubset(r.keys()), f"Missing keys: {expected_keys - r.keys()}"
 

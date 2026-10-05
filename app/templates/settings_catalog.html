@@ -485,7 +485,7 @@
       tbody.querySelectorAll('[data-action="delete-cat"]').forEach(function(b) {
         b.addEventListener('click', function() {
           var _rowName = b.closest('tr').cells[0].textContent;
-          SaskiaConfirmModal.show({title: '¿Eliminar "' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+          UIConfirmModal.show({title: '¿Eliminar "' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
             if (!ok) return;
             api('POST', '/api/categories/' + b.dataset.id + '/delete').then(function() {
             toast('Eliminado');
@@ -546,7 +546,7 @@
       tbody.querySelectorAll('[data-action="delete-channel"]').forEach(function(b) {
         b.addEventListener('click', function() {
           var _rowName = b.closest('tr').cells[0].textContent;
-          SaskiaConfirmModal.show({title: '¿Eliminar canal ""' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+          UIConfirmModal.show({title: '¿Eliminar canal ""' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
             if (!ok) return;
             api('POST', '/api/channels/' + b.dataset.id + '/delete').then(function() {
             toast('Canal eliminado');
@@ -607,7 +607,7 @@
       tbody.querySelectorAll('[data-action="delete-payment"]').forEach(function(b) {
         b.addEventListener('click', function() {
           var _rowName = b.closest('tr').cells[0].textContent;
-          SaskiaConfirmModal.show({title: '¿Eliminar "' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+          UIConfirmModal.show({title: '¿Eliminar "' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
             if (!ok) return;
             api('POST', '/api/payment-methods/' + b.dataset.id + '/delete').then(function() {
             toast('Forma de pago eliminada');
@@ -675,7 +675,7 @@
       tbody.querySelectorAll('[data-action="delete-tier"]').forEach(function(b) {
         b.addEventListener('click', function() {
           var _rowName = b.closest('tr').cells[0].textContent;
-          SaskiaConfirmModal.show({title: '¿Eliminar tier ""' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+          UIConfirmModal.show({title: '¿Eliminar tier ""' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
             if (!ok) return;
             api('POST', '/api/margin-tiers/' + b.dataset.id + '/delete').then(function() {
             toast('Tier eliminado');
@@ -730,7 +730,7 @@
       tbody.querySelectorAll('[data-action="delete-stock"]').forEach(function(b) {
         b.addEventListener('click', function() {
           var _rowName = b.closest('tr').cells[0].textContent;
-          SaskiaConfirmModal.show({title: '¿Eliminar umbral ""' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+          UIConfirmModal.show({title: '¿Eliminar umbral ""' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
             if (!ok) return;
             api('POST', '/api/stock-status-config/' + b.dataset.id + '/delete').then(function() {
             toast('Umbral eliminado');
@@ -784,7 +784,7 @@
       tbody.querySelectorAll('[data-action="delete-storage"]').forEach(function(b) {
         b.addEventListener('click', function() {
           var _rowName = b.closest('tr').cells[0].textContent;
-          SaskiaConfirmModal.show({title: '¿Eliminar "' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+          UIConfirmModal.show({title: '¿Eliminar "' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
             if (!ok) return;
             api('POST', '/api/storage-types/' + b.dataset.id + '/delete').then(function() {
             toast('Tipo de almacenamiento eliminado');
@@ -839,7 +839,7 @@
       tbody.querySelectorAll('[data-action="delete-preset"]').forEach(function(b) {
         b.addEventListener('click', function() {
           var _rowName = b.closest('tr').cells[0].textContent;
-          SaskiaConfirmModal.show({title: '¿Eliminar "' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+          UIConfirmModal.show({title: '¿Eliminar "' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
             if (!ok) return;
             api('POST', '/api/date-presets/' + b.dataset.id + '/delete').then(function() {
             toast('Período eliminado');
@@ -902,7 +902,7 @@
       tbody.querySelectorAll('[data-action="delete-template"]').forEach(function(b) {
         b.addEventListener('click', function() {
           var _rowName = b.closest('tr').cells[1].textContent;
-          SaskiaConfirmModal.show({title: '¿Eliminar plantilla ""' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+          UIConfirmModal.show({title: '¿Eliminar plantilla ""' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
             if (!ok) return;
             api('POST', '/api/templates/' + b.dataset.id + '/delete').then(function() {
             toast('Plantilla eliminada');

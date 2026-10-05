@@ -13,7 +13,7 @@ Covers the three pieces added this sprint:
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -73,7 +73,6 @@ def _mk_product(s, name, recipe_id, price=10000, visible=True):
 @pytest.fixture()
 def subrecipe_world(session_factory):
     """Product → recipe with a sub-recipe (masa + glaseado sharing azúcar)."""
-    from app.rms.models import RecipeLine
 
     with session_factory() as session:
         yield _build_subrecipe_world(session)
@@ -118,13 +117,14 @@ def _build_subrecipe_world(session):
 
     # Seed tomorrow's override (10 units) so the day plan has real qty —
     # otherwise forecast=0 and the route flow finds no shortages.
-    from app.rms.models import ProductionPlanOverride
     from datetime import datetime as _dt
+
+    from app.rms.models import ProductionPlanOverride
 
     session.add(
         ProductionPlanOverride(
             product_id=prod.id,
-            for_date=date.today() + timedelta(days=1),
+            for_date=datetime.utcnow().date() + timedelta(days=1),
             qty=10.0,
             updated_at=_dt.utcnow(),
         )
@@ -135,7 +135,6 @@ def _build_subrecipe_world(session):
 
 def test_plan_includes_subrecipe_ingredients(session_factory, subrecipe_world):
     """The glaze's azúcar + queso MUST appear in the day plan lines."""
-    from app.rms.production import plan_production
 
     with session_factory() as session:
         _assert_plan(session, subrecipe_world)
@@ -144,8 +143,10 @@ def test_plan_includes_subrecipe_ingredients(session_factory, subrecipe_world):
 def _assert_plan(session, subrecipe_world):
     from app.rms.production import plan_production
 
-    tomorrow = date.today() + timedelta(days=1)
-    plan = plan_production(session, for_date=tomorrow, manual_forecast={subrecipe_world["product"].id: 10})
+    tomorrow = datetime.utcnow().date() + timedelta(days=1)
+    plan = plan_production(
+        session, for_date=tomorrow, manual_forecast={subrecipe_world["product"].id: 10}
+    )
     by_ing = {ln.ingredient_id: ln for ln in plan.lines}
 
     # Azúcar: 100g (masa) + 200g (glaseado) = 300g required — summed, not duplicated
@@ -159,7 +160,7 @@ def _assert_plan(session, subrecipe_world):
 def test_from_production_plan_creates_shortage_items(session_factory, subrecipe_world, client):
     from app.rms.models import ShoppingListItem
 
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = datetime.utcnow().date() + timedelta(days=1)
     resp = client.post(
         "/shopping-list/from-production-plan",
         data={"for_date": tomorrow.isoformat()},
@@ -170,9 +171,7 @@ def test_from_production_plan_creates_shortage_items(session_factory, subrecipe_
     assert "/shopping-list?from_plan=" in resp.headers["location"]
 
     with session_factory() as session:
-        items = session.query(ShoppingListItem).filter(
-            ShoppingListItem.purchased.is_(False)
-        ).all()
+        items = session.query(ShoppingListItem).filter(ShoppingListItem.purchased.is_(False)).all()
         by_ing = {i.ingredient_id: i for i in items}
         # queso: stock 0 → full 300g shortage
         assert by_ing[subrecipe_world["queso"].id].qty_to_buy == pytest.approx(300.0)
@@ -189,14 +188,12 @@ def test_from_production_plan_is_idempotent(session_factory, subrecipe_world, cl
     """Calling twice must NOT duplicate rows — it tops up or leaves as-is."""
     from app.rms.models import ShoppingListItem
 
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = datetime.utcnow().date() + timedelta(days=1)
     client.post("/shopping-list/from-production-plan", data={"for_date": tomorrow.isoformat()})
     client.post("/shopping-list/from-production-plan", data={"for_date": tomorrow.isoformat()})
 
     with session_factory() as session:
-        items = session.query(ShoppingListItem).filter(
-            ShoppingListItem.purchased.is_(False)
-        ).all()
+        items = session.query(ShoppingListItem).filter(ShoppingListItem.purchased.is_(False)).all()
         # Same plan, same shortages → quantities unchanged, one row per ingredient
         assert len(items) == 3
         by_ing = {i.ingredient_id: i.qty_to_buy for i in items}
@@ -205,7 +202,7 @@ def test_from_production_plan_is_idempotent(session_factory, subrecipe_world, cl
 
 def test_shopping_list_groups_by_supplier(session_factory, subrecipe_world, client):
     """Named supplier group sorts first; None-supplier group last."""
-    from app.rms.models import Supplier, ShoppingListItem
+    from app.rms.models import Supplier
 
     with session_factory() as session:
         sup = Supplier(name="Distribuidora Central", phone="0981112223")
@@ -215,7 +212,7 @@ def test_shopping_list_groups_by_supplier(session_factory, subrecipe_world, clie
         queso.supplier_id = sup.id
         session.commit()
 
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = datetime.utcnow().date() + timedelta(days=1)
     client.post("/shopping-list/from-production-plan", data={"for_date": tomorrow.isoformat()})
 
     resp = client.get("/shopping-list")
@@ -229,7 +226,7 @@ def test_shopping_list_groups_by_supplier(session_factory, subrecipe_world, clie
 
 def test_produccion_page_has_send_to_list_button(client, subrecipe_world):
     """The day view carries the one-click button (POST target + label)."""
-    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = datetime.utcnow().date() + timedelta(days=1)
     resp = client.get(f"/produccion?for_date={tomorrow.isoformat()}")
     assert resp.status_code == 200
     assert "/shopping-list/from-production-plan" in resp.text
@@ -238,32 +235,40 @@ def test_produccion_page_has_send_to_list_button(client, subrecipe_world):
 
 def test_consolidate_merges_duplicate_ingredients(session_factory, subrecipe_world):
     """consolidate_open_items merges open rows sharing (ingredient, unit)."""
-    from app.routers.shopping import consolidate_open_items
     from app.rms.models import ShoppingListItem
+    from app.routers.shopping import consolidate_open_items
 
     with session_factory() as session:
         queso = session.merge(subrecipe_world["queso"])
         s1 = ShoppingListItem(
-            ingredient_id=queso.id, qty_to_buy=300.0, unit="g",
+            ingredient_id=queso.id,
+            qty_to_buy=300.0,
+            unit="g",
             purpose_text="Plan #1 (1× Carrot Cake)",
         )
         s2 = ShoppingListItem(
-            ingredient_id=queso.id, qty_to_buy=20.0, unit="g",
+            ingredient_id=queso.id,
+            qty_to_buy=20.0,
+            unit="g",
             purpose_text="Auto: stock 0.253333333333326 < min 0.3",
         )
         session.add_all([s1, s2])
         session.commit()
-        id1, id2 = s1.id, s2.id
+        _id1, _id2 = s1.id, s2.id
 
     with session_factory() as session:
         deleted = consolidate_open_items(session)
         assert deleted >= 1
 
     with session_factory() as session:
-        rows = session.query(ShoppingListItem).filter(
-            ShoppingListItem.ingredient_id == queso.id,
-            ShoppingListItem.purchased.is_(False),
-        ).all()
+        rows = (
+            session.query(ShoppingListItem)
+            .filter(
+                ShoppingListItem.ingredient_id == queso.id,
+                ShoppingListItem.purchased.is_(False),
+            )
+            .all()
+        )
         assert len(rows) == 1
         assert rows[0].qty_to_buy == pytest.approx(320.0)
         assert "Plan #1" in rows[0].purpose_text

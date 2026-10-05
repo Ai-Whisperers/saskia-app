@@ -151,7 +151,7 @@
     <div class="metric-label">Comprobante de pago</div>
     {% if pedido.payment_receipt_path %}
     <p class="text-muted" style="font-size: var(--text-sm); margin: var(--space-2) 0;">
-      Recibido el {{ pedido.payment_receipt_uploaded_at.strftime("%d/%m/%Y a las %H:%M") if pedido.payment_receipt_uploaded_at else "—" }}.
+      Recibido el {{ pedido.payment_receipt_uploaded_at.replace('T', ' ')[:16] if pedido.payment_receipt_uploaded_at else "—" }}.
     </p>
     <details>
       <summary style="cursor:pointer;color:var(--color-link);font-size:var(--text-sm);">

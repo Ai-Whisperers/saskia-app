@@ -1,6 +1,6 @@
 """tests/test_xlsx_fixtures.py — verify Drive-shape fixtures round-trip cleanly.
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E7.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E7.
 
 Builds (or rebuilds) the fixture files in tests/fixtures/ and exercises
 the import service against them. Asserts:
@@ -8,10 +8,11 @@ the import service against them. Asserts:
 - realistic.xlsx round-trips with the seed counts
 - edge_cases.xlsx imports gracefully (no crash on renamed sheet / blank
   rows / extra column / unicode names)
-- herbus_compat.xlsx (mimics Saskia's actual Drive file) imports cleanly
+- herbus_compat.xlsx (mimics the operator's actual Drive file) imports cleanly
 - All sheets persist with expected row counts
 - Fixtures are committed under tests/fixtures/
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -97,7 +98,7 @@ def test_edge_cases_fixture_imports_gracefully(session_factory):
 
 
 def test_herbus_compat_fixture_imports(session_factory):
-    """Compat fixture (Saskia's real Drive file shape) should import cleanly."""
+    """Compat fixture (the operator's real Drive file shape) should import cleanly."""
     path = FIXTURE_DIR / "herbus_compat.xlsx"
     assert path.exists()
     s = session_factory()
@@ -121,9 +122,7 @@ def test_realistic_fixture_has_correct_sheet_names():
     path = FIXTURE_DIR / "herbus_minimal.xlsx"
     wb = load_workbook(path)
     expected = {"Ingredientes", "Recetas", "Lineas", "Productos"}
-    assert expected.issubset(set(wb.sheetnames)), (
-        f"missing sheets: {expected - set(wb.sheetnames)}"
-    )
+    assert expected.issubset(set(wb.sheetnames)), f"missing sheets: {expected - set(wb.sheetnames)}"
 
 
 def test_realistic_fixture_has_expected_row_counts():
@@ -190,7 +189,12 @@ def test_fixtures_exist_in_expected_paths():
 
 def test_fixture_files_are_reasonable_size():
     """Each fixture should be > 4KB (sanity check, not zero-bytes)."""
-    for name in ["herbus_minimal.xlsx", "herbus_realistic.xlsx", "herbus_edge_cases.xlsx", "herbus_compat.xlsx"]:
+    for name in [
+        "herbus_minimal.xlsx",
+        "herbus_realistic.xlsx",
+        "herbus_edge_cases.xlsx",
+        "herbus_compat.xlsx",
+    ]:
         path = FIXTURE_DIR / name
         if path.exists():
             size = path.stat().st_size

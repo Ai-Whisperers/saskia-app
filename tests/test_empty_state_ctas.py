@@ -22,11 +22,10 @@ def test_inventario_empty_state_has_create_cta(qseed, authed_client):
 
 
 @pytest.mark.crud
-def test_clientes_empty_state_has_action_when_no_clients(
-    qseed, authed_client, session_factory
-):
+def test_clientes_empty_state_has_action_when_no_clients(qseed, authed_client, session_factory):
     """When no customers, /clientes shows 'Registrar venta' button."""
     from app.rms.models import Customer
+
     with session_factory() as s:
         s.query(Customer).delete()
         s.commit()
@@ -38,11 +37,10 @@ def test_clientes_empty_state_has_action_when_no_clients(
 
 
 @pytest.mark.crud
-def test_suppliers_empty_state_has_create_cta(
-    qseed, authed_client, session_factory
-):
+def test_suppliers_empty_state_has_create_cta(qseed, authed_client, session_factory):
     """When no suppliers, /suppliers shows 'Agregar el primero' button."""
     from app.rms.models import Supplier
+
     with session_factory() as s:
         s.query(Supplier).delete()
         s.commit()
@@ -54,11 +52,10 @@ def test_suppliers_empty_state_has_create_cta(
 
 
 @pytest.mark.crud
-def test_recetas_empty_state_has_create_cta(
-    qseed, authed_client, session_factory
-):
+def test_recetas_empty_state_has_create_cta(qseed, authed_client, session_factory):
     """When no recipes, /recetas shows 'Agregá la primera' button."""
     from app.rms.models import Recipe
+
     with session_factory() as s:
         s.query(Recipe).delete()
         s.commit()
@@ -70,11 +67,10 @@ def test_recetas_empty_state_has_create_cta(
 
 
 @pytest.mark.crud
-def test_auditoria_empty_state_has_action(
-    qseed, authed_client, session_factory
-):
+def test_auditoria_empty_state_has_action(qseed, authed_client, session_factory):
     """When no audit entries, /auditoria has 'Ir al inicio' link."""
     from app.rms.models import AuditLog
+
     with session_factory() as s:
         s.query(AuditLog).delete()
         s.commit()
@@ -83,7 +79,7 @@ def test_auditoria_empty_state_has_action(
     body = r.text
     assert "No hay entradas" in body
     # The new CTA: "Ir al inicio"
-    assert 'Ir al inicio' in body
+    assert "Ir al inicio" in body
 
 
 @pytest.mark.crud
@@ -93,7 +89,7 @@ def test_inventario_nuevo_button_always_visible(qseed, authed_client):
     assert r.status_code == 200
     assert 'href="/inventario/nuevo"' in r.text
     # has the icon
-    assert 'Nuevo ingrediente' in r.text
+    assert "Nuevo ingrediente" in r.text
 
 
 @pytest.mark.crud

@@ -26,6 +26,7 @@ All models here share the same declarative Base as the rest of the
 project — see app/rms/models/core.py.
 """
 
+
 class Ingredient(Base):
     """An inventory item. Stock and prices are stored as Decimal (float64).
 
@@ -40,9 +41,7 @@ class Ingredient(Base):
     unit: Mapped[str] = mapped_column(String(16), nullable=False)
     stock_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     purchase_price_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    purchase_price_updated_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True
-    )
+    purchase_price_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     last_consumed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     min_stock_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     # Phase 7 reorder: target stock to refill to. Defaults to 2x min_stock_qty
@@ -76,14 +75,22 @@ class Ingredient(Base):
     water_activity_aw: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     # Whether this ingredient requires lot tracking (FIFO per batch).
     # True for dairy, eggs, meat, seafood, fresh produce. False for dry/sugar/salt.
-    lot_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    lot_required: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
     # SINACLA cross-contamination flag: produced in facility with wheat.
     # Blocks "sin tacc" derivation even when tagged sin_gluten (migration 054).
-    may_contain_gluten: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    may_contain_gluten: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
     # Audit items 109, 110: opening stock with date + reorder point override
     opening_stock_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    opening_stock_date: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # ISO date string
-    reorder_point: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # overrides min_stock_qty for reorder
+    opening_stock_date: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )  # ISO date string
+    reorder_point: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True
+    )  # overrides min_stock_qty for reorder
 
     # Relationships
     # NOTE: `recipe_lines` (the reverse of RecipeLine.ingredient) is NOT defined here
@@ -109,6 +116,7 @@ class Ingredient(Base):
         Index("ix_ingredient_name", "name", unique=True),
     )
 
+
 class Recipe(Base):
     """A recipe. yield_qty + yield_unit describe the batch (e.g., 12 muffins, 1 torta)."""
 
@@ -121,7 +129,9 @@ class Recipe(Base):
     prep_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     cook_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     difficulty: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 1-5 scale
-    family: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # category (legacy, read-only)
+    family: Mapped[Optional[str]] = mapped_column(
+        String(32), nullable=True
+    )  # category (legacy, read-only)
     # UI-V2 (migration 068): multi-select "Etiquetas de Menú" — a recipe can
     # belong to several commercial contexts ("Pastelería", "Especial de
     # Temporada"). Comma-separated, like dietary_tags. Replaces the
@@ -157,6 +167,7 @@ class Recipe(Base):
         Index("ix_recipe_name", "name", unique=True),
     )
 
+
 class RecipeLine(Base):
     """A line in a recipe. Polymorphic: line_kind ∈ {ingredient, sub_recipe}.
 
@@ -174,7 +185,7 @@ class RecipeLine(Base):
     line_kind: Mapped[str] = mapped_column(String(16), nullable=False)
     line_ref_id: Mapped[int] = mapped_column(Integer, nullable=False)
     qty: Mapped[float] = mapped_column(Float, nullable=False)
-    # Phase B — T1: per-line unit. Lets Saskia type "250 g" while the linked
+    # Phase B — T1: per-line unit. Lets the operator type "250 g" while the linked
     # ingredient is in "kg". Default "" for backward compat (legacy rows assume
     # the ingredient's unit at costing time). Allowed: g, kg, ml, l, und.
     line_unit: Mapped[str] = mapped_column(String(8), nullable=False, default="")
@@ -193,6 +204,7 @@ class RecipeLine(Base):
         Index("ix_recipe_line_ref", "line_kind", "line_ref_id"),
     )
 
+
 class Product(Base):
     """A sellable product. Has a sale_price_gs (int) and an optional recipe."""
 
@@ -202,11 +214,19 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
     portion_label: Mapped[str] = mapped_column(String(60), nullable=False, default="1 unidad")
     sale_price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
-    recipe_id: Mapped[Optional[int]] = mapped_column(ForeignKey("recipe.id"), nullable=True, index=True)
+    recipe_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("recipe.id"), nullable=True, index=True
+    )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    sku: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, unique=True, index=True)  # E23.S1 barcode
-    is_available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)  # Toggle to hide from POS
-    image_url: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)  # Product image URL
+    sku: Mapped[Optional[str]] = mapped_column(
+        String(32), nullable=True, unique=True, index=True
+    )  # E23.S1 barcode
+    is_available: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )  # Toggle to hide from POS
+    image_url: Mapped[Optional[str]] = mapped_column(
+        String(256), nullable=True
+    )  # Product image URL
     category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # Product category
     tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Comma-separated tags
     # Migration 069: quick-sale "Favoritos" filter persistence (kept in sync
@@ -215,12 +235,16 @@ class Product(Base):
 
     # Phase 1.A — IVA rate ∈ {5, 10, 'exento'}. Defaults from ComplianceInfo.iva_default_rate.
     # Stored as string so 'exento' is a valid value alongside 5/10.
-    iva_rate: Mapped[str] = mapped_column(String(8), nullable=False, default="10", server_default="10")
+    iva_rate: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="10", server_default="10"
+    )
 
     # Phase 1.A — INAN R.S.P.A. (Registro Sanitario de Producto Alimenticio). Required when
     # product is packaged + labeled for retail sale. NULL = no R.S.P.A. (e.g. mostrador
     # or encargo sales where R.S.P.A. is not required).
-    requires_rspa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    requires_rspa: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
     rspa_number: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     rspa_expiry: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # ISO
 
@@ -239,6 +263,7 @@ class Product(Base):
         CheckConstraint("sale_price_gs >= 0", name="ck_product_price_nonneg"),
         Index("ix_product_name", "name", unique=True),
     )
+
 
 class IngredientVariant(Base):
     """A specific package of an Ingredient (Sprint 7 — Decision A1).
@@ -270,16 +295,12 @@ class IngredientVariant(Base):
     # Human-readable label of the package (e.g. "Bolsa 1kg", "Saco 25kg").
     # Optional — operators can leave it empty if the size + unit is clear.
     package_size: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
-    package_unit: Mapped[str] = mapped_column(
-        String(8), nullable=False, default="und"
-    )
+    package_unit: Mapped[str] = mapped_column(String(8), nullable=False, default="und")
     purchase_price_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # Stock for THIS variant only (e.g. 3 bags of 1kg harina). The
     # ingredient.stock_qty column on the parent is kept for backwards
     # compatibility but new code should read variant-level stock.
-    stock_qty: Mapped[float] = mapped_column(
-        Float, nullable=False, default=0.0, server_default="0"
-    )
+    stock_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0")
     supplier_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("supplier.id"), nullable=True, index=True
     )
@@ -287,9 +308,7 @@ class IngredientVariant(Base):
         Boolean, nullable=False, default=False, server_default="0"
     )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
@@ -342,9 +361,7 @@ class IngredientPriceEvent(Base):
         index=True,
     )
     price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
-    recorded_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     source: Mapped[str] = mapped_column(String(32), nullable=False, default="restock")
 
     __table_args__ = (
@@ -354,6 +371,7 @@ class IngredientPriceEvent(Base):
             "recorded_at",
         ),
     )
+
 
 class PriceHistory(Base):
     """One row per actual ingredient purchase (HEREBUS Price_History sheet).

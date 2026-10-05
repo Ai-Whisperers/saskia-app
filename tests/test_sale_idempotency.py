@@ -15,6 +15,7 @@ These tests verify the fix holds under three scenarios:
   - Different idempotency_keys posted twice → two distinct sales.
   - Empty idempotency_key → no idempotency record (back-compat for older forms).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -41,8 +42,11 @@ def _seed_minimal(session_factory):
         s.flush()
 
         product = Product(
-            name="Muffin", portion_label="1 muffin", recipe_id=recipe.id,
-            sale_price_gs=10000, iva_rate="10",
+            name="Muffin",
+            portion_label="1 muffin",
+            recipe_id=recipe.id,
+            sale_price_gs=10000,
+            iva_rate="10",
         )
         s.add(product)
         s.flush()
@@ -83,6 +87,7 @@ def test_same_idempotency_key_creates_exactly_one_sale(client, session_factory):
 
     # Exactly one Sale row exists.
     from app.rms.models import Sale
+
     with session_factory() as s:
         n_sales = s.query(Sale).count()
     assert n_sales == 1, f"expected 1 sale, got {n_sales}"
@@ -97,6 +102,7 @@ def test_same_idempotency_key_does_not_double_decrement_stock(client, session_fa
     _post_sale(client, product_id, idempotency_key=idem, qty=2.0)
 
     from app.rms.models import Ingredient
+
     with session_factory() as s:
         ing = s.query(Ingredient).filter_by(name="Harina").one()
         # 10.0 starting stock. Recipe: yield 12 muffins per recipe, 0.3 kg flour.
@@ -116,6 +122,7 @@ def test_different_idempotency_keys_create_distinct_sales(client, session_factor
     _post_sale(client, product_id, idempotency_key=uuid.uuid4().hex)
 
     from app.rms.models import Sale
+
     with session_factory() as s:
         n_sales = s.query(Sale).count()
     assert n_sales == 2, f"expected 2 sales, got {n_sales}"
@@ -129,6 +136,7 @@ def test_empty_idempotency_key_creates_sale_without_record(client, session_facto
     assert r.status_code in (303, 302)
 
     from app.rms.models import AppMeta, Sale
+
     with session_factory() as s:
         assert s.query(Sale).count() == 1
         # No sale_idem: rows for empty key
@@ -148,5 +156,6 @@ def test_retry_returns_to_original_sale(client, session_factory):
     # the same sale_id from the AppMeta value (or, in current behavior, just
     # go to /ventas with flash=sale_duplicate). Either way: only one sale row.
     from app.rms.models import Sale
+
     with session_factory() as s:
         assert s.query(Sale).count() == 1

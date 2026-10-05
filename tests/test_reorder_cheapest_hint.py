@@ -5,6 +5,7 @@ cheaper supplier for an ingredient than the currently effective one.
 The hint disappears when the suggested supplier matches the row's
 current effective supplier. This file exercises the wired path end-to-end.
 """
+
 from __future__ import annotations
 
 from app.rms.models import Ingredient, Supplier
@@ -33,9 +34,7 @@ def _ensure_seed(authed_client, qseed):
     return r
 
 
-def test_reorder_renders_cheapest_hint_when_supplier_cheaper(
-    authed_client, session_factory, qseed
-):
+def test_reorder_renders_cheapest_hint_when_supplier_cheaper(authed_client, session_factory, qseed):
     """When another supplier has lower avg price than effective, render hint."""
     # Seed first so we have at least one ingredient to tag.
     _ensure_seed(authed_client, qseed)
@@ -45,10 +44,11 @@ def test_reorder_renders_cheapest_hint_when_supplier_cheaper(
         cheap = _make_supplier(s, "S_Barato")
         expensive = _make_supplier(s, "S_Caro")
         from sqlalchemy import select
+
         # Find the low-stock ingredient (id=2 "harina baja") which is on /reorder.
-        ing = s.execute(
-            select(Ingredient).filter(Ingredient.name == "harina baja")
-        ).scalars().first()
+        ing = (
+            s.execute(select(Ingredient).filter(Ingredient.name == "harina baja")).scalars().first()
+        )
         assert ing is not None, "qseed with_low_stock must create 'harina baja'"
         iid = ing.id
         record_price_event(s, iid, 5000, supplier_id=expensive, source="restock")
@@ -72,6 +72,7 @@ def test_reorder_hides_hint_when_already_cheapest(authed_client, session_factory
     with Session() as s:
         only = _make_supplier(s, "S_Unico")
         from sqlalchemy import select
+
         ing = s.execute(select(Ingredient)).scalars().first()
         assert ing is not None
         iid = ing.id
@@ -102,7 +103,7 @@ def test_reorder_hides_hint_when_no_events(authed_client, session_factory, qseed
     # not be on the reorder list depending on its stock. Skip if not present.
     if f"rsup-{iid}" not in body:
         return  # ingredient wasn't selected for reorder — nothing to test
-    # Find the wrapper around this ingredient's saskia-combo
+    # Find the wrapper around this ingredient's ui-combo
     idx = body.find(f"rsup-{iid}")
     # Look backwards for the start of the cell wrapper
     cell_start = body.rfind("<td", 0, idx)

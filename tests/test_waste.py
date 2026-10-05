@@ -1,6 +1,6 @@
 """tests/test_waste.py — verify app/rms/waste.py (E22).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E22.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E22.
 
 Covers:
 - record_waste creates row + decrements stock
@@ -9,6 +9,7 @@ Covers:
 - waste_impact aggregates by reason + by ingredient
 - waste_as_pct_of_revenue computes percentage
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -30,9 +31,7 @@ from tests.factories import make_ingredient
 def test_record_waste_creates_row_and_decrements_stock(session_factory):
     s = session_factory()
     try:
-        ing = Ingredient(
-            name="harina", unit="kg", stock_qty=10.0, purchase_price_gs=4500
-        )
+        ing = Ingredient(name="harina", unit="kg", stock_qty=10.0, purchase_price_gs=4500)
         s.add(ing)
         s.flush()
         log = record_waste(
@@ -197,13 +196,10 @@ def test_waste_as_pct_of_revenue(session_factory):
         pct = waste_as_pct_of_revenue(s, start_date=start, end_date=end, revenue_gs=100_000)
         assert abs(pct - 2.0) < 0.01  # 2%
 
-        pct_zero_revenue = waste_as_pct_of_revenue(
-            s, start_date=start, end_date=end, revenue_gs=0
-        )
+        pct_zero_revenue = waste_as_pct_of_revenue(s, start_date=start, end_date=end, revenue_gs=0)
         assert pct_zero_revenue == 0.0
     finally:
         s.close()
-
 
 
 def test_record_recipe_waste_creates_one_log_per_ingredient(session_factory):
@@ -223,19 +219,34 @@ def test_record_recipe_waste_creates_one_log_per_ingredient(session_factory):
         rec = Recipe(name="Muffin x12", yield_qty=12, yield_unit="und")
         s.add(rec)
         s.flush()
-        s.add_all([
-            RecipeLine(recipe_id=rec.id, line_kind="ingredient",
-                       line_ref_id=flour.id, qty=0.5, line_unit="kg"),
-            RecipeLine(recipe_id=rec.id, line_kind="ingredient",
-                       line_ref_id=sugar.id, qty=0.3, line_unit="kg"),
-            RecipeLine(recipe_id=rec.id, line_kind="ingredient",
-                       line_ref_id=eggs.id, qty=4, line_unit="und"),
-        ])
+        s.add_all(
+            [
+                RecipeLine(
+                    recipe_id=rec.id,
+                    line_kind="ingredient",
+                    line_ref_id=flour.id,
+                    qty=0.5,
+                    line_unit="kg",
+                ),
+                RecipeLine(
+                    recipe_id=rec.id,
+                    line_kind="ingredient",
+                    line_ref_id=sugar.id,
+                    qty=0.3,
+                    line_unit="kg",
+                ),
+                RecipeLine(
+                    recipe_id=rec.id,
+                    line_kind="ingredient",
+                    line_ref_id=eggs.id,
+                    qty=4,
+                    line_unit="und",
+                ),
+            ]
+        )
         s.flush()
 
-        result = record_recipe_waste(
-            s, recipe_id=rec.id, batch_qty=2.0, reason=WasteReason.QUEMADA
-        )
+        result = record_recipe_waste(s, recipe_id=rec.id, batch_qty=2.0, reason=WasteReason.QUEMADA)
         s.commit()
 
         assert result.recipe_id == rec.id
@@ -243,7 +254,9 @@ def test_record_recipe_waste_creates_one_log_per_ingredient(session_factory):
         assert len(result.waste_logs) == 3
 
         # Stock decremented
-        s.refresh(flour); s.refresh(sugar); s.refresh(eggs)
+        s.refresh(flour)
+        s.refresh(sugar)
+        s.refresh(eggs)
         assert flour.stock_qty == pytest.approx(9.0)  # 10 - 1.0
         assert sugar.stock_qty == pytest.approx(9.4)  # 10 - 0.6
         assert eggs.stock_qty == pytest.approx(92.0)  # 100 - 8
@@ -264,9 +277,7 @@ def test_record_recipe_waste_rejects_unknown_recipe(session_factory):
     s = session_factory()
     try:
         with pytest.raises(ValueError, match="not found"):
-            record_recipe_waste(
-                s, recipe_id=99999, batch_qty=1.0, reason=WasteReason.OTRA
-            )
+            record_recipe_waste(s, recipe_id=99999, batch_qty=1.0, reason=WasteReason.OTRA)
     finally:
         s.close()
 
@@ -275,11 +286,10 @@ def test_record_recipe_waste_rejects_missing_yield(session_factory):
     s = session_factory()
     try:
         rec = Recipe(name="NoYield", yield_qty=None, yield_unit="und")
-        s.add(rec); s.flush()
+        s.add(rec)
+        s.flush()
         with pytest.raises(ValueError, match="sin rendimiento"):
-            record_recipe_waste(
-                s, recipe_id=rec.id, batch_qty=1.0, reason=WasteReason.OTRA
-            )
+            record_recipe_waste(s, recipe_id=rec.id, batch_qty=1.0, reason=WasteReason.OTRA)
     finally:
         s.close()
 
@@ -288,10 +298,9 @@ def test_record_recipe_waste_rejects_zero_batch(session_factory):
     s = session_factory()
     try:
         rec = Recipe(name="x", yield_qty=12, yield_unit="und")
-        s.add(rec); s.flush()
+        s.add(rec)
+        s.flush()
         with pytest.raises(ValueError, match="mayor a 0"):
-            record_recipe_waste(
-                s, recipe_id=rec.id, batch_qty=0.0, reason=WasteReason.OTRA
-            )
+            record_recipe_waste(s, recipe_id=rec.id, batch_qty=0.0, reason=WasteReason.OTRA)
     finally:
         s.close()

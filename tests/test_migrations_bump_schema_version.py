@@ -17,6 +17,7 @@ Why this matters:
 - The lifespan + outage tests cover the symptom, but as a defense-in-
   depth, this test catches the cause directly.
 """
+
 from __future__ import annotations
 
 import ast
@@ -45,9 +46,9 @@ def test_every_migration_calls_bump_schema_version():
     # Files that are clearly experimental/legacy (low numbers, hand-rolled
     # version bumps) are excluded by a minimum version threshold.
     file_migrations = sorted(
-        p for p in migrations_dir.glob("_*.py")
-        if p.name != "__init__.py"
-        and re.match(r"_\d{3}_.+\.py$", p.name)
+        p
+        for p in migrations_dir.glob("_*.py")
+        if p.name != "__init__.py" and re.match(r"_\d{3}_.+\.py$", p.name)
     )
 
     missing = []
@@ -66,11 +67,15 @@ def test_every_migration_calls_bump_schema_version():
         src = path.read_text(encoding="utf-8")
         tree = ast.parse(src)
         calls = [
-            node for node in ast.walk(tree)
+            node
+            for node in ast.walk(tree)
             if isinstance(node, ast.Call)
             and (
                 (isinstance(node.func, ast.Name) and node.func.id == "_bump_schema_version")
-                or (isinstance(node.func, ast.Attribute) and node.func.attr == "_bump_schema_version")
+                or (
+                    isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "_bump_schema_version"
+                )
             )
         ]
         if not calls:
@@ -95,6 +100,5 @@ def test_migration_count_matches_registered():
     expected = set(range(1, CURRENT_SCHEMA_VERSION + 1))
     actual = set(MIGRATIONS.keys())
     assert actual == expected, (
-        f"Migration sequence gap. Missing: {expected - actual}; "
-        f"Extra: {actual - expected}"
+        f"Migration sequence gap. Missing: {expected - actual}; Extra: {actual - expected}"
     )

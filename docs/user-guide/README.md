@@ -1,12 +1,12 @@
-# Guía de Saskia RMS
+# Guía de Sazón
 
-> **Para Saskia.** Esta guía explica, página por página, todo lo que
+> **Para the operator.** Esta guía explica, página por página, todo lo que
 > tiene la app y cómo usarlo en el día a día de la panadería.
 
-**URL activa:** `https://saskia-vps.paragu-ai.com`  *(si ves "service suspended", contactá al equipo — esa URL no es la correcta)*
-**URL alternativa (suspendida):** `https://saskia-rms.paragu-ai.com` — Render, NO usar
-**Versión del manual:** 2026-10-05 · schema 101 · commit `62cccee` · 17 secciones (+ 12 páginas de la barra lateral documentadas en el índice)
-**Manual versión:** v1.3 (ver "Cómo verificar la versión" abajo)
+**URL activa:** `https://sazon-vps.paragu-ai.com`  *(si ves "service suspended", contactá al equipo — esa URL no es la correcta)*
+**URL alternativa (suspendida):** `https://sazon-rms.paragu-ai.com` — Render, NO usar
+**Versión del manual:** 2026-10-05 · schema 102 · commit `487079f` · 21 secciones + Phase 3 CI cleanup, production v2 features
+**Manual versión:** v1.5 (ver "Cómo verificar la versión" abajo)
 
 ## Índice rápido
 
@@ -29,27 +29,28 @@
 | [14](14-reponer.md) | Reponer stock (lista de compras) | Antes de ir al super o proveedor |
 | [15](15-cierre.md) | Cierre diario (EOD) | Al final del día |
 | [16](16-excel.md) | Excel (importar/exportar) | Para copias de seguridad o cargas masivas |
-| [17](glosario.md) | Glosario | Cuando un término te suena raro |
-| [18](18-lista-compras.md) | Lista de compras | Antes de ir al super o proveedor |
-| [19](19-suscripciones.md) | Suscripciones (entregas recurrentes) | Para clientes con pedidos semanales |
+| [17](17-lista-compras.md) | Lista de compras | Antes de ir al super o proveedor |
+| [18](18-suscripciones.md) | Suscripciones (entregas recurrentes) | Para clientes con pedidos semanales |
+| [19](19-analisis.md) | Análisis (inteligencia de negocio) | Iván — para entender por qué los números son como son |
+| [20](20-kpis-mensuales.md) | KPIs mensuales (dashboard) | Iván — cierre y seguimiento del mes |
 
 ## Páginas del menú lateral (índice completo)
 
 Las siguientes páginas aparecen en la barra lateral de la app pero no tienen
 una sección dedicada en este manual todavía. La mayoría son pantallas de
-gestión que **Saskia probablemente no necesita usar** — son más para Iván
+gestión que **the operator probablemente no necesita usar** — son más para Iván
 (operador técnico). Si necesitás una de estas secciones, pedila y la
 escribimos.
 
 | Ruta | Nombre | Para qué sirve | Quién la usa |
 |---|---|---|---|
-| `/analisis` | Análisis | Análisis avanzado de ventas y stock | Iván |
+| `/analisis` | Análisis | Análisis avanzado de ventas y stock | Iván ([ver 19](19-analisis.md)) |
 | `/bank` | Banco | Conciliación de cuentas corrientes | Iván |
-| `/dashboard` | KPIs mensuales | Tablero con KPIs del mes | Iván |
+| `/dashboard` | KPIs mensuales | Tablero con KPIs del mes | Iván ([ver 20](20-kpis-mensuales.md)) |
 | `/guia` | Guía | Esta misma guía, dentro de la app | Todos |
 | `/pricing` | Precios por canal | Precios distintos por canal de venta | Iván |
 | `/riesgos` | Riesgos | Alertas de stock crítico, deudas vencidas | Iván |
-| `/shopping-list` | Lista de compras | Lista generada desde "Reponer" | Saskia (a veces) |
+| `/shopping-list` | Lista de compras | Lista generada desde "Reponer" | the operator (a veces) |
 | `/suppliers` | Proveedores | Datos de contacto y precios de proveedores | Iván |
 | `/suscripciones` | Suscripciones | Clientes con entregas recurrentes | Iván |
 | `/users` | Usuarios | Gestión de quién puede entrar a la app | Iván |
@@ -74,7 +75,7 @@ escribimos.
 
 Todas las pantallas tienen el mismo esqueleto:
 
-- **Barra superior** con el logo `🍰 Saskia RMS` y enlaces a cada sección.
+- **Barra superior** con el logo `🍰 Sazón` y enlaces a cada sección.
 - **Indicador de salud** (puntito verde) en la esquina — si está rojo, hay
   problema técnico.
 - **Botón 🌙 / ☀️** — cambia entre tema claro y oscuro.
@@ -115,7 +116,7 @@ Excel             → importar/exportar planilla
 
 ## Lo que podés hacer — y lo que todavía no
 
-**Versión:** schema 92 · commit `6e23d7a` · 2026-10-02
+| **Versión:** schema 102 · commit `487079f` · 2026-10-05 |
 
 ### ✅ Funcionalidades activas (lista cerrada)
 
@@ -171,7 +172,7 @@ Tres formas:
 
 | Cómo | Dónde mirar | Cómo se ve OK |
 |---|---|---|
-| En el navegador | Pie de página de cualquier pantalla | "Saskia RMS v1.0 · Sistema local · 2026" |
+| En el navegador | Pie de página de cualquier pantalla | "Sazón v1.0 · Sistema local · 2026" |
 | Al iniciar sesión | Header `X-Agent` en respuesta `/login` | `SaskiaRMS/1.0` |
 | En este manual | El número "v1.x" arriba | Dice `2026-10-05 · schema 101 · commit 62cccee` |
 

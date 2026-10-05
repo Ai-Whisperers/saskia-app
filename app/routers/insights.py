@@ -28,10 +28,9 @@ async def get_insights(
     try:
         insights = build_actionable_insights(session)
         return JSONResponse({"insights": insights})
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — top-level safety net: log detail, return generic 500
         return JSONResponse(
-            {"error": "Failed to retrieve insights", "detail": str(e)},
-            status_code=500
+            {"error": "Failed to retrieve insights", "detail": str(e)}, status_code=500
         )
 
 

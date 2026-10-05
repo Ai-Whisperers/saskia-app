@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Import HEREBUS Google Drive data into Saskia.
+"""Import HEREBUS Google Drive data into the operator.
 
 Source: 33 files in /tmp/herbus_drive/ (downloaded from the public Drive folder).
-Target: Saskia app database (SQLite).
+Target: the operator app database (SQLite).
 
 Usage:
-    cd /opt/data/profiles/ivan/scratch/saskia-app-work
+    cd /opt/data/profiles/ivan/scratch/sazon-app-work
     uv run python scripts/import_herebus_data.py [--dry-run]
 
-By default: writes to the running app DB at ../saskia.db (or wherever
+By default: writes to the running app DB at ./sazon.db (or wherever
 app.rms.config.DB_PATH points). Use --dry-run to preview without writes.
 
 What it imports (idempotent — safe to re-run):
@@ -29,6 +29,7 @@ What it imports (idempotent — safe to re-run):
 Each import is a separate function so you can call any one individually
 after a partial run, e.g. `importlib.import_module(...).import_ingredients(...)`.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -39,22 +40,21 @@ import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 # Make app importable when running from the project root
 PROJECT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT))
 
-from sqlalchemy import select  # noqa: E402
+from sqlalchemy import select
 
-from app.rms.db import make_engine, make_session_factory  # noqa: E402
-from app.rms.models import (  # noqa: E402
+from app.rms.db import make_engine, make_session_factory
+from app.rms.models import (
     BankTransaction,
     Customer,
     DeliveryZone,
     Ingredient,
     MarketBenchmark,
-    PriceHistory,
     Product,
     Recipe,
     RecipeLine,
@@ -62,7 +62,6 @@ from app.rms.models import (  # noqa: E402
     RiskItem,
     Sale,
     SettingsKV,
-    ShoppingListItem,
     Supplier,
     WasteLog,
     WishlistItem,
@@ -80,13 +79,13 @@ def load_dump():
     """Load the parsed spreadsheets JSON."""
     if not DUMP_JSON.exists():
         raise SystemExit(
-            f"Missing {DUMP_JSON}. Run: /opt/data/profiles/ivan/scratch/saskia-app-work/.venv/bin/python /tmp/herbus_drive/dump_xlsx.py"
+            f"Missing {DUMP_JSON}. Run: /opt/data/profiles/ivan/scratch/sazon-app-work/.venv/bin/python /tmp/herbus_drive/dump_xlsx.py"
         )
     with open(DUMP_JSON) as f:
         return json.load(f)
 
 
-def get_sheet(dump, filename, sheet_name):
+def get_sheet(dump: Any, filename: Any, sheet_name: Any):
     """Return rows for a given spreadsheet file + sheet name."""
     for f in dump:
         if f.get("_file") == filename:
@@ -94,19 +93,19 @@ def get_sheet(dump, filename, sheet_name):
     return []
 
 
-def to_decimal(s):
+def to_decimal(s: Any):
     """Sheet stores ₲ with comma decimals (e.g. '5,5'). Convert."""
     if s in (None, "", "∅"):
         return None
     if isinstance(s, (int, float)):
-        return int(round(s))
+        return round(s)
     s = str(s).replace(",", ".").strip()
     if not s:
         return None
-    return int(round(float(s)))
+    return round(float(s))
 
 
-def to_date(s, fmt="%d/%m/%Y"):
+def to_date(s: Any, fmt: Any = "%d/%m/%Y"):
     """DD/MM/YYYY (Asunción) or YYYY/MM/DD (Dutch/EUR) parse."""
     if s in (None, "", "∅"):
         return None
@@ -121,7 +120,7 @@ def to_date(s, fmt="%d/%m/%Y"):
     return None
 
 
-def header_row(rows, candidate_names=None):
+def header_row(rows: Any, candidate_names: Any = None):
     """Find the actual header row.
 
     Many HEREBUS sheets have a TITLE row first ("WISHLIST — equipment...")
@@ -132,9 +131,21 @@ def header_row(rows, candidate_names=None):
     is a comprehensive set that covers all HEREBUS sheet headers.
     """
     markers = candidate_names or (
-        "ID", "Receta ID", "Receta", "Ingredient ID", "Producto",
-        "Supplier ID", "Código", "Code", "Receta", "N°", "Mes",
-        "Fecha", "Driver", "Helper", "Test"
+        "ID",
+        "Receta ID",
+        "Receta",
+        "Ingredient ID",
+        "Producto",
+        "Supplier ID",
+        "Código",
+        "Code",
+        "Receta",
+        "N°",
+        "Mes",
+        "Fecha",
+        "Driver",
+        "Helper",
+        "Test",
     )
     for r in rows:
         if not r:
@@ -155,7 +166,7 @@ def header_row(rows, candidate_names=None):
     return []
 
 
-def lr(rows, key, default=""):
+def lr(rows: Any, key: Any, default: Any = ""):
     """Row lookup by header key."""
     hdr = header_row(rows)
     if key not in hdr:
@@ -172,7 +183,7 @@ def lr(rows, key, default=""):
 # ──────────────────────────────────────────────────────────────────
 
 
-def import_suppliers(session, dump=None) -> int:
+def import_suppliers(session: Any, dump: Any = None) -> int:
     """Seed 7 suppliers known from INGREDIENTES.Proveedor column."""
     suppliers = [
         ("Stock PY", "Wholesale main supplier (Superseis-style chain)"),
@@ -196,28 +207,42 @@ def import_suppliers(session, dump=None) -> int:
     return n
 
 
-def import_delivery_zones(session) -> int:
+def import_delivery_zones(session: Any) -> int:
     """Seed the 5 delivery zones from ZONAS_DELIVERY sheet."""
     # Note: ZONAS_DELIVERY row 4 + 5 had dates as "Radio (km)" — erroneous data
     # entered into the spreadsheet. We use the corrected values per the
     # Instructions section.
     zones = [
-        ("0", "Pickup", "Villa Amelia, San Lorenzo", 0.0,
-         0, 0, "Cuando venga", 0),
-        ("1", "Local", "San Lorenzo, Fdo. de la Mora, Capiatá", 5.0,
-         10000, 30000, 30, 1),
-        ("2", "Central cercano", "Luque, Ñemby, San Antonio, Lambaré, Villa Elisa", 12.0,
-         15000, 40000, 45, 2),
-        ("3", "Asunción", "Centro, Villa Morra, Carmelitas, Recoleta, Sajonia", 15.0,
-         20000, 50000, 60, 3),
-        ("4", "Lejano", "Limpio, Itauguá, Areguá, Ypacaraí, MRA", 35.0,
-         30000, 70000, 90, 4),
-        ("5", "Fuera", "Otros (no cubierto — escalar a Saskia)", 35.0,
-         0, 0, 0, 5),
+        ("0", "Pickup", "Villa Amelia, San Lorenzo", 0.0, 0, 0, "Cuando venga", 0),
+        ("1", "Local", "San Lorenzo, Fdo. de la Mora, Capiatá", 5.0, 10000, 30000, 30, 1),
+        (
+            "2",
+            "Central cercano",
+            "Luque, Ñemby, San Antonio, Lambaré, Villa Elisa",
+            12.0,
+            15000,
+            40000,
+            45,
+            2,
+        ),
+        (
+            "3",
+            "Asunción",
+            "Centro, Villa Morra, Carmelitas, Recoleta, Sajonia",
+            15.0,
+            20000,
+            50000,
+            60,
+            3,
+        ),
+        ("4", "Lejano", "Limpio, Itauguá, Areguá, Ypacaraí, MRA", 35.0, 30000, 70000, 90, 4),
+        ("5", "Fuera", "Otros (no cubierto — escalar a the operator)", 35.0, 0, 0, 0, 5),
     ]
     n = 0
     for code, name, cov, radius, cost, min_ord, mins, pos in zones:
-        exists = session.execute(select(DeliveryZone).where(DeliveryZone.code == code)).scalars().first()
+        exists = (
+            session.execute(select(DeliveryZone).where(DeliveryZone.code == code)).scalars().first()
+        )
         if exists:
             continue
         z = DeliveryZone(
@@ -238,41 +263,56 @@ def import_delivery_zones(session) -> int:
     return n
 
 
-def import_settings(session) -> int:
+def import_settings(session: Any) -> int:
     """Seed SettingsKV from MAESTRA — business hours + pickup address."""
     settings = [
-        ("business_hours", {
-            "wed_fri": "11:00-19:00",
-            "sat": "08:00-13:00",
-            "closed": ["dom", "lun", "mar"],
-        }),
-        ("pickup_address", {
-            "street": "Villa Amelia, San Lorenzo",
-            "postal_code": "1100",
-            "city": "Asunción",
-            "country": "Paraguay",
-            "maps_url": "https://maps.app.goo.gl/nh54h4Az3pVRyovG7",
-            "coordinates": {"lat": -25.316851, "lng": -57.515935},
-        }),
-        ("delivery_model", {
-            "type": "outsourced",
-            "note": "Saskia NO hace la moto — chofer externo contratado",
-        }),
-        ("channels_margins", {
-            "wholesale": 0.40,
-            "private_label": 0.25,
-            "distributor": 0.22,
-            "retail": 0.50,
-            "broker_commission": 0.05,
-        }),
+        (
+            "business_hours",
+            {
+                "wed_fri": "11:00-19:00",
+                "sat": "08:00-13:00",
+                "closed": ["dom", "lun", "mar"],
+            },
+        ),
+        (
+            "pickup_address",
+            {
+                "street": "Villa Amelia, San Lorenzo",
+                "postal_code": "1100",
+                "city": "Asunción",
+                "country": "Paraguay",
+                "maps_url": "https://maps.app.goo.gl/nh54h4Az3pVRyovG7",
+                "coordinates": {"lat": -25.316851, "lng": -57.515935},
+            },
+        ),
+        (
+            "delivery_model",
+            {
+                "type": "outsourced",
+                "note": "the operator NO hace la moto — chofer externo contratado",
+            },
+        ),
+        (
+            "channels_margins",
+            {
+                "wholesale": 0.40,
+                "private_label": 0.25,
+                "distributor": 0.22,
+                "retail": 0.50,
+                "broker_commission": 0.05,
+            },
+        ),
         ("labor_tariff_gs_per_hour", 25000),
         ("packaging_cost_gs_per_unit", 1500),
-        ("contact", {
-            "whatsapp": "+595985725871",
-            "email": "weissvanderpol.ivan@gmail.com",
-            "site_name": "HEREBUS",
-            "tagline": "Panadería de origen · Asunción",
-        }),
+        (
+            "contact",
+            {
+                "whatsapp": "+595985725871",
+                "email": "weissvanderpol.ivan@gmail.com",
+                "site_name": "HEREBUS",
+                "tagline": "Panadería de origen · Asunción",
+            },
+        ),
     ]
     n = 0
     for key, value in settings:
@@ -289,7 +329,7 @@ def import_settings(session) -> int:
     return n
 
 
-def import_ingredients(session, dump) -> int:
+def import_ingredients(session: Any, dump: Any) -> int:
     """Import 44 ingredients from INGREDIENTES sheet."""
     sheet = get_sheet(dump, "HEREBUS_Gestion_v1.xlsx", "INGREDIENTES")
     if not sheet:
@@ -308,15 +348,15 @@ def import_ingredients(session, dump) -> int:
     for row in sheet[1:]:
         if not row or not row[idx.get(" ", 0) or 0]:
             continue
-        ext_code = row[idx.get(" ", 0)]
+        row[idx.get(" ", 0)]
         name = row[idx["Ingrediente"]]
         if not name:
             continue
         category = row[idx.get("Categoría", 0)]
         unit = row[idx.get("Unidad", 0)]
-        pkg_qty = to_decimal(row[idx.get("Tamaño de compra", 0)])
+        to_decimal(row[idx.get("Tamaño de compra", 0)])
         bulk_price = to_decimal(row[idx.get("Precio de compra (₲)", 0)])
-        unit_price = to_decimal(row[idx.get("Precio por unidad (₲)", 0)])
+        to_decimal(row[idx.get("Precio por unidad (₲)", 0)])
         stock = to_decimal(row[idx.get("Stock actual", 0)]) or 0
         min_stock = to_decimal(row[idx.get("Stock mínimo", 0)]) or 10
         reorder = str(row[idx.get("Reorder?", 0)]).lower() in ("true", "sí", "1")
@@ -325,7 +365,9 @@ def import_ingredients(session, dump) -> int:
         notes = row[idx.get("Notas", 0)] or ""
 
         # Skip if already imported (by name)
-        existing = session.execute(select(Ingredient).where(Ingredient.name == name)).scalars().first()
+        existing = (
+            session.execute(select(Ingredient).where(Ingredient.name == name)).scalars().first()
+        )
         if existing:
             n_existing += 1
             continue
@@ -352,12 +394,11 @@ def import_ingredients(session, dump) -> int:
 
 
 # Recipe photo files in /static/recipes/
-import os
-RECIPE_PHOTO_DIR = "/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/recipes"
+RECIPE_PHOTO_DIR = "/opt/data/profiles/ivan/scratch/sazon-app-work/app/static/recipes"
 
-def import_recipes(session, dump) -> int:
+
+def import_recipes(session: Any, dump: Any) -> int:
     """Import 7 recipes + ~63 recipe_lines from RECETAS_DETALLE."""
-    import os  # local — keep tool self-contained
     sheet = get_sheet(dump, "HEREBUS_Gestion_v1.xlsx", "RECETAS_DETALLE")
     if not sheet:
         print("  ❌ RECETAS_DETALLE not found")
@@ -403,7 +444,9 @@ def import_recipes(session, dump) -> int:
             yield_qty = None
             notes = ""
 
-        existing = session.execute(select(Recipe).where(Recipe.name == recipe_name)).scalars().first()
+        existing = (
+            session.execute(select(Recipe).where(Recipe.name == recipe_name)).scalars().first()
+        )
         # Find a photo matching the recipe's identifying keyword
         photo_url = None
         if os.path.isdir(RECIPE_PHOTO_DIR):
@@ -437,10 +480,10 @@ def import_recipes(session, dump) -> int:
 
         # Add lines
         for line_row in lines:
-            ing_ext = line_row[idx["Ingrediente ID"]]
+            line_row[idx["Ingrediente ID"]]
             qty = to_decimal(line_row[idx["Cantidad"]]) or 0
             unit = line_row[idx["Unidad"]] or "g"
-            position = int(to_decimal(line_row[idx["Orden"]]) or 0)
+            int(to_decimal(line_row[idx["Orden"]]) or 0)
 
             # Skip 0-qty lines (these violate ck_line_qty_positive — e.g. some optional
             # ingredients in the spreadsheet have qty=0 meaning "as needed")
@@ -462,13 +505,17 @@ def import_recipes(session, dump) -> int:
                 continue  # ingredient not yet imported (shouldn't happen)
 
             # Check if line already exists (no position field, use (recipe_id, line_ref_id))
-            existing_line = session.execute(
-                select(RecipeLine).where(
-                    RecipeLine.recipe_id == recipe.id,
-                    RecipeLine.line_kind == "ingredient",
-                    RecipeLine.line_ref_id == ing_id,
+            existing_line = (
+                session.execute(
+                    select(RecipeLine).where(
+                        RecipeLine.recipe_id == recipe.id,
+                        RecipeLine.line_kind == "ingredient",
+                        RecipeLine.line_ref_id == ing_id,
+                    )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
             if existing_line:
                 continue
 
@@ -486,7 +533,7 @@ def import_recipes(session, dump) -> int:
     return n_recipes
 
 
-def import_customers(session, dump) -> int:
+def import_customers(session: Any, dump: Any) -> int:
     """Seed customers from the sales sample (dedupe by name)."""
     sheet = get_sheet(dump, "HEREBUS_Gestion_v1.xlsx", "VENTAS")
     if not sheet:
@@ -517,7 +564,7 @@ def import_customers(session, dump) -> int:
     return len(seen)
 
 
-def import_sales(session, dump) -> int:
+def import_sales(session: Any, dump: Any) -> int:
     """Import 10 sales from VENTAS, linked to recipes + customers.
 
     NOTE: Sale.product_id is FK → Product. We look up products by
@@ -531,13 +578,9 @@ def import_sales(session, dump) -> int:
         return 0
 
     recipe_map = {r.name: r.id for r in session.execute(select(Recipe)).scalars().all()}
-    customer_map = {
-        c.name: c.id for c in session.execute(select(Customer)).scalars().all()
-    }
+    customer_map = {c.name: c.id for c in session.execute(select(Customer)).scalars().all()}
     product_map = {
-        p.recipe_id: p.id
-        for p in session.execute(select(Product)).scalars().all()
-        if p.recipe_id
+        p.recipe_id: p.id for p in session.execute(select(Product)).scalars().all() if p.recipe_id
     }
 
     hdr_idx = 0
@@ -553,7 +596,7 @@ def import_sales(session, dump) -> int:
     n_new = 0
     n_skipped = 0
     n_header_len = len(hdr)
-    for row in sheet[hdr_idx + 1:]:
+    for row in sheet[hdr_idx + 1 :]:
         if not row or len(row) < n_header_len:
             continue
         fecha = row[idx["Fecha"]] if len(row) > idx["Fecha"] else None
@@ -572,27 +615,27 @@ def import_sales(session, dump) -> int:
         qty = to_decimal(row[idx["Unidades"]]) or 1
         total_gs = to_decimal(row[idx["Total (₲)"]]) or 0
         unit_price = int(total_gs / qty) if qty else total_gs
-        customer_name = (
-            row[idx["Cliente"]] if len(row) > idx["Cliente"] else None
-        )
+        customer_name = row[idx["Cliente"]] if len(row) > idx["Cliente"] else None
         customer_id = customer_map.get(customer_name)
         channel = (
             row[idx["Canal de Venta"]] if len(row) > idx["Canal de Venta"] else "mostrador"
         ) or "mostrador"
-        payment_method = (
-            row[idx["Pago"]] if len(row) > idx["Pago"] else None
-        ) or "efectivo"
+        payment_method = (row[idx["Pago"]] if len(row) > idx["Pago"] else None) or "efectivo"
         notes = row[idx["Notas"]] if len(row) > idx["Notas"] else None
 
         # Idempotency: check by (date, recipe_id, qty, total)
-        existing = session.execute(
-            select(Sale).where(
-                Sale.sold_at == sold_at,
-                Sale.product_id == product_id,
-                Sale.qty == qty,
-                Sale.unit_price_gs == unit_price,
+        existing = (
+            session.execute(
+                select(Sale).where(
+                    Sale.sold_at == sold_at,
+                    Sale.product_id == product_id,
+                    Sale.qty == qty,
+                    Sale.unit_price_gs == unit_price,
+                )
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
         if existing:
             continue
 
@@ -613,7 +656,7 @@ def import_sales(session, dump) -> int:
     return n_new
 
 
-def import_waste(session) -> int:
+def import_waste(session: Any) -> int:
     """Seed waste records from HEREBUS_FoodBiz Waste_Tracker."""
     # Hardcoded 3 records from the visible Waste_Tracker data
     # (Mixed Berries, Unsalted Butter, Heavy Cream)
@@ -637,6 +680,7 @@ def import_waste(session) -> int:
     }
 
     from datetime import datetime
+
     waste_dates = [
         datetime(2026, 7, 15),
         datetime(2026, 7, 19),
@@ -644,7 +688,7 @@ def import_waste(session) -> int:
     ]
 
     n = 0
-    for (name, qty, unit, cost, reason), dt in zip(rows, waste_dates):
+    for (name, qty, _unit, cost, reason), dt in zip(rows, waste_dates, strict=False):
         # Look up by direct name first, then fuzzy map
         ing = ing_map.get(name.lower())
         if not ing:
@@ -655,12 +699,16 @@ def import_waste(session) -> int:
             continue
 
         # Idempotency
-        existing = session.execute(
-            select(WasteLog).where(
-                WasteLog.ingredient_id == ing.id,
-                WasteLog.recorded_at == dt,
+        existing = (
+            session.execute(
+                select(WasteLog).where(
+                    WasteLog.ingredient_id == ing.id,
+                    WasteLog.recorded_at == dt,
+                )
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
         if existing:
             continue
 
@@ -670,7 +718,7 @@ def import_waste(session) -> int:
             reason=reason,
             cost_gs=cost or int(qty * (ing.purchase_price_gs or 0)),
             recorded_at=dt,
-            recorded_by="Saskia",
+            recorded_by="the operator",
         )
         session.add(w)
         n += 1
@@ -679,7 +727,7 @@ def import_waste(session) -> int:
     return n
 
 
-def import_recipe_pricing(session, dump) -> int:
+def import_recipe_pricing(session: Any, dump: Any) -> int:
     """Seed per-channel pricing from COSTOS sheet."""
     sheet = get_sheet(dump, "HEREBUS_Gestion_v1.xlsx", "COSTOS")
     if not sheet:
@@ -731,9 +779,11 @@ def import_recipe_pricing(session, dump) -> int:
             continue
 
         # Idempotency: check via query
-        existing = session.execute(
-            select(RecipePricing).where(RecipePricing.recipe_id == recipe_id)
-        ).scalars().first()
+        existing = (
+            session.execute(select(RecipePricing).where(RecipePricing.recipe_id == recipe_id))
+            .scalars()
+            .first()
+        )
         if existing:
             continue
 
@@ -748,7 +798,7 @@ def import_recipe_pricing(session, dump) -> int:
             distributor_gs=int(cost_total * (1 + margins["distributor"])),
             retail_gs=int(cost_total * (1 + margins["retail"])),
             broker_commission_gs=int(cost_total * (1 + margins["broker_commission"])),
-            notes=f"From HEREBUS COSTOS sheet",
+            notes="From HEREBUS COSTOS sheet",
         )
         session.add(p)
         n += 1
@@ -757,7 +807,7 @@ def import_recipe_pricing(session, dump) -> int:
     return n
 
 
-def import_wishlist(session, dump) -> int:
+def import_wishlist(session: Any, dump: Any) -> int:
     """Seed 28 wishlist items from Wishlist sheet."""
     sheet = get_sheet(dump, "HEREBUS_Analisis.xlsx", "Wishlist")
     if not sheet:
@@ -793,9 +843,9 @@ def import_wishlist(session, dump) -> int:
         purchased_raw = row[idx.get("Comprado? (Sí/No)", 0)] or ""
         purchased = purchased_raw.strip().lower() in ("sí", "si", "yes", "true", "1")
 
-        existing = session.execute(
-            select(WishlistItem).where(WishlistItem.code == code)
-        ).scalars().first()
+        existing = (
+            session.execute(select(WishlistItem).where(WishlistItem.code == code)).scalars().first()
+        )
         if existing:
             continue
 
@@ -817,7 +867,7 @@ def import_wishlist(session, dump) -> int:
     return n
 
 
-def import_risks(session, dump) -> int:
+def import_risks(session: Any, dump: Any) -> int:
     """Seed 12 risks from Risk_Register."""
     sheet = get_sheet(dump, "HEREBUS_Analisis.xlsx", "Risk_Register")
     if not sheet:
@@ -842,9 +892,7 @@ def import_risks(session, dump) -> int:
         status = row[idx.get("Status", 0)] or "active"
         owner = row[idx.get("Owner", 0)] or ""
 
-        existing = session.execute(
-            select(RiskItem).where(RiskItem.code == code)
-        ).scalars().first()
+        existing = session.execute(select(RiskItem).where(RiskItem.code == code)).scalars().first()
         if existing:
             continue
 
@@ -865,7 +913,7 @@ def import_risks(session, dump) -> int:
     return n
 
 
-def import_benchmarks(session, dump) -> int:
+def import_benchmarks(session: Any, dump: Any) -> int:
     """Seed 17 benchmark rows from Benchmarks_Market sheet."""
     sheet = get_sheet(dump, "HEREBUS_Analisis.xlsx", "Benchmarks_Market")
     if not sheet:
@@ -891,7 +939,7 @@ def import_benchmarks(session, dump) -> int:
 
     n = 0
     n_header_len = len(hdr)
-    for row in sheet[hdr_idx + 1:]:
+    for row in sheet[hdr_idx + 1 :]:
         if not row or len(row) < n_header_len:
             continue
         if not row[idx.get("Producto", 0)]:
@@ -919,15 +967,15 @@ def import_benchmarks(session, dump) -> int:
                 recipe_id = rid
                 break
             # Also check if HEREBUS ES label is substring of recipe name
-            if label_low and (
-                label_low in rn_low or rn_low.replace("_", " ") in label_low
-            ):
+            if label_low and (label_low in rn_low or rn_low.replace("_", " ") in label_low):
                 recipe_id = rid
                 break
 
-        existing = session.execute(
-            select(MarketBenchmark).where(MarketBenchmark.product_label == label)
-        ).scalars().first()
+        existing = (
+            session.execute(select(MarketBenchmark).where(MarketBenchmark.product_label == label))
+            .scalars()
+            .first()
+        )
         if existing:
             continue
 
@@ -948,7 +996,7 @@ def import_benchmarks(session, dump) -> int:
     return n
 
 
-def import_bank_transactions(session) -> int:
+def import_bank_transactions(session: Any) -> int:
     """Import Dutch EUR bank TAB file (307 rows, Sept'25 - Jun'26).
 
     File: TXT260711013722.TAB
@@ -973,7 +1021,7 @@ def import_bank_transactions(session) -> int:
                 continue
             currency = parts[1]  # 'EUR'
             posted_date = parts[2]  # '20250919'
-            balance_after_str = parts[4]
+            parts[4]
             try:
                 amount = float(parts[6].replace(",", "."))
             except (ValueError, IndexError):
@@ -984,9 +1032,7 @@ def import_bank_transactions(session) -> int:
             iban_match = re.search(r"IBAN:\s*(\S+)", description)
             name_match = re.search(r"Naam:\s*([^B]+?)\s+\w+:", description)
             iban = iban_match.group(1) if iban_match else None
-            counterparty = (
-                name_match.group(1).strip() if name_match else None
-            )
+            counterparty = name_match.group(1).strip() if name_match else None
 
             # Parse date
             try:
@@ -995,13 +1041,17 @@ def import_bank_transactions(session) -> int:
                 continue
 
             # Idempotency
-            existing = session.execute(
-                select(BankTransaction).where(
-                    BankTransaction.posted_at == posted_at,
-                    BankTransaction.amount == amount,
-                    BankTransaction.source == "tab_dutch",
+            existing = (
+                session.execute(
+                    select(BankTransaction).where(
+                        BankTransaction.posted_at == posted_at,
+                        BankTransaction.amount == amount,
+                        BankTransaction.source == "tab_dutch",
+                    )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
             if existing:
                 continue
 
@@ -1053,7 +1103,7 @@ def main():
     args = ap.parse_args()
 
     print("=" * 70)
-    print(f"  HEREBUS Drive → Saskia import")
+    print("  HEREBUS Drive → the operator import")
     print("=" * 70)
 
     dump = load_dump()
@@ -1091,6 +1141,7 @@ def main():
         except Exception as e:
             print(f"  ❌ {name}: {type(e).__name__}: {e}")
             import traceback
+
             traceback.print_exc()
             session.rollback()
 

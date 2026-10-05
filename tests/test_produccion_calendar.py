@@ -1,7 +1,7 @@
 """tests/test_produccion_calendar.py — Phase D Q2-calendar (+Q3 folded in).
 
 Covers:
-- Quantity-multiplication regression (Saskia's reported bug): producing N
+- Quantity-multiplication regression (the operator's reported bug): producing N
   portions of a recipe with yield_qty per batch must consume
   (N / yield_qty) × line.qty of each ingredient.
 - /produccion view modes (day | week | month) wired to the Phase B
@@ -9,12 +9,13 @@ Covers:
 - Per-day manual qty override (POST /produccion/override).
 - forecast_source Spanish labels (Q3).
 
-Refs: Saskia review round 1 (Thu 18-sep) — Q2 (c) calendar dashboard.
+Refs: operator review round N (Thu 18-sep) — Q2 (c) calendar dashboard.
 """
+
 # allow-hardcoded-dates: production calendar asserts on a fixed week
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale
 from app.rms.production import plan_production
@@ -27,9 +28,7 @@ def _seed_product_with_recipe_and_sales(session_factory) -> int:
     history so the rolling forecast is > 0. Returns product id."""
     s = session_factory()
     try:
-        ing = Ingredient(
-            name="Harina", unit="kg", stock_qty=0.0, purchase_price_gs=4500
-        )
+        ing = Ingredient(name="Harina", unit="kg", stock_qty=0.0, purchase_price_gs=4500)
         rec = Recipe(name="Muffin", yield_qty=12.0, yield_unit="und")
         s.add_all([ing, rec])
         s.flush()
@@ -44,7 +43,7 @@ def _seed_product_with_recipe_and_sales(session_factory) -> int:
         prod = Product(name="Muffin", sale_price_gs=2500, recipe_id=rec.id)
         s.add(prod)
         s.flush()
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         for i in range(5):
             s.add(
                 Sale(
@@ -60,7 +59,7 @@ def _seed_product_with_recipe_and_sales(session_factory) -> int:
         s.close()
 
 
-# --- Deliverable 3: quantity-multiplication regression (Saskia's bug) ---
+# --- Deliverable 3: quantity-multiplication regression (the operator's bug) ---
 
 
 def test_production_math_multiplication(session_factory):
@@ -68,14 +67,12 @@ def test_production_math_multiplication(session_factory):
     batch. Producing qty_to_produce PORTIONS must consume
     (qty_to_produce / yield_qty) × line.qty of each ingredient.
 
-    Saskia's bug report (review round 1, Q2): the sheet was multiplying
+    the operator's bug report (review round 1, Q2): the sheet was multiplying
     portions × per-batch line qty directly (12× too much flour here).
     """
     s = session_factory()
     try:
-        ing = Ingredient(
-            name="Harina", unit="kg", stock_qty=0.0, purchase_price_gs=4500
-        )
+        ing = Ingredient(name="Harina", unit="kg", stock_qty=0.0, purchase_price_gs=4500)
         rec = Recipe(name="Muffin", yield_qty=12.0, yield_unit="und")
         s.add_all([ing, rec])
         s.flush()
@@ -110,9 +107,7 @@ def test_production_math_multiplication(session_factory):
         assert abs(plan_half.lines[0].qty_required - 0.15) < 1e-6
 
         # The two must scale linearly with the forecast.
-        assert abs(
-            plan_2x.lines[0].qty_required - 4 * plan_half.lines[0].qty_required
-        ) < 1e-6
+        assert abs(plan_2x.lines[0].qty_required - 4 * plan_half.lines[0].qty_required) < 1e-6
     finally:
         s.close()
 
@@ -129,7 +124,7 @@ def test_day_view_backward_compat(client, session_factory):
 
 def test_week_view_renders_seven_cells(client, session_factory):
     _seed_product_with_recipe_and_sales(session_factory)
-    monday = date.today()
+    monday = datetime.utcnow().date()
     while monday.weekday() != 0:
         monday -= timedelta(days=1)
     r = client.get(f"/produccion?view=week&week={monday.isoformat()}")
@@ -142,7 +137,8 @@ def test_week_view_renders_seven_cells(client, session_factory):
 def test_month_view_renders_day_count(client, session_factory):
     _seed_product_with_recipe_and_sales(session_factory)
     import calendar as _cal
-    today = date.today()
+
+    today = datetime.utcnow().date()
     r = client.get(f"/produccion?view=month&month={today.strftime('%Y-%m')}")
     assert r.status_code == 200
     # Month view renders a plain table with day-number headers (<th class="num">N</th>)
@@ -177,7 +173,11 @@ def test_override_re_renders_with_manual_qty(client, session_factory):
     pid = _seed_product_with_recipe_and_sales(session_factory)
     r = client.post(
         "/produccion/override",
-        data={"for_date": date.today().isoformat(), "product_id": str(pid), "qty": "10"},
+        data={
+            "for_date": datetime.utcnow().date().isoformat(),
+            "product_id": str(pid),
+            "qty": "10",
+        },
         follow_redirects=False,
     )
     assert r.status_code == 303
@@ -197,7 +197,11 @@ def test_override_rejects_negative(client, session_factory):
     pid = _seed_product_with_recipe_and_sales(session_factory)
     r = client.post(
         "/produccion/override",
-        data={"for_date": date.today().isoformat(), "product_id": str(pid), "qty": "-1"},
+        data={
+            "for_date": datetime.utcnow().date().isoformat(),
+            "product_id": str(pid),
+            "qty": "-1",
+        },
     )
     assert r.status_code == 400
 
@@ -205,6 +209,6 @@ def test_override_rejects_negative(client, session_factory):
 def test_override_rejects_unknown_product(client, session_factory):
     r = client.post(
         "/produccion/override",
-        data={"for_date": date.today().isoformat(), "product_id": "999999", "qty": "1"},
+        data={"for_date": datetime.utcnow().date().isoformat(), "product_id": "999999", "qty": "1"},
     )
     assert r.status_code == 404

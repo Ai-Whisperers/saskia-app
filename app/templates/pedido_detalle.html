@@ -310,7 +310,7 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="idempotency_key" value="fulfill-{{ pedido.id }}-{{ now|string|replace(' ', 'T')|replace(':', '') }}">
       <button type="submit" class="btn btn-primary"
-              onclick="SaskiaConfirmModal.show({title:'¿Cumplir pedido?',body:'Se crearán las ventas y se descontará stock.',action:'/pedidos/{{ pedido.id }}/fulfill',confirmLabel:'Sí, cumplir',danger:true})">
+              onclick="UIConfirmModal.show({title:'¿Cumplir pedido?',body:'Se crearán las ventas y se descontará stock.',action:'/pedidos/{{ pedido.id }}/fulfill',confirmLabel:'Sí, cumplir',danger:true})">
         <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
         Confirmar cumplimiento
       </button>
@@ -367,7 +367,7 @@
     <form method="post" action="/pedidos/{{ pedido.id }}/duplicate" style="display:inline;" id="dup-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <button type="button" class="btn btn-ghost"
-              onclick="SaskiaConfirmModal.show({title:'¿Duplicar pedido #{{ pedido.id }}?',body:'Se creará una copia de este pedido con estado pendiente.',confirmLabel:'Sí, duplicar',action:'/pedidos/{{ pedido.id }}/duplicate',danger:false})">
+              onclick="UIConfirmModal.show({title:'¿Duplicar pedido #{{ pedido.id }}?',body:'Se creará una copia de este pedido con estado pendiente.',confirmLabel:'Sí, duplicar',action:'/pedidos/{{ pedido.id }}/duplicate',danger:false})">
         <svg class="icon" aria-hidden="true"><use href="#icon-copy"/></svg>
         Duplicar
       </button>

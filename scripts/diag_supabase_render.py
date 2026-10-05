@@ -1,8 +1,10 @@
+from typing import Any
+
 #!/usr/bin/env python3
-"""Diagnose Supabase + Render state for Saskia RMS.
+"""Diagnose Supabase + Render state for Sazón.
 
 Fetches SUPABASE_URL from BWS, tests DNS resolution and HTTPS reachability,
-and lists Render env vars for the Saskia service.
+and lists Render env vars for the the operator service.
 """
 import json
 import socket
@@ -15,12 +17,14 @@ sys.path.insert(0, "/opt/data/.venv/lib/python3.11/site-packages")
 from bitwarden_sdk import BitwardenClient, ClientSettings, DeviceType
 
 token = Path("/opt/data/.hermes/inbox/bws-token.secret").read_text().strip()
-c = BitwardenClient(ClientSettings(
-    api_url="https://api.bitwarden.com",
-    identity_url="https://identity.bitwarden.com",
-    user_agent="ops/1",
-    device_type=DeviceType.SERVER,
-))
+c = BitwardenClient(
+    ClientSettings(
+        api_url="https://api.bitwarden.com",
+        identity_url="https://identity.bitwarden.com",
+        user_agent="ops/1",
+        device_type=DeviceType.SERVER,
+    )
+)
 c.auth().login_access_token(token, None)
 
 cache = {}
@@ -31,7 +35,7 @@ with open("/opt/data/.hermes/bws-secrets-cache.tsv") as f:
             cache[parts[0]] = parts[1]
 
 
-def get_secret(key):
+def get_secret(key: Any):
     if key not in cache:
         return None
     r = c.secrets().get_by_ids([cache[key]])

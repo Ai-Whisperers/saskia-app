@@ -2,6 +2,7 @@
 
 Per SASKIA_TEST_PLAN.md §5 #14 — test full CRUD lifecycle.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -79,6 +80,4 @@ def test_clientes_edit_form_loads(authed_client, session_factory):
 def test_clientes_bulk_delete_no_500(authed_client, session_factory):
     """POST /clientes/bulk-eliminar must not 500 (even with empty selection)."""
     r = authed_client.post("/clientes/bulk-eliminar", data={"selected": []})
-    assert r.status_code < 500, (
-        f"/clientes/bulk-eliminar returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"/clientes/bulk-eliminar returned {r.status_code}: {r.text[:200]}"

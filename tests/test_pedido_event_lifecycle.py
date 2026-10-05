@@ -9,7 +9,6 @@ Verify the PedidoEventService writes are reflected in:
 
 from __future__ import annotations
 
-import pytest
 from datetime import datetime, timedelta
 
 from app.rms.config import ASUNCION_TZ
@@ -17,31 +16,48 @@ from app.rms.models import Pedido, PedidoEvent
 from app.services.pedido_events import PedidoEventService
 from app.services.pedido_history import build_pedido_timeline
 
-
 # ---------- 1. Timeline integration ----------
+
 
 def test_timeline_includes_pedido_events(session_factory):
     """PedidoEvent rows show up in build_pedido_timeline."""
     with session_factory() as s:
         # Create a pedido + 3 events
         from app.rms.models import Customer
+
         c = Customer(name="Timeline Test", phone="0999000002")
-        s.add(c); s.flush()
-        p = Pedido(customer_id=c.id, customer_name="Timeline Test",
-                   customer_phone="0999000002",
-                   promised_date=datetime.now(ASUNCION_TZ).date(),
-                   status="pending", public_token="tl-test-1")
-        s.add(p); s.flush()
+        s.add(c)
+        s.flush()
+        p = Pedido(
+            customer_id=c.id,
+            customer_name="Timeline Test",
+            customer_phone="0999000002",
+            promised_date=datetime.now(ASUNCION_TZ).date(),
+            status="pending",
+            public_token="tl-test-1",
+        )
+        s.add(p)
+        s.flush()
 
         # Three events at distinct timestamps
         t0 = datetime.now(ASUNCION_TZ) - timedelta(minutes=30)
         PedidoEventService.record(s, p.id, "created", actor="demo", ts=t0, payload={"n": 1})
-        PedidoEventService.record(s, p.id, "line_added", actor="demo",
+        PedidoEventService.record(
+            s,
+            p.id,
+            "line_added",
+            actor="demo",
             ts=t0 + timedelta(seconds=5),
-            payload={"product_id": 7, "qty": 2.0, "unit_price_gs": 10000})
-        PedidoEventService.record(s, p.id, "status_change", actor="demo",
+            payload={"product_id": 7, "qty": 2.0, "unit_price_gs": 10000},
+        )
+        PedidoEventService.record(
+            s,
+            p.id,
+            "status_change",
+            actor="demo",
             ts=t0 + timedelta(minutes=20),
-            payload={"from": "pending", "to": "fulfilled"})
+            payload={"from": "pending", "to": "fulfilled"},
+        )
         s.commit()
         pid = p.id
 
@@ -69,8 +85,9 @@ def test_timeline_includes_pedido_events(session_factory):
 
 def test_timeline_event_types_have_spanish_labels():
     """Every event_type in the CK constraint has a label."""
-    from app.services.pedido_history import _label_for_event_type
     from app.services.pedido_events import VALID_EVENT_TYPES
+    from app.services.pedido_history import _label_for_event_type
+
     for et in VALID_EVENT_TYPES:
         lbl = _label_for_event_type(et)
         # Must be non-empty and contain either the literal English type
@@ -82,13 +99,20 @@ def test_timeline_handles_no_events(session_factory):
     """A pedido with zero PedidoEvent rows still works."""
     with session_factory() as s:
         from app.rms.models import Customer
+
         c = Customer(name="No Events", phone="0999000003")
-        s.add(c); s.flush()
-        p = Pedido(customer_id=c.id, customer_name="No Events",
-                   customer_phone="0999000003",
-                   promised_date=datetime.now(ASUNCION_TZ).date(),
-                   status="pending", public_token="no-events-1")
-        s.add(p); s.flush()
+        s.add(c)
+        s.flush()
+        p = Pedido(
+            customer_id=c.id,
+            customer_name="No Events",
+            customer_phone="0999000003",
+            promised_date=datetime.now(ASUNCION_TZ).date(),
+            status="pending",
+            public_token="no-events-1",
+        )
+        s.add(p)
+        s.flush()
         s.commit()
         pid = p.id
 
@@ -101,15 +125,19 @@ def test_timeline_handles_no_events(session_factory):
 
 # ---------- 2. HTTP lifecycle ----------
 
+
 def test_pedido_create_writes_created_and_line_added(client, session_factory):
     """POST /pedidos/nuevo writes PedidoEvent entries."""
-    from app.rms.models import Product, Customer
+    from app.rms.models import Customer, Product
+
     with session_factory() as s:
         # Always create a product fresh in this test
         prod = Product(name="Lifecycle Test Product", sale_price_gs=10000)
-        s.add(prod); s.flush()
+        s.add(prod)
+        s.flush()
         c = Customer(name="HTTP Test", phone="0999000004")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
         cid = c.id
         pid_prod = prod.id
         s.commit()
@@ -136,7 +164,9 @@ def test_pedido_create_writes_created_and_line_added(client, session_factory):
     new_pedido_id = int(location.rsplit("/", 1)[-1])
 
     with session_factory() as s:
-        pe_rows = s.query(PedidoEvent).filter_by(pedido_id=new_pedido_id).order_by(PedidoEvent.id).all()
+        pe_rows = (
+            s.query(PedidoEvent).filter_by(pedido_id=new_pedido_id).order_by(PedidoEvent.id).all()
+        )
         # Expect: created + line_added = 2
         assert len(pe_rows) >= 2, f"expected >=2 events, got {len(pe_rows)}"
         types = [r.event_type for r in pe_rows]

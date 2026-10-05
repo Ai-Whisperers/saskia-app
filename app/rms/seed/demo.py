@@ -1,6 +1,6 @@
 """app/rms/seed.py — Idempotent realistic-data seeder for demos / first-run.
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E6.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E6.
 
 Inserts:
 - 30 universal bakery ingredients (standard Paraguayan panadería pantry)
@@ -21,6 +21,7 @@ Idempotency:
 
 No PII; safe to commit. Currency: Paraguayan guaraní (Gs.).
 """
+
 from __future__ import annotations
 
 import math
@@ -320,25 +321,18 @@ def create_demo_pedido(session: Session) -> tuple[Pedido, PedidoLine] | None:
 
     # --- Idempotency: skip if this customer already has a pedido ---
     existing_pedido = session.execute(
-        select(Pedido)
-        .where(Pedido.customer_id == customer.id)
-        .order_by(Pedido.id)
-        .limit(1)
+        select(Pedido).where(Pedido.customer_id == customer.id).order_by(Pedido.id).limit(1)
     ).scalar_one_or_none()
     if existing_pedido is not None:
         existing_line = session.execute(
             select(PedidoLine).where(PedidoLine.pedido_id == existing_pedido.id)
         ).scalar_one_or_none()
         if existing_line is not None:
-            logger.info(
-                f"seed: demo pedido id={existing_pedido.id} already exists, skipping"
-            )
+            logger.info(f"seed: demo pedido id={existing_pedido.id} already exists, skipping")
             return None
 
     # --- Pick the first available Product ---
-    product = session.execute(
-        select(Product).order_by(Product.id).limit(1)
-    ).scalar_one_or_none()
+    product = session.execute(select(Product).order_by(Product.id).limit(1)).scalar_one_or_none()
     if product is None:
         logger.warning("seed: no products available; cannot create demo pedido")
         return None
@@ -353,9 +347,9 @@ def create_demo_pedido(session: Session) -> tuple[Pedido, PedidoLine] | None:
     token = _demo_public_token()
     # Belt-and-braces: if any collision occurs (effectively zero for
     # a single bakery), regenerate until unique.
-    while session.execute(
-        select(Pedido.id).where(Pedido.public_token == token)
-    ).first() is not None:
+    while (
+        session.execute(select(Pedido.id).where(Pedido.public_token == token)).first() is not None
+    ):
         token = _demo_public_token()
 
     pedido = Pedido(
@@ -399,23 +393,23 @@ def create_demo_pedido(session: Session) -> tuple[Pedido, PedidoLine] | None:
 # Realistic Paraguayan bakery benchmarks (our_price vs market_avg)
 # (label, our_wholesale_gs, our_retail_gs, market_avg_gs, market_min_gs)
 BENCHMARKS: list[tuple[str, int, int, int, int]] = [
-    ("Chipa grande",         4500, 7000,  6500,  5000),
-    ("Muffin de vainilla",   5200, 8000,  9000,  7000),
-    ("Pan de queso",         4000, 6500,  6000,  4500),
-    ("Galleta de miel",      3500, 5500,  5000,  4000),
-    ("Hojaldre de jamón",   12000,18000, 18000, 15000),
-    ("Empanada de carne",    5500, 8500,  8000,  6000),
-    ("Croissant",            7000,11000, 12000,  9000),
-    ("Sopa paraguaya",       4000, 6500,  6000,  4500),
-    ("Chocotorta",          15000,22000, 23000, 18000),
-    ("Brownie",              6000, 9500,  9000,  7000),
-    ("Pão de queijo",        4500, 7000,  6500,  5000),
-    ("Torta de chocolate",  20000,30000, 30000, 25000),
-    ("Medialuna",            3500, 5500,  5500,  4000),
-    ("Rosca",               15000,22000, 20000, 16000),
-    ("Factura de crema",     4500, 7000,  7000,  5000),
-    ("Tostado",              8000,12500, 12000,  9500),
-    ("Budín de pan",        12000,18000, 17000, 14000),
+    ("Chipa grande", 4500, 7000, 6500, 5000),
+    ("Muffin de vainilla", 5200, 8000, 9000, 7000),
+    ("Pan de queso", 4000, 6500, 6000, 4500),
+    ("Galleta de miel", 3500, 5500, 5000, 4000),
+    ("Hojaldre de jamón", 12000, 18000, 18000, 15000),
+    ("Empanada de carne", 5500, 8500, 8000, 6000),
+    ("Croissant", 7000, 11000, 12000, 9000),
+    ("Sopa paraguaya", 4000, 6500, 6000, 4500),
+    ("Chocotorta", 15000, 22000, 23000, 18000),
+    ("Brownie", 6000, 9500, 9000, 7000),
+    ("Pão de queijo", 4500, 7000, 6500, 5000),
+    ("Torta de chocolate", 20000, 30000, 30000, 25000),
+    ("Medialuna", 3500, 5500, 5500, 4000),
+    ("Rosca", 15000, 22000, 20000, 16000),
+    ("Factura de crema", 4500, 7000, 7000, 5000),
+    ("Tostado", 8000, 12500, 12000, 9500),
+    ("Budín de pan", 12000, 18000, 17000, 14000),
 ]
 
 
@@ -427,9 +421,7 @@ def create_demo_benchmarks(session: Session) -> int:
     Returns the number of rows inserted (positive) or skipped (0).
     """
     existing_labels = set(
-        label for (label,) in session.execute(
-            select(MarketBenchmark.product_label)
-        ).all()
+        label for (label,) in session.execute(select(MarketBenchmark.product_label)).all()
     )
     n_new = 0
     for label, wholesale, retail, avg, min_price in BENCHMARKS:
@@ -519,8 +511,7 @@ def seed_demo_data(
 
     # --- Recipe Lines (polymorphic: line_kind='ingredient', line_ref_id=ingredient.id) ---
     ingredients_by_name = {
-        row.name: row.id
-        for row in session.execute(select(Ingredient)).scalars()
+        row.name: row.id for row in session.execute(select(Ingredient)).scalars()
     }
     recipes_by_name = {row.name: row.id for row in session.execute(select(Recipe)).scalars()}
 
@@ -597,7 +588,9 @@ def seed_demo_data(
         )
 
     # --- Demo user ---
-    user = session.execute(select(User).where(User.username == DEMO_USER_USERNAME)).scalar_one_or_none()
+    user = session.execute(
+        select(User).where(User.username == DEMO_USER_USERNAME)
+    ).scalar_one_or_none()
     if user is None:
         user = User(
             username=DEMO_USER_USERNAME,
@@ -682,7 +675,9 @@ def seed_demo_data(
 
         for _ in range(count):
             product = rng.choice(list(products_by_id.values()))
-            hour = rng.choices([8, 9, 10, 11, 14, 15, 16, 17, 18], weights=[2, 3, 3, 2, 3, 3, 2, 2, 1])[0]
+            hour = rng.choices(
+                [8, 9, 10, 11, 14, 15, 16, 17, 18], weights=[2, 3, 3, 2, 3, 3, 2, 2, 1]
+            )[0]
             minute = rng.randint(0, 59)
             sold_at = sale_date.replace(hour=hour, minute=minute)
             qty = rng.choices([1, 2, 3, 6, 12], weights=[70, 15, 5, 5, 5])[0]
@@ -704,6 +699,7 @@ def seed_demo_data(
                 # so line.qty is Decimal in Python. Coerce yield_qty and qty
                 # to Decimal so we don't hit "Decimal / float" TypeError.
                 from decimal import Decimal as _D
+
                 yield_qty_d = _D(str(yield_qty))
                 qty_d = _D(str(qty))
                 for line in recipe_lines_by_recipe[product.recipe_id]:
@@ -756,6 +752,7 @@ def seed_demo_data(
         yield_qty = recipe.yield_qty or 1.0
         # BACKLOG #19: coerce to Decimal (line.qty is Numeric).
         from decimal import Decimal as _D
+
         yield_qty_d = _D(str(yield_qty))
         for line in recipe_lines_by_recipe[last_product.recipe_id]:
             restore = (line.qty / yield_qty_d) * _D(2)

@@ -11,7 +11,7 @@ Verifies:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy import inspect, text
 
@@ -41,29 +41,37 @@ def test_sale_linked_pedido_index_exists(session_factory):
 def test_apply_sale_sets_linked_pedido_id(session_factory):
     """apply_sale() persists linked_pedido_id when provided."""
     from app.rms.costing import apply_sale
-    from app.rms.models import Pedido, Sale
-    from app.seed.kyrian import KYRIAN_PHONE
-    from app.rms.models import Customer
+    from app.rms.models import Customer, Pedido, Sale
 
     with session_factory() as s:
         c = Customer(name="Test Buyer", phone="0990001111")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
         cid = c.id
 
-        p = Pedido(customer_id=cid, customer_name="Test Buyer", customer_phone="0990001111",
-                   promised_date=datetime.utcnow().date(), status="pending",
-                   public_token="test-linked-token-176")
-        s.add(p); s.flush()
+        p = Pedido(
+            customer_id=cid,
+            customer_name="Test Buyer",
+            customer_phone="0990001111",
+            promised_date=datetime.utcnow().date(),
+            status="pending",
+            public_token="test-linked-token-176",
+        )
+        s.add(p)
+        s.flush()
         pid = p.id
 
         # Pick first product
         from app.rms.models import Product
+
         prod = s.execute(text("SELECT id FROM product LIMIT 1")).scalar()
         if prod is None:
             # No products in test DB — make one
             from app.rms.models import Product
+
             prod_row = Product(name="Test Product", sale_price_gs=10000)
-            s.add(prod_row); s.flush()
+            s.add(prod_row)
+            s.flush()
             prod = prod_row.id
 
         result = apply_sale(
@@ -92,21 +100,31 @@ def test_pedido_sales_relationship_returns_linked_sales(qseed, session_factory):
     qseed("with_kyrian_full")
     with session_factory() as s:
         from app.rms.models import Customer
+
         c = s.query(Customer).filter_by(phone=KYRIAN_PHONE).one()
         # Find a fulfilled pedido
         p = s.execute(
-            __import__("sqlalchemy").select(Pedido)
+            __import__("sqlalchemy")
+            .select(Pedido)
             .where(Pedido.customer_id == c.id, Pedido.status == "fulfilled")
             .limit(1)
         ).scalar_one()
         pid = p.id
-        expected = len([s for s in s.execute(
-            __import__("sqlalchemy").select(Sale).where(Sale.linked_pedido_id == pid)
-        ).scalars().all()])
+        expected = len(
+            [
+                s
+                for s in s.execute(
+                    __import__("sqlalchemy").select(Sale).where(Sale.linked_pedido_id == pid)
+                )
+                .scalars()
+                .all()
+            ]
+        )
 
         # Use the relationship
         pedidos = s.execute(
-            __import__("sqlalchemy").select(Pedido)
+            __import__("sqlalchemy")
+            .select(Pedido)
             .where(Pedido.id == pid)
             .options(__import__("sqlalchemy").orm.selectinload(Pedido.sales))
         ).scalar_one()
@@ -117,15 +135,15 @@ def test_timeline_includes_fulfilled_sale_events(qseed, session_factory):
     """After migration 076, the timeline service surfaces sale events
     (it was previously a no-op stub)."""
     qseed("with_kyrian_full")
-    from app.services.pedido_history import build_pedido_timeline
-    from app.rms.models import Pedido
-    from app.rms.models import Customer
+    from app.rms.models import Customer, Pedido
     from app.seed.kyrian import KYRIAN_PHONE
+    from app.services.pedido_history import build_pedido_timeline
 
     with session_factory() as s:
         c = s.query(Customer).filter_by(phone=KYRIAN_PHONE).one()
         p = s.execute(
-            __import__("sqlalchemy").select(Pedido)
+            __import__("sqlalchemy")
+            .select(Pedido)
             .where(Pedido.customer_id == c.id, Pedido.status == "fulfilled")
             .limit(1)
         ).scalar_one()
@@ -140,21 +158,27 @@ def test_timeline_includes_fulfilled_sale_events(qseed, session_factory):
 def test_apply_sale_default_linked_pedido_is_none(session_factory):
     """Without the kwarg, linked_pedido_id stays NULL (POS-driven sales)."""
     from app.rms.costing import apply_sale
-    from app.rms.models import Sale, Customer
+    from app.rms.models import Customer, Sale
 
     with session_factory() as s:
         c = Customer(name="POS Customer", phone="0992223333")
-        s.add(c); s.flush()
+        s.add(c)
+        s.flush()
         from app.rms.models import Product
+
         prod = s.execute(text("SELECT id FROM product LIMIT 1")).scalar()
         if prod is None:
             p = Product(name="POS Product", sale_price_gs=5000)
-            s.add(p); s.flush()
+            s.add(p)
+            s.flush()
             prod = p.id
 
         r = apply_sale(
-            session=s, product_id=prod, qty=1.0,
-            sold_at=datetime.utcnow(), customer_id=c.id,
+            session=s,
+            product_id=prod,
+            qty=1.0,
+            sold_at=datetime.utcnow(),
+            customer_id=c.id,
         )
         s.commit()
         sale = s.get(Sale, r.sale_id)

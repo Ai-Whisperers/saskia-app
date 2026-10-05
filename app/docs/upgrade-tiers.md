@@ -1,13 +1,13 @@
 # Upgrade tiers — what's in / what's out / what costs what
 
 > **For operator (Ivan) and any future agent.** Reference doc listing the realistic
-> upgrade paths for the Saskia engagement, with their costs and trade-offs.
+> upgrade paths for the the operator engagement, with their costs and trade-offs.
 
 ## TL;DR
 
 **Fase 1 is local-first with encrypted Cloudflare R2 backup (Tier 1 + Tier 8).**
 **$0/month, forever.** All other upgrades either cost money, change the quote, or
-add complexity that's not needed for Saskia's scale.
+add complexity that's not needed for the operator's scale.
 
 ## Tier matrix
 
@@ -37,8 +37,8 @@ add complexity that's not needed for Saskia's scale.
 - Tier 1.1: Encrypted local backup to second folder (USB stick or second drive)
 - Tier 1.2: Scheduled cloud-backup to her existing Google Drive (every hour)
 - Tier 1.3: Restoration test script (`make test-restore`)
-- Tier 1.4: GitHub Actions CI (already done in saskia-app)
-- Tier 1.5: Pre-commit hooks (already done in saskia-app)
+- Tier 1.4: GitHub Actions CI (already done in sazon-app)
+- Tier 1.5: Pre-commit hooks (already done in sazon-app)
 - Tier 1.6: loguru + structured JSON logs (already done)
 
 **Total: 6 free upgrades; 3 already implemented; 3 to add (~3.5h of build time).**
@@ -48,7 +48,7 @@ add complexity that's not needed for Saskia's scale.
 - Local DB stays on her laptop.
 - On startup (if last R2 backup > 24h): encrypt SQLite with `age`, upload to R2.
 - Free tier: 10 GB-month storage, 1M Class A ops, 10M Class B ops.
-- Saskia's usage: ~30 backups/month × 10MB = 300 MB. Well inside free tier.
+- the operator's usage: ~30 backups/month × 10MB = 300 MB. Well inside free tier.
 - **Total: $0/month, forever.**
 
 ## Tier 2: Supabase Storage backups (alternative to Tier 8)
@@ -56,7 +56,7 @@ add complexity that's not needed for Saskia's scale.
 - Same architecture as Tier 8, but using Supabase Storage instead of Cloudflare R2.
 - $25/month (Pro plan minimum).
 - Slightly less generous free tier than R2.
-- Worse trade-off for Saskia (more expensive, same OPSEC outcome).
+- Worse trade-off for the operator (more expensive, same OPSEC outcome).
 
 **Verdict: skip. Tier 8 is better.**
 
@@ -65,11 +65,11 @@ add complexity that's not needed for Saskia's scale.
 - All four (Supabase Free, Supabase Pro, Turso Free, Turso Developer) require
   moving the DB off her laptop.
 - All four violate the quote's "Hosting / ops monthly: Gs. 0. Not this product."
-- All four require Saskia's informed consent (her data moves to third-party servers).
+- All four require the operator's informed consent (her data moves to third-party servers).
 - All four introduce internet dependency (every sale entry requires HTTPS).
 - All four increase the OPSEC surface (third-party custody).
 
-**Verdict: not without renegotiating the quote with Saskia.**
+**Verdict: not without renegotiating the quote with the operator.**
 
 ## Tier 7: Claude API for LLM features (DEFER to Fase 1.5+)
 
@@ -86,7 +86,7 @@ add complexity that's not needed for Saskia's scale.
 - ❌ Swap SQLite for any cloud DB (Tier 3-6)
 - ❌ Add Claude API calls (Tier 7)
 - ❌ Add any monthly hosting of any kind
-- ❌ Move PII to third-party services without Saskia's consent
+- ❌ Move PII to third-party services without the operator's consent
 
 ## What I CAN do without renegotiation
 
@@ -98,7 +98,7 @@ add complexity that's not needed for Saskia's scale.
 
 When the operator considers adding a Tier:
 1. Does it cost money recurring? If yes → renegotiate the quote.
-2. Does it move PII to a third party? If yes → get Saskia's consent.
+2. Does it move PII to a third party? If yes → get the operator's consent.
 3. Does it add latency to daily use? If yes → measure impact.
 4. Does it violate the locked scope? If yes → check the quote.
 5. Does it make the app better for HER specifically? If no → skip.

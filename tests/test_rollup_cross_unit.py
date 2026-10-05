@@ -33,7 +33,8 @@ def _make_ingredient(session_factory, name, unit, **kwargs):
 
     with session_factory() as s:
         ing = Ingredient(name=name, unit=unit, **kwargs)
-        s.add(ing); s.flush()
+        s.add(ing)
+        s.flush()
         ing_id = ing.id
         safe_commit(s)
     return ing_id
@@ -44,13 +45,15 @@ def _add_variant(session_factory, ingredient_id, package_size, package_unit, sto
     from app.rms.models import IngredientVariant
 
     with session_factory() as s:
-        s.add(IngredientVariant(
-            ingredient_id=ingredient_id,
-            package_size=package_size,
-            package_unit=package_unit,
-            stock_qty=stock_qty,
-            **kwargs,
-        ))
+        s.add(
+            IngredientVariant(
+                ingredient_id=ingredient_id,
+                package_size=package_size,
+                package_unit=package_unit,
+                stock_qty=stock_qty,
+                **kwargs,
+            )
+        )
         safe_commit(s)
 
 
@@ -70,7 +73,7 @@ def test_rollup_kg_base_with_g_variants(session_factory):
 
     ing_id = _make_ingredient(session_factory, "harina test", "kg")
     _add_variant(session_factory, ing_id, 1000, "g", 3, preferred=True)  # 3 × 1kg = 3 kg
-    _add_variant(session_factory, ing_id, 250, "g", 12)                  # 12 × 250g = 3 kg
+    _add_variant(session_factory, ing_id, 250, "g", 12)  # 12 × 250g = 3 kg
 
     with session_factory() as s:
         r = rollup_ingredient_stock(s, ing_id)
@@ -90,8 +93,10 @@ def test_rollup_g_base_with_kg_variants(session_factory):
     from app.rms.variants import rollup_ingredient_stock
 
     ing_id = _make_ingredient(session_factory, "azúcar test", "g")
-    _add_variant(session_factory, ing_id, 2.0, "kg", 5, preferred=True)  # 5 × 2kg = 10 kg = 10_000 g
-    _add_variant(session_factory, ing_id, 500, "g", 4)                   # 4 × 500g = 2000 g
+    _add_variant(
+        session_factory, ing_id, 2.0, "kg", 5, preferred=True
+    )  # 5 × 2kg = 10 kg = 10_000 g
+    _add_variant(session_factory, ing_id, 500, "g", 4)  # 4 × 500g = 2000 g
 
     with session_factory() as s:
         r = rollup_ingredient_stock(s, ing_id)
@@ -108,7 +113,7 @@ def test_rollup_l_base_with_ml_variants(session_factory):
 
     ing_id = _make_ingredient(session_factory, "leche test", "l")
     _add_variant(session_factory, ing_id, 1000, "ml", 4, preferred=True)  # 4 × 1l = 4 l
-    _add_variant(session_factory, ing_id, 250, "ml", 8)                    # 8 × 250ml = 2 l
+    _add_variant(session_factory, ing_id, 250, "ml", 8)  # 8 × 250ml = 2 l
 
     with session_factory() as s:
         r = rollup_ingredient_stock(s, ing_id)
@@ -124,7 +129,7 @@ def test_rollup_ml_base_with_l_variants(session_factory):
 
     ing_id = _make_ingredient(session_factory, "aceite test", "ml")
     _add_variant(session_factory, ing_id, 1.5, "l", 3, preferred=True)  # 3 × 1.5l = 4.5l = 4500 ml
-    _add_variant(session_factory, ing_id, 500, "ml", 2)                 # 2 × 500ml = 1000 ml
+    _add_variant(session_factory, ing_id, 500, "ml", 2)  # 2 × 500ml = 1000 ml
 
     with session_factory() as s:
         r = rollup_ingredient_stock(s, ing_id)
@@ -136,14 +141,29 @@ def test_rollup_ml_base_with_l_variants(session_factory):
 
 def test_rollup_mixed_g_and_kg_harina_use_case(session_factory):
     """The actual B1 use case: flour bought in 1kg bags and 250g packets,
-    ingredient base unit is kg. Saskia's most common purchase."""
+    ingredient base unit is kg. the operator's most common purchase."""
     from app.rms.variants import rollup_ingredient_stock
 
     ing_id = _make_ingredient(session_factory, "Harina 000", "kg", min_stock_qty=10.0)
-    _add_variant(session_factory, ing_id, 1.0, "kg", 3, preferred=True,
-                 purchase_price_gs=8500, supplier_id=None)
-    _add_variant(session_factory, ing_id, 0.25, "kg", 12,  # also have 250g packets
-                 purchase_price_gs=2400, supplier_id=None)
+    _add_variant(
+        session_factory,
+        ing_id,
+        1.0,
+        "kg",
+        3,
+        preferred=True,
+        purchase_price_gs=8500,
+        supplier_id=None,
+    )
+    _add_variant(
+        session_factory,
+        ing_id,
+        0.25,
+        "kg",
+        12,  # also have 250g packets
+        purchase_price_gs=2400,
+        supplier_id=None,
+    )
 
     with session_factory() as s:
         r = rollup_ingredient_stock(s, ing_id)
@@ -157,7 +177,7 @@ def test_rollup_mixed_g_and_kg_harina_use_case(session_factory):
     assert abs(v_by_size[1.0]["stock_in_base"] - 3.0) < 1e-9
     assert abs(v_by_size[0.25]["stock_in_base"] - 3.0) < 1e-9
     # size_in_base fields document the package conversion
-    assert v_by_size[1.0]["size_in_base"] == 1.0   # 1 kg = 1 kg in kg-base
+    assert v_by_size[1.0]["size_in_base"] == 1.0  # 1 kg = 1 kg in kg-base
     assert v_by_size[0.25]["size_in_base"] == 0.25  # 0.25 kg = 0.25 kg in kg-base
 
 

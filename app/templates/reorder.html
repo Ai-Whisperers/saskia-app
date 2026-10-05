@@ -234,7 +234,7 @@ function updateBulkBtn() {
           {# Supplier picker + submit. The supplier combo sits in the same
              Confirmar cell so the row still has 4 visual columns even when
              the supplier dropdown is wide. The picker uses an inline
-             saskia-combo (form-safe) so it submits with the rest of the form. #}
+             ui-combo (form-safe) so it submits with the rest of the form. #}
           <div style="display:flex;flex-direction:column;gap:.35rem;min-width:11rem;">
             <label class="sr-only" for="rsup-{{ item.ingredient_id }}">Proveedor {{ fmt.entity_name(item) }}</label>
             {%- if cheapest and cheapest.supplier_id is not none and cheapest.supplier_id != eff_id -%}
@@ -250,7 +250,7 @@ function updateBulkBtn() {
               </div>
             {%- endif -%}
             <button type="button" class="btn btn-sm btn-ghost scrape-trigger" data-ingredient-id="{{ item.ingredient_id }}" data-ingredient-name="{{ fmt.entity_name(item) }}" aria-label="Buscar precios en la web para {{ fmt.entity_name(item) }}"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg> Ver precios</button>
-              <saskia-combo id="rsup-{{ item.ingredient_id }}"
+              <ui-combo id="rsup-{{ item.ingredient_id }}"
                            name="supplier_id"
                            class="supplier-picker"
                            {% if is_locked %}data-locked="1"{% endif %}
@@ -263,7 +263,7 @@ function updateBulkBtn() {
                              {%- if not supplier_options -%}
                                {"value": "", "label": "No hay proveedores activos"}
                              {%- endif -%}
-                           ]'></saskia-combo>
+                           ]'></ui-combo>
             <div id="scrape-results-{{ item.ingredient_id }}" class="scrape-results" hidden></div>
             <button type="submit" class="btn btn-sm btn-primary confirm-btn"
                     {# P-32.3: block submit on rows with no supplier attached. #}

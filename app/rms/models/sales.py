@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum,
@@ -29,11 +30,14 @@ All models here share the same declarative Base as the rest of the
 project — see app/rms/models/core.py.
 """
 
+
 class Sale(Base):
     """A recorded sale. unit_price_gs is SNAPSHOT — even if product catalog changes."""
 
     __tablename__ = "sale"
-    customer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("customer.id"), nullable=True, index=True)
+    customer_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("customer.id"), nullable=True, index=True
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     sold_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
@@ -58,7 +62,6 @@ class Sale(Base):
         Enum(Channel), nullable=False, default=Channel.default(), server_default=Channel.default()
     )
 
-
     # Phase 1.B — Fiscal invoice fields (Paraguay DNIT compliance).
     # invoice_type ∈ {'boleta_resimple', 'factura', 'none'}.
     # 'none' = no fiscal document emitted (e.g. internal sample, regalo).
@@ -71,9 +74,13 @@ class Sale(Base):
     invoice_customer_ruc: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     invoice_customer_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     # IVA breakdown at sale time (snapshot — does not change if Product.iva_rate changes).
-    iva_rate: Mapped[str] = mapped_column(String(8), nullable=False, default="10", server_default="10")
+    iva_rate: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="10", server_default="10"
+    )
     iva_base_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
-    iva_amount_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    iva_amount_gs: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
     # Relationships
     product: Mapped["Product"] = relationship(back_populates="sales")  # noqa: F821 — SQLAlchemy 2.0 forward ref
@@ -91,6 +98,7 @@ class Sale(Base):
         Index("ix_sale_sold_at_voided", "sold_at", "voided_at"),
     )
 
+
 class SaleStockMove:
     """Deprecated stub — sale_stock_move table removed by migration 092 (BACKLOG #1).
 
@@ -100,9 +108,18 @@ class SaleStockMove:
     app.rms.models_legacy.SaleStockMove (which SQLAlchemy marks
     `__abstract__ = True` so it skips mapper config); we re-export
     here so all import paths point to the same class.
+
+    NOTE: this class is intentionally NOT a SQLAlchemy declarative
+    model — it has no `__tablename__` and no mapper. Defining it as
+    a plain class (not `class SaleStockMove(Base):`) prevents
+    SQLAlchemy from configuring a mapper for it. The inventory.py
+    `stock_moves` relationship forward-refs to `"SaleStockMove"`
+    and SQLAlchemy resolves it at mapper-config time; if this class
+    were a Base subclass with a tablename, mapper config would fail
+    with "table 'sale_stock_move' does not exist".
     """
 
-    def __new__(cls, *args, **kwargs):  # pragma: no cover — guard
+    def __new__(cls, *args: Any, **kwargs: Any) -> None:  # pragma: no cover — guard
         raise TypeError(
             "SaleStockMove is deprecated — sale_stock_move table was "
             "dropped by migration 092. Use StockMovement with "
@@ -113,7 +130,7 @@ class SaleStockMove:
 class Customer(Base):
     """A customer record (E13).
 
-    Phone is the de-facto unique identifier (matches how Saskia
+    Phone is the de-facto unique identifier (matches how the operator
     identifies customers at the counter). Loyalty points are tracked
     in-app; lifetime spend is computed from sales at query time.
     """
@@ -131,24 +148,29 @@ class Customer(Base):
     zone: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     # Migrations 069/070/071 (kept in sync with models_legacy.Customer):
     # dietary profile, profile completeness, marketing consent.
-    dietary_restrictions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # CSV of canonical tags (hard)
-    dietary_preferences: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON [{tag, rank, approved}]
+    dietary_restrictions: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )  # CSV of canonical tags (hard)
+    dietary_preferences: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )  # JSON [{tag, rank, approved}]
     dietary_confirm_always: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    birthday: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)        # MM-DD
+    birthday: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # MM-DD
     how_found: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     preferred_channel: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     marketing_consent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     invoice_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     invoice_ruc: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    __table_args__ = (
-        Index("ix_customer_name", "name"),
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+
+    __table_args__ = (Index("ix_customer_name", "name"),)
 
     # Relationships
     sales: Mapped[list["Sale"]] = relationship(back_populates="customer")
+
 
 class Tag(Base):
     """Tag row (E9.S1).
@@ -174,6 +196,7 @@ class Tag(Base):
         "TagLink", back_populates="tag", cascade="all, delete-orphan"
     )
 
+
 class TagLink(Base):
     """Polymorphic M:N link between a Tag and a target (E9.S1).
 
@@ -189,9 +212,7 @@ class TagLink(Base):
     )
     target_kind: Mapped[str] = mapped_column(String(16), nullable=False)
     target_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
         UniqueConstraint("tag_id", "target_kind", "target_id", name="uq_tag_link"),
@@ -200,6 +221,7 @@ class TagLink(Base):
 
     # Relationships
     tag: Mapped["Tag"] = relationship("Tag", back_populates="links")
+
 
 class RecipePricing(Base):
     """Per-channel pricing for a recipe (HEREBUS COSTOS + Pricing_Por_Producto).

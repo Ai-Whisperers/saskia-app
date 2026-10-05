@@ -1,6 +1,6 @@
 """tests/test_dev_tooling.py — sanity checks for E24 dev tooling.
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E24.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E24.
 
 Covers:
 - Makefile exists and contains all 13 documented targets
@@ -9,6 +9,7 @@ Covers:
 - .github/CODEOWNERS has routing rules
 - .github/dependabot.yml has uv ecosystem enabled
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -32,11 +33,24 @@ def test_makefile_has_all_targets():
     """The 13 expected targets must exist."""
     content = (ROOT / "Makefile").read_text()
     expected = [
-        "install", "test", "test-verbose", "test-coverage",
-        "lint", "lint-fix", "format", "check",
-        "serve", "migrate", "seed", "seed-reset",
-        "backup", "fixtures", "clean", "ci-smoke",
-        "pre-commit", "stats",
+        "install",
+        "test",
+        "test-verbose",
+        "test-coverage",
+        "lint",
+        "lint-fix",
+        "format",
+        "check",
+        "serve",
+        "migrate",
+        "seed",
+        "seed-reset",
+        "backup",
+        "fixtures",
+        "clean",
+        "ci-smoke",
+        "pre-commit",
+        "stats",
     ]
     for t in expected:
         assert f"\n{t}:" in content or f"\n.PHONY: {t}" in content, f"Missing target: {t}"
@@ -55,7 +69,7 @@ def test_contributing_md_exists():
     assert "make install" in content
     assert "make migrate" in content
     assert "make seed" in content
-    assert "Saskia-eng-NNN" in content
+    assert "ENG-NNN" in content
 
 
 def test_docker_compose_dev_yml_is_valid_yaml():

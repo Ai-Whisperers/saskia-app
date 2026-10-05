@@ -24,9 +24,7 @@ def _kyrian_customer_id(session_factory):
         from app.rms.models import Customer
 
         c = s.execute(
-            __import__("sqlalchemy").select(Customer).where(
-                Customer.name.ilike("%kyrian%")
-            )
+            __import__("sqlalchemy").select(Customer).where(Customer.name.ilike("%kyrian%"))
         ).scalar_one_or_none()
         assert c is not None, "Kyrian customer must exist in with_kyrian_full"
         return c.id
@@ -49,7 +47,8 @@ def test_historial_row_with_customer_has_pedido_btn(client, qseed, session_facto
         from app.rms.models import Sale
 
         sale = s.execute(
-            __import__("sqlalchemy").select(Sale)
+            __import__("sqlalchemy")
+            .select(Sale)
             .where(Sale.customer_id == cid)
             .where(Sale.voided_at.is_(None))
             .limit(1)
@@ -77,7 +76,8 @@ def test_historial_voided_sale_no_conversion_btn(client, qseed, session_factory)
         from app.rms.models import Sale
 
         sale = s.execute(
-            __import__("sqlalchemy").select(Sale)
+            __import__("sqlalchemy")
+            .select(Sale)
             .where(Sale.customer_id == cid)
             .where(Sale.voided_at.is_(None))
             .limit(1)
@@ -85,7 +85,8 @@ def test_historial_voided_sale_no_conversion_btn(client, qseed, session_factory)
         assert sale is not None
         now = _dt.datetime.now(_dt.timezone.utc)
         s.execute(
-            __import__("sqlalchemy").update(Sale)
+            __import__("sqlalchemy")
+            .update(Sale)
             .where(Sale.id == sale.id)
             .values(voided_at=now, void_reason="test void")
         )
@@ -95,9 +96,7 @@ def test_historial_voided_sale_no_conversion_btn(client, qseed, session_factory)
     r = client.get("/ventas/historial")
     body = r.text
     bad_href = f'/pedidos/nuevo?customer_id={cid}&from_sale={sale_id}"'
-    assert bad_href not in body, (
-        f"Voided sale {sale_id} should not have a conversion CTA"
-    )
+    assert bad_href not in body, f"Voided sale {sale_id} should not have a conversion CTA"
 
 
 def test_historial_cash_sale_no_conversion_btn(client, qseed, session_factory):
@@ -108,9 +107,7 @@ def test_historial_cash_sale_no_conversion_btn(client, qseed, session_factory):
     with session_factory() as s:
         from app.rms.models import Product, Sale
 
-        product = s.execute(
-            __import__("sqlalchemy").select(Product).limit(1)
-        ).scalar_one_or_none()
+        product = s.execute(__import__("sqlalchemy").select(Product).limit(1)).scalar_one_or_none()
         assert product is not None
         sale = Sale(
             product_id=product.id,

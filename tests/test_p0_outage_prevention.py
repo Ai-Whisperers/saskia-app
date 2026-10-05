@@ -16,6 +16,7 @@ These four tests would have caught the two outage root causes from this session:
    — defensive fallback returned raw Connection instead of Session,
    causing ProgrammingError on `session.execute(text(...))`.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import inspect, text
@@ -76,6 +77,7 @@ def test_lifespan_ready_false_if_migrations_pending(app_engine):
     # The /healthz/db endpoint should report drift > 0
     # (This is checked at request time, not lifespan init time.)
     from app.rms.db import schema_version_mismatch
+
     with app_engine.connect() as conn:
         mismatch = schema_version_mismatch(conn)
         assert mismatch > 0, (
@@ -94,8 +96,11 @@ def test_supabase_auth_falls_back_when_env_missing(monkeypatch):
     """
     # Unset all Supabase env vars
     for var in (
-        "SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_PUBLISHABLE_KEY",
-        "SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_PUBLISHABLE_KEY",
+        "SUPABASE_SECRET_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
     ):
         monkeypatch.delenv(var, raising=False)
 
@@ -103,6 +108,7 @@ def test_supabase_auth_falls_back_when_env_missing(monkeypatch):
     import importlib
 
     from app import auth_supabase
+
     importlib.reload(auth_supabase)
 
     assert auth_supabase.is_supabase_auth_enabled() is False, (
@@ -112,6 +118,7 @@ def test_supabase_auth_falls_back_when_env_missing(monkeypatch):
 
     # _supabase_enabled() in app.auth.py must agree
     from app import auth
+
     importlib.reload(auth)
     assert auth._supabase_enabled() is False
 

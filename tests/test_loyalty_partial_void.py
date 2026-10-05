@@ -1,6 +1,6 @@
 """Tier 2.3 (2026-10-01) — partial-refund + partial-points tests.
 
-Context: saskia-rms currently has NO partial-refund endpoint. ``void_sale``
+Context: sazon-rms currently has NO partial-refund endpoint. ``void_sale``
 voids the whole sale and ``reverse_points_for_void`` reverses ALL earn
 ledger rows tied to that sale. This is fine for the MVP (small shop,
 simple register) but it means a partial return has to be done by:
@@ -31,7 +31,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, select as _sa_select
+from sqlalchemy import create_engine
+from sqlalchemy import select as _sa_select
 from sqlalchemy.orm import sessionmaker
 
 # Headless test env: no .env, no printer, no cron.
@@ -41,12 +42,12 @@ os.environ.setdefault("RANDOM_SEED", "42")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app.rms.models import Base, Customer, LoyaltyTransaction  # noqa: E402
-from app.rms.customers import (  # noqa: E402
+from app.rms.customers import (
     award_points,
     redeem_points,
     reverse_points_for_void,
 )
+from app.rms.models import Base, Customer, LoyaltyTransaction
 
 
 @pytest.fixture()
@@ -106,9 +107,7 @@ def test_partial_void_redeems_reversal_row_signed_negative(session):
     assert reasons == ["earn_sale", "void_reversal"], (
         f"expected exactly earn_sale + void_reversal, got {reasons}"
     )
-    assert deltas == [15, -15], (
-        f"void_reversal delta must be the negation of earn, got {deltas}"
-    )
+    assert deltas == [15, -15], f"void_reversal delta must be the negation of earn, got {deltas}"
 
 
 def test_partial_void_balance_round_trip(session):
@@ -128,8 +127,7 @@ def test_partial_void_balance_round_trip(session):
     reverse_points_for_void(session, c2, sale_id=2)
     session.commit()
     assert c2.loyalty_points == 100, (
-        "void should add back to the customer's pre-sale balance, "
-        "not reset to 0"
+        "void should add back to the customer's pre-sale balance, not reset to 0"
     )
 
 
@@ -151,12 +149,9 @@ def test_partial_void_with_redeem_in_same_sale(session):
 
     # The reversal is for the EARN (30), not the redeem. The redeem
     # row stays because the customer received the discount.
-    assert reversed_pts == 30, (
-        f"void should reverse only the earn portion, got {reversed_pts}"
-    )
+    assert reversed_pts == 30, f"void should reverse only the earn portion, got {reversed_pts}"
     assert c.loyalty_points == 0, (
-        f"expected 0 after full reversal (start=20, +30, -20, -30 void), "
-        f"got {c.loyalty_points}"
+        f"expected 0 after full reversal (start=20, +30, -20, -30 void), got {c.loyalty_points}"
     )
 
     rows = session.scalars(

@@ -1,11 +1,11 @@
 # render.yaml — DEPRECATED 2026-09-24
 #
-# Saskia RMS is now deployed on the VPS (paragu-ai) using Docker Swarm.
+# Sazón is now deployed on the VPS (paragu-ai) using Docker Swarm.
 # The Render deployment is no longer the source of truth. This file is
 # kept for historical reference and as a fallback option if VPS deployment
 # needs to be retired.
 #
-# Active deployment: VPS at https://saskia-vps.paragu-ai.com
+# Active deployment: VPS at https://sazon-vps.paragu-ai.com
 # Active config:     deploy-to-vps.sh + docker-stack.yml
 #
 # To re-enable Render:
@@ -27,7 +27,7 @@
 
 services:
   - type: web
-    name: saskia-rms
+    name: sazon-rms
     runtime: docker
     plan: free  # or 'starter' ($7/mo) to avoid spin-down
     region: oregon  # closest to Paraguay latam
@@ -49,7 +49,7 @@ services:
       - key: R2_SECRET_KEY
         sync: false
       - key: R2_BUCKET
-        value: saskia-rms-backups
+        value: sazon-rms-backups
       - key: R2_ENDPOINT
         value: https://<account>.r2.cloudflarestorage.com
       - key: BIND_HOST
@@ -58,8 +58,8 @@ services:
         value: 8000
       - key: PYTHONUNBUFFERED
         value: "1"
-      - key: AIW_SASKIA_LOG_DIR
-        value: /tmp/saskia-logs
+      - key: AIW_RMS_LOG_DIR
+        value: /tmp/sazon-logs
 
       # Supabase auth (NAV-A.1: prevents "credenciales inválidas" after
       # every fresh deploy — Render Blueprints re-set env vars when the

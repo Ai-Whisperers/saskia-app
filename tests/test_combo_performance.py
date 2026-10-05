@@ -1,6 +1,6 @@
 """Test combo caching and performance improvements.
 
-NOTE 2026-09-29: combo.js was refactored to saskia-combo.js (D17). These tests
+NOTE 2026-09-29: combo.js was refactored to ui-combo.js (D17). These tests
 assume the old combo.js filename and old API. Marked xfail so they don't break
 the suite; rewrite or remove when there's dedicated time.
 """
@@ -10,16 +10,16 @@ from pathlib import Path
 import pytest
 
 pytestmark = pytest.mark.xfail(
-    reason="combo.js → saskia-combo.js refactor (D17, 2026-09-27). "
+    reason="combo.js → ui-combo.js refactor (D17, 2026-09-27). "
     "These tests describe the legacy API. See tests/test_ui_components.py "
-    "for current saskia-combo tests.",
+    "for current ui-combo tests.",
     strict=False,
 )
 
 
 def test_combo_has_shared_cache():
     """Test that combo.js implements a shared cache layer."""
-    combo_js = Path("/opt/data/work/saskia-app/app/static/saskia-combo.js")
+    combo_js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js")
     content = combo_js.read_text()
 
     # Shared cache should be class-level (via _sharedCache)
@@ -32,7 +32,7 @@ def test_combo_has_shared_cache():
 
 def test_combo_uses_document_fragment():
     """Test that combo.js renders via DocumentFragment for performance."""
-    combo_js = Path("/opt/data/work/saskia-app/app/static/saskia-combo.js")
+    combo_js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js")
     content = combo_js.read_text()
 
     # DocumentFragment batches DOM writes — should appear in _render
@@ -43,7 +43,7 @@ def test_combo_uses_document_fragment():
 
 def test_combo_debounce_present():
     """Test that combo.js keeps the input debounce."""
-    combo_js = Path("/opt/data/work/saskia-app/app/static/saskia-combo.js")
+    combo_js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js")
     content = combo_js.read_text()
 
     # The existing debounce timer should still be there
@@ -53,20 +53,20 @@ def test_combo_debounce_present():
 
 def test_users_role_conversion():
     """Test that users.html role selects are converted to combos."""
-    users_html = Path("/opt/data/work/saskia-app/app/templates/users.html")
+    users_html = Path("/opt/data/work/sazon-app/app/templates/users.html")
     content = users_html.read_text()
 
     # Should reference the new roles API
     assert "/users/api/roles" in content
     # Should contain combo markup
-    assert "saskia-combo" in content
+    assert "ui-combo" in content
     # Should NOT have the native role select with the old ID
     assert 'id="role"' not in content or '<select id="role"' not in content
 
 
 def test_users_roles_api():
     """Test that the /users/api/roles endpoint exists."""
-    users_router = Path("/opt/data/work/saskia-app/app/routers/users.py")
+    users_router = Path("/opt/data/work/sazon-app/app/routers/users.py")
     content = users_router.read_text()
 
     assert "/api/roles" in content
@@ -77,7 +77,7 @@ def test_users_roles_api():
 
 def test_producto_form_recipe_combo():
     """Test that producto_form.html recipe select is converted."""
-    pf = Path("/opt/data/work/saskia-app/app/templates/producto_form.html")
+    pf = Path("/opt/data/work/sazon-app/app/templates/producto_form.html")
     content = pf.read_text()
 
     # Should reference the recipes search API
@@ -89,7 +89,7 @@ def test_producto_form_recipe_combo():
 
 def test_recetas_ingredient_filter_conversion():
     """Test that recetas.html ingredient filter is converted."""
-    rh = Path("/opt/data/work/saskia-app/app/templates/recetas.html")
+    rh = Path("/opt/data/work/sazon-app/app/templates/recetas.html")
     content = rh.read_text()
 
     # Should reference the inventory search API
@@ -99,7 +99,7 @@ def test_recetas_ingredient_filter_conversion():
 
 def test_merma_reason_filter_conversion():
     """Test that merma.html reason filter is converted."""
-    mh = Path("/opt/data/work/saskia-app/app/templates/merma.html")
+    mh = Path("/opt/data/work/sazon-app/app/templates/merma.html")
     content = mh.read_text()
 
     # Should reference the merma reasons API

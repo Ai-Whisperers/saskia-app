@@ -12,6 +12,7 @@ Two CI gates born from the 2026-09-30 audit:
    reach the menu. Uses the prod-shaped seed if present; otherwise passes
    vacuously (CI fixtures have no products).
 """
+
 from __future__ import annotations
 
 import os
@@ -68,7 +69,7 @@ def test_proprice_no_sellable_product_below_110pct_of_cost():
     Corre contra la DB si existe (local/prod-shape). En CI sin DB de negocio
     pasa vacío (no hay productos que auditar).
     """
-    db_path = os.environ.get("AIW_SASKIA_DB_PATH", "/tmp/rms-latest.sqlite")
+    db_path = os.environ.get("AIW_RMS_DB_PATH", "/tmp/rms-latest.sqlite")
     if not Path(db_path).exists():
         import pytest
 
@@ -78,9 +79,9 @@ def test_proprice_no_sellable_product_below_110pct_of_cost():
 
     from sqlalchemy import create_engine
 
+    from app.rms.costing import product_unit_cost_gs
     from app.rms.db import make_session_factory
     from app.rms.models_legacy import Product
-    from app.rms.costing import product_unit_cost_gs
 
     engine = create_engine(f"sqlite:///{db_path}")
     S = make_session_factory(engine)()
@@ -100,6 +101,5 @@ def test_proprice_no_sellable_product_below_110pct_of_cost():
             )
     S.close()
     assert not offenders, (
-        "Productos activos con precio < costo×1,1 (venta a pérdida o casi): "
-        + "; ".join(offenders)
+        "Productos activos con precio < costo×1,1 (venta a pérdida o casi): " + "; ".join(offenders)
     )

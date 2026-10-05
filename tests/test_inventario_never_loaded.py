@@ -8,6 +8,7 @@ de verdad": en día 1 mostraba 65 críticos cuando solo ~44 eran reales.
 - Ingredientes con stock 0 y movimientos → crítico real (rojo).
 - /inventario/carga-inicial: pantalla de carga masiva del faltante.
 """
+
 from __future__ import annotations
 
 from sqlalchemy.orm import sessionmaker
@@ -23,13 +24,15 @@ def _seed(s):
 
     from app.rms.models_legacy import StockMovement
 
-    s.add(StockMovement(
-        ingredient_id=agotado.id,
-        movement_type="adjustment",
-        qty=-3.0,
-        reason="prueba",
-        recorded_at=datetime.now(timezone.utc),
-    ))
+    s.add(
+        StockMovement(
+            ingredient_id=agotado.id,
+            movement_type="adjustment",
+            qty=-3.0,
+            reason="prueba",
+            recorded_at=datetime.now(timezone.utc),
+        )
+    )
     s.commit()
     return agotado, nunca, ok
 
@@ -62,7 +65,7 @@ def test_filtro_estado_sincargar(client, session_factory):
 def test_carga_inicial_view_lists_and_saves(authed_client, session_factory):
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
-        agotado, nunca, ok = _seed(s)
+        _agotado, nunca, _ok = _seed(s)
         nunca_id = nunca.id
     finally:
         s.close()
@@ -73,7 +76,9 @@ def test_carga_inicial_view_lists_and_saves(authed_client, session_factory):
     assert "Harina agotada" not in r.text  # ya tiene movimientos
 
     # guardar: qty_ para el vaso
-    r2 = authed_client.post("/inventario/carga-inicial", data={"qty_%d" % nunca_id: "60"}, follow_redirects=False)
+    r2 = authed_client.post(
+        "/inventario/carga-inicial", data={"qty_%d" % nunca_id: "60"}, follow_redirects=False
+    )
     assert r2.status_code == 303
     s2 = sessionmaker(bind=session_factory.kw["bind"])()
     try:
@@ -81,7 +86,9 @@ def test_carga_inicial_view_lists_and_saves(authed_client, session_factory):
 
         ing = s2.get(Ingredient, nunca_id)
         assert ing.stock_qty == 60.0
-        mv = s2.query(StockMovement).filter_by(ingredient_id=nunca_id, movement_type="initial").one()
+        mv = (
+            s2.query(StockMovement).filter_by(ingredient_id=nunca_id, movement_type="initial").one()
+        )
         assert mv.qty == 60.0
         # tras la carga ya no está en la pantalla
     finally:

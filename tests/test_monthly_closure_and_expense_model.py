@@ -13,9 +13,6 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-import pytest
-
-
 # ─── Model: Expense extensions ────────────────────────────────────────────
 
 
@@ -47,13 +44,11 @@ def test_expense_recurring_period_check_constraint():
     from app.rms.models import Expense
 
     check_constraints = [
-        c for c in Expense.__table__.constraints
-        if c.__class__.__name__ == "CheckConstraint"
+        c for c in Expense.__table__.constraints if c.__class__.__name__ == "CheckConstraint"
     ]
-    assert any(
-        "recurring_period" in str(c.sqltext)
-        for c in check_constraints
-    ), "Missing recurring_period check constraint on Expense"
+    assert any("recurring_period" in str(c.sqltext) for c in check_constraints), (
+        "Missing recurring_period check constraint on Expense"
+    )
 
 
 # ─── Model: MonthlyClosure ────────────────────────────────────────────────
@@ -72,10 +67,18 @@ def test_monthly_closure_required_columns():
     from app.rms.models import MonthlyClosure
 
     expected = {
-        "id", "period_yyyymm", "closed_at", "closed_by_user_id",
-        "total_iva_gs", "total_revenue_gs", "total_cogs_gs",
-        "total_expenses_gs", "net_gs", "snapshot_json",
-        "reopened_at", "reopen_reason",
+        "id",
+        "period_yyyymm",
+        "closed_at",
+        "closed_by_user_id",
+        "total_iva_gs",
+        "total_revenue_gs",
+        "total_cogs_gs",
+        "total_expenses_gs",
+        "net_gs",
+        "snapshot_json",
+        "reopened_at",
+        "reopen_reason",
     }
     actual = set(MonthlyClosure.__table__.columns.keys())
     missing = expected - actual
@@ -96,13 +99,11 @@ def test_monthly_closure_period_format_check():
     from app.rms.models import MonthlyClosure
 
     check_constraints = [
-        c for c in MonthlyClosure.__table__.constraints
-        if c.__class__.__name__ == "CheckConstraint"
+        c for c in MonthlyClosure.__table__.constraints if c.__class__.__name__ == "CheckConstraint"
     ]
-    assert any(
-        "length(period_yyyymm)" in str(c.sqltext)
-        for c in check_constraints
-    ), "Missing period format check constraint"
+    assert any("length(period_yyyymm)" in str(c.sqltext) for c in check_constraints), (
+        "Missing period format check constraint"
+    )
 
 
 # ─── Migrations ───────────────────────────────────────────────────────────
@@ -140,9 +141,7 @@ def test_migration_093_idempotent_via_prag_table_info():
     import app.rms.migrations._093_expense_receipt_recurring as m085
 
     src = open(m085.__file__).read()
-    assert "PRAGMA table_info" in src, (
-        "085 must use PRAGMA table_info to be idempotent"
-    )
+    assert "PRAGMA table_info" in src, "085 must use PRAGMA table_info to be idempotent"
 
 
 def test_migration_094_creates_monthly_closure_table():
@@ -158,13 +157,15 @@ def test_migration_094_creates_monthly_closure_table():
 # ─── Schema version ──────────────────────────────────────────────────────
 
 
-def test_current_schema_version_is_88():
-    """Sprint 3.1 (85/86) + Sprint 3.2 (87/88) bump CURRENT_SCHEMA_VERSION to 88."""
+def test_current_schema_version_is_99():
+    """T-2026-10-04: schema version is now 99 after migrations 090-099.
+    Migrations 090-099 added: stock_movement.affected_recipe_id (090),
+    backfill from SaleStockMove (091), drop sale_stock_move (092),
+    production_closed_day (098), production_completion.updated_at (099).
+    """
     from app.rms.config import CURRENT_SCHEMA_VERSION
 
-    assert CURRENT_SCHEMA_VERSION == 88, (
-        f"expected 88, got {CURRENT_SCHEMA_VERSION}"
-    )
+    assert CURRENT_SCHEMA_VERSION == 99, f"expected 99, got {CURRENT_SCHEMA_VERSION}"
 
 
 def test_monthly_closure_table_actually_created_on_init_db(session_factory, app_engine):
@@ -172,9 +173,9 @@ def test_monthly_closure_table_actually_created_on_init_db(session_factory, app_
     from sqlalchemy import text
 
     with session_factory() as s:
-        rows = s.execute(text(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='monthly_closure'"
-        )).fetchall()
+        rows = s.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='monthly_closure'")
+        ).fetchall()
         assert rows, "monthly_closure table was not created"
 
 
@@ -220,12 +221,14 @@ def test_monthly_closure_persists_full_snapshot(session_factory):
             total_cogs_gs=400_000,
             total_expenses_gs=150_000,
             net_gs=450_000,
-            snapshot_json=json.dumps({
-                "period_yyyymm": "2026-09",
-                "revenue": 1_000_000,
-                "cogs": 400_000,
-                "expenses": 150_000,
-            }),
+            snapshot_json=json.dumps(
+                {
+                    "period_yyyymm": "2026-09",
+                    "revenue": 1_000_000,
+                    "cogs": 400_000,
+                    "expenses": 150_000,
+                }
+            ),
         )
         s.add(closure)
         s.commit()

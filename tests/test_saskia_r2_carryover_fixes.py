@@ -20,14 +20,12 @@ def test_produccion_ver_receta_link_targets_detail(authed_client):
     """PRO-04: 'Ver receta' on /produccion lands on the recipe detail page, not edit."""
     r = authed_client.get("/produccion")
     # The render might 500 without recipe data; assert status non-error
-    assert r.status_code in (200, 500), (
-        f"Unexpected /produccion status {r.status_code}"
-    )
+    assert r.status_code in (200, 500), f"Unexpected /produccion status {r.status_code}"
     if r.status_code == 200:
         body = r.text
         # If any 'Ver receta' link exists, it must NOT contain /editar
         if "Ver receta" in body:
-            assert "/editar" not in body.split("Ver receta")[1].split('</a>')[0], (
+            assert "/editar" not in body.split("Ver receta")[1].split("</a>")[0], (
                 "PRO-04 regression: 'Ver receta' link still goes to /editar"
             )
 
@@ -45,18 +43,10 @@ def test_dashboard_no_english_kpi_labels(authed_client):
         return
     body = r.text
     # These specific English phrases must be gone
-    assert ">Food cost %<" not in body, (
-        "MER-03 regression: 'Food cost %' still on /dashboard"
-    )
-    assert ">Gross margin %<" not in body, (
-        "MER-03 regression: 'Gross margin %' still on /dashboard"
-    )
-    assert ">Revenue Gs.<" not in body, (
-        "MER-03 regression: 'Revenue' label still on /dashboard"
-    )
-    assert "target: 60%" not in body, (
-        "MER-03 regression: 'target:' English still on /dashboard"
-    )
+    assert ">Food cost %<" not in body, "MER-03 regression: 'Food cost %' still on /dashboard"
+    assert ">Gross margin %<" not in body, "MER-03 regression: 'Gross margin %' still on /dashboard"
+    assert ">Revenue Gs.<" not in body, "MER-03 regression: 'Revenue' label still on /dashboard"
+    assert "target: 60%" not in body, "MER-03 regression: 'target:' English still on /dashboard"
     # Spanish replacements should be present
     assert "Costo de materia prima %" in body
     assert "Margen bruto %" in body

@@ -3,13 +3,13 @@
 ## What was checked
 Searched past sessions for servarica/saskia/deploy work. Found these as relevant:
 
-- @session:ivan/20260921_183115_cf38cb — "Run saskia-backup-pull cron job".
+- @session:ivan/20260921_183115_cf38cb — "Run sazon-backup-pull cron job".
   This was the only prior session that drove a real Servarica VPS deploy for
-  saskia-rms. Confirmed: deploy path is `docker stack deploy -c docker-stack.yml
-  saskia-vps --resolve-image=never` on the host at 216.150.1.1.
+  sazon-rms. Confirmed: deploy path is `docker stack deploy -c docker-stack.yml
+  sazon-vps --resolve-image=never` on the host at 216.150.1.1.
 
 - @session:ivan/20260921_182959_d642e9 — "Process Ivan profile attachments".
-  Multi-model architecture design doc, includes saskia-rms as test client.
+  Multi-model architecture design doc, includes sazon-rms as test client.
 
 - @session:ivan/20260927_185825_689522 — "Analyze hermes sessions for failures".
   Confirmed VM pull time fix (07:27 was 03:47, fixed 2026-09-27 — VPS writes
@@ -27,8 +27,8 @@ Searched past sessions for servarica/saskia/deploy work. Found these as relevant
 - WHMCS API at /opt/data/work/scripts/.whmcs_token is IP-restricted to
   38.9.96.180 (Host B); calls from other IPs return 403 Invalid IP.
 - VPS at 216.150.1.1: SSH port 22 times out from this VM; HTTP 80/443 open.
-- Live state: Docker Swarm stack `saskia-vps` running the app at
-  saskia-vps.paragu-ai.com. Currently showing OLD code (broken receta_detalle,
+- Live state: Docker Swarm stack `sazon-vps` running the app at
+  sazon-vps.paragu-ai.com. Currently showing OLD code (broken receta_detalle,
   500 on /productos, 0/30 ingredients, 0 products, 0 sales — the default
   seed only).
 
@@ -57,7 +57,7 @@ Searched past sessions for servarica/saskia/deploy work. Found these as relevant
 - seed_full_recipe_data.py populated all 20 recipes with instructions,
   metadata, allergens, tag_links
 - /productos + /recetas 500 fix (replaced {% do %} with {% set _ = ... %})
-- xlsx export (saskia-rms-starter-2026-09-29.xlsx) for offline data population
+- xlsx export (sazon-rms-starter-2026-09-29.xlsx) for offline data population
 - Error 500→4xx.html wired, no Python repr leaks to users
 - 100/100 tests pass: receta_detalle regression + P04 combo + recipe_intel
   + tag_algebra + no_silent_excepts

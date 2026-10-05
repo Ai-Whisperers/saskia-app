@@ -285,7 +285,7 @@
   }
 
   // Expose a tiny API for tests / programmatic selection.
-  window.SaskiaCustomerPicker = {
+  window.UICustomerPicker = {
     pick: pickCustomer,
     clear: clearSelection,
     open: openModal,

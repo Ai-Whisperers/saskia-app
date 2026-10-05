@@ -27,11 +27,12 @@ The cap (sum of refunds <= target total) is enforced by the DB trigger
 installed in migration 089; this service raises ValueError if it would
 be exceeded, so the caller gets a clean error instead of a DB error.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from loguru import logger
 from sqlalchemy import func as sa_func
@@ -41,7 +42,6 @@ from sqlalchemy.orm import Session
 from app.rms.models import Sale
 from app.rms.models_legacy import Pedido, PedidoLine, Refund
 
-
 # Valid target_type values (mirror the model CheckConstraint)
 VALID_TARGET_TYPES = frozenset({"sale", "pedido", "pedido_line"})
 
@@ -49,6 +49,7 @@ VALID_TARGET_TYPES = frozenset({"sale", "pedido", "pedido_line"})
 @dataclass
 class RefundResult:
     """Outcome of a successful create_refund call."""
+
     refund: Refund
     loyalty_reversed: int  # 0 if not applicable
     stock_restored: list[tuple[int, float]]  # [(ingredient_id, qty_restored), ...]
@@ -56,7 +57,8 @@ class RefundResult:
 
 class RefundError(Exception):
     """Raised on any refund-validation failure. Carries a code for HTTP routing."""
-    def __init__(self, code: str, message: str, **context) -> None:
+
+    def __init__(self, code: str, message: str, **context: Any) -> None:
         super().__init__(message)
         self.code = code
         self.context = context
@@ -67,9 +69,7 @@ def get_refund(session: Session, refund_id: int) -> Optional[Refund]:
     return session.get(Refund, refund_id)
 
 
-def list_refunds_for(
-    session: Session, target_type: str, target_id: int
-) -> list[Refund]:
+def list_refunds_for(session: Session, target_type: str, target_id: int) -> list[Refund]:
     """Return all refunds for a given target, ordered by recorded_at ascending."""
     return list(
         session.scalars(
@@ -120,8 +120,11 @@ def _resolve_target(
         # unit_price_gs is already a snapshot from the original sale, so this is
         # what the customer actually paid for this sale (no recomputation needed).
         total_gs = max(0, int(sale.qty * sale.unit_price_gs) - int(sale.discount_gs or 0))
-        return sale, total_gs, str(sale.payment_method or "efectivo"), (
-            sale.sold_at.date() if sale.sold_at else None
+        return (
+            sale,
+            total_gs,
+            str(sale.payment_method or "efectivo"),
+            (sale.sold_at.date() if sale.sold_at else None),
         )
 
     if target_type == "pedido":
@@ -136,12 +139,13 @@ def _resolve_target(
         lines = session.scalars(
             _sa_select(PedidoLine).where(PedidoLine.pedido_id == target_id)
         ).all()
-        total_gs = sum(
-            max(0, int((ln.qty or 0) * (ln.unit_price_gs or 0))) for ln in lines
-        )
+        total_gs = sum(max(0, int((ln.qty or 0) * (ln.unit_price_gs or 0))) for ln in lines)
         # Pedidos use payment_intent (not payment_method), but they're the same concept
-        return pedido, total_gs, str(pedido.payment_intent or "efectivo"), (
-            pedido.promised_date if hasattr(pedido, "promised_date") else None
+        return (
+            pedido,
+            total_gs,
+            str(pedido.payment_intent or "efectivo"),
+            (pedido.promised_date if hasattr(pedido, "promised_date") else None),
         )
 
     # pedido_line
@@ -156,9 +160,7 @@ def _resolve_target(
     payment_method = (
         str(parent_pedido.payment_intent or "efectivo") if parent_pedido else "efectivo"
     )
-    return pl, total_gs, payment_method, (
-        parent_pedido.promised_date if parent_pedido else None
-    )
+    return pl, total_gs, payment_method, (parent_pedido.promised_date if parent_pedido else None)
 
 
 def _check_eod_block(session: Session, eod_date: date | None) -> None:
@@ -277,7 +279,12 @@ def create_refund(
     session.commit()
     logger.info(
         "Refund created: id={} target={}#{} amount={} loyalty_reversed={} stock_restored={}",
-        refund.id, target_type, target_id, amount_gs, loyalty_reversed, len(stock_restored),
+        refund.id,
+        target_type,
+        target_id,
+        amount_gs,
+        loyalty_reversed,
+        len(stock_restored),
     )
     return RefundResult(
         refund=refund, loyalty_reversed=loyalty_reversed, stock_restored=stock_restored
@@ -296,8 +303,8 @@ def _reverse_points_proportional(
     Only reverses the EARN for this sale; never touches unrelated redeem rows
     (mirroring the void-reversal contract from reverse_points_for_void).
     """
-    from app.rms.models import LoyaltyTransaction
     from app.rms.customers import get_customer
+    from app.rms.models import LoyaltyTransaction
 
     if sale_total_gs <= 0:
         return 0
@@ -362,12 +369,18 @@ def _restock_for_target(
         # BACKLOG #1 (2026-10-02): sale_stock_move was dropped by migration
         # 092. Read from StockMovement keyed by reference_type='sale'.
         # qty is negative for consumption; abs() it for the share calc.
-        moves = session.execute(
-            sa_select(StockMovement).where(
-                StockMovement.reference_id == sale.id,
-                StockMovement.reference_type == "sale",
-            ).order_by(StockMovement.id.asc())
-        ).scalars().all()
+        moves = (
+            session.execute(
+                sa_select(StockMovement)
+                .where(
+                    StockMovement.reference_id == sale.id,
+                    StockMovement.reference_type == "sale",
+                )
+                .order_by(StockMovement.id.asc())
+            )
+            .scalars()
+            .all()
+        )
         if not moves:
             return []
         # Distribute restocked_qty across moves proportionally to their |qty|
@@ -381,17 +394,18 @@ def _restock_for_target(
             if ing is None:
                 continue
             ing.stock_qty = (ing.stock_qty or 0) + share
-            session.add(StockMovement(
-                ingredient_id=ing.id,
-                movement_type="adjustment",
-                qty=share,
-                reason=f"Reembolso venta #{sale.id}"
-                       + (f" — {reason}" if reason else ""),
-                reference_id=sale.id,
-                reference_type="refund_sale",
-                recorded_at=now_utc,
-                created_by=recorded_by,
-            ))
+            session.add(
+                StockMovement(
+                    ingredient_id=ing.id,
+                    movement_type="adjustment",
+                    qty=share,
+                    reason=f"Reembolso venta #{sale.id}" + (f" — {reason}" if reason else ""),
+                    reference_id=sale.id,
+                    reference_type="refund_sale",
+                    recorded_at=now_utc,
+                    created_by=recorded_by,
+                )
+            )
             restored.append((ing.id, share))
         return restored
 
@@ -405,9 +419,7 @@ def _restock_for_target(
         if recipe is None:
             return []
         # Compute per-portion ingredient qty, scale to restocked_qty
-        rls = session.scalars(
-            sa_select(RecipeLine).where(RecipeLine.recipe_id == recipe.id)
-        ).all()
+        rls = session.scalars(sa_select(RecipeLine).where(RecipeLine.recipe_id == recipe.id)).all()
         if not rls or not recipe.yield_qty:
             return []
         restored = []
@@ -420,17 +432,19 @@ def _restock_for_target(
             if ing is None:
                 continue
             ing.stock_qty = (ing.stock_qty or 0) + scaled
-            session.add(StockMovement(
-                ingredient_id=ing.id,
-                movement_type="adjustment",
-                qty=scaled,
-                reason=f"Reembolso línea de pedido #{pl.id}"
-                       + (f" — {reason}" if reason else ""),
-                reference_id=pl.id,
-                reference_type="refund_pedido_line",
-                recorded_at=now_utc,
-                created_by=recorded_by,
-            ))
+            session.add(
+                StockMovement(
+                    ingredient_id=ing.id,
+                    movement_type="adjustment",
+                    qty=scaled,
+                    reason=f"Reembolso línea de pedido #{pl.id}"
+                    + (f" — {reason}" if reason else ""),
+                    reference_id=pl.id,
+                    reference_type="refund_pedido_line",
+                    recorded_at=now_utc,
+                    created_by=recorded_by,
+                )
+            )
             restored.append((ing.id, scaled))
         return restored
 
@@ -469,8 +483,8 @@ def _restock_for_target(
 
 __all__ = [
     "VALID_TARGET_TYPES",
-    "RefundResult",
     "RefundError",
+    "RefundResult",
     "create_refund",
     "get_refund",
     "list_refunds_for",

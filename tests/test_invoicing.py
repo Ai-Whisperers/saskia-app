@@ -1,4 +1,5 @@
 """tests/test_invoicing.py — Phase 1.B fiscal invoice snapshot + numbering."""
+
 from __future__ import annotations
 
 import pytest
@@ -20,7 +21,8 @@ def seed_product(session_factory):
                 portion_label="1 und",
                 iva_rate=iva_rate,
             )
-            s.add(p); s.commit()
+            s.add(p)
+            s.commit()
             s.refresh(p)
             return p.id
 
@@ -35,8 +37,12 @@ class TestInvoiceSnapshotResimple:
         Session = session_factory
         with Session() as s:
             snap = compute_invoice_snapshot(
-                s, product_id=product_id, qty=1, unit_price_gs=25000,
-                discount_gs=0, invoice_type="boleta_resimple",
+                s,
+                product_id=product_id,
+                qty=1,
+                unit_price_gs=25000,
+                discount_gs=0,
+                invoice_type="boleta_resimple",
             )
         assert snap["iva_rate"] == "0"
         assert snap["iva_base_gs"] == 0
@@ -46,8 +52,12 @@ class TestInvoiceSnapshotResimple:
         product_id = seed_product(price=25000, iva_rate="10")
         with session_factory() as s:
             snap = compute_invoice_snapshot(
-                s, product_id=product_id, qty=2, unit_price_gs=25000,
-                discount_gs=0, invoice_type="boleta_resimple",
+                s,
+                product_id=product_id,
+                qty=2,
+                unit_price_gs=25000,
+                discount_gs=0,
+                invoice_type="boleta_resimple",
             )
         assert snap["iva_amount_gs"] == 0
 
@@ -56,8 +66,12 @@ class TestInvoiceSnapshotResimple:
         product_id = seed_product(price=25000, iva_rate="10")
         with session_factory() as s:
             snap = compute_invoice_snapshot(
-                s, product_id=product_id, qty=1, unit_price_gs=25000,
-                discount_gs=0, invoice_type="boleta_resimple",
+                s,
+                product_id=product_id,
+                qty=1,
+                unit_price_gs=25000,
+                discount_gs=0,
+                invoice_type="boleta_resimple",
             )
         assert snap["iva_rate"] == "0"
         assert snap["iva_amount_gs"] == 0
@@ -71,8 +85,12 @@ class TestInvoiceSnapshotFactura:
         product_id = seed_product(price=25000, iva_rate="10")
         with session_factory() as s:
             snap = compute_invoice_snapshot(
-                s, product_id=product_id, qty=1, unit_price_gs=25000,
-                discount_gs=0, invoice_type="factura",
+                s,
+                product_id=product_id,
+                qty=1,
+                unit_price_gs=25000,
+                discount_gs=0,
+                invoice_type="factura",
             )
         assert snap["iva_rate"] == "10"
         assert snap["iva_base_gs"] == 22727
@@ -84,8 +102,12 @@ class TestInvoiceSnapshotFactura:
         product_id = seed_product(price=25000, iva_rate="5")
         with session_factory() as s:
             snap = compute_invoice_snapshot(
-                s, product_id=product_id, qty=1, unit_price_gs=25000,
-                discount_gs=0, invoice_type="factura",
+                s,
+                product_id=product_id,
+                qty=1,
+                unit_price_gs=25000,
+                discount_gs=0,
+                invoice_type="factura",
             )
         assert snap["iva_rate"] == "5"
         assert snap["iva_base_gs"] == 23810
@@ -96,8 +118,12 @@ class TestInvoiceSnapshotFactura:
         product_id = seed_product(price=25000, iva_rate="exento")
         with session_factory() as s:
             snap = compute_invoice_snapshot(
-                s, product_id=product_id, qty=1, unit_price_gs=25000,
-                discount_gs=0, invoice_type="factura",
+                s,
+                product_id=product_id,
+                qty=1,
+                unit_price_gs=25000,
+                discount_gs=0,
+                invoice_type="factura",
             )
         assert snap["iva_rate"] == "exento"
         assert snap["iva_base_gs"] == 25000
@@ -108,8 +134,12 @@ class TestInvoiceSnapshotFactura:
         product_id = seed_product(price=25000, iva_rate="10")
         with session_factory() as s:
             snap = compute_invoice_snapshot(
-                s, product_id=product_id, qty=1, unit_price_gs=25000,
-                discount_gs=1000, invoice_type="factura",
+                s,
+                product_id=product_id,
+                qty=1,
+                unit_price_gs=25000,
+                discount_gs=1000,
+                invoice_type="factura",
             )
         assert snap["iva_base_gs"] == 21818
         assert snap["iva_amount_gs"] == 2182
@@ -120,8 +150,12 @@ class TestInvoiceSnapshotFactura:
         product_id = seed_product(price=10000, iva_rate="10")
         with session_factory() as s:
             snap = compute_invoice_snapshot(
-                s, product_id=product_id, qty=3, unit_price_gs=10000,
-                discount_gs=0, invoice_type="factura",
+                s,
+                product_id=product_id,
+                qty=3,
+                unit_price_gs=10000,
+                discount_gs=0,
+                invoice_type="factura",
             )
         assert snap["iva_base_gs"] == 27273
         assert snap["iva_amount_gs"] == 2727
@@ -133,13 +167,20 @@ class TestInvoiceSnapshotFactura:
             # Set the compliance default to 5%
             ci = s.get(ComplianceInfo, 1)
             ci.iva_default_rate = "5"
-            p = Product(name="Default-test", sale_price_gs=10000, portion_label="1 und", iva_rate="")
-            s.add(p); s.commit()
+            p = Product(
+                name="Default-test", sale_price_gs=10000, portion_label="1 und", iva_rate=""
+            )
+            s.add(p)
+            s.commit()
             pid = p.id
         with Session() as s:
             snap = compute_invoice_snapshot(
-                s, product_id=pid, qty=1, unit_price_gs=10000,
-                discount_gs=0, invoice_type="factura",
+                s,
+                product_id=pid,
+                qty=1,
+                unit_price_gs=10000,
+                discount_gs=0,
+                invoice_type="factura",
             )
         assert snap["iva_rate"] == "5"
 
@@ -151,8 +192,12 @@ class TestInvoiceSnapshotNone:
         product_id = seed_product(price=25000)
         with session_factory() as s:
             snap = compute_invoice_snapshot(
-                s, product_id=product_id, qty=1, unit_price_gs=25000,
-                discount_gs=0, invoice_type="none",
+                s,
+                product_id=product_id,
+                qty=1,
+                unit_price_gs=25000,
+                discount_gs=0,
+                invoice_type="none",
             )
         assert snap["iva_rate"] == "0"
         assert snap["iva_base_gs"] == 0
@@ -231,7 +276,8 @@ class TestSaleInvoiceFieldsRoundTrip:
                 iva_base_gs=22727,
                 iva_amount_gs=2273,
             )
-            s.add(sale); s.commit()
+            s.add(sale)
+            s.commit()
             s.refresh(sale)
             assert sale.invoice_type == "factura"
             assert sale.invoice_number == 42

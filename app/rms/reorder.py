@@ -9,6 +9,7 @@ If max_stock_qty is not set (NULL or 0), fall back to 2x min_stock_qty.
 Output is sorted by urgency:
     urgency = stock_qty / max(min_stock_qty, 0.001)  — smaller = more urgent
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -70,11 +71,7 @@ def compute_reorder_list(session: Session) -> list[ReorderItem]:
         # excludes these lines (see template).
         has_price = ing.purchase_price_gs is not None and ing.purchase_price_gs > 0
         cost = int(suggested * (ing.purchase_price_gs or 0)) if has_price else 0
-        urgency_ratio = (
-            display_stock / max(effective_min, 0.001)
-            if effective_min > 0
-            else 0.0
-        )
+        urgency_ratio = display_stock / max(effective_min, 0.001) if effective_min > 0 else 0.0
         # INV-03: Spanish urgency label per the review. The raw ratio is kept
         # for sorting only.
         if display_stock <= 0:
@@ -83,20 +80,22 @@ def compute_reorder_list(session: Session) -> list[ReorderItem]:
             urgency_label = "bajo mínimo"
         else:
             urgency_label = "OK"
-        items.append(ReorderItem(
-            ingredient_id=ing.id,
-            name=ing.name,
-            unit=ing.unit or "",
-            current_stock=display_stock,
-            min_stock=effective_min,
-            max_stock=max_q,
-            suggested_qty=suggested,
-            estimated_cost_gs=cost,
-            purchase_price_gs=ing.purchase_price_gs,
-            urgency=urgency_ratio,
-            urgency_label=urgency_label,
-            has_price=has_price,
-        ))
+        items.append(
+            ReorderItem(
+                ingredient_id=ing.id,
+                name=ing.name,
+                unit=ing.unit or "",
+                current_stock=display_stock,
+                min_stock=effective_min,
+                max_stock=max_q,
+                suggested_qty=suggested,
+                estimated_cost_gs=cost,
+                purchase_price_gs=ing.purchase_price_gs,
+                urgency=urgency_ratio,
+                urgency_label=urgency_label,
+                has_price=has_price,
+            )
+        )
     # Smallest urgency ratio = most urgent first.
     items.sort(key=lambda i: i.urgency)
     return items

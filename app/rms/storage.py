@@ -22,6 +22,7 @@ project appears to have been deleted/renamed. Until that's fixed,
 `is_storage_enabled()` returns False and the existing local-storage
 upload path keeps working (this module is fully backward-compatible).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -30,9 +31,12 @@ import os
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from supabase import Client
 
 PRODUCT_IMAGE_BUCKET: Final[str] = "product-images"
 ALLOWED_CONTENT_TYPES: Final[set[str]] = {
@@ -73,14 +77,14 @@ def is_storage_enabled() -> bool:
         netloc = urlparse(url).netloc
         health = f"https://{netloc}/auth/v1/health"
         req = urllib.request.Request(health, method="GET")
-        with urllib.request.urlopen(req, timeout=1.5) as resp:
+        with urllib.request.urlopen(req, timeout=1.5) as resp:  # noqa: S310 — health check probes arbitrary hostnames
             return 200 <= resp.status < 300
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
         logger.debug("is_storage_enabled: supabase unreachable: %s", exc)
         return False
 
 
-def _supabase_admin():
+def _supabase_admin() -> "Client":
     """Lazy-import the service-role client (mirrors auth_supabase.py)."""
     from app.auth_supabase import get_supabase_admin
 
@@ -100,7 +104,7 @@ def _ensure_bucket(bucket: str) -> None:
             bucket,
             options={"public": True},
         )
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         msg = str(exc).lower()
         if "already exists" in msg or "duplicate" in msg:
             return
@@ -119,24 +123,20 @@ def upload_product_image(
     shouldn't depend on it).
     """
     if not ALLOWED_CONTENT_TYPES.__contains__(content_type):
-        raise ValueError(
-            f"unsupported_content_type:{content_type}"
-        )
+        raise ValueError(f"unsupported_content_type:{content_type}")
     if not content_bytes:
         raise ValueError("empty_content")
     if len(content_bytes) > MAX_BYTES:
-        raise ValueError(
-            f"too_large:{len(content_bytes) // 1024}KB > {MAX_BYTES // 1024}KB"
-        )
+        raise ValueError(f"too_large:{len(content_bytes) // 1024}KB > {MAX_BYTES // 1024}KB")
 
     ext = EXT_BY_CONTENT_TYPE[content_type]
     # Use a hash prefix of the content + original filename + a short
     # random token — keeps the URL collision-resistant without exposing
     # raw filenames to the public CDN.
     body_hash = hashlib.sha256(content_bytes).hexdigest()[:8]
-    safe_name = "".join(
-        c for c in Path(original_filename).stem if c.isalnum() or c in "-_"
-    )[:32] or "img"
+    safe_name = (
+        "".join(c for c in Path(original_filename).stem if c.isalnum() or c in "-_")[:32] or "img"
+    )
     filename = f"{body_hash}-{safe_name}{ext}"
     object_path = filename  # bucket root is fine; we don't nest
 

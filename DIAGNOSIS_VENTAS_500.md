@@ -17,7 +17,7 @@ See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
 
 **Date:** 2026-09-22
 **Status:** RESOLVED in HEAD (production hourly error count: 0).
-**Audit ref (stale):** https://saskia-rms.paragu-ai.com/healthz/debug-ventas-v3
+**Audit ref (stale):** https://sazon-rms.paragu-ai.com/healthz/debug-ventas-v3
 — endpoint was a temporary diagnostic that was removed in commit `1b96c99`
 ("chore: remove temp debug endpoints"). The audit reference still says
 "returns 200" because it points to the URL *as it existed during the
@@ -89,7 +89,7 @@ def _decorated(s: Sale) -> dict:
         "notes": s.notes,
         "voided_at": s.voided_at,
         "voided_at_str": s.voided_at.strftime("%d/%m/%Y %H:%M") if s.voided_at else None,
-        "customer_id": s.customer_id,                                # <-- the fix
+        "customer_id": s.customer_id,  # <-- the fix
         "customer_phone": s.customer.phone if s.customer else None,
         "customer_name": s.customer.name if s.customer else None,
         "payment_method": s.payment_method,
@@ -135,7 +135,7 @@ Three new tests:
 ## Local proof
 
 ```
-$ AIW_SASKIA_DB_PATH=/tmp/k1-test.sqlite uv run pytest \
+$ AIW_RMS_DB_PATH=/tmp/k1-test.sqlite uv run pytest \
     tests/test_k1_ventas_no_template_error.py -v
 collected 7 items
 

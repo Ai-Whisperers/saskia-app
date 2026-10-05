@@ -10,14 +10,13 @@ WhatsApp it, and the operator manually attaches it. Now:
   - pedido.payment_receipt_path + payment_receipt_uploaded_at are set.
   - The page re-renders with a flash banner.
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_p1_b3_pedido_web_upload.py -v
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_p1_b3_pedido_web_upload.py -v
 """
+
 from __future__ import annotations
 
 import io
 from datetime import datetime, timedelta
-
-import pytest
 
 
 def _make_pedido(session, *, payment_intent: str = "transferencia") -> int:
@@ -29,6 +28,7 @@ def _make_pedido(session, *, payment_intent: str = "transferencia") -> int:
     session.flush()
 
     import secrets
+
     p = Pedido(
         customer_id=cust.id,
         customer_name="Test Cust",
@@ -53,6 +53,7 @@ def _make_pedido(session, *, payment_intent: str = "transferencia") -> int:
 def test_pedido_publico_page_shows_comprobante_form_when_transfer(client, session_factory) -> None:
     """GET /p/{token} renders the upload form when payment_intent != efectivo."""
     from app.rms.models import Pedido
+
     with session_factory() as s:
         pid = _make_pedido(s, payment_intent="transferencia")
         token = s.execute(
@@ -70,6 +71,7 @@ def test_pedido_publico_page_shows_comprobante_form_when_transfer(client, sessio
 def test_pedido_publico_page_hides_form_when_efectivo(client, session_factory) -> None:
     """When payment_intent == efectivo, no upload form (cash payment)."""
     from app.rms.models import Pedido
+
     with session_factory() as s:
         pid = _make_pedido(s, payment_intent="efectivo")
         token = s.execute(
@@ -121,6 +123,7 @@ def test_upload_comprobante_saves_file(client, session_factory) -> None:
 def test_upload_rejects_disallowed_extension(client, session_factory) -> None:
     """Only JPG/PNG/WEBP/PDF are accepted."""
     from app.rms.models import Pedido
+
     with session_factory() as s:
         pid = _make_pedido(s, payment_intent="transferencia")
         token = s.execute(
@@ -142,6 +145,7 @@ def test_upload_rejects_disallowed_extension(client, session_factory) -> None:
 def test_upload_rejects_oversized_file(client, session_factory) -> None:
     """Files over 8 MB are rejected with a clear error."""
     from app.rms.models import Pedido
+
     with session_factory() as s:
         pid = _make_pedido(s, payment_intent="tarjeta")
         token = s.execute(
@@ -170,6 +174,7 @@ def test_upload_invalid_token_returns_404(client) -> None:
 def test_upload_pdf_accepted(client, session_factory) -> None:
     """PDFs are accepted (bank transfer PDFs)."""
     from app.rms.models import Pedido
+
     with session_factory() as s:
         pid = _make_pedido(s, payment_intent="transferencia")
         token = s.execute(
@@ -250,6 +255,7 @@ def _make_pedido_with_csrf_token(session) -> tuple[int, str, str]:
 
     # Hit a non-exempt GET to prime the CSRF cookie via the middleware.
     from starlette.testclient import TestClient
+
     from app.rms.main import app
 
     with TestClient(app, raise_server_exceptions=False) as tmp:
@@ -262,11 +268,13 @@ def _make_pedido_with_csrf_token(session) -> tuple[int, str, str]:
 def test_comprobante_rejects_post_without_csrf_cookie(client, session_factory) -> None:
     """POST without a CSRF cookie → 403 (middleware blocks)."""
     from starlette.testclient import TestClient
+
     from app.rms.main import app
 
     with session_factory() as s:
         pid = _make_pedido(s, payment_intent="qr")
         from app.rms.models import Pedido
+
         token = s.execute(
             __import__("sqlalchemy").select(Pedido.public_token).where(Pedido.id == pid)
         ).scalar_one()
@@ -288,11 +296,13 @@ def test_comprobante_rejects_post_with_mismatched_csrf_form_field(client, sessio
     raw nonces. A wrong token fails the signature check.
     """
     from starlette.testclient import TestClient
+
     from app.rms.main import app
 
     with session_factory() as s:
         pid = _make_pedido(s, payment_intent="qr")
         from app.rms.models import Pedido
+
         token = s.execute(
             __import__("sqlalchemy").select(Pedido.public_token).where(Pedido.id == pid)
         ).scalar_one()
@@ -316,11 +326,13 @@ def test_comprobante_rejects_post_missing_csrf_form_field(client, session_factor
     The verify_form_csrf dependency requires the form field explicitly.
     """
     from starlette.testclient import TestClient
+
     from app.rms.main import app
 
     with session_factory() as s:
         pid = _make_pedido(s, payment_intent="qr")
         from app.rms.models import Pedido
+
         token = s.execute(
             __import__("sqlalchemy").select(Pedido.public_token).where(Pedido.id == pid)
         ).scalar_one()
@@ -340,11 +352,13 @@ def test_comprobante_rejects_post_missing_csrf_form_field(client, session_factor
 def test_comprobante_accepts_post_with_matching_csrf_form_field(client, session_factory) -> None:
     """POST with valid cookie AND matching _csrf_token → 200 (happy path)."""
     from starlette.testclient import TestClient
+
     from app.rms.main import app
 
     with session_factory() as s:
         pid = _make_pedido(s, payment_intent="qr")
         from app.rms.models import Pedido
+
         token = s.execute(
             __import__("sqlalchemy").select(Pedido.public_token).where(Pedido.id == pid)
         ).scalar_one()
@@ -360,12 +374,15 @@ def test_comprobante_accepts_post_with_matching_csrf_form_field(client, session_
         files={"file": ("comprobante.jpg", io.BytesIO(fake), "image/jpeg")},
         data={"_csrf_token": csrf},
     )
-    assert r.status_code == 200, f"Expected 200 with valid CSRF, got {r.status_code}: {r.text[:300]}"
+    assert r.status_code == 200, (
+        f"Expected 200 with valid CSRF, got {r.status_code}: {r.text[:300]}"
+    )
     assert "Comprobante recibido" in r.text
 
     # Cleanup
     from app.rms.config import DATA_DIR
     from app.rms.models import Pedido
+
     with session_factory() as s:
         path = s.get(Pedido, pid).payment_receipt_path
     if path:
@@ -382,6 +399,7 @@ def test_pedido_publico_form_includes_csrf_field(client, session_factory) -> Non
     with session_factory() as s:
         pid = _make_pedido(s, payment_intent="qr")
         from app.rms.models import Pedido
+
         token = s.execute(
             __import__("sqlalchemy").select(Pedido.public_token).where(Pedido.id == pid)
         ).scalar_one()

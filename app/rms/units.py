@@ -160,11 +160,13 @@ def convert_qty(qty: object, from_unit: Unit, to_unit: Unit) -> object:
     return qty_dec * factor
 
 
-def normalize_recipe_line_qty(line_qty: object, line_unit: object, ingredient_unit: object) -> Decimal:
+def normalize_recipe_line_qty(
+    line_qty: object, line_unit: object, ingredient_unit: object
+) -> Decimal:
     """Normalize a recipe line's quantity into the linked ingredient's unit.
 
     This is the helper used by the recipe line unit selector (Phase B — T1):
-    Saskia may type "250 g" of flour in a recipe line, while the ingredient
+    the operator may type "250 g" of flour in a recipe line, while the ingredient
     itself is stored in "kg". Before computing cost or stock moves, we convert
     250 g → 0.25 kg so the multiplication against the ingredient's
     purchase_price_gs (which is per the ingredient's native unit) is correct.

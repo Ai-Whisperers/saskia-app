@@ -11,6 +11,7 @@ so the discount can never exceed the line subtotal.
 These tests exercise the Decimal path directly via a small helper that
 mirrors the production logic, so we don't depend on full HTTP plumbing.
 """
+
 from __future__ import annotations
 
 from decimal import ROUND_HALF_UP, Decimal, getcontext
