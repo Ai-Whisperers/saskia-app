@@ -22,7 +22,7 @@
     <div class="text-muted" style="font-size:var(--text-sm);">Saldo actual</div>
     <div style="font-size:var(--text-2xl);font-weight:700;">{{ balance }} pts</div>
     {% if POINTS_VALUE_GS is defined %}
-    <div class="text-muted" style="font-size:var(--text-xs);">≈ Gs. {{ "{:,}".format(balance * POINTS_VALUE_GS) }} en descuentos</div>
+    <div class="text-muted" style="font-size:var(--text-xs);">≈ {{ m.gs_full(balance * POINTS_VALUE_GS) }} en descuentos</div>
     {% endif %}
   </div>
   <div class="card" style="margin:0;padding:var(--space-3);">

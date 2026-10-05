@@ -40,15 +40,15 @@
      sees the most important number without scrolling. Tier ranges are
      derived from stats.tier.value; full thresholds live in customer_stats. #}
   <div class="muted" style="margin-top:var(--space-1);font-size:var(--text-sm);">
-    Cliente desde {{ customer.created_at.strftime("%Y-%m-%d") if customer.created_at else "?" }}
+    Cliente desde {{ customer.created_at.strftime("%d/%m/%Y") if customer.created_at else "?" }}
     · LTV <strong>{{ m.gs_full(stats.lifetime_spend_gs) }}</strong>
     · {{ stats.tier.value|title }}
     {%- if stats.tier.value == 'bronce' %}
-      (0–3 visitas o 0–Gs. 500k LTV)
+      (0–3 visitas o LTV hasta 500 mil Gs.)
     {%- elif stats.tier.value == 'plata' %}
-      (4–9 visitas o Gs. 500k–2M LTV)
+      (4–9 visitas o LTV de 500 mil a 2 millones de Gs.)
     {%- elif stats.tier.value == 'oro' %}
-      (10+ visitas o Gs. 2M+ LTV)
+      (10+ visitas o LTV de 2 millones de Gs. o más)
     {%- endif %}
   </div>
   <div style="display:flex;gap:var(--space-2);align-items:center;">

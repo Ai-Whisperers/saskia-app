@@ -153,7 +153,7 @@
         <td><code>{{ op.user_id }}</code></td>
         <td class="text-right"><strong>{{ op.n_events }}</strong></td>
         <td class="text-right">{{ op.distinct_actions }}</td>
-        <td>{{ op.last_seen_at.strftime("%Y-%m-%d %H:%M") if op.last_seen_at else "—" }}</td>
+        <td>{{ op.last_seen_at.strftime("%d/%m/%Y %H:%M") if op.last_seen_at else "—" }}</td>
       </tr>
       {% endfor %}
     </tbody>

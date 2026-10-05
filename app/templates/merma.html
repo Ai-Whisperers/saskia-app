@@ -67,7 +67,7 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg>
       Hoy
     </h2>
-    <small class="text-muted">{{ today_event_count }} evento{{ '' if today_event_count == 1 else 's' }} · Gs. {{ "{:,.0f}".format(today_total_cost or 0) }}</small>
+    <small class="text-muted">{{ today_event_count }} evento{{ '' if today_event_count == 1 else 's' }} · {{ m.gs_full(today_total_cost or 0) }}</small>
   </div>
   {# PROD-MERMA-2 (Batch I follow-up): surface source mix ALWAYS (not just
      when today's list has rows) so operators see at a glance whether the
@@ -91,7 +91,7 @@
       {% for ing_id, ing_name, cost in today_top_ingredients %}
       <li>
         <a href="/inventario/{{ ing_id }}">{{ ing_name }}</a>
-        <span class="text-muted">— Gs. {{ "{:,.0f}".format(cost or 0) }}</span>
+        <span class="text-muted">— {{ m.gs_full(cost or 0) }}</span>
       </li>
       {% endfor %}
     </ul>
