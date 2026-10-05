@@ -1,0 +1,47 @@
+# .github/workflows/route-smoke.yml — Fast smoke gate on every PR
+#
+# Runs the route-smoke tests only (no smoke_e2e, no test_smoke_review, etc).
+# Goal: <2 minutes so PR authors get fast feedback on breakage.
+#
+# Closes TEST_ARCHITECTURE.md gap G1 (smoke suite ownership).
+
+name: Route Smoke (fast gate)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  route-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.5.x"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Route smoke tests
+        env:
+          SASKIA_TEST_AUTH_DISABLED: "1"
+          PORT: "18998"
+        run: |
+          # Only route-level smoke tests. test_smoke_review_user_stories
+          # is too slow for a PR gate; it runs in ci.yml.
+          uv run pytest \
+            tests/test_route_smoke_phase14_tier1.py \
+            tests/test_route_post_smoke_phase14_tier3.py \
+            tests/test_route_smoke_generated.py \
+            -q --no-cov --no-header -p no:randomly \
+            --tb=line \
+            -n 2 --dist=loadscope

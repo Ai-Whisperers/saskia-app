@@ -1177,6 +1177,166 @@ async def produccion_ad_hoc(
     )
 
 
+# ─────────────────────────────────────────────────────────────────────
+# T-2026-10-05 (B.7) — Bulk ad-hoc bakes via CSV upload
+# ─────────────────────────────────────────────────────────────────────
+# On a busy Saturday the operator has 8-12 walk-ins. Typing each into
+# the form takes 4 form fills × ~10s = 40s. A single CSV paste drops
+# that to ~5s of paste + ~2s of commit.
+#
+# Format:  product_id,qty,notes
+#          42,1.5,Cliente VIP
+#          15,2.0,
+#
+# Validation rules:
+#   - Header is optional. If present, must contain product_id,qty,notes
+#     (order-independent, notes column may be omitted).
+#   - product_id must exist; skip with warning if not.
+#   - qty > 0; skip with warning if not.
+#   - max 200 rows per upload (anti-fat-finger DoS).
+#   - Rate-limited like the single-row form (10 writes/minute).
+
+
+@router.post("/ad-hoc/bulk")
+async def produccion_ad_hoc_bulk(
+    request: Request,
+    for_date: date = Form(...),
+    csv: str = Form(""),
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """T-2026-10-05 (B.7) — Paste-many ad-hoc bakes via CSV.
+
+    Returns a JSON-ish redirect-friendly page with the import summary
+    (created / skipped / errors). Skips invalid lines instead of
+    failing the whole batch — partial success is more useful than
+    nothing. Operators see what worked and what didn't.
+    """
+    from app.rms.rate_limit import is_write_rate_limited
+
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
+        )
+
+    csv = (csv or "").strip()
+    if not csv:
+        raise HTTPException(status_code=400, detail="CSV vacío")
+
+    MAX_ROWS = 200
+    lines = [ln for ln in csv.splitlines() if ln.strip()]
+    # Detect optional header
+    if lines and lines[0].lower().startswith("product_id"):
+        header = [c.strip().lower() for c in lines[0].split(",")]
+        has_notes = "notes" in header or "notas" in header
+        data_lines = lines[1:]
+    else:
+        header = ["product_id", "qty", "notes"]
+        has_notes = True
+        data_lines = lines
+
+    if len(data_lines) > MAX_ROWS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Demasiadas filas (max {MAX_ROWS}). Subí en lotes.",
+        )
+
+    # Cache product lookups
+    valid_product_ids: set[int] = set(session.execute(select(Product.id)).scalars().all())
+
+    created: list[dict] = []
+    skipped: list[dict] = []
+    for row_num, raw in enumerate(data_lines, start=2 if len(lines) != len(data_lines) else 1):
+        cells = [c.strip() for c in raw.split(",")]
+        if len(cells) < 2:
+            skipped.append(
+                {"line": row_num, "raw": raw, "reason": "Faltan columnas (minimo product_id, qty)"}
+            )
+            continue
+        try:
+            pid = int(cells[0])
+            qty = float(cells[1])
+        except ValueError:
+            skipped.append(
+                {"line": row_num, "raw": raw, "reason": "product_id o qty no son números"}
+            )
+            continue
+        notes = cells[2] if has_notes and len(cells) > 2 else ""
+        if pid not in valid_product_ids:
+            skipped.append({"line": row_num, "raw": raw, "reason": f"Producto {pid} no existe"})
+            continue
+        if qty <= 0:
+            skipped.append({"line": row_num, "raw": raw, "reason": "qty debe ser > 0"})
+            continue
+
+        tag = "ad_hoc"
+        if notes.strip():
+            tag = f"ad_hoc: {notes.strip()[:200]}"
+        _upsert_completion(
+            session,
+            product_id=pid,
+            for_date=for_date,
+            completed_qty=qty,
+            notes=tag,
+        )
+        created.append({"line": row_num, "product_id": pid, "qty": qty, "notes": notes})
+
+    if created:
+        record_audit(
+            request,
+            session=session,
+            action="write.production.ad_hoc_bulk",
+            target_type="production_ad_hoc",
+            target_id=for_date.isoformat(),
+            detail={
+                "for_date": for_date.isoformat(),
+                "created_count": len(created),
+                "skipped_count": len(skipped),
+                "product_ids": [c["product_id"] for c in created],
+            },
+        )
+        session.commit()
+
+    # Render the summary as a tiny HTML page so the operator sees what
+    # worked. Redirect to /produccion would lose the per-line detail.
+    summary_html = [
+        "<!doctype html><html><head><meta charset='utf-8'>",
+        "<title>Importación bulk — /produccion</title>",
+        "<link rel='stylesheet' href='/static/app.css'>",
+        "</head><body><main class='container'>",
+        f"<h1>📥 Importación bulk ({for_date.isoformat()})</h1>",
+        f"<p class='alert alert-success' role='alert'>✅ {len(created)} horneadas registradas, "
+        f"{len(skipped)} omitidas.</p>",
+        "<h2>Registradas</h2>",
+        "<table class='table'><thead><tr><th>Línea</th><th>Producto</th><th>Cantidad</th><th>Notas</th></tr></thead><tbody>",
+    ]
+    prod_id_to_name: dict[int, str] = {
+        p.id: p.name for p in session.execute(select(Product.id, Product.name)).all()
+    }
+    summary_html.extend(
+        f"<tr><td>{c['line']}</td><td>{prod_id_to_name.get(c['product_id'], c['product_id'])}</td>"
+        f"<td>{c['qty']}</td><td>{c['notes']}</td></tr>"
+        for c in created
+    )
+    summary_html.append("</tbody></table>")
+    if skipped:
+        summary_html.append(
+            "<h2>⚠️ Omitidas</h2><table class='table'><thead><tr><th>Línea</th><th>Texto</th><th>Motivo</th></tr></thead><tbody>"
+        )
+        summary_html.extend(
+            f"<tr><td>{s['line']}</td><td><code>{s['raw']}</code></td><td>{s['reason']}</td></tr>"
+            for s in skipped
+        )
+        summary_html.append("</tbody></table>")
+    summary_html.append(
+        f"<p><a class='btn' href='/produccion?for_date={for_date.isoformat()}&adhoc_added=1'>Volver al plan</a></p>"
+        "</main></body></html>"
+    )
+    from fastapi.responses import HTMLResponse
+
+    return HTMLResponse(content="".join(summary_html))
+
+
 # --- PRO-01: weekly template ---
 
 

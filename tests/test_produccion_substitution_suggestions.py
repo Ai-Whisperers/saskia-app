@@ -42,12 +42,8 @@ def test_router_substitution_helper_imports_product_similarity():
     idx = ROUTER_SRC.find("def _build_substitution_suggestions")
     assert idx > 0
     block = ROUTER_SRC[idx : idx + 4000]
-    assert "product_similarity" in block, (
-        "C.4 — helper must import from app.rms.product_similarity"
-    )
-    assert "jaccard_similarity" in block, (
-        "C.4 — helper must use jaccard_similarity for ranking"
-    )
+    assert "product_similarity" in block, "C.4 — helper must import from app.rms.product_similarity"
+    assert "jaccard_similarity" in block, "C.4 — helper must use jaccard_similarity for ranking"
     assert "product_ingredient_set" in block, (
         "C.4 — helper must use product_ingredient_set to diff recipes"
     )
@@ -68,10 +64,7 @@ def test_router_substitution_helper_skips_recipes_using_short_ingredient():
     idx = ROUTER_SRC.find("def _build_substitution_suggestions")
     assert idx > 0
     block = ROUTER_SRC[idx : idx + 5000]
-    assert (
-        "also needs the short ingredient" in block
-        or "ing_id in other_set[1]" in block
-    ), (
+    assert "also needs the short ingredient" in block or "ing_id in other_set[1]" in block, (
         "C.4 — helper must skip substitutes that also use the short ingredient"
     )
 
@@ -81,9 +74,7 @@ def test_router_substitution_helper_returns_top_n():
     idx = ROUTER_SRC.find("def _build_substitution_suggestions")
     assert idx > 0
     block = ROUTER_SRC[idx : idx + 5000]
-    assert "top_n" in block, (
-        "C.4 — helper must accept top_n parameter and slice"
-    )
+    assert "top_n" in block, "C.4 — helper must accept top_n parameter and slice"
 
 
 def test_router_day_view_passes_substitution_suggestions():
@@ -96,9 +87,7 @@ def test_router_day_view_passes_substitution_suggestions():
     assert "_build_substitution_suggestions(" in block, (
         "C.4 — substitution_suggestions must be computed via _build_substitution_suggestions"
     )
-    assert "plan.lines" in block, (
-        "C.4 — must iterate plan.lines to find short ingredients"
-    )
+    assert "plan.lines" in block, "C.4 — must iterate plan.lines to find short ingredients"
     # Must filter by stock_on_hand - qty_required < 0
     assert "stock_on_hand - ln.qty_required" in block, (
         "C.4 — must filter ingredients where stock < required"
@@ -135,9 +124,7 @@ def test_template_substitution_pills_show_similarity_pct():
     idx = TEMPLATE_SRC.find("Sustitutos sugeridos")
     assert idx > 0
     block = TEMPLATE_SRC[idx : idx + 2500]
-    assert "sub.similarity" in block, (
-        "C.4 — pills must read substitute.similarity"
-    )
+    assert "sub.similarity" in block, "C.4 — pills must read substitute.similarity"
     # Format the percentage
     assert "* 100" in block or "100}}" in block, (
         "C.4 — pills must render similarity × 100 as a percentage"
@@ -158,9 +145,7 @@ def test_template_block_visible_without_low_stock():
     """C.4 — Substitution suggestions can show even when low_stock_ingredients
     is empty (e.g. plan is short but ingredient's stock field is undefined)."""
     # The if-condition must include substitution_suggestions
-    assert (
-        "low_stock_ingredients or substitution_suggestions" in TEMPLATE_SRC
-    ), (
+    assert "low_stock_ingredients or substitution_suggestions" in TEMPLATE_SRC, (
         "C.4 — alert if-condition must include substitution_suggestions"
     )
 

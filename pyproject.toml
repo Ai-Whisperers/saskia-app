@@ -72,6 +72,7 @@ markers = [
     "browser: runs in a real headless browser via Playwright",
     "pg: real Postgres tests (testcontainers); skipped locally without Docker, run in CI",
     "smoke: end-to-end smoke tests (run on every commit)",
+    "smoke_generated: auto-generated route smoke tests (run on every commit)",
     "crud: CRUD roundtrip tests (run on every commit)",
     "analytics: analytics correctness (run before deploy)",
     "perf: performance budget tests (run nightly)",
@@ -103,6 +104,9 @@ filterwarnings = [
 [tool.ruff]
 line-length = 100
 target-version = "py313"
+extend-exclude = [
+    ".github",  # GitHub Actions YAML files - ruff doesn't parse YAML
+]
 
 [tool.ruff.lint]
 # Rule families enabled:

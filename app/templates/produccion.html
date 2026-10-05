@@ -472,6 +472,21 @@
     });
   })();
 </script>
+{# T-2026-10-05 (B.7): Bulk-CSV modal opener. Lightweight click
+   handler — the modal does the heavy lifting via native form POST. #}
+<script>
+  (function () {
+    var btn = document.querySelector('[data-action="open-adhoc-bulk"]');
+    var modal = document.getElementById('adhoc-bulk-modal');
+    if (!btn || !modal) return;
+    btn.addEventListener('click', function () {
+      modal.showModal();
+      // Focus the textarea for instant paste.
+      var ta = document.getElementById('adhoc-bulk-csv');
+      if (ta) ta.focus();
+    });
+  })();
+</script>
 {% endif %}
 
 {% if plan_rows_view %}
@@ -816,8 +831,46 @@
     <button type="button" class="btn btn-secondary" onclick="document.getElementById('adhoc-modal').showModal()">
       + Agregá horneado extra
     </button>
+    {# T-2026-10-05 (B.7): Bulk-CSV upload. Opens a paste-many modal
+       so the operator can paste 8-12 walk-in rows in one go instead
+       of clicking through the single-row form 12 times. Saves ~35s
+       per busy Saturday. The button uses no-print so the print view
+       stays clean (it'd be useless on a paper plan). #}
+    <button type="button" class="btn btn-ghost no-print" data-action="open-adhoc-bulk">
+      📋 Pegá varios (CSV)
+    </button>
   </div>
 </section>
+
+<dialog id="adhoc-bulk-modal" style="border: none; border-radius: 8px; padding: 0; max-width: 640px; box-shadow: var(--shadow-lg);">
+  <form method="post" action="/produccion/ad-hoc/bulk" style="padding: var(--space-4);">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="for_date" value="{{ for_date }}">
+    <h3 style="margin: 0 0 var(--space-3) 0;">📋 Pegá varios horneados extra (CSV)</h3>
+    <p class="text-muted" style="font-size: var(--text-xs); margin-bottom: var(--space-3);">
+      Una línea por horneado: <code>product_id,cantidad,nota</code>.
+      La cabecera es opcional. <strong>Max 200 filas</strong> por lote.
+      Líneas inválidas se omiten con aviso — no rompen el lote entero.
+    </p>
+    <details style="margin-bottom: var(--space-3);">
+      <summary style="cursor: pointer; font-weight: 600;">🔍 ¿Cómo encuentro el product_id?</summary>
+      <div style="margin-top: var(--space-2); font-size: var(--text-xs);">
+        <p>Ejemplo (sin cabecera, con notas):</p>
+        <pre style="background: var(--color-muted); padding: 8px; border-radius: 4px;">42,1.5,Cliente cumpleañero
+16,2.0,
+12,3.0,Sobrante de masa</pre>
+      </div>
+    </details>
+    <label for="adhoc-bulk-csv" style="display: block; margin-bottom: var(--space-1); font-weight: bold;">CSV</label>
+    <textarea name="csv" id="adhoc-bulk-csv" required rows="10"
+              style="width: 100%; font-family: monospace; font-size: 13px;"
+              placeholder="42,1.5,Cliente VIP&#10;16,2.0,&#10;12,3.0,Sobrante"></textarea>
+    <div class="form-row" style="display: flex; gap: var(--space-2); margin-top: var(--space-3); justify-content: flex-end;">
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('adhoc-bulk-modal').close()">Cancelar</button>
+      <button type="submit" class="btn btn-secondary">Importar {{ for_date }}</button>
+    </div>
+  </form>
+</dialog>
 
 <dialog id="adhoc-modal" style="border: none; border-radius: 8px; padding: 0; max-width: 480px; box-shadow: var(--shadow-lg);">
   <form method="post" action="/produccion/ad-hoc" style="padding: var(--space-4);">
