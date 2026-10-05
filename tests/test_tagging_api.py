@@ -29,9 +29,6 @@ What we lock here:
 
 from __future__ import annotations
 
-import pytest
-
-
 # ─── File-system invariants ────────────────────────────────────────────────
 
 
@@ -39,7 +36,7 @@ def test_app_rms_has_no_tags_or_tag_algebra_files():
     """Old top-level tags.py / tag_algebra.py are gone."""
     import pathlib
 
-    rms_dir = pathlib.Path("/opt/data/work/saskia-app/app/rms")
+    rms_dir = pathlib.Path(__file__).resolve().parent.parent / "app" / "rms"
     assert not (rms_dir / "tags.py").exists(), (
         "app/rms/tags.py should have been deleted in Sprint 2.2"
     )
@@ -55,13 +52,14 @@ def test_no_code_references_deleted_modules():
     starting with 'from app.rms.tags' or 'import app.rms.tags') and
     excludes docstrings, comments, and the test file itself.
     """
+    import pathlib
     import re
 
     # Build a regex that ONLY matches import statements, not docstrings/comments
     import_pattern = re.compile(r"^\s*(?:from\s+app\.rms\.tags\b|import\s+app\.rms\.tags\b)")
 
     offenders = []
-    rms_dir = "/opt/data/work/saskia-app"
+    rms_dir = str(pathlib.Path(__file__).resolve().parent.parent)
     for root in [f"{rms_dir}/app", f"{rms_dir}/scripts", f"{rms_dir}/tests"]:
         for dirpath, _dirs, files in __import__("os").walk(root):
             for f in files:
@@ -178,9 +176,6 @@ def test_tagging_ensure_module_exposes_starter_tags():
 def test_tagging_filters_module_exposes_filter_classes():
     """The filters module owns the listings filter dataclasses + helpers."""
     from app.rms.tagging.filters import (
-        InventoryFilter,
-        ProductFilter,
-        RecipeFilter,
         SalesFilter,
         filter_inventory,
         filter_products,

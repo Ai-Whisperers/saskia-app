@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import extract, func, select
 from sqlalchemy.orm import Session
 
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale, StockMovement
@@ -579,14 +579,14 @@ def recipe_complexity(session: Session) -> list[RecipeComplexity]:
 
 def audit_ip_patterns(session: Session, *, days: int = 30) -> list[AuditIpPattern]:
     """BACKLOG #30 (2026-10-02): IP pattern analytics for audit log.
-    
+
     Returns most frequent client IPs with activity count and date range.
     Helps identify suspicious IP patterns or untrusted locations.
     """
     from app.rms.models_legacy import AuditLog
-    
+
     cutoff = datetime.utcnow() - timedelta(days=days)
-    
+
     stmt = (
         select(
             AuditLog.ip,
@@ -600,9 +600,9 @@ def audit_ip_patterns(session: Session, *, days: int = 30) -> list[AuditIpPatter
         .order_by(func.count(AuditLog.id).desc())
         .limit(10)
     )
-    
+
     rows = session.execute(stmt).fetchall()
-    
+
     return [
         AuditIpPattern(
             ip=row.ip,
@@ -617,14 +617,14 @@ def audit_ip_patterns(session: Session, *, days: int = 30) -> list[AuditIpPatter
 
 def audit_time_patterns(session: Session, *, days: int = 30) -> list[AuditTimePattern]:
     """BACKLOG #30 (2026-10-02): Time pattern analytics for audit log.
-    
+
     Returns hourly and day-of-week activity patterns.
     Helps identify anomalous activity times or automated access.
     """
     from app.rms.models_legacy import AuditLog
-    
+
     cutoff = datetime.utcnow() - timedelta(days=days)
-    
+
     # Hourly patterns (weekday + hour)
     stmt = (
         select(
@@ -636,14 +636,14 @@ def audit_time_patterns(session: Session, *, days: int = 30) -> list[AuditTimePa
         .group_by(extract('dow', AuditLog.occurred_at), extract('hour', AuditLog.occurred_at))
         .order_by(extract('dow', AuditLog.occurred_at), extract('hour', AuditLog.occurred_at))
     )
-    
+
     hourly_rows = session.execute(stmt).fetchall()
-    
+
     # Calculate avg hourly actions per pattern for normalization
     total_actions = sum(row.count for row in hourly_rows)
     total_hourly_buckets = len(hourly_rows)
     avg_hourly = total_actions / max(total_hourly_buckets, 1)
-    
+
     return [
         AuditTimePattern(
             hour=row.hour,
@@ -658,15 +658,16 @@ def audit_time_patterns(session: Session, *, days: int = 30) -> list[AuditTimePa
 
 def audit_operator_patterns(session: Session, *, days: int = 30) -> list[AuditOperatorActivity]:
     """BACKLOG #30 (2026-10-02): Operator activity analytics for audit log.
-    
+
     Returns user activity sorted by volume, frequency, and recency.
     Highlights dormant users or unusually active accounts.
     """
-    from app.rms.models_legacy import AuditLog
     from datetime import datetime, timedelta
-    
+
+    from app.rms.models_legacy import AuditLog
+
     cutoff = datetime.utcnow() - timedelta(days=days)
-    
+
     # Get user activity totals and most common action
     # SQLite doesn't support mode(), so do it manually
     stmt = (
@@ -681,9 +682,9 @@ def audit_operator_patterns(session: Session, *, days: int = 30) -> list[AuditOp
         .order_by(func.count(AuditLog.id).desc())
         .limit(10)
     )
-    
+
     rows = session.execute(stmt).fetchall()
-    
+
     # Find most common action for each user (manual mode calculation)
     user_actions = {}
     action_stmt = (
@@ -697,13 +698,13 @@ def audit_operator_patterns(session: Session, *, days: int = 30) -> list[AuditOp
         .group_by(AuditLog.user_id, AuditLog.action)
         .order_by(AuditLog.user_id, func.count(AuditLog.id).desc())
     )
-    
+
     action_rows = session.execute(action_stmt).fetchall()
     for row in action_rows:
         if row.user_id not in user_actions:
             user_actions[row.user_id] = row.action
         # Keep the first (most frequent) action per user
-    
+
     # Get user names from a realistic lookup (in real app would use user service)
     user_names = {}
     for row in rows:
@@ -713,7 +714,7 @@ def audit_operator_patterns(session: Session, *, days: int = 30) -> list[AuditOp
             user_names[user_id] = f"user@{user_id[:8]}"
         else:
             user_names[user_id] = user_id
-    
+
     days_active = days
     return [
         AuditOperatorActivity(
@@ -753,3 +754,113 @@ __all__ = [
     "stock_turnover",
     "top_margin_products",
 ]
+
+
+# ---- BACKLOG #32: predictive restocking forecast (restored from 6f4792a; test_consumption_forecast.py spec) ----
+@dataclass
+class ConsumptionForecast:
+    ingredient_id: int
+    name: str
+    avg_daily_consumption: float  # average daily consumption
+    days_until_stockout: int | None  # None if no consumption or negative
+    safety_stock_factor: float  # multiplier applied for prediction (1.5x default)
+    recommended_reorder_qty: float
+    is_predicted_to_stockout: bool  # within forecast horizon
+
+
+def consumption_forecast(
+    session: Session,
+    *,
+    ingredient_id: int | None = None,
+    lookback_days: int = 30,
+    horizon_days: int = 7,
+    safety_factor: float = 1.5,
+) -> list[ConsumptionForecast]:
+    """BACKLOG #32 (2026-10-02): Predictive restocking forecast.
+
+    Deterministic baseline: avg_daily_consumption × horizon × safety_factor.
+    This is the rule-based version; the Poisson regression layer (#29) is a
+    separate enhancement for ingredients with high volatility.
+
+    Uses `StockMovement` rows with `movement_type='sale'` and `qty_delta<0`
+    (consumption = outgoing). Filters to `lookback_days` and groups by
+    ingredient. Returns None for `days_until_stockout` if there is no
+    consumption (dead stock).
+
+    Args:
+        session: Active SQLAlchemy session
+        ingredient_id: Filter to one ingredient; None for all
+        lookback_days: Historical window for averaging (default 30)
+        horizon_days: Forward-looking window (default 7)
+        safety_factor: Multiplier for prediction buffer (default 1.5)
+
+    Returns:
+        List of ConsumptionForecast rows sorted by urgency (lowest stockout
+        days first, None last).
+    """
+    StockMovementLocal = StockMovement
+    cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+
+    # SQL aggregation: sum absolute consumption per ingredient
+    # movement_type='sale' with negative qty records consumption (BACKLOG #1: schema 92).
+    stmt = (
+        select(
+            StockMovementLocal.ingredient_id,
+            func.sum(func.abs(StockMovementLocal.qty)).label("total_consumed"),
+        )
+        .where(StockMovementLocal.movement_type == "sale")
+        .where(StockMovementLocal.qty < 0)  # Negative qty = consumption (costing.py:539)
+        .where(StockMovementLocal.recorded_at >= cutoff)
+        .group_by(StockMovementLocal.ingredient_id)
+    )
+
+    if ingredient_id is not None:
+        stmt = stmt.where(StockMovementLocal.ingredient_id == ingredient_id)
+
+    rows = session.execute(stmt).fetchall()
+
+    # Get ingredient names + current stock for each
+    forecasts: list[ConsumptionForecast] = []
+    for row in rows:
+        ing = session.get(Ingredient, row.ingredient_id)
+        if not ing:
+            continue
+
+        avg_daily = (row.total_consumed or 0) / max(lookback_days, 1)
+
+        # Predict consumption over horizon × safety_factor
+        predicted_consumption = avg_daily * horizon_days * safety_factor
+
+        # Days until stockout (None if avg_daily is 0)
+        if avg_daily > 0:
+            days_until = ing.stock_qty / avg_daily
+            days_until_int = int(days_until)
+        else:
+            days_until_int = None
+
+        # Recommended reorder = max(predicted_consumption, 0) - current_stock
+        # If stock will be sufficient, recommended = 0
+        recommended = max(0.0, predicted_consumption - ing.stock_qty)
+
+        # Will stockout within horizon?
+        will_stockout = (
+            days_until_int is not None
+            and days_until_int <= horizon_days
+        )
+
+        forecasts.append(ConsumptionForecast(
+            ingredient_id=ing.id,
+            name=ing.name,
+            avg_daily_consumption=avg_daily,
+            days_until_stockout=days_until_int,
+            safety_stock_factor=safety_factor,
+            recommended_reorder_qty=recommended,
+            is_predicted_to_stockout=will_stockout,
+        ))
+
+    # Sort by urgency: lowest first, None last
+    forecasts.sort(key=lambda f: (
+        f.days_until_stockout if f.days_until_stockout is not None else float("inf")
+    ))
+
+    return forecasts

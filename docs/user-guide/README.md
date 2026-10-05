@@ -29,10 +29,11 @@
 | [14](14-reponer.md) | Reponer stock (lista de compras) | Antes de ir al super o proveedor |
 | [15](15-cierre.md) | Cierre diario (EOD) | Al final del día |
 | [16](16-excel.md) | Excel (importar/exportar) | Para copias de seguridad o cargas masivas |
-| [17](17-lista-compras.md) | Lista de compras | Antes de ir al super o proveedor |
-| [18](18-suscripciones.md) | Suscripciones (entregas recurrentes) | Para clientes con pedidos semanales |
-| [19](19-analisis.md) | Análisis (inteligencia de negocio) | Iván — para entender por qué los números son como son |
-| [20](20-kpis-mensuales.md) | KPIs mensuales (dashboard) | Iván — cierre y seguimiento del mes |
+| [17](glosario.md) | Glosario | Cuando un término te suena raro |
+| [18](17-lista-compras.md) | Lista de compras | Antes de ir al super o proveedor |
+| [19](18-suscripciones.md) | Suscripciones (entregas recurrentes) | Para clientes con pedidos semanales |
+| [20](19-analisis.md) | Análisis (inteligencia de negocio) | Iván — para entender por qué los números son como son |
+| [21](20-kpis-mensuales.md) | KPIs mensuales (dashboard) | Iván — cierre y seguimiento del mes |
 
 ## Páginas del menú lateral (índice completo)
 

@@ -924,7 +924,7 @@ def produccion_worksheet(
         else:
             day_open_count += 1
     day_total_count = day_open_count + day_done_count + day_cancelled_count
-    if sum(1 for r in plan_rows_view if r["qty_to_produce"] > 0) == 0:
+    if _has_sales > 0 and sum(1 for r in plan_rows_view if r["qty_to_produce"] > 0) == 0:
         cold_start_kind = "no_rows"
 
     return render(

@@ -20,7 +20,7 @@ from decimal import Decimal
 from enum import Enum
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.rms.models import Ingredient, Recipe, StockMovement, WasteLog
@@ -362,3 +362,222 @@ __all__ = [
     "waste_as_pct_of_revenue",
     "waste_impact",
 ]
+
+
+@dataclass
+class WasteIngredientTrend:
+    """BACKLOG #34: one ingredient's waste cost + its purchase-price trend.
+
+    Operators want to know: "I'm wasting Harina, but is the price
+    rising too?" If yes, the waste is becoming MORE expensive and
+    should be prioritized. If price is also falling, the waste is
+    becoming less of a concern (relative to other ingredients).
+
+    `trend_pct` is the percentage change in average price between the
+    recent half of `days` and the prior half:
+        trend_pct = (avg_recent - avg_prior) / avg_prior * 100
+
+    NULL when there's no price history in either window (you can't
+    compute a trend from a single point). A `null` trend is NOT the
+    same as a 0% trend.
+    """
+
+    ingredient_id: int = 0
+    ingredient_name: str = ""
+    cost_gs: int = 0  # total waste cost in the window
+    qty: float = 0.0  # total wasted qty
+    avg_price_recent_gs: int | None = None  # avg price in recent half
+    avg_price_prior_gs: int | None = None  # avg price in prior half
+    trend_pct: float | None = None  # (recent - prior) / prior * 100
+
+
+def waste_impact_with_trends(
+    session: Session,
+    *,
+    days: int = 60,
+    now: datetime | None = None,
+) -> list[WasteIngredientTrend]:
+    """BACKLOG #34: per-ingredient waste cost + purchase-price trend.
+
+    Splits the price-history window into two halves:
+      - recent half:  [now - days/2, now]
+      - prior half:   [now - days,    now - days/2)
+
+    Computes the average price in each half per ingredient, then the
+    percentage change. The waste cost comes from WasteLog in the FULL
+    `days` window (we're measuring the cost of the trend, not the
+    trend itself).
+
+    Returns one row per ingredient that has waste events in the
+    window — sorted by cost desc so the most expensive waste surfaces.
+
+    `trend_pct` semantics:
+      - positive  → price is rising → waste is becoming more expensive
+      - negative  → price is falling → waste is becoming cheaper
+      - None      → no price events in either half (insufficient data)
+
+    The function does NOT call `waste_impact()` — it would re-aggregate
+    the same waste rows. We share the by_ingredient aggregation here.
+    """
+    from app.rms.models import IngredientPriceEvent
+
+    if now is None:
+        now = datetime.now(timezone.utc)
+    if days < 60:
+        # Need at least 60 days to make a meaningful recent/prior split.
+        days = 60
+    half_days = days // 2
+    window_start = now - timedelta(days=days)
+    mid = now - timedelta(days=half_days)
+
+    # Aggregate waste cost + qty per ingredient in the FULL window.
+    waste_q = (
+        select(
+            WasteLog.ingredient_id,
+            Ingredient.name,
+            func.sum(WasteLog.cost_gs).label("cost"),
+            func.sum(WasteLog.qty).label("qty"),
+        )
+        .join(Ingredient, WasteLog.ingredient_id == Ingredient.id)
+        .where(
+            WasteLog.recorded_at >= window_start,
+            WasteLog.recorded_at <= now,
+        )
+        .group_by(WasteLog.ingredient_id, Ingredient.name)
+        .order_by(func.sum(WasteLog.cost_gs).desc())
+    )
+    waste_rows = session.execute(waste_q).all()
+    if not waste_rows:
+        return []
+
+    ing_ids = [r[0] for r in waste_rows]
+
+    # Aggregate price history per ingredient per half-window in ONE query.
+    # CASE WHEN splits each event into recent/prior based on its
+    # recorded_at. We SUM the prices, COUNT distinct events (so a flurry
+    # of identical restock rows at the same price doesn't dominate).
+    price_q = (
+        select(
+            IngredientPriceEvent.ingredient_id,
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            IngredientPriceEvent.recorded_at >= mid,
+                            IngredientPriceEvent.price_gs,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("recent_sum"),
+            func.coalesce(
+                func.count(
+                    case(
+                        (
+                            IngredientPriceEvent.recorded_at >= mid,
+                            IngredientPriceEvent.id,
+                        ),
+                        else_=None,
+                    )
+                ),
+                0,
+            ).label("recent_count"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            IngredientPriceEvent.recorded_at < mid,
+                            IngredientPriceEvent.price_gs,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("prior_sum"),
+            func.coalesce(
+                func.count(
+                    case(
+                        (
+                            IngredientPriceEvent.recorded_at < mid,
+                            IngredientPriceEvent.id,
+                        ),
+                        else_=None,
+                    )
+                ),
+                0,
+            ).label("prior_count"),
+        )
+        .where(
+            IngredientPriceEvent.ingredient_id.in_(ing_ids),
+            IngredientPriceEvent.recorded_at >= window_start,
+            IngredientPriceEvent.recorded_at <= now,
+        )
+        .group_by(IngredientPriceEvent.ingredient_id)
+    )
+    price_by_pid: dict[int, dict[str, int]] = {}
+    for pid, recent_sum, recent_count, prior_sum, prior_count in (
+        session.execute(price_q).all()
+    ):
+        price_by_pid[int(pid)] = {
+            "recent_sum": int(recent_sum or 0),
+            "recent_count": int(recent_count or 0),
+            "prior_sum": int(prior_sum or 0),
+            "prior_count": int(prior_count or 0),
+        }
+
+    out: list[WasteIngredientTrend] = []
+    for ing_id, name, cost, qty in waste_rows:
+        avg_recent = avg_prior = None
+        trend_pct: float | None = None
+        agg = price_by_pid.get(int(ing_id))
+        if agg:
+            if agg["recent_count"] > 0:
+                avg_recent = int(agg["recent_sum"] / agg["recent_count"])
+            if agg["prior_count"] > 0:
+                avg_prior = int(agg["prior_sum"] / agg["prior_count"])
+            if avg_prior is not None and avg_prior > 0 and avg_recent is not None:
+                trend_pct = round(
+                    (avg_recent - avg_prior) / avg_prior * 100.0, 2
+                )
+        out.append(
+            WasteIngredientTrend(
+                ingredient_id=int(ing_id),
+                ingredient_name=str(name),
+                cost_gs=int(cost or 0),
+                qty=float(qty or 0.0),
+                avg_price_recent_gs=avg_recent,
+                avg_price_prior_gs=avg_prior,
+                trend_pct=trend_pct,
+            )
+        )
+    return out
+
+
+_AMPLIFIED_TREND_PCT = 5.0
+
+
+def amplified_waste_ingredients(
+    rows: list[WasteIngredientTrend],
+    *,
+    trend_threshold_pct: float = _AMPLIFIED_TREND_PCT,
+) -> list[WasteIngredientTrend]:
+    """Filter `waste_impact_with_trends()` output to ingredients where the
+    purchase price is rising AND the waste cost is significant.
+
+    "Amplified waste" = waste on an ingredient whose price is going up.
+    Reducing that waste yields a bigger bottom-line win than reducing
+    waste on a falling-price ingredient.
+
+    Args:
+        rows: output of `waste_impact_with_trends()`
+        trend_threshold_pct: only flag rows where trend_pct >= threshold
+            (default 5.0% — see _AMPLIFIED_TREND_PCT).
+
+    Returns the same dataclass rows in the same order (cost desc),
+    filtered to the amplified subset.
+    """
+    return [
+        r for r in rows
+        if r.trend_pct is not None and r.trend_pct >= trend_threshold_pct
+    ]

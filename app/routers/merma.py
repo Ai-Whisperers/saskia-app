@@ -19,6 +19,9 @@ from app.rms.errors import BadRequest, NotFound
 from app.rms.models import Ingredient, Recipe
 from app.rms.observability import record_audit
 from app.rms.waste import (
+    amplified_waste_ingredients,
+    waste_impact_with_trends,
+
     WasteReason,
     list_waste,
     record_recipe_waste,
@@ -111,6 +114,13 @@ def merma_list(
     # Top merma ingredients: group impact.by_ingredient and sort descending
     top_ingredients = sorted(impact.by_ingredient, key=lambda x: x[2], reverse=True)[:10]
 
+    # BACKLOG #34: price-trend-aware waste ranking. Compute a 60-day
+    # trend (recent half vs prior half) for each ingredient with
+    # waste events in the same window. amplified_rows = subset where
+    # trend_pct >= 5% (price rising + waste happening).
+    trend_rows = waste_impact_with_trends(session, days=max(days, 60))
+    amplified_rows = amplified_waste_ingredients(trend_rows)
+
     # Build preset query strings
     def preset_url(d: int) -> str:
         sd = (today - timedelta(days=d)).strftime("%Y-%m-%d")
@@ -128,6 +138,7 @@ def merma_list(
             "ingredients": ingredients,
             "recipes": recipes_with_yield,
             "top_ingredients": top_ingredients,
+            "amplified_rows": amplified_rows,
             "days": days,
             "since": start_date.strftime("%Y-%m-%d"),
             "until": end_date.strftime("%Y-%m-%d"),

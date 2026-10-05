@@ -352,6 +352,34 @@
     </a>
   </div>
 </div>
+<script>
+(function() {
+  // T-2026-10-04 (P0:B.5) — short audio chime on successful shift save.
+  // 880 Hz beep, 120 ms — audible over kitchen noise but not annoying.
+  // Skip if user has muted the app or prefers reduced motion.
+  try {
+    if (localStorage.getItem('sazon.audio.muted') === '1') return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    var ctx = new Ctx();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(1320, ctx.currentTime + 0.06);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.14);
+  } catch (e) {
+    // Audio chime is non-critical; silent on failure (iOS Safari, etc).
+  }
+})();
+</script>
 {% endif %}
 {# T-2026-10-04 (Tier 5-K): warn the cook when their save stomped a
    concurrent edit. Last-write-wins is still the rule (we don't
@@ -417,34 +445,6 @@
     <strong>✓ Turno guardado: {{ shift_saved }} producto{{ 's' if shift_saved != 1 else '' }} actualizado{{ 's' if shift_saved != 1 else '' }}.</strong>
   </small>
 </div>
-<script>
-(function() {
-  // T-2026-10-04 (P0:B.5) — short audio chime on successful shift save.
-  // 880 Hz beep, 120 ms — audible over kitchen noise but not annoying.
-  // Skip if user has muted the app or prefers reduced motion.
-  try {
-    if (localStorage.getItem('sazon.audio.muted') === '1') return;
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    var Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return;
-    var ctx = new Ctx();
-    var osc = ctx.createOscillator();
-    var gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.setValueAtTime(1320, ctx.currentTime + 0.06);
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.14);
-  } catch (e) {
-    // Audio chime is non-critical; silent on failure (iOS Safari, etc).
-  }
-})();
-</script>
 {% endif %}
 
 {# T-2026-10-04 (P1): Closed-day banner + reopen action. #}
