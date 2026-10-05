@@ -41,7 +41,18 @@
     </h1>
     {% if view == 'day' %}
     <p class="hint" style="margin: var(--space-1) 0 0 0; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;">
-      Plan diario para el <strong>{{ for_date }}</strong>
+      {# T-2026-10-05: past-day navigation — ← prev | date | next →.
+         Lets the operator walk back through history to review what was
+         planned vs what was actually produced each day. #}
+      <a href="/produccion?view=day&for_date={{ prev_day_iso }}" class="btn btn-sm btn-ghost" aria-label="Día anterior">←</a>
+      <strong>{{ for_date }}</strong>
+      {% if not is_today %}
+      <a href="/produccion?view=day&for_date={{ next_day_iso }}" class="btn btn-sm btn-ghost" aria-label="Día siguiente">→</a>
+      {% endif %}
+      {% if is_past_day %}
+        <span class="badge" style="background: var(--color-surface-raised); color: var(--color-text-muted);" title="Día pasado: consultá qué se planificó y qué se produjo">📜 Historial</span>
+        <a href="/produccion?view=day" class="btn btn-sm btn-ghost">Volver a hoy</a>
+      {% endif %}
       {# T-2026-10-04 (D.2): shift-context deep-link. When Ivan/Sebas
          hand a cook a URL like /produccion?for_date=2026-10-05&shift=PM
          over WhatsApp, this badge makes the shift context unmissable
@@ -67,9 +78,9 @@
 
   <nav class="view-tabs" aria-label="Cambiar vista" role="tablist"
        style="display:inline-flex; gap: var(--space-1); padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius);">
-    <a href="/produccion?view=day" class="btn btn-sm {% if view == 'day' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'day' else 'false' }}">Día</a>
-    <a href="/produccion?view=week{% if view == 'week' and prev_week_iso %}&week={{ prev_week_iso }}{% endif %}" class="btn btn-sm {% if view == 'week' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'week' else 'false' }}">Semana</a>
-    <a href="/produccion?view=month" class="btn btn-sm {% if view == 'month' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'month' else 'false' }}">Mes</a>
+    <a href="/produccion?view=day{% if view == 'day' and for_date %}&for_date={{ for_date }}{% endif %}" class="btn btn-sm {% if view == 'day' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'day' else 'false' }}">Día</a>
+    <a href="/produccion?view=week{% if view == 'week' and prev_week_iso %}&week={{ request.query_params.get('week', '') }}{% endif %}" class="btn btn-sm {% if view == 'week' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'week' else 'false' }}">Semana</a>
+    <a href="/produccion?view=month{% if view == 'month' and request.query_params.get('month') %}&month={{ request.query_params.get('month') }}{% endif %}" class="btn btn-sm {% if view == 'month' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'month' else 'false' }}">Mes</a>
   </nav>
   {# PRODUCCION-V2 Fase 2: UI version toggle (v1 ⇄ v2). Default v1 keeps
      the existing 8-col grilla; v2 adds the DEMANDA column (decomposed
@@ -1005,6 +1016,48 @@
                 Reabrir
               </button>
             {% else %}
+              <div style="display: flex; flex-direction: column; gap: var(--space-1);">
+                <div>
+                  <label style="font-size: var(--text-xs); margin-right: var(--space-1);">¿Cuánto se produjo?</label>
+                  <input type="number" 
+                         name="completed_qty_{{ r.product_id }}" 
+                         step="0.5" 
+                         min="0" 
+                         size="4"
+                         value="{{ '%.1f'|format(r.completed_qty or 0) }}"
+                         style="font-size: var(--text-xs);"
+                         aria-label="Cantidad producida para {{ r.product_name }}">
+                </div>
+                <button type="button" class="btn btn-primary btn-sm closure-btn"
+                        data-action="close-day"
+                        data-product-id="{{ r.product_id }}"
+                        data-product-name="{{ r.product_name }}"
+                        data-completed-qty="{{ r.completed_qty or 0 }}"
+                        title="Marcar este producto como cerrado para el turno">
+                  Cerrar turno
+                </button>
+              </div>
+            {% endif %}
+          </td>
+            {% set cs = r.closure_status | default('open') %}
+            {% if cs == 'done' %}
+              <span class="closure-pill closure-done" title="Cerrado como hecho. {{ r.closure_notes or '' }}">✅ Cerrado</span>
+              <button type="button" class="btn btn-ghost btn-sm closure-btn"
+                      data-action="reopen-day"
+                      data-product-id="{{ r.product_id }}"
+                      data-product-name="{{ r.product_name }}"
+                      title="Reabrir este producto (corrección de cierre)">
+                Reabrir
+              </button>
+            {% elif cs == 'cancelled' %}
+              <span class="closure-pill closure-cancelled" title="Cerrado como no-horneado. {{ r.closure_notes or '' }}">⊘ No horneado</span>
+              <button type="button" class="btn btn-ghost btn-sm closure-btn"
+                      data-action="reopen-day"
+                      data-product-id="{{ r.product_id }}"
+                      data-product-name="{{ r.product_name }}">
+                Reabrir
+              </button>
+            {% else %}
               <button type="button" class="btn btn-primary btn-sm closure-btn"
                       data-action="close-day"
                       data-product-id="{{ r.product_id }}"
@@ -1619,6 +1672,10 @@
 
 {% if week_plan and week_plan.rows %}
 <h3>Producción por día</h3>
+{# T-2026-10-05: Plan-vs-Hecho grid. Each cell shows planned qty, and
+   below it the confirmed Hecho (green ✓) when the day was closed in
+   day view — confirmations stay visible across views. Past days that
+   were never confirmed show ⚠ pendiente. Cells link to that day. #}
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
@@ -1631,7 +1688,16 @@
     <tr>
       <td><strong>{{ r.product_name }}</strong></td>
       {% for day_qty in r.daily_qtys %}
-      <td class="num">{{ "%.1f"|format(day_qty) if day_qty else '—' }}</td>
+      {% set d_iso = week_day_isos[loop.index0] %}
+      {% set hecho = week_completions.get(d_iso, {}).get(r.product_id) %}
+      <td class="num" style="line-height: 1.3;">
+        <a href="/produccion?view=day&for_date={{ d_iso }}" class="text-link" title="Abrir día {{ d_iso }}">{{ "%.1f"|format(day_qty) if day_qty else '—' }}</a>
+        {% if hecho is not none %}
+          <br><small style="color: var(--color-success, #2e7d32);">✓ {{ "%.1f"|format(hecho) }}</small>
+        {% elif d_iso < week_today_iso and day_qty %}
+          <br><small class="text-muted" title="Planificado pero sin confirmar">⚠ pendiente</small>
+        {% endif %}
+      </td>
       {% endfor %}
     </tr>
     {% endfor %}
@@ -1727,15 +1793,18 @@
     <tr>
       <td><strong>{{ r.product_name }}</strong></td>
       {% for day_qty in r.daily_qtys %}
+        {% set d_num = loop.index %}
+        {% set d_iso = '%04d-%02d-%02d'|format(year, mon, d_num) %}
+        {% set hecho = month_completions.get(d_iso, {}).get(r.product_id) %}
         {% set q = day_qty or 0 %}
         {% if q == 0 %}
-          <td class="num month-cell month-cell--empty" title="Sin plan">—</td>
+          <td class="num month-cell month-cell--empty" title="Sin plan"><a href="/produccion?view=day&for_date={{ d_iso }}" style="color: inherit; text-decoration: none;">—</a></td>
         {% elif q < 1 %}
-          <td class="num month-cell month-cell--light" title="{{ '%.1f'|format(q) }}">{{ '%.0f'|format(q) }}</td>
+          <td class="num month-cell month-cell--light" title="{{ '%.1f'|format(q) }}{% if hecho is not none %} · hecho {{ '%.1f'|format(hecho) }}{% endif %} — click para abrir el día"><a href="/produccion?view=day&for_date={{ d_iso }}" style="color: inherit; text-decoration: none;">{{ '%.0f'|format(q) }}{% if hecho is not none %}<small style="color: var(--color-success, #2e7d32);">✓</small>{% endif %}</a></td>
         {% elif q < 3 %}
-          <td class="num month-cell month-cell--mid" title="{{ '%.1f'|format(q) }}">{{ '%.0f'|format(q) }}</td>
+          <td class="num month-cell month-cell--mid" title="{{ '%.1f'|format(q) }}{% if hecho is not none %} · hecho {{ '%.1f'|format(hecho) }}{% endif %} — click para abrir el día"><a href="/produccion?view=day&for_date={{ d_iso }}" style="color: inherit; text-decoration: none;">{{ '%.0f'|format(q) }}{% if hecho is not none %}<small style="color: var(--color-success, #2e7d32);">✓</small>{% endif %}</a></td>
         {% else %}
-          <td class="num month-cell month-cell--full" title="{{ '%.1f'|format(q) }}">{{ '%.0f'|format(q) }}</td>
+          <td class="num month-cell month-cell--full" title="{{ '%.1f'|format(q) }}{% if hecho is not none %} · hecho {{ '%.1f'|format(hecho) }}{% endif %} — click para abrir el día"><a href="/produccion?view=day&for_date={{ d_iso }}" style="color: inherit; text-decoration: none;">{{ '%.0f'|format(q) }}{% if hecho is not none %}<small style="color: var(--color-success, #2e7d32);">✓</small>{% endif %}</a></td>
         {% endif %}
       {% endfor %}
     </tr>
@@ -1776,6 +1845,7 @@
     <form method="post" action="/produccion/close-day" data-close-day-form>
       <input type="hidden" name="for_date" value="{{ for_date }}">
       <input type="hidden" name="product_id" data-modal-product-id>
+      <input type="hidden" name="completed_qty" data-modal-completed-qty value="0">
       <input type="hidden" name="ui" value="{{ ui_version }}">
       <div style="margin-bottom: var(--space-3);">
         <label style="display: block; font-size: var(--text-sm); margin-bottom: var(--space-1); font-weight: 600;">
@@ -1822,11 +1892,21 @@
   function openModal(productId, productName, completedQty) {
     modal.querySelector('[data-modal-product-name]').textContent = productName;
     modal.querySelector('[data-modal-product-id]').value = productId;
+    // T-2026-10-05: read the qty the cook TYPED in the row input (not the
+    // render-time data attr) so the modal carries the current value.
+    var rowInput = document.querySelector(
+      'input[name="completed_qty_' + productId + '"]'
+    ) || document.querySelector(
+      'input[name="completed_' + productId + '"]'
+    );
+    var liveQty = rowInput ? (parseFloat(rowInput.value) || 0) : completedQty;
+    var hiddenQty = modal.querySelector('[data-modal-completed-qty]');
+    if (hiddenQty) hiddenQty.value = String(liveQty);
     // Default: status=done IF completedQty > 0, else cancelled. The cook
     // can always override by clicking the other radio.
     var doneRadio = modal.querySelector('[data-modal-radio-done]');
     var cancRadio = modal.querySelector('[data-modal-radio-cancelled]');
-    if (completedQty > 0) {
+    if (liveQty > 0) {
       doneRadio.checked = true;
     } else {
       cancRadio.checked = true;

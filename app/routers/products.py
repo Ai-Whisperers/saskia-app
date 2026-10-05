@@ -23,7 +23,7 @@ from fastapi import (
 )
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from loguru import logger
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -208,6 +208,34 @@ def products_list(
     # Fetch product IDs with sales (for dead product detection)
     sold_product_ids = set(session.scalars(select(Sale.product_id).distinct()).all())
 
+    # T-2026-10-05: lifetime + last-30d PRODUCED totals per product, from
+    # production_completion (what the cook actually baked, recorded on
+    # /produccion close). One grouped query — no N+1.
+    from app.rms.models import ProductionCompletion
+
+    produced_rows = session.execute(
+        select(
+            ProductionCompletion.product_id,
+            func.sum(ProductionCompletion.completed_qty),
+            func.max(ProductionCompletion.for_date),
+            func.sum(
+                case(
+                    (
+                        ProductionCompletion.for_date
+                        >= func.date("now", "-30 day"),
+                        ProductionCompletion.completed_qty,
+                    ),
+                    else_=0.0,
+                )
+            ),
+        )
+        .group_by(ProductionCompletion.product_id)
+    ).all()
+    produced_by_pid = {
+        r[0]: {"total": float(r[1] or 0.0), "last_date": r[2], "last_30d": float(r[3] or 0.0)}
+        for r in produced_rows
+    }
+
     # Apply pagination
     offset = (page - 1) * PER_PAGE
     stmt = stmt.offset(offset).limit(PER_PAGE)
@@ -261,6 +289,11 @@ def products_list(
                 "notes": p.notes,
                 "mayorista_price_gs": p.mayorista_price_gs,
                 "is_dead": p.id not in sold_product_ids,
+                # T-2026-10-05: actual production totals (from close-day
+                # records). lifetime total, last-30d, and last produced date.
+                "produced_total": produced_by_pid.get(p.id, {}).get("total", 0.0),
+                "produced_last_30d": produced_by_pid.get(p.id, {}).get("last_30d", 0.0),
+                "produced_last_date": produced_by_pid.get(p.id, {}).get("last_date"),
             }
         )
 

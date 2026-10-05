@@ -154,6 +154,7 @@
       <th data-col="prime-pct" class="col-prime-pct num">% Costo</th>
       <th data-col="cost-updated" class="col-cost-updated" title="Hace cuánto cambió el precio de algún ingrediente de la receta">Costo act.</th>
       <th data-col="available" class="col-available">Disp.</th>
+      <th data-col="produced" class="col-produced num" title="Total horneado histórico (cierres de turno en /produccion). Últimos 30 días entre paréntesis.">Producido</th>
       <th class="col-actions actions"></th>
     </tr>
   </thead>
@@ -219,6 +220,17 @@
           {{ ui.status_pill("Sí", sev="ok") }}
         {% else %}
           <span class="badge badge-muted">No</span>
+        {% endif %}
+      </td>
+      {# T-2026-10-05: lifetime produced (from /produccion close-day records).
+         Shows "total (30d)" — e.g. "144 (36)" — 0 renders muted. #}
+      <td class="num col-produced">
+        {% if p.produced_last_date %}
+          <strong>{{ "%.0f"|format(p.produced_total) }}</strong>
+          <small class="text-muted">({{ "%.0f"|format(p.produced_last_30d) }})</small>
+          <br><small class="text-muted" title="Última producción registrada">{{ p.produced_last_date }}</small>
+        {% else %}
+          <span class="badge badge-muted" title="Sin cierres de turno registrados">—</span>
         {% endif %}
       </td>
       <td class="actions col-actions">

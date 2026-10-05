@@ -375,58 +375,6 @@ def eod_check_save(
     return RedirectResponse(url="/eod?flash=Cierre+guardado", status_code=303)
 
 
-@router.post("/completar")
-def eod_completar(
-    request: Request,
-    product_id: int = Form(...),
-    for_date: date = Form(...),
-    completed_qty: float = Form(...),
-    notes: str = Form(""),
-    session: Session = Depends(get_session),
-) -> RedirectResponse:
-    """Record how much of a planned product was actually produced (T5)."""
-    from app.rms.rate_limit import is_write_rate_limited
-
-    if is_write_rate_limited(session, request, max_per_minute=10):
-        raise HTTPException(
-            status_code=429,
-            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
-        )
-    try:
-        upsert_completion(
-            session,
-            product_id=product_id,
-            for_date=for_date,
-            completed_qty=completed_qty,
-            notes=notes or None,
-        )
-    except ValueError as exc:
-        # BadRequest inherits HTTPException via the global handler, but
-        # now carries reason_code="bad_request" + AppError.context for
-        # the audit log. The original str(exc) is preserved via
-        # `cause` so the Python repr stays in the local traceback
-        # (visible to operators) but the user sees a clean Spanish
-        # message (no SQLAlchemy/internal text leak).
-        raise BadRequest(
-            "Datos inválidos en el cierre del día.",
-            context={"original_error": str(exc)},
-        ) from exc
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail="Producto no encontrado") from exc
-
-    record_audit(
-        request,
-        session=session,
-        action="write.eod.complete",
-        target_type="eod",
-        target_id=for_date.isoformat(),
-        detail={
-            "product_id": product_id,
-            "for_date": for_date.isoformat(),
-            "completed_qty": completed_qty,
-        },
-    )
-    session.commit()
     return RedirectResponse(url="/eod", status_code=303)
 
 
