@@ -89,10 +89,23 @@
   <h1>📋 Producción — Plan del día</h1>
   <p class="date">
     <strong>{{ for_date }}</strong>
+    {# T-2026-10-04 (D.4): print-pack header now shows ISO week
+       number + cook name so the operator can verify which cook took
+       which day. Hidden in worksheet mode to keep the blank sheet
+       clean. #}
+    {% if iso_week and not worksheet_mode %} · Semana {{ iso_week }} ({{ iso_year }}){% endif %}
     {% if days_count and days_count > 1 %}
       · pack de {{ days_count }} días
     {% endif %}
   </p>
+  {# T-2026-10-04 (D.4): cook attribution line, printed at the top
+     so the printed sheet can be filed by cook. Hidden in worksheet
+     mode. #}
+  {% if cook_name and not worksheet_mode %}
+  <p class="cook-line" style="font-size: 0.875rem; color: var(--color-text-muted); margin: 0 0 0.5rem 0;">
+    Responsable: <strong>{{ cook_name }}</strong>
+  </p>
+  {% endif %}
 
   <div class="no-print" style="margin-bottom: 1rem;">
     <button type="button" class="btn btn-primary" onclick="window.print()">

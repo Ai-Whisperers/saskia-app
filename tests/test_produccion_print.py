@@ -89,3 +89,42 @@ def test_print_view_button_on_day_view(authed_client):
     assert 'href="/produccion/print' in body or 'href="/produccion/imprimir' in body, (
         f"Print button/link missing on day view. Body excerpt: {body[2000:2500]}"
     )
+
+
+# ---------------------------------------------------------------- P0:D.4
+def test_print_view_shows_iso_week_header(authed_client):
+    """P0:D.4 — Print header shows ISO week number so cooks can file by week."""
+    target = (date.today() + timedelta(days=2)).isoformat()
+    r = authed_client.get(f"/produccion/print?for_date={target}")
+    assert r.status_code == 200
+    body = r.text
+    # ISO week "Semana N (YYYY)" appears in the date line
+    import re
+    assert re.search(r"Semana \d+ \(\d{4}\)", body), (
+        f"P0:D.4 — print header must show 'Semana N (YYYY)' ISO week tag. "
+        f"Body date line: {body[body.find('Plan del día'):body.find('Plan del día')+200]!r}"
+    )
+
+
+def test_print_view_shows_cook_attribution(authed_client):
+    """P0:D.4 — Print header shows cook's name so operators can file by cook."""
+    r = authed_client.get("/produccion/print")
+    assert r.status_code == 200
+    body = r.text
+    # 'Responsable:' label + the cook_name
+    assert "Responsable:" in body, (
+        "P0:D.4 — print header must include 'Responsable:' line"
+    )
+
+
+def test_print_view_omits_header_in_worksheet_mode(authed_client):
+    """P0:D.4 — ?mode=worksheet (blank sheet) must NOT show cook/week header."""
+    r = authed_client.get("/produccion/print?mode=worksheet")
+    assert r.status_code == 200
+    body = r.text
+    # In worksheet mode (blank sheet for handwriting), the cook attribution
+    # is omitted so the operator can fill it in by hand.
+    assert "Responsable:" not in body, (
+        "P0:D.4 — worksheet mode must not show 'Responsable:' line "
+        "(the cook writes their own name on a blank sheet)"
+    )

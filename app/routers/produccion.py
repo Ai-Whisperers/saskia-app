@@ -97,6 +97,35 @@ def _parse_overrides(params: object) -> dict[int, float]:
     return out
 
 
+def _current_user_display_name(request: Request) -> str:
+    """Return the cook's display name for print headers + audit footers.
+
+    Looks up the username stored in the session by `login_user_local`
+    (bcrypt backend) or `login_user_supabase` (Supabase backend). Falls
+    back to "Cocina" when no user is logged in (test/auth-disabled
+    paths) so the print header still has a sensible label.
+
+    T-2026-10-04 (D.4): introduced for the print-pack header so the
+    operator can verify which cook took which day at a glance.
+    """
+    # Bcrypt backend
+    from app.auth import LOCAL_SESSION_KEY_USERNAME
+
+    username = request.session.get(LOCAL_SESSION_KEY_USERNAME)
+    if username:
+        return str(username)
+    # Supabase backend — read email from claims
+    try:
+        from app.auth_supabase import get_session_user
+
+        user = get_session_user(request)
+        if user is not None and getattr(user, "email", None):
+            return str(user.email).split("@", 1)[0]
+    except Exception:
+        pass
+    return "Cocina"
+
+
 @router.get("", response_class=HTMLResponse)
 def produccion_worksheet(
     request: Request,
@@ -1452,6 +1481,15 @@ def produccion_print(
             )
         days_pack.append({"date": d.isoformat(), "rows": print_rows})
 
+    # T-2026-10-04 (D.4): print-pack header metadata — the printed
+    # sheet now shows the ISO week number and the cook's display name
+    # so the operator can verify which cook took which day at a glance.
+    # Multi-day packs get a "Semana N" header; single-day prints get
+    # just the date.
+    from datetime import date as _date
+    target_date_obj = target_date if isinstance(target_date, _date) else None
+    iso_year, iso_week, _ = target_date_obj.isocalendar() if target_date_obj else (None, None, None)
+    cook_name = _current_user_display_name(request)
     return render(
         request,
         "produccion_print.html",
@@ -1465,6 +1503,10 @@ def produccion_print(
             # quantities so the operator can use the printout as a blank
             # sheet to fill by hand. Default = "filled" (current behavior).
             "worksheet_mode": request.query_params.get("mode") == "worksheet",
+            # T-2026-10-04 (D.4): print-pack header metadata.
+            "iso_week": iso_week,
+            "iso_year": iso_year,
+            "cook_name": cook_name,
         },
     )
 
