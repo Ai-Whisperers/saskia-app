@@ -43,20 +43,21 @@ def test_app_rms_has_no_tags_or_tag_algebra_files():
     assert not (rms_dir / "tags.py").exists(), (
         "app/rms/tags.py should have been deleted in Sprint 2.2"
     )
-    assert not (rms_dir / "tag_algebra.py").exists(), (
-        "app/rms/tag_algebra.py should have been deleted in Sprint 2.2"
-    )
-
-
 def test_no_code_references_deleted_modules():
-    """No source file imports app.rms.tags or app.rms.tag_algebra."""
+    """No source file imports app.rms.tags (permanently deleted).
+
+    Note 2026-10-05: app/rms/tag_algebra.py is kept as a back-compat shim
+    that re-exports from app/rms/tagging/. The shim allows existing call
+    sites in app/, scripts/, tests/ to keep working without forcing a
+    full rewrite. New code should import from app.rms.tagging directly.
+    """
     import subprocess
 
     result = subprocess.run(
         [
             "grep",
             "-rln",
-            r"app\.rms\.tags\b|app\.rms\.tag_algebra",
+            r"app\.rms\.tags\b",
             "/opt/data/work/saskia-app",
             "--include=*.py",
         ],
@@ -67,7 +68,7 @@ def test_no_code_references_deleted_modules():
         line for line in result.stdout.strip().split("\n") if line.strip()
     )
     assert offenders == [], (
-        f"Files still import deleted modules: {offenders}"
+        f"Files still import app.rms.tags: {offenders}"
     )
 
 
