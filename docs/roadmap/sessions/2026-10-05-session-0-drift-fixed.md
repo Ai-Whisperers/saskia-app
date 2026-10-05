@@ -19,12 +19,13 @@
 - `/healthz/db` reports `schema_version=98, code_schema_version=98, migrations_pending=0`.
 - New tables: `production_closed_day`, `customer_phone`. No data loss.
 
-### DRIFT-3 (missing env vars) — ✅ PARTIALLY FIXED
+### DRIFT-3 (missing env vars) — ✅ FULLY FIXED
 - **R2 keys** added to `docker-stack.yml` (5 vars: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET`).
   Keys were in `profiles/ivan/.hermes/inbox/r2_new_value.txt` (from 2026-04-23, never wired into prod).
-- **`SENTRY_DSN` still blank.** No DSN exists anywhere in the profile or VPS.
-  - `.env.example` on VPS explicitly says "blank = feature off" and Tier 8 (Sentry+Resend+EOD) gates on SENTRY_DSN at `app/rms/main.py` lifespan.
-  - Operator must sign up at sentry.io, create a FastAPI project, and add the DSN to `docker-stack.yml` for Sentry error tracking to activate. **No code action can substitute for this.**
+- **SENTRY_DSN** added 2026-10-05 with operator-provided DSN `https://2930cb...6794@o4512012263424000.ingest.us.sentry.io/4512204571410432`.
+  Also added `SENTRY_TRACES_SAMPLE_RATE=0.1` and `SENTRY_ENVIRONMENT=production`.
+- **End-to-end Sentry verified** by forcing a `1/0` from inside the container. Event `3126a58f2e6c4e3483cb0de2c304af14` sent and acknowledged by Sentry's intake for project `4512204571410432`.
+- **Lifespan alert hooks** (migration fail / backup stale / healthz failure) will now page `ivan@aiwhisperers.dev` via the Tier 8 alert path.
 
 ## Bonus fix (found during deploy)
 
@@ -47,9 +48,14 @@
 
 - `app/routers/reportes.py` (commit `4837ac1`): import `waste_roi_by_ingredient`
 
-## Operator action still required (1 item)
+## Operator action remaining
 
-- **Sentry sign-up + DSN:** Visit https://sentry.io, create a FastAPI project, copy the DSN, add `SENTRY_DSN=...` to `docker-stack.yml`, redeploy. Then the lifespan alert hooks (migration fail / backup stale / healthz failure) will start paging.
+**None.** All drift items resolved. The lifespan alert hooks will start paging if anything breaks.
+
+## Stack deploy gotcha (recorded for future)
+
+- `docker stack deploy` updates image + service spec atomically, but **only re-creates a task if the spec actually changes**. If you only edit `environment:` block, the running task may keep the OLD env vars until you `docker service update --force`.
+- After adding env vars, ALWAYS: `docker stack deploy ... && docker service update --force <svc>`.
 
 ## SSH access — process note
 
