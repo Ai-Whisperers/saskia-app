@@ -29,6 +29,7 @@
 | [14](14-reponer.md) | Reponer stock (lista de compras) | Antes de ir al super o proveedor |
 | [15](15-cierre.md) | Cierre diario (EOD) | Al final del día |
 | [16](16-excel.md) | Excel (importar/exportar) | Para copias de seguridad o cargas masivas |
+| [17](glosario.md) | Glosario | Cuando un término te suena raro |
 
 ## Conceptos generales
 
