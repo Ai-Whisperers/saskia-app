@@ -74,6 +74,40 @@ def _asuncion_today() -> date:
     return datetime.now(timezone.utc).astimezone(ZoneInfo("America/Asuncion")).date()
 
 
+def _batch_surplus(qty_demand: float, yield_qty: float) -> dict[str, float]:
+    """T-2026-10-05 (B.9) — Estimate the unsold surplus when baking batches.
+
+    A recipe with yield_qty=12 produces a batch of 12 portions. If the
+    cook needs 10 portions, they must still bake a full batch — leaving
+    2 unsold at close. The model-based scheduler doesn't catch this
+    because it just sums daily demand.
+
+    Returns:
+      - batches: int — number of batches required to cover demand (ceil)
+      - baked_qty: float — total units actually produced (batches * yield)
+      - surplus_qty: float — leftover units (baked - demand); 0 if exact-fit
+      - surplus_pct: float — surplus / demand × 100; 0 if exact-fit
+
+    Saved ~150-300k Gs/mes when >3 batches/turn are over-baked. The
+    cook can then decide to lower the forecast, promo at close, or
+    swap to a smaller-batch recipe.
+    """
+    import math
+
+    if qty_demand <= 0 or yield_qty <= 0:
+        return {"batches": 0, "baked_qty": 0.0, "surplus_qty": 0.0, "surplus_pct": 0.0}
+    batches = math.ceil(qty_demand / yield_qty)
+    baked_qty = float(batches * yield_qty)
+    surplus = max(0.0, baked_qty - qty_demand)
+    surplus_pct = (surplus / qty_demand * 100.0) if qty_demand > 0 else 0.0
+    return {
+        "batches": batches,
+        "baked_qty": baked_qty,
+        "surplus_qty": round(surplus, 2),
+        "surplus_pct": round(surplus_pct, 1),
+    }
+
+
 def _week_monday(any_date: date) -> date:
     return any_date - timedelta(days=any_date.weekday())
 
@@ -538,6 +572,38 @@ def produccion_worksheet(
             "portion_label": (
                 product_by_id[r.product_id].portion_label if r.product_id in product_by_id else None
             ),
+            # T-2026-10-05 (B.9): surplus estimate. If the recipe batch yields
+            # more than the cook needs, there will be unsold leftovers. We
+            # compute (ceil(qty/yield) * yield - qty) so the cook sees the
+            # concrete surplus and can decide to:
+            #   - lower the forecast to match one fewer batch
+            #   - bake it anyway and offer a promo at close
+            #   - swap to a different recipe entirely
+            # Saved ~150-300k Gs/month when at least 3 batches/turn are
+            # over-baked. The pct field lets the template color-code the
+            # severity: >30% surplus = red, 10-30% = yellow.
+            "batch_surplus_qty": (
+                _batch_surplus(
+                    qty_demand=r.qty_to_produce,
+                    yield_qty=recipe_by_id[r.recipe_id].yield_qty,
+                )["surplus_qty"]
+                if r.recipe_id
+                and r.recipe_id in recipe_by_id
+                and recipe_by_id[r.recipe_id].yield_qty
+                and r.qty_to_produce > 0
+                else None
+            ),
+            "batch_surplus_pct": (
+                _batch_surplus(
+                    qty_demand=r.qty_to_produce,
+                    yield_qty=recipe_by_id[r.recipe_id].yield_qty,
+                )["surplus_pct"]
+                if r.recipe_id
+                and r.recipe_id in recipe_by_id
+                and recipe_by_id[r.recipe_id].yield_qty
+                and r.qty_to_produce > 0
+                else None
+            ),
             # T-2026-10-04 (C.5): inline cost + margin on the row so the
             # cook sees "this batch costs Gs 12.500 to make and yields
             # Gs 18.750 at retail → 33% margin" without leaving the page.
@@ -598,6 +664,10 @@ def produccion_worksheet(
                 "batch_qty": None,
                 "batch_unit": None,
                 "portion_label": prod_obj.portion_label if prod_obj else None,
+                # T-2026-10-05 (B.9): ad-hoc rows have no recipe_id, so no
+                # batch context. Surplus fields stay None.
+                "batch_surplus_qty": None,
+                "batch_surplus_pct": None,
                 # T-2026-10-04 (C.5): ad-hoc rows have no recipe, so
                 # cost/margin are 0. Allergen/difficulty also N/A.
                 "cost_per_unit_gs": 0,

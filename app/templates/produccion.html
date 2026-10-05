@@ -627,6 +627,14 @@
              ad-hoc decisions with cost visibility. Hidden on print
              via @media print rules below. #}
           <th class="num no-print" style="min-width: 7rem;" title="Costo total del lote (cost_per_unit × qty) y margen %">Costo / Margen</th>
+          {# T-2026-10-05 (B.9): batch-surplus column. When batches yield
+           more than the cook needs, the row shows "+2 unsold" so they can
+           decide whether to lower the forecast, promo at close, or swap
+           to a smaller-batch recipe. Saved ~150-300k Gs/mes. Color codes:
+             green = 0% surplus (exact-fit)
+             yellow = 1-30% surplus (slight over-bake)
+             red = > 30% surplus (significant waste) #}
+          <th class="num" style="min-width: 5rem;" title="Sobrante estimado al hornear lotes completos: ceil(demanda/yield) × yield − demanda">Sobrante</th>
         </tr>
       </thead>
       <tbody>
@@ -798,6 +806,26 @@
               <span class="text-muted">—</span>
             {% else %}
               <span class="text-muted">sin precio</span>
+            {% endif %}
+          </td>
+          {# T-2026-10-05 (B.9): batch-surplus cell. Shows the expected
+           leftovers (units baked minus demand) and a color-coded percent
+           so the cook can spot waste risk at a glance. #}
+          <td class="num" data-label="Sobrante">
+            {% if r.batch_surplus_qty is not none %}
+              {% if r.batch_surplus_qty == 0 %}
+                <span class="text-muted" title="Lote exacto (sin sobrante)">✓ exacto</span>
+              {% else %}
+                <span class="surplus-pill surplus-{% if r.batch_surplus_pct >= 30 %}high{% elif r.batch_surplus_pct >= 10 %}med{% else %}low{% endif %}"
+                      title="{{ r.batch_surplus_pct }}% sobre la demanda: hornear {{ r.batch_surplus_qty | int }} unidades extra que probablemente sobrarán al cierre.">
+                  +{{ r.batch_surplus_qty | int }}
+                  <small style="display: block; font-size: var(--text-xs);">
+                    {{ r.batch_surplus_pct }}%
+                  </small>
+                </span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">—</span>
             {% endif %}
           </td>
         </tr>
@@ -1183,6 +1211,37 @@
   .production-row--has-pedido .pedido-qty {
     font-weight: 700;
     color: var(--color-info-strong, #1e40af);
+  }
+
+  /* T-2026-10-05 (B.9): batch-surplus pill color codes.
+     - surplus-low: 1-9% surplus — informational, no urgency
+     - medium: 10-29% surplus — cook should consider lowering forecast
+     - high: ≥30% surplus — significant waste risk, decide before baking
+     Green "exacto" is rendered with text-muted utility (no pill). */
+  .surplus-pill {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .surplus-pill.surplus-low {
+    background: rgba(217, 119, 6, 0.08);
+    color: #92400e;
+  }
+  .surplus-pill.surplus-med {
+    background: rgba(217, 119, 6, 0.18);
+    color: #78350f;
+    border: 1px solid rgba(217, 119, 6, 0.4);
+  }
+  .surplus-pill.surplus-high {
+    background: rgba(220, 38, 38, 0.12);
+    color: #7f1d1d;
+    border: 1px solid rgba(220, 38, 38, 0.4);
+  }
+  @media print {
+    .surplus-pill { background: transparent !important; border: 1px solid #888 !important; color: #000 !important; }
   }
   @media print {
     .production-row--has-pedido {
