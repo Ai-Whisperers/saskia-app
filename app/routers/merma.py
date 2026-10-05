@@ -19,15 +19,14 @@ from app.rms.errors import BadRequest, NotFound
 from app.rms.models import Ingredient, Recipe, Sale, WasteLog
 from app.rms.observability import record_audit
 from app.rms.waste import (
-    amplified_waste_ingredients,
-    waste_impact_with_trends,
-
     WasteReason,
+    amplified_waste_ingredients,
     list_waste,
     record_recipe_waste,
     record_waste,
     waste_as_pct_of_revenue,
     waste_impact,
+    waste_impact_with_trends,
 )
 from app.services.template_render import render
 
@@ -86,7 +85,6 @@ def merma_list(
     )
     impact = waste_impact(session, start_date=start_date, end_date=end_date)
     # Estimate revenue from sales in same window
-    from app.rms.models import Sale
 
     rev_total = (
         session.execute(
@@ -124,6 +122,55 @@ def merma_list(
     trend_rows = waste_impact_with_trends(session, days=max(days, 60))
     amplified_rows = amplified_waste_ingredients(trend_rows)
 
+    # PROD-MERMA-2 (Batch I follow-up): 14-day source mix for the operator
+    # dashboard. Lightweight enough to compute inline on every /merma hit
+    # (1 query, ~milliseconds, hits an indexed column). If this ever becomes
+    # a hot path, push to a cached endpoint or read from the API route.
+    source_mix_14d: dict[str, dict] = {}
+    try:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=14)
+        rows = session.execute(
+            select(
+                WasteLog.source,
+                func.count(WasteLog.id),
+                func.coalesce(func.sum(WasteLog.cost_gs), 0),
+            )
+            .where(WasteLog.recorded_at >= cutoff)
+            .group_by(WasteLog.source)
+        ).all()
+        for src, n, cost in rows:
+            source_mix_14d[str(src or "manual")] = {
+                "n_events": int(n),
+                "cost_gs": int(cost),
+            }
+    except Exception:  # noqa: BLE001 — defensive: never block the page
+        source_mix_14d = {}
+
+    # Pre-Batch-I this was an AuditLog join; now it's a direct read of the
+    # denormalized WasteLog.source column (PROD-MERMA-2 Batch I).
+    source_by_waste_id: dict[int, str] = {w.id: w.source for w in items if w.source}
+
+    # PROD-MERMA-2 (Batch F): surface a "Hoy" panel so operators see what
+    # moved TODAY (not just the aggregate). WasteLog.recorded_at is naive
+    # UTC — compare with naive-UTC bounds so the day boundary matches.
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
+    from datetime import timezone as _tz
+    _utcnow = _dt.now(_tz.utc).replace(tzinfo=None)
+    today_start = _dt.combine(_utcnow.date(), _dt.min.time())
+    today_end = today_start + _td(days=1)
+    today_impact = waste_impact(session, start_date=today_start, end_date=today_end)
+    today_event_count = int(
+        session.execute(
+            select(func.count(WasteLog.id)).where(
+                WasteLog.recorded_at >= today_start,
+                WasteLog.recorded_at < today_end,
+            )
+        ).scalar_one()
+    )
+    today_total_cost = sum(today_impact.by_ingredient[i][2] for i in range(len(today_impact.by_ingredient))) if today_impact.by_ingredient else 0
+    today_top_ingredients = sorted(today_impact.by_ingredient, key=lambda x: x[2], reverse=True)[:3]
+
     # Build preset query strings
     def preset_url(d: int) -> str:
         sd = (today - timedelta(days=d)).strftime("%Y-%m-%d")
@@ -142,6 +189,11 @@ def merma_list(
             "recipes": recipes_with_yield,
             "top_ingredients": top_ingredients,
             "amplified_rows": amplified_rows,
+            "source_mix_14d": source_mix_14d,
+            "source_by_waste_id": source_by_waste_id,
+            "today_event_count": today_event_count,
+            "today_total_cost": today_total_cost,
+            "today_top_ingredients": today_top_ingredients,
             "days": days,
             "since": start_date.strftime("%Y-%m-%d"),
             "until": end_date.strftime("%Y-%m-%d"),
