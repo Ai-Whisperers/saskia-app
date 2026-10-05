@@ -126,6 +126,7 @@ DEFAULT_BRANDING = {
     "footer": "Sistema local",
     "accent_color": "#f97316",
     "logo_path": "",
+    "ruc": "",
 }
 
 

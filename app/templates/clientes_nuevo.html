@@ -15,7 +15,7 @@
 <form method="post" action="/clientes/nuevo" class="card" style="max-width:560px;">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-  {% if error %}<div class="alert is-error" role="alert">{{ error }}</div>{% endif %}
+  {% if error %}<div class="alert is-error" role="alert" aria-live="polite" id="form-error">{{ error }}</div>{% endif %}
 
   <div class="form-row is-required">
     <label for="name">Nombre</label>

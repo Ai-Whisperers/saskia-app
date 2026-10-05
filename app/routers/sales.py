@@ -51,6 +51,7 @@ from app.rms.public_tokens import (
     generate_public_token,
     is_token_valid,
 )
+from app.rms.settings_runtime import get_branding
 from app.rms.schemas import (
     ALLOWED_CHANNELS,
     CHANNEL_DEFAULT,
@@ -672,6 +673,7 @@ async def sale_receipt(
         {
             "sale": _decorated(sale),
             "loyalty_snapshot": loyalty_snapshot,
+            "branding": get_branding(session),
         },
     )
 
