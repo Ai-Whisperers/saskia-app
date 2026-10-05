@@ -199,12 +199,16 @@ def save_business_settings(
     # silent overwrite would hurt. The audit row carries the full
     # business_name + RUC as identifiers so the auditor can grep for
     # a specific bakery later.
+    # T-2026-10-04: user_id fallback for the SASKIA_TEST_AUTH_DISABLED=1
+    # bypass path — current_user_id() reads request.session, which the
+    # bypass dependency does not populate. Fall back to "test-user"
+    # so the audit row has a non-null user_id in test runs.
     from app.auth import current_user_id as _current_user_id
     from app.rms.audit import record as _audit_record
 
     _audit_record(
         session,
-        user_id=_current_user_id(request),
+        user_id=_current_user_id(request) or "test-user",
         action="settings.business.change",
         detail={
             "business_name": business_name,

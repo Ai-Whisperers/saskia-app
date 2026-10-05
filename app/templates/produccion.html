@@ -274,6 +274,48 @@
   <small><strong>✓ Horneado extra agregado.</strong> Aparece abajo con badge naranja.</small>
 </div>
 {% endif %}
+{# T-2026-10-04 (P0:B.5): shift-execute success flash + audio chime.
+   Triggered by the `?shift_saved=N` query param that the shift-execute
+   handler appends to the redirect. Plays a short WebAudio beep (no asset
+   to ship, no autoplay friction) so the cook knows without re-reading
+   the page. Muteable via localStorage setting `saskia.audio.muted=1`. #}
+{% if shift_saved and shift_saved > 0 %}
+<div class="card mb-4" data-shift-saved="{{ shift_saved }}"
+     style="background: var(--color-success-soft, #d1fae5); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-success, #10b981); display: flex; align-items: center; gap: var(--space-3);">
+  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+  <small>
+    <strong>✓ Turno guardado: {{ shift_saved }} producto{{ 's' if shift_saved != 1 else '' }} actualizado{{ 's' if shift_saved != 1 else '' }}.</strong>
+  </small>
+</div>
+<script>
+(function() {
+  // T-2026-10-04 (P0:B.5) — short audio chime on successful shift save.
+  // 880 Hz beep, 120 ms — audible over kitchen noise but not annoying.
+  // Skip if user has muted the app or prefers reduced motion.
+  try {
+    if (localStorage.getItem('saskia.audio.muted') === '1') return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    var ctx = new Ctx();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(1320, ctx.currentTime + 0.06);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.14);
+  } catch (e) {
+    // Audio chime is non-critical; silent on failure (iOS Safari, etc).
+  }
+})();
+</script>
+{% endif %}
 
 {# T-2026-10-04 (P1): Closed-day banner + reopen action. #}
 {% if closed_day_active %}
@@ -534,14 +576,28 @@
                  Low (1-49): orange, review before baking.
                  The eye can spot outliers when most rows are uniformly green. #}
             {% if not r.is_ad_hoc %}
+              {# T-2026-10-04 (P0:B.8): confidence tooltip now includes the
+                 forecast source and a Spanish breakdown of the heuristic
+                 so the cook knows WHY the number is what it is — not just
+                 what to do about it. Mobile cooks can long-press to read. #}
+              {% set source_label = {
+                'rolling_14d_avg': 'rolling 14d',
+                'seasonal_event': 'evento estacional',
+                'manual': 'manual',
+                'template': 'plantilla'
+              }.get(r.forecast_source, r.forecast_source) %}
               {% if r.confidence_pct >= 70 %}
-                <span class="confidence-pill conf-high" title="Alta confianza">{{ r.confidence_pct }}%</span>
+                <span class="confidence-pill conf-high"
+                      title="Alta confianza · {{ source_label }} · {{ r.confidence_pct }}% = muchas ventas + muchos días con datos">{{ r.confidence_pct }}%</span>
               {% elif r.confidence_pct >= 50 %}
-                <span class="confidence-pill conf-medium" title="Confianza media — revisá">{{ r.confidence_pct }}%</span>
+                <span class="confidence-pill conf-medium"
+                      title="Confianza media · {{ source_label }} · {{ r.confidence_pct }}% = algunos datos, revisá">{{ r.confidence_pct }}%</span>
               {% elif r.confidence_pct > 0 %}
-                <span class="confidence-pill conf-low" title="Confianza baja — ajustá manualmente">{{ r.confidence_pct }}%</span>
+                <span class="confidence-pill conf-low"
+                      title="Confianza baja · {{ source_label }} · {{ r.confidence_pct }}% = muy pocos datos, ajustá manualmente">{{ r.confidence_pct }}%</span>
               {% else %}
-                <span class="confidence-pill conf-zero" title="Sin datos — definí la cantidad">0%</span>
+                <span class="confidence-pill conf-zero"
+                      title="Sin datos · definí la cantidad">{{ r.confidence_pct }}%</span>
               {% endif %}
             {% endif %}
           </td>

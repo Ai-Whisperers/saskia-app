@@ -59,7 +59,7 @@ jobs:
         # limit and still drops full suite from ~10 min to ~6 min on a
         # 2-core runner. See docs/operations/2026-10-04-parallel-tests.md
         # for the disk-usage analysis and the rationale.
-        run: uv run pytest -n 2 --cov=app --cov-report=term-missing
+        run: uv run pytest -n 2 --dist=loadscope --cov=app --cov-report=term-missing
 
       # ---- E2.S2: real Postgres tests via testcontainers ----
       # Boots a real Postgres container (postgres:16-alpine), runs only the

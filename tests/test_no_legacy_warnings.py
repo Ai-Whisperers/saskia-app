@@ -17,6 +17,12 @@ pytestmark = pytest.mark.manual
 def test_clean_run_reports_zero_warnings():
     """Running a few representative tests should emit zero warnings."""
     import subprocess
+    from pathlib import Path
+
+    # T-2026-10-04: was hardcoded to /opt/data/work/saskia-app (a
+    # sibling worktree). Follow the current worktree so subprocess
+    # can find the right tests/ and pyproject.toml.
+    project_root = Path(__file__).resolve().parents[1]
 
     result = subprocess.run(
         [
@@ -25,6 +31,12 @@ def test_clean_run_reports_zero_warnings():
             "pytest",
             "-q",
             "--tb=no",
+            # T-2026-10-04: --no-cov to bypass the project's 35% coverage
+            # floor. The 3 selected tests don't cover 35% on their own
+            # (they exercise audit_prune + dependencies + daily_summary
+            # modules which is a small slice of the codebase). The
+            # "legacy warnings" check is what we care about, not coverage.
+            "--no-cov",
             "tests/test_audit_prune.py",
             "tests/test_dependencies.py",
             "tests/test_daily_summary.py",
@@ -32,7 +44,7 @@ def test_clean_run_reports_zero_warnings():
         capture_output=True,
         text=True,
         timeout=60,
-        cwd="/opt/data/work/saskia-app",
+        cwd=str(project_root),
     )
     # Should pass.
     assert result.returncode == 0, f"Test failures:\n{result.stdout[-1000:]}"
