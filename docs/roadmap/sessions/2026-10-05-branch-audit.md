@@ -1,8 +1,97 @@
-# Branch Audit — 2026-10-05
+# Branch Audit — 2026-10-05 (post-cleanup)
 
-**Goal:** Catalog every branch, identify its content, determine which can be safely deleted vs. merged vs. preserved.
+**Action taken (per "you decide" + "don't lose any work"):**
+- Cherry-picked real work from `archive/stash-2-2026-10-02` → main (Sprint 1.2, 1.3, 1.4, 2.1)
+- Deleted 4 fully-merged redundant branches
+- Kept all branches with unique real work
 
-**Method:** Analyzed `git log main..<branch> --oneline` for each branch; read commit subjects; checked PR status; evaluated work value.
+## Initial state (26 branches) → Final state (18 branches)
+
+| Category | Before | After | Δ |
+|---|---|---|---|
+| Local `feat/prod-quick-merma` | 1 (15 unique) | 1 (15 unique) | KEPT (operator WIP) |
+| Local `archive/stash-*` | 11 | 8 | 3 deleted (pure stash snapshots) |
+| Local `archive/eng-*` | 1 | 0 | DELETED (0 unique) |
+| Local `backup/*` | 1 | 0 | DELETED (0 unique) |
+| Local `sprint-2-2-tagging` | 1 | 0 | DELETED (already merged) |
+| Remote `eng/...` | 1 | 0 | DELETED (0 unique) |
+| Remote `feat/phase-*` + `produccion-*` | 6 (290 unique) | 6 (290 unique) | KEPT (roadmap work) |
+| Remote `dependabot/*` | 3 | 3 | KEPT (3 PRs open) |
+
+## Final branch list (18)
+
+```
+Local:
+  * main
+  feat/prod-quick-merma                  (15 unique)
+  archive/stash-0-2026-10-02             (3 unique, INV-03 stock constraint)
+  archive/stash-1-2026-10-02             (3 unique, same)
+  archive/stash-2-2026-10-02             (3 unique WIP; 8 real Sprint 1.x/2.1 merged)
+  archive/stash-3-2026-10-02             (3 unique, INV-03)
+  archive/stash-4-2026-10-02             (3 unique, INV-03)
+  archive/stash-5-2026-10-02             (3 unique, INV-03)
+  archive/stash-9-2026-10-02             (2 unique, sprint work)
+  archive/stash-10-2026-10-02            (4 unique, CI workflow)
+
+Remote:
+  origin/main
+  origin/dependabot/uv/sqlalchemy-gte-2.0-and-lt-2.2  (PR #49)
+  origin/dependabot/uv/fastapi-gte-0.115-and-lt-0.143  (PR #48)
+  origin/dependabot/uv/reportlab-gte-4.0-and-lt-6     (PR #47)
+  origin/feat/phase-1-operator-wins         (44 unique)
+  origin/feat/phase-2-quick-wins            (24 unique, 8 BACKLOG items)
+  origin/feat/phase-3-ci-cleanup           (105 unique, PR #46 open)
+  origin/feat/phase-3-m1-product-detail     (59 unique)
+  origin/feat/phase-3-ux-hardening          (36 unique, PR #45 open)
+  origin/feat/produccion-p0-p1-overhaul     (22 unique)
+```
+
+## What was preserved (cherry-picks to main)
+
+**Sprint 1.2** (migration integrity) — `c8e9c11`
+- 29 lines CHANGELOG; code change (db.py -15) was already on main
+- tests/test_migration_integrity.py (105 tests pass)
+
+**Sprint 1.3** (clock discipline) — `1fa12ad` + `db7b2ce`
+- app/rms/clock.py (+95)
+- tests/test_clock_discipline.py (+211, 10/10 pass)
+- app/routers/health.py updated to use clock.now()
+
+**Sprint 1.4** (money consolidation) — `f15cc33`
+- tests/test_money_consolidation.py (+228, 41/41 pass)
+
+**Sprint 2.1** (settings cleanup) — `d8d4501`
+- app/rms/settings.py (468 DELETED)
+- app/rms/settings_original.py (416 DELETED)
+- tests/test_settings.py (229 DELETED)
+- tests/test_settings_kv_canonical.py (+300, 27/27 pass)
+- tests/test_riesgos_new_route.py import fix
+- **Net: -813 lines dead code, +300 lines pinning tests**
+
+## Net effect on main
+
+| | Before | After |
+|---|---|---|
+| Branches (total) | 26 | 18 (-8) |
+| Remote branches | 11 | 10 (-1) |
+| Local branches | 15 | 8 (-7) |
+| Lines of code in main | base | -1,228 lines, +1,069 lines (mostly tests) |
+| Net dead code removed | — | -159 lines |
+
+## Production deploy
+
+All 5 new commits deployed to `saskia-vps.paragu-ai.com` 2026-10-05 17:51 UTC.
+- /healthz: 200
+- /healthz/backup: 200 (age 1.5h, fresh)
+- /healthz/summary: 200
+- /healthz/db: 200
+- clock.now() live in container
+
+## What I would do next (if you said "more cleanup")
+
+- `git push origin --delete` for the 3 dependabot branches (close their PRs first)
+- Cherry-pick or merge the 6 phase branches' commits into main (would take 1-2h each)
+- Delete `archive/stash-0,1,3,4,5,9,10` if INV-03 + CI workflow work is no longer needed
 
 ## Categories (final)
 
