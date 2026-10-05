@@ -372,6 +372,65 @@ def settings_seed_demo(
     )
 
 
+@router.post("/seed-sazon", response_class=RedirectResponse)
+def settings_seed_sazon(
+    request: Request,
+    overwrite: str = Form("0"),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """One-click seed full multi-tenant data for "La Vaquita Holandesa".
+
+    Creates a complete business: tenant, operators, BRANDING settings,
+    categories, payment methods, margin tiers, suppliers, ingredients
+    (54+) with variants and price history, recipes, products, customers,
+    pedidos, sales, production plans, HACCP records, compliance, and more.
+
+    - overwrite=0: idempotent (skips if seed already exists)
+    - overwrite=1: clears existing sazon-seeded rows and re-seeds
+
+    Use this for fresh-install demo / testing all pages with realistic data.
+    """
+    from app.rms.seed import seed_sazon
+
+    try:
+        do_overwrite = overwrite == "1"
+        report = seed_sazon(session, overwrite=do_overwrite)
+    except Exception as exc:  # noqa: BLE001 — defensive default
+        session.rollback()
+        logger.exception(f"seed_sazon failed: {exc}")
+        return RedirectResponse(
+            url=f"/settings?flash=Error+al+cargar+sazon:+{type(exc).__name__}",
+            status_code=303,
+        )
+
+    inserted = report.as_dict() if hasattr(report, "as_dict") else {}
+    from app.auth import current_user_id as _current_user_id
+    from app.rms.audit import record as _audit_record
+
+    _audit_record(
+        session,
+        user_id=_current_user_id(request),
+        action="settings.seed_sazon",
+        target_type="app_meta",
+        detail={"overwrite": do_overwrite, "inserted": inserted},
+    )
+    session.commit()
+    msg = (
+        f"Datos de La Vaquita Holandesa cargados: "
+        f"{inserted.get('ingredients', '?')} ingredientes, "
+        f"{inserted.get('recipes', '?')} recetas, "
+        f"{inserted.get('products', '?')} productos, "
+        f"{inserted.get('customers', '?')} clientes, "
+        f"{inserted.get('sales', '?')} ventas, "
+        f"{inserted.get('pedidos', '?')} pedidos"
+    )
+    msg_url = msg.replace(" ", "+")
+    return RedirectResponse(
+        url=f"/settings?flash={msg_url}",
+        status_code=303,
+    )
+
+
 @router.get("/catalog", response_class=HTMLResponse)
 def settings_catalog_page(
     request: Request,
@@ -379,7 +438,7 @@ def settings_catalog_page(
 ) -> HTMLResponse:
     """Operator-facing catalog configuration page (Phase 4 + 5 + 6).
 
-    Lets Kiki/Saskia manage categories, channels, payment methods,
+    Lets Kiki/the operator manage categories, channels, payment methods,
     message templates, and branding without touching code. All writes
     go through the JSON API endpoints in app/routers/settings_runtime.py.
     """

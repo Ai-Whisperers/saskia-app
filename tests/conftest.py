@@ -1,9 +1,9 @@
-"""Tests/conftest.py — shared pytest fixtures for the Saskia RMS test suite.
+"""Tests/conftest.py — shared pytest fixtures for the Sazón test suite.
 
 Per docs/operations/2026-09-fase-1-specs.md §9 (test-suite minimum).
 
 Key principle: tests must NEVER write to the production DB path
-(`~/.local/share/AIW-Saskia/rms.sqlite`). The `tmp_db_path` fixture
+(`~/.local/share/aiw-restaurant/rms.sqlite`). The `tmp_db_path` fixture
 forces every test to use a temp directory.
 """
 
@@ -97,13 +97,13 @@ def _silence_unraisable_resource_warnings():
 def tmp_db_path(tmp_path, monkeypatch):
     """Force every test to use a fresh temp DB.
 
-    Sets AIW_SASKIA_DB_PATH and AIW_SASKIA_DATA_DIR/BACKUP_DIR/LOG_DIR
+    Sets AIW_RMS_DB_PATH and AIW_RMS_DATA_DIR/BACKUP_DIR/LOG_DIR
     to tmp_path. autouse=True means every test gets this isolation.
     """
-    monkeypatch.setenv("AIW_SASKIA_DB_PATH", str(tmp_path / "test.sqlite"))
-    monkeypatch.setenv("AIW_SASKIA_DATA_DIR", str(tmp_path / "data"))
-    monkeypatch.setenv("AIW_SASKIA_BACKUP_DIR", str(tmp_path / "backups"))
-    monkeypatch.setenv("AIW_SASKIA_LOG_DIR", str(tmp_path / "logs"))
+    monkeypatch.setenv("AIW_RMS_DB_PATH", str(tmp_path / "test.sqlite"))
+    monkeypatch.setenv("AIW_RMS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("AIW_RMS_BACKUP_DIR", str(tmp_path / "backups"))
+    monkeypatch.setenv("AIW_RMS_LOG_DIR", str(tmp_path / "logs"))
     monkeypatch.setenv("BIND_HOST", "127.0.0.1")
     monkeypatch.setenv("PORT", "8765")
     return tmp_path
@@ -167,6 +167,22 @@ def app_engine(tmp_db_path):
     engine = make_engine(f"sqlite:///{tmp_db_path}/test.sqlite")
     init_db(engine)
     return engine
+
+
+@pytest.fixture(scope="session")
+def app_engine_session(tmp_path_factory):
+    """Session-scoped engine + DB for expensive seed fixtures.
+
+    Use only when the seeder takes >10s and is idempotent (e.g. the
+    multi-tenant sazon seeder). Function-scoped `app_engine` is
+    preferred for normal tests so each test gets a clean DB.
+    """
+    from app.rms.db import init_db, make_engine
+
+    db_dir = tmp_path_factory.mktemp("sazon_db")
+    engine = make_engine(f"sqlite:///{db_dir}/sazon.sqlite")
+    init_db(engine)
+    yield engine
 
 
 @pytest.fixture
