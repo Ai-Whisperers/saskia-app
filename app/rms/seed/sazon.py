@@ -1099,6 +1099,42 @@ def _ensure_user(session: Session, username: str, password: str, *, role: str = 
     return u, False
 
 
+# === Onboarding guard helpers ===
+# The sazon seeder writes 6 AppMeta keys. UI / dashboard can use these to
+# decide whether to show the "Welcome — first run" modal, the "Load
+# La Vaquita Holandesa demo data" button, or just a "Seeded by …" badge.
+# See tests/test_sazon_seed.py::test_app_meta_onboarding_guard.
+
+SAZON_META_KEYS = (
+    "sazon_seed_version",
+    "sazon_seeded_at",
+    "sazon_tenant_slug",
+    "sazon_tenant_name",
+    "sazon_admin_user",
+    "sazon_loaded",
+)
+
+
+def is_sazon_seeded(session: Session) -> bool:
+    """True iff seed_sazon has run on this DB at least once.
+
+    Cheap single-row check. Used by the dashboard to decide whether to
+    show a "Welcome — La Vaquita Holandesa is ready" banner.
+    """
+    row = session.execute(
+        select(AppMeta).where(AppMeta.key == "sazon_loaded")
+    ).scalar_one_or_none()
+    return row is not None and (row.value or "").lower() in ("true", "1", "yes")
+
+
+def sazon_meta(session: Session) -> dict[str, str]:
+    """Return all 6 sazon_* AppMeta rows as a dict (empty if not seeded)."""
+    rows = session.execute(
+        select(AppMeta).where(AppMeta.key.in_(SAZON_META_KEYS))
+    ).scalars().all()
+    return {r.key: r.value for r in rows if r.value is not None}
+
+
 def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: int = 90) -> SazonReport:
     """Idempotent comprehensive seed for La Vaquita Holandesa.
 
@@ -2085,15 +2121,28 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
     )
     report.audit_log_rows = 2
 
-    # === 29. AppMeta pin ===
-    existing_meta = session.execute(
-        select(AppMeta).where(AppMeta.key == "sazon_seed_version")
-    ).scalar_one_or_none()
-    if existing_meta is None:
-        session.add(AppMeta(key="sazon_seed_version", value="1.0", updated_at=datetime.utcnow().isoformat()))
-    else:
-        existing_meta.value = "1.0"
-        existing_meta.updated_at = datetime.utcnow().isoformat()
+    # === 29. AppMeta pins (idempotency + onboarding guard) ===
+    # sazon_seed_version = schema/data version of THIS seeder (bump on breaking changes)
+    sazon_meta_keys = {
+        "sazon_seed_version": "1.0",
+        "sazon_seeded_at": datetime.utcnow().isoformat(),
+        "sazon_tenant_slug": TENANT_SLUG,
+        "sazon_tenant_name": TENANT_NAME,
+        "sazon_admin_user": SASKIA_USER,
+        # Onboarding guard: lets the welcome modal / dashboard know that
+        # *some* demo data is loaded. Future feature flags can be added
+        # here (e.g. "sazon_loaded_charts", "sazon_loaded_reports").
+        "sazon_loaded": "true",
+    }
+    for k, v in sazon_meta_keys.items():
+        existing = session.execute(
+            select(AppMeta).where(AppMeta.key == k)
+        ).scalar_one_or_none()
+        if existing is None:
+            session.add(AppMeta(key=k, value=str(v), updated_at=datetime.utcnow().isoformat()))
+        else:
+            existing.value = str(v)
+            existing.updated_at = datetime.utcnow().isoformat()
 
     # === 30. Bank transactions (a few recent ones) ===
     bank_tx_data = [

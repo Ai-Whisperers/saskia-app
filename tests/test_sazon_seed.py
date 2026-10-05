@@ -270,6 +270,70 @@ def test_business_infra(sazon_db):
     assert n_bk >= 5
 
 
+def test_app_meta_onboarding_guard(sazon_db):
+    """The sazon seeder should write 6 AppMeta keys used as an onboarding guard.
+
+    Keys written:
+      sazon_seed_version, sazon_seeded_at, sazon_tenant_slug,
+      sazon_tenant_name, sazon_admin_user, sazon_loaded
+    """
+    from sqlalchemy import select
+    from app.rms.models import AppMeta
+    from app.rms.seed.sazon import is_sazon_seeded, sazon_meta, SAZON_META_KEYS
+
+    rows = sazon_db.execute(
+        select(AppMeta).where(AppMeta.key.in_(SAZON_META_KEYS))
+    ).scalars().all()
+    by_key = {r.key: r.value for r in rows}
+    assert len(rows) == 6, f"expected 6 sazon_* AppMeta rows, got {len(rows)}: {by_key}"
+    assert by_key["sazon_seed_version"] == "1.0"
+    assert by_key["sazon_tenant_slug"] == "la-vaquita-holandesa"
+    assert by_key["sazon_tenant_name"] == "La Vaquita Holandesa"
+    assert by_key["sazon_admin_user"] == "saskia"
+    assert by_key["sazon_loaded"].lower() in ("true", "1", "yes")
+    # ISO timestamp
+    import re as _re
+    assert _re.match(r"^\d{4}-\d{2}-\d{2}T", by_key["sazon_seeded_at"])
+
+    # Helpers
+    assert is_sazon_seeded(sazon_db) is True
+    info = sazon_meta(sazon_db)
+    assert info["sazon_tenant_name"] == "La Vaquita Holandesa"
+    assert info["sazon_admin_user"] == "saskia"
+
+
+def test_is_sazon_seeded_false_on_fresh_db(app_engine):
+    """On a fresh DB (no seed), is_sazon_seeded() must return False."""
+    from app.rms.seed.sazon import is_sazon_seeded, sazon_meta
+    from app.rms.db import make_session_factory
+
+    SessionLocal = make_session_factory(app_engine)
+    session = SessionLocal()
+    try:
+        assert is_sazon_seeded(session) is False
+        assert sazon_meta(session) == {}
+    finally:
+        session.close()
+
+
+def test_dashboard_banner_data_available(sazon_db, app_engine_session):
+    """Dashboard route should expose sazon_seeded=True + tenant info when seeded."""
+    from app.rms.db import make_session_factory
+    from app.rms.seed.sazon import is_sazon_seeded, sazon_meta
+
+    SessionLocal = make_session_factory(app_engine_session)
+    session = SessionLocal()
+    try:
+        seeded = is_sazon_seeded(session)
+        info = sazon_meta(session) if seeded else {}
+        assert seeded is True
+        assert info["sazon_tenant_name"] == "La Vaquita Holandesa"
+        assert info["sazon_admin_user"] == "saskia"
+        assert "sazon_seeded_at" in info
+    finally:
+        session.close()
+
+
 def test_idempotent_rerun(sazon_db, app_engine_session):
     """Running seed_sazon again should be idempotent for non-derived data.
 

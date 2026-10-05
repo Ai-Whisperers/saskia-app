@@ -26,9 +26,12 @@ from app.rms.seed.demo import (
 from app.rms.seed.sazon import (
     SASKIA_PASSWORD,
     SASKIA_USER,
+    SAZON_META_KEYS,
     TENANT_NAME,
     TENANT_SLUG,
     SazonReport,
+    is_sazon_seeded,
+    sazon_meta,
     seed_sazon,
 )
 
@@ -40,12 +43,15 @@ __all__ = [
     "RECIPES",
     "SASKIA_PASSWORD",
     "SASKIA_USER",
+    "SAZON_META_KEYS",
     "SazonReport",
     "TENANT_NAME",
     "TENANT_SLUG",
     "competitor_prices",
     "competitor_seed",
     "competitor_shoppings",
+    "is_sazon_seeded",
+    "sazon_meta",
     "seed_demo_data",
     "seed_sazon",
 ]

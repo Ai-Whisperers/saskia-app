@@ -1125,6 +1125,14 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
     ).one()
     risk_count, risk_severity_gs = int(risk_agg[0] or 0), int(risk_agg[1] or 0)
 
+    # Sazon onboarding guard — show a small welcome banner if seed_sazon
+    # has been run (multi-tenant demo data loaded). The AppMeta row is
+    # written by app/rms/seed/sazon.py; see is_sazon_seeded() / sazon_meta().
+    from app.rms.seed.sazon import is_sazon_seeded, sazon_meta
+
+    sazon_seeded = is_sazon_seeded(session)
+    sazon_info = sazon_meta(session) if sazon_seeded else {}
+
     return render(
         request,
         "dashboard.html",
@@ -1154,6 +1162,10 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
             "wishlist_total_gs": wishlist_total_gs,
             "risk_count": risk_count,
             "risk_severity_gs": risk_severity_gs,
+            "sazon_seeded": sazon_seeded,
+            "sazon_tenant_name": sazon_info.get("sazon_tenant_name", ""),
+            "sazon_admin_user": sazon_info.get("sazon_admin_user", ""),
+            "sazon_seeded_at": sazon_info.get("sazon_seeded_at", ""),
         },
     )
 
