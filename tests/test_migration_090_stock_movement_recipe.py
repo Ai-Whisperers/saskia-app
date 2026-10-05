@@ -81,7 +81,7 @@ def test_stock_movement_affected_recipe_id_has_index(session_factory):
 
 
 def test_migration_090_idempotent(tmp_path):
-    """Re-running init_db on a DB already at schema 92 is a no-op."""
+    """Re-running init_db on a DB already at schema 98 is a no-op."""
     from sqlalchemy import create_engine
 
     from app.rms.config import CURRENT_SCHEMA_VERSION

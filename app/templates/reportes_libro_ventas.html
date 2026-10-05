@@ -49,6 +49,7 @@
 <p class="text-muted mb-3">Total: {{ rows|length }} líneas</p>
 {{ ui.skeleton_section(id="libro-ventas-table", variant="line", count=10, label="Cargando libro de ventas") }}
 <div data-loaded-section="libro-ventas-table">
+<div class="table-wrap">
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
@@ -110,6 +111,7 @@
     </tr>
   </tfoot>
 </table>
+</div>
 </div>
 {% else %}
 {{ ui.empty_state(title="No hay ventas en este período", icon="icon-report", hint="Probá con un rango de fechas más amplio.") }}

@@ -44,3 +44,64 @@ def test_help_link_in_nav(client):
     body = resp.text
     assert "/guia" in body
     assert 'aria-label="Guía de uso"' in body or 'title="Guía de uso"' in body
+
+
+# ─── P3: D.7 Glossary (2026-10-05) ────────────────────────────────────
+# 20 bakery-domain terms defined in docs/user-guide/glosario.md, served
+# at /guia/glosario via the existing /guia/{section} catch-all.
+
+
+def test_guia_glosario_returns_200(client):
+    """The glossary section renders without error."""
+    resp = client.get("/guia/glosario")
+    assert resp.status_code == 200
+
+
+def test_guia_glosario_renders_h1(client):
+    """The glossary H1 title is rendered."""
+    resp = client.get("/guia/glosario")
+    assert resp.status_code == 200
+    assert "<h1>" in resp.text
+    assert "Glosario" in resp.text
+
+
+def test_guia_glosario_has_20_terms(client):
+    """All 20 glossary terms render as <h3> headings."""
+    resp = client.get("/guia/glosario")
+    assert resp.status_code == 200
+    h3_count = resp.text.count("<h3>")
+    assert h3_count >= 20, f"Expected ≥20 glossary terms, got {h3_count}"
+
+
+@pytest.mark.parametrize("term", [
+    "Escandallo",
+    "Merma",
+    "Food cost",
+    "Receta técnica",
+    "Stock",
+    "Cierre diario",
+    "Arqueo de caja",
+    "Producción",
+    "Pedido",
+    "Comprobante",
+    "SKU",
+    "Migración",
+    "Backup",
+    "CSRF",
+    "Auditoría",
+    "Health check",
+    "Schema version",
+    "Token público",
+])
+def test_guia_glosario_contains_term(client, term):
+    """Each key bakery/technical term is defined in the glossary."""
+    resp = client.get("/guia/glosario")
+    assert resp.status_code == 200
+    assert term in resp.text, f"Term '{term}' missing from glossary"
+
+
+def test_help_route_includes_glossary_link(client):
+    """The /guia index (README.md) mentions the glossary."""
+    resp = client.get("/guia")
+    assert resp.status_code == 200
+    assert "glosario" in resp.text.lower(), "glosario link missing from /guia index"

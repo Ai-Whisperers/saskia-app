@@ -30,6 +30,7 @@ from app.rms.categories import (
     update_category,
 )
 from app.rms.dependencies import get_session
+from app.rms.clock import now
 from app.rms.settings_runtime import (
     compute_suggested_price,
     get_pricing_markup,
@@ -552,7 +553,7 @@ def update_template_endpoint(
         row.is_active = payload.is_active
     if body_changed:
         row.version += 1
-    row.updated_at = datetime.now(timezone.utc)
+    row.updated_at = now()
     session.commit()
     return {
         "id": row.id,

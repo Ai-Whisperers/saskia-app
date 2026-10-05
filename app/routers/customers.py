@@ -1051,8 +1051,15 @@ def cliente_detail(
         select(LoyaltyTransaction)
         .where(LoyaltyTransaction.customer_id == customer.id)
         .order_by(LoyaltyTransaction.recorded_at.desc())
-        .limit(20)
+        # P4.1: cap inline ledger at 5; show "Ver todo" link to the
+        # full history. Full list is on the /clientes/{id}/loyalty
+        # page (or ?loyalty=full anchor expansion — tracked).
+        .limit(5)
     ).all()
+    loyalty_total = session.scalar(
+        select(func.count(LoyaltyTransaction.id))
+        .where(LoyaltyTransaction.customer_id == customer.id)
+    ) or 0
 
     # Tier badge days-since-last-sale: SQLite returns NAIVE datetimes while
     # now() is aware — subtracting them raises TypeError (500 on
@@ -1170,6 +1177,8 @@ def cliente_detail(
             "history": history,
             "history_view": history_view,
             "recent_loyalty": recent_loyalty,
+            # P4.1: total loyalty count for "Ver todo (N)" link.
+            "loyalty_total": loyalty_total,
             "dietary_profile": profile,
             "now_iso": datetime.now(timezone.utc).isoformat(),
             "last_days": last_days,
@@ -1256,6 +1265,52 @@ async def cliente_redeem_points(
     return RedirectResponse(
         url=f"/clientes/{customer_id}?flash=points_redeemed:{redeemed}:{discount_gs}",
         status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+# P5: full loyalty ledger page (the "Ver todo" target from /clientes/{id}).
+# No row cap — operators need to see the entire history when a customer
+# disputes a point balance or asks for a manual adjustment audit.
+@router.get("/{customer_id}/loyalty", response_class=HTMLResponse)
+def cliente_loyalty(
+    request: Request,
+    customer_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Full loyalty ledger for one customer. Used from the
+    'Ver todo (N)' link on the customer detail page."""
+    customer = session.get(Customer, customer_id)
+    if customer is None:
+        return StarletteRedirectResponse(url="/clientes", status_code=303)
+    from app.rms.models import LoyaltyTransaction
+    from sqlalchemy import select as _select
+
+    full_loyalty = session.scalars(
+        _select(LoyaltyTransaction)
+        .where(LoyaltyTransaction.customer_id == customer_id)
+        .order_by(LoyaltyTransaction.recorded_at.desc())
+    ).all()
+
+    # Aggregate stats for the header.
+    total_earned = sum(t.delta for t in full_loyalty if t.delta > 0)
+    total_redeemed = -sum(t.delta for t in full_loyalty if t.delta < 0)
+    # P5: read current balance from the loyalty_points cache column.
+    # (Source of truth is the ledger; this column is kept in sync by
+    # award_points() in app/rms/customers.py — not touched here.)
+    balance = customer.loyalty_points or 0
+
+    from app.services.template_render import render as _render
+    return _render(
+        request,
+        "cliente_loyalty.html",
+        {
+            "customer": customer,
+            "full_loyalty": full_loyalty,
+            "loyalty_count": len(full_loyalty),
+            "total_earned": total_earned,
+            "total_redeemed": total_redeemed,
+            "balance": balance,
+        },
     )
 
 
@@ -1429,14 +1484,71 @@ def cliente_update(
         validate_phone,
     )
 
+    # P3.1: server-side validation should re-render the form with
+    # preserved values, not raise HTTPException 400 (which loses input).
+    from fastapi import HTTPException as _HE
+
+    form_values = {
+        "name": name, "phone": phone, "email": email,
+        "cedula": cedula, "notes": notes,
+        "birthday": birthday, "how_found": how_found,
+        "preferred_channel": preferred_channel,
+        "marketing_consent": marketing_consent,
+        "invoice_name": invoice_name, "invoice_ruc": invoice_ruc,
+        "dietary_restriction": dietary_restriction,
+        "dietary_prefs_payload": dietary_prefs_payload,
+        "dietary_confirm_always": dietary_confirm_always,
+    }
+    form_error: str | None = None
+
+    def _re_render_edit(error_msg: str) -> object:
+        """Re-render the edit form with preserved values + the error."""
+        from app.rms.customer_dietary import load_profile
+        from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
+        from app.rms.models import CustomerAddress, DeliveryZone, CustomerInvoiceProfile
+
+        # Re-load the data the GET route loads, so the template renders fully.
+        profile = load_profile(
+            customer.dietary_restrictions,
+            customer.dietary_preferences,
+            customer.dietary_confirm_always,
+        )
+        addresses = session.scalars(
+            select(CustomerAddress)
+            .where(CustomerAddress.customer_id == customer_id)
+            .order_by(CustomerAddress.is_default.desc(), CustomerAddress.id)
+        ).all()
+        zones = session.scalars(
+            select(DeliveryZone).where(DeliveryZone.is_active.is_(True)).order_by(DeliveryZone.position)
+        ).all()
+        invoice_profiles_list = session.scalars(
+            select(CustomerInvoiceProfile)
+            .where(CustomerInvoiceProfile.customer_id == customer_id)
+            .where(CustomerInvoiceProfile.is_active.is_(True))
+            .order_by(CustomerInvoiceProfile.is_default.desc(), CustomerInvoiceProfile.alias)
+        ).all()
+
+        return render(
+            request,
+            "cliente_editar.html",
+            {
+                "customer": customer,
+                "dietary_profile": profile,
+                "dietary_tag_options": sorted(CANONICAL_DIETARY_TAGS),
+                "addresses": addresses,
+                "zones": zones,
+                "zone_names": {z.id: z.name for z in zones},
+                "invoice_profiles": invoice_profiles_list,
+                "how_found_options": sorted(ALLOWED_HOW_FOUND),
+                "channel_options": sorted(ALLOWED_CHANNELS),
+                "form_values": form_values,
+                "form_error": error_msg,
+            },
+        )
+
     customer = session.get(Customer, customer_id)
     if customer is None:
         return RedirectResponse(url="/clientes", status_code=303)
-    customer.name = require_text(name, field="nombre", max_len=120)
-    customer.phone = validate_phone(phone)
-    customer.email = validate_email(email)
-    customer.cedula = validate_cedula(cedula)
-    customer.notes = optional_text(notes, max_len=2000)
 
     # P3 dietary profile: restrictions (canonical tags, cleaned), ordered
     # preferences (JSON), confirm-always flag.
@@ -1452,11 +1564,11 @@ def cliente_update(
     ]
     customer.dietary_restrictions = format_restrictions(clean_restrictions) or None
     try:
-        prefs = parse_preferences(dietary_prefs_payload)
-    except Exception:  # noqa: BLE001 — malformed JSON from a stale tab
-        prefs = []
-    customer.dietary_preferences = format_preferences(prefs) if prefs else None
-    customer.dietary_confirm_always = dietary_confirm_always == "1"
+        customer.name = require_text(name, field="nombre", max_len=120)
+        customer.phone = validate_phone(phone)
+        customer.email = validate_email(email)
+        customer.cedula = validate_cedula(cedula)
+        customer.notes = optional_text(notes, max_len=2000)
 
     # P3 profile batch
     # Birthday: accept DD-MM or DD-MM-AAAA (as hinted in the form) and
@@ -1497,9 +1609,15 @@ def cliente_update(
         detail={"name": customer.name},
     )
     session.commit()
-    return RedirectResponse(
-        url=f"/clientes/{customer_id}?flash=Cliente+actualizado", status_code=303
-    )
+    # P3.7: respect the operator's chosen redirect target
+    # (default = back to detail; "stay" = back to edit).
+    intent = (str(form.get("intent") or "back")).strip()
+    redirect_to = (str(form.get("redirect_to") or "")).strip()
+    if intent == "stay" and redirect_to.startswith(f"/clientes/{customer_id}/editar"):
+        url = f"/clientes/{customer_id}/editar?flash=Cliente+actualizado"
+    else:
+        url = f"/clientes/{customer_id}?flash=Cliente+actualizado"
+    return RedirectResponse(url=url, status_code=303)
 
 
 @router.post("/bulk-eliminar")

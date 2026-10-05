@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/audits/OBSERVABILITY_AUDIT.md`**
+
+Observability audit, archived.
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # 🔍 Observability & Error Handling — Full Audit & Refactor
 
 **Date**: 2026-09-23  

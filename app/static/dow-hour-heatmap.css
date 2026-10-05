@@ -1,0 +1,51 @@
+/* Day-of-week × hour-of-day heatmap (BACKLOG #36, 2026-10-02).
+   Loaded by base.html or inicio.html via {% block head_extra %}. */
+.dow-hour-heatmap {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 2px;
+    margin-bottom: var(--space-2);
+    table-layout: fixed;
+    font-size: var(--text-xs);
+}
+
+.dow-hour-heatmap thead th {
+    text-align: center;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    padding: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+}
+
+.dow-hour-heatmap tbody th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--color-text);
+    padding: var(--space-1) var(--space-2);
+    width: 36px;
+    white-space: nowrap;
+}
+
+.dow-hour-heatmap .heat-cell {
+    height: 28px;
+    border-radius: var(--radius-sm);
+    text-align: center;
+    vertical-align: middle;
+    color: var(--color-text-inverse);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.65rem;
+    min-width: 22px;
+}
+
+.dow-hour-heatmap .heat-cell:empty,
+.dow-hour-heatmap .heat-cell.empty-cell {
+    background-color: var(--color-surface-subtle);
+    color: var(--color-text-subtle);
+}
+
+@media (max-width: 768px) {
+    .dow-hour-heatmap thead th { font-size: 0.55rem; padding: 2px; }
+    .dow-hour-heatmap tbody th { width: 24px; padding: 2px; }
+    .dow-hour-heatmap .heat-cell { height: 22px; min-width: 14px; }
+}

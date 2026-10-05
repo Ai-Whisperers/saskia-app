@@ -430,4 +430,32 @@ def eod_completar(
     return RedirectResponse(url="/eod", status_code=303)
 
 
+# Tier 8.4 (2026-10-01): EOD anomaly detection endpoint. The operator
+# can trigger it manually, and the cron-driven path (when we add one)
+# will hit this same URL.
+@router.post("/anomalies/run", response_class=HTMLResponse)
+def eod_run_anomalies(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Run EOD anomaly detection for today and email the operator.
+
+    Idempotent. Returns a small HTML page listing the anomalies found
+    so the operator sees what fired.
+    """
+    from app.observability.alerts import dispatch_anomalies
+    from app.services.eod_anomaly import detect_anomalies
+
+    anomalies = detect_anomalies(session)
+    dispatched = dispatch_anomalies(anomalies)
+    return render(
+        request,
+        "eod_anomalies.html",
+        {
+            "anomalies": anomalies,
+            "dispatched": dispatched,
+        },
+    )
+
+
 __all__ = ["router"]

@@ -1,0 +1,288 @@
+All 13 pages inspected (≈30 vision passes over tiled crops, plus full-page pass on the receipt). Report below.
+
+# Saskia RMS — Visual Audit (13 páginas, 1280px)
+
+**Método**: capturas leídas por visión artificial; etiquetas citadas textualmente. Los recortes laterales por tiling se descartaron; solo se reportan defectos confirmados en contexto de página completa.
+
+---
+
+## 1. `/` — inicio.png
+
+**Layout**: sidebar blanca agrupada (OPERACIÓN / CATÁLOGO / COMPRAS / FINANZAS / SISTEMA), topbar con fecha + búsqueda + botón "Nuevo", breadcrumb, saludo gigante "Buen día", sección "HOY" con cards KPI, "Acciones del día", columna derecha con plan/productos, "Ventas por hora del día", "Tendencia — últimos 30 días", "Distribución de pagos", ranking, y bloque "Operación (cola de tareas)".
+
+**Defectos**:
+- "Buen día" a las **17:47** (debería ser "Buenas tardes") — la lógica de saludo está rota.
+- Fecha/hora duplicada: "sábado 26 sep 2026 · 17:47" aparece en topbar **y** bajo el saludo.
+- Card "OPERACIONES" con valor **"—"** pelado, sin empty-state, junto a "VENTAS DE HOY / aún no hay ventas hoy" que sí tiene texto — dos convenciones distintas en la misma fila.
+- Convención de títulos mezlada: micro-labels uppercase ("VENTAS DE HOY") vs. sentence-case bold ("Acciones del día", "Plan de mañana").
+- Sub-métricas basura: "0 estimados", "0 equipo", "0 severidad" — fragmentos concatenados, no español natural; y en **rojo/naranja** aunque cero = estado bueno.
+- Inconsistencia de severidad: "CRITICO" (sin tilde) en una card y "CRÍTICO" (con tilde) en la de Alertas de la misma página.
+- Alerta envuelta mal: "Levadura seca: quedan 0.40 kg (mín. / 1.00)" parte el paréntesis en dos líneas; "Reponer →" queda flotando junto a "(mín.".
+- Icono de corazón en el recibo de ventas… no; aquí: emoji 💡 inline, emojis-ícono mezclados con la línea de íconos del sidebar.
+- Charts con etiquetas de eje ilegibles; "Tendencia" muestra línea plana con un solo pico final sin anotación; "Distribución de pagos — Sin datos de pagos" (texto) vs. Tendencia (chart vacío): empty-states inconsistentes.
+- Links con prefijo raro "**— ·** Ver lista", "**— ·** Ver wishlist" — separadores huérfanos.
+- "Lo que necesita tu atención" alineado a la derecha mientras las cards de abajo están a la izquierda.
+- Anglicismos: "Wishlist", "Targets", "Benchmarks", "vs competencia" en un UI español.
+- Texto redundante en cards 0: "EQUIPAMIENTO PENDIENTE 0 ítems — · Ver wishlist" y "RIESGOS ACTIVOS 0 ítems — · Ver riesgos" — la misma información ya está en la franja KPI superior.
+
+**Rediseño**: (1) Un solo bloque "HOY" con 4 KPIs homogéneos + empty-state estandarizado ("Sin ventas todavía — registrá tu primera venta" con CTA). (2) Borrar la columna derecha duplicativa o fusionarla en tabs. (3) Sistema de severidad con colores consistentes (rojo=crítico, ámbar=aviso) y tildes correctas.
+
+---
+
+## 2. `/dashboard` — dashboard.png
+
+**Layout**: breadcrumb "Inicio › Dashboard", H1 "📈 Dashboard — Septiembre…", subtítulo "KPIs en vivo · datos del local", grilla 2×3 de KPIs con "objetivo:", bloque "📦 Recipes" (2 stats), card "🏆 Receta más vendida", tabla "💼 Por canal de venta", "🛒 Operación" (3 columnas), footer.
+
+**Defectos**:
+- **Título truncado**: "Dashboard — Septem…" se corta en el borde — el H1 no envuelve.
+- KPI "Costo de mate…" envuelve a 3 líneas desalineando los "objetivo: 35%" vs "objetivo: 5%" de sus vecinos.
+- "Porciones vendidas: **12.0**" — decimal en un contador de porciones; y punto decimal vs. punto de miles en la misma pantalla ("120.000").
+- "📦 **Recipes**" — encabezado en inglés, duplicando "Recetas" del sidebar.
+- "Receta más vendida: **Producto 1aacee13**" — ID hex de seed expuesto como headline; "Ingresos: 120.000" sin "Gs.".
+- Tabla "Por canal de venta": header "CANAL" en mayúsculas vs. dato "mostrador" en minúsculas; una sola fila.
+- Franja "Operación": "Lista de Compras abiertas" (capitalización media inconsistente), "0 equipo", "0 estimados" en rojo — de nuevo rojo=en cero.
+- Nota "💡 Datos locales. Targets preconfigurados. 6 trans…" cortada.
+- Footer de tabla "INGRESOS GS." con "120.000" huérfano, sin labels a la izquierda; banda vacía ~260px arriba (chart que no renderizó).
+- Emojis (📈📦🏆💼🛒💡) como sistema de íconos, chocando con los line-icons del sidebar.
+
+**Rediseño**: (1) KPI grid responsive con `minmax` y valores tabulares alineados a derecha. (2) Reemplazar emojis por el set de íconos lineal del sidebar. (3) Formato numérico único es-PY (`12` enteros, `Gs. 120.000`) y traducir "Recipes"/"Targets".
+
+---
+
+## 3. `/ventas` — ventas.png
+
+**Layout**: título "Ventas", sección "Quick-sell" con chip de producto, formulario "Nueva venta" (SKU, Producto, Cantidad, Fecha y hora, Cliente, Canal, Forma de pago, fieldset "Comprobante fiscal", Descuento, Notas), banner verde vacío, actions "Registrar venta / Cancelar / Ver historial".
+
+**Defectos**:
+- "**Quick-sell**" en inglés + inconsistencia de casing ("Quick-sell" heading vs "quick-sell" en placeholder).
+- Placeholder "Escaneá o **tipéa** el código de barras…" — mal acentuado (correcto: "tipeá"), al lado de "Escaneá" bien acentuado.
+- Helper que filtra ruta interna: "el producto se autocompleta desde /ven…" — ruta expuesta al usuario.
+- Chip "Producto 1aace13 — 10.000" sin "Gs." y con ID seed.
+- Fecha "**09/26/2026, 05:47 PM**" — formato US MM/DD/AAAA + AM/PM en UI español/voseo (debería ser 26/09/2026, 17:47).
+- Voz gramatical mezclada: "**Seleccionar** cliente…" (infinitivo) vs. "**Seleccioná** canal…", "Buscá producto…" (voseo).
+- **Banner verde de éxito completamente vacío** renderizado sobre la barra de acciones — box fantasma.
+- Banda gris muerta enorme entre "Notas" y los botones.
+- Helper "Boleta Resimple (IRE RESIMPLE)" con select pintado de verde sin caret visible — no parece un dropdown.
+- "Descuento (Gs.)" prellenado con "0" aunque el helper dice "(opcional)".
+- Focus ring doble (border naranja + ring naranja) en el input SKU.
+
+**Rediseño**: (1) Layout POS de dos columnas: carrito/quick-sell a la izquierda, formulario compacto a la derecha; borrar el banner vacío. (2) Un solo helper por campo, sin rutas internas; validación de Gs. con sufijo. (3) Localizar fechas (input `date` nativo + display `dd/mm/aaaa`) y unificar voseo.
+
+---
+
+## 4. `/ventas/historial` — ventas-historial.png
+
+**Layout**: título "Historial de ventas", botón "+ Ir a Nueva venta", card stats ("VENTAS ACTIVAS 6", "TOTAL R…"), stack de 3 filtros + botón "Filtrar", tabla de 6 filas idénticas, footer.
+
+**Defectos**:
+- Breadcrumb "**Ventas historial**" vs. título "**Historial de ventas**" — orden invertido y inconsistente.
+- Botón "**Filtrar**" estirado a todo el ancho como banner naranja, con el label descentrado — claramente un bug de layout.
+- Filtros redundantes: búsqueda global del topbar + "Buscar producto, nota o teléfono" + "Filtrar por producto..." (tres controles solapantes, dos convenciones de ellipsis).
+- Headers que envuelven: "UNIT. (GS.)" y "TOTAL (GS.)" en dos líneas, desalineando la fila de headers.
+- Importes **alineados a la izquierda** en columnas monetarias.
+- Columnas CLIENTE y PAGO con "—" en las 6 filas; NOTAS totalmente vacía (sin placeholder).
+- Acciones ("Recibo" link + pill roja "**Anular**") colgadas bajo el header NOTAS — no existe columna "ACCIONES".
+- "Anular" (destructivo) al mismo nivel visual que "Recibo", repetido x6 sin diferenciación.
+- 6 filas idénticas ("Producto 1aacee13 / 2.0 / 10.000 / 20.000 / mostrador") con timestamps cada 8h exactas — seed data visible.
+- Tabla sin paginación, sin fila de totales; "Mostrando 1-6 de 6" con guion en vez de en-dash.
+
+**Rediseño**: (1) Toolbar única: search + date-range + export; botón "Filtrar" compacto a la derecha. (2) Columna ACCIONES explícita con menú "⋯" y "Anular" como acción secundaria con confirmación. (3) Números tabulares right-aligned + fila de total.
+
+---
+
+## 5. `/ventas/6/recibo` — venta-recibo.png
+
+**Layout**: breadcrumb "Inicio › Recibo", recibo centrado (~320px): card header con **ícono de corazón** + "Saskia RMS / Recibo de venta", card detalle ("VENTA", Número #6, Fecha, producto, subtotal), "¡Gracias por tu compra!", disclaimer fiscal, botón "Imprimir", link "Volver al historial".
+
+**Defectos**:
+- **Ícono de corazón** encabezando un recibo (semántica de favorito, no de comprobante).
+- Línea "Producto **1aacee13** — 2.00 × Gs. 10.000" — cantidad "2.00" decimal + ID seed como nombre de producto.
+- Enorme vacío alrededor: recibo top-aligned en un mar de gris; breadcrumb lejísimos del card.
+- Botón "Nuevo" del topbar con ícono hamburguesa (≡) en vez de "+".
+- "KPIs (mensual)" del sidebar cortado por el borde inferior del viewport a 900px, sin affordance de scroll.
+- Sub-items del sidebar ("Proveedores", "Análisis", "KPIs (mensual)") sin íconos, rompiendo el ritmo.
+- "Clientes" anidado bajo COMPRAS — IA discutible.
+- Fecha del recibo (25/09 12:47) vs. topbar (26 sep 17:48) puede leerse como error sin etiqueta "ayer".
+
+**Rediseño**: (1) Recibo con header de marca real (logo/ícono de printer), líneas punteadas estilo ticket, totales en bold. (2) Centrar verticalmente y acortar el dead-space; acciones ("Imprimir / Volver") agrupadas bajo el card con separación consistente. (3) Cantidad entera ("2 ×") y fallback de nombre ("Producto sin nombre" → obligar nombre antes de vender).
+
+---
+
+## 6. `/pedidos` — pedidos.png
+
+**Layout**: título "Pedidos" con intro, card de acciones ("+ Nuevo pedido", "Hoy es 26/09/2026", pill "Pendientes"), card búsqueda "Buscar:", tabs "Hoy / Mañana (1)", "Esta semana (0)", "Pendientes viejos (0)", tabla con checkbox (CLIENTE / FECHA HORA / CANAL), "Mostrando 1-1 de 1 pedidos", tabla resumen (CANALES / LÍNEAS / TOTAL GS. / ESTADO / EDAD / Ver).
+
+**Defectos**:
+- **Botón de búsqueda icon-only diminuto** flotando suelto **debajo** del input, que además ocupa medio card — parece un submit sin estilar.
+- Intro dice "**Hoy/Mañana**" (sin espacios) vs. tab "**Hoy / Mañana**" (con espacios).
+- "Pendientes" duplicado: pill naranja arriba + tab "Pendientes viejos" abajo, sin badge en el primero.
+- Card header con **lupa decorativa** junto al título "Hoy / Mañana" — repite el tab activo y simula búsqueda inexistente.
+- Columna "FECHA / HORA" que muestra solo "**26/09**" — sin hora ni año.
+- Checkboxes de selección masiva **sin ninguna acción bulk visible**.
+- "**1**" rojo flotando sin label sobre la tabla resumen.
+- "WhatsApp" vs "whatsapp" (minúsculas en el board) vs "hoy" minúscula junto a "Pendiente" — casing caótico.
+- "Mostrando 1-1 de 1 pedidos" con guion; tabla sin estados vacíos diseñados.
+- "Pedidos pre-cargados para **pickup**" — anglicismo innecesario.
+
+**Rediseño**: (1) Fusionar la card de acciones + búsqueda + tabs en una sola toolbar. (2) Bulk bar contextual que aparece al seleccionar. (3) Casing consistente de canales y "Mostrando 1–1 de 1".
+
+---
+
+## 7. `/pedidos/board` — pedidos-board.png
+
+**Layout**: breadcrumb "Inicio › Pedido board", link "← Volver a pedidos", "Auto-refresh cada 30s · 20:48:00", H1 "🔍 Kitchen Board", columna kanban "Hoy 1" con un tile (#1, badge "Line" chocando con "17", "26/09 · whatsapp", "María López", "2× Producto 1aacee13", "⏰ 0 min").
+
+**Defectos**:
+- **Colisión de badges**: "Line" superpuesto sobre "17" — bug de z-index/posición; "Line" parece palabra cortada.
+- **Board con 2/3 de la pantalla vacía**: una sola columna ("Hoy"); no hay columnas "En curso / Listo / Entregado" ni empty-state — el kanban es una lista de 1 card flotando en gris.
+- Tres nombres para la misma página: sidebar "Pedidos", breadcrumb "**Pedido board**", título "**Kitchen Board**" (en inglés, con emoji 🔍 de lupa).
+- **"⏰ 0 min"** — tiempo de prep en cero: dato faltante en un board de cocina.
+- Tile sin borde/fondo/sombra — no se lee como card arrastrable.
+- Reloj topbar 17:48 vs. "Auto-refresh … **20:48:00**" — desfase de 3 horas (timezone mal calculado).
+- "**Auto-refresh**" en inglés; "whatsapp" en minúsculas.
+
+**Rediseño**: (1) Kanban real: columnas "Hoy / En curso / Listos / Retirados" con headers, contador y drop targets; columna vacía con placeholder. (2) Tile con borde, hora de retiro destacada (no badge chocando), timer vivo. (3) Renombrar todo a "Pizarrón" o "Tablero de cocina" y sincronizar relojes.
+
+---
+
+## 8. `/pedidos/nuevo` — pedidos-nuevo.png
+
+**Layout**: breadcrumb "Inicio › Pedidos nuevo", H1 "+ Nuevo pedido", formulario (Cliente con autocomplete, Teléfono, Fecha prometida, Canal, Notas, "Ítems del pedido" con input de producto + CANTIDAD + PRECIO UNIT. (GS.) + "Quitar", "Selecioná forma de pago...", actions "✓ Crear pedido / Cancelar").
+
+**Defectos**:
+- Breadcrumb "**Pedidos nuevo**" — gramática rota (plural+singular); contradice el H1 "Nuevo pedido".
+- "**Selecioná** forma de pago..." — falta la "c" (en `/ventas` el mismo campo dice "Seleccioná forma de pago..." — typo solo aquí).
+- Fecha "**09/27/2026**" US-format otra vez.
+- Helper Spanglish: "El precio se **snapshot** al crear el pedido."
+- Placeholder del cliente mezcla ejemplo+instrucción: "María González — escribí para buscar", duplicando el helper de abajo.
+- Precio unitario en "**0**" sin símbolo ni validación; no hay **fila de total** visible antes de "Crear pedido".
+- Header de tabla envuelto ("PRECIO UNIT. / (GS.)") y primera columna sin header.
+- "Quitar" como outline rojo por fila — ruido destructivo; touch target del ✓ diminuto.
+- Zona blanca muerta enorme entre "Notas" y la tabla de ítems.
+
+**Rediseño**: (1) Orden de formulario natural: Cliente → Ítems (con subtotal vivo) → Retiro/Pago → Notas, con barra de total sticky. (2) Autocomplete de producto con precio precargado (el snapshot es interno, no copy). (3) Corregir breadcrumb ("Nuevo pedido") y typo "Selecioná".
+
+---
+
+## 9. `/produccion` — produccion.png
+
+**Layout**: breadcrumb "Inicio › Produccion", H1 "Producción", acordeón colapsado "🧁 Plan manual (elegí receta + batches)", tabs "Día / Semana / Mes", "Para el día 2026-09-27", card con borde naranja "🧾 Pedidos pendientes para hoy (1)" (Pedido #1 — María López, ítems), secciones "Productos a producir" (PRODUCTO/CANTIDAD/CÓMO) e "Ingredientes necesarios", bloque "CÓMO SE CALCULA" ("Sugerido por ventas", input "1.0", "Usar / Ver receta"), tabla CANTIDAD/STOCK ACTUAL/A COMPRAR.
+
+**Defectos**:
+- Breadcrumb "**Produccion**" sin tilde vs. H1 "Producción" con tilde.
+- Contradicción temporal: "Para el día **2026-09-27**" (mañana) + card "**Pedidos pendientes para hoy**" — hoy/mañana mezclados.
+- Contradicción de cantidades: el pedido dice "**2.0 ×** Producto 1aacee13" pero "Productos a producir" muestra cantidad "**1**".
+- "(1)" del título envuelto **solo en una segunda línea** — wrap feo.
+- Acordeón "**elegí receta + batches**" — anglicismo que en el planner se dice "tandas".
+- Fecha ISO "2026-09-27" vs. topbar "sábado 26 sep 2026".
+- Columna "**CÓMO**" — header críptico; valor "Sugerido por ventas" trunco.
+- Input "**1.0**" sin label ni unidad visible.
+- "2.0 ×" y "0.02 kg / 100.00 kg / 0.00 kg" — precisión decimal inconsistente (2.0 vs 1 vs 1.60).
+- Chip "whatsapp" + estado "**pending**" en inglés crudo, minúsculas, sin estilo de badge.
+- "Ingrediente 9551f65b" — otro ID seed.
+
+**Rediseño**: (1) Una sola fuente de verdad de cantidad (el 2.0 vs 1 nunca debería divergir) y fechas en un solo formato. (2. Renombrar "CÓMO" → "ORIGEN" con valores chip ("Sugerido", "Manual"). (3) Sin emojis en headers de secciones operativas.
+
+---
+
+## 10. `/produccion-planner` — produccion-planner.png
+
+**Layout**: breadcrumb "Inicio › Planner", H1 "🧁 Plan manual de producción", subtítulo "Elegí receta + cantidad de batches y calculamos…", link "← Volver a Producción", card "Receta" (input "Buscar receta…"), card de instrucción "Elegí una receta + cantidad de tandas…".
+
+**Defectos**:
+- **Media página inferior vacía** (~450px de lienzo gris en blanco): el planner termina tras dos cards y un párrafo — sin el formulario de tandas/ingredientes visible, sin empty-state que invite a empezar.
+- Subtítulo "**batches**" vs. card "**tandas**" — mismo concepto, dos palabras (una inglesa).
+- Microcopy duplicado: el subtítulo y la card 2 dicen lo mismo ("elegí receta + cantidad").
+- Título H1 truncado en su extremo ("Plan manual de produ…") — no envuelve.
+- "Planner" en el breadcrumb — término inglés sin entrada en el sidebar (rompe la correspondencia nav↔página).
+- Emoji 🧁 gigante junto al H1, desalineado con la línea base.
+
+**Rediseño**: (1) El formulario completo visible sin scroll: receta → tandas → resultado (ingredientes + costo estimado) con estado vacío ilustrado. (2) Unificar vocabulario a "tandas". (3) Breadcrumb "Producción › Plan manual".
+
+---
+
+## 11. `/eod` — eod.png
+
+**Layout**: breadcrumb "Inicio › Eod", H1 "Cierre diario", card "Progreso del cierre" (vacía), checklist (Conteo de caja, Ventas conciliadas, Stock bajo, Pedido a proveedor, Merma, Plan de mañana, Depósito, Limpieza, Recibos), "Notas para el turno siguiente", botón "✓ Guardar cierre", secciones "Reposición" (tabla + "Abrir Reponer") y "Producción del día" (PLAN vs HECHO con input + ✓), totals "Total estimado 28.800".
+
+**Defectos**:
+- **Tres nombres para la misma pantalla**: sidebar "Cierre del día", H1 "Cierre diario", breadcrumb "**Eod**" (sigla inglesa sin traducir, mal capitalizada).
+- Card "**Progreso del cierre**" contiene solo el título — **no hay barra de progreso** pese a llamarse así.
+- Checklist con **gap enorme checkbox→label** (~125px); header "ITEM" desalineado de ambas columnas y sin header para los checkboxes.
+- Hint cortado: 'El cierre se guarda cuando hacés click en "Markar…' — frase clave truncada.
+- **Botón naranja "Guardar cliente" apareciendo en mitad del EOD** (y≈840) — resto de otro formulario filtrándose en la página.
+- Carácter huérfano "**e**" flotando solo sobre el footer.
+- "**confrontalo**" sin tilde (correcto: "confróntalo") y frase torpe ("Cuanto produzcas hoy confrontalo con este plan").
+- "1.60 kg" (punto decimal) junto a "28.800" (punto de miles) en la **misma tabla** — el mismo glifo significa cosas opuestas.
+- Fechas ISO "2026-09-26" de nuevo.
+- Fila HECHO vacía sin placeholder/unidad; ✓ minúsculo.
+- "Reposición" promete umbrales ("por debajo…") pero la tabla no muestra mínimos; fila vacía bajo "Levadura seca".
+
+**Rediseño**: (1) Header unificado "Cierre del día" + barra de progreso real (n/9). (2. Checklist a una columna con checklist items interactivos que persisten. (3) Formato numérico/fecha único y el botón "Guardar cliente" fuera de esta página.
+
+---
+
+## 12. `/merma` — merma.png
+
+**Layout**: H1 "Merma (desperdicio)", filtros (Desde/Hasta US-format, pills "7 días/30 días/90 días", "Motivo: Todos"), párrafo intro, card "Merma de receta completa" (Receta, "Cantidad de lotes perdidos", Motivo, Notas), form de ingrediente, "Resumen últimos 30 días" (COSTO TOTAL Gs. 0), "✓ Registrar merma / Cancelar", línea verde "Esto es el 0.0%…", stats ("EVENTOS 0"), empty-state con tacho.
+
+**Defectos**:
+- Intro **gramaticalmente rota**: "un ingrediente vencido, o un ingrediente, poné 200, motivo *vencida*. Si tiraste u…" — copy cortado/pegado sin sentido.
+- Contradicción label/helper: label "**Cantidad de lotes perdidos**" vs. helper "**1 = un lote entero; 0.5 = media tanda**" — "lotes" y "tandas" como sinónimos arbitrarios.
+- Contradicción input/helper: placeholder "**Escribí** la receta" vs. helper "**Seleccioná** la receta para desperdicio".
+- Fechas de filtro en "**08/27/2026**" US-format.
+- Pills "7/30/90 días" flotando desalineadas entre los labels "Desde:"/"Hasta:".
+- **Textarea con resize-grip nativo** expuesto (dos veces en la página) — sin `resize:none`.
+- Campos sin label ni placeholder (stack de 4 inputs blancos mudos).
+- Texto verde flotante "**Esto es el 0.0% de lo que vendiste en 30 días**" sin card, right-aligned, huérfano.
+- Card "EVENTOS **0**" con 90% de ancho vacío; redundante con el empty-state y el resumen "Gs. 0" — tres formas de decir "no hay datos".
+- Título redundante "Merma (desperdicio)" — sinonimia innecesaria en un H1 enorme.
+- Fragmento "n Inventario." naranja huérfano; heading truncado "ente".
+- Espaciado vertical errático entre inputs (12px vs 47px sin razón).
+
+**Rediseño**: (1) Reescribir toda la microcopy (una voz voseo consistente, una palabra: "tandas"). (2) Tabs "Ingrediente / Receta" en vez de dos forms apilados; grip oculto. (3) Resumen como una franja: "Gs. 0 · 0 eventos · 0.0% de tus ventas" en un solo lugar.
+
+---
+
+## 13. `/analisis` — analisis.png
+
+**Layout**: breadcrumb "Inicio › Análisis", H1 "Análisis · los últimos 30–90 días", sección "PANORAMA" (CAPITAL EN INVENTARIO Gs. 307.200, HORA PICO DE VENTAS 04:00), cards "↑ Stars (alto margen + alto volumen)" y "↓ Dogs (bajo margen + bajo volumen)", "Productos más rentables (últim…", "Promedio de ventas por día de…", "Rotación de stock (últimos 30 d…", "Recetas más complejas", footer.
+
+**Defectos**:
+- "HORA PICO DE VENTAS: **04:00**" — 4 AM como pico de ventas de una panadería: dato absurdo o sin formato 12/24h.
+- "**Dogs**: Café con leche — margen 7.000, **volumen 0**" — margen sobre volumen cero; sin "Gs." en el margen.
+- "Rotación de stock" de los "ingredientes **más activos**" con filas "**0.0 kg / 0.0× / —**" — activos con cero actividad, y duplicadas idénticas.
+- Columna "**INGREDIENTES**" con valor "**1**" pelado — un número donde va un nombre.
+- Headers cortados: "…(últim…", "…por día de…", "INGR" — sin ellipsis limpio.
+- "**Stars**"/"**Dogs**" en inglés; "más rentables" mezclado con IDs "**Receta 0e8c932f**" y "**Ingrediente 9551f65b**".
+- Título "Análisis **·** los últimos 30–90 días" — el middot inicial se confunde con el separador del breadcrumb.
+- Subtítulo derecho ("Cuántas veces se renovó…") en la misma línea base que el título truncado.
+- Monospace para nombres de productos/ingredientes vs. sans en títulos — mezcla tipográfica sin función.
+- Tabla "Promedio por día" sin valores visibles al lado de cada día (Lunes…Domingo como labels sueltos).
+
+**Rediseño**: (1) Formato de hora legible y validación de datos ("04:00" → "4:00 a.m." o corregir el dato; volumen 0 → excluir de Stars/Dogs). (2) Cards con `text-overflow: ellipsis` y mínimo de columnas visibles. (3) Traducir jerga ("Estrellas / Perros" o "Más rentables / Para revisar") y banned list para IDs hex.
+
+---
+
+# TOP 10 PROBLEMAS SISTÉMICOS
+
+1. **IDs de seed expuestos como nombres** — "Producto 1aacee13", "Ingrediente 9551f65b", "Receta 0e8c932f", "Producto sin nombre" en ventas, recibo, producción, análisis. Nada del UI se puede juzgar en serio con esto.
+2. **Locale numérico/fecha roto** — punto decimal y punto de miles conviven ("1.60 kg" vs "28.800" en la misma tabla del EOD), fechas en tres formatos (topbar "26 sep 2026", inputs "09/26/2026, 05:47 PM", cuerpo "2026-09-27").
+3. **Espanglish sin control** — "Wishlist", "Targets", "Benchmarks", "Quick-sell", "Kitchen Board", "batches" vs "tandas", "snapshot", "pending", "pickup", "Auto-refresh", "Eod", "Stars/Dogs", "Recipes".
+4. **Ortografía/copy sin QA** — "CRITICO" vs "CRÍTICO", "tipéa", "Selecioná", "confrontalo", "Produccion", "Pedidos nuevo", intro de Merma gramaticalmente incoherente.
+5. **Empty-states inconsistentes o ausentes** — "—", cards vacías ("Progreso del cierre" sin barra), banner verde fantasma en Ventas, board con 2/3 en blanco, "Gs. 0" + "EVENTOS 0" + "0.0%" triplicando el mismo cero.
+6. **Sin estado activo en el sidebar** — ninguna de las 13 páginas resalta su ítem de nav; además sub-items sin íconos ("Proveedores", "Análisis", "KPIs (mensual)") y "KPIs (mensual)" cortado a 900px de alto.
+7. **Semántica de color invertida** — ceros en rojo ("0 estimados", "0 severidad"), "CRÍTICO" en naranja (mismo hue que los links), verde para el select fiscal.
+8. **Tipografía/jerarquía caótica** — emojis como íconos de sección (📈📦🏆💼🛒🧁🧾💡⏰🔍), monospace mezclado con sans, headers uppercase vs sentence-case, headers de tabla envueltos ("UNIT. (GS.)").
+9. **Tablas sin disciplina** — importes alineados a la izquierda, acciones bajo "NOTAS", columnas prometidas sin datos ("FECHA / HORA" sin hora, "CÓMO" críptica), filas duplicadas.
+10. **Botones y affordances rotos** — "Filtrar" estirado a full-width, botón search icon-only huérfano en Pedidos, badge "Line" colisionando con "17" en el board, botón "Guardar cliente" filtrado en el EOD, caret ausente en selects.
+
+# 5 MOVIMIENTOS DE REDISEÑO DE MAYOR IMPACTO
+
+1. **Design tokens de formato + copy pass completo**: una función `fmt_gs()`, `fmt_qty()`, `fmt_date()` (es-PY, dd/mm/aaaa, 24h) y `fmt_pct()` aplicadas en render; un diccionario de terminología (tandas, tablero, lista de deseos→"pendientes", EOD→"Cierre") y corrección de las 10 erratas. Es barato y elimina ~40% de los defectos visibles.
+2. **Bloquear seed data en UI**: nombres fallback obligatorios ("Producto sin nombre" prohibido en venta), validación antes de registrar, y empty-states estandarizados (icono + título + CTA) para ventas, pagos, ranking, board y merma.
+3. **Rehacer el sidebar**: estados activos, íconos para todos los ítems, colapsar sub-items, corregir IA ("Clientes" fuera de COMPRAS), scroll affordance — es el shell nuevo y todavía no ancla la navegación.
+4. **Disciplina de tablas**: right-align tabular-nums para dinero/cantidades, columna ACCIONES con menú "⋯", headers sin wrap, zebra + fila de totales, paginación.
+5. **Rediseñar `/` y `/dashboard` como una sola pantalla** con grilla KPI homogénea y alertas unificadas (severidad rojo/ámbar real, sin ceros en rojo), eliminando la duplicación actual ("Ventas de hoy" + "Lo que necesita tu atención" + franja "Operación" dicen tres veces lo mismo).
+
+*Nota de método: el vision backend sufrió timeouts intermitentes; se resolvió procesando recortes 640×480 con retries. Los recortes de tiling no se reportaron como defectos de la app (p. ej., el corte del footer "© 2026 Saskia RM[S]" es artefacto del muestreo, no de la página). Archivos temporales en `/opt/data/profiles/ivan/cache/scratch/saskia-tiles/` (92 tiles) — limpiar si no se reutilizan.*

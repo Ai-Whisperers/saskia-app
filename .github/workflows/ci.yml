@@ -77,6 +77,20 @@ jobs:
         # for the disk-usage analysis and the rationale.
         run: uv run pytest -n 2 --dist=loadscope --cov=app --cov-report=term-missing
 
+      # Tier 8.7 (2026-10-01): Page the operator when the test suite
+      # fails on main. Uses the same Resend API the app uses
+      # (scripts/ci_alert.py). Gated on RESEND_API_KEY repo secret;
+      # no-op when unset.
+      - name: Email operator on test failure
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python3 scripts/ci_alert.py
+
       # ---- E2.S2: real Postgres tests via testcontainers ----
       # Boots a real Postgres container (postgres:16-alpine), runs only the
       # @pytest.mark.pg tests. Local devs without Docker get the same skip;

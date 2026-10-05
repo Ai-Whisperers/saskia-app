@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/operations/PRODUCTION_500_RUNBOOK.md`**
+
+Runbook (moved to operator-facing folder).
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # 🚨 Production Server Runbook — 2026-09-23 500s
 
 ## What's happening

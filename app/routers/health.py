@@ -29,6 +29,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from loguru import logger
 from sqlalchemy import text
 
+from app.rms.clock import now as clock_now
+
 router = APIRouter()
 
 

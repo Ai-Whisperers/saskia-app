@@ -275,6 +275,10 @@ class Recipe(Base):
     yield_unit: Mapped[str] = mapped_column(String(16), nullable=False, default="und")
     prep_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     cook_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    fermentation_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # T-2026-10-05 (B.3): bulk-fermentation time before bake. NULL = no
+    # fermentation step; >0 = minutes of poolish/masa madre/levain.
+    # Suggested: 240-480 (poolish), 720-960 (masa madre), 1440-4320 (levain).
     difficulty: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 1-5 scale
     # T-2026-10-05 (B.3): bulk-fermentation duration in minutes. NULL
     # means no fermentation step (quick breads, cookies). >0 means the

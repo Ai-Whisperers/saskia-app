@@ -22,7 +22,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 
 from app.rms.models import Recipe, Sale, Tag, TagLink
-from app.rms.tags import (
+from app.rms.tagging import (
     STARTER_TAGS,
     InventoryFilter,
     ProductFilter,

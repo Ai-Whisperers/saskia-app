@@ -1,3 +1,18 @@
+<!-- ROADMAP-REDIRECT -->
+# ⚠️ Moved / Superseded
+
+**This file has been moved or superseded.** The canonical location is:
+
+> **`docs/roadmap/historical-plans/PHASE2_IMPLEMENTATION_PLAN_2026-09.md`**
+
+Superseded.
+
+See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+
+---
+
+<!-- ORIGINAL CONTENT BELOW -->
+
 # 🚀 Phase 2 Implementation Plan - Remaining Optimizations
 
 ## 📊 REMAINING WORK ANALYSIS

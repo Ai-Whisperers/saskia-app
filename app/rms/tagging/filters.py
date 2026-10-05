@@ -1,25 +1,12 @@
-"""app/rms/tags.py — Tag system + filter helpers (E9).
+"""app/rms/tagging/filters.py — Filter dataclasses + query helpers.
 
 Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E9.
 
-Schema (migration 004):
-- tag: id, name (unique), kind (product|ingredient|recipe), color
-- tag_link: tag_id, target_kind, target_id  (polymorphic M:N)
+Lifted from ``app/rms/tags.py``. Owns the listings-filter concern:
+- SalesFilter / InventoryFilter / RecipeFilter / ProductFilter dataclasses
+- filter_sales / filter_inventory / filter_recipes / filter_products
 
-Tag kinds:
-- product: vegetariano, vegano, sin-gluten, sin-lactosa, premium,
-  festivo, encargo, individual, docena, evento, popular, navidad
-- ingredient: perecedero, congelable, seco, refrigerado, importado,
-  local, alergeno-gluten, alergeno-lactosa, alergeno-frutos-secos,
-  precio-volatil, organico
-- recipe: sub-receta, temporada, alto-costo, popular
-
-Filter helpers for the Ventas / Inventario / Recetas / Productos
-listings (E9.S2):
-- filter_sales(): date range + product + tag + amount range
-- filter_inventory(): stock_status + tag + supplier + cost band
-- filter_recipes(): margin tier + tag + yield range
-- filter_products(): category + tag + is_active + has_recipe
+Public API contract unchanged.
 """
 
 from __future__ import annotations
@@ -27,22 +14,20 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal
-from enum import Enum
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.rms.models import (
     Ingredient,
-    Product,
+    Product as MProductModel,
     Recipe,
     Sale,
     Tag,
     TagLink,
 )
 from app.rms.money import to_int_gs
-
-# --- Tag kinds ---
+from app.rms.tagging.model import TagKind
 
 
 class TagKind(str, Enum):
@@ -241,7 +226,14 @@ class ProductFilter:
     is_active: bool | None = None
 
 
-# --- Filter query helpers ---
+# ─── Filter query helpers ──────────────────────────────────────────────────
+
+
+def _to_naive_utc(dt: datetime) -> datetime:
+    """Convert a tz-aware datetime to naive UTC; pass naive through."""
+    if dt.tzinfo:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 
 
 def filter_sales(session: Session, f: SalesFilter) -> list[Sale]:
@@ -375,15 +367,15 @@ def filter_recipes(session: Session, f: RecipeFilter) -> list[Recipe]:
     return recipes
 
 
-def filter_products(session: Session, f: ProductFilter) -> list[Product]:
+def filter_products(session: Session, f: ProductFilter) -> list[MProductModel]:
     """Apply ProductFilter and return matching products."""
-    q = select(Product)
+    q = select(MProductModel)
     if f.search_text:
-        q = q.where(Product.name.ilike(f"%{f.search_text}%"))
+        q = q.where(MProductModel.name.ilike(f"%{f.search_text}%"))
     if f.has_recipe is True:
-        q = q.where(Product.recipe_id.is_not(None))
+        q = q.where(MProductModel.recipe_id.is_not(None))
     elif f.has_recipe is False:
-        q = q.where(Product.recipe_id.is_(None))
+        q = q.where(MProductModel.recipe_id.is_(None))
     if f.product_tag_names:
         tag_subq = (
             select(TagLink.target_id)
@@ -393,26 +385,17 @@ def filter_products(session: Session, f: ProductFilter) -> list[Product]:
                 Tag.name.in_(f.product_tag_names),
             )
         )
-        q = q.where(Product.id.in_(tag_subq))
-    return list(session.execute(q.order_by(Product.name)).scalars())
+        q = q.where(MProductModel.id.in_(tag_subq))
+    return list(session.execute(q.order_by(MProductModel.name)).scalars())
 
 
 __all__ = [
-    "STARTER_TAGS",
     "InventoryFilter",
     "ProductFilter",
     "RecipeFilter",
     "SalesFilter",
-    "TagKind",
-    "ensure_starter_tags",
-    "ensure_tag",
     "filter_inventory",
     "filter_products",
     "filter_recipes",
     "filter_sales",
-    "list_tags_for_kind",
-    "tag_target",
-    "tags_for_target",
-    "targets_with_tag",
-    "untag_target",
 ]

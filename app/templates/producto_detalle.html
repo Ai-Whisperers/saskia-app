@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Detalle del Producto - {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="app-content">
+  <div class="container card-page">
+    <!-- Product Header -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="row-between" style="display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:center;justify-content:space-between;">
+          <div>
+            <h1>{{ product.name }}</h1>
+            {% if product.category %}
+            <span class="badge badge-primary">{{ product.category }}</span>
+            {% endif %}
+            {% if not product.is_available %}
+            <span class="badge badge-warning" style="margin-left:var(--space-1);">Sin stock</span>
+            {% endif %}
+          </div>
+          <div class="row-actions" style="display:flex;gap:var(--space-2);">
+            <a href="/productos/{{ product.id }}/editar" class="btn btn-primary">
+              <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+              Editar
+            </a>
+            <form method="POST" action="/productos/{{ product.id }}/favorito" class="d-inline">
+              <button type="submit" class="btn btn-ghost {% if product.is_favorite %}btn-yellow{% else %}btn-outline{% endif %}">
+                <svg class="icon" aria-hidden="true"><use href="#icon-star"/></svg>
+                {% if product.is_favorite %}Quitar de favoritos{% else %}Favorito{% endif %}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metrics Strip -->
+    <div class="kpi-strip" style="margin-bottom:var(--space-4);">
+      <div class="metric-card">
+        <div class="metric-card__label">Stock actual</div>
+        <div class="metric-card__value">{{ "%.2f"|format(current_stock or 0)|replace(".", ",") }} und</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card__label">Costo actual (Gs.)</div>
+        <div class="metric-card__value">{{ m.gs(current_cost) }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card__label">Precio actual (Gs.)</div>
+        <div class="metric-card__value">{{ m.gs(product.sale_price_gs) }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card__label">Margen %</div>
+        <div class="metric-card__value{% if avg_margin_pct is not none and avg_margin_pct < 0 %} danger{% elif avg_margin_pct is not none and avg_margin_pct < 20 %} warn{% endif %}">
+          {{ "%.1f"|format(avg_margin_pct) if avg_margin_pct is not none else "-" }}%
+        </div>
+      </div>
+    </div>
+
+    <!-- Two Column Section -->
+    <div class="two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-bottom:var(--space-4);">
+      <!-- Left: Recipes Using -->
+      <div class="card">
+        <div class="card-body">
+          <h3 class="card-title">Uso en recetas</h3>
+          {% if recipes_using %}
+            <ul style="list-style:none;padding:0;margin:0;">
+              {% for recipe in recipes_using %}
+              <li style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border, #eee);">
+                <span>{{ recipe.name }}</span>
+                <a href="/recetas/{{ recipe.id }}" class="btn btn-ghost btn-sm">
+                  Ver receta
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="muted">No se usa en ninguna receta todavía.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Right: 30-Day Sales -->
+      <div class="card">
+        <div class="card-body">
+          <h3 class="card-title">Ventas últimos 30 días</h3>
+          <div class="kpi-strip" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+            <div class="insight-card">
+              <div class="insight-card__label">Unidades vendidas</div>
+              <div class="insight-card__value">{{ last_30d_units }}</div>
+            </div>
+            <div class="insight-card">
+              <div class="insight-card__label">Ingresos (Gs.)</div>
+              <div class="insight-card__value">{{ m.gs(last_30d_revenue) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Sales -->
+    <div class="card">
+      <div class="card-body">
+        <h3 class="card-title mb-4">Ventas recientes</h3>
+        {% if recent_sales %}
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Cliente</th>
+                  <th>Cantidad</th>
+                  <th>Total (Gs.)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for sale in recent_sales %}
+                <tr>
+                  <td>{{ sale.sold_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                  <td>{{ sale.name or 'Cliente no identificado' }}</td>
+                  <td>{{ "%.2f"|format(sale[2] or 0)|replace(".", ",") }}</td>
+                  <td>{{ m.gs(sale[3]) }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="muted">No hay ventas recientes de este producto.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

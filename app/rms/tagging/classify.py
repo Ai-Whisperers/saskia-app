@@ -71,6 +71,18 @@ def normalize_all(raw: str | None) -> frozenset[str]:
     return frozenset(out)
 
 
+def ingredient_dietary_set(ing: object) -> frozenset[str]:
+    """Return the canonical dietary tags on an Ingredient (or anything with
+    a ``dietary_tags`` attribute).
+
+    Sprint 2.2: lifted from ``app.rms.tag_algebra`` (the now-removed
+    back-compat shim). The legacy name ``ingredient_dietary_set`` lives
+    here as the canonical implementation; callers should import from
+    ``app.rms.tagging`` rather than from the deleted ``tag_algebra``.
+    """
+    return normalize_all(getattr(ing, "dietary_tags", None))
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Allergen inference (bootstrap for Ingredient.allergens column)
 # ─────────────────────────────────────────────────────────────────────────

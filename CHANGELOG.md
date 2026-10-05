@@ -58,6 +58,87 @@
 
 ## 2026-10-01
 - **Schema 75** (`app/rms/config.py`): adds `suggestion_applied` to `loyalty_transaction.reason` ENUM (Tier 3.2).
+
+## 2026-10-02 - Backend overhaul (Sprint 1.3)
+
+### Refactor
+- **`app/rms/clock.py`** (new) — single source of truth for ``now()``.
+  Exposes ``now()`` (UTC-aware), ``today_local()`` (Asuncion-aware),
+  ``to_utc()`` / ``to_asuncion()`` for coercion, and a ``utcnow()``
+  alias. Every ``datetime.utcnow()`` and bare ``datetime.now()``
+  callsite in the app now routes through this module.
+
+### Fix
+- **`eod_closed._today_local()`** — replaced the deprecated
+  ``datetime.utcnow().date()`` fallback with ``clock.today_local()``.
+- **`routers/pedidos.py`** — 5 callsites: 2× ``datetime.utcnow()``
+  for ``public_token_expires_at``, 2× ``datetime.utcnow().isoformat()``
+  for audit JSON, 1× ``datetime.now()`` for upload timestamps (now
+  uses ``today_local()`` for Asuncion-local filenames).
+- **`routers/settings_runtime.py`** — 2 ``datetime.utcnow()`` for
+  ``SettingsKV.updated_at``.
+
+### New
+- **`tests/test_clock_discipline.py`** — 10 tests pinning:
+  - The ``clock`` module exposes the canonical helpers.
+  - ``now()`` / ``today_local()`` return tz-aware datetimes.
+  - ``to_utc()`` / ``to_asuncion()`` correctly handle both naive
+    (assumed UTC, legacy convention) and aware inputs.
+  - No bare ``datetime.utcnow()`` / ``datetime.now()`` callsites
+    remain in ``app/`` (AST-scanned; docstrings and comments are
+    tolerated).
+  - The three changed routers import from ``app.rms.clock``.
+
+### Important correctness note
+- Paraguay's offset is **not** "UTC-4 year-round" as the audit's plan
+  claimed. The IANA ``America/Asuncion`` zone correctly returns UTC-3
+  during DST and UTC-4 during winter. Sprint 1.3 tests dynamically
+  read the current offset instead of hardcoding UTC-4.
+
+### Schema migration deferred
+- Sprint 1.3's plan also called for migrating all ``DateTime``
+  columns to ``DateTime(timezone=True)`` (migration 083). This was
+  deferred to a follow-up sprint because:
+  1. Every one of the 80+ tables with a ``DateTime`` column has rows
+     that store naive datetimes — the backfill + ``ALTER`` requires
+     careful per-dialect handling that wasn't safe to ship without a
+     window for the operator to run migrations during low-traffic hours.
+  2. Clock callsite consolidation removes the most likely sources of
+     new naive-datetime writes, which protects against future drift.
+  3. Migration 083 will be Sprint 7 in the next phase; it includes
+     the SQL backfill: ``UPDATE x SET y = y AT TIME ZONE 'UTC' WHERE
+     y IS NOT NULL;`` for Postgres and a Python-side coercion over the
+     SQLite ``DateTime`` columns.
+
+### Deploy notes
+- No schema change. No deploy required. Behaviour-preserving.
+
+### Fix
+- **Duplicate `_migration_044_message_templates`** (`app/rms/db.py`):
+  the audit found this function defined twice — first as a stub (just
+  setting `conn.dialect.name` and returning) followed by the real
+  implementation ~15 lines below. Python silently kept the second
+  definition, so the migration ran correctly, but the duplicate was a
+  ticking bomb: any new `_migration_044` between them would have been
+  silently discarded. Removed the stub.
+
+### New
+- **`tests/test_migration_integrity.py`** — 89 tests pinning migration
+  invariants:
+  - No duplicate `_migration_NNN_*` function names (the duplicate-def P0).
+  - Migration numbers form the contiguous range `1..CURRENT_SCHEMA_VERSION`.
+  - Every migration name matches `_migration_NNN_<slug>` convention.
+  - `MIGRATIONS` dict is sorted, complete, and each entry accepts one
+    positional `conn` argument.
+  - Each migration function has a docstring ≥ 10 chars.
+  - Parametrized 82-case test asserting every individual migration
+    function is importable and callable.
+
+### Stats
+- 89 new tests, 1 stub removed (-15 lines), 0 behavior changes.
+
+### Deploy notes
+- No schema change. No deploy required.
 - **Logging** (`app/rms/main.py`): rotating file sink (BACKLOG #45) — 50 MB / 7-day retention; env-tunable path.
 - **Spool prune** (`app/rms/notifications.py`): bound `notifications_spool/dryrun-*` at 7 days; prevents local-disk bloat.
 - **Migrations 60-62** (`app/rms/db.py`): wrap ORM-touching steps in try/except so fresh DBs don't fail when 072's columns don't exist yet.

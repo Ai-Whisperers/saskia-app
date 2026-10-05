@@ -112,6 +112,7 @@
       <th class="num">{{ m.sort_th("Dificultad", "difficulty", sort, dir) }}</th>
       <th class="num">{{ m.sort_th("Prep", "prep_minutes", sort, dir) }}</th>
       <th class="num">{{ m.sort_th("Cocción", "cook_minutes", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Tiempo total", "total_minutes", sort, dir) }}</th>
       <th class="num">{{ m.sort_th("Líneas", "line_count", sort, dir) }}</th>
       <th class="num">{{ m.sort_th("Costo del lote (Gs.)", "batch_cost_gs", sort, dir) }}</th>
       <th class="num">{{ m.sort_th("Costo / porción (Gs.)", "unit_cost_gs", sort, dir) }}</th>
@@ -158,6 +159,7 @@
       <td>{{ r.line_count }}</td>
       <td class="num col-prep" style="text-align:center;">{% if r.prep_minutes %}{{ r.prep_minutes }} min{% endif %}</td>
       <td class="num col-cook" style="text-align:center;">{% if r.cook_minutes %}{{ r.cook_minutes }} min{% endif %}</td>
+      <td class="num" style="text-align:center;">{{ r.total_minutes_fmt }}</td>
       <td class="num">{% if r.batch_cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(r.batch_cost_gs) }}{% endif %}</td>
       <td class="num">{% if r.unit_cost_gs is none %}<em class="muted">—</em>{% else %}{{ m.gs(r.unit_cost_gs) }}{% endif %}</td>
       <td class="num">{% if r.batch_cost_gs is none %}<span class="badge badge-warn">⚠️ sin costo</span>{% else %}{{ m.gs(r.batch_cost_gs) }}{% endif %}</td>

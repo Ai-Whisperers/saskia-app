@@ -174,7 +174,7 @@ Tres formas:
 |---|---|---|
 | En el navegador | Pie de página de cualquier pantalla | "Sazón v1.0 · Sistema local · 2026" |
 | Al iniciar sesión | Header `X-Agent` en respuesta `/login` | `SaskiaRMS/1.0` |
-| En este manual | El número "v1.x" arriba | Dice `2026-10-02 · schema 92 · commit 6e23d7a` |
+| En este manual | El número "v1.x" arriba | Dice `2026-10-05 · schema 101 · commit 62cccee` |
 
 Si los tres no coinciden, **el manual está desactualizado** — avisá a Iván para que lo actualice.
 

@@ -1,43 +1,36 @@
-"""app/rms/costing.py — recipe cost, product margin, apply_sale, void_sale.
+"""app/rms/costing.py — DEPRECATED shim, re-exports from profitability + sales.
 
-Per dev plan §9 Task 2 + v2 §5 (data model + stock-drop logic).
+Sprint 2.3 of the 2026-10-02 backend overhaul: this module was split into:
 
-Pure functions where possible. Functions that touch the DB take a SQLAlchemy
-Session as first arg.
+- ``app.rms.profitability.cost`` — recipe/product cost (read-side)
+- ``app.rms.sales.lifecycle``   — apply/void sale (transactional)
 
-Money discipline (enforced by tests):
-- All intermediate calculations use Decimal
-- Only `app.rms.money.to_int_gs()` is allowed to round money to integer
-- All DB money columns are INTEGER (no Decimal in DB)
-
-Polymorphic recipe_line: walks sub-recipe tree recursively. Cycle detection via
-visited-set raises `CycleInRecipeTree`.
-
-Stock drop (apply_sale):
-- Atomic transaction with sale + sale_stock_move rows
-- Walks recipe tree depth-first
-- Negative stock allowed (kitchen reality > accounting purity)
-- NULL yield_qty blocks the sale explicitly
-
-Void: reverses all stock_moves for the sale, atomically.
+This shim keeps the public surface stable for the many existing call sites.
+New code should import from the new locations.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from decimal import Decimal
-
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
-from app.rms.models import (
-    Ingredient,
-    Product,
-    Recipe,
-    RecipeLine,
-    Sale,
-    StockMovement,
+from app.rms.profitability.cost import (
+    CostResult,
+    CycleInRecipeTree,
+    ProductWithoutRecipe,
+    RecipeWithoutYield,
+    _walk_recipe_cost,
+    batch_products_cost_margin,
+    batch_recipes_cost,
+    product_margin,
+    product_unit_cost_gs,
+    recipe_batch_cost_gs,
+    recipe_unit_cost_gs,
+    resolve_line_target,
+)
+from app.rms.sales.lifecycle import (
+    ApplySaleResult,
+    VoidSaleResult,
+    _compute_stock_moves,
+    apply_sale,
+    void_sale,
 )
 from app.rms.money import to_int_gs
 from app.rms.units import normalize_recipe_line_qty
@@ -701,7 +694,11 @@ __all__ = [
     "ProductWithoutRecipe",
     "RecipeWithoutYield",
     "VoidSaleResult",
+    "_compute_stock_moves",
+    "_walk_recipe_cost",
     "apply_sale",
+    "batch_products_cost_margin",
+    "batch_recipes_cost",
     "product_margin",
     "product_unit_cost_gs",
     "recipe_batch_cost_gs",

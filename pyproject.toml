@@ -19,9 +19,9 @@ license = {text = "MIT"}
 
 # Runtime dependencies
 dependencies = [
-    "fastapi>=0.115,<0.142",         # Pinned to a known-good major.minor
+    "fastapi>=0.115,<0.143",         # Pinned to a known-good major.minor
     "uvicorn[standard]>=0.32,<0.55",  # [standard] = httptools + uvloop + websockets + watchfiles
-    "sqlalchemy>=2.0,<2.1",          # Sync mode (NOT async; documented in app/rms/db.py)
+    "sqlalchemy>=2.0,<2.2",          # Sync mode (NOT async; documented in app/rms/db.py)
     "openpyxl>=3.1,<4",              # 3.x stable; 4.x may have breaking changes
     "jinja2>=3.1,<4",                # Templating for server-rendered HTML
     "python-multipart>=0.0.20",      # FastAPI form parsing (for HTML forms)
@@ -35,7 +35,7 @@ dependencies = [
     "supabase>=2.31.0",
     "sentry-sdk[fastapi]>=2.10,<3",   # Error tracking (optional via SENTRY_DSN env var; free tier)
     "pyyaml>=6.0.3",
-    "reportlab>=4.0,<5",           # PDF generation for /reportes/iva/pdf + /reportes/diario/pdf
+    "reportlab>=4.0,<6",           # PDF generation for /reportes/iva/pdf + /reportes/diario/pdf
 ]
 
 # Development dependencies are in [dependency-groups] below (PEP 735).
