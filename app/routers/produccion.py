@@ -489,10 +489,17 @@ def produccion_worksheet(
     # cost_per_unit_gs + retail_gs; we join by recipe_id and surface
     # both in plan_rows_view so the template can render "Gs X total
     # cost, Y% margin" without a second round-trip.
-    from app.rms.models.sales import RecipePricing
+    # NOTE: we use raw SQL via text() to avoid importing the full
+    # models.sales module (which carries a deprecated SaleStockMove
+    # relationship forward-ref that breaks mapper config in tests).
+    from sqlalchemy import text as _sa_text
 
+    pricing_rows = session.execute(
+        _sa_text("SELECT recipe_id, cost_per_unit_gs, retail_gs FROM recipe_pricing")
+    ).all()
     pricing_by_recipe_id = {
-        p.recipe_id: p for p in (session.execute(select(RecipePricing)).scalars().all())
+        row.recipe_id: type("P", (), {"cost_per_unit_gs": row.cost_per_unit_gs, "retail_gs": row.retail_gs})()
+        for row in pricing_rows
     }
 
     plan_rows_view = [
