@@ -29,6 +29,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from loguru import logger
 from sqlalchemy import text
 
+from app.rms.clock import now as clock_now
+
 router = APIRouter()
 
 
@@ -554,7 +556,11 @@ def _summary_check_backup(request: Request) -> dict[str, Any]:
         }
     try:
         last = datetime.fromisoformat(raw_ts)
-        now = datetime.now(last.tzinfo) if last.tzinfo else datetime.now()
+        if last.tzinfo:
+            now = clock_now()
+        else:
+            # last is naive; compare in UTC-naive for compatibility
+            now = clock_now().replace(tzinfo=None)
         age_hours = round((now - last).total_seconds() / 3600, 1)
         return {
             "ok": age_hours <= BACKUP_STALE_HOURS,
@@ -855,7 +861,10 @@ def healthz_backup(request: Request) -> JSONResponse:
     if raw:
         try:
             last = datetime.fromisoformat(raw)
-            now = datetime.now(last.tzinfo) if last.tzinfo else datetime.now()
+            if last.tzinfo:
+                now = clock_now()
+            else:
+                now = clock_now().replace(tzinfo=None)
             age = now - last
             age_hours = round(age.total_seconds() / 3600, 1)
             stale = age_hours > BACKUP_STALE_HOURS
