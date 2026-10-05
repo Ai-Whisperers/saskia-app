@@ -119,8 +119,23 @@
     "docs/operations/2026-10-04-qa-hats-playbook.md",
     "docs/operations/2026-10-04-test-infrastructure-upgrade.md",
     "docs/operations/2026-10-04-test-infra-one-pager.md",
+    "docs/operations/2026-10-05-ci-tuning.md",
     "docs/plans/2026-10-01-phase14-coverage-strategy.md"
   ],
+  "ci_tuning": {
+    "applied": true,
+    "date": "2026-10-05",
+    "phase_b_done": "Split pyproject.toml [dependency-groups] into dev-base (CI) and dev (local+browser+smoke). Dropped Playwright from default install. New browser.yml workflow for the 9 browser tests, advisory + daily cron.",
+    "phase_c_done": "Removed redundant coverage check step. Added concurrency cancel-in-progress to all 4 workflows. Added uv enable-cache + cache-dependency-glob: uv.lock.",
+    "ci_venv_size_mb": 33,
+    "ci_venv_size_mb_before": 324,
+    "ci_venv_size_reduction_pct": 90,
+    "cold_install_estimated_s": 15,
+    "cold_install_estimated_s_before": 38,
+    "concurrency_cancels_stale_runs": true,
+    "browser_workflow": ".github/workflows/browser.yml",
+    "browser_workflow_runs_on": ["PR (advisory)", "push main (advisory)", "daily cron 06:00 UTC", "manual"]
+  },
   "next_action": "Migrate 1 more test_pedidos function to flows.py (5 min), or pick next uncovered module (app/rms/forecast.py at 0%).",
   "next_action_owner": "QA Engineer"
 }
