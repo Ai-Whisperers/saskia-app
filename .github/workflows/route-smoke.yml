@@ -13,6 +13,11 @@ on:
   push:
     branches: [main]
 
+# Cancel previous runs on the same PR — fast gate means fast feedback.
+concurrency:
+  group: route-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   route-smoke:
     runs-on: ubuntu-latest
@@ -29,7 +34,8 @@ jobs:
         run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        # dev-base only — Playwright is for the browser workflow.
+        run: uv sync --only-group dev-base --no-default-groups
 
       - name: Route smoke tests
         env:

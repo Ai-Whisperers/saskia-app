@@ -29,6 +29,12 @@ on:
   push:
     branches: [main]
 
+# Auto-cancel previous runs on the same PR/branch when a new commit is
+# pushed. Saves 12 min × N (where N = number of superseded pushes).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -44,7 +50,12 @@ jobs:
         run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        # dev-base only — skips Playwright (134 MB wheel + 656 MB browser
+        # binaries) which is needed only for the 9 browser tests in
+        # tests/browser/. Those run in a separate workflow.
+        # --only-group + --no-default-groups ensures uv doesn't pull dev
+        # deps even if the lock file lists them.
+        run: uv sync --only-group dev-base --no-default-groups
 
       - name: Lint (ruff)
         run: |
@@ -68,18 +79,8 @@ jobs:
       - name: Test (postgres via testcontainers)
         run: uv run pytest -m pg -n 2 --no-cov
 
-      # Coverage gate: matches pyproject.toml's `--cov-fail-under=35`. The
-      # strategy plan (docs/plans/2026-10-01-phase14-coverage-strategy.md)
-      # grew the floor from 30% → 35% as new tier 1+2 tests landed. Both
-      # gates MUST agree or CI passes locally but fails remotely. Aspirational
-      # target is 80% (see Tier 6+ growth items in that plan).
-      - name: Fail if coverage drops below 35%
-        run: |
-          coverage=$(uv run coverage report | tail -2 | head -1 | awk '{print $NF}' | tr -d '%')
-          if [ "$coverage" -lt 35 ]; then
-            echo "Coverage $coverage% is below 35% threshold (see pyproject.toml [tool.coverage])."
-            exit 1
-          fi
+      # The `pytest --cov-fail-under=35` step above already enforces the
+      # coverage floor and exits non-zero on breach. No second check needed.
 
       - name: Type check (mypy, non-strict)
         run: uv run mypy app/ || true  # mypy is informational, not blocking yet

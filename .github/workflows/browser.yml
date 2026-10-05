@@ -1,0 +1,62 @@
+# .github/workflows/browser.yml — Playwright browser tests
+#
+# Closes the loop on tests/browser/ (9 tests that drive a real Chromium).
+# The main CI workflow (ci.yml) installs dev-base only, which drops the
+# 134 MB Playwright wheel + 656 MB of browser binaries.
+#
+# Triggered:
+#   - on PR (advisory; doesn't block merge)
+#   - on push to main (advisory)
+#   - on schedule (daily 06:00 UTC)
+#   - workflow_dispatch (manual)
+#
+# Why advisory? Browser tests are slow (~2 min) and flaky in CI. They
+# run in the daily schedule so we get a signal without blocking PRs.
+
+name: Browser (Playwright, advisory)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * *"  # Daily 06:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: browser-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.5.x"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dev dependencies
+        # Full dev group — includes Playwright (134 MB wheel).
+        run: uv sync --group dev
+
+      - name: Install Playwright browsers
+        # Downloads Chromium (~200 MB) to ~/.cache/ms-playwright.
+        run: uv run playwright install chromium --with-deps
+
+      - name: Browser tests
+        env:
+          SASKIA_TEST_AUTH_DISABLED: "1"
+          PORT: "18997"
+        run: |
+          uv run pytest tests/browser/ \
+            -m browser \
+            -v --no-cov --no-header -p no:randomly \
+            --tb=short

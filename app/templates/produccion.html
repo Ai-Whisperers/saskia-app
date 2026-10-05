@@ -671,6 +671,21 @@
                 ⚠️ {{ allergen_list[:3] | join(', ') }}{% if allergen_list|length > 3 %}…{% endif %}
               </span>
             {% endif %}
+            {# T-2026-10-05 (B.3): fermentation reminder. Recipes with a
+             fermentation_minutes value get a "🍞 empezar HH:MM DD/MM (Xh)"
+             pill so the cook knows exactly when to start the bulk ferment
+             so the batch is ready for the 06:00 bake. Cross-midnight
+             ferments show "ayer" so the cook sees "ayer 16:00" not just
+             "16:00" (avoids the "wait, was that today?" footgun). #}
+            {% if r.fermentation_reminder %}
+              {% set fr = r.fermentation_reminder %}
+              <span class="badge fermentation-pill"
+                    data-fermentation-minutes="{{ fr.fermentation_minutes }}"
+                    data-fermentation-start="{{ fr.start_at }}"
+                    title="Fermentar {{ fr.fermentation_hours }}h: empezar {{ fr.start_label }} ({{ 'ayer ' if fr.days_before > 0 else '' }}{{ fr.start_label }}) para que esté lista a las {{ fr.ready_label }} (inicio del turno).">
+                🍞 Fermentar {{ fr.fermentation_hours }}h — empezar {{ 'ayer ' if fr.days_before > 0 else '' }}{{ fr.start_label }}
+              </span>
+            {% endif %}
           </td>
           <td class="num" data-label="Meta">
             {% if r.is_ad_hoc %}
@@ -1225,6 +1240,31 @@
     font-size: 13px;
     font-weight: 600;
     line-height: 1.2;
+  }
+
+  /* T-2026-10-05 (B.3): fermentation reminder pill. The cook needs to
+     see "🍞 Fermentar 14h — empezar ayer 16:00" inline on the row so they
+     don't forget to start the bulk rise the night before. We use a soft
+     amber background to signal "this needs lead time" without competing
+     with the orange ad-hoc highlight or the red surplus-high pill. */
+  .fermentation-pill {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.3;
+    background: rgba(245, 158, 11, 0.12);
+    color: #78350f;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    margin-top: 2px;
+  }
+  @media print {
+    .fermentation-pill {
+      background: transparent !important;
+      border: 1px solid #888 !important;
+      color: #000 !important;
+    }
   }
   .surplus-pill.surplus-low {
     background: rgba(217, 119, 6, 0.08);

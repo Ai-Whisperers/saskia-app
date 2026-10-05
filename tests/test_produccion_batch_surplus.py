@@ -28,9 +28,7 @@ ROUTER_SRC = ROUTER.read_text(encoding="utf-8")
 
 def test_router_has_batch_surplus_helper():
     """B.9 — _batch_surplus(qty, yield) computes (ceil, baked, surplus, pct)."""
-    assert "def _batch_surplus" in ROUTER_SRC, (
-        "B.9 — _batch_surplus helper must be defined"
-    )
+    assert "def _batch_surplus" in ROUTER_SRC, "B.9 — _batch_surplus helper must be defined"
 
 
 def test_router_batch_surplus_returns_4_fields():
@@ -59,9 +57,7 @@ def test_router_batch_surplus_zero_inputs_are_safe():
     idx = ROUTER_SRC.find("def _batch_surplus")
     assert idx > 0
     block = ROUTER_SRC[idx : idx + 1500]
-    assert "qty_demand <= 0 or yield_qty <= 0" in block, (
-        "B.9 — must guard zero/negative inputs"
-    )
+    assert "qty_demand <= 0 or yield_qty <= 0" in block, "B.9 — must guard zero/negative inputs"
 
 
 # ────────────────────── context wiring (B.9) ──────────────────────
@@ -78,7 +74,7 @@ def test_router_day_view_sets_batch_surplus_fields():
 
 def test_router_ad_hoc_rows_have_no_surplus():
     """B.9 — Ad-hoc rows have no recipe_id → surplus fields are None."""
-    idx = ROUTER_SRC.find("is_ad_hoc\": True")
+    idx = ROUTER_SRC.find('is_ad_hoc": True')
     assert idx > 0
     block = ROUTER_SRC[idx : idx + 1500]
     assert '"batch_surplus_qty": None' in block
@@ -92,9 +88,7 @@ def test_router_surplus_uses_recipe_yield_qty():
     assert helper_idx > 0
     # Helper itself must reference yield_qty
     helper_block = ROUTER_SRC[helper_idx : helper_idx + 1500]
-    assert "yield_qty" in helper_block, (
-        "B.9 — _batch_surplus helper must read yield_qty"
-    )
+    assert "yield_qty" in helper_block, "B.9 — _batch_surplus helper must read yield_qty"
     # Find the context usage (second occurrence of batch_surplus_qty)
     ctx_idx = ROUTER_SRC.find('"batch_surplus_qty":')
     assert ctx_idx > 0
@@ -102,9 +96,7 @@ def test_router_surplus_uses_recipe_yield_qty():
     assert "yield_qty" in ctx_block, (
         "B.9 — context wiring must read recipe_by_id[recipe_id].yield_qty"
     )
-    assert "_batch_surplus" in ctx_block, (
-        "B.9 — context wiring must call _batch_surplus helper"
-    )
+    assert "_batch_surplus" in ctx_block, "B.9 — context wiring must call _batch_surplus helper"
 
 
 # ────────────────────── template UI (B.9) ──────────────────────
@@ -112,32 +104,20 @@ def test_router_surplus_uses_recipe_yield_qty():
 
 def test_template_has_surplus_column_header():
     """B.9 — The production table must have a Sobrante header."""
-    assert "Sobrante" in TEMPLATE_SRC, (
-        "B.9 — table must include 'Sobrante' header"
-    )
+    assert "Sobrante" in TEMPLATE_SRC, "B.9 — table must include 'Sobrante' header"
 
 
 def test_template_renders_surplus_pill_with_color_codes():
     """B.9 — Pills must use color-coded classes (low/med/high)."""
-    assert "surplus-pill" in TEMPLATE_SRC, (
-        "B.9 — pill must have class='surplus-pill'"
-    )
-    assert "surplus-high" in TEMPLATE_SRC, (
-        "B.9 — pill must use surplus-high class for ≥30% surplus"
-    )
-    assert "surplus-med" in TEMPLATE_SRC, (
-        "B.9 — pill must use surplus-med class for 10-29% surplus"
-    )
-    assert "surplus-low" in TEMPLATE_SRC, (
-        "B.9 — pill must use surplus-low class for 1-9% surplus"
-    )
+    assert "surplus-pill" in TEMPLATE_SRC, "B.9 — pill must have class='surplus-pill'"
+    assert "surplus-high" in TEMPLATE_SRC, "B.9 — pill must use surplus-high class for ≥30% surplus"
+    assert "surplus-med" in TEMPLATE_SRC, "B.9 — pill must use surplus-med class for 10-29% surplus"
+    assert "surplus-low" in TEMPLATE_SRC, "B.9 — pill must use surplus-low class for 1-9% surplus"
 
 
 def test_template_renders_exacto_indicator():
     """B.9 — Zero-surplus rows show '✓ exacto' (positive feedback)."""
-    assert "exacto" in TEMPLATE_SRC, (
-        "B.9 — exact-fit rows must show '✓ exacto'"
-    )
+    assert "exacto" in TEMPLATE_SRC, "B.9 — exact-fit rows must show '✓ exacto'"
 
 
 def test_template_handles_none_surplus():
@@ -156,16 +136,10 @@ def test_template_surplus_pill_includes_pct_in_title():
     assert idx > 0
     block = TEMPLATE_SRC[idx : idx + 1000]
     assert "batch_surplus_pct" in block
-    assert "title=" in block, (
-        "B.9 — pill must have a tooltip explaining the surplus"
-    )
+    assert "title=" in block, "B.9 — pill must have a tooltip explaining the surplus"
 
 
 def test_template_surplus_pill_print_styles():
     """B.9 — Surplus pills must remain visible (with bordered style) on print."""
-    assert ".surplus-pill" in TEMPLATE_SRC, (
-        "B.9 — CSS rules for surplus-pill must exist"
-    )
-    assert "@media print" in TEMPLATE_SRC, (
-        "B.9 — print media query must adjust surplus-pill colors"
-    )
+    assert ".surplus-pill" in TEMPLATE_SRC, "B.9 — CSS rules for surplus-pill must exist"
+    assert "@media print" in TEMPLATE_SRC, "B.9 — print media query must adjust surplus-pill colors"

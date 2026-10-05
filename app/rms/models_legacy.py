@@ -276,6 +276,13 @@ class Recipe(Base):
     prep_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     cook_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     difficulty: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 1-5 scale
+    # T-2026-10-05 (B.3): bulk-fermentation duration in minutes. NULL
+    # means no fermentation step (quick breads, cookies). >0 means the
+    # recipe needs N minutes of bulk rise — surfaced as a "Fermentar Xh
+    # — empezar 18:00 hoy, listo 06:00 mañana" reminder on /produccion.
+    # Suggested: 240-480 (poolish), 720-960 (masa madre), 1440-4320
+    # (levain builds).
+    fermentation_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     family: Mapped[Optional[str]] = mapped_column(
         String(32), nullable=True
     )  # category (legacy, read-only)

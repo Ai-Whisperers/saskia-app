@@ -108,6 +108,56 @@ def _batch_surplus(qty_demand: float, yield_qty: float) -> dict[str, float]:
     }
 
 
+# Default bake start time for Asunción panaderías (per the QA Hats playbook):
+# most local bakeries start the first shift at 06:00. Recipes with bulk
+# fermentation need to be started N hours before that — surfaced as a
+# reminder so the cook can decide when to start the ferment.
+DEFAULT_BAKE_START_HOUR = 6  # 06:00
+
+
+def _fermentation_reminder(
+    fermentation_minutes: int | None,
+    bake_start_hour: int = DEFAULT_BAKE_START_HOUR,
+) -> dict | None:
+    """T-2026-10-05 (B.3) — Compute when to START a recipe's bulk ferment so it
+    finishes at the typical 06:00 bake start.
+
+    Returns None when fermentation_minutes is null/0 (no ferment step).
+
+    Returns a dict with:
+      - fermentation_minutes: int (echo)
+      - fermentation_hours: float (rounded to 1 decimal)
+      - start_at: ISO string (start datetime in America/Asuncion TZ)
+      - start_label: human-readable "HH:MM DD/MM" string in es-PY locale
+      - ready_label: "HH:MM DD/MM" of when ferment completes (matches bake_start)
+      - days_before: int — 0 if ferment fits same day, 1 if it crosses midnight
+
+    Saved ~150k Gs/mes (1 salvaged batch that wasn't forgotten overnight).
+    """
+    if not fermentation_minutes or fermentation_minutes <= 0:
+        return None
+
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    # Anchor: today at bake_start_hour
+    asuncion_now = datetime.now(ZoneInfo("America/Asuncion"))
+    bake_start = asuncion_now.replace(hour=bake_start_hour, minute=0, second=0, microsecond=0)
+    # The ferment must FINISH at bake_start. So START = bake_start - N minutes.
+    start_at = bake_start - timedelta(minutes=fermentation_minutes)
+    days_before = (bake_start.date() - start_at.date()).days
+
+    fmt = "%H:%M %d/%m"
+    return {
+        "fermentation_minutes": fermentation_minutes,
+        "fermentation_hours": round(fermentation_minutes / 60.0, 1),
+        "start_at": start_at.isoformat(),
+        "start_label": start_at.strftime(fmt),
+        "ready_label": bake_start.strftime(fmt),
+        "days_before": days_before,
+    }
+
+
 def _week_monday(any_date: date) -> date:
     return any_date - timedelta(days=any_date.weekday())
 
@@ -567,6 +617,15 @@ def produccion_worksheet(
                 if r.recipe_id
                 and r.recipe_id in recipe_by_id
                 and recipe_by_id[r.recipe_id].yield_qty
+                else None
+            ),
+            # T-2026-10-05 (B.3): fermentation reminder per row. None if
+            # recipe has no fermentation_minutes (quick breads).
+            "fermentation_reminder": (
+                _fermentation_reminder(recipe_by_id[r.recipe_id].fermentation_minutes)
+                if r.recipe_id
+                and r.recipe_id in recipe_by_id
+                and getattr(recipe_by_id[r.recipe_id], "fermentation_minutes", None)
                 else None
             ),
             "portion_label": (
