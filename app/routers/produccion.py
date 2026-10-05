@@ -21,7 +21,8 @@ from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from sqlalchemy import func, select
+from loguru import logger
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import require_login_or_disabled as require_login
@@ -388,6 +389,7 @@ def produccion_worksheet(
         "daily_actual": float(daily_actual),
         "shift_saved": int(request.query_params.get("shift_saved", 0)),
         "adhoc_added": request.query_params.get("adhoc_added") == "1",
+        "concurrent_modify": request.query_params.get("concurrent_modify") == "1",
         "products_for_adhoc": session.execute(
             select(Product).order_by(Product.name)
         ).scalars().all(),
@@ -579,6 +581,38 @@ async def produccion_shift_execute(
         )
 
     form = await request.form()
+    form_opened_at_raw = form.get("form_opened_at")
+
+    # T-2026-10-04 (Tier 5-K): detect concurrent modification. Compare
+    # the form's open-time against the latest updated_at on this date.
+    # If form_opened_at < max(updated_at), someone else saved while
+    # we were filling it out.
+    from datetime import timezone
+    concurrent_modify = False
+    if form_opened_at_raw:
+        try:
+            # The form sends naive local time; treat as UTC for compare.
+            form_opened_at = datetime.fromisoformat(str(form_opened_at_raw))
+            if form_opened_at.tzinfo is None:
+                form_opened_at = form_opened_at.replace(tzinfo=timezone.utc)
+            # Read max(updated_at) for this date.
+            latest_row = session.execute(
+                text("SELECT MAX(updated_at) FROM production_completion WHERE for_date = :d"),
+                {"d": for_date.isoformat()},
+            ).scalar()
+            if latest_row is not None:
+                # SQLite returns strings; normalize.
+                if isinstance(latest_row, str):
+                    latest_ts = datetime.fromisoformat(latest_row)
+                    if latest_ts.tzinfo is None:
+                        latest_ts = latest_ts.replace(tzinfo=timezone.utc)
+                else:
+                    latest_ts = latest_row
+                if latest_ts > form_opened_at:
+                    concurrent_modify = True
+        except (ValueError, TypeError) as exc:
+            logger.debug(f"produccion.shift_execute: bad form_opened_at format: {exc!r}")
+
     saved = 0
     skipped = 0
     for key, value in form.multi_items():
@@ -617,11 +651,25 @@ async def produccion_shift_execute(
         action="write.production.shift.execute",
         target_type="production_shift",
         target_id=for_date.isoformat(),
-        detail={"saved": saved, "skipped": skipped, "for_date": for_date.isoformat()},
+        detail={
+            "saved": saved,
+            "skipped": skipped,
+            "for_date": for_date.isoformat(),
+            "concurrent_modify": concurrent_modify,  # T-2026-10-04 (Tier 5-K)
+        },
     )
     session.commit()
+    redirect_url = f"/produccion?for_date={for_date.isoformat()}&shift_saved={saved}"
+    # T-2026-10-04 (D.2): preserve shift context on redirect.
+    shift_ctx = str(form.get("shift", "")).strip()
+    if shift_ctx in ("AM", "PM"):
+        redirect_url += f"&shift={shift_ctx}"
+    if concurrent_modify:
+        # T-2026-10-04 (Tier 5-K): append the flag so the day view can
+        # render the "se actualizó mientras escribías" warning.
+        redirect_url += "&concurrent_modify=1"
     return RedirectResponse(
-        url=f"/produccion?for_date={for_date.isoformat()}&shift_saved={saved}",
+        url=redirect_url,
         status_code=303,
     )
 

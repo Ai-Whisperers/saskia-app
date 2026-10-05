@@ -56,6 +56,9 @@ def upsert_completion(
     else:
         row.completed_qty = completed_qty
         row.recorded_at = now
+        # T-2026-10-04 (Tier 5-K): stamp updated_at on every save so
+        # the shift-execute concurrent-edit detector can compare.
+        row.updated_at = now
         if notes is not None:
             row.notes = notes
     session.flush()

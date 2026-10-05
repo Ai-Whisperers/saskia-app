@@ -47,6 +47,9 @@ from app.rms.migrations._096_audit_columns import _migration_096_audit_columns
 from app.rms.migrations._097_ingredient_avg_cost import _migration_097_ingredient_avg_cost
 from app.rms.migrations._098_production_closed_day import _migration_098_production_closed_day
 from app.rms.migrations._098_customer_phone import _migration_098_customer_phone
+from app.rms.migrations._099_production_completion_updated_at import _migration_099_production_completion_updated_at
+from app.rms.migrations._100_freezer_temperature_log import _migration_100_freezer_temperature_log
+from app.rms.migrations._101_recipe_fermentation_minutes import _migration_101_recipe_fermentation_minutes
 
 from loguru import logger
 from sqlalchemy import create_engine, event, text
@@ -4169,6 +4172,9 @@ MIGRATIONS = {
     96: _migration_096_audit_columns,
     97: _migration_097_ingredient_avg_cost,
     98: _migration_098_combined_098,
+    99: _migration_099_production_completion_updated_at,
+    100: _migration_100_freezer_temperature_log,
+    101: _migration_101_recipe_fermentation_minutes,
 }
 
 

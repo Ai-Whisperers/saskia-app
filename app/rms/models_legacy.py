@@ -277,6 +277,10 @@ class Recipe(Base):
     yield_unit: Mapped[str] = mapped_column(String(16), nullable=False, default="und")
     prep_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     cook_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    fermentation_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # T-2026-10-05 (B.3): bulk-fermentation time before bake. NULL = no
+    # fermentation step; >0 = minutes of poolish/masa madre/levain.
+    # Suggested: 240-480 (poolish), 720-960 (masa madre), 1440-4320 (levain).
     difficulty: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 1-5 scale
     family: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # category (legacy, read-only)
     # UI-V2 (migration 068): multi-select "Etiquetas de Menú" — comma-separated.
@@ -842,6 +846,7 @@ class ProductionCompletion(Base):
     completed_qty: Mapped[float] = mapped_column(Float, nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     __table_args__ = (
         CheckConstraint("completed_qty >= 0", name="ck_completion_qty_nonneg"),
@@ -850,6 +855,39 @@ class ProductionCompletion(Base):
 
     # Relationships
     product: Mapped["Product"] = relationship("Product")
+
+
+class FreezerTemperatureLog(Base):
+    """T-2026-10-04 (B.6) — HACCP freezer-temperature log.
+
+    Regulatory context: Paraguay MSPBS HACCP exige registro de temperatura
+    de heladeras/freezers donde se almacenan productos crudos, semi-elaborados
+    y elaborados. Sin registro continuo, una inspección puede multar al
+    local. Saskia opera con un freezer de masa y uno de productos finales.
+
+    One row per (location, for_date, shift) — el cocinero registra la
+    temperatura 2 veces al día (apertura AM, cierre PM). Las filas se
+    acumulan para auditoría MSPBS.
+    """
+
+    __tablename__ = "freezer_temperature_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    location: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    temperature_c: Mapped[float] = mapped_column(Float, nullable=False)
+    for_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    shift: Mapped[str] = mapped_column(String(8), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    recorded_by_user_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("user.id"), nullable=True
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("temperature_c BETWEEN -40 AND 30", name="ck_freezer_temp_range"),
+        CheckConstraint("shift IN ('AM', 'PM')", name="ck_freezer_shift"),
+        Index("ix_freezer_temp_date_location", "for_date", "location"),
+    )
 
 
 class ProductionPlanTemplate(Base):
