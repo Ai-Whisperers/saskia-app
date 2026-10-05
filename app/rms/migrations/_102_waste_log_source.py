@@ -20,6 +20,7 @@ from sqlalchemy import text
 
 
 def _migration_102_waste_log_source(conn: Any) -> None:
+    """waste_log.source denormalization: ADD COLUMN + index + backfill (PROD-MERMA-2)."""
     try:
         conn.execute(
             text(
@@ -43,3 +44,8 @@ def _migration_102_waste_log_source(conn: Any) -> None:
         )
     except Exception:  # noqa: BLE001, S110 — table empty or column absent
         pass
+
+    # BACKLOG #4 (2026-10-02): always bump schema_version at the end.
+    from app.rms.db import _bump_schema_version
+
+    _bump_schema_version(conn, 102)
