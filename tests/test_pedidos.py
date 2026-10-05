@@ -383,40 +383,29 @@ def test_fulfill_multi_line_creates_multiple_sales(client, session_factory):
 
 
 def test_status_transition_pending_to_confirmed_to_ready_to_fulfilled(client, session_factory):
-    """Full happy path: pending → confirmed → ready → fulfilled."""
-    from app.rms.models import Pedido
+    """Full happy path: pending → confirmed → ready → fulfilled.
+
+    Migrated to use flows.py helpers — same coverage, fewer lines.
+    """
+    from tests.flows import create_pedido, fulfill_pedido, set_pedido_status
 
     pid = _seed_product(session_factory)
-    pdate = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
-    resp = client.post(
-        "/pedidos/nuevo",
-        data={
-            "customer_name": "HappyPath",
-            "promised_date": pdate,
-            "line_product_id": [str(pid)],
-            "line_qty": ["1"],
-            "line_unit_price_gs": ["0"],
-        },
-        follow_redirects=False,
+    create_pedido(
+        client,
+        customer_name="HappyPath",
+        promised_date=(datetime.utcnow().date() + timedelta(days=1)).isoformat(),
+        lines=[{"product_id": pid, "qty": 1, "unit_price_gs": 0}],
     )
-    assert resp.status_code in (302, 303)
+
+    from app.rms.models import Pedido
 
     with session_factory() as s:
         pedido_id = s.execute(select(Pedido)).scalar_one().id
 
-    # pending -> confirmed
-    r = client.post(
-        f"/pedidos/{pedido_id}/status", data={"new_status": "confirmed"}, follow_redirects=False
-    )
-    assert r.status_code in (302, 303)
-    # confirmed -> ready
-    r = client.post(
-        f"/pedidos/{pedido_id}/status", data={"new_status": "ready"}, follow_redirects=False
-    )
-    assert r.status_code in (302, 303)
-    # ready -> fulfilled via /fulfill endpoint
-    r = client.post(f"/pedidos/{pedido_id}/fulfill", follow_redirects=False)
-    assert r.status_code in (302, 303)
+    # pending → confirmed → ready → fulfilled
+    set_pedido_status(client, pedido_id, "confirmed")
+    set_pedido_status(client, pedido_id, "ready")
+    fulfill_pedido(client, pedido_id)
 
     with session_factory() as s:
         p = s.execute(select(Pedido)).scalar_one()

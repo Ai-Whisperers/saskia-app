@@ -719,6 +719,22 @@ def produccion_worksheet(
                 _get_haccp_latest_for_date(session, plan.for_date)
             ),
             "haccp_missing_count": _count_haccp_missing_for_date(session, plan.for_date),
+            # T-2026-10-04 (C.4): substitution suggestions. For every
+            # ingredient the plan is short on, surface alternative
+            # products the cook can bake instead — ranked by Jaccard
+            # similarity so the substitute tastes similar. Skipped when
+            # the plan is fully stocked (avoids noise).
+            "substitution_suggestions": _build_substitution_suggestions(
+                session,
+                list(
+                    {
+                        ln.ingredient_name
+                        for ln in plan.lines
+                        if (ln.stock_on_hand - ln.qty_required) < 0
+                    }
+                ),
+                plan_rows_view,
+            ),
         },
     )
 
@@ -1841,7 +1857,8 @@ def _build_substitution_suggestions(
             continue
         try:
             ing_set = product_ingredient_set(session, prod)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001 — best-effort cache build
+            logger.debug(f"produccion.plan_ingredient_set: ingredient lookup failed: {exc!r}")
             ing_set = set()
         product_cache[pid] = (prod, ing_set)
 
@@ -1855,8 +1872,7 @@ def _build_substitution_suggestions(
         affected = [
             (r["product_id"], r["product_name"])
             for r in plan_rows_view
-            if r.get("product_id") in product_cache
-            and ing_id in product_cache[r["product_id"]][1]
+            if r.get("product_id") in product_cache and ing_id in product_cache[r["product_id"]][1]
         ]
         if not affected:
             continue
@@ -1867,9 +1883,9 @@ def _build_substitution_suggestions(
             if not orig_set:
                 continue
             subs: list[dict] = []
-            for other in session.execute(
-                select(Product).where(Product.id != orig_pid)
-            ).scalars().all():
+            for other in (
+                session.execute(select(Product).where(Product.id != orig_pid)).scalars().all()
+            ):
                 if other.recipe_id is None:
                     continue
                 other_set = product_cache.get(other.id)
@@ -1877,7 +1893,8 @@ def _build_substitution_suggestions(
                     try:
                         other_set = (other, product_ingredient_set(session, other))
                         product_cache[other.id] = other_set
-                    except Exception:
+                    except Exception as exc:  # noqa: BLE001 — best-effort cache build
+                        logger.debug(f"produccion.plan_ingredient_set: {exc!r}")
                         continue
                 if ing_id in other_set[1]:
                     continue  # also needs the short ingredient
