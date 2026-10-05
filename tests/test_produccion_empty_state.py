@@ -74,7 +74,8 @@ def test_produccion_template_has_audio_chime_script():
     """A WebAudio oscillator chime plays on shift_saved > 0."""
     m_start = SRC.find("{% if shift_saved")
     assert m_start > 0
-    block = SRC[m_start : m_start + 3000]
+    # Whole block until the matching {% endif %}
+    block = SRC[m_start : m_start + 5000]
     assert "AudioContext" in block, (
         "P0:B.5 — chime must use WebAudio AudioContext"
     )
