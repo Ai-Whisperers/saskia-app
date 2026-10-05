@@ -47,8 +47,23 @@ from app.services.template_render import render
 router = APIRouter(prefix="/recetas", dependencies=[Depends(require_login)])
 
 
+def _format_total_minutes(total_minutes: int | None) -> str:
+    """Format total minutes as 'Xh YYm' or 'Sin definir' if None."""
+    if total_minutes is None:
+        return "Sin definir"
+    hours = total_minutes // 60
+    minutes = total_minutes % 60
+    if hours > 0:
+        return f"{hours}h {minutes}m"
+    else:
+        return f"{minutes}m"
+
+
 def _decorate(session: Session, r: Recipe, batch: CostResult, unit: CostResult | None, line_count: int) -> dict:
     """Compute batch + unit cost for a recipe row (data passed in from batch loader)."""
+    total_minutes = (
+        (r.prep_minutes or 0) + (r.cook_minutes or 0) if (r.prep_minutes or r.cook_minutes) else None
+    )
     return {
         "id": r.id,
         "name": r.name,
@@ -60,6 +75,8 @@ def _decorate(session: Session, r: Recipe, batch: CostResult, unit: CostResult |
         "notes": r.notes,
         "prep_minutes": r.prep_minutes,
         "cook_minutes": r.cook_minutes,
+        "total_minutes": total_minutes,
+        "total_minutes_fmt": _format_total_minutes(total_minutes),
         "family": r.family,
         "dietary_tags": r.dietary_tags,
         # 2026-09-23 (US 1.1): recipe-photo button in /recetas list depends on

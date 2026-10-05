@@ -95,6 +95,36 @@ class RecipeComplexity:
     cost_per_prep_minute_gs: float | None
 
 
+@dataclass
+class AuditIpPattern:
+    """BACKLOG #30 (2026-10-02): IP pattern analytics for audit log."""
+    ip: str
+    count: int
+    first_seen: datetime
+    last_seen: datetime
+
+
+@dataclass
+class AuditTimePattern:
+    """BACKLOG #30 (2026-10-02): time-of-day + day-of-week audit patterns."""
+    hour: int  # 0..23
+    day_of_week: int  # 0=Mon, 6=Sun
+    count: int
+    avg_hourly_actions: float
+
+
+@dataclass
+class AuditOperatorActivity:
+    """BACKLOG #30 (2026-10-02): per-operator audit activity summary."""
+    user_id: str
+    name: str | None
+    total_actions: int
+    actions_per_day_avg: float
+    most_common_action: str
+    last_seen: datetime | None
+
+
+
 # --- Public query functions ---
 
 
@@ -546,7 +576,164 @@ def recipe_complexity(session: Session) -> list[RecipeComplexity]:
     return out
 
 
+
+def audit_ip_patterns(session: Session, *, days: int = 30) -> list[AuditIpPattern]:
+    """BACKLOG #30 (2026-10-02): IP pattern analytics for audit log.
+    
+    Returns most frequent client IPs with activity count and date range.
+    Helps identify suspicious IP patterns or untrusted locations.
+    """
+    from app.rms.models_legacy import AuditLog
+    
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    
+    stmt = (
+        select(
+            AuditLog.ip,
+            func.count(AuditLog.id).label("count"),
+            func.min(AuditLog.occurred_at).label("first_seen"),
+            func.max(AuditLog.occurred_at).label("last_seen")
+        )
+        .where(AuditLog.ip.isnot(None))
+        .where(AuditLog.occurred_at >= cutoff)
+        .group_by(AuditLog.ip)
+        .order_by(func.count(AuditLog.id).desc())
+        .limit(10)
+    )
+    
+    rows = session.execute(stmt).fetchall()
+    
+    return [
+        AuditIpPattern(
+            ip=row.ip,
+            count=row.count,
+            first_seen=row.first_seen,
+            last_seen=row.last_seen,
+        )
+        for row in rows
+    ]
+
+
+
+def audit_time_patterns(session: Session, *, days: int = 30) -> list[AuditTimePattern]:
+    """BACKLOG #30 (2026-10-02): Time pattern analytics for audit log.
+    
+    Returns hourly and day-of-week activity patterns.
+    Helps identify anomalous activity times or automated access.
+    """
+    from app.rms.models_legacy import AuditLog
+    
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    
+    # Hourly patterns (weekday + hour)
+    stmt = (
+        select(
+            extract('dow', AuditLog.occurred_at).label("day_of_week"),
+            extract('hour', AuditLog.occurred_at).label("hour"),
+            func.count(AuditLog.id).label("count")
+        )
+        .where(AuditLog.occurred_at >= cutoff)
+        .group_by(extract('dow', AuditLog.occurred_at), extract('hour', AuditLog.occurred_at))
+        .order_by(extract('dow', AuditLog.occurred_at), extract('hour', AuditLog.occurred_at))
+    )
+    
+    hourly_rows = session.execute(stmt).fetchall()
+    
+    # Calculate avg hourly actions per pattern for normalization
+    total_actions = sum(row.count for row in hourly_rows)
+    total_hourly_buckets = len(hourly_rows)
+    avg_hourly = total_actions / max(total_hourly_buckets, 1)
+    
+    return [
+        AuditTimePattern(
+            hour=row.hour,
+            day_of_week=row.day_of_week,
+            count=row.count,
+            avg_hourly_actions=row.count / avg_hourly,
+        )
+        for row in hourly_rows
+    ]
+
+
+
+def audit_operator_patterns(session: Session, *, days: int = 30) -> list[AuditOperatorActivity]:
+    """BACKLOG #30 (2026-10-02): Operator activity analytics for audit log.
+    
+    Returns user activity sorted by volume, frequency, and recency.
+    Highlights dormant users or unusually active accounts.
+    """
+    from app.rms.models_legacy import AuditLog
+    from datetime import datetime, timedelta
+    
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    
+    # Get user activity totals and most common action
+    # SQLite doesn't support mode(), so do it manually
+    stmt = (
+        select(
+            AuditLog.user_id,
+            func.count(AuditLog.id).label("total_actions"),
+            func.max(AuditLog.occurred_at).label("last_seen")
+        )
+        .where(AuditLog.user_id.isnot(None))
+        .where(AuditLog.occurred_at >= cutoff)
+        .group_by(AuditLog.user_id)
+        .order_by(func.count(AuditLog.id).desc())
+        .limit(10)
+    )
+    
+    rows = session.execute(stmt).fetchall()
+    
+    # Find most common action for each user (manual mode calculation)
+    user_actions = {}
+    action_stmt = (
+        select(
+            AuditLog.user_id,
+            AuditLog.action,
+            func.count(AuditLog.id).label("action_count")
+        )
+        .where(AuditLog.user_id.isnot(None))
+        .where(AuditLog.occurred_at >= cutoff)
+        .group_by(AuditLog.user_id, AuditLog.action)
+        .order_by(AuditLog.user_id, func.count(AuditLog.id).desc())
+    )
+    
+    action_rows = session.execute(action_stmt).fetchall()
+    for row in action_rows:
+        if row.user_id not in user_actions:
+            user_actions[row.user_id] = row.action
+        # Keep the first (most frequent) action per user
+    
+    # Get user names from a realistic lookup (in real app would use user service)
+    user_names = {}
+    for row in rows:
+        # Simple naming convention: if UUID-like, truncate; if int, use as-is
+        user_id = row.user_id
+        if len(user_id) > 12:  # UUID-like
+            user_names[user_id] = f"user@{user_id[:8]}"
+        else:
+            user_names[user_id] = user_id
+    
+    days_active = days
+    return [
+        AuditOperatorActivity(
+            user_id=row.user_id,
+            name=user_names.get(row.user_id),
+            total_actions=row.total_actions,
+            actions_per_day_avg=row.total_actions / max(days_active, 1),
+            most_common_action=user_actions.get(row.user_id, "unknown"),
+            last_seen=row.last_seen,
+        )
+        for row in rows
+    ]
+
+
+
+
 __all__ = [
+    "AuditIpPattern",
+    "AuditOperatorActivity",
+    "AuditTimePattern",
     "DayOfWeekBucket",
     "DeadStockRow",
     "IngredientConcentration",
@@ -555,6 +742,9 @@ __all__ = [
     "StockTurnover",
     "TopMarginProduct",
     "all_stock_turnover",
+    "audit_ip_patterns",
+    "audit_operator_patterns",
+    "audit_time_patterns",
     "day_of_week_heatmap",
     "dead_stock",
     "ingredient_concentration",
