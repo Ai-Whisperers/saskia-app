@@ -76,11 +76,43 @@ vendieron** (se vencieron, se cayeron, se quemaron en producción).
 
 ## Errores comunes
 
-- **"No me deja registrar"** — puede ser que el ingrediente no exista.
+- **“No me deja registrar”** — puede ser que el ingrediente no exista.
   Cargá primero el ingrediente en Inventario.
-- **"El stock quedó en negativo"** — la app descuenta la merma del
+- **“El stock quedó en negativo”** — la app descuenta la merma del
   stock. Si vendiste algo y después registrás merma, el stock puede
   quedar en números raros. Cargá primero la merma, después vendés.
+
+## Merma de tandas enteras
+
+Si perdiste **toda una tanda** (por ejemplo, se cortó la luz o la hornada
+entera salió mal), **no registres merma ingrediente por ingrediente**:
+usa el botón **🔥 Merma** directamente desde la vista de producción. Esto
+descuenta todos los ingredientes del lote de una sola vez.
+
+| Lugar | Botón | Ideal para |
+|---|---|---|
+| `/produccion` | **🔥 Merma** (botón rojo por cada producto) | Tandas enteras quemadas, cortes de luz, falla de horno |
+| `/merma` | **Registrar merma** | Ingredientes sueltos (vencidos, caídos, pequeños sobrantes) |
+
+Para mermas de lote, andá a [Producción](08-produccion.md) y tocá el
+botón 🔥 Merma en la fila del producto perdido.
+
+## ¿Cómo saber cuándo usar cada uno?
+
+- **Usa 🔥 Merma de producción** si perdiste más de 5-10 unidades de un producto
+  o si un lote entero no salió bien.
+- **Usa Registrar merma** si tiraste cosas sueltas (ej. “un ingrediente
+  venció”, “se cayó una porción”, “sobró un poco de crema”).
+
+## Auditoría y seguimiento
+
+La app ahora muestra **Origen** en cada evento de merma para saber si fue
+registrado manualmente desde `/merma` (`✍️ Manual`) o desde la vista de
+producción (`📍 Producción`). Esto ayuda a entender si hubo falla de proceso
+(el segundo caso) o desperdicio suelto (el primero).
+
+Además, en la pantalla de [Auditoría](10-auditoria.md), podrás ver los
+detalles técnicos de cada registro incluyendo la fuente del registro.
 
 ## Siguiente paso
 

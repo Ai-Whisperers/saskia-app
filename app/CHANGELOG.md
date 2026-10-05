@@ -429,109 +429,34 @@ from `open` → `done` with an optional `closure_notes` justification.
   tests are replaced by a single `test_insights_dismiss_endpoint_removed`
   asserting the route now 404s, and the route smoke list drops the entry.
 
-### Fixed — DB-level guard for INSERT (recipe yield_qty, recipe_line qty)
-- **Migration 083** (`app/rms/db.py`) closes the gap left by migration
-  028. Migration 028 created triggers on `UPDATE OF yield_qty` /
-  `UPDATE OF qty` that reject non-null values `<= 0`. But raw SQL
-  `INSERT INTO recipe (..., yield_qty, ...) VALUES (..., -1, ...)` slipped
-  past those triggers — UPDATE triggers don't fire on INSERT.
-- Migration 083 adds the corresponding `BEFORE INSERT` triggers for
-  both `recipe.yield_qty` and `recipe_line.qty`. NULL is still allowed
-  (draft state). On Postgres the constraint is already in the model
-  via `CheckConstraint("qty > 0")` so this migration is a no-op there
-  (we still bump the version for schema-tracking consistency).
-- **Closes BACKLOG #5** (recipe.yield_qty CHECK; previously marked Done
-  in 2026 but the gap was the missing INSERT side).
-- **Tests** (`tests/test_db_check_constraints.py`): 5 new tests
-  covering INSERT rejection of zero / negative yield_qty and qty,
-  plus idempotency of the migration itself (re-run is no-op).
-  `11 / 11` pass.
+**Wired shift-deficit prompt (T4 completion):**
+- Shift-save flash banner emits `data-shift-saved="1"` so the JS knows
+  when to evaluate deficits.
+- Modal opens with the Lote-entero tab preselected when completed_qty
+  is below qty_to_produce on save.
 
-### Fixed — pedido_board plays chime on new orders (opt-in)
-- **`app/templates/pedido_board.html`** — the sound toggle (🔕/🔔)
-  button has been wired. Now when a user has opted in (`localStorage`
-  flag `saskia:board-sound-enabled=1`), the chime plays on each reload
-  if any card-id is greater than the value stored in
-  `saskia:board-last-order-id`. Falls through on `audio.play()` rejection
-  (autoplay policy) without surfacing to the user.
-- **Why localStorage + page reload** (vs in-place fetch):
-  the board uses `<meta http-equiv="refresh" content="30">` (full reload)
-  rather than JS polling, so we can't diff the DOM. localStorage is
-  the cheapest way to track the high-water mark across reloads.
-- **Closes the phase-14 TODO** from
-  `docs/plans/2026-10-01-phase14-todo-inventory.md` row 4
-  (`app/templates/pedido_board.html:164`).
+**Guides updated:**
+- `docs/user-guide/07-merma.md` — new section "Merma de tandas enteras"
+  routing operators to /produccion for batch losses; "Auditoría y
+  seguimiento" explains the source chips.
+- `docs/user-guide/08-produccion.md` — "Botón 🔥 Merma" subsection
+  documents the production-entrypoint flow.
 
-### Fixed — `bank_reconcile` audit hygiene
-- **`app/routers/herebus.py:489`** — `reconciled_by` is now read from
-  `request.state.user_id` (populated by `ObservabilityContextMiddleware`
-  in `app/rms/observability.py`) instead of the hard-coded literal
-  `"system"`. Falls back to `"anonymous"` when no session user is
-  present (e.g. the test-bypass env `SASKIA_TEST_AUTH_DISABLED=***`).
-  Audit rows now accurately identify the operator who reconciled the
-  bank transaction; bcrypted backend returns the int user_id, Supabase
-  backend returns the UUID.
-- **Closes the phase-14 TODO** from
-  `docs/plans/2026-10-01-phase14-todo-inventory.md` row 2
-  (`app/routers/herebus.py:489`).
-- **New regression test** `test_bank_reconcile_sets_reconciled_by_from_session`
-  (`tests/test_bank_reconciliation_regression.py`): creates a fresh
-  `BankTransaction`, POSTs `/bank/{id}/reconcile`, then asserts
-  `reconciled_by != "system"` and `== "anonymous"` under the test
-  bypass. Any future hard-coding of `"system"` trips this test.
+### Added (2026-09-30) — PROD-MERMA-1: quick-merma modal from /produccion + /merma collapse
 
-### Changed — User guide renumber + pin
-- **13 section files renumbered** (03-inventario … 15-excel → 04-inventario
-  … 16-excel) to make room for the new Pedidos section between Ventas
-  and Inventario.
-- **New `03-pedidos.md`** (`docs/user-guide/`) covering the full Pedidos
-  flow: nuevo pedido (autofill + address picker + loyalty banner), KDS
-  kanban board (Pendientes / En preparación / Listos), suscripciones
-  semanales, entregas a domicilio (ventana + aviso amarillo), errores
-  comunes, día a día.
-- **README.md** (`docs/user-guide/README.md`): version header re-pinned
-  to **schema 82 / commit `3b8a6a5`** (was **schema 75 / `64f5e4f`**,
-  stale across phases 11–14). Two prior commits also pinned stale
-  schema numbers in the active-features table.
-- **Active features table** (README.md): fixed broken links to
-  non-existent `03-pedidos.md` / `05-produccion.md` / `06-lista-compras.md`,
-  renumbered refs to match the new sibling file numbering, added row 17
-  (Suscripción semanal de un cliente → `03-pedidos.md`).
-- **`tests/test_user_guide_version.py::SECTIONS`** updated to the new
-  numbering; all 7 contract tests + 6 help-route tests pass.
+Move waste logging to the place where waste happens. The operator no longer
+needs to context-switch from the daily shift-execution view to /merma to
+log a burnt batch or a spoiled ingredient.
 
-### Changed — Reorder lock: auto-streak → manual 🔒 toggle
-- **Removed auto-streak lock**: the 3-consecutive-buys auto-lock that
-  shipped in commit 3acd3b4 was producing surprise moments ("why is
-  this pinned?"). Replaced with a **manual 🔒 button** in each row's
-  Proveedor cell. She toggles when she knows the item is specialty,
-  the system never locks on her behalf.
-- **`record_purchase_supplier()`** no longer touches
-  ``locked_supplier_id``. Streak counter (``purchase_streak_count``)
-  is still maintained for the future "lock this?" suggestion dashboard
-  but never changes behaviour automatically.
-- **New endpoints** (`app/routers/reorder.py`):
-  - `POST /reorder/lock-supplier` — pins an ingredient to its
-    currently-effective supplier; refuses soft-deleted suppliers.
-  - `POST /reorder/unlock-supplier` — clears the pin (no-op if no lock).
-  - Both write audit rows via ``audit_record()`` and return JSON
-    ``{ok: true, ...}`` so the frontend can refresh.
-- **New helpers** (`app/rms/supplier_history.py`):
-  - ``lock_supplier()`` — idempotent (no double-audit on re-lock to
-    same supplier); records ``previous_locked_supplier_id`` in audit
-    detail when overriding an existing lock.
-  - ``unlock_supplier()`` — no-op when no lock present.
-- **Template** (`app/templates/reorder.html`):
-  - Each row's Proveedor cell shows **🔒** (unlocked) or **🔓** (locked).
-  - Click → POST → page reload to swap badge + button.
-  - Locked-row CSS still applies (left-edge stripe + dropdown ring).
-- **Tests**: 16 in `test_reorder_supplier_redesign.py` (was 11).
-  Added: `lock_supplier_writes_audit_row`, `lock_is_idempotent`,
-  `lock_overrides_existing_lock_and_audits_previous`,
-  `unlock_writes_audit_row`, `unlock_is_noop_when_unlocked`,
-  `switching_suppliers_does_not_touch_existing_lock`. Replaced
-  `streak_locks_after_three_consecutive_buys` with
-  `streak_does_NOT_auto_lock` (regression for Phase 2).
+**Production-context quick-merma modal (`/produccion?view=day`):**
+- New `🔥 Merma` button per row in the shift-execution table (next to "Ver receta").
+- Opens a 2-tab `<dialog>` modal: **Ingrediente suelto** (qty + unit + motivo + nota)
+  | **Lote entero** (recipe preselected + batch_qty + motivo + nota).
+- Tab "Lote entero" auto-disabled when the row has no recipe; tab switches the
+  form action between `/merma/registrar` (ingredient) and `/merma/receta` (batch).
+- POSTs preserve all existing validation (rate-limit, csrf, reason enum, etc.).
+- After save, redirect goes to `/produccion?merma=ok&lines=N` with a green banner
+  showing the line count that was decremented from stock.
 
 ### Changed — Reorder redesign: per-row supplier picker + auto-lock
 - **Migration 072** (`app/rms/db.py`): adds `last_purchase_supplier_id`,
@@ -585,32 +510,15 @@ from `open` → `done` with an optional `closure_notes` justification.
   locked badge, registrar record, omitted-supplier safety, JSON
   options, cascade banner DOM.
 
-### Changed — Producción de mañana: sidebar → botones
-- **Sidebar (`app/rms/nav.py`)**: removed `/produccion/manana` from the
-  `Operación` group (duplicate of `/produccion`).
-- **`/produccion`** (`app/templates/produccion.html`): added a
-  "Producción de mañana →" button next to the Día/Semana/Mes view tabs.
-- **`/inicio`** (`app/templates/inicio.html`): added a
-  "Producción de mañana" button in the hero actions row.
-- **Why**: `Operación` was at 6 items; the duplicate crowded the
-  sidebar. The two pages where producers actually plan
-  (`/` for the day, `/produccion` for the full plan) are the
-  natural homes for the button.
+**Audit tagging (T3):**
+- `write.merma.create` and `write.merma.recipe` audit entries now carry
+  `source: "production" | "manual"` so the eventos log on /merma can show
+  where each event was reported from.
 
-### Added — Tier-1 prelaunch items (stock LED + weekend-batch EOD)
-- **Stock-confidence LED on `/inicio` HOY band** (`app/routers/dashboard.py`
-  + `app/templates/inicio.html`): a 5th KPI card aggregating ingredient
-  health into a single green/amber/red signal — `success` ("todo OK")
-  when all tracked ingredients are at/above min, `warn` ("N bajo mínimo")
-  when at least one is below min, `danger` ("N en negativo") when any
-  ingredient has negative stock. Links to `/reorder`. (Prelaunch roadmap
-  2026-09-17.)
-- **Weekend-batch EOD summary `/eod?start=YYYY-MM-DD&end=YYYY-MM-DD`**
-  (`app/routers/eod.py` + `app/templates/eod.html`): when both `start`
-  and `end` are valid (≤31 days, start ≤ end), renders a range summary
-  card with total ventas, total operaciones, total merma, and a per-day
-  table (plan rows + completions). Without params the original
-  checklist UI is unchanged. (Prelaunch roadmap 2026-09-17.)
+**Shift-deficit prompt (T4):**
+- Pure-JS, no DB. After saving shift execution, when `completed_qty <
+  qty_to_produce` for any row, an inline prompt suggests registering the
+  deficit as merma with one click (opens the quick-merma modal).
 
 ### Added — Tier-1 round 2 (Coffee regulars + quick receipt-of-stock)
 - **Coffee regulars card on `/inicio`** (`app/routers/dashboard.py`
@@ -3190,105 +3098,6 @@ direction (regression for the 404), and all 7 nav targets returning 200.
 
 ### Added
 - `tests/test_template_render_m.py` — 17 tests covering `m.gs`, `m.gs_plain`, `m.stock_badge`, `m.margin_pct`, `m.top_list_card` (all green).
-
-### Added — Backend & middleware gap closures (Phase 14 follow-up)
-Five concrete improvements addressing gaps surfaced by the architecture
-inventory (backend + middleware; see `docs/FRONTEND_MIDDLEWARE_AUDIT.md`):
-
-1. **Streaming CSV exports** — `app/rms/streaming_csv.py` (helper) +
-   4 endpoints migrated (`/ventas/export.csv`, `/auditoria/export.csv`,
-   `/inventario/export.csv`, `/recetas/export`) to use `StreamingResponse`
-   via `stream_csv_rows`. Memory drops from O(rows) to O(1); first byte
-   streams immediately; UTF-8 BOM for Excel.
-2. **CSV upload guards** — `app/rms/upload_limits.py` (`validate_upload`,
-   `CSV_LIMIT_2MB`, `CSV_MIME_TYPES`) protects 2 unprotected endpoints:
-   `/reorder/upload-prices`, `/benchmarks/evidencia/importar`. Closed
-   DoS / arbitrary-upload vectors.
-3. **`/metrics` endpoint (Prometheus format)** — `app/rms/metrics.py`
-   stdlib-only (no `prometheus-fastapi` dep). Counters, histograms
-   (5ms→5s+∞), gauges (`rms_db_up`, `rms_app_info{version,schema}`).
-   `MetricsMiddleware` records per-request metrics, exception-safely.
-   `/healthz/db` updates `rms_db_up` after each probe.
-4. **Settings audit gaps closed** — `/settings/business` and
-   `/settings/seed-demo` (destructive overwrite) now call
-   `record_audit` with explicit user id, RUC, timbrado, inserted-row
-   counts. Previously unaudited.
-5. **`/ventas/{sale_id}` operator detail page** — new
-   `ventas_detalle.html` (BACKLOG #16) with sale meta, line items,
-   payment breakdown, stock-move ledger, nav breadcrumb, links to
-   `/recibo` (customer ticket) and `/ventas/{id}/anular`.
-
-### Test results
-- 53 new tests pass: `test_streaming_csv` (10), `test_upload_limits` (9),
-  `test_upload_endpoint_guards` (3), `test_metrics` (10),
-  `test_metrics_endpoint` (4), `test_settings_audit` (4),
-  `test_ventas_detail_route` (7), plus 6 regression checks
-  (manual version pin). Total: 7+4+10+9+3+10+4+7
-
-### Added — BACKLOG #17: digital recibo share (public /r/{token})
-Customer-facing share of recibo for WhatsApp / email handoff.
-Mirrors the working /p/{token} pedido-share pattern (P1-2 hardening):
-
-- **Migration 085** (`app/rms/db.py` + `_085_sale_public_token.py`) adds
-  `public_token` (VARCHAR 64), `public_token_expires_at` (TIMESTAMP),
-  `public_token_shared_at` (TIMESTAMP) to the `sale` table; backfills
-  `sold_at + 30 days` for legacy rows; creates
-  `ix_sale_token_expires` index. Schema bump: 84 → 85.
-- **Shared token helper** (`app/rms/public_tokens.py`) — `generate_public_token()`
-  (22-char base64url, 96 bits entropy), `issue_token(now, ttl)`,
-  `is_token_valid(expires_at, now)` handling naive / ISO / SQLite
-  datetime-string shapes. Same entropy + TTL as pedido tokens.
-- **Operator endpoint** `POST /ventas/{sale_id}/share` (auth) — issues
-  a fresh token + 30-day expiry, audits `write.sale.share`, redirects
-  to `/ventas/{id}?shared=1&url=/r/{token}`. Each call rotates the token.
-- **Public endpoint** `GET /r/{token}` (no auth, rate-limited 30/5min via
-  `public.recibo.view` audit count, audited per-view) — returns the same
-  `recibo.html` template the cashier sees with `public_mode=True`
-  (hides nav chrome + "back-to-history" button); 404 for unknown token,
-  **410 Gone** for expired token.
-- **UI** — "Compartir recibo" button on `/ventas/{id}` (next to the
-  existing "Ver recibo imprimible" link); on success a green banner
-  with the URL + copy-to-clipboard button.
-- **Tests** — 15 in `tests/test_public_recibo.py`: 7 unit (token shape,
-  entropy, expiry, naive-datetime, string-shape parsing, issue_token)
-  + 8 integration (share redirect shape, token persisted with 30-day
-  expiry, token rotation invalidates prior URL, 404 unknown token,
-  410 expired token, audit row created, share button on detail page).
-
-### Test results
-- 15 new tests pass in `test_public_recibo.py`.
-- 135 regression tests pass in the curated suite
-  (test_public_recibo, test_ventas_detail_route, test_user_guide_version,
-  test_settings_audit, test_k6_public_pedido_token_lookup,
-  test_p1_b2_public_token_hardening, test_sales_export,
-  test_auditoria_filters, test_reorder_scrape_ui, test_db_check_constraints,
-  test_atomic_ddl_block, test_healthz, test_healthz_db_documented,
-  test_stock_qty_nonneg, test_audit_log, test_audit_prune,
-  test_audit_repair, test_migration_partial_apply_detector,
-  test_export_csv).
-
-### Refactor — share /p/{token} and /r/{token} helpers
-Consolidate the duplicated token-shape, expiry-validation, client-IP,
-and rate-limit logic that previously existed in both `pedidos.py` and
-`sales.py` into the single `app/rms/public_tokens.py` module:
-
-- `public_tokens.generate_public_token` is now the one entropy source
-  (was duplicated as `pedidos.generate_public_token`).
-- `public_tokens.is_token_valid` is now the one expiry comparator
-  (was duplicated as `pedidos._is_token_valid(pedido, now)`).
-- `public_tokens.enforce_rate_limit(request, session, action_label)`
-  is now the one rate-limit gate (was duplicated as
-  `pedidos._enforce_public_token_rate_limit` and
-  `sales._enforce_public_recibo_rate_limit`). 30 views / 5 minutes
-  per IP, parameterized by the audit-action label.
-- `public_tokens.client_ip(request)` is now the one XFF-first
-  client-IP helper (was duplicated in both routers).
-- `pedidos.py` retains `generate_public_token` and `_is_token_valid`
-  as one-line wrappers that re-export from `public_tokens` so
-  the 18 P1-2 hardening tests keep passing unchanged.
-- Behavior is identical: 33 tests across the two public routes
-  pass green (`test_p1_b2_public_token_hardening`, `test_k6_*`,
-  `test_public_recibo`); 179 of 179 in the wider regression.
 
 
 ## [Unreleased-pre-templates] — pre-signoff skeleton

@@ -1112,6 +1112,10 @@ class WasteLog(Base):
 
     Append-only. Cost is denormalized at insert time so historical
     reports don't retroactively change when purchase prices change.
+
+    PROD-MERMA-2 (Batch I): `source` denormalizes the entrypoint
+    ('manual' | 'production') so /merma and /auditoria reads can
+    filter without joining AuditLog.
     """
 
     __tablename__ = "waste_log"
@@ -1126,10 +1130,14 @@ class WasteLog(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     recorded_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="manual", server_default="manual"
+    )
 
     __table_args__ = (
         CheckConstraint("qty > 0", name="ck_waste_qty_positive"),
         Index("ix_waste_log_reason", "reason"),
+        Index("ix_waste_log_source", "source"),
     )
 
     # Relationships

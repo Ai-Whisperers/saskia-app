@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, NotFound
-from app.rms.models import Ingredient, Recipe
+from app.rms.models import Ingredient, Recipe, Sale, WasteLog
 from app.rms.observability import record_audit
 from app.rms.waste import (
     amplified_waste_ingredients,
@@ -41,6 +41,9 @@ def merma_list(
     since: str | None = Query(None, description="ISO date start override"),
     until: str | None = Query(None, description="ISO date end override"),
     reason: str | None = Query(None, description="Filter by waste reason"),
+    # PROD-MERMA-2 (Batch I): filter by denormalized WasteLog.source.
+    # Mirrors the /auditoria?source= filter so operators can pivot by entrypoint.
+    source: str | None = Query(None, description="Filter by entrypoint source (manual|production)"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """List recent waste + summary with date range filter.
@@ -165,12 +168,17 @@ def merma_register(
     qty_unit: str = Form(""),
     reason: str = Form(...),
     notes: str = Form(""),
+    source: str = Form(
+        "manual"
+    ),  # PROD-MERMA-1: "manual" (default) | "production" (from quick-merma modal)
     session: Session = Depends(get_session),
 ) -> object:
     """Record a new waste event.
 
     MER-01: qty_unit lets the operator enter 50 g of harina instead of 0.05 kg.
     The unit is converted to the ingredient's stock unit before stock decrement.
+    PROD-MERMA-1: source="production" routes the redirect to /produccion with
+    a merma=ok flash; source="manual" keeps the legacy redirect to /merma.
     """
     # Validate reason is in the enum
     try:
@@ -204,6 +212,10 @@ def merma_register(
             qty_unit=qty_unit or None,
             reason=reason_enum,
             notes=notes or None,
+            # Use the form's `source` value (manual | production). The
+            # default in the form is "manual" so legacy callers keep
+            # their behavior. Quick-merma modal posts "production".
+            source=source,  # PROD-MERMA-2 (Batch I)
         )
     except ValueError as exc:
         # Unknown ingredient FK etc. — 404, not a 500 crash (found by the
@@ -221,10 +233,19 @@ def merma_register(
         action="write.merma.create",
         target_type="merma",
         target_id=log.id,
-        detail={"ingredient_id": ingredient_id, "qty": qty, "reason": reason},
+        detail={
+            "ingredient_id": ingredient_id,
+            "qty": qty,
+            "reason": reason,
+            "source": source,  # PROD-MERMA-1: tag entrypoint for /merma event log
+        },
         user_id=str(current_user_id(request) or "operator"),
     )
     session.commit()
+    # PROD-MERMA-1: route the redirect based on entrypoint so the operator lands
+    # where they came from with a flash banner.
+    if source == "production":
+        return RedirectResponse(url="/produccion?view=day&merma=ok&lines=1", status_code=303)
     return RedirectResponse(url="/merma", status_code=303)
 
 
@@ -235,12 +256,16 @@ def merma_register_recipe(
     batch_qty: float = Form(...),
     reason: str = Form(...),
     notes: str = Form(""),
+    source: str = Form("manual"),  # PROD-MERMA-1: "manual" | "production"
     session: Session = Depends(get_session),
 ) -> object:
     """Record a whole-batch waste event (the operator review T6).
 
     Expands the recipe into per-ingredient WasteLog rows and decrements
     stock proportionally. Sub-recipes recurse via _compute_stock_moves.
+
+    PROD-MERMA-1: source="production" routes the redirect to /produccion with
+    a merma=ok flash (the line count equals the recipe's ingredient count).
     """
     try:
         reason_enum = WasteReason(reason)
@@ -289,10 +314,19 @@ def merma_register_recipe(
             "cost_gs": result.cost_gs,
             "n_ingredient_logs": len(result.waste_logs),
             "reason": reason,
+            "source": source,  # PROD-MERMA-1: tag entrypoint
         },
         user_id=str(current_user_id(request) or "operator"),
     )
     session.commit()
+    # PROD-MERMA-1: redirect by entrypoint; recipe expansion yields N ingredient
+    # lines so the banner reports the actual count.
+    if source == "production":
+        n_lines = max(len(result.waste_logs), 1)
+        return RedirectResponse(
+            url=f"/produccion?view=day&merma=ok&lines={n_lines}",
+            status_code=303,
+        )
     return RedirectResponse(url="/merma", status_code=303)
 
 
