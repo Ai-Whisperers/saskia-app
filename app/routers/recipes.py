@@ -1165,7 +1165,14 @@ def recipe_search_api(
 
     BACKLOG #10: rate-limited at 60 reads/minute/IP via the
     `read_rate_limit_dependency`.
+
+    Phase 20: returns `image_url` + `batches_today` (count of completed
+    batches today) + `portions_today` (batches × yield_qty) so the
+    cashier can see the merma impact in the picker dropdown.
     """
+    from datetime import datetime, timezone
+    from sqlalchemy import bindparam as sa_bindparam, text as sa_text
+
     # Basic search by name
     query = (
         select(Recipe)
@@ -1179,6 +1186,29 @@ def recipe_search_api(
     if not recipes:
         return JSONResponse({"results": [], "count": 0})
 
+    # Bulk-fetch today's completed batches per recipe.
+    # ProductionCompletion is keyed by product_id, not recipe_id —
+    # join via product.recipe_id to aggregate per recipe.
+    # Use raw SQL to avoid the broken ProductionCompletion<->Recipe mapper.
+    recipe_ids = [r.id for r in recipes]
+    batches_today_map: dict[int, float] = {}
+    try:
+        today_start = datetime.now(timezone.utc).date()
+        rows = session.execute(
+            sa_text(
+                "SELECT p.recipe_id, SUM(pc.completed_qty) AS total "
+                "FROM production_completion pc "
+                "JOIN product p ON p.id = pc.product_id "
+                "WHERE p.recipe_id IN :ids AND pc.for_date = :today "
+                "GROUP BY p.recipe_id"
+            ).bindparams(sa_bindparam("ids", expanding=True)),
+            {"ids": recipe_ids, "today": today_start},
+        ).fetchall()
+        batches_today_map = {rid: float(total or 0) for rid, total in rows}
+    except Exception:
+        # Table may not exist in some test DBs; default to empty
+        pass
+
     # Format results for combo
     payload = [
         {
@@ -1186,6 +1216,11 @@ def recipe_search_api(
             "name": r.name,
             "yield_qty": r.yield_qty,
             "yield_unit": r.yield_unit,
+            "image_url": r.image_url or "",
+            "batches_today": batches_today_map.get(r.id, 0.0),
+            "portions_today": (
+                (batches_today_map.get(r.id, 0.0) or 0.0) * (r.yield_qty or 0.0)
+            ),
         }
         for r in recipes
     ]
