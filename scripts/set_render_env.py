@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Set AIW_SASKIA_FORCE_SECURE_COOKIES=1 on Render.
+"""Set AIW_RMS_FORCE_SECURE_COOKIES=1 on Render.
 
 Without this env var, the CSRF middleware sets Secure=False on the
 csrf cookie. Browsers in HTTPS contexts (Render behind Cloudflare
@@ -46,7 +46,7 @@ Path("/tmp/_rk").chmod(0o600)
 
 base = "https://api.render.com/v1/services/srv-dac8g2u7bikc73f3psf0/env-vars"
 req = urllib.request.Request(
-    base + "/AIW_SASKIA_FORCE_SECURE_COOKIES",
+    base + "/AIW_RMS_FORCE_SECURE_COOKIES",
     method="PUT",
     data=json.dumps({"value": "1"}).encode(),
     headers={
@@ -57,7 +57,7 @@ req = urllib.request.Request(
 )
 try:
     resp = urllib.request.urlopen(req, timeout=15)
-    print(f"PUT /AIW_SASKIA_FORCE_SECURE_COOKIES: HTTP {resp.status}")
+    print(f"PUT /AIW_RMS_FORCE_SECURE_COOKIES: HTTP {resp.status}")
     print(resp.read()[:200].decode())
 except urllib.error.HTTPError as e:
     print(f"PUT failed: HTTP {e.code}: {e.reason}")

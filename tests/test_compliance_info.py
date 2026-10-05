@@ -28,13 +28,13 @@ class TestComplianceInfoModel:
         with Session() as s:
             ci = s.get(ComplianceInfo, 1)
             ci.ruc = "80012345-6"
-            ci.razon_social = "Panadería Saskia S.A."
+            ci.razon_social = "Panadería the operator S.A."
             s.commit()
         Session2 = session_factory
         with Session2() as s:
             ci = s.get(ComplianceInfo, 1)
             assert ci.ruc == "80012345-6"
-            assert ci.razon_social == "Panadería Saskia S.A."
+            assert ci.razon_social == "Panadería the operator S.A."
 
     def test_inan_re_number_round_trip(self, session_factory):
         Session = session_factory

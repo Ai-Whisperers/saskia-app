@@ -6,8 +6,8 @@
 
 -- ============================================================
 -- RECIPE COMPLETENESS AUDIT — VPS LIVE DATABASE
--- Run: docker exec $(docker ps -q --filter name=saskia-vps | head -1) \
---   /opt/venv/bin/python saskia-final-verify.py
+-- Run: docker exec $(docker ps -q --filter name=sazon-vps | head -1) \
+--   /opt/venv/bin/python sazon-final-verify.py
 -- ============================================================
 
 -- ============================================================

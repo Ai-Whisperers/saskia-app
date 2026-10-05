@@ -1,4 +1,4 @@
-"""app/rms — Saskia RMS Fase 1.
+"""app/rms — Sazón Fase 1.
 
 The restaurant-management system core. Module structure:
 

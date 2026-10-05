@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-UG_DIR = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/docs/user-guide")
+UG_DIR = Path("/opt/data/profiles/ivan/scratch/sazon-app-work/docs/user-guide")
 SHOTS = UG_DIR / "screenshots"
 
 # Section file → list of (placeholder_alt_text, screenshot_filename, caption)

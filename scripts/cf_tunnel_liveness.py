@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """scripts/cf_tunnel_liveness.py — Phase 14 (2026-10-01).
 
-Proactive CF-Tunnel liveness check for saskia-vps.paragu-ai.com.
+Proactive CF-Tunnel liveness check for sazon-vps.paragu-ai.com.
 
 Background:
   The CF-Tunnel between the public URL and the Docker Swarm can fail
@@ -15,9 +15,9 @@ Background:
 
 What this script does:
   Runs 3 probes:
-    P1: Public URL — `curl -sk https://saskia-vps.paragu-ai.com/healthz`
+    P1: Public URL — `curl -sk https://sazon-vps.paragu-ai.com/healthz`
         should return `{"status":"ok"}`.
-    P2: DNS — `dig +short CNAME saskia-vps.paragu-ai.com` should
+    P2: DNS — `dig +short CNAME sazon-vps.paragu-ai.com` should
         resolve to a *.cfargotunnel.com endpoint.
     P3: App on the swarm — `curl -sk http://127.0.0.1:<port>/healthz/db`
         should return JSON with schema_version present (proves the
@@ -58,7 +58,7 @@ import time
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-PUBLIC_URL = os.environ.get("SASKIA_PUBLIC_URL", "https://saskia-vps.paragu-ai.com")
+PUBLIC_URL = os.environ.get("SASKIA_PUBLIC_URL", "https://sazon-vps.paragu-ai.com")
 PUBLIC_HOST = re.sub(r"^https?://", "", PUBLIC_URL).rstrip("/")
 LOCAL_PROBE_PORT = int(os.environ.get("SASKIA_LOCAL_HEALTH_PORT", "8080"))
 TIMEOUT_S = int(os.environ.get("SASKIA_PROBE_TIMEOUT_S", "15"))

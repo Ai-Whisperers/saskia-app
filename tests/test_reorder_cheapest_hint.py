@@ -103,7 +103,7 @@ def test_reorder_hides_hint_when_no_events(authed_client, session_factory, qseed
     # not be on the reorder list depending on its stock. Skip if not present.
     if f"rsup-{iid}" not in body:
         return  # ingredient wasn't selected for reorder — nothing to test
-    # Find the wrapper around this ingredient's saskia-combo
+    # Find the wrapper around this ingredient's ui-combo
     idx = body.find(f"rsup-{iid}")
     # Look backwards for the start of the cell wrapper
     cell_start = body.rfind("<td", 0, idx)

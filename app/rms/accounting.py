@@ -1,6 +1,6 @@
 """app/rms/accounting.py — Paraguay accounting/IVA reports (E17).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E17.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E17.
 
 Paraguay tax basics (10% IVA on most goods including prepared foods):
 - If prices are gross (IVA included in sale_price_gs):

@@ -33,36 +33,36 @@ PATTERN_PROPOSED = Path("/opt/data/profiles/ivan/cache/custom-dangerous-patterns
 # This is the same 26-case set I tuned against, encoded as data.
 TEST_CASES = [
     # Should be BLOCKED (real destruction)
-    ("rm -rf /opt/data/profiles/ivan/scratch/saskia-app-work/", True),
+    ("rm -rf /opt/data/profiles/ivan/scratch/sazon-app-work/", True),
     (
-        "scp -i key file.tar root@vps:/var/backups/saskia-r2.dump",
+        "scp -i key file.tar root@vps:/var/backups/sazon-r2.dump",
         False,
     ),  # Trade-off: read direction allowed
-    ("rsync --delete /opt/backups/ /opt/data/profiles/ivan/scratch/saskia-app/", True),
-    ('ssh root@vps "rm -rf /opt/build-apps/saskia-rms"', True),
-    ("mv /var/backups/saskia-r2.tar.gz /tmp/old/", True),
-    ("cp /var/backups/saskia-r2.tar.gz /tmp/", True),
-    ("cp /var/backups/saskia-r2.tar.gz /dev/null", True),
+    ("rsync --delete /opt/backups/ /opt/data/profiles/ivan/scratch/sazon-app/", True),
+    ('ssh root@vps "rm -rf /opt/build-apps/sazon-rms"', True),
+    ("mv /var/backups/sazon-r2.tar.gz /tmp/old/", True),
+    ("cp /var/backups/sazon-r2.tar.gz /tmp/", True),
+    ("cp /var/backups/sazon-r2.tar.gz /dev/null", True),
     ("tar czf backup.tar --remove-files saskia/", True),
     ("find /opt/backups/ -name 'saskia*' -delete", True),
     ("dd if=/dev/zero of=/var/backups/saskia.dump bs=1M", True),
-    ("shred -vfz /var/backups/saskia-r2.dump", True),
+    ("shred -vfz /var/backups/sazon-r2.dump", True),
     ("wipefs -a /dev/sda1  # saskia mounted here", True),
     # Should be ALLOWED (was incorrectly blocked)
-    ("grep -n delete /opt/data/profiles/ivan/scratch/saskia-app-work/README.md", False),
-    ("cat /opt/data/profiles/ivan/scratch/saskia-app-work/IMPROVEMENT_BACKLOG.md", False),
+    ("grep -n delete /opt/data/profiles/ivan/scratch/sazon-app-work/README.md", False),
+    ("cat /opt/data/profiles/ivan/scratch/sazon-app-work/IMPROVEMENT_BACKLOG.md", False),
     ('git commit -m "remove obsolete tier5 row mentioning saskia delete history"', False),
     ("pytest tests/test_crud_roundtrips_phase14_tier4.py", False),
     ("find /opt/backups/ -name '*saskia*' -print", False),
     ("rg delete app/rms/analytics.py", False),
-    ("less /var/backups/saskia-r2.tar.gz.sha256", False),
-    ("ssh root@vps 'systemctl restart saskia-vps_web'", False),
-    ("scp -i key root@vps:/opt/build-apps/saskia-rms/README.md ./local.md", False),
+    ("less /var/backups/sazon-r2.tar.gz.sha256", False),
+    ("ssh root@vps 'systemctl restart sazon-vps_web'", False),
+    ("scp -i key root@vps:/opt/build-apps/sazon-rms/README.md ./local.md", False),
     ('git commit -m "feat: backup tier5 tests" -m "delete unused fixtures"', False),
-    ("ls /opt/backups/saskia-r2.tar.gz", False),
-    ("tar tzf /var/backups/saskia-r2.tar.gz", False),
-    ("tar xzf /var/backups/saskia-r2.tar.gz -C /tmp/restore/", False),
-    ("rsync -avz /opt/data/profiles/ivan/scratch/saskia-app-work/ /tmp/mirror/", False),
+    ("ls /opt/backups/sazon-r2.tar.gz", False),
+    ("tar tzf /var/backups/sazon-r2.tar.gz", False),
+    ("tar xzf /var/backups/sazon-r2.tar.gz -C /tmp/restore/", False),
+    ("rsync -avz /opt/data/profiles/ivan/scratch/sazon-app-work/ /tmp/mirror/", False),
 ]
 
 # Line indices (0-based) where the description contains "saskia backup chain"

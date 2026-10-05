@@ -48,7 +48,7 @@ def test_readme_has_version_header():
     assert "schema" in text and "commit" in text, (
         "README.md must pin schema + commit so we can detect drift"
     )
-    assert "https://saskia-vps.paragu-ai.com" in text, (
+    assert "https://sazon-vps.paragu-ai.com" in text, (
         "README must point at the LIVE URL (not the suspended Render URL)"
     )
     assert "suspendida" in text.lower() or "no usar" in text.lower(), (
@@ -134,8 +134,8 @@ def test_readme_documents_what_saskia_can_and_cannot_do():
 
 
 def test_readme_links_to_alternate_suspended_url():
-    """README must warn that saskia-rms.paragu-ai.com is suspended."""
+    """README must warn that sazon-rms.paragu-ai.com is suspended."""
     text = README.read_text(encoding="utf-8")
-    assert "saskia-rms.paragu-ai.com" in text, (
-        "must reference the suspended URL so Saskia knows to avoid it"
+    assert "sazon-rms.paragu-ai.com" in text, (
+        "must reference the suspended URL so the operator knows to avoid it"
     )

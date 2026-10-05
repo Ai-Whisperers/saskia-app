@@ -1,4 +1,4 @@
-# Saskia RMS — CSS Audit & Refactor Plan (2026-09-23)
+# Sazón — CSS Audit & Refactor Plan (2026-09-23)
 
 ## Audit summary
 

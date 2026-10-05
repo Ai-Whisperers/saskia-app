@@ -1,6 +1,6 @@
 """Tests for S8 — US 4.1: per-sale packaging.
 
-Saskia's exact words from the audio review (paraphrased from the
+the operator's exact words from the audio review (paraphrased from the
 Spanish audio):
 
   "In product I would put a compressor that is a package instead of in

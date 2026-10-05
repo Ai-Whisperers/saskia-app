@@ -2,7 +2,7 @@
    Customer picker widget for the /ventas form.
 
    SALES-UX-001: replaced the previous `<dialog>` modal with an inline
-   `<saskia-combo>` + adjacent "Nuevo cliente" disclosure. The cashier
+   `<ui-combo>` + adjacent "Nuevo cliente" disclosure. The cashier
    now sees the search results inline (no screen-dimming overlay) and the
    underlying sales form stays visible and clickable throughout the flow.
 
@@ -22,7 +22,7 @@
      - GET /clientes/api/{id}     (returns full payload incl. notes + stats + top_products + suggestions)
      - POST /clientes/api/create (creates customer from inline form; returns full payload)
      - POST /clientes/api/{id}/suggestion-applied (Tier 3.2 fire-and-forget analytics)
-     - <saskia-combo> web component (app/static/saskia-combo.js)
+     - <ui-combo> web component (app/static/ui-combo.js)
 #}
 <div class="customer-picker" id="customer-picker">
   <span id="inline-new-client" aria-hidden="true"></span>
@@ -34,7 +34,7 @@
      field is set by the live preview JS below. 0 = no redeem. #}
   <input type="hidden" id="points_to_redeem" name="points_to_redeem" value="0">
 
-  {# Inline saskia-combo — search dropdown opens below the input,
+  {# Inline ui-combo — search dropdown opens below the input,
       not as an overlay. Keyboard navigation, scrollable, no backdrop.
 
       T-2026-10-01: passes row_label="customerRowLabel" so the combo

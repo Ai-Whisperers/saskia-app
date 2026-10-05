@@ -1,6 +1,6 @@
 """app/rms/barcode.py — Barcode / SKU lookup (E23).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E23.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E23.
 
 Most USB / Bluetooth barcode scanners act as keyboard emulators: they
 "type" the barcode + Enter. So at the routing level, E23 is mostly:

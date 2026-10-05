@@ -1,6 +1,6 @@
 """app/rms/seed.py — Idempotent realistic-data seeder for demos / first-run.
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E6.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E6.
 
 Inserts:
 - 30 universal bakery ingredients (standard Paraguayan panadería pantry)

@@ -1,6 +1,6 @@
 """tests/test_perf.py — verify app/rms/perf.py (E16).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E16.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E16.
 
 Covers:
 - paginate() with explicit total
@@ -65,7 +65,7 @@ def test_query_timer_warns_on_slow(caplog):
     import logging
     import time as _t
 
-    with caplog.at_level(logging.WARNING, logger="saskia.perf"):
+    with caplog.at_level(logging.WARNING, logger="sazon.perf"):
         with query_timer("slow-op", threshold_ms=0.0):
             _t.sleep(0.005)
     assert any("Slow query" in r.message for r in caplog.records)

@@ -6,7 +6,7 @@
 cases → gap closure. Automated coverage is referenced as `tests/<file>.py::<test>`
 wherever it exists; everything else is marked **manual**.
 
-Saskia's ask (her words): *"Crea y analiza todos los user cases y user stories y
+the operator's ask (her words): *"Crea y analiza todos los user cases y user stories y
 crea pruebas de QA correspondientes, para smoke testing, regression testing,
 functionality testing, etc"*. Quoted Spanish below is verbatim from her review;
 the analysis around it is in English for the dev team.
@@ -21,11 +21,11 @@ verifiable against the code as merged.
 
 ### S1 — Recipe lines with per-line units (T1)
 
-> **Como Saskia, quiero** especificar la unidad de cada línea de la receta
+> **Como the operator, quiero** especificar la unidad de cada línea de la receta
 > (g/kg/ml/l/und) **para** pesar en gramos aunque el ingrediente se compre por
 > kilo, sin que el costo salga mal.
 
-Context: Saskia's complaint was that entering "500" for flour when the
+Context: the operator's complaint was that entering "500" for flour when the
 ingredient is priced per kg produced a 1000× cost error.
 
 **Acceptance criteria**
@@ -53,7 +53,7 @@ half-kilo amount.
 
 ### S2 — Hidden auditoría/ops from topnav (T2)
 
-> **Como Saskia, quiero** que Auditoría y Ops no aparezcan en el menú principal
+> **Como the operator, quiero** que Auditoría y Ops no aparezcan en el menú principal
 > **para** que la pantalla tenga menos ruido y no toque cosas dedeveloper por
 > accidente.
 
@@ -67,7 +67,7 @@ directly and confirm 200.
 
 ### S3 — Producción 'Ver receta' links to the recipe editor (T3)
 
-> **Como Saskia, quiero** que 'Ver receta' en producción me lleve a la receta
+> **Como the operator, quiero** que 'Ver receta' en producción me lleve a la receta
 > **para** editarla sin tener que buscarla en productos.
 
 **Acceptance criteria**
@@ -80,7 +80,7 @@ check:** hover the button on `/produccion`, confirm the target URL.
 
 ### S4 — Pedidos status filter (T4)
 
-> **Como Saskia, quiero** filtrar pedidos por pendientes/terminados/todos
+> **Como the operator, quiero** filtrar pedidos por pendientes/terminados/todos
 > **para** ver rápido qué me queda por entregar.
 
 **Acceptance criteria**
@@ -96,7 +96,7 @@ and appears under 'Terminados'.
 
 ### S5 — EOD production completion, Plan vs Hecho (T5)
 
-> **Como Saskia, quiero** marcar cuánto producí realmente de lo planificado
+> **Como the operator, quiero** marcar cuánto producí realmente de lo planificado
 > **para** ver el delta Plan vs Hecho al cierre del día.
 
 **Acceptance criteria**
@@ -117,7 +117,7 @@ and appears under 'Terminados'.
 
 ### S6 — Whole-batch merma (T6)
 
-> **Como Saskia, quiero** registrar la merma de una receta completa
+> **Como the operator, quiero** registrar la merma de una receta completa
 > **para** descuentar todos los ingredientes de una sola vez cuando se
 > arruina una hornada.
 
@@ -136,7 +136,7 @@ and appears under 'Terminados'.
 
 ### S7 — Settings per-row forms (T7)
 
-> **Como Saskia, quiero** formularios claros por fila en ajustes **para**
+> **Como the operator, quiero** formularios claros por fila en ajustes **para**
 > cambiar un valor sin tocar los demás.
 
 **Acceptance criteria**
@@ -152,7 +152,7 @@ and appears under 'Terminados'.
 
 ### S8 — Cross-page consistency (T8)
 
-> **Como Saskia, quiero** que los montos coincidan entre páginas **para**
+> **Como the operator, quiero** que los montos coincidan entre páginas **para**
 > confurar los reportes. (Her words: *"Debe coincidir con los registros de las
 > demás páginas"*.)
 
@@ -170,7 +170,7 @@ and appears under 'Terminados'.
 
 ### S9 — Restock records price events (Q1 core)
 
-> **Como Saskia, quiero** que cada vez que restockeo se cargue el precio
+> **Como the operator, quiero** que cada vez que restockeo se cargue el precio
 > **para** ver en los paneles cuánto estoy ganando realmente aunque los
 > precios fluctúen. (Her words: *"cada vez que la clienta restockea tiene que
 > cargar los precios, y así puede ver en los paneles de gestión cuánto está
@@ -195,7 +195,7 @@ and appears under 'Terminados'.
 
 ### S10 — /inventario price strip + sparkline (Q1 surface)
 
-> **Como Saskia, quiero** ver el mínimo y máximo del precio de los últimos 90
+> **Como the operator, quiero** ver el mínimo y máximo del precio de los últimos 90
 > días bajo el precio **para** notar de un vistazo si el proveedor me está
 > subiendo el precio.
 
@@ -211,7 +211,7 @@ and appears under 'Terminados'.
 
 ### S11 — /reportes/precios + CSV export (Q1 surface)
 
-> **Como Saskia, quiero** un reporte de precios por ingrediente con
+> **Como the operator, quiero** un reporte de precios por ingrediente con
 > exportación **para** llevarlo a Excel y negociar con proveedores.
 
 **Acceptance criteria**
@@ -230,7 +230,7 @@ and appears under 'Terminados'.
 
 ### S12 — Dashboard 'Precios en alza' insight (Q1 surface)
 
-> **Como Saskia, quiero** que el panel me avise cuando un ingrediente subió más
+> **Como the operator, quiero** que el panel me avise cuando un ingrediente subió más
 > de 20% **para** repreciar mis productos antes de perder plata.
 
 **Acceptance criteria**
@@ -248,7 +248,7 @@ and appears under 'Terminados'.
 
 ### S13 — Production calendar day/week/month (Q2)
 
-> **Como Saskia, quiero** un calendario cíclico por semana (y mes)
+> **Como the operator, quiero** un calendario cíclico por semana (y mes)
 > **para** planear la producción de la semana entera. (Her words: *"Haz que
 > sea un calendario cíclico, por semana"*.)
 
@@ -272,7 +272,7 @@ and appears under 'Terminados'.
 
 ### S14 — Portions/yield scaling — THE multiplication bug (Q2)
 
-> **Como Saskia, quiero** que al introducir la cantidad a producir la receta
+> **Como the operator, quiero** que al introducir la cantidad a producir la receta
 > se multiplique por la cantidad correcta **para** que la lista de compras no
 > salga 12 veces más grande. (Her words: *"al introducir la cantidad que se va
 > a producir e ingresar en la receta debe de estar multiplicado por la
@@ -292,7 +292,7 @@ and appears under 'Terminados'.
 
 ### S15 — forecast_source Spanish labels (Q3)
 
-> **Como Saskia, quiero** saber de dónde sale el número previsto **para**
+> **Como the operator, quiero** saber de dónde sale el número previsto **para**
 > confiar en el plan. (Her complaint: raw `rolling_14d_avg` in the UI.)
 
 **Acceptance criteria**
@@ -380,7 +380,7 @@ Add a `pytest.mark.env` marker + a CI deselect
 real service env exist. Fixing 17 Windows-path/env tests inside the review
 round would burn billable hours that round 2 triage
 (`docs/operations/round-2-triage-process.md`) should prioritize instead. If any
-of the 17 touches a flow Saskia uses daily, promote it out of quarantine
+of the 17 touches a flow the operator uses daily, promote it out of quarantine
 individually.
 
 ### Open gap register
@@ -418,7 +418,7 @@ against the automated suite on this branch *after* T9's gap closure.
 ### UC2 — Planificador semanal → clic día → override qty → matemática de ingredientes
 
 - **Given** a product with recipe (yield 12) and 5 days of sales history.
-- **When** Saskia opens `/produccion?view=week`, and POSTs
+- **When** the operator opens `/produccion?view=week`, and POSTs
   `/produccion/override` with qty 10 for one day.
 - **Then** the day re-renders with 'Manual' as forecast source and ingredient
   lines = (10/12) × per-batch qty; negative qty → 400, unknown product → 404.
@@ -429,7 +429,7 @@ against the automated suite on this branch *after* T9's gap closure.
 ### UC3 — Restock con precio nuevo → evento de precio → insight 'Precios en alza' al cruzar 20%
 
 - **Given** harina below min stock, current price events averaging Gs. 5.000.
-- **When** Saskia restocks three times via `POST /reorder/registrar` at rising
+- **When** the operator restocks three times via `POST /reorder/registrar` at rising
   prices that push the current price >20% over the 30-day average.
 - **Then** stock increments, three `source='restock'` events exist, the
   ingredient's price is denormalized, `/inventario` shows the 90d strip +
@@ -443,7 +443,7 @@ against the automated suite on this branch *after* T9's gap closure.
 ### UC4 — Merma de receta completa → stock drop proporcional
 
 - **Given** a recipe with 2 ingredient lines and stock on hand.
-- **When** Saskia records waste of 1.5 batches of the whole recipe.
+- **When** the operator records waste of 1.5 batches of the whole recipe.
 - **Then** one waste log per ingredient appears, each line's stock drops by
   1.5 × per-batch qty, stock never goes negative, and unknown recipe /
   missing yield / zero batch are rejected.
@@ -455,7 +455,7 @@ against the automated suite on this branch *after* T9's gap closure.
 ### UC5 — Cierre del día con completitud de producción
 
 - **Given** a product planned for today via the production sheet.
-- **When** Saskia POSTs `/eod/completar` with the actually-produced qty, then
+- **When** the operator POSTs `/eod/completar` with the actually-produced qty, then
   re-POSTs a corrected qty.
 - **Then** one completion row exists (upsert, not duplicate), `/eod` shows
   Plan vs Hecho + delta, negative qty → 400, unknown product → 404.
@@ -464,7 +464,7 @@ against the automated suite on this branch *after* T9's gap closure.
 ### UC6 — Pedido WhatsApp → marcar terminado → filtro
 
 - **Given** a pending pedido created from a WhatsApp order.
-- **When** Saskia fulfills it (or walks status pending → confirmed → ready →
+- **When** the operator fulfills it (or walks status pending → confirmed → ready →
   fulfilled) and switches `/pedidos?status_filter=terminados`.
 - **Then** fulfillment creates the Sale rows and decrements stock, the pedido
   disappears from 'pendientes' and shows under 'terminados'.
@@ -477,7 +477,7 @@ against the automated suite on this branch *after* T9's gap closure.
 ### UC7 — Export CSV precios → reimport en Excel
 
 - **Given** an ingredient with ≥3 price events.
-- **When** Saskia downloads `/reportes/precios/csv` and opens it in Excel.
+- **When** the operator downloads `/reportes/precios/csv` and opens it in Excel.
 - **Then** the CSV has stable headers, one row per event, UTF-8 charset, sane
   `days` validation (≤365).
 - **Status: PARTIALLY COVERED.** Export correctness:
@@ -512,17 +512,17 @@ against the automated suite on this branch *after* T9's gap closure.
 1. **Restock → price event → surfaces end-to-end (was G4/UC3).** The Q1
    pipeline spans four modules (router → price_history → insights → three
    templates); every piece was green in isolation but nothing proved they
-   compose. A silent break here is exactly the "wrong margin" failure Saskia
+   compose. A silent break here is exactly the "wrong margin" failure the operator
    bought this feature to prevent. **→ CLOSED in this round**
    (`test_qa_round1_user_journeys.py`); keep it in the smoke batch.
 2. **Pedidos `status_filter` scoping (G3/UC6).** T4 shipped user-visible
    filtering with zero direct tests — the default-scope ('pendientes') bug
-   class would hide *actionable orders* from Saskia. ~30 min: parametrized
+   class would hide *actionable orders* from the operator. ~30 min: parametrized
    client test over the three values against seeded pedidos in each status.
 3. **Nav hygiene template assert (G1+G2 combined).** One test file asserting
    (a) no `/auditoria`/`/ops/status` hrefs in the topnav block and (b) 'Ver
    receta' hrefs match `/recetas/{id}/editar` on `/produccion`. These are the
-   two round-1 asks whose regression would be immediately visible to Saskia
+   two round-1 asks whose regression would be immediately visible to the operator
    and are currently guarded only by eyeball. ~20 min.
 
 (Also worth noting: the mixed-unit one-journey consistency check, G5, landed
@@ -531,7 +531,7 @@ planning simultaneously.)
 
 ### T-0.1 blocker status
 
-**Still open.** `forecast_source` semantics were never clarified with Saskia,
+**Still open.** `forecast_source` semantics were never clarified with the operator,
 so the per-day seasonal-multiplier editor did NOT ship in round 1 — the 'Usar'
 override UI did (what-if re-plan, no persistence). QA impact: nothing to test
 for the editor; the shipped override is fully covered. Recommendation: send

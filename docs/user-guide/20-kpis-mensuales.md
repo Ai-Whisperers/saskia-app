@@ -5,7 +5,7 @@
 > de "operación" (lista de compras abiertas, equipamiento pendiente,
 > riesgos activos, comparativas de mercado).
 
-> **Esta pantalla es para Iván (operador técnico).** Saskia no la
+> **Esta pantalla es para Iván (operador técnico).** the operator no la
 > necesita en el día a día.
 
 ## Cómo llegar

@@ -16,16 +16,16 @@
 {# Month navigation + jump-to-month picker #}
 <form method="get" action="/reportes/cierre-mensual" class="pagination mb-4" aria-label="Navegación de mes">
   <a href="?year={{ prev_year }}&month={{ prev_month }}" class="btn btn-sm btn-ghost">← Mes anterior</a>
-  <saskia-month name="year-month" value="{{ year }}-{{ '%02d'|format(month) }}"
+  <ui-month name="year-month" value="{{ year }}-{{ '%02d'|format(month) }}"
                 min="2024-01" max="2030-12"
-                style="margin: 0 var(--space-2);"></saskia-month>
+                style="margin: 0 var(--space-2);"></ui-month>
   <noscript><button type="submit" class="btn btn-sm btn-primary">Ir</button></noscript>
   <span style="padding: 0 var(--space-3); font-weight: 600;">{{ close.period_label }}</span>
   <a href="?year={{ next_year }}&month={{ next_month }}" class="btn btn-sm btn-ghost">Mes siguiente →</a>
 </form>
 <script>
-  // Wire the saskia-month picker so it auto-submits the form on change.
-  document.querySelectorAll('saskia-month[name="year-month"]').forEach(function (el) {
+  // Wire the ui-month picker so it auto-submits the form on change.
+  document.querySelectorAll('ui-month[name="year-month"]').forEach(function (el) {
     el.addEventListener('change', function () {
       var form = el.closest('form');
       if (!form) return;

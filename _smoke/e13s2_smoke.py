@@ -17,10 +17,10 @@ import tempfile
 from pathlib import Path
 
 tmp = Path(tempfile.mkdtemp())
-os.environ["AIW_SASKIA_DB_PATH"] = str(tmp / "test.sqlite")
-os.environ["AIW_SASKIA_DATA_DIR"] = str(tmp / "data")
-os.environ["AIW_SASKIA_BACKUP_DIR"] = str(tmp / "backups")
-os.environ["AIW_SASKIA_LOG_DIR"] = str(tmp / "logs")
+os.environ["AIW_RMS_DB_PATH"] = str(tmp / "test.sqlite")
+os.environ["AIW_RMS_DATA_DIR"] = str(tmp / "data")
+os.environ["AIW_RMS_BACKUP_DIR"] = str(tmp / "backups")
+os.environ["AIW_RMS_LOG_DIR"] = str(tmp / "logs")
 
 from app.rms import main as main_module
 from app.rms.db import init_db, make_engine, make_session_factory

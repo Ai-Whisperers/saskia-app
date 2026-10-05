@@ -1,6 +1,6 @@
 """tests/test_eod_completion.py — T5 completion persistence (Phase C).
 
-Saskia review: "Al final del día debe registrarse cuánto de la
+the operator review: "Al final del día debe registrarse cuánto de la
 producción se completó". The forecast half shipped earlier; these tests
 cover the persistence half: ProductionCompletion model, POST
 /eod/completar upsert, and the Plan vs Hecho rendering on /eod.

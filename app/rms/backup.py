@@ -1,6 +1,6 @@
 """app/rms/backup.py — Backup + Restore (E20).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E20.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E20.
 
 Features:
 - backup_database(session, dest): serialize all tables to a
@@ -79,7 +79,7 @@ class BackupManifest:
     n_rows: int
     sha256: str
     source_db_url: str  # not credentials, just dialect info
-    app: str = "saskia-rms"
+    app: str = "sazon-rms"
 
     def to_dict(self) -> dict:
         return {
@@ -136,7 +136,7 @@ def backup_database(
         # Treat as directory
         dest_path.mkdir(parents=True, exist_ok=True)
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        out_file = dest_path / f"saskia-backup-{ts}.json.gz"
+        out_file = dest_path / f"sazon-backup-{ts}.json.gz"
 
     state = dump_full_state(session)
 
@@ -269,7 +269,7 @@ def prune_old_backups(
     if not d.exists():
         return BackupPruneResult(kept=[], removed=[], n_kept=0, n_removed=0)
 
-    backups = sorted(d.glob("saskia-backup-*.json*"), key=lambda p: p.stat().st_mtime)
+    backups = sorted(d.glob("sazon-backup-*.json*"), key=lambda p: p.stat().st_mtime)
     if not backups:
         return BackupPruneResult(kept=[], removed=[], n_kept=0, n_removed=0)
 

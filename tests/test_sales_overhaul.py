@@ -79,7 +79,7 @@ def test_ventas_page_has_quick_sell_section(client):
 def test_ventas_page_has_payment_method_field(client):
     """Ventas form must include payment_method + discount_gs + customer picker.
 
-    SALES-UX-001: the customer picker now uses `<saskia-combo>` with
+    SALES-UX-001: the customer picker now uses `<ui-combo>` with
     name=customer_id_combo (visible) plus a hidden customer_id field
     that the inline JS keeps in sync. The legacy `<button id=customer_picker_trigger>`
     was replaced with an inline disclosure — see _customer_picker.html.

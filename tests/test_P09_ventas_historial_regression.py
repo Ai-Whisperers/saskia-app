@@ -40,7 +40,7 @@ def test_ventas_historial_has_product_filter(client):
     r = client.get("/ventas/historial")
     assert r.status_code == 200
     body = r.text
-    # Check for product filter (saskia-combo or select)
+    # Check for product filter (ui-combo or select)
     assert 'name="product_id"' in body or "Filtrar por producto" in body, "Product filter not found"
 
 
@@ -64,7 +64,7 @@ def test_ventas_historial_has_days_filter(client):
     r = client.get("/ventas/historial")
     assert r.status_code == 200
     body = r.text
-    # Check for days filter (saskia-combo with name="days")
+    # Check for days filter (ui-combo with name="days")
     assert 'name="days"' in body or "Rango" in body, "Days filter not found"
 
 

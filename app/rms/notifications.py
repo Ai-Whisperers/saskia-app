@@ -1,6 +1,6 @@
 """app/rms/notifications.py — WhatsApp-style daily summary (E14).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E14.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E14.
 
 Adds:
 - format_daily_summary_message(...): produce a concise text summary

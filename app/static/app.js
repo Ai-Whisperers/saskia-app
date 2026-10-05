@@ -10,7 +10,7 @@
   function $$(sel, ctx) { return Array.from((ctx || document).querySelectorAll(sel)); }
 
   /* ─── js-confirm-form: intercept forms with class="js-confirm-form" and use
-     SaskiaConfirmModal instead of native confirm() ──────────────────────── */
+     UIConfirmModal instead of native confirm() ──────────────────────── */
   var __nextConfirmId = 1;
   function __wrapFormWithId(form) {
     if (form.id) return form.id;
@@ -30,8 +30,8 @@
           var title = form.dataset.confirmTitle || '¿Estás seguro?';
           var body = form.dataset.confirmBody || 'Esta acción no se puede deshacer.';
           var danger = form.dataset.confirmDanger === 'true';
-          if (window.SaskiaConfirmModal) {
-            SaskiaConfirmModal.show({
+          if (window.UIConfirmModal) {
+            UIConfirmModal.show({
               title: title,
               body: body,
               formId: formId,
@@ -50,7 +50,7 @@
   }
 
   /* ─── js-confirm-link: intercept links/buttons with data-confirm-* attrs
-     and route through SaskiaConfirmModal before navigation. ───────────── */
+     and route through UIConfirmModal before navigation. ───────────── */
   function initConfirmLinks() {
     var links = document.querySelectorAll('[data-confirm-title][data-confirm-href], [data-confirm-title][href]');
     for (var i = 0; i < links.length; i++) {
@@ -78,8 +78,8 @@
             // Use navigate so that future data-confirm-target="_blank" can extend
             window.location.href = href;
           };
-          if (window.SaskiaConfirmModal) {
-            SaskiaConfirmModal.show({ title: title, body: body, danger: danger, confirmLabel: ok, cancelLabel: cancel }).then(done);
+          if (window.UIConfirmModal) {
+            UIConfirmModal.show({ title: title, body: body, danger: danger, confirmLabel: ok, cancelLabel: cancel }).then(done);
           } else {
             done(window.confirm((body ? title + '\n\n' + body : title)));
           }
@@ -233,7 +233,7 @@
 
   function loadNotifications() {
     try {
-      var stored = localStorage.getItem('saskia-notifications');
+      var stored = localStorage.getItem('sazon-notifications');
       if (stored) notifications = JSON.parse(stored);
     } catch (e) {}
     renderNotifications();
@@ -241,7 +241,7 @@
 
   function saveNotifications() {
     try {
-      localStorage.setItem('saskia-notifications', JSON.stringify(notifications));
+      localStorage.setItem('sazon-notifications', JSON.stringify(notifications));
     } catch (e) {}
   }
 
@@ -323,7 +323,7 @@
   }
 
   // Expose globally so router pages can add notifications
-  window.SaskiaNotifications = {
+  window.UINotifications = {
     add: addNotification,
     load: loadNotifications
   };
@@ -381,7 +381,7 @@
   /* ─── Loading Skeleton helpers ─────────────────────────────────────────── */
 
   // Replace skeleton placeholder with actual content
-  window.SaskiaShowContent = function (selector, html) {
+  window.UIShowContent = function (selector, html) {
     var el = typeof selector === 'string' ? $(selector) : selector;
     if (el) el.innerHTML = html;
   };

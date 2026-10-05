@@ -1,6 +1,6 @@
 """app/services/demo_reset.py — wipe synthetic demo data.
 
-Used by POST /ops/reset-demo-data so Saskia can start fresh before the
+Used by POST /ops/reset-demo-data so the operator can start fresh before the
 2026-09-17 prelaunch.
 
 What this resets (all synthetic — none is real production data):

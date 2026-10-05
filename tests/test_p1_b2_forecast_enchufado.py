@@ -18,7 +18,7 @@ This module verifies:
 7. Auto-forecast rounds up to whole pieces (PRO-02)
 8. The seasonal calendar event note is rendered when an event matches
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_p1_b2_forecast_enchufado.py -v
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_p1_b2_forecast_enchufado.py -v
 """
 
 from __future__ import annotations
@@ -160,7 +160,7 @@ def test_manana_route_returns_200(client) -> None:
     body = r.text
     assert "Producción de mañana" in body or "Producci" in body
     # KPI cards rendered
-    assert 'class="kpi-row' in body or "saskia-kpi-card" in body
+    assert 'class="kpi-row' in body or "ui-kpi-card" in body
 
 
 def test_manana_route_shows_confidence_pill(client, session_factory) -> None:

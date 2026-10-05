@@ -135,4 +135,4 @@
 - Each task = 1 ticket
 - Owner: Test infra squad (TBD)
 - Cadence: 1 phase per 1-2 weeks
-- Review: 1 product-side reviewer per phase (Saskia shouldn't see regressions)
+- Review: 1 product-side reviewer per phase (the operator shouldn't see regressions)

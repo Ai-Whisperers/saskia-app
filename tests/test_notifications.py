@@ -1,6 +1,6 @@
 """tests/test_notifications.py — verify app/rms/notifications.py (E14).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E14.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E14.
 
 Covers:
 - format_daily_summary_message: includes revenue + top products + warnings

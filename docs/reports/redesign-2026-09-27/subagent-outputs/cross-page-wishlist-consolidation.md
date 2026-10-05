@@ -1,4 +1,4 @@
-# Saskia RMS — Cross-Page Wishlist Consolidation
+# Sazón — Cross-Page Wishlist Consolidation
 
 **Auditor role:** Senior UX/UI Principal
 **Inputs analyzed:**

@@ -125,7 +125,7 @@ def test_login_with_valid_credentials_sets_session(client, supabase_auth_env):
     assert r.status_code == 303
     assert r.headers["location"] == "/inventario"
     # Session cookie should be set
-    assert "saskia_rms_session" in r.headers.get("set-cookie", "")
+    assert "sazon_session" in r.headers.get("set-cookie", "")
 
 
 def test_logout_clears_session(client, supabase_auth_env):

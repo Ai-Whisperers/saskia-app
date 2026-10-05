@@ -1,23 +1,23 @@
-# Saskia RMS — install-session checklist
+# Sazón — install-session checklist
 
 > **Two install paths.** Pick one based on what was decided for the engagement
-> (see `docs/operations/2026-09-02-saskia-decision-hosted-pivot.md`).
+> (see `docs/operations/2026-09-02-sazon-decision-hosted-pivot.md`).
 
 ## ⭐ Path C: Hosted (recommended since 2026-09-02)
 
-> Saskia opens `https://saskia-rms.paragu-ai.com` in any browser. That's it.
+> the operator opens `https://sazon-rms.paragu-ai.com` in any browser. That's it.
 > No `uv`, no `git`, no Windows shell. AIW team runs everything on Render +
 > Neon + Cloudflare Tunnel + Supabase Auth.
 
-For the operator's deploy runbook, see `docs/operations/2026-09-02-saskia-deploy-runbook.md`.
-The end-user (Saskia) experience is documented in
-`docs/operations/2026-09-02-saskia-agent-messages.md`.
+For the operator's deploy runbook, see `docs/operations/2026-09-02-sazon-deploy-runbook.md`.
+The end-user (the operator) experience is documented in
+`docs/operations/2026-09-02-sazon-agent-messages.md`.
 
 **Quick verification (no install needed):**
 
 ```cmd
 # From any browser:
-https://saskia-rms.paragu-ai.com/login
+https://sazon-rms.paragu-ai.com/login
 ```
 
 If the login page appears, the hosted deploy is alive. Log in with the
@@ -34,7 +34,7 @@ desktop shortcut falls back to a local install (Path A below).
 >
 > **Total time:** ~45-90 minutes depending on how many troubleshooting items arise.
 >
-> **Note:** the `installer/run.bat` shortcut on Saskia's desktop now tries
+> **Note:** the `installer/run.bat` shortcut on the operator's desktop now tries
 > the hosted URL first (Path C). It only falls back to local if the hosted
 > server is unreachable. So you only need this section if you want to do
 > a fresh local install from scratch.
@@ -44,8 +44,8 @@ desktop shortcut falls back to a local install (Path A below).
 ## Pre-install (operator-side, before session)
 
 - [ ] Quote signed, first cuota credited (per §0 pre-build gate)
-- [ ] Saskia has confirmed **OS: Windows / Mac** (single message on WhatsApp)
-- [ ] Saskia has confirmed admin rights to install Python/uv
+- [ ] the operator has confirmed **OS: Windows / Mac** (single message on WhatsApp)
+- [ ] the operator has confirmed admin rights to install Python/uv
 - [ ] Drive folder identified (Google Drive with the 5 xlsx files)
 - [ ] V1 product list received (per intake answers-from-meetings)
 - [ ] Empty backup folder created in her Documents / Drive-synced location
@@ -78,11 +78,11 @@ If `uv` install fails (corporate proxy / etc.), fall back to official Python 3.1
 
 ```cmd
 cd %USERPROFILE%\Documents
-git clone https://github.com/Ai-Whisperers/saskia-app.git
-cd saskia-app
+git clone https://github.com/Ai-Whisperers/sazon-app.git
+cd sazon-app
 ```
 
-(or for Mac: `cd ~/Documents && git clone ... && cd saskia`)
+(or for Mac: `cd ~/Documents && git clone ... && cd sazon-app`)
 
 If she doesn't have `git`, install it from git-scm.com first. (Most modern macOS has it; Windows usually doesn't.)
 
@@ -112,29 +112,29 @@ uv run python -c "from app.rms.db import init_db; init_db(); print('DB initializ
 
 ## Step 5 — Configure backup folder (5 min)
 
-The app's auto-backup lands at `~/Documents/AIW-Saskia/backups/` by default. Create that folder:
+The app's auto-backup lands at `~/Documents/aiw-restaurant/backups/` by default. Create that folder:
 
 ```bash
-mkdir -p ~/Documents/AIW-Saskia/backups
+mkdir -p ~/Documents/aiw-restaurant/backups
 ```
 
-If she wants a different location (e.g., a Drive-synced folder like `~/Library/CloudStorage/GoogleDrive-.../My Drive/AIW-Saskia/backups/`), set it in `~/.config/aiw-saskia/backup.toml` later.
+If she wants a different location (e.g., a Drive-synced folder like `~/Library/CloudStorage/GoogleDrive-.../My Drive/aiw-restaurant/backups/`), set it in `~/.config/sazon/backup.toml` later.
 
 ## Step 6 — Create the desktop shortcut (5 min)
 
-**Windows:** Create `C:\Users\<saskia>\Desktop\Gestión Saskia.lnk` pointing to:
-- Target: `C:\Users\<saskia>\Documents\saskia\installer\run.bat`
-- Start in: `C:\Users\<saskia>\Documents\saskia\`
+**Windows:** Create `C:\Users\<operator>\Desktop\Gestión Sazón.lnk` pointing to:
+- Target: `C:\Users\<operator>\Documents\Sazon\installer\run.bat`
+- Start in: `C:\Users\<operator>\Documents\Sazon\`
 - Icon: optional (folder icon)
 
-**Mac:** Create `/Users/saskia/Desktop/Gestión Saskia.command` (AppleScript-able):
+**Mac:** Create `/Users/operator/Desktop/Gestión Sazón.command` (AppleScript-able):
 ```bash
 #!/bin/bash
-cd /Users/saskia/Documents/saskia
+cd /Users/operator/Documents/Sazon
 uv run uvicorn app.rms.main:app --host 127.0.0.1 --port 8765
 open http://127.0.0.1:8765
 ```
-Make executable: `chmod +x ~/Desktop/Gestión\ Saskia.command`
+Make executable: `chmod +x ~/Desktop/Gestión\ the operator.command`
 
 ## Step 7 — First run + smoke test (10 min)
 
@@ -142,7 +142,7 @@ Double-click the shortcut. Expected sequence:
 1. Terminal / cmd window opens (uvicorn starts)
 2. Browser opens to http://127.0.0.1:8765
 3. Spanish landing page appears: "Sistema de gestión — local"
-4. /healthz returns `{"status": "ok", "service": "aiw-saskia-rms"}`
+4. /healthz returns `{"status": "ok", "service": "aiw-sazon-rms"}`
 5. /healthz/db returns `{"db": "ok", "journal_mode": "wal"}`
 
 If anything fails, see [Troubleshooting](#troubleshooting) below.
@@ -167,8 +167,8 @@ Walk her through:
 
 Tell her:
 - The shortcut is on her desktop. Double-click to start.
-- The data lives in `%LOCALAPPDATA%\AIW-Saskia\` (Windows) or `~/Library/Application Support/AIW-Saskia/` (Mac). Don't delete.
-- Auto-backup is set up. Files land in `~/Documents/AIW-Saskia/backups/`.
+- The data lives in `%LOCALAPPDATA%\aiw-restaurant\` (Windows) or `~/Library/Application Support/aiw-restaurant/` (Mac). Don't delete.
+- Auto-backup is set up. Files land in `~/Documents/aiw-restaurant/backups/`.
 - For support: WhatsApp Ivan.
 
 ## <a id="troubleshooting"></a>Troubleshooting
@@ -189,7 +189,7 @@ Tell her:
 - [ ] Browser shows Spanish landing page
 - [ ] /healthz/db returns 200 with `"journal_mode": "wal"`
 - [ ] She can add an ingredient + recipe + sale end-to-end
-- [ ] Auto-backup file appears in `~/Documents/AIW-Saskia/backups/`
+- [ ] Auto-backup file appears in `~/Documents/aiw-restaurant/backups/`
 - [ ] She can find the shortcut, the data folder, and the backup folder
 
 Once all are checked, the install session is complete. Schedule Round 1 review for 3-5 days later.

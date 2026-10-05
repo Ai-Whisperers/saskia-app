@@ -1,7 +1,7 @@
-# Saskia RMS — Atomic Jinja Macro Contracts
+# Sazón — Atomic Jinja Macro Contracts
 
 **Author:** Designer drop — subagent 2026-09-27
-**Scope:** 10 atomic Jinja macros forming the canonical UI vocabulary across the Saskia RMS bakery management app.
+**Scope:** 10 atomic Jinja macros forming the canonical UI vocabulary across the Sazón bakery management app.
 **Inputs consumed (read once, not re-analyzed):**
 
 - `/tmp/designer-drop/cross-page-wishlist-consolidation.md` — lists the 10 macros, their roles, and rollout matrix
@@ -18,7 +18,7 @@
 - Spanish-first copy throughout. Latin American voseo is used **only** in CTA buttons where it matches existing pages ("Guardá", "Cancelá" stay; "Editar", "Filtrar" stay as infinitives). Pick what the source page already uses; the macro neither adds nor strips accent marks.
 - 4px severity stripe convention: `ok`, `info`, `warn`, `danger` — order matters for left-to-right visual triage.
 - Web Components are namespaced `<saskia-*>` (custom elements).
-- Icons are referenced by `lucide` name (e.g., `alert-triangle`); the macro injects the SVG via the `<saskia-icon>` component, never inline SVG.
+- Icons are referenced by `lucide` name (e.g., `alert-triangle`); the macro injects the SVG via the `<ui-icon>` component, never inline SVG.
 
 ---
 
@@ -39,7 +39,7 @@ Render a single-card KPI metric (label + big number + optional Δ vs prior perio
 | `severity`        | `str`                         | `"neutral"`   | ❌       | One of `ok` / `info` / `warn` / `danger` / `neutral` / `muted`. Drives the left-border color + icon tint. |
 | `icon`            | `str \| None`                 | `None`        | ❌       | Lucide icon name (e.g., `"alert-triangle"`, `"trending-up"`). |
 | `href`            | `str \| None`                 | `None`        | ❌       | If present, whole tile becomes an `<a>`. |
-| `tooltip`         | `str \| None`                 | `None`        | ❌       | Hover explainer (max 140 chars). Rendered as `<abbr title>` + `<saskia-tooltip>`. |
+| `tooltip`         | `str \| None`                 | `None`        | ❌       | Hover explainer (max 140 chars). Rendered as `<abbr title>` + `<ui-tooltip>`. |
 | `count`           | `int \| None`                 | `None`        | ❌       | Sub-count (e.g., "3 ingredientes"). Shows below the value in muted text. |
 | `sublabel`        | `str \| None`                 | `None`        | ❌       | Right-aligned micro-context (e.g., "esta semana", "mes pasado"). |
 | `sparkline`       | `list[float] \| None`         | `None`        | ❌       | 8-30 numeric points → renders a 56×18 sparkline. |
@@ -78,7 +78,7 @@ Render a single-card KPI metric (label + big number + optional Δ vs prior perio
            {% if tooltip %}aria-describedby="kpi-tt-{{ label|lower|replace(' ', '-') }}"{% endif %}>
     {% if href %}<a class="kpi-tile__link" href="{{ href }}" aria-label="{{ label }}: {{ display_value }}">{% endif %}
       <header class="kpi-tile__head">
-        {% if icon %}<saskia-icon name="{{ icon }}" class="kpi-tile__icon" aria-hidden="true"></saskia-icon>{% endif %}
+        {% if icon %}<ui-icon name="{{ icon }}" class="kpi-tile__icon" aria-hidden="true"></ui-icon>{% endif %}
         <span class="kpi-tile__label"{% if tooltip %} title="{{ tooltip }}"{% endif %}>{{ label }}</span>
         {% if tooltip %}<span id="kpi-tt-{{ label|lower|replace(' ', '-') }}" hidden>{{ tooltip }}</span>{% endif %}
       </header>
@@ -87,9 +87,9 @@ Render a single-card KPI metric (label + big number + optional Δ vs prior perio
         {% if display_delta is not none %}
           <span class="kpi-tile__delta kpi-tile__delta--{{ eff_dir or 'flat' }}"
                 aria-label="{{ 'Subió' if eff_dir == 'up' else ('Bajó' if eff_dir == 'down' else 'Sin cambio') }} {{ display_delta }}">
-            {% if eff_dir == 'up' %}<saskia-icon name="arrow-up" aria-hidden="true"></saskia-icon>
-            {% elif eff_dir == 'down' %}<saskia-icon name="arrow-down" aria-hidden="true"></saskia-icon>
-            {% else %}<saskia-icon name="minus" aria-hidden="true"></saskia-icon>{% endif %}
+            {% if eff_dir == 'up' %}<ui-icon name="arrow-up" aria-hidden="true"></ui-icon>
+            {% elif eff_dir == 'down' %}<ui-icon name="arrow-down" aria-hidden="true"></ui-icon>
+            {% else %}<ui-icon name="minus" aria-hidden="true"></ui-icon>{% endif %}
             {{ display_delta }}
           </span>
         {% endif %}
@@ -97,7 +97,7 @@ Render a single-card KPI metric (label + big number + optional Δ vs prior perio
         {% if count is not none %}<span class="kpi-tile__count">{{ count }}</span>{% endif %}
       </footer>
       {% if sparkline %}
-        <saskia-sparkline data-points="{{ sparkline|tojson }}" aria-hidden="true"></saskia-sparkline>
+        <ui-sparkline data-points="{{ sparkline|tojson }}" aria-hidden="true"></ui-sparkline>
       {% endif %}
     {% if href %}</a>{% endif %}
   </article>
@@ -128,7 +128,7 @@ Rendered HTML (whitespace added for readability):
          aria-describedby="kpi-tt-stock-crítico">
   <a class="kpi-tile__link" href="/inventario?filter=critico" aria-label="Stock crítico: 1">
     <header class="kpi-tile__head">
-      <saskia-icon name="alert-triangle" class="kpi-tile__icon" aria-hidden="true"></saskia-icon>
+      <ui-icon name="alert-triangle" class="kpi-tile__icon" aria-hidden="true"></ui-icon>
       <span class="kpi-tile__label" title="Ingredientes con stock por debajo del mínimo">Stock crítico</span>
       <span id="kpi-tt-stock-crítico" hidden>Ingredientes con stock por debajo del mínimo</span>
     </header>
@@ -136,7 +136,7 @@ Rendered HTML (whitespace added for readability):
     <footer class="kpi-tile__foot">
       <span class="kpi-tile__delta kpi-tile__delta--down"
             aria-label="Bajó -1">
-        <saskia-icon name="arrow-down" aria-hidden="true"></saskia-icon>
+        <ui-icon name="arrow-down" aria-hidden="true"></ui-icon>
         -1
       </span>
       <span class="kpi-tile__sublabel">vs semana anterior</span>
@@ -150,18 +150,18 @@ Rendered HTML (whitespace added for readability):
 ```html
 <article class="kpi-tile kpi-tile--neutral">
   <header class="kpi-tile__head">
-    <saskia-icon name="coins" class="kpi-tile__icon" aria-hidden="true"></saskia-icon>
+    <ui-icon name="coins" class="kpi-tile__icon" aria-hidden="true"></ui-icon>
     <span class="kpi-tile__label">Costo total (batch)</span>
   </header>
   <div class="kpi-tile__value" aria-live="polite">Gs. 167.500</div>
   <footer class="kpi-tile__foot">
     <span class="kpi-tile__delta kpi-tile__delta--up" aria-label="Subió +12.300">
-      <saskia-icon name="arrow-up" aria-hidden="true"></saskia-icon>
+      <ui-icon name="arrow-up" aria-hidden="true"></ui-icon>
       +12.300
     </span>
     <span class="kpi-tile__sublabel">vs semana anterior</span>
   </footer>
-  <saskia-sparkline data-points="[142000,148500,153200,160000,167500]" aria-hidden="true"></saskia-sparkline>
+  <ui-sparkline data-points="[142000,148500,153200,160000,167500]" aria-hidden="true"></ui-sparkline>
 </article>
 ```
 
@@ -170,7 +170,7 @@ Rendered HTML (whitespace added for readability):
 ```html
 <article class="kpi-tile kpi-tile--muted">
   <header class="kpi-tile__head">
-    <saskia-icon name="users" class="kpi-tile__icon" aria-hidden="true"></saskia-icon>
+    <ui-icon name="users" class="kpi-tile__icon" aria-hidden="true"></ui-icon>
     <span class="kpi-tile__label">Proveedores</span>
   </header>
   <div class="kpi-tile__value" aria-live="polite">0</div>
@@ -192,7 +192,7 @@ Rendered HTML (whitespace added for readability):
 | `delta` is a pre-formatted `str`           | Rendered verbatim; **caller must set `delta_direction`**. |
 | `href` provided                            | Whole tile becomes a focusable element with `tabindex="0"`, `role="link"`, wrapped in `<a>`. |
 | `href is None`                             | Renders as a `<article>` — no link, no focus ring. |
-| `tooltip` longer than 140 chars            | Truncated with ellipsis at word boundary; tooltip text gets a `title` attribute (browser-native) and the longer text is also rendered in `<saskia-tooltip>` content slot for an expanded hover panel. |
+| `tooltip` longer than 140 chars            | Truncated with ellipsis at word boundary; tooltip text gets a `title` attribute (browser-native) and the longer text is also rendered in `<ui-tooltip>` content slot for an expanded hover panel. |
 | `severity` is invalid                      | Falls back to `neutral`, logs a console warning once. |
 | `sparkline` length                         | 1 point renders nothing; 2-7 points renders a placeholder "—"; 8-90 points renders at full fidelity. |
 | Negative `value`                           | Rendered with leading minus, **never** tinted red automatically (severity drives color). |
@@ -203,7 +203,7 @@ Rendered HTML (whitespace added for readability):
 - `aria-live="polite"` on value container so screen readers announce value updates.
 - Delta has full aria-label ("Subió 12", not just "↑").
 - `tabindex="0"` only when `href` is present (avoids trap of focusable non-links).
-- Tooltip is exposed via both `title` (instant) and `<saskia-tooltip>` (rich). Never render critical info only inside the title attribute.
+- Tooltip is exposed via both `title` (instant) and `<ui-tooltip>` (rich). Never render critical info only inside the title attribute.
 - Color is **never** the only signal: every tile has both an icon and a color.
 
 ### Locale
@@ -230,9 +230,9 @@ Rendered HTML (whitespace added for readability):
 
 ## Required Web Component / JS
 
-- **`<saskia-icon>`** — wraps Lucide icons (`name` attribute).
-- **`<saskia-tooltip>`** — rich tooltip with keyboard focus.
-- **`<saskia-sparkline>`** — accepts `data-points` JSON, renders SVG inside shadow DOM. No-op when fewer than 8 points.
+- **`<ui-icon>`** — wraps Lucide icons (`name` attribute).
+- **`<ui-tooltip>`** — rich tooltip with keyboard focus.
+- **`<ui-sparkline>`** — accepts `data-points` JSON, renders SVG inside shadow DOM. No-op when fewer than 8 points.
 - No global JS required for the macro's own logic (the `arrow-up/down/minus` icons are static markup).
 
 ## Anti-patterns
@@ -289,7 +289,7 @@ Render a compact colored pill indicating a state (order status, ingredient alert
      role="{% if href %}link{% else %}status{% endif %}"
      aria-label="{% if tone == 'ok' %}Correcto: {{ label }}{% elif tone == 'warn' %}Atención: {{ label }}{% elif tone == 'danger' %}Crítico: {{ label }}{% else %}{{ label }}{% endif %}">
     {% if dot %}<span class="pill__dot pill__dot--{{ tone }}" aria-hidden="true"></span>{% endif %}
-    {% if icon %}<saskia-icon name="{{ icon }}" class="pill__icon" aria-hidden="true"></saskia-icon>{% endif %}
+    {% if icon %}<ui-icon name="{{ icon }}" class="pill__icon" aria-hidden="true"></ui-icon>{% endif %}
     <span class="pill__label">{{ label }}</span>
   </{{ Tag }}>
 {% endmacro %}
@@ -305,7 +305,7 @@ Render a compact colored pill indicating a state (order status, ingredient alert
 <a class="pill pill--warn pill--md" href="/pedidos/1"
    title="Aún no confirmado por el cliente" data-tooltip="Aún no confirmado por el cliente"
    role="link" aria-label="Atención: Pendiente">
-  <saskia-icon name="clock" class="pill__icon" aria-hidden="true"></saskia-icon>
+  <ui-icon name="clock" class="pill__icon" aria-hidden="true"></ui-icon>
   <span class="pill__label">Pendiente</span>
 </a>
 ```
@@ -318,7 +318,7 @@ Render a compact colored pill indicating a state (order status, ingredient alert
 
 ```html
 <span class="pill pill--danger pill--sm" role="status">
-  <saskia-icon name="alert-triangle" class="pill__icon" aria-hidden="true"></saskia-icon>
+  <ui-icon name="alert-triangle" class="pill__icon" aria-hidden="true"></ui-icon>
   <span class="pill__label">Stock bajo</span>
 </span>
 ```
@@ -356,7 +356,7 @@ Render a compact colored pill indicating a state (order status, ingredient alert
 
 - `aria-label` is enriched with the tone: "Atención: Pendiente", "Crítico: Stock bajo". Screen-reader users don't need color.
 - `role="status"` (not `role="alert"`) on the non-link variant — this is an ambient indicator, not an interrupt.
-- Tooltip is exposed via both `title` and `data-tooltip` (the latter picked up by `<saskia-tooltip>` for richer hover).
+- Tooltip is exposed via both `title` and `data-tooltip` (the latter picked up by `<ui-tooltip>` for richer hover).
 
 ### Locale
 
@@ -377,8 +377,8 @@ Render a compact colored pill indicating a state (order status, ingredient alert
 
 ## Required Web Component / JS
 
-- **`<saskia-icon>`** — icons.
-- **`<saskia-tooltip>`** — picks up `data-tooltip` for richer hover (optional, falls back to native `title`).
+- **`<ui-icon>`** — icons.
+- **`<ui-tooltip>`** — picks up `data-tooltip` for richer hover (optional, falls back to native `title`).
 
 ## Anti-patterns
 
@@ -521,7 +521,7 @@ Render a sortable, paginated table with multi-select rows, inline row actions, o
                   <button class="data-table__sort-btn" data-sort-trigger="{{ col.key }}" aria-label="Ordenar por {{ col.label }}">
                     {{ col.label }}
                     {% if sort and sort.key == col.key %}
-                      <saskia-icon name="arrow-{{ 'up' if sort.direction == 'asc' else 'down' }}" aria-hidden="true"></saskia-icon>
+                      <ui-icon name="arrow-{{ 'up' if sort.direction == 'asc' else 'down' }}" aria-hidden="true"></ui-icon>
                     {% endif %}
                   </button>
                 {% else %}
@@ -563,7 +563,7 @@ Render a sortable, paginated table with multi-select rows, inline row actions, o
                        href="{{ href }}"
                        {% if action.tooltip %}title="{{ action.tooltip }}"{% endif %}
                        aria-label="{{ action.label }}">
-                      {% if action.icon %}<saskia-icon name="{{ action.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+                      {% if action.icon %}<ui-icon name="{{ action.icon }}" aria-hidden="true"></ui-icon>{% endif %}
                       <span class="data-table__action-label">{{ action.label }}</span>
                     </a>
                   {% endfor %}
@@ -597,10 +597,10 @@ Render a sortable, paginated table with multi-select rows, inline row actions, o
     </div>
 
     {% if selectable and bulk_actions %}
-      <saskia-bulk-bar
+      <ui-bulk-bar
          data-actions='{{ bulk_actions|tojson }}'
          data-table-id="{{ table_id }}"
-         hidden></saskia-bulk-bar>
+         hidden></ui-bulk-bar>
     {% endif %}
   {% endif %}
 {% endmacro %}
@@ -648,7 +648,7 @@ Rendered HTML (truncated for length):
         <th scope="col" class="data-table__check"><input type="checkbox" aria-label="Seleccionar todas las filas" data-table-select-all></th>
         <th scope="col" class="data-table__th data-table__th--left data-table__th--sortable" style="width: 30%" data-sort-key="nombre" aria-sort="asc">
           <button class="data-table__sort-btn" data-sort-trigger="nombre" aria-label="Ordenar por Nombre">
-            Nombre <saskia-icon name="arrow-up" aria-hidden="true"></saskia-icon>
+            Nombre <ui-icon name="arrow-up" aria-hidden="true"></ui-icon>
           </button>
         </th>
         <th scope="col" class="data-table__th data-table__th--center" style="width: 8%">Unidad</th>
@@ -669,10 +669,10 @@ Rendered HTML (truncated for length):
         <td class="data-table__td data-table__td--center">kg</td>
         <td class="data-table__td data-table__td--right">100</td>
         <td class="data-table__td data-table__td--right">3.000</td>
-        <td class="data-table__td data-table__td--left"><span class="pill pill--ok pill--md" role="status"><saskia-icon name="check" class="pill__icon" aria-hidden="true"></saskia-icon><span class="pill__label">OK</span></span></td>
+        <td class="data-table__td data-table__td--left"><span class="pill pill--ok pill--md" role="status"><ui-icon name="check" class="pill__icon" aria-hidden="true"></ui-icon><span class="pill__label">OK</span></span></td>
         <td class="data-table__actions">
-          <a class="data-table__action data-table__action--neutral" href="/inventario/1" aria-label="Ver"><saskia-icon name="eye" aria-hidden="true"></saskia-icon><span class="data-table__action-label">Ver</span></a>
-          <a class="data-table__action data-table__action--neutral" href="/inventario/1/editar" aria-label="Editar"><saskia-icon name="pencil" aria-hidden="true"></saskia-icon><span class="data-table__action-label">Editar</span></a>
+          <a class="data-table__action data-table__action--neutral" href="/inventario/1" aria-label="Ver"><ui-icon name="eye" aria-hidden="true"></ui-icon><span class="data-table__action-label">Ver</span></a>
+          <a class="data-table__action data-table__action--neutral" href="/inventario/1/editar" aria-label="Editar"><ui-icon name="pencil" aria-hidden="true"></ui-icon><span class="data-table__action-label">Editar</span></a>
         </td>
       </tr>
       <!-- second row omitted for brevity -->
@@ -689,7 +689,7 @@ Rendered HTML (truncated for length):
       <li><a href="?page=14" aria-label="Última página">»</a></li>
     </ul>
   </nav>
-  <saskia-bulk-bar data-actions='[{"label":"Archivar","action":"POST /inventario/bulk-archive","icon":"archive"}]' data-table-id="data-table" hidden></saskia-bulk-bar>
+  <ui-bulk-bar data-actions='[{"label":"Archivar","action":"POST /inventario/bulk-archive","icon":"archive"}]' data-table-id="data-table" hidden></ui-bulk-bar>
 </div>
 ```
 
@@ -697,7 +697,7 @@ Rendered HTML (truncated for length):
 
 ```html
 <div class="empty-state">
-  <saskia-icon name="package-x" class="empty-state__icon" aria-hidden="true"></saskia-icon>
+  <ui-icon name="package-x" class="empty-state__icon" aria-hidden="true"></ui-icon>
   <h3 class="empty-state__title">Sin ingredientes</h3>
   <p class="empty-state__description">Empezá cargando tu primer ingrediente.</p>
   <a class="btn btn--primary" href="/inventario/nuevo">Agregá el primero</a>
@@ -715,7 +715,7 @@ Rendered HTML (truncated for length):
 | Cell value is `datetime`/`date` | Formatted via `format` directive; default `date` is `dd/mm/aaaa`. |
 | Cell value is `float` with `format='money'` | Rounded to integer, formatted `Gs. 1.234.567`. |
 | Column `sortable=True` | Renders a `<button>` inside `<th>` with `data-sort-trigger`; default sort behavior is full-page reload via URL (`?sort=nombre:asc`). |
-| `selectable=True` | First column is checkbox. The `<saskia-bulk-bar>` is hidden until ≥1 row is selected (JS in web component). |
+| `selectable=True` | First column is checkbox. The `<ui-bulk-bar>` is hidden until ≥1 row is selected (JS in web component). |
 | `bulk_actions` provided but `selectable=False` | Macro silently ignores bulk_actions and renders a console warning. |
 | `pagination` total = 0 | Pagination block is hidden. |
 | `pagination` total > 10.000 | Pagination collapses to jump-to-page input + total only (no per-page numbers). |
@@ -762,9 +762,9 @@ Every list page:
 
 ## Required Web Component / JS
 
-- **`<saskia-icon>`**
-- **`<saskia-bulk-bar>`** — listens to `change` events on checkboxes, slides up from bottom, hits the action endpoint.
-- **`<saskia-tooltip>`**
+- **`<ui-icon>`**
+- **`<ui-bulk-bar>`** — listens to `change` events on checkboxes, slides up from bottom, hits the action endpoint.
+- **`<ui-tooltip>`**
 - A small JS bootstrapper that:
   - wires `data-sort-trigger` to a URL push (`?sort=nombre:asc`).
   - wires `data-table-select-all` to check/uncheck all visible rows.
@@ -845,7 +845,7 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
              aria-selected="{{ 'true' if is_active else 'false' }}"
              aria-controls="filter-panel"
              data-filter-key="{{ chip.key }}">
-            {% if chip.icon %}<saskia-icon name="{{ chip.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+            {% if chip.icon %}<ui-icon name="{{ chip.icon }}" aria-hidden="true"></ui-icon>{% endif %}
             <span class="filter-chips__label">{{ chip.label }}</span>
             {% if chip.count is not none %}<span class="filter-chips__count">{{ chip.count }}</span>{% endif %}
           </a>
@@ -854,7 +854,7 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
       {% if saved_views %}
         <li class="filter-chips__item filter-chips__item--saved">
           <details class="filter-chips__saved">
-            <summary><saskia-icon name="star" aria-hidden="true"></saskia-icon> Vistas guardadas</summary>
+            <summary><ui-icon name="star" aria-hidden="true"></ui-icon> Vistas guardadas</summary>
             <ul>
               {% for sv in saved_views %}
                 <li><a href="{{ sv.href }}">{{ sv.label }}</a></li>
@@ -872,7 +872,7 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
     </ul>
     {% if search_input %}
       <form class="filter-chips__search" method="get" action="{{ url }}" role="search">
-        <saskia-icon name="search" aria-hidden="true"></saskia-icon>
+        <ui-icon name="search" aria-hidden="true"></ui-icon>
         <input type="search" name="q" value="{{ request.args.get('q', '') }}"
                placeholder="Buscar…"
                aria-label="Buscar en la lista">
@@ -909,14 +909,14 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
     </li>
     <li class="filter-chips__item">
       <a href="/inventario?filter=bajo_minimo" class="filter-chips__chip filter-chips__chip--warn is-active" role="tab" aria-selected="true" aria-controls="filter-panel" data-filter-key="bajo_minimo">
-        <saskia-icon name="alert-triangle" aria-hidden="true"></saskia-icon>
+        <ui-icon name="alert-triangle" aria-hidden="true"></ui-icon>
         <span class="filter-chips__label">Bajo mínimo</span><span class="filter-chips__count">3</span>
       </a>
     </li>
     <!-- other chips omitted -->
     <li class="filter-chips__item filter-chips__item--saved">
       <details class="filter-chips__saved">
-        <summary><saskia-icon name="star" aria-hidden="true"></saskia-icon> Vistas guardadas</summary>
+        <summary><ui-icon name="star" aria-hidden="true"></ui-icon> Vistas guardadas</summary>
         <ul>
           <li><a href="?saved=criticos">Mis críticos</a></li>
         </ul>
@@ -924,7 +924,7 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
     </li>
   </ul>
   <form class="filter-chips__search" method="get" action="/inventario" role="search">
-    <saskia-icon name="search" aria-hidden="true"></saskia-icon>
+    <ui-icon name="search" aria-hidden="true"></ui-icon>
     <input type="search" name="q" value="" placeholder="Buscar…" aria-label="Buscar en la lista">
   </form>
 </section>
@@ -989,7 +989,7 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
 
 ## Required Web Component / JS
 
-- **`<saskia-icon>`**
+- **`<ui-icon>`**
 - For client-side chip counts that update without reload: a small enhancement script (out of scope — chips work without JS; this is progressive enhancement only).
 - The macro emits plain `<a>` tags, so it works without any JS.
 
@@ -1000,7 +1000,7 @@ Render a horizontal rail of toggleable filter chips (counts included), optionall
 - ❌ **Don't** animate chip background on hover with a transition longer than 150ms — it feels sluggish.
 - ❌ **Don't** use chips where you need a multi-select dropdown. Single-select filters go through chips; multi-select goes through a dropdown panel (a separate pattern, not this macro).
 - ❌ **Don't** set `count=0` on a non-default chip — it's clearer to omit `count` (renders no badge) or hide the chip entirely.
-- ❌ **Don't** put more than one `<saskia-icon>` in a chip — too visually noisy. Pick icon OR count, not both as the dominant.
+- ❌ **Don't** put more than one `<ui-icon>` in a chip — too visually noisy. Pick icon OR count, not both as the dominant.
 - ❌ **Don't** rely on the `search_input` clearing itself between page loads — it preserves `request.args.q`. If the page should default to "no search", keep search input out of this macro or pass `default_query=''`.
 
 ---
@@ -1057,7 +1057,7 @@ Render the canonical empty-state block — icon + headline + 1-2 line explainer 
       <img class="empty-state__illustration" src="/static/illustrations/{{ illustration }}" alt="{{ illustration_alt or title }}" loading="lazy" decoding="async">
     {% elif icon %}
       <div class="empty-state__icon-wrap">
-        <saskia-icon name="{{ icon }}" class="empty-state__icon" aria-hidden="true"></saskia-icon>
+        <ui-icon name="{{ icon }}" class="empty-state__icon" aria-hidden="true"></ui-icon>
       </div>
     {% endif %}
     <h3 id="es-title-{{ title|lower|replace(' ', '-') }}" class="empty-state__title">{{ title }}</h3>
@@ -1065,12 +1065,12 @@ Render the canonical empty-state block — icon + headline + 1-2 line explainer 
     {% if primary_cta %}
       {% if primary_cta.href %}
         <a class="btn btn--{{ primary_cta.tone or 'primary' }}" href="{{ primary_cta.href }}">
-          {% if primary_cta.icon %}<saskia-icon name="{{ primary_cta.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+          {% if primary_cta.icon %}<ui-icon name="{{ primary_cta.icon }}" aria-hidden="true"></ui-icon>{% endif %}
           {{ primary_cta.label }}
         </a>
       {% elif primary_cta.action %}
         <button class="btn btn--{{ primary_cta.tone or 'primary' }}" data-action="{{ primary_cta.action }}" type="button">
-          {% if primary_cta.icon %}<saskia-icon name="{{ primary_cta.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+          {% if primary_cta.icon %}<ui-icon name="{{ primary_cta.icon }}" aria-hidden="true"></ui-icon>{% endif %}
           {{ primary_cta.label }}
         </button>
       {% endif %}
@@ -1078,17 +1078,17 @@ Render the canonical empty-state block — icon + headline + 1-2 line explainer 
     {% if secondary_cta %}
       {% if secondary_cta.href %}
         <a class="btn btn--{{ secondary_cta.tone or 'secondary' }}" href="{{ secondary_cta.href }}">
-          {% if secondary_cta.icon %}<saskia-icon name="{{ secondary_cta.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+          {% if secondary_cta.icon %}<ui-icon name="{{ secondary_cta.icon }}" aria-hidden="true"></ui-icon>{% endif %}
           {{ secondary_cta.label }}
         </a>
       {% elif secondary_cta.action %}
         <button class="btn btn--{{ secondary_cta.tone or 'secondary' }}" data-action="{{ secondary_cta.action }}" type="button">
-          {% if secondary_cta.icon %}<saskia-icon name="{{ secondary_cta.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+          {% if secondary_cta.icon %}<ui-icon name="{{ secondary_cta.icon }}" aria-hidden="true"></ui-icon>{% endif %}
           {{ secondary_cta.label }}
         </button>
       {% endif %}
     {% endif %}
-    {% if tip %}<p class="empty-state__tip"><saskia-icon name="lightbulb" aria-hidden="true"></saskia-icon> {{ tip }}</p>{% endif %}
+    {% if tip %}<p class="empty-state__tip"><ui-icon name="lightbulb" aria-hidden="true"></ui-icon> {{ tip }}</p>{% endif %}
   </section>
 {% endmacro %}
 ```
@@ -1109,20 +1109,20 @@ Render the canonical empty-state block — icon + headline + 1-2 line explainer 
 ```html
 <section class="empty-state empty-state--md" role="region" aria-labelledby="es-title-no-hay-proveedores-todavía">
   <div class="empty-state__icon-wrap">
-    <saskia-icon name="truck" class="empty-state__icon" aria-hidden="true"></saskia-icon>
+    <ui-icon name="truck" class="empty-state__icon" aria-hidden="true"></ui-icon>
   </div>
   <h3 id="es-title-no-hay-proveedores-todavía" class="empty-state__title">No hay proveedores todavía</h3>
   <p class="empty-state__description">Agregá proveedores para poder contactarlos desde la página de reorden.</p>
   <a class="btn btn--primary" href="/proveedores/nuevo">
-    <saskia-icon name="plus" aria-hidden="true"></saskia-icon>
+    <ui-icon name="plus" aria-hidden="true"></ui-icon>
     Agregá el primero
   </a>
   <button class="btn btn--secondary" data-action="openWhatsAppPaste" type="button">
-    <saskia-icon name="message-circle" aria-hidden="true"></saskia-icon>
+    <ui-icon name="message-circle" aria-hidden="true"></ui-icon>
     Pegar lista de WhatsApp
   </button>
   <p class="empty-state__tip">
-    <saskia-icon name="lightbulb" aria-hidden="true"></saskia-icon>
+    <ui-icon name="lightbulb" aria-hidden="true"></ui-icon>
     Después podés asignarles categorías, RUC y horarios de entrega.
   </p>
 </section>
@@ -1203,7 +1203,7 @@ Render the canonical empty-state block — icon + headline + 1-2 line explainer 
 
 ## Required Web Component / JS
 
-- **`<saskia-icon>`**
+- **`<ui-icon>`**
 - For `data-action` CTAs: an event-delegation script on `document.body` that picks up `click` on `[data-action]` and invokes the named function.
 
 ## Anti-patterns
@@ -1231,7 +1231,7 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
 |------------------|-----------------|-------------|----------|-------|
 | `selected_count` | `int`           | —           | ✅       | Number of currently selected rows. Hidden when 0. |
 | `actions`        | `list[dict]`    | —           | ✅       | Bulk actions (typically forwarded from `data_table`'s `bulk_actions`). |
-| `on_clear`       | `str \| None`   | `None`      | ❌       | JS function name called when the user clears selection (default behavior is auto-cleared by `<saskia-bulk-bar>`). |
+| `on_clear`       | `str \| None`   | `None`      | ❌       | JS function name called when the user clears selection (default behavior is auto-cleared by `<ui-bulk-bar>`). |
 | `label_fmt`      | `str \| None`   | `None`      | ❌       | Custom copy template with `{count}` placeholder, e.g., `"{count} pedidos seleccionados"`. Default: `"{count} seleccionados"`. |
 | `position`       | `str`           | `"bottom"`  | ❌       | `bottom` (default) or `top`. |
 
@@ -1256,7 +1256,7 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
 {% macro bulk_action_bar(selected_count, actions, on_clear=None, label_fmt=None, position='bottom') %}
   {% set fmt = label_fmt or '{count} seleccionados' %}
   {% if selected_count > 0 %}
-    <saskia-bulk-bar
+    <ui-bulk-bar
        role="region"
        aria-live="polite"
        aria-label="Acciones en lote"
@@ -1266,11 +1266,11 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
        data-actions='{{ actions|tojson }}'>
       <div class="bulk-action-bar__inner">
         <span class="bulk-action-bar__count" aria-live="polite">
-          <saskia-icon name="check-square" aria-hidden="true"></saskia-icon>
+          <ui-icon name="check-square" aria-hidden="true"></ui-icon>
           {{ fmt|replace('{count}', selected_count|string) }}
         </span>
         <button type="button" class="bulk-action-bar__clear" data-bulk-clear>
-          <saskia-icon name="x" aria-hidden="true"></saskia-icon>
+          <ui-icon name="x" aria-hidden="true"></ui-icon>
           <span>Limpiar selección</span>
         </button>
         <div class="bulk-action-bar__actions">
@@ -1282,18 +1282,18 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
                     data-method="{{ action.method or 'POST' }}"
                     data-confirm="{{ 'true' if action.confirm else 'false' }}"
                     data-require-typed="{{ action.require_typed or '' }}">
-              {% if action.icon %}<saskia-icon name="{{ action.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+              {% if action.icon %}<ui-icon name="{{ action.icon }}" aria-hidden="true"></ui-icon>{% endif %}
               {{ action.label }}
             </button>
           {% endfor %}
         </div>
       </div>
-    </saskia-bulk-bar>
+    </ui-bulk-bar>
   {% endif %}
 {% endmacro %}
 ```
 
-> The macro renders nothing when `selected_count == 0`. The `<saskia-bulk-bar>` web component owns the show/hide animation.
+> The macro renders nothing when `selected_count == 0`. The `<ui-bulk-bar>` web component owns the show/hide animation.
 
 ### Rendered example 1 — selected 3 inventario items
 
@@ -1309,42 +1309,42 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
 ```
 
 ```html
-<saskia-bulk-bar role="region" aria-live="polite" aria-label="Acciones en lote"
+<ui-bulk-bar role="region" aria-live="polite" aria-label="Acciones en lote"
    class="bulk-action-bar bulk-action-bar--bottom"
    data-on-clear="clearSelection"
    data-selected-count="3"
    data-actions='[{"label":"Archivar",...}, ...]'>
   <div class="bulk-action-bar__inner">
     <span class="bulk-action-bar__count" aria-live="polite">
-      <saskia-icon name="check-square" aria-hidden="true"></saskia-icon>
+      <ui-icon name="check-square" aria-hidden="true"></ui-icon>
       3 seleccionados
     </span>
     <button type="button" class="bulk-action-bar__clear" data-bulk-clear>
-      <saskia-icon name="x" aria-hidden="true"></saskia-icon>
+      <ui-icon name="x" aria-hidden="true"></ui-icon>
       <span>Limpiar selección</span>
     </button>
     <div class="bulk-action-bar__actions">
       <button type="button" class="bulk-action-bar__action bulk-action-bar__action--neutral"
               data-bulk-action data-action="POST /inventario/bulk-archive" data-method="POST"
               data-confirm="false" data-require-typed="">
-        <saskia-icon name="archive" aria-hidden="true"></saskia-icon>
+        <ui-icon name="archive" aria-hidden="true"></ui-icon>
         Archivar
       </button>
       <button type="button" class="bulk-action-bar__action bulk-action-bar__action--danger"
               data-bulk-action data-action="POST /inventario/bulk-delete" data-method="POST"
               data-confirm="true" data-require-typed="">
-        <saskia-icon name="trash" aria-hidden="true"></saskia-icon>
+        <ui-icon name="trash" aria-hidden="true"></ui-icon>
         Eliminar
       </button>
       <button type="button" class="bulk-action-bar__action bulk-action-bar__action--neutral"
               data-bulk-action data-action="GET /inventario/bulk-export.csv" data-method="GET"
               data-confirm="false" data-require-typed="">
-        <saskia-icon name="download" aria-hidden="true"></saskia-icon>
+        <ui-icon name="download" aria-hidden="true"></ui-icon>
         Exportar CSV
       </button>
     </div>
   </div>
-</saskia-bulk-bar>
+</ui-bulk-bar>
 ```
 
 ### Rendered example 2 — destructive with typed confirmation
@@ -1363,14 +1363,14 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
 
 | Condition | Behavior |
 |-----------|----------|
-| `selected_count == 0` | Macro emits **nothing** (and `<saskia-bulk-bar>` remains hidden). |
+| `selected_count == 0` | Macro emits **nothing** (and `<ui-bulk-bar>` remains hidden). |
 | `selected_count == 1` | Pluralization shifts to singular ("1 seleccionado"). The macro doesn't enforce this — `label_fmt` must handle it. Default template uses "{count} seleccionados" which is fine for n≥2. |
 | `selected_count > 999` | Renders with thousands separator (`1.247`). |
 | Action with `confirm=True` | Click opens the `confirm_destructive` modal; if `require_typed` is set, the modal requires the typed phrase. |
-| Action with `method='GET'` | Triggers a normal download (the `<saskia-bulk-bar>` builds `<a download>` and clicks it). No confirmation. |
+| Action with `method='GET'` | Triggers a normal download (the `<ui-bulk-bar>` builds `<a download>` and clicks it). No confirmation. |
 | Action with `method='DELETE'` | Web component sends a fetch with the DELETE method; handles CSRF token automatically. |
 | User clears selection | `data-on-clear` fires; default `clearSelection()` clears DOM checkboxes and toggles bar hidden. |
-| Bar appears above keyboard-fold | Visible viewport reach — `<saskia-bulk-bar>` listens for `IntersectionObserver` to fade in from below. |
+| Bar appears above keyboard-fold | Visible viewport reach — `<ui-bulk-bar>` listens for `IntersectionObserver` to fade in from below. |
 | `selected_count > 0` + `actions is empty` | Macro renders count + clear button, no actions section. |
 | Bar overlaps page footer | `padding-bottom: 80px` is set on `<body>` while bar is open. |
 | Multiple `bulk_action_bar` on one page | Only one may be visible at a time; later instances take precedence (they're typically one per page anyway). |
@@ -1400,7 +1400,7 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
 
 ## Required Web Component / JS
 
-- **`<saskia-bulk-bar>`** — custom element that listens to checkbox events from `<saskia-data-table>`, animates itself in/out, fires `data-action` URLs with CSRF, and pipes destructive clicks through `confirm_destructive`.
+- **`<ui-bulk-bar>`** — custom element that listens to checkbox events from `<ui-data-table>`, animates itself in/out, fires `data-action` URLs with CSRF, and pipes destructive clicks through `confirm_destructive`.
 - The web component runs entirely client-side; the macro itself emits declarative markup.
 - The web component also handles the body padding shift.
 
@@ -1410,7 +1410,7 @@ Render the bottom toolbar that slides up when ≥1 row in a `data_table` is sele
 - ❌ **Don't** put primary destructive actions first (e.g., "Eliminar 1.247 entradas") — they should be **last**, after safe ones like "Export".
 - ❌ **Don't** rely on `confirm=True` without providing a destructive phrase in `require_typed` for irreversible ops (purge, delete user, etc.).
 - ❌ **Don't** use `tone='primary'` on `Eliminar` — destructive actions always get `tone='danger'`.
-- ❌ **Don't** render this macro outside of a `<saskia-data-table>` context without care — the `<saskia-bulk-bar>` web component expects checkboxes named `selected_ids` on the same page (it dispatches `bulk:collect` and listens for `bulk:count` events).
+- ❌ **Don't** render this macro outside of a `<ui-data-table>` context without care — the `<ui-bulk-bar>` web component expects checkboxes named `selected_ids` on the same page (it dispatches `bulk:collect` and listens for `bulk:count` events).
 - ❌ **Don't** set `position='top'` if there's already a sticky table header — the two will fight in the viewport.
 - ❌ **Don't** create per-page copies of this macro — it must remain identical across every list page for muscle memory.
 
@@ -1781,7 +1781,7 @@ Render an inline callout that flags a derived condition the user should know abo
          {% if tone == 'danger' %}role="alert"{% else %}role="status"{% endif %}
          aria-live="{% if tone == 'danger' %}assertive{% else %}polite{% endif %}">
     <span class="inline-warning__icon" aria-hidden="true">
-      <saskia-icon name="{{ icon or default_icon }}"></saskia-icon>
+      <ui-icon name="{{ icon or default_icon }}"></ui-icon>
     </span>
     <div class="inline-warning__body">
       {% if title %}<h4 class="inline-warning__title"{% if tooltip %} title="{{ tooltip }}"{% endif %}>{{ title }}</h4>{% endif %}
@@ -1795,12 +1795,12 @@ Render an inline callout that flags a derived condition the user should know abo
       {% if action %}
         {% if action.href %}
           <a class="btn btn--{{ action.tone or 'primary' }} btn--sm" href="{{ action.href }}">
-            {% if action.icon %}<saskia-icon name="{{ action.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+            {% if action.icon %}<ui-icon name="{{ action.icon }}" aria-hidden="true"></ui-icon>{% endif %}
             {{ action.label }}
           </a>
         {% elif action.action %}
           <button type="button" class="btn btn--{{ action.tone or 'primary' }} btn--sm" data-action="{{ action.action }}">
-            {% if action.icon %}<saskia-icon name="{{ action.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+            {% if action.icon %}<ui-icon name="{{ action.icon }}" aria-hidden="true"></ui-icon>{% endif %}
             {{ action.label }}
           </button>
         {% endif %}
@@ -1808,7 +1808,7 @@ Render an inline callout that flags a derived condition the user should know abo
     </div>
     {% if dismissible %}
       <button type="button" class="inline-warning__dismiss" aria-label="Cerrar advertencia" data-inline-warning-dismiss="{{ id }}">
-        <saskia-icon name="x" aria-hidden="true"></saskia-icon>
+        <ui-icon name="x" aria-hidden="true"></ui-icon>
       </button>
     {% endif %}
   </aside>
@@ -1834,18 +1834,18 @@ Render an inline callout that flags a derived condition the user should know abo
 <aside class="inline-warning inline-warning--warn" id="iw-ing-1-no-consumo"
        role="status" aria-live="polite">
   <span class="inline-warning__icon" aria-hidden="true">
-    <saskia-icon name="alert-triangle"></saskia-icon>
+    <ui-icon name="alert-triangle"></ui-icon>
   </span>
   <div class="inline-warning__body">
     <h4 class="inline-warning__title" title="El pronóstico requiere al menos 3 días de historial.">Sin consumo reciente</h4>
     <p class="inline-warning__message">No hay registros de consumo para este ingrediente en los últimos 14 días. El pronóstico requiere al menos 3 días de historial.</p>
     <a class="btn btn--primary btn--sm" href="/inventario/1/movimientos/nuevo">
-      <saskia-icon name="plus" aria-hidden="true"></saskia-icon>
+      <ui-icon name="plus" aria-hidden="true"></ui-icon>
       Registrá consumo
     </a>
   </div>
   <button type="button" class="inline-warning__dismiss" aria-label="Cerrar advertencia" data-inline-warning-dismiss="ing-1-no-consumo">
-    <saskia-icon name="x" aria-hidden="true"></saskia-icon>
+    <ui-icon name="x" aria-hidden="true"></ui-icon>
   </button>
 </aside>
 ```
@@ -1920,7 +1920,7 @@ Render an inline callout that flags a derived condition the user should know abo
 
 ## Required Web Component / JS
 
-- **`<saskia-icon>`**
+- **`<ui-icon>`**
 - A small enhancement script for `data-inline-warning-dismiss` — toggles `hidden` and writes `localStorage['iw-dismissed:<id>'] = '1'`. On page load, reads and hides matching warnings.
 - `data-action` handler (shared with `empty_state`).
 
@@ -1941,7 +1941,7 @@ Render an inline callout that flags a derived condition the user should know abo
 
 ## Purpose
 
-Render a modal confirmation gate for destructive actions (delete, purge, cancel, archive-many) — prevents accidental irreversible operations. Reuses the `<saskia-confirm-modal>` web component behind the scenes.
+Render a modal confirmation gate for destructive actions (delete, purge, cancel, archive-many) — prevents accidental irreversible operations. Reuses the `<ui-confirm-modal>` web component behind the scenes.
 
 ## Arguments
 
@@ -1994,7 +1994,7 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
     {{ raise_msg }}
   {% endif %}
 
-  <saskia-confirm-modal
+  <ui-confirm-modal
      data-modal-id="confirm-{{ title|lower|replace(' ', '-') }}-{{ trigger_label|lower|replace(' ', '-')|trim }}"
      data-size="{{ size }}"
      data-icon="{{ icon }}"
@@ -2003,13 +2003,13 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
     {% if trigger_variant == 'button' %}
       <button type="button" class="btn btn--{{ trigger_tone }}" data-confirm-trigger
               aria-haspopup="dialog">
-        {% if trigger_icon %}<saskia-icon name="{{ trigger_icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+        {% if trigger_icon %}<ui-icon name="{{ trigger_icon }}" aria-hidden="true"></ui-icon>{% endif %}
         {{ trigger_label }}
       </button>
     {% elif trigger_variant == 'icon' %}
       <button type="button" class="btn btn--icon btn--{{ trigger_tone }}" data-confirm-trigger
               aria-label="{{ trigger_label }}" title="{{ trigger_label }}" aria-haspopup="dialog">
-        {% if trigger_icon %}<saskia-icon name="{{ trigger_icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+        {% if trigger_icon %}<ui-icon name="{{ trigger_icon }}" aria-hidden="true"></ui-icon>{% endif %}
       </button>
     {% elif trigger_variant == 'link' %}
       <a href="#" class="link link--{{ trigger_tone }}" data-confirm-trigger
@@ -2019,7 +2019,7 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
     <template data-confirm-content>
       <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
         <header class="confirm-modal__head">
-          <saskia-icon name="{{ icon }}" class="confirm-modal__icon" aria-hidden="true"></saskia-icon>
+          <ui-icon name="{{ icon }}" class="confirm-modal__icon" aria-hidden="true"></ui-icon>
           <h2 id="confirm-title" class="confirm-modal__title">{{ title }}</h2>
         </header>
         <div id="confirm-body" class="confirm-modal__body">{{ body|safe }}</div>
@@ -2040,7 +2040,7 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
           {% if secondary_action %}
             {% if secondary_action.href %}
               <a class="btn btn--tertiary" href="{{ secondary_action.href }}">
-                {% if secondary_action.icon %}<saskia-icon name="{{ secondary_action.icon }}" aria-hidden="true"></saskia-icon>{% endif %}
+                {% if secondary_action.icon %}<ui-icon name="{{ secondary_action.icon }}" aria-hidden="true"></ui-icon>{% endif %}
                 {{ secondary_action.label }}
               </a>
             {% endif %}
@@ -2059,7 +2059,7 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
         </footer>
       </div>
     </template>
-  </saskia-confirm-modal>
+  </ui-confirm-modal>
 {% endmacro %}
 ```
 
@@ -2082,16 +2082,16 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
 ```
 
 ```html
-<saskia-confirm-modal data-modal-id="confirm-eliminar-entradas-antiguas-de-auditoría-eliminar-entradas-de-más-de-1-año"
+<ui-confirm-modal data-modal-id="confirm-eliminar-entradas-antiguas-de-auditoría-eliminar-entradas-de-más-de-1-año"
    data-size="md" data-icon="alert-triangle" data-trigger-tone="danger">
   <button type="button" class="btn btn--danger" data-confirm-trigger aria-haspopup="dialog">
-    <saskia-icon name="trash" aria-hidden="true"></saskia-icon>
+    <ui-icon name="trash" aria-hidden="true"></ui-icon>
     Eliminar entradas de más de 1 año
   </button>
   <template data-confirm-content>
     <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
       <header class="confirm-modal__head">
-        <saskia-icon name="alert-triangle" class="confirm-modal__icon" aria-hidden="true"></saskia-icon>
+        <ui-icon name="alert-triangle" class="confirm-modal__icon" aria-hidden="true"></ui-icon>
         <h2 id="confirm-title" class="confirm-modal__title">Eliminar entradas antiguas de auditoría</h2>
       </header>
       <div id="confirm-body" class="confirm-modal__body">Vas a eliminar <strong>1.247 entradas</strong> con más de 1 año de antigüedad. Esta acción es irreversible y compromete la cadena de auditoría.</div>
@@ -2102,7 +2102,7 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
       <footer class="confirm-modal__foot">
         <button type="button" class="btn btn--secondary" data-confirm-cancel>Cancelar</button>
         <a class="btn btn--tertiary" href="/auditoria/export.csv?older=1y">
-          <saskia-icon name="download" aria-hidden="true"></saskia-icon>
+          <ui-icon name="download" aria-hidden="true"></ui-icon>
           Exportar antes
         </a>
         <button type="button" class="btn btn--danger confirm-modal__confirm"
@@ -2113,7 +2113,7 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
       </footer>
     </div>
   </template>
-</saskia-confirm-modal>
+</ui-confirm-modal>
 ```
 
 ### Rendered example 2 — Pedido cancel (icon trigger, smaller modal)
@@ -2183,13 +2183,13 @@ Render a modal confirmation gate for destructive actions (delete, purge, cancel,
 
 ## Required Web Component / JS
 
-- **`<saskia-confirm-modal>`** — a custom element that:
+- **`<ui-confirm-modal>`** — a custom element that:
   - Listens for `click` on `[data-confirm-trigger]` and opens the modal template content.
   - Wires `[data-confirm-cancel]` to close.
   - Wires `[data-confirm-ok]` to fire the fetch with CSRF.
   - Implements focus trap and `aria-modal` semantics.
   - Restores focus to the trigger on close.
-- **`<saskia-icon>`** for header/trigger icons.
+- **`<ui-icon>`** for header/trigger icons.
 - The web component lazy-loads on first use.
 
 ## Anti-patterns
@@ -2252,7 +2252,7 @@ Three densities — `compact`, `comfortable` (default), `spacious`. Macros that 
 
 ### Icon family
 
-All icons come from **Lucide** (lucide.dev). Names are kebab-case (`alert-triangle`, `arrow-up`). Macros never embed inline SVG — always use `<saskia-icon>`.
+All icons come from **Lucide** (lucide.dev). Names are kebab-case (`alert-triangle`, `arrow-up`). Macros never embed inline SVG — always use `<ui-icon>`.
 
 ### Spanish copy
 
@@ -2278,7 +2278,7 @@ All icons come from **Lucide** (lucide.dev). Names are kebab-case (`alert-triang
 | `status_pill` | Free-form tags ("Sin gluten", "Alto en proteína") — that's a different macro |
 | `data_table` | Kanban / board layouts (different macro) |
 | `filter_chips` | Multi-select dropdowns |
-| `empty_state` | Errors (use `inline_warning`); celebratory toasts (use `<saskia-toast>`) |
+| `empty_state` | Errors (use `inline_warning`); celebratory toasts (use `<ui-toast>`) |
 | `bulk_action_bar` | Persistent action strips unrelated to multi-select |
 | `date_range_presets` | Time-of-day pickers; absolute date range with no presets |
 | `severity_left_stripe` | Standalone visual decoration without a card |
@@ -2300,7 +2300,7 @@ All icons come from **Lucide** (lucide.dev). Names are kebab-case (`alert-triang
 | `inline_warning` | 80 | |
 | `confirm_destructive` | 120 | Web component does the heavy lifting |
 
-Total: ~700 lines of Jinja + ~50KB JS for the web components (`saskia-icon`, `saskia-tooltip`, `saskia-sparkline`, `saskia-bulk-bar`, `saskia-confirm-modal`).
+Total: ~700 lines of Jinja + ~50KB JS for the web components (`ui-icon`, `ui-tooltip`, `ui-sparkline`, `ui-bulk-bar`, `ui-confirm-modal`).
 
 ### Web component contract
 
@@ -2354,7 +2354,7 @@ Outcome: ~70% of P0+P1 wishlist items addressed without per-page rewrites.
 - **Sparkline** — a small inline line/bar chart without axes, used inside `kpi_tile`.
 - **Bulk action** — an operation that affects ≥2 selected rows at once.
 - **Preset (date)** — a named range shortcut that fills in date inputs.
-- **Modal** — a focus-trapped overlay blocking the rest of the page; only `<saskia-confirm-modal>` uses one.
+- **Modal** — a focus-trapped overlay blocking the rest of the page; only `<ui-confirm-modal>` uses one.
 - **Web Component** — a custom element with shadow-DOM encapsulation; the `<saskia-*>` namespace.
 - **Lucide icon** — open-source icon library; all icons in this spec use Lucide.
 

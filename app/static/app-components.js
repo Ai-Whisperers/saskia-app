@@ -3,43 +3,43 @@
   'use strict';
 
   // ── A-11 drawer ───────────────────────────────────────────────────
-  var SaskiaDrawer = {
+  var UIDrawer = {
     _ensureShell: function () {
-      if (document.getElementById('saskia-drawer')) return;
+      if (document.getElementById('ui-drawer')) return;
       var bd = document.createElement('div');
-      bd.className = 'drawer-backdrop'; bd.id = 'saskia-drawer-backdrop';
-      bd.addEventListener('click', function () { SaskiaDrawer.close(); });
+      bd.className = 'drawer-backdrop'; bd.id = 'ui-drawer-backdrop';
+      bd.addEventListener('click', function () { UIDrawer.close(); });
       var d = document.createElement('aside');
-      d.className = 'drawer'; d.id = 'saskia-drawer'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true');
-      d.innerHTML = '<div class="drawer__header"><h2 class="drawer__title" id="saskia-drawer-title"></h2>' +
+      d.className = 'drawer'; d.id = 'ui-drawer'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true');
+      d.innerHTML = '<div class="drawer__header"><h2 class="drawer__title" id="ui-drawer-title"></h2>' +
         '<button type="button" class="btn btn-ghost" aria-label="Cerrar" data-drawer-close>✕</button></div>' +
-        '<div class="drawer__body" id="saskia-drawer-body"></div>' +
-        '<div class="drawer__footer" id="saskia-drawer-footer"></div>';
+        '<div class="drawer__body" id="ui-drawer-body"></div>' +
+        '<div class="drawer__footer" id="ui-drawer-footer"></div>';
       document.body.appendChild(bd); document.body.appendChild(d);
       d.addEventListener('click', function (e) {
-        if (e.target.closest('[data-drawer-close]')) SaskiaDrawer.close();
+        if (e.target.closest('[data-drawer-close]')) UIDrawer.close();
       });
       document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') SaskiaDrawer.close();
+        if (e.key === 'Escape') UIDrawer.close();
       });
     },
     open: function (title, bodyHtml, footerHtml) {
       this._ensureShell();
-      document.getElementById('saskia-drawer-title').textContent = title;
-      document.getElementById('saskia-drawer-body').innerHTML = bodyHtml;
-      document.getElementById('saskia-drawer-footer').innerHTML = footerHtml || '';
-      document.getElementById('saskia-drawer-backdrop').classList.add('is-open');
-      document.getElementById('saskia-drawer').classList.add('is-open');
-      var first = document.querySelector('#saskia-drawer-body input, #saskia-drawer-body select, #saskia-drawer-body button');
+      document.getElementById('ui-drawer-title').textContent = title;
+      document.getElementById('ui-drawer-body').innerHTML = bodyHtml;
+      document.getElementById('ui-drawer-footer').innerHTML = footerHtml || '';
+      document.getElementById('ui-drawer-backdrop').classList.add('is-open');
+      document.getElementById('ui-drawer').classList.add('is-open');
+      var first = document.querySelector('#ui-drawer-body input, #ui-drawer-body select, #ui-drawer-body button');
       if (first) first.focus();
     },
     close: function () {
-      var b = document.getElementById('saskia-drawer-backdrop'), d = document.getElementById('saskia-drawer');
+      var b = document.getElementById('ui-drawer-backdrop'), d = document.getElementById('ui-drawer');
       if (b) b.classList.remove('is-open');
       if (d) d.classList.remove('is-open');
     }
   };
-  window.SaskiaDrawer = SaskiaDrawer;
+  window.UIDrawer = UIDrawer;
 
   // ── A-10 row-actions: close menus on outside click ────────────────
   document.addEventListener('click', function (e) {
@@ -100,22 +100,22 @@ document.addEventListener('change', function (e) {
   }
 });
 
-// ── SaskiaConfirmModal: Promise-based confirm() replacement ─────────────
-window.SaskiaConfirmModal = (function () {
+// ── UIConfirmModal: Promise-based confirm() replacement ─────────────
+window.UIConfirmModal = (function () {
   var _ensureShell = function () {
-    if (document.getElementById('saskia-confirm')) return;
+    if (document.getElementById('ui-confirm')) return;
     var bd = document.createElement('div');
-    bd.className = 'confirm-backdrop'; bd.id = 'saskia-confirm-backdrop';
+    bd.className = 'confirm-backdrop'; bd.id = 'ui-confirm-backdrop';
     var d = document.createElement('aside');
-    d.className = 'confirm-modal'; d.id = 'saskia-confirm'; d.setAttribute('role', 'alertdialog');
-    d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-labelledby', 'saskia-confirm-title');
-    d.setAttribute('aria-describedby', 'saskia-confirm-body');
+    d.className = 'confirm-modal'; d.id = 'ui-confirm'; d.setAttribute('role', 'alertdialog');
+    d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-labelledby', 'ui-confirm-title');
+    d.setAttribute('aria-describedby', 'ui-confirm-body');
     d.innerHTML =
       '<div class="confirm-modal__header">' +
       '  <svg class="confirm-modal__icon" aria-hidden="true"><use href="#icon-warn"/></svg>' +
-      '  <h2 class="confirm-modal__title" id="saskia-confirm-title">Confirmar</h2>' +
+      '  <h2 class="confirm-modal__title" id="ui-confirm-title">Confirmar</h2>' +
       '</div>' +
-      '<div class="confirm-modal__body" id="saskia-confirm-body"></div>' +
+      '<div class="confirm-modal__body" id="ui-confirm-body"></div>' +
       '<div class="confirm-modal__footer">' +
       '  <button type="button" class="btn btn-ghost" data-confirm-cancel>Cancelar</button>' +
       '  <button type="button" class="btn btn-danger" data-confirm-ok>Confirmar</button>' +
@@ -127,13 +127,13 @@ window.SaskiaConfirmModal = (function () {
       if (e.target.closest('[data-confirm-ok]')) _close(true);
     });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && document.getElementById('saskia-confirm').open) _close(false);
-      if (e.key === 'Enter' && document.getElementById('saskia-confirm').open) _close(true);
+      if (e.key === 'Escape' && document.getElementById('ui-confirm').open) _close(false);
+      if (e.key === 'Enter' && document.getElementById('ui-confirm').open) _close(true);
     });
   };
   var _close = function (ok) {
-    var d = document.getElementById('saskia-confirm');
-    var bd = document.getElementById('saskia-confirm-backdrop');
+    var d = document.getElementById('ui-confirm');
+    var bd = document.getElementById('ui-confirm-backdrop');
     if (!d) return;
     d.classList.remove('open'); bd.classList.remove('open');
     d.open = false;
@@ -144,10 +144,10 @@ window.SaskiaConfirmModal = (function () {
     show: function (opts) {
       _ensureShell();
       opts = opts || {};
-      var d = document.getElementById('saskia-confirm');
-      var bd = document.getElementById('saskia-confirm-backdrop');
-      document.getElementById('saskia-confirm-title').textContent = opts.title || '¿Estás seguro?';
-      document.getElementById('saskia-confirm-body').textContent = opts.body || 'Esta acción no se puede deshacer.';
+      var d = document.getElementById('ui-confirm');
+      var bd = document.getElementById('ui-confirm-backdrop');
+      document.getElementById('ui-confirm-title').textContent = opts.title || '¿Estás seguro?';
+      document.getElementById('ui-confirm-body').textContent = opts.body || 'Esta acción no se puede deshacer.';
       var okBtn = d.querySelector('[data-confirm-ok]');
       okBtn.textContent = opts.confirmLabel || 'Confirmar';
       okBtn.className = opts.danger === false ? 'btn btn-primary' : 'btn btn-danger';
@@ -162,11 +162,11 @@ window.SaskiaConfirmModal = (function () {
   };
 })();
 
-// ── SaskiaSortTable: client-side table sorting ────────────────────────────
+// ── UISortTable: client-side table sorting ────────────────────────────
 // Sort a table by the numeric content of a single column (descending).
-// Usage: window.SaskiaSortTable.sortByCell(colIndex, tableId)
+// Usage: window.UISortTable.sortByCell(colIndex, tableId)
 // tableId defaults to 'stock-table' for the pedido_stock_preview screen.
-window.SaskiaSortTable = {
+window.UISortTable = {
   sortByCell: function (colIndex, tableId) {
     tableId = tableId || 'stock-table';
     var tbl = document.getElementById(tableId);
@@ -184,7 +184,7 @@ window.SaskiaSortTable = {
   }
 };
 
-// ── SaskiaDifficultyStars: star picker for recipe difficulty ───────────────
+// ── UIDifficultyStars: star picker for recipe difficulty ───────────────
 (function () {
   'use strict';
   document.addEventListener('DOMContentLoaded', function () {
@@ -221,7 +221,7 @@ window.SaskiaSortTable = {
   });
 })();
 
-// ── SaskiaEscandalloEmpty: mark escandallo as empty when no ingredient rows ─
+// ── UIEscandalloEmpty: mark escandallo as empty when no ingredient rows ─
 (function () {
   'use strict';
   document.addEventListener('DOMContentLoaded', function () {

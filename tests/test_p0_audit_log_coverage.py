@@ -1,7 +1,7 @@
 """P0 audit log coverage tests — verify record_audit() fires on each
 critical write action that was previously silent.
 
-Per saskia-only-roadmap.md P0 (cerrar-puertas / forensic gap): 16 silent
+Per sazon-only-roadmap.md P0 (cerrar-puertas / forensic gap): 16 silent
 write actions now write to AuditLog. These tests POST each action and
 query the audit_log table to confirm the row landed.
 
@@ -308,7 +308,7 @@ def test_supplier_create_audited(authed_client, session_factory):
 
     Supplier is the parent entity behind ingredients (audit item 284)
     plus the lookup table for reorder suggestions and price comparison.
-    Until this audit was wired up, Saskia could silently lose or rename
+    Until this audit was wired up, the operator could silently lose or rename
     a supplier with zero forensic trace. Now there is one.
     """
     r = authed_client.post(

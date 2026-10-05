@@ -75,7 +75,7 @@ def test_public_route_does_not_render_sidebar(production_like_client, route):
 
     # The brand link goes to /, that's fine, but the brand-mark + brand-name
     # should still render (we want branding for the login screen, just not the nav).
-    assert "Saskia RMS" in body, f"{route} lost its branding"
+    assert "Sazón" in body, f"{route} lost its branding"
 
 
 def test_login_renders_brand_but_no_nav_items(production_like_client):

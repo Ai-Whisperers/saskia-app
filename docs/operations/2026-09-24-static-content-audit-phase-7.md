@@ -198,7 +198,7 @@ Beyond DB extraction, the following refactors improve code health:
 Move all the small "business constants" into one module:
 ```python
 # app/rms/constants.py
-"""Business constants for Saskia RMS.
+"""Business constants for Sazón.
 
 Values that operators might want to tweak but don't need a UI for. Larger
 or more dynamic configs live in SettingsKV; tabular configs (channels,

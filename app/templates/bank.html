@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% import "_components/atoms.html" as ui %}
-{% block title %}Bank · Saskia RMS{% endblock %}
+{% block title %}Bank · Sazón{% endblock %}
 {% block content %}
 {{ ui.page_header("🏦 Movimientos bancarios", desc="Dutch EUR (JGHM VAN DER POL) + PY Guaraní (SASKIA WEISS VANDER)")
 }}
 
 <div class="kpi-strip">
-  <saskia-kpi-card label="EUR income" value="€{{ '{:,.2f}'.format(eur_income) }}" compact></saskia-kpi-card>
-  <saskia-kpi-card label="EUR spent" value="€{{ '{:,.2f}'.format(eur_spent) }}" compact></saskia-kpi-card>
-  <saskia-kpi-card label="EUR net" value="€{{ '{:,.2f}'.format(eur_net) }}" compact severity="{% if eur_net >= 0 %}success{% else %}danger{% endif %}"></saskia-kpi-card>
-  <saskia-kpi-card label="PYG balance" value="{{ m.gs(pyg_balance_gs) }}" compact severity="success"></saskia-kpi-card>
+  <ui-kpi-card label="EUR income" value="€{{ '{:,.2f}'.format(eur_income) }}" compact></ui-kpi-card>
+  <ui-kpi-card label="EUR spent" value="€{{ '{:,.2f}'.format(eur_spent) }}" compact></ui-kpi-card>
+  <ui-kpi-card label="EUR net" value="€{{ '{:,.2f}'.format(eur_net) }}" compact severity="{% if eur_net >= 0 %}success{% else %}danger{% endif %}"></ui-kpi-card>
+  <ui-kpi-card label="PYG balance" value="{{ m.gs(pyg_balance_gs) }}" compact severity="success"></ui-kpi-card>
 </div>
 
 {% if active_category %}
@@ -126,7 +126,7 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="form-group">
         <label for="posted_at">Fecha</label>
-        <saskia-date id="posted_at" name="posted_at"></saskia-date>
+        <ui-date id="posted_at" name="posted_at"></ui-date>
       </div>
       <div class="form-group">
         <label for="currency_combo">Currency</label>

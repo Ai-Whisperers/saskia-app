@@ -1526,7 +1526,7 @@ def inventory_movements(
 # S7 — IngredientVariant CRUD (Decision A1)
 # ---------------------------------------------------------------------------
 #
-# Saskia's audio reference:
+# the operator's audio reference:
 #   "harina 1kg / harina 250g / proveedor X — a single ingredient 'harina'
 #    with sub-rows for each package".
 #

@@ -73,7 +73,7 @@ def _read_r2_config(path: Path) -> R2Settings | None:
     Expected format:
         [r2]
         endpoint_url = "https://<account>.r2.cloudflarestorage.com"
-        bucket = "saskia-backups"
+        bucket = "sazon-backups"
         access_key_id = "..."
         secret_access_key = "..."
     """

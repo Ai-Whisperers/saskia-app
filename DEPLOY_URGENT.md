@@ -1,6 +1,6 @@
 # 🚨 URGENT: Production Server Stuck at Schema v27
 
-## Current state (live verified at https://saskia-rms.paragu-ai.com)
+## Current state (live verified at https://sazon-rms.paragu-ai.com)
 
 ```
 schema_version: 27
@@ -46,7 +46,7 @@ Postgres** due to a JSONB type mismatch.
 3. Render builds a new Docker image (~2-5 min)
 4. Deploys to the running service
 5. **Lifespan runs `init_db()` on startup** — migrations 28-32 will fire
-6. Verify: hit `https://saskia-rms.paragu-ai.com/healthz/db` —
+6. Verify: hit `https://sazon-rms.paragu-ai.com/healthz/db` —
    expect `schema_version: 32, migrations_pending: 0`
 
 ### Option B: Force redeploy via Render dashboard
@@ -62,7 +62,7 @@ If Render keeps not auto-deploying, run migrations via SQL or psql:
 ```bash
 # Option 1: Use the CLI (runbook requires psql access)
 DATABASE_URL='postgresql://user:pass@ep-XXX.us-east-2.aws.neon.tech/neondb?sslmode=require' \
-  uv run aiw-saskia migrate
+  uv run sazon migrate
 
 # Option 2: SQL directly (use Neon SQL editor or psql)
 # After running, verify:
@@ -74,12 +74,12 @@ psql "$DATABASE_URL" -c "SELECT value FROM app_meta WHERE key='schema_version';"
 
 ```bash
 # 1. Schema state
-curl https://saskia-rms.paragu-ai.com/healthz/db
+curl https://sazon-rms.paragu-ai.com/healthz/db
 # Expect: schema_version: 32, migrations_pending: 0
 
 # 2. Pages render without 500
-curl -I https://saskia-rms.paragu-ai.com/  # /inicio
-curl -I https://saskia-rms.paragu-ai.com/login
+curl -I https://sazon-rms.paragu-ai.com/  # /inicio
+curl -I https://sazon-rms.paragu-ai.com/login
 
 # 3. Log in and test:
 #    - /ventas (was 500 with TemplateRuntimeError)
@@ -87,7 +87,7 @@ curl -I https://saskia-rms.paragu-ai.com/login
 #    - /pedidos/nuevo (was 500 with ProgrammingError on cancel_reason)
 
 # 4. Error count should drop
-curl https://saskia-rms.paragu-ai.com/healthz/errors
+curl https://sazon-rms.paragu-ai.com/healthz/errors
 # Expect: http_500_count.last_1h near 0 (was 20+)
 ```
 

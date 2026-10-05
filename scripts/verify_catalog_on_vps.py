@@ -51,8 +51,8 @@ MIN_COUNTS = {
     "customer": 5,
 }
 
-# Path default: matches AIW_SASKIA_DB_PATH env in the live container.
-DEFAULT_DB_PATH = os.environ.get("AIW_SASKIA_DB_PATH", "/data/rms.sqlite")
+# Path default: matches AIW_RMS_DB_PATH env in the live container.
+DEFAULT_DB_PATH = os.environ.get("AIW_RMS_DB_PATH", "/data/rms.sqlite")
 
 
 def get_db_metadata(conn: sqlite3.Connection) -> dict:

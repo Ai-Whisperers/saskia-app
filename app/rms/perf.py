@@ -1,12 +1,12 @@
 """app/rms/perf.py — Performance scaffolding (E16).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E16.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E16.
 
 Adds:
 - cached_property-like `scoped_cache` for query results in a request
 - PaginationInfo / paginate() helpers
 - IndexHints: list of model + column pairs that should be indexed
-  (operator runs the migration via `aiw-saskia indexes`)
+  (operator runs the migration via `sazon indexes`)
 - explained_query(): explain an ORM query (helps Spot slow ones)
 - query_timer() context manager for diagnostics
 
@@ -36,7 +36,7 @@ from app.rms.models import (
     StockMovement,
 )
 
-log = logging.getLogger("saskia.perf")
+log = logging.getLogger("sazon.perf")
 
 
 @dataclass

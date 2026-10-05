@@ -5,7 +5,7 @@ The roadmap asks for "Cmd+K + atajos POS". We:
 2. Added F2/F4 to /ventas only — they click the data-action= buttons.
 3. The topbar search button now opens the palette.
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_p1_b6_cmdk_shortcuts.py -v
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_p1_b6_cmdk_shortcuts.py -v
 
 Note: this is a JS-only feature; tests verify the SHIPPED JS file contains
 the expected wiring. Functional behavior must be smoke-tested in the browser.

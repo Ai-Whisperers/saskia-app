@@ -133,7 +133,7 @@ def test_riesgos_list_shows_new_risk_after_submit(authed_client, session_factory
         "probability": "3",
         "impact_gs": "500000",
         "category": "operacional",
-        "owner": "Gaby",
+        "owner": "",
     }
     authed_client.post("/riesgos/new", data=payload, follow_redirects=False)
     r = authed_client.get("/riesgos")

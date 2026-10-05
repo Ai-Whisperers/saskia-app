@@ -1,4 +1,4 @@
-# Saskia RMS — Visual Critique Batch: Pedidos y Comercio
+# Sazón — Visual Critique Batch: Pedidos y Comercio
 **Auditor:** UX/UI Principal + QA Architect
 **Scope:** 8 pages — pedidos-board, stock-preview, duplicate, vs-mercado, vs-mercado/editar, ventas-recibo, ventas-buscar, ventas-historial
 **Method:** 5-hat analysis per page + defect log + wishlist
@@ -195,7 +195,7 @@
 - [P0] "Volver al historial" link appears on printed receipt — `<a href="/ventas" class="btn btn-ghost mt-2 no-print">` is missing `no-print` class; on print it shows as a clickable URL, unprofessional on a receipt. — Add `no-print` to the link.
 - [P0] Quantity shows decimal even for whole numbers — `{{ "%.2f"|format(sale.qty) }}` renders "1.00" not "1". — Use `{{ "%.0f"|format(sale.qty) if sale.qty == sale.qty|int else "%.2f"|format(sale.qty) }}`.
 - [P1] Voided receipt still shows full financial details unmasked — after void, the receipt shows product, total, payment method with no redaction. — For voided receipts, strike through or replace amounts with "ANULADA".
-- [P2] No business name/address/logo on receipt — receipt displays "Saskia RMS" (line 24) as text only, no logo. — Add a placeholder for a business logo upload in the app config.
+- [P2] No business name/address/logo on receipt — receipt displays "Sazón" (line 24) as text only, no logo. — Add a placeholder for a business logo upload in the app config.
 - [P2] No QR/barcode for quick lookup — no scannable identifier on the receipt for re-printing or lookup. — Add a CODE128 barcode of the sale ID.
 - [P2] `unit_price_gs` displayed without `Gs.` prefix in the `small` line (line 45). — Use `m.gs(unit_price_gs)`.
 
@@ -248,20 +248,20 @@
 ## `/ventas/historial` (`ventas-historial.png`)
 
 ### 5-Hat Analysis
-**Counter staff:** The sales history table is the primary audit tool for counter operations. It shows: Fecha, Producto, Cant., Unit. (Gs.), Total (Gs.), Cliente, Pago, Notas, and Actions (Recibo + Anular). The three-metric summary card (Ventas activas, Total recaudado, Ticket promedio) gives a live operational snapshot. The `saskia-combo` product filter (lines 50-64) allows filtering by product. The `ventas-buscar.png` suggests a `/ventas/buscar` page exists but this page also has a search input (`<input type="search" id="sales-search">` line 49) that is separate from the product combo filter. A native `<select>` for days-filter (lines 67-72) is used instead of `<saskia-combo>` — inconsistency. Voided sales are styled with `is-voided` class (line 97) and a voided banner inside the row (lines 102-107). The CSV export link (line 38-43) is prominent.
+**Counter staff:** The sales history table is the primary audit tool for counter operations. It shows: Fecha, Producto, Cant., Unit. (Gs.), Total (Gs.), Cliente, Pago, Notas, and Actions (Recibo + Anular). The three-metric summary card (Ventas activas, Total recaudado, Ticket promedio) gives a live operational snapshot. The `ui-combo` product filter (lines 50-64) allows filtering by product. The `ventas-buscar.png` suggests a `/ventas/buscar` page exists but this page also has a search input (`<input type="search" id="sales-search">` line 49) that is separate from the product combo filter. A native `<select>` for days-filter (lines 67-72) is used instead of `<ui-combo>` — inconsistency. Voided sales are styled with `is-voided` class (line 97) and a voided banner inside the row (lines 102-107). The CSV export link (line 38-43) is prominent.
 
 **Owner-finance:** The `Ventas activas` count, `Total recaudado`, and `Ticket promedio` metrics are the core financial dashboard for the visible filter window. CSV export enables external analysis. However, the filters do not include a date-range picker (only the preset 7/30/90-day buttons), limiting ad-hoc date analysis. Voided sales remain in the count and total — an owner seeing "Ventas activas" would not immediately know if voided sales are excluded. The `is-voided` rows are dimmed but their `total_gs` still appears in the table, inflating the apparent total.
 
 **Production-baker:** Not directly relevant, but product-level sales frequency in the history helps the baker anticipate demand.
 
-**New user:** The summary card is clear. The filter controls are labeled. The empty state (lines 160-164) is friendly. However, the `<select>` for days-filter vs `<saskia-combo>` for products is a component inconsistency. The search input (line 49) has no label visible (uses `sr-only` class), which is correct for screen readers but confusing for sighted users who see the placeholder but no visible label.
+**New user:** The summary card is clear. The filter controls are labeled. The empty state (lines 160-164) is friendly. However, the `<select>` for days-filter vs `<ui-combo>` for products is a component inconsistency. The search input (line 49) has no label visible (uses `sr-only` class), which is correct for screen readers but confusing for sighted users who see the placeholder but no visible label.
 
 **Auditor:** Voided sales are visually marked but their amounts are not excluded from the page totals (the summary card uses `totals` which includes all sales). The `is-voided` row still shows `Gs.` amounts without strikethrough. No audit trail for who voided or why beyond `voided_by` and `void_reason`. The pagination uses URL params but the CSV export link (line 38-43) embeds `format=csv` in the query string — if exporting with active filters, the export must preserve those params. The pagination links (lines 150-153) do not include the `product_id` and `days` params, meaning pagination from page 2+ loses filters.
 
 ### Defects (P0/P1/P2)
 - [P0] Pagination links drop active filters — pagination URLs at lines 150-153 are `?page=N&q={{ q }}&product_id={{ product_id }}&days={{ days }}` but `product_id` and `days` are not included in the href construction, meaning navigating to page 2 resets the product and days filter. — Add `product_id` and `days` to the pagination hrefs.
 - [P0] Voided sales included in summary totals — `totals` context includes voided sales; "Ventas activas" and "Total recaudado" are inflated by voided transactions. — Filter voided sales from `totals` query or add a separate "Voided" metric.
-- [P1] Inconsistent filter component — `days-filter` uses native `<select>` (line 67) while `product-filter` uses `<saskia-combo>` (line 50). Both are single-select filters; they should use the same component. — Replace `<select>` with `<saskia-combo>` for visual consistency.
+- [P1] Inconsistent filter component — `days-filter` uses native `<select>` (line 67) while `product-filter` uses `<ui-combo>` (line 50). Both are single-select filters; they should use the same component. — Replace `<select>` with `<ui-combo>` for visual consistency.
 - [P1] Voided rows show unmasked financial data — `is-voided` rows still display Gs. amounts without strikethrough. — Add `text-decoration: line-through` and muted color to voided row amounts.
 - [P2] No date-range picker — only preset day ranges (7/30/90) are available; no custom date range. — Add a date-range picker or at minimum a month selector.
 - [P2] `sales-search` input uses `sr-only` label — sighted users see no visible label, relying entirely on placeholder text. — Add a visible `<label>` with `class="sr-only"` for screen readers AND a visible text label above the input.
@@ -269,7 +269,7 @@
 ### Complete Design Wishlist
 1. Fix pagination to preserve `product_id` and `days` filter params.
 2. Exclude voided sales from `totals` (count and revenue).
-3. Replace native `<select>` for days-filter with `<saskia-combo>`.
+3. Replace native `<select>` for days-filter with `<ui-combo>`.
 4. Add strikethrough styling to voided row amounts.
 5. Add a date-range picker (from/to date inputs) alongside preset buttons.
 6. Add a visible label for `sales-search` (not just `sr-only`).

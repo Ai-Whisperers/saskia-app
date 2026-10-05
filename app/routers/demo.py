@@ -4,7 +4,7 @@ Exposes POST /demo/seed which builds the complete Kyrian demo customer
 via app.seed.kyrian.seed_kyrian().
 
 GATED by env var AIW_DEMO_SEED_ENABLED. Default OFF. Operator flips it
-in /opt/build-apps/saskia-rms/.env to enable the demo on a specific
+in /opt/build-apps/sazon-rms/.env to enable the demo on a specific
 environment. Production must never set this flag.
 
 Why a flag and not an admin role:
@@ -59,7 +59,7 @@ def demo_seed(session: Any = Depends(get_session)) -> JSONResponse:
             status_code=403,
             detail=(
                 "Demo seed is disabled. Set AIW_DEMO_SEED_ENABLED=true "
-                "in /opt/build-apps/saskia-rms/.env to enable."
+                "in /opt/build-apps/sazon-rms/.env to enable."
             ),
         )
 

@@ -16,7 +16,7 @@ Status review:
 - This is likely a UI feature missing tests
 
 ✓ **recipes subrecipes**:
-- test_saskia_r2_recipe_filters.py tests filtering with subrecipes
+- test_sazon_r2_recipe_filters.py tests filtering with subrecipes
 - test_recipes_polymorphic_roundtrip.py tests subrecipes roundtrip
 
 ✓ **csrf**:
@@ -82,7 +82,7 @@ def test_recipes_subrecipes_are_covered():
     """Verify recipes subrecipes tests exist."""
     import os
 
-    assert os.path.exists("tests/test_saskia_r2_recipe_filters.py")
+    assert os.path.exists("tests/test_sazon_r2_recipe_filters.py")
     assert os.path.exists("tests/test_recipes_polymorphic_roundtrip.py")
     assert True
 

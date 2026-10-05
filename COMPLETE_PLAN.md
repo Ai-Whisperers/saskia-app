@@ -1,8 +1,8 @@
-# Saskia RMS — Complete State Analysis & Remaining Work Plan
+# Sazón — Complete State Analysis & Remaining Work Plan
 
 **Generated:** 2026-09-22 (after all sessions in this turn)
-**Repo:** `/opt/data/profiles/ivan/scratch/saskia-app-work` (main branch)
-**Live site:** https://saskia-rms.paragu-ai.com
+**Repo:** `/opt/data/profiles/ivan/scratch/sazon-app-work` (main branch)
+**Live site:** https://sazon-rms.paragu-ai.com
 
 ---
 
@@ -32,7 +32,7 @@ This turn consisted of **~89 git commits** in two phases:
 | `/inventario/nuevo` returned 422 | Couldn't create ingredients | Reordered routes — `/nuevo` before `/{ing_id}` |
 | `/dashboard?period=custom` no dates 500'd | Crash on custom range | Added fallback in `_period_window` |
 | `app/static/app.css` not minified | Performance regression | Re-minified (43KB → 42KB) |
-| Login title had "Saskia RMS" twice | A11y regression | Removed duplicate from `login.html` |
+| Login title had "Sazón" twice | A11y regression | Removed duplicate from `login.html` |
 
 **B. New tests (35 new test files, 250+ new test cases)**
 
@@ -145,7 +145,7 @@ The plan called for **187 new tests across 5 sprints**. We implemented **~250 te
 - The customer_id fix is in main and deployed
 - But `/ventas` still 500s in production — the **async def** issue means `sales_list` returns a coroutine when called via TestClient
 - This was deferred to "next turn if you need it" but **never resolved**
-- **Impact**: Saskia can't use the POS page (the most important page)
+- **Impact**: the operator can't use the POS page (the most important page)
 - **Severity**: HIGH (blocks core business workflow)
 
 **B. Render env vars reset on every deploy**
@@ -184,7 +184,7 @@ The plan called for **187 new tests across 5 sprints**. We implemented **~250 te
 
 | # | Task | Est. | Why critical |
 |---|---|---|---|
-| 7.1 | **Fix `/ventas` 500 on live** | 1.5h | Saskia can't use POS |
+| 7.1 | **Fix `/ventas` 500 on live** | 1.5h | the operator can't use POS |
 | 7.2 | **Create `render.yaml` Blueprint** with all env vars declared | 1h | Login breaks after every deploy |
 | 7.3 | **Verify `/pedidos` route order** | 0.5h | Same pattern as `/inventario` bug |
 | 7.4 | **Add `test_render_yaml_health` CI check** | 1h | Prevent env-var regression |
@@ -429,7 +429,7 @@ Runtime:               ~2:30 minutes
 - **Lowest priority: Sprint 11-12 (~11h)** — Docs + long-term tech debt
 
 **Biggest single risk left unfixed:** 
-The live `/ventas` page still returns 500 (TemplateRuntimeError). The customer_id fix is deployed but the underlying issue wasn't fully resolved. This is the core POS workflow — Saskia can't take sales until this is fixed.
+The live `/ventas` page still returns 500 (TemplateRuntimeError). The customer_id fix is deployed but the underlying issue wasn't fully resolved. This is the core POS workflow — the operator can't take sales until this is fixed.
 
 **Biggest operational risk:**
 Render service loses Supabase env vars on every deploy trigger. Need a `render.yaml` Blueprint to declare env vars in source.

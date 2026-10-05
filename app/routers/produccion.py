@@ -2,7 +2,7 @@
 
 Views:
   day   (default) — one day's plan table (backward compat: for_date param)
-  week  — 7-day grid via the calendar macro (Saskia: "calendario cíclico
+  week  — 7-day grid via the calendar macro (the operator: "calendario cíclico
           por semana")
   month — month grid via the calendar macro
 
@@ -12,7 +12,7 @@ so the day view re-renders with manual_forecast applied. Nothing is
 stored in the DB — an override is a what-if re-plan, not an edit.)
 
 Seasonal-multiplier editor intentionally absent: blocked on T-0.1
-(forecast_source semantics clarification with Saskia).
+(forecast_source semantics clarification with the operator).
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth import require_login_or_disabled as require_login
 from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
+from app.rms.eod_completions import close_day_for_product
 from app.rms.eod_completions import completions_for_date as get_day_completions
 from app.rms.eod_completions import upsert_completion as _upsert_completion
 from app.rms.models import (
@@ -46,6 +47,7 @@ from app.rms.models import (
 from app.rms.observability import record_audit
 from app.rms.plan_accuracy import compute_plan_accuracy, date_range_presets
 from app.rms.production import get_weekly_template, plan_production
+from app.rms.production_demand import get_demand, persist_plan_audit
 from app.services.template_render import render
 
 router = APIRouter(prefix="/produccion", dependencies=[Depends(require_login)])
@@ -227,6 +229,13 @@ def produccion_worksheet(
     # AM-vs-PM-confusion footgun where one cook updates the wrong
     # column. Validated to AM|PM|empty.
     shift: str = Query("", pattern="^(AM|PM)?$"),
+    # PRODUCCION-V2 cutover (2026-10-05): default is now 'v2' (the
+    # DEMANDA-column grilla). 'v1' is removed — passing ?ui=v1 returns
+    # 422. To temporarily roll back, set the
+    # `production.ui_version_default` setting to "v1" (the route reads
+    # it on startup). See docs/plans/2026-10-05-produccion-v2-spec.md
+    # §"UI v2 cutover" for the rollout plan.
+    ui: str = Query("v2", pattern="^v2$"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Production plan: day table, week grid, or month grid."""
@@ -543,8 +552,35 @@ def produccion_worksheet(
     # shift-execution table can render pre-filled "Progreso" values
     # instead of blank inputs.
     from app.rms.eod_completions import completions_for_date as _eod_for_date
+    from app.rms.models import ProductionCompletion
 
     completions_by_pid = _eod_for_date(session, target_date)
+    # PRODUCCION-V2 Fase 2: pull closure status per product so the UI
+    # can render the "Cerrado" badge and the "Cerrar turno" button
+    # toggles to "Reabrir". The status defaults to 'open' for rows
+    # that have a completion (qty > 0) but haven't been closed yet;
+    # and 'open' for products with NO completion row at all.
+    closure_status_by_pid: dict[int, str] = {}
+    closure_notes_by_pid: dict[int, str | None] = {}
+    completion_rows = (
+        session.execute(
+            select(ProductionCompletion).where(ProductionCompletion.for_date == target_date)
+        )
+        .scalars()
+        .all()
+    )
+    for cr in completion_rows:
+        closure_status_by_pid[cr.product_id] = cr.status or "open"
+        closure_notes_by_pid[cr.product_id] = cr.closure_notes
+    # Day-level closure counts (PRODUCCION-V2 Fase 2: "Total cerradas /
+    # Total del dia" header). Counts only the rows in plan_rows_view,
+    # NOT every row in the table — i.e. we only count products that
+    # were actually on today's plan. Ad-hoc rows that get closed are
+    # also counted (they show up in plan_rows_view with a virtual pid).
+    day_open_count = 0
+    day_done_count = 0
+    day_cancelled_count = 0
+    # We compute per-row status below; aggregate after enrichment.
 
     # Sprint 3: demand fusion — count how many units of each product are
     # already owed by pedidos for the same day. We surface this as a
@@ -589,6 +625,15 @@ def produccion_worksheet(
         )()
         for row in pricing_rows
     }
+
+    # PRODUCCION-V2 cutover (2026-10-05): `ui` is always "v2", so
+    # demand is always populated. The try/except is preserved so a
+    # bad cache state can never break the page.
+    demand_by_pid: dict = {}
+    try:
+        demand_by_pid = get_demand(session, for_date=target_date)
+    except Exception:  # noqa: BLE001 — demand is enrichment, never break the page
+        demand_by_pid = {}
 
     plan_rows_view = [
         {
@@ -695,13 +740,47 @@ def produccion_worksheet(
                 if r.recipe_id and r.recipe_id in recipe_by_id
                 else None
             ),
+            # PRODUCCION-V2 cutover (2026-10-05): `ui` is always "v2"
+            # now (the default AND the only accepted value). The
+            # demand fields below are always populated when
+            # demand_by_pid has the product_id.
+            "qty_demand_total": (
+                float(demand_by_pid[r.product_id].qty_total)
+                if r.product_id in demand_by_pid
+                else 0.0
+            ),
+            "qty_demand_pedidos": (
+                float(demand_by_pid[r.product_id].qty_pedidos)
+                if r.product_id in demand_by_pid
+                else 0.0
+            ),
+            "qty_demand_pedidos_pending": (
+                float(
+                    demand_by_pid[r.product_id].qty_pedidos
+                    - demand_by_pid[r.product_id].qty_pedidos_confirmed
+                )
+                if r.product_id in demand_by_pid
+                else 0.0
+            ),
+            "qty_demand_forecast": (
+                float(demand_by_pid[r.product_id].qty_forecast)
+                if r.product_id in demand_by_pid
+                else 0.0
+            ),
+            # PRODUCCION-V2 Fase 2: closure state per product. 'open' is
+            # the default for products with no completion row at all;
+            # 'done' once the cook taps "Cerrar turno"; 'cancelled' for
+            # "horneé 0, no se vendió" rows. closure_notes is the
+            # optional justification (NULL when blank).
+            "closure_status": closure_status_by_pid.get(r.product_id, "open"),
+            "closure_notes": closure_notes_by_pid.get(r.product_id),
         }
         for r in plan.rows
     ]
 
     # Ad-hoc bakes: products COMPLETED for the day but NOT in the plan
     # row list. These are the walk-ins / on-the-fly decisions that the
-    # forecast engine never proposed but Saskia actually produced.
+    # forecast engine never proposed but the operator actually produced.
     planned_pids = {r["product_id"] for r in plan_rows_view}
     for pid, qty in completions_by_pid.items():
         if pid in planned_pids:
@@ -733,6 +812,37 @@ def produccion_worksheet(
                 "retail_gs": 0,
                 "recipe_difficulty": None,
                 "recipe_allergens": None,
+                # PRODUCCION-V2 cutover (2026-10-05): same as the
+                # recipe rows above. `ui` is always "v2" now.
+                "qty_demand_total": (
+                    float(demand_by_pid[pid].qty_total)
+                    if pid in demand_by_pid
+                    else 0.0
+                ),
+                "qty_demand_pedidos": (
+                    float(demand_by_pid[pid].qty_pedidos)
+                    if pid in demand_by_pid
+                    else 0.0
+                ),
+                "qty_demand_pedidos_pending": (
+                    float(
+                        demand_by_pid[pid].qty_pedidos
+                        - demand_by_pid[pid].qty_pedidos_confirmed
+                    )
+                    if pid in demand_by_pid
+                    else 0.0
+                ),
+                "qty_demand_forecast": (
+                    float(demand_by_pid[pid].qty_forecast)
+                    if pid in demand_by_pid
+                    else 0.0
+                ),
+                # PRODUCCION-V2 Fase 2: closure state for ad-hoc rows.
+                # These rows have completions (we're building the dict
+                # from completions_by_pid) so the status is whatever
+                # was last set — open by default.
+                "closure_status": closure_status_by_pid.get(pid, "open"),
+                "closure_notes": closure_notes_by_pid.get(pid),
             }
         )
 
@@ -766,7 +876,24 @@ def produccion_worksheet(
         and len(plan_rows_view) > 0
     ):
         cold_start_kind = "cold_plan"
-    elif sum(1 for r in plan_rows_view if r["qty_to_produce"] > 0) == 0:
+
+    # PRODUCCION-V2 Fase 2: aggregate per-row closure state into the
+    # day-level header counts ("Total cerradas / Total del día"). We
+    # tally from plan_rows_view, NOT from closure_status_by_pid, so
+    # a product with a completion row that's NOT in today's plan
+    # doesn't pollute the count. Example: a leftover bake from
+    # yesterday closed in production_completion.for_date = today by
+    # mistake — the cook shouldn't see "1/5 cerradas" inflated.
+    for r in plan_rows_view:
+        _cs = r.get("closure_status", "open")
+        if _cs == "done":
+            day_done_count += 1
+        elif _cs == "cancelled":
+            day_cancelled_count += 1
+        else:
+            day_open_count += 1
+    day_total_count = day_open_count + day_done_count + day_cancelled_count
+    if sum(1 for r in plan_rows_view if r["qty_to_produce"] > 0) == 0:
         cold_start_kind = "no_rows"
 
     return render(
@@ -779,6 +906,15 @@ def produccion_worksheet(
             "cold_start_kind": cold_start_kind,
             "for_date": plan.for_date.isoformat() if plan.for_date else "",
             "view": "day",
+            "ui_version": ui,  # PRODUCCION-V2 Fase 1: 'v1' (default) or 'v2' (demand fields)
+            # PRODUCCION-V2 Fase 2: day-level closure counts for the
+            # "Total cerradas / Total del día" header badge. Counts
+            # only the rows in plan_rows_view (not every completion
+            # row in the table) so the number is meaningful.
+            "day_open_count": day_open_count,
+            "day_done_count": day_done_count,
+            "day_cancelled_count": day_cancelled_count,
+            "day_total_count": day_total_count,
             "source_labels": FORECAST_SOURCE_LABELS,
             "source_help": FORECAST_SOURCE_HELP,
             "overrides": overrides,
@@ -900,18 +1036,21 @@ def produccion_override(
 
     user_id = current_user_id(request) or "operator"
     user_id = str(user_id)
+    # PRODUCCION-V2 Fase 1: capture old_qty for the audit log BEFORE the
+    # upsert/delete so the audit row shows before/after. None for first write.
+    prior_row = (
+        session.query(ProductionPlanOverride)
+        .filter(
+            ProductionPlanOverride.product_id == product_id,
+            ProductionPlanOverride.for_date == for_date,
+        )
+        .one_or_none()
+    )
+    old_qty = float(prior_row.qty) if prior_row is not None else None
     if qty == 0:
         # Remove the override so the weekly template can take over
-        existing = (
-            session.query(ProductionPlanOverride)
-            .filter(
-                ProductionPlanOverride.product_id == product_id,
-                ProductionPlanOverride.for_date == for_date,
-            )
-            .one_or_none()
-        )
-        if existing:
-            session.delete(existing)
+        if prior_row:
+            session.delete(prior_row)
             session.flush()
     else:
         upsert_override(
@@ -922,6 +1061,15 @@ def produccion_override(
             updated_by=user_id,
         )
 
+    persist_plan_audit(
+        session,
+        for_date=for_date,
+        product_id=product_id,
+        old_qty=old_qty,
+        new_qty=qty,
+        change_source="override",
+        changed_by=user_id,
+    )
     record_audit(
         request,
         session=session,
@@ -1059,17 +1207,20 @@ async def produccion_override_bulk(
     for pid, qty in entries.items():
         if session.get(Product, pid) is None:
             raise HTTPException(status_code=404, detail="Producto no encontrado")
-        if qty == 0:
-            existing = (
-                session.query(ProductionPlanOverride)
-                .filter(
-                    ProductionPlanOverride.product_id == pid,
-                    ProductionPlanOverride.for_date == for_date,
-                )
-                .one_or_none()
+        # PRODUCCION-V2 Fase 1: capture old_qty for the audit log BEFORE
+        # the upsert/delete so the audit row shows before/after.
+        prior_bulk_row = (
+            session.query(ProductionPlanOverride)
+            .filter(
+                ProductionPlanOverride.product_id == pid,
+                ProductionPlanOverride.for_date == for_date,
             )
-            if existing:
-                session.delete(existing)
+            .one_or_none()
+        )
+        old_qty = float(prior_bulk_row.qty) if prior_bulk_row is not None else None
+        if qty == 0:
+            if prior_bulk_row:
+                session.delete(prior_bulk_row)
                 session.flush()
         else:
             upsert_override(
@@ -1079,6 +1230,15 @@ async def produccion_override_bulk(
                 qty=qty,
                 updated_by=user_id,
             )
+        persist_plan_audit(
+            session,
+            for_date=for_date,
+            product_id=pid,
+            old_qty=old_qty,
+            new_qty=qty,
+            change_source="override_bulk",
+            changed_by=user_id,
+        )
         record_audit(
             request,
             session=session,
@@ -1098,11 +1258,11 @@ async def produccion_override_bulk(
 
 # --- Shift execution layer (Sprint 1) ---
 #
-# The day view renders a "Ejecución del turno" form that lets Saskia
+# The day view renders a "Ejecución del turno" form that lets the operator
 # mark checkboxes + enter a qty per product. Until Sprint 1 this form
 # posted to /produccion/override, which IGNORED the `completed_*`
 # fields and only wrote production_plan_override (which is the PLAN,
-# not the actual). The actual production is what Saskia really baked;
+# not the actual). The actual production is what the operator really baked;
 # the helper `upsert_completion()` in app.rms.eod_completions already
 # writes the right table — we just need an endpoint that accepts the
 # bulk form.
@@ -1130,6 +1290,7 @@ async def produccion_shift_execute(
     """
     from datetime import datetime, timezone
 
+    from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
     if is_write_rate_limited(session, request, max_per_minute=10):
@@ -1140,6 +1301,7 @@ async def produccion_shift_execute(
 
     form = await request.form()
     form_opened_at_raw = form.get("form_opened_at")
+    user_id = str(current_user_id(request) or "operator")
 
     # T-2026-10-04 (Tier 5-K): detect concurrent modification. Compare
     # the form's open-time against the latest updated_at on this date.
@@ -1199,11 +1361,33 @@ async def produccion_shift_execute(
         if session.get(Product, product_id) is None:
             skipped += 1
             continue
+        # PRODUCCION-V2 Fase 1: capture old_qty for the audit log BEFORE
+        # the upsert so the audit row shows before/after.
+        from app.rms.models import ProductionCompletion
+
+        prior_completion = (
+            session.query(ProductionCompletion)
+            .filter(
+                ProductionCompletion.product_id == product_id,
+                ProductionCompletion.for_date == for_date,
+            )
+            .one_or_none()
+        )
+        old_qty = float(prior_completion.completed_qty) if prior_completion is not None else None
         _upsert_completion(
             session,
             product_id=product_id,
             for_date=for_date,
             completed_qty=qty,
+        )
+        persist_plan_audit(
+            session,
+            for_date=for_date,
+            product_id=product_id,
+            old_qty=old_qty,
+            new_qty=qty,
+            change_source="shift_execute",
+            changed_by=user_id,
         )
         saved += 1
 
@@ -1241,7 +1425,7 @@ async def produccion_shift_execute(
 
 # --- Ad-hoc bake entry (Sprint 4) ---
 #
-# Saskia might bake a product that was NOT in the plan (walk-in order,
+# the operator might bake a product that was NOT in the plan (walk-in order,
 # decided on a whim, leftover ingredients). This endpoint writes a
 # ProductionCompletion row with notes="ad_hoc" so the actual count
 # shows up in the day view + EOD, even though the forecast engine
@@ -1258,6 +1442,7 @@ async def produccion_ad_hoc(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Record an unplanned bake: walked-in, decided-on-the-fly, leftovers."""
+    from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
     if is_write_rate_limited(session, request, max_per_minute=10):
@@ -1276,14 +1461,37 @@ async def produccion_ad_hoc(
             detail="Producto no encontrado",
         )
 
+    user_id = str(current_user_id(request) or "operator")
     tag = "ad_hoc"
     if notes.strip():
         tag = f"ad_hoc: {notes.strip()[:200]}"
+    # PRODUCCION-V2 Fase 1: capture old_qty for the audit log BEFORE the upsert.
+    from app.rms.models import ProductionCompletion
+
+    prior_adhoc = (
+        session.query(ProductionCompletion)
+        .filter(
+            ProductionCompletion.product_id == product_id,
+            ProductionCompletion.for_date == for_date,
+        )
+        .one_or_none()
+    )
+    old_qty = float(prior_adhoc.completed_qty) if prior_adhoc is not None else None
     _upsert_completion(
         session,
         product_id=product_id,
         for_date=for_date,
         completed_qty=qty,
+        notes=tag,
+    )
+    persist_plan_audit(
+        session,
+        for_date=for_date,
+        product_id=product_id,
+        old_qty=old_qty,
+        new_qty=qty,
+        change_source="adhoc",
+        changed_by=user_id,
         notes=tag,
     )
     record_audit(
@@ -1324,6 +1532,163 @@ async def produccion_ad_hoc(
 #   - qty > 0; skip with warning if not.
 #   - max 200 rows per upload (anti-fat-finger DoS).
 #   - Rate-limited like the single-row form (10 writes/minute).
+
+
+# --- PRODUCCION-V2 Fase 2: Close-day endpoint ---
+#
+# The cook taps "Cerrar turno" on each row at end of shift. This endpoint
+# flips production_completion.status from 'open' to 'done' (or 'cancelled'
+# when they actually baked nothing). closure_notes is OPTIONAL — the audit
+# log captures who closed and when regardless of notes, so the operator doesn't
+# have to type a justification for the rare zero-qty case.
+#
+# Bulk semantics: this endpoint takes a SINGLE product per POST. The
+# "Cerrar todas" button on the day view fires N POSTs in a loop via
+# fetch(). One POST per row keeps the audit log 1-row-per-product and
+# avoids partial-failure ambiguity (any failure is per-product visible).
+
+
+@router.post("/close-day")
+def produccion_close_day(
+    request: Request,
+    for_date: date = Form(...),
+    product_id: int = Form(...),
+    status: str = Form("done", pattern="^(done|cancelled)$"),
+    closure_notes: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Mark a single product's shift as closed for the given date.
+
+    PRODUCCION-V2 Fase 2: replaces the implicit "anyone can edit
+    forever" behavior of production_completion. After the cook closes
+    the day, the row is still editable (we don't lock the table — the
+    audit log + visibility of the closed state is the social contract),
+    but the UI surfaces a "Cerrado" badge so the next cook knows.
+    """
+    from app.auth import current_user_id
+    from app.rms.rate_limit import is_write_rate_limited
+
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
+        )
+    if session.get(Product, product_id) is None:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    user_id = str(current_user_id(request) or "operator")
+    notes = closure_notes.strip()[:500] or None  # truncate; NULL when blank
+    try:
+        close_day_for_product(
+            session,
+            product_id=product_id,
+            for_date=for_date,
+            closure_notes=notes,
+            status=status,
+        )
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # Audit the closure (Fase 1's persist_plan_audit) so the change_source
+    # shows up in /accuracy timelines. The completion row itself
+    # (completed_qty, recorded_at) doesn't change; the audit log just
+    # records the close action.
+    persist_plan_audit(
+        session,
+        for_date=for_date,
+        product_id=product_id,
+        old_qty=None,  # closure isn't a qty change
+        new_qty=0.0,  # the audit row's new_qty is 0 since we're not changing qty
+        change_source=f"close_day_{status}",
+        changed_by=user_id,
+        notes=notes,
+    )
+    record_audit(
+        request,
+        session=session,
+        action="write.production.close_day",
+        target_type="production_completion",
+        target_id=f"{for_date.isoformat()}:{product_id}",
+        detail={"status": status, "closure_notes": notes or ""},
+    )
+    session.commit()
+    # Preserve the ui=v2 flag on redirect so the cook lands back on the
+    # new grilla.
+    ui_q = ""
+    ui_param = str(request.query_params.get("ui") or "")
+    if ui_param == "v2":
+        ui_q = "&ui=v2"
+    return RedirectResponse(
+        url=f"/produccion?for_date={for_date.isoformat()}{ui_q}",
+        status_code=303,
+    )
+
+
+@router.post("/close-day/reopen")
+def produccion_close_day_reopen(
+    request: Request,
+    for_date: date = Form(...),
+    product_id: int = Form(...),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Reopen a closed row so the cook can correct a mistake.
+
+    Reverses the close-day action. We don't keep a separate reopen
+    audit row — the `close_day_done` audit row already captures the
+    close, and the row's status='open' field is enough to render the
+    right state. Future Fase 3 might add a reopen audit; for now
+    /accuracy treats reopens as "in flight" and the cook can re-close.
+    """
+    from app.auth import current_user_id
+    from app.rms.rate_limit import is_write_rate_limited
+
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
+        )
+    if session.get(Product, product_id) is None:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    user_id = str(current_user_id(request) or "operator")
+    try:
+        close_day_for_product(
+            session,
+            product_id=product_id,
+            for_date=for_date,
+            closure_notes=None,  # keep the existing notes
+            status="open",
+        )
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    persist_plan_audit(
+        session,
+        for_date=for_date,
+        product_id=product_id,
+        old_qty=None,
+        new_qty=0.0,
+        change_source="close_day_reopen",
+        changed_by=user_id,
+        notes=None,
+    )
+    record_audit(
+        request,
+        session=session,
+        action="write.production.close_day.reopen",
+        target_type="production_completion",
+        target_id=f"{for_date.isoformat()}:{product_id}",
+        detail={},
+    )
+    session.commit()
+    ui_q = ""
+    ui_param = str(request.query_params.get("ui") or "")
+    if ui_param == "v2":
+        ui_q = "&ui=v2"
+    return RedirectResponse(
+        url=f"/produccion?for_date={for_date.isoformat()}{ui_q}",
+        status_code=303,
+    )
 
 
 @router.post("/ad-hoc/bulk")
@@ -1373,6 +1738,12 @@ async def produccion_ad_hoc_bulk(
     # Cache product lookups
     valid_product_ids: set[int] = set(session.execute(select(Product.id)).scalars().all())
 
+    # PRODUCCION-V2 Fase 1: get the cook's user id for the audit log.
+    from app.auth import current_user_id
+
+    bulk_user_id = str(current_user_id(request) or "operator")
+    from app.rms.models import ProductionCompletion
+
     created: list[dict] = []
     skipped: list[dict] = []
     for row_num, raw in enumerate(data_lines, start=2 if len(lines) != len(data_lines) else 1):
@@ -1401,11 +1772,35 @@ async def produccion_ad_hoc_bulk(
         tag = "ad_hoc"
         if notes.strip():
             tag = f"ad_hoc: {notes.strip()[:200]}"
+        # PRODUCCION-V2 Fase 1: capture old_qty for the audit log.
+        prior_bulk_completion = (
+            session.query(ProductionCompletion)
+            .filter(
+                ProductionCompletion.product_id == pid,
+                ProductionCompletion.for_date == for_date,
+            )
+            .one_or_none()
+        )
+        old_qty = (
+            float(prior_bulk_completion.completed_qty)
+            if prior_bulk_completion is not None
+            else None
+        )
         _upsert_completion(
             session,
             product_id=pid,
             for_date=for_date,
             completed_qty=qty,
+            notes=tag,
+        )
+        persist_plan_audit(
+            session,
+            for_date=for_date,
+            product_id=pid,
+            old_qty=old_qty,
+            new_qty=qty,
+            change_source="adhoc_bulk",
+            changed_by=bulk_user_id,
             notes=tag,
         )
         created.append({"line": row_num, "product_id": pid, "qty": qty, "notes": notes})
@@ -1503,6 +1898,33 @@ def produccion_template_set(
 
     user_id = current_user_id(request) or "operator"
     user_id = str(user_id)
+    # PRODUCCION-V2 Fase 1: capture the prior template row's qty for the
+    # audit log. The template doesn't carry for_date, so we record the
+    # change against the NEXT occurrence of that weekday (the soonest
+    # date the new qty will be in effect). This gives /accuracy a way
+    # to "expand" the audit to a per-day view.
+    from datetime import timedelta as _td
+
+    from app.rms.models import ProductionPlanTemplate
+
+    prior_template = (
+        session.query(ProductionPlanTemplate)
+        .filter(
+            ProductionPlanTemplate.weekday == weekday,
+            ProductionPlanTemplate.product_id == product_id,
+        )
+        .one_or_none()
+    )
+    old_qty = float(prior_template.qty) if prior_template is not None else None
+
+    # Compute the next-occurrence date for for_date in the audit row.
+    # If today happens to be the target weekday, use today; otherwise
+    # the upcoming one. We never use a date in the past (audit rows
+    # for past dates are noise). Use ASUNCION_TZ per the app's rule
+    # (see app/rms/config.py + AGENTS.md "Time rules").
+    today = datetime.now(ASUNCION_TZ).date()
+    days_ahead = (weekday - today.weekday()) % 7
+    next_occurrence = today + _td(days=days_ahead)
     upsert_template_row(
         session,
         weekday=weekday,
@@ -1510,6 +1932,16 @@ def produccion_template_set(
         qty=qty,
         notes=notes or None,
         updated_by=user_id,
+    )
+    persist_plan_audit(
+        session,
+        for_date=next_occurrence,
+        product_id=product_id,
+        old_qty=old_qty,
+        new_qty=qty,
+        change_source="template",
+        changed_by=user_id,
+        notes=notes or None,
     )
 
     audit_record(
@@ -1585,10 +2017,31 @@ def produccion_template_fork_week(
 
     user_id = current_user_id(request) or "operator"
     user_id = str(user_id)
+    # PRODUCCION-V2 Fase 1: audit each template row we overwrite. The
+    # template doesn't have for_date, so we log against the next
+    # occurrence (same convention as /template above).
+    from datetime import timedelta as _td_fork
+
+    from app.rms.models import ProductionPlanTemplate
+
+    today = datetime.now(ASUNCION_TZ).date()
     rows_written = 0
     for (wd, pid), qty in bucket.items():
         if qty <= 0:
             continue
+        prior_fork_template = (
+            session.query(ProductionPlanTemplate)
+            .filter(
+                ProductionPlanTemplate.weekday == wd,
+                ProductionPlanTemplate.product_id == pid,
+            )
+            .one_or_none()
+        )
+        old_qty = (
+            float(prior_fork_template.qty) if prior_fork_template is not None else None
+        )
+        days_ahead = (wd - today.weekday()) % 7
+        next_occurrence = today + _td_fork(days=days_ahead)
         upsert_template_row(
             session,
             weekday=wd,
@@ -1596,6 +2049,16 @@ def produccion_template_fork_week(
             qty=qty,
             notes=None,
             updated_by=user_id,
+        )
+        persist_plan_audit(
+            session,
+            for_date=next_occurrence,
+            product_id=pid,
+            old_qty=old_qty,
+            new_qty=qty,
+            change_source="fork_week",
+            changed_by=user_id,
+            notes=f"forked from {monday.isoformat()}..{end_exclusive.isoformat()}",
         )
         rows_written += 1
 
@@ -1832,7 +2295,7 @@ def produccion_print(
                 }
             )
         # Include ad-hoc bakes (walk-ins / on-the-fly decisions that the
-        # forecast never proposed but Saskia actually produced).
+        # forecast never proposed but the operator actually produced).
         planned_pids = {r["product_id"] for r in print_rows}
         for pid, qty in completions_by_pid.items():
             if pid in planned_pids:
@@ -2023,7 +2486,7 @@ def produccion_accuracy(
 # /produccion (Tier 4-H), con badge de warning si la temperatura está
 # fuera del rango seguro (-22 a -18 °C para freezer de masa).
 
-# Default freezer locations for Saskia. Operators can override via
+# Default freezer locations for the operator. Operators can override via
 # config. Ordered by frequency of use.
 _DEFAULT_FREEZER_LOCATIONS = [
     "freezer-masa",  # masa madre, poolish, masa de chipá congelada

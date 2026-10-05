@@ -1,7 +1,7 @@
 """P0 fix — EOD closed-day protection for void_sale and other accounting-sensitive mutations.
 
-The roadmap (saskia-only-roadmap.md) flagged a critical violation: `void_sale()` does not
-check whether the sale belongs to a day whose EOD has been closed. Saskia could void a
+The roadmap (sazon-only-roadmap.md) flagged a critical violation: `void_sale()` does not
+check whether the sale belongs to a day whose EOD has been closed. the operator could void a
 Monday sale on Wednesday AFTER closing Monday's books.
 
 This module introduces a single source of truth: `eod_is_day_closed(session, day) ->

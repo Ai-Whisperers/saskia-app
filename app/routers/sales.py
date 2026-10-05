@@ -32,6 +32,7 @@ from app.rms.catalogs import (
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
 from app.rms.db import safe_commit
+from app.rms.production_demand import invalidate_demand_for_sale_today
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, Conflict, NotFound, ValidationError
 from app.rms.loyalty import discount_gs_for_points
@@ -1148,6 +1149,17 @@ async def sale_create(
             )
 
     safe_commit(session)
+    # PRODUCCION-V2 Fase 4: a new sale shifts the 14d rolling forecast
+    # used by demand calculation. Invalidate today + the next 3 days
+    # so the operator sees the updated demand immediately. Other dates
+    # will age out via the 5-min TTL.
+    # Best-effort: do this AFTER the safe_commit above (no further
+    # commit is needed — session.commit() inside the helper persists
+    # the DELETE before the request returns).
+    try:
+        invalidate_demand_for_sale_today(session)
+    except Exception:  # noqa: BLE001
+        pass
 
     # Audit + rate-limit (writes only — read paths not counted).
     from app.auth import current_user_id
@@ -1665,7 +1677,7 @@ def _fire_printer_for_sale(
         )
         sale_id = last_sale.id if last_sale else 0
         receipt = format_receipt_text(
-            business_name="Saskia RMS",
+            business_name="Sazón",
             sale_id=sale_id,
             product_name=sale_product.name,
             qty=qty,

@@ -1,6 +1,6 @@
 """tests/test_export_csv.py — CSV export tests.
 
-Per docs/operations/2026-09-02-saskia-stack-audit.md (Change 1).
+Per docs/operations/2026-09-02-sazon-stack-audit.md (Change 1).
 
 Tests cover:
 - export_csv.to_dir writes 8 CSV files (one per table)

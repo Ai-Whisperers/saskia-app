@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import os
 
-RMS = "/opt/data/work/saskia-app/app/rms"
-INTEGRATIONS = "/opt/data/work/saskia-app/app/integrations"
+RMS = "/opt/data/work/sazon-app/app/rms"
+INTEGRATIONS = "/opt/data/work/sazon-app/app/integrations"
 
 
 def test_integrations_package_exists():
@@ -115,7 +115,7 @@ def test_no_app_rms_api_references_in_codebase():
     import subprocess
 
     r = subprocess.run(
-        ["grep", "-rn", "app\\.rms\\.api\\.", "/opt/data/work/saskia-app/", "--include=*.py"],
+        ["grep", "-rn", "app\\.rms\\.api\\.", "/opt/data/work/sazon-app/", "--include=*.py"],
         capture_output=True,
         text=True,
     )
@@ -133,7 +133,7 @@ def test_no_app_rms_scrapers_references():
     import subprocess
 
     r = subprocess.run(
-        ["grep", "-rn", "app\\.rms\\.scrapers", "/opt/data/work/saskia-app/", "--include=*.py"],
+        ["grep", "-rn", "app\\.rms\\.scrapers", "/opt/data/work/sazon-app/", "--include=*.py"],
         capture_output=True,
         text=True,
     )
@@ -155,7 +155,7 @@ def test_no_app_rms_barcode_or_printer_references():
                 "grep",
                 "-rn",
                 f"app\\.rms\\.{mod}\\b",
-                "/opt/data/work/saskia-app/",
+                "/opt/data/work/sazon-app/",
                 "--include=*.py",
             ],
             capture_output=True,
@@ -178,7 +178,7 @@ def test_no_app_rms_seed_competitor_prices_references():
             "grep",
             "-rn",
             "app\\.rms\\.seed_competitor_prices",
-            "/opt/data/work/saskia-app/",
+            "/opt/data/work/sazon-app/",
             "--include=*.py",
         ],
         capture_output=True,

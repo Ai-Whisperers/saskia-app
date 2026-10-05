@@ -39,7 +39,7 @@
 {# ══ HOY band: 4 KPI cards ═════════════════════════════════════════ #}
 <div class="band-label">Hoy</div>
 <div class="kpi-row mb-4">
-  <saskia-kpi-card
+  <ui-kpi-card
     label="Ventas de hoy"
     value="{% if ventas_gs %}{{ m.gs_full(ventas_gs) }}{% else %}aún no hay ventas hoy{% endif %}"
     {% if delta_ventas and delta_ventas.pct is not none %}
@@ -47,35 +47,35 @@
     delta-direction="{{ delta_ventas.direction if delta_ventas.direction != 'new' else 'up' }}"
     {% if prior_label %}delta-prior="vs {{ prior_label }}"{% endif %}
     {% endif %}
-    href="/reportes/diario"></saskia-kpi-card>
-  <saskia-kpi-card
+    href="/reportes/diario"></ui-kpi-card>
+  <ui-kpi-card
     label="Operaciones"
     value="{% if ops_today %}{{ ops_today }}{% else %}—{% endif %}"
     {% if ops_today and ops_delta_label %}
     delta="{{ ops_delta_label.split(' ')[1] }}"
     delta-direction="{{ 'up' if '▲' in ops_delta_label else 'down' if '▼' in ops_delta_label else 'flat' }}"
     delta-prior="vs semana pasada"
-    {% endif %}></saskia-kpi-card>
-  <saskia-kpi-card
+    {% endif %}></ui-kpi-card>
+  <ui-kpi-card
     label="Ticket promedio"
     value="{% if ticket_promedio_gs %}{{ m.gs_full(ticket_promedio_gs) }}{% else %}—{% endif %}"
     {% if ticket_delta_label %}
     delta="{{ ticket_delta_label.split(' ')[1] }}"
     delta-direction="{{ 'up' if '▲' in ticket_delta_label else 'down' if '▼' in ticket_delta_label else 'flat' }}"
     delta-prior="vs semana pasada"
-    {% endif %}></saskia-kpi-card>
-  <saskia-kpi-card
+    {% endif %}></ui-kpi-card>
+  <ui-kpi-card
     label="Margen estimado"
     value="{% if margen_pct_fmt and margen_pct_fmt != '—' %}{{ margen_pct_fmt }}{% else %}—{% endif %}"
-    {% if costs_incomplete %}sub="{{ costs_incomplete }} cargado"{% endif %}></saskia-kpi-card>
-  <saskia-kpi-card
+    {% if costs_incomplete %}sub="{{ costs_incomplete }} cargado"{% endif %}></ui-kpi-card>
+  <ui-kpi-card
     label="Stock"
     value="{{ stock_health_label }}"
     severity="{{ stock_health_severity }}"
     {% if stock_health_severity == 'success' %}icon="icon-check"
     {% elif stock_health_severity == 'warn' %}icon="icon-warn"
     {% else %}icon="icon-warn"{% endif %}
-    href="/reorder"></saskia-kpi-card>
+    href="/reorder"></ui-kpi-card>
 </div>
 
 {# ══ Tier 3.1 (2026-10-01): Loyalty band — enrollment KPI ══════════════════
@@ -86,7 +86,7 @@
    Delta is percentage-points vs prior period (not relative %). #}
 <div class="band-label">Loyalty</div>
 <div class="kpi-row mb-4">
-  <saskia-kpi-card
+  <ui-kpi-card
     label="Clientes asociados"
     value="{% if enrollment_pct_today is not none %}{{ enrollment_pct_today }}%{% else %}—{% endif %}"
     {% if enrollment_delta_pp is not none %}
@@ -95,13 +95,13 @@
     delta-prior="vs período anterior"
     {% endif %}
     sub="{% if enrollment_total_today %}{{ enrollment_with_today }} de {{ enrollment_total_today }} ventas{% else %}sin ventas{% endif %}"
-    href="/clientes"></saskia-kpi-card>
+    href="/clientes"></ui-kpi-card>
 </div>
 
 {# ══ P1-B7: 3 actionable insights ═════════════════════════════════════ #}
 <div class="insights-band mb-4">
   {% for insight in actionable_insights %}
-  <saskia-insight-card
+  <ui-insight
     id="{{ insight.id }}"
     title="{{ insight.title }}"
     detail="{{ insight.detail }}"
@@ -109,7 +109,7 @@
     action-href="{{ insight.action_href }}"
     severity="{{ insight.severity }}"
     icon="{{ insight.icon }}">
-  </saskia-insight-card>
+  </ui-insight>
   {% endfor %}
 </div>
 

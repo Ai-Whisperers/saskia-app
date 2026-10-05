@@ -26,11 +26,11 @@
       </div>
       <div class="form-row">
         <label for="start_date">Desde</label>
-        <saskia-date id="start_date" name="start_date" value="{{ start_date or '' }}"></saskia-date>
+        <ui-date id="start_date" name="start_date" value="{{ start_date or '' }}"></ui-date>
       </div>
       <div class="form-row">
         <label for="end_date">Hasta</label>
-        <saskia-date id="end_date" name="end_date" value="{{ end_date or '' }}"></saskia-date>
+        <ui-date id="end_date" name="end_date" value="{{ end_date or '' }}"></ui-date>
       </div>
       <div class="form-row">
         <label for="ip_filter">IP</label>
@@ -40,7 +40,7 @@
       <div class="form-row">
         <label for="user_filter">Usuario</label>
         <input type="text" id="user_filter" name="user_filter"
-               value="{{ user_filter or '' }}" placeholder="saskia">
+               value="{{ user_filter or '' }}" placeholder="usuario">
       </div>
       <div class="form-row">
         <label for="target_type">Tipo de registro</label>
@@ -92,7 +92,7 @@
     <input type="hidden" name="idempotency_key" value="prune-{{ now|string|replace(' ', 'T')|replace(':', '') }}">
   </form>
   <button type="button" class="btn btn-danger"
-          onclick="SaskiaConfirmModal.show({title:'¿Eliminar entradas de hace más de 1 año?',body:'Las entradas de auditoría más antiguas a 1 año se eliminarán permanentemente. Esta acción no se puede deshacer.',action:'/auditoria/prune',confirmLabel:'Sí, eliminar',danger:true})">
+          onclick="UIConfirmModal.show({title:'¿Eliminar entradas de hace más de 1 año?',body:'Las entradas de auditoría más antiguas a 1 año se eliminarán permanentemente. Esta acción no se puede deshacer.',action:'/auditoria/prune',confirmLabel:'Sí, eliminar',danger:true})">
     <svg class="icon" aria-hidden="true"><use href="#icon-trash"/></svg>
     Eliminar entradas de más de 1 año
   </button>

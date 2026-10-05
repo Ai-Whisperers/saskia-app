@@ -1,4 +1,4 @@
-# Saskia RMS — Test Architecture Map
+# Sazón — Test Architecture Map
 
 **Last updated:** 2026-10-01 (Phase 14, Tier 5 prep)
 **Source:** `tests/` directory, ~430 files, ~4,825 collected tests

@@ -113,13 +113,26 @@ def compute_suggested_price(cost_gs: int, markup_cfg: dict | None = None) -> int
 
 
 # ─── Branding (Phase 5) ────────────────────────────────────────────────
+# All branding assets are loaded by get_branding() and exposed in templates
+# via {{ branding.* }}. Defaults match the Sazón starter; operators change
+# values via /admin/branding (settings_ui.py). File uploads (logo, favicon,
+# hero) land in app/static/branding/<id>/<filename>, served by /static/.
 
 DEFAULT_BRANDING = {
-    "business_name": "Saskia RMS",
+    # Identity (shown on login, sidebar, tickets, PDF)
+    "business_name": "Sazón",
     "tagline": "Panadería / Bakery — Sistema de gestión",
     "footer": "Sistema local",
-    "accent_color": "#f97316",
-    "logo_path": "",
+    "business_type": "restaurant",  # restaurant, panaderia, cafeteria, bar, etc.
+    # Visual assets (filenames inside app/static/branding/)
+    "accent_color": "#f97316",  # primary color hex (#RRGGBB)
+    "logo_filename": "",  # main logo (PNG/JPG/SVG, square ideal)
+    "favicon_filename": "",  # browser tab icon (ICO/PNG 32x32 or 192x192)
+    "hero_filename": "",  # login page background (1200x600 ideal)
+    # Contact info (tickets, PDF)
+    "contact_email": "",
+    "contact_phone": "",
+    "address": "",
 }
 
 
@@ -146,7 +159,9 @@ def get_branding(session: object) -> dict:
 def set_branding(session: object, **fields: object) -> dict:
     """Update branding fields. Returns the new full dict.
 
-    Allowed keys: business_name, tagline, footer, accent_color, logo_path.
+    Allowed keys: business_name, tagline, footer, business_type,
+    accent_color, logo_filename, favicon_filename, hero_filename,
+    contact_email, contact_phone, address.
     Each is validated to be a string and within reasonable length.
     """
     current = get_branding(session)

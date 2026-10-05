@@ -33,8 +33,8 @@ def test_recetas_nueva_has_combo(client):
     r = client.get("/recetas/nueva")
     assert r.status_code == 200
     body = r.text
-    # Check for saskia-combo or ingredient selector
-    assert "saskia-combo" in body or "combo" in body.lower() or "ingrediente" in body.lower(), (
+    # Check for ui-combo or ingredient selector
+    assert "ui-combo" in body or "combo" in body.lower() or "ingrediente" in body.lower(), (
         "Ingredient combo not found"
     )
 

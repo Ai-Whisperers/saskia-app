@@ -1,6 +1,6 @@
 """app/rms/production.py — Daily production worksheet (E21).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E21.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E21.
 
 Adds:
 - ProductionPlan: auto-aggregated ingredient requirements for a day
@@ -38,6 +38,14 @@ class ProductionRow:
     qty_to_produce: float
     forecast_source: str  # "rolling_14d_avg" | "seasonal_event" | "manual"
     confidence_pct: int = 50  # 0-100, see _forecast_confidence()
+    # Fase 5 (2026-10-05): batch_count + reason replace the old
+    # `production_scheduler.ProductionPlan` fields so /inicio can render
+    # the "Plan de mañana" card without needing the deprecated module.
+    # `batch_count` is ceil(qty_to_produce / recipe.yield_qty) for products
+    # with a recipe, else 1. `reason` is the human-readable explanation
+    # ("Vendés ~X/día; ..."); None for the day view (it shows forecast_source).
+    batch_count: int = 1
+    reason: str | None = None
 
 
 @dataclass
@@ -90,6 +98,65 @@ def _forecast_confidence(sale_count: int, days_span: int) -> int:
     # Boost if we have data spread across many days (not all clustered)
     spread_bonus = min(days_span, 14)  # up to 14 days spread adds up to +14%
     return min(95, int(base + spread_bonus))
+
+
+def _recipe_yield_qty(session: Session, product: Product) -> int:
+    """Recipe yield_qty for the product (defaults to 10 when no recipe).
+
+    Fase 5 (2026-10-05): ported from `production_scheduler._recipe_yield`
+    so the /inicio "Plan de mañana" card can compute batch_count without
+    depending on the deprecated module.
+    """
+    if product.recipe_id is None:
+        return 10
+    recipe = session.get(Recipe, product.recipe_id)
+    if recipe is None or recipe.yield_qty is None:
+        return 10
+    return max(1, int(recipe.yield_qty or 10))
+
+
+def _compute_batch_count(session: Session, product: Product, qty: float) -> int:
+    """How many batches to run to make `qty` units.
+
+    Uses recipe.yield_qty as the per-batch size. Products without a
+    recipe get 1 batch (we can't compute further without the recipe).
+    """
+    if qty <= 0:
+        return 0
+    yield_per_batch = _recipe_yield_qty(session, product)
+    # ceil(qty / yield_per_batch) but integer math: -(-x // y)
+    return max(1, -(-int(qty) // yield_per_batch))
+
+
+def _build_plan_reason(
+    product: Product,
+    qty: float,
+    source: str,
+    session: Session,
+    days_history: int,
+) -> str | None:
+    """Human-readable explanation of why this many units (Spanish).
+
+    Used by /inicio "Plan de mañana" card. Returns None for the day view
+    because the day view shows the structured `forecast_source` instead.
+    For non-auto sources (manual/override/template), the reason is a
+    short label. For auto forecasts, includes the velocity.
+    """
+    if source in ("manual", "override"):
+        return "Ajuste manual del operador"
+    if source == "template":
+        return "Plantilla semanal"
+    if source == "seasonal_event":
+        return "Evento del calendario"
+    if qty <= 0:
+        return None
+    # Auto forecast: include the underlying velocity.
+    batch_count = _compute_batch_count(session, product, qty)
+    avg_per_day = qty / max(days_history, 1)
+    return (
+        f"Vendés ~{avg_per_day:.1f}/día → hacer {int(qty)} u. "
+        f"({batch_count} tanda{'s' if batch_count > 1 else ''})"
+    )
 
 
 def forecast_sales(
@@ -302,6 +369,13 @@ def plan_production(
                     qty_to_produce=qty,
                     forecast_source=source,
                     confidence_pct=confidence,
+                    # Fase 5: batch_count + reason for the /inicio "Plan de mañana"
+                    # card (replaces the deprecated production_scheduler).
+                    # batch_count = ceil(qty / recipe.yield_qty); 1 if no recipe.
+                    batch_count=_compute_batch_count(session, prod, qty),
+                    reason=_build_plan_reason(
+                        prod, qty, source, session, days_history
+                    ),
                 )
             )
             product_forecasts[prod.id] = qty

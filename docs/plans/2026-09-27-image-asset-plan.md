@@ -1,4 +1,4 @@
-# Saskia RMS — Complete Image & Asset Plan (2026-09-27)
+# Sazón — Complete Image & Asset Plan (2026-09-27)
 
 **Current state:** Recipe + Product models have `image_url` fields. **7 of 20 recipes** have photos (uploaded via the set-photo feature). **0 of 28 products** have images. **Ingredients have no image field at all.** Icon sprite has 38 symbols. No og/social images, no empty-state illustrations, no login branding beyond favicon.
 
@@ -79,10 +79,10 @@ Missing and referenced by upcoming work: `icon-filter`, `icon-tag`, `icon-clock`
 Current: favicon.ico (170 bytes — ancient) + favicon.svg. Needed: proper SVG favicon using final logo mark, apple-touch-icon, maskable PWA icons if we ever want "install to home screen" at the counter (we might — POS-as-app).
 
 ## E. Sourcing options (decision needed)
-1. **Saskia shoots them** (phone, daylight, white board) — authentic, free, best for food
+1. **the operator shoots them** (phone, daylight, white board) — authentic, free, best for food
 2. **Stock/pack: freepik-style bundles** — fast, generic, license care needed
 3. **AI-generated** (ComfyUI/diffusion — we have the skill) — consistent style, ~free, but "fake food" risk on a real menu
-4. **Hybrid (recommended):** AI for placeholders now + swap in real photos as Saskia shoots; category tiles AI-generated, entity photos real
+4. **Hybrid (recommended):** AI for placeholders now + swap in real photos as the operator shoots; category tiles AI-generated, entity photos real
 
 ## F. Recommended execution order
 1. Logo/wordmark + favicon/PWA + og-image (branding foundation, half-day)

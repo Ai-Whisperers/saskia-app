@@ -1,6 +1,6 @@
 """app/rms/seasonal.py — Seasonal calendar HTTP helpers (E19).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E19.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E19.
 
 Most of E19 (the calendar data + seasonal_multiplier) was shipped in
 E12 (workflow.py). This module adds the HTTP-facing helpers:

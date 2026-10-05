@@ -40,7 +40,7 @@ def _build_app_engine():
 
     from app.rms.db import init_db, make_engine
 
-    d = tempfile.mkdtemp(prefix="pw-saskia-")
+    d = tempfile.mkdtemp(prefix="pw-sazon-")
     engine = make_engine(f"sqlite:///{d}/pw.sqlite")
     init_db(engine)
     return engine

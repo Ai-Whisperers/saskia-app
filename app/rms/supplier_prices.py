@@ -1,6 +1,6 @@
 """app/rms/supplier_prices.py — supplier price comparison engine (P1-B9).
 
-Saskia buys from multiple suppliers per ingredient, but the price column in
+the operator buys from multiple suppliers per ingredient, but the price column in
 /inventario only shows the *current* supplier's price. To answer "is
 Proveedor B actually cheaper than Proveedor A for harina?", we need a side-by-
 side comparison per ingredient.

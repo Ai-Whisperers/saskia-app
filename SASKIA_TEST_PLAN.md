@@ -1,9 +1,9 @@
-# Saskia RMS — Complete Test Plan
+# Sazón — Complete Test Plan
 
 > Single source of truth for backend / frontend / integration coverage of the
-> Ai-Whisperers/saskia-app FastAPI restaurant management system.
+> Ai-Whisperers/sazon-app FastAPI restaurant management system.
 > Generated 2026-09-22 against commit working tree at
-> `/opt/data/profiles/ivan/scratch/saskia-app-work`.
+> `/opt/data/profiles/ivan/scratch/sazon-app-work`.
 
 ---
 
@@ -104,9 +104,9 @@ Business pages (43):    See matrix in §3.2 (one per route group)
 
 ### 2.1 Live-site probe (2026-09-22, 09:22 UTC)
 
-Probing `https://saskia-rms.paragu-ai.com` from outside the tunnel returned
+Probing `https://sazon-rms.paragu-ai.com` from outside the tunnel returned
 **HTTP 429 with `cf-mitigated: challenge`** on every URL (Cloudflare bot
-challenge — Saskia must click through once). Cannot directly verify
+challenge — the operator must click through once). Cannot directly verify
 authenticated 200s from this environment.
 
 Per parent-session note, prior manual verification established:

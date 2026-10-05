@@ -301,7 +301,7 @@ def test_ventas_page_renders_customer_picker(client):
     """/ventas page includes the customer picker component.
 
     c20f692 rewrote the picker from a modal (trigger/search/results IDs)
-    to an inline <saskia-combo> combo box. The functional contract that
+    to an inline <ui-combo> combo box. The functional contract that
     remains: the hidden customer_id field, the combo input, the hint,
     and the inline "Nuevo cliente" disclosure panel.
     """
@@ -311,7 +311,7 @@ def test_ventas_page_renders_customer_picker(client):
     for marker in [
         "customer-picker",  # component wrapper div/class
         "customer_id",  # hidden field the form posts
-        "customer_id_combo",  # saskia-combo input
+        "customer_id_combo",  # ui-combo input
         "customer_picker_hint",  # hint line
         "customer_picker_new_panel",  # inline new-customer disclosure
     ]:

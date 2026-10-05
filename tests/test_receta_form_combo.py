@@ -35,7 +35,7 @@ def test_receta_form_category_uses_menu_tags_picker(qseed, authed_client):
     r = authed_client.get("/recetas/nueva")
     assert r.status_code == 200
     body = r.text
-    assert "saskia-combo" in body  # other combos (lines, scale) still exist
+    assert "ui-combo" in body  # other combos (lines, scale) still exist
     assert 'name="menu_tags"' in body or "name='menu_tags'" in body
     assert "family_combo" not in body
     assert "categoryRowLabel" not in body
@@ -50,7 +50,7 @@ def test_receta_form_line_uses_combobox_for_items(qseed, authed_client):
     assert r.status_code == 200
     body = r.text
     # Line combo markers
-    assert "saskia-combo" in body
+    assert "ui-combo" in body
     assert 'data-source="/inventario/api/search"' in body
     # Dynamic line switching JS is present
     assert "updateLineSource" in body
@@ -82,7 +82,7 @@ def test_receta_form_dynamic_line_creation(qseed, authed_client):
     # Add line button exists
     assert 'id="add-line"' in body
     # New line creation includes combo initialization
-    assert "new SaskiaCombo" in body
+    assert "new UICombo" in body
 
 
 def test_inventario_form_category_uses_combobox(qseed, authed_client):
@@ -92,7 +92,7 @@ def test_inventario_form_category_uses_combobox(qseed, authed_client):
     assert r.status_code == 200
     body = r.text
     # Combo markers for category
-    assert "saskia-combo" in body
+    assert "ui-combo" in body
     assert "categoryRowLabel" in body
     assert 'data-allow-create="true"' in body
     # Old native input is gone

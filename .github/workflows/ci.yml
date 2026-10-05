@@ -18,7 +18,7 @@
 #
 #   When budget is restored, this workflow will run all checks automatically.
 #   Per AGENTS.md §CI: ruff check, ruff format, pytest 80% coverage,
-#   aiw-saskia migrate smoke, and CHANGELOG discipline must all pass.
+#   sazon migrate smoke, and CHANGELOG discipline must all pass.
 
 
 name: CI
@@ -97,8 +97,8 @@ jobs:
       # entry point (which the previous batch made idempotent).
       - name: Migrate smoke test (fresh DB)
         run: |
-          TMP_DB=$(mktemp /tmp/saskia-migrate-smoke.XXXXXX.sqlite)
-          AIW_SASKIA_DB_PATH="$TMP_DB" uv run aiw-saskia migrate
+          TMP_DB=$(mktemp /tmp/sazon-migrate-smoke.XXXXXX.sqlite)
+          AIW_RMS_DB_PATH="$TMP_DB" uv run sazon migrate
 
       # ---- E5.S3.T3: CHANGELOG must be updated on every PR ----
       # Rejects any PR that touches app/, scripts/, tests/, or .github/ but

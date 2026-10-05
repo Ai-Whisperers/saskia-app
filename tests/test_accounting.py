@@ -1,6 +1,6 @@
 """tests/test_accounting.py — verify app/rms/accounting.py (E17).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E17.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E17.
 
 Covers:
 - extract_iva with tax_mode="included" (gross=11k, base=10k, iva=1k)

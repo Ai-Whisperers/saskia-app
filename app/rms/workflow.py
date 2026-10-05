@@ -1,6 +1,6 @@
 """app/rms/workflow.py — Operator workflow helpers (E12).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E12.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E12.
 
 Adds:
 - EndOfDayChecklist: 10-item structured daily close (cash count,

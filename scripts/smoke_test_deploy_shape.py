@@ -71,13 +71,13 @@ def main() -> int | None:
                     "-d",
                     "--rm",
                     "--name",
-                    "saskia-smoke-pg",
+                    "sazon-smoke-pg",
                     "-e",
-                    "POSTGRES_USER=saskia",
+                    "POSTGRES_USER=sazon",
                     "-e",
-                    "POSTGRES_PASSWORD=saskia",
+                    "POSTGRES_PASSWORD=sazon",
                     "-e",
-                    "POSTGRES_DB=saskia",
+                    "POSTGRES_DB=sazon",
                     "-p",
                     "5433:5432",
                     "postgres:16-alpine",
@@ -93,7 +93,7 @@ def main() -> int | None:
             # Wait for pg_isready
             for _ in range(30):
                 rr = subprocess.run(
-                    ["docker", "exec", pg_container, "pg_isready", "-U", "saskia"],
+                    ["docker", "exec", pg_container, "pg_isready", "-U", "sazon"],
                     capture_output=True,
                     text=True,
                     timeout=10,
@@ -105,9 +105,9 @@ def main() -> int | None:
             else:
                 print("postgres never became ready")
                 return 1
-            db_url = "postgresql+psycopg://saskia:saskia@localhost:5433/saskia"
+            db_url = "postgresql+psycopg://sazon:sazon@localhost:5433/saskia"
         else:
-            db_url = "postgresql+psycopg://saskia:saskia@localhost:5432/saskia"
+            db_url = "postgresql+psycopg://sazon:sazon@localhost:5432/saskia"
 
         if args.skip_build:
             print(f"[smoke] starting uvicorn on :{args.port} (venv)…")
@@ -116,7 +116,7 @@ def main() -> int | None:
             # Only run migrations if the caller hasn't already done so
             # (e.g., a pre-provision step that called create_all and
             # seeded app_meta with the head version).
-            env.setdefault("AIW_SASKIA_RUN_MIGRATIONS", "1")
+            env.setdefault("AIW_RMS_RUN_MIGRATIONS", "1")
             env["PORT"] = str(args.port)
             env["BIND_HOST"] = "127.0.0.1"
             app_process = subprocess.Popen(
@@ -136,7 +136,7 @@ def main() -> int | None:
         else:
             print("[smoke] building docker image…")
             r = subprocess.run(
-                ["docker", "build", "-t", "saskia-rms:smoke", str(ROOT)],
+                ["docker", "build", "-t", "sazon-rms:smoke", str(ROOT)],
                 capture_output=True,
                 text=True,
                 timeout=600,
@@ -152,18 +152,18 @@ def main() -> int | None:
                     "-d",
                     "--rm",
                     "--name",
-                    "saskia-smoke-app",
+                    "sazon-smoke-app",
                     "-p",
                     f"{args.port}:8000",
                     "-e",
                     f"DATABASE_URL={db_url}",
                     "-e",
-                    "AIW_SASKIA_RUN_MIGRATIONS=1",
+                    "AIW_RMS_RUN_MIGRATIONS=1",
                     "-e",
                     "PORT=8000",
                     "-e",
                     "BIND_HOST=0.0.0.0",
-                    "saskia-rms:smoke",
+                    "sazon-rms:smoke",
                 ],
                 capture_output=True,
                 text=True,

@@ -8,7 +8,7 @@ Severity rules:
 - warn:   1+ ingredients below min_stock_qty (but none negative)
 - success: all tracked ingredients at or above min (or none tracked)
 
-The signal appears as a 5th <saskia-kpi-card> in the HOY band with
+The signal appears as a 5th <ui-kpi-card> in the HOY band with
 severity + value + href=/reorder.
 """
 

@@ -1,0 +1,429 @@
+{# Branding admin page — operator sets business name, logo, favicon, hero, accent color, contact info #}
+{# File: app/templates/admin/branding.html #}
+{# Route: GET /admin/branding (rendered via app/routers/settings_runtime.py) #}
+
+{% extends "base.html" %}
+{% block title %}Branding — {{ branding.business_name }}{% endblock %}
+
+{% block head_extra %}
+<style>
+  /* Branding editor — local styles only */
+  .branding-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 1.5rem;
+    max-width: 1200px;
+    margin: 1.5rem auto;
+    padding: 0 1.5rem;
+  }
+  @media (max-width: 900px) {
+    .branding-grid { grid-template-columns: 1fr; }
+    .preview-card { position: static; }
+  }
+  .preview-card {
+    position: sticky;
+    top: 1rem;
+    align-self: start;
+  }
+  .preview-box {
+    border: 2px dashed var(--border, #e2e8f0);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    background: var(--card, #fff);
+    color: var(--foreground, #111);
+    transition: background 0.2s, color 0.2s;
+  }
+  .preview-logo {
+    max-width: 120px;
+    max-height: 120px;
+    margin: 0 auto 1rem;
+    display: block;
+  }
+  .preview-logo-empty {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1rem;
+    background: var(--muted, #f3f4f6);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted-foreground, #6b7280);
+    font-size: 24px;
+  }
+  .preview-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .preview-tagline {
+    color: var(--muted-foreground, #6b7280);
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+  }
+  .preview-button {
+    background: var(--accent, #f97316);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    display: inline-block;
+    font-weight: 500;
+  }
+  .preview-hero {
+    margin-top: 1rem;
+    height: 100px;
+    background: var(--muted, #f3f4f6);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted-foreground, #6b7280);
+    background-size: cover;
+    background-position: center;
+  }
+  .asset-card {
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  .asset-current {
+    width: 64px;
+    height: 64px;
+    border-radius: 8px;
+    background: var(--muted, #f3f4f6);
+    margin-right: 0.75rem;
+    object-fit: cover;
+    background-size: cover;
+    background-position: center;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .color-input {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .color-input input[type="color"] {
+    width: 48px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .help-block {
+    font-size: 0.75rem;
+    color: var(--muted-foreground, #6b7280);
+    margin-top: 0.25rem;
+  }
+  .flash {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+  }
+  .flash-success { background: #dcfce7; color: #166534; }
+  .flash-error { background: #fee2e2; color: #991b1b; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 style="max-width:1200px; margin: 1.5rem auto 0; padding: 0 1.5rem;">
+  Branding &amp; Identidad del negocio
+</h1>
+<p style="max-width:1200px; margin: 0.5rem auto 0; padding: 0 1.5rem; color: var(--muted-foreground);">
+  Cambiá el nombre, logo, imagen de fondo y color del sistema. Los cambios se aplican
+  inmediatamente en el sidebar, login, tickets y PDF — sin reiniciar.
+</p>
+
+<div id="flash" class="flash" style="display:none; max-width:1200px; margin: 1rem auto 0; padding: 0 1.5rem;"></div>
+
+<form id="branding-form" class="branding-grid" onsubmit="return saveBranding(event)">
+
+  <!-- LEFT: editable fields -->
+  <div>
+    <fieldset class="asset-card">
+      <legend><strong>Identidad</strong></legend>
+
+      <div style="margin-bottom: 1rem;">
+        <label for="business_name"><strong>Nombre comercial</strong></label>
+        <input type="text" id="business_name" name="business_name" maxlength="200"
+               value="{{ branding.business_name }}" required
+               style="width:100%; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border);">
+        <p class="help-block">Aparece en el sidebar, login, tickets y PDF.</p>
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label for="tagline"><strong>Eslogan</strong> <span style="color: var(--muted-foreground);">(opcional)</span></label>
+        <input type="text" id="tagline" name="tagline" maxlength="200"
+               value="{{ branding.tagline }}"
+               style="width:100%; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border);">
+        <p class="help-block">Frase corta debajo del nombre en la pantalla de login.</p>
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label for="business_type"><strong>Tipo de negocio</strong></label>
+        <select id="business_type" name="business_type" style="width:100%; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border);">
+          {% for opt in [('restaurant', 'Restaurante'), ('panaderia', 'Panadería'), ('cafeteria', 'Cafetería'), ('bar', 'Bar'), ('heladeria', 'Heladería'), ('food_truck', 'Food Truck'), ('otro', 'Otro')] %}
+            <option value="{{ opt[0] }}" {% if branding.business_type == opt[0] %}selected{% endif %}>{{ opt[1] }}</option>
+          {% endfor %}
+        </select>
+        <p class="help-block">Define iconos y defaults (ej. categorías iniciales, unidades).</p>
+      </div>
+
+      <div>
+        <label for="footer"><strong>Pie de página</strong></label>
+        <input type="text" id="footer" name="footer" maxlength="200"
+               value="{{ branding.footer }}"
+               style="width:100%; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border);">
+        <p class="help-block">Texto al pie del sidebar. El año se agrega automáticamente.</p>
+      </div>
+    </fieldset>
+
+    <fieldset class="asset-card">
+      <legend><strong>Color &amp; logo</strong></legend>
+
+      <div style="margin-bottom: 1rem;">
+        <label for="accent_color"><strong>Color primario</strong></label>
+        <div class="color-input">
+          <input type="color" id="accent_color" name="accent_color"
+                 value="{{ branding.accent_color or '#f97316' }}"
+                 oninput="updatePreview()">
+          <input type="text" id="accent_color_hex" maxlength="7"
+                 value="{{ branding.accent_color or '#f97316' }}"
+                 oninput="syncColor(this.value); updatePreview()"
+                 pattern="^#[0-9A-Fa-f]{6}$"
+                 style="flex:1; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border);">
+        </div>
+        <p class="help-block">Botones, acentos y bordes en la interfaz.</p>
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label><strong>Logo</strong></label>
+        <div style="display:flex; align-items:center; gap: 0.75rem;">
+          <div class="asset-current" id="logo-preview"
+               style="{% if branding.logo_filename %}background-image: url('/static/branding/{{ branding.logo_filename }}');{% endif %}">
+            {% if not branding.logo_filename %}<span style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted-foreground);">📷</span>{% endif %}
+          </div>
+          <div style="flex:1;">
+            <input type="file" id="logo-file" accept=".png,.jpg,.jpeg,.svg,.webp"
+                   onchange="uploadAsset('logo', this.files[0])">
+            <input type="hidden" id="logo_filename" name="logo_filename"
+                   value="{{ branding.logo_filename or '' }}">
+            <p class="help-block">PNG/JPG/SVG/WebP. Máximo 2MB. Recomendado: 200×200 px cuadrado.</p>
+            <button type="button" class="link-btn" onclick="clearAsset('logo')" style="font-size:0.75rem;">Quitar</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label><strong>Favicon</strong> <span style="color: var(--muted-foreground);">(icono del navegador)</span></label>
+        <div style="display:flex; align-items:center; gap: 0.75rem;">
+          <div class="asset-current" id="favicon-preview"
+               style="{% if branding.favicon_filename %}background-image: url('/static/branding/{{ branding.favicon_filename }}');{% endif %}">
+            {% if not branding.favicon_filename %}<span style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted-foreground);">🌐</span>{% endif %}
+          </div>
+          <div style="flex:1;">
+            <input type="file" id="favicon-file" accept=".ico,.png"
+                   onchange="uploadAsset('favicon', this.files[0])">
+            <input type="hidden" id="favicon_filename" name="favicon_filename"
+                   value="{{ branding.favicon_filename or '' }}">
+            <p class="help-block">ICO o PNG. 32×32 o 192×192 px. Máximo 500KB.</p>
+            <button type="button" class="link-btn" onclick="clearAsset('favicon')" style="font-size:0.75rem;">Quitar</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label><strong>Imagen de login</strong></label>
+        <div>
+          <div class="preview-hero" id="hero-preview"
+               style="{% if branding.hero_filename %}background-image: url('/static/branding/{{ branding.hero_filename }}');{% endif %}">
+            {% if not branding.hero_filename %}Sin imagen{% endif %}
+          </div>
+          <div style="margin-top: 0.5rem;">
+            <input type="file" id="hero-file" accept=".jpg,.jpeg,.png,.webp"
+                   onchange="uploadAsset('hero', this.files[0])">
+            <input type="hidden" id="hero_filename" name="hero_filename"
+                   value="{{ branding.hero_filename or '' }}">
+            <p class="help-block">JPG/PNG/WEBP. 1200×600 ideal. Máximo 5MB.</p>
+            <button type="button" class="link-btn" onclick="clearAsset('hero')" style="font-size:0.75rem;">Quitar</button>
+          </div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="asset-card">
+      <legend><strong>Contacto</strong></legend>
+
+      <div style="margin-bottom: 1rem;">
+        <label for="contact_email"><strong>Email</strong></label>
+        <input type="email" id="contact_email" name="contact_email" maxlength="200"
+               value="{{ branding.contact_email or '' }}"
+               style="width:100%; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border);">
+        <p class="help-block">Aparece en tickets y PDF. Opcional.</p>
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label for="contact_phone"><strong>Teléfono</strong></label>
+        <input type="tel" id="contact_phone" name="contact_phone" maxlength="64"
+               value="{{ branding.contact_phone or '' }}"
+               style="width:100%; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border);">
+      </div>
+
+      <div>
+        <label for="address"><strong>Dirección del local</strong></label>
+        <textarea id="address" name="address" maxlength="300" rows="2"
+                  style="width:100%; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border);">{{ branding.address or '' }}</textarea>
+      </div>
+    </fieldset>
+
+    <div style="display:flex; gap: 0.75rem; margin-top: 1rem;">
+      <button type="submit" class="ui-btn" style="background: var(--accent); color: white; padding: 0.625rem 1.25rem; border-radius: 6px; border: none; font-weight: 500; cursor: pointer;">
+        Guardar cambios
+      </button>
+      <button type="button" onclick="resetForm()" style="padding: 0.625rem 1.25rem; border-radius: 6px; border: 1px solid var(--border); background: transparent; cursor: pointer;">
+        Restaurar
+      </button>
+    </div>
+  </div>
+
+  <!-- RIGHT: live preview -->
+  <aside class="preview-card">
+    <div class="preview-box" id="preview-box">
+      <div id="preview-logo-wrap">
+        {% if branding.logo_filename %}
+          <img class="preview-logo" id="preview-logo-img" src="/static/branding/{{ branding.logo_filename }}" alt="Logo">
+        {% else %}
+          <div class="preview-logo-empty">📷</div>
+        {% endif %}
+      </div>
+      <div class="preview-name" id="preview-name">{{ branding.business_name }}</div>
+      <div class="preview-tagline" id="preview-tagline">{{ branding.tagline }}</div>
+      <span class="preview-button" id="preview-button" style="background: {{ branding.accent_color or '#f97316' }};">
+        Botón de ejemplo
+      </span>
+    </div>
+    <p style="font-size: 0.75rem; color: var(--muted-foreground); margin-top: 0.75rem; text-align: center;">
+      Vista previa — sidebar / login
+    </p>
+  </aside>
+
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const csrfToken = "{{ csrf_token }}";
+
+  function updatePreview() {
+    document.getElementById("preview-name").textContent =
+      document.getElementById("business_name").value || "Tu negocio";
+    document.getElementById("preview-tagline").textContent =
+      document.getElementById("tagline").value || "";
+    const c = document.getElementById("accent_color_hex").value || "#f97316";
+    document.getElementById("preview-button").style.background = c;
+  }
+
+  function syncColor(hex) {
+    if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+      document.getElementById("accent_color").value = hex;
+    }
+  }
+
+  // Listen to name/tagline changes
+  document.getElementById("business_name").addEventListener("input", updatePreview);
+  document.getElementById("tagline").addEventListener("input", updatePreview);
+
+  async function uploadAsset(kind, file) {
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("kind", kind);
+    fd.append("file", file);
+    try {
+      const r = await fetch("/api/admin/branding/upload", {
+        method: "POST",
+        body: fd,
+        headers: { "X-CSRF-Token": csrfToken }
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        showFlash("error", err.detail || "Error al subir " + kind);
+        return;
+      }
+      const data = await r.json();
+      document.getElementById(kind + "_filename").value = data.filename;
+      // Live-update preview
+      const previewEl = document.getElementById(kind + "-preview");
+      if (kind === "hero") {
+        previewEl.style.backgroundImage = `url('${data.url}')`;
+        previewEl.textContent = "";
+      } else {
+        previewEl.style.backgroundImage = `url('${data.url}')`;
+        previewEl.innerHTML = "";
+      }
+      if (kind === "logo") {
+        const wrap = document.getElementById("preview-logo-wrap");
+        wrap.innerHTML = `<img class="preview-logo" src="${data.url}" alt="Logo">`;
+      }
+      showFlash("success", `${kind} subido (${data.size_kb}KB)`);
+    } catch (e) {
+      showFlash("error", "Error de red: " + e.message);
+    }
+  }
+
+  function clearAsset(kind) {
+    document.getElementById(kind + "_filename").value = "";
+    document.getElementById(kind + "-preview").style.backgroundImage = "";
+    if (kind === "logo") {
+      document.getElementById("preview-logo-wrap").innerHTML =
+        `<div class="preview-logo-empty">📷</div>`;
+    }
+    if (kind === "hero") {
+      document.getElementById("hero-preview").textContent = "Sin imagen";
+    }
+  }
+
+  async function saveBranding(ev) {
+    ev.preventDefault();
+    const fields = {};
+    document.querySelectorAll("#branding-form input, #branding-form select, #branding-form textarea").forEach(el => {
+      if (el.type === "file" || el.type === "color") return;
+      if (el.name) fields[el.name] = el.value;
+    });
+    // Sync hex back from color picker
+    fields.accent_color = document.getElementById("accent_color").value;
+
+    try {
+      const r = await fetch("/api/settings/branding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+        body: JSON.stringify(fields)
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        showFlash("error", err.detail || "Error al guardar");
+        return false;
+      }
+      showFlash("success", "✓ Branding guardado. Recargá para ver todos los cambios.");
+    } catch (e) {
+      showFlash("error", "Error de red: " + e.message);
+    }
+    return false;
+  }
+
+  function resetForm() {
+    location.reload();
+  }
+
+  function showFlash(kind, msg) {
+    const el = document.getElementById("flash");
+    el.className = "flash flash-" + kind;
+    el.textContent = msg;
+    el.style.display = "block";
+    setTimeout(() => { el.style.display = "none"; }, 5000);
+  }
+</script>
+{% endblock %}

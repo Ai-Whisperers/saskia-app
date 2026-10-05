@@ -15,7 +15,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO = Path("/opt/data/profiles/ivan/scratch/saskia-app-work")
+REPO = Path("/opt/data/profiles/ivan/scratch/sazon-app-work")
 
 
 def discover_routes():

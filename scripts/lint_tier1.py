@@ -6,7 +6,7 @@ Forbids:
 - raw {{ entity.name }} (use fmt.entity_name)
 - onsubmit="confirm(...)" or onclick="confirm(...)" (use js-confirm-form)
 - hand-rolled empty states (use ui.empty_state)
-- <input type="date"> (use <saskia-date>)
+- <input type="date"> (use <ui-date>)
 
 Run:  .venv/bin/python scripts/lint_tier1.py
 Exit 0 = clean; non-zero = violations found.
@@ -41,7 +41,7 @@ RULES = [
     # (substring to search, explanation)
     ('class="kpi-card', "hand-rolled kpi-card; use ui.metric_card"),
     ('class="empty-state', "hand-rolled empty-state; use ui.empty_state"),
-    ('type="date"', "native date input; use <saskia-date>"),
+    ('type="date"', "native date input; use <ui-date>"),
     ('onsubmit="return confirm(', "native confirm(); use js-confirm-form"),
     ('onclick="return confirm(', "native confirm(); use js-confirm-form"),
     ("confirm('¿", "native confirm(); use js-confirm-form"),

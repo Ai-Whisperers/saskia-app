@@ -81,7 +81,7 @@
         // Skip confirmation if the user already checked the
         // "no volver a preguntar" checkbox in this session.
         try {
-          if (window.sessionStorage && window.sessionStorage.getItem("saskia:susc-confirmed") === "1") {
+          if (window.sessionStorage && window.sessionStorage.getItem("sazon:susc-confirmed") === "1") {
             return;
           }
         } catch (e) {
@@ -97,7 +97,7 @@
         } else {
           try {
             if (window.sessionStorage) {
-              window.sessionStorage.setItem("saskia:susc-confirmed", "1");
+              window.sessionStorage.setItem("sazon:susc-confirmed", "1");
             }
           } catch (e) {
             // ignore

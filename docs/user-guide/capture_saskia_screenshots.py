@@ -11,10 +11,10 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-BASE = "https://saskia-vps.paragu-ai.com"
-OUT = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/docs/user-guide/screenshots")
+BASE = "https://sazon-vps.paragu-ai.com"
+OUT = Path("/opt/data/profiles/ivan/scratch/sazon-app-work/docs/user-guide/screenshots")
 OUT.mkdir(parents=True, exist_ok=True)
-JAR = Path("/tmp/saskia-jar.txt")
+JAR = Path("/tmp/sazon-jar.txt")
 CHROME = "/opt/data/home/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome"
 
 # 14 daily-use routes (paths + label slug + wait_ms for slow pages)

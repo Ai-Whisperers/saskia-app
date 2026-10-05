@@ -37,7 +37,7 @@ def _seed_pedido_insufficient(session_factory):
     Returns (pedido_id, ingredient_id, product_id).
 
     Use uuid-named builder per fixture-collision pitfall in
-    saskia-rms-development SKILL.
+    sazon-rms-development SKILL.
     """
     from tests.factories import (
         ing_line,

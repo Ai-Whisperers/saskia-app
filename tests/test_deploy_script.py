@@ -13,10 +13,10 @@ What's covered:
 5. --help prints usage
 7. Unknown flag → exits 2 (usage error)
 
-NOTE: This file is in the saskia-app test suite but executes against
+NOTE: This file is in the sazon-app test suite but executes against
 the deploy script in the WORKTREE the test runner is started in.
-Both /opt/data/work/saskia-app and /opt/data/profiles/ivan/scratch/
-saskia-app-work have the same deploy.sh; the test points at the one
+Both /opt/data/work/sazon-app and /opt/data/profiles/ivan/scratch/
+sazon-app-work have the same deploy.sh; the test points at the one
 shipped in the parent dir of the current worktree.
 """
 

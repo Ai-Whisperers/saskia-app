@@ -9,7 +9,7 @@
 
 ## The problem
 
-The saskia-app test suite grew to 5,400 tests (including 1,200+
+The sazon-app test suite grew to 5,400 tests (including 1,200+
 hypothesis-driven property tests) and the GitHub Actions `test` job was
 running them serially. On a 2-core runner:
 
@@ -190,8 +190,8 @@ shared in-memory DB with savepoint-based isolation. That's a
 - It does not address the `combo` browser test failure
   (`tests/browser/test_flows_browser.py::test_combo_component_opens_and_picks`)
   which is a pre-existing test/code drift issue (the test expects
-  `<div class="saskia-combo">` but the template now uses
-  `<saskia-combo>` Web Component).
+  `<div class="ui-combo">` but the template now uses
+  `<ui-combo>` Web Component).
 - It does not fix the `loguru KeyError: 'request_id'` warnings that
   show up in test capture. Those are a known loguru quirk when the
   format string references a missing extra. Fix is to add

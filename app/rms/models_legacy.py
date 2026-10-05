@@ -337,7 +337,7 @@ class RecipeLine(Base):
     line_kind: Mapped[str] = mapped_column(String(16), nullable=False)
     line_ref_id: Mapped[int] = mapped_column(Integer, nullable=False)
     qty: Mapped[float] = mapped_column(Numeric(12, 4), nullable=False)
-    # Phase B — T1: per-line unit. Lets Saskia type "250 g" while the linked
+    # Phase B — T1: per-line unit. Lets the operator type "250 g" while the linked
     # ingredient is in "kg". Default "" for backward compat (legacy rows assume
     # the ingredient's unit at costing time). Allowed: g, kg, ml, l, und.
     line_unit: Mapped[str] = mapped_column(String(8), nullable=False, default="")
@@ -729,7 +729,7 @@ class IngredientPriceEvent(Base):
 class Customer(Base):
     """A customer record (E13).
 
-    Phone is the de-facto unique identifier (matches how Saskia
+    Phone is the de-facto unique identifier (matches how the operator
     identifies customers at the counter). Loyalty points are tracked
     in-app; lifetime spend is computed from sales at query time.
     """
@@ -828,7 +828,7 @@ class TagLink(Base):
 class ProductionCompletion(Base):
     """How much of a planned product was actually produced on a given day.
 
-    Saskia review T5: "Al final del dia debe registrarse cuanto de la
+    the operator review T5: "Al final del dia debe registrarse cuanto de la
     produccion se completo". One row per (product, date) — re-recording
     updates in place via upsert_completion().
 
@@ -836,6 +836,13 @@ class ProductionCompletion(Base):
     the same shift in parallel don't silently overwrite each other.
     Migration 099 adds the column on existing DBs. SQLAlchemy won't
     enforce the default here — SQLite / Postgres handle DEFAULT.
+
+    PRODUCCION-V2 Fase 2 (2026-10-05): end-of-shift closure. ``status``
+    is 'open' (default) until the cook taps "Cerrar turno"; 'done'
+    means "this is what we baked"; 'cancelled' means "we baked 0 of
+    this, here's why". ``closure_notes`` is the cook's optional
+    free-text justification (NULL when blank). Migration 102 adds the
+    columns on existing DBs.
     """
 
     __tablename__ = "production_completion"
@@ -849,6 +856,10 @@ class ProductionCompletion(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, default="open", server_default="open"
+    )
+    closure_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
         CheckConstraint("completed_qty >= 0", name="ck_completion_qty_nonneg"),
@@ -865,7 +876,7 @@ class FreezerTemperatureLog(Base):
     Regulatory context: Paraguay MSPBS HACCP exige registro de temperatura
     de heladeras/freezers donde se almacenan productos crudos, semi-elaborados
     y elaborados. Sin registro continuo, una inspección puede multar al
-    local. Saskia opera con un freezer de masa y uno de productos finales.
+    local. the operator opera con un freezer de masa y uno de productos finales.
 
     One row per (location, for_date, shift) — el cocinero registra la
     temperatura 2 veces al día (apertura AM, cierre PM). Las filas se
@@ -978,6 +989,69 @@ class ProductionClosedDay(Base):
     reason: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     closed_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     closed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class ProductionDemandSnapshot(Base):
+    """PRODUCCION-V2 Fase 3: TTL cache for `get_demand()`.
+
+    One row per (for_date, product_id). Populated by `get_demand()` after
+    each recompute; read on the next call if the cache is still fresh
+    (within `production.demand_snapshot_ttl_seconds`).
+
+    Why a table (not in-process memoize): the operator may open the
+    production page from two browser tabs, or refresh after editing a
+    pedido. An in-process cache would serve stale data to the second
+    tab; a DB row survives the request boundary AND can be inspected
+    with raw SQL when debugging ("why did the demand number change?").
+
+    Schema mirrors migration 102 exactly. PK is (for_date, product_id)
+    — clustered on SQLite, sufficient for our access pattern.
+    """
+
+    __tablename__ = "production_demand_snapshot"
+
+    for_date: Mapped[date] = mapped_column(Date, primary_key=True, nullable=False)
+    product_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("product.id"), primary_key=True, nullable=False
+    )
+    # Note: no `product_name` column. The migration 102 schema doesn't
+    # have it and adding it would require a new migration. Operators
+    # resolve product names via the FK + ORM Product.name when needed.
+    qty_forecast: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    qty_pedidos: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    qty_pedidos_confirmed: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    qty_evento: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    qty_total: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    confidence_pct: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="computed")
+    computed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class ProductionPlanAudit(Base):
+    """PRODUCCION-V2 Fase 1: append-only audit of plan qty changes.
+
+    Created by `app.routers.produccion` whenever the operator records a
+    production_qty for a (date, product). NOT updated by `get_demand()` —
+    the snapshot table is the demand cache, this table is the human-
+    change log. They live separately so the cache can be invalidated
+    and rewritten without losing history.
+    """
+
+    __tablename__ = "production_plan_audit"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    for_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    product_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("product.id"), nullable=False, index=True
+    )
+    old_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    new_qty: Mapped[float] = mapped_column(Float, nullable=False)
+    change_source: Mapped[str] = mapped_column(String(32), nullable=False)
+    changed_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class Supplier(Base):
@@ -1444,7 +1518,7 @@ class ShoppingListItem(Base):
 class MarketBenchmark(Base):
     """Per-product pricing-vs-market row (HEREBUS Benchmarks_Market).
 
-    Allows Saskia to position each recipe relative to local competitors.
+    Allows the operator to position each recipe relative to local competitors.
     """
 
     __tablename__ = "market_benchmark"
@@ -2291,7 +2365,9 @@ __all__ = [
     "Product",
     "ProductionClosedDay",
     "ProductionCompletion",
+    "ProductionDemandSnapshot",  # PRODUCCION-V2 Fase 3 — TTL cache
     "ProductionPlan",
+    "ProductionPlanAudit",  # PRODUCCION-V2 Fase 1 — append-only audit
     "ProductionPlanOverride",
     "ProductionPlanTemplate",
     "Recipe",
@@ -2370,8 +2446,8 @@ class MarketPriceReference(Base):
 class CompetitorPriceObservation(Base):
     """Market-intel — observación de precio retail de la competencia (append-only).
 
-    Fuente: repositorio de investigación saskia-market-intel
-    (/opt/data/work/research-repos/saskia-market-intel — cartas online
+    Fuente: repositorio de investigación sazon-market-intel
+    (/opt/data/work/research-repos/sazon-market-intel — cartas online
     verificadas de locales PY con URL y fecha) u observación manual del
     operador ("pasé por Karu: cheesecake 32.000").
 

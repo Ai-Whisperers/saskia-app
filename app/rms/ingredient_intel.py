@@ -1,6 +1,6 @@
 """app/rms/ingredient_intel.py — auto-classify ingredients.
 
-The client (Saskia) provides ingredient names as free-form strings.
+The client (the operator) provides ingredient names as free-form strings.
 We infer category, role, allergens, dietary tags, and shelf-life from
 the name + unit + price. The goal: every ingredient row has rich,
 queryable attributes without operator data entry.

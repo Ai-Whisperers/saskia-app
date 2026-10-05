@@ -12,7 +12,7 @@ Add a `Customer` table and a "register sale to customer" UI. Customers accumulat
 
 ## Why not now
 
-Herbus is B2C but Saskia's current customers are walk-in repeat; she doesn't have a loyalty program. No customer table today.
+Herbus is B2C but the operator's current customers are walk-in repeat; she doesn't have a loyalty program. No customer table today.
 ## Triage
 
 **Moved to triaged:** 2026-09-09

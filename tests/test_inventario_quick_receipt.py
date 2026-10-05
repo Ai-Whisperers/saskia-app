@@ -1,7 +1,7 @@
 """tests/test_inventario_quick_receipt.py — Inline +qty form on /inventario.
 
 Prelaunch roadmap 2026-09-17 item: "Quick receipt-of-stock: /inventario
-inline `+ qty` form". A small form on each row lets Saskia add stock
+inline `+ qty` form". A small form on each row lets the operator add stock
 without leaving the list.
 
 Implementation: form POSTs to the existing /inventario/{id}/ajustar

@@ -1,6 +1,6 @@
 # Sibling-session coordination — how to avoid stepping on yourself
 
-> **Audience:** anyone who runs the Saskia worktree from a separate
+> **Audience:** anyone who runs the the operator worktree from a separate
 > shell (sibling Hermes session, parallel Claude Code, etc.) on the
 > same git repo.
 > **Date:** 2026-10-04 (after a real loss-and-restore cycle that cost
@@ -22,7 +22,7 @@ history:
 
 | Worktree | Branch | Purpose |
 |---|---|---|
-| `/opt/data/profiles/ivan/scratch/saskia-app-work` (the main one) | `feat/phase-3-ci-cleanup` or `feat/produccion-p0-p1-overhaul` | One session's work |
+| `/opt/data/profiles/ivan/scratch/sazon-app-work` (the main one) | `feat/phase-3-ci-cleanup` or `feat/produccion-p0-p1-overhaul` | One session's work |
 | (other worktrees on the same filesystem) | Various | Other sessions / Claude Code |
 
 Both branches share history at the merge-base `269ff9b` ("start

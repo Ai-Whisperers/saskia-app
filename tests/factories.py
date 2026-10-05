@@ -20,7 +20,7 @@ from __future__ import annotations
 import secrets
 import uuid as _uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -33,6 +33,7 @@ from app.rms.models import (
     Pedido,
     PedidoLine,
     Product,
+    ProductionCompletion,
     Recipe,
     RecipeLine,
     Sale,
@@ -425,6 +426,31 @@ def make_sale(
     s.add(sale)
     s.flush()
     return sale
+
+
+def make_completion(
+    s,
+    *,
+    product: Product,
+    for_date: date,
+    completed_qty: float = 0.0,
+    status: str = "open",
+    closure_notes: str | None = None,
+    recorded_at: datetime | None = None,
+) -> ProductionCompletion:
+    """Create a ProductionCompletion row (PRODUCCION-V2 Fase 2)."""
+    row = ProductionCompletion(
+        product_id=product.id,
+        for_date=for_date,
+        completed_qty=completed_qty,
+        recorded_at=recorded_at or _now(),
+        status=status,
+        closure_notes=closure_notes,
+        updated_at=_now(),
+    )
+    s.add(row)
+    s.flush()
+    return row
 
 
 # ---------------------------------------------------------------------------

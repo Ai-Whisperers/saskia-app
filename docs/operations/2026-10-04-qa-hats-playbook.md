@@ -1,4 +1,4 @@
-# QA Hats — Saskia RMS Test Strategy
+# QA Hats — Sazón Test Strategy
 
 **Date:** 2026-10-04
 **Sister docs:**
@@ -7,7 +7,7 @@
 - `docs/plans/2026-10-01-phase14-coverage-strategy.md` — coverage growth plan
 - `docs/plans/2026-09-25-test-improvement-complete-catalog.md` — 309-line improvement catalog
 
-**The premise:** A single "QA" hat doesn't cover what we have. Saskia's tests need **12 distinct hats** — each with a mission, primary domains, owned responsibilities, and a wishlist of ideas. This file is the playbook.
+**The premise:** A single "QA" hat doesn't cover what we have. the operator's tests need **12 distinct hats** — each with a mission, primary domains, owned responsibilities, and a wishlist of ideas. This file is the playbook.
 
 ---
 
@@ -47,7 +47,7 @@ Localization Copy     ─── owns Spanish voseo, Paraguayan Spanish, i18n
 Analytics Reviewer    ─── owns dashboard, KPIs, daily/weekly/monthly
 Operator (Ivan)       ─── owns deploy, env vars, cron safety
 Code Quality          ─── owns abstraction, factories, fixtures
-Business SME (Saskia) ─── owns field reality, user stories, manual QA
+Business SME (the operator) ─── owns field reality, user stories, manual QA
 Doc Curator           ─── owns AGENTS, README, user-guide, decisions
 ```
 
@@ -354,11 +354,11 @@ Doc Curator           ─── owns AGENTS, README, user-guide, decisions
 - **Translation workflow** — set up a translation pipeline (Pootle/Loci). Currently we manually edit copy-vos.md.
 - **Quality gate on copy changes** — every PR that touches copy-vos.md must pass a Spanish grammar checker (languagetool-python).
 - **`tests/test_copy_in_template.py`** — assert no string in a template is missing from copy-vos.md.
-- **A/B test for voseo vs tuteo** — measure which one Saskia prefers.
+- **A/B test for voseo vs tuteo** — measure which one the operator prefers.
 
 ## Counter-hats to invite
 
-- **Business SME (Saskia)** — she's the only one who can validate "nativo".
+- **Business SME (the operator)** — she's the only one who can validate "nativo".
 - **Accessibility Reviewer** — Spanish ARIA labels should be consistent with visible text.
 
 ---
@@ -412,7 +412,7 @@ Doc Curator           ─── owns AGENTS, README, user-guide, decisions
 
 **Primary domains:** H (Infra)
 **Owns:** deploy_dry_run, env_audit, cron_safety
-**Persona:** Owns the live VPS at `saskia-vps.paragu-ai.com`. Tests every deploy manually.
+**Persona:** Owns the live VPS at `sazon-vps.paragu-ai.com`. Tests every deploy manually.
 
 ## This week
 
@@ -492,7 +492,7 @@ Doc Curator           ─── owns AGENTS, README, user-guide, decisions
 
 ---
 
-# Hat 11 — Business / Domain SME (Saskia)
+# Hat 11 — Business / Domain SME (the operator)
 
 > "Make tests match reality of a panadería."
 
@@ -502,7 +502,7 @@ Doc Curator           ─── owns AGENTS, README, user-guide, decisions
 
 ## This week
 
-1. **Manual smoke test** (1h) — log in to https://saskia-vps.paragu-ai.com, perform the daily routine: open dashboard, register a sale, register a pedido, complete EOD. Note any glitch.
+1. **Manual smoke test** (1h) — log in to https://sazon-vps.paragu-ai.com, perform the daily routine: open dashboard, register a sale, register a pedido, complete EOD. Note any glitch.
 2. **Review the user-guide** (2h) — `docs/user-guide/` — 20 chapters, each page has the actual UI. Anything wrong? Submit a feedback note per chapter.
 
 ## This quarter
@@ -567,7 +567,7 @@ Doc Curator           ─── owns AGENTS, README, user-guide, decisions
 ## Counter-hats to invite
 
 - **QA Engineer** — test docstrings make tests self-documenting.
-- **Business SME (Saskia)** — her feedback becomes user-guide updates.
+- **Business SME (the operator)** — her feedback becomes user-guide updates.
 
 ---
 
@@ -586,7 +586,7 @@ Localization Copy Reviewer               |    |    |  ● |  ● |    |  ● |  
 Data Quality / Analytics Reviewer        |  ● |    |    |    |  ● |    |    |
 Operator (Ivan)                          |    |    |    |    |    |    |    |  ●
 Code Quality / Refactorer                |    |  ● |  ● |  ● |    |  ● |    |
-Business SME (Saskia)                    |    |    |    |  ● |  ● |    |    |
+Business SME (the operator)                    |    |    |    |  ● |  ● |    |    |
 Documentation Curator                    |    |    |    |    |    |    |    |
 ```
 
@@ -619,7 +619,7 @@ This is the **hat playbook**: who's responsible for what, with concrete wishlist
 
 1. **Single owner or shared?** — Many hats have overlap (e.g., QA + Code Quality on factories). Default: primary hat owns, others review.
 2. **Cadence per hat** — How often does each hat "fire"? Weekly, monthly, per-PR?
-3. **Saskia's role** — She's the Business SME hat, but also the user. Decision: hat receives the user-aspective; her feedback goes to the QA hat.
+3. **the operator's role** — She's the Business SME hat, but also the user. Decision: hat receives the user-aspective; her feedback goes to the QA hat.
 4. **Wishes vs reality** — some wishlists are wishful (e.g., full mutation testing). Phase by impact.
 
 ---

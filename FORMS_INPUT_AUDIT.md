@@ -1,4 +1,4 @@
-# Saskia RMS — Form & Input Audit (2026-09-23)
+# Sazón — Form & Input Audit (2026-09-23)
 
 ## Input types in use across the app
 
@@ -11,7 +11,7 @@
 | `<input type="hidden">` | Many | Used by combos for value storage |
 | `<textarea>` | Notes, audit, descriptions | rows="2-4" mostly |
 | `<select>` | Almost none! | **0 native selects in entire codebase** — everything is custom combo or text |
-| `saskia-combo` | Recipe line items, customer picker, family, etc. | Custom widget, good UX |
+| `ui-combo` | Recipe line items, customer picker, family, etc. | Custom widget, good UX |
 | Tag picker (NEW) | Categoría + Etiquetas + Etiquetas dietarias | Pre-made pills + custom add |
 
 ## Problems identified

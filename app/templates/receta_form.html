@@ -308,7 +308,7 @@
       {% if mode == 'edit' and recipe and recipe.yield_qty %}
       <div class="form-row">
         <label for="scale_combo">Escalar rendimiento</label>
-        <saskia-combo name="scale"
+        <ui-combo name="scale"
                       value="{{ scale_factor }}"
                       display="{{ scale_factor }}x"
                       placeholder="1x"
@@ -318,7 +318,7 @@
                         {% set _ = _scale_src.append({'label': m|string + 'x', 'value': m|string}) %}
                       {% endfor %}
                       src='{{ _scale_src | tojson }}'
-                      data-id="scale_combo"></saskia-combo>
+                      data-id="scale_combo"></ui-combo>
         <small class="muted">Rinde escalado: {{ "%.2f"|format(recipe.yield_qty * scale_factor) }} {{ recipe.yield_unit }}</small>
       </div>
       {% endif %}
@@ -650,7 +650,7 @@
 .recipe-lines-table thead th.line-col-type { width: 150px; }
 .recipe-lines-table thead th.line-col-qty { width: 110px; }
 .recipe-lines-table thead th.line-col-unit { width: 110px; }
-.recipe-lines-table saskia-combo { min-width: 100px; }
+.recipe-lines-table ui-combo { min-width: 100px; }
 .recipe-lines-table thead th.line-col-cost { width: 130px; }
 .recipe-lines-table thead th.line-col-action { width: 50px; }
 .recipe-lines-table thead th {
@@ -933,10 +933,10 @@
   // Wire computeCosts to user interactions (qty/unit/kind changes)
   document.querySelectorAll('#lines').forEach(function(tbody) {
     tbody.addEventListener('input', function(e) {
-      if (e.target.matches('input[name="line_qty"], saskia-combo')) computeCosts();
+      if (e.target.matches('input[name="line_qty"], ui-combo')) computeCosts();
     });
     tbody.addEventListener('change', function(e) {
-      if (e.target.matches('saskia-combo')) computeCosts();
+      if (e.target.matches('ui-combo')) computeCosts();
     });
   });
   var yieldQtyEl = document.getElementById('yield_qty');
@@ -952,22 +952,22 @@
       row.dataset.kind = 'ingredient';
       row.innerHTML = `
         <td class="line-col-type">
-          <saskia-combo name="line_kind" value="ingredient" display="Insumo" placeholder="Tipo"
-            src='[{"label":"Insumo","value":"ingredient"},{"label":"Sub-receta","value":"sub_recipe"}]'></saskia-combo>
+          <ui-combo name="line_kind" value="ingredient" display="Insumo" placeholder="Tipo"
+            src='[{"label":"Insumo","value":"ingredient"},{"label":"Sub-receta","value":"sub_recipe"}]'></ui-combo>
         </td>
         <td class="line-col-item">
-          <saskia-combo name="line_target_id" placeholder="Buscar ingrediente…"
+          <ui-combo name="line_target_id" placeholder="Buscar ingrediente…"
             endpoint="/inventario/api/search?q="
             data-source="/inventario/api/search"
-            value-field="id" label-field="name"></saskia-combo>
+            value-field="id" label-field="name"></ui-combo>
         </td>
         <td class="line-col-qty">
           <input type="number" step="0.001" min="0" name="line_qty"
                  class="line-qty-input" value="" placeholder="0.000">
         </td>
         <td class="line-col-unit">
-          <saskia-combo name="line_unit" value="g" display="g" placeholder="g"
-            src='[{"label":"g","value":"g"},{"label":"kg","value":"kg"},{"label":"ml","value":"ml"},{"label":"l","value":"l"},{"label":"und","value":"und"}]'></saskia-combo>
+          <ui-combo name="line_unit" value="g" display="g" placeholder="g"
+            src='[{"label":"g","value":"g"},{"label":"kg","value":"kg"},{"label":"ml","value":"ml"},{"label":"l","value":"l"},{"label":"und","value":"und"}]'></ui-combo>
         </td>
         <td class="line-col-cost">
           <span class="line-cost-display" data-cost-per-unit="0">Gs. 0</span>
@@ -986,24 +986,24 @@
       tbody.appendChild(row);
       // Web Components register themselves on connectedCallback. Force-
       // upgrade any combos already in the DOM (e.g. from innerHTML) by
-      // re-creating them with `new SaskiaCombo()` so each gets its
+      // re-creating them with `new UICombo()` so each gets its
       // attributes parsed and event handlers attached.
       // Force-upgrade combos in the freshly-appended row by re-creating them
-      // with `new SaskiaCombo()` so each gets its attributes parsed and
+      // with `new UICombo()` so each gets its attributes parsed and
       // event handlers attached on the new instance.
-      // (See /static/saskia-combo.js for the class definition.)
-      var newCombos = row.querySelectorAll('saskia-combo');
+      // (See /static/ui-combo.js for the class definition.)
+      var newCombos = row.querySelectorAll('ui-combo');
       newCombos.forEach(function(oldCombo) {
-        var newSaskiaCombo = document.createElement('saskia-combo');
+        var newUICombo = document.createElement('ui-combo');
         for (var i = 0; i < oldCombo.attributes.length; i++) {
           var a = oldCombo.attributes[i];
-          newSaskiaCombo.setAttribute(a.name, a.value);
+          newUICombo.setAttribute(a.name, a.value);
         }
-        oldCombo.replaceWith(newSaskiaCombo);
+        oldCombo.replaceWith(newUICombo);
       });
       initLineRow && initLineRow(row);
       // Web Components auto-init on connectedCallback; wire change handlers for cost calc
-      var combos = row.querySelectorAll('saskia-combo');
+      var combos = row.querySelectorAll('ui-combo');
       combos.forEach(function(c) {
         c.addEventListener('change', function() { computeCosts(); });
       });
@@ -1096,7 +1096,7 @@
   document.getElementById('lines').addEventListener('change', updateTagPreview);
   document.getElementById('lines').addEventListener('change', function(e) {
     // Recompute costs on any combo or input change inside a line row
-    if (e.target.matches('saskia-combo, input, select, textarea')) {
+    if (e.target.matches('ui-combo, input, select, textarea')) {
       computeCosts();
     }
   });
@@ -1105,8 +1105,8 @@
   });
   updateTagPreview();
 
-  // ---------- Post-migration shim: saskia-combo Web Component bridge ----------
-  // After migrating from legacy .saskia-combo divs to <saskia-combo> elements,
+  // ---------- Post-migration shim: ui-combo Web Component bridge ----------
+  // After migrating from legacy .ui-combo divs to <ui-combo> elements,
   // the Web Component dispatches 'change' on selection. Wire line-kind combos
   // to swap target endpoint (sub_recipe ↔ ingrediente) via attribute.
 
@@ -1120,7 +1120,7 @@
   // depending on the row's current line_kind. Called by wireLineKindHandlers
   // on every kind change, and by row initialization.
   function updateLineSource(row, kind) {
-    var targetCombo = row.querySelector('saskia-combo[name="line_target_id"]');
+    var targetCombo = row.querySelector('ui-combo[name="line_target_id"]');
     if (!targetCombo) return;
     if (kind === 'sub_recipe') {
       targetCombo.setAttribute('endpoint', '/recetas/api/search?q=');
@@ -1135,8 +1135,8 @@
   function wireLineKindHandlers() {
     var rows = document.querySelectorAll('#lines .line-row');
     rows.forEach(function(row) {
-      var kindCombo = row.querySelector('saskia-combo[name="line_kind"]');
-      var targetCombo = row.querySelector('saskia-combo[name="line_target_id"]');
+      var kindCombo = row.querySelector('ui-combo[name="line_kind"]');
+      var targetCombo = row.querySelector('ui-combo[name="line_target_id"]');
       if (!kindCombo || !targetCombo) return;
       if (kindCombo._saskiaBridged) return;
       kindCombo._saskiaBridged = true;
@@ -1291,8 +1291,8 @@ function handleValidation(inputEl, event) {
 // item combo's search endpoint to match (inventario vs recetas).
 function bridgeLineKindCombos(root) {
   (root || document).querySelectorAll('.line-row').forEach(function(row) {
-    var kind = row.querySelector('saskia-combo[name="line_kind"]');
-    var item = row.querySelector('saskia-combo[name="line_target_id"]');
+    var kind = row.querySelector('ui-combo[name="line_kind"]');
+    var item = row.querySelector('ui-combo[name="line_target_id"]');
     if (!kind || !item) return;
     var apply = function() {
       var v = kind.getAttribute('value') || kind.value || 'ingredient';

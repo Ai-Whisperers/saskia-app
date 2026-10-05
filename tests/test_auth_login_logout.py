@@ -79,8 +79,8 @@ def test_post_logout_clears_session_cookie(client):
     r = client.post("/logout", follow_redirects=False)
     # Check Set-Cookie header (may or may not be present)
     set_cookie = r.headers.get("set-cookie", "")
-    # Should contain saskia_rms_session with max-age=0 or expires= epoch
-    if "saskia_rms_session" in set_cookie.lower():
+    # Should contain sazon_session with max-age=0 or expires= epoch
+    if "sazon_session" in set_cookie.lower():
         assert "max-age=0" in set_cookie.lower() or "expires=" in set_cookie.lower(), (
             f"Session cookie not cleared on logout: {set_cookie}"
         )

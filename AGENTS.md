@@ -1,17 +1,17 @@
-# AGENTS.md — Saskia RMS app repo (build instructions)
+# AGENTS.md — Sazón app repo (build instructions)
 
 Read this BEFORE writing code in this repo.
 
 ## What this repo is
 
-**`Ai-Whisperers/saskia-app`** is the source code for the RMS fase 1 app —
+**`Ai-Whisperers/sazon-app`** is the source code for the RMS fase 1 app —
 the restaurant management system. Supports **two deployment modes**:
 
-- **Local-first** (legacy): single-user install on Saskia's PC, binds to
+- **Local-first** (legacy): single-user install on the operator's PC, binds to
   `127.0.0.1`, SQLite, no third-party SaaS.
 - **Hosted** (since 2026-09-24): VPS at paragu-ai (ServaRica), Docker
   Swarm + Traefik + Cloudflare DNS-01. Active URL:
-  https://saskia-vps.paragu-ai.com. Render.com was the prior hosted
+  https://sazon-vps.paragu-ai.com. Render.com was the prior hosted
   target (2026-09-02 → 2026-09-23) but is now DEPRECATED — see
   `docs/operations/2026-09-24-deployment.md` and `render.yaml` header.
 
@@ -23,7 +23,7 @@ writing any code.
 
 **Kiki** (or whoever builds) reads this to write code.
 **Operator (Ivan)** reads the docs to verify build progress.
-**Saskia** does NOT read this. She uses the installed app.
+**the operator** does NOT read this. She uses the installed app.
 
 ## Build brief
 
@@ -60,7 +60,7 @@ Per `docs/operations/2026-09-tech-stack-review.md`:
    in `Decimal`; round to `int` only when writing to the DB.
 4. **Integer Gs. in the DB.** Money columns are `int`, not `Decimal`.
 5. **Paraguayan Spanish only.** All UI strings from `app/docs/copy-vos.md`
-   (or `saskia-context/docs/operations/copy-vos-request.md`). No Argentine,
+   (or `sazon-context/docs/operations/copy-vos-request.md`). No Argentine,
    no Mexican, no English-only.
 6. **Spanish (vos) form for verb conjugations.** "Guardá", not "Salvá".
 7. **Bind to `127.0.0.1` for local; `0.0.0.0` allowed for hosted.**
@@ -69,7 +69,7 @@ Per `docs/operations/2026-09-tech-stack-review.md`:
    Cloudflare Tunnel and the port is not reachable from the public internet.
 8. **WAL mode + secure_delete = ON.** Set in `app/rms/db.py` event listener.
 9. **No live customer PII.** The app doesn't have a customer table;
-   if you add one, follow AGENTS.md rule #4 of `saskia-context`.
+   if you add one, follow AGENTS.md rule #4 of `sazon-context`.
 10. **No silent overwrite.** Every mass-write (import, re-import) requires
     explicit user confirmation; auto-backup before destructive ops.
 11. **Never commit credentials.** Pre-commit hook `check-no-secrets` blocks
@@ -102,7 +102,7 @@ GitHub Actions runs on every PR to `main`:
 - `ruff format --check .`
 - `pytest --cov=app` (80% coverage gate)
 - Typer check (informational; not blocking yet)
-- `aiw-saskia migrate` smoke test (fresh SQLite)
+- `sazon migrate` smoke test (fresh SQLite)
 - CHANGELOG discipline check (fails PR if `app/`, `scripts/`, `tests/`, or
   `.github/` changed but `app/CHANGELOG.md` did not)
 
@@ -140,7 +140,7 @@ codes like `E1.S2` are for epic+story (e.g. `E3.S1` = Epic 3, Story 1).
 File naming: `SASKIA-NNN-<short-slug>.md`.
 
 The full epic plan (25 epics, 6 phases, ~268h) lives at
-`docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md`. Pick from
+`docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md`. Pick from
 there.
 
 Ticket template:
@@ -176,7 +176,7 @@ Ticket template:
 
 | Repo | What | When to read |
 |---|---|---|
-| `Ai-Whisperers/saskia-context` | Saskia's data + engagement | When you need OPSEC context, who she is, what she asked for |
+| `Ai-Whisperers/sazon-context` | the operator's data + engagement | When you need OPSEC context, who she is, what she asked for |
 | `Ai-Whisperers/saskia` (legacy, archived) | Original engagement | Historical reference only; new work doesn't go here |
 
 ## When in doubt

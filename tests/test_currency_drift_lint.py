@@ -132,7 +132,7 @@ def test_workflow_file_exists():
     ],
 )
 def test_kpi_card_adoptions_use_format_gs(template):
-    """All three pages that adopted <saskia-kpi-card> in Session A must still
+    """All three pages that adopted <ui-kpi-card> in Session A must still
     use format_gs (m.gs_full or m.gs) for any currency rendering."""
     text = (REPO / template).read_text(encoding="utf-8")
     if template == "app/templates/bank.html":
@@ -144,7 +144,7 @@ def test_kpi_card_adoptions_use_format_gs(template):
 
 
 def test_kpi_card_host_is_block_in_grid():
-    """<saskia-kpi-card> custom elements default to display:inline, which
+    """<ui-kpi-card> custom elements default to display:inline, which
     breaks CSS Grid row-height alignment. The fix is two layered rules:
       (1) host: display:block + height:100% so the custom element participates
           as a real block-level grid item and fills the row track.
@@ -154,8 +154,8 @@ def test_kpi_card_host_is_block_in_grid():
     Flagged by the Session A screenshot subagent on the second pass."""
     css = (REPO / "app/static/app-components.css").read_text(encoding="utf-8")
     # Layer 1: host rule
-    assert "saskia-kpi-card" in css, "custom-element host rule missing — grid rows will misalign"
-    assert "saskia-kpi-card {" in css and "display: block" in css, (
+    assert "ui-kpi-card" in css, "custom-element host rule missing — grid rows will misalign"
+    assert "ui-kpi-card {" in css and "display: block" in css, (
         "host must be display:block (not inline)"
     )
     # Layer 2: inner card fills host

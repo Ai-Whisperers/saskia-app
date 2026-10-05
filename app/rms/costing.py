@@ -121,7 +121,7 @@ def _walk_recipe_cost(
     lines = session.scalars(select(RecipeLine).where(RecipeLine.recipe_id == recipe.id)).all()
 
     for line in lines:
-        # Phase B — T1: line_unit is the unit Saskia typed the qty in.
+        # Phase B — T1: line_unit is the unit the operator typed the qty in.
         # Default to the linked ingredient's unit (backward compat for
         # legacy rows with line_unit=''). normalize_recipe_line_qty raises
         # ValueError on cross-family conversion (g→l, etc.) — the costing
@@ -620,8 +620,8 @@ def void_sale(
         raise ValueError(f"Sale {sale_id} ya anulada")
 
     # P0 cerrar-puertas: block void after EOD close (accounting violation).
-    # The roadmap (saskia-only-roadmap.md, 2026-09-29) flagged this as a
-    # critical gap: Saskia could void a Monday sale on Wednesday AFTER
+    # The roadmap (sazon-only-roadmap.md, 2026-09-29) flagged this as a
+    # critical gap: the operator could void a Monday sale on Wednesday AFTER
     # closing Monday's books. The router translates this to a clean
     # Spanish user-facing message via the Conflict exception.
     sale_date = sale.sold_at.date() if sale.sold_at else None

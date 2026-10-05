@@ -544,7 +544,7 @@ async def dashboard(
                 vencer_48h_gs += int(f.value_at_risk_gs or 0)
     except Exception as exc:  # noqa: BLE001 — defensive default
         # Defensive: dashboard never fails because of analytics math.
-        # Logged at debug so it's traceable in saskia.log without spamming.
+        # Logged at debug so it's traceable in sazon.log without spamming.
         logger.debug("dashboard expiry scan skipped: {}", exc)
 
     # Costs completeness for the "provisional" pill

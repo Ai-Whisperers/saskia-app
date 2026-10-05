@@ -172,7 +172,7 @@ clic en "Compartir" genera uno nuevo (así podés rotarlo si te
 equivocaste). Para anular una venta, andá a **Anular venta** arriba —
 el recibo compartido devolverá 410 Gone.
 
-> **PedidosYa maneja su propio recibo** — Saskia comparte el tuyo
+> **PedidosYa maneja su propio recibo** — the operator comparte el tuyo
 > cuando el pedido vino por mostrador/WhatsApp. Para pedidos PedidosYa,
 > el recibo del cliente se lo manda PedidosYa.
 

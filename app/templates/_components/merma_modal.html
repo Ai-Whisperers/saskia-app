@@ -2,7 +2,7 @@
      PRO-MERMA (2026-09-30): registrar una merma tomaba 2 páginas y 4 clics
      (/inventario → detalle → /merma → form). Ahora: botón en cada fila del
      inventario → modal → POST /merma/registrar (misma ruta del módulo merma,
-     con qty_unit para que Gaby escriba "50" g en vez de 0.05 kg). -->
+     con qty_unit para que el operador ingrese "50" g en vez de 0.05 kg). -->
 <dialog id="merma-modal" class="modal" aria-labelledby="merma-title" aria-modal="true">
   <div class="modal-dialog">
     <div class="modal-header">
@@ -22,14 +22,14 @@
         <div class="form-row">
           <label for="merma-qty">Cantidad</label>
           <input type="number" step="0.01" min="0.01" id="merma-qty" name="qty" required placeholder="Ej: 50">
-          <select name="qty_unit" id="merma-qty-unit" aria-label="Unidad" style="max-width:9rem" data-saskia-combo>
+          <select name="qty_unit" id="merma-qty-unit" aria-label="Unidad" style="max-width:9rem" data-ui-combo>
             <option value="">— unidad —</option>
           </select>
           <small id="merma-unit-hint" class="muted"></small>
         </div>
         <div class="form-row">
           <label for="merma-reason">Motivo</label>
-          <select name="reason" id="merma-reason" required data-saskia-combo>
+          <select name="reason" id="merma-reason" required data-ui-combo>
             <option value="vencida">Vencida</option>
             <option value="quemada">Quemada</option>
             <option value="derrame">Derrame</option>

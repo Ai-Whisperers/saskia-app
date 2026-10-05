@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# deploy.sh — one-command deploy of local main to the saskia-vps prod swarm.
+# deploy.sh — one-command deploy of local main to the sazon-vps prod swarm.
 # Usage: ./scripts/deploy.sh [--dry-run] [--repo=PATH]
 #
 # Flags:
 #   --dry-run     Print each step without making any network calls or
 #                 running remote commands. Exits 0 on success.
-#   --repo=PATH   Override the source repo (default: /opt/data/work/saskia-app).
+#   --repo=PATH   Override the source repo (default: /opt/data/work/sazon-app).
 #                 In --dry-run mode this MUST be set so tests can point
 #                 at a fixture repo.
 #
 # Requires: ssh access to root@38.9.96.179 via /opt/data/.ssh/id_ed25519
 set -euo pipefail
 
-REPO=/opt/data/work/saskia-app
+REPO=/opt/data/work/sazon-app
 KEY=/opt/data/.ssh/id_ed25519
 VPS=root@38.9.96.179
-REMOTE_DIR=/opt/build-apps/saskia-rms
+REMOTE_DIR=/opt/build-apps/sazon-rms
 DRY_RUN=0
 
 for arg in "$@"; do
@@ -55,7 +55,7 @@ fi
 echo "==> HEAD: $(git log --oneline -1)"
 
 # 1. sync source
-TAR_FILE=/tmp/saskia-src.tar.gz
+TAR_FILE=/tmp/sazon-src.tar.gz
 if [ "$DRY_RUN" = "1" ]; then
   echo "DRY: tar --exclude=... -czf $TAR_FILE ."
 else
@@ -68,7 +68,7 @@ run scp -q -i "$KEY" -o StrictHostKeyChecking=no "$TAR_FILE" "$VPS:/tmp/"
 
 # 2. extract + sanity: the tree must contain what we think we shipped
 run ssh -i "$KEY" -o StrictHostKeyChecking=no "$VPS" \
-    "rm -rf $REMOTE_DIR && mkdir -p $REMOTE_DIR && tar xzf /tmp/saskia-src.tar.gz -C $REMOTE_DIR/ && rm /tmp/saskia-src.tar.gz"
+    "rm -rf $REMOTE_DIR && mkdir -p $REMOTE_DIR && tar xzf /tmp/sazon-src.tar.gz -C $REMOTE_DIR/ && rm /tmp/sazon-src.tar.gz"
 
 LOCAL_MD5=$(md5sum app/rms/main.py | cut -d' ' -f1)
 if [ "$DRY_RUN" = "1" ]; then
@@ -82,18 +82,18 @@ echo "==> sync verified (main.py md5 match)"
 
 # 3. build (DOCKER_BUILDKIT=0: buildkit caches COPY app even with --no-cache) + swap
 run ssh -i "$KEY" -o StrictHostKeyChecking=no "$VPS" \
-    "cd $REMOTE_DIR && DOCKER_BUILDKIT=0 docker build --no-cache -t saskia-rms:prod -f Dockerfile . 2>&1 | tail -2 && docker service update --image saskia-rms:prod saskia-vps_web --force 2>&1 | tail -1"
+    "cd $REMOTE_DIR && DOCKER_BUILDKIT=0 docker build --no-cache -t sazon-rms:prod -f Dockerfile . 2>&1 | tail -2 && docker service update --image sazon-rms:prod sazon-vps_web --force 2>&1 | tail -1"
 
 # 4. verify
 if [ "$DRY_RUN" = "1" ]; then
-  echo "DRY: would curl https://saskia-vps.paragu-ai.com/healthz (skipping network)"
+  echo "DRY: would curl https://sazon-vps.paragu-ai.com/healthz (skipping network)"
   echo "DRY-RESULT: deploy would have been initiated successfully"
   exit 0
 fi
 sleep 8
-HEALTH=$(curl -s --max-time 15 https://saskia-vps.paragu-ai.com/healthz || true)
+HEALTH=$(curl -s --max-time 15 https://sazon-vps.paragu-ai.com/healthz || true)
 echo "==> healthz: $HEALTH"
 case "$HEALTH" in
   *'"ok"'*) echo "DEPLOY OK: $(git log --oneline -1)";;
-  *) echo "DEPLOY WARNING: health check did not return ok — inspect: ssh $VPS 'docker service ps saskia-vps_web'"; exit 1;;
+  *) echo "DEPLOY WARNING: health check did not return ok — inspect: ssh $VPS 'docker service ps sazon-vps_web'"; exit 1;;
 esac

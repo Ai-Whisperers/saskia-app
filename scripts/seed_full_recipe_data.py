@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-shot seed pass for the live Saskia RMS DB.
+"""One-shot seed pass for the live Sazón DB.
 
 Fixes four production-visible gaps discovered in 2026-09-29 session:
 
@@ -24,7 +24,7 @@ INSERT-or-skip via existing-row checks, so re-running it is safe.
 
 Run with::
 
-    AIW_SASKIA_DB_PATH=/opt/data/.local/share/AIW-Saskia/rms.sqlite \\
+    AIW_RMS_DB_PATH=/opt/data/.local/share/aiw-restaurant/rms.sqlite \\
         ./.venv/bin/python scripts/seed_full_recipe_data.py
 """
 
@@ -752,8 +752,8 @@ def _run_cascade_refresh(session: Any) -> int:
 
 
 def main() -> None:
-    db_path = os.environ.get("AIW_SASKIA_DB_PATH", "/opt/data/.local/share/AIW-Saskia/rms.sqlite")
-    os.environ["AIW_SASKIA_DB_PATH"] = db_path
+    db_path = os.environ.get("AIW_RMS_DB_PATH", "/opt/data/.local/share/aiw-restaurant/rms.sqlite")
+    os.environ["AIW_RMS_DB_PATH"] = db_path
 
     engine = make_engine()
     init_db(engine)

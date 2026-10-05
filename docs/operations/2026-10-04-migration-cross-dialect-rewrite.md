@@ -9,7 +9,7 @@
 
 ## Why this project exists
 
-The saskia-app migration chain (83 functions in `app/rms/db.py`,
+The sazon-app migration chain (83 functions in `app/rms/db.py`,
 1-99) was written for SQLite first. The `app/rms/db.py:init_db()`
 function calls them in order on every app start. On SQLite, this works
 correctly: each migration is dialect-aware enough for SQLite, the
@@ -127,9 +127,9 @@ postgres-test:
     postgres:
       image: postgres:16-alpine
       env:
-        POSTGRES_USER: saskia
-        POSTGRES_PASSWORD: saskia
-        POSTGRES_DB: saskia
+        POSTGRES_USER: sazon
+        POSTGRES_PASSWORD: sazon
+        POSTGRES_DB: sazon
       ports: ['5432:5432']
   steps:
     - uses: actions/checkout@v7
@@ -138,7 +138,7 @@ postgres-test:
         uv run python -c "
         from app.rms.db import init_db
         from sqlalchemy import create_engine
-        init_db(create_engine('postgresql+psycopg://saskia:saskia@localhost:5432/saskia'))
+        init_db(create_engine('postgresql+psycopg://sazon:sazon@localhost:5432/saskia'))
         "
     - run: uv run pytest -n auto --no-cov
 ```

@@ -4,7 +4,7 @@ Previously csrf_cookie_middleware always set Secure=True, which made
 local-dev POSTs (plain HTTP) return 403 because browsers wouldn't
 store the cookie.
 
-Fix: Secure flag is now opt-in via AIW_SASKIA_FORCE_SECURE_COOKIES=1.
+Fix: Secure flag is now opt-in via AIW_RMS_FORCE_SECURE_COOKIES=1.
 Render (HTTPS) sets it; local dev doesn't.
 """
 
@@ -43,7 +43,7 @@ def test_csrf_middleware_path_filter():
 
 
 def test_csrf_forced_secure_flag_via_env(monkeypatch):
-    """When AIW_SASKIA_FORCE_SECURE_COOKIES=1 is set, cookie has Secure flag."""
+    """When AIW_RMS_FORCE_SECURE_COOKIES=1 is set, cookie has Secure flag."""
     import sys
 
     # Reload csrf module to capture env change.
@@ -52,22 +52,22 @@ def test_csrf_forced_secure_flag_via_env(monkeypatch):
             if mod == "app.rms.csrf":
                 del sys.modules[mod]
 
-    monkeypatch.setenv("AIW_SASKIA_FORCE_SECURE_COOKIES", "1")
+    monkeypatch.setenv("AIW_RMS_FORCE_SECURE_COOKIES", "1")
 
     import os
 
     from app.rms.csrf import csrf_cookie_middleware  # noqa: F401
 
     # Now check that the middleware would set Secure=True.
-    val = os.getenv("AIW_SASKIA_FORCE_SECURE_COOKIES") == "1"
+    val = os.getenv("AIW_RMS_FORCE_SECURE_COOKIES") == "1"
     assert val is True
 
 
 def test_csrf_no_force_secure_flag_default(monkeypatch):
     """Default (no env var): Secure flag is False (local dev compatible)."""
-    monkeypatch.delenv("AIW_SASKIA_FORCE_SECURE_COOKIES", raising=False)
+    monkeypatch.delenv("AIW_RMS_FORCE_SECURE_COOKIES", raising=False)
 
     import os
 
-    val = os.getenv("AIW_SASKIA_FORCE_SECURE_COOKIES") == "1"
+    val = os.getenv("AIW_RMS_FORCE_SECURE_COOKIES") == "1"
     assert val is False

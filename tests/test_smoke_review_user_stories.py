@@ -1,4 +1,4 @@
-"""Saskia review smoke test — 8 user-story scenarios from the 18 Sept 2026 review.
+"""the operator review smoke test — 8 user-story scenarios from the 18 Sept 2026 review.
 
 Each numbered scenario covers one of the 8 smoke steps the review defines
 (see `docs/operations/2026-09-22-review-tickets-analysis.md` §QA.Smoke).

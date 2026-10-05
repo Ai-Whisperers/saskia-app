@@ -11,7 +11,7 @@ Both fields are part of the CustomerPrefill dataclass (computed server-
 side in app/services/customer_prefill.py) and rendered client-side by
 static/pedido-prefill.js.
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_pedido_nuevo_tier_sub.py -v
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_pedido_nuevo_tier_sub.py -v
 """
 
 from __future__ import annotations
@@ -254,7 +254,7 @@ def test_pedido_prefill_js_has_tier_and_sub_renderers() -> None:
     """static/pedido-prefill.js exports the Tier 6.4 render functions."""
     from pathlib import Path
 
-    p = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/pedido-prefill.js")
+    p = Path("/opt/data/profiles/ivan/scratch/sazon-app-work/app/static/pedido-prefill.js")
     text = p.read_text(encoding="utf-8")
     assert "function renderTierBadge" in text, "pedido-prefill.js must export renderTierBadge()"
     assert "function renderSubscriptionPicker" in text, (

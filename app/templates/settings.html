@@ -6,7 +6,7 @@
 
 {% block head %}
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Configuración del sistema Saskia RMS">
+<meta name="description" content="Configuración del sistema Sazón">
 {% endblock %}
 
 {% block content %}
@@ -41,7 +41,7 @@
     <div class="form-group">
       <label for="business_name">Nombre legal del negocio</label>
       <input type="text" id="business_name" name="business_name" 
-             value="{{ business_name }}" placeholder="Ejemplo: Panadería Saskia S.A." required aria-label="Nombre legal del negocio">
+             value="{{ business_name }}" placeholder="Ejemplo: Mi Negocio S.A." required aria-label="Nombre legal del negocio">
     </div>
     
     <div class="form-group">
@@ -69,12 +69,12 @@
 
     <div class="form-group">
       <label for="razon_social">Razón social</label>
-      <input type="text" id="razon_social" name="razon_social" value="{{ compliance.razon_social or business_name }}" placeholder="Ej: Panadería Saskia S.A." aria-label="Razón social">
+      <input type="text" id="razon_social" name="razon_social" value="{{ compliance.razon_social or business_name }}" placeholder="Ej: Mi Negocio S.A." aria-label="Razón social">
     </div>
 
     <div class="form-group">
       <label for="nombre_fantasia">Nombre de fantasía</label>
-      <input type="text" id="nombre_fantasia" name="nombre_fantasia" value="{{ compliance.nombre_fantasia or business_name }}" placeholder="Ej: Saskia Panadería" aria-label="Nombre de fantasía">
+      <input type="text" id="nombre_fantasia" name="nombre_fantasia" value="{{ compliance.nombre_fantasia or business_name }}" placeholder="Ej: Mi Panadería" aria-label="Nombre de fantasía">
     </div>
 
     <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">Régimen tributario (DNIT / SET)</h3>
@@ -113,7 +113,7 @@
 
     <div class="form-group">
       <label for="timbrado_expiry">Vencimiento del timbrado</label>
-      <saskia-date id="timbrado_expiry" name="timbrado_expiry" value="{{ compliance.timbrado_expiry or '' }}"></saskia-date>
+      <ui-date id="timbrado_expiry" name="timbrado_expiry" value="{{ compliance.timbrado_expiry or '' }}"></ui-date>
     </div>
 
     <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">INAN — Registro de Establecimiento (R.E.)</h3>
@@ -127,7 +127,7 @@
 
     <div class="form-group">
       <label for="inan_re_expiry">Vencimiento R.E.</label>
-      <saskia-date id="inan_re_expiry" name="inan_re_expiry" value="{{ compliance.inan_re_expiry or '' }}"></saskia-date>
+      <ui-date id="inan_re_expiry" name="inan_re_expiry" value="{{ compliance.inan_re_expiry or '' }}"></ui-date>
       <small>Vigencia 5 años. Te avisamos 30 días antes.</small>
     </div>
 
@@ -154,7 +154,7 @@
 
     <div class="form-group">
       <label for="municipal_habilitacion_expiry">Vencimiento habilitación</label>
-      <saskia-date id="municipal_habilitacion_expiry" name="municipal_habilitacion_expiry" value="{{ compliance.municipal_habilitacion_expiry or '' }}"></saskia-date>
+      <ui-date id="municipal_habilitacion_expiry" name="municipal_habilitacion_expiry" value="{{ compliance.municipal_habilitacion_expiry or '' }}"></ui-date>
     </div>
 
     <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">Costeo (Fase 1.D)</h3>
@@ -345,7 +345,7 @@
   <div class="info-grid">
     <div>
       <strong>Versión</strong>
-      <div>Saskia RMS v1.0.0</div>
+      <div>Sazón v1.0.0</div>
     </div>
     <div>
       <strong>Sistema</strong>

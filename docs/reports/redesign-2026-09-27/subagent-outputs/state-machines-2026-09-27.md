@@ -1,8 +1,8 @@
-# Saskia RMS — State Machines & Workflow Document
+# Sazón — State Machines & Workflow Document
 
 **Author:** Subagent (delegated from Iván's design session)
 **Date:** 2026-09-27
-**Scope:** Formal state machines for the three core operational entities in Saskia RMS:
+**Scope:** Formal state machines for the three core operational entities in Sazón:
 1. **Pedido** (custom order lifecycle)
 2. **Stock Movement Ledger** (immutable inventory ledger)
 3. **Cierre de Caja** (cash-register day-end reconciliation)

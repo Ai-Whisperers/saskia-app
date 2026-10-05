@@ -1,6 +1,6 @@
 """tests/test_printer.py — verify app/rms/printer.py (E18).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E18.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E18.
 
 Covers:
 - ESC/POS payload is non-empty + contains INIT_PRINTER + PARTIAL_CUT
@@ -36,13 +36,13 @@ def test_format_receipt_text_contains_key_fields():
         qty=2.0,
         unit_price_gs=2500,
         total_gs=5000,
-        cashier="Saskia",
+        cashier="the operator",
     )
     assert "HEREBUS Bakery" in text
     assert "Recibo #42" in text
     assert "Muffin" in text
     assert "5,000 Gs" in text or "5.000 Gs" in text or "5000 Gs" in text
-    assert "Saskia" in text
+    assert "the operator" in text
     assert "Gracias" in text
 
 

@@ -82,7 +82,7 @@ repos:
 
       - id: lint-tier1
         name: template component conventions (lint_tier1.py)
-        # Enforces saskia-combo / saskia-date / saskia-toast usage over
+        # Enforces ui-combo / ui-date / ui-toast usage over
         # native date inputs, native confirm(), hand-rolled empty states.
         # Without this, new templates ship with inconsistent UX.
         # The 7 known violations are grandfathered in CI via --no-verify

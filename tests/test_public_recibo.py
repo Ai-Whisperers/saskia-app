@@ -173,7 +173,7 @@ def test_public_recibo_renders_in_public_mode(client, session_factory):
     # Operator-only "Volver al historial" link must NOT be present in public mode.
     assert "Volver al historial" not in body
     # Customer-facing footer MUST be present.
-    assert "Recibo digital" in body or "Saskia RMS" in body
+    assert "Recibo digital" in body or "Sazón" in body
     # Sale details still surface.
     assert f"#{sid}" in body
 

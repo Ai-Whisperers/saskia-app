@@ -1,6 +1,6 @@
 """Tier 2.3 (2026-10-01) — partial-refund + partial-points tests.
 
-Context: saskia-rms currently has NO partial-refund endpoint. ``void_sale``
+Context: sazon-rms currently has NO partial-refund endpoint. ``void_sale``
 voids the whole sale and ``reverse_points_for_void`` reverses ALL earn
 ledger rows tied to that sale. This is fine for the MVP (small shop,
 simple register) but it means a partial return has to be done by:

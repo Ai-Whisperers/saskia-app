@@ -1149,6 +1149,12 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
     rng = random.Random(42)
     report = SazonReport()
 
+    # Anchor date used by production completions, pedidos, bank
+    # transactions, and (elsewhere) the sales loop. We pin it to
+    # today-anchored-on-this-call so the natural-key dedup logic for all
+    # of these stays stable across re-runs of the same seed_sazon call.
+    seed_anchor_date = datetime.utcnow().date()
+
     if overwrite:
         _delete_sazon_data(session)
 
@@ -1723,7 +1729,11 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
     logger.info(f"seed: {report.production_templates} production templates")
 
     # === 21. Production completions (last 7 days for popular products) ===
-    today = date.today()
+    # Use seed_anchor_date (defined at top of seed_sazon) so the anchor is
+    # stable across re-runs of the same seed_sazon call. Without this,
+    # the (product_id, for_date) natural-key dedup would miss on re-runs
+    # and silently double the production completions.
+    today = seed_anchor_date
     for days_ago in range(7):
         d = today - timedelta(days=days_ago)
         for prod_name in ["Muffin de vainilla", "Muffin de chocolate", "Pan lactal",
@@ -1744,6 +1754,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
                         product_id=prod.id,
                         for_date=d,
                         completed_qty=qty,
+                        # Use anchor date for recorded_at (stable across re-runs)
                         recorded_at=datetime.combine(d, datetime.min.time()) + timedelta(hours=18),
                         status="done" if days_ago > 0 else "open",
                         notes="Cierre diario" if days_ago > 0 else None,
@@ -1852,9 +1863,27 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
     sale_rows: list[Sale] = []
     stock_move_rows: list[StockMovement] = []
 
+    # IMPORTANT: use a SEPARATE random instance for the sales loop so
+    # that re-runs (where the rest of the seeder is a no-op via
+    # `existing is not None` short-circuits) hit the same rng state at
+    # the start of the sales loop. The top-level `rng` advances a
+    # different amount in run 1 vs run 2 because skip-vs-do is
+    # asymmetric; a dedicated sales_rng with its own seed gives us
+    # deterministic, idempotent sales data.
+    sales_rng = random.Random(43)
+
+    # seed_anchor_date is defined at the top of seed_sazon (reused by
+    # production completions, pedidos, bank transactions, and sales).
+    # The sales loop computes day_start/day_end from sale_date which is
+    # already anchored to seed_anchor_date.
+
     BATCH_SIZE = 25
     for day_offset in range(days_of_history):
-        sale_date = datetime.utcnow() - timedelta(days=days_of_history - day_offset)
+        # day 0 = oldest, day (days_of_history-1) = the seed_anchor_date
+        sale_date = datetime.combine(
+            seed_anchor_date - timedelta(days=days_of_history - 1 - day_offset),
+            datetime.min.time(),
+        )
         weekday = sale_date.weekday()  # 0=Mon, 6=Sun
         # Volume skew: weekends +40%, payday +60%, otherwise baseline
         base_count = 8
@@ -1862,36 +1891,81 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
             base_count = math.ceil(base_count * 1.4)
         if sale_date.day in (1, 15):
             base_count = math.ceil(base_count * 1.6)
-        count = max(1, int(base_count + rng.randint(-2, 2)))
+        count = max(1, int(base_count + sales_rng.randint(-2, 2)))
 
-        for _ in range(count):
+        for sale_idx_in_day in range(count):
             # Pick a product — bias towards favorites for realism
             fav_products = [p for pn, p in product_objs_by_name.items() if p.is_favorite]
             if not fav_products:
                 fav_products = list(product_objs_by_name.values())
             # 70% favorites, 30% random
-            if rng.random() < 0.7 and fav_products:
-                product = rng.choice(fav_products)
+            if sales_rng.random() < 0.7 and fav_products:
+                product = sales_rng.choice(fav_products)
             else:
-                product = rng.choice(list(product_objs_by_name.values()))
+                product = sales_rng.choice(list(product_objs_by_name.values()))
 
             if product.sale_price_gs == 0:
                 # Venta libre — random price
-                unit_price = rng.randint(5000, 25000)
+                unit_price = sales_rng.randint(5000, 25000)
             else:
                 unit_price = product.sale_price_gs
 
-            hour = rng.choices(
+            hour = sales_rng.choices(
                 [8, 9, 10, 11, 14, 15, 16, 17, 18], weights=[3, 4, 4, 3, 4, 4, 3, 2, 1]
             )[0]
-            minute = rng.randint(0, 59)
-            sold_at = sale_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            qty = rng.choices([1, 2, 3, 6, 12], weights=[70, 15, 5, 5, 5])[0]
+            minute = sales_rng.randint(0, 59)
+            second = sales_rng.randint(0, 59)
+            sold_at = sale_date.replace(hour=hour, minute=minute, second=second, microsecond=0)
+            qty = sales_rng.choices([1, 2, 3, 6, 12], weights=[70, 15, 5, 5, 5])[0]
 
             # Random customer (70% of sales have a customer)
             cust = None
-            if rng.random() < 0.7 and customer_objs:
-                cust = rng.choice(customer_objs)
+            if sales_rng.random() < 0.7 and customer_objs:
+                cust = sales_rng.choice(customer_objs)
+
+            # Payment method is one more rng.choices — we advance it here
+            # *before* the dedup check so that re-runs that hit the dedup
+            # short-circuit still consume the same amount of rng as run 1.
+            # Without this, the rng state at the end of a dedup'd
+            # iteration differs from the original run, and the next slot
+            # picks a different product/customer/qty — which then can't
+            # dedup, so the loop spirals into the missing-45-sales bug.
+            payment_method = sales_rng.choices(
+                ["efectivo", "transferencia", "tarjeta", "qr"],
+                weights=[60, 15, 15, 10],
+            )[0]
+
+            # === Idempotency guard ===
+            # The sazon seeder is re-run in tests and dev rebuilds all the
+            # time. Without this, every re-run would add another ~890 sales
+            # and inflate the cash balance / KPIs.
+            #
+            # Idempotency strategy: the seeder is anchored to seed_anchor_date
+            # (the date this run started) so re-runs on the same day hit
+            # identical calendar dates. Then for each (day, product, qty,
+            # customer) tuple we check if a sale already exists; if so, we
+            # skip. This keeps the count and totals stable across re-runs
+            # of the same day. (Re-runs on a different day won't dedup —
+            # they create fresh sales anchored to the new day, which is
+            # the desired behavior for a "today's data" demo.)
+            day_start = sale_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_end = day_start + timedelta(days=1)
+            stable_customer_id = cust.id if cust else None
+            existing_sale = session.execute(
+                select(Sale).where(
+                    Sale.sold_at >= day_start,
+                    Sale.sold_at < day_end,
+                    Sale.product_id == product.id,
+                    Sale.qty == qty,
+                    Sale.customer_id == stable_customer_id,
+                )
+            ).scalars().first()
+            if existing_sale is not None:
+                # Already seeded a sale with this product+qty+customer on
+                # this day in a previous run — skip to keep totals stable.
+                # The rng was already advanced above so the next iteration
+                # stays in sync.
+                continue
 
             sale = Sale(
                 sold_at=sold_at,
@@ -1900,16 +1974,14 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
                 qty=qty,
                 unit_price_gs=unit_price,
                 notes=None,
-                payment_method=rng.choices(
-                    ["efectivo", "transferencia", "tarjeta", "qr"],
-                    weights=[60, 15, 15, 10],
-                )[0],
+                payment_method=payment_method,
                 discount_gs=0,
                 tz="America/Asuncion",
             )
             session.add(sale)
             session.flush()
             sale_rows.append(sale)
+            report.sales += 1
 
             # Stock movements for sales that have a recipe
             if product.recipe_id:
@@ -1954,39 +2026,77 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
     report.sales = len(sale_rows)
     report.stock_movements = len(stock_move_rows)
 
-    # One voided sale
+    # === 23b. Special sales (voided + encargo) — also idempotent ===
+    # These are hand-crafted and don't go through the rng-driven loop.
+    # Dedup by (sold_at, product_id, qty, customer_id, notes) so re-runs
+    # don't inflate the count.
     first_product = next(iter(product_objs_by_name.values()))
-    voided = Sale(
-        sold_at=datetime.utcnow() - timedelta(days=2, hours=4),
-        product_id=first_product.id,
-        qty=2,
-        unit_price_gs=first_product.sale_price_gs,
-        notes="Cliente cambió de opinión",
-        voided_at=datetime.utcnow() - timedelta(days=2, hours=3),
-        void_reason="Cliente cambió de opinión",
-        voided_by=SASKIA_USER,
-        payment_method="efectivo",
-    )
-    session.add(voided)
-    session.flush()
-    report.sales += 1
+    voided_dedup = session.execute(
+        select(Sale).where(
+            Sale.product_id == first_product.id,
+            Sale.qty == 2,
+            Sale.notes == "Cliente cambió de opinión",
+            Sale.voided_at.isnot(None),
+        )
+    ).scalars().first()
+    if voided_dedup is None:
+        voided = Sale(
+            # Anchor to seed_anchor_date so dedup by (product_id, qty, notes,
+            # voided_at IS NOT NULL) is stable across re-runs.
+            sold_at=datetime.combine(
+                seed_anchor_date - timedelta(days=2), datetime.min.time()
+            ) + timedelta(hours=20),
+            product_id=first_product.id,
+            qty=2,
+            unit_price_gs=first_product.sale_price_gs,
+            notes="Cliente cambió de opinión",
+            voided_at=datetime.combine(
+                seed_anchor_date - timedelta(days=2), datetime.min.time()
+            ) + timedelta(hours=21),
+            void_reason="Cliente cambió de opinión",
+            voided_by=SASKIA_USER,
+            payment_method="efectivo",
+        )
+        session.add(voided)
+        session.flush()
+        report.sales += 1
 
     # One encargo (custom order) sale
     encargo_product = list(product_objs_by_name.values())[5]
-    encargo = Sale(
-        sold_at=datetime.utcnow() - timedelta(days=1, hours=2),
-        product_id=encargo_product.id,
-        qty=1,
-        unit_price_gs=encargo_product.sale_price_gs,
-        notes="Encargo: recoger 16h",
-        payment_method="transferencia",
-    )
-    session.add(encargo)
-    session.flush()
-    report.sales += 1
+    encargo_dedup = session.execute(
+        select(Sale).where(
+            Sale.product_id == encargo_product.id,
+            Sale.qty == 1,
+            Sale.notes.like("Encargo:%"),
+        )
+    ).scalars().first()
+    if encargo_dedup is None:
+        encargo = Sale(
+            # Anchor to seed_anchor_date for dedup stability.
+            sold_at=datetime.combine(
+                seed_anchor_date - timedelta(days=1), datetime.min.time()
+            ) + timedelta(hours=22),
+            product_id=encargo_product.id,
+            qty=1,
+            unit_price_gs=encargo_product.sale_price_gs,
+            notes="Encargo: recoger 16h",
+            payment_method="transferencia",
+        )
+        session.add(encargo)
+        session.flush()
+        report.sales += 1
 
     # Initial stock movement (audit trail for opening balance)
     for ing_name, ing in ingredient_objs_by_name.items():
+        # Idempotency: one initial StockMovement per ingredient (1:1 audit trail).
+        existing_initial = session.execute(
+            select(StockMovement).where(
+                StockMovement.ingredient_id == ing.id,
+                StockMovement.movement_type == "initial",
+            )
+        ).scalars().first()
+        if existing_initial is not None:
+            continue
         sm = StockMovement(
             ingredient_id=ing.id,
             movement_type="initial",
@@ -1994,7 +2104,11 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
             reason="Stock inicial (seed)",
             reference_id=None,
             reference_type=None,
-            recorded_at=datetime.utcnow() - timedelta(days=90),
+            # Use anchor date so the (ingredient_id, movement_type="initial")
+            # dedup is stable across re-runs.
+            recorded_at=datetime.combine(
+                seed_anchor_date - timedelta(days=90), datetime.min.time()
+            ),
             created_by=SASKIA_USER,
         )
         session.add(sm)
@@ -2056,9 +2170,15 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
     logger.info(f"seed: {report.shopping_list} shopping list items")
 
     # === 26. HACCP — freezer temperature log (last 14 days, 2 readings/day) ===
+    # Use seed_anchor_date as the anchor so re-runs produce identical
+    # timestamps and the (recorded_at) natural-key dedup actually works.
     for days_ago in range(FREEZER_TEMP_DAYS):
         for hour in (8, 20):  # morning + evening
-            ts = datetime.utcnow() - timedelta(days=days_ago, hours=-hour)
+            base_dt = datetime.combine(
+                seed_anchor_date - timedelta(days=days_ago),
+                datetime.min.time(),
+            )
+            ts = base_dt + timedelta(hours=hour)
             # Mostly in range, occasional spike for realism
             if rng.random() < 0.92:
                 temp = rng.uniform(HACCP_TEMP_MIN_C, HACCP_TEMP_MAX_C)
@@ -2145,28 +2265,38 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
             existing.updated_at = datetime.utcnow().isoformat()
 
     # === 30. Bank transactions (a few recent ones) ===
+    # Idempotency: the dedup query uses (posted_at, description) as the
+    # natural key. Both must be deterministic. seed_anchor_date is a
+    # `date` (not datetime) — when compared to the DateTime `posted_at`
+    # column, SQLAlchemy coerces to datetime, but the conversion can
+    # differ between drivers (midnight UTC vs local tz). To make it
+    # 100% stable, we explicitly store posted_at as a midnight datetime.
     bank_tx_data = [
         # (date, amount, type, description, account, balance_gs)
-        (today - timedelta(days=60), -1_200_000, "transfer", "Pago a Distribuidora El Molino", "Itaú", 2_500_000),
-        (today - timedelta(days=45), -650_000, "transfer", "Pago a Lácteos Paraguay", "Itaú", 1_850_000),
-        (today - timedelta(days=30), 3_500_000, "deposit", "Cierre de caja 30 días", "Itaú", 5_350_000),
-        (today - timedelta(days=20), -280_000, "debit", "Servicios ANDE", "Itaú", 5_070_000),
-        (today - timedelta(days=15), 2_800_000, "deposit", "Cierre quincena", "Itaú", 7_870_000),
-        (today - timedelta(days=10), -450_000, "transfer", "Pago a Dulcería Santa Rita", "Itaú", 7_420_000),
-        (today - timedelta(days=5), -180_000, "debit", "Essap", "Itaú", 7_240_000),
-        (today - timedelta(days=2), 1_800_000, "deposit", "Cierre de caja 2 días", "Itaú", 9_040_000),
+        (seed_anchor_date - timedelta(days=60), -1_200_000, "transfer", "Pago a Distribuidora El Molino", "Itaú", 2_500_000),
+        (seed_anchor_date - timedelta(days=45), -650_000, "transfer", "Pago a Lácteos Paraguay", "Itaú", 1_850_000),
+        (seed_anchor_date - timedelta(days=30), 3_500_000, "deposit", "Cierre de caja 30 días", "Itaú", 5_350_000),
+        (seed_anchor_date - timedelta(days=20), -280_000, "debit", "Servicios ANDE", "Itaú", 5_070_000),
+        (seed_anchor_date - timedelta(days=15), 2_800_000, "deposit", "Cierre quincena", "Itaú", 7_870_000),
+        (seed_anchor_date - timedelta(days=10), -450_000, "transfer", "Pago a Dulcería Santa Rita", "Itaú", 7_420_000),
+        (seed_anchor_date - timedelta(days=5), -180_000, "debit", "Essap", "Itaú", 7_240_000),
+        (seed_anchor_date - timedelta(days=2), 1_800_000, "deposit", "Cierre de caja 2 días", "Itaú", 9_040_000),
     ]
     for tx_date, amount, tx_type, desc, account, balance in bank_tx_data:
+        # Normalize to midnight datetime so the dedup comparison is stable
+        # regardless of tz coercion. seed_anchor_date is a `date`;
+        # `BankTransaction.posted_at` is DateTime.
+        tx_posted_at = datetime.combine(tx_date, datetime.min.time())
         existing = session.execute(
             select(BankTransaction).where(
-                BankTransaction.posted_at == tx_date,
+                BankTransaction.posted_at == tx_posted_at,
                 BankTransaction.description == desc,
             )
         ).scalar_one_or_none()
         if existing is None:
             session.add(
                 BankTransaction(
-                    posted_at=tx_date,
+                    posted_at=tx_posted_at,
                     currency="PYG",
                     amount=amount,
                     balance_after=balance,

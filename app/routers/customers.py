@@ -1042,7 +1042,7 @@ def cliente_detail(
     history_view = decorate_history(session, history)
 
     # Loyalty ledger (Phase 4, 2026-10-01): show the last 20 point
-    # movements so Saskia can answer "por qué María tiene 47 puntos?".
+    # movements so the operator can answer "por qué María tiene 47 puntos?".
     # The full ledger is the source of truth; the cached
     # Customer.loyalty_points column is shown as the balance.
     from app.rms.models import LoyaltyTransaction
@@ -1078,7 +1078,7 @@ def cliente_detail(
     )
 
     # BACKLOG #27 (2026-10-01): Sale.tz is recorded but never queried.
-    # Expose a tz breakdown on the cliente detail so Saskia can answer
+    # Expose a tz breakdown on the cliente detail so the operator can answer
     # "¿en qué zona compra más este cliente?" — useful when migrating to
     # multi-location and for fraud-spotting (a customer suddenly shopping
     # from a tz they never used before is a stolen-points red flag).
@@ -1202,7 +1202,7 @@ async def cliente_redeem_points(
 ) -> RedirectResponse:
     """Manually redeem loyalty points from the customer detail page.
 
-    Used by Saskia for the "vení mañana que te descuento" case — the
+    Used by the operator for the "vení mañana que te descuento" case — the
     POS path is /ventas (with customer attached). This endpoint records
     the redemption as a ledger row with reason='redeem' (sale_id is
     NULL because no sale is tied to it; it's a manual goodwill redeem).

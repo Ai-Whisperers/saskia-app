@@ -530,7 +530,7 @@ def test_delta_pill_macro_defined():
 
 
 def test_delta_pill_used_for_top_three_metrics():
-    """inicio.html must render the sales delta — via saskia-kpi-card since d820a23
+    """inicio.html must render the sales delta — via ui-kpi-card since d820a23
     (delta_pill macro retired from inicio; the card takes delta/delta-direction)."""
     with open("app/templates/inicio.html") as f:
         inicio = f.read()

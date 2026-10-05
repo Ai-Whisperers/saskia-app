@@ -14,7 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO = Path("/opt/data/profiles/ivan/scratch/saskia-app-work")
+REPO = Path("/opt/data/profiles/ivan/scratch/sazon-app-work")
 README = REPO / "docs" / "user-guide" / "README.md"
 CONFIG = REPO / "app" / "rms" / "config.py"
 

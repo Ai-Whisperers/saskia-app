@@ -180,10 +180,10 @@ async def csrf_cookie_middleware(request: Request, call_next: object) -> Respons
                 httponly=True,
                 samesite="lax",
                 # Secure flag is opt-in. Hosted (Render) sets
-                # AIW_SASKIA_FORCE_SECURE_COOKIES=1 so the cookie is
+                # AIW_RMS_FORCE_SECURE_COOKIES=1 so the cookie is
                 # Secure-flagged (only sent on https). Local dev / tests
                 # leave the env unset, so plain HTTP can store the cookie.
-                secure=os.getenv("AIW_SASKIA_FORCE_SECURE_COOKIES") == "1",
+                secure=os.getenv("AIW_RMS_FORCE_SECURE_COOKIES") == "1",
             )
 
     return response

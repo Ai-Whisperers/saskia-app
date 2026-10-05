@@ -1,6 +1,6 @@
 # Round 2 feedback — review template
 
-> **For Saskia and Kiki.** This is the working agreement for the **second review round** of fase 1, per `docs/plans/2026-08-31-rms-fase-1-dev-plan.md §9 Task 10`.
+> **For the operator and Kiki.** This is the working agreement for the **second review round** of fase 1, per `docs/plans/2026-08-31-rms-fase-1-dev-plan.md §9 Task 10`.
 >
 > **Period:** ~3-5 days after Round 1 closes.
 > **Focus:** copy (Spanish Paraguayan) + UX polish, NOT new features.
@@ -9,7 +9,7 @@
 
 ## How this round works
 
-1. **Saskia** uses the app day-to-day for 3-5 days during Round 1 (already complete).
+1. **the operator** uses the app day-to-day for 3-5 days during Round 1 (already complete).
 2. At the end of Round 1, she sends feedback via WhatsApp. Kiki captures each item as a row below.
 3. **Round 2** is **only for cosmetic / copy changes** — anything functional should be a separate quote.
 4. Items get a status. Items get fixed in PRs. PRs get committed with `Refs #NNN`.
@@ -57,7 +57,7 @@ Copy this template and replace the placeholder for each item:
 
 **Screenshot:** <attached or linked>
 
-**Saskia says:** <verbatim if useful>
+**the operator says:** <verbatim if useful>
 
 **Build team:** <response, including commit SHA when fixed>
 
@@ -87,12 +87,12 @@ When the round closes, fill this in:
 
 ## Sign-off
 
-When Saskia is satisfied:
+When the operator is satisfied:
 
 > *Written OK — Round 2 closed. Fase 1 accepted.*
-> Saskia Weiss Vander: ___________________________ date: ___________
+> the operator: ___________________________ date: ___________
 > AI Whisperers (operator): ___________________________ date: ___________
 
 ---
 
-*Generated 2026-09. Per `docs/operations/2026-09-tech-stack-review.md` and `2026-09-comprehensive-improvements-review.md`. Stored in `saskia/docs/sessions/round-2-feedback.md` at the start of Round 2.*
+*Generated 2026-09. Per `docs/operations/2026-09-tech-stack-review.md` and `2026-09-comprehensive-improvements-review.md`. Stored in `sazon/docs/sessions/round-2-feedback.md` at the start of Round 2.*

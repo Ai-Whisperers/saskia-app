@@ -5,7 +5,7 @@
  * template now does <script src="/static/js/customer_picker.js" defer></script>.
  *
  * Vanilla JS for the customer picker widget on /ventas:
- *   - saskia-combo selection → fetch customer detail → render card
+ *   - ui-combo selection → fetch customer detail → render card
  *   - inline "Nuevo cliente" form → POST /clientes/api/create → render card
  *   - Phase 4 loyalty POS redeem (live preview, clamping)
  *   - Tier 2.1 one-tap auto-redeem for balances >= 100 pts
@@ -37,12 +37,12 @@
     'maní', 'man\u00ed', 's\u00e9samo', 'leche', 'nuez', 'marisco'
   ];
 
-  // 2026-09-29 fix: saskia-combo doesn't expose its `name` as `id`, so
+  // 2026-09-29 fix: ui-combo doesn't expose its `name` as `id`, so
   // getElementById('customer_id_combo') returns null. Use the [name=...]
-  // attribute selector instead. (Also: saskia-combo's `value` is the
+  // attribute selector instead. (Also: ui-combo's `value` is the
   // native HTMLElement.value which returns undefined for custom elements —
   // use the JS getter `getValue()`.)
-  var combo = document.querySelector('saskia-combo[name="customer_id_combo"]');
+  var combo = document.querySelector('ui-combo[name="customer_id_combo"]');
   var hidden = document.getElementById('customer_id');
   var hint = document.getElementById('customer_picker_hint');
 
@@ -492,7 +492,7 @@
   function applySuggestion(suggestion) {
     var pct = suggestion && suggestion.discount_pct;
     if (!pct || pct <= 0 || pct > 100) {
-      console.warn('[saskia-suggestions] invalid discount_pct:', pct);
+      console.warn('[ui-suggestions] invalid discount_pct:', pct);
       return;
     }
 
@@ -540,7 +540,7 @@
     var discountField = document.getElementById('discount-gs-total');
     if (!discountField) {
       console.warn(
-        '[saskia-suggestions] discount-gs-total field missing; cannot apply.'
+        '[ui-suggestions] discount-gs-total field missing; cannot apply.'
       );
       flashSuggestionFeedback(
         suggestion,
@@ -552,7 +552,7 @@
 
     if (!unitPrice || unitPrice <= 0) {
       console.warn(
-        '[saskia-suggestions] no unit price resolvable from current form;',
+        '[ui-suggestions] no unit price resolvable from current form;',
         'suggestion:', suggestion && suggestion.kind,
         'pct:', pct
       );
@@ -570,7 +570,7 @@
     discountField.dispatchEvent(new Event('input', { bubbles: true }));
     discountField.dispatchEvent(new Event('change', { bubbles: true }));
     console.info(
-      '[saskia-suggestions] applied', suggestion.kind, '→ Gs.',
+      '[ui-suggestions] applied', suggestion.kind, '→ Gs.',
       discount, '(unit price Gs.', unitPrice, 'from', unitPriceSource + ')'
     );
     // Tier 3.2 (2026-10-01): fire-and-forget analytics ping. We
@@ -596,11 +596,11 @@
             keepalive: true,
           }
         ).catch(function (e) {
-          console.warn('[saskia-suggestions] analytics ping failed:', e);
+          console.warn('[ui-suggestions] analytics ping failed:', e);
         });
       }
     } catch (e) {
-      console.warn('[saskia-suggestions] could not fire analytics:', e);
+      console.warn('[ui-suggestions] could not fire analytics:', e);
     }
     flashSuggestionFeedback(
       suggestion,
@@ -638,7 +638,7 @@
     var anchor = discountField ? discountField.parentNode : null;
     if (!anchor) return;
     var badge = document.createElement('div');
-    badge.className = 'saskia-suggestion-feedback';
+    badge.className = 'ui-suggestion-feedback';
     badge.setAttribute('role', 'status');
     badge.style.cssText = [
       'margin-top:6px',
@@ -651,7 +651,7 @@
     ].join(';');
     badge.textContent = msg || 'No se pudo aplicar la sugerencia.';
     // Remove any prior badge so the message never stacks.
-    var prior = anchor.querySelector('.saskia-suggestion-feedback');
+    var prior = anchor.querySelector('.ui-suggestion-feedback');
     if (prior) prior.remove();
     anchor.appendChild(badge);
     setTimeout(function () {
@@ -660,7 +660,7 @@
   }
 
   // ── Combo change → fetch detail + populate card ────────────────────────
-  // 2026-09-29 fix: saskia-combo's `value` is the native HTMLElement.value
+  // 2026-09-29 fix: ui-combo's `value` is the native HTMLElement.value
   // (returns attribute value, not the JS _value). The getter we want is
   // `getValue()`. Without this fix, hidden.value is set to '' on every
   // selection → customer_id never reaches the backend → no client attached
@@ -737,9 +737,9 @@ document.addEventListener('DOMContentLoaded', function () {
   var focusBtn = document.getElementById('nudge-no-customer-focus');
   if (!focusBtn) return;
   focusBtn.addEventListener('click', function () {
-    // Try the saskia-combo widget first (it's an async component).
+    // Try the ui-combo widget first (it's an async component).
     var comboInput = document.querySelector(
-      'input[name="customer_combo"], #customer-combo, .saskia-combo input'
+      'input[name="customer_combo"], #customer-combo, .ui-combo input'
     );
     if (comboInput) {
       comboInput.focus();

@@ -1,6 +1,6 @@
 """tests/test_production.py — verify app/rms/production.py (E21).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E21.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E21.
 
 Covers:
 - forecast_sales: 0 sales returns 0; N sales over N days returns avg

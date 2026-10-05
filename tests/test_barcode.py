@@ -1,6 +1,6 @@
 """tests/test_barcode.py — verify app/rms/barcode.py (E23).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E23.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E23.
 
 Covers:
 - normalize_sku: uppercase, strip chars

@@ -169,7 +169,7 @@ async def excel_validate(
     errors: list[dict] = []
     warnings: list[dict] = []
 
-    with tempfile.TemporaryDirectory(prefix="saskia-validate-") as tmp_dir:
+    with tempfile.TemporaryDirectory(prefix="sazon-validate-") as tmp_dir:
         save_path = Path(tmp_dir) / filename
         save_path.write_bytes(content)
         try:
@@ -234,7 +234,7 @@ async def excel_import(
 
     row_counts: dict = {}
 
-    with tempfile.TemporaryDirectory(prefix="saskia-import-") as tmp_dir:
+    with tempfile.TemporaryDirectory(prefix="sazon-import-") as tmp_dir:
         save_path = Path(tmp_dir) / filename
         save_path.write_bytes(content)
         try:
@@ -305,7 +305,7 @@ async def excel_export(
     """
     from app.services.export_xlsx import to_file
 
-    fd, tmp_path_str = tempfile.mkstemp(prefix="saskia-export-", suffix=".xlsx")
+    fd, tmp_path_str = tempfile.mkstemp(prefix="sazon-export-", suffix=".xlsx")
     os.close(fd)
     tmp_path = Path(tmp_path_str)
     try:
@@ -313,11 +313,11 @@ async def excel_export(
         # Filename reflects the chosen period so operators can keep multiple
         # exports side-by-side without renaming.
         filename = {
-            "current_month": "saskia-rms-export-mes-actual.xlsx",
-            "last_month": "saskia-rms-export-mes-anterior.xlsx",
-            "30d": "saskia-rms-export-30d.xlsx",
-            "today": "saskia-rms-export-hoy.xlsx",
-            "all": "saskia-rms-export-completo.xlsx",
+            "current_month": "sazon-rms-export-mes-actual.xlsx",
+            "last_month": "sazon-rms-export-mes-anterior.xlsx",
+            "30d": "sazon-rms-export-30d.xlsx",
+            "today": "sazon-rms-export-hoy.xlsx",
+            "all": "sazon-rms-export-completo.xlsx",
         }[period]
         return FileResponse(
             path=str(written),
@@ -345,7 +345,7 @@ async def excel_plantilla(
 
     body = patch_plantilla_bytes(session)
     today = datetime.now(timezone.utc).strftime("%Y%m%d")
-    filename = f"saskia-import-{today}.xlsx"
+    filename = f"sazon-import-{today}.xlsx"
     return Response(
         content=body,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

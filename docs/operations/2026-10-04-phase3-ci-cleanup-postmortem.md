@@ -3,7 +3,7 @@
 > **Date:** 2026-10-04
 > **Author:** Ivan
 > **Scope:** `feat/phase-3-ci-cleanup` branch
-> **PR:** [#46](https://github.com/Ai-Whisperers/saskia-app/pull/46)
+> **PR:** [#46](https://github.com/Ai-Whisperers/sazon-app/pull/46)
 > **Outcome:** ruff 1910 → 0 errors; 12 currency-drift sites → 0
 
 This document is the technical reference for the cleanup that landed
@@ -159,12 +159,12 @@ scoped to the specific line and force the author to explain.
 - [ ] Add `mypy --strict` for new modules only (incremental)
 - [ ] Consider `ruff format` after next major refactor
 - [ ] Address the 8 page templates still using raw `Gs. {{ x }}` in
-      admin-only paths (lower priority — Saskia never sees those)
+      admin-only paths (lower priority — the operator never sees those)
 - [ ] Per-test-file: clean up the BLE001 noqas once defensive-default
       patterns are extracted to a helper
 
 ## See also
 
 - [`CHANGELOG.md`](../../CHANGELOG.md) — 2026-10-04 entry
-- [PR #46](https://github.com/Ai-Whisperers/saskia-app/pull/46) — the actual diff
+- [PR #46](https://github.com/Ai-Whisperers/sazon-app/pull/46) — the actual diff
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) — `make check` workflow

@@ -191,7 +191,7 @@ def reorder_registrar(
 ) -> RedirectResponse:
     """Record a purchase: bump stock, append a 'restock' price event.
 
-    Phase D — Q1 surface. Saskia: cada vez que restockea carga los
+    Phase D — Q1 surface. the operator: cada vez que restockea carga los
     precios, así los paneles muestran cuánto gana realmente aunque los
     precios fluctúen.
 

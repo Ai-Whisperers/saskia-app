@@ -1,4 +1,4 @@
-# pyproject.toml — Saskia RMS fase 1
+# pyproject.toml — Sazón fase 1
 # Per tech-stack-review recommendations (#1, #2, #5, #10):
 # - Use uv for install (10-100× faster than pip; reproducible lockfile)
 # - Pin openpyxl >=3.1,<4 (3.x stable, 4.x may break)
@@ -8,9 +8,9 @@
 # - Phase 1: pure server-rendered HTML (NOT HTMX)
 
 [project]
-name = "aiw-saskia-rms"
+name = "sazon-rms"
 version = "0.1.0"
-description = "Sistema de gestión de restaurante — Saskia Weiss Vander — Fase 1"
+description = "Sistema de gestión de restaurante — multi-tenant"
 requires-python = ">=3.13,<3.14"
 authors = [
     {name = "AI Whisperers", email = "ivan@ai-whisperers.dev"},
@@ -47,7 +47,7 @@ dependencies = [
 
 # Entry point for uvicorn (run from project root: uvicorn app.rms.main:app --reload)
 [project.scripts]
-aiw-saskia = "app.rms.main:run"
+sazon = "app.rms.main:run"
 
 [build-system]
 requires = ["hatchling"]
@@ -251,7 +251,7 @@ omit = [
 ]
 # CI runners and hermes's sandbox sometimes can't write to CWD.
 # Use /tmp explicitly so the coverage data file is always writable.
-data_file = "/tmp/.coverage-saskia"
+data_file = "/tmp/.coverage-sazon"
 
 [tool.coverage.report]
 show_missing = true

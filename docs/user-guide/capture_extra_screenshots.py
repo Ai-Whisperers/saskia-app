@@ -6,9 +6,9 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-BASE = "https://saskia-vps.paragu-ai.com"
-OUT = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/docs/user-guide/screenshots")
-JAR = Path("/tmp/saskia-jar.txt")
+BASE = "https://sazon-vps.paragu-ai.com"
+OUT = Path("/opt/data/profiles/ivan/scratch/sazon-app-work/docs/user-guide/screenshots")
+JAR = Path("/tmp/sazon-jar.txt")
 CHROME = "/opt/data/home/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome"
 
 EXTRA = [

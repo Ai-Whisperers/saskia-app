@@ -1,4 +1,4 @@
-# Saskia RMS — Visual Critique Batch: Catálogo
+# Sazón — Visual Critique Batch: Catálogo
 **Auditor:** UX/UI Principal + QA Architect
 **Scope:** 8 pages — clientes family (3), inventario variantes, recetas family (4)
 **Method:** 5-hat analysis per page + defect log + wishlist

@@ -22,7 +22,7 @@ def test_migrations_dict_has_all_versions():
 def test_init_db_postgres_uses_jsonb_and_upsert():
     """init_db() must succeed on Postgres without 'INSERT OR' errors.
 
-    This is the bug that broke https://saskia-rms.paragu-ai.com
+    This is the bug that broke https://sazon-rms.paragu-ai.com
     on 2026-09-08 — the production DB only had Round-1 schema, and
     the migrate command threw 'syntax error at OR near' because
     SQLite-only INSERT OR IGNORE / INSERT OR REPLACE don't exist

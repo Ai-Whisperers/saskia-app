@@ -171,7 +171,7 @@ def test_branding_default(session):
     """Migration 043 seeded default branding (footer normalized — no year;
     base.html appends the current year dynamically)."""
     b = sr.get_branding(session)
-    assert b["business_name"] == "Saskia RMS"
+    assert b["business_name"] == "Sazón"
     assert "Panadería" in b["tagline"]
     assert b["footer"] == "Sistema local"
 
@@ -429,7 +429,7 @@ def test_api_branding_roundtrip(client):
     # Restore
     client.post(
         "/api/settings/branding",
-        json={"business_name": "Saskia RMS"},
+        json={"business_name": "Sazón"},
     )
 
 
@@ -568,16 +568,16 @@ def test_render_template_substitutes_variables():
 
     out = render_template(
         "Hola {name}, total: Gs. {total}",
-        {"name": "Saskia", "total": 5000},
+        {"name": "the operator", "total": 5000},
     )
-    assert out == "Hola Saskia, total: Gs. 5000"
+    assert out == "Hola the operator, total: Gs. 5000"
 
 
 def test_render_template_falls_back_on_missing_var():
     from app.routers.settings_runtime import render_template
 
     body = "Hola {name}, total: Gs. {total}"
-    out = render_template(body, {"name": "Saskia"})  # missing total
+    out = render_template(body, {"name": "the operator"})  # missing total
     # Falls back to raw body
     assert out == body
 

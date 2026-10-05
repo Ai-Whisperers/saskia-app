@@ -166,7 +166,7 @@ def normalize_recipe_line_qty(
     """Normalize a recipe line's quantity into the linked ingredient's unit.
 
     This is the helper used by the recipe line unit selector (Phase B — T1):
-    Saskia may type "250 g" of flour in a recipe line, while the ingredient
+    the operator may type "250 g" of flour in a recipe line, while the ingredient
     itself is stored in "kg". Before computing cost or stock moves, we convert
     250 g → 0.25 kg so the multiplication against the ingredient's
     purchase_price_gs (which is per the ingredient's native unit) is correct.

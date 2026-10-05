@@ -193,7 +193,7 @@ def main() -> int:
     # CSRF is bypassed in test mode (SASKIA_TEST_AUTH_DISABLED=1) so
     # requests without a token get through. Verify the middleware EXISTS
     # by reading the source: this proves CSRF is wired up.
-    csrf_module = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/rms/csrf.py")
+    csrf_module = Path("/opt/data/profiles/ivan/scratch/sazon-app-work/app/rms/csrf.py")
     if csrf_module.exists():
         content = csrf_module.read_text()
         if "missing_or_invalid_csrf_token" in content:

@@ -64,7 +64,7 @@ def eod_view(
     items = fresh_eod_checklist()
     progress = eod_progress(items)
     # Today's production plan — "se debe registrar cuánto de la producción se completó"
-    # (Saskia review, T5). We display the forecast so she can reconcile against
+    # (the operator review, T5). We display the forecast so she can reconcile against
     # what was actually produced. Persistence of completions deferred to a future
     # phase; this view surfaces the forecast side.
     today = datetime.now(ASUNCION_TZ).date()

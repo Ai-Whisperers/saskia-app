@@ -1,13 +1,13 @@
-/* combobox.css — styles for the <saskia-combo> Web Component. */
+/* combobox.css — styles for the <ui-combo> Web Component. */
 
 /* Root element — the input trigger */
-saskia-combo {
+ui-combo {
   display: block;
   position: relative;
   width: 100%;
 }
 
-saskia-combo .saskia-combo {
+ui-combo .ui-combo {
   display: flex;
   align-items: center;
   gap: var(--space-2, 0.5rem);
@@ -25,18 +25,18 @@ saskia-combo .saskia-combo {
               box-shadow var(--duration-fast, 150ms) var(--ease-out, ease);
 }
 
-saskia-combo .saskia-combo:hover {
+ui-combo .ui-combo:hover {
   border-color: var(--color-border-strong, #9ca3af);
 }
 
-saskia-combo .saskia-combo.is-focused {
+ui-combo .ui-combo.is-focused {
   border-color: var(--input-border-focus, var(--color-accent, #f97316));
   box-shadow: 0 0 0 3px var(--color-accent-soft, rgba(249, 115, 22, 0.12));
   outline: none;
 }
 
 /* The visible text input inside the combo */
-saskia-combo input.combo-input {
+ui-combo input.combo-input {
   flex: 1;
   border: none;
   background: transparent;
@@ -49,13 +49,13 @@ saskia-combo input.combo-input {
   min-width: 0;
 }
 
-saskia-combo input.combo-input::placeholder {
+ui-combo input.combo-input::placeholder {
   color: var(--color-text-subtle, #6b7280);
 }
 
 /* Caret / clear button */
-saskia-combo .combo-caret,
-saskia-combo .combo-clear {
+ui-combo .combo-caret,
+ui-combo .combo-clear {
   flex-shrink: 0;
   width: 1em;
   height: 1em;
@@ -69,12 +69,12 @@ saskia-combo .combo-clear {
   justify-content: center;
 }
 
-saskia-combo .combo-clear:hover {
+ui-combo .combo-clear:hover {
   color: var(--color-text, #111);
 }
 
 /* Dropdown panel */
-saskia-combo .combo-panel {
+ui-combo .combo-panel {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
@@ -90,22 +90,22 @@ saskia-combo .combo-panel {
 }
 
 /* Empty / loading / error states */
-saskia-combo .combo-empty,
-saskia-combo .combo-loading,
-saskia-combo .combo-error {
+ui-combo .combo-empty,
+ui-combo .combo-loading,
+ui-combo .combo-error {
   padding: var(--space-3, 0.75rem);
   font-size: var(--text-sm, 0.875rem);
   color: var(--color-text-muted, #6b7280);
   text-align: center;
 }
 
-saskia-combo .combo-error {
+ui-combo .combo-error {
   color: var(--color-danger, #dc2626);
 }
 
 /* Individual row in the dropdown */
 .combo-row,
-saskia-combo .combo-row {
+ui-combo .combo-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -118,20 +118,20 @@ saskia-combo .combo-row {
 }
 
 .combo-row:hover,
-saskia-combo .combo-row:hover,
+ui-combo .combo-row:hover,
 .combo-row.is-active,
-saskia-combo .combo-row.is-active {
+ui-combo .combo-row.is-active {
   background: var(--color-surface-subtle, #f3f4f6);
 }
 
 .combo-row.is-selected,
-saskia-combo .combo-row.is-selected {
+ui-combo .combo-row.is-selected {
   background: var(--color-accent-soft, rgba(249, 115, 22, 0.12));
   color: var(--color-accent, #f97316);
 }
 
 .combo-row .combo-row-main,
-saskia-combo .combo-row .combo-row-main {
+ui-combo .combo-row .combo-row-main {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -140,7 +140,7 @@ saskia-combo .combo-row .combo-row-main {
 }
 
 .combo-row .combo-row-sub,
-saskia-combo .combo-row .combo-row-sub {
+ui-combo .combo-row .combo-row-sub {
   font-size: var(--text-xs, 0.75rem);
   color: var(--color-text-muted, #6b7280);
   flex-shrink: 0;
@@ -151,7 +151,7 @@ saskia-combo .combo-row .combo-row-sub {
 }
 
 .combo-row .combo-row-badge,
-saskia-combo .combo-row .combo-row-badge {
+ui-combo .combo-row .combo-row-badge {
   font-size: var(--text-xs, 0.75rem);
   padding: 2px 8px;
   border-radius: var(--radius-pill, 999px);
@@ -162,32 +162,32 @@ saskia-combo .combo-row .combo-row-badge {
 }
 
 .combo-row .combo-row-stock.is-out,
-saskia-combo .combo-row .combo-row-stock.is-out {
+ui-combo .combo-row .combo-row-stock.is-out {
   background: var(--color-danger-soft, rgba(239, 68, 68, 0.12));
   color: var(--color-danger-fg, #991b1b);
 }
 
 .combo-row .combo-row-stock.is-low,
-saskia-combo .combo-row .combo-row-stock.is-low {
+ui-combo .combo-row .combo-row-stock.is-low {
   background: var(--color-warn-soft, rgba(245, 158, 11, 0.12));
   color: var(--color-warn-fg, #92400e);
 }
 
 .combo-row .combo-row-stock.is-ok,
-saskia-combo .combo-row .combo-row-stock.is-ok {
+ui-combo .combo-row .combo-row-stock.is-ok {
   background: var(--color-success-soft, rgba(34, 197, 94, 0.12));
   color: var(--color-success-fg, #166534);
 }
 
 .combo-row--new,
-saskia-combo .combo-row--new {
+ui-combo .combo-row--new {
   background: var(--color-warn-soft, rgba(245, 158, 11, 0.12));
   color: var(--color-warn-fg, #92400e);
   border-left: 3px solid var(--color-warn, #f59e0b);
 }
 
 .combo-row--recipe,
-saskia-combo .combo-row--recipe {
+ui-combo .combo-row--recipe {
   font-style: italic;
 }
 
@@ -197,14 +197,14 @@ saskia-combo .combo-row--recipe {
    Override the default combo-row-main nowrap so multi-line works, and
    add the tier-badge + warn-chip styles that the JS emits. */
 .combo-row--customer,
-saskia-combo .combo-row--customer {
+ui-combo .combo-row--customer {
   flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
   padding-block: var(--space-3, 0.625rem);
 }
 .combo-row--customer .combo-row-main,
-saskia-combo .combo-row--customer .combo-row-main {
+ui-combo .combo-row--customer .combo-row-main {
   flex: 1 1 auto;
   min-width: 0;
   overflow: visible;
@@ -212,25 +212,25 @@ saskia-combo .combo-row--customer .combo-row-main {
   white-space: normal;
 }
 .combo-row-line,
-saskia-combo .combo-row-line {
+ui-combo .combo-row-line {
   display: block;
   width: 100%;
   line-height: 1.35;
 }
 .combo-row-line--name,
-saskia-combo .combo-row-line--name {
+ui-combo .combo-row-line--name {
   font-weight: 600;
   color: var(--color-text, #111);
   font-size: var(--text-sm, 0.9rem);
 }
 .combo-row-line--contact,
-saskia-combo .combo-row-line--contact {
+ui-combo .combo-row-line--contact {
   color: var(--color-text-muted, #4b5563);
   font-size: var(--text-xs, 0.8rem);
   margin-top: 2px;
 }
 .combo-row-line--meta,
-saskia-combo .combo-row-line--meta {
+ui-combo .combo-row-line--meta {
   color: var(--color-text-muted, #6b7280);
   font-size: var(--text-xs, 0.75rem);
   margin-top: 1px;
@@ -240,11 +240,11 @@ saskia-combo .combo-row-line--meta {
   align-items: center;
 }
 .combo-row-line-part--meta,
-saskia-combo .combo-row-line-part--meta {
+ui-combo .combo-row-line-part--meta {
   margin-left: auto;
 }
 .combo-row-tier,
-saskia-combo .combo-row-tier {
+ui-combo .combo-row-tier {
   flex-shrink: 0;
   align-self: flex-start;
   padding: 2px 8px;
@@ -258,27 +258,27 @@ saskia-combo .combo-row-tier {
   color: var(--color-text, #111);
 }
 .combo-row-tier--bronze,
-saskia-combo .combo-row-tier--bronze {
+ui-combo .combo-row-tier--bronze {
   background: rgba(180, 130, 90, 0.15);
   color: #7c4f2a;
 }
 .combo-row-tier--silver,
-saskia-combo .combo-row-tier--silver {
+ui-combo .combo-row-tier--silver {
   background: rgba(148, 163, 184, 0.18);
   color: #475569;
 }
 .combo-row-tier--gold,
-saskia-combo .combo-row-tier--gold {
+ui-combo .combo-row-tier--gold {
   background: rgba(250, 204, 21, 0.18);
   color: #92580a;
 }
 .combo-row-tier--platinum,
-saskia-combo .combo-row-tier--platinum {
+ui-combo .combo-row-tier--platinum {
   background: rgba(56, 189, 248, 0.18);
   color: #0c4a6e;
 }
 .combo-row-chip--warn,
-saskia-combo .combo-row-chip--warn {
+ui-combo .combo-row-chip--warn {
   padding: 1px 8px;
   border-radius: var(--radius-pill, 999px);
   font-size: var(--text-xs, 0.7rem);
@@ -289,15 +289,15 @@ saskia-combo .combo-row-chip--warn {
 }
 
 /* Disabled state */
-saskia-combo[disabled] .saskia-combo,
-saskia-combo.is-disabled .saskia-combo {
+ui-combo[disabled] .ui-combo,
+ui-combo.is-disabled .ui-combo {
   opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
 }
 
-/* Form integration: hide the saskia-combo element itself when paired
+/* Form integration: hide the ui-combo element itself when paired
    with a hidden native input (fallback for browsers without Web Components) */
-saskia-combo[hidden] {
+ui-combo[hidden] {
   display: none !important;
 }

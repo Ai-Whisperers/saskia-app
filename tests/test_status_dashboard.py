@@ -76,7 +76,7 @@ def test_status_md_template_includes_wishlist_block():
 def test_refresh_script_uses_documented_saskia_app_path():
     refresh = _read(REFRESH_SH)
     # The default path should match the convention so it Just Works locally.
-    assert "saskia-app" in refresh
+    assert "sazon-app" in refresh
 
 
 def test_no_orphan_placeholders_in_generated_html():

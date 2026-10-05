@@ -11,7 +11,7 @@ Usage:
     4. python3 scripts/save_saskia_fernet.py
     5. shred -u /tmp/fernet_key.txt
 
-Mirrors scripts/save_saskia_db_url.py + save_saskia_user_password.py
+Mirrors scripts/save_sazon_db_url.py + save_sazon_user_password.py
 (same Pattern 5: file-based, never echoed).
 """
 
@@ -74,7 +74,7 @@ def main() -> int:
         ClientSettings(
             api_url="https://api.bitwarden.com",
             identity_url="https://identity.bitwarden.com",
-            user_agent="saskia-deploy/3",
+            user_agent="sazon-deploy/3",
             device_type=DeviceType.SERVER,
         )
     )

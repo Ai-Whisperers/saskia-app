@@ -1,7 +1,7 @@
 """Migration 085: Sale.public_token + public_token_expires_at for /r/{token}.
 
 Closes BACKLOG #17 — customer-facing share of recibo. The operator hands
-the customer a URL like ``https://saskia-vps.paragu-ai.com/r/{token}`` and
+the customer a URL like ``https://sazon-vps.paragu-ai.com/r/{token}`` and
 the customer can view the printable digital recibo in their browser
 without logging in. Mirrors the /p/{token} pedido-share pattern that was
 hardened in migration 067 (P1-2, 2026-09-29).

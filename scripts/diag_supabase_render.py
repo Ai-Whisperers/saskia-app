@@ -1,10 +1,10 @@
 from typing import Any
 
 #!/usr/bin/env python3
-"""Diagnose Supabase + Render state for Saskia RMS.
+"""Diagnose Supabase + Render state for Sazón.
 
 Fetches SUPABASE_URL from BWS, tests DNS resolution and HTTPS reachability,
-and lists Render env vars for the Saskia service.
+and lists Render env vars for the the operator service.
 """
 import json
 import socket

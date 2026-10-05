@@ -137,7 +137,7 @@ def shopping_list_index(
     """Show the shopping list. Default = open only (purchased=0).
 
     Starts by consolidating duplicate open items (planner + auto-sync +
-    plan→list flows each wrote their own rows) so Saskia always sees one
+    plan→list flows each wrote their own rows) so the operator always sees one
     row per ingredient.
     """
     consolidate_open_items(session)
@@ -160,7 +160,7 @@ def shopping_list_index(
         by_ingredient[i.ingredient_id] = by_ingredient.get(i.ingredient_id, 0) + i.qty_to_buy
 
     # Sprint shopping-list: group open items by the ingredient's supplier so
-    # Saskia can call each proveedor once. Open (unpurchased) items group
+    # the operator can call each proveedor once. Open (unpurchased) items group
     # first (that's the calling list); purchased items land in "Comprados".
     supplier_groups: list[dict] = []
     if items:
@@ -291,7 +291,7 @@ def from_production_plan(
     ingredient already on the open list is topped up to the max of the
     two quantities, never duplicated).
 
-    purpose_text carries the date so Saskia can see WHY she's buying
+    purpose_text carries the date so the operator can see WHY she's buying
     ("Plan producción 2026-09-30"). Items are NOT tied to a
     ProductionPlan row because the day plan is computed on the fly, not
     persisted; the FK stays for the recipe-planner flow.

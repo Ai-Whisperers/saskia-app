@@ -2,9 +2,9 @@
  * pedido-combos.js — pedido-specific bindings on top of the combo component.
  *
  * The reusable picker lives in /static/combo.js. This file:
- *  1) instantiates a SaskiaCombo for the customer field (with free-form auto-create)
+ *  1) instantiates a UICombo for the customer field (with free-form auto-create)
  *  2) renders an "X / Y visitas" hint when an existing customer is picked
- *  3) wires the "Add line" button to clone a row and create one SaskiaCombo per row
+ *  3) wires the "Add line" button to clone a row and create one UICombo per row
  *  4) gates form submission: requires at least one row with a product selected
  *  5) graceful no-JS fallback handled in the template (form fields still
  *     POST customer_name + line_product_id as empty / hidden values).
@@ -50,7 +50,7 @@
         if (data.preferred_zone_id && zoneInput) {
           zoneInput.value = String(data.preferred_zone_id);
           if (zoneCombo && zoneCombo.dispatchEvent) {
-            zoneCombo.dispatchEvent(new Event("saskia-combo-external-set"));
+            zoneCombo.dispatchEvent(new Event("ui-combo-external-set"));
           }
         }
         // T-2026-10-01: repopulate the native <datalist> that backs the
@@ -89,11 +89,11 @@
   };
 
   function setupCustomerCombo() {
-    // PRO-PED-UX (2026-09-30): la clase .saskia-customer-combo no existe en
+    // PRO-PED-UX (2026-09-30): la clase .ui-customer-combo no existe en
     // ningún template — el hook nunca matcheaba y seleccionar cliente no
-    // prellenaba teléfono/hint/RUC. El combo real es <saskia-combo name="customer_id">.
-    var root = document.querySelector(".saskia-customer-combo") ||
-               document.querySelector('saskia-combo[name="customer_id"]');
+    // prellenaba teléfono/hint/RUC. El combo real es <ui-combo name="customer_id">.
+    var root = document.querySelector(".ui-customer-combo") ||
+               document.querySelector('ui-combo[name="customer_id"]');
     if (!root) return;
     // T-2026-10-01: dedupe guard — a single user-pick previously fired
     // both cfg.onSelect AND the delegated change listener (which called
@@ -185,7 +185,7 @@
     }
     window.customerPickHandlers.firePicked = fireCustomerPicked;
     window.customerPickHandlers.fireCleared = fireCustomerCleared;
-    var combo = window.SaskiaCombo.attach(root, {
+    var combo = window.UICombo.attach(root, {
       source: function (q) {
         var url = "/clientes/api/search?q=" + encodeURIComponent(q || "");
         return fetch(url).then(function (r) { return r.json(); });
@@ -274,13 +274,13 @@
   // Product per-line combobox
   // ─────────────────────────────────────────────────────────────────────
   function attachProductCombo(row) {
-    var root = row.querySelector(".saskia-product-combo");
+    var root = row.querySelector(".ui-product-combo");
     if (!root) return;
     var hidden = row.querySelector('input[name="line_product_id"]');
     var qtyInput = row.querySelector('input[name="line_qty"]');
     var priceInput = row.querySelector('input[name="line_unit_price_gs"]');
 
-    var combo = window.SaskiaCombo.attach(root, {
+    var combo = window.UICombo.attach(root, {
       source: "/productos/api/search",
       displayField: "name",
       valueField: "id",

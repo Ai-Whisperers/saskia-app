@@ -130,7 +130,7 @@ class SaleStockMove:
 class Customer(Base):
     """A customer record (E13).
 
-    Phone is the de-facto unique identifier (matches how Saskia
+    Phone is the de-facto unique identifier (matches how the operator
     identifies customers at the counter). Loyalty points are tracked
     in-app; lifetime spend is computed from sales at query time.
     """

@@ -1,6 +1,6 @@
 """tests/test_customers.py — verify app/rms/customers.py (E13).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E13.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E13.
 
 Covers:
 - ensure_customer by phone is idempotent

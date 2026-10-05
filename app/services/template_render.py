@@ -270,6 +270,11 @@ def render(
     """
     ctx = context or {}
     ctx.setdefault("request", request)
+    if "ui_version" in ctx:
+        # PRODUCCION-V2 Fase 2: ui_version='v1' (default) or 'v2'. Renders
+        # the 4-col grilla when set; v1 keeps the legacy 8-col layout.
+        pass
+
 
     ctx["csrf_token"] = _csrf_token_for_request(request)
     # Inject Asuncion-local time + tz-aware datetime on every render.
@@ -282,7 +287,7 @@ def render(
     # Pre-this-fix: hardcoded `*1000` literals in 4+ places caused a
     # 100% lifetime-spend return rate. The constants now live in
     # app/rms/loyalty/ledger.py; the routes are the single point of
-    # change when Saskia tunes the rate.
+    # change when the operator tunes the rate.
     try:
         from app.rms.loyalty import (
             POINTS_PER_GS_EARN,

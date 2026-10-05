@@ -222,7 +222,7 @@ def test_reset_does_not_touch_users(client, session_factory):
         # family accounts
         s.add(
             User(
-                username="saskia@paragu-ai.com",
+                username="demo@paragu-ai.com",
                 is_active=True,
                 created_at=datetime.now(timezone.utc).isoformat(),
                 last_login_at=None,

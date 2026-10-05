@@ -14,7 +14,7 @@ With ``idempotency_key=<token>`` injected by the template:
     key → redirect with ``flash=cierre_duplicado`` → no audit row, no
     backup attempt.
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_eod_check_idempotency.py -v
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_eod_check_idempotency.py -v
 """
 
 from __future__ import annotations

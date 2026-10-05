@@ -31,7 +31,7 @@ def test_pedidos_nuevo_has_customer_field(client):
     has_customer = (
         'name="customer' in body
         or 'name="cliente' in body
-        or "saskia-combo" in body
+        or "ui-combo" in body
         or "cliente" in body.lower()
     )
     assert has_customer, "Customer field not found"

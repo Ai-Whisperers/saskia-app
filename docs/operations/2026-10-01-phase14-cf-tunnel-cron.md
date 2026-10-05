@@ -27,10 +27,10 @@ The AIW cron fleet already manages `aiw-*-monitor-30min` jobs (see
    VPS host:
    ```yaml
    # /etc/cron.d/aiw-cron-fleet — add this entry
-   */30 * * * * root cd /opt/build-apps/saskia-rms && \
-     /opt/build-apps/saskia-rms/.venv/bin/python \
+   */30 * * * * root cd /opt/build-apps/sazon-rms && \
+     /opt/build-apps/sazon-rms/.venv/bin/python \
      scripts/cf_tunnel_liveness.py --quiet >> \
-     /var/log/aiw/saskia-cf-tunnel.log 2>&1
+     /var/log/aiw/sazon-cf-tunnel.log 2>&1
    ```
 
 2. Wire alert — exit-1/2/5 should page Ivan via the existing
@@ -39,8 +39,8 @@ The AIW cron fleet already manages `aiw-*-monitor-30min` jobs (see
    `/etc/cron.d/aiw-cron-fleet-alerts`:
    ```yaml
    * * * * * root /opt/aiw/bin/alert-classify.sh \
-     --source=saskia-cf-tunnel \
-     --exit-from-log=/var/log/aiw/saskia-cf-tunnel.log
+     --source=sazon-cf-tunnel \
+     --exit-from-log=/var/log/aiw/sazon-cf-tunnel.log
    ```
 
 3. Test the alert path — run `scripts/cf_tunnel_liveness.py` with a
@@ -76,7 +76,7 @@ edge failures that the container cannot see.
 After deploying the cron, wait 30 minutes for the first run. Confirm:
 
 ```bash
-tail -f /var/log/aiw/saskia-cf-tunnel.log
+tail -f /var/log/aiw/sazon-cf-tunnel.log
 ```
 
 You should see one line per run with `[OK]` for a healthy state. If

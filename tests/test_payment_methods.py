@@ -1,7 +1,7 @@
 """tests/test_payment_methods.py — Spanish payment-method taxonomy.
 
 Verifies the /ventas form + POST handler accept the 5 Spanish values
-Saskia uses in Ciudad del Este (efectivo/transferencia/qr/tarjeta/otro),
+the operator uses in Ciudad del Este (efectivo/transferencia/qr/tarjeta/otro),
 reject unknown values, and default the form-select to 'efectivo'.
 """
 

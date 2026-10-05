@@ -1,6 +1,6 @@
 """app/rms/settings.py — Operator-facing settings (E10).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E10.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E10.
 
 Backed by the AppMeta key-value table; 30 settings in 7 categories.
 Each setting has: key, default, validator, description, group.
@@ -85,7 +85,7 @@ SETTINGS: list[Setting] = [
     # GENERAL (6)
     Setting(
         "general.business_name",
-        "Saskia RMS",
+        "Sazón",
         "str",
         "Nombre del negocio (aparece en tickets y PDF)",
         SettingGroup.GENERAL,

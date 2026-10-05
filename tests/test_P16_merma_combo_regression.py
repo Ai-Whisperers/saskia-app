@@ -29,7 +29,7 @@ def test_merma_has_ingredient_combo(client):
     assert r.status_code == 200
     body = r.text
     assert (
-        "saskia-combo" in body or "ingrediente" in body.lower() or "ingredient" in body.lower()
+        "ui-combo" in body or "ingrediente" in body.lower() or "ingredient" in body.lower()
     ), "Ingredient combo not found"
 
 

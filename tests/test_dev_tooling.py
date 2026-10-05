@@ -1,6 +1,6 @@
 """tests/test_dev_tooling.py — sanity checks for E24 dev tooling.
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E24.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E24.
 
 Covers:
 - Makefile exists and contains all 13 documented targets
@@ -69,7 +69,7 @@ def test_contributing_md_exists():
     assert "make install" in content
     assert "make migrate" in content
     assert "make seed" in content
-    assert "Saskia-eng-NNN" in content
+    assert "ENG-NNN" in content
 
 
 def test_docker_compose_dev_yml_is_valid_yaml():

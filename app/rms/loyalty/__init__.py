@@ -1,4 +1,4 @@
-"""app/rms/loyalty/__init__.py — Saskia loyalty domain (E13).
+"""app/rms/loyalty/__init__.py — the operator loyalty domain (E13).
 
 Single home for everything loyalty-related:
   - ledger.py      points math, ledger writes, balance reconciliation

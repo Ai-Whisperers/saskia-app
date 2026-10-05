@@ -337,10 +337,11 @@ def test_dashboard_banner_data_available(sazon_db, app_engine_session):
 def test_idempotent_rerun(sazon_db, app_engine_session):
     """Running seed_sazon again should be idempotent for non-derived data.
 
-    Some entities (tags, sales, stock_movements, haccp_temps, audit_log)
-    are derived from a random seed and may increment on each run. The
-    key requirement: core reference data (tenant, users, ingredients,
-    recipes, products, customers, suppliers, settings) should be stable.
+    Some entities (sales, stock_movements) are now also idempotent via
+    natural-key dedup so the cash balance / KPIs stay stable across
+    re-runs. Production completions / bank transactions / HACCP temps
+    were already idempotent; tags and audit_log still increment (they
+    are derived from a random seed).
     """
     from app.rms.db import make_session_factory
     from sqlalchemy import func, select
@@ -351,15 +352,34 @@ def test_idempotent_rerun(sazon_db, app_engine_session):
         Supplier,
         Tenant,
         User,
+        Sale,
+        StockMovement,
+        ProductionCompletion,
+        BankTransaction,
+        FreezerTemperatureLog,
     )
 
     SessionLocal = make_session_factory(app_engine_session)
     session = SessionLocal()
     try:
-        # Re-run without overwrite (default) — should be a no-op for reference data
+        # Snapshot before re-run
+        n_sales_before = session.execute(select(func.count()).select_from(Sale)).scalar()
+        n_mov_before = session.execute(select(func.count()).select_from(StockMovement)).scalar()
+        n_prod_comp_before = session.execute(
+            select(func.count()).select_from(ProductionCompletion)
+        ).scalar()
+        n_bank_before = session.execute(
+            select(func.count()).select_from(BankTransaction)
+        ).scalar()
+        n_haccp_before = session.execute(
+            select(func.count()).select_from(FreezerTemperatureLog)
+        ).scalar()
+
+        # Re-run without overwrite (default) — should be a no-op for ref data
         report = seed_sazon(session, overwrite=False)
         d = report.as_dict()
-        # Core reference data should have 0 inserts on re-run
+
+        # === Reference data must not re-insert ===
         assert d["tenants"] == 0, f"tenants should not re-insert: {d.get('tenants')}"
         assert d["users"] == 0
         assert d["settings_kv"] == 0
@@ -372,7 +392,36 @@ def test_idempotent_rerun(sazon_db, app_engine_session):
         assert d["customers"] == 0
         assert d["delivery_zones"] == 0
         assert d["compliance"] == 0
-        # Data should still be there
+
+        # === Sales + derived stock_movements must be stable ===
+        # (this is the critical fix — without it, re-runs inflate cash
+        #  balance + KPI charts on every test/dev rebuild)
+        n_sales_after = session.execute(select(func.count()).select_from(Sale)).scalar()
+        n_mov_after = session.execute(select(func.count()).select_from(StockMovement)).scalar()
+        assert d["sales"] == 0, f"sales should not re-insert: {d.get('sales')}"
+        assert d["stock_movements"] == 0, f"stock_movements should not re-insert: {d.get('stock_movements')}"
+        assert n_sales_after == n_sales_before, (
+            f"sales grew from {n_sales_before} to {n_sales_after} on re-run"
+        )
+        assert n_mov_after == n_mov_before, (
+            f"stock_movements grew from {n_mov_before} to {n_mov_after} on re-run"
+        )
+
+        # === Already-idempotent entities (sanity check) ===
+        n_prod_comp_after = session.execute(
+            select(func.count()).select_from(ProductionCompletion)
+        ).scalar()
+        n_bank_after = session.execute(
+            select(func.count()).select_from(BankTransaction)
+        ).scalar()
+        n_haccp_after = session.execute(
+            select(func.count()).select_from(FreezerTemperatureLog)
+        ).scalar()
+        assert n_prod_comp_after == n_prod_comp_before
+        assert n_bank_after == n_bank_before
+        assert n_haccp_after == n_haccp_before
+
+        # === Reference data still present ===
         n_ing = session.execute(select(func.count()).select_from(Ingredient)).scalar()
         n_prod = session.execute(select(func.count()).select_from(Product)).scalar()
         n_cust = session.execute(select(func.count()).select_from(Customer)).scalar()

@@ -1,6 +1,6 @@
-# Saskia RMS — Wishlist
+# Sazón — Wishlist
 
-> **Append-only bucket for ideas.** Anyone — Iván, Saskia, Kiki, a future operator — can drop
+> **Append-only bucket for ideas.** Anyone — Iván, the operator, Kiki, a future operator — can drop
 > a new idea here without going through a planning gate. Items move between folders
 > (`raw/` → `triaged/` → shipped or `rejected/`); nothing is deleted without a reason.
 
@@ -31,10 +31,10 @@
 # <one-line title>
 
 **Date:** YYYY-MM-DD
-**Author:** Saskia (via WhatsApp) | operator (Iván) | Kiki | auto-detected
+**Author:** the operator (via WhatsApp) | operator (Iván) | Kiki | auto-detected
 **Cost guess:** XS | S | M | L | XL
 **Phase guess:** 1.5 | 2 | 3 | 4+ | maybe-never
-**Source:** verbatim quote (Saskia) | operator note | doc ref | inferred
+**Source:** verbatim quote (the operator) | operator note | doc ref | inferred
 
 ## What
 

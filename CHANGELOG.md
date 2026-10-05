@@ -44,7 +44,7 @@
 - **12 currency-drift** sites (`Gs. {{ ... }}` in templates) → **0** — wrapped in `m.gs_full()`
 - **340 files** changed, 19 commits
 - Test status: 152/152 pass + 6 PG skip + 3 net skip (pre-existing; no new failures from cleanup)
-- PR: https://github.com/Ai-Whisperers/saskia-app/pull/46
+- PR: https://github.com/Ai-Whisperers/sazon-app/pull/46
 
 ### Files that received a disproportionate share of fixes
 
@@ -68,11 +68,11 @@
 - **24 real PNG screenshots** of every daily-use page captured via Playwright + cookie auth against the live Swarm URL. Replaces 22 "placeholder screenshot" references across 16 sections of `docs/user-guide/`.
 - **`check_manual_version.py`** — verifies README's `schema NN · commit XXXX` header against `app/rms/config.py` and `git HEAD`. Exits non-zero on drift so CI can catch stale docs.
 - **"Lo que podés hacer" matrix** in README — 16 confirmed-active daily workflows linked to their screenshots, 8 wishlist items bucketed by quarter, 3 known-fragility callouts.
-- **Version pinning header** in README: three-form verification (browser footer, login response header, this manual) so Saskia can detect drift herself.
+- **Version pinning header** in README: three-form verification (browser footer, login response header, this manual) so the operator can detect drift herself.
 - **`tests/test_user_guide_version.py`** — 7 tests pin the contract: header present, drift check passes, every section embeds a screenshot, no placeholder strings remain, README documents both active and not-yet-active features.
 
 ### Fixes
-- README pointed at **suspended** Render URL `saskia-rms.paragu-ai.com` (returns 503 / `x-render-routing: suspend-by-user`). Now points at the live Swarm URL `saskia-vps.paragu-ai.com` and warns about the suspended one.
+- README pointed at **suspended** Render URL `sazon-rms.paragu-ai.com` (returns 503 / `x-render-routing: suspend-by-user`). Now points at the live Swarm URL `sazon-vps.paragu-ai.com` and warns about the suspended one.
 
 ### Stats
 - 24 screenshots (5.5 MB total), 4 helper scripts (capture + replace + version-check), 17 doc files updated.
@@ -121,6 +121,6 @@
 - All tests pass at 145/145 (3 tests require network; 6 PG tests skip without Docker)
 
 ### Deploy notes
-- Live at https://saskia-vps.paragu-ai.com/reorder  
+- Live at https://sazon-vps.paragu-ai.com/reorder  
 - Auth: demo / demo1234  
 - Test with: `pytest tests/reorder/** -q` (all phases)

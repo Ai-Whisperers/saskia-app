@@ -3,7 +3,7 @@
 Tests the implementation of restock urgency, bestseller drop, and cash flow warning
 insights on the dashboard page.
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_p1_b7_insights.py -v
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_p1_b7_insights.py -v
 
 Requirements:
 - Each insight renders when its condition is true
@@ -165,24 +165,24 @@ def test_dashboard_render_insights(client: TestClient, session: Session) -> None
     assert "insights-band" in content
 
     # Check for the custom element script
-    assert "saskia-insight-card" in content
+    assert "ui-insight" in content
 
 
 def test_insights_dismiss_endpoint_removed(client: TestClient) -> None:
     """POST /api/insights/{id}/dismiss was removed when the dismiss button was
-    removed from <saskia-insight-card>. The route must 404 so we don't leave a
+    removed from <ui-insight>. The route must 404 so we don't leave a
     dead endpoint in the API surface."""
     response = client.post("/api/insights/restock_urgent/dismiss", data={})
     assert response.status_code == 404
 
 
 def test_insight_card_javascript_loaded(client: TestClient) -> None:
-    """saskia-insight-card.js is loaded on pages."""
+    """ui-insight.js is loaded on pages."""
     response = client.get("/inicio")
     assert response.status_code == 200
 
     content = response.text
-    assert "saskia-insight-card.js" in content
+    assert "ui-insight.js" in content
 
 
 def test_insight_attributes_in_template(client: TestClient, session: Session) -> None:
@@ -237,4 +237,4 @@ def test_insights_hidden_when_empty(client: TestClient) -> None:
     assert "insights-band" in content
 
     # But there should be no insight cards
-    assert content.count("<saskia-insight-card") == 0
+    assert content.count("<ui-insight") == 0

@@ -1,6 +1,6 @@
 """tests/test_tags.py — verify app/rms/tags.py (E9).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E9.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E9.
 
 Covers:
 - Tag/TagLink models work

@@ -4,7 +4,7 @@
 #   fly secrets set DATABASE_URL=... SESSION_SECRET=... R2_ACCESS_KEY=... R2_SECRET_KEY=...
 #   fly deploy
 
-app = "saskia-rms"
+app = "sazon-rms"
 primary_region = "gru"  # São Paulo — closest to Paraguay in free tier regions
 
 [build]
@@ -14,7 +14,7 @@ primary_region = "gru"  # São Paulo — closest to Paraguay in free tier region
   BIND_HOST = "0.0.0.0"
   PORT = "8000"
   PYTHONUNBUFFERED = "1"
-  R2_BUCKET = "saskia-rms-backups"
+  R2_BUCKET = "sazon-rms-backups"
 
 [http_service]
   internal_port = 8000

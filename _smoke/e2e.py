@@ -75,7 +75,7 @@ print(json.dumps(routes))
         ["uv", "run", "python", "-c", code],
         capture_output=True,
         text=True,
-        cwd="/opt/data/profiles/ivan/scratch/saskia-app-work",
+        cwd="/opt/data/profiles/ivan/scratch/sazon-app-work",
     )
     return json.loads(r.stdout)
 

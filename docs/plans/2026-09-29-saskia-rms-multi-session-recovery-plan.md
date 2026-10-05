@@ -1,10 +1,10 @@
-# Saskia RMS — Multi-Session Recovery & Forward Plan
+# Sazón — Multi-Session Recovery & Forward Plan
 
 **Date:** 2026-09-29
 **Author:** Hermes (Ivan's profile)
 **Scope:** Recover and ship the work from 4 sessions (20260921 / 20260929×3), close all open items, ship B7/B6/test gaps, clean up the two diverged worktrees, deploy every committed-but-not-live change, prevent the same drift from happening again.
-**Repo:** `Ai-Whisperers/saskia-app`
-**Live URL:** https://saskia-vps.paragu-ai.com (ServaRica VPS, Docker Swarm + Traefik)
+**Repo:** `Ai-Whisperers/sazon-app`
+**Live URL:** https://sazon-vps.paragu-ai.com (ServaRica VPS, Docker Swarm + Traefik)
 
 ---
 
@@ -36,46 +36,46 @@ This is the single biggest correctness gap. Fixing it touches 4 ingredients in t
 
 1. **Confirm pre-deploy state** (read-only check)
    ```bash
-   cd /opt/data/profiles/ivan/scratch/saskia-app-work
+   cd /opt/data/profiles/ivan/scratch/sazon-app-work
    git log --oneline origin/main..HEAD | head -5
    # Expected: 3818301, 100e579, 8fdacb3, 02f6931, 3fc7d68
    ```
 
 2. **Rebuild the prod image** (with `DOCKER_BUILDKIT=0` per memory gotcha)
    ```bash
-   cd /opt/data/profiles/ivan/scratch/saskia-app-work
-   DOCKER_BUILDKIT=0 docker build --no-cache -t saskia-rms:prod -f Dockerfile . 2>&1 | tail -20
+   cd /opt/data/profiles/ivan/scratch/sazon-app-work
+   DOCKER_BUILDKIT=0 docker build --no-cache -t sazon-rms:prod -f Dockerfile . 2>&1 | tail -20
    ```
 
 3. **Verify the new file is in the image** (don't trust "build succeeded")
    ```bash
-   docker run --rm saskia-rms:prod bash -c 'ls -la /app/app/rms/tagging/audit_repair.py /app/app/templates/ventas_qa.html'
+   docker run --rm sazon-rms:prod bash -c 'ls -la /app/app/rms/tagging/audit_repair.py /app/app/templates/ventas_qa.html'
    # Expected: both files exist
    ```
 
 4. **Deploy via Docker Swarm**
    ```bash
-   docker service update --image saskia-rms:prod saskia-vps_web --force
+   docker service update --image sazon-rms:prod sazon-vps_web --force
    sleep 8  # let the migration run on startup
    ```
 
 5. **Verify live**
    ```bash
    # Health check
-   curl -sk -o /dev/null -w "%{http_code}\n" https://saskia-vps.paragu-ai.com/healthz
+   curl -sk -o /dev/null -w "%{http_code}\n" https://sazon-vps.paragu-ai.com/healthz
    # Expected: 200
    
    # Audit page should now show 0 issues after auto-repair migration runs
-   curl -sk https://saskia-vps.paragu-ai.com/inventario/auditoria-etiquetas | grep -c 'Panceta\|Pan rallado\|Café espresso\|Jengibre'
+   curl -sk https://sazon-vps.paragu-ai.com/inventario/auditoria-etiquetas | grep -c 'Panceta\|Pan rallado\|Café espresso\|Jengibre'
    # Expected: 0 (after auto-repair runs on first request)
    
    # /ventas/qa page should now be reachable (login required)
-   curl -sk -o /dev/null -w "%{http_code}\n" https://saskia-vps.paragu-ai.com/ventas/qa
+   curl -sk -o /dev/null -w "%{http_code}\n" https://sazon-vps.paragu-ai.com/ventas/qa
    # Expected: 401 (auth required) or 200, NOT 404
    
    # Ingredient state on live DB should be clean
    ssh -i /opt/data/.ssh/id_ed25519 root@38.9.96.179 \
-     "docker exec \$(docker ps -q -f name=saskia-vps_web) python -c \"
+     "docker exec \$(docker ps -q -f name=sazon-vps_web) python -c \"
    import sqlite3
    c=sqlite3.connect('/data/rms.sqlite').cursor()
    c.execute('SELECT id,name,allergens,dietary_tags FROM ingredient WHERE id IN (62,66,39,70)')
@@ -92,7 +92,7 @@ This is the single biggest correctness gap. Fixing it touches 4 ingredients in t
 
 ### Acceptance criteria
 
-- [ ] Live `saskia-rms:prod` container contains `app/rms/tagging/audit_repair.py` and `app/templates/ventas_qa.html`
+- [ ] Live `sazon-rms:prod` container contains `app/rms/tagging/audit_repair.py` and `app/templates/ventas_qa.html`
 - [ ] `/inventario/auditoria-etiquetas` shows 0 ingredientes con problemas after auto-repair runs
 - [ ] Live DB: Panceta #62, Pan rallado #66 dietary_tags no longer contain `sin gluten`
 - [ ] Live DB: Jengibre #70 category is `especias` not `carnes`
@@ -101,9 +101,9 @@ This is the single biggest correctness gap. Fixing it touches 4 ingredients in t
 
 ### Rollback
 
-If anything breaks, the previous live image is the one tagged `saskia-rms:prod` before this rebuild — Docker Swarm keeps the last 3. Roll back with:
+If anything breaks, the previous live image is the one tagged `sazon-rms:prod` before this rebuild — Docker Swarm keeps the last 3. Roll back with:
 ```bash
-docker service update --image saskia-rms:prod saskia-vps_web --rollback
+docker service update --image sazon-rms:prod sazon-vps_web --rollback
 ```
 
 ---
@@ -116,8 +116,8 @@ Two clones of the same repo with different states:
 
 | Worktree | Path | Branch | HEAD | State |
 |---|---|---|---|---|
-| Scratch | `/opt/data/profiles/ivan/scratch/saskia-app-work` | `main` | `3818301` | 30 ahead of origin, 13 files uncommitted (B7 subagent + C4/C5 tests) |
-| Production | `/opt/data/work/saskia-app` | `feature/saskia-master-menu` | `7bee267` | 5 ahead of origin/main, 13 files modified (combo alias + form fixes), tests interrupted |
+| Scratch | `/opt/data/profiles/ivan/scratch/sazon-app-work` | `main` | `3818301` | 30 ahead of origin, 13 files uncommitted (B7 subagent + C4/C5 tests) |
+| Production | `/opt/data/work/sazon-app` | `feature/ui-master-menu` | `7bee267` | 5 ahead of origin/main, 13 files modified (combo alias + form fixes), tests interrupted |
 
 The scratch tree is what the live deployment runs from (after this session's deploy). The production tree has different uncommitted UI work and a different branch. We can't keep both — git will fight us on the next deploy.
 
@@ -127,8 +127,8 @@ The scratch tree is what the live deployment runs from (after this session's dep
 
 | Worktree | New role | Branch | Push policy |
 |---|---|---|---|
-| `/opt/data/profiles/ivan/scratch/saskia-app-work` | **Main + deploy source** | `main` | `git push origin main` after every commit; deploy via `DOCKER_BUILDKIT=0 docker build` |
-| `/opt/data/work/saskia-app` | **Feature development** | `feature/saskia-master-menu` → PR to `main` | All changes via PR; never direct-push to main; CI gate before merge |
+| `/opt/data/profiles/ivan/scratch/sazon-app-work` | **Main + deploy source** | `main` | `git push origin main` after every commit; deploy via `DOCKER_BUILDKIT=0 docker build` |
+| `/opt/data/work/sazon-app` | **Feature development** | `feature/ui-master-menu` → PR to `main` | All changes via PR; never direct-push to main; CI gate before merge |
 
 The reasoning: the scratch tree is what session 1 deployed from, it's the path `MEMORY.md` references for the deploy command, and changing it now means rebuilding the deploy script and memory. The production tree is the "real" working copy Ivan uses daily — it should stay as the dev branch.
 
@@ -136,24 +136,24 @@ The reasoning: the scratch tree is what session 1 deployed from, it's the path `
 
 1. **Push scratch `main` first** (do P0 step 6 first)
    ```bash
-   cd /opt/data/profiles/ivan/scratch/saskia-app-work
+   cd /opt/data/profiles/ivan/scratch/sazon-app-work
    git push origin main
    ```
 
 2. **In the production worktree, fetch + rebase against the freshly-pushed main**
    ```bash
-   cd /opt/data/work/saskia-app
+   cd /opt/data/work/sazon-app
    git fetch origin
    git checkout main
    git rebase origin/main  # should be no-op or trivial
-   git checkout feature/saskia-master-menu
+   git checkout feature/ui-master-menu
    git rebase main  # pull in the new commits from main
    ```
    Expect: feature branch now includes `3818301`, `100e579`, etc.
 
 3. **Verify nothing is broken on the rebased feature branch**
    ```bash
-   cd /opt/data/work/saskia-app
+   cd /opt/data/work/sazon-app
    timeout 300 ./.venv/bin/python -m pytest tests/ -x --tb=short -q \
      --ignore=tests/test_performance.py \
      --ignore=tests/browser 2>&1 | tail -5
@@ -162,12 +162,12 @@ The reasoning: the scratch tree is what session 1 deployed from, it's the path `
 
 4. **Document the worktree policy** — `docs/operations/worktree-policy.md` (created in P4 below)
 
-5. **Add a pre-push reminder to the scratch worktree's shell init** — `echo "git push origin main && cd /opt/data/work/saskia-app && git fetch && git rebase origin/main" >> ~/.bashrc.saskia-rms`
+5. **Add a pre-push reminder to the scratch worktree's shell init** — `echo "git push origin main && cd /opt/data/work/sazon-app && git fetch && git rebase origin/main" >> ~/.bashrc.sazon-rms`
 
 ### Acceptance criteria
 
 - [ ] `origin/main` matches scratch `main` HEAD exactly
-- [ ] `feature/saskia-master-menu` rebases cleanly onto the new `main`
+- [ ] `feature/ui-master-menu` rebases cleanly onto the new `main`
 - [ ] Pytest still passes on the rebased feature branch
 - [ ] `docs/operations/worktree-policy.md` exists (P4 work) and is referenced in AGENTS.md
 
@@ -191,7 +191,7 @@ The scratch tree has 13 uncommitted files. The origins:
 | `app/templates/base.html` (M) | B7 subagent | Commit |
 | `app/templates/inicio.html` (M) | B7 subagent | Commit |
 | `app/routers/insights.py` (??) | B7 subagent (new file) | Review + commit |
-| `app/static/saskia-insight-card.js` (??) | B7 subagent (new component) | Review + commit |
+| `app/static/ui-insight.js` (??) | B7 subagent (new component) | Review + commit |
 | `tests/test_c4_food_cost_semaphor.py` (??) | C4 work (Camila's semáforo) | Commit |
 | `tests/test_c5_test_gaps.py` (??) | C5 audit doc | Commit |
 | `tests/test_p1_b6_cmdk_shortcuts.py` (??) | P1-B6 cmd-K | Commit |
@@ -211,7 +211,7 @@ The scratch tree has 13 uncommitted files. The origins:
 
 1. **Delete debug scratch files first** (they pollute git status)
    ```bash
-   cd /opt/data/profiles/ivan/scratch/saskia-app-work
+   cd /opt/data/profiles/ivan/scratch/sazon-app-work
    rm -f debug_main.py test_import.py test_main_simulation.py test_router.py
    ```
 
@@ -225,13 +225,13 @@ The scratch tree has 13 uncommitted files. The origins:
 
 3. **Run the new tests in isolation to confirm they pass**
    ```bash
-   cd /opt/data/profiles/ivan/scratch/saskia-app-work
+   cd /opt/data/profiles/ivan/scratch/sazon-app-work
    timeout 120 ./.venv/bin/python -m pytest tests/test_p1_b7_insights.py tests/test_c4_food_cost_semaphor.py tests/test_c5_test_gaps.py tests/test_p1_b6_cmdk_shortcuts.py -v --tb=short 2>&1 | tail -30
    ```
 
 4. **Visual smoke-test the /inicio page in dev**
    ```bash
-   cd /opt/data/profiles/ivan/scratch/saskia-app-work
+   cd /opt/data/profiles/ivan/scratch/sazon-app-work
    SASKIA_TEST_AUTH_DISABLED=1 ./.venv/bin/python -c "
    from fastapi.testclient import TestClient
    from app.rms.main import app
@@ -245,11 +245,11 @@ The scratch tree has 13 uncommitted files. The origins:
 
 5. **Commit only verified work**
    ```bash
-   cd /opt/data/profiles/ivan/scratch/saskia-app-work
+   cd /opt/data/profiles/ivan/scratch/sazon-app-work
    git add app/rms/insights.py app/rms/main.py app/routers/dashboard.py \
            app/static/shortcuts.js app/templates/analisis.html app/templates/base.html \
            app/templates/inicio.html app/routers/insights.py \
-           app/static/saskia-insight-card.js \
+           app/static/ui-insight.js \
            tests/test_c4_food_cost_semaphor.py tests/test_c5_test_gaps.py \
            tests/test_p1_b6_cmdk_shortcuts.py tests/test_p1_b7_insights.py
    git -c user.email=hermes@nous.local -c user.name=Hermes commit -m "..."
@@ -262,8 +262,8 @@ The scratch tree has 13 uncommitted files. The origins:
 
 7. **Deploy** (don't skip this — same trap as P0)
    ```bash
-   DOCKER_BUILDKIT=0 docker build --no-cache -t saskia-rms:prod -f Dockerfile . && \
-   docker service update --image saskia-rms:prod saskia-vps_web --force
+   DOCKER_BUILDKIT=0 docker build --no-cache -t sazon-rms:prod -f Dockerfile . && \
+   docker service update --image sazon-rms:prod sazon-vps_web --force
    ```
 
 ### P2b — Production tree (combo alias + form fixes)
@@ -280,7 +280,7 @@ The production tree has 13 modified files + 17 untracked. The untracked breakdow
 | `app/static/uploads/20260929-*.png` (×14) | **Do NOT commit** — `.gitignore` them (P4 work) |
 
 The modified files are mostly related to:
-- `<saskia-combo>` `data-source` alias (compatibility with v1 markup + tests)
+- `<ui-combo>` `data-source` alias (compatibility with v1 markup + tests)
 - `row-label` macro param for per-instance row renderers
 - `inventario_form.html` + `receta_form.html` UI tweaks
 - `inventory.py` + `recipes.py` route additions
@@ -289,27 +289,27 @@ The modified files are mostly related to:
 
 1. **Run the interrupted pytest first** — was running when session 4 ended
    ```bash
-   cd /opt/data/work/saskia-app
+   cd /opt/data/work/sazon-app
    timeout 600 ./.venv/bin/python -m pytest tests/ --tb=no -q \
      --ignore=tests/test_performance.py --ignore=tests/browser 2>&1 | tail -20
    ```
 
 2. **Verify the combo alias doesn't break the picker** (this was the v51 critical fix)
    ```bash
-   cd /opt/data/work/saskia-app
+   cd /opt/data/work/sazon-app
    SASKIA_TEST_AUTH_DISABLED=1 ./.venv/bin/python -c "
    from fastapi.testclient import TestClient
    from app.rms.main import app
    c = TestClient(app)
    for path in ['/ventas', '/clientes', '/inventario/nuevo']:
      r = c.get(path)
-     print(f'{path}: status={r.status_code}, len={len(r.text)}, has_combo={\"<saskia-combo\" in r.text}')
+     print(f'{path}: status={r.status_code}, len={len(r.text)}, has_combo={\"<ui-combo\" in r.text}')
    "
    ```
 
 3. **Move screenshots out of the way** so they don't block staging
    ```bash
-   cd /opt/data/work/saskia-app
+   cd /opt/data/work/sazon-app
    mkdir -p .scratch/2026-09-29-screenshots
    git mv app/static/uploads/20260929-*.png .scratch/2026-09-29-screenshots/ 2>/dev/null || \
      mv app/static/uploads/20260929-*.png .scratch/2026-09-29-screenshots/
@@ -320,10 +320,10 @@ The modified files are mostly related to:
 
    **Batch A — combo component compat + row-label macro:**
    ```bash
-   git add app/static/saskia-combo.js app/templates/_components/atoms.html \
+   git add app/static/ui-combo.js app/templates/_components/atoms.html \
            app/static/combo-rows.js app/static/combobox.css \
            tests/test_combo_extension.py
-   git commit -m "feat(saskia-combo): data-source alias + row-label macro param"
+   git commit -m "feat(ui-combo): data-source alias + row-label macro param"
    ```
 
    **Batch B — recipe/inventory form fixes + route additions:**
@@ -345,10 +345,10 @@ The modified files are mostly related to:
 
 5. **Push the feature branch + open a PR**
    ```bash
-   git push origin feature/saskia-master-menu
+   git push origin feature/ui-master-menu
    # Then create the PR via gh CLI or browser:
-   gh pr create --base main --head feature/saskia-master-menu \
-     --title "feat: saskia-master-menu (combo alias + form fixes + logging audit)" \
+   gh pr create --base main --head feature/ui-master-menu \
+     --title "feat: ui-master-menu (combo alias + form fixes + logging audit)" \
      --body "Closes: refactor the combo + form layer. Adds data-source alias for back-compat. See LOGGING_ERRORS_AUDIT for the full observability findings."
    ```
 
@@ -360,19 +360,19 @@ The modified files are mostly related to:
 
 7. **Pull main into the scratch worktree and deploy**
    ```bash
-   cd /opt/data/profiles/ivan/scratch/saskia-app-work
+   cd /opt/data/profiles/ivan/scratch/sazon-app-work
    git pull origin main  # gets the squash-merged commits
-   DOCKER_BUILDKIT=0 docker build --no-cache -t saskia-rms:prod -f Dockerfile . && \
-   docker service update --image saskia-rms:prod saskia-vps_web --force
+   DOCKER_BUILDKIT=0 docker build --no-cache -t sazon-rms:prod -f Dockerfile . && \
+   docker service update --image sazon-rms:prod sazon-vps_web --force
    ```
 
 ### Acceptance criteria
 
 - [ ] Scratch tree `git status` shows no uncommitted changes (except the 14 PNGs which get gitignored)
-- [ ] Production tree `feature/saskia-master-menu` has 3+ atomic commits with sensible messages
+- [ ] Production tree `feature/ui-master-menu` has 3+ atomic commits with sensible messages
 - [ ] PR is open and CI green
 - [ ] Live deployment reflects the merged combo + form fixes
-- [ ] `/ventas`, `/clientes`, `/inventario/nuevo` all still render with `<saskia-combo>` working
+- [ ] `/ventas`, `/clientes`, `/inventario/nuevo` all still render with `<ui-combo>` working
 
 ---
 
@@ -404,14 +404,14 @@ The modified files are mostly related to:
 
 ### P3c — Proactive alert route from `/healthz/errors`
 
-**Gap**: `/healthz/errors` returns counts but no operator gets pinged. Saskia only finds out something broke by checking.
+**Gap**: `/healthz/errors` returns counts but no operator gets pinged. the operator only finds out something broke by checking.
 
 **Fix** (30 min):
 1. Add a `last_alert_at` and `last_alert_severity` field to a small new `app_health_alert` table (one row)
 2. Cron job (use aiw-org's cron catalog) checks `/healthz/errors` every 5 min, writes an alert if the count increased and is > threshold
 3. Alert destination: existing notification path (email/Discord/etc. — pick what already works in the aiw-org)
 
-**Decision needed**: do you want this in the saskia-app repo (it crosses into ops concerns) or in aiw-org's monitor catalog?
+**Decision needed**: do you want this in the sazon-app repo (it crosses into ops concerns) or in aiw-org's monitor catalog?
 
 ### Acceptance criteria
 
@@ -431,8 +431,8 @@ Add `scripts/check_after_commit.py` as a `post-commit` hook that, when files in 
 
 ```
 ⚠️  COMMITTED TO APP/ — REMINDER: deploy with
-   DOCKER_BUILDKIT=0 docker build --no-cache -t saskia-rms:prod -f Dockerfile . && \
-   docker service update --image saskia-rms:prod saskia-vps_web --force
+   DOCKER_BUILDKIT=0 docker build --no-cache -t sazon-rms:prod -f Dockerfile . && \
+   docker service update --image sazon-rms:prod sazon-vps_web --force
    Confirm you have done this before claiming "shipped & live".
 ```
 
@@ -464,21 +464,21 @@ The 14 PNGs are screenshots from today's sessions — they're ephemeral, not sou
 Create `docs/operations/worktree-policy.md`:
 
 ```markdown
-# Worktree Policy — saskia-app
+# Worktree Policy — sazon-app
 
 Two worktrees exist for the same repo. Each has a designated role.
 
 | Worktree | Path | Role | Deploys? | Push policy |
 |---|---|---|---|---|
-| Scratch | `/opt/data/profiles/ivan/scratch/saskia-app-work` | main branch, deploy source | **Yes** | After every commit |
-| Production | `/opt/data/work/saskia-app` | Feature dev (`feature/*` branches) | No (PR + merge → main → deploy) | Via PR only |
+| Scratch | `/opt/data/profiles/ivan/scratch/sazon-app-work` | main branch, deploy source | **Yes** | After every commit |
+| Production | `/opt/data/work/sazon-app` | Feature dev (`feature/*` branches) | No (PR + merge → main → deploy) | Via PR only |
 
 ## Rules
 
-1. **Never edit code in `/opt/data/work/saskia-app` and deploy from scratch in the same session** without first pushing + rebasing. The two trees drift.
+1. **Never edit code in `/opt/data/work/sazon-app` and deploy from scratch in the same session** without first pushing + rebasing. The two trees drift.
 2. **Always run `git status --short` before claiming "done"** in chat. Empty status = done. Modified files = open items.
 3. **Always deploy after pushing main.** Session 1 (20260921) committed + tested + said "shipped & live" but the deploy step was never executed. Panceta + Pan rallado stayed flagged for 8 hours until discovered.
-4. **Always verify live** with `curl https://saskia-vps.paragu-ai.com/healthz` after a deploy. Status 200 + check the page that the change affected.
+4. **Always verify live** with `curl https://sazon-vps.paragu-ai.com/healthz` after a deploy. Status 200 + check the page that the change affected.
 ```
 
 ### P4d — Schema version discipline
@@ -510,7 +510,7 @@ The `LOGGING_ERRORS_AUDIT_2026-09-29.md` documented 7 broken things and 7 gaps. 
 | `#44` Sentry request_id tag | ✅ Done | — |
 | `#45` messages.py adoption (12 routers) | ❌ TODO | Pick the top 3 most-duplicated strings and migrate them to `messages.py`. 1h. |
 | `#46` "log + decide" canonical pattern | ❌ TODO | Document in `docs/operations/logging.md`. 30 min. |
-| `#47` Inline-error UX component | ❌ TODO | Add `<saskia-inline-error>` component. 2h. |
+| `#47` Inline-error UX component | ❌ TODO | Add `<ui-inline-error>` component. 2h. |
 | `#48` `errors.html` 4xx template | Partially done | Check what's committed in `6bb21c7`. 30 min. |
 | `#49` Sentry request_id + daily rotate | ❌ TODO | Add `logging.handlers.TimedRotatingFileHandler` to loguru. 30 min. |
 | `#50` `/healthz/errors` proactive alert | See P3c | — |
@@ -534,9 +534,9 @@ These came out of the analysis but aren't strictly required by the 4 sessions. T
 
 ### Architecture
 
-- **Two-worktree pattern is fragile.** Consider: a single canonical worktree at `/opt/data/work/saskia-app`, with the scratch path becoming a symlink. The deploy script doesn't need its own path.
+- **Two-worktree pattern is fragile.** Consider: a single canonical worktree at `/opt/data/work/sazon-app`, with the scratch path becoming a symlink. The deploy script doesn't need its own path.
 - **Schema-version tracking is broken.** Pick PRAGMA user_version OR schema_info and stick with it.
-- **`<saskia-combo>` has had 3 attribute changes** (endpoint → data-source alias, row-label param, src JSON). Consider freezing the API and version-stamping it.
+- **`<ui-combo>` has had 3 attribute changes** (endpoint → data-source alias, row-label param, src JSON). Consider freezing the API and version-stamping it.
 - **`messages.py` is imported by 1/13 routers** — biggest consistency win is to finish the migration. Even 5 more routers would catch a class of typos.
 - **`app/routers/insights.py` (new, untracked)** — verify it doesn't shadow `app/rms/insights.py`. The naming overlap is confusing.
 
@@ -556,13 +556,13 @@ These came out of the analysis but aren't strictly required by the 4 sessions. T
 
 ### User-facing
 
-- **/ventas/qa** requires cashier login. Saskia might want it at `/qa` (no auth) for operator use, or with a separate `ops` role. Decide with Saskia.
+- **/ventas/qa** requires cashier login. the operator might want it at `/qa` (no auth) for operator use, or with a separate `ops` role. Decide with the operator.
 - **Audit page** still shows Panceta/Pan rallado even though auto-repair would clean them. Either:
   - **Hide rows that auto-repair would fix** (cleaner, hides problems)
   - **Show a "will fix on next audit rerun" pill** (transparent)
   - **Run auto-repair on every page load** (no UI action needed)
   The third is simplest and matches user expectation.
-- **`feature/saskia-master-menu`** has Spanish fix commits mixed with combo-attribute changes. Squash before merge.
+- **`feature/ui-master-menu`** has Spanish fix commits mixed with combo-attribute changes. Squash before merge.
 - **The 14 PNG screenshots in `app/static/uploads/`** are today's test artifacts. They should be in `.scratch/` not in the repo's static assets.
 
 ### Data integrity
@@ -596,7 +596,7 @@ All of these are true:
 - [ ] `/ventas/qa` returns 200/401 (not 404)
 - [ ] Both worktrees' `git status` is empty (except gitignored)
 - [ ] `origin/main` is up to date with both worktrees
-- [ ] `origin/feature/saskia-master-menu` PR is merged or closed
+- [ ] `origin/feature/ui-master-menu` PR is merged or closed
 - [ ] `pedido_publico.html` has a CSRF token; `test_p0_confirm_modal_csrf` passes
 - [ ] `parse_money_gs` / `parse_gs` deduplicated
 - [ ] `docs/operations/worktree-policy.md` exists and references in AGENTS.md

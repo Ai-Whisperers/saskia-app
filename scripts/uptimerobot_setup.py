@@ -26,9 +26,9 @@ API_URL = "https://api.uptimerobot.com/v2"
 
 # Each monitor: (url, friendly_name)
 DEFAULT_MONITORS = [
-    ("https://saskia-rms.paragu-ai.com/healthz", "saskia-rms /healthz"),
-    ("https://saskia-rms.paragu-ai.com/healthz/db", "saskia-rms /healthz/db"),
-    ("https://saskia-rms.paragu-ai.com/healthz/schema", "saskia-rms /healthz/schema"),
+    ("https://sazon-rms.paragu-ai.com/healthz", "sazon-rms /healthz"),
+    ("https://sazon-rms.paragu-ai.com/healthz/db", "sazon-rms /healthz/db"),
+    ("https://sazon-rms.paragu-ai.com/healthz/schema", "sazon-rms /healthz/schema"),
 ]
 
 
@@ -92,8 +92,8 @@ def ensure_monitors(api_key: str) -> None:
     read-only monitor-scope key — `newMonitor` returns
     `not_authorized`. Operator action: open UptimeRobot dashboard, log in
     with `weissvanderpol.ivan@gmail.com`, manually add 2 more monitors:
-      - type=HTTP url=https://saskia-rms.paragu-ai.com/healthz/db
-      - type=HTTP url=https://saskia-rms.paragu-ai.com/healthz/schema
+      - type=HTTP url=https://sazon-rms.paragu-ai.com/healthz/db
+      - type=HTTP url=https://sazon-rms.paragu-ai.com/healthz/schema
     Both at 5-minute interval. This script will then detect them and
     print "exists" on subsequent runs.
     """
@@ -140,7 +140,7 @@ def _fetch_api_key() -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Manage UptimeRobot monitors for saskia-rms")
+    parser = argparse.ArgumentParser(description="Manage UptimeRobot monitors for sazon-rms")
     parser.add_argument(
         "--dry-run",
         action="store_true",

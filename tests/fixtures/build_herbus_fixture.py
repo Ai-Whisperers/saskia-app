@@ -1,6 +1,6 @@
 """tests/fixtures/build_herbus_fixture.py — Build realistic xlsx fixtures.
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E7.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E7.
 
 Generates:
 - tests/fixtures/herbus_minimal.xlsx — 3 ingredients, 1 recipe, 2 products

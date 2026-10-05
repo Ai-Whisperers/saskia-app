@@ -10,7 +10,7 @@ WhatsApp it, and the operator manually attaches it. Now:
   - pedido.payment_receipt_path + payment_receipt_uploaded_at are set.
   - The page re-renders with a flash banner.
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_p1_b3_pedido_web_upload.py -v
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_p1_b3_pedido_web_upload.py -v
 """
 
 from __future__ import annotations

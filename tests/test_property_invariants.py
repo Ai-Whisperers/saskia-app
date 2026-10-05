@@ -38,7 +38,7 @@ from app.rms.validation import parse_money_gs
 # Local helper — scale_recipe is the recipe-form's quantity scaler
 # ---------------------------------------------------------------------------
 #
-# The Saskia recipe form (templates/receta_form.html) lets the user pick
+# The the operator recipe form (templates/receta_form.html) lets the user pick
 # a scale_factor from a [0.25, 10] dropdown, which scales every recipe
 # line's qty in the form before save. There is no Python function exported
 # for it (it's purely UI-side arithmetic), so we model it here as the

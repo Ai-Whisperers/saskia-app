@@ -71,6 +71,18 @@
     <a href="/produccion?view=week{% if view == 'week' and prev_week_iso %}&week={{ prev_week_iso }}{% endif %}" class="btn btn-sm {% if view == 'week' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'week' else 'false' }}">Semana</a>
     <a href="/produccion?view=month" class="btn btn-sm {% if view == 'month' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'month' else 'false' }}">Mes</a>
   </nav>
+  {# PRODUCCION-V2 Fase 2: UI version toggle (v1 ⇄ v2). Default v1 keeps
+     the existing 8-col grilla; v2 adds the DEMANDA column (decomposed
+     into forecast + pedidos pending/confirmed). The choice is sticky
+     via ?ui= query param and persists across form submits because the
+     redirect handlers echo it back. Cutover 2026-10-05: v1 removed,
+     the tab bar now only shows the active v2. #}
+  <span class="ui-toggle"
+        style="display:inline-flex; gap: var(--space-1); padding: 2px 8px; background: var(--color-surface-subtle); border-radius: var(--radius); margin-left: var(--space-2); font-size: var(--text-sm); color: var(--color-text-muted);"
+        aria-label="Versión del UI"
+        title="UI v2 (DEMANDA, META, REAL, Pedidos)">
+    v2 ✨
+  </span>
 
   <a href="/produccion/manana" class="btn"
      style="display:inline-flex; align-items:center; gap: var(--space-2);">
@@ -362,7 +374,7 @@
    Triggered by the `?shift_saved=N` query param that the shift-execute
    handler appends to the redirect. Plays a short WebAudio beep (no asset
    to ship, no autoplay friction) so the cook knows without re-reading
-   the page. Muteable via localStorage setting `saskia.audio.muted=1`. #}
+   the page. Muteable via localStorage setting `sazon.audio.muted=1`. #}
 {% if shift_saved and shift_saved > 0 %}
 <div class="card mb-4" data-shift-saved="{{ shift_saved }}"
      style="background: var(--color-success-soft, #d1fae5); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-success, #10b981); display: flex; align-items: center; gap: var(--space-3);">
@@ -377,7 +389,7 @@
   // 880 Hz beep, 120 ms — audible over kitchen noise but not annoying.
   // Skip if user has muted the app or prefers reduced motion.
   try {
-    if (localStorage.getItem('saskia.audio.muted') === '1') return;
+    if (localStorage.getItem('sazon.audio.muted') === '1') return;
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     var Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx) return;
@@ -445,7 +457,7 @@
     🏖️ Cerrar este día
   </button>
 </form>
-{# T-2026-10-04 (P0:D.1): SaskiaConfirmModal replaces legacy confirm() JS.
+{# T-2026-10-04 (P0:D.1): UIConfirmModal replaces legacy confirm() JS.
    The submit button is now type="button" with id="close-day-btn" so JS can
    intercept the click, show the modal, and only call form.submit() on OK. #}
 <script>
@@ -457,15 +469,15 @@
       ev.preventDefault();
       var forDate = form.querySelector('input[name="for_date"]').value;
       var doSubmit = function () { form.submit(); };
-      if (window.SaskiaConfirmModal) {
-        SaskiaConfirmModal.show({
+      if (window.UIConfirmModal) {
+        UIConfirmModal.show({
           title: '¿Cerrar el día?',
           body: 'Marcar ' + forDate + ' como cerrado. La producción se desactivará para este día.',
           confirmLabel: 'Cerrar día',
           danger: true
         }).then(function (ok) { if (ok) doSubmit(); });
       } else {
-        // SaskiaConfirmModal failed to load — fall back to the legacy
+        // UIConfirmModal failed to load — fall back to the legacy
         // window.confirm so we still get an explicit gate.
         if (window.confirm('¿Marcar ' + forDate + ' como cerrado? La producción se desactivará para este día.')) doSubmit();
       }
@@ -487,6 +499,63 @@
     });
   })();
 </script>
+{% endif %}
+
+{# PRODUCCION-V2 Fase 2: closure summary card + cold-start hint.
+   Renders UNCONDITIONALLY on the day view, even on cold-start days
+   when plan_rows_view is empty. The cook always sees "0/0 del día"
+   so they know the page rendered, plus a useful CTA when there's
+   no plan. The full execution form + grilla is rendered below
+   inside the {% if plan_rows_view %} gate — that part is unchanged. #}
+{% if view == 'day' %}
+<section class="card mb-4" data-execution-summary-card>
+  <div class="card-header" style="margin-bottom: var(--space-2);">
+    <h2 class="card-title" style="margin: 0; font-size: var(--text-lg);">Ejecución del turno</h2>
+    <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0;">
+      Marcá a medida que sale del horno. El cierre EOD usa estos números.
+    </p>
+    <div class="closure-summary" data-closure-summary
+         style="display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-2); flex-wrap: wrap;">
+      <span class="closure-count closure-count-done"
+            data-closure-count="done"
+            style="font-size: var(--text-xs); padding: 2px 8px; border-radius: 999px; background: #d1fae5; color: #065f46; font-weight: 600;">
+        ✅ {{ day_done_count | default(0) }} cerradas
+      </span>
+      {% if (day_cancelled_count | default(0)) > 0 %}
+        <span class="closure-count closure-count-cancelled"
+              data-closure-count="cancelled"
+              style="font-size: var(--text-xs); padding: 2px 8px; border-radius: 999px; background: #fee2e2; color: #991b1b; font-weight: 600;">
+          ⊘ {{ day_cancelled_count | default(0) }} no horneadas
+        </span>
+      {% endif %}
+      <span class="closure-count closure-count-open"
+            data-closure-count="open"
+            style="font-size: var(--text-xs); padding: 2px 8px; border-radius: 999px; background: #f3f4f6; color: #374151; font-weight: 600;">
+        ⏳ {{ day_open_count | default(0) }} pendientes
+      </span>
+      <small class="text-muted" style="font-size: var(--text-xs);">
+        / {{ day_total_count | default(0) }} del día
+      </small>
+    </div>
+    {% if not plan_rows_view and cold_start_kind %}
+      <div class="cold-start-hint" data-cold-start="{{ cold_start_kind }}"
+           style="margin-top: var(--space-3); padding: var(--space-3); background: #fffbeb; border: 1px solid #fbbf24; border-radius: 6px;">
+        <strong style="display: block; margin-bottom: var(--space-1);">📋 Sin plan para hoy</strong>
+        <small class="text-muted">
+          {% if cold_start_kind == "no_sales" %}
+            Aún no hay ventas registradas. <a href="/ventas/nueva">Registrá la primera venta</a> o
+            usá la acción rápida "Cerrar este día" arriba si es feriado.
+          {% elif cold_start_kind == "no_template" %}
+            Hay ventas pero falta una plantilla semanal. Definila en
+            <a href="/produccion?view=week">Semana →</a>.
+          {% else %}
+            No hay producción planificada. Verificá que haya ventas registradas en los últimos 14 días.
+          {% endif %}
+        </small>
+      </div>
+    {% endif %}
+  </div>
+</section>
 {% endif %}
 
 {% if plan_rows_view %}
@@ -570,11 +639,10 @@
   <section class="card mb-4">
     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); gap: var(--space-3); flex-wrap: wrap;">
       <div>
-        <h2 class="card-title" style="margin: 0;">Ejecución del turno</h2>
-        <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0;">
-          Marcá a medida que sale del horno. Las cantidades se guardan en producción real
-          (no en el plan). El cierre EOD usa estos números.
-        </p>
+        {# PRODUCCION-V2 Fase 2: the closure summary card above this block
+           already shows the "Ejecución del turno" title. The form below
+           continues that card's body — no duplicate h2. The plan_rows
+           view (grilla) renders in this card. #}
         {# T-2026-10-04 (B.10): live count of visible products after the
            difficulty filter. Updated by the JS at the bottom of this
            file. The cook sees "8 / 12 productos" so they know how
@@ -616,6 +684,16 @@
         <tr>
           <th style="width: 3rem;">Listo</th>
           <th>Producto</th>
+          {# PRODUCCION-V2 Fase 2: 4-col grilla (DEMANDA | META | REAL | Pedidos).
+             The DEMANDA column is only shown when ?ui=v2. It decomposes
+             the demand into forecast + pedidos (pending vs confirmed).
+             v1 users (default) see only META / REAL / +Pedidos / Total. #}
+          {% if ui_version == 'v2' %}
+            <th class="num" style="min-width: 8rem;" title="Demanda descompuesta: forecast + pedidos pendientes/confirmados. Auto-calculada.">
+              Demanda
+              <small class="text-muted" style="display: block; font-weight: 400; font-size: var(--text-xs);">forecast + pedidos</small>
+            </th>
+          {% endif %}
           <th class="num">Meta</th>
           <th class="num">+ Pedidos</th>
           <th class="num">Total a hornear</th>
@@ -635,6 +713,10 @@
              yellow = 1-30% surplus (slight over-bake)
              red = > 30% surplus (significant waste) #}
           <th class="num" style="min-width: 5rem;" title="Sobrante estimado al hornear lotes completos: ceil(demanda/yield) × yield − demanda">Sobrante</th>
+          {# PRODUCCION-V2 Fase 2: per-row closure (Cerrar turno / Reabrir).
+             Hidden on print. The first column is the action button; the
+             closure status pill sits in the cell body. #}
+          <th class="no-print" style="width: 9rem;">Cierre</th>
         </tr>
       </thead>
       <tbody>
@@ -687,6 +769,35 @@
               </span>
             {% endif %}
           </td>
+          {# PRODUCCION-V2 Fase 2: DEMANDA cell (v2 only). Shows the
+             total demand decomposed: forecast + pedidos (pending vs
+             confirmed). For ad-hoc rows, the forecast part is 0
+             (the plan engine didn't propose them). #}
+          {% if ui_version == 'v2' %}
+            <td class="num" data-label="Demanda">
+              {% set d_total = r.qty_demand_total | default(0) %}
+              {% set d_fcst = r.qty_demand_forecast | default(0) %}
+              {% set d_ped = r.qty_demand_pedidos | default(0) %}
+              {% set d_ped_pending = r.qty_demand_pedidos_pending | default(0) %}
+              {% if d_total > 0 or d_ped > 0 %}
+                <strong>{{ "%.0f"|format(d_total) }}</strong>
+                <small class="text-muted" style="display: block; font-size: var(--text-xs); margin-top: 2px;">
+                  {% if d_fcst > 0 and d_ped > 0 %}
+                    {{ "%.0f"|format(d_fcst) }} fcst + {{ "%.0f"|format(d_ped) }} ped
+                  {% elif d_fcst > 0 %}
+                    {{ "%.0f"|format(d_fcst) }} fcst
+                  {% else %}
+                    {{ "%.0f"|format(d_ped) }} ped
+                  {% endif %}
+                  {% if d_ped_pending > 0 %}
+                    <span class="badge badge-warning" style="font-size: 0.65rem; padding: 0 4px;" title="Pedidos en estado 'pending' (no confirmados). Riesgo de no necesitar hornear estas unidades.">±{{ "%.0f"|format(d_ped_pending) }} pend</span>
+                  {% endif %}
+                </small>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+          {% endif %}
           <td class="num" data-label="Meta">
             {% if r.is_ad_hoc %}
               <span class="text-muted">—</span>
@@ -841,6 +952,44 @@
               {% endif %}
             {% else %}
               <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          {# PRODUCCION-V2 Fase 2: per-row "Cerrar turno" button. Replaces
+             the implicit "anyone can edit forever" behavior of the old
+             shift-execute flow. Tapping it submits a POST to
+             /produccion/close-day which flips the closure_status from
+             'open' to 'done' (or 'cancelled' for "0 baked"). Once
+             closed, the button toggles to "Reabrir" so the cook can
+             fix a mistake. Hidden on the printed worksheet.
+             closure_status is one of: open, done, cancelled. #}
+          <td class="num no-print closure-cell" data-label="Cierre">
+            {% set cs = r.closure_status | default('open') %}
+            {% if cs == 'done' %}
+              <span class="closure-pill closure-done" title="Cerrado como hecho. {{ r.closure_notes or '' }}">✅ Cerrado</span>
+              <button type="button" class="btn btn-ghost btn-sm closure-btn"
+                      data-action="reopen-day"
+                      data-product-id="{{ r.product_id }}"
+                      data-product-name="{{ r.product_name }}"
+                      title="Reabrir este producto (corrección de cierre)">
+                Reabrir
+              </button>
+            {% elif cs == 'cancelled' %}
+              <span class="closure-pill closure-cancelled" title="Cerrado como no-horneado. {{ r.closure_notes or '' }}">⊘ No horneado</span>
+              <button type="button" class="btn btn-ghost btn-sm closure-btn"
+                      data-action="reopen-day"
+                      data-product-id="{{ r.product_id }}"
+                      data-product-name="{{ r.product_name }}">
+                Reabrir
+              </button>
+            {% else %}
+              <button type="button" class="btn btn-primary btn-sm closure-btn"
+                      data-action="close-day"
+                      data-product-id="{{ r.product_id }}"
+                      data-product-name="{{ r.product_name }}"
+                      data-completed-qty="{{ r.completed_qty or 0 }}"
+                      title="Marcar este producto como cerrado para el turno">
+                Cerrar turno
+              </button>
             {% endif %}
           </td>
         </tr>
@@ -1579,5 +1728,138 @@
 </table>
 </div>
 {% endif %}{# end view == month #}
+
+{# ------------------------------------------------------------------
+   PRODUCCION-V2 Fase 2: closure modal + JS wiring.
+   The "Cerrar turno" button (per row) opens this modal so the cook
+   can pick:
+     - "Horneado" (status=done) — default if completed_qty > 0
+     - "No horneado" (status=cancelled) — for "0 baked, here's why"
+   and optionally type a closure_notes (the user said "justificación
+   opcional" so the modal is a single text field, not required).
+   Reopen is a one-click button (no modal needed — they just want to
+   undo a click).
+------------------------------------------------------------------ #}
+{% if view == 'day' %}
+<div id="close-day-modal" class="modal-overlay"
+     data-modal="close-day"
+     style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="close-day-title"
+       style="background: var(--color-bg, #fff); border-radius: 8px; padding: var(--space-5); max-width: 480px; width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+    <h3 id="close-day-title" style="margin: 0 0 var(--space-3) 0;">Cerrar turno: <span data-modal-product-name>—</span></h3>
+    <p class="text-muted" style="font-size: var(--text-sm); margin: 0 0 var(--space-4) 0;">
+      Esto marca la fila como revisada. Si te equivocás, podés reabrirla.
+    </p>
+    <form method="post" action="/produccion/close-day" data-close-day-form>
+      <input type="hidden" name="for_date" value="{{ for_date }}">
+      <input type="hidden" name="product_id" data-modal-product-id>
+      <input type="hidden" name="ui" value="{{ ui_version }}">
+      <div style="margin-bottom: var(--space-3);">
+        <label style="display: block; font-size: var(--text-sm); margin-bottom: var(--space-1); font-weight: 600;">
+          Resultado
+        </label>
+        <div style="display: flex; gap: var(--space-3);">
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 6px; flex: 1;">
+            <input type="radio" name="status" value="done" checked
+                   data-modal-radio-done>
+            <span><strong>✅ Horneado</strong><br><small class="text-muted">Hicimos lo planeado (o más)</small></span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 6px; flex: 1;">
+            <input type="radio" name="status" value="cancelled"
+                   data-modal-radio-cancelled>
+            <span><strong>⊘ No horneado</strong><br><small class="text-muted">Cero unidades. Decí por qué abajo.</small></span>
+          </label>
+        </div>
+      </div>
+      <div style="margin-bottom: var(--space-4);">
+        <label for="close-day-notes" style="display: block; font-size: var(--text-sm); margin-bottom: var(--space-1); font-weight: 600;">
+          Justificación <small class="text-muted" style="font-weight: 400;">(opcional — útil para "no se vendió" o "cerrado por feriado")</small>
+        </label>
+        <textarea name="closure_notes" id="close-day-notes" rows="2" maxlength="500"
+                  placeholder="ej: no se vendió, cerrado por feriado, error de carga…"
+                  style="width: 100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit; font-size: var(--text-sm);"></textarea>
+      </div>
+      <div style="display: flex; gap: var(--space-2); justify-content: flex-end;">
+        <button type="button" class="btn btn-ghost" data-modal-cancel>Cancelar</button>
+        <button type="submit" class="btn btn-primary">Cerrar turno</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  // PRODUCCION-V2 Fase 2: closure modal + per-row "Cerrar turno" / "Reabrir"
+  // wiring. Click handlers attach to .closure-btn (added in the row
+  // template above). Uses progressive enhancement — the form submits
+  // normally if JS is disabled (the modal is just a nicer UX).
+  var modal = document.getElementById('close-day-modal');
+  if (!modal) return;
+
+  function openModal(productId, productName, completedQty) {
+    modal.querySelector('[data-modal-product-name]').textContent = productName;
+    modal.querySelector('[data-modal-product-id]').value = productId;
+    // Default: status=done IF completedQty > 0, else cancelled. The cook
+    // can always override by clicking the other radio.
+    var doneRadio = modal.querySelector('[data-modal-radio-done]');
+    var cancRadio = modal.querySelector('[data-modal-radio-cancelled]');
+    if (completedQty > 0) {
+      doneRadio.checked = true;
+    } else {
+      cancRadio.checked = true;
+    }
+    modal.querySelector('#close-day-notes').value = '';
+    modal.style.display = 'flex';
+    modal.querySelector('#close-day-notes').focus();
+  }
+
+  function closeModal() {
+    modal.style.display = 'none';
+  }
+
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.closure-btn');
+    if (!btn) {
+      if (ev.target === modal) closeModal();
+      return;
+    }
+    ev.preventDefault();
+    var action = btn.getAttribute('data-action');
+    var productId = btn.getAttribute('data-product-id');
+    var productName = btn.getAttribute('data-product-name') || '';
+    if (action === 'close-day') {
+      var completedQty = parseFloat(btn.getAttribute('data-completed-qty') || '0');
+      openModal(productId, productName, completedQty);
+    } else if (action === 'reopen-day') {
+      // Reopen is a one-click POST with no form. Build a transient form
+      // and submit it so we hit the /close-day/reopen endpoint with
+      // the same CSRF/session as a normal form post.
+      var f = document.createElement('form');
+      f.method = 'post';
+      f.action = '/produccion/close-day/reopen';
+      var uiVal = (new URLSearchParams(window.location.search)).get('ui') || '';
+      var append = function (name, value) {
+        var i = document.createElement('input');
+        i.type = 'hidden';
+        i.name = name;
+        i.value = value;
+        f.appendChild(i);
+      };
+      append('for_date', '{{ for_date }}');
+      append('product_id', productId);
+      if (uiVal === 'v2') append('ui', 'v2');
+      document.body.appendChild(f);
+      f.submit();
+    }
+  });
+
+  var cancelBtn = modal.querySelector('[data-modal-cancel]');
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && modal.style.display === 'flex') closeModal();
+  });
+})();
+</script>
+{% endif %}
 
 {% endblock %}

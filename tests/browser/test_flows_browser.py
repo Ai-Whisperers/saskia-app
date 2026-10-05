@@ -27,21 +27,21 @@ def _register_sale(page, product_select_value: str | None = None):
 
 
 def test_combo_component_opens_and_picks(pw_page):
-    """The saskia-combo custom dropdown (zero-native-select invariant):
+    """The ui-combo custom dropdown (zero-native-select invariant):
     click opens the list, typing filters, click picks.
 
-    Note: saskia-combo was migrated from a <div class="saskia-combo">
-    to a native Web Component <saskia-combo> (D17). The macro in
+    Note: ui-combo was migrated from a <div class="ui-combo">
+    to a native Web Component <ui-combo> (D17). The macro in
     app/templates/_components/atoms.html::combo_field emits the Web
     Component directly. We look for the element by tag name.
     """
     p = pw_page
     p.goto(p._saskia_base + "/inventario/nuevo")
     p.wait_for_load_state("networkidle")
-    # D17: saskia-combo is a Web Component, not a div with that class.
+    # D17: ui-combo is a Web Component, not a div with that class.
     # Match by tag name. The component must render at least once.
-    combo = p.locator("saskia-combo").first
-    assert combo.count() > 0, "no <saskia-combo> rendered on /inventario/nuevo"
+    combo = p.locator("ui-combo").first
+    assert combo.count() > 0, "no <ui-combo> rendered on /inventario/nuevo"
     # The component hosts an input. Click to focus and open the dropdown.
     inp = combo.locator("input").first
     inp.click()

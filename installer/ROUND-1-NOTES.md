@@ -1,6 +1,6 @@
-# Round 1 Review — Saskia RMS
+# Round 1 Review — the operator RMS
 
-> **For Saskia and Kiki.** This is the working agreement for the **first review round** of Fase 1, per `docs/plans/2026-08-31-rms-fase-1-dev-plan.md §9 Task 10` and the v2 plan milestone gates.
+> **For the operator and Kiki.** This is the working agreement for the **first review round** of Fase 1, per `docs/plans/2026-08-31-rms-fase-1-dev-plan.md §9 Task 10` and the v2 plan milestone gates.
 >
 > **Period:** 5-7 days of daily use after the first successful login.
 > **Focus:** does the app do what she needs day-to-day? What breaks? What's confusing?
@@ -11,7 +11,7 @@
 
 ## How this round works
 
-1. **Saskia** uses the app daily for 5-7 days (already started 2026-09-01 with local install; will continue on hosted once deployed).
+1. **the operator** uses the app daily for 5-7 days (already started 2026-09-01 with local install; will continue on hosted once deployed).
 2. She sends feedback via WhatsApp at any time. Operator (or Kiki) captures each item as a row below.
 3. **Round 1** accepts any in-scope feedback (blockers + majors + minors + cosmetic). Items that turn out to be Fase 2 / Fase 3 features get marked `OUT-OF-SCOPE` and re-queued.
 4. Items get a status. Items get fixed in PRs. PRs get committed with `Refs #NNN`.
@@ -27,7 +27,7 @@
 | `DEFERRED` | Fase 1.5 or later (post-Round 1) |
 | `FIXED` | Implemented; commit SHA noted |
 | `WONT-FIX` | Explicitly rejected with reason |
-| `NEEDS-INFO` | Can't reproduce or unclear; asked Saskia for more |
+| `NEEDS-INFO` | Can't reproduce or unclear; asked the operator for more |
 
 ## Severity ladder
 
@@ -80,9 +80,9 @@ Copy this template for each new item:
 **Severity:** blocker | major | minor | cosmetic | data | perf
 **Status:** OPEN
 **Reported:** YYYY-MM-DD
-**Reporter:** Saskia (via WhatsApp) | Kiki (captured) | auto-detected (logs/monitoring)
+**Reporter:** the operator (via WhatsApp) | Kiki (captured) | auto-detected (logs/monitoring)
 
-**What:** <one-paragraph description, in Saskia's words where useful>
+**What:** <one-paragraph description, in the operator's words where useful>
 
 **Repro:**
 1. <step 1>
@@ -91,7 +91,7 @@ Copy this template for each new item:
 
 **Screenshot:** <attached or linked>
 
-**Saskia says:** <verbatim quote if useful>
+**the operator says:** <verbatim quote if useful>
 
 **Build team:** <response, including commit SHA when fixed>
 
@@ -99,26 +99,26 @@ Copy this template for each new item:
 
 ---
 
-### #001 — Initial deploy on Saskia's laptop (2026-09-01)
+### #001 — Initial deploy on the operator's laptop (2026-09-01)
 
 **Severity:** milestone (not a defect)
 **Status:** FIXED
 **Reported:** 2026-09-01
 **Reporter:** Operator (Ivan)
 
-**What:** Local install on Saskia's Windows laptop. `installer/run.bat` from desktop shortcut launches uvicorn on 127.0.0.1:8765, opens browser, login works (`saskia` / `Saskia2026!`), 6 protected routes return 200 with session cookie. 324/325 tests pass, 81% coverage. 2 backup files in `~\Documents\AIW-Saskia\backups\`. PID 10760 (uvicorn.exe).
+**What:** Local install on the operator's Windows laptop. `installer/run.bat` from desktop shortcut launches uvicorn on 127.0.0.1:8765, opens browser, login works (`saskia` / `Saskia2026!`), 6 protected routes return 200 with session cookie. 324/325 tests pass, 81% coverage. 2 backup files in `~\Documents\aiw-restaurant\backups\`. PID 10760 (uvicorn.exe).
 
 **4 launcher bugs noted:**
 1. Bash-launched uvicorn (`proc_a730f02380d1`) was killed but its python.exe child lingered → operator had to `taskkill` it. The .bat-launched PID 10760 is the live one.
 2. `installer/run.bat` didn't set `PYTHONPATH` — added during install session
-3. `installer/run.bat` didn't set `HTTPS_ONLY=false` (Saskia's local doesn't have TLS) — added
+3. `installer/run.bat` didn't set `HTTPS_ONLY=false` (the operator's local doesn't have TLS) — added
 4. `installer/run.bat` didn't set `AIW_SASKIA_*_DIR` overrides for her user profile — added
 
 **2 unfixed governance issues:**
 1. ~~The .bat edits were made live on her machine, not pushed back to repo.~~ **FIXED 2026-09-04**: commit `94f9a24` ("build: unified run.bat (hosted-first + local fallback) + deploy runbook") shipped all 4 launcher fixes; commit `6fef4a2` ("fix(installer): README points at correct repo URL") cleaned the clone URL. Verified 334 tests passing at 81% coverage on the resulting tree.
 2. ~~`installer/ROUND-1-NOTES.md` (this file) didn't exist on disk~~ **FIXED 2026-09-02** (per the original closing note above).
 
-**Build team:** Local install stable as of 2026-09-01 18:05 UTC. Hosted pivot landed 2026-09-04 at https://saskia-rms.paragu-ai.com; 5 production hotfixes in 24h (`f1af406`, `c093a75`, `99b37c6`, `bb21eff`, `501bcff`).
+**Build team:** Local install stable as of 2026-09-01 18:05 UTC. Hosted pivot landed 2026-09-04 at https://sazon-rms.paragu-ai.com; 5 production hotfixes in 24h (`f1af406`, `c093a75`, `99b37c6`, `bb21eff`, `501bcff`).
 
 **Closed at:** 2026-09-04 (governance items closed by `94f9a24` + `6fef4a2`)
 
@@ -149,12 +149,12 @@ When the round closes, fill this in:
 
 ## Sign-off
 
-When Saskia is satisfied:
+When the operator is satisfied:
 
 > *Written OK — Round 1 closed. Fase 1 accepted.*
-> Saskia Weiss Vander: ___________________________ date: ___________
+> the operator Weiss Vander: ___________________________ date: ___________
 > AI Whisperers (operator): ___________________________ date: ___________
 
 ---
 
-*Generated 2026-09-02 per `docs/operations/2026-09-02-saskia-decision-hosted-pivot.md` §6 and `docs/plans/2026-09-rms-fase-1-dev-plan-v2.md` milestone gates. Stored at `installer/ROUND-1-NOTES.md` (this file). Companion: `docs/operations/2026-09-02-saskia-team-tasks.md`.*
+*Generated 2026-09-02 per `docs/operations/2026-09-02-sazon-decision-hosted-pivot.md` §6 and `docs/plans/2026-09-rms-fase-1-dev-plan-v2.md` milestone gates. Stored at `installer/ROUND-1-NOTES.md` (this file). Companion: `docs/operations/2026-09-02-sazon-team-tasks.md`.*

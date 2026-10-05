@@ -1,6 +1,6 @@
 """tests/test_xlsx_fixtures.py — verify Drive-shape fixtures round-trip cleanly.
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E7.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E7.
 
 Builds (or rebuilds) the fixture files in tests/fixtures/ and exercises
 the import service against them. Asserts:
@@ -8,7 +8,7 @@ the import service against them. Asserts:
 - realistic.xlsx round-trips with the seed counts
 - edge_cases.xlsx imports gracefully (no crash on renamed sheet / blank
   rows / extra column / unicode names)
-- herbus_compat.xlsx (mimics Saskia's actual Drive file) imports cleanly
+- herbus_compat.xlsx (mimics the operator's actual Drive file) imports cleanly
 - All sheets persist with expected row counts
 - Fixtures are committed under tests/fixtures/
 """
@@ -98,7 +98,7 @@ def test_edge_cases_fixture_imports_gracefully(session_factory):
 
 
 def test_herbus_compat_fixture_imports(session_factory):
-    """Compat fixture (Saskia's real Drive file shape) should import cleanly."""
+    """Compat fixture (the operator's real Drive file shape) should import cleanly."""
     path = FIXTURE_DIR / "herbus_compat.xlsx"
     assert path.exists()
     s = session_factory()

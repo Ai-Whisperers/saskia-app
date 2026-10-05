@@ -18,7 +18,7 @@ NOTE — coverage-gap closure, NOT TDD: the behavior shipped in Phases B–D.
 These tests are expected to pass immediately; they exist to pin the
 composition so a regression in any link fails loudly.
 
-Refs: Saskia review round 1 (Thu 18-sep) — Q1 + T1. Spanish quotes in the
+Refs: operator review round N (Thu 18-sep) — Q1 + T1. Spanish quotes in the
 feature tests: 'cada vez que la clienta restockea tiene que cargar los
 precios, y así puede ver en los paneles de gestión cuánto está ganando
 realmente aunque los precios fluctúen'.
@@ -141,7 +141,7 @@ def test_restock_chain_price_event_to_insight_card(client, session_factory):
 
 
 def test_mixed_unit_recipe_costs_and_plans_consistently(session_factory):
-    """Recipe 'Pan' with mixed units (Saskia's T1 complaint):
+    """Recipe 'Pan' with mixed units (the operator's T1 complaint):
     - harina stored in kg @ 5000 Gs/kg, recipe line 500 g
     - leche stored in line  @ 8000 Gs/line,  recipe line 250 ml
     - yield 12 und

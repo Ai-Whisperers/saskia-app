@@ -18,6 +18,7 @@ SQLAlchemy session.execute() to edit SettingsKV.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -412,11 +413,26 @@ def read_branding(
 
 
 class BrandingIn(BaseModel):
+    """Partial-update schema for branding settings.
+
+    All fields optional — only non-None fields are written. File uploads
+    (logo, favicon, hero) go through /admin/branding/upload which returns
+    a filename you then set via the corresponding field here.
+    """
+
     business_name: str | None = Field(default=None, max_length=200)
     tagline: str | None = Field(default=None, max_length=200)
     footer: str | None = Field(default=None, max_length=200)
+    business_type: str | None = Field(
+        default=None, max_length=32
+    )  # restaurant|panaderia|cafeteria|bar|heladeria|food_truck|otro
     accent_color: str | None = Field(default=None, max_length=20)
-    logo_path: str | None = Field(default=None, max_length=500)
+    logo_filename: str | None = Field(default=None, max_length=200)
+    favicon_filename: str | None = Field(default=None, max_length=200)
+    hero_filename: str | None = Field(default=None, max_length=200)
+    contact_email: str | None = Field(default=None, max_length=200)
+    contact_phone: str | None = Field(default=None, max_length=64)
+    address: str | None = Field(default=None, max_length=300)
 
 
 @router.post("/settings/branding")
@@ -1213,6 +1229,111 @@ def delete_template_endpoint(
     row.is_active = False
     session.commit()
     return {"id": row.id, "channel": row.channel, "key": row.key, "is_active": row.is_active}
+
+
+# ─── Branding asset upload ──────────────────────────────────────────────
+# POST /api/admin/branding/upload — upload logo/favicon/hero image file
+# Returns: {filename, url, size_kb, kind}
+# Operator then sets branding.logo_filename (etc.) via /settings/branding POST
+
+import os
+import secrets
+from fastapi import UploadFile, File, Form, HTTPException as _HTTPException
+from pathlib import Path as _P
+
+
+# Allowed file extensions per asset kind
+_BRANDING_EXTS = {
+    "logo": {".png", ".jpg", ".jpeg", ".svg", ".webp"},
+    "favicon": {".ico", ".png"},
+    "hero": {".jpg", ".jpeg", ".png", ".webp"},
+}
+# Max sizes (in MB)
+_BRANDING_MAX_MB = {
+    "logo": 2,
+    "favicon": 0.5,
+    "hero": 5,
+}
+# Output directory (relative to /app/static/, served by /static/branding/)
+_ASSET_DIR = "app/static/branding"
+
+
+@router.post("/admin/branding/upload")
+async def upload_branding_asset(
+    kind: str = Form(...),
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_login_or_disabled),
+) -> object:
+    """Upload a branding asset (logo, favicon, or hero).
+
+    Allowed: logo (2MB png/jpg/svg/webp), favicon (500KB ico/png),
+    hero (5MB jpg/png/webp). Filename is randomized; the operator then
+    sets branding.logo_filename (etc.) to the returned `filename` field.
+
+    Requires login (no admin gate yet — anyone with valid session can
+    upload). This is intentional for now; if abuse becomes an issue,
+    add an admin-role check.
+    """
+    kind = kind.lower()
+    if kind not in _BRANDING_EXTS:
+        raise _HTTPException(
+            status_code=400,
+            detail=f"kind must be one of {list(_BRANDING_EXTS)}",
+        )
+
+    # Validate extension
+    filename = file.filename or ""
+    ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in _BRANDING_EXTS[kind]:
+        raise _HTTPException(
+            status_code=400,
+            detail=f"File extension {ext!r} not allowed for {kind}. "
+                   f"Allowed: {sorted(_BRANDING_EXTS[kind])}",
+        )
+
+    # Read + size-check
+    max_bytes = _BRANDING_MAX_MB[kind] * 1024 * 1024
+    content = await file.read()
+    if len(content) > max_bytes:
+        raise _HTTPException(
+            status_code=400,
+            detail=f"File too large ({len(content) / 1024 / 1024:.1f}MB). "
+                   f"Max for {kind}: {_BRANDING_MAX_MB[kind]}MB",
+        )
+
+    # Random filename: <kind>-<8 hex>.<ext>
+    safe_name = f"{kind}-{secrets.token_hex(8)}{ext}"
+
+    # Write to disk
+    base_dir = _P(__file__).resolve().parent.parent.parent  # repo root
+    asset_dir = base_dir / _ASSET_DIR
+    asset_dir.mkdir(parents=True, exist_ok=True)
+    out_path = asset_dir / safe_name
+    out_path.write_bytes(content)
+
+    return {
+        "kind": kind,
+        "filename": safe_name,
+        "url": f"/static/branding/{safe_name}",
+        "size_kb": round(len(content) / 1024, 1),
+    }
+
+
+@router.get("/admin/branding", response_class=HTMLResponse)
+def branding_admin_page(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_login_or_disabled),
+) -> object:
+    """Operator UI for branding (business identity, assets, accent color).
+
+    Renders app/templates/admin/branding.html with current branding context.
+    Lives in settings_runtime router because /settings/branding API is here.
+    """
+    from app.services.template_render import render
+
+    return render(request, "admin/branding.html", {"active_nav": "settings"})
 
 
 __all__ = ["router"]

@@ -1,6 +1,6 @@
 """A.1 regression test — every destructive template MUST use the confirm modal.
 
-Per saskia-only-roadmap.md P0 (cerrar-puertas): no destructive action may
+Per sazon-only-roadmap.md P0 (cerrar-puertas): no destructive action may
 ship without a confirm hook. This test walks every template that ships a
 destructive form/button and asserts the appropriate hook is present.
 
@@ -9,7 +9,7 @@ Two patterns are acceptable:
      Used by: ingrediente_detalle, pedidos, shopping_list, suppliers,
      ventas_historial.
   2. **JS-level** — buttons with `data-action="delete-*"` wrapped by
-     `SaskiaConfirmModal.show(...)` inside a click handler.
+     `UIConfirmModal.show(...)` inside a click handler.
      Used by: settings_catalog.
 
 The test must check for EITHER pattern per template, and fail loudly if
@@ -133,7 +133,7 @@ def test_all_destructive_forms_have_confirm():
 
 def test_settings_catalog_uses_saskia_confirm_modal():
     """A.1 regression for settings_catalog: every data-action="delete-*"
-    button must be wrapped by SaskiaConfirmModal.show(...) inside its click
+    button must be wrapped by UIConfirmModal.show(...) inside its click
     handler. The 8 data-actions currently wired: cat, channel, payment,
     tier, stock, storage, preset, template.
 
@@ -157,16 +157,16 @@ def test_settings_catalog_uses_saskia_confirm_modal():
     failures: list[str] = []
     for action in sorted(delete_actions):
         # The handler pattern is the forEach that grabs [data-action="X"]
-        # followed (within ~500 chars) by a SaskiaConfirmModal.show call.
+        # followed (within ~500 chars) by a UIConfirmModal.show call.
         # The .+? is non-greedy so we don't span across handlers.
         handler_pattern = (
             r"\[data-action=\"" + re.escape(action) + r'"\]'
-            r".*?SaskiaConfirmModal\.show"
+            r".*?UIConfirmModal\.show"
         )
         if not re.search(handler_pattern, content, re.DOTALL):
             failures.append(
                 f'settings_catalog.html: button data-action="{action}" is not '
-                f"wrapped by SaskiaConfirmModal.show(). Add the modal wrapper "
+                f"wrapped by UIConfirmModal.show(). Add the modal wrapper "
                 f"inside the .forEach() handler."
             )
 

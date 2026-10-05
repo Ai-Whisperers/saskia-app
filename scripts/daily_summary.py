@@ -5,11 +5,11 @@ Designed for cron (or operator-side invocation). Loads DATABASE_URL
 from env, computes the day's sales/merma, formats a WhatsApp or
 email summary, and dispatches via app.rms.notifications.
 
-The default backend is `dryrun` (writes to /tmp/saskia-notifications/)
+The default backend is `dryrun` (writes to /tmp/sazon-notifications/)
 so running this in CI is safe. To wire to a real WhatsApp/Twilio or
 email backend, set the corresponding env vars:
 
-    AIW_SASKIA_NOTIFY_BACKEND=whatsapp
+    AIW_RMS_NOTIFY_BACKEND=whatsapp
     TWILIO_ACCOUNT_SID=AC...
     TWILIO_AUTH_TOKEN=...
     TWILIO_WHATSAPP_FROM=+14155238886
@@ -17,7 +17,7 @@ email backend, set the corresponding env vars:
 
 Or for email:
 
-    AIW_SASKIA_NOTIFY_BACKEND=email
+    AIW_RMS_NOTIFY_BACKEND=email
     SMTP_HOST=smtp.gmail.com
     SMTP_USER=...
     SMTP_PASS=...
@@ -30,7 +30,7 @@ Usage:
     python scripts/daily_summary.py --backend email
 
 Cron entry:
-    0 22 * * * cd /opt/data/profiles/ivan/scratch/saskia-app-work && /usr/bin/env python3 scripts/daily_summary.py --backend whatsapp >> /var/log/saskia-summary.log 2>&1
+    0 22 * * * cd /opt/data/profiles/ivan/scratch/sazon-app-work && /usr/bin/env python3 scripts/daily_summary.py --backend whatsapp >> /var/log/ui-summary.log 2>&1
 
 (Send at 22:00 UTC = 18:00 PY, end of business day.)
 """
@@ -63,8 +63,8 @@ def main():
     )
     args = parser.parse_args()
 
-    if not os.getenv("DATABASE_URL") and not os.getenv("AIW_SASKIA_DB_PATH"):
-        print("ERROR: neither DATABASE_URL nor AIW_SASKIA_DB_PATH set", file=sys.stderr)
+    if not os.getenv("DATABASE_URL") and not os.getenv("AIW_RMS_DB_PATH"):
+        print("ERROR: neither DATABASE_URL nor AIW_RMS_DB_PATH set", file=sys.stderr)
         return 2
 
     # Compute target day
@@ -76,7 +76,7 @@ def main():
         day_label = target.strftime("%Y-%m-%d (hoy)")
 
     if args.backend:
-        os.environ["AIW_SASKIA_NOTIFY_BACKEND"] = args.backend
+        os.environ["AIW_RMS_NOTIFY_BACKEND"] = args.backend
 
     code = f"""
 import sys

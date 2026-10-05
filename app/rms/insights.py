@@ -14,10 +14,11 @@ route can render in one query. Splits into:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.rms.food_cost import food_cost_report
@@ -29,9 +30,14 @@ from app.rms.menu_engineering import (
     Quadrant,
     classify_products,
 )
-from app.rms.models import Ingredient, Product
+from app.rms.models import Ingredient, Product, Recipe, Sale
 from app.rms.price_history import price_stats
-from app.rms.production_scheduler import batch_production_plans
+# Fase 5 (2026-10-05): migrate /inicio off the deprecated
+# `production_scheduler` module. We no longer import `plan_production`
+# here because the /inicio card only shows the top 5 products and the
+# full `plan_production()` machinery is N+1 over all products. Instead
+# we batch the velocity query in `_top_products_by_velocity` (1 SQL)
+# and compute the per-product target + batch_count in Python.
 from app.rms.sales_intel import (
     churning_products,
     peak_hour,
@@ -81,8 +87,34 @@ def build_insights(session: Session) -> InsightsPanel:
     )[:3]
     dogs = quadrants.get(Quadrant.DOG.value, [])
 
-    # Production tomorrow (batched — replaces per-product N+1 loop)
-    tomorrow_plans = batch_production_plans(session, list(session.scalars(select(Product)).all()))
+    # Production tomorrow (Fase 5: replaced the deprecated
+    # `production_scheduler.batch_production_plans`. The /inicio "Plan de
+    # mañana" card only shows the top 5 products by forecasted velocity,
+    # so we don't need the full `plan_production()` machinery (which
+    # would be N+1 over all products). Instead: batch the velocity
+    # query (1 SQL) and the recipe yield_qty fetch (1 SQL) in
+    # `_top_products_by_velocity`, then build the SimpleNamespace rows
+    # in Python. End result: 2 SQL queries regardless of catalog size,
+    # same SimpleNamespace shape the template expects.)
+    top_n = 5
+    top_products = _top_products_by_velocity(session, limit=top_n)
+    tomorrow_plans: list[SimpleNamespace] = []
+    for prod, velocity in top_products:
+        target_qty = max(1, int(round(velocity)))
+        # Recipe yield_qty was already pre-fetched in
+        # _top_products_by_velocity (no extra query).
+        yield_per_batch = prod._recipe_yield_cache  # set by _top_products_by_velocity
+        batch_count = max(1, -(-target_qty // yield_per_batch))
+        tomorrow_plans.append(
+            SimpleNamespace(
+                product_id=prod.id,
+                product_name=prod.name,
+                target_qty=target_qty,
+                reason=f"Vendés ~{velocity:.1f}/día → hacer {target_qty} u. "
+                f"({batch_count} tanda{'s' if batch_count > 1 else ''})",
+                batch_count=batch_count,
+            )
+        )
 
     # Food cost
     fc_report = food_cost_report(session, period_days=30)
@@ -93,7 +125,7 @@ def build_insights(session: Session) -> InsightsPanel:
     rising = rising_products(session)[:3]
     churning = churning_products(session)[:3]
 
-    # Price fluctuation (Saskia review Q1): ingredients >20% above 30d avg
+    # Price fluctuation (the operator review Q1): ingredients >20% above 30d avg
     price_fluctuation: list[dict] = []
     for ing in session.scalars(select(Ingredient)).all():
         stats = price_stats(session, ing.id, days=30)
@@ -303,6 +335,69 @@ def build_actionable_insights(session: Session) -> list[dict]:
             logger.debug(f"Actionable insight calculation failed: {e}")
 
     return insights
+
+
+def _top_products_by_velocity(
+    session: Session, *, limit: int = 5, days_history: int = 14
+) -> list[tuple[Product, float]]:
+    """Return (Product, velocity) for the top `limit` products by 14d velocity.
+
+    2 SQL queries total (not N+1):
+      1. aggregate sale.qty per product in the look-back window
+      2. fetch the top-N products by id (and their recipes, so the
+         caller can compute batch_count without re-querying)
+
+    Each returned Product has a `_recipe_yield_cache` attribute attached
+    holding the integer yield per batch (10 when no recipe) — used by
+    `build_insights` to compute `batch_count` in Python.
+
+    Products with no recent sales are excluded (no point showing them in
+    the "Plan de mañana" card). Tie-break by product_id for stable
+    ordering across calls.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days_history)
+    rows = session.execute(
+        select(
+            Sale.product_id,
+            func.coalesce(func.sum(Sale.qty), 0.0).label("total"),
+        )
+        .where(Sale.voided_at.is_(None), Sale.sold_at >= cutoff)
+        .group_by(Sale.product_id)
+        .order_by(func.coalesce(func.sum(Sale.qty), 0.0).desc(), Sale.product_id)
+        .limit(limit)
+    ).all()
+    if not rows:
+        return []
+    product_ids = [r.product_id for r in rows]
+    products = list(
+        session.scalars(select(Product).where(Product.id.in_(product_ids))).all()
+    )
+    products_by_id: dict[int, Product] = {p.id: p for p in products}
+    # Pre-fetch recipes for batch_count (1 query, even if 0 products have recipes).
+    recipe_ids = {p.recipe_id for p in products if p.recipe_id is not None}
+    recipes_by_id: dict[int, Recipe] = {}
+    if recipe_ids:
+        recipes_by_id = {
+            r.id: r
+            for r in session.scalars(
+                select(Recipe).where(Recipe.id.in_(recipe_ids))
+            ).all()
+        }
+    DEFAULT_YIELD = 10
+    result: list[tuple[Product, float]] = []
+    for r in rows:
+        prod = products_by_id.get(r.product_id)
+        if prod is None:
+            continue
+        # Attach the per-batch yield so the caller doesn't need to query.
+        recipe = recipes_by_id.get(prod.recipe_id) if prod.recipe_id else None
+        if recipe is not None and recipe.yield_qty:
+            prod._recipe_yield_cache = max(1, int(recipe.yield_qty))
+        else:
+            prod._recipe_yield_cache = DEFAULT_YIELD
+        velocity = float(r.total) / max(days_history, 1)
+        result.append((prod, velocity))
+    return result
 
 
 __all__ = [

@@ -5,7 +5,7 @@ docs/operations/import-mapper.md.
 
 This test exercises ``app.services.import_xlsx.from_file`` against
 ``tests/fixtures/herbus_drive_sample.xlsx``, a fixture that mirrors what
-Saskia's edits-after-import look like on Google Drive — Spanish names with
+the operator's edits-after-import look like on Google Drive — Spanish names with
 unicode, decimal qty, integer Gs. prices, sub-recipes as recipe lines,
 extra ignored columns, a voided sale, and one ingredient with no
 purchase_price yet.
@@ -20,7 +20,7 @@ What this catches:
   - Changing the ``line_kind`` discriminator (e.g. ``ingredient`` → ``leaf``)
   - Changing the recipe/product lookup key from ``recipe_name``/``product_name``
     to ``recipe_id``/``product_id`` (this is a recurring drift — see the
-    wishlist note about Saskia breaking things on her side)
+    wishlist note about the operator breaking things on her side)
   - Tightening type coercion so a decimal qty or unicode name crashes
   - Removing the extra-column tolerance (so adding ``categoría`` breaks
     the round-trip)
@@ -133,7 +133,7 @@ def _header_set(ws, expected: set[str], *, sheet_name: str) -> set[str]:
 
     Only flags MISSING core columns as drift. Extra columns are tolerated
     (and separately enforced by ``test_fixture_has_extra_ignored_column``),
-    because Saskia adds her own columns in Drive and the importer must
+    because the operator adds her own columns in Drive and the importer must
     ignore them rather than crash.
     """
     header_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ())
@@ -249,7 +249,7 @@ def test_fixture_handles_unicode_names():
 
 
 def test_fixture_has_ingredient_with_null_price():
-    """Real Drive files have ingredients where Saskia hasn't set a price yet.
+    """Real Drive files have ingredients where the operator hasn't set a price yet.
 
     This must survive the import without crashing (NULL → NULL in DB).
     """
@@ -266,7 +266,7 @@ def test_fixture_has_ingredient_with_null_price():
         ]
         assert none_priced, (
             "Drive fixture must include at least one ingredient with "
-            "purchase_price_gs=None (Saskia hasn't bought it yet). "
+            "purchase_price_gs=None (the operator hasn't bought it yet). "
             "Without this, the NULL-price tolerance path is untested."
         )
     finally:
@@ -317,7 +317,7 @@ def test_fixture_has_voided_sale():
 
 
 def test_fixture_has_extra_ignored_column():
-    """Drive files have extra columns Saskia adds. The fixture must include
+    """Drive files have extra columns the operator adds. The fixture must include
     at least one extra column the importer silently ignores, so a future
     "strict header" refactor breaks the test."""
     wb = load_workbook(FIXTURE_PATH, read_only=True)
@@ -412,7 +412,7 @@ def test_drive_fixture_ingredient_types_are_correct(session_factory):
 
 
 def test_drive_fixture_ingredient_without_price_stays_null(session_factory):
-    """Saskia's flow: ingredients without a price must persist as NULL,
+    """the operator's flow: ingredients without a price must persist as NULL,
     not 0 (which the dashboard would interpret as 'price known = 0')."""
     s = session_factory()
     try:

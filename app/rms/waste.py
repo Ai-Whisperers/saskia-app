@@ -1,6 +1,6 @@
 """app/rms/waste.py — Merma (waste) tracking (E22).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E22.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E22.
 
 Adds:
 - WasteLog model: ingredient, qty, reason, cost_gs (denormalized at
@@ -266,7 +266,7 @@ def record_recipe_waste(
     recorded_by: str | None = None,
     notes: str | None = None,
 ) -> RecipeWasteResult:
-    """Log a whole-batch waste event for a recipe (Saskia review T6).
+    """Log a whole-batch waste event for a recipe (the operator review T6).
 
     A whole-batch waste ("se quemó la masa") reduces stock of every
     ingredient in the recipe proportionally. Implemented by walking the

@@ -294,7 +294,7 @@ def days_until_short(
       - "ok"     : otherwise
 
     The "short" + "watch" cutoffs use the *ingredient's own horizon* — so
-    if Saskia sets dulce_de_leche.forecast_horizon_days=21 and avg
+    if the operator sets dulce_de_leche.forecast_horizon_days=21 and avg
     consumption eats through current stock in 18 days, status is "short"
     (she needs to reorder within the 21-day supplier window).
     """

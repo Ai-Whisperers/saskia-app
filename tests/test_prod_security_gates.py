@@ -69,7 +69,7 @@ def test_proprice_no_sellable_product_below_110pct_of_cost():
     Corre contra la DB si existe (local/prod-shape). En CI sin DB de negocio
     pasa vacío (no hay productos que auditar).
     """
-    db_path = os.environ.get("AIW_SASKIA_DB_PATH", "/tmp/rms-latest.sqlite")
+    db_path = os.environ.get("AIW_RMS_DB_PATH", "/tmp/rms-latest.sqlite")
     if not Path(db_path).exists():
         import pytest
 

@@ -1,6 +1,6 @@
 """tests/test_cross_page_consistency.py — T8 (Phase C).
 
-Saskia review: "Debe coincidir con los registros de las demás páginas".
+the operator review: "Debe coincidir con los registros de las demás páginas".
 
 Three guarantees:
 1. Money renders via the m.gs / m.gs_full macros everywhere (no raw
@@ -104,7 +104,7 @@ def seeded_sales(session_factory):
 def test_daily_totals_reconcile(session_factory, seeded_sales):
     """Sum of daily_summary revenue over the 5 seeded days == the direct
     Sale-table total. If report math drifts from the raw ledger, this
-    catches it (Saskia: 'debe coincidir con los registros')."""
+    catches it (the operator: 'debe coincidir con los registros')."""
     from app.rms.accounting import daily_summary
 
     grand = 0

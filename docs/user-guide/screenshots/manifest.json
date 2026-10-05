@@ -1,5 +1,5 @@
 {
-  "base": "https://saskia-vps.paragu-ai.com",
+  "base": "https://sazon-vps.paragu-ai.com",
   "routes": [
     {
       "path": "/ventas",

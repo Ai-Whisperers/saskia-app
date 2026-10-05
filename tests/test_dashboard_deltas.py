@@ -228,7 +228,7 @@ def test_dashboard_renders_delta_up_pill(client):
         resp = client.get("/?period=today")
     assert resp.status_code == 200
     body = resp.text
-    # d820a23 replaced metric-delta pills with the saskia-kpi-card component.
+    # d820a23 replaced metric-delta pills with the ui-kpi-card component.
     assert 'delta-direction="up"' in body, (
         "Expected delta-direction=up on the Ventas kpi-card with today>yesterday sales"
     )
@@ -247,7 +247,7 @@ def test_dashboard_renders_delta_down_pill(client):
         resp = client.get("/?period=today")
     assert resp.status_code == 200
     body = resp.text
-    # d820a23 replaced metric-delta pills with the saskia-kpi-card component.
+    # d820a23 replaced metric-delta pills with the ui-kpi-card component.
     assert 'delta-direction="down"' in body, (
         "Expected delta-direction=down with today<yesterday sales"
     )

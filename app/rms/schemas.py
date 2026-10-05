@@ -25,7 +25,7 @@ ALLOWED_PAYMENT_METHODS = frozenset(
 )
 
 # Display order for the /ventas form-select. `efectivo` is the most
-# common sale type for Saskia (per her Ciudad del Este workflow) so
+# common sale type for the operator (per her Ciudad del Este workflow) so
 # it sits at the top.
 PAYMENT_METHODS_DISPLAY: tuple[str, ...] = (
     "efectivo",

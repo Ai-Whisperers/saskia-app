@@ -1,4 +1,4 @@
-# Saskia RMS — Redesign Analysis (2026-09-27)
+# Sazón — Redesign Analysis (2026-09-27)
 
 **Generated:** 2026-09-27 19:30 UTC by UX/UI principal review
 **Coverage:** 60 pages analyzed (32 directly + 28 via subagents)
@@ -50,6 +50,6 @@
 
 See §8 of design-plans-2026-09-27.md for the day-by-day commit plan.
 
-- **Week 1 (P0 quick wins):** Fix stock-preview 500, fix seeder Spanish names, add 3 empty-state CTAs, delete /dashboard, build saskia-date
-- **Week 2 (P0 currency + confirmation):** Build format_gs filter + CI lint, server-side None vs 0, build saskia-confirm modal
+- **Week 1 (P0 quick wins):** Fix stock-preview 500, fix seeder Spanish names, add 3 empty-state CTAs, delete /dashboard, build ui-date
+- **Week 2 (P0 currency + confirmation):** Build format_gs filter + CI lint, server-side None vs 0, build ui-confirm modal
 - **Week 3 (P0 macros + a11y):** Build kpi_tile, status_pill, empty_state, confirm_destructive macros + a11y quick wins

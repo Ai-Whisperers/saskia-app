@@ -1,6 +1,6 @@
 """tests/test_waste.py — verify app/rms/waste.py (E22).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E22.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E22.
 
 Covers:
 - record_waste creates row + decrements stock

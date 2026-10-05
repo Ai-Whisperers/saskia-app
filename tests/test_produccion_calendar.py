@@ -1,7 +1,7 @@
 """tests/test_produccion_calendar.py — Phase D Q2-calendar (+Q3 folded in).
 
 Covers:
-- Quantity-multiplication regression (Saskia's reported bug): producing N
+- Quantity-multiplication regression (the operator's reported bug): producing N
   portions of a recipe with yield_qty per batch must consume
   (N / yield_qty) × line.qty of each ingredient.
 - /produccion view modes (day | week | month) wired to the Phase B
@@ -9,7 +9,7 @@ Covers:
 - Per-day manual qty override (POST /produccion/override).
 - forecast_source Spanish labels (Q3).
 
-Refs: Saskia review round 1 (Thu 18-sep) — Q2 (c) calendar dashboard.
+Refs: operator review round N (Thu 18-sep) — Q2 (c) calendar dashboard.
 """
 
 # allow-hardcoded-dates: production calendar asserts on a fixed week
@@ -59,7 +59,7 @@ def _seed_product_with_recipe_and_sales(session_factory) -> int:
         s.close()
 
 
-# --- Deliverable 3: quantity-multiplication regression (Saskia's bug) ---
+# --- Deliverable 3: quantity-multiplication regression (the operator's bug) ---
 
 
 def test_production_math_multiplication(session_factory):
@@ -67,7 +67,7 @@ def test_production_math_multiplication(session_factory):
     batch. Producing qty_to_produce PORTIONS must consume
     (qty_to_produce / yield_qty) × line.qty of each ingredient.
 
-    Saskia's bug report (review round 1, Q2): the sheet was multiplying
+    the operator's bug report (review round 1, Q2): the sheet was multiplying
     portions × per-batch line qty directly (12× too much flour here).
     """
     s = session_factory()

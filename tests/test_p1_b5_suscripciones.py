@@ -17,7 +17,7 @@ Verifies:
 8. List filters by status_filter query param
 9. Audit log captures create/update/status/delete events
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_p1_b5_suscripciones.py -v
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_p1_b5_suscripciones.py -v
 """
 
 from __future__ import annotations

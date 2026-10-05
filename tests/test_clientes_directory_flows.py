@@ -6,7 +6,7 @@ Three small flows added to /clientes:
   3. Open pedido count column ("Np" pill).
   4. Last-purchase date column with sort.
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_clientes_directory_flows.py -v
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_clientes_directory_flows.py -v
 """
 
 from __future__ import annotations

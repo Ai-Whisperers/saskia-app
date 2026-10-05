@@ -141,7 +141,7 @@ def test_rollup_ml_base_with_l_variants(session_factory):
 
 def test_rollup_mixed_g_and_kg_harina_use_case(session_factory):
     """The actual B1 use case: flour bought in 1kg bags and 250g packets,
-    ingredient base unit is kg. Saskia's most common purchase."""
+    ingredient base unit is kg. the operator's most common purchase."""
     from app.rms.variants import rollup_ingredient_stock
 
     ing_id = _make_ingredient(session_factory, "Harina 000", "kg", min_stock_qty=10.0)

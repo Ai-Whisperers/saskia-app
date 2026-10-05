@@ -7,7 +7,7 @@ Per Phase B Q2-prep spec: this is the visual scaffold for the production
 calendar (Phase D wires business logic). The macros render plain HTML +
 CSS class hooks — no DB access, no router logic.
 
-Refs: Saskia review round 1 (Thu 18-sep) — Q2 (c) calendar dashboard.
+Refs: operator review round N (Thu 18-sep) — Q2 (c) calendar dashboard.
 Phase B = shell; Phase D = week/month views + per-day plan + overrides.
 """
 # allow-hardcoded-dates: calendar grid layout asserts on a fixed Mon-Sun week

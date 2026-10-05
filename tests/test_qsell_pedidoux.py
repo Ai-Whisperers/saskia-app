@@ -6,9 +6,9 @@ PRO-QS: tap en quick-sell agrega al carrito SIN recargar (AJAX).
   siendo POST válido como fallback + endpoint /ventas/nueva intacto.
 
 PRO-PED-UX: seleccionar cliente en /pedidos/nuevo prellena teléfono/hint.
-  Root cause: pedido-combos.js buscaba .saskia-customer-combo (clase que no
+  Root cause: pedido-combos.js buscaba .ui-customer-combo (clase que no
   existe en ningún template) → el hook nunca enganchaba. Ahora matchea
-  saskia-combo[name=customer_id] + delega en el evento change del elemento.
+  ui-combo[name=customer_id] + delega en el evento change del elemento.
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ def test_pedido_combos_js_matchea_customer_id(tmp_path=None):
     import pathlib
 
     js = pathlib.Path("app/static/pedido-combos.js").read_text()
-    assert 'saskia-combo[name="customer_id"]' in js
+    assert 'ui-combo[name="customer_id"]' in js
     # el handler prellena teléfono fill-if-empty
     assert "phoneInput.value = item.phone" in js
     # y actualiza el hint de cliente seleccionado

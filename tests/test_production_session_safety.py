@@ -13,7 +13,7 @@ from pathlib import Path
 
 def _collect_app_py_files() -> list[Path]:
     """All .py files under app/ (production code, not tests/scripts)."""
-    root = Path("/opt/data/work/saskia-app/app")
+    root = Path("/opt/data/work/sazon-app/app")
     return sorted(p for p in root.rglob("*.py") if "__pycache__" not in str(p))
 
 
@@ -87,7 +87,7 @@ def test_no_session_commit_without_close_in_app():
     from pathlib import Path
 
     violations = []
-    for py_file in sorted(Path("/opt/data/work/saskia-app/app").rglob("*.py")):
+    for py_file in sorted(Path("/opt/data/work/sazon-app/app").rglob("*.py")):
         if "__pycache__" in str(py_file):
             continue
         try:

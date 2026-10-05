@@ -1,8 +1,8 @@
 """P0 fix — Void-after-EOD-close bug.
 
-The roadmap (saskia-only-roadmap.md, 2026-09-29) flagged a critical gap:
+The roadmap (sazon-only-roadmap.md, 2026-09-29) flagged a critical gap:
 `void_sale()` did not check whether the sale belongs to a day whose EOD has
-been closed. Saskia could void a Monday sale on Wednesday AFTER closing
+been closed. the operator could void a Monday sale on Wednesday AFTER closing
 Monday's books.
 
 This module verifies:
@@ -13,7 +13,7 @@ This module verifies:
 3. void_sale succeeds when the day is NOT closed
 4. The router translates the ValueError into a Spanish 409 Conflict
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_p0_void_after_eod.py -v
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_p0_void_after_eod.py -v
 """
 
 from __future__ import annotations

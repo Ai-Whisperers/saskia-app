@@ -40,7 +40,7 @@ def test_healthz_routes_skip_auth(client):
 
 
 def test_session_cookie_name(client):
-    """Session cookie must be named 'saskia_rms_session' (not generic 'session')."""
+    """Session cookie must be named 'sazon_session' (not generic 'session')."""
     # Get login page, check cookies set
     r = client.get("/login")
     # Session cookie should NOT be set yet on GET /login

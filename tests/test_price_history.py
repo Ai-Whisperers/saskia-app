@@ -8,7 +8,7 @@ Covers:
 - Inventory POST creates a 'manual' price event
 - Migration v18 idempotency + table creation
 
-Refs: Saskia review round 1 (Thu 18-sep) — Q1 (c) restock + price history
+Refs: operator review round N (Thu 18-sep) — Q1 (c) restock + price history
 + reports + insight. Phase B ships the schema + helper; Phase D wires the
 restock form surface and the dashboard sparkline.
 """

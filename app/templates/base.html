@@ -4,7 +4,7 @@
 
 {% include "_components/icons.svg" %}
 
-<html lang="es" data-saskia-theme="{{ theme_setting | default('system') }}">
+<html lang="es" data-sazon-theme="{{ theme_setting | default('system') }}">
 
 <head>
 
@@ -12,20 +12,20 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>{% block title %}Sistema de gestión{% endblock %} — Saskia RMS</title>
+  <title>{% block title %}Sistema de gestión{% endblock %} — Sazón</title>
 
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 
   <link rel="alternate icon" type="image/png" href="/static/favicon.ico">
-  <meta name="description" content="Saskia RMS — Sistema de gestión para panadería y cafetería. Asunción, Paraguay.">
-  <meta property="og:title" content="Saskia RMS">
+  <meta name="description" content="Sazón — Sistema de gestión para panadería y cafetería. Asunción, Paraguay.">
+  <meta property="og:title" content="Sazón">
   <meta property="og:description" content="Sistema de gestión para panadería y cafetería">
   <meta property="og:image" content="/static/og-image.svg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Saskia RMS">
+  <meta name="twitter:title" content="Sazón">
   <meta name="twitter:description" content="Sistema de gestión para panadería y cafetería">
   <meta name="twitter:image" content="/static/og-image.svg">
   <link rel="apple-touch-icon" href="/static/favicon.svg">
@@ -48,9 +48,9 @@
 
       try {
 
-        var stored = localStorage.getItem('saskia-theme');
+        var stored = localStorage.getItem('sazon-theme');
 
-        var attr  = document.documentElement.getAttribute('data-saskia-theme') || 'system';
+        var attr  = document.documentElement.getAttribute('data-sazon-theme') || 'system';
 
         var dark  = attr === 'dark' || (attr === 'system' && stored === 'dark');
 
@@ -73,7 +73,7 @@
   <aside class="sidebar" aria-label="Navegación principal">
       <a class="brand" href="/">
         <span class="brand-mark">S</span>
-        <span class="brand-name">{{ branding.business_name or "Saskia RMS" }}</span>
+        <span class="brand-name">{{ branding.business_name or "Sazón" }}</span>
       </a>
       {% for group, items in nav_groups %}
       <div class="sidebar-section">{{ group }}</div>
@@ -176,7 +176,7 @@
     <span style="margin-left:auto;display:flex;gap:var(--space-3);align-items:center;">
           <a href="/healthz" aria-label="Estado del servidor" class="text-muted" style="text-decoration:none;">· estado</a>
           <a href="/guia" aria-label="Guía de uso" class="text-muted" style="text-decoration:none;">guía</a>
-          <span>© {{ now_year() }} {{ branding.business_name or "Saskia RMS" }}</span>
+          <span>© {{ now_year() }} {{ branding.business_name or "Sazón" }}</span>
         </span>
   </footer>
 
@@ -217,7 +217,7 @@
   <nav class="topnav" aria-label="Navegación">
     <a href="/" class="brand">
       <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
-      <span>Saskia RMS</span>
+      <span>Sazón</span>
     </a>
   </nav>
 
@@ -245,32 +245,32 @@
         btn.setAttribute('aria-pressed', String(isDark));
       }
       function resolve() {
-        var attr = document.documentElement.getAttribute('data-saskia-theme') || 'system';
+        var attr = document.documentElement.getAttribute('data-sazon-theme') || 'system';
         var stored = null;
-        try { stored = localStorage.getItem('saskia-theme'); } catch (e) {}
+        try { stored = localStorage.getItem('sazon-theme'); } catch (e) {}
         if (attr === 'dark')  return true;
         if (attr === 'light') return false;
         return stored === 'dark';
       }
       paint(resolve());
       btn.addEventListener('click', function() {
-        var attr = document.documentElement.getAttribute('data-saskia-theme') || 'system';
+        var attr = document.documentElement.getAttribute('data-sazon-theme') || 'system';
         var stored = null;
-        try { stored = localStorage.getItem('saskia-theme'); } catch (e) {}
+        try { stored = localStorage.getItem('sazon-theme'); } catch (e) {}
         if (attr === 'light') {
           document.documentElement.setAttribute('data-theme', 'dark');
-          document.documentElement.setAttribute('data-saskia-theme', 'dark');
-          try { localStorage.setItem('saskia-theme', 'dark'); } catch (e) {}
+          document.documentElement.setAttribute('data-sazon-theme', 'dark');
+          try { localStorage.setItem('sazon-theme', 'dark'); } catch (e) {}
           paint(true);
         } else if (attr === 'dark') {
           document.documentElement.removeAttribute('data-theme');
-          document.documentElement.setAttribute('data-saskia-theme', 'system');
-          try { localStorage.setItem('saskia-theme', stored || 'dark'); } catch (e) {}
+          document.documentElement.setAttribute('data-sazon-theme', 'system');
+          try { localStorage.setItem('sazon-theme', stored || 'dark'); } catch (e) {}
           paint(stored === 'dark');
         } else {
           document.documentElement.removeAttribute('data-theme');
-          document.documentElement.setAttribute('data-saskia-theme', 'light');
-          try { localStorage.setItem('saskia-theme', 'light'); } catch (e) {}
+          document.documentElement.setAttribute('data-sazon-theme', 'light');
+          try { localStorage.setItem('sazon-theme', 'light'); } catch (e) {}
           paint(false);
         }
       });
@@ -294,20 +294,20 @@
   </div>
 
   {% include "_components/confirm_modal.html" %}
-  <saskia-toast-stack></saskia-toast-stack>
+  <ui-toast-stack></ui-toast-stack>
 
   {# ── Global JS: search modal, notification center, Cmd+K ── #}
   <script src="/static/shortcuts.js" defer></script>
   <script src="/static/app.js?v={{ asset_version() }}" defer></script>
   <script src="/static/app-components.js?v={{ asset_version() }}" defer></script>
-  <script src="/static/saskia-date.js?v={{ asset_version() }}" defer></script>
-  <script src="/static/saskia-month.js?v={{ asset_version() }}" defer></script>
-  <script src="/static/saskia-skeleton.js?v={{ asset_version() }}" defer></script>
-  <script src="/static/saskia-combo.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/ui-date.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/ui-month.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/ui-skeleton.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/ui-combo.js?v={{ asset_version() }}" defer></script>
   <script src="/static/combo-rows.js?v={{ asset_version() }}" defer></script>
-  <script src="/static/saskia-toast.js?v={{ asset_version() }}" defer></script>
-  <script src="/static/saskia-kpi-card.js?v={{ asset_version() }}" defer></script>
-  <script src="/static/saskia-insight-card.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/ui-toast.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/ui-kpi-card.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/ui-insight.js?v={{ asset_version() }}" defer></script>
   {% block page_scripts %}{% endblock %}
 
   {# Sticky bottom-nav for mobile (≤768px). Hidden on desktop via mobile.css. #}

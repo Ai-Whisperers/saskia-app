@@ -12,8 +12,8 @@ Examples:
     # List all secrets in the default Hermes BWS project
     python3 scripts/bws_list_names.py
 
-    # Find anything saskia-related
-    python3 scripts/bws_list_names.py --search saskia
+    # Find anything sazon-related
+    python3 scripts/bws_list_names.py --search sazon
 
     # Find anything r2-related
     python3 scripts/bws_list_names.py --search r2
@@ -58,7 +58,7 @@ def main() -> int:
         ClientSettings(
             api_url="https://api.bitwarden.com",
             identity_url="https://identity.bitwarden.com",
-            user_agent="saskia-bws-list/1",
+            user_agent="sazon-bws-list/1",
             device_type=DeviceType.SERVER,
         )
     )

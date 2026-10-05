@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Import HEREBUS Google Drive data into Saskia.
+"""Import HEREBUS Google Drive data into the operator.
 
 Source: 33 files in /tmp/herbus_drive/ (downloaded from the public Drive folder).
-Target: Saskia app database (SQLite).
+Target: the operator app database (SQLite).
 
 Usage:
-    cd /opt/data/profiles/ivan/scratch/saskia-app-work
+    cd /opt/data/profiles/ivan/scratch/sazon-app-work
     uv run python scripts/import_herebus_data.py [--dry-run]
 
-By default: writes to the running app DB at ../saskia.db (or wherever
+By default: writes to the running app DB at ./sazon.db (or wherever
 app.rms.config.DB_PATH points). Use --dry-run to preview without writes.
 
 What it imports (idempotent — safe to re-run):
@@ -79,7 +79,7 @@ def load_dump():
     """Load the parsed spreadsheets JSON."""
     if not DUMP_JSON.exists():
         raise SystemExit(
-            f"Missing {DUMP_JSON}. Run: /opt/data/profiles/ivan/scratch/saskia-app-work/.venv/bin/python /tmp/herbus_drive/dump_xlsx.py"
+            f"Missing {DUMP_JSON}. Run: /opt/data/profiles/ivan/scratch/sazon-app-work/.venv/bin/python /tmp/herbus_drive/dump_xlsx.py"
         )
     with open(DUMP_JSON) as f:
         return json.load(f)
@@ -236,7 +236,7 @@ def import_delivery_zones(session: Any) -> int:
             3,
         ),
         ("4", "Lejano", "Limpio, Itauguá, Areguá, Ypacaraí, MRA", 35.0, 30000, 70000, 90, 4),
-        ("5", "Fuera", "Otros (no cubierto — escalar a Saskia)", 35.0, 0, 0, 0, 5),
+        ("5", "Fuera", "Otros (no cubierto — escalar a the operator)", 35.0, 0, 0, 0, 5),
     ]
     n = 0
     for code, name, cov, radius, cost, min_ord, mins, pos in zones:
@@ -289,7 +289,7 @@ def import_settings(session: Any) -> int:
             "delivery_model",
             {
                 "type": "outsourced",
-                "note": "Saskia NO hace la moto — chofer externo contratado",
+                "note": "the operator NO hace la moto — chofer externo contratado",
             },
         ),
         (
@@ -394,7 +394,7 @@ def import_ingredients(session: Any, dump: Any) -> int:
 
 
 # Recipe photo files in /static/recipes/
-RECIPE_PHOTO_DIR = "/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/recipes"
+RECIPE_PHOTO_DIR = "/opt/data/profiles/ivan/scratch/sazon-app-work/app/static/recipes"
 
 
 def import_recipes(session: Any, dump: Any) -> int:
@@ -718,7 +718,7 @@ def import_waste(session: Any) -> int:
             reason=reason,
             cost_gs=cost or int(qty * (ing.purchase_price_gs or 0)),
             recorded_at=dt,
-            recorded_by="Saskia",
+            recorded_by="the operator",
         )
         session.add(w)
         n += 1
@@ -1103,7 +1103,7 @@ def main():
     args = ap.parse_args()
 
     print("=" * 70)
-    print("  HEREBUS Drive → Saskia import")
+    print("  HEREBUS Drive → the operator import")
     print("=" * 70)
 
     dump = load_dump()

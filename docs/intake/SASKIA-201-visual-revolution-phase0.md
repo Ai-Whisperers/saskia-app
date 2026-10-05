@@ -9,7 +9,7 @@
 ## What
 
 Phase 0 of the Visual Revolution plan (see
-`docs/plans/2026-09-17-saskia-visual-revolution-plan.md`).
+`docs/plans/2026-09-17-sazon-visual-revolution-plan.md`).
 
 - Replaced flat 17-color CSS variable scheme with a full
   primitive → semantic → component token model (50+ tokens)
@@ -24,10 +24,10 @@ Phase 0 of the Visual Revolution plan (see
 
 ## Why
 
-Saskia RMS was visually dated (text-only nav, brown primary color, no data
+Sazón was visually dated (text-only nav, brown primary color, no data
 visualization, JSON error pages). The Fase1 backend is rock solid (1015 tests
 passing) — the visual layer is what stood between Fase1 and a premium product
-that Saskia (and future clients) would be proud to use.
+that the operator (and future clients) would be proud to use.
 
 ## Tasks
 
@@ -84,5 +84,5 @@ that Saskia (and future clients) would be proud to use.
 - **E26.S4 (Phase 3 — Polish)** — Settings page grouping, mobile audit,
   confirmation dialogs, accessibility audit + Lighthouse CI.
 
-See `docs/plans/2026-09-17-saskia-visual-revolution-plan.md` for the
+See `docs/plans/2026-09-17-sazon-visual-revolution-plan.md` for the
 complete 5-phase plan.

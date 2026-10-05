@@ -1,6 +1,6 @@
 """tests/test_reorder_restock.py — Phase D Q1-surface: /reorder restock flow.
 
-Saskia's words: "cada vez que la clienta restockea tiene que cargar los
+the operator's words: "cada vez que la clienta restockea tiene que cargar los
 precios, y así puede ver en los paneles de gestión cuánto está ganando
 realmente aunque los precios fluctúen."
 

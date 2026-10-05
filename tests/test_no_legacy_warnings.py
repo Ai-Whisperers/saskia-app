@@ -19,7 +19,7 @@ def test_clean_run_reports_zero_warnings():
     import subprocess
     from pathlib import Path
 
-    # T-2026-10-04: was hardcoded to /opt/data/work/saskia-app (a
+    # T-2026-10-04: was hardcoded to /opt/data/work/sazon-app (a
     # sibling worktree). Follow the current worktree so subprocess
     # can find the right tests/ and pyproject.toml.
     project_root = Path(__file__).resolve().parents[1]

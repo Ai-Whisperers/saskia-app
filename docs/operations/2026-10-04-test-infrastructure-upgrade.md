@@ -1,4 +1,4 @@
-# Saskia Test Infrastructure Upgrade — Master Plan
+# the operator Test Infrastructure Upgrade — Master Plan
 
 **Date:** 2026-10-04 (post-PR #46 cleanup)
 **Owner:** Test infrastructure squad
@@ -372,7 +372,7 @@ Most tests need only 1-3 entities. `qseed("with_kyrian_full")` seeds 50+ entitie
 - Coverage gate bumped + X% (per phase plan)
 - No ruff errors
 - Documentation reflects changes (`docs/operations/test-infra.md`)
-- At least 1 review from product side (Saskia doesn't see regressions)
+- At least 1 review from product side (the operator doesn't see regressions)
 
 ---
 

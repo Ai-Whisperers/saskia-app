@@ -1,7 +1,7 @@
-# Saskia — Architecture & Design Principles Refactor Plan
+# the operator — Architecture & Design Principles Refactor Plan
 
 **Date:** 2026-09-24
-**Scope:** `/opt/data/scratch/saskia-app/app/` (~30K LOC, 1,999 tests, 6 in-flight branches)
+**Scope:** `/opt/data/scratch/sazon-app/app/` (~30K LOC, 1,999 tests, 6 in-flight branches)
 **Method:** 3 parallel subagents scanned SOLID/architecture, performance/concurrency, and types/validation. ~60 grounded findings with file:line, named principle, and worst-case consequence. This plan groups findings into actionable phases.
 
 ---

@@ -275,10 +275,10 @@ def main():
         if v["status"].startswith("ok")
     )
     (OUT / "index.html").write_text(
-        f"<!doctype html><meta charset='utf-8'><title>Saskia pages</title>"
+        f"<!doctype html><meta charset='utf-8'><title>the operator pages</title>"
         f"<style>body{{font-family:sans-serif;margin:20px}}figure{{margin:0 0 28px}}"
         f"img{{max-width:100%;border:1px solid #ccc}}figcaption{{font-size:13px;color:#556}}</style>"
-        f"<h1>Saskia RMS — {ok}/{len(summary)} pages</h1>{cards}"
+        f"<h1>Sazón — {ok}/{len(summary)} pages</h1>{cards}"
     )
     print(f"\n{ok}/{len(summary)} pages captured → {OUT.resolve()}")
     server.should_exit = True

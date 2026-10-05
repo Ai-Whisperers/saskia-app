@@ -1,6 +1,6 @@
 """tests/test_workflow.py — verify app/rms/workflow.py (E12).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E12.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E12.
 
 Covers:
 - EOD checklist template has 10 items

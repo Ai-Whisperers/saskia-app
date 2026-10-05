@@ -52,7 +52,7 @@ def main() -> int:
         capture_output=True,
         text=True,
         timeout=600,
-        cwd="/opt/data/profiles/ivan/scratch/saskia-app-work",
+        cwd="/opt/data/profiles/ivan/scratch/sazon-app-work",
     )
 
     # Parse "X passed, Y warnings in Zs" or "X passed in Zs" (zero warnings)

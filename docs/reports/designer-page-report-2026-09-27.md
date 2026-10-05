@@ -1,6 +1,6 @@
-# Saskia RMS — Designer Page Report
+# Sazón — Designer Page Report
 
-**Generated:** 2026-09-27 (auto-generated from repo at HEAD `/opt/data/profiles/ivan/scratch/saskia-app-work/.git/HEAD`)
+**Generated:** 2026-09-27 (auto-generated from repo at HEAD `/opt/data/profiles/ivan/scratch/sazon-app-work/.git/HEAD`)
 **Pages covered:** 66 routes (all 84 from `scripts/shoot_all_pages.py`, with 66 page routes + 18 export endpoints)
 **Designer audience:** UI/UX, QA, and frontend reviewers
 
@@ -12,17 +12,17 @@ Each section is **one page (one URL)** and gives you everything a designer needs
 
 - **Route** — the URL, HTTP method, and the Python handler that serves it
 - **Template** — the Jinja2 file rendered, with line count and which `_components/` it pulls in
-- **UI primitives** — class signals (`metric-card`, `pos-layout`, `form-grid-2col`, …), saskia-combo count, charts, modals, empty-state, aria-current, currency refs
+- **UI primitives** — class signals (`metric-card`, `pos-layout`, `form-grid-2col`, …), ui-combo count, charts, modals, empty-state, aria-current, currency refs
 - **Context keys** — every variable passed to the template by the handler (`{{ ventas_gs }}`, `{{ ranking }}`, etc.)
 - **Data sources** — which SQLAlchemy models the route queries (Ingredient, Sale, Pedido, …)
 - **Forms** — `<form action=...>` POST endpoints reachable from this page
 - **Browser contract** — the `tests/browser/pages.py` page object class that owns this route's selectors (restyles change only that file)
-- **Design constraints** — anything specific to this page from `AGENTS.md`, the saskia-rms-development skill, or recent commits
+- **Design constraints** — anything specific to this page from `AGENTS.md`, the sazon-rms-development skill, or recent commits
 - **Screenshot** — `docs/user-guide/screenshots/all-pages/<name>.png` (1280×900, regenerated today)
 
 ### Global constraints (apply to every page)
 
-- **No native `<select>`** — every dropdown must use `<saskia-combo>` or `.saskia-combo` markup
+- **No native `<select>`** — every dropdown must use `<ui-combo>` or `.ui-combo` markup
 - **Paraguayan Spanish, voseo** — "Guardá", "Registrá", "Cancelá" (never "Salvar" Argentine or "Guardar" Mexican)
 - **Money = integer Guaraníes** — `Gs. 12.000` formatted via `format_gs()` macro / `gs`/`gs_full` Jinja helpers; never float, never decimals
 - **Times in `ASUNCION_TZ`** — DB returns naive datetimes; the template globals `now_str` / `greeting` handle display-side TZ
@@ -111,7 +111,7 @@ Each section is **one page (one URL)** and gives you everything a designer needs
 **Dashboard** — GET → `herebus.dashboard_index` → `dashboard.html`
 
 **Template:** `5,830 chars / 111 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `page-header`, `warning`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **4**
@@ -131,7 +131,7 @@ Each section is **one page (one URL)** and gives you everything a designer needs
 **Dashboard** — GET → `dashboard.dashboard` → `inicio.html`
 
 **Template:** `14,601 chars / 346 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `metric-card`, `empty-state`, `danger`, `chip`, `pill`, `metric`, `success`
 - Empty-state: ✓ · Chart: ✓ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **8**
@@ -153,7 +153,7 @@ Each section is **one page (one URL)** and gives you everything a designer needs
 **Template:** `10,539 chars / 245 lines` — extends `base.html`
 - Includes: `_components/_customer_picker.html`
 - Forms POST to: `/ventas/nueva`
-- Saskia-combo count: **4**
+- the operator-combo count: **4**
 - Class signals: `pos-layout`, `danger`, `pos-quick`, `form-row`, `pos-form`, `success`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **1**
@@ -174,7 +174,7 @@ Each section is **one page (one URL)** and gives you everything a designer needs
 
 **Template:** `7,789 chars / 185 lines` — extends `base.html`
 - Forms POST to: `/ventas/{{ s.id }}/anular`
-- Saskia-combo count: **3**
+- the operator-combo count: **3**
 - Class signals: `info`, `empty-state`, `danger`, `form-row`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **4**
@@ -215,7 +215,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `12,338 chars / 296 lines` — extends `base.html`
 - Forms POST to: `/pedidos`, `/pedidos/bulk-fulfill`, `/pedidos/bulk-cancel`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `info`, `empty-state`, `danger`, `success`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✓
 - Currency refs (Gs./gs_full): **2**
@@ -235,7 +235,7 @@ _(Route not parsed — handler not found in any router file)_
 **Pedidos board** — GET → `pedidos.pedidos_board` → `pedido_board.html`
 
 **Template:** `61,134 chars / 209 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: _(none)_
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -256,7 +256,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `8,930 chars / 249 lines` — extends `base.html`
 - Forms POST to: `/pedidos/nuevo`
-- Saskia-combo count: **6**
+- the operator-combo count: **6**
 - Class signals: `combobox`, `danger`, `form-row`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **1**
@@ -277,7 +277,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `16,211 chars / 286 lines` — extends `base.html`
 - Includes: `_components/adjust_modal.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `metric-card`, `info`, `empty-state`, `danger`, `pill`, `metric`, `success`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✓
 - Currency refs (Gs./gs_full): **5**
@@ -298,7 +298,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `8,701 chars / 161 lines` — extends `base.html`
 - Forms POST to: `/inventario{{ `
-- Saskia-combo count: **4**
+- the operator-combo count: **4**
 - Class signals: `form-grid-2col`, `chip`, `form-row`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **2**
@@ -319,7 +319,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `10,310 chars / 229 lines` — extends `base.html`
 - Forms POST to: `/recetas`
-- Saskia-combo count: **1**
+- the operator-combo count: **1**
 - Class signals: `pill`, `info`, `empty-state`, `form-row`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✓ · aria-current: ✗
 - Currency refs (Gs./gs_full): **2**
@@ -340,7 +340,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `46,035 chars / 1,200 lines` — extends `base.html`
 - Forms POST to: `/recetas{{ `
-- Saskia-combo count: **12**
+- the operator-combo count: **12**
 - Class signals: `danger`, `pill`, `form-row`, `metric`, `form-section`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **7**
@@ -361,7 +361,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `16,952 chars / 319 lines` — extends `base.html`
 - Forms POST to: `/productos`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `info`, `empty-state`, `danger`, `pill`, `success`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✓
 - Currency refs (Gs./gs_full): **5**
@@ -382,7 +382,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `15,440 chars / 424 lines` — extends `base.html`
 - Forms POST to: `/productos{{ `
-- Saskia-combo count: **2**
+- the operator-combo count: **2**
 - Class signals: `info`, `danger`, `form-row`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **2**
@@ -404,7 +404,7 @@ _(Route not parsed — handler not found in any router file)_
 **Template:** `8,987 chars / 200 lines` — extends `base.html`
 - Includes: `_components/_customer_picker.html`
 - Forms POST to: `/clientes`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `info`, `empty-state`, `danger`, `success`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **3**
@@ -425,7 +425,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `2,554 chars / 80 lines` — extends `base.html`
 - Forms POST to: `/suppliers/{{ s.id }}/eliminar`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `info`, `empty-state`, `danger`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -446,7 +446,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `1,986 chars / 40 lines` — extends `base.html`
 - Forms POST to: `{{ `
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `form-row`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -467,7 +467,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `3,253 chars / 70 lines` — extends `base.html`
 - Forms POST to: `/wishlist/{{ item.id }}/send-to-shopping-list`, `/wishlist/{{ item.id }}/mark-purchased`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `page-header`, `warning`, `success`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **4**
@@ -488,7 +488,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `16,306 chars / 410 lines` — extends `base.html`
 - Forms POST to: `/produccion-planner/compute`, `/produccion/template/fork-week`, `/produccion/override`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `info`, `metric-card`, `danger`, `metric`, `success`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✓
 - Currency refs (Gs./gs_full): **2**
@@ -509,7 +509,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `4,859 chars / 122 lines` — extends `base.html`
 - Forms POST to: `/produccion-planner/compute`
-- Saskia-combo count: **1**
+- the operator-combo count: **1**
 - Class signals: `page-header`, `warning`, `success`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **2**
@@ -530,7 +530,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `6,438 chars / 181 lines` — extends `base.html`
 - Forms POST to: `/eod/check`, `/eod/completar`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `success`, `danger`, `form-row`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -551,7 +551,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `11,449 chars / 303 lines` — extends `base.html`
 - Forms POST to: `/merma`, `/merma/registrar`, `/merma/receta`
-- Saskia-combo count: **6**
+- the operator-combo count: **6**
 - Class signals: `metric-card`, `empty-state`, `info`, `form-row`, `metric`
 - Empty-state: ✓ · Chart: ✓ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **4**
@@ -572,7 +572,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `8,914 chars / 194 lines` — extends `base.html`
 - Forms POST to: `/reorder/generate-po`, `/reorder/registrar`
-- Saskia-combo count: **1**
+- the operator-combo count: **1**
 - Class signals: `info`, `danger`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **1**
@@ -593,7 +593,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `5,069 chars / 123 lines` — extends `base.html`
 - Forms POST to: `/shopping-list/{{ item.id }}/delete`, `/shopping-list/{{ item.id }}/mark-purchased`, `/shopping-list/sync-low-stock`, `/shopping-list/{{ item.id }}/unmark`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `success`, `page-header`, `danger`, `warning`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **2**
@@ -613,7 +613,7 @@ _(Route not parsed — handler not found in any router file)_
 **Analisis** — GET → `analisis.analisis_view` → `analisis.html`
 
 **Template:** `10,663 chars / 233 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `metric-card`, `metric`, `danger`
 - Empty-state: ✗ · Chart: ✓ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **6**
@@ -633,7 +633,7 @@ _(Route not parsed — handler not found in any router file)_
 **Reportes** — GET → `reportes.reportes_index` → `reportes.html`
 
 **Template:** `845 chars / 28 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: _(none)_
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -653,7 +653,7 @@ _(Route not parsed — handler not found in any router file)_
 **Reportes iva** — GET → `reportes.reportes_iva` → `reportes_iva.html`
 
 **Template:** `2,078 chars / 63 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `metric-card`, `empty-state`, `metric`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **3**
@@ -674,7 +674,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `3,236 chars / 95 lines` — extends `base.html`
 - Forms POST to: `/reportes/libro-ventas`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `info`, `empty-state`, `form-row`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **3**
@@ -695,7 +695,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `2,076 chars / 60 lines` — extends `base.html`
 - Forms POST to: `/reportes/diario`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `metric-card`, `metric`, `form-row`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **1**
@@ -716,7 +716,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `3,674 chars / 98 lines` — extends `base.html`
 - Forms POST to: `/reportes/comparacion`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `metric-card`, `metric`, `form-row`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -737,7 +737,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `1,743 chars / 62 lines` — extends `base.html`
 - Forms POST to: `/reportes/top-productos`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `empty-state`, `form-row`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **1**
@@ -758,7 +758,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `2,198 chars / 63 lines` — extends `base.html`
 - Forms POST to: `/reportes/retencion`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `metric-card`, `empty-state`, `metric`, `form-row`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -779,7 +779,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `1,425 chars / 43 lines` — extends `base.html`
 - Forms POST to: `/reportes/valor-pedido`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `metric-card`, `empty-state`, `metric`, `form-row`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **1**
@@ -799,7 +799,7 @@ _(Route not parsed — handler not found in any router file)_
 **Reportes ventas hora** — GET → `reportes.reportes_ventas_hora` → `reportes_ventas_hora.html`
 
 **Template:** `1,322 chars / 49 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `empty-state`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -820,7 +820,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `1,795 chars / 62 lines` — extends `base.html`
 - Forms POST to: `/reportes/metodos-pago`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `metric-card`, `empty-state`, `metric`, `form-row`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **1**
@@ -840,7 +840,7 @@ _(Route not parsed — handler not found in any router file)_
 **Reportes precios** — GET → `reportes.reportes_precios` → `reportes_precios.html`
 
 **Template:** `3,193 chars / 104 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `metric-card`, `metric`
 - Empty-state: ✓ · Chart: ✓ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **5**
@@ -860,7 +860,7 @@ _(Route not parsed — handler not found in any router file)_
 **Reportes cierre mensual** — GET → `reportes.reportes_cierre_mensual` → `reportes_cierre_mensual.html`
 
 **Template:** `5,280 chars / 122 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `metric-card`, `metric`, `danger`, `success`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **2**
@@ -880,7 +880,7 @@ _(Route not parsed — handler not found in any router file)_
 **Food cost variance** — GET → `insights_derived.food_cost_variance` → `insight_food_cost.html`
 
 **Template:** `1,662 chars / 32 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `metric-card`, `metric`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -900,7 +900,7 @@ _(Route not parsed — handler not found in any router file)_
 **Demand** — GET → `insights_derived.demand_view` → `insight_demand.html`
 
 **Template:** `1,647 chars / 42 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: _(none)_
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -920,7 +920,7 @@ _(Route not parsed — handler not found in any router file)_
 **Freshness** — GET → `insights_derived.freshness_view` → `insight_freshness.html`
 
 **Template:** `1,555 chars / 39 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `danger`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -940,7 +940,7 @@ _(Route not parsed — handler not found in any router file)_
 **Stock intel** — GET → `insights_stock.stock_intel_view` → `insight_stock.html`
 
 **Template:** `1,978 chars / 47 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: _(none)_
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -960,7 +960,7 @@ _(Route not parsed — handler not found in any router file)_
 **Afinidades** — GET → `insights_stock.afinidades_view` → `insight_afinidades.html`
 
 **Template:** `954 chars / 25 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: _(none)_
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -980,7 +980,7 @@ _(Route not parsed — handler not found in any router file)_
 **Margenes** — GET → `insights_stock.margenes_view` → `insight_margenes.html`
 
 **Template:** `1,711 chars / 29 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `danger`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -1000,7 +1000,7 @@ _(Route not parsed — handler not found in any router file)_
 **Pricing** — GET → `herebus.pricing_list` → `pricing.html`
 
 **Template:** `2,508 chars / 56 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `page-header`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **9**
@@ -1020,7 +1020,7 @@ _(Route not parsed — handler not found in any router file)_
 **Benchmarks** — GET → `herebus.benchmarks_list` → `benchmarks.html`
 
 **Template:** `1,591 chars / 49 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `page-header`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **3**
@@ -1041,7 +1041,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `5,622 chars / 127 lines` — extends `base.html`
 - Forms POST to: `/bank/add`
-- Saskia-combo count: **2**
+- the operator-combo count: **2**
 - Class signals: `page-header`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -1062,7 +1062,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `6,769 chars / 163 lines` — extends `base.html`
 - Forms POST to: `/auditoria`, `/auditoria/prune`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `info`, `empty-state`, `danger`, `form-row`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -1082,7 +1082,7 @@ _(Route not parsed — handler not found in any router file)_
 **Ops status** — GET → `ops.ops_status` → `ops_status.html`
 
 **Template:** `1,498 chars / 45 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: _(none)_
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -1103,7 +1103,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `23,833 chars / 666 lines` — extends `base.html`
 - Forms POST to: `/settings/business`, `/settings/seed-demo`, `/settings/theme`, `/settings/fiscal`
-- Saskia-combo count: **2**
+- the operator-combo count: **2**
 - Class signals: `info`, `success`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **1**
@@ -1123,7 +1123,7 @@ _(Route not parsed — handler not found in any router file)_
 **Settings catalog page** — GET → `settings.settings_catalog_page` → `settings_catalog.html`
 
 **Template:** `45,113 chars / 950 lines` — extends `base.html`
-- Saskia-combo count: **7**
+- the operator-combo count: **7**
 - Class signals: `page-header`, `danger`, `data-table`, `form-row`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **3**
@@ -1144,7 +1144,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `12,518 chars / 379 lines` — extends `base.html`
 - Forms POST to: `/users/crear`
-- Saskia-combo count: **2**
+- the operator-combo count: **2**
 - Class signals: `info`, `empty-state`, `danger`, `success`
 - Empty-state: ✓ · Chart: ✗ · Modal: ✓ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -1164,7 +1164,7 @@ _(Route not parsed — handler not found in any router file)_
 **Guia** — GET → `help.guia_index` → `guia.html`
 
 **Template:** `337 chars / 13 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: _(none)_
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -1184,7 +1184,7 @@ _(Route not parsed — handler not found in any router file)_
 **Risk** — GET → `herebus.risk_list` → `riesgos.html`
 
 **Template:** `1,898 chars / 46 lines` — extends `base.html`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `success`, `page-header`, `warning`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **3**
@@ -1221,7 +1221,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `5,812 chars / 140 lines` — extends `base.html`
 - Forms POST to: `/excel/importar`, `/excel/validar`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `form-row`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**
@@ -1242,7 +1242,7 @@ _(Route not parsed — handler not found in any router file)_
 
 **Template:** `6,490 chars / 165 lines` — extends `base.html`
 - Forms POST to: `/login`
-- Saskia-combo count: **0**
+- the operator-combo count: **0**
 - Class signals: `pill`, `info`, `form-row`
 - Empty-state: ✗ · Chart: ✗ · Modal: ✗ · aria-current: ✗
 - Currency refs (Gs./gs_full): **0**

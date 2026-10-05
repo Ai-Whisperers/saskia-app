@@ -8,7 +8,7 @@ P0:D.3 — When plan_rows_view is empty, the cook sees the existing
 
 P0:B.5 — On successful shift-execute (?shift_saved=N), a flash banner
   appears AND a short WebAudio chime plays (880→1320 Hz, 120 ms). Muteable
-  via localStorage `saskia.audio.muted=1`. Skipped if the user has
+  via localStorage `sazon.audio.muted=1`. Skipped if the user has
   prefers-reduced-motion set.
 
 P0:B.8 — Each confidence pill has a Spanish tooltip explaining why
@@ -23,7 +23,7 @@ C.6 — Allergen + difficulty micro-badges on each row. Recipe's
   as a comma-separated list capped at 3 + ellipsis on hover.
 
 Verified by hand at:
-https://saskia-vps.paragu-ai.com/produccion?for_date=1900-01-01
+https://sazon-vps.paragu-ai.com/produccion?for_date=1900-01-01
 (after `flask --app app.rms.main resetdb`).
 
 These tests inspect the template source rather than live-rendering
@@ -82,7 +82,7 @@ def test_produccion_template_has_audio_chime_script():
     assert "createOscillator" in block, (
         "P0:B.5 — chime must use createOscillator (no asset to ship)"
     )
-    assert "saskia.audio.muted" in block, "P0:B.5 — chime must respect localStorage mute toggle"
+    assert "sazon.audio.muted" in block, "P0:B.5 — chime must respect localStorage mute toggle"
     assert "prefers-reduced-motion" in block, (
         "P0:B.5 — chime must skip when prefers-reduced-motion is set"
     )

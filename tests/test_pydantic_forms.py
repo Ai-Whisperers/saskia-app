@@ -51,7 +51,7 @@ def test_ventas_nueva_rejects_missing_product_id(client):
 
 
 def test_payment_method_set_in_schemas():
-    """ALLOWED_PAYMENT_METHODS covers the Spanish labels Saskia actually uses.
+    """ALLOWED_PAYMENT_METHODS covers the Spanish labels the operator actually uses.
 
     Includes 'qr' alongside efectivo/transferencia/tarjeta/otro so the
     Ciudad del Este workflow (efectivo/transferencia/QR) is supported.

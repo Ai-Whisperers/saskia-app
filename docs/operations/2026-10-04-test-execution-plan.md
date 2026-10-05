@@ -1,4 +1,4 @@
-# Saskia Test Infrastructure — Complete Execution Plan
+# the operator Test Infrastructure — Complete Execution Plan
 
 **Date:** 2026-10-04
 **Sister docs (read these first):**

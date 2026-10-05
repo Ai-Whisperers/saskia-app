@@ -150,7 +150,7 @@
           <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
           <input type="hidden" name="reason" id="anular-reason-{{ s.id }}">
           <button type="button" class="btn btn-sm btn-danger-ghost"
-                  onclick="SaskiaConfirmModal.show({title:'¿Anular venta #{{ s.id }}?',body:'Esta acción devuelve el stock y queda registrada en auditoría.',confirmLabel:'Sí, anular',danger:true,formId:'void-form-{{ s.id }}',reasonInputId:'anular-reason-{{ s.id }}',reasonField:true})">Anular</button>
+                  onclick="UIConfirmModal.show({title:'¿Anular venta #{{ s.id }}?',body:'Esta acción devuelve el stock y queda registrada en auditoría.',confirmLabel:'Sí, anular',danger:true,formId:'void-form-{{ s.id }}',reasonInputId:'anular-reason-{{ s.id }}',reasonField:true})">Anular</button>
         </form>
         {% endif %}
       </td>

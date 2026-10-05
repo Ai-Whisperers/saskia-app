@@ -100,7 +100,7 @@ def ensure_server():
     except Exception:
         pytest.skip(
             f"Server not reachable at {SERVER_URL}. Start with: "
-            "AIW_SASKIA_DB_PATH=/opt/data/.local/share/AIW-Saskia/rms.sqlite DEV_COMBO_SMOKE=1 "
+            "AIW_RMS_DB_PATH=/opt/data/.local/share/aiw-restaurant/rms.sqlite DEV_COMBO_SMOKE=1 "
             "uvicorn app.rms.main:app --port 8765"
         )
 

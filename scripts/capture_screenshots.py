@@ -14,20 +14,20 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-BASE = "https://saskia-rms.paragu-ai.com"
-OUTPUT = Path("/tmp/saskia_pages")
+BASE = "https://sazon-rms.paragu-ai.com"
+OUTPUT = Path("/tmp/sazon_pages")
 
 
 def login_and_capture():
     OUTPUT.mkdir(exist_ok=True)
-    pwd = Path("/tmp/_saskia_pwd").read_text()
+    pwd = Path("/tmp/_sazon_pwd").read_text()
 
     # Login
     cookie_jar = {}
 
     login_data = urllib.parse.urlencode(
         {
-            "username": "saskia@paragu-ai.com",
+            "username": "demo@paragu-ai.com",
             "password": pwd,
         }
     ).encode()

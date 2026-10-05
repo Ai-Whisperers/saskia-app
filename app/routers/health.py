@@ -173,7 +173,7 @@ def _healthz_payload() -> dict[str, Any]:
     """Shared payload for GET and HEAD (HEAD strips the body at transport level)."""
     return {
         "status": "ok",
-        "service": "aiw-saskia-rms",
+        "service": "sazon-rms",
     }
 
 
@@ -199,7 +199,7 @@ def healthz(request: Request) -> JSONResponse | dict:
             status_code=503,
             content={
                 "status": "warming_up",
-                "service": "aiw-saskia-rms",
+                "service": "sazon-rms",
                 "detail": "App is still initializing; retry in a few seconds.",
             },
         )

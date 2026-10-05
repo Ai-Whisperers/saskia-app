@@ -1,6 +1,6 @@
 """app/rms/analytics.py — Operational analytics queries.
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E8.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E8.
 
 Pure query layer: takes a Session, returns dataclasses. No FastAPI
 deps so the same functions can be used by reports, dashboards,

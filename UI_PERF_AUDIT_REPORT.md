@@ -1,8 +1,8 @@
-# Saskia RMS — Full Performance & UI Audit Report
+# Sazón — Full Performance & UI Audit Report
 
 **Date:** 2026-09-21
 **Analyzer:** Hermes Agent
-**Live URL:** https://saskia-rms.paragu-ai.com
+**Live URL:** https://sazon-rms.paragu-ai.com
 
 ---
 

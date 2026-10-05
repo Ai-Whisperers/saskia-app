@@ -1,4 +1,4 @@
-# Saskia RMS — COMPLETE Test-Code Improvement Catalog
+# Sazón — COMPLETE Test-Code Improvement Catalog
 
 **Date:** 2026-09-25
 **Supersedes:** the 10-item list in 2026-09-25-test-code-refactor-analysis.md

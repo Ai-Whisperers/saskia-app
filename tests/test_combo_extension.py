@@ -1,4 +1,4 @@
-"""Tests for the reusable saskia-combo component and recipe-form/merma
+"""Tests for the reusable ui-combo component and recipe-form/merma
 conversions to it.
 
 NOTE 2026-09-29: US 2.1 / 3.1 partial shipping — combo infrastructure
@@ -16,7 +16,7 @@ def test_combo_js_is_served(client):
     """/static/combo.js serves."""
     r = client.get("/static/combo.js")
     assert r.status_code == 200
-    assert b"SaskiaCombo" in r.content or b"window.SaskiaCombo" in r.content
+    assert b"UICombo" in r.content or b"window.UICombo" in r.content
 
 
 def test_combo_rows_js_is_served(client):
@@ -32,7 +32,7 @@ def test_combobox_css_is_served(client):
     """/static/combobox.css serves with combo styling rules."""
     r = client.get("/static/combobox.css")
     assert r.status_code == 200
-    assert b".saskia-combo" in r.content
+    assert b".ui-combo" in r.content
     assert b".combo-row" in r.content
 
 
@@ -109,13 +109,13 @@ def test_inventory_api_search_empty_query_lists_all(qseed, authed_client):
 
 
 def test_merma_uses_combobox_for_ingredient(qseed, authed_client):
-    """/merma now uses .saskia-combo for the ingredient field."""
+    """/merma now uses .ui-combo for the ingredient field."""
     qseed("basic")
     r = authed_client.get("/merma")
     assert r.status_code == 200
     body = r.text
     # Combobox markers
-    assert "saskia-combo" in body
+    assert "ui-combo" in body
     assert 'data-source="/inventario/api/search"' in body
     assert "combo-input" in body
     # Old long native select should be gone
@@ -154,7 +154,7 @@ def test_receta_form_line_target_id_uses_combobox(qseed, authed_client):
     body = r.text
     # For now this is a "desired" assertion — skip if conversion pending
     has_old_select = '<select name="line_target_id">' in body
-    has_combo = "saskia-product-combo" in body or 'data-source="/productos/api/search"' in body
+    has_combo = "sazon-product-combo" in body or 'data-source="/productos/api/search"' in body
     # Until the conversion lands, the recipe form may still use <select>
     # We document the desired state but don't enforce it yet.
     if has_old_select:

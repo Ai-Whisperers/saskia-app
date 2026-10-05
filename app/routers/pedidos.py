@@ -1,4 +1,4 @@
-"""app/routers/pedidos.py — Pre-orders (pedidos) for Saskia's WhatsApp-heavy flow.
+"""app/routers/pedidos.py — Pre-orders (pedidos) for the operator's WhatsApp-heavy flow.
 
 Phase 3 of the 2026-09-17 prelaunch roadmap.
 
@@ -14,7 +14,7 @@ This router exposes:
 - `GET  /p/{public_token}` — NO AUTH public pickup-share page (WhatsApp-shareable)
 
 The public `/p/{token}` endpoint lives at the root (not under /pedidos) so the
-path stays short when shared over WhatsApp: `https://saskia.app/p/AbCd1234`.
+path stays short when shared over WhatsApp: `https://sazon.app/p/AbCd1234`.
 """
 
 from __future__ import annotations
@@ -40,6 +40,24 @@ from app.rms.csrf import verify_form_csrf
 from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
 from app.rms.models import Customer, Pedido, PedidoLine, Product, Recipe, Sale
+from app.rms.production_demand import invalidate_demand_for_dates
+
+
+def _as_date(d: "date | datetime | None") -> date | None:
+    """PRODUCCION-V2 Fase 4 helper: normalize a column value to a date.
+
+    `pedido.promised_date` is a SQLAlchemy DateTime column but is
+    populated by callers passing either a `date` or a `datetime`.
+    `.date()` is only valid on `datetime`. Snapshot rows are keyed by
+    `date.isoformat()` (no time component), so we must normalize.
+
+    Returns None for None so callers can short-circuit if needed.
+    """
+    if d is None:
+        return None
+    if isinstance(d, datetime):
+        return d.date()
+    return d
 from app.rms.public_tokens import (
     enforce_rate_limit as public_token_enforce_rate_limit,
 )
@@ -1140,6 +1158,19 @@ async def pedidos_create(
         },
         request=request,
     )
+    # PRODUCCION-V2 Fase 4: a new pedido shifts the demand for the
+    # promised date. Invalidate the cache so the next /produccion
+    # render recomputes. Best-effort: errors are swallowed.
+    # pedido.promised_date is a datetime OR date depending on caller;
+    # snapshot rows are keyed by date.isoformat() so normalize here.
+    # Note: do this BEFORE safe_commit so the DELETE joins the same
+    # transaction and persists without a second commit dance.
+    promised_date_norm = _as_date(pedido.promised_date)
+    if promised_date_norm is not None:
+        try:
+            invalidate_demand_for_dates(session, [promised_date_norm])
+        except Exception:  # noqa: BLE001 — best-effort invalidation
+            pass  # cache stays stale; 5-min TTL will eventually catch up
     safe_commit(session)
 
     # T-2026-10-01: stamp the idempotency reservation with the new
@@ -1251,7 +1282,7 @@ def pedidos_export_csv(
 
 # --- Public pickup-share endpoint (NO AUTH) ---------------------------------
 # Lives at root so the URL is short enough for WhatsApp messages:
-# https://saskia.app/p/{token}
+# https://sazon.app/p/{token}
 
 
 @public_router.get("/p/{token}", response_class=HTMLResponse)
@@ -1339,7 +1370,7 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
             "pedido_publico.html",
             {
                 "pedido": decorated,
-                "shop_name": "Saskia RMS",
+                "shop_name": "Sazón",
                 "currency_label": "Gs.",
             },
         )
@@ -1477,7 +1508,7 @@ def _render_public_with_flash(
             "pedido_publico.html",
             {
                 "pedido": decorated,
-                "shop_name": "Saskia RMS",
+                "shop_name": "Sazón",
                 "currency_label": "Gs.",
                 "flash_kind": flash_kind,
                 "flash_msg": flash_msg,
@@ -1675,6 +1706,14 @@ async def pedidos_status(
         },
         request=request,
     )
+    # PRODUCCION-V2 Fase 4: a status change shifts qty_pedidos for the
+    # promised date (e.g., pending → cancelled removes the line from
+    # demand; pending → confirmed/ready adds to qty_pedidos_confirmed).
+    # Best-effort: do this BEFORE safe_commit so the DELETE joins the
+    # same transaction.
+    promised_date_norm = _as_date(pedido.promised_date)
+    if promised_date_norm is not None:
+        invalidate_demand_for_dates(session, [promised_date_norm])
     safe_commit(session)
     return RedirectResponse(url=f"/pedidos/{pedido.id}", status_code=303)
 
@@ -1946,6 +1985,19 @@ def pedidos_fulfill(
             .values(value=_json.dumps(payload))
         )
 
+    # PRODUCCION-V2 Fase 4: fulfilling a pedido removes the lines from
+    # qty_pedidos for the promised date (status → fulfilled) AND
+    # creates a Sale row that shifts the 14d rolling forecast. Invalidate
+    # both dates. The sale date is "today" by clock at fulfill time
+    # (Asunción local — the cook lives in PY, not UTC).
+    # Best-effort: do this BEFORE safe_commit so the DELETEs join the
+    # same transaction.
+    today_local = datetime.now(ASUNCION_TZ).date()
+    dates_to_invalidate = [today_local]
+    promised_date_norm = _as_date(pedido.promised_date)
+    if promised_date_norm is not None:
+        dates_to_invalidate.append(promised_date_norm)
+    invalidate_demand_for_dates(session, dates_to_invalidate)
     safe_commit(session)
 
     # T-2026-10-04: recreate the stock_qty safety triggers we dropped at the
@@ -2019,7 +2071,7 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
                     "customer_name": pedido.customer_name or "",
                     "pedido_id": pedido.id,
                     "total_gs": pedido.total_gs or 0,
-                    "business_name": "Saskia RMS",
+                    "business_name": "Sazón",
                 },
             )
     except Exception as exc:  # noqa: BLE001 — defensive default
@@ -2209,6 +2261,12 @@ def pedidos_duplicate(
         detail={"original_id": original.id},
         request=request,
     )
+    # PRODUCCION-V2 Fase 4: a duplicate pedido adds a new line to the
+    # promised date. Invalidate. Best-effort: do this BEFORE safe_commit
+    # so the DELETE joins the same transaction.
+    copy_promised_norm = _as_date(copy.promised_date)
+    if copy_promised_norm is not None:
+        invalidate_demand_for_dates(session, [copy_promised_norm])
     safe_commit(session)
 
     return RedirectResponse(url=f"/pedidos/{copy.id}", status_code=303)
@@ -2229,6 +2287,7 @@ def pedidos_bulk_fulfill(
     from app.rms.models import Pedido
 
     fulfilled = 0
+    affected_dates: set[date] = set()
     for pid in ids.split(","):
         pid = pid.strip()
         if not pid:
@@ -2245,7 +2304,19 @@ def pedidos_bulk_fulfill(
             .where(PedidoLine.pedido_id == pedido.id)
             .values(fulfilled_qty=PedidoLine.qty)
         )
+        affected_norm = _as_date(pedido.promised_date)
+        if affected_norm is not None:
+            affected_dates.add(affected_norm)
         fulfilled += 1
+    # PRODUCCION-V2 Fase 4: each fulfilled pedido shifts its promised
+    # date's demand. Invalidate all distinct dates in one call.
+    # Best-effort: do this BEFORE safe_commit so the DELETEs join the
+    # same transaction.
+    if affected_dates:
+        try:
+            invalidate_demand_for_dates(session, list(affected_dates))
+        except Exception:  # noqa: BLE001
+            pass
     safe_commit(session)
     flash = f"{fulfilled} pedido(s) marcado(s) como completado(s)"
     return RedirectResponse(url=f"/pedidos?flash={flash}", status_code=303)
@@ -2261,6 +2332,7 @@ def pedidos_bulk_cancel(
     from app.rms.models import Pedido
 
     cancelled = 0
+    affected_dates: set[date] = set()
     for pid in ids.split(","):
         pid = pid.strip()
         if not pid:
@@ -2272,7 +2344,19 @@ def pedidos_bulk_cancel(
         if pedido is None or pedido.status != "pending":
             continue
         pedido.status = "cancelled"
+        affected_norm = _as_date(pedido.promised_date)
+        if affected_norm is not None:
+            affected_dates.add(affected_norm)
         cancelled += 1
+    # PRODUCCION-V2 Fase 4: each cancelled pedido removes its lines
+    # from qty_pedidos for the promised date. Invalidate.
+    # Best-effort: do this BEFORE safe_commit so the DELETEs join the
+    # same transaction.
+    if affected_dates:
+        try:
+            invalidate_demand_for_dates(session, list(affected_dates))
+        except Exception:  # noqa: BLE001
+            pass
     safe_commit(session)
     flash = f"{cancelled} pedido(s) cancelado(s)"
     return RedirectResponse(url=f"/pedidos?flash={flash}", status_code=303)

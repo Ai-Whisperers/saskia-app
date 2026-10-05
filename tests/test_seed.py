@@ -1,6 +1,6 @@
 """tests/test_seed.py — verify app/rms/seed.py is idempotent and accurate.
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E6.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E6.
 
 Covers:
 - seed_demo_data() inserts all expected entities (ingredients, recipes, products, sales, etc.)

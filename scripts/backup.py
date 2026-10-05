@@ -1,6 +1,6 @@
 """scripts/backup.py — operator-facing backup CLI.
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E20.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E20.
 
 Usage:
     uv run python scripts/backup.py                  # default
@@ -31,7 +31,7 @@ from app.rms.db_dialect import make_engine
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Saskia RMS backup/restore")
+    parser = argparse.ArgumentParser(description="Sazón backup/restore")
     sub = parser.add_subparsers(dest="cmd")
 
     p_backup = sub.add_parser("backup", help="Write a backup")
@@ -70,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
         if not d.exists():
             print("No backups yet.")
             return 0
-        files = sorted(d.glob("saskia-backup-*.json*"))
+        files = sorted(d.glob("sazon-backup-*.json*"))
         for f in files:
             sz = f.stat().st_size
             print(f"  {f.name}  ({sz:,} bytes)")

@@ -1,4 +1,4 @@
-{# Reusable form controls for Saskia.
+{# Reusable form controls.
    Includes category/family/tag macros driven by the `category` table
    (migration 039) and the `tag` table.
 
@@ -15,7 +15,7 @@
 {# ─── Catalog option renderers (loops over DB rows) ─────────────────── #}
 
 {% macro render_category_options(categories) %}
-  {# Return a list of {label, value} dicts for <saskia-combo> src= JSON. #}
+  {# Return a list of {label, value} dicts for <ui-combo> src= JSON. #}
   {% set _options = [] %}
   {% for cat in categories %}
     {% set _ = _options.append({'label': cat.name, 'value': cat.name}) %}
@@ -52,7 +52,7 @@
 {% endmacro %}
 
 
-{# ─── Single-select category picker (uses saskia-combo) ────────────── #}
+{# ─── Single-select category picker (uses ui-combo) ────────────── #}
 
 {% macro category_picker(name, current_value, options_markup, allow_custom=True, label='', help='') %}
   {# options_markup: list of {label, value} dicts (from render_category_options). #}

@@ -1,7 +1,7 @@
 """app/rms/market_intel.py — estadística de evidencia de competencia.
 
 Conecta la tabla competitor_price_observation (precios retail de terceros,
-sembrados desde el research repo saskia-market-intel) con:
+sembrados desde el research repo sazon-market-intel) con:
 
 - /vs-mercado         → columna "mercado real" por familia de cada benchmark
 - /vs-mercado/evidencia → tabla de rangos por familia + detalle reciente

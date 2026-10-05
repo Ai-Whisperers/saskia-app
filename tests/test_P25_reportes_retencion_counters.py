@@ -48,7 +48,7 @@ def test_retencion_has_date_filter_form(client):
     """P-25: Page has Desde/Hasta date filters."""
     r = client.get("/reportes/retencion")
     assert r.status_code == 200
-    # The saskia-date picker element
+    # The ui-date picker element
     assert 'name="start"' in r.text, "Missing 'start' filter input on /reportes/retencion"
     assert 'name="end"' in r.text, "Missing 'end' filter input on /reportes/retencion"
 

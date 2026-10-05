@@ -1,8 +1,8 @@
-# Saskia RMS — Hour Log
+# Sazón — Hour Log
 
 Tracks planned vs actual hours across the engagement. Reconciles against
-`docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md` and the
-Saskia PDF's 97h budget (70h original scope + 27h contingency).
+`docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md` and the
+the operator PDF's 97h budget (70h original scope + 27h contingency).
 
 **Bucket codes:** `scope` = original quote, `contingency` = PDF-built-in extras,
 `overflow` = exceeds contingency, flagged for §7 conversation.
@@ -17,8 +17,8 @@ Saskia PDF's 97h budget (70h original scope + 27h contingency).
 
 ## Round 1 review — Thu 18-sep 2026
 
-**Plan:** `.hermes/plans/2026-09-21_101320-saskia-review-18sep-round1.md`
-**Deploy target:** hosted (`saskia-rms.paragu-ai.com`)
+**Plan:** `.hermes/plans/2026-09-21_101320-sazon-review-18sep-round1.md`
+**Deploy target:** hosted (`sazon-rms.paragu-ai.com`)
 **Branch:** `feat/rms-fase1-review-round1`
 
 ### Planned vs actual

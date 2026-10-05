@@ -1,8 +1,8 @@
 """app/rms/price_history.py — ingredient purchase-price time series.
 
-Per Phase B (Q1 core) of the Saskia review round 1 (Thu 18-sep 2026).
+Per Phase B (Q1 core) of the operator review round N (Thu 18-sep 2026).
 
-Saskia's review calls for a price-history surface on /inventario (min /
+the operator's review calls for a price-history surface on /inventario (min /
 current / max strip + 90-day sparkline) and a dashboard insight flagging
 ingredients with >20% fluctuation in the last month. To power both we
 need a real time series — `Ingredient.purchase_price_gs` alone only

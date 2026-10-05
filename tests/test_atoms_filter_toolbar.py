@@ -1,7 +1,7 @@
 """Tests for the filter_toolbar macro in app/templates/_components/atoms.html.
 
 The macro renders a GET-form row with search/select/date inputs. 2026-10-01
-extension adds a 'combo' type that renders <saskia-combo> (A-1 atom) — see
+extension adds a 'combo' type that renders <ui-combo> (A-1 atom) — see
 form-ux-combo-system skill for the web-component contract.
 """
 
@@ -78,7 +78,7 @@ def test_filter_toolbar_date_renders_date_input(jinja_env):
 
 
 def test_filter_toolbar_combo_renders_saskia_combo(jinja_env):
-    """Combo type wires A-1 saskia-combo into the toolbar."""
+    """Combo type wires A-1 ui-combo into the toolbar."""
     html = _render_toolbar(
         jinja_env,
         [
@@ -91,7 +91,7 @@ def test_filter_toolbar_combo_renders_saskia_combo(jinja_env):
             },
         ],
     )
-    assert "<saskia-combo" in html
+    assert "<ui-combo" in html
     assert 'name="product"' in html
     assert 'endpoint="/api/lookup/products?q="' in html
     assert 'placeholder="Producto…"' in html
@@ -113,7 +113,7 @@ def test_filter_toolbar_combo_uses_static_src(jinja_env):
             },
         ],
     )
-    assert "<saskia-combo" in html
+    assert "<ui-combo" in html
     assert '"value":"bread"' in html or '"value": "bread"' in html
 
 
@@ -149,7 +149,7 @@ def test_filter_toolbar_mixed_types(jinja_env):
     assert '<input type="search"' in html
     assert "<select" in html
     assert '<input type="date"' in html
-    assert "<saskia-combo" in html
+    assert "<ui-combo" in html
     # One single form, one submit.
     assert html.count("<form") == 1
     assert html.count('<button type="submit"') == 1

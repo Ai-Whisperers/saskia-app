@@ -1,4 +1,4 @@
-# Saskia Logging/Errors Audit & Fixes — Status Report
+# the operator Logging/Errors Audit & Fixes — Status Report
 
 **Date:** 2026-09-29
 **Branch:** `conflict-test` (Ivan was running a 5-commit cherry-pick on top;
@@ -109,7 +109,7 @@ Same scope as #46 but for the error side.
 Easy win. Health endpoint should return 503 when error rate exceeds
 a threshold over a sliding window.
 
-### #50 — `<saskia-toast>` component for inline-form failures (M)
+### #50 — `<ui-toast>` component for inline-form failures (M)
 Component already exists in HTML but is not wired into form submit
 responses on 4xx.
 

@@ -20,7 +20,7 @@ def test_inventory_form_unit_combo(client: TestClient):
     assert response.status_code == 200
 
     # Check for combobox elements instead of native selects
-    assert 'class="saskia-combo"' in response.text
+    assert 'class="ui-combo"' in response.text
     assert 'data-source="/recetas/api/units"' in response.text
     assert "unit_combo" in response.text
     assert "combo-input" in response.text

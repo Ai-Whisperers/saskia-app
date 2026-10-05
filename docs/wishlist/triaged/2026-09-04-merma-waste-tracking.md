@@ -12,11 +12,11 @@ Capture waste/spoilage events: an ingredient was discarded with reason and quant
 
 ## Why now
 
-Quick to ship: one new `WasteEvent` table, one `/merma` route, one monthly report. Would catch real money leaks Saskia doesn't currently measure.
+Quick to ship: one new `WasteEvent` table, one `/merma` route, one monthly report. Would catch real money leaks the operator doesn't currently measure.
 
 ## Repro / context
 
-- Could fold into E5 (Fase 1.5) if Saskia agrees it's worth a sprint.
+- Could fold into E5 (Fase 1.5) if the operator agrees it's worth a sprint.
 - The audit log (E3.S1) is a good fit for the event record itself.
 ## Triage
 

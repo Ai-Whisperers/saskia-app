@@ -41,7 +41,7 @@ The biggest single win. Builds a script that introspects FastAPI routers and pro
 
 **Where to start:**
 ```bash
-cd /opt/data/profiles/ivan/scratch/saskia-app-work
+cd /opt/data/profiles/ivan/scratch/sazon-app-work
 
 # 1. Find the un-tested routes
 for f in $(find app/routers -name "*.py"); do
@@ -71,7 +71,7 @@ Use the inventory from `scripts/inventory_seed_helpers.py`. Top offenders:
 
 **Where to start:**
 ```bash
-cd /opt/data/profiles/ivan/scratch/saskia-app-work
+cd /opt/data/profiles/ivan/scratch/sazon-app-work
 python3 scripts/inventory_seed_helpers.py
 # Pick the top 5, find a qseed scenario that matches, replace
 ```
@@ -85,7 +85,7 @@ python3 scripts/inventory_seed_helpers.py
 
 **Where to start:**
 ```bash
-cd /opt/data/profiles/ivan/scratch/saskia-app-work
+cd /opt/data/profiles/ivan/scratch/sazon-app-work
 head -50 tests/flows.py  # see what's there
 grep -rl "from tests.flows" --include="*.py" tests/  # see what's used
 ```
@@ -96,7 +96,7 @@ grep -rl "from tests.flows" --include="*.py" tests/  # see what's used
 
 **Where to start:**
 ```bash
-cd /opt/data/profiles/ivan/scratch/saskia-app-work
+cd /opt/data/profiles/ivan/scratch/sazon-app-work
 ls scripts/deploy.sh 2>/dev/null || find . -name "deploy.sh" 2>/dev/null
 # Build the dry-run mode in the script first, then test
 ```
@@ -107,7 +107,7 @@ ls scripts/deploy.sh 2>/dev/null || find . -name "deploy.sh" 2>/dev/null
 
 **Where to start:**
 ```bash
-cd /opt/data/profiles/ivan/scratch/saskia-app-work
+cd /opt/data/profiles/ivan/scratch/sazon-app-work
 head -30 tests/test_r2_backup.py
 # Add a test that takes backup, wipes DB, restores, asserts app starts
 ```
@@ -118,7 +118,7 @@ AGENTS.md rule 5: "Paraguayan Spanish only". AGENTS.md rule 6: "vos form".
 
 **Where to start:**
 ```bash
-cd /opt/data/profiles/ivan/scratch/saskia-app-work
+cd /opt/data/profiles/ivan/scratch/sazon-app-work
 cat app/docs/copy-vos.md | head -50  # see the canonical strings
 grep -rE 'salvá|podés|tenés|vos sos' app/templates/ | head -10  # forbidden patterns
 ```
@@ -146,7 +146,7 @@ Add 4 new csrf tests: token-after-logout, after-rotation, double-submit, after-t
 For each task, follow this pattern:
 
 ```bash
-cd /opt/data/profiles/ivan/scratch/saskia-app-work
+cd /opt/data/profiles/ivan/scratch/sazon-app-work
 
 # 1. Create a topic branch (or stay on feat/phase-3-ci-cleanup)
 git checkout feat/phase-3-ci-cleanup

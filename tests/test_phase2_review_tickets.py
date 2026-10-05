@@ -1,4 +1,4 @@
-"""Regression tests for Phase 2 tickets (Saskia review 2026-09-18).
+"""Regression tests for Phase 2 tickets (the operator review 2026-09-18).
 
 - INV-03: Negative stock clamp, Spanish urgency, no-price excluded from total
 - MER-01: Merma form accepts grams (g → kg conversion)

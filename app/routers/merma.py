@@ -226,7 +226,7 @@ def merma_register_recipe(
     notes: str = Form(""),
     session: Session = Depends(get_session),
 ) -> object:
-    """Record a whole-batch waste event (Saskia review T6).
+    """Record a whole-batch waste event (the operator review T6).
 
     Expands the recipe into per-ingredient WasteLog rows and decrements
     stock proportionally. Sub-recipes recurse via _compute_stock_moves.

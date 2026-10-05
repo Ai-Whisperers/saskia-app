@@ -1,4 +1,4 @@
-"""app/rms/constants.py — Business constants for Saskia RMS.
+"""app/rms/constants.py — Business constants for Sazón.
 
 Single source of truth for small, operator-relevant constants that don't
 need their own DB table or settings UI:

@@ -138,7 +138,7 @@ def test_every_page_has_title(client):
         resp = client.get(path)
         m = re.search(r"<title>([^<]+)</title>", resp.text)
         assert m is not None, f"{path} missing <title>"
-        assert "Saskia RMS" in m.group(1), f"{path} title lacks brand"
+        assert "Sazón" in m.group(1), f"{path} title lacks brand"
 
 
 def test_nav_links_have_aria_label(client):

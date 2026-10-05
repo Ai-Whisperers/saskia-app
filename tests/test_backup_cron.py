@@ -8,7 +8,7 @@ def test_backup_script_imports():
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
-        "backup", "/opt/data/work/saskia-app/scripts/backup.py"
+        "backup", "/opt/data/work/sazon-app/scripts/backup.py"
     )
     mod = importlib.util.module_from_spec(spec)
     # Don't execute main, just verify the module loads.

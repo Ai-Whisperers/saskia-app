@@ -169,7 +169,7 @@ def test_template_includes_prefill_blob_for_addresses(client, monkeypatch, qseed
 
 def test_pedido_prefill_js_has_address_and_loyalty_handlers():
     """The JS file ships with Phase 7 + Phase 8 handlers."""
-    path = "/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/pedido-prefill.js"
+    path = "/opt/data/profiles/ivan/scratch/sazon-app-work/app/static/pedido-prefill.js"
     with open(path) as f:
         content = f.read()
     assert "renderAddressPicker" in content

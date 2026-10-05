@@ -1,6 +1,6 @@
 """Tests for the demo data seed button on /settings/seed-demo.
 
-The seed-demo endpoint lets Saskia one-click load realistic bakery data
+The seed-demo endpoint lets the operator one-click load realistic bakery data
 
 so the dashboard, reports, and analytics have data to display.
 """

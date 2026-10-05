@@ -4,7 +4,7 @@ from __future__ import annotations
 
 
 def test_get_database_url_default_is_sqlite(tmp_path, monkeypatch):
-    """No DATABASE_URL → SQLite at AIW_SASKIA_DB_PATH."""
+    """No DATABASE_URL → SQLite at AIW_RMS_DB_PATH."""
     from app.rms.db_dialect import get_database_url
 
     # Clear LRU cache from any previous test that set DATABASE_URL
@@ -12,7 +12,7 @@ def test_get_database_url_default_is_sqlite(tmp_path, monkeypatch):
         get_database_url.cache_clear()
 
     monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.setenv("AIW_SASKIA_DB_PATH", str(tmp_path / "test.sqlite"))
+    monkeypatch.setenv("AIW_RMS_DB_PATH", str(tmp_path / "test.sqlite"))
     url = get_database_url()
     assert url.startswith("sqlite:///")
 

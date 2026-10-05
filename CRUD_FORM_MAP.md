@@ -1,4 +1,4 @@
-# Saskia RMS — CRUD Form Field Map (gap analysis)
+# Sazón — CRUD Form Field Map (gap analysis)
 
 **Generated:** 2026-09-22 — exhaustive field-by-field map of every CRUD form vs the model layer, with validation, hidden fields, missing surface, and gap catalogue.
 
@@ -762,7 +762,7 @@ Accepts JSON or form-encoded. Required: `name`. Optional: phone, email, cedula, 
 ### **NO HTTP ROUTES.** The task spec lists `/backup`, `/backup/{filename}/restore`, `/backup/{filename}/delete` — none of these exist.
 
 - `app/rms/backup.py` is a service module (CLI helpers).
-- `app/services/backup_scheduler.py` runs backups on app startup (writes `.xlsx` to `~/Documents/AIW-Saskia/backups/`).
+- `app/services/backup_scheduler.py` runs backups on app startup (writes `.xlsx` to `~/Documents/aiw-restaurant/backups/`).
 - `app/scripts/backup.py` is a CLI tool.
 - `tests/test_backup.py`, `tests/test_r2_backup.py`, `tests/test_backup_pre_mutate.py`, `tests/test_backup_cron.py` exist but test the service layer.
 

@@ -22,12 +22,14 @@ class SettingGroup(str, Enum):
     """UI grouping for the settings page."""
 
     GENERAL = "general"
+    BRANDING = "branding"  # logo, favicon, hero, accent color — preview in admin
     INVENTORY = "inventory"
     SALES = "sales"
     DASHBOARD = "dashboard"
     BACKUP = "backup"
     SESSION = "session"
     DEMO = "demo"
+    PRODUCTION = "production"  # PRODUCCION-V2 Fase 3: demand cache TTL
 
 
 @dataclass
@@ -75,7 +77,7 @@ SETTINGS: list[Setting] = [
     # GENERAL (6)
     Setting(
         "general.business_name",
-        "Saskia RMS",
+        "Sazón",
         "str",
         "Nombre del negocio (aparece en tickets y PDF)",
         SettingGroup.GENERAL,
@@ -127,6 +129,78 @@ SETTINGS: list[Setting] = [
         "Tema de color (claro, oscuro o sistema)",
         SettingGroup.GENERAL,
         choices=["system", "light", "dark"],
+    ),
+    # BRANDING (8) — business-specific visual identity
+    Setting(
+        "branding.business_name",
+        "Sazón",
+        "str",
+        "Nombre comercial — aparece en login, sidebar, tickets, PDF",
+        SettingGroup.BRANDING,
+    ),
+    Setting(
+        "branding.tagline",
+        "",
+        "str",
+        "Eslogan corto debajo del nombre (opcional)",
+        SettingGroup.BRANDING,
+    ),
+    Setting(
+        "branding.business_type",
+        "restaurant",
+        "str",
+        "Tipo de negocio (define defaults e iconos)",
+        SettingGroup.BRANDING,
+        choices=["restaurant", "panaderia", "cafeteria", "bar", "heladeria", "food_truck", "otro"],
+    ),
+    Setting(
+        "branding.logo_filename",
+        "",
+        "str",
+        "Logo principal (PNG/JPG/SVG). Subir desde /admin/branding",
+        SettingGroup.BRANDING,
+    ),
+    Setting(
+        "branding.favicon_filename",
+        "",
+        "str",
+        "Icono del navegador (ICO/PNG 32×32 o 192×192)",
+        SettingGroup.BRANDING,
+    ),
+    Setting(
+        "branding.hero_filename",
+        "",
+        "str",
+        "Imagen principal de /login (opcional, 1200×600 ideal)",
+        SettingGroup.BRANDING,
+    ),
+    Setting(
+        "branding.primary_color",
+        "#6B4423",
+        "str",
+        "Color primario (botones, acentos). Formato hex #RRGGBB",
+        SettingGroup.BRANDING,
+    ),
+    Setting(
+        "branding.contact_email",
+        "",
+        "str",
+        "Email de contacto — aparece en PDF y tickets",
+        SettingGroup.BRANDING,
+    ),
+    Setting(
+        "branding.contact_phone",
+        "",
+        "str",
+        "Teléfono de contacto — aparece en tickets",
+        SettingGroup.BRANDING,
+    ),
+    Setting(
+        "branding.address",
+        "",
+        "str",
+        "Dirección del local — aparece en tickets y PDF",
+        SettingGroup.BRANDING,
     ),
     # INVENTORY (6)
     Setting(
@@ -305,6 +379,15 @@ SETTINGS: list[Setting] = [
         "bool",
         "Permitir resetear datos demo desde la UI",
         SettingGroup.DEMO,
+    ),
+    # PRODUCCION-V2 Fase 3: cache TTL for production_demand_snapshot.
+    # 0 disables the cache (always recompute). Default 300s = 5min.
+    Setting(
+        "production.demand_snapshot_ttl_seconds",
+        "300",
+        "int",
+        "Segundos antes de recomputar demanda. 0 = deshabilitar cache.",
+        SettingGroup.PRODUCTION,
     ),
 ]
 

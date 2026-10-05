@@ -16,7 +16,7 @@ Three defensive features added together:
     same window with the same key, the second one redirects to the
     first pedido's detail page instead of creating a duplicate.
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work \\
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work \\
      && ./.venv/bin/python -m pytest tests/test_pedidos_nuevo_t_2026_10_01.py -v
 """
 

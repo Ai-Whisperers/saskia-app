@@ -1,12 +1,12 @@
 /**
- * combo-rows.js — row-label builders for saskia-combo.
+ * combo-rows.js — row-label builders for ui-combo.
  *
  * Each builder is a function that takes a row object from the combo's data
  * source and returns the HTML to render in the dropdown / chip. They are
  * attached to `window` so the combo component can look them up by name.
  *
  * Naming: combo consumers opt-in via the `row-label` attribute, e.g.
- *   <saskia-combo row-label="ingredientRowLabel" ...></saskia-combo>
+ *   <ui-combo row-label="ingredientRowLabel" ...></ui-combo>
  *
  * Conventions:
  *   - Builders receive the raw row object (server payload keys).
@@ -259,8 +259,8 @@
     window[k] = fn;
   });
 
-  // Tell saskia-combo where to find the default row-label if none configured.
-  document.addEventListener('saskia-combo:init', function (ev) {
+  // Tell ui-combo where to find the default row-label if none configured.
+  document.addEventListener('ui-combo:init', function (ev) {
     if (ev && ev.detail && ev.detail.combo && !ev.detail.combo._rowLabelFn) {
       ev.detail.combo._rowLabelFn = defaultRowLabel;
     }

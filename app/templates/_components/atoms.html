@@ -94,7 +94,7 @@
 {# ── A-16 report_source_footer: small footer with generation time + source tag ── #}
 {# Closes P1-4. Drops a consistent cite-footer on every report so the operator
    can audit back to the data source. #}
-{% macro report_source_footer(source='Saskia RMS', period=None, note=None) -%}
+{% macro report_source_footer(source='Sazón', period=None, note=None) -%}
 <footer class="report-source-footer muted" style="margin-top:2rem;padding-top:1rem;border-top:1px solid var(--color-border);font-size:var(--text-xs);">
   <span>Generado <span title="{{ now_str() if now_str is defined else '' }}">por {{ source }}</span>.</span>
   {% if period %}<span> · Período: {{ period }}</span>{% endif %}
@@ -105,7 +105,7 @@
 
 {# ── A-17 loading_state: shimmer placeholder for slow data sections ──────── #}
 {# Closes P0-D2 (loading skeletons). Wraps a data-bound region that loads
-   asynchronously. The saskia-skeleton.js auto-hides all [data-loading-state]
+   asynchronously. The ui-skeleton.js auto-hides all [data-loading-state]
    wrappers 120ms after DOMContentLoaded (longer if data-loading-delay="X").
 
    Pattern:
@@ -114,14 +114,14 @@
        ... actual content ...
      </div>
 
-   Variants match the saskia-skeleton Web Component:
+   Variants match the ui-skeleton Web Component:
      - "line"  : single shimmer bar (use for table rows)
      - "card"  : card-sized box (~180px tall)
      - "kpi"   : KPI tile size (88px tall, for metric strips)
 #}
 {% macro loading_state(id, variant='line', count=5, label='Cargando datos', delay=120) -%}
 <div id="loading-{{ id }}" class="loading-state" role="presentation" aria-hidden="true" data-loading-state data-loading-delay="{{ delay }}">
-  <saskia-skeleton-stack count="{{ count }}" variant="{{ variant }}" gap="1rem"></saskia-skeleton-stack>
+  <ui-skeleton-stack count="{{ count }}" variant="{{ variant }}" gap="1rem"></ui-skeleton-stack>
   <p class="loading-state__label muted" style="margin-top:.5rem;font-size:var(--text-sm);">
     {{ label }}…
   </p>
@@ -146,7 +146,7 @@
 {# ── A-8 filter_toolbar ────────────────────────────────────────────── #}
 {# items: list of dicts {type: 'search'|'select'|'date'|'combo', name, label, value,
    options: [(value, label, selected?)] OR
-   endpoint: server-mode combo URL — renders a <saskia-combo>} — renders a GET form row.
+   endpoint: server-mode combo URL — renders a <ui-combo>} — renders a GET form row.
    Use 'combo' for searchable dropdowns; 'select' for short static lists. #}
 {% macro filter_toolbar(items, action=None, applied=None) -%}
 <form method="get" {% if action %}action="{{ action }}"{% endif %} class="filter-toolbar" role="search">
@@ -155,7 +155,7 @@
     <input type="search" class="filter-toolbar__search" name="{{ f.name }}" value="{{ f.value or '' }}"
            placeholder="{{ f.placeholder or f.label or 'Buscar…' }}" aria-label="{{ f.label or 'Buscar' }}">
     {% elif f.type == 'select' %}
-    <select name="{{ f.name }}" class="filter-toolbar__select" data-saskia-combo aria-label="{{ f.label }}">
+    <select name="{{ f.name }}" class="filter-toolbar__select" data-ui-combo aria-label="{{ f.label }}">
       {% for v, l in f.options %}
       <option value="{{ v }}" {% if v == (f.value or '') %}selected{% endif %}>{{ l }}</option>
       {% endfor %}
@@ -164,15 +164,15 @@
     <input type="date" class="filter-toolbar__date" name="{{ f.name }}" value="{{ f.value or '' }}" aria-label="{{ f.label }}">
     {% elif f.type == 'combo' %}
     {# Wires A-1 combo_field into the toolbar. Pass src=[{value,label}] directly,
-       or endpoint='/api/x?q=' for server-mode. (See saskia-combo contract.) #}
-    <saskia-combo name="{{ f.name }}"
+       or endpoint='/api/x?q=' for server-mode. (See ui-combo contract.) #}
+    <ui-combo name="{{ f.name }}"
                   {% if f.value is not none %}value="{{ f.value }}"{% endif %}
                   {% if f.display %}display="{{ f.display }}"{% endif %}
                   {% if f.src %}src='{{ f.src | tojson }}'{% endif %}
                   {% if f.endpoint %}endpoint="{{ f.endpoint }}"{% endif %}
                   placeholder="{{ f.placeholder or f.label or 'Buscar…' }}"
                   aria-label="{{ f.label }}">
-    </saskia-combo>
+    </ui-combo>
     {% endif %}
   {% endfor %}
   <button type="submit" class="btn btn-primary">Filtrar</button>
@@ -296,8 +296,8 @@
         <script>
 (function () {
   function fire() {
-    if (window.SaskiaToast) {
-      SaskiaToast.show({
+    if (window.UIToast) {
+      UIToast.show({
         severity: 'success',
         message: 'Canje registrado: {{ _pts }} puntos → {{ _gs }} Gs. de descuento.',
         duration: 4000
@@ -321,8 +321,8 @@
         <script>
 (function () {
   function fire() {
-    if (window.SaskiaToast) {
-      SaskiaToast.show({
+    if (window.UIToast) {
+      UIToast.show({
         severity: 'success',
         message: 'Canje POS: {{ _pts_pos }} puntos → {{ _gs_pos }} Gs. de descuento aplicados a esta venta.',
         duration: 5000
@@ -339,8 +339,8 @@
 <script>
 (function () {
   function fire() {
-    if (window.SaskiaToast) {
-      SaskiaToast.show({ severity: '{{ m[0] }}', message: {{ m[1]|tojson }}, duration: 4000 });
+    if (window.UIToast) {
+      UIToast.show({ severity: '{{ m[0] }}', message: {{ m[1]|tojson }}, duration: 4000 });
     }
   }
   if (document.readyState === 'loading') {
@@ -354,9 +354,9 @@
   {% endif %}
 {%- endmacro %}
 
-{# ── A-18 combo_field: saskia-combo wrapped for forms ─────────────────── #}
+{# ── A-18 combo_field: ui-combo wrapped for forms ─────────────────── #}
 {# Closes P0-D17. Replaces a native <select> with a search-as-you-type
-   <saskia-combo> Web Component. Two modes:
+   <ui-combo> Web Component. Two modes:
      - client-side: pass `src` as a list of {value, label} dicts
      - server-side: pass `endpoint` URL (returns JSON {results: [...]})
 
@@ -390,7 +390,7 @@
     <label for="{{ label_for or name }}">{{ label }}{% if required %} *{% endif %}</label>
   {%- endif %}
   {% if src -%}
-    <saskia-combo name="{{ name }}"
+    <ui-combo name="{{ name }}"
                   {% if value is not none %}value="{{ value }}"{% endif %}
                   {% if display %}display="{{ display }}"{% endif %}
                   {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
@@ -399,10 +399,10 @@
                   {% if autosubmit %}autosubmit{% endif %}
                   {% if row_label %}row-label="{{ row_label }}"{% endif %}
                   {% if data_attrs %}{% for k, v in data_attrs.items() %}{{ k }}="{{ v }}" {% endfor %}{% endif %}
-                  src='{{ src | tojson }}'></saskia-combo>
+                  src='{{ src | tojson }}'></ui-combo>
     <span class="combo-input" hidden></span>
   {%- elif endpoint -%}
-    <saskia-combo name="{{ name }}"
+    <ui-combo name="{{ name }}"
                   {% if value is not none %}value="{{ value }}"{% endif %}
                   {% if display %}display="{{ display }}"{% endif %}
                   {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
@@ -414,7 +414,7 @@
                   endpoint="{{ endpoint }}"
                   data-source="{{ endpoint.split('?')[0] }}"
                   {% if _vf != 'value' %}value-field="{{ _vf }}"{% endif %}
-                  {% if _lf != 'label' %}label-field="{{ _lf }}"{% endif %}></saskia-combo>
+                  {% if _lf != 'label' %}label-field="{{ _lf }}"{% endif %}></ui-combo>
     <span class="combo-input" hidden></span>
   {%- else -%}
     {# Fallback to native text input so the form still works without data #}

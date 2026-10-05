@@ -486,7 +486,7 @@ function bulkDeleteProducts() {
   var checked = Array.from(document.querySelectorAll('input[name=selected]:checked'));
   if (checked.length === 0) return;
   var ids = checked.map(function(c) { return c.value; });
-  SaskiaConfirmModal.show({
+  UIConfirmModal.show({
     title: '¿Eliminar ' + ids.length + ' producto(s)?',
     body: 'Esta acción no se puede deshacer.',
     action: '/productos/bulk-eliminar',

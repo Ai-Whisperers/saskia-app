@@ -245,7 +245,7 @@ def test_patch_clientes_new_phone_creates_customer(session_factory):
         {
             "Clientes": [
                 ["phone", "name", "email", "cedula", "notes"],
-                ["+595991234567", "Saskia Boer", "saskia@example.com", "1234567", None],
+                ["+595991234567", "the operator Boer", "saskia@example.com", "1234567", None],
             ]
         }
     )
@@ -261,7 +261,7 @@ def test_patch_clientes_new_phone_creates_customer(session_factory):
     with session_factory() as s:
         c = s.scalar(select(Customer).where(Customer.phone == "+595991234567"))
         assert c is not None
-        assert c.name == "Saskia Boer"
+        assert c.name == "the operator Boer"
         assert c.email == "saskia@example.com"
         assert c.cedula == "1234567"
 
@@ -646,9 +646,9 @@ def test_plantilla_endpoint_returns_xlsx(client, session_factory):
     assert r.headers["content-type"] == (
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    # filename pattern: saskia-import-YYYYMMDD.xlsx
+    # filename pattern: sazon-import-YYYYMMDD.xlsx
     cd = r.headers.get("content-disposition", "")
-    assert "saskia-import-" in cd
+    assert "sazon-import-" in cd
     assert ".xlsx" in cd
     # Body is a real xlsx file (PK magic bytes)
     assert r.content[:2] == b"PK"

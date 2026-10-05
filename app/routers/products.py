@@ -1053,7 +1053,7 @@ async def product_upload_image(
 # ─── C2 — Public tablet menu (/m/{slug}) ──────────────────────────────────────
 # No auth, no sidebar, mobile-first CSS for a 1280×720 walk-in tablet.
 # Each product has its OWN /m/{slug} page so the bakery can deep-link a
-# single item to WhatsApp ("mirá nuestro chipa: saskia.app/m/chipa-guazu").
+# single item to WhatsApp ("mirá nuestro chipa: sazon.app/m/chipa-guazu").
 # A slug that doesn't match any visible product 404s — same behavior as
 # /p/{token} so an attacker can't enumerate the catalog by varying the slug.
 
@@ -1107,7 +1107,7 @@ def public_menu(
         "menu_tablet.html",
         {
             "product": payload,
-            "shop_name": "Saskia RMS",
+            "shop_name": "Sazón",
             "currency_label": "Gs.",
         },
     )
@@ -1197,7 +1197,7 @@ def public_menu_catalog(
         {
             "menu_groups": menu_groups,
             "total_items": len(products),
-            "shop_name": "Saskia RMS",
+            "shop_name": "Sazón",
             "currency_label": "Gs.",
             "shop_whatsapp": shop_whatsapp,
         },

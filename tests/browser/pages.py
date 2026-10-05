@@ -75,7 +75,7 @@ class PedidosPage(Page):
 class PosPage(Page):
     """POS / nueva venta."""
 
-    product_combo = "[data-combo], .saskia-combo input, input[name='product_id']"
+    product_combo = "[data-combo], .ui-combo input, input[name='product_id']"
     qty = "input[name='qty']"
     submit = "button:has-text('Registrar'), button:has-text('Vender')"
 
@@ -87,7 +87,7 @@ class PosPage(Page):
 
 
 class ComboMixin:
-    """The saskia-combo custom dropdown: open, filter, pick."""
+    """The ui-combo custom dropdown: open, filter, pick."""
 
     combo_root = ".combo"
     combo_input = ".combo input, .combo [contenteditable]"

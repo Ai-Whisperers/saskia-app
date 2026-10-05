@@ -5,7 +5,7 @@
 > recetas son más complejas, etc. Es la pantalla que más mirás cuando
 > querés entender **por qué** los números son como son.
 
-> **Esta pantalla es para Iván (operador técnico).** Saskia no necesita
+> **Esta pantalla es para Iván (operador técnico).** the operator no necesita
 > usarla en el día a día. Está acá en el manual como referencia por si
 > Iván necesita explicarte algo que vio en esta pantalla.
 

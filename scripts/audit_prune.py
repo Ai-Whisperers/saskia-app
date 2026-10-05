@@ -23,9 +23,9 @@ def main():
     )
     args = parser.parse_args()
 
-    # Bootstrap: load DATABASE_URL or AIW_SASKIA_DB_PATH.
-    if not os.getenv("DATABASE_URL") and not os.getenv("AIW_SASKIA_DB_PATH"):
-        print("ERROR: neither DATABASE_URL nor AIW_SASKIA_DB_PATH set.")
+    # Bootstrap: load DATABASE_URL or AIW_RMS_DB_PATH.
+    if not os.getenv("DATABASE_URL") and not os.getenv("AIW_RMS_DB_PATH"):
+        print("ERROR: neither DATABASE_URL nor AIW_RMS_DB_PATH set.")
         sys.exit(1)
 
     project_dir = Path(__file__).resolve().parents[1]

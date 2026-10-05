@@ -1,4 +1,4 @@
-# Saskia RMS — Visual Critique Batch: Finanzas
+# Sazón — Visual Critique Batch: Finanzas
 **Auditor:** UX/UI Principal + QA Architect
 **Scope:** 8 pages — bank, cierre-mensual, margenes, margenes-detalle, retencion, afinidades*, comparacion, food-cost-variance*
 **Method:** Template + router analysis (screenshots unavailable in this environment) — grounded in live template inspection. Pages marked * are missing template/route.
@@ -46,7 +46,7 @@
 ### 5-Hat Analysis
 **Counter staff:** No direct use.
 
-**Owner-finance:** Excellent monthly close tool. Month navigation (← Anterior / Siguiente →) with a `saskia-month` picker in the middle. 4 KPI cards: Ventas totales, IVA ventas, Prime Cost, Margen neto (with % color-coded green/amber/red). Detail table with 10 columns: Línea, Cantidad, Ventas, IVA, Materiales, Mano de obra, Overhead, Prime Cost, Margen, Margen %. Footer notes explain the methodology. Star product alert at top.
+**Owner-finance:** Excellent monthly close tool. Month navigation (← Anterior / Siguiente →) with a `ui-month` picker in the middle. 4 KPI cards: Ventas totales, IVA ventas, Prime Cost, Margen neto (with % color-coded green/amber/red). Detail table with 10 columns: Línea, Cantidad, Ventas, IVA, Materiales, Mano de obra, Overhead, Prime Cost, Margen, Margen %. Footer notes explain the methodology. Star product alert at top.
 
 **Production-baker:** No direct use.
 
@@ -93,7 +93,7 @@
 - [P2] Margin Δ uses `m.gs()` for Gs. amounts but the delta is shown as a badge, not as absolute Gs. change — lacks context
 
 ### Complete Design Wishlist
-1. Add date range filter (start/end saskia-date pickers)
+1. Add date range filter (start/end ui-date pickers)
 2. Add CSV export
 3. Sort by Δ Margen (worst first) by default
 4. Add "products with margin < 15%" quick filter

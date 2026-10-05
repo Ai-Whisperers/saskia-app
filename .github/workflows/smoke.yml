@@ -39,7 +39,7 @@ jobs:
         # closely as practical. Migrations are dialect-aware.
         run: |
           docker run -d --rm \
-            --name saskia-smoke-pg \
+            --name sazon-smoke-pg \
             -e POSTGRES_USER=saskia \
             -e POSTGRES_PASSWORD=saskia \
             -e POSTGRES_DB=saskia \
@@ -47,7 +47,7 @@ jobs:
             postgres:16-alpine
           # Wait for it to be ready
           for i in $(seq 1 30); do
-            if docker exec saskia-smoke-pg pg_isready -U saskia; then
+            if docker exec sazon-smoke-pg pg_isready -U saskia; then
               echo "postgres ready"
               break
             fi
@@ -112,4 +112,4 @@ jobs:
 
       - name: Teardown
         if: always()
-        run: docker stop saskia-smoke-pg || true
+        run: docker stop sazon-smoke-pg || true

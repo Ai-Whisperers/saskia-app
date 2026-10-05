@@ -1,4 +1,4 @@
-"""tests/e2e/test_excel_import_journey.py — Saskia's real ops path E2E.
+"""tests/e2e/test_excel_import_journey.py — the operator's real ops path E2E.
 
 Journey: vendor .xlsx (built in-test with openpyxl, same sheet contract as
 app/services/export_xlsx.py) → /excel/validar (dry-run) → /excel/importar
@@ -56,7 +56,7 @@ def _post(client, path, content, filename="vendor.xlsx", mode=None):
 def test_full_journey_validate_import_lands_idempotent(client, session_factory):
     from tests.factories import make_ingredient
 
-    # Saskia's catalog already has these rows (PATCH = update-by-name, no
+    # the operator's catalog already has these rows (PATCH = update-by-name, no
     # auto-create — unknown names land in warnings)
     with session_factory() as s:
         make_ingredient(s, name="Harina 000", unit="kg", stock_qty=2.0, purchase_price_gs=5000)

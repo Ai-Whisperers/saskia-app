@@ -1,6 +1,6 @@
 """P1-B8 — backup fires automatically when EOD checklist completes.
 
-The roadmap (saskia-only-roadmap.md) requires:
+The roadmap (sazon-only-roadmap.md) requires:
 > Backup local AES-256 + cron diario (no al startup)
 
 We don't have a system cron in the container, so we hook the backup
@@ -13,7 +13,7 @@ This module verifies:
 3. Backup failure (R2 unreachable) does NOT block the EOD save
 4. When a backup runs (last_backup_at cleared), the audit row contains the trigger tag
 
-Run: cd /opt/data/profiles/ivan/scratch/saskia-app-work && ./.venv/bin/python -m pytest tests/test_p1_b8_backup_on_eod.py -v
+Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_p1_b8_backup_on_eod.py -v
 """
 
 from __future__ import annotations

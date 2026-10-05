@@ -1,4 +1,4 @@
-# Saskia RMS — Role-Based Wireframes (v1, 2026-09-27)
+# Sazón — Role-Based Wireframes (v1, 2026-09-27)
 
 **Purpose:** Concrete ASCII wireframes for the three canonical operator roles, derived from the audit corpus (`audit-batch2-prod.md`, `audit-batch3-reports.md`, `cross-cutting-consistency-audit.md`) and the role archetypes the founder articulated:
 
@@ -588,7 +588,7 @@ These sub-screens are full pages with their own density; the cockpit surfaces th
 
 ```
 ╔════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
-║  Saskia RMS · Cockpit              domingo 27 sep 2026 · 09:18          admin@panaderia.com  [⌘K] [⌘N]   ║
+║  Sazón · Cockpit              domingo 27 sep 2026 · 09:18          admin@panaderia.com  [⌘K] [⌘N]   ║
 ╠════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
 ║ KPI STRIP (96px, 7 tiles — each clickable)                                                          ║
 ║ ┌───────────┬───────────┬───────────┬───────────┬───────────┬───────────┬───────────┐                ║
@@ -624,7 +624,7 @@ These sub-screens are full pages with their own density; the cockpit surfaces th
 ║ │                              │                                 │ └──────────────────────────────┘ │   ║
 ║ └──────────────────────────────┴─────────────────────────────────┴──────────────────────────────────┘   ║
 ╠════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ FOOTER: Saskia RMS v1.0 · última sync 09:18 · 1 dispositivo activo · soporte: hola@saskia.com.py           ║
+║ FOOTER: Sazón v1.0 · última sync 09:18 · 1 dispositivo activo · soporte: hola@saskia.com.py           ║
 ╚════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 

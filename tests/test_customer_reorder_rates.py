@@ -14,7 +14,7 @@ The helper returns:
 - top_repeaters (top N customers by total_orders)
 
 All bucketing must use Asunción local time since that's the unit
-operators reason about ("Saskia usually orders on Saturdays").
+operators reason about ("the operator usually orders on Saturdays").
 """
 
 from __future__ import annotations

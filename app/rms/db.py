@@ -68,6 +68,9 @@ from app.rms.migrations._100_freezer_temperature_log import (
 from app.rms.migrations._101_recipe_fermentation_minutes import (
     _migration_101_recipe_fermentation_minutes,
 )
+from app.rms.migrations._102_production_demand_split import (
+    _migration_102_production_demand_split,
+)
 
 
 def _set_sqlite_pragmas(dbapi_conn: Any, _: Any) -> None:
@@ -563,8 +566,8 @@ def _migration_016_pedidos(conn: Any) -> None:
 def _migration_017_recipe_line_unit(conn: Any) -> None:
     """Add `line_unit` to recipe_line (Phase B — T1: recipe line unit selector).
 
-    Per Saskia's review ("Se debe de poder agregar en gramos la cantidad"), each
-    recipe line now stores the unit Saskia typed the qty in. Costing walks use
+    Per the operator's review ("Se debe de poder agregar en gramos la cantidad"), each
+    recipe line now stores the unit the operator typed the qty in. Costing walks use
     this to convert qty → ingredient unit before multiplying against the
     ingredient's per-unit price.
 
@@ -686,7 +689,7 @@ def _migration_018_price_event(conn: Any) -> None:
 
 
 def _migration_019_production_completion(conn: Any) -> None:
-    """Add production_completion table (Saskia review round 1, T5).
+    """Add production_completion table (operator review round N, T5).
 
     Table is created via create_all() in init_db() (the model class was
     added to models.py at the same time). This stub only bumps the
@@ -1456,7 +1459,7 @@ def _migration_050_sale_void_reason(conn: Any) -> None:
 def _migration_051_ingredient_variant(conn: Any) -> None:
     """Add ingredient_variant table (Sprint 7 — Decision A1).
 
-    Saskia's exact words from the audio review:
+    the operator's exact words from the audio review:
       "harina 1kg / harina 250g / proveedor X — a single ingredient 'harina'
        with sub-rows for each package".
 
@@ -1938,7 +1941,7 @@ def _migration_043_branding_setting(conn: Any) -> None:
 
     Seeds SettingsKV["branding"] with defaults that match the previous
     hardcoded copy in templates/login.html and templates/base.html:
-      - business_name: "Saskia RMS"
+      - business_name: "Sazón"
       - tagline: "Panadería / Bakery — Sistema de gestión"
       - footer: "Sistema local · 2026"
       - accent_color: "#f97316" (CSS --color-accent)
@@ -1950,7 +1953,7 @@ def _migration_043_branding_setting(conn: Any) -> None:
     import json as _json
 
     branding = {
-        "business_name": "Saskia RMS",
+        "business_name": "Sazón",
         "tagline": "Panadería / Bakery — Sistema de gestión",
         "footer": "Sistema local",
         "accent_color": "#f97316",
@@ -2415,7 +2418,7 @@ def _migration_049_storage_keywords(conn: Any) -> None:
 def _migration_053_sale_packaging(conn: Any) -> None:
     """Sprint 8 — US 4.1: per-sale packaging.
 
-    Saskia's exact words from the audio review (paraphrased from the
+    the operator's exact words from the audio review (paraphrased from the
     Spanish audio):
 
       "In product I would put a compressor that is a package instead of in
@@ -3285,7 +3288,7 @@ def _migration_072_reorder_supplier_tracking(conn: Any) -> None:
 
     Four new columns on `ingredient` (all NULL-safe so existing rows survive):
 
-      - `last_purchase_supplier_id` — the supplier Saskia actually bought
+      - `last_purchase_supplier_id` — the supplier the operator actually bought
         from in her most recent restock. Used to pre-select the dropdown
         on `/reorder`, and as the source of truth for the
         "specialty-only-here" auto-lock after 3 consecutive buys from the
@@ -4230,6 +4233,7 @@ MIGRATIONS = {
     99: _migration_099_production_completion_updated_at,
     100: _migration_100_freezer_temperature_log,
     101: _migration_101_recipe_fermentation_minutes,
+    102: _migration_102_production_demand_split,
 }
 
 
@@ -4616,7 +4620,7 @@ def _get_db_url_safe() -> str:
     import os
     from urllib.parse import urlsplit, urlunsplit
 
-    url = os.environ.get("AIW_SASKIA_DB_URL", "sqlite:///./saskia.db")
+    url = os.environ.get("AIW_RMS_DB_URL", "sqlite:///./sazon.db")
     if url.startswith("sqlite"):
         return "sqlite:///<local>"
     try:

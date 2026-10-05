@@ -52,7 +52,7 @@ def test_sqlite_engine_does_not_use_pre_ping(monkeypatch):
     Verifies the SQLite engine config doesn't carry postgres-specific options.
     """
     monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.setenv("AIW_SASKIA_DB_PATH", "/tmp/test_engine.sqlite")
+    monkeypatch.setenv("AIW_RMS_DB_PATH", "/tmp/test_engine.sqlite")
     # Skip if no sqlite available
     try:
         from app.rms.db_dialect import make_engine as _make_engine_dialect

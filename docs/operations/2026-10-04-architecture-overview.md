@@ -1,17 +1,17 @@
 # Architecture overview
 
 > **For:** future maintainers, new devs, auditors. A 5-minute tour of
-> the Saskia RMS codebase.
+> the Sazón codebase.
 > **Date:** 2026-10-04
 
 ## What this app is
 
-Saskia RMS is a single-tenant, local-first web app for one bakery
-(Saskia, in Asunción, Paraguay). It runs:
+Sazón is a single-tenant, local-first web app for one bakery
+(the operator, in Asunción, Paraguay). It runs:
 
 - **Locally** on Ivan's laptop (`uv run uvicorn ... --port 8765`)
 - **Hosted** on the AIW VPS via Docker Swarm + Cloudflare Tunnel
-  (`https://saskia-vps.paragu-ai.com`)
+  (`https://sazon-vps.paragu-ai.com`)
 
 The two deployments share the same code. The local deployment is the
 source of truth for "what works on a fresh DB" — the hosted one is
@@ -24,7 +24,7 @@ the source of truth for "what's actually running today."
 | Web framework | **FastAPI** (sync handlers) | Forms + Jinja templates; async gives no win and complicates DB session lifecycle |
 | ORM | **SQLAlchemy 2.x** | We lean on `Mapped[...]` syntax; most code is post-1.4 style |
 | Database | **Postgres** (hosted) / **SQLite** (local) | Same schema, both supported |
-| Templates | **Jinja2** (server-rendered HTML) | No React/Vue — the user (Saskia) uses a slow phone in a bakery |
+| Templates | **Jinja2** (server-rendered HTML) | No React/Vue — the user (the operator) uses a slow phone in a bakery |
 | CSS | **Hand-rolled, ~8 files** in `app/static/` | Design system in `app/static/app.css` + helpers |
 | Auth | **SessionMiddleware** (signed cookies) + optional Supabase | See "Auth" below |
 | Migrations | **Hand-rolled** in `app/rms/db.py` as `_migration_NNN_*` | We do **not** use Alembic |

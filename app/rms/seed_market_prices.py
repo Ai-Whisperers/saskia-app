@@ -142,7 +142,7 @@ if __name__ == "__main__":
       3. Run the included test_seed_market_prices.py which exercises the seed.
 
     For ad-hoc loading:
-        cd /opt/data/profiles/ivan/scratch/saskia-app-work
+        cd /opt/data/profiles/ivan/scratch/sazon-app-work
         source .venv/bin/activate
         python -m pytest tests/test_seed_market_prices.py -v -s
     """

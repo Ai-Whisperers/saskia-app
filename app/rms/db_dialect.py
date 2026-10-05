@@ -69,8 +69,8 @@ def get_database_url() -> str:
 
     Order of precedence:
     1. DATABASE_URL env var (production: Postgres)
-    2. AIW_SASKIA_DB_PATH env var (test/dev: SQLite at custom path)
-    3. config.DB_PATH (default: ~/.local/share/AIW-Saskia/rms.sqlite)
+    2. AIW_RMS_DB_PATH env var (test/dev: SQLite at custom path)
+    3. config.DB_PATH (default: ~/.local/share/aiw-restaurant/rms.sqlite)
 
     Result is cached after first call — the URL never changes at runtime.
     """
@@ -81,7 +81,7 @@ def get_database_url() -> str:
             url = "postgresql+psycopg://" + url[len("postgresql://") :]
         return url
     # Fall through to SQLite path
-    sqlite_path = Path(os.getenv("AIW_SASKIA_DB_PATH", str(DB_PATH)))
+    sqlite_path = Path(os.getenv("AIW_RMS_DB_PATH", str(DB_PATH)))
     sqlite_path.parent.mkdir(parents=True, exist_ok=True)
     return f"sqlite:///{sqlite_path}"
 

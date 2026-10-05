@@ -25,7 +25,7 @@
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
     <h2>Ingredientes a consumir</h2>
     <span class="no-print text-muted" style="font-size:var(--text-sm);">📋 Ordenar:
-      <button type="button" class="btn btn-sm btn-ghost" onclick="window.SaskiaSortTable.sortByCell(1)">Por faltante ↓</button>
+      <button type="button" class="btn btn-sm btn-ghost" onclick="window.UISortTable.sortByCell(1)">Por faltante ↓</button>
     </span>
   </div>
   <p class="hint no-print" style="margin-bottom:var(--space-3);">
@@ -81,7 +81,7 @@
     {% endif %}
 
     <button type="submit" class="btn btn-primary"
-            onclick="SaskiaConfirmModal.show({title:'¿Cumplir pedido?',body:'Se crearán las ventas y se descontará stock.',action:'/pedidos/{{ pedido_id }}/fulfill',confirmLabel:'Sí, cumplir',danger:true})">
+            onclick="UIConfirmModal.show({title:'¿Cumplir pedido?',body:'Se crearán las ventas y se descontará stock.',action:'/pedidos/{{ pedido_id }}/fulfill',confirmLabel:'Sí, cumplir',danger:true})">
       <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
       Confirmar cumplimiento
     </button>

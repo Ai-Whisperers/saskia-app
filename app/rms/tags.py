@@ -1,6 +1,6 @@
 """app/rms/tags.py — Tag system + filter helpers (E9).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E9.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E9.
 
 Schema (migration 004):
 - tag: id, name (unique), kind (product|ingredient|recipe), color

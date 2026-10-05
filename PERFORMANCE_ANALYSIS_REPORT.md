@@ -1,4 +1,4 @@
-# Performance Analysis Report: Saskia RMS Tab-Switching Latency
+# Performance Analysis Report: Sazón Tab-Switching Latency
 
 ## Executive Summary
 - **Live status**: Schema v19 deployed, has PR #10/11 features, but PR #12 fixes pending deploy
@@ -14,8 +14,8 @@
 ## 1. Deploy Status Verification
 
 ### Live Site Analysis
-- **URL**: https://saskia-rms.paragu-ai.com (Cloudflare-proxied canonical)
-- **Direct URL**: https://saskia-rms.onrender.com (Render direct)
+- **URL**: https://sazon-rms.paragu-ai.com (Cloudflare-proxied canonical)
+- **Direct URL**: https://sazon-rms.onrender.com (Render direct)
 - **Schema**: v19 (Round-1 features present)
 - **Cache-busting**: `?v=1790018202` active (PR #11)
 - **Navbar dropdown**: "Menú" + "Día a día" present (PR #10)
@@ -278,7 +278,7 @@ if os.getenv("SASKIA_DEBUG_QUERIES"):
 ### Local Testing Commands
 ```bash
 # Run performance test locally
-cd /opt/data/profiles/ivan/scratch/saskia-app-work
+cd /opt/data/profiles/ivan/scratch/sazon-app-work
 .venv/bin/python .probe_tabs.py
 
 # Check for session leaks

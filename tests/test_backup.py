@@ -1,6 +1,6 @@
 """tests/test_backup.py — verify app/rms/backup.py (E20).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E20.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E20.
 
 Covers:
 - dump_full_state serializes all BACKUP_TABLES
@@ -73,7 +73,7 @@ def test_backup_database_writes_to_directory(tmp_path, session_factory):
         assert len(manifest.created_at) > 0
 
         # File written
-        files = list(tmp_path.glob("saskia-backup-*.json.gz"))
+        files = list(tmp_path.glob("sazon-backup-*.json.gz"))
         assert len(files) == 1
     finally:
         s.close()
@@ -85,7 +85,7 @@ def test_backup_database_file_is_loadable(tmp_path, session_factory):
         s.add(make_product(s, name="Torta", sale_price_gs=35000))
         s.commit()
         manifest = backup_database(s, tmp_path)
-        out_file = next(tmp_path.glob("saskia-backup-*.json.gz"))
+        out_file = next(tmp_path.glob("sazon-backup-*.json.gz"))
 
         # Load it back
         loaded_manifest, tables = load_archive(out_file)
@@ -102,7 +102,7 @@ def test_verify_backup_passes_on_valid_archive(tmp_path, session_factory):
         s.add(make_ingredient(s, name="harina", unit="kg", stock_qty=5.0))
         s.commit()
         backup_database(s, tmp_path)
-        out_file = next(tmp_path.glob("saskia-backup-*.json.gz"))
+        out_file = next(tmp_path.glob("sazon-backup-*.json.gz"))
         # verify_backup returns the manifest (no exception)
         verified = verify_backup(out_file)
         assert verified.sha256
@@ -117,7 +117,7 @@ def test_verify_backup_raises_on_tampered(tmp_path, session_factory):
         s.add(make_product(s, name="Torta", sale_price_gs=35000))
         s.commit()
         backup_database(s, tmp_path)  # compressed by default
-        out_file = next(tmp_path.glob("saskia-backup-*.json.gz"))
+        out_file = next(tmp_path.glob("sazon-backup-*.json.gz"))
         # Decompress, mutate, recompress
         import gzip
 
@@ -147,7 +147,7 @@ def test_restore_database_preserves_rows(session_factory, tmp_path):
     finally:
         s.close()
 
-    out_file = next(tmp_path.glob("saskia-backup-*.json.gz"))
+    out_file = next(tmp_path.glob("sazon-backup-*.json.gz"))
 
     # Restore into same session (idempotent merge)
     s2 = source_sf()
@@ -166,7 +166,7 @@ def test_prune_old_backups_removes_old_keeps_newest(tmp_path):
     # Create 10 backups with descending mtime
     paths = []
     for i in range(10):
-        p = tmp_path / f"saskia-backup-2026010{i + 1}T00000{i}Z.json.gz"
+        p = tmp_path / f"sazon-backup-2026010{i + 1}T00000{i}Z.json.gz"
         p.write_bytes(b"test")
         # Set mtime explicitly
         import os

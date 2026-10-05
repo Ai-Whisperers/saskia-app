@@ -1,4 +1,4 @@
-# Saskia RMS — Visual Critique Batch: Admin
+# Sazón — Visual Critique Batch: Admin
 **Auditor:** UX/UI Principal + QA Architect
 **Scope:** 8 pages — suppliers family (4), users, delivery-zones, riesgos, wishlist
 **Method:** Template + router analysis — grounded in live template inspection

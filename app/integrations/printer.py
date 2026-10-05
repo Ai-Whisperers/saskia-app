@@ -1,6 +1,6 @@
 """app/rms/printer.py — ESC/POS receipt printer + label printing (E18).
 
-Per docs/plans/2026-09-07-saskia-complete-epic-plan-v3.md E18.
+Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E18.
 
 Adds:
 - PrinterConfig: kind=network|usb|file, host (network), vendor_id/product_id

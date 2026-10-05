@@ -1,4 +1,4 @@
-# Saskia RMS — Visual Critique Batch: Reportes
+# Sazón — Visual Critique Batch: Reportes
 
 **Auditor:** UX/UI Principal + QA Architect
 **Scope:** 8 pages — diario, stock-intel, ventas-hora, precios, price-impact, freshness, demand, metodos-pago

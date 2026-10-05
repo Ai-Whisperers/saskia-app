@@ -2,7 +2,7 @@
 # All department code lives in Ai-Whisperers/aiw-org (.github/workflows/qa-gates.yml).
 # Current mode: ADVISORY (app suite has known reds; budget-blocked CI anyway).
 # To enforce: the aiw-org runner already exits non-zero; remove
-# continue-on-error here once saskia-app main is green.
+# continue-on-error here once sazon-app main is green.
 name: AIW QA Gates (department)
 
 on:

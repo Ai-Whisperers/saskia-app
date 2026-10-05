@@ -99,7 +99,7 @@ def test_redeem_points_writes_ledger_row_and_debits_balance(session_factory):
     with session_factory() as s:
         cust = s.get(Customer, cust_id)
         redeemed, discount = redeem_points(
-            s, cust, 10, actor="saskia", notes="descuento cumpleaños"
+            s, cust, 10, actor="demo", notes="descuento cumpleaños"
         )
         s.commit()
 

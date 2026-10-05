@@ -24,7 +24,7 @@ Design rules:
   - Maximum 3 returned per call (UI space constraint).
   - Priority order: cumpleaños → vuelve pronto → puntos dormidos →
     cross-sell → cliente fiel. Highest-priority suggestions win ties.
-  - All thresholds live as module-level constants so Saskia can tune
+  - All thresholds live as module-level constants so the operator can tune
     later (no DB-driven rules — that's C2/C3 territory).
   - Pure function: takes a Customer + sales-derived stats; no DB
     queries inside. Caller wires the data.
@@ -214,7 +214,7 @@ def _maybe_birthday(
 
     Soporta dos formatos almacenados en ``customer.birthday``:
       - "MM-DD" — cumpleaños sin año (caso normal, recurrente).
-      - "YYYY-MM-DD" — cumpleaños con año (cuando Saskia lo conoce).
+      - "YYYY-MM-DD" — cumpleaños con año (cuando the operator lo conoce).
     Para el primer caso, sólo nos importa mes+día; el año "actual"
     se calcula de forma que si el MM-DD ya pasó este año, el
     cumpleaños es el del año próximo (siempre dentro de la ventana).

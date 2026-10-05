@@ -1,4 +1,4 @@
-"""tests/test_migrate_cli.py — verify aiw-saskia migrate is idempotent.
+"""tests/test_migrate_cli.py — verify sazon migrate is idempotent.
 
 Per the 2026-09-04 critical-path plan, E2.S3.T2. Regresses the "apply twice
 fails" class of bugs (the user-visible symptom would be 'schema_version
@@ -18,7 +18,7 @@ def _run_migrate(db_path: Path):
     if db_path.exists():
         db_path.unlink()
 
-    os.environ["AIW_SASKIA_DB_PATH"] = str(db_path)
+    os.environ["AIW_RMS_DB_PATH"] = str(db_path)
     # Reload to pick up new env
     from app.rms.db import _current_schema_version, init_db
     from app.rms.db_dialect import make_engine
@@ -93,9 +93,9 @@ def test_apply_neon_schema_script_noop_on_second_run(tmp_path, monkeypatch, caps
     db_path = tmp_path / "neon-script.sqlite"
 
     monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.setenv("AIW_SASKIA_DB_PATH", str(db_path))
+    monkeypatch.setenv("AIW_RMS_DB_PATH", str(db_path))
 
-    # Need to make apply_neon_schema.py resolve DATABASE_URL via AIW_SASKIA_DB_PATH
+    # Need to make apply_neon_schema.py resolve DATABASE_URL via AIW_RMS_DB_PATH
     # (it doesn't — only `main.py migrate()` does). So instead test main.migrate() directly.
     import app.rms.main as m
 
@@ -110,7 +110,7 @@ def test_apply_neon_schema_script_noop_on_second_run(tmp_path, monkeypatch, caps
 
 
 def test_run_dispatches_migrate_argv(monkeypatch):
-    """`aiw-saskia migrate` must call migrate(), not _serve()."""
+    """`sazon migrate` must call migrate(), not _serve()."""
     import sys
 
     import app.rms.main as m
@@ -125,7 +125,7 @@ def test_run_dispatches_migrate_argv(monkeypatch):
 
     monkeypatch.setattr(m, "migrate", fake_migrate)
     monkeypatch.setattr(m, "_serve", fake_serve)
-    monkeypatch.setattr(sys, "argv", ["aiw-saskia", "migrate"])
+    monkeypatch.setattr(sys, "argv", ["sazon", "migrate"])
 
     m.run()
     assert called["migrate"] == 1
@@ -133,7 +133,7 @@ def test_run_dispatches_migrate_argv(monkeypatch):
 
 
 def test_run_dispatches_serve_argv(monkeypatch):
-    """`aiw-saskia serve` calls _serve(); `aiw-saskia` (no argv) also calls _serve()."""
+    """`sazon serve` calls _serve(); `sazon` (no argv) also calls _serve()."""
     import sys
 
     import app.rms.main as m
@@ -149,7 +149,7 @@ def test_run_dispatches_serve_argv(monkeypatch):
     monkeypatch.setattr(m, "migrate", fake_migrate)
     monkeypatch.setattr(m, "_serve", fake_serve)
 
-    for argv in (["aiw-saskia"], ["aiw-saskia", "serve"], ["aiw-saskia", "run"]):
+    for argv in (["sazon"], ["sazon", "serve"], ["sazon", "run"]):
         monkeypatch.setattr(sys, "argv", argv)
         m.run()
 

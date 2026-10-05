@@ -137,7 +137,7 @@
   var btn = document.getElementById('sound-toggle');
   if (!audio || !btn) return;
 
-  var STORAGE_KEY = 'saskia:board-sound-enabled';
+  var STORAGE_KEY = 'sazon:board-sound-enabled';
   var enabled = localStorage.getItem(STORAGE_KEY) === '1';
 
   function render() {
@@ -176,11 +176,11 @@
         if (!isNaN(n)) ids.push(n);
       }
       var maxId = ids.length ? Math.max.apply(null, ids) : 0;
-      var lastSeen = parseInt(localStorage.getItem('saskia:board-last-order-id') || '0', 10);
+      var lastSeen = parseInt(localStorage.getItem('sazon:board-last-order-id') || '0', 10);
       if (maxId > lastSeen && maxId > 0) {
         try { audio.currentTime = 0; audio.play().catch(function(){}); } catch(e) {}
       }
-      localStorage.setItem('saskia:board-last-order-id', String(maxId));
+      localStorage.setItem('sazon:board-last-order-id', String(maxId));
     }
   } catch(e) { /* never block the UI on a localStorage/play error */ }
 })();

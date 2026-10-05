@@ -1,4 +1,4 @@
-"""Centralized form-validation helpers for Saskia RMS CRUD endpoints.
+"""Centralized form-validation helpers for Sazón CRUD endpoints.
 
 All errors are returned as Spanish HTTPExceptions so BUG-00 is consistent.
 Helpers return cleaned values (or raise on bad input) so the calling route

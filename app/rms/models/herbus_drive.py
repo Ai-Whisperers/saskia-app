@@ -89,7 +89,7 @@ class RiskItem(Base):
 class MarketBenchmark(Base):
     """Per-product pricing-vs-market row (HEREBUS Benchmarks_Market).
 
-    Allows Saskia to position each recipe relative to local competitors.
+    Allows the operator to position each recipe relative to local competitors.
     """
 
     __tablename__ = "market_benchmark"

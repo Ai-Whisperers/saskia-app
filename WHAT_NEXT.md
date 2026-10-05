@@ -1,4 +1,4 @@
-# Saskia · What Next? (Oct 2026)
+# the operator · What Next? (Oct 2026)
 
 ## 📊 Current State — Where We Are
 
@@ -81,7 +81,7 @@
 ### 🏆 Top 5 next moves (ranked by ROI)
 
 #### #1 — **Production Planner → Shopping List** (3 hr) — *Killer feature*
-Just adds one POST route that materializes shortfalls into `ShoppingListItem`. Saskia has ALL data already; this single endpoint unlocks the end-to-end "ingredient need → buy list" loop that the spreadsheets are trying to do manually. Plus add `/shopping-list` view.
+Just adds one POST route that materializes shortfalls into `ShoppingListItem`. the operator has ALL data already; this single endpoint unlocks the end-to-end "ingredient need → buy list" loop that the spreadsheets are trying to do manually. Plus add `/shopping-list` view.
 
 #### #2 — **Sale channel mismatch fix** (2 hr)
 6 small things: extend enum, fix 3 'wholesale' rows marked wrong, add filter to `/ventas`, render channel breakdown on dashboard. Also easy to notice/break.
@@ -114,10 +114,10 @@ Form to set competitor prices, compute "Posición" automatically (vs Market avg)
 
 ## 💼 Business-Operational priorities (vs Tech)
 
-If you're running HEREBUS right now, the questions to ask Saskia are:
+If you're running HEREBUS right now, the questions to ask the operator are:
 1. *"What's my food cost % this month?"* — partly works (Dashboard v1, but `Waste.cost_gs` is 0 for many rows because cost calc was fraction-only)
 2. *"What do I need to buy tomorrow to bake 10 muffins?"* — **doesn't work** (Planner exists but doesn't push to shopping list)
-3. *"Is Saskia paying more for flour than the other bakery down the street?"* — doesn't work (Benchmarks empty)
+3. *"Is the operator paying more for flour than the other bakery down the street?"* — doesn't work (Benchmarks empty)
 4. *"What kitchen equipment am I missing that would speed production?"* — works (Wishlist @ ₲60M)
 
 **Top operational gap is #1 + #3 above.**
@@ -135,7 +135,7 @@ If you're running HEREBUS right now, the questions to ask Saskia are:
 | **E** | Full security/audit hardening for prod | 1 day | Deploy-ready |
 | **F** | Build the mobile-PWA version of the dashboard | 2-3 days | Deployment-ready UI |
 
-Saskia is now feature-rich for v1.0 launch; the gaps above are mostly polish.
+the operator is now feature-rich for v1.0 launch; the gaps above are mostly polish.
 The two genuinely missing pieces that BLOCK actual HEREBUS work:
 - **Shopping list from planner** (#1, plan A)
 - **Production data → dashboard refresh** (so /dashboard shows LIVE data)

@@ -105,7 +105,7 @@ def test_garbage_session_cookie_redirects_not_500(client, session_factory):
     """Under the test auth-bypass the gate is skipped, but a corrupt session
     cookie must NEVER crash a route — any non-500 outcome is acceptable.
     (The strict 303-to-login variant lives in test_strict_auth.)"""
-    client.cookies.set("saskia_rms_session", "garbage.notsigned")
+    client.cookies.set("sazon_session", "garbage.notsigned")
     r = client.post("/ventas/nueva", data={"qty": "1"}, follow_redirects=False)
     assert r.status_code != 500, r.status_code
 

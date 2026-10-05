@@ -1,4 +1,4 @@
-# Architecture — Saskia RMS
+# Architecture — Sazón
 
 > **For Kiki and any future agent.** Explains the data flow, sources of truth, and
 > update paths. Read this before making changes that affect how data moves through
@@ -26,9 +26,9 @@
    └─────────────────────┘
 
    Backups (parallel):
-   - On startup → ~/Documents/AIW-Saskia/backups/*.xlsx (auto-export, 30-day)
+   - On startup → ~/Documents/aiw-restaurant/backups/*.xlsx (auto-export, 30-day)
    - On startup → Cloudflare R2 encrypted snapshot (24h threshold, free tier)
-   - Export anytime from UI → ~/Documents/AIW-Saskia/exports/*.xlsx (manual)
+   - Export anytime from UI → ~/Documents/aiw-restaurant/exports/*.xlsx (manual)
 ```
 
 ## Sources of truth (and what is NOT a source of truth)
@@ -38,7 +38,7 @@
 | Recipes + ingredients | SQLite (after import) | The Excel xlsx files (they're snapshots) |
 | Sale history | SQLite | UI dashboard (it's computed) |
 | Stock levels | SQLite (after sale/import) | Real-world kitchen (this is theoretical stock) |
-| Ingredient purchase prices | SQLite (after Saskia enters) | Default values in xlsx (could be empty) |
+| Ingredient purchase prices | SQLite (after the operator enters) | Default values in xlsx (could be empty) |
 | Dashboard numbers | Computed from SQLite on every render | Cached anywhere |
 | Recipe cost | Computed from ingredient prices + lines | Hardcoded anywhere |
 | Product margin | Computed from sale price + cost | Cached |
@@ -57,7 +57,7 @@
 ## Update paths (when source changes)
 
 - **She edits the Drive xlsx** → next time she clicks "Importar" in the UI → confirmation modal → diff displayed → she confirms → SQLite updates (additive by name match, never wiping sales).
-- **She edits in the app** → SQLite is updated directly → next "Exportar" creates a new xlsx in `~/Documents/AIW-Saskia/exports/`. That file becomes the new snapshot for the next import round.
+- **She edits in the app** → SQLite is updated directly → next "Exportar" creates a new xlsx in `~/Documents/aiw-restaurant/exports/`. That file becomes the new snapshot for the next import round.
 - **She fixes a typo in a recipe** → UI form submit → SQLite updated → no other action needed.
 
 ## Concurrency model

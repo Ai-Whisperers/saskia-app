@@ -2,7 +2,7 @@
 
 Regression for the 2026-09-08 audit finding:
 - `/login?error=...` rendered an `.alert-error` div with NO CSS (un-styled).
-- Title was duplicated ("Iniciar sesión — Saskia RMS — Saskia RMS").
+- Title was duplicated ("Iniciar sesión — Sazón — Sazón").
 - Forgot-password link existed but had no tests.
 
 These tests pin the fixes so they don't regress.
@@ -68,19 +68,19 @@ def test_login_no_error_no_aria_invalid(client):
 
 
 def test_login_title_not_duplicated(client):
-    """Title block must not include '— Saskia RMS' (base template adds it).
+    """Title block must not include '— Sazón' (base template adds it).
 
-    The full rendered <title> should be 'Iniciar sesión — Saskia RMS'
+    The full rendered <title> should be 'Iniciar sesión — Sazón'
     (block content + base template suffix). If the block also added the
-    suffix, we'd get 'Iniciar sesión — Saskia RMS — Saskia RMS'.
+    suffix, we'd get 'Iniciar sesión — Sazón — Sazón'.
     """
     resp = client.get("/login")
     m = re.search(r"<title>([^<]+)</title>", resp.text)
     assert m is not None
     title = m.group(1)
     # Should NOT be doubled
-    assert title.count("Saskia RMS") == 1, (
-        f"Title has 'Saskia RMS' {title.count('Saskia RMS')} times: {title!r}"
+    assert title.count("Sazón") == 1, (
+        f"Title has 'Sazón' {title.count('Sazón')} times: {title!r}"
     )
     # And should start with the page name
     assert title.startswith("Iniciar sesión")
@@ -129,7 +129,7 @@ def test_forgot_password_no_email_enumeration_leak(client):
     """Whether email exists or not, response should look identical."""
     resp_real = client.post(
         "/forgot-password",
-        data={"email": "saskia@paragu-ai.com"},
+        data={"email": "demo@paragu-ai.com"},
         follow_redirects=False,
     )
     resp_fake = client.post(

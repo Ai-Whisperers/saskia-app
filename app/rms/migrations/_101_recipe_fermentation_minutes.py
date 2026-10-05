@@ -1,7 +1,7 @@
 """Migration 101: add recipe.fermentation_minutes column.
 
 T-2026-10-05 (B.3): recipes for masa madre / poolish / preferments need
-many hours of fermentation before baking. Gaby currently has to
+many hours of fermentation before baking. The operator currently has to
 mentally compute "if tomorrow's pan starts at 06:00 and pan masa madre
 takes 14h, I need to start it at 16:00 today". The new column makes
 that an explicit field, so /produccion can show a per-row reminder
