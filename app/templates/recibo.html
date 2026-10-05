@@ -147,7 +147,7 @@
       {% if loyalty_snapshot.redeemed_points > 0 %}
       <div style="color:var(--color-primary,#3b82f6); font-size:0.85rem;">
         Canjeaste {{ loyalty_snapshot.redeemed_points }} puntos
-        (= Gs. {{ loyalty_snapshot.redeemed_discount_gs | string | replace(',', '.') }} de descuento)
+        (= {{ m.gs_full(loyalty_snapshot.redeemed_discount_gs) }} de descuento)
       </div>
       {% endif %}
     </div>

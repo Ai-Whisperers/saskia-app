@@ -5,8 +5,8 @@
 
 **URL activa:** `https://saskia-vps.paragu-ai.com`  *(si ves "service suspended", contactá al equipo — esa URL no es la correcta)*
 **URL alternativa (suspendida):** `https://saskia-rms.paragu-ai.com` — Render, NO usar
-**Versión del manual:** 2026-10-02 · schema 92 · commit `6e23d7a` · 17 secciones
-**Manual versión:** v1.1 (ver "Cómo verificar la versión" abajo)
+**Versión del manual:** 2026-10-05 · schema 101 · commit `62cccee` · 17 secciones (+ 12 páginas de la barra lateral documentadas en el índice)
+**Manual versión:** v1.3 (ver "Cómo verificar la versión" abajo)
 
 ## Índice rápido
 
@@ -30,6 +30,35 @@
 | [15](15-cierre.md) | Cierre diario (EOD) | Al final del día |
 | [16](16-excel.md) | Excel (importar/exportar) | Para copias de seguridad o cargas masivas |
 | [17](glosario.md) | Glosario | Cuando un término te suena raro |
+| [18](18-lista-compras.md) | Lista de compras | Antes de ir al super o proveedor |
+| [19](19-suscripciones.md) | Suscripciones (entregas recurrentes) | Para clientes con pedidos semanales |
+
+## Páginas del menú lateral (índice completo)
+
+Las siguientes páginas aparecen en la barra lateral de la app pero no tienen
+una sección dedicada en este manual todavía. La mayoría son pantallas de
+gestión que **Saskia probablemente no necesita usar** — son más para Iván
+(operador técnico). Si necesitás una de estas secciones, pedila y la
+escribimos.
+
+| Ruta | Nombre | Para qué sirve | Quién la usa |
+|---|---|---|---|
+| `/analisis` | Análisis | Análisis avanzado de ventas y stock | Iván |
+| `/bank` | Banco | Conciliación de cuentas corrientes | Iván |
+| `/dashboard` | KPIs mensuales | Tablero con KPIs del mes | Iván |
+| `/guia` | Guía | Esta misma guía, dentro de la app | Todos |
+| `/pricing` | Precios por canal | Precios distintos por canal de venta | Iván |
+| `/riesgos` | Riesgos | Alertas de stock crítico, deudas vencidas | Iván |
+| `/shopping-list` | Lista de compras | Lista generada desde "Reponer" | Saskia (a veces) |
+| `/suppliers` | Proveedores | Datos de contacto y precios de proveedores | Iván |
+| `/suscripciones` | Suscripciones | Clientes con entregas recurrentes | Iván |
+| `/users` | Usuarios | Gestión de quién puede entrar a la app | Iván |
+| `/vs-mercado` | Precios vs mercado | Comparar con precios de la competencia | Iván |
+| `/wishlist` | Equipamiento | Lista de equipos/herramientas a comprar | Iván |
+
+> **Nota:** las páginas marcadas como "Iván" son administrativas y rara
+> vez necesitan atención manual. Si ves algo raro en una de esas pantallas
+> (números que no cierran, datos faltantes), avisá a Iván.
 
 ## Conceptos generales
 
@@ -144,7 +173,7 @@ Tres formas:
 |---|---|---|
 | En el navegador | Pie de página de cualquier pantalla | "Saskia RMS v1.0 · Sistema local · 2026" |
 | Al iniciar sesión | Header `X-Agent` en respuesta `/login` | `SaskiaRMS/1.0` |
-| En este manual | El número "v1.x" arriba | Dice `2026-10-02 · schema 92 · commit 6e23d7a` |
+| En este manual | El número "v1.x" arriba | Dice `2026-10-05 · schema 101 · commit 62cccee` |
 
 Si los tres no coinciden, **el manual está desactualizado** — avisá a Iván para que lo actualice.
 

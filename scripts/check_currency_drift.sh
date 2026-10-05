@@ -64,19 +64,47 @@ for file in "${FILES[@]}"; do
     matches=$(grep -nE "$pattern" "$file" 2>/dev/null || true)
     if [[ -n "$matches" ]]; then
       while IFS= read -r line; do
+        # Extract line number from grep's "N:content" format.
+        lineno="${line%%:*}"
+        line="${line#*:}"
         # Skip lines that contain a format_gs / m.gs / m.gs_full reference nearby.
         # This is a heuristic — the goal is to catch obvious drift, not be exhaustive.
         if echo "$line" | grep -qE 'm\.gs|m\.gs_full|format_gs|fmt\.gs'; then
           continue
         fi
         # Skip lines that are pure comments or docstrings.
-        if echo "$line" | grep -qE '^\s*(#|//|/\*|\*|<!--)'; then
+        if echo "$line" | grep -qE '^\s*(#|//|/\*|\*|<!--|\{#)'; then
           continue
         fi
-        # JS-placeholder heuristic: lines inside <script> blocks or with `data-*=`
-        # attributes often contain "Gs. 0" as initial values for client-side updates.
-        # These will be replaced by format_gs() calls from JS at runtime.
-        if echo "$line" | grep -qE 'data-[a-z-]+=|return .Gs\.|^\s*<script|^\s*</script|^\s*\*'; then
+        # Skip lines inside Python docstrings (between """ pairs).
+        # Heuristic: look at the previous 6 lines and count """ occurrences.
+        # If odd, we're inside a docstring.
+        if [[ "$file" == *.py ]]; then
+          ctx=$(head -n "$lineno" "$file" 2>/dev/null | tail -n 12)
+          count=$(echo "$ctx" | grep -o '"""' | wc -l)
+          if [ $((count % 2)) -eq 1 ]; then
+            continue
+          fi
+        fi
+        # Skip lines inside a Jinja comment block (between {# ... #}).
+        if [[ "$file" == *.html ]]; then
+          ctx=$(head -n "$lineno" "$file" 2>/dev/null | tail -n 6)
+          if echo "$ctx" | grep -qE '{#' && ! echo "$ctx" | grep -q '#}'; then
+            continue
+          fi
+        fi
+        # JS-placeholder heuristic: lines inside <script> blocks or with `data-*=` or
+        # `id="..."` attributes often contain "Gs. 0" as initial values for
+        # client-side updates. These will be replaced by format_gs() calls
+        # from JS at runtime.
+        # Check the current line AND the previous 5 lines for these markers,
+        # because the <span id="..."> open tag is on a previous line and
+        # the placeholder text is on a child line.
+        if echo "$line" | grep -qE 'data-[a-z-]+=|id="[a-z-]+"|return .Gs\.|^\s*<script|^\s*</script|^\s*\*'; then
+          continue
+        fi
+        prev_ctx=$(head -n "$lineno" "$file" 2>/dev/null | tail -n 5)
+        if echo "$prev_ctx" | grep -qE 'id="[a-z-]+"'; then
           continue
         fi
         # If the line is inside a template's <script> block, we'd need full AST parsing.
