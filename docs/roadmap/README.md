@@ -16,6 +16,7 @@ material that already informed a decision.
 |---|---|
 | What is the current state? | [`STATUS.md`](STATUS.md) |
 | What should we ship next? | [`BACKLOG.md`](BACKLOG.md) |
+| **What is the full execution plan across all open work?** | **[`EXECUTION-PLAN.md`](EXECUTION-PLAN.md)** |
 | What are the long-term epics & stories? | [`epics/00-EPIC-PLAN-EXTRACT.md`](epics/00-EPIC-PLAN-EXTRACT.md) |
 | What raw ideas are pending? | [`WISHLIST.md`](WISHLIST.md) (or `docs/wishlist/`) |
 | What decisions have been made? | [`decisions/`](decisions/) (ADRs) |
