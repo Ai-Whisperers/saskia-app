@@ -90,7 +90,7 @@ from app.rms.tagging.vocabulary import (
     TAG_ALIASES,
     TAG_ALLERGEN_BLOCKERS,
 )
-from app.rms.tags import STARTER_TAGS  # re-export for db.py
+from app.rms.tagging.ensure import STARTER_TAGS  # re-export for db.py
 
 __all__ = [
     "ALLERGEN_DISPLAY_ORDER",
