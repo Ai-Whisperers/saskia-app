@@ -11,6 +11,7 @@
 | [`2026-09-23-second-review-execution-plan.md`](2026-09-23-second-review-execution-plan.md) | 2026-09-23 | Second review execution plan |
 | [`round-2-triage-process.md`](round-2-triage-process.md) | 2026-09 | Round-2 feedback triage process (Fase 1.5) |
 | [`round-2-feedback.md`](round-2-feedback.md) | 2026-09 | Round-2 raw feedback notes |
+| [`2026-10-05-session-0-drift.md`](2026-10-05-session-0-drift.md) | 2026-10-05 | Session 0 of EXECUTION-PLAN.md: drift fix (DRIFT-2 migration 098 done; DRIFT-1 redeploy + DRIFT-3 env vars pending operator) |
 
 ## HEREBUS sprint
 
