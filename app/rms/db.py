@@ -45,6 +45,8 @@ from app.rms.migrations._094_monthly_closure import _migration_094_monthly_closu
 from app.rms.migrations._095_soft_delete_columns import _migration_095_soft_delete_columns
 from app.rms.migrations._096_audit_columns import _migration_096_audit_columns
 from app.rms.migrations._097_ingredient_avg_cost import _migration_097_ingredient_avg_cost
+from app.rms.migrations._098_production_closed_day import _migration_098_production_closed_day
+from app.rms.migrations._098_customer_phone import _migration_098_customer_phone
 
 from loguru import logger
 from sqlalchemy import create_engine, event, text
@@ -4021,6 +4023,52 @@ def _migration_089_ingredient_avg_cost(conn: Any) -> None:
     _impl(conn)
 
 
+def _migration_098_production_closed_day(conn: Any) -> None:
+    """Wire migration 098 Part 1: production_closed_day table.
+
+    RECOVERED 2026-10-05 from origin/feat/phase-3-ci-cleanup. The
+    branch diverged from main without being merged; the migration ran
+    on the prod DB (schema_version is 98 there) while the source was
+    lost. This restores the source to align with the live schema.
+    Idempotent: CREATE TABLE IF NOT EXISTS.
+
+    See ``migrations/_098_production_closed_day.py`` for full docs.
+    """
+    from app.rms.migrations._098_production_closed_day import (
+        _migration_098_production_closed_day as _impl,
+    )
+    _impl(conn)
+
+
+def _migration_098_customer_phone(conn: Any) -> None:
+    """Wire migration 098 Part 2: customer_phone table.
+
+    RECOVERED 2026-10-05 from origin/feat/phase-3-m1-product-detail.
+    See ``_migration_098_production_closed_day`` for the recovery
+    context. Idempotent: CREATE TABLE IF NOT EXISTS + NOT EXISTS
+    backfill. Schema-version bump is owned by Part 1 to avoid
+    double-bumping version 98.
+    """
+    from app.rms.migrations._098_customer_phone import (
+        _migration_098_customer_phone as _impl,
+    )
+    _impl(conn)
+
+
+def _migration_098_combined_098(conn: Any) -> None:
+    """Combined migration 098 — runs both Part 1 (closed_day) and
+    Part 2 (customer_phone). Used as the single MIGRATIONS[98] entry
+    because two functions can't share a dict key.
+
+    Both parts are idempotent; whichever one already ran on prod
+    (during a previous direct-to-VPS deploy that bypassed source
+    control) is a no-op CREATE TABLE IF NOT EXISTS the second time.
+    The schema-version bump is owned by Part 1.
+    """
+    _migration_098_production_closed_day(conn)
+    _migration_098_customer_phone(conn)
+
+
 
 MIGRATIONS = {
     1: _migration_001_initial_schema,
@@ -4120,6 +4168,7 @@ MIGRATIONS = {
     95: _migration_095_soft_delete_columns,
     96: _migration_096_audit_columns,
     97: _migration_097_ingredient_avg_cost,
+    98: _migration_098_combined_098,
 }
 
 
