@@ -56,6 +56,10 @@ def ingredient_dietary_set(ing: object) -> frozenset[str]:
 # Legacy private alias kept for any module still using the old name.
 _product_inherit_sync = sync_product_inheritance
 
+# Legacy private alias (BACKLOG tag-normalization tests): _normalize_tag was
+# the original private name in pre-Sprint-2.2 tag_algebra.py.
+_normalize_tag = normalize
+
 __all__ = [
     "LineTarget",
     "TagDerivation",

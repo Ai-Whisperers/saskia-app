@@ -383,3 +383,121 @@ __all__ = [
     "waste_as_pct_of_revenue",
     "waste_impact",
 ]
+
+
+# --- Waste ROI per ingredient + price trend (BACKLOG #34) ---
+
+
+@dataclass
+class WasteIngredientTrend:
+    """Per-ingredient waste cost joined with purchase-price trend."""
+
+    ingredient_id: int
+    ingredient_name: str
+    cost_gs: int
+    qty: float
+    avg_price_recent_gs: int | None
+    avg_price_prior_gs: int | None
+    trend_pct: float | None
+
+
+def waste_impact_with_trends(
+    session: Session,
+    *,
+    days: int = 60,
+    now: datetime | None = None,
+) -> list[WasteIngredientTrend]:
+    """Waste cost per ingredient joined with IngredientPriceEvent trend.
+
+    Window [now-days, now]; `days` is clamped to a 60-day floor so the
+    recent/prior price halves always have room. Recent half = last days/2,
+    prior half = the days/2 before that. trend_pct = % change recent vs
+    prior; None when either half has no price events.
+    """
+    from app.rms.models import IngredientPriceEvent
+
+    now = now or datetime.now(timezone.utc)
+    days = max(int(days), 60)
+    start = now - timedelta(days=days)
+    half_start = now - timedelta(days=days / 2)
+
+    waste_rows = (
+        session.execute(
+            select(
+                WasteLog.ingredient_id,
+                func.sum(WasteLog.cost_gs).label("cost_gs"),
+                func.sum(WasteLog.qty).label("qty"),
+            )
+            .where(WasteLog.recorded_at >= start)
+            .where(WasteLog.recorded_at <= now)
+            .group_by(WasteLog.ingredient_id)
+        )
+        .all()
+    )
+    if not waste_rows:
+        return []
+
+    ing_ids = [int(r[0]) for r in waste_rows]
+    names = dict(
+        session.execute(
+            select(Ingredient.id, Ingredient.name).where(Ingredient.id.in_(ing_ids))
+        ).all()
+    )
+
+    price_rows = (
+        session.execute(
+            select(
+                IngredientPriceEvent.ingredient_id,
+                IngredientPriceEvent.price_gs,
+                IngredientPriceEvent.recorded_at,
+            )
+            .where(IngredientPriceEvent.ingredient_id.in_(ing_ids))
+            .where(IngredientPriceEvent.recorded_at >= start)
+            .where(IngredientPriceEvent.recorded_at <= now)
+            .order_by(IngredientPriceEvent.recorded_at)
+        )
+        .all()
+    )
+    recent: dict[int, list[int]] = {}
+    prior: dict[int, list[int]] = {}
+    for pid, price, at in price_rows:
+        # SQLite may hand back naive datetimes; the caller's `now` can be
+        # aware. Normalize to aware-UTC before comparing (mixed-type guard).
+        if at.tzinfo is None:
+            at = at.replace(tzinfo=timezone.utc)
+        bucket = recent if at >= half_start else prior
+        bucket.setdefault(int(pid), []).append(int(price))
+
+    trends: list[WasteIngredientTrend] = []
+    for ing_id, cost, qty in waste_rows:
+        rec = recent.get(int(ing_id)) or []
+        pri = prior.get(int(ing_id)) or []
+        avg_rec = round(sum(rec) / len(rec)) if rec else None
+        avg_pri = round(sum(pri) / len(pri)) if pri else None
+        if avg_rec is not None and avg_pri is not None and avg_pri > 0:
+            trend_pct = round((avg_rec - avg_pri) * 100.0 / avg_pri, 2)
+        else:
+            trend_pct = None
+        trends.append(
+            WasteIngredientTrend(
+                ingredient_id=int(ing_id),
+                ingredient_name=names.get(int(ing_id), "?"),
+                cost_gs=int(cost or 0),
+                qty=float(qty or 0.0),
+                avg_price_recent_gs=avg_rec,
+                avg_price_prior_gs=avg_pri,
+                trend_pct=trend_pct,
+            )
+        )
+
+    trends.sort(key=lambda t: t.cost_gs, reverse=True)
+    return trends
+
+
+def amplified_waste_ingredients(
+    rows: list[WasteIngredientTrend],
+    *,
+    trend_threshold_pct: float = 5.0,
+) -> list[WasteIngredientTrend]:
+    """Filter trend rows to ingredients whose price rose above threshold."""
+    return [r for r in rows if r.trend_pct is not None and r.trend_pct >= trend_threshold_pct]

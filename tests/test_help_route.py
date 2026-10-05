@@ -1,5 +1,7 @@
 """tests/test_help_route.py — verify /guia renders user-guide content."""
 
+import pytest
+
 
 def test_guia_index_returns_200(client):
     resp = client.get("/guia")

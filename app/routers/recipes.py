@@ -52,6 +52,18 @@ from app.services.template_render import render
 router = APIRouter(prefix="/recetas", dependencies=[Depends(require_login)])
 
 
+def _format_total_minutes(total_minutes: int | None) -> str:
+    """Format total minutes as 'Xh YYm' or 'Sin definir' if None."""
+    if total_minutes is None:
+        return "Sin definir"
+    hours = total_minutes // 60
+    minutes = total_minutes % 60
+    if hours > 0:
+        return f"{hours}h {minutes}m"
+    else:
+        return f"{minutes}m"
+
+
 def _decorate(
     session: Session, r: Recipe, batch: CostResult, unit: CostResult | None, line_count: int
 ) -> dict:
@@ -291,7 +303,7 @@ async def recipes_list(
     # Ingredient list for filter dropdown
     all_ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
 
-    from app.rms.tags import list_tags_for_kind
+    from app.rms.tagging.filters import list_tags_for_kind
 
     all_families = sorted(
         {

@@ -753,3 +753,149 @@ __all__ = [
     "stock_turnover",
     "top_margin_products",
 ]
+
+
+# --- Consumption forecast (BACKLOG #32 — predictive restocking foundation) ---
+
+
+@dataclass
+class ConsumptionForecast:
+    ingredient_id: int
+    name: str
+    current_stock_qty: float
+    avg_daily_consumption: float
+    days_until_stockout: int
+    horizon_days: int
+    safety_stock_factor: float
+    predicted_consumption: float
+    recommended_reorder_qty: float
+    is_predicted_to_stockout: bool
+
+
+def consumption_forecast(
+    session: Session,
+    *,
+    ingredient_id: int | None = None,
+    lookback_days: int = 30,
+    horizon_days: int = 7,
+    safety_factor: float = 1.5,
+) -> list[ConsumptionForecast]:
+    """Deterministic baseline forecast: avg daily consumption x horizon x safety.
+
+    Consumption = StockMovement rows with movement_type='sale' and qty<0
+    within the lookback window, summed as -qty. Only ingredients with at
+    least one such movement get a forecast row (no data -> empty list).
+    Sorted by days_until_stockout ascending (most urgent first).
+    """
+    now = datetime.now(timezone.utc)
+    window_start = now - timedelta(days=lookback_days)
+
+    q = (
+        select(
+            StockMovement.ingredient_id,
+            func.coalesce(func.sum(-StockMovement.qty), 0.0).label("total_consumed"),
+        )
+        .where(StockMovement.movement_type == "sale")
+        .where(StockMovement.qty < 0)
+        .where(StockMovement.recorded_at >= window_start)
+        .where(StockMovement.recorded_at <= now)
+        .group_by(StockMovement.ingredient_id)
+    )
+    if ingredient_id is not None:
+        q = q.where(StockMovement.ingredient_id == ingredient_id)
+
+    rows = session.execute(q).all()
+    if not rows:
+        return []
+
+    forecasts: list[ConsumptionForecast] = []
+    for ing_id, total_consumed in rows:
+        ing = session.get(Ingredient, ing_id)
+        if ing is None:
+            continue
+        avg_daily = float(total_consumed) / float(lookback_days)
+        stock = float(ing.stock_qty or 0.0)
+        days_until = int(stock / avg_daily) if avg_daily > 0 else 999999
+        predicted = avg_daily * float(horizon_days) * float(safety_factor)
+        recommended = max(0.0, predicted - stock)
+        forecasts.append(
+            ConsumptionForecast(
+                ingredient_id=int(ing_id),
+                name=ing.name,
+                current_stock_qty=stock,
+                avg_daily_consumption=avg_daily,
+                days_until_stockout=days_until,
+                horizon_days=int(horizon_days),
+                safety_stock_factor=float(safety_factor),
+                predicted_consumption=predicted,
+                recommended_reorder_qty=recommended,
+                is_predicted_to_stockout=days_until < int(horizon_days),
+            )
+        )
+
+    forecasts.sort(key=lambda f: f.days_until_stockout)
+    return forecasts
+
+
+# --- Probabilistic (Poisson) forecast — BACKLOG #29 ---
+
+
+@dataclass
+class ProbabilisticForecast:
+    """Poisson-shaped uncertainty around the deterministic baseline."""
+
+    ingredient_id: int
+    name: str
+    avg_daily_consumption: float
+    expected_horizon_consumption: float
+    p_zero_consumption: float
+    p_any_consumption: float
+    p_stockout_within_horizon: float
+    safety_stock_95pct: float
+
+
+def probabilistic_consumption_forecast(
+    session: Session,
+    *,
+    ingredient_id: int | None = None,
+    lookback_days: int = 30,
+    horizon_days: int = 7,
+) -> list[ProbabilisticForecast]:
+    """Rule-based Poisson approximation (BACKLOG #29).
+
+    Uses avg_daily_consumption as rate λ; expected horizon consumption
+    μ = λ × horizon. p_zero = e^-μ, p_stockout = P(X > stock | Poisson(μ)),
+    95th-percentile safety stock via normal approx μ + 1.645·√μ.
+    Sorted most-urgent (highest stockout probability) first.
+    """
+    baseline = consumption_forecast(
+        session,
+        ingredient_id=ingredient_id,
+        lookback_days=lookback_days,
+        horizon_days=horizon_days,
+    )
+    out: list[ProbabilisticForecast] = []
+    for b in baseline:
+        mu = max(b.avg_daily_consumption * float(horizon_days), 0.0)
+        p_zero = math.exp(-mu) if mu > 0 else 1.0
+        stock = max(int(math.floor(b.current_stock_qty)), 0)
+        cdf = 0.0
+        term = math.exp(-mu)
+        for k in range(0, stock + 1):
+            cdf += term
+            term *= mu / (k + 1)
+        p_stockout = max(0.0, min(1.0, 1.0 - cdf))
+        out.append(
+            ProbabilisticForecast(
+                ingredient_id=b.ingredient_id,
+                name=b.name,
+                avg_daily_consumption=b.avg_daily_consumption,
+                expected_horizon_consumption=mu,
+                p_zero_consumption=p_zero,
+                p_any_consumption=1.0 - p_zero,
+                p_stockout_within_horizon=p_stockout,
+                safety_stock_95pct=mu + 1.645 * math.sqrt(mu) if mu > 0 else 0.0,
+            )
+        )
+    out.sort(key=lambda f: f.p_stockout_within_horizon, reverse=True)
+    return out
