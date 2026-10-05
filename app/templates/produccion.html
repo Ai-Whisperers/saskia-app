@@ -315,11 +315,37 @@
   <input type="text" name="reason" placeholder="Motivo (opcional)" maxlength="120"
          style="padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: 4px; font-size: var(--text-sm);"
          aria-label="Motivo del cierre">
-  <button type="submit" class="btn btn-ghost btn-sm"
-          onclick="return confirm('¿Marcar {{ for_date }} como cerrado? La producción se desactivará para este día.')">
+  <button type="button" class="btn btn-ghost btn-sm" id="close-day-btn">
     🏖️ Cerrar este día
   </button>
 </form>
+{# T-2026-10-04 (P0:D.1): SaskiaConfirmModal replaces legacy confirm() JS.
+   The submit button is now type="button" with id="close-day-btn" so JS can
+   intercept the click, show the modal, and only call form.submit() on OK. #}
+<script>
+  (function () {
+    var btn = document.getElementById('close-day-btn');
+    var form = btn && btn.closest('form');
+    if (!btn || !form) return;
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      var forDate = form.querySelector('input[name="for_date"]').value;
+      var doSubmit = function () { form.submit(); };
+      if (window.SaskiaConfirmModal) {
+        SaskiaConfirmModal.show({
+          title: '¿Cerrar el día?',
+          body: 'Marcar ' + forDate + ' como cerrado. La producción se desactivará para este día.',
+          confirmLabel: 'Cerrar día',
+          danger: true
+        }).then(function (ok) { if (ok) doSubmit(); });
+      } else {
+        // SaskiaConfirmModal failed to load — fall back to the legacy
+        // window.confirm so we still get an explicit gate.
+        if (window.confirm('¿Marcar ' + forDate + ' como cerrado? La producción se desactivará para este día.')) doSubmit();
+      }
+    });
+  })();
+</script>
 {% endif %}
 
 {% if plan_rows_view %}
