@@ -11,6 +11,7 @@ Public API contract unchanged.
 
 from __future__ import annotations
 
+import enum
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -30,7 +31,7 @@ from app.rms.money import to_int_gs
 from app.rms.tagging.model import TagKind
 
 
-class TagKind(str, Enum):
+class TagKind(str, enum.Enum):
     """Tag targets."""
 
     PRODUCT = "product"

@@ -104,7 +104,8 @@ from app.rms.models import (
     User,
     WasteLog,
 )
-from app.rms.tags import TagKind, ensure_starter_tags, ensure_tag, tag_target
+from app.rms.tagging.model import TagKind
+from app.rms.tagging.ensure import ensure_starter_tags, ensure_tag, tag_target
 
 # === Tenant / user constants ===
 
