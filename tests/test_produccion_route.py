@@ -20,9 +20,7 @@ def test_produccion_accepts_shift_am_query_param(client):
     assert "Turno AM" in body, (
         "P0:D.2 — when ?shift=AM is in the URL, page must show 'Turno AM' badge"
     )
-    assert 'data-shift="AM"' in body, (
-        "P0:D.2 — AM badge must carry data-shift='AM' for testability"
-    )
+    assert 'data-shift="AM"' in body, "P0:D.2 — AM badge must carry data-shift='AM' for testability"
 
 
 def test_produccion_accepts_shift_pm_query_param(client):
@@ -45,12 +43,8 @@ def test_produccion_no_shift_param_omits_badge(client):
     # If absent, neither "Turno AM" nor "Turno PM" appears in the header.
     # (Note: 'Turno' might appear elsewhere in copy — check the badge
     # data-attribute is absent.)
-    assert 'data-shift="AM"' not in body, (
-        "P0:D.2 — without ?shift=, no AM badge should render"
-    )
-    assert 'data-shift="PM"' not in body, (
-        "P0:D.2 — without ?shift=, no PM badge should render"
-    )
+    assert 'data-shift="AM"' not in body, "P0:D.2 — without ?shift=, no AM badge should render"
+    assert 'data-shift="PM"' not in body, "P0:D.2 — without ?shift=, no PM badge should render"
 
 
 def test_produccion_rejects_invalid_shift_value(client):

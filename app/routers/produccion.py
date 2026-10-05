@@ -121,8 +121,8 @@ def _current_user_display_name(request: Request) -> str:
         user = get_session_user(request)
         if user is not None and getattr(user, "email", None):
             return str(user.email).split("@", 1)[0]
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001 — Supabase optional; cook fallback
+        logger.debug(f"produccion.user_short: Supabase lookup failed: {exc!r}")
     return "Cocina"
 
 
@@ -484,6 +484,16 @@ def produccion_worksheet(
     product_by_id = {
         p.id: p for p in (session.execute(select(Product).order_by(Product.name)).scalars().all())
     }
+    # T-2026-10-04 (C.5): RecipePricing lookup by recipe_id for inline
+    # cost/margin display on /produccion rows. The pricing table has
+    # cost_per_unit_gs + retail_gs; we join by recipe_id and surface
+    # both in plan_rows_view so the template can render "Gs X total
+    # cost, Y% margin" without a second round-trip.
+    from app.rms.models.sales import RecipePricing
+
+    pricing_by_recipe_id = {
+        p.recipe_id: p for p in (session.execute(select(RecipePricing)).scalars().all())
+    }
 
     plan_rows_view = [
         {
@@ -517,6 +527,38 @@ def produccion_worksheet(
             "portion_label": (
                 product_by_id[r.product_id].portion_label if r.product_id in product_by_id else None
             ),
+            # T-2026-10-04 (C.5): inline cost + margin on the row so the
+            # cook sees "this batch costs Gs 12.500 to make and yields
+            # Gs 18.750 at retail → 33% margin" without leaving the page.
+            # RecipePricing has cost_per_unit_gs and retail_gs; we expose
+            # both plus the line-total cost (cost × qty_to_produce) and
+            # the margin %.
+            "cost_per_unit_gs": int(
+                pricing_by_recipe_id.get(
+                    r.recipe_id, type("P", (), {"cost_per_unit_gs": 0})()
+                ).cost_per_unit_gs
+            )
+            if r.recipe_id and r.recipe_id in pricing_by_recipe_id
+            else 0,
+            "retail_gs": int(
+                pricing_by_recipe_id.get(r.recipe_id, type("P", (), {"retail_gs": 0})()).retail_gs
+            )
+            if r.recipe_id and r.recipe_id in pricing_by_recipe_id
+            else 0,
+            # T-2026-10-04 (C.6): allergen + difficulty badges. Recipe
+            # has difficulty (1-5) and allergens (text, comma-separated).
+            # We expose them so the template renders inline badges
+            # (celiacos, lactosa, etc.) and a difficulty star.
+            "recipe_difficulty": (
+                recipe_by_id[r.recipe_id].difficulty
+                if r.recipe_id and r.recipe_id in recipe_by_id
+                else None
+            ),
+            "recipe_allergens": (
+                recipe_by_id[r.recipe_id].allergens
+                if r.recipe_id and r.recipe_id in recipe_by_id
+                else None
+            ),
         }
         for r in plan.rows
     ]
@@ -545,6 +587,12 @@ def produccion_worksheet(
                 "batch_qty": None,
                 "batch_unit": None,
                 "portion_label": prod_obj.portion_label if prod_obj else None,
+                # T-2026-10-04 (C.5): ad-hoc rows have no recipe, so
+                # cost/margin are 0. Allergen/difficulty also N/A.
+                "cost_per_unit_gs": 0,
+                "retail_gs": 0,
+                "recipe_difficulty": None,
+                "recipe_allergens": None,
             }
         )
 
@@ -1487,6 +1535,7 @@ def produccion_print(
     # Multi-day packs get a "Semana N" header; single-day prints get
     # just the date.
     from datetime import date as _date
+
     target_date_obj = target_date if isinstance(target_date, _date) else None
     iso_year, iso_week, _ = target_date_obj.isocalendar() if target_date_obj else (None, None, None)
     cook_name = _current_user_display_name(request)

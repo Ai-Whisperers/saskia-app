@@ -501,6 +501,11 @@
           <th class="num">Progreso</th>
           <th>Origen <small class="text-muted">(cómo se calcula)</small></th>
           <th>Receta</th>
+          {# T-2026-10-04 (C.5): inline cost/margin column. The cook
+             sees "Gs X total cost, Y% margin" inline so they make
+             ad-hoc decisions with cost visibility. Hidden on print
+             via @media print rules below. #}
+          <th class="num no-print" style="min-width: 7rem;" title="Costo total del lote (cost_per_unit × qty) y margen %">Costo / Margen</th>
         </tr>
       </thead>
       <tbody>
@@ -517,6 +522,24 @@
           <td class="font-bold product-name" data-label="Producto">
             {{ r.product_name }}
             {% if r.is_ad_hoc %}<span class="badge badge-warning" title="Horneado no planeado">Extra</span>{% endif %}
+            {# T-2026-10-04 (C.6): allergen + difficulty micro-badges
+               on the row. Recipe.difficulty is 1-5; we render ⭐ chars
+               for quick scanning ("⭐⭐⭐" = medium-hard). Allergens
+               are text (comma-separated); the badge shows up to 3 and
+               the title attr holds the full list for hover. #}
+            {% if not r.is_ad_hoc and r.recipe_difficulty %}
+              <span class="badge difficulty-badge difficulty-{{ r.recipe_difficulty }}"
+                    data-difficulty="{{ r.recipe_difficulty }}"
+                    title="Dificultad: {{ r.recipe_difficulty }}/5">{% for i in range(r.recipe_difficulty) %}⭐{% endfor %}</span>
+            {% endif %}
+            {% if not r.is_ad_hoc and r.recipe_allergens %}
+              {% set allergen_list = r.recipe_allergens.split(',') | map('trim') | list %}
+              <span class="badge allergen-badge"
+                    data-allergens="{{ r.recipe_allergens }}"
+                    title="Alérgenos: {{ r.recipe_allergens }}">
+                ⚠️ {{ allergen_list[:3] | join(', ') }}{% if allergen_list|length > 3 %}…{% endif %}
+              </span>
+            {% endif %}
           </td>
           <td class="num" data-label="Meta">
             {% if r.is_ad_hoc %}
@@ -621,6 +644,37 @@
             <a href="/recetas/{{ r.recipe_id }}" class="btn btn-sm">Ver receta</a>
             {% else %}
             <span class="text-muted">Sin receta</span>
+            {% endif %}
+          </td>
+          {# T-2026-10-04 (C.5): inline cost/margin cell. Shows
+             - Total cost of the planned batch (cost_per_unit × qty)
+             - Margin % (retail - cost) / retail
+             Both hidden on the printed worksheet via .no-print class. #}
+          <td class="num no-print" data-label="Costo / Margen">
+            {% if r.cost_per_unit_gs > 0 and r.qty_to_produce > 0 %}
+              {% set total_cost = r.cost_per_unit_gs * r.qty_to_produce %}
+              {% if r.retail_gs > 0 %}
+                {% set margin_pct = ((r.retail_gs - r.cost_per_unit_gs) / r.retail_gs * 100) | int %}
+                <span class="cost-line"
+                      data-cost="{{ total_cost }}"
+                      data-margin="{{ margin_pct }}"
+                      title="Costo por unidad: Gs {{ '{:,}'.format(r.cost_per_unit_gs) }} · Retail: Gs {{ '{:,}'.format(r.retail_gs) }}">
+                  <strong>Gs {{ '{:,}'.format(total_cost) }}</strong>
+                  <small class="text-muted margin-pct margin-{% if margin_pct >= 40 %}good{% elif margin_pct >= 20 %}ok{% else %}low{% endif %}"
+                         style="display: block; font-size: var(--text-xs);">
+                    {{ margin_pct }}% margen
+                  </small>
+                </span>
+              {% else %}
+                <span class="cost-line" data-cost="{{ total_cost }}" title="Sin precio retail configurado">
+                  <strong>Gs {{ '{:,}'.format(total_cost) }}</strong>
+                  <small class="text-muted" style="display: block; font-size: var(--text-xs);">sin retail</small>
+                </span>
+              {% endif %}
+            {% elif r.is_ad_hoc %}
+              <span class="text-muted">—</span>
+            {% else %}
+              <span class="text-muted">sin precio</span>
             {% endif %}
           </td>
         </tr>

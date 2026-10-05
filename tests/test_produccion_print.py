@@ -100,9 +100,10 @@ def test_print_view_shows_iso_week_header(authed_client):
     body = r.text
     # ISO week "Semana N (YYYY)" appears in the date line
     import re
+
     assert re.search(r"Semana \d+ \(\d{4}\)", body), (
         f"P0:D.4 — print header must show 'Semana N (YYYY)' ISO week tag. "
-        f"Body date line: {body[body.find('Plan del día'):body.find('Plan del día')+200]!r}"
+        f"Body date line: {body[body.find('Plan del día') : body.find('Plan del día') + 200]!r}"
     )
 
 
@@ -112,9 +113,7 @@ def test_print_view_shows_cook_attribution(authed_client):
     assert r.status_code == 200
     body = r.text
     # 'Responsable:' label + the cook_name
-    assert "Responsable:" in body, (
-        "P0:D.4 — print header must include 'Responsable:' line"
-    )
+    assert "Responsable:" in body, "P0:D.4 — print header must include 'Responsable:' line"
 
 
 def test_print_view_omits_header_in_worksheet_mode(authed_client):
