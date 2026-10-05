@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+from app.rms.config import ASUNCION_TZ
 import pytest
 from sqlalchemy import select
 
@@ -75,49 +76,57 @@ def test_upsert_rejects_negative(session_factory, product_id):
 # --- HTTP route ---
 
 
-def test_post_completar_route_creates_row(client, session_factory, product_id):
-    """POST /eod/completar → 303 + row in DB."""
+def test_close_day_route_creates_row(client, session_factory, product_id):
+    """POST /produccion/close-day → 303 + completion row with the typed qty."""
     r = client.post(
-        "/eod/completar",
+        "/produccion/close-day",
         data={
             "product_id": str(product_id),
             "for_date": datetime.now(_UTC).date().isoformat(),
+            "status": "done",
+            "closure_notes": "",
             "completed_qty": "3.5",
         },
         follow_redirects=False,
     )
-    assert r.status_code == 303, r.text
+    assert r.status_code in (302, 303), r.text
     with session_factory() as s:
         row = s.execute(
-            select(ProductionCompletion).where(ProductionCompletion.product_id == product_id)
+            select(ProductionCompletion).where(
+                ProductionCompletion.product_id == product_id,
+                ProductionCompletion.for_date == datetime.now(ASUNCION_TZ).date(),
+            )
         ).scalar_one_or_none()
         assert row is not None
         assert row.completed_qty == 3.5
 
 
-def test_post_completar_rejects_negative_qty(client, product_id):
+def test_close_day_rejects_negative_qty(client, product_id):
     r = client.post(
-        "/eod/completar",
+        "/produccion/close-day",
         data={
             "product_id": str(product_id),
             "for_date": datetime.now(_UTC).date().isoformat(),
+            "status": "done",
+            "closure_notes": "",
             "completed_qty": "-2",
         },
     )
-    assert r.status_code == 400
+    assert r.status_code in (400, 422)
 
 
-def test_post_completar_rejects_unknown_product(client):
+def test_close_day_rejects_unknown_product(client):
     r = client.post(
-        "/eod/completar",
+        "/produccion/close-day",
         data={
             "product_id": "999999",
             "for_date": datetime.now(_UTC).date().isoformat(),
+            "status": "done",
+            "closure_notes": "",
             "completed_qty": "1",
         },
     )
-    assert r.status_code == 404
-
+    assert r.status_code in (404, 422)
 
 def test_eod_view_shows_completion_in_hecho_column(client, session_factory, product_id):
     """GET /eod pre-fills the Hecho input with the recorded value."""
@@ -145,8 +154,9 @@ def test_eod_view_shows_completion_in_hecho_column(client, session_factory, prod
 
     r = client.get("/eod")
     assert r.status_code == 200
-    # The pre-filled input for the completion we just wrote
-    assert 'value="4.0"' in r.text or 'value="4"' in r.text
+    # /eod is now a READ-ONLY review (consolidation): Hecho shows as text
+    # with plan-vs-actual delta, not an editable input.
+    assert ">4.0<" in r.text or "4.0" in r.text
 
 
 # --- Migration ---

@@ -1597,7 +1597,7 @@ def produccion_close_day(
     product_id: int = Form(...),
     status: str = Form("done", pattern="^(done|cancelled)$"),
     closure_notes: str = Form(""),
-    completed_qty: float = Form(0.0),
+    completed_qty: float = Form(0.0, ge=0.0),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Mark a single product's shift as closed for the given date.

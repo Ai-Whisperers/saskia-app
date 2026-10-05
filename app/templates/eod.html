@@ -251,6 +251,7 @@
         <td class="num">{{ "%.1f"|format(r.qty_to_produce) }}</td>
         <td class="num">
           {% if hecho is not none %}
+          {{ "%.1f"|format(hecho) }}
           {% set delta = hecho - r.qty_to_produce %}
             {% if delta > 0.05 %}
             <small class="text-success">+{{ "%.1f"|format(delta) }}</small>
