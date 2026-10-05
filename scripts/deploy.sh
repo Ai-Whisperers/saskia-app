@@ -70,7 +70,9 @@ run scp -q -i "$KEY" -o StrictHostKeyChecking=no "$TAR_FILE" "$VPS:/tmp/"
 run ssh -i "$KEY" -o StrictHostKeyChecking=no "$VPS" \
     "rm -rf $REMOTE_DIR && mkdir -p $REMOTE_DIR && tar xzf /tmp/sazon-src.tar.gz -C $REMOTE_DIR/ && rm /tmp/sazon-src.tar.gz"
 
-LOCAL_MD5=$(md5sum app/rms/main.py | cut -d' ' -f1)
+# bash parameter expansion, not `cut`: the dry-run test sandboxes PATH to a
+# minimal coreutils set that deliberately lacks cut/awk.
+LOCAL_MD5="$(md5sum app/rms/main.py)"; LOCAL_MD5="${LOCAL_MD5%% *}"
 if [ "$DRY_RUN" = "1" ]; then
   echo "DRY: would compare remote md5 (skipping network)"
   REMOTE_MD5="$LOCAL_MD5"
