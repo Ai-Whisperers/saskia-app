@@ -13,9 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 TEMPLATE = Path(__file__).parent.parent / "app" / "templates" / "produccion.html"
-SHORTCUTS = (
-    Path(__file__).parent.parent / "app" / "static" / "shortcuts.js"
-)
+SHORTCUTS = Path(__file__).parent.parent / "app" / "static" / "shortcuts.js"
 
 TEMPLATE_SRC = TEMPLATE.read_text(encoding="utf-8")
 SHORTCUTS_SRC = SHORTCUTS.read_text(encoding="utf-8")
@@ -26,11 +24,14 @@ SHORTCUTS_SRC = SHORTCUTS.read_text(encoding="utf-8")
 
 def test_shortcuts_js_has_produccion_hotkeys():
     """D.5 — J/K/O/C handlers must be defined for /produccion."""
-    assert "PROD_HOTKEYS" in SHORTCUTS_SRC, (
-        "D.5 — PROD_HOTKEYS map must be defined in shortcuts.js"
-    )
+    assert "PROD_HOTKEYS" in SHORTCUTS_SRC, "D.5 — PROD_HOTKEYS map must be defined in shortcuts.js"
     # The 4 hotkeys we shipped
-    for key, label in (("'j'", "next row"), ("'k'", "prev row"), ("'o'", "override"), ("'c'", "close-day")):
+    for key, label in (
+        ("'j'", "next row"),
+        ("'k'", "prev row"),
+        ("'o'", "override"),
+        ("'c'", "close-day"),
+    ):
         assert key in SHORTCUTS_SRC, f"D.5 — PROD_HOTKEYS['{label}'] missing"
 
 
@@ -43,9 +44,7 @@ def test_shortcuts_js_produccion_route_guard():
     assert "pointer: coarse" in SHORTCUTS_SRC, (
         "D.5 — PROD_HOTKEYS must skip on touch devices (pointer:coarse)"
     )
-    assert "innerWidth >= 768" in SHORTCUTS_SRC, (
-        "D.5 — PROD_HOTKEYS must require viewport ≥768px"
-    )
+    assert "innerWidth >= 768" in SHORTCUTS_SRC, "D.5 — PROD_HOTKEYS must require viewport ≥768px"
 
 
 def test_shortcuts_js_j_navigates_to_next_row():
@@ -55,15 +54,9 @@ def test_shortcuts_js_j_navigates_to_next_row():
     j_idx = SHORTCUTS_SRC.find("'j':", prod_idx)
     assert j_idx > 0
     block = SHORTCUTS_SRC[j_idx : j_idx + 800]
-    assert "production-row" in block, (
-        "D.5 — J must target .production-row"
-    )
-    assert ".progress-input" in block, (
-        "D.5 — J must focus the row's .progress-input (qty field)"
-    )
-    assert "scrollIntoView" in block, (
-        "D.5 — J must scrollIntoView so the cook sees the new focus"
-    )
+    assert "production-row" in block, "D.5 — J must target .production-row"
+    assert ".progress-input" in block, "D.5 — J must focus the row's .progress-input (qty field)"
+    assert "scrollIntoView" in block, "D.5 — J must scrollIntoView so the cook sees the new focus"
 
 
 def test_shortcuts_js_k_navigates_to_previous_row():
@@ -74,9 +67,7 @@ def test_shortcuts_js_k_navigates_to_previous_row():
     assert k_idx > 0
     block = SHORTCUTS_SRC[k_idx : k_idx + 800]
     assert "production-row" in block
-    assert "Math.max(idx - 1" in block, (
-        "D.5 — K must clamp at 0 (not go negative)"
-    )
+    assert "Math.max(idx - 1" in block, "D.5 — K must clamp at 0 (not go negative)"
 
 
 def test_shortcuts_js_o_opens_override_for_active_row():
@@ -88,12 +79,8 @@ def test_shortcuts_js_o_opens_override_for_active_row():
     o_idx = SHORTCUTS_SRC.find("'o':", prod_idx)
     assert o_idx > 0
     block = SHORTCUTS_SRC[o_idx : o_idx + 800]
-    assert "data-product-id" in block, (
-        "D.5 — O must read the active row's data-product-id"
-    )
-    assert "/produccion/override" in block, (
-        "D.5 — O must navigate to /produccion/override"
-    )
+    assert "data-product-id" in block, "D.5 — O must read the active row's data-product-id"
+    assert "/produccion/override" in block, "D.5 — O must navigate to /produccion/override"
 
 
 def test_shortcuts_js_c_toggles_close_day():
@@ -113,9 +100,7 @@ def test_shortcuts_js_c_toggles_close_day():
 
 def test_produccion_template_has_kbd_hint():
     """D.5 — A visible kbd-hint shows the cook which shortcuts exist."""
-    assert "kbd-hint" in TEMPLATE_SRC, (
-        "D.5 — section header must include a kbd-hint element"
-    )
+    assert "kbd-hint" in TEMPLATE_SRC, "D.5 — section header must include a kbd-hint element"
     # The 4 keys must appear as <kbd> elements
     for key in ("J</kbd>", "K</kbd>", "O</kbd>", "C</kbd>"):
         assert key in TEMPLATE_SRC, (
@@ -150,12 +135,6 @@ def test_shortcuts_help_modal_lists_produccion_keys():
     # are listed in the table body.
     help_end = SHORTCUTS_SRC.find("modal-body", help_idx)
     block = SHORTCUTS_SRC[help_idx : help_end + 5000]
-    assert "Navegar filas" in block, (
-        "D.5 — help modal must describe J/K navigation"
-    )
-    assert "override" in block.lower(), (
-        "D.5 — help modal must describe O override"
-    )
-    assert "Cerrar" in block, (
-        "D.5 — help modal must describe C close-day"
-    )
+    assert "Navegar filas" in block, "D.5 — help modal must describe J/K navigation"
+    assert "override" in block.lower(), "D.5 — help modal must describe O override"
+    assert "Cerrar" in block, "D.5 — help modal must describe C close-day"

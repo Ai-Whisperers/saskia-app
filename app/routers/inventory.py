@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from loguru import logger
+from sqlalchemy import case as sql_case
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -1848,6 +1849,129 @@ def _parse_price(raw: str) -> int | None:
         return parse_gs(raw)
     except (ValueError, TypeError) as e:
         raise BadRequest(f"Precio inválido: {raw!r}", context={"raw": raw}, cause=e) from e
+
+
+# Additional search endpoints for Phase 2 completion
+
+
+@router.get("/api/search/by-category", response_class=JSONResponse)
+def ingredients_api_search_by_category(
+    category: str = Query("", description="Category to search within"),
+    q: str = Query("", description="Search query"),
+    limit: int = Query(50, ge=1, le=200),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Search ingredients by category and name for improved filtering.
+
+    Returns ingredients matching the category and optionally filtered by search term.
+    Useful for category-specific search in combo boxes.
+    """
+    # Get base query
+    stmt = select(Ingredient).where(Ingredient.category == category)
+
+    if q and q.strip():
+        like = f"%{q.strip().lower()}%"
+        stmt = stmt.where(func.lower(Ingredient.name).like(like))
+
+    # Order and limit
+    stmt = stmt.order_by(Ingredient.name).limit(limit)
+    rows = session.scalars(stmt).all()
+
+    payload = [
+        {
+            "id": ing.id,
+            "name": ing.name,
+            "unit": ing.unit,
+            "stock_qty": ing.stock_qty or 0.0,
+            "min_stock_qty": ing.min_stock_qty or 0.0,
+            "purchase_price_gs": ing.purchase_price_gs or 0,
+        }
+        for ing in rows
+    ]
+    return JSONResponse({"results": payload, "count": len(payload), "category": category})
+
+
+@router.get("/api/search/critical", response_class=JSONResponse)
+def ingredients_api_search_critical(
+    limit: int = Query(20, ge=1, le=50),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Search for ingredients with critical stock levels.
+
+    Returns ingredients that are at or below minimum stock levels,
+    prioritized by how critical the situation is.
+    """
+    # Get ingredients that are critical (stock <= min_stock) and have stock movements
+    loaded_ids = set(session.scalars(select(StockMovement.ingredient_id).distinct()).all())
+
+    critical_ingredients = session.scalars(
+        select(Ingredient)
+        .where(Ingredient.stock_qty <= (Ingredient.min_stock_qty or 0))
+        .where(Ingredient.id.in_(loaded_ids))
+        .order_by(
+            # Most critical first: negative stock, then very low stock.
+            # SQLAlchemy func.case() in this env doesn't take `else_=` —
+            # use raw SQL case for cross-dialect compatibility.
+            sql_case(
+                (Ingredient.stock_qty < 0, 1),
+                (Ingredient.stock_qty <= (Ingredient.min_stock_qty or 0) * 0.5, 2),
+                else_=3,
+            ),
+            Ingredient.name,
+        )
+        .limit(limit)
+    ).all()
+
+    payload = [
+        {
+            "id": ing.id,
+            "name": ing.name,
+            "unit": ing.unit,
+            "stock_qty": ing.stock_qty or 0.0,
+            "min_stock_qty": ing.min_stock_qty or 0.0,
+            "purchase_price_gs": ing.purchase_price_gs or 0,
+            "criticality": "negative"
+            if ing.stock_qty < 0
+            else "very_low"
+            if ing.stock_qty <= (ing.min_stock_qty or 0) * 0.5
+            else "low",
+        }
+        for ing in critical_ingredients
+    ]
+    return JSONResponse({"results": payload, "count": len(payload)})
+
+
+@router.get("/api/search/reorder", response_class=JSONResponse)
+def ingredients_api_search_reorder(
+    limit: int = Query(20, ge=1, le=50),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Search for ingredients that need reordering.
+
+    Returns ingredients that are at or below reorder point and have positive reorder points set.
+    Useful for reordering workflows.
+    """
+    reorder_ingredients = session.scalars(
+        select(Ingredient)
+        .where(Ingredient.reorder_point.isnot(None))
+        .where(Ingredient.reorder_point > 0)
+        .where(Ingredient.stock_qty <= (Ingredient.reorder_point or 0))
+        .order_by(Ingredient.name)
+        .limit(limit)
+    ).all()
+
+    payload = [
+        {
+            "id": ing.id,
+            "name": ing.name,
+            "unit": ing.unit,
+            "stock_qty": ing.stock_qty or 0.0,
+            "reorder_point": ing.reorder_point or 0.0,
+            "purchase_price_gs": ing.purchase_price_gs or 0,
+        }
+        for ing in reorder_ingredients
+    ]
+    return JSONResponse({"results": payload, "count": len(payload)})
 
 
 __all__ = ["router"]

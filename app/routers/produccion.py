@@ -33,6 +33,7 @@ from app.rms.eod_completions import completions_for_date as get_day_completions
 from app.rms.eod_completions import upsert_completion as _upsert_completion
 from app.rms.models import (
     FreezerTemperatureLog,  # B.6 HACCP freezer temp log
+    Ingredient,
     Pedido,
     PedidoLine,
     Product,
@@ -1783,6 +1784,123 @@ def _count_haccp_missing_for_date(session: Session, for_date: date) -> int:
     recorded: set[tuple[str, str]] = {(r.location, r.shift) for r in rows}
     expected = {(loc, sh) for loc in _DEFAULT_FREEZER_LOCATIONS for sh in ("AM", "PM")}
     return len(expected - recorded)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# T-2026-10-04 (C.4) — Recipe substitution suggestions on stockouts
+# ─────────────────────────────────────────────────────────────────────
+# When the plan is short on an ingredient, the cook usually has two
+# options: (1) order more, (2) bake a different product that doesn't
+# need the short ingredient. This helper surfaces (2) by finding
+# products whose recipe doesn't use the short ingredient, ranked by
+# Jaccard similarity to the original product (so the substitution
+# tastes similar).
+#
+# The suggestion set is small (top 3) so the cook can decide in
+# seconds; this is the same data the model-based product_similarity
+# module already provides, just exposed in the right place.
+
+
+def _build_substitution_suggestions(
+    session: Session,
+    short_ingredient_names: list[str],
+    plan_rows_view: list[dict],
+    top_n: int = 3,
+) -> list[dict]:
+    """T-2026-10-04 (C.4) — Return a list of substitution suggestions.
+
+    Each suggestion has:
+      - ingredient_name: the short ingredient triggering the suggestion
+      - original_product_id: the product that needs the short ingredient
+      - original_product_name: human-readable
+      - substitutes: list of {"product_id", "product_name", "similarity"} dicts
+                     (sorted by similarity desc, top_n)
+    """
+    if not short_ingredient_names or not plan_rows_view:
+        return []
+
+    from app.rms.product_similarity import (
+        jaccard_similarity,
+        product_ingredient_set,
+    )
+
+    # Build a quick map: ingredient name → id (case-insensitive)
+    name_to_id: dict[str, int] = {}
+    for ing in session.execute(select(Ingredient)).scalars().all():
+        name_to_id[ing.name.lower().strip()] = ing.id
+
+    # Map: original product_id → { product obj, ingredient set }
+    product_cache: dict[int, tuple[Product, set[int]]] = {}
+    rows_with_product = [r for r in plan_rows_view if r.get("product_id")]
+    for r in rows_with_product:
+        pid = r["product_id"]
+        if pid in product_cache:
+            continue
+        prod = session.get(Product, pid)
+        if prod is None or prod.recipe_id is None:
+            continue
+        try:
+            ing_set = product_ingredient_set(session, prod)
+        except Exception:
+            ing_set = set()
+        product_cache[pid] = (prod, ing_set)
+
+    suggestions: list[dict] = []
+    for ing_name in short_ingredient_names:
+        ing_id = name_to_id.get(ing_name.lower().strip())
+        if ing_id is None:
+            continue
+
+        # Find the products in the plan that need this ingredient.
+        affected = [
+            (r["product_id"], r["product_name"])
+            for r in plan_rows_view
+            if r.get("product_id") in product_cache
+            and ing_id in product_cache[r["product_id"]][1]
+        ]
+        if not affected:
+            continue
+
+        # For each affected product, find substitute products.
+        for orig_pid, orig_name in affected:
+            orig_set = product_cache[orig_pid][1]
+            if not orig_set:
+                continue
+            subs: list[dict] = []
+            for other in session.execute(
+                select(Product).where(Product.id != orig_pid)
+            ).scalars().all():
+                if other.recipe_id is None:
+                    continue
+                other_set = product_cache.get(other.id)
+                if other_set is None:
+                    try:
+                        other_set = (other, product_ingredient_set(session, other))
+                        product_cache[other.id] = other_set
+                    except Exception:
+                        continue
+                if ing_id in other_set[1]:
+                    continue  # also needs the short ingredient
+                sim = jaccard_similarity(orig_set, other_set[1])
+                if sim < 0.3:
+                    continue  # not similar enough
+                subs.append(
+                    {
+                        "product_id": other.id,
+                        "product_name": other.name,
+                        "similarity": round(sim, 2),
+                    }
+                )
+            subs.sort(key=lambda x: x["similarity"], reverse=True)
+            suggestions.append(
+                {
+                    "ingredient_name": ing_name,
+                    "original_product_id": orig_pid,
+                    "original_product_name": orig_name,
+                    "substitutes": subs[:top_n],
+                }
+            )
+    return suggestions
 
 
 @router.get("/haccp", response_class=HTMLResponse)

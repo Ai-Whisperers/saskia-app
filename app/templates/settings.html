@@ -4,6 +4,11 @@
 
 {% block title %}Configuración{% endblock %}
 
+{% block head %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Configuración del sistema Saskia RMS">
+{% endblock %}
+
 {% block content %}
 <h1>
   <svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg>
@@ -12,14 +17,14 @@
 
 {{ ui.flash_toast(request) }}
 
-<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
-  <input type="search" id="settings-search" placeholder="Buscar configuración..." style="max-width:300px;padding:0.5rem;border:1px solid var(--color-border);border-radius:var(--radius);">
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+  <input type="search" id="settings-search" class="form-control form-control-sm me-2" placeholder="Buscar configuración..." style="max-width:300px" aria-label="Buscar en configuración" aria-describedby="settings-search-count">
   <span class="text-muted" id="settings-search-count" style="font-size:var(--text-sm);"></span>
 </div>
 
-<div class="settings-tabs">
-  <button type="button" class="tab-btn active" data-tab="business">Información de negocio</button>
-  <button type="button" class="tab-btn" data-tab="payments">Pagos y delivery</button>
+<div class="settings-tabs d-flex flex-wrap border-bottom mb-3 gap-0">
+  <button type="button" class="tab-btn btn btn-sm btn-outline-primary active" data-tab="business">Información de negocio</button>
+  <button type="button" class="tab-btn btn btn-sm" data-tab="payments">Pagos y delivery</button>
   <button type="button" class="tab-btn" data-tab="notifications">Notificaciones</button>
   <button type="button" class="tab-btn" data-tab="fiscal">Fiscal</button>
   <button type="button" class="tab-btn" data-tab="theme">Tema</button>
@@ -29,20 +34,20 @@
 <!-- Business Info Tab -->
 <div id="business-tab" class="tab-content">
   <form method="post" action="/settings/business" class="form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" aria-hidden="true" aria-label="Token de seguridad CSRF (no visible)">
     <h2>Información de Negocio</h2>
     <p class="text-muted">Estos datos aparecen en recibos y documentos comerciales.</p>
     
     <div class="form-group">
       <label for="business_name">Nombre legal del negocio</label>
       <input type="text" id="business_name" name="business_name" 
-             value="{{ business_name }}" placeholder="Ejemplo: Panadería Saskia S.A." required>
+             value="{{ business_name }}" placeholder="Ejemplo: Panadería Saskia S.A." required aria-label="Nombre legal del negocio">
     </div>
     
     <div class="form-group">
       <label for="business_ruc">RUC</label>
       <input type="text" id="business_ruc" name="business_ruc" 
-             value="{{ business_ruc }}" placeholder="Ejemplo: 123-456789-1" pattern="[0-9-]+">
+             value="{{ business_ruc }}" placeholder="Ejemplo: 123-456789-1" pattern="[0-9-]+" aria-label="RUC del negocio">
     </div>
     
     <div class="form-group">
@@ -53,8 +58,7 @@
     
     <div class="form-group">
       <label for="business_phone">Teléfono</label>
-      <input type="tel" id="business_phone" name="business_phone"
-             value="{{ business_phone }}" placeholder="Ejemplo: +595 981 234 567">
+      <input type="tel" id="business_phone" name="business_phone" value="{{ business_phone }}" placeholder="Ejemplo: +595 981 234 567" aria-label="Teléfono del negocio">
     </div>
 
     <div class="form-group">
@@ -65,14 +69,12 @@
 
     <div class="form-group">
       <label for="razon_social">Razón social</label>
-      <input type="text" id="razon_social" name="razon_social"
-             value="{{ compliance.razon_social or business_name }}" placeholder="Ej: Panadería Saskia S.A.">
+      <input type="text" id="razon_social" name="razon_social" value="{{ compliance.razon_social or business_name }}" placeholder="Ej: Panadería Saskia S.A." aria-label="Razón social">
     </div>
 
     <div class="form-group">
       <label for="nombre_fantasia">Nombre de fantasía</label>
-      <input type="text" id="nombre_fantasia" name="nombre_fantasia"
-             value="{{ compliance.nombre_fantasia or business_name }}" placeholder="Ej: Saskia Panadería">
+      <input type="text" id="nombre_fantasia" name="nombre_fantasia" value="{{ compliance.nombre_fantasia or business_name }}" placeholder="Ej: Saskia Panadería" aria-label="Nombre de fantasía">
     </div>
 
     <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">Régimen tributario (DNIT / SET)</h3>
@@ -237,20 +239,18 @@
 <!-- Fiscal Config Tab -->
 <div id="fiscal-tab" class="tab-content" style="display: none;">
   <form method="post" action="/settings/fiscal" class="form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" aria-hidden="true" aria-label="Token de seguridad CSRF (no visible)">
     <h2>Configuración Fiscal</h2>
     <p class="text-muted">Datos para facturación electrónica de Paraguay (SET).</p>
     
     <div class="form-group">
       <label for="timbrado">Número de timbrado</label>
-      <input type="text" id="timbrado" name="timbrado" 
-             value="{{ timbrado }}" placeholder="Ejemplo: 001-123456789-001" required>
+      <input type="text" id="timbrado" name="timbrado" value="{{ timbrado }}" placeholder="Ejemplo: 001-123456789-001" required aria-label="Número de timbrado">
     </div>
     
     <div class="form-group">
       <label for="punto_expedicion">Punto de expedición</label>
-      <input type="text" id="punto_expedicion" name="punto_expedicion" 
-             value="{{ punto_expedicion }}" placeholder="Ejemplo: 0001" required>
+      <input type="text" id="punto_expedicion" name="punto_expedicion" value="{{ punto_expedicion }}" placeholder="Ejemplo: 0001" required aria-label="Punto de expedición">
     </div>
     
     <div class="form-group">
@@ -276,7 +276,7 @@
 <!-- Theme Tab -->
 <div id="theme-tab" class="tab-content" style="display: none;">
   <form method="post" action="/settings/theme" class="form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" aria-hidden="true" aria-label="Token de seguridad CSRF (no visible)">
     <h2>Tema y apariencia</h2>
     <p class="text-muted">Personalice la apariencia de la aplicación.</p>
     
@@ -394,7 +394,7 @@
         class="js-confirm-form"
         data-confirm-title="¿Cargar datos de ejemplo?"
         data-confirm-body="Esto agregará 29 ingredientes, 12 recetas, 12 productos y 90 días de ventas. No sobrescribirá lo que ya tenés.">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" aria-hidden="true" aria-label="Token de seguridad CSRF (no visible)">
     <input type="hidden" name="overwrite" value="0">
     <button type="submit" class="btn btn-primary">
       <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
@@ -406,7 +406,7 @@
         class="js-confirm-form" data-confirm-danger="true"
         data-confirm-title="⚠️ ATENCIÓN — Resetear y recargar"
         data-confirm-body="Esto BORRARÁ todas las ventas, productos, ingredientes, recetas y pedidos existentes, y volverá a sembrar. Si tenés datos reales, exportalos a Excel primero. ¿Continuar?">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" aria-hidden="true" aria-label="Token de seguridad CSRF (no visible)">
     <input type="hidden" name="overwrite" value="1">
     <button type="submit" class="btn btn-ghost">
       <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
