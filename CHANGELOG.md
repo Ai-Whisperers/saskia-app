@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-10-06b — Demos vivos por industria + onboarding 1 comando + importador carta
+
+**Goal:** pasar de "te mando un PDF" a "entrá y mirá": 3 demos VPS (Pizzería/Café/Panadería) con vida demo pack-native, `onboard_tenant()` para altas en 1 llamada, e importador de carta real para el primer día de un cliente.
+
+- `app/rms/seed/pack_demo.py`: `reseed_pack()` wipe via sqlite_master (todas las tablas, FK-safe sobre DB sucia) en conexión AUTOCOMMIT dedicada; CLI `--pack` acepta ASCII (`pizzeria`/`cafe`); env `AIW_DEMO_PACK` para stack auto-seed path.
+- `app/rms/seed/onboard.py` (NEW): `onboard_tenant(session, name, pack=...)` — tenant + admin + pack + 90 días demo; idempotente (mismo nombre → mismo tenant).
+- `app/rms/seed/menu_import.py` (NEW): importador carta-real CSV → match difuso (≥0.82, sin acentos) contra pack; matched → precio real del cliente; faltantes → producto nuevo tag `importado (pendiente recosteo)` (no inventa recetas); `dry_run=True` por defecto.
+- Tests: `tests/test_pack_demo.py` + `tests/test_onboard.py` + `tests/test_menu_import.py` = 14 nuevos, 14/14.
+- Deploy demos VPS: `scratch/deploy_demos_v5.sh` — 3 stacks swarm (`sazon-demo-{pizzeria,cafe,panaderia}`), imagen tagueada por timestamp (rollout garantizado), volumen + DB por demo, `HTTPS_ONLY=false` (solo demos; prod intacto), reseed FK-safe post-boot. Puertos 8081/8082/8083; login admin/cambiar1234.
+
 ## 2026-10-06 — Seed packs per market segment (pre-carga onboarding)
 
 **Goal:** every prospect segment seeds in one call with La-Vaquita-grade data (products → recipes → ingredients with ref costs). Staged from market research; nothing loads automatically.
