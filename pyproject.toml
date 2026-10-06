@@ -152,6 +152,9 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а"]
     "PERF401", # tests: build-then-iterate is fine, no need for list comp
     "BLE001",  # tests: defensive excepts are fine in fixture setup / teardown
 ]
+"app/rms/seed/packs.py" = [
+    "DTZ",     # generated seed packs mirror seed/sazon.py naive-UTC contract
+]
 "app/migrations/**/*.py" = [
     "E402", "ANN", "S608",   # migration SQL is hand-rolled
     "BLE001",                # migrations swallow known schema errors

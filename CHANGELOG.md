@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-10-06 — Seed packs per market segment (pre-carga onboarding)
+
+**Goal:** every prospect segment seeds in one call with La-Vaquita-grade data (products → recipes → ingredients with ref costs). Staged from market research; nothing loads automatically.
+
+- `app/rms/seed/packs.py` (GENERATED — do not hand-edit): 10 packs — Panadería 22 · Pastelería/Confitería 16 · Pizzería 18 · Hamburguesería/Rápida 15 · Parrilla/Restaurante 23 · Comedor/Kilo 14 · Heladería 15 · Café/Cafetería 15 · Empanadas/Criolla 10 · Oriental 13 = 161 productos / 161 recetas / 779 recipe lines / 257 ingredientes únicos con costo ref Gs + variantes + price events, 4 suppliers, payment methods, channels, 2 delivery zones, weekly production templates, tags. Uso: `seed_pack(session, "Pizzería")` — idempotente, mismos patrones que `seed/sazon.py`.
+- `scripts/seed_packs_gen.py`: regenera packs.py desde los CSV de investigación stageados (scratch/sazon_pack_*.csv + sazon_ingredientes_maestro.csv); auto-ruff-fix al generar.
+- `tests/test_packs_seed.py`: 7 tests — integridad (producto→receta, qty>0), seed completo, idempotencia, barrido 10 packs en DB fresca, pack desconocido raise, reuso de ingredientes entre packs.
+- `pyproject.toml`: per-file-ignore DTZ para el generado (contrato naive-UTC heredado de sazon.py).
+
+
 ## 2026-10-04 — Phase 3 CI cleanup (PR #46)
 
 **Goal:** bring ruff from 1910 errors → 0 across the codebase, eliminate currency-drift footguns, fix real bugs hiding behind lint errors.
