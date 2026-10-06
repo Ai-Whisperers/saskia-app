@@ -86,7 +86,6 @@ def close_day_for_product(
     for_date: date,
     closure_notes: str | None = None,
     status: str = "done",
-    completed_qty: float = 0.0,
 ) -> ProductionCompletion:
     """Mark a single product's completion as closed (status='done' or 'cancelled').
 
@@ -129,7 +128,7 @@ def close_day_for_product(
         row = ProductionCompletion(
             product_id=product_id,
             for_date=for_date,
-            completed_qty=completed_qty,
+            completed_qty=0.0,
             recorded_at=now,
             status=status,
             closure_notes=closure_notes,
@@ -138,11 +137,6 @@ def close_day_for_product(
         session.add(row)
     else:
         row.status = status
-        # T-2026-10-05: close-day now carries the actual produced qty
-        # (single data-entry point on /produccion). 0 means "not set" —
-        # keep the previous value instead of wiping a real number.
-        if completed_qty > 0 or row.completed_qty in (None, 0.0):
-            row.completed_qty = completed_qty
         if closure_notes is not None:
             row.closure_notes = closure_notes
         row.updated_at = now

@@ -287,15 +287,6 @@ def produccion_worksheet(
         prev_week = (week_start - timedelta(days=7)).isoformat()
         next_week = (week_start + timedelta(days=7)).isoformat()
 
-        # T-2026-10-05: actual produced qty per (product, day) for this
-        # week — ONE grouped query. Feeds the Plan-vs-Hecho week grid so
-        # confirmations made in day view stay visible across views.
-        from app.rms.eod_completions import completions_for_date as _cfd
-
-        week_completions: dict[str, dict[int, float]] = {}
-        for d in days:
-            week_completions[d.isoformat()] = _cfd(session, d)
-
         # Sales data for this week (actual sales in the period)
         from datetime import timezone as tz_cls
 
@@ -329,10 +320,6 @@ def produccion_worksheet(
                 "prev_week_iso": prev_week,
                 "next_week_iso": next_week,
                 "week_sales": week_sales,
-                # T-2026-10-05: {iso_date: {product_id: completed_qty}}
-                "week_completions": week_completions,
-                "week_day_isos": [d.isoformat() for d in days],
-                "week_today_iso": _asuncion_today().isoformat(),
             },
         )
 
@@ -379,21 +366,6 @@ def produccion_worksheet(
             for pid, v in sorted(product_rows.items(), key=lambda x: x[1]["product_name"])
         ]
         month_ingredients = sorted(ing_required.values(), key=lambda x: x["ingredient_name"])
-
-        # T-2026-10-05: month completions in ONE query (not 31 calls).
-        # {iso_date: {product_id: completed_qty}} for the ✓ markers.
-        from app.rms.models import ProductionCompletion as _PC
-
-        month_comp_rows = session.execute(
-            select(
-                _PC.for_date,
-                _PC.product_id,
-                _PC.completed_qty,
-            ).where(_PC.for_date >= date(year, mon, 1), _PC.for_date <= date(year, mon, ndays))
-        ).all()
-        month_completions: dict[str, dict[int, float]] = {}
-        for fd, pid, qty in month_comp_rows:
-            month_completions.setdefault(fd.isoformat(), {})[pid] = float(qty or 0.0)
         month_names = [
             "",
             "Enero",
@@ -458,9 +430,6 @@ def produccion_worksheet(
                 "next_month_iso": next_month.strftime("%Y-%m"),
                 "month_sales": month_sales,
                 "month_revenue_gs": int(total_revenue),
-                # T-2026-10-05: ✓ markers + drill-down support.
-                "month_completions": month_completions,
-                "month_today_iso": _asuncion_today().isoformat(),
             },
         )
 
@@ -937,17 +906,6 @@ def produccion_worksheet(
             "cold_start_kind": cold_start_kind,
             "for_date": plan.for_date.isoformat() if plan.for_date else "",
             "view": "day",
-            # T-2026-10-05: past-day navigation. prev/next day links +
-            # is_past marker so the operator can review what was actually
-            # produced on any past day (plan + Hecho side by side).
-            "prev_day_iso": (plan.for_date - timedelta(days=1)).isoformat()
-            if plan.for_date
-            else "",
-            "next_day_iso": (plan.for_date + timedelta(days=1)).isoformat()
-            if plan.for_date
-            else "",
-            "is_past_day": bool(plan.for_date and plan.for_date < _asuncion_today()),
-            "is_today": bool(plan.for_date and plan.for_date == _asuncion_today()),
             "ui_version": ui,  # PRODUCCION-V2 Fase 1: 'v1' (default) or 'v2' (demand fields)
             # PRODUCCION-V2 Fase 2: day-level closure counts for the
             # "Total cerradas / Total del día" header badge. Counts
@@ -1597,7 +1555,6 @@ def produccion_close_day(
     product_id: int = Form(...),
     status: str = Form("done", pattern="^(done|cancelled)$"),
     closure_notes: str = Form(""),
-    completed_qty: float = Form(0.0, ge=0.0),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Mark a single product's shift as closed for the given date.
@@ -1628,7 +1585,6 @@ def produccion_close_day(
             for_date=for_date,
             closure_notes=notes,
             status=status,
-            completed_qty=completed_qty,
         )
     except (KeyError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
