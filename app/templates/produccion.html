@@ -372,8 +372,10 @@
     para hoy:
     {% if haccp_missing_items %}
     {# T-2026-10-06 (B.6+): inline chip-list drill-down. BOTH chips
-       are bold because the freezer has zero full days of HACCP. #}
-    <span style="margin-left: var(--space-1);">
+       are bold because the freezer has zero full days of HACCP.
+       V6: flex-wrap so the third chip (heladera-masas, etc.) doesn't
+       get cut off on narrow viewports. #}
+    <span style="margin-left: var(--space-1); display: inline-flex; flex-wrap: wrap; gap: var(--space-1);">
       {% for item in haccp_missing_items %}
       <span class="status-pill
                    {% if item.weight == 'BOTH' %}status-pill--danger
@@ -402,12 +404,20 @@
    to match the empty-state card style so it stands out as a hint callout.
 
    T-2026-10-06c: hard #111827 (not var(--color-text, #111827)) because
-   CSS fallbacks are ignored when the var is defined. Soft bg + dark text. #}
-<div style="background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6); padding: var(--space-2) var(--space-3); margin-bottom: var(--space-3); border-radius: 4px;">
-  <small style="color: #111827;">
-    <strong>Cómo se calcula:</strong> "Sugerido por ventas" = promedio rolling 14d · "Plantilla semanal" = override recurrente por día de la semana · "Ajuste del día" = lo que vos decidiste hoy.
+   CSS fallbacks are ignored when the var is defined. Soft bg + dark text.
+
+   M9: wrap in <details> so the hint is collapsed by default. Operators
+   only open it when they want to understand the math. Saves ~80px of
+   vertical space on every page load. #}
+<details class="cal-box" style="margin-bottom: var(--space-3); background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6); border-radius: 4px;">
+  <summary style="cursor: pointer; padding: var(--space-2) var(--space-3); color: #111827; font-size: var(--text-sm); user-select: none;">
+    <strong>Cómo se calcula</strong>
+    <span class="text-muted" style="font-size: var(--text-xs); margin-left: var(--space-2);">(clic para ver)</span>
+  </summary>
+  <small style="display: block; color: #111827; padding: 0 var(--space-3) var(--space-2) var(--space-3);">
+    "Sugerido por ventas" = promedio rolling 14d · "Plantilla semanal" = override recurrente por día de la semana · "Ajuste del día" = lo que vos decidiste hoy.
   </small>
-</div>
+</details>
 {% if shift_saved %}
 <div class="card mb-4" style="background: var(--color-success-soft); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-success); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;"
      data-shift-saved="{{ shift_saved }}">
@@ -557,6 +567,12 @@
 </div>
 {% endif %}
 
+{# M4: visually separate the "X productos con baja confianza" warning
+   (yellow background) from the "Ayer hiciste" snapshot below it
+   (blue background). Without spacing, operators read both as one
+   sentence and get "8 productos con baja confianza en 7 productos"
+   — which makes no sense. The two banners are independent. #}
+<div class="conf-banner-divider" style="height: 1px; background: var(--color-border, #e5e7eb); margin: var(--space-4) 0;"></div>
 {# T-2026-10-04 (Tier 3-C): Yesterday snapshot.
    Shows yesterday's actual production total so the cook has a
    "ground truth" reference next to today's suggested quantities.
@@ -638,7 +654,10 @@
       {# T-2026-10-04 (B.10): difficulty filter. Cooks self-select
          "fácil" tasks when tired, so we surface 4-way pills above the
          table. Persists via ?difficulty=<1-5|all>. JS re-filters the
-         rows client-side; the pills are anchors (so deep-links work). #}
+         rows client-side; the pills are anchors (so deep-links work).
+         M3: small legend clarifying what ⭐ means (recipe difficulty
+         1-5). Without this, operators have no idea what the stars
+         signal on each row. #}
       {% set diff = request.query_params.get('difficulty', 'all') %}
       <div class="difficulty-filter" role="tablist" aria-label="Filtrar por dificultad"
            style="display: inline-flex; gap: var(--space-1); padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius); margin: var(--space-2) 0;">
@@ -648,9 +667,21 @@
            role="tab" aria-selected="{{ 'true' if diff == opt[0] else 'false' }}"
            data-difficulty-filter="{{ opt[0] }}">{{ opt[1] }}</a>
         {% endfor %}
+        <span class="difficulty-legend-hint" aria-label="Leyenda"
+              title="Las estrellas indican la dificultad de la receta (1 = muy fácil, 5 = muy difícil). Útil para elegir qué hornear cuando estás cansado/a."
+              style="margin-left: var(--space-2); font-size: var(--text-xs); color: var(--color-muted); cursor: help; user-select: none;">
+          ⭐ = dificultad de la receta (1 fácil → 5 difícil)
+        </span>
       </div>
     </div>
 
+  {# C1: Right-edge overflow fix. The products table has 9 columns
+   (Listo, Producto, Demanda, Meta, Pedidos, Lote final, Hecho,
+   Origen, Receta, Sobrante, Cierre). On viewports <1100px the
+   rightmost columns (Sobrante, Cierre) get clipped. Wrap in
+   `overflow-x: auto` so the user can scroll horizontally inside
+   the table card without losing the page header context. #}
+  <div class="production-table-scroll" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
     <table class="table is-hoverable align-middle" data-difficulty-active="{{ diff }}">
       <thead>
         <tr>
@@ -695,8 +726,10 @@
           <th class="num" style="min-width: 5rem;" title="Sobrante estimado al hornear lotes completos: ceil(demanda/yield) × yield − demanda">Sobrante</th>
           {# PRODUCCION-V2 Fase 2: per-row closure (Cerrar turno / Reabrir).
              Hidden on print. The first column is the action button; the
-             closure status pill sits in the cell body. #}
-          <th class="no-print" style="width: 9rem;">Cierre</th>
+             {# V1: bump width on Cierre column. "Cerrar turno" + "Reabrir"
+   button need ~10rem to not wrap. Was 9rem — too narrow, button
+   text wrapped and looked broken on tablets. #}
+          <th class="no-print" style="width: 10rem;">Cierre</th>
         </tr>
       </thead>
       <tbody>
@@ -782,14 +815,22 @@
             {% if r.is_ad_hoc %}
               <span class="text-muted">—</span>
             {% else %}
-              <span class="qty-target">{{ "%.0f"|format(r.qty_to_produce) }}</span>
-              {%- if r.batch_qty and r.batch_qty != 1 %}
-                <small class="text-muted batch-hint" aria-label="Equivale a {{ r.batch_qty }} {{ r.batch_unit }}">
-                  · {{ r.batch_qty|int }}{{ r.batch_unit or 'und' }}
-                </small>
-              {%- elif r.portion_label and r.portion_label != "1 unidad" %}
-                <small class="text-muted batch-hint">{{ r.portion_label }}</small>
-              {%- endif %}
+              {# C3: META visual hierarchy. The big number is the BATCH
+                 COUNT (how many batches to bake); the small grey text
+                 is the units-per-batch (yield). Total = batch_count ×
+                 batch_size. Without the visual separation, "1" + "8und"
+                 looks like two competing numbers. #}
+              <div class="meta-cell">
+                <span class="meta-cell__count">{{ "%.0f"|format(r.qty_to_produce) }}</span>
+                <span class="meta-cell__unit text-muted">lote{{ r.qty_to_produce | int != 1 and 's' or '' }}</span>
+                {%- if r.batch_qty and r.batch_qty != 1 %}
+                  <small class="text-muted meta-cell__hint" aria-label="Equivale a {{ r.batch_qty }} {{ r.batch_unit }}">
+                    × {{ r.batch_qty|int }}{{ r.batch_unit or 'und' }}
+                  </small>
+                {%- elif r.portion_label and r.portion_label != "1 unidad" %}
+                  <small class="text-muted meta-cell__hint">{{ r.portion_label }}</small>
+                {%- endif %}
+              </div>
             {% endif %}
           </td>
           <td class="num" data-label="Pedidos">
@@ -965,6 +1006,7 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>{# /.production-table-scroll — C1 right-edge overflow fix #}
 
     {# PRODUCCION-V3 Phase 2: source legend. Shows what each of the 4
          bucket colors means. Cooks don't have to hover or guess.
@@ -1479,6 +1521,11 @@
     </div>
   </div>
 
+  {# C1 + M8: Right-edge overflow fix. Same pattern as the products
+   table — wrap in `overflow-x: auto` so the rightmost 3 columns
+   (Requerido, Stock actual, A comprar) stay visible. Without this
+   the screenshot only shows the first column + status pill. #}
+  <div class="ingredients-table-scroll" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
   <table class="table is-hoverable">
     <thead>
       <tr>
@@ -1521,6 +1568,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>{# /.ingredients-table-scroll #}
 </section>
 {% endif %}
 

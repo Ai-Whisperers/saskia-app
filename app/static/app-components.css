@@ -568,4 +568,32 @@ small.hint,
 .fav-star.is-fav { color: #d9a406; }
 .fav-star:hover { color: #d9a406; }
 
+/* T-2026-10-06h: META cell visual hierarchy (C3 fix).
+   The big number is the BATCH COUNT (how many batches to bake);
+   the small grey text is the units-per-batch. The two are
+   vertically stacked with the count dominant, so the operator
+   sees "1 lote × 8und" = 8 total, not two competing numbers. */
+.meta-cell { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
+.meta-cell__count { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.meta-cell__unit { font-size: 0.7rem; text-transform: lowercase; letter-spacing: 0.02em; }
+.meta-cell__hint { font-size: 0.7rem; margin-top: 2px; display: block; text-align: right; }
+.production-row.is-done .meta-cell__count { opacity: 0.5; }
+
+/* T-2026-10-06h: ingredients table scroll affordance.
+   When the table fits, no scrollbar appears. When it overflows
+   the viewport, a subtle shadow signals more content. */
+.ingredients-table-scroll { position: relative; }
+@media (max-width: 1100px) {
+  .ingredients-table-scroll::after {
+    content: '';
+    position: sticky;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 24px;
+    background: linear-gradient(to right, transparent, var(--color-card, #1f2937));
+    pointer-events: none;
+  }
+}
+
 /* T-2026-10-06g: cache-bust */

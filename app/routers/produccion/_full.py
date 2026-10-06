@@ -397,7 +397,18 @@ def produccion_worksheet(
     # P-14: template produccion.html:102 references daily_target but the day
     # view never passed it, raising Jinja UndefinedError. Compute target
     # (sum of plan rows) and actual (sum of non-voided Sale.qty for the day).
-    daily_target = sum(r.qty_to_produce for r in plan.rows if r.qty_to_produce > 0)
+    # M1: hide inactive products from the daily_target sum.
+    # NOTE: query the full row (not just id) so the comprehension below
+    # sees Product objects, not int scalars.
+    _inactive_pids = {
+        p.id for p in session.execute(
+            select(Product).where(Product.is_available == False)  # noqa: E712
+        ).scalars().all()
+    }
+    daily_target = sum(
+        r.qty_to_produce for r in plan.rows
+        if r.qty_to_produce > 0 and r.product_id not in _inactive_pids
+    )
     from datetime import datetime as _dt_cls
     from datetime import timezone as _tz_cls
 
@@ -466,11 +477,23 @@ def produccion_worksheet(
     # is safe inside this function but we don't mutate the original).
     # T-2026-10-04 (P0): also include recipe yield info so the kitchen
     # sees "1 × Docena muffins (12 und)" instead of bare "1".
+    # M1: Filter plan rows so soft-deleted (is_available=False) products
+    # don't appear in the active plan. Previously a row could show
+    # "Producto eliminado" because the plan was built before the product
+    # was hidden. See: deliver_sazon polish round 2026-10-06 screenshot.
+    _all_products = session.execute(select(Product).order_by(Product.name)).scalars().all()
+    product_by_id = {p.id: p for p in _all_products}
+    visible_product_ids = {p.id for p in _all_products if p.is_available}
+    plan_rows_filtered = [r for r in plan.rows if r.product_id in visible_product_ids]
+    if len(plan_rows_filtered) != len(plan.rows):
+        # Quick operator hint (debug log only; template handles empty plan)
+        import logging as _logging
+        _log = _logging.getLogger(__name__)
+        _log.info("M1: hid %d plan rows for inactive products", len(plan.rows) - len(plan_rows_filtered))
+    # downstream uses plan.rows in many places — alias to filtered
+    plan_rows_source = plan_rows_filtered
     recipe_by_id = {
         r.id: r for r in (session.execute(select(Recipe).order_by(Recipe.name)).scalars().all())
-    }
-    product_by_id = {
-        p.id: p for p in (session.execute(select(Product).order_by(Product.name)).scalars().all())
     }
     # T-2026-10-04 (C.5): RecipePricing lookup by recipe_id for inline
     # cost/margin display on /produccion rows. The pricing table has
@@ -646,7 +669,7 @@ def produccion_worksheet(
             "source_bucket": source_to_bucket(r.forecast_source, is_ad_hoc=False),
             "confidence_band": _confidence_band_for_pct(r.confidence_pct),
         }
-        for r in plan.rows
+        for r in plan_rows_source  # M1: use filtered rows (skip is_available=False)
     ]
 
     # Ad-hoc bakes: products COMPLETED for the day but NOT in the plan
@@ -658,6 +681,9 @@ def produccion_worksheet(
             continue
         prod_obj = session.get(Product, pid)
         if prod_obj is None:
+            continue
+        # M1: skip ad-hoc completions for inactive products
+        if not prod_obj.is_available:
             continue
         plan_rows_view.append(
             {
