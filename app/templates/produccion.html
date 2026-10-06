@@ -286,8 +286,10 @@
   </ul>
   {% endif %}
   {% if substitution_suggestions %}
+  {# V5: Allow the summary text to wrap properly so the parentheses
+     with the threshold don't get truncated. #}
   <details style="margin-top: var(--space-2);">
-    <summary style="cursor: pointer; font-weight: 600;">
+    <summary style="cursor: pointer; font-weight: 600; white-space: normal;">
       🔄 Sustitutos sugeridos (modelo ingredientes / similitud ≥0.3)
     </summary>
     <div style="margin-top: var(--space-2); display: flex; flex-direction: column; gap: var(--space-2);">
@@ -608,19 +610,20 @@
      only when there are rows to mark. One click syncs every qty to its
      target and checks the rows. #}
   {% if plan_rows_view and not closed_day_active %}
+  {# V3: Marcar todos is a "set everything" power-tool, not the
+   primary action. Make it btn-ghost so the per-row +/- buttons
+   (the more common path) feel more prominent visually. #}
   <div class="bulk-actions no-print"
        style="display: flex; gap: var(--space-2); align-items: center; margin-bottom: var(--space-2); padding: var(--space-2); background: var(--color-surface-subtle, #f3f4f6); border-radius: var(--radius, 6px);">
     <button type="button"
             id="mark-all-btn"
-            class="btn btn-primary btn-sm"
+            class="btn btn-ghost btn-sm"
             onclick="markAllDone()"
             title="Set every row's qty to its target and check 'done'">
       <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
       Marcar todos como hecho
     </button>
-    <small class="text-muted">
-      O usá los botones +/- por fila para ajustar de a 1.
-    </small>
+    <strong class="bulk-action-primary">O usá los botones +/- por fila para ajustar de a 1.</strong>
   </div>
   {% endif %}
 
@@ -1058,7 +1061,9 @@
         </span>
         {% endif %}
       </h2>
-      <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0;">
+      {# V7: flex-wrap so long description doesn't overflow on narrow
+         viewports. #}
+      <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0; max-width: 60ch;">
         Para cuando horneás algo no planeado: un walk-in, una decisión de último momento,
         sobras que decidiste usar. Aparece abajo en la tabla con badge naranja.
       </p>

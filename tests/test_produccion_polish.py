@@ -182,3 +182,52 @@ class TestHaccpChipsWrap:
     def test_haccp_chips_have_flex_wrap(self):
         # Inline-flex + flex-wrap on the haccp-missing chip span
         assert "flex-wrap: wrap" in TEMPLATE_BODY
+
+
+# ─── V3: visual hierarchy of bulk action ───────────────────────────────────
+
+class TestBulkActionHierarchy:
+    """V3 — 'Marcar todos como hecho' should be btn-ghost (de-emphasized)
+    so per-row +/- controls read as the primary action."""
+
+    def test_mark_all_btn_is_ghost(self):
+        """Find the mark-all-btn and assert it uses btn-ghost, not btn-primary."""
+        idx = TEMPLATE_BODY.find('id="mark-all-btn"')
+        assert idx >= 0, "mark-all-btn must exist"
+        # Get the next ~200 chars after the id= to capture the class=
+        snippet = TEMPLATE_BODY[idx:idx + 300]
+        assert "btn-ghost" in snippet, \
+            "mark-all-btn must use btn-ghost so per-row +/- is primary"
+        # The 'O usá los botones +/-' text must be in <strong> (visually primary)
+        assert '<strong class="bulk-action-primary">' in TEMPLATE_BODY
+
+
+# ─── V5: sustitutos summary text ───────────────────────────────────────────
+
+class TestSustitutosSummaryWrap:
+    """V5 — '(modelo ingredientes / similitud ≥0.3)' must not get truncated."""
+
+    def test_sustitutos_summary_white_space(self):
+        """The <summary> element should set white-space: normal so the
+        parenthetical text wraps instead of getting cut off."""
+        idx = TEMPLATE_BODY.find("Sustitutos sugeridos (modelo ingredientes")
+        assert idx >= 0, "summary text must exist"
+        # Look back for the parent <summary> opening tag
+        snippet = TEMPLATE_BODY[max(0, idx - 300):idx + 50]
+        assert "white-space: normal" in snippet, \
+            "summary needs white-space:normal to wrap"
+
+
+# ─── V7: Horneado extra description ────────────────────────────────────────
+
+class TestHorneadoExtraDescription:
+    """V7 — long description text under 'Horneado extra' card must wrap."""
+
+    def test_horneado_extra_has_max_width(self):
+        """The <p> description should have max-width so text wraps on narrow
+        viewports instead of overflowing."""
+        idx = TEMPLATE_BODY.find("Para cuando horneás algo no planeado")
+        assert idx >= 0, "description must exist"
+        snippet = TEMPLATE_BODY[max(0, idx - 300):idx + 50]
+        assert "max-width" in snippet, \
+            "Horneado extra description needs max-width to wrap"
