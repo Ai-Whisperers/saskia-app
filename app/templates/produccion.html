@@ -17,7 +17,7 @@
   {%- endif -%}
 {%- endmacro %}
 
-{% block title %}Producción{% endblock %}
+{% block title %}Producción · {{ for_date }}{% endblock %}
 {% block content %}
 {% if template_nudge %}
 <div class="alert alert-warning" style="margin-bottom:1rem">
@@ -575,10 +575,18 @@
               <small class="text-muted" style="display: block; font-weight: 400; font-size: var(--text-xs);">forecast + pedidos</small>
             </th>
           {% endif %}
-          <th class="num">Meta</th>
-          <th class="num">+ Pedidos</th>
-          <th class="num">Total a hornear</th>
-          <th class="num">Progreso</th>
+          <th class="num">Meta (und)
+            <small class="text-meta" style="display: block; font-weight: 400; font-size: var(--text-xs);">lo que el plan dice</small>
+          </th>
+          <th class="num">Pedidos
+            <small class="text-meta" style="display: block; font-weight: 400; font-size: var(--text-xs);">ya comprometido</small>
+          </th>
+          <th class="num">Lote final
+            <small class="text-meta" style="display: block; font-weight: 400; font-size: var(--text-xs);">= meta + pedidos</small>
+          </th>
+          <th class="num">Hecho
+            <small class="text-meta" style="display: block; font-weight: 400; font-size: var(--text-xs);">lo que ya horneaste</small>
+          </th>
           <th>Origen <small class="text-muted">(cómo se calcula)</small></th>
           <th>Receta</th>
           {# T-2026-10-04 (C.5): inline cost/margin column. The cook
@@ -693,14 +701,14 @@
               {%- endif %}
             {% endif %}
           </td>
-          <td class="num" data-label="+ Pedidos">
+          <td class="num" data-label="Pedidos">
             {% if r.pending_pedido_qty > 0 %}
               <span class="badge badge-info pedido-qty" title="Unidades comprometidas por pedidos para hoy">+{{ "%.0f"|format(r.pending_pedido_qty) }}</span>
             {% else %}
               <span class="text-muted">—</span>
             {% endif %}
           </td>
-          <td class="num" data-label="Total a hornear">
+          <td class="num" data-label="Lote final">
             {% set total_bake = (r.qty_to_produce or 0) + (r.pending_pedido_qty or 0) %}
             {% if total_bake > 0 %}
               <strong>{{ "%.0f"|format(total_bake) }}</strong>
@@ -708,7 +716,7 @@
               <span class="text-muted">—</span>
             {% endif %}
           </td>
-          <td class="num" data-label="Progreso">
+          <td class="num" data-label="Hecho">
             {# T-2026-10-04 (P2, Tier-3-A): stepper buttons +/− around qty input.
                  The cook can tap instead of typing. Client-side only;
                  data-target-qty holds the row's planned qty for "mark all". #}

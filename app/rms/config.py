@@ -67,6 +67,13 @@ R2_CONFIG_PATH = Path(
 BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_RMS_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_RMS_KEEP_LOCAL_DAYS", "30"))
 
+# PRODUCCION-V3 Phase 0: cap how far back shift-execute can write a
+# ProductionCompletion row. The 14-day rolling forecast uses the last
+# 14 days of completions; a stray 2020-01-01 backfill would corrupt
+# the moving window. Cap is configurable per-deploy (default 7 days
+# covers "I forgot to log yesterday and the day before").
+BACKDATE_WINDOW_DAYS = int(os.getenv("AIW_RMS_BACKDATE_DAYS", "7"))
+
 # Schema version (hand-rolled migrations; see db.py)
 CURRENT_SCHEMA_VERSION = 103  # 102 = waste_log.source denormalized (PROD-MERMA-2); 103 = production_demand_snapshot + production_plan_audit + completion.status (PRODUCCION-V2 Fase 1)
 # 086 = monthly_closure table (Sprint 3.1 BACKLOG #15)
@@ -82,6 +89,7 @@ def ensure_dirs() -> None:
 
 __all__ = [
     "ASUNCION_TZ",
+    "BACKDATE_WINDOW_DAYS",
     "BACKUP_DIR",
     "BACKUP_THRESHOLD_HOURS",
     "BIND_HOST",

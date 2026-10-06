@@ -1299,6 +1299,32 @@ async def produccion_shift_execute(
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
         )
 
+    # PRODUCCION-V3 Phase 0: backdate cap. Reject for_date older than
+    # BACKDATE_WINDOW_DAYS (default 7) — otherwise a stray 2020-01-01
+    # backfill would corrupt the 14-day rolling forecast. Also reject
+    # future dates (use /produccion/override for tomorrow's plan).
+    from datetime import timedelta
+    from app.rms.config import ASUNCION_TZ, BACKDATE_WINDOW_DAYS
+
+    today_local = datetime.now(ASUNCION_TZ).date()
+    if for_date > today_local:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"La fecha no puede ser futura ({for_date.isoformat()}). "
+                f"Para planificar el futuro, usá /produccion/override."
+            ),
+        )
+    if for_date < today_local - timedelta(days=BACKDATE_WINDOW_DAYS):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"La fecha {for_date.isoformat()} está fuera de la ventana de "
+                f"{BACKDATE_WINDOW_DAYS} días hacia atrás. Si necesitás backfill "
+                f"más viejo, cambiá AIW_RMS_BACKDATE_DAYS en el servidor."
+            ),
+        )
+
     form = await request.form()
     form_opened_at_raw = form.get("form_opened_at")
     user_id = str(current_user_id(request) or "operator")
@@ -1391,6 +1417,36 @@ async def produccion_shift_execute(
         )
         saved += 1
 
+    # PRODUCCION-V3 Phase 0: persist closure status from the
+    # `done_<product_id>` checkbox. Previously the cook checked the
+    # box, the page rendered the row as done (CSS strikethrough), but
+    # the DB never saw `status='done'` — silent data loss. Now we
+    # scan for done_<pid> fields AFTER the completed_<pid> loop so a
+    # `done_<pid>=1` with no corresponding `completed_<pid>` still
+    # creates a row (cook marked it done with 0 units baked).
+    from app.rms.eod_completions import close_day_for_product
+
+    closed_count = 0
+    for key, value in form.multi_items():
+        if not isinstance(value, str):
+            continue
+        if not key.startswith("done_"):
+            continue
+        try:
+            product_id = int(key.removeprefix("done_"))
+        except ValueError:
+            continue
+        if session.get(Product, product_id) is None:
+            continue
+        if value == "1":
+            close_day_for_product(
+                session,
+                product_id=product_id,
+                for_date=for_date,
+                status="done",
+            )
+            closed_count += 1
+
     record_audit(
         request,
         session=session,
@@ -1402,6 +1458,7 @@ async def produccion_shift_execute(
             "skipped": skipped,
             "for_date": for_date.isoformat(),
             "concurrent_modify": concurrent_modify,  # T-2026-10-04 (Tier 5-K)
+            "closed": closed_count,  # PRODUCCION-V3 Phase 0
         },
     )
     session.commit()
