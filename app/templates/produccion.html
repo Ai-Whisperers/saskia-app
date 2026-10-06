@@ -1962,17 +1962,29 @@
       : 'sin demanda registrada (elegí qty manualmente)';
   }
   combo.addEventListener('change', recompute);
-  // T-2026-10-06f: show "no products" hint if src is empty.
-  // The combo's src attribute is a JSON-encoded array; we count its items
-  // by looking at the combo's internal _src or by counting children.
-  // Easier: just check the data attribute and the placeholder visibility.
-  try {
-    const srcRaw = combo.getAttribute('src') || '[]';
-    const items = JSON.parse(srcRaw);
-    if (!items.length && noProductsHint) {
+  // T-2026-10-06g: show "no products" hint if src is empty OR malformed.
+  // The combo's src attribute is a JSON-encoded array; we count its items.
+  // If JSON.parse fails, surface a different warning so the operator
+  // doesn't see a silent "Sin resultados" with no explanation.
+  if (noProductsHint) {
+    try {
+      const srcRaw = combo.getAttribute('src') || '[]';
+      const items = JSON.parse(srcRaw);
+      if (!items.length) {
+        noProductsHint.textContent =
+          'No hay productos cargados. Pedile al administrador que cargue productos en Productos antes de continuar.';
+        noProductsHint.style.display = 'block';
+      }
+    } catch (e) {
+      // Malformed src — usually means the page is stale or the template
+      // generated a string that isn't valid JSON. Tell the operator
+      // what to do.
+      noProductsHint.innerHTML =
+        '⚠️ El catálogo no se cargó bien. Hacé un <strong>recargar página</strong> ' +
+        '(Ctrl+Shift+R o Cmd+Shift+R) para actualizar.';
       noProductsHint.style.display = 'block';
     }
-  } catch (e) { /* malformed src — leave the hint hidden */ }
+  }
 })();
 </script>
 
