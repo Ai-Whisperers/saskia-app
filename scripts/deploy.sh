@@ -95,7 +95,7 @@ echo "==> sync verified (main.py md5 match)"
 # the service update so the new build actually gets rolled in.
 DEPLOY_TAG="deploy-$(date -u +%Y%m%d-%H%M%S)"
 run ssh -i "$KEY" -o StrictHostKeyChecking=no "$VPS" \
-    "cd $REMOTE_DIR && DOCKER_BUILDKIT=0 docker build --no-cache -t sazon-rms:prod -t $DEPLOY_TAG -f Dockerfile . 2>&1 | tail -2 && docker service update --image $DEPLOY_TAG sazon-vps_web --force 2>&1 | tail -1"
+    "cd $REMOTE_DIR && DOCKER_BUILDKIT=0 docker build --no-cache -t sazon-rms:prod -t $DEPLOY_TAG -f Dockerfile . 2>&1 | tail -2 && docker service update --image $DEPLOY_TAG saskia-vps_web --force 2>&1 | tail -1"
 
 # 4. verify
 if [ "$DRY_RUN" = "1" ]; then
@@ -108,5 +108,5 @@ HEALTH=$(curl -s --max-time 15 https://sazon-vps.paragu-ai.com/healthz || true)
 echo "==> healthz: $HEALTH"
 case "$HEALTH" in
   *'"ok"'*) echo "DEPLOY OK: $(git log --oneline -1)";;
-  *) echo "DEPLOY WARNING: health check did not return ok — inspect: ssh $VPS 'docker service ps sazon-vps_web'"; exit 1;;
+  *) echo "DEPLOY WARNING: health check did not return ok — inspect: ssh $VPS 'docker service ps saskia-vps_web'"; exit 1;;
 esac
