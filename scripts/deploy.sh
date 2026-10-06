@@ -83,8 +83,19 @@ if [ "$LOCAL_MD5" != "$REMOTE_MD5" ]; then echo "ERROR: sync mismatch (main.py m
 echo "==> sync verified (main.py md5 match)"
 
 # 3. build (DOCKER_BUILDKIT=0: buildkit caches COPY app even with --no-cache) + swap
+# 2026-10-06: this script historically tagged the build as sazon-rms:prod
+# but the service in the swarm was originally started with a different
+# tag (legacy name from before the rename) and later with date-based
+# phase tags. Updating the service to 'sazon-rms:prod' silently no-ops
+# because that tag doesn't exist on the remote after the rename, so
+# the orchestrator resolves to the current image and reports
+# 'converged' without actually swapping.
+# Fix: tag the new build as sazon-rms:prod (kept for the script
+# contract) AND with a unique date-based name. Use the date tag in
+# the service update so the new build actually gets rolled in.
+DEPLOY_TAG="deploy-$(date -u +%Y%m%d-%H%M%S)"
 run ssh -i "$KEY" -o StrictHostKeyChecking=no "$VPS" \
-    "cd $REMOTE_DIR && DOCKER_BUILDKIT=0 docker build --no-cache -t sazon-rms:prod -f Dockerfile . 2>&1 | tail -2 && docker service update --image sazon-rms:prod sazon-vps_web --force 2>&1 | tail -1"
+    "cd $REMOTE_DIR && DOCKER_BUILDKIT=0 docker build --no-cache -t sazon-rms:prod -t $DEPLOY_TAG -f Dockerfile . 2>&1 | tail -2 && docker service update --image $DEPLOY_TAG sazon-vps_web --force 2>&1 | tail -1"
 
 # 4. verify
 if [ "$DRY_RUN" = "1" ]; then
