@@ -966,6 +966,35 @@ def produccion_worksheet(
     if sum(1 for r in plan_rows_view if r["qty_to_produce"] > 0) == 0:
         cold_start_kind = "no_rows"
 
+    # PRODUCCION-V3 Phase 3: hero stats. Compute 3 numbers the cook
+    # wants at a glance: total products in the plan, total lote final
+    # (meta + pedidos), and weighted-average confidence (so the cook
+    # can see "this plan is only 38% confident" before they bake).
+    # Ad-hoc rows are excluded from the confidence average (they're
+    # 100% by definition — the cook decided).
+    day_lote_final_total = sum(
+        float(r.get("qty_to_produce", 0) or 0)
+        + float(r.get("pending_pedido_qty", 0) or 0)
+        for r in plan_rows_view
+    )
+    day_pedidos_total = sum(
+        float(r.get("pending_pedido_qty", 0) or 0)
+        for r in plan_rows_view
+    )
+    _conf_rows = [
+        r for r in plan_rows_view
+        if not r.get("is_ad_hoc", False) and (r.get("confidence_pct") or 0) > 0
+    ]
+    day_confidence_pct = (
+        int(round(sum(r.get("confidence_pct", 0) for r in _conf_rows) / len(_conf_rows)))
+        if _conf_rows
+        else 0
+    )
+    # PRODUCCION-V3 Phase 4: ad-hoc count (already in plan_rows_view
+    # with is_ad_hoc=True). Surfaced in the ad-hoc card so the cook
+    # can see "3 horneados extra" without scrolling.
+    day_adhoc_count = sum(1 for r in plan_rows_view if r.get("is_ad_hoc", False))
+
     return render(
         request,
         "produccion.html",
@@ -992,6 +1021,14 @@ def produccion_worksheet(
             "day_done_count": day_done_count,
             "day_cancelled_count": day_cancelled_count,
             "day_total_count": day_total_count,
+            # PRODUCCION-V3 Phase 3: hero stats. The 3 numbers + product
+            # count surface at the top of the day view so the cook sees
+            # "what's the day look like" before reading the table.
+            "day_productos_count": len(plan_rows_view),
+            "day_lote_final_total": day_lote_final_total,
+            "day_pedidos_total": day_pedidos_total,
+            "day_confidence_pct": day_confidence_pct,
+            "day_adhoc_count": day_adhoc_count,
             "source_labels": FORECAST_SOURCE_LABELS,
             "source_help": FORECAST_SOURCE_HELP,
             # PRODUCCION-V3 Phase 2: 4-bucket legend + 5-band confidence.
@@ -2360,6 +2397,9 @@ def produccion_manana(
         {
             "pedidos_manana": pedidos_manana,
             "today": today.isoformat(),
+            # PRODUCCION-V3 Phase 6: alias for the manana page-nav to
+            # link to /produccion?for_date=<today>.
+            "today_iso": today.isoformat(),
             "tomorrow": tomorrow.isoformat(),
             "rows": rows,
             "plan": plan,

@@ -127,6 +127,49 @@
      Mirrors pedidos.py idempotency_key pattern (F3 race). #}
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="idempotency_key" value="{{ csrf_token }}">
+
+  {# PRODUCCION-V3 Phase 5: EOD checklist progress bar (X of Y done).
+     Audit (H3, M3) found the operator had to scroll through the
+     whole checklist to know how much was left. Now the count is
+     surfaced at the top of the form, with a CSS progress bar that
+     visually communicates "you're 60% there". #}
+  {% if eod_items_total and eod_items_total > 0 %}
+  <div class="eod-progress" data-eod-progress
+       style="margin-bottom:var(--space-3);padding:var(--space-3);
+              background:var(--color-surface-subtle);border-radius:6px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;
+                margin-bottom:var(--space-1);font-size:var(--text-sm);">
+      <strong>Checklist</strong>
+      <span data-eod-progress-text>
+        <strong>{{ eod_items_done }}</strong> de {{ eod_items_total }}
+        ({{ eod_items_pct }}%)
+      </span>
+    </div>
+    <div role="progressbar" aria-valuenow="{{ eod_items_pct }}"
+         aria-valuemin="0" aria-valuemax="100"
+         aria-label="Progreso del checklist de cierre"
+         style="height:8px;background:var(--color-muted);border-radius:4px;overflow:hidden;">
+      <div data-eod-progress-bar
+           style="height:100%;width:{{ eod_items_pct }}%;
+                  background:var(--color-success);
+                  transition:width 0.3s ease;"></div>
+    </div>
+    {% if eod_items_pct == 100 %}
+    <p class="text-muted" style="font-size:var(--text-xs);margin:var(--space-1) 0 0 0;">
+      ✓ Todo listo. Podés guardar el cierre.
+    </p>
+    {% elif eod_items_pct >= 50 %}
+    <p class="text-muted" style="font-size:var(--text-xs);margin:var(--space-1) 0 0 0;">
+      {{ eod_items_total - eod_items_done }} pendiente(s) antes de guardar.
+    </p>
+    {% else %}
+    <p class="text-muted" style="font-size:var(--text-xs);margin:var(--space-1) 0 0 0;">
+      Faltan {{ eod_items_total - eod_items_done }} para completar el cierre.
+    </p>
+    {% endif %}
+  </div>
+  {% endif %}
+
   {{ ui.skeleton_section(id="eod-table", variant="line", count=8, label="Cargando cierre diario") }}
   <div data-loaded-section="eod-table">
   <table class="table is-hoverable">

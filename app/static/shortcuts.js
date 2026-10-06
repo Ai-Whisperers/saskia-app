@@ -388,4 +388,23 @@
       return;
     }
   });
+
+  // PRODUCCION-V3 Phase 4: data-action delegation. Buttons with
+  // data-action="open-adhoc-modal" / "open-adhoc-bulk" open the
+  // <dialog> elements with matching IDs. Delegated at the document
+  // level so the button HTML stays free of inline onclick=.
+  document.addEventListener('click', function(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.getAttribute('data-action');
+    if (action === 'open-adhoc-modal') {
+      const dlg = document.getElementById('adhoc-modal');
+      if (dlg && typeof dlg.showModal === 'function') dlg.showModal();
+      else if (dlg) dlg.setAttribute('open', '');
+    } else if (action === 'open-adhoc-bulk') {
+      const dlg = document.getElementById('adhoc-bulk-modal');
+      if (dlg && typeof dlg.showModal === 'function') dlg.showModal();
+      else if (dlg) dlg.setAttribute('open', '');
+    }
+  });
 })();

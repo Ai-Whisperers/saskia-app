@@ -73,6 +73,14 @@
       {% include "_components/day_nav.html" %}
     </div>
     {% endif %}
+
+    {# PRODUCCION-V3 Phase 3: hero stats (4 cards: Productos / Lote /
+       Pedidos / Confianza). Gives the cook the day-at-a-glance before
+       they read the table. Day view only — week/month use their own
+       summary blocks. #}
+    {% if view == 'day' %}
+      {% include "_components/hero_stats.html" %}
+    {% endif %}
   </div>
 
   <nav class="view-tabs" aria-label="Cambiar vista" role="tablist"
@@ -916,26 +924,43 @@
 </form>
 
 {# ── Ad-hoc bake entry (Sprint 4) ── #}
-<section class="card mb-4">
+{# PRODUCCION-V3 Phase 4: prominent ad-hoc card. The audit (H4, M6)
+   found the "Horneado extra" button was easy to miss — same visual
+   weight as the CSV paste. Now the primary button is accent-colored,
+   the ad-hoc count from the day is shown inline, and the card is
+   positioned right after the source legend so the cook sees it
+   after reading the table. #}
+<section class="card mb-4 no-print" data-adhoc-card>
   <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); gap: var(--space-3); flex-wrap: wrap;">
     <div>
-      <h2 class="card-title" style="margin: 0; font-size: var(--text-lg);">Horneado extra</h2>
+      <h2 class="card-title" style="margin: 0; font-size: var(--text-lg);">
+        🟧 Horneado extra
+        {% if day_adhoc_count and day_adhoc_count > 0 %}
+        <span class="badge badge-warn" style="margin-left: var(--space-2); font-size: var(--text-xs);"
+              title="{{ day_adhoc_count }} horneado(s) extra ya agregado(s) hoy"
+              data-adhoc-count>
+          {{ day_adhoc_count }} hoy
+        </span>
+        {% endif %}
+      </h2>
       <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0;">
         Para cuando horneás algo no planeado: un walk-in, una decisión de último momento,
         sobras que decidiste usar. Aparece abajo en la tabla con badge naranja.
       </p>
     </div>
-    <button type="button" class="btn btn-secondary" onclick="document.getElementById('adhoc-modal').showModal()">
-      + Agregá horneado extra
-    </button>
-    {# T-2026-10-05 (B.7): Bulk-CSV upload. Opens a paste-many modal
-       so the operator can paste 8-12 walk-in rows in one go instead
-       of clicking through the single-row form 12 times. Saves ~35s
-       per busy Saturday. The button uses no-print so the print view
-       stays clean (it'd be useless on a paper plan). #}
-    <button type="button" class="btn btn-ghost no-print" data-action="open-adhoc-bulk">
-      📋 Pegá varios (CSV)
-    </button>
+    <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+      <button type="button" class="btn btn-primary"
+              data-action="open-adhoc-modal">
+        + Agregá horneado extra
+      </button>
+      {# T-2026-10-05 (B.7): Bulk-CSV upload. Opens a paste-many modal
+         so the operator can paste 8-12 walk-in rows in one go instead
+         of clicking through the single-row form 12 times. Saves ~35s
+         per busy Saturday. #}
+      <button type="button" class="btn btn-ghost" data-action="open-adhoc-bulk">
+        📋 Pegá varios (CSV)
+      </button>
+    </div>
   </div>
 </section>
 

@@ -29,6 +29,23 @@
     <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0;">
       Algoritmo: <strong>rolling 14d</strong> por defecto · plantilla semanal si existe · override si está definido.
     </p>
+    {# PRODUCCION-V3 Phase 6: cross-page navigation. The manana view
+       had no quick way to hop to today's plan or yesterday's actual
+       execution. Now the cook can switch context in 1 click instead
+       of using the sidebar. Today = /produccion, Yesterday =
+       /produccion?for_date=<today> (the day-nav has the prev/next
+       links once there). #}
+    <div class="manana-page-nav" data-manana-page-nav
+         style="display:flex;gap:var(--space-2);margin-top:var(--space-2);flex-wrap:wrap;">
+      <a href="/produccion?for_date={{ today_iso }}" class="btn btn-ghost btn-sm"
+         title="Ir al plan de hoy">
+        ← Hoy
+      </a>
+      <a href="/produccion" class="btn btn-ghost btn-sm"
+         title="Ir a la planilla semanal de producción">
+        Ver semana
+      </a>
+    </div>
   </div>
 
   {# Bug 1 fix: single consolidated save button (no more per-row Guardar). #}

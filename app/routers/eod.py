@@ -97,6 +97,18 @@ def eod_view(
         if item.key in saved_keys:
             item.status = EODItemStatus.DONE
 
+    # PRODUCCION-V3 Phase 5: EOD progress (X of Y done) so the operator
+    # can see at a glance how much of the checklist is left before
+    # they can submit "Guardar cierre". Mirrors the /produccion hero
+    # pattern (4 stat cards) but tuned for the EOD operator surface.
+    eod_items_total = len(items)
+    eod_items_done = sum(1 for it in items if it.key in saved_keys)
+    eod_items_pct = (
+        int(round((eod_items_done * 100) / eod_items_total))
+        if eod_items_total
+        else 0
+    )
+
     # CIE-02: restock step — show ingredients below minimum with a link to
     # /reorder. Checking the close step means she has looked at it.
     from app.rms.reorder import compute_reorder_list
@@ -203,6 +215,12 @@ def eod_view(
             "reorder_items": reorder_items_top,
             "reorder_count": reorder_count,
             "reorder_total_gs": reorder_total_gs,
+            # PRODUCCION-V3 Phase 5: EOD checklist progress. X of Y done
+            # so the operator can see what's left before "Guardar cierre"
+            # is meaningful. Surfaced in the hero block + progress bar.
+            "eod_items_total": eod_items_total,
+            "eod_items_done": eod_items_done,
+            "eod_items_pct": eod_items_pct,
             # Weekend batch (prelaunch roadmap 2026-09-17)
             "is_range_mode": is_range_mode,
             "range_start_iso": range_start.isoformat() if range_start else "",
