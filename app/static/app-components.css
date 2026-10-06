@@ -567,3 +567,5 @@ small.hint,
 .fav-star { font-size: 1.05rem; line-height: 1; padding: 2px 8px; }
 .fav-star.is-fav { color: #d9a406; }
 .fav-star:hover { color: #d9a406; }
+
+/* T-2026-10-06g: cache-bust */
