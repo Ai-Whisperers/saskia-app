@@ -87,11 +87,15 @@
      via ?ui= query param and persists across form submits because the
      redirect handlers echo it back. Cutover 2026-10-05: v1 removed,
      the tab bar now only shows the active v2. #}
-  <span class="ui-toggle"
-        style="display:inline-flex; gap: var(--space-1); padding: 2px 8px; background: var(--color-surface-subtle); border-radius: var(--radius); margin-left: var(--space-2); font-size: var(--text-sm); color: var(--color-text-muted);"
+  {# T-2026-10-06 (UX polish): hide the 'v2 ✨' indicator from operators.
+     It was confusing — operators don't care if it's v1 or v2. The v1 vs v2
+     choice is still reachable via ?ui=v1 query for engineers debugging.
+     Keeping a hidden span for tests + accessibility tools. #}
+  <span class="ui-toggle sr-only"
+        style="display:none"
         aria-label="Versión del UI"
         title="UI v2 (DEMANDA, META, REAL, Pedidos)">
-    v2 ✨
+    v2
   </span>
 
   <a href="/produccion/manana" class="btn"
@@ -387,8 +391,11 @@
    cook knows the plan number is a baseline, not the final bake count.
    Sprint 4: ad-hoc entry — "+ Horneado extra" button below the table.
    ──────────────────────────────────────────────────────────────── #}
-<div style="background: var(--color-surface-muted); padding: var(--space-2) var(--space-3); margin-bottom: var(--space-3); border-radius: 4px;">
-  <small class="text-muted">
+{# T-2026-10-06 (UX polish): the previous --color-surface-muted background
+   was too low-contrast on the dark theme. Use info-soft + info border-left
+   to match the empty-state card style so it stands out as a hint callout. #}
+<div style="background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6); padding: var(--space-2) var(--space-3); margin-bottom: var(--space-3); border-radius: 4px;">
+  <small style="color: var(--color-text, #111827);">
     <strong>Cómo se calcula:</strong> "Sugerido por ventas" = promedio rolling 14d · "Plantilla semanal" = override recurrente por día de la semana · "Ajuste del día" = lo que vos decidiste hoy.
   </small>
 </div>
@@ -1146,7 +1153,12 @@
       Ajustar plan para hoy
     </a>
   {% else %}
-    <p class="empty">No hay producción planificada. Verificá que haya ventas registradas en los últimos 14 días.</p>
+    {# T-2026-10-06 (UX polish): the bare `<p class="empty">` was muted
+       and hard to see on dark theme. Promote to a visible card with
+       info-soft background matching the top empty-state. #}
+    <p style="margin: 0; padding: var(--space-2) var(--space-3); background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6); border-radius: 4px; color: var(--color-text, #111827);">
+      <strong>📭 No hay producción planificada.</strong> Verificá que haya ventas registradas en los últimos 14 días, o usá <a href="/produccion/copy-last-week">Copiar plan</a> para importar el plan de la semana pasada.
+    </p>
   {% endif %}
 </div>
 {% endif %}
