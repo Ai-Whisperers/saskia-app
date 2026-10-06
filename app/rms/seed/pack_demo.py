@@ -255,38 +255,19 @@ def seed_pack_demo(
 # reseed: wipe tenant data and re-seed with a chosen pack (CLI / demo switch)
 # --------------------------------------------------------------------------
 
-# children → parents. Everything the pack seeds is wiped so the switch is
-# clean; shared config (categories, suppliers, payment methods, channels,
-# zones, tags, production templates, user, tenant) is kept.
-_WIPE_ORDER = [
-    "production_completion",
-    "stock_movement",
-    "sale",
-    "pedido_line",
-    "pedido",
-    "customer_address",
-    "customer_invoice_profile",
-    "customer",
-    "tag_link",
-    "product",
-    "recipe_line",
-    "recipe",
-    "ingredient_variant",
-    "ingredient_price_event",
-    "ingredient",
-]
-
-
 def reseed_pack(session: Session, pack: str, *, days_of_history: int = 90) -> dict:
-    """Reset the demo DB and seed ``pack`` with full demo life.
+    """Reset the demo DB (ALL data) and seed ``pack`` with full demo life.
 
-    Only touches DATA (no schema, no user, no shared config) — safe on the
-    shared demo deployment; NOT for a tenant with real data.
+    Wipes every table in the metadata (children first, so FKs never block)
+    and rebuilds from the pack: tenant, admin user, catalog, suppliers,
+    production templates + 90 days of demo life. Deterministic; NOT for a
+    tenant with real data.
     """
+    from app.rms.models import Base
     from app.rms.seed.packs import seed_pack
 
-    for table in _WIPE_ORDER:  # table names come from _WIPE_ORDER, never user input
-        session.execute(text(f"DELETE FROM {table}"))  # noqa: S608 - fixed literal list
+    for table in reversed(Base.metadata.sorted_tables):
+        session.execute(text(f'DELETE FROM "{table.name}"'))  # noqa: S608 - metadata-derived name
     session.flush()
 
     pack_report = seed_pack(session, pack)
