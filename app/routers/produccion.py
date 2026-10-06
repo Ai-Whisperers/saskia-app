@@ -18,10 +18,12 @@ Seasonal-multiplier editor intentionally absent: blocked on T-0.1
 from __future__ import annotations
 
 import calendar as _calendar
+import csv
+import io
 from datetime import date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
@@ -1201,6 +1203,95 @@ def produccion_override(
     session.commit()
     return RedirectResponse(
         url=f"/produccion?for_date={for_date.isoformat()}",
+        status_code=303,
+    )
+
+
+@router.post("/copy-last-week")
+def produccion_copy_last_week(
+    request: Request,
+    for_date: date = Form(...),
+    source_date: date | None = Form(None),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Copy last week's plan into this date as ProductionPlanOverride rows.
+
+    Sazon-Improvement v2 (2026-10-06) Phase C: saves the operator ~20
+    minutes per menu-planning session. Reads source_date's
+    plan_production() output and creates one override per row. The
+    target date keeps its own fresh forecast_source (the override is
+    just a manual adjustment on top).
+
+    Default source_date is 7 days before for_date if not given.
+    Idempotent: existing overrides for the same (product, for_date) are
+    overwritten with the source qty. No data is lost; existing overrides
+    not present in the source are kept (so this is additive, not a
+    destructive replace).
+    """
+    from app.auth import current_user_id
+    from app.rms.models import ProductionPlanOverride
+    from app.rms.production import plan_production, upsert_override
+
+    target = for_date
+    src = source_date or (for_date - timedelta(days=7))
+
+    # Rate-limit the same as a manual override (1 per 6s)
+    from app.rms.rate_limit import is_write_rate_limited
+
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
+        )
+
+    user_id = current_user_id(request) or "operator"
+    user_id = str(user_id)
+
+    # Read source plan (may be empty if source has no forecast)
+    src_plan = plan_production(session, for_date=src)
+    created = 0
+    for r in src_plan.rows:
+        if r.qty_to_produce <= 0:
+            continue
+        # Find existing override for (product, target) to know old_qty
+        prior = session.query(ProductionPlanOverride).filter(
+            ProductionPlanOverride.product_id == r.product_id,
+            ProductionPlanOverride.for_date == target,
+        ).one_or_none()
+        old_qty = float(prior.qty) if prior is not None else None
+        upsert_override(
+            session,
+            product_id=r.product_id,
+            for_date=target,
+            qty=float(r.qty_to_produce),
+            updated_by=user_id,
+        )
+        created += 1
+        persist_plan_audit(
+            session,
+            for_date=target,
+            product_id=r.product_id,
+            old_qty=old_qty,
+            new_qty=float(r.qty_to_produce),
+            change_source="copy_last_week",
+            changed_by=user_id,
+        )
+
+    record_audit(
+        request,
+        session=session,
+        action="write.production.copy_last_week",
+        target_type="production",
+        target_id=None,
+        detail={
+            "source_date": src.isoformat(),
+            "target_date": target.isoformat(),
+            "overrides_created": created,
+        },
+    )
+    session.commit()
+    return RedirectResponse(
+        url=f"/produccion?for_date={target.isoformat()}",
         status_code=303,
     )
 
@@ -2524,6 +2615,53 @@ def produccion_print(
             "iso_week": iso_week,
             "iso_year": iso_year,
             "cook_name": cook_name,
+        },
+    )
+
+
+# Sazon-Improvement v2 (2026-10-06) Phase A: CSV export of the daily plan.
+# Operators want to paste the plan into WhatsApp for the team or import
+# into Excel. The CSV mirrors the day-view columns and uses the same
+# SOURCE_BUCKETS / confidence-band mapping as the HTML view so a printed
+# row matches the screen. PII (customer names, phones) is NEVER included;
+# this endpoint is for production plan only — sales / pedidos have their
+# own /ventas/export.csv and /pedidos/export routes.
+@router.get("/export.csv")
+def produccion_export_csv(
+    for_date: date | None = Query(None, description="Plan date (defaults to today Asunción-local)"),
+    view: str = Query("day", pattern="^(day|week|month)$"),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Return the production plan as CSV. Columns: product_name, qty_to_produce, source, confidence, is_ad_hoc."""
+    target = for_date or _asuncion_today()
+    plan = plan_production(session, for_date=target)
+    # Sort by descending qty so the largest batches are at the top of the
+    # pasted-into-WhatsApp message (cook reads top-down).
+    rows = sorted(
+        plan.rows,
+        key=lambda r: (-r.qty_to_produce, r.product_name),
+    )
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["product_name", "qty_to_produce", "source", "confidence", "is_ad_hoc"])
+    for r in rows:
+        bucket = source_to_bucket(r.forecast_source, is_ad_hoc=False)
+        writer.writerow([
+            r.product_name,
+            # Format as int when possible so 50.0 doesn't show as "50.0"
+            f"{r.qty_to_produce:g}" if r.qty_to_produce == int(r.qty_to_produce) else f"{r.qty_to_produce}",
+            bucket,
+            r.confidence_pct,
+            False,  # Plan rows are not ad-hoc by definition
+        ])
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="produccion-{target.isoformat()}.csv"',
+            # Cache for 1 minute so a retry doesn't hit the planner twice.
+            # Plan computation is fast but no point redoing it.
+            "Cache-Control": "private, max-age=60",
         },
     )
 

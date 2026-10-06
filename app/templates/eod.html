@@ -53,6 +53,16 @@
     <span class="text-muted" style="font-size:var(--text-sm);margin-left:auto;">
       {{ range_days }} día{{ 's' if range_days != 1 else '' }} en el rango
     </span>
+    {% else %}
+    {# Sazon-Improvement v2 (2026-10-06) Phase B: print-friendly 1-page
+       summary for the binder archive. Operators file this at the end
+       of the month for the close-out review. #}
+    <a href="/eod/print" class="btn btn-sm" target="_blank"
+       style="margin-left:auto;"
+       title="Imprimí el resumen de hoy en 1 página para archivar en la carpeta">
+      <svg class="icon" aria-hidden="true"><use href="#icon-print"/></svg>
+      Imprimir
+    </a>
     {% endif %}
   </div>
 </form>

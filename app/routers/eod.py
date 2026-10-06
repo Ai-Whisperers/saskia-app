@@ -32,7 +32,7 @@ from app.rms.models import Sale, WasteLog
 from app.rms.money import to_int_gs
 from app.rms.observability import record_audit
 from app.rms.production import plan_production
-from app.rms.workflow import eod_progress, fresh_eod_checklist
+from app.rms.workflow import EODItemStatus, eod_progress, fresh_eod_checklist
 from app.services.template_render import render
 
 router = APIRouter(prefix="/eod", dependencies=[Depends(require_login)])
@@ -472,6 +472,76 @@ def eod_run_anomalies(
         {
             "anomalies": anomalies,
             "dispatched": dispatched,
+        },
+    )
+
+
+# Sazon-Improvement v2 (2026-10-06) Phase B: /eod/print — print-friendly
+# view for the binder archive. The full /eod view is 5 screens on mobile
+# and not print-safe (sidebar + bottom nav + reactive forms). The print
+# view is a minimal 1-page summary with: date, checklist status (X de Y),
+# today's production plan (forecast side), reorder items, and notes for
+# next. Operator files this in the binder at end of month for the close.
+@router.get("/print", response_class=HTMLResponse)
+def eod_print(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Render a 1-page printable EOD summary.
+
+    Same date as /eod (today, Asunción-local). Same checklist + plan
+    data, but in a stripped-down template with @media print styles so
+    it lays out cleanly on A4/Letter and hides nav chrome.
+    """
+    from app.rms.eod_closed import eod_is_day_closed
+    from app.rms.reorder import compute_reorder_list
+
+    today = datetime.now(ASUNCION_TZ).date()
+    items = fresh_eod_checklist()
+    progress = eod_progress(items)
+
+    # Checklist progress (X de Y)
+    items_total = len(items)
+    items_done = sum(1 for it in items if it.status == EODItemStatus.DONE)
+    items_pct = int(round((items_done * 100) / items_total)) if items_total else 0
+
+    # Today's production plan
+    today_plan = plan_production(session, for_date=today)
+
+    # Reorder items — same as eod_view, but no cap (we want the full list on the print)
+    reorder_items = compute_reorder_list(session)
+    reorder_total_gs = sum(i.estimated_cost_gs for i in reorder_items if i.has_price)
+
+    # Closed-state
+    today_is_closed = eod_is_day_closed(session, today)
+
+    # Anomaly count — surface today's anomalies in the print summary
+    # so the binder shows what was flagged. Read from the eod anomaly
+    # helper, returning (count, total) for the print section.
+    from app.services.eod_anomaly import detect_anomalies
+
+    try:
+        anomalies = detect_anomalies(session)
+        anomaly_count = len(anomalies) if anomalies else 0
+    except Exception:
+        # If the anomaly helper isn't available in this version, skip silently
+        anomaly_count = 0
+
+    return render(
+        request,
+        "eod_print.html",
+        {
+            "today": today,
+            "items": items,
+            "items_total": items_total,
+            "items_done": items_done,
+            "items_pct": items_pct,
+            "today_plan": today_plan,
+            "reorder_items": reorder_items,
+            "reorder_count": len(reorder_items),
+            "reorder_total_gs": reorder_total_gs,
+            "today_is_closed": today_is_closed,
+            "anomaly_count": anomaly_count,
         },
     )
 
