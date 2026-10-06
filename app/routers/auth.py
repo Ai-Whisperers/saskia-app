@@ -39,6 +39,7 @@ def login_form(
     next: str = "/",
     error: str | None = None,
     message: str | None = None,
+    retry_after: int | None = None,
 ) -> HTMLResponse:
     """Render login form."""
     # Remember last username via cookie for returning users
@@ -57,6 +58,7 @@ def login_form(
             "next": next,
             "error": error,
             "message": message,
+            "retry_after": retry_after,
             "using_supabase": using_supabase(),
             "last_username": last_username,
         },
@@ -78,17 +80,24 @@ def login_submit(
     # Rate limit: block before dispatching to backend.
     # Bypass if AIW_SASKIA_AUTH_DISABLED=1 (test/maintenance).
     if not is_disabled():
-        from fastapi.responses import JSONResponse
-
         decision = is_rate_limited(session, request)
         if not decision.allowed:
-            return JSONResponse(
-                status_code=429,
-                content={
-                    "detail": "Demasiados intentos. Intenta nuevamente en unos minutos.",
-                    "retry_after_seconds": decision.retry_after_seconds,
-                },
-                headers={"Retry-After": str(decision.retry_after_seconds)},
+            # Render the styled login page with a clear retry countdown +
+            # explicit "Volver a intentar" link so the operator can recover
+            # without staring at a raw 429 JSON blob. The countdown is
+            # client-side; clicking the link after it elapses sends a fresh
+            # request that the rate limiter re-evaluates.
+            #
+            # The countdown is best-effort: if the server's estimate drifts
+            # a few seconds, the worst case is one extra click — the server
+            # is the source of truth on the next submission.
+            return RedirectResponse(
+                url=(
+                    f"/login?error=demasiados+intentos+-+esper%C3%AE%20"
+                    f"{decision.retry_after_seconds}s&retry_after="
+                    f"{decision.retry_after_seconds}&next={safe_next}"
+                ),
+                status_code=303,
             )
 
     # Test bypass: when SASKIA_TEST_AUTH_DISABLED=1, accept ANY password and

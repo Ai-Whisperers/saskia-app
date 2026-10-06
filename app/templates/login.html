@@ -17,11 +17,49 @@
   </div>
 
   {% if error %}
-  <div class="alert alert-error" role="alert" aria-live="assertive">
+  <div class="alert alert-error" role="alert" aria-live="assertive" id="login-error">
     <div>
       <strong>No pudimos entrar.</strong><br>
       {{ error }}
+      {% if retry_after %}
+        <br>
+        <span id="retry-countdown" data-seconds="{{ retry_after }}">Podés reintentar en <strong id="retry-seconds">{{ retry_after }}</strong>s.</span>
+      {% endif %}
     </div>
+    {% if retry_after %}
+    <button type="button" class="btn btn-secondary btn-pill" id="retry-btn" disabled
+            style="margin-top: 12px; align-self: flex-start;">
+      Reintentar ahora (<span id="retry-btn-seconds">{{ retry_after }}</span>s)
+    </button>
+    <script>
+      (function() {
+        var span = document.getElementById('retry-seconds');
+        var btnSpan = document.getElementById('retry-btn-seconds');
+        var btn = document.getElementById('retry-btn');
+        var remaining = parseInt(document.getElementById('retry-countdown').dataset.seconds, 10);
+        function tick() {
+          if (remaining <= 0) {
+            span.textContent = '0';
+            btnSpan.textContent = '0';
+            btn.disabled = false;
+            btn.textContent = 'Reintentar ahora';
+            return;
+          }
+          span.textContent = remaining;
+          btnSpan.textContent = remaining;
+          remaining -= 1;
+          setTimeout(tick, 1000);
+        }
+        tick();
+        btn.addEventListener('click', function() {
+          // Re-submit the form. The server is the source of truth — if the
+          // rate-limit window is still open, the user gets redirected back
+          // here with a new retry_after.
+          document.querySelector('form[action="/login"]').submit();
+        });
+      })();
+    </script>
+    {% endif %}
   </div>
   {% endif %}
 
