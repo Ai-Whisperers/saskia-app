@@ -956,8 +956,11 @@
       {# T-2026-10-05 (B.7): Bulk-CSV upload. Opens a paste-many modal
          so the operator can paste 8-12 walk-in rows in one go instead
          of clicking through the single-row form 12 times. Saves ~35s
-         per busy Saturday. #}
-      <button type="button" class="btn btn-ghost" data-action="open-adhoc-bulk">
+         per busy Saturday. The button keeps no-print (B.7 invariant
+         enforced by tests/test_produccion_bulk_adhoc_csv.py) even
+         though the parent section is also no-print — defense in depth
+         so the button never appears on a paper plan. #}
+      <button type="button" class="btn btn-ghost no-print" data-action="open-adhoc-bulk">
         📋 Pegá varios (CSV)
       </button>
     </div>
