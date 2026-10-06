@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## 2026-10-06b — Demos vivos por industria + onboarding 1 comando + importador carta
+
+**Goal:** pasar de "te mando un PDF" a "entrá y mirá": 3 demos VPS (Pizzería/Café/Panadería) con vida demo pack-native, `onboard_tenant()` para altas en 1 llamada, e importador de carta real para el primer día de un cliente.
+
+- `app/rms/seed/pack_demo.py`: `reseed_pack()` wipe via sqlite_master (todas las tablas, FK-safe sobre DB sucia) en conexión AUTOCOMMIT dedicada; CLI `--pack` acepta ASCII (`pizzeria`/`cafe`); env `AIW_DEMO_PACK` para stack auto-seed path.
+- `app/rms/seed/onboard.py` (NEW): `onboard_tenant(session, name, pack=...)` — tenant + admin + pack + 90 días demo; idempotente (mismo nombre → mismo tenant).
+- `app/rms/seed/menu_import.py` (NEW): importador carta-real CSV → match difuso (≥0.82, sin acentos) contra pack; matched → precio real del cliente; faltantes → producto nuevo tag `importado (pendiente recosteo)` (no inventa recetas); `dry_run=True` por defecto.
+- Tests: `tests/test_pack_demo.py` + `tests/test_onboard.py` + `tests/test_menu_import.py` = 14 nuevos, 14/14.
+- Deploy demos VPS: `scratch/deploy_demos_v5.sh` — 3 stacks swarm (`sazon-demo-{pizzeria,cafe,panaderia}`), imagen tagueada por timestamp (rollout garantizado), volumen + DB por demo, `HTTPS_ONLY=false` (solo demos; prod intacto), reseed FK-safe post-boot. Puertos 8081/8082/8083; login admin/cambiar1234.
+
+## 2026-10-06 — Seed packs per market segment (pre-carga onboarding)
+
+**Goal:** every prospect segment seeds in one call with La-Vaquita-grade data (products → recipes → ingredients with ref costs). Staged from market research; nothing loads automatically.
+
+- `app/rms/seed/packs.py` (GENERATED — do not hand-edit): 10 packs — Panadería 22 · Pastelería/Confitería 16 · Pizzería 18 · Hamburguesería/Rápida 15 · Parrilla/Restaurante 23 · Comedor/Kilo 14 · Heladería 15 · Café/Cafetería 15 · Empanadas/Criolla 10 · Oriental 13 = 161 productos / 161 recetas / 779 recipe lines / 257 ingredientes únicos con costo ref Gs + variantes + price events, 4 suppliers, payment methods, channels, 2 delivery zones, weekly production templates, tags. Uso: `seed_pack(session, "Pizzería")` — idempotente, mismos patrones que `seed/sazon.py`.
+- `scripts/seed_packs_gen.py`: regenera packs.py desde los CSV de investigación stageados (scratch/sazon_pack_*.csv + sazon_ingredientes_maestro.csv); auto-ruff-fix al generar.
+- `tests/test_packs_seed.py`: 7 tests — integridad (producto→receta, qty>0), seed completo, idempotencia, barrido 10 packs en DB fresca, pack desconocido raise, reuso de ingredientes entre packs.
+- `pyproject.toml`: per-file-ignore DTZ para el generado (contrato naive-UTC heredado de sazon.py).
+- `app/rms/seed/pack_demo.py` + `tests/test_pack_demo.py` (5 tests): vida demo nativa del pack —
+  clientes + pedidos con token público + 90 días de ventas con skew fin de semana/quincena + stock
+  moves. CLI: `python -m app.rms.seed.pack_demo --pack "Pizzería"` re-seedea el demo en segundos
+  (`reseed_pack`, wipe de data only). Tests: 5 passed; ruff clean.
+
+
 ## 2026-10-04 — Phase 3 CI cleanup (PR #46)
 
 **Goal:** bring ruff from 1910 errors → 0 across the codebase, eliminate currency-drift footguns, fix real bugs hiding behind lint errors.
