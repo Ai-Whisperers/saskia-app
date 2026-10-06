@@ -16,13 +16,16 @@
      class="btn btn-ghost btn-icon"
      aria-label="Día anterior"
      data-day-nav-prev>‹</a>
+  {# M6: the date picker auto-submits on change. Remove the redundant
+     "Ir a fecha" button — keeps the same effect with one less control. #}
   <form method="get" action="/produccion"
-        style="display:inline-flex; gap:var(--space-1); align-items:center;">
+        style="display:inline-flex; gap:var(--space-1); align-items:center;"
+        data-day-nav-form>
     <input type="date" name="for_date" value="{{ for_date }}"
            aria-label="Elegí una fecha"
            class="form-input day-nav__picker"
-           data-day-nav-picker>
-    <button type="submit" class="btn btn-sm">Ir a fecha</button>
+           data-day-nav-picker
+           onchange="this.form.submit()">
   </form>
   <a href="?for_date={{ today_for_date }}{% if shift %}&amp;shift={{ shift }}{% endif %}"
      class="btn btn-sm {% if for_date == today_for_date %}btn-primary{% else %}btn-ghost{% endif %}"
