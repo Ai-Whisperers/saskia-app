@@ -20,13 +20,13 @@
 
 <div class="card mb-4">
   <div class="card-header">
-    <h2 style="margin:0;">Datos de la venta</h2>
-    <div class="text-muted" style="font-size:var(--text-sm);">
+    <h2 class="m-0" >Datos de la venta</h2>
+    <div class="text-muted text-sm" >
       <a href="/ventas/{{sale.id}}/recibo" target="_blank">Ver recibo imprimible →</a>
     </div>
   </div>
 
-  <dl class="kv-grid" style="display:grid;grid-template-columns:max-content 1fr;gap:var(--space-2) var(--space-4);padding:var(--space-3) var(--space-4);">
+  <dl class="kv-grid d-grid" style="display:grid;grid-template-columns:max-content 1fr;gap:var(--space-2) var(--space-4);padding:var(--space-3) var(--space-4);">
     <dt>Fecha</dt>
     <dd>{{ sale.sold_at_str }}</dd>
 
@@ -63,7 +63,7 @@
              text-transform:uppercase; letter-spacing:0.05em;">
     Pago y canal
   </h3>
-  <dl class="kv-grid" style="display:grid;grid-template-columns:max-content 1fr;gap:var(--space-2) var(--space-4);padding:var(--space-2) var(--space-4) var(--space-3);">
+  <dl class="kv-grid d-grid" style="display:grid;grid-template-columns:max-content 1fr;gap:var(--space-2) var(--space-4);padding:var(--space-2) var(--space-4) var(--space-3);">
     <dt>Forma de pago</dt>
     <dd>{{ sale.payment_method or '—' }}</dd>
 
@@ -86,7 +86,7 @@
 </div>
 
 <div class="card mb-4">
-  <div class="card-header"><h2 style="margin:0;">Cliente</h2></div>
+  <div class="card-header"><h2 class="m-0" >Cliente</h2></div>
   <div style="padding:var(--space-3) var(--space-4);">
     {% if sale.customer_id %}
     <a href="/clientes/{{ sale.customer_id }}">{{ sale.customer_name }}</a>
@@ -97,7 +97,7 @@
   </div>
 
   {% if loyalty_snapshot %}
-  <dl class="kv-grid" style="display:grid;grid-template-columns:max-content 1fr;gap:var(--space-2) var(--space-4);padding:var(--space-3) var(--space-4);border-top:1px solid var(--color-border);">
+  <dl class="kv-grid d-grid" style="display:grid;grid-template-columns:max-content 1fr;gap:var(--space-2) var(--space-4);padding:var(--space-3) var(--space-4);border-top:1px solid var(--color-border);">
     {% if loyalty_snapshot.earn_points %}
     <dt>Puntos ganados</dt>
     <dd>+ {{ loyalty_snapshot.earn_points }} pts</dd>
@@ -114,7 +114,7 @@
 
 {% if related_pedido %}
 <div class="card mb-4">
-  <div class="card-header"><h2 style="margin:0;">Pedido asociado</h2></div>
+  <div class="card-header"><h2 class="m-0" >Pedido asociado</h2></div>
   <div style="padding:var(--space-3) var(--space-4);">
     <a href="/pedidos/{{ related_pedido.id }}">Pedido #{{ related_pedido.id }}</a>
     <span class="text-muted">· {{ related_pedido.customer_name or '' }} · {{ related_pedido.delivery_zone_id or '' }}</span>
@@ -124,8 +124,8 @@
 
 {% if stock_moves %}
 <div class="card mb-4">
-  <div class="card-header"><h2 style="margin:0;">Movimientos de stock ({{ stock_moves|length }})</h2></div>
-  <table class="table is-striped" style="margin:0;">
+  <div class="card-header"><h2 class="m-0" >Movimientos de stock ({{ stock_moves|length }})</h2></div>
+  <table class="table is-striped m-0" >
     <thead>
       <tr>
         <th>Ingrediente</th>
@@ -146,7 +146,7 @@
 </div>
 {% endif %}
 
-<div style="display:flex;gap:var(--space-2);margin-top:var(--space-4);">
+<div class="d-flex" style="display:flex;gap:var(--space-2);margin-top:var(--space-4);">
   <a href="/ventas/historial" class="btn">← Volver al historial</a>
   <a href="/ventas/{{sale.id}}/recibo" class="btn btn-primary">Ver recibo</a>
 </div>

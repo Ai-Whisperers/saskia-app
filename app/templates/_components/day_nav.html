@@ -7,7 +7,7 @@
      - shift:          optional shift context ("" / "AM" / "PM") — preserved
                        in prev/next links so the cook doesn't lose it.
    Hides on print via the .no-print class (already used elsewhere). #}
-<nav class="day-nav no-print" data-day-nav
+<nav class="day-nav no-print d-inline-flex" data-day-nav
      aria-label="Navegación de fecha"
      style="display:inline-flex; align-items:center; gap:var(--space-2);
             background:var(--color-surface-subtle); padding:var(--space-1) var(--space-2);
@@ -18,7 +18,7 @@
      data-day-nav-prev>‹</a>
   {# M6: the date picker auto-submits on change. Remove the redundant
      submit button — keeps the same effect with one less control. #}
-  <form method="get" action="/produccion"
+  <form class="d-inline-flex" method="get" action="/produccion"
         style="display:inline-flex; gap:var(--space-1); align-items:center;"
         data-day-nav-form>
     <input type="date" name="for_date" value="{{ for_date }}"

@@ -8,80 +8,7 @@
 {% block title %}Producción {{ for_date }} — Para imprimir{% endblock %}
 
 {% block head_extra %}
-<style>
-  /* Print-only layout: clean sheet, no nav/header/footer chrome */
-  .print-sheet {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 1.5rem;
-  }
-  .print-sheet h1 {
-    font-size: 1.5rem;
-    margin: 0 0 0.25rem 0;
-  }
-  .print-sheet .date {
-    font-size: 1.125rem;
-    color: var(--color-text-muted);
-    margin-bottom: 1rem;
-  }
-  .print-sheet table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 0.5rem;
-  }
-  .print-sheet th,
-  .print-sheet td {
-    border: 1px solid var(--color-border);
-    padding: 0.5rem 0.75rem;
-    text-align: left;
-  }
-  .print-sheet th {
-    background: var(--color-surface-subtle);
-    font-weight: 600;
-  }
-  .print-sheet td.center { text-align: center; }
-  .print-sheet td.right { text-align: right; }
-  .print-sheet .check-col { width: 3rem; }
-  .print-sheet .qty-col { width: 5rem; text-align: center; }
-  .print-sheet .done-col { width: 5rem; text-align: center; }
-  .print-sheet input[type="checkbox"] {
-    width: 1.25rem;
-    height: 1.25rem;
-    accent-color: var(--color-accent, #c2410c);
-  }
-  .print-sheet input[type="number"] {
-    width: 4.5rem;
-    padding: 0.25rem 0.5rem;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    text-align: center;
-    font: inherit;
-  }
-  .print-sheet .print-only {
-    display: none;
-  }
-  .print-sheet .footer-note {
-    margin-top: 1.5rem;
-    font-size: 0.875rem;
-    color: var(--color-text-muted);
-  }
 
-  @media print {
-    /* Hide site chrome */
-    header, nav, aside, footer, .nav-tabs, .breadcrumb,
-    .sidebar, .topbar, .bottom-nav, .app-footer { display: none !important; }
-    .no-print { display: none !important; }
-    .print-only { display: block; }
-    body { background: white !important; color: black !important; }
-    .print-sheet { max-width: none; padding: 0; }
-    .print-sheet table { page-break-inside: auto; }
-    .print-sheet tr { page-break-inside: avoid; }
-    .print-sheet input[type="number"] {
-      border: none;
-      background: transparent;
-    }
-  }
-</style>
 {% endblock %}
 
 {% block content %}
@@ -107,7 +34,7 @@
   </p>
   {% endif %}
 
-  <div class="no-print" style="margin-bottom: 1rem;">
+  <div class="no-print mb-6" >
     <button type="button" class="btn btn-primary" onclick="window.print()">
       🖨️ Imprimir
     </button>
@@ -172,11 +99,11 @@
                 <strong>{{ r.qty_to_produce|round|int }}</strong>
               {% endif %}
               {%- if r.yield_qty and r.yield_qty != 1 %}
-                <small class="text-muted" style="display:block; font-weight:normal;">
+                <small class="text-muted d-block" style="display:block; font-weight:normal;">
                   {{ r.yield_qty|int }} {{ r.yield_unit or 'und' }} c/u
                 </small>
               {%- elif r.portion_label and r.portion_label != "1 unidad" %}
-                <small class="text-muted" style="display:block; font-weight:normal;">
+                <small class="text-muted d-block" style="display:block; font-weight:normal;">
                   {{ r.portion_label }}
                 </small>
               {%- endif %}
@@ -247,11 +174,11 @@
             <strong>{{ r.qty_to_produce|round|int }}</strong>
           {% endif %}
           {%- if r.yield_qty and r.yield_qty != 1 %}
-            <small class="text-muted" style="display:block; font-weight:normal;">
+            <small class="text-muted d-block" style="display:block; font-weight:normal;">
               {{ r.yield_qty|int }} {{ r.yield_unit or 'und' }} c/u
             </small>
           {%- elif r.portion_label and r.portion_label != "1 unidad" %}
-            <small class="text-muted" style="display:block; font-weight:normal;">
+            <small class="text-muted d-block" style="display:block; font-weight:normal;">
               {{ r.portion_label }}
             </small>
           {%- endif %}

@@ -10,9 +10,9 @@
 </div>
 {% endif %}
 
-<div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;">
+<div class="grid d-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;">
   {% for p in photos %}
-    <form method="post" action="/recetas/{{ recipe.id }}/set-photo" style="margin:0;">
+    <form class="m-0" method="post" action="/recetas/{{ recipe.id }}/set-photo" >
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="photo" value="{{ p }}">
       <button type="submit" style="all:unset;cursor:pointer;display:block;width:100%;">
@@ -32,7 +32,7 @@
   <a href="/recetas/{{ recipe.id }}" class="btn btn-ghost">← Volver a la receta</a>
 </div>
 
-<p class="muted" style="margin-top:2rem;">
+<p class="muted mt-8" >
   💡 El hash automático asigna una foto a cada receta al importar datos.
   Este formulario te permite reasignar manualmente. La foto seleccionada
   se guarda en <code>recipe.image_url</code>.

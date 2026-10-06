@@ -18,6 +18,16 @@ import pytest
 from pathlib import Path
 from sqlalchemy import select
 
+# Paths to the produccion template and the consolidated CSS file.
+# (The <style> block was extracted from produccion.html into
+# app-improvements.css in the 2026-10-07 css-deep-refactor PR4.)
+TEMPLATE_PATH = pathlib.Path(__file__).parent.parent / "app" / "templates" / "produccion.html"
+IMPROVEMENTS_PATH = pathlib.Path(__file__).parent.parent / "app" / "static" / "app-improvements.css"
+TEMPLATE_BODY = TEMPLATE_PATH.read_text(encoding="utf-8")
+IMPROVEMENTS_BODY = IMPROVEMENTS_PATH.read_text(encoding="utf-8")
+# When the test wants to look at "the page's CSS", check both.
+CSS_BODY = TEMPLATE_BODY + "\n" + IMPROVEMENTS_BODY
+
 from app.rms.models import Product
 
 TEMPLATE_PATH = (
@@ -318,11 +328,13 @@ class TestWhiteBackgroundBugFixes:
     design tokens instead so they track dark mode."""
 
     def test_step_btn_uses_design_token(self):
-        body = TEMPLATE_BODY
+        # Look in CSS_BODY (template + improvements.css) since PR4 moved
+        # the <style> block to app-improvements.css.
+        body = CSS_BODY
         # Find the .step-btn { ... } block, but strip comments first
         body_no_comments = re.sub(r'/\*.*?\*/', '', body, flags=re.DOTALL)
         m = re.search(r'\.step-btn\s*\{([^}]*)\}', body_no_comments, re.DOTALL)
-        assert m, ".step-btn rule not found in template"
+        assert m, ".step-btn rule not found in template or app-improvements.css"
         block = m.group(0)
         assert "var(--color-card, #fff)" not in block, \
             ".step-btn still uses the broken var(--color-card, #fff) fallback"
@@ -330,7 +342,7 @@ class TestWhiteBackgroundBugFixes:
             ".step-btn must use --color-surface so it tracks dark mode"
 
     def test_production_row_has_pedido_uses_design_token(self):
-        body = TEMPLATE_BODY
+        body = CSS_BODY
         assert "var(--color-info-bg, #eff6ff)" not in body, \
             ".production-row--has-pedido still uses broken var(--color-info-bg, #eff6ff) fallback"
         m = re.search(

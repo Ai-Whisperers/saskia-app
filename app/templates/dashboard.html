@@ -9,7 +9,7 @@
 <aside class="sazon-welcome-banner" role="status" data-sazon-welcome
      style="background:#fff7ed;border:1px solid #fdba74;border-radius:.5rem;padding:.75rem 1rem;margin-bottom:1rem;display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
   <span style="font-size:1.5rem;" aria-hidden="true">🐄</span>
-  <div style="flex:1;min-width:240px;">
+  <div class="flex-1" style="flex:1;min-width:240px;">
     <strong>{{ sazon_tenant_name }}</strong> está lista.
     <span class="muted" style="color:#6b7280;">
       Sembrado el {{ sazon_seeded_at[:10] if sazon_seeded_at else '—' }} ·
@@ -84,7 +84,7 @@
 </div>
 {% endif %}
 
-<div class="kpi-row" style="display:flex;flex-direction:column;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
+<div class="kpi-row d-flex" style="display:flex;flex-direction:column;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
   {{ ui.skeleton_section(id="dashboard-kpis", variant="kpi", count=4, label="Cargando indicadores del mes") }}
   <div data-loaded-section="dashboard-kpis">
     {# P-35.1: KPIs grouped into 3 named sections so operator's eye can
@@ -209,7 +209,7 @@
 {% endif %}
 </div>
 
-<h2 style="margin-top:2rem;"><svg class="icon" aria-hidden="true"><use href="#icon-ops"/></svg>  Operación</h2>
+<h2 class="mt-8" ><svg class="icon" aria-hidden="true"><use href="#icon-ops"/></svg>  Operación</h2>
 {{ ui.skeleton_section(id="dashboard-ops", variant="kpi", count=4, label="Cargando operación") }}
 <div class="kpi-strip" style="flex-wrap:wrap;" data-loaded-section="dashboard-ops">
   <a href="/shopping-list" style="text-decoration:none;color:inherit;" class="metric-card metric-card--compact">
@@ -234,7 +234,7 @@
   </a>
 </div>
 
-<p class="muted" style="margin-top:2rem;">
+<p class="muted mt-8" >
   Datos locales. Objetivos preconfigurados.
   {{ tx_count_this_month }} transacciones este mes.
 </p>

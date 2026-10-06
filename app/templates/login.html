@@ -8,7 +8,7 @@
   <div style="text-align: center; margin-bottom: 1.5rem;">
     <img src="/static/logo.svg" alt="Sazón" width="64" height="64" style="margin: 0 auto 12px; display: block;">
     <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 4px;">{{ branding.business_name }}</h1>
-    <p class="text-muted" style="font-size: 14px;">{{ branding.tagline }}</p>
+    <p class="text-muted text-sm" >{{ branding.tagline }}</p>
   </div>
 
   {# Hero illustration #}
@@ -131,10 +131,10 @@
     </div>
 
     <div class="form-actions">
-      <label style="display:flex;align-items:center;gap:.5rem;font-size:var(--text-sm);margin-bottom:var(--space-4);">
+      <label class="d-flex" style="display:flex;align-items:center;gap:.5rem;font-size:var(--text-sm);margin-bottom:var(--space-4);">
           <input type="checkbox" name="remember" value="1"> Recordar este dispositivo
         </label>
-        <button type="submit" class="btn btn-primary btn-pill" style="width: 100%;">
+        <button type="submit" class="btn btn-primary btn-pill w-100" >
         <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
         Ingresar
       </button>
@@ -142,7 +142,7 @@
   </form>
 
   <div style="margin-top: 1.5rem; border-top: 1px solid #e5e7eb; padding-top: 1rem;">
-    <p class="text-muted" style="font-size: 12px;">
+    <p class="text-muted text-xs" >
       Al usar este sistema aceptás los
       <a href="/guia">términos de accesibilidad</a>.
     </p>
@@ -169,7 +169,7 @@
     ·
     <a href="mailto:ivan@ai-whisperers.dev">Contactar al administrador</a>
   </p>
-  <p class="hint hint-muted" style="font-size: 12px;">
+  <p class="hint hint-muted text-xs" >
     Te enviamos un link al correo para crear una contraseña nueva.
     Si no te llega en 5 minutos, revisá spam o pedile a Iván que te lo resetee.
   </p>

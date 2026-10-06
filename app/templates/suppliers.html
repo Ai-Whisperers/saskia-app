@@ -63,13 +63,13 @@
         {# Soft-delete (preserves history). Reactivation lives at the
            same endpoint pattern. Inactive rows still render below. #}
         {% if s.is_active %}
-        <form method="post" action="/suppliers/{{ s.id }}/eliminar" style="display:inline;"
-              class="js-confirm-form" data-confirm-title="¿Desactivar proveedor?" data-confirm-body="¿Desactivar {{ fmt.entity_name(s) }}? Los ingredientes vinculados conservan su referencia pero el proveedor no aparece en /reorder. Podés reactivarlo después." data-confirm-danger="true">
+        <form method="post" action="/suppliers/{{ s.id }}/eliminar" 
+              class="js-confirm-form d-inline" data-confirm-title="¿Desactivar proveedor?" data-confirm-body="¿Desactivar {{ fmt.entity_name(s) }}? Los ingredientes vinculados conservan su referencia pero el proveedor no aparece en /reorder. Podés reactivarlo después." data-confirm-danger="true">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button type="submit" class="btn btn-sm btn-danger">Desactivar</button>
         </form>
         {% else %}
-        <form method="post" action="/suppliers/{{ s.id }}/reactivar" style="display:inline;">
+        <form class="d-inline" method="post" action="/suppliers/{{ s.id }}/reactivar" >
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button type="submit" class="btn btn-sm btn-good">
             <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>

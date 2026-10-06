@@ -14,38 +14,7 @@
 {% endblock %}
 
 {% block content %}
-<style>
-@media print {
-  /* Hide everything except the receipt container */
-  nav, .sidebar, .topbar, .btn, a[href], footer, .no-print { display: none !important; }
 
-  /* Constrain to 80mm thermal width (~300px at 96dpi) */
-  .container { max-width: 300px !important; margin: 0 auto !important; }
-
-  /* Remove card shadows/padding to save space */
-  .card {
-    box-shadow: none !important;
-    border: 1px solid #ccc !important;
-    padding: 8px 4px !important;
-    page-break-inside: avoid;
-  }
-  .card + .card { margin-top: 4px; }
-
-  /* Collapse spacing */
-  [style*="margin-bottom"] { margin-bottom: 4px !important; }
-  hr { margin: 4px 0 !important; }
-
-  /* Voided banner must print */
-  .voided-banner { display: flex !important; page-break-before: avoid; }
-}
-
-/* BACKLOG #17 — public_mode hides nav chrome for the customer-facing
-   receipt. The "Imprimir" button stays so the customer can still save
-   the page as PDF. */
-{% if public_mode %}
-.public-shell { padding-top: var(--space-4); }
-{% endif %}
-</style>
 <div class="container {% if public_mode %}public-shell{% endif %}" style="max-width: 360px;">
 
   {% if sale.voided_at %}
@@ -56,7 +25,7 @@
   </div>
   {% endif %}
 
-  <div class="card" style="text-align: center;">
+  <div class="card text-center" >
     <h1 style="font-size: var(--text-xl); margin-bottom: var(--space-2);">
       <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
       Sazón
@@ -73,16 +42,16 @@
 
   <div class="card">
     <div class="metric-label">Venta</div>
-    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+    <div class="flex-between-mb-2" >
       <span>Número</span>
       <strong>#{{ sale.id }}</strong>
     </div>
-    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+    <div class="flex-between-mb-2" >
       <span>Fecha</span>
       <span>{{ sale.sold_at_str }}</span>
     </div>
     {% if sale.fulfilled_by %}
-    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+    <div class="flex-between-mb-2" >
       <span>Atendido por</span>
       <span>{{ sale.fulfilled_by }}</span>
     </div>
@@ -102,21 +71,21 @@
     </div>
 
     {% if sale.discount_gs and sale.discount_gs > 0 %}
-    <div class="text-danger" style="display: flex; justify-content: space-between;  margin-bottom: var(--space-2)">
+    <div class="text-danger flex-between-mb-2" >
       <span>Descuento</span>
       <span>− {{ m.gs(sale.discount_gs) }}</span>
     </div>
     {% endif %}
 
     {% if sale.payment_method %}
-    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+    <div class="flex-between-mb-2" >
       <span>Pago</span>
       <span class="badge badge-neutral">{{ sale.payment_method }}</span>
     </div>
     {% endif %}
 
     {% if sale.customer_phone %}
-    <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-2);">
+    <div class="flex-between-mb-2" >
       <span>Cliente</span>
       <span>{{ sale.customer_phone }}</span>
     </div>
@@ -126,7 +95,7 @@
     <hr>
     <div>
       <div class="metric-label">Notas</div>
-      <p style="font-size: var(--text-sm);">{{ sale.notes }}</p>
+      <p class="text-sm" >{{ sale.notes }}</p>
     </div>
     {% endif %}
   </div>
@@ -137,10 +106,10 @@
        sale this is the ONLY place the operator tells the customer "vos
        ganaste 5 puntos" — so make it loud. #}
     {% if loyalty_snapshot and loyalty_snapshot.customer_name %}
-    <div class="loyalty-receipt-footer" style="margin-top:var(--space-3);
+    <div class="loyalty-receipt-footer mt-3 d-flex" style="margin-top:var(--space-3);
               padding-top:var(--space-3); border-top:1px dashed #999;
               text-align:left;">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;">
+      <div class="d-flex" style="display:flex;justify-content:space-between;align-items:baseline;">
         <strong style="color:var(--color-text,#222);">{{ loyalty_snapshot.customer_name }}</strong>
         <span style="font-size:0.9rem;">⭐ Saldo: {{ loyalty_snapshot.current_balance }} pts</span>
       </div>
@@ -159,7 +128,7 @@
     {% endif %}
 
     {% if not sale.voided_at %}
-    <p style="margin-top:var(--space-3);">¡Gracias por tu compra!</p>
+    <p class="mt-3" >¡Gracias por tu compra!</p>
     <p>Este recibo no es un comprobante fiscal.</p>
     {% else %}
     <p class="text-danger"><strong>Esta venta fue anulada.</strong></p>
@@ -167,8 +136,8 @@
 
     {# Cambio para pagos en efectivo #}
     {% if sale.payment_method|lower == 'efectivo' and sale.amount_paid and sale.amount_paid > sale.total_gs %}
-    <p style="margin-top:var(--space-2);">
-      Cambio: <strong style="font-size:var(--text-md);">{{ m.gs((sale.amount_paid - sale.total_gs)|int) }}</strong>
+    <p class="mt-2" >
+      Cambio: <strong class="text-md" >{{ m.gs((sale.amount_paid - sale.total_gs)|int) }}</strong>
     </p>
     {% endif %}
 

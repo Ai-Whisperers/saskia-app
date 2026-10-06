@@ -13,9 +13,9 @@
    Removed the recipe-card form from this page; whole-batch waste is now
    logged inline from the production shift-execution table. #}
 <div class="card mb-4" style="background: var(--color-surface-muted, #f8fafc); border-left: 4px solid var(--color-warning, #f59e0b);">
-  <div class="card-body" style="display:flex; align-items:center; gap:var(--space-3); flex-wrap:wrap;">
+  <div class="card-body d-flex" style="display:flex; align-items:center; gap:var(--space-3); flex-wrap:wrap;">
     <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
-    <div style="flex:1; min-width: 240px;">
+    <div class="flex-1" style="flex:1; min-width: 240px;">
       <strong>¿Perdiste una tanda entera?</strong>
       <p class="text-muted" style="margin: var(--space-1) 0 0 0; font-size: var(--text-sm);">
         Andá a <a href="/produccion?view=day">/producción</a> y usá el botón
@@ -28,11 +28,11 @@
 </div>
 
 {# --- Date range presets --- #}
-<div class="filters-form" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;margin-bottom:var(--space-4);">
+<div class="filters-form d-flex" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;margin-bottom:var(--space-4);">
   <a href="{{ preset_url_7 }}" class="btn btn-sm {% if days == 7 %}btn-primary{% else %}btn-ghost{% endif %}">7 días</a>
   <a href="{{ preset_url_30 }}" class="btn btn-sm {% if days == 30 %}btn-primary{% else %}btn-ghost{% endif %}">30 días</a>
   <a href="{{ preset_url_90 }}" class="btn btn-sm {% if days == 90 %}btn-primary{% else %}btn-ghost{% endif %}">90 días</a>
-  <form method="get" action="/merma" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;">
+  <form class="d-flex" method="get" action="/merma" style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;">
     <label for="since">Desde:</label>
     <ui-date id="since" name="since" value="{{ since }}"></ui-date>
     <label for="until">Hasta:</label>
@@ -104,7 +104,7 @@
   </div>
   {% else %}
   <div class="card-body">
-    <p class="text-muted" style="margin: 0;">
+    <p class="text-muted m-0" >
       No registraste merma hoy. Si perdiste algo, usá el formulario de arriba.
     </p>
   </div>
@@ -202,7 +202,7 @@
      panel); the breakdown by ingredient is the operator-facing detail
      and lives in /auditoria. #}
   {% if top_ingredients %}
-  <div style="margin-top:var(--space-3);">
+  <div class="mt-3" >
     <p class="text-muted" style="margin:0 0 var(--space-2) 0;">
       {{ top_ingredients|length }} ingredientes con merma en este período.
       <a href="/auditoria?source=merma">Ver detalle por ingrediente en /auditoria →</a>
@@ -213,14 +213,14 @@
   {# ASCII bar chart for top ingredients — keep for the at-a-glance chart
      but only render when the dataset is small enough to be readable. #}
   {% if impact.total_cost_gs > 0 %}
-  <div style="margin-top:var(--space-3);">
+  <div class="mt-3" >
     <h4>Gráfico de merma</h4>
     {% for ing_id, ing_name, cost in top_ingredients[:8] %}
     {% set pct = (cost / impact.total_cost_gs * 100)|round(1) %}
     {% set bar_len = (pct / 5)|round|int %}
-    <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:2px;">
-      <span style="min-width:12rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.85rem;">{{ ing_name }}</span>
-      <div style="display:inline-flex;width:{{ (bar_len * 10) + 40 }}px;min-width:40px;">
+    <div class="d-flex" style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:2px;">
+      <span class="d-inline-flex" style="min-width:12rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.85rem;">{{ ing_name }}</span>
+      <div class="d-inline-flex" style="display:inline-flex;width:{{ (bar_len * 10) + 40 }}px;min-width:40px;">
         <div style="background:var(--color-danger);height:1rem;border-radius:2px;width:{{ bar_len * 10 }}px;"></div>
       </div>
       <span class="num" style="font-size:0.85rem;min-width:4rem;text-align:right;">{{ "%.0f"|format(pct) }}%</span>

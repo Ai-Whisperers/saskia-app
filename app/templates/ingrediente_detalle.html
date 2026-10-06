@@ -6,7 +6,7 @@
 {% block title %}{{ fmt.entity_name(ingredient) }}{% endblock %}
 
 {% block content %}
-<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap;margin-bottom:var(--space-4);">
+<div class="d-flex" style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap;margin-bottom:var(--space-4);">
   <div>
     <p style="margin:0 0 var(--space-2);">
       <a href="/inventario" class="btn btn-sm btn-ghost">
@@ -14,12 +14,12 @@
         Volver al inventario
       </a>
     </p>
-    <h1 style="margin:0;">
+    <h1 class="m-0" >
       <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
       {{ fmt.entity_name(ingredient) }}
     </h1>
   </div>
-  <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;">
+  <div class="flex-gap-2-wrap" >
     <button type="button" class="btn btn-secondary" onclick="openAdjustModal('{{ ingredient.id }}', '{{ fmt.entity_name(ingredient) }}', {{ ingredient.stock_qty }}, '{{ ingredient.unit }}', {{ ingredient.min_stock_qty or 0 }})">
       <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
       Ajustá stock
@@ -194,8 +194,8 @@
     <strong>{{ "%.2f"|format(variants_rollup.base_qty) }} {{ variants_rollup.base_unit }}</strong>
     en {{ variants_rollup.variant_count }} variante{{ '' if variants_rollup.variant_count == 1 else 's' }}.
   </p>
-  <div style="margin-bottom:var(--space-2);">
-    <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:var(--text-sm);">
+  <div class="mb-2 d-flex" >
+    <label class="d-flex" style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:var(--text-sm);">
       <input type="checkbox" id="toggle-exhausted" checked onchange="toggleExhaustedVariants(this.checked)">
       Mostrar agotados
     </label>
@@ -228,12 +228,12 @@
         <td>{{ v.notes or '' }}</td>
         <td>
           {% if not v.preferred %}
-          <form method="post" action="/inventario/{{ ingredient.id }}/variantes/{{ v.variant_id }}/preferir" style="display:inline;">
+          <form class="d-inline" method="post" action="/inventario/{{ ingredient.id }}/variantes/{{ v.variant_id }}/preferir" >
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn btn-sm btn-ghost">Marcar preferida</button>
           </form>
           {% endif %}
-          <form method="post" action="/inventario/{{ ingredient.id }}/variantes/{{ v.variant_id }}/eliminar" style="display:inline;" class="js-confirm-form" data-confirm-title="¿Eliminar variante?" data-confirm-body="Esta acción no se puede deshacer.">
+          <form method="post" action="/inventario/{{ ingredient.id }}/variantes/{{ v.variant_id }}/eliminar"  class="js-confirm-form d-inline" data-confirm-title="¿Eliminar variante?" data-confirm-body="Esta acción no se puede deshacer.">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
           </form>
@@ -347,35 +347,6 @@
   <p class="muted">Sin datos para pronosticar.</p>
   {% endif %}
 </section>
-
-<style>
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-  margin: 1.5rem 0;
-}
-.detail-card {
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
-  padding: 1rem;
-}
-.detail-card h2 {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.75rem;
-}
-.detail-card dl { display: grid; grid-template-columns: auto 1fr; gap: 0.4rem 1rem; }
-.detail-card dt { color: var(--color-text-muted); font-size: 0.875rem; }
-.detail-card dd { font-weight: 500; }
-/* Variants: inactive / exhausted style */
-.variant-exhausted td { opacity: 0.45; }
-.variant-exhausted td:first-child { text-decoration: line-through; }
-</style>
 
 <script>
 function toggleExhaustedVariants(show) {

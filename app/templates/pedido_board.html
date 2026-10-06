@@ -5,100 +5,7 @@
 
 {% block extra_head %}
 <meta http-equiv="refresh" content="30">
-<style>
-  body { background: #111; color: #eee; font-size: 18px; }
-  h1 { color: #fff; margin-bottom: .5em; }
-  h2 { color: #aaa; font-size: 1.1rem; text-transform: uppercase; letter-spacing: .1em; margin: 1.5em 0 .5em; }
-  .board-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
-  .order-card {
-    background: #1a1a1a;
-    border: 2px solid #333;
-    border-radius: 12px;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: .5rem;
-  }
-  .order-card.is-pending { border-color: #f59e0b; }
-  .order-card.is-confirmed { border-color: #3b82f6; }
-  .order-card.is-ready { border-color: #22c55e; }
-  .order-card.overdue { border-color: #ef4444; }
-  .order-card.approaching {
-    border-color: #facc15;
-    box-shadow: 0 0 12px rgba(250, 204, 21, 0.3);
-  }
-  .card-header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
-  .card-id, .card-status { flex-shrink: 0; }
-  .card-header-note { min-width: 0; overflow-wrap: anywhere; }
-  .card-id { font-size: 1.4rem; font-weight: 700; color: #fff; }
-  .card-status {
-    padding: .2em .6em;
-    border-radius: 4px;
-    font-size: .75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-  .status-pending { background: #92400e; color: #fde68a; }
-  .status-confirmed { background: #1e3a8a; color: #bfdbfe; }
-  .status-ready { background: #14532d; color: #bbf7d0; }
-  .card-promise {
-    font-size: 1rem;
-    color: #9ca3af;
-  }
-  .card-promise.is-overdue { color: #f87171; font-weight: 700; }
-  .card-promise.is-approaching { color: #facc15; font-weight: 700; }
-  .card-customer { font-weight: 600; color: #e5e7eb; }
-  .card-items { list-style: none; padding: 0; margin: 0; border-top: 1px solid #333; padding-top: .5rem; }
-  .card-items li { padding: .2rem 0; font-size: 1rem; }
-  .card-items .item-qty { color: #60a5fa; font-weight: 700; margin-right: .3em; }
-  .card-items .item-name { color: #d1d5db; }
-  .card-items .item-note { font-size: .85em; color: #6b7280; margin-left: 1.2em; }
-  .card-footer { border-top: 1px solid #333; padding-top: .5rem; font-size: .9rem; color: #6b7280; }
-  .card-header-note {
-    font-size: .85rem;
-    color: #fde68a;
-    background: rgba(245, 158, 11, 0.1);
-    border-radius: 4px;
-    padding: .2rem .5rem;
-    margin-top: .2rem;
-  }
-  .card-elapsed {
-    font-size: .75rem;
-    color: #9ca3af;
-    text-align: right;
-  }
-  .card-elapsed.long { color: #f87171; }
-  .board-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
-  .board-nav a { color: #60a5fa; font-size: .9rem; }
-  .count-badge { background: #333; color: #fff; border-radius: 50%; width: 1.5em; height: 1.5em; display: inline-flex; align-items: center; justify-content: center; font-size: .8rem; margin-left: .3em; }
 
-  /* Category color stripes — left border per product category */
-  .category-stripe { border-left: 4px solid #666; }
-  .category-stripe--bakery { border-left-color: #f59e0b; }
-  .category-stripe--coffee { border-left-color: #78350f; }
-  .category-stripe--pastry { border-left-color: #ec4899; }
-  .category-stripe--drink { border-left-color: #06b6d4; }
-  .category-stripe--snack { border-left-color: #84cc16; }
-  .category-stripe--dessert { border-left-color: #a855f7; }
-  .category-stripe--bread { border-left-color: #eab308; }
-  .category-stripe--default { border-left-color: #6b7280; }
-
-  /* Board filter controls */
-  .board-filters { display: flex; align-items: center; gap: .5rem; margin-bottom: 1rem; flex-wrap: wrap; }
-  .board-filters .filter-btn { background: #1a1a1a; color: #9ca3af; border: 1px solid #333; border-radius: 6px; padding: .3em .8em; font-size: .85rem; cursor: pointer; }
-  .board-filters .filter-btn.active { background: #333; color: #fff; border-color: #60a5fa; }
-  .board-filters .filter-btn:hover { border-color: #60a5fa; }
-
-  /* Revenue summary bar */
-  .board-revenue { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: .5rem 1rem; font-size: .9rem; color: #9ca3af; margin-bottom: 1rem; display: inline-flex; gap: 1.5rem; }
-  .board-revenue strong { color: #fff; }
-
-  /* Mispriced row highlight for vs-mercado */
-  .mispriced-row { background: rgba(239, 68, 68, 0.08) !important; }
-
-  /* JS clock blink on update */
-  .clock-live { font-variant-numeric: tabular-nums; }
-</style>
 {% endblock %}
 
 {% block content %}
@@ -274,21 +181,21 @@
   ("En preparación", kanban_confirmed, "info"),
   ("Listos para retiro", kanban_ready, "ok"),
 ] %}
-<div class="kds-kanban" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-4);margin-bottom:var(--space-6);" aria-label="Pedidos por estado">
+<div class="kds-kanban d-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-4);margin-bottom:var(--space-6);" aria-label="Pedidos por estado">
   {% for label, col, sev in cols %}
-  <section class="card" style="margin:0;">
+  <section class="card m-0" >
     <h2 style="font-size:var(--text-md);display:flex;align-items:center;gap:var(--space-2);">
       {{ label }} <span class="count-badge">{{ col|length }}</span>
     </h2>
     {% for k in col %}
-    <div class="kds-card" style="border:1px solid var(--color-border);border-radius:var(--radius);padding:var(--space-3);margin-bottom:var(--space-2);">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div class="kds-card d-flex" style="border:1px solid var(--color-border);border-radius:var(--radius);padding:var(--space-3);margin-bottom:var(--space-2);">
+      <div class="d-flex" style="display:flex;justify-content:space-between;align-items:center;">
         <strong>{{ k.label }}</strong>
         {% import "_components/atoms.html" as a %}
         {{ a.status_pill_for(k.status) }}
       </div>
-      {% if k.customer %}<div class="text-muted" style="font-size:var(--text-sm);">{{ k.customer }}</div>{% endif %}
-      <div class="text-muted" style="font-size:var(--text-xs);">para {{ k.promised }}</div>
+      {% if k.customer %}<div class="text-muted text-sm" >{{ k.customer }}</div>{% endif %}
+      <div class="text-muted text-xs" >para {{ k.promised }}</div>
       {# Phase 14 (2026-10-01): ventana + invoice + delivery hint on the
          kitchen card. Helps prep staff pace ASAP vs scheduled deliveries. #}
       {% if k.ventana_text %}
@@ -302,7 +209,7 @@
       </div>
       {% endif %}
       {% if k.invoice_ruc %}
-      <div class="text-muted" style="font-size:var(--text-xs);">
+      <div class="text-muted text-xs" >
         🧾 {{ k.invoice_ruc }}{% if k.invoice_name %} — {{ k.invoice_name|truncate(20) }}{% endif %}
       </div>
       {% endif %}
@@ -311,7 +218,7 @@
         {% for ln in k.lines %}<li>{{ ln }}</li>{% endfor %}
       </ul>
       {% endif %}
-      <div class="row-actions" style="margin-top:var(--space-2);display:flex;gap:var(--space-2);">
+      <div class="row-actions mt-2" style="margin-top:var(--space-2);display:flex;gap:var(--space-2);">
         <a class="btn btn-sm" href="/pedidos/{{ k.id }}">Abrir</a>
       </div>
     </div>
@@ -327,7 +234,7 @@
 {{ render_group("Esta semana", pedidos_semana, now) }}
 
 {% if not pedidos_hoy and not pedidos_manana and not pedidos_semana %}
-<p class="text-muted" style="margin-top:2rem;">No hay pedidos pendientes. 🍰</p>
+<p class="text-muted mt-8" >No hay pedidos pendientes. 🍰</p>
 {% endif %}
 
 <script>

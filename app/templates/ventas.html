@@ -60,7 +60,7 @@
       <div class="pos-cart" id="pos-cart">
         <h2>
           Carrito
-          <span id="cart-count" class="cart-badge" style="display:none">0</span>
+          <span id="cart-count" class="cart-badge d-none" >0</span>
         </h2>
 
         <div id="cart-empty" class="cart-empty">
@@ -68,16 +68,16 @@
           <p>Tocá un producto o escaneá un código para empezar.</p>
         </div>
 
-        <div id="cart-items" style="display:none">
+        <div class="d-none" id="cart-items" >
           <table class="cart-table" aria-label="Ítems del carrito">
             <thead>
               <tr>
                 <th style="width:44px"></th>
                 <th>Producto</th>
-                <th style="text-align:right;width:110px">Precio</th>
-                <th style="text-align:right;width:72px">Cant.</th>
-                <th style="text-align:center;width:80px">Dto. %</th>
-                <th style="text-align:right;width:110px">Subtotal</th>
+                <th class="text-right" style="text-align:right;width:110px">Precio</th>
+                <th class="text-right" style="text-align:right;width:72px">Cant.</th>
+                <th class="text-center" style="text-align:center;width:80px">Dto. %</th>
+                <th class="text-right" style="text-align:right;width:110px">Subtotal</th>
                 <th style="width:36px"></th>
               </tr>
             </thead>
@@ -93,9 +93,9 @@
            it once the cart has items and picks suggestions by category
            (postre → café/agua; salado → bebida). Hidden when cart is
            empty so it never distracts during scan flow. #}
-        <div id="cross-sell-rail" style="display:none;margin-top:var(--space-2);border-top:1px solid var(--border);padding-top:var(--space-2);">
-          <small class="text-muted" style="display:block;margin-bottom:4px;">Sugerencias para sumar:</small>
-          <div id="cross-sell-items" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+        <div class="d-none d-block" id="cross-sell-rail" style="display:none;margin-top:var(--space-2);border-top:1px solid var(--border);padding-top:var(--space-2);">
+          <small class="text-muted d-block" style="display:block;margin-bottom:4px;">Sugerencias para sumar:</small>
+          <div class="d-flex" id="cross-sell-items" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
         </div>
       </div>{# /pos-cart #}
 
@@ -145,7 +145,7 @@
       {# ── Fiscal invoice + notas (compact) ── #}
       <fieldset class="form-row" style="border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-3); margin-top: var(--space-3);">
         <legend style="font-weight: 600; padding: 0 var(--space-2);">Comprobante fiscal</legend>
-        <div class="form-row" style="margin-bottom: var(--space-2);">
+        <div class="form-row mb-2" >
           <label for="invoice_type">Tipo</label>
           {{ ui.combo_field(
               name='invoice_type',
@@ -159,14 +159,14 @@
               ]
             ) }}
         </div>
-        <div id="invoice-customer-fields" style="display: none;">
-          <div class="form-row" style="margin-bottom: var(--space-2);">
+        <div class="d-none" id="invoice-customer-fields" >
+          <div class="form-row mb-2" >
             <label for="invoice_customer_ruc">RUC del cliente</label>
             <input type="text" id="invoice_customer_ruc" name="invoice_customer_ruc"
                    placeholder="80012345-6 o CI del cliente"
                    pattern="[0-9-]+">
           </div>
-          <div class="form-row" style="margin-bottom: 0;">
+          <div class="form-row mb-0" >
             <label for="invoice_customer_name">Razón social / Nombre</label>
             <input type="text" id="invoice_customer_name" name="invoice_customer_name"
                    placeholder="Cliente S.A.">
@@ -174,7 +174,7 @@
         </div>
       </fieldset>
 
-      <div class="form-row" style="margin-top: var(--space-3);">
+      <div class="form-row mt-3" >
         <label for="notes">Notas</label>
         <textarea id="notes" name="notes" rows="2" placeholder="Alias de transferencia, observaciones…"></textarea>
       </div>
@@ -192,7 +192,7 @@
         <button type="submit" form="sale-form" class="btn btn-primary" id="sale-submit-btn" disabled>
           <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
           <span id="submit-label">Registrá venta</span>
-          <span id="submit-count" style="display:none"></span>
+          <span class="d-none" id="submit-count" ></span>
         </button>
       </div>
 
@@ -719,11 +719,11 @@
             '<input type="number" class="cart-qty-input" min="1" step="1" value="' + item.qty + '" ' +
             'onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad" inputmode="numeric" pattern="\\d*"> ' +
           '</td>' +
-          '<td style="text-align:center">' +
+          '<td class="text-center" >' +
             '<input type="number" class="cart-discount-input" min="0" max="100" step="1" value="' + pct + '" ' +
             'onchange="setDiscountPct(' + idx + ', this.value)" aria-label="Descuento %">% ' +
           '</td>' +
-          '<td style="text-align:right">' +
+          '<td class="text-right" >' +
             '<div style="font-variant-numeric:tabular-nums">' + fmtGs(afterDiscount) + '</div>' +
             (discountGs > 0 ? '<div style="font-size:0.7rem;color:var(--destructive)">-' + fmtGs(discountGs) + '</div>' : '') +
           '</td>' +

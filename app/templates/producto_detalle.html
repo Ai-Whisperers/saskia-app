@@ -7,7 +7,7 @@
     <!-- Product Header -->
     <div class="card mb-4">
       <div class="card-body">
-        <div class="row-between" style="display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:center;justify-content:space-between;">
+        <div class="row-between d-flex" style="display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:center;justify-content:space-between;">
           <div>
             <h1>{{ product.name }}</h1>
             {% if product.category %}
@@ -17,7 +17,7 @@
             <span class="badge badge-warning" style="margin-left:var(--space-1);">Sin stock</span>
             {% endif %}
           </div>
-          <div class="row-actions" style="display:flex;gap:var(--space-2);">
+          <div class="row-actions d-flex" style="display:flex;gap:var(--space-2);">
             <a href="/productos/{{ product.id }}/editar" class="btn btn-primary">
               <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
               Editar
@@ -56,15 +56,15 @@
     </div>
 
     <!-- Two Column Section -->
-    <div class="two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-bottom:var(--space-4);">
+    <div class="two-col d-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-bottom:var(--space-4);">
       <!-- Left: Recipes Using -->
       <div class="card">
         <div class="card-body">
           <h3 class="card-title">Uso en recetas</h3>
           {% if recipes_using %}
-            <ul style="list-style:none;padding:0;margin:0;">
+            <ul class="d-flex" style="list-style:none;padding:0;margin:0;">
               {% for recipe in recipes_using %}
-              <li style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border, #eee);">
+              <li class="d-flex" style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border, #eee);">
                 <span>{{ recipe.name }}</span>
                 <a href="/recetas/{{ recipe.id }}" class="btn btn-ghost btn-sm">
                   Ver receta
@@ -82,7 +82,7 @@
       <div class="card">
         <div class="card-body">
           <h3 class="card-title">Ventas últimos 30 días</h3>
-          <div class="kpi-strip" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="kpi-strip d-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
             <div class="insight-card">
               <div class="insight-card__label">Unidades vendidas</div>
               <div class="insight-card__value">{{ last_30d_units }}</div>

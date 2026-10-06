@@ -99,7 +99,7 @@
 </div>
 {# CSV export — route does not yet support ?format=csv #}
 {#{% set csv_q = dict(request.query_params.multi_items()) %}{% set _ = csv_q.update({'format': 'csv'}) %}
-<a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-secondary" download="comparacion.csv" style="margin-top:var(--space-3);">
+<a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-secondary mt-3" download="comparacion.csv" >
   <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
   Exportar CSV
 </a>#}

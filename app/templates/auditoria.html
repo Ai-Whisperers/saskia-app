@@ -65,7 +65,7 @@
     </div>
 
     <div class="form-row">
-      <span class="text-muted" style="font-size: 12px;">Accesos rápidos:</span>
+      <span class="text-muted text-xs" >Accesos rápidos:</span>
       {% for label, (ps, pe) in presets.items() %}
       <a href="?start_date={{ ps }}&end_date={{ pe }}" class="btn btn-ghost btn-sm">{{ label }}</a>
       {% endfor %}
@@ -97,7 +97,7 @@
   </div>
   <p class="text-muted mb-3">Las entradas de auditoría se eliminan automáticamente después de 1 año.
      Podés eliminar las entradas más antiguas manualmente.</p>
-  <form method="post" action="/auditoria/prune" id="prune-form" style="display:none;">
+  <form class="d-none" method="post" action="/auditoria/prune" id="prune-form" >
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="idempotency_key" value="prune-{{ now|string|replace(' ', 'T')|replace(':', '') }}">
   </form>
@@ -124,7 +124,7 @@
 <div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);">
 {{ ui.skeleton_section(id="auditoria-table", variant="line", count=15, label="Cargando auditoría") }}
 <div data-loaded-section="auditoria-table">
-<table class="table is-striped" style="margin-bottom:0;">
+<table class="table is-striped mb-0" >
   <thead>
     <tr>
       <th>Fecha</th>

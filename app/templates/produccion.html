@@ -20,7 +20,7 @@
 {% block title %}Producción · {{ for_date }}{% endblock %}
 {% block content %}
 {% if template_nudge %}
-<div class="alert alert-warning" style="margin-bottom:1rem">
+<div class="alert alert-warning mb-6" >
   📋 Todavía no guardaste un plan semanal para este día — el plan se arma con
   el promedio de ventas. Después de una semana de ventas, andá a
   <a href="/produccion?view=week">vista semana → Guardar como plan semanal</a>
@@ -33,7 +33,7 @@
    The Día / Semana / Mes switcher is part of the header so bakers
    can flip between views without scrolling down to a buried drawer.
    ════════════════════════════════════════════════════════════════════ #}
-<div class="page-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-4); flex-wrap: wrap; gap: var(--space-3);">
+<div class="page-header d-flex" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-4); flex-wrap: wrap; gap: var(--space-3);">
   <div>
     <h1 style="display: flex; align-items: center; gap: var(--space-2); margin: 0;">
       <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
@@ -55,11 +55,11 @@
       {% endif %}
     </p>
     {% elif view == 'week' %}
-    <p class="hint" style="margin: var(--space-1) 0 0 0;">
+    <p class="hint mt-1-only" >
       Semana del <strong>{{ week_start }}</strong>
     </p>
     {% elif view == 'month' %}
-    <p class="hint" style="margin: var(--space-1) 0 0 0;">
+    <p class="hint mt-1-only" >
       <strong>{{ month_name }} {{ year }}</strong>
     </p>
     {% endif %}
@@ -69,13 +69,13 @@
        intuitive way to jump between days. Keyboard shortcuts (J/K/O/C)
        are handled separately in app/static/shortcuts.js. #}
     {% if view == 'day' %}
-    <div style="margin-top: var(--space-2);">
+    <div class="mt-2" >
       {% include "_components/day_nav.html" %}
     </div>
     {% endif %}
   </div>
 
-  <nav class="view-tabs" aria-label="Cambiar vista" role="tablist"
+  <nav class="view-tabs d-inline-flex" aria-label="Cambiar vista" role="tablist"
        style="display:inline-flex; gap: var(--space-1); padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius);">
     <a href="/produccion?view=day" class="btn btn-sm {% if view == 'day' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'day' else 'false' }}">Día</a>
     <a href="/produccion?view=week{% if view == 'week' and prev_week_iso %}&week={{ prev_week_iso }}{% endif %}" class="btn btn-sm {% if view == 'week' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'week' else 'false' }}">Semana</a>
@@ -91,21 +91,21 @@
      It was confusing — operators don't care if it's v1 or v2. The v1 vs v2
      choice is still reachable via ?ui=v1 query for engineers debugging.
      Keeping a hidden span for tests + accessibility tools. #}
-  <span class="ui-toggle sr-only"
-        style="display:none"
+  <span class="ui-toggle sr-only d-none"
+        
         aria-label="Versión del UI"
         title="UI v2 (DEMANDA, META, REAL, Pedidos)">
     v2
   </span>
 
-  <a href="/produccion/manana" class="btn"
-     style="display:inline-flex; align-items:center; gap: var(--space-2);">
+  <a href="/produccion/manana" class="btn inline-flex-center-gap-2"
+     >
     <svg class="icon" aria-hidden="true"><use href="#icon-spark"/></svg>
     Producción de mañana
     <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg>
   </a>
-  <a href="/produccion/accuracy" class="btn"
-     style="display:inline-flex; align-items:center; gap: var(--space-2);"
+  <a href="/produccion/accuracy" class="btn inline-flex-center-gap-2"
+     
      title="Precisión del plan vs. producción real">
     <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
     Precisión histórica
@@ -113,15 +113,15 @@
   </a>
   {# T-2026-10-04 (P0): printable worksheet for the kitchen shift #}
   <a href="/produccion/print?for_date={{ for_date }}"
-     class="btn"
-     style="display:inline-flex; align-items:center; gap: var(--space-2);"
+     class="btn inline-flex-center-gap-2"
+     
      title="Imprimí el plan de hoy para el turno">
     <svg class="icon" aria-hidden="true"><use href="#icon-print"/></svg>
     Imprimir
   </a>
   {# Sazon-Improvement v2 (2026-10-06) Phase C: copy last week's plan into
      this date. Saves ~20min on menu planning. Default source = 7d before. #}
-  <form method="post" action="/produccion/copy-last-week"
+  <form class="d-inline-flex" method="post" action="/produccion/copy-last-week"
         style="display:inline-flex; align-items:center; gap: var(--space-1);"
         onsubmit="if(!this.source_date.value) { event.preventDefault(); this.source_date.value = new Date(new Date(this.for_date.value).getTime() - 7*86400000).toISOString().split('T')[0]; this.submit(); }">
     <input type="hidden" name="for_date" value="{{ for_date }}">
@@ -139,8 +139,8 @@
      the daily plan into WhatsApp for the team or import into Excel.
      Downloadable from the page-header toolbar next to Imprimir. #}
   <a href="/produccion/export.csv?for_date={{ for_date }}"
-     class="btn btn-sm"
-     style="display:inline-flex; align-items:center; gap: var(--space-2);"
+     class="btn btn-sm inline-flex-center-gap-2"
+     
      download
      title="Descargá el plan de hoy en CSV (producto, cantidad, fuente, confianza)">
     <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
@@ -150,16 +150,16 @@
      T-2026-10-06 (UX): rename to "Hoja en blanco para imprimir" so the cook
      knows it produces a printable worksheet (not an empty PDF). #}
   <a href="/produccion/print?for_date={{ for_date }}&mode=worksheet"
-     class="btn btn-sm"
-     style="display:inline-flex; align-items:center; gap: var(--space-2);"
+     class="btn btn-sm inline-flex-center-gap-2"
+     
      title="Imprimí una hoja en blanco para anotar las cantidades a mano">
     <svg class="icon" aria-hidden="true"><use href="#icon-print"/></svg>
     Hoja en blanco para imprimir
   </a>
   {# T-2026-10-04 (P2): link to the weekly ingredient prep sheet. #}
   <a href="/produccion/prep"
-     class="btn"
-     style="display:inline-flex; align-items:center; gap: var(--space-2);"
+     class="btn inline-flex-center-gap-2"
+     
      title="Plan de preparación semanal (ingredientes agregados)">
     <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
     Prep semanal
@@ -177,7 +177,6 @@
 {% if view == 'day' %}
   {% include "_components/hero_stats.html" %}
 {% endif %}
-
 
 {# ════════════════════════════════════════════════════════════════════
    DAY VIEW
@@ -234,23 +233,23 @@
 </div>
 <div class="card mb-4" style="border-left: 4px solid var(--color-warning, #f59e0b);">
   <div class="card-header">
-    <h3 style="margin:0;">📦 Pedidos pendientes para hoy ({{ pending_pedidos|length }})</h3>
+    <h3 class="m-0" >📦 Pedidos pendientes para hoy ({{ pending_pedidos|length }})</h3>
     <small class="text-muted">US 4.4 — El cocinero ve estos pedidos antes que el plan automático. Click para abrir el detalle.</small>
   </div>
   <div class="card-body">
     <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-3);">
       {% for p in pending_pedidos %}
-      <li style="padding:var(--space-3);background:var(--color-surface-subtle, #f8fafc);border-radius:var(--radius);border:1px solid var(--color-border);">
-        <div style="display:flex;justify-content:space-between;align-items:start;gap:var(--space-3);flex-wrap:wrap;">
+      <li class="d-flex" style="padding:var(--space-3);background:var(--color-surface-subtle, #f8fafc);border-radius:var(--radius);border:1px solid var(--color-border);">
+        <div class="d-flex" style="display:flex;justify-content:space-between;align-items:start;gap:var(--space-3);flex-wrap:wrap;">
           <div>
             <strong><a href="/pedidos/{{ p.id }}" class="text-link">Pedido #{{ p.id }} — {{ p.customer_name }}</a></strong>
             {% if p.customer_phone %}<small class="text-muted"> · {{ p.customer_phone }}</small>{% endif %}
-            {% if p.promised_time %}<span class="badge" style="margin-left:var(--space-2);">⏰ {{ p.promised_time }}</span>{% endif %}
-            <span class="badge badge-info" style="margin-left:var(--space-2);">{{ p.channel }}</span>
-            <span class="badge badge-{{ 'warning' if p.status == 'pending' else 'success' if p.status == 'ready' else 'info' }}" style="margin-left:var(--space-2);">{{ p.status }}</span>
+            {% if p.promised_time %}<span class="badge ml-2" >⏰ {{ p.promised_time }}</span>{% endif %}
+            <span class="badge badge-info ml-2" >{{ p.channel }}</span>
+            <span class="badge badge-{{ 'warning' if p.status == 'pending' else 'success' if p.status == 'ready' else 'info' }} ml-2 mt-2" >{{ p.status }}</span>
           </div>
         </div>
-        <ul style="margin-top:var(--space-2);padding-left:var(--space-5);">
+        <ul class="mt-2" style="margin-top:var(--space-2);padding-left:var(--space-5);">
           {% for it in p.line_items %}
           <li>{{ it.qty }} × {{ it.product_name }} ({{ m.gs_full(it.unit_price_gs) }})</li>
           {% endfor %}
@@ -288,7 +287,7 @@
   {% if substitution_suggestions %}
   {# V5: Allow the summary text to wrap properly so the parentheses
      with the threshold don't get truncated. #}
-  <details style="margin-top: var(--space-2);">
+  <details class="mt-2" >
     <summary style="cursor: pointer; font-weight: 600; white-space: normal;">
       🔄 Sustitutos sugeridos (modelo ingredientes / similitud ≥0.3)
     </summary>
@@ -319,7 +318,7 @@
     </div>
   </details>
   {% endif %}
-  <a href="/reorder" class="btn btn-sm btn-secondary" style="margin-top: var(--space-2);">Reponer ahora →</a>
+  <a href="/reorder" class="btn btn-sm btn-secondary mt-2" >Reponer ahora →</a>
 </div>
 {% endif %}
 
@@ -388,7 +387,7 @@
       {% endfor %}
     </span>
     {% endif %}
-    <a href="/produccion/haccp?for_date={{ for_date }}" style="margin-left: var(--space-2);">Registr&aacute; ahora →</a>
+    <a class="ml-2" href="/produccion/haccp?for_date={{ for_date }}" >Registr&aacute; ahora →</a>
   </small>
 </div>
 {% endif %}
@@ -427,8 +426,8 @@
   {# T-2026-10-04 (Tier 4-E): end-of-shift nudge to /ventas/nueva.
      After saving, offer the cook a quick path to log the day's
      sales — they're already at the laptop with the screen open. #}
-  <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
-    <a href="/ventas/nueva" class="btn btn-sm"
+  <div class="flex-gap-2-wrap d-inline-flex" >
+    <a href="/ventas/nueva" class="btn btn-sm d-inline-flex"
        style="display:inline-flex; align-items:center; gap: var(--space-1);"
        title="Registrá una venta ahora que ya cerraste el turno">
       <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
@@ -436,7 +435,7 @@
     </a>
     {# T-2026-10-04 (Tier 5-J): link to audit log filtered by production_shift. #}
     <a href="/auditoria?target_type=production_shift"
-       class="btn btn-sm btn-ghost"
+       class="btn btn-sm btn-ghost d-inline-flex"
        style="display:inline-flex; align-items:center; gap: var(--space-1);"
        title="Ver cambios recientes de producción en la auditoría">
       <svg class="icon" aria-hidden="true"><use href="#icon-audit"/></svg>
@@ -460,7 +459,7 @@
     reales (columna <em>Real</em>) coincidan con lo que se hornó.
   </small>
   <a href="/produccion?for_date={{ for_date }}&view=day"
-     class="btn btn-sm btn-ghost"
+     class="btn btn-sm btn-ghost d-inline-flex"
      style="display:inline-flex; align-items:center; gap: var(--space-1);"
      title="Recargá la página para ver los valores más recientes">
     <svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>
@@ -483,7 +482,7 @@
     reales (columna <em>Real</em>) coincidan con lo que se hornó.
   </small>
   <a href="/produccion?for_date={{ for_date }}&view=day"
-     class="btn btn-sm btn-ghost"
+     class="btn btn-sm btn-ghost d-inline-flex"
      style="display:inline-flex; align-items:center; gap: var(--space-1);"
      title="Recargá la página para ver los valores más recientes">
     <svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>
@@ -586,7 +585,7 @@
      data-yesterday-count="{{ yesterday_count }}">
   <div>
     <strong>📅 Ayer hiciste: {{ "%.0f"|format(yesterday_total_qty) }} unidades</strong>
-    <span class="text-muted" style="font-size: var(--text-sm);">
+    <span class="text-muted text-sm" >
       en {{ yesterday_count }} producto{{ 's' if yesterday_count != 1 else '' }}
     </span>
     <p class="text-muted" style="margin: var(--space-1) 0 0 0; font-size: var(--text-sm);">
@@ -1028,7 +1027,7 @@
      <details> toggle so the operator can review them when needed
      but they're not in the main scroll path. #}
   {% if zero_demand_rows %}
-  <details class="zero-demand-block" style="margin-top: var(--space-3);">
+  <details class="zero-demand-block mt-3" >
     <summary style="cursor: pointer; padding: var(--space-2) var(--space-3); background: var(--color-surface-subtle, #f3f4f6); border-radius: var(--radius); font-weight: 600; color: var(--color-text);">
       📋 Sin demanda reciente — {{ zero_demand_rows|length }} producto{{ '' if zero_demand_rows|length == 1 else 's' }}
       <small class="text-muted" style="font-weight: 400; margin-left: var(--space-2);">
@@ -1036,7 +1035,7 @@
       </small>
     </summary>
     <div style="margin-top: var(--space-2); overflow-x: auto;">
-      <table class="table is-hoverable is-striped" style="font-size: var(--text-sm);">
+      <table class="table is-hoverable is-striped text-sm" >
         <thead>
           <tr>
             <th>Producto</th>
@@ -1117,7 +1116,7 @@
         sobras que decidiste usar. Aparece abajo en la tabla con badge naranja.
       </p>
     </div>
-    <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+    <div class="flex-gap-2-wrap" >
       <button type="button" class="btn btn-primary"
               data-action="open-adhoc-modal">
         + Agregá horneado extra
@@ -1146,7 +1145,7 @@
       La cabecera es opcional. <strong>Max 200 filas</strong> por lote.
       Líneas inválidas se omiten con aviso — no rompen el lote entero.
     </p>
-    <details style="margin-bottom: var(--space-3);">
+    <details class="mb-3" >
       <summary style="cursor: pointer; font-weight: 600;">🔍 ¿Cómo encuentro el product_id?</summary>
       <div style="margin-top: var(--space-2); font-size: var(--text-xs);">
         <p>Ejemplo (sin cabecera, con notas):</p>
@@ -1155,7 +1154,7 @@
 12,3.0,Sobrante de masa</pre>
       </div>
     </details>
-    <label for="adhoc-bulk-csv" style="display: block; margin-bottom: var(--space-1); font-weight: bold;">CSV</label>
+    <label class="block-bold" for="adhoc-bulk-csv" >CSV</label>
     <textarea name="csv" id="adhoc-bulk-csv" required rows="10"
               style="width: 100%; font-family: monospace; font-size: 13px;"
               placeholder="42,1.5,Cliente VIP&#10;16,2.0,&#10;12,3.0,Sobrante"></textarea>
@@ -1187,7 +1186,7 @@
       definir un plan recurrente para cada día de la semana, registrar tu
       primera venta, o <strong>agregar un producto manualmente al plan de hoy</strong>.
     </p>
-    <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+    <div class="flex-gap-2-wrap" >
       <button type="button" class="btn btn-primary" data-action="open-adhoc-modal"
               title="Elegí un producto y la cantidad a producir hoy">
         + Agregá producto al plan
@@ -1203,9 +1202,9 @@
        Top-N products with one-click "venta de 1 unidad" CTA.
        Reduces friction vs going into /ventas/nueva and searching. #}
     {% if seed_products %}
-    <div class="quick-seed" data-quick-seed
+    <div class="quick-seed d-block" data-quick-seed
          style="margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--color-border);">
-      <small class="text-muted" style="display:block; margin-bottom: var(--space-2);">
+      <small class="text-muted d-block" style="display:block; margin-bottom: var(--space-2);">
         O registrá 1 venta rápida de un producto:
       </small>
       <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
@@ -1227,7 +1226,7 @@
       por día de la semana. El plan se calcula solo con promedio de 14 días.
       <strong>Mientras tanto, podés agregar un producto al plan de hoy.</strong>
     </p>
-    <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+    <div class="flex-gap-2-wrap" >
       <button type="button" class="btn btn-primary" data-action="open-adhoc-modal"
               title="Elegí un producto y la cantidad a producir hoy">
         + Agregá producto al plan
@@ -1243,7 +1242,7 @@
       de historial. Ajustá manualmente o esperá más ventas para que el promedio
       se estabilice.
     </p>
-    <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+    <div class="flex-gap-2-wrap" >
       <button type="button" class="btn btn-primary" data-action="open-adhoc-modal"
               title="Elegí un producto y la cantidad a producir hoy">
         + Agregá producto al plan
@@ -1258,7 +1257,7 @@
       Hay productos en el plan pero con cantidad 0. Ajustá las cantidades
       para activar la producción de hoy.
     </p>
-    <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+    <div class="flex-gap-2-wrap" >
       <button type="button" class="btn btn-primary" data-action="open-adhoc-modal"
               title="Elegí un producto y la cantidad a producir hoy">
         + Agregá producto al plan
@@ -1313,12 +1312,12 @@
     <input type="hidden" name="product_label" id="qm-product-label" value="">
 
     <h3 id="qm-title" style="margin: 0 0 var(--space-2) 0;">🔥 Merma — <span id="qm-product-name">producto</span></h3>
-    <p class="text-muted" style="margin: 0 0 var(--space-3) 0; font-size: var(--text-sm);">
+    <p class="text-muted d-inline-flex" style="margin: 0 0 var(--space-3) 0; font-size: var(--text-sm);">
       Anotá lo que se perdió. Para un lote entero usá la pestaña <em>Lote entero</em>.
     </p>
 
     {# Tab switcher (vanilla, no JS framework) #}
-    <div role="tablist" style="display:inline-flex; gap: 2px; padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius); margin-bottom: var(--space-3);">
+    <div class="d-inline-flex" role="tablist" style="display:inline-flex; gap: 2px; padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius); margin-bottom: var(--space-3);">
       <button type="button" role="tab" aria-selected="true" id="qm-tab-ingredient"
               onclick="qmSwitchTab('ingredient')"
               class="btn btn-sm btn-primary">Ingrediente suelto</button>
@@ -1329,8 +1328,8 @@
 
     {# ── Ingrediente suelto (default tab) ── #}
     <div id="qm-panel-ingredient" data-qm-panel="ingredient">
-      <div class="form-row" style="margin-bottom: var(--space-3);">
-        <label for="qm-ingredient" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Ingrediente</label>
+      <div class="form-row mb-3" >
+        <label class="block-bold" for="qm-ingredient" >Ingrediente</label>
         {{ ui.combo_field(
           name='ingredient_id',
           placeholder='Escribí el ingrediente (harina, aceite…)',
@@ -1341,12 +1340,12 @@
       </div>
       <div class="form-row" style="margin-bottom: var(--space-3); display:flex; gap: var(--space-2);">
         <div style="flex:2;">
-          <label for="qm-qty" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Cantidad</label>
+          <label class="block-bold w-100" for="qm-qty" >Cantidad</label>
           <input type="number" name="qty" id="qm-qty" required step="0.01" min="0.01" max="9999"
                  style="width:100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;">
         </div>
-        <div style="flex:1;">
-          <label for="qm-qty-unit" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Unidad</label>
+        <div class="flex-1" >
+          <label class="block-bold" for="qm-qty-unit" >Unidad</label>
           {{ ui.combo_field(
             name='qty_unit',
             placeholder='Unidad',
@@ -1356,8 +1355,8 @@
           ) }}
         </div>
       </div>
-      <div class="form-row" style="margin-bottom: var(--space-3);">
-        <label for="qm-reason-ing" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Motivo</label>
+      <div class="form-row mb-3" >
+        <label class="block-bold" for="qm-reason-ing" >Motivo</label>
         {{ ui.combo_field(
           name='reason',
           placeholder='Seleccioná motivo',
@@ -1366,9 +1365,9 @@
           label_field='value',
         ) }}
       </div>
-      <div class="form-row" style="margin-bottom: var(--space-3);">
-        <label for="qm-notes-ing" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Notas</label>
-        <textarea name="notes" id="qm-notes-ing" rows="2"
+      <div class="form-row mb-3" >
+        <label class="block-bold w-100" for="qm-notes-ing" >Notas</label>
+        <textarea class="w-100" name="notes" id="qm-notes-ing" rows="2"
                   style="width:100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"></textarea>
       </div>
       <input type="hidden" name="form_action" value="ingredient">
@@ -1380,14 +1379,14 @@
         Se descontarán los ingredientes de la receta <strong id="qm-recipe-label">—</strong>
         proporcionalmente a la cantidad de lotes.
       </p>
-      <div class="form-row" style="margin-bottom: var(--space-3);">
-        <label for="qm-batch-qty" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Lotes perdidos</label>
+      <div class="form-row mb-3" >
+        <label class="block-bold" for="qm-batch-qty" >Lotes perdidos</label>
         <input type="number" name="batch_qty" id="qm-batch-qty" required step="0.01" min="0.01" max="999" value="1"
                style="width:100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;">
         <small class="text-muted">1 = un lote entero; 0.5 = media tanda.</small>
       </div>
-      <div class="form-row" style="margin-bottom: var(--space-3);">
-        <label for="qm-reason-rec" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Motivo</label>
+      <div class="form-row mb-3" >
+        <label class="block-bold" for="qm-reason-rec" >Motivo</label>
         {{ ui.combo_field(
           name='reason',
           placeholder='Seleccioná motivo',
@@ -1396,9 +1395,9 @@
           label_field='value',
         ) }}
       </div>
-      <div class="form-row" style="margin-bottom: var(--space-3);">
-        <label for="qm-notes-rec" style="display:block; margin-bottom: var(--space-1); font-weight:bold;">Notas</label>
-        <textarea name="notes" id="qm-notes-rec" rows="2"
+      <div class="form-row mb-3 w-100" >
+        <label class="block-bold" for="qm-notes-rec" >Notas</label>
+        <textarea class="w-100" name="notes" id="qm-notes-rec" rows="2"
                   style="width:100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"></textarea>
       </div>
       <input type="hidden" name="form_action" value="recipe">
@@ -1553,19 +1552,19 @@
 <section class="card mb-4">
   <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); gap: var(--space-3); flex-wrap: wrap;">
     <div>
-      <h2 class="card-title" style="margin: 0;">Ingredientes necesarios</h2>
+      <h2 class="card-title m-0" >Ingredientes necesarios</h2>
       <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0;">
         Cálculo de insumos basado en el plan del día versus stock disponible.
       </p>
     </div>
-    <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+    <div class="flex-gap-2-wrap" >
       <a href="/reorder" class="btn btn-secondary btn-sm">
         <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
         Ir a Reponer stock →
       </a>
       {# Sprint shopping-list: one click — all qty_to_buy > 0 rows of this
          day's plan become ShoppingListItem rows (deduped on the server). #}
-      <form method="post" action="/shopping-list/from-production-plan" style="display:inline;">
+      <form class="d-inline" method="post" action="/shopping-list/from-production-plan" >
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="for_date" value="{{ plan.for_date.isoformat() }}">
         <button type="submit" class="btn btn-primary btn-sm">
@@ -1777,218 +1776,6 @@
     }
   })();
 </script>
-<style>
-  .production-row.is-done .product-name { text-decoration: line-through; color: var(--color-text-muted, #6b7280); }
-  .production-row.is-done .qty-target { opacity: 0.5; }
-
-  /* T-2026-10-04 (P1): visual highlight when row has a pending pedido.
-     The cook needs to spot "we owe 3 tortas today" instantly. A 4px
-     accent on the left edge + a tinted background does the job without
-     competing with the orange ad-hoc highlight. */
-  /* W11: was background: var(--color-info-soft) — --color-info-bg
-     is not defined so the fallback made ad-hoc-with-pedido rows
-     pure white in dark mode. Use the design-token --color-info-soft
-     (rgba(59,130,246, 0.12) in dark, #eff6ff in light). */
-  .production-row--has-pedido {
-    background: var(--color-info-soft);
-  }
-  .production-row--has-pedido:not(.is-done) td:first-child {
-    border-left: 4px solid var(--color-info);
-    padding-left: calc(var(--space-2) + 4px);
-  }
-  .production-row--has-pedido .pedido-qty {
-    font-weight: 700;
-    color: var(--color-info);
-  }
-
-  /* T-2026-10-05 (B.9): batch-surplus pill color codes.
-     - surplus-low: 1-9% surplus — informational, no urgency
-     - medium: 10-29% surplus — cook should consider lowering forecast
-     - high: ≥30% surplus — significant waste risk, decide before baking
-     Green "exacto" is rendered with text-muted utility (no pill). */
-  .surplus-pill {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 13px;
-    font-weight: 600;
-    line-height: 1.2;
-  }
-
-  /* T-2026-10-05 (B.3): fermentation reminder pill. The cook needs to
-     see "🍞 Fermentar 14h — empezar ayer 16:00" inline on the row so they
-     don't forget to start the bulk rise the night before. We use a soft
-     amber background to signal "this needs lead time" without competing
-     with the orange ad-hoc highlight or the red surplus-high pill. */
-  .fermentation-pill {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 1.3;
-    background: rgba(245, 158, 11, 0.12);
-    color: #78350f;
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    margin-top: 2px;
-  }
-  @media print {
-    .fermentation-pill {
-      background: transparent !important;
-      border: 1px solid #888 !important;
-      color: #000 !important;
-    }
-  }
-  .surplus-pill.surplus-low {
-    background: rgba(217, 119, 6, 0.08);
-    color: #92400e;
-  }
-  .surplus-pill.surplus-med {
-    background: rgba(217, 119, 6, 0.18);
-    color: #78350f;
-    border: 1px solid rgba(217, 119, 6, 0.4);
-  }
-  .surplus-pill.surplus-high {
-    background: rgba(220, 38, 38, 0.12);
-    color: #7f1d1d;
-    border: 1px solid rgba(220, 38, 38, 0.4);
-  }
-  @media print {
-    .surplus-pill { background: transparent !important; border: 1px solid #888 !important; color: #000 !important; }
-  }
-  @media print {
-    .production-row--has-pedido {
-      background: #f3f4f6 !important;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-  }
-
-  /* T-2026-10-04 (P2): confidence pill — compact trust indicator per row.
-     Mirrors the manana.html pattern; bands are visual so the cook can
-     spot low-confidence outliers among uniformly-green rows. */
-  .confidence-pill {
-    display: inline-block;
-    padding: 0.05rem 0.4rem;
-    margin-left: 0.25rem;
-    border-radius: 999px;
-    font-size: var(--text-xs, 0.75rem);
-    font-weight: 600;
-    line-height: 1.4;
-    white-space: nowrap;
-  }
-  .conf-high {
-    background: var(--color-success-soft);
-    color: var(--color-success-strong, #047857);
-  }
-  .conf-medium {
-    background: var(--color-warn-soft);
-    color: var(--color-warning-strong, #b45309);
-  }
-  .conf-low {
-    background: var(--color-warn-soft);
-    color: var(--color-warning-strong, #c2410c);
-  }
-  .conf-zero {
-    background: var(--color-surface-subtle, #f3f4f6);
-    color: var(--color-text-muted, #6b7280);
-  }
-
-  /* T-2026-10-04 (Tier 3-A): +/- stepper wrapper around the qty input.
-     Buttons sit beside the input; tapping adds/removes 1 unit. The cook
-     no longer needs to type into the small number field. */
-  .qty-stepper {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-  .step-btn {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    /* W10: was var(--color-card, #fff) — that fallback made the
-       stepper a blinding white block in dark mode because --color-card
-       is not defined. Use the design-token --color-surface so it
-       tracks dark mode. */
-    background: var(--color-surface);
-    color: var(--color-text);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 80ms ease, color 80ms ease;
-  }
-  .step-btn:hover { background: var(--color-surface-subtle); }
-  .step-btn:focus { outline: 2px solid var(--color-accent); outline-offset: 1px; }
-  .step-btn svg { width: 16px; height: 16px; color: var(--color-text); }
-  /* Direction-specific hover colors (subtle hint) */
-  .step-btn.step-down:hover { background: var(--color-warn-soft); }
-  .step-btn.step-up:hover { background: var(--color-success-soft); }
-
-  /* T-2026-10-04 (D.5): hide keyboard shortcut hint on mobile (no
-     physical keyboard, would just be visual noise). The check uses
-     pointer:coarse first (tablet touch) and falls back to width. */
-  @media (max-width: 767px), (pointer: coarse) {
-    .kbd-hint { display: none !important; }
-  }
-
-  /* T-2026-10-04 (P2): mobile-friendly shift execution.
-     On narrow viewports (≤640px) the 8-column table becomes unreadable.
-     Convert each <tr> into a stacked card layout with `data-label`
-     attributes showing as left-side hints. Inspired by the
-     "responsive table" pattern from CSS-Tricks but kept minimal. */
-  @media (max-width: 640px) {
-    #shift-form table { border: 0; }
-    #shift-form table thead { display: none; }
-    #shift-form table tbody tr {
-      display: block;
-      margin-bottom: var(--space-3);
-      padding: var(--space-2);
-      border: 1px solid var(--color-border);
-      border-radius: 6px;
-      background: var(--color-surface);
-    }
-    #shift-form table tbody td {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: var(--space-1, 0.25rem) 0;
-      border-bottom: 1px solid var(--color-surface-subtle, #f3f4f6);
-      text-align: right;
-    }
-    #shift-form table tbody td:last-child {
-      border-bottom: 0;
-    }
-    #shift-form table tbody td::before {
-      content: attr(data-label);
-      font-weight: 600;
-      color: var(--color-text-muted, #6b7280);
-      text-align: left;
-      margin-right: var(--space-2, 0.5rem);
-      flex-shrink: 0;
-    }
-    #shift-form table tbody td[data-label="Listo"] {
-      justify-content: flex-end;
-    }
-    #shift-form table tbody td[data-label="Listo"]::before {
-      flex: 1;
-    }
-    #shift-form table tbody td[data-label="Producto"]::before {
-      display: none;
-    }
-    #shift-form .progress-input {
-      width: 90px !important;
-      height: 44px !important;  /* iOS HIG: ≥44px tap target */
-      font-size: 1.1rem;
-    }
-    #shift-form .shift-checkbox {
-      width: 28px !important;
-      height: 28px !important;
-    }
-  }
-</style>
 
 {% endif %}{# end day view #}
 
@@ -2030,7 +1817,7 @@
       Cantidad pre-cargada = <strong>rolling ventas 14d + pedidos pendientes para hoy</strong>.
       Ajustá según tu criterio o dejá el valor si coincide con tu plan.
     </p>
-    <div class="form-row" style="margin-bottom: var(--space-3);">
+    <div class="form-row mb-3" >
       <label for="adhoc-product" style="display: block; margin-bottom: var(--space-1); font-weight: bold; color: #f3f4f6;">Producto</label>
       {# T-2026-10-06f: <ui-combo> ships the product list inline as src=
          (a JSON-encoded list of {value, label, forecast_qty, pending_pedidos}
@@ -2052,7 +1839,7 @@
         <a href="/products" style="color: #93c5fd;">Productos</a> antes de continuar.
       </small>
     </div>
-    <div class="form-row" style="margin-bottom: var(--space-3);">
+    <div class="form-row mb-3" >
       <label for="adhoc-qty" style="display: block; margin-bottom: var(--space-1); font-weight: bold; color: #f3f4f6;">Cantidad horneada</label>
       <input type="number" name="qty" id="adhoc-qty" required min="0.5" step="0.5"
              style="width: 100%; padding: var(--space-2); border: 1px solid #4b5563; border-radius: 4px; background: #111827; color: #f3f4f6;">
@@ -2060,7 +1847,7 @@
         Sugerido: <span data-suggested>—</span> (rolling + pedidos). Ajustá si querés.
       </small>
     </div>
-    <div class="form-row" style="margin-bottom: var(--space-3);">
+    <div class="form-row mb-3" >
       <label for="adhoc-notes" style="display: block; margin-bottom: var(--space-1); font-weight: bold; color: #f3f4f6;">Nota (opcional)</label>
       <input type="text" name="notes" id="adhoc-notes" maxlength="200"
              placeholder="ej: walk-in cumpleañero, sobrantes de masa"
@@ -2125,7 +1912,6 @@
 })();
 </script>
 
-
 {# ════════════════════════════════════════════════════════════════════
    WEEK VIEW
    ════════════════════════════════════════════════════════════════════ #}
@@ -2146,7 +1932,7 @@
     <button type="submit" class="btn btn-sm btn-ghost">Duplicar overrides → template semanal</button>
   </form>
   {% if request.query_params.get('fork') == 'ok' %}
-    <span class="badge badge-success" style="margin-left: var(--space-2);">
+    <span class="badge badge-success ml-2" >
       {{ request.query_params.get('rows', '?') }} filas copiadas
     </span>
   {% elif request.query_params.get('fork') == 'empty' %}
@@ -2185,7 +1971,7 @@
 {% if week_ingredients %}
 <section class="card mb-4">
   <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
-    <h3 style="margin: 0;">Ingredientes de la semana</h3>
+    <h3 class="m-0" >Ingredientes de la semana</h3>
     <a href="/reorder" class="btn btn-secondary btn-sm">
       <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
       Ir a Reponer stock →
@@ -2228,7 +2014,6 @@
 </section>
 {% endif %}
 {% endif %}{# end week view #}
-
 
 {# ════════════════════════════════════════════════════════════════════
    MONTH VIEW — vista panorámica (heatmap). Las secciones de
@@ -2316,7 +2101,7 @@
       <input type="hidden" name="for_date" value="{{ for_date }}">
       <input type="hidden" name="product_id" data-modal-product-id>
       <input type="hidden" name="ui" value="{{ ui_version }}">
-      <div style="margin-bottom: var(--space-3);">
+      <div class="mb-3" >
         <label style="display: block; font-size: var(--text-sm); margin-bottom: var(--space-1); font-weight: 600;">
           Resultado
         </label>

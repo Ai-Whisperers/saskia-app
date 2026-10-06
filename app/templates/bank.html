@@ -122,7 +122,7 @@
 <details class="card mb-3">
   <summary style="padding:1rem;cursor:pointer;"><strong>+ Agregar movimiento manualmente</strong> (PY savings, etc.)</summary>
   <div style="padding:1rem;">
-    <form method="post" action="/bank/add" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+    <form class="d-grid" method="post" action="/bank/add" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="form-group">
         <label for="posted_at">Fecha</label>
@@ -199,7 +199,7 @@
           <span class="badge bg-success" title="Conciliado con {{ tx.reconciled_with_type }} #{{ tx.reconciled_with_id }}">
             ✓ {{ tx.reconciled_with_type }}#{{ tx.reconciled_with_id }}
           </span>
-          <form method="post" action="/bank/{{ tx.id }}/unreconcile" style="display:inline;">
+          <form class="d-inline" method="post" action="/bank/{{ tx.id }}/unreconcile" >
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn btn-sm btn-link" title="Desconciliar">×</button>
           </form>

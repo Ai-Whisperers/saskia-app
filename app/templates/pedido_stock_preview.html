@@ -22,13 +22,13 @@
 {% if consumed %}
 {% set total_cost = consumed|sum(attribute='qty_needed') %}
 <div class="card mb-4">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
+  <div class="d-flex" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);">
     <h2>Ingredientes a consumir</h2>
-    <span class="no-print text-muted" style="font-size:var(--text-sm);">📋 Ordenar:
+    <span class="no-print text-muted text-sm" >📋 Ordenar:
       <button type="button" class="btn btn-sm btn-ghost" onclick="window.UISortTable.sortByCell(1)">Por faltante ↓</button>
     </span>
   </div>
-  <p class="hint no-print" style="margin-bottom:var(--space-3);">
+  <p class="hint no-print mb-3" >
     Valor total a consumir: <strong>{{ m.gs(consumed|sum(attribute='qty_needed')|default(0)|int) }}</strong>
   </p>
   <table class="table" id="stock-table" data-sort="none">
@@ -62,7 +62,7 @@
 {% endif %}
 
 <div style="display: flex; gap: var(--space-2); margin-top: var(--space-4);">
-  <form method="post" action="/pedidos/{{ pedido_id }}/fulfill" style="display: inline;">
+  <form class="d-inline" method="post" action="/pedidos/{{ pedido_id }}/fulfill" >
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
 

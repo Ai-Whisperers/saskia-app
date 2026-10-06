@@ -119,7 +119,7 @@
   {# ── Acciones del día ──────────────────────────────────────────── #}
   <section class="card" aria-label="Acciones del día">
     <div class="card-header">
-      <h2 style="font-size:var(--text-md);">Acciones del día</h2>
+      <h2 class="text-md" >Acciones del día</h2>
     </div>
 
     {% if pedido_hoy or pedido_manana %}
@@ -198,7 +198,7 @@
   {# ── Plan de mañana ────────────────────────────────────────────── #}
   <section class="card" aria-label="Plan de mañana">
     <div class="card-header">
-      <h2 style="font-size:var(--text-md);">Plan de mañana</h2>
+      <h2 class="text-md" >Plan de mañana</h2>
       <small class="text-muted">sugerido por ventas</small>
     </div>
     {% if insights.production_tomorrow %}
@@ -222,7 +222,7 @@
   {# ── Pronóstico DOW-aware (Phase 4 B2, 2026-10-01) ───────────────── #}
   <section class="card" aria-label="Pronóstico mañana">
     <div class="card-header">
-      <h2 style="font-size:var(--text-md);">Pronóstico — {{ forecast_tomorrow_label }} {{ forecast_tomorrow_date }}</h2>
+      <h2 class="text-md" >Pronóstico — {{ forecast_tomorrow_label }} {{ forecast_tomorrow_date }}</h2>
       <small class="text-muted">12 semanas · día de la semana · confianza
         {% if forecast_confidence == 'high' %}<span class="sev-pill saludable">alta</span>
         {% elif forecast_confidence == 'medium' %}<span class="sev-pill aviso">media</span>
@@ -230,17 +230,17 @@
       </small>
     </div>
     {% if forecast_products_count > 0 %}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+    <div class="d-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
       <div>
-        <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">Unidades estimadas</div>
+        <div class="text-muted text-label-upper" >Unidades estimadas</div>
         <div style="font-size:var(--text-xl);font-weight:700;">{{ "{:,}".format(forecast_units) }}</div>
       </div>
       <div>
-        <div class="text-muted" style="font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;">Ingreso estimado</div>
+        <div class="text-muted text-label-upper" >Ingreso estimado</div>
         <div style="font-size:var(--text-xl);font-weight:700;">{{ m.gs(forecast_revenue_gs) }}</div>
       </div>
     </div>
-    <table class="table is-narrow is-striped" style="font-size:var(--text-sm);">
+    <table class="table is-narrow is-striped text-sm" >
       <thead>
         <tr><th>Producto</th><th class="num">Cant. estimada</th><th class="num">Ingreso</th></tr>
       </thead>
@@ -254,7 +254,7 @@
         {% endfor %}
       </tbody>
     </table>
-    <div style="margin-top:var(--space-2);font-size:var(--text-xs);">
+    <div class="mt-2" style="margin-top:var(--space-2);font-size:var(--text-xs);">
       <a href="/produccion/manana">Ver plan completo de mañana →</a>
     </div>
     {% else %}
@@ -265,13 +265,13 @@
   {# ── Coffee regulars (prelaunch roadmap 2026-09-17) ─────────────── #}
   <section class="card" aria-label="Clientes habituales">
     <div class="card-header">
-      <h2 style="font-size:var(--text-md);">Clientes habituales</h2>
+      <h2 class="text-md" >Clientes habituales</h2>
       <small class="text-muted">últimos 30 días · 2+ visitas</small>
     </div>
     {% if regulars %}
       {% for r in regulars %}
-      <div class="regular-row" style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);padding:var(--space-2) 0;border-bottom:1px solid var(--color-border, #eee);">
-        <a href="/clientes/{{ r.id }}" style="flex:1;color:inherit;text-decoration:none;">
+      <div class="regular-row d-flex" style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);padding:var(--space-2) 0;border-bottom:1px solid var(--color-border, #eee);">
+        <a class="flex-1" href="/clientes/{{ r.id }}" style="flex:1;color:inherit;text-decoration:none;">
           <span class="regular-name"><strong>{{ r.name or '(sin nombre)' }}</strong></span><br>
           <span class="regular-visits" style="font-size:var(--text-sm);color:var(--color-text-muted);">{{ r.n_visits }} visita{{ 's' if r.n_visits != 1 }} · {{ m.gs(r.lifetime_spend_gs) }}</span>
         </a>
@@ -287,7 +287,7 @@
       </div>
       {% endfor %}
       {% if regulars_count_total > regulars|length %}
-      <div style="margin-top:var(--space-2);font-size:var(--text-xs);">
+      <div class="mt-2" style="margin-top:var(--space-2);font-size:var(--text-xs);">
         <a href="/clientes">Ver los {{ regulars_count_total }} habituales →</a>
       </div>
       {% endif %}
@@ -299,7 +299,7 @@
   {# ── Alertas (severity pills, capped) ──────────────────────────── #}
   <section class="card" aria-label="Alertas">
     <div class="card-header">
-      <h2 style="font-size:var(--text-md);">Alertas</h2>
+      <h2 class="text-md" >Alertas</h2>
     </div>
 
     {% set avisos_total = (stock_low|length) + (recipes_no_cost|length) + (sales_no_recipe|length) + (compliance_alerts|length) %}

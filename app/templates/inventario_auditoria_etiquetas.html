@@ -13,7 +13,7 @@
 <div class="container" style="max-width:1200px;">
 
   <header style="margin-bottom:var(--space-4);">
-    <a href="/inventario" class="btn btn-ghost" style="margin-bottom:var(--space-2);">← Volver a inventario</a>
+    <a href="/inventario" class="btn btn-ghost mb-2" >← Volver a inventario</a>
     <h1>🧪 Auditoría de etiquetas</h1>
     <p class="text-muted" style="max-width:60ch;">
       Esta página muestra los ingredientes con contradicciones lógicas en sus
@@ -24,11 +24,11 @@
   </header>
 
   {# ── Summary stats ── #}
-  <section class="kpi-strip" style="display:flex;gap:var(--space-3);margin-bottom:var(--space-4);flex-wrap:wrap;">
+  <section class="kpi-strip d-flex" style="display:flex;gap:var(--space-3);margin-bottom:var(--space-4);flex-wrap:wrap;">
     {{ ui.metric_card("ingredientes con problemas", total) }}
     {{ ui.metric_card("detectados en este run", fresh_count) }}
-    <div class="card" style="flex:1;min-width:240px;padding:var(--space-3);">
-      <button type="button" id="btn-rerun" class="btn btn-primary" style="height:36px;">
+    <div class="card flex-1" style="flex:1;min-width:240px;padding:var(--space-3);">
+      <button type="button" id="btn-rerun" class="btn btn-primary h-control" >
         🔄 Re-correr auditoría
       </button>
       <p class="text-muted" style="font-size:var(--text-xs);margin:var(--space-2) 0 0;">
@@ -51,7 +51,7 @@
 
   {% else %}
   <div class="card" style="padding:var(--space-3);">
-    <table class="data-table" style="margin:0;">
+    <table class="data-table m-0" >
       <thead>
         <tr>
           <th style="width:30%;">Ingrediente</th>
@@ -74,7 +74,7 @@
               {% endif %}
             </div>
             {% if row.allergens %}
-            <div class="tag-pill-row tag-pill-row--compact" style="margin-top:4px;">
+            <div class="tag-pill-row tag-pill-row--compact mt-4" >
               <span class="tag-pill-row__label">Alérgenos:</span>
               {{ t.tag_pills(row.allergens, variant="allergen") }}
             </div>
@@ -93,8 +93,8 @@
               <em class="text-muted">sin categoría</em>
             {% endif %}
           </td>
-          <td>
-            <ul style="margin:0;padding-left:1rem;">
+          <td class="m-0">
+            <ul class="m-0" style="margin:0;padding-left:1rem;">
               {% for issue in row.issues %}
               <li style="margin-bottom:4px;">{{ issue }}</li>
               {% endfor %}
@@ -102,7 +102,7 @@
           </td>
           <td>
             <a href="/inventario/{{ row.id }}/editar"
-               class="btn btn-ghost"
+               class="btn btn-ghost d-inline-flex"
                style="display:inline-flex;align-items:center;gap:4px;">
               ✏️ Corregir
             </a>

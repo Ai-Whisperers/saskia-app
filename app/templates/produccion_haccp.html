@@ -18,7 +18,7 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
       Registro HACCP — Temperatura de freezers
     </h1>
-    <p class="hint" style="margin: var(--space-1) 0 0 0;">
+    <p class="hint mt-1-only" >
       Día <strong>{{ for_date }}</strong> ·
       MSPBS exige 2 registros/día por ubicación (apertura AM, cierre PM)
     </p>
@@ -74,7 +74,7 @@
         <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="for_date" value="{{ for_date }}">
         <div>
-          <label for="haccp-location" style="display: block; margin-bottom: var(--space-1); font-weight: bold;">
+          <label class="block-bold" for="haccp-location" >
             Ubicación
           </label>
           <select name="location" id="haccp-location" required
@@ -85,7 +85,7 @@
           </select>
         </div>
         <div>
-          <label for="haccp-shift" style="display: block; margin-bottom: var(--space-1); font-weight: bold;">
+          <label class="block-bold" for="haccp-shift" >
             Turno
           </label>
           <div style="display: flex; gap: var(--space-2);">
@@ -98,7 +98,7 @@
           </div>
         </div>
         <div>
-          <label for="haccp-temp" style="display: block; margin-bottom: var(--space-1); font-weight: bold;">
+          <label class="block-bold" for="haccp-temp" >
             Temperatura (°C)
           </label>
           <input type="number" name="temperature_c" id="haccp-temp" required
@@ -110,14 +110,14 @@
           </small>
         </div>
         <div>
-          <label for="haccp-notes" style="display: block; margin-bottom: var(--space-1); font-weight: bold;">
+          <label class="block-bold" for="haccp-notes" >
             Nota (opcional)
           </label>
           <input type="text" name="notes" id="haccp-notes" maxlength="200"
                  placeholder="ej: puerta quedó abierta 5 min"
                  style="width: 100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;">
         </div>
-        <button type="submit" class="btn btn-primary" style="margin-top: var(--space-2);">
+        <button type="submit" class="btn btn-primary mt-2" >
           <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
           Guardar lectura
         </button>
@@ -150,7 +150,7 @@
         {% endfor %}
       </ul>
       {% else %}
-      <p class="text-success" style="margin: 0;">
+      <p class="text-success m-0" >
         ✓ Todas las lecturas del día están completas.
       </p>
       {% endif %}
@@ -165,7 +165,7 @@
   </div>
   <div class="card-body" style="padding: 0;">
     {% if entries %}
-    <table class="table is-hoverable" style="margin: 0;">
+    <table class="table is-hoverable m-0" >
       <thead>
         <tr>
           <th>Ubicación</th>

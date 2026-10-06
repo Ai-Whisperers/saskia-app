@@ -39,7 +39,7 @@
             <small class="text-muted">Reemplazar todo (avanzado)</small>
           </label>
         </div>
-        <p class="text-muted mt-2" style="font-size: 12px;">
+        <p class="text-muted mt-2 text-xs" >
           ¿No sabés cuál elegir? <a href="/excel/mode-guidance">Ver guía de modos →</a>
         </p>
       </fieldset>
@@ -54,7 +54,7 @@
       </div>
     </form>
 
-    <form method="post" action="/excel/validar" enctype="multipart/form-data" id="validate-form" target="_blank" style="display:none;">
+    <form class="d-none" method="post" action="/excel/validar" enctype="multipart/form-data" id="validate-form" target="_blank" >
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="file" id="file" name="file" accept=".xlsx" required>
       <input type="radio" name="mode" value="PATCH" checked style="display:none;">
@@ -120,7 +120,7 @@
         {% if h.warnings %}
         <details>
           <summary class="text-muted" style="cursor:pointer">{{ h.warnings|length }} avisos</summary>
-          <ul style="font-size: 12px;">
+          <ul class="text-xs" >
             {% for w in h.warnings[:5] %}
             <li>{{ w if w is string else w.message }}</li>
             {% endfor %}

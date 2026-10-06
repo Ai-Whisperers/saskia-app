@@ -15,14 +15,14 @@
 </p>
 
 {% import "_components/atoms.html" as a %}
-<div class="kpi-row mb-4" aria-label="Resumen del historial" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--space-4);">
+<div class="kpi-row mb-4 d-grid" aria-label="Resumen del historial" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--space-4);">
   {{ a.metric_card("Ventas activas", totals.count, sub="en el período filtrado") }}
   {{ a.metric_card("Total recaudado", m.gs_full(totals.total_gs)) }}
   {{ a.metric_card("Ticket promedio", m.gs_full(totals.avg_ticket_gs)) }}
 </div>
 <div class="card mb-4" aria-label="Filtros del historial">
   <div class="grid grid-3">
-  <p class="text-muted mt-2" style="font-size:var(--text-xs);">
+  <p class="text-muted mt-2 text-xs" >
     Filtro actual: {{ totals.filters }}
     <span class="badge badge-info" style="margin-left:var(--space-3);">
       Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total_count }}</strong> ventas
@@ -67,7 +67,7 @@
   {% if q or product_id or days %}
   <a href="/ventas/historial" class="btn btn-ghost">Limpiar</a>
   {% endif %}
-  <label class="text-muted" style="display:inline-flex;align-items:center;gap:.3em;font-size:var(--text-sm);">
+  <label class="text-muted d-inline-flex" style="display:inline-flex;align-items:center;gap:.3em;font-size:var(--text-sm);">
     <input type="checkbox" id="include-voided" name="include_voided" value="1"
            {{ 'checked' if include_voided else '' }}
            onchange="this.form.submit()">
@@ -79,7 +79,7 @@
 {% if sales %}
 {{ ui.skeleton_section(id="sales-history-table", variant="line", count=15, label="Cargando historial de ventas") }}
 <div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);" data-loaded-section="sales-history-table">
-<table class="table is-hoverable is-striped" style="margin-bottom:0;">
+<table class="table is-hoverable is-striped mb-0" >
   <thead>
     <tr>
       <th>Fecha</th>
@@ -145,8 +145,8 @@
         </a>
         {% endif %}
         {% if not s.voided_at %}
-        <form method="post" action="/ventas/{{ s.id }}/anular" id="void-form-{{ s.id }}" style="display: inline;"
-              class="js-confirm-form" data-confirm-title="¿Anular venta #{{ s.id }}?" data-confirm-body="Esta acción devuelve el stock y queda registrada en auditoría." data-confirm-danger="true">
+        <form method="post" action="/ventas/{{ s.id }}/anular" id="void-form-{{ s.id }}" 
+              class="js-confirm-form d-inline" data-confirm-title="¿Anular venta #{{ s.id }}?" data-confirm-body="Esta acción devuelve el stock y queda registrada en auditoría." data-confirm-danger="true">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
           <input type="hidden" name="reason" id="anular-reason-{{ s.id }}">
           <button type="button" class="btn btn-sm btn-danger-ghost"
