@@ -80,6 +80,129 @@ from app.routers.produccion.analytics import (
 from app.routers.produccion._router import router
 from app.services.template_render import render
 
+VALID_SORT_KEYS = frozenset({
+    "product",      # product_name
+    "difficulty",   # recipe_difficulty
+    "demand",       # qty_demand_total
+    "meta",         # qty_to_produce (batches)
+    "pedidos",      # pending_pedido_qty
+    "lote",         # meta + pedidos (= lote final total) — DEFAULT
+    "hecho",        # completed_qty
+    "sobrante",     # batch_surplus_qty
+    "closure",      # closure_status
+})
+
+
+def _sort_value(row: dict, key: str):
+    """Pull the comparison key out of a row dict. Returns a tuple so ties
+    break on product_name (stable ordering)."""
+    lote_final = (row.get("qty_to_produce") or 0) + (row.get("pending_pedido_qty") or 0)
+    if key == "product":
+        primary = (row.get("product_name") or "").lower()
+    elif key == "difficulty":
+        primary = row.get("recipe_difficulty") or 0
+    elif key == "demand":
+        primary = row.get("qty_demand_total") or 0
+    elif key == "meta":
+        primary = row.get("qty_to_produce") or 0
+    elif key == "pedidos":
+        primary = row.get("pending_pedido_qty") or 0
+    elif key == "lote":
+        primary = lote_final
+    elif key == "hecho":
+        primary = row.get("completed_qty") or 0
+    elif key == "sobrante":
+        primary = row.get("batch_surplus_qty") or 0
+    elif key == "closure":
+        # open < done < cancelled (alpha order), so 'open' sorts first asc
+        primary = row.get("closure_status") or "open"
+    else:
+        primary = lote_final
+    # secondary tiebreak: product name asc (stable)
+    return (primary, (row.get("product_name") or "").lower())
+
+
+def _sort_produccion_rows(rows: list[dict], sort: str, dir: str) -> list[dict]:
+    """Sort by `sort` (white-listed) in `dir` direction. Ad-hoc rows always
+    last — they're "extras" the cook decided on, not the plan's suggestion."""
+    safe_sort = sort if sort in VALID_SORT_KEYS else "lote"
+    safe_dir = dir if dir in ("asc", "desc") else "desc"
+    reverse = safe_dir == "desc"
+    planned = [r for r in rows if not r.get("is_ad_hoc")]
+    ad_hoc = [r for r in rows if r.get("is_ad_hoc")]
+    planned.sort(key=lambda r: _sort_value(r, safe_sort), reverse=reverse)
+    # Ad-hoc rows are always at the bottom regardless of sort direction.
+    return planned + ad_hoc
+
+
+# Allergen → list of strings in recipe_allergens that match (semicolon OR
+# comma separated). Multi-select: row must contain AT LEAST one of the
+# selected allergens (union semantics — operator picks "gluten OR dairy").
+_ALLERGEN_TOKENS = {
+    "gluten": ("gluten", "trigo", "wheat", "harina"),
+    "dairy": ("dairy", "lácteo", "lactosa", "leche", "milk", "manteca", "butter"),
+    "eggs": ("eggs", "huevo", "egg"),
+    "nuts": ("nuts", "frutos secos", "nuez", "nueces", "almendra", "maní"),
+}
+
+
+def _row_allergens(row: dict) -> set[str]:
+    raw = (row.get("recipe_allergens") or "").lower()
+    if not raw:
+        return set()
+    tokens = {t.strip() for t in raw.replace(";", ",").split(",") if t.strip()}
+    found = set()
+    for canonical, synonyms in _ALLERGEN_TOKENS.items():
+        if any(syn in t for t in tokens for syn in synonyms):
+            found.add(canonical)
+    return found
+
+
+def _row_source(row: dict) -> str:
+    if row.get("is_ad_hoc"):
+        return "horneado-extra"
+    bucket = row.get("source_bucket") or "historial"
+    return bucket
+
+
+def _apply_produccion_filters(
+    rows: list[dict],
+    *,
+    allergen: list[str],
+    source: list[str],
+    with_pedidos: str,
+    with_hecho: str,
+    with_surplus: str,
+) -> list[dict]:
+    """Return only the rows that pass every active filter. Empty filter
+    values mean 'no filter for this group'. All filters combine as AND."""
+    out = rows
+    if allergen:
+        wanted = set(allergen)
+        out = [r for r in out if _row_allergens(r) & wanted]
+
+    if source:
+        wanted = set(source)
+        out = [r for r in out if _row_source(r) in wanted]
+
+    if with_pedidos == "1":
+        out = [r for r in out if (r.get("pending_pedido_qty") or 0) > 0]
+    elif with_pedidos == "0":
+        out = [r for r in out if (r.get("pending_pedido_qty") or 0) == 0]
+
+    if with_hecho == "1":
+        out = [r for r in out if (r.get("completed_qty") or 0) > 0]
+    elif with_hecho == "0":
+        out = [r for r in out if (r.get("completed_qty") or 0) == 0]
+
+    if with_surplus == "1":
+        out = [r for r in out if (r.get("batch_surplus_pct") or 0) >= 30]
+    elif with_surplus == "0":
+        out = [r for r in out if (r.get("batch_surplus_pct") or 0) < 30]
+
+    return out
+
+
 @router.get("", response_class=HTMLResponse)
 def produccion_worksheet(
     request: Request,
@@ -102,6 +225,20 @@ def produccion_worksheet(
     # it on startup). See docs/plans/2026-10-05-produccion-v2-spec.md
     # §"UI v2 cutover" for the rollout plan.
     ui: str = Query("v2", pattern="^v2$"),
+    # 2026-10-07 table overhaul: server-side sort + page-size + filter chips.
+    # All state lives in the URL so the operator can share / deep-link a
+    # particular view. Unknown sort keys fall back to "lote" so the page
+    # never 500s on a typo or stale bookmark.
+    sort: str = Query("lote", pattern=r"^[a-z_]+$"),
+    dir: str = Query("desc", pattern=r"^(asc|desc)$"),
+    # Page size: hard-cap at 100 (operator-settable to 10/15/20/30/50/100).
+    # We don't use Query(le=100) so any URL works; the clamp happens here.
+    rows: int = Query(20),
+    filter_allergen: list[str] = Query(default_factory=list),
+    filter_source: list[str] = Query(default_factory=list),
+    filter_with_pedidos: str = Query("", pattern=r"^(1|0|)?$"),
+    filter_with_hecho: str = Query("", pattern=r"^(1|0|)?$"),
+    filter_with_surplus: str = Query("", pattern=r"^(1|0|)?$"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Production plan: day table, week grid, or month grid."""
@@ -851,6 +988,24 @@ def produccion_worksheet(
         else:
             primary_rows.append(r)
 
+    # 2026-10-07 table overhaul: apply filter chips, then sort, then cap.
+    # Filters apply ONLY to primary_rows — zero_demand_rows is a separate
+    # <details> so its members are always shown in full when expanded.
+    # `rows` is hard-clamped here so any URL works (no 4xx).
+    rows = max(1, min(100, int(rows)))
+    primary_rows = _apply_produccion_filters(
+        primary_rows,
+        allergen=filter_allergen,
+        source=filter_source,
+        with_pedidos=filter_with_pedidos,
+        with_hecho=filter_with_hecho,
+        with_surplus=filter_with_surplus,
+    )
+    primary_rows = _sort_produccion_rows(primary_rows, sort=sort, dir=dir)
+    # Visible cap; remaining rows render in a "Mostrar todos" link.
+    visible_rows = primary_rows[:rows]
+    hidden_count = max(0, len(primary_rows) - len(visible_rows))
+
     return render(
         request,
         "produccion.html",
@@ -858,6 +1013,18 @@ def produccion_worksheet(
             "plan": plan,
             "plan_rows_view": plan_rows_view,
             "primary_rows": primary_rows,
+            "visible_rows": visible_rows,
+            "hidden_count": hidden_count,
+            "rows_per_page": rows,
+            "current_sort": sort,
+            "current_dir": dir,
+            "active_filters": {
+                "allergen": filter_allergen,
+                "source": filter_source,
+                "with_pedidos": filter_with_pedidos,
+                "with_hecho": filter_with_hecho,
+                "with_surplus": filter_with_surplus,
+            },
             "zero_demand_rows": zero_demand_rows,
             "template_nudge": template_nudge,
             "cold_start_kind": cold_start_kind,

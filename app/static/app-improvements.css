@@ -2192,3 +2192,139 @@ body { background: #111; color: #eee; font-size: 18px; }
   }
   .flash-success { background: #dcfce7; color: #166534; }
   .flash-error { background: #fee2e2; color: #991b1b; }
+
+/* ── 2026-10-07 production table overhaul ─────────────────────────────────── */
+
+.production-table-scroll {
+  /* C1 + 2026-10-07: right-edge overflow + sticky thead. Cap height so 20+
+     rows fit without scrolling the whole page; the topbar is the only thing
+     we have to clear so sticky works as expected. */
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: calc(100vh - var(--topbar-height, 48px) - 320px);
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+}
+
+.production-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-surface-subtle);
+  box-shadow: 0 1px 0 var(--color-border-strong);
+}
+
+/* Dense rows — operator wants ~20 visible at once. */
+.production-row td {
+  padding: 0.35rem 0.5rem;
+  vertical-align: middle;
+}
+
+/* Compact numeric cells (no extra padding under the big number). */
+.production-row td.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sortable column header link. Replaces plain text + arrow. */
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+}
+.th-sort:hover { color: var(--color-accent); }
+.th-sort--active { color: var(--color-accent); }
+.th-sort__arrow { font-size: 0.7rem; line-height: 1; }
+.th-sort__arrow--idle { opacity: 0.35; }
+.th-sort--readonly { cursor: default; opacity: 0.85; }
+
+/* For numeric <th>s the flex right-aligns naturally. */
+th.num .th-sort { justify-content: flex-end; width: 100%; }
+
+/* ── Filter chips (above the table) ───────────────────────────────────────── */
+.filter-toolbar { font-size: var(--text-sm); }
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0.2rem 0.55rem;
+  font-size: var(--text-xs);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.filter-chip:hover { background: var(--color-surface-subtle); }
+.filter-chip--on {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  border-color: var(--color-accent);
+}
+.filter-chip--on:hover {
+  filter: brightness(0.95);
+}
+
+.filter-clear { white-space: nowrap; }
+
+/* Compact difficulty stars (the new column) — golden ★ + dim ☆ */
+.difficulty-stars {
+  font-size: 0.95rem;
+  letter-spacing: 1px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.difficulty-stars .difficulty-star--off { color: var(--color-border-strong); }
+.difficulty-1 { color: #16a34a; }
+.difficulty-2 { color: #65a30d; }
+.difficulty-3 { color: #ca8a04; }
+.difficulty-4 { color: #ea580c; }
+.difficulty-5 { color: #dc2626; }
+
+/* Compact origin dot — replaces the long "Calculado de las últimas ventas"
+   label that repeated 43× per row. */
+.source-dot {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+.source-dot--historial      { background: #3b82f6; }
+.source-dot--receta         { background: #6366f1; }
+.source-dot--override       { background: #f59e0b; }
+.source-dot--horneado-extra { background: #10b981; }
+
+/* Source legend below table — keep full text since it's read once. */
+.source-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.source-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.source-legend__item .source-dot { margin-right: 2px; }
+
+/* The compact sobrante pill keeps the number but drops the small "%" line
+   (now in the tooltip). */
+.surplus-pill { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* Hide on small viewports: the toolbar wraps; the dot is always visible. */
+@media (max-width: 720px) {
+  .production-table-scroll { max-height: calc(100vh - 220px); }
+  .filter-toolbar { font-size: var(--text-xs); }
+}

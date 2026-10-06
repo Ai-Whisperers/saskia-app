@@ -155,13 +155,50 @@ Asunción local TZ.
 {% macro sort_th(label, key, current_sort="", current_dir="asc") -%}
 {#- Sortable column-header LINK. Wrap in your own <th> (with class="num"
     for right-aligned numeric columns). Reads `request` from the calling
-    template's context to preserve all active filter params. -#}
+    template's context to preserve all active filter params.
+    Example: {{ sort_th("Lotes", "meta", current_sort, current_dir) }}
+    Note: Jinja has no list comprehensions; we build the qp_keepoutlist in a for-loop. -#}
 {%- set is_cur = current_sort == key -%}
 {%- set next_dir = 'desc' if (is_cur and current_dir == 'asc') else 'asc' -%}
 {%- set qp = request.query_params.multi_items() if request is defined else [] -%}
-<a href="{{ request.url.path if request is defined else '' }}?sort={{ key }}&dir={{ next_dir }}{%- for k, v in qp if k not in ('sort', 'dir') -%}&{{ k }}={{ v }}{%- endfor -%}"
-   aria-label="Ordenar por {{ label }}">
+{%- set qp_keep = [] -%}
+{%- for k, v in qp -%}
+  {%- if k not in ('sort', 'dir') -%}
+    {%- set _ = qp_keep.append((k, v)) -%}
+  {%- endif -%}
+{%- endfor -%}
+<a href="{{ request.url.path if request is defined else '' }}?sort={{ key }}&dir={{ next_dir }}{%- for k, v in qp_keep -%}&{{ k }}={{ v }}{%- endfor -%}"
+   aria-label="Ordenar por {{ label }}"
+   class="th-sort{% if is_cur %} th-sort--active{% endif %}">
   {{ label }}
-  {%- if is_cur %}<small aria-hidden="true">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</small>{% endif -%}
+  {%- if is_cur %}<small aria-hidden="true" class="th-sort__arrow">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</small>{%- else %}<small aria-hidden="true" class="th-sort__arrow th-sort__arrow--idle">↕</small>{% endif -%}
+</a>
+{%- endmacro %}
+
+{% macro filter_chip(group, value, label, current_values, icon="") -%}
+{#- Single filter chip (toggle). `group` is the URL key (e.g. "filter_allergen"),
+    `value` is the chip's value, `current_values` is the parsed set of active
+    values for this group. Active chips get class `is-on` and an aria-pressed.
+    The href toggles the value in the URL — Jinja + the route build the rest.
+    Note: Jinja doesn't support Python list comprehensions; we build the
+    next_qp list by appending in a for-loop. -#}
+{%- set is_on = value in current_values -%}
+{%- set qp = request.query_params.multi_items() if request is defined else [] -%}
+{%- set next_qp = [] -%}
+{%- for k, v in qp -%}
+  {%- if not is_on or not (k == group and v == value) -%}
+    {%- set _ = next_qp.append((k, v)) -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- if not is_on -%}
+  {%- set _ = next_qp.append((group, value)) -%}
+{%- endif -%}
+<a href="{{ request.url.path if request is defined else '' }}?{% for k, v in next_qp %}{{ k }}={{ v }}{% if not loop.last %}&{% endif %}{% endfor %}"
+   class="filter-chip{% if is_on %} filter-chip--on{% endif %}"
+   data-filter-group="{{ group }}"
+   data-filter-value="{{ value }}"
+   aria-pressed="{{ 'true' if is_on else 'false' }}"
+   title="{{ label }}">
+  {%- if icon %}<span aria-hidden="true">{{ icon }}</span> {% endif -%}{{ label }}
 </a>
 {%- endmacro %}
