@@ -231,57 +231,6 @@
   </div>
 </form>
 
-<style>{% raw %}
-.image-upload-area {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-.image-preview {
-  width: 100%;
-  max-width: 360px;
-  aspect-ratio: 4 / 3;
-  background: var(--color-surface-subtle);
-  border: 1px dashed var(--color-border-strong);
-  border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  position: relative;
-}
-.image-preview img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-.image-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-text-subtle);
-}
-.image-controls {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-.image-url-input {
-  flex: 1;
-  min-width: 200px;
-}
-.image-upload-btn {
-  cursor: pointer;
-}
-.image-preview button {
-  position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
-}
-{% endraw %}</style>
-
 <script>
 // =====================================================================
 // SMART FORM LOGIC: SKU auto-gen, recipe → product pre-fill, image upload

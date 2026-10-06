@@ -348,35 +348,6 @@
   {% endif %}
 </section>
 
-<style>
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-  margin: 1.5rem 0;
-}
-.detail-card {
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: var(--card-radius);
-  padding: 1rem;
-}
-.detail-card h2 {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.75rem;
-}
-.detail-card dl { display: grid; grid-template-columns: auto 1fr; gap: 0.4rem 1rem; }
-.detail-card dt { color: var(--color-text-muted); font-size: 0.875rem; }
-.detail-card dd { font-weight: 500; }
-/* Variants: inactive / exhausted style */
-.variant-exhausted td { opacity: 0.45; }
-.variant-exhausted td:first-child { text-decoration: line-through; }
-</style>
-
 <script>
 function toggleExhaustedVariants(show) {
   document.querySelectorAll('.variant-exhausted').forEach(function(row) {

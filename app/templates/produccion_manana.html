@@ -105,7 +105,6 @@
 </div>
 {% endif %}
 
-
 {% if rows|length == 0 %}
 {# T-2026-10-06d: the old empty state only linked to /produccion, which
    was ALSO empty. Now link to /produccion where the "+ Agregá
@@ -248,23 +247,5 @@
   <p class="text-muted" style="padding: var(--space-4);">No hay líneas de ingredientes (probablemente faltan recetas vinculadas a productos).</p>
   {% endif %}
 </section>
-
-<style>
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: var(--text-xs); font-weight: 500; }
-  .badge-manual   { background: #dbeafe; color: #1e40af; }
-  .badge-template { background: #f3e8ff; color: #6b21a8; }
-  .badge-rolling  { background: #f3f4f6; color: #374151; }
-  .badge-warn     { background: #fef3c7; color: #92400e; }
-  .badge-seasonal { background: #fce7f3; color: #9d174d; }
-  .badge-danger   { background: rgba(220, 38, 38, 0.12); color: #991b1b; }
-  .confidence-pill { display: inline-block; padding: 2px 10px; border-radius: 12px; font-weight: 600; font-size: var(--text-sm); min-width: 48px; }
-  .conf-high   { background: #d1fae5; color: #065f46; }
-  .conf-medium { background: #fef3c7; color: #92400e; }
-  .conf-low    { background: #fee2e2; color: #991b1b; }
-  .conf-none   { background: #f3f4f6; color: #6b7280; }
-  .data-table  { width: 100%; border-collapse: collapse; }
-  .data-table th, .data-table td { padding: var(--space-3); border-bottom: 1px solid var(--color-border); }
-  .data-table th { text-align: left; font-weight: 600; background: var(--color-surface-subtle); }
-</style>
 
 {% endblock %}

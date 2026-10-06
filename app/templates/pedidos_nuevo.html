@@ -651,23 +651,6 @@
   </tr>
 </template>
 
-<style>
-  /* Pedido-specific customer-picked hint state */
-  .customer-picked-hint {
-    background: var(--color-surface-subtle);
-    padding: var(--space-2) var(--space-3);
-    border-radius: var(--radius);
-    border-left: 3px solid var(--color-accent);
-    font-size: var(--text-sm);
-    min-height: 38px;
-    display: flex;
-    align-items: center;
-  }
-  .customer-picked-hint[data-empty="true"] {
-    border-left-color: var(--color-text-subtle);
-  }
-</style>
-
 <script src="/static/pedido-combos.js" defer></script>
 {# Phase 13 (2026-10-01): wires the ventana-preferida radios, the
    invoice-profile dropdown, and the structured-address prefill. Loaded

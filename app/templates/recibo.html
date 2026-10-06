@@ -14,38 +14,7 @@
 {% endblock %}
 
 {% block content %}
-<style>
-@media print {
-  /* Hide everything except the receipt container */
-  nav, .sidebar, .topbar, .btn, a[href], footer, .no-print { display: none !important; }
 
-  /* Constrain to 80mm thermal width (~300px at 96dpi) */
-  .container { max-width: 300px !important; margin: 0 auto !important; }
-
-  /* Remove card shadows/padding to save space */
-  .card {
-    box-shadow: none !important;
-    border: 1px solid #ccc !important;
-    padding: 8px 4px !important;
-    page-break-inside: avoid;
-  }
-  .card + .card { margin-top: 4px; }
-
-  /* Collapse spacing */
-  [style*="margin-bottom"] { margin-bottom: 4px !important; }
-  hr { margin: 4px 0 !important; }
-
-  /* Voided banner must print */
-  .voided-banner { display: flex !important; page-break-before: avoid; }
-}
-
-/* BACKLOG #17 — public_mode hides nav chrome for the customer-facing
-   receipt. The "Imprimir" button stays so the customer can still save
-   the page as PDF. */
-{% if public_mode %}
-.public-shell { padding-top: var(--space-4); }
-{% endif %}
-</style>
 <div class="container {% if public_mode %}public-shell{% endif %}" style="max-width: 360px;">
 
   {% if sale.voided_at %}

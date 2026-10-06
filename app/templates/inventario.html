@@ -364,26 +364,4 @@
 {% include "_components/adjust_modal.html" %}
 {% include "_components/merma_modal.html" %}
 
-<style>
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 1rem;
-  gap: 1rem;
-}
-.pagination-info { color: var(--color-text-muted); font-size: 0.875rem; }
-.pagination-links { display: flex; gap: 0.25rem; flex-wrap: wrap; }
-/* Stock health micro-bar (redesign 2026-09-25) */
-.stock-health {
-  width: 90px; height: 6px; margin-top: 4px;
-  background: var(--color-surface-subtle);
-  border-radius: 3px; overflow: hidden;
-}
-.stock-health__fill { height: 100%; border-radius: 3px; }
-.stock-health__fill.is-ok { background: var(--color-success); }
-.stock-health__fill.is-warn { background: var(--color-warn); }
-.stock-health__fill.is-danger { background: var(--color-danger); }
-</style>
-
 {% endblock %}

@@ -25,29 +25,6 @@
 </h2>
 <p class="text-muted">Últimos {{ heatmap_range_days }} días. Cada celda es una franja horaria; el color indica cuántas.</p>
 
-<style>
-    .heatmap-grid {
-      display: grid;
-      grid-template-columns: 60px repeat(24, 1fr);
-      gap: 2px;
-      font-size: 0.75rem;
-      max-width: 900px;
-    }
-    .heatmap-grid > div {
-      text-align: center;
-      padding: 4px 2px;
-      border-radius: 2px;
-      color: #1f2937;
-    }
-    .heatmap-cell {
-      min-height: 28px;
-    }
-    .heatmap-axis {
-      color: #6b7280;
-      font-weight: 600;
-    }
-</style>
-
 <div class="heatmap-grid" role="table" aria-label="Mapa de calor ventas por día y hora">
   <div class="heatmap-axis"></div>
   {% for hour in range(24) %}

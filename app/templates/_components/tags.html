@@ -11,7 +11,6 @@
    until the route is updated. #}
 {% import "_components/atoms.html" as ui %}
 
-
 {# ─── Catalog option renderers (loops over DB rows) ─────────────────── #}
 
 {% macro render_category_options(categories) %}
@@ -33,7 +32,6 @@
   {% endfor %}
 {% endmacro %}
 
-
 {# ─── Unit options (driven by app/rms/units.py:Unit enum) ──────────── #}
 {# Pass `units=[u.value for u in Unit]` from the route to render options. #}
 
@@ -43,14 +41,12 @@
   {% endfor %}
 {% endmacro %}
 
-
 {# Combo box variant (used by reorder.html, etc.) #}
 {% macro render_unit_combo_options(units) %}
   {% for u in units %}
     <div class="combo-static-option" data-value="{{ u }}" data-display="{{ u }}"></div>
   {% endfor %}
 {% endmacro %}
-
 
 {# ─── Single-select category picker (uses ui-combo) ────────────── #}
 
@@ -73,7 +69,6 @@
     {% if help %}<small class="muted">{{ help }}</small>{% endif %}
   </div>
 {% endmacro %}
-
 
 {# ─── Tag picker (pill toggles + custom add) ─────────────────────────── #}
 
@@ -104,61 +99,8 @@
   </div>
 {% endmacro %}
 
-
 {# ─── Inline styles for tag pills ────────────────────────────────────── #}
 
 {% macro tag_picker_styles() %}
-<style>{% raw %}
-.tag-picker .tag-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-}
-.tag-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 12px;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  color: var(--color-text);
-  cursor: pointer;
-  transition: background-color var(--duration-fast) var(--ease-out),
-              border-color var(--duration-fast) var(--ease-out),
-              color var(--duration-fast) var(--ease-out);
-  font-family: inherit;
-}
-.tag-pill:hover {
-  background: var(--color-surface-subtle);
-  border-color: var(--color-border-strong);
-}
-.tag-pill.is-active {
-  background: var(--color-accent-soft);
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-.tag-pill.is-custom {
-  background: var(--color-warn-soft);
-  border-color: var(--color-warn);
-  color: var(--color-warn-fg);
-}
-.tag-pill.is-custom.is-active {
-  background: var(--color-warn);
-  color: var(--color-warn-fg);
-  border-color: var(--color-warn);
-}
-.tag-custom-row {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  margin-bottom: var(--space-1);
-}
-.tag-custom-row .tag-custom-input {
-  flex: 1;
-}
-{% endraw %}</style>
+
 {% endmacro %}

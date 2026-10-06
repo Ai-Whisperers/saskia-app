@@ -178,7 +178,6 @@
   {% include "_components/hero_stats.html" %}
 {% endif %}
 
-
 {# ════════════════════════════════════════════════════════════════════
    DAY VIEW
    ════════════════════════════════════════════════════════════════════ #}
@@ -1777,218 +1776,6 @@
     }
   })();
 </script>
-<style>
-  .production-row.is-done .product-name { text-decoration: line-through; color: var(--color-text-muted, #6b7280); }
-  .production-row.is-done .qty-target { opacity: 0.5; }
-
-  /* T-2026-10-04 (P1): visual highlight when row has a pending pedido.
-     The cook needs to spot "we owe 3 tortas today" instantly. A 4px
-     accent on the left edge + a tinted background does the job without
-     competing with the orange ad-hoc highlight. */
-  /* W11: was background: var(--color-info-soft) — --color-info-bg
-     is not defined so the fallback made ad-hoc-with-pedido rows
-     pure white in dark mode. Use the design-token --color-info-soft
-     (rgba(59,130,246, 0.12) in dark, #eff6ff in light). */
-  .production-row--has-pedido {
-    background: var(--color-info-soft);
-  }
-  .production-row--has-pedido:not(.is-done) td:first-child {
-    border-left: 4px solid var(--color-info);
-    padding-left: calc(var(--space-2) + 4px);
-  }
-  .production-row--has-pedido .pedido-qty {
-    font-weight: 700;
-    color: var(--color-info);
-  }
-
-  /* T-2026-10-05 (B.9): batch-surplus pill color codes.
-     - surplus-low: 1-9% surplus — informational, no urgency
-     - medium: 10-29% surplus — cook should consider lowering forecast
-     - high: ≥30% surplus — significant waste risk, decide before baking
-     Green "exacto" is rendered with text-muted utility (no pill). */
-  .surplus-pill {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 13px;
-    font-weight: 600;
-    line-height: 1.2;
-  }
-
-  /* T-2026-10-05 (B.3): fermentation reminder pill. The cook needs to
-     see "🍞 Fermentar 14h — empezar ayer 16:00" inline on the row so they
-     don't forget to start the bulk rise the night before. We use a soft
-     amber background to signal "this needs lead time" without competing
-     with the orange ad-hoc highlight or the red surplus-high pill. */
-  .fermentation-pill {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 1.3;
-    background: rgba(245, 158, 11, 0.12);
-    color: #78350f;
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    margin-top: 2px;
-  }
-  @media print {
-    .fermentation-pill {
-      background: transparent !important;
-      border: 1px solid #888 !important;
-      color: #000 !important;
-    }
-  }
-  .surplus-pill.surplus-low {
-    background: rgba(217, 119, 6, 0.08);
-    color: #92400e;
-  }
-  .surplus-pill.surplus-med {
-    background: rgba(217, 119, 6, 0.18);
-    color: #78350f;
-    border: 1px solid rgba(217, 119, 6, 0.4);
-  }
-  .surplus-pill.surplus-high {
-    background: rgba(220, 38, 38, 0.12);
-    color: #7f1d1d;
-    border: 1px solid rgba(220, 38, 38, 0.4);
-  }
-  @media print {
-    .surplus-pill { background: transparent !important; border: 1px solid #888 !important; color: #000 !important; }
-  }
-  @media print {
-    .production-row--has-pedido {
-      background: #f3f4f6 !important;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-  }
-
-  /* T-2026-10-04 (P2): confidence pill — compact trust indicator per row.
-     Mirrors the manana.html pattern; bands are visual so the cook can
-     spot low-confidence outliers among uniformly-green rows. */
-  .confidence-pill {
-    display: inline-block;
-    padding: 0.05rem 0.4rem;
-    margin-left: 0.25rem;
-    border-radius: 999px;
-    font-size: var(--text-xs, 0.75rem);
-    font-weight: 600;
-    line-height: 1.4;
-    white-space: nowrap;
-  }
-  .conf-high {
-    background: var(--color-success-soft);
-    color: var(--color-success-strong, #047857);
-  }
-  .conf-medium {
-    background: var(--color-warn-soft);
-    color: var(--color-warning-strong, #b45309);
-  }
-  .conf-low {
-    background: var(--color-warn-soft);
-    color: var(--color-warning-strong, #c2410c);
-  }
-  .conf-zero {
-    background: var(--color-surface-subtle, #f3f4f6);
-    color: var(--color-text-muted, #6b7280);
-  }
-
-  /* T-2026-10-04 (Tier 3-A): +/- stepper wrapper around the qty input.
-     Buttons sit beside the input; tapping adds/removes 1 unit. The cook
-     no longer needs to type into the small number field. */
-  .qty-stepper {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-  .step-btn {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    /* W10: was var(--color-card, #fff) — that fallback made the
-       stepper a blinding white block in dark mode because --color-card
-       is not defined. Use the design-token --color-surface so it
-       tracks dark mode. */
-    background: var(--color-surface);
-    color: var(--color-text);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 80ms ease, color 80ms ease;
-  }
-  .step-btn:hover { background: var(--color-surface-subtle); }
-  .step-btn:focus { outline: 2px solid var(--color-accent); outline-offset: 1px; }
-  .step-btn svg { width: 16px; height: 16px; color: var(--color-text); }
-  /* Direction-specific hover colors (subtle hint) */
-  .step-btn.step-down:hover { background: var(--color-warn-soft); }
-  .step-btn.step-up:hover { background: var(--color-success-soft); }
-
-  /* T-2026-10-04 (D.5): hide keyboard shortcut hint on mobile (no
-     physical keyboard, would just be visual noise). The check uses
-     pointer:coarse first (tablet touch) and falls back to width. */
-  @media (max-width: 767px), (pointer: coarse) {
-    .kbd-hint { display: none !important; }
-  }
-
-  /* T-2026-10-04 (P2): mobile-friendly shift execution.
-     On narrow viewports (≤640px) the 8-column table becomes unreadable.
-     Convert each <tr> into a stacked card layout with `data-label`
-     attributes showing as left-side hints. Inspired by the
-     "responsive table" pattern from CSS-Tricks but kept minimal. */
-  @media (max-width: 640px) {
-    #shift-form table { border: 0; }
-    #shift-form table thead { display: none; }
-    #shift-form table tbody tr {
-      display: block;
-      margin-bottom: var(--space-3);
-      padding: var(--space-2);
-      border: 1px solid var(--color-border);
-      border-radius: 6px;
-      background: var(--color-surface);
-    }
-    #shift-form table tbody td {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: var(--space-1, 0.25rem) 0;
-      border-bottom: 1px solid var(--color-surface-subtle, #f3f4f6);
-      text-align: right;
-    }
-    #shift-form table tbody td:last-child {
-      border-bottom: 0;
-    }
-    #shift-form table tbody td::before {
-      content: attr(data-label);
-      font-weight: 600;
-      color: var(--color-text-muted, #6b7280);
-      text-align: left;
-      margin-right: var(--space-2, 0.5rem);
-      flex-shrink: 0;
-    }
-    #shift-form table tbody td[data-label="Listo"] {
-      justify-content: flex-end;
-    }
-    #shift-form table tbody td[data-label="Listo"]::before {
-      flex: 1;
-    }
-    #shift-form table tbody td[data-label="Producto"]::before {
-      display: none;
-    }
-    #shift-form .progress-input {
-      width: 90px !important;
-      height: 44px !important;  /* iOS HIG: ≥44px tap target */
-      font-size: 1.1rem;
-    }
-    #shift-form .shift-checkbox {
-      width: 28px !important;
-      height: 28px !important;
-    }
-  }
-</style>
 
 {% endif %}{# end day view #}
 
@@ -2125,7 +1912,6 @@
 })();
 </script>
 
-
 {# ════════════════════════════════════════════════════════════════════
    WEEK VIEW
    ════════════════════════════════════════════════════════════════════ #}
@@ -2228,7 +2014,6 @@
 </section>
 {% endif %}
 {% endif %}{# end week view #}
-
 
 {# ════════════════════════════════════════════════════════════════════
    MONTH VIEW — vista panorámica (heatmap). Las secciones de
