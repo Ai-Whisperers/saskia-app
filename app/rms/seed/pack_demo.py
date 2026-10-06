@@ -20,6 +20,7 @@ import argparse
 import math
 import random
 import secrets
+import unicodedata
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal as _D
 
@@ -294,7 +295,28 @@ def reseed_pack(session: Session, pack: str, *, days_of_history: int = 90) -> di
     return {"pack": pack_report.__dict__.get("pack", pack), "demo": demo_report}
 
 
+def _norm_key(s: str) -> str:
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower()
+    return "".join(ch for ch in s if ch.isalnum())
+
+
+def _resolve_pack(query: str) -> str:
+    """Match 'pizzeria' / 'cafe' / 'Pizzería' → canonical PACKS key."""
+    from app.rms.seed.packs import PACKS
+
+    keys = {_norm_key(p): p for p in PACKS}
+    q = _norm_key(query)
+    if q in keys:
+        return keys[q]
+    for k, p in sorted(keys.items()):
+        if q and (q in k or k.startswith(q)):
+            return p
+    raise ValueError(f"pack no encontrado: {query!r}")
+
+
 def main() -> None:  # pragma: no cover - CLI
+    import os
+
     from app.rms.db import make_engine, make_session_factory
     from app.rms.seed.packs import PACKS
 
@@ -304,14 +326,16 @@ def main() -> None:  # pragma: no cover - CLI
     ap.add_argument("--days", type=int, default=90)
     args = ap.parse_args()
 
-    if args.list or not args.pack:
+    pack_arg = args.pack or os.environ.get("AIW_DEMO_PACK", "")
+    if args.list or not pack_arg:
         print("\n".join(sorted(PACKS)))
         return
 
+    pack = _resolve_pack(pack_arg)
     engine = make_engine()
     with make_session_factory(engine)() as session:
-        result = reseed_pack(session, args.pack, days_of_history=args.days)
-        print(f"demo re-seeded → {args.pack}: {result['demo']}")
+        result = reseed_pack(session, pack, days_of_history=args.days)
+        print(f"demo re-seeded → {pack}: {result['demo']}")
 
 
 if __name__ == "__main__":  # pragma: no cover
