@@ -263,12 +263,21 @@ def reseed_pack(session: Session, pack: str, *, days_of_history: int = 90) -> di
     production templates + 90 days of demo life. Deterministic; NOT for a
     tenant with real data.
     """
-    from app.rms.models import Base
     from app.rms.seed.packs import seed_pack
 
-    for table in reversed(Base.metadata.sorted_tables):
-        session.execute(text(f'DELETE FROM "{table.name}"'))  # noqa: S608 - metadata-derived name
-    session.flush()
+    # Wipe EVERY table (sqlite_master = DB truth; metadata misses migration-only
+    # tables). FK pragma is a no-op inside a transaction → dedicated AUTOCOMMIT
+    # connection, independent of the session's transaction state.
+    engine = session.get_bind()
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("PRAGMA foreign_keys = OFF"))
+        names = [r[0] for r in conn.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        ))]
+        for name in names:
+            conn.execute(text(f'DELETE FROM "{name}"'))  # noqa: S608 - sqlite_master-derived name
+        conn.execute(text("PRAGMA foreign_keys = ON"))
+    session.expire_all()
 
     pack_report = seed_pack(session, pack)
     demo_report = seed_pack_demo(session, days_of_history=days_of_history)
