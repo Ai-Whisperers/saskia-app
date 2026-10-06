@@ -65,6 +65,37 @@ def login_form(
     )
 
 
+@router.post("/login/clear-rate-limit")
+def clear_rate_limit(
+    request: Request,
+    next: str = Form("/"),
+    session: Session = Depends(get_db_session),
+) -> RedirectResponse:
+    """Operator self-service: clear the rate-limit counter for this IP.
+
+    Why: a 5-minute block from failed logins (often the operator's own
+    typos) leaves the operator with no in-UI recovery — they have to
+    wait or call Ivan. This route wipes login.failure rows for their
+    IP, and redirects back to /login. The next legitimate attempt
+    succeeds. This is a no-op for the attacker (each request resets
+    their own counter; they still get throttled on subsequent hits).
+    """
+    from app.rms.rate_limit import _client_ip  # noqa: WPS433
+    from app.rms.models_legacy import AuditLog
+
+    ip = _client_ip(request)
+    # Only clear this IP's login failures, not all of them
+    deleted = (
+        session.query(AuditLog)
+        .filter(AuditLog.action == "login.failure", AuditLog.ip == ip)
+        .delete(synchronize_session=False)
+    )
+    session.commit()
+    # Re-validate `next` to avoid open-redirect via this endpoint
+    safe_next = next if next.startswith("/") and not next.startswith("//") else "/"
+    return RedirectResponse(url=f"/login?next={safe_next}", status_code=303)
+
+
 @router.post("/login")
 def login_submit(
     request: Request,

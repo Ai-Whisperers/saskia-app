@@ -31,6 +31,16 @@
             style="margin-top: 12px; align-self: flex-start;">
       Reintentar ahora (<span id="retry-btn-seconds">{{ retry_after }}</span>s)
     </button>
+    <form method="post" action="/login/clear-rate-limit" style="margin-top: 8px;">
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="btn-link" id="reset-rate-link"
+              style="background: none; border: 0; padding: 0; color: var(--color-accent); text-decoration: underline; cursor: pointer; font-size: 0.875rem;">
+        Limpiar bloqueo y volver al login
+      </button>
+      <span style="color: var(--color-muted); font-size: 0.8125rem; margin-left: 6px;">
+        (si esperaste o creés que es un error)
+      </span>
+    </form>
     <script>
       (function() {
         var span = document.getElementById('retry-seconds');
