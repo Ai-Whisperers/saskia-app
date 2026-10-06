@@ -36,6 +36,7 @@ _CSRF_FORM_FIELD = "csrf_token"
 _EXEMPT_PATHS = frozenset(
     {
         "/login",  # first-time login (no cookie yet)
+        "/login/clear-rate-limit",  # operator self-service rate-limit reset
         "/forgot-password",  # password recovery
         "/healthz",
         "/healthz/db",
