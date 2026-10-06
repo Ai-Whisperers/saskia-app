@@ -20,10 +20,15 @@ from __future__ import annotations
 from pathlib import Path
 
 TEMPLATE = Path(__file__).parent.parent / "app" / "templates" / "produccion.html"
-ROUTER = Path(__file__).parent.parent / "app" / "routers" / "produccion.py"
+# Sazon-Improvement v2 (2026-10-06) Phase E: _build_substitution_suggestions
+# now lives in app/routers/produccion/analytics.py, but the call from
+# the worksheet handler is in _full.py. We read BOTH so the test finds
+# the function AND its caller.
+ROUTER = Path(__file__).parent.parent / "app" / "routers" / "produccion" / "analytics.py"
+ROUTER_CALLERS = Path(__file__).parent.parent / "app" / "routers" / "produccion" / "_full.py"
 
 TEMPLATE_SRC = TEMPLATE.read_text(encoding="utf-8")
-ROUTER_SRC = ROUTER.read_text(encoding="utf-8")
+ROUTER_SRC = ROUTER.read_text(encoding="utf-8") + ROUTER_CALLERS.read_text(encoding="utf-8")
 
 
 # ────────────────────── router helper (C.4) ──────────────────────
@@ -79,10 +84,12 @@ def test_router_substitution_helper_returns_top_n():
 
 def test_router_day_view_passes_substitution_suggestions():
     """C.4 — Day view context must include substitution_suggestions."""
-    # Find the day-view context render
-    idx = ROUTER_SRC.find("substitution_suggestions")
-    assert idx > 0
-    # Find the day-view section (look for haccp_latest nearby)
+    # Sazon-Improvement v2 (2026-10-06) Phase E: search for the day-view
+    # context key (the value `"substitution_suggestions":` inside a dict
+    # literal) — not the function definition, which now lives in
+    # analytics.py and would match first.
+    idx = ROUTER_SRC.find('"substitution_suggestions":')
+    assert idx > 0, "C.4 — context must set substitution_suggestions per day"
     block = ROUTER_SRC[max(0, idx - 800) : idx + 800]
     assert "_build_substitution_suggestions(" in block, (
         "C.4 — substitution_suggestions must be computed via _build_substitution_suggestions"

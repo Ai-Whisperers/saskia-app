@@ -20,7 +20,7 @@ from __future__ import annotations
 from pathlib import Path
 
 TEMPLATE = Path(__file__).parent.parent / "app" / "templates" / "produccion.html"
-ROUTER = Path(__file__).parent.parent / "app" / "routers" / "produccion.py"
+ROUTER = Path(__file__).parent.parent / "app" / "routers" / "produccion" / "_full.py"
 
 TEMPLATE_SRC = TEMPLATE.read_text(encoding="utf-8")
 ROUTER_SRC = ROUTER.read_text(encoding="utf-8")
@@ -138,11 +138,11 @@ def test_template_bulk_csv_button_in_adhoc_section():
         "B.7 — bulk trigger button must have data-action='open-adhoc-bulk'"
     )
     assert "Pegá varios" in TEMPLATE_SRC, "B.7 — button label must include 'Pegá varios (CSV)'"
-    # The button uses no-print so paper plans stay clean.
+    # Sazon-Improvement v2 (2026-10-06): the JS handler that previously
+    # had a `data-action="open-adhoc-bulk"` reference was removed during
+    # the JS cleanup, so only the button itself remains. The button must
+    # have no-print (paper plans don't need it).
     idx = TEMPLATE_SRC.find('data-action="open-adhoc-bulk"')
-    # Skip past the first hit (the JS handler at line ~479) — the button
-    # is the second occurrence.
-    idx = TEMPLATE_SRC.find('data-action="open-adhoc-bulk"', idx + 1)
     block = TEMPLATE_SRC[max(0, idx - 300) : idx + 300]
     assert "no-print" in block, "B.7 — bulk button must be no-print (paper plans don't need it)"
 

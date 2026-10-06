@@ -34,7 +34,17 @@ from app.routers.produccion._helpers import (
     _week_monday,
     source_to_bucket,
 )
-from app.routers.produccion._full import router
+# Re-export the shared router from the package's canonical location
+# so submodules (worksheet, operations, ...) can do
+# `from app.routers.produccion import router` and register their routes.
+from app.routers.produccion._router import router
+# Import _full so all the existing @router.get / @router.post decorators
+# in that module register their routes on the shared router object.
+# This is the "shim + extract" pattern: routes that haven't been split
+# out yet still live in _full.py and attach to the shared router via
+# the `from _router import router` line at the top of _full.py.
+import app.routers.produccion._full  # noqa: F401 — side effect: route registration
+import app.routers.produccion.analytics  # noqa: F401 — side effect: route registration
 
 __all__ = [
     "router",

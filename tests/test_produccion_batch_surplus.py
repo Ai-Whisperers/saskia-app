@@ -17,10 +17,15 @@ from __future__ import annotations
 from pathlib import Path
 
 TEMPLATE = Path(__file__).parent.parent / "app" / "templates" / "produccion.html"
-ROUTER = Path(__file__).parent.parent / "app" / "routers" / "produccion.py"
+# Sazon-Improvement v2 (2026-10-06) Phase E: _batch_surplus now lives
+# in app/routers/produccion/_helpers.py (extracted from _full.py).
+# The `is_ad_hoc` + "batch_surplus" wiring is in _full.py's worksheet
+# handler. We read BOTH so the test finds the helper AND its callers.
+ROUTER = Path(__file__).parent.parent / "app" / "routers" / "produccion" / "_helpers.py"
+ROUTER_CALLERS = Path(__file__).parent.parent / "app" / "routers" / "produccion" / "_full.py"
 
 TEMPLATE_SRC = TEMPLATE.read_text(encoding="utf-8")
-ROUTER_SRC = ROUTER.read_text(encoding="utf-8")
+ROUTER_SRC = ROUTER.read_text(encoding="utf-8") + ROUTER_CALLERS.read_text(encoding="utf-8")
 
 
 # ────────────────────── helper unit tests (B.9) ──────────────────────

@@ -16,7 +16,12 @@ from __future__ import annotations
 from pathlib import Path
 
 TEMPLATE = Path(__file__).parent.parent / "app" / "templates" / "produccion.html"
-ROUTER = Path(__file__).parent.parent / "app" / "routers" / "produccion.py"
+# Sazon-Improvement v2 (2026-10-06) Phase E: _fermentation_reminder now
+# lives in app/routers/produccion/_helpers.py (extracted from _full.py).
+# The worksheet handler that calls it is in _full.py. We read BOTH so
+# the test finds the helper AND its caller in the day-view context.
+ROUTER = Path(__file__).parent.parent / "app" / "routers" / "produccion" / "_helpers.py"
+ROUTER_CALLERS = Path(__file__).parent.parent / "app" / "routers" / "produccion" / "_full.py"
 MODEL = Path(__file__).parent.parent / "app" / "rms" / "models_legacy.py"
 MIGRATION = (
     Path(__file__).parent.parent
@@ -27,7 +32,7 @@ MIGRATION = (
 )
 
 TEMPLATE_SRC = TEMPLATE.read_text(encoding="utf-8")
-ROUTER_SRC = ROUTER.read_text(encoding="utf-8")
+ROUTER_SRC = ROUTER.read_text(encoding="utf-8") + ROUTER_CALLERS.read_text(encoding="utf-8")
 MODEL_SRC = MODEL.read_text(encoding="utf-8")
 MIGRATION_SRC = MIGRATION.read_text(encoding="utf-8")
 
