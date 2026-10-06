@@ -26,7 +26,7 @@
 </form>
 
 {# KPI row #}
-<div class="kpi-row mb-4" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-4);">
+<div class="kpi-row mb-4 d-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-4);">
   {{ a.metric_card("Ventas", n_sales, sub="período " ~ start_date ~ " – " ~ end_date) }}
   {{ a.metric_card("Ingresos totales", m.gs(total_revenue), sub="recaudado") }}
   {{ a.metric_card("Ticket promedio", m.gs(avg_ticket), sub="por venta") }}
@@ -74,13 +74,13 @@
       {% endif %}
 
       {% if sales_by_hour %}
-      <div style="margin-top:var(--space-3);">
+      <div class="mt-3 d-flex" >
         {% for hour in range(6, 23) %}
           {% set count = sales_by_hour.get(hour, 0) %}
           {% set max_count = sales_by_hour.values()|max if sales_by_hour else 1 %}
-          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:2px;font-size:var(--text-xs);">
+          <div class="d-flex" style="display:flex;align-items:center;gap:.5rem;margin-bottom:2px;font-size:var(--text-xs);">
             <span class="text-muted" style="width:3rem;text-align:right">{{ "%02d:00"|format(hour) }}</span>
-            <div style="flex:1;background:var(--color-accent);height:12px;width:{% if max_count > 0 %}{{ (count / max_count * 100)|int }}%{% else %}0{% endif %}%;border-radius:2px;"></div>
+            <div class="flex-1" style="flex:1;background:var(--color-accent);height:12px;width:{% if max_count > 0 %}{{ (count / max_count * 100)|int }}%{% else %}0{% endif %}%;border-radius:2px;"></div>
             <span class="text-muted" style="width:2rem">{{ count }}</span>
           </div>
         {% endfor %}
@@ -101,13 +101,13 @@
       {% endif %}
 
       {% if sales_by_dow %}
-      <div style="margin-top:var(--space-3);">
+      <div class="mt-3 d-flex" >
         {% for dow, count in sales_by_dow.items() %}
           {% set max_count = sales_by_dow.values()|max %}
-          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:2px;font-size:var(--text-xs);">
+          <div class="d-flex" style="display:flex;align-items:center;gap:.5rem;margin-bottom:2px;font-size:var(--text-xs);">
             {% set days = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'] %}
             <span class="text-muted" style="width:3rem;text-align:right">{{ days[dow - 1] }}</span>
-            <div style="flex:1;background:var(--color-accent);height:12px;width:{% if max_count > 0 %}{{ (count / max_count * 100)|int }}%{% else %}0{% endif %}%;border-radius:2px;"></div>
+            <div class="flex-1" style="flex:1;background:var(--color-accent);height:12px;width:{% if max_count > 0 %}{{ (count / max_count * 100)|int }}%{% else %}0{% endif %}%;border-radius:2px;"></div>
             <span class="text-muted" style="width:2rem">{{ count }}</span>
           </div>
         {% endfor %}

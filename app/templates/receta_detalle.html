@@ -8,7 +8,7 @@
 {% block content %}
 
 {# ═══ PAGE HEADER (THE ROOF — always outside the grid) ═══ #}
-<div style="display:flex;align-items:baseline;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-4);">
+<div class="d-flex" style="display:flex;align-items:baseline;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-4);">
   <h1>{{ fmt.entity_name(recipe) }}</h1>
   <a href="/recetas/{{ recipe.id }}/editar" class="btn btn-sm btn-ghost">
     <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
@@ -32,7 +32,7 @@
 </div>
 
 {# ═══ TWO-COLUMN GRID ═══ #}
-<div class="receta-2col" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:var(--space-4);align-items:start;">
+<div class="receta-2col d-grid" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:var(--space-4);align-items:start;">
 
 {# ═══ LEFT COLUMN (2fr) ═══ #}
 <div class="receta-main" style="min-width:0;display:flex;flex-direction:column;gap:var(--space-4);">
@@ -72,11 +72,11 @@
     <h2 style="font-size:1rem;margin-bottom:var(--space-2);">
       🧮 Etiquetas derivadas de ingredientes
     </h2>
-    <p class="text-muted" style="margin-bottom:var(--space-2);">
+    <p class="text-muted mb-2" >
       Calculadas automáticamente: una etiqueta se mantiene solo si <strong>todos</strong> los insumos la cumplen.
     </p>
     {% if tag_derivation.dietary %}
-    <div class="tag-pill-row" style="margin-bottom:var(--space-2);" aria-label="Etiquetas derivadas">
+    <div class="tag-pill-row mb-2"  aria-label="Etiquetas derivadas">
       <span class="tag-pill-row__label">✅ Se cumplen:</span>
       {% for tag in tag_derivation.dietary %}{{ t.tag_pills(tag) }}{% endfor %}
     </div>
@@ -84,11 +84,11 @@
     <p class="text-muted">Ninguna etiqueta dietética se cumple en todas las líneas.</p>
     {% endif %}
     {% if tag_derivation.blocked %}
-    <details style="margin-top:var(--space-2);">
-      <summary style="cursor:pointer;font-weight:600;">
+    <details class="mt-2" >
+      <summary class="mt-2" style="cursor:pointer;font-weight:600;">
         ❌ Canceladas ({{ tag_derivation.blocked|length }}) — ver por qué
       </summary>
-      <ul style="margin-top:var(--space-2);padding-left:1.2rem;">
+      <ul class="mt-2" style="margin-top:var(--space-2);padding-left:1.2rem;">
         {% for tag, blockers in tag_derivation.blocked.items() %}
         <li style="margin-bottom:4px;">
           <strong>{{ tag }}</strong> — bloqueada por: {{ blockers|join(", ") }}
@@ -101,7 +101,7 @@
        deep-links to its Inventario edit form: fix at the source (the
        ingredient), and every recipe that uses it inherits automatically. #}
     {% if tag_derivation.undeclared %}
-    <div class="alert alert-warning" role="alert" style="margin-top:var(--space-2);max-width:800px;">
+    <div class="alert alert-warning mt-2" role="alert" style="margin-top:var(--space-2);max-width:800px;">
       <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
       <div class="alert-content">
         <p style="line-height:1.5;margin:0;">
@@ -127,7 +127,7 @@
   {% endif %}
 
   {# Meta strip: Rinde / Preparación / Cocción / Dificultad #}
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+  <div class="d-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
     {% if recipe.yield_qty %}
     <div class="metric-card">
       <div class="metric-label">Rinde</div>
@@ -159,12 +159,12 @@
      (exploded purchase list). Both links preserve nothing else — the
      detail page is stateless. #}
   {% if resolved_lines %}
-  <div class="card mb-4">
-    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);flex-wrap:wrap;">
-      <h2 style="margin:0;">
+  <div class="card mb-4 d-flex">
+    <div class="card-header d-flex" style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);flex-wrap:wrap;">
+      <h2 class="m-0" >
         {% if vista == 'consolidada' %}Ingredientes consolidados (lista de compras){% else %}Ingredientes y sub-recetas{% endif %}
       </h2>
-      <div role="group" aria-label="Modo de vista" style="display:inline-flex;gap:4px;">
+      <div class="d-inline-flex" role="group" aria-label="Modo de vista" style="display:inline-flex;gap:4px;">
         <a href="?vista=estructural"
            class="btn btn-sm {% if vista != 'consolidada' %}btn-primary{% else %}btn-ghost{% endif %}"
            aria-current="{{ 'page' if vista != 'consolidada' else 'false' }}">Vista Estructural</a>
@@ -243,7 +243,7 @@
               {{ item.target_name }}
             {% else %}
               <a href="/recetas/{{ item.line.line_ref_id }}">{{ item.target_name }}</a>
-              <a href="/recetas/{{ item.line.line_ref_id }}" class="text-link" style="font-size:var(--text-sm);">↗ Ver sub-receta</a>
+              <a href="/recetas/{{ item.line.line_ref_id }}" class="text-link text-sm" >↗ Ver sub-receta</a>
             {% endif %}
           </td>
           <td class="num">{{ "%.3f"|format(item.line.qty) }}</td>
@@ -262,7 +262,7 @@
   <div class="alert alert-warning" role="alert" style="max-width:800px;">
     <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
     <div class="alert-content">
-      <p style="margin:0;"><strong>Faltan datos de precio para:</strong></p>
+      <p class="m-0" ><strong>Faltan datos de precio para:</strong></p>
       <ul style="margin:var(--space-1) 0 0 var(--space-3);">
         {% for name in batch_cost.missing_ingredient_names %}
         <li>{{ name }}</li>
@@ -281,7 +281,7 @@
     </div>
     {% set phases = recipe_phases %}
     {% if phases %}
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:var(--space-3);margin-top:var(--space-3);">
+    <div class="d-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:var(--space-3);margin-top:var(--space-3);">
       {% for phase in phases %}
       <div style="border:1px solid var(--color-border);padding:var(--space-3);border-radius:var(--radius-md);">
         <h3 class="text-sm font-bold mb-2">{{ phase.title }}</h3>
@@ -301,9 +301,9 @@
   <section class="card mt-4">
     <div class="card-header">
       <h2 class="card-title">Secuencia Completa de Preparación (Incluye Sub-recetas)</h2>
-      <p class="text-sm text-muted">Procedimiento paso a paso para la base y el ensamblaje de sus sub-recetas.</p>
+      <p class="text-sm text-muted d-grid">Procedimiento paso a paso para la base y el ensamblaje de sus sub-recetas.</p>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:var(--space-3);margin-top:var(--space-3);">
+    <div class="d-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:var(--space-3);margin-top:var(--space-3);">
       <div style="border:1px solid var(--color-border);padding:var(--space-3);border-radius:var(--radius-md);">
         <h3 class="text-sm font-bold mb-2">1. Preparación de Sub-receta</h3>
         <div style="background:var(--color-surface-subtle);border-left:3px solid var(--color-warn);padding:var(--space-2);margin-bottom:var(--space-2);font-size:var(--text-sm);">
@@ -338,7 +338,7 @@
 </div>{# end left column #}
 
 {# ═══ RIGHT COLUMN (1fr) ═══ #}
-<aside class="receta-side" style="display:flex;flex-direction:column;gap:var(--space-4);min-width:0;">
+<aside class="receta-side d-flex" style="display:flex;flex-direction:column;gap:var(--space-4);min-width:0;">
 
   {# Cost breakdown #}
   <div class="card mb-4">
@@ -364,8 +364,8 @@
     {# Estimated breakdown placeholder #}
     {% if batch_cost.batch_cost_gs is not none %}
     <div style="border-top:1px solid var(--color-border);padding-top:var(--space-3);margin-top:var(--space-2);">
-      <p class="text-muted" style="font-size:var(--text-xs);margin-bottom:var(--space-2);">Desglose estimado:</p>
-      <dl style="display:grid;grid-template-columns:auto 1fr;gap:.25rem .75rem;font-size:var(--text-sm);">
+      <p class="text-muted d-grid" style="font-size:var(--text-xs);margin-bottom:var(--space-2);">Desglose estimado:</p>
+      <dl class="d-grid" style="display:grid;grid-template-columns:auto 1fr;gap:.25rem .75rem;font-size:var(--text-sm);">
         <dt class="text-muted">Insumos:</dt>
         <dd>{{ m.gs_full((batch_cost.batch_cost_gs * 0.70)|round|int) }}</dd>
         <dt class="text-muted">Mano de obra:</dt>

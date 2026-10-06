@@ -49,11 +49,11 @@
           </td>
           <td>
             {% if not item.purchased %}
-              <form method="post" action="/wishlist/{{ item.id }}/mark-purchased" style="display:inline;">
+              <form class="d-inline" method="post" action="/wishlist/{{ item.id }}/mark-purchased" >
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="btn btn-sm btn-primary">Marcar comprado</button>
               </form>
-              <form method="post" action="/wishlist/{{ item.id }}/send-to-shopping-list" style="display:inline;">
+              <form class="d-inline" method="post" action="/wishlist/{{ item.id }}/send-to-shopping-list" >
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="btn btn-sm btn-secondary" title="Enviar a la lista de compras">🛒</button>
               </form>
@@ -67,7 +67,7 @@
   {% endif %}
 {% endfor %}
 
-<p class="muted" style="margin-top:2rem;">
+<p class="muted mt-8" >
   💡 Cargá o sincronizá artículos para planificar inversiones de equipamiento.
 </p>
 {% endblock %}

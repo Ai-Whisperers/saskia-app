@@ -16,9 +16,9 @@
 <form method="post" action="/vs-mercado/{{ b.id }}/save" class="card mb-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <div class="card-body">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+    <div class="d-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
       <div>
-        <h3 style="margin-top:0;">💰 Nuestro precio</h3>
+        <h3 class="mt-0" >💰 Nuestro precio</h3>
         <div class="form-group">
           <label for="our_wholesale_gs">Wholesale Gs.</label>
           <div class="currency-input-wrap">
@@ -37,7 +37,7 @@
         </div>
       </div>
       <div>
-        <h3 style="margin-top:0;">🏪 Mercado</h3>
+        <h3 class="mt-0" >🏪 Mercado</h3>
         <div class="form-group">
           <label for="comp_min_gs">Competidor A (mín) Gs.</label>
           <div class="currency-input-wrap">
@@ -90,7 +90,7 @@
 </div>
 {% endif %}
 
-<p class="muted" style="margin-top:2rem;">
+<p class="muted mt-8" >
   💡 "Posición" se calcula automáticamente al comparar tu retail vs el
   promedio del mercado. -10% = "más barato que la competencia".
 </p>

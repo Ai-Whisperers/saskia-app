@@ -30,7 +30,7 @@
 </p>
 
 {# ── Filter toolbar ── #}
-<form method="get" action="/productos" class="inv-toolbar" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
+<form method="get" action="/productos" class="inv-toolbar d-flex" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
   <input type="search" name="q" value="{{ q }}" placeholder="Buscar producto…"
          style="flex:1;min-width:180px;height:36px;" aria-label="Buscar producto">
 
@@ -80,9 +80,9 @@
       {% endfor %}
     </div>
   </div>
-  <button type="submit" class="btn btn-primary" style="height:36px;">Filtrar</button>
+  <button type="submit" class="btn btn-primary h-control" >Filtrar</button>
   {% if q or has_recipe or margen_sel or disp_sel or tag_sel or category_sel %}
-  <a href="/productos" class="btn" style="height:36px;">Limpiar todo</a>
+  <a href="/productos" class="btn h-control" >Limpiar todo</a>
   {% endif %}
 </form>
 
@@ -96,7 +96,7 @@
 {% if has_recipe == 'yes' %}{% set _ = active_filters.append({'key': 'has_recipe', 'label': 'Receta', 'value': 'Con receta'}) %}{% elif has_recipe == 'no' %}{% set _ = active_filters.append({'key': 'has_recipe', 'label': 'Receta', 'value': 'Sin receta'}) %}{% endif %}
 
 {% if active_filters %}
-<div class="active-filters" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:var(--space-3);">
+<div class="active-filters d-flex" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:var(--space-3);">
   {% for f in active_filters %}
     {% set remove_params = [] %}
     {% for k, v in request.query_params.multi_items() %}
@@ -116,7 +116,7 @@
     <svg class="icon" aria-hidden="true"><use href="#icon-columns"/></svg>
     Columnas
   </button>
-  <span id="dead-products-legend" class="badge badge-warn" style="display:none"> Producto sin ventas (muerto)</span>
+  <span id="dead-products-legend" class="badge badge-warn d-none" > Producto sin ventas (muerto)</span>
 </div>
 
 {# ── Bulk actions bar ── #}
@@ -136,7 +136,7 @@
 {{ ui.skeleton_section(id="products-table", variant="line", count=12, label="Cargando productos") }}
 <div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);" data-loaded-section="products-table">
 <div class="table-wrap">
-<table class="table is-hoverable is-striped" style="margin-bottom:0;" id="products-table">
+<table class="table is-hoverable is-striped mb-0"  id="products-table">
   <thead>
     <tr>
       <th class="col-checkbox"><input type="checkbox" id="select-all" aria-label="Seleccionar todos"></th>
@@ -236,7 +236,7 @@
       <td class="actions col-actions">
         {# P3: ⭐ favorite toggle — pins the product to the ventas POS
            quick-sell grid. POST + redirect keeps filters/sort/page. #}
-        <form method="post" action="/productos/{{ p.id }}/favorito" class="fav-toggle-form" style="display:inline;">
+        <form method="post" action="/productos/{{ p.id }}/favorito" class="fav-toggle-form d-inline" >
           <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
           <button type="submit"
                   class="btn btn-sm btn-ghost fav-star{% if p["is_favorite"] %} is-fav{% endif %}"
@@ -303,8 +303,8 @@
       </button>
     </div>
     <div class="modal-body">
-      <p id="bulk-edit-count" style="margin-bottom:var(--space-3);font-weight:600;"></p>
-      <div class="form-row" style="margin-bottom:var(--space-3);">
+      <p class="mb-3" id="bulk-edit-count" style="margin-bottom:var(--space-3);font-weight:600;"></p>
+      <div class="form-row mb-3" >
         <label for="bulk-action-select">Acción</label>
         <select id="bulk-action-select" class="form-select" style="height:var(--input-height);" onchange="toggleBulkValueField()">
           <option value="">Elegí una acción…</option>
@@ -314,14 +314,14 @@
           <option value="set_category">Cambiar categoría</option>
         </select>
       </div>
-      <div class="form-row" id="bulk-value-row" style="margin-bottom:var(--space-3);display:none;">
+      <div class="form-row mb-3" id="bulk-value-row" style="margin-bottom:var(--space-3);display:none;">
         <label for="bulk-value-input" id="bulk-value-label">Valor</label>
         <input type="number" id="bulk-value-input" class="form-input" step="any" placeholder="ej: 10 o -5">
         <input type="text" id="bulk-category-input" class="form-input" placeholder="ej: Panadería" style="display:none;">
       </div>
-      <div id="bulk-error" class="alert alert-danger" style="display:none;margin-bottom:var(--space-3);"></div>
+      <div id="bulk-error" class="alert alert-danger d-none" style="display:none;margin-bottom:var(--space-3);"></div>
     </div>
-    <div class="modal-footer" style="display:flex;gap:var(--space-2);justify-content:flex-end;">
+    <div class="modal-footer d-flex" style="display:flex;gap:var(--space-2);justify-content:flex-end;">
       <button type="button" class="btn" onclick="document.getElementById('bulk-edit-modal').close()">Cancelar</button>
       <button type="button" class="btn btn-primary" onclick="submitBulkEdit()">Aplicar</button>
     </div>
@@ -329,10 +329,10 @@
 </dialog>
 
 {# Column visibility toggle #}
-<div id="column-visibility-panel" style="display:none;position:fixed;z-index:1000;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--card-radius);padding:1rem;box-shadow:var(--shadow-md);min-width:180px;" role="dialog" aria-label="Visibilidad de columnas">
+<div class="d-none" id="column-visibility-panel" style="display:none;position:fixed;z-index:1000;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--card-radius);padding:1rem;box-shadow:var(--shadow-md);min-width:180px;" role="dialog" aria-label="Visibilidad de columnas">
   <p style="font-weight:600;margin-bottom:.5rem;">Columnas visibles</p>
   {% for col_id, col_label in [('name','Nombre'), ('sku','SKU'), ('portion','Porción'), ('price','Precio'), ('recipe','Receta'), ('cost','Costo'), ('margin','Margen'), ('marginpct','Margen %'), ('available','Disponible')] %}
-  <label style="display:flex;align-items:center;gap:.5rem;padding:.25rem 0;cursor:pointer;">
+  <label class="d-flex" style="display:flex;align-items:center;gap:.5rem;padding:.25rem 0;cursor:pointer;">
     <input type="checkbox" class="col-toggle" data-col="{{ col_id }}" checked onchange="applyColumnVisibility()"> {{ col_label }}
   </label>
   {% endfor %}

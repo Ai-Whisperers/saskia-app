@@ -44,7 +44,7 @@
 
   <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
     <legend style="font-weight:600;padding:0 var(--space-2);">Perfil (opcional)</legend>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+    <div class="d-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
       <div>
         <label for="birthday">Cumpleaños</label>
         <input type="text" id="birthday" name="birthday" value="{{ form.birthday or '' }}"
@@ -53,7 +53,7 @@
       </div>
       <div>
         <label for="how_found">¿Cómo nos encontró?</label>
-        <select id="how_found" name="how_found" style="margin-top:4px;">
+        <select class="mt-4" id="how_found" name="how_found" >
           <option value="">—</option>
           {% for opt in how_found_options %}
           <option value="{{ opt }}" {% if form.how_found == opt %}selected{% endif %}>{{ opt|title }}</option>
@@ -62,15 +62,15 @@
       </div>
       <div>
         <label for="preferred_channel">Canal preferido</label>
-        <select id="preferred_channel" name="preferred_channel" style="margin-top:4px;">
+        <select class="mt-4" id="preferred_channel" name="preferred_channel" >
           <option value="">—</option>
           {% for opt in channel_options %}
           <option value="{{ opt }}" {% if form.preferred_channel == opt %}selected{% endif %}>{{ opt|title }}</option>
           {% endfor %}
         </select>
       </div>
-      <div style="display:flex;align-items:end;">
-        <label style="display:flex;align-items:center;gap:var(--space-2);padding-bottom:22px;">
+      <div class="d-flex" style="display:flex;align-items:end;">
+        <label class="d-flex" style="display:flex;align-items:center;gap:var(--space-2);padding-bottom:22px;">
           <input type="checkbox" id="marketing_consent" name="marketing_consent" value="1"
                  {% if form.marketing_consent %}checked{% endif %}>
           <span>Acepta recibir promos <span class="muted">(WhatsApp)</span></span>

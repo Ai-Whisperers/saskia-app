@@ -36,7 +36,7 @@
 
   <div class="form-row">
     <label for="sku">SKU / Código de barras</label>
-    <div style="display:flex;gap:var(--space-2);align-items:center;">
+    <div class="d-flex" style="display:flex;gap:var(--space-2);align-items:center;">
       <input type="text" id="sku" name="sku" maxlength="32"
              value="{{ product.sku if product and product.sku else '' }}"
              placeholder="Se genera automáticamente al escribir el nombre"
@@ -169,7 +169,7 @@
     <textarea id="notes" name="notes" rows="2">{{ product.notes if product and product.notes else '' }}</textarea>
   </div>
 
-  <details class="rspa-section" style="margin-bottom: 1rem;">
+  <details class="rspa-section mb-6" >
     <summary style="cursor:pointer; font-weight:600; user-select:none;">
       Certificación / RSPA
     </summary>
@@ -200,7 +200,7 @@
 
   {# C2 — Tablet-menu visibility. Operators opt each product in/out
      of the public /m/{slug} menu; the slug is the URL tail. #}
-  <details class="tablet-section" style="margin-bottom: 1rem;">
+  <details class="tablet-section mb-6" >
     <summary style="cursor:pointer; font-weight:600; user-select:none;">
       Menú tablet (C2)
     </summary>

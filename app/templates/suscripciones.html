@@ -134,29 +134,29 @@
           Editar
         </a>
         {% if s.status == "activa" %}
-        <form method="post" action="/suscripciones/{{ s.id }}/estado" style="display:inline;">
+        <form class="d-inline" method="post" action="/suscripciones/{{ s.id }}/estado" >
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <input type="hidden" name="status" value="pausada">
           <button type="submit" class="btn btn-sm btn-ghost">Pausar</button>
         </form>
         {% elif s.status == "pausada" %}
-        <form method="post" action="/suscripciones/{{ s.id }}/estado" style="display:inline;">
+        <form class="d-inline" method="post" action="/suscripciones/{{ s.id }}/estado" >
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <input type="hidden" name="status" value="activa">
           <button type="submit" class="btn btn-sm btn-ghost">Reanudar</button>
         </form>
         {% endif %}
         {% if s.status != "cancelada" %}
-        <form method="post" action="/suscripciones/{{ s.id }}/estado" style="display:inline;"
-              class="js-confirm-form" data-confirm-title="¿Cancelar suscripción?" data-confirm-body="La suscripción quedará como cancelada y no generará más recordatorios." data-confirm-danger="true">
+        <form method="post" action="/suscripciones/{{ s.id }}/estado" 
+              class="js-confirm-form d-inline" data-confirm-title="¿Cancelar suscripción?" data-confirm-body="La suscripción quedará como cancelada y no generará más recordatorios." data-confirm-danger="true">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <input type="hidden" name="status" value="cancelada">
           <button type="submit" class="btn btn-sm btn-ghost">Cancelar</button>
         </form>
         {% endif %}
         {% if s.status == "cancelada" %}
-        <form method="post" action="/suscripciones/{{ s.id }}/eliminar" style="display:inline;"
-              class="js-confirm-form" data-confirm-title="¿Eliminar suscripción?" data-confirm-body="Esta acción no se puede deshacer." data-confirm-danger="true">
+        <form method="post" action="/suscripciones/{{ s.id }}/eliminar" 
+              class="js-confirm-form d-inline" data-confirm-title="¿Eliminar suscripción?" data-confirm-body="Esta acción no se puede deshacer." data-confirm-danger="true">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
         </form>

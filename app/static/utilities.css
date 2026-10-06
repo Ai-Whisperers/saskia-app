@@ -1,0 +1,87 @@
+/* app/static/utilities.css — Tailwind-style utility classes
+ *
+ * Single-purpose overrides that should win against component CSS.
+ * Migrated from inline style="" patterns with ≥6 occurrences (2026-10-07).
+ *
+ * Naming convention: Tailwind-like.
+ *   .m-0 = margin 0
+ *   .mt-3 = margin-top var(--space-3)
+ *   .text-sm = font-size var(--text-sm)
+ *   .d-flex = display: flex
+ *
+ * If a utility is missing that you need, add it here (this file is the
+ * single source of truth). Don't go back to inline styles.
+ */
+
+/* ─── Display ─────────────────────────────────────────────── */
+.d-inline        { display: inline; }
+.d-inline-flex   { display: inline-flex; }
+.d-block         { display: block; }
+.d-flex         { display: flex; }
+.d-none         { display: none; }
+.d-grid         { display: grid; }
+
+/* ─── Flex helpers ───────────────────────────────────────── */
+.flex-1                       { flex: 1; }
+.flex-between                 { display: flex; justify-content: space-between; }
+.flex-between-mb-2            { display: flex; justify-content: space-between; margin-bottom: var(--space-2); }
+.flex-gap-2-wrap              { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.inline-flex-center-gap-2     { display: inline-flex; align-items: center; gap: var(--space-2); }
+
+/* ─── Margin ─────────────────────────────────────────────── */
+.m-0   { margin: 0; }
+.mt-0  { margin-top: 0; }
+.mt-1  { margin-top: var(--space-1); }
+.mt-2  { margin-top: var(--space-2); }
+.mt-3  { margin-top: var(--space-3); }
+.mt-4  { margin-top: 4px; }
+.mt-8  { margin-top: 2rem; }
+.mb-0  { margin-bottom: 0; }
+.mb-2  { margin-bottom: var(--space-2); }
+.mb-3  { margin-bottom: var(--space-3); }
+.mb-6  { margin-bottom: 1rem; }
+.ml-2  { margin-left: var(--space-2); }
+.mt-1-only { margin: var(--space-1) 0 0 0; }
+
+/* ─── Text alignment & weight ───────────────────────────── */
+.text-right    { text-align: right; }
+.text-center   { text-align: center; }
+.text-left     { text-align: left; }
+.font-bold     { font-weight: bold; }
+
+/* ─── Font size — semantic aliases (forward to tokens) ──── */
+.text-xs    { font-size: var(--text-xs); }
+.text-sm    { font-size: var(--text-sm); }
+.text-md    { font-size: var(--text-md); }
+.text-base  { font-size: var(--text-base); }
+.text-lg    { font-size: var(--text-lg); }
+
+/* ─── Label / caption pattern ────────────────────────────── */
+/* Used for small section labels (e.g. "CATEGORÍA", "TOTALES"). */
+.text-label-upper {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ─── Width helpers ──────────────────────────────────────── */
+.w-100       { width: 100%; }
+
+/* ─── Height ─────────────────────────────────────────────── */
+.h-control   { height: 36px; } /* form control default — see --input-height */
+
+/* ─── Block helpers ─────────────────────────────────────── */
+.block-bold  { display: block; margin-bottom: var(--space-1); font-weight: bold; }
+
+/* ─── Callouts ──────────────────────────────────────────── */
+.note-callout {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+/* ─── Responsive utilities (kept minimal; only what's used) ─ */
+@media (max-width: 768px) {
+  .d-mobile-none { display: none; }
+}

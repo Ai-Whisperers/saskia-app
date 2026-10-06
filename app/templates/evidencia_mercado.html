@@ -5,8 +5,8 @@
 {{ ui.page_header("🔍 Evidencia de mercado", desc="Precios observados de la competencia (research sazon-market-intel, corte 2026-09-30) — rangos por familia, cada punto con fuente y fecha")
 }}
 
-<div style="margin-bottom:var(--space-3);display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
-  <span class="text-muted" style="font-size:var(--text-sm);">{{ total }} observaciones</span>
+<div class="mb-3" style="margin-bottom:var(--space-3);display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+  <span class="text-muted text-sm" >{{ total }} observaciones</span>
   <a href="/vs-mercado/evidencia.csv" class="btn btn-sm" download="evidencia-mercado.csv">📥 CSV</a>
   <a href="/vs-mercado" class="btn btn-sm">← Volver a /vs-mercado</a>
 </div>
@@ -42,13 +42,13 @@
 </table>
 
 <h2 style="font-size:var(--text-md);margin:var(--space-4) 0 var(--space-2);">Importar CSV</h2>
-<p class="text-muted" style="font-size:var(--text-sm);">
+<p class="text-muted text-sm" >
   Columnas: <code>competidor,tipo,ciudad,producto,familia,unidad,precio_gs,as_of,fuente</code> (familia se deduce si falta; <strong>fuente obligatoria</strong>).
 </p>
-<form method="post" action="/vs-mercado/evidencia/importar" enctype="multipart/form-data" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+<form class="d-flex" method="post" action="/vs-mercado/evidencia/importar" enctype="multipart/form-data" style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="file" name="csv" accept=".csv" required>
-  <label style="font-size:var(--text-sm);"><input type="checkbox" name="confirmar" value="si" required> Confirmo la importación</label>
+  <label class="text-sm" ><input type="checkbox" name="confirmar" value="si" required> Confirmo la importación</label>
   <button type="submit" class="btn btn-sm">Importar</button>
 </form>
 

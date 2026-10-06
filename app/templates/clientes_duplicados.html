@@ -10,13 +10,13 @@
 
 {{ ui.flash_toast(request) }}
 
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+<div class="d-flex" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
   <a href="/clientes" class="btn btn-sm btn-ghost">← Volver al directorio</a>
 </div>
 
 {% if groups %}
 <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);background:var(--color-surface-2);">
-  <p style="margin:0;">
+  <p class="m-0" >
     <strong>{{ total_groups }}</strong> grupo(s) detectado(s),
     <strong>{{ total_dupes }}</strong> duplicado(s) candidato(s).
     El registro canónico sugerido es el más antiguo (menor <code>id</code>); podés cambiarlo antes de fusionar.
@@ -24,19 +24,19 @@
 </div>
 
 {% for g in groups %}
-<section class="card" style="padding:var(--space-4);margin-bottom:var(--space-4);">
-  <header style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:var(--space-3);">
-    <h2 style="margin:0;font-size:1.1rem;">
+<section class="card d-flex" style="padding:var(--space-4);margin-bottom:var(--space-4);">
+  <header class="m-0 d-flex" style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:var(--space-3);">
+    <h2 class="m-0" style="margin:0;font-size:1.1rem;">
       Grupo · canónico
       <strong>{{ fmt.entity_name(g.canonical) }}</strong>
       <small class="text-muted" style="font-weight:400;">(id={{ g.canonical.id }})</small>
     </h2>
-    <span class="badge" style="background:var(--color-warning-bg,#fff4e0);color:var(--color-warning-fg,#a85b00);padding:2px 8px;border-radius:6px;font-size:0.85em;">
+    <span class="badge d-grid" style="background:var(--color-warning-bg,#fff4e0);color:var(--color-warning-fg,#a85b00);padding:2px 8px;border-radius:6px;font-size:0.85em;">
       {{ g.duplicates|length }} duplicado(s)
     </span>
   </header>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+  <div class="d-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
     <div>
       <h3 style="margin:0 0 var(--space-2);font-size:0.9rem;text-transform:uppercase;color:var(--color-muted);">Canónico (sobrevive)</h3>
       <div class="customer-row" style="padding:var(--space-3);border:1px solid var(--color-primary,#2c5aa0);border-radius:var(--radius);background:var(--color-primary-bg,#f5f8ff);">

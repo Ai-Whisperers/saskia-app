@@ -7,17 +7,17 @@
 {% block title %}Plan de preparación — semana del {{ week_start }}{% endblock %}
 
 {% block content %}
-<div class="page-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-4); flex-wrap: wrap; gap: var(--space-3);">
+<div class="page-header d-flex" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-4); flex-wrap: wrap; gap: var(--space-3);">
   <div>
     <h1 style="display: flex; align-items: center; gap: var(--space-2); margin: 0;">
       <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
       Plan de preparación semanal
     </h1>
-    <p class="hint" style="margin: var(--space-1) 0 0 0;">
+    <p class="hint mt-1-only" >
       Semana del <strong>{{ week_start }}</strong>
     </p>
   </div>
-  <nav aria-label="Cambiar semana" style="display:inline-flex; gap: var(--space-1);">
+  <nav class="d-inline-flex" aria-label="Cambiar semana" style="display:inline-flex; gap: var(--space-1);">
     <a href="/produccion/prep?week={{ prev_week_iso }}" class="btn btn-ghost btn-sm">← Semana anterior</a>
     <a href="/produccion/prep?week={{ next_week_iso }}" class="btn btn-ghost btn-sm">Semana siguiente →</a>
   </nav>

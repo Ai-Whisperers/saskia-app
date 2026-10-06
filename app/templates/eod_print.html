@@ -34,7 +34,7 @@
 
 {% block content %}
 <header class="print-only" style="border-bottom: 2px solid #000; padding-bottom: 0.5rem; margin-bottom: 1rem;">
-  <h1 style="margin: 0;">Cierre del día — {{ today.strftime("%A %d de %B de %Y") }}</h1>
+  <h1 class="m-0" >Cierre del día — {{ today.strftime("%A %d de %B de %Y") }}</h1>
   <p style="margin: 0.25rem 0 0;">Sazón · Asunción, Paraguay
     {% if today_is_closed %} — <strong>Día cerrado</strong>{% endif %}
   </p>
@@ -68,9 +68,9 @@
     <thead>
       <tr>
         <th>Producto</th>
-        <th style="text-align: right;">Cantidad</th>
+        <th class="text-right" >Cantidad</th>
         <th>Origen</th>
-        <th style="text-align: right;">Confianza</th>
+        <th class="text-right" >Confianza</th>
       </tr>
     </thead>
     <tbody>
@@ -79,7 +79,7 @@
         <td>{{ r.product_name }}</td>
         <td style="text-align: right; font-family: var(--font-mono);">{{ r.qty_to_produce }}</td>
         <td>{{ r.forecast_source }}</td>
-        <td style="text-align: right;">{{ r.confidence_pct }}%</td>
+        <td class="text-right" >{{ r.confidence_pct }}%</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -97,18 +97,18 @@
     <thead>
       <tr>
         <th>Ingrediente</th>
-        <th style="text-align: right;">Stock</th>
-        <th style="text-align: right;">Mínimo</th>
-        <th style="text-align: right;">Costo est.</th>
+        <th class="text-right" >Stock</th>
+        <th class="text-right" >Mínimo</th>
+        <th class="text-right" >Costo est.</th>
       </tr>
     </thead>
     <tbody>
       {% for item in reorder_items[:15] %}
       <tr>
         <td>{{ item.ingredient_name }}</td>
-        <td style="text-align: right;">{{ "%.2f"|format(item.stock_qty) }} {{ item.unit }}</td>
-        <td style="text-align: right;">{{ "%.2f"|format(item.min_qty) }} {{ item.unit }}</td>
-        <td style="text-align: right;">{% if item.has_price %}₲ {{ "{:,}".format(item.estimated_cost_gs).replace(",", ".") }}{% else %}-{% endif %}</td>
+        <td class="text-right" >{{ "%.2f"|format(item.stock_qty) }} {{ item.unit }}</td>
+        <td class="text-right" >{{ "%.2f"|format(item.min_qty) }} {{ item.unit }}</td>
+        <td class="text-right" >{% if item.has_price %}₲ {{ "{:,}".format(item.estimated_cost_gs).replace(",", ".") }}{% else %}-{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>

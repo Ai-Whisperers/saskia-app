@@ -123,7 +123,7 @@
     </div>
 
     <div class="form-row">
-      <label class="checkbox" style="display:flex;gap:8px;align-items:center;font-weight:400;">
+      <label class="checkbox d-flex" style="display:flex;gap:8px;align-items:center;font-weight:400;">
         <input type="checkbox" name="may_contain_gluten" value="1"
                {% if ingredient and ingredient.may_contain_gluten %}checked{% endif %}>
         Posible contaminación cruzada con trigo (bloquea "sin TACC")
@@ -132,7 +132,7 @@
 
     {# ── Validation banner (2026-09-29 tagging/ refactor) ── #}
     {% if ingredient and ingredient.tag_validation_issues %}
-    <div class="alert alert-warn" role="alert" style="margin-top:var(--space-3);">
+    <div class="alert alert-warn mt-3" role="alert" >
       <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
       <div>
         <strong>Contradicciones detectadas en este ingrediente:</strong>

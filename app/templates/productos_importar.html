@@ -19,7 +19,7 @@
     </header>
     <p>El archivo debe tener las siguientes columnas (encabezados exactos):</p>
     <div style="overflow-x:auto;">
-    <table class="table is-striped" style="font-size:var(--text-sm);">
+    <table class="table is-striped text-sm" >
       <thead>
         <tr>
           <th>Columna</th>
@@ -38,7 +38,7 @@
       </tbody>
     </table>
     </div>
-    <p class="muted" style="margin-top:var(--space-2);">
+    <p class="muted mt-2" >
       <strong>Nota:</strong> Si ya existe un producto con el mismo nombre, se actualizan los campos presentes en el CSV.
       Los campos vacíos en el CSV no sobreescriben valores existentes.
     </p>
@@ -51,7 +51,7 @@
     </header>
 
     {% if error %}
-    <div class="alert alert-danger" style="margin-bottom:var(--space-3);">
+    <div class="alert alert-danger mb-3" >
       ⚠️ {{ error }}
     </div>
     {% endif %}
@@ -60,7 +60,7 @@
     <div style="margin-bottom:var(--space-4);">
       <div class="card" style="background:#d1fae5;border-color:#10b981;padding:var(--space-4);border-radius:var(--radius);">
         <h3 style="margin:0 0 var(--space-2) 0;">Resultados de la importación</h3>
-        <ul style="margin:0;padding-left:1.4rem;">
+        <ul class="m-0" style="margin:0;padding-left:1.4rem;">
           <li>✅ <strong>{{ created or 0 }}</strong> producto(s) creado(s)</li>
           <li>🔄 <strong>{{ updated or 0 }}</strong> producto(s) actualizado(s)</li>
           {% if errors %}
@@ -70,7 +70,7 @@
       </div>
 
       {% if errors %}
-      <details style="margin-top:var(--space-3);">
+      <details class="mt-3" >
         <summary style="cursor:pointer;font-weight:600;">Ver errores ({{ errors | length }})</summary>
         <table class="table is-striped" style="font-size:var(--text-sm);margin-top:var(--space-2);">
           <thead><tr><th>Fila</th><th>Error</th></tr></thead>
@@ -86,7 +86,7 @@
       </details>
       {% endif %}
 
-      <div style="margin-top:var(--space-3);">
+      <div class="mt-3" >
         <a href="/productos" class="btn btn-primary">Ver productos</a>
         <a href="/productos/importar" class="btn btn-secondary">Importar otro archivo</a>
       </div>

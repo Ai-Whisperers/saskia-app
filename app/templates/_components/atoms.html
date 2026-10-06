@@ -95,7 +95,7 @@
 {# Closes P1-4. Drops a consistent cite-footer on every report so the operator
    can audit back to the data source. #}
 {% macro report_source_footer(source='Sazón', period=None, note=None) -%}
-<footer class="report-source-footer muted" style="margin-top:2rem;padding-top:1rem;border-top:1px solid var(--color-border);font-size:var(--text-xs);">
+<footer class="report-source-footer muted mt-8" style="margin-top:2rem;padding-top:1rem;border-top:1px solid var(--color-border);font-size:var(--text-xs);">
   <span>Generado <span title="{{ now_str() if now_str is defined else '' }}">por {{ source }}</span>.</span>
   {% if period %}<span> · Período: {{ period }}</span>{% endif %}
   {% if note %}<span> · {{ note }}</span>{% endif %}

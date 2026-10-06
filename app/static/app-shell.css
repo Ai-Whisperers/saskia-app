@@ -318,3 +318,83 @@ body.has-app-shell > .app-footer { grid-area: footer; }
 }
 
 .is-purchased td { color: var(--color-text-subtle); text-decoration: line-through; }
+/* app/static/mobile.css — mobile UX tweaks (E4.S4)
+ *
+ * Bumps touch targets to ≥44px on viewports ≤768px and adds a sticky
+ * bottom-nav for thumb-friendly navigation. Loaded after app.css so
+ * rules here win.
+ */
+
+/* --- Larger touch targets on mobile --- */
+@media (max-width: 768px) {
+  :root {
+    /* Bump button heights to meet iOS HIG / WCAG 2.5.5 (≥44px target). */
+    --btn-height: 44px;
+    --btn-height-sm: 36px;
+    --btn-height-lg: 52px;
+    --input-height: 44px;
+    --topnav-height: 56px;
+  }
+  /* Body reserves space for the sticky bottom-nav so content isn't
+     obscured by it on short pages. */
+  body {
+    padding-bottom: 64px;
+  }
+  /* Re-anchor the topnav flush to the top with breathing room. */
+  .topnav {
+    padding: var(--space-3) var(--space-4);
+  }
+  /* Form rows get a bit more vertical room. */
+  .form-row label {
+    font-size: var(--text-base);
+  }
+}
+
+/* --- Sticky bottom-nav (mobile only) --- */
+.bottom-nav {
+  display: none;
+}
+@media (max-width: 768px) {
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+    z-index: var(--z-sticky);
+    align-items: stretch;
+    justify-content: space-around;
+    padding: 0 var(--space-2);
+    /* Safe-area inset for iPhone home indicator. */
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .bottom-nav a {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    font-size: var(--text-xs);
+    font-weight: 500;
+    min-width: 0;
+    padding: 4px 2px;
+  }
+  .bottom-nav a .icon {
+    font-size: var(--text-lg);
+    stroke-width: 2.2;
+  }
+  .bottom-nav a.active,
+  .bottom-nav a[aria-current="page"] {
+    color: var(--color-accent);
+  }
+  .bottom-nav a:active {
+    transform: scale(0.96);
+  }
+}

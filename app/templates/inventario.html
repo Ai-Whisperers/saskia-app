@@ -65,7 +65,7 @@
 </div>
 
 {# ── Filter toolbar ───────────────────────────────────────────────── #}
-<form method="get" class="inv-toolbar" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
+<form method="get" class="inv-toolbar d-flex" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
   <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre…"
          style="flex:1;min-width:180px;height:36px;" aria-label="Buscar por nombre">
   {# ── Categorías: multi-select popover (checkboxes, no native select) ── #}
@@ -126,13 +126,13 @@
       {% endfor %}
     </div>
   </div>
-  <button type="submit" class="btn btn-primary" style="height:36px;">Filtrar</button>
+  <button type="submit" class="btn btn-primary h-control" >Filtrar</button>
   {% if q or estado or categorias or alergenos_sel or almacen %}
-  <a href="{{ request.url.path }}" class="btn" style="height:36px;">Limpiar todo</a>
+  <a href="{{ request.url.path }}" class="btn h-control" >Limpiar todo</a>
   {% endif %}
 </form>
 {% if suspicious_prices %}
-<div class="alert alert-danger" role="alert" style="margin-bottom:var(--space-3);">
+<div class="alert alert-danger mb-3" role="alert" >
   <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
   <div>
     <strong>Precios sospechosos ({{ suspicious_prices|length }}):</strong>
@@ -145,7 +145,7 @@
 </div>
 {% endif %}
 {% if duplicates %}
-<div class="alert alert-warn" role="alert" style="margin-bottom:var(--space-3);">
+<div class="alert alert-warn mb-3" role="alert" >
   <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
   <div>
     <strong>Ingredientes duplicados ({{ duplicates|length }}):</strong>
@@ -158,7 +158,7 @@
 </div>
 {% endif %}
 {% if tag_audit_count %}
-<div class="alert alert-warn" role="alert" style="margin-bottom:var(--space-3);">
+<div class="alert alert-warn mb-3" role="alert" >
   <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
   <div>
     <strong>Etiquetas con contradicciones ({{ tag_audit_count }}):</strong>
@@ -185,7 +185,7 @@
 {% if ingredients %}
 <div class="table-sticky-wrap" data-loaded-section="inventario-table" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);">
 <div class="table-wrap">
-<table class="table is-hoverable is-striped" style="margin-bottom:0;">
+<table class="table is-hoverable is-striped mb-0" >
   <thead>
     <tr>
       <th>{{ m.sort_th("Nombre", "name", sort, dir) }}</th>
@@ -206,7 +206,7 @@
     <tr class="">
       <td>
         <strong data-copy="{{ i.id }}"><a href="/inventario/{{ i.id }}">{{ fmt.entity_name(i) }}</a></strong>
-        {% if i.category %}<span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-accent);flex-shrink:0;" aria-hidden="true"></span>{{ t.category_pill(i.category) }}</span>{% endif %}
+        {% if i.category %}<span class="d-inline-flex" style="display:inline-flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-accent);flex-shrink:0;" aria-hidden="true"></span>{{ t.category_pill(i.category) }}</span>{% endif %}
         {% if i.allergens %}
           <div class="tag-pill-row tag-pill-row--compact" aria-label="Alérgenos (INAN)">
             <span class="tag-pill-row__label">Contiene:</span>
@@ -241,7 +241,7 @@
            ingredient has variants, show a picker (preferred preselected).
            Otherwise, post directly to legacy stock_qty. #}
         {% set _variants = variants_by_ing_id.get(i.id, []) %}
-        <form method="post" action="/inventario/{{ i.id }}/ajustar"
+        <form class="d-inline-flex" method="post" action="/inventario/{{ i.id }}/ajustar"
               style="display:inline-flex;gap:var(--space-1);align-items:center;"
               data-testid="quick-receipt-{{ i.id }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -263,7 +263,7 @@
                  aria-label="Cantidad recibida de {{ fmt.entity_name(i) }}"
                  placeholder="0"
                  style="width:64px;padding:var(--space-1) var(--space-2);border:1px solid var(--color-border);border-radius:4px;">
-          <span class="text-muted" style="font-size:var(--text-xs);">
+          <span class="text-muted text-xs" >
             {% if _variants %}paq{% else %}{{ i.unit }}{% endif %}
           </span>
           <button type="submit" class="btn btn-sm" aria-label="Registrar recepción de {{ fmt.entity_name(i) }}">

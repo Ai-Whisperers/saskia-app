@@ -22,7 +22,7 @@
 </p>
 
 {# --- Filter toolbar (mf-pop pattern, same as inventario) --- #}
-<form method="get" action="/recetas" class="inv-toolbar" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
+<form method="get" action="/recetas" class="inv-toolbar d-flex" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
   <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre…"
          style="flex:1;min-width:180px;height:36px;" aria-label="Buscar por nombre">
   {% if all_families %}
@@ -71,9 +71,9 @@
       </div>
     </div>
   </div>
-  <button type="submit" class="btn btn-primary" style="height:36px;">Filtrar</button>
+  <button type="submit" class="btn btn-primary h-control" >Filtrar</button>
   {% if q or familias_sel or dif_sel or diet_sel or ingredient_id %}
-  <a href="/recetas" class="btn" style="height:36px;">Limpiar todo</a>
+  <a href="/recetas" class="btn h-control" >Limpiar todo</a>
   {% endif %}
 </form>
 {# ── Active filter chips ── #}
@@ -85,7 +85,7 @@
 {% if ingredient_id %}{% set _ = rec_active_filters.append({'key': 'ingredient_id', 'label': 'Ingrediente', 'value': ingredient_id}) %}{% endif %}
 
 {% if rec_active_filters %}
-<div class="active-filters" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:var(--space-3);">
+<div class="active-filters d-flex" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:var(--space-3);">
   {% for f in rec_active_filters %}
     {% set rec_remove_params = [] %}
     {% for k, v in request.query_params.multi_items() %}
@@ -103,7 +103,7 @@
 {% if recipes %}
 {{ ui.skeleton_section(id="recipes-table", variant="line", count=10, label="Cargando recetas") }}
 <div data-loaded-section="recipes-table">
-<table class="table is-hoverable is-striped" style="margin-bottom:0;">
+<table class="table is-hoverable is-striped mb-0" >
   <thead>
     <tr>
       <th style="width:70px;">Foto</th>
@@ -149,7 +149,7 @@
           {{ r.yield_qty|round(2) }} {{ r.yield_unit }}
         {% endif %}
       </td>
-      <td style="text-align:center;">
+      <td class="text-center" >
         {% if r.difficulty %}
           <span aria-label="Dificultad {{ r.difficulty }}">{{ '⭐' * r.difficulty }}</span>
         {% else %}
@@ -157,9 +157,9 @@
         {% endif %}
       </td>
       <td>{{ r.line_count }}</td>
-      <td class="num col-prep" style="text-align:center;">{% if r.prep_minutes %}{{ r.prep_minutes }} min{% endif %}</td>
-      <td class="num col-cook" style="text-align:center;">{% if r.cook_minutes %}{{ r.cook_minutes }} min{% endif %}</td>
-      <td class="num" style="text-align:center;">{{ r.total_minutes_fmt }}</td>
+      <td class="num col-prep text-center" >{% if r.prep_minutes %}{{ r.prep_minutes }} min{% endif %}</td>
+      <td class="num col-cook text-center" >{% if r.cook_minutes %}{{ r.cook_minutes }} min{% endif %}</td>
+      <td class="num text-center" >{{ r.total_minutes_fmt }}</td>
       <td class="num">{% if r.batch_cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(r.batch_cost_gs) }}{% endif %}</td>
       <td class="num">{% if r.unit_cost_gs is none %}<em class="muted">—</em>{% else %}{{ m.gs(r.unit_cost_gs) }}{% endif %}</td>
       <td class="num">{% if r.batch_cost_gs is none %}<span class="badge badge-warn">⚠️ sin costo</span>{% else %}{{ m.gs(r.batch_cost_gs) }}{% endif %}</td>
@@ -207,7 +207,7 @@
         <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
       </button>
     </div>
-    <div class="modal-body" style="text-align:center;">
+    <div class="modal-body text-center" >
       <img id="recipe-photo-img" src="" alt="" style="max-width:100%;height:auto;border-radius:var(--radius);">
     </div>
   </div>

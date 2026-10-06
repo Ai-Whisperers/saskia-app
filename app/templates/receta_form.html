@@ -228,9 +228,9 @@
       </table>
 
   {# ── P3: Vista "ingredientes efectivos" (sub-recetas explotadas) ── #}
-  <div id="effective-ingredients-panel" class="card" style="margin-top:var(--space-3);" hidden>
-    <div style="display:flex;align-items:baseline;gap:var(--space-2);padding:var(--space-3) var(--space-3) 0;">
-      <h2 style="margin:0;">Ingredientes efectivos</h2>
+  <div id="effective-ingredients-panel" class="card mt-3"  hidden>
+    <div class="d-flex" style="display:flex;align-items:baseline;gap:var(--space-2);padding:var(--space-3) var(--space-3) 0;">
+      <h2 class="m-0" >Ingredientes efectivos</h2>
       <small class="text-muted">calculado desde las sub-recetas — solo lectura</small>
     </div>
     <p class="text-muted" style="padding:0 var(--space-3) var(--space-2);margin:0;">
@@ -348,7 +348,7 @@
             <label for="difficulty" class="time-field-label">Dificultad</label>
             <div class="time-input-group">
               {# Star-rating difficulty selector #}
-              <div class="difficulty-stars" id="difficulty-stars" style="display:flex;gap:4px;cursor:pointer;" role="group" aria-label="Dificultad">
+              <div class="difficulty-stars d-flex" id="difficulty-stars" style="display:flex;gap:4px;cursor:pointer;" role="group" aria-label="Dificultad">
                 {% for s in range(1, 6) %}
                   <span class="star-btn" data-val="{{ s }}" aria-label="{{ s }}"
                         style="font-size:1.1rem;line-height:1;color:var(--color-text-muted);user-select:none;">&#9733;</span>
@@ -1083,7 +1083,7 @@
     }
     var blockedTags = Object.keys(blockers);
     if (blockedTags.length) {
-      html += '<details style="margin-top:4px;"><summary style="cursor:pointer;">❌ Canceladas (' + blockedTags.length + ')</summary><ul style="padding-left:1.2rem;margin:4px 0;">';
+      html += '<details class="mt-4" ><summary style="cursor:pointer;">❌ Canceladas (' + blockedTags.length + ')</summary><ul style="padding-left:1.2rem;margin:4px 0;">';
       blockedTags.forEach(function(t) {
         html += '<li><strong>' + t + '</strong> — ' + blockers[t].join(', ') + '</li>';
       });
@@ -1279,7 +1279,7 @@ function handleValidation(inputEl, event) {
         <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
       </button>
     </div>
-    <div class="modal-body" style="text-align:center;">
+    <div class="modal-body text-center" >
       {# Photos injected via JS from /recetas/{id}/set-photo #}
       <div id="photo-picker-loading" class="muted" style="padding:2rem;">Cargando fotos…</div>
     </div>

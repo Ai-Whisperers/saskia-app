@@ -138,7 +138,7 @@
   inmediatamente en el sidebar, login, tickets y PDF — sin reiniciar.
 </p>
 
-<div id="flash" class="flash" style="display:none; max-width:1200px; margin: 1rem auto 0; padding: 0 1.5rem;"></div>
+<div id="flash" class="flash d-none" style="display:none; max-width:1200px; margin: 1rem auto 0; padding: 0 1.5rem;"></div>
 
 <form id="branding-form" class="branding-grid" onsubmit="return saveBranding(event)">
 
@@ -147,7 +147,7 @@
     <fieldset class="asset-card">
       <legend><strong>Identidad</strong></legend>
 
-      <div style="margin-bottom: 1rem;">
+      <div class="mb-6" >
         <label for="business_name"><strong>Nombre comercial</strong></label>
         <input type="text" id="business_name" name="business_name" maxlength="200"
                value="{{ branding.business_name }}" required
@@ -155,7 +155,7 @@
         <p class="help-block">Aparece en el sidebar, login, tickets y PDF.</p>
       </div>
 
-      <div style="margin-bottom: 1rem;">
+      <div class="mb-6" >
         <label for="tagline"><strong>Eslogan</strong> <span style="color: var(--muted-foreground);">(opcional)</span></label>
         <input type="text" id="tagline" name="tagline" maxlength="200"
                value="{{ branding.tagline }}"
@@ -163,9 +163,9 @@
         <p class="help-block">Frase corta debajo del nombre en la pantalla de login.</p>
       </div>
 
-      <div style="margin-bottom: 1rem;">
+      <div class="mb-6" >
         <label for="business_type"><strong>Tipo de negocio</strong></label>
-        <select id="business_type" name="business_type" style="width:100%; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border);">
+        <select class="note-callout" id="business_type" name="business_type" >
           {% for opt in [('restaurant', 'Restaurante'), ('panaderia', 'Panadería'), ('cafeteria', 'Cafetería'), ('bar', 'Bar'), ('heladeria', 'Heladería'), ('food_truck', 'Food Truck'), ('otro', 'Otro')] %}
             <option value="{{ opt[0] }}" {% if branding.business_type == opt[0] %}selected{% endif %}>{{ opt[1] }}</option>
           {% endfor %}
@@ -185,7 +185,7 @@
     <fieldset class="asset-card">
       <legend><strong>Color &amp; logo</strong></legend>
 
-      <div style="margin-bottom: 1rem;">
+      <div class="mb-6" >
         <label for="accent_color"><strong>Color primario</strong></label>
         <div class="color-input">
           <input type="color" id="accent_color" name="accent_color"
@@ -200,14 +200,14 @@
         <p class="help-block">Botones, acentos y bordes en la interfaz.</p>
       </div>
 
-      <div style="margin-bottom: 1rem;">
+      <div class="mb-6" >
         <label><strong>Logo</strong></label>
-        <div style="display:flex; align-items:center; gap: 0.75rem;">
-          <div class="asset-current" id="logo-preview"
+        <div class="d-flex" style="display:flex; align-items:center; gap: 0.75rem;">
+          <div class="asset-current d-flex" id="logo-preview"
                style="{% if branding.logo_filename %}background-image: url('/static/branding/{{ branding.logo_filename }}');{% endif %}">
-            {% if not branding.logo_filename %}<span style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted-foreground);">📷</span>{% endif %}
+            {% if not branding.logo_filename %}<span class="d-flex" style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted-foreground);">📷</span>{% endif %}
           </div>
-          <div style="flex:1;">
+          <div class="flex-1" >
             <input type="file" id="logo-file" accept=".png,.jpg,.jpeg,.svg,.webp"
                    onchange="uploadAsset('logo', this.files[0])">
             <input type="hidden" id="logo_filename" name="logo_filename"
@@ -218,14 +218,14 @@
         </div>
       </div>
 
-      <div style="margin-bottom: 1rem;">
+      <div class="mb-6" >
         <label><strong>Favicon</strong> <span style="color: var(--muted-foreground);">(icono del navegador)</span></label>
-        <div style="display:flex; align-items:center; gap: 0.75rem;">
-          <div class="asset-current" id="favicon-preview"
+        <div class="d-flex" style="display:flex; align-items:center; gap: 0.75rem;">
+          <div class="asset-current d-flex" id="favicon-preview"
                style="{% if branding.favicon_filename %}background-image: url('/static/branding/{{ branding.favicon_filename }}');{% endif %}">
-            {% if not branding.favicon_filename %}<span style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted-foreground);">🌐</span>{% endif %}
+            {% if not branding.favicon_filename %}<span class="d-flex" style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted-foreground);">🌐</span>{% endif %}
           </div>
-          <div style="flex:1;">
+          <div class="flex-1" >
             <input type="file" id="favicon-file" accept=".ico,.png"
                    onchange="uploadAsset('favicon', this.files[0])">
             <input type="hidden" id="favicon_filename" name="favicon_filename"
@@ -258,7 +258,7 @@
     <fieldset class="asset-card">
       <legend><strong>Contacto</strong></legend>
 
-      <div style="margin-bottom: 1rem;">
+      <div class="mb-6" >
         <label for="contact_email"><strong>Email</strong></label>
         <input type="email" id="contact_email" name="contact_email" maxlength="200"
                value="{{ branding.contact_email or '' }}"
@@ -266,7 +266,7 @@
         <p class="help-block">Aparece en tickets y PDF. Opcional.</p>
       </div>
 
-      <div style="margin-bottom: 1rem;">
+      <div class="mb-6" >
         <label for="contact_phone"><strong>Teléfono</strong></label>
         <input type="tel" id="contact_phone" name="contact_phone" maxlength="64"
                value="{{ branding.contact_phone or '' }}"
@@ -275,12 +275,12 @@
 
       <div>
         <label for="address"><strong>Dirección del local</strong></label>
-        <textarea id="address" name="address" maxlength="300" rows="2"
-                  style="width:100%; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border);">{{ branding.address or '' }}</textarea>
+        <textarea class="note-callout" id="address" name="address" maxlength="300" rows="2"
+                  >{{ branding.address or '' }}</textarea>
       </div>
     </fieldset>
 
-    <div style="display:flex; gap: 0.75rem; margin-top: 1rem;">
+    <div class="d-flex" style="display:flex; gap: 0.75rem; margin-top: 1rem;">
       <button type="submit" class="ui-btn" style="background: var(--accent); color: white; padding: 0.625rem 1.25rem; border-radius: 6px; border: none; font-weight: 500; cursor: pointer;">
         Guardar cambios
       </button>

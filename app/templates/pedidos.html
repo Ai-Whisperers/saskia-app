@@ -16,7 +16,7 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
       Pedidos
     </h1>
-    <p class="hint" style="margin: var(--space-1) 0 0 0;">
+    <p class="hint mt-1-only" >
       Pedidos pre-cargados para pickup. La mayoría entran por WhatsApp — flag para hacer follow-up.
     </p>
   </div>
@@ -122,23 +122,23 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
       Todos los pedidos
     </h2>
-    <span class="text-muted" style="font-size: var(--text-sm);">
+    <span class="text-muted text-sm" >
       · {{ total_pedidos }} {{ 'pedido' if total_pedidos == 1 else 'pedidos' }}
     </span>
   </div>
 
   {% if total_pedidos %}
   {# Bulk-action toolbar — hidden until a checkbox is ticked #}
-  <div id="bulk-pedidos-actions"
+  <div class="d-none" id="bulk-pedidos-actions"
        style="display:none; margin-bottom: var(--space-3); padding: var(--space-2) var(--space-3); background: var(--color-surface-raised); border-radius: var(--radius); border: 1px solid var(--color-border); display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap;">
-    <span style="font-size: var(--text-sm);"><span id="selected-count">0</span> seleccionado(s)</span>
-    <form method="post" action="/pedidos/bulk-fulfill" style="display: inline;">
+    <span class="text-sm" ><span id="selected-count">0</span> seleccionado(s)</span>
+    <form class="d-inline" method="post" action="/pedidos/bulk-fulfill" >
       <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="ids" id="bulk-ids">
       <button type="submit" class="btn btn-sm btn-primary">✓ Cumplir</button>
     </form>
-    <form method="post" action="/pedidos/bulk-cancel" style="display: inline;"
-          class="js-confirm-form"
+    <form method="post" action="/pedidos/bulk-cancel" 
+          class="js-confirm-form d-inline"
           data-confirm-title="¿Cancelar pedidos?"
           data-confirm-body="Los pedidos seleccionados se marcarán como cancelados."
           data-confirm-danger="true">
@@ -152,7 +152,7 @@
   <div class="table-sticky-wrap"
        style="max-height: 70vh; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius);">
     <div class="table-wrap">
-    <table class="table is-hoverable is-striped" style="margin-bottom: 0;">
+    <table class="table is-hoverable is-striped mb-0" >
       <thead>
         <tr>
           <th style="width: 2rem;"><input type="checkbox" id="select-all" aria-label="Seleccionar todos"></th>
@@ -243,7 +243,7 @@
   </div>
 
   {% if pagination.total_count > 0 %}
-  <div class="table-info" style="margin-top: var(--space-2);">
+  <div class="table-info mt-2" >
     <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ pagination.total_count }}</strong> pedidos</span>
   </div>
   {% endif %}
@@ -271,7 +271,7 @@
   {% if pagination.has_next %}
   <a href="{{ pagination.next_url }}" class="btn btn-sm">Siguiente →</a>
   {% endif %}
-  <span class="text-muted" style="font-size: var(--text-xs);">
+  <span class="text-muted text-xs" >
     ({{ pagination.total_count }} pedidos)
   </span>
 </div>

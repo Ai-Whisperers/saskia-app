@@ -10,8 +10,8 @@
 {{ ui.page_header("📊 Comparativa vs mercado", desc="Posicionamiento vs competencia (Asunción/San Lorenzo)")
 }}
 
-<div style="margin-bottom:var(--space-3);display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
-  <span class="text-muted" style="font-size:var(--text-sm);">Ordenar por:</span>
+<div class="mb-3" style="margin-bottom:var(--space-3);display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+  <span class="text-muted text-sm" >Ordenar por:</span>
   <button type="button" class="btn btn-sm" onclick="sortBenchmarks('gap')">Mayor diferencia Gs. ↓</button>
   {% set csv_q = dict(request.query_params.multi_items()) %}
   {% set _ = csv_q.update({'format':'csv'}) %}
@@ -43,7 +43,7 @@
       <td>
         <strong>{{ b.product_label }}</strong>
         {% if b.product_id %}
-          · <a href="/recetas/{{ b.product_id }}" style="font-size:var(--text-xs);">📋 Ver receta</a>
+          · <a class="text-xs" href="/recetas/{{ b.product_id }}" >📋 Ver receta</a>
         {% endif %}
       </td>
       <td class="num">{{ m.gs(b.our_wholesale_gs) if b.our_wholesale_gs else '—' }}</td>
@@ -52,7 +52,7 @@
       <td class="num">
         {% if b.intel_median_gs %}
           <strong>{{ m.gs(b.intel_median_gs) }}</strong>
-          <span class="text-muted" style="font-size:var(--text-xs);">· n={{ b.intel_n }}</span>
+          <span class="text-muted text-xs" >· n={{ b.intel_n }}</span>
         {% else %}—{% endif %}
       </td>
       <td class="num" style="color:{% if delta_gs is not none and delta_gs > 0 %}var(--color-danger){% elif delta_gs is not none and delta_gs < 0 %}var(--color-success){% endif %};">

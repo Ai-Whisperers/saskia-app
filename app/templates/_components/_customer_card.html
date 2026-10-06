@@ -86,14 +86,14 @@
   <div class="customer-card-redeem" id="customer-card-redeem" hidden
        style="margin-top:10px;padding:10px;border:1px dashed var(--color-primary,#3b82f6);
               border-radius:6px;background:rgba(59,130,246,.06);">
-    <label for="points_to_redeem_input" style="display:flex;justify-content:space-between;
+    <label class="d-flex" for="points_to_redeem_input" style="display:flex;justify-content:space-between;
            align-items:center;font-size:0.9rem;font-weight:600;">
       <span>Usar puntos</span>
       <span class="text-muted" style="font-weight:400;">
         Disponible: <strong id="points-redeem-available">0</strong>
       </span>
     </label>
-    <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+    <div class="d-flex" style="display:flex;gap:8px;align-items:center;margin-top:6px;">
       <input type="number" id="points_to_redeem_input"
              min="0" step="1" value="0"
              placeholder="ej. 5"
@@ -130,7 +130,7 @@
   <div class="customer-card-auto-redeem" id="customer-card-auto-redeem" hidden
        style="margin-top:8px;">
     <button type="button" id="auto-redeem-btn"
-            class="btn btn-primary"
+            class="btn btn-primary w-100"
             style="width:100%;font-size:0.9rem;padding:8px;display:flex;
                    justify-content:space-between;align-items:center;gap:8px;">
       <span>
@@ -151,15 +151,15 @@
        Click handler pre-fills the existing #discount-gs-total field
        with the suggestion's discount_pct applied to the active
        product's price — cashier confirms or ignores. #}
-  <div class="customer-card-suggestions" id="customer-card-suggestions" hidden
+  <div class="customer-card-suggestions d-flex" id="customer-card-suggestions" hidden
        style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+    <div class="d-flex" style="display:flex;justify-content:space-between;align-items:baseline;">
       <span style="font-size:0.85rem;font-weight:600;color:var(--color-text,#222);">
         🎁 Ofertas sugeridas
       </span>
       <span class="text-muted" style="font-size:0.75rem;">tap = aplicar</span>
     </div>
-    <div id="customer-card-suggestions-list"
+    <div class="d-flex" id="customer-card-suggestions-list"
          style="display:flex;flex-direction:column;gap:4px;"></div>
   </div>
 

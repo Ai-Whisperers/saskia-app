@@ -21,22 +21,22 @@
       para inspección. Todos los tests están marcados con su ID de modo que es
       fácil identificarlos y borrarlos después.
     </p>
-    <p class="text-muted" style="font-size:var(--text-xs);">
+    <p class="text-muted text-xs" >
       Tiempo total estimado: 4–8 segundos. Si algún test queda en amarillo más
       de 10s, probablemente hay un timeout — recargá la página.
     </p>
-    <div style="margin-top:var(--space-3);display:flex;gap:var(--space-2);align-items:center;">
+    <div class="mt-3" style="margin-top:var(--space-3);display:flex;gap:var(--space-2);align-items:center;">
       <button type="button" id="btn-run" class="btn btn-primary">
         ▶ Correr los 6 tests
       </button>
-      <span id="summary" class="text-muted" style="margin-left:var(--space-2);">
+      <span id="summary" class="text-muted ml-2" >
         Pendiente
       </span>
     </div>
   </div>
 
   <div class="card" style="padding:0;">
-    <table class="data-table" style="margin:0;" aria-label="Resultados">
+    <table class="data-table m-0"  aria-label="Resultados">
       <thead>
         <tr>
           <th style="width:40px;">#</th>
@@ -51,7 +51,7 @@
            Python because the test list lives in JS (which is what the
            user actually sees and trusts). #}
         <tr class="js-placeholder">
-          <td colspan="5" style="text-align:center;padding:var(--space-3);color:var(--muted-foreground);">
+          <td class="text-center" colspan="5" style="text-align:center;padding:var(--space-3);color:var(--muted-foreground);">
             Hacé click en "Correr los 6 tests" para empezar.
           </td>
         </tr>

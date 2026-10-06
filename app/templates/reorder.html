@@ -18,8 +18,8 @@
 <form method="post" action="/reorder/generate-po" id="bulk-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="selected" id="bulk-selected" value="">
-  <div class="filters-form" style="display:flex;gap:var(--space-2);align-items:center;margin-bottom:var(--space-3);flex-wrap:wrap;">
-    <label style="display:flex;align-items:center;gap:var(--space-1);cursor:pointer;">
+  <div class="filters-form d-flex" style="display:flex;gap:var(--space-2);align-items:center;margin-bottom:var(--space-3);flex-wrap:wrap;">
+    <label class="d-flex" style="display:flex;align-items:center;gap:var(--space-1);cursor:pointer;">
       <input type="checkbox" id="select-all" aria-label="Seleccionar todos">
       <span>Seleccionar todos</span>
     </label>
@@ -153,9 +153,9 @@ function updateBulkBtn() {
           </div>
         </details>
       </td>
-      <td>
+      <td class="d-flex">
         {% if supplier_info[0] %}
-          <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;">
+          <div class="d-flex" style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;">
             <span>{{ supplier_info[0] }}</span>
             {% if is_locked %}
               <span class="badge badge-info" title="Proveedor fijo (manual). Hacé click en 🔓 para liberar.">fijo</span>
@@ -230,12 +230,12 @@ function updateBulkBtn() {
                    aria-label="Precio pagado por {{ item.unit }} de {{ fmt.entity_name(item) }}">
           </div>
         </td>
-        <td>
+        <td class="d-flex">
           {# Supplier picker + submit. The supplier combo sits in the same
              Confirmar cell so the row still has 4 visual columns even when
              the supplier dropdown is wide. The picker uses an inline
              ui-combo (form-safe) so it submits with the rest of the form. #}
-          <div style="display:flex;flex-direction:column;gap:.35rem;min-width:11rem;">
+          <div class="d-flex" style="display:flex;flex-direction:column;gap:.35rem;min-width:11rem;">
             <label class="sr-only" for="rsup-{{ item.ingredient_id }}">Proveedor {{ fmt.entity_name(item) }}</label>
             {%- if cheapest and cheapest.supplier_id is not none and cheapest.supplier_id != eff_id -%}
               <div class="cheapest-hint" data-cheapest-for="{{ item.ingredient_id }}"

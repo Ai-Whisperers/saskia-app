@@ -107,7 +107,7 @@
   </p>
   {% endif %}
 
-  <div class="no-print" style="margin-bottom: 1rem;">
+  <div class="no-print mb-6" >
     <button type="button" class="btn btn-primary" onclick="window.print()">
       🖨️ Imprimir
     </button>
@@ -172,11 +172,11 @@
                 <strong>{{ r.qty_to_produce|round|int }}</strong>
               {% endif %}
               {%- if r.yield_qty and r.yield_qty != 1 %}
-                <small class="text-muted" style="display:block; font-weight:normal;">
+                <small class="text-muted d-block" style="display:block; font-weight:normal;">
                   {{ r.yield_qty|int }} {{ r.yield_unit or 'und' }} c/u
                 </small>
               {%- elif r.portion_label and r.portion_label != "1 unidad" %}
-                <small class="text-muted" style="display:block; font-weight:normal;">
+                <small class="text-muted d-block" style="display:block; font-weight:normal;">
                   {{ r.portion_label }}
                 </small>
               {%- endif %}
@@ -247,11 +247,11 @@
             <strong>{{ r.qty_to_produce|round|int }}</strong>
           {% endif %}
           {%- if r.yield_qty and r.yield_qty != 1 %}
-            <small class="text-muted" style="display:block; font-weight:normal;">
+            <small class="text-muted d-block" style="display:block; font-weight:normal;">
               {{ r.yield_qty|int }} {{ r.yield_unit or 'und' }} c/u
             </small>
           {%- elif r.portion_label and r.portion_label != "1 unidad" %}
-            <small class="text-muted" style="display:block; font-weight:normal;">
+            <small class="text-muted d-block" style="display:block; font-weight:normal;">
               {{ r.portion_label }}
             </small>
           {%- endif %}

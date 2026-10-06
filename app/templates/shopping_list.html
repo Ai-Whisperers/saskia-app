@@ -42,8 +42,8 @@
     Todos (incl. comprados)
   </a>
   <a href="/produccion-planner" class="btn">📐 Crear plan</a>
-  <form method="post" action="/shopping-list/sync-low-stock" style="display:inline;"
-        class="js-confirm-form" data-confirm-title="¿Sincronizar faltantes?"
+  <form method="post" action="/shopping-list/sync-low-stock" 
+        class="js-confirm-form d-inline" data-confirm-title="¿Sincronizar faltantes?"
         data-confirm-body="Se importarán todos los ingredientes con stock por debajo del mínimo a la lista de compras.">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <button type="submit" class="btn btn-warning" title="Importar todos los ingredientes con stock &lt; mínimo">
@@ -59,11 +59,11 @@
 {% for group in supplier_groups %}
 {% set g_open = group.rows | selectattr('purchased', 'equalto', false) | list %}
 <section class="card mb-3" style="overflow:hidden;">
-  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); flex-wrap:wrap; padding:var(--space-3); border-bottom:1px solid var(--border);">
-    <div>
-      <h2 style="margin:0; font-size:1.05rem;">
+  <div class="card-header d-flex" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); flex-wrap:wrap; padding:var(--space-3); border-bottom:1px solid var(--border);">
+    <div class="m-0">
+      <h2 class="m-0" style="margin:0; font-size:1.05rem;">
         🏪 {% if group.supplier %}{{ group.supplier.name }}{% else %}Sin proveedor asignado{% endif %}
-        <span class="badge {% if g_open %}badge-warn{% else %}badge-success{% endif %}" style="margin-left:var(--space-2);">
+        <span class="badge {% if g_open %}badge-warn{% else %}badge-success{% endif %} ml-2" >
           {{ g_open | length }} pendiente{{ 's' if g_open|length != 1 else '' }}
         </span>
       </h2>
@@ -74,7 +74,7 @@
       </small>
       {% endif %}
     </div>
-    <div style="display:flex; gap:var(--space-2); align-items:center; flex-wrap:wrap;">
+    <div class="d-flex" style="display:flex; gap:var(--space-2); align-items:center; flex-wrap:wrap;">
       <strong>{{ m.gs(group.open_total_gs|int) }}</strong>
       {% if group.wa_href %}
       <a class="btn btn-sm btn-success" target="_blank" rel="noopener"
@@ -86,7 +86,7 @@
       {% endif %}
     </div>
   </div>
-  <table class="table is-hoverable" style="margin:0;">
+  <table class="table is-hoverable m-0" >
     <thead>
       <tr>
         <th>Ingrediente</th>
@@ -116,19 +116,19 @@
       </strong></td>
       <td>
         {% if not item.purchased %}
-          <form method="post" action="/shopping-list/{{ item.id }}/mark-purchased" style="display:inline;">
+          <form class="d-inline" method="post" action="/shopping-list/{{ item.id }}/mark-purchased" >
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button class="btn btn-sm btn-ghost" title="Marcar como comprado">☐ Comprar</button>
           </form>
         {% else %}
           <span class="badge badge-success" style="margin-right:var(--space-1);">✓</span>
-          <form method="post" action="/shopping-list/{{ item.id }}/unmark" style="display:inline;">
+          <form class="d-inline" method="post" action="/shopping-list/{{ item.id }}/unmark" >
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button class="btn btn-sm btn-ghost">↺</button>
           </form>
         {% endif %}
-        <form method="post" action="/shopping-list/{{ item.id }}/delete" style="display:inline;"
-                      class="js-confirm-form" data-confirm-title="¿Eliminar ítem?" data-confirm-body="Eliminar {{ fmt.entity_name(item.ingredient) if item.ingredient else 'este ítem' }} de la lista?" data-confirm-danger="true">
+        <form method="post" action="/shopping-list/{{ item.id }}/delete" 
+                      class="js-confirm-form d-inline" data-confirm-title="¿Eliminar ítem?" data-confirm-body="Eliminar {{ fmt.entity_name(item.ingredient) if item.ingredient else 'este ítem' }} de la lista?" data-confirm-danger="true">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button class="btn btn-sm btn-danger">×</button>
         </form>
@@ -147,7 +147,7 @@
 </div></div>
 {% endif %}
 
-<p class="muted" style="margin-top:2rem;">
+<p class="muted mt-8" >
   💡 Tip: Marcar "Comprado" no toca el inventario todavía. Cuando llegué el pedido, ajustás el stock desde la ficha del ingrediente.
 </p>
 {% endblock %}

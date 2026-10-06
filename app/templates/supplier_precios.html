@@ -5,7 +5,7 @@
 {% block title %}Comparación de precios — {{ fmt.entity_name(supplier) }}{% endblock %}
 
 {% block content %}
-<div style="display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-4);">
+<div class="d-flex" style="display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-4);">
   <h1>Comparación de precios</h1>
   <span class="muted">· {{ fmt.entity_name(supplier) }}</span>
   <a href="/suppliers/{{ supplier.id }}/editar" class="btn btn-sm btn-ghost">
@@ -26,7 +26,7 @@
     <h2>Resumen</h2>
     <div class="metric-value">{{ ingredient_count }} ingredientes</div>
   </div>
-  <div class="card-body" style="display:flex;gap:var(--space-4);flex-wrap:wrap;">
+  <div class="card-body d-flex" style="display:flex;gap:var(--space-4);flex-wrap:wrap;">
     <div>
       <div class="muted">Proveedores comparados</div>
       <div style="font-size:1.25rem;font-weight:600;">{{ supplier_count }}</div>
@@ -103,7 +103,7 @@
             <summary class="muted" style="cursor:pointer;">
               Ver todos los proveedores ({{ g.suppliers|length }})
             </summary>
-            <table class="table is-narrow" style="margin-top:var(--space-2);">
+            <table class="table is-narrow mt-2" >
               <thead>
                 <tr>
                   <th>Proveedor</th>

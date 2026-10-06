@@ -274,21 +274,21 @@
   ("En preparación", kanban_confirmed, "info"),
   ("Listos para retiro", kanban_ready, "ok"),
 ] %}
-<div class="kds-kanban" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-4);margin-bottom:var(--space-6);" aria-label="Pedidos por estado">
+<div class="kds-kanban d-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-4);margin-bottom:var(--space-6);" aria-label="Pedidos por estado">
   {% for label, col, sev in cols %}
-  <section class="card" style="margin:0;">
+  <section class="card m-0" >
     <h2 style="font-size:var(--text-md);display:flex;align-items:center;gap:var(--space-2);">
       {{ label }} <span class="count-badge">{{ col|length }}</span>
     </h2>
     {% for k in col %}
-    <div class="kds-card" style="border:1px solid var(--color-border);border-radius:var(--radius);padding:var(--space-3);margin-bottom:var(--space-2);">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div class="kds-card d-flex" style="border:1px solid var(--color-border);border-radius:var(--radius);padding:var(--space-3);margin-bottom:var(--space-2);">
+      <div class="d-flex" style="display:flex;justify-content:space-between;align-items:center;">
         <strong>{{ k.label }}</strong>
         {% import "_components/atoms.html" as a %}
         {{ a.status_pill_for(k.status) }}
       </div>
-      {% if k.customer %}<div class="text-muted" style="font-size:var(--text-sm);">{{ k.customer }}</div>{% endif %}
-      <div class="text-muted" style="font-size:var(--text-xs);">para {{ k.promised }}</div>
+      {% if k.customer %}<div class="text-muted text-sm" >{{ k.customer }}</div>{% endif %}
+      <div class="text-muted text-xs" >para {{ k.promised }}</div>
       {# Phase 14 (2026-10-01): ventana + invoice + delivery hint on the
          kitchen card. Helps prep staff pace ASAP vs scheduled deliveries. #}
       {% if k.ventana_text %}
@@ -302,7 +302,7 @@
       </div>
       {% endif %}
       {% if k.invoice_ruc %}
-      <div class="text-muted" style="font-size:var(--text-xs);">
+      <div class="text-muted text-xs" >
         🧾 {{ k.invoice_ruc }}{% if k.invoice_name %} — {{ k.invoice_name|truncate(20) }}{% endif %}
       </div>
       {% endif %}
@@ -311,7 +311,7 @@
         {% for ln in k.lines %}<li>{{ ln }}</li>{% endfor %}
       </ul>
       {% endif %}
-      <div class="row-actions" style="margin-top:var(--space-2);display:flex;gap:var(--space-2);">
+      <div class="row-actions mt-2" style="margin-top:var(--space-2);display:flex;gap:var(--space-2);">
         <a class="btn btn-sm" href="/pedidos/{{ k.id }}">Abrir</a>
       </div>
     </div>
@@ -327,7 +327,7 @@
 {{ render_group("Esta semana", pedidos_semana, now) }}
 
 {% if not pedidos_hoy and not pedidos_manana and not pedidos_semana %}
-<p class="text-muted" style="margin-top:2rem;">No hay pedidos pendientes. 🍰</p>
+<p class="text-muted mt-8" >No hay pedidos pendientes. 🍰</p>
 {% endif %}
 
 <script>

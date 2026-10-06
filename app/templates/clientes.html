@@ -16,22 +16,22 @@
             padding:var(--space-3);margin-bottom:var(--space-4);font-size:var(--text-sm);">
   <strong>Datos incompletos</strong> — completá las fichas para que las alertas y
   promos funcionen:
-  {% if nudge.sin_telefono %}<span style="margin-left:var(--space-2);">{{ nudge.sin_telefono }} sin teléfono</span>{% endif %}
-  {% if nudge.sin_dietary %}<span style="margin-left:var(--space-2);">{{ nudge.sin_dietary }} sin perfil dietético</span>{% endif %}
-  {% if nudge.sin_direccion %}<span style="margin-left:var(--space-2);">{{ nudge.sin_direccion }} sin dirección</span>{% endif %}
-  {% if nudge.sin_consent %}<span style="margin-left:var(--space-2);">{{ nudge.sin_consent }} sin consentimiento de promos</span>{% endif %}
-  <span style="margin-left:var(--space-2);" class="muted">(tocá un cliente → Editar perfil)</span>
+  {% if nudge.sin_telefono %}<span class="ml-2" >{{ nudge.sin_telefono }} sin teléfono</span>{% endif %}
+  {% if nudge.sin_dietary %}<span class="ml-2" >{{ nudge.sin_dietary }} sin perfil dietético</span>{% endif %}
+  {% if nudge.sin_direccion %}<span class="ml-2" >{{ nudge.sin_direccion }} sin dirección</span>{% endif %}
+  {% if nudge.sin_consent %}<span class="ml-2" >{{ nudge.sin_consent }} sin consentimiento de promos</span>{% endif %}
+  <span  class="muted ml-2">(tocá un cliente → Editar perfil)</span>
 </div>
 {% endif %}
 
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
+<div class="d-flex" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
   <div>
     <a href="/clientes/duplicados" class="btn btn-sm" data-testid="link-duplicados">
       <svg class="icon" aria-hidden="true"><use href="#icon-merge"/></svg>
       Ver duplicados
     </a>
   </div>
-  <div style="display:flex;gap:var(--space-2);align-items:center;">
+  <div class="d-flex" style="display:flex;gap:var(--space-2);align-items:center;">
     {% set csv_q = dict(request.query_params.multi_items()) %}{% set _ = csv_q.update({'format': 'csv'}) %}
     <a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-sm btn-ghost" download="clientes.csv">
       <svg class="icon" aria-hidden="true"><use href="#icon-excel"/></svg>
@@ -44,7 +44,7 @@
   </div>
 </div>
 
-<form method="get" action="/clientes" class="inv-toolbar" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
+<form method="get" action="/clientes" class="inv-toolbar d-flex" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
   <input type="search" name="q" value="{{ q }}" placeholder="Buscar nombre o teléfono…"
          style="flex:1;min-width:180px;height:36px;" aria-label="Buscar cliente">
   <div class="mf-pop" data-mf="tier">
@@ -56,9 +56,9 @@
       {% endfor %}
     </div>
   </div>
-  <button type="submit" class="btn btn-primary" style="height:36px;">Filtrar</button>
+  <button type="submit" class="btn btn-primary h-control" >Filtrar</button>
   {% if q or tier %}
-  <a href="/clientes" class="btn" style="height:36px;">Limpiar todo</a>
+  <a href="/clientes" class="btn h-control" >Limpiar todo</a>
   {% endif %}
 </form>
 <div  class="inv-result-count text-muted" style="font-size:var(--text-xs); margin-bottom:var(--space-3)">
@@ -76,7 +76,7 @@
 {{ ui.skeleton_section(id="clients-table", variant="line", count=12, label="Cargando clientes") }}
 <div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);" data-loaded-section="clients-table">
 <div class="table-wrap">
-<table class="table is-hoverable is-striped" style="margin-bottom:0;">
+<table class="table is-hoverable is-striped mb-0" >
   <thead>
     <tr>
       <th><input type="checkbox" id="select-all-clients" aria-label="Seleccionar todos"></th>
@@ -156,11 +156,11 @@
 
 {# Pagination #}
 {% if total_pages > 1 %}
-<nav class="pagination" style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:1rem;" aria-label="Paginación">
+<nav class="pagination d-flex" style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:1rem;" aria-label="Paginación">
   {% if page > 1 %}
   <a href="?page={{ page - 1 }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}{% if tier %}&amp;tier={{ tier }}{% endif %}{% if sort %}&amp;sort={{ sort }}{% endif %}{% if dir %}&amp;dir={{ dir }}{% endif %}" class="btn btn-sm">← Anterior</a>
   {% endif %}
-  <span class="text-muted" style="font-size:var(--text-sm)">
+  <span class="text-muted text-sm" >
     Página {{ page }} de {{ total_pages }}
   </span>
   {% if page < total_pages %}
