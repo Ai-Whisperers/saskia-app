@@ -72,8 +72,10 @@ from app.routers.produccion._helpers import (
 from app.routers.produccion.analytics import (
     _build_substitution_suggestions,
     _count_haccp_missing_for_date,
+    _list_haccp_missing_for_date,
     _get_haccp_latest_for_date,
     _haccp_alert_for_entry,
+    expand_missing_items,
 )
 from app.routers.produccion._router import router
 from app.services.template_render import render
@@ -908,6 +910,11 @@ def produccion_worksheet(
                 _get_haccp_latest_for_date(session, plan.for_date)
             ),
             "haccp_missing_count": _count_haccp_missing_for_date(session, plan.for_date),
+            # T-2026-10-06 (B.6+): expanded chip-list for drill-down
+            # so the cook can see WHICH freezers/shifts are pending.
+            "haccp_missing_items": expand_missing_items(
+                _list_haccp_missing_for_date(session, plan.for_date)
+            ),
             # T-2026-10-04 (C.4): substitution suggestions. For every
             # ingredient the plan is short on, surface alternative
             # products the cook can bake instead — ranked by Jaccard

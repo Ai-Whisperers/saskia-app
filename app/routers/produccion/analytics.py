@@ -11,6 +11,7 @@ Routes:
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+from dataclasses import dataclass
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, Form, HTTPException, Query, Request
@@ -155,6 +156,73 @@ def _count_haccp_missing_for_date(session: Session, for_date: date) -> int:
     recorded: set[tuple[str, str]] = {(r.location, r.shift) for r in rows}
     expected = {(loc, sh) for loc in _DEFAULT_FREEZER_LOCATIONS for sh in ("AM", "PM")}
     return len(expected - recorded)
+
+
+def _list_haccp_missing_for_date(session: Session, for_date: date) -> list[dict]:
+    """T-2026-10-06 (B.6+): same data as _count_haccp_missing_for_date
+    but as a list of {location, shift} dicts so the /produccion banner
+    can render them as inline chips (drill-down).
+
+    Returns the missing entries in deterministic order (location asc,
+    then AM before PM within each location). The order matters because
+    `expand_missing_items` preserves it for stable rendering.
+    """
+    rows = session.execute(
+        select(FreezerTemperatureLog.location, FreezerTemperatureLog.shift).where(
+            FreezerTemperatureLog.for_date == for_date
+        )
+    ).all()
+    recorded: set[tuple[str, str]] = {(r.location, r.shift) for r in rows}
+    expected = {(loc, sh) for loc in _DEFAULT_FREEZER_LOCATIONS for sh in ("AM", "PM")}
+    missing_pairs = sorted(expected - recorded)
+    return [{"location": loc, "shift": sh} for loc, sh in missing_pairs]
+
+
+@dataclass(frozen=True)
+class HaccpPendingItem:
+    """T-2026-10-06 (B.6+): one chip in the /produccion banner.
+
+    weight="BOTH" means the location has BOTH AM and PM missing
+    (visually distinct chip — most urgent, the cook has skipped
+    the entire day for that freezer). Otherwise weight is the
+    literal shift ("AM" or "PM").
+    """
+    location: str
+    weight: str  # "AM" | "PM" | "BOTH"
+
+
+def expand_missing_items(
+    missing: list[dict],
+) -> list[HaccpPendingItem]:
+    """T-2026-10-06 (B.6+): collapse a list of {location, shift} dicts
+    into one HaccpPendingItem per location, with weight="BOTH" when
+    both shifts are missing for that location. BOTH chips sort first.
+
+    Input shape (from analytics.produccion_haccp.missing):
+        [{"location": "freezer-masa", "shift": "AM"}, ...]
+    Output shape:
+        [HaccpPendingItem("freezer-masa", "BOTH"), ...]
+    """
+    if not missing:
+        return []
+    by_loc: dict[str, set[str]] = {}
+    for m in missing:
+        by_loc.setdefault(m["location"], set()).add(m["shift"])
+    out: list[HaccpPendingItem] = []
+    for loc, shifts in by_loc.items():
+        if shifts == {"AM", "PM"}:
+            weight = "BOTH"
+        elif shifts == {"AM"}:
+            weight = "AM"
+        elif shifts == {"PM"}:
+            weight = "PM"
+        else:
+            # Defensive: should never happen, but log if it does.
+            weight = ",".join(sorted(shifts))
+        out.append(HaccpPendingItem(location=loc, weight=weight))
+    # Sort BOTH first (most urgent), then by location name (stable)
+    out.sort(key=lambda i: (i.weight != "BOTH", i.location))
+    return out
 
 
 # ─────────────────────────────────────────────────────────────────────
