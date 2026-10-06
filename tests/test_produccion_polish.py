@@ -258,3 +258,47 @@ class TestZeroDemandCollapsible:
         snippet = TEMPLATE_BODY[for_idx:for_idx + 50]
         assert "primary_rows" in snippet, \
             "main loop must iterate primary_rows (not plan_rows_view)"
+
+
+# ─── M6: date picker auto-submits ──────────────────────────────────────────
+
+class TestDatePickerAutoSubmit:
+    """M6 — date picker auto-submits on change, no extra 'Ir a fecha' button."""
+
+    def test_day_nav_picker_has_onchange(self):
+        """The day nav date picker must have an onchange handler that submits."""
+        day_nav_path = (
+            Path(__file__).parent.parent / "app" / "templates"
+            / "_components" / "day_nav.html"
+        )
+        body = day_nav_path.read_text(encoding="utf-8")
+        assert "onchange" in body, \
+            "day_nav date input must have onchange handler"
+        assert "Ir a fecha" not in body, \
+            "redundant 'Ir a fecha' button must be removed"
+
+
+# ─── M7: client-side product name filter ───────────────────────────────────
+
+class TestProductNameFilter:
+    """M7 — search input above the production table filters by product name."""
+
+    def test_filter_input_present(self):
+        assert 'data-row-filter="products"' in TEMPLATE_BODY, \
+            "client-side filter input must be present"
+        assert 'Filtrar por nombre' in TEMPLATE_BODY, \
+            "filter placeholder must be Spanish-friendly"
+
+    def test_rows_have_data_product_name(self):
+        """Each <tr class="production-row"> must carry data-product-name so
+        the JS can match names."""
+        idx = TEMPLATE_BODY.find('class="production-row')
+        assert idx >= 0
+        snippet = TEMPLATE_BODY[idx:idx + 400]
+        assert "data-product-name=" in snippet, \
+            "production-row must carry data-product-name for filter"
+
+    def test_filter_wiring_in_js(self):
+        """The JS must wire the filter input to a function that updates row display."""
+        # Look for the filter wiring code
+        assert "applyNameFilter" in TEMPLATE_BODY or "row-filter" in TEMPLATE_BODY

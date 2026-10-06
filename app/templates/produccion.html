@@ -654,6 +654,13 @@
           <kbd style="font-size:0.7rem;padding:1px 4px;">?</kbd> ayuda
         </small>
       </div>
+      {# M7: client-side product name filter. Operators scanning 45+
+         products can type to narrow down. Pairs with the difficulty
+         filter (both apply). Defaults to empty (show all). #}
+      <input type="search" data-row-filter="products"
+             placeholder="Filtrar por nombre…"
+             aria-label="Filtrar productos por nombre"
+             style="margin: var(--space-2) 0; padding: 4px 8px; border-radius: var(--radius); border: 1px solid var(--color-border, #d1d5db); font-size: var(--text-sm); width: 12rem;">
       {# T-2026-10-04 (B.10): difficulty filter. Cooks self-select
          "fácil" tasks when tired, so we surface 4-way pills above the
          table. Persists via ?difficulty=<1-5|all>. JS re-filters the
@@ -743,6 +750,7 @@
       {% for r in primary_rows %}
         <tr class="production-row {% if r.is_ad_hoc %}production-row--adhoc{% endif %} {% if r.pending_pedido_qty > 0 %}production-row--has-pedido{% endif %}"
             data-product-id="{{ r.product_id }}"
+            data-product-name="{{ r.product_name|e }}"
             data-difficulty="{{ r.recipe_difficulty or 0 }}"
             {% if r.is_ad_hoc %}data-ad-hoc="1"{% endif %}>
           <td data-label="Listo">
@@ -1741,6 +1749,32 @@
         e.preventDefault();
       });
     });
+    // M7: client-side name filter. Pairs with difficulty filter — both
+    // must pass for a row to be visible. Updates the visible count.
+    var nameInput = document.querySelector('[data-row-filter="products"]');
+    if (nameInput) {
+      var rows = document.querySelectorAll('#shift-form .production-row');
+      function applyNameFilter() {
+        var q = (nameInput.value || '').toLowerCase().trim();
+        var visible = 0;
+        rows.forEach(function(row) {
+          var name = (row.getAttribute('data-product-name') || '').toLowerCase();
+          var rowDiff = parseInt(row.getAttribute('data-difficulty') || '0', 10);
+          var isAdHoc = row.getAttribute('data-ad-hoc') === '1';
+          var level = activeFilter;
+          var showDiff = (level === 'all') || isAdHoc || rowDiff === parseInt(level, 10);
+          var showName = !q || name.indexOf(q) >= 0;
+          var show = showDiff && showName;
+          row.style.display = show ? '' : 'none';
+          if (show) visible++;
+        });
+        var countEl = document.querySelector('[data-difficulty-count]');
+        if (countEl) {
+          countEl.textContent = visible + ' / ' + rows.length + ' productos';
+        }
+      }
+      nameInput.addEventListener('input', applyNameFilter);
+    }
   })();
 </script>
 <style>
