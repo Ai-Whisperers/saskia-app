@@ -103,6 +103,17 @@ class AccuracyReport:
     total_completed: float = 0.0
     total_sold: float = 0.0
     avg_accuracy: float | None = None
+    # Top 5 days by total |delta| (worst) and by accuracy desc (best).
+    # Sazon-Improvement v2 (2026-10-06): the cook glances at these
+    # to find the day with the worst plan-vs-actual mismatch without
+    # reading the full 30-day daily table. Each entry is
+    # (for_date, total_delta, accuracy, total_planned, total_completed).
+    worst_days: list[tuple[date, float, float, float, float]] = field(
+        default_factory=list
+    )
+    best_days: list[tuple[date, float, float, float, float]] = field(
+        default_factory=list
+    )
 
     @property
     def under_baked_pct(self) -> float | None:
@@ -265,6 +276,11 @@ def compute_plan_accuracy(
     total_completed = round(sum(r.completed_qty for r in rows), 4)
     total_sold = round(sum(r.sold_qty for r in rows), 4)
 
+    # Aggregate per-day totals for the Top 5 worst/best widget.
+    daily_totals = _aggregate_daily_totals(rows)
+    worst = _top_worst_days(daily_totals, n=5)
+    best = _top_best_days(daily_totals, n=5)
+
     return AccuracyReport(
         daily_rows=rows,
         product_summary=summaries,
@@ -274,7 +290,92 @@ def compute_plan_accuracy(
         total_completed=total_completed,
         total_sold=total_sold,
         avg_accuracy=round(sum(all_accs) / len(all_accs), 4) if all_accs else None,
+        worst_days=worst,
+        best_days=best,
     )
+
+
+def _aggregate_daily_totals(
+    rows: list[DailyAccuracyRow],
+) -> dict[date, dict[str, float]]:
+    """Aggregate per-(product, day) rows into per-day totals.
+
+    Returns a map {for_date: {planned, completed, sold, delta, accuracy}}
+    where:
+      - delta = |planned - completed|  (magnitude of the gap)
+      - accuracy = completed / planned when planned > 0, else 0.0
+
+    Days with no plan (planned == 0) still appear with planned=0,
+    completed=actual so the operator can see "what we did unplanned
+    on day X". They are excluded from best_days (no plan means no
+    calibration possible) but included in worst_days if completed
+    was very different from 0.
+    """
+    out: dict[date, dict[str, float]] = {}
+    for r in rows:
+        cur = out.setdefault(
+            r.for_date,
+            {
+                "planned": 0.0,
+                "completed": 0.0,
+                "sold": 0.0,
+                "delta": 0.0,
+                "accuracy": 0.0,
+            },
+        )
+        cur["planned"] += r.planned_qty
+        cur["completed"] += r.completed_qty
+        cur["sold"] += r.sold_qty
+    for d, cur in out.items():
+        cur["delta"] = abs(cur["planned"] - cur["completed"])
+        cur["accuracy"] = (
+            cur["completed"] / cur["planned"] if cur["planned"] > 0 else 0.0
+        )
+    return out
+
+
+def _top_worst_days(
+    daily_totals: dict[date, dict[str, float]],
+    n: int = 5,
+) -> list[tuple[date, float, float, float, float]]:
+    """Return the top-N days with the largest |planned - completed| delta.
+
+    Each entry: (for_date, delta, accuracy, planned, completed).
+    Days with delta=0 are still included if N is reached — they're the
+    "calibration was perfect" cases and useful to surface.
+    """
+    sorted_days = sorted(
+        daily_totals.items(),
+        key=lambda kv: (-kv[1]["delta"], kv[0]),  # biggest delta first, then date
+    )
+    out: list[tuple[date, float, float, float, float]] = []
+    for d, t in sorted_days[:n]:
+        out.append((d, t["delta"], t["accuracy"], t["planned"], t["completed"]))
+    return out
+
+
+def _top_best_days(
+    daily_totals: dict[date, dict[str, float]],
+    n: int = 5,
+) -> list[tuple[date, float, float, float, float]]:
+    """Return the top-N days with the highest accuracy (planned > 0).
+
+    Days without a plan (planned == 0) are excluded — there's nothing
+    to be accurate about. The day with the highest accuracy
+    (closest to 1.0 from below) is the gold standard the cook
+    can study to see what calibration looked like on a good day.
+
+    Each entry: (for_date, delta, accuracy, planned, completed).
+    """
+    candidates = [
+        (d, t) for d, t in daily_totals.items() if t["planned"] > 0
+    ]
+    # Sort by accuracy desc, then by delta asc (tiebreaker: perfect = best)
+    candidates.sort(key=lambda kv: (-kv[1]["accuracy"], kv[1]["delta"]))
+    out: list[tuple[date, float, float, float, float]] = []
+    for d, t in candidates[:n]:
+        out.append((d, t["delta"], t["accuracy"], t["planned"], t["completed"]))
+    return out
 
 
 def date_range_presets() -> dict[str, tuple[date, date]]:

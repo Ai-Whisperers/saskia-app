@@ -55,6 +55,91 @@
 </div>
 {% endif %}
 
+{# Sazon-Improvement v2 (2026-10-06) Phase E step 5: Top-5 worst/best
+   days widget. The cook scans this to find the day with the biggest
+   plan-vs-actual gap without reading the full 30-day daily table.
+   Each row links to the /produccion day view so the cook can drill
+   into the specific day. #}
+{% if report.worst_days or report.best_days %}
+<div class="grid-2 mb-4" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+  <div class="card">
+    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem;">
+      📉 Días con mayor desvío
+    </h3>
+    {% if report.worst_days %}
+    <table class="data-table" style="font-size: 0.875rem;">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th class="text-right">Plan</th>
+          <th class="text-right">Producido</th>
+          <th class="text-right">Δ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d, delta, acc, planned, completed in report.worst_days %}
+        <tr>
+          <td>
+            <a href="/produccion?view=day&for_date={{ d.isoformat() }}">
+              {{ d.strftime("%a %d/%m") }}
+            </a>
+          </td>
+          <td class="text-right">{{ "%.0f"|format(planned) }}</td>
+          <td class="text-right">{{ "%.0f"|format(completed) }}</td>
+          <td class="text-right {% if delta > 0 %}warn{% endif %}">
+            {{ "%+.0f"|format(completed - planned) }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="hint" style="margin: 0;">No hay desvíos en el período.</p>
+    {% endif %}
+  </div>
+  <div class="card">
+    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem;">
+      📈 Días mejor calibrados
+    </h3>
+    {% if report.best_days %}
+    <table class="data-table" style="font-size: 0.875rem;">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th class="text-right">Plan</th>
+          <th class="text-right">Producido</th>
+          <th class="text-right">Accuracy</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d, delta, acc, planned, completed in report.best_days %}
+        <tr>
+          <td>
+            <a href="/produccion?view=day&for_date={{ d.isoformat() }}">
+              {{ d.strftime("%a %d/%m") }}
+            </a>
+          </td>
+          <td class="text-right">{{ "%.0f"|format(planned) }}</td>
+          <td class="text-right">{{ "%.0f"|format(completed) }}</td>
+          <td class="text-right">
+            <span class="status-pill
+                         {% if acc >= 0.95 %}success
+                         {% elif acc >= 0.85 %}warn
+                         {% else %}error{% endif %}">
+              {{ (acc * 100) | round(1) }}%
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="hint" style="margin: 0;">No hay días con plan ejecutado.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <table class="data-table">
   <thead>
     <tr>
