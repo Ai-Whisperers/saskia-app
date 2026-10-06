@@ -61,4 +61,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 # Run migrations on every boot (idempotent — uses schema_version), then start uvicorn.
 # `--reload` is OFF in prod. The lifespan in app/rms/main.py also calls init_db() so this
 # is a belt-and-suspenders to make sure migrations apply even if the lifespan fails.
-CMD ["sh", "-c", "aiw-sazon migrate && exec uvicorn app.rms.main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips='*'"]
+CMD ["sh", "-c", "sazon migrate && exec uvicorn app.rms.main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips='*'"]
