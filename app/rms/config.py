@@ -37,7 +37,16 @@ def default_data_dir() -> Path:
 DATA_DIR = Path(os.getenv("AIW_RMS_DATA_DIR", str(default_data_dir())))
 
 # DB file path
-DB_PATH = Path(os.getenv("AIW_RMS_DB_PATH", str(DATA_DIR / "rms.sqlite")))
+# Read AIW_RMS_DB_PATH first (the canonical name), then fall back to
+# AIW_SASKIA_DB_PATH (the legacy name still set by the saskia-vps
+# production stack — see app/rms/main.py comments). Without this
+# fallback, prod would read the default DATA_DIR/rms.sqlite (empty)
+# instead of the seeded /data/rms.sqlite.
+DB_PATH = Path(
+    os.getenv("AIW_RMS_DB_PATH")
+    or os.getenv("AIW_SASKIA_DB_PATH")
+    or str(DATA_DIR / "rms.sqlite")
+)
 
 # Local backup dir
 BACKUP_DIR = Path(
