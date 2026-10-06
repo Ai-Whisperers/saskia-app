@@ -8,6 +8,10 @@
 - `scripts/seed_packs_gen.py`: regenera packs.py desde los CSV de investigación stageados (scratch/sazon_pack_*.csv + sazon_ingredientes_maestro.csv); auto-ruff-fix al generar.
 - `tests/test_packs_seed.py`: 7 tests — integridad (producto→receta, qty>0), seed completo, idempotencia, barrido 10 packs en DB fresca, pack desconocido raise, reuso de ingredientes entre packs.
 - `pyproject.toml`: per-file-ignore DTZ para el generado (contrato naive-UTC heredado de sazon.py).
+- `app/rms/seed/pack_demo.py` + `tests/test_pack_demo.py` (5 tests): vida demo nativa del pack —
+  clientes + pedidos con token público + 90 días de ventas con skew fin de semana/quincena + stock
+  moves. CLI: `python -m app.rms.seed.pack_demo --pack "Pizzería"` re-seedea el demo en segundos
+  (`reseed_pack`, wipe de data only). Tests: 5 passed; ruff clean.
 
 
 ## 2026-10-04 — Phase 3 CI cleanup (PR #46)
