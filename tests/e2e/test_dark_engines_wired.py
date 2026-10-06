@@ -26,7 +26,7 @@ from tests.factories import (
     make_sale,
 )
 
-pytestmark = [pytest.mark.smoke]
+pytestmark = [pytest.mark.e2e, pytest.mark.smoke]
 
 
 def test_stock_intel_page_renders_with_dead_stock(client, session_factory):

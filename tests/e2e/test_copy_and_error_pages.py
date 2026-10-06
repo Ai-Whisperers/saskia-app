@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = [pytest.mark.smoke]
+pytestmark = [pytest.mark.e2e, pytest.mark.smoke]
 
 
 @pytest.mark.parametrize(

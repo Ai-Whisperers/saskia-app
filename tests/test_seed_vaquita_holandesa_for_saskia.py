@@ -4,7 +4,7 @@ Saskia (saskia-vps) business.
 Why this test exists:
 - The user reported "0 de 0 productos" but the DB has 29 products.
 - Root cause was a missing tenant record and stale browser cache.
-- The operator-facing seed_vaquita_for_saskia.py must REFUSE to run
+- The operator-facing seed_vaquita_holandesa_for_saskia.py must REFUSE to run
   on a DB that already has user data, because seed_sazon(overwrite=False)
   is NOT idempotent at the row level: it appends NEW products with new
   names. Running it on a populated DB caused 29 duplicate products.
@@ -26,7 +26,7 @@ import pytest
 
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
-SEED_SCRIPT = SCRIPTS_DIR / "seed_vaquita_for_saskia.py"
+SEED_SCRIPT = SCRIPTS_DIR / "seed_vaquita_holandesa_for_saskia.py"
 
 
 def test_seed_script_exists():

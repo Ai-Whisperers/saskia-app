@@ -31,7 +31,7 @@ from tests.factories import (
     make_supplier,
 )
 
-pytestmark = [pytest.mark.smoke]
+pytestmark = [pytest.mark.e2e, pytest.mark.smoke]
 
 
 # ---------------------------------------------------------------------------

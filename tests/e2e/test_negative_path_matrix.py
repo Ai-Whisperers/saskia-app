@@ -11,7 +11,7 @@ import pytest
 
 from tests.factories import make_catalog
 
-pytestmark = [pytest.mark.security]
+pytestmark = [pytest.mark.e2e, pytest.mark.security]
 
 
 def _cat(session_factory):

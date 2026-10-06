@@ -18,6 +18,10 @@ break on PG get caught in CI.
 from __future__ import annotations
 
 import json
+
+import pytest
+
+pytestmark = pytest.mark.pg
 from datetime import datetime, timezone
 
 # Register the PG fixtures from tests/conftest_pg.py. Pytest only auto-loads

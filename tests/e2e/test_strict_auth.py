@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import pytest
 
+pytestmark = pytest.mark.e2e
+
 
 @pytest.fixture
 def strict_client(session_factory, monkeypatch, tmp_db_path):

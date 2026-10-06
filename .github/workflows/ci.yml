@@ -75,7 +75,10 @@ jobs:
         # limit and still drops full suite from ~10 min to ~6 min on a
         # 2-core runner. See docs/operations/2026-10-04-parallel-tests.md
         # for the disk-usage analysis and the rationale.
-        run: uv run pytest -n 2 --dist=loadscope --cov=app --cov-report=term-missing
+        # NOTE — pyproject.toml addopts excludes browser/e2e/pg by default
+        # so local dev loops are fast. CI runs the full suite via --no-cov
+        # -m "not (pg)" and the dedicated -m pg job below.
+        run: uv run pytest -n 2 --dist=loadscope --cov=app --cov-report=term-missing -m "not (pg)"
 
       # Tier 8.7 (2026-10-01): Page the operator when the test suite
       # fails on main. Uses the same Resend API the app uses

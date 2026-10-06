@@ -21,7 +21,7 @@ from openpyxl import Workbook
 
 from app.rms.models import ImportBatch, Ingredient, Product, Recipe, RecipeLine
 
-pytestmark = [pytest.mark.smoke]
+pytestmark = [pytest.mark.e2e, pytest.mark.smoke]
 
 
 def _multi_sheet_xlsx() -> bytes:

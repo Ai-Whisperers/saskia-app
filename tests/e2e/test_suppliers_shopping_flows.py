@@ -14,7 +14,7 @@ import pytest
 
 from tests.factories import make_ingredient, make_supplier
 
-pytestmark = [pytest.mark.crud]
+pytestmark = [pytest.mark.e2e, pytest.mark.crud]
 
 
 # ---------------------------------------------------------------------------

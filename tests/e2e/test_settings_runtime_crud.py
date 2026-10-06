@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = [pytest.mark.crud]
+pytestmark = [pytest.mark.e2e, pytest.mark.crud]
 
 
 def _crud_roundtrip(

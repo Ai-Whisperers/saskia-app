@@ -26,7 +26,7 @@ from tests.factories import (
     pedido_item,
 )
 
-pytestmark = [pytest.mark.security]
+pytestmark = [pytest.mark.e2e, pytest.mark.security]
 
 
 # ---------------------------------------------------------------------------

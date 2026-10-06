@@ -16,7 +16,7 @@ import pytest
 from tests import flows
 from tests.factories import ing_line, make_ingredient, make_product, make_recipe, make_sale
 
-pytestmark = [pytest.mark.smoke]
+pytestmark = [pytest.mark.e2e, pytest.mark.smoke]
 
 
 # ---------------------------------------------------------------------------

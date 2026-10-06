@@ -18,7 +18,7 @@ import pytest
 from tests import flows
 from tests.factories import ing_line, make_customer, make_ingredient, make_product, make_recipe
 
-pytestmark = [pytest.mark.smoke]
+pytestmark = [pytest.mark.e2e, pytest.mark.smoke]
 
 
 def _catalog(session_factory):

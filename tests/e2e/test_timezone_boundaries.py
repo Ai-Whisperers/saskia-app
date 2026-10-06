@@ -21,7 +21,7 @@ from tests.factories import (
     pedido_item,
 )
 
-pytestmark = [pytest.mark.smoke]
+pytestmark = [pytest.mark.e2e, pytest.mark.smoke]
 
 
 @contextmanager

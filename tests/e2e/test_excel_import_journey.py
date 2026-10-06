@@ -17,7 +17,7 @@ from openpyxl import Workbook
 
 from app.rms.models import Ingredient
 
-pytestmark = [pytest.mark.smoke]
+pytestmark = [pytest.mark.e2e, pytest.mark.smoke]
 
 
 def _vendor_xlsx(rows: list[dict]) -> bytes:

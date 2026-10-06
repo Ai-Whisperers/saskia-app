@@ -36,7 +36,7 @@ from app.rms.config import CURRENT_SCHEMA_VERSION
 # stack migrations and the tag-algebra tail).
 SAMPLE_VERSIONS = [1, 20, 38, 49, 50, 51, 52, 53, 54]
 
-pytestmark = [pytest.mark.crud]
+pytestmark = [pytest.mark.e2e, pytest.mark.crud]
 
 
 def _set_version(conn, v: int) -> None:
