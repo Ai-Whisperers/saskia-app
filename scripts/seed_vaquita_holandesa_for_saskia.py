@@ -133,7 +133,7 @@ def main() -> int:
         # Snapshot after
         after = {t: cnt(t) for t in (
             "tenant", "product", "recipe", "ingredient",
-            "category", "channel", "delivery_zone",
+            "category", "channel", "delivery_zone", "sale",
         )}
         print(f"=== After seed ===")
         print(f"  is_seeded: {is_sazon_seeded(session)}")
