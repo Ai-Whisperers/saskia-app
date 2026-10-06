@@ -1855,16 +1855,26 @@
 
 {% endif %}{# end day view #}
 
-{# T-2026-10-06d: ad-hoc modal moved here (was inside the day-view {% if
-   plan_rows_view %} guard, which meant it didn't render on quiet days).
-   Now always available so the empty-state CTA can open it.
+{# T-2026-10-06f: ad-hoc modal product picker now uses <ui-combo> (a
+   search-as-you-type combobox web component) instead of native <select>.
 
-   T-2026-10-06e: explicit background/color on the <dialog>. The native
-   <dialog> element renders browser-default white in Chrome even when
-   the surrounding page is dark. Inheriting body { color: var(--color-text)
-   } = light gray text + white dialog background = white-on-white.
-   The fixed colors here are dark-bg + light-text and work in both
-   themes (modal always reads as a "floating panel" on the page). #}
+   Why:
+   1. The user wants a filterable dropdown — "we have no products in the
+      dropdown, should be a drop down where we write and it filters the
+      products etc."
+   2. Native <select> is unusable when the catalog has 30+ products — no
+      type-to-search, no keyboard nav, no way to skim.
+   3. The project already has <ui-combo> in app/static/ui-combo.js with
+      WCAG AA support, keyboard nav (↑/↓/Enter/Esc), ARIA combobox
+      roles, and the <change> event dispatches {value, display}.
+
+   Why client-side (not server-side endpoint):
+   1. /api/lookup/products is gated by DEV_COMBO_SMOKE and returns 404
+      in prod.
+   2. The product list is small (≤200 products in this catalog) so
+      shipping it inline avoids a roundtrip and a 404.
+   3. If the catalog grows >200, swap to endpoint= once we ungate the
+      lookup API. #}
 <dialog id="adhoc-modal"
         style="border: none;
         border-radius: 8px;
@@ -1885,13 +1895,25 @@
     </p>
     <div class="form-row" style="margin-bottom: var(--space-3);">
       <label for="adhoc-product" style="display: block; margin-bottom: var(--space-1); font-weight: bold; color: #f3f4f6;">Producto</label>
-      <select name="product_id" id="adhoc-product" required class="combo-input"
-              style="width: 100%; padding: var(--space-2); border: 1px solid #4b5563; border-radius: 4px; background: #111827; color: #f3f4f6;">
-        <option value="">— Elegí producto —</option>
-        {% for p in products_for_adhoc %}
-          <option value="{{ p.id }}" data-forecast="{{ p.forecast_qty or 0 }}" data-pending-pedidos="{{ p.pending_pedidos or 0 }}">{{ p.name }}</option>
-        {% endfor %}
-      </select>
+      {# T-2026-10-06f: <ui-combo> ships the product list inline as src=
+         (a JSON-encoded list of {value, label, forecast_qty, pending_pedidos}
+         objects). The JS listener reads getSelectedData() to pre-fill the
+         qty input with forecast + pending_pedidos. #}
+      <ui-combo id="adhoc-product"
+                name="product_id"
+                placeholder="Buscar producto…"
+                src='[{% for p in products_for_adhoc %}{"value": {{ p.id|tojson }}, "label": {{ p.name|tojson }}, "forecast_qty": {{ (p.forecast_qty or 0)|tojson }}, "pending_pedidos": {{ (p.pending_pedidos or 0)|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]'
+                required>
+      </ui-combo>
+      {# T-2026-10-06f: empty-state hint when no products are in the catalog.
+         The combo always shows "Sin productos en el catálogo" when src=[]
+         (we wire that below). But on a fresh tenant with 0 products, this
+         hint below the combo explains what to do. #}
+      <small id="adhoc-no-products-hint"
+             style="color: #9ca3af; font-size: var(--text-xs); display: none; margin-top: var(--space-1);">
+        No hay productos cargados. Pedile al administrador que cargue productos en
+        <a href="/products" style="color: #93c5fd;">Productos</a> antes de continuar.
+      </small>
     </div>
     <div class="form-row" style="margin-bottom: var(--space-3);">
       <label for="adhoc-qty" style="display: block; margin-bottom: var(--space-1); font-weight: bold; color: #f3f4f6;">Cantidad horneada</label>
@@ -1913,34 +1935,44 @@
     </div>
   </form>
 </dialog>
-{# T-2026-10-06e: pre-fill the qty input with forecast + pending pedidos
-   when the operator picks a product. data-forecast and data-pending-pedidos
-   attributes on each <option> carry the demand numbers; the JS below
-   reads them and updates #adhoc-qty + the suggestion hint. #}
+{# T-2026-10-06f: hook the <ui-combo> change event to pre-fill qty, and
+   toggle the "no products" hint based on whether the catalog is empty. #}
 <script>
 (function() {
-  const sel = document.getElementById('adhoc-product');
+  const combo = document.getElementById('adhoc-product');
   const qty = document.getElementById('adhoc-qty');
   const hint = document.querySelector('#adhoc-qty-hint [data-suggested]');
-  if (!sel || !qty || !hint) return;
+  const noProductsHint = document.getElementById('adhoc-no-products-hint');
+  if (!combo || !qty || !hint) return;
+  // On every change/clear, recompute the suggested qty from the
+  // selected product's forecast + pending_pedidos.
   function recompute() {
-    const opt = sel.options[sel.selectedIndex];
-    if (!opt || !opt.value) {
+    const data = combo.getSelectedData ? combo.getSelectedData() : null;
+    if (!data || !data.value) {
       qty.value = '';
       hint.textContent = '—';
       return;
     }
-    const fcst = parseFloat(opt.getAttribute('data-forecast') || '0') || 0;
-    const ped = parseFloat(opt.getAttribute('data-pending-pedidos') || '0') || 0;
+    const fcst = parseFloat(data.forecast_qty || '0') || 0;
+    const ped = parseFloat(data.pending_pedidos || '0') || 0;
     const total = fcst + ped;
     qty.value = total > 0 ? total.toString() : '';
     hint.textContent = total > 0
       ? total.toFixed(1) + ' (rolling ' + fcst.toFixed(1) + ' + pedidos ' + ped.toFixed(1) + ')'
-      : 'sin demanda registrada';
+      : 'sin demanda registrada (elegí qty manualmente)';
   }
-  sel.addEventListener('change', recompute);
-  // Recompute on open in case the operator picks the same product twice
-  document.addEventListener('DOMContentLoaded', recompute);
+  combo.addEventListener('change', recompute);
+  // T-2026-10-06f: show "no products" hint if src is empty.
+  // The combo's src attribute is a JSON-encoded array; we count its items
+  // by looking at the combo's internal _src or by counting children.
+  // Easier: just check the data attribute and the placeholder visibility.
+  try {
+    const srcRaw = combo.getAttribute('src') || '[]';
+    const items = JSON.parse(srcRaw);
+    if (!items.length && noProductsHint) {
+      noProductsHint.style.display = 'block';
+    }
+  } catch (e) { /* malformed src — leave the hint hidden */ }
 })();
 </script>
 

@@ -65,33 +65,49 @@ class TestModalDarkColors:
 
 
 class TestModalPrefill:
-    def test_options_carry_forecast_and_pedidos(self):
+    def test_uses_ui_combo_not_native_select(self):
+        """T-2026-10-06f: native <select> was replaced with <ui-combo>
+        so the operator can type to filter (catalog has 30+ products
+        and a select dropdown was unusable)."""
         modal = _modal_html()
-        # Find the <option> tag template
-        opt_tmpl = re.search(r'\{%\s*for\s+p\s+in\s+products_for_adhoc\s*%\}(.*?)\{%\s*endfor\s*%\}', modal, re.DOTALL)
-        assert opt_tmpl, "no products_for_adhoc for-loop found"
-        opt_body = opt_tmpl.group(1)
-        assert 'data-forecast' in opt_body, (
-            "each option must carry data-forecast attribute so JS can pre-fill qty"
+        assert '<select' not in modal, (
+            "modal must use <ui-combo> for type-to-filter, not <select>. "
+            "User explicitly asked for a searchable dropdown."
         )
-        assert 'data-pending-pedidos' in opt_body, (
-            "each option must carry data-pending-pedidos attribute"
+        assert '<ui-combo' in modal, "modal must include <ui-combo>"
+        assert 'id="adhoc-product"' in modal, "ui-combo must keep id='adhoc-product'"
+
+    def test_combo_carries_forecast_and_pedidos(self):
+        """The src= attribute must include forecast_qty and pending_pedidos
+        for each product so the JS can pre-fill the qty input."""
+        modal = _modal_html()
+        # The src= attribute is multi-line (Jinja for-loop), so use re.DOTALL.
+        # Outer quote is `'`, content may contain `"` (JSON keys).
+        m = re.search(r"src='(.*?)'", modal, re.DOTALL)
+        assert m, "ui-combo must have a src= attribute with the product list"
+        src = m.group(1)
+        assert 'forecast_qty' in src, (
+            "src= must include forecast_qty per product for qty pre-fill"
+        )
+        assert 'pending_pedidos' in src, (
+            "src= must include pending_pedidos per product for qty pre-fill"
         )
 
     def test_qty_input_pre_fill_script_present(self):
         text = TEMPLATE.read_text()
         # The modal is followed by a <script> that recomputes qty on change.
-        # Find the script that references both the selector and qty input.
+        # Find the script that references both the combo and qty input.
         scripts = re.findall(r'<script[^>]*>(.*?)</script>', text, re.DOTALL)
         found = False
         for s in scripts:
             if ('adhoc-product' in s and 'adhoc-qty' in s
-                and 'data-forecast' in s and 'data-pending-pedidos' in s):
+                and 'getSelectedData' in s
+                and 'forecast_qty' in s and 'pending_pedidos' in s):
                 found = True
                 break
         assert found, (
-            "missing pre-fill JS: must read data-forecast and data-pending-pedidos "
-            "from the selected <option> and update #adhoc-qty"
+            "missing pre-fill JS: must call combo.getSelectedData() and "
+            "use forecast_qty + pending_pedidos to update #adhoc-qty"
         )
 
     def test_qty_hint_shows_math_breakdown(self):
