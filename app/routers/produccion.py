@@ -60,6 +60,46 @@ FORECAST_SOURCE_LABELS = {
     "template": "Plan semanal",  # PRO-01
     "override": "Ajuste del día",  # PRO-01
 }
+
+# PRODUCCION-V3 Phase 2: 4 source buckets per the design spec.
+# Each granular `forecast_source` rolls up into one of these. The
+# UI shows a single colored badge + a 4-row legend below the table.
+SOURCE_BUCKETS = {
+    # Order matters — it defines the legend order top-to-bottom.
+    "receta":        "Sugerido por receta / plantilla",
+    "historial":     "Calculado de las últimas ventas",
+    "override":      "Ajuste manual del panadero",
+    "horneado-extra":"Horneado extra (no estaba en el plan)",
+}
+
+
+def source_to_bucket(forecast_source: str | None, is_ad_hoc: bool = False) -> str:
+    """Map a row's forecast_source to one of the 4 design buckets.
+
+    `is_ad_hoc=True` always wins (it's a manual addition outside the
+    plan). Unknown sources fall back to `historial` (auto-suggested).
+    """
+    if is_ad_hoc:
+        return "horneado-extra"
+    if forecast_source == "override":
+        return "override"
+    if forecast_source in ("template", "manual", "seasonal_event"):
+        return "receta"
+    # rolling_14d_avg and any unknown value → historial
+    return "historial"
+
+
+# PRODUCCION-V3 Phase 2: 5-band confidence explanation.
+# Each band: (Spanish name, copy in the modal, CSS modifier class).
+# The pill on the row is replaced with a `?` help link that opens
+# the modal — the modal explains what the bands mean.
+CONFIDENCE_BANDS = [
+    ("Muy baja",  "0–24% · muy pocos días con datos — revisá y ajustá manualmente", "conf-vlow"),
+    ("Baja",      "25–49% · algunos datos, pero la sugerencia es tentativa",         "conf-low"),
+    ("Media",     "50–69% · datos suficientes, pero conviene revisar antes de hornear", "conf-med"),
+    ("Alta",      "70–84% · buenas ventas y muchos días de datos — usá como base",   "conf-high"),
+    ("Muy alta",  "85–100% · dato muy sólido — la sugerencia refleja lo que vas a vender", "conf-vhigh"),
+]
 FORECAST_SOURCE_HELP = {
     "rolling_14d_avg": "Calculado del promedio de ventas de los últimos 14 días",
     "seasonal_event": "Ajustado por evento estacional en la fecha",
@@ -183,6 +223,26 @@ def _parse_overrides(params: object) -> dict[int, float]:
             except (TypeError, ValueError):
                 continue
     return out
+
+
+def _confidence_band_for_pct(pct: int | float | None) -> str:
+    """Map a 0-100 confidence percentage to a 5-band CSS modifier.
+
+    Matches the CONFIDENCE_BANDS table in this module (used by the
+    modal in the template). 0 / None → conf-vlow (the cook should
+    define a quantity manually).
+    """
+    if pct is None or pct <= 0:
+        return "conf-vlow"
+    if pct < 25:
+        return "conf-vlow"
+    if pct < 50:
+        return "conf-low"
+    if pct < 70:
+        return "conf-med"
+    if pct < 85:
+        return "conf-high"
+    return "conf-vhigh"
 
 
 def _current_user_display_name(request: Request) -> str:
@@ -774,6 +834,11 @@ def produccion_worksheet(
             # optional justification (NULL when blank).
             "closure_status": closure_status_by_pid.get(r.product_id, "open"),
             "closure_notes": closure_notes_by_pid.get(r.product_id),
+            # PRODUCCION-V3 Phase 2: 4 source buckets (legend) and
+            # 5-band confidence (modal trigger). Pre-computed in the
+            # route so the template stays a thin renderer.
+            "source_bucket": source_to_bucket(r.forecast_source, is_ad_hoc=False),
+            "confidence_band": _confidence_band_for_pct(r.confidence_pct),
         }
         for r in plan.rows
     ]
@@ -799,6 +864,11 @@ def produccion_worksheet(
                 "completed_qty": qty,
                 "pending_pedido_qty": ped_units_by_pid.get(pid, 0.0),
                 "is_ad_hoc": True,
+                # PRODUCCION-V3 Phase 2: ad-hoc rows always bucket to
+                # "horneado-extra". Confidence is 100 (the cook
+                # decided — there's no forecast to be uncertain about).
+                "source_bucket": "horneado-extra",
+                "confidence_band": "conf-vhigh",
                 "batch_qty": None,
                 "batch_unit": None,
                 "portion_label": prod_obj.portion_label if prod_obj else None,
@@ -905,6 +975,13 @@ def produccion_worksheet(
             "template_nudge": template_nudge,
             "cold_start_kind": cold_start_kind,
             "for_date": plan.for_date.isoformat() if plan.for_date else "",
+            # PRODUCCION-V3 Phase 1: day navigation. prev/next are ISO
+            # strings for the prev/next calendar day. `today` is the
+            # Asunción-local current date (the nav's "Hoy" button always
+            # points to it, even when the current for_date is in the past).
+            "prev_for_date": (plan.for_date - timedelta(days=1)).isoformat() if plan.for_date else "",
+            "next_for_date": (plan.for_date + timedelta(days=1)).isoformat() if plan.for_date else "",
+            "today_for_date": _asuncion_today().isoformat(),
             "view": "day",
             "ui_version": ui,  # PRODUCCION-V2 Fase 1: 'v1' (default) or 'v2' (demand fields)
             # PRODUCCION-V2 Fase 2: day-level closure counts for the
@@ -917,6 +994,12 @@ def produccion_worksheet(
             "day_total_count": day_total_count,
             "source_labels": FORECAST_SOURCE_LABELS,
             "source_help": FORECAST_SOURCE_HELP,
+            # PRODUCCION-V3 Phase 2: 4-bucket legend + 5-band confidence.
+            "source_buckets": SOURCE_BUCKETS,
+            # NOTE: key named `confidence_bands_def` to avoid collision with
+            # the pre-existing `confidence_bands` dict (counts per band:
+            # high / medium / low / no_data) injected a few lines below.
+            "confidence_bands_def": CONFIDENCE_BANDS,
             "overrides": overrides,
             "recipes": session.execute(select(Recipe).order_by(Recipe.name)).scalars().all(),
             "pending_pedidos": pending_pedidos,

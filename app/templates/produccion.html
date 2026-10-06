@@ -63,6 +63,16 @@
       <strong>{{ month_name }} {{ year }}</strong>
     </p>
     {% endif %}
+
+    {# PRODUCCION-V3 Phase 1: day navigation (prev / picker / today / next).
+       The audit (H2, M2, M7, M18, M20) flagged that /produccion had no
+       intuitive way to jump between days. Keyboard shortcuts (J/K/O/C)
+       are handled separately in app/static/shortcuts.js. #}
+    {% if view == 'day' %}
+    <div style="margin-top: var(--space-2);">
+      {% include "_components/day_nav.html" %}
+    </div>
+    {% endif %}
   </div>
 
   <nav class="view-tabs" aria-label="Cambiar vista" role="tablist"
@@ -742,47 +752,25 @@
             </div>
           </td>
           <td data-label="Origen">
-            {# Sprint 1: semantic source badges. Ad-hoc is its own badge. #}
-            {% if r.is_ad_hoc %}
-              <span class="badge badge-warning">Ad-hoc</span>
-            {% elif r.forecast_source == 'override' %}
-              <span class="badge badge-warning">{{ source_labels.get(r.forecast_source, 'Ajuste') }}</span>
-            {% elif r.forecast_source == 'template' %}
-              <span class="badge badge-info">{{ source_labels.get(r.forecast_source, 'Plantilla') }}</span>
-            {% elif r.forecast_source == 'manual' %}
-              <span class="badge badge-primary">{{ source_labels.get(r.forecast_source, 'Manual') }}</span>
-            {% else %}
-              <span class="badge badge-muted">{{ source_labels.get(r.forecast_source, 'Sugerido') }}</span>
-            {% endif %}
-            {# T-2026-10-04 (P2): confidence pill — per-row trust indicator.
-                 High (>=70): green, trust the auto-suggestion.
-                 Medium (50-69): yellow, consider reviewing.
-                 Low (1-49): orange, review before baking.
-                 The eye can spot outliers when most rows are uniformly green. #}
+            {# PRODUCCION-V3 Phase 2: 4 distinguishable source badges.
+                 The audit (H3, M11, M16) flagged that the old `badge-warning`
+                 + `badge-info` + `badge-muted` triplet all looked like the
+                 same shade of gray. The 4 source buckets each get a unique
+                 color (info / neutral / warn / accent-dashed). #}
+            <span class="source-bucket source-bucket--{{ r.source_bucket }}">
+              {{ source_buckets[r.source_bucket] }}
+            </span>
+            {# PRODUCCION-V3 Phase 2: confidence is now a `?` help link
+                 that opens a <dialog> with the 5-band explanation. The
+                 audit (M4, M17) found the inline percentage pill was an
+                 opaque "trust me" number — the cook couldn't tell if 72%
+                 was good or bad. The help link reuses the band color so
+                 the row still telegraphs "good/bad" at a glance. #}
             {% if not r.is_ad_hoc %}
-              {# T-2026-10-04 (P0:B.8): confidence tooltip now includes the
-                 forecast source and a Spanish breakdown of the heuristic
-                 so the cook knows WHY the number is what it is — not just
-                 what to do about it. Mobile cooks can long-press to read. #}
-              {% set source_label = {
-                'rolling_14d_avg': 'rolling 14d',
-                'seasonal_event': 'evento estacional',
-                'manual': 'manual',
-                'template': 'plantilla'
-              }.get(r.forecast_source, r.forecast_source) %}
-              {% if r.confidence_pct >= 70 %}
-                <span class="confidence-pill conf-high"
-                      title="Alta confianza · {{ source_label }} · {{ r.confidence_pct }}% = muchas ventas + muchos días con datos">{{ r.confidence_pct }}%</span>
-              {% elif r.confidence_pct >= 50 %}
-                <span class="confidence-pill conf-medium"
-                      title="Confianza media · {{ source_label }} · {{ r.confidence_pct }}% = algunos datos, revisá">{{ r.confidence_pct }}%</span>
-              {% elif r.confidence_pct > 0 %}
-                <span class="confidence-pill conf-low"
-                      title="Confianza baja · {{ source_label }} · {{ r.confidence_pct }}% = muy pocos datos, ajustá manualmente">{{ r.confidence_pct }}%</span>
-              {% else %}
-                <span class="confidence-pill conf-zero"
-                      title="Sin datos · definí la cantidad">{{ r.confidence_pct }}%</span>
-              {% endif %}
+              <a href="#confidence-modal"
+                 class="confidence-help"
+                 data-band="{{ r.confidence_band }}"
+                 title="¿Qué significa {{ r.confidence_pct }}%?">?</a>
             {% endif %}
           </td>
           <td data-label="Receta">
@@ -896,6 +884,23 @@
         {% endfor %}
       </tbody>
     </table>
+
+    {# PRODUCCION-V3 Phase 2: source legend. Shows what each of the 4
+         bucket colors means. Cooks don't have to hover or guess.
+         Rendered INSIDE the {% if plan_rows_view %} guard (which
+         closes at line 1068) so it only shows when there's a plan
+         to read. Cooks see the legend once they add rows. #}
+    <div class="source-legend" aria-label="Leyenda de origen de la sugerencia">
+      {% for key, label in source_buckets.items() %}
+      <span class="source-legend__item">
+        <span class="source-bucket source-bucket--{{ key }}">{{ label }}</span>
+      </span>
+      {% endfor %}
+      <span class="source-legend__item">
+        <a href="#confidence-modal" class="confidence-help" data-band="conf-high"
+           title="¿Qué es el porcentaje de confianza?">? = confianza</a>
+      </span>
+    </div>
 
     <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; padding-top: var(--space-3); border-top: 1px solid var(--color-border); margin-top: var(--space-3); gap: var(--space-3); flex-wrap: wrap;">
       <small class="text-muted">
@@ -2013,5 +2018,72 @@
 })();
 </script>
 {% endif %}
+
+{# PRODUCCION-V3 Phase 2: confidence modal. A single <dialog> that
+     explains the 5 confidence bands. Click any `?` help link in a
+     row to open it. The dialog is closed by clicking the backdrop
+     or pressing Esc. Rendered once for the whole page. #}
+<dialog id="confidence-modal" class="confidence-modal" aria-labelledby="confidence-modal-title">
+  <div class="confidence-modal__dialog">
+    <div class="confidence-modal__header">
+      <h2 id="confidence-modal-title">¿Qué significa el porcentaje de confianza?</h2>
+      <button type="button" class="btn-ghost btn-icon" data-confidence-close
+              aria-label="Cerrar">
+        <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+      </button>
+    </div>
+    <div class="confidence-modal__body">
+      <p class="text-muted" style="margin: 0 0 var(--space-2) 0;">
+        La app calcula cuánto hornear mirando las <strong>ventas pasadas</strong>
+        y los <strong>ajustes manuales</strong> que ya hiciste. Este número te
+        dice cuánta confianza tiene esa sugerencia.
+      </p>
+      {% for name, copy, css_class in confidence_bands_def %}
+      <div class="confidence-band">
+        <span class="confidence-band__name">
+          <span class="confidence-band__swatch confidence-band__swatch--{{ css_class | replace('conf-', '') }}"></span>
+          {{ name }}
+        </span>
+        <span class="text-muted" style="font-family: var(--font-mono); font-size: 11px;">
+          {% if loop.index0 == 0 %}0–24%
+          {% elif loop.index0 == 1 %}25–49%
+          {% elif loop.index0 == 2 %}50–69%
+          {% elif loop.index0 == 3 %}70–84%
+          {% else %}85–100%
+          {% endif %}
+        </span>
+        <span class="confidence-band__copy">{{ copy }}</span>
+      </div>
+      {% endfor %}
+      <p class="text-muted" style="margin: var(--space-3) 0 0 0; font-size: var(--text-xs);">
+        <strong>Tip:</strong> si ves "Muy baja", la app te está diciendo
+        "no sé — definilo vos". Ajustá la cantidad manualmente y la
+        próxima vez será más precisa.
+      </p>
+    </div>
+  </div>
+</dialog>
+<script>
+(function() {
+  'use strict';
+  var modal = document.getElementById('confidence-modal');
+  if (!modal) return;
+  // Open: any anchor with href="#confidence-modal" inside the page
+  document.querySelectorAll('a[href="#confidence-modal"]').forEach(function(a) {
+    a.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      if (typeof modal.showModal === 'function') {
+        modal.showModal();
+      } else {
+        modal.setAttribute('open', '');
+      }
+    });
+  });
+  // Close: X button + click on backdrop + Esc (native <dialog> behavior)
+  modal.querySelectorAll('[data-confidence-close]').forEach(function(b) {
+    b.addEventListener('click', function() { modal.close(); });
+  });
+})();
+</script>
 
 {% endblock %}

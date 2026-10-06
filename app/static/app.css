@@ -516,3 +516,43 @@ button.tab.is-active { color: var(--color-accent); border-bottom-color: var(--co
 }
 fieldset.form-section{margin-top:var(--space-4);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-4)}fieldset.form-section legend{font-weight:600;padding:0 var(--space-2);font-size:var(--text-sm);color:var(--color-text)}.form-section-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)}.form-section-grid-3{display:grid;grid-template-columns:120px 1fr 160px auto;gap:var(--space-2);align-items:end}.form-section-grid-4{display:grid;grid-template-columns:120px 140px 1fr auto;gap:var(--space-2);align-items:end}.form-section-grid-2cols{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-top:var(--space-3)}
 .required{color:var(--red-600);font-weight:700;margin-left:2px}
+
+/* PRODUCCION-V3 Phase 2: 4 source-bucket badges.
+   Each bucket has a distinct color + label so cooks can tell
+   at a glance where the number came from. */
+.source-bucket{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:var(--text-xs);font-weight:600;border-radius:var(--radius-pill);line-height:1.4;letter-spacing:var(--tracking-wide)}
+.source-bucket--receta{background:var(--color-info-soft);color:var(--color-info-fg);border:1px solid var(--color-info)}
+.source-bucket--historial{background:var(--color-surface-subtle);color:var(--color-text-muted);border:1px solid var(--color-border-strong)}
+.source-bucket--override{background:var(--color-warn-soft);color:var(--color-warn-fg);border:1px solid var(--color-warn)}
+.source-bucket--horneado-extra{background:var(--color-accent-soft);color:var(--color-accent);border:1px dashed var(--color-accent);font-style:italic}
+
+/* Source legend — small key below the day table. */
+.source-legend{display:flex;flex-wrap:wrap;gap:var(--space-3);padding:var(--space-3);background:var(--color-surface-subtle);border-radius:var(--radius);margin-top:var(--space-3);font-size:var(--text-xs);color:var(--color-text-muted)}
+.source-legend__item{display:inline-flex;align-items:center;gap:var(--space-2)}
+.source-legend__item strong{color:var(--color-text);font-weight:500}
+
+/* Confidence help link — replaces the inline percentage pill. */
+.confidence-help{display:inline-flex;align-items:center;gap:2px;padding:0 6px;height:18px;background:var(--color-surface-subtle);color:var(--color-text-muted);border:1px solid var(--color-border);border-radius:var(--radius-pill);font-size:11px;font-weight:600;cursor:help;font-family:inherit;text-decoration:none}
+.confidence-help:hover{background:var(--color-accent-soft);border-color:var(--color-accent);color:var(--color-accent)}
+.confidence-help[data-band="conf-vlow"]{border-color:var(--color-danger);color:var(--color-danger)}
+.confidence-help[data-band="conf-low"]{border-color:var(--color-warn);color:var(--color-warn-fg)}
+.confidence-help[data-band="conf-med"]{border-color:var(--color-warn);color:var(--color-warn-fg)}
+.confidence-help[data-band="conf-high"]{border-color:var(--color-success);color:var(--color-success-fg)}
+.confidence-help[data-band="conf-vhigh"]{border-color:var(--color-success);color:var(--color-success-fg)}
+
+/* Confidence modal — single <dialog> for the whole page. */
+dialog.confidence-modal{border:none;padding:0;background:transparent;max-width:520px;width:90vw;margin:auto}
+dialog.confidence-modal::backdrop{background:var(--color-surface-overlay);animation:fade-in .2s ease-out}
+.confidence-modal__dialog{background:var(--color-surface-raised);border-radius:var(--card-radius);box-shadow:var(--shadow-xl);max-height:90vh;overflow-y:auto}
+.confidence-modal__header{display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) var(--space-6);border-bottom:1px solid var(--color-border)}
+.confidence-modal__header h2{margin:0;font-size:var(--text-md)}
+.confidence-modal__body{padding:var(--space-4) var(--space-6);display:flex;flex-direction:column;gap:var(--space-2)}
+.confidence-band{display:grid;grid-template-columns:1fr auto;gap:var(--space-2) var(--space-3);padding:var(--space-3);border-radius:var(--radius);border:1px solid var(--color-border);align-items:start}
+.confidence-band__name{font-weight:600;font-size:var(--text-sm);color:var(--color-text)}
+.confidence-band__copy{font-size:var(--text-xs);color:var(--color-text-muted);grid-column:1/-1;line-height:var(--leading-normal)}
+.confidence-band__swatch{width:14px;height:14px;border-radius:50%;flex-shrink:0}
+.confidence-band__swatch--vlow{background:var(--color-danger)}
+.confidence-band__swatch--low{background:var(--color-warn)}
+.confidence-band__swatch--med{background:var(--color-warn);opacity:0.7}
+.confidence-band__swatch--high{background:var(--color-success);opacity:0.8}
+.confidence-band__swatch--vhigh{background:var(--color-success)}

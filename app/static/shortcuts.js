@@ -51,6 +51,7 @@
   // Production hotkeys (only fire on /produccion) — D.5
   // Cooks self-pace through shift execution: J/K navigate rows,
   // O opens the per-row override form, C toggles the close-day form.
+  // H/L move one day back/forward; T jumps to today.
   // Mobile-aware: shortcuts only fire on viewports ≥768px (no keyboard
   // on phones, no accidental fires from input focus changes).
   const PROD_HOTKEYS = {
@@ -95,6 +96,22 @@
       // Toggle the close-day form (only if not already closed)
       const closeBtn = document.querySelector('[data-action="toggle-close-day"]');
       if (closeBtn) closeBtn.click();
+    },
+    // PRODUCCION-V3 Phase 1: day navigation shortcuts.
+    // H moves to the previous day, L to the next day, T to today.
+    // These click the data-day-nav anchors in _components/day_nav.html
+    // so the shift/filter state is preserved.
+    'h': () => {
+      const link = document.querySelector('[data-day-nav-prev]');
+      if (link) link.click();
+    },
+    'l': () => {
+      const link = document.querySelector('[data-day-nav-next]');
+      if (link) link.click();
+    },
+    't': () => {
+      const link = document.querySelector('[data-day-nav-today]');
+      if (link) link.click();
     },
   };
 
@@ -150,6 +167,8 @@
                 <tr><td><kbd>J</kbd> / <kbd>K</kbd></td><td>Navegar filas de producción (en /produccion, desktop)</td></tr>
                 <tr><td><kbd>O</kbd></td><td>Abrir override de la fila activa (en /produccion)</td></tr>
                 <tr><td><kbd>C</kbd></td><td>Cerrar / abrir el día (en /produccion)</td></tr>
+                <tr><td><kbd>H</kbd> / <kbd>L</kbd></td><td>Día anterior / siguiente (en /produccion)</td></tr>
+                <tr><td><kbd>T</kbd></td><td>Ir a hoy (en /produccion)</td></tr>
               </tbody>
             </table>
             <p class="text-muted">
