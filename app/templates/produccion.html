@@ -73,14 +73,6 @@
       {% include "_components/day_nav.html" %}
     </div>
     {% endif %}
-
-    {# PRODUCCION-V3 Phase 3: hero stats (4 cards: Productos / Lote /
-       Pedidos / Confianza). Gives the cook the day-at-a-glance before
-       they read the table. Day view only — week/month use their own
-       summary blocks. #}
-    {% if view == 'day' %}
-      {% include "_components/hero_stats.html" %}
-    {% endif %}
   </div>
 
   <nav class="view-tabs" aria-label="Cambiar vista" role="tablist"
@@ -140,6 +132,18 @@
     Prep semanal
   </a>
 </div>
+
+{# PRODUCCION-V3 Phase 3 (post-screenshot fix): hero stats (4 cards:
+   Productos / Lote / Pedidos / Confianza). Rendered OUTSIDE the
+   page-header flex container so the grid can span the full
+   content width — when the stats were inside the flex column
+   with the day-nav above them, the toolbar (Día/Semana/Mes + 5
+   buttons) on the right took most of the space and squished the
+   stats to a 4-card vertical column on the left. Now they're
+   their own row, full width, with the grid auto-fitting 4 cards. #}
+{% if view == 'day' %}
+  {% include "_components/hero_stats.html" %}
+{% endif %}
 
 
 {# ════════════════════════════════════════════════════════════════════
