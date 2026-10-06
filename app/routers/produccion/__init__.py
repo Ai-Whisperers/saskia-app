@@ -45,6 +45,10 @@ from app.routers.produccion._router import router
 # the `from _router import router` line at the top of _full.py.
 import app.routers.produccion._full  # noqa: F401 — side effect: route registration
 import app.routers.produccion.analytics  # noqa: F401 — side effect: route registration
+import app.routers.produccion.operations  # noqa: F401 — side effect: route registration
+import app.routers.produccion.templates_ops  # noqa: F401 — side effect: route registration
+import app.routers.produccion.forecast  # noqa: F401 — side effect: route registration
+import app.routers.produccion.print_export  # noqa: F401 — side effect: route registration
 
 __all__ = [
     "router",
