@@ -12,6 +12,8 @@ Covers the issues found in the visual analysis screenshot:
 
 Run with: pytest tests/test_produccion_polish.py -v
 """
+import pathlib
+import re
 import pytest
 from pathlib import Path
 from sqlalchemy import select
@@ -302,3 +304,70 @@ class TestProductNameFilter:
         """The JS must wire the filter input to a function that updates row display."""
         # Look for the filter wiring code
         assert "applyNameFilter" in TEMPLATE_BODY or "row-filter" in TEMPLATE_BODY
+
+# Path constant for the CSS file
+APP_CSS = pathlib.Path(__file__).parent.parent / "app" / "static" / "app.css"
+
+
+class TestWhiteBackgroundBugFixes:
+    """W10/W11 — the .step-btn +/- buttons and the
+    .production-row--has-pedido rows were pure white in dark mode
+    because the CSS used var(--color-card, #fff) and
+    var(--color-info-bg, #eff6ff) — variables that don't exist in the
+    design system, so the fallback fired. Both should use the
+    design tokens instead so they track dark mode."""
+
+    def test_step_btn_uses_design_token(self):
+        body = TEMPLATE_BODY
+        # Find the .step-btn { ... } block, but strip comments first
+        body_no_comments = re.sub(r'/\*.*?\*/', '', body, flags=re.DOTALL)
+        m = re.search(r'\.step-btn\s*\{([^}]*)\}', body_no_comments, re.DOTALL)
+        assert m, ".step-btn rule not found in template"
+        block = m.group(0)
+        assert "var(--color-card, #fff)" not in block, \
+            ".step-btn still uses the broken var(--color-card, #fff) fallback"
+        assert "var(--color-surface)" in block, \
+            ".step-btn must use --color-surface so it tracks dark mode"
+
+    def test_production_row_has_pedido_uses_design_token(self):
+        body = TEMPLATE_BODY
+        assert "var(--color-info-bg, #eff6ff)" not in body, \
+            ".production-row--has-pedido still uses broken var(--color-info-bg, #eff6ff) fallback"
+        m = re.search(
+            r'\.production-row--has-pedido\s*\{[^}]*\}', body, re.DOTALL
+        )
+        assert m
+        assert "var(--color-info-soft)" in m.group(0), \
+            ".production-row--has-pedido must use --color-info-soft for dark mode"
+
+
+class TestGlobalAppCssSelfRefs:
+    """Design-system bug — app.css had self-references in the alias
+    :root block: --card-bg:var(--card-bg), --flash-bg:var(--flash-bg),
+    --flash-border:var(--flash-border). Self-referenced variables are
+    invalid, so any `var(--card-bg, fallback)` style fell back."""
+
+    def test_no_card_bg_self_reference(self):
+        with open(APP_CSS) as f:
+            content = f.read()
+        m = re.search(
+            r':root\{--bg:var\(--color-bg\)[^}]+\}', content
+        )
+        assert m, "alias :root block not found"
+        block = m.group(0)
+        assert "--card-bg:var(--card-bg)" not in block, \
+            "self-referenced --card-bg:var(--card-bg) still present"
+        assert "--flash-bg:var(--flash-bg)" not in block, \
+            "self-referenced --flash-bg:var(--flash-bg) still present"
+        assert "--flash-border:var(--flash-border)" not in block, \
+            "self-referenced --flash-border:var(--flash-border) still present"
+
+    def test_alias_card_bg_points_to_color_surface(self):
+        with open(APP_CSS) as f:
+            content = f.read()
+        m = re.search(
+            r':root\{--bg:var\(--color-bg\)[^}]+\}', content
+        )
+        assert m
+        assert "--card-bg:var(--color-surface)" in m.group(0), \
+            "alias --card-bg should resolve to --color-surface"

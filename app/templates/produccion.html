@@ -549,7 +549,7 @@
    The bands mirror the per-row pill colors so the eye maps them quickly. #}
 {% if low_confidence_count > 0 %}
 <div class="card confidence-summary-banner"
-     style="background: var(--color-warning-bg, #fef3c7); border-left: 4px solid var(--color-warning, #f59e0b); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;"
+     style="background: var(--color-warn-soft); border-left: 4px solid var(--color-warning, #f59e0b); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;"
      data-confidence-summary
      data-low="{{ low_confidence_count }}">
   <div>
@@ -581,7 +581,7 @@
    Hidden when yesterday had no data (cook hasn't run end-of-shift). #}
 {% if yesterday_count > 0 %}
 <div class="card yesterday-snapshot"
-     style="background: var(--color-info-bg, #eff6ff); border-left: 4px solid var(--color-info, #3b82f6); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;"
+     style="background: var(--color-info-soft); border-left: 4px solid var(--color-info, #3b82f6); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;"
      data-yesterday-total="{{ yesterday_total_qty }}"
      data-yesterday-count="{{ yesterday_count }}">
   <div>
@@ -1173,7 +1173,7 @@
 
 {% else %}
 <div class="card empty-state-cold-start" data-cold-start="{{ cold_start_kind or 'unknown' }}"
-     style="background: var(--color-warning-bg, #fff7ed); border-left: 4px solid var(--color-warning, #f59e0b); padding: var(--space-4); margin-bottom: var(--space-4);">
+     style="background: var(--color-warn-soft); border-left: 4px solid var(--color-warning, #f59e0b); padding: var(--space-4); margin-bottom: var(--space-4);">
   {# T-2026-10-06d: when the operator has zero rows, give them a direct
    way to add their FIRST product via the existing ad-hoc modal
    (POST /produccion/ad-hoc). Previously the only path was waiting
@@ -1785,16 +1785,20 @@
      The cook needs to spot "we owe 3 tortas today" instantly. A 4px
      accent on the left edge + a tinted background does the job without
      competing with the orange ad-hoc highlight. */
+  /* W11: was background: var(--color-info-soft) — --color-info-bg
+     is not defined so the fallback made ad-hoc-with-pedido rows
+     pure white in dark mode. Use the design-token --color-info-soft
+     (rgba(59,130,246, 0.12) in dark, #eff6ff in light). */
   .production-row--has-pedido {
-    background: var(--color-info-bg, #eff6ff);
+    background: var(--color-info-soft);
   }
   .production-row--has-pedido:not(.is-done) td:first-child {
-    border-left: 4px solid var(--color-info, #3b82f6);
+    border-left: 4px solid var(--color-info);
     padding-left: calc(var(--space-2) + 4px);
   }
   .production-row--has-pedido .pedido-qty {
     font-weight: 700;
-    color: var(--color-info-strong, #1e40af);
+    color: var(--color-info);
   }
 
   /* T-2026-10-05 (B.9): batch-surplus pill color codes.
@@ -1874,15 +1878,15 @@
     white-space: nowrap;
   }
   .conf-high {
-    background: var(--color-success-bg, #d1fae5);
+    background: var(--color-success-soft);
     color: var(--color-success-strong, #047857);
   }
   .conf-medium {
-    background: var(--color-warning-bg, #fef3c7);
+    background: var(--color-warn-soft);
     color: var(--color-warning-strong, #b45309);
   }
   .conf-low {
-    background: var(--color-warning-bg, #fed7aa);
+    background: var(--color-warn-soft);
     color: var(--color-warning-strong, #c2410c);
   }
   .conf-zero {
@@ -1902,21 +1906,26 @@
     width: 32px;
     height: 32px;
     padding: 0;
-    border: 1px solid var(--color-border, #d1d5db);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
-    background: var(--color-card, #fff);
+    /* W10: was var(--color-card, #fff) — that fallback made the
+       stepper a blinding white block in dark mode because --color-card
+       is not defined. Use the design-token --color-surface so it
+       tracks dark mode. */
+    background: var(--color-surface);
+    color: var(--color-text);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background 80ms ease;
+    transition: background 80ms ease, color 80ms ease;
   }
-  .step-btn:hover { background: var(--color-surface-subtle, #f3f4f6); }
-  .step-btn:focus { outline: 2px solid var(--color-primary, #3b82f6); outline-offset: 1px; }
-  .step-btn svg { width: 16px; height: 16px; }
+  .step-btn:hover { background: var(--color-surface-subtle); }
+  .step-btn:focus { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+  .step-btn svg { width: 16px; height: 16px; color: var(--color-text); }
   /* Direction-specific hover colors (subtle hint) */
-  .step-btn.step-down:hover { background: var(--color-warning-bg, #fef3c7); }
-  .step-btn.step-up:hover { background: var(--color-success-bg, #d1fae5); }
+  .step-btn.step-down:hover { background: var(--color-warn-soft); }
+  .step-btn.step-up:hover { background: var(--color-success-soft); }
 
   /* T-2026-10-04 (D.5): hide keyboard shortcut hint on mobile (no
      physical keyboard, would just be visual noise). The check uses
@@ -1935,11 +1944,11 @@
     #shift-form table thead { display: none; }
     #shift-form table tbody tr {
       display: block;
-      margin-bottom: var(--space-3, 1rem);
-      padding: var(--space-2, 0.5rem);
-      border: 1px solid var(--color-border, #e5e7eb);
+      margin-bottom: var(--space-3);
+      padding: var(--space-2);
+      border: 1px solid var(--color-border);
       border-radius: 6px;
-      background: var(--color-card, #fff);
+      background: var(--color-surface);
     }
     #shift-form table tbody td {
       display: flex;
