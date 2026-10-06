@@ -189,16 +189,22 @@
    in app/routers/herebus.py:planner_compute (Decimal/float bug). Point
    users to /recetas for recipe math and /produccion/manana for day-plan
    adjustments. Re-enable here once the planner endpoint is fixed. ── #}
-{# T-2026-10-06 (UX): the previous empty-state card used
+{# T-2026-10-06 (UX polish): the previous empty-state card used
    --color-surface-subtle which is near-invisible on the dark theme
    (the operator reported it as unreadable). Replaced with
    --color-info-soft (a soft blue tint) + --color-info border on
    the left so the operator's eyes land on it. Also gated on
    not plan_rows_view so it disappears as soon as the operator
-   has any rows (even ad-hoc). #}
+   has any rows (even ad-hoc).
+
+   T-2026-10-06c: the body color was `var(--color-text, #111827)`.
+   That CSS fallback is IGNORED when --color-text is defined (which
+   in dark theme = #f3f4f6 = white-on-white). Fix: hard #111827 so
+   it works in both themes. Soft backgrounds are always light, so
+   dark text is the right choice universally. #}
 {% if not plan_rows_view %}
 <div class="card mb-4" style="background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6);">
-  <div class="card-body" style="font-size: var(--text-sm); color: var(--color-text, #111827);">
+  <div class="card-body" style="font-size: var(--text-sm); color: #111827;">
     <strong>📭 Sin producción planificada.</strong>
     ¿Necesitás calcular producción para una receta específica (catering, pedido grande)?
     Usá la <a href="/recetas">vista de recetas</a> para ver rendimientos, o andá a
@@ -393,9 +399,12 @@
    ──────────────────────────────────────────────────────────────── #}
 {# T-2026-10-06 (UX polish): the previous --color-surface-muted background
    was too low-contrast on the dark theme. Use info-soft + info border-left
-   to match the empty-state card style so it stands out as a hint callout. #}
+   to match the empty-state card style so it stands out as a hint callout.
+
+   T-2026-10-06c: hard #111827 (not var(--color-text, #111827)) because
+   CSS fallbacks are ignored when the var is defined. Soft bg + dark text. #}
 <div style="background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6); padding: var(--space-2) var(--space-3); margin-bottom: var(--space-3); border-radius: 4px;">
-  <small style="color: var(--color-text, #111827);">
+  <small style="color: #111827;">
     <strong>Cómo se calcula:</strong> "Sugerido por ventas" = promedio rolling 14d · "Plantilla semanal" = override recurrente por día de la semana · "Ajuste del día" = lo que vos decidiste hoy.
   </small>
 </div>
@@ -1155,8 +1164,11 @@
   {% else %}
     {# T-2026-10-06 (UX polish): the bare `<p class="empty">` was muted
        and hard to see on dark theme. Promote to a visible card with
-       info-soft background matching the top empty-state. #}
-    <p style="margin: 0; padding: var(--space-2) var(--space-3); background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6); border-radius: 4px; color: var(--color-text, #111827);">
+       info-soft background matching the top empty-state.
+
+       T-2026-10-06c: hard #111827 (not var(--color-text, #111827))
+       because CSS fallbacks are ignored when the var is defined. #}
+    <p style="margin: 0; padding: var(--space-2) var(--space-3); background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6); border-radius: 4px; color: #111827;">
       <strong>📭 No hay producción planificada.</strong> Verificá que haya ventas registradas en los últimos 14 días, o usá <a href="/produccion/copy-last-week">Copiar plan</a> para importar el plan de la semana pasada.
     </p>
   {% endif %}
@@ -1842,7 +1854,7 @@
       {{ request.query_params.get('rows', '?') }} filas copiadas
     </span>
   {% elif request.query_params.get('fork') == 'empty' %}
-    <span class="badge" style="background: var(--color-text-muted); color: #fff; margin-left: var(--space-2);">
+    <span class="badge" style="background: var(--color-text-muted); color: #111827; margin-left: var(--space-2);">
       Esta semana no tiene overrides para clonar
     </span>
   {% endif %}
