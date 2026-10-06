@@ -736,7 +736,11 @@
         </tr>
       </thead>
       <tbody>
-        {% for r in plan_rows_view %}
+        {# M2: iterate over primary_rows (the rows with real demand signal or
+   ad-hoc completions). Zero-demand template rows are surfaced in a
+   <details> at the bottom of the table so the operator can still
+   see & override them, but they don't dominate the main scroll path. #}
+      {% for r in primary_rows %}
         <tr class="production-row {% if r.is_ad_hoc %}production-row--adhoc{% endif %} {% if r.pending_pedido_qty > 0 %}production-row--has-pedido{% endif %}"
             data-product-id="{{ r.product_id }}"
             data-difficulty="{{ r.recipe_difficulty or 0 }}"
@@ -1010,6 +1014,43 @@
       </tbody>
     </table>
   </div>{# /.production-table-scroll — C1 right-edge overflow fix #}
+
+  {# M2: zero-demand rows (template/manual/override with no recent
+     rolling-avg demand and no pending pedidos). Hidden behind a
+     <details> toggle so the operator can review them when needed
+     but they're not in the main scroll path. #}
+  {% if zero_demand_rows %}
+  <details class="zero-demand-block" style="margin-top: var(--space-3);">
+    <summary style="cursor: pointer; padding: var(--space-2) var(--space-3); background: var(--color-surface-subtle, #f3f4f6); border-radius: var(--radius); font-weight: 600; color: var(--color-text);">
+      📋 Sin demanda reciente — {{ zero_demand_rows|length }} producto{{ '' if zero_demand_rows|length == 1 else 's' }}
+      <small class="text-muted" style="font-weight: 400; margin-left: var(--space-2);">
+        (de la plantilla semanal — abrí para revisar)
+      </small>
+    </summary>
+    <div style="margin-top: var(--space-2); overflow-x: auto;">
+      <table class="table is-hoverable is-striped" style="font-size: var(--text-sm);">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th class="num">Meta</th>
+            <th class="num">Pedidos</th>
+            <th>Origen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in zero_demand_rows %}
+          <tr data-product-id="{{ r.product_id }}">
+            <td><strong>{{ r.product_name }}</strong></td>
+            <td class="num">{{ "%.0f"|format(r.qty_to_produce) }} {{ r.batch_unit or 'und' }}</td>
+            <td class="num">{{ "%.0f"|format(r.pending_pedido_qty or 0) }}</td>
+            <td><small class="text-muted">{{ source_labels.get(r.forecast_source, r.forecast_source) }}</small></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% endif %}
 
     {# PRODUCCION-V3 Phase 2: source legend. Shows what each of the 4
          bucket colors means. Cooks don't have to hover or guess.

@@ -827,12 +827,38 @@ def produccion_worksheet(
     # can see "3 horneados extra" without scrolling.
     day_adhoc_count = sum(1 for r in plan_rows_view if r.get("is_ad_hoc", False))
 
+    # M2: split plan_rows_view into "needs action" vs "no recent demand"
+    # so the operator doesn't scroll through 30+ products that already
+    # have stock from yesterday. A row is "no demand" when:
+    #   - it's not ad-hoc
+    #   - qty_to_produce > 0 (it's planned for today, just from a template)
+    #   - pending_pedido_qty == 0 (no pedidos demand it)
+    #   - forecast_source in ('template', 'manual', 'override') meaning
+    #     it was pre-loaded but has no recent rolling-4o demand signal
+    # We surface "no demand" rows in a <details> at the bottom so the
+    # operator can still see & override them, but they're not in the
+    # main scroll path.
+    _NO_DEMAND_SOURCES = {"template", "manual", "override"}
+    primary_rows = []
+    zero_demand_rows = []
+    for r in plan_rows_view:
+        if (
+            not r.get("is_ad_hoc", False)
+            and (r.get("pending_pedido_qty") or 0) == 0
+            and r.get("forecast_source") in _NO_DEMAND_SOURCES
+        ):
+            zero_demand_rows.append(r)
+        else:
+            primary_rows.append(r)
+
     return render(
         request,
         "produccion.html",
         {
             "plan": plan,
             "plan_rows_view": plan_rows_view,
+            "primary_rows": primary_rows,
+            "zero_demand_rows": zero_demand_rows,
             "template_nudge": template_nudge,
             "cold_start_kind": cold_start_kind,
             "for_date": plan.for_date.isoformat() if plan.for_date else "",

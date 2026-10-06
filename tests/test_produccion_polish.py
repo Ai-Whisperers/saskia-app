@@ -231,3 +231,30 @@ class TestHorneadoExtraDescription:
         snippet = TEMPLATE_BODY[max(0, idx - 300):idx + 50]
         assert "max-width" in snippet, \
             "Horneado extra description needs max-width to wrap"
+
+
+# ─── M2: zero-demand rows collapsed ────────────────────────────────────────
+
+class TestZeroDemandCollapsible:
+    """M2 — template/manual rows with no recent demand are collapsed under
+    a <details> block so they don't dominate the main scroll."""
+
+    def test_zero_demand_block_present(self):
+        assert "zero-demand-block" in TEMPLATE_BODY, \
+            "zero-demand collapsible block must exist"
+        assert "Sin demanda reciente" in TEMPLATE_BODY, \
+            "details summary must read 'Sin demanda reciente'"
+
+    def test_primary_rows_used_in_main_loop(self):
+        """The main <tbody> loop should iterate over primary_rows, not
+        plan_rows_view, so zero-demand rows are filtered out."""
+        # Find the main <tbody> for the production table
+        # The pattern is {% for r in ... %} followed by <tr class="production-row"
+        tbody_idx = TEMPLATE_BODY.find('<tbody>')
+        assert tbody_idx >= 0
+        # Find the next {% for r in ... %} after tbody
+        for_idx = TEMPLATE_BODY.find("{% for r in", tbody_idx)
+        assert for_idx >= 0
+        snippet = TEMPLATE_BODY[for_idx:for_idx + 50]
+        assert "primary_rows" in snippet, \
+            "main loop must iterate primary_rows (not plan_rows_view)"
