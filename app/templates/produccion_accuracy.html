@@ -123,9 +123,9 @@
           <td class="text-right">{{ "%.0f"|format(completed) }}</td>
           <td class="text-right">
             <span class="status-pill
-                         {% if acc >= 0.95 %}success
-                         {% elif acc >= 0.85 %}warn
-                         {% else %}error{% endif %}">
+                         {% if acc >= 0.95 %}status-pill--ok
+                         {% elif acc >= 0.85 %}status-pill--warn
+                         {% else %}status-pill--danger{% endif %}">
               {{ (acc * 100) | round(1) }}%
             </span>
           </td>
@@ -164,9 +164,9 @@
       <td class="text-right">
         {% if s.total_accuracy is not none %}
         <span class="status-pill
-                     {% if s.total_accuracy >= 0.9 %}success
-                     {% elif s.total_accuracy >= 0.7 %}warn
-                     {% else %}error{% endif %}">
+                     {% if s.total_accuracy >= 0.9 %}status-pill--ok
+                     {% elif s.total_accuracy >= 0.7 %}status-pill--warn
+                     {% else %}status-pill--danger{% endif %}">
           {{ (s.total_accuracy * 100) | round(1) }}%
         </span>
         {% else %}—{% endif %}

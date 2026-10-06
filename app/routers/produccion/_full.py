@@ -852,9 +852,27 @@ def produccion_worksheet(
             "adhoc_added": request.query_params.get("adhoc_added") == "1",
             # T-2026-10-04 (Tier 5-K): concurrent-edit warning flag.
             "concurrent_modify": request.query_params.get("concurrent_modify") == "1",
-            "products_for_adhoc": session.execute(select(Product).order_by(Product.name))
-            .scalars()
-            .all(),
+            "products_for_adhoc": [
+                # T-2026-10-06e: enrich the product picker with forecast +
+                # pending-pedidos demand so the modal can pre-fill the qty
+                # input with a meaningful number instead of leaving it empty
+                # (the previous version was opening qty=0, forcing the cook
+                # to type the demand manually every time).
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "forecast_qty": float(
+                        demand_by_pid.get(p.id, None)
+                        and demand_by_pid[p.id].qty_forecast or 0.0
+                    ),
+                    "pending_pedidos": float(
+                        ped_units_by_pid.get(p.id, 0.0)
+                    ),
+                }
+                for p in session.execute(
+                    select(Product).order_by(Product.name)
+                ).scalars().all()
+            ],
             # T-2026-10-04 (Tier 4-G): quick-seed list for cold-start.
             # Top 5 products with one-click "venta de 1 unidad" CTA.
             "seed_products": [
