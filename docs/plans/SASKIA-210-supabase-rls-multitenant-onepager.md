@@ -17,18 +17,23 @@ decision (see "Decide first").
   SQLite-on-VPS (`/data/rms.sqlite`). **Supabase RLS is only relevant if/when the hosted app
   moves its DB to Supabase Postgres** — a deployment change, not a code change.
 
-## Decide first (Iván — product, not code)
+## DECIDED (Iván, 2026-10-07) — DEFERRED until Saskia (La Vaquita Holandesa) is happy
 
-1. Is external-tenant onboarding actually planned for the VPS hosted mode, or is this
-   future-proofing? (30-customers rule cuts both ways.)
-2. If yes: does the tenant DB move to Supabase Postgres (RLS matters, biggest change), or stay
-   SQLite (RLS irrelevant; tenancy = WHERE tenant_id = :current enforcement in SQLAlchemy
-   events, much smaller)?
-   - **Recommendation: stay SQLite, enforce tenancy at the ORM layer** (session-scoped
-     `tenant_id` filter via `with_loader_criteria` hook). RLS buys nothing on a single-writer
-     SQLite file and costs a migration + connection layer rewrite.
+**Model chosen: per-client INSTANCES, not shared-DB multi-tenancy.** Each client gets their own
+website/instance with everything fully loaded for them (own DB, own branding, own data).
+Possibly one BASE Supabase project as the template that gets copied per new client, plus a
+separate cross-client analytics layer to understand all clients' metadata and help them better.
 
-## Scope IF SQLite route (recommended)
+Consequences:
+- **No RLS, no ORM tenancy, no tenant_id enforcement work now.** The `tenant` table (migration
+  008) stays dormant at tenant_id=1.
+- The future build is an **instance-provisioning pipeline** (clone base → configure branding →
+  seed client data → deploy instance) + a **fleet-analytics aggregator**, NOT tenancy code.
+- Trigger to revisit: Saskia confirms satisfaction / a second client is signed.
+- The per-instance model also means SASKIA-209's `sazon rollback` and the rule-17 backup
+  discipline apply per-instance — the safety net scales with the fleet for free.
+
+## Scope IF shared-DB route — NOT CHOSEN, kept only for reference
 
 1. **Tenant context** — `app/rms/tenant_context.py`: request-scoped current tenant (from auth
    session), a `Session` factory that auto-applies `with_loader_criteria(TenantMixin,
