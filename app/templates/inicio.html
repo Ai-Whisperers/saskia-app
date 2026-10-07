@@ -49,7 +49,7 @@
     {% endif %}
     href="/reportes/diario"></ui-kpi-card>
   <ui-kpi-card
-    label="Operaciones"
+    label="Ventas"
     value="{% if ops_today %}{{ ops_today }}{% else %}—{% endif %}"
     {% if ops_today and ops_delta_label %}
     delta="{{ ops_delta_label.split(' ')[1] }}"
@@ -94,7 +94,7 @@
     delta-direction="{{ 'up' if enrollment_delta_pp > 0 else 'down' if enrollment_delta_pp < 0 else 'flat' }}"
     delta-prior="vs período anterior"
     {% endif %}
-    sub="{% if enrollment_total_today %}{{ enrollment_with_today }} de {{ enrollment_total_today }} ventas{% else %}sin ventas{% endif %}"
+    sub="{% if enrollment_total_today %}{{ enrollment_total_today }} ventas · {{ enrollment_with_today }} con cliente{% else %}sin ventas{% endif %}"
     href="/clientes"></ui-kpi-card>
 </div>
 
@@ -178,16 +178,25 @@
     {% endif %}
 
     {% if merma_hoy %}
-    <div class="accion-row is-done">
-      <span class="accion-chip sev-ok"><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg></span>
-      <span class="accion-main">
-        <span class="accion-title">Merma del día</span>
-        <span class="accion-sub">registrada ✓</span>
-      </span>
-    </div>
+    {# Close Acciones del día here so Hecho hoy can be a separate card. #}
+    </section>
     {% endif %}
 
-    {% if not (pedido_hoy or pedido_manana or stock_low or vencer_48h_count or cierre_ayer_pendiente or birthdays) %}
+    {# ── Hecho hoy (informational, not actionable) ─────────────────────── #}
+    {% if merma_hoy %}
+    <section class="card hecho-hoy mt-3" aria-label="Hecho hoy">
+      <div class="card-header">
+        <h2 class="text-md" >Hecho hoy</h2>
+      </div>
+      <div class="accion-row is-done">
+        <span class="accion-chip sev-ok"><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg></span>
+        <span class="accion-main">
+          <span class="accion-title">Merma del día</span>
+          <span class="accion-sub">registrada ✓</span>
+        </span>
+      </div>
+    </section>
+    {% elif not (pedido_hoy or pedido_manana or stock_low or vencer_48h_count or cierre_ayer_pendiente or birthdays) %}
     <div class="alert alert-success" role="status">
       <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
       Todo en orden por hoy.

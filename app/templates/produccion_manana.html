@@ -82,9 +82,6 @@
 {# PRO-PED: pedidos confirmados para mañana, en la misma pantalla del plan #}
 {% if pedidos_manana %}
 <div class="card" style="padding: var(--space-4) var(--space-6); margin-bottom: var(--space-4);">
-  <h2 style="margin: 0 0 var(--space-2) 0; font-size: 1.05rem;">
-    🧾 Pedidos para mañana ({{ pedidos_manana|length }})
-  </h2>
   {# 2026-10-07: each pedido expands to show its line items (what
    the client is actually buying). Collapsed by default if there are
    many pedidos; expanded for ≤3 so the cook sees what's coming at

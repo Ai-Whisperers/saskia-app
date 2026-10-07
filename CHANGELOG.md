@@ -331,3 +331,41 @@ Refs: `docs/ux/copy-fix-list.md`, `docs/ux/copy-ux-decisions.md`,
 - Live at https://sazon-vps.paragu-ai.com/reorder  
 - Auth: demo / demo1234  
 - Test with: `pytest tests/reorder/** -q` (all phases)
+## 2026-10-07f — SASKIA-302: login + inicio + prod-manana (Phase 1)
+
+**Goal:** fix the 7 P0/P1 copy/UX bugs on login and home, plus the
+duplicate H2 in produccion_manana.html (a 1-line P0 bug promoted from
+Phase 4 because it's a screen-reader / nav ordering issue).
+
+**Shipped:**
+
+- **LOGIN.1 (P0)** — removed duplicate `stay_logged_in` checkbox from
+  `app/templates/login.html`. The remaining `Recordar este dispositivo`
+  is the one to keep (works with FastAPI's standard remember-me).
+- **LOGIN.2** — translated a11y statement "Sazón strives to conform to
+  WCAG 2.1 Level AA." → "Sazón apunta a cumplir con WCAG 2.1 Nivel AA."
+- **INICIO.1** — KPI card label `Operaciones` → `Ventas` (the card counts
+  sales, not ops).
+- **INICIO.5** — split the `Acciones del día` card into 2:
+  `Acciones del día` (actionable) and `Hecho hoy` (informational,
+  contains the `Merma del día` row). The "Todo en orden" empty-state
+  stays in the actions card.
+- **INICIO.6** — forecast empty state already has `Sin plan todavía`
+  with a `/produccion` hint; locked with a regression test.
+- **INICIO.17** — loyalty sub-text format `5 de 12 ventas` →
+  `12 ventas · 5 con cliente` (more scannable).
+- **PROD.11 (P0, promoted)** — removed duplicate `<h2>🧾 Pedidos para mañana</h2>`
+  in `app/templates/produccion_manana.html`. The `<summary>` inside the
+  `<details>` is now the canonical heading (the H2 was redundant and
+  also broke the `<details>` semantics).
+
+**Tests:** 2 new test files, 7 tests, all pass in 7s:
+- `tests/test_SASKIA-302_login.py` (2)
+- `tests/test_SASKIA-302_inicio.py` (5, includes the prod-manana regression)
+
+**Regression:** SASKIA-301 (33) + inicio frequent-customer card all pass;
+ruff clean on new tests.
+
+Refs: `docs/ux/copy-fix-list.md` (G.1-G.8, LOGIN.1-4, INICIO.1-17,
+PROD.11), `docs/ux/copy-ux-decisions.md` (D9: prod-manana promoted to
+Phase 1 because the duplicate H2 is a screen-reader bug, not just visual).
