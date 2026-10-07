@@ -1,5 +1,3 @@
-
-
 """tests/test_admin_backup_cron.py — B.8: scheduled backup via cron endpoint.
 
 The lifespan hook in app/rms/main.py runs `run_backup()` on app

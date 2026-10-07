@@ -4385,9 +4385,7 @@ def _current_schema_version(conn: Any) -> int:
     """
     import json as _json
 
-    row = conn.execute(
-        text("SELECT value FROM app_meta WHERE key = 'schema_version'")
-    ).first()
+    row = conn.execute(text("SELECT value FROM app_meta WHERE key = 'schema_version'")).first()
     if row is None:
         return 0
     val = row[0]
@@ -4654,9 +4652,7 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
                 to_version=current + 1,
             )
             if backup_path is not None:
-                logger.info(
-                    f"Pre-migration backup written: {backup_path}"
-                )
+                logger.info(f"Pre-migration backup written: {backup_path}")
         except Exception as backup_exc:
             # Fail-closed: a bad backup should stop the migration
             # unless the operator has explicitly opted into degraded

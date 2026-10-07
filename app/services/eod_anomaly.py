@@ -109,9 +109,7 @@ def _row_total_gs(s: dict) -> int:
     return int(s["unit_price_gs"] * s["qty"] - s["discount_gs"])
 
 
-def _check_cash_zero_with_active(
-    session: Session, day: date
-) -> Anomaly | None:
+def _check_cash_zero_with_active(session: Session, day: date) -> Anomaly | None:
     sales = _sales_today(session, day)
     active = [s for s in sales if not s["voided"]]
     if not active:
@@ -155,10 +153,7 @@ def _check_voided_rate(session: Session, day: date) -> Anomaly | None:
 
 def _check_uninvoiced_factura(session: Session, day: date) -> Anomaly | None:
     sales = _sales_today(session, day)
-    bad = [
-        s for s in sales
-        if s["invoice_type"] == "factura" and not s["invoice_number"]
-    ]
+    bad = [s for s in sales if s["invoice_type"] == "factura" and not s["invoice_number"]]
     if not bad:
         return None
     return Anomaly(
@@ -174,9 +169,7 @@ def _check_uninvoiced_factura(session: Session, day: date) -> Anomaly | None:
     )
 
 
-def _check_negative_grand_total(
-    session: Session, day: date
-) -> Anomaly | None:
+def _check_negative_grand_total(session: Session, day: date) -> Anomaly | None:
     sales = _sales_today(session, day)
     total = sum(_row_total_gs(s) for s in sales if not s["voided"])
     if total >= 0:
@@ -188,8 +181,7 @@ def _check_negative_grand_total(
         body=(
             f"El total de hoy (sin anuladas) es Gs. {total:,}. No debería "
             f"ser negativo. Probable bug en la migración o en la "
-            f"lógica de descuento. IDs: "
-            + ", ".join(str(s["id"]) for s in sales[:10])
+            f"lógica de descuento. IDs: " + ", ".join(str(s["id"]) for s in sales[:10])
         ),
     )
 

@@ -13,6 +13,7 @@ Tests:
 3. test_purchase_creates_audit_log: the audit_log row is created with
    action="shopping.mark_purchased" and target_id=item.id.
 """
+
 import pytest
 
 
@@ -20,12 +21,17 @@ import pytest
 def seed_shopping_item(session_factory):
     """Create a shopping list item to mark purchased."""
     from app.rms.models import Ingredient, ShoppingListItem
+
     with session_factory() as s:
         ing = s.query(Ingredient).filter_by(name="P39-shop-test").first()
         if ing is None:
-            ing = Ingredient(name="P39-shop-test", unit="kg",
-                             stock_qty=0.0, min_stock_qty=1.0,
-                             purchase_price_gs=5000)
+            ing = Ingredient(
+                name="P39-shop-test",
+                unit="kg",
+                stock_qty=0.0,
+                min_stock_qty=1.0,
+                purchase_price_gs=5000,
+            )
             s.add(ing)
             s.flush()
         item = ShoppingListItem(
@@ -52,6 +58,7 @@ def test_mark_purchased_endpoint_works(client, session_factory, seed_shopping_it
 
     with session_factory() as s:
         from app.rms.models import ShoppingListItem
+
         item = s.get(ShoppingListItem, item_id)
         assert item.purchased is True, f"expected purchased=True, got {item.purchased}"
         assert item.purchased_at is not None, "purchased_at should be set"
@@ -69,8 +76,7 @@ def test_unmark_purchased_endpoint_works(client, session_factory, seed_shopping_
 
     with session_factory() as s:
         from app.rms.models import ShoppingListItem
+
         item = s.get(ShoppingListItem, item_id)
         assert item.purchased is False
         assert item.purchased_at is None
-
-

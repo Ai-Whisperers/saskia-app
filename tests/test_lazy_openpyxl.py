@@ -18,7 +18,6 @@ def test_openpyxl_not_loaded_until_excel_endpoint_hit():
     if "app.rms.main" in sys.modules:
         del sys.modules["app.rms.main"]
 
-
     loaded = [m for m in sys.modules if m.startswith("openpyxl")]
     assert loaded == [], f"openpyxl should be lazy-loaded but found: {loaded[:3]}"
 

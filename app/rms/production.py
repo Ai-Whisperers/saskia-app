@@ -373,9 +373,7 @@ def plan_production(
                     # card (replaces the deprecated production_scheduler).
                     # batch_count = ceil(qty / recipe.yield_qty); 1 if no recipe.
                     batch_count=_compute_batch_count(session, prod, qty),
-                    reason=_build_plan_reason(
-                        prod, qty, source, session, days_history
-                    ),
+                    reason=_build_plan_reason(prod, qty, source, session, days_history),
                 )
             )
             product_forecasts[prod.id] = qty

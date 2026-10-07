@@ -13,6 +13,7 @@ Acceptance:
     swap / .classList.add+remove) to mark the chosen row as default
     without reloading.
 """
+
 from __future__ import annotations
 
 import re
@@ -30,7 +31,7 @@ def _find_handler_by_id(js: str, element_id: str) -> str:
     pat = f'getElementById("{element_id}")'
     start = js.find(pat)
     assert start >= 0, f"couldn't locate handler for {element_id!r}"
-    return js[start:start + 3000]
+    return js[start : start + 3000]
 
 
 def test_cliente_editar_invoice_add_uses_dom_insertion(client, session_factory):
@@ -75,7 +76,7 @@ def test_cliente_editar_invoice_default_uses_dom_swap(client, session_factory):
     js = _extract_inline_js(r.text)
     start = js.find('querySelectorAll(".inv-default"')
     assert start >= 0, "couldn't locate inv-default handler"
-    handler = js[start:start + 3000]
+    handler = js[start : start + 3000]
 
     # We expect a classList swap or attribute change for the badge.
     has_dom_swap = bool(

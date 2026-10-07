@@ -12,6 +12,7 @@ the existing ad-hoc modal (data-action="open-adhoc-modal").
 
 TDD: these tests fail before the fix and pass after.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,6 +23,7 @@ TEMPLATE = Path(__file__).resolve().parents[1] / "app" / "templates" / "producci
 def _empty_state_branches() -> dict[str, str]:
     """Return the body of each {% if/elif cold_start_kind == '...' %} block."""
     import re
+
     text = TEMPLATE.read_text()
     branches = {}
     # Match {% if cold_start_kind == "X" %} ... {% endif %}
@@ -51,16 +53,14 @@ class TestEmptyStateHasAdHocCTA:
         branch = _empty_state_branches().get("no_template", "")
         assert branch, "no_template branch not found"
         assert "open-adhoc-modal" in branch, (
-            "no_template empty state must include a button with "
-            "data-action='open-adhoc-modal'."
+            "no_template empty state must include a button with data-action='open-adhoc-modal'."
         )
 
     def test_cold_plan_branch_has_adhoc_cta(self):
         branch = _empty_state_branches().get("cold_plan", "")
         assert branch, "cold_plan branch not found"
         assert "open-adhoc-modal" in branch, (
-            "cold_plan empty state must include a button with "
-            "data-action='open-adhoc-modal'."
+            "cold_plan empty state must include a button with data-action='open-adhoc-modal'."
         )
 
     def test_no_rows_branch_has_adhoc_cta_if_present(self):
@@ -71,8 +71,7 @@ class TestEmptyStateHasAdHocCTA:
             # the template falls through to the else). Skip.
             return
         assert "open-adhoc-modal" in branch, (
-            "no_rows empty state must include a button with "
-            "data-action='open-adhoc-modal'."
+            "no_rows empty state must include a button with data-action='open-adhoc-modal'."
         )
 
     def test_fallback_else_branch_has_adhoc_cta(self):
@@ -80,12 +79,14 @@ class TestEmptyStateHasAdHocCTA:
         common case the operator hits — must also include the CTA."""
         text = TEMPLATE.read_text()
         import re
+
         # Find the structure: {% if cold_start_kind == "no_sales" %} ... {% elif ... %} ... {% else %} <body> {% endif %}
         # We use the cold-start div as anchor.
         m = re.search(
             r'<div class="card empty-state-cold-start".*?>'
-            r'.*?\{%\s*else\s*%\}(.*?)\{%%\s*endif\s*%%',
-            text, re.DOTALL,
+            r".*?\{%\s*else\s*%\}(.*?)\{%%\s*endif\s*%%",
+            text,
+            re.DOTALL,
         )
         # The regex above may collide with the outer if/endif; use a
         # simpler approach: find the closing {% endif %} of the
@@ -96,7 +97,7 @@ class TestEmptyStateHasAdHocCTA:
         _i = cold_start_open
         depth = 0
         end = -1
-        for m in re.finditer(r'\{%\s*(if|endif)\b', text[cold_start_open:]):
+        for m in re.finditer(r"\{%\s*(if|endif)\b", text[cold_start_open:]):
             token = m.group(1)
             if token == "if":
                 depth += 1
@@ -122,11 +123,12 @@ class TestAdHocModalExistsOutsideGuard:
 
     def test_adhoc_modal_renders_outside_if_plan_rows_view(self):
         import re
+
         text = TEMPLATE.read_text()
         # The ad-hoc modal (id="adhoc-modal") must NOT be inside the
         # {% if plan_rows_view %} block. Easiest check: the matching
         # {% endif %} for plan_rows_view must come BEFORE the modal.
-        m = re.search(r'\{%\s*if\s+plan_rows_view\s*%\}', text)
+        m = re.search(r"\{%\s*if\s+plan_rows_view\s*%\}", text)
         assert m, "{% if plan_rows_view %} not found"
         # Find the FIRST {% endif %} after `m.end()` that lives at the
         # same indentation level — the comment after the endif tags
@@ -144,8 +146,8 @@ class TestAdHocModalExistsOutsideGuard:
         assert modal_pos > day_view_endif, (
             f"The ad-hoc modal must render OUTSIDE the day-view block "
             f"(after `{{% endif %}}#{{# end day view #}}`). "
-            f"Modal at char {modal_pos} (line {text[:modal_pos].count(chr(10))+1}), "
-            f"day-view endif at char {day_view_endif} (line {text[:day_view_endif].count(chr(10))+1}). "
+            f"Modal at char {modal_pos} (line {text[:modal_pos].count(chr(10)) + 1}), "
+            f"day-view endif at char {day_view_endif} (line {text[:day_view_endif].count(chr(10)) + 1}). "
             "The empty-state CTA cannot open a modal that doesn't exist."
         )
 
@@ -161,7 +163,8 @@ class TestAdHocJSHandlerOpensModal:
         if "data-action" in text and "open-adhoc-modal" in text:
             # Find inline scripts that reference data-action
             import re
-            scripts = re.findall(r'<script[^>]*>(.*?)</script>', text, re.DOTALL)
+
+            scripts = re.findall(r"<script[^>]*>(.*?)</script>", text, re.DOTALL)
             for s in scripts:
                 if "open-adhoc-modal" in s:
                     assert "showModal" in s or "getElementById" in s, (

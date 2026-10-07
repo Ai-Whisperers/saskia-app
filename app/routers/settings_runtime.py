@@ -1289,7 +1289,7 @@ async def upload_branding_asset(
         raise _HTTPException(
             status_code=400,
             detail=f"File extension {ext!r} not allowed for {kind}. "
-                   f"Allowed: {sorted(_BRANDING_EXTS[kind])}",
+            f"Allowed: {sorted(_BRANDING_EXTS[kind])}",
         )
 
     # Read + size-check
@@ -1299,7 +1299,7 @@ async def upload_branding_asset(
         raise _HTTPException(
             status_code=400,
             detail=f"File too large ({len(content) / 1024 / 1024:.1f}MB). "
-                   f"Max for {kind}: {_BRANDING_MAX_MB[kind]}MB",
+            f"Max for {kind}: {_BRANDING_MAX_MB[kind]}MB",
         )
 
     # Random filename: <kind>-<8 hex>.<ext>

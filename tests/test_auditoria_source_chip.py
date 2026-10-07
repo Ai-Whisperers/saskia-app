@@ -3,6 +3,7 @@
 Operators triaging merma events on /auditoria should see the same chip
 text as on /merma so the vocabulary stays consistent across surfaces.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone

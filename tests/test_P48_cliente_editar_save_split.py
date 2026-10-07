@@ -12,6 +12,7 @@ Acceptance:
     data-redirect-to attributes — one with /clientes/{id} and one
     with /clientes/{id}/editar.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -36,8 +37,6 @@ def test_cliente_editar_has_two_save_buttons(client, session_factory):
     # Two <button type="submit"> elements with data-redirect-to.
     # First one should redirect to detail page (no /editar suffix).
     # Second one should redirect to the edit page itself.
-    assert 'data-save-back' in body, "expected data-save-back button"
-    assert 'data-save-stay' in body, "expected data-save-stay button"
-    assert f'href="/clientes/{cid}"' in body, (
-        "back-to-detail button should have href to detail"
-    )
+    assert "data-save-back" in body, "expected data-save-back button"
+    assert "data-save-stay" in body, "expected data-save-stay button"
+    assert f'href="/clientes/{cid}"' in body, "back-to-detail button should have href to detail"

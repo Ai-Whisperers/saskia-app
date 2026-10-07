@@ -9,6 +9,7 @@ Acceptance:
   - When detail pairs include a sensitive key (e.g., "password"),
     the rendered value is masked (e.g., "***" or empty).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -46,9 +47,7 @@ def test_auditoria_redacts_password(client, session_factory):
     body = r.text
 
     # The literal password must NOT appear in the body.
-    assert "hunter2-actual-password" not in body, (
-        "password leaked in plain text on /auditoria"
-    )
+    assert "hunter2-actual-password" not in body, "password leaked in plain text on /auditoria"
 
     # The page should render this audit entry. We look for the username
     # which is non-sensitive.

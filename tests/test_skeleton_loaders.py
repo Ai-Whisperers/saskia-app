@@ -29,6 +29,7 @@ def test_clientes_has_skeleton(authed_client):
 def test_skeleton_component_loaded_in_base():
     """The saskia-skeleton-stack custom element must be loaded in base.html."""
     from pathlib import Path
+
     base = Path("app/templates/base.html").read_text(encoding="utf-8")
     assert "saskia-skeleton" in base, (
         "T-13 missing: saskia-skeleton component not loaded in base.html"
@@ -38,7 +39,6 @@ def test_skeleton_component_loaded_in_base():
 def test_skeleton_component_defined_in_js():
     """The saskia-skeleton.js script must be loaded."""
     from pathlib import Path
+
     base = Path("app/templates/base.html").read_text(encoding="utf-8")
-    assert "saskia-skeleton.js" in base, (
-        "T-13 missing: saskia-skeleton.js not loaded"
-    )
+    assert "saskia-skeleton.js" in base, "T-13 missing: saskia-skeleton.js not loaded"

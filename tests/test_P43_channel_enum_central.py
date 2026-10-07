@@ -25,6 +25,7 @@ Plus coverage:
 - The bug fix on pedidos.py:2078 is a direct test for the template
   lookup
 """
+
 from app.rms.models.channels import Channel
 from app.rms.schemas import ALLOWED_CHANNELS, CHANNEL_DEFAULT, CHANNELS_DISPLAY
 
@@ -92,8 +93,7 @@ def test_schemas_constants_use_enum_values():
     # enum's display order (which may exclude some for UI ordering).
     for ch in CHANNELS_DISPLAY:
         assert ch in Channel.allowed_values(), (
-            f"CHANNELS_DISPLAY has {ch!r} which is not in "
-            f"Channel.allowed_values()"
+            f"CHANNELS_DISPLAY has {ch!r} which is not in Channel.allowed_values()"
         )
 
 
@@ -219,10 +219,10 @@ def test_db_seed_channels_includes_all_enum_values():
         idx = src.find(seed_marker)
         assert idx >= 0, "Could not find `channels = [` in db.py"
         # Take 1500 chars from there (covers all 6 entries)
-        seed_section = src[idx:idx + 1500]
-        assert (
-            f"Channel.{ch.name}.value" in seed_section
-        ), f"db.py seed is missing Channel.{ch.name}.value for channel {ch.value!r}"
+        seed_section = src[idx : idx + 1500]
+        assert f"Channel.{ch.name}.value" in seed_section, (
+            f"db.py seed is missing Channel.{ch.name}.value for channel {ch.value!r}"
+        )
 
 
 def test_herebus_channel_fallback_uses_enum():
@@ -258,11 +258,11 @@ def test_suscripcion_dispatcher_uses_enum():
     src = Path("/opt/data/work/saskia-app/app/services/suscripcion_dispatcher.py").read_text()
     # Should NOT have raw channel="whatsapp" assignments
     assert 'channel="whatsapp"' not in src, (
-        "suscripcion_dispatcher.py still has channel=\"whatsapp\" — "
+        'suscripcion_dispatcher.py still has channel="whatsapp" — '
         "should use Channel.WHATSAPP.value."
     )
     assert '"channel": "whatsapp"' not in src, (
-        "suscripcion_dispatcher.py still has `\"channel\": \"whatsapp\"` — "
+        'suscripcion_dispatcher.py still has `"channel": "whatsapp"` — '
         "should use Channel.WHATSAPP.value in payload dict."
     )
 
@@ -278,7 +278,7 @@ def test_catalogs_fallback_uses_enum():
     pattern = re.compile(r'else\s+["\']mostrador["\']')
     matches = pattern.findall(src)
     assert not matches, (
-        f"catalogs.py still has `else \"mostrador\"` at "
+        f'catalogs.py still has `else "mostrador"` at '
         f"{len(matches)} sites — should use Channel.MOSTRADOR.value."
     )
 
@@ -305,11 +305,10 @@ def test_models_use_enum_defaults():
     )
     # The specific old defaults
     assert 'default="mostrador", server_default="mostrador"' not in src, (
-        "models_legacy.py still has raw `default=\"mostrador\"` — "
-        "should use Channel.MOSTRADOR.value."
+        'models_legacy.py still has raw `default="mostrador"` — should use Channel.MOSTRADOR.value.'
     )
     assert 'default="whatsapp"' not in src or "Channel.WHATSAPP.value" in src, (
-        "models_legacy.py may still have raw `default=\"whatsapp\"` for "
+        'models_legacy.py may still have raw `default="whatsapp"` for '
         "Pedido.channel — should use Channel.WHATSAPP.value."
     )
 

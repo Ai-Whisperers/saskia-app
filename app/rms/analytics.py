@@ -99,6 +99,7 @@ class RecipeComplexity:
 @dataclass
 class AuditIpPattern:
     """BACKLOG #30 (2026-10-02): IP pattern analytics for audit log."""
+
     ip: str
     count: int
     first_seen: datetime
@@ -108,6 +109,7 @@ class AuditIpPattern:
 @dataclass
 class AuditTimePattern:
     """BACKLOG #30 (2026-10-02): time-of-day + day-of-week audit patterns."""
+
     hour: int  # 0..23
     day_of_week: int  # 0=Mon, 6=Sun
     count: int
@@ -117,13 +119,13 @@ class AuditTimePattern:
 @dataclass
 class AuditOperatorActivity:
     """BACKLOG #30 (2026-10-02): per-operator audit activity summary."""
+
     user_id: str
     name: str | None
     total_actions: int
     actions_per_day_avg: float
     most_common_action: str
     last_seen: datetime | None
-
 
 
 # --- Public query functions ---
@@ -576,7 +578,6 @@ def recipe_complexity(session: Session) -> list[RecipeComplexity]:
     return out
 
 
-
 def audit_ip_patterns(session: Session, *, days: int = 30) -> list[AuditIpPattern]:
     """BACKLOG #30 (2026-10-02): IP pattern analytics for audit log.
 
@@ -593,7 +594,7 @@ def audit_ip_patterns(session: Session, *, days: int = 30) -> list[AuditIpPatter
             AuditLog.ip,
             func.count(AuditLog.id).label("count"),
             func.min(AuditLog.occurred_at).label("first_seen"),
-            func.max(AuditLog.occurred_at).label("last_seen")
+            func.max(AuditLog.occurred_at).label("last_seen"),
         )
         .where(AuditLog.ip.isnot(None))
         .where(AuditLog.occurred_at >= cutoff)
@@ -615,7 +616,6 @@ def audit_ip_patterns(session: Session, *, days: int = 30) -> list[AuditIpPatter
     ]
 
 
-
 def audit_time_patterns(session: Session, *, days: int = 30) -> list[AuditTimePattern]:
     """BACKLOG #30 (2026-10-02): Time pattern analytics for audit log.
 
@@ -630,13 +630,13 @@ def audit_time_patterns(session: Session, *, days: int = 30) -> list[AuditTimePa
     # Hourly patterns (weekday + hour)
     stmt = (
         select(
-            extract('dow', AuditLog.occurred_at).label("day_of_week"),
-            extract('hour', AuditLog.occurred_at).label("hour"),
-            func.count(AuditLog.id).label("count")
+            extract("dow", AuditLog.occurred_at).label("day_of_week"),
+            extract("hour", AuditLog.occurred_at).label("hour"),
+            func.count(AuditLog.id).label("count"),
         )
         .where(AuditLog.occurred_at >= cutoff)
-        .group_by(extract('dow', AuditLog.occurred_at), extract('hour', AuditLog.occurred_at))
-        .order_by(extract('dow', AuditLog.occurred_at), extract('hour', AuditLog.occurred_at))
+        .group_by(extract("dow", AuditLog.occurred_at), extract("hour", AuditLog.occurred_at))
+        .order_by(extract("dow", AuditLog.occurred_at), extract("hour", AuditLog.occurred_at))
     )
 
     hourly_rows = session.execute(stmt).fetchall()
@@ -655,7 +655,6 @@ def audit_time_patterns(session: Session, *, days: int = 30) -> list[AuditTimePa
         )
         for row in hourly_rows
     ]
-
 
 
 def audit_operator_patterns(session: Session, *, days: int = 30) -> list[AuditOperatorActivity]:
@@ -677,7 +676,7 @@ def audit_operator_patterns(session: Session, *, days: int = 30) -> list[AuditOp
         select(
             AuditLog.user_id,
             func.count(AuditLog.id).label("total_actions"),
-            func.max(AuditLog.occurred_at).label("last_seen")
+            func.max(AuditLog.occurred_at).label("last_seen"),
         )
         .where(AuditLog.user_id.isnot(None))
         .where(AuditLog.occurred_at >= cutoff)
@@ -691,11 +690,7 @@ def audit_operator_patterns(session: Session, *, days: int = 30) -> list[AuditOp
     # Find most common action for each user (manual mode calculation)
     user_actions = {}
     action_stmt = (
-        select(
-            AuditLog.user_id,
-            AuditLog.action,
-            func.count(AuditLog.id).label("action_count")
-        )
+        select(AuditLog.user_id, AuditLog.action, func.count(AuditLog.id).label("action_count"))
         .where(AuditLog.user_id.isnot(None))
         .where(AuditLog.occurred_at >= cutoff)
         .group_by(AuditLog.user_id, AuditLog.action)
@@ -730,8 +725,6 @@ def audit_operator_patterns(session: Session, *, days: int = 30) -> list[AuditOp
         )
         for row in rows
     ]
-
-
 
 
 __all__ = [

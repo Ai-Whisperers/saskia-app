@@ -315,7 +315,6 @@ def render(
         # the 4-col grilla when set; v1 keeps the legacy 8-col layout.
         pass
 
-
     ctx["csrf_token"] = _csrf_token_for_request(request)
     # Inject Asuncion-local time + tz-aware datetime on every render.
     # Existing routes that pass their own `now`/`now_local` win (setdefault).

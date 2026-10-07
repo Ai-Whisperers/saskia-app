@@ -56,9 +56,8 @@ def _write_dni_file(path: Path, dni: str = "1234567") -> None:
 # Legacy (no DNI) path — cleartext snapshots, legacy Fernet R2
 # ---------------------------------------------------------------------------
 
-def test_run_backup_writes_cleartext_snapshot_when_no_dni(
-    session_factory, tmp_path: Path, caplog
-):
+
+def test_run_backup_writes_cleartext_snapshot_when_no_dni(session_factory, tmp_path: Path, caplog):
     """Without a DNI file, run_backup falls back to the legacy
     cleartext snapshot path. This is the migration safety net:
     existing test suites and fresh deploys without a DNI file
@@ -75,6 +74,7 @@ def test_run_backup_writes_cleartext_snapshot_when_no_dni(
     # No DNI file in tmp_path. Also clear the BACKUP_DNI_FILE env
     # so the config default doesn't point at a real file.
     import os
+
     old_env = os.environ.pop("AIW_RMS_BACKUP_DNI_FILE", None)
     try:
         with caplog.at_level(logging.WARNING, logger="app.services.backup_scheduler"):
@@ -101,14 +101,15 @@ def test_run_backup_writes_cleartext_snapshot_when_no_dni(
         f"expected cleartext SQLite header, got {header[:32]!r}"
     )
     # And a warning was logged so the operator knows.
-    assert any("DNI" in r.message and "unencrypted" in r.message.lower()
-               for r in caplog.records), \
+    assert any("DNI" in r.message and "unencrypted" in r.message.lower() for r in caplog.records), (
         f"expected unencrypted-DNI warning, got: {[r.message for r in caplog.records]}"
+    )
 
 
 # ---------------------------------------------------------------------------
 # New (DNI provisioned) path — AES-256-GCM everywhere
 # ---------------------------------------------------------------------------
+
 
 def test_run_backup_writes_encrypted_snapshot_when_dni_provided(
     session_factory, tmp_path: Path, monkeypatch
@@ -185,23 +186,24 @@ def test_run_backup_uploads_to_r2_in_new_format_with_dni(
 
     # The blob in storage is the new format (starts with SASKIA01).
     ciphertext = storage._data[result.r2_key]  # type: ignore[attr-defined]
-    assert ciphertext[:8] == HEADER_MAGIC, \
+    assert ciphertext[:8] == HEADER_MAGIC, (
         f"R2 upload not in new format: header is {ciphertext[:16]!r}"
+    )
 
     # And it decrypts back to a valid SQLite header.
     plaintext = decrypt_backup(ciphertext, "1234567")
-    assert plaintext.startswith(b"SQLite format 3"), \
+    assert plaintext.startswith(b"SQLite format 3"), (
         f"decrypted R2 blob is not a SQLite file: {plaintext[:32]!r}"
+    )
 
     # Wrong DNI cannot decrypt.
     from app.services.backup_crypto import DecryptionError
+
     with pytest.raises(DecryptionError):
         decrypt_backup(ciphertext, "9999999")
 
 
-def test_run_backup_deletes_legacy_fernet_key_file(
-    session_factory, tmp_path: Path, monkeypatch
-):
+def test_run_backup_deletes_legacy_fernet_key_file(session_factory, tmp_path: Path, monkeypatch):
     """One-time migration: if a legacy `r2-encryption.key` file
     exists (Fernet key from pre-D.5), it's deleted on the first
     run with DNI. This is irreversible — the operator must
@@ -231,8 +233,7 @@ def test_run_backup_deletes_legacy_fernet_key_file(
     )
     assert result.skipped is False
     # Legacy key file is gone.
-    assert not legacy_key.exists(), \
-        "legacy r2-encryption.key was not deleted"
+    assert not legacy_key.exists(), "legacy r2-encryption.key was not deleted"
 
 
 def test_run_backup_with_dni_file_missing_falls_back_to_legacy(
@@ -292,6 +293,7 @@ def test_run_backup_xlsx_and_csv_stay_cleartext_even_with_dni(
     assert result.skipped is False
     # xlsx is cleartext (openpyxl can read it).
     from openpyxl import load_workbook
+
     assert result.local_path is not None
     wb = load_workbook(result.local_path)
     assert "Ingredientes" in wb.sheetnames
@@ -301,5 +303,6 @@ def test_run_backup_xlsx_and_csv_stay_cleartext_even_with_dni(
         for csv_file in csv_dir.glob("*.csv"):
             content = csv_file.read_bytes()[:50]
             # Not encrypted — first bytes are not SASKIA01.
-            assert not content.startswith(b"SASKIA01"), \
+            assert not content.startswith(b"SASKIA01"), (
                 f"CSV {csv_file.name} appears to be encrypted: {content!r}"
+            )

@@ -4,6 +4,7 @@ The pedido board (/pedidos/board) renders one card per active pedido. T-3:
 - Add customer phone to each card (linked via tel:)
 - Add an "Abrir" link to /pedidos/{id} so the whole card navigates to pedido detail.
 """
+
 from datetime import date, timedelta
 
 from app.rms.models import Customer, Pedido
@@ -12,6 +13,7 @@ from app.rms.models import Customer, Pedido
 def _seed_pedido_with_customer(session_factory):
     """Insert one pending pedido with a customer that has a phone."""
     from app.rms.models import PedidoLine, Product
+
     sf = session_factory
     with sf() as s:
         cust = Customer(
@@ -52,9 +54,7 @@ def test_pedido_board_has_click_to_detail_link(client, session_factory):
     pid, _ = _seed_pedido_with_customer(session_factory)
     r = client.get("/pedidos/board")
     assert r.status_code == 200
-    assert f'href="/pedidos/{pid}"' in r.text, (
-        f"click-to-detail link missing for pedido {pid}"
-    )
+    assert f'href="/pedidos/{pid}"' in r.text, f"click-to-detail link missing for pedido {pid}"
     # The Abrir text is in the new card-open-link element.
     assert "Abrir" in r.text, "Abrir text missing from /pedidos/board"
 
@@ -62,6 +62,7 @@ def test_pedido_board_has_click_to_detail_link(client, session_factory):
 def test_pedido_board_no_phone_does_not_break(client, session_factory):
     """T-3 — pedido without customer.phone should render the card without phone block."""
     from app.rms.models import PedidoLine, Product
+
     sf = session_factory
     with sf() as s:
         p = Product(name="BoardNoPhone", sale_price_gs=10000)
@@ -83,6 +84,4 @@ def test_pedido_board_no_phone_does_not_break(client, session_factory):
     assert 'href="/pedidos/' in r.text
     # No tel: link for this card.
     body = r.text
-    assert body.count("tel:") == 0 or all(
-        "BoardNoPhone" not in seg for seg in body.split("tel:")
-    )
+    assert body.count("tel:") == 0 or all("BoardNoPhone" not in seg for seg in body.split("tel:"))

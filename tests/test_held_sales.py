@@ -86,8 +86,9 @@ def test_list_active_returns_oldest_first(session_factory):
 def test_resume_returns_cart_and_marks_resumed(session_factory):
     sf = session_factory
     with sf() as s:
-        cart = _cart(items=[{"product_id": 42, "qty": 3.0}],
-                     customer_id=7, channel="losso_especial")
+        cart = _cart(
+            items=[{"product_id": 42, "qty": 3.0}], customer_id=7, channel="losso_especial"
+        )
         held = hold_cart(s, cart, held_by="alice", label="k")
     with sf() as s:
         resumed = resume_held(s, held.id)
@@ -149,8 +150,10 @@ def test_cap_evicts_oldest(monkeypatch, session_factory):
     import importlib
 
     import app.rms.config as cfg
+
     importlib.reload(cfg)
     import app.rms.held_sales as hs
+
     importlib.reload(hs)
     hold_cart = hs.hold_cart
     list_active_held = hs.list_active_held
@@ -179,6 +182,7 @@ def test_cap_default_is_50(monkeypatch):
     import importlib
 
     import app.rms.config as cfg
+
     importlib.reload(cfg)
     assert cfg.SAZON_MAX_HELD_SALES == 50
 

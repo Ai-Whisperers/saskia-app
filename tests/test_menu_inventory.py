@@ -3,6 +3,7 @@
 Ports the FloCafe addon-inventory.ts pattern: expose a stock
 ceiling so the POS qty input can't exceed what we can actually make.
 """
+
 from __future__ import annotations
 
 from app.rms.menu_inventory import (
@@ -13,8 +14,15 @@ from app.rms.menu_inventory import (
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine
 
 
-def _make_product(session_factory, *, name="Torta", ing_stock=1000.0,
-                  recipe_yield=10.0, line_qty=100.0, no_recipe=False):
+def _make_product(
+    session_factory,
+    *,
+    name="Torta",
+    ing_stock=1000.0,
+    recipe_yield=10.0,
+    line_qty=100.0,
+    no_recipe=False,
+):
     """Build a Product with one Ingredient.
 
     Per-unit demand: line_qty / recipe_yield = 100/10 = 10 units of
@@ -36,8 +44,11 @@ def _make_product(session_factory, *, name="Torta", ing_stock=1000.0,
             session.add(r)
             session.flush()
             line = RecipeLine(
-                recipe_id=r.id, line_kind="ingredient",
-                line_ref_id=ing_id, qty=line_qty, line_unit="g",
+                recipe_id=r.id,
+                line_kind="ingredient",
+                line_ref_id=ing_id,
+                qty=line_qty,
+                line_unit="g",
             )
             session.add(line)
             session.flush()
@@ -93,8 +104,11 @@ def test_uncatchable_recipe_returns_none(session_factory):
             session.add(r)
             session.flush()
             line = RecipeLine(
-                recipe_id=r.id, line_kind="ingredient",
-                line_ref_id=ing.id, qty=100.0, line_unit="g",
+                recipe_id=r.id,
+                line_kind="ingredient",
+                line_ref_id=ing.id,
+                qty=100.0,
+                line_unit="g",
             )
             session.add(line)
             session.flush()
@@ -118,12 +132,24 @@ def test_two_ingredients_min_wins(session_factory):
             session.add(r)
             session.flush()
             # 100g flour + 50g sugar per unit, yield=10 → per_unit = 10g flour + 5g sugar
-            session.add_all([
-                RecipeLine(recipe_id=r.id, line_kind="ingredient",
-                           line_ref_id=ing1.id, qty=100.0, line_unit="g"),
-                RecipeLine(recipe_id=r.id, line_kind="ingredient",
-                           line_ref_id=ing2.id, qty=50.0, line_unit="g"),
-            ])
+            session.add_all(
+                [
+                    RecipeLine(
+                        recipe_id=r.id,
+                        line_kind="ingredient",
+                        line_ref_id=ing1.id,
+                        qty=100.0,
+                        line_unit="g",
+                    ),
+                    RecipeLine(
+                        recipe_id=r.id,
+                        line_kind="ingredient",
+                        line_ref_id=ing2.id,
+                        qty=50.0,
+                        line_unit="g",
+                    ),
+                ]
+            )
             session.flush()
             p = Product(name="Bizcocho-2ing", sku="BIZ2", sale_price_gs=5000, recipe_id=r.id)
             session.add(p)
@@ -160,8 +186,10 @@ def test_low_stock_threshold_env_override(monkeypatch, session_factory):
     import importlib
 
     import app.rms.config as cfg
+
     importlib.reload(cfg)
     import app.rms.menu_inventory as mi
+
     importlib.reload(mi)
     pid = _make_product(session_factory, recipe_yield=10.0, line_qty=100.0, ing_stock=1000.0)
     with session_factory() as session:

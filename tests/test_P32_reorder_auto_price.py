@@ -17,6 +17,7 @@ Acceptance:
   - A small JS bundle is loaded (reorder-auto-price.js or inline <script>)
     that wires the supplier-change handler.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -30,18 +31,24 @@ from tests.factories import make_ingredient, make_supplier
 def _setup_with_cheapest(s, name: str) -> int:
     """Ingredient + supplier + price event so cheapest_suppliers is non-empty."""
     ing = make_ingredient(
-        s, name=name, unit="kg", stock_qty=0.5, min_stock_qty=5.0,
+        s,
+        name=name,
+        unit="kg",
+        stock_qty=0.5,
+        min_stock_qty=5.0,
         purchase_price_gs=4500,
     )
     sup = make_supplier(s, name=f"sup-{name}", phone="+595 9XX XXXXX")
     s.flush()
-    s.add(IngredientPriceEvent(
-        ingredient_id=ing.id,
-        supplier_id=sup.id,
-        price_gs=4200,
-        recorded_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc),
-        source="manual",
-    ))
+    s.add(
+        IngredientPriceEvent(
+            ingredient_id=ing.id,
+            supplier_id=sup.id,
+            price_gs=4200,
+            recorded_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc),
+            source="manual",
+        )
+    )
     s.flush()
     return ing.id
 
@@ -63,13 +70,14 @@ def test_reorder_price_input_has_cheapest_attr(client, session_factory):
     # The price input must now carry data-cheapest-price.
     assert "data-cheapest-price" in body, (
         "expected data-cheapest-price attribute on the price input. "
-        "Old code rendered <input name=\"price_gs\"> with no data attribute."
+        'Old code rendered <input name="price_gs"> with no data attribute.'
     )
 
     # The value should be the cheapest price we recorded (4200 Gs.).
     # We don't assert exact match (formatter may add separators) but the
     # attribute value should be a positive integer.
     import re
+
     matches = re.findall(r'data-cheapest-price="(\d+)"', body)
     assert matches, "data-cheapest-price found but had no integer value"
     assert any(int(m) > 0 for m in matches), (
@@ -83,7 +91,11 @@ def test_reorder_price_input_empty_when_no_history(client, session_factory):
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
         make_ingredient(
-            s, name=unique, unit="kg", stock_qty=0.5, min_stock_qty=5.0,
+            s,
+            name=unique,
+            unit="kg",
+            stock_qty=0.5,
+            min_stock_qty=5.0,
             purchase_price_gs=4500,
         )
         s.commit()
@@ -95,6 +107,4 @@ def test_reorder_price_input_empty_when_no_history(client, session_factory):
 
     # The attribute must still be present (so the JS can read it), but
     # the empty-string case is allowed.
-    assert "data-cheapest-price" in body, (
-        "data-cheapest-price missing on no-history ingredient"
-    )
+    assert "data-cheapest-price" in body, "data-cheapest-price missing on no-history ingredient"

@@ -11,6 +11,7 @@ Phase 5 ship:
     live (deferred to a later phase).
   - The route exposes eod_items_total / eod_items_done / eod_items_pct.
 """
+
 from __future__ import annotations
 
 
@@ -20,7 +21,7 @@ def test_eod_progress_block_renders(client, qseed):
     r = client.get("/eod")
     body = r.content.decode("utf-8", errors="replace")
     assert r.status_code == 200
-    assert 'data-eod-progress' in body, "EOD progress block not rendered"
+    assert "data-eod-progress" in body, "EOD progress block not rendered"
     # "X de Y" Spanish copy
     assert "de " in body, "expected 'X de Y' in progress text"
     # progressbar role
@@ -38,14 +39,13 @@ def test_eod_progress_starts_at_zero_when_no_items_checked(client, qseed):
     # Should be 0 if nothing has been saved.
     if "data-eod-progress-text" in body:
         import re
+
         m = re.search(
-            r'data-eod-progress-text[^>]*>\s*<strong>(\d+)</strong>',
+            r"data-eod-progress-text[^>]*>\s*<strong>(\d+)</strong>",
             body,
         )
         if m:
-            assert m.group(1) == "0", (
-                f"expected 0 done initially, got {m.group(1)!r}"
-            )
+            assert m.group(1) == "0", f"expected 0 done initially, got {m.group(1)!r}"
 
 
 def test_eod_progress_renders_when_items_checked(client, qseed):
@@ -82,4 +82,4 @@ def test_eod_route_exposes_progress_context(client, qseed):
     # the values directly into the page, so look for the formatting.
     assert "data-eod-progress-text" in body
     # And the ARIA bar
-    assert 'aria-valuenow=' in body
+    assert "aria-valuenow=" in body

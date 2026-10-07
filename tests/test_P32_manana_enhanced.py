@@ -5,6 +5,7 @@ Captures the behavior changes that landed in 8a91f0e2 (sidebar wrap) +
 the manana rewrite (pedidos per client, Plan column, pedidos_by_product
 in forecast table). 4 tests, all run in <8s.
 """
+
 import re
 from datetime import timedelta
 
@@ -52,6 +53,7 @@ def test_manana_plan_persists(authed_client, qseed):
     ProductionPlanOverride. Reloading /produccion/manana shows the
     pre-filled Plan input."""
     from datetime import datetime
+
     qseed("with_manana_pedidos")
     r = authed_client.get("/produccion/manana")
     assert r.status_code == 200
@@ -71,8 +73,7 @@ def test_manana_plan_persists(authed_client, qseed):
     pat = rf'name="qty\[{pid}\]"[^>]*value="([\d.]+)"'
     m2 = re.search(pat, r3.text)
     assert m2 and m2.group(1) in ("12", "12.0"), (
-        f"Plan override not persisted for product {pid}: "
-        f"{m2.group(0) if m2 else 'no match'}"
+        f"Plan override not persisted for product {pid}: {m2.group(0) if m2 else 'no match'}"
     )
 
 
@@ -91,9 +92,10 @@ def test_sidebar_app_shell_wrapper(authed_client, qseed):
     # The sidebar and main are direct children of the wrapper, in order
     m = re.search(
         r'<div id="app-shell" class="app-shell">\s*<aside class="sidebar"',
-        body, re.DOTALL,
+        body,
+        re.DOTALL,
     )
     assert m, "sidebar is not a direct child of #app-shell"
     # The wrapper closes after the footer
     assert body.count('<div id="app-shell" class="app-shell">') == 1
-    assert body.count('</div><!-- /.app-shell -->') == 1
+    assert body.count("</div><!-- /.app-shell -->") == 1

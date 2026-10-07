@@ -69,7 +69,9 @@ def _decorate(
 ) -> dict:
     """Compute batch + unit cost for a recipe row (data passed in from batch loader)."""
     total_minutes = (
-        (r.prep_minutes or 0) + (r.cook_minutes or 0) if (r.prep_minutes or r.cook_minutes) else None
+        (r.prep_minutes or 0) + (r.cook_minutes or 0)
+        if (r.prep_minutes or r.cook_minutes)
+        else None
     )
     return {
         "id": r.id,
@@ -1267,9 +1269,7 @@ def recipe_search_api(
             "yield_unit": r.yield_unit,
             "image_url": r.image_url or "",
             "batches_today": batches_today_map.get(r.id, 0.0),
-            "portions_today": (
-                (batches_today_map.get(r.id, 0.0) or 0.0) * (r.yield_qty or 0.0)
-            ),
+            "portions_today": ((batches_today_map.get(r.id, 0.0) or 0.0) * (r.yield_qty or 0.0)),
         }
         for r in recipes
     ]

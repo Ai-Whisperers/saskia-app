@@ -43,6 +43,7 @@ def test_init_db_creates_schema_version_row_for_fresh_db(tmp_path):
     # The value is stored as JSON-quoted on PG, plain text on SQLite
     if isinstance(row[0], str):
         import json
+
         try:
             v = json.loads(row[0])
         except (ValueError, TypeError):
@@ -95,11 +96,20 @@ def test_init_db_creates_expected_tables_on_fresh_db(tmp_path):
     insp = inspect(engine)
     tables = set(insp.get_table_names())
     expected = {
-        "app_meta", "ingredient", "product", "recipe", "recipe_line",
-        "sale", "stock_movement", "customer", "audit_log",
+        "app_meta",
+        "ingredient",
+        "product",
+        "recipe",
+        "recipe_line",
+        "sale",
+        "stock_movement",
+        "customer",
+        "audit_log",
     }
     missing = expected - tables
-    assert not missing, f"Expected tables missing after init_db: {missing}\nGot: {sorted(tables)[:30]}..."
+    assert not missing, (
+        f"Expected tables missing after init_db: {missing}\nGot: {sorted(tables)[:30]}..."
+    )
 
 
 def test_init_db_raises_on_missing_migration(tmp_path):
@@ -137,9 +147,6 @@ def test_init_db_raises_on_missing_migration(tmp_path):
         dbmod.MIGRATIONS = original
 
 
-
-
-
 def test_schema_version_bump_atomic(tmp_path):
     """schema_version bump and migration DDL commit together, not separately.
 
@@ -162,6 +169,7 @@ def test_schema_version_bump_atomic(tmp_path):
     val = row[0]
     if isinstance(val, str):
         import json
+
         try:
             val = json.loads(val)
         except (ValueError, TypeError):
@@ -176,6 +184,7 @@ def test_migration_files_have_no_gaps_in_naming():
     numbers form a contiguous range.
     """
     from app.rms import db as dbmod
+
     versions = sorted(dbmod.MIGRATIONS.keys())
     assert versions == list(range(1, versions[-1] + 1)), (
         f"Migration version numbers have a gap or are not 1-indexed: {versions[:5]}...{versions[-5:]}"
@@ -188,6 +197,7 @@ def test_migration_files_count_matches_registry():
 
     # 109 migrations as of 2026-10-07 (CURRENT_SCHEMA_VERSION = 109)
     from app.rms.config import CURRENT_SCHEMA_VERSION
+
     assert len(dbmod.MIGRATIONS) == CURRENT_SCHEMA_VERSION, (
         f"MIGRATIONS dict has {len(dbmod.MIGRATIONS)} entries, "
         f"CURRENT_SCHEMA_VERSION = {CURRENT_SCHEMA_VERSION}. "
@@ -196,6 +206,7 @@ def test_migration_files_count_matches_registry():
 
 
 # --- Pre-migration backup (Hard Rule 17) ----------------------------------
+
 
 def test_sync_backup_before_migration_writes_file(tmp_path, monkeypatch):
     """Hard Rule 17: pre-migration backup writes a file before the migration runs.
@@ -215,10 +226,13 @@ def test_sync_backup_before_migration_writes_file(tmp_path, monkeypatch):
     db_path = tmp_path / "source.db"
     engine = create_engine(f"sqlite:///{db_path}")
     from app.rms.db import init_db
+
     init_db(engine)
     from app.rms.models import Ingredient
+
     with engine.connect() as _conn:
         from sqlalchemy.orm import sessionmaker
+
         S = sessionmaker(bind=engine)
         with S() as s:
             s.add(Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000))
@@ -263,9 +277,12 @@ def test_sync_backup_before_migration_can_be_restored(tmp_path):
     engine = create_engine(f"sqlite:///{db_path}")
     init_db(engine)
     from sqlalchemy.orm import sessionmaker
+
     S = sessionmaker(bind=engine)
     with S() as s:
-        s.add(Ingredient(name="Harina Backup Test", unit="kg", stock_qty=7.5, purchase_price_gs=5000))
+        s.add(
+            Ingredient(name="Harina Backup Test", unit="kg", stock_qty=7.5, purchase_price_gs=5000)
+        )
         s.commit()
 
     backup_dir = tmp_path / "backups"
@@ -281,6 +298,7 @@ def test_sync_backup_before_migration_can_be_restored(tmp_path):
     # Verify the backup has the seed
     import gzip
     import json
+
     raw = gzip.decompress(backup_path.read_bytes())
     payload = json.loads(raw.decode("utf-8"))
     ingredients = payload["tables"].get("ingredient", [])
@@ -306,12 +324,14 @@ def test_init_db_writes_pre_migration_backup_before_applying(tmp_path):
     os.environ["AIW_RMS_SKIP_PRE_MIGRATION_BACKUP"] = "0"
     # Patch the default
     import app.rms.db as dbmod
+
     original = dbmod.PRE_MIGRATION_BACKUP_DIR
     dbmod.PRE_MIGRATION_BACKUP_DIR = str(backup_dir)
     try:
         db_path = tmp_path / "test.db"
         engine = create_engine(f"sqlite:///{db_path}")
         from app.rms.db import init_db
+
         init_db(engine)
         # Check for backup files
         backups = list(backup_dir.glob("sazon-pre-mig-*.json.gz"))
@@ -341,6 +361,7 @@ def test_init_db_fail_closed_when_backup_fails(tmp_path, monkeypatch):
     # Monkeypatch backup_database to fail
     def _broken_backup(session, dest, **kwargs):
         raise IOError("simulated backup failure")
+
     monkeypatch.setattr("app.rms.backup.backup_database", _broken_backup)
 
     # The init_db flow needs the import to pick up the monkeypatched function
@@ -348,6 +369,7 @@ def test_init_db_fail_closed_when_backup_fails(tmp_path, monkeypatch):
     engine = create_engine(f"sqlite:///{db_path}")
 
     from app.rms.db import init_db
+
     with pytest.raises(RuntimeError, match="Pre-migration backup failed"):
         init_db(engine)
 
@@ -364,16 +386,19 @@ def test_init_db_proceeds_when_backup_fails_with_override(tmp_path, monkeypatch)
     # Monkeypatch backup_database to fail
     def _broken_backup(session, dest, **kwargs):
         raise IOError("simulated backup failure")
+
     monkeypatch.setattr("app.rms.backup.backup_database", _broken_backup)
 
     db_path = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{db_path}")
     from app.rms.db import init_db
+
     # Should NOT raise because of the override
     init_db(engine)
 
 
 # --- Fail-closed on newer-schema DB (Hard Rule 19b) -----------------------
+
 
 def test_fail_closed_on_newer_schema_db_raises(tmp_path):
     """Hard Rule 19b: init_db raises if the DB schema is newer than this build.

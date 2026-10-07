@@ -2,14 +2,24 @@
 
 Tests T-2: channel + payment_method filters on /ventas history.
 """
+
 from datetime import datetime
 
 from tests.factories import make_customer, make_product
 
 
-def _seed_sale(session, customer_id, product_id, qty=1.0, price=15000, channel="mostrador", payment_method="efectivo"):
+def _seed_sale(
+    session,
+    customer_id,
+    product_id,
+    qty=1.0,
+    price=15000,
+    channel="mostrador",
+    payment_method="efectivo",
+):
     """Create a test sale with optional channel/payment method."""
     from app.rms.models import Sale
+
     sale = Sale(
         product_id=product_id,
         customer_id=customer_id,
@@ -37,6 +47,7 @@ def test_channel_filter(client, session_factory):
     whatsapp).
     """
     import re
+
     with session_factory() as s:
         c = make_customer(s, name="Test Channel")
         p = make_product(s, name="Producto Canal")

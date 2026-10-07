@@ -103,10 +103,14 @@ def test_sale_create_writes_stock_movement_row(client, session_factory):
         assert sale.product_id == product_id
 
         # Now look for the matching StockMovement rows
-        moves = s.query(StockMovement).filter_by(
-            reference_id=sale.id,
-            reference_type="sale",
-        ).all()
+        moves = (
+            s.query(StockMovement)
+            .filter_by(
+                reference_id=sale.id,
+                reference_type="sale",
+            )
+            .all()
+        )
 
         assert len(moves) >= 1, (
             f"Expected at least 1 StockMovement row for sale.id={sale.id}, "
@@ -129,9 +133,7 @@ def test_sale_create_writes_stock_movement_row(client, session_factory):
             )
 
 
-def test_sale_create_writes_one_stock_movement_per_recipe_line(
-    client, session_factory
-):
+def test_sale_create_writes_one_stock_movement_per_recipe_line(client, session_factory):
     """POST /ventas/nueva for a 2-ingredient recipe → exactly 2 StockMovement rows."""
     from app.rms.models import StockMovement
 
@@ -150,9 +152,13 @@ def test_sale_create_writes_one_stock_movement_per_recipe_line(
     assert r.status_code == 303
 
     with session_factory() as s:
-        moves = s.query(StockMovement).filter_by(
-            reference_type="sale",
-        ).all()
+        moves = (
+            s.query(StockMovement)
+            .filter_by(
+                reference_type="sale",
+            )
+            .all()
+        )
         # The seed has 2 ingredient lines (Harina, Huevo)
         assert len(moves) == 2, (
             f"Expected 2 StockMovement rows (one per recipe line), "
@@ -191,9 +197,13 @@ def test_sale_create_no_recipe_writes_no_stock_movement(client, session_factory)
     assert r.status_code == 303, f"Expected 303, got {r.status_code}"
 
     with session_factory() as s:
-        moves = s.query(StockMovement).filter_by(
-            reference_type="sale",
-        ).all()
+        moves = (
+            s.query(StockMovement)
+            .filter_by(
+                reference_type="sale",
+            )
+            .all()
+        )
         assert len(moves) == 0, (
             f"Expected 0 StockMovement rows for product with no recipe, "
             f"got {len(moves)}: {[(m.ingredient_id, m.qty) for m in moves]}"

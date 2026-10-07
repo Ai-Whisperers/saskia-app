@@ -79,9 +79,7 @@ def test_login_title_not_duplicated(client):
     assert m is not None
     title = m.group(1)
     # Should NOT be doubled
-    assert title.count("Sazón") == 1, (
-        f"Title has 'Sazón' {title.count('Sazón')} times: {title!r}"
-    )
+    assert title.count("Sazón") == 1, f"Title has 'Sazón' {title.count('Sazón')} times: {title!r}"
     # And should start with the page name
     assert title.startswith("Iniciar sesión")
 

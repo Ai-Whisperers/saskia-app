@@ -120,15 +120,45 @@ def main() -> None:
 
     # ---- ingredients used by any pack, with paraguayan supplier buckets ----
     def supplier_for(name: str) -> int:
-        if any(k in name.lower() for k in ("harina", "almidón", "almidon", "azúcar", "azucar", "sal", "levadura", "polvo", "maicena")):
+        if any(
+            k in name.lower()
+            for k in (
+                "harina",
+                "almidón",
+                "almidon",
+                "azúcar",
+                "azucar",
+                "sal",
+                "levadura",
+                "polvo",
+                "maicena",
+            )
+        ):
             return 0
         if any(k in name.lower() for k in ("queso", "leche", "manteca", "crema", "huevo", "yogur")):
             return 1
-        if any(k in name.lower() for k in ("carne", "pollo", "chorizo", "jamón", "jamon", "panceta", "lomito", "costilla")):
+        if any(
+            k in name.lower()
+            for k in (
+                "carne",
+                "pollo",
+                "chorizo",
+                "jamón",
+                "jamon",
+                "panceta",
+                "lomito",
+                "costilla",
+            )
+        ):
             return 2
         return 3
 
-    suppliers = ["Distribuidora Secos PY", "Lácteos Central", "Frigorífico Regional", "Almacén Mayorista"]
+    suppliers = [
+        "Distribuidora Secos PY",
+        "Lácteos Central",
+        "Frigorífico Regional",
+        "Almacén Mayorista",
+    ]
 
     pack_blocks: list[str] = []
     total_ing: set[str] = set()
@@ -141,7 +171,11 @@ def main() -> None:
             cost, _unit_base = ing_cost[name]
             if cost <= 0:
                 continue
-            pkg = "und" if name.startswith(("Bolsa", "Caja", "Cápsula", "Vaso", "Pajita", "Film")) else "kg"
+            pkg = (
+                "und"
+                if name.startswith(("Bolsa", "Caja", "Cápsula", "Vaso", "Pajita", "Film"))
+                else "kg"
+            )
             ing_rows.append((name, ing_cat.get(name, "Otros"), cost, supplier_for(name), pkg))
 
         ing_tuples = "\n".join(
@@ -162,15 +196,16 @@ def main() -> None:
             f'    ("{p["producto"].strip()}", "{_slug(p["producto"])}", "{p["categoria"].strip()}", {_to_int(p["precio_ref_gs"])}, "{p["fuente_precio"].strip()}"),'
             for p in pdata["products"]
         )
-        fav_idx = [
-            i
-            for i, p in enumerate(pdata["products"])
-            if i < 3
-        ]
+        fav_idx = [i for i, p in enumerate(pdata["products"]) if i < 3]
         tmpl_tuples = "\n".join(
             f"    ({wd}, {i}, {qty}, {note!r}),"
             for i in fav_idx
-            for wd, qty, note in ((0, 12, "Lunes base"), (2, 12, None), (4, 18, "Viernes pico"), (5, 18, "Finde"))
+            for wd, qty, note in (
+                (0, 12, "Lunes base"),
+                (2, 12, None),
+                (4, 18, "Viernes pico"),
+                (5, 18, "Finde"),
+            )
         )
         block = f'''
     "{pack}": PackData(
@@ -532,11 +567,16 @@ def seed_pack_report(pack: str) -> str:
 
     subprocess.run(
         ["/opt/data/.local/bin/uv", "run", "ruff", "check", "--fix", str(OUT)],
-        cwd=REPO, capture_output=True, text=True, timeout=60,
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        timeout=60,
     )
     for pack, pdata in packs.items():
         n_lines = sum(len(r["lines"]) for r in pdata["recipes"])
-        print(f"  {pack}: {len(pdata['products'])} productos / {len(pdata['recipes'])} recetas / {n_lines} líneas / {len(ings_used & set(ing_cost))} ingredientes compartidos")
+        print(
+            f"  {pack}: {len(pdata['products'])} productos / {len(pdata['recipes'])} recetas / {n_lines} líneas / {len(ings_used & set(ing_cost))} ingredientes compartidos"
+        )
 
 
 if __name__ == "__main__":

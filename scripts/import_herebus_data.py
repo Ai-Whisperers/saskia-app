@@ -79,6 +79,7 @@ def _normalize_channel(raw):
         return None  # caller will use the mostrador fallback
     return _RAW_TO_CHANNEL.get(raw.strip().lower())
 
+
 from app.rms.db import make_engine, make_session_factory
 from app.rms.models import (
     BankTransaction,
@@ -653,9 +654,7 @@ def import_sales(session: Any, dump: Any) -> int:
         # future imports don't have the silent-skew bug where
         # non-mostrador values collapsed to "mostrador" via the bare
         # `or "mostrador"` fallback. Fallback preserved for NULL/empty.
-        channel_raw = (
-            row[idx["Canal de Venta"]] if len(row) > idx["Canal de Venta"] else ""
-        )
+        channel_raw = row[idx["Canal de Venta"]] if len(row) > idx["Canal de Venta"] else ""
         channel = _normalize_channel(channel_raw) or "mostrador"
         payment_method = (row[idx["Pago"]] if len(row) > idx["Pago"] else None) or "efectivo"
         notes = row[idx["Notas"]] if len(row) > idx["Notas"] else None

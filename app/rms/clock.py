@@ -19,6 +19,7 @@ Hard rule from ``app/rms/AGENTS.md``: every DB-stored datetime is
 Replace every existing ``datetime.utcnow()`` / ``datetime.now()``
 callsite with the appropriate helper here.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone

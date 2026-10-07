@@ -1,6 +1,7 @@
 """Test the actual data flow: call plan_production() directly + simulate
 what both pages do, and confirm they agree. No HTTP needed.
 """
+
 from datetime import datetime
 
 from app.rms.config import ASUNCION_TZ
@@ -16,6 +17,7 @@ def test_cumulative_matches_shopping_direct(qseed, session_factory):
     qseed("with_plan_shortages")
     s = session_factory()
     from app.rms.models import Ingredient as Ing
+
     for i in range(3):
         ing = s.query(Ing).filter(Ing.name == f"PlanShort Ing {i}").first()
         if ing is not None:
@@ -28,7 +30,9 @@ def test_cumulative_matches_shopping_direct(qseed, session_factory):
     if sample_ing:
         print(f"  PlanShort Ing 0 stock_qty={sample_ing.stock_qty}")
     for r in plan.rows[:3]:
-        print(f"  row: pid={r.product_id} qty_to_produce={r.qty_to_produce} recipe_id={r.recipe_id}")
+        print(
+            f"  row: pid={r.product_id} qty_to_produce={r.qty_to_produce} recipe_id={r.recipe_id}"
+        )
     for ln in plan.lines[:5]:
         print(f"  line: {ln.ingredient_name} required={ln.qty_required} shortage={ln.qty_to_buy}")
 
@@ -44,6 +48,7 @@ def test_cumulative_matches_shopping_direct(qseed, session_factory):
         _build_cumulative_totals,
         _build_recipe_breakdown,
     )
+
     plan_rows_dict = [
         {
             "product_id": r.product_id,
@@ -55,10 +60,7 @@ def test_cumulative_matches_shopping_direct(qseed, session_factory):
     ]
     cards = _build_recipe_breakdown(s, plan_rows_dict)
     cumulative = _build_cumulative_totals(cards)
-    prep_view = {
-        c["name"]: (c["qty"], c["shortage"], c["unit"])
-        for c in cumulative
-    }
+    prep_view = {c["name"]: (c["qty"], c["shortage"], c["unit"]) for c in cumulative}
     print(f"plan.lines (shopping view): {len(shopping_view)} items with shortage>0")
     print(f"cumulative (prep view): {len(prep_view)} items")
     # For each ingredient the shopping view reports a shortage for,
@@ -98,6 +100,7 @@ def test_cumulative_sums_scaled_qty_not_per_batch(qseed, session_factory):
     qseed("with_plan_shortages")
     s = session_factory()
     from app.rms.models import Ingredient as Ing
+
     for i in range(3):
         ing = s.query(Ing).filter(Ing.name == f"PlanShort Ing {i}").first()
         if ing is not None:
@@ -110,6 +113,7 @@ def test_cumulative_sums_scaled_qty_not_per_batch(qseed, session_factory):
         _build_cumulative_totals,
         _build_recipe_breakdown,
     )
+
     plan_rows_dict = [
         {
             "product_id": r.product_id,
@@ -169,8 +173,7 @@ def test_fmt_qty_shows_fractional_und(authed_client, qseed):
     # macro must NOT use ceil() for 'und' anymore.
     template = open("app/templates/produccion_prep_recipes.html").read()
     assert "round(0, 'ceil')" not in template, (
-        "fmt_qty macro still uses ceil() for und — "
-        "fractional values would be inflated"
+        "fmt_qty macro still uses ceil() for und — fractional values would be inflated"
     )
     assert "qty * 10" in template or "(qty * 10)" in template, (
         "fmt_qty macro should round und to 1 decimal (qty * 10)"

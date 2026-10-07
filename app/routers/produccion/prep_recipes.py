@@ -14,6 +14,7 @@ Each card has:
     shopping list)
   - Severity flag per recipe (Falta / Justo / Suficiente)
 """
+
 from __future__ import annotations
 
 from datetime import date, timedelta

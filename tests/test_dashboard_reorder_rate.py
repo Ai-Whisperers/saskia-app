@@ -10,6 +10,7 @@ purchases. This test verifies:
 3. The customer page also surfaces is_repeat_customer + first_sale_at
    on each CustomerStats so the per-row UI can show it.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -45,13 +46,15 @@ def test_reorder_rate_in_dashboard_context_with_sales(client, session_factory):
             s.flush()
             n = 2 if repeat else 1
             for j in range(n):
-                s.add(Sale(
-                    customer_id=cust.id,
-                    product_id=prod.id,
-                    qty=1.0,
-                    unit_price_gs=2500,
-                    sold_at=now - timedelta(days=j + 1),
-                ))
+                s.add(
+                    Sale(
+                        customer_id=cust.id,
+                        product_id=prod.id,
+                        qty=1.0,
+                        unit_price_gs=2500,
+                        sold_at=now - timedelta(days=j + 1),
+                    )
+                )
         s.commit()
 
     r = client.get("/inicio")
@@ -83,13 +86,34 @@ def test_customer_detail_page_exposes_repeat_customer_flag(client, session_facto
         s.flush()
         now = datetime.now(timezone.utc)
         # Repeat customer: 2 sales
-        s.add(Sale(customer_id=cust_repeat.id, product_id=prod.id, qty=1.0,
-                   unit_price_gs=2500, sold_at=now - timedelta(days=5)))
-        s.add(Sale(customer_id=cust_repeat.id, product_id=prod.id, qty=1.0,
-                   unit_price_gs=2500, sold_at=now - timedelta(days=2)))
+        s.add(
+            Sale(
+                customer_id=cust_repeat.id,
+                product_id=prod.id,
+                qty=1.0,
+                unit_price_gs=2500,
+                sold_at=now - timedelta(days=5),
+            )
+        )
+        s.add(
+            Sale(
+                customer_id=cust_repeat.id,
+                product_id=prod.id,
+                qty=1.0,
+                unit_price_gs=2500,
+                sold_at=now - timedelta(days=2),
+            )
+        )
         # One-time customer: 1 sale
-        s.add(Sale(customer_id=cust_ot.id, product_id=prod.id, qty=1.0,
-                   unit_price_gs=2500, sold_at=now - timedelta(days=1)))
+        s.add(
+            Sale(
+                customer_id=cust_ot.id,
+                product_id=prod.id,
+                qty=1.0,
+                unit_price_gs=2500,
+                sold_at=now - timedelta(days=1),
+            )
+        )
         s.commit()
 
     # Both customer detail pages should render fine.

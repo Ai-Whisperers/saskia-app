@@ -43,9 +43,7 @@ DATA_DIR = Path(os.getenv("AIW_RMS_DATA_DIR", str(default_data_dir())))
 # fallback, prod would read the default DATA_DIR/rms.sqlite (empty)
 # instead of the seeded /data/rms.sqlite.
 DB_PATH = Path(
-    os.getenv("AIW_RMS_DB_PATH")
-    or os.getenv("AIW_SASKIA_DB_PATH")
-    or str(DATA_DIR / "rms.sqlite")
+    os.getenv("AIW_RMS_DB_PATH") or os.getenv("AIW_SASKIA_DB_PATH") or str(DATA_DIR / "rms.sqlite")
 )
 
 # Local backup dir

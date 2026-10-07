@@ -48,8 +48,7 @@ def test_normalize_channel_returns_enum_values_for_all_legacy_aliases():
     }
     for raw, expected in aliases.items():
         assert normalize_channel(raw) == expected, (
-            f"normalize_channel({raw!r}) returned {normalize_channel(raw)!r}, "
-            f"expected {expected!r}"
+            f"normalize_channel({raw!r}) returned {normalize_channel(raw)!r}, expected {expected!r}"
         )
 
 
@@ -77,18 +76,27 @@ def test_normalize_channel_all_outputs_pass_db_check():
     """
     allowed = set(Channel.allowed_values())
     inputs = [
-        "whatsapp", "WhatsApp", "WA", "wsp",
-        "pedidosya", "PedidosYa",
-        "mostrador", "mostrador",
-        "phone", "tel", "telefono", "PHONE",
-        "other", "instagram", "ig",
-        "", "unknown_garbage",
+        "whatsapp",
+        "WhatsApp",
+        "WA",
+        "wsp",
+        "pedidosya",
+        "PedidosYa",
+        "mostrador",
+        "mostrador",
+        "phone",
+        "tel",
+        "telefono",
+        "PHONE",
+        "other",
+        "instagram",
+        "ig",
+        "",
+        "unknown_garbage",
     ]
     for raw in inputs:
         out = normalize_channel(raw)
-        assert out in allowed, (
-            f"normalize_channel({raw!r}) = {out!r} not in {allowed!r}"
-        )
+        assert out in allowed, f"normalize_channel({raw!r}) = {out!r} not in {allowed!r}"
 
 
 def test_channels_tuple_contains_only_enum_values():
