@@ -333,12 +333,41 @@ def get_rate_limit_config(session: Session) -> dict[str, int]:
     return out
 
 
+# ── Pre-sale (B6) ────────────────────────────────────────────────────────
+DEFAULT_PRE_SALE_CONFIG: dict[str, int] = {
+    "max_qty_per_sale": 999,
+    "max_discount_pct": 15,
+    "low_stock_warn_pct": 25,
+}
+
+
+def get_pre_sale_config(session: Session) -> dict[str, int]:
+    """Read the pre-sale config from SettingsKV.
+
+    Used by app/rms/sales/pre_sale_check.py to make the pre-billing
+    checklist (qty cap, discount %, low-stock warning) operator-tunable
+    without code changes.
+    """
+    from app.rms.settings import get_setting_value
+
+    out = dict(DEFAULT_PRE_SALE_CONFIG)
+    for key in DEFAULT_PRE_SALE_CONFIG:
+        try:
+            v = get_setting_value(session, f"pre_sale.{key}")
+            if v is not None:
+                out[key] = int(v)
+        except (ValueError, TypeError):
+            pass
+    return out
+
+
 __all__ = [
     "DEFAULT_ALERTS_CONFIG",
     "DEFAULT_BACKUP_CONFIG",
     "DEFAULT_BRANDING",
     "DEFAULT_EOD_CONFIG",
     "DEFAULT_LOYALTY_CONFIG",
+    "DEFAULT_PRE_SALE_CONFIG",
     "DEFAULT_PRICING_MARKUP",
     "DEFAULT_RATE_LIMIT_CONFIG",
     "compute_suggested_price",
@@ -347,6 +376,7 @@ __all__ = [
     "get_branding",
     "get_eod_config",
     "get_loyalty_config",
+    "get_pre_sale_config",
     "get_pricing_markup",
     "get_rate_limit_config",
     "set_branding",

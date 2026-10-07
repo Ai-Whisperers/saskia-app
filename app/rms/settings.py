@@ -287,6 +287,32 @@ SETTINGS: list[Setting] = [
         "Cantidad mínima de stock para warning visual",
         SettingGroup.SALES,
     ),
+    # Pre-sale (B6, 2026-10-07) — operator-tunable thresholds for the
+    # /ventas/nueva pre-billing checklist (app/rms/sales/pre_sale_check.py).
+    # Legacy module-level MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE,
+    # MAX_QTY_PER_SALE, LOW_STOCK_WARN_THRESHOLD_PCT now alias
+    # DEFAULT_PRE_SALE_CONFIG (set below) — backward compat.
+    Setting(
+        "pre_sale.max_qty_per_sale",
+        "999",
+        "int",
+        "Cantidad máxima por línea de venta (blocker si excede)",
+        SettingGroup.SALES,
+    ),
+    Setting(
+        "pre_sale.max_discount_pct",
+        "20",
+        "int",
+        "% descuento máximo sin override (warning si excede)",
+        SettingGroup.SALES,
+    ),
+    Setting(
+        "pre_sale.low_stock_warn_pct",
+        "25",
+        "int",
+        "% de stock teórico bajo el que se dispara warning",
+        SettingGroup.SALES,
+    ),
     # DASHBOARD (5)
     Setting(
         "dashboard.default_period",

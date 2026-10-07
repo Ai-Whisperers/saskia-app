@@ -41,7 +41,7 @@ def test_settings_count():
     EOD (3), ALERTS (1), and BACKUP (3 more). Total settings
     42 → 60, total groups 9 → 12.
     """
-    assert len(SETTINGS) == 65
+    assert len(SETTINGS) == 68
     groups = {s.group for s in SETTINGS}
     assert groups == {
         SettingGroup.GENERAL,
@@ -73,7 +73,7 @@ def test_settings_per_group_counts():
     assert by_group[SettingGroup.GENERAL] == 7
     assert by_group[SettingGroup.BRANDING] == 10  # 10 branding fields
     assert by_group[SettingGroup.INVENTORY] == 6
-    assert by_group[SettingGroup.SALES] == 5
+    assert by_group[SettingGroup.SALES] == 8  # 5 original + 3 PRE_SALE (B6)
     assert by_group[SettingGroup.DASHBOARD] == 5
     assert by_group[SettingGroup.BACKUP] == 6  # 3 original + 3 from Batch B4
     assert by_group[SettingGroup.SESSION] == 3
@@ -207,13 +207,14 @@ def test_list_settings_returns_65(session_factory):
     """list_settings returns 65 entries with value/default/group/etc.
 
 
-    Updated 2026-10-07 (Batch B1+B2+B3+B4+B5): was 42 entries. Now 65
-    (added 11 LOYALTY + 3 EOD + 1 ALERTS + 3 BACKUP + 5 RATE_LIMIT).
+
+    Updated 2026-10-07 (Batch B1+B2+B3+B4+B5+B6): was 42 entries. Now 68
+    (added 11 LOYALTY + 3 EOD + 1 ALERTS + 3 BACKUP + 5 RATE_LIMIT + 3 PRE_SALE).
     """
     s = session_factory()
     try:
         all_settings = list_settings(s)
-        assert len(all_settings) == 65
+        assert len(all_settings) == 68
         entry = all_settings[0]
         for k in ("key", "value", "default", "description", "group", "choices"):
             assert k in entry
@@ -225,7 +226,8 @@ def test_settings_by_group_groups_correctly(session_factory):
     """settings_by_group returns dict with 13 keys matching the group values.
 
 
-    Updated 2026-10-07 (Batch B1+B2+B3+B4+B5): was 9 keys, now 13
+
+    Updated 2026-10-07 (Batch B1+B2+B3+B4+B5+B6): was 42 entries. Now 68
     (added "loyalty", "eod", "alerts", "rate_limit").
     """
     s = session_factory()
@@ -249,7 +251,7 @@ def test_settings_by_group_groups_correctly(session_factory):
         assert len(grouped["general"]) == 7
         assert len(grouped["branding"]) == 10
         assert len(grouped["inventory"]) == 6
-        assert len(grouped["sales"]) == 5
+        assert len(grouped["sales"]) == 8  # 5 original + 3 PRE_SALE (B6)
         assert len(grouped["backup"]) == 6  # 3 original + 3 Batch B4
         assert len(grouped["loyalty"]) == 11
         assert len(grouped["eod"]) == 3

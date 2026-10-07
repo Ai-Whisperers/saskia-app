@@ -52,16 +52,21 @@ if TYPE_CHECKING:
     from app.rms.models import Product
 
 
-# Default thresholds (operator-tunable via DB-config later)
-# Operator-tunable defaults (env-overridable; see app/rms/config.py).
-# Tests can monkeypatch config.SAZON_PREFLIGHT_* directly.
-MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE = (
-    config.SAZON_PREFLIGHT_MAX_DISCOUNT_PCT
-)  # % — above this = warning
-MAX_QTY_PER_SALE = (
-    config.SAZON_PREFLIGHT_MAX_QTY_PER_SALE
-)  # units — above this = blocker (POS sanity)
-LOW_STOCK_WARN_THRESHOLD_PCT = 25  # % of theoretical stock left (low)
+# Batch B6 (2026-10-07): pre-sale thresholds are now operator-tunable
+# via the SettingsKV registry (keys prefixed ``pre_sale.``). The
+# module-level constants below are kept as backward-compat shims that
+# alias DEFAULT_PRE_SALE_CONFIG.
+DEFAULT_PRE_SALE_CONFIG: dict[str, int] = {
+    "max_qty_per_sale": config.SAZON_PREFLIGHT_MAX_QTY_PER_SALE,
+    "max_discount_pct": config.SAZON_PREFLIGHT_MAX_DISCOUNT_PCT,
+    "low_stock_warn_pct": 25,
+}
+
+# Backward-compat module-level constants. Pre-existing tests import
+# these by name; they now alias DEFAULT_PRE_SALE_CONFIG.
+MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE = DEFAULT_PRE_SALE_CONFIG["max_discount_pct"]
+MAX_QTY_PER_SALE = DEFAULT_PRE_SALE_CONFIG["max_qty_per_sale"]
+LOW_STOCK_WARN_THRESHOLD_PCT = DEFAULT_PRE_SALE_CONFIG["low_stock_warn_pct"]
 
 
 @dataclass(frozen=True)
@@ -147,6 +152,7 @@ def validate_sale_intent(
     intent: PreSaleIntent,
     *,
     today: date | None = None,
+    pre_sale_cfg: dict[str, int] | None = None,
 ) -> PreSaleChecklist:
     """Run the pre-billing checklist on a sale intent.
 
@@ -155,11 +161,19 @@ def validate_sale_intent(
         intent: the parsed intent to validate.
         today: for testing — the "current" date. Defaults to today's
             date in Asunción (operator's local time). Override in tests.
+        pre_sale_cfg: optional override dict (Batch B6, 2026-10-07).
+            Partial dicts merge with DEFAULT_PRE_SALE_CONFIG.
 
     Returns:
         PreSaleChecklist with all warnings and blockers surfaced.
         Empty checklist = sale is safe to commit.
     """
+    cfg = dict(DEFAULT_PRE_SALE_CONFIG)
+    if pre_sale_cfg is not None:
+        cfg.update(pre_sale_cfg)
+    max_qty = cfg["max_qty_per_sale"]
+    max_discount_pct = cfg["max_discount_pct"]
+
     from datetime import datetime as _datetime
     from zoneinfo import ZoneInfo
 
@@ -184,14 +198,14 @@ def validate_sale_intent(
         )
         return checklist  # Nothing else makes sense without a qty
 
-    if intent.qty > MAX_QTY_PER_SALE:
+    if intent.qty > max_qty:
         checklist.blockers.append(
             PreSaleWarning(
                 code="QTY_TOO_LARGE",
                 severity="blocker",
                 message=(
                     f"Cantidad {intent.qty} excede el máximo por venta "
-                    f"({MAX_QTY_PER_SALE}). Verificá el número."
+                    f"({max_qty}). Verificá el número."
                 ),
             )
         )
@@ -240,7 +254,7 @@ def validate_sale_intent(
     line_total = Decimal(str(intent.qty)) * Decimal(str(unit_price))
     if line_total > 0 and intent.discount_gs > 0:
         discount_pct = (Decimal(str(intent.discount_gs)) / line_total) * 100
-        if discount_pct > MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE:
+        if discount_pct > max_discount_pct:
             checklist.warnings.append(
                 PreSaleWarning(
                     code="LARGE_DISCOUNT",
@@ -248,7 +262,7 @@ def validate_sale_intent(
                     message=(
                         f"Descuento del {discount_pct:.1f}% "
                         f"(Gs. {intent.discount_gs:,}). Pasó el umbral del "
-                        f"{MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE}%. ¿Aplicar igual?"
+                        f"{max_discount_pct}%. ¿Aplicar igual?"
                     ),
                 )
             )

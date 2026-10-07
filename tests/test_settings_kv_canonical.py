@@ -320,11 +320,13 @@ def test_settings_runtime_public_api_exports():
         "DEFAULT_EOD_CONFIG",
         "DEFAULT_LOYALTY_CONFIG",
         # Batch B5 (2026-10-07): rate-limit cfg helper
+        "DEFAULT_PRE_SALE_CONFIG",
         "DEFAULT_RATE_LIMIT_CONFIG",
         "get_alerts_config",
         "get_backup_config",
         "get_eod_config",
         "get_loyalty_config",
+        "get_pre_sale_config",
         "get_rate_limit_config",
     }
     assert set(sr.__all__) == expected

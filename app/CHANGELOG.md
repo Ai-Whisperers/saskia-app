@@ -79,6 +79,24 @@ description.
 **No production behavior change: every existing import + call site stays the same (defaults match), and the 28 routers that hardcoded `max_per_minute=10` now share one operator-tunable value.**
 
 
+### Refactor (2026-10-07) — Batch B6: pre-sale checklist thresholds → T2 SettingsKV
+
+**What this PR does:** extract 3 pre-sale validation thresholds (max qty/sale, max discount %, low-stock warn %) into the SettingsKV registry under the `SALES` group. Total settings: 65 → 68 (3 new in SALES).
+
+**Changes:**
+
+1. `app/rms/sales/pre_sale_check.py` — added `DEFAULT_PRE_SALE_CONFIG` dict. `validate_sale_intent()` now accepts an optional `pre_sale_cfg: dict | None = None` kwarg that merges with the defaults. The legacy module-level constants (`MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE`, `MAX_QTY_PER_SALE`, `LOW_STOCK_WARN_THRESHOLD_PCT`) now alias the new dict — backward compat with all existing imports and the env-var-driven path (`config.SAZON_PREFLIGHT_*`).
+
+2. `app/rms/settings.py` — 3 new `Setting` entries under `SettingGroup.SALES` (max_qty_per_sale=999, max_discount_pct=20, low_stock_warn_pct=25).
+
+3. `app/rms/settings_runtime.py` — new `DEFAULT_PRE_SALE_CONFIG` export + `get_pre_sale_config(session)` helper.
+
+4. `tests/test_pre_sale_cfg_override.py` — 7 new tests covering cfg shape, backward-compat constants, override behavior on qty + discount, partial-cfg merging, and the public-API helper.
+
+5. `tests/test_settings.py` + `tests/test_settings_kv_canonical.py` — updated registry counts: 65 → 68 settings (SALES group: 5 → 8).
+
+**Precedence:** `pre_sale_cfg` kwarg > SettingsKV > env var (`SAZON_PREFLIGHT_*`) > module default. The defaults match across all 4 sources (max_qty=999, max_discount=20%, low_stock=25%) so no observable behavior change for any existing operator.
+
 ### Refactored (2026-10-07) — Batch B2+B3: EOD + alerts → operator-tunable
 
 Extracted 4 hardcoded thresholds from `app/services/eod_anomaly.py` and
