@@ -474,10 +474,16 @@ def eod_run_anomalies(
     so the operator sees what fired.
     """
     from app.observability.alerts import dispatch_anomalies
+    from app.rms.settings_runtime import get_alerts_config, get_eod_config
     from app.services.eod_anomaly import detect_anomalies
 
-    anomalies = detect_anomalies(session)
-    dispatched = dispatch_anomalies(anomalies)
+    # Batch B2 + B3 (2026-10-07): fetch operator-tunable thresholds
+    # from SettingsKV. Defaults are applied inside get_*_config() for
+    # any missing key.
+    eod_cfg = get_eod_config(session)
+    alerts_cfg = get_alerts_config(session)
+    anomalies = detect_anomalies(session, eod_cfg=eod_cfg)
+    dispatched = dispatch_anomalies(anomalies, max_per_day=alerts_cfg["max_per_day"])
     return render(
         request,
         "eod_anomalies.html",
@@ -530,10 +536,12 @@ def eod_print(
     # Anomaly count — surface today's anomalies in the print summary
     # so the binder shows what was flagged. Read from the eod anomaly
     # helper, returning (count, total) for the print section.
+    from app.rms.settings_runtime import get_eod_config
     from app.services.eod_anomaly import detect_anomalies
 
     try:
-        anomalies = detect_anomalies(session)
+        eod_cfg = get_eod_config(session)
+        anomalies = detect_anomalies(session, eod_cfg=eod_cfg)
         anomaly_count = len(anomalies) if anomalies else 0
     except Exception:
         # If the anomaly helper isn't available in this version, skip silently

@@ -6,6 +6,31 @@
 ## [Unreleased]
 
 
+### Refactored (2026-10-07) — Batch B2+B3: EOD + alerts → operator-tunable
+
+Extracted 4 hardcoded thresholds from `app/services/eod_anomaly.py` and
+`app/observability/alerts.py` into the SettingsKV registry:
+- `eod.voided_rate_threshold` (default 0.10) — min voided-rate to flag
+- `eod.voided_rate_min_sales` (default 3) — skip check on quieter days
+- `eod.max_uninvoiced_ids_displayed` (default 10) — cap on IDs in alert body
+- `alerts.max_per_day` (default 50) — rate limit on dispatch_anomalies()
+
+New `SettingGroup.EOD` + `SettingGroup.ALERTS` groups in
+`/admin/settings`. Total settings: 53 → 57.
+
+**Files:** `app/rms/settings.py` (+4 entries), `app/rms/settings_runtime.py`
+(+`get_eod_config`, +`get_alerts_config`, +`DEFAULT_EOD_CONFIG`,
++`DEFAULT_ALERTS_CONFIG`), `app/services/eod_anomaly.py` (refactored:
+helpers accept `cfg` dict, `detect_anomalies` accepts `eod_cfg` kwarg),
+`app/observability/alerts.py` (refactored: `dispatch_anomalies` accepts
+`max_per_day` kwarg), `app/routers/eod.py` (2 call sites updated),
+`tests/test_eod_cfg_override.py` (6 new tests), `tests/test_alerts_cfg_override.py`
+(6 new tests). All 24 EOD+alerts tests pass.
+
+**Same pattern as B1:** pure helper accepts optional cfg dict, None falls
+back to module-level DEFAULT_*_CONFIG. `MAX_ALERTS_PER_DAY` constant
+preserved for backward-compat (scripts + monitor hooks still import it).
+
 ### Refactored (2026-10-07) — Batch B1: loyalty thresholds → SettingsKV
 
 Extracted 11 module-level constants from `app/rms/loyalty/suggestions.py`
