@@ -5,6 +5,55 @@
 
 ## [Unreleased]
 
+### Added — One-tap purchase marking + template-to-day plan loading (P40, 2026-10-07)
+
+Ivan's three findings from the post-P39 audit:
+1. 0 rows in `shopping_list_item.purchased_at` in 30d — the restock
+   form required qty+price+supplier per row, so operators never
+   came back to mark anything. UX gap, not a workflow bug.
+2. `production_plan_template` had 21 rows seeded but
+   `production_plan_override` was empty. No one-click way to load
+   the weekly template into the day view.
+3. `demand_snapshot` empty for 30d — gap covered separately by the
+   EOD cron fix below.
+
+**`app/routers/reorder.py`** — two new POST endpoints:
+- `POST /reorder/quick-restock` — single ingredient. Fills the
+  ingredient to its `max_stock_qty` (or 2× min if max is unset) in
+  one click. Records a `StockMovement`, a `price_event` with the
+  effective supplier's last known price, ticks the supplier streak,
+  and audits the action. Idempotent (already-full row = no event).
+- `POST /reorder/bulk-quick-restock` — comma-separated ids. Same
+  logic per id, single audit row at the end. Empty input is a
+  no-op (the UI disables the button when 0 rows are checked).
+
+**`app/templates/reorder.html`** — new buttons in the bulk-actions
+bar (`Marcar comprados (2× min)`) and per-row (small `✓ Comprado`
+next to the existing `Reponer` form). JS wires the bulk button's
+enabled state to the checked-row count.
+
+**`app/routers/produccion/templates_ops.py`** — new POST endpoint:
+- `POST /produccion/template/load-day` — takes a `for_date` form
+  field, reads the `production_plan_template` rows for that weekday,
+  and writes a `production_plan_override` for each product not yet
+  overridden for that date. Skips products that already have an
+  override (so a second click is a no-op). Single audit row with
+  applied/skipped counts. Flash messages: `plantilla_cargada` /
+  `ya_existia` / `sin_plantilla`.
+
+**`app/routers/produccion/_full.py`** — adds `has_weekly_template`
+context flag derived from `_template_rows` (the existing variable
+that was already computed for `template_nudge`).
+
+**`app/templates/produccion.html`** — `template_nudge` alert now
+branches: when a weekly template exists, it surfaces a "Cargar
+plan desde plantilla semanal" primary CTA. When it doesn't, the
+existing copy links to the week view as before.
+
+**Tests** — `tests/test_P40_quick_restock.py` (5 tests) and
+`tests/test_P40_load_template.py` (4 tests). All 9 pass. Locked
+against future regressions of the same gap.
+
 ### Added — Pre-billing checklist (URY pattern) (2026-10-07)
 
 Ports the `ury-erp/ury` `posClosing.js` validation pattern

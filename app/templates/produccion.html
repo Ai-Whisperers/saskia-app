@@ -20,11 +20,27 @@
 {% block title %}Producción · {{ for_date }}{% endblock %}
 {% block content %}
 {% if template_nudge %}
-<div class="alert alert-warning mb-6" >
-  📋 Todavía no guardaste un plan semanal para este día — el plan se arma con
-  el promedio de ventas. Después de una semana de ventas, andá a
-  <a href="/produccion?view=week">vista semana → Guardar como plan semanal</a>
-  y el sistema usará TU plan en vez del promedio.
+<div class="alert alert-warning mb-6" style="display:flex;flex-direction:column;gap:var(--space-2);">
+  <div>
+    📋 {% if has_weekly_template %}Tu plantilla semanal está guardada. Cargala en el plan de hoy con un click — así
+    se ignoran los promedios 14d para los productos que tengan override.
+    {% else %}Todavía no guardaste un plan semanal para este día — el plan se arma con
+    el promedio de ventas. Después de una semana de ventas, andá a
+    <a href="/produccion?view=week">vista semana → Guardar como plan semanal</a>
+    y el sistema usará TU plan en vez del promedio.{% endif %}
+  </div>
+  {% if has_weekly_template %}
+  <form method="post" action="/produccion/template/load-day" class="js-confirm-form"
+        data-confirm-title="¿Cargar plan desde plantilla?"
+        data-confirm-body="Se creará un override por cada producto de la plantilla semanal que aún no esté cargado para hoy."
+        style="display:inline-block;">
+    <input type="hidden" name="for_date" value="{{ for_date.isoformat() }}">
+    <button type="submit" class="btn btn-sm btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+      Cargar plan desde plantilla semanal
+    </button>
+  </form>
+  {% endif %}
 </div>
 {% endif %}
 

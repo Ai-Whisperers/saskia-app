@@ -944,6 +944,7 @@ def produccion_worksheet(
         or 0
     )
     template_nudge = (not _template_rows) and _has_sales > 0
+    has_weekly_template = bool(_template_rows)
 
     # T-2026-10-04 (P1): cold-start bootstrap state. Distinguish 3 cases:
     # - no_sales: zero sales ever recorded → "set up your template"
@@ -1114,6 +1115,7 @@ def produccion_worksheet(
             },
             "zero_demand_rows": zero_demand_rows,
             "template_nudge": template_nudge,
+            "has_weekly_template": has_weekly_template,
             "cold_start_kind": cold_start_kind,
             "for_date": plan.for_date.isoformat() if plan.for_date else "",
             # PRODUCCION-V3 Phase 1: day navigation. prev/next are ISO

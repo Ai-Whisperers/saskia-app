@@ -252,3 +252,83 @@ __all__ = ["router"]
 # Pings when the operator picks a product+qty in the pedido form,
 # returns the qty the production plan will bake for that date so the
 # form can warn "Pediste N pero el plan dice M".
+
+@router.post("/template/load-day")
+def load_template_into_day(
+    request: Request,
+    for_date: str = Form(...),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """P40 (2026-10-07, Ivan) — one-click "Cargar plan desde plantilla".
+
+    Takes the production_plan_template rows for the weekday of `for_date`
+    and writes a production_plan_override for each (product, date). This
+    pins today's plan to the weekly template values, so the operator
+    doesn't have to type quantities 1-by-1 on the day view.
+
+    Skips products that already have an override for that date (so
+    clicking twice is safe; the second click is a no-op for those
+    rows). Audits a single row with the count of templates applied.
+    """
+    from app.auth import current_user_id
+    from app.rms.audit import record as audit_record
+    from app.rms.production import upsert_override
+    from app.rms.models import ProductionPlanTemplate
+    target = datetime.strptime(for_date, "%Y-%m-%d").date()
+    weekday = target.weekday()  # 0=Mon
+    tpl_rows = session.execute(
+        select(ProductionPlanTemplate).where(
+            ProductionPlanTemplate.weekday == weekday
+        )
+    ).scalars().all()
+    if not tpl_rows:
+        return RedirectResponse(
+            url=f"/produccion?for_date={for_date}&flash=sin_plantilla",
+            status_code=303,
+        )
+    existing = {
+        r.product_id for r in session.execute(
+            select(ProductionPlanOverride).where(
+                ProductionPlanOverride.for_date == target
+            )
+        ).scalars().all()
+    }
+    user = str(current_user_id(request) or "operator")
+    applied = 0
+    skipped = 0
+    for tpl in tpl_rows:
+        if tpl.product_id in existing:
+            skipped += 1
+            continue
+        try:
+            upsert_override(
+                session,
+                product_id=tpl.product_id,
+                for_date=target,
+                qty=tpl.qty,
+                updated_by=user,
+                notes="P40: desde plantilla semanal",
+            )
+            applied += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("P40 load-template failed product={} err={}", tpl.product_id, exc)
+    session.commit()
+    audit_record(
+        session,
+        user_id=user,
+        action="write.produccion.load_template_day",
+        request=request,
+        detail={
+            "for_date": for_date,
+            "weekday": weekday,
+            "applied": applied,
+            "skipped": skipped,
+            "total_templates": len(tpl_rows),
+        },
+    )
+    session.commit()
+    flash = "plantilla_cargada" if applied else "ya_existia"
+    return RedirectResponse(
+        url=f"/produccion?for_date={for_date}&flash={flash}",
+        status_code=303,
+    )
