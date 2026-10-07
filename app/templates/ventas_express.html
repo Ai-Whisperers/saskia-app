@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Venta Express{% endblock %}
+
+{% block head_extra %}
+<style>
+.express-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}
+.express-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  background: var(--white);
+}
+.express-name { font-weight: 600; font-size: var(--text-lg); }
+.express-price { font-size: var(--text-xl); color: var(--orange-600); font-weight: 700; }
+.express-units { font-size: var(--text-xs); color: var(--gray-500); }
+.express-qty { font-size: var(--text-sm); display: flex; align-items: center; gap: var(--space-2); }
+.express-qty input { width: 80px; }
+.express-card .btn { margin-top: auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="express-wrap">
+  <header class="express-head" style="display:flex;justify-content:space-between;align-items:center;">
+    <h1>Venta Express</h1>
+    <a class="btn btn-ghost" href="/ventas">&larr; Volver al POS</a>
+  </header>
+
+  {% if not items %}
+    <div class="callout callout-warn">
+      No hay productos favoritos ni ventas recientes para mostrar.
+      Marc&aacute; productos como favoritos o registr&aacute; ventas y volver&aacute;n a aparecer ac&aacute;.
+    </div>
+  {% endif %}
+
+  <div class="express-grid">
+    {% for it in items %}
+    <form class="express-card js-confirm-form"
+          method="post"
+          action="/ventas/nueva"
+          data-confirm-title="Registrar venta"
+          data-confirm-body="{{ it.name }} — {{ fmt.money(it.sale_price_gs) }} por unidad.">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="product_id" value="{{ it.product_id }}">
+      <input type="hidden" name="idempotency_key" value="{{ idem_key }}-{{ it.product_id }}">
+      <input type="hidden" name="payment_method" value="efectivo">
+      <div class="express-name">{{ it.name }}</div>
+      <div class="express-price">{{ fmt.money(it.sale_price_gs) }}</div>
+      {% if it.units %}
+      <div class="express-units">~{{ it.units|int }} u. / 14d</div>
+      {% endif %}
+      <label class="express-qty">
+        Cant.
+        <input type="number" name="qty" value="1" min="1" max="999" step="1" inputmode="numeric">
+      </label>
+      <button type="submit" class="btn btn-primary btn-lg">Cobrar</button>
+    </form>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

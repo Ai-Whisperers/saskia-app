@@ -421,6 +421,86 @@ async def sales_list(
     return render(request, "ventas.html", ctx)
 
 
+# --- B.1 Venta Express (2026-10-07, polish/saskia-p0) ---
+@router.get("/express")
+def ventas_express(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Venta Express: 8 botones gigantes + cantidad numerica + Enter.
+
+    Para venta de mostrador de un solo item (-45s vs POS completo).
+    Reusa POST /ventas/nueva (product_id + qty + payment_method) - cero
+    logica de venta nueva. Top 8 = top venta 14d primero + favoritos.
+    """
+    from app.rms.models import Product, Sale
+
+    since = datetime.now(ASUNCION_TZ) - timedelta(days=14)
+    rows = session.execute(
+        select(
+            Sale.product_id,
+            func.sum(Sale.qty).label("units"),
+        )
+        .where(Sale.sold_at >= since, Sale.voided_at.is_(None))
+        .group_by(Sale.product_id)
+        .order_by(func.sum(Sale.qty * Sale.unit_price_gs).desc())
+        .limit(8)
+    ).all()
+
+    ids = [pid for pid, _ in rows]
+    prod_map = {}
+    if ids:
+        prods = session.scalars(select(Product).where(Product.id.in_(ids))).all()
+        prod_map = {p.id: p for p in prods}
+    if len(prod_map) < 8:
+        favs = session.scalars(
+            select(Product)
+            .where(Product.is_favorite.is_(True), Product.is_available.is_(True))
+            .order_by(Product.name)
+            .limit(8)
+        ).all()
+        for p in favs:
+            prod_map.setdefault(p.id, p)
+
+    items = []
+    seen = set()
+    for pid, units in rows:
+        p = prod_map.get(pid)
+        if p is None or p.id in seen or not p.is_available:
+            continue
+        seen.add(p.id)
+        items.append(
+            {
+                "product_id": p.id,
+                "name": p.name,
+                "sale_price_gs": p.sale_price_gs,
+                "units": float(units or 0),
+            }
+        )
+    for p in prod_map.values():
+        if p.id in seen or not p.is_available:
+            continue
+        seen.add(p.id)
+        items.append(
+            {
+                "product_id": p.id,
+                "name": p.name,
+                "sale_price_gs": p.sale_price_gs,
+                "units": 0.0,
+            }
+        )
+    items = items[:8]
+
+    from app.rms.schemas import ALLOWED_PAYMENT_METHODS
+
+    ctx = {
+        "items": items,
+        "idem_key": _generate_idem_key(),
+        "payment_methods": sorted(ALLOWED_PAYMENT_METHODS),
+    }
+    return render(request, "ventas_express.html", ctx)
+
+
 # ─────────────────────────────────────────────────────────────────────
 # QA / Smoke tests (2026-09-29)
 # ─────────────────────────────────────────────────────────────────────
