@@ -34,7 +34,7 @@
 | ID | Title | Status | Source | Effort | Notes |
 |---|---|---|---|---|---|
 | **A.1** | Confirm modal on all destructive actions | 🔴 In Progress polish/saskia-p0 | canonical | S | audited 2026-10-07: real gap = 11 forms (caja/cerrar x2, eod/completar, clientes merge, pedido duplicate, menus off, excel importar, bank unreconcile, auditoria/prune, override-bulk, shift-execute) |
-| **A.2** | CSRF token on all `<form method="post">` | 🔴 In Progress polish/saskia-p0 | canonical + WISHLIST | S | UPDATE 2026-10-07: middleware already enforces signed cookie on ALL POSTs; form-field double-submit missing in ~35 templates, verify_form_csrf on 4 routers only |
+| **A.2** | CSRF token on all `<form method="post">` | ✅ Done verified 2026-10-07 | canonical + WISHLIST | S | middleware signed-cookie on all POSTs + field present in ALL 50 templates (15 `_csrf_token` + 35 `csrf_token`, both accepted) + guard test test_p0_confirm_modal_csrf.py green |
 | **A.3** | Audit log on 12 missing actions | ✅ Done verified 2026-10-07 | canonical + WISHLIST | S | verified in code: write.product.* / write.customer.merge / write.bank.categorize / write.eod.complete / write.production.override.set / write.merma.* / write.excel.import all present (81 audited actions) |
 | **A.4** | Rate-limit on /login (5/min, backoff after 3 fails) | ✅ Done verified 2026-10-07 | canonical | XS | is_rate_limited enforced in login_submit (auth.py:114) with styled retry-countdown page |
 | **A.5** | `void_sale` after-cierre bug | ✅ Done verified 2026-10-07 | canonical | S | guard void_after_eod_close in app/rms/sales/lifecycle.py:305 + costing.py:633 |

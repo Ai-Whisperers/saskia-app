@@ -50,7 +50,7 @@
         <td>{{ money(m.price_gs) }}</td>
         <td>{{ m.incluye|join(', ') if m.incluye else '—' }}</td>
         <td>
-          <form method="post" action="/menus/{{ m.id }}/off" style="display:inline;">
+          <form method="post" action="/menus/{{ m.id }}/off" style="display:inline;" class="js-confirm-form d-inline" data-confirm-title="¿Desactivar menú?" data-confirm-body="El menú dejará de mostrarse como activo.">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn btn-sm btn-ghost">Desactivar</button>
           </form>

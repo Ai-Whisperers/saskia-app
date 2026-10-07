@@ -12,7 +12,7 @@
 <div class="grid grid-2 mb-4">
   <section class="card">
     <h2>Importar desde Excel</h2>
-    <form method="post" action="/excel/importar" enctype="multipart/form-data" id="import-form">
+    <form method="post" action="/excel/importar" enctype="multipart/form-data" id="import-form" class="js-confirm-form" data-confirm-title="¿Importar Excel?" data-confirm-body="Se crearán/actualizarán productos e insumos según el archivo. Revisá que sea el archivo correcto.">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="form-row">
         <label for="file">Archivo .xlsx</label>
