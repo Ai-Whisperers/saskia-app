@@ -4057,6 +4057,66 @@ override per deployment:
 
 Tests cover env override + reload (3 new).
 
+### Added — /produccion "Enviar faltantes a lista de compras" button (SASKIA-203, 2026-10-07)
+
+The "Ingredientes necesarios" card on `/produccion?for_date=YYYY-MM-DD`
+didn't expose the existing `POST /shopping-list/from-production-plan`
+endpoint as an inline action. Operators had to navigate
+`/shopping-list` and click the form button there, repeating the date
+selection. Now the production card has a one-click button that posts
+the current `for_date` directly.
+
+**`app/templates/produccion.html:1672-1695`** — added a
+`<form method="post" action="/shopping-list/from-production-plan">`
+between the existing `🛒 Lista de compras` link and the `Reponer`
+link. The hidden `for_date` field carries `{{ plan.for_date.isoformat() }}`
+(ProductionPlan.for_date, not .date — the latter is a string field).
+The visible label is "📤 Enviar faltantes a lista de compras".
+
+The pre-existing endpoint already:
+- Materializes plan shortfalls as `ShoppingListItem` rows
+- Dedupes by `(ingredient_id, unit)` via `consolidate_open_items()`
+- Sets `purpose_text` to "Plan #N (N× <recipe>)" for audit
+- Redirects to `/shopping-list?from_plan=N&n_added=N`
+
+**Operator flow before:** `/produccion` → click `/shopping-list` link →
+find the date dropdown → click "from production plan" form button →
+redirected back. 4 clicks, 1 page jump.
+
+**Operator flow after:** `/produccion` → click button → done. 1 click.
+
+Locked by `tests/test_shopping_from_plan.py::test_produccion_page_has_send_to_list_button`
+(existed; was failing because the button wasn't there).
+
+### Fixed — `test_shopping_benchmarks.py` stale `/opt/data/sazon-app/` paths (SASKIA-203, 2026-10-07)
+
+`tests/test_shopping_benchmarks.py` referenced
+`/opt/data/sazon-app/app/templates/{planner,bank,recipe_photos,dashboard}.html`
+from before the repo rename to `/opt/data/work/saskia-app/`. The four
+test functions (`test_shopping_list_template_no_native_select` and 3
+others in the benchmarks suite) always raised `FileNotFoundError` and
+showed as red in every CI run, masking real regressions.
+
+Fixed all 4 `Path(...)` calls to point at the current repo location.
+The other ~25 "sazon-app" mentions across the test suite are inside
+docstrings/comments, not load-bearing — left for a dedicated docstring
+sweep.
+
+### Changed — `WHAT_NEXT.md` shopping-list item closed + archive (SASKIA-203, 2026-10-07)
+
+`WHAT_NEXT.md` #2 described `POST /plan/shopping-list` as a TODO. The
+real endpoint is `POST /shopping-list/from-production-plan` and shipped
+in `eaaf6a12` (2026-09-30). This was misleading future sessions into
+re-auditing the same feature.
+
+Archived the 2026-10-07 state to `WHAT_NEXT_2026-10-07-archived.md`.
+Rewrote `WHAT_NEXT.md` to: (a) move Production Planner → Shopping
+List into "Closed in the last week" with the real commit references,
+(b) promote C.1 Telegram env wiring to #2 (operator-lane, 5 min,
+real impact), (c) keep sale channel mismatch at #3. The file's
+"Update pattern" footer now also documents the archive-first rule
+for future refreshes.
+
 ## [Unreleased]
 
 ### Fixed (UI audit patch set, 2026-09-23)
