@@ -5,6 +5,28 @@
 
 ## [Unreleased]
 
+### Added — SASKIA-309: regression tests for Phase 8 (errors + help + misc, 2026-10-07)
+
+Locks the Phase 8 work of the copy/UX hardening program in place. No
+template changes — every check is green today (the work was already
+shipped by prior sessions).
+
+- `tests/test_SASKIA-309_500_no_secrets.py` (4 tests) — `errors/500.html`
+  must NOT contain stack traces, internal paths, secret keywords, or
+  API-style token formats. Also locks the friendly user-facing message.
+- `tests/test_SASKIA-309_dev_pages_not_in_nav.py` (4 tests) — `/dev/*`
+  URLs must not appear in operator-facing templates. Catches regressions
+  where a dev-only URL leaks into the sidebar/topbar.
+- `tests/test_SASKIA-309_guia_intro.py` (6 tests) — `docs/user-guide/README.md`
+  has a Spanish intro addressed to the operator, a table of contents,
+  and every TOC link resolves to an existing `.md` file. Catches broken
+  guide routes + deleted section files.
+
+14 tests, all pass on current main. CI integration: runs as part of
+the standard pytest discovery; no workflow changes.
+
+
+
 ### Added
 
 - **B.1 Venta Express**: `GET /ventas/express` — top-8 productos por venta 14d + favoritos, un form grande por producto que postea a `/ventas/nueva` (product_id + qty + efectivo, idempotency_key por producto). Cero lógica de venta nueva; reusa el flujo existente. Link "Express" en el page_header de `/ventas`. (port from polish/saskia-p0 `30ca6024`)
