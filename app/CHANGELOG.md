@@ -28,6 +28,18 @@ Locked by the new `tests/test_dashboard_perf.py::test_dashboard_no_n_plus_1_in_f
 regression test (asserts `<= 2` per-product `FROM sale` queries, threshold
 chosen so legitimate one-off product lookups don't trip it).
 
+### UX — Sticky table headers (2026-10-07)
+
+Wrapped the long tables in `/cotizador` (catalog + quote), `/eod`
+(range summary + checklist + restock + production), `/bank`
+(transactions), `/caja` (recent sessions), and `/creditos` (image
+attribution) in the existing `.table-sticky-wrap` component. The
+`thead` now stays pinned under the top nav while the operator scrolls
+the body. CSS is already shipped in `app/static/css/app.css:572` —
+no CSS change needed, only template changes. Also fixed a long-standing
+HTML bug in `eod.html` where the `<div data-loaded-section>` was
+closed before `</table>`, producing invalid markup.
+
 ### Fixed — Dashboard `/inicio` tz-naive compare (2026-10-07)
 
 `app/routers/dashboard.py:478-499` compared `Sale.sold_at` (naive UTC)

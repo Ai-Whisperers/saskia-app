@@ -14,6 +14,7 @@
 
   {% if entries %}
   <p>{{ total }} imágenes con atribución (licencia CC-BY). Las imágenes CC0 no requieren mención.</p>
+  <div class="table-sticky-wrap" style="max-height:min(70vh,520px);">
   <table class="table is-striped">
     <thead>
       <tr><th>Imagen</th><th>Autoría y licencia</th><th>Fuente</th></tr>
@@ -28,6 +29,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   {{ ui.empty_state(title="Sin imágenes registradas", icon="icon-image", hint="Todavía no hay imágenes con atribución registradas.") }}
   {% endif %}

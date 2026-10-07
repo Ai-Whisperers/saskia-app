@@ -171,6 +171,7 @@
 
 {{ ui.skeleton_section(id="bank-transactions", variant="line", count=10, label="Cargando transacciones") }}
 <div data-loaded-section="bank-transactions">
+<div class="table-sticky-wrap" style="max-height:min(70vh,520px);">
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
@@ -230,6 +231,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 </div>
 
 <!-- Pagination Controls -->
