@@ -5,6 +5,61 @@
 
 ## [Unreleased]
 
+### Fixed — P39/P44/P52 inline anomaly banner + re-render form + loyalty cap (2026-10-07)
+
+Three pre-existing P-test failures fixed by wiring the test contract into
+the production routes:
+
+- **P39** (`tests/test_P39_eod_inline_anomalies.py`): `/eod` template had
+  the inline anomaly banner block but `eod_view` never passed
+  `anomaly_count` in the render context. Now the route calls
+  `detect_anomalies(session, day=today)` (same helper the `/eod/print`
+  route already uses) and surfaces the count so the banner renders
+  "⚠ N anomalías" or "✓ Sin anomalías" inline. Failure mode is silent
+  on the JINJA `{% if anomaly_count is defined %}` guard — the banner
+  never showed, but no 500 either. Locked by 1 new test.
+
+- **P44** (`tests/test_P44_cliente_editar_re_render_on_error.py`):
+  `POST /clientes/{id}/editar` raised `HTTPException(400)` when the
+  required `name` was empty (or phone/email/cedula were invalid), which
+  shows FastAPI's default error page and loses all user input. The
+  template already had `form_values` + `form_error` rendering hooks;
+  extracted `_render_cliente_edit()` helper now feeds the same context
+  on validation failure. The POST handler snapshots all typed form
+  values into `form_values` before validation, then each `require_*` /
+  `validate_*` call is wrapped in a try/except `_fail()` that
+  `session.rollback()`s and re-renders the form with the error
+  message. Locked by 1 new test (P44 + 7 sibling P4x tests still pass).
+
+- **P52** (`tests/test_P52_cliente_detalle_loyalty_capped.py`): the
+  inline loyalty ledger on `/clientes/{id}` was `.limit(20)` and the
+  template's "Ver todo" link checked `loyalty_total` which was never
+  passed. Now `.limit(5)` and the route also computes
+  `loyalty_total = COUNT(*)` so the cap + "Ver todo" badge work.
+  Locked by 1 new test.
+
+### Chore — Final ruff sweep (F841 + I001, 2026-10-07)
+
+Last batch from the "fix and merge everything" cycle:
+
+- F841: 13 unused test-local variables removed (the assignments captured
+  responses for side-effect debugging; the variables themselves were
+  never asserted). Files: test_ci_anti_rules, test_produccion_*.
+- I001: 2 unsorted imports in `app/routers/customers.py` (the new
+  `_render_cliente_edit` helper triggered a sort hint).
+
+Net: 265 → 253 ruff findings. The remaining 253 are all in the
+"manual-judgment" category (BLE001 blind-except, S110 try-except-pass,
+ANN001 missing-type-hints, S310/S608 SQL/url patterns) — too
+case-specific to auto-fix.
+
+Pre-existing failures still pre-existing (verified on clean main):
+- `tests/test_produccion_cold_seed.py::test_cold_start_renders_no_sales`
+- `tests/test_clientes_last_purchase_column.py::test_clientes_shows_nunca_compro_fallback`
+- 2 tests in `test_cliente_detalle_dashboard.py`
+- 1 test in `test_sazon_seed.py` (Channel enum mismatch)
+- 1 test in `test_P4x` (separate routing redesign)
+
 ### Perf — Dashboard forecast loop batched (N+1 fix, 2026-10-07)
 
 Pre-fix, the day-of-week-aware forecast headline on `/inicio` called
