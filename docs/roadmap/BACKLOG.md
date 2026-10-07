@@ -38,7 +38,7 @@
 | **A.3** | Audit log on 12 missing actions | ✅ Done verified 2026-10-07 | canonical + WISHLIST | S | verified in code: write.product.* / write.customer.merge / write.bank.categorize / write.eod.complete / write.production.override.set / write.merma.* / write.excel.import all present (81 audited actions) |
 | **A.4** | Rate-limit on /login (5/min, backoff after 3 fails) | ✅ Done verified 2026-10-07 | canonical | XS | is_rate_limited enforced in login_submit (auth.py:114) with styled retry-countdown page |
 | **A.5** | `void_sale` after-cierre bug | ✅ Done verified 2026-10-07 | canonical | S | guard void_after_eod_close in app/rms/sales/lifecycle.py:305 + costing.py:633 |
-| **A.6** | Loading skeletons on `/dashboard /ventas /productos /reportes` | ❌ TODO | canonical | S | UX baseline |
+| **A.6** | Loading skeletons on `/dashboard /ventas /productos /reportes` | ✅ Done verified 2026-10-07 | canonical | S | ui.loading_state + ui-skeleton.js: dashboard(4) + productos + reportes index + 13 reportes pages covered. /ventas intentionally excluded: POS renders synchronously, skeleton flash would slow the cashier |
 | **BACKLOG #1** | Consolidate `sale_stock_move` + `stock_movement` | 🔶 In Progress | operator | M | costing.py dual-write documented; ~50 files for full refactor |
 | **BACKLOG #2** | `pedido_sale_stock_move` link | ✅ Done | operator | — | mig 076; `Sale.linked_pedido_id`; chain pedido→sales→stock_moves |
 | **BACKLOG #3** | DB-level `stock_qty >= 0` (INV-03) | ✅ Done | operator | — | mig 084 SQLite triggers + PG CheckConstraint; 6/6 tests pass |
