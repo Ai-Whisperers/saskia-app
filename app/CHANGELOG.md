@@ -5,6 +5,44 @@
 
 ## [Unreleased]
 
+### Added — Auto-deduct regression test (2026-10-07)
+
+`tests/test_sale_create_writes_stock_movement.py` (3 tests) locks
+the AGENTS.md Hard Rule 8 contract: every sale created via
+`/ventas/nueva` MUST write `StockMovement` audit rows for every
+recipe line.
+
+- `test_sale_create_writes_stock_movement_row` — POST to the public
+  route, verify at least one `StockMovement` row exists for the
+  new sale with `reference_type='sale'`, `movement_type='sale'`,
+  and negative `qty`.
+- `test_sale_create_writes_one_stock_movement_per_recipe_line` —
+  for a 2-ingredient recipe, expect exactly 2 `StockMovement` rows.
+- `test_sale_create_no_recipe_writes_no_stock_movement` — a product
+  with `recipe_id=None` is saved but writes zero `StockMovement`
+  rows (the documented exception).
+
+**Why:** A 2026-10-07 review initially thought the auto-deduct
+was broken (the router doesn't write `StockMovement` directly).
+The router delegates to `apply_sale()` in `app/rms/costing.py`,
+which is the single source of truth for the audit row. This
+test file prevents future refactors from breaking the delegation
+or creating two write paths.
+
+The existing `tests/test_stock_drop.py` (7 tests) covers the
+business logic in `apply_sale()`. The new file covers the
+**router-to-business-logic delegation**, which is the part
+that's easy to break with a refactor.
+
+### Changed — AGENTS.md Hard Rule 8 (2026-10-07)
+
+- The rule previously claimed "This was a P0 bug verified broken
+  before 2026-10-07". That claim was wrong: the chain is
+  working, but the delegation made it LOOK broken on a surface
+  read. The rule is now explicit about the delegation:
+  router → `apply_sale()` → `StockMovement` rows. The pointer to
+  the lock-in test is updated.
+
 ### Added (2026-09-30) — PROD-MERMA-2: source chip + a11y + docs
 
 Close the loop on the PROD-MERMA-1 quick-merma flow: operators can now

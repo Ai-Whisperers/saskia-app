@@ -43,7 +43,7 @@ Supports **two deployment modes**:
 ### Data integrity (5 sub-rules)
 
 7. **Integer Gs. in the DB.** Money columns are `int`, not `Decimal`.
-8. **Every sale decrements stock.** When a sale is recorded, the system MUST write `StockMovement` rows for every recipe line of every product in the sale. The absence of these rows is a bug. The rule is enforced in code (see `app/routers/sales.py` `sale_create` and `sale_create_multi`) and locked by `tests/test_sale_auto_deduct.py`. **This was a P0 bug verified broken before 2026-10-07.**
+8. **Every sale decrements stock.** When a sale is recorded, the system MUST write `StockMovement` rows for every recipe line of every product in the sale. The router in `app/routers/sales.py` (`sale_create`, `sale_create_multi`) delegates to `apply_sale()` in `app/rms/costing.py`, which is the SINGLE place that writes the audit row. **The chain is locked by 3 tests in `tests/test_sale_create_writes_stock_movement.py`** (and 7 tests in `tests/test_stock_drop.py`). A 2026-10-07 review initially thought this rule was broken (router doesn't write `StockMovement` directly) — but it's correctly delegated to `apply_sale()`. The test file exists to prevent future refactors from breaking the delegation. **Do not move the StockMovement write into the router** — that creates two write paths and the migration-090 single-table consolidation comment in `costing.py` will warn against it.
 9. **Negative stock is allowed** (kitchen reality > accounting purity) but red-flashes on dashboard.
 10. **Cross-recipe BOM cycles raise `CycleInRecipeTree`**; UI shows error, never silently truncates.
 11. **Auto-overwrite of recipes during re-import** requires confirmation modal showing diff; auto-backup before mutation.
