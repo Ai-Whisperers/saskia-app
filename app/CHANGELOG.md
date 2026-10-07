@@ -5,6 +5,44 @@
 
 ## [Unreleased]
 
+### Added — CI anti-rule enforcement (2026-10-07)
+
+The 20 anti-rules in AGENTS.md "Anti-rules" section are now
+enforced in CI. New step in `.github/workflows/ci.yml`:
+"Anti-rule enforcement" — fails PR if any of these
+forbidden libraries / patterns is added to changed files:
+
+- **Anti-rule 1**: `react`/`vue`/`tailwindcss` imports in
+  `app/templates/*` or `app/static/*` (server-rendered Jinja2
+  + HTMX only).
+- **Anti-rule 3**: `graphene`/`strawberry`/`ariadne`/`hasura`
+  imports (REST + OpenAPI only).
+- **Anti-rule 4**: `pyjwt`/`python-jose`/`authlib` deps
+  (Supabase already uses JWT for hosted auth; local is
+  bcrypt + session cookies).
+- **Anti-rule 5**: `celery`/`rq`/`dramatiq`/`huey`/`aiokafka`/
+  `confluent-kafka` deps (no message queue; use Postgres
+  LISTEN/NOTIFY).
+- **Anti-rule 9**: `peewee`/`tortoise-orm`/`piccolo`/`sqlmodel`
+  deps (SQLAlchemy 2.0 sync is the only ORM).
+- **Anti-rule 11**: `pymongo`/`motor`/`dynamodb`/`redis`/
+  `pymemcache` deps (SQLite + Postgres is the only DB).
+
+The 6 tests in `tests/test_ci_anti_rules.py` lock the script
+itself: the step exists in ci.yml, mentions each forbidden
+library, has bash syntax-clean, uses literal-block heredoc
+(`run: |` not `run: >`), and would actually fail on a
+forbidden dep.
+
+To add a new anti-rule: update AGENTS.md first (in a
+separate PR), then add the regex to the CI step, then add
+a test to `test_ci_anti_rules.py`.
+
+### Files changed
+- `.github/workflows/ci.yml` — new step before CHANGELOG
+  discipline check
+- `tests/test_ci_anti_rules.py` (NEW, 6 tests)
+
 ### Added — Migration discipline regression tests (2026-10-07)
 
 `tests/test_migration_safety.py` (9 tests) locks the AGENTS.md

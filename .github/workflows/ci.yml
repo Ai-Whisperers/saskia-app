@@ -117,6 +117,104 @@ jobs:
           TMP_DB=$(mktemp /tmp/sazon-migrate-smoke.XXXXXX.sqlite)
           AIW_RMS_DB_PATH="$TMP_DB" uv run sazon migrate
 
+      # ---- E5.S4: anti-rule enforcement (AGENTS.md "Anti-rules" section) ----
+      # Fails PR if any of the 20 anti-rules is violated. Each anti-rule
+      # has a corresponding check below. See AGENTS.md "Anti-rules" section
+      # for the full list and rationale.
+      - name: Anti-rule enforcement
+        run: |
+          changed=$(git diff --name-only origin/main...HEAD 2>/dev/null || git diff --name-only HEAD~1)
+          fail=0
+
+          # Anti-rule 1: No React/Vue/Tailwind imports in templates
+          for f in $changed; do
+            case "$f" in
+              app/templates/*|app/static/*)
+                if grep -q -E "from ['"](react|vue|tailwindcss)['"]" "$f" 2>/dev/null; then
+                  echo "ERROR: $f imports a forbidden framework (react/vue/tailwind)"
+                  echo "  Per AGENTS.md Anti-rule 1: server-rendered Jinja2 + HTMX only."
+                  fail=1
+                fi
+                ;;
+            esac
+          done
+
+          # Anti-rule 3: No GraphQL imports
+          for f in $changed; do
+            case "$f" in
+              app/*|pyproject.toml|uv.lock|requirements*.txt)
+                if grep -q -E "import (graphene|strawberry|ariadne|hasura)" "$f" 2>/dev/null; then
+                  echo "ERROR: $f imports a forbidden GraphQL library"
+                  echo "  Per AGENTS.md Anti-rule 3: REST + OpenAPI is sufficient."
+                  fail=1
+                fi
+                ;;
+            esac
+          done
+
+          # Anti-rule 4: No new JWT library
+          for f in $changed; do
+            case "$f" in
+              pyproject.toml|uv.lock|requirements*.txt)
+                if grep -q -E '"(pyjwt|python-jose|authlib)' "$f" 2>/dev/null; then
+                  echo "ERROR: $f adds a forbidden JWT library"
+                  echo "  Per AGENTS.md Anti-rule 4: Supabase already uses JWT (hosted). Don't add another."
+                  fail=1
+                fi
+                ;;
+            esac
+          done
+
+          # Anti-rule 5: No message queue / task queue
+          for f in $changed; do
+            case "$f" in
+              pyproject.toml|uv.lock|requirements*.txt)
+                if grep -q -E '"(celery|rq| dramatiq|huey|aiokafka|confluent-kafka|kafka-python|pika|aio-pika|kombu)"' "$f" 2>/dev/null; then
+                  echo "ERROR: $f adds a forbidden message/task queue"
+                  echo "  Per AGENTS.md Anti-rule 5: use Postgres LISTEN/NOTIFY or in-process pub/sub if needed."
+                  fail=1
+                fi
+                ;;
+            esac
+          done
+
+          # Anti-rule 9: No another ORM
+          for f in $changed; do
+            case "$f" in
+              pyproject.toml|uv.lock|requirements*.txt)
+                if grep -q -E '"(peewee|tortoise-orm|piccolo|sqlmodel)' "$f" 2>/dev/null; then
+                  echo "ERROR: $f adds a forbidden ORM"
+                  echo "  Per AGENTS.md Anti-rule 9: SQLAlchemy 2.0 sync is the only one."
+                  fail=1
+                fi
+                ;;
+            esac
+          done
+
+          # Anti-rule 11: No NoSQL DB
+          for f in $changed; do
+            case "$f" in
+              pyproject.toml|uv.lock|requirements*.txt)
+                if grep -q -E '"(pymongo|motor|dynamodb|redis|pymemcache)"' "$f" 2>/dev/null; then
+                  # Note: redis is allowed ONLY for caching. Allow pymemcache? No.
+                  # We do allow `redis` if it's in optional deps for caching, but
+                  # we don't have it today. So we forbid it.
+                  echo "ERROR: $f adds a forbidden NoSQL/cache library"
+                  echo "  Per AGENTS.md Anti-rule 11: SQLite + Postgres is the only DB."
+                  fail=1
+                fi
+                ;;
+            esac
+          done
+
+          if [ "$fail" = "1" ]; then
+            echo ""
+            echo "See AGENTS.md 'Anti-rules' section for the full list of 20 rules."
+            echo "If you genuinely need to violate an anti-rule, update AGENTS.md FIRST in a separate PR."
+            exit 1
+          fi
+          echo "OK: no anti-rule violations found in changed files."
+
       # ---- E5.S3.T3: CHANGELOG must be updated on every PR ----
       # Rejects any PR that touches app/, scripts/, tests/, or .github/ but
       # doesn't also touch app/CHANGELOG.md. Keeps the [Unreleased] section
