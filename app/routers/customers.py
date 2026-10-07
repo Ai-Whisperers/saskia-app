@@ -1259,13 +1259,16 @@ async def cliente_redeem_points(
     )
 
 
-@router.get("/{customer_id}/editar", response_class=HTMLResponse)
-def cliente_edit(
+def _render_cliente_edit(
     request: Request,
-    customer_id: int = Path(...),
-    session: Session = Depends(get_session),
+    session: Session,
+    customer_id: int,
+    form_values: dict | None = None,
+    form_error: str = "",
 ) -> object:
-    """Edit form for an existing customer."""
+    """Render the cliente_editar.html form. Used by both the GET handler
+    and the POST handler on validation failure (P3.1) so the user`s
+    typed values are preserved."""
     customer = session.get(Customer, customer_id)
     if customer is None:
         return StarletteRedirectResponse(url="/clientes", status_code=303)
@@ -1312,8 +1315,22 @@ def cliente_edit(
             "invoice_profiles": invoice_profiles,
             "how_found_options": sorted(ALLOWED_HOW_FOUND),
             "channel_options": sorted(ALLOWED_CHANNELS),
+            # P3.1: preserve user-typed values + show a visible error
+            # when server-side validation rejects the POST.
+            "form_values": form_values,
+            "form_error": form_error,
         },
     )
+
+
+@router.get("/{customer_id}/editar", response_class=HTMLResponse)
+def cliente_edit(
+    request: Request,
+    customer_id: int = Path(...),
+    session: Session = Depends(get_session),
+) -> object:
+    """Edit form for an existing customer."""
+    return _render_cliente_edit(request, session, customer_id)
 
 
 @router.post("/api/{customer_id}/addresses", response_class=JSONResponse)
@@ -1419,8 +1436,10 @@ def cliente_update(
     invoice_name: str = Form(""),
     invoice_ruc: str = Form(""),
     session: Session = Depends(get_session),
-) -> RedirectResponse:
-    """Update an existing customer's fields."""
+) -> object:  # type: ignore[return-value]
+    """Update an existing customer's fields. On validation failure
+    (P3.1) re-renders the form with the user's typed values + a visible
+    error rather than raising HTTPException 400."""
     from app.rms.validation import (
         optional_text,
         require_text,
@@ -1432,10 +1451,48 @@ def cliente_update(
     customer = session.get(Customer, customer_id)
     if customer is None:
         return RedirectResponse(url="/clientes", status_code=303)
-    customer.name = require_text(name, field="nombre", max_len=120)
-    customer.phone = validate_phone(phone)
-    customer.email = validate_email(email)
-    customer.cedula = validate_cedula(cedula)
+
+    # Snapshot the user's typed values BEFORE validation runs so we can
+    # re-render the form on failure. P3.1.
+    form_values = {
+        "name": name,
+        "phone": phone,
+        "email": email,
+        "cedula": cedula,
+        "notes": notes,
+        "birthday": birthday,
+        "how_found": how_found,
+        "preferred_channel": preferred_channel,
+        "marketing_consent": marketing_consent,
+        "invoice_name": invoice_name,
+        "invoice_ruc": invoice_ruc,
+    }
+
+    from fastapi import HTTPException as _HE
+
+    def _fail(msg: str):  # noqa: ANN202 — raises HTTPException; FastAPI infers
+        """Roll back, re-render the form with values + error."""
+        session.rollback()
+        return _render_cliente_edit(
+            request, session, customer_id, form_values=form_values, form_error=msg
+        )
+
+    try:
+        customer.name = require_text(name, field="nombre", max_len=120)
+    except _HE:
+        return _fail("El nombre es obligatorio y no puede estar vacío.")
+    try:
+        customer.phone = validate_phone(phone)
+    except _HE as exc:
+        return _fail(f"Teléfono inválido: {exc.detail}")
+    try:
+        customer.email = validate_email(email)
+    except _HE as exc:
+        return _fail(f"Email inválido: {exc.detail}")
+    try:
+        customer.cedula = validate_cedula(cedula)
+    except _HE as exc:
+        return _fail(f"Cédula inválida: {exc.detail}")
     customer.notes = optional_text(notes, max_len=2000)
 
     # P3 dietary profile: restrictions (canonical tags, cleaned), ordered

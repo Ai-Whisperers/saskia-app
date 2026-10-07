@@ -80,6 +80,8 @@ from app.rms.migrations._108_sale_tip import _migration_108_sale_tip
 from app.rms.migrations._109_menu_ejecutivo import _migration_109_menu_ejecutivo
 from app.rms.migrations._110_held_sale import _migration_110_held_sale
 from app.rms.migrations._111_sale_channel_check import _migration_111_sale_channel_check
+from app.rms.migrations._112_extended_channel_check import _migration_112_extended_channel_check
+from app.rms.migrations._113_shopping_price_snapshot import _migration_113_shopping_price_snapshot
 from app.rms.models.channels import Channel
 
 
@@ -1859,6 +1861,13 @@ def _migration_041_channel_catalog(conn: Any) -> None:
         (Channel.WHATSAPP.value, "WhatsApp", 30, False),
         (Channel.PEDIDOSYA.value, "PedidosYa", 40, False),
         (Channel.MONCHIS.value, "Monchis", 50, False),
+        # SASKIA-204 (2026-10-07): HEREBUS channels. Added in
+        # migration 112 to surface silent skew where 9 of 346 sales
+        # were collapsing to "mostrador" via the import fallback.
+        (Channel.RETAIL.value, "Retail", 70, False),
+        (Channel.WHOLESALE.value, "Mayorista", 80, False),
+        (Channel.DISTRIBUTOR.value, "Distribuidor", 90, False),
+        (Channel.EVENTUAL.value, "Eventual", 100, False),
         (Channel.OTHER.value, "Otro", 60, False),
     ]
     for code, label, sort, is_default in channels:
@@ -2744,7 +2753,7 @@ def _migration_060_tag_normalization(conn: Any) -> None:
             iid, name = r
             try:
                 tags = infer_dietary_tags(name or "")
-            except Exception:
+            except Exception:  # noqa: S112
                 continue
             new_value = _to_canonical_m60(",".join(tags)) if tags else None
             # SELECT prior value to skip no-op writes (Postgres triggers fire
@@ -3010,7 +3019,7 @@ def _migration_067_pedido_public_token_expiry(conn: Any) -> None:
                     # Fallback: try the most common SQLite format.
                     from datetime import datetime as _dt2
 
-                    parsed = _dt2.strptime(normalized, "%Y-%m-%d %H:%M:%S")
+                    parsed = _dt2.strptime(normalized, "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007
                 expires = parsed + _td(days=30)
             else:
                 expires = created + _td(days=30)
@@ -4258,6 +4267,8 @@ MIGRATIONS = {
     109: _migration_109_menu_ejecutivo,
     110: _migration_110_held_sale,
     111: _migration_111_sale_channel_check,
+    112: _migration_112_extended_channel_check,
+    113: _migration_113_shopping_price_snapshot,
 }
 
 
@@ -4374,9 +4385,7 @@ def _current_schema_version(conn: Any) -> int:
     """
     import json as _json
 
-    row = conn.execute(
-        text("SELECT value FROM app_meta WHERE key = 'schema_version'")
-    ).first()
+    row = conn.execute(text("SELECT value FROM app_meta WHERE key = 'schema_version'")).first()
     if row is None:
         return 0
     val = row[0]
@@ -4399,7 +4408,7 @@ def _current_schema_version(conn: Any) -> int:
 # On Render/VPS this is ephemeral (reboots wipe it) — for permanent
 # backups, the daily 03:15 cron pushes to R2. This dir is a safety
 # net for "I just made a change and want to roll back RIGHT NOW".
-PRE_MIGRATION_BACKUP_DIR = "/tmp/sazon-backups"
+PRE_MIGRATION_BACKUP_DIR = "/tmp/sazon-backups"  # noqa: S108
 
 
 def _backup_dir_path() -> "Path":
@@ -4643,9 +4652,7 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
                 to_version=current + 1,
             )
             if backup_path is not None:
-                logger.info(
-                    f"Pre-migration backup written: {backup_path}"
-                )
+                logger.info(f"Pre-migration backup written: {backup_path}")
         except Exception as backup_exc:
             # Fail-closed: a bad backup should stop the migration
             # unless the operator has explicitly opted into degraded

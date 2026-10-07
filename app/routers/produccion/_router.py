@@ -13,6 +13,7 @@ test_produccion_package_split URL-surface assertions that grep
 the single router's `routes` attribute). Sharing one instance
 keeps the contract intact.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends

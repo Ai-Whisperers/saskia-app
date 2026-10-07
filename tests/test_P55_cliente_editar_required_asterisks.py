@@ -9,6 +9,7 @@ Acceptance:
     in its label.
   - At least one label uses a <span class='required'> child (or sibling).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -31,15 +32,13 @@ def test_cliente_editar_required_label_asterisks(client, session_factory):
     body = r.text
 
     # There must be at least one .required span (for the 'name' field).
-    assert 'class="required"' in body, (
-        "expected <span class='required'> in at least one label"
-    )
+    assert 'class="required"' in body, "expected <span class='required'> in at least one label"
     # The name label should include the asterisk.
     # The label is `<label for="name">Nombre</label>` and the input
     # has aria-required="true" — so the visual <span> must be near it.
     name_label_idx = body.find('<label for="name">')
     assert name_label_idx > 0
-    nearby = body[name_label_idx:name_label_idx + 200]
+    nearby = body[name_label_idx : name_label_idx + 200]
     assert "required" in nearby, (
         f"expected 'required' marker near the 'name' label; got: {nearby[:200]}"
     )

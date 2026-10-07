@@ -11,6 +11,7 @@ Acceptance:
     re-renders the form, preserves the user's typed values, and shows
     a visible error message.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -51,11 +52,8 @@ def test_cliente_editar_re_renders_on_validation_error(client, session_factory):
     assert "+595 991 555 555" in body or "595 991 555 555" in body, (
         "expected the typed phone to be preserved in the re-rendered form"
     )
-    assert "test note" in body, (
-        "expected the typed notes to be preserved"
-    )
+    assert "test note" in body, "expected the typed notes to be preserved"
     # A visible error about name being required.
-    assert (
-        "nombre" in body.lower()
-        and ("obligatorio" in body.lower() or "required" in body.lower())
+    assert "nombre" in body.lower() and (
+        "obligatorio" in body.lower() or "required" in body.lower()
     ), "expected an error message about nombre being required"

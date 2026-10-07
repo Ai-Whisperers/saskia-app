@@ -5,6 +5,7 @@ The /inventario list supports a multi-select `estado` filter with values
 (never loaded), `sinprecio` (no price), `ok` (healthy), and as of Phase 1
 T-4 `sobre_stock` (overstocked — stock > max_stock_qty).
 """
+
 from app.rms.models import Ingredient
 
 
@@ -21,9 +22,7 @@ def test_inventario_filter_sobre_stock_renders(client):
     """T-4 — 'Sobre-stock' option must appear in the estado filter panel."""
     r = client.get("/inventario")
     assert r.status_code == 200
-    assert "Sobre-stock" in r.text, (
-        "T-4 missing: 'Sobre-stock' filter chip not in /inventario"
-    )
+    assert "Sobre-stock" in r.text, "T-4 missing: 'Sobre-stock' filter chip not in /inventario"
     # The value attribute too (in the checkbox)
     assert 'value="sobre_stock"' in r.text, (
         "T-4 missing: estado=sobre_stock checkbox not in /inventario"

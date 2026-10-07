@@ -31,9 +31,11 @@ Torta de Cumpleaños,120000,Pastelería
 
 
 def _names(s: Session) -> set[str]:
-    return {p.name for p in s.scalars(Product.__table__.select())} if False else {
-        p.name for p in s.query(Product).all()
-    }
+    return (
+        {p.name for p in s.scalars(Product.__table__.select())}
+        if False
+        else {p.name for p in s.query(Product).all()}
+    )
 
 
 def test_dry_run_touches_nothing(pizzeria_session):

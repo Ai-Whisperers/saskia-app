@@ -13,6 +13,7 @@ Acceptance:
   - The bulk-generate button has a data attribute marking it for
     consolidation (e.g., data-consolidate='by-supplier').
 """
+
 from __future__ import annotations
 
 import re
@@ -29,8 +30,12 @@ def test_reorder_bulk_button_has_consolidate_attr(client, session_factory):
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
         make_ingredient(
-            s, name=f"consol-{uuid.uuid4().hex[:8]}", unit="kg",
-            stock_qty=0.5, min_stock_qty=5.0, purchase_price_gs=4500,
+            s,
+            name=f"consol-{uuid.uuid4().hex[:8]}",
+            unit="kg",
+            stock_qty=0.5,
+            min_stock_qty=5.0,
+            purchase_price_gs=4500,
         )
         s.commit()
     finally:
@@ -41,9 +46,7 @@ def test_reorder_bulk_button_has_consolidate_attr(client, session_factory):
     body = r.text
 
     # The button is multiline so we use DOTALL.
-    btn_match = re.search(
-        r'<button[^>]*id="generate-po-btn"[^>]*>', body, re.DOTALL
-    )
+    btn_match = re.search(r'<button[^>]*id="generate-po-btn"[^>]*>', body, re.DOTALL)
     assert btn_match, "no generate-po-btn in /reorder"
     btn_html = btn_match.group(0)
 
@@ -51,4 +54,3 @@ def test_reorder_bulk_button_has_consolidate_attr(client, session_factory):
     assert "data-consolidate" in btn_html, (
         f"expected data-consolidate attribute on bulk-generate button: {btn_html[:200]}"
     )
-

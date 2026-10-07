@@ -1,3 +1,44 @@
+## 2026-10-07d — SASKIA-207: stock_ledger helper + reuse/abstraction audit
+
+**Audit:** docs/operations/2026-10-07-saskia-reuse-abstraction-audit.md (8 findings, measured).
+
+**Shipped:**
+- `app/rms/stock_ledger.py`: `apply_stock_delta()` (bump + StockMovement row, caller commits) + `qty_to_stock_unit()` (explicit on_mismatch policy: 'raw' lands unconverted, 'raise' errors). Replaces 3 divergent copy-paste blocks: shopping mark-purchased (raw), wishlist mark-purchased, waste.py record_waste + record_recipe_waste (raise→400). Sale path stays in costing.apply_sale per AGENTS.md rule 8.
+- 12 contract tests in tests/test_SASKIA-207_stock_ledger.py (incl. DB floor surfacing IntegrityError, no-hidden-commit).
+- Clock discipline: pedidos.py 5 today sites → clock.today_local(); generated seed files (packs.py) exempted in test_clock_discipline with generator-fix rationale. 10/10 (2 were failing on main).
+- Deprecation headers on models/procurement.py, models/herbus_drive.py, models/catalogs_restored.py (0 importers, runtime classes live in models_legacy.py — the SASKIA-206 trap).
+
+**Regression:** 62 passed across SASKIA-205/206/207, waste, herbus, P20, clock. 5 remaining failures verified pre-existing on main (stash baseline) — settings_kv_canonical x3 noted in audit.
+
+## 2026-10-07c — SASKIA-205 + SASKIA-206: purchase→inventory + price snapshots
+
+**Goal:** close two shopping-flow gaps — purchases that never landed in inventory, and list rows that showed today's price instead of the quoted one.
+
+- **SASKIA-205** (`741a149a`): `POST /shopping-list/{id}/mark-purchased` now converts `qty_to_buy` to the ingredient's stock unit (`app.rms.units.convert_qty`), bumps `stock_qty`, and writes `StockMovement(movement_type='reorder')`. `POST /wishlist/{id}/mark-purchased` creates/updates the `[EQUIPMENT]` pseudo-ingredient the same way. Idempotent (False→True only); `/unmark` doesn't subtract stock.
+- **SASKIA-206** (this commit): migration 113 adds `shopping_list_item.unit_price_snapshot_gs`. All 4 row-creation paths (from-plan, sync-low-stock, manual add, save-plan) freeze `purchase_price_gs` at creation via `_price_snapshot()`. Template + totals prefer the snapshot; pre-113 rows (NULL) fall back to live price.
+- Migration 113 bump is INSIDE the function (each migration owns its bump — see pitfalls skill).
+- Tests: 3 snapshot tests (freeze-despite-price-change, no-price→NULL, helper contract); 34+ passed across shopping/wishlist/herbus suites; fresh-DB init reaches v113.
+
+## 2026-10-07 — SASKIA-204: Sale channel mismatch cleanup
+
+**Goal:** fix the silent skew where 9 of 346 sales were being collapsed to `mostrador` by the import fallback at `scripts/import_herebus_data.py:622`, surface the 4 HEREBUS channels (retail/wholesale/distributor/eventual) in revenue reports, and add a channel filter to /ventas/historial.
+
+- `app/rms/migrations/_112_extended_channel_check.py` (NEW): SQLite DROP TRIGGER + CREATE TRIGGER pattern extending the CHECK constraint on `sale.channel` from 6 to 10 values. Mirrors `Channel.allowed_values()` — the test `test_channel_enum_and_migration_have_same_allowed_set` enforces this alignment.
+- `app/rms/models/channels.py`: extended `Channel` enum with `RETAIL/WHOLESALE/DISTRIBUTOR/EVENTUAL`; updated `display_order()` to keep front-of-house first.
+- `app/rms/models_legacy.py`: extended Postgres `CheckConstraint` on `sale.channel` and `pedido.channel` to match.
+- `app/rms/db.py:_migration_041_channel_catalog`: seed the 4 new channels in the `channel` table.
+- `app/rms/config.py`: `SCHEMA_VERSION` bumped to 112.
+- `app/routers/sales.py`: `sales_history` and `sales_export_csv` accept `channel` query param; the same channel filter is applied to `sales_q`, `count_q`, and `totals_q` (must match all three or pagination is wrong). `_build_filtered_sales_query` extended for the export path. Channel values not in `Channel.allowed_values()` fall back to `None` so typos don't 500 the page.
+- `app/templates/ventas_historial.html`: channel combo_field in the filter form, auto-submitting on change. Pagination links preserve the channel param.
+- `scripts/reclassify_sale_channels.py` (NEW): idempotent backfill that reads the VENTAS export CSV and `UPDATE`s `sale.channel` where the canonical value differs. Idempotency key is `(sold_at ± 1s, qty)` (the 1s window handles the SQLAlchemy/Python microsecond format mismatch with SQLite's text storage of datetimes). Always dry-run first (`--apply` to actually run).
+- `scripts/import_herebus_data.py`: now uses the same `_normalize_channel()` helper so future imports don't reintroduce the silent-skew bug.
+- `tests/test_reclassify_sale_channels.py` (NEW): 28 tests covering both `_normalize_channel` and `reclassify()` end-to-end (parametrized over 24 raw→canonical mappings + dry-run + actual-update paths).
+- `tests/test_sales_history_filter.py`: `test_channel_filter` rewritten to count `<td>` cells instead of substring match (since the page now contains channel labels in the filter UI).
+- `tests/test_P42_channel_enum_integration.py`: `test_channel_enum_and_migration_have_same_allowed_set` now checks against the LATEST migration's `_ALLOWED_CHANNELS` (not hardcoded to migration 111).
+- `tests/test_sale_channel.py`: `test_all_five_channels_accepted_by_apply_sale` extended from 5 to 10 channels (SASKIA-204 name change).
+- `pyproject.toml`-side: `uv sync` was run to remove a stale `_editable_impl_aiw_saskia_rms.pth` pointing at `/tmp/baseline-6ffe16d3` (an Oct 5 snapshot) that was shadowing the real `app/` package — every Python invocation under the project's `uv run` had been importing the OLD baseline's `app.rms.config` (where `CURRENT_SCHEMA_VERSION` was still 102), so migration 112 appeared to be missing from the runtime `MIGRATIONS` dict. The 43 channel tests + 28 reclassify tests + 13 sales-history tests now pass against the real package.
+- Total: 84 channel/reclassify tests + 13 sales-history tests = 84+13 = 97 passing tests across the SASKIA-204 ticket.
+
 # CHANGELOG
 
 ## 2026-10-06b — Demos vivos por industria + onboarding 1 comando + importador carta

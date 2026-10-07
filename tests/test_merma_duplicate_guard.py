@@ -5,6 +5,7 @@ Prevents accidental double-submit by returning 409 if the same
 last 60 seconds. The response carries an X-Saskia-Duplicate-Of header
 with the existing event id so the client can surface it.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -100,6 +101,7 @@ def test_different_reason_not_blocked(authed_client, session_factory):
 def test_duplicate_window_expires(authed_client, session_factory):
     """An identical submit AFTER the 60s window succeeds."""
     from app.rms.models import WasteLog
+
     with session_factory() as s:
         ing = Ingredient(name="DupGuard Expired Ing", unit="kg", stock_qty=5.0, min_stock_qty=1.0)
         s.add(ing)
@@ -110,7 +112,12 @@ def test_duplicate_window_expires(authed_client, session_factory):
 
     # Rewind the recorded_at of the existing event so it's outside the window.
     with session_factory() as s:
-        prev = s.query(WasteLog).filter(WasteLog.ingredient_id == ing_id).order_by(WasteLog.recorded_at.desc()).first()
+        prev = (
+            s.query(WasteLog)
+            .filter(WasteLog.ingredient_id == ing_id)
+            .order_by(WasteLog.recorded_at.desc())
+            .first()
+        )
         prev.recorded_at = datetime.now(timezone.utc) - timedelta(seconds=120)
         s.commit()
 
@@ -130,5 +137,7 @@ def test_409_response_message_in_spanish(authed_client, session_factory):
     assert r.status_code == 409
     # body is JSON {"detail": "..."}
     body = r.json()
-    assert "Ya registraste" in body["detail"], f"Expected Spanish 'Ya registraste' in detail, got: {body}"
+    assert "Ya registraste" in body["detail"], (
+        f"Expected Spanish 'Ya registraste' in detail, got: {body}"
+    )
     assert "id=#" in body["detail"], f"Expected id reference, got: {body}"

@@ -14,6 +14,7 @@ Routes (9 POSTs):
   POST /produccion/close-day/reopen    - reopen a closed day
   POST /produccion/ad-hoc/bulk         - bulk paste-CSV for ad-hoc rows
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
@@ -168,10 +169,14 @@ def produccion_copy_last_week(
         if r.qty_to_produce <= 0:
             continue
         # Find existing override for (product, target) to know old_qty
-        prior = session.query(ProductionPlanOverride).filter(
-            ProductionPlanOverride.product_id == r.product_id,
-            ProductionPlanOverride.for_date == target,
-        ).one_or_none()
+        prior = (
+            session.query(ProductionPlanOverride)
+            .filter(
+                ProductionPlanOverride.product_id == r.product_id,
+                ProductionPlanOverride.for_date == target,
+            )
+            .one_or_none()
+        )
         old_qty = float(prior.qty) if prior is not None else None
         upsert_override(
             session,
@@ -1045,5 +1050,3 @@ async def produccion_ad_hoc_bulk(
 
 
 # --- PRO-01: weekly template ---
-
-

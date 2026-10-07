@@ -45,18 +45,58 @@ from app.rms.models.channels import Channel
 # --------------------------------------------------------------------------
 
 _FIRST = [
-    "Marta", "Ramón", "Lourdes", "Derlis", "Cándido", "Norma", "Blas",
-    "Mirian", "Carlos", "Édgar", "Rosa", "Hugo", "Lidia", "Ariel",
-    "Mirtha", "Óscar", "Perla", "Fernando", "Silvia", "Aníbal",
+    "Marta",
+    "Ramón",
+    "Lourdes",
+    "Derlis",
+    "Cándido",
+    "Norma",
+    "Blas",
+    "Mirian",
+    "Carlos",
+    "Édgar",
+    "Rosa",
+    "Hugo",
+    "Lidia",
+    "Ariel",
+    "Mirtha",
+    "Óscar",
+    "Perla",
+    "Fernando",
+    "Silvia",
+    "Aníbal",
 ]
 _LAST = [
-    "González", "Benítez", "Villalba", "Cáceres", "Acosta", "Ferreira",
-    "Ramírez", "Ortiz", "Mendoza", "Aguilar", "Franco", "Tapia",
-    "Ruiz Díaz", "Espínola", "Ojeda", "Sanabria", "Domínguez", "Galeano",
+    "González",
+    "Benítez",
+    "Villalba",
+    "Cáceres",
+    "Acosta",
+    "Ferreira",
+    "Ramírez",
+    "Ortiz",
+    "Mendoza",
+    "Aguilar",
+    "Franco",
+    "Tapia",
+    "Ruiz Díaz",
+    "Espínola",
+    "Ojeda",
+    "Sanabria",
+    "Domínguez",
+    "Galeano",
 ]
 _STREETS = [
-    "Palma", "Av. Mcal. López", "Av. España", "Chile", "Yegros",
-    "Sacramental", "Caaguazú", "Av. Sacramento", "Humaitá", "Benjamín Constant",
+    "Palma",
+    "Av. Mcal. López",
+    "Av. España",
+    "Chile",
+    "Yegros",
+    "Sacramental",
+    "Caaguazú",
+    "Av. Sacramento",
+    "Humaitá",
+    "Benjamín Constant",
 ]
 _NOTES = [
     "sin cebolla",
@@ -130,7 +170,9 @@ def seed_pack_demo(
             name=name,
             phone=f"+5959{rng.randint(71000000, 99999999)}",
             zone=rng.choice(["Centro", "Villa Aurelia", "Sajonia", "Manorá", "Lambaré"]),
-            preferred_channel=rng.choices(["whatsapp", "phone", "instagram"], weights=[70, 20, 10])[0],
+            preferred_channel=rng.choices(["whatsapp", "phone", "instagram"], weights=[70, 20, 10])[
+                0
+            ],
             marketing_consent=rng.random() < 0.6,
             created_at=now - timedelta(days=rng.randint(30, 200)),
         )
@@ -196,13 +238,21 @@ def seed_pack_demo(
     # "phone" traffic to Channel.OTHER.value so the demo seed still
     # exercises the same volume but with valid enum values.
     channels = [
-        Channel.WHATSAPP.value, Channel.WHATSAPP.value, Channel.WHATSAPP.value,
-        Channel.MOSTRADOR.value, Channel.OTHER.value, Channel.PEDIDOSYA.value,
+        Channel.WHATSAPP.value,
+        Channel.WHATSAPP.value,
+        Channel.WHATSAPP.value,
+        Channel.MOSTRADOR.value,
+        Channel.OTHER.value,
+        Channel.PEDIDOSYA.value,
     ]
     payments = ["efectivo", "efectivo", "qr", "transferencia", "tarjeta"]
     for _i in range(pedidos_total):
         age_days = rng.randint(1, days_of_history - 1)
-        promised = (now - timedelta(days=age_days)).date() if age_days > 2 else (now + timedelta(days=rng.randint(1, 3))).date()
+        promised = (
+            (now - timedelta(days=age_days)).date()
+            if age_days > 2
+            else (now + timedelta(days=rng.randint(1, 3))).date()
+        )
         cust = rng.choice(customers)
         if age_days <= 2:
             status = rng.choices(["pending", "confirmed", "ready"], weights=[30, 50, 20])[0]
@@ -213,8 +263,9 @@ def seed_pack_demo(
 
         token = _public_token(rng)
         while (
-            session.execute(select(Pedido.id).where(Pedido.public_token == token).limit(1))
-            .scalar_one_or_none()
+            session.execute(
+                select(Pedido.id).where(Pedido.public_token == token).limit(1)
+            ).scalar_one_or_none()
             is not None
         ):
             token = _public_token(rng)
@@ -264,6 +315,7 @@ def seed_pack_demo(
 # reseed: wipe tenant data and re-seed with a chosen pack (CLI / demo switch)
 # --------------------------------------------------------------------------
 
+
 def reseed_pack(session: Session, pack: str, *, days_of_history: int = 90) -> dict:
     """Reset the demo DB (ALL data) and seed ``pack`` with full demo life.
 
@@ -280,11 +332,16 @@ def reseed_pack(session: Session, pack: str, *, days_of_history: int = 90) -> di
     engine = session.get_bind()
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("PRAGMA foreign_keys = OFF"))
-        names = [r[0] for r in conn.execute(text(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-        ))]
+        names = [
+            r[0]
+            for r in conn.execute(
+                text(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+                )
+            )
+        ]
         for name in names:
-            conn.execute(text(f'DELETE FROM "{name}"'))
+            conn.execute(text(f'DELETE FROM "{name}"'))  # noqa: S608
         conn.execute(text("PRAGMA foreign_keys = ON"))
     session.expire_all()
 

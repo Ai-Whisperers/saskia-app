@@ -83,9 +83,7 @@ def parse_menu_image(image_bytes: bytes, *, mime: str = "image/jpeg") -> list[Me
         except (TypeError, ValueError):
             price_gs = None
         cat = it.get("category")
-        lines.append(
-            MenuLine(name=name, price_gs=price_gs, category=str(cat) if cat else None)
-        )
+        lines.append(MenuLine(name=name, price_gs=price_gs, category=str(cat) if cat else None))
     return lines
 
 

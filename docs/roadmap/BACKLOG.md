@@ -128,13 +128,13 @@
 | **BACKLOG #38** | Supabase RLS multi-tenant | ❌ TODO | operator | L | Tenant model exists; RLS not implemented |
 | **BACKLOG #39** | `/healthz/backup` + `/admin/backup` | ✅ Done | operator | — | Sprint 4.7; UptimeRobot 503s on stale backups |
 | **BACKLOG #40** | `/healthz/deps` Supabase + R2 + disk probes | ✅ Done | operator | — | Sprint 4.6; 90% alarm threshold |
-| **B.8** | Backup local AES-256 + cron diario | ❌ TODO | canonical | S (1d) | `auto_backup.py` exists; hook to EOD close needed |
+| **B.8** | Backup local AES-256 + cron diario | ✅ Done (2026-10-07) | canonical | S (1d) | `/admin/backup/cron` endpoint + `scripts/backup_cron.py` HTTP wrapper. Installs via `scripts/deploy.sh` step 5. 16 new tests, full backup suite 65/65. Runbook: `docs/operations/backup-cron.md`. Note: AES-256 encryption of the local file itself is still pending — current code only encrypts the R2 upload. |
 | **B.9** | `/suppliers/{id}/precios` price comparison | ✅ Done | canonical | S (1d) | app/routers/suppliers.py:246 (supplier_precios) + get_price_comparison wired |
 | **D.1** | Voseo/guaraní i18n | ➖ Deferred | canonical | — | only if bilingual client |
 | **D.2** | Modo alto contraste | ➖ Deferred | canonical | — | only if a11y complaint |
 | **D.3** | Cerrar features muertas (Customer.loyalty_points, Tenant scaffold, PriceHistory) | 🟡 partial | canonical | M | loyalty_points now real (BACKLOG #14); Tenant still scaffold; PriceHistory now writes (BACKLOG #31) |
 | **D.4** | AI-driven demanda por hora/producto | ❌ TODO | canonical | XL | 6,177 sale_stock_move rows are training data |
-| **D.5** | Backup AES-256 con DNI-derived password + restore test mensual | 🟡 partial | canonical | M | R2 retention shipped; password derivation + monthly test pending |
+| **D.5** | Backup AES-256 con DNI-derived password + restore test mensual | 🟡 partial (encryption done 2026-10-07; monthly test TODO) | canonical | M | `app/services/backup_crypto.py` (AES-256-GCM + PBKDF2-SHA256-600k + versioned header) wired into `app/services/backup_scheduler.py:338-490`. 32 new tests, backup suite 97/97. DNI file at `/etc/sazon/backup-dni` (USB stick recommended). Runbook: `docs/operations/backup-cron.md#d.5--dni-derived-backup-encryption`. Remaining: monthly restore test cron + Argon2id (rejected for now — no new deps per AGENTS.md rule 26). |
 | **D.6** | `/riesgos` flag-gated v0.5 | ✅ Done | canonical | M | app/routers/herebus.py:222 (risks_router) + riesgos.html template (12 risks seeded) |
 | **D.7** | Glossary + Loom en `/guia` | ➖ Deferred | canonical | — | low priority |
 

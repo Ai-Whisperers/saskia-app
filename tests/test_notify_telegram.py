@@ -116,9 +116,7 @@ def test_hook_mirrors_error_and_returns_event(monkeypatch):
         "level": "error",
         "event_id": "abc123",
         "release": "test@1",
-        "exception": {
-            "values": [{"type": "ValueError", "value": "algo reventó"}]
-        },
+        "exception": {"values": [{"type": "ValueError", "value": "algo reventó"}]},
         "request": {"url": "https://x.test/ventas"},
         "fingerprint": ["ValueError"],
     }

@@ -110,8 +110,11 @@
       <td>{{ item.unit }}</td>
       <td><small>{{ item.purpose_text or '' }}</small></td>
       <td class="num"><strong>
-        {% if item.ingredient.purchase_price_gs %}
-          {{ m.gs((item.ingredient.purchase_price_gs or 0) * (item.qty_to_buy or 0))|int }}
+        {# SASKIA-206: prefer the price frozen when the row was created;
+           fall back to the live ingredient price for pre-113 rows. #}
+        {% set _unit_price = item.unit_price_snapshot_gs if item.unit_price_snapshot_gs is not none else (item.ingredient.purchase_price_gs if item.ingredient else none) %}
+        {% if _unit_price %}
+          {{ m.gs((_unit_price or 0) * (item.qty_to_buy or 0))|int }}
         {% else %}—{% endif %}
       </strong></td>
       <td>

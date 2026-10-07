@@ -94,14 +94,11 @@ def apply_sale(
     if packaging_item_id is not None:
         if packaging_qty is None or packaging_qty <= 0:
             raise ValueError(
-                f"packaging_qty must be > 0 when packaging_item_id is set, "
-                f"got {packaging_qty!r}"
+                f"packaging_qty must be > 0 when packaging_item_id is set, got {packaging_qty!r}"
             )
         packaging_item = session.get(Ingredient, packaging_item_id)
         if packaging_item is None:
-            raise ValueError(
-                f"Packaging ingredient {packaging_item_id} not found"
-            )
+            raise ValueError(f"Packaging ingredient {packaging_item_id} not found")
         if not packaging_item.is_packaging:
             raise ValueError(
                 f"Ingredient {packaging_item_id} ({packaging_item.name!r}) is "
@@ -109,16 +106,16 @@ def apply_sale(
                 f"ingredient first."
             )
     elif packaging_qty is not None and packaging_qty > 0:
-        raise ValueError(
-            f"packaging_qty={packaging_qty} was set without packaging_item_id"
-        )
+        raise ValueError(f"packaging_qty={packaging_qty} was set without packaging_item_id")
 
     product = session.get(Product, product_id)
     if product is None:
         raise ValueError(f"Product {product_id} not found")
 
     # Snapshot price at sale time
-    unit_price_gs = unit_price_gs_override if unit_price_gs_override is not None else product.sale_price_gs
+    unit_price_gs = (
+        unit_price_gs_override if unit_price_gs_override is not None else product.sale_price_gs
+    )
     total_price_gs = to_int_gs(Decimal(str(qty)) * Decimal(str(unit_price_gs)))
 
     # Create sale row
@@ -312,9 +309,7 @@ def void_sale(
         from app.rms.eod_closed import eod_is_day_closed
 
         if eod_is_day_closed(session, sale_date):
-            raise ValueError(
-                f"void_after_eod_close:{sale_date.isoformat()}"
-            )
+            raise ValueError(f"void_after_eod_close:{sale_date.isoformat()}")
 
     restored: list[tuple[int, float]] = []
     # AGENTS.md hard rule: never use naive datetime.now() — always store UTC
@@ -362,7 +357,7 @@ def void_sale(
                 movement_type="sale",
                 qty=restored_qty,
                 reason=f"Anulación venta #{sale.id} (packaging)"
-                       + (f" — {reason}" if reason else ""),
+                + (f" — {reason}" if reason else ""),
                 reference_id=sale.id,
                 reference_type="sale",
                 recorded_at=now_utc,
@@ -379,12 +374,9 @@ __all__ = [
     "ApplySaleResult",
     "CostResult",
     "CycleInRecipeTree",
-    "ProductWithoutRecipe",
     "RecipeWithoutYield",
     "VoidSaleResult",
     "apply_sale",
-    "product_margin",
-    "product_unit_cost_gs",
     "recipe_batch_cost_gs",
     "recipe_unit_cost_gs",
     "resolve_line_target",
@@ -409,7 +401,10 @@ def batch_recipes_cost(
 
     recipe_ids = {r.id for r in recipes if r is not None}
     if not recipe_ids:
-        return {r.id: (CostResult(batch_cost_gs=None, missing_ingredient_names=[]), None, 0) for r in recipes}
+        return {
+            r.id: (CostResult(batch_cost_gs=None, missing_ingredient_names=[]), None, 0)
+            for r in recipes
+        }
 
     # Pre-load Recipe + lines + ingredients in 3 queries.
     session.scalars(select(Recipe).where(Recipe.id.in_(recipe_ids))).all()
@@ -420,24 +415,14 @@ def batch_recipes_cost(
     for ln in all_lines:
         line_counts[ln.recipe_id] = line_counts.get(ln.recipe_id, 0) + 1
 
-    ingredient_ids = {
-        ln.line_ref_id for ln in all_lines if ln.line_kind == "ingredient"
-    }
-    sub_recipe_ids = {
-        ln.line_ref_id for ln in all_lines if ln.line_kind == "sub_recipe"
-    }
+    ingredient_ids = {ln.line_ref_id for ln in all_lines if ln.line_kind == "ingredient"}
+    sub_recipe_ids = {ln.line_ref_id for ln in all_lines if ln.line_kind == "sub_recipe"}
     if ingredient_ids:
-        session.scalars(
-            select(Ingredient).where(Ingredient.id.in_(ingredient_ids))
-        ).all()
+        session.scalars(select(Ingredient).where(Ingredient.id.in_(ingredient_ids))).all()
     if sub_recipe_ids:
-        sub_recipes = session.scalars(
-            select(Recipe).where(Recipe.id.in_(sub_recipe_ids))
-        ).all()
+        sub_recipes = session.scalars(select(Recipe).where(Recipe.id.in_(sub_recipe_ids))).all()
         new_recipe_ids = {sr.id for sr in sub_recipes}
-        session.scalars(
-            select(RecipeLine).where(RecipeLine.recipe_id.in_(new_recipe_ids))
-        ).all()
+        session.scalars(select(RecipeLine).where(RecipeLine.recipe_id.in_(new_recipe_ids))).all()
 
     out: dict[int, tuple[CostResult, CostResult | None, int]] = {}
     for r in recipes:

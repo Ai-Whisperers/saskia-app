@@ -52,9 +52,7 @@ def _requested_from_form(form: object) -> list[tuple[int, int]]:
 
 
 @router.get("", response_class=HTMLResponse)
-def form_page(
-    request: Request, session: Session = Depends(get_session)
-) -> HTMLResponse:
+def form_page(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     return render(
         request,
         "cotizador.html",
@@ -63,9 +61,7 @@ def form_page(
 
 
 @router.post("", response_class=HTMLResponse)
-async def quote_page(
-    request: Request, session: Session = Depends(get_session)
-) -> HTMLResponse:
+async def quote_page(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     await verify_form_csrf(request)
     form = await request.form()
     requested = _requested_from_form(form)
@@ -89,9 +85,7 @@ async def quote_page(
 
 
 @router.post("/pdf")
-async def quote_pdf(
-    request: Request, session: Session = Depends(get_session)
-) -> RedirectResponse:
+async def quote_pdf(request: Request, session: Session = Depends(get_session)) -> RedirectResponse:
     await verify_form_csrf(request)
     form = await request.form()
     requested = _requested_from_form(form)
@@ -117,8 +111,12 @@ async def quote_pdf(
 
     buf = BytesIO()
     doc = SimpleDocTemplate(
-        buf, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm,
-        topMargin=2 * cm, bottomMargin=2 * cm,
+        buf,
+        pagesize=A4,
+        leftMargin=2 * cm,
+        rightMargin=2 * cm,
+        topMargin=2 * cm,
+        bottomMargin=2 * cm,
     )
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=14, spaceAfter=12)
@@ -126,20 +124,26 @@ async def quote_pdf(
     data: list[list[str]] = [["Producto", "Cantidad", "Precio carta", "Costo"]]
     for it in quote.items:
         cost = f"Gs {it.line_cost_gs:,.0f}" if it.line_cost_gs is not None else "s/costear"
-        data.append([
-            it.product_name,
-            f"{it.qty} × {it.portion_label}",
-            f"Gs {it.line_menu_gs:,.0f}",
-            cost,
-        ])
+        data.append(
+            [
+                it.product_name,
+                f"{it.qty} × {it.portion_label}",
+                f"Gs {it.line_menu_gs:,.0f}",
+                cost,
+            ]
+        )
     data.append(["TOTAL", "", f"Gs {quote.total_menu_gs:,.0f}", ""])
     table = Table(data, colWidths=[6 * cm, 4 * cm, 3.5 * cm, 3.5 * cm])
-    table.setStyle(TableStyle([
-        ("GRID", (0, 0), (-1, -1), 0.4, rl["colors"].grey),
-        ("BACKGROUND", (0, 0), (-1, 0), rl["colors"].lightgrey),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-    ]))
+    table.setStyle(
+        TableStyle(
+            [
+                ("GRID", (0, 0), (-1, -1), 0.4, rl["colors"].grey),
+                ("BACKGROUND", (0, 0), (-1, 0), rl["colors"].lightgrey),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+            ]
+        )
+    )
     elements.append(table)
     doc.build(elements)
     return Response(

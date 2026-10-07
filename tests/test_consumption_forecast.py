@@ -46,13 +46,15 @@ def test_consumption_forecast_basic(session_factory):
     # Seed 3 days of consumption: -10 units each day = -30 total
     now = datetime.now(timezone.utc)
     for day_offset in range(3):
-        session.add(StockMovement(
-            ingredient_id=ing_id,
-            qty=-10.0,
-            movement_type="sale",
-            reference_type="sale",
-            recorded_at=now - timedelta(days=day_offset),
-        ))
+        session.add(
+            StockMovement(
+                ingredient_id=ing_id,
+                qty=-10.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now - timedelta(days=day_offset),
+            )
+        )
     session.commit()
     session.close()
 
@@ -101,13 +103,15 @@ def test_consumption_forecast_predicted_stockout(session_factory):
     # High consumption: -1kg/day × 7 days = -7 total over 30-day window
     now = datetime.now(timezone.utc)
     for day_offset in range(7):
-        session.add(StockMovement(
-            ingredient_id=ing_id,
-            qty=-1.0,
-            movement_type="sale",
-            reference_type="sale",
-            recorded_at=now - timedelta(days=day_offset),
-        ))
+        session.add(
+            StockMovement(
+                ingredient_id=ing_id,
+                qty=-1.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now - timedelta(days=day_offset),
+            )
+        )
     session.commit()
     session.close()
 
@@ -148,13 +152,15 @@ def test_consumption_forecast_imminent_stockout(session_factory):
     # -1kg/day × 7 days = -7 over 30 days = 0.23/day
     now = datetime.now(timezone.utc)
     for day_offset in range(7):
-        session.add(StockMovement(
-            ingredient_id=ing_id,
-            qty=-1.0,
-            movement_type="sale",
-            reference_type="sale",
-            recorded_at=now - timedelta(days=day_offset),
-        ))
+        session.add(
+            StockMovement(
+                ingredient_id=ing_id,
+                qty=-1.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now - timedelta(days=day_offset),
+            )
+        )
     session.commit()
     session.close()
 
@@ -188,13 +194,15 @@ def test_consumption_forecast_only_incoming_movement_excluded(session_factory):
     # Seed only incoming (reorder) movements — NOT consumption
     now = datetime.now(timezone.utc)
     for day_offset in range(5):
-        session.add(StockMovement(
-            ingredient_id=ing_id,
-            qty=+20.0,  # Positive = incoming
-            movement_type="reorder",  # Not sale
-            reference_type="po",
-            recorded_at=now - timedelta(days=day_offset),
-        ))
+        session.add(
+            StockMovement(
+                ingredient_id=ing_id,
+                qty=+20.0,  # Positive = incoming
+                movement_type="reorder",  # Not sale
+                reference_type="po",
+                recorded_at=now - timedelta(days=day_offset),
+            )
+        )
     session.commit()
     session.close()
 
@@ -216,14 +224,24 @@ def test_consumption_forecast_filter_by_ingredient(session_factory):
     session.commit()
 
     now = datetime.now(timezone.utc)
-    session.add_all([
-        StockMovement(ingredient_id=ing1.id, qty=-2.0,
-                      movement_type="sale", reference_type="sale",
-                      recorded_at=now),
-        StockMovement(ingredient_id=ing2.id, qty=-5.0,
-                      movement_type="sale", reference_type="sale",
-                      recorded_at=now),
-    ])
+    session.add_all(
+        [
+            StockMovement(
+                ingredient_id=ing1.id,
+                qty=-2.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now,
+            ),
+            StockMovement(
+                ingredient_id=ing2.id,
+                qty=-5.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now,
+            ),
+        ]
+    )
     session.commit()
     ing1_id = ing1.id
     session.close()
@@ -251,14 +269,24 @@ def test_consumption_forecast_sort_by_urgency(session_factory):
     now = datetime.now(timezone.utc)
     # Urgent: -5/day → stockout in ~0.2 days
     # Safe: -0.5/day → stockout in 200 days
-    session.add_all([
-        StockMovement(ingredient_id=urgent.id, qty=-5.0,
-                      movement_type="sale", reference_type="sale",
-                      recorded_at=now - timedelta(days=1)),
-        StockMovement(ingredient_id=safe.id, qty=-0.5,
-                      movement_type="sale", reference_type="sale",
-                      recorded_at=now - timedelta(days=1)),
-    ])
+    session.add_all(
+        [
+            StockMovement(
+                ingredient_id=urgent.id,
+                qty=-5.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now - timedelta(days=1),
+            ),
+            StockMovement(
+                ingredient_id=safe.id,
+                qty=-0.5,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now - timedelta(days=1),
+            ),
+        ]
+    )
     session.commit()
     session.close()
 
@@ -288,13 +316,15 @@ def test_consumption_forecast_safety_factor(session_factory):
     now = datetime.now(timezone.utc)
     # -3/day consumption
     for day_offset in range(3):
-        session.add(StockMovement(
-            ingredient_id=ing_id,
-            qty=-1.0,
-            movement_type="sale",
-            reference_type="sale",
-            recorded_at=now - timedelta(days=day_offset),
-        ))
+        session.add(
+            StockMovement(
+                ingredient_id=ing_id,
+                qty=-1.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now - timedelta(days=day_offset),
+            )
+        )
     session.commit()
     session.close()
 
@@ -327,21 +357,25 @@ def test_consumption_forecast_outside_lookback(session_factory):
 
     now = datetime.now(timezone.utc)
     # Old movement (outside 30-day window)
-    session.add(StockMovement(
-        ingredient_id=ing_id,
-        qty=-10.0,
-        movement_type="sale",
-        reference_type="sale",
-        recorded_at=now - timedelta(days=60),  # 60 days ago
-    ))
+    session.add(
+        StockMovement(
+            ingredient_id=ing_id,
+            qty=-10.0,
+            movement_type="sale",
+            reference_type="sale",
+            recorded_at=now - timedelta(days=60),  # 60 days ago
+        )
+    )
     # Recent movement (within window)
-    session.add(StockMovement(
-        ingredient_id=ing_id,
-        qty=-5.0,
-        movement_type="sale",
-        reference_type="sale",
-        recorded_at=now - timedelta(days=5),  # 5 days ago
-    ))
+    session.add(
+        StockMovement(
+            ingredient_id=ing_id,
+            qty=-5.0,
+            movement_type="sale",
+            reference_type="sale",
+            recorded_at=now - timedelta(days=5),  # 5 days ago
+        )
+    )
     session.commit()
     session.close()
 
@@ -362,13 +396,15 @@ def test_consumption_forecast_dataclass_shape(session_factory):
     session.commit()
     ing_id = ingredient.id
 
-    session.add(StockMovement(
-        ingredient_id=ing_id,
-        qty=-3.0,
-        movement_type="sale",
-        reference_type="sale",
-        recorded_at=datetime.now(timezone.utc),
-    ))
+    session.add(
+        StockMovement(
+            ingredient_id=ing_id,
+            qty=-3.0,
+            movement_type="sale",
+            reference_type="sale",
+            recorded_at=datetime.now(timezone.utc),
+        )
+    )
     session.commit()
     session.close()
 

@@ -75,26 +75,29 @@ def test_guia_glosario_has_20_terms(client):
     assert h3_count >= 20, f"Expected ≥20 glossary terms, got {h3_count}"
 
 
-@pytest.mark.parametrize("term", [
-    "Escandallo",
-    "Merma",
-    "Food cost",
-    "Receta técnica",
-    "Stock",
-    "Cierre diario",
-    "Arqueo de caja",
-    "Producción",
-    "Pedido",
-    "Comprobante",
-    "SKU",
-    "Migración",
-    "Backup",
-    "CSRF",
-    "Auditoría",
-    "Health check",
-    "Schema version",
-    "Token público",
-])
+@pytest.mark.parametrize(
+    "term",
+    [
+        "Escandallo",
+        "Merma",
+        "Food cost",
+        "Receta técnica",
+        "Stock",
+        "Cierre diario",
+        "Arqueo de caja",
+        "Producción",
+        "Pedido",
+        "Comprobante",
+        "SKU",
+        "Migración",
+        "Backup",
+        "CSRF",
+        "Auditoría",
+        "Health check",
+        "Schema version",
+        "Token público",
+    ],
+)
 def test_guia_glosario_contains_term(client, term):
     """Each key bakery/technical term is defined in the glossary."""
     resp = client.get("/guia/glosario")

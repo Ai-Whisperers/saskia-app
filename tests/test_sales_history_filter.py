@@ -2,14 +2,24 @@
 
 Tests T-2: channel + payment_method filters on /ventas history.
 """
+
 from datetime import datetime
 
 from tests.factories import make_customer, make_product
 
 
-def _seed_sale(session, customer_id, product_id, qty=1.0, price=15000, channel="mostrador", payment_method="efectivo"):
+def _seed_sale(
+    session,
+    customer_id,
+    product_id,
+    qty=1.0,
+    price=15000,
+    channel="mostrador",
+    payment_method="efectivo",
+):
     """Create a test sale with optional channel/payment method."""
     from app.rms.models import Sale
+
     sale = Sale(
         product_id=product_id,
         customer_id=customer_id,
@@ -25,7 +35,19 @@ def _seed_sale(session, customer_id, product_id, qty=1.0, price=15000, channel="
 
 
 def test_channel_filter(client, session_factory):
-    """Test filtering sales by channel."""
+    """Test filtering sales by channel.
+
+    SASKIA-204 (2026-10-07): the test asserts that filtering by one
+    channel excludes sales of OTHER channels. With the channel combo
+    now in the UI (which renders the label "WhatsApp"), we can't
+    just check `assert "whatsapp" not in r.text` because the page
+    itself contains the label. Instead, count rows in the sales
+    table — exactly 1 sale should be shown when filtering by
+    "mostrador" and there are 2 seeded sales (one mostrador, one
+    whatsapp).
+    """
+    import re
+
     with session_factory() as s:
         c = make_customer(s, name="Test Channel")
         p = make_product(s, name="Producto Canal")
@@ -33,14 +55,18 @@ def test_channel_filter(client, session_factory):
 
         # Create sales with different channels
         _seed_sale(s, c.id, p.id, channel="mostrador", payment_method="efectivo")
-        _seed_sale(s, c.id, p.id, channel="delivery", payment_method="tarjeta")
+        _seed_sale(s, c.id, p.id, channel="whatsapp", payment_method="tarjeta")
         s.commit()
 
         # Test filtering by channel
         r = client.get("/ventas/historial?channel=mostrador")
         assert r.status_code == 200
-        assert "mostrador" in r.text
-        assert "delivery" not in r.text
+        # Count channel cells in the rendered table — the template
+        # wraps each sale's channel in a <td> element.
+        mostrador_cells = re.findall(r"<td[^>]*>mostrador</td>", r.text)
+        whatsapp_cells = re.findall(r"<td[^>]*>whatsapp</td>", r.text)
+        assert len(mostrador_cells) >= 1, "Expected the mostrador sale to appear"
+        assert len(whatsapp_cells) == 0, "Expected the whatsapp sale to be filtered out"
 
 
 def test_payment_method_filter(client, session_factory):
@@ -83,7 +109,7 @@ def test_combined_filter(client, session_factory):
 
         # Create sales with different combinations
         _sale1 = _seed_sale(s, c.id, p.id, channel="mostrador", payment_method="efectivo")
-        _sale2 = _seed_sale(s, c.id, p.id, channel="delivery", payment_method="tarjeta")
+        _sale2 = _seed_sale(s, c.id, p.id, channel="whatsapp", payment_method="tarjeta")
         _sale3 = _seed_sale(s, c.id, p.id, channel="mostrador", payment_method="tarjeta")
         s.commit()
 

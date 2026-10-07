@@ -370,19 +370,14 @@ def _top_products_by_velocity(
     if not rows:
         return []
     product_ids = [r.product_id for r in rows]
-    products = list(
-        session.scalars(select(Product).where(Product.id.in_(product_ids))).all()
-    )
+    products = list(session.scalars(select(Product).where(Product.id.in_(product_ids))).all())
     products_by_id: dict[int, Product] = {p.id: p for p in products}
     # Pre-fetch recipes for batch_count (1 query, even if 0 products have recipes).
     recipe_ids = {p.recipe_id for p in products if p.recipe_id is not None}
     recipes_by_id: dict[int, Recipe] = {}
     if recipe_ids:
         recipes_by_id = {
-            r.id: r
-            for r in session.scalars(
-                select(Recipe).where(Recipe.id.in_(recipe_ids))
-            ).all()
+            r.id: r for r in session.scalars(select(Recipe).where(Recipe.id.in_(recipe_ids))).all()
         }
     DEFAULT_YIELD = 10
     result: list[tuple[Product, float]] = []

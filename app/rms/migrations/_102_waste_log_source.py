@@ -12,6 +12,7 @@ AuditLog join that /merma and /auditoria were doing on every read.
 
 Test: tests/test_waste_log_source_denormalized.py (9 cases).
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -23,25 +24,18 @@ def _migration_102_waste_log_source(conn: Any) -> None:
     """waste_log.source denormalization: ADD COLUMN + index + backfill (PROD-MERMA-2)."""
     try:
         conn.execute(
-            text(
-                "ALTER TABLE waste_log ADD COLUMN source VARCHAR(32) "
-                "NOT NULL DEFAULT 'manual'"
-            )
+            text("ALTER TABLE waste_log ADD COLUMN source VARCHAR(32) NOT NULL DEFAULT 'manual'")
         )
     except Exception:
         pass
     try:
-        conn.execute(
-            text("CREATE INDEX IF NOT EXISTS ix_waste_log_source ON waste_log(source)")
-        )
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_waste_log_source ON waste_log(source)"))
     except Exception:
         pass
     # Defensive backfill (NOT NULL DEFAULT covers new rows, but pre-existing
     # rows on a DB where the column was added without default could be NULL).
     try:
-        conn.execute(
-            text("UPDATE waste_log SET source = 'manual' WHERE source IS NULL")
-        )
+        conn.execute(text("UPDATE waste_log SET source = 'manual' WHERE source IS NULL"))
     except Exception:
         pass
 

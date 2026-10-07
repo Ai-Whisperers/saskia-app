@@ -19,6 +19,7 @@ Fixes shipped in this batch:
      --color-text-muted on the page background (invisible). Use the
      same info-soft style as the new empty-state card.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -93,28 +94,28 @@ class TestHeroStatsNoDataCopy:
     or 'Sin datos' when there are no plan rows."""
 
     def test_hero_stat_zero_has_placeholder(self):
-            """When the day has no plan, the hero stats must NOT show literal '0'
-            or '0%'. Either they show 'Sin plan' / 'Sin datos' OR they're
-            hidden entirely. The stats are rendered in the included
-            _components/hero_stats.html partial, so check there."""
-            partial = (
-                Path(__file__).resolve().parents[1]
-                / "app"
-                / "templates"
-                / "_components"
-                / "hero_stats.html"
-            ).read_text()
-            assert any(
-                token in partial
-                for token in [
-                    "Sin plan",
-                    "Sin datos",
-                    "sin lote",
-                    "sin pedidos hoy",
-                    "—",  # em-dash placeholder
-                    'day_productos_count > 0',
-                ]
-            ), "hero stats still use raw {{ day_productos_count }} with no placeholder"
+        """When the day has no plan, the hero stats must NOT show literal '0'
+        or '0%'. Either they show 'Sin plan' / 'Sin datos' OR they're
+        hidden entirely. The stats are rendered in the included
+        _components/hero_stats.html partial, so check there."""
+        partial = (
+            Path(__file__).resolve().parents[1]
+            / "app"
+            / "templates"
+            / "_components"
+            / "hero_stats.html"
+        ).read_text()
+        assert any(
+            token in partial
+            for token in [
+                "Sin plan",
+                "Sin datos",
+                "sin lote",
+                "sin pedidos hoy",
+                "—",  # em-dash placeholder
+                "day_productos_count > 0",
+            ]
+        ), "hero stats still use raw {{ day_productos_count }} with no placeholder"
 
 
 class TestComoSeCalculaContrast:

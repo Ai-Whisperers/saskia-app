@@ -87,8 +87,8 @@ def _check_supabase_reachable(url: str, timeout: float = 2.0) -> dict[str, Any]:
 
     t0 = _time.monotonic()
     try:
-        req = urllib.request.Request(health, method="GET")
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        req = urllib.request.Request(health, method="GET")  # noqa: S310
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
             latency_ms = int((_time.monotonic() - t0) * 1000)
             ok = 200 <= resp.status < 300
             return {
@@ -248,9 +248,7 @@ def healthz_depth(request: Request) -> JSONResponse:
             "total_bytes": int(usage.total),
             "used_pct": round(100.0 * usage.used / usage.total, 1) if usage.total else 0.0,
         }
-    except (
-        Exception
-    ) as disk_exc:  # pragma: no cover - defensive
+    except Exception as disk_exc:  # pragma: no cover - defensive
         disk = {"ok": False, "error": repr(disk_exc), "path": str(DATA_DIR)}
 
     # --- r2 (best-effort HEAD probe; 3s timeout) ---
@@ -264,8 +262,8 @@ def healthz_depth(request: Request) -> JSONResponse:
             # URL comes from R2_BUCKET_URL env var, which is operator-
             # configured. We trust the operator. The probe is read-only
             # (HEAD request) with a 3s timeout.
-            req = urllib.request.Request(r2_url, method="HEAD")
-            with urllib.request.urlopen(req, timeout=3) as resp:
+            req = urllib.request.Request(r2_url, method="HEAD")  # noqa: S310
+            with urllib.request.urlopen(req, timeout=3) as resp:  # noqa: S310
                 r2["status"] = resp.status
                 r2["ok"] = 200 <= resp.status < 400
         except Exception as r2_exc:
@@ -429,7 +427,7 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
     # --- Disk usage ---
     # The app stores DB + state under this root. On VPS: /opt/data.
     # On dev boxes: /tmp. Report on whatever exists.
-    disk_root = "/opt/data" if os.path.isdir("/opt/data") else "/tmp"
+    disk_root = "/opt/data" if os.path.isdir("/opt/data") else "/tmp"  # noqa: S108
     try:
         usage = _disk_usage(disk_root)
         total_gb = usage.total / (1024**3)
@@ -982,16 +980,11 @@ def api_smoke_waste_source_mix(request: Request) -> JSONResponse:
             content={"status": "error", "error": str(exc)[:500]},
         )
 
-    mix = {
-        str(r[0]): {"n_events": int(r[1]), "cost_gs": int(r[2])}
-        for r in rows
-    }
+    mix = {str(r[0]): {"n_events": int(r[1]), "cost_gs": int(r[2])} for r in rows}
     # Total + share for the dashboard without recomputing.
     n_total = sum(v["n_events"] for v in mix.values())
     n_production = mix.get("production", {}).get("n_events", 0)
-    share_production = (
-        round(100.0 * n_production / n_total, 1) if n_total else 0.0
-    )
+    share_production = round(100.0 * n_production / n_total, 1) if n_total else 0.0
     return JSONResponse(
         status_code=200,
         content={
@@ -1191,6 +1184,104 @@ def admin_backup(request: Request) -> object:
             content={"error": "backup_failed", "detail": str(exc)[:500]},
         )
 
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "backup_complete",
+            "local_path": str(result.local_path) if result.local_path else None,
+            "r2_uploaded": result.r2_uploaded,
+            "r2_key": result.r2_key,
+            "local_pruned": result.local_pruned,
+            "skipped": result.skipped,
+            "reason": result.reason,
+        },
+    )
+
+
+@router.post("/admin/backup/cron")
+def admin_backup_cron(request: Request) -> object:
+    """B.8 (BACKLOG #39): host-level cron trigger for run_backup().
+
+    The lifespan hook in app/rms/main.py runs run_backup() on app
+    startup. That works for short deploys but a container that's been
+    up for 30 days only backs up once. This endpoint lets a host-level
+    cron job (`0 3 * * * curl -X POST -H "X-Cron-Token:
+    $SASKIA_CRON_BACKUP_TOKEN" https://.../admin/backup/cron`) trigger
+    a backup on a fixed daily schedule independent of deploys.
+
+    Auth: shared secret in `SASKIA_CRON_BACKUP_TOKEN` env var. The
+    token is checked with `hmac.compare_digest` to avoid timing
+    oracles. Missing token in env → 503 (fail closed so a misconfigured
+    deploy doesn't accept empty tokens). Missing header → 401. Wrong
+    token → 401 with a generic error (no token-guessing oracle).
+
+    The endpoint runs _run_backup_admin() synchronously so the cron
+    wrapper script sees a final status in the response body (no
+    polling needed). Returns the same JSON shape as /admin/backup.
+
+    Exit-code contract for the cron wrapper (see scripts/backup_cron.py):
+    - 200 → success (skipped=True is also success; the wrapper logs it
+      and exits 0)
+    - 401/503 → config error, do not retry, alert the operator
+    - 500 → backup raised; the wrapper exits 2 so monitoring can fire
+
+    Setting up:
+    1. Generate a token: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+    2. Put it in /etc/sazon/cron-backup.env: `SASKIA_CRON_BACKUP_TOKEN=<token>`
+    3. Source that env in the crontab, then curl this endpoint
+       (see docs/operations/backup-cron.md for the full crontab line).
+    """
+    import hmac
+    import os
+
+    expected = os.getenv("SASKIA_CRON_BACKUP_TOKEN")
+    if not expected:
+        # Fail closed: never accept empty token, even if the request
+        # forgot to send the header. A 503 lets monitoring distinguish
+        # "you forgot to set the env var" from "the request is bad".
+        logger.error("admin_backup_cron: SASKIA_CRON_BACKUP_TOKEN not set in env")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "cron_token_unconfigured",
+                "hint": (
+                    "Set SASKIA_CRON_BACKUP_TOKEN in the app's env "
+                    "(see docs/operations/backup-cron.md)."
+                ),
+            },
+        )
+
+    # Read the X-Cron-Token header. Request.headers is case-insensitive
+    # in Starlette so "X-Cron-Token" / "x-cron-token" both work.
+    provided = request.headers.get("X-Cron-Token", "")
+    if not provided:
+        return JSONResponse(
+            status_code=401,
+            content={"error": "missing_cron_token"},
+        )
+
+    # compare_digest is constant-time, avoiding the timing oracle
+    # that == would create.
+    if not hmac.compare_digest(provided, expected):
+        return JSONResponse(
+            status_code=401,
+            content={"error": "invalid_cron_token"},
+        )
+
+    try:
+        result = _run_backup_admin(request)
+    except Exception as exc:
+        logger.exception("admin_backup_cron failed")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "backup_failed", "detail": str(exc)[:500]},
+        )
+
+    logger.info(
+        f"admin_backup_cron: status=complete "
+        f"skipped={result.skipped} r2_uploaded={result.r2_uploaded} "
+        f"local_pruned={result.local_pruned}"
+    )
     return JSONResponse(
         status_code=200,
         content={

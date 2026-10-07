@@ -166,7 +166,7 @@ def count_models(session: Session) -> dict[str, int]:
     for model in [Ingredient, Recipe, Product, Sale, Customer, AuditLog]:
         out[model.__tablename__] = (
             session.execute(
-                text(f"SELECT COUNT(*) FROM {model.__tablename__}")
+                text(f"SELECT COUNT(*) FROM {model.__tablename__}")  # noqa: S608
             ).scalar()
             or 0
         )

@@ -9,6 +9,7 @@ Acceptance:
   - The bulk form's action attribute is /reorder/generate-po OR a
     similar endpoint that supports undo.
 """
+
 from __future__ import annotations
 
 import re
@@ -24,8 +25,12 @@ def test_reorder_bulk_button_has_undo_attr(client, session_factory):
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
         make_ingredient(
-            s, name=f"undo-{uuid.uuid4().hex[:8]}", unit="kg",
-            stock_qty=0.5, min_stock_qty=5.0, purchase_price_gs=4500,
+            s,
+            name=f"undo-{uuid.uuid4().hex[:8]}",
+            unit="kg",
+            stock_qty=0.5,
+            min_stock_qty=5.0,
+            purchase_price_gs=4500,
         )
         s.commit()
     finally:
@@ -35,9 +40,7 @@ def test_reorder_bulk_button_has_undo_attr(client, session_factory):
     assert r.status_code == 200
     body = r.text
 
-    btn_match = re.search(
-        r'<button[^>]*id="generate-po-btn"[^>]*>', body, re.DOTALL
-    )
+    btn_match = re.search(r'<button[^>]*id="generate-po-btn"[^>]*>', body, re.DOTALL)
     assert btn_match, "no generate-po-btn"
     btn_html = btn_match.group(0)
 

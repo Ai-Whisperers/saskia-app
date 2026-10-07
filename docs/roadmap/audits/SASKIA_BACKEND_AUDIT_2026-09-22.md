@@ -220,7 +220,7 @@ This violates the AGENTS.md hard rule "No other integer-cast for money is allowe
   ```python
   conn.execute(
       text("UPDATE app_meta SET value = \\'26\\', updated_at = :ts WHERE key = \\'schema_version\\'"),
-      ...
+      ...,
   )
   ```
   The backslashes in the f-string produce literal backslashes in the SQL — `SET value = \'26\''` is not valid SQL. The `text()` constructor doesn't strip the escape characters because they're inside the SQL, not the string literal. The migration will fail.

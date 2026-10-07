@@ -11,6 +11,7 @@ Conventions:
   `from app.routers.produccion import source_to_bucket` still works.
 - Constants are namespaced with the helper that uses them most.
 """
+
 from __future__ import annotations
 
 import math
@@ -44,10 +45,10 @@ FORECAST_SOURCE_LABELS = {
 # UI shows a single colored badge + a 4-row legend below the table.
 SOURCE_BUCKETS = {
     # Order matters — it defines the legend order top-to-bottom.
-    "receta":        "Sugerido por receta / plantilla",
-    "historial":     "Calculado de las últimas ventas",
-    "override":      "Ajuste manual del panadero",
-    "horneado-extra":"Horneado extra (no estaba en el plan)",
+    "receta": "Sugerido por receta / plantilla",
+    "historial": "Calculado de las últimas ventas",
+    "override": "Ajuste manual del panadero",
+    "horneado-extra": "Horneado extra (no estaba en el plan)",
 }
 
 # PRODUCCION-V3 Phase 2: 5-band confidence explanation.
@@ -55,11 +56,15 @@ SOURCE_BUCKETS = {
 # The pill on the row is replaced with a `?` help link that opens
 # the modal — the modal explains what the bands mean.
 CONFIDENCE_BANDS = [
-    ("Muy baja",  "0–24% · muy pocos días con datos — revisá y ajustá manualmente", "conf-vlow"),
-    ("Baja",      "25–49% · algunos datos, pero la sugerencia es tentativa",         "conf-low"),
-    ("Media",     "50–69% · datos suficientes, pero conviene revisar antes de hornear", "conf-med"),
-    ("Alta",      "70–84% · buenas ventas y muchos días de datos — usá como base",   "conf-high"),
-    ("Muy alta",  "85–100% · dato muy sólido — la sugerencia refleja lo que vas a vender", "conf-vhigh"),
+    ("Muy baja", "0–24% · muy pocos días con datos — revisá y ajustá manualmente", "conf-vlow"),
+    ("Baja", "25–49% · algunos datos, pero la sugerencia es tentativa", "conf-low"),
+    ("Media", "50–69% · datos suficientes, pero conviene revisar antes de hornear", "conf-med"),
+    ("Alta", "70–84% · buenas ventas y muchos días de datos — usá como base", "conf-high"),
+    (
+        "Muy alta",
+        "85–100% · dato muy sólido — la sugerencia refleja lo que vas a vender",
+        "conf-vhigh",
+    ),
 ]
 FORECAST_SOURCE_HELP = {
     "rolling_14d_avg": "Calculado del promedio de ventas de los últimos 14 días",
@@ -79,6 +84,7 @@ DEFAULT_BAKE_START_HOUR = 6  # 06:00
 # ──────────────────────────────────────────────────────────────────
 #  Pure helpers
 # ──────────────────────────────────────────────────────────────────
+
 
 def source_to_bucket(forecast_source: str | None, is_ad_hoc: bool = False) -> str:
     """Map a row's forecast_source to one of the 4 design buckets.

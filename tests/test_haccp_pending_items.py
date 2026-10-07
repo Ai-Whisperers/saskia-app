@@ -14,6 +14,7 @@ where HaccpPendingItem = (location, weight) and weight is:
 
 This is a pure refactor of the data + a small template change.
 """
+
 from __future__ import annotations
 
 from app.routers.produccion.analytics import (

@@ -86,8 +86,12 @@ def _load_rows(csv_text: str) -> list[MenuRow]:
     rows: list[MenuRow] = []
     for raw in reader:
         keys = {(_norm(k) or ""): k for k in raw.keys() if k}
-        name_key = next((keys[k] for k in ("nombre", "producto", "product", "name", "item") if k in keys), None)
-        price_key = next((keys[k] for k in ("precio", "price", "precio gs", "precio_gs") if k in keys), None)
+        name_key = next(
+            (keys[k] for k in ("nombre", "producto", "product", "name", "item") if k in keys), None
+        )
+        price_key = next(
+            (keys[k] for k in ("precio", "price", "precio gs", "precio_gs") if k in keys), None
+        )
         cat_key = next((keys[k] for k in ("categoria", "category", "rubro") if k in keys), None)
         if not name_key or not (raw.get(name_key) or "").strip():
             continue

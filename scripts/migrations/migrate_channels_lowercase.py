@@ -11,6 +11,7 @@ pedidos.py / sales.py and will be correct from the next save onward.
 Usage:
     ssh root@38.9.96.179 'docker exec -t saskia-vps_web.1.<taskid> python /tmp/migrate_channels_lowercase.py'
 """
+
 import sqlite3
 
 DB_PATH = "/data/rms.sqlite"
@@ -20,12 +21,10 @@ def main() -> int:
     db = sqlite3.connect(DB_PATH)
     cur = db.cursor()
     changed_pedido = cur.execute(
-        "UPDATE pedido SET channel = LOWER(channel) "
-        "WHERE channel != LOWER(channel)"
+        "UPDATE pedido SET channel = LOWER(channel) WHERE channel != LOWER(channel)"
     ).rowcount
     changed_sale = cur.execute(
-        "UPDATE sale SET channel = LOWER(channel) "
-        "WHERE channel != LOWER(channel)"
+        "UPDATE sale SET channel = LOWER(channel) WHERE channel != LOWER(channel)"
     ).rowcount
     db.commit()
     print(f"pedido rows updated: {changed_pedido}")

@@ -16,6 +16,7 @@ We test the operator script's contract:
    REFUSE (exit 2), not silently append 29 NEW products.
 3. Running seed_sazon on a FRESH empty DB is idempotent at the row level.
 """
+
 from __future__ import annotations
 
 import os
@@ -97,6 +98,7 @@ def test_seed_script_refuses_on_existing_user_data(tmp_path):
     # Run the operator script — must refuse (exit 2)
     import subprocess
     import sys as _sys
+
     env = {**os.environ, "AIW_SASKIA_DB_PATH": str(db_path)}
     # Use the same Python that's running this test (which has app.* deps)
     proc = subprocess.run(
@@ -111,9 +113,7 @@ def test_seed_script_refuses_on_existing_user_data(tmp_path):
         f"{proc.returncode}.\nstdout: {proc.stdout}\nstderr: {proc.stderr}"
     )
     combined = proc.stdout + proc.stderr
-    assert "REFUSE" in combined, (
-        f"script must print REFUSE message, got: {combined}"
-    )
+    assert "REFUSE" in combined, f"script must print REFUSE message, got: {combined}"
 
 
 def test_seed_sazon_idempotent_in_empty_db(tmp_path):
@@ -130,8 +130,10 @@ def test_seed_sazon_idempotent_in_empty_db(tmp_path):
     try:
         from app.rms.db import make_engine, make_session_factory
         from app.rms.seed import seed_sazon
+
         engine = make_engine(f"sqlite:///{db_path}")
         from app.rms.models import Base  # type: ignore
+
         try:
             Base.metadata.create_all(engine)
         except Exception:
@@ -145,13 +147,10 @@ def test_seed_sazon_idempotent_in_empty_db(tmp_path):
         s2 = SessionLocal()
         try:
             from sqlalchemy import text
-            n_after_first = s2.execute(
-                text("SELECT COUNT(*) FROM product")
-            ).scalar()
+
+            n_after_first = s2.execute(text("SELECT COUNT(*) FROM product")).scalar()
             seed_sazon(s2, overwrite=False)
-            n_after_second = s2.execute(
-                text("SELECT COUNT(*) FROM product")
-            ).scalar()
+            n_after_second = s2.execute(text("SELECT COUNT(*) FROM product")).scalar()
         finally:
             s2.close()
         assert n_after_first == n_after_second, (

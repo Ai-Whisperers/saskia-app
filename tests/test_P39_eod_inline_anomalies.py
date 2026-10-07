@@ -13,6 +13,7 @@ Acceptance:
     count, OR a "Sin anomalías" success state.
   - A link to /eod/anomalies (or similar route) is present.
 """
+
 from __future__ import annotations
 
 
@@ -24,9 +25,7 @@ def test_eod_has_inline_anomaly_summary(client):
 
     # Anomaly text in the body.
     has_anomaly_text = (
-        "anomalía" in body.lower()
-        or "anomalia" in body.lower()
-        or "sin anomalías" in body.lower()
+        "anomalía" in body.lower() or "anomalia" in body.lower() or "sin anomalías" in body.lower()
     )
     assert has_anomaly_text, (
         "expected anomaly summary text on /eod (e.g. '3 anomalías' or 'Sin anomalías')"
@@ -35,10 +34,6 @@ def test_eod_has_inline_anomaly_summary(client):
     # A link to the anomalies page or a count of detected anomalies.
     # We accept any of these:
     has_link = (
-        "/eod/anomalies" in body
-        or "id=\"eod-anomaly-count\"" in body
-        or "data-eod-anomalies" in body
+        "/eod/anomalies" in body or 'id="eod-anomaly-count"' in body or "data-eod-anomalies" in body
     )
-    assert has_link, (
-        "expected a link to /eod/anomalies or a count element on /eod"
-    )
+    assert has_link, "expected a link to /eod/anomalies or a count element on /eod"

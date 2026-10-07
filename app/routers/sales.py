@@ -138,6 +138,10 @@ def _build_sales_context(
     offset: int | None,
     session: Session,
     fav: bool = False,
+    # SASKIA-204 (2026-10-07): channel filter for /ventas/historial.
+    # Accepts any Channel enum value or None (no filter). Mismatches
+    # fall back to None to keep the page loading.
+    channel: str | None = None,
 ) -> dict:
     """Build the render context shared by /ventas and /ventas/historial.
 
@@ -174,11 +178,18 @@ def _build_sales_context(
                 )
             )
         )
+    # SASKIA-204 (2026-10-07): channel filter. Validates against
+    # Channel.allowed_values() — typos fall back to None so the
+    # page still loads (better than 500).
+    if channel and channel in Channel.allowed_values():
+        sales_q = sales_q.where(Sale.channel == channel)
 
     # Count total matching (for pagination has_more)
     count_q = select(func.count(Sale.id))
     if product_id is not None:
         count_q = count_q.where(Sale.product_id == product_id)
+    if channel and channel in Channel.allowed_values():
+        count_q = count_q.where(Sale.channel == channel)
     if days is not None and days > 0:
         cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
         count_q = count_q.where(Sale.sold_at >= cutoff)
@@ -212,6 +223,8 @@ def _build_sales_context(
     ).where(Sale.voided_at.is_(None))
     if product_id is not None:
         totals_q = totals_q.where(Sale.product_id == product_id)
+    if channel and channel in Channel.allowed_values():
+        totals_q = totals_q.where(Sale.channel == channel)
     if days is not None and days > 0:
         cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
         totals_q = totals_q.where(Sale.sold_at >= cutoff)
@@ -309,6 +322,7 @@ def _build_sales_context(
         product_low_stock_threshold,
         product_stock_ceiling,
     )
+
     stock_ceilings: dict[int, float | None] = {}
     stock_sold_out: dict[int, bool] = {}
     stock_low: dict[int, float | None] = {}
@@ -325,8 +339,7 @@ def _build_sales_context(
             "id": m["id"],
             "name": m["name"],
             "price_gs": m["price_gs"],
-            "items_summary": ", ".join(m["incluye"][:4])
-            + ("…" if len(m["incluye"]) > 4 else ""),
+            "items_summary": ", ".join(m["incluye"][:4]) + ("…" if len(m["incluye"]) > 4 else ""),
         }
         for m in menus_with_items(session)
     ]
@@ -361,6 +374,15 @@ def _build_sales_context(
             "avg_ticket_gs": int(total_gs / total_count) if total_count else 0,
             "filters": _filter_summary(q=q, product_id=product_id, days=days, products=products),
         },
+        # SASKIA-204 (2026-10-07): channel filter state for the
+        # template. `channel` is the raw selected value (or empty
+        # string), `channel_label` is what the combo displays when
+        # collapsed, `all_channels` is the display-ordered tuple of
+        # channel values from Channel.display_order() — the template
+        # maps them via a hardcoded label dict.
+        "channel": channel or "",
+        "channel_label": channel or "",
+        "all_channels": Channel.display_order(),
         "has_more": has_more,
         "current_offset": start_offset,
         "current_page_size": PAGE_SIZE,
@@ -435,6 +457,10 @@ async def sales_history(
     days: int | None = None,
     page: int | None = Query(None),
     offset: int | None = None,
+    # SASKIA-204 (2026-10-07): filter sales by channel. Accepts any
+    # Channel enum value; mismatches (typos, retired values) get the
+    # None fallback so the page still loads.
+    channel: str | None = None,
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Sales history (US 4.3 split).
@@ -458,6 +484,7 @@ async def sales_history(
         product_id=product_id,
         days=days,
         offset=computed_offset,
+        channel=channel,
     )
     # Derive pagination metadata and add to existing ctx (do NOT reassign ctx)
     total = ctx.get("total_count", 0)
@@ -502,6 +529,8 @@ def _build_filtered_sales_query(
     q: str | None,
     product_id: int | None,
     days: int | None,
+    # SASKIA-204 (2026-10-07): channel filter for the export.
+    channel: str | None = None,
 ) -> Select:
     """Build a Sale query applying the same filters as sales_list.
 
@@ -531,6 +560,10 @@ def _build_filtered_sales_query(
                 )
             )
         )
+    # SASKIA-204 (2026-10-07): channel filter. Same validation as
+    # _build_sales_context — typos fall back to None.
+    if channel and channel in Channel.allowed_values():
+        sales_q = sales_q.where(Sale.channel == channel)
     return sales_q
 
 
@@ -539,6 +572,9 @@ async def sales_export_csv(
     q: str | None = None,
     product_id: int | None = None,
     days: int | None = None,
+    # SASKIA-204 (2026-10-07): channel filter — operators exporting
+    # for IVA/accounting want to filter to one channel at a time.
+    channel: str | None = None,
     session: Session = Depends(get_session),
 ) -> Response:
     """CSV export of the sales history (matches the filters on /ventas).
@@ -547,7 +583,7 @@ async def sales_export_csv(
     Content-disposition: attachment so browsers download instead of
     rendering. UTF-8 BOM-prefixed so Excel opens it correctly in PY.
     """
-    sales_q = _build_filtered_sales_query(q=q, product_id=product_id, days=days)
+    sales_q = _build_filtered_sales_query(q=q, product_id=product_id, days=days, channel=channel)
     sales = session.scalars(sales_q).all()
 
     def _row_stream() -> Iterator[str]:
@@ -1205,9 +1241,10 @@ async def sale_create(
                 customer_id,
                 max(
                     0,
-                    int(_sale_row.qty * _sale_row.unit_price_gs)
-                    - int(_sale_row.discount_gs or 0),
-                ) if _sale_row is not None else 0,
+                    int(_sale_row.qty * _sale_row.unit_price_gs) - int(_sale_row.discount_gs or 0),
+                )
+                if _sale_row is not None
+                else 0,
                 sale_id=sale.sale_id,
                 note=f"Venta a fiado #{sale.sale_id}",
                 created_by=str(current_user_id(request) or "operator"),
@@ -1225,7 +1262,7 @@ async def sale_create(
     # the DELETE before the request returns).
     try:
         invalidate_demand_for_sale_today(session)
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     # Audit + rate-limit (writes only — read paths not counted).
@@ -1412,9 +1449,7 @@ async def sale_create_multi(
         if item.qty != int(item.qty):
             if item.product_id not in _weight_products:
                 _p = session.get(Product, item.product_id)
-                _weight_products[item.product_id] = bool(
-                    _p is not None and _p.sold_by_weight
-                )
+                _weight_products[item.product_id] = bool(_p is not None and _p.sold_by_weight)
             if not _weight_products[item.product_id]:
                 raise HTTPException(
                     status_code=400,
@@ -1599,11 +1634,7 @@ async def sale_create_multi(
             # the override is safe to persist.
             # WP-4.2: 0 explícito se honra (línea expandida de menú
             # ejecutivo sin precio propio). None → precio de catálogo.
-            unit_price = (
-                item.unit_price_gs
-                if item.unit_price_gs is not None
-                else catalog_price
-            )
+            unit_price = item.unit_price_gs if item.unit_price_gs is not None else catalog_price
 
             # All items in the cart share the same metadata (customer, payment, channel)
             # Phase 14 #20: discount math uses Decimal (NOT float) so a huge
@@ -1719,8 +1750,8 @@ async def sale_create_multi(
             # customer actually paid — what we earn on.
             rows = session.execute(select(_Sale).where(_Sale.id.in_(sale_ids))).scalars().all()
             net_paid_gs = sum(
-            max(0, int(r.qty * r.unit_price_gs) - int(r.discount_gs or 0)) for r in rows
-        )
+                max(0, int(r.qty * r.unit_price_gs) - int(r.discount_gs or 0)) for r in rows
+            )
             _award_points(
                 session,
                 cust,
@@ -1748,9 +1779,7 @@ async def sale_create_multi(
         from app.rms.models import Sale as _Sale
         from app.rms.models import SalePayment as _SalePayment
 
-        _rows = session.execute(
-            _select(_Sale).where(_Sale.id.in_(sale_ids))
-        ).scalars().all()
+        _rows = session.execute(_select(_Sale).where(_Sale.id.in_(sale_ids))).scalars().all()
         _cart_total = sum(
             max(0, int(r.qty * r.unit_price_gs) - int(r.discount_gs or 0)) for r in _rows
         )
@@ -1774,9 +1803,7 @@ async def sale_create_multi(
             # gets its own payment rows so void cascade cleans up cleanly.
             _remaining = dict(payments_plan)
             for _ri, _row in enumerate(_rows):
-                _row_total = max(
-                    0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0)
-                )
+                _row_total = max(0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0))
                 if _ri == 0:
                     _row_total += tip_gs  # propina viaja en la primera fila
                 _left = _row_total
@@ -1815,9 +1842,7 @@ async def sale_create_multi(
             # Uniform single row mirroring payment_method.
             _now = datetime.now(ASUNCION_TZ)
             for _ri, _row in enumerate(_rows):
-                _row_total = max(
-                    0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0)
-                )
+                _row_total = max(0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0))
                 if _ri == 0:
                     _row_total += tip_gs
                 if _row_total <= 0:
@@ -2255,15 +2280,18 @@ async def preflight_sale(
     today = datetime.now(ASUNCION_TZ).date()
     checklist = validate_sale_intent(session, intent, today=today)
 
-    def _serialize(w) -> dict:
+    def _serialize(w) -> dict:  # noqa: ANN001
         return {"code": w.code, "severity": w.severity, "message": w.message}
 
-    return JSONResponse({
-        "warnings": [_serialize(w) for w in checklist.warnings],
-        "blockers": [_serialize(w) for w in checklist.blockers],
-        "is_ready": checklist.is_ready,
-        "is_clean": checklist.is_clean,
-    })
+    return JSONResponse(
+        {
+            "warnings": [_serialize(w) for w in checklist.warnings],
+            "blockers": [_serialize(w) for w in checklist.blockers],
+            "is_ready": checklist.is_ready,
+            "is_clean": checklist.is_clean,
+        }
+    )
+
 
 # ---- Multi-line pre-billing checklist (cart) --------------------------
 #
@@ -2308,8 +2336,14 @@ async def preflight_sale_multi(
         body = await request.json()
     except Exception:
         return JSONResponse(
-            {"error": "Invalid JSON body", "warnings": [], "blockers": [],
-             "is_ready": False, "is_clean": False, "line_count": 0},
+            {
+                "error": "Invalid JSON body",
+                "warnings": [],
+                "blockers": [],
+                "is_ready": False,
+                "is_clean": False,
+                "line_count": 0,
+            },
             status_code=400,
         )
 
@@ -2330,15 +2364,17 @@ async def preflight_sale_multi(
         if not isinstance(item, dict):
             continue
         try:
-            lines.append(CartLine(
-                line_index=idx,
-                product_id=int(item.get("product_id", 0)),
-                qty=float(item.get("qty", 0)),
-                discount_gs=int(item.get("discount_gs", 0)),
-                unit_price_gs_override=item.get("unit_price_gs_override"),
-                packaging_item_id=item.get("packaging_item_id"),
-                packaging_qty=item.get("packaging_qty"),
-            ))
+            lines.append(
+                CartLine(
+                    line_index=idx,
+                    product_id=int(item.get("product_id", 0)),
+                    qty=float(item.get("qty", 0)),
+                    discount_gs=int(item.get("discount_gs", 0)),
+                    unit_price_gs_override=item.get("unit_price_gs_override"),
+                    packaging_item_id=item.get("packaging_item_id"),
+                    packaging_qty=item.get("packaging_qty"),
+                )
+            )
         except (TypeError, ValueError):
             # Skip malformed lines — they'll surface as PRODUCT_NOT_FOUND
             continue
@@ -2355,17 +2391,18 @@ async def preflight_sale_multi(
     today = datetime.now(ASUNCION_TZ).date()
     checklist = validate_cart_intent(session, cart, today=today)
 
-    def _serialize(w) -> dict:
+    def _serialize(w) -> dict:  # noqa: ANN001
         return {"code": w.code, "severity": w.severity, "message": w.message}
 
-    return JSONResponse({
-        "warnings": [_serialize(w) for w in checklist.warnings],
-        "blockers": [_serialize(w) for w in checklist.blockers],
-        "is_ready": checklist.is_ready,
-        "is_clean": checklist.is_clean,
-        "line_count": len(lines),
-    })
-
+    return JSONResponse(
+        {
+            "warnings": [_serialize(w) for w in checklist.warnings],
+            "blockers": [_serialize(w) for w in checklist.blockers],
+            "is_ready": checklist.is_ready,
+            "is_clean": checklist.is_clean,
+            "line_count": len(lines),
+        }
+    )
 
 
 # B-7 (2026-10-07): held-sale routes — ported from Hao0321/pos-pro
@@ -2383,7 +2420,7 @@ async def ventas_hold_cart(
     try:
         body = await request.json()
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
+        raise HTTPException(status_code=400, detail="Invalid JSON body")  # noqa: B904
 
     cart = body.get("cart") or {}
     label = (body.get("label") or "").strip()[:120]
@@ -2393,14 +2430,18 @@ async def ventas_hold_cart(
     try:
         held = _hold_cart(db, cart, held_by=held_by, label=label or "sin etiqueta")
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc))  # noqa: B904
 
-    return JSONResponse({
-        "id": held.id,
-        "label": held.label,
-        "held_at": held.held_at.isoformat() if hasattr(held.held_at, "isoformat") else str(held.held_at),
-        "item_count": len((cart or {}).get("items", [])),
-    })
+    return JSONResponse(
+        {
+            "id": held.id,
+            "label": held.label,
+            "held_at": held.held_at.isoformat()
+            if hasattr(held.held_at, "isoformat")
+            else str(held.held_at),
+            "item_count": len((cart or {}).get("items", [])),
+        }
+    )
 
 
 @router.get("/held", response_class=HTMLResponse)
@@ -2430,13 +2471,17 @@ def ventas_held_list_json(
     payload = []
     for r in rows:
         cart = r.parse_cart()
-        payload.append({
-            "id": r.id,
-            "label": r.label,
-            "held_by": r.held_by,
-            "held_at": r.held_at.isoformat() if hasattr(r.held_at, "isoformat") else str(r.held_at),
-            "item_count": len(cart.get("items", [])),
-        })
+        payload.append(
+            {
+                "id": r.id,
+                "label": r.label,
+                "held_by": r.held_by,
+                "held_at": r.held_at.isoformat()
+                if hasattr(r.held_at, "isoformat")
+                else str(r.held_at),
+                "item_count": len(cart.get("items", [])),
+            }
+        )
     return JSONResponse({"held": payload, "count": len(payload)})
 
 
@@ -2451,7 +2496,7 @@ def ventas_held_resume(
     try:
         cart = _resume_held(db, held_id)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc))  # noqa: B904
     return JSONResponse({"cart": cart})
 
 

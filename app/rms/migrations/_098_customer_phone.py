@@ -14,6 +14,7 @@ the other is a no-op CREATE TABLE IF NOT EXISTS.
 
 Idempotent: CREATE TABLE IF NOT EXISTS + NOT EXISTS backfill.
 """
+
 from datetime import datetime, timezone
 from typing import Any
 
@@ -66,12 +67,10 @@ def _migration_098_customer_phone(conn: Any) -> None:
         logger.debug("migration 098 CREATE TABLE customer_phone skipped: %s", exc)
 
     for idx_sql in (
-        "CREATE INDEX IF NOT EXISTS ix_customer_phone_customer_id "
-            "ON customer_phone (customer_id)",
+        "CREATE INDEX IF NOT EXISTS ix_customer_phone_customer_id ON customer_phone (customer_id)",
         "CREATE INDEX IF NOT EXISTS ix_customer_phone_customer_default "
-            "ON customer_phone (customer_id, is_default)",
-        "CREATE INDEX IF NOT EXISTS ix_customer_phone_phone "
-            "ON customer_phone (phone)",
+        "ON customer_phone (customer_id, is_default)",
+        "CREATE INDEX IF NOT EXISTS ix_customer_phone_phone ON customer_phone (phone)",
     ):
         try:
             conn.exec_driver_sql(idx_sql)

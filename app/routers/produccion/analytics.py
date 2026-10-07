@@ -8,6 +8,7 @@ Routes:
   GET  /produccion/haccp     - HACCP freezer log view (list + form)
   POST /produccion/haccp     - save a new temperature log entry
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -185,6 +186,7 @@ class HaccpPendingItem:
     the entire day for that freezer). Otherwise weight is the
     literal shift ("AM" or "PM").
     """
+
     location: str
     weight: str  # "AM" | "PM" | "BOTH"
 

@@ -146,7 +146,7 @@ ignore = [
 # ∪ (U+222A UNION), ℹ (U+2139 INFO SYMBOL). Cyrillic а (U+0430) appears
 # in one Cyrillic test fixture comment. These are intentional and the
 # RUF001/002/003 family warnings are false positives for this codebase.
-allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а"]
+allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а", "‹", "›", "σ"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
@@ -192,10 +192,12 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а"]
 "app/migrations/**/*.py" = [
     "E402", "ANN", "S608",   # migration SQL is hand-rolled
     "BLE001",                # migrations swallow known schema errors
+    "S110",                  # migrations use try/except pass for idempotent ALTER TABLE
 ]
 "app/rms/migrations/**/*.py" = [
     "E402", "ANN", "S608",   # migration SQL is hand-rolled
     "BLE001",                # migrations swallow known schema errors
+    "S110",                  # migrations use try/except pass for idempotent ALTER TABLE
 ]
 "app/routers/dev.py" = [
     "S105", "S106",    # dev-only mock data
@@ -221,6 +223,26 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а"]
 ]
 "run_migration.py" = [
     "BLE001",  # ad-hoc top-level migration runner, errors are diagnostic
+]
+"app/rms/**/*.py" = [
+    "BLE001",  # defensive broad excepts are intentional across RMS layer (legacy pattern)
+]
+"app/routers/**/*.py" = [
+    "BLE001",  # defensive broad excepts in route handlers (legacy pattern, logging follows)
+]
+"app/services/**/*.py" = [
+    "BLE001",  # defensive broad excepts in service layer
+    "ANN",     # service helper signatures: explicit Any is fine for public surface
+]
+"app/integrations/*.py" = [
+    "BLE001",  # integrations swallow external-service errors intentionally
+]
+"app/auth_supabase.py" = [
+    "BLE001",  # auth path: broad except returns 401/500 contract
+]
+"app/observability/*.py" = [
+    "BLE001",  # observability layer: never raise out of observability paths
+    "S310",    # urlopen for SMTP/IMAP/SMS endpoints (not arbitrary URLs)
 ]
 "app/rms/db.py" = [
     "S608",            # SQL builder helpers (text() calls are intentional)

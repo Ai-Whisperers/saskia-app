@@ -549,7 +549,11 @@ Tests: ✅ `tests/test_rate_limit.py`, `tests/test_rate_limit_write_endpoints.py
 
 `app/auth.py:48-50`:
 ```python
-SESSION_SECRET = os.getenv("SESSION_SECRET") or os.getenv("DEV_SESSION_SECRET") or "dev-only-not-secret-replace-in-prod-9f8e7d6c5b4a3920"
+SESSION_SECRET = (
+    os.getenv("SESSION_SECRET")
+    or os.getenv("DEV_SESSION_SECRET")
+    or "dev-only-not-secret-replace-in-prod-9f8e7d6c5b4a3920"
+)
 ```
 If neither env var is set, a hard-coded default is used.** Tests pass (the default is fine for test), but production must set `SESSION_SECRET`. No startup assertion guards against the default in production. Recommend: add `assert SESSION_SECRET != "dev-only-not-secret..."` when `DEBUG=0` (or equivalent).
 

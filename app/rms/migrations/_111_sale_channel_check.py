@@ -207,5 +207,6 @@ def run_post_migration(session: Any) -> dict[str, int]:
         stats["pedido_total"] = session.scalar(select(func.count()).select_from(Pedido)) or 0
     except Exception as exc:  # best-effort telemetry; logger.debug IS the logging
         from loguru import logger as _logger
+
         _logger.debug("P41 post_migration stats failed: {!r}", exc)
     return stats

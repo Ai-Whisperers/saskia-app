@@ -3,6 +3,7 @@
 Companion to app/rms/sales/pre_sale_check.py (ported from
 ury-erp/ury posClosing.js validation pattern).
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -19,6 +20,7 @@ from app.rms.sales.pre_sale_check import (
 def _make_product_with_recipe(session_factory, *, with_recipe=True, name="Torta", price=10000):
     """Create a Product (and Recipe with one ingredient) for tests."""
     from app.rms.models import Ingredient, Product, Recipe, RecipeLine
+
     with session_factory() as session:
         with session.begin():
             ing = Ingredient(
@@ -35,8 +37,11 @@ def _make_product_with_recipe(session_factory, *, with_recipe=True, name="Torta"
                 session.add(r)
                 session.flush()
                 line = RecipeLine(
-                    recipe_id=r.id, line_kind="ingredient",
-                    line_ref_id=ing_id, qty=200.0, line_unit="g",
+                    recipe_id=r.id,
+                    line_kind="ingredient",
+                    line_ref_id=ing_id,
+                    qty=200.0,
+                    line_unit="g",
                 )
                 session.add(line)
                 session.flush()
@@ -53,10 +58,12 @@ def _make_customer_with_allergen(session_factory, allergen_text: str = "alérgic
     See app/rms/derived_intel.py:parse_customer_allergies.
     """
     from app.rms.models import Customer
+
     with session_factory() as session:
         with session.begin():
             c = Customer(
-                name="Cliente Alérgico", phone="0981111111",
+                name="Cliente Alérgico",
+                phone="0981111111",
                 notes=allergen_text,
             )
             session.add(c)
@@ -66,6 +73,7 @@ def _make_customer_with_allergen(session_factory, allergen_text: str = "alérgic
 
 def _make_clean_customer(session_factory):
     from app.rms.models import Customer
+
     with session_factory() as session:
         with session.begin():
             c = Customer(name="Cliente Limpio", phone="0981222222")
@@ -82,9 +90,13 @@ def test_clean_sale_returns_no_warnings(session_factory):
     customer_id = _make_clean_customer(session_factory)
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=1.0,
-            discount_gs=0, customer_id=customer_id,
-            payment_method="efectivo", channel="mostrador",
+            product_id=product_id,
+            sku="",
+            qty=1.0,
+            discount_gs=0,
+            customer_id=customer_id,
+            payment_method="efectivo",
+            channel="mostrador",
             sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
@@ -133,9 +145,7 @@ def test_missing_product_is_blocker(session_factory):
 
 def test_unknown_sku_is_blocker(session_factory):
     with session_factory() as session:
-        intent = PreSaleIntent(
-            product_id=None, sku="NOSUCHSKU", qty=1.0, sold_at=date(2026, 10, 7)
-        )
+        intent = PreSaleIntent(product_id=None, sku="NOSUCHSKU", qty=1.0, sold_at=date(2026, 10, 7))
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
     assert any(w.code == "PRODUCT_NOT_FOUND" for w in result.blockers)
 
@@ -143,6 +153,7 @@ def test_unknown_sku_is_blocker(session_factory):
 def test_sku_resolves_to_product(session_factory):
     """When only sku is given, the checklist should resolve it to a product."""
     from app.rms.models import Product
+
     product_id = _make_product_with_recipe(session_factory, with_recipe=True, name="BySku")
     # Use a clean alphanumeric SKU that passes barcode validation
     with session_factory() as session:
@@ -152,8 +163,11 @@ def test_sku_resolves_to_product(session_factory):
         session.commit()
         # Now use that SKU
         intent = PreSaleIntent(
-            product_id=None, sku="TOR-001", qty=1.0,
-            payment_method="efectivo", sold_at=date(2026, 10, 7),
+            product_id=None,
+            sku="TOR-001",
+            qty=1.0,
+            payment_method="efectivo",
+            sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
     assert not any(w.code == "PRODUCT_NOT_FOUND" for w in result.blockers), (
@@ -169,6 +183,7 @@ def test_customer_allergen_is_blocker(session_factory):
     a product whose recipe.allergens contains "nuts" should block the sale.
     """
     from app.rms.models import Ingredient, Product, Recipe, RecipeLine
+
     with session_factory() as session:
         with session.begin():
             ing = Ingredient(name="Maní", stock_qty=1000, unit="g")
@@ -176,14 +191,19 @@ def test_customer_allergen_is_blocker(session_factory):
             session.flush()
             ing_id = ing.id
             r = Recipe(
-                name="Maní Recipe", yield_qty=1, yield_unit="und",
+                name="Maní Recipe",
+                yield_qty=1,
+                yield_unit="und",
                 allergens="nuts",  # tells the system the recipe has nuts
             )
             session.add(r)
             session.flush()
             line = RecipeLine(
-                recipe_id=r.id, line_kind="ingredient",
-                line_ref_id=ing_id, qty=10, line_unit="g",
+                recipe_id=r.id,
+                line_kind="ingredient",
+                line_ref_id=ing_id,
+                qty=10,
+                line_unit="g",
             )
             session.add(line)
             session.flush()
@@ -195,8 +215,11 @@ def test_customer_allergen_is_blocker(session_factory):
     customer_id = _make_customer_with_allergen(session_factory, "alérgica al maní")
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=1.0,
-            customer_id=customer_id, payment_method="efectivo",
+            product_id=product_id,
+            sku="",
+            qty=1.0,
+            customer_id=customer_id,
+            payment_method="efectivo",
             sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
@@ -208,8 +231,11 @@ def test_no_allergen_no_blocker(session_factory):
     customer_id = _make_clean_customer(session_factory)
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=1.0,
-            customer_id=customer_id, payment_method="efectivo",
+            product_id=product_id,
+            sku="",
+            qty=1.0,
+            customer_id=customer_id,
+            payment_method="efectivo",
             sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
@@ -223,9 +249,12 @@ def test_small_discount_no_warning(session_factory):
     product_id = _make_product_with_recipe(session_factory, with_recipe=True, name="SmallDisc")
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=10.0,
+            product_id=product_id,
+            sku="",
+            qty=10.0,
             discount_gs=5000,  # 5% of 100000
-            payment_method="efectivo", sold_at=date(2026, 10, 7),
+            payment_method="efectivo",
+            sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
     assert not any(w.code == "LARGE_DISCOUNT" for w in result.all_items)
@@ -235,9 +264,12 @@ def test_large_discount_warns(session_factory):
     product_id = _make_product_with_recipe(session_factory, with_recipe=True, name="BigDisc")
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=10.0,  # 100000 total
+            product_id=product_id,
+            sku="",
+            qty=10.0,  # 100000 total
             discount_gs=int(0.25 * 100000),  # 25%
-            payment_method="efectivo", sold_at=date(2026, 10, 7),
+            payment_method="efectivo",
+            sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
     large = [w for w in result.warnings if w.code == "LARGE_DISCOUNT"]
@@ -250,8 +282,12 @@ def test_zero_discount_no_warning(session_factory):
     product_id = _make_product_with_recipe(session_factory, with_recipe=True, name="ZeroDisc")
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=1.0, discount_gs=0,
-            payment_method="efectivo", sold_at=date(2026, 10, 7),
+            product_id=product_id,
+            sku="",
+            qty=1.0,
+            discount_gs=0,
+            payment_method="efectivo",
+            sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
     assert not any(w.code == "LARGE_DISCOUNT" for w in result.all_items)
@@ -264,8 +300,11 @@ def test_no_recipe_is_warning(session_factory):
     product_id = _make_product_with_recipe(session_factory, with_recipe=False, name="NoRecipe")
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=1.0,
-            payment_method="efectivo", sold_at=date(2026, 10, 7),
+            product_id=product_id,
+            sku="",
+            qty=1.0,
+            payment_method="efectivo",
+            sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
     no_recipe = [w for w in result.warnings if w.code == "NO_RECIPE"]
@@ -275,6 +314,7 @@ def test_no_recipe_is_warning(session_factory):
 
 def test_recipe_no_yield_is_blocker(session_factory):
     from app.rms.models import Product, Recipe
+
     with session_factory() as session:
         with session.begin():
             r = Recipe(name="NoYield", yield_qty=None, yield_unit="g")
@@ -287,8 +327,11 @@ def test_recipe_no_yield_is_blocker(session_factory):
 
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=1.0,
-            payment_method="efectivo", sold_at=date(2026, 10, 7),
+            product_id=product_id,
+            sku="",
+            qty=1.0,
+            payment_method="efectivo",
+            sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
     assert any(w.code == "RECIPE_NO_YIELD" for w in result.blockers)
@@ -296,6 +339,7 @@ def test_recipe_no_yield_is_blocker(session_factory):
 
 def test_single_ingredient_shortage_is_warning(session_factory):
     from app.rms.models import Ingredient, Product, Recipe, RecipeLine
+
     with session_factory() as session:
         with session.begin():
             ing = Ingredient(name="Low Stock Ing", stock_qty=5.0, unit="g")
@@ -306,8 +350,11 @@ def test_single_ingredient_shortage_is_warning(session_factory):
             session.add(r)
             session.flush()
             line = RecipeLine(
-                recipe_id=r.id, line_kind="ingredient",
-                line_ref_id=ing_id, qty=100.0, line_unit="g",
+                recipe_id=r.id,
+                line_kind="ingredient",
+                line_ref_id=ing_id,
+                qty=100.0,
+                line_unit="g",
             )
             session.add(line)
             session.flush()
@@ -318,8 +365,11 @@ def test_single_ingredient_shortage_is_warning(session_factory):
 
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=1.0,
-            payment_method="efectivo", sold_at=date(2026, 10, 7),
+            product_id=product_id,
+            sku="",
+            qty=1.0,
+            payment_method="efectivo",
+            sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
     stock = [w for w in result.warnings if w.code == "STOCK_SHORTAGE"]
@@ -334,8 +384,12 @@ def test_packaging_item_without_qty_is_blocker(session_factory):
     product_id = _make_product_with_recipe(session_factory, with_recipe=True, name="PckErr1")
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=1.0, packaging_item_id=42,
-            packaging_qty=None, sold_at=date(2026, 10, 7),
+            product_id=product_id,
+            sku="",
+            qty=1.0,
+            packaging_item_id=42,
+            packaging_qty=None,
+            sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
     assert any(w.code == "PACKAGING_QTY_MISSING" for w in result.blockers)
@@ -345,8 +399,12 @@ def test_packaging_qty_without_item_is_blocker(session_factory):
     product_id = _make_product_with_recipe(session_factory, with_recipe=True, name="PckErr2")
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=1.0, packaging_item_id=None,
-            packaging_qty=1.0, sold_at=date(2026, 10, 7),
+            product_id=product_id,
+            sku="",
+            qty=1.0,
+            packaging_item_id=None,
+            packaging_qty=1.0,
+            sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
     assert any(w.code == "PACKAGING_ITEM_MISSING" for w in result.blockers)
@@ -356,14 +414,17 @@ def test_consistent_packaging_no_blocker(session_factory):
     product_id = _make_product_with_recipe(session_factory, with_recipe=True, name="PckOK")
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=1.0,
-            packaging_item_id=None, packaging_qty=None,
-            payment_method="efectivo", sold_at=date(2026, 10, 7),
+            product_id=product_id,
+            sku="",
+            qty=1.0,
+            packaging_item_id=None,
+            packaging_qty=None,
+            payment_method="efectivo",
+            sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
     assert not any(
-        w.code in ("PACKAGING_QTY_MISSING", "PACKAGING_ITEM_MISSING")
-        for w in result.all_items
+        w.code in ("PACKAGING_QTY_MISSING", "PACKAGING_ITEM_MISSING") for w in result.all_items
     )
 
 
@@ -372,12 +433,16 @@ def test_consistent_packaging_no_blocker(session_factory):
 
 def test_closed_day_is_blocker(session_factory, monkeypatch):
     from app.rms import eod_closed
+
     monkeypatch.setattr(eod_closed, "eod_is_day_closed", lambda *a, **kw: True)
     product_id = _make_product_with_recipe(session_factory, with_recipe=True, name="ClosedDay")
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=1.0,
-            payment_method="efectivo", sold_at=date(2026, 10, 7),
+            product_id=product_id,
+            sku="",
+            qty=1.0,
+            payment_method="efectivo",
+            sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
     assert any(w.code == "DAY_CLOSED" for w in result.blockers)
@@ -390,8 +455,11 @@ def test_missing_payment_method_is_info_not_blocker(session_factory):
     product_id = _make_product_with_recipe(session_factory, with_recipe=True, name="NoPay")
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=1.0,
-            payment_method="", sold_at=date(2026, 10, 7),
+            product_id=product_id,
+            sku="",
+            qty=1.0,
+            payment_method="",
+            sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
     payment = [w for w in result.warnings if w.code == "PAYMENT_METHOD_MISSING"]
@@ -407,8 +475,11 @@ def test_checklist_blockers_warnings_ordering(session_factory):
     product_id = _make_product_with_recipe(session_factory, with_recipe=True, name="Order")
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=1.0,
-            payment_method="", sold_at=date(2026, 10, 7),
+            product_id=product_id,
+            sku="",
+            qty=1.0,
+            payment_method="",
+            sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
     items = result.all_items
@@ -423,8 +494,11 @@ def test_checklist_messages_are_spanish(session_factory):
     customer_id = _make_clean_customer(session_factory)
     with session_factory() as session:
         intent = PreSaleIntent(
-            product_id=product_id, sku="", qty=1.0,
-            customer_id=customer_id, payment_method="",
+            product_id=product_id,
+            sku="",
+            qty=1.0,
+            customer_id=customer_id,
+            payment_method="",
             sold_at=date(2026, 10, 7),
         )
         result = validate_sale_intent(session, intent, today=date(2026, 10, 7))
@@ -457,6 +531,7 @@ def test_pre_sale_intent_required_fields():
 
 def test_pre_sale_warning_severity_helper():
     from app.rms.sales.pre_sale_check import PreSaleWarning
+
     blocker = PreSaleWarning(code="X", severity="blocker", message="X")
     warning = PreSaleWarning(code="X", severity="warning", message="X")
     info = PreSaleWarning(code="X", severity="info", message="X")
@@ -467,6 +542,7 @@ def test_pre_sale_warning_severity_helper():
 
 def test_checklist_helper_properties():
     from app.rms.sales.pre_sale_check import PreSaleChecklist, PreSaleWarning
+
     cl = PreSaleChecklist()
     cl.warnings.append(PreSaleWarning(code="W", severity="warning", message="warning msg"))
     cl.blockers.append(PreSaleWarning(code="B", severity="blocker", message="blocker msg"))
@@ -489,8 +565,10 @@ def test_env_override_changes_max_qty(monkeypatch):
     import importlib
 
     import app.rms.config as cfg
+
     importlib.reload(cfg)
     import app.rms.sales.pre_sale_check as mod
+
     importlib.reload(mod)
     # Now the constant is 10, not the default 999
     assert mod.MAX_QTY_PER_SALE == 10
@@ -504,8 +582,10 @@ def test_env_override_changes_max_discount_pct(monkeypatch):
     import importlib
 
     import app.rms.config as cfg
+
     importlib.reload(cfg)
     import app.rms.sales.pre_sale_check as mod
+
     importlib.reload(mod)
     assert mod.MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE == 5
 
@@ -517,8 +597,10 @@ def test_env_override_default_when_unset(monkeypatch):
     import importlib
 
     import app.rms.config as cfg
+
     importlib.reload(cfg)
     import app.rms.sales.pre_sale_check as mod
+
     importlib.reload(mod)
     assert mod.MAX_QTY_PER_SALE == 999
     assert mod.MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE == 20

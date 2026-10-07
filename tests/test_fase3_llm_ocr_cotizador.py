@@ -16,6 +16,7 @@ from app.rms.seed.menu_import import import_menu_csv
 
 # ---------- llm.py ----------
 
+
 def test_extract_json_plain():
     assert _extract_json('{"items": [1]}') == {"items": [1]}
 
@@ -37,14 +38,17 @@ def test_available_false_without_key(monkeypatch):
 
 # ---------- menu_ocr matching ----------
 
+
 def test_match_to_catalog_matches_and_news(session_factory):
     s = session_factory()
     try:
-        import_menu_csv(s, "nombre,precio\nPizza Muzzarella,50000\nCoca Cola 1L,12000\n", dry_run=False)
+        import_menu_csv(
+            s, "nombre,precio\nPizza Muzzarella,50000\nCoca Cola 1L,12000\n", dry_run=False
+        )
         lines = [
-            MenuLine(name="Pizza Muzzarella", price_gs=50000),      # exact
-            MenuLine(name="piza muzarella", price_gs=48000),        # fuzzy
-            MenuLine(name="Empanada de carne", price_gs=8000),      # nuevo
+            MenuLine(name="Pizza Muzzarella", price_gs=50000),  # exact
+            MenuLine(name="piza muzarella", price_gs=48000),  # fuzzy
+            MenuLine(name="Empanada de carne", price_gs=8000),  # nuevo
         ]
         res = match_to_catalog(lines, s)
         assert len(res.matched) == 2
@@ -57,6 +61,7 @@ def test_match_to_catalog_matches_and_news(session_factory):
 
 # ---------- cotizador ----------
 
+
 def _mk_costed_product(s, *, name, price, yield_qty, ing_price, qty_per_batch=1.0):
     """Producto con receta 1 ingrediente costeado (precio compra seteado)."""
     from app.rms.models_legacy import Ingredient, Product, Recipe, RecipeLine
@@ -67,7 +72,9 @@ def _mk_costed_product(s, *, name, price, yield_qty, ing_price, qty_per_batch=1.
     rec = Recipe(name="R " + name, yield_qty=yield_qty, yield_unit="und")
     s.add(rec)
     s.flush()
-    s.add(RecipeLine(recipe_id=rec.id, line_kind="ingredient", line_ref_id=ing.id, qty=qty_per_batch))
+    s.add(
+        RecipeLine(recipe_id=rec.id, line_kind="ingredient", line_ref_id=ing.id, qty=qty_per_batch)
+    )
     prod = Product(name=name, sale_price_gs=price, recipe_id=rec.id)
     s.add(prod)
     s.commit()
@@ -130,6 +137,7 @@ def test_build_quote_skips_zero_and_unknown(session_factory):
 
 # ---------- routers ----------
 
+
 def test_cotizador_page_renders(authed_client):
     r = authed_client.get("/cotizador")
     assert r.status_code == 200
@@ -159,7 +167,9 @@ def test_chat_logs_token_usage(monkeypatch):
     import app.rms.llm as llm
 
     class FakeResp:
-        def raise_for_status(self): pass
+        def raise_for_status(self):
+            pass
+
         def json(self):
             return {
                 "model": "glm-4.5-air",

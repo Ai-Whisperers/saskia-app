@@ -15,6 +15,7 @@ Acceptance:
     <details> element.
   - The disclosure is closed by default (no `open` attribute).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -30,7 +31,7 @@ def _setup_ingredient_with_supplier(s, name: str) -> None:
         s,
         name=name,
         unit="kg",
-        stock_qty=0.5,        # below min → shows up in /reorder
+        stock_qty=0.5,  # below min → shows up in /reorder
         min_stock_qty=5.0,
         purchase_price_gs=4500,
     )
@@ -52,10 +53,9 @@ def test_reorder_snapshot_columns_collapse(client, session_factory):
 
     # The disclosure wrapper class is the new convention.
     # Old code had no wrapper, so this assertion would fail until P0.1 lands.
-    assert (
-        "reorder-row__snapshot" in body
-        or "<details" in body
-    ), "expected a <details> or .reorder-row__snapshot wrapper for snapshot cols"
+    assert "reorder-row__snapshot" in body or "<details" in body, (
+        "expected a <details> or .reorder-row__snapshot wrapper for snapshot cols"
+    )
 
     # Action inputs must be present and outside any collapsed wrapper.
     # We use the literal name attrs from reorder.html.
@@ -86,7 +86,7 @@ def test_reorder_snapshot_disclosure_starts_closed(client, session_factory):
         idx = body.index("<details")
         # Find the closing `>` of the opening tag
         end = body.index(">", idx)
-        opening_tag = body[idx:end + 1]
+        opening_tag = body[idx : end + 1]
         assert "open" not in opening_tag.split()[-5:], (
             f"<details> should default to closed; found: {opening_tag[:100]}"
         )

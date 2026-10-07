@@ -127,8 +127,11 @@ def test_send_alert_handles_non_2xx_status() -> None:
     class _Fake422:
         status = 422
 
-        def __enter__(self): return self
-        def __exit__(self, *a): return False
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
 
     def fake_urlopen(req, timeout):
         return _Fake422()

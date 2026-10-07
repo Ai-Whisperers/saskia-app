@@ -1263,7 +1263,7 @@ async def upload_branding_asset(
     kind: str = Form(...),
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
-    user=Depends(require_login_or_disabled),
+    user=Depends(require_login_or_disabled),  # noqa: ANN001
 ) -> object:
     """Upload a branding asset (logo, favicon, or hero).
 
@@ -1289,7 +1289,7 @@ async def upload_branding_asset(
         raise _HTTPException(
             status_code=400,
             detail=f"File extension {ext!r} not allowed for {kind}. "
-                   f"Allowed: {sorted(_BRANDING_EXTS[kind])}",
+            f"Allowed: {sorted(_BRANDING_EXTS[kind])}",
         )
 
     # Read + size-check
@@ -1299,14 +1299,14 @@ async def upload_branding_asset(
         raise _HTTPException(
             status_code=400,
             detail=f"File too large ({len(content) / 1024 / 1024:.1f}MB). "
-                   f"Max for {kind}: {_BRANDING_MAX_MB[kind]}MB",
+            f"Max for {kind}: {_BRANDING_MAX_MB[kind]}MB",
         )
 
     # Random filename: <kind>-<8 hex>.<ext>
     safe_name = f"{kind}-{secrets.token_hex(8)}{ext}"
 
     # Write to disk
-    base_dir = _P(__file__).resolve().parent.parent.parent  # repo root
+    base_dir = _P(__file__).resolve().parent.parent.parent  # repo root  # noqa: ASYNC240
     asset_dir = base_dir / _ASSET_DIR
     asset_dir.mkdir(parents=True, exist_ok=True)
     out_path = asset_dir / safe_name
@@ -1324,7 +1324,7 @@ async def upload_branding_asset(
 def branding_admin_page(
     request: Request,
     session: Session = Depends(get_session),
-    user=Depends(require_login_or_disabled),
+    user=Depends(require_login_or_disabled),  # noqa: ANN001
 ) -> object:
     """Operator UI for branding (business identity, assets, accent color).
 

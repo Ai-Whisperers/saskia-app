@@ -10,6 +10,7 @@ Verifies:
 - Login step appears first.
 - When the app is ready, /healthz in the steps returns 200.
 """
+
 from __future__ import annotations
 
 
@@ -19,7 +20,9 @@ def test_smoke_prod_loop_returns_200_when_app_ready(authed_client):
     body = r.json()
     assert "loop" in body, "loop field missing"
     assert "steps" in body, "steps field missing"
-    assert isinstance(body["steps"], list) and len(body["steps"]) >= 1, "steps must be a non-empty list"
+    assert isinstance(body["steps"], list) and len(body["steps"]) >= 1, (
+        "steps must be a non-empty list"
+    )
 
 
 def test_smoke_prod_loop_reports_login_first(authed_client):

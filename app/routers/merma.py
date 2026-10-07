@@ -134,6 +134,7 @@ def merma_list(
     from datetime import datetime as _dt
     from datetime import timedelta as _td
     from datetime import timezone as _tz
+
     _utcnow = _dt.now(_tz.utc).replace(tzinfo=None)
     today_start = _dt.combine(_utcnow.date(), _dt.min.time())
     today_end = today_start + _td(days=1)
@@ -146,7 +147,11 @@ def merma_list(
             )
         ).scalar_one()
     )
-    today_total_cost = sum(today_impact.by_ingredient[i][2] for i in range(len(today_impact.by_ingredient))) if today_impact.by_ingredient else 0
+    today_total_cost = (
+        sum(today_impact.by_ingredient[i][2] for i in range(len(today_impact.by_ingredient)))
+        if today_impact.by_ingredient
+        else 0
+    )
     today_top_ingredients = sorted(today_impact.by_ingredient, key=lambda x: x[2], reverse=True)[:3]
 
     # PROD-MERMA-2 (Batch I follow-up): 14-day source mix for the operator
@@ -270,6 +275,7 @@ def merma_register(
     dup_qty_tolerance_pct = 0.05
     from datetime import datetime, timedelta
     from datetime import timezone as _tz
+
     cutoff = datetime.now(_tz.utc) - timedelta(seconds=dup_window_seconds)
     qty_abs = abs(float(qty))
     tol = max(dup_qty_tolerance_abs, qty_abs * dup_qty_tolerance_pct)

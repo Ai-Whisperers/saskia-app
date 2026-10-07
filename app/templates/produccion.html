@@ -1689,8 +1689,17 @@
        title="Recetas con sus porciones/ingredientes (para pesar)">
       🍰 Por receta (pesar)
     </a>
+    <form method="post" action="/shopping-list/from-production-plan"
+          class="d-inline"
+          data-testid="send-to-shopping-list-form">
+      <input type="hidden" name="for_date" value="{{ plan.for_date.isoformat() }}"/>
+      <button type="submit" class="btn btn-secondary btn-sm"
+              title="Materializa los faltantes de hoy en la lista de compras">
+        📤 Enviar faltantes a lista de compras
+      </button>
+    </form>
     <a href="/shopping-list"
-       class="btn btn-secondary btn-sm"
+       class="btn btn-ghost btn-sm"
        title="Lista de compras (lo que falta por comprar)">
       🛒 Lista de compras
     </a>

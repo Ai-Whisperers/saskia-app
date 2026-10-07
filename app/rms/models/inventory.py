@@ -98,12 +98,8 @@ class Ingredient(Base):
     # Use RecipeLine.ingredient relationship (viewonly=True, primaryjoin with line_kind check)
     # or query RecipeLine directly: SELECT FROM recipe_line WHERE line_kind='ingredient'
     # AND line_ref_id = :id. Helper functions live in costing.py.
-    stock_moves: Mapped[list["SaleStockMove"]] = relationship(
-        back_populates="ingredient"
-    )
-    supplier: Mapped[Optional["Supplier"]] = relationship(
-        back_populates="ingredients"
-    )
+    stock_moves: Mapped[list["SaleStockMove"]] = relationship(back_populates="ingredient")
+    supplier: Mapped[Optional["Supplier"]] = relationship(back_populates="ingredients")
 
     __table_args__ = (
         CheckConstraint("unit IN ('g', 'kg', 'ml', 'l', 'und')", name="ck_ingredient_unit"),

@@ -25,12 +25,15 @@ def app_with_sales_router(app_engine):
 
     app = FastAPI()
     from app.rms.db import make_session_factory
+
     app.state.session_factory = make_session_factory(app_engine)
     from starlette.middleware.sessions import SessionMiddleware
 
     from app.auth import SESSION_SECRET
-    app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET,
-                       session_cookie="saskia_session")
+
+    app.add_middleware(
+        SessionMiddleware, secret_key=SESSION_SECRET, session_cookie="saskia_session"
+    )
     app.include_router(router)
     return app
 
@@ -58,8 +61,12 @@ def test_hold_creates_row_and_returns_id(client):
 
 
 def test_list_json_returns_active(client):
-    client.post("/ventas/hold", json={"cart": {"items": [{"product_id": 1, "qty": 1}]}, "label": "a"})
-    client.post("/ventas/hold", json={"cart": {"items": [{"product_id": 2, "qty": 2}]}, "label": "b"})
+    client.post(
+        "/ventas/hold", json={"cart": {"items": [{"product_id": 1, "qty": 1}]}, "label": "a"}
+    )
+    client.post(
+        "/ventas/hold", json={"cart": {"items": [{"product_id": 2, "qty": 2}]}, "label": "b"}
+    )
     r = client.get("/ventas/held/list.json")
     assert r.status_code == 200
     data = r.json()
@@ -90,7 +97,9 @@ def test_resume_missing_returns_404(client):
 
 
 def test_discard_marks_and_returns_ok(client):
-    hold_r = client.post("/ventas/hold", json={"cart": {"items": [{"product_id": 1, "qty": 1}]}, "label": "x"})
+    hold_r = client.post(
+        "/ventas/hold", json={"cart": {"items": [{"product_id": 1, "qty": 1}]}, "label": "x"}
+    )
     held_id = hold_r.json()["id"]
     r = client.post(f"/ventas/held/{held_id}/discard")
     assert r.status_code == 200
@@ -104,8 +113,9 @@ def test_discard_missing_returns_404(client):
 
 def test_label_truncated_to_120_chars(client):
     long_label = "x" * 200
-    r = client.post("/ventas/hold",
-                    json={"cart": {"items": [{"product_id": 1, "qty": 1}]}, "label": long_label})
+    r = client.post(
+        "/ventas/hold", json={"cart": {"items": [{"product_id": 1, "qty": 1}]}, "label": long_label}
+    )
     assert r.status_code == 200
     assert len(r.json()["label"]) == 120
 
@@ -123,7 +133,8 @@ def test_unicode_label_and_item_survives_round_trip(client):
 
 
 def test_blank_label_normalized(client):
-    r = client.post("/ventas/hold",
-                    json={"cart": {"items": [{"product_id": 1, "qty": 1}]}, "label": ""})
+    r = client.post(
+        "/ventas/hold", json={"cart": {"items": [{"product_id": 1, "qty": 1}]}, "label": ""}
+    )
     assert r.status_code == 200
     assert r.json()["label"] == "sin etiqueta"

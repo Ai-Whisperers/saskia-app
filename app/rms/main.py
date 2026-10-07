@@ -1041,7 +1041,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> Respo
             _sentry.set_tag("request_id", rid)
             _sentry.set_tag("request_method", request.method)
             _sentry.set_tag("request_path", request.url.path)
-    except Exception:
+    except Exception:  # noqa: S110
         # Sentry not installed, not initialised, or Hub is unavailable.
         # Never let an observability hook break the response.
         pass
@@ -1138,7 +1138,9 @@ def migrate() -> None:
 
     raw = os.environ.get("DATABASE_URL")
     if not raw:
-        local_db = os.environ.get("AIW_RMS_DB_PATH") or os.environ.get("AIW_SASKIA_DB_PATH")  # AIW_SASKIA_* = legacy env name still set in prod (saskia-vps service)
+        local_db = os.environ.get("AIW_RMS_DB_PATH") or os.environ.get(
+            "AIW_SASKIA_DB_PATH"
+        )  # AIW_SASKIA_* = legacy env name still set in prod (saskia-vps service)
         if local_db:
             raw = f"sqlite:///{local_db}"
         else:
@@ -1235,7 +1237,9 @@ def _seed() -> None:
 
     raw = os.environ.get("DATABASE_URL")
     if not raw:
-        local_db = os.environ.get("AIW_RMS_DB_PATH") or os.environ.get("AIW_SASKIA_DB_PATH")  # AIW_SASKIA_* = legacy env name still set in prod (saskia-vps service)
+        local_db = os.environ.get("AIW_RMS_DB_PATH") or os.environ.get(
+            "AIW_SASKIA_DB_PATH"
+        )  # AIW_SASKIA_* = legacy env name still set in prod (saskia-vps service)
         if local_db:
             raw = f"sqlite:///{local_db}"
         else:

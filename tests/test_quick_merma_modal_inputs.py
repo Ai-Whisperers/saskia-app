@@ -8,6 +8,7 @@ the backend (multiple `reason` values in one POST) or leak empty values.
 Fix: the qmSwitchTab JS function now disables every input in the inactive
 panel so its values are excluded from form submission.
 """
+
 from __future__ import annotations
 
 
@@ -28,8 +29,8 @@ def test_qmSwitchTab_JS_function_present(client):
     body = r.text
     assert "function qmSwitchTab" in body
     assert "togglePanelInputs" in body
-    assert "setAttribute('disabled'" in body or "setAttribute(\"disabled\"" in body
-    assert "removeAttribute('disabled')" in body or "removeAttribute(\"disabled\")" in body
+    assert "setAttribute('disabled'" in body or 'setAttribute("disabled"' in body
+    assert "removeAttribute('disabled')" in body or 'removeAttribute("disabled")' in body
 
 
 def test_quick_merma_modal_two_combos_per_panel(client):
