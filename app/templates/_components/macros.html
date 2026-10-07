@@ -202,3 +202,30 @@ Asunción local TZ.
   {%- if icon %}<span aria-hidden="true">{{ icon }}</span> {% endif -%}{{ label }}
 </a>
 {%- endmacro %}
+
+
+{# url_with_filters(request, overrides_dict) — build a URL that preserves
+   the current request's query string EXCEPT for keys in `overrides_dict`.
+   Use from pagination/load-more controls so the operator's active filter
+   + sort state survives navigation. Pass an override as None to delete
+   that key (e.g. show_all=None when leaving show-all).
+   NOTE: Jinja macros cannot accept **kwargs, so callers pass a dict. #}
+{%- macro url_with_filters(request, overrides) -%}
+  {%- if request is defined -%}
+    {%- set qp = request.query_params.multi_items() -%}
+    {%- set out = [] -%}
+    {%- for k, v in qp -%}
+      {%- if k not in overrides -%}
+        {%- set _ = out.append((k, v)) -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {%- for k, v in overrides.items() -%}
+      {%- if v is not none -%}
+        {%- set _ = out.append((k, v | string)) -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {{- request.url.path }}?{% for k, v in out %}{{ k }}={{ v }}{% if not loop.last %}&{% endif %}{% endfor -%}
+  {%- else -%}
+    {{- '' -}}
+  {%- endif -%}
+{%- endmacro -%}

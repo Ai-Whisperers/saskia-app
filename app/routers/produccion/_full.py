@@ -234,6 +234,11 @@ def produccion_worksheet(
     # Page size: hard-cap at 100 (operator-settable to 10/15/20/30/50/100).
     # We don't use Query(le=100) so any URL works; the clamp happens here.
     rows: int = Query(20),
+    # Pagination + load-all. `page` is 1-based; `show_all` accepts 0/1
+    # (any other int falls back to 0). Operator: "I never want a hard
+    # cap on total products" — show_all=1 disables pagination.
+    page: int = Query(1, ge=1),
+    show_all: int = Query(0),
     filter_allergen: list[str] = Query(default_factory=list),
     filter_source: list[str] = Query(default_factory=list),
     filter_with_pedidos: str = Query("", pattern=r"^(1|0|)?$"),
@@ -988,11 +993,16 @@ def produccion_worksheet(
         else:
             primary_rows.append(r)
 
-    # 2026-10-07 table overhaul: apply filter chips, then sort, then cap.
+    # 2026-10-07 table overhaul: apply filter chips, then sort, then page.
     # Filters apply ONLY to primary_rows — zero_demand_rows is a separate
     # <details> so its members are always shown in full when expanded.
-    # `rows` is hard-clamped here so any URL works (no 4xx).
+    # `rows` is hard-clamped so any URL works (no 4xx).
+    # `page` (1-based) plus `rows` gives the visible window; `show_all=1`
+    # disables pagination entirely (operator asked: "we don't limit the
+    # total amount — only per page").
     rows = max(1, min(100, int(rows)))
+    show_all = 1 if int(show_all) == 1 else 0
+    page = max(1, int(page))
     primary_rows = _apply_produccion_filters(
         primary_rows,
         allergen=filter_allergen,
@@ -1002,9 +1012,17 @@ def produccion_worksheet(
         with_surplus=filter_with_surplus,
     )
     primary_rows = _sort_produccion_rows(primary_rows, sort=sort, dir=dir)
-    # Visible cap; remaining rows render in a "Mostrar todos" link.
-    visible_rows = primary_rows[:rows]
-    hidden_count = max(0, len(primary_rows) - len(visible_rows))
+    total_filtered = len(primary_rows)
+    if show_all == 1:
+        visible_rows = primary_rows
+        page = 1
+        total_pages = 1
+    else:
+        page = max(1, min(page, max(1, (total_filtered + rows - 1) // rows)))
+        total_pages = max(1, (total_filtered + rows - 1) // rows)
+        start = (page - 1) * rows
+        visible_rows = primary_rows[start:start + rows]
+    hidden_count = max(0, total_filtered - len(visible_rows))
 
     return render(
         request,
@@ -1015,7 +1033,11 @@ def produccion_worksheet(
             "primary_rows": primary_rows,
             "visible_rows": visible_rows,
             "hidden_count": hidden_count,
+            "total_filtered": total_filtered,
             "rows_per_page": rows,
+            "current_page": page,
+            "total_pages": total_pages,
+            "show_all": show_all == 1,
             "current_sort": sort,
             "current_dir": dir,
             "active_filters": {

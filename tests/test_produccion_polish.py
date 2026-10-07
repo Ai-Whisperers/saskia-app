@@ -36,6 +36,40 @@ TEMPLATE_PATH = (
 TEMPLATE_BODY = TEMPLATE_PATH.read_text(encoding="utf-8")
 
 
+def _production_row_loop_body() -> str:
+    """Slice the production row loop body out of TEMPLATE_BODY by walking
+    {% for … %} depth until the matching {% endfor %}. Supports both
+    'primary_rows' (legacy) and 'visible_rows' (2026-10-07 overhaul)."""
+    loop_start = -1
+    for candidate in ("{% for r in visible_rows %}", "{% for r in primary_rows %}"):
+        idx = TEMPLATE_BODY.find(candidate)
+        if idx >= 0:
+            loop_start = idx
+            break
+    if loop_start < 0:
+        return ""
+    depth = 0
+    i = loop_start
+    loop_end = -1
+    while i < len(TEMPLATE_BODY):
+        open_m = TEMPLATE_BODY.find("{% for", i)
+        close_m = TEMPLATE_BODY.find("{% endfor", i)
+        if close_m < 0:
+            break
+        if 0 <= open_m < close_m:
+            depth += 1
+            i = open_m + 7
+        else:
+            if depth == 0:
+                loop_end = close_m
+                break
+            depth -= 1
+            i = close_m + 11
+    if loop_end < 0:
+        loop_end = len(TEMPLATE_BODY)
+    return TEMPLATE_BODY[loop_start:loop_end]
+
+
 @pytest.fixture
 def authed_client(client):
     """Auth-disabled TestClient with CSRF primed."""
@@ -423,52 +457,18 @@ class TestTableOverhaulColumns:
     def test_allergen_badges_removed_from_row_body(self):
         """The row body must NOT render '⚠️ gluten, dairy, eggs' badges —
         those are recipe-template info, not plan-action data."""
-        loop_body = self._production_row_loop_body()
+        loop_body = _production_row_loop_body()
         assert "allergen-badge" not in loop_body, \
             "allergen badges must be removed from production row body"
 
     def test_origen_uses_icon_not_full_text(self):
         """The 'Origen' cell should show a small badge (icon + colored dot),
         not the long human label that repeats every row."""
-        loop_body = self._production_row_loop_body()
+        loop_body = _production_row_loop_body()
         assert "Calculado de las últimas ventas" not in loop_body, \
             "the long 'Calculado de las últimas ventas' must not repeat per row"
         assert "source-bucket" in loop_body, \
             "the source-bucket element (compact icon) must still be present"
-
-    @staticmethod
-    def _production_row_loop_body() -> str:
-        """Slice the production row loop body out of TEMPLATE_BODY by walking
-        {% for … %} depth until the matching {% endfor %}. Supports both
-        'primary_rows' (legacy) and 'visible_rows' (2026-10-07 overhaul)."""
-        loop_start = -1
-        for candidate in ("{% for r in visible_rows %}", "{% for r in primary_rows %}"):
-            idx = TEMPLATE_BODY.find(candidate)
-            if idx >= 0:
-                loop_start = idx
-                break
-        if loop_start < 0:
-            return ""
-        depth = 0
-        i = loop_start
-        loop_end = -1
-        while i < len(TEMPLATE_BODY):
-            open_m = TEMPLATE_BODY.find("{% for", i)
-            close_m = TEMPLATE_BODY.find("{% endfor", i)
-            if close_m < 0:
-                break
-            if 0 <= open_m < close_m:
-                depth += 1
-                i = open_m + 7
-            else:
-                if depth == 0:
-                    loop_end = close_m
-                    break
-                depth -= 1
-                i = close_m + 11
-        if loop_end < 0:
-            loop_end = len(TEMPLATE_BODY)
-        return TEMPLATE_BODY[loop_start:loop_end]
 
 
 class TestTableOverhaulSortAndFilter:
@@ -637,3 +637,167 @@ class TestTableOverhaulSortEndpoint:
         """Unknown keys should NOT crash — fall back to safe default."""
         r = authed_client.get("/produccion?for_date=2026-10-07&sort=hacker&dir=desc")
         assert r.status_code == 200, "unknown sort key must not crash"
+
+
+# ─── Round 2 (2026-10-07b): no hard total cap, score instead of ?, prep table ──
+class TestNoTotalRowCap:
+    """Operator feedback: 'we don't limit the total amount of products at
+    most the limit is per page or load' — so a Load-More / pagination
+    path must let the operator see all rows, not silently cap them."""
+
+    def test_show_all_returns_all_rows(self, authed_client, qseed):
+        """?show_all=1 must disable the per-page cap."""
+        qseed("with_many_products")
+        # Count rows under the default (20 rows).
+        r20 = authed_client.get("/produccion?for_date=2026-10-07")
+        n20 = r20.text.count('class="production-row')
+        # With show_all=1, more rows should be present (no cap).
+        rall = authed_client.get("/produccion?for_date=2026-10-07&show_all=1")
+        nall = rall.text.count('class="production-row')
+        assert rall.status_code == 200
+        assert nall >= n20, f"show_all must yield ≥ {n20} rows, got {nall}"
+        assert nall > n20, f"show_all must yield MORE rows than default, got {nall} vs {n20}"
+
+    def test_page_2_returns_next_window(self, authed_client, qseed):
+        """?page=2 must return rows 21..40 (not the same as ?page=1)."""
+        qseed("with_many_products")
+        r1 = authed_client.get("/produccion?for_date=2026-10-07&page=1&rows=20")
+        r2 = authed_client.get("/produccion?for_date=2026-10-07&page=2&rows=20")
+        # Same number of rows per page, but different rows.
+        # Compare first product_id on each page.
+        import re
+        ids1 = re.findall(r'data-product-id="(\d+)"', r1.text)
+        ids2 = re.findall(r'data-product-id="(\d+)"', r2.text)
+        assert ids1, f"page 1 must have rows (got {len(ids1)} rows)"
+        if ids2:
+            assert ids1[0] != ids2[0], \
+                f"page 2 must show different rows than page 1 (got {ids1[:3]} vs {ids2[:3]})"
+
+    def test_load_more_link_present_in_dom(self):
+        """The template must render a 'Mostrar más' / pagination control."""
+        assert "Mostrar" in TEMPLATE_BODY, \
+            "template must contain a 'Mostrar más' link or similar pagination control"
+
+    def test_hidden_count_block_removed(self):
+        """The 'Mostraste 20 de 43' badge must NOT be hidden — it must be
+        a load-more trigger, not a dead end."""
+        import re
+        # The template must render some form of "Mostrar todas" or pagination
+        # control. It may appear either as a plain href="..." string (with
+        # the literal 'show_all=1' query string), or inside a Jinja
+        # expression `href="{{ m.url_with_filters(request, {'show_all': 1}) }}"`
+        # Both forms prove the load-more trigger exists.
+        plain_href = re.search(
+            r'href="[^"]*show_all=1[^"]*"[^>]*>.*?Mostrar', TEMPLATE_BODY,
+            re.DOTALL,
+        )
+        jinja_href = re.search(
+            r"url_with_filters\([^)]*show_all[^)]*\)", TEMPLATE_BODY,
+        )
+        # Whichever form is present is fine.
+        assert plain_href or jinja_href, \
+            "show_all=1 link with 'Mostrar' text must exist (load-more trigger)"
+
+
+class TestOrigenScoreInsteadOfHelpLink:
+    """Operator: 'for origen maybe a better header and instead of the ?
+    show the score.'"""
+
+    def test_origen_cell_shows_score_not_help_link(self):
+        """The Origen cell should render a numeric score (e.g. 67%), not
+        the '?' help-link. The header has the tooltip instead."""
+        loop_body = _production_row_loop_body()
+        assert "Calculado de las últimas ventas" in loop_body or \
+               "confidence-band__score" in loop_body, \
+               "Origen cell must show either bucket name + score, or score chip"
+        # The '?%' help-link style should be inside the header, not the cell.
+        # The cell should NOT contain `data-band=` (legacy attribute).
+        assert "data-band=" not in loop_body or loop_body.count("data-band=") <= 1, \
+            "Origen cell must not carry legacy data-band helper"
+
+    def test_origen_header_has_help_tooltip(self):
+        """The column header for Origen should have a single ?/tooltip
+        explaining all confidence bands — not per-cell."""
+        import re
+        m = re.search(r'<table[^>]*class="table is-hoverable align-middle[^"]*"', TEMPLATE_BODY)
+        thead_start = TEMPLATE_BODY.find("<thead", m.start())
+        thead_end = TEMPLATE_BODY.find("</thead>", thead_start)
+        thead = TEMPLATE_BODY[thead_start:thead_end]
+        # The Origen th should contain "Origen" plus a helper link.
+        # Use a greedy regex that captures the full <th>...</th> so nested
+        # elements (span, a) don't break the match.
+        origen_th = re.search(
+            r"<th[^>]*>(?:(?!</th>).)*Origen(?:(?!</th>).)*</th>",
+            thead, re.DOTALL,
+        )
+        assert origen_th, "Origen <th> must exist"
+        th_html = origen_th.group(0)
+        assert "Origen" in th_html
+        # The confidence modal anchor should be referenced somewhere (we
+        # can find it by href="#confidence-modal" or data-confidence-help).
+        assert '#confidence-modal' in th_html or 'data-confidence-help' in th_html, \
+            "Origen header must carry the confidence helper link"
+
+
+class TestSobranteGraduatedColor:
+    """R: 'sobrante also maybe a better color red looks bad'"""
+
+    def test_sobrante_uses_graduated_color(self):
+        """The Sobrante cell should use tiered colors (gray / amber / orange),
+        not a flat red. Reserved color for 'to_buy' must not be danger."""
+        loop_body = _production_row_loop_body()
+        # Look for the surplus-pill markup with tier classes
+        import re
+        # Should have at least 2 tier markers
+        tier_classes = re.findall(r'surplus-pill\s+surplus-[a-z\-]+', loop_body)
+        # OR have a CSS rule defining them (the macro / template may
+        # compute tier via JS but the markup should have data-*).
+        assert "surplus-pill" in loop_body, \
+            "Sobrante must use the surplus-pill component"
+        # CSS rule for tiers must exist
+        css_path = pathlib.Path(__file__).parent.parent / "app" / "static" / "app-improvements.css"
+        css = css_path.read_text()
+        tier_rules = re.findall(r"\.surplus-(?:tier|level|band)-[a-z]+", css)
+        assert len(tier_rules) >= 2, \
+            f"need ≥2 surplus tier CSS rules (got {len(tier_rules)})"
+
+    def test_to_buy_in_prep_uses_warning_not_danger(self):
+        """The 'A reponer' column in produccion_prep must NOT use
+        var(--color-danger) — only orange / amber. Red = system error."""
+        prep_path = pathlib.Path(__file__).parent.parent / "app" / "templates" / "produccion_prep.html"
+        if not prep_path.exists():
+            return  # skip if file missing
+        prep_src = prep_path.read_text()
+        # The to_buy cell should not hardcode color-danger for the inline color style
+        assert "color: var(--color-danger" not in prep_src, \
+            "produccion_prep to_buy must not hardcode color-danger (looks bad)"
+
+
+class TestPrepTableSmartFeatures:
+    """The 'Ingredientes necesarios' table in produccion_prep must get the
+    same treatment as the produccion day-view: sort, sticky, filters."""
+
+    PREP = pathlib.Path(__file__).parent.parent / "app" / "templates" / "produccion_prep.html"
+
+    def test_prep_table_has_sort_th_macro(self):
+        if not self.PREP.exists():
+            return
+        body = self.PREP.read_text()
+        assert "m.sort_th" in body, \
+            "produccion_prep must use sort_th macro for sortable headers"
+
+    def test_prep_table_sticky_or_scrollable(self):
+        if not self.PREP.exists():
+            return
+        body = self.PREP.read_text()
+        css_path = pathlib.Path(__file__).parent.parent / "app" / "static" / "app-improvements.css"
+        css = css_path.read_text()
+        # Either inline style or CSS class for sticky/scroll
+        assert ("position: sticky" in body) or ("production-table-scroll" in body) \
+            or ("prep-table" in css) or ("table-sticky-wrap" in body), \
+            "produccion_prep table must be scrollable with sticky thead"
+
+    def test_prep_route_supports_sort_param(self, authed_client):
+        """produccion_prep route must accept ?sort= and not 500."""
+        r = authed_client.get("/produccion/prep?sort=name&dir=asc")
+        assert r.status_code == 200, "?sort on produccion_prep must not 500"

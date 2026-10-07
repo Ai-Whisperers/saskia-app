@@ -200,6 +200,8 @@ def produccion_export_csv(
 def produccion_prep(
     request: Request,
     week: date | None = Query(None),
+    sort: str = Query("severity", pattern=r"^[a-z_]+$"),
+    dir: str = Query("asc", pattern=r"^(asc|desc)$"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """T-2026-10-04 (P2): Weekly ingredient prep sheet for the kitchen.
@@ -250,9 +252,40 @@ def produccion_prep(
             }
         )
 
-    # Sort by severity (Falta first) then by name
+    # Sort: severity (Falta first) then ingredient_name. The user can
+    # override via ?sort= but unknown keys fall back to severity.
     severity_order = {"falta": 0, "justo": 1, "suficiente": 2}
-    prep_rows.sort(key=lambda x: (severity_order.get(x["severity"], 9), x["ingredient_name"]))
+    sort_key = sort if sort in (
+        "severity", "ingredient", "required", "stock", "to_buy"
+    ) else "severity"
+    sort_dir = -1 if dir == "desc" else 1
+    if sort_key == "severity":
+        prep_rows.sort(
+            key=lambda x: (
+                severity_order.get(x["severity"], 9) * sort_dir,
+                x["ingredient_name"],
+            )
+        )
+    elif sort_key == "ingredient":
+        prep_rows.sort(
+            key=lambda x: x["ingredient_name"],
+            reverse=(dir == "desc"),
+        )
+    elif sort_key == "required":
+        prep_rows.sort(
+            key=lambda x: x["qty_required"],
+            reverse=(dir == "desc"),
+        )
+    elif sort_key == "stock":
+        prep_rows.sort(
+            key=lambda x: x["stock_on_hand"],
+            reverse=(dir == "desc"),
+        )
+    elif sort_key == "to_buy":
+        prep_rows.sort(
+            key=lambda x: x["to_buy"],
+            reverse=(dir == "desc"),
+        )
 
     counts = {
         "falta": sum(1 for r in prep_rows if r["severity"] == "falta"),
@@ -270,6 +303,8 @@ def produccion_prep(
             "next_week_iso": (week_start + timedelta(days=7)).isoformat(),
             "prep_rows": prep_rows,
             "counts": counts,
+            "current_sort": sort,
+            "current_dir": dir,
         },
     )
 

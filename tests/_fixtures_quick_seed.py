@@ -242,6 +242,25 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
             result = seed_kyrian(s)
             out["kyrian"] = result
 
+        elif scenario == "with_many_products":
+            # 25 active products + 25 sales for pagination fixtures.
+            for i in range(25):
+                ing = _make_quick_ingredient(s, name=f"ing_many_{i}")
+                rec = _make_quick_recipe(s, f"Receta Many {i}", ing, yield_qty=12.0)
+                p = _make_quick_product(s, f"Producto Many {i:02d}", rec)
+                sale = apply_sale(
+                    s,
+                    product_id=p.id,
+                    qty=2.0,
+                    sold_at=today_noon_utc if False else now - timedelta(hours=i),
+                    notes=None,
+                    customer_id=None,
+                    payment_method="efectivo",
+                    discount_gs=0,
+                    channel="Mostrador",
+                )
+            out["n_products"] = 25
+
         s.commit()
     return out
 

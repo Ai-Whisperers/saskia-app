@@ -762,11 +762,11 @@
           <th class="num" style="width: 3.5rem;">{{ m.sort_th("Pedidos", "pedidos", current_sort, current_dir) }}</th>
           <th class="num" style="width: 4.5rem;">{{ m.sort_th("Lote final", "lote", current_sort, current_dir) }}</th>
           <th class="num" style="width: 7rem;">{{ m.sort_th("Hecho", "hecho", current_sort, current_dir) }}</th>
-          {# Origen — tiny label, full text in title. Repeated human text
-             removed per operator feedback ("this repeats a lot but isn't
-             useful"). #}
-          <th style="width: 3rem;">
+          {# Origen — short label, single tooltip link explains all bands. The
+             cell now shows the numeric score (e.g. "67%") not a "?". #}
+          <th style="width: 3.5rem;">
             <span class="th-sort th-sort--readonly" title="Origen (mouseover para detalle)" aria-label="Origen">Origen</span>
+            <a href="#confidence-modal" data-confidence-help class="confidence-help" title="¿Qué significa el porcentaje?">?</a>
           </th>
           <th style="width: 6rem;">Receta</th>
           <th class="num" style="width: 4.5rem;">{{ m.sort_th("Sobrante", "sobrante", current_sort, current_dir) }}</th>
@@ -887,10 +887,11 @@
                   title="{{ source_buckets[bucket] }}"
                   aria-label="{{ source_buckets[bucket] }}"></span>
             {% if not r.is_ad_hoc %}
-              <a href="#confidence-modal"
-                 class="confidence-help"
-                 data-band="{{ r.confidence_band }}"
-                 title="¿Qué significa {{ r.confidence_pct }}%?">?</a>
+              <span class="confidence-band__score confidence-band__score--{{ r.confidence_band }}"
+                    title="Confianza del cálculo: {{ r.confidence_pct }}%. Bajo = se queda cerca de la meta; Medio = puede variar ±10%; Alto = conviene revisar">{{ r.confidence_pct }}%</span>
+            {% else %}
+              <span class="confidence-band__score confidence-band__score--manual"
+                    title="Producto manual: no hay cálculo automático. Marcá la cantidad a hornear a ojo.">a ojo</span>
             {% endif %}
           </td>
           <td data-label="Receta">
@@ -911,15 +912,22 @@
               🔥
             </button>
           </td>
-          {# T-2026-10-05 (B.9): batch-surplus cell. #}
+          {# T-2026-10-05 (B.9): batch-surplus cell.
+             Tiers (2026-10-07 round-2): gray for tolerable (≤20%),
+             amber for moderate (20-100%), orange for excessive (>100%).
+             Red is reserved for system errors. Adds a stacked-box icon
+             for at-a-glance density scan. #}
           <td class="num" data-label="Sobrante">
             {% if r.batch_surplus_qty is not none %}
               {% if r.batch_surplus_qty == 0 %}
                 <span class="text-muted" title="Lote exacto (sin sobrante)">✓</span>
               {% else %}
-                <span class="surplus-pill surplus-{% if r.batch_surplus_pct >= 30 %}high{% elif r.batch_surplus_pct >= 10 %}med{% else %}low{% endif %}"
+                {% set tier = "tier-high" if r.batch_surplus_pct > 100 else ("tier-med" if r.batch_surplus_pct > 20 else "tier-low") %}
+                {% set boxes = "▪▪▪▪" if r.batch_surplus_pct > 100 else ("▪▪▪" if r.batch_surplus_pct > 50 else ("▪▪" if r.batch_surplus_pct > 20 else "▪")) %}
+                <span class="surplus-pill surplus-{{ tier }}"
                       title="{{ r.batch_surplus_qty | int }} und extra ({{ r.batch_surplus_pct }}% sobre la demanda)">
-                  +{{ r.batch_surplus_qty | int }}
+                  <span class="surplus-pill__boxes" aria-hidden="true">{{ boxes }}</span>
+                  <span class="surplus-pill__num">+{{ r.batch_surplus_qty | int }}</span>
                 </span>
               {% endif %}
             {% else %}
@@ -962,12 +970,42 @@
       </tbody>
     </table>
 
-    {# 2026-10-07: "Mostrar N más" footer when the cap hides rows. #}
-    {% if hidden_count > 0 %}
-    <div class="production-table-footer" style="padding: var(--space-2) var(--space-3); text-align: center; font-size: var(--text-xs); color: var(--color-muted); border-top: 1px solid var(--color-border);">
-      Mostrando {{ visible_rows | length }} de {{ primary_rows | length }} filas.
-      <a href="?for_date={{ for_date }}&view=day&rows=100{% if shift %}&shift={{ shift }}{% endif %}"
-         class="filter-chip" data-show-all>Mostrar todas (100)</a>
+    {# 2026-10-07 round 2: pagination footer — never cap total products.
+       Operator feedback: 'I don't want to limit the total — only per page.'
+       Three controls: (a) "Mostrar N más" appends to current page size,
+       (b) "Mostrar todas" flips show_all=1 to disable pagination entirely,
+       (c) page-number links (when N > rows*2). All preserve the active
+       sort + filter state via m.url_with_filters(). #}
+    {% if primary_rows %}
+    <div class="production-table-footer">
+      {% set page_rows = visible_rows | length %}
+      <span class="production-table-footer__summary">
+        {% if show_all %}
+          Mostrando <strong>{{ primary_rows | length }}</strong> filas (sin paginar).
+        {% else %}
+          Mostrando <strong>{{ page_rows }}</strong> de <strong>{{ primary_rows | length }}</strong> filas
+          · página <strong>{{ current_page }}</strong> / <strong>{{ total_pages }}</strong>.
+        {% endif %}
+      </span>
+      <span class="production-table-footer__actions">
+        {# (a) Next page link — only when there's a real next page. #}
+        {% if not show_all and current_page < total_pages %}
+          <a class="filter-chip" href="{{ m.url_with_filters(request, {'page': current_page + 1}) }}">
+            Siguiente {{ rows_per_page }} →
+          </a>
+        {% endif %}
+        {# (b) Show all (escape hatch). #}
+        {% if not show_all and primary_rows | length > rows_per_page %}
+          <a class="filter-chip filter-chip--accent" data-show-all
+             href="{{ m.url_with_filters(request, {'show_all': 1}) }}">
+            Mostrar todas ({{ primary_rows | length }})
+          </a>
+        {% elif show_all %}
+          <a class="filter-chip" href="{{ m.url_with_filters(request, {'page': 1, 'show_all': None}) }}">
+            Volver a paginar
+          </a>
+        {% endif %}
+      </span>
     </div>
     {% endif %}
   </div>{# /.production-table-scroll — C1 right-edge overflow fix #}
