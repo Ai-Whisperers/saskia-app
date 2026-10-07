@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Copiloto{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-recipe"></use></svg>
+  Copiloto IA
+</h1>
+{% if not llm_available %}
+<div class="callout callout-warning">
+  IA no configurada (falta <code>ZAI_API_KEY</code>): respondo con números
+  crudos del negocio, sin análisis conversacional.
+</div>
+{% endif %}
+<div id="copilot-log" class="stack" aria-live="polite"></div>
+<div class="chips">
+  {% for c in chips %}
+  <button type="button" class="chip" onclick="copilotAsk(this.textContent)">{{ c }}</button>
+  {% endfor %}
+</div>
+<form id="copilot-form" class="row" onsubmit="copilotSubmit(event)">
+  <input id="copilot-q" name="q" autocomplete="off" placeholder="Preguntale algo al copiloto…" style="flex:1">
+  <button type="submit" class="btn btn-primary">Preguntar</button>
+</form>
+<script src="/static/js/copilot.js" defer></script>
+{% endblock %}

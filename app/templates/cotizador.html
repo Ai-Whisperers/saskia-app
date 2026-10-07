@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Cotizador{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-box"></use></svg>
+  Cotizador de pedidos grandes
+</h1>
+{% if request.query_params.get('flash') == 'empty' %}
+<div class="callout callout-warning">No cargaste ningún producto.</div>
+{% endif %}
+
+<form method="post" action="/cotizador">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <table class="table">
+    <thead><tr><th>Producto</th><th>Precio carta</th><th>Cantidad</th></tr></thead>
+    <tbody>
+    {% for p in catalog %}
+      <tr>
+        <td>{{ p.name }}</td>
+        <td>Gs {{ "{:,}".format(p.price_gs) }}</td>
+        <td><input type="number" name="qty_{{ p.id }}" min="0" value="0" inputmode="numeric" class="qty-input" style="width:90px"></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <label class="field" style="max-width:220px">
+    <span>Descuento por volumen (%)</span>
+    <select name="descuento">
+      {% for d in descuentos %}<option value="{{ d }}" {% if quote is not none and descuento is defined and descuento == d %}selected{% endif %}>{{ d }}%</option>{% endfor %}
+    </select>
+  </label>
+  <div class="actions">
+    <button type="submit" class="btn btn-primary">Cotizar</button>
+  </div>
+</form>
+
+{% if quote and quote.items %}
+<h2>Cotización</h2>
+<table class="table">
+  <thead><tr><th>Producto</th><th>Cant.</th><th>Lotes</th><th>Costo</th><th>Carta</th><th>Margen</th></tr></thead>
+  <tbody>
+  {% for it in quote.items %}
+    <tr>
+      <td>{{ it.product_name }}</td>
+      <td>{{ it.qty }} × {{ it.portion_label }}</td>
+      <td>{% if it.batches %}{{ it.batches }}{% else %}—{% endif %}</td>
+      <td>{% if it.line_cost_gs is not none %}Gs {{ "{:,}".format(it.line_cost_gs) }}{% else %}{% if it.missing %}⚠ sin costo (faltan precios){% else %}—{% endif %}{% endif %}</td>
+      <td>Gs {{ "{:,}".format(it.line_menu_gs) }}</td>
+      <td>{% if it.margin_gs is not none %}Gs {{ "{:,}".format(it.margin_gs) }}{% else %}—{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr><th colspan="4">TOTAL carta</th><th colspan="2">Gs {{ "{:,}".format(quote.total_menu_gs) }}</th></tr>
+    {% if total_con_descuento is defined %}
+    <tr><th colspan="4">Total con {{ descuento }}% desc.</th><th colspan="2">Gs {{ "{:,}".format(total_con_descuento) }}</th></tr>
+    {% endif %}
+    {% if quote.total_cost_gs is not none %}
+    <tr><th colspan="4">Costo total</th><th colspan="2">Gs {{ "{:,}".format(quote.total_cost_gs) }}</th></tr>
+    {% endif %}
+  </tfoot>
+</table>
+<form method="post" action="/cotizador/pdf">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% for it in quote.items %}<input type="hidden" name="qty_{{ it.product_id }}" value="{{ it.qty }}">{% endfor %}
+  {% if descuento is defined %}<input type="hidden" name="descuento" value="{{ descuento }}">{% endif %}
+  <button type="submit" class="btn">Descargar PDF</button>
+</form>
+<p class="muted">Cotización preliminar — precios de carta sin IVA discriminado.</p>
+{% endif %}
+{% endblock %}

@@ -62,7 +62,9 @@ from app.routers import (
     auditoria,
     auth,
     caja,
+    copiloto,
     photo_credits,
+    cotizador,
     customers,
     dashboard,
     demo,
@@ -70,6 +72,7 @@ from app.routers import (
     eod,
     excel_io,
     fiado,
+    menu_import,
     health,
     help,
     herebus,
@@ -705,6 +708,9 @@ app.include_router(products.router)
 app.include_router(sales.router)
 app.include_router(caja.router)
 app.include_router(fiado.router)
+app.include_router(menu_import.router)
+app.include_router(cotizador.router)
+app.include_router(copiloto.router)
 app.include_router(refund.router)
 app.include_router(search.router)
 app.include_router(excel_io.router)
