@@ -4156,6 +4156,90 @@ import, dry-run no network, dry-run missing url, dry-run missing
 token, 200→0, 500→3, 401→2, ECONNREFUSED→4, --json output shape,
 path auto-append). All green. Full backup suite is 65/65.
 
+### Added — D.5 DNI-derived backup encryption (2026-10-07)
+
+The local SQLite snapshot was previously written in cleartext on
+the VPS, and the R2 upload was Fernet-encrypted with a key that
+lived on the same disk as the data. A VPS-only breach yielded
+the full sales history; a VPS+R2 simultaneous breach yielded
+nothing because the Fernet key was on the VPS. D.5 fixes both
+by deriving the encryption key from the operator's DNI at
+backup time and never persisting it.
+
+**Design — AES-256-GCM, not Fernet.** Fernet is AES-128-CBC +
+HMAC-SHA256 with a fixed format. D.5 uses `AESGCM` from
+`cryptography.hazmat` (already a dep): 32-byte key, 12-byte
+random nonce, 16-byte GCM tag, single authenticated-encryption
+primitive. PBKDF2-HMAC-SHA256 with 600,000 iterations
+(OWASP 2023) and a per-backup 16-byte random salt derives the
+key from the DNI. The salt is in the file header (not a secret)
+so the operator can decrypt any past backup with the same DNI.
+
+**Wire format (v1):**
+`[ 0..7 ] 8-byte magic "SASKIA01" | [ 8 ] version 0x01 | [ 9..24 ] 16-byte salt | [ 25..36 ] 12-byte nonce | [ 37.. ] ciphertext+tag`
+
+A version byte lets future Sazon versions refuse to silently
+decrypt newer backup files. The magic lets the restore code
+reject non-Sazon files cleanly (distinct from "wrong DNI").
+
+**Threat model: DNI file on a USB stick, NOT the VPS.** The
+whole point of "DNI-derived" is that the key is never on the
+VPS. The default env var `AIW_RMS_BACKUP_DNI_FILE` points to
+`/etc/sazon/backup-dni` but the operator can mount a USB stick
+and point the env var there. The app REFUSES to read the file
+if it's world- or group-readable (hard check in
+`derive_key_from_dni_file`). When the file is missing, the
+backup runs unencrypted with a loud warning — fail-loud, not
+fail-closed, so a missing file doesn't break the daily backup.
+
+**Backward compatibility.** The new format is opt-in via the
+DNI file. Pre-D.5 R2 backups (Fernet-encrypted) become
+unreadable after the legacy `r2-encryption.key` is deleted.
+The migration is one-time: on the first run with DNI, the
+file is unlinked and a warning is logged so the operator sees
+the action. If the operator needs to restore from a pre-D.5
+backup, they must have kept the old key file separately.
+
+**Files:**
+- `app/services/backup_crypto.py` — new module: PBKDF2 key
+  derivation, AES-256-GCM encrypt/decrypt, versioned file
+  format, DNI file loader with permissions check.
+- `app/services/backup_scheduler.py:215-282,338-490` — wires
+  the new format into `run_backup()`: encrypts the local
+  snapshot, re-encrypts for the R2 upload with a fresh
+  salt+nonce pair, deletes the legacy Fernet key once.
+  The cleartext snapshot is deleted after encryption. xlsx
+  and CSV exports stay cleartext (they're the operator's
+  monthly report — encryption would defeat the purpose).
+- `app/rms/config.py:79-85` — new `BACKUP_DNI_FILE` env var
+  (default `/etc/sazon/backup-dni`).
+- `docs/operations/backup-cron.md` — extended with a D.5
+  section covering provisioning, threat model, DNI rotation
+  runbook, file permissions, and what stays cleartext.
+
+**Tests added (32 new, 97/97 backup suite):**
+- `tests/test_backup_crypto.py` (26): key derivation
+  determinism + salt randomness + iteration count
+  (OWASP 2023), encrypt/decrypt roundtrip (empty, small,
+  5MB), tamper detection, wrong-DNI rejection, version
+  rejection, magic rejection, truncated-blob handling,
+  DNI file loading (missing/empty/perm/world-readable/
+  read-only), concurrency.
+- `tests/test_backup_scheduler_encryption.py` (6):
+  cleartext path when no DNI, encrypted path when DNI
+  is provisioned, R2 upload in new format with wrong-DNI
+  rejection, legacy Fernet key migration, fallback when
+  DNI file is missing, xlsx+CSV stay cleartext.
+
+**Cut from this commit (follow-up issues):**
+- The monthly restore test (D.5 said "restore test mensual")
+  is its own scope. The crypto + scheduler code is ready
+  for it; the cron entry is a 30-line addition.
+- Migration script for pre-D.5 Fernet-encrypted R2 backups
+  (operator can re-encrypt from R2 → R2 if they kept the
+  old key file).
+- Argon2id (rejected to avoid new deps per AGENTS.md rule 26).
+
 ## [Unreleased]
 
 ### Fixed (UI audit patch set, 2026-09-23)
