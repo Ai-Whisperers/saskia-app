@@ -6,6 +6,13 @@
 This file tracks every improvement opportunity surfaced across audits, all live in
 the code, and operator-ranked. Status is the latest known state.
 
+> **⚠ Stale since 2026-10-07.** P40 trio (quick-restock, load-template,
+> eod snapshot warmer) + held_sale + FloCafe reports + 6 of 13 anti-rules
+> in CI + atomic DDL + receipt oracle + date-boundary CI are not
+> represented here. See [`WHAT_NEXT.md`](WHAT_NEXT.md) for current
+> operator-facing priorities. Keep this file only for the historical
+> audit-driven Tier-1/Tier-2/Tier-3 list.
+
 ## Tier 1: P0 — Critical correctness (5 items)
 
 | # | Item | Status | Effort |
