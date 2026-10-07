@@ -1,3 +1,14 @@
+## 2026-10-07g — SASKIA-209: one-command migration rollback (`sazon rollback`)
+
+**The safety net is real.** Rule-17 pre-migration backups are now one command away from being a restore.
+
+- **`app/rms/rollback.py`**: `rollback_sqlite()` — finds the newest rule-17 archive matching the current version (`sazon-pre-mig-v<A>-to-v<B>` where B == current), archives the CURRENT state first as evidence (`sazon-post-mig-rollback-evidence-*`), restores into a fresh temp DB, `PRAGMA integrity_check`s it, verifies schema_version == target, writes an `app_meta migration_rollback_log:<ts>` entry, then atomically `os.replace`s over the live file with WAL/-shm sidecar cleanup. Fail-closed on: no matching archive, wrong `--to`, integrity failure, non-SQLite URL, version ≤ 1 — live DB untouched in every refusal path.
+- **CLI**: `uv run sazon rollback` (plus `--to N` explicit target, `--dry-run` to preview the archive used). Dispatch added to `run()`; non-SQLite gets a point-in-time-recovery pointer instead of a wrong tool.
+- **9 contract tests**: roundtrip (marker row gone, log row present, version restored), WAL cleanup, archive matching (newest wins, no-match, missing dir), refusals (wrong target, no backup + DB untouched, non-SQLite, low version).
+- **Scope notes** (per the one-pager): SQLite-only (prod shape), no data backfill reversal (whole-file restore is inherent), run `sazon migrate` afterwards to re-apply. Postgres → server-level PITR.
+
+**Sweep**: 102 passed (rollback 9 + migration-safety + settings + SASKIA-305/306/207/208 locks).
+
 ## 2026-10-07f — Sprint 2.1 COMPLETE: settings consolidation (AppMeta → settings_kv)
 
 **The dual-persistence trap is closed.** One settings store: `settings_kv` (JSON, via settings_runtime).
