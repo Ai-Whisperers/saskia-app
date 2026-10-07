@@ -26,6 +26,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import current_user_id
 from app.auth import require_login_or_disabled as require_login
 from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
@@ -106,17 +107,73 @@ async def wishlist_mark_purchased(
     item_id: int,
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
+    """Mark a wishlist (equipment) item bought AND land it in inventory.
+
+    SASKIA-205 (2026-10-07): previously this only flipped `purchased` —
+    the biggest functional gap in the purchase flow. Equipment lives in
+    inventory as the "[EQUIPMENT] {name}" pseudo-ingredient (created by
+    send-to-shopping-list), so a direct mark-purchased creates/updates
+    that ingredient: stock_qty += quantity, and a StockMovement
+    (movement_type='reorder') audit row is written so /merma and the
+    stock history explain the jump.
+
+    Idempotency: the stock bump only happens on the False → True
+    transition, same contract as shopping-list mark-purchased.
+    """
+    from app.rms.models import Ingredient, StockMovement
+
     item = session.get(WishlistItem, item_id)
     if not item:
         raise NotFound("WishlistItem", id=item_id)
+
+    was_purchased = bool(item.purchased)
     item.purchased = True
     item.purchased_at = datetime.now(timezone.utc)
+
+    stock_bumped = 0.0
+    if not was_purchased:
+        eq_name = f"[EQUIPMENT] {item.name}"
+        eq_ing = (
+            session.execute(select(Ingredient).where(Ingredient.name == eq_name))
+            .scalars()
+            .first()
+        )
+        if eq_ing is None:
+            eq_ing = Ingredient(
+                name=eq_name,
+                unit="und",
+                stock_qty=0.0,
+                purchase_price_gs=item.unit_price_gs,
+                min_stock_qty=0,
+                category="Equipment",
+                notes=f"Auto-created from wishlist #{item.id} (mark-purchased)",
+            )
+            session.add(eq_ing)
+            session.flush()
+        qty = float(item.quantity or 0)
+        eq_ing.stock_qty = (eq_ing.stock_qty or 0.0) + qty
+        eq_ing.purchase_price_gs = item.unit_price_gs or eq_ing.purchase_price_gs
+        stock_bumped = qty
+        session.add(
+            StockMovement(
+                ingredient_id=eq_ing.id,
+                movement_type="reorder",
+                qty=qty,
+                reason=f"Compra wishlist #{item.id} — {item.name}",
+                reference_id=item.id,
+                reference_type="reorder",
+                recorded_at=datetime.now(timezone.utc),
+                created_by=current_user_id(request) or "operator",
+            )
+        )
+
     session.commit()
     logger.info(
-        "wishlist_marked_purchased item_id={} name={!r} price_gs={}",
+        "wishlist_marked_purchased item_id={} name={!r} price_gs={} stock_bumped={}",
         item.id,
         item.name,
         item.unit_price_gs,
+        stock_bumped,
     )
     record_audit(
         request,
@@ -124,7 +181,10 @@ async def wishlist_mark_purchased(
         action="wishlist.mark_purchased",
         target_type="WishlistItem",
         target_id=item.id,
-        detail={"name": item.name},
+        detail={
+            "name": item.name,
+            "stock_bumped": stock_bumped,
+        },
     )
     return RedirectResponse(url="/wishlist", status_code=303)
 

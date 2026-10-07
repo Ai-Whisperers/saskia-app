@@ -23,6 +23,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import current_user_id
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.errors import NotFound
@@ -30,6 +31,7 @@ from app.rms.models import (
     Ingredient,
     ProductionPlan,
     ShoppingListItem,
+    StockMovement,
 )
 from app.rms.observability import record_audit
 from app.services.template_render import render
@@ -207,18 +209,83 @@ def mark_purchased(
     item_id: int,
     session: Session = Depends(get_session),
 ) -> object:
+    """Mark a shopping-list row bought AND land it in inventory.
+
+    SASKIA-205 (2026-10-07): previously this only flipped `purchased`,
+    so bought stock never appeared on /inventario and reorder
+    suggestions kept nagging for ingredients the operator had already
+    bought. Now the bought qty is converted to the ingredient's stock
+    unit, added to `stock_qty`, and an audit-trail StockMovement
+    (movement_type='reorder') is written — same taxonomy the bulk
+    restock on /inventario uses.
+
+    Idempotency: the stock bump only happens on the purchased=False →
+    True transition. Re-marking or /unmark + re-mark must not double
+    the stock (unmark does NOT subtract — physical stock doesn't
+    un-arrive; the operator can correct via /inventario/ajuste).
+    """
     item = session.get(ShoppingListItem, item_id)
     if not item:
         raise NotFound("ShoppingListItem", id=item_id)
+
+    was_purchased = bool(item.purchased)
     item.purchased = True
     item.purchased_at = datetime.now(timezone.utc)
+
+    stock_bumped = 0.0
+    if not was_purchased and item.ingredient_id:
+        ing = session.get(Ingredient, item.ingredient_id)
+        if ing is not None:
+            from app.rms.units import Unit, can_convert, convert_qty
+
+            qty = float(item.qty_to_buy or 0)
+            qty_in_stock_unit = qty
+            if item.unit and ing.unit and item.unit != ing.unit:
+                try:
+                    from_unit = Unit.coerce(item.unit)
+                    to_unit = Unit.coerce(ing.unit)
+                    if can_convert(from_unit, to_unit):
+                        qty_in_stock_unit = float(convert_qty(qty, from_unit, to_unit))
+                    # Non-convertible units (e.g. 'und' vs 'kg'): land the
+                    # raw qty rather than blocking the operator's mark —
+                    # the audit row records both units for correction.
+                except (ValueError, KeyError):
+                    qty_in_stock_unit = qty
+
+            ing.stock_qty = (ing.stock_qty or 0.0) + qty_in_stock_unit
+            stock_bumped = qty_in_stock_unit
+            session.add(
+                StockMovement(
+                    ingredient_id=ing.id,
+                    movement_type="reorder",
+                    qty=qty_in_stock_unit,
+                    reason=(
+                        f"Compra shopping-list #{item.id}"
+                        f" ({item.qty_to_buy:g} {item.unit})"
+                        f" — {item.purpose_text or 'sin destino'}"
+                    ),
+                    reference_id=item.id,
+                    reference_type="reorder",
+                    recorded_at=datetime.now(timezone.utc),
+                    created_by=current_user_id(request) or "operator",
+                )
+            )
+            logger.info(
+                "shopping_purchase_to_stock item={} ing={} +{} {}",
+                item.id,
+                ing.id,
+                qty_in_stock_unit,
+                ing.unit,
+            )
+
     session.commit()
     logger.info(
-        "shopping_item_purchased id={} ingredient_id={} qty={} {}",
+        "shopping_item_purchased id={} ingredient_id={} qty={} {} stock_bumped={}",
         item.id,
         item.ingredient_id,
         item.qty_to_buy,
         item.unit,
+        stock_bumped,
     )
     record_audit(
         request,
@@ -226,7 +293,10 @@ def mark_purchased(
         action="shopping.mark_purchased",
         target_type="ShoppingListItem",
         target_id=item.id,
-        detail={"ingredient_id": item.ingredient_id},
+        detail={
+            "ingredient_id": item.ingredient_id,
+            "stock_bumped": stock_bumped,
+        },
     )
     return RedirectResponse(url="/shopping-list", status_code=303)
 
