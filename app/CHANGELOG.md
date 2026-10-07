@@ -3655,6 +3655,31 @@ many products. A per-line preflight alone wasn't enough.
 
 **Tests:** 19 new (11 cart service + 8 multi route).
 
+### Added — OWASP ZAP API scan (M-INFRA-001) (2026-10-07)
+
+New GitHub Actions workflow `.github/workflows/security-zap.yml`
+runs OWASP ZAP against `/api/openapi.json` on every PR + push +
+weekly Monday 03:00 UTC. Adapted from `karanshukla/openresto`
+(MIT) but tuned for Sazon's deploy shape (no Docker Compose per
+AGENTS.md anti-rule #4; ephemeral Postgres in Docker, uvicorn
+booted directly).
+
+- **Workflow** — boots Postgres 16-alpine, pre-provisions schema
+  with create_all() (mirrors smoke.yml), boots uvicorn on :18998
+  (avoids smoke.yml's :18999), runs `zaproxy/action-api-scan@v0.10.0`
+  with `-l WARN` threshold, uploads `zap-report` artifact.
+- **Custom rules** — `.github/.zap-rules.tsv` documents every
+  IGNORE entry (10 false positives suppressed: uvicorn version
+  disclosure, intentional caching on /static/*, "no CORS" on
+  same-origin, etc.). Sazon security headers (X-Frame, CSP,
+  X-Content-Type) are NEVER suppressed.
+- **Tests** — 20 sanity tests in
+  `tests/test_security_zap_workflow.py`: YAML parses, triggers
+  are correct, custom rules are TAB-separated (ZAP strict), no
+  critical rules suppressed, port differs from smoke.yml.
+- **Status** — advisory for now; promote to required in Branch
+  Protection after 2 consecutive green weekly scans.
+
 ### Added — POS hold-sale (B-7) (2026-10-07)
 
 Ports the "hold" pattern from `Hao0321/pos-pro` (MIT,
