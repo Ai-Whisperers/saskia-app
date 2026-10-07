@@ -2168,3 +2168,75 @@ def public_recibo(request: Request, token: str) -> HTMLResponse:
                 "public_mode": True,
             },
         )
+
+
+# ---- Pre-sale validation (pre-billing checklist) --------------------
+#
+# Ported from ury-erp/ury (MIT) posClosing.js. The /ventas/nueva form
+# calls this on every form change (debounced) to surface all warnings
+# and blockers before the operator clicks "Confirmar".
+#
+# Returns a JSON checklist with two lists: warnings and blockers.
+# Blockers must be resolved before sale; warnings can be overridden.
+@router.post("/nueva/preflight")
+async def preflight_sale(
+    request: Request,
+    product_id: int | None = Form(None, gt=0),
+    sku: str = Form(""),
+    qty: float = Form(1.0, gt=0),
+    payment_method: str = Form(""),
+    discount_gs: int = Form(0, ge=0),
+    customer_id: int | None = Form(None, gt=0),
+    sold_at: str = Form(""),
+    channel: str = Form(""),
+    unit_price_gs_override: int | None = Form(None, gt=0),
+    packaging_item_id: int | None = Form(None, gt=0),
+    packaging_qty: float | None = Form(None, gt=0),
+    points_to_redeem: int = Form(0, ge=0),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Run the pre-billing checklist on a sale intent.
+
+    Returns JSON: {warnings: [...], blockers: [...], is_ready: bool}.
+    The /ventas/nueva form shows a yellow banner for warnings and a
+    red banner for blockers.
+    """
+    from datetime import datetime, date as _date
+    from app.rms.sales.pre_sale_check import (
+        PreSaleIntent, validate_sale_intent,
+    )
+
+    sold_at_date: date | None = None
+    if sold_at:
+        try:
+            sold_at_date = datetime.fromisoformat(sold_at).date()
+        except ValueError:
+            sold_at_date = None
+
+    intent = PreSaleIntent(
+        product_id=product_id,
+        sku=sku,
+        qty=qty,
+        discount_gs=discount_gs,
+        customer_id=customer_id,
+        payment_method=payment_method,
+        channel=channel or "mostrador",
+        sold_at=sold_at_date,
+        unit_price_gs_override=unit_price_gs_override,
+        packaging_item_id=packaging_item_id,
+        packaging_qty=packaging_qty,
+        points_to_redeem=points_to_redeem,
+    )
+
+    today = datetime.now().date()
+    checklist = validate_sale_intent(session, intent, today=today)
+
+    def _serialize(w) -> dict:
+        return {"code": w.code, "severity": w.severity, "message": w.message}
+
+    return JSONResponse({
+        "warnings": [_serialize(w) for w in checklist.warnings],
+        "blockers": [_serialize(w) for w in checklist.blockers],
+        "is_ready": checklist.is_ready,
+        "is_clean": checklist.is_clean,
+    })

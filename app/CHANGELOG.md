@@ -5,6 +5,41 @@
 
 ## [Unreleased]
 
+### Added — Pre-billing checklist (URY pattern) (2026-10-07)
+
+Ports the `ury-erp/ury` `posClosing.js` validation pattern
+(MIT-licensed): collect ALL pre-sale warnings/blockers into one
+sweep, surface in Spanish, let operator override or fix.
+
+**`app/rms/sales/pre_sale_check.py` (NEW, 13KB):**
+- `PreSaleIntent` — frozen dataclass for the sale intent
+- `PreSaleWarning` — code, severity (blocker/warning/info), Spanish message
+- `PreSaleChecklist` — collects warnings + blockers with is_ready/is_clean
+- `validate_sale_intent()` — runs all 10 checks:
+  1. Qty > 0 (blocker)
+  2. Qty < MAX_QTY_PER_SALE (blocker, default 999)
+  3. Product exists (by id OR sku) (blocker)
+  4. Customer allergen match (blocker)
+  5. Large discount > 20% (warning)
+  6. Recipe has yield (blocker) / has any recipe (warning)
+  7. Single ingredient shortage (warning) / multiple (blocker)
+  8. Packaging consistency (blocker)
+  9. Day is open (EOD-closed = blocker)
+  10. Payment method present (info)
+
+**`POST /ventas/nueva/preflight` (NEW route):**
+- Form-based input mirroring /ventas/nueva
+- Returns JSON: {warnings, blockers, is_ready, is_clean}
+- /ventas/nueva UI can call on form change (debounced)
+
+**Tests added:** 32 (25 unit + 7 route integration)
+**Adaptations from URY:**
+- Python dataclass instead of Vue+Pinia store
+- Spanish messages throughout (operator-facing)
+- Severity model (blocker/warning/info) instead of URY's binary "error/ok"
+- Reuses Sazon's existing check_customer_risk (not a parallel implementation)
+- Reuses _compute_stock_moves for recipe walk (not a re-walk)
+
 ### Added — Receipt oracle test (FloCafe pattern) (2026-10-07)
 
 Ports `FreeOpenSourcePOS/FloCafe/tests/receipt-column-oracle.test.ts`
