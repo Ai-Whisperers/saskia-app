@@ -296,7 +296,7 @@
         <input type="hidden" name="channel" value="{{ channel_default or 'salon' }}">
         <input type="hidden" name="payment_method" value="{{ payment_method_default or 'efectivo' }}">
         <button type="submit"
-                class="quick-sell-btn{% if not q.is_available %} is-out-of-stock{% endif %}"
+                class="quick-sell-btn{% if not q.is_available %} is-out-of-stock{% endif %}{% if stock_sold_out.get(q.id) %} is-sold-out{% endif %}{% if stock_ceilings.get(q.id) is not none and stock_ceilings.get(q.id) > 0 and stock_ceilings.get(q.id) <= stock_low.get(q.id) %} is-low-stock{% endif %}"
                 data-name="{{ fmt.entity_name(q)|lower }}"
                 data-category="{{ q.category or 'otro' }}"
                 data-product-id="{{ q.id }}"
@@ -304,14 +304,23 @@
                 data-price="{{ q.sale_price_gs }}"
                 data-product-name="{{ fmt.entity_name(q) }}"
                 data-sku="{{ q.sku or '' }}"
-                {% if not q.is_available %}disabled aria-disabled="true"{% endif %}
+                {# M-FLO-001 (FloCafe addon-inventory port): per-product stock
+                   ceiling so the cart qty input can't exceed what's in stock.
+                   None means "no ceiling" (no recipe or uncatchable recipe). #}
+                data-stock-ceiling="{{ '' if stock_ceilings.get(q.id) is none else stock_ceilings.get(q.id) }}"
+                data-low-stock="{{ stock_low.get(q.id) or '' }}"
+                {% if not q.is_available or stock_sold_out.get(q.id) %}disabled aria-disabled="true"{% endif %}
                 aria-label="{{ fmt.entity_name(q) }} — {{ m.gs(q.sale_price_gs) }}">
           {%- if q.image_url -%}
             <img class="qs-thumb" src="{{ q.image_url }}" alt="" loading="lazy" width="44" height="44">
           {%- endif -%}
           <span class="qs-name">{{ fmt.entity_name(q) }}</span>
           <span class="price-gs qs-price">Gs. {{ m.gs(q.sale_price_gs) }}</span>
-          {%- if not q.is_available -%}
+          {%- if stock_sold_out.get(q.id) -%}
+            <small class="text-danger qs-sold-out-badge">Agotado</small>
+          {%- elif stock_ceilings.get(q.id) is not none and stock_ceilings.get(q.id) > 0 and stock_ceilings.get(q.id) <= stock_low.get(q.id) -%}
+            <small class="text-warning qs-low-badge">⚠ Quedan {{ '%.0f' % stock_ceilings.get(q.id) }}</small>
+          {%- elif not q.is_available -%}
             <small class="text-danger">Sin stock</small>
           {%- endif -%}
         </button>
@@ -600,7 +609,22 @@
 
   // ── Add from quick-sale button (price passed directly) ────────────────────
   window.quickAddToCart = function(productId, productName, unitPriceGs) {
-    addItem(parseInt(productId, 10), productName || 'Producto', 1, parseInt(unitPriceGs || 0, 10));
+    // M-FLO-001 (FloCafe addon-inventory port): read the per-product
+    // stock ceiling from the button's data-stock-ceiling. null = no
+    // ceiling (no recipe or uncatchable recipe). pre_sale_check still
+    // catches shortages at submit time.
+    var btn = document.querySelector(
+      '.quick-sell-btn[data-product-id="' + productId + '"]'
+    );
+    var stockCeiling = null;
+    if (btn) {
+      var raw = btn.getAttribute('data-stock-ceiling');
+      if (raw !== null && raw !== '') {
+        stockCeiling = parseFloat(raw);
+        if (!isFinite(stockCeiling) || isNaN(stockCeiling)) stockCeiling = null;
+      }
+    }
+    addItem(parseInt(productId, 10), productName || 'Producto', 1, parseInt(unitPriceGs || 0, 10), 0, stockCeiling);
     // After every successful add, re-focus the scan input so the cashier
     // can keep scanning without lifting their hand from the scanner.
     refocusScanInput();
@@ -628,12 +652,18 @@
   };
 
   // ── Core add (increment qty if duplicate product) ─────────────────────────
-  function addItem(productId, productName, qty, unitPriceGs, discountPct) {
+  function addItem(productId, productName, qty, unitPriceGs, discountPct, stockCeiling) {
     var discount = parseFloat(discountPct) || 0;
+    // M-FLO-001: stockCeiling is null/undefined when the product has no
+    // recipe (or an uncatchable one) — pre_sale_check still runs at submit.
+    var ceiling = (stockCeiling !== undefined && stockCeiling !== null && isFinite(stockCeiling))
+      ? stockCeiling
+      : null;
     var existing = POS_CART.find(function(i) { return i.product_id === productId; });
     if (existing) {
       existing.qty = parseFloat(existing.qty) + parseFloat(qty);
       if (unitPriceGs > 0) existing.unit_price_gs = unitPriceGs;
+      if (ceiling !== null) existing.stock_ceiling = ceiling;
     } else {
       POS_CART.push({
         product_id: productId,
@@ -646,6 +676,8 @@
         // payloads small + server logic unchanged for normal sales).
         default_unit_price_gs: unitPriceGs,
         discount_pct: discount,
+        // M-FLO-001: null = no ceiling (preflight still catches shortages).
+        stock_ceiling: ceiling,
       });
     }
     renderCart();
@@ -787,13 +819,24 @@
           '<td class="cart-product-name">' + escHtml(item.product_name) + '</td>' +
           '<td class="cart-price-cell">' + priceCellHtml + '</td>' +
           '<td class="cart-qty-cell">' +
-            (item.sold_by_weight
-              // WP-1.1: weight rows get decimal kg input (min 50 g).
-              ? '<input type="number" class="cart-qty-input" min="0.05" step="0.05" value="' + item.qty + '" ' +
-                'onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad en kg" inputmode="decimal"> kg '
-              // SALES-VAL-003: discrete baked goods → integer qty. step=1 forces whole units in the spinner and validated by setQtyDirect().
-              : '<input type="number" class="cart-qty-input" min="1" step="1" value="' + item.qty + '" ' +
-                'onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad" inputmode="numeric" pattern="\\d*"> ') +
+            // M-FLO-001: if the cart line carries a stock_ceiling,
+            // cap the qty input at that ceiling. Browser native validation
+            // shows "Value must be ≤ X" if the cashier tries more.
+            (function() {
+              var ceiling = item.stock_ceiling;
+              var maxAttr = (ceiling !== null && ceiling !== undefined && isFinite(ceiling) && ceiling > 0)
+                ? ' max="' + Math.floor(ceiling) + '"' : '';
+              var ceilingTitle = (ceiling !== null && ceiling !== undefined && isFinite(ceiling))
+                ? ' title="Máx ' + Math.floor(ceiling) + ' (stock disponible)"' : '';
+              if (item.sold_by_weight) {
+                return '<input type="number" class="cart-qty-input" min="0.05" step="0.05" value="' + item.qty + '" ' +
+                       'max="' + (item.stock_ceiling || 9999) + '"' + ceilingTitle +
+                       ' onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad en kg" inputmode="decimal"> kg ';
+              }
+              return '<input type="number" class="cart-qty-input" min="1" step="1" value="' + item.qty + '" ' +
+                     maxAttr + ceilingTitle +
+                     ' onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad" inputmode="numeric" pattern="\\d*"> ';
+            })() +
           '</td>' +
           '<td class="text-center" >' +
             (item.menu_id

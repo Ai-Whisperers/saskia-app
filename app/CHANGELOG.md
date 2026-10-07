@@ -3551,6 +3551,81 @@ direction (regression for the 404), and all 7 nav targets returning 200.
 - Nav structure changed but no routes renamed — existing links in operator training materials keep working.
 
 
+### Added — Multi-line preflight + ventas.html wire-up (2026-10-07)
+
+Extends the M-BIZ-002 pre-billing checklist to multi-line carts.
+The `/ventas` form (`ventas.html`) is a multi-line POS: one cart,
+many products. A per-line preflight alone wasn't enough.
+
+**`app/rms/sales/pre_sale_check_cart.py` (NEW, 8.8KB):**
+- `CartLine` (line_index, product_id, qty, discount_gs, ...)
+- `CartIntent` (lines + customer_id + payment_method + sold_at)
+- `validate_cart_intent()` — runs per-line checks (codes suffixed
+  `@N`), aggregates ingredient demand across the whole cart for one
+  `CART_STOCK_SHORTAGE` warning, customer-allergen per product
+  (`CART_CUSTOMER_ALLERGEN@N`), closed-day + empty-cart at cart level.
+
+**`POST /ventas/nueva/preflight/multi` (NEW route):**
+- Accepts JSON cart, returns aggregated checklist (same shape)
+- Called by ventas.html's JS on every renderCart() (debounced 350ms)
+  AND on form submit (final synchronous gate).
+
+**`app/templates/ventas.html`:**
+- `#preflight-banner` div above the submit button
+- `schedulePreflight()` / `runPreflight()` / `renderPreflight()` —
+  red banner for blockers, yellow for warnings, submit disabled if
+  any blocker. Network failure falls through (don't block on preflight
+  availability).
+- `handleFormSubmit` made async; final preflight gate before the
+  existing payload. If blockers remain, scroll to banner, refuse
+  to submit.
+
+**Tests:** 19 new (11 cart service + 8 multi route).
+
+### Added — FloCafe stock ceiling + low-stock badge (M-FLO-001) (2026-10-07)
+
+Ports `FreeOpenSourcePOS/FloCafe/frontend/src/lib/addon-inventory.ts`
+(MIT-licensed): expose a per-product stock ceiling so the POS qty
+input can't exceed what's in stock.
+
+**`app/rms/menu_inventory.py` (NEW, 4.4KB):**
+- `product_stock_ceiling()` — max units we can make with current
+  ingredient stock. None = no restriction (no recipe).
+- `product_low_stock_threshold()` — fixed units threshold (default 5,
+  env-overridable via `SAZON_MENU_LOW_STOCK_UNITS`).
+- `product_is_sold_out()` — True when ceiling = 0.
+
+**`app/routers/sales.py`:**
+- `_build_sales_context` now passes `stock_ceilings`,
+  `stock_sold_out`, `stock_low` dicts keyed by product id.
+
+**`app/templates/ventas.html`:**
+- Each quick-sell button now carries `data-stock-ceiling` and
+  `data-low-stock` attributes.
+- Sold-out buttons get `disabled` + "Agotado" pill (red).
+- Low-stock buttons get "⚠ Quedan N" pill (yellow).
+- Cart qty input gets `max="N"` from the ceiling — browser-native
+  cap, no plugin needed.
+
+**`app/static/tokens.css`:**
+- New badge styles (`.qs-low-badge`, `.qs-sold-out-badge`,
+  `.quick-sell-btn.is-low-stock`, `.quick-sell-btn.is-sold-out`).
+- Uses design tokens (`--color-warning-500`, `--color-danger-500`).
+
+**Tests:** 18 new (13 service + 5 template wire-up).
+
+### Changed — Pre-billing thresholds now env-overridable
+
+`app/rms/sales/pre_sale_check.py` now reads thresholds from
+`app/rms/config.py` instead of module constants. Operators can
+override per deployment:
+
+- `SAZON_PREFLIGHT_MAX_QTY_PER_SALE` (default 999)
+- `SAZON_PREFLIGHT_MAX_DISCOUNT_PCT` (default 20)
+- `SAZON_MENU_LOW_STOCK_UNITS` (default 5)
+
+Tests cover env override + reload (3 new).
+
 ## [Unreleased]
 
 ### Fixed (UI audit patch set, 2026-09-23)

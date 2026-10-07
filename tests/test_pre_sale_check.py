@@ -481,3 +481,45 @@ def test_checklist_helper_properties():
     # all_items: blockers first
     assert cl.all_items[0].code == "B"
     assert cl.all_items[1].code == "W"
+
+
+# ---- Env-var override (operator-tunable thresholds) ---------------------
+
+
+def test_env_override_changes_max_qty(monkeypatch):
+    """SAZON_PREFLIGHT_MAX_QTY_PER_SALE=10 lowers the threshold to 10."""
+    monkeypatch.setenv("SAZON_PREFLIGHT_MAX_QTY_PER_SALE", "10")
+    # Reload config first, then the module that imports from config
+    import importlib
+    import app.rms.config as cfg
+    importlib.reload(cfg)
+    import app.rms.sales.pre_sale_check as mod
+    importlib.reload(mod)
+    # Now the constant is 10, not the default 999
+    assert mod.MAX_QTY_PER_SALE == 10
+    # 50 is now > max (was < max under default)
+    assert mod.MAX_QTY_PER_SALE < 50
+
+
+def test_env_override_changes_max_discount_pct(monkeypatch):
+    """SAZON_PREFLIGHT_MAX_DISCOUNT_PCT=5 lowers discount ceiling to 5%."""
+    monkeypatch.setenv("SAZON_PREFLIGHT_MAX_DISCOUNT_PCT", "5")
+    import importlib
+    import app.rms.config as cfg
+    importlib.reload(cfg)
+    import app.rms.sales.pre_sale_check as mod
+    importlib.reload(mod)
+    assert mod.MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE == 5
+
+
+def test_env_override_default_when_unset(monkeypatch):
+    """With no env vars, defaults are 999 and 20."""
+    monkeypatch.delenv("SAZON_PREFLIGHT_MAX_QTY_PER_SALE", raising=False)
+    monkeypatch.delenv("SAZON_PREFLIGHT_MAX_DISCOUNT_PCT", raising=False)
+    import importlib
+    import app.rms.config as cfg
+    importlib.reload(cfg)
+    import app.rms.sales.pre_sale_check as mod
+    importlib.reload(mod)
+    assert mod.MAX_QTY_PER_SALE == 999
+    assert mod.MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE == 20

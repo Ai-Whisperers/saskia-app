@@ -299,6 +299,23 @@ def _build_sales_context(
     ).scalar_one_or_none()
     venta_libre_id = venta_libre.id if venta_libre is not None else None
 
+    # M-FLO-001 (FloCafe addon-inventory port): per-product stock
+    # ceilings so the POS qty input can cap at "how many units we can
+    # actually make with current ingredient stock". Built as a dict
+    # (id -> ceiling) for O(1) template lookup.
+    from app.rms.menu_inventory import (
+        product_stock_ceiling,
+        product_is_sold_out,
+        product_low_stock_threshold,
+    )
+    stock_ceilings: dict[int, float | None] = {}
+    stock_sold_out: dict[int, bool] = {}
+    stock_low: dict[int, float | None] = {}
+    for _p in products:
+        stock_ceilings[_p.id] = product_stock_ceiling(session, _p.id)
+        stock_sold_out[_p.id] = product_is_sold_out(session, _p.id)
+        stock_low[_p.id] = product_low_stock_threshold(session, _p.id)
+
     # WP-4.2 menús ejecutivos — active menus for the POS "Menús" strip
     from app.rms.menu_ejecutivo import menus_with_items
 
@@ -318,6 +335,10 @@ def _build_sales_context(
         "sales": [_decorated(s) for s in sales_page],
         "menus_activos": menus_pos,
         "quick_sell": quick_sell,
+        # M-FLO-001: per-product stock info for the POS qty input max.
+        "stock_ceilings": stock_ceilings,
+        "stock_sold_out": stock_sold_out,
+        "stock_low": stock_low,
         "q": q or "",
         "product_id": product_id or "",
         "days": days,

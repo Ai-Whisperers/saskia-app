@@ -85,3 +85,7 @@ test_router*.py
 # Branding admin runtime uploads (tests drop 1x1 placeholders here)
 app/static/branding/
 !app/static/branding/.gitkeep
+
+# Receipt oracle debug output (test artifact; recreated on demand via
+# UPDATE_RECIBO_GOLDEN=1 or by running tests/test_recibo_oracle.py)
+tests/fixtures/recibo/_actual.html

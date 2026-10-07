@@ -42,6 +42,8 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from app.rms import config
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
@@ -49,9 +51,11 @@ if TYPE_CHECKING:
 
 
 # Default thresholds (operator-tunable via DB-config later)
-MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE = 20  # % — above this = warning
-MAX_QTY_PER_SALE = 999  # units — above this = blocker (POS sanity)
-LOW_STOCK_WARN_THRESHOLD_PCT = 25  # % of theoretical stock left
+# Operator-tunable defaults (env-overridable; see app/rms/config.py).
+# Tests can monkeypatch config.SAZON_PREFLIGHT_* directly.
+MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE = config.SAZON_PREFLIGHT_MAX_DISCOUNT_PCT  # % — above this = warning
+MAX_QTY_PER_SALE = config.SAZON_PREFLIGHT_MAX_QTY_PER_SALE  # units — above this = blocker (POS sanity)
+LOW_STOCK_WARN_THRESHOLD_PCT = 25  # % of theoretical stock left (low)
 
 
 @dataclass(frozen=True)

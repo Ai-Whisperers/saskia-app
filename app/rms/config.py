@@ -111,3 +111,31 @@ __all__ = [
     "R2_CONFIG_PATH",
     "ensure_dirs",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Pre-billing checklist thresholds (M-BIZ-002, URY pattern)
+# ---------------------------------------------------------------------------
+# All operator-tunable. Defaults are conservative for a single-user PY
+# shop; tighten or loosen via env vars. Reading happens at module-import
+# time, so changes require a process restart (or a reload of
+# app.rms.sales.pre_sale_check and app.rms.sales.pre_sale_check_cart).
+#
+# Used by:
+#   - app/rms/sales/pre_sale_check.py (single-line)
+#   - app/rms/sales/pre_sale_check_cart.py (multi-line)
+
+# Per-line qty ceiling: sales above this fire QTY_TOO_LARGE as a
+# warning (single-line) or @N in multi-line. Default 999 (a single sale
+# of more than 999 kg or units of one product is almost certainly wrong).
+SAZON_PREFLIGHT_MAX_QTY_PER_SALE = int(os.getenv("SAZON_PREFLIGHT_MAX_QTY_PER_SALE", "999"))
+
+# Discount ceiling: sales with discount > this % of the line total
+# (without an explicit operator override) fire DISCOUNT_REQUIRES_OVERRIDE
+# as a blocker. Default 20% — anything above is suspicious in a small shop.
+SAZON_PREFLIGHT_MAX_DISCOUNT_PCT = int(os.getenv("SAZON_PREFLIGHT_MAX_DISCOUNT_PCT", "20"))
+
+# M-FLO-001 (FloCafe port): below this many makeable units of stock,
+# the POS quick-sell button shows a "Quedan N" low-stock badge. Default
+# 5 units. Operators can override via SAZON_MENU_LOW_STOCK_UNITS.
+SAZON_MENU_LOW_STOCK_UNITS = int(os.getenv("SAZON_MENU_LOW_STOCK_UNITS", "5"))

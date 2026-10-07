@@ -161,3 +161,40 @@ input[type="number"] {
 .row-selected {
   background-color: var(--selected-row);
 }
+
+/* ---- M-FLO-001: Quick-sell stock badges (FloCafe port) --------------- */
+/*
+ * Low-stock and sold-out pills on the POS quick-sell grid. Uses tokens
+ * from the same file (--color-warning-500, --color-danger-500) so the
+ * palette stays consistent.
+ */
+.quick-sell-btn.is-low-stock {
+  border-color: var(--color-warning-500, #ca8a04);
+  background: var(--color-warning-50, #fef9c3);
+}
+.quick-sell-btn.is-low-stock:hover:not(:disabled) {
+  background: var(--color-warning-100, #fef08a);
+}
+.quick-sell-btn.is-sold-out,
+.quick-sell-btn[disabled][aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.qs-low-badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--color-warning-100, #fef08a);
+  color: var(--color-warning-700, #854d0e);
+  font-weight: 600;
+}
+.qs-sold-out-badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--color-danger-100, #fee2e2);
+  color: var(--color-danger-700, #b91c1c);
+  font-weight: 600;
+}
