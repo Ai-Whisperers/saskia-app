@@ -1280,7 +1280,7 @@ def admin_backup_cron(request: Request) -> object:
 
     try:
         result = _run_backup_admin(request)
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.exception("admin_backup_cron failed")
         return JSONResponse(
             status_code=500,

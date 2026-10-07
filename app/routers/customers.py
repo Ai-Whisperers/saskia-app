@@ -1470,7 +1470,7 @@ def cliente_update(
 
     from fastapi import HTTPException as _HE
 
-    def _fail(msg: str):
+    def _fail(msg: str):  # noqa: ANN202 — raises HTTPException; FastAPI infers
         """Roll back, re-render the form with values + error."""
         session.rollback()
         return _render_cliente_edit(
