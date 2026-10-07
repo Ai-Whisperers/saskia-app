@@ -340,7 +340,7 @@
     <strong>
       {% set _n_low = low_stock_ingredients|length if low_stock_ingredients else 0 %}
       {% set _n_subs = substitution_suggestions|length if substitution_suggestions else 0 %}
-      {{ _n_low }} ingrediente{{ '' if _n_low == 1 else 's' }} bajo{{ '' if _n_low == 1 else 's' }}{% if _n_subs %} · {{ _n_subs }} sugerencia{{ '' if _n_subs == 1 else 's' }} de sustitución{% endif %}
+      {{ _n_low }} ingrediente{{ '' if _n_low == 1 else 's' }} bajo{{ '' if _n_low == 1 else 's' }}{% if _n_subs %} · {{ _n_subs }} sin stock para el plan de hoy{% endif %}
     </strong>
     <small class="text-muted" style="margin-left: auto;">clic para abrir</small>
   </summary>
@@ -357,32 +357,70 @@
   </ul>
   {% endif %}
   {% if substitution_suggestions %}
-  {# V5: Allow the summary text to wrap properly so the parentheses
-     with the threshold don't get truncated. #}
-  <details class="mt-2" >
+  {# P37 (2026-10-07, Ivan): rewrote the substitution list to be operator-friendly.
+     Before: flat dump of "Falta X para Y → 3 recetas con similitud 60% / 55% / 45%".
+     Now: grouped by short ingredient, sorted by biggest shortage first, with
+     the actual shortage qty + how many recipes are affected + a verified-stock
+     badge per substitute (✓ todo en stock / ⚠ falta ...). The "buy more" CTA
+     is the lead action; the "substitute" alternatives are below. #}
+  <details class="mt-2" open>
     <summary style="cursor: pointer; font-weight: 600; white-space: normal;">
-      🔄 Sustitutos sugeridos (modelo ingredientes / similitud ≥0.3)
+      Qué hacer — {{ substitution_suggestions|length }} ingrediente{{ '' if substitution_suggestions|length == 1 else 's' }} no alcanzan para el plan de hoy
     </summary>
-    <div style="margin-top: var(--space-2); display: flex; flex-direction: column; gap: var(--space-2);">
+    <div style="margin-top: var(--space-3); display: flex; flex-direction: column; gap: var(--space-3);">
+      <div style="font-size: 13px; color: var(--color-muted-foreground);">
+        Opción 1: comprá lo que falta. Opción 2: reemplazá las recetas afectadas
+        por otras que <em>sí</em> podés hornear hoy. El porcentaje es similitud
+        de ingredientes (mientras más alto, más parecido al original).
+      </div>
       {% for s in substitution_suggestions %}
-      <div class="substitution-card" style="border: 1px dashed var(--color-warning, #d97706); padding: var(--space-2); border-radius: var(--radius);">
-        <div style="font-weight: 600;">
-          🔴 Falta <strong>{{ s.ingredient_name }}</strong> para <strong>{{ s.original_product_name }}</strong>
-        </div>
-        {% if s.substitutes %}
-        <div style="margin-top: var(--space-1); display: flex; flex-wrap: wrap; gap: var(--space-1);">
-          {% for sub in s.substitutes %}
-          <span class="substitute-pill" data-product-id="{{ sub.product_id }}" style="background: rgba(217, 119, 6, 0.1); padding: 4px 10px; border-radius: 16px; font-size: 13px;">
-            <strong>{{ sub.product_name }}</strong>
-            <span style="color: var(--color-muted-foreground); font-size: 11px;">
-              similitud {{ "{:.0f}%".format(sub.similarity * 100) }}
-            </span>
+      <div class="substitution-card" style="border: 1px solid var(--color-danger, #dc2626); padding: var(--space-3); border-radius: var(--radius); background: rgba(220, 38, 38, 0.04);">
+        <div style="font-weight: 600; font-size: 15px;">
+          Falta <strong>{{ s.ingredient_name }}</strong>
+          <span style="color: var(--color-danger, #dc2626);">
+            ({{ "{:g}".format(s.shortage_qty) }} {{ s.unit }})
           </span>
-          {% endfor %}
+          · afecta {{ s.n_recipes }} receta{{ '' if s.n_recipes == 1 else 's' }} del plan
+        </div>
+        <details style="margin-top: 4px;">
+          <summary style="font-size: 12px; color: var(--color-muted-foreground); cursor: pointer;">
+            ver cuáles recetas
+          </summary>
+          <div style="font-size: 12px; margin-top: 4px; color: var(--color-muted-foreground);">
+            {% for r in s.shortage_recipes %}{{ r }}{% if not loop.last %}, {% endif %}{% endfor %}
+          </div>
+        </details>
+        {% if s.substitutes %}
+        <div style="margin-top: var(--space-2);">
+          <div style="font-size: 12px; color: var(--color-muted-foreground); margin-bottom: 4px;">
+            Podés reemplazar con:
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            {% for sub in s.substitutes %}
+            <div class="substitute-row" style="display: flex; align-items: center; gap: var(--space-2); padding: 6px 10px; border-radius: 6px; background: {% if sub.own_ingredients_ok %}rgba(22, 163, 74, 0.08){% else %}rgba(217, 119, 6, 0.08){% endif %};">
+              <span style="flex: 1;">
+                <strong>{{ sub.product_name }}</strong>
+              </span>
+              {% if sub.own_ingredients_ok %}
+                <span style="font-size: 11px; color: #15803d; background: rgba(22, 163, 74, 0.15); padding: 2px 8px; border-radius: 10px; white-space: nowrap;">
+                  ✓ podés hornearla
+                </span>
+              {% else %}
+                <span style="font-size: 11px; color: #b45309; background: rgba(217, 119, 6, 0.15); padding: 2px 8px; border-radius: 10px; white-space: nowrap;" title="Esta receta también necesita: {{ sub.own_short_ingredients|join(', ') }}">
+                  ⚠ falta {{ sub.own_short_ingredients|length }} más
+                </span>
+              {% endif %}
+              <span style="font-size: 11px; color: var(--color-muted-foreground); white-space: nowrap;">
+                {{ "{:.0f}}% similar".format(sub.similarity * 100) }}
+              </span>
+            </div>
+            {% endfor %}
+          </div>
         </div>
         {% else %}
-        <div style="font-size: 12px; color: var(--color-muted-foreground); margin-top: var(--space-1);">
-          Sin sustitutos cercanos. Pedí {{ s.ingredient_name }} o reasigná manualmente.
+        <div style="font-size: 12px; color: var(--color-muted-foreground); margin-top: var(--space-2);">
+          No hay recetas en el catálogo que no necesiten <strong>{{ s.ingredient_name }}</strong>.
+          Comprá lo que falta.
         </div>
         {% endif %}
       </div>

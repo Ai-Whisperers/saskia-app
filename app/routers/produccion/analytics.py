@@ -242,38 +242,81 @@ def expand_missing_items(
 
 def _build_substitution_suggestions(
     session: Session,
-    short_ingredient_names: list[str],
+    short_lines: list,  # list of ProductionLine (ingredient_id, ingredient_name, unit, qty_required, stock_on_hand, qty_to_buy)
     plan_rows_view: list[dict],
     top_n: int = 3,
+    similarity_min: float = 0.3,
 ) -> list[dict]:
-    """T-2026-10-04 (C.4) — Return a list of substitution suggestions.
+    """T-2026-10-04 (C.4) + 2026-10-07 (P37) — Operator-friendly substitution suggestions.
 
-    Each suggestion has:
-      - ingredient_name: the short ingredient triggering the suggestion
-      - original_product_id: the product that needs the short ingredient
-      - original_product_name: human-readable
-      - substitutes: list of {"product_id", "product_name", "similarity"} dicts
-                     (sorted by similarity desc, top_n)
+    For every ingredient the plan is short on, group the affected recipes and
+    surface alternative products the cook can bake INSTEAD. The substitutes are
+    only useful if the substitute's OWN ingredients are actually in stock —
+    suggesting a recipe that needs 5 other things you don't have is noise. So
+    we cross-check each candidate against the current stock.
+
+    Output shape (grouped by short ingredient, not by recipe):
+      {
+        "ingredient_id": int,
+        "ingredient_name": str,
+        "unit": str,
+        "shortage_qty": float,        # total qty missing across the plan
+        "shortage_recipes": [str],    # human names of the affected recipes
+        "n_recipes": int,
+        "substitutes": [
+            {
+                "product_id": int,
+                "product_name": str,
+                "similarity": float,           # Jaccard of ingredient sets
+                "own_ingredients_ok": bool,    # can we actually bake this?
+                "own_short_ingredients": [str],# names of ingredients this sub needs but we're short on
+            }
+        ],
+      }
+
+    Sorted by shortage_qty desc (biggest problem first).
     """
-    if not short_ingredient_names or not plan_rows_view:
+    if not short_lines or not plan_rows_view:
         return []
 
     from app.rms.product_similarity import (
         jaccard_similarity,
         product_ingredient_set,
     )
+    from app.rms.variants import rollup_ingredient_stock
 
     # Build a quick map: ingredient name → id (case-insensitive)
     name_to_id: dict[str, int] = {}
     for ing in session.execute(select(Ingredient)).scalars().all():
         name_to_id[ing.name.lower().strip()] = ing.id
 
-    # Map: original product_id → { product obj, ingredient set }
-    product_cache: dict[int, tuple[Product, set[int]]] = {}
-    rows_with_product = [r for r in plan_rows_view if r.get("product_id")]
-    for r in rows_with_product:
-        pid = r["product_id"]
-        if pid in product_cache:
+    # Cache of variant-bearing ingredients with their rollup, so we can
+    # verify a substitute's own ingredients are actually in stock.
+    stock_by_ingredient: dict[int, float] = {}
+    stock_unit_by_ingredient: dict[int, str] = {}
+    for ing in session.execute(select(Ingredient)).scalars().all():
+        stock_unit_by_ingredient[ing.id] = ing.unit
+        # Try the rollup first (variants-aware), fall back to legacy column.
+        try:
+            rollup = rollup_ingredient_stock(session, ing.id)
+            stock_by_ingredient[ing.id] = rollup.base_qty if rollup else float(ing.stock_qty or 0)
+        except Exception:
+            stock_by_ingredient[ing.id] = float(ing.stock_qty or 0)
+
+    # Build plan-demand map: ingredient_id → total qty_required in the plan
+    # (used to know whether a substitute's own ingredients are "in stock for
+    # the plan" not just "in stock at rest").
+    plan_demand: dict[int, float] = {}
+    for ln in short_lines:
+        plan_demand[ln.ingredient_id] = plan_demand.get(ln.ingredient_id, 0.0) + ln.qty_required
+
+    # Map: product_id → (Product, ingredient_set with qty map)
+    # We need qty per ingredient so we can scale the recipe to a target
+    # production qty and verify availability.
+    product_cache: dict[int, tuple[Product, list[tuple[int, str, float]]]] = {}
+    for r in plan_rows_view:
+        pid = r.get("product_id")
+        if not pid or pid in product_cache:
             continue
         prod = session.get(Product, pid)
         if prod is None or prod.recipe_id is None:
@@ -281,66 +324,134 @@ def _build_substitution_suggestions(
         try:
             ing_set = product_ingredient_set(session, prod)
         except Exception as exc:  # noqa: BLE001 — best-effort cache build
-            logger.debug(f"produccion.plan_ingredient_set: ingredient lookup failed: {exc!r}")
+            logger.debug(f"produccion.substitutions: ingredient lookup failed: {exc!r}")
             ing_set = set()
-        product_cache[pid] = (prod, ing_set)
+        # Get qty per ingredient for this recipe
+        qty_map: list[tuple[int, str, float]] = []
+        for ing_id in ing_set:
+            line = session.execute(
+                select(RecipeLine).where(
+                    RecipeLine.recipe_id == prod.recipe_id,
+                    RecipeLine.line_kind == "ingredient",
+                    RecipeLine.line_ref_id == ing_id,
+                )
+            ).scalar_one_or_none()
+            if line is not None:
+                qty_map.append((ing_id, line.line_unit, float(line.qty or 0)))
+        product_cache[pid] = (prod, qty_map)
+
+    # For each short ingredient, build one suggestion group
+    short_by_id: dict[int, list] = {}
+    for ln in short_lines:
+        short_by_id.setdefault(ln.ingredient_id, []).append(ln)
 
     suggestions: list[dict] = []
-    for ing_name in short_ingredient_names:
-        ing_id = name_to_id.get(ing_name.lower().strip())
-        if ing_id is None:
-            continue
+    for ing_id, lines in short_by_id.items():
+        # Find the human ingredient_name (use the first line's name)
+        ing_name = lines[0].ingredient_name
+        ing_unit = lines[0].unit
+        total_shortage = sum(max(0, ln.qty_required - ln.stock_on_hand) for ln in lines)
 
-        # Find the products in the plan that need this ingredient.
-        affected = [
-            (r["product_id"], r["product_name"])
+        # Recipes in the plan that need this ingredient
+        affected_recipes = sorted({
+            r["product_name"]
             for r in plan_rows_view
-            if r.get("product_id") in product_cache and ing_id in product_cache[r["product_id"]][1]
-        ]
-        if not affected:
-            continue
+            if r.get("product_id") in product_cache
+            and ing_id in {iid for iid, _, _ in product_cache[r["product_id"]][1]}
+        })
 
-        # For each affected product, find substitute products.
-        for orig_pid, orig_name in affected:
-            orig_set = product_cache[orig_pid][1]
-            if not orig_set:
-                continue
-            subs: list[dict] = []
-            for other in (
-                session.execute(select(Product).where(Product.id != orig_pid)).scalars().all()
-            ):
+        # Find substitute products — other products in the catalogue whose
+        # recipes DO NOT need this short ingredient, ranked by Jaccard.
+        # Skip products that need a different short ingredient too (we'd
+        # just be trading one problem for another).
+        other_short_ing_ids = {iid for iid in short_by_id if iid != ing_id}
+
+        candidate_subs: list[dict] = []
+        for other in session.execute(select(Product)).scalars().all():
+            if other.id in product_cache:
+                other_qty_map = product_cache[other.id][1]
+            else:
                 if other.recipe_id is None:
                     continue
-                other_set = product_cache.get(other.id)
-                if other_set is None:
-                    try:
-                        other_set = (other, product_ingredient_set(session, other))
-                        product_cache[other.id] = other_set
-                    except Exception as exc:  # noqa: BLE001 — best-effort cache build
-                        logger.debug(f"produccion.plan_ingredient_set: {exc!r}")
-                        continue
-                if ing_id in other_set[1]:
-                    continue  # also needs the short ingredient
-                sim = jaccard_similarity(orig_set, other_set[1])
-                if sim < 0.3:
-                    continue  # not similar enough
-                subs.append(
-                    {
-                        "product_id": other.id,
-                        "product_name": other.name,
-                        "similarity": round(sim, 2),
-                    }
-                )
-            subs.sort(key=lambda x: x["similarity"], reverse=True)
-            suggestions.append(
-                {
-                    "ingredient_name": ing_name,
-                    "original_product_id": orig_pid,
-                    "original_product_name": orig_name,
-                    "substitutes": subs[:top_n],
-                }
+                try:
+                    ing_set = product_ingredient_set(session, other)
+                except Exception:
+                    continue
+                other_qty_map = []
+                for oid in ing_set:
+                    line = session.execute(
+                        select(RecipeLine).where(
+                            RecipeLine.recipe_id == other.recipe_id,
+                            RecipeLine.line_kind == "ingredient",
+                            RecipeLine.line_ref_id == oid,
+                        )
+                    ).scalar_one_or_none()
+                    if line is not None:
+                        other_qty_map.append((oid, line.line_unit, float(line.qty or 0)))
+                product_cache[other.id] = (other, other_qty_map)
+            other_set = {iid for iid, _, _ in other_qty_map}
+            # Skip if this recipe also needs the short ingredient
+            if ing_id in other_set:
+                continue
+            # Skip if this recipe needs ANOTHER short ingredient (the plan
+            # is already broken in that direction; substituting won't help)
+            if other_set & other_short_ing_ids:
+                continue
+
+            # Compute Jaccard vs one of the affected original products
+            # (use the first affected for tie-breaking).
+            orig_pid = next(
+                (r["product_id"] for r in plan_rows_view
+                 if r.get("product_id") in product_cache
+                 and ing_id in {iid for iid, _, _ in product_cache[r["product_id"]][1]}),
+                None,
             )
+            if orig_pid is None:
+                continue
+            orig_set = {iid for iid, _, _ in product_cache[orig_pid][1]}
+            sim = jaccard_similarity(orig_set, other_set)
+            if sim < similarity_min:
+                continue
+
+            # Verify the substitute's own ingredients are stocked
+            # (in stock at rest, ignoring plan demand — the operator might
+            # bake only the substitute, not the original).
+            own_short: list[str] = []
+            for sub_ing_id, sub_unit, sub_qty in other_qty_map:
+                have = stock_by_ingredient.get(sub_ing_id, 0.0)
+                if have < sub_qty:
+                    ing_obj = session.get(Ingredient, sub_ing_id)
+                    name = ing_obj.name if ing_obj else f"#{sub_ing_id}"
+                    own_short.append(name)
+            candidate_subs.append({
+                "product_id": other.id,
+                "product_name": other.name,
+                "similarity": round(sim, 2),
+                "own_ingredients_ok": len(own_short) == 0,
+                "own_short_ingredients": own_short[:3],  # cap to 3 names
+            })
+
+        # Sort: feasible substitutes (own ingredients OK) first, then by sim
+        candidate_subs.sort(
+            key=lambda s: (not s["own_ingredients_ok"], -s["similarity"])
+        )
+
+        suggestions.append({
+            "ingredient_id": ing_id,
+            "ingredient_name": ing_name,
+            "unit": ing_unit,
+            "shortage_qty": round(total_shortage, 3),
+            "shortage_recipes": affected_recipes[:8],  # cap display
+            "n_recipes": len(affected_recipes),
+            "substitutes": candidate_subs[:top_n],
+        })
+
+    # Sort suggestions: biggest shortage first
+    suggestions.sort(key=lambda s: -s["shortage_qty"])
     return suggestions
+
+
+
 
 
 @router.get("/haccp", response_class=HTMLResponse)

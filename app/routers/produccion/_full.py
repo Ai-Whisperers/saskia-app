@@ -1245,15 +1245,13 @@ def produccion_worksheet(
             # products the cook can bake instead — ranked by Jaccard
             # similarity so the substitute tastes similar. Skipped when
             # the plan is fully stocked (avoids noise).
+            # P37 (2026-10-07, Ivan): pass the full short-lines so the
+            # suggestions can show HOW MUCH is short per ingredient, which
+            # recipes are affected, and which substitute recipes are
+            # actually bakeable (own-ingredients-in-stock check).
             "substitution_suggestions": _build_substitution_suggestions(
                 session,
-                list(
-                    {
-                        ln.ingredient_name
-                        for ln in plan.lines
-                        if (ln.stock_on_hand - ln.qty_required) < 0
-                    }
-                ),
+                [ln for ln in plan.lines if (ln.stock_on_hand - ln.qty_required) < 0],
                 plan_rows_view,
             ),
         },
