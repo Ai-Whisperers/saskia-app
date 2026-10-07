@@ -5,6 +5,22 @@
 
 ## [Unreleased]
 
+### Added — Sentry→Telegram bridge activation (C.1, 2026-10-07)
+
+Wired the dormant `app/rms/notify.py:sentry_before_send` hook into the
+Sentry init block at `app/rms/main.py:212-237`. The hook is a silent
+no-op when `TG_BOT_TOKEN` / `TG_CHAT_ID` are unset, so dev / test
+environments with no Telegram config keep behaving exactly as before.
+
+Locked by `tests/test_sentry_telegram_wiring.py` (3 static-source
+assertions: import present, `before_send=sentry_before_send` in
+`sentry_sdk.init(...)`, and the import lives inside the `if sentry_dsn:`
+gate so unset DSN stays a true no-op).
+
+The runtime behaviour of the hook is unchanged and stays locked by
+`tests/test_notify_telegram.py` (7 tests: config gate, never-raise,
+truncation, Sentry hook passthrough, level filter, damping).
+
 ### Added — Legacy code cleanup pass (P44, 2026-10-07)
 
 Removed 11 dead files (~1,200 lines) that were no longer imported

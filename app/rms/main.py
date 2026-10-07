@@ -63,7 +63,6 @@ from app.routers import (
     auth,
     caja,
     copiloto,
-    photo_credits,
     cotizador,
     customers,
     dashboard,
@@ -72,8 +71,6 @@ from app.routers import (
     eod,
     excel_io,
     fiado,
-    menu_import,
-    menus,
     health,
     help,
     herebus,
@@ -81,9 +78,12 @@ from app.routers import (
     insights_derived,
     insights_stock,
     inventory,
+    menu_import,
+    menus,
     merma,
     ops,
     pedidos,
+    photo_credits,
     produccion,
     products,
     recipes,
@@ -218,6 +218,12 @@ async def lifespan(app: FastAPI):
             from sentry_sdk.integrations.fastapi import FastApiIntegration
             from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
+            # C.1 — mirror Sentry errors to Telegram so the operator
+            # sees production incidents without opening Sentry.
+            # The hook is a silent no-op when TG_BOT_TOKEN / TG_CHAT_ID
+            # are unset (see app/rms/notify.py:telegram_configured).
+            from app.rms.notify import sentry_before_send
+
             sentry_sdk.init(
                 dsn=sentry_dsn,
                 integrations=[FastApiIntegration(), SqlalchemyIntegration()],
@@ -226,6 +232,7 @@ async def lifespan(app: FastAPI):
                 send_default_pii=False,
                 environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
                 release=app.version,
+                before_send=sentry_before_send,
             )
         except Exception as exc:  # noqa: BLE001 — defensive default
             print(f"WARNING: Sentry init failed: {exc}", file=sys.stderr)
