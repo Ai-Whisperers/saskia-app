@@ -77,8 +77,8 @@ from app.rms.models_legacy import (
     User,  # noqa: F401 — re-exported via __all__
     WasteLog,  # noqa: F401 — re-exported via __all__
     WishlistItem,  # noqa: F401 — re-exported via __all__
-    Menu,
-    MenuItem,
+    Menu,  # noqa: F401 — re-exported via __all__ (legacy, used by other modules via app.rms.models)
+    MenuItem,  # noqa: F401 — re-exported via __all__ (legacy, used by other modules via app.rms.models)
 )
 from app.rms.models_legacy import __all__ as _legacy_all
 

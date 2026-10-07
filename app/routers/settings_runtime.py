@@ -533,7 +533,6 @@ def update_template_endpoint(
 
     Bumps the `version` on body change so callers can invalidate caches.
     """
-    from datetime import datetime, timezone
 
     from app.rms.models import MessageTemplate as MT
 
@@ -1237,7 +1236,6 @@ def delete_template_endpoint(
 # Returns: {filename, url, size_kb, kind}
 # Operator then sets branding.logo_filename (etc.) via /settings/branding POST
 
-import os
 import secrets
 from fastapi import UploadFile, File, Form, HTTPException as _HTTPException
 from pathlib import Path as _P

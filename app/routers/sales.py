@@ -2223,7 +2223,7 @@ async def preflight_sale(
     The /ventas/nueva form shows a yellow banner for warnings and a
     red banner for blockers.
     """
-    from datetime import datetime, date as _date
+    from datetime import datetime
     from app.rms.sales.pre_sale_check import (
         PreSaleIntent, validate_sale_intent,
     )

@@ -22,7 +22,6 @@ callsite with the appropriate helper here.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
 
 # Single canonical timezone for the business. Paraguay does not observe
 # DST; the offset is stable year-round at UTC-4. Importing from

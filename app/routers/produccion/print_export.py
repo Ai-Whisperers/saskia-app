@@ -12,11 +12,10 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from fastapi import Depends, Query, Request
-from fastapi.responses import HTMLResponse, Response, StreamingResponse
-from loguru import logger
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 

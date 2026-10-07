@@ -20,7 +20,6 @@ from __future__ import annotations
 # _full.py for everything else (routes, complex helpers, etc.).
 from app.routers.produccion._helpers import (
     CONFIDENCE_BANDS,
-    DEFAULT_BAKE_START_HOUR,
     FORECAST_SOURCE_HELP,
     FORECAST_SOURCE_LABELS,
     SOURCE_BUCKETS,

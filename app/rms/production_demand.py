@@ -300,7 +300,6 @@ def _persist_snapshot(
     """
     if not rows:
         return
-    from app.rms.models import ProductionDemandSnapshot  # noqa: WPS433 — late import for mapper order
 
     for r in rows:
         try:

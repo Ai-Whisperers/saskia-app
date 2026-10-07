@@ -29,6 +29,7 @@ EXPECTED_PATHS = {
     ("GET", "/produccion/haccp"),
     ("GET", "/produccion/manana"),
     ("GET", "/produccion/prep"),
+    ("GET", "/produccion/prep-recipes"),         # added by P40 polish batch
     ("GET", "/produccion/print"),
     ("POST", "/produccion/ad-hoc"),
     ("POST", "/produccion/ad-hoc/bulk"),
@@ -42,6 +43,7 @@ EXPECTED_PATHS = {
     ("POST", "/produccion/shift-execute"),
     ("POST", "/produccion/template"),
     ("POST", "/produccion/template/fork-week"),
+    ("POST", "/produccion/template/load-day"),    # added by P40 polish batch
 }
 
 
@@ -96,7 +98,7 @@ def test_produccion_all_endpoints_preserved():
 def test_produccion_router_count_matches():
     """Sanity: 20 routes registered (matches EXPECTED_PATHS)."""
     from app.routers.produccion import router
-    assert len(EXPECTED_PATHS) == 20, (
+    assert len(EXPECTED_PATHS) == 22, (
         f"this test's EXPECTED_PATHS is out of sync ({len(EXPECTED_PATHS)} entries)"
     )
     distinct = set()
