@@ -103,7 +103,6 @@ def test_ci_anti_rule_step_can_be_extracted_and_run(tmp_path):
         bash_block = _extract_bash_block(ci_path)
     except AssertionError:
         # Step not found — already covered by other test
-        pytest_skip = True
         return
     # Write to file and bash -n parse (syntax check only)
     script = tmp_path / "anti_rules.sh"

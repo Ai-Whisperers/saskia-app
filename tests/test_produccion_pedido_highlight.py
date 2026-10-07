@@ -41,7 +41,6 @@ def test_row_highlight_only_when_pedido_qty_positive(authed_client, session_fact
     # Without an existing pedido, no row should have the class.
     # We verify the template logic by checking the conditional.
     r = authed_client.get("/produccion?view=day")
-    body = r.text
     # The class should be applied via a Jinja conditional
     # (we can't easily test the conditional directly, but the
     # surrounding context should not have syntax errors)
