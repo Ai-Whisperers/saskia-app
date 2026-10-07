@@ -70,7 +70,6 @@ from app.routers.produccion._helpers import (
 # helpers are now defined in app/routers/produccion/analytics.py.
 # The day-view worksheet still uses them, so we re-import here.
 from app.routers.produccion.analytics import (
-    _build_substitution_suggestions,
     _count_haccp_missing_for_date,
     _list_haccp_missing_for_date,
     _get_haccp_latest_for_date,
@@ -1245,15 +1244,13 @@ def produccion_worksheet(
             # products the cook can bake instead — ranked by Jaccard
             # similarity so the substitute tastes similar. Skipped when
             # the plan is fully stocked (avoids noise).
-            # P37 (2026-10-07, Ivan): pass the full short-lines so the
-            # suggestions can show HOW MUCH is short per ingredient, which
-            # recipes are affected, and which substitute recipes are
-            # actually bakeable (own-ingredients-in-stock check).
-            "substitution_suggestions": _build_substitution_suggestions(
-                session,
-                [ln for ln in plan.lines if (ln.stock_on_hand - ln.qty_required) < 0],
-                plan_rows_view,
-            ),
+            # P38 (2026-10-07, Ivan): substitution_suggestions removed entirely.
+            # The catalog has 58 products that are mostly 7-9-ingredient
+            # variations of each other, so auto-suggested substitutes were
+            # misleading (Stroopwafel as a substitute for Pan lactal). Pass
+            # the short-lines to the template instead — the operator gets
+            # the count and a /reorder link, period.
+            "short_plan_lines": [ln for ln in plan.lines if (ln.stock_on_hand - ln.qty_required) < 0],
         },
     )
 

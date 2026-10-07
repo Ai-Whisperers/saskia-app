@@ -273,22 +273,6 @@ class TestBulkActionHierarchy:
 
 # ─── V5: sustitutos summary text ───────────────────────────────────────────
 
-class TestSustitutosSummaryWrap:
-    """V5 — '(modelo ingredientes / similitud ≥0.3)' must not get truncated."""
-
-    def test_sustitutos_summary_white_space(self):
-        """The <summary> element should set white-space: normal so the
-        parenthetical text wraps instead of getting cut off."""
-        idx = TEMPLATE_BODY.find("Sustitutos sugeridos (modelo ingredientes")
-        assert idx >= 0, "summary text must exist"
-        # Look back for the parent <summary> opening tag
-        snippet = TEMPLATE_BODY[max(0, idx - 300):idx + 50]
-        assert "white-space: normal" in snippet, \
-            "summary needs white-space:normal to wrap"
-
-
-# ─── V7: Horneado extra description ────────────────────────────────────────
-
 class TestHorneadoExtraDescription:
     """V7 — long description text under 'Horneado extra' card must wrap."""
 
