@@ -595,3 +595,53 @@ __all__ = [
     "persist_plan_audit",
     "split_pedidos_status",
 ]
+
+# ---------------------------------------------------------------------------
+# P40: EOD snapshot warmer
+# ---------------------------------------------------------------------------
+
+
+def warm_snapshots_for_dates(
+    session: Session,
+    dates: list[date],
+) -> int:
+    """P40 (2026-10-07, Ivan) — fill production_demand_snapshot for N dates.
+
+    The snapshot TTL is 5 min by default and is normally filled lazily
+    when the operator opens /produccion or /produccion/manana. Operators
+    don't open the day view every day, so demand snapshots have been
+    sitting empty for 30+ days. Calling this from the EOD view (or
+    the EOD cron) ensures the morning /produccion/manana always
+    finds fresh data without forcing a recompute at view time.
+
+    Best-effort: if a date has no products yet, the snapshot is empty
+    (0 rows written). Errors per-date are logged and skipped; the
+    function returns the count of dates successfully warmed.
+
+    Returns:
+        Number of dates for which get_demand() was invoked without
+        raising. The route logs this for EOD telemetry.
+    """
+    warmed = 0
+    for d in dates:
+        try:
+            get_demand(session, for_date=d)
+            warmed += 1
+        except Exception as exc:  # noqa: BLE001 — best-effort
+            from loguru import logger as _logger
+            _logger.debug(
+                f"production_demand.warm_snapshots_for_dates: "
+                f"{d.isoformat()} failed: {exc!r}"
+            )
+            continue
+    # Commit so the writes are visible to readers using a different
+    # session (e.g. the next request, or a test reading the table
+    # after the warmer ran). Without this, a single-session test
+    # sees the data but a multi-session test (or a subsequent HTTP
+    # request in production) does not.
+    try:
+        session.commit()
+    except Exception:  # noqa: BLE001
+        # If commit fails (e.g. read-only test DB), best-effort.
+        session.rollback()
+    return warmed

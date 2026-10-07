@@ -19,6 +19,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -70,6 +71,20 @@ def eod_view(
     today = datetime.now(ASUNCION_TZ).date()
     today_plan = plan_production(session, for_date=today)
     completions = completions_for_date(session, today)
+
+    # P40 (2026-10-07, Ivan): warm the demand snapshot for today + the
+    # next 6 days so the morning /produccion/manana finds fresh data
+    # without forcing a recompute. Best-effort: a failure here does
+    # NOT block the EOD page (operators can still close the day).
+    # Excluded from the rendered HTML — just a side effect of opening
+    # /eod, the same place the operator already is.
+    try:
+        from app.rms.production_demand import warm_snapshots_for_dates
+        upcoming = [today + timedelta(days=offset) for offset in range(7)]
+        warmed = warm_snapshots_for_dates(session, upcoming)
+        logger.debug("eod_view: warmed demand snapshots for {} dates", warmed)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("eod_view: warm_snapshots_for_dates failed: {!r}", exc)
 
     # Load saved EOD checklist progress from app_meta so refreshing the
     # page shows the operator's checked items.

@@ -50,9 +50,33 @@ branches: when a weekly template exists, it surfaces a "Cargar
 plan desde plantilla semanal" primary CTA. When it doesn't, the
 existing copy links to the week view as before.
 
-**Tests** — `tests/test_P40_quick_restock.py` (5 tests) and
-`tests/test_P40_load_template.py` (4 tests). All 9 pass. Locked
-against future regressions of the same gap.
+**Tests** — `tests/test_P40_quick_restock.py` (5 tests),
+`tests/test_P40_load_template.py` (4 tests), and
+`tests/test_P40_demand_snapshot_warmer.py` (4 tests). All 13 pass.
+Locked against future regressions of the same gap.
+
+### Added — EOD view warms demand snapshot (P40, 2026-10-07)
+
+`production_demand_snapshot` was empty for 30+ days because the
+snapshot only fills when the operator opens `/produccion` or
+`/produccion/manana`. Operators don't open those pages every day,
+so the table went stale. P40 wires the snapshot warmer into the
+EOD view (`/eod` GET), which operators DO open every day at
+close. Side-effect only — the rendered HTML is unchanged.
+
+**`app/rms/production_demand.py`** — new `warm_snapshots_for_dates(
+session, dates)` helper. Calls `get_demand()` for each date in
+the list; `_persist_snapshot()` writes the rows as a side-effect
+of the recompute. Best-effort: per-date try/except so one bad
+date doesn't kill the batch. Commits at the end so a multi-
+session test (or a subsequent HTTP request) sees the writes.
+
+**`app/routers/eod.py`** — `eod_view()` now calls
+`warm_snapshots_for_dates()` for `[today, today+1, ..., today+6]`
+right after the existing `plan_production(session, for_date=today)`
+call. Wrapped in a top-level try/except so a warmer failure
+NEVER turns the EOD page into a 500. The operator can still
+close the day; the snapshot just stays empty for that run.
 
 ### Added — Pre-billing checklist (URY pattern) (2026-10-07)
 
