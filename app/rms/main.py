@@ -61,6 +61,7 @@ from app.routers import (
     analisis,
     auditoria,
     auth,
+    caja,
     credits,
     customers,
     dashboard,
@@ -701,6 +702,7 @@ app.include_router(recipes.router)
 app.include_router(suppliers.router)
 app.include_router(products.router)
 app.include_router(sales.router)
+app.include_router(caja.router)
 app.include_router(refund.router)
 app.include_router(search.router)
 app.include_router(excel_io.router)

@@ -59,6 +59,7 @@ from app.rms.models_legacy import (
     RiskItem,  # noqa: F401 — re-exported via __all__
     Sale,  # noqa: F401 — re-exported via __all__
     SalePayment,  # noqa: F401 — re-exported via __all__
+    CashSession,  # noqa: F401 — re-exported via __all__
     SaleStockMove,  # noqa: F401 — re-exported via __all__
     SettingsKV,  # noqa: F401 — re-exported via __all__
     ShoppingListItem,  # noqa: F401 — re-exported via __all__

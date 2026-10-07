@@ -572,6 +572,25 @@ class SalePayment(Base):
     )
 
 
+class CashSession(Base):
+    """WP-1.3 arqueo X/Z: una apertura de caja con su cierre y diff."""
+
+    __tablename__ = "cash_session"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    opened_by: Mapped[str] = mapped_column(String(120), nullable=False)
+    closed_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    opening_gs: Mapped[int] = mapped_column(nullable=False, default=0)
+    counted_gs: Mapped[int | None] = mapped_column(nullable=True)
+    expected_gs: Mapped[int | None] = mapped_column(nullable=True)
+    diff_gs: Mapped[int | None] = mapped_column(nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="open")
+    channel: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class SaleStockMove(Base):
     """DEPRECATED stub — sale_stock_move table removed by migration 092 (BACKLOG #1).
 
