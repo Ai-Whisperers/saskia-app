@@ -34,17 +34,19 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from loguru import logger
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.rms.clock import ASUNCION_TZ, now as now_utc, to_asuncion  # noqa: F401 — re-exported
+from app.rms.clock import ASUNCION_TZ, to_asuncion  # noqa: F401 — re-exported
+from app.rms.clock import now as now_utc
 from app.rms.config import SAZON_MAX_HELD_SALES
 
 
-def _now_asuncion():
+def _now_asuncion() -> datetime:
     """UTC-aware now → Asuncion-local naive (matches DB TIMESTAMP contract)."""
     return to_asuncion(now_utc()).replace(tzinfo=None)
 
@@ -113,7 +115,7 @@ def _evict_oldest_if_at_capacity(session: Session) -> int:
         params = {f"ev_id_{i}": v for i, v in enumerate(evict_ids)}
         session.execute(
             text(
-                f"UPDATE held_sale SET status = 'auto_evicted' "
+                f"UPDATE held_sale SET status = 'auto_evicted' "  # noqa: S608 — bound params, see above
                 f"WHERE id IN ({placeholders}) AND status = 'active'"
             ),
             params,
