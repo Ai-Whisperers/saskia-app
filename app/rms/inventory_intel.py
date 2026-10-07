@@ -224,14 +224,29 @@ def overstocked(
 
 
 def stock_value_gs(session: Session) -> int:
-    """Total capital tied up in inventory at purchase price.
+    """Total capital tied up in inventory at the effective (variant-SSOT) price.
 
-    Returns total in Gs. across all ingredients.
+    A preferred variant's price IS what the ingredient costs today;
+    the parent purchase_price_gs is only the no-variant fallback
+    (same contract as current_variant_price). Prices fetched in ONE
+    batched query — no N+1.
     """
+    from app.rms.models import IngredientVariant
+
+    pref_prices: dict[int, int] = {}
+    rows = session.execute(
+        select(IngredientVariant.ingredient_id, IngredientVariant.purchase_price_gs).where(
+            IngredientVariant.preferred.is_(True)
+        )
+    ).all()
+    for iid, price in rows:
+        if price is not None:
+            pref_prices[iid] = int(price)
+
     total = 0
     for ing in session.scalars(select(Ingredient)).all():
         stock = float(ing.stock_qty or 0)
-        price = int(ing.purchase_price_gs or 0)
+        price = pref_prices.get(ing.id, int(ing.purchase_price_gs or 0))
         total += int(stock * price)
     return total
 

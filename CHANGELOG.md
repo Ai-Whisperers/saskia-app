@@ -1,3 +1,19 @@
+## 2026-10-07i — inventory valuation follows the variant-price SSOT (audit follow-up 2)
+
+**`stock_value_gs()`** (app/rms/inventory_intel.py) now prices ingredients via preferred-variant
+price when one exists (parent `purchase_price_gs` remains the no-variant fallback — same contract
+as `current_variant_price()`). Preferred prices fetched in ONE batched query — no N+1. This is the
+KPI behind the inventory page's value header; previously a preferred variant at a different price
+silently mis-valued the whole stock.
+
+Test: `test_stock_value_gs_uses_preferred_variant_price` (preferred 1200 overrides parent 1000;
+non-preferred 9999 ignored; parent fallback intact). 20/20 in test_inventory_intel.
+
+Broader 89-read audit note: the remaining direct `purchase_price_gs` reads are mostly legit
+(parent-price fallbacks inside variants.py itself, seed/import writers, per-variant admin views).
+Flagged for per-site review only where a consumer *displays* an ingredient cost (the recipe-form
+3-consumer contract was already unified in a prior sprint).
+
 ## 2026-10-07h — `current_operator()`: one home for the user-id-or-default fallback (audit follow-up 1)
 
 **What**: `app/auth.py::current_operator(request, *, fallback="operator")` replaces the 53 hand-rolled `current_user_id(request) or "operator"` sites across 17 routers/modules.

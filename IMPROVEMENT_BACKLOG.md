@@ -28,6 +28,8 @@ the code, and operator-ranked. Status is the latest known state.
 
 | # | Item | Status | Effort |
 |---|---|---|---|
+| 🔔 | **Flash-message unification** (2026-10-07 audit): 67 `flash=<free text>` + 6 `msg=` + 4 `error=` redirect params bypass the keyed `ui.flash_toast` system (only 10 templates include it). Plan: (1) extend the toast's message map with the free-text strings as keys, (2) route the 77 redirect sites to keys, (3) include `{{ ui.flash_toast(request) }}` in every base-extending template (127 total), (4) style `error=` as the error variant. Also drops the URL-encoding of Spanish text in redirects. | ⬜ Open | M |
+
 | 7 | `void_sale` → all money math must use Decimal (12 sites swept this turn; flag for future audits) | ✅ Done 5ce2885 | — |
 | 8 | `pedidos_fulfill` idempotency (double-click → double sale + double stock drop) | ✅ Done 5ce2885 | — |
 | 9 | No idempotency on `/eod/check` (double-click submits two checklists) | ✅ Done 2026-09-29 (F3 race + AppMeta unique-key reserve in `app/routers/eod.py`) | — |
