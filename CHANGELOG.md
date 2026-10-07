@@ -1,3 +1,17 @@
+## 2026-10-07e — SASKIA-208: Poisson weekday restocking forecast (BACKLOG #5)
+
+**Model** (`app/rms/restock_forecast.py`, zero new deps per AGENTS.md rule 26):
+- Per-weekday Poisson rates, closed-form MLE λ̂_w = Σcount/Σexposure over a 56-day window (Sat/Sun bakery peaks a flat 30-day average misses — the exact gap that made "12 days of stock" actually 8).
+- Two stockout paths: P50 (expected) and P95 (conservative, λ+1.645σ accumulated) — operators plan against P95.
+- Confidence labels key on OBSERVED movement days (28+/10+ cutoffs), not window exposure.
+- recommended qty covers 14 days on the P95 path with the 2×-min floor kept from forecast.py.
+
+**Bugs caught by tests during build**: SQLite %w (0=Sunday) vs date.weekday() (0=Monday) key mismatch silently misassigned every weekday; exact-now cutoff dropped the window's first day by seconds (biased one weekday 1/N low); the P50 walk mutated the reported stock.
+
+**Wired**: /reorder gains `restock_map` (P95 date, days-to-P95, weekend uplift, confidence); template shows a `P95 Nd` badge only when the conservative path lands ≥2 days before the flat estimate (that gap IS the weekend risk).
+
+**Tests**: 13 new (10 model math + 3 batch/integration); reorder regression 31 passed.
+
 ## 2026-10-07d — SASKIA-207: stock_ledger helper + reuse/abstraction audit
 
 **Audit:** docs/operations/2026-10-07-saskia-reuse-abstraction-audit.md (8 findings, measured).

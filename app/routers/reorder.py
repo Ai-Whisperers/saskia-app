@@ -127,6 +127,26 @@ def reorder_view(
         for ing_id, fc in forecast_objs.items()
     }
 
+    # Poisson weekday forecast (SASKIA-208 / BACKLOG #5): P95 stockout date
+    # + weekend-uplift per ingredient. Replaces the flat average's blind
+    # spot (Saturday-heavy demand runs out days earlier than the mean
+    # suggests). Only the at-risk set is computed; the template shows the
+    # P95 date next to the flat projection when they disagree.
+    from app.rms.restock_forecast import forecast_restock_batch
+
+    restock_map: dict[int, dict] = {
+        ing_id: {
+            "p95_stockout_date": fc.p95_stockout_date,
+            "days_to_p95": fc.days_to_p95_stockout,
+            "recommended_qty": fc.recommended_restock_qty,
+            "weekend_uplift_pct": fc.weekend_uplift_pct,
+            "confidence": fc.confidence,
+        }
+        for ing_id, fc in forecast_restock_batch(
+            session, ingredient_ids, only_at_risk=False
+        ).items()
+    }
+
     if format == "json":
         return JSONResponse(
             {
@@ -172,6 +192,7 @@ def reorder_view(
             "price_stats": price_stats,
             "cheapest_suppliers": cheapest_suppliers,
             "forecast_map": forecast_map,
+            "restock_map": restock_map,
             "page_start": 1,
             "page_end": len(items),
         },
