@@ -5,6 +5,41 @@
 
 ## [Unreleased]
 
+### Added — Format utility JS (Phase 22 polish, 2026-10-07)
+
+Four new utility scripts that expose `window.*` globals for use across
+the app's server-rendered templates.
+
+- `app/static/money-format.js` — `window.MoneyFormat` for Guaraní formatting
+- `app/static/date-format.js` — `window.DateFormat` for DD/MM/YYYY + relative
+- `app/static/live-time.js` — `window.LiveTime` for auto-updating relative times
+  (uses `data-relative-time` attribute + 60s refresh interval)
+- `app/static/cache.js` — `window.Cache` for in-memory TTL key/value cache
+
+All four are loaded in `app/templates/base.html` after `back-to-top.js`.
+No CSS changes needed (utility scripts only). Locked by 88 tests
+across `tests/test_money_format.py`, `tests/test_date_format.py`,
+`tests/test_live_time.py`, `tests/test_cache.py`.
+
+Source: `feat/phase-3-m1-product-detail` (wave 1 of N).
+
+
+### Added — Back-to-top button (Phase 22 polish, 2026-10-07)
+
+Floating "Volver arriba" button that appears in the bottom-right corner
+of every page once the user scrolls more than 400px. Click smoothly
+scrolls to top; respects `prefers-reduced-motion` (instant scroll).
+Keyboard-accessible via `aria-label` and `:focus-visible` outline.
+
+- New asset: `app/static/back-to-top.js` (1.2KB, self-managed scroll listener)
+- `app/templates/base.html`: button + script tag
+- `app/static/combobox.css`: `.back-to-top` + `.back-to-top.is-visible` rules
+  + `prefers-reduced-motion` override
+- Locked by `tests/test_back_to_top.py` (17 tests: button, JS behavior, CSS)
+
+Source: `feat/phase-3-m1-product-detail` (59 commits, 92 orphan files,
+this is the first of the integration PRs).
+
 ### Fixed — P39/P44/P52 inline anomaly banner + re-render form + loyalty cap (2026-10-07)
 
 Three pre-existing P-test failures fixed by wiring the test contract into
