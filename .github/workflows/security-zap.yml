@@ -146,9 +146,9 @@ jobs:
             --host 127.0.0.1 --port 18998 \
             > uvicorn-zap.log 2>&1 &
           echo "uvicorn pid=$!"
-          # Wait for /api/health to come up
+          # Wait for /healthz to come up
           for i in $(seq 1 60); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:18998/api/health || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:18998/healthz || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "uvicorn ready (HTTP $STATUS) on attempt $i"
               exit 0
@@ -164,7 +164,7 @@ jobs:
         # before letting ZAP run. Catches regressions where someone
         # removes the middleware without noticing.
         run: |
-          HEADERS=$(curl -sD - -o /dev/null http://127.0.0.1:18998/api/health)
+          HEADERS=$(curl -sD - -o /dev/null http://127.0.0.1:18998/healthz)
           echo "$HEADERS"
           echo "$HEADERS" | grep -qi "x-content-type-options: nosniff" || { echo "missing X-Content-Type-Options"; exit 1; }
           echo "$HEADERS" | grep -qi "x-frame-options: DENY"            || { echo "missing X-Frame-Options"; exit 1; }
