@@ -49,10 +49,16 @@ def test_settings_csrf_in_all_forms():
 
 
 def test_eod_print_currency_fixed():
-    """Regression: `eod_print.html` must use Gs. (not ₲) for currency."""
+    """Regression: `eod_print.html` must NOT have raw `Gs. {{` (currency drift).
+    The shared `m.gs` / `m.gs_full` macros are the canonical path (D3 lint).
+    """
     src = TEMPLATES.joinpath("eod_print.html").read_text()
-    assert "₲" not in src, "₲ Unicode guaraní still in eod_print"
-    assert "Gs." in src, "Missing canonical Gs. symbol"
+    import re as _re
+
+    drift_pattern = _re.compile(r"Gs\.\s*\{\{")
+    assert not drift_pattern.search(src), "Currency drift: raw 'Gs. {{' in eod_print"
+    # And must use the macro
+    assert "{{ m.gs_full(" in src, "Missing m.gs_full( currency macro"
 
 
 def test_eod_print_checklist_format():

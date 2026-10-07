@@ -30,7 +30,7 @@
      always honest. #}
   {% if unit_cost.batch_cost_gs %}
   <span class="badge badge-neutral" title="Costo de producir una unidad de esta receta">
-    Costo: Gs. {{ "{:,.0f}".format(unit_cost.batch_cost_gs) }}/u
+    Costo: {{ m.gs(unit_cost.batch_cost_gs) }}/u
   </span>
   {% endif %}
 </div>

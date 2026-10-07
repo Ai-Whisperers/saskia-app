@@ -108,6 +108,7 @@ target-version = "py313"
 extend-exclude = [
     ".github",  # GitHub Actions YAML files - ruff doesn't parse YAML
     "app/_archive",  # legacy cleanup archive — not part of the live codebase
+    ".hermes/plans",  # session-scoped workflow plans, not source code
 ]
 
 [tool.ruff.lint]

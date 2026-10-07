@@ -71,7 +71,6 @@ Refs: `docs/ux/copy-fix-list.md`, `docs/ux/copy-ux-decisions.md`,
 **Wired**: /reorder gains `restock_map` (P95 date, days-to-P95, weekend uplift, confidence); template shows a `P95 Nd` badge only when the conservative path lands ≥2 days before the flat estimate (that gap IS the weekend risk).
 
 **Tests**: 13 new (10 model math + 3 batch/integration); reorder regression 31 passed.
-
 ## 2026-10-07d — SASKIA-207: stock_ledger helper + reuse/abstraction audit
 
 **Audit:** docs/operations/2026-10-07-saskia-reuse-abstraction-audit.md (8 findings, measured).
@@ -515,3 +514,24 @@ two pages: list (`/auditoria`) and analytics (`/auditoria/analytics`).
   page existence, auditoria filter bar, login success/fail labels
   (Phase 0 fix), ops_status endpoint table + reorder rate heading,
   settings_catalog 12 tabs.
+
+  settings_catalog 12 tabs.
+
+## 2026-10-07m — SASKIA-301..308 follow-up: D3 currency drift fixes
+
+CI's `currency-drift` job caught 3 raw `Gs. {{` literals our Phase 0/3
+passes missed. Replaced with the shared `m.gs` / `m.gs_full` macros
+(AGENTS.md rule #4 + D3 lint).
+
+**Files fixed:**
+- `app/templates/eod_print.html` (2 places): reorder summary line +
+  reorder item cost cell
+- `app/templates/receta_detalle.html` (1 place): SASKIA-304's honest
+  cost pill used the old raw-format pattern
+
+**Tests updated:**
+- `tests/test_SASKIA-304_clientes_productos.py::test_receta_detalle_margin_pill_honest`
+- `tests/test_SASKIA-308_settings_eod_auditoria.py::test_eod_print_currency_fixed`
+
+Both now assert: bug formula gone, `m.gs` macro used, and NO raw
+`Gs. {{` pattern (D3 lint via inline regex).
