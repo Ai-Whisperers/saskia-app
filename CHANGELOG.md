@@ -484,3 +484,21 @@ and the Phase 0/3 currency + label fixes.
   / benchmarks, reportes_top_productos Spanish 'Ingresos',
   insight_price_impact per-product food_cost_pct, page existence for
   libro_ventas / retencion / iva.
+
+## 2026-10-07l — SASKIA-308: settings + EOD + auditoria + ops (Phase 7)
+
+**Audit result:** all settings + EOD + auditoria + ops templates are
+well-built. The settings.html has a 6-tab structure (business,
+payments, notifications, fiscal, theme, demo) with CSRF on every
+form. EOD pages use skeleton JS for the print view. Auditoria has
+two pages: list (`/auditoria`) and analytics (`/auditoria/analytics`).
+
+**No code changes** — only regression tests to lock the good state.
+
+**Tests:** 1 new file, 12 tests, all pass in 11s:
+- `tests/test_SASKIA-308_settings_eod_auditoria.py` (12) — locks the
+  6 settings tabs, Paraguay SET fiscal fields, CSRF on every form,
+  eod_print currency regression, checklist format, eod_anomalies
+  page existence, auditoria filter bar, login success/fail labels
+  (Phase 0 fix), ops_status endpoint table + reorder rate heading,
+  settings_catalog 12 tabs.
