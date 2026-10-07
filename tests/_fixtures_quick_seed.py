@@ -19,6 +19,7 @@ from app.rms.models import (
     Customer,
     Ingredient,
     Pedido,
+    PedidoLine,
     Product,
     Recipe,
     RecipeLine,
@@ -170,6 +171,74 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
             s.add(ped)
             s.flush()
             out["pedido"] = ped
+
+        elif scenario == "with_manana_pedidos":
+            """basic + 2 pedidos para mañana con líneas + 14d sales history
+            so the forecast actually returns rows for the "Qué producir"
+            table. (para tests de /produccion/manana — exercise del nuevo
+            display per-cliente).
+            """
+            import secrets as _secrets
+            from app.rms.config import ASUNCION_TZ
+
+            # Match the route's "tomorrow" computation exactly so the
+            # seeded Pedido.promised_date hits the SELECT filter.
+            _today_asu = datetime.now(ASUNCION_TZ).date()
+            _tomorrow_asu = _today_asu + timedelta(days=1)
+
+            # Add 14 days of sales history to make the product appear
+            # in the forecast (rolling 14d). One sale per day at noon
+            # Asunción (= 16:00 UTC during standard time).
+            for d in range(14):
+                _sold_at = datetime.now(timezone.utc).replace(
+                    hour=16, minute=0, second=0, microsecond=0
+                ) - timedelta(days=d)
+                apply_sale(
+                    s,
+                    product_id=p.id,
+                    qty=2.0,
+                    sold_at=_sold_at,
+                    notes=None,
+                    customer_id=None,
+                    payment_method="efectivo",
+                    discount_gs=0,
+                    channel="Mostrador",
+                )
+
+            c1 = _make_or_get_customer(s, "María Rodríguez")
+            c2 = _make_or_get_customer(s, "Carlos Pereira")
+            ped1 = Pedido(
+                customer_id=c1.id, customer_name=c1.name,
+                customer_phone="0981222333",
+                status="confirmed",
+                promised_date=_tomorrow_asu,
+                promised_time="10:00",
+                channel="whatsapp",
+                public_token=_secrets.token_hex(4),
+            )
+            ped2 = Pedido(
+                customer_id=c2.id, customer_name=c2.name,
+                customer_phone="0981444555",
+                status="pending",
+                promised_date=_tomorrow_asu,
+                promised_time="16:30",
+                channel="mostrador",
+                public_token=_secrets.token_hex(4),
+            )
+            s.add_all([ped1, ped2])
+            s.flush()
+            # Pedido 1: 6 unidades del producto QA + 1 unidad de un
+            # segundo producto (lo creamos ad-hoc).
+            p2 = _make_quick_product(s, "Empanada QA", rec)
+            s.add(PedidoLine(pedido_id=ped1.id, product_id=p.id,
+                             qty=6.0, unit_price_gs=12000))
+            s.add(PedidoLine(pedido_id=ped1.id, product_id=p2.id,
+                             qty=12.0, unit_price_gs=5000))
+            # Pedido 2: 3 unidades del producto QA.
+            s.add(PedidoLine(pedido_id=ped2.id, product_id=p.id,
+                             qty=3.0, unit_price_gs=12000))
+            s.flush()
+            out.update({"pedidos": [ped1, ped2], "product": p, "p2": p2})
 
         elif scenario == "with_voided_sale":
             sale_result = apply_sale(

@@ -85,24 +85,45 @@
   <h2 style="margin: 0 0 var(--space-2) 0; font-size: 1.05rem;">
     🧾 Pedidos para mañana ({{ pedidos_manana|length }})
   </h2>
-  <table class="table m-0" >
-    <thead><tr><th>Cliente</th><th>Retiro/entrega</th><th>Canal</th><th class="num">Total</th><th></th></tr></thead>
-    <tbody>
+  {# 2026-10-07: each pedido expands to show its line items (what
+   the client is actually buying). Collapsed by default if there are
+   many pedidos; expanded for ≤3 so the cook sees what's coming at
+   a glance. #}
+{% set _n_pedidos = pedidos_manana|length %}
+<details class="pedidos-manana mb-4" {% if _n_pedidos <= 3 %}open{% endif %}>
+  <summary style="cursor:pointer; list-style:none; padding: var(--space-3) var(--space-4); background: var(--color-surface-subtle); border-radius: var(--radius); display: flex; align-items: center; gap: var(--space-2);">
+    <strong>🧾 Pedidos para mañana ({{ _n_pedidos }})</strong>
+    <small class="text-muted">clic para {{ 'ocultar' if _n_pedidos <= 3 else 'ver' }} el detalle por cliente</small>
+  </summary>
+  <div style="padding: var(--space-3) var(--space-4);">
     {% for pe in pedidos_manana %}
-      <tr>
-        <td><strong>{{ pe.customer_name }}</strong></td>
-        <td>{{ pe.promised_time or '—' }}</td>
-        <td><span class="tag-pill tag-pill--muted">{{ pe.channel }}</span></td>
-        <td class="num">{{ m.gs_full(pe.total_gs) }}</td>
-        <td><a href="/pedidos/{{ pe.id }}" class="btn btn-sm btn-ghost">Ver</a></td>
-      </tr>
+    <details class="pedido-card mb-2"
+             style="border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-2) var(--space-3);">
+      <summary style="cursor:pointer; list-style:none; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;">
+        <strong>{{ pe.customer_name }}</strong>
+        {% if pe.promised_time %}<small class="text-muted">· {{ pe.promised_time }}</small>{% endif %}
+        <span class="tag-pill tag-pill--muted">{{ pe.channel }}</span>
+        <small class="text-muted">{{ pe.lines|length }} ítem(s)</small>
+        <span style="margin-left:auto; font-weight:600;">{{ m.gs_full(pe.total_gs) }}</span>
+        <a href="/pedidos/{{ pe.id }}" class="btn btn-sm btn-ghost"
+           onclick="event.stopPropagation()">Ver pedido</a>
+      </summary>
+      <ul style="margin: var(--space-2) 0 0 var(--space-4); padding: 0;">
+        {% for ln in pe.lines %}
+          <li style="padding: 2px 0;">
+            <strong>{{ ln.qty|int }} ×</strong> {{ ln.product_name }}
+          </li>
+        {% endfor %}
+      </ul>
+    </details>
     {% endfor %}
-    </tbody>
-  </table>
-  <p class="muted" style="margin: var(--space-2) 0 0 0; font-size: .85rem;">
-    Estos encargos ya están incluidos en la demanda — producí además de esto solo si el plan lo indica.
-  </p>
-</div>
+    <p class="muted" style="margin: var(--space-2) 0 0 0; font-size: .85rem;">
+      Estos encargos ya están incluidos en la demanda — producí además
+      de esto solo si el plan lo indica. La columna <em>Pedidos</em> en
+      la tabla de abajo muestra la suma por producto.
+    </p>
+  </div>
+</details>
 {% endif %}
 
 {% if rows|length == 0 %}
@@ -128,17 +149,24 @@
 </div>
 {% else %}
 
-{# ── Single unified form for all override edits (Bug 1 fix). ── #}
+{# ── Single unified form for all override edits (Bug 1 fix). ──
+   2026-10-07: added "Pedidos" column = how many of this product are
+   already committed via pedidos. Lets the operator see the demand
+   breakdown (forecast + pedidos committed). Also renamed "Override"
+   → "Plan" because that's what the operator thinks of it as —
+   "the number I plan to produce". The column still POSTs as qty[id]
+   to /produccion/override-bulk (no breaking change). #}
 <form method="post" action="/produccion/override-bulk" id="tomorrow-plan-form">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="for_date" value="{{ tomorrow }}">
 
   <div class="card mb-4">
     <div class="card-header">
-      <h2 style="font-size: var(--text-md); margin: 0;">Qué producir</h2>
+      <h2 style="font-size: var(--text-md); margin: 0;">Qué producir mañana</h2>
       <p class="text-muted" style="font-size: var(--text-sm); margin: var(--space-2) 0 0 0;">
-        Confianza baja = pocos datos de venta. Verde = 14+ días de historial,
-        ámbar = 3-13 días, rojo = 1-2 ventas.
+        Editá la columna <strong>Plan</strong> si querés cambiar la cantidad.
+        <strong>Pedidos</strong> = unidades ya comprometidas vía encargos.
+        <strong>Forecast</strong> = sugerencia del algoritmo.
       </p>
     </div>
 
@@ -146,14 +174,18 @@
       <thead>
         <tr>
           <th>Producto</th>
-          <th class="text-right" >Cantidad</th>
+          <th class="text-right" title="Forecast del algoritmo (rolling 14d / plantilla / ajuste)">Forecast</th>
+          <th class="text-right" title="Unidades ya comprometidas vía pedidos">Pedidos</th>
+          <th class="text-right" title="Plan final (forecast + pedidos, editable)">Total</th>
           <th>Fuente</th>
           <th class="text-center" >Confianza</th>
-          <th class="text-right" >Override</th>
+          <th class="text-right" title="Editá este número; es lo que vamos a producir">Plan ⇄</th>
         </tr>
       </thead>
       <tbody>
         {% for row in rows %}
+        {% set _ped_qty = pedidos_by_product.get(row.product_id, 0) %}
+        {% set _total = (row.qty_to_produce + _ped_qty)|int %}
         <tr>
           <td>
             <strong>{{ row.product_name }}</strong>
@@ -163,6 +195,19 @@
           </td>
           <td class="text-right" >
             <span style="font-size: var(--text-lg); font-weight: 600;">{{ row.qty_to_produce|int }}</span>
+          </td>
+          <td class="text-right" style="color: {% if _ped_qty > 0 %}var(--color-accent){% else %}var(--color-text-muted){% endif %};">
+            {% if _ped_qty > 0 %}
+              <span class="tag-pill tag-pill--commit" title="{{ _ped_qty|int }} unidades comprometidas">{{ _ped_qty|int }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-right" >
+            <span style="font-weight:600;">{{ _total }}</span>
+            {% if _ped_qty > 0 %}
+              <small class="text-muted">(forecast + pedidos)</small>
+            {% endif %}
           </td>
           <td>
             {# Semantic source badges — match produccion.html convention. #}
@@ -189,9 +234,12 @@
           <td class="text-right" >
             <input type="number" name="qty[{{ row.product_id }}]" min="0" max="9999" step="1"
                    value="{{ overrides_tomorrow.get(row.product_id, '') }}"
-                   placeholder="—"
-                   style="width: 70px; padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"
-                   aria-label="Override cantidad para {{ row.product_name }}">
+                   placeholder="{{ _total }}"
+                   style="width: 80px; padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"
+                   aria-label="Plan de producción para {{ row.product_name }}">
+            {% if overrides_tomorrow.get(row.product_id) is not none and overrides_tomorrow.get(row.product_id) != '' %}
+              <small class="text-muted" title="Ya tenías un plan guardado" style="display:block;">📌 guardado</small>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}

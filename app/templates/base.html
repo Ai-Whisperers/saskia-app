@@ -82,7 +82,12 @@
   <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
 
 {% if is_logged_in %}
-  {# ══ New professional shell: sidebar + topbar (2026-09-25 mockup plan) ══ #}
+  {# ══ New professional shell: sidebar + topbar (2026-09-25 mockup plan) ══
+     2026-10-07: wrap sidebar + topbar + main + footer in a single
+     <div id="app-shell"> so the mobile hamburger toggle (which uses
+     #app-shell) actually works, and so the grid layout doesn't break
+     when other things (skip-link, etc.) are siblings of body. #}
+  <div id="app-shell" class="app-shell">
   <aside class="sidebar" aria-label="Navegación principal">
       <a class="brand" href="/">
         <span class="brand-mark">S</span>
@@ -192,6 +197,7 @@
           <span>© {{ now_year() }} {{ branding.business_name or "Sazón" }}</span>
         </span>
   </footer>
+  </div><!-- /.app-shell -->
 
   <script>
     // Sidebar toggle (mobile) + Nuevo dropdown + close-on-outside-click.

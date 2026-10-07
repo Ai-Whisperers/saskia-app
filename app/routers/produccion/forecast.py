@@ -140,27 +140,59 @@ def produccion_manana(
     # PRO-PED (2026-09-30): pedidos confirmados con entrega/retiro mañana —
     # el planificador ve los encargos reales en la misma pantalla donde
     # planifica (antes solo vivían en Pedidos y en el card de Inicio).
+    #
+    # 2026-10-07: enrich with line items (what each client ordered) and
+    # aggregated qty per product so the "Qué producir" table can show
+    # a "Pedidos" column = how many of each product are already committed.
     from app.rms.models import Pedido
     from app.routers.pedidos import _pedido_total_gs
 
-    pedidos_manana = [
-        {
-            "id": p_.id,
-            "customer_name": p_.customer_name,
-            "promised_time": p_.promised_time,
-            "channel": p_.channel,
-            "status": p_.status,
-            "total_gs": _pedido_total_gs(p_),
-        }
-        for p_ in session.execute(
+    pedidos_q = (
+        session.execute(
             select(Pedido)
             .where(
                 Pedido.promised_date == tomorrow,
                 Pedido.status.in_(["pending", "confirmed", "ready"]),
             )
             .order_by(Pedido.promised_time.nulls_last(), Pedido.id)
-        ).scalars()
-    ]
+        )
+        .scalars()
+    )
+    pedidos_manana = []
+    pedidos_by_product: dict[int, float] = {}  # product_id -> qty committed
+    # Cache product names by id so the per-line label is one query
+    products_by_id = {
+        p.id: p.name
+        for p in session.execute(select(Product).where(Product.id > 0)).scalars()
+    }
+    for p_ in pedidos_q:
+        pedido_lines = []
+        for ln in p_.lines:
+            ln_qty = float(ln.qty or 0)
+            pedido_lines.append(
+                {
+                    "product_id": ln.product_id,
+                    "product_name": products_by_id.get(ln.product_id, f"#{ln.product_id}"),
+                    "qty": ln_qty,
+                    "unit": "und",  # pedidos sell by unit, never by weight
+                }
+            )
+            if ln.product_id is not None:
+                pedidos_by_product[ln.product_id] = (
+                    pedidos_by_product.get(ln.product_id, 0.0) + ln_qty
+                )
+        pedidos_manana.append(
+            {
+                "id": p_.id,
+                "customer_name": p_.customer_name,
+                "customer_phone": p_.customer_phone,
+                "promised_time": p_.promised_time,
+                "channel": p_.channel,
+                "status": p_.status,
+                "total_gs": _pedido_total_gs(p_),
+                "lines": pedido_lines,
+            }
+        )
 
     return render(
         request,
@@ -174,6 +206,7 @@ def produccion_manana(
             "tomorrow": tomorrow.isoformat(),
             "rows": rows,
             "plan": plan,
+            "pedidos_by_product": pedidos_by_product,
             "seasonal_note": seasonal_note,
             "seasonal_multiplier": seasonal_multiplier,
             "estimated_revenue_gs": estimated_revenue_gs,
