@@ -2,7 +2,20 @@
    Weekly ingredient prep sheet for the kitchen. Aggregates the
    production plan across 7 days and shows ingredient totals the
    cook needs to buy and prep. Sorted by severity (Falta → Justo →
-   Suficiente) so urgent items surface first. #}
+   Suficiente) so urgent items surface first.
+
+   fmt_qty: copied from produccion.html — same culinary-unit rules
+   from the 2026-09 Gemini audit. (Defined locally per template;
+   _components/atoms.html has no macros block yet.) #}
+{% macro fmt_qty(qty, unit) -%}
+  {%- if unit in ('g', 'ml') -%}
+    {{ qty|round|int }} {{ unit }}
+  {%- elif unit in ('und', 'unid') -%}
+    {{ (qty|round(0, 'ceil'))|int }} {{ unit }}
+  {%- else -%}
+    {{ qty|round(1) }} {{ unit }}
+  {%- endif -%}
+{%-endmacro %}
 {% extends "base.html" %}
 {% block title %}Plan de preparación — semana del {{ week_start }}{% endblock %}
 
