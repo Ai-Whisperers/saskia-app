@@ -365,7 +365,7 @@ def demand_snapshot_ttl_seconds(session: Session) -> int:
     defensively because get_setting_value is typed as `object`.
     """
     try:
-        from app.rms.settings import get_setting_value
+        from app.rms.settings_registry import get_setting_value
 
         raw = get_setting_value(session, "production.demand_snapshot_ttl_seconds")
         if raw is None or raw == "":

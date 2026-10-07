@@ -82,6 +82,9 @@ from app.rms.migrations._110_held_sale import _migration_110_held_sale
 from app.rms.migrations._111_sale_channel_check import _migration_111_sale_channel_check
 from app.rms.migrations._112_extended_channel_check import _migration_112_extended_channel_check
 from app.rms.migrations._113_shopping_price_snapshot import _migration_113_shopping_price_snapshot
+from app.rms.migrations._114_settings_kv_consolidation import (
+    _migration_114_settings_kv_consolidation,
+)
 from app.rms.models.channels import Channel
 
 
@@ -4269,6 +4272,7 @@ MIGRATIONS = {
     111: _migration_111_sale_channel_check,
     112: _migration_112_extended_channel_check,
     113: _migration_113_shopping_price_snapshot,
+    114: _migration_114_settings_kv_consolidation,
 }
 
 

@@ -1,3 +1,15 @@
+## 2026-10-07f — Sprint 2.1 COMPLETE: settings consolidation (AppMeta → settings_kv)
+
+**The dual-persistence trap is closed.** One settings store: `settings_kv` (JSON, via settings_runtime).
+
+- **`app/rms/settings_registry.py` (new)**: the 42-key Setting/SettingGroup/VALIDATORS registry moved verbatim from the deleted `app/rms/settings.py`, API re-backed onto SettingsKV with the old call signatures preserved (`get_setting_value`, `set_setting`, `list_settings`, `settings_by_group`, `reset_setting_to_default`).
+- **Deleted**: `app/rms/settings.py` (538 lines) + `app/rms/settings_original.py` (411 lines). `settings.py` had exactly ONE production importer (production_demand.py lazy import) — re-pointed.
+- **Migration 114** (`_114_settings_kv_consolidation.py`): copies operator-customized values from AppMeta (42 registry keys + legacy /settings router keys: business_*, theme, timbrado, punto_expedicion, invoice_sequence) into settings_kv, then deletes the copied rows. KV-wins on conflict (idempotent), empty values skipped, non-settings AppMeta rows (eod markers, backup stamps, seed flags) untouched. SCHEMA_VERSION → 114.
+- **Tests**: 4 new migration tests (fresh-init to 114, copy+delete, idempotent+KV-wins, empty-skip); test_settings.py re-seeded via SettingsKV; the 2 Sprint 2.1 strict-xfails in test_settings_kv_canonical flipped to plain green (the invariant tests now pass for real). File-scan made worktree-relative (hardcoded /opt/data/work path would have scanned the wrong tree) with self-exclusion.
+- **Sibling coordination**: rebased onto 387d11ca + 51a880d2 (SASKIA-301..308 + ruff waves); sibling's new test_SASKIA-308_settings_eod_auditoria.py passes against the consolidation. My worktree's .venv symlink was transitively broken by a self-referencing loop in the shared checkout's .venv — rebuilt locally with uv sync --frozen.
+
+**Sweep**: 77 passed across settings + migration-safety + SASKIA-308 locks.
+
 ## 2026-10-07e — SASKIA-301: copy/UX hardening Phase 0 (globals)
 
 **Goal:** fix the 8 categories of copy/UX drift identified in
