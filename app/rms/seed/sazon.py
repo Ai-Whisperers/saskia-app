@@ -60,6 +60,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.rms.audit import record as audit_record
+from app.rms.config import ASUNCION_TZ
 from app.rms.models import (
     AppMeta,
     AuditLog,
@@ -354,24 +355,24 @@ DELIVERY_ZONES: list[tuple[str, str, str, float, int, int, int, str | None]] = [
 # Channel.OTHER.value, and "phone" prefix in seed labels stays a display
 # string only — not a Channel.code.
 from app.rms.models.channels import (
-    Channel,  # noqa: F811 — override the bulk import from app.rms.models
+    Channel as ChannelEnum,  # the canonical enum; Channel (ORM model) stays imported above
 )
 
 CHANNELS: list[tuple[str, str, int, bool, str | None]] = [
     # (code, label, sort_order, is_default, notes)
-    (Channel.MOSTRADOR.value, "Mostrador", 10, True, "Venta directa en mostrador"),
+    (ChannelEnum.MOSTRADOR.value, "Mostrador", 10, True, "Venta directa en mostrador"),
     (
-        Channel.MOSTRADOR_ENCARGO.value,
+        ChannelEnum.MOSTRADOR_ENCARGO.value,
         "Mostrador (encargo)",
         20,
         False,
         "Encargo recogido en mostrador",
     ),
-    (Channel.WHATSAPP.value, "WhatsApp", 30, False, "Pedido recibido por WhatsApp"),
-    (Channel.PEDIDOSYA.value, "PedidosYa", 40, False, "PedidosYa (delivery app)"),
-    (Channel.MONCHIS.value, "Monchis", 50, False, "Monchis (delivery app)"),
+    (ChannelEnum.WHATSAPP.value, "WhatsApp", 30, False, "Pedido recibido por WhatsApp"),
+    (ChannelEnum.PEDIDOSYA.value, "PedidosYa", 40, False, "PedidosYa (delivery app)"),
+    (ChannelEnum.MONCHIS.value, "Monchis", 50, False, "Monchis (delivery app)"),
     (
-        Channel.OTHER.value,
+        ChannelEnum.OTHER.value,
         "Teléfono / Otro",
         60,
         False,
@@ -4153,7 +4154,7 @@ def seed_sazon(
         channel_code = (
             channel_codes[channel_idx]
             if channel_idx < len(channel_codes)
-            else Channel.MOSTRADOR.value  # P43: enum fallback
+            else ChannelEnum.MOSTRADOR.value  # P43: enum fallback
         )
         existing = session.execute(
             select(Pedido).where(
