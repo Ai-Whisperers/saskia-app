@@ -73,6 +73,7 @@ from app.routers import (
     excel_io,
     fiado,
     menu_import,
+    menus,
     health,
     help,
     herebus,
@@ -709,6 +710,7 @@ app.include_router(sales.router)
 app.include_router(caja.router)
 app.include_router(fiado.router)
 app.include_router(menu_import.router)
+app.include_router(menus.router)
 app.include_router(cotizador.router)
 app.include_router(copiloto.router)
 app.include_router(refund.router)

@@ -101,6 +101,8 @@ def _decorated(s: Sale) -> dict:
         "payment_method": s.payment_method,
         "channel": s.channel or "mostrador",
         "discount_gs": s.discount_gs,
+        # WP-4.1 propina: sale row that carries it shows the line; others 0.
+        "tip_gs": getattr(s, "tip_gs", 0) or 0,
     }
 
 
@@ -1292,7 +1294,10 @@ async def sale_create_multi(
     from app.rms.schemas import ALLOWED_PAYMENT_METHODS, MAX_DISCOUNT_GS, MAX_QTY
 
     class _Item(BaseModel):
-        product_id: int = Field(..., gt=0)
+        # WP-4.2: product_id XOR menu_id (menú ejecutivo se expande a
+        # sus productos antes de aplicar la venta).
+        product_id: int | None = Field(None, gt=0)
+        menu_id: int | None = Field(None, gt=0)
         qty: float = Field(..., gt=0)
         discount_pct: float = Field(0, ge=0, le=100)  # per-item % discount
         unit_price_gs: int | None = Field(None, ge=0, le=999_999_999)  # E13.S2 cashier override
@@ -1308,6 +1313,8 @@ async def sale_create_multi(
         # WP-1.2 pagos mixtos: optional split payments. Empty/absent →
         # uniform single row mirroring payment_method (never a special case).
         payments: list[_Payment] = Field(default_factory=list, max_length=5)
+        # WP-4.1 propina: Gs enteros, va en la PRIMERA fila de la venta.
+        tip_gs: int = Field(0, ge=0, le=5_000_000)
         discount_gs: int = Field(0, ge=0)
         # Phase 4 loyalty (2026-10-01): POS redeem on multi-sale. Same
         # semantics as /ventas/nueva — converts to Gs. discount (1pt =
@@ -1328,6 +1335,35 @@ async def sale_create_multi(
         raise HTTPException(status_code=400, detail=SALE_BODY_INVALID) from None
 
     items = body.items
+    # WP-4.2 menú ejecutivo: items=[{menu_id, qty}] → expande a sus
+    # productos (stock/receta por producto) con el precio del menú en
+    # la primera línea expandida. Validación: exactamente uno de los dos.
+    _expanded: list = []
+    for _it in items:
+        if (_it.product_id is None) == (_it.menu_id is None):
+            raise HTTPException(
+                status_code=400,
+                detail="Cada ítem necesita product_id o menu_id (no ambos).",
+            )
+        if _it.menu_id is not None:
+            from app.rms.menu_ejecutivo import MenuNotFound, expand_menu_items
+
+            try:
+                _lines = expand_menu_items(session, _it.menu_id, _it.qty)
+            except MenuNotFound as e:
+                raise HTTPException(status_code=400, detail=str(e)) from e
+            for _pi, (_pid, _qty, _price) in enumerate(_lines):
+                _expanded.append(
+                    _Item(
+                        product_id=_pid,
+                        qty=_qty,
+                        unit_price_gs=_price,
+                        discount_pct=0,
+                    )
+                )
+        else:
+            _expanded.append(_it)
+    items = _expanded
     if len(items) > 50:
         raise HTTPException(status_code=400, detail=SALE_TOO_MANY_ITEMS)
 
@@ -1418,6 +1454,7 @@ async def sale_create_multi(
 
     notes_clean = body.notes.strip() or None
     discount_gs = body.discount_gs
+    tip_gs = body.tip_gs
     points_to_redeem = body.points_to_redeem
 
     # Phase 4 loyalty POS redeem (2026-10-01, multi-sale variant):
@@ -1523,9 +1560,11 @@ async def sale_create_multi(
             # sales. Falls back to the catalog price when the client doesn't
             # send one. Sale.unit_price_gs is already a snapshot column so
             # the override is safe to persist.
+            # WP-4.2: 0 explícito se honra (línea expandida de menú
+            # ejecutivo sin precio propio). None → precio de catálogo.
             unit_price = (
                 item.unit_price_gs
-                if item.unit_price_gs is not None and item.unit_price_gs > 0
+                if item.unit_price_gs is not None
                 else catalog_price
             )
 
@@ -1559,7 +1598,7 @@ async def sale_create_multi(
                 payment_method=payment_method_clean,
                 discount_gs=line_discount_gs,
                 channel=channel_clean,
-                unit_price_gs_override=unit_price if item.unit_price_gs else None,
+                unit_price_gs_override=unit_price,  # WP-4.2: 0 honrado
             )
             sale_ids.append(result.sale_id)
             if first_product_id is None:
@@ -1678,6 +1717,11 @@ async def sale_create_multi(
         _cart_total = sum(
             max(0, int(r.qty * r.unit_price_gs) - int(r.discount_gs or 0)) for r in _rows
         )
+        # WP-4.1 propina: tip lands on the FIRST row; the client pays
+        # cart total + tip, so the ledger must cover both.
+        if tip_gs > 0 and _rows:
+            _rows[0].tip_gs = tip_gs
+            _cart_total += tip_gs
         if payments_plan:
             _sum = sum(amount for _, amount in payments_plan)
             if _sum != _cart_total:
@@ -1696,6 +1740,8 @@ async def sale_create_multi(
                 _row_total = max(
                     0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0)
                 )
+                if _ri == 0:
+                    _row_total += tip_gs  # propina viaja en la primera fila
                 _left = _row_total
                 _plans = list(_remaining.items())
                 for _mi, (_method, _amount) in enumerate(_plans):
@@ -1731,10 +1777,12 @@ async def sale_create_multi(
         else:
             # Uniform single row mirroring payment_method.
             _now = datetime.now(ASUNCION_TZ)
-            for _row in _rows:
+            for _ri, _row in enumerate(_rows):
                 _row_total = max(
                     0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0)
                 )
+                if _ri == 0:
+                    _row_total += tip_gs
                 if _row_total <= 0:
                     continue
                 session.add(

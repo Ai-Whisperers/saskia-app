@@ -77,6 +77,14 @@
     </div>
     {% endif %}
 
+    {# WP-4.1 propina: multi-sale la guarda en la primera fila #}
+    {% if sale.tip_gs and sale.tip_gs > 0 %}
+    <div class="flex-between-mb-2">
+      <span>Propina</span>
+      <span>{{ m.gs(sale.tip_gs) }}</span>
+    </div>
+    {% endif %}
+
     {% if sale.payment_method %}
     <div class="flex-between-mb-2" >
       <span>Pago</span>

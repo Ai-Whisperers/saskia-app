@@ -16,8 +16,8 @@
   <h2 style="margin-top:0;">Caja abierta</h2>
   <p>Abierta {{ open_sess.opened_at.strftime('%d/%m %H:%M') }} · {{ open_sess.opened_by }}
      {% if open_sess.channel %}· {{ open_sess.channel }}{% endif %}</p>
-  <p><strong>Apertura:</strong> {{ fmt(open_sess.opening_gs) }}</p>
-  <p><strong>Esperado ahora (X):</strong> {{ fmt(expected) }}</p>
+  <p><strong>Apertura:</strong> {{ money(open_sess.opening_gs) }}</p>
+  <p><strong>Esperado ahora (X):</strong> {{ money(expected) }}</p>
 
   <form method="post" action="/caja/cerrar" style="margin-top:var(--space-3);">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
@@ -61,11 +61,11 @@
     <tr>
       <td style="padding:4px 10px;">{{ s.opened_at.strftime('%d/%m %H:%M') }} · {{ s.opened_by }}</td>
       <td style="padding:4px 10px;">{% if s.closed_at %}{{ s.closed_at.strftime('%d/%m %H:%M') }}{% else %}<strong>abierta</strong>{% endif %}</td>
-      <td style="padding:4px 10px;text-align:right;">{{ fmt(s.opening_gs) }}</td>
-      <td style="padding:4px 10px;text-align:right;">{{ fmt(s.expected_gs) }}</td>
-      <td style="padding:4px 10px;text-align:right;">{{ fmt(s.counted_gs) }}</td>
+      <td style="padding:4px 10px;text-align:right;">{{ money(s.opening_gs) }}</td>
+      <td style="padding:4px 10px;text-align:right;">{{ money(s.expected_gs) }}</td>
+      <td style="padding:4px 10px;text-align:right;">{{ money(s.counted_gs) }}</td>
       <td style="padding:4px 10px;text-align:right;color:{% if s.diff_gs and s.diff_gs != 0 %}var(--destructive, #b91c1c){% else %}var(--success, #15803d){% endif %};">
-        {{ fmt(s.diff_gs) }}
+        {{ money(s.diff_gs) }}
       </td>
       <td style="padding:4px 10px;text-align:center;">
         {% if s.status == 'closed' %}<a href="/caja/z/{{ s.id }}">Z</a>{% endif %}

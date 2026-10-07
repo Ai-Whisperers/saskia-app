@@ -93,6 +93,15 @@
           </button>
           <div id="split-payment-rows" style="display:none;margin-top:6px;"></div>
           <small id="split-payment-status" aria-live="polite" style="display:block;margin-top:4px;"></small>
+          {# WP-4.1 propina: botones rápidos 0/5%/10%/fijo #}
+          <div id="tip-row" style="display:none;margin-top:8px;gap:6px;align-items:center;flex-wrap:wrap;">
+            <span style="font-size:0.8rem;color:var(--muted-foreground)">Propina:</span>
+            <button type="button" class="btn btn-sm btn-ghost tip-btn" data-tip-pct="0">0%</button>
+            <button type="button" class="btn btn-sm btn-ghost tip-btn" data-tip-pct="5">5%</button>
+            <button type="button" class="btn btn-sm btn-ghost tip-btn" data-tip-pct="10">10%</button>
+            <input type="number" id="tip-gs" min="0" step="1000" value="0" inputmode="numeric"
+                   aria-label="Propina en guaraníes" style="width:110px;padding:6px;text-align:right;">
+          </div>
         </div>
 
         {# UI-V2: cross-sell rail. One-tap add-ons below the cart; JS shows
@@ -683,12 +692,14 @@
   }
 
   // ── Render cart ─────────────────────────────────────────────────────────
+  window.renderCart = renderCart;
   function renderCart() {
     var cartItems  = document.getElementById('cart-items');
     var cartEmpty = document.getElementById('cart-empty');
     var cartTbody  = document.getElementById('cart-tbody');
     var cartCount  = document.getElementById('cart-count');
     var cartTotalEl = document.getElementById('cart-total');
+    var POS_TIP = 0;
     var submitBtn   = document.getElementById('sale-submit-btn');
     var submitLabel = document.getElementById('submit-label');
     var submitCount = document.getElementById('submit-count');
@@ -700,6 +711,10 @@
     if (n === 0) {
       cartItems.style.display  = 'none';
       cartEmpty.style.display  = '';
+      var tipRow0 = document.getElementById('tip-row');
+      if (tipRow0) tipRow0.style.display = 'none';
+      var tipInp0 = document.getElementById('tip-gs');
+      if (tipInp0) tipInp0.value = '0';
       cartCount.style.display  = 'none';
       if (submitBtn)   submitBtn.disabled = true;
       if (submitLabel) submitLabel.textContent = 'Registrá venta';
@@ -765,7 +780,16 @@
       discRow.innerHTML = '<span>Descuento total</span><span id="cart-total-discount">-' + fmtGs(totalDiscountGs) + '</span>';
       cartTotalEl.parentNode.insertBefore(discRow, cartTotalEl);
 
-      cartTotalEl.textContent = fmtGs(total);
+      // WP-4.1 propina: el total mostrado (y cobrado) incluye la propina.
+      var tipInp = document.getElementById('tip-gs');
+      var tipRow = document.getElementById('tip-row');
+      if (tipRow) tipRow.style.display = 'flex';
+      window.POS_TIP = 0;
+      if (tipInp) {
+        var tipVal = parseInt(tipInp.value || '0', 10);
+        window.POS_TIP = isNaN(tipVal) || tipVal < 0 ? 0 : tipVal;
+      }
+      cartTotalEl.textContent = fmtGs(total + window.POS_TIP);
       if (submitBtn)   submitBtn.disabled = false;
       if (submitLabel) submitLabel.textContent = 'Registrá venta';
       if (submitCount) { submitCount.textContent = ' (' + n + ' ítem' + (n !== 1 ? 's' : '') + ')'; submitCount.style.display = ''; }
@@ -915,6 +939,7 @@
       payments:               (window.SplitPayment && window.SplitPayment.collect()) || null,
       channel:                fd.get('channel') || 'mostrador',
       discount_gs:            parseInt(fd.get('discount_gs') || '0', 10),
+      tip_gs:                 parseInt((document.getElementById('tip-gs') || {}).value || '0', 10) || 0,
       notes:                  fd.get('notes') || '',
       sold_at:                fd.get('sold_at') || '',
       idempotency_key:        (document.getElementById('idem-key') || {}).value || '',
@@ -1117,5 +1142,33 @@
 {% endblock %}
 
 {% block page_scripts %}
+  <script>
+  // WP-4.1 propina: botones 0/5/10% calculan sobre el subtotal (sin propina),
+  // redondeado a Gs. 1.000. El input acepta monto fijo.
+  (function () {
+    'use strict';
+    var tipInp0 = document.getElementById('tip-gs');
+    if (tipInp0) {
+      tipInp0.addEventListener('change', function () {
+        if (typeof window.renderCart === 'function') window.renderCart();
+      });
+    }
+    document.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('.tip-btn');
+      if (!btn) return;
+      var pct = parseInt(btn.getAttribute('data-tip-pct') || '0', 10);
+      var totalEl = document.getElementById('cart-total');
+      var shown = parseInt((totalEl.textContent || '').replace(/[^\d]/g, ''), 10) || 0;
+      var tipInp = document.getElementById('tip-gs');
+      var curTip = parseInt((tipInp && tipInp.value) || '0', 10) || 0;
+      var subtotal = Math.max(0, shown - curTip);
+      var tip = Math.round(subtotal * pct / 100 / 1000) * 1000;
+      if (tipInp) {
+        tipInp.value = String(tip);
+        tipInp.dispatchEvent(new Event('change'));
+      }
+    });
+  })();
+  </script>
   <script src="/static/split-payment.js?v={{ asset_version() }}" defer></script>
 {% endblock %}

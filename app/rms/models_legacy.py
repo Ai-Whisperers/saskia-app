@@ -475,6 +475,9 @@ class Sale(Base):
     packaging_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     # Phase 5: payment + discount
     payment_method: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    # WP-4.1 propina: per-ROW column; multi-sale sets it on the FIRST row
+    # only (reports use SUM(tip_gs)). Payments cover total + tip.
+    tip_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     discount_gs: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     # Phase 6: timezone of the cash register that recorded the sale.
     # Defaults to America/Asuncion since single-tenant Asunción bakery.
@@ -618,6 +621,42 @@ class CreditTransaction(Base):
     idem_key: Mapped[str | None] = mapped_column(String(80), nullable=True, unique=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+
+
+class Menu(Base):
+    """WP-4.2 menú ejecutivo (combo de venta con precio propio).
+
+    NO confundir con combo-rows.js (labels de ui-combo) ni con el
+    target_combo del refund: este es el "Menú Ejecutivo" que se vende
+    como una unidad y se expande a sus productos al facturar.
+    """
+
+    __tablename__ = "menu"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    price_gs: Mapped[int] = mapped_column(Integer, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=datetime.now
+    )
+
+    items: Mapped[list["MenuItem"]] = relationship(
+        "MenuItem", cascade="all, delete-orphan", back_populates="menu"
+    )
+
+
+class MenuItem(Base):
+    __tablename__ = "menu_item"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    menu_id: Mapped[int] = mapped_column(ForeignKey("menu.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("product.id", ondelete="CASCADE"), nullable=False, index=True)
+    qty: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+
+    menu: Mapped["Menu"] = relationship("Menu", back_populates="items")
 
 
 class SaleStockMove(Base):

@@ -137,4 +137,4 @@ def caja_z(
     sess = session.get(CashSession, session_id)
     if sess is None:
         return render(request, "caja.html", {"error": "Sesión no encontrada"}, status_code=404)
-    return render(request, "caja_z.html", {"sess": sess, "fmt": _fmt})
+    return render(request, "caja_z.html", {"sess": sess, "money": _fmt})
