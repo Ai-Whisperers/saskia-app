@@ -16,7 +16,7 @@ Routes (9 POSTs):
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
 from fastapi import Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -30,24 +30,12 @@ from app.rms.eod_completions import (
     upsert_completion as _upsert_completion,
 )
 from app.rms.models import (
-    Ingredient,
-    Pedido,
-    PedidoLine,
     Product,
     ProductionClosedDay,
-    ProductionPlanOverride,
-    Recipe,
-    Sale,
 )
 from app.rms.observability import record_audit
-from app.rms.production import get_weekly_template, plan_production
-from app.rms.production_demand import get_demand, persist_plan_audit
-from app.routers.produccion._helpers import (
-    _asuncion_today,
-    _parse_overrides,
-)
+from app.rms.production_demand import persist_plan_audit
 from app.routers.produccion._router import router
-from app.services.template_render import render
 
 
 @router.post("/override")

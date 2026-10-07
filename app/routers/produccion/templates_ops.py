@@ -9,10 +9,10 @@ Routes (2 POSTs):
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import datetime
 
 from fastapi import Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -22,11 +22,7 @@ from app.rms.models import (
     Product,
     ProductionPlanOverride,
 )
-from app.rms.observability import record_audit
-from app.rms.production import get_weekly_template, plan_production
-from app.routers.produccion._helpers import _asuncion_today
 from app.routers.produccion._router import router
-from app.services.template_render import render
 
 
 @router.post("/template")

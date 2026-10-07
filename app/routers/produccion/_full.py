@@ -18,49 +18,34 @@ Seasonal-multiplier editor intentionally absent: blocked on T-0.1
 from __future__ import annotations
 
 import calendar as _calendar
-import csv
-import io
 from datetime import date, datetime, time, timedelta
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
-from loguru import logger
+from fastapi import Depends, Query, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.auth import require_login_or_disabled as require_login
-from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
-from app.rms.eod_completions import close_day_for_product
 from app.rms.eod_completions import completions_for_date as get_day_completions
-from app.rms.eod_completions import upsert_completion as _upsert_completion
 from app.rms.models import (
-    FreezerTemperatureLog,  # B.6 HACCP freezer temp log
-    Ingredient,
     Pedido,
     PedidoLine,
     Product,
     ProductionClosedDay,
-    ProductionPlanOverride,
     Recipe,
     Sale,
     WasteLog,
 )
-from app.rms.observability import record_audit
-from app.rms.plan_accuracy import compute_plan_accuracy, date_range_presets
 from app.rms.production import get_weekly_template, plan_production
-from app.rms.production_demand import get_demand, persist_plan_audit
+from app.rms.production_demand import get_demand
 from app.routers.produccion._helpers import (
     CONFIDENCE_BANDS,
-    DEFAULT_BAKE_START_HOUR,
     FORECAST_SOURCE_HELP,
     FORECAST_SOURCE_LABELS,
     SOURCE_BUCKETS,
     _asuncion_today,
     _batch_surplus,
     _confidence_band_for_pct,
-    _current_user_display_name,
-    _day_counts,
     _fermentation_reminder,
     _parse_overrides,
     _week_monday,

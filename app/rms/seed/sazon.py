@@ -78,7 +78,6 @@ from app.rms.models import (
     IngredientVariant,
     MarginTier,
     MarketBenchmark,
-    MarketPriceReference,
     MessageTemplate,
     PaymentMethod,
     Pedido,

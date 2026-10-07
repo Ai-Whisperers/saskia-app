@@ -25,7 +25,6 @@ Void: reverses all stock_moves for the sale, atomically.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import select
