@@ -2481,8 +2481,10 @@ class Category(Base):
       - 'product'        — categories shown on /productos forms
       - 'recipe_family'  — families shown on /recetas forms
 
-    Operators can add/edit/reorder from /settings/categories (TODO).
-    For now, seed data matches the prior hardcoded values exactly.
+    Operators manage categories at /settings (Ajustes → Catálogo:
+    add/edit/reorder/deactivate via /api/categories CRUD; e2e-covered in
+    tests/e2e/test_settings_runtime_crud.py). Seed data matches the prior
+    hardcoded values exactly.
 
     Uniqueness: (scope, name) — same name allowed across scopes
     ("Pastelería" is both a product category and a recipe family).
