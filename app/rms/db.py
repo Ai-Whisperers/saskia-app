@@ -77,6 +77,8 @@ from app.rms.migrations._109_menu_ejecutivo import _migration_109_menu_ejecutivo
 from app.rms.migrations._110_held_sale import _migration_110_held_sale
 from app.rms.migrations._111_sale_channel_check import _migration_111_sale_channel_check
 
+from app.rms.models.channels import Channel
+
 from loguru import logger
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
@@ -1856,12 +1858,16 @@ def _migration_041_channel_catalog(conn: Any) -> None:
         )
     )
 
+    # P43 (2026-10-07): seed ALL Channel enum values (previously
+    # omitted "other"). Source the codes from Channel.X.value so the
+    # seed stays in sync with the enum if it ever grows.
     channels = [
-        ("mostrador", "Mostrador", 10, True),
-        ("mostrador-encargo", "Mostrador (encargo)", 20, False),
-        ("whatsapp", "WhatsApp", 30, False),
-        ("pedidosya", "PedidosYa", 40, False),
-        ("monchis", "Monchis", 50, False),
+        (Channel.MOSTRADOR.value, "Mostrador", 10, True),
+        (Channel.MOSTRADOR_ENCARGO.value, "Mostrador (encargo)", 20, False),
+        (Channel.WHATSAPP.value, "WhatsApp", 30, False),
+        (Channel.PEDIDOSYA.value, "PedidosYa", 40, False),
+        (Channel.MONCHIS.value, "Monchis", 50, False),
+        (Channel.OTHER.value, "Otro", 60, False),
     ]
     for code, label, sort, is_default in channels:
         conn.execute(

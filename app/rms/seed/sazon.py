@@ -322,15 +322,21 @@ DELIVERY_ZONES: list[tuple[str, str, str, float, int, int, int, str | None]] = [
 ]
 
 # Channels (sale channels)
+# P43 (2026-10-07): source codes from Channel enum + remove "phone"
+# (legacy alias not in the enum; DB CHECK would reject any pedido.channel
+# set to "phone"). Legacy phone-channel traffic now maps to
+# Channel.OTHER.value, and "phone" prefix in seed labels stays a display
+# string only — not a Channel.code.
+from app.rms.models.channels import Channel
+
 CHANNELS: list[tuple[str, str, int, bool, str | None]] = [
     # (code, label, sort_order, is_default, notes)
-    ("mostrador", "Mostrador", 10, True, "Venta directa en mostrador"),
-    ("mostrador-encargo", "Mostrador (encargo)", 20, False, "Encargo recogido en mostrador"),
-    ("whatsapp", "WhatsApp", 30, False, "Pedido recibido por WhatsApp"),
-    ("pedidosya", "PedidosYa", 40, False, "PedidosYa (delivery app)"),
-    ("monchis", "Monchis", 50, False, "Monchis (delivery app)"),
-    ("phone", "Teléfono", 60, False, "Llamada telefónica"),
-    ("other", "Otro", 99, False, "Otro canal no listado"),
+    (Channel.MOSTRADOR.value, "Mostrador", 10, True, "Venta directa en mostrador"),
+    (Channel.MOSTRADOR_ENCARGO.value, "Mostrador (encargo)", 20, False, "Encargo recogido en mostrador"),
+    (Channel.WHATSAPP.value, "WhatsApp", 30, False, "Pedido recibido por WhatsApp"),
+    (Channel.PEDIDOSYA.value, "PedidosYa", 40, False, "PedidosYa (delivery app)"),
+    (Channel.MONCHIS.value, "Monchis", 50, False, "Monchis (delivery app)"),
+    (Channel.OTHER.value, "Teléfono / Otro", 60, False, "Llamada telefónica u otro canal no listado"),
 ]
 
 # Suppliers
@@ -1779,7 +1785,11 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
         valid_lines = [(pn, q) for pn, q in line_items if q > 0 and pn in product_objs_by_name]
         if not valid_lines:
             continue
-        channel_code = channel_codes[channel_idx] if channel_idx < len(channel_codes) else "mostrador"
+        channel_code = (
+            channel_codes[channel_idx]
+            if channel_idx < len(channel_codes)
+            else Channel.MOSTRADOR.value  # P43: enum fallback
+        )
         existing = session.execute(
             select(Pedido).where(
                 Pedido.customer_id == cust.id,

@@ -2075,8 +2075,12 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
 
         from app.rms.models import MessageTemplate as MT
 
-        template_key = "pedido_listo" if pedido.channel == "WhatsApp" else "generic"
-        template_channel = "whatsapp" if pedido.channel == "WhatsApp" else "email"
+        # P43 (2026-10-07): was comparing against "WhatsApp" (uppercase)
+        # which never matches because channel values are lowercase
+        # (Channel.WHATSAPP.value = "whatsapp"). This silently disabled
+        # the pedido_listo / whatsapp template path.
+        template_key = "pedido_listo" if pedido.channel == Channel.WHATSAPP.value else "generic"
+        template_channel = Channel.WHATSAPP.value if pedido.channel == Channel.WHATSAPP.value else "email"
         row = session.execute(
             _select(MT).where(
                 MT.channel == template_channel,
@@ -2103,7 +2107,7 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
     if msg is None:
         msg = (
             f"¡Tu pedido #{pedido.id} esta listo para retirar! Te esperamos 😊"
-            if pedido.channel == "WhatsApp"
+            if pedido.channel == Channel.WHATSAPP.value  # P43: lowercase comparison (was "WhatsApp")
             else f"Tu pedido #{pedido.id} esta listo para retirar. Gracias!"
         )
 

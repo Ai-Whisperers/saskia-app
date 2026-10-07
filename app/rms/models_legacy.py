@@ -35,6 +35,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from app.rms.models.channels import Channel
+
 
 class Base(DeclarativeBase):
     """SQLAlchemy declarative base. All models inherit from this."""
@@ -489,7 +491,10 @@ class Sale(Base):
     # Defaults to 'mostrador' so existing rows have a sensible value
     # and a brand-new sale (form default) lands on mostrador too.
     channel: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="mostrador", server_default="mostrador"
+        # P43 (2026-10-07): use Channel enum value as default. The DB
+        # CHECK constraint (migration 111) requires canonical enum
+        # values, and the Python default must match.
+        String(32), nullable=False, default=Channel.MOSTRADOR.value, server_default=Channel.MOSTRADOR.value
     )
 
     # Phase 1.B — Fiscal invoice fields (Paraguay DNIT compliance).
@@ -1770,7 +1775,12 @@ class Pedido(Base):
     customer_phone: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     promised_date: Mapped[datetime] = mapped_column(Date, nullable=False, index=True)
     promised_time: Mapped[str | None] = mapped_column(String(8), nullable=True)
-    channel: Mapped[str] = mapped_column(String(32), nullable=False, default="whatsapp")
+    # P43 (2026-10-07): use Channel enum value as default. The DB
+    # CHECK (ck_pedido_channel_enum, see __table_args__ below) accepts
+    # NULL because the underlying column is nullable in the DB schema
+    # even though the model declares nullable=False (pre-existing
+    # discrepancy, not part of P43).
+    channel: Mapped[str] = mapped_column(String(32), nullable=False, default=Channel.WHATSAPP.value)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending", index=True)
     payment_intent: Mapped[str] = mapped_column(String(32), nullable=False, default="efectivo")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
