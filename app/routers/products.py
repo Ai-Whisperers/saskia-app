@@ -1273,7 +1273,7 @@ def product_detail(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Customer-facing product detail page with metrics, recipes-using, recent sales.
-    
+
     URL: /productos/{id}
     Shows product name, metrics strip, recipes using this product, recent sales.
     """
@@ -1287,8 +1287,8 @@ def product_detail(
 
     # Current stock - use direct SQL query since no service function exists
     stock_query = text("""
-        SELECT COALESCE(SUM(stock_qty), 0.0) 
-        FROM ingredient 
+        SELECT COALESCE(SUM(stock_qty), 0.0)
+        FROM ingredient
         WHERE name = (SELECT name FROM product WHERE id = :p_id)
     """)
     stock_result = session.execute(stock_query, {"p_id": p_id}).scalar_one_or_none()

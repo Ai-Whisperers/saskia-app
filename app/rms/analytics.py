@@ -579,7 +579,7 @@ def recipe_complexity(session: Session) -> list[RecipeComplexity]:
 
 def audit_ip_patterns(session: Session, *, days: int = 30) -> list[AuditIpPattern]:
     """BACKLOG #30 (2026-10-02): IP pattern analytics for audit log.
-    
+
     Returns most frequent client IPs with activity count and date range.
     Helps identify suspicious IP patterns or untrusted locations.
     """
@@ -617,7 +617,7 @@ def audit_ip_patterns(session: Session, *, days: int = 30) -> list[AuditIpPatter
 
 def audit_time_patterns(session: Session, *, days: int = 30) -> list[AuditTimePattern]:
     """BACKLOG #30 (2026-10-02): Time pattern analytics for audit log.
-    
+
     Returns hourly and day-of-week activity patterns.
     Helps identify anomalous activity times or automated access.
     """
@@ -658,7 +658,7 @@ def audit_time_patterns(session: Session, *, days: int = 30) -> list[AuditTimePa
 
 def audit_operator_patterns(session: Session, *, days: int = 30) -> list[AuditOperatorActivity]:
     """BACKLOG #30 (2026-10-02): Operator activity analytics for audit log.
-    
+
     Returns user activity sorted by volume, frequency, and recency.
     Highlights dormant users or unusually active accounts.
     """

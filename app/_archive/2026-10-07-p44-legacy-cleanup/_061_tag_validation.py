@@ -27,7 +27,7 @@ def _migration_061_tag_validation(conn: Any) -> None:
     """Add ingredient.tag_validation_issues (TEXT, nullable)."""
     try:
         conn.execute(text("ALTER TABLE ingredient ADD COLUMN tag_validation_issues TEXT"))
-    except Exception:  # noqa: S110 — column may already exist
+    except Exception:  # noqa: BLE001, S110 — column may already exist
         pass
 
     _bump_schema_version(conn, 61)
