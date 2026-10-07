@@ -458,3 +458,29 @@ and menus templates are well-built. No copy/UX fixes required.
   placeholder (25.000), pedido_detalle loyalty card + ventana_text
   rendering, page existence for supplier_precios / supplier_orders /
   menu_publico / menu_tablet.
+
+## 2026-10-07k — SASKIA-307: reportes + insights + dashboard (Phase 6)
+
+**Audit result:** reportes + insights + dashboard templates are
+well-built. Food cost % is already implemented at the global level
+in dashboard.html (line 131, `food_cost_pct` with `objetivo: 35%`
+target) and analisis.html (line 60, semáforo + 30d Panorama KPI).
+
+The plan's Phase 6.5 ("settings field for CMV target") is moot —
+the value comes from `insights.food_cost` at runtime, no operator-
+editable target needed for the simple ≤35% target_direction='low'
+framing. Per-product food_cost_pct is already rendered in
+insight_price_impact.html.
+
+**No code changes** — only regression tests to lock the good state
+and the Phase 0/3 currency + label fixes.
+
+**Tests:** 1 new file, 16 tests, all pass in 12s:
+- `tests/test_SASKIA-307_reportes_insights_dashboard.py` (16) — locks
+  food cost semáforo, 30d food cost KPI, stars/dogs/rising/churning,
+  dashboard food cost + 35% target, dashboard currency, dashboard
+  'Indicadores' label, reportes_diario Spanish COGS, currency
+  regression on reportes_diario / reportes_mermas_cost / insight_margenes
+  / benchmarks, reportes_top_productos Spanish 'Ingresos',
+  insight_price_impact per-product food_cost_pct, page existence for
+  libro_ventas / retencion / iva.
