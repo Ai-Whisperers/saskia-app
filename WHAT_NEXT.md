@@ -54,10 +54,10 @@
 
 ### #1 — **Deploy the batch to VPS** — 30 min, real impact
 
-P40 + held_sale + public-menu branding + C.1 Telegram wiring + SASKIA-202
-N+1 fix + SASKIA-203 shopping-list button are sitting on `main`. None are
-live. The 30-day "0 demand_snapshot rows" gap will only start healing
-after VPS deployment, because /eod runs there.
+P40 + held_sale + public-menu branding + SASKIA-202 N+1 fix + SASKIA-203
+shopping-list button are sitting on `main`. None are live. The 30-day
+"0 demand_snapshot rows" gap will only start healing after VPS
+deployment, because /eod runs there.
 
 ```
 ssh paragu-ai 'cd /opt/saskia && docker compose pull && docker compose up -d'
@@ -67,25 +67,7 @@ ssh paragu-ai 'curl https://sazon-vps.paragu-ai.com/healthz'
 Risk: medium. Pre-migration backup runs first (AGENTS.md rule 17) and
 `fail_closed_on_newer_schema()` aborts if anything is off.
 
-### #2 — **Wire C.1 Telegram env on VPS** — 5 min, kills a noisy Sentry
-
-C.1's code path (`aa0eb6cf`) is dormant until
-`TG_BOT_TOKEN` + `TG_CHAT_ID` are set on the VPS. Without them, the
-hook is a silent no-op (preserves test_sentry_lazy_import contract).
-
-```
-ssh paragu-ai 'cat > /opt/saskia/secrets/telegram.env <<EOF
-TG_BOT_TOKEN=[REDACTED]
-TG_CHAT_ID=[REDACTED]
-EOF
-chmod 600 /opt/saskia/secrets/telegram.env
-docker compose --env-file /opt/saskia/secrets/telegram.env up -d'
-```
-
-Secrets live in BWS (`sazon-telegram`), not in the repo. Pull into the
-container at runtime via `--env-file`.
-
-### #3 — **Sale channel mismatch cleanup** — 2 hr, quick win
+### #2 — **Sale channel mismatch cleanup** — 2 hr, quick win
 
 Extend `Sale.channel` enum with HEREBUS channels (Retail / Wholesale /
 Distributor / Eventual); add the filter on `/ventas`; auto-classify from
@@ -95,6 +77,20 @@ VENTAS sheet's `Canal de Venta` column. 346 sales say `mostrador`, 6
 Blocked by: the existing P41 CHECK constraint (only 6 values allowed).
 Need migration 111 to ALTER the CHECK constraint. ~30 min for the
 migration + re-classify script, the other 90 min is the UI filter.
+
+### ❌ Deferred — C.1 Sentry→Telegram activation
+
+**Out of scope until Sazon has ≥30 customers asking for Telegram
+notifications.** Iván explicitly deferred this on 2026-10-07: "sazon
+wont have any telgram bot or any things like that at least not until we
+have 30 customers that ask for it." The `aa0eb6cf` code path stays
+shipped but dormant (silent no-op when `TG_BOT_TOKEN`/`TG_CHAT_ID`
+unset — preserves test_sentry_lazy_import contract).
+
+If demand materializes later:
+- BWS has `sazon-telegram` (the bot token + chat ID)
+- `app/rms/notify.py:sentry_before_send` is the hook (already in tree)
+- 1-line env-var bootstrap on VPS, no code change
 
 ## 🛠 Tooling & Plumbing
 
