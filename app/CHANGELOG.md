@@ -5,6 +5,25 @@
 
 ## [Unreleased]
 
+### Added — Format utility JS (Phase 22 polish, 2026-10-07)
+
+Four new utility scripts that expose `window.*` globals for use across
+the app's server-rendered templates.
+
+- `app/static/money-format.js` — `window.MoneyFormat` for Guaraní formatting
+- `app/static/date-format.js` — `window.DateFormat` for DD/MM/YYYY + relative
+- `app/static/live-time.js` — `window.LiveTime` for auto-updating relative times
+  (uses `data-relative-time` attribute + 60s refresh interval)
+- `app/static/cache.js` — `window.Cache` for in-memory TTL key/value cache
+
+All four are loaded in `app/templates/base.html` after `back-to-top.js`.
+No CSS changes needed (utility scripts only). Locked by 88 tests
+across `tests/test_money_format.py`, `tests/test_date_format.py`,
+`tests/test_live_time.py`, `tests/test_cache.py`.
+
+Source: `feat/phase-3-m1-product-detail` (wave 1 of N).
+
+
 ### Added — Back-to-top button (Phase 22 polish, 2026-10-07)
 
 Floating "Volver arriba" button that appears in the bottom-right corner
