@@ -114,7 +114,7 @@ def test_daily_sales_series_buckets_sales_by_local_date(session_factory, qseed):
             customer_id=None,
             payment_method="efectivo",
             discount_gs=0,
-            channel="Mostrador",
+            channel="mostrador",
         )
         # Day -3
         apply_sale(
@@ -126,7 +126,7 @@ def test_daily_sales_series_buckets_sales_by_local_date(session_factory, qseed):
             customer_id=None,
             payment_method="efectivo",
             discount_gs=0,
-            channel="Mostrador",
+            channel="mostrador",
         )
         s.commit()
         rows = daily_sales_series(s, preset="7d", today=_asuncion_today())
@@ -155,7 +155,7 @@ def test_daily_sales_series_excludes_voided_sales(session_factory, qseed):
             customer_id=None,
             payment_method="efectivo",
             discount_gs=0,
-            channel="Mostrador",
+            channel="mostrador",
         )
         s.commit()
         rows_today = daily_sales_series(s, preset="7d", today=_asuncion_today())
@@ -208,7 +208,7 @@ def test_daily_sales_series_top_product_by_qty(session_factory, qseed):
             customer_id=None,
             payment_method="efectivo",
             discount_gs=0,
-            channel="Mostrador",
+            channel="mostrador",
         )
         apply_sale(
             s,
@@ -219,7 +219,7 @@ def test_daily_sales_series_top_product_by_qty(session_factory, qseed):
             customer_id=None,
             payment_method="efectivo",
             discount_gs=0,
-            channel="Mostrador",
+            channel="mostrador",
         )
         s.commit()
         rows = daily_sales_series(s, preset="7d", today=_asuncion_today())

@@ -16,13 +16,11 @@ Coverage:
 5. The login.html template renders a "Limpiar bloqueo" form when
    the page is shown with retry_after set.
 """
-import re
 from pathlib import Path
 
 import pytest
 
 from app.rms.models_legacy import AuditLog
-
 
 pytestmark = pytest.mark.auth
 
@@ -119,7 +117,7 @@ def test_login_template_shows_reset_form_when_retry_after():
     # contains the action area (button + form), not the text-only
     # countdown block.
     tpl_lines = tpl.splitlines()
-    candidates = []
+    _candidates = []
     for i, line in enumerate(tpl_lines):
         if "if retry_after" in line:
             # Find matching endif

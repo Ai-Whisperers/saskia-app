@@ -11,11 +11,7 @@ Acceptance:
 """
 from __future__ import annotations
 
-import re
-import uuid
 from datetime import datetime, timezone
-
-from sqlalchemy.orm import sessionmaker
 
 from app.rms.models import AuditLog
 
@@ -41,7 +37,7 @@ def test_auditoria_redacts_password(client, session_factory):
         )
         s.add(entry)
         s.commit()
-        entry_id = entry.id
+        _entry_id = entry.id
     finally:
         s.close()
 

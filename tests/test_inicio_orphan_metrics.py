@@ -4,7 +4,6 @@ The 5 metrics are computed in app/routers/dashboard.py:736-749 but previously
 were only rendered on /analisis (the full analytics page). Phase 1 T-1 surfaces
 counts for each as a teaser card on /inicio so operators see them at a glance.
 """
-import pytest
 
 
 def test_inicio_renders_top_margin_teaser(client):
@@ -56,7 +55,6 @@ def test_inicio_teasers_link_to_analisis_anchors(client):
     """Each T-1 teaser card must point at /analisis."""
     r = client.get("/inicio")
     assert r.status_code == 200
-    import re
     # Find every new T-1 teaser href
     for href in [
         "/analisis#top-margin",

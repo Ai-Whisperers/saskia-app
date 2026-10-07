@@ -15,10 +15,6 @@ thing, the identity check fails.
 """
 from __future__ import annotations
 
-import importlib
-import re
-
-
 # The 20 URL paths the produccion router serves (preserved across refactor).
 # The router has prefix="/produccion" so the registered paths include it.
 EXPECTED_PATHS = {
@@ -67,6 +63,7 @@ def test_produccion_router_object_exposed():
 def test_produccion_router_is_actual_router_not_mock():
     """The re-exported `router` must be a real APIRouter, not a Mock or None."""
     from fastapi import APIRouter
+
     from app.routers.produccion import router
     assert isinstance(router, APIRouter), f"expected APIRouter, got {type(router)}"
 

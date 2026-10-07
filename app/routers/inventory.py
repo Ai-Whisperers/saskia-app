@@ -253,7 +253,7 @@ def inventory_list(
     kpi_no_cost = sum(1 for i in all_ings if not i.purchase_price_gs)
     try:
         kpi_value_gs = stock_value_gs(session)
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         kpi_value_gs = sum((i.stock_qty or 0) * (i.purchase_price_gs or 0) for i in all_ings)
 
     q = (request.query_params.get("q") or "").strip().lower()
@@ -784,7 +784,7 @@ def inventory_create(
         if issues:
             ing.tag_validation_issues = "\n".join(issues)
             session.commit()
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         logger.warning(
             "tag validation refresh failed for new ingredient ing_id=%s",
             ing.id,
@@ -833,7 +833,7 @@ def inventory_create(
         try:
             record_price_event(session, ing.id, price, source="manual")
             session.commit()
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             # Don't fail the whole request on a price-history write error.
             logger.warning(
                 "record_price_event failed for new ingredient ing_id={}",
@@ -1072,7 +1072,7 @@ def _price_stats_safe(session: Session, ing_id: int) -> object:
         from app.rms.price_history import price_stats
 
         return price_stats(session, ing_id, days=90)
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         return None
 
 
@@ -1239,7 +1239,7 @@ def inventory_update(
         try:
             record_price_event(session, ing.id, price, source="manual")
             session.commit()
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             logger.warning(
                 "record_price_event failed for ingredient ing_id={} update",
                 ing.id,
@@ -1255,7 +1255,7 @@ def inventory_update(
         for rid in refreshed:
             _product_inherit_sync(session, rid)
         session.commit()
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         logger.warning(
             "tag cascade failed for ingredient ing_id=%s update",
             ing.id,
@@ -1276,7 +1276,7 @@ def inventory_update(
         if ing_row is not None:
             ing_row.tag_validation_issues = "\n".join(issues) if issues else None
             session.commit()
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         logger.warning(
             "tag validation refresh failed for ing_id=%s",
             ing.id,

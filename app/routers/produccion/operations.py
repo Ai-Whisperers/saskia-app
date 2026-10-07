@@ -27,6 +27,8 @@ from sqlalchemy.orm import Session
 from app.rms.dependencies import get_session
 from app.rms.eod_completions import (
     close_day_for_product,
+)
+from app.rms.eod_completions import (
     upsert_completion as _upsert_completion,
 )
 from app.rms.models import (
@@ -241,7 +243,7 @@ def produccion_closed_toggle(
                 for_date=for_date,
                 reason=(reason or "Cerrado")[:120],
                 closed_by=closed_by_user,
-                closed_at=datetime.utcnow(),  # noqa: DTZ003 — DB-naive-UTC convention
+                closed_at=datetime.now(ASUNCION_TZ),
             )
             session.add(row)
             record_audit(
@@ -255,7 +257,7 @@ def produccion_closed_toggle(
         else:
             # Update reason in case operator wants to refine it
             existing.reason = (reason or existing.reason or "Cerrado")[:120]
-            existing.closed_at = datetime.utcnow()  # noqa: DTZ003 — DB-naive-UTC convention
+            existing.closed_at = datetime.now(ASUNCION_TZ)
     else:  # reopen
         existing = session.get(ProductionClosedDay, for_date)
         if existing is not None:
@@ -427,6 +429,7 @@ async def produccion_shift_execute(
     # backfill would corrupt the 14-day rolling forecast. Also reject
     # future dates (use /produccion/override for tomorrow's plan).
     from datetime import timedelta
+
     from app.rms.config import ASUNCION_TZ, BACKDATE_WINDOW_DAYS
 
     today_local = datetime.now(ASUNCION_TZ).date()

@@ -26,7 +26,7 @@ Plus coverage:
   lookup
 """
 from app.rms.models.channels import Channel
-from app.rms.schemas import ALLOWED_CHANNELS, CHANNELS_DISPLAY, CHANNEL_DEFAULT
+from app.rms.schemas import ALLOWED_CHANNELS, CHANNEL_DEFAULT, CHANNELS_DISPLAY
 
 
 def test_pedido_whatsapp_template_lookup_uses_lowercase():
@@ -129,7 +129,6 @@ def test_pedido_channel_default_uses_enum():
 
 def test_default_channel_code_fallback_uses_enum():
     """Regression: default_channel_code fallback should use enum value."""
-    from app.rms.catalogs import default_channel_code
 
     # We can't easily call it with a real session here without setting
     # up the test DB, but we can verify the fallback constant by

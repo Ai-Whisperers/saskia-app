@@ -10,9 +10,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
-
 NOW = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
 
 
@@ -23,7 +20,8 @@ def _seed_ingredient_with_history(s, *, name, price_recent, price_prior, days_ag
         name=name, unit="kg", stock_qty=10.0,
         purchase_price_gs=price_recent,
     )
-    s.add(ing); s.flush()
+    s.add(ing)
+    s.flush()
 
     # Prior half: at day 40-50 ago
     for d in (50, 45, 40):
@@ -76,7 +74,7 @@ def test_merma_page_omits_amplified_card_when_empty(client, session_factory):
     s = session_factory()
     try:
         # Stable price (no trend) + waste
-        ing = _seed_ingredient_with_history(
+        _ing = _seed_ingredient_with_history(
             s, name="azúcar", price_recent=4000, price_prior=4000,
         )
         s.commit()

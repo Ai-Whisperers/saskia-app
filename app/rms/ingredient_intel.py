@@ -264,9 +264,6 @@ _ROLE_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
 # `_ALLERGEN_KEYWORDS` shim is kept for backwards compatibility with any
 # external code that imports it directly (tests, scripts, third-party
 # integrations). New code should import from app.rms.tagging.vocabulary.
-from app.rms.tagging.vocabulary import (  # noqa: F401
-    ALLERGEN_KEYWORDS as _ALLERGEN_KEYWORDS,
-)
 
 # Default shelf-life (days) per category.
 CATEGORY_SHELF_LIFE: Final[dict[str, int]] = {

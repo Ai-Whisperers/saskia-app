@@ -168,7 +168,7 @@ def test_supabase_package_installed_in_env():
     where pyproject is updated but Dockerfile isn't.
     """
     try:
-        import supabase  # noqa: F401
+        import supabase  # noqa: F401 — test import availability
 
         imported = True
     except ImportError:

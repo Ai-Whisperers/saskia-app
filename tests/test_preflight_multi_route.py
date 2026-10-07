@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pytest
-
 
 def _seed_cart(client, qseed):
     """Build a 2-line cart from qseed: 1 unit of basic + 1 unit of with_sale."""

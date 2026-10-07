@@ -60,7 +60,7 @@ def ops_status(request: Request) -> HTMLResponse:
 
         with request.app.state.session_factory() as _s:
             reorder_stats = customer_reorder_rates(_s, since_days=90, top_n=5)
-    except Exception as exc:  # noqa: BLE001 — defensive default; failures re-rendered as zeros in template
+    except Exception as exc:
         # T-2026-10-04: log the failure so test_no_silent_excepts and
         # production log readers can see it instead of silently swallowing.
         # Reorder stats are a dashboard feature, not critical path; the
@@ -110,7 +110,7 @@ async def ops_reset_demo_data(request: Request) -> JSONResponse:
     finally:
         try:
             session.close()
-        except Exception as exc:  # noqa: BLE001 — defensive default
+        except Exception as exc:
             # Session may already be closed by dependency cleanup; not fatal.
             logger.debug("ops session close failed: {}", exc)
 

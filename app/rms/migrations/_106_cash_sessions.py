@@ -37,13 +37,13 @@ def _migration_106_cash_sessions(conn: Any) -> None:
             )
             """
         )
-    except Exception:  # noqa: S110 — table may already exist
+    except Exception:
         pass
     try:
         conn.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS ix_cash_session_status ON cash_session (status)"
         )
-    except Exception:  # noqa: S110
+    except Exception:
         pass
 
     # BACKLOG #4 (2026-10-02): always bump schema_version at the end.

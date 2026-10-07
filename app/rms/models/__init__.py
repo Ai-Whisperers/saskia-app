@@ -16,69 +16,69 @@ sale-driven stock-out is now on stock_movement with movement_type='sale'
 and reference_type='sale'. Migration 092 dropped the table itself.
 """
 
-from app.rms.models_legacy import *  # noqa: F403 — legacy compatibility layer, all names re-exported intentionally
+from app.rms.models_legacy import *
 
 # Also export names legacy __all__ may miss
 from app.rms.models_legacy import (
-    AppMeta,  # noqa: F401 — re-exported via __all__
-    AuditLog,  # noqa: F401 — re-exported via __all__
-    BankTransaction,  # noqa: F401 — re-exported via __all__
-    Category,  # noqa: F401 — re-exported via __all__
-    Channel,  # noqa: F401 — re-exported via __all__
-    CommunicationLog,  # noqa: F401 — re-exported via __all__
-    ComplianceInfo,  # noqa: F401 — re-exported via __all__
-    Customer,  # noqa: F401 — re-exported via __all__
-    CustomerAddress,  # noqa: F401 — re-exported via __all__
-    CustomerInvoiceProfile,  # noqa: F401 — Phase 13 multiple invoice profiles
-    DateRangePreset,  # noqa: F401 — re-exported via __all__
-    DeliveryZone,  # noqa: F401 — re-exported via __all__
-    Expense,  # noqa: F401 — Phase 14 operating-expense rows
-    FreezerTemperatureLog,  # noqa: F401 — B.6 HACCP freezer temp log
-    ImportBatch,  # noqa: F401 — re-exported via __all__
-    Ingredient,  # noqa: F401 — re-exported via __all__
-    IngredientPriceEvent,  # noqa: F401 — re-exported via __all__
-    IngredientVariant,  # noqa: F401 — re-exported via __all__
-    MarginTier,  # noqa: F401 — re-exported via __all__
-    MarketBenchmark,  # noqa: F401 — re-exported via __all__
-    MarketPriceReference,  # noqa: F401 — re-exported via __all__
-    MessageTemplate,  # noqa: F401 — re-exported via __all__
-    PaymentMethod,  # noqa: F401 — re-exported via __all__
-    Pedido,  # noqa: F401 — re-exported via __all__
-    PedidoEvent,  # noqa: F401 — re-exported via __all__
-    PedidoLine,  # noqa: F401 — re-exported via __all__
-    PriceHistory,  # noqa: F401 — re-exported via __all__
-    Product,  # noqa: F401 — re-exported via __all__
-    ProductionClosedDay,  # noqa: F401 — re-exported via __all__
-    ProductionCompletion,  # noqa: F401 — re-exported via __all__
-    ProductionPlan,  # noqa: F401 — re-exported via __all__
-    ProductionPlanOverride,  # noqa: F401 — re-exported via __all__
-    ProductionPlanTemplate,  # noqa: F401 — re-exported via __all__
-    Recipe,  # noqa: F401 — re-exported via __all__
-    RecipeLine,  # noqa: F401 — re-exported via __all__
-    RecipePricing,  # noqa: F401 — re-exported via __all__
-    RiskItem,  # noqa: F401 — re-exported via __all__
-    Sale,  # noqa: F401 — re-exported via __all__
-    SalePayment,  # noqa: F401 — re-exported via __all__
-    CashSession,  # noqa: F401 — re-exported via __all__
-    CreditAccount,  # noqa: F401 — re-exported via __all__
-    CreditTransaction,  # noqa: F401 — re-exported via __all__
-    SaleStockMove,  # noqa: F401 — re-exported via __all__
-    SettingsKV,  # noqa: F401 — re-exported via __all__
-    ShoppingListItem,  # noqa: F401 — re-exported via __all__
-    StockMovement,  # noqa: F401 — re-exported via __all__
-    StockStatusConfig,  # noqa: F401 — re-exported via __all__
-    StorageKeyword,  # noqa: F401 — re-exported via __all__
-    StorageType,  # noqa: F401 — re-exported via __all__
-    Supplier,  # noqa: F401 — re-exported via __all__
-    Suscripcion,  # noqa: F401 — re-exported via __all__
-    Tag,  # noqa: F401 — re-exported via __all__
-    TagLink,  # noqa: F401 — re-exported via __all__
-    Tenant,  # noqa: F401 — re-exported via __all__
-    User,  # noqa: F401 — re-exported via __all__
-    WasteLog,  # noqa: F401 — re-exported via __all__
-    WishlistItem,  # noqa: F401 — re-exported via __all__
-    Menu,  # noqa: F401 — re-exported via __all__ (legacy, used by other modules via app.rms.models)
-    MenuItem,  # noqa: F401 — re-exported via __all__ (legacy, used by other modules via app.rms.models)
+    AppMeta,
+    AuditLog,
+    BankTransaction,
+    CashSession,
+    Category,
+    Channel,
+    CommunicationLog,
+    ComplianceInfo,
+    CreditAccount,
+    CreditTransaction,
+    Customer,
+    CustomerAddress,
+    CustomerInvoiceProfile,
+    DateRangePreset,
+    DeliveryZone,
+    Expense,
+    FreezerTemperatureLog,
+    ImportBatch,
+    Ingredient,
+    IngredientPriceEvent,
+    IngredientVariant,
+    MarginTier,
+    MarketBenchmark,
+    MarketPriceReference,
+    Menu,
+    MenuItem,
+    MessageTemplate,
+    PaymentMethod,
+    Pedido,
+    PedidoEvent,
+    PedidoLine,
+    PriceHistory,
+    Product,
+    ProductionClosedDay,
+    ProductionCompletion,
+    ProductionPlan,
+    ProductionPlanOverride,
+    ProductionPlanTemplate,
+    Recipe,
+    RecipeLine,
+    RecipePricing,
+    RiskItem,
+    Sale,
+    SalePayment,
+    SaleStockMove,
+    SettingsKV,
+    ShoppingListItem,
+    StockMovement,
+    StockStatusConfig,
+    StorageKeyword,
+    StorageType,
+    Supplier,
+    Suscripcion,
+    Tag,
+    TagLink,
+    Tenant,
+    User,
+    WasteLog,
+    WishlistItem,
 )
 from app.rms.models_legacy import __all__ as _legacy_all
 

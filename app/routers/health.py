@@ -29,7 +29,6 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from loguru import logger
 from sqlalchemy import text
 
-
 router = APIRouter()
 
 
@@ -55,7 +54,7 @@ def _get_last_backup_at(request: Request) -> str | None:
         with request.app.state.session_factory() as s:
             row = s.scalars(select(AppMeta).where(AppMeta.key == "last_backup_at")).first()
             return row.value if row else None
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         # On any DB error we report "no backup" rather than failing the
         # endpoint. The /healthz/db endpoint already surfaces DB issues.
         return None
@@ -88,8 +87,8 @@ def _check_supabase_reachable(url: str, timeout: float = 2.0) -> dict[str, Any]:
 
     t0 = _time.monotonic()
     try:
-        req = urllib.request.Request(health, method="GET")  # noqa: S310 — health probe, scheme parsed from env URL
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 — health probe, scheme parsed from env URL
+        req = urllib.request.Request(health, method="GET")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             latency_ms = int((_time.monotonic() - t0) * 1000)
             ok = 200 <= resp.status < 300
             return {
@@ -163,7 +162,7 @@ def _check_r2_reachable(timeout: float = 2.0) -> bool:
         # as `object` upstream, so we cast for type-checker clarity.
         client.head_bucket(Bucket=settings.bucket)  # type: ignore[attr-defined]
         return True
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         return False
 
 
@@ -250,7 +249,7 @@ def healthz_depth(request: Request) -> JSONResponse:
             "used_pct": round(100.0 * usage.used / usage.total, 1) if usage.total else 0.0,
         }
     except (
-        Exception  # noqa: BLE001 — disk probe is best-effort
+        Exception
     ) as disk_exc:  # pragma: no cover - defensive
         disk = {"ok": False, "error": repr(disk_exc), "path": str(DATA_DIR)}
 
@@ -265,11 +264,11 @@ def healthz_depth(request: Request) -> JSONResponse:
             # URL comes from R2_BUCKET_URL env var, which is operator-
             # configured. We trust the operator. The probe is read-only
             # (HEAD request) with a 3s timeout.
-            req = urllib.request.Request(r2_url, method="HEAD")  # noqa: S310
-            with urllib.request.urlopen(req, timeout=3) as resp:  # noqa: S310
+            req = urllib.request.Request(r2_url, method="HEAD")
+            with urllib.request.urlopen(req, timeout=3) as resp:
                 r2["status"] = resp.status
                 r2["ok"] = 200 <= resp.status < 400
-        except Exception as r2_exc:  # noqa: BLE001 — best-effort probe
+        except Exception as r2_exc:
             r2["ok"] = False
             r2["error"] = repr(r2_exc)[:200]
 
@@ -394,7 +393,7 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
     for pkg in ("supabase", "supabase-auth", "fastapi", "starlette"):
         try:
             pkgs[pkg] = md.version(pkg)
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             pkgs[pkg] = "NOT INSTALLED"
 
     # --- Supabase reachability ---
@@ -430,7 +429,7 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
     # --- Disk usage ---
     # The app stores DB + state under this root. On VPS: /opt/data.
     # On dev boxes: /tmp. Report on whatever exists.
-    disk_root = "/opt/data" if os.path.isdir("/opt/data") else "/tmp"  # noqa: S108 — operator chose /tmp as fallback root
+    disk_root = "/opt/data" if os.path.isdir("/opt/data") else "/tmp"
     try:
         usage = _disk_usage(disk_root)
         total_gb = usage.total / (1024**3)
@@ -532,7 +531,7 @@ def healthz_db(request: Request) -> JSONResponse:
                     payload["last_audit_at"] = last.isoformat()
                 else:
                     payload["last_audit_at"] = str(last)
-        except Exception as inner_exc:  # noqa: BLE001 — defensive default
+        except Exception as inner_exc:
             # Don't 503 the whole endpoint — DB is reachable, the metadata
             # queries aren't. Surface the detail so the operator can tell
             # the difference between "DB down" and "audit table missing".
@@ -548,7 +547,7 @@ def healthz_db(request: Request) -> JSONResponse:
 
         _set_db_up(True)
         return payload
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         from app.rms.metrics import set_db_up as _set_db_up
 
         _set_db_up(False)
@@ -580,7 +579,7 @@ def _summary_check_db(request: Request) -> dict[str, Any]:
                 if last
                 else None,
             }
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         return {"ok": False, "detail": str(exc)[:200]}
 
 
@@ -619,7 +618,7 @@ def _summary_check_errors(request: Request) -> dict[str, Any]:
                 or 0
             )
         return {"ok": True, "last_1h": int(n_1h), "last_24h": int(n_24h)}
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         return {"ok": False, "detail": str(exc)[:200]}
 
 
@@ -685,7 +684,7 @@ def _summary_check_disk(request: Request) -> dict[str, Any]:
             "used_pct": used_pct,
             "free_gb": round(u.free / 1024**3, 1),
         }
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         return {"ok": False, "detail": str(exc)[:200]}
 
 
@@ -806,7 +805,7 @@ def healthz_migrate(request: Request) -> object:
 
     try:
         init_db(engine)
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.exception("admin_migrate failed")
         return JSONResponse(
             status_code=500,
@@ -948,6 +947,7 @@ def api_smoke_waste_source_mix(request: Request) -> JSONResponse:
     aggregate, no PII — each row is `count, cost_gs` per source).
     """
     from datetime import datetime, timedelta, timezone
+
     from sqlalchemy import text
 
     # Reuse the lifespan-installed engine so we don't open a second
@@ -975,7 +975,7 @@ def api_smoke_waste_source_mix(request: Request) -> JSONResponse:
                 ),
                 {"start": start, "end": end},
             ).all()
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.exception("api_smoke_waste_source_mix failed")
         return JSONResponse(
             status_code=500,
@@ -1043,7 +1043,7 @@ def admin_migrate(request: Request) -> object:
 
     try:
         init_db(engine)
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.exception("admin_migrate failed")
         return JSONResponse(
             status_code=500,
@@ -1143,15 +1143,14 @@ def healthz_backup(request: Request) -> JSONResponse:
     )
 
 
-def _run_backup_admin(request: Request) -> "BackupResult":  # noqa: F821 — BackupResult imported inside
+def _run_backup_admin(request: Request) -> "BackupResult":
     """Run run_backup in a fresh session; returns a BackupResult.
 
     Extracted from admin_backup() so tests can patch it (mocking at
     the request.app.state.session_factory level is more invasive).
     """
     from app.rms.config import DB_PATH
-    from app.services.backup_scheduler import (  # noqa: F401 — used in return-type annotation
-        BackupResult,
+    from app.services.backup_scheduler import (
         run_backup,
     )
 
@@ -1185,7 +1184,7 @@ def admin_backup(request: Request) -> object:
 
     try:
         result = _run_backup_admin(request)
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.exception("admin_backup failed")
         return JSONResponse(
             status_code=500,

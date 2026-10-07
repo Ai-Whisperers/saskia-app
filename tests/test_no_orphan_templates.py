@@ -10,10 +10,8 @@ Both are now git-history-only and the gate keeps it that way.
 """
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
-
 
 TEMPLATES_DIR = Path("app/templates")
 

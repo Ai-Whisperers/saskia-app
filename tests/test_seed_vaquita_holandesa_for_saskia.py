@@ -24,7 +24,6 @@ from pathlib import Path
 
 import pytest
 
-
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 SEED_SCRIPT = SCRIPTS_DIR / "seed_vaquita_holandesa_for_saskia.py"
 

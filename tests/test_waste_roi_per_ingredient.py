@@ -1,10 +1,7 @@
 """tests/test_waste_roi_per_ingredient.py — BACKLOG #34 waste ROI per ingredient test."""
 from __future__ import annotations
 
-from datetime import date as Date, datetime, timedelta
-
-import pytest
-from fastapi.testclient import TestClient
+from datetime import datetime
 
 
 def test_waste_roi_per_ingredient_no_data(testdb):
@@ -16,8 +13,8 @@ def test_waste_roi_per_ingredient_no_data(testdb):
 
 def test_waste_roi_per_ingredient_with_merma(testdb):
     """When some waste, calculate cost/batch."""
-    from app.rms.models import Ingredient, Recipe, RecipeLine, StockMovement
     from app.rms.analytics import waste_roi_per_ingredient
+    from app.rms.models import Ingredient, Recipe, RecipeLine, StockMovement
     ing = Ingredient(name="Azúcar", cost_per_kg_gs=5000)
     testdb.add(ing)
     recipe = Recipe(name="Torta", yield_qty=4.0)
@@ -49,8 +46,8 @@ def test_waste_roi_per_ingredient_with_merma(testdb):
 
 def test_waste_roi_per_ingredient_with_usage(testdb):
     """With both waste and usage, calculate % waste."""
-    from app.rms.models import Ingredient, Recipe, RecipeLine, StockMovement
     from app.rms.analytics import waste_roi_per_ingredient
+    from app.rms.models import Ingredient, Recipe, RecipeLine, StockMovement
     ing = Ingredient(name="Harina", cost_per_kg_gs=3000)
     testdb.add(ing)
     recipe = Recipe(name="Pan", yield_qty=10.0)
@@ -87,8 +84,8 @@ def test_waste_roi_per_ingredient_with_usage(testdb):
 
 def test_waste_roi_per_ingredient_multiple_batches(testdb):
     """Sum waste across multiple batches."""
-    from app.rms.models import Ingredient, Recipe, RecipeLine, StockMovement
     from app.rms.analytics import waste_roi_per_ingredient
+    from app.rms.models import Ingredient, Recipe, RecipeLine, StockMovement
     ing = Ingredient(name="Leche", cost_per_kg_gs=2000)
     testdb.add(ing)
     recipe = Recipe(name="Flan", yield_qty=6.0)
@@ -123,8 +120,8 @@ def test_waste_roi_per_ingredient_multiple_batches(testdb):
 
 def test_waste_roi_per_ingredient_filter_ingredient(testdb):
     """Filter to a single ingredient by ID."""
-    from app.rms.models import Ingredient, Recipe, RecipeLine, StockMovement
     from app.rms.analytics import waste_roi_per_ingredient
+    from app.rms.models import Ingredient, Recipe, RecipeLine, StockMovement
     ing1 = Ingredient(name="Chocolate", cost_per_kg_gs=10000)
     ing2 = Ingredient(name="Vainilla", cost_per_kg_gs=4000)
     testdb.add_all([ing1, ing2])

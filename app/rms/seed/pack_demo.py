@@ -27,8 +27,6 @@ from decimal import Decimal as _D
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.rms.models.channels import Channel
-
 from app.rms.models import (
     Customer,
     DeliveryZone,
@@ -40,6 +38,7 @@ from app.rms.models import (
     Sale,
     StockMovement,
 )
+from app.rms.models.channels import Channel
 
 # --------------------------------------------------------------------------
 # Name pools (Paraguay-flavored)
@@ -285,7 +284,7 @@ def reseed_pack(session: Session, pack: str, *, days_of_history: int = 90) -> di
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
         ))]
         for name in names:
-            conn.execute(text(f'DELETE FROM "{name}"'))  # noqa: S608 - sqlite_master-derived name
+            conn.execute(text(f'DELETE FROM "{name}"'))
         conn.execute(text("PRAGMA foreign_keys = ON"))
     session.expire_all()
 

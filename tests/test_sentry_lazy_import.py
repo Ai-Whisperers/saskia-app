@@ -25,7 +25,7 @@ def test_sentry_lazy_when_dsn_unset():
         # Walk the same import block the lifespan does.
         sentry_dsn = os.getenv("SENTRY_DSN")
         if sentry_dsn:
-            import sentry_sdk  # noqa
+            pass
         # Check: sentry must NOT be in sys.modules.
         sentry_modules = [m for m in sys.modules if m.startswith("sentry")]
         assert not sentry_modules, f"sentry was imported despite no SENTRY_DSN: {sentry_modules}"

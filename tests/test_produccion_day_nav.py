@@ -14,8 +14,6 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime, timedelta
 
-import pytest
-
 
 def _day_nav_in_html(body: str) -> str | None:
     """Return the inner HTML of the <nav class="day-nav" ...> block,

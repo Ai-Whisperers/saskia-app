@@ -542,9 +542,8 @@ def test_get_demand_cache_hit_returns_same_value_without_recompute(
 
 def test_get_demand_cache_miss_when_ttl_zero(session_factory):
     """TTL=0 disables the cache; every call recomputes."""
-    from tests.factories import make_product
-
     from app.rms import production_demand as pd_mod
+    from tests.factories import make_product
 
     target = date(2026, 10, 5)
     with session_factory() as s:
@@ -732,9 +731,10 @@ def test_invalidate_demand_for_dates_drops_all_listed(session_factory):
 
 def test_invalidate_demand_for_sale_today_covers_window(session_factory):
     """invalidate_demand_for_sale_today invalidates today + N-1 forward days."""
+    from datetime import datetime
+
     from app.rms.config import ASUNCION_TZ
     from tests.factories import make_product
-    from datetime import datetime
 
     today = datetime.now(ASUNCION_TZ).date()
     # Seed 5 distinct dates: today, +1, +2, +3, +4. The window=4 hook
@@ -775,9 +775,10 @@ def test_pedido_create_invalidates_promised_date_cache(
     router calls invalidate_demand_for_dates([pedido.promised_date]).
     The next /produccion?ui=v2 render must recompute.
     """
-    from tests.factories import make_product
-    from app.rms.config import ASUNCION_TZ
     from datetime import datetime
+
+    from app.rms.config import ASUNCION_TZ
+    from tests.factories import make_product
 
     today = datetime.now(ASUNCION_TZ).date()
     target = today + timedelta(days=1)
@@ -834,10 +835,10 @@ def test_pedido_status_change_invalidates_cache(
     session_factory, authed_client,
 ):
     """A pedido status change (POST /pedidos/{id}/status) invalidates cache."""
-    from tests.factories import make_customer, make_pedido, make_product, pedido_item
-    from app.rms.config import ASUNCION_TZ
     from datetime import datetime
-    from datetime import date as _date
+
+    from app.rms.config import ASUNCION_TZ
+    from tests.factories import make_customer, make_pedido, make_product, pedido_item
 
     today = datetime.now(ASUNCION_TZ).date()
     target = today + timedelta(days=2)
@@ -895,9 +896,10 @@ def test_pedido_fulfill_invalidates_promised_and_today(
     """A pedido fulfill (POST /pedidos/{id}/fulfill) invalidates the
     promised_date AND today's cache (because fulfill creates a Sale row
     that shifts the 14d rolling forecast)."""
-    from tests.factories import make_customer, make_pedido, make_product, pedido_item
-    from app.rms.config import ASUNCION_TZ
     from datetime import datetime
+
+    from app.rms.config import ASUNCION_TZ
+    from tests.factories import make_customer, make_pedido, make_product, pedido_item
 
     today = datetime.now(ASUNCION_TZ).date()
     target = today + timedelta(days=1)

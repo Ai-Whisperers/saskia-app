@@ -163,8 +163,7 @@ def test_missing_payment_is_info(session_factory):
 
 def test_customer_allergen_blocks_cart(session_factory):
     """An allergen match on ANY line blocks the whole cart."""
-    from app.rms.models import Ingredient, Product, Recipe, RecipeLine
-    from app.rms.models import Customer
+    from app.rms.models import Customer, Ingredient, Product, Recipe, RecipeLine
     p1 = _make_product_with_recipe(session_factory, name="Ok")
     # Create a product with a "nuts" allergen
     with session_factory() as session:

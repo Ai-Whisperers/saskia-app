@@ -50,6 +50,8 @@ def main() -> int:
     # Force the app to skip the test-auth-bypass boot guard
     sys.modules.setdefault("pytest", type(sys)("pytest"))
 
+    from sqlalchemy import text
+
     from app.rms.db import make_engine, make_session_factory
     from app.rms.seed import (
         SazonReport,
@@ -57,7 +59,6 @@ def main() -> int:
         sazon_meta,
         seed_sazon,
     )
-    from sqlalchemy import text
 
     # Resolve DB path from env
     raw = os.environ.get("AIW_SASKIA_DB_PATH") or os.environ.get("AIW_RMS_DB_PATH")
@@ -76,7 +77,7 @@ def main() -> int:
     try:
         # Snapshot before
         meta_before = sazon_meta(session)
-        print(f"=== Before seed ===")
+        print("=== Before seed ===")
         print(f"  is_seeded: {is_sazon_seeded(session)}")
         print(f"  sazon_meta: {meta_before}")
 
@@ -135,7 +136,7 @@ def main() -> int:
             "tenant", "product", "recipe", "ingredient",
             "category", "channel", "delivery_zone", "sale",
         )}
-        print(f"=== After seed ===")
+        print("=== After seed ===")
         print(f"  is_seeded: {is_sazon_seeded(session)}")
         print(f"  sazon_meta: {sazon_meta(session)}")
         print(f"  counters: {after}")

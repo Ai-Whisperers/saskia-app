@@ -10,11 +10,12 @@ The warmer is best-effort: a failure in any single date is logged
 and skipped. The route does not raise. The test verifies both
 the happy path and the failure-isolation.
 """
-import pytest
 from datetime import date, timedelta
-from sqlalchemy import select, func
 
-from app.rms.models import ProductionDemandSnapshot, Product, Sale
+import pytest
+from sqlalchemy import func, select
+
+from app.rms.models import Product, ProductionDemandSnapshot, Sale
 
 
 def test_eod_view_warms_today_and_next_6_days(client, session_factory):
@@ -75,7 +76,6 @@ def test_eod_view_does_not_500_when_warmer_fails(client, monkeypatch, session_fa
     Simulates the worst case: a future change to production_demand
     breaks the function. The EOD page must not turn into a 500.
     """
-    from app.routers.eod import eod_view
     import app.rms.production_demand as pd_mod
 
     real = pd_mod.warm_snapshots_for_dates

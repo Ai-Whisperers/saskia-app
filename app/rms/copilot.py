@@ -70,7 +70,7 @@ def _context(session: Session, intent: str) -> dict[str, Any]:
                 n += 1
             ctx["ventas_totales_gs"] = total_gs
             ctx["cantidad_ventas"] = n
-    except Exception:  # noqa: BLE001 — contexto best-effort
+    except Exception:
         ctx["error_contexto"] = "no_se_pudo_armar"
     return ctx
 
@@ -111,7 +111,7 @@ def answer(question: str, session: Session) -> dict[str, Any]:
             temperature=0.3,
         )
         return {"answer": text, "intent": intent, "llm_used": True, "context": ctx}
-    except Exception:  # noqa: BLE001 — LLM caído → fallback numérico
+    except Exception:
         return {
             "answer": _FALLBACK.format(**ctx),
             "intent": intent,

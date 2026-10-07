@@ -9,16 +9,15 @@ The route is intentionally idempotent: clicking twice only adds rows
 for products that have no override for the date. Clicking on a
 weekday with no template is a no-op (redirect with flash=sin_plantilla).
 """
+from datetime import date
+
 import pytest
-from datetime import date, timedelta
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 
 from app.rms.models import (
     ProductionPlanOverride,
     ProductionPlanTemplate,
-    Product,
 )
-from app.rms.dependencies import get_session
 
 
 def test_load_template_creates_overrides(client, session_factory, seeded_today_template):

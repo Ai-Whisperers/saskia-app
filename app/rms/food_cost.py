@@ -161,7 +161,7 @@ def waste_cost(session: Session, start: datetime, end: datetime) -> int:
                 )
             ).all()
         )
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         return 0
 
     return sum(int(cost or 0) for (cost,) in rows)

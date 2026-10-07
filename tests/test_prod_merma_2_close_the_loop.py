@@ -43,7 +43,7 @@ def test_merma_source_chip_renders_for_known_event(authed_client, session_factor
     Uses the real /merma/registrar endpoint to write the audit (so the
     detail field is the canonical path the route actually uses).
     """
-    from app.rms.models import AuditLog, Ingredient
+    from app.rms.models import Ingredient
 
     with session_factory() as s:
         ing = Ingredient(name="Chip Test Ing 2", unit="kg", stock_qty=5.0, min_stock_qty=1.0)

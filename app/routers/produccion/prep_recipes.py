@@ -28,9 +28,9 @@ from app.rms.models import Ingredient, Recipe
 from app.rms.production import plan_production
 from app.rms.recipes_consolidated import explode_recipe
 from app.rms.variants import rollup_ingredient_stock
-from app.services.template_render import render
 from app.routers.produccion._helpers import _asuncion_today
 from app.routers.produccion._router import router
+from app.services.template_render import render
 
 
 def _build_recipe_breakdown(

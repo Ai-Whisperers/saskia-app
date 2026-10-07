@@ -984,7 +984,7 @@ async def log_suggestion_applied(
             # JSON path (customer_picker.js uses keepalive fetch)
             try:
                 payload = await request.json()
-            except Exception:  # noqa: BLE001 — defensive: malformed JSON body just means empty payload
+            except Exception:
                 payload = {}
             kind = str((payload or {}).get("kind") or "unknown").strip() or "unknown"
             pct = (payload or {}).get("discount_pct")
@@ -1453,7 +1453,7 @@ def cliente_update(
     customer.dietary_restrictions = format_restrictions(clean_restrictions) or None
     try:
         prefs = parse_preferences(dietary_prefs_payload)
-    except Exception:  # noqa: BLE001 — malformed JSON from a stale tab
+    except Exception:
         prefs = []
     customer.dietary_preferences = format_preferences(prefs) if prefs else None
     customer.dietary_confirm_always = dietary_confirm_always == "1"

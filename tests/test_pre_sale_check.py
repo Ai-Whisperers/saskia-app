@@ -7,15 +7,11 @@ from __future__ import annotations
 
 from datetime import date
 
-import pytest
-
 from app.rms.sales.pre_sale_check import (
-    MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE,
     MAX_QTY_PER_SALE,
     PreSaleIntent,
     validate_sale_intent,
 )
-
 
 # ---- Helpers ------------------------------------------------------------
 
@@ -491,6 +487,7 @@ def test_env_override_changes_max_qty(monkeypatch):
     monkeypatch.setenv("SAZON_PREFLIGHT_MAX_QTY_PER_SALE", "10")
     # Reload config first, then the module that imports from config
     import importlib
+
     import app.rms.config as cfg
     importlib.reload(cfg)
     import app.rms.sales.pre_sale_check as mod
@@ -505,6 +502,7 @@ def test_env_override_changes_max_discount_pct(monkeypatch):
     """SAZON_PREFLIGHT_MAX_DISCOUNT_PCT=5 lowers discount ceiling to 5%."""
     monkeypatch.setenv("SAZON_PREFLIGHT_MAX_DISCOUNT_PCT", "5")
     import importlib
+
     import app.rms.config as cfg
     importlib.reload(cfg)
     import app.rms.sales.pre_sale_check as mod
@@ -517,6 +515,7 @@ def test_env_override_default_when_unset(monkeypatch):
     monkeypatch.delenv("SAZON_PREFLIGHT_MAX_QTY_PER_SALE", raising=False)
     monkeypatch.delenv("SAZON_PREFLIGHT_MAX_DISCOUNT_PCT", raising=False)
     import importlib
+
     import app.rms.config as cfg
     importlib.reload(cfg)
     import app.rms.sales.pre_sale_check as mod

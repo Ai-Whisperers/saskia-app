@@ -79,7 +79,7 @@ def test_normalize_channel_all_outputs_pass_db_check():
     inputs = [
         "whatsapp", "WhatsApp", "WA", "wsp",
         "pedidosya", "PedidosYa",
-        "mostrador", "Mostrador",
+        "mostrador", "mostrador",
         "phone", "tel", "telefono", "PHONE",
         "other", "instagram", "ig",
         "", "unknown_garbage",

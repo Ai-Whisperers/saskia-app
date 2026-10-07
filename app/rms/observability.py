@@ -63,7 +63,7 @@ def _safe_get_user_id(request: Request) -> str | None:
             if u is not None and u != "":
                 return str(u)
         return None
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         return None
 
 
@@ -194,7 +194,7 @@ def record_audit(
             detail=merged_detail,
             request=request,
         )
-    except Exception as e:  # pragma: no cover — defensive  # noqa: BLE001
+    except Exception as e:  # pragma: no cover — defensive
         logger.error(
             "audit_log_failed action={} target={}#{} rid={}: {!r}",
             action,

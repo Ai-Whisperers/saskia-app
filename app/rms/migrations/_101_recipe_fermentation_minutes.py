@@ -34,7 +34,7 @@ def _migration_101_recipe_fermentation_minutes(conn: Any) -> None:
             conn.execute(text("ALTER TABLE recipe ADD COLUMN fermentation_minutes INTEGER"))
         else:
             conn.execute(text("ALTER TABLE recipe ADD COLUMN fermentation_minutes INTEGER"))
-    except Exception:  # noqa: S110 — column may already exist
+    except Exception:
         pass
 
     # BACKLOG #4 (2026-10-02): always bump schema_version at the end.

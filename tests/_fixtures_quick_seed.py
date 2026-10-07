@@ -148,7 +148,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                 customer_id=None,
                 payment_method="efectivo",
                 discount_gs=0,
-                channel="Mostrador",
+                channel="mostrador",
             )
             out["sale"] = sale
 
@@ -179,6 +179,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
             display per-cliente).
             """
             import secrets as _secrets
+
             from app.rms.config import ASUNCION_TZ
 
             # Match the route's "tomorrow" computation exactly so the
@@ -202,7 +203,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                     customer_id=None,
                     payment_method="efectivo",
                     discount_gs=0,
-                    channel="Mostrador",
+                    channel="mostrador",
                 )
 
             c1 = _make_or_get_customer(s, "María Rodríguez")
@@ -250,7 +251,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                 customer_id=None,
                 payment_method="efectivo",
                 discount_gs=0,
-                channel="Mostrador",
+                channel="mostrador",
             )
             from app.rms.costing import void_sale
 
@@ -326,7 +327,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                     customer_id=None,
                     payment_method="efectivo",
                     discount_gs=0,
-                    channel="Mostrador",
+                    channel="mostrador",
                 )
             out["n_products"] = 25
 
@@ -371,7 +372,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                         customer_id=None,
                         payment_method="efectivo",
                         discount_gs=0,
-                        channel="Mostrador",
+                        channel="mostrador",
                     )
             s.commit()
 

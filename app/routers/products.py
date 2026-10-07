@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth import require_login_or_disabled as require_login
 from app.rms.costing import batch_products_cost_margin, product_margin, product_unit_cost_gs
 from app.rms.dependencies import get_session
-from app.rms.models import Product, Recipe, Sale, Customer
+from app.rms.models import Customer, Product, Recipe, Sale
 from app.rms.observability import record_audit
 from app.rms.rate_limit import read_rate_limit_dependency
 from app.services.template_render import render
@@ -255,7 +255,7 @@ def products_list(
     # before. Falls back to the per-product path only on cache misses.
     try:
         prime_batch = batch_compute_prime_cost(session, list(products))
-    except Exception:  # noqa: BLE001 — defensive: if the batch path raises on a malformed product, fall back to per-product so the list page still loads.
+    except Exception:
         prime_batch = {}
     decorated = []
     for p in products:
@@ -829,7 +829,7 @@ async def product_bulk_edit(
     set_availability (bool), set_category (string)."""
     try:
         body = await request.json()
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         return JSONResponse(status_code=400, content={"error": "JSON body required"})
 
     product_ids: list[int] = body.get("product_ids", [])
@@ -961,7 +961,7 @@ async def products_import_csv(
                 session.add(product)
                 created += 1
             session.commit()
-        except Exception as e:  # noqa: BLE001 — defensive default
+        except Exception as e:
             session.rollback()
             errors.append({"row": row_num, "error": str(e)})
 
@@ -1044,7 +1044,7 @@ async def product_upload_image(
             if msg.startswith("too_large"):
                 raise HTTPException(status_code=413, detail=msg) from exc
             raise HTTPException(status_code=500, detail=msg) from exc
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             # Supabase rejected (DNS, network, RLS, 4xx from bad path).
             # Log + fall back to local storage so the operator's upload
             # still succeeds. /healthz/summary will surface the supabase
@@ -1115,7 +1115,7 @@ def _public_branding(session: Session) -> dict:
             raw = getattr(kv, "value_json", "") or ""
             val = _json.loads(raw) if raw else ""
             kv_name = str(val).strip() if not isinstance(val, dict) else str(val.get("name", "")).strip()
-        except Exception:  # noqa: BLE001 - malformed KV must never break the menu
+        except Exception:
             kv_name = ""
 
     name = kv_name or business or "Sazon"
@@ -1283,7 +1283,8 @@ def product_detail(
 
     # Compute metrics using existing service modules or direct SQL queries
     from sqlalchemy import text
-    from app.rms.costing import product_unit_cost_gs, product_margin
+
+    from app.rms.costing import product_margin, product_unit_cost_gs
 
     # Current stock - use direct SQL query since no service function exists
     stock_query = text("""

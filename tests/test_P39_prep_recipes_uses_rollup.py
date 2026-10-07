@@ -19,7 +19,7 @@ def _seed_plan_with_recipe(session_factory):
     """Create: an ingredient with a variant that has stock, a recipe that
     uses the ingredient, and a product linked to the recipe. Returns the
     ingredient_id and the product_id."""
-    from app.rms.models import Ingredient, Recipe, RecipeLine, Product, Supplier
+    from app.rms.models import Ingredient, Product, Recipe, RecipeLine
     with session_factory() as s:
         ing = s.query(Ingredient).filter_by(name="P39-rollup-ingredient").first()
         if ing is None:
@@ -84,8 +84,8 @@ def test_ingredient_with_variants_uses_rollup(session_factory):
     """If ingredient has variants, stock_on_hand = rollup (5kg here),
     not parent.stock_qty (0kg). The recipe needs 2kg, so the operator
     should see 'Suficiente', not 'Falta 2kg'."""
-    from app.routers.produccion.prep_recipes import _build_recipe_breakdown
     from app.rms.models import Product
+    from app.routers.produccion.prep_recipes import _build_recipe_breakdown
 
     ing_id, prod_id = _seed_plan_with_recipe(session_factory)
 
@@ -111,8 +111,8 @@ def test_ingredient_with_variants_uses_rollup(session_factory):
 def test_ingredient_without_variants_uses_parent(session_factory):
     """If ingredient has NO variants, stock_on_hand = parent.stock_qty
     (unchanged behavior — the parent column IS the truth for that case)."""
+    from app.rms.models import Ingredient, Product, Recipe, RecipeLine
     from app.routers.produccion.prep_recipes import _build_recipe_breakdown
-    from app.rms.models import Ingredient, Recipe, RecipeLine, Product
 
     with session_factory() as s:
         ing = s.query(Ingredient).filter_by(name="P39-no-variant-ing").first()
@@ -160,8 +160,8 @@ def test_missing_ingredient_object_returns_zero(session_factory):
     """If the ingredient lookup returns None (e.g., dangling ref), stock
     must default to 0.0 so the operator sees a shortage — defensive
     behavior is unchanged from before P39."""
+    from app.rms.models import Product, Recipe, RecipeLine
     from app.routers.produccion.prep_recipes import _build_recipe_breakdown
-    from app.rms.models import Recipe, RecipeLine, Product, Ingredient
 
     with session_factory() as s:
         # Recipe line with ref_id pointing to a NON-EXISTENT ingredient (99999)

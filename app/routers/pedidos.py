@@ -23,7 +23,6 @@ import json
 import secrets
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta, timezone
-
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, Request, UploadFile
@@ -40,8 +39,8 @@ from app.rms.costing import apply_sale
 from app.rms.csrf import verify_form_csrf
 from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
-from app.rms.models.channels import Channel
 from app.rms.models import Customer, Pedido, PedidoLine, Product, Recipe, Sale
+from app.rms.models.channels import Channel
 from app.rms.production_demand import invalidate_demand_for_dates
 
 
@@ -301,7 +300,7 @@ def _parse_date_or_none(value: Any) -> date | None:
         return None
     try:
         # ISO date; we'll coerce at the SQLAlchemy level
-        return datetime.strptime(s, "%Y-%m-%d").date()  # noqa: DTZ007 — only .date() is consumed
+        return datetime.strptime(s, "%Y-%m-%d").date()
     except (ValueError, TypeError):
         return None
 
@@ -1190,7 +1189,7 @@ async def pedidos_create(
     if promised_date_norm is not None:
         try:
             invalidate_demand_for_dates(session, [promised_date_norm])
-        except Exception:  # noqa: BLE001 — best-effort invalidation
+        except Exception:
             pass  # cache stays stale; 5-min TTL will eventually catch up
     safe_commit(session)
 
@@ -1374,7 +1373,7 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
         )
         try:
             session.commit()
-        except Exception:  # noqa: BLE001 — audit best-effort
+        except Exception:
             session.rollback()
         decorated = _decorate_pedido(pedido, session)
         decorated["lines"] = [
@@ -1842,7 +1841,7 @@ def pedidos_fulfill(
                 continue
             try:
                 moves = _compute_stock_moves(session, recipe, float(ln.qty), set())
-            except Exception as exc:  # noqa: BLE001 — defensive default
+            except Exception as exc:
                 logger.warning(
                     f"pedidos.fulfill: _compute_stock_moves failed for product "
                     f"{line_product.id}: {exc!r}"
@@ -1860,7 +1859,7 @@ def pedidos_fulfill(
                             "product": line_product.name,
                         }
                     )
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         # Defensive: if the calc itself blows up, do not block the fulfill;
         # log loudly so ops sees it, but proceed (matches pre-fix behavior).
         logger.warning(
@@ -1904,7 +1903,7 @@ def pedidos_fulfill(
         try:
             session.execute(_sa_text("DROP TRIGGER IF EXISTS ingredient_stock_qty_positive_insert"))
             session.execute(_sa_text("DROP TRIGGER IF EXISTS ingredient_stock_qty_positive_update"))
-        except Exception as _drop_exc:  # pragma: no cover - defensive  # noqa: BLE001 — SQLite trigger drop is best-effort
+        except Exception as _drop_exc:  # pragma: no cover - defensive
             logger.warning(f"force-fulfill: could not drop stock triggers: {_drop_exc!r}")
 
     # Snapshot sold_at to now in Asunción TZ so /reportes groups by the
@@ -2047,7 +2046,7 @@ def pedidos_fulfill(
                 )
             )
             session.commit()
-        except Exception as _recreate_exc:  # pragma: no cover - defensive  # noqa: BLE001 — SQLite trigger recreate is best-effort
+        except Exception as _recreate_exc:  # pragma: no cover - defensive
             logger.warning(f"force-fulfill: could not recreate stock triggers: {_recreate_exc!r}")
 
     # ── Notify customer via WhatsApp or SMS ──────────────────────────────────
@@ -2099,7 +2098,7 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
                     "business_name": "Sazón",
                 },
             )
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.warning(
             f"pedidos._send_fulfill_notification: render_template failed (fallback to legacy msg): {exc!r}"
         )
@@ -2134,7 +2133,7 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
             if not ok:
                 log.warning("Twilio error for pedido %s: %s %s", pedido.id, r.status_code, r.text)
             return ok
-        except Exception as exc:  # noqa: BLE001 — defensive default
+        except Exception as exc:
             log.error("Twilio exception for pedido %s: %s", pedido.id, exc)
             return False
 
@@ -2186,7 +2185,7 @@ def pedidos_stock_preview(
             continue
         try:
             moves = _compute_stock_moves(session, recipe, float(ln.qty), set())
-        except Exception as exc:  # noqa: BLE001 — defensive default
+        except Exception as exc:
             logger.warning(
                 f"pedidos.stock_preview: _compute_stock_moves failed for product {product.id}: {exc!r}"
             )
@@ -2340,7 +2339,7 @@ def pedidos_bulk_fulfill(
     if affected_dates:
         try:
             invalidate_demand_for_dates(session, list(affected_dates))
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     safe_commit(session)
     flash = f"{fulfilled} pedido(s) marcado(s) como completado(s)"
@@ -2380,7 +2379,7 @@ def pedidos_bulk_cancel(
     if affected_dates:
         try:
             invalidate_demand_for_dates(session, list(affected_dates))
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     safe_commit(session)
     flash = f"{cancelled} pedido(s) cancelado(s)"

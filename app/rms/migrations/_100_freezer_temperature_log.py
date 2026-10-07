@@ -66,7 +66,7 @@ def _migration_100_freezer_temperature_log(conn: Any) -> None:
                     """
                 )
             )
-    except Exception:  # noqa: S110 — table may already exist
+    except Exception:
         pass
 
     # 2) Indexes for fast daily-view lookup.
@@ -76,7 +76,7 @@ def _migration_100_freezer_temperature_log(conn: Any) -> None:
                 "CREATE INDEX IF NOT EXISTS ix_freezer_temperature_log_location ON freezer_temperature_log(location)"
             )
         )
-    except Exception:  # noqa: S110
+    except Exception:
         pass
     try:
         conn.execute(
@@ -84,7 +84,7 @@ def _migration_100_freezer_temperature_log(conn: Any) -> None:
                 "CREATE INDEX IF NOT EXISTS ix_freezer_temperature_log_for_date ON freezer_temperature_log(for_date)"
             )
         )
-    except Exception:  # noqa: S110
+    except Exception:
         pass
     try:
         conn.execute(
@@ -92,7 +92,7 @@ def _migration_100_freezer_temperature_log(conn: Any) -> None:
                 "CREATE INDEX IF NOT EXISTS ix_freezer_temp_date_location ON freezer_temperature_log(for_date, location)"
             )
         )
-    except Exception:  # noqa: S110
+    except Exception:
         pass
 
     # BACKLOG #4 (2026-10-02): always bump schema_version at the end.

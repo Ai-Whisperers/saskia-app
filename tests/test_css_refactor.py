@@ -8,8 +8,9 @@ Verifies:
 - Inline <style> blocks in non-allow-listed templates are tracked
 """
 import os
-import re
 import pathlib
+import re
+
 import pytest
 
 REPO = pathlib.Path(__file__).parent.parent
@@ -249,7 +250,7 @@ class TestDesignTokenDiscipline:
             if re.search(r'(?:^|;|\s)background\s*:\s*#f59e0b', content):
                 offenders.append(f'{path}: background: #f59e0b (amber-500)')
         assert not offenders, \
-            f'WCAG-breaking amber-500 in templates:\n  ' + '\n  '.join(offenders)
+            'WCAG-breaking amber-500 in templates:\n  ' + '\n  '.join(offenders)
 
 
 class TestDarkModeSelector:

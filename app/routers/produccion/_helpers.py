@@ -23,7 +23,6 @@ from starlette.requests import Request
 
 from app.rms.production import plan_production
 
-
 # ──────────────────────────────────────────────────────────────────
 #  Constants
 # ──────────────────────────────────────────────────────────────────
@@ -242,6 +241,6 @@ def _current_user_display_name(request: Request) -> str:
         user = get_session_user(request)
         if user is not None and getattr(user, "email", None):
             return str(user.email).split("@", 1)[0]
-    except Exception as exc:  # noqa: BLE001 — Supabase optional; cook fallback
+    except Exception as exc:
         logger.debug(f"produccion.user_short: Supabase lookup failed: {exc!r}")
     return "Cocina"

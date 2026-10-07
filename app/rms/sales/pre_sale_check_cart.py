@@ -97,13 +97,18 @@ def validate_cart_intent(
        ingredient, compare to current stock. One warning per shortage.
     3. Cart-level checks (customer, payment, day-closed) — run once.
     """
+    from datetime import datetime as _datetime
+    from zoneinfo import ZoneInfo
+
+    _ASUNCION = ZoneInfo("America/Asuncion")
+
     from app.rms.derived_intel import check_customer_risk
     from app.rms.eod_closed import eod_is_day_closed
     from app.rms.models import Ingredient, Product, Recipe
     from app.rms.sales.lifecycle import _compute_stock_moves
 
     if today is None:
-        today = date.today()
+        today = _datetime.now(_ASUNCION).date()
 
     checklist = PreSaleChecklist()
 

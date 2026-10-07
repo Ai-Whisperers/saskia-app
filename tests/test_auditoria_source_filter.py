@@ -38,7 +38,6 @@ def test_source_filter_narrows_to_production(authed_client, session_factory):
     # Manual chip rendered in the same page when filtered, so use a stronger check:
     # find the action column and ensure we only see ONE write.merma.create row.
     # Easier check: count occurrences of write.merma.create in tbody (not thead).
-    import re
     tbody = body.split("<tbody>", 1)[1].split("</tbody>", 1)[0] if "<tbody>" in body else body
     rows_with_action = tbody.count("write.merma.create")
     assert rows_with_action == 1, f"Expected exactly 1 merma row under source=production, got {rows_with_action}"
@@ -52,7 +51,6 @@ def test_source_filter_narrows_to_manual(authed_client, session_factory):
     assert r.status_code == 200
     body = r.text
     assert "✍️ Manual" in body
-    import re
     tbody = body.split("<tbody>", 1)[1].split("</tbody>", 1)[0] if "<tbody>" in body else body
     rows_with_action = tbody.count("write.merma.create")
     assert rows_with_action == 1, f"Expected exactly 1 merma row under source=manual, got {rows_with_action}"

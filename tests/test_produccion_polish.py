@@ -14,8 +14,9 @@ Run with: pytest tests/test_produccion_polish.py -v
 """
 import pathlib
 import re
-import pytest
 from pathlib import Path
+
+import pytest
 from sqlalchemy import select
 
 # Paths to the produccion template and the consolidated CSS file.
@@ -497,7 +498,7 @@ class TestTableOverhaulSortAndFilter:
         assert "filter_allergen" in toolbar, \
             "allergen filter group must be referenced in the toolbar"
         for v in ("gluten", "dairy", "eggs", "nuts"):
-            assert v in toolbar and f'"filter_allergen"' in toolbar, \
+            assert v in toolbar and '"filter_allergen"' in toolbar, \
                 f"allergen chip {v!r} must be wired up in the toolbar"
 
     def test_filter_toolbar_has_source_chips(self):
@@ -587,7 +588,6 @@ class TestTableOverhaulPageSize:
         """Default page size is 20."""
         # Plant 25 products with a recipe so they show up in plan_rows_view.
         # Then check that only 20 are rendered.
-        from app.rms.models import Product
         r = authed_client.get("/produccion?for_date=2026-10-07")
         assert r.status_code == 200
         # The default page size cookie is 20 — test by setting rows=5 via URL
@@ -741,7 +741,7 @@ class TestSobranteGraduatedColor:
         # Look for the surplus-pill markup with tier classes
         import re
         # Should have at least 2 tier markers
-        tier_classes = re.findall(r'surplus-pill\s+surplus-[a-z\-]+', loop_body)
+        _tier_classes = re.findall(r'surplus-pill\s+surplus-[a-z\-]+', loop_body)
         # OR have a CSS rule defining them (the macro / template may
         # compute tier via JS but the markup should have data-*).
         assert "surplus-pill" in loop_body, \
@@ -817,7 +817,7 @@ class TestNotificationsCollapsedByDefault:
     ]
 
     def test_each_notification_is_a_details_block(self):
-        for attr, summary_snippet in self.EXPECTED_NOTIFICATIONS:
+        for attr, _summary_snippet in self.EXPECTED_NOTIFICATIONS:
             # The notification must be inside a <details ...> tag in the template.
             assert f'data-notification-section="{attr}"' in TEMPLATE_BODY, \
                 f"notification {attr!r} must be marked with data-notification-section"
@@ -841,7 +841,6 @@ class TestNotificationsCollapsedByDefault:
         """Each notification <details> must have a <summary> with the
         count or key text — so the operator sees the alert status without
         having to open it."""
-        import re
         for attr, summary_snippet in self.EXPECTED_NOTIFICATIONS:
             # Find the <details data-notification-section="attr"> block
             block_start = TEMPLATE_BODY.find(

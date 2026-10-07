@@ -19,9 +19,7 @@ from __future__ import annotations
 
 def test_packages_exist():
     """The new packages are importable."""
-    import app.rms.profitability
     import app.rms.profitability.cost as pc
-    import app.rms.sales
     import app.rms.sales.lifecycle as sl
 
     assert hasattr(pc, "recipe_batch_cost_gs")
@@ -63,12 +61,20 @@ def test_sales_exceptions_re_exported():
     """The exceptions are in profitability.cost but re-exported from sales."""
     from app.rms.profitability.cost import (
         CycleInRecipeTree as PCCycle,
+    )
+    from app.rms.profitability.cost import (
         ProductWithoutRecipe as PCProduct,
+    )
+    from app.rms.profitability.cost import (
         RecipeWithoutYield as PCRecipe,
     )
     from app.rms.sales import (
         CycleInRecipeTree as SLCycle,
+    )
+    from app.rms.sales import (
         ProductWithoutRecipe as SLProduct,
+    )
+    from app.rms.sales import (
         RecipeWithoutYield as SLRecipe,
     )
 
@@ -153,10 +159,5 @@ def test_costing_shim_no_logic():
     # - 'from __future__ import annotations'
     for line in lines:
         assert (
-            line.startswith("from ")
-            or line.startswith("import ")
-            or line.endswith(",")
-            or line.endswith("[")
-            or line.endswith(")")
-            or line == "]"
+            line.startswith(("from ", "import ")) or line.endswith((",", "[", ")")) or line == "]"
         ), f"Unexpected line in costing.py shim: {line!r}"

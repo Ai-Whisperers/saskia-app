@@ -46,7 +46,6 @@ from datetime import date, datetime, timedelta
 
 import pytest
 
-
 # ---- 1. Month-range correctness -----------------------------------------
 
 
@@ -108,7 +107,7 @@ def test_calendar_monthrange_matches_sazon_month_range(year, month):
     """
     from app.rms.cierre import _month_range
 
-    first, last = _month_range(year, month)
+    _first, last = _month_range(year, month)
     # calendar.monthrange returns (weekday_of_first, days_in_month)
     _, days_in_month = calendar.monthrange(year, month)
     assert last == date(year, month, days_in_month), (

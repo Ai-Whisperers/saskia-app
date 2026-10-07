@@ -11,9 +11,6 @@ phase).
 """
 from __future__ import annotations
 
-import pytest
-
-
 # Spanish copy is part of the contract — typo = useless UI.
 EXPECTED_LABELS = ("Productos", "Lote", "Pedidos", "Confianza")
 

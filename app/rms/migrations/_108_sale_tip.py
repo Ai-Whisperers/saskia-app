@@ -31,7 +31,7 @@ def _migration_108_sale_tip(conn: Any) -> None:
             conn.exec_driver_sql(
                 "ALTER TABLE sale ADD COLUMN tip_gs INTEGER NOT NULL DEFAULT 0"
             )
-        except Exception:  # noqa: S110 — concurrent migration
+        except Exception:
             pass
 
     # BACKLOG #4 (2026-10-02): always bump schema_version at the end.

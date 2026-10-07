@@ -27,6 +27,7 @@ import os
 import sys
 from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from loguru import logger
@@ -60,9 +61,13 @@ from app.rms.migrations._095_soft_delete_columns import _migration_095_soft_dele
 from app.rms.migrations._096_audit_columns import _migration_096_audit_columns
 from app.rms.migrations._097_ingredient_avg_cost import _migration_097_ingredient_avg_cost
 from app.rms.migrations._098_production_closed_day import _migration_098_production_closed_day
-from app.rms.migrations._099_production_completion_updated_at import _migration_099_production_completion_updated_at
+from app.rms.migrations._099_production_completion_updated_at import (
+    _migration_099_production_completion_updated_at,
+)
 from app.rms.migrations._100_freezer_temperature_log import _migration_100_freezer_temperature_log
-from app.rms.migrations._101_recipe_fermentation_minutes import _migration_101_recipe_fermentation_minutes
+from app.rms.migrations._101_recipe_fermentation_minutes import (
+    _migration_101_recipe_fermentation_minutes,
+)
 from app.rms.migrations._102_waste_log_source import _migration_102_waste_log_source
 from app.rms.migrations._103_production_demand_split import _migration_103_production_demand_split
 from app.rms.migrations._104_product_sold_by_weight import (
@@ -75,19 +80,7 @@ from app.rms.migrations._108_sale_tip import _migration_108_sale_tip
 from app.rms.migrations._109_menu_ejecutivo import _migration_109_menu_ejecutivo
 from app.rms.migrations._110_held_sale import _migration_110_held_sale
 from app.rms.migrations._111_sale_channel_check import _migration_111_sale_channel_check
-
 from app.rms.models.channels import Channel
-
-from loguru import logger
-from sqlalchemy import create_engine, event, text
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, sessionmaker
-
-from app.rms.config import (
-    CURRENT_SCHEMA_VERSION,
-    DB_PATH,
-    ensure_dirs,
-)
 
 
 def _set_sqlite_pragmas(dbapi_conn: Any, _: Any) -> None:
@@ -2751,7 +2744,7 @@ def _migration_060_tag_normalization(conn: Any) -> None:
             iid, name = r
             try:
                 tags = infer_dietary_tags(name or "")
-            except Exception:  # noqa: S112 — skip rows with bad data, log elsewhere
+            except Exception:
                 continue
             new_value = _to_canonical_m60(",".join(tags)) if tags else None
             # SELECT prior value to skip no-op writes (Postgres triggers fire
@@ -3017,7 +3010,7 @@ def _migration_067_pedido_public_token_expiry(conn: Any) -> None:
                     # Fallback: try the most common SQLite format.
                     from datetime import datetime as _dt2
 
-                    parsed = _dt2.strptime(normalized, "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007 — stored as naive UTC in DB
+                    parsed = _dt2.strptime(normalized, "%Y-%m-%d %H:%M:%S")
                 expires = parsed + _td(days=30)
             else:
                 expires = created + _td(days=30)
@@ -4474,8 +4467,9 @@ def sync_backup_before_migration(
 
     # Lazy imports to keep db.py import-safe (no side effects on
     # import — important for tests that import db.py without a DB).
-    from app.rms.backup import backup_database
     from sqlalchemy.orm import sessionmaker
+
+    from app.rms.backup import backup_database
 
     ts = _dt.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     dest = backup_dir_path / f"sazon-pre-mig-v{from_version:04d}-to-v{to_version:04d}-{ts}.json.gz"

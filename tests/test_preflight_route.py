@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pytest
-
 
 def test_preflight_clean_sale(client, qseed):
     """A clean sale returns no warnings and is_ready=True."""

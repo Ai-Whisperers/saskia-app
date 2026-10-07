@@ -51,17 +51,18 @@ from app.routers.produccion._helpers import (
     _week_monday,
     source_to_bucket,
 )
+from app.routers.produccion._router import router
+
 # Sazon-Improvement v2 (2026-10-06) Phase E: the HACCP + substitution
 # helpers are now defined in app/routers/produccion/analytics.py.
 # The day-view worksheet still uses them, so we re-import here.
 from app.routers.produccion.analytics import (
     _count_haccp_missing_for_date,
-    _list_haccp_missing_for_date,
     _get_haccp_latest_for_date,
     _haccp_alert_for_entry,
+    _list_haccp_missing_for_date,
     expand_missing_items,
 )
-from app.routers.produccion._router import router
 from app.services.template_render import render
 
 VALID_SORT_KEYS = frozenset({
@@ -569,7 +570,7 @@ def produccion_worksheet(
     # sees Product objects, not int scalars.
     _inactive_pids = {
         p.id for p in session.execute(
-            select(Product).where(Product.is_available == False)  # noqa: E712
+            select(Product).where(not Product.is_available)
         ).scalars().all()
     }
     daily_target = sum(
@@ -688,7 +689,7 @@ def produccion_worksheet(
     demand_by_pid: dict = {}
     try:
         demand_by_pid = get_demand(session, for_date=target_date)
-    except Exception:  # noqa: BLE001 — demand is enrichment, never break the page
+    except Exception:
         demand_by_pid = {}
 
     plan_rows_view = [
@@ -986,7 +987,7 @@ def produccion_worksheet(
         if not r.get("is_ad_hoc", False) and (r.get("confidence_pct") or 0) > 0
     ]
     day_confidence_pct = (
-        int(round(sum(r.get("confidence_pct", 0) for r in _conf_rows) / len(_conf_rows)))
+        round(sum(r.get("confidence_pct", 0) for r in _conf_rows) / len(_conf_rows))
         if _conf_rows
         else 0
     )
@@ -1155,8 +1156,8 @@ def produccion_worksheet(
                     "id": p.id,
                     "name": p.name,
                     "forecast_qty": float(
-                        demand_by_pid.get(p.id, None)
-                        and demand_by_pid[p.id].qty_forecast or 0.0
+                        (demand_by_pid.get(p.id, None)
+                        and demand_by_pid[p.id].qty_forecast) or 0.0
                     ),
                     "pending_pedidos": float(
                         ped_units_by_pid.get(p.id, 0.0)

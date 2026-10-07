@@ -17,7 +17,7 @@ def _migration_109_menu_ejecutivo(conn: Any) -> None:
     if conn.dialect.name == "postgresql":
         try:
             conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS pgcrypto")
-        except Exception:  # noqa: S110
+        except Exception:
             pass
 
     def _tables_missing() -> bool:
@@ -64,7 +64,7 @@ def _migration_109_menu_ejecutivo(conn: Any) -> None:
             conn.exec_driver_sql(
                 "CREATE INDEX IF NOT EXISTS ix_menu_item_menu_id ON menu_item (menu_id)"
             )
-        except Exception:  # noqa: S110 — concurrent migration
+        except Exception:
             pass
 
     from app.rms.db import _bump_schema_version

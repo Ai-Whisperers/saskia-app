@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import extract, func, select
 from sqlalchemy.orm import Session
 
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine, Sale, StockMovement
@@ -583,9 +583,10 @@ def audit_ip_patterns(session: Session, *, days: int = 30) -> list[AuditIpPatter
     Returns most frequent client IPs with activity count and date range.
     Helps identify suspicious IP patterns or untrusted locations.
     """
+    from app.rms.config import ASUNCION_TZ
     from app.rms.models_legacy import AuditLog
 
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
 
     stmt = (
         select(
@@ -621,9 +622,10 @@ def audit_time_patterns(session: Session, *, days: int = 30) -> list[AuditTimePa
     Returns hourly and day-of-week activity patterns.
     Helps identify anomalous activity times or automated access.
     """
+    from app.rms.config import ASUNCION_TZ
     from app.rms.models_legacy import AuditLog
 
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
 
     # Hourly patterns (weekday + hour)
     stmt = (
@@ -662,10 +664,12 @@ def audit_operator_patterns(session: Session, *, days: int = 30) -> list[AuditOp
     Returns user activity sorted by volume, frequency, and recency.
     Highlights dormant users or unusually active accounts.
     """
-    from app.rms.models_legacy import AuditLog
     from datetime import datetime, timedelta
 
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    from app.rms.config import ASUNCION_TZ
+    from app.rms.models_legacy import AuditLog
+
+    cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
 
     # Get user activity totals and most common action
     # SQLite doesn't support mode(), so do it manually
@@ -881,7 +885,7 @@ def probabilistic_consumption_forecast(
         stock = max(int(math.floor(b.current_stock_qty)), 0)
         cdf = 0.0
         term = math.exp(-mu)
-        for k in range(0, stock + 1):
+        for k in range(stock + 1):
             cdf += term
             term *= mu / (k + 1)
         p_stockout = max(0.0, min(1.0, 1.0 - cdf))

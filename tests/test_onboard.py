@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from app.rms.models import Base, Customer, Pedido, Product, Sale, Tenant, User
+from app.rms.models import Base, Customer, Pedido, Sale, Tenant, User
 from app.rms.seed.onboard import onboard_tenant, onboarding_summary
 
 

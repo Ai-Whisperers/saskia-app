@@ -141,7 +141,7 @@ def send_alert(
             },
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as resp:  # noqa: S310 — _RESEND_URL is a hardcoded HTTPS constant, not user input
+        with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as resp:
             ok = 200 <= resp.status < 300
             if not ok:
                 logger.warning(

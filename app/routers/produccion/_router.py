@@ -19,7 +19,6 @@ from fastapi import APIRouter, Depends
 
 from app.auth import require_login_or_disabled as require_login
 
-
 router = APIRouter(prefix="/produccion", dependencies=[Depends(require_login)])
 
 

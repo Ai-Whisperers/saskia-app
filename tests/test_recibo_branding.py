@@ -19,7 +19,8 @@ def seeded_sales(session_factory):
     with session_factory() as s:
         p1 = Product(name="Pan dulce", sku="PAN-DUL", sale_price_gs=5000, recipe_id=None)
         p2 = Product(name="Torta", sku="TOR-001", sale_price_gs=10000, recipe_id=None)
-        s.add_all([p1, p2]); s.flush()
+        s.add_all([p1, p2])
+        s.flush()
 
         now = datetime.now(ASUNCION_TZ)
         s.add_all([
@@ -51,14 +52,16 @@ def test_recibo_shows_ruc_when_set(client, session_factory):
     with session_factory() as s:
         # Set branding with RUC
         from app.rms.settings_runtime import set_branding
-        branding = set_branding(s, business_name="Mi Panadería", ruc="123456789")
+        _branding = set_branding(s, business_name="Mi Panadería", ruc="123456789")
         s.commit()
 
         # Create a sale
         p = Product(name="Test", sku="TEST", sale_price_gs=1000, recipe_id=None)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         sale = Sale(product_id=p.id, qty=1, unit_price_gs=1000, sold_at=datetime.now(ASUNCION_TZ), voided_at=None)
-        s.add(sale); s.commit()
+        s.add(sale)
+        s.commit()
         sale_id = sale.id
 
     resp = client.get(f"/ventas/{sale_id}/recibo")
@@ -75,14 +78,16 @@ def test_recibo_hides_ruc_when_empty(client, session_factory):
     with session_factory() as s:
         # Set branding with empty RUC
         from app.rms.settings_runtime import set_branding
-        branding = set_branding(s, business_name="Mi Panadería", ruc="")
+        _branding = set_branding(s, business_name="Mi Panadería", ruc="")
         s.commit()
 
         # Create a sale
         p = Product(name="Test", sku="TEST", sale_price_gs=1000, recipe_id=None)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         sale = Sale(product_id=p.id, qty=1, unit_price_gs=1000, sold_at=datetime.now(ASUNCION_TZ), voided_at=None)
-        s.add(sale); s.commit()
+        s.add(sale)
+        s.commit()
         sale_id = sale.id
 
     resp = client.get(f"/ventas/{sale_id}/recibo")

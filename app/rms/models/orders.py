@@ -105,8 +105,8 @@ class Pedido(Base):
     lines: Mapped[list["PedidoLine"]] = relationship(
         back_populates="pedido", cascade="all, delete-orphan"
     )
-    customer: Mapped["Customer | None"] = relationship()  # noqa: F821 — SQLAlchemy 2.0 forward ref
-    delivery_zone: Mapped["DeliveryZone | None"] = relationship(  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    customer: Mapped["Customer | None"] = relationship()
+    delivery_zone: Mapped["DeliveryZone | None"] = relationship(
         back_populates="pedidos"
     )
 
@@ -138,7 +138,7 @@ class PedidoLine(Base):
     fulfilled_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0)
 
     pedido: Mapped["Pedido"] = relationship(back_populates="lines")
-    product: Mapped["Product"] = relationship()  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    product: Mapped["Product"] = relationship()
 
     __table_args__ = (
         CheckConstraint("qty > 0", name="ck_pedido_line_qty_positive"),

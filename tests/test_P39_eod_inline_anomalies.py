@@ -15,8 +15,6 @@ Acceptance:
 """
 from __future__ import annotations
 
-import re
-
 
 def test_eod_has_inline_anomaly_summary(client):
     """P-39: /eod shows anomaly count or success state inline."""

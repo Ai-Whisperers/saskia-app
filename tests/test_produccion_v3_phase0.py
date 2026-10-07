@@ -30,9 +30,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import select
 
-from app.rms.eod_completions import completions_for_date
 from app.rms.models import Product, ProductionCompletion
-
 
 # --- Test fixtures ----------------------------------------------------------
 

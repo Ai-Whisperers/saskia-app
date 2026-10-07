@@ -93,7 +93,7 @@ class TestEmptyStateHasAdHocCTA:
         cold_start_open = text.find('{% if cold_start_kind == "no_sales" %}')
         assert cold_start_open != -1
         # Walk forward and find the matching endif (count if/endif)
-        i = cold_start_open
+        _i = cold_start_open
         depth = 0
         end = -1
         for m in re.finditer(r'\{%\s*(if|endif)\b', text[cold_start_open:]):

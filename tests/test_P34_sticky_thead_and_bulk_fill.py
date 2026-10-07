@@ -28,7 +28,6 @@ from sqlalchemy import select
 
 from app.rms.models import Ingredient, StockMovement
 
-
 # ── 1. Sticky thead CSS + template wiring ────────────────────────────
 
 
@@ -88,7 +87,7 @@ def test_css_prints_without_sticky():
     from pathlib import Path
 
     css = Path("app/static/app.css").read_text()
-    css_compact = css.replace(" ", "")
+    _css_compact = css.replace(" ", "")
     # Either a print-block reset for .table-scroll OR the existing
     # general .table thead th{position:static;...} print rule
     m = re.search(r"@media\s+print\s*\{", css, re.DOTALL | re.IGNORECASE)
@@ -282,7 +281,7 @@ def test_bulk_fill_writes_reorder_stock_movement(authed_client, session_factory,
         assert len(moves) == 1, f"expected 1 reorder movement for half, got {len(moves)}"
         m = moves[0]
         assert m.qty == pytest.approx(7.0), f"delta for half should be 7.0, got {m.qty}"
-        assert m.reason and "2x" in m.reason.lower() or "min" in m.reason.lower(), (
+        assert (m.reason and "2x" in m.reason.lower()) or "min" in m.reason.lower(), (
             f"reason should mention 2x or min, got {m.reason!r}"
         )
 

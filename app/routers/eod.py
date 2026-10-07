@@ -44,7 +44,7 @@ def _parse_range_date(raw: str | None) -> date | None:
     if not raw:
         return None
     try:
-        return datetime.strptime(raw, "%Y-%m-%d").date()  # noqa: DTZ007 — only .date() is consumed
+        return datetime.strptime(raw, "%Y-%m-%d").date()
     except ValueError:
         return None
 
@@ -83,7 +83,7 @@ def eod_view(
         upcoming = [today + timedelta(days=offset) for offset in range(7)]
         warmed = warm_snapshots_for_dates(session, upcoming)
         logger.debug("eod_view: warmed demand snapshots for {} dates", warmed)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("eod_view: warm_snapshots_for_dates failed: {!r}", exc)
 
     # Load saved EOD checklist progress from app_meta so refreshing the
@@ -119,7 +119,7 @@ def eod_view(
     eod_items_total = len(items)
     eod_items_done = sum(1 for it in items if it.key in saved_keys)
     eod_items_pct = (
-        int(round((eod_items_done * 100) / eod_items_total))
+        round((eod_items_done * 100) / eod_items_total)
         if eod_items_total
         else 0
     )
@@ -399,7 +399,7 @@ def eod_check_save(
                         "local_pruned": backup_result.local_pruned,
                     },
                 )
-        except Exception as exc:  # noqa: BLE001 — never block EOD on backup failure
+        except Exception as exc:
             from loguru import logger as _logger
 
             _logger.warning("Backup after EOD close failed: {}", exc)
@@ -513,12 +513,12 @@ def eod_print(
 
     today = datetime.now(ASUNCION_TZ).date()
     items = fresh_eod_checklist()
-    progress = eod_progress(items)
+    _progress = eod_progress(items)
 
     # Checklist progress (X de Y)
     items_total = len(items)
     items_done = sum(1 for it in items if it.status == EODItemStatus.DONE)
-    items_pct = int(round((items_done * 100) / items_total)) if items_total else 0
+    items_pct = round((items_done * 100) / items_total) if items_total else 0
 
     # Today's production plan
     today_plan = plan_production(session, for_date=today)

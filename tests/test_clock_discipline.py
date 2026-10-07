@@ -25,8 +25,6 @@ from __future__ import annotations
 import datetime as _dt
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -130,7 +128,7 @@ def test_no_bare_datetime_now_in_app_source():
     """
     import re
 
-    call_patterns = [
+    _call_patterns = [
         re.compile(r"\bdatetime\.utcnow\s*\("),
         # Bare `datetime.now()` only — `datetime.now(ASUNCION_TZ)` is fine.
         re.compile(r"(?<![\w.])datetime\.now\s*\(\s*\)"),

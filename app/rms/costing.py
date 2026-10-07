@@ -315,7 +315,7 @@ def recipe_unit_cost_gs(session: Session, recipe_id: int) -> CostResult:
                 labor_gs = (
                     Decimal(str(recipe.direct_labor_minutes)) * Decimal(str(rate)) / Decimal("60")
                 )
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             labor_gs = Decimal("0")  # costing must never crash on config gaps
 
     unit = (batch_dec + labor_gs) / eff_yield

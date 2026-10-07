@@ -53,7 +53,7 @@ def prune_audit_log(
                 n = result.rowcount or 0
                 s.commit()
         return int(n)
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         # Fail-soft: log the exception but return 0.
         from loguru import logger
 

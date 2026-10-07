@@ -528,7 +528,7 @@ async def dashboard(
     try:
         _y = _eod_for_date(session, yesterday_d)
         cierre_ayer_pendiente = not _y
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         cierre_ayer_pendiente = False
 
     # Merma hoy
@@ -542,7 +542,7 @@ async def dashboard(
             if f.urgency in ("expired", "critical"):
                 vencer_48h_count += 1
                 vencer_48h_gs += int(f.value_at_risk_gs or 0)
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         # Defensive: dashboard never fails because of analytics math.
         # Logged at debug so it's traceable in sazon.log without spamming.
         logger.debug("dashboard expiry scan skipped: {}", exc)

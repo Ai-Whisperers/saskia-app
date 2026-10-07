@@ -12,7 +12,8 @@ def _ing(session_factory, **kw):
     sf = session_factory
     with sf() as s:
         i = Ingredient(name=kw.pop("name", "T4-ing"), unit="kg", **kw)
-        s.add(i); s.commit()
+        s.add(i)
+        s.commit()
         return i.id
 
 

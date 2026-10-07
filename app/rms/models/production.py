@@ -63,7 +63,7 @@ class ProductionCompletion(Base):
     )
 
     # Relationships
-    product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    product: Mapped["Product"] = relationship("Product")
 
 
 class ProductionPlanTemplate(Base):
@@ -94,7 +94,7 @@ class ProductionPlanTemplate(Base):
     )
 
     # Relationships
-    product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    product: Mapped["Product"] = relationship("Product")
 
 
 class ProductionPlanOverride(Base):
@@ -122,7 +122,7 @@ class ProductionPlanOverride(Base):
     )
 
     # Relationships
-    product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    product: Mapped["Product"] = relationship("Product")
 
 
 class ProductionPlan(Base):
@@ -143,8 +143,8 @@ class ProductionPlan(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
-    recipe: Mapped["Recipe"] = relationship("Recipe")  # noqa: F821 — SQLAlchemy 2.0 forward ref
-    shopping_items: Mapped[list["ShoppingListItem"]] = relationship(  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    recipe: Mapped["Recipe"] = relationship("Recipe")
+    shopping_items: Mapped[list["ShoppingListItem"]] = relationship(
         back_populates="production_plan", cascade="all, delete-orphan"
     )
 

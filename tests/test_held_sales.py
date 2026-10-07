@@ -17,7 +17,6 @@ Covers:
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import text
 
 from app.rms.held_sales import (
     discard_held,
@@ -26,7 +25,6 @@ from app.rms.held_sales import (
     list_active_held,
     resume_held,
 )
-
 
 # Uses the project-wide `session_factory` + `app_engine` fixtures
 # defined in tests/conftest.py — every test runs against a tmp DB.
@@ -149,6 +147,7 @@ def test_cap_evicts_oldest(monkeypatch, session_factory):
     monkeypatch.setenv("SAZON_MAX_HELD_SALES", "3")
     # Re-import to pick up env var (config module reads at import time)
     import importlib
+
     import app.rms.config as cfg
     importlib.reload(cfg)
     import app.rms.held_sales as hs
@@ -159,9 +158,9 @@ def test_cap_evicts_oldest(monkeypatch, session_factory):
     sf = session_factory
     with sf() as s:
         h1 = hold_cart(s, _cart(), held_by="a", label="first")
-        h2 = hold_cart(s, _cart(), held_by="a", label="second")
-        h3 = hold_cart(s, _cart(), held_by="a", label="third")
-        h4 = hold_cart(s, _cart(), held_by="a", label="fourth (evicts first)")
+        _h2 = hold_cart(s, _cart(), held_by="a", label="second")
+        _h3 = hold_cart(s, _cart(), held_by="a", label="third")
+        _h4 = hold_cart(s, _cart(), held_by="a", label="fourth (evicts first)")
     with sf() as s:
         rows = list_active_held(s)
         labels = [r.label for r in rows]
@@ -178,6 +177,7 @@ def test_cap_default_is_50(monkeypatch):
     """SAZON_MAX_HELD_SALES default is 50."""
     monkeypatch.delenv("SAZON_MAX_HELD_SALES", raising=False)
     import importlib
+
     import app.rms.config as cfg
     importlib.reload(cfg)
     assert cfg.SAZON_MAX_HELD_SALES == 50

@@ -60,7 +60,7 @@ from app.rms.tagging.derive import (
     walk_recipe_tree,
 )
 from app.rms.tagging.ensure import (
-    STARTER_TAGS,
+    STARTER_TAGS,  # re-export for db.py
     ensure_starter_tags,
     ensure_tag,
     list_tags_for_kind,
@@ -90,7 +90,6 @@ from app.rms.tagging.vocabulary import (
     TAG_ALIASES,
     TAG_ALLERGEN_BLOCKERS,
 )
-from app.rms.tagging.ensure import STARTER_TAGS  # re-export for db.py
 
 __all__ = [
     "ALLERGEN_DISPLAY_ORDER",
@@ -102,38 +101,38 @@ __all__ = [
     "STARTER_TAGS",
     "TAG_ALIASES",
     "TAG_ALLERGEN_BLOCKERS",
+    # filters (Sprint 2.2 — was in app/rms/tags.py)
+    "InventoryFilter",
     "LineTarget",
+    "ProductFilter",
+    "RecipeFilter",
+    "SalesFilter",
     "TagDerivation",
+    # ensure (Sprint 2.2 — was in app/rms/tags.py)
+    "TagKind",
     "audit_all_ingredients",
     "audit_recipe_tags",
     "backfill_validation_issues",
     "cascade_refresh",
     "derive_recipe_tags",
-    "infer_allergens",
-    "infer_dietary_tags",
-    "ingredient_blocks",
-    "ingredient_dietary_set",
-    "normalize",
-    "normalize_all",
-    "refresh_recipe_tag_cache",
-    "validate_ingredient",
-    "walk_recipe_tree",
-    # ensure (Sprint 2.2 — was in app/rms/tags.py)
-    "TagKind",
     "ensure_starter_tags",
     "ensure_tag",
-    "list_tags_for_kind",
-    "tag_target",
-    "tags_for_target",
-    "targets_with_tag",
-    "untag_target",
-    # filters (Sprint 2.2 — was in app/rms/tags.py)
-    "InventoryFilter",
-    "ProductFilter",
-    "RecipeFilter",
-    "SalesFilter",
     "filter_inventory",
     "filter_products",
     "filter_recipes",
     "filter_sales",
+    "infer_allergens",
+    "infer_dietary_tags",
+    "ingredient_blocks",
+    "ingredient_dietary_set",
+    "list_tags_for_kind",
+    "normalize",
+    "normalize_all",
+    "refresh_recipe_tag_cache",
+    "tag_target",
+    "tags_for_target",
+    "targets_with_tag",
+    "untag_target",
+    "validate_ingredient",
+    "walk_recipe_tree",
 ]

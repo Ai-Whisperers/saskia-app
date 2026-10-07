@@ -16,7 +16,6 @@ import re
 import subprocess
 from pathlib import Path
 
-
 REPO = Path("/opt/data/work/saskia-app")
 
 
@@ -102,9 +101,9 @@ def test_ci_anti_rule_step_can_be_extracted_and_run(tmp_path):
         ci_path = REPO / ".github" / "workflows" / "ci.yml"
     try:
         bash_block = _extract_bash_block(ci_path)
-    except AssertionError as e:
+    except AssertionError:
         # Step not found — already covered by other test
-        pytest_skip = True  # noqa
+        pytest_skip = True
         return
     # Write to file and bash -n parse (syntax check only)
     script = tmp_path / "anti_rules.sh"
@@ -134,7 +133,7 @@ def test_anti_rule_enforcement_fails_on_forbidden_pyjwt(tmp_path):
     if not ci_path.exists():
         ci_path = REPO / ".github" / "workflows" / "ci.yml"
     try:
-        bash_block = _extract_bash_block(ci_path)
+        _bash_block = _extract_bash_block(ci_path)
     except AssertionError:
         return  # step missing, other test catches it
     # Mock the diff: use git diff to compare fake file against a stub
@@ -271,7 +270,7 @@ def test_ci_anti_rule_step_total_check_count():
     content = ci_path.read_text()
     # Count "Anti-rule N" markers
     import re
-    n = len(re.findall(r"# Anti-rule \d+:", content))
+    _n = len(re.findall(r"# Anti-rule \d+:", content))
     # Should be 13 (1, 3, 4, 5, 9, 10, 11, 12, 14, 15, 16, 17, 18) + warn-only AR19
     n_including_warn = len(re.findall(r"# Anti-rule \d+", content))
     assert n_including_warn >= 13, (

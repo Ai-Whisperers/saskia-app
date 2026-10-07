@@ -168,7 +168,7 @@ def build_pedido_timeline(session: Session, pedido: Pedido) -> list[TimelineEven
 
     # Sort by occurred_at ascending (None last). Use a key that handles None.
     # `datetime.min` here is a sentinel for "no date" — naive on purpose.
-    events.sort(key=lambda e: e.when or datetime.min)  # noqa: DTZ901 — sort sentinel
+    events.sort(key=lambda e: e.when or datetime.min)
     return events
 
 

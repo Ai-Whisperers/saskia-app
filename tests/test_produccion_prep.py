@@ -45,7 +45,7 @@ def test_prep_view_groups_by_severity(authed_client):
     # Should have at least one severity marker in CSS or template
     # (Suficiente, Justo, Falta are the three levels)
     # We accept any of them since the data is variable.
-    has_severity = any(s in body for s in ["Suficiente", "Justo", "Falta"])  # noqa: F841 — future assertion
+    has_severity = any(s in body for s in ["Suficiente", "Justo", "Falta"])
     # If the seed has 0 plan rows, no severity is rendered — that's fine.
     # But the page should still be 200.
     assert r.status_code == 200

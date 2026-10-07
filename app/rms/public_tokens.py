@@ -92,7 +92,7 @@ def is_token_valid(expires_at: object, now: Optional[datetime] = None) -> bool:
         normalized = expires_at.replace("T", " ")
         for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
             try:
-                parsed = datetime.strptime(normalized, fmt)  # noqa: DTZ007 — DB stores naive UTC
+                parsed = datetime.strptime(normalized, fmt)
                 break
             except ValueError:
                 continue
@@ -176,7 +176,7 @@ def enforce_rate_limit(
             )
             .count()
         )
-    except Exception:  # noqa: BLE001 — fail open
+    except Exception:
         return
     if count >= _RATE_LIMIT_THRESHOLD:
         raise HTTPException(

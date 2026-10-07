@@ -270,4 +270,4 @@ class MarketPriceReference(Base):
         nullable=False,
     )
 
-    ingredient: Mapped["Ingredient"] = relationship("Ingredient")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    ingredient: Mapped["Ingredient"] = relationship("Ingredient")

@@ -5,9 +5,8 @@ watchbrief cron that tracks /produccion quick-merma modal adoption.
 """
 from datetime import datetime, timezone
 
-from app.rms.waste import record_waste
-from app.rms.waste import WasteReason
 from app.rms.models import Ingredient
+from app.rms.waste import WasteReason, record_waste
 
 
 def _make_ingredient(session_factory, name):

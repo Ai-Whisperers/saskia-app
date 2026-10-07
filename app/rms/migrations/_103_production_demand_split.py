@@ -157,7 +157,7 @@ def _migration_103_production_demand_split(conn: Any) -> None:
                     "ADD COLUMN status TEXT NOT NULL DEFAULT 'open'"
                 )
             )
-    except Exception:  # noqa: S110 — column may already exist
+    except Exception:
         pass
 
     try:
@@ -175,7 +175,7 @@ def _migration_103_production_demand_split(conn: Any) -> None:
                     "ADD COLUMN closure_notes TEXT"
                 )
             )
-    except Exception:  # noqa: S110
+    except Exception:
         pass
 
     # 5) Best-effort CHECK constraint on status. The model layer also
@@ -190,7 +190,7 @@ def _migration_103_production_demand_split(conn: Any) -> None:
                 "CHECK (status IN ('open', 'done', 'cancelled'))"
             )
         )
-    except Exception:  # noqa: S110 — constraint may already exist
+    except Exception:
         pass
 
     # BACKLOG #4 (2026-10-02): always bump schema_version at the end.
