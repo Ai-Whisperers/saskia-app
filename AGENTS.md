@@ -55,11 +55,11 @@ Supports **two deployment modes**:
 14. **Never edit a shipped migration.** Create a new one. The old one is the persisted contract.
 15. **Never renumber or reorder.** Version number is the contract.
 16. **Migrations are atomic** (one transaction per migration).
-17. **Pre-migration auto-backup is mandatory** to `/tmp/sazon_backups/<db>-pre-v<A>-to-v<B>.db` (or equivalent). See `app/rms/db.py` `sync_backup_before_migration` (FloCafe pattern). **This is currently NOT implemented (P0 to add).** Until added, the daily 03:15 backup is the only protection.
+17. **Pre-migration auto-backup is mandatory** to `/tmp/sazon_backups/<db>-pre-v<A>-to-v<B>.json.gz` (or equivalent). Implemented in `app/rms/db.py` `sync_backup_before_migration()` — runs before the first pending migration in `init_db()`. Uses `app/rms/backup.py::backup_database()` for the gzipped JSON+manifest. **Fail-closed by default**: if the backup fails, `init_db` raises unless `AIW_RMS_PROCEED_WITHOUT_BACKUP=1` is set. Locked by 3 tests in `tests/test_migration_safety.py` (`test_sync_backup_before_migration_writes_file`, `test_sync_backup_before_migration_can_be_restored`, `test_init_db_writes_pre_migration_backup_before_applying`).
 18. **`PRAGMA user_version` is the source of truth** for the current schema state. **This is currently NOT implemented (P1 to add).** Until added, the in-app `SCHEMA_VERSION` constant is used.
 19. **Two fail-closed rules** (FloCafe pattern):
     - Missing DB on a previously-initialized install → throw, don't recreate.
-    - DB schema newer than build → throw, don't auto-downgrade.
+    - DB schema newer than build → throw, don't auto-downgrade. **ENFORCED** via `fail_closed_on_newer_schema()` in `app/rms/db.py`. Locked by `tests/test_migration_safety.py::test_fail_closed_on_newer_schema_db_raises`.
 
 ### Time zones (2 sub-rules)
 

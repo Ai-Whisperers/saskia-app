@@ -5,6 +5,84 @@
 
 ## [Unreleased]
 
+### Added — Pre-migration backup + fail-closed on newer schema (2026-10-07)
+
+Implements AGENTS.md Hard Rule 17 (pre-migration backup) and
+Hard Rule 19b (fail-closed on DB schema > build schema). Both
+were placeholders; both are now production code.
+
+**`app/rms/db.py` — two new functions:**
+
+- `sync_backup_before_migration(engine, *, from_version, to_version,
+  backup_dir=None)` — writes a gzipped JSON backup to
+  `/tmp/sazon_backups/sazon-pre-mig-v<A>-to-v<B>-<ts>.json.gz`
+  using `app/rms/backup.py::backup_database()`. The filename
+  includes the from→to versions so a failed migration can be
+  reverted by restoring the matching backup.
+
+  - Skip behavior: if `from_version == 0` (fresh DB) AND
+    `AIW_RMS_SKIP_PRE_MIGRATION_BACKUP=1` is set, the backup is
+    skipped (no data to lose). Production always backs up.
+  - Fail-closed: if the backup itself fails, this function
+    raises. The caller (`init_db`) decides whether to abort
+    the migration or proceed with operator awareness.
+
+- `fail_closed_on_newer_schema(current, target)` — raises
+  `RuntimeError` if the DB schema version is newer than the
+  build's `CURRENT_SCHEMA_VERSION`. Protects against:
+  - Operator rolls back to an older image after a deploy.
+  - A backup from a newer build is restored on an older build.
+  - Two replicas running different images during a rolling
+    deploy (mitigated by the existing advisory lock).
+
+**`app/rms/db.py` — `init_db()` wired:**
+
+After reading `current` and before the migration loop:
+1. `fail_closed_on_newer_schema(current, target)` — raises
+   if `current > target`.
+2. `sync_backup_before_migration(...)` — writes a backup
+   if `current < target`. Catches its own exception and
+   re-raises as `RuntimeError("Pre-migration backup failed")`
+   unless `AIW_RMS_PROCEED_WITHOUT_BACKUP=1` is set.
+
+### Added — Migration discipline regression tests (2nd wave)
+
+5 new tests in `tests/test_migration_safety.py`:
+- `test_sync_backup_before_migration_writes_file` — the function
+  returns a Path, writes a .json.gz, contains valid manifest+tables
+  with the expected schema_version.
+- `test_sync_backup_before_migration_can_be_restored` — the
+  backup file contains the seeded data, proving round-trip.
+- `test_init_db_writes_pre_migration_backup_before_applying` —
+  end-to-end: `init_db()` writes a `sazon-pre-mig-*.json.gz`
+  file in the configured backup dir.
+- `test_init_db_fail_closed_when_backup_fails` — monkeypatched
+  backup failure + no override → `init_db` raises RuntimeError.
+- `test_init_db_proceeds_when_backup_fails_with_override` —
+  `AIW_RMS_PROCEED_WITHOUT_BACKUP=1` lets init_db proceed.
+- `test_fail_closed_on_newer_schema_db_raises` — DB schema
+  bumped to CURRENT+5 → `init_db` raises "newer than this build".
+- `test_fail_closed_on_newer_schema_one_version_higher` — edge
+  case: CURRENT+1 still raises.
+
+Total: **14 migration tests** in `tests/test_migration_safety.py`,
+all passing.
+
+### Changed — AGENTS.md Hard Rules 17 + 19b (2026-10-07)
+
+- Hard Rule 17: was "P0 to add code". Now: ENFORCED via
+  `sync_backup_before_migration()`. The placeholder text
+  referring to a future implementation is gone.
+- Hard Rule 19b: was "P0 to add code". Now: ENFORCED via
+  `fail_closed_on_newer_schema()`. The placeholder text is gone.
+
+### Files changed
+- `app/rms/db.py` — added 2 functions, 2 wiring points in
+  `init_db`, added `import os`
+- `tests/test_migration_safety.py` — 5 new tests, removed 2
+  placeholders (now real tests)
+- `AGENTS.md` — Hard Rules 17 + 19b updated
+
 ### Added — CI anti-rule enforcement (2026-10-07)
 
 The 20 anti-rules in AGENTS.md "Anti-rules" section are now

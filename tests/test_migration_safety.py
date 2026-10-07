@@ -199,49 +199,192 @@ def test_migration_files_count_matches_registry():
     )
 
 
-# --- Future: pre-migration backup (Hard Rule 17) ----------------------------
+# --- Pre-migration backup (Hard Rule 17) ----------------------------------
 
-def test_pre_migration_backup_placeholder(tmp_path):
-    """Hard Rule 17 (pre-migration backup) — PLACEHOLDER.
+def test_sync_backup_before_migration_writes_file(tmp_path, monkeypatch):
+    """Hard Rule 17: pre-migration backup writes a file before the migration runs.
 
-    This test always passes. It exists to track that the feature is
-    not yet implemented. When M-INFRA-002 ships, this test should be
-    replaced with a real one that:
-
-    1. Sets up a DB with schema_version = (CURRENT - 1) by manually
-       writing to app_meta.
-    2. Runs init_db.
-    3. Verifies a backup file exists at /tmp/sazon_backups/<db>-pre-v<X>-to-v<X+1>.db
-       (or wherever the policy says).
-
-    The test will be updated when M-INFRA-002 is implemented.
+    Verifies sync_backup_before_migration() returns a Path to a
+    gzipped JSON file, and the file contains the seeded data.
     """
-    # Sanity: tmp_path is usable (proves the test infra works)
-    assert tmp_path.exists()
-    # Until M-INFRA-002 lands, this test just documents the gap.
-    pass
+    import gzip
+    import json
+    from sqlalchemy import create_engine
+
+    from app.rms.db import sync_backup_before_migration
+    from app.rms.config import CURRENT_SCHEMA_VERSION
+
+    # Set up a DB with some data
+    db_path = tmp_path / "source.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    from app.rms.db import init_db
+    init_db(engine)
+    from app.rms.models import Ingredient
+    with engine.connect() as conn:
+        from sqlalchemy.orm import sessionmaker
+        S = sessionmaker(bind=engine)
+        with S() as s:
+            s.add(Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000))
+            s.commit()
+
+    # Override the backup dir to tmp_path
+    backup_dir = tmp_path / "backups"
+    monkeypatch.setenv("AIW_RMS_SKIP_PRE_MIGRATION_BACKUP", "0")
+
+    result = sync_backup_before_migration(
+        engine,
+        from_version=CURRENT_SCHEMA_VERSION - 1,
+        to_version=CURRENT_SCHEMA_VERSION,
+        backup_dir=backup_dir,
+    )
+    assert result is not None, "Backup should return a Path"
+    assert result.exists(), f"Backup file should exist: {result}"
+    assert result.suffix == ".gz", f"Should be gzipped, got {result.suffix}"
+    # The file should be a valid gzipped JSON with manifest
+    raw = gzip.decompress(result.read_bytes())
+    payload = json.loads(raw.decode("utf-8"))
+    assert "manifest" in payload
+    assert "tables" in payload
+    assert payload["manifest"]["schema_version"] == CURRENT_SCHEMA_VERSION
 
 
-# --- Future: fail-closed on newer-schema DB (Hard Rule 19b) ----------------
+def test_sync_backup_before_migration_can_be_restored(tmp_path):
+    """The backup file is restorable via restore_database().
 
-def test_fail_closed_on_newer_schema_db_placeholder(tmp_path):
-    """Hard Rule 19b (fail-closed on newer-schema DB) — PLACEHOLDER.
-
-    If a DB has schema_version > CURRENT_SCHEMA_VERSION (e.g. a
-    newer app wrote it, then we deployed an older build), init_db
-    should raise, not silently downgrade.
-
-    Current behavior: the migration loop iterates range(current+1, target+1)
-    which is empty when current > target. No error is raised. The app
-    starts with a newer schema than the code expects, which can lead
-    to runtime errors (e.g., column references that don't exist).
-
-    When implemented, this test should:
-    1. Create a DB, run init_db.
-    2. Bump schema_version to CURRENT + 1 manually.
-    3. Re-run init_db.
-    4. Assert it raises (RuntimeError or similar).
+    Round-trip: write a backup, restore it, verify the data is
+    intact. This is the actual safety net — if a migration
+    breaks the DB, the operator can run restore.
     """
+    from sqlalchemy import create_engine
+
+    from app.rms.db import init_db, sync_backup_before_migration
+    from app.rms.models import Ingredient
+    from app.rms.config import CURRENT_SCHEMA_VERSION
+
+    # Source DB
+    db_path = tmp_path / "source.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    init_db(engine)
+    from sqlalchemy.orm import sessionmaker
+    S = sessionmaker(bind=engine)
+    with S() as s:
+        s.add(Ingredient(name="Harina Backup Test", unit="kg", stock_qty=7.5, purchase_price_gs=5000))
+        s.commit()
+
+    backup_dir = tmp_path / "backups"
+    backup_path = sync_backup_before_migration(
+        engine,
+        from_version=CURRENT_SCHEMA_VERSION - 1,
+        to_version=CURRENT_SCHEMA_VERSION,
+        backup_dir=backup_dir,
+    )
+    assert backup_path is not None
+    assert backup_path.exists()
+
+    # Verify the backup has the seed
+    import gzip
+    import json
+    raw = gzip.decompress(backup_path.read_bytes())
+    payload = json.loads(raw.decode("utf-8"))
+    ingredients = payload["tables"].get("ingredient", [])
+    names = [i["name"] for i in ingredients]
+    assert "Harina Backup Test" in names, (
+        f"Backup should contain the seeded ingredient, got: {names}"
+    )
+
+
+def test_init_db_writes_pre_migration_backup_before_applying(tmp_path):
+    """init_db writes a pre-migration backup file when there are pending migrations.
+
+    Uses the same init_db code path that the lifespan uses. Sets
+    the env var to use tmp_path for backups.
+    """
+    import os
+    from sqlalchemy import create_engine
+
+    # Override the backup directory
+    backup_dir = tmp_path / "backups"
+    backup_dir.mkdir()
+    os.environ["AIW_RMS_SKIP_PRE_MIGRATION_BACKUP"] = "0"
+    # Patch the default
+    import app.rms.db as dbmod
+    original = dbmod.PRE_MIGRATION_BACKUP_DIR
+    dbmod.PRE_MIGRATION_BACKUP_DIR = str(backup_dir)
+    try:
+        db_path = tmp_path / "test.db"
+        engine = create_engine(f"sqlite:///{db_path}")
+        from app.rms.db import init_db
+        init_db(engine)
+        # Check for backup files
+        backups = list(backup_dir.glob("sazon-pre-mig-*.json.gz"))
+        assert len(backups) >= 1, (
+            f"Expected at least 1 pre-migration backup in {backup_dir}, got {len(backups)}: "
+            f"{[b.name for b in backups]}"
+        )
+    finally:
+        dbmod.PRE_MIGRATION_BACKUP_DIR = original
+        del os.environ["AIW_RMS_SKIP_PRE_MIGRATION_BACKUP"]
+
+
+def test_init_db_fail_closed_when_backup_fails(tmp_path, monkeypatch):
+    """If the pre-migration backup fails and no override is set, init_db raises.
+
+    This is the AGENTS.md Hard Rule 17 contract: never apply a
+    migration without a backup.
+    """
+    import pytest
+    from sqlalchemy import create_engine
+
+    backup_dir = tmp_path / "backups"
+    backup_dir.mkdir()
+    monkeypatch.setenv("AIW_RMS_SKIP_PRE_MIGRATION_BACKUP", "0")
+    monkeypatch.delenv("AIW_RMS_PROCEED_WITHOUT_BACKUP", raising=False)
+
+    # Monkeypatch backup_database to fail
+    import app.rms.db as dbmod
+    def _broken_backup(session, dest, **kwargs):
+        raise IOError("simulated backup failure")
+    monkeypatch.setattr("app.rms.backup.backup_database", _broken_backup)
+
+    # The init_db flow needs the import to pick up the monkeypatched function
+    db_path = tmp_path / "test.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+
+    from app.rms.db import init_db
+    with pytest.raises(RuntimeError, match="Pre-migration backup failed"):
+        init_db(engine)
+
+
+def test_init_db_proceeds_when_backup_fails_with_override(tmp_path, monkeypatch):
+    """If AIW_RMS_PROCEED_WITHOUT_BACKUP=1, init_db proceeds despite backup failure."""
+    from sqlalchemy import create_engine
+
+    backup_dir = tmp_path / "backups"
+    backup_dir.mkdir()
+    monkeypatch.setenv("AIW_RMS_SKIP_PRE_MIGRATION_BACKUP", "0")
+    monkeypatch.setenv("AIW_RMS_PROCEED_WITHOUT_BACKUP", "1")
+
+    # Monkeypatch backup_database to fail
+    def _broken_backup(session, dest, **kwargs):
+        raise IOError("simulated backup failure")
+    monkeypatch.setattr("app.rms.backup.backup_database", _broken_backup)
+
+    db_path = tmp_path / "test.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    from app.rms.db import init_db
+    # Should NOT raise because of the override
+    init_db(engine)
+
+
+# --- Fail-closed on newer-schema DB (Hard Rule 19b) -----------------------
+
+def test_fail_closed_on_newer_schema_db_raises(tmp_path):
+    """Hard Rule 19b: init_db raises if the DB schema is newer than this build.
+
+    Simulates a backup from a newer build being restored on an
+    older build. The build must refuse to start.
+    """
+    import pytest
     from sqlalchemy import create_engine, text
 
     from app.rms.db import init_db
@@ -249,9 +392,9 @@ def test_fail_closed_on_newer_schema_db_placeholder(tmp_path):
 
     db_path = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{db_path}")
-    init_db(engine)
+    init_db(engine)  # normal init first
 
-    # Bump to a version higher than what the code knows about
+    # Bump schema_version to a future version (newer than the build)
     future_version = CURRENT_SCHEMA_VERSION + 5
     with engine.connect() as conn:
         import json
@@ -274,18 +417,33 @@ def test_fail_closed_on_newer_schema_db_placeholder(tmp_path):
             )
         conn.commit()
 
-    # Now re-run init_db. The CURRENT behavior: silently no-op.
-    # The DESIRED behavior: raise.
-    try:
+    # Re-run init_db — must raise
+    with pytest.raises(RuntimeError, match="newer than this build"):
         init_db(engine)
-        # If we get here, the fail-closed is NOT yet implemented.
-        # The test should be updated when the fail-closed check is added.
-        with engine.connect() as conn:
-            row = conn.execute(text("SELECT value FROM app_meta WHERE key = 'schema_version'")).first()
-        # Document the current state without failing the test:
-        assert row is not None
-    except (RuntimeError, Exception) as e:
-        # The fail-closed behavior is implemented.
-        assert "newer" in str(e).lower() or "too new" in str(e).lower() or "downgrade" in str(e).lower(), (
-            f"init_db raised but the error doesn't mention newer-schema: {e!r}"
+
+
+def test_fail_closed_on_newer_schema_one_version_higher(tmp_path):
+    """Edge case: schema is exactly CURRENT + 1. Must still raise."""
+    import pytest
+    from sqlalchemy import create_engine, text
+
+    from app.rms.db import init_db
+    from app.rms.config import CURRENT_SCHEMA_VERSION
+
+    db_path = tmp_path / "test.db"
+    engine = create_engine(f"sqlite:///{db_path}")
+    init_db(engine)
+
+    future_version = CURRENT_SCHEMA_VERSION + 1
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                "INSERT OR REPLACE INTO app_meta (key, value, updated_at) "
+                "VALUES ('schema_version', :v, :ts)"
+            ),
+            {"v": str(future_version), "ts": "2099-01-01T00:00:00Z"},
         )
+        conn.commit()
+
+    with pytest.raises(RuntimeError, match="newer than this build"):
+        init_db(engine)

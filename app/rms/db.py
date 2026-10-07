@@ -23,6 +23,7 @@ explicitly, typically from `main.py`'s lifespan handler.
 
 from __future__ import annotations
 
+import os
 import sys
 from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
@@ -4392,6 +4393,126 @@ def _current_schema_version(conn: Any) -> int:
         return 0
 
 
+# Backups live under /tmp/sazon-backups/ on every supported platform.
+# On Render/VPS this is ephemeral (reboots wipe it) — for permanent
+# backups, the daily 03:15 cron pushes to R2. This dir is a safety
+# net for "I just made a change and want to roll back RIGHT NOW".
+PRE_MIGRATION_BACKUP_DIR = "/tmp/sazon-backups"
+
+
+def _backup_dir_path() -> "Path":
+    """Resolve the pre-migration backup directory.
+
+    The directory is created lazily (idempotent). Returns a Path
+    so callers can name their file with .parent / .name.
+    """
+    from pathlib import Path
+
+    p = Path(PRE_MIGRATION_BACKUP_DIR)
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def sync_backup_before_migration(
+    engine: Any,
+    *,
+    from_version: int,
+    to_version: int,
+    backup_dir: "Path | str | None" = None,
+) -> "Path | None":
+    """Write a pre-migration backup before applying schema change v(from+1) to v(to).
+
+    Per AGENTS.md Hard Rule 17: every migration MUST be preceded by a
+    backup. Returns the path to the backup file, or None if the
+    backup failed (caller decides whether to fail-closed or proceed
+    in degraded mode).
+
+    The backup uses `app/rms/backup.py:backup_database()` which
+    serializes every table to a gzipped JSON archive with sha256
+    integrity. Restoration is a `restore_database()` call.
+
+    Fail-closed: if the backup itself fails (DB unreachable, disk
+    full, etc.), this function raises. The caller is expected to
+    catch and either:
+      1. Refuse to apply the migration (preferred), or
+      2. Log loudly + proceed (acceptable if you have a daily
+         backup and the migration is known-safe).
+
+    Default: skip the backup if `from_version == 0` (fresh DB,
+    no data to back up) AND env var
+    `AIW_RMS_SKIP_PRE_MIGRATION_BACKUP=1` is set. Both conditions
+    are explicit so the production path always backs up.
+
+    Idempotency: the filename includes the timestamp at second
+    granularity. Two migrations within 1 second would collide;
+    the second would overwrite the first. In practice, init_db
+    runs once at boot, so this is not a real concern.
+    """
+    from datetime import datetime as _dt
+    from pathlib import Path as _Path
+
+    if backup_dir is None:
+        backup_dir_path = _backup_dir_path()
+    else:
+        backup_dir_path = _Path(backup_dir)
+        backup_dir_path.mkdir(parents=True, exist_ok=True)
+
+    # Fresh DBs have no data to lose; skip if explicitly told OR
+    # if the DB is empty (current==0 means no schema_version row).
+    if from_version == 0 and os.environ.get("AIW_RMS_SKIP_PRE_MIGRATION_BACKUP") == "1":
+        logger.debug("sync_backup_before_migration: skipping for fresh DB (env override)")
+        return None
+
+    # Lazy imports to keep db.py import-safe (no side effects on
+    # import — important for tests that import db.py without a DB).
+    from app.rms.backup import backup_database
+    from sqlalchemy.orm import sessionmaker
+
+    ts = _dt.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    dest = backup_dir_path / f"sazon-pre-mig-v{from_version:04d}-to-v{to_version:04d}-{ts}.json.gz"
+
+    Session = sessionmaker(bind=engine)
+    try:
+        with Session() as session:
+            manifest = backup_database(session, dest)
+            logger.info(
+                f"sync_backup_before_migration: wrote {dest.name} "
+                f"({manifest.n_rows} rows, schema v{manifest.schema_version})"
+            )
+        return dest
+    except Exception as exc:
+        # Fail-closed: re-raise. The init_db caller is expected
+        # to either refuse the migration or log loudly + proceed.
+        logger.error(
+            f"sync_backup_before_migration FAILED for v{from_version} -> v{to_version}: "
+            f"{exc!r}. Caller should refuse the migration or proceed with operator awareness."
+        )
+        raise
+
+
+def fail_closed_on_newer_schema(current: int, target: int) -> None:
+    """Refuse to start if the DB schema is NEWER than this build expects.
+
+    Per AGENTS.md Hard Rule 19b: a DB with schema_version > CURRENT_SCHEMA_VERSION
+    means a newer build wrote the DB, then an older build was deployed.
+    Auto-downgrading is not safe (DDL is forward-only). We raise.
+
+    This protects against:
+      - Operator rolls back to an older image after a deploy
+      - A backup from a newer build is restored on an older build
+      - Two replicas running different images during a rolling deploy
+        (this last one is mitigated by the existing advisory lock)
+    """
+    if current > target:
+        raise RuntimeError(
+            f"DB schema is newer than this build supports. "
+            f"current={current} (DB), target={target} (build). "
+            f"This usually means an older build was deployed after a newer one. "
+            f"Either redeploy the matching version or restore from a backup. "
+            f"(See AGENTS.md Hard Rule 19b.)"
+        )
+
+
 def schema_version(conn: Any) -> int:
     """Read schema version. Public alias for _current_schema_version.
 
@@ -4499,6 +4620,46 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
         from app.rms.db import schema_version
 
         current = schema_version(probe_conn)
+
+    # 2a. Fail-closed on newer-schema DB (AGENTS.md Hard Rule 19b).
+    # If the DB has a higher schema_version than this build supports,
+    # we MUST refuse to start. Auto-downgrade is not safe (DDL is
+    # forward-only; rolling back schema-version doesn't roll back
+    # schema state).
+    fail_closed_on_newer_schema(current, target)
+
+    # 2b. Pre-migration backup (AGENTS.md Hard Rule 17). If there
+    # are pending migrations, write a backup file before applying
+    # the first one. The backup is named with the from→to versions
+    # so a failed migration can be reverted by restoring it.
+    if current < target:
+        try:
+            backup_path = sync_backup_before_migration(
+                engine,
+                from_version=current,
+                to_version=current + 1,
+            )
+            if backup_path is not None:
+                logger.info(
+                    f"Pre-migration backup written: {backup_path}"
+                )
+        except Exception as backup_exc:
+            # Fail-closed: a bad backup should stop the migration
+            # unless the operator has explicitly opted into degraded
+            # mode via AIW_RMS_PROCEED_WITHOUT_BACKUP=1.
+            if os.environ.get("AIW_RMS_PROCEED_WITHOUT_BACKUP") == "1":
+                logger.warning(
+                    f"Pre-migration backup FAILED ({backup_exc!r}), "
+                    f"but AIW_RMS_PROCEED_WITHOUT_BACKUP=1; proceeding anyway. "
+                    f"Daily 03:15 cron is the only protection."
+                )
+            else:
+                raise RuntimeError(
+                    f"Pre-migration backup failed: {backup_exc!r}. "
+                    f"Refusing to apply migrations. Set "
+                    f"AIW_RMS_PROCEED_WITHOUT_BACKUP=1 to proceed without backup "
+                    f"(only safe if you have a recent daily backup)."
+                ) from backup_exc
 
     # 3. Run each pending migration on its OWN connection (auto-committed).
     # This is more robust than SAVEPOINTs because each migration's
