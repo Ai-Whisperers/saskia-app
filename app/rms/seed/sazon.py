@@ -326,7 +326,9 @@ DELIVERY_ZONES: list[tuple[str, str, str, float, int, int, int, str | None]] = [
 # set to "phone"). Legacy phone-channel traffic now maps to
 # Channel.OTHER.value, and "phone" prefix in seed labels stays a display
 # string only — not a Channel.code.
-from app.rms.models.channels import Channel
+from app.rms.models.channels import (
+    Channel,  # noqa: F811 — override the bulk import from app.rms.models
+)
 
 CHANNELS: list[tuple[str, str, int, bool, str | None]] = [
     # (code, label, sort_order, is_default, notes)
@@ -1175,7 +1177,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
     _saskia_user, was_created = _ensure_user(session, SASKIA_USER, SASKIA_PASSWORD, role="admin")
     if was_created:
         report.users += 1
-    for username, password, _full_name, email in CASHIER_USERS:
+    for username, password, _full_name, _email in CASHIER_USERS:
         _u, was_created = _ensure_user(session, username, password, role="cashier")
         if was_created:
             report.users += 1
@@ -2097,7 +2099,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
         report.sales += 1
 
     # Initial stock movement (audit trail for opening balance)
-    for ing_name, ing in ingredient_objs_by_name.items():
+    for ing in ingredient_objs_by_name.values():
         # Idempotency: one initial StockMovement per ingredient (1:1 audit trail).
         existing_initial = session.execute(
             select(StockMovement).where(
