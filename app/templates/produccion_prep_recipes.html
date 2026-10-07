@@ -12,9 +12,17 @@
    Reuses fmt_qty macro from produccion_prep.html sibling template. #}
 {% macro fmt_qty(qty, unit) -%}
   {%- if unit in ('g', 'ml') -%}
+    {# Linear measurements — round to int, no decimals (0.5kg looks
+       weird in a printout, "500g" is what the cook needs to weigh). #}
     {{ qty|round|int }} {{ unit }}
   {%- elif unit in ('und', 'unid') -%}
-    {{ (qty|round(0, 'ceil'))|int }} {{ unit }}
+    {# COUNT units — show the actual scaled value to 1 decimal
+       (e.g. 0.3 und, 1.5 und) so the cross-check "Totales cruzados"
+       matches the linear sum.  Ivan 2026-10-07: ceil() hid the
+       0.5 × 3 = 1.5 batches math and made the per-card sum drift
+       from the cumulative table. #}
+    {%- set rounded = (qty * 10)|round|int / 10 -%}
+    {{ rounded }} {{ unit }}
   {%- else -%}
     {{ qty|round(1) }} {{ unit }}
   {%- endif -%}

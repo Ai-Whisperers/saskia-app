@@ -330,6 +330,51 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                 )
             out["n_products"] = 25
 
+        elif scenario == "with_plan_shortages":
+            """3 products with recipes + 1 product without recipe + 14d
+            sales so plan_production() has rows that REQUIRE ingredients
+            the operator has insufficient stock for. Used by the
+            prep-recipes vs shopping-list cross-check test.
+            """
+            from app.rms.models import RecipeLine
+
+            for i in range(3):
+                ing = _make_quick_ingredient(
+                    s, name=f"PlanShort Ing {i}", unit="kg" if i % 2 == 0 else "und"
+                )
+                # 10 kg starting stock; 14 sales of 3 und consume
+                # ~420 kg → stock clamps at 0 (CHECK constraint) and
+                # every plan line is a real shortage. The actual unit
+                # numbers aren't what we care about — we only need
+                # both views to agree on them.
+                ing.stock_qty = 10.0
+                s.flush()
+                rec = _make_quick_recipe(
+                    s, f"PlanShort Rec {i}", ing, yield_qty=10.0
+                )
+                # Replace the default 0.3 kg line with 1 kg/batch so
+                # 1 unit sold → 0.1 kg consumed × 3 × 14 = 4.2 kg
+                # (fits under the 10 kg starting stock; no sale-side
+                # constraint violation).
+                rl = s.query(RecipeLine).filter_by(recipe_id=rec.id).first()
+                if rl is not None:
+                    rl.qty = 1.0
+                p = _make_quick_product(s, f"PlanShort Prod {i:02d}", rec)
+                # 14 days of sales so the rolling forecast produces rows
+                for d in range(14):
+                    apply_sale(
+                        s,
+                        product_id=p.id,
+                        qty=3.0,
+                        sold_at=now - timedelta(days=d, hours=1),
+                        notes=None,
+                        customer_id=None,
+                        payment_method="efectivo",
+                        discount_gs=0,
+                        channel="Mostrador",
+                    )
+            s.commit()
+
         s.commit()
     return out
 
