@@ -51,9 +51,9 @@
   {# Bug 1 fix: single consolidated save button (no more per-row Guardar). #}
   {% if rows %}
   <button type="submit" form="tomorrow-plan-form" class="btn btn-primary"
-          aria-label="Guardá los ajustes de cantidad para mañana">
+          aria-label="Guardar los ajustes de cantidad para mañana">
     <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-    Guardá plan de mañana
+    Guardar plan de mañana
   </button>
   {% endif %}
 </div>
@@ -82,9 +82,6 @@
 {# PRO-PED: pedidos confirmados para mañana, en la misma pantalla del plan #}
 {% if pedidos_manana %}
 <div class="card" style="padding: var(--space-4) var(--space-6); margin-bottom: var(--space-4);">
-  <h2 style="margin: 0 0 var(--space-2) 0; font-size: 1.05rem;">
-    🧾 Pedidos para mañana ({{ pedidos_manana|length }})
-  </h2>
   {# 2026-10-07: each pedido expands to show its line items (what
    the client is actually buying). Collapsed by default if there are
    many pedidos; expanded for ≤3 so the cook sees what's coming at
@@ -166,7 +163,7 @@
       <p class="text-muted" style="font-size: var(--text-sm); margin: var(--space-2) 0 0 0;">
         Editá la columna <strong>Plan</strong> si querés cambiar la cantidad.
         <strong>Pedidos</strong> = unidades ya comprometidas vía encargos.
-        <strong>Forecast</strong> = sugerencia del algoritmo.
+        <strong>Pronóstico</strong> = sugerencia del algoritmo.
       </p>
     </div>
 
@@ -174,7 +171,7 @@
       <thead>
         <tr>
           <th>Producto</th>
-          <th class="text-right" title="Forecast del algoritmo (rolling 14d / plantilla / ajuste)">Forecast</th>
+          <th class="text-right" title="Pronóstico del algoritmo (rolling 14d / plantilla / ajuste)">Pronóstico</th>
           <th class="text-right" title="Unidades ya comprometidas vía pedidos">Pedidos</th>
           <th class="text-right" title="Plan final (forecast + pedidos, editable)">Total</th>
           <th>Fuente</th>

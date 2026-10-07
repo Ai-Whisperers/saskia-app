@@ -30,7 +30,7 @@
 
   <div class="form-row">
     <label for="phone">Teléfono</label>
-    <input type="tel" id="phone" name="phone" value="{{ form_values.phone if form_values else (customer.phone or '') }}" maxlength="32">
+    <input type="tel" id="phone" name="phone" value="{{ form_values.phone if form_values else (customer.phone or '') }}" maxlength="32" placeholder="+595 9XX XXXXX">
   </div>
 
   <div class="form-row">

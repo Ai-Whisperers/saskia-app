@@ -104,7 +104,7 @@
   {{ ui.skeleton_section(id="analisis-erosion", variant="line", count=4, label="Cargando alertas de margen") }}
   <div data-loaded-section="analisis-erosion">
   <table class="table is-hoverable">
-    <thead><tr><th>Producto</th><th>Ingrediente</th><th class="num">Precio viejo</th><th class="num">Precio nuevo</th><th class="num">Δ Margen</th></tr></thead>
+    <thead><tr><th>Producto</th><th>Ingrediente</th><th class="num">Precio viejo</th><th class="num">Precio nuevo</th><th class="num">Cambio (margen)</th></tr></thead>
     <tbody>
       {% for a in erosion_alerts %}
       <tr>

@@ -14,7 +14,7 @@
 <div data-loaded-section="ops-status-table">
 <table class="table is-hoverable">
   <thead>
-    <tr><th>Endpoint</th><th>Propósito</th><th class="actions">Acción</th></tr>
+    <tr><th>Ruta</th><th>Propósito</th><th class="actions">Acción</th></tr>
   </thead>
   <tbody>
     {% for path, purpose in endpoints %}
@@ -49,7 +49,7 @@
    if reorder_rate drops below 20%, look for product quality / pricing issues.
    The avg_days_between_orders is the operator's planning cadence — if it
    creeps up, customers are churning slowly. #}
-<h2>Reorder rate (últimos 90 días)</h2>
+<h2>Tasa de reposición (últimos 90 días)</h2>
 {% set rate_pct = (reorder_stats.reorder_rate * 100) | round(1) %}
 <p>
   <strong>{{ rate_pct }}%</strong>
@@ -64,7 +64,7 @@
     <tr>
       <th>Cliente</th>
       <th class="num">Pedidos</th>
-      <th class="num">Total ₲</th>
+      <th class="num">Total (Gs.)</th>
     </tr>
   </thead>
   <tbody>

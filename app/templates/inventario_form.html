@@ -153,7 +153,7 @@
     {% endif %}
 
     <div class="form-row">
-      <label for="lead_time_days">Lead time proveedor (días)</label>
+      <label for="lead_time_days">Tiempo de reposición del proveedor (días)</label>
       <input type="number" id="lead_time_days" name="lead_time_days" min="0" max="90"
              value="{{ ingredient.lead_time_days if ingredient and ingredient.lead_time_days else '' }}">
     </div>
@@ -162,7 +162,7 @@
 
 
   <div class="form-actions">
-    <button type="submit" class="btn btn-primary">Guardá</button>
+    <button type="submit" class="btn btn-primary">Guardar</button>
     <a href="/inventario" class="btn">Cancelar</a>
   </div>
 </form>

@@ -1,3 +1,63 @@
+## 2026-10-07e — SASKIA-301: copy/UX hardening Phase 0 (globals)
+
+**Goal:** fix the 8 categories of copy/UX drift identified in
+`docs/ux/copy-fix-list.md` (the audit of 110 templates + the
+reuse-abstraction audit) that apply globally across the app.
+
+**Shipped in this commit:**
+
+- **Currency symbol drift (G.1)** — `₲` and bare `Gs` → canonical `Gs. 729.167`
+  per `app/docs/copy-vos.md`. 4 templates: `eod_print.html` (2 spots),
+  `ops_status.html`, `reportes_mermas_cost.html`, `suppliers_volatility.html`.
+- **English band label (G.2)** — `>Loyalty<` → `>Fidelización<` in
+  `inicio.html` line 87.
+- **English loan words (G.3)** — 18 replacements across 15 templates:
+  `COGS` → `Costo de Mercadería Vendida`, `Revenue` → `Ingresos`,
+  `Batches` → `Tandas`, `Forecast` → `Pronóstico`, `Endpoint` → `Ruta`,
+  `Counterparty` → `Contraparte`, `Reorder rate` → `Tasa de reposición`,
+  `Lead time` → `Tiempo de reposición`, `Login OK/FAIL` → `Login exitoso/fallido`,
+  `Δ Margen/Δ Gs./Δ Precio` → `Cambio (...)`, `KPIs en vivo` → `Indicadores en vivo`,
+  `Owner` → `Responsable`, `Status` → `Estado`, `Prob.` → `Probabilidad`,
+  `Unit Gs.` → `Unitario (Gs.)`, `Qty` → `Cant.`, `Severidad (Gs.)` instead of
+  `Sev Gs.`. English tooltip `Set every row...` → `Marcá todas...` in produccion.html.
+- **Register consistency (G.4)** — `Guardá` → `Guardar` in 11 button locations
+  across 9 templates (form submit buttons + aria-labels). `Decí por qué`
+  → `Indicá por qué` in produccion.html.
+- **Severity pill (G.7)** — `sev-pill saludable` → `sev-pill ok` in inicio.html
+  (canonical set: OK / Aviso / Crítico).
+- **Column header / placeholder (G.6+G.8)** — `(Gs)` → `(Gs.)` in
+  menu_import_ocr.html; placeholder `25000` → `25.000` in menus.html.
+- **Tooltip rationale (G.5)** — no change (locked): all 8 `aria-label="Cerrar"`
+  buttons have SVG X icon as visible content; the aria-label is the correct
+  accessible name.
+
+**Tests:** 6 new test files, 33 tests, all pass in 20s:
+- `tests/test_SASKIA-301_currency_gs.py` (5)
+- `tests/test_SASKIA-301_loan_words.py` (15+)
+- `tests/test_SASKIA-301_register.py` (3)
+- `tests/test_SASKIA-301_severity.py` (2)
+- `tests/test_SASKIA-301_columns.py` (2)
+- `tests/test_SASKIA-301_tooltips.py` (2)
+
+All marked `pytest.mark.smoke` so they run on every commit via pre-commit.
+
+**Decisions (D1-D8)** documented in `docs/ux/copy-ux-decisions.md`:
+- D1: `copy-vos.md` is wrong (`Guardá` is Argentine, not Paraguayan for buttons);
+  canonical is infinitive for buttons, vose-conjugated for prose. The style
+  guide fix happens in SASKIA-310 (Phase 9).
+- D2: actual scope larger than original estimate (11 Guardá buttons, not 2-3;
+  3 Loyalty templates, not 1; 4 ₲ templates, confirmed).
+- D3: Phase 8 shrinks (500.html is already safe; the security check becomes
+  a regression test rather than a fix).
+- D4-D5: worktree + sibling recovery (SASKIA-207 was uncommitted on main;
+  this commit includes the recovery merge via the chain SASKIA-207 → SASKIA-301).
+- D6-D8: test naming, no Phase 0 migrations, glossary in Phase 9.
+
+**Regression:** SASKIA-205/206/207 (62 tests) still pass; ruff clean on the
+new test files.
+
+Refs: `docs/ux/copy-fix-list.md`, `docs/ux/copy-ux-decisions.md`,
+`.hermes/plans/2026-10-07_202522-copy-ux-hardening.md`.
 ## 2026-10-07e — SASKIA-208: Poisson weekday restocking forecast (BACKLOG #5)
 
 **Model** (`app/rms/restock_forecast.py`, zero new deps per AGENTS.md rule 26):
@@ -284,3 +344,174 @@
 - Live at https://sazon-vps.paragu-ai.com/reorder  
 - Auth: demo / demo1234  
 - Test with: `pytest tests/reorder/** -q` (all phases)
+## 2026-10-07f — SASKIA-302: login + inicio + prod-manana (Phase 1)
+
+**Goal:** fix the 7 P0/P1 copy/UX bugs on login and home, plus the
+duplicate H2 in produccion_manana.html (a 1-line P0 bug promoted from
+Phase 4 because it's a screen-reader / nav ordering issue).
+
+**Shipped:**
+
+- **LOGIN.1 (P0)** — removed duplicate `stay_logged_in` checkbox from
+  `app/templates/login.html`. The remaining `Recordar este dispositivo`
+  is the one to keep (works with FastAPI's standard remember-me).
+- **LOGIN.2** — translated a11y statement "Sazón strives to conform to
+  WCAG 2.1 Level AA." → "Sazón apunta a cumplir con WCAG 2.1 Nivel AA."
+- **INICIO.1** — KPI card label `Operaciones` → `Ventas` (the card counts
+  sales, not ops).
+- **INICIO.5** — split the `Acciones del día` card into 2:
+  `Acciones del día` (actionable) and `Hecho hoy` (informational,
+  contains the `Merma del día` row). The "Todo en orden" empty-state
+  stays in the actions card.
+- **INICIO.6** — forecast empty state already has `Sin plan todavía`
+  with a `/produccion` hint; locked with a regression test.
+- **INICIO.17** — loyalty sub-text format `5 de 12 ventas` →
+  `12 ventas · 5 con cliente` (more scannable).
+- **PROD.11 (P0, promoted)** — removed duplicate `<h2>🧾 Pedidos para mañana</h2>`
+  in `app/templates/produccion_manana.html`. The `<summary>` inside the
+  `<details>` is now the canonical heading (the H2 was redundant and
+  also broke the `<details>` semantics).
+
+**Tests:** 2 new test files, 7 tests, all pass in 7s:
+- `tests/test_SASKIA-302_login.py` (2)
+- `tests/test_SASKIA-302_inicio.py` (5, includes the prod-manana regression)
+
+**Regression:** SASKIA-301 (33) + inicio frequent-customer card all pass;
+ruff clean on new tests.
+
+Refs: `docs/ux/copy-fix-list.md` (G.1-G.8, LOGIN.1-4, INICIO.1-17,
+PROD.11), `docs/ux/copy-ux-decisions.md` (D9: prod-manana promoted to
+Phase 1 because the duplicate H2 is a screen-reader bug, not just visual).
+
+## 2026-10-07g — SASKIA-303: POS regression locks (Phase 2)
+
+**Audit result:** the POS templates (`pedidos_nuevo.html`,
+`pedido_detalle.html`, `pedido_board.html`, `pedido_publico.html`,
+`pedido_stock_preview.html`) are already well-written. The 4 issues
+listed in `docs/ux/copy-fix-list.md` under POS.* are all already
+addressed in earlier work (Phase 13/14 ventana_text with `no es
+garantía` suffix, kanban redesign, etc.).
+
+**No code changes** — only regression tests to lock the good state.
+
+**Tests:** 1 new test file, 10 tests, all pass in 7s:
+- `tests/test_SASKIA-303_pos.py` (10) — locks placeholder hints,
+  status pill coverage, kanban column labels, public-page total
+  wording, ventana_text rendering, and stock preview table.
+
+**Lesson:** sometimes the highest-value deliverable is a regression
+test that says "this is already good, don't break it in a future
+refactor". Future POS work can now build on a tested foundation.
+
+## 2026-10-07h — SASKIA-304: clientes + productos + recetas (Phase 3)
+
+**Shipped:**
+
+- **CLI.3** — added `+595 9XX XXXXX` placeholder to `cliente_editar.html`
+  phone input (was missing; users typed without format guidance).
+- **PROD.1 (P0)** — removed duplicate `Importar CSV` button in
+  `productos.html` (lines 27 and 33 were both rendering the same link;
+  kept the primary Importar on `/productos/importar` flow).
+- **RECETA.1 (P1)** — replaced the bogus margin pill in
+  `receta_detalle.html`. The old formula
+  `100 * (1 - unit_cost / (unit_cost / 0.65))` always computed exactly
+  35% — a literal placeholder. The new pill says
+  `Costo: Gs. X/u` (always honest). The full margin calculation
+  requires recipe → product sale_price wiring (Phase 6.5).
+
+**Tests:** 1 new file, 11 tests, all pass in 9s:
+- `tests/test_SASKIA-304_clientes_productos.py` (11) — covers clientes
+  nudge banner, phone placeholder, lifetime spend, duplicate button
+  removal, producto form placeholders, filter toolbar, receta margin
+  pill honesty, recetas difficulty multi-select, receta_form
+  effective-ingredients panel, cliente inline form, producto_detalle.
+
+**Decisions:**
+- D9: cliente_detalle's 30d-spend indicator is out of scope for
+  copy-only work (would need a router change to add `spend_30d_gs`
+  to the context). The 30d window already appears in
+  `pedido_detalle.html` (the cross-customer view). The ficha view
+  shows lifetime spend which is the most relevant metric for that page.
+- D10: removed the always-35% margin pill rather than try to fix
+  the formula in place. Better to show a real, honest number
+  (Costo: Gs. X/u) than a confident-looking lie.
+
+**Regression:** SASKIA-301/302/303 (52 tests) still pass; ruff clean.
+
+## 2026-10-07i — SASKIA-305: inventario + producción (Phase 4)
+
+**Audit result:** the inventario + producción template family
+(inventario, inventario_detalle, inventario_form, inventario_movimientos,
+inventario_auditoria_etiquetas, produccion, produccion_manana,
+produccion_prep, produccion_accuracy, produccion_haccp, produccion_print)
+is already well-built. The main Phase 4 fix (PROD.11 — duplicate
+<h2>Pedidos para mañana</h2> in produccion_manana.html) was promoted
+to Phase 1 and shipped in d2164de8.
+
+**No code changes** — only regression tests to lock the good state.
+
+**Tests:** 1 new file, 14 tests, all pass in 12s:
+- `tests/test_SASKIA-305_inventario_produccion.py` (14) — locks
+  bulk-fill modal, filter toolbar (categoria/estado/alergeno/diet),
+  low-stock alerts, empty state, view tabs, template-load button,
+  shift badge, HACCP/accuracy/prep page existence, horneado-extra
+  ad-hoc section, movimientos/auditoria page existence.
+
+## 2026-10-07j — SASKIA-306: pedidos + proveedores + menus (Phase 5)
+
+**Audit result:** pedidos (already covered in SASKIA-303), proveedores,
+and menus templates are well-built. No copy/UX fixes required.
+
+**No code changes** — only regression tests to lock the good state.
+
+**Tests:** 1 new file, 12 tests, all pass in 8s:
+- `tests/test_SASKIA-306_pedidos_proveedores_menus.py` (12) — locks
+  supplier table+CTA, supplier form fields, volatility Gs. symbol
+  (regression for Phase 0), OCR missing-key callout, menu price
+  placeholder (25.000), pedido_detalle loyalty card + ventana_text
+  rendering, page existence for supplier_precios / supplier_orders /
+  menu_publico / menu_tablet.
+
+## 2026-10-07k — SASKIA-307: reportes + insights + dashboard (Phase 6)
+
+**Audit result:** reportes + insights + dashboard templates are
+well-built. Food cost % is already implemented at the global level
+in dashboard.html (line 131, `food_cost_pct` with `objetivo: 35%`
+target) and analisis.html (line 60, semáforo + 30d Panorama KPI).
+
+The plan's Phase 6.5 ("settings field for CMV target") is moot —
+the value comes from `insights.food_cost` at runtime, no operator-
+editable target needed for the simple ≤35% target_direction='low'
+framing. Per-product food_cost_pct is already rendered in
+insight_price_impact.html.
+
+**No code changes** — only regression tests to lock the good state
+and the Phase 0/3 currency + label fixes.
+
+**Tests:** 1 new file, 16 tests, all pass in 12s:
+- `tests/test_SASKIA-307_reportes_insights_dashboard.py` (16) — locks
+  food cost semáforo, 30d food cost KPI, stars/dogs/rising/churning,
+  dashboard food cost + 35% target, dashboard currency, dashboard
+  'Indicadores' label, reportes_diario Spanish COGS, currency
+  regression on reportes_diario / reportes_mermas_cost / insight_margenes
+  / benchmarks, reportes_top_productos Spanish 'Ingresos',
+  insight_price_impact per-product food_cost_pct, page existence for
+  libro_ventas / retencion / iva.
+
+## 2026-10-07l — SASKIA-308: settings + EOD + auditoria + ops (Phase 7)
+
+**Audit result:** all settings + EOD + auditoria + ops templates are
+well-built. The settings.html has a 6-tab structure (business,
+payments, notifications, fiscal, theme, demo) with CSRF on every
+form. EOD pages use skeleton JS for the print view. Auditoria has
+two pages: list (`/auditoria`) and analytics (`/auditoria/analytics`).
+
+**No code changes** — only regression tests to lock the good state.
+
+**Tests:** 1 new file, 12 tests, all pass in 11s:
+- `tests/test_SASKIA-308_settings_eod_auditoria.py` (12) — locks the
+  6 settings tabs, Paraguay SET fiscal fields, CSRF on every form,
+  eod_print currency regression, checklist format, eod_anomalies
+  page existence, auditoria filter bar, login success/fail labels
+  (Phase 0 fix), ops_status endpoint table + reorder rate heading,
+  settings_catalog 12 tabs.
