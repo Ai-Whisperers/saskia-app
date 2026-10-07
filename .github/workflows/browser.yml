@@ -47,7 +47,7 @@ jobs:
 
       - name: Install dev dependencies
         # Full dev group — includes Playwright (134 MB wheel).
-        run: uv sync --group dev
+        run: rm -rf .venv && uv sync --group dev
 
       - name: Install Playwright browsers
         # Downloads Chromium (~200 MB) to ~/.cache/ms-playwright.

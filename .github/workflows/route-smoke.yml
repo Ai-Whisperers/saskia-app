@@ -37,7 +37,7 @@ jobs:
 
       - name: Install dependencies
         # dev-base only — Playwright is for the browser workflow.
-        run: uv sync --only-group dev-base --no-default-groups
+        run: rm -rf .venv && uv sync --only-group dev-base --no-default-groups
 
       - name: Route smoke tests
         env:
