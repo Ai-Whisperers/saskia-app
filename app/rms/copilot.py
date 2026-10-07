@@ -27,7 +27,7 @@ _SYSTEM = (
 
 # intenciones en orden de prioridad
 _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("fiado", re.compile(r"fiado|debo|cobrar|cuenta corriente|crédito", re.I)),
+    ("fiado", re.compile(r"fiado|debo|cobrar|cuentas? corrientes?|crédito", re.I)),
     ("mañana", re.compile(r"mañana|preparo|producir|cuánto hac", re.I)),
     ("hora_pico", re.compile(r"hora|ocupado|movido|pico", re.I)),
     ("margen", re.compile(r"margen|rentab|gananc|peor", re.I)),
@@ -87,6 +87,8 @@ def answer(question: str, session: Session) -> dict[str, Any]:
     intent = detect_intent(question)
     ctx = _context(session, intent)
     ctx.setdefault("saldo_total_fiado_gs", 0)
+    ctx.setdefault("ventas_totales_gs", 0)
+    ctx.setdefault("cantidad_ventas", 0)
     if not available():
         return {
             "answer": _FALLBACK.format(**ctx),
