@@ -88,49 +88,68 @@ def test_no_top_level_display_none_on_sidebar():
     """2026-10-07 Ivan: a .eod_print section in app-improvements.css
     had a top-level `.sidebar { display: none !important; }` rule
     (missing the .eod-print prefix). This hid the persistent sidebar
-    on every page, not just eod_print. Pin the fix: the only top-level
-    rules targeting `.sidebar` in app-improvements.css must be inside
-    an @media print block."""
+    on every page, not just eod_print. Pin the fix: any top-level
+    rule in app-improvements.css whose SELECTOR (not just comment
+    text) targets `.sidebar` is the bug. Strip CSS comments before
+    matching so the explanatory comment we left in place does not
+    trigger a false positive."""
+    import re
     from pathlib import Path
 
     css = Path("app/static/app-improvements.css").read_text()
+    # Strip /* ... */ comments so they don't trip the selector scan
+    css_no_comments = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
 
-    # Find every rule that targets `.sidebar` and is NOT inside an
-    # @media print block. Scan the file in order; track whether we
-    # are inside an @media print { ... } block (depth counter).
     depth = 0
     in_print = False
     i = 0
-    while i < len(css):
-        # Find next { or }
-        brace = min((css.find("{", i), css.find("}", i)), key=lambda x: x if x >= 0 else 10**9)
+    while i < len(css_no_comments):
+        brace = min((css_no_comments.find("{", i), css_no_comments.find("}", i)),
+                    key=lambda x: x if x >= 0 else 10**9)
         if brace < 0:
             break
-        # Look at the chunk before this brace — find the selector
-        # and any @media directive
-        chunk = css[i:brace]
-        # An @media { ... } at depth 0 starts/ends a print block
-        if brace == css.find("{", i):
-            # Opening brace — see if selector chunk contains @media print
+        chunk = css_no_comments[i:brace]
+        if brace == css_no_comments.find("{", i):
             if "@media" in chunk and "print" in chunk:
                 in_print = True
             depth += 1
         else:
-            # Closing brace
             depth -= 1
             if depth == 0:
                 in_print = False
-        # Now check if the SELECTOR for this rule targets .sidebar
-        # We only do the check at depth 1 (the rule itself, not nested)
+        # Check the SELECTOR chunk (between depth-0 .. depth=1) for
+        # an un-scoped .sidebar reference. A correctly-scoped rule
+        # like `.eod-print .sidebar` is fine because the selector
+        # contains `.eod-print` BEFORE `.sidebar`.
         if depth == 1 and not in_print and ".sidebar" in chunk:
-            # This is a top-level rule (not inside @media print) that
-            # targets .sidebar — that's the bug. Fail.
-            sel = chunk.strip().split("{")[0].strip()
-            raise AssertionError(
-                f"BUG: app-improvements.css has a top-level rule "
-                f"targeting .sidebar OUTSIDE @media print: "
-                f"`{sel} {{ ... }}` — this hides the persistent "
-                f"sidebar on every page. Scope to `.eod-print .sidebar` "
-                f"or similar."
-            )
+            sel = chunk.strip()
+            # An un-scoped `.sidebar` reference is the bug. The
+            # fix scopes it to `.eod-print .sidebar` (with the parent
+            # class before it). Accept any selector that has a
+            # non-`.sidebar` class/component preceding `.sidebar`.
+            # Simplest check: split the selector on commas; for each
+            # part, if it contains `.sidebar` as a standalone token
+            # (not preceded by another class), it's unscoped.
+            for part in sel.split(","):
+                part = part.strip()
+                # Find the position of `.sidebar` in this selector part
+                idx = part.find(".sidebar")
+                if idx < 0:
+                    continue
+                # If there's another class BEFORE it (e.g. ".eod-print .sidebar")
+                # or it's a different element selector like "aside.sidebar" (which
+                # we still want to allow if scoped), we accept it.
+                # Standalone `.sidebar` selector or starting with `.sidebar` and
+                # not preceded by another class is the bug.
+                prefix = part[:idx].strip()
+                # If the prefix is empty or just a parent combinator (no class),
+                # this `.sidebar` is unscoped. That is the bug.
+                if not prefix or prefix in (">", "+", "~") or prefix.startswith("&"):
+                    raise AssertionError(
+                        f"BUG: app-improvements.css has an un-scoped "
+                        f"`{part}` selector outside @media print. This "
+                        f"hides the persistent sidebar on every page "
+                        f"instead of just the EOD print view. Scope it "
+                        f"to `.eod-print .sidebar` (or similar parent)."
+                    )
         i = brace + 1
