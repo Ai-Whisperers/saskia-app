@@ -1,0 +1,148 @@
+# .github/workflows/date-boundary.yml
+#
+# Ported from karanshukla/openresto (commit a4f4e8f, file
+# `.github/workflows/date-boundary.yml`). Original MIT-licensed; comments
+# preserved where they apply to Sazon's stack; pytest substituted for Jest
+# + Playwright.
+#
+# Runs the full Sazon test suite with the runner's clock pinned to the
+# last day of the current month. Catches the class of bug where a test
+# (or behavior) assumes "tomorrow" is reachable from "today" without
+# saying so.
+#
+# Why weekly Monday 03:00 UTC:
+#   A month-end is only 12 days a year. Running daily would burn 99% of
+#   the budget on the same-skew days. A weekly Monday is enough: if a
+#   month ends on a Sunday, the Monday run covers it; if it ends on
+#   Monday through Saturday, the previous Monday run covered it.
+#   Cost: ~12 runs/year × 3 min = 36 min/year. Almost free.
+#
+# Why host clock pinning rather than a fake timer:
+#   Sazon's date-handling lives in app code, not the test (there's no
+#   Playwright clock abstraction to skip). A freezegun.mock_environ in
+#   pytest would only move the Python process's view; if a future test
+#   uses subprocess.run (none today), it would see the real clock and
+#   disagree. Pinning the host clock moves everything.
+#
+# Why always() on the test step but if: always() && steps.pin.outcome
+# on the second one:
+#   Sazon has one test suite (pytest), not Jest + Playwright. So we
+#   don't need the second-step gating. But we DO want always() so a
+#   failure in pytest still triggers the "Restore clock" step at the
+#   bottom (otherwise the runner stays pinned and breaks the artifact
+#   upload TLS).
+#
+# Hard rule: this workflow MUST never break the date for any subsequent
+# step in any other workflow sharing the runner. GitHub-hosted runners
+# are ephemeral, so this is fine in practice; on a self-hosted runner
+# it would matter.
+name: Date Boundary
+
+on:
+  schedule:
+    # Weekly, Monday 03:00 UTC. The point is to fail on a Monday in a
+    # job nobody is waiting on rather than on the 31st in main, so a
+    # week of lag costs nothing.
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  month-end:
+    name: Suites at month end
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      # Everything that talks to a registry or to npm runs before the
+      # clock moves. A skewed clock breaks TLS validation, so installs
+      # happen on the real date and only the test run sees the pinned
+      # one.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.5.x"
+
+      - name: Cache uv-managed venv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+
+      - name: Install Python deps (real clock)
+        run: uv sync --all-extras
+
+      - name: Pin the clock to the last day of this month
+        id: pin
+        run: |
+          # set -e on purpose: if the clock cannot be moved, this job
+          # must go red rather than quietly run the suites on today's
+          # date. A silently-unpinned pass is worse than a failure,
+          # because it reads as evidence the month end is covered when
+          # nothing ran.
+          set -euo pipefail
+          PINNED="$(date -u -d "$(date -u +%Y-%m-01) +1 month -1 day" +%Y-%m-%d)"
+          echo "PINNED_DATE=$PINNED" >> "$GITHUB_ENV"
+          echo "==> Real date:   $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          # Midday, so a timezone offset in either direction cannot
+          # roll the pinned day over.
+          sudo timedatectl set-ntp false
+          sudo date -u -s "$PINNED 12:00:00"
+          echo "==> Pinned date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+      - name: Run pytest suite at month end
+        id: pytest
+        # Gated on the pin having succeeded rather than on nothing:
+        # always() alone would run this on an unpinned clock after a
+        # failed pin, and pass, which is the silent false pass this
+        # whole job exists to avoid.
+        if: steps.pin.outcome == 'success'
+        run: |
+          echo "Running pytest with the clock pinned to ${PINNED_DATE}"
+          # -m "not (pg)" excludes postgres-only tests (we don't have
+          # testcontainers here, and a pinned clock could break their
+          # time-sensitive assumptions). -m "not (browser)" is
+          # belt-and-suspenders for any Playwright test that sneaks
+          # in via the dev extras.
+          uv run pytest -n 2 --dist=loadscope --no-cov -m "not (pg or browser)"
+
+      # Restored before anything that talks to GitHub again, and
+      # unconditionally: leaving a runner with a skewed clock would
+      # fail artifact upload with an unrelated-looking auth error.
+      - name: Restore the clock
+        if: always()
+        run: |
+          sudo timedatectl set-ntp true
+          for i in $(seq 1 30); do
+            if [ "$(timedatectl show -p NTPSynchronized --value)" = "yes" ]; then break; fi
+            sleep 1
+          done
+          echo "==> Restored to: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+      - name: Upload pytest report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report-month-end
+          path: |
+            .pytest_cache/
+            **/test_*.log
+          if-no-files-found: ignore
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "A suite failed with the clock pinned to ${PINNED_DATE:-the month end}."
+          echo "That date is the only difference from a normal CI run, so a"
+          echo "failure here is a test (or a behaviour) that depends on today"
+          echo "not being the last day of a month. The usual shape is an"
+          echo "assertion computing \"tomorrow\" or \"next month\" and expecting"
+          echo "a specific date that doesn't exist on the pinned day."
+          echo ""
+          echo "Common fixes:"
+          echo "  - Compute relative dates from today (now()) instead of hardcoding"
+          echo "  - Use freezegun.freeze_time() with explicit dates in tests"
+          echo "  - Cap 'last day' checks at min(today + 1 day, month_end)"

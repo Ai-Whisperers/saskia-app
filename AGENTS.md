@@ -205,7 +205,21 @@ GitHub Actions runs on every PR to `main`:
 - `sazon migrate` smoke test (fresh SQLite)
 - CHANGELOG discipline check (fails PR if `app/`, `scripts/`, `tests/`, or
   `.github/` changed but `app/CHANGELOG.md` did not)
-- **TODO (P1):** anti-rule enforcement (fail if `pyproject.toml` adds a forbidden dep, fail if templates/ add a React import)
+- **Anti-rule enforcement** (13 of 20 anti-rules enforced via grep in CI;
+  see `.github/workflows/ci.yml` and `tests/test_ci_anti_rules.py`)
+
+**Weekly scheduled workflow:**
+- `.github/workflows/date-boundary.yml` — runs the full pytest suite
+  with the runner's clock pinned to the last day of the current month.
+  Catches the class of bug where a test (or production code) assumes
+  "tomorrow" is reachable from "today" without saying so. Runs Mondays
+  03:00 UTC. Locked by `tests/test_date_boundary.py` (60 tests).
+  Ported from `karanshukla/openresto` (MIT-licensed) with pytest
+  substituted for Jest + Playwright.
+
+The TODO line about anti-rule enforcement was removed when the
+implementation shipped (see commit `50c35082` for wave 1, `18668813`
+for wave 2).
 
 See `.github/workflows/ci.yml`.
 

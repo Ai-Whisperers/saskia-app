@@ -5,6 +5,52 @@
 
 ## [Unreleased]
 
+### Added — Date-boundary CI workflow (2026-10-07)
+
+Ports `karanshukla/openresto/.github/workflows/date-boundary.yml`
+(MIT-licensed) with pytest substituted for Jest + Playwright.
+Catches the class of bug where code computes "tomorrow" / "next
+month start" / "month-end" from `today` without saying so — bugs
+that only surface on the 28th/29th/30th/31st of a month.
+
+**Files:**
+- `.github/workflows/date-boundary.yml` (NEW, 6.2KB) — weekly
+  Monday 03:00 UTC cron, pins host clock via `sudo timedatectl
+  set-ntp false; sudo date -u -s ...`, runs `uv run pytest -m "not
+  (pg or browser)"`. Always-restores the clock before artifact
+  upload so TLS validation works. `workflow_dispatch` enabled
+  for manual testing.
+- `tests/test_date_boundary.py` (NEW, 11.8KB) — 60 tests covering:
+  - `_month_range` for all 12 months × leap/non-leap years
+  - 31-day, 30-day, Feb-leap, Feb-non-leap edge cases
+  - December → January non-rollover
+  - Tomorrow-of-month-end = first-of-next-month (the canonical
+  OpenResto bug)
+  - freezegun-pin compatibility
+  - CI bash pattern `date -u -d "$(date -u +%Y-%m-01) +1 month
+  -1 day"` cross-checked against Python's calendar.monthrange
+
+**Adaptations from OpenResto:**
+- No Docker Compose (Sazon is a single FastAPI process).
+- No separate Jest/Playwright split (one pytest suite).
+- Skipped `-m "pg or browser"` (date-boundary runner doesn't have
+  testcontainers; browser tests would just hang).
+- `actions/cache@v4` for the uv venv (saves ~2 min per run).
+- `actions/checkout@v7` (OpenResto source uses v7 too).
+
+**Operational note:** the date-boundary CI is currently disabled
+by budget (the repo is private; see `docs/operations/2026-09-24-
+ci-budget-decision.md`). When the budget is restored, this
+workflow will activate automatically. Until then, run the test
+locally with `uv run pytest tests/test_date_boundary.py`.
+
+### Changed — AGENTS.md CI section (2026-10-07)
+
+The TODO line about anti-rule enforcement was removed when the
+implementation shipped. Added a new bullet for the date-boundary
+weekly workflow with a reference to the test file and the source
+repo.
+
 ### Added — CI anti-rule enforcement wave 2 (2026-10-07)
 
 Extended the anti-rule enforcement step in
