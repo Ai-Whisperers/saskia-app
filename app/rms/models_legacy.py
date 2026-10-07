@@ -406,6 +406,13 @@ class Product(Base):
     # Phase 2 — Wholesale / mayorista price (B2B channel).
     mayorista_price_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
+    # WP-1.1 (2026-10-07) — venta por peso. True = product sold in kg/½kg
+    # fractions (chipa por kilo, torta por peso). POS renders decimal qty
+    # input and the multi-sale route accepts fractional qty for these only.
+    sold_by_weight: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+
     # C2 — Public tablet-menu slug. Unique URL-safe identifier for the
     # customer-facing `/m/{slug}` page. NULL means the product is NOT
     # visible on the tablet menu (operators can opt-in per product).

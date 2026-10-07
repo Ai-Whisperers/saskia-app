@@ -580,6 +580,7 @@
       POS_CART.push({
         product_id: productId,
         product_name: productName || ('Producto #' + productId),
+        sold_by_weight: !!soldByWeight,
         qty: parseFloat(qty),
         unit_price_gs: unitPriceGs,
         // E13.S2 — remember the catalog default so the POST can send
@@ -602,7 +603,7 @@
   window.setQty = function(idx, delta) {
     var item = POS_CART[idx];
     if (!item) return;
-    var newQty = parseFloat(item.qty) + delta;
+    var newQty = Math.round((parseFloat(item.qty) + delta) * 1000) / 1000;
     if (newQty <= 0) { removeItem(idx); }
     else { item.qty = newQty; renderCart(); }
   };
@@ -611,15 +612,23 @@
   window.setQtyDirect = function(idx, val) {
     var item = POS_CART[idx];
     if (!item) return;
-    // SALES-VAL-003: discrete baked goods — force integer quantities.
-    // If the cashier typed "1,5" or "1.5", drop the decimal to 1 and
-    // visually warn them so they know the input was clamped.
-    var rawStr = String(val);
-    var hasDecimal = rawStr.indexOf('.') !== -1 || rawStr.indexOf(',') !== -1;
-    var qty = Math.floor(parseFloat(val));
+    var rawStr = String(val).replace(',', '.');
+    var qty = parseFloat(rawStr);
     if (!qty || qty <= 0) { removeItem(idx); return; }
-    if (hasDecimal) {
-      alert('Cantidad debe ser un número entero (sin decimales). Se ajustó a ' + qty + '.');
+    if (item.sold_by_weight) {
+      // WP-1.1 venta por peso: fractional kg allowed (min 50 g step).
+      qty = Math.round(qty * 1000) / 1000;
+    } else {
+      // SALES-VAL-003: discrete baked goods — force integer quantities.
+      // If the cashier typed "1,5" or "1.5", drop the decimal to 1 and
+      // visually warn them so they know the input was clamped.
+      var hasDecimal = rawStr.indexOf('.') !== -1;
+      var intQty = Math.floor(qty);
+      if (hasDecimal && intQty > 0) {
+        alert('Cantidad debe ser un número entero (sin decimales). Se ajustó a ' + intQty + '.');
+      }
+      qty = intQty;
+      if (!qty || qty <= 0) { removeItem(idx); return; }
     }
     item.qty = qty;
     renderCart();
@@ -715,9 +724,13 @@
             'onchange="setPriceDirect(' + idx + ', this.value)" aria-label="Precio unitario" inputmode="numeric">' +
           '</td>' +
           '<td class="cart-qty-cell">' +
-            // SALES-VAL-003: discrete baked goods → integer qty. step=1 forces whole units in the spinner and validated by setQtyDirect().
-            '<input type="number" class="cart-qty-input" min="1" step="1" value="' + item.qty + '" ' +
-            'onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad" inputmode="numeric" pattern="\\d*"> ' +
+            (item.sold_by_weight
+              // WP-1.1: weight rows get decimal kg input (min 50 g).
+              ? '<input type="number" class="cart-qty-input" min="0.05" step="0.05" value="' + item.qty + '" ' +
+                'onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad en kg" inputmode="decimal"> kg '
+              // SALES-VAL-003: discrete baked goods → integer qty. step=1 forces whole units in the spinner and validated by setQtyDirect().
+              : '<input type="number" class="cart-qty-input" min="1" step="1" value="' + item.qty + '" ' +
+                'onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad" inputmode="numeric" pattern="\\d*"> ') +
           '</td>' +
           '<td class="text-center" >' +
             '<input type="number" class="cart-discount-input" min="0" max="100" step="1" value="' + pct + '" ' +
@@ -1034,7 +1047,9 @@
             parseInt(hit.id, 10),
             hit.name || ('Producto #' + hit.id),
             1,
-            parseInt(hit.sale_price_gs || 0, 10)
+            parseInt(hit.sale_price_gs || 0, 10),
+            0,
+            !!hit.sold_by_weight
           );
           scan.value = '';
           refocusScanInput();

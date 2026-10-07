@@ -1298,16 +1298,25 @@ async def sale_create_multi(
     if len(items) > 50:
         raise HTTPException(status_code=400, detail=SALE_TOO_MANY_ITEMS)
 
+    # WP-1.1 (2026-10-07) — venta por peso: fractional qty is allowed ONLY
+    # when every product in the cart is sold_by_weight. Discrete goods keep
+    # the SALES-VAL-003 integer rule server-side (1.0 == 1 passes, 1.5 fails).
+    _weight_products: dict[int, bool] = {}
     for item in items:
-        # SALES-VAL-003: discrete baked goods — reject fractional quantities
-        # server-side so even a hand-crafted POST can't sneak 1.5 in.
-        # Math.floor(parseFloat(...)) with a check on the raw int parses
-        # the float exactly — 1.0 == 1 is true, 1.5 != 1 so it rejects.
         if item.qty != int(item.qty):
-            raise HTTPException(
-                status_code=400,
-                detail="Cantidad debe ser un número entero (sin decimales).",
-            )
+            if item.product_id not in _weight_products:
+                _p = session.get(Product, item.product_id)
+                _weight_products[item.product_id] = bool(
+                    _p is not None and _p.sold_by_weight
+                )
+            if not _weight_products[item.product_id]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Cantidad debe ser un número entero (sin decimales), "
+                        "salvo productos vendidos por peso (kg)."
+                    ),
+                )
         if item.qty > MAX_QTY:
             raise HTTPException(
                 status_code=400,

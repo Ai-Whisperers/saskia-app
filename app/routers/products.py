@@ -91,6 +91,7 @@ def products_api_search(
             "sale_price_gs": p.sale_price_gs,
             "sku": p.sku or "",
             "image_url": p.image_url or "",
+            "sold_by_weight": bool(p.sold_by_weight),
         }
         for p in rows
     ]

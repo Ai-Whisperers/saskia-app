@@ -65,6 +65,9 @@ from app.rms.migrations._100_freezer_temperature_log import _migration_100_freez
 from app.rms.migrations._101_recipe_fermentation_minutes import _migration_101_recipe_fermentation_minutes
 from app.rms.migrations._102_waste_log_source import _migration_102_waste_log_source
 from app.rms.migrations._103_production_demand_split import _migration_103_production_demand_split
+from app.rms.migrations._104_product_sold_by_weight import (
+    _migration_104_product_sold_by_weight,
+)
 
 from loguru import logger
 from sqlalchemy import create_engine, event, text
@@ -4240,6 +4243,7 @@ MIGRATIONS = {
     101: _migration_101_recipe_fermentation_minutes,
     102: _migration_102_waste_log_source,
     103: _migration_103_production_demand_split,
+    104: _migration_104_product_sold_by_weight,
 }
 
 
