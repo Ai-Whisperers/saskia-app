@@ -38,7 +38,7 @@ def fresh_db():
 
 
 def test_all_packs_present():
-    assert len(PACKS) == 10
+    assert len(PACKS) == 11
     assert "Pizzería" in PACKS
     assert "Panadería" in PACKS
 
