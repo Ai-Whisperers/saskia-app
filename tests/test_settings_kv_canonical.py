@@ -304,6 +304,7 @@ def test_get_branding_preserves_4digit_in_middle_of_footer():
 def test_settings_runtime_public_api_exports():
     """The module's __all__ is the contract for downstream imports."""
     expected = {
+        # Pre-existing exports
         "DEFAULT_BRANDING",
         "DEFAULT_PRICING_MARKUP",
         "compute_suggested_price",
@@ -313,5 +314,14 @@ def test_settings_runtime_public_api_exports():
         "set_pricing_markup",
         "settings_get",
         "settings_set",
+        # Batch B1+B2+B3+B4 (2026-10-07): per-domain cfg helpers
+        "DEFAULT_ALERTS_CONFIG",
+        "DEFAULT_BACKUP_CONFIG",
+        "DEFAULT_EOD_CONFIG",
+        "DEFAULT_LOYALTY_CONFIG",
+        "get_alerts_config",
+        "get_backup_config",
+        "get_eod_config",
+        "get_loyalty_config",
     }
     assert set(sr.__all__) == expected

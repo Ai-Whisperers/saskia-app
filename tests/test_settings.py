@@ -34,14 +34,14 @@ from app.rms.settings import (
 
 
 def test_settings_count():
-    """42 settings registered across 9 groups.
+    """60 settings registered across 12 groups.
 
-    Updated 2026-10-05: added BRANDING group with 10 settings (business
-    identity — logo, favicon, hero, accent color, contact info,
-    business_type, tagline, footer). Was 31 settings in 7 groups.
-    Added PRODUCTION group (PRODUCCION-V2 Fase 3: demand cache TTL).
+    Updated 2026-10-05: added BRANDING group (was 31 in 7 groups).
+    Updated 2026-10-07 (Batch B1+B2+B3+B4): added LOYALTY (11),
+    EOD (3), ALERTS (1), and BACKUP (3 more). Total settings
+    42 → 60, total groups 9 → 12.
     """
-    assert len(SETTINGS) == 42
+    assert len(SETTINGS) == 60
     groups = {s.group for s in SETTINGS}
     assert groups == {
         SettingGroup.GENERAL,
@@ -53,6 +53,9 @@ def test_settings_count():
         SettingGroup.SESSION,
         SettingGroup.DEMO,
         SettingGroup.PRODUCTION,
+        SettingGroup.LOYALTY,  # Batch B1
+        SettingGroup.EOD,  # Batch B2
+        SettingGroup.ALERTS,  # Batch B3
     }
 
 
@@ -71,10 +74,16 @@ def test_settings_per_group_counts():
     assert by_group[SettingGroup.INVENTORY] == 6
     assert by_group[SettingGroup.SALES] == 5
     assert by_group[SettingGroup.DASHBOARD] == 5
-    assert by_group[SettingGroup.BACKUP] == 3
+    assert by_group[SettingGroup.BACKUP] == 6  # 3 original + 3 from Batch B4
     assert by_group[SettingGroup.SESSION] == 3
     assert by_group[SettingGroup.DEMO] == 2
     assert by_group[SettingGroup.PRODUCTION] == 1
+    # Batch B1: POS suggestion thresholds
+    assert by_group[SettingGroup.LOYALTY] == 11
+    # Batch B2: EOD anomaly detector thresholds
+    assert by_group[SettingGroup.EOD] == 3
+    # Batch B3: alert rate limit
+    assert by_group[SettingGroup.ALERTS] == 1
     # Sanity: total matches len(SETTINGS)
     assert sum(by_group.values()) == len(SETTINGS)
 
@@ -192,16 +201,15 @@ def test_set_setting_overwrites_existing(session_factory):
 
 
 def test_list_settings_returns_31(session_factory):
-    """list_settings returns 42 entries with value/default/group/etc.
+    """list_settings returns 60 entries with value/default/group/etc.
 
-    Updated 2026-10-05: was 31 entries. Now 42 (added 10 BRANDING fields:
-    logo, favicon, hero, accent color, contact info, business_type,
-    tagline, footer + 1 PRODUCTION field: demand cache TTL).
+    Updated 2026-10-07 (Batch B1+B2+B3+B4): was 42 entries. Now 60
+    (added 11 LOYALTY + 3 EOD + 1 ALERTS + 3 BACKUP).
     """
     s = session_factory()
     try:
         all_settings = list_settings(s)
-        assert len(all_settings) == 42
+        assert len(all_settings) == 60
         entry = all_settings[0]
         for k in ("key", "value", "default", "description", "group", "choices"):
             assert k in entry
@@ -210,28 +218,36 @@ def test_list_settings_returns_31(session_factory):
 
 
 def test_settings_by_group_groups_correctly(session_factory):
-    """settings_by_group returns dict with 9 keys matching the group values.
+    """settings_by_group returns dict with 12 keys matching the group values.
 
-    Updated 2026-10-05: was 7 keys, now 9 (added "branding" and "production").
+    Updated 2026-10-07 (Batch B1+B2+B3+B4): was 9 keys, now 12
+    (added "loyalty", "eod", "alerts").
     """
     s = session_factory()
     try:
         grouped = settings_by_group(s)
         assert set(grouped.keys()) == {
             "general",
-            "branding",  # NEW: 10 branding settings
+            "branding",  # 10 branding settings
             "inventory",
             "sales",
             "dashboard",
-            "backup",
+            "backup",  # 6 (3 original + 3 from Batch B4)
             "session",
             "demo",
-            "production",  # NEW: 1 PRODUCTION field
+            "production",  # 1 PRODUCTION field
+            "loyalty",  # Batch B1: 11 POS suggestion thresholds
+            "eod",  # Batch B2: 3 EOD anomaly thresholds
+            "alerts",  # Batch B3: 1 alert rate limit
         }
         assert len(grouped["general"]) == 7
         assert len(grouped["branding"]) == 10
         assert len(grouped["inventory"]) == 6
         assert len(grouped["sales"]) == 5
+        assert len(grouped["backup"]) == 6  # 3 original + 3 Batch B4
+        assert len(grouped["loyalty"]) == 11
+        assert len(grouped["eod"]) == 3
+        assert len(grouped["alerts"]) == 1
     finally:
         s.close()
 
