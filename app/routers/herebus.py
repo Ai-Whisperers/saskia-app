@@ -120,7 +120,7 @@ async def wishlist_mark_purchased(
     Idempotency: the stock bump only happens on the False → True
     transition, same contract as shopping-list mark-purchased.
     """
-    from app.rms.models import Ingredient, StockMovement
+    from app.rms.models import Ingredient
 
     item = session.get(WishlistItem, item_id)
     if not item:
@@ -150,22 +150,21 @@ async def wishlist_mark_purchased(
             )
             session.add(eq_ing)
             session.flush()
+        from app.rms.stock_ledger import apply_stock_delta
+
         qty = float(item.quantity or 0)
-        eq_ing.stock_qty = (eq_ing.stock_qty or 0.0) + qty
+        apply_stock_delta(
+            session,
+            eq_ing,
+            qty,
+            movement_type="reorder",
+            reason=f"Compra wishlist #{item.id} — {item.name}",
+            reference_id=item.id,
+            reference_type="reorder",
+            created_by=current_user_id(request) or "operator",
+        )
         eq_ing.purchase_price_gs = item.unit_price_gs or eq_ing.purchase_price_gs
         stock_bumped = qty
-        session.add(
-            StockMovement(
-                ingredient_id=eq_ing.id,
-                movement_type="reorder",
-                qty=qty,
-                reason=f"Compra wishlist #{item.id} — {item.name}",
-                reference_id=item.id,
-                reference_type="reorder",
-                recorded_at=datetime.now(timezone.utc),
-                created_by=current_user_id(request) or "operator",
-            )
-        )
 
     session.commit()
     logger.info(

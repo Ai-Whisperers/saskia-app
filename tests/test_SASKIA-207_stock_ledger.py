@@ -23,9 +23,7 @@ def session(tmp_path):
     init_db(engine)
     Session = sessionmaker(bind=engine)
     s = Session()
-    ing = Ingredient(
-        name="Harina ledger", unit="kg", stock_qty=10.0, purchase_price_gs=5000
-    )
+    ing = Ingredient(name="Harina ledger", unit="kg", stock_qty=10.0, purchase_price_gs=5000)
     s.add(ing)
     s.commit()
     yield s
@@ -89,9 +87,7 @@ class TestApplyStockDelta:
 
     def test_negative_delta_decrements(self, session):
         ing = session.query(Ingredient).filter_by(name="Harina ledger").one()
-        apply_stock_delta(
-            session, ing, -4.0, movement_type="merma", reason="Merma test"
-        )
+        apply_stock_delta(session, ing, -4.0, movement_type="merma", reason="Merma test")
         session.flush()
         assert ing.stock_qty == pytest.approx(6.0)
 
@@ -102,9 +98,7 @@ class TestApplyStockDelta:
         from sqlalchemy.exc import IntegrityError
 
         with pytest.raises(IntegrityError):
-            apply_stock_delta(
-                session, ing, -25.0, movement_type="merma", reason="over"
-            )
+            apply_stock_delta(session, ing, -25.0, movement_type="merma", reason="over")
             session.flush()
 
     def test_does_not_commit_caller_owns_transaction(self, session):

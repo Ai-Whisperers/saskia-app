@@ -31,7 +31,6 @@ from app.rms.models import (
     Ingredient,
     ProductionPlan,
     ShoppingListItem,
-    StockMovement,
 )
 from app.rms.observability import record_audit
 from app.services.template_render import render
@@ -255,40 +254,29 @@ def mark_purchased(
     if not was_purchased and item.ingredient_id:
         ing = session.get(Ingredient, item.ingredient_id)
         if ing is not None:
-            from app.rms.units import Unit, can_convert, convert_qty
+            # SASKIA-205/207: single stock-ledger path (convert + bump +
+            # movement row). 'raw' policy: non-convertible units land
+            # unconverted rather than blocking the operator.
+            from app.rms.stock_ledger import apply_stock_delta, qty_to_stock_unit
 
-            qty = float(item.qty_to_buy or 0)
-            qty_in_stock_unit = qty
-            if item.unit and ing.unit and item.unit != ing.unit:
-                try:
-                    from_unit = Unit.coerce(item.unit)
-                    to_unit = Unit.coerce(ing.unit)
-                    if can_convert(from_unit, to_unit):
-                        qty_in_stock_unit = float(convert_qty(qty, from_unit, to_unit))
-                    # Non-convertible units (e.g. 'und' vs 'kg'): land the
-                    # raw qty rather than blocking the operator's mark —
-                    # the audit row records both units for correction.
-                except (ValueError, KeyError):
-                    qty_in_stock_unit = qty
-
-            ing.stock_qty = (ing.stock_qty or 0.0) + qty_in_stock_unit
-            stock_bumped = qty_in_stock_unit
-            session.add(
-                StockMovement(
-                    ingredient_id=ing.id,
-                    movement_type="reorder",
-                    qty=qty_in_stock_unit,
-                    reason=(
-                        f"Compra shopping-list #{item.id}"
-                        f" ({item.qty_to_buy:g} {item.unit})"
-                        f" — {item.purpose_text or 'sin destino'}"
-                    ),
-                    reference_id=item.id,
-                    reference_type="reorder",
-                    recorded_at=datetime.now(timezone.utc),
-                    created_by=current_user_id(request) or "operator",
-                )
+            qty_in_stock_unit = qty_to_stock_unit(
+                item.qty_to_buy or 0, item.unit, ing, on_mismatch="raw"
             )
+            apply_stock_delta(
+                session,
+                ing,
+                qty_in_stock_unit,
+                movement_type="reorder",
+                reason=(
+                    f"Compra shopping-list #{item.id}"
+                    f" ({item.qty_to_buy:g} {item.unit})"
+                    f" — {item.purpose_text or 'sin destino'}"
+                ),
+                reference_id=item.id,
+                reference_type="reorder",
+                created_by=current_user_id(request) or "operator",
+            )
+            stock_bumped = qty_in_stock_unit
             logger.info(
                 "shopping_purchase_to_stock item={} ing={} +{} {}",
                 item.id,

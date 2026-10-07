@@ -23,7 +23,7 @@ Contract:
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Literal
 
 from sqlalchemy.orm import Session
 
@@ -58,16 +58,12 @@ def qty_to_stock_unit(
         dst = Unit.coerce(ing.unit)
     except (ValueError, KeyError):
         if on_mismatch == "raise":
-            raise ValueError(
-                f"Unidad desconocida {from_unit!r} para {ing.unit!r}"
-            ) from None
+            raise ValueError(f"Unidad desconocida {from_unit!r} para {ing.unit!r}") from None
         return qty_f
 
     if not can_convert(src, dst):
         if on_mismatch == "raise":
-            raise ValueError(
-                f"No se puede convertir {from_unit} a {ing.unit} (familia distinta)"
-            )
+            raise ValueError(f"No se puede convertir {from_unit} a {ing.unit} (familia distinta)")
         return qty_f
 
     return float(convert_qty(qty_f, src, dst))

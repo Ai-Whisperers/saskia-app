@@ -1,3 +1,15 @@
+## 2026-10-07d — SASKIA-207: stock_ledger helper + reuse/abstraction audit
+
+**Audit:** docs/operations/2026-10-07-saskia-reuse-abstraction-audit.md (8 findings, measured).
+
+**Shipped:**
+- `app/rms/stock_ledger.py`: `apply_stock_delta()` (bump + StockMovement row, caller commits) + `qty_to_stock_unit()` (explicit on_mismatch policy: 'raw' lands unconverted, 'raise' errors). Replaces 3 divergent copy-paste blocks: shopping mark-purchased (raw), wishlist mark-purchased, waste.py record_waste + record_recipe_waste (raise→400). Sale path stays in costing.apply_sale per AGENTS.md rule 8.
+- 12 contract tests in tests/test_SASKIA-207_stock_ledger.py (incl. DB floor surfacing IntegrityError, no-hidden-commit).
+- Clock discipline: pedidos.py 5 today sites → clock.today_local(); generated seed files (packs.py) exempted in test_clock_discipline with generator-fix rationale. 10/10 (2 were failing on main).
+- Deprecation headers on models/procurement.py, models/herbus_drive.py, models/catalogs_restored.py (0 importers, runtime classes live in models_legacy.py — the SASKIA-206 trap).
+
+**Regression:** 62 passed across SASKIA-205/206/207, waste, herbus, P20, clock. 5 remaining failures verified pre-existing on main (stash baseline) — settings_kv_canonical x3 noted in audit.
+
 ## 2026-10-07c — SASKIA-205 + SASKIA-206: purchase→inventory + price snapshots
 
 **Goal:** close two shopping-flow gaps — purchases that never landed in inventory, and list rows that showed today's price instead of the quoted one.

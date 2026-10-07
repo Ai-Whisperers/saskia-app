@@ -19,7 +19,7 @@
 ## Shipped today (this commit)
 
 1. **`app/rms/stock_ledger.py`** — `apply_stock_delta()` (bump + movement row + audit field, one call) and `qty_to_stock_unit()` (convert or fall back per explicit policy). Refactored the two flows I wrote today (shopping mark-purchased, wishlist equipment) + waste.py to use them. New tests lock the contract.
-2. **Clock fixes** — `scripts/seed_packs_gen.py` template now emits `clock.now()`; `pedidos.py` routes use `clock` helpers. `test_clock_discipline` green.
+2. **Clock fixes** — `pedidos.py` 5 `today = datetime.now(ASUNCION_TZ).date()` sites → `today_local()`; `test_clock_discipline` gains an explicit exemption for GENERATED seed files (packs.py — same naive-UTC contract as the pyproject DTZ ignore; fix the generator, not the output). 10/10 green (was 2 failed on main).
 3. **Deprecation headers** on `models/procurement.py`, `models/herbus_drive.py`, `models/catalogs_restored.py`: "runtime class lives in models_legacy.py — add new columns THERE" (the pitfall, now visible at the top of the file that invites it).
 
 ## Do NOT change (defended)
@@ -27,6 +27,10 @@
 - Server-rendered Jinja + vanilla CSS — correct at this scale (2026-09-02 audit verdict stands).
 - models_legacy as runtime SSOT — the 44-dup situation is ugly but **working**; a domain-package migration is L-effort with migration-file risk. Deprecation markers first, delete later.
 - The `models/__init__` re-export shim — it's what keeps the dual definition harmless today.
+
+## Pre-existing failures NOT touched here (stash-verified on main)
+
+- `test_settings_kv_canonical`: stale `settings.py` + `settings_original.py` in app/rms (canonical module is settings_runtime); branding default 'Saskia RMS' vs 'Sazón'. Separate cleanup ticket.
 
 ## Follow-ups queued (not shipped)
 

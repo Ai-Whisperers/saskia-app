@@ -23,9 +23,9 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.rms.models import Ingredient, Recipe, StockMovement, WasteLog
+from app.rms.models import Ingredient, Recipe, WasteLog
 from app.rms.money import to_int_gs
-from app.rms.units import Unit, can_convert, convert_qty
+from app.rms.stock_ledger import apply_stock_delta, qty_to_stock_unit
 
 
 class WasteReason(str, Enum):
@@ -87,14 +87,10 @@ def record_waste(
     # stock decrement so 50 g of harina truly deducts 0.05 kg.
     qty_in_stock_unit = qty
     if qty_unit and ing.unit and qty_unit != ing.unit:
-        from_unit = Unit.coerce(qty_unit)
-        to_unit = Unit.coerce(ing.unit)
-        if not can_convert(from_unit, to_unit):
-            raise HTTPException(
-                status_code=400,
-                detail=f"No se puede convertir {qty_unit} a {ing.unit} (familia distinta)",
-            )
-        qty_in_stock_unit = float(convert_qty(qty, from_unit, to_unit))
+        try:
+            qty_in_stock_unit = qty_to_stock_unit(qty, qty_unit, ing, on_mismatch="raise")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     cost_gs = (
         to_int_gs(Decimal(str(qty_in_stock_unit)) * Decimal(str(ing.purchase_price_gs)))
         if ing.purchase_price_gs is not None
@@ -116,7 +112,7 @@ def record_waste(
         source=source,
     )
     session.add(log)
-    # Decrement stock
+    # Decrement stock (avg-cost math below uses the PRE-move stock)
     old_stock = ing.stock_qty
     new_stock = max(0.0, old_stock - qty_in_stock_unit)
     ing.stock_qty = new_stock
@@ -142,17 +138,16 @@ def record_waste(
         # Stock fully depleted by this waste — no basis for an average.
         ing.avg_cost_gs = None
     # StockMovement audit record (negative qty = stock out)
-    movement = StockMovement(
-        ingredient_id=ingredient_id,
+    apply_stock_delta(
+        session,
+        ing,
+        -qty_in_stock_unit,
         movement_type="merma",
-        qty=-qty_in_stock_unit,
         reason=f"Merma: {reason.value}",
         reference_id=log.id,
         reference_type="waste_log",
-        recorded_at=datetime.now(timezone.utc),
         created_by=recorded_by,
     )
-    session.add(movement)
     session.flush()
     return log
 
@@ -351,17 +346,17 @@ def record_recipe_waste(
         logs.append(log)
         total_cost += cost_gs
         # StockMovement audit record (negative qty = stock out)
-        movement = StockMovement(
-            ingredient_id=ingredient_id,
+        apply_stock_delta(
+            session,
+            ing,
+            -qty,
             movement_type="merma",
-            qty=-qty,
             reason=f"Merma receta '{recipe.name}': {reason.value}",
             reference_id=log.id,
             reference_type="waste_log",
-            recorded_at=now,
             created_by=recorded_by,
+            recorded_at=now,
         )
-        session.add(movement)
 
     session.flush()
     return RecipeWasteResult(
@@ -421,19 +416,16 @@ def waste_impact_with_trends(
     start = now - timedelta(days=days)
     half_start = now - timedelta(days=days / 2)
 
-    waste_rows = (
-        session.execute(
-            select(
-                WasteLog.ingredient_id,
-                func.sum(WasteLog.cost_gs).label("cost_gs"),
-                func.sum(WasteLog.qty).label("qty"),
-            )
-            .where(WasteLog.recorded_at >= start)
-            .where(WasteLog.recorded_at <= now)
-            .group_by(WasteLog.ingredient_id)
+    waste_rows = session.execute(
+        select(
+            WasteLog.ingredient_id,
+            func.sum(WasteLog.cost_gs).label("cost_gs"),
+            func.sum(WasteLog.qty).label("qty"),
         )
-        .all()
-    )
+        .where(WasteLog.recorded_at >= start)
+        .where(WasteLog.recorded_at <= now)
+        .group_by(WasteLog.ingredient_id)
+    ).all()
     if not waste_rows:
         return []
 
@@ -444,20 +436,17 @@ def waste_impact_with_trends(
         ).all()
     )
 
-    price_rows = (
-        session.execute(
-            select(
-                IngredientPriceEvent.ingredient_id,
-                IngredientPriceEvent.price_gs,
-                IngredientPriceEvent.recorded_at,
-            )
-            .where(IngredientPriceEvent.ingredient_id.in_(ing_ids))
-            .where(IngredientPriceEvent.recorded_at >= start)
-            .where(IngredientPriceEvent.recorded_at <= now)
-            .order_by(IngredientPriceEvent.recorded_at)
+    price_rows = session.execute(
+        select(
+            IngredientPriceEvent.ingredient_id,
+            IngredientPriceEvent.price_gs,
+            IngredientPriceEvent.recorded_at,
         )
-        .all()
-    )
+        .where(IngredientPriceEvent.ingredient_id.in_(ing_ids))
+        .where(IngredientPriceEvent.recorded_at >= start)
+        .where(IngredientPriceEvent.recorded_at <= now)
+        .order_by(IngredientPriceEvent.recorded_at)
+    ).all()
     recent: dict[int, list[int]] = {}
     prior: dict[int, list[int]] = {}
     for pid, price, at in price_rows:
