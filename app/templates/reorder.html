@@ -30,6 +30,17 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-whatsapp"/></svg>
       Generar pedido por WhatsApp
     </button>
+    <form method="post" action="/reorder/bulk-quick-restock" id="bulk-restock-form"
+          style="display:inline-flex;gap:var(--space-1);align-items:center;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="ingredient_ids" id="bulk-restock-ids" value="">
+      <button type="submit" class="btn btn-success" id="bulk-restock-btn" disabled
+              data-confirm="Llenar a 2x min TODOS los ingredientes marcados? Esto registra una compra para cada uno."
+              title="Marca ingredientes arriba para marcarlos como comprados en 1 click">
+        <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+        Marcar comprados (2x min)
+      </button>
+    </form>
     <small class="text-muted" style="margin-left:auto;">
       Después de {{ lock_threshold }} compras al mismo proveedor se fija automáticamente.
     </small>
@@ -47,11 +58,46 @@ document.querySelectorAll('.item-checkbox').forEach(function(cb) {
 });
 function updateBulkBtn() {
   var checked = document.querySelectorAll('.item-checkbox:checked');
-  var btn = document.getElementById('generate-po-btn');
-  var hidden = document.getElementById('bulk-selected');
-  btn.disabled = checked.length === 0;
-  hidden.value = Array.from(checked).map(function(c){ return c.value; }).join(',');
+  var ids = Array.from(checked).map(function(c){ return c.value; });
+  var csv = ids.join(',');
+
+  var genBtn = document.getElementById('generate-po-btn');
+  var genHidden = document.getElementById('bulk-selected');
+  if (genBtn) { genBtn.disabled = ids.length === 0; }
+  if (genHidden) { genHidden.value = csv; }
+
+  var restockBtn = document.getElementById('bulk-restock-btn');
+  var restockHidden = document.getElementById('bulk-restock-ids');
+  if (restockBtn) { restockBtn.disabled = ids.length === 0; }
+  if (restockHidden) { restockHidden.value = csv; }
 }
+
+// P40: confirm before bulk quick-restock
+document.addEventListener('DOMContentLoaded', function() {
+  var form = document.getElementById('bulk-restock-form');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      var btn = document.getElementById('bulk-restock-btn');
+      var ids = document.getElementById('bulk-restock-ids').value;
+      if (!ids) { e.preventDefault(); return false; }
+      var count = ids.split(',').filter(Boolean).length;
+      if (!confirm('Llenar a 2x min ' + count + ' ingrediente(s)? Esto registra una compra para cada uno.')) {
+        e.preventDefault();
+        return false;
+      }
+    });
+  }
+  // Per-row quick-restock: confirm before submitting
+  document.querySelectorAll('.quick-restock-form').forEach(function(f) {
+    f.addEventListener('submit', function(e) {
+      var name = f.getAttribute('data-ingredient-name') || 'este ingrediente';
+      if (!confirm('Llenar ' + name + ' a 2x min?')) {
+        e.preventDefault();
+        return false;
+      }
+    });
+  });
+});
 </script>
 
 {{ ui.skeleton_section(id="reorder-table", variant="line", count=10, label="Cargando reposiciones") }}
@@ -275,6 +321,18 @@ function updateBulkBtn() {
             </button>
           </div>
         </td>
+      </form>
+      <form method="post" action="/reorder/quick-restock" class="quick-restock-form"
+            data-ingredient-name="{{ fmt.entity_name(item) }}"
+            style="display:inline-flex;margin-left:.25rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="ingredient_id" value="{{ item.ingredient_id }}">
+        <button type="submit" class="btn btn-sm btn-outline-success quick-restock-btn"
+                title="Llena a 2x min con un click (usa el proveedor fijado y el ultimo precio)"
+                aria-label="Marcar comprado rapido: {{ fmt.entity_name(item) }}"
+                data-confirm="Llenar {{ fmt.entity_name(item) }} a 2x minimo?">
+          <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+        </button>
       </form>
     </tr>
   {% endfor %}

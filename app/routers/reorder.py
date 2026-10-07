@@ -178,11 +178,172 @@ def reorder_view(
     )
 
 
+@router.post("/quick-restock")
+def reorder_quick_restock(
+    request: Request,
+    ingredient_id: int = Form(...),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """One-tap 'I bought it' — fill ingredient to 2x minimum with a single click.
+
+    P40 (2026-10-07, Ivan): the previous /reorder page required operators
+    to fill qty + price + supplier on every row. With 60+ rows, the
+    'Marcar comprado' button was rarely used (0 records in 30 days).
+    This endpoint closes the gap: bumps stock to 2x min_stock_qty (or
+    max_stock_qty when set) using the effective supplier's last price.
+    No form fields, no confirmation — just a click and the row's
+    'Sin stock' / 'Bajo minimo' pill flips to 'OK'.
+
+    Idempotent: if the ingredient is already at 2x min, no price event
+    is written. Always audits + increments the supplier streak.
+    """
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Espera un momento.",
+        )
+
+    ing = session.get(Ingredient, ingredient_id)
+    if ing is None:
+        raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
+
+    target = float(ing.max_stock_qty or ing.min_stock_qty * 2)
+    if target <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Sin minimo configurado para {ing.name} — usa /reorder/registrar",
+        )
+
+    delta = max(0.0, target - float(ing.stock_qty or 0))
+
+    eff_supplier_id = get_effective_supplier_id(ing)
+    last_price_gs: int = 0
+    if eff_supplier_id is not None:
+        from app.rms.models import IngredientPriceEvent
+        last_evt = session.scalar(
+            select(IngredientPriceEvent)
+            .where(
+                IngredientPriceEvent.ingredient_id == ingredient_id,
+                IngredientPriceEvent.supplier_id == eff_supplier_id,
+            )
+            .order_by(IngredientPriceEvent.recorded_at.desc())
+            .limit(1)
+        )
+        if last_evt is not None:
+            last_price_gs = int(last_evt.price_gs or 0)
+
+    if delta > 0:
+        ing.stock_qty = target
+        record_price_event(
+            session,
+            ingredient_id,
+            last_price_gs,
+            source="restock",
+            supplier_id=eff_supplier_id,
+        )
+    if eff_supplier_id is not None:
+        record_purchase_supplier(session, ingredient_id, eff_supplier_id)
+
+    audit_record(
+        session,
+        user_id=current_user_id(request) or "operator",
+        action="write.reorder.quick_restock",
+        request=request,
+        detail={
+            "ingredient_id": ingredient_id,
+            "delta": delta,
+            "target": target,
+            "previous_stock": float(ing.stock_qty or 0) - delta,
+            "supplier_id": eff_supplier_id,
+            "price_gs": last_price_gs,
+        },
+    )
+    session.commit()
+    return RedirectResponse(url="/reorder", status_code=303)
+
+
+@router.post("/bulk-quick-restock")
+def reorder_bulk_quick_restock(
+    request: Request,
+    ingredient_ids: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """P40: bulk version of /reorder/quick-restock for the operator
+    who just got back from the supplier and wants to mark 10+ rows
+    as purchased in one click. ingredient_ids is a comma-separated
+    list. Empty input is a no-op (button should be disabled anyway).
+    """
+    if is_write_rate_limited(session, request, max_per_minute=10):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas acciones en 1 minuto. Espera un momento.",
+        )
+
+    if not ingredient_ids.strip():
+        return RedirectResponse(url="/reorder", status_code=303)
+
+    updated = 0
+    skipped = 0
+    for raw_id in ingredient_ids.split(","):
+        raw_id = raw_id.strip()
+        if not raw_id:
+            continue
+        try:
+            iid = int(raw_id)
+        except ValueError:
+            continue
+        ing = session.get(Ingredient, iid)
+        if ing is None:
+            continue
+        target = float(ing.max_stock_qty or ing.min_stock_qty * 2)
+        if target <= 0:
+            skipped += 1
+            continue
+        delta = max(0.0, target - float(ing.stock_qty or 0))
+        eff_supplier_id = get_effective_supplier_id(ing)
+        last_price_gs: int = 0
+        if eff_supplier_id is not None:
+            from app.rms.models import IngredientPriceEvent
+            last_evt = session.scalar(
+                select(IngredientPriceEvent)
+                .where(
+                    IngredientPriceEvent.ingredient_id == iid,
+                    IngredientPriceEvent.supplier_id == eff_supplier_id,
+                )
+                .order_by(IngredientPriceEvent.recorded_at.desc())
+                .limit(1)
+            )
+            if last_evt is not None:
+                last_price_gs = int(last_evt.price_gs or 0)
+        if delta > 0:
+            ing.stock_qty = target
+            record_price_event(
+                session,
+                iid,
+                last_price_gs,
+                source="restock",
+                supplier_id=eff_supplier_id,
+            )
+            updated += 1
+        if eff_supplier_id is not None:
+            record_purchase_supplier(session, iid, eff_supplier_id)
+    audit_record(
+        session,
+        user_id=current_user_id(request) or "operator",
+        action="write.reorder.bulk_quick_restock",
+        request=request,
+        detail={"updated": updated, "skipped": skipped,
+                "ids": ingredient_ids[:500]},
+    )
+    session.commit()
+    return RedirectResponse(url="/reorder", status_code=303)
+
+
 @router.post("/registrar")
 def reorder_registrar(
     request: Request,
     ingredient_id: int = Form(...),
-    qty: float = Form(...),
+
     qty_unit: str = Form(""),
     price_gs: int = Form(...),
     notes: str = Form(""),
