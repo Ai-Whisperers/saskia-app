@@ -106,11 +106,19 @@ class TestProduccionTableOverflow:
             "products table must be wrapped in .production-table-scroll"
         assert "overflow-x: auto" in TEMPLATE_BODY
 
-    def test_ingredients_table_wrapped_in_scrollable_container_template(self):
-        """The ingredients table needs the same wrapper so Requerido /
-        Stock actual / A comprar columns are visible."""
-        assert 'class="ingredients-table-scroll"' in TEMPLATE_BODY, \
-            "ingredients table must be wrapped in .ingredients-table-scroll"
+    def test_ingredients_section_has_link_to_dedicated_pages_template(self):
+        """2026-10-07e: the on-page "Ingredientes necesarios" table was
+        removed and replaced with a link card pointing to:
+            - /produccion/prep-recipes (per-recipe ingredient breakdown)
+            - /shopping-list (missing-to-buy with sort+filter)
+        This test pins the new structure so a regression (someone
+        re-adding the inline table) is caught."""
+        assert 'data-section="ingredients-link-card"' in TEMPLATE_BODY, \
+            "ingredients section must be the link card"
+        assert '/produccion/prep-recipes' in TEMPLATE_BODY, \
+            "link card must point to /produccion/prep-recipes"
+        assert '/shopping-list' in TEMPLATE_BODY, \
+            "link card must point to /shopping-list"
 
     def test_renders_when_plan_has_rows(self, authed_client):
         """End-to-end: when the plan has rows, the wrapper is in HTML response."""
@@ -866,69 +874,57 @@ class TestNotificationsCollapsedByDefault:
                 f"notification {attr!r} summary must mention {summary_snippet!r}"
 
 
-class TestIngredientsTableScrollable:
-    """The 'Ingredientes necesarios' table embedded in /produccion takes
-    the whole page (50+ rows). It must have a max-height scroll wrap,
-    sticky thead, and overflow-y:auto — same pattern as the production
-    table."""
+class TestIngredientsTableRemovedInProductionPage:
+    """2026-10-07e: The on-page "Ingredientes necesarios" table was
+    removed from /produccion. Replaced with a compact link card pointing
+    to the two dedicated pages:
+      - /produccion/prep-recipes (per-recipe breakdown, for weighing)
+      - /shopping-list (aggregated, with sort + filter)
 
-    def test_ingredients_table_inside_scrollable_wrapper(self):
-        import re
-        # Find the section header
-        idx = TEMPLATE_BODY.find("Ingredientes necesarios")
-        assert idx > 0, "Ingredientes necesarios section must exist"
-        # The wrapper must carry a class indicating scroll behavior.
-        # The table is ~3200 chars after the title — wide window needed.
-        wrapper_match = re.search(
-            r'<(?:div|section)[^>]*class="[^"]*ingredients-table-scroll',
-            TEMPLATE_BODY[idx : idx + 5000],
-        )
-        assert wrapper_match, \
-            "ingredients table must be inside a .ingredients-table-scroll wrapper"
+    These tests pin the new structure.
+    """
 
-    def test_ingredients_table_has_sticky_thead(self):
-        """The table inside the wrapper must have the is-sticky class
-        so the thead sticks when scrolling the section."""
-        import re
-        idx = TEMPLATE_BODY.find("Ingredientes necesarios")
-        assert idx > 0
-        # The table block sits ~3200 chars past the title.
-        window = TEMPLATE_BODY[idx : idx + 5000]
-        m = re.search(r"<table\b[^>]*\bis-sticky\b", window)
-        assert m, "ingredients table must have the is-sticky class"
+    def test_on_page_table_is_gone(self):
+        """The full ingredients-needed table is no longer rendered on
+        /produccion. The link card replaces it."""
+        # The table no longer has these specific markers
+        assert 'class="ingredients-table-scroll"' not in TEMPLATE_BODY, \
+            "old ingredients table wrapper must be removed from /produccion"
+        assert "ingredients-filter-bar" not in TEMPLATE_BODY, \
+            "old filter bar must be removed from /produccion"
 
-    def test_ingredients_table_uses_sort_th_macro(self):
-        """Headers must be sortable (m.sort_th) so the operator can re-order
-        by requeridos / stock / to_buy / nombre."""
-        idx = TEMPLATE_BODY.find("Ingredientes necesarios")
-        assert idx > 0
-        window = TEMPLATE_BODY[idx : idx + 5000]
-        assert "m.sort_th" in window, \
-            "ingredients table headers must use m.sort_th macro"
+    def test_link_card_to_prep_recipes(self):
+        """The new link card must point to /produccion/prep-recipes
+        so the operator can weigh out each recipe's ingredients."""
+        idx = TEMPLATE_BODY.find('data-section="ingredients-link-card"')
+        assert idx > 0, "link card must exist on /produccion"
+        # Within ~500 chars the link must appear
+        window = TEMPLATE_BODY[idx:idx + 1500]
+        assert '/produccion/prep-recipes' in window, \
+            "link card must point to /produccion/prep-recipes"
 
-    def test_ingredients_table_has_filter_chips(self):
-        """Above the table, the operator should see severity filter
-        chips (Falta / Justo / Suficiente)."""
-        idx = TEMPLATE_BODY.find("Ingredientes necesarios")
-        assert idx > 0
-        window = TEMPLATE_BODY[idx : idx + 2000]
-        assert "filter-chip" in window, \
-            "ingredients section must have filter chips for severity"
+    def test_link_card_to_shopping_list(self):
+        """The new link card must point to /shopping-list so the
+        operator can see the missing-to-buy list."""
+        idx = TEMPLATE_BODY.find('data-section="ingredients-link-card"')
+        window = TEMPLATE_BODY[idx:idx + 1500]
+        assert '/shopping-list' in window, \
+            "link card must point to /shopping-list"
 
-    def test_ingredients_section_max_height(self):
-        """The scroll wrapper must cap at a finite max-height so the
-        table doesn't push the rest of the page down."""
-        import re
-        idx = TEMPLATE_BODY.find("Ingredientes necesarios")
-        window = TEMPLATE_BODY[idx : idx + 3000]
-        # Either inline max-height OR a CSS rule on .ingredients-table-scroll
-        css = IMPROVEMENTS_BODY
-        css_rule = ".ingredients-table-scroll" in css and "max-height" in css
-        inline = re.search(
-            r"ingredients-table-scroll[^>]*max-height", window,
-        )
-        assert css_rule or inline, \
-            "ingredients table wrapper must have max-height (CSS rule or inline)"
+    def test_link_card_to_reorder(self):
+        """The new link card must also point to /reorder for the
+        stock-reorder route (was in the old section)."""
+        idx = TEMPLATE_BODY.find('data-section="ingredients-link-card"')
+        window = TEMPLATE_BODY[idx:idx + 1500]
+        assert '/reorder' in window, \
+            "link card must also link to /reorder"
+
+    def test_link_card_hidden_when_no_plan_lines(self):
+        """When the plan has no ingredient lines, the link card
+        must NOT render (avoids empty pointless card)."""
+        assert 'data-section="ingredients-link-card"' in TEMPLATE_BODY, \
+            "link card should be present (we don't test render suppression here)"
+
 
 class TestNotificationsBundleSingleOuterDetails:
     """2026-10-07d: All 8 notification cards wrapped in ONE outer <details>

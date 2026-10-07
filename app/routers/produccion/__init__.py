@@ -49,6 +49,7 @@ import app.routers.produccion.operations  # noqa: F401 — side effect: route re
 import app.routers.produccion.templates_ops  # noqa: F401 — side effect: route registration
 import app.routers.produccion.forecast  # noqa: F401 — side effect: route registration
 import app.routers.produccion.print_export  # noqa: F401 — side effect: route registration
+import app.routers.produccion.prep_recipes  # noqa: F401 — side effect: route registration
 
 __all__ = [
     "router",

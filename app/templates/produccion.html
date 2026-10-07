@@ -1655,117 +1655,50 @@
   })();
 </script>
 
-{# ── Ingredients needed ── Bug 2 + Bug 4 fix ── #}
+{# 2026-10-07e: replaced the on-page "Ingredientes necesarios" section with
+   two compact cards pointing to the dedicated pages. The on-page table
+   was eating ~30% of the viewport and not the right surface for the
+   operator's actual workflows:
+     - Aggregated ingredient list (with severity, sort, filter) →
+       /shopping-list  (the "missing to buy" view)
+     - Per-recipe ingredient breakdown (scale this recipe's batches) →
+       /produccion/prep-recipes  (the recipe-portions view)
+
+   The /shopping-list page already has the full ingredients-needed table
+   with sort + filter, plus the "send to shopping list" button works
+   from there too. So nothing is lost; just moved to its proper home. #}
 {% if plan.lines %}
-<section class="card mb-4">
-  <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); gap: var(--space-3); flex-wrap: wrap;">
-    <div>
-      <h2 class="card-title m-0" >Ingredientes necesarios</h2>
-      <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0;">
-        Cálculo de insumos basado en el plan del día versus stock disponible.
-        {{ plan.lines | length }} ingrediente{{ '' if plan.lines | length == 1 else 's' }} en el plan.
-      </p>
-    </div>
-    <div class="flex-gap-2-wrap" >
-      <a href="/reorder" class="btn btn-secondary btn-sm">
-        <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
-        Ir a Reponer stock →
-      </a>
-      {# Sprint shopping-list: one click — all qty_to_buy > 0 rows of this
-         day's plan become ShoppingListItem rows (deduped on the server). #}
-      <form class="d-inline" method="post" action="/shopping-list/from-production-plan" >
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="for_date" value="{{ plan.for_date.isoformat() }}">
-        <button type="submit" class="btn btn-primary btn-sm">
-          🛒 Enviar faltantes a lista de compras
-        </button>
-      </form>
-    </div>
+<section class="card mb-4"
+         data-section="ingredients-link-card"
+         style="display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; padding: var(--space-3);">
+  <div style="flex: 1; min-width: 240px;">
+    <h3 class="m-0" style="font-size: 1rem;">
+      <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+      Ingredientes necesarios
+    </h3>
+    <p class="text-muted m-0" style="font-size: var(--text-xs);">
+      {{ plan.lines | length }} ingrediente{{ '' if plan.lines | length == 1 else 's' }}
+      en el plan — abrí una vista dedicada para trabajarlos.
+    </p>
   </div>
-
-  {# 2026-10-07c: severity filter chips above the table — operator
-     focuses on urgent rows first (Falta by default), expands to see
-     others. Same pattern as the products table. #}
-  <div class="ingredients-filter-bar"
-       role="tablist"
-       aria-label="Filtrar ingredientes por gravedad"
-       style="display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-2); padding: var(--space-2); background: var(--color-surface-subtle, #f3f4f6); border-radius: var(--radius);">
-    <small class="text-muted" style="margin-right: var(--space-1);">Filtrar:</small>
-    <a href="{{ m.url_with_filters(request, {'ingredients_filter': ''}) }}"
-       class="filter-chip{% if not ingredients_filter %} filter-chip--on{% endif %}"
-       data-ingredients-filter="all"
-       aria-pressed="{{ 'true' if not ingredients_filter else 'false' }}">Todos</a>
-    <a href="{{ m.url_with_filters(request, {'ingredients_filter': 'falta'}) }}"
-       class="filter-chip{% if ingredients_filter == 'falta' %} filter-chip--on{% endif %}"
-       data-ingredients-filter="falta"
-       aria-pressed="{{ 'true' if ingredients_filter == 'falta' else 'false' }}">❗ Falta</a>
-    <a href="{{ m.url_with_filters(request, {'ingredients_filter': 'justo'}) }}"
-       class="filter-chip{% if ingredients_filter == 'justo' %} filter-chip--on{% endif %}"
-       data-ingredients-filter="justo"
-       aria-pressed="{{ 'true' if ingredients_filter == 'justo' else 'false' }}">⚠️ Justo</a>
-    <a href="{{ m.url_with_filters(request, {'ingredients_filter': 'suficiente'}) }}"
-       class="filter-chip{% if ingredients_filter == 'suficiente' %} filter-chip--on{% endif %}"
-       data-ingredients-filter="suficiente"
-       aria-pressed="{{ 'true' if ingredients_filter == 'suficiente' else 'false' }}">✓ Suficiente</a>
+  <div class="flex-gap-2-wrap">
+    <a href="/produccion/prep-recipes"
+       class="btn btn-primary btn-sm"
+       title="Recetas con sus porciones/ingredientes (para pesar)">
+      🍰 Por receta (pesar)
+    </a>
+    <a href="/shopping-list"
+       class="btn btn-secondary btn-sm"
+       title="Lista de compras (lo que falta por comprar)">
+      🛒 Lista de compras
+    </a>
+    <a href="/reorder"
+       class="btn btn-ghost btn-sm"
+       title="Reponer stock de ingredientes bajo mínimo">
+      <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
+      Reponer
+    </a>
   </div>
-
-  {# 2026-10-07c: scrollable wrapper with sticky thead — same pattern
-   as the products table. With 50+ ingredient rows the table was
-   pushing everything below the fold. Now it scrolls inside its own
-   container. #}
-  <div class="ingredients-table-scroll">
-  <table class="table is-hoverable is-sticky">
-    <thead>
-      <tr>
-        <th>{{ m.sort_th("Ingrediente", "ingredient", current_ingredients_sort, current_ingredients_dir) }}</th>
-        <th class="num">{{ m.sort_th("Necesario", "required", current_ingredients_sort, current_ingredients_dir) }}</th>
-        <th class="num">{{ m.sort_th("En stock", "stock", current_ingredients_sort, current_ingredients_dir) }}</th>
-        <th class="num">{{ m.sort_th("A reponer", "to_buy", current_ingredients_sort, current_ingredients_dir) }}</th>
-        <th>{{ m.sort_th("Estado", "severity", current_ingredients_sort, current_ingredients_dir) }}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for l in plan.lines %}
-      {% set _delta = l.stock_on_hand - l.qty_required %}
-      {% set _pct = (l.stock_on_hand / l.qty_required * 100) if l.qty_required > 0 else 100 %}
-      {% set _severity = "falta" if _delta < 0 else ("justo" if _pct < 80 else "suficiente") %}
-      <tr class="prep-row prep-row--{{ _severity }}"
-          {% if _delta < 0 %}title="Stock insuficiente"{% endif %}>
-        <td>
-          <strong>{{ l.ingredient_name }}</strong>
-          {% if _delta < 0 %}
-            {{ ui.status_pill("Falta", sev="danger") }}
-          {% elif _pct < 80 %}
-            {{ ui.status_pill("Justo", sev="warn") }}
-          {% else %}
-            {{ ui.status_pill("Suficiente", sev="ok") }}
-          {% endif %}
-        </td>
-        <td class="num">{{ fmt_qty(l.qty_required, l.unit) }}</td>
-        <td class="num {% if l.stock_on_hand < 0 %}text-danger{% endif %}">
-          {{ fmt_qty(l.stock_on_hand, l.unit) }}
-        </td>
-        <td class="num">
-          {% if _delta < 0 %}
-            <strong class="to-buy-pill to-buy-pill--warning">{{ fmt_qty(-_delta, l.unit) }}</strong>
-          {% else %}
-            <span class="text-muted">—</span>
-          {% endif %}
-        </td>
-        <td>
-          {% if _delta < 0 %}
-            <span class="badge badge-danger">¡Falta!</span>
-          {% elif _pct < 80 %}
-            <span class="badge badge-warning">Justo</span>
-          {% else %}
-            <span class="badge badge-success">Suficiente</span>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>{# /.ingredients-table-scroll #}
 </section>
 {% endif %}
 
