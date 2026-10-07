@@ -6,7 +6,6 @@
 ## [Unreleased]
 
 ### Added — Format utility JS (Phase 22 polish, 2026-10-07)
-
 Four new utility scripts that expose `window.*` globals for use across
 the app's server-rendered templates.
 
