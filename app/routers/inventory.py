@@ -1352,13 +1352,38 @@ def inventory_bulk_fill_to_2x_min(
         delta = target - current
         if delta <= 0:
             continue
-        # Update the legacy parent.stock_qty column. The /ajustar
-        # route does the same for the no-variants path; for the
-        # variants path the rollup will be recomputed by the next
-        # page render. Variants-aware top-up is a follow-up — the
-        # operator can always use the per-ingredient /inventario/{id}
-        # "Ajustar" UI to fill a specific variant bag.
-        ing.stock_qty = max(0.0, (ing.stock_qty or 0.0) + delta)
+        # Variant-aware top-up (2026-10-07 audit, Ivan). The previous
+        # code wrote delta to the legacy parent.stock_qty column and
+        # left the variants untouched, which made parent.stock_qty
+        # diverge from the variant rollup and produced false "Faltante"
+        # badges on /produccion/prep-recipes (which reads parent
+        # directly). Match the /ajustar pattern: when variants exist,
+        # add the delta to the preferred variant's stock_qty in
+        # package units, then re-sync the parent from the new rollup.
+        if rollup is not None and getattr(rollup, "variants", None):
+            preferred = next(
+                (v for v in rollup.variants if v.get("preferred")),
+                rollup.variants[0],
+            )
+            size_in_base = float(preferred["size_in_base"])
+            if size_in_base > 0:
+                packages_to_add = delta / size_in_base
+            else:
+                packages_to_add = 0
+            preferred_variant = session.get(IngredientVariant, int(preferred["variant_id"]))
+            if preferred_variant is not None:
+                preferred_variant.stock_qty = max(
+                    0.0,
+                    (preferred_variant.stock_qty or 0.0) + packages_to_add,
+                )
+            # Re-sync the parent from the (now-updated) rollup so any
+            # consumer reading the legacy column sees the right number.
+            new_rollup = rollup_ingredient_stock(session, ing.id)
+            ing.stock_qty = new_rollup.base_qty if new_rollup else ing.stock_qty
+        else:
+            # Legacy path: no variants, parent.stock_qty is the only
+            # source of truth.
+            ing.stock_qty = max(0.0, (ing.stock_qty or 0.0) + delta)
         # Audit-trail row. movement_type='reorder' is the closest fit
         # in the existing taxonomy (sale|adjustment|merma|reorder|
         # initial). The free-text reason names the target so /merma
