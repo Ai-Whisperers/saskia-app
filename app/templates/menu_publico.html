@@ -18,11 +18,13 @@
 {% block title %}Menú — {{ shop_name }}{% endblock %}
 
 {% block content %}
-<div class="menu-publico">
+<div class="menu-publico"
+      {%- if brand_color %} style="--color-accent: {{ brand_color }}; --color-accent-hover: {{ brand_color }}; --color-accent-soft: color-mix(in srgb, {{ brand_color }} 12%, transparent);"{% endif -%}
+>
 
   {# Header — shop brand + tagline #}
   <header class="menu-publico__header">
-    <h1 class="menu-publico__shop">{{ shop_name }}</h1>
+    <h1 class="menu-publico__shop"{%- if brand_color %} style="color: {{ brand_color }};"{% endif -%}>{{ shop_name }}</h1>
     <p class="menu-publico__subtitle">
       Menú digital — {{ total_items }} producto{{ '' if total_items == 1 else 's' }}
     </p>

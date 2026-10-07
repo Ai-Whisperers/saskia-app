@@ -153,3 +153,54 @@ def test_settings_shop_whatsapp_roundtrip(client):
 
     r3 = client.post("/api/settings/shop-whatsapp", json={"phone": ""})
     assert r3.json()["ordering_enabled"] is False
+
+
+# ─── Per-client branding (tenant-slug pages) ────────────────────────────────
+
+def test_menu_publico_fallback_branding(client, session_factory):
+    """No Tenant row + no shop_name KV -> /menu still 200 with fallback name."""
+    with session_factory() as s:
+        _mk_product(s, "Chipa fallback", category="panaderia")
+        s.commit()
+
+    resp = client.get("/menu")
+    assert resp.status_code == 200
+    assert "menu-publico" in resp.text
+
+
+def test_menu_publico_tenant_branding(client, session_factory):
+    """Tenant business_name + primary_color + KV shop_name reach the page."""
+    import datetime as _dt
+
+    from app.rms.models import SettingsKV, Tenant
+
+    with session_factory() as s:
+        s.add(Tenant(slug="tiocarbajal", business_name="Tío Carbajal", primary_color="#123456"))
+        s.add(SettingsKV(key="shop_name", value_json="Tío Carbajal", updated_at=_dt.datetime.utcnow()))
+        _mk_product(s, "Pizza Carbajal", category="otro")
+        s.commit()
+
+    resp = client.get("/menu")
+    assert resp.status_code == 200
+    body = resp.text
+    assert "Tío Carbajal" in body          # shop name from KV/Tenant, not hardcoded
+    assert "#123456" in body               # brand color injected as CSS var
+
+
+def test_menu_tablet_tenant_branding(client, session_factory):
+    """/m/{slug} deep link carries the same brand name + color."""
+    import datetime as _dt
+
+    from app.rms.models import SettingsKV, Tenant
+
+    with session_factory() as s:
+        s.add(Tenant(slug="tiocarbajal", business_name="Tío Carbajal", primary_color="#abcdef"))
+        s.add(SettingsKV(key="shop_name", value_json="Tío Carbajal", updated_at=_dt.datetime.utcnow()))
+        _mk_product(s, "Brownie tablet", category="pasteleria", slug="brownie-brand")
+        s.commit()
+
+    resp = client.get("/m/brownie-brand")
+    assert resp.status_code == 200
+    body = resp.text
+    assert "Tío Carbajal" in body
+    assert "#abcdef" in body

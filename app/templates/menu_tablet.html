@@ -12,11 +12,13 @@
 {% block title %}{{ product.name }} — Menú{% endblock %}
 
 {% block content %}
-<div class="menu-tablet" data-product-id="{{ product.id }}">
+<div class="menu-tablet" data-product-id="{{ product.id }}"
+      {%- if brand_color %} style="--color-accent: {{ brand_color }}; --color-accent-hover: {{ brand_color }}; --color-accent-soft: color-mix(in srgb, {{ brand_color }} 12%, transparent);"{% endif -%}
+>
 
   {# Header — shop brand + product name + portion #}
   <header class="menu-tablet__header">
-    <h1 class="menu-tablet__shop">{{ shop_name }}</h1>
+    <h1 class="menu-tablet__shop"{%- if brand_color %} style="color: {{ brand_color }};"{% endif -%}>{{ shop_name }}</h1>
     <p class="menu-tablet__subtitle">Menú del día</p>
   </header>
 

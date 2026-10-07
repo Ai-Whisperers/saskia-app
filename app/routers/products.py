@@ -1092,6 +1092,36 @@ async def product_upload_image(
 # /p/{token} so an attacker can't enumerate the catalog by varying the slug.
 
 
+def _public_branding(session: Session) -> dict:
+    """Per-shop branding for public pages (/menu, /m/{slug}).
+
+    Priority: SettingsKV("shop_name") -> Tenant.business_name -> "Sazon".
+    Accent color: Tenant.primary_color (hex); currency: Tenant.currency.
+    Single-tenant app: first Tenant row is THE shop.
+    """
+    from app.rms.models import SettingsKV, Tenant
+
+    tenant = session.scalars(select(Tenant).limit(1)).first()
+    business = (getattr(tenant, "business_name", "") or "").strip()
+    primary = (getattr(tenant, "primary_color", "") or "").strip()
+    currency = (getattr(tenant, "currency", "") or "").strip() or "Gs."
+
+    kv = session.get(SettingsKV, "shop_name")
+    kv_name = ""
+    if kv is not None:
+        try:
+            import json as _json
+
+            raw = getattr(kv, "value_json", "") or ""
+            val = _json.loads(raw) if raw else ""
+            kv_name = str(val).strip() if not isinstance(val, dict) else str(val.get("name", "")).strip()
+        except Exception:  # noqa: BLE001 - malformed KV must never break the menu
+            kv_name = ""
+
+    name = kv_name or business or "Sazon"
+    return {"shop_name": name, "brand_color": primary, "currency_label": currency}
+
+
 @public_router.get("/m/{slug}", response_class=HTMLResponse)
 def public_menu(
     request: Request,
@@ -1141,8 +1171,7 @@ def public_menu(
         "menu_tablet.html",
         {
             "product": payload,
-            "shop_name": "Sazón",
-            "currency_label": "Gs.",
+            **_public_branding(session),
         },
     )
 
@@ -1231,8 +1260,7 @@ def public_menu_catalog(
         {
             "menu_groups": menu_groups,
             "total_items": len(products),
-            "shop_name": "Sazón",
-            "currency_label": "Gs.",
+            **_public_branding(session),
             "shop_whatsapp": shop_whatsapp,
         },
     )
