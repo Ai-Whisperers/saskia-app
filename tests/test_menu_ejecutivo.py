@@ -97,3 +97,36 @@ def test_both_ids_rejected(authed_client):
         follow_redirects=False,
     )
     assert r.status_code == 400
+
+
+def test_pos_shows_menus_strip(authed_client, session_factory):
+    """WP-4.2 UI: GET /ventas renderiza la franja de menús ejecutivos
+    con nombre + precio + data-menu-id cuando hay menús activos."""
+    from app.rms.models_legacy import Menu, MenuItem
+
+    ids = _products(session_factory)
+    mid = _mk(session_factory, Menu, name="Ejecutivo Midday", price_gs=35_000, active=True, tenant_id=1)
+    with session_factory() as s:
+        s.add(MenuItem(menu_id=mid, product_id=ids[0], qty=1))
+        s.commit()
+
+    r = authed_client.get("/ventas")
+    assert r.status_code == 200
+    body = r.content.decode()
+    assert "Menús ejecutivos" in body
+    assert 'data-menu-id' in body or f"addMenuToCart({mid}" in body
+    assert "Ejecutivo Midday" in body
+    assert "Gs. 35.000" in body
+
+
+def test_pos_hides_menus_strip_when_empty(authed_client, session_factory):
+    """Sin menús activos la franja no aparece (cero ruido en el POS)."""
+    from app.rms.models_legacy import Menu
+
+    with session_factory() as s:
+        for m in s.query(Menu).all():
+            m.active = False
+        s.commit()
+    r = authed_client.get("/ventas")
+    assert r.status_code == 200
+    assert "Menús ejecutivos" not in r.content.decode()

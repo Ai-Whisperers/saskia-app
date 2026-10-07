@@ -299,9 +299,24 @@ def _build_sales_context(
     ).scalar_one_or_none()
     venta_libre_id = venta_libre.id if venta_libre is not None else None
 
+    # WP-4.2 menús ejecutivos — active menus for the POS "Menús" strip
+    from app.rms.menu_ejecutivo import menus_with_items
+
+    menus_pos = [
+        {
+            "id": m["id"],
+            "name": m["name"],
+            "price_gs": m["price_gs"],
+            "items_summary": ", ".join(m["incluye"][:4])
+            + ("…" if len(m["incluye"]) > 4 else ""),
+        }
+        for m in menus_with_items(session)
+    ]
+
     return {
         "products": products,
         "sales": [_decorated(s) for s in sales_page],
+        "menus_activos": menus_pos,
         "quick_sell": quick_sell,
         "q": q or "",
         "product_id": product_id or "",
