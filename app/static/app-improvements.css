@@ -644,10 +644,11 @@ ui-date:focus-visible, ui-combo:focus-visible,
   }
 
   /* Prep table: tighter rows + sticky thead (mirrors production table). */
-  .prep-table-wrap {
+  .prep-table-wrap,
+  .ingredients-table-scroll {
     overflow-x: auto;
     overflow-y: auto;
-    max-height: min(70vh, 600px);
+    max-height: min(60vh, 540px);
     border: 1px solid var(--color-border, #e5e7eb);
     border-radius: var(--radius, 4px);
     background: var(--color-surface, #fff);
@@ -681,6 +682,61 @@ ui-date:focus-visible, ui-combo:focus-visible,
     color: var(--color-text-muted, #6b7280);
     border-top: 1px solid var(--color-border, #e5e7eb);
     background: var(--color-surface-subtle, #f9fafb);
+  }
+
+  /* 2026-10-07c: collapsed notification cards. Each card on /produccion
+     day view (pedidos, sustitutos, meta diaria, HACCP, baja confianza,
+     ayer) is wrapped in <details class="notification-collapse"> so the
+     summary line shows the alert count without taking up screen space. */
+  .notification-collapse {
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: var(--radius, 6px);
+    background: var(--color-surface, #fff);
+    border-left-width: 4px;
+  }
+  .notification-collapse > summary {
+    border-left-width: 4px;
+    border-left-style: solid;
+    border-radius: var(--radius, 6px) var(--radius, 6px) 0 0;
+    list-style: none;
+    user-select: none;
+  }
+  .notification-collapse > summary::-webkit-details-marker {
+    display: none;
+  }
+  .notification-collapse > summary::before {
+    content: "▶";
+    display: inline-block;
+    margin-right: var(--space-2, 0.5rem);
+    font-size: 0.7em;
+    transition: transform 120ms ease;
+    color: var(--color-text-muted, #6b7280);
+  }
+  .notification-collapse[open] > summary::before {
+    transform: rotate(90deg);
+  }
+  .notification-collapse > summary:hover {
+    background: var(--color-surface-subtle, #f3f4f6);
+  }
+  .notification-collapse--warning {
+    border-left-color: var(--color-warning, #f59e0b);
+  }
+  .notification-collapse--danger {
+    border-left-color: var(--color-danger, #dc2626);
+  }
+  .notification-collapse--success {
+    border-left-color: var(--color-success, #16a34a);
+  }
+  .notification-collapse--info {
+    border-left-color: var(--color-info, #3b82f6);
+  }
+
+  /* Ingredients table: lighter severity-color rows (footer only). */
+  .prep-row--falta td {
+    background: rgba(220, 38, 38, 0.04);
+  }
+  .prep-row--suficiente td {
+    background: rgba(22, 163, 74, 0.03);
   }
   .production-table-footer__summary strong {
     color: var(--color-text, #111827);

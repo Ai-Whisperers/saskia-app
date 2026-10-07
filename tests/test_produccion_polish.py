@@ -801,3 +801,131 @@ class TestPrepTableSmartFeatures:
         """produccion_prep route must accept ?sort= and not 500."""
         r = authed_client.get("/produccion/prep?sort=name&dir=asc")
         assert r.status_code == 200, "?sort on produccion_prep must not 500"
+
+
+# ─── Round 3 (2026-10-07c): collapse notifications + scrollable ingredients ──
+class TestNotificationsCollapsedByDefault:
+    """Operator feedback: 'all of the notifications section should be
+    collapsed by default — they take up all the space every time'.
+
+    Each top-of-page notification card (pedidos, sustitutos, meta diaria,
+    HACCP, baja confianza, ayer hiciste) must be wrapped in <details> so it
+    starts collapsed and the operator opens only what they need."""
+
+    # The marker attribute lets us find each card unambiguously.
+    EXPECTED_NOTIFICATIONS = [
+        # (test selector attribute, summary text snippet)
+        ("data-pending-pedidos-section", "Pedidos pendientes"),
+        ("data-low-stock-section",        "ingrediente"),
+        ("data-meta-diaria-section",      "Meta diaria"),
+        ("data-haccp-latest-section",     "HACCP"),
+        ("data-haccp-missing-section",    "pendiente"),
+        ("data-confidence-summary-section", "baja confianza"),
+        ("data-yesterday-snapshot-section", "Ayer hiciste"),
+    ]
+
+    def test_each_notification_is_a_details_block(self):
+        for attr, summary_snippet in self.EXPECTED_NOTIFICATIONS:
+            # The notification must be inside a <details ...> tag in the template.
+            assert f'data-notification-section="{attr}"' in TEMPLATE_BODY, \
+                f"notification {attr!r} must be marked with data-notification-section"
+
+    def test_notifications_have_open_attribute_removed(self):
+        """None of the primary notification cards should have 'open' on the
+        <details> — collapsed by default. Sub-details (e.g. the sustituos
+        sub-list) may have it."""
+        import re
+        # Find every <details ... data-notification-section="..."> and
+        # ensure none carry the `open` attribute.
+        matches = re.findall(
+            r'<details\b[^>]*data-notification-section="[^"]+"[^>]*>',
+            TEMPLATE_BODY,
+        )
+        for m in matches:
+            assert " open" not in m and 'open="' not in m, \
+                f"notification <details> must be collapsed by default (got: {m[:80]!r})"
+
+    def test_notification_summary_uses_summary_tag(self):
+        """Each notification <details> must have a <summary> with the
+        count or key text — so the operator sees the alert status without
+        having to open it."""
+        import re
+        for attr, summary_snippet in self.EXPECTED_NOTIFICATIONS:
+            # Find the <details data-notification-section="attr"> block
+            block_start = TEMPLATE_BODY.find(
+                f'data-notification-section="{attr}"'
+            )
+            assert block_start > 0
+            # Find the enclosing <details ...> open tag
+            details_open = TEMPLATE_BODY.rfind("<details", 0, block_start)
+            details_close = TEMPLATE_BODY.find("</details>", block_start)
+            block = TEMPLATE_BODY[details_open:details_close]
+            assert "<summary" in block, \
+                f"notification {attr!r} must have a <summary> tag inside"
+            assert summary_snippet in block, \
+                f"notification {attr!r} summary must mention {summary_snippet!r}"
+
+
+class TestIngredientsTableScrollable:
+    """The 'Ingredientes necesarios' table embedded in /produccion takes
+    the whole page (50+ rows). It must have a max-height scroll wrap,
+    sticky thead, and overflow-y:auto — same pattern as the production
+    table."""
+
+    def test_ingredients_table_inside_scrollable_wrapper(self):
+        import re
+        # Find the section header
+        idx = TEMPLATE_BODY.find("Ingredientes necesarios")
+        assert idx > 0, "Ingredientes necesarios section must exist"
+        # The wrapper must carry a class indicating scroll behavior.
+        # The table is ~3200 chars after the title — wide window needed.
+        wrapper_match = re.search(
+            r'<(?:div|section)[^>]*class="[^"]*ingredients-table-scroll',
+            TEMPLATE_BODY[idx : idx + 5000],
+        )
+        assert wrapper_match, \
+            "ingredients table must be inside a .ingredients-table-scroll wrapper"
+
+    def test_ingredients_table_has_sticky_thead(self):
+        """The table inside the wrapper must have the is-sticky class
+        so the thead sticks when scrolling the section."""
+        import re
+        idx = TEMPLATE_BODY.find("Ingredientes necesarios")
+        assert idx > 0
+        # The table block sits ~3200 chars past the title.
+        window = TEMPLATE_BODY[idx : idx + 5000]
+        m = re.search(r"<table\b[^>]*\bis-sticky\b", window)
+        assert m, "ingredients table must have the is-sticky class"
+
+    def test_ingredients_table_uses_sort_th_macro(self):
+        """Headers must be sortable (m.sort_th) so the operator can re-order
+        by requeridos / stock / to_buy / nombre."""
+        idx = TEMPLATE_BODY.find("Ingredientes necesarios")
+        assert idx > 0
+        window = TEMPLATE_BODY[idx : idx + 5000]
+        assert "m.sort_th" in window, \
+            "ingredients table headers must use m.sort_th macro"
+
+    def test_ingredients_table_has_filter_chips(self):
+        """Above the table, the operator should see severity filter
+        chips (Falta / Justo / Suficiente)."""
+        idx = TEMPLATE_BODY.find("Ingredientes necesarios")
+        assert idx > 0
+        window = TEMPLATE_BODY[idx : idx + 2000]
+        assert "filter-chip" in window, \
+            "ingredients section must have filter chips for severity"
+
+    def test_ingredients_section_max_height(self):
+        """The scroll wrapper must cap at a finite max-height so the
+        table doesn't push the rest of the page down."""
+        import re
+        idx = TEMPLATE_BODY.find("Ingredientes necesarios")
+        window = TEMPLATE_BODY[idx : idx + 3000]
+        # Either inline max-height OR a CSS rule on .ingredients-table-scroll
+        css = IMPROVEMENTS_BODY
+        css_rule = ".ingredients-table-scroll" in css and "max-height" in css
+        inline = re.search(
+            r"ingredients-table-scroll[^>]*max-height", window,
+        )
+        assert css_rule or inline, \
+            "ingredients table wrapper must have max-height (CSS rule or inline)"

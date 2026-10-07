@@ -135,6 +135,40 @@ def _sort_produccion_rows(rows: list[dict], sort: str, dir: str) -> list[dict]:
     return planned + ad_hoc
 
 
+# 2026-10-07c: ingredient-line sort helper. plan.lines entries have
+# these sortable attributes: ingredient_name (str), qty_required (num),
+# stock_on_hand (num), and we derive "to_buy" and "severity" on the fly.
+_VALID_INGREDIENT_SORT_KEYS = {
+    "ingredient", "required", "stock", "to_buy", "severity",
+}
+
+
+def _sort_ingredient_lines(lines: list, sort: str, dir: str) -> list:
+    """Sort ingredient plan lines. Unknown sort keys fall back to
+    `severity` (Falta first)."""
+    safe_sort = sort if sort in _VALID_INGREDIENT_SORT_KEYS else "severity"
+    safe_dir = dir if dir in ("asc", "desc") else "asc"
+    reverse = safe_dir == "desc"
+    severity_order = {"falta": 0, "justo": 1, "suficiente": 2}
+
+    def _line_sort_key(ln):
+        delta = ln.stock_on_hand - ln.qty_required
+        pct = (ln.stock_on_hand / ln.qty_required * 100) if ln.qty_required > 0 else 100
+        sev = severity_order.get("falta" if delta < 0 else ("justo" if pct < 80 else "suficiente"), 9)
+        if safe_sort == "ingredient":
+            return (ln.ingredient_name or "").lower()
+        if safe_sort == "required":
+            return ln.qty_required or 0
+        if safe_sort == "stock":
+            return ln.stock_on_hand or 0
+        if safe_sort == "to_buy":
+            return max(0.0, -delta)
+        # severity default
+        return (sev, ln.ingredient_name or "")
+
+    return sorted(lines, key=_line_sort_key, reverse=reverse)
+
+
 # Allergen → list of strings in recipe_allergens that match (semicolon OR
 # comma separated). Multi-select: row must contain AT LEAST one of the
 # selected allergens (union semantics — operator picks "gluten OR dairy").
@@ -244,6 +278,13 @@ def produccion_worksheet(
     filter_with_pedidos: str = Query("", pattern=r"^(1|0|)?$"),
     filter_with_hecho: str = Query("", pattern=r"^(1|0|)?$"),
     filter_with_surplus: str = Query("", pattern=r"^(1|0|)?$"),
+    # Ingredients table — sort + filter (2026-10-07c).
+    # `ingredients_filter` is one of "falta" | "justo" | "suficiente" | ""
+    # (empty = show all). Default "falta" so the operator sees urgent
+    # rows first.
+    ingredients_sort: str = Query("severity", pattern=r"^[a-z_]+$"),
+    ingredients_dir: str = Query("asc", pattern=r"^(asc|desc)$"),
+    ingredients_filter: str = Query("", pattern=r"^[a-z]*$"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Production plan: day table, week grid, or month grid."""
@@ -1024,6 +1065,28 @@ def produccion_worksheet(
         visible_rows = primary_rows[start:start + rows]
     hidden_count = max(0, total_filtered - len(visible_rows))
 
+    # 2026-10-07c: ingredients table smart-features. Filter by severity
+    # then sort by the operator-chosen column. We mutate plan.lines in
+    # place (a list copy) so the rest of the route doesn't see the
+    # reordering. Unknown sort keys fall back to "severity" so a typo
+    # never 500s.
+    if ingredients_filter in ("falta", "justo", "suficiente"):
+        plan_lines_filtered = []
+        for ln in plan.lines:
+            delta = ln.stock_on_hand - ln.qty_required
+            pct = (ln.stock_on_hand / ln.qty_required * 100) if ln.qty_required > 0 else 100
+            sev = "falta" if delta < 0 else ("justo" if pct < 80 else "suficiente")
+            if sev == ingredients_filter:
+                plan_lines_filtered.append(ln)
+        # Sort the filtered list.
+        plan.lines = _sort_ingredient_lines(
+            plan_lines_filtered, sort=ingredients_sort, dir=ingredients_dir
+        )
+    else:
+        plan.lines = _sort_ingredient_lines(
+            list(plan.lines), sort=ingredients_sort, dir=ingredients_dir
+        )
+
     return render(
         request,
         "produccion.html",
@@ -1040,6 +1103,9 @@ def produccion_worksheet(
             "show_all": show_all == 1,
             "current_sort": sort,
             "current_dir": dir,
+            "current_ingredients_sort": ingredients_sort,
+            "current_ingredients_dir": ingredients_dir,
+            "ingredients_filter": ingredients_filter,
             "active_filters": {
                 "allergen": filter_allergen,
                 "source": filter_source,

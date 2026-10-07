@@ -231,48 +231,58 @@
     Ver pedidos prioritarios →
   </a>
 </div>
-<div class="card mb-4" style="border-left: 4px solid var(--color-warning, #f59e0b);">
-  <div class="card-header">
-    <h3 class="m-0" >📦 Pedidos pendientes para hoy ({{ pending_pedidos|length }})</h3>
-    <small class="text-muted">US 4.4 — El cocinero ve estos pedidos antes que el plan automático. Click para abrir el detalle.</small>
-  </div>
-  <div class="card-body">
-    <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-3);">
-      {% for p in pending_pedidos %}
-      <li class="d-flex" style="padding:var(--space-3);background:var(--color-surface-subtle, #f8fafc);border-radius:var(--radius);border:1px solid var(--color-border);">
-        <div class="d-flex" style="display:flex;justify-content:space-between;align-items:start;gap:var(--space-3);flex-wrap:wrap;">
-          <div>
-            <strong><a href="/pedidos/{{ p.id }}" class="text-link">Pedido #{{ p.id }} — {{ p.customer_name }}</a></strong>
-            {% if p.customer_phone %}<small class="text-muted"> · {{ p.customer_phone }}</small>{% endif %}
-            {% if p.promised_time %}<span class="badge ml-2" >⏰ {{ p.promised_time }}</span>{% endif %}
-            <span class="badge badge-info ml-2" >{{ p.channel }}</span>
-            <span class="badge badge-{{ 'warning' if p.status == 'pending' else 'success' if p.status == 'ready' else 'info' }} ml-2 mt-2" >{{ p.status }}</span>
+{# 2026-10-07c: collapsed by default. Operator opens only when needed. #}
+<details class="notification-collapse notification-collapse--warning mb-4"
+         data-notification-section="data-pending-pedidos-section">
+  <summary style="cursor: pointer; list-style: none; padding: var(--space-3) var(--space-4);">
+    <strong>📦 Pedidos pendientes para hoy ({{ pending_pedidos|length }})</strong>
+    <small class="text-muted" style="margin-left: var(--space-2);">clic para ver el detalle</small>
+  </summary>
+  <div class="card" style="border-left: 4px solid var(--color-warning, #f59e0b);">
+    <div class="card-body">
+      <small class="text-muted">US 4.4 — El cocinero ve estos pedidos antes que el plan automático.</small>
+      <ul style="list-style:none;padding:0;margin:var(--space-3) 0 0 0;display:flex;flex-direction:column;gap:var(--space-3);">
+        {% for p in pending_pedidos %}
+        <li class="d-flex" style="padding:var(--space-3);background:var(--color-surface-subtle, #f8fafc);border-radius:var(--radius);border:1px solid var(--color-border);">
+          <div class="d-flex" style="display:flex;justify-content:space-between;align-items:start;gap:var(--space-3);flex-wrap:wrap;">
+            <div>
+              <strong><a href="/pedidos/{{ p.id }}" class="text-link">Pedido #{{ p.id }} — {{ p.customer_name }}</a></strong>
+              {% if p.customer_phone %}<small class="text-muted"> · {{ p.customer_phone }}</small>{% endif %}
+              {% if p.promised_time %}<span class="badge ml-2" >⏰ {{ p.promised_time }}</span>{% endif %}
+              <span class="badge badge-info ml-2" >{{ p.channel }}</span>
+              <span class="badge badge-{{ 'warning' if p.status == 'pending' else 'success' if p.status == 'ready' else 'info' }} ml-2 mt-2" >{{ p.status }}</span>
+            </div>
           </div>
-        </div>
-        <ul class="mt-2" style="margin-top:var(--space-2);padding-left:var(--space-5);">
-          {% for it in p.line_items %}
-          <li>{{ it.qty }} × {{ it.product_name }} ({{ m.gs_full(it.unit_price_gs) }})</li>
-          {% endfor %}
-        </ul>
-        {% if p.notes %}<small class="text-muted">📝 {{ p.notes }}</small>{% endif %}
-      </li>
-      {% endfor %}
-    </ul>
+          <ul class="mt-2" style="margin-top:var(--space-2);padding-left:var(--space-5);">
+            {% for it in p.line_items %}
+            <li>{{ it.qty }} × {{ it.product_name }} ({{ m.gs_full(it.unit_price_gs) }})</li>
+            {% endfor %}
+          </ul>
+          {% if p.notes %}<small class="text-muted">📝 {{ p.notes }}</small>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
   </div>
-</div>
+</details>
 {% endif %}
 
-{# ── Low-stock ingredients warning (pre-existing) ── #}
+{# ── Low-stock ingredients warning (pre-existing) ──
+   2026-10-07c: collapsed by default — operator opens only on demand. #}
 {% if low_stock_ingredients or substitution_suggestions %}
-<div class="alert alert-danger mb-4" role="alert" style="border-left: 4px solid var(--color-danger, #dc2626); padding: var(--space-3); border-radius: var(--radius); background: rgba(220, 38, 38, 0.06);">
-  <div style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2);">
+<details class="notification-collapse notification-collapse--danger mb-4"
+         data-notification-section="data-low-stock-section"
+         {% if substitution_suggestions %}open{% endif %}>
+  <summary style="cursor: pointer; list-style: none; padding: var(--space-3) var(--space-4); display: flex; align-items: center; gap: var(--space-2);">
     <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
     <strong>
       {% set _n_low = low_stock_ingredients|length if low_stock_ingredients else 0 %}
       {% set _n_subs = substitution_suggestions|length if substitution_suggestions else 0 %}
       {{ _n_low }} ingrediente{{ '' if _n_low == 1 else 's' }} bajo{{ '' if _n_low == 1 else 's' }}{% if _n_subs %} · {{ _n_subs }} sugerencia{{ '' if _n_subs == 1 else 's' }} de sustitución{% endif %}
     </strong>
-  </div>
+    <small class="text-muted" style="margin-left: auto;">clic para abrir</small>
+  </summary>
+  <div class="alert alert-danger" role="alert" style="border-left: 4px solid var(--color-danger, #dc2626); padding: var(--space-3); border-radius: var(--radius); background: rgba(220, 38, 38, 0.06); margin: 0;">
   {% if low_stock_ingredients %}
   <ul style="margin: 0 0 var(--space-2) 0; padding-left: var(--space-5); columns: 2; column-gap: var(--space-4);">
     {% for ing in low_stock_ingredients %}
@@ -319,59 +329,90 @@
   </details>
   {% endif %}
   <a href="/reorder" class="btn btn-sm btn-secondary mt-2" >Reponer ahora →</a>
-</div>
+  </div>
+</details>
 {% endif %}
 
-{# ── Daily target vs actual (pre-existing) ── #}
+{# ── Daily target vs actual (pre-existing) ──
+   2026-10-07c: collapsed by default — operator opens to edit meta. #}
 {% if daily_target %}
-<div class="card mb-3" style="border-left: 4px solid var(--color-success, #16a34a);">
-  <div class="card-body" style="display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
-    <span><strong>Meta diaria:</strong> {{ daily_target }} unidades</span>
-    <span>·</span>
-    <span><strong>Real:</strong> {{ daily_actual | default(0) }} unidades</span>
+<details class="notification-collapse notification-collapse--success mb-3"
+         data-notification-section="data-meta-diaria-section">
+  <summary style="cursor: pointer; list-style: none; padding: var(--space-2) var(--space-3); display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+    <span><strong>Meta diaria:</strong> {{ daily_target }} unidades · <strong>Real:</strong> {{ daily_actual | default(0) }}</span>
     {% if daily_target > 0 %}
       {% set pct = (daily_actual | default(0)) / daily_target * 100 %}
-      <div style="flex: 1; min-width: 120px; height: 8px; background: var(--color-surface-subtle); border-radius: 4px; overflow: hidden;">
-        <div style="height: 100%; width: {{ [pct, 100] | min }}%; background: var(--color-success); border-radius: 4px;"></div>
-      </div>
       <span class="badge badge-{{ 'success' if pct >= 100 else 'warning' if pct >= 60 else 'danger' }}">{{ "%.0f"|format(pct) }}%</span>
     {% endif %}
-    <a href="/config#produccion-meta" class="btn btn-sm btn-ghost" style="margin-left: auto;">Editar meta</a>
+    <small class="text-muted" style="margin-left: auto;">clic para abrir</small>
+  </summary>
+  <div class="card" style="border-left: 4px solid var(--color-success, #16a34a); margin: 0;">
+    <div class="card-body" style="display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+      <span><strong>Meta diaria:</strong> {{ daily_target }} unidades</span>
+      <span>·</span>
+      <span><strong>Real:</strong> {{ daily_actual | default(0) }} unidades</span>
+      {% if daily_target > 0 %}
+        {% set pct = (daily_actual | default(0)) / daily_target * 100 %}
+        <div style="flex: 1; min-width: 120px; height: 8px; background: var(--color-surface-subtle); border-radius: 4px; overflow: hidden;">
+          <div style="height: 100%; width: {{ [pct, 100] | min }}%; background: var(--color-success); border-radius: 4px;"></div>
+        </div>
+        <span class="badge badge-{{ 'success' if pct >= 100 else 'warning' if pct >= 60 else 'danger' }}">{{ "%.0f"|format(pct) }}%</span>
+      {% endif %}
+      <a href="/config#produccion-meta" class="btn btn-sm btn-ghost" style="margin-left: auto;">Editar meta</a>
+    </div>
   </div>
-</div>
+</details>
 {% endif %}
 
 {# T-2026-10-04 (B.6): HACCP freezer-temperature banner on /produccion day view.
    Shows the most recent reading with a colored dot (green = OK, red = out
-   of range) so the cook doesn't forget to log the day's AM/PM readings. #}
+   of range) so the cook doesn't forget to log the day's AM/PM readings.
+   2026-10-07c: collapsed by default — operator opens to verify readings. #}
 {% if haccp_latest %}
-<div class="card mb-3" data-haccp-banner style="border-left: 4px solid {% if haccp_alert == 'warning' %}var(--color-danger, #dc2626){% else %}var(--color-success, #16a34a){% endif %};">
-  <div class="card-body" style="display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
-    <span>
-      <strong>🌡️ HACCP:</strong>
-      {{ haccp_latest.location }} · {{ haccp_latest.shift }} ·
-      <strong style="color: {% if haccp_alert == 'warning' %}var(--color-danger, #dc2626){% else %}var(--color-success, #16a34a){% endif %};">
-        {{ "%.1f"|format(haccp_latest.temperature_c) }} °C
-      </strong>
-      <small class="text-muted">({{ haccp_latest.recorded_at.strftime("%H:%M") }})</small>
-    </span>
+<details class="notification-collapse notification-collapse--{% if haccp_alert == 'warning' %}danger{% else %}success{% endif %} mb-3"
+         data-notification-section="data-haccp-latest-section">
+  <summary style="cursor: pointer; list-style: none; padding: var(--space-2) var(--space-3); display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+    <strong>🌡️ HACCP:</strong>
+    <span>{{ haccp_latest.location }} · {{ haccp_latest.shift }} · <strong>{{ "%.1f"|format(haccp_latest.temperature_c) }} °C</strong></span>
+    <small class="text-muted">({{ haccp_latest.recorded_at.strftime("%H:%M") }})</small>
     {% if haccp_alert == "warning" %}
     <span class="badge" style="background: var(--color-danger, #dc2626); color: white;">FUERA DE RANGO</span>
     {% endif %}
-    <a href="/produccion/haccp?for_date={{ for_date }}" class="btn btn-sm btn-ghost" style="margin-left: auto;">
-      Ver registro completo →
-    </a>
+    <small class="text-muted" style="margin-left: auto;">clic para abrir</small>
+  </summary>
+  <div class="card" data-haccp-banner style="border-left: 4px solid {% if haccp_alert == 'warning' %}var(--color-danger, #dc2626){% else %}var(--color-success, #16a34a){% endif %}; margin: 0;">
+    <div class="card-body" style="display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+      <span>
+        <strong>🌡️ HACCP:</strong>
+        {{ haccp_latest.location }} · {{ haccp_latest.shift }} ·
+        <strong style="color: {% if haccp_alert == 'warning' %}var(--color-danger, #dc2626){% else %}var(--color-success, #16a34a){% endif %};">
+          {{ "%.1f"|format(haccp_latest.temperature_c) }} °C
+        </strong>
+        <small class="text-muted">({{ haccp_latest.recorded_at.strftime("%H:%M") }})</small>
+      </span>
+      {% if haccp_alert == "warning" %}
+      <span class="badge" style="background: var(--color-danger, #dc2626); color: white;">FUERA DE RANGO</span>
+      {% endif %}
+      <a href="/produccion/haccp?for_date={{ for_date }}" class="btn btn-sm btn-ghost" style="margin-left: auto;">
+        Ver registro completo →
+      </a>
+    </div>
   </div>
-</div>
+</details>
 {% endif %}
 
-{# If the user has zero HACCP entries today, show a soft nudge. #}
+{# If the user has zero HACCP entries today, show a soft nudge.
+   2026-10-07c: collapsed by default — operator opens to register. #}
 {% if haccp_missing_count and haccp_missing_count > 0 %}
-<div class="card mb-3" data-haccp-missing style="background: var(--color-surface-muted); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-warning, #f59e0b);">
-  <small>
-    <strong>⚠️ {{ haccp_missing_count }} lectura{{ 's' if haccp_missing_count != 1 else '' }} HACCP pendiente{{ 's' if haccp_missing_count != 1 else '' }}</strong>
-    para hoy:
-    {% if haccp_missing_items %}
+<details class="notification-collapse notification-collapse--warning mb-3"
+         data-notification-section="data-haccp-missing-section">
+  <summary style="cursor: pointer; list-style: none; padding: var(--space-2) var(--space-3); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;">
+    <strong>⚠️ {{ haccp_missing_count }} lectura{{ 's' if haccp_missing_count != 1 else '' }} HACCP pendiente{{ 's' if haccp_missing_count != 1 else '' }} para hoy</strong>
+    <small class="text-muted" style="margin-left: auto;">clic para abrir</small>
+  </summary>
+  <div class="card" data-haccp-missing style="background: var(--color-surface-muted); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-warning, #f59e0b); margin: 0;">
+    <small>
+      {% if haccp_missing_items %}
     {# T-2026-10-06 (B.6+): inline chip-list drill-down. BOTH chips
        are bold because the freezer has zero full days of HACCP.
        V6: flex-wrap so the third chip (heladera-masas, etc.) doesn't
@@ -389,7 +430,8 @@
     {% endif %}
     <a class="ml-2" href="/produccion/haccp?for_date={{ for_date }}" >Registr&aacute; ahora →</a>
   </small>
-</div>
+  </div>
+</details>
 {% endif %}
 
 {# ────────────────────────────────────────────────────────────────
@@ -545,27 +587,35 @@
 {# T-2026-10-04 (P2): confidence summary banner — show the cook how many
    auto-suggestions need manual review. Click "Revisar" to filter the
    table client-side (the implementation lives in the page header scripts).
-   The bands mirror the per-row pill colors so the eye maps them quickly. #}
+   The bands mirror the per-row pill colors so the eye maps them quickly.
+   2026-10-07c: collapsed by default — count is in the summary, no need to
+   see the full banner every time. #}
 {% if low_confidence_count > 0 %}
-<div class="card confidence-summary-banner"
-     style="background: var(--color-warn-soft); border-left: 4px solid var(--color-warning, #f59e0b); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;"
-     data-confidence-summary
-     data-low="{{ low_confidence_count }}">
-  <div>
-    <strong>⚠️ {{ low_confidence_count }} producto{{ 's' if low_confidence_count != 1 else '' }} con baja confianza</strong>
-    <p class="text-muted" style="margin: var(--space-1) 0 0 0; font-size: var(--text-sm);">
+<details class="notification-collapse notification-collapse--warning mb-4"
+         data-notification-section="data-confidence-summary-section">
+  <summary style="cursor: pointer; list-style: none; padding: var(--space-3) var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+    <span>
+      <strong>⚠️ {{ low_confidence_count }} producto{{ 's' if low_confidence_count != 1 else '' }} con baja confianza</strong>
+    </span>
+    <span style="display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap;">
+      <span class="confidence-pill conf-high" title="Alta confianza">{{ confidence_bands.high }} alta</span>
+      <span class="confidence-pill conf-medium">{{ confidence_bands.medium }} media</span>
+      <span class="confidence-pill conf-low">{{ confidence_bands.low }} baja</span>
+      {% if confidence_bands.no_data > 0 %}
+      <span class="confidence-pill conf-zero">{{ confidence_bands.no_data }} sin datos</span>
+      {% endif %}
+    </span>
+    <small class="text-muted">clic para detalles</small>
+  </summary>
+  <div class="card confidence-summary-banner"
+       style="background: var(--color-warn-soft); border-left: 4px solid var(--color-warning, #f59e0b); padding: var(--space-3) var(--space-4); margin: 0;"
+       data-confidence-summary
+       data-low="{{ low_confidence_count }}">
+    <p class="text-muted" style="margin: 0; font-size: var(--text-sm);">
       Las cantidades son estimaciones. Revisá antes de hornear.
     </p>
   </div>
-  <div style="display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap;">
-    <span class="confidence-pill conf-high" title="Alta confianza">{{ confidence_bands.high }} alta</span>
-    <span class="confidence-pill conf-medium">{{ confidence_bands.medium }} media</span>
-    <span class="confidence-pill conf-low">{{ confidence_bands.low }} baja</span>
-    {% if confidence_bands.no_data > 0 %}
-    <span class="confidence-pill conf-zero">{{ confidence_bands.no_data }} sin datos</span>
-    {% endif %}
-  </div>
-</div>
+</details>
 {% endif %}
 
 {# M4: visually separate the "X productos con baja confianza" warning
@@ -577,22 +627,27 @@
 {# T-2026-10-04 (Tier 3-C): Yesterday snapshot.
    Shows yesterday's actual production total so the cook has a
    "ground truth" reference next to today's suggested quantities.
-   Hidden when yesterday had no data (cook hasn't run end-of-shift). #}
+   Hidden when yesterday had no data (cook hasn't run end-of-shift).
+   2026-10-07c: collapsed by default — count + reference on summary line. #}
 {% if yesterday_count > 0 %}
-<div class="card yesterday-snapshot"
-     style="background: var(--color-info-soft); border-left: 4px solid var(--color-info, #3b82f6); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;"
-     data-yesterday-total="{{ yesterday_total_qty }}"
-     data-yesterday-count="{{ yesterday_count }}">
-  <div>
-    <strong>📅 Ayer hiciste: {{ "%.0f"|format(yesterday_total_qty) }} unidades</strong>
-    <span class="text-muted text-sm" >
-      en {{ yesterday_count }} producto{{ 's' if yesterday_count != 1 else '' }}
+<details class="notification-collapse notification-collapse--info mb-4"
+         data-notification-section="data-yesterday-snapshot-section">
+  <summary style="cursor: pointer; list-style: none; padding: var(--space-3) var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+    <span>
+      <strong>📅 Ayer hiciste: {{ "%.0f"|format(yesterday_total_qty) }} unidades</strong>
+      <span class="text-muted text-sm">en {{ yesterday_count }} producto{{ 's' if yesterday_count != 1 else '' }}</span>
     </span>
-    <p class="text-muted" style="margin: var(--space-1) 0 0 0; font-size: var(--text-sm);">
+    <small class="text-muted">clic para abrir</small>
+  </summary>
+  <div class="card yesterday-snapshot"
+       style="background: var(--color-info-soft); border-left: 4px solid var(--color-info, #3b82f6); padding: var(--space-3) var(--space-4); margin: 0;"
+       data-yesterday-total="{{ yesterday_total_qty }}"
+       data-yesterday-count="{{ yesterday_count }}">
+    <p class="text-muted" style="margin: 0; font-size: var(--text-sm);">
       Referencia para comparar con la sugerencia de hoy.
     </p>
   </div>
-</div>
+</details>
 {% endif %}
 
 <form method="post" action="/produccion/shift-execute" id="shift-form">
@@ -1543,6 +1598,7 @@
       <h2 class="card-title m-0" >Ingredientes necesarios</h2>
       <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0;">
         Cálculo de insumos basado en el plan del día versus stock disponible.
+        {{ plan.lines | length }} ingrediente{{ '' if plan.lines | length == 1 else 's' }} en el plan.
       </p>
     </div>
     <div class="flex-gap-2-wrap" >
@@ -1562,28 +1618,56 @@
     </div>
   </div>
 
-  {# C1 + M8: Right-edge overflow fix. Same pattern as the products
-   table — wrap in `overflow-x: auto` so the rightmost 3 columns
-   (Requerido, Stock actual, A comprar) stay visible. Without this
-   the screenshot only shows the first column + status pill. #}
-  <div class="ingredients-table-scroll" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-  <table class="table is-hoverable">
+  {# 2026-10-07c: severity filter chips above the table — operator
+     focuses on urgent rows first (Falta by default), expands to see
+     others. Same pattern as the products table. #}
+  <div class="ingredients-filter-bar"
+       role="tablist"
+       aria-label="Filtrar ingredientes por gravedad"
+       style="display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-2); padding: var(--space-2); background: var(--color-surface-subtle, #f3f4f6); border-radius: var(--radius);">
+    <small class="text-muted" style="margin-right: var(--space-1);">Filtrar:</small>
+    <a href="{{ m.url_with_filters(request, {'ingredients_filter': ''}) }}"
+       class="filter-chip{% if not ingredients_filter %} filter-chip--on{% endif %}"
+       data-ingredients-filter="all"
+       aria-pressed="{{ 'true' if not ingredients_filter else 'false' }}">Todos</a>
+    <a href="{{ m.url_with_filters(request, {'ingredients_filter': 'falta'}) }}"
+       class="filter-chip{% if ingredients_filter == 'falta' %} filter-chip--on{% endif %}"
+       data-ingredients-filter="falta"
+       aria-pressed="{{ 'true' if ingredients_filter == 'falta' else 'false' }}">❗ Falta</a>
+    <a href="{{ m.url_with_filters(request, {'ingredients_filter': 'justo'}) }}"
+       class="filter-chip{% if ingredients_filter == 'justo' %} filter-chip--on{% endif %}"
+       data-ingredients-filter="justo"
+       aria-pressed="{{ 'true' if ingredients_filter == 'justo' else 'false' }}">⚠️ Justo</a>
+    <a href="{{ m.url_with_filters(request, {'ingredients_filter': 'suficiente'}) }}"
+       class="filter-chip{% if ingredients_filter == 'suficiente' %} filter-chip--on{% endif %}"
+       data-ingredients-filter="suficiente"
+       aria-pressed="{{ 'true' if ingredients_filter == 'suficiente' else 'false' }}">✓ Suficiente</a>
+  </div>
+
+  {# 2026-10-07c: scrollable wrapper with sticky thead — same pattern
+   as the products table. With 50+ ingredient rows the table was
+   pushing everything below the fold. Now it scrolls inside its own
+   container. #}
+  <div class="ingredients-table-scroll">
+  <table class="table is-hoverable is-sticky">
     <thead>
       <tr>
-        <th>Ingrediente</th>
-        <th class="num">Requerido</th>
-        <th class="num">Stock actual</th>
-        <th class="num">A comprar</th>
+        <th>{{ m.sort_th("Ingrediente", "ingredient", current_ingredients_sort, current_ingredients_dir) }}</th>
+        <th class="num">{{ m.sort_th("Necesario", "required", current_ingredients_sort, current_ingredients_dir) }}</th>
+        <th class="num">{{ m.sort_th("En stock", "stock", current_ingredients_sort, current_ingredients_dir) }}</th>
+        <th class="num">{{ m.sort_th("A reponer", "to_buy", current_ingredients_sort, current_ingredients_dir) }}</th>
+        <th>{{ m.sort_th("Estado", "severity", current_ingredients_sort, current_ingredients_dir) }}</th>
       </tr>
     </thead>
     <tbody>
       {% for l in plan.lines %}
       {% set _delta = l.stock_on_hand - l.qty_required %}
-      <tr {% if _delta < 0 %}title="Stock insuficiente" style="background: rgba(220, 38, 38, 0.08);"{% endif %}>
-        {# Bug 2 fix: clean ingredient name, NO inline ¡Falta! badge. #}
+      {% set _pct = (l.stock_on_hand / l.qty_required * 100) if l.qty_required > 0 else 100 %}
+      {% set _severity = "falta" if _delta < 0 else ("justo" if _pct < 80 else "suficiente") %}
+      <tr class="prep-row prep-row--{{ _severity }}"
+          {% if _delta < 0 %}title="Stock insuficiente"{% endif %}>
         <td>
           <strong>{{ l.ingredient_name }}</strong>
-          {% set _pct = (l.stock_on_hand / l.qty_required * 100) if l.qty_required > 0 else 100 %}
           {% if _delta < 0 %}
             {{ ui.status_pill("Falta", sev="danger") }}
           {% elif _pct < 80 %}
@@ -1596,13 +1680,20 @@
         <td class="num {% if l.stock_on_hand < 0 %}text-danger{% endif %}">
           {{ fmt_qty(l.stock_on_hand, l.unit) }}
         </td>
-        {# Bug 2 fix: ¡Falta! badge + rounded shortfall go ONLY in this column. #}
         <td class="num">
           {% if _delta < 0 %}
-            <span class="badge badge-danger" style="margin-right: var(--space-1);">¡Falta!</span>
-            <strong>{{ fmt_qty(-_delta, l.unit) }}</strong>
+            <strong class="to-buy-pill to-buy-pill--warning">{{ fmt_qty(-_delta, l.unit) }}</strong>
           {% else %}
             <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if _delta < 0 %}
+            <span class="badge badge-danger">¡Falta!</span>
+          {% elif _pct < 80 %}
+            <span class="badge badge-warning">Justo</span>
+          {% else %}
+            <span class="badge badge-success">Suficiente</span>
           {% endif %}
         </td>
       </tr>
