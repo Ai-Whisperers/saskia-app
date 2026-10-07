@@ -169,7 +169,7 @@ def validate_cart_intent(
             continue
         try:
             moves = _compute_stock_moves(session, recipe, line.qty, set())
-        except Exception:
+        except Exception:  # noqa: S112
             continue
         for _rid, ing_id, qty_delta in moves:
             ingredient_demand[ing_id] += abs(qty_delta)

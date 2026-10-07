@@ -63,14 +63,14 @@ def send_telegram(text: str) -> bool:
     ).encode("utf-8")
     url = _TELEGRAM_API.format(token=token)
     assert url.startswith("https://api.telegram.org/")  # S310: scheme locked
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310
         url,
         data=payload,
         headers={"Content-Type": "application/json"},
         method="POST",
     )
     try:
-        with urllib.request.urlopen(
+        with urllib.request.urlopen(  # noqa: S310
                 req, timeout=_TIMEOUT_S
             ) as resp:
             return resp.status == 200

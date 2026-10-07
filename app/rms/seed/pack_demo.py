@@ -284,7 +284,7 @@ def reseed_pack(session: Session, pack: str, *, days_of_history: int = 90) -> di
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
         ))]
         for name in names:
-            conn.execute(text(f'DELETE FROM "{name}"'))
+            conn.execute(text(f'DELETE FROM "{name}"'))  # noqa: S608
         conn.execute(text("PRAGMA foreign_keys = ON"))
     session.expire_all()
 

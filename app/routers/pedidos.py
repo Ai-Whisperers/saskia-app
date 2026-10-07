@@ -300,7 +300,7 @@ def _parse_date_or_none(value: Any) -> date | None:
         return None
     try:
         # ISO date; we'll coerce at the SQLAlchemy level
-        return datetime.strptime(s, "%Y-%m-%d").date()
+        return datetime.strptime(s, "%Y-%m-%d").date()  # noqa: DTZ007
     except (ValueError, TypeError):
         return None
 
@@ -1189,7 +1189,7 @@ async def pedidos_create(
     if promised_date_norm is not None:
         try:
             invalidate_demand_for_dates(session, [promised_date_norm])
-        except Exception:
+        except Exception:  # noqa: S110
             pass  # cache stays stale; 5-min TTL will eventually catch up
     safe_commit(session)
 
@@ -2339,7 +2339,7 @@ def pedidos_bulk_fulfill(
     if affected_dates:
         try:
             invalidate_demand_for_dates(session, list(affected_dates))
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     safe_commit(session)
     flash = f"{fulfilled} pedido(s) marcado(s) como completado(s)"
@@ -2379,7 +2379,7 @@ def pedidos_bulk_cancel(
     if affected_dates:
         try:
             invalidate_demand_for_dates(session, list(affected_dates))
-        except Exception:
+        except Exception:  # noqa: S110
             pass
     safe_commit(session)
     flash = f"{cancelled} pedido(s) cancelado(s)"

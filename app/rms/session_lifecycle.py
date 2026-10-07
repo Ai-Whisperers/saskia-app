@@ -68,7 +68,7 @@ class SessionLifecycleMiddleware(BaseHTTPMiddleware):
                 if id(obj) in leaked and isinstance(obj, Session):
                     try:
                         obj.close()
-                    except Exception:
+                    except Exception:  # noqa: S110
                         pass
         return response
 

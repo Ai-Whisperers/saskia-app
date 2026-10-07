@@ -118,7 +118,7 @@ DEFAULT_TENANT_SLUG = "default"
 
 # Saskia (operator) credentials
 SASKIA_USER = "saskia"
-SASKIA_PASSWORD = "saskia1234"
+SASKIA_PASSWORD = "saskia1234"  # noqa: S105
 SASKIA_EMAIL = "saskia@lavaquita.example"
 SASKIA_FULL_NAME = "Saskia Weiss"
 

@@ -1254,7 +1254,7 @@ def recipe_search_api(
             {"ids": recipe_ids, "today": today_start},
         ).fetchall()
         batches_today_map = {rid: float(total or 0) for rid, total in rows}
-    except Exception:
+    except Exception:  # noqa: S110
         # Table may not exist in some test DBs; default to empty
         pass
 
