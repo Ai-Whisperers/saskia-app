@@ -72,6 +72,14 @@ def chat(
         )
         r.raise_for_status()
         data = r.json()
+        usage = data.get("usage") or {}
+        logger.info(
+            "llm usage: model={} prompt_tokens={} completion_tokens={} total_tokens={}",
+            data.get("model", model()),
+            usage.get("prompt_tokens", "?"),
+            usage.get("completion_tokens", "?"),
+            usage.get("total_tokens", "?"),
+        )
         return data["choices"][0]["message"]["content"]
     except httpx.HTTPStatusError as e:
         logger.warning("llm chat HTTP {}: {}", e.response.status_code, e.response.text[:200])

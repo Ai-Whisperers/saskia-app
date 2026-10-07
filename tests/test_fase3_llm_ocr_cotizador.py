@@ -152,3 +152,30 @@ def test_menu_import_ocr_page_no_key_503_upload(authed_client, monkeypatch):
 def test_copiloto_renders_placeholder(authed_client):
     r = authed_client.get("/copiloto")
     assert r.status_code == 200
+
+
+def test_chat_logs_token_usage(monkeypatch):
+    """PLAN 7: cada llamada LLM loguea tokens (presupuesto en gate)."""
+    import app.rms.llm as llm
+
+    class FakeResp:
+        def raise_for_status(self): pass
+        def json(self):
+            return {
+                "model": "glm-4.5-air",
+                "choices": [{"message": {"content": "hola"}}],
+                "usage": {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120},
+            }
+
+    monkeypatch.setattr(llm.httpx, "post", lambda *a, **k: FakeResp())
+    monkeypatch.setenv("ZAI_API_KEY", "test-key")
+    lines: list[str] = []
+    sink_id = llm.logger.add(lines.append, level="INFO")
+    try:
+        out = llm.chat([{"role": "user", "content": "hi"}])
+    finally:
+        llm.logger.remove(sink_id)
+    text = "".join(lines)
+    assert out == "hola"
+    assert "total_tokens=120" in text
+    assert "prompt_tokens=100" in text
