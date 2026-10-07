@@ -71,7 +71,6 @@ Refs: `docs/ux/copy-fix-list.md`, `docs/ux/copy-ux-decisions.md`,
 **Wired**: /reorder gains `restock_map` (P95 date, days-to-P95, weekend uplift, confidence); template shows a `P95 Nd` badge only when the conservative path lands ≥2 days before the flat estimate (that gap IS the weekend risk).
 
 **Tests**: 13 new (10 model math + 3 batch/integration); reorder regression 31 passed.
-
 ## 2026-10-07d — SASKIA-207: stock_ledger helper + reuse/abstraction audit
 
 **Audit:** docs/operations/2026-10-07-saskia-reuse-abstraction-audit.md (8 findings, measured).
