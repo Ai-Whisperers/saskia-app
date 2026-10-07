@@ -84,7 +84,7 @@ KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_RMS_KEEP_LOCAL_DAYS", "30"))
 BACKDATE_WINDOW_DAYS = int(os.getenv("AIW_RMS_BACKDATE_DAYS", "7"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 104  # 104 = product.sold_by_weight (WP-1.1 venta por peso); # 102 = waste_log.source denormalized (PROD-MERMA-2); 103 = production_demand_snapshot + production_plan_audit + completion.status (PRODUCCION-V2 Fase 1)
+CURRENT_SCHEMA_VERSION = 105  # 104 = product.sold_by_weight (WP-1.1 venta por peso); 105 = sale_payment (WP-1.2 pagos mixtos); # 102 = waste_log.source denormalized (PROD-MERMA-2); 103 = production_demand_snapshot + production_plan_audit + completion.status (PRODUCCION-V2 Fase 1)
 # 086 = monthly_closure table (Sprint 3.1 BACKLOG #15)
 # 087 = soft_delete_columns on owned tables (Sprint 3.2)
 # 088 = audit_columns on owned tables (Sprint 3.2)

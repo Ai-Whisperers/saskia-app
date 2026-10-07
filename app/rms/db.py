@@ -68,6 +68,7 @@ from app.rms.migrations._103_production_demand_split import _migration_103_produ
 from app.rms.migrations._104_product_sold_by_weight import (
     _migration_104_product_sold_by_weight,
 )
+from app.rms.migrations._105_sale_payments import _migration_105_sale_payments
 
 from loguru import logger
 from sqlalchemy import create_engine, event, text
@@ -4244,6 +4245,7 @@ MIGRATIONS = {
     102: _migration_102_waste_log_source,
     103: _migration_103_production_demand_split,
     104: _migration_104_product_sold_by_weight,
+    105: _migration_105_sale_payments,
 }
 
 

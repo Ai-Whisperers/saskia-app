@@ -37,6 +37,7 @@ from app.rms.models import (
     Recipe,
     RecipeLine,
     Sale,
+    SalePayment,
     StockMovement,
 )
 from app.rms.money import to_int_gs
@@ -682,6 +683,12 @@ def void_sale(
         sale.void_reason = reason
     if voided_by:
         sale.voided_by = voided_by
+
+    # WP-1.2 pagos mixtos: a voided sale's payment rows must not show up
+    # in cash reports (sale row itself stays for audit — soft void).
+    from sqlalchemy import delete as _delete
+
+    session.execute(_delete(SalePayment).where(SalePayment.sale_id == sale.id))
 
     # US 4.1 packaging restoration: now handled by the unified loop
     # above (which reads the packaging StockMovement row written by

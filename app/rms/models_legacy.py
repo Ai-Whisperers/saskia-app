@@ -547,6 +547,31 @@ class Sale(Base):
     )
 
 
+
+class SalePayment(Base):
+    """WP-1.2 pagos mixtos (2026-10-07): one row per payment method used.
+
+    Uniform ledger — a single-method sale writes exactly one row (method
+    mirrors sale.payment_method, amount = line total after discount), so
+    cash reports never special-case mixed vs simple sales. Rows are
+    deleted with the sale (ON DELETE CASCADE migration 105).
+    """
+
+    __tablename__ = "sale_payment"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    sale_id: Mapped[int] = mapped_column(
+        ForeignKey("sale.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    method: Mapped[str] = mapped_column(String(32), nullable=False)
+    amount_gs: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("amount_gs >= 0", name="ck_sale_payment_amount_nonneg"),
+    )
+
+
 class SaleStockMove(Base):
     """DEPRECATED stub — sale_stock_move table removed by migration 092 (BACKLOG #1).
 

@@ -1271,10 +1271,17 @@ async def sale_create_multi(
         discount_pct: float = Field(0, ge=0, le=100)  # per-item % discount
         unit_price_gs: int | None = Field(None, ge=0, le=999_999_999)  # E13.S2 cashier override
 
+    class _Payment(BaseModel):
+        method: str = Field(...)
+        amount_gs: int = Field(..., ge=1, le=999_999_999)
+
     class _Body(BaseModel):
         items: list[_Item] = Field(..., min_length=1)
         customer_id: int | None = Field(None, gt=0)
         payment_method: str = Field("")
+        # WP-1.2 pagos mixtos: optional split payments. Empty/absent →
+        # uniform single row mirroring payment_method (never a special case).
+        payments: list[_Payment] = Field(default_factory=list, max_length=5)
         discount_gs: int = Field(0, ge=0)
         # Phase 4 loyalty (2026-10-01): POS redeem on multi-sale. Same
         # semantics as /ventas/nueva — converts to Gs. discount (1pt =
@@ -1361,6 +1368,20 @@ async def sale_create_multi(
             status_code=400,
             detail=SALE_INVALID_PAYMENT_METHOD,
         )
+
+    # WP-1.2 pagos mixtos: validate the split BEFORE touching the DB.
+    # Each method must be known; the sum must equal the cart total
+    # (sum of line totals after per-line discount). Computed pre-loop
+    # because validation must fail before any Sale row is written.
+    payments_plan: list[tuple[str, int]] = []
+    if body.payments:
+        for _pay in body.payments:
+            if _pay.method not in ALLOWED_PAYMENT_METHODS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Método de pago inválido: {_pay.method}",
+                )
+            payments_plan.append((_pay.method, _pay.amount_gs))
 
     channel_clean = body.channel.strip() or CHANNEL_DEFAULT
     if channel_clean not in ALLOWED_CHANNELS:
@@ -1514,6 +1535,7 @@ async def sale_create_multi(
                 channel=channel_clean,
                 unit_price_gs_override=unit_price if item.unit_price_gs else None,
             )
+            sale_ids.append(result.sale_id)
             if first_product_id is None:
                 first_product_id = item.product_id
 
@@ -1610,6 +1632,92 @@ async def sale_create_multi(
                     sale_id=sale_ids[0],
                     actor=str(current_user_id(request) or "operator"),
                     notes=f"POS redeem en sale multi #{sale_ids[0]}",
+                )
+
+    # WP-1.2 pagos mixtos: write the payment ledger. Validation of the
+    # sum happens here against REAL persisted totals (apply_sale rounded
+    # each line). Single-method carts still get exactly one row so the
+    # ledger is uniform (reports never special-case mixed sales).
+    if sale_ids:
+        from datetime import datetime as _dt
+
+        from sqlalchemy import select as _select
+
+        from app.rms.models import Sale as _Sale
+        from app.rms.models import SalePayment as _SalePayment
+
+        _rows = session.execute(
+            _select(_Sale).where(_Sale.id.in_(sale_ids))
+        ).scalars().all()
+        _cart_total = sum(
+            max(0, int(r.qty * r.unit_price_gs) - int(r.discount_gs or 0)) for r in _rows
+        )
+        if payments_plan:
+            _sum = sum(amount for _, amount in payments_plan)
+            if _sum != _cart_total:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"La suma de los pagos (Gs. {_sum:,}) debe ser igual "
+                        f"al total de la venta (Gs. {_cart_total:,}).".replace(",", ".")
+                    ),
+                )
+            _now = datetime.now(ASUNCION_TZ)
+            # Split proportionally across the cart's sale rows: each Sale
+            # gets its own payment rows so void cascade cleans up cleanly.
+            _remaining = dict(payments_plan)
+            for _ri, _row in enumerate(_rows):
+                _row_total = max(
+                    0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0)
+                )
+                _left = _row_total
+                _plans = list(_remaining.items())
+                for _mi, (_method, _amount) in enumerate(_plans):
+                    if _mi == len(_plans) - 1:
+                        _take = _left  # last payment absorbs rounding
+                    else:
+                        _take = min(_amount, _left)
+                        _remaining[_method] = _amount - _take
+                    if _take <= 0:
+                        continue
+                    session.add(
+                        _SalePayment(
+                            sale_id=_row.id,
+                            method=_method,
+                            amount_gs=_take,
+                            created_at=_now,
+                        )
+                    )
+                    _left -= _take
+                if _left > 0 and _plans:
+                    # payments exhausted but row has remainder → put it on
+                    # the last method (defensive; sum-check above prevents).
+                    _m_last = _plans[-1][0]
+                    session.add(
+                        _SalePayment(
+                            sale_id=_row.id,
+                            method=_m_last,
+                            amount_gs=_left,
+                            created_at=_now,
+                        )
+                    )
+                    _left = 0
+        else:
+            # Uniform single row mirroring payment_method.
+            _now = datetime.now(ASUNCION_TZ)
+            for _row in _rows:
+                _row_total = max(
+                    0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0)
+                )
+                if _row_total <= 0:
+                    continue
+                session.add(
+                    _SalePayment(
+                        sale_id=_row.id,
+                        method=payment_method_clean,
+                        amount_gs=_row_total,
+                        created_at=_now,
+                    )
                 )
 
     safe_commit(session)

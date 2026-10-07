@@ -87,6 +87,12 @@
             <span>Total</span>
             <strong id="cart-total">Gs. 0</strong>
           </div>
+          {# WP-1.2 pagos mixtos: dividir el total entre métodos #}
+          <button type="button" id="btn-split-payment" class="btn btn-sm btn-ghost" aria-expanded="false" aria-controls="split-payment-rows" style="margin-top:6px;">
+            Dividir pago
+          </button>
+          <div id="split-payment-rows" style="display:none;margin-top:6px;"></div>
+          <small id="split-payment-status" aria-live="polite" style="display:block;margin-top:4px;"></small>
         </div>
 
         {# UI-V2: cross-sell rail. One-tap add-ons below the cart; JS shows
@@ -906,6 +912,7 @@
       }),
       customer_id:            fd.get('customer_id') || null,
       payment_method:         fd.get('payment_method') || '',
+      payments:               (window.SplitPayment && window.SplitPayment.collect()) || null,
       channel:                fd.get('channel') || 'mostrador',
       discount_gs:            parseInt(fd.get('discount_gs') || '0', 10),
       notes:                  fd.get('notes') || '',
@@ -1107,4 +1114,8 @@
   })();
 })();
 </script>
+{% endblock %}
+
+{% block page_scripts %}
+  <script src="/static/split-payment.js?v={{ asset_version() }}" defer></script>
 {% endblock %}
