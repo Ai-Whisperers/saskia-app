@@ -44,7 +44,7 @@ def _parse_range_date(raw: str | None) -> date | None:
     if not raw:
         return None
     try:
-        return datetime.strptime(raw, "%Y-%m-%d").date()
+        return datetime.strptime(raw, "%Y-%m-%d").date()  # noqa: DTZ007
     except ValueError:
         return None
 

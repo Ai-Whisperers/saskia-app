@@ -1041,7 +1041,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> Respo
             _sentry.set_tag("request_id", rid)
             _sentry.set_tag("request_method", request.method)
             _sentry.set_tag("request_path", request.url.path)
-    except Exception:
+    except Exception:  # noqa: S110
         # Sentry not installed, not initialised, or Hub is unavailable.
         # Never let an observability hook break the response.
         pass

@@ -87,8 +87,8 @@ def _check_supabase_reachable(url: str, timeout: float = 2.0) -> dict[str, Any]:
 
     t0 = _time.monotonic()
     try:
-        req = urllib.request.Request(health, method="GET")
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        req = urllib.request.Request(health, method="GET")  # noqa: S310
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
             latency_ms = int((_time.monotonic() - t0) * 1000)
             ok = 200 <= resp.status < 300
             return {
@@ -264,8 +264,8 @@ def healthz_depth(request: Request) -> JSONResponse:
             # URL comes from R2_BUCKET_URL env var, which is operator-
             # configured. We trust the operator. The probe is read-only
             # (HEAD request) with a 3s timeout.
-            req = urllib.request.Request(r2_url, method="HEAD")
-            with urllib.request.urlopen(req, timeout=3) as resp:
+            req = urllib.request.Request(r2_url, method="HEAD")  # noqa: S310
+            with urllib.request.urlopen(req, timeout=3) as resp:  # noqa: S310
                 r2["status"] = resp.status
                 r2["ok"] = 200 <= resp.status < 400
         except Exception as r2_exc:
@@ -429,7 +429,7 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
     # --- Disk usage ---
     # The app stores DB + state under this root. On VPS: /opt/data.
     # On dev boxes: /tmp. Report on whatever exists.
-    disk_root = "/opt/data" if os.path.isdir("/opt/data") else "/tmp"
+    disk_root = "/opt/data" if os.path.isdir("/opt/data") else "/tmp"  # noqa: S108
     try:
         usage = _disk_usage(disk_root)
         total_gb = usage.total / (1024**3)
@@ -1280,7 +1280,7 @@ def admin_backup_cron(request: Request) -> object:
 
     try:
         result = _run_backup_admin(request)
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.exception("admin_backup_cron failed")
         return JSONResponse(
             status_code=500,

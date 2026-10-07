@@ -87,7 +87,7 @@ jobs:
       - name: Install dependencies
         # Full dev group: includes testcontainers (for ephemeral PG) and
         # every test dep. Excludes Playwright browser binaries.
-        run: uv sync --group dev
+        run: rm -rf .venv && uv sync --group dev
 
       - name: Boot ephemeral Postgres
         # Postgres 16 matches smoke.yml. Migrations are SQLite-first and

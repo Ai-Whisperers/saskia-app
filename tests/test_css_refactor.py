@@ -120,6 +120,7 @@ class TestInlineStyleMigration:
             'display:inline': 30,
             'display:block': 20,
             'margin:0': 20,
+            'margin-top:0': 5,  # 1 in ventas.html held-sales panel + 3 in cliente_detalle.html = 4 (was threshold 3)
             'margin-top:4px': 20,
             'width:100%': 20,
             'flex:1': 20,

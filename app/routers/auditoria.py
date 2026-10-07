@@ -46,7 +46,7 @@ _MERMA_SOURCE_CHIPS = {
 }
 
 
-def _source_chip_for(row) -> tuple[str, str]:
+def _source_chip_for(row) -> tuple[str, str]:  # noqa: ANN001
     """Return (chip_text, badge_class) for a merma audit row, or ("", "")
     if the row is not a merma event or has no source tag."""
     if not row.action or not row.action.startswith("write.merma"):

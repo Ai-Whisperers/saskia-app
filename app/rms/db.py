@@ -2752,7 +2752,7 @@ def _migration_060_tag_normalization(conn: Any) -> None:
             iid, name = r
             try:
                 tags = infer_dietary_tags(name or "")
-            except Exception:
+            except Exception:  # noqa: S112
                 continue
             new_value = _to_canonical_m60(",".join(tags)) if tags else None
             # SELECT prior value to skip no-op writes (Postgres triggers fire
@@ -3018,7 +3018,7 @@ def _migration_067_pedido_public_token_expiry(conn: Any) -> None:
                     # Fallback: try the most common SQLite format.
                     from datetime import datetime as _dt2
 
-                    parsed = _dt2.strptime(normalized, "%Y-%m-%d %H:%M:%S")
+                    parsed = _dt2.strptime(normalized, "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007
                 expires = parsed + _td(days=30)
             else:
                 expires = created + _td(days=30)
@@ -4408,7 +4408,7 @@ def _current_schema_version(conn: Any) -> int:
 # On Render/VPS this is ephemeral (reboots wipe it) — for permanent
 # backups, the daily 03:15 cron pushes to R2. This dir is a safety
 # net for "I just made a change and want to roll back RIGHT NOW".
-PRE_MIGRATION_BACKUP_DIR = "/tmp/sazon-backups"
+PRE_MIGRATION_BACKUP_DIR = "/tmp/sazon-backups"  # noqa: S108
 
 
 def _backup_dir_path() -> "Path":

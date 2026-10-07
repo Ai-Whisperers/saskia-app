@@ -153,7 +153,7 @@ def _build_recipe_breakdown(
                 "batches": batches,
                 "yield_qty": yield_qty,
                 "qty_to_produce": qty,
-                "unit": "lotes" if batches != int(batches) else "lotes",
+                "unit": "lotes",
                 "lines": ing_lines,
                 "shortage_count": shortage_count,
                 "total_shortage": total_shortage,

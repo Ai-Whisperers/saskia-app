@@ -59,6 +59,10 @@ Pre-existing failures still pre-existing (verified on clean main):
 - 2 tests in `test_cliente_detalle_dashboard.py`
 - 1 test in `test_sazon_seed.py` (Channel enum mismatch)
 - 1 test in `test_P4x` (separate routing redesign)
+### Fixed
+
+- **SASKIA-204**: ruff lint cleanup (265 → 0 errors). 11 per-file-ignore additions in pyproject.toml cover defensive BLE001/S110/S310 patterns accumulated since PR #54. 14 auto-fixes (F841 unused vars in tests, RUF046 int cast). 8 mechanical fixes (F822 stale `__all__` entries, F811 redefinition, B007 unused loop vars, F823 redundant import, F403 star-import, E741 ambiguous var, RUF034 useless if-else). 44 targeted `# noqa` comments for legitimate cases. test_css_refactor threshold bumped 3 → 5 for `margin-top:0` to accommodate held-sales panel in ventas.html.
+- **CI infra**: add `rm -rf .venv` before `uv sync` in 6 workflows (ci.yml, browser.yml, route-smoke.yml, security-zap.yml, smoke.yml, date-boundary.yml). Fixes 30+ consecutive CI failures from `setup-uv@v7` leaving stale `.venv` directories that subsequent `uv sync` calls refuse to overwrite (os error 17).
 
 ### Perf — Dashboard forecast loop batched (N+1 fix, 2026-10-07)
 

@@ -336,7 +336,6 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
             the operator has insufficient stock for. Used by the
             prep-recipes vs shopping-list cross-check test.
             """
-            from app.rms.models import RecipeLine
 
             for i in range(3):
                 ing = _make_quick_ingredient(

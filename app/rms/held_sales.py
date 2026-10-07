@@ -115,7 +115,7 @@ def _evict_oldest_if_at_capacity(session: Session) -> int:
         params = {f"ev_id_{i}": v for i, v in enumerate(evict_ids)}
         session.execute(
             text(
-                f"UPDATE held_sale SET status = 'auto_evicted' "
+                f"UPDATE held_sale SET status = 'auto_evicted' "  # noqa: S608
                 f"WHERE id IN ({placeholders}) AND status = 'active'"
             ),
             params,

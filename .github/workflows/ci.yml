@@ -60,7 +60,7 @@ jobs:
         # tests/browser/. Those run in a separate workflow.
         # --only-group + --no-default-groups ensures uv doesn't pull dev
         # deps even if the lock file lists them.
-        run: uv sync --only-group dev-base --no-default-groups
+        run: rm -rf .venv && uv sync --only-group dev-base --no-default-groups
 
       - name: Lint (ruff)
         run: |

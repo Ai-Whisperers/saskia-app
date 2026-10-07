@@ -30,7 +30,6 @@ from app.rms.models import (
     Product as MProductModel,
 )
 from app.rms.money import to_int_gs
-from app.rms.tagging.model import TagKind
 
 
 class TagKind(str, enum.Enum):

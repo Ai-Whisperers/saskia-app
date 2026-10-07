@@ -1263,7 +1263,7 @@ async def sale_create(
     # the DELETE before the request returns).
     try:
         invalidate_demand_for_sale_today(session)
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     # Audit + rate-limit (writes only — read paths not counted).
@@ -2293,7 +2293,7 @@ async def preflight_sale(
     today = datetime.now(ASUNCION_TZ).date()
     checklist = validate_sale_intent(session, intent, today=today)
 
-    def _serialize(w) -> dict:
+    def _serialize(w) -> dict:  # noqa: ANN001
         return {"code": w.code, "severity": w.severity, "message": w.message}
 
     return JSONResponse({
@@ -2393,7 +2393,7 @@ async def preflight_sale_multi(
     today = datetime.now(ASUNCION_TZ).date()
     checklist = validate_cart_intent(session, cart, today=today)
 
-    def _serialize(w) -> dict:
+    def _serialize(w) -> dict:  # noqa: ANN001
         return {"code": w.code, "severity": w.severity, "message": w.message}
 
     return JSONResponse({
@@ -2421,7 +2421,7 @@ async def ventas_hold_cart(
     try:
         body = await request.json()
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
+        raise HTTPException(status_code=400, detail="Invalid JSON body")  # noqa: B904
 
     cart = body.get("cart") or {}
     label = (body.get("label") or "").strip()[:120]
@@ -2431,7 +2431,7 @@ async def ventas_hold_cart(
     try:
         held = _hold_cart(db, cart, held_by=held_by, label=label or "sin etiqueta")
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc))  # noqa: B904
 
     return JSONResponse({
         "id": held.id,
@@ -2489,7 +2489,7 @@ def ventas_held_resume(
     try:
         cart = _resume_held(db, held_id)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc))  # noqa: B904
     return JSONResponse({"cart": cart})
 
 

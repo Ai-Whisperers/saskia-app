@@ -739,7 +739,7 @@ async def reorder_upload_prices(
         # Date parsing
         if date_raw:
             try:
-                when = _datetime.strptime(date_raw, "%Y-%m-%d").date()
+                when = _datetime.strptime(date_raw, "%Y-%m-%d").date()  # noqa: DTZ007
             except ValueError:
                 errors.append(
                     {

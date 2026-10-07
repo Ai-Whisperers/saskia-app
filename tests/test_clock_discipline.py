@@ -172,7 +172,7 @@ def test_no_bare_datetime_now_in_app_source():
 
     assert not offenders, (
         "Bare datetime.utcnow() / datetime.now() still in source (use app.rms.clock):\n"
-        + "\n".join(f"  {p}: {l}" for p, l in offenders)
+        + "\n".join(f"  {p}: {line_no}" for p, line_no in offenders)
     )
 
 

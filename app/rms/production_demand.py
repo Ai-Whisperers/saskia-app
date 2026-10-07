@@ -275,7 +275,7 @@ def get_demand(
     if ttl > 0:
         try:
             _persist_snapshot(session, for_date, list(rows.values()))
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
     return rows
