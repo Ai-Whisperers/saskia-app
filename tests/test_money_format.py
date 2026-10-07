@@ -2,10 +2,10 @@
 
 Verifies the MoneyFormat helper for consistent Guaraní display.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-
 
 MONEY_JS = Path(__file__).parent.parent / "app" / "static" / "money-format.js"
 BASE_HTML = Path(__file__).parent.parent / "app" / "templates" / "base.html"
@@ -173,4 +173,4 @@ def test_money_format_uses_g():
     js = MONEY_JS.read_text()
     assert "Gs." in js
     # Should be the prefix
-    assert "'Gs.'" in js or 'Gs.' in js
+    assert "'Gs.'" in js or "Gs." in js

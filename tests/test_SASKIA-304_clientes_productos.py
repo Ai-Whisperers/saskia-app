@@ -74,7 +74,14 @@ def test_producto_form_has_helpful_placeholders():
 def test_productos_filter_toolbar():
     """`productos.html` must have the full filter toolbar: search + tag + category + margin + availability + recipe."""
     src = TEMPLATES.joinpath("productos.html").read_text()
-    for f in ('name="q"', 'name="tag"', 'name="category"', 'name="margen"', 'name="disponibles"', 'name="has_recipe"'):
+    for f in (
+        'name="q"',
+        'name="tag"',
+        'name="category"',
+        'name="margen"',
+        'name="disponibles"',
+        'name="has_recipe"',
+    ):
         assert f in src, f"Missing filter field: {f}"
 
 
@@ -91,8 +98,11 @@ def test_receta_detalle_margin_pill_honest():
     # mentions `/ 0.65` to explain what was removed) doesn't trigger
     # the assertion.
     import re
+
     code = re.sub(r"\{#.*?#\}", "", src, flags=re.S)
-    assert "/ 0.65" not in code, "Old placeholder margin formula (1 / 0.65) still in code (not in comment)"
+    assert "/ 0.65" not in code, (
+        "Old placeholder margin formula (1 / 0.65) still in code (not in comment)"
+    )
     # The new cost pill
     assert "Costo: Gs." in src, "New honest cost pill missing"
     assert "batch_cost_gs" in src, "Cost pill must use unit_cost.batch_cost_gs"

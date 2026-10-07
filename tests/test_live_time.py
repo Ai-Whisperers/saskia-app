@@ -2,10 +2,10 @@
 
 Verifies the LiveTime utility that auto-updates relative times.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-
 
 LIVE_TIME_JS = Path(__file__).parent.parent / "app" / "static" / "live-time.js"
 BASE_HTML = Path(__file__).parent.parent / "app" / "templates" / "base.html"

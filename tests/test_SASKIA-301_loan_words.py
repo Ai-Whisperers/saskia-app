@@ -59,7 +59,12 @@ def test_no_loyalty_in_ops_status():
     if "Top Loyalty" in src or "Loyalty" in src:
         # If it exists, must be in a non-user-facing context (JS, comment)
         for line in src.split("\n"):
-            if "Loyalty" in line and "Loyalty" in line and "js-" not in line.lower() and "{#" not in line:
+            if (
+                "Loyalty" in line
+                and "Loyalty" in line
+                and "js-" not in line.lower()
+                and "{#" not in line
+            ):
                 # User-facing occurrence found
                 if line.strip().startswith("<"):
                     pytest.fail(f"Loyalty appears user-facing in ops_status.html: {line!r}")
@@ -95,7 +100,9 @@ def test_forecast_column_in_produccion_manana():
     # New: <th>Pronóstico</th>
     if "<th>Forecast</th>" in src or 'class="text-right" title="Forecast' in src:
         # Check if there's a Spanish version too (the "= sugerencia del algoritmo" line)
-        assert ">Pronóstico<" in src, "Expected Spanish 'Pronóstico' header in produccion_manana.html"
+        assert ">Pronóstico<" in src, (
+            "Expected Spanish 'Pronóstico' header in produccion_manana.html"
+        )
 
 
 def test_no_counterparty_in_bank():

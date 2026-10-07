@@ -44,7 +44,7 @@ def test_inicio_split_hecho_hoy_card(authed_client):
     assert "Acciones del día" in src, "Original 'Acciones del día' card should still exist"
     assert "Hecho hoy" in src, "Expected 'Hecho hoy' card"
     # The Hecho hoy card should be a separate <section> (not just an h2)
-    assert src.count("aria-label=\"Hecho hoy\"") == 1, "Hecho hoy section not found"
+    assert src.count('aria-label="Hecho hoy"') == 1, "Hecho hoy section not found"
 
 
 def test_inicio_forecast_empty_state_clarified(authed_client):
@@ -73,9 +73,9 @@ def test_inicio_loyalty_sub_text_format(authed_client):
     # The old format had " de " between two numbers
     # We can't grep for the exact template syntax without false positives, so
     # check that the format string doesn't use the old "X de Y ventas" pattern
-    assert "de {{" not in src.split("sub=")[-1].split("</ui-kpi-card>")[0] if "sub=" in src else True, (
-        "Old 'X de Y ventas' format still in loyalty sub"
-    )
+    assert (
+        "de {{" not in src.split("sub=")[-1].split("</ui-kpi-card>")[0] if "sub=" in src else True
+    ), "Old 'X de Y ventas' format still in loyalty sub"
     # Verify the new format hint is present
     assert "ventas" in src, "Expected 'ventas' in loyalty sub"
     # And the new "con cliente" tail
@@ -93,6 +93,8 @@ def test_produccion_manana_no_duplicate_pedidos_h2():
     target = "Pedidos para mañana"
     # Count H2 occurrences
     h2_count = sum(1 for line in src.split("\n") if target in line and "<h2" in line)
-    assert h2_count == 0, f"Found {h2_count} <h2>Pedidos para mañana</h2> — should be 0 (use <summary>)"
+    assert h2_count == 0, (
+        f"Found {h2_count} <h2>Pedidos para mañana</h2> — should be 0 (use <summary>)"
+    )
     # The actual count check is the H2 being gone; the <summary> is the canonical heading.
     assert h2_count == 0

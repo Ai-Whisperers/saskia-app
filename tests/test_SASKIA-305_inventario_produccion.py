@@ -29,7 +29,9 @@ def test_produccion_manana_no_duplicate_pedidos_h2_regression():
     code = re.sub(r"\{#.*?#\}", "", src, flags=re.S)
     target = "Pedidos para mañana"
     h2_count = sum(1 for line in code.split("\n") if target in line and "<h2" in line)
-    assert h2_count == 0, f"Found {h2_count} <h2>Pedidos para mañana</h2> — should be 0 (use <summary>)"
+    assert h2_count == 0, (
+        f"Found {h2_count} <h2>Pedidos para mañana</h2> — should be 0 (use <summary>)"
+    )
 
 
 def test_inventario_bulk_fill_dialog_present():
@@ -45,8 +47,8 @@ def test_inventario_bulk_fill_dialog_present():
 def test_inventario_has_filter_toolbar():
     """`inventario.html` must have the search + categoria + estado + alérgeno + diet filter toolbar."""
     src = TEMPLATES.joinpath("inventario.html").read_text()
-    assert "name=\"q\"" in src, "Missing search input"
-    for f in ("name=\"categoria\"", "name=\"estado\"", "name=\"alergeno\"", "name=\"diet\""):
+    assert 'name="q"' in src, "Missing search input"
+    for f in ('name="categoria"', 'name="estado"', 'name="alergeno"', 'name="diet"'):
         assert f in src, f"Missing filter field: {f}"
 
 
@@ -67,7 +69,7 @@ def test_inventario_empty_state():
 def test_produccion_dia_view_tabs():
     """`produccion.html` must have Día / Semana / Mes view switcher in the header."""
     src = TEMPLATES.joinpath("produccion.html").read_text()
-    assert 'view == \'day\'' in src or 'view == "day"' in src, "Missing day view branch"
+    assert "view == 'day'" in src or 'view == "day"' in src, "Missing day view branch"
     # The switcher should be in the header (not in a buried drawer)
     # Quick check: 'Día' or 'Semana' or 'Mes' literal somewhere
     for w in ("Día", "Semana", "Mes"):
@@ -108,14 +110,18 @@ def test_produccion_horneado_extra_appears_below_table():
     src = TEMPLATES.joinpath("produccion.html").read_text()
     assert "Horneado extra" in src, "Missing 'Horneado extra' section"
     assert "is_ad_hoc" in src, "Missing ad-hoc detection in the template"
-    assert 'badge-warning' in src, "Missing warning badge (orange) for ad-hoc entries"
+    assert "badge-warning" in src, "Missing warning badge (orange) for ad-hoc entries"
 
 
 def test_inventario_movimientos_page_exists():
     """`inventario_movimientos.html` must exist (stock movement log)."""
-    assert TEMPLATES.joinpath("inventario_movimientos.html").exists(), "Movimientos template missing"
+    assert TEMPLATES.joinpath("inventario_movimientos.html").exists(), (
+        "Movimientos template missing"
+    )
 
 
 def test_inventario_auditoria_etiquetas_exists():
     """`inventario_auditoria_etiquetas.html` must exist (tag audit)."""
-    assert TEMPLATES.joinpath("inventario_auditoria_etiquetas.html").exists(), "Auditoria template missing"
+    assert TEMPLATES.joinpath("inventario_auditoria_etiquetas.html").exists(), (
+        "Auditoria template missing"
+    )
