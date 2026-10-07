@@ -5,6 +5,60 @@
 
 ## [Unreleased]
 
+### Added — Migration discipline regression tests (2026-10-07)
+
+`tests/test_migration_safety.py` (9 tests) locks the AGENTS.md
+Hard Rules 12-19 contract for the migration system. Sazon's
+existing migration discipline is already strong (109
+contiguous-numbered migrations, each on its own connection with
+per-migration rollback, partial-apply detection, cross-dialect
+schema_version in `app_meta`). This test file pins the behavior
+so a future refactor can't silently regress it.
+
+- `test_init_db_creates_schema_version_row_for_fresh_db` —
+  Fresh DB → schema_version row exists and equals
+  `CURRENT_SCHEMA_VERSION`.
+- `test_init_db_no_pending_migrations_on_idempotent_rerun` —
+  Second init_db on the same DB is a no-op (no version bump).
+- `test_init_db_creates_expected_tables_on_fresh_db` —
+  All 9 core tables (app_meta, ingredient, product, recipe,
+  recipe_line, sale, stock_movement, customer, audit_log) are
+  created.
+- `test_init_db_raises_on_missing_migration` — Deleting a
+  migration entry from the registry causes init_db to raise
+  `RuntimeError("No migration registered for schema version N")`
+  (the fail-closed contract).
+- `test_schema_version_bump_atomic` — schema_version bump and
+  DDL commit together.
+- `test_migration_files_have_no_gaps_in_naming` — Hard Rule 15
+  enforced at the dict level (no gaps in 1..N).
+- `test_migration_files_count_matches_registry` — MIGRATIONS
+  dict size matches `CURRENT_SCHEMA_VERSION`.
+- `test_pre_migration_backup_placeholder` — PLACEHOLDER for
+  M-INFRA-002 (pre-migration backup; not yet implemented).
+- `test_fail_closed_on_newer_schema_db_placeholder` —
+  PLACEHOLDER for fail-closed on DB schema > build schema;
+  not yet implemented.
+
+The placeholders document gaps, not failures. They always pass
+and track work for future sessions.
+
+### Changed — AGENTS.md Hard Rules 17-19 (2026-10-07)
+
+- Hard Rule 17 (pre-migration auto-backup) is now marked as
+  P0 to add code. Until added, daily 03:15 backup is the only
+  protection.
+- Hard Rule 18 (PRAGMA user_version) was reframed — Sazon uses
+  `app_meta.schema_version` instead, which is cross-dialect
+  (SQLite TEXT + Postgres JSONB). The test
+  `test_init_db_creates_schema_version_row_for_fresh_db` pins
+  this as the source of truth.
+- Hard Rule 19c (fail-closed on missing migration) is now
+  marked as ✅ ENFORCED. `test_init_db_raises_on_missing_migration`
+  pins it.
+- Hard Rule 19b (fail-closed on newer-schema DB) is still P0
+  to add code.
+
 ### Added — Auto-deduct regression test (2026-10-07)
 
 `tests/test_sale_create_writes_stock_movement.py` (3 tests) locks
