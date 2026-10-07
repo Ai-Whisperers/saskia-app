@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+### Added — Back-to-top button (Phase 22 polish, 2026-10-07)
+
+Floating "Volver arriba" button that appears in the bottom-right corner
+of every page once the user scrolls more than 400px. Click smoothly
+scrolls to top; respects `prefers-reduced-motion` (instant scroll).
+Keyboard-accessible via `aria-label` and `:focus-visible` outline.
+
+- New asset: `app/static/back-to-top.js` (1.2KB, self-managed scroll listener)
+- `app/templates/base.html`: button + script tag
+- `app/static/combobox.css`: `.back-to-top` + `.back-to-top.is-visible` rules
+  + `prefers-reduced-motion` override
+- Locked by `tests/test_back_to_top.py` (17 tests: button, JS behavior, CSS)
+
+Source: `feat/phase-3-m1-product-detail` (59 commits, 92 orphan files,
+this is the first of the integration PRs).
+
+
 ### Perf — Dashboard forecast loop batched (N+1 fix, 2026-10-07)
 
 Pre-fix, the day-of-week-aware forecast headline on `/inicio` called
