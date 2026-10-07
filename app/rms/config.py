@@ -84,7 +84,7 @@ KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_RMS_KEEP_LOCAL_DAYS", "30"))
 BACKDATE_WINDOW_DAYS = int(os.getenv("AIW_RMS_BACKDATE_DAYS", "7"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 109  # 104 = product.sold_by_weight (WP-1.1 venta por peso); 105 = sale_payment (WP-1.2 pagos mixtos); 108 = sale.tip_gs (WP-4.1 propina); 109 = menu/menu_item (WP-4.2); # 102 = waste_log.source denormalized (PROD-MERMA-2); 103 = production_demand_snapshot + production_plan_audit + completion.status (PRODUCCION-V2 Fase 1)
+CURRENT_SCHEMA_VERSION = 110  # 109 = menu/menu_item (WP-4.2); 110 = held_sale (B-7 pos hold-sale port from Hao0321/pos-pro)
 # 086 = monthly_closure table (Sprint 3.1 BACKLOG #15)
 # 087 = soft_delete_columns on owned tables (Sprint 3.2)
 # 088 = audit_columns on owned tables (Sprint 3.2)
@@ -129,6 +129,12 @@ __all__ = [
 # warning (single-line) or @N in multi-line. Default 999 (a single sale
 # of more than 999 kg or units of one product is almost certainly wrong).
 SAZON_PREFLIGHT_MAX_QTY_PER_SALE = int(os.getenv("SAZON_PREFLIGHT_MAX_QTY_PER_SALE", "999"))
+
+# Cap on active held_sale rows (POS hold/sale pause). When the cap is
+# hit, the oldest active row is auto-evicted (status=auto_evicted,
+# audit row preserved). Default 50 — generous for a single-cashier
+# counter but bounded to prevent runaway growth.
+SAZON_MAX_HELD_SALES = int(os.getenv("SAZON_MAX_HELD_SALES", "50"))
 
 # Discount ceiling: sales with discount > this % of the line total
 # (without an explicit operator override) fire DISCOUNT_REQUIRES_OVERRIDE

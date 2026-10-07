@@ -3655,6 +3655,30 @@ many products. A per-line preflight alone wasn't enough.
 
 **Tests:** 19 new (11 cart service + 8 multi route).
 
+### Added — POS hold-sale (B-7) (2026-10-07)
+
+Ports the "hold" pattern from `Hao0321/pos-pro` (MIT,
+src/components/CartPanel.jsx "hold" / `掛單`). The cashier can pause
+an in-progress cart when a customer steps away mid-order and
+resume it later (operator flow: `Cobrar → Pausar → otra venta →
+Retomar → Cobrar`).
+
+- **DB (migration 110):** new `held_sale` table — id, held_by,
+  label, held_at, cart_json, status. Schema bumped to 110.
+- **Backend `app/rms/held_sales.py`:** `hold_cart`, `get_held`,
+  `list_active_held`, `resume_held`, `discard_held`. FIFO eviction
+  when SAZON_MAX_HELD_SALES (default 50) is hit.
+- **Routes** (`app/routers/sales.py`):
+  - `POST /ventas/hold` — persist current cart as held
+  - `GET /ventas/held` — HTML panel fragment
+  - `GET /ventas/held/list.json` — JSON snapshot for polling
+  - `POST /ventas/held/{id}/resume` — load cart back, mark resumed
+  - `POST /ventas/held/{id}/discard` — mark discarded
+- **Frontend** (`app/templates/ventas.html`): pause button in cart
+  header + held-sales panel below the cart; auto-refresh every 15s.
+  New `icon-pause`/`icon-play` SVG symbols in icons.svg.
+- **Tests:** 15 service tests + 10 route tests = 25 new tests.
+
 ### Added — FloCafe stock ceiling + low-stock badge (M-FLO-001) (2026-10-07)
 
 Ports `FreeOpenSourcePOS/FloCafe/frontend/src/lib/addon-inventory.ts`

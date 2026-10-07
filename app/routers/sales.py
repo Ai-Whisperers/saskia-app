@@ -2359,3 +2359,104 @@ async def preflight_sale_multi(
         "line_count": len(lines),
     })
 
+
+
+# B-7 (2026-10-07): held-sale routes — ported from Hao0321/pos-pro
+# (MIT, src/components/CartPanel.jsx "hold" / 掛單 pattern). Cashier
+# pauses a multi-line cart when the customer steps away mid-order.
+@router.post("/hold")
+async def ventas_hold_cart(
+    request: Request,
+    db: Session = Depends(get_session),
+) -> JSONResponse:
+    """Persist the in-progress cart as a held sale."""
+    from app.auth import current_user_id
+    from app.rms.held_sales import hold_cart as _hold_cart
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    cart = body.get("cart") or {}
+    label = (body.get("label") or "").strip()[:120]
+    uid = current_user_id(request)
+    held_by = str(uid) if uid is not None else "operator"
+
+    try:
+        held = _hold_cart(db, cart, held_by=held_by, label=label or "sin etiqueta")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    return JSONResponse({
+        "id": held.id,
+        "label": held.label,
+        "held_at": held.held_at.isoformat() if hasattr(held.held_at, "isoformat") else str(held.held_at),
+        "item_count": len((cart or {}).get("items", [])),
+    })
+
+
+@router.get("/held", response_class=HTMLResponse)
+def ventas_held_list(
+    request: Request,
+    db: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Render the active held sales panel (HTML fragment)."""
+    from app.rms.held_sales import list_active_held
+
+    rows = list_active_held(db)
+    return render(
+        request,
+        "ventas_held_panel.html",
+        {"held": rows, "active_count": len(rows)},
+    )
+
+
+@router.get("/held/list.json")
+def ventas_held_list_json(
+    db: Session = Depends(get_session),
+) -> JSONResponse:
+    """JSON snapshot for client-side polling/refresh."""
+    from app.rms.held_sales import list_active_held
+
+    rows = list_active_held(db)
+    payload = []
+    for r in rows:
+        cart = r.parse_cart()
+        payload.append({
+            "id": r.id,
+            "label": r.label,
+            "held_by": r.held_by,
+            "held_at": r.held_at.isoformat() if hasattr(r.held_at, "isoformat") else str(r.held_at),
+            "item_count": len(cart.get("items", [])),
+        })
+    return JSONResponse({"held": payload, "count": len(payload)})
+
+
+@router.post("/held/{held_id}/resume")
+def ventas_held_resume(
+    held_id: int,
+    db: Session = Depends(get_session),
+) -> JSONResponse:
+    """Return the paused cart payload so the client can reload the cart UI."""
+    from app.rms.held_sales import resume_held as _resume_held
+
+    try:
+        cart = _resume_held(db, held_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return JSONResponse({"cart": cart})
+
+
+@router.post("/held/{held_id}/discard")
+def ventas_held_discard(
+    held_id: int,
+    db: Session = Depends(get_session),
+) -> JSONResponse:
+    """Discard a paused cart."""
+    from app.rms.held_sales import discard_held as _discard_held
+
+    changed = _discard_held(db, held_id)
+    if not changed:
+        raise HTTPException(status_code=404, detail="Held sale not active")
+    return JSONResponse({"ok": True})

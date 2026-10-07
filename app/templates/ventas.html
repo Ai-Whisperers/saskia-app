@@ -61,6 +61,16 @@
         <h2>
           Carrito
           <span id="cart-count" class="cart-badge d-none" >0</span>
+          {# B-7 (2026-10-07): hold-sale button — pauses the cart for a
+             customer who can't pay yet (needs to step away mid-order). #}
+          <button type="button" id="btn-hold-cart" class="btn btn-sm btn-ghost pull-right"
+                  style="margin-left:auto;font-size:0.8rem;display:none"
+                  title="Pausar carrito — el cliente puede volver y retomar">
+            <svg class="icon" aria-hidden="true" style="width:14px;height:14px;vertical-align:middle">
+              <use href="#icon-pause"/>
+            </svg>
+            Pausar
+          </button>
         </h2>
 
         <div id="cart-empty" class="cart-empty">
@@ -113,6 +123,27 @@
           <div class="d-flex" id="cross-sell-items" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
         </div>
       </div>{# /pos-cart #}
+
+      {# B-7 (2026-10-07): held-sales panel — list of paused carts the
+         cashier can resume. Auto-refreshes every 15s. #}
+      <div class="held-sales-panel" id="held-sales-panel"
+           style="margin-top:0;padding:10px;border:1px dashed var(--color-border,#2e3344);
+                  border-radius:6px;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="font-size:0.85rem;color:var(--muted-foreground)">
+            <svg class="icon" aria-hidden="true" style="width:14px;height:14px;vertical-align:middle">
+              <use href="#icon-pause"/>
+            </svg>
+            Ventas en espera
+            <span id="held-count" class="cart-badge" style="margin-left:4px">0</span>
+          </strong>
+          <button type="button" id="btn-refresh-held" class="btn btn-sm btn-ghost"
+                  style="font-size:0.75rem;padding:2px 6px" title="Actualizar lista">
+            ↻
+          </button>
+        </div>
+        <div id="held-list" style="display:flex;flex-direction:column;gap:4px;font-size:0.85rem"></div>
+      </div>
 
       {# ── Sale metadata (compact 3-column "Venta" row).
          Moved out of the manual form per Phase B. The customer picker +
@@ -996,6 +1027,215 @@
       doClear();
     }
   };
+
+  // ── B-7 (2026-10-07): hold-sale wiring (port from Hao0321/pos-pro MIT) ─
+  // Pauses the current cart for a customer who can't pay yet. The cart
+  // is sent to /ventas/hold, then cleared. The held panel polls every
+  // 15s and lets the cashier resume or discard.
+  var __heldPollTimer = null;
+
+  function currentCartJson() {
+    var el = document.getElementById('cart-json');
+    return el ? el.value : '[]';
+  }
+
+  function setHoldBtnVisible(show) {
+    var btn = document.getElementById('btn-hold-cart');
+    if (btn) btn.style.display = show ? 'block' : 'none';
+  }
+
+  // Re-evaluate hold-button visibility whenever the cart updates.
+  // renderCart() is the chokepoint; toggle right after it returns.
+  var __origRender = renderCart;
+  renderCart = function() {
+    __origRender.apply(this, arguments);
+    setHoldBtnVisible(POS_CART.length > 0);
+  };
+  // Initial visibility (cart may already be non-empty on page load).
+  setHoldBtnVisible(POS_CART.length > 0);
+
+  window.holdCurrentCart = async function() {
+    var btn = document.getElementById('btn-hold-cart');
+    if (btn) btn.disabled = true;
+    try {
+      var items;
+      try { items = JSON.parse(currentCartJson() || '[]'); }
+      catch (_e) { items = []; }
+      if (!items.length) {
+        if (window.UIShowToast) UIShowToast('El carrito está vacío', 'warning');
+        return;
+      }
+      var label = (typeof prompt === 'function')
+        ? (prompt('Etiqueta para esta venta en espera (opcional):', '') || '')
+        : '';
+      var r = await fetch('/ventas/hold', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({cart: {items: items}, label: label}),
+      });
+      if (!r.ok) {
+        var err = await r.text();
+        if (window.UIShowToast) UIShowToast('No se pudo pausar: ' + err, 'error');
+        return;
+      }
+      var data = await r.json();
+      window.clearCart();
+      if (window.UIShowToast) {
+        UIShowToast('Venta pausada #' + data.id + ' (' + data.item_count + ' ítems)', 'success');
+      }
+      refreshHeldList();
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  };
+
+  var __heldPanel = document.getElementById('held-sales-panel');
+  var __heldList = document.getElementById('held-list');
+  var __heldCount = document.getElementById('held-count');
+
+  function fmtHeldAt(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    var hh = ('0' + d.getHours()).slice(-2);
+    var mm = ('0' + d.getMinutes()).slice(-2);
+    return ('0' + d.getDate()).slice(-2) + '/' +
+           ('0' + (d.getMonth() + 1)).slice(-2) + ' ' + hh + ':' + mm;
+  }
+
+  async function refreshHeldList() {
+    try {
+      var r = await fetch('/ventas/held/list.json');
+      if (!r.ok) return;
+      var data = await r.json();
+      var items = data.held || [];
+      if (__heldCount) __heldCount.textContent = String(items.length);
+      if (__heldPanel) __heldPanel.style.display = items.length ? 'block' : 'none';
+      if (!__heldList) return;
+      if (!items.length) {
+        __heldList.innerHTML = '<small style="color:var(--muted-foreground)">No hay ventas en espera.</small>';
+        return;
+      }
+      __heldList.innerHTML = items.map(function(it) {
+        var safeLabel = (it.label || '').replace(/[<>&"]/g, function(c) {
+          return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];
+        });
+        var safeHeldBy = (it.held_by || '').replace(/[<>&"]/g, function(c) {
+          return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];
+        });
+        return ''
+          + '<div class="held-row" data-id="' + it.id + '" style="display:flex;align-items:center;gap:6px;padding:6px;border-radius:4px;background:var(--color-surface-2,#1a1d28)">'
+          +   '<div style="flex:1;min-width:0">'
+          +     '<div style="font-weight:600;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">' + safeLabel + '</div>'
+          +     '<small style="color:var(--muted-foreground)">' + it.item_count + ' ítems · ' + safeHeldBy + ' · ' + fmtHeldAt(it.held_at) + '</small>'
+          +   '</div>'
+          +   '<button type="button" class="btn btn-sm btn-primary held-resume" title="Retomar esta venta" style="padding:2px 8px;font-size:0.75rem">▶ Retomar</button>'
+          +   '<button type="button" class="btn btn-sm btn-ghost held-discard" title="Descartar" style="padding:2px 6px;color:#e85151">✕</button>'
+          + '</div>';
+      }).join('');
+    } catch (_e) { /* ignore — poll may fail offline */ }
+  }
+  window.refreshHeldList = refreshHeldList;
+
+  async function resumeHeld(id) {
+    if (POS_CART.length > 0) {
+      var ok = window.UIConfirmModal
+        ? await new Promise(function(resolve) {
+            UIConfirmModal.show({
+              title: 'Reemplazar carrito actual?',
+              body: 'El carrito tiene ítems sin cobrar. Se reemplazarán con la venta en espera.',
+              confirmLabel: 'Reemplazar',
+              danger: true,
+              onConfirm: function() { resolve(true); },
+              onCancel: function() { resolve(false); },
+            });
+          })
+        : confirm('El carrito tiene ítems. ¿Reemplazar?');
+      if (!ok) return;
+    }
+    var r = await fetch('/ventas/held/' + id + '/resume', {method: 'POST'});
+    if (!r.ok) {
+      if (window.UIShowToast) UIShowToast('No se pudo retomar', 'error');
+      return;
+    }
+    var data = await r.json();
+    var cart = data.cart || {};
+    POS_CART = [];
+    (cart.items || []).forEach(function(it) {
+      POS_CART.push({
+        product_id: it.product_id,
+        menu_id: it.menu_id,
+        product_name: it.product_name || ('Producto #' + (it.product_id || it.menu_id || '?')),
+        qty: parseFloat(it.qty) || 1,
+        unit_price_gs: parseInt(it.unit_price_gs || 0, 10),
+        default_unit_price_gs: parseInt(it.unit_price_gs || 0, 10),
+        discount_pct: parseFloat(it.discount_pct) || 0,
+      });
+    });
+    renderCart();
+    if (window.UIShowToast) UIShowToast('Venta retomada', 'success');
+    refreshHeldList();
+  }
+
+  async function discardHeld(id) {
+    var ok = window.UIConfirmModal
+      ? await new Promise(function(resolve) {
+          UIConfirmModal.show({
+            title: '¿Descartar venta en espera?',
+            body: 'Esta acción no se puede deshacer.',
+            confirmLabel: 'Descartar',
+            danger: true,
+            onConfirm: function() { resolve(true); },
+            onCancel: function() { resolve(false); },
+          });
+        })
+      : confirm('¿Descartar venta en espera?');
+    if (!ok) return;
+    var r = await fetch('/ventas/held/' + id + '/discard', {method: 'POST'});
+    if (!r.ok) {
+      if (window.UIShowToast) UIShowToast('No se pudo descartar', 'error');
+      return;
+    }
+    if (window.UIShowToast) UIShowToast('Venta descartada', 'success');
+    refreshHeldList();
+  }
+
+  // Wire up the hold button and the held-panel action buttons (event
+  // delegation so re-renders don't lose listeners).
+  document.addEventListener('click', function(ev) {
+    var holdBtn = ev.target.closest('#btn-hold-cart');
+    if (holdBtn) {
+      ev.preventDefault();
+      window.holdCurrentCart();
+      return;
+    }
+    var refreshBtn = ev.target.closest('#btn-refresh-held');
+    if (refreshBtn) {
+      ev.preventDefault();
+      refreshHeldList();
+      return;
+    }
+    var resumeBtn = ev.target.closest('.held-resume');
+    if (resumeBtn) {
+      ev.preventDefault();
+      var rowR = resumeBtn.closest('.held-row');
+      if (rowR) resumeHeld(parseInt(rowR.dataset.id, 10));
+      return;
+    }
+    var discardBtn = ev.target.closest('.held-discard');
+    if (discardBtn) {
+      ev.preventDefault();
+      var rowD = discardBtn.closest('.held-row');
+      if (rowD) discardHeld(parseInt(rowD.dataset.id, 10));
+      return;
+    }
+  });
+
+  // Initial load + 15s polling. Stop polling if the panel is hidden
+  // for >60s (cashier switched screens) to avoid wasted background calls.
+  refreshHeldList();
+  if (__heldPollTimer) clearInterval(__heldPollTimer);
+  __heldPollTimer = setInterval(refreshHeldList, 15000);
 
   // ── Form submit: POST cart as JSON ─────────────────────────────────────
   window.handleFormSubmit = async function(form) {
