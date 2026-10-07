@@ -917,7 +917,6 @@ that's easy to break with a refactor.
   read. The rule is now explicit about the delegation:
   router → `apply_sale()` → `StockMovement` rows. The pointer to
   the lock-in test is updated.
-
 ### Added (2026-09-30) — PROD-MERMA-2: source chip + a11y + docs
 
 Close the loop on the PROD-MERMA-1 quick-merma flow: operators can now
