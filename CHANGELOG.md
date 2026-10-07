@@ -389,3 +389,38 @@ garantía` suffix, kanban redesign, etc.).
 **Lesson:** sometimes the highest-value deliverable is a regression
 test that says "this is already good, don't break it in a future
 refactor". Future POS work can now build on a tested foundation.
+
+## 2026-10-07h — SASKIA-304: clientes + productos + recetas (Phase 3)
+
+**Shipped:**
+
+- **CLI.3** — added `+595 9XX XXXXX` placeholder to `cliente_editar.html`
+  phone input (was missing; users typed without format guidance).
+- **PROD.1 (P0)** — removed duplicate `Importar CSV` button in
+  `productos.html` (lines 27 and 33 were both rendering the same link;
+  kept the primary Importar on `/productos/importar` flow).
+- **RECETA.1 (P1)** — replaced the bogus margin pill in
+  `receta_detalle.html`. The old formula
+  `100 * (1 - unit_cost / (unit_cost / 0.65))` always computed exactly
+  35% — a literal placeholder. The new pill says
+  `Costo: Gs. X/u` (always honest). The full margin calculation
+  requires recipe → product sale_price wiring (Phase 6.5).
+
+**Tests:** 1 new file, 11 tests, all pass in 9s:
+- `tests/test_SASKIA-304_clientes_productos.py` (11) — covers clientes
+  nudge banner, phone placeholder, lifetime spend, duplicate button
+  removal, producto form placeholders, filter toolbar, receta margin
+  pill honesty, recetas difficulty multi-select, receta_form
+  effective-ingredients panel, cliente inline form, producto_detalle.
+
+**Decisions:**
+- D9: cliente_detalle's 30d-spend indicator is out of scope for
+  copy-only work (would need a router change to add `spend_30d_gs`
+  to the context). The 30d window already appears in
+  `pedido_detalle.html` (the cross-customer view). The ficha view
+  shows lifetime spend which is the most relevant metric for that page.
+- D10: removed the always-35% margin pill rather than try to fix
+  the formula in place. Better to show a real, honest number
+  (Costo: Gs. X/u) than a confident-looking lie.
+
+**Regression:** SASKIA-301/302/303 (52 tests) still pass; ruff clean.
