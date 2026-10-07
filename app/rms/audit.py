@@ -116,7 +116,7 @@ def record(
         )
         session.add(row)
         session.flush()  # surface integrity errors here, not at caller commit
-    except Exception as exc:  # pragma: no cover — defensive  # noqa: BLE001
+    except Exception as exc:  # pragma: no cover — defensive
         # Audit must NEVER break the caller. Log and move on.
         logger.warning(f"audit.record failed for action={action!r}: {exc!r}")
 

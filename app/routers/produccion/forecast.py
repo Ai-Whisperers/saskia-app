@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
-from fastapi import Depends, Query, Request
+from fastapi import Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session

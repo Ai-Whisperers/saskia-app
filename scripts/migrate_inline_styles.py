@@ -8,11 +8,9 @@ class.
 
 Run from the repo root.
 """
-import re
 import os
+import re
 import sys
-from collections import Counter
-
 
 # (regex on the inner style value, class to add)
 # The regex is matched against the inside of style="<regex>"
@@ -119,7 +117,7 @@ def migrate_file(path):
                 # 1. Find the enclosing <tag ...> element
                 # 2. Add `cls` to its class attribute (creating one if absent)
                 # 3. Remove the entire `style="..."` attribute
-                tag_match = re.search(
+                _tag_match = re.search(
                     r'<([a-zA-Z][a-zA-Z0-9-]*)\s+([^>]*)style="' + re.escape(m.group(1)) + r'"([^>]*)>',
                     m.string[max(0, m.start() - 500):m.end() + 500]
                 )
@@ -137,7 +135,7 @@ def migrate_file(path):
                 next_gt = m.string.find('>', m.end())
                 if next_gt < 0:
                     return m.group(0)
-                tag_full = m.string[last_lt : next_gt + 1]
+                _tag_full = m.string[last_lt : next_gt + 1]
                 tag_inner = m.string[last_lt + 1 : next_gt]
                 # Split tag into name + attrs
                 tag_match2 = re.match(r'([a-zA-Z][a-zA-Z0-9-]*)((?:\s+[^=>\s]+(?:=("[^"]*"|\'[^\']*\'|[^\s"\']*))?)*)\s*/?>', tag_inner)

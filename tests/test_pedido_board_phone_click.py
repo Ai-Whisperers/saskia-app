@@ -18,9 +18,11 @@ def _seed_pedido_with_customer(session_factory):
             name="Test Board",
             phone="0981-555-010",
         )
-        s.add(cust); s.flush()
+        s.add(cust)
+        s.flush()
         p = Product(name="BoardTestProd", sale_price_gs=15000)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         ped = Pedido(
             customer_id=cust.id,
             customer_name=cust.name,
@@ -29,7 +31,8 @@ def _seed_pedido_with_customer(session_factory):
             promised_time="14:00",
             status="pending",
         )
-        s.add(ped); s.flush()
+        s.add(ped)
+        s.flush()
         s.add(PedidoLine(pedido_id=ped.id, product_id=p.id, qty=1, unit_price_gs=15000))
         s.commit()
         return ped.id, cust.phone
@@ -37,7 +40,7 @@ def _seed_pedido_with_customer(session_factory):
 
 def test_pedido_board_renders_customer_phone(client, session_factory):
     """T-3 — pedido with customer.phone must show the phone in the board card."""
-    pid, phone = _seed_pedido_with_customer(session_factory)
+    _pid, phone = _seed_pedido_with_customer(session_factory)
     r = client.get("/pedidos/board")
     assert r.status_code == 200
     assert phone in r.text, f"phone {phone!r} missing from /pedidos/board"
@@ -62,14 +65,16 @@ def test_pedido_board_no_phone_does_not_break(client, session_factory):
     sf = session_factory
     with sf() as s:
         p = Product(name="BoardNoPhone", sale_price_gs=10000)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         ped = Pedido(
             customer_name="Walk-in",
             customer_phone=None,
             promised_date=date.today(),
             status="pending",
         )
-        s.add(ped); s.flush()
+        s.add(ped)
+        s.flush()
         s.add(PedidoLine(pedido_id=ped.id, product_id=p.id, qty=1, unit_price_gs=10000))
         s.commit()
     r = client.get("/pedidos/board")

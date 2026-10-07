@@ -22,7 +22,6 @@ from datetime import date
 from app.rms.plan_accuracy import (
     AccuracyReport,
     DailyAccuracyRow,
-    compute_plan_accuracy,
 )
 
 
@@ -81,7 +80,7 @@ def test_daily_delta_aggregation():
 
 def test_worst_days_sorted_by_delta_desc():
     """worst_days returns up to 5 days, ordered by |delta| descending."""
-    from app.rms.plan_accuracy import _top_worst_days, _aggregate_daily_totals
+    from app.rms.plan_accuracy import _aggregate_daily_totals, _top_worst_days
 
     rows = [
         DailyAccuracyRow(
@@ -111,7 +110,7 @@ def test_worst_days_sorted_by_delta_desc():
 
 def test_best_days_sorted_by_accuracy_desc():
     """best_days returns up to 5 days with planned > 0, ordered by accuracy desc."""
-    from app.rms.plan_accuracy import _top_best_days, _aggregate_daily_totals
+    from app.rms.plan_accuracy import _aggregate_daily_totals, _top_best_days
 
     rows = [
         DailyAccuracyRow(
@@ -138,7 +137,7 @@ def test_best_days_sorted_by_accuracy_desc():
 
 def test_top_n_returns_at_most_n():
     """If there are more than N days, the lists are capped at N."""
-    from app.rms.plan_accuracy import _top_worst_days, _aggregate_daily_totals
+    from app.rms.plan_accuracy import _aggregate_daily_totals, _top_worst_days
 
     rows = [
         DailyAccuracyRow(

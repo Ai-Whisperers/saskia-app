@@ -37,11 +37,8 @@ from sqlalchemy.orm import Session
 from app.rms.config import ASUNCION_TZ
 from app.rms.models import (
     AppMeta,
-    ComplianceInfo,  # noqa: F401 — re-exported via __all__
-    Customer,  # noqa: F401 — re-exported via __all__
     ImportBatch,
     Ingredient,
-    Pedido,  # noqa: F401 — re-exported via __all__
     Product,
     Recipe,
     RecipeLine,

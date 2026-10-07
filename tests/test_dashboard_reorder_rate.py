@@ -36,7 +36,8 @@ def test_reorder_rate_in_dashboard_context_with_sales(client, session_factory):
 
     with session_factory() as s:
         prod = Product(name="prod reorder", sale_price_gs=2500)
-        s.add(prod); s.flush()
+        s.add(prod)
+        s.flush()
         # 2 one-time, 2 repeat
         now = datetime.now(timezone.utc)
         for i, repeat in enumerate([False, False, True, True]):
@@ -75,7 +76,8 @@ def test_customer_detail_page_exposes_repeat_customer_flag(client, session_facto
 
     with session_factory() as s:
         prod = Product(name="prod detail", sale_price_gs=2500)
-        s.add(prod); s.flush()
+        s.add(prod)
+        s.flush()
         cust_repeat = ensure_customer(s, "Repeat", phone="+595****DET1")
         cust_ot = ensure_customer(s, "OneTime", phone="+595****DET2")
         s.flush()

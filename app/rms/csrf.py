@@ -86,7 +86,7 @@ async def verify_form_csrf(request: Request) -> None:
         )
     try:
         form = await request.form()
-    except Exception:  # noqa: BLE001 — defensive: malformed body
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="csrf_form_unreadable",

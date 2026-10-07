@@ -63,18 +63,18 @@ def send_telegram(text: str) -> bool:
     ).encode("utf-8")
     url = _TELEGRAM_API.format(token=token)
     assert url.startswith("https://api.telegram.org/")  # S310: scheme locked
-    req = urllib.request.Request(  # noqa: S310 — https scheme locked above
+    req = urllib.request.Request(
         url,
         data=payload,
         headers={"Content-Type": "application/json"},
         method="POST",
     )
     try:
-        with urllib.request.urlopen(  # noqa: S310 — https locked
+        with urllib.request.urlopen(
                 req, timeout=_TIMEOUT_S
             ) as resp:
             return resp.status == 200
-    except Exception as exc:  # noqa: BLE001 — alerts must never raise
+    except Exception as exc:
         print(f"WARNING: Telegram notify failed: {exc}", file=sys.stderr)
         return False
 

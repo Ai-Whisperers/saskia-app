@@ -42,11 +42,9 @@ import inspect
 
 import pytest
 
-from app.rms import money
-from app.rms import validation
+from app.rms import money, validation
 from app.rms.money import format_gs, parse_gs
 from app.rms.validation import parse_money_gs, parse_quantity
-
 
 # ─── Existence ─────────────────────────────────────────────────────────────
 

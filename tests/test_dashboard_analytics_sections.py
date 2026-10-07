@@ -65,7 +65,7 @@ def _seed_min_sales(session_factory, days_back: int = 14):
                 customer_id=None,
                 payment_method="efectivo",
                 discount_gs=0,
-                channel="Mostrador",
+                channel="mostrador",
             )
         s.commit()
         return p.id

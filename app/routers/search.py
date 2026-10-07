@@ -69,7 +69,7 @@ def global_search(
                     "url": f"/clientes/{c.id}",
                 }
             )
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.warning(f"global_search: customers query failed: {exc!r}")
 
     # ── Products ─────────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ def global_search(
                     "url": f"/productos/{p.id}/editar",
                 }
             )
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.warning(f"global_search: products query failed: {exc!r}")
 
     # ── Pedidos ─────────────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ def global_search(
                     "url": f"/pedidos/{ped.id}",
                 }
             )
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.warning(f"global_search: pedidos query failed: {exc!r}")
 
     # ── Recipes ─────────────────────────────────────────────────────────────
@@ -148,7 +148,7 @@ def global_search(
                     "url": f"/recetas/{r.id}/editar",
                 }
             )
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.warning(f"global_search: recipes query failed: {exc!r}")
 
     return JSONResponse(results)

@@ -68,7 +68,7 @@ class Supplier(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     # Relationships
-    ingredients: Mapped[list["Ingredient"]] = relationship(back_populates="supplier")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    ingredients: Mapped[list["Ingredient"]] = relationship(back_populates="supplier")
 
     __table_args__ = (Index("ix_supplier_name", "name"),)
 
@@ -99,7 +99,7 @@ class WasteLog(Base):
     )
 
     # Relationships
-    ingredient: Mapped["Ingredient"] = relationship("Ingredient")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    ingredient: Mapped["Ingredient"] = relationship("Ingredient")
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -126,8 +126,8 @@ class ShoppingListItem(Base):
     purchased_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
-    ingredient: Mapped["Ingredient"] = relationship("Ingredient")  # noqa: F821 — SQLAlchemy 2.0 forward ref
-    production_plan: Mapped[Optional["ProductionPlan"]] = relationship(  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    ingredient: Mapped["Ingredient"] = relationship("Ingredient")
+    production_plan: Mapped[Optional["ProductionPlan"]] = relationship(
         back_populates="shopping_items"
     )
 
@@ -185,4 +185,4 @@ class StockMovement(Base):
     )
 
     # Relationships
-    ingredient: Mapped["Ingredient"] = relationship("Ingredient")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    ingredient: Mapped["Ingredient"] = relationship("Ingredient")

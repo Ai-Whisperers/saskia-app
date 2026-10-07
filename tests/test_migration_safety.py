@@ -24,17 +24,13 @@ This test file adds the missing enforcement:
 
 from __future__ import annotations
 
-import os
-import sqlite3
-import tempfile
-
 
 def test_init_db_creates_schema_version_row_for_fresh_db(tmp_path):
     """Fresh DB → init_db writes schema_version = CURRENT_SCHEMA_VERSION."""
     from sqlalchemy import create_engine, text
 
-    from app.rms.db import init_db
     from app.rms.config import CURRENT_SCHEMA_VERSION
+    from app.rms.db import init_db
 
     db_path = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{db_path}")
@@ -63,7 +59,6 @@ def test_init_db_no_pending_migrations_on_idempotent_rerun(tmp_path):
     from sqlalchemy import create_engine, text
 
     from app.rms.db import init_db
-    from app.rms.config import CURRENT_SCHEMA_VERSION
 
     db_path = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{db_path}")
@@ -154,8 +149,8 @@ def test_schema_version_bump_atomic(tmp_path):
     """
     from sqlalchemy import create_engine, text
 
-    from app.rms.db import init_db
     from app.rms.config import CURRENT_SCHEMA_VERSION
+    from app.rms.db import init_db
 
     db_path = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{db_path}")
@@ -190,6 +185,7 @@ def test_migration_files_have_no_gaps_in_naming():
 def test_migration_files_count_matches_registry():
     """The MIGRATIONS dict has all migration files registered."""
     from app.rms import db as dbmod
+
     # 109 migrations as of 2026-10-07 (CURRENT_SCHEMA_VERSION = 109)
     from app.rms.config import CURRENT_SCHEMA_VERSION
     assert len(dbmod.MIGRATIONS) == CURRENT_SCHEMA_VERSION, (
@@ -209,10 +205,11 @@ def test_sync_backup_before_migration_writes_file(tmp_path, monkeypatch):
     """
     import gzip
     import json
+
     from sqlalchemy import create_engine
 
-    from app.rms.db import sync_backup_before_migration
     from app.rms.config import CURRENT_SCHEMA_VERSION
+    from app.rms.db import sync_backup_before_migration
 
     # Set up a DB with some data
     db_path = tmp_path / "source.db"
@@ -220,7 +217,7 @@ def test_sync_backup_before_migration_writes_file(tmp_path, monkeypatch):
     from app.rms.db import init_db
     init_db(engine)
     from app.rms.models import Ingredient
-    with engine.connect() as conn:
+    with engine.connect() as _conn:
         from sqlalchemy.orm import sessionmaker
         S = sessionmaker(bind=engine)
         with S() as s:
@@ -257,9 +254,9 @@ def test_sync_backup_before_migration_can_be_restored(tmp_path):
     """
     from sqlalchemy import create_engine
 
+    from app.rms.config import CURRENT_SCHEMA_VERSION
     from app.rms.db import init_db, sync_backup_before_migration
     from app.rms.models import Ingredient
-    from app.rms.config import CURRENT_SCHEMA_VERSION
 
     # Source DB
     db_path = tmp_path / "source.db"
@@ -300,6 +297,7 @@ def test_init_db_writes_pre_migration_backup_before_applying(tmp_path):
     the env var to use tmp_path for backups.
     """
     import os
+
     from sqlalchemy import create_engine
 
     # Override the backup directory
@@ -341,7 +339,6 @@ def test_init_db_fail_closed_when_backup_fails(tmp_path, monkeypatch):
     monkeypatch.delenv("AIW_RMS_PROCEED_WITHOUT_BACKUP", raising=False)
 
     # Monkeypatch backup_database to fail
-    import app.rms.db as dbmod
     def _broken_backup(session, dest, **kwargs):
         raise IOError("simulated backup failure")
     monkeypatch.setattr("app.rms.backup.backup_database", _broken_backup)
@@ -387,8 +384,8 @@ def test_fail_closed_on_newer_schema_db_raises(tmp_path):
     import pytest
     from sqlalchemy import create_engine, text
 
-    from app.rms.db import init_db
     from app.rms.config import CURRENT_SCHEMA_VERSION
+    from app.rms.db import init_db
 
     db_path = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{db_path}")
@@ -397,7 +394,6 @@ def test_fail_closed_on_newer_schema_db_raises(tmp_path):
     # Bump schema_version to a future version (newer than the build)
     future_version = CURRENT_SCHEMA_VERSION + 5
     with engine.connect() as conn:
-        import json
         if engine.dialect.name == "postgresql":
             conn.execute(
                 text(
@@ -427,8 +423,8 @@ def test_fail_closed_on_newer_schema_one_version_higher(tmp_path):
     import pytest
     from sqlalchemy import create_engine, text
 
-    from app.rms.db import init_db
     from app.rms.config import CURRENT_SCHEMA_VERSION
+    from app.rms.db import init_db
 
     db_path = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{db_path}")

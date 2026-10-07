@@ -9,7 +9,7 @@ all pages in the app.
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
 from app.rms.models import (
     BankTransaction,
@@ -29,7 +29,6 @@ from app.rms.models import (
     MessageTemplate,
     PaymentMethod,
     Pedido,
-    PedidoLine,
     Product,
     ProductionCompletion,
     ProductionPlanTemplate,
@@ -59,7 +58,7 @@ def sazon_db(app_engine_session):
     SessionLocal = make_session_factory(app_engine_session)
     session = SessionLocal()
     try:
-        report = seed_sazon(session, overwrite=True)
+        _report = seed_sazon(session, overwrite=True)
         yield session
     finally:
         session.close()
@@ -278,8 +277,9 @@ def test_app_meta_onboarding_guard(sazon_db):
       sazon_tenant_name, sazon_admin_user, sazon_loaded
     """
     from sqlalchemy import select
+
     from app.rms.models import AppMeta
-    from app.rms.seed.sazon import is_sazon_seeded, sazon_meta, SAZON_META_KEYS
+    from app.rms.seed.sazon import SAZON_META_KEYS, is_sazon_seeded, sazon_meta
 
     rows = sazon_db.execute(
         select(AppMeta).where(AppMeta.key.in_(SAZON_META_KEYS))
@@ -304,8 +304,8 @@ def test_app_meta_onboarding_guard(sazon_db):
 
 def test_is_sazon_seeded_false_on_fresh_db(app_engine):
     """On a fresh DB (no seed), is_sazon_seeded() must return False."""
-    from app.rms.seed.sazon import is_sazon_seeded, sazon_meta
     from app.rms.db import make_session_factory
+    from app.rms.seed.sazon import is_sazon_seeded, sazon_meta
 
     SessionLocal = make_session_factory(app_engine)
     session = SessionLocal()
@@ -343,20 +343,21 @@ def test_idempotent_rerun(sazon_db, app_engine_session):
     were already idempotent; tags and audit_log still increment (they
     are derived from a random seed).
     """
-    from app.rms.db import make_session_factory
     from sqlalchemy import func, select
+
+    from app.rms.db import make_session_factory
     from app.rms.models import (
+        BankTransaction,
+        Customer,
+        FreezerTemperatureLog,
         Ingredient,
         Product,
-        Customer,
+        ProductionCompletion,
+        Sale,
+        StockMovement,
         Supplier,
         Tenant,
         User,
-        Sale,
-        StockMovement,
-        ProductionCompletion,
-        BankTransaction,
-        FreezerTemperatureLog,
     )
 
     SessionLocal = make_session_factory(app_engine_session)

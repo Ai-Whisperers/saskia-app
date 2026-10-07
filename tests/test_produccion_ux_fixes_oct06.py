@@ -24,7 +24,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 TEMPLATE = (
     Path(__file__).resolve().parents[1] / "app" / "templates" / "produccion.html"
 ).read_text()

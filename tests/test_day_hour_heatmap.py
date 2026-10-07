@@ -5,10 +5,9 @@ fallback, and color-scaling max.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 
@@ -149,7 +148,6 @@ def test_day_hour_heatmap_multiple_sales_stack(hh_session):
 def test_day_hour_heatmap_voided_excluded(hh_session):
     """Voided sales don't appear in the heatmap."""
     from app.rms.analytics import day_hour_heatmap
-    from app.rms.models_legacy import Sale
 
     sale_at = datetime(2026, 10, 5, 10, 0, tzinfo=timezone.utc).replace(tzinfo=None)
     sale = _seed_sale(hh_session, sold_at=sale_at, unit_price_gs=2_000)

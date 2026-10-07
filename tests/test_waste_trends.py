@@ -30,19 +30,15 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.rms.models import (
-    Ingredient,
     IngredientPriceEvent,
     WasteLog,
 )
 from app.rms.waste import (
-    WasteReason,
     WasteIngredientTrend,
     amplified_waste_ingredients,
-    record_waste,
     waste_impact_with_trends,
 )
 from tests.factories import make_ingredient
-
 
 NOW = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
 

@@ -29,8 +29,8 @@ from app.rms.categories import (
     list_categories,
     update_category,
 )
-from app.rms.dependencies import get_session
 from app.rms.clock import now
+from app.rms.dependencies import get_session
 from app.rms.settings_runtime import (
     compute_suggested_price,
     get_pricing_markup,
@@ -1237,9 +1237,10 @@ def delete_template_endpoint(
 # Operator then sets branding.logo_filename (etc.) via /settings/branding POST
 
 import secrets
-from fastapi import UploadFile, File, Form, HTTPException as _HTTPException
 from pathlib import Path as _P
 
+from fastapi import File, Form, UploadFile
+from fastapi import HTTPException as _HTTPException
 
 # Allowed file extensions per asset kind
 _BRANDING_EXTS = {

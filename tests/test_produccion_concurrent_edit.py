@@ -22,8 +22,6 @@ We verify:
 
 from datetime import date, datetime, timedelta, timezone
 
-import pytest  # noqa: F401 — fixtures via authed_client
-
 
 def test_shift_execute_no_warning_without_form_opened_at(authed_client):
     """Without form_opened_at, the redirect doesn't add concurrent flag."""
@@ -62,7 +60,6 @@ def test_shift_execute_warning_when_form_opened_before_save(authed_client, sessi
     Submit with form_opened_at = T-5min. The handler should detect
     "the row was edited after the form was opened" and add the flag.
     """
-    from sqlalchemy import text as sa_text  # noqa: F401 — kept for raw-SQL escape hatch
 
     from app.rms.models_legacy import Product, ProductionCompletion
 

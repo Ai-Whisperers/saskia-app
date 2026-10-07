@@ -52,7 +52,7 @@ import math
 import random
 import secrets
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from loguru import logger
@@ -103,8 +103,8 @@ from app.rms.models import (
     User,
     WasteLog,
 )
-from app.rms.tagging.model import TagKind
 from app.rms.tagging.ensure import ensure_starter_tags, ensure_tag, tag_target
+from app.rms.tagging.model import TagKind
 
 # === Tenant / user constants ===
 
@@ -118,7 +118,7 @@ DEFAULT_TENANT_SLUG = "default"
 
 # Saskia (operator) credentials
 SASKIA_USER = "saskia"
-SASKIA_PASSWORD = "saskia1234"  # noqa: S105
+SASKIA_PASSWORD = "saskia1234"
 SASKIA_EMAIL = "saskia@lavaquita.example"
 SASKIA_FULL_NAME = "Saskia Weiss"
 
@@ -1159,24 +1159,24 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
     # transactions, and (elsewhere) the sales loop. We pin it to
     # today-anchored-on-this-call so the natural-key dedup logic for all
     # of these stays stable across re-runs of the same seed_sazon call.
-    seed_anchor_date = datetime.utcnow().date()
+    seed_anchor_date = datetime.now(ASUNCION_TZ).date()
 
     if overwrite:
         _delete_sazon_data(session)
 
     # === 1. Tenants ===
-    sazon_tenant, was_created = _ensure_tenant(session, TENANT_SLUG, TENANT_NAME, TENANT_COLOR, TENANT_CURRENCY)
+    _sazon_tenant, was_created = _ensure_tenant(session, TENANT_SLUG, TENANT_NAME, TENANT_COLOR, TENANT_CURRENCY)
     if was_created:
         report.tenants += 1
-    default_tenant, _ = _ensure_tenant(session, DEFAULT_TENANT_SLUG, "Default", "#7b3f00", "Gs.")
+    _default_tenant, _ = _ensure_tenant(session, DEFAULT_TENANT_SLUG, "Default", "#7b3f00", "Gs.")
     logger.info(f"seed: tenant '{TENANT_NAME}' (slug={TENANT_SLUG})")
 
     # === 2. Users ===
-    saskia_user, was_created = _ensure_user(session, SASKIA_USER, SASKIA_PASSWORD, role="admin")
+    _saskia_user, was_created = _ensure_user(session, SASKIA_USER, SASKIA_PASSWORD, role="admin")
     if was_created:
         report.users += 1
-    for username, password, full_name, email in CASHIER_USERS:
-        u, was_created = _ensure_user(session, username, password, role="cashier")
+    for username, password, _full_name, email in CASHIER_USERS:
+        _u, was_created = _ensure_user(session, username, password, role="cashier")
         if was_created:
             report.users += 1
     logger.info(f"seed: {report.users} users (Saskia + 2 cashiers)")
@@ -1201,7 +1201,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
     for k, v in branding_settings.items():
         existing = session.execute(select(SettingsKV).where(SettingsKV.key == k)).scalar_one_or_none()
         if existing is None:
-            session.add(SettingsKV(key=k, value_json=v, updated_at=datetime.utcnow()))
+            session.add(SettingsKV(key=k, value_json=v, updated_at=datetime.now(ASUNCION_TZ)))
             report.settings_kv += 1
         else:
             report.skipped_existing["settings_kv_existing"] = (
@@ -1412,11 +1412,11 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
     existing_compliance = session.execute(select(ComplianceInfo).where(ComplianceInfo.id == 1)).scalar_one_or_none()
     if existing_compliance is None:
         compliance_copy = dict(COMPLIANCE)
-        compliance_copy["updated_at"] = datetime.utcnow()
+        compliance_copy["updated_at"] = datetime.now(ASUNCION_TZ)
         ci = ComplianceInfo(id=1, **compliance_copy)
         session.add(ci)
         report.compliance = 1
-    logger.info(f"seed: compliance info (La Vaquita Holandesa S.A.)")
+    logger.info("seed: compliance info (La Vaquita Holandesa S.A.)")
 
     # === 14. Suppliers ===
     supplier_objs: list[Supplier] = []
@@ -1456,7 +1456,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
                 unit=unit,
                 stock_qty=stock_qty,
                 purchase_price_gs=price_gs if price_gs > 0 else None,
-                purchase_price_updated_at=datetime.utcnow(),
+                purchase_price_updated_at=datetime.now(ASUNCION_TZ),
                 min_stock_qty=min_stock,
                 max_stock_qty=min_stock * 3,
                 shelf_life_days=shelf_days,
@@ -1476,7 +1476,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
                 lot_required=lot_required,
                 may_contain_gluten=may_contain_gluten,
                 opening_stock_qty=stock_qty,
-                opening_stock_date=date.today().isoformat(),
+                opening_stock_date=datetime.now(ASUNCION_TZ).date().isoformat(),
                 reorder_point=min_stock * 1.5,
             )
             session.add(ing)
@@ -1507,7 +1507,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
                         IngredientPriceEvent(
                             ingredient_id=ing.id,
                             price_gs=int(price_gs * variation),
-                            recorded_at=datetime.utcnow() - timedelta(days=days_ago),
+                            recorded_at=datetime.now(ASUNCION_TZ) - timedelta(days=days_ago),
                             source="restock",
                         )
                     )
@@ -1650,7 +1650,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
             tag_target(session, docena, TagKind.PRODUCT.value, prod.id)
         elif "1 unidad" == prod.portion_label:
             tag_target(session, individual, TagKind.PRODUCT.value, prod.id)
-    logger.info(f"seed: tags applied")
+    logger.info("seed: tags applied")
 
     # === 19. Customers + addresses ===
     customer_objs: list[Customer] = []
@@ -1671,8 +1671,8 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
                 notes=notes,
                 loyalty_points=loyalty,
                 zone=zone,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                created_at=datetime.now(ASUNCION_TZ),
+                updated_at=datetime.now(ASUNCION_TZ),
                 birthday=birthday,
                 how_found=how_found,
                 preferred_channel=pref_channel,
@@ -1698,7 +1698,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
                     address_kind="home",
                     sort_order=0,
                     is_active=True,
-                    created_at=datetime.utcnow(),
+                    created_at=datetime.now(ASUNCION_TZ),
                 )
                 session.add(addr)
                 report.customer_addresses += 1
@@ -1727,7 +1727,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
                     product_id=prod.id,
                     qty=qty,
                     notes=notes,
-                    updated_at=datetime.utcnow(),
+                    updated_at=datetime.now(ASUNCION_TZ),
                     updated_by=SASKIA_USER,
                 )
             )
@@ -1764,7 +1764,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
                         recorded_at=datetime.combine(d, datetime.min.time()) + timedelta(hours=18),
                         status="done" if days_ago > 0 else "open",
                         notes="Cierre diario" if days_ago > 0 else None,
-                        updated_at=datetime.utcnow() if days_ago > 0 else None,
+                        updated_at=datetime.now(ASUNCION_TZ) if days_ago > 0 else None,
                     )
                 )
                 report.production_completions += 1
@@ -1808,7 +1808,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
                 payment_intent=payment,
                 notes=notes,
                 public_token=token,
-                public_token_expires_at=datetime.utcnow() + timedelta(days=30),
+                public_token_expires_at=datetime.now(ASUNCION_TZ) + timedelta(days=30),
                 created_at=promised_dt - timedelta(hours=2),
                 updated_at=promised_dt,
                 fulfilled_at=promised_dt if status == "fulfilled" else None,
@@ -1903,7 +1903,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
             base_count = math.ceil(base_count * 1.6)
         count = max(1, int(base_count + sales_rng.randint(-2, 2)))
 
-        for sale_idx_in_day in range(count):
+        for _sale_idx_in_day in range(count):
             # Pick a product — bias towards favorites for realism
             fav_products = [p for pn, p in product_objs_by_name.items() if p.is_favorite]
             if not fav_products:
@@ -2146,7 +2146,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
                     qty=qty,
                     reason=reason,
                     cost_gs=cost_gs,
-                    recorded_at=datetime.utcnow() - timedelta(days=days_ago),
+                    recorded_at=datetime.now(ASUNCION_TZ) - timedelta(days=days_ago),
                     recorded_by=by,
                     notes=notes,
                 )
@@ -2162,7 +2162,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
         existing = session.execute(
             select(ShoppingListItem).where(
                 ShoppingListItem.ingredient_id == ing.id,
-                ShoppingListItem.purchased == False  # noqa: E712
+                not ShoppingListItem.purchased
             )
         ).scalar_one_or_none()
         if existing is None:
@@ -2172,7 +2172,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
                     ingredient_id=ing.id,
                     qty_to_buy=qty_to_buy,
                     unit=ing.unit,
-                    purpose_text=f"Stock bajo — comprar antes del lunes",
+                    purpose_text="Stock bajo — comprar antes del lunes",
                     purchased=False,
                 )
             )
@@ -2255,7 +2255,7 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
     # sazon_seed_version = schema/data version of THIS seeder (bump on breaking changes)
     sazon_meta_keys = {
         "sazon_seed_version": "1.0",
-        "sazon_seeded_at": datetime.utcnow().isoformat(),
+        "sazon_seeded_at": datetime.now(ASUNCION_TZ).isoformat(),
         "sazon_tenant_slug": TENANT_SLUG,
         "sazon_tenant_name": TENANT_NAME,
         "sazon_admin_user": SASKIA_USER,
@@ -2269,10 +2269,10 @@ def seed_sazon(session: Session, *, overwrite: bool = False, days_of_history: in
             select(AppMeta).where(AppMeta.key == k)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(AppMeta(key=k, value=str(v), updated_at=datetime.utcnow().isoformat()))
+            session.add(AppMeta(key=k, value=str(v), updated_at=datetime.now(ASUNCION_TZ).isoformat()))
         else:
             existing.value = str(v)
-            existing.updated_at = datetime.utcnow().isoformat()
+            existing.updated_at = datetime.now(ASUNCION_TZ).isoformat()
 
     # === 30. Bank transactions (a few recent ones) ===
     # Idempotency: the dedup query uses (posted_at, description) as the
@@ -2392,42 +2392,42 @@ def _delete_sazon_data(session: Session) -> None:
                 session.execute(delete(Tenant).where(Tenant.slug == TENANT_SLUG))
             else:
                 session.execute(delete(model))
-        except Exception as e:  # noqa: BLE001 — defensive default
+        except Exception as e:
             logger.warning(f"Could not wipe {model.__name__}: {e}")
             session.rollback()
     # Audit log
     try:
         session.execute(delete(AuditLog).where(AuditLog.action == "seed.complete"))
-    except Exception as e:  # noqa: BLE001 — defensive default
+    except Exception as e:
         logger.warning(f"Could not wipe audit log: {e}")
         session.rollback()
     session.commit()
 
 
 __all__ = [
+    "BENCHMARKS",
     "CATEGORIES_PRODUCT",
     "CATEGORIES_RECIPE",
-    "PAYMENT_METHODS",
-    "MARGIN_TIERS",
-    "STOCK_STATUSES",
-    "STORAGE_TYPES",
-    "STORAGE_KEYWORDS",
+    "CUSTOMERS",
     "DATE_PRESETS",
-    "MESSAGE_TEMPLATES",
     "DELIVERY_ZONES",
-    "SUPPLIERS",
     "INGREDIENTS",
+    "MARGIN_TIERS",
+    "MESSAGE_TEMPLATES",
+    "PAYMENT_METHODS",
+    "PEDIDOS",
+    "PRODUCTS",
     "RECIPES",
     "RECIPE_LINES",
-    "PRODUCTS",
-    "CUSTOMERS",
-    "PEDIDOS",
-    "BENCHMARKS",
+    "SASKIA_PASSWORD",
+    "SASKIA_USER",
+    "STOCK_STATUSES",
+    "STORAGE_KEYWORDS",
+    "STORAGE_TYPES",
+    "SUPPLIERS",
+    "TENANT_NAME",
+    "TENANT_SLUG",
     "WASTE_LOG",
     "SazonReport",
     "seed_sazon",
-    "SASKIA_USER",
-    "SASKIA_PASSWORD",
-    "TENANT_SLUG",
-    "TENANT_NAME",
 ]

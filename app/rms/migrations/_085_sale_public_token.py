@@ -39,20 +39,20 @@ def _migration_085_sale_public_token(conn: Any) -> None:
     # 1. Add public_token column (nullable; only populated when share is called)
     try:
         conn.execute(text("ALTER TABLE sale ADD COLUMN public_token VARCHAR(64)"))
-    except Exception:  # noqa: S110 — column may already exist
+    except Exception:
         pass
 
     # 2. Add public_token_expires_at column (nullable; matches /p/{token} pattern)
     try:
         conn.execute(text("ALTER TABLE sale ADD COLUMN public_token_expires_at TIMESTAMP"))
-    except Exception:  # noqa: S110
+    except Exception:
         pass
 
     # 3. Add public_token_shared_at column — when did the share happen.
     # Used for "Last shared" display on /ventas/{id} and for audit.
     try:
         conn.execute(text("ALTER TABLE sale ADD COLUMN public_token_shared_at TIMESTAMP"))
-    except Exception:  # noqa: S110
+    except Exception:
         pass
 
     # 4. Backfill: existing sales get sold_at + 30 days as a one-time grace
@@ -71,7 +71,7 @@ def _migration_085_sale_public_token(conn: Any) -> None:
                 normalized = sold.replace("T", " ")
                 for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
                     try:
-                        parsed = datetime.strptime(normalized, fmt)  # noqa: DTZ007 — sold_at is naive UTC stored in DB
+                        parsed = datetime.strptime(normalized, fmt)
                         expires = parsed + timedelta(days=30)
                         break
                     except ValueError:
@@ -84,7 +84,7 @@ def _migration_085_sale_public_token(conn: Any) -> None:
                 text("UPDATE sale SET public_token_expires_at = :exp WHERE id = :sid"),
                 {"exp": expires, "sid": row.id},
             )
-    except Exception:  # noqa: S110 — best-effort backfill
+    except Exception:
         pass
 
     # 5. Index for fast "is this token still valid" lookups.
@@ -95,7 +95,7 @@ def _migration_085_sale_public_token(conn: Any) -> None:
                 "ON sale (public_token, public_token_expires_at)"
             )
         )
-    except Exception:  # noqa: S110
+    except Exception:
         pass
 
     _bump_schema_version(conn, 85)

@@ -92,7 +92,7 @@ def test_pro_04_ver_receta_links_to_recipe_detail(client):
         data={
             "name": "Muffin de nueces",
             "sale_price_gs": "2500",
-            "channel": "Mostrador",
+            "channel": "mostrador",
         },
         follow_redirects=False,
     )

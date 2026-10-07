@@ -18,7 +18,6 @@ from sqlalchemy.orm import Session
 from app.rms.models import Tag, TagLink
 from app.rms.tagging.model import TagKind
 
-
 # ─── Starter data (the canonical starter-tag catalogue) ────────────────────
 
 # Each tuple is (name, kind, color). Used by ensure_starter_tags + tests.

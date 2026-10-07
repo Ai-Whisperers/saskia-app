@@ -152,13 +152,16 @@ def validate_sale_intent(
         PreSaleChecklist with all warnings and blockers surfaced.
         Empty checklist = sale is safe to commit.
     """
-    from datetime import date as _date
+    from datetime import datetime as _datetime
+    from zoneinfo import ZoneInfo
+
+    _ASUNCION = ZoneInfo("America/Asuncion")
 
     from app.rms.derived_intel import check_customer_risk
     from app.rms.models import Product
 
     if today is None:
-        today = _date.today()
+        today = _datetime.now(_ASUNCION).date()
 
     checklist = PreSaleChecklist()
 

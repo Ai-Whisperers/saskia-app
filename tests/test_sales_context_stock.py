@@ -15,7 +15,10 @@ from __future__ import annotations
 import re
 
 from app.rms.models import (
-    Ingredient, Product, Recipe, RecipeLine,
+    Ingredient,
+    Product,
+    Recipe,
+    RecipeLine,
 )
 
 

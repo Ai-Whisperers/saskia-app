@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
-
 from app.observability import alerts
 from app.services.eod_anomaly import Anomaly
 

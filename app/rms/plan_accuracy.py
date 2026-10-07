@@ -326,7 +326,7 @@ def _aggregate_daily_totals(
         cur["planned"] += r.planned_qty
         cur["completed"] += r.completed_qty
         cur["sold"] += r.sold_qty
-    for d, cur in out.items():
+    for cur in out.values():
         cur["delta"] = abs(cur["planned"] - cur["completed"])
         cur["accuracy"] = (
             cur["completed"] / cur["planned"] if cur["planned"] > 0 else 0.0

@@ -32,7 +32,6 @@ from app.rms.catalogs import (
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
 from app.rms.db import safe_commit
-from app.rms.production_demand import invalidate_demand_for_sale_today
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, Conflict, NotFound, ValidationError
 from app.rms.loyalty import discount_gs_for_points
@@ -50,16 +49,16 @@ from app.rms.messages import (
     SALE_SKU_REQUIRED,
     SALE_TOO_MANY_ITEMS,
 )
-from app.rms.models.channels import Channel
 from app.rms.models import Customer, Product, Sale, StockMovement
+from app.rms.models.channels import Channel
 from app.rms.money import to_int_gs
+from app.rms.production_demand import invalidate_demand_for_sale_today
 from app.rms.public_tokens import (
     enforce_rate_limit as public_token_enforce_rate_limit,
 )
 from app.rms.public_tokens import (
     is_token_valid,
 )
-from app.rms.settings_runtime import get_branding
 from app.rms.schemas import (
     ALLOWED_CHANNELS,
     CHANNEL_DEFAULT,
@@ -67,6 +66,7 @@ from app.rms.schemas import (
     PAYMENT_METHOD_DEFAULT,
     PAYMENT_METHODS_DISPLAY,
 )
+from app.rms.settings_runtime import get_branding
 from app.services.template_render import render
 
 router = APIRouter(prefix="/ventas", dependencies=[Depends(require_login)])
@@ -305,9 +305,9 @@ def _build_sales_context(
     # actually make with current ingredient stock". Built as a dict
     # (id -> ceiling) for O(1) template lookup.
     from app.rms.menu_inventory import (
-        product_stock_ceiling,
         product_is_sold_out,
         product_low_stock_threshold,
+        product_stock_ceiling,
     )
     stock_ceilings: dict[int, float | None] = {}
     stock_sold_out: dict[int, bool] = {}
@@ -1225,7 +1225,7 @@ async def sale_create(
     # the DELETE before the request returns).
     try:
         invalidate_demand_for_sale_today(session)
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
 
     # Audit + rate-limit (writes only — read paths not counted).
@@ -1368,7 +1368,7 @@ async def sale_create_multi(
 
     try:
         body = _Body.model_validate(await request.json())
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         raise HTTPException(status_code=400, detail=SALE_BODY_INVALID) from None
 
     items = body.items
@@ -1947,11 +1947,11 @@ def _fire_printer_for_sale(
         try:
             cfg = config_from_env()
             send_to_printer(receipt.encode("utf-8"), cfg)
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             from loguru import logger
 
             logger.warning("printer send failed (non-fatal)")
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         from loguru import logger
 
         logger.warning(f"printer trigger skipped: {exc!r}")
@@ -1995,7 +1995,7 @@ async def sale_void(
                     actor=str(current_user_id(request) or "operator"),
                 )
                 session.flush()
-    except Exception as _loyalty_void_exc:  # noqa: BLE001
+    except Exception as _loyalty_void_exc:
         from loguru import logger as _logger
 
         _logger.warning("loyalty void-reversal failed for sale {}: {}", sale_id, _loyalty_void_exc)
@@ -2040,7 +2040,7 @@ async def sale_void(
             detail={"reason": reason_clean, "voided_by": user_id},
         )
         session.commit()  # void_sale already committed; the audit row needs its own
-    except Exception as exc:  # best-effort: never block the void  # noqa: BLE001
+    except Exception as exc:  # best-effort: never block the void
         from loguru import logger as _logger
 
         _logger.warning("audit for void sale {} failed: {}", sale_id, exc)
@@ -2093,7 +2093,7 @@ def share_sale_recibo(
             detail={"public_token_suffix": token[-4:], "expires_at": expires_at.isoformat()},
         )
         session.commit()
-    except Exception:  # noqa: BLE001 — audit best-effort
+    except Exception:
         session.rollback()
 
     public_url = f"/r/{token}"
@@ -2148,7 +2148,7 @@ def public_recibo(request: Request, token: str) -> HTMLResponse:
         )
         try:
             session.commit()
-        except Exception:  # noqa: BLE001 — audit best-effort
+        except Exception:
             session.rollback()
 
         # Reuse the same recibo.html template the cashier sees. The
@@ -2223,9 +2223,11 @@ async def preflight_sale(
     The /ventas/nueva form shows a yellow banner for warnings and a
     red banner for blockers.
     """
-    from datetime import datetime
+    from datetime import date, datetime
+
     from app.rms.sales.pre_sale_check import (
-        PreSaleIntent, validate_sale_intent,
+        PreSaleIntent,
+        validate_sale_intent,
     )
 
     sold_at_date: date | None = None
@@ -2250,7 +2252,7 @@ async def preflight_sale(
         points_to_redeem=points_to_redeem,
     )
 
-    today = datetime.now().date()
+    today = datetime.now(ASUNCION_TZ).date()
     checklist = validate_sale_intent(session, intent, today=today)
 
     def _serialize(w) -> dict:
@@ -2293,9 +2295,13 @@ async def preflight_sale_multi(
 
     Returns: {warnings, blockers, is_ready, is_clean, line_count}
     """
-    from datetime import datetime, date as _date
+    from datetime import date as _date
+    from datetime import datetime
+
     from app.rms.sales.pre_sale_check_cart import (
-        CartIntent, CartLine, validate_cart_intent,
+        CartIntent,
+        CartLine,
+        validate_cart_intent,
     )
 
     try:
@@ -2346,7 +2352,7 @@ async def preflight_sale_multi(
         points_to_redeem=int(body.get("points_to_redeem", 0)),
     )
 
-    today = datetime.now().date()
+    today = datetime.now(ASUNCION_TZ).date()
     checklist = validate_cart_intent(session, cart, today=today)
 
     def _serialize(w) -> dict:

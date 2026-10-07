@@ -29,9 +29,6 @@ What we lock here:
 
 from __future__ import annotations
 
-import pytest
-
-
 # ─── File-system invariants ────────────────────────────────────────────────
 
 
@@ -178,9 +175,6 @@ def test_tagging_ensure_module_exposes_starter_tags():
 def test_tagging_filters_module_exposes_filter_classes():
     """The filters module owns the listings filter dataclasses + helpers."""
     from app.rms.tagging.filters import (
-        InventoryFilter,
-        ProductFilter,
-        RecipeFilter,
         SalesFilter,
         filter_inventory,
         filter_products,

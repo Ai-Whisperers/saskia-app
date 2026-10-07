@@ -35,7 +35,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO = Path(__file__).resolve().parents[1]
 TOKENS_CSS = REPO / "app" / "static" / "tokens.css"
 BASE_HTML = REPO / "app" / "templates" / "base.html"

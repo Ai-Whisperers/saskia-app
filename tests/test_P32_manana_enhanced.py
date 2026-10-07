@@ -6,9 +6,7 @@ the manana rewrite (pedidos per client, Plan column, pedidos_by_product
 in forecast table). 4 tests, all run in <8s.
 """
 import re
-from datetime import date, timedelta
-
-import pytest
+from datetime import timedelta
 
 from app.rms.config import ASUNCION_TZ
 
@@ -16,7 +14,6 @@ from app.rms.config import ASUNCION_TZ
 def test_manana_pedidos_per_client(authed_client, qseed):
     """Each pedido renders as a card with the line items the client
     is actually buying (not just the customer name + total)."""
-    from datetime import datetime, timezone
     qseed("with_manana_pedidos")
     r = authed_client.get("/produccion/manana")
     assert r.status_code == 200
@@ -37,7 +34,6 @@ def test_manana_queproducir_columns(authed_client, qseed):
     """The "Qué producir" table has Forecast + Pedidos + Total + Plan
     columns. Plan is the editable override (the old Override column
     renamed for clarity)."""
-    from datetime import datetime, timezone
     qseed("with_manana_pedidos")
     r = authed_client.get("/produccion/manana")
     assert r.status_code == 200
@@ -55,7 +51,7 @@ def test_manana_plan_persists(authed_client, qseed):
     """POST /produccion/override-bulk with qty[<id>]=N persists into
     ProductionPlanOverride. Reloading /produccion/manana shows the
     pre-filled Plan input."""
-    from datetime import datetime, timezone
+    from datetime import datetime
     qseed("with_manana_pedidos")
     r = authed_client.get("/produccion/manana")
     assert r.status_code == 200

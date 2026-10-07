@@ -83,7 +83,7 @@ class Sale(Base):
     )
 
     # Relationships
-    product: Mapped["Product"] = relationship(back_populates="sales")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    product: Mapped["Product"] = relationship(back_populates="sales")
     customer: Mapped[Optional["Customer"]] = relationship(back_populates="sales")
     stock_moves: Mapped[list["SaleStockMove"]] = relationship(
         back_populates="sale", cascade="all, delete-orphan"
@@ -254,7 +254,7 @@ class RecipePricing(Base):
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
-    recipe: Mapped["Recipe"] = relationship("Recipe")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    recipe: Mapped["Recipe"] = relationship("Recipe")
 
     __table_args__ = (
         CheckConstraint("cost_per_unit_gs >= 0", name="ck_pricing_per_unit_nonneg"),

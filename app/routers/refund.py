@@ -142,7 +142,7 @@ async def refund_create(
             },
         )
         session.commit()
-    except Exception as exc:  # best-effort audit; never block the refund  # noqa: BLE001
+    except Exception as exc:  # best-effort audit; never block the refund
         logger.warning("audit for refund {} failed: {}", result.refund.id, exc)
 
     # Redirect back to the source page

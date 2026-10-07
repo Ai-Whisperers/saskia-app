@@ -131,7 +131,9 @@ def merma_list(
     # datetime.utcnow). Compare with naive-UTC bounds so SQLAlchemy doesn't
     # drop the comparison, and use UTC date (not local) so the day boundary
     # matches the timestamps the app writes.
-    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
+    from datetime import timezone as _tz
     _utcnow = _dt.now(_tz.utc).replace(tzinfo=None)
     today_start = _dt.combine(_utcnow.date(), _dt.min.time())
     today_end = today_start + _td(days=1)
@@ -168,7 +170,7 @@ def merma_list(
                 "n_events": int(n),
                 "cost_gs": int(cost),
             }
-    except Exception:  # noqa: BLE001 — defensive: never block the page
+    except Exception:
         source_mix_14d = {}
 
     # Build preset query strings
@@ -266,7 +268,8 @@ def merma_register(
     dup_window_seconds = 60
     dup_qty_tolerance_abs = 0.01
     dup_qty_tolerance_pct = 0.05
-    from datetime import datetime, timedelta, timezone as _tz
+    from datetime import datetime, timedelta
+    from datetime import timezone as _tz
     cutoff = datetime.now(_tz.utc) - timedelta(seconds=dup_window_seconds)
     qty_abs = abs(float(qty))
     tol = max(dup_qty_tolerance_abs, qty_abs * dup_qty_tolerance_pct)

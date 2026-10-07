@@ -10,10 +10,9 @@ plus the rest stays.
 
 Run from repo root.
 """
-import re
 import os
+import re
 import sys
-
 
 # (regex to match at START of style value, class to add)
 ADD_UTILITIES = [
@@ -52,7 +51,7 @@ def migrate_file(path):
 
     matches = list(re.finditer(r'style="([^"]+)"', content))
     # Process in reverse
-    additions = []
+    _additions = []
     for m in matches:
         value = m.group(1).strip()
         added_classes = []

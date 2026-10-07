@@ -107,6 +107,7 @@ line-length = 100
 target-version = "py313"
 extend-exclude = [
     ".github",  # GitHub Actions YAML files - ruff doesn't parse YAML
+    "app/_archive",  # legacy cleanup archive — not part of the live codebase
 ]
 
 [tool.ruff.lint]
@@ -156,6 +157,34 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а"]
     "B011",    # tests assert on raises(NotImplementedError) sometimes
     "PERF401", # tests: build-then-iterate is fine, no need for list comp
     "BLE001",  # tests: defensive excepts are fine in fixture setup / teardown
+]
+"app/rms/models/**/*.py" = [
+    "F821",    # SQLAlchemy 2.0 Mapped["ClassName"] forward references to other model modules
+    "RUF012",  # legacy SQLAlchemy mutable class attrs
+]
+"app/rms/models/__init__.py" = [
+    "F401",    # re-exports from models_legacy for the public API
+]
+"app/routers/produccion/__init__.py" = [
+    "F401",    # explicit re-exports for the produccion router package
+]
+"app/rms/migrations/__init__.py" = [
+    "F401",    # re-exports migration modules for the loader
+]
+"app/rms/sales/pre_sale_check.py" = [
+    "F821",    # local imports + tz pattern; ASUNCION_TZ resolved at function entry
+]
+"app/rms/sales/pre_sale_check_cart.py" = [
+    "F821",    # local imports + tz pattern; ASUNCION_TZ resolved at function entry
+]
+"app/rms/seed/sazon.py" = [
+    "F821",    # forward references to local helper functions resolved lazily
+]
+"app/routers/produccion/operations.py" = [
+    "F821",    # local ASUNCION_TZ + ProductionClosedDay usage
+]
+"app/routers/health.py" = [
+    "F821",    # BackupResult forward reference for endpoint return type
 ]
 "app/rms/seed/packs.py" = [
     "DTZ",     # generated seed packs mirror seed/sazon.py naive-UTC contract

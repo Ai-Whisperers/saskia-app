@@ -101,7 +101,7 @@ def test_smoke_3_record_counter_sale(client, session_factory):
             "product_id": str(prod_id),
             "qty": "1",
             "payment_method": "efectivo",
-            "channel": "Mostrador",
+            "channel": "mostrador",
         },
         follow_redirects=False,
     )
@@ -127,7 +127,7 @@ def test_smoke_4_record_pedido_then_mark_terminado(client, session_factory):
             "promised_date": "2026-12-01",
             "lines-0-product_id": str(prod_id),
             "lines-0-qty": "1",
-            "channel": "Mostrador",
+            "channel": "mostrador",
         },
         follow_redirects=False,
     )

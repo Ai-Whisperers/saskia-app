@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 # Single canonical timezone for the business. Paraguay does not observe
 # DST; the offset is stable year-round at UTC-4. Importing from
 # app.rms.config keeps this in lock-step with the rest of the app.
-from app.rms.config import ASUNCION_TZ  # noqa: F401 — re-export
+from app.rms.config import ASUNCION_TZ
 
 UTC = timezone.utc
 
@@ -87,8 +87,8 @@ __all__ = [
     "ASUNCION_TZ",
     "UTC",
     "now",
-    "today_local",
-    "to_utc",
     "to_asuncion",
+    "to_utc",
+    "today_local",
     "utcnow",
 ]

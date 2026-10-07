@@ -13,7 +13,6 @@ Two bugs were creating duplicate channels in reports:
 P39 fixes both: sales does .lower().strip(), and pedidos normalize
 returns the canonical lowercase codes. This test pins down both.
 """
-import pytest
 
 
 def test_sale_channel_is_lowercased(client, session_factory):
@@ -32,7 +31,7 @@ def test_sale_channel_is_lowercased(client, session_factory):
     # Try various casings - the new code lowercases all of them
     for raw, expected_canon in [("WhatsApp", "whatsapp"), ("WHATSAPP", "whatsapp"),
                                  ("whatSapp", "whatsapp"), ("whatsapp", "whatsapp")]:
-        response = client.post("/ventas/nueva", data={
+        _response = client.post("/ventas/nueva", data={
             "product_id": prod_id,
             "qty": 1,
             "channel": raw,
@@ -68,7 +67,7 @@ def test_pedido_save_uses_normalized_channel(client, session_factory):
     from datetime import date
     client.post("/login", data={"username": "demo", "password": "demo1234"})
 
-    response = client.post("/pedidos/nuevo", data={
+    _response = client.post("/pedidos/nuevo", data={
         "customer_name": "P39 Channel Test",
         "customer_phone": "0000",
         "promised_date": date.today().isoformat(),

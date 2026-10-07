@@ -12,8 +12,6 @@ bakery uses during the morning prep window. Tests cover:
 """
 from __future__ import annotations
 
-import pytest
-
 
 def test_route_registered():
     from app.routers.produccion import router

@@ -33,7 +33,6 @@ from app.rms.errors import (
     BadRequest,
     NotFound,
 )
-from app.rms.models.channels import Channel
 from app.rms.models import (
     BankTransaction,
     CompetitorPriceObservation,
@@ -51,6 +50,7 @@ from app.rms.models import (
     WasteLog,
     WishlistItem,
 )
+from app.rms.models.channels import Channel
 from app.rms.observability import record_audit
 from app.services.template_render import render
 

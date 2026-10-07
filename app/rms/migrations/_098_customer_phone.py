@@ -62,7 +62,7 @@ def _migration_098_customer_phone(conn: Any) -> None:
 
     try:
         conn.exec_driver_sql(create_sql)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 098 CREATE TABLE customer_phone skipped: %s", exc)
 
     for idx_sql in (
@@ -75,7 +75,7 @@ def _migration_098_customer_phone(conn: Any) -> None:
     ):
         try:
             conn.exec_driver_sql(idx_sql)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("migration 098 index skipped: %s", exc)
 
     # Backfill: every customer with non-empty `phone` gets one default row.
@@ -105,7 +105,7 @@ def _migration_098_customer_phone(conn: Any) -> None:
             """,
             {"ts": ts},
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("migration 098 backfill skipped: %s", exc)
 
     # Schema-version bump is the responsibility of

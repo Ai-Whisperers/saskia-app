@@ -11,7 +11,7 @@ the shim is real, not a copy.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 
@@ -151,14 +151,12 @@ def test_shim_reexports_helper_identity():
     `shim.symbol is new_package.symbol` (identity, not equality) so the
     shim never silently copies a value.
     """
-    from app.routers.produccion import _helpers
-    from app.routers.produccion import _full
-
     # The shim's __init__ re-exports from _full, not from _helpers
     # (helpers extraction is additive; _full still has the originals).
     # The identity test is: re-export via __init__ must match the
     # _full-defined function until the next extraction step.
     import app.routers.produccion as pkg
+    from app.routers.produccion import _full, _helpers
     assert pkg.source_to_bucket is _full.source_to_bucket
     # And the helper module's copy (when imported) is also a function
     # that passes the same tests

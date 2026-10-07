@@ -11,17 +11,19 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import Depends, Form, Request
+from fastapi import Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
 from app.rms.models import (
     Product,
     ProductionPlanOverride,
 )
+from app.rms.production_demand import persist_plan_audit
 from app.routers.produccion._router import router
 
 
@@ -268,9 +270,9 @@ def load_template_into_day(
     """
     from app.auth import current_user_id
     from app.rms.audit import record as audit_record
-    from app.rms.production import upsert_override
     from app.rms.models import ProductionPlanTemplate
-    target = datetime.strptime(for_date, "%Y-%m-%d").date()
+    from app.rms.production import upsert_override
+    target = datetime.strptime(for_date, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ).date()
     weekday = target.weekday()  # 0=Mon
     tpl_rows = session.execute(
         select(ProductionPlanTemplate).where(
@@ -306,7 +308,7 @@ def load_template_into_day(
                 notes="P40: desde plantilla semanal",
             )
             applied += 1
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("P40 load-template failed product={} err={}", tpl.product_id, exc)
     session.commit()
     audit_record(

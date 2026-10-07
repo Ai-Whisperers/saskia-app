@@ -1,6 +1,6 @@
 """Tests for T-9: recetas list total time column (prep_minutes + cook_minutes)."""
-from app.routers.recipes import _format_total_minutes
 from app.rms.models import Recipe
+from app.routers.recipes import _format_total_minutes
 
 
 def test_recetas_list_shows_total_time_column(authed_client, session_factory):

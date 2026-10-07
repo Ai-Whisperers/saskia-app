@@ -12,11 +12,6 @@ bucket helper) and app/templates/produccion.html (legend, badge, modal).
 """
 from __future__ import annotations
 
-import re
-import pytest
-from fastapi.testclient import TestClient  # noqa: F401 (type hint only)
-
-
 # 4 source buckets per the design spec. `is_ad_hoc` is a row-level
 # flag, `forecast_source` is one of 5 strings, so the route groups them.
 _FOUR_BUCKETS = {"receta", "historial", "override", "horneado-extra"}

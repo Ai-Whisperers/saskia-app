@@ -77,7 +77,7 @@ def is_storage_enabled() -> bool:
         netloc = urlparse(url).netloc
         health = f"https://{netloc}/auth/v1/health"
         req = urllib.request.Request(health, method="GET")
-        with urllib.request.urlopen(req, timeout=1.5) as resp:  # noqa: S310 — health check probes arbitrary hostnames
+        with urllib.request.urlopen(req, timeout=1.5) as resp:
             return 200 <= resp.status < 300
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
         logger.debug("is_storage_enabled: supabase unreachable: %s", exc)

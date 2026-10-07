@@ -94,7 +94,7 @@ def is_rate_limited(
             )
             .count()
         )
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         logger.warning("rate_limit_check failed: DB query failed, failing open for safety")
         return RateLimitDecision(
             allowed=True,
@@ -176,7 +176,7 @@ def is_write_rate_limited(
             )
             .count()
         )
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         logger.warning("is_write_rate_limited DB query failed, failing closed for safety")
         return False
     return count >= max_per_minute
@@ -246,7 +246,7 @@ def is_read_rate_limited(
             )
             .count()
         )
-    except Exception:  # noqa: BLE001 - defensive default
+    except Exception:
         logger.warning("is_read_rate_limited DB query failed, failing open for safety")
         return RateLimitDecision(
             allowed=True,
@@ -270,7 +270,7 @@ def is_read_rate_limited(
                 },
             )
             session.commit()
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.warning("read.rate_limited audit write failed")
         return RateLimitDecision(
             allowed=False,
@@ -304,7 +304,7 @@ def record_read_heavy(session: Session, request: object, route_tag: str) -> None
             request=request,
         )
         session.commit()
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.warning(f"record_read_heavy({route_tag}) audit write failed")
 
 

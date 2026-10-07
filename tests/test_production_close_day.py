@@ -19,7 +19,6 @@ import pytest
 from app.rms.eod_completions import close_day_for_product
 from app.rms.models import ProductionCompletion
 
-
 # ---------------------------------------------------------------------------
 # Helper: close_day_for_product
 # ---------------------------------------------------------------------------
@@ -469,7 +468,8 @@ def test_day_view_v2_renders_demanda_column(client, session_factory):
         prod = make_product(s, name="Chipitas")
         s.commit()
         target = _date(2030, 1, 1)
-        from datetime import datetime as _dt, timezone as _tz
+        from datetime import datetime as _dt
+        from datetime import timezone as _tz
         s.add(
             ProductionPlanTemplate(
                 weekday=target.weekday(),

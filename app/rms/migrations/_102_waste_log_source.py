@@ -28,13 +28,13 @@ def _migration_102_waste_log_source(conn: Any) -> None:
                 "NOT NULL DEFAULT 'manual'"
             )
         )
-    except Exception:  # noqa: BLE001, S110 — column already exists
+    except Exception:
         pass
     try:
         conn.execute(
             text("CREATE INDEX IF NOT EXISTS ix_waste_log_source ON waste_log(source)")
         )
-    except Exception:  # noqa: BLE001, S110 — index already exists
+    except Exception:
         pass
     # Defensive backfill (NOT NULL DEFAULT covers new rows, but pre-existing
     # rows on a DB where the column was added without default could be NULL).
@@ -42,7 +42,7 @@ def _migration_102_waste_log_source(conn: Any) -> None:
         conn.execute(
             text("UPDATE waste_log SET source = 'manual' WHERE source IS NULL")
         )
-    except Exception:  # noqa: BLE001, S110 — table empty or column absent
+    except Exception:
         pass
 
     # BACKLOG #4 (2026-10-02): always bump schema_version at the end.

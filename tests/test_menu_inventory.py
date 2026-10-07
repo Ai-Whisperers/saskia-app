@@ -5,8 +5,6 @@ ceiling so the POS qty input can't exceed what we can actually make.
 """
 from __future__ import annotations
 
-import pytest
-
 from app.rms.menu_inventory import (
     product_is_sold_out,
     product_low_stock_threshold,
@@ -160,6 +158,7 @@ def test_low_stock_threshold_env_override(monkeypatch, session_factory):
     """SAZON_MENU_LOW_STOCK_UNITS env var changes the default."""
     monkeypatch.setenv("SAZON_MENU_LOW_STOCK_UNITS", "12")
     import importlib
+
     import app.rms.config as cfg
     importlib.reload(cfg)
     import app.rms.menu_inventory as mi

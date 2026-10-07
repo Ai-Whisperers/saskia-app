@@ -6,8 +6,6 @@ router mounted, using the project's cookie-based login bypass.
 
 from __future__ import annotations
 
-import json
-
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -29,6 +27,7 @@ def app_with_sales_router(app_engine):
     from app.rms.db import make_session_factory
     app.state.session_factory = make_session_factory(app_engine)
     from starlette.middleware.sessions import SessionMiddleware
+
     from app.auth import SESSION_SECRET
     app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET,
                        session_cookie="saskia_session")

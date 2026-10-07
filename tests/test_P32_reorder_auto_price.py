@@ -23,8 +23,8 @@ import uuid
 
 from sqlalchemy.orm import sessionmaker
 
-from tests.factories import make_ingredient, make_supplier
 from app.rms.models import IngredientPriceEvent
+from tests.factories import make_ingredient, make_supplier
 
 
 def _setup_with_cheapest(s, name: str) -> int:
@@ -51,7 +51,7 @@ def test_reorder_price_input_has_cheapest_attr(client, session_factory):
     unique = f"cheapest-{uuid.uuid4().hex[:8]}"
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
-        ing_id = _setup_with_cheapest(s, unique)
+        _ing_id = _setup_with_cheapest(s, unique)
         s.commit()
     finally:
         s.close()

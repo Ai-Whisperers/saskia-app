@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO = Path(__file__).resolve().parents[1]
 GOLDEN_DIR = REPO / "tests" / "fixtures" / "recibo"
 GOLDEN_FILE = GOLDEN_DIR / "golden_recibo_v1.html"
@@ -56,7 +55,8 @@ def recibo_sale_id(session_factory) -> int:
 
     with session_factory() as s:
         p = Product(name="Torta", sku="TOR-ORACLE", sale_price_gs=10000, recipe_id=None)
-        s.add(p); s.flush()
+        s.add(p)
+        s.flush()
         sale = Sale(
             product_id=p.id,
             qty=1,
@@ -64,7 +64,8 @@ def recibo_sale_id(session_factory) -> int:
             sold_at=datetime(2026, 10, 7, 12, 0, 0, tzinfo=ASUNCION_TZ),
             voided_at=None,
         )
-        s.add(sale); s.commit()
+        s.add(sale)
+        s.commit()
         return sale.id
 
 

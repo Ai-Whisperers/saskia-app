@@ -34,7 +34,7 @@ for path in sorted(e2e_dir.glob("test_*.py")):
         lines = text.splitlines()
         last_import = -1
         for i, line in enumerate(lines):
-            if line.startswith("import ") or line.startswith("from "):
+            if line.startswith(("import ", "from ")):
                 last_import = i
         new = "\n".join(lines[: last_import + 1]) + "\n\npytestmark = pytest.mark.e2e\n" + "\n".join(lines[last_import + 1 :])
     if new != text:

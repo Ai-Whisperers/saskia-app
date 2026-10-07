@@ -9,8 +9,7 @@ base.html's breadcrumb block renders them.
 """
 from __future__ import annotations
 
-from app.rms.nav import crumbs_for, ENTITY_CRUMBS
-
+from app.rms.nav import ENTITY_CRUMBS, crumbs_for
 
 # ---------------------------------------------------------------------------
 # Pure unit tests on crumbs_for()

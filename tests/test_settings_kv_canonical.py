@@ -15,15 +15,12 @@ Acceptance:
 
 from __future__ import annotations
 
-import math
-
 import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.rms import settings_runtime as sr
 from app.rms.models import Base, SettingsKV
-
 
 # ─── File-system invariants ────────────────────────────────────────────────
 

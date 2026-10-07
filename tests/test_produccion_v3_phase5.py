@@ -54,7 +54,7 @@ def test_eod_progress_renders_when_items_checked(client, qseed):
     then re-getting."""
     qseed("with_kyrian_full")
     # POST to check an item
-    r = client.post(
+    _r = client.post(
         "/eod/check",
         data={
             "csrf_token": "test",

@@ -19,7 +19,7 @@ import pytest
 @pytest.fixture
 def seed_shopping_item(session_factory):
     """Create a shopping list item to mark purchased."""
-    from app.rms.models import ShoppingListItem, Ingredient
+    from app.rms.models import Ingredient, ShoppingListItem
     with session_factory() as s:
         ing = s.query(Ingredient).filter_by(name="P39-shop-test").first()
         if ing is None:

@@ -275,7 +275,7 @@ def get_demand(
     if ttl > 0:
         try:
             _persist_snapshot(session, for_date, list(rows.values()))
-        except Exception:  # noqa: S110, BLE001 — snapshot is best-effort, never break the read
+        except Exception:
             pass
 
     return rows
@@ -339,7 +339,7 @@ def _persist_snapshot(
                     "computed_at": r.computed_at.isoformat(),
                 },
             )
-        except Exception as exc:  # noqa: BLE001 — best-effort per row; never break the batch
+        except Exception as exc:
             from loguru import logger as _logger
 
             _logger.debug(f"production_demand._persist_snapshot: row failed: {exc!r}")
@@ -369,7 +369,7 @@ def demand_snapshot_ttl_seconds(session: Session) -> int:
         if raw is None or raw == "":
             return 300
         return int(str(raw))
-    except Exception:  # noqa: BLE001 — never break the read path on a settings lookup
+    except Exception:
         return 300
 
 
@@ -485,7 +485,7 @@ def invalidate_demand_for_dates(
         seen.add(d)
         try:
             total += invalidate_demand_cache(session, for_date=d)
-        except Exception as exc:  # noqa: BLE001 — best-effort invalidation
+        except Exception as exc:
             _logger.debug(
                 f"production_demand.invalidate_demand_for_dates: {d.isoformat()} failed: {exc!r}"
             )
@@ -626,7 +626,7 @@ def warm_snapshots_for_dates(
         try:
             get_demand(session, for_date=d)
             warmed += 1
-        except Exception as exc:  # noqa: BLE001 — best-effort
+        except Exception as exc:
             from loguru import logger as _logger
             _logger.debug(
                 f"production_demand.warm_snapshots_for_dates: "
@@ -640,7 +640,7 @@ def warm_snapshots_for_dates(
     # request in production) does not.
     try:
         session.commit()
-    except Exception:  # noqa: BLE001
+    except Exception:
         # If commit fails (e.g. read-only test DB), best-effort.
         session.rollback()
     return warmed

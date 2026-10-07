@@ -343,6 +343,7 @@ def reorder_bulk_quick_restock(
 def reorder_registrar(
     request: Request,
     ingredient_id: int = Form(...),
+    qty: float = Form(...),
 
     qty_unit: str = Form(""),
     price_gs: int = Form(...),
@@ -489,7 +490,7 @@ def reorder_scrape(
             },
         )
         session.commit()
-    except Exception:  # noqa: BLE001 — defensive: don't fail the scrape over an audit miss
+    except Exception:
         session.rollback()  # don't fail the scrape over an audit miss
     return JSONResponse(payload)
 
@@ -673,7 +674,7 @@ async def reorder_upload_prices(
         s.name.lower(): s
         for s in (
             session.execute(
-                select(Supplier).where(Supplier.is_active == True)  # noqa: E712
+                select(Supplier).where(Supplier.is_active)
             )
             .scalars()
             .all()
@@ -738,7 +739,7 @@ async def reorder_upload_prices(
         # Date parsing
         if date_raw:
             try:
-                when = _datetime.strptime(date_raw, "%Y-%m-%d").date()  # noqa: DTZ007 — only .date() is consumed
+                when = _datetime.strptime(date_raw, "%Y-%m-%d").date()
             except ValueError:
                 errors.append(
                     {
