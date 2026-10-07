@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **B.1 Venta Express**: `GET /ventas/express` — top-8 productos por venta 14d + favoritos, un form grande por producto que postea a `/ventas/nueva` (product_id + qty + efectivo, idempotency_key por producto). Cero lógica de venta nueva; reusa el flujo existente. Link "Express" en el page_header de `/ventas`. (port from polish/saskia-p0 `30ca6024`)
+
 ### Added — Format utility JS (Phase 22 polish, 2026-10-07)
 
 Four new utility scripts that expose `window.*` globals for use across
