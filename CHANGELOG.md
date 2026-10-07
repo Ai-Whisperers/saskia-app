@@ -424,3 +424,22 @@ refactor". Future POS work can now build on a tested foundation.
   (Costo: Gs. X/u) than a confident-looking lie.
 
 **Regression:** SASKIA-301/302/303 (52 tests) still pass; ruff clean.
+
+## 2026-10-07i — SASKIA-305: inventario + producción (Phase 4)
+
+**Audit result:** the inventario + producción template family
+(inventario, inventario_detalle, inventario_form, inventario_movimientos,
+inventario_auditoria_etiquetas, produccion, produccion_manana,
+produccion_prep, produccion_accuracy, produccion_haccp, produccion_print)
+is already well-built. The main Phase 4 fix (PROD.11 — duplicate
+<h2>Pedidos para mañana</h2> in produccion_manana.html) was promoted
+to Phase 1 and shipped in d2164de8.
+
+**No code changes** — only regression tests to lock the good state.
+
+**Tests:** 1 new file, 14 tests, all pass in 12s:
+- `tests/test_SASKIA-305_inventario_produccion.py` (14) — locks
+  bulk-fill modal, filter toolbar (categoria/estado/alergeno/diet),
+  low-stock alerts, empty state, view tabs, template-load button,
+  shift badge, HACCP/accuracy/prep page existence, horneado-extra
+  ad-hoc section, movimientos/auditoria page existence.
