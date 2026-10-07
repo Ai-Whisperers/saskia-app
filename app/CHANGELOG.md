@@ -6,6 +6,58 @@
 ## [Unreleased]
 
 
+### Refactored (2026-10-07) — Batch B4: backup threshold consistency
+
+**What this PR actually does:** 3 small, low-blast-radius fixes.
+**What it does NOT do:** wire SettingsKV into the production
+backup scheduler (that's a separate decision — see below).
+
+**Changes:**
+
+1. `app/routers/health.py` — `BACKUP_STALE_HOURS = 24` hardcode
+   duplicate of `BACKUP_THRESHOLD_HOURS` (in `app/rms/config.py`)
+   replaced with an `import as` alias. Now `/healthz/backup`
+   automatically tracks the env-var-driven threshold.
+
+2. `app/services/auto_backup.py` — refactored to accept an optional
+   `backup_cfg` dict kwarg on `needs_auto_backup`, `needs_warning`,
+   `prune_old_backups` (same pattern as B1+B2+B3). The
+   module-level constants `AUTO_BACKUP_THRESHOLD_HOURS`,
+   `WARN_THRESHOLD_DAYS`, `DEFAULT_KEEP_LAST_N` are kept as
+   backward-compat shims that alias `DEFAULT_BACKUP_CONFIG`. The
+   values match the historical 24/7/30.
+
+3. `app/rms/settings.py` + `app/rms/settings_runtime.py` — new
+   3-entry `SettingGroup.BACKUP` block (`auto_threshold_hours`,
+   `warn_threshold_days`, `keep_last_n`) under `DEFAULT_BACKUP_CONFIG`
+   + `get_backup_config(session)` helper. Total settings: 57 → 60.
+
+4. `tests/test_backup_cfg_override.py` — 14 new tests covering the
+   override paths + partial-cfg merging + the round-trip with
+   `get_backup_config`.
+
+**Important caveat:** `app/services/auto_backup.py` is currently
+a **helper-only orphan module** — it's imported by tests and small
+scripts, but the real production backup is `app/services/backup_scheduler.py`,
+which reads its threshold from the `AIW_RMS_BACKUP_HOURS` env var
+(`BACKUP_THRESHOLD_HOURS` in `app/rms/config.py`).
+
+So the new `backup.*` SettingsKV entries are **advisory defaults**:
+they let an operator set defaults from `/admin/settings`, but they
+are NOT yet consulted by `backup_scheduler.run_backup()`. Wiring
+them into the scheduler would require the scheduler to fetch from
+the DB at startup (one-line change to `run_backup()`'s default
+arg). Deliberately deferred — it's a behaviour change for the
+production scheduler, and should ship separately.
+
+**Why ship the registry entries now:** they document the canonical
+defaults + provide a place for the operator to express intent. If
+the operator sets `backup.auto_threshold_hours=12` in
+/admin/settings, the value is stored — but until the scheduler is
+wired to read it, the production behaviour is unchanged (still
+governed by the env var). Operator is warned in the settings page
+description.
+
 ### Refactored (2026-10-07) — Batch B2+B3: EOD + alerts → operator-tunable
 
 Extracted 4 hardcoded thresholds from `app/services/eod_anomaly.py` and

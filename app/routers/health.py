@@ -1076,7 +1076,11 @@ def admin_migrate(request: Request) -> object:
 # BACKUP_THRESHOLD_HOURS in app/rms/config.py.
 
 
-BACKUP_STALE_HOURS = 24  # kept in sync with BACKUP_THRESHOLD_HOURS
+# Batch B4 (2026-10-07): was previously a hardcode duplicate of
+# BACKUP_THRESHOLD_HOURS in app/rms/config.py. Now imports the
+# canonical value. If the operator changes the env var
+# (AIW_RMS_BACKUP_HOURS), /healthz/backup stays in sync automatically.
+from app.rms.config import BACKUP_THRESHOLD_HOURS as BACKUP_STALE_HOURS
 
 
 @router.get("/healthz/backup", response_model=None)
