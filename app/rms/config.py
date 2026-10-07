@@ -91,7 +91,7 @@ BACKUP_DNI_FILE = os.getenv("AIW_RMS_BACKUP_DNI_FILE", "/etc/sazon/backup-dni")
 BACKDATE_WINDOW_DAYS = int(os.getenv("AIW_RMS_BACKDATE_DAYS", "7"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 112  # 111 = sale.channel + pedido.channel CHECK constraint (P41); 112 = extended channel set with HEREBUS retail/wholesale/distributor/eventual (SASKIA-204)
+CURRENT_SCHEMA_VERSION = 113  # 112 = extended channel set with HEREBUS channels (SASKIA-204); 113 = shopping_list_item.unit_price_snapshot_gs (SASKIA-206)
 # 086 = monthly_closure table (Sprint 3.1 BACKLOG #15)
 # 087 = soft_delete_columns on owned tables (Sprint 3.2)
 # 088 = audit_columns on owned tables (Sprint 3.2)

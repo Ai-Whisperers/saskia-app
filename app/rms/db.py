@@ -81,6 +81,7 @@ from app.rms.migrations._109_menu_ejecutivo import _migration_109_menu_ejecutivo
 from app.rms.migrations._110_held_sale import _migration_110_held_sale
 from app.rms.migrations._111_sale_channel_check import _migration_111_sale_channel_check
 from app.rms.migrations._112_extended_channel_check import _migration_112_extended_channel_check
+from app.rms.migrations._113_shopping_price_snapshot import _migration_113_shopping_price_snapshot
 from app.rms.models.channels import Channel
 
 
@@ -4267,6 +4268,7 @@ MIGRATIONS = {
     110: _migration_110_held_sale,
     111: _migration_111_sale_channel_check,
     112: _migration_112_extended_channel_check,
+    113: _migration_113_shopping_price_snapshot,
 }
 
 

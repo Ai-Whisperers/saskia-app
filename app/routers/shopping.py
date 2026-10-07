@@ -50,6 +50,17 @@ def price_field(p: float) -> int:
 _FLOAT_LONG = __import__("re").compile(r"\d+\.\d{3,}")
 
 
+def _price_snapshot(session: Session, ingredient_id: int) -> int | None:
+    """Freeze the ingredient's current purchase price onto a new
+    ShoppingListItem row (SASKIA-206). Returns None when the ingredient
+    has no price yet — the UI falls back to the live price for those
+    rows, matching pre-113 behavior."""
+    ing = session.get(Ingredient, ingredient_id)
+    if ing is None or not ing.purchase_price_gs:
+        return None  # no price yet (NULL or 0) — UI falls back to live
+    return int(ing.purchase_price_gs)
+
+
 def _clean_purpose(text: str | None) -> str | None:
     """Round long floats in purpose text (0.253333333333326 → 0.25)."""
     if not text:
@@ -153,8 +164,16 @@ def shopping_list_index(
 
     items = session.execute(stmt).scalars().all()
 
+    # SASKIA-206: prefer the frozen row price; fall back to live price
+    # for pre-113 rows without a snapshot.
     total_gs = sum(
-        price_field(i.qty_to_buy or 0) * (i.ingredient.purchase_price_gs or 0) for i in items
+        price_field(i.qty_to_buy or 0)
+        * (
+            i.unit_price_snapshot_gs
+            if i.unit_price_snapshot_gs is not None
+            else (i.ingredient.purchase_price_gs or 0)
+        )
+        for i in items
     )
 
     by_ingredient = {}
@@ -415,6 +434,7 @@ def from_production_plan(
                 qty_to_buy=need,
                 unit=ln.unit,
                 purpose_text=purpose,
+                unit_price_snapshot_gs=_price_snapshot(session, ln.ingredient_id),
             )
         )
         existing_by_ing[ln.ingredient_id] = need
@@ -471,6 +491,7 @@ def sync_low_stock(
             qty_to_buy=needed,
             unit=ing.unit,
             purpose_text=purpose_text,
+            unit_price_snapshot_gs=_price_snapshot(session, ing.id),
         )
         session.add(item)
         added += 1
@@ -499,6 +520,7 @@ def add_item(
         qty_to_buy=qty_to_buy,
         unit=unit or ing.unit,
         purpose_text=purpose_text or "Manual addition",
+        unit_price_snapshot_gs=_price_snapshot(session, ingredient_id),
     )
     session.add(item)
     session.commit()
@@ -541,6 +563,7 @@ def save_plan_as_shopping_list(
             qty_to_buy=shortage,
             unit=line.line_unit or ing.unit,
             purpose_text=f"Plan #{plan.id} ({plan.batches_qty}× {plan.recipe.name})",
+            unit_price_snapshot_gs=_price_snapshot(session, ing.id),
         )
         session.add(item)
         n_added += 1

@@ -1,3 +1,12 @@
+## 2026-10-07c — SASKIA-205 + SASKIA-206: purchase→inventory + price snapshots
+
+**Goal:** close two shopping-flow gaps — purchases that never landed in inventory, and list rows that showed today's price instead of the quoted one.
+
+- **SASKIA-205** (`741a149a`): `POST /shopping-list/{id}/mark-purchased` now converts `qty_to_buy` to the ingredient's stock unit (`app.rms.units.convert_qty`), bumps `stock_qty`, and writes `StockMovement(movement_type='reorder')`. `POST /wishlist/{id}/mark-purchased` creates/updates the `[EQUIPMENT]` pseudo-ingredient the same way. Idempotent (False→True only); `/unmark` doesn't subtract stock.
+- **SASKIA-206** (this commit): migration 113 adds `shopping_list_item.unit_price_snapshot_gs`. All 4 row-creation paths (from-plan, sync-low-stock, manual add, save-plan) freeze `purchase_price_gs` at creation via `_price_snapshot()`. Template + totals prefer the snapshot; pre-113 rows (NULL) fall back to live price.
+- Migration 113 bump is INSIDE the function (each migration owns its bump — see pitfalls skill).
+- Tests: 3 snapshot tests (freeze-despite-price-change, no-price→NULL, helper contract); 34+ passed across shopping/wishlist/herbus suites; fresh-DB init reaches v113.
+
 ## 2026-10-07 — SASKIA-204: Sale channel mismatch cleanup
 
 **Goal:** fix the silent skew where 9 of 346 sales were being collapsed to `mostrador` by the import fallback at `scripts/import_herebus_data.py:622`, surface the 4 HEREBUS channels (retail/wholesale/distributor/eventual) in revenue reports, and add a channel filter to /ventas/historial.

@@ -1654,6 +1654,11 @@ class ShoppingListItem(Base):
     purpose_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     purchased: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     purchased_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # SASKIA-206 (2026-10-07): price frozen at row creation so re-opening
+    # an old list shows the quoted price, not today's catalog price.
+    # Nullable: pre-113 rows have no snapshot — UI falls back to the
+    # live ingredient.purchase_price_gs.
+    unit_price_snapshot_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     ingredient: Mapped["Ingredient"] = relationship("Ingredient")
