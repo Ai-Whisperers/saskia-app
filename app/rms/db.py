@@ -80,6 +80,7 @@ from app.rms.migrations._108_sale_tip import _migration_108_sale_tip
 from app.rms.migrations._109_menu_ejecutivo import _migration_109_menu_ejecutivo
 from app.rms.migrations._110_held_sale import _migration_110_held_sale
 from app.rms.migrations._111_sale_channel_check import _migration_111_sale_channel_check
+from app.rms.migrations._112_extended_channel_check import _migration_112_extended_channel_check
 from app.rms.models.channels import Channel
 
 
@@ -1859,6 +1860,13 @@ def _migration_041_channel_catalog(conn: Any) -> None:
         (Channel.WHATSAPP.value, "WhatsApp", 30, False),
         (Channel.PEDIDOSYA.value, "PedidosYa", 40, False),
         (Channel.MONCHIS.value, "Monchis", 50, False),
+        # SASKIA-204 (2026-10-07): HEREBUS channels. Added in
+        # migration 112 to surface silent skew where 9 of 346 sales
+        # were collapsing to "mostrador" via the import fallback.
+        (Channel.RETAIL.value, "Retail", 70, False),
+        (Channel.WHOLESALE.value, "Mayorista", 80, False),
+        (Channel.DISTRIBUTOR.value, "Distribuidor", 90, False),
+        (Channel.EVENTUAL.value, "Eventual", 100, False),
         (Channel.OTHER.value, "Otro", 60, False),
     ]
     for code, label, sort, is_default in channels:
@@ -4258,6 +4266,7 @@ MIGRATIONS = {
     109: _migration_109_menu_ejecutivo,
     110: _migration_110_held_sale,
     111: _migration_111_sale_channel_check,
+    112: _migration_112_extended_channel_check,
 }
 
 

@@ -138,6 +138,10 @@ def _build_sales_context(
     offset: int | None,
     session: Session,
     fav: bool = False,
+    # SASKIA-204 (2026-10-07): channel filter for /ventas/historial.
+    # Accepts any Channel enum value or None (no filter). Mismatches
+    # fall back to None to keep the page loading.
+    channel: str | None = None,
 ) -> dict:
     """Build the render context shared by /ventas and /ventas/historial.
 
@@ -174,11 +178,18 @@ def _build_sales_context(
                 )
             )
         )
+    # SASKIA-204 (2026-10-07): channel filter. Validates against
+    # Channel.allowed_values() — typos fall back to None so the
+    # page still loads (better than 500).
+    if channel and channel in Channel.allowed_values():
+        sales_q = sales_q.where(Sale.channel == channel)
 
     # Count total matching (for pagination has_more)
     count_q = select(func.count(Sale.id))
     if product_id is not None:
         count_q = count_q.where(Sale.product_id == product_id)
+    if channel and channel in Channel.allowed_values():
+        count_q = count_q.where(Sale.channel == channel)
     if days is not None and days > 0:
         cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
         count_q = count_q.where(Sale.sold_at >= cutoff)
@@ -212,6 +223,8 @@ def _build_sales_context(
     ).where(Sale.voided_at.is_(None))
     if product_id is not None:
         totals_q = totals_q.where(Sale.product_id == product_id)
+    if channel and channel in Channel.allowed_values():
+        totals_q = totals_q.where(Sale.channel == channel)
     if days is not None and days > 0:
         cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
         totals_q = totals_q.where(Sale.sold_at >= cutoff)
@@ -361,6 +374,15 @@ def _build_sales_context(
             "avg_ticket_gs": int(total_gs / total_count) if total_count else 0,
             "filters": _filter_summary(q=q, product_id=product_id, days=days, products=products),
         },
+        # SASKIA-204 (2026-10-07): channel filter state for the
+        # template. `channel` is the raw selected value (or empty
+        # string), `channel_label` is what the combo displays when
+        # collapsed, `all_channels` is the display-ordered tuple of
+        # channel values from Channel.display_order() — the template
+        # maps them via a hardcoded label dict.
+        "channel": channel or "",
+        "channel_label": channel or "",
+        "all_channels": Channel.display_order(),
         "has_more": has_more,
         "current_offset": start_offset,
         "current_page_size": PAGE_SIZE,
@@ -435,6 +457,10 @@ async def sales_history(
     days: int | None = None,
     page: int | None = Query(None),
     offset: int | None = None,
+    # SASKIA-204 (2026-10-07): filter sales by channel. Accepts any
+    # Channel enum value; mismatches (typos, retired values) get the
+    # None fallback so the page still loads.
+    channel: str | None = None,
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Sales history (US 4.3 split).
@@ -458,6 +484,7 @@ async def sales_history(
         product_id=product_id,
         days=days,
         offset=computed_offset,
+        channel=channel,
     )
     # Derive pagination metadata and add to existing ctx (do NOT reassign ctx)
     total = ctx.get("total_count", 0)
@@ -502,6 +529,8 @@ def _build_filtered_sales_query(
     q: str | None,
     product_id: int | None,
     days: int | None,
+    # SASKIA-204 (2026-10-07): channel filter for the export.
+    channel: str | None = None,
 ) -> Select:
     """Build a Sale query applying the same filters as sales_list.
 
@@ -531,6 +560,10 @@ def _build_filtered_sales_query(
                 )
             )
         )
+    # SASKIA-204 (2026-10-07): channel filter. Same validation as
+    # _build_sales_context — typos fall back to None.
+    if channel and channel in Channel.allowed_values():
+        sales_q = sales_q.where(Sale.channel == channel)
     return sales_q
 
 
@@ -539,6 +572,9 @@ async def sales_export_csv(
     q: str | None = None,
     product_id: int | None = None,
     days: int | None = None,
+    # SASKIA-204 (2026-10-07): channel filter — operators exporting
+    # for IVA/accounting want to filter to one channel at a time.
+    channel: str | None = None,
     session: Session = Depends(get_session),
 ) -> Response:
     """CSV export of the sales history (matches the filters on /ventas).
@@ -547,7 +583,9 @@ async def sales_export_csv(
     Content-disposition: attachment so browsers download instead of
     rendering. UTF-8 BOM-prefixed so Excel opens it correctly in PY.
     """
-    sales_q = _build_filtered_sales_query(q=q, product_id=product_id, days=days)
+    sales_q = _build_filtered_sales_query(
+        q=q, product_id=product_id, days=days, channel=channel
+    )
     sales = session.scalars(sales_q).all()
 
     def _row_stream() -> Iterator[str]:

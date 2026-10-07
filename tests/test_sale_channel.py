@@ -76,13 +76,37 @@ def test_apply_sale_accepts_custom_channel(session_factory):
 
 
 def test_all_five_channels_accepted_by_apply_sale(session_factory):
-    """Each of the 5 allowed channels is round-trippable via apply_sale."""
+    """Each allowed channel is round-trippable via apply_sale.
+
+    SASKIA-204 (2026-10-07): extended from 5 to 10 channels. The 4
+    HEREBUS channels (retail/wholesale/distributor/eventual) were
+    added in migration 112 to surface silent skew in the import
+    script's channel fallback (line 622 in import_herebus_data.py
+    collapsed 9 of 346 sales to "mostrador"). All 10 channels must
+    round-trip; if a future enum growth doesn't update
+    Channel.display_order, this test fails with a clear diff.
+    """
     from app.rms.costing import apply_sale
     from app.rms.models import Product, Sale
     from app.rms.schemas import ALLOWED_CHANNELS
 
-    expected = {"mostrador", "mostrador-encargo", "whatsapp", "pedidosya", "monchis"}
-    assert set(ALLOWED_CHANNELS) == expected
+    expected = {
+        "mostrador",
+        "mostrador-encargo",
+        "whatsapp",
+        "pedidosya",
+        "monchis",
+        "other",
+        "retail",
+        "wholesale",
+        "distributor",
+        "eventual",
+    }
+    assert set(ALLOWED_CHANNELS) == expected, (
+        f"ALLOWED_CHANNELS ({set(ALLOWED_CHANNELS)}) does not match the "
+        f"extended enum ({expected}). Update schemas.py alongside the "
+        f"Channel enum + migration 112 when adding channels."
+    )
 
     with session_factory() as s:
         p = Product(name="All Channels Test", sale_price_gs=10000, recipe_id=None)

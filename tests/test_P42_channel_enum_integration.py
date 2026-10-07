@@ -119,18 +119,29 @@ def test_channel_default_constant():
 def test_channel_enum_and_migration_have_same_allowed_set():
     """The enum and the migration trigger must agree on allowed values.
 
-    If someone adds to the Channel enum without updating migration 111,
-    the new value will be REJECTED by the DB CHECK constraint (the
-    triggers hard-code the 6 values). This test surfaces the drift.
+    If someone adds to the Channel enum without updating the LATEST
+    channel migration, the new value will be REJECTED by the DB CHECK
+    constraint (the triggers hard-code the values). This test surfaces
+    the drift.
+
+    SASKIA-204 (2026-10-07): now checks against migration 112 (the
+    latest channel migration), not 111. Migration 111 was superseded
+    by 112 which extended the allowed set with HEREBUS channels
+    (retail/wholesale/distributor/eventual). If a future enum growth
+    doesn't get a new migration, this test fails with a clear diff
+    pointing at the gap.
     """
-    from app.rms.migrations._111_sale_channel_check import _ALLOWED_CHANNELS
+    from app.rms.migrations._112_extended_channel_check import (
+        _ALLOWED_CHANNELS as migration_112_allowed,
+    )
 
     enum_values = set(Channel.allowed_values())
-    migration_values = set(_ALLOWED_CHANNELS)
+    migration_values = set(migration_112_allowed)
     assert enum_values == migration_values, (
         f"Channel.allowed_values() = {enum_values} but "
-        f"migration 111 _ALLOWED_CHANNELS = {migration_values}. "
-        f"If you change the enum, update the migration too."
+        f"migration 112 _ALLOWED_CHANNELS = {migration_values}. "
+        f"If you change the enum, add a new channel migration "
+        f"(migration 113+) to extend the CHECK constraint."
     )
 
 

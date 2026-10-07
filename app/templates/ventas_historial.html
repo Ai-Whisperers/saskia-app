@@ -63,8 +63,28 @@
     autosubmit=True
   ) }}
 
+  {# SASKIA-204 (2026-10-07): channel filter for the new
+     retail/wholesale/distributor/eventual channels. Auto-submits so
+     the table refreshes immediately. `all_channels` is built in
+     _build_sales_context from Channel.display_order() — keeps the
+     operator's mental model of "front-of-house first, HEREBUS
+     channels later". #}
+  {% set _channel_labels = {'mostrador': 'Mostrador', 'mostrador-encargo': 'Mostrador (encargo)', 'whatsapp': 'WhatsApp', 'pedidosya': 'PedidosYa', 'monchis': 'Monchis', 'retail': 'Retail', 'wholesale': 'Wholesale', 'distributor': 'Distributor', 'eventual': 'Eventual', 'other': 'Otro'} %}
+  {% set _channels_src = [{'label': 'Todos los canales', 'value': ''}] %}
+  {% for c in all_channels %}
+    {% set _ = _channels_src.append({'label': _channel_labels[c] or c, 'value': c}) %}
+  {% endfor %}
+  {{ ui.combo_field(
+    name='channel',
+    value=(channel or ''),
+    display=(channel_label if channel else 'Todos los canales'),
+    placeholder='Canal',
+    src=_channels_src,
+    autosubmit=True
+  ) }}
+
   <button type="submit" class="btn btn-primary">Filtrar</button>
-  {% if q or product_id or days %}
+  {% if q or product_id or days or channel %}
   <a href="/ventas/historial" class="btn btn-ghost">Limpiar</a>
   {% endif %}
   <label class="text-muted d-inline-flex" style="display:inline-flex;align-items:center;gap:.3em;font-size:var(--text-sm);">
@@ -180,10 +200,10 @@
 {% if pagination.total_pages > 1 %}
 <nav class="pagination" aria-label="Paginación de ventas">
   {% if pagination.page > 1 %}
-  <a href="?page={{ pagination.page - 1 }}{% if _q_val %}&amp;q={{ _q_val }}{% endif %}{% if _product_id_val %}&amp;product_id={{ _product_id_val }}{% endif %}{% if _days_val %}&amp;days={{ _days_val }}{% endif %}" class="btn btn-ghost">← Anterior</a>
+  <a href="?page={{ pagination.page - 1 }}{% if _q_val %}&amp;q={{ _q_val }}{% endif %}{% if _product_id_val %}&amp;product_id={{ _product_id_val }}{% endif %}{% if _days_val %}&amp;days={{ _days_val }}{% endif %}{% if channel %}&amp;channel={{ channel }}{% endif %}" class="btn btn-ghost">← Anterior</a>
   {% endif %}
   {% if pagination.page < pagination.total_pages %}
-  <a href="?page={{ pagination.page + 1 }}{% if _q_val %}&amp;q={{ _q_val }}{% endif %}{% if _product_id_val %}&amp;product_id={{ _product_id_val }}{% endif %}{% if _days_val %}&amp;days={{ _days_val }}{% endif %}" class="btn btn-ghost">Siguiente →</a>
+  <a href="?page={{ pagination.page + 1 }}{% if _q_val %}&amp;q={{ _q_val }}{% endif %}{% if _product_id_val %}&amp;product_id={{ _product_id_val }}{% endif %}{% if _days_val %}&amp;days={{ _days_val }}{% endif %}{% if channel %}&amp;channel={{ channel }}{% endif %}" class="btn btn-ghost">Siguiente →</a>
   {% endif %}
 </nav>
 {% endif %}

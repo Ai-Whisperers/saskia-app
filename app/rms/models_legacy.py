@@ -550,10 +550,18 @@ class Sale(Base):
         # P41 (2026-10-07): enforce channel enum at the DB level. The
         # Python Channel enum (app/rms/models/channels.py) is the source
         # of truth; this CHECK is defense-in-depth. SQLite enforces this
-        # via triggers in migration 111 (SQLite can't ADD CONSTRAINT).
+        # via triggers in migration 112 (SQLite can't ADD CONSTRAINT).
+        #
+        # SASKIA-204 (2026-10-07): extended with HEREBUS channels
+        # (retail/wholesale/distributor/eventual). Must mirror
+        # Channel.allowed_values() in app/rms/models/channels.py and
+        # migration 112's _ALLOWED_CHANNELS — the test
+        # test_channel_enum_and_migration_have_same_allowed_set enforces
+        # this.
         CheckConstraint(
             "channel IN ('mostrador','mostrador-encargo','whatsapp',"
-            "'pedidosya','monchis','other')",
+            "'pedidosya','monchis','other','retail','wholesale',"
+            "'distributor','eventual')",
             name="ck_sale_channel_enum",
         ),
         # Covers: sales list by date range, dashboard charts, daily/weekly summaries,
@@ -1858,10 +1866,18 @@ class Pedido(Base):
         ),
         # P41 (2026-10-07): enforce channel enum (NULL allowed since
         # column is nullable). Same enum as Sale.channel. SQLite
-        # enforcement via triggers in migration 111.
+        # enforcement via triggers in migration 112.
+        #
+        # SASKIA-204 (2026-10-07): extended with HEREBUS channels
+        # (retail/wholesale/distributor/eventual). Must mirror
+        # Channel.allowed_values() in app/rms/models/channels.py and
+        # migration 112's _ALLOWED_CHANNELS — the test
+        # test_channel_enum_and_migration_have_same_allowed_set
+        # enforces this alignment.
         CheckConstraint(
             "channel IS NULL OR channel IN ('mostrador','mostrador-encargo',"
-            "'whatsapp','pedidosya','monchis','other')",
+            "'whatsapp','pedidosya','monchis','other','retail','wholesale',"
+            "'distributor','eventual')",
             name="ck_pedido_channel_enum",
         ),
     )
