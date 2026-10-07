@@ -514,3 +514,5 @@ two pages: list (`/auditoria`) and analytics (`/auditoria/analytics`).
   page existence, auditoria filter bar, login success/fail labels
   (Phase 0 fix), ops_status endpoint table + reorder rate heading,
   settings_catalog 12 tabs.
+
+  settings_catalog 12 tabs.
