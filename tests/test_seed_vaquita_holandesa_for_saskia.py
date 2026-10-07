@@ -1,5 +1,5 @@
 """TDD: the Vaquita Holandesa seed must be loadable + idempotent for the
-Saskia (saskia-vps) business.
+Sazón RMS business.
 
 Why this test exists:
 - The user reported "0 de 0 productos" but the DB has 29 products.
@@ -11,7 +11,7 @@ Why this test exists:
 - This test guards against that regression.
 
 We test the operator script's contract:
-1. The script must mention Vaquita + Saskia + use overwrite=False.
+1. The script must mention Vaquita + Sazón + use overwrite=False.
 2. Running the script on a DB with 29 products + 721 sales must
    REFUSE (exit 2), not silently append 29 NEW products.
 3. Running seed_sazon on a FRESH empty DB is idempotent at the row level.
@@ -32,14 +32,14 @@ SEED_SCRIPT = SCRIPTS_DIR / "seed_vaquita_holandesa_for_saskia.py"
 def test_seed_script_exists():
     assert SEED_SCRIPT.exists(), (
         f"missing {SEED_SCRIPT}. The operator-facing script that loads "
-        "the Vaquita Holandesa catalog into the Saskia business must exist."
+        "the Vaquita Holandesa catalog into the Sazón RMS business must exist."
     )
 
 
 def test_seed_script_mentions_vaquita_and_saskia():
     text = SEED_SCRIPT.read_text()
     assert "Vaquita" in text, "script must reference La Vaquita Holandesa"
-    assert "Saskia" in text, "script must reference the Saskia business"
+    assert "Sazón" in text or "Saz\u00f3n" in text, "script must reference the Sazón RMS business"
 
 
 def test_seed_script_calls_seed_sazon_with_overwrite_false():
@@ -58,7 +58,7 @@ def test_seed_script_refuses_on_existing_user_data(tmp_path):
     """
     db_path = tmp_path / "saskia-test.sqlite"
 
-    # Seed a realistic DB that looks like the Saskia deployment
+    # Seed a realistic DB that looks like the Sazón RMS deployment
     con = sqlite3.connect(str(db_path))
     cur = con.cursor()
     cur.executescript("""

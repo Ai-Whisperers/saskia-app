@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""Idempotent Vaquita Holandesa seed for the Saskia (saskia-vps) deployment.
+"""Idempotent Vaquita Holandesa seed for the Sazón RMS deployment.
 
 What this does:
 - Runs `seed_sazon()` which is the canonical "La Vaquita Holandesa"
-  demo seed (the Dutch-PY bakery that the Saskia business is built on).
+  demo seed (the Dutch-PY bakery that the Sazón business is built on).
 - Idempotent: safe to run multiple times. Only creates rows that don't
-  exist; updates tenant + branding to "Saskia" (the operator-facing name).
+  exist; updates tenant + branding to "Sazón RMS" (the operator-facing name).
 - Does NOT touch the user accounts (preserves existing admin/demo/ivan
   logins) or sales history.
 
-Why "Vaquita" is the seed for "Saskia":
+Why "Vaquita" is the seed for "Sazón RMS":
 - The Sazon-RMS codebase was forked from a Vaquita Holandesa deployment.
 - The product catalog (Muffin, Pan lactal, Stroopwafels, Oliebollen,
   Tompoezen, Cheesecake, etc.) IS the Vaquita menu — just branded as
-  Saskia at the operator level.
+  Sazón RMS at the operator level.
 - Re-running this keeps the catalog coherent: ingredients, recipes,
   prices, suppliers, tags all line up.
 
@@ -162,7 +162,7 @@ def main() -> int:
         print(f"  counters: {after}")
         print(f"  deltas: { {k: after[k] - before[k] for k in before} }")
         print()
-        print("OK — Vaquita Holandesa seed confirmed for Saskia business.")
+        print("OK — Vaquita Holandesa seed confirmed for Sazón RMS business.")
         return 0
     except Exception as e:
         print(f"FATAL: {type(e).__name__}: {e}", file=sys.stderr)

@@ -8,7 +8,6 @@
 ### Added — Format utility JS (Phase 22 polish, 2026-10-07)
 Four new utility scripts that expose `window.*` globals for use across
 the app's server-rendered templates.
-
 - `app/static/money-format.js` — `window.MoneyFormat` for Guaraní formatting
 - `app/static/date-format.js` — `window.DateFormat` for DD/MM/YYYY + relative
 - `app/static/live-time.js` — `window.LiveTime` for auto-updating relative times
