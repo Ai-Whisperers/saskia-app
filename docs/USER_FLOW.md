@@ -110,23 +110,22 @@ It shows:
 Operators can also reach it from the one-line alert:
 > "Reponer ahora →" links to /shopping
 
-### 10:00 — Recipe-portions view (NEW ask)
+### 10:00 — Recipe-portions view
 
-> **2026-10-07 ask**: "somewhere that has all the portions organized by recipe with all the ammounts prepared etc and links to the recipes etc"
+> **Shipped 2026-10-07e**: `/produccion/prep-recipes` — the "weighing
+> each recipe's ingredients" page the operator prints and takes to the bench.
 
-**New route: /produccion/prep-recipes** (or merge into /produccion/prep).
+For each recipe in today's plan, the page renders:
+- Recipe name + link to `/recetas/{id}`
+- Number of batches to make (= qty_to_produce / recipe.yield_qty)
+- Per-ingredient scaled quantities (e.g. Harina: 4.5 kg, Manteca: 1.2 kg)
+- Stock-on-hand vs needed (Falta / Justo / Suficiente)
+- Severity band on each card (Falta first, then Justo, then Suficiente)
+- Cumulative cross-recipe totals (sums per ingredient across all
+  recipes — operator uses this to double-check `/shopping-list`)
 
-Renders the same ingredients data, but **organized by recipe** instead
-of by ingredient. For each recipe that's in today's plan:
-- Recipe name + link to /recetas/{id}
-- For each batch of N units: ingredient breakdown (Harina: 0.5 kg,
-  Manteca: 0.2 kg, etc.)
-- Cumulative totals per ingredient across all batches
-- "Ver receta →" link to the recipe detail page
-
-This is the page the operator prints and takes to the bench when
-they're weighing out the dough. Same ingredients data, different
-view.
+Access from `/produccion` via the link card under "Ingredientes necesario"
+(🍰 Por receta (pesar)).
 
 ### 17:00 — End-of-shift
 
