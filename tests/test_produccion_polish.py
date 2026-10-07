@@ -929,3 +929,76 @@ class TestIngredientsTableScrollable:
         )
         assert css_rule or inline, \
             "ingredients table wrapper must have max-height (CSS rule or inline)"
+
+class TestNotificationsBundleSingleOuterDetails:
+    """2026-10-07d: All 8 notification cards wrapped in ONE outer <details>
+    with a '🔔 Notificaciones del día' summary. Each inner card keeps its
+    own collapse for independent drill-down. Bundle carries a single
+    'Ver todo' toggle in its summary; clicking the bundle expands/collapses
+    all 8 at once."""
+
+    def test_outer_bundle_exists(self):
+        assert 'class="notifications-bundle' in TEMPLATE_BODY, \
+            "outer notifications-bundle <details> must exist"
+
+    def test_outer_bundle_summary_header(self):
+        # The summary line surfaces a critical/warning/info chip count
+        # so the operator reads severity even when collapsed.
+        idx = TEMPLATE_BODY.find('class="notifications-bundle')
+        snippet = TEMPLATE_BODY[idx:idx + 4000]
+        assert ("Notificaciones del día" in snippet
+                or "Sin alertas críticas" in snippet), \
+            "bundle summary must have 'Notificaciones del día' or " \
+            "'Sin alertas críticas' title"
+        assert "notif-chip--critical" in snippet, "critical chip must render"
+        assert "notif-chip--warning" in snippet, "warning chip must render"
+
+    def test_inner_notifications_all_remain_inside_bundle(self):
+        bundle_open = TEMPLATE_BODY.find('<details class="notifications-bundle')
+        assert bundle_open > 0
+        # Anchor: the bundle closes right before <form method="post"
+        # action="/produccion/shift-execute">. Find the last </details>
+        # before that form tag (skipping JS-string occurrences is fine
+        # because there are none in /templates).
+        form_idx = TEMPLATE_BODY.find(
+            '<form method="post" action="/produccion/shift-execute"',
+            bundle_open,
+        )
+        assert form_idx > bundle_open, "shift-execute form must come after bundle"
+        bundle_close = (
+            TEMPLATE_BODY.rfind("</details>", bundle_open, form_idx)
+            + len("</details>")
+        )
+        assert bundle_close > bundle_open, "outer bundle </details> not found"
+        bundle_html = TEMPLATE_BODY[bundle_open:bundle_close]
+        inner_opens = bundle_html.count('<details class="notification-collapse')
+        inner_cal = bundle_html.count('<details class="cal-box')
+        total_inner = inner_opens + inner_cal
+        assert total_inner >= 7, (
+            f"expected ≥7 inner notification cards inside the bundle, "
+            f"got {total_inner} (notification-collapse={inner_opens}, cal-box={inner_cal})"
+        )
+
+    def test_inner_cards_strip_redundant_margin(self):
+        """Each inner notification-collapse must drop its mb-4 / mb-3 — the
+        bundle carries the spacing so we don't double-margin the stack."""
+        bundle_open = TEMPLATE_BODY.find('<details class="notifications-bundle')
+        body = TEMPLATE_BODY[bundle_open:]
+        import re
+        matches = list(re.finditer(
+            r'<details\s+class="notification-collapse[^"]*"', body
+        ))
+        assert len(matches) >= 7, "should have ≥7 inner cards"
+        for m in matches:
+            tag = m.group(0)
+            assert "mb-" not in tag, (
+                f"inner notification-collapse still carries mb-*: {tag}"
+            )
+
+    def test_bundle_data_attributes_for_telemetry(self):
+        """Bundle carries data-critical-count / warning / info for E2E."""
+        idx = TEMPLATE_BODY.find('class="notifications-bundle')
+        snippet = TEMPLATE_BODY[idx:idx + 1500]
+        assert "data-critical-count" in snippet
+        assert "data-warning-count" in snippet
+        assert "data-info-count" in snippet

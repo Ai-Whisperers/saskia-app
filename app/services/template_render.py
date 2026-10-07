@@ -159,8 +159,48 @@ def _make_money_helper() -> SimpleNamespace:
     )
 
 
-# Register as Jinja2 "global functions" so {{ now_year() }} works in templates.
-# Without the parens Jinja would print the function repr.
+def _notification_counts(
+    pending_pedidos=None,
+    low_stock_ingredients=None,
+    haccp_missing_count=0,
+    haccp_alert=None,
+    daily_target=None,
+    daily_actual=None,
+    low_confidence_count=0,
+    yesterday_total_qty=0,
+):
+    """Counts the severity buckets used by the /produccion notification
+    bundle header. Returns a dict with critical/warning/info integers.
+
+    Tolerates None / missing args so a stale context never breaks the
+    page. Used by app/templates/produccion.html."""
+    pending_n = len(pending_pedidos) if pending_pedidos else 0
+    lowstock_n = len(low_stock_ingredients) if low_stock_ingredients else 0
+    haccp_miss = haccp_missing_count or 0
+    lowconf_n = low_confidence_count or 0
+    haccp_warn = 1 if haccp_alert == "warning" else 0
+    daily_target_n = daily_target or 0
+    daily_actual_n = daily_actual or 0
+    meta_below = 1 if daily_target_n and daily_actual_n < daily_target_n * 0.5 else 0
+    yesterday_info = 1 if yesterday_total_qty and yesterday_total_qty > 0 else 0
+    # 2 always-present info rows (Cómo se calcula, Baja confianza header)
+    # + ayer hiciste if it has data
+    info_count = 2 + yesterday_info
+    critical = pending_n + lowstock_n + haccp_miss
+    if lowconf_n > 30:
+        critical += 1
+    warning = haccp_warn + meta_below
+    if 0 < lowconf_n <= 30:
+        warning += 1
+    return {
+        "critical": critical,
+        "warning": warning,
+        "info": info_count,
+        "total": critical + warning + info_count,
+    }
+
+
+templates.env.globals["notification_counts"] = _notification_counts
 templates.env.globals["now_year"] = _now_year
 templates.env.globals["asset_version"] = _asset_version
 templates.env.globals["m"] = _make_money_helper()

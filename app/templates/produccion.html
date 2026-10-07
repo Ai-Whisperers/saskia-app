@@ -231,8 +231,71 @@
     Ver pedidos prioritarios →
   </a>
 </div>
-{# 2026-10-07c: collapsed by default. Operator opens only when needed. #}
-<details class="notification-collapse notification-collapse--warning mb-4"
+{% endif %}
+
+{# 2026-10-07d: bundle all 8 notifications into ONE outer details.
+   Operator click expands the bundle; click again collapses all.
+   Each inner card keeps its own details so the operator can drill
+   into one without opening all 8. Left-border severity stripe preserved
+   per inner card so the at-a-glance "4 warning / 2 info" read stays.
+   Severity counts come from the global `notification_counts()` helper
+   in app/services/template_render.py — tolerates missing context vars. #}
+{% set ns_counts = notification_counts(
+     pending_pedidos=pending_pedidos,
+     haccp_missing_count=haccp_missing_count,
+     haccp_alert=haccp_alert,
+     daily_target=daily_target,
+     daily_actual=daily_actual,
+     low_confidence_count=low_confidence_count,
+     yesterday_total_qty=yesterday_total_qty,
+   ) %}
+{% set ns_total_critical = ns_counts.critical %}
+{% set ns_total_warning = ns_counts.warning %}
+{% set ns_total_info = ns_counts.info %}
+<details class="notifications-bundle mb-4"
+         data-notification-bundle="produccion-notifications"
+         data-critical-count="{{ ns_total_critical }}"
+         data-warning-count="{{ ns_total_warning }}"
+         data-info-count="{{ ns_total_info }}">
+  <summary class="notifications-bundle__summary"
+           aria-label="Notificaciones del día">
+    <span class="notifications-bundle__icon" aria-hidden="true">
+      {% if ns_total_critical == 0 and ns_total_warning == 0 %}✓{% else %}🔔{% endif %}
+    </span>
+    <span class="notifications-bundle__title">
+      {% if ns_total_critical == 0 and ns_total_warning == 0 %}
+        Sin alertas críticas · puedes seguir
+      {% else %}
+        Notificaciones del día
+      {% endif %}
+    </span>
+    <span class="notifications-bundle__chips">
+      {% if ns_total_critical > 0 %}
+        <span class="notif-chip notif-chip--critical"
+              title="Alertas críticas que requieren acción">
+          {{ ns_total_critical }} crítica{{ '' if ns_total_critical == 1 else 's' }}
+        </span>
+      {% endif %}
+      {% if ns_total_warning > 0 %}
+        <span class="notif-chip notif-chip--warning"
+              title="Avisos a revisar">
+          {{ ns_total_warning }} aviso{{ '' if ns_total_warning == 1 else 's' }}
+        </span>
+      {% endif %}
+      {% if ns_total_info > 0 %}
+        <span class="notif-chip notif-chip--info"
+              title="Información general">
+          {{ ns_total_info }} info
+        </span>
+      {% endif %}
+    </span>
+    <span class="notifications-bundle__toggle" aria-hidden="true">Ver todo</span>
+  </summary>
+
+  <div class="notifications-bundle__body">
+
+{# ── 1/8 Pedidos pendientes ── #}
+<details class="notification-collapse notification-collapse--warning"
          data-notification-section="data-pending-pedidos-section">
   <summary style="cursor: pointer; list-style: none; padding: var(--space-3) var(--space-4);">
     <strong>📦 Pedidos pendientes para hoy ({{ pending_pedidos|length }})</strong>
@@ -265,12 +328,11 @@
     </div>
   </div>
 </details>
-{% endif %}
 
 {# ── Low-stock ingredients warning (pre-existing) ──
    2026-10-07c: collapsed by default — operator opens only on demand. #}
 {% if low_stock_ingredients or substitution_suggestions %}
-<details class="notification-collapse notification-collapse--danger mb-4"
+<details class="notification-collapse notification-collapse--danger"
          data-notification-section="data-low-stock-section"
          {% if substitution_suggestions %}open{% endif %}>
   <summary style="cursor: pointer; list-style: none; padding: var(--space-3) var(--space-4); display: flex; align-items: center; gap: var(--space-2);">
@@ -336,7 +398,7 @@
 {# ── Daily target vs actual (pre-existing) ──
    2026-10-07c: collapsed by default — operator opens to edit meta. #}
 {% if daily_target %}
-<details class="notification-collapse notification-collapse--success mb-3"
+<details class="notification-collapse notification-collapse--success"
          data-notification-section="data-meta-diaria-section">
   <summary style="cursor: pointer; list-style: none; padding: var(--space-2) var(--space-3); display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
     <span><strong>Meta diaria:</strong> {{ daily_target }} unidades · <strong>Real:</strong> {{ daily_actual | default(0) }}</span>
@@ -369,7 +431,7 @@
    of range) so the cook doesn't forget to log the day's AM/PM readings.
    2026-10-07c: collapsed by default — operator opens to verify readings. #}
 {% if haccp_latest %}
-<details class="notification-collapse notification-collapse--{% if haccp_alert == 'warning' %}danger{% else %}success{% endif %} mb-3"
+<details class="notification-collapse notification-collapse--{% if haccp_alert == 'warning' %}danger{% else %}success{% endif %}"
          data-notification-section="data-haccp-latest-section">
   <summary style="cursor: pointer; list-style: none; padding: var(--space-2) var(--space-3); display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
     <strong>🌡️ HACCP:</strong>
@@ -404,7 +466,7 @@
 {# If the user has zero HACCP entries today, show a soft nudge.
    2026-10-07c: collapsed by default — operator opens to register. #}
 {% if haccp_missing_count and haccp_missing_count > 0 %}
-<details class="notification-collapse notification-collapse--warning mb-3"
+<details class="notification-collapse notification-collapse--warning"
          data-notification-section="data-haccp-missing-section">
   <summary style="cursor: pointer; list-style: none; padding: var(--space-2) var(--space-3); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;">
     <strong>⚠️ {{ haccp_missing_count }} lectura{{ 's' if haccp_missing_count != 1 else '' }} HACCP pendiente{{ 's' if haccp_missing_count != 1 else '' }} para hoy</strong>
@@ -591,7 +653,7 @@
    2026-10-07c: collapsed by default — count is in the summary, no need to
    see the full banner every time. #}
 {% if low_confidence_count > 0 %}
-<details class="notification-collapse notification-collapse--warning mb-4"
+<details class="notification-collapse notification-collapse--warning"
          data-notification-section="data-confidence-summary-section">
   <summary style="cursor: pointer; list-style: none; padding: var(--space-3) var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
     <span>
@@ -630,7 +692,7 @@
    Hidden when yesterday had no data (cook hasn't run end-of-shift).
    2026-10-07c: collapsed by default — count + reference on summary line. #}
 {% if yesterday_count > 0 %}
-<details class="notification-collapse notification-collapse--info mb-4"
+<details class="notification-collapse notification-collapse--info"
          data-notification-section="data-yesterday-snapshot-section">
   <summary style="cursor: pointer; list-style: none; padding: var(--space-3) var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
     <span>
@@ -649,6 +711,9 @@
   </div>
 </details>
 {% endif %}
+
+  </div>{# /.notifications-bundle__body #}
+</details>{# /.notifications-bundle #}
 
 <form method="post" action="/produccion/shift-execute" id="shift-form">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
