@@ -2,10 +2,10 @@
 
 Verifies the DateFormat helper for consistent date display.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-
 
 DATE_JS = Path(__file__).parent.parent / "app" / "static" / "date-format.js"
 BASE_HTML = Path(__file__).parent.parent / "app" / "templates" / "base.html"

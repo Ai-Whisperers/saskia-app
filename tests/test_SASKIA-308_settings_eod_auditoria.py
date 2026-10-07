@@ -115,8 +115,17 @@ def test_settings_catalog_has_tabs():
     """`settings_catalog.html` must have the catalog tabs (categories, channels, etc.)."""
     src = TEMPLATES.joinpath("settings_catalog.html").read_text()
     for tab in (
-        "categories-product", "categories-recipe", "channels", "payments",
-        "margin-tiers", "stock-status", "storage-types", "date-presets",
-        "templates", "tax-config", "branding", "suppliers",
+        "categories-product",
+        "categories-recipe",
+        "channels",
+        "payments",
+        "margin-tiers",
+        "stock-status",
+        "storage-types",
+        "date-presets",
+        "templates",
+        "tax-config",
+        "branding",
+        "suppliers",
     ):
         assert f'data-tab="{tab}"' in src, f"Missing catalog tab: {tab}"

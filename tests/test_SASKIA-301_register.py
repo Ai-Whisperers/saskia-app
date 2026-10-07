@@ -34,9 +34,8 @@ def test_no_guarda_in_button_text():
             for line in text.split("\n"):
                 if ">Guardá<" in line or 'aria-label="Guardá' in line:
                     offenders.append((html.name, line.strip()))
-    assert not offenders, (
-        "Argentine voseo 'Guardá' still in button text:\n"
-        + "\n".join(f"  {f}: {line}" for f, line in offenders)
+    assert not offenders, "Argentine voseo 'Guardá' still in button text:\n" + "\n".join(
+        f"  {f}: {line}" for f, line in offenders
     )
 
 

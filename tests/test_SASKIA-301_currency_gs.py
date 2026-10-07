@@ -35,6 +35,7 @@ def test_eod_print_uses_gs_period(authed_client):
     # If we can't get the page via HTTP, read the source directly
     if r is None or r.status_code != 200:
         from pathlib import Path
+
         src = Path("/opt/data/work/saskia-app/app/templates/eod_print.html").read_text()
         assert "₲" not in src, "eod_print.html still contains ₲"
         # The empty-state money formats should use Gs.
@@ -51,9 +52,10 @@ def test_ops_status_uses_gs_period(authed_client):
     assert "₲" not in body, "₲ Unicode guaraní still in /ops/status"
     # No bare 'Gs' (without period) — e.g. "Total Gs" or "Impact Gs"
     import re
-    bare_gs = re.findall(r'\bGs\b(?!\.)', body)
+
+    bare_gs = re.findall(r"\bGs\b(?!\.)", body)
     # Filter out `Gs.` matches and class/id names containing Gs
-    bad = [m for m in bare_gs if not re.search(rf'{re.escape(m)}\.', body)]
+    bad = [m for m in bare_gs if not re.search(rf"{re.escape(m)}\.", body)]
     assert not bad, f"Bare 'Gs' (no period) found: {bad[:5]}"
 
 
@@ -65,6 +67,7 @@ def test_reportes_mermas_cost_uses_gs_period(authed_client):
     instead. The HTTP-level check is for status code only.
     """
     from pathlib import Path
+
     src = Path("/opt/data/work/saskia-app/app/templates/reportes_mermas_cost.html").read_text()
     assert "₲" not in src, "₲ still in reportes_mermas_cost.html source"
     assert "Gs." in src, "Expected 'Gs.' in reportes_mermas_cost.html source"
@@ -84,6 +87,7 @@ def test_suppliers_volatility_uses_gs_period(authed_client):
 def test_global_no_guarani_symbol_in_templates():
     """Sanity check: NO template in app/templates/ contains `₲` after Phase 0 step 0.1."""
     from pathlib import Path
+
     offenders = []
     for html in Path("/opt/data/work/saskia-app/app/templates").glob("*.html"):
         text = html.read_text()

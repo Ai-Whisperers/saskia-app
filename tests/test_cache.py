@@ -2,10 +2,10 @@
 
 Verifies the client-side Cache with TTL support and memoization.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-
 
 CACHE_JS = Path(__file__).parent.parent / "app" / "static" / "cache.js"
 BASE_HTML = Path(__file__).parent.parent / "app" / "templates" / "base.html"
