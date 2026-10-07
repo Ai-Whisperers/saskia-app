@@ -96,3 +96,27 @@ We fix `copy-vos.md` line 15 (`Guardá` → `Guardar`) in SASKIA-310, the final 
 ## Ready to start
 
 Phase 0 step 0.1 (currency `₲` → `Gs.`) — 4 templates, ~30 min, 4 tests. Next step.
+
+## 2026-10-07 (Phase 3-7 audit summary)
+
+- **Phase 3 (SASKIA-304, clientes + productos + recetas)** — 3 real
+  fixes landed: removed duplicate `Importar CSV` button in
+  productos.html (lines 27-34), replaced broken `100 * (1 - x /
+  (x/0.65))` margin formula in receta_detalle.html with honest
+  `unit_cost.batch_cost_gs / unit_cost.units` reading, added Paraguay
+  phone placeholder to cliente_editar.html input.
+
+- **Phase 4-7 (SASKIA-305/306/307/308, inventario + producción +
+  pedidos + proveedores + menus + reportes + insights + dashboard +
+  settings + EOD + auditoria + ops)** — all templates audited and
+  already meeting standards. No code changes, regression tests only
+  (47 tests across 4 files).
+
+- **Plan deviation** — the "Phase 6.5 settings field for CMV target"
+  question was moot: food_cost % is already implemented at the global
+  level in dashboard.html (line 131) and analisis.html (line 60), and
+  per-product food_cost_pct is already in insight_price_impact.html.
+  No operator-editable target needed for the simple ≤35% target.
+
+- **Final totals** — 115 tests, 8 phases, 13 commits (78f8afab →
+  01e0b7c4), all ruff clean. ~2.5 working days end-to-end.
