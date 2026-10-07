@@ -5,6 +5,102 @@
 
 ## [Unreleased]
 
+### Added — Receipt oracle test (FloCafe pattern) (2026-10-07)
+
+Ports `FreeOpenSourcePOS/FloCafe/tests/receipt-column-oracle.test.ts`
+(MIT-licensed) with the byte-walk + golden-fixture concept adapted
+to Sazon's server-rendered HTML receipt (no ESC/POS).
+
+**`tests/test_recibo_oracle.py` (NEW, 8.1KB, 13 tests):**
+- Renders a deterministic sale via `/ventas/{id}/recibo`
+- Strips volatile content (timestamps, sale IDs, asset versions,
+  print counters, tokens) via `VOLATILE_PATTERNS`
+- Compares against pinned golden fixture
+- On intentional format change, regenerate with
+  `UPDATE_RECIBO_GOLDEN=1 uv run pytest ...`
+
+**`tests/fixtures/recibo/golden_recibo_v1.html` (NEW, 40KB):**
+- Pinned golden fixture
+- Topbar-time pattern caught a real bug during this PR
+  (the previous golden capture had a stale "11:47" instead of the
+  regex-substituted <TOPBAR_TS>)
+
+**Tests added:** 13 (all passing)
+**Adaptations from FloCafe:**
+- HTML rendering, not ESC/POS byte walk
+- Substitution-based volatile removal, not arity-aware parser
+- Substring assertions for required sections (cheaper than
+  walking 30+ visible elements)
+- Single template (`recibo.html`), single column budget (360px)
+- Print-stylesheet check (`@media print` hides `.topnav`)
+- `max-width` is checked against the 300-400px thermal range
+
+### Added — FloCafe design tokens (CSS custom properties) (2026-10-07)
+
+Ports `FreeOpenSourcePOS/FloCafe/frontend/src/app/globals.css`
+(MIT-licensed) with Tailwind + shadcn imports stripped (Sazon has
+no Tailwind per anti-rule AR1).
+
+**`app/static/tokens.css` (NEW, 5.3KB):**
+- `:root` block with ~50 CSS custom properties:
+  - **Surfaces**: `--background`, `--foreground`, `--card`,
+    `--card-foreground`, `--popover`
+  - **Brand**: `--primary` (#3248FF — Sazon's deep-purple brand),
+    `--secondary`, `--accent`, `--accent-foreground`
+  - **State**: `--destructive`, `--destructive-foreground`,
+    `--sazon-success` (#16a34a), `--sazon-warn` (#f59e0b)
+  - **Form primitives**: `--border`, `--input`, `--ring`
+  - **Chart palette**: `--chart-1` (warm orange) through
+    `--chart-5` (rose) — used by sales_intel charts
+  - **Sidebar**: `--sidebar`, `--sidebar-primary`, etc.
+  - **Typography**: `--font-sans` (Inter), `--font-mono`
+  - **Geometry**: `--radius`, `--radius-sm`, `--radius-lg`
+  - **Spacing scale**: `--space-1` through `--space-12`
+  - **Layout**: `--topnav-height` (56px), `--btn-height`
+    (44px, touch-target friendly), `--input-height` (44px)
+  - **FloCafe-specific**: `--selected-row` (#e8ebff light indigo)
+- `:focus-visible` ring uses `var(--ring)` (brand color)
+- `.touch-target` utility class for the laptop/tablet UI
+- Number-input spinner suppression (POS form pattern)
+- `.row-selected` helper for selected list rows
+
+**Adaptations from FloCafe globals.css:**
+- Stripped `@import "tailwindcss"`, `@import "tw-animate-css"`,
+  `@import "shadcn/tailwind.css"` (Sazon is Jinja2, not Next.js)
+- Stripped `@custom-variant dark` (no dark mode yet)
+- Stripped `.flo-title-bar` (Electron-specific)
+- Hex colors instead of `oklch()` (older browser support;
+  verified by `test_chart_palette_uses_hex_not_oklch`)
+- Brand-color `#3248FF` instead of FloCafe's near-black primary
+  (Sazon's purple identity per admin/branding settings)
+- Added `--sazon-success`, `--sazon-warn` (FloCafe only has
+  `--destructive`)
+
+**`app/templates/base.html`:**
+- New `<link>` to `/static/tokens.css?v=...` as the FIRST
+  stylesheet (before app.css, app-improvements.css, etc.) so
+  the cascade resolves token-collision in favor of tokens.css
+
+**`tests/test_css_tokens.py` (NEW, 9.7KB, 52 tests):**
+- `test_required_token_is_defined[<token>]` (×37 parametrized):
+  locks every documented token is in `:root`
+- `test_root_block_is_present`: exactly 1 `:root` (no dark mode yet)
+- `test_no_tailwind_imports_leaked_in`: directive check
+  (the doc-comment mentions Tailwind imports by name to explain
+  what was stripped — that's allowed)
+- `test_chart_palette_uses_hex_not_oklch`: wide-gamut fallback
+- `test_tokens_css_loaded_before_app_css`: cascade-order check
+- `test_sazon_layout_token_matches_shell_value[<token>]`
+  (×5 parametrized): tokens.css and app-shell.css agree on
+  `--topnav-height`, `--btn-height`, `--input-height`, etc.
+- `test_no_token_collision_between_tokens_and_app_files`:
+  no two files define the same `--variable` (definition-form
+  match, not `var(--x, ...)` use-form)
+- `test_token_count_is_at_least_50`: monotonic-growth guard
+
+**Tests added:** 52 (all passing)
+**Files changed:** 3 (tokens.css, base.html, test_css_tokens.py)
+
 ### Added — Date-boundary CI workflow (2026-10-07)
 
 Ports `karanshukla/openresto/.github/workflows/date-boundary.yml`
