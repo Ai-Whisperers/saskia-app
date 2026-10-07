@@ -60,6 +60,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.rms.audit import record as audit_record
+from app.rms.config import ASUNCION_TZ
 from app.rms.models import (
     AppMeta,
     AuditLog,
