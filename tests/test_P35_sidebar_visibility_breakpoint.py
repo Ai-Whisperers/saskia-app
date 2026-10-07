@@ -83,3 +83,54 @@ def test_base_sidebar_rule_does_not_hide_sidebar():
         "BUG: base .sidebar rule contains translateX — sidebar is hidden "
         "by default at every viewport, not just on phones"
     )
+
+def test_no_top_level_display_none_on_sidebar():
+    """2026-10-07 Ivan: a .eod_print section in app-improvements.css
+    had a top-level `.sidebar { display: none !important; }` rule
+    (missing the .eod-print prefix). This hid the persistent sidebar
+    on every page, not just eod_print. Pin the fix: the only top-level
+    rules targeting `.sidebar` in app-improvements.css must be inside
+    an @media print block."""
+    from pathlib import Path
+
+    css = Path("app/static/app-improvements.css").read_text()
+
+    # Find every rule that targets `.sidebar` and is NOT inside an
+    # @media print block. Scan the file in order; track whether we
+    # are inside an @media print { ... } block (depth counter).
+    depth = 0
+    in_print = False
+    i = 0
+    while i < len(css):
+        # Find next { or }
+        brace = min((css.find("{", i), css.find("}", i)), key=lambda x: x if x >= 0 else 10**9)
+        if brace < 0:
+            break
+        # Look at the chunk before this brace — find the selector
+        # and any @media directive
+        chunk = css[i:brace]
+        # An @media { ... } at depth 0 starts/ends a print block
+        if brace == css.find("{", i):
+            # Opening brace — see if selector chunk contains @media print
+            if "@media" in chunk and "print" in chunk:
+                in_print = True
+            depth += 1
+        else:
+            # Closing brace
+            depth -= 1
+            if depth == 0:
+                in_print = False
+        # Now check if the SELECTOR for this rule targets .sidebar
+        # We only do the check at depth 1 (the rule itself, not nested)
+        if depth == 1 and not in_print and ".sidebar" in chunk:
+            # This is a top-level rule (not inside @media print) that
+            # targets .sidebar — that's the bug. Fail.
+            sel = chunk.strip().split("{")[0].strip()
+            raise AssertionError(
+                f"BUG: app-improvements.css has a top-level rule "
+                f"targeting .sidebar OUTSIDE @media print: "
+                f"`{sel} {{ ... }}` — this hides the persistent "
+                f"sidebar on every page. Scope to `.eod-print .sidebar` "
+                f"or similar."
+            )
+        i = brace + 1

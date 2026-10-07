@@ -1554,8 +1554,13 @@ ui-date:focus-visible, ui-combo:focus-visible,
 
 
 /* ─── eod_print (extracted from eod_print.html) ─── */
-/* Hide nav chrome on screen AND when printed — only content is shown. */
-  .sidebar, .bottom-nav, .page-header nav, .no-print { display: none !important; }
+/* Hide nav chrome on screen AND when printed — only content is shown.
+   2026-10-07 (Ivan): this rule MUST be scoped to .eod-print. The
+   previous top-level .sidebar selector was hiding the nav on every
+   page (including /produccion) because the `.eod-print` wrapper
+   prefix was missing. The grid layout in app-shell.css can't
+   override `display: none !important`. */
+  .eod-print .sidebar, .eod-print .bottom-nav, .eod-print .page-header nav, .eod-print .no-print { display: none !important; }
   .eod-print main { max-width: 100%; padding: 1rem 0.5rem; }
   .print-only { display: block; }
   @media print {
