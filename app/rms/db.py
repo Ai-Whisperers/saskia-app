@@ -75,6 +75,7 @@ from app.rms.migrations._107_credit_accounts import _migration_107_credit_accoun
 from app.rms.migrations._108_sale_tip import _migration_108_sale_tip
 from app.rms.migrations._109_menu_ejecutivo import _migration_109_menu_ejecutivo
 from app.rms.migrations._110_held_sale import _migration_110_held_sale
+from app.rms.migrations._111_sale_channel_check import _migration_111_sale_channel_check
 
 from loguru import logger
 from sqlalchemy import create_engine, event, text
@@ -4258,6 +4259,7 @@ MIGRATIONS = {
     108: _migration_108_sale_tip,
     109: _migration_109_menu_ejecutivo,
     110: _migration_110_held_sale,
+    111: _migration_111_sale_channel_check,
 }
 
 

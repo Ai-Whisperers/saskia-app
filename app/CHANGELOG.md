@@ -5,6 +5,53 @@
 
 ## [Unreleased]
 
+### Added — DB-level CHECK on sale.channel + pedido.channel (P41, 2026-10-07)
+
+Defense-in-depth: enforce the `Channel` enum (Python source of truth in
+`app/rms/models/channels.py`) at the persistence layer so future writes
+can't insert arbitrary strings into `sale.channel` or `pedido.channel`.
+The Channel enum is `{mostrador, mostrador-encargo, whatsapp,
+pedidosya, monchis, other}`. NULL is allowed for `pedido.channel`
+(column is nullable).
+
+**`app/rms/migrations/_111_sale_channel_check.py` (NEW, ~200 lines):**
+- 4 SQLite BEFORE INSERT/UPDATE triggers (`sale_channel_check_*`,
+  `pedido_channel_check_*`) that RAISE(ABORT) on values outside the
+  Channel enum.
+- Pre-flight: counts existing rows whose `channel` is outside the
+  enum and raises `RuntimeError` with the offending values. The
+  current Sazon prod DB has 327 sales, all `mostrador`, so this is a
+  no-op in practice.
+- Idempotent via `CREATE TRIGGER IF NOT EXISTS`. Re-running the
+  migration is a no-op.
+- For Postgres, the constraint lives in the model — the migration
+  bumps the schema version and exits.
+
+**`app/rms/db.py`** — registers `_migration_111_sale_channel_check`
+in the MIGRATIONS dict.
+
+**`app/rms/config.py`** — `CURRENT_SCHEMA_VERSION = 111`.
+
+**`app/rms/models_legacy.py`** — adds `CheckConstraint` to both
+`Sale.__table_args__` and `Pedido.__table_args__`:
+- `ck_sale_channel_enum` on `sale.channel`
+- `ck_pedido_channel_enum` on `pedido.channel` (NULL allowed)
+
+**Tests** — `tests/test_P41_sale_channel_check.py` (8 tests):
+- Migration applies cleanly on an empty SQLite DB.
+- Bad `channel` values rejected on INSERT and UPDATE for sale.
+- All 6 allowed channel values accepted.
+- `pedido.channel = NULL` accepted (nullable column).
+- Bad `pedido.channel` (legacy `phone` value) rejected.
+- Migration is idempotent (re-run is no-op).
+- Pre-existing garbage rows block the migration with a clear
+  RuntimeError.
+
+Coexistence: the 20+ raw `"mostrador"` string literals scattered
+through routers/templates are NOT refactored here — they all write
+valid values today. Refactor is a separate task (string-to-enum
+migration), not part of this 2-hr P41 scope.
+
 ### Added — One-tap purchase marking + template-to-day plan loading (P40, 2026-10-07)
 
 Ivan's three findings from the post-P39 audit:

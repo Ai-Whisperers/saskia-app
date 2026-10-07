@@ -84,7 +84,7 @@ KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_RMS_KEEP_LOCAL_DAYS", "30"))
 BACKDATE_WINDOW_DAYS = int(os.getenv("AIW_RMS_BACKDATE_DAYS", "7"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 110  # 109 = menu/menu_item (WP-4.2); 110 = held_sale (B-7 pos hold-sale port from Hao0321/pos-pro)
+CURRENT_SCHEMA_VERSION = 111  # 110 = held_sale (B-7 pos hold-sale port from Hao0321/pos-pro); 111 = sale.channel + pedido.channel CHECK constraint (P41)
 # 086 = monthly_closure table (Sprint 3.1 BACKLOG #15)
 # 087 = soft_delete_columns on owned tables (Sprint 3.2)
 # 088 = audit_columns on owned tables (Sprint 3.2)

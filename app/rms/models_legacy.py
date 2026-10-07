@@ -543,6 +543,15 @@ class Sale(Base):
     __table_args__ = (
         CheckConstraint("qty > 0", name="ck_sale_qty_positive"),
         CheckConstraint("unit_price_gs >= 0", name="ck_sale_price_nonneg"),
+        # P41 (2026-10-07): enforce channel enum at the DB level. The
+        # Python Channel enum (app/rms/models/channels.py) is the source
+        # of truth; this CHECK is defense-in-depth. SQLite enforces this
+        # via triggers in migration 111 (SQLite can't ADD CONSTRAINT).
+        CheckConstraint(
+            "channel IN ('mostrador','mostrador-encargo','whatsapp',"
+            "'pedidosya','monchis','other')",
+            name="ck_sale_channel_enum",
+        ),
         # Covers: sales list by date range, dashboard charts, daily/weekly summaries,
         # libro_ventas, IVA reports, customer stats — every query that filters
         # sold_at AND ignores voided sales in the same pass.
@@ -1837,6 +1846,14 @@ class Pedido(Base):
         CheckConstraint(
             "status IN ('pending','confirmed','ready','fulfilled','cancelled')",
             name="ck_pedido_status",
+        ),
+        # P41 (2026-10-07): enforce channel enum (NULL allowed since
+        # column is nullable). Same enum as Sale.channel. SQLite
+        # enforcement via triggers in migration 111.
+        CheckConstraint(
+            "channel IS NULL OR channel IN ('mostrador','mostrador-encargo',"
+            "'whatsapp','pedidosya','monchis','other')",
+            name="ck_pedido_channel_enum",
         ),
     )
 
