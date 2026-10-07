@@ -98,7 +98,7 @@ def fiado_cargar(
 ) -> RedirectResponse:
     from app.rms.money import to_int_gs
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         return RedirectResponse(f"/fiado/{customer_id}?flash=rate_limited", status_code=303)
     try:
         tx = registrar_cargo(
@@ -134,7 +134,7 @@ def fiado_cobrar(
 ) -> RedirectResponse:
     from app.rms.money import to_int_gs
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         return RedirectResponse(f"/fiado/{customer_id}?flash=rate_limited", status_code=303)
     try:
         result = registrar_pago(

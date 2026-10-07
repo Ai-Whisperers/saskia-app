@@ -33,6 +33,7 @@ class SettingGroup(str, Enum):
     LOYALTY = "loyalty"  # Batch B1 (2026-10-07) — POS suggestion thresholds
     EOD = "eod"  # Batch B2 (2026-10-07) — end-of-day anomaly detector thresholds
     ALERTS = "alerts"  # Batch B3 (2026-10-07) — alert dispatch rate limit
+    RATE_LIMIT = "rate_limit"  # Batch B5 (2026-10-07) — login + write + read throttles
 
 
 @dataclass
@@ -528,6 +529,42 @@ SETTINGS: list[Setting] = [
         "int",
         "Cantidad de backups locales a mantener antes de podar los más viejos",
         SettingGroup.BACKUP,
+    ),
+    # RATE_LIMIT (5) — Batch B5 (2026-10-07)
+    Setting(
+        "rate_limit.login_max_failures",
+        "5",
+        "int",
+        "Máximo de login.failure por ventana antes de bloquear IP (E3.S2)",
+        SettingGroup.RATE_LIMIT,
+    ),
+    Setting(
+        "rate_limit.login_window_minutes",
+        "5",
+        "int",
+        "Ventana deslizante para login.failure (minutos)",
+        SettingGroup.RATE_LIMIT,
+    ),
+    Setting(
+        "rate_limit.write_max_per_minute",
+        "10",
+        "int",
+        "Máximo de writes por minuto por IP (sale.create, merma.register, etc.)",
+        SettingGroup.RATE_LIMIT,
+    ),
+    Setting(
+        "rate_limit.read_max_per_minute",
+        "60",
+        "int",
+        "Máximo de reads pesados por minuto por IP (/api/search, /reportes/*)",
+        SettingGroup.RATE_LIMIT,
+    ),
+    Setting(
+        "rate_limit.read_window_seconds",
+        "60",
+        "int",
+        "Ventana deslizante para reads pesados (segundos)",
+        SettingGroup.RATE_LIMIT,
     ),
 ]
 

@@ -260,7 +260,7 @@ def merma_register(
     if ip:
         ip = ip.split(",")[0].strip()
     # Re-use the rate-limit helper through session_factory
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429, detail="Demasiadas acciones en 1 minuto. Esperá un momento."
         )
@@ -378,7 +378,7 @@ def merma_register_recipe(
 
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",

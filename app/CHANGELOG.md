@@ -58,6 +58,27 @@ wired to read it, the production behaviour is unchanged (still
 governed by the env var). Operator is warned in the settings page
 description.
 
+### Refactor (2026-10-07) — Batch B5: rate-limit thresholds → T2 SettingsKV
+
+**What this PR does:** extract 5 rate-limit thresholds (login failures/window, writes/min, reads/min/window) into the SettingsKV registry under a new `RATE_LIMIT` group. Total settings: 60 → 65, groups: 12 → 13.
+
+**Changes:**
+
+1. `app/rms/rate_limit.py` — added `DEFAULT_RATE_LIMIT_CONFIG` dict. The three helpers (`is_rate_limited`, `is_write_rate_limited`, `is_read_rate_limited`) now accept `rate_limit_cfg: dict | None = None` kwarg that merges with the defaults. The legacy module-level constants (`DEFAULT_LIMIT`, `DEFAULT_WINDOW_MINUTES`, `DEFAULT_READ_LIMIT`, `DEFAULT_READ_WINDOW_SECONDS`) now alias the new dict — backward compat with all existing imports.
+
+2. `app/rms/settings.py` — new `SettingGroup.RATE_LIMIT` enum + 5 new `Setting` entries.
+
+3. `app/rms/settings_runtime.py` — new `DEFAULT_RATE_LIMIT_CONFIG` export + `get_rate_limit_config(session)` helper.
+
+4. 10 router files (`app/routers/{eod,shopping,fiado,caja,reorder,merma,sales,produccion/*}.py`) — removed 28 hardcoded `max_per_minute=10` call sites; they now use the operator-tunable default.
+
+5. `tests/test_rate_limit_cfg_override.py` — 8 new tests covering cfg shape, backward-compat constants, override behavior on all three helpers, and the public-API helper.
+
+6. `tests/test_settings.py` + `tests/test_settings_kv_canonical.py` — updated registry counts: 60 → 65 settings, 12 → 13 groups.
+
+**No production behavior change: every existing import + call site stays the same (defaults match), and the 28 routers that hardcoded `max_per_minute=10` now share one operator-tunable value.**
+
+
 ### Refactored (2026-10-07) — Batch B2+B3: EOD + alerts → operator-tunable
 
 Extracted 4 hardcoded thresholds from `app/services/eod_anomaly.py` and

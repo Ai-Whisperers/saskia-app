@@ -376,7 +376,7 @@ def from_production_plan(
     from app.rms.production import plan_production
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",

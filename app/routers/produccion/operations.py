@@ -57,7 +57,7 @@ def produccion_override(
     """
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -153,7 +153,7 @@ def produccion_copy_last_week(
     # Rate-limit the same as a manual override (1 per 6s)
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -235,7 +235,7 @@ def produccion_closed_toggle(
     from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         from fastapi import HTTPException
 
         raise HTTPException(status_code=429, detail="rate_limited")
@@ -297,7 +297,7 @@ async def produccion_override_bulk(
     """
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -423,7 +423,7 @@ async def produccion_shift_execute(
     from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -633,7 +633,7 @@ async def produccion_ad_hoc(
     from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -756,7 +756,7 @@ def produccion_close_day(
     from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -830,7 +830,7 @@ def produccion_close_day_reopen(
     from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -895,7 +895,7 @@ async def produccion_ad_hoc_bulk(
     """
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",

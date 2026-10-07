@@ -1270,7 +1270,7 @@ async def sale_create(
     from app.rms.audit import record as audit_record
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(status_code=429, detail=SALE_RATE_LIMITED)
 
     audit_record(
@@ -1893,7 +1893,7 @@ async def sale_create_multi(
     from app.rms.audit import record as audit_record
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(status_code=429, detail=SALE_RATE_LIMITED)
 
     audit_record(

@@ -41,7 +41,7 @@ def test_settings_count():
     EOD (3), ALERTS (1), and BACKUP (3 more). Total settings
     42 → 60, total groups 9 → 12.
     """
-    assert len(SETTINGS) == 60
+    assert len(SETTINGS) == 65
     groups = {s.group for s in SETTINGS}
     assert groups == {
         SettingGroup.GENERAL,
@@ -56,6 +56,7 @@ def test_settings_count():
         SettingGroup.LOYALTY,  # Batch B1
         SettingGroup.EOD,  # Batch B2
         SettingGroup.ALERTS,  # Batch B3
+        SettingGroup.RATE_LIMIT,  # Batch B5
     }
 
 
@@ -84,6 +85,8 @@ def test_settings_per_group_counts():
     assert by_group[SettingGroup.EOD] == 3
     # Batch B3: alert rate limit
     assert by_group[SettingGroup.ALERTS] == 1
+    # Batch B5: rate-limit throttles
+    assert by_group[SettingGroup.RATE_LIMIT] == 5
     # Sanity: total matches len(SETTINGS)
     assert sum(by_group.values()) == len(SETTINGS)
 
@@ -200,16 +203,17 @@ def test_set_setting_overwrites_existing(session_factory):
         s.close()
 
 
-def test_list_settings_returns_31(session_factory):
-    """list_settings returns 60 entries with value/default/group/etc.
+def test_list_settings_returns_65(session_factory):
+    """list_settings returns 65 entries with value/default/group/etc.
 
-    Updated 2026-10-07 (Batch B1+B2+B3+B4): was 42 entries. Now 60
-    (added 11 LOYALTY + 3 EOD + 1 ALERTS + 3 BACKUP).
+
+    Updated 2026-10-07 (Batch B1+B2+B3+B4+B5): was 42 entries. Now 65
+    (added 11 LOYALTY + 3 EOD + 1 ALERTS + 3 BACKUP + 5 RATE_LIMIT).
     """
     s = session_factory()
     try:
         all_settings = list_settings(s)
-        assert len(all_settings) == 60
+        assert len(all_settings) == 65
         entry = all_settings[0]
         for k in ("key", "value", "default", "description", "group", "choices"):
             assert k in entry
@@ -218,10 +222,11 @@ def test_list_settings_returns_31(session_factory):
 
 
 def test_settings_by_group_groups_correctly(session_factory):
-    """settings_by_group returns dict with 12 keys matching the group values.
+    """settings_by_group returns dict with 13 keys matching the group values.
 
-    Updated 2026-10-07 (Batch B1+B2+B3+B4): was 9 keys, now 12
-    (added "loyalty", "eod", "alerts").
+
+    Updated 2026-10-07 (Batch B1+B2+B3+B4+B5): was 9 keys, now 13
+    (added "loyalty", "eod", "alerts", "rate_limit").
     """
     s = session_factory()
     try:
@@ -239,6 +244,7 @@ def test_settings_by_group_groups_correctly(session_factory):
             "loyalty",  # Batch B1: 11 POS suggestion thresholds
             "eod",  # Batch B2: 3 EOD anomaly thresholds
             "alerts",  # Batch B3: 1 alert rate limit
+            "rate_limit",  # Batch B5: 5 rate-limit throttles
         }
         assert len(grouped["general"]) == 7
         assert len(grouped["branding"]) == 10
@@ -248,6 +254,7 @@ def test_settings_by_group_groups_correctly(session_factory):
         assert len(grouped["loyalty"]) == 11
         assert len(grouped["eod"]) == 3
         assert len(grouped["alerts"]) == 1
+        assert len(grouped["rate_limit"]) == 5
     finally:
         s.close()
 

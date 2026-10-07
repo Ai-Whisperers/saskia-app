@@ -38,8 +38,23 @@ from app.rms.audit import record as audit_record
 from app.rms.dependencies import get_session  # for read_rate_limit_dependency
 from app.rms.models import AuditLog
 
-DEFAULT_LIMIT = 5
-DEFAULT_WINDOW_MINUTES = 5
+# Batch B5 (2026-10-07): rate-limit thresholds are now operator-tunable
+# via the SettingsKV registry (keys prefixed ``rate_limit.``). The
+# module-level constants below are kept as backward-compat shims that
+# alias the canonical DEFAULT_RATE_LIMIT_CONFIG dict. The values match
+# the historical defaults (5/5min for login, 10 writes/min, 60 reads/min).
+DEFAULT_RATE_LIMIT_CONFIG: dict[str, int] = {
+    "login_max_failures": 5,
+    "login_window_minutes": 5,
+    "write_max_per_minute": 10,
+    "read_max_per_minute": 60,
+    "read_window_seconds": 60,
+}
+
+DEFAULT_LIMIT = DEFAULT_RATE_LIMIT_CONFIG["login_max_failures"]
+DEFAULT_WINDOW_MINUTES = DEFAULT_RATE_LIMIT_CONFIG["login_window_minutes"]
+DEFAULT_READ_LIMIT = DEFAULT_RATE_LIMIT_CONFIG["read_max_per_minute"]
+DEFAULT_READ_WINDOW_SECONDS = DEFAULT_RATE_LIMIT_CONFIG["read_window_seconds"]
 
 
 @dataclass
@@ -67,16 +82,29 @@ def is_rate_limited(
     session: Session,
     request: object,
     *,
-    limit: int = DEFAULT_LIMIT,
-    window_minutes: int = DEFAULT_WINDOW_MINUTES,
+    limit: int | None = None,
+    window_minutes: int | None = None,
     now: datetime | None = None,
+    rate_limit_cfg: dict[str, int] | None = None,
 ) -> RateLimitDecision:
     """Return whether `request` is currently rate-limited for login.
 
     Side effect: if blocked, writes a `login.rate_limited` audit row.
 
-    Pass `now` for deterministic tests.
+    Args:
+      limit: explicit login failure cap. When None, falls back to
+        ``rate_limit_cfg["login_max_failures"]`` (or DEFAULT_RATE_LIMIT_CONFIG).
+      window_minutes: explicit window in minutes. Same fallback chain.
+      rate_limit_cfg: optional override dict (Batch B5, 2026-10-07).
+      now: injected clock for deterministic tests.
     """
+    cfg = dict(DEFAULT_RATE_LIMIT_CONFIG)
+    if rate_limit_cfg is not None:
+        cfg.update(rate_limit_cfg)
+    if limit is None:
+        limit = cfg["login_max_failures"]
+    if window_minutes is None:
+        window_minutes = cfg["login_window_minutes"]
     when = now or datetime.now(timezone.utc)
     threshold = when - timedelta(minutes=window_minutes)
     ip = _client_ip(request)
@@ -147,9 +175,10 @@ def is_write_rate_limited(
     session: Session,
     request: object,
     *,
-    max_per_minute: int = 10,
-    window_seconds: int = 60,
+    max_per_minute: int | None = None,
+    window_seconds: int | None = None,
     now: object = None,
+    rate_limit_cfg: dict[str, int] | None = None,
 ) -> bool:
     """Return True if this client has exceeded max_per_minute writes.
 
@@ -157,12 +186,26 @@ def is_write_rate_limited(
     sliding window. Used to throttle state-changing POSTs (sale.create,
     merma.register, product.create) so a bot can't flood.
 
-    FAIL OPEN: if the DB raises, return False so a DB outage does not
-    brick write endpoints. A flood during a DB outage is the lesser
-    evil compared to blocking legitimate operators.
+    Args:
+      max_per_minute: explicit cap. When None, falls back to
+        ``rate_limit_cfg["write_max_per_minute"]`` (or DEFAULT_RATE_LIMIT_CONFIG).
+      window_seconds: explicit window. Same fallback chain.
+      rate_limit_cfg: optional override dict (Batch B5, 2026-10-07).
+      now: injected clock for deterministic tests.
 
-    Pass `now` for deterministic tests.
+    Returns:
+      True iff the IP is over the cap.
+
+    FAIL OPEN: if the DB raises, return False so a DB outage does not
+    brick write endpoints.
     """
+    cfg = dict(DEFAULT_RATE_LIMIT_CONFIG)
+    if rate_limit_cfg is not None:
+        cfg.update(rate_limit_cfg)
+    if max_per_minute is None:
+        max_per_minute = cfg["write_max_per_minute"]
+    if window_seconds is None:
+        window_seconds = 60
     when = now or datetime.now(timezone.utc)
     threshold = when - timedelta(seconds=window_seconds)
     ip = _client_ip(request)
@@ -206,17 +249,19 @@ def is_write_rate_limited(
 # login rate limit) so tests don't trip the limiter.
 # ---------------------------------------------------------------------
 
-DEFAULT_READ_LIMIT = 60
-DEFAULT_READ_WINDOW_SECONDS = 60
+# DEFAULT_READ_LIMIT + DEFAULT_READ_WINDOW_SECONDS moved to the top of
+# this module (Batch B5, 2026-10-07) so they can alias
+# DEFAULT_RATE_LIMIT_CONFIG alongside the other rate-limit constants.
 
 
 def is_read_rate_limited(
     session: Session,
     request: object,
     *,
-    max_per_minute: int = DEFAULT_READ_LIMIT,
-    window_seconds: int = DEFAULT_READ_WINDOW_SECONDS,
+    max_per_minute: int | None = None,
+    window_seconds: int | None = None,
     now: datetime | None = None,
+    rate_limit_cfg: dict[str, int] | None = None,
 ) -> "RateLimitDecision":
     """Return whether `request` has exceeded `max_per_minute` reads in `window_seconds`.
 
@@ -233,6 +278,13 @@ def is_read_rate_limited(
 
     Pass `now` for deterministic tests.
     """
+    cfg = dict(DEFAULT_RATE_LIMIT_CONFIG)
+    if rate_limit_cfg is not None:
+        cfg.update(rate_limit_cfg)
+    if max_per_minute is None:
+        max_per_minute = cfg["read_max_per_minute"]
+    if window_seconds is None:
+        window_seconds = cfg["read_window_seconds"]
     when = now or datetime.now(timezone.utc)
     threshold = when - timedelta(seconds=window_seconds)
     ip = _client_ip(request)
@@ -357,6 +409,7 @@ def read_rate_limit_dependency(
 
 __all__ = [
     "DEFAULT_LIMIT",
+    "DEFAULT_RATE_LIMIT_CONFIG",
     "DEFAULT_READ_LIMIT",
     "DEFAULT_READ_WINDOW_SECONDS",
     "DEFAULT_WINDOW_MINUTES",

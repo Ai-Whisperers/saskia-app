@@ -314,14 +314,17 @@ def test_settings_runtime_public_api_exports():
         "set_pricing_markup",
         "settings_get",
         "settings_set",
-        # Batch B1+B2+B3+B4 (2026-10-07): per-domain cfg helpers
+        # Batch B1+B2+B3+B4+B5 (2026-10-07): per-domain cfg helpers
         "DEFAULT_ALERTS_CONFIG",
         "DEFAULT_BACKUP_CONFIG",
         "DEFAULT_EOD_CONFIG",
         "DEFAULT_LOYALTY_CONFIG",
+        # Batch B5 (2026-10-07): rate-limit cfg helper
+        "DEFAULT_RATE_LIMIT_CONFIG",
         "get_alerts_config",
         "get_backup_config",
         "get_eod_config",
         "get_loyalty_config",
+        "get_rate_limit_config",
     }
     assert set(sr.__all__) == expected

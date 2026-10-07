@@ -68,7 +68,7 @@ def caja_abrir(
 ) -> RedirectResponse:
     from app.rms.money import to_int_gs
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         return RedirectResponse("/caja?flash=rate_limited", status_code=303)
     try:
         opening = to_int_gs(str(opening_gs))
@@ -102,7 +102,7 @@ def caja_cerrar(
 ) -> RedirectResponse:
     from app.rms.money import to_int_gs
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         return RedirectResponse("/caja?flash=rate_limited", status_code=303)
     try:
         counted = to_int_gs(str(counted_gs))

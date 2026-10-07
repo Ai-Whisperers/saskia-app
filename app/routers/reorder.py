@@ -218,7 +218,7 @@ def reorder_quick_restock(
     Idempotent: if the ingredient is already at 2x min, no price event
     is written. Always audits + increments the supplier streak.
     """
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Espera un momento.",
@@ -295,7 +295,7 @@ def reorder_bulk_quick_restock(
     as purchased in one click. ingredient_ids is a comma-separated
     list. Empty input is a no-op (button should be disabled anyway).
     """
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Espera un momento.",
@@ -390,7 +390,7 @@ def reorder_registrar(
     intact (operator skipped the dropdown — e.g. used the keyboard
     shortcut to submit without picking one).
     """
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -531,7 +531,7 @@ def reorder_lock_supplier(
     frontend can refresh. On error returns 4xx with ``{"ok": false,
     "error": "..."}``.
     """
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -575,7 +575,7 @@ def reorder_unlock_supplier(
     ``{"ok": true, "ingredient_id": ...}`` on success. No-op (still 200)
     if there was no lock.
     """
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -644,7 +644,7 @@ async def reorder_upload_prices(
           ]
         }
     """
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",

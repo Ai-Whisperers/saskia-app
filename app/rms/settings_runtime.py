@@ -308,6 +308,31 @@ def get_backup_config(session: Session) -> dict[str, int]:
     return out
 
 
+# ── Rate limit (B5) ───────────────────────────────────────────────────────
+DEFAULT_RATE_LIMIT_CONFIG: dict[str, int] = {
+    "login_max_failures": 5,
+    "login_window_minutes": 5,
+    "write_max_per_minute": 10,
+    "read_max_per_minute": 60,
+    "read_window_seconds": 60,
+}
+
+
+def get_rate_limit_config(session: Session) -> dict[str, int]:
+    """Read the rate-limit config from SettingsKV."""
+    from app.rms.settings import get_setting_value
+
+    out = dict(DEFAULT_RATE_LIMIT_CONFIG)
+    for key in DEFAULT_RATE_LIMIT_CONFIG:
+        try:
+            v = get_setting_value(session, f"rate_limit.{key}")
+            if v is not None:
+                out[key] = int(v)
+        except (ValueError, TypeError):
+            pass
+    return out
+
+
 __all__ = [
     "DEFAULT_ALERTS_CONFIG",
     "DEFAULT_BACKUP_CONFIG",
@@ -315,6 +340,7 @@ __all__ = [
     "DEFAULT_EOD_CONFIG",
     "DEFAULT_LOYALTY_CONFIG",
     "DEFAULT_PRICING_MARKUP",
+    "DEFAULT_RATE_LIMIT_CONFIG",
     "compute_suggested_price",
     "get_alerts_config",
     "get_backup_config",
@@ -322,6 +348,7 @@ __all__ = [
     "get_eod_config",
     "get_loyalty_config",
     "get_pricing_markup",
+    "get_rate_limit_config",
     "set_branding",
     "set_pricing_markup",
     "settings_get",
