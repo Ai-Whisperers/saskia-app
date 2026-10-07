@@ -12,15 +12,15 @@
 <div class="d-flex" style="display:flex;gap:var(--space-3);margin:var(--space-3) 0;flex-wrap:wrap;">
   <div class="card" style="padding:var(--space-2) var(--space-3);border:1px solid var(--border);border-radius:8px;">
     <small class="text-muted">Por vencer (0-30 d)</small>
-    <strong style="display:block;">Gs. {{ '{:,}'.format(aging.b0_30).replace(',', '.') }}</strong>
+    <strong style="display:block;">{{ m.gs_full(aging.b0_30) }}</strong>
   </div>
   <div class="card" style="padding:var(--space-2) var(--space-3);border:1px solid var(--border);border-radius:8px;">
     <small class="text-muted">31-60 días</small>
-    <strong style="display:block;color:var(--color-warn,#b45309);">Gs. {{ '{:,}'.format(aging.b31_60).replace(',', '.') }}</strong>
+    <strong style="display:block;color:var(--color-warn,#b45309);">{{ m.gs_full(aging.b31_60) }}</strong>
   </div>
   <div class="card" style="padding:var(--space-2) var(--space-3);border:1px solid var(--border);border-radius:8px;">
     <small class="text-muted">61+ días</small>
-    <strong style="display:block;color:var(--destructive,#b91c1c);">Gs. {{ '{:,}'.format(aging.b61_mas).replace(',', '.') }}</strong>
+    <strong style="display:block;color:var(--destructive,#b91c1c);">{{ m.gs_full(aging.b61_mas) }}</strong>
   </div>
 </div>
 {% endif %}
@@ -40,9 +40,9 @@
     <tr>
       <td style="padding:4px 10px;">{{ r.nombre }}</td>
       <td style="padding:4px 10px;color:{% if r.saldo > 0 %}var(--destructive,#b91c1c){% else %}var(--success,#15803d){% endif %};">
-        Gs. {{ '{:,}'.format(r.saldo).replace(',', '.') }}
+        {{ m.gs_full(r.saldo) }}
       </td>
-      <td style="padding:4px 10px;">{% if r.limit_gs %}Gs. {{ '{:,}'.format(r.limit_gs).replace(',', '.') }}{% else %}—{% endif %}</td>
+      <td style="padding:4px 10px;">{% if r.limit_gs %}{{ m.gs_full(r.limit_gs) }}{% else %}—{% endif %}</td>
       <td style="padding:4px 10px;text-align:center;">{% if r.active %}activa{% else %}<strong>suspendida</strong>{% endif %}</td>
       <td style="padding:4px 10px;text-align:center;"><a href="/fiado/{{ r.customer_id }}">Ver</a></td>
     </tr>
