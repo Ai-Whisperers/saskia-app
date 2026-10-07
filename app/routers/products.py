@@ -1280,11 +1280,11 @@ def product_detail(
     p = session.get(Product, p_id)
     if p is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
-    
+
     # Compute metrics using existing service modules or direct SQL queries
     from sqlalchemy import text
     from app.rms.costing import product_unit_cost_gs, product_margin
-    
+
     # Current stock - use direct SQL query since no service function exists
     stock_query = text("""
         SELECT COALESCE(SUM(stock_qty), 0.0) 
@@ -1292,14 +1292,14 @@ def product_detail(
         WHERE name = (SELECT name FROM product WHERE id = :p_id)
     """)
     stock_result = session.execute(stock_query, {"p_id": p_id}).scalar_one_or_none()
-    
+
     # Current cost and margin
     cost = product_unit_cost_gs(session, p_id)
     margin = product_margin(session, p_id)
-    
+
     # 30-day metrics - use direct SQL query since no service function exists
     thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
-    
+
     # Get last 30 days units sold and revenue
     sales_metrics = session.execute(
         select(
@@ -1310,10 +1310,10 @@ def product_detail(
             Sale.product_id == p_id
         ).where(Sale.voided_at.is_(None))
     ).one()
-    
+
     last_30d_units = sales_metrics[0] or 0
     last_30d_revenue = sales_metrics[1] or 0
-    
+
     # Recipes using this product (max 10) - use direct SQL query
     recipes_query = text("""
         SELECT DISTINCT r.* FROM recipe r
@@ -1322,7 +1322,7 @@ def product_detail(
         LIMIT 10
     """)
     recipes_using = session.execute(recipes_query, {"p_id": p_id}).fetchall()
-    
+
     # Recent sales (last 20, exclude voided) - use direct SQL query
     recent_sales = session.execute(
         select(Sale.sold_at, Customer.name, Sale.qty, Sale.unit_price_gs * Sale.qty)
@@ -1332,15 +1332,15 @@ def product_detail(
         .order_by(Sale.sold_at.desc())
         .limit(20)
     ).all()
-    
+
     # Margin percentage
     avg_margin_pct = None
     if margin and margin[1] is not None:
         avg_margin_pct = margin[1] * 100
-    
+
     # Check if out of stock
     is_out_of_stock = stock_result is not None and stock_result <= 0
-    
+
     return render(
         request,
         "producto_detalle.html",
