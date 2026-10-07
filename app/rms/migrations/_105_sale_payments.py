@@ -15,6 +15,7 @@ from typing import Any
 
 
 def _migration_105_sale_payments(conn: Any) -> None:
+    """Create sale_payment ledger table for pagos mixtos."""
     is_postgres = conn.dialect.name == "postgresql"
     pk = "SERIAL" if is_postgres else "INTEGER"
     try:

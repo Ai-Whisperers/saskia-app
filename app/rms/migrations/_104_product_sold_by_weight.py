@@ -17,6 +17,7 @@ from sqlalchemy import text
 
 
 def _migration_104_product_sold_by_weight(conn: Any) -> None:
+    """Add product.sold_by_weight (venta por peso, qty fraccional)."""
     is_postgres = conn.dialect.name == "postgresql"
     try:
         if is_postgres:

@@ -28,9 +28,9 @@
 <table style="border-collapse:collapse;max-width:760px;">
   <thead>
     <tr>
-      <th style="text-align:left;padding:4px 10px;border-bottom:1px solid var(--border);">Cliente</th>
-      <th style="text-align:right;padding:4px 10px;border-bottom:1px solid var(--border);">Saldo</th>
-      <th style="text-align:right;padding:4px 10px;border-bottom:1px solid var(--border);">Límite</th>
+      <th class="text-left" style="padding:4px 10px;border-bottom:1px solid var(--border);">Cliente</th>
+      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Saldo</th>
+      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Límite</th>
       <th style="text-align:center;padding:4px 10px;border-bottom:1px solid var(--border);">Estado</th>
       <th style="padding:4px 10px;border-bottom:1px solid var(--border);"></th>
     </tr>
@@ -39,10 +39,10 @@
     {% for r in rows %}
     <tr>
       <td style="padding:4px 10px;">{{ r.nombre }}</td>
-      <td style="padding:4px 10px;text-align:right;color:{% if r.saldo > 0 %}var(--destructive,#b91c1c){% else %}var(--success,#15803d){% endif %};">
+      <td style="padding:4px 10px;color:{% if r.saldo > 0 %}var(--destructive,#b91c1c){% else %}var(--success,#15803d){% endif %};">
         Gs. {{ '{:,}'.format(r.saldo).replace(',', '.') }}
       </td>
-      <td style="padding:4px 10px;text-align:right;">{% if r.limit_gs %}Gs. {{ '{:,}'.format(r.limit_gs).replace(',', '.') }}{% else %}—{% endif %}</td>
+      <td style="padding:4px 10px;">{% if r.limit_gs %}Gs. {{ '{:,}'.format(r.limit_gs).replace(',', '.') }}{% else %}—{% endif %}</td>
       <td style="padding:4px 10px;text-align:center;">{% if r.active %}activa{% else %}<strong>suspendida</strong>{% endif %}</td>
       <td style="padding:4px 10px;text-align:center;"><a href="/fiado/{{ r.customer_id }}">Ver</a></td>
     </tr>

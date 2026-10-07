@@ -44,10 +44,10 @@
 <table style="border-collapse:collapse;max-width:680px;">
   <thead>
     <tr>
-      <th style="text-align:left;padding:4px 10px;border-bottom:1px solid var(--border);">Fecha</th>
-      <th style="text-align:left;padding:4px 10px;border-bottom:1px solid var(--border);">Tipo</th>
-      <th style="text-align:right;padding:4px 10px;border-bottom:1px solid var(--border);">Monto</th>
-      <th style="text-align:left;padding:4px 10px;border-bottom:1px solid var(--border);">Nota</th>
+      <th class="text-left" style="padding:4px 10px;border-bottom:1px solid var(--border);">Fecha</th>
+      <th class="text-left" style="padding:4px 10px;border-bottom:1px solid var(--border);">Tipo</th>
+      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Monto</th>
+      <th class="text-left" style="padding:4px 10px;border-bottom:1px solid var(--border);">Nota</th>
     </tr>
   </thead>
   <tbody>
@@ -55,7 +55,7 @@
     <tr>
       <td style="padding:4px 10px;">{{ tx.ts.strftime('%d/%m/%Y %H:%M') }}</td>
       <td style="padding:4px 10px;">{{ tx.kind }}</td>
-      <td style="padding:4px 10px;text-align:right;color:{% if tx.amount_gs > 0 %}var(--destructive,#b91c1c){% else %}var(--success,#15803d){% endif %};">
+      <td style="padding:4px 10px;color:{% if tx.amount_gs > 0 %}var(--destructive,#b91c1c){% else %}var(--success,#15803d){% endif %};">
         {{ '+' if tx.amount_gs > 0 else '' }}Gs. {{ '{:,}'.format(tx.amount_gs).replace(',', '.') }}
       </td>
       <td style="padding:4px 10px;">{{ tx.note or '' }}</td>

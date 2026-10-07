@@ -13,6 +13,7 @@ from typing import Any
 
 
 def _migration_108_sale_tip(conn: Any) -> None:
+    """Add sale.tip_gs (propina por venta)."""
     def _column_exists() -> bool:
         if conn.dialect.name == "sqlite":
             row = conn.exec_driver_sql(

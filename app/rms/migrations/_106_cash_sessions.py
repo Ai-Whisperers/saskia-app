@@ -14,6 +14,7 @@ from typing import Any
 
 
 def _migration_106_cash_sessions(conn: Any) -> None:
+    """Create cash_session table (arqueo de caja X/Z)."""
     is_postgres = conn.dialect.name == "postgresql"
     pk = "SERIAL" if is_postgres else "INTEGER"
     ts = "TIMESTAMP" if is_postgres else "DATETIME"

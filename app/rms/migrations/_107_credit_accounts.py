@@ -12,6 +12,7 @@ from typing import Any
 
 
 def _migration_107_credit_accounts(conn: Any) -> None:
+    """Create credit_account + credit_transaction (fiado ledger)."""
     is_postgres = conn.dialect.name == "postgresql"
     pk = "SERIAL" if is_postgres else "INTEGER"
     ts = "TIMESTAMP" if is_postgres else "DATETIME"

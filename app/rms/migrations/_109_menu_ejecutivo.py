@@ -13,6 +13,7 @@ from typing import Any
 
 
 def _migration_109_menu_ejecutivo(conn: Any) -> None:
+    """Create menu + menu_item (menús ejecutivos)."""
     if conn.dialect.name == "postgresql":
         try:
             conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS pgcrypto")
