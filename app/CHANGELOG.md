@@ -5,6 +5,52 @@
 
 ## [Unreleased]
 
+### Added — Legacy code cleanup pass (P44, 2026-10-07)
+
+Removed 11 dead files (~1,200 lines) that were no longer imported
+anywhere. Moved (not deleted) to `app/_archive/2026-10-07-p44-legacy-cleanup/`
+so they're recoverable if a future feature needs them.
+
+**7 dead migration files** — each had a duplicate inline function
+in `db.py` that won the registration race; the file versions were
+never imported. Inlining won because db.py's MIGRATIONS dict (lines
+4224-4267) references the local symbols, not the file imports:
+- `_005_customer.py`
+- `_006_simple_test.py`
+- `_043_branding_setting.py`
+- `_044_message_templates.py`
+- `_057_recipe_instructions.py`
+- `_061_tag_validation.py`
+- `_062_audit_repair.py`
+
+**3 dead Phase-2B model submodules** — leftover from a half-finished
+domain-package refactor (commit fb57f00 broke models; the system
+reverted to `models_legacy.py` re-exported from `models/__init__.py`):
+- `app/rms/models/catalogs_restored.py` (307 lines)
+- `app/rms/models/herbus_drive.py` (273 lines)
+- `app/rms/models/procurement.py` (188 lines)
+
+**1 dead service module** — only referenced in archived docs:
+- `app/services/auto_backup.py` (113 lines)
+
+**Archive directory** — `app/_archive/2026-10-07-p44-legacy-cleanup/`
+plus a `app/_archive/README.md` pointing operators to the recovery
+workflow.
+
+**Out of scope (deferred to follow-ups):**
+- The inline migration bodies in `db.py` (lines 147-4160, ~4,000
+  lines) — moving them to per-file form is Phase-2B redo territory
+  with high regression risk; deferred.
+- Pre-existing ruff findings in `db.py` / `models_legacy.py` — many
+  (B904, BLE001, I001, F401, F811, F821, ANN001, S110, DTZ005).
+  Mechanical sweep is its own task.
+- `models_legacy.py` (2,914 lines) split — Phase-2B redo territory.
+
+**Regression:** 100/100 tests pass on polish/saskia-p0 (P41 + P42 +
+P43 + P39 + P40 trio + held_sale + db_check_constraints +
+ventas_redesign). `init_db` smoke test confirms schema v111 + 4
+channel-check triggers apply cleanly with the moved files absent.
+
 ### Added — Complete channel-legacy cleanup (P43, 2026-10-07)
 
 Three real bugs were found and fixed during the legacy cleanup pass.
