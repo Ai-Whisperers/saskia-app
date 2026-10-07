@@ -8,7 +8,7 @@
 
 | Knob | Value | Source |
 |------|-------|--------|
-| Schema | v110 | `app/rms/config.py:87` |
+| Schema | v112 | `app/rms/config.py:87` |
 | Migrations on disk | 37 | `app/rms/migrations/_*.py` |
 | Tests collected | 6,854 (129 deselected) | `pytest --collect-only` |
 | Shopping tests | 14/14 ✅ | `test_P39_*`, `test_P19_*`, `test_shopping_*`, `test_shopping_from_plan` |
@@ -38,6 +38,7 @@
 - **P41 CHECK constraint on sale.channel + pedido.channel** — `e64ad50f`.
 - **P42 use Channel.X.value in all write paths** — `e586f47c`.
 - **Per-client branding on /menu + /m/{slug}** — `d6bead2e`.
+- **SASKIA-204: Sale channel mismatch cleanup** — `444d9953`. Channel enum extended to 10 values (HEREBUS retail/wholesale/distributor/eventual added); `/ventas/historial` filter; `scripts/reclassify_sale_channels.py` idempotent backfill; `scripts/import_herebus_data.py` now uses `_normalize_channel()` (no more silent skew). 97 tests pass.
 - **Pre-billing checklist (URY pattern)** — `4384423b`.
 - **FloCafe stock ceiling + low-stock badge** — `36021585`.
 - **FloCafe design tokens (CSS custom properties)** — `815f12f5`.
@@ -66,17 +67,6 @@ ssh paragu-ai 'curl https://sazon-vps.paragu-ai.com/healthz'
 
 Risk: medium. Pre-migration backup runs first (AGENTS.md rule 17) and
 `fail_closed_on_newer_schema()` aborts if anything is off.
-
-### #2 — **Sale channel mismatch cleanup** — 2 hr, quick win
-
-Extend `Sale.channel` enum with HEREBUS channels (Retail / Wholesale /
-Distributor / Eventual); add the filter on `/ventas`; auto-classify from
-VENTAS sheet's `Canal de Venta` column. 346 sales say `mostrador`, 6
-`retail`, 3 `wholesale`. Wrong channels silently skew revenue reports.
-
-Blocked by: the existing P41 CHECK constraint (only 6 values allowed).
-Need migration 111 to ALTER the CHECK constraint. ~30 min for the
-migration + re-classify script, the other 90 min is the UI filter.
 
 ### ❌ Deferred — C.1 Sentry→Telegram activation
 
