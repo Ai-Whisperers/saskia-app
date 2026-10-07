@@ -2240,3 +2240,101 @@ async def preflight_sale(
         "is_ready": checklist.is_ready,
         "is_clean": checklist.is_clean,
     })
+
+# ---- Multi-line pre-billing checklist (cart) --------------------------
+#
+# The /ventas/nueva form sends a JSON cart (not a single product).
+# This route accepts the cart and runs validate_cart_intent() across
+# all lines, returning an aggregated checklist.
+#
+# Called by ventas.html's JS on cart change (debounced) and on form
+# submit (final check). Each warning/blocker has a code suffixed with
+# @line_index for per-row UI mapping.
+@router.post("/nueva/preflight/multi")
+async def preflight_sale_multi(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Run the pre-billing checklist on a multi-line cart.
+
+    Request body (JSON):
+        {
+          "items": [
+            {"product_id": int, "qty": float, "discount_gs"?: int, ...},
+            ...
+          ],
+          "customer_id"?: int,
+          "payment_method"?: str,
+          "channel"?: str,
+          "sold_at"?: str (ISO date),
+        }
+
+    Returns: {warnings, blockers, is_ready, is_clean, line_count}
+    """
+    from datetime import datetime, date as _date
+    from app.rms.sales.pre_sale_check_cart import (
+        CartIntent, CartLine, validate_cart_intent,
+    )
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(
+            {"error": "Invalid JSON body", "warnings": [], "blockers": [],
+             "is_ready": False, "is_clean": False, "line_count": 0},
+            status_code=400,
+        )
+
+    items = body.get("items", [])
+    if not isinstance(items, list):
+        items = []
+
+    sold_at_date: _date | None = None
+    sold_at_str = body.get("sold_at")
+    if sold_at_str:
+        try:
+            sold_at_date = datetime.fromisoformat(sold_at_str).date()
+        except (ValueError, TypeError):
+            sold_at_date = None
+
+    lines = []
+    for idx, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        try:
+            lines.append(CartLine(
+                line_index=idx,
+                product_id=int(item.get("product_id", 0)),
+                qty=float(item.get("qty", 0)),
+                discount_gs=int(item.get("discount_gs", 0)),
+                unit_price_gs_override=item.get("unit_price_gs_override"),
+                packaging_item_id=item.get("packaging_item_id"),
+                packaging_qty=item.get("packaging_qty"),
+            ))
+        except (TypeError, ValueError):
+            # Skip malformed lines — they'll surface as PRODUCT_NOT_FOUND
+            continue
+
+    cart = CartIntent(
+        lines=tuple(lines),
+        customer_id=body.get("customer_id"),
+        payment_method=body.get("payment_method") or "",
+        channel=body.get("channel") or "mostrador",
+        sold_at=sold_at_date,
+        points_to_redeem=int(body.get("points_to_redeem", 0)),
+    )
+
+    today = datetime.now().date()
+    checklist = validate_cart_intent(session, cart, today=today)
+
+    def _serialize(w) -> dict:
+        return {"code": w.code, "severity": w.severity, "message": w.message}
+
+    return JSONResponse({
+        "warnings": [_serialize(w) for w in checklist.warnings],
+        "blockers": [_serialize(w) for w in checklist.blockers],
+        "is_ready": checklist.is_ready,
+        "is_clean": checklist.is_clean,
+        "line_count": len(lines),
+    })
+

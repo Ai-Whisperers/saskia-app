@@ -195,6 +195,7 @@
       </div>
 
       {# ── Sticky footer with submit button ── #}
+      <div class="preflight-banner" id="preflight-banner" style="display:none;margin-top:8px;padding:8px;border-radius:6px;font-size:0.85rem;"></div>
       <div class="pos-sticky-footer" id="pos-sticky-footer">
         <button type="button" class="btn btn-ghost" onclick="clearCart()">
           <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
@@ -857,6 +858,8 @@
         nudge.hidden = true;
       }
     }
+    // M-BIZ-002: re-run preflight whenever the cart changes
+    if (typeof schedulePreflight === 'function') schedulePreflight();
   }
 
   // ── Cross-sell rail (UI-V2) ───────────────────────────────────────────────
@@ -952,10 +955,44 @@
   };
 
   // ── Form submit: POST cart as JSON ─────────────────────────────────────
-  window.handleFormSubmit = function(form) {
+  window.handleFormSubmit = async function(form) {
     if (POS_CART.length === 0) {
       alert('Agregá al menos un producto al carrito.');
       return false;
+    }
+    // M-BIZ-002: final preflight gate. Runs synchronously before the
+    // actual submit, refuses if there's a blocker.
+    try {
+      var fd0 = new FormData(form);
+      var pre0 = {
+        items: POS_CART.map(function(i) { return { product_id: i.product_id, qty: i.qty, discount_gs: 0 }; }),
+        customer_id: parseInt(fd0.get('customer_id') || '0', 10) || null,
+        payment_method: fd0.get('payment_method') || '',
+        channel: fd0.get('channel') || 'mostrador',
+        sold_at: fd0.get('sold_at') || '',
+      };
+      var preResp = await fetch('/ventas/nueva/preflight/multi', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(pre0),
+      });
+      if (preResp.ok) {
+        var preData = await preResp.json();
+        if ((preData.blockers || []).length > 0) {
+          var banner = document.getElementById('preflight-banner');
+          if (banner && typeof renderPreflight === 'function') {
+            renderPreflight(preData, banner, document.getElementById('sale-submit-btn'));
+            banner.scrollIntoView({behavior: 'smooth', block: 'center'});
+          } else {
+            alert('Hay bloqueos que corregir antes de registrar la venta.');
+          }
+          var submitBtn0 = document.getElementById('sale-submit-btn');
+          if (submitBtn0) { submitBtn0.disabled = false; }
+          return false;
+        }
+      }
+    } catch (e) {
+      console.warn('final preflight failed, allowing submit', e);
     }
     var submitBtn = document.getElementById('sale-submit-btn');
     if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '…'; }
@@ -1217,5 +1254,100 @@
     });
   })();
   </script>
-  <script src="/static/split-payment.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/split-payment.js?v={{ asset_version() }}" defer>
+
+// ---- Pre-billing checklist (preflight) --------------------------------
+//
+// Calls POST /ventas/nueva/preflight/multi with the current cart state
+// and shows blockers (red) + warnings (yellow) in the banner above the
+// submit button. Disables submit if there are blockers.
+//
+// Debounced (350ms) so we don't fire on every keystroke. Also called
+// once on cart change (immediate) and again on form submit (final
+// check, in case the debounced call hasn't fired yet).
+var preflightTimer = null;
+function schedulePreflight() {
+  if (preflightTimer) clearTimeout(preflightTimer);
+  preflightTimer = setTimeout(runPreflight, 350);
+}
+async function runPreflight() {
+  var banner = document.getElementById('preflight-banner');
+  var submitBtn = document.getElementById('sale-submit-btn');
+  if (!banner) return;
+  if (!POS_CART || POS_CART.length === 0) {
+    banner.style.display = 'none';
+    if (submitBtn) submitBtn.disabled = false;
+    return;
+  }
+  try {
+    var fd = new FormData(document.getElementById('sale-form'));
+    var payload = {
+      items: POS_CART.map(function(i) {
+        var out = { product_id: i.product_id, qty: i.qty, discount_gs: 0 };
+        if (i.unit_price_gs && i.unit_price_gs > 0 &&
+            i.unit_price_gs !== i.default_unit_price_gs) {
+          out.unit_price_gs = i.unit_price_gs;
+        }
+        return out;
+      }),
+      customer_id: parseInt(fd.get('customer_id') || '0', 10) || null,
+      payment_method: fd.get('payment_method') || '',
+      channel: fd.get('channel') || 'mostrador',
+      sold_at: fd.get('sold_at') || '',
+    };
+    var resp = await fetch('/ventas/nueva/preflight/multi', {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) return;  // network error: don't block submit
+    var data = await resp.json();
+    renderPreflight(data, banner, submitBtn);
+  } catch (e) {
+    // Network error: don't block submit on preflight failure
+    console.warn('preflight fetch failed', e);
+  }
+}
+function renderPreflight(data, banner, submitBtn) {
+  var blockers = data.blockers || [];
+  var warnings = data.warnings || [];
+  if (blockers.length === 0 && warnings.length === 0) {
+    banner.style.display = 'none';
+    if (submitBtn) submitBtn.disabled = (POS_CART.length === 0);
+    return;
+  }
+  var parts = [];
+  if (blockers.length) {
+    parts.push('<strong style="color:#dc2626;">' + blockers.length + ' bloqueo(s):</strong>');
+    blockers.slice(0, 3).forEach(function(b) {
+      parts.push('<div style="color:#dc2626;font-size:0.8rem;">• ' + escHtml(b.message) + '</div>');
+    });
+    if (blockers.length > 3) {
+      parts.push('<div style="color:#dc2626;font-size:0.8rem;">… y ' + (blockers.length - 3) + ' más</div>');
+    }
+    banner.style.background = '#fee2e2';
+    banner.style.border = '1px solid #dc2626';
+  }
+  if (warnings.length) {
+    parts.push('<strong style="color:#ca8a04;">' + warnings.length + ' advertencia(s):</strong>');
+    warnings.slice(0, 2).forEach(function(w) {
+      parts.push('<div style="color:#854d0e;font-size:0.8rem;">• ' + escHtml(w.message) + '</div>');
+    });
+    if (warnings.length > 2) {
+      parts.push('<div style="color:#854d0e;font-size:0.8rem;">… y ' + (warnings.length - 2) + ' más</div>');
+    }
+    if (blockers.length === 0) {
+      banner.style.background = '#fef9c3';
+      banner.style.border = '1px solid #ca8a04';
+    }
+  }
+  banner.innerHTML = parts.join('');
+  banner.style.display = 'block';
+  // Block submit if there are blockers
+  if (submitBtn) submitBtn.disabled = (blockers.length > 0) || (POS_CART.length === 0);
+}
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+</script>
 {% endblock %}
