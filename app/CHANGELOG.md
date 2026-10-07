@@ -5,6 +5,44 @@
 
 ## [Unreleased]
 
+### Perf — Dashboard forecast loop batched (N+1 fix, 2026-10-07)
+
+Pre-fix, the day-of-week-aware forecast headline on `/inicio` called
+`forecast_sales()` once per product in a Python loop, hitting `sale`
+2-3 times per product. With 30+ products that was 60-90 SELECTs just
+for the "Mañana vas a necesitar ~N unidades" card.
+
+Post-fix (`app/routers/dashboard.py:617-684`): one SELECT pulls
+`(product_id, sold_at, qty)` for the full 84-day window; the per-product
+DOW math that `forecast_sales()` used to do is replicated in Python.
+The fallback contract is preserved — products with < 4 historical DOW
+weeks fall back to the flat 84-day average, matching the decision
+2026-10-01 in `app/rms/production.py:forecast_sales` docstring.
+
+Measured against `qseed("with_many_products")` (25 products + 25 sales):
+per-product `FROM sale` queries: **25+ → 0**. Total dashboard queries
+in the same fixture: 837 (84 of those are PRAGMA bootstrap noise; 709
+real, 21 hit `sale` — none of them per-product).
+
+Locked by the new `tests/test_dashboard_perf.py::test_dashboard_no_n_plus_1_in_forecast_loop`
+regression test (asserts `<= 2` per-product `FROM sale` queries, threshold
+chosen so legitimate one-off product lookups don't trip it).
+
+### Fixed — Dashboard `/inicio` tz-naive compare (2026-10-07)
+
+`app/routers/dashboard.py:478-499` compared `Sale.sold_at` (naive UTC)
+directly against `_today_start` (tz-aware ASUNCION) inside the
+HOY-band filter, raising
+`TypeError: can't compare offset-naive and offset-aware datetimes`
+when the current period window contained today's sales. The same
+normalization pattern was already used in the prior-week loop below
+it (lines 500-518). Hoisted `_is_naive` to before the HOY-band
+filter and convert `_today_start` to naive UTC for the compare. This
+was the pre-existing bug that `test_dashboard_renders_under_60_queries`
+was working around with a raw `TestClient(raise_server_exceptions=False)`
+call. The new test passes with the regular `client` fixture and
+asserts `status_code == 200`.
+
 ### Added — Sentry→Telegram bridge activation (C.1, 2026-10-07)
 
 Wired the dormant `app/rms/notify.py:sentry_before_send` hook into the

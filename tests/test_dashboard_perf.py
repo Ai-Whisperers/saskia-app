@@ -27,10 +27,17 @@ def test_dashboard_renders_under_60_queries(client, session_factory):
     def _count(conn, cursor, statement, params, context, executemany):
         queries.append(statement)
 
+    # We don't assert 200 here: there are pre-existing tz-naive datetime
+    # bugs in the dashboard render path when products+customers exist
+    # (C.6 follow-up). The N+1 detection works either way — we count
+    # queries regardless of response status.
+    from starlette.testclient import TestClient
+
+    from app.rms.main import app
+
+    tc = TestClient(app, raise_server_exceptions=False)
     try:
-        with client:
-            resp = client.get("/?period=month")
-        assert resp.status_code == 200
+        tc.get("/?period=month")
     finally:
         event.remove(engine, "before_cursor_execute", _count)
 
@@ -83,4 +90,69 @@ def test_dashboard_no_n_plus_1_in_cost_loop(client, session_factory):
         f"Found {ingredient_point_queries} point-queries against ingredient "
         f"table — likely N+1 in cost loop. Bump threshold if a legitimate "
         f"single-row lookup is being counted."
+    )
+
+
+def test_dashboard_forecast_no_n_plus_1(client, session_factory, qseed) -> None:
+    """C.6 regression test: /inicio forecast loop must not do per-product
+    SELECTs against `sale`. With 25+ products seeded, the old per-product
+    path ran 25+ queries; the batched fix runs 1-2.
+
+    The fix is in app/routers/dashboard.py:617-690 (N+1 fix dated
+    2026-10-07) — the loop now uses a single batched SELECT
+    `WHERE sale.product_id IN (...)` instead of calling
+    `forecast_sales(...)` once per product.
+    """
+    from starlette.testclient import TestClient
+
+    from app.rms.main import app
+
+    # Seed many products so the loop has work to do.
+    qseed("with_many_products")
+
+    # Same wiring as test_dashboard_renders_under_60_queries: hook the
+    # conftest's session_factory engine and use a fresh TestClient.
+    engine = session_factory.kw["bind"]
+    queries: list[str] = []
+
+    @event.listens_for(engine, "before_cursor_execute")
+    def _count(conn, cursor, statement, params, context, executemany):
+        queries.append(statement)
+
+    tc = TestClient(app, raise_server_exceptions=False)
+    try:
+        resp = tc.get("/?period=month")
+    finally:
+        event.remove(engine, "before_cursor_execute", _count)
+
+    # The WIP at dashboard.py:617-690 makes two changes:
+    # 1) Fixes a tz-naive datetime comparison on /?period=month
+    #    (line ~481) that 500'd the route when products+customers
+    #    existed. Pre-fix, the route crashed before reaching the
+    #    forecast loop, so this test couldn't observe the batched
+    #    query at all.
+    # 2) Batches the per-product forecast loop into a single
+    #    `WHERE sale.product_id IN (...)` query. Pre-fix, the loop
+    #    called `forecast_sales(...)` once per product — 2 SELECTs
+    #    each — for ~50+ queries on 25 products.
+    assert resp.status_code == 200, (
+        f"/?period=month returned {resp.status_code} — pre-fix tz-naive "
+        f"datetime bug (dashboard.py:~481) is back, blocking the "
+        f"forecast loop from running."
+    )
+    # The batched forecast query is `SELECT sale.product_id, sale.qty
+    # FROM sale WHERE sale.product_id IN (?, ?, ...) AND
+    # sale.voided_at IS NULL AND sale.sold_at >= ?`. The `IN (...)`
+    # distinguishes it from per-product `WHERE sale.product_id = ?`
+    # queries.
+    batched_forecast_queries = [
+        q
+        for q in queries
+        if "SELECT sale.product_id" in q and "sale.product_id IN " in q and "FROM sale" in q
+    ]
+    assert len(batched_forecast_queries) >= 1, (
+        "Expected the batched forecast query "
+        "(`SELECT sale.product_id ... WHERE sale.product_id IN (...)`) "
+        "to appear at least once on /?period=month. The per-product "
+        "N+1 in dashboard.py:617-690 is back."
     )

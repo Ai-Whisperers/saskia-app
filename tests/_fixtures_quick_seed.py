@@ -148,7 +148,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                 customer_id=None,
                 payment_method="efectivo",
                 discount_gs=0,
-                channel="Mostrador",
+                channel="mostrador",
             )
             out["sale"] = sale
 
@@ -179,6 +179,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
             display per-cliente).
             """
             import secrets as _secrets
+
             from app.rms.config import ASUNCION_TZ
 
             # Match the route's "tomorrow" computation exactly so the
@@ -202,13 +203,14 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                     customer_id=None,
                     payment_method="efectivo",
                     discount_gs=0,
-                    channel="Mostrador",
+                    channel="mostrador",
                 )
 
             c1 = _make_or_get_customer(s, "María Rodríguez")
             c2 = _make_or_get_customer(s, "Carlos Pereira")
             ped1 = Pedido(
-                customer_id=c1.id, customer_name=c1.name,
+                customer_id=c1.id,
+                customer_name=c1.name,
                 customer_phone="0981222333",
                 status="confirmed",
                 promised_date=_tomorrow_asu,
@@ -217,7 +219,8 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                 public_token=_secrets.token_hex(4),
             )
             ped2 = Pedido(
-                customer_id=c2.id, customer_name=c2.name,
+                customer_id=c2.id,
+                customer_name=c2.name,
                 customer_phone="0981444555",
                 status="pending",
                 promised_date=_tomorrow_asu,
@@ -230,13 +233,10 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
             # Pedido 1: 6 unidades del producto QA + 1 unidad de un
             # segundo producto (lo creamos ad-hoc).
             p2 = _make_quick_product(s, "Empanada QA", rec)
-            s.add(PedidoLine(pedido_id=ped1.id, product_id=p.id,
-                             qty=6.0, unit_price_gs=12000))
-            s.add(PedidoLine(pedido_id=ped1.id, product_id=p2.id,
-                             qty=12.0, unit_price_gs=5000))
+            s.add(PedidoLine(pedido_id=ped1.id, product_id=p.id, qty=6.0, unit_price_gs=12000))
+            s.add(PedidoLine(pedido_id=ped1.id, product_id=p2.id, qty=12.0, unit_price_gs=5000))
             # Pedido 2: 3 unidades del producto QA.
-            s.add(PedidoLine(pedido_id=ped2.id, product_id=p.id,
-                             qty=3.0, unit_price_gs=12000))
+            s.add(PedidoLine(pedido_id=ped2.id, product_id=p.id, qty=3.0, unit_price_gs=12000))
             s.flush()
             out.update({"pedidos": [ped1, ped2], "product": p, "p2": p2})
 
@@ -250,7 +250,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                 customer_id=None,
                 payment_method="efectivo",
                 discount_gs=0,
-                channel="Mostrador",
+                channel="mostrador",
             )
             from app.rms.costing import void_sale
 
@@ -326,7 +326,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                     customer_id=None,
                     payment_method="efectivo",
                     discount_gs=0,
-                    channel="Mostrador",
+                    channel="mostrador",
                 )
             out["n_products"] = 25
 
@@ -349,9 +349,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                 # both views to agree on them.
                 ing.stock_qty = 10.0
                 s.flush()
-                rec = _make_quick_recipe(
-                    s, f"PlanShort Rec {i}", ing, yield_qty=10.0
-                )
+                rec = _make_quick_recipe(s, f"PlanShort Rec {i}", ing, yield_qty=10.0)
                 # Replace the default 0.3 kg line with 1 kg/batch so
                 # 1 unit sold → 0.1 kg consumed × 3 × 14 = 4.2 kg
                 # (fits under the 10 kg starting stock; no sale-side
@@ -371,7 +369,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                         customer_id=None,
                         payment_method="efectivo",
                         discount_gs=0,
-                        channel="Mostrador",
+                        channel="mostrador",
                     )
             s.commit()
 
