@@ -5,6 +5,61 @@
 
 ## [Unreleased]
 
+### Added — Channel enum integration across write paths (P42, 2026-10-07)
+
+Refactor: replace raw channel string literals (`"mostrador"`, `"phone"`,
+`"instagram"`, etc.) with `Channel.X.value` references in every place
+that constructs or normalizes a channel. The DB CHECK constraint
+(migration 111, P41) rejects values outside the `Channel` enum at the
+persistence layer, so the application layer must speak the same
+vocabulary or writes fail.
+
+**Files changed (6 app/ + 1 test/):**
+- `app/routers/sales.py` — write sites use `Channel.MOSTRADOR.value`
+  instead of `"mostrador"`.
+- `app/routers/pedidos.py` — `CHANNELS` tuple, `_CHANNEL_NORMALIZE`
+  map, `normalize_channel()` fallback, and the form default all
+  reference `Channel.X.value`. Critically, the legacy aliases
+  `"phone"`, `"tel"`, `"telefono"`, `"instagram"`, `"ig"` now
+  collapse to `Channel.OTHER.value` instead of passing through
+  verbatim (which the DB CHECK would reject). The legacy tuple
+  `"phone"` was removed from the `CHANNELS` UI list.
+- `app/rms/sales/lifecycle.py` — `apply_sale()` write site uses
+  `Channel.MOSTRADOR.value`.
+- `app/rms/costing.py` — `apply_sale()` write site uses
+  `Channel.MOSTRADOR.value`.
+- `app/rms/sales/pre_sale_check.py` — `PreSaleIntent.channel` default
+  uses `Channel.MOSTRADOR.value`.
+- `app/rms/sales/pre_sale_check_cart.py` — `CartIntent.channel`
+  default uses `Channel.MOSTRADOR.value`. Also cleans up two pre-
+  existing F401 unused imports (`MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE`,
+  `MAX_QTY_PER_SALE`).
+
+**Critical fix discovered mid-refactor:**
+`from app.rms.models import Channel` returns the SQLAlchemy ORM
+model (mapped to the `channel` DB table), NOT the enum. The enum is
+at `app.rms.models.channels.Channel`. Initial implementation hit
+this — all 6 files use `from app.rms.models.channels import Channel`
+to import the enum correctly. Verified via smoke test that no
+file accidentally referenced the model class instead.
+
+**Tests** — `tests/test_P42_channel_enum_integration.py` (7 tests):
+- Every input to `normalize_channel` returns a valid `Channel` value.
+- Unknown inputs fall back to `Channel.MOSTRADOR.value` (existing P39
+  behavior preserved).
+- All outputs of `normalize_channel` are in `Channel.allowed_values()`
+  (this is the actual invariant the DB CHECK needs).
+- The `CHANNELS` UI tuple contains only enum values.
+- `CHANNEL_DEFAULT` is a valid enum value.
+- `Channel.allowed_values()` matches the migration 111 trigger's
+  hard-coded allow-list (drift detection).
+- `default_channel_code` fallback returns `Channel.MOSTRADOR.value`.
+
+**Display sites** (raw `"mostrador"` in JSON/CSV output paths in
+`app/routers/sales.py:102` and `:580`) are intentionally NOT
+refactored — they're output-only, not writes, no DB CHECK risk.
+Separate scope if a follow-up wants to centralize them too.
+
 ### Added — DB-level CHECK on sale.channel + pedido.channel (P41, 2026-10-07)
 
 Defense-in-depth: enforce the `Channel` enum (Python source of truth in

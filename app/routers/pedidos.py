@@ -41,6 +41,7 @@ from app.rms.costing import apply_sale
 from app.rms.csrf import verify_form_csrf
 from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
+from app.rms.models.channels import Channel
 from app.rms.models import Customer, Pedido, PedidoLine, Product, Recipe, Sale
 from app.rms.production_demand import invalidate_demand_for_dates
 
@@ -197,7 +198,7 @@ PEDIDO_TRANSITIONS: dict[str, frozenset[str]] = {
     for s, targets in PedidoStateMachine._TRANSITIONS.items()
 }
 
-CHANNELS = ("whatsapp", "pedidosya", "mostrador", "phone", "other")
+CHANNELS = (Channel.WHATSAPP.value, Channel.PEDIDOSYA.value, Channel.MOSTRADOR.value, Channel.OTHER.value)
 
 # Channel value normalisation map — raw input → canonical value
 # P39 (2026-10-07, Ivan): values must match Channel enum (lowercase) so
@@ -206,19 +207,25 @@ CHANNELS = ("whatsapp", "pedidosya", "mostrador", "phone", "other")
 # which contradicted ALLOWED_CHANNELS (lowercase) and created duplicate
 # channels in reports ("whatsapp" vs "WhatsApp"). The key input is now
 # forced lowercase and the values are the canonical lowercase strings.
+# P42 (2026-10-07): normalize all inputs to Channel enum so the DB
+# CHECK constraint (migration 111) accepts them. Phone/instagram are
+# legacy display names — both are merged into Channel.OTHER since the
+# canonical enum doesn't have a phone/instagram variant today.
+# Adding "phone" or "instagram" as separate enum values is a follow-up
+# if the operator wants to split them out in reports.
 _CHANNEL_NORMALIZE: dict[str, str] = {
-    "whatsapp": "whatsapp",
-    "wa": "whatsapp",
-    "whats": "whatsapp",
-    "wsp": "whatsapp",
-    "pedidosya": "pedidosya",
-    "mostrador": "mostrador",
-    "phone": "phone",
-    "tel": "phone",
-    "telefono": "phone",
-    "other": "other",
-    "instagram": "instagram",
-    "ig": "instagram",
+    "whatsapp": Channel.WHATSAPP.value,
+    "wa": Channel.WHATSAPP.value,
+    "whats": Channel.WHATSAPP.value,
+    "wsp": Channel.WHATSAPP.value,
+    "pedidosya": Channel.PEDIDOSYA.value,
+    "mostrador": Channel.MOSTRADOR.value,
+    "phone": Channel.OTHER.value,
+    "tel": Channel.OTHER.value,
+    "telefono": Channel.OTHER.value,
+    "other": Channel.OTHER.value,
+    "instagram": Channel.OTHER.value,
+    "ig": Channel.OTHER.value,
 }
 
 
@@ -232,7 +239,7 @@ def normalize_channel(raw: str) -> str:
     version did (which masked data-entry errors).
     """
     key = (raw or "").strip().lower()
-    return _CHANNEL_NORMALIZE.get(key, "mostrador")
+    return _CHANNEL_NORMALIZE.get(key, Channel.MOSTRADOR.value)
 
 
 def generate_public_token() -> str:
@@ -806,7 +813,7 @@ async def pedidos_create(
     customer_phone: str = Form(""),
     promised_date: str = Form(...),
     promised_time: str = Form(""),
-    channel: str = Form("whatsapp"),
+    channel: str = Form(Channel.WHATSAPP.value),
     payment_intent: str = Form("efectivo"),
     notes: str = Form(""),
     delivery_zone_id: str = Form(""),

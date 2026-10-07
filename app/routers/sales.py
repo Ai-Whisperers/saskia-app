@@ -50,6 +50,7 @@ from app.rms.messages import (
     SALE_SKU_REQUIRED,
     SALE_TOO_MANY_ITEMS,
 )
+from app.rms.models.channels import Channel
 from app.rms.models import Customer, Product, Sale, StockMovement
 from app.rms.money import to_int_gs
 from app.rms.public_tokens import (
@@ -2241,7 +2242,7 @@ async def preflight_sale(
         discount_gs=discount_gs,
         customer_id=customer_id,
         payment_method=payment_method,
-        channel=channel or "mostrador",
+        channel=channel or Channel.MOSTRADOR.value,
         sold_at=sold_at_date,
         unit_price_gs_override=unit_price_gs_override,
         packaging_item_id=packaging_item_id,
@@ -2340,7 +2341,7 @@ async def preflight_sale_multi(
         lines=tuple(lines),
         customer_id=body.get("customer_id"),
         payment_method=body.get("payment_method") or "",
-        channel=body.get("channel") or "mostrador",
+        channel=body.get("channel") or Channel.MOSTRADOR.value,
         sold_at=sold_at_date,
         points_to_redeem=int(body.get("points_to_redeem", 0)),
     )

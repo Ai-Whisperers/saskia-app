@@ -24,13 +24,12 @@ yellow banners per line.
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
 from typing import TYPE_CHECKING
 
+from app.rms.models.channels import Channel
 from app.rms.sales.pre_sale_check import (
-    MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE,
-    MAX_QTY_PER_SALE,
     PreSaleChecklist,
     PreSaleIntent,
     PreSaleWarning,
@@ -69,7 +68,7 @@ class CartIntent:
     lines: tuple[CartLine, ...]
     customer_id: int | None = None
     payment_method: str = ""
-    channel: str = "mostrador"
+    channel: str = Channel.MOSTRADOR.value
     sold_at: date | None = None
     points_to_redeem: int = 0
 

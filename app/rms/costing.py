@@ -40,6 +40,7 @@ from app.rms.models import (
     SalePayment,
     StockMovement,
 )
+from app.rms.models.channels import Channel
 from app.rms.money import to_int_gs
 from app.rms.units import normalize_recipe_line_qty
 
@@ -454,7 +455,7 @@ def apply_sale(
         customer_id=customer_id,
         payment_method=payment_method,
         discount_gs=discount_gs,
-        channel=channel or "mostrador",
+        channel=channel or Channel.MOSTRADOR.value,
         # US 4.1 — per-sale packaging. Persisted on the sale so the
         # cost report can attribute packaging consumption to the sale.
         packaging_item_id=packaging_item_id,

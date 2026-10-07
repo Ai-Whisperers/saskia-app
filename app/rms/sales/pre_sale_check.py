@@ -43,6 +43,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from app.rms import config
+from app.rms.models.channels import Channel
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -72,7 +73,7 @@ class PreSaleIntent:
     discount_gs: int = 0
     customer_id: int | None = None
     payment_method: str = ""
-    channel: str = "mostrador"
+    channel: str = Channel.MOSTRADOR.value
     sold_at: date | None = None  # None = now (operator wants to sell today)
     unit_price_gs_override: int | None = None
     packaging_item_id: int | None = None
@@ -248,8 +249,8 @@ def validate_sale_intent(
         # ingredient goes below 0, it's a warning (operator can override
         # for a hand-wave "use it anyway" — Sazon currently does allow
         # negative stock).
-        from app.rms.sales.lifecycle import _compute_stock_moves
         from app.rms.models import Recipe
+        from app.rms.sales.lifecycle import _compute_stock_moves
 
         recipe = session.get(Recipe, product.recipe_id)
         if recipe is None:
