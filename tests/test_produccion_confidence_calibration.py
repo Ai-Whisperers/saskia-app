@@ -11,8 +11,6 @@ cook can't tell which auto-suggestions to trust. The fix is:
 """
 
 
-
-
 def test_confidence_pill_classes_defined(authed_client):
     """The CSS for .confidence-pill + band variants is in the template."""
     r = authed_client.get("/produccion?view=day")

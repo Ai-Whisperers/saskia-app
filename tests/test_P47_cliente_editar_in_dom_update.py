@@ -14,6 +14,7 @@ Acceptance:
   - The inline JS for invoice-profile delete similarly uses in-DOM
     removal logic.
 """
+
 from __future__ import annotations
 
 import re
@@ -34,7 +35,7 @@ def _find_handler(js: str, marker: str) -> str:
     """
     start = js.find(f'querySelectorAll("{marker}"')
     assert start >= 0, f"couldn't locate {marker!r} handler"
-    return js[start:start + 3000]
+    return js[start : start + 3000]
 
 
 def _has_dom_removal(handler: str) -> bool:
@@ -80,6 +81,4 @@ def test_cliente_editar_invoice_delete_uses_dom_removal(client, session_factory)
     assert r.status_code == 200
     js = _extract_inline_js(r.text)
     handler = _find_handler(js, ".inv-del")
-    assert _has_dom_removal(handler), (
-        "invoice-delete handler must remove the row in the DOM"
-    )
+    assert _has_dom_removal(handler), "invoice-delete handler must remove the row in the DOM"

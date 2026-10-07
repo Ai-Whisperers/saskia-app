@@ -68,8 +68,10 @@ def _resolve_token(cli_token: str | None) -> str | None:
         try:
             return Path(file_path).read_text().strip()
         except OSError as e:
-            print(f"ERROR: cannot read SASKIA_CRON_BACKUP_TOKEN_FILE={file_path}: {e}",
-                  file=sys.stderr)
+            print(
+                f"ERROR: cannot read SASKIA_CRON_BACKUP_TOKEN_FILE={file_path}: {e}",
+                file=sys.stderr,
+            )
             return None
     return None
 
@@ -150,12 +152,21 @@ def main() -> int:
     )
     parser.add_argument("--url", help="Base URL of the app (e.g. https://sazon.example.com)")
     parser.add_argument("--token", help="Cron token (overrides env vars)")
-    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_S,
-                        help=f"HTTP timeout in seconds (default: {DEFAULT_TIMEOUT_S})")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Print the request that would be made, don't send it")
-    parser.add_argument("--json", action="store_true", dest="json_output",
-                        help="Output a single JSON line for downstream parsing")
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_TIMEOUT_S,
+        help=f"HTTP timeout in seconds (default: {DEFAULT_TIMEOUT_S})",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print the request that would be made, don't send it"
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output a single JSON line for downstream parsing",
+    )
     args = parser.parse_args()
 
     url = _resolve_url(args.url)
@@ -165,8 +176,11 @@ def main() -> int:
 
     token = _resolve_token(args.token)
     if not token:
-        print("ERROR: --token, $SASKIA_CRON_BACKUP_TOKEN, or "
-              "$SASKIA_CRON_BACKUP_TOKEN_FILE must be set", file=sys.stderr)
+        print(
+            "ERROR: --token, $SASKIA_CRON_BACKUP_TOKEN, or "
+            "$SASKIA_CRON_BACKUP_TOKEN_FILE must be set",
+            file=sys.stderr,
+        )
         return EXIT_CONFIG
 
     if args.dry_run:
@@ -190,8 +204,7 @@ def main() -> int:
     else:
         print(_format_summary(body, elapsed))
         if status != 200 and body:
-            print(f"  body: {json.dumps(body, default=str)[:300]}",
-                  file=sys.stderr)
+            print(f"  body: {json.dumps(body, default=str)[:300]}", file=sys.stderr)
 
     if status == 200:
         return EXIT_OK

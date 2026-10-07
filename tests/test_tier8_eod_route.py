@@ -69,9 +69,7 @@ def test_route_returns_200_with_no_anomalies(client, session_factory, product_id
     assert "limpio" in body or "anomalía" in body.lower()
 
 
-def test_route_dispatches_detected_anomalies(
-    client, session_factory, product_id
-):
+def test_route_dispatches_detected_anomalies(client, session_factory, product_id):
     """When anomalies exist, the route calls send_alert once per anomaly
     and renders them in the response body."""
     # Insert the sale via raw SQL so the test's session and the route's

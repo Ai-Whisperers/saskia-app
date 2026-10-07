@@ -10,9 +10,7 @@ def test_inicio_renders_top_margin_teaser(client):
     """inicio.html must render a teaser card with 'Top por margen' label."""
     r = client.get("/inicio")
     assert r.status_code == 200
-    assert "Top por margen" in r.text, (
-        "T-1 missing: 'Top por margen' teaser not in /inicio"
-    )
+    assert "Top por margen" in r.text, "T-1 missing: 'Top por margen' teaser not in /inicio"
 
 
 def test_inicio_renders_concentration_teaser(client):
@@ -28,18 +26,14 @@ def test_inicio_renders_turnover_teaser(client):
     """inicio.html must render a teaser card with 'Rotación de stock' label."""
     r = client.get("/inicio")
     assert r.status_code == 200
-    assert "Rotación de stock" in r.text, (
-        "T-1 missing: 'Rotación de stock' teaser not in /inicio"
-    )
+    assert "Rotación de stock" in r.text, "T-1 missing: 'Rotación de stock' teaser not in /inicio"
 
 
 def test_inicio_renders_dow_heatmap_teaser(client):
     """inicio.html must render a teaser card with 'Heatmap día × hora' label."""
     r = client.get("/inicio")
     assert r.status_code == 200
-    assert "Heatmap día" in r.text, (
-        "T-1 missing: 'Heatmap día' teaser not in /inicio"
-    )
+    assert "Heatmap día" in r.text, "T-1 missing: 'Heatmap día' teaser not in /inicio"
 
 
 def test_inicio_renders_complexity_teaser(client):

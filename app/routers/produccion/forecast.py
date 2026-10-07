@@ -7,6 +7,7 @@ Routes (2 GETs):
   GET /produccion/api/forecast  - JSON forecast for a date (consumed by JS)
   GET /produccion/manana        - tomorrow's plan preview page
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
@@ -137,23 +138,19 @@ def produccion_manana(
     from app.rms.models import Pedido
     from app.routers.pedidos import _pedido_total_gs
 
-    pedidos_q = (
-        session.execute(
-            select(Pedido)
-            .where(
-                Pedido.promised_date == tomorrow,
-                Pedido.status.in_(["pending", "confirmed", "ready"]),
-            )
-            .order_by(Pedido.promised_time.nulls_last(), Pedido.id)
+    pedidos_q = session.execute(
+        select(Pedido)
+        .where(
+            Pedido.promised_date == tomorrow,
+            Pedido.status.in_(["pending", "confirmed", "ready"]),
         )
-        .scalars()
-    )
+        .order_by(Pedido.promised_time.nulls_last(), Pedido.id)
+    ).scalars()
     pedidos_manana = []
     pedidos_by_product: dict[int, float] = {}  # product_id -> qty committed
     # Cache product names by id so the per-line label is one query
     products_by_id = {
-        p.id: p.name
-        for p in session.execute(select(Product).where(Product.id > 0)).scalars()
+        p.id: p.name for p in session.execute(select(Product).where(Product.id > 0)).scalars()
     }
     for p_ in pedidos_q:
         pedido_lines = []
@@ -204,5 +201,3 @@ def produccion_manana(
             "low_confidence_count": sum(1 for r in rows if r.confidence_pct < 70),
         },
     )
-
-

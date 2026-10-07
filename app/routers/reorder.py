@@ -127,6 +127,26 @@ def reorder_view(
         for ing_id, fc in forecast_objs.items()
     }
 
+    # Poisson weekday forecast (SASKIA-208 / BACKLOG #5): P95 stockout date
+    # + weekend-uplift per ingredient. Replaces the flat average's blind
+    # spot (Saturday-heavy demand runs out days earlier than the mean
+    # suggests). Only the at-risk set is computed; the template shows the
+    # P95 date next to the flat projection when they disagree.
+    from app.rms.restock_forecast import forecast_restock_batch
+
+    restock_map: dict[int, dict] = {
+        ing_id: {
+            "p95_stockout_date": fc.p95_stockout_date,
+            "days_to_p95": fc.days_to_p95_stockout,
+            "recommended_qty": fc.recommended_restock_qty,
+            "weekend_uplift_pct": fc.weekend_uplift_pct,
+            "confidence": fc.confidence,
+        }
+        for ing_id, fc in forecast_restock_batch(
+            session, ingredient_ids, only_at_risk=False
+        ).items()
+    }
+
     if format == "json":
         return JSONResponse(
             {
@@ -172,6 +192,7 @@ def reorder_view(
             "price_stats": price_stats,
             "cheapest_suppliers": cheapest_suppliers,
             "forecast_map": forecast_map,
+            "restock_map": restock_map,
             "page_start": 1,
             "page_end": len(items),
         },
@@ -220,6 +241,7 @@ def reorder_quick_restock(
     last_price_gs: int = 0
     if eff_supplier_id is not None:
         from app.rms.models import IngredientPriceEvent
+
         last_evt = session.scalar(
             select(IngredientPriceEvent)
             .where(
@@ -304,6 +326,7 @@ def reorder_bulk_quick_restock(
         last_price_gs: int = 0
         if eff_supplier_id is not None:
             from app.rms.models import IngredientPriceEvent
+
             last_evt = session.scalar(
                 select(IngredientPriceEvent)
                 .where(
@@ -332,8 +355,7 @@ def reorder_bulk_quick_restock(
         user_id=current_user_id(request) or "operator",
         action="write.reorder.bulk_quick_restock",
         request=request,
-        detail={"updated": updated, "skipped": skipped,
-                "ids": ingredient_ids[:500]},
+        detail={"updated": updated, "skipped": skipped, "ids": ingredient_ids[:500]},
     )
     session.commit()
     return RedirectResponse(url="/reorder", status_code=303)
@@ -344,7 +366,6 @@ def reorder_registrar(
     request: Request,
     ingredient_id: int = Form(...),
     qty: float = Form(...),
-
     qty_unit: str = Form(""),
     price_gs: int = Form(...),
     notes: str = Form(""),
@@ -672,13 +693,7 @@ async def reorder_upload_prices(
     }
     suppliers_by_name: dict[str, Supplier] = {
         s.name.lower(): s
-        for s in (
-            session.execute(
-                select(Supplier).where(Supplier.is_active)
-            )
-            .scalars()
-            .all()
-        )
+        for s in (session.execute(select(Supplier).where(Supplier.is_active)).scalars().all())
     }
 
     today = _datetime.now(timezone.utc).date()

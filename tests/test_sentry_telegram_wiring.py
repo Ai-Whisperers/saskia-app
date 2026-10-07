@@ -91,8 +91,7 @@ def test_sentry_init_uses_before_send_hook() -> None:
     src = _read_main_py()
     init_args = _extract_sentry_init_block(src)
     assert "before_send=sentry_before_send" in init_args, (
-        "sentry_sdk.init(...) must pass before_send=sentry_before_send; "
-        f"got args: {init_args!r}"
+        f"sentry_sdk.init(...) must pass before_send=sentry_before_send; got args: {init_args!r}"
     )
 
 
@@ -109,5 +108,3 @@ def test_before_send_import_lives_inside_dsn_gate() -> None:
         "sentry_before_send import must live inside the `if sentry_dsn:` "
         "block so unset DSN stays a true no-op"
     )
-
-

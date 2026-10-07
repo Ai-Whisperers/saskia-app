@@ -82,19 +82,14 @@ def _render_body(subject: str, body: str, severity: Severity) -> tuple[str, str]
     html_body = (
         f'<div style="font-family:ui-monospace,monospace;font-size:14px;'
         f'line-height:1.5;color:#1a1a1a">'
-        f"<pre style=\"white-space:pre-wrap;margin:0\">{_html_escape(body)}</pre>"
+        f'<pre style="white-space:pre-wrap;margin:0">{_html_escape(body)}</pre>'
         f"</div>"
     )
     return safe_subject, html_body
 
 
 def _html_escape(s: str) -> str:
-    return (
-        s.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
 def send_alert(
@@ -145,8 +140,7 @@ def send_alert(
             ok = 200 <= resp.status < 300
             if not ok:
                 logger.warning(
-                    f"email_alert resend returned status={resp.status} "
-                    f"subject={safe_subject!r}"
+                    f"email_alert resend returned status={resp.status} subject={safe_subject!r}"
                 )
             return ok
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as exc:

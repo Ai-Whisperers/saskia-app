@@ -493,7 +493,10 @@ class Sale(Base):
         # P43 (2026-10-07): use Channel enum value as default. The DB
         # CHECK constraint (migration 111) requires canonical enum
         # values, and the Python default must match.
-        String(32), nullable=False, default=Channel.MOSTRADOR.value, server_default=Channel.MOSTRADOR.value
+        String(32),
+        nullable=False,
+        default=Channel.MOSTRADOR.value,
+        server_default=Channel.MOSTRADOR.value,
     )
 
     # Phase 1.B — Fiscal invoice fields (Paraguay DNIT compliance).
@@ -571,7 +574,6 @@ class Sale(Base):
     )
 
 
-
 class SalePayment(Base):
     """WP-1.2 pagos mixtos (2026-10-07): one row per payment method used.
 
@@ -591,9 +593,7 @@ class SalePayment(Base):
     amount_gs: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
-    __table_args__ = (
-        CheckConstraint("amount_gs >= 0", name="ck_sale_payment_amount_nonneg"),
-    )
+    __table_args__ = (CheckConstraint("amount_gs >= 0", name="ck_sale_payment_amount_nonneg"),)
 
 
 class CashSession(Base):
@@ -621,10 +621,14 @@ class CreditAccount(Base):
     __tablename__ = "credit_account"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    customer_id: Mapped[int] = mapped_column(ForeignKey("customer.id"), unique=True, nullable=False, index=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("customer.id"), unique=True, nullable=False, index=True
+    )
     limit_gs: Mapped[int | None] = mapped_column(nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=datetime.now
+    )
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
@@ -634,15 +638,18 @@ class CreditTransaction(Base):
     __tablename__ = "credit_transaction"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    account_id: Mapped[int] = mapped_column(ForeignKey("credit_account.id"), nullable=False, index=True)
-    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.now, index=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("credit_account.id"), nullable=False, index=True
+    )
+    ts: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=datetime.now, index=True
+    )
     kind: Mapped[str] = mapped_column(String(20), nullable=False)
     amount_gs: Mapped[int] = mapped_column(nullable=False)
     sale_id: Mapped[int | None] = mapped_column(ForeignKey("sale.id"), nullable=True, index=True)
     idem_key: Mapped[str | None] = mapped_column(String(80), nullable=True, unique=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
-
 
 
 class Menu(Base):
@@ -673,8 +680,12 @@ class MenuItem(Base):
     __tablename__ = "menu_item"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    menu_id: Mapped[int] = mapped_column(ForeignKey("menu.id", ondelete="CASCADE"), nullable=False, index=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("product.id", ondelete="CASCADE"), nullable=False, index=True)
+    menu_id: Mapped[int] = mapped_column(
+        ForeignKey("menu.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("product.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     qty: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
 
     menu: Mapped["Menu"] = relationship("Menu", back_populates="items")
@@ -1000,9 +1011,7 @@ class ProductionCompletion(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    status: Mapped[str] = mapped_column(
-        Text, nullable=False, default="open", server_default="open"
-    )
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="open", server_default="open")
     closure_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
@@ -1192,9 +1201,7 @@ class ProductionPlanAudit(Base):
     new_qty: Mapped[float] = mapped_column(Float, nullable=False)
     change_source: Mapped[str] = mapped_column(String(32), nullable=False)
     changed_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    changed_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    changed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 

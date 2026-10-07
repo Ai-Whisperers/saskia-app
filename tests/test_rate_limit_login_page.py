@@ -8,6 +8,7 @@ Why this test exists:
 - The fix: redirect back to /login?error=...&retry_after=N which renders
   the existing login template with a countdown + retry button.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

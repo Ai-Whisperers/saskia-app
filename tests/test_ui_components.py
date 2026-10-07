@@ -316,9 +316,7 @@ def test_saskia_month_script_loads(client):
     assert rsp.status == 200, "ui-month.js not served"
     body = rsp.read().decode("utf-8", errors="replace")
     assert "UIMonth" in body, "ui-month.js missing class definition"
-    assert "customElements.define('ui-month'" in body, (
-        "ui-month custom element not registered"
-    )
+    assert "customElements.define('ui-month'" in body, "ui-month custom element not registered"
 
 
 def test_cierre_mensual_uses_saskia_month(client):
@@ -356,9 +354,7 @@ def test_saskia_combo_script_loads(client):
     assert rsp.status == 200, "ui-combo.js not served"
     body = rsp.read().decode("utf-8", errors="replace")
     assert "UICombo" in body, "ui-combo.js missing class definition"
-    assert "customElements.define('ui-combo'" in body, (
-        "ui-combo custom element not registered"
-    )
+    assert "customElements.define('ui-combo'" in body, "ui-combo custom element not registered"
 
 
 def test_saskia_combo_included_in_base(client):

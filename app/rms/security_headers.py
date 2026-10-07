@@ -132,10 +132,7 @@ class SecurityHeadersMiddleware:
 
         async def send_wrapper(message: Message) -> None:
             if message["type"] == "http.response.start":
-                existing = {
-                    k.decode("latin-1").lower(): k
-                    for k, _ in message.get("headers", [])
-                }
+                existing = {k.decode("latin-1").lower(): k for k, _ in message.get("headers", [])}
                 merged = list(message.get("headers", []))
                 for name, value in headers_to_add.items():
                     if name in existing:
@@ -154,9 +151,11 @@ class SecurityHeadersMiddleware:
             # the response ourselves with our headers attached.
             response = JSONResponse(
                 status_code=exc.status_code,
-                content={"error": getattr(exc, "detail", str(exc)),
-                         "type": "HTTPException",
-                         "status": exc.status_code},
+                content={
+                    "error": getattr(exc, "detail", str(exc)),
+                    "type": "HTTPException",
+                    "status": exc.status_code,
+                },
                 headers=headers_to_add,
             )
             await response(scope, receive, send)

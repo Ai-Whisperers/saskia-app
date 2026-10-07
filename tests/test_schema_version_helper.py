@@ -104,17 +104,24 @@ def test_schema_version_reads_jsonb_int(session_factory):
         conn = s.connection()
         dialect = conn.dialect.name
         from sqlalchemy import text as _text
+
         if dialect == "postgresql":
-            conn.execute(_text(
-                "INSERT INTO app_meta (key, value, updated_at) "
-                "VALUES ('schema_version', '\"97\"'::jsonb, :ts) "
-                "ON CONFLICT (key) DO UPDATE SET value = '\"97\"'::jsonb, updated_at = :ts"
-            ), {"ts": ts})
+            conn.execute(
+                _text(
+                    "INSERT INTO app_meta (key, value, updated_at) "
+                    "VALUES ('schema_version', '\"97\"'::jsonb, :ts) "
+                    "ON CONFLICT (key) DO UPDATE SET value = '\"97\"'::jsonb, updated_at = :ts"
+                ),
+                {"ts": ts},
+            )
         else:
-            conn.execute(_text(
-                "INSERT OR REPLACE INTO app_meta (key, value, updated_at) "
-                "VALUES ('schema_version', :v, :ts)"
-            ), {"v": _json.dumps(97), "ts": ts})
+            conn.execute(
+                _text(
+                    "INSERT OR REPLACE INTO app_meta (key, value, updated_at) "
+                    "VALUES ('schema_version', :v, :ts)"
+                ),
+                {"v": _json.dumps(97), "ts": ts},
+            )
         s.commit()
     # Read in a fresh session so the connection isn't closed.
     with session_factory() as s:

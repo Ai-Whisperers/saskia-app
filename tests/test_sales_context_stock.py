@@ -10,6 +10,7 @@ OR are favorites (Sazon behavior — see _build_sales_context and the
 {% if quick_sell %} guard in ventas.html). To exercise the wire-up,
 tests mark products as favorites so they always appear in the grid.
 """
+
 from __future__ import annotations
 
 import re
@@ -40,9 +41,11 @@ def _make_recipe_product(
             session.flush()
             if no_recipe:
                 p = Product(
-                    name=name, sku=f"SKU-{name}",
+                    name=name,
+                    sku=f"SKU-{name}",
                     sale_price_gs=5000,
-                    is_available=True, is_favorite=favorite,
+                    is_available=True,
+                    is_favorite=favorite,
                 )
                 session.add(p)
                 session.flush()
@@ -50,14 +53,23 @@ def _make_recipe_product(
             r = Recipe(name=f"Receta-{name}", yield_qty=recipe_yield, yield_unit="g")
             session.add(r)
             session.flush()
-            session.add(RecipeLine(
-                recipe_id=r.id, line_kind="ingredient",
-                line_ref_id=ing.id, qty=line_qty, line_unit="g",
-            ))
+            session.add(
+                RecipeLine(
+                    recipe_id=r.id,
+                    line_kind="ingredient",
+                    line_ref_id=ing.id,
+                    qty=line_qty,
+                    line_unit="g",
+                )
+            )
             session.flush()
             p = Product(
-                name=name, sku=f"SKU-{name}", sale_price_gs=5000,
-                recipe_id=r.id, is_available=True, is_favorite=favorite,
+                name=name,
+                sku=f"SKU-{name}",
+                sale_price_gs=5000,
+                recipe_id=r.id,
+                is_available=True,
+                is_favorite=favorite,
             )
             session.add(p)
             session.flush()
@@ -78,14 +90,11 @@ def test_favorite_product_has_stock_attributes(client, qseed, session_factory):
     Even without sales history, favorites always show in the quick-sell
     grid (see _build_sales_context Phase 3 UX comment from 2026-09-30).
     """
-    pid = _make_recipe_product(session_factory, name="Favorite-StockAttr",
-                               ing_stock=1000.0)
+    pid = _make_recipe_product(session_factory, name="Favorite-StockAttr", ing_stock=1000.0)
     r = client.get("/ventas")
     assert r.status_code == 200
     html = r.text
-    assert "data-stock-ceiling" in html, (
-        "data-stock-ceiling missing from quick-sell buttons"
-    )
+    assert "data-stock-ceiling" in html, "data-stock-ceiling missing from quick-sell buttons"
     assert "data-low-stock" in html, "data-low-stock missing"
     assert f'data-product-id="{pid}"' in html
 
@@ -96,8 +105,9 @@ def test_no_recipe_product_has_no_ceiling(client, qseed, session_factory):
     The FloCafe port must NOT show a sold-out badge for products with
     no recipe — pre_sale_check (sale-time) decides those.
     """
-    pid = _make_recipe_product(session_factory, name="SinReceta-StockTest",
-                               ing_stock=0.0, no_recipe=True)
+    pid = _make_recipe_product(
+        session_factory, name="SinReceta-StockTest", ing_stock=0.0, no_recipe=True
+    )
     r = client.get("/ventas")
     assert r.status_code == 200
     html = r.text
@@ -107,9 +117,7 @@ def test_no_recipe_product_has_no_ceiling(client, qseed, session_factory):
     btn_match = re.search(r'<button[^>]*data-product-id="' + str(pid) + r'"[^>]*>', html, re.DOTALL)
     assert btn_match, "Button not found"
     btn_html = btn_match.group(0)
-    assert "data-stock-ceiling=\"\"" in btn_html, (
-        f"Empty ceiling expected: {btn_html[:200]}"
-    )
+    assert 'data-stock-ceiling=""' in btn_html, f"Empty ceiling expected: {btn_html[:200]}"
     # No badge for this one (no recipe → no low-stock concept)
     assert "Agotado" not in btn_html
     assert "Quedan" not in btn_html
@@ -123,8 +131,9 @@ def test_low_stock_button_gets_badge_class(client, qseed, session_factory):
     (20% of ceiling) = 0.3 units. So 1.5 > 0.3 → NOT low-stock.
     To force low-stock we use ing_stock=1 → ceiling=0.1 units.
     """
-    pid = _make_recipe_product(session_factory, name="Bizcocho-LowBadge",
-                               ing_stock=1.0)  # ceiling = 0.1, very low
+    pid = _make_recipe_product(
+        session_factory, name="Bizcocho-LowBadge", ing_stock=1.0
+    )  # ceiling = 0.1, very low
     r = client.get("/ventas")
     assert r.status_code == 200
     html = r.text
@@ -135,16 +144,13 @@ def test_low_stock_button_gets_badge_class(client, qseed, session_factory):
     btn_match = re.search(r'<button[^>]*data-product-id="' + str(pid) + r'"[^>]*>', html, re.DOTALL)
     assert btn_match, "Button not found"
     btn_html = btn_match.group(0)
-    assert "is-low-stock" in btn_html, (
-        f"is-low-stock class missing: {btn_html[:200]}"
-    )
+    assert "is-low-stock" in btn_html, f"is-low-stock class missing: {btn_html[:200]}"
     assert "Quedan" in html, "low-stock badge text missing"
 
 
 def test_sold_out_button_is_disabled(client, qseed, session_factory):
     """A product with 0 stock ceiling is rendered as disabled."""
-    pid = _make_recipe_product(session_factory, name="Bizcocho-Out",
-                               ing_stock=0.0)
+    pid = _make_recipe_product(session_factory, name="Bizcocho-Out", ing_stock=0.0)
     r = client.get("/ventas")
     assert r.status_code == 200
     html = r.text

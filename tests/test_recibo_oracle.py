@@ -73,9 +73,7 @@ def recibo_sale_id(session_factory) -> int:
 def rendered_recibo_html(client, recibo_sale_id):
     """Render the recibo template via the live HTTP route."""
     resp = client.get(f"/ventas/{recibo_sale_id}/recibo")
-    assert resp.status_code == 200, (
-        f"recibo route returned {resp.status_code}, expected 200"
-    )
+    assert resp.status_code == 200, f"recibo route returned {resp.status_code}, expected 200"
     return resp.text
 
 
@@ -106,6 +104,7 @@ def test_golden_fixture_file_exists():
 def _diff(expected: str, actual: str) -> list[str]:
     """Line-by-line diff for the assertion message."""
     import difflib
+
     diff = difflib.unified_diff(
         expected.splitlines(),
         actual.splitlines(),
@@ -137,9 +136,7 @@ def test_recibo_matches_golden(rendered_recibo_html):
         )
 
     if not GOLDEN_FILE.exists():
-        pytest.skip(
-            "Golden file missing — run with UPDATE_RECIBO_GOLDEN=1 to create it"
-        )
+        pytest.skip("Golden file missing — run with UPDATE_RECIBO_GOLDEN=1 to create it")
 
     golden = GOLDEN_FILE.read_text(encoding="utf-8")
     expected = normalize(golden)
@@ -186,8 +183,7 @@ def test_recibo_contains_required_sections(rendered_recibo_html, required_substr
 def test_recibo_no_void_banner_for_active_sale(rendered_recibo_html):
     """The voided banner ('ANULADO') must NOT appear in a non-voided sale."""
     assert "ANULADO" not in rendered_recibo_html.upper(), (
-        "Active sale shows 'ANULADO' banner — the void banner "
-        "is appearing in the wrong condition."
+        "Active sale shows 'ANULADO' banner — the void banner is appearing in the wrong condition."
     )
 
 
@@ -205,9 +201,7 @@ def test_recibo_uses_print_stylesheet_navigation_hiding():
         app_css,
         re.DOTALL,
     )
-    found_topnav_hide = any(
-        ".topnav" in block and "none" in block for block in print_blocks
-    )
+    found_topnav_hide = any(".topnav" in block and "none" in block for block in print_blocks)
     assert found_topnav_hide, (
         "@media print in app.css does not hide .topnav. "
         "Operator's printed receipt will show the navigation chrome."
@@ -222,9 +216,7 @@ def test_recibo_container_max_width_is_reasonable_for_thermal():
     thermal printer width including margins). If this changes, the
     receipt won't fit on a thermal printer.
     """
-    template = (REPO / "app" / "templates" / "recibo.html").read_text(
-        encoding="utf-8"
-    )
+    template = (REPO / "app" / "templates" / "recibo.html").read_text(encoding="utf-8")
     m = re.search(r"max-width:\s*(\d+)px", template)
     assert m, (
         "recibo.html has no max-width:NNNpx rule. "

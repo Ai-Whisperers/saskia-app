@@ -97,11 +97,10 @@ File: `tests/test_herbus_integration.py`
 ```python
 @pytest.mark.xfail(
     reason="Tests hardcode /opt/data/work/sazon-app/... path; worktree moved. "
-           "Re-enable when path is parameterized. Pre-existing breakage.",
+    "Re-enable when path is parameterized. Pre-existing breakage.",
     strict=False,
 )
-def test_produccion_has_recipes_context(self):
-    ...
+def test_produccion_has_recipes_context(self): ...
 ```
 
 Apply to all 3 tests in `TestWave2PlannerIntegration`.

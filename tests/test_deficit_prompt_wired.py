@@ -6,6 +6,7 @@ Verifies:
 - Buttons created by the IIFE carry data-batch-qty for openQuickMerma().
 - openQuickMerma() reads data-batch-qty + data-recipe-id and switches tabs.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -27,7 +28,7 @@ def test_deficit_prompt_uses_data_batch_qty():
     """The deficit-prompt IIFE passes data-batch-qty to openQuickMerma()."""
     src = _tpl()
     # The IIFE sets data-batch-qty on each button.
-    assert 'data-batch-qty' in src, "deficit button never receives data-batch-qty"
+    assert "data-batch-qty" in src, "deficit button never receives data-batch-qty"
 
 
 def test_open_quick_merma_reads_data_batch_qty():
@@ -44,7 +45,7 @@ def test_open_quick_merma_switches_to_recipe_tab_when_deficit():
     # The conditional should be inside openQuickMerma
     idx = src.find("function openQuickMerma")
     assert idx > 0
-    body = src[idx: idx + 1500]
+    body = src[idx : idx + 1500]
     assert "qmSwitchTab('recipe')" in body, (
         "openQuickMerma does not switch to recipe tab when triggered by a deficit"
     )

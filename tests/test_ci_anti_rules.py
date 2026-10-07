@@ -115,18 +115,14 @@ def test_ci_anti_rule_step_can_be_extracted_and_run(tmp_path):
         text=True,
         timeout=10,
     )
-    assert r.returncode == 0, (
-        f"CI bash block has syntax errors:\n{r.stderr}"
-    )
+    assert r.returncode == 0, f"CI bash block has syntax errors:\n{r.stderr}"
 
 
 def test_anti_rule_enforcement_fails_on_forbidden_pyjwt(tmp_path):
     """End-to-end: a PR that adds pyjwt to pyproject.toml fails CI."""
     # Create a fake pyproject.toml with pyjwt
     fake_pyproject = tmp_path / "pyproject.toml"
-    fake_pyproject.write_text(
-        'dependencies = [\n    "pyjwt>=2.0",\n]\n'
-    )
+    fake_pyproject.write_text('dependencies = [\n    "pyjwt>=2.0",\n]\n')
     # Extract the bash block and run it against this file
     ci_path = REPO / ".github" / "workflows" / "ci.yml"
     if not ci_path.exists():
@@ -145,12 +141,7 @@ def test_anti_rule_enforcement_fails_on_forbidden_pyjwt(tmp_path):
 
 def test_anti_rule_enforcement_passes_on_clean_pyproject():
     """End-to-end: a clean pyproject.toml passes the anti-rule check."""
-    clean = (
-        'dependencies = [\n'
-        '    "fastapi>=0.115",\n'
-        '    "sqlalchemy>=2.0,<2.2",\n'
-        ']\n'
-    )
+    clean = 'dependencies = [\n    "fastapi>=0.115",\n    "sqlalchemy>=2.0,<2.2",\n]\n'
     # Apply all the anti-rule regexes to clean content
     checks = [
         # Anti-rule 3: GraphQL
@@ -195,8 +186,7 @@ def test_ci_anti_rule_step_checks_for_async_def_in_routers():
         ci_path = REPO / ".github" / "ci.yml"
     content = ci_path.read_text()
     assert "async def" in content, (
-        "CI step should grep for `async def` in app/routers/*.py. "
-        "This is Anti-rule 10 enforcement."
+        "CI step should grep for `async def` in app/routers/*.py. This is Anti-rule 10 enforcement."
     )
     # The grep pattern should target router files
     assert "app/routers/" in content, (
@@ -211,8 +201,7 @@ def test_ci_anti_rule_step_checks_websocket_libs():
         ci_path = REPO / ".github" / "ci.yml"
     content = ci_path.read_text()
     assert "websockets" in content, (
-        "CI step should grep for the `websockets` lib. "
-        "This is Anti-rule 12 enforcement."
+        "CI step should grep for the `websockets` lib. This is Anti-rule 12 enforcement."
     )
 
 
@@ -269,6 +258,7 @@ def test_ci_anti_rule_step_total_check_count():
     content = ci_path.read_text()
     # Count "Anti-rule N" markers
     import re
+
     _n = len(re.findall(r"# Anti-rule \d+:", content))
     # Should be 13 (1, 3, 4, 5, 9, 10, 11, 12, 14, 15, 16, 17, 18) + warn-only AR19
     n_including_warn = len(re.findall(r"# Anti-rule \d+", content))

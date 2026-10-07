@@ -55,15 +55,12 @@ class CycleInRecipeTree(Exception):
     """Raised when a recipe tree has a cycle (A uses B uses A)."""
 
 
-
 class RecipeWithoutYield(Exception):
     """Raised when apply_sale is called with a recipe whose yield_qty is NULL."""
 
 
-
 class ProductWithoutRecipe(Exception):
     """Raised when a sale is attempted on a product with no recipe."""
-
 
 
 # --- Recipe cost computation (polymorphic tree walk) ---
@@ -150,9 +147,7 @@ def _walk_recipe_cost(
                 )
                 return None
             # Multiply the normalized qty against the ingredient's per-unit price.
-            line_cost = line_qty_in_ingredient_unit * Decimal(
-                str(effective_price)
-            )
+            line_cost = line_qty_in_ingredient_unit * Decimal(str(effective_price))
             total += line_cost
 
         elif line.line_kind == "sub_recipe":
@@ -208,24 +203,14 @@ def batch_products_cost_margin(
     all_lines = session.scalars(
         select(RecipeLine).where(RecipeLine.recipe_id.in_(recipe_ids))
     ).all()
-    ingredient_ids = {
-        ln.line_ref_id for ln in all_lines if ln.line_kind == "ingredient"
-    }
-    sub_recipe_ids = {
-        ln.line_ref_id for ln in all_lines if ln.line_kind == "sub_recipe"
-    }
+    ingredient_ids = {ln.line_ref_id for ln in all_lines if ln.line_kind == "ingredient"}
+    sub_recipe_ids = {ln.line_ref_id for ln in all_lines if ln.line_kind == "sub_recipe"}
     if ingredient_ids:
-        session.scalars(
-            select(Ingredient).where(Ingredient.id.in_(ingredient_ids))
-        ).all()
+        session.scalars(select(Ingredient).where(Ingredient.id.in_(ingredient_ids))).all()
     if sub_recipe_ids:
-        sub_recipes = session.scalars(
-            select(Recipe).where(Recipe.id.in_(sub_recipe_ids))
-        ).all()
+        sub_recipes = session.scalars(select(Recipe).where(Recipe.id.in_(sub_recipe_ids))).all()
         new_recipe_ids = {sr.id for sr in sub_recipes}
-        session.scalars(
-            select(RecipeLine).where(RecipeLine.recipe_id.in_(new_recipe_ids))
-        ).all()
+        session.scalars(select(RecipeLine).where(RecipeLine.recipe_id.in_(new_recipe_ids))).all()
 
     # Compute in memory using the cached identity map.
     out: dict[int, tuple[CostResult, tuple[int | None, float | None]]] = {}
@@ -313,13 +298,12 @@ def recipe_unit_cost_gs(session: Session, recipe_id: int) -> CostResult:
     if recipe.direct_labor_minutes:
         try:
             from app.rms.models import ComplianceInfo
+
             ci = session.get(ComplianceInfo, 1)
             rate = getattr(ci, "labor_cost_per_hour_gs", None) if ci else None
             if rate:
                 labor_gs = (
-                    Decimal(str(recipe.direct_labor_minutes))
-                    * Decimal(str(rate))
-                    / Decimal("60")
+                    Decimal(str(recipe.direct_labor_minutes)) * Decimal(str(rate)) / Decimal("60")
                 )
         except Exception:
             labor_gs = Decimal("0")  # costing must never crash on config gaps
@@ -365,6 +349,7 @@ def product_margin(session: Session, product_id: int) -> tuple[int | None, float
     ratio = margin_gs / product.sale_price_gs
     return (margin_gs, ratio)
 
+
 def batch_recipes_cost(
     session: Session,
     recipes: list[Recipe],
@@ -382,7 +367,10 @@ def batch_recipes_cost(
 
     recipe_ids = {r.id for r in recipes if r is not None}
     if not recipe_ids:
-        return {r.id: (CostResult(batch_cost_gs=None, missing_ingredient_names=[]), None, 0) for r in recipes}
+        return {
+            r.id: (CostResult(batch_cost_gs=None, missing_ingredient_names=[]), None, 0)
+            for r in recipes
+        }
 
     # Pre-load Recipe + lines + ingredients in 3 queries.
     session.scalars(select(Recipe).where(Recipe.id.in_(recipe_ids))).all()
@@ -393,24 +381,14 @@ def batch_recipes_cost(
     for ln in all_lines:
         line_counts[ln.recipe_id] = line_counts.get(ln.recipe_id, 0) + 1
 
-    ingredient_ids = {
-        ln.line_ref_id for ln in all_lines if ln.line_kind == "ingredient"
-    }
-    sub_recipe_ids = {
-        ln.line_ref_id for ln in all_lines if ln.line_kind == "sub_recipe"
-    }
+    ingredient_ids = {ln.line_ref_id for ln in all_lines if ln.line_kind == "ingredient"}
+    sub_recipe_ids = {ln.line_ref_id for ln in all_lines if ln.line_kind == "sub_recipe"}
     if ingredient_ids:
-        session.scalars(
-            select(Ingredient).where(Ingredient.id.in_(ingredient_ids))
-        ).all()
+        session.scalars(select(Ingredient).where(Ingredient.id.in_(ingredient_ids))).all()
     if sub_recipe_ids:
-        sub_recipes = session.scalars(
-            select(Recipe).where(Recipe.id.in_(sub_recipe_ids))
-        ).all()
+        sub_recipes = session.scalars(select(Recipe).where(Recipe.id.in_(sub_recipe_ids))).all()
         new_recipe_ids = {sr.id for sr in sub_recipes}
-        session.scalars(
-            select(RecipeLine).where(RecipeLine.recipe_id.in_(new_recipe_ids))
-        ).all()
+        session.scalars(select(RecipeLine).where(RecipeLine.recipe_id.in_(new_recipe_ids))).all()
 
     out: dict[int, tuple[CostResult, CostResult | None, int]] = {}
     for r in recipes:
@@ -420,4 +398,3 @@ def batch_recipes_cost(
         unit = recipe_unit_cost_gs(session, r.id) if batch.batch_cost_gs is not None else None
         out[r.id] = (batch, unit, line_counts.get(r.id, 0))
     return out
-

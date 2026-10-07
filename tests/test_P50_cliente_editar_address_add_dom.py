@@ -10,6 +10,7 @@ Acceptance:
     `<tbody>.insertAdjacentHTML`, `tbody.appendChild`, `insertRow`,
     `prepend`, etc.) — NOT just `window.location.reload()`.
 """
+
 from __future__ import annotations
 
 import re
@@ -40,12 +41,12 @@ def test_cliente_editar_address_add_uses_dom_insertion(client, session_factory):
     start = js.find('querySelectorAll(".addr-add"')
     if start < 0:
         # Some templates use a different anchor (e.g. .addr-add-row, button#addr-add).
-        for alt in ('addr-add', 'id="addr-add"', 'address-add'):
+        for alt in ("addr-add", 'id="addr-add"', "address-add"):
             start = js.find(alt)
             if start >= 0:
                 break
     assert start >= 0, "couldn't locate address-add handler"
-    handler = js[start:start + 3000]
+    handler = js[start : start + 3000]
 
     has_dom_insert = bool(
         re.search(

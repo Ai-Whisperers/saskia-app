@@ -35,9 +35,7 @@ def test_gate_g4_copiloto_10_preguntas(session_factory, qseed):
 
     session = session_factory()
     sales_before = session.execute(select(func.count()).select_from(Sale)).scalar()
-    cred_before = session.execute(
-        select(func.count()).select_from(CreditTransaction)
-    ).scalar()
+    cred_before = session.execute(select(func.count()).select_from(CreditTransaction)).scalar()
 
     resultados = []
     for q, expected in PREGUNTAS:
@@ -49,9 +47,7 @@ def test_gate_g4_copiloto_10_preguntas(session_factory, qseed):
         resultados.append((q, out["intent"], out["context"].get("ventas_totales_gs")))
 
     sales_after = session.execute(select(func.count()).select_from(Sale)).scalar()
-    cred_after = session.execute(
-        select(func.count()).select_from(CreditTransaction)
-    ).scalar()
+    cred_after = session.execute(select(func.count()).select_from(CreditTransaction)).scalar()
     assert (sales_before, cred_before) == (sales_after, cred_after), "¡MUTACIÓN!"
 
     # números correctos: recalcula ventas de la DB y compara con un intent 'hoy'

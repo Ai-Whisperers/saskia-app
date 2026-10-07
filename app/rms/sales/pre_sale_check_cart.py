@@ -21,6 +21,7 @@ POST /ventas/nueva/preflight/multi with a JSON body, gets the
 aggregated checklist back, and either blocks submit or shows
 yellow banners per line.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -48,6 +49,7 @@ class CartLine:
     includes it on per-line warnings so the UI can highlight the
     right row.
     """
+
     line_index: int
     product_id: int
     qty: float
@@ -65,6 +67,7 @@ class CartIntent:
     single product. The cart-level fields (customer, payment, etc.)
     apply to all lines.
     """
+
     lines: tuple[CartLine, ...]
     customer_id: int | None = None
     payment_method: str = ""
@@ -114,11 +117,13 @@ def validate_cart_intent(
 
     # ---- Cart-empty: blocker -----------------------------------------
     if cart.is_empty:
-        checklist.blockers.append(PreSaleWarning(
-            code="CART_EMPTY",
-            severity="blocker",
-            message="El carrito está vacío. Agregá al menos un producto.",
-        ))
+        checklist.blockers.append(
+            PreSaleWarning(
+                code="CART_EMPTY",
+                severity="blocker",
+                message="El carrito está vacío. Agregá al menos un producto.",
+            )
+        )
         return checklist
 
     # ---- Per-line checks ---------------------------------------------
@@ -189,14 +194,16 @@ def validate_cart_intent(
         severity = "blocker" if len(shortages) > 1 else "warning"
         names = ", ".join(s[0] for s in shortages[:3])
         more = f" (+{len(shortages) - 3} más)" if len(shortages) > 3 else ""
-        checklist.warnings.append(PreSaleWarning(
-            code="CART_STOCK_SHORTAGE",
-            severity=severity,
-            message=(
-                f"Carrito: stock insuficiente para: {names}{more}. "
-                f"Demanda total excede stock actual."
-            ),
-        ))
+        checklist.warnings.append(
+            PreSaleWarning(
+                code="CART_STOCK_SHORTAGE",
+                severity=severity,
+                message=(
+                    f"Carrito: stock insuficiente para: {names}{more}. "
+                    f"Demanda total excede stock actual."
+                ),
+            )
+        )
 
     # ---- Cart-level checks (run once) --------------------------------
     # Customer allergen — check the customer's restriction against
@@ -206,35 +213,41 @@ def validate_cart_intent(
         for line in cart.lines:
             risk = check_customer_risk(session, cart.customer_id, line.product_id)
             if not risk.safe:
-                checklist.blockers.append(PreSaleWarning(
-                    code=f"CART_CUSTOMER_ALLERGEN@{line.line_index}",
-                    severity="blocker",
-                    message=(
-                        f"Línea {line.line_index + 1}: ⚠️ ALÉRGENO: "
-                        f"{risk.matched}. El cliente es alérgico."
-                    ),
-                ))
+                checklist.blockers.append(
+                    PreSaleWarning(
+                        code=f"CART_CUSTOMER_ALLERGEN@{line.line_index}",
+                        severity="blocker",
+                        message=(
+                            f"Línea {line.line_index + 1}: ⚠️ ALÉRGENO: "
+                            f"{risk.matched}. El cliente es alérgico."
+                        ),
+                    )
+                )
                 # One hit is enough to block the cart; no need to
                 # check the other products.
                 break
 
     # Closed day — applies to the whole cart, not per-line.
     if cart.sold_at is not None and eod_is_day_closed(session, cart.sold_at):
-        checklist.blockers.append(PreSaleWarning(
-            code="CART_DAY_CLOSED",
-            severity="blocker",
-            message=(
-                f"El día {cart.sold_at.isoformat()} está cerrado. "
-                f"Reabrilo desde /eod antes de registrar ventas."
-            ),
-        ))
+        checklist.blockers.append(
+            PreSaleWarning(
+                code="CART_DAY_CLOSED",
+                severity="blocker",
+                message=(
+                    f"El día {cart.sold_at.isoformat()} está cerrado. "
+                    f"Reabrilo desde /eod antes de registrar ventas."
+                ),
+            )
+        )
 
     # Payment method — info, cart-level.
     if not cart.payment_method:
-        checklist.warnings.append(PreSaleWarning(
-            code="CART_PAYMENT_METHOD_MISSING",
-            severity="info",
-            message="Sin forma de pago: la venta quedará como pendiente.",
-        ))
+        checklist.warnings.append(
+            PreSaleWarning(
+                code="CART_PAYMENT_METHOD_MISSING",
+                severity="info",
+                message="Sin forma de pago: la venta quedará como pendiente.",
+            )
+        )
 
     return checklist

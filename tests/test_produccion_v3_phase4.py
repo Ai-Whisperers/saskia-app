@@ -10,6 +10,7 @@ Phase 4 ship:
   - The ad-hoc card is hidden from print (no-print).
   - The bulk-CSV modal is still present in the DOM.
 """
+
 from __future__ import annotations
 
 import re
@@ -49,16 +50,15 @@ def test_adhoc_card_has_no_print_class(client, qseed):
     body = r.content.decode("utf-8", errors="replace")
     assert r.status_code == 200
     # Either the whole section has no-print, or the buttons inside do.
-    assert (
-        'class="card mb-4 no-print"' in body
-        or 'data-adhoc-card' in body
-    ), "ad-hoc card missing data-adhoc-card hook"
+    assert 'class="card mb-4 no-print"' in body or "data-adhoc-card" in body, (
+        "ad-hoc card missing data-adhoc-card hook"
+    )
     # And at least one of the buttons is no-print.
     assert re.search(
         r'<button[^>]*data-action="open-adhoc-(?:modal|bulk)"[^>]*class="[^"]*\bno-print\b',
         body,
     ) or re.search(
-        r'<section[^>]*no-print[^>]*data-adhoc-card',
+        r"<section[^>]*no-print[^>]*data-adhoc-card",
         body,
     ), "ad-hoc section should be hidden in print"
 
@@ -73,9 +73,7 @@ def test_adhoc_count_badge_appears_when_count_greater_than_zero(client, qseed):
     assert r.status_code == 200
     # No badge when 0 (the {% if day_adhoc_count > 0 %} gate).
     # Look for data-adhoc-count — should NOT be present.
-    assert "data-adhoc-count" not in body, (
-        "ad-hoc count badge rendered when day_adhoc_count=0"
-    )
+    assert "data-adhoc-count" not in body, "ad-hoc count badge rendered when day_adhoc_count=0"
 
 
 def test_bulk_modal_still_in_dom(client, qseed):
@@ -96,12 +94,12 @@ def test_shortcuts_js_wires_data_action_handlers():
     dialogs (no inline onclick=)."""
     js = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/static/shortcuts.js")
     src = js.read_text()
-    assert 'data-action' in src, "shortcuts.js must listen for data-action"
-    assert 'open-adhoc-modal' in src, "must handle open-adhoc-modal"
-    assert 'open-adhoc-bulk' in src, "must handle open-adhoc-bulk"
+    assert "data-action" in src, "shortcuts.js must listen for data-action"
+    assert "open-adhoc-modal" in src, "must handle open-adhoc-modal"
+    assert "open-adhoc-bulk" in src, "must handle open-adhoc-bulk"
     # And the dialog IDs it targets must match what's in the template.
-    assert 'adhoc-modal' in src
-    assert 'adhoc-bulk-modal' in src
+    assert "adhoc-modal" in src
+    assert "adhoc-bulk-modal" in src
 
 
 def test_no_inline_onclick_adhoc_in_template():
@@ -110,5 +108,5 @@ def test_no_inline_onclick_adhoc_in_template():
     tpl = Path("/opt/data/profiles/ivan/scratch/saskia-app-work/app/templates/produccion.html")
     src = tpl.read_text()
     # There should be NO inline onclick= that opens an ad-hoc dialog.
-    assert 'onclick="document.getElementById(\'adhoc-modal\').showModal()"' not in src
-    assert 'onclick="document.getElementById(\'adhoc-bulk-modal\').showModal()"' not in src
+    assert "onclick=\"document.getElementById('adhoc-modal').showModal()\"" not in src
+    assert "onclick=\"document.getElementById('adhoc-bulk-modal').showModal()\"" not in src

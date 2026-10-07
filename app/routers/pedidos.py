@@ -60,6 +60,8 @@ def _as_date(d: "date | datetime | None") -> date | None:
     if isinstance(d, datetime):
         return d.date()
     return d
+
+
 from app.rms.public_tokens import (
     enforce_rate_limit as public_token_enforce_rate_limit,
 )
@@ -197,7 +199,12 @@ PEDIDO_TRANSITIONS: dict[str, frozenset[str]] = {
     for s, targets in PedidoStateMachine._TRANSITIONS.items()
 }
 
-CHANNELS = (Channel.WHATSAPP.value, Channel.PEDIDOSYA.value, Channel.MOSTRADOR.value, Channel.OTHER.value)
+CHANNELS = (
+    Channel.WHATSAPP.value,
+    Channel.PEDIDOSYA.value,
+    Channel.MOSTRADOR.value,
+    Channel.OTHER.value,
+)
 
 # Channel value normalisation map — raw input → canonical value
 # P39 (2026-10-07, Ivan): values must match Channel enum (lowercase) so
@@ -2079,7 +2086,9 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
         # (Channel.WHATSAPP.value = "whatsapp"). This silently disabled
         # the pedido_listo / whatsapp template path.
         template_key = "pedido_listo" if pedido.channel == Channel.WHATSAPP.value else "generic"
-        template_channel = Channel.WHATSAPP.value if pedido.channel == Channel.WHATSAPP.value else "email"
+        template_channel = (
+            Channel.WHATSAPP.value if pedido.channel == Channel.WHATSAPP.value else "email"
+        )
         row = session.execute(
             _select(MT).where(
                 MT.channel == template_channel,
@@ -2106,7 +2115,8 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
     if msg is None:
         msg = (
             f"¡Tu pedido #{pedido.id} esta listo para retirar! Te esperamos 😊"
-            if pedido.channel == Channel.WHATSAPP.value  # P43: lowercase comparison (was "WhatsApp")
+            if pedido.channel
+            == Channel.WHATSAPP.value  # P43: lowercase comparison (was "WhatsApp")
             else f"Tu pedido #{pedido.id} esta listo para retirar. Gracias!"
         )
 

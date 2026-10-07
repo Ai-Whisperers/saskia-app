@@ -19,6 +19,7 @@
      (those have no defined "double the minimum")
    - is idempotent: running it twice leaves the DB in the same state
 """
+
 from __future__ import annotations
 
 import re
@@ -53,8 +54,7 @@ def test_css_table_scroll_sticky_rule_exists():
     )
     # Sticky on the inner thead th
     assert "position:sticky" in css_compact, (
-        "missing `position: sticky` in app.css — column headers won't "
-        "stay visible on scroll"
+        "missing `position: sticky` in app.css — column headers won't stay visible on scroll"
     )
     # `top:` offset must clear the topnav — accept any of:
     #  - var(--topnav-height, 40px)  (preferred — responsive to topnav size)
@@ -93,7 +93,7 @@ def test_css_prints_without_sticky():
     m = re.search(r"@media\s+print\s*\{", css, re.DOTALL | re.IGNORECASE)
     assert m is not None, "no @media print block in app.css"
     # Look for any `position:static` inside the @media print block
-    rest_after = css[m.start():]
+    rest_after = css[m.start() :]
     # Find the matching close of the @media print block
     depth = 0
     end = m.start()
@@ -105,7 +105,7 @@ def test_css_prints_without_sticky():
             if depth == 0:
                 end = m.start() + i + 1
                 break
-    print_block = css[m.start():end]
+    print_block = css[m.start() : end]
     assert "position:static" in print_block.replace(" ", ""), (
         f"@media print block should reset sticky thead to static. "
         f"Block excerpt: {print_block[:300]!r}"
@@ -169,24 +169,39 @@ def fill_ingredients(session_factory):
 
     with session_factory() as s:
         ing_already_filled = _make_quick_ingredient(
-            s, name="P34-already-filled", unit="kg",
-            stock_qty=10.0, min_stock_qty=2.0,
+            s,
+            name="P34-already-filled",
+            unit="kg",
+            stock_qty=10.0,
+            min_stock_qty=2.0,
         )
         ing_half = _make_quick_ingredient(
-            s, name="P34-half", unit="kg",
-            stock_qty=1.0, min_stock_qty=4.0,
+            s,
+            name="P34-half",
+            unit="kg",
+            stock_qty=1.0,
+            min_stock_qty=4.0,
         )
         ing_zero = _make_quick_ingredient(
-            s, name="P34-zero", unit="kg",
-            stock_qty=0.0, min_stock_qty=3.0,
+            s,
+            name="P34-zero",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=3.0,
         )
         ing_no_min = _make_quick_ingredient(
-            s, name="P34-no-min", unit="kg",
-            stock_qty=0.0, min_stock_qty=0.0,
+            s,
+            name="P34-no-min",
+            unit="kg",
+            stock_qty=0.0,
+            min_stock_qty=0.0,
         )
         ing_with_explicit_max = _make_quick_ingredient(
-            s, name="P34-explicit-max", unit="kg",
-            stock_qty=1.0, min_stock_qty=2.0,
+            s,
+            name="P34-explicit-max",
+            unit="kg",
+            stock_qty=1.0,
+            min_stock_qty=2.0,
         )
         ing_with_explicit_max.max_stock_qty = 10.0
         s.commit()
@@ -204,8 +219,7 @@ def test_bulk_fill_to_2x_min_endpoint_exists(authed_client):
     or 303 redirect after flash are both acceptable)."""
     r = authed_client.post("/inventario/bulk-fill-to-2x-min", follow_redirects=False)
     assert r.status_code in (200, 303, 302), (
-        f"POST /inventario/bulk-fill-to-2x-min returned {r.status_code} "
-        f"body={r.text[:200]!r}"
+        f"POST /inventario/bulk-fill-to-2x-min returned {r.status_code} body={r.text[:200]!r}"
     )
 
 

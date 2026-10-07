@@ -75,12 +75,8 @@ def test_no_code_references_the_deleted_settings_modules():
         capture_output=True,
         text=True,
     )
-    offenders = sorted(
-        line for line in result.stdout.strip().split("\n") if line.strip()
-    )
-    assert offenders == [], (
-        f"Files still import the deleted modules: {offenders}"
-    )
+    offenders = sorted(line for line in result.stdout.strip().split("\n") if line.strip())
+    assert offenders == [], f"Files still import the deleted modules: {offenders}"
 
 
 # ─── settings_get / settings_set roundtrip ────────────────────────────────
@@ -96,9 +92,7 @@ def _fresh_session() -> Session:
 def test_settings_get_returns_default_when_missing():
     """settings_get returns the default when the key is not stored."""
     sess = _fresh_session()
-    assert sr.settings_get(sess, "does.not.exist", default={"fallback": True}) == {
-        "fallback": True
-    }
+    assert sr.settings_get(sess, "does.not.exist", default={"fallback": True}) == {"fallback": True}
     assert sr.settings_get(sess, "does.not.exist") is None
 
 
@@ -106,9 +100,7 @@ def test_settings_set_persists_json_value():
     """settings_set serializes dict/list via JSON."""
     sess = _fresh_session()
     sr.settings_set(sess, "k.dict", {"a": 1, "b": [2, 3]})
-    row = sess.execute(
-        select(SettingsKV).where(SettingsKV.key == "k.dict")
-    ).scalar_one()
+    row = sess.execute(select(SettingsKV).where(SettingsKV.key == "k.dict")).scalar_one()
     assert row.value_json == '{"a": 1, "b": [2, 3]}'
     assert sr.settings_get(sess, "k.dict") == {"a": 1, "b": [2, 3]}
 

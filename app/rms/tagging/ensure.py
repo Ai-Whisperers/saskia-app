@@ -92,21 +92,13 @@ def list_tags_for_kind(session: Session, kind: str) -> list[Tag]:
     Used by templates that need to render tag pills dynamically. Sort
     order: alphabetical by name.
     """
-    return list(
-        session.execute(
-            select(Tag)
-            .where(Tag.kind == kind)
-            .order_by(Tag.name)
-        ).scalars()
-    )
+    return list(session.execute(select(Tag).where(Tag.kind == kind).order_by(Tag.name)).scalars())
 
 
 # ─── Tag-link operations ───────────────────────────────────────────────────
 
 
-def tag_target(
-    session: Session, tag: Tag, target_kind: str, target_id: int
-) -> TagLink:
+def tag_target(session: Session, tag: Tag, target_kind: str, target_id: int) -> TagLink:
     """Add a tag to a target. Idempotent."""
     existing = session.execute(
         select(TagLink).where(
@@ -123,9 +115,7 @@ def tag_target(
     return link
 
 
-def untag_target(
-    session: Session, tag: Tag, target_kind: str, target_id: int
-) -> bool:
+def untag_target(session: Session, tag: Tag, target_kind: str, target_id: int) -> bool:
     """Remove a tag from a target. Returns True if a row was deleted."""
     link = session.execute(
         select(TagLink).where(
@@ -141,9 +131,7 @@ def untag_target(
     return True
 
 
-def tags_for_target(
-    session: Session, target_kind: str, target_id: int
-) -> list[Tag]:
+def tags_for_target(session: Session, target_kind: str, target_id: int) -> list[Tag]:
     """Return all Tag rows attached to a given target (alphabetical)."""
     return list(
         session.execute(

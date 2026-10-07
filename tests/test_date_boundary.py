@@ -39,6 +39,7 @@ suite.
 Hard Rule reminder: NEVER use freezegun in app/ code. Only in tests/.
 Per AGENTS.md §CI and the docstring in app/rms/costing.py.
 """
+
 from __future__ import annotations
 
 import calendar
@@ -95,8 +96,18 @@ def test_month_range_for_all_month_shapes(year, month, expected_first, expected_
 @pytest.mark.parametrize(
     "year, month",
     [
-        (2026, 1), (2026, 2), (2026, 3), (2026, 4), (2026, 5), (2026, 6),
-        (2026, 7), (2026, 8), (2026, 9), (2026, 10), (2026, 11), (2026, 12),
+        (2026, 1),
+        (2026, 2),
+        (2026, 3),
+        (2026, 4),
+        (2026, 5),
+        (2026, 6),
+        (2026, 7),
+        (2026, 8),
+        (2026, 9),
+        (2026, 10),
+        (2026, 11),
+        (2026, 12),
     ],
 )
 def test_calendar_monthrange_matches_sazon_month_range(year, month):
@@ -155,7 +166,13 @@ def test_month_range_january_does_not_wrap_to_previous_year():
     "year, month",
     [
         # All months; the assertion is the same
-        (2026, 1), (2026, 2), (2026, 4), (2026, 6), (2026, 9), (2026, 11), (2026, 12),
+        (2026, 1),
+        (2026, 2),
+        (2026, 4),
+        (2026, 6),
+        (2026, 9),
+        (2026, 11),
+        (2026, 12),
     ],
 )
 def test_tomorrow_of_month_end_is_first_of_next_month(year, month):
@@ -176,7 +193,7 @@ def test_tomorrow_of_month_end_is_first_of_next_month(year, month):
         assert tomorrow == date(year + 1, 1, 1), f"Dec 31 → Jan 1 of next year, got {tomorrow}"
     else:
         assert tomorrow == date(year, month + 1, 1), (
-            f"last-day-of-month-{month} → first-day-of-month-{month+1}, got {tomorrow}"
+            f"last-day-of-month-{month} → first-day-of-month-{month + 1}, got {tomorrow}"
         )
 
 
@@ -244,9 +261,7 @@ def test_ci_pin_date_computation():
     # Subtract 1 day
     last_day = next_month_first - timedelta(days=1)
 
-    assert last_day == date(2026, 1, 31), (
-        f"bash pattern should pin to Jan 31, 2026, got {last_day}"
-    )
+    assert last_day == date(2026, 1, 31), f"bash pattern should pin to Jan 31, 2026, got {last_day}"
 
     # Cross-check for February
     today_first = date(2026, 2, 1)

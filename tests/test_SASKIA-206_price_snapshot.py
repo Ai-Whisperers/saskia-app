@@ -56,11 +56,7 @@ def test_add_item_freezes_price(client, session_factory):
     assert r.status_code == 303
 
     with session_factory() as s:
-        row = (
-            s.query(ShoppingListItem)
-            .filter_by(ingredient_id=ing_id)
-            .one()
-        )
+        row = s.query(ShoppingListItem).filter_by(ingredient_id=ing_id).one()
         assert row.unit_price_snapshot_gs == 5000
 
         # Catalog price moves after the row exists
@@ -92,11 +88,7 @@ def test_add_item_without_price_gets_null_snapshot(client, session_factory):
     )
 
     with session_factory() as s:
-        row = (
-            s.query(ShoppingListItem)
-            .filter_by(ingredient_id=ing_id)
-            .one()
-        )
+        row = s.query(ShoppingListItem).filter_by(ingredient_id=ing_id).one()
         assert row.unit_price_snapshot_gs is None
 
 

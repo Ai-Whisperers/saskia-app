@@ -134,9 +134,7 @@ async def wishlist_mark_purchased(
     if not was_purchased:
         eq_name = f"[EQUIPMENT] {item.name}"
         eq_ing = (
-            session.execute(select(Ingredient).where(Ingredient.name == eq_name))
-            .scalars()
-            .first()
+            session.execute(select(Ingredient).where(Ingredient.name == eq_name)).scalars().first()
         )
         if eq_ing is None:
             eq_ing = Ingredient(

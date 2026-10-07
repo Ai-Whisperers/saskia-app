@@ -57,9 +57,7 @@ def _migration_110_held_sale(conn: Any) -> None:
     except Exception:
         pass
     try:
-        conn.exec_driver_sql(
-            "CREATE INDEX IF NOT EXISTS ix_held_sale_status ON held_sale (status)"
-        )
+        conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_held_sale_status ON held_sale (status)")
     except Exception:
         pass
 

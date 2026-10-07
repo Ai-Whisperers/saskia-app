@@ -20,6 +20,7 @@ Five small UX papercuts identified by the operator browsing
 Tests run against the rendered HTML structure (string searches)
 to pin the labels and the empty-state gating.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -34,7 +35,7 @@ class TestWorksheetEnBlancoButton:
     indicate it's a print-to-paper action."""
 
     def test_button_has_print_icon(self):
-        assert 'icon-print' in TEMPLATE
+        assert "icon-print" in TEMPLATE
         # The Worksheet en blanco link should use the print icon
         assert 'href="/produccion/print?for_date={{ for_date }}&mode=worksheet"' in TEMPLATE
 
@@ -48,14 +49,19 @@ class TestWorksheetEnBlancoButton:
         # The OLD label was 'Worksheet en blanco' alone; the NEW label
         # should include "para imprimir" or "hoja en blanco" hint.
         # Find the button block.
-        idx = TEMPLATE.find('mode=worksheet')
+        idx = TEMPLATE.find("mode=worksheet")
         assert idx != -1
         # Look at next 200 chars for the button text
         snippet = TEMPLATE[idx : idx + 400]
         # Must include a hint that this prints
         assert any(
             phrase in snippet
-            for phrase in ["para imprimir", "hoja en blanco", "Imprimir worksheet", "Worksheet para"]
+            for phrase in [
+                "para imprimir",
+                "hoja en blanco",
+                "Imprimir worksheet",
+                "Worksheet para",
+            ]
         ), f"button text missing print hint: {snippet!r}"
 
 

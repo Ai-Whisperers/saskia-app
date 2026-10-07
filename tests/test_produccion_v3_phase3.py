@@ -9,6 +9,7 @@ above the table, each with a 1-line subtitle. Cards are
 read-only — clicking them filters the table (deferred to a later
 phase).
 """
+
 from __future__ import annotations
 
 # Spanish copy is part of the contract — typo = useless UI.
@@ -33,9 +34,7 @@ def test_hero_stats_have_subtitles(client, qseed):
     assert "productos en el plan" in body or "productos a hornear" in body, (
         "productos subtitle missing"
     )
-    assert "unidades a hornear" in body or "lote final" in body, (
-        "lote subtitle missing"
-    )
+    assert "unidades a hornear" in body or "lote final" in body, "lote subtitle missing"
 
 
 def test_hero_stats_dont_render_in_week_view(client, qseed):
@@ -48,6 +47,4 @@ def test_hero_stats_dont_render_in_week_view(client, qseed):
     # None of the 4 hero labels should appear in week view.
     # (We allow "Productos" if it appears elsewhere in nav/etc.,
     # so we just check the hero card wrapper is absent.)
-    assert "hero-stats" not in body, (
-        "hero stats leaked into week view"
-    )
+    assert "hero-stats" not in body, "hero stats leaked into week view"

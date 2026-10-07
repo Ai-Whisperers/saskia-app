@@ -81,8 +81,7 @@ def test_zap_workflow_uses_advisory_uvicorn_no_docker_compose():
     # Strip comments first so the rule documentation itself
     # ("# - no docker compose") doesn't trigger the assertion.
     content_no_comments = "\n".join(
-        line for line in WORKFLOW.read_text().splitlines()
-        if not line.lstrip().startswith("#")
+        line for line in WORKFLOW.read_text().splitlines() if not line.lstrip().startswith("#")
     )
     assert "docker compose" not in content_no_comments.lower(), (
         "Sazon's AGENTS.md forbids Docker Compose. Workflow should "
@@ -126,7 +125,7 @@ def test_zap_workflow_disables_https_only_in_ci():
     """HTTPS_ONLY=false in CI so ZAP doesn't flag "missing HSTS" over
     plaintext http://127.0.0.1. Production uses HTTPS_ONLY=True."""
     content = WORKFLOW.read_text()
-    assert "HTTPS_ONLY: \"false\"" in content
+    assert 'HTTPS_ONLY: "false"' in content
 
 
 def test_zap_workflow_uses_unique_port():
@@ -185,14 +184,9 @@ def test_zap_rules_columns_are_valid():
             if not line or line.lstrip().startswith("#"):
                 continue
             parts = line.split("\t")
-            assert len(parts) == 3, (
-                f"Line {lineno} has {len(parts)} columns, expected 3: "
-                f"{line!r}"
-            )
+            assert len(parts) == 3, f"Line {lineno} has {len(parts)} columns, expected 3: {line!r}"
             rule_id, action, reason = parts
-            assert rule_id.isdigit(), (
-                f"Line {lineno}: rule_id '{rule_id}' not numeric"
-            )
+            assert rule_id.isdigit(), f"Line {lineno}: rule_id '{rule_id}' not numeric"
             assert action in ("IGNORE", "FAIL"), (
                 f"Line {lineno}: action '{action}' not IGNORE or FAIL"
             )

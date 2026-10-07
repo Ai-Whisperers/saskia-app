@@ -55,6 +55,7 @@ OTHER_DNI = "7654321"
 # Key derivation
 # ---------------------------------------------------------------------------
 
+
 def test_derive_key_is_deterministic():
     """Same DNI + salt → same key. Required for the restore path:
     the same operator can decrypt their own backups across many
@@ -118,6 +119,7 @@ def test_derive_key_takes_about_1_second_on_modern_cpu():
     it 10× slower (e.g. accidental 6M iterations) or 10× faster
     (broken HMAC), this test fails."""
     import time
+
     salt = secrets.token_bytes(SALT_SIZE)
     start = time.perf_counter()
     derive_key(DNI, salt)
@@ -128,6 +130,7 @@ def test_derive_key_takes_about_1_second_on_modern_cpu():
 # ---------------------------------------------------------------------------
 # Encrypt / decrypt roundtrip
 # ---------------------------------------------------------------------------
+
 
 def test_encrypt_decrypt_roundtrip():
     """The basic contract: encrypt then decrypt returns the same
@@ -260,6 +263,7 @@ def test_decrypt_rejects_truncated_header():
 # DNI file loading
 # ---------------------------------------------------------------------------
 
+
 def test_dni_file_loading(tmp_path):
     """The DNI file is operator-provisioned (typically on a USB
     stick, NOT on the VPS). The loader must read it, strip the
@@ -327,14 +331,17 @@ def test_dni_file_loading_accepts_0400_read_only(tmp_path):
 # backup from /admin/backup should not block other reads.
 # ---------------------------------------------------------------------------
 
+
 def test_concurrent_encrypt_does_not_share_state():
     """Multiple threads encrypting in parallel must not share any
     non-thread-local state (e.g. a global salt or nonce). Two
     concurrent encryptions of the same plaintext with the same DNI
     must produce two distinct, independently-decryptable blobs."""
     plaintext = b"shared plaintext"
+
     def enc():
         return encrypt_backup(plaintext, DNI)
+
     with ThreadPoolExecutor(max_workers=8) as pool:
         blobs = list(pool.map(lambda _: enc(), range(20)))
     assert len(set(blobs)) == 20  # all unique

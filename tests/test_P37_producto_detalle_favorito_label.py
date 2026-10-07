@@ -9,6 +9,7 @@ Acceptance:
     "Quitar" + a reference to favoritos.
   - For is_favorite=False, the button text is just "Favorito" (no "Quitar").
 """
+
 from __future__ import annotations
 
 import uuid
@@ -40,10 +41,9 @@ def test_producto_detalle_favorito_label(client, session_factory):
     # The favorite form/button block is identifiable by a form action
     # /productos/{id}/favorito OR a button with "Favorito" text.
     import re
+
     # Find the section between "Favorito" mentions.
-    fav_block = re.search(
-        r'(<form[^>]*?/favorito.*?</form>)', body, re.DOTALL
-    )
+    fav_block = re.search(r"(<form[^>]*?/favorito.*?</form>)", body, re.DOTALL)
     if fav_block:
         text = fav_block.group(1)
         # When is_favorite=False, button should say "Favorito" (not Quitar).
@@ -71,6 +71,4 @@ def test_producto_detalle_quitar_label_when_favorited(client, session_factory):
     body = r.text
 
     # Look for the "Quitar" string anywhere on the page (in the form).
-    assert "Quitar" in body, (
-        "expected 'Quitar' label on a favorited product"
-    )
+    assert "Quitar" in body, "expected 'Quitar' label on a favorited product"

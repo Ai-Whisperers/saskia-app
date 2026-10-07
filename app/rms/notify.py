@@ -71,8 +71,8 @@ def send_telegram(text: str) -> bool:
     )
     try:
         with urllib.request.urlopen(  # noqa: S310
-                req, timeout=_TIMEOUT_S
-            ) as resp:
+            req, timeout=_TIMEOUT_S
+        ) as resp:
             return resp.status == 200
     except Exception as exc:
         print(f"WARNING: Telegram notify failed: {exc}", file=sys.stderr)

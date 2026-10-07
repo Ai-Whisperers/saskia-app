@@ -3,6 +3,7 @@
 Powers the operator-facing source-mix dashboard and the upcoming
 watchbrief cron that tracks /produccion quick-merma modal adoption.
 """
+
 from datetime import datetime, timezone
 
 from app.rms.models import Ingredient
@@ -82,6 +83,7 @@ def test_endpoint_excludes_waste_older_than_14_days(authed_client, session_facto
         )
         # Backdate recorded_at to 30 days ago — outside the window.
         from datetime import timedelta
+
         log.recorded_at = datetime.now(timezone.utc) - timedelta(days=30)
         s.commit()
 
@@ -115,9 +117,7 @@ def test_endpoint_handles_legacy_rows_backfilled_to_manual(authed_client, sessio
     )
     # Endpoint should never produce a NULL-source bucket thanks to the
     # COALESCE in the SQL.
-    assert None not in data["mix"], (
-        f"endpoint should COALESCE NULL to 'manual'; got {data['mix']}"
-    )
+    assert None not in data["mix"], f"endpoint should COALESCE NULL to 'manual'; got {data['mix']}"
 
 
 def test_merma_page_renders_source_mix_dashboard(authed_client, session_factory):
@@ -152,6 +152,7 @@ def test_merma_page_shows_source_chips_when_no_today_waste(authed_client, sessio
     is 'alive' for the operator. Add a single production-tagged waste
     from yesterday so the 14-day window has data while today is empty."""
     from datetime import datetime, timedelta, timezone
+
     ing = _make_ingredient(session_factory, "WSMIX Yesterday Ing")
     with session_factory() as s:
         log = record_waste(
@@ -182,4 +183,5 @@ def today_zero_invariant(body: str) -> bool:
     today has no waste. Used as a fallback when the empty-state copy
     was already changed by a sibling session."""
     import re
+
     return bool(re.search(r"0\s*eventos?\s*·", body))
