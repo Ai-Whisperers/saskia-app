@@ -1203,3 +1203,104 @@ def admin_backup(request: Request) -> object:
             "reason": result.reason,
         },
     )
+
+
+@router.post("/admin/backup/cron")
+def admin_backup_cron(request: Request) -> object:
+    """B.8 (BACKLOG #39): host-level cron trigger for run_backup().
+
+    The lifespan hook in app/rms/main.py runs run_backup() on app
+    startup. That works for short deploys but a container that's been
+    up for 30 days only backs up once. This endpoint lets a host-level
+    cron job (`0 3 * * * curl -X POST -H "X-Cron-Token:
+    $SASKIA_CRON_BACKUP_TOKEN" https://.../admin/backup/cron`) trigger
+    a backup on a fixed daily schedule independent of deploys.
+
+    Auth: shared secret in `SASKIA_CRON_BACKUP_TOKEN` env var. The
+    token is checked with `hmac.compare_digest` to avoid timing
+    oracles. Missing token in env → 503 (fail closed so a misconfigured
+    deploy doesn't accept empty tokens). Missing header → 401. Wrong
+    token → 401 with a generic error (no token-guessing oracle).
+
+    The endpoint runs _run_backup_admin() synchronously so the cron
+    wrapper script sees a final status in the response body (no
+    polling needed). Returns the same JSON shape as /admin/backup.
+
+    Exit-code contract for the cron wrapper (see scripts/backup_cron.py):
+    - 200 → success (skipped=True is also success; the wrapper logs it
+      and exits 0)
+    - 401/503 → config error, do not retry, alert the operator
+    - 500 → backup raised; the wrapper exits 2 so monitoring can fire
+
+    Setting up:
+    1. Generate a token: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+    2. Put it in /etc/sazon/cron-backup.env: `SASKIA_CRON_BACKUP_TOKEN=<token>`
+    3. Source that env in the crontab, then curl this endpoint
+       (see docs/operations/backup-cron.md for the full crontab line).
+    """
+    import hmac
+    import os
+
+
+    expected = os.getenv("SASKIA_CRON_BACKUP_TOKEN")
+    if not expected:
+        # Fail closed: never accept empty token, even if the request
+        # forgot to send the header. A 503 lets monitoring distinguish
+        # "you forgot to set the env var" from "the request is bad".
+        logger.error(
+            "admin_backup_cron: SASKIA_CRON_BACKUP_TOKEN not set in env"
+        )
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "cron_token_unconfigured",
+                "hint": (
+                    "Set SASKIA_CRON_BACKUP_TOKEN in the app's env "
+                    "(see docs/operations/backup-cron.md)."
+                ),
+            },
+        )
+
+    # Read the X-Cron-Token header. Request.headers is case-insensitive
+    # in Starlette so "X-Cron-Token" / "x-cron-token" both work.
+    provided = request.headers.get("X-Cron-Token", "")
+    if not provided:
+        return JSONResponse(
+            status_code=401,
+            content={"error": "missing_cron_token"},
+        )
+
+    # compare_digest is constant-time, avoiding the timing oracle
+    # that == would create.
+    if not hmac.compare_digest(provided, expected):
+        return JSONResponse(
+            status_code=401,
+            content={"error": "invalid_cron_token"},
+        )
+
+    try:
+        result = _run_backup_admin(request)
+    except Exception as exc:  # noqa: BLE001 — defensive default
+        logger.exception("admin_backup_cron failed")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "backup_failed", "detail": str(exc)[:500]},
+        )
+
+    logger.info(
+        f"admin_backup_cron: status=complete "
+        f"skipped={result.skipped} r2_uploaded={result.r2_uploaded} "
+        f"local_pruned={result.local_pruned}"
+    )
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "backup_complete",
+            "local_path": str(result.local_path) if result.local_path else None,
+            "r2_uploaded": result.r2_uploaded,
+            "r2_key": result.r2_key,
+            "local_pruned": result.local_pruned,
+            "skipped": result.skipped,
+            "reason": result.reason,
+        },
+    )

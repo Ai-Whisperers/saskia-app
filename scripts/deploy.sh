@@ -107,6 +107,45 @@ sleep 8
 HEALTH=$(curl -s --max-time 15 https://sazon-vps.paragu-ai.com/healthz || true)
 echo "==> healthz: $HEALTH"
 case "$HEALTH" in
-  *'"ok"'*) echo "DEPLOY OK: $(git log --oneline -1)";;
+  *'"ok"'*)
+    echo "DEPLOY OK: $(git log --oneline -1)"
+    # 5. B.8 — install/refresh the daily backup cron.
+    # The cron is idempotent (it's just a file in /etc/cron.d/) and
+    # only runs once per day at 03:00 UTC, so re-installing on every
+    # deploy keeps it in sync with any changes to the wrapper script.
+    # The cron token lives in /etc/sazon/backup-cron.token (mode 0400,
+    # root-only) and is created on first run; on subsequent deploys
+    # we leave it alone.
+    run ssh -i "$KEY" -o StrictHostKeyChecking=no "$VPS" '
+      set -e
+      if [ ! -f /etc/sazon/backup-cron.token ]; then
+        echo "==> first deploy: generating SASKIA_CRON_BACKUP_TOKEN"
+        mkdir -p /etc/sazon && chmod 0700 /etc/sazon
+        python3 -c "import secrets; print(secrets.token_hex(32))" \
+          > /etc/sazon/backup-cron.token
+        chmod 0400 /etc/sazon/backup-cron.token
+        # Append to the env file the swarm service reads (deploy.sh
+        # uses .env.sazon; adjust the path if your stack uses a
+        # different env file).
+        ENV_FILE=/opt/sazon/.env.sazon
+        if [ -f "$ENV_FILE" ] && ! grep -q SASKIA_CRON_BACKUP_TOKEN "$ENV_FILE"; then
+          echo "SASKIA_CRON_BACKUP_TOKEN=$(cat /etc/sazon/backup-cron.token)" >> "$ENV_FILE"
+          echo "==> appended SASKIA_CRON_BACKUP_TOKEN to $ENV_FILE (restart needed to pick up)"
+        fi
+      fi
+      cat > /etc/cron.d/sazon-backup <<EOF
+# /etc/cron.d/sazon-backup — daily 03:00 UTC. See docs/operations/backup-cron.md
+SASKIA_BACKUP_URL=http://localhost:8000
+SASKIA_CRON_BACKUP_TOKEN_FILE=/etc/sazon/backup-cron.token
+0 3 * * * root $REMOTE_DIR/.venv/bin/python $REMOTE_DIR/scripts/backup_cron.py >> /var/log/sazon-cron.log 2>&1
+EOF
+      chmod 0644 /etc/cron.d/sazon-backup
+      echo "==> cron installed: $(ls -l /etc/cron.d/sazon-backup)"
+      # Smoke test the wrapper — --dry-run exits 0 with no HTTP call.
+      SASKIA_BACKUP_URL=http://localhost:8000 \\
+      SASKIA_CRON_BACKUP_TOKEN_FILE=/etc/sazon/backup-cron.token \\
+        $REMOTE_DIR/.venv/bin/python $REMOTE_DIR/scripts/backup_cron.py --dry-run
+    '
+    ;;
   *) echo "DEPLOY WARNING: health check did not return ok — inspect: ssh $VPS 'docker service ps saskia-vps_web'"; exit 1;;
 esac

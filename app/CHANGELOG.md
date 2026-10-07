@@ -4117,6 +4117,45 @@ real impact), (c) keep sale channel mismatch at #3. The file's
 "Update pattern" footer now also documents the archive-first rule
 for future refreshes.
 
+### Added — B.8 daily backup cron (2026-10-07)
+
+Before B.8, backups only happened at app startup (lifespan) and on
+EOD save. A container that ran for weeks without a restart and had
+no EOD saved would silently drift past 24h. The host cron is the
+backstop: a single line in `/etc/cron.d/sazon-backup` that POSTs the
+app's own `/admin/backup/cron` endpoint every day at 03:00 UTC.
+
+**Design choice — HTTP, not in-process.** Cron talks to the live app
+over HTTP rather than calling the scheduler module directly. Reasons
+in the wrapper docstring: (1) one replica wins even if 5 cron
+wrappers fire, (2) no env duplication (R2 creds, DB path, Sentry
+all live in the app process), (3) the endpoint has the same
+observability (Sentry, lifespan log, response body) as a manual
+backup, so a cron "success" that actually failed inside is still
+visible.
+
+**Files:**
+- `app/routers/health.py:1207-1278` — new `POST /admin/backup/cron`
+  endpoint. Token-gated by `X-Cron-Token: $SASKIA_CRON_BACKUP_TOKEN`.
+  Returns 503 if env unset, 401 if header missing/wrong, 200 with
+  the same JSON shape as `/admin/backup`.
+- `scripts/backup_cron.py` — rewritten as a thin HTTP wrapper.
+  Old version called `app.rms.backup.backup_database` (the
+  pre-xlsx JSON path) and 500'd on SQLite. New version POSTs
+  the endpoint, maps HTTP status to cron-friendly exit codes:
+  0=ok, 2=config, 3=backup raised, 4=app down.
+- `docs/operations/backup-cron.md` — operator runbook (install,
+  verify, troubleshoot).
+- `scripts/deploy.sh` — new step 5 that installs the crontab
+  idempotently and generates a fresh 32-byte token on first run.
+
+**Tests added (16):** `tests/test_admin_backup_cron.py` (6: token
+required, header missing, header wrong, 503 unconfigured, 200
+skipped, 200 completed) + `tests/test_backup_cron_wrapper.py` (10:
+import, dry-run no network, dry-run missing url, dry-run missing
+token, 200→0, 500→3, 401→2, ECONNREFUSED→4, --json output shape,
+path auto-append). All green. Full backup suite is 65/65.
+
 ## [Unreleased]
 
 ### Fixed (UI audit patch set, 2026-09-23)
