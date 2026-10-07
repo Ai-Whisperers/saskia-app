@@ -1,3 +1,64 @@
+## 2026-10-07e — SASKIA-301: copy/UX hardening Phase 0 (globals)
+
+**Goal:** fix the 8 categories of copy/UX drift identified in
+`docs/ux/copy-fix-list.md` (the audit of 110 templates + the
+reuse-abstraction audit) that apply globally across the app.
+
+**Shipped in this commit:**
+
+- **Currency symbol drift (G.1)** — `₲` and bare `Gs` → canonical `Gs. 729.167`
+  per `app/docs/copy-vos.md`. 4 templates: `eod_print.html` (2 spots),
+  `ops_status.html`, `reportes_mermas_cost.html`, `suppliers_volatility.html`.
+- **English band label (G.2)** — `>Loyalty<` → `>Fidelización<` in
+  `inicio.html` line 87.
+- **English loan words (G.3)** — 18 replacements across 15 templates:
+  `COGS` → `Costo de Mercadería Vendida`, `Revenue` → `Ingresos`,
+  `Batches` → `Tandas`, `Forecast` → `Pronóstico`, `Endpoint` → `Ruta`,
+  `Counterparty` → `Contraparte`, `Reorder rate` → `Tasa de reposición`,
+  `Lead time` → `Tiempo de reposición`, `Login OK/FAIL` → `Login exitoso/fallido`,
+  `Δ Margen/Δ Gs./Δ Precio` → `Cambio (...)`, `KPIs en vivo` → `Indicadores en vivo`,
+  `Owner` → `Responsable`, `Status` → `Estado`, `Prob.` → `Probabilidad`,
+  `Unit Gs.` → `Unitario (Gs.)`, `Qty` → `Cant.`, `Severidad (Gs.)` instead of
+  `Sev Gs.`. English tooltip `Set every row...` → `Marcá todas...` in produccion.html.
+- **Register consistency (G.4)** — `Guardá` → `Guardar` in 11 button locations
+  across 9 templates (form submit buttons + aria-labels). `Decí por qué`
+  → `Indicá por qué` in produccion.html.
+- **Severity pill (G.7)** — `sev-pill saludable` → `sev-pill ok` in inicio.html
+  (canonical set: OK / Aviso / Crítico).
+- **Column header / placeholder (G.6+G.8)** — `(Gs)` → `(Gs.)` in
+  menu_import_ocr.html; placeholder `25000` → `25.000` in menus.html.
+- **Tooltip rationale (G.5)** — no change (locked): all 8 `aria-label="Cerrar"`
+  buttons have SVG X icon as visible content; the aria-label is the correct
+  accessible name.
+
+**Tests:** 6 new test files, 33 tests, all pass in 20s:
+- `tests/test_SASKIA-301_currency_gs.py` (5)
+- `tests/test_SASKIA-301_loan_words.py` (15+)
+- `tests/test_SASKIA-301_register.py` (3)
+- `tests/test_SASKIA-301_severity.py` (2)
+- `tests/test_SASKIA-301_columns.py` (2)
+- `tests/test_SASKIA-301_tooltips.py` (2)
+
+All marked `pytest.mark.smoke` so they run on every commit via pre-commit.
+
+**Decisions (D1-D8)** documented in `docs/ux/copy-ux-decisions.md`:
+- D1: `copy-vos.md` is wrong (`Guardá` is Argentine, not Paraguayan for buttons);
+  canonical is infinitive for buttons, vose-conjugated for prose. The style
+  guide fix happens in SASKIA-310 (Phase 9).
+- D2: actual scope larger than original estimate (11 Guardá buttons, not 2-3;
+  3 Loyalty templates, not 1; 4 ₲ templates, confirmed).
+- D3: Phase 8 shrinks (500.html is already safe; the security check becomes
+  a regression test rather than a fix).
+- D4-D5: worktree + sibling recovery (SASKIA-207 was uncommitted on main;
+  this commit includes the recovery merge via the chain SASKIA-207 → SASKIA-301).
+- D6-D8: test naming, no Phase 0 migrations, glossary in Phase 9.
+
+**Regression:** SASKIA-205/206/207 (62 tests) still pass; ruff clean on the
+new test files.
+
+Refs: `docs/ux/copy-fix-list.md`, `docs/ux/copy-ux-decisions.md`,
+`.hermes/plans/2026-10-07_202522-copy-ux-hardening.md`.
+
 ## 2026-10-07d — SASKIA-207: stock_ledger helper + reuse/abstraction audit
 
 **Audit:** docs/operations/2026-10-07-saskia-reuse-abstraction-audit.md (8 findings, measured).

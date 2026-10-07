@@ -29,7 +29,7 @@
 {{ ui.skeleton_section(id="mermas-cost-table", variant="line", count=5, label="Cargando mermas") }}
 <div data-loaded-section="mermas-cost-table">
 <p class="hint">
-  Total desperdiciado: <strong>₲{{ "{:,}".format(total_waste_gs) }}</strong>
+  Total desperdiciado: <strong>Gs.{{ "{:,}".format(total_waste_gs) }}</strong>
   en <strong>{{ rows | length }}</strong> ingredientes.
 </p>
 <table class="table is-hoverable">
@@ -38,8 +38,8 @@
       <th>Ingrediente</th>
       <th>Unidad</th>
       <th class="num">Eventos</th>
-      <th class="num">Costo total ₲</th>
-      <th class="num">Costo promedio / evento ₲</th>
+      <th class="num">Costo total (Gs.)</th>
+      <th class="num">Costo promedio / evento (Gs.)</th>
       <th class="num">% del total</th>
       <th>Acción</th>
     </tr>

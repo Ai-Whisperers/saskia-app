@@ -84,7 +84,7 @@
    suggestions)? Industry norm is 40-60% for a healthy program; below
    30% means the cashier isn't being prompted enough or there's friction.
    Delta is percentage-points vs prior period (not relative %). #}
-<div class="band-label">Loyalty</div>
+<div class="band-label">Fidelización</div>
 <div class="kpi-row mb-4">
   <ui-kpi-card
     label="Clientes asociados"
@@ -224,7 +224,7 @@
     <div class="card-header">
       <h2 class="text-md" >Pronóstico — {{ forecast_tomorrow_label }} {{ forecast_tomorrow_date }}</h2>
       <small class="text-muted">12 semanas · día de la semana · confianza
-        {% if forecast_confidence == 'high' %}<span class="sev-pill saludable">alta</span>
+        {% if forecast_confidence == 'high' %}<span class="sev-pill ok">alta</span>
         {% elif forecast_confidence == 'medium' %}<span class="sev-pill aviso">media</span>
         {% else %}<span class="sev-pill critico">baja</span>{% endif %}
       </small>

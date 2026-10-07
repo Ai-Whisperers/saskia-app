@@ -102,7 +102,7 @@
       <dt>Humedad máx</dt><dd>{{ ingredient.humidity_max_pct }}%</dd>
       {% endif %}
       {% if ingredient.lead_time_days %}
-      <dt>Lead time</dt><dd>{{ ingredient.lead_time_days }} días</dd>
+      <dt>Tiempo de reposición</dt><dd>{{ ingredient.lead_time_days }} días</dd>
       {% endif %}
       <dt>Lote obligatorio</dt>
       <dd>{{ 'Sí' if ingredient.lot_required else 'No' }}</dd>
@@ -339,7 +339,7 @@
                min="1" max="365">
       </label>
       <div class="form-actions">
-        <button type="submit" class="btn btn-primary">Guardá</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
       </div>
     </form>
   </details>
