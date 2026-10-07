@@ -1,37 +1,42 @@
-"""app/rms/loyalty_suggestions.py — Decision C (Phase 4, 2026-10-01).
+"""app/rms/loyalty/suggestions.py — Decision C (Phase 4, 2026-10-01) +
+Batch B1 extraction (2026-10-07).
 
 Auto-suggest rules engine for the POS customer card. Pure functions
-that take a Customer + their sale history and return up to 3 actionable
+that take a Customer + their sale history and return up to N actionable
 suggestions to surface at the till:
 
   - "vuelve_pronto" — customer hasn't visited in N days; suggest
     a small discount to bring them back (LAPSED rule).
-  - "cumple_cerca" — birthday within 7 days; suggest a freebie or
+  - "cumple_cerca" — birthday within N days; suggest a freebie or
     small discount (BIRTHDAY rule).
-  - "puntos_dormidos" — customer has ≥50 points but didn't redeem
-    on the last visit; nudge a redeem (POINTS-DORMANT rule).
+  - "puntos_dormidos" — customer has ≥threshold points but didn't
+    redeem on the last visit; nudge a redeem (POINTS-DORMANT rule).
   - "cliente_fiel" — top-tier customer; small recognition text
     only (NO discount to avoid margin erosion on big spenders)
     (VIP rule).
   - "cross_sell" — customer has `sin gluten` (or other) dietary
     restriction; surface the top-selling sin-gluten product as a
-    cross-sell (CROSS-SELL rule).
+    cross-sell (CROSS-SELL rule — threshold reserved, not yet wired).
 
 Design rules:
   - Suggestions NEVER bypass the cashier. They pre-fill the existing
     ``discount_gs`` field with a suggested amount; cashier confirms
     or ignores.
-  - Maximum 3 returned per call (UI space constraint).
+  - Maximum `max_suggestions` returned per call (UI space constraint).
   - Priority order: cumpleaños → vuelve pronto → puntos dormidos →
     cross-sell → cliente fiel. Highest-priority suggestions win ties.
-  - All thresholds live as module-level constants so the operator can tune
-    later (no DB-driven rules — that's C2/C3 territory).
+  - All thresholds live in a configurable dict (Batch B1, 2026-10-07)
+    so the operator can tune via /admin/settings without code changes.
+    The DEFAULT_LOYALTY_CONFIG dict below is the canonical source of
+    defaults; get_loyalty_config() reads from SettingsKV and falls
+    back to these values for any missing key.
   - Pure function: takes a Customer + sales-derived stats; no DB
-    queries inside. Caller wires the data.
+    queries inside (except the redeemed_on_last_visit hint, which is
+    a separate session-scoped helper). Caller wires the data.
 
-This module does NOT do I/O or import FastAPI. The router stitches
-the inputs and includes the result in the customer detail payload
-(``/clientes/api/{id}``).
+This module does NOT do I/O or import FastAPI for the pure-function
+path. The router stitches the inputs and includes the result in the
+customer detail payload (``/clientes/api/{id}``).
 """
 
 from __future__ import annotations
@@ -47,39 +52,30 @@ from app.rms.loyalty.ledger import POINTS_VALUE_GS
 if TYPE_CHECKING:
     from app.rms.models_legacy import Customer
 
-
-# ──────────────────────────────────────────────────────────────────────
-# Tunable thresholds
-# ──────────────────────────────────────────────────────────────────────
-
-# LAPSED thresholds by tier (days without a visit). Bronze = the
-# default; silver/gold earn longer patience because they visit often.
-LAPSED_DAYS_BRONZE = 21
-LAPSED_DAYS_SILVER = 30
-LAPSED_DAYS_GOLD = 45
-
-# LAPSED discount percent by tier. Higher tiers get less because
-# they were already loyal — we don't want to discount away margin
-# on people who would have come back anyway.
-LAPSED_DISCOUNT_PCT_BRONZE = 10
-LAPSED_DISCOUNT_PCT_SILVER = 7
-LAPSED_DISCOUNT_PCT_GOLD = 5
-
-# BIRTHDAY window: how many days before the birthday to start showing.
-BIRTHDAY_WINDOW_DAYS = 7
-BIRTHDAY_DISCOUNT_PCT = 15
-
-# POINTS-DORMANT threshold. "Dormant" means they didn't redeem on
-# their last visit AND they have enough to make a meaningful dent
-# on a coffee-and-chipita purchase (~50k Gs. ≈ 50 pts).
-POINTS_DORMANT_THRESHOLD = 50
-
-# CROSS-SELL min products sold to be considered "popular enough to
-# recommend" (avoid suggesting one-time flukes).
-CROSS_SELL_MIN_SALES = 3
-
-# How many suggestions to return. UI card space is limited.
-MAX_SUGGESTIONS = 3
+# Batch B1 (2026-10-07): per-domain settings extraction. The constants
+# that used to live as module-level globals here are now in
+# app/rms/settings.py:SETTINGS (keys prefixed ``loyalty.``) with the
+# defaults defined below. The pure-function API accepts an optional
+# ``loyalty_cfg`` dict kwarg; when None, defaults are used.
+DEFAULT_LOYALTY_CONFIG: dict[str, int] = {
+    # LAPSED thresholds (days without a visit, by tier)
+    "lapsed_days_bronze": 21,
+    "lapsed_days_silver": 30,
+    "lapsed_days_gold": 45,
+    # LAPSED discount percent by tier (int 0–100)
+    "lapsed_discount_pct_bronze": 10,
+    "lapsed_discount_pct_silver": 7,
+    "lapsed_discount_pct_gold": 5,
+    # BIRTHDAY window + discount
+    "birthday_window_days": 7,
+    "birthday_discount_pct": 15,
+    # POINTS-DORMANT
+    "points_dormant_threshold": 50,
+    # CROSS-SELL (reserved, not yet wired into a rule)
+    "cross_sell_min_sales": 3,
+    # Cap on returned suggestions
+    "max_suggestions": 3,
+}
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -133,8 +129,9 @@ def suggest_for_customer(
     tier: str,
     redeemed_on_last_visit: bool,
     today: Optional[_dt.date] = None,
+    loyalty_cfg: Optional[dict[str, int]] = None,
 ) -> list[Suggestion]:
-    """Return up to MAX_SUGGESTIONS suggestions for this customer.
+    """Return up to `max_suggestions` suggestions for this customer.
 
     Args:
       customer: the Customer ORM row (we read .birthday, .loyalty_points,
@@ -148,6 +145,10 @@ def suggest_for_customer(
         customer is already redeeming regularly.
       today: override for testability. Defaults to today's date in
         Asunción (caller should pass it; this function is pure).
+      loyalty_cfg: optional override dict for the tunable thresholds
+        (Batch B1, 2026-10-07). When None, defaults from
+        DEFAULT_LOYALTY_CONFIG are used. Caller should pass
+        get_loyalty_config(session) for production use.
 
     Returns:
       List of Suggestion objects, sorted by priority then by kind
@@ -156,10 +157,18 @@ def suggest_for_customer(
     if today is None:
         today = _dt.datetime.now(_dt.UTC).date()
 
+    # Merge operator overrides onto the canonical config. A partial
+    # cfg (e.g. tests passing {lapsed_discount_pct_bronze: 25})
+    # falls back to defaults for the unspecified keys — so callers
+    # only override what they care about.
+    cfg = dict(DEFAULT_LOYALTY_CONFIG)
+    if loyalty_cfg is not None:
+        cfg.update(loyalty_cfg)
+
     out: list[Suggestion] = []
 
-    # Rule: cumpleaños dentro de 7 días (BIRTHDAY)
-    birthday_sugg = _maybe_birthday(customer.birthday, today=today)
+    # Rule: cumpleaños dentro de N días (BIRTHDAY)
+    birthday_sugg = _maybe_birthday(customer.birthday, today=today, cfg=cfg)
     if birthday_sugg is not None:
         out.append(birthday_sugg)
 
@@ -168,15 +177,17 @@ def suggest_for_customer(
         last_sale_at=last_sale_at,
         tier=tier,
         today=today,
+        cfg=cfg,
     )
     if lapsed_sugg is not None:
         out.append(lapsed_sugg)
 
-    # Rule: ≥50 puntos y no canjeó la última vez (POINTS-DORMANT)
+    # Rule: ≥threshold puntos y no canjeó la última vez (POINTS-DORMANT)
     dormant_sugg = _maybe_points_dormant(
         loyalty_points=customer.loyalty_points,
         n_sales=n_sales,
         redeemed_on_last_visit=redeemed_on_last_visit,
+        cfg=cfg,
     )
     if dormant_sugg is not None:
         out.append(dormant_sugg)
@@ -202,15 +213,16 @@ def suggest_for_customer(
     if len(out) == 1 and out[0].kind == KIND_PUNTOS_DORMIDOS:
         return []
 
-    return out[:MAX_SUGGESTIONS]
+    return out[: cfg["max_suggestions"]]
 
 
 def _maybe_birthday(
     birthday_str: Optional[str],
     *,
     today: _dt.date,
+    cfg: dict[str, int],
 ) -> Optional[Suggestion]:
-    """Cumpleaños dentro de la ventana (default 7 días).
+    """Cumpleaños dentro de la ventana (configurable, default 7 días).
 
     Soporta dos formatos almacenados en ``customer.birthday``:
       - "MM-DD" — cumpleaños sin año (caso normal, recurrente).
@@ -233,22 +245,23 @@ def _maybe_birthday(
         return None
 
     days_until = (bday - today).days
-    if days_until < 0 or days_until > BIRTHDAY_WINDOW_DAYS:
+    if days_until < 0 or days_until > cfg["birthday_window_days"]:
         return None
 
+    pct = cfg["birthday_discount_pct"]
     if days_until == 0:
-        body = "¡Es su cumpleaños hoy! Ofrecerle un 15% de descuento."
+        body = f"¡Es su cumpleaños hoy! Ofrecerle un {pct}% de descuento."
     else:
         body = (
             f"Cumple en {days_until} día{'s' if days_until != 1 else ''}. "
-            f"Ofrecerle un 15% de descuento en su próxima compra."
+            f"Ofrecerle un {pct}% de descuento en su próxima compra."
         )
     return Suggestion(
         kind=KIND_CUMPLE_CERCA,
         title="🎂 Cumple cerca",
         body=body,
         priority=10,  # highest
-        discount_pct=BIRTHDAY_DISCOUNT_PCT,
+        discount_pct=pct,
     )
 
 
@@ -274,6 +287,7 @@ def _maybe_lapsed(
     last_sale_at: Optional[_dt.datetime],
     tier: str,
     today: _dt.date,
+    cfg: dict[str, int],
 ) -> Optional[Suggestion]:
     """Customer hasn't visited in N days (where N depends on tier)."""
     if last_sale_at is None:
@@ -282,14 +296,14 @@ def _maybe_lapsed(
         return None
 
     if tier == "GOLD":
-        threshold = LAPSED_DAYS_GOLD
-        pct = LAPSED_DISCOUNT_PCT_GOLD
+        threshold = cfg["lapsed_days_gold"]
+        pct = cfg["lapsed_discount_pct_gold"]
     elif tier == "SILVER":
-        threshold = LAPSED_DAYS_SILVER
-        pct = LAPSED_DISCOUNT_PCT_SILVER
+        threshold = cfg["lapsed_days_silver"]
+        pct = cfg["lapsed_discount_pct_silver"]
     else:
-        threshold = LAPSED_DAYS_BRONZE
-        pct = LAPSED_DISCOUNT_PCT_BRONZE
+        threshold = cfg["lapsed_days_bronze"]
+        pct = cfg["lapsed_discount_pct_bronze"]
 
     last_visit_date = (
         last_sale_at.date() if isinstance(last_sale_at, _dt.datetime) else last_sale_at
@@ -316,8 +330,9 @@ def _maybe_points_dormant(
     loyalty_points: int,
     n_sales: int,
     redeemed_on_last_visit: bool,
+    cfg: dict[str, int],
 ) -> Optional[Suggestion]:
-    """Customer has ≥POINTS_DORMANT_THRESHOLD and didn't redeem on last visit.
+    """Customer has ≥threshold points and didn't redeem on last visit.
 
     T-2026-10-01: the displayed discount now uses POINTS_VALUE_GS
     instead of a hardcoded *1000. Pre-fix this echoed a 10x inflated
@@ -326,7 +341,7 @@ def _maybe_points_dormant(
     if redeemed_on_last_visit:
         # Already redeeming — no need to nudge.
         return None
-    if loyalty_points < POINTS_DORMANT_THRESHOLD:
+    if loyalty_points < cfg["points_dormant_threshold"]:
         return None
     if n_sales == 0:
         # Brand-new customer with manually-credited points? Nudge anyway.
@@ -413,3 +428,16 @@ def redeemed_on_last_visit(session: Any, customer_id: int) -> bool:
         return redeem is not None
     except Exception:
         return False
+
+
+__all__ = [
+    "DEFAULT_LOYALTY_CONFIG",
+    "KIND_CLIENTE_FIEL",
+    "KIND_CROSS_SELL",
+    "KIND_CUMPLE_CERCA",
+    "KIND_PUNTOS_DORMIDOS",
+    "KIND_VUELVE_PRONTO",
+    "Suggestion",
+    "redeemed_on_last_visit",
+    "suggest_for_customer",
+]

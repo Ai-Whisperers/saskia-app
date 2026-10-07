@@ -519,6 +519,14 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
         from app.rms.config import ASUNCION_TZ
 
         today_asuncion = datetime.now(ASUNCION_TZ).date()
+        # Batch B1 (2026-10-07): fetch operator-tunable loyalty
+        # thresholds from SettingsKV. Defaults are applied inside
+        # get_loyalty_config() for any missing key. Wrapped in
+        # try/except (already inside an outer except) so a stale
+        # settings row never 500s the picker.
+        from app.rms.settings_runtime import get_loyalty_config
+
+        loyalty_cfg = get_loyalty_config(session)
         suggestions_raw = suggest_for_customer(
             c,
             last_sale_at=stats.last_sale_at,
@@ -526,6 +534,7 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
             tier=stats.tier.value,
             redeemed_on_last_visit=redeemed_on_last_visit_flag,
             today=today_asuncion,
+            loyalty_cfg=loyalty_cfg,
         )
         suggestions = [
             {

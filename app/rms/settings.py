@@ -30,6 +30,9 @@ class SettingGroup(str, Enum):
     SESSION = "session"
     DEMO = "demo"
     PRODUCTION = "production"  # PRODUCCION-V2 Fase 3: demand cache TTL
+    LOYALTY = "loyalty"  # Batch B1 (2026-10-07) — POS suggestion thresholds
+    EOD = "eod"  # Batch B2 (2026-10-07) — end-of-day anomaly detector thresholds
+    ALERTS = "alerts"  # Batch B3 (2026-10-07) — alert dispatch rate limit
 
 
 @dataclass
@@ -72,7 +75,7 @@ VALIDATORS = {
     "json": _json_validator,
 }
 
-# All 30 settings (data, not code)
+# All 60 settings (data, not code)
 SETTINGS: list[Setting] = [
     # GENERAL (6)
     Setting(
@@ -388,6 +391,143 @@ SETTINGS: list[Setting] = [
         "int",
         "Segundos antes de recomputar demanda. 0 = deshabilitar cache.",
         SettingGroup.PRODUCTION,
+    ),
+    # LOYALTY (11) — Batch B1 (2026-10-07)
+    # POS auto-suggest thresholds. Operator-tunable from /admin/settings
+    # under the "Loyalty" tab. Defaults match the original module-level
+    # constants in app/rms/loyalty/suggestions.py before extraction.
+    Setting(
+        "loyalty.lapsed_days_bronze",
+        "21",
+        "int",
+        "Días sin visita para sugerir descuento (cliente Bronze)",
+        SettingGroup.LOYALTY,
+    ),
+    Setting(
+        "loyalty.lapsed_days_silver",
+        "30",
+        "int",
+        "Días sin visita para sugerir descuento (cliente Silver)",
+        SettingGroup.LOYALTY,
+    ),
+    Setting(
+        "loyalty.lapsed_days_gold",
+        "45",
+        "int",
+        "Días sin visita para sugerir descuento (cliente Gold)",
+        SettingGroup.LOYALTY,
+    ),
+    Setting(
+        "loyalty.lapsed_discount_pct_bronze",
+        "10",
+        "int",
+        "% descuento 'vuelve pronto' (Bronze)",
+        SettingGroup.LOYALTY,
+    ),
+    Setting(
+        "loyalty.lapsed_discount_pct_silver",
+        "7",
+        "int",
+        "% descuento 'vuelve pronto' (Silver)",
+        SettingGroup.LOYALTY,
+    ),
+    Setting(
+        "loyalty.lapsed_discount_pct_gold",
+        "5",
+        "int",
+        "% descuento 'vuelve pronto' (Gold)",
+        SettingGroup.LOYALTY,
+    ),
+    Setting(
+        "loyalty.birthday_window_days",
+        "7",
+        "int",
+        "Días antes del cumple para empezar a sugerir",
+        SettingGroup.LOYALTY,
+    ),
+    Setting(
+        "loyalty.birthday_discount_pct",
+        "15",
+        "int",
+        "% descuento sugerido para cumple",
+        SettingGroup.LOYALTY,
+    ),
+    Setting(
+        "loyalty.points_dormant_threshold",
+        "50",
+        "int",
+        "Puntos mínimos para activar sugerencia 'puntos dormidos'",
+        SettingGroup.LOYALTY,
+    ),
+    Setting(
+        "loyalty.cross_sell_min_sales",
+        "3",
+        "int",
+        "Ventas mínimas para que un producto sea 'cross-sell popular' (definido, sin uso actual)",
+        SettingGroup.LOYALTY,
+    ),
+    Setting(
+        "loyalty.max_suggestions",
+        "3",
+        "int",
+        "Máximo de sugerencias por cliente en la tarjeta POS",
+        SettingGroup.LOYALTY,
+    ),
+    # EOD (3) — Batch B2 (2026-10-07)
+    # End-of-day anomaly detector thresholds. Operator-tunable from
+    # /admin/settings under the "EOD" tab.
+    Setting(
+        "eod.voided_rate_threshold",
+        "0.10",
+        "float",
+        "Tasa mínima de anulaciones (0.0–1.0) para disparar alerta 'tasa alta'",
+        SettingGroup.EOD,
+    ),
+    Setting(
+        "eod.voided_rate_min_sales",
+        "3",
+        "int",
+        "Ventas mínimas del día para evaluar la tasa de anulaciones (evita ruido en días lentos)",
+        SettingGroup.EOD,
+    ),
+    Setting(
+        "eod.max_uninvoiced_ids_displayed",
+        "10",
+        "int",
+        "Máximo de IDs de ventas sin facturar a listar en el email de alerta",
+        SettingGroup.EOD,
+    ),
+    # ALERTS (1) — Batch B3 (2026-10-07)
+    Setting(
+        "alerts.max_per_day",
+        "50",
+        "int",
+        "Máximo de alertas por proceso por día (rate limit de dispatch)",
+        SettingGroup.ALERTS,
+    ),
+    # BACKUP (3) — Batch B4 (2026-10-07)
+    # These thresholds previously lived as module-level constants in
+    # app/services/auto_backup.py. Now operator-tunable.
+    Setting(
+        "backup.auto_threshold_hours",
+        "24",
+        "int",
+        "Horas desde último backup para gatillar backup automático al startup",
+        SettingGroup.BACKUP,
+    ),
+    Setting(
+        "backup.warn_threshold_days",
+        "7",
+        "int",
+        "Días desde último backup para mostrar warning en la UI",
+        SettingGroup.BACKUP,
+    ),
+    Setting(
+        "backup.keep_last_n",
+        "30",
+        "int",
+        "Cantidad de backups locales a mantener antes de podar los más viejos",
+        SettingGroup.BACKUP,
     ),
 ]
 

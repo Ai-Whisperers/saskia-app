@@ -5,6 +5,27 @@
 
 ## [Unreleased]
 
+
+### Refactored (2026-10-07) — Batch B1: loyalty thresholds → SettingsKV
+
+Extracted 11 module-level constants from `app/rms/loyalty/suggestions.py`
+to the operator-tunable SettingsKV registry (new `SettingGroup.LOYALTY`).
+Operator can now adjust LAPSED days, BIRTHDAY window, POINTS-DORMANT
+threshold, and MAX_SUGGESTIONS from `/admin/settings → Loyalty` tab
+without code changes. Defaults preserved exactly.
+
+Pattern follows the existing `compute_suggested_price(cost, markup_cfg=None)`
+in `settings_runtime.py`: pure-function accepts optional `loyalty_cfg`
+kwarg, falls back to module-level `DEFAULT_LOYALTY_CONFIG` when None.
+Partial cfg merges with defaults so callers can override any subset.
+
+**Files:** `app/rms/settings.py` (+11 entries, 42→53), `app/rms/settings_runtime.py`
+(+`get_loyalty_config`, +`DEFAULT_LOYALTY_CONFIG`), `app/rms/loyalty/suggestions.py`
+(refactored), `app/routers/customers.py` (call site updated),
+`tests/test_loyalty_cfg_override.py` (9 new tests). All 35 loyalty tests pass.
+
+**Not yet touched (Batch B2–B4):** EOD anomaly thresholds, alert rate
+limit, backup thresholds. Same pattern, queued next.
 ### Fixed (2026-10-07) — `app/rms/models_legacy.py` docstring says wrong path
 
 The module docstring on line 1 read `app/rms/models.py — SQLAlchemy

@@ -179,11 +179,148 @@ def set_branding(session: object, **fields: object) -> dict:
     return current
 
 
+
+# ─── Batch B: per-domain config helpers (2026-10-07) ─────────────────────
+# Each domain has:
+#   - DEFAULT_<DOMAIN>_CONFIG  module-level dict (frozen defaults)
+#   - get_<domain>_config(session)  fetches from SettingsKV via SETTINGS
+#     registry, returning a dict with all keys validated + coerced
+#
+# Consumer modules (loyalty/suggestions.py, services/eod_anomaly.py,
+# observability/alerts.py, services/auto_backup.py) accept an optional
+# <domain>_cfg dict kwarg. When None, they fall back to the module-level
+# DEFAULT_<DOMAIN>_CONFIG. This keeps the pure-function contract while
+# letting the operator override via /admin/settings.
+# ────────────────────────────────────────────────────────────────────────
+
+
+# ── Loyalty (B1) ──────────────────────────────────────────────────────────
+DEFAULT_LOYALTY_CONFIG: dict[str, int] = {
+    # LAPSED thresholds (days without a visit, by tier)
+    "lapsed_days_bronze": 21,
+    "lapsed_days_silver": 30,
+    "lapsed_days_gold": 45,
+    # LAPSED discount percent by tier (int 0–100)
+    "lapsed_discount_pct_bronze": 10,
+    "lapsed_discount_pct_silver": 7,
+    "lapsed_discount_pct_gold": 5,
+    # BIRTHDAY window + discount
+    "birthday_window_days": 7,
+    "birthday_discount_pct": 15,
+    # POINTS-DORMANT
+    "points_dormant_threshold": 50,
+    # CROSS-SELL (reserved, not yet wired into a rule)
+    "cross_sell_min_sales": 3,
+    # Cap on returned suggestions
+    "max_suggestions": 3,
+}
+
+
+def get_loyalty_config(session: Session) -> dict[str, int]:
+    """Read the loyalty config dict from SettingsKV (one DB query).
+
+    Returns a fresh dict every call (callers may mutate freely). Keys
+    missing from the DB fall back to DEFAULT_LOYALTY_CONFIG values.
+    """
+    from app.rms.settings import get_setting_value
+
+    out = dict(DEFAULT_LOYALTY_CONFIG)
+    for key in DEFAULT_LOYALTY_CONFIG:
+        try:
+            v = get_setting_value(session, f"loyalty.{key}")
+            if v is not None:
+                out[key] = int(v)
+        except (ValueError, TypeError):
+            # Stale or corrupt DB row — fall back to default silently.
+            pass
+    return out
+
+
+# ── EOD anomaly detector (B2) ─────────────────────────────────────────────
+DEFAULT_EOD_CONFIG: dict[str, int | float] = {
+    "voided_rate_threshold": 0.10,  # fraction; > this → "tasa alta" anomaly
+    "voided_rate_min_sales": 3,  # day with fewer sales skips the check
+    "max_uninvoiced_ids_displayed": 10,  # email body slice cap
+}
+
+
+def get_eod_config(session: Session) -> dict[str, int | float]:
+    """Read the EOD anomaly detector config from SettingsKV."""
+    from app.rms.settings import get_setting_value
+
+    out = dict(DEFAULT_EOD_CONFIG)
+    type_coerce = {
+        "voided_rate_threshold": float,
+        "voided_rate_min_sales": int,
+        "max_uninvoiced_ids_displayed": int,
+    }
+    for key in DEFAULT_EOD_CONFIG:
+        try:
+            v = get_setting_value(session, f"eod.{key}")
+            if v is not None:
+                out[key] = type_coerce[key](v)
+        except (ValueError, TypeError):
+            pass
+    return out
+
+
+# ── Alert dispatch (B3) ───────────────────────────────────────────────────
+DEFAULT_ALERTS_CONFIG: dict[str, int] = {
+    "max_per_day": 50,  # rate limit on dispatch_anomalies()
+}
+
+
+def get_alerts_config(session: Session) -> dict[str, int]:
+    """Read the alerts dispatch config from SettingsKV."""
+    from app.rms.settings import get_setting_value
+
+    out = dict(DEFAULT_ALERTS_CONFIG)
+    for key in DEFAULT_ALERTS_CONFIG:
+        try:
+            v = get_setting_value(session, f"alerts.{key}")
+            if v is not None:
+                out[key] = int(v)
+        except (ValueError, TypeError):
+            pass
+    return out
+
+
+# ── Auto-backup (B4) ──────────────────────────────────────────────────────
+DEFAULT_BACKUP_CONFIG: dict[str, int] = {
+    "auto_threshold_hours": 24,  # run auto-backup if last > N hours
+    "warn_threshold_days": 7,  # show warning if last > N days
+    "keep_last_n": 30,  # prune backups beyond this count
+}
+
+
+def get_backup_config(session: Session) -> dict[str, int]:
+    """Read the backup config from SettingsKV."""
+    from app.rms.settings import get_setting_value
+
+    out = dict(DEFAULT_BACKUP_CONFIG)
+    for key in DEFAULT_BACKUP_CONFIG:
+        try:
+            v = get_setting_value(session, f"backup.{key}")
+            if v is not None:
+                out[key] = int(v)
+        except (ValueError, TypeError):
+            pass
+    return out
+
+
 __all__ = [
+    "DEFAULT_ALERTS_CONFIG",
+    "DEFAULT_BACKUP_CONFIG",
     "DEFAULT_BRANDING",
+    "DEFAULT_EOD_CONFIG",
+    "DEFAULT_LOYALTY_CONFIG",
     "DEFAULT_PRICING_MARKUP",
     "compute_suggested_price",
+    "get_alerts_config",
+    "get_backup_config",
     "get_branding",
+    "get_eod_config",
+    "get_loyalty_config",
     "get_pricing_markup",
     "set_branding",
     "set_pricing_markup",
