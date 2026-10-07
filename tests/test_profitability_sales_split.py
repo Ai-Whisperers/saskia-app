@@ -96,9 +96,7 @@ def test_only_one_costing_module():
         "sales_old",
     ]
     for name in forbidden:
-        assert not os.path.exists(os.path.join(rms, name)), (
-            f"forbidden file/dir exists: {name}"
-        )
+        assert not os.path.exists(os.path.join(rms, name)), f"forbidden file/dir exists: {name}"
 
 
 def test_shim_is_thin():
@@ -106,9 +104,7 @@ def test_shim_is_thin():
     with open("/opt/data/work/saskia-app/app/rms/costing.py") as f:
         content = f.read()
     line_count = len(content.split("\n"))
-    assert line_count < 80, (
-        f"costing.py shim is {line_count} lines — should be a thin re-export"
-    )
+    assert line_count < 80, f"costing.py shim is {line_count} lines — should be a thin re-export"
 
 
 def test_lifecycle_uses_profitability_exceptions():

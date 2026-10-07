@@ -73,6 +73,4 @@ def test_dispatch_failure_passes_through() -> None:
             severity="error",
         )
     assert result is True
-    mock.assert_called_once_with(
-        subject="migrate fail", body="oops", severity="error"
-    )
+    mock.assert_called_once_with(subject="migrate fail", body="oops", severity="error")

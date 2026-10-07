@@ -7,6 +7,7 @@ Routes (2 POSTs):
   POST /produccion/template            - set a weekday's product qty
   POST /produccion/template/fork-week  - copy this week's template to a target week
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -200,9 +201,7 @@ def produccion_template_fork_week(
             )
             .one_or_none()
         )
-        old_qty = (
-            float(prior_fork_template.qty) if prior_fork_template is not None else None
-        )
+        old_qty = float(prior_fork_template.qty) if prior_fork_template is not None else None
         days_ahead = (wd - today.weekday()) % 7
         next_occurrence = today + _td_fork(days=days_ahead)
         upsert_template_row(
@@ -251,6 +250,7 @@ __all__ = ["router"]
 # returns the qty the production plan will bake for that date so the
 # form can warn "Pediste N pero el plan dice M".
 
+
 @router.post("/template/load-day")
 def load_template_into_day(
     request: Request,
@@ -272,24 +272,28 @@ def load_template_into_day(
     from app.rms.audit import record as audit_record
     from app.rms.models import ProductionPlanTemplate
     from app.rms.production import upsert_override
+
     target = datetime.strptime(for_date, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ).date()
     weekday = target.weekday()  # 0=Mon
-    tpl_rows = session.execute(
-        select(ProductionPlanTemplate).where(
-            ProductionPlanTemplate.weekday == weekday
+    tpl_rows = (
+        session.execute(
+            select(ProductionPlanTemplate).where(ProductionPlanTemplate.weekday == weekday)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     if not tpl_rows:
         return RedirectResponse(
             url=f"/produccion?for_date={for_date}&flash=sin_plantilla",
             status_code=303,
         )
     existing = {
-        r.product_id for r in session.execute(
-            select(ProductionPlanOverride).where(
-                ProductionPlanOverride.for_date == target
-            )
-        ).scalars().all()
+        r.product_id
+        for r in session.execute(
+            select(ProductionPlanOverride).where(ProductionPlanOverride.for_date == target)
+        )
+        .scalars()
+        .all()
     }
     user = str(current_user_id(request) or "operator")
     applied = 0

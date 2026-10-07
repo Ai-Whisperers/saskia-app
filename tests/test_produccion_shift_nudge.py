@@ -12,7 +12,6 @@ We verify:
 """
 
 
-
 def test_shift_saved_banner_wired(authed_client):
     """Without ?shift_saved=1, the nudge banner is hidden."""
     r = authed_client.get("/produccion?view=day")

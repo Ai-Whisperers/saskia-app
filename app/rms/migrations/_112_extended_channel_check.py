@@ -225,9 +225,7 @@ def run_post_migration(session: Any) -> dict[str, int]:
 
         # Channel distribution — useful for the operator to see if
         # the re-classify script needs to be run.
-        rows = session.execute(
-            select(Sale.channel, func.count()).group_by(Sale.channel)
-        ).all()
+        rows = session.execute(select(Sale.channel, func.count()).group_by(Sale.channel)).all()
         stats["sale_channel_distribution"] = dict(rows)
         stats["sale_total"] = session.scalar(select(func.count()).select_from(Sale)) or 0
         stats["pedido_total"] = session.scalar(select(func.count()).select_from(Pedido)) or 0

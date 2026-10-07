@@ -5,6 +5,7 @@ the restock form required filling qty + price + supplier on every row.
 P40 adds /reorder/quick-restock (single ingredient) and
 /reorder/bulk-quick-restock (comma-separated ids).
 """
+
 import pytest
 from sqlalchemy import select
 
@@ -20,16 +21,24 @@ def test_quick_restock_fills_to_max(client, session_factory):
             s.add(sup)
             s.flush()
         ing = Ingredient(
-            name="Harina P40", unit="kg", stock_qty=0.5,
-            min_stock_qty=10.0, max_stock_qty=20.0, purchase_price_gs=35000,
+            name="Harina P40",
+            unit="kg",
+            stock_qty=0.5,
+            min_stock_qty=10.0,
+            max_stock_qty=20.0,
+            purchase_price_gs=35000,
             supplier_id=sup.id,
         )
         s.add(ing)
         s.flush()
-        s.add(IngredientPriceEvent(
-            ingredient_id=ing.id, price_gs=35000, source="seed",
-            supplier_id=sup.id,
-        ))
+        s.add(
+            IngredientPriceEvent(
+                ingredient_id=ing.id,
+                price_gs=35000,
+                source="seed",
+                supplier_id=sup.id,
+            )
+        )
         s.commit()
         iid = ing.id
 
@@ -44,12 +53,16 @@ def test_quick_restock_fills_to_max(client, session_factory):
     with session_factory() as s:
         refreshed = s.get(Ingredient, iid)
         assert refreshed.stock_qty == pytest.approx(20.0)
-        evts = s.execute(
-            select(IngredientPriceEvent).where(
-                IngredientPriceEvent.ingredient_id == iid,
-                IngredientPriceEvent.source == "restock",
+        evts = (
+            s.execute(
+                select(IngredientPriceEvent).where(
+                    IngredientPriceEvent.ingredient_id == iid,
+                    IngredientPriceEvent.source == "restock",
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(evts) == 1
         assert evts[0].price_gs == 35000
 
@@ -58,8 +71,12 @@ def test_quick_restock_idempotent_when_full(client, session_factory):
     """If already at max, no price event is added but the route still 303s."""
     with session_factory() as s:
         ing = Ingredient(
-            name="AlreadyFull P40", unit="kg", stock_qty=10.0,
-            min_stock_qty=5.0, max_stock_qty=10.0, purchase_price_gs=1000,
+            name="AlreadyFull P40",
+            unit="kg",
+            stock_qty=10.0,
+            min_stock_qty=5.0,
+            max_stock_qty=10.0,
+            purchase_price_gs=1000,
         )
         s.add(ing)
         s.commit()
@@ -78,10 +95,12 @@ def test_quick_restock_idempotent_when_full(client, session_factory):
 
 def test_bulk_quick_restock_updates_all(client, session_factory):
     with session_factory() as s:
-        a = Ingredient(name="BulkA", unit="kg", stock_qty=0.0,
-                       min_stock_qty=5.0, max_stock_qty=10.0)
-        b = Ingredient(name="BulkB", unit="kg", stock_qty=1.0,
-                       min_stock_qty=10.0, max_stock_qty=20.0)
+        a = Ingredient(
+            name="BulkA", unit="kg", stock_qty=0.0, min_stock_qty=5.0, max_stock_qty=10.0
+        )
+        b = Ingredient(
+            name="BulkB", unit="kg", stock_qty=1.0, min_stock_qty=10.0, max_stock_qty=20.0
+        )
         s.add_all([a, b])
         s.commit()
         a_id, b_id = a.id, b.id

@@ -23,10 +23,7 @@ def _migration_113_shopping_price_snapshot(conn: Any) -> None:
     have = {row[1] for row in cols}
     if "unit_price_snapshot_gs" not in have:
         conn.execute(
-            text(
-                "ALTER TABLE shopping_list_item "
-                "ADD COLUMN unit_price_snapshot_gs INTEGER"
-            )
+            text("ALTER TABLE shopping_list_item ADD COLUMN unit_price_snapshot_gs INTEGER")
         )
     # Bump INSIDE this function — each migration owns its own bump
     # (renumbering/automated replaces of these calls corrupt siblings).

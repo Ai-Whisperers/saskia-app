@@ -10,6 +10,7 @@ The warmer is best-effort: a failure in any single date is logged
 and skipped. The route does not raise. The test verifies both
 the happy path and the failure-isolation.
 """
+
 from datetime import date, timedelta
 
 import pytest
@@ -29,9 +30,7 @@ def test_eod_view_warms_today_and_next_6_days(client, session_factory):
         # Verify a recent computed_at for today exists if any rows are
         # present; if there are no products, the table stays empty,
         # which is the documented best-effort behavior.
-        n = s.scalar(
-            select(func.count()).select_from(ProductionDemandSnapshot)
-        )
+        n = s.scalar(select(func.count()).select_from(ProductionDemandSnapshot))
     # n may be 0 in a test fixture with no products; the important
     # thing is that the route returned 200 (i.e. the warmer didn't
     # crash the EOD page).
@@ -41,6 +40,7 @@ def test_eod_view_warms_today_and_next_6_days(client, session_factory):
 def test_warm_snapshots_for_dates_helper_populates(client, session_factory, db_with_sales):
     """Helper writes a ProductionDemandSnapshot row for each (date, product)."""
     from app.rms.production_demand import warm_snapshots_for_dates
+
     today = date.today()
     dates = [today, today + timedelta(days=1), today + timedelta(days=6)]
 
@@ -50,7 +50,8 @@ def test_warm_snapshots_for_dates_helper_populates(client, session_factory, db_w
 
     with session_factory() as s:
         n = s.scalar(
-            select(func.count()).select_from(ProductionDemandSnapshot)
+            select(func.count())
+            .select_from(ProductionDemandSnapshot)
             .where(ProductionDemandSnapshot.for_date.in_([d.isoformat() for d in dates]))
         )
     # 1 product * 3 dates = 3 rows (Product loop only yields 1)
@@ -61,6 +62,7 @@ def test_warm_snapshots_for_dates_best_effort_on_bad_date(client, session_factor
     """A bad date in the list (e.g. very far future) shouldn't kill the
     whole batch — the function returns the count of dates that succeeded."""
     from app.rms.production_demand import warm_snapshots_for_dates
+
     today = date.today()
     # Mix a good date with a 100-year-future date; both should be
     # "successful" because get_demand() doesn't range-bound by date.
@@ -93,17 +95,23 @@ def test_eod_view_does_not_500_when_warmer_fails(client, monkeypatch, session_fa
 
 # ── Fixtures ────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def db_with_sales(session_factory):
     """One product + one historical sale so the forecast path runs."""
     from datetime import datetime, timezone
+
     with session_factory() as s:
         p = Product(name="P40-Product", sku="P40-SNAPSHOT", sale_price_gs=10000)
         s.add(p)
         s.flush()
-        s.add(Sale(
-            product_id=p.id, qty=3.0, unit_price_gs=10000,
-            sold_at=datetime.now(timezone.utc) - timedelta(days=3),
-        ))
+        s.add(
+            Sale(
+                product_id=p.id,
+                qty=3.0,
+                unit_price_gs=10000,
+                sold_at=datetime.now(timezone.utc) - timedelta(days=3),
+            )
+        )
         s.commit()
         return {"product_id": p.id}

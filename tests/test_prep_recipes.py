@@ -10,6 +10,7 @@ bakery uses during the morning prep window. Tests cover:
   - Cumulative totals roll up across cards
   - Sub-recipe ingredients appear with source labels
 """
+
 from __future__ import annotations
 
 

@@ -11,6 +11,7 @@ This test pins down the correct behavior: bulk-fill must add the
 delta to the preferred variant's stock_qty (in package units) and
 re-sync the parent from the new rollup.
 """
+
 import pytest
 
 
@@ -19,6 +20,7 @@ def seed_variant_ingredient(session_factory):
     """Create a variant-bearing ingredient and a simple ingredient,
     both below 2x min, to exercise the bulk-fill endpoint."""
     from app.rms.models import Ingredient, IngredientVariant
+
     with session_factory() as s:
         # Variant-bearing ingredient
         ing = s.query(Ingredient).filter_by(name="P36-queso").first()
@@ -33,14 +35,16 @@ def seed_variant_ingredient(session_factory):
             )
             s.add(ing)
             s.flush()
-            s.add(IngredientVariant(
-                ingredient_id=ing.id,
-                package_size=1.0,
-                package_unit="kg",
-                purchase_price_gs=35000,
-                stock_qty=0.0,
-                preferred=True,
-            ))
+            s.add(
+                IngredientVariant(
+                    ingredient_id=ing.id,
+                    package_size=1.0,
+                    package_unit="kg",
+                    purchase_price_gs=35000,
+                    stock_qty=0.0,
+                    preferred=True,
+                )
+            )
         # Simple ingredient (no variants)
         ing_simple = s.query(Ingredient).filter_by(name="P36-harina").first()
         if ing_simple is None:
@@ -56,12 +60,15 @@ def seed_variant_ingredient(session_factory):
         return {"queso_id": ing.id, "harina_id": ing_simple.id}
 
 
-def test_bulk_fill_writes_to_variant_and_resyncs_parent(authed_client, session_factory, seed_variant_ingredient):
+def test_bulk_fill_writes_to_variant_and_resyncs_parent(
+    authed_client, session_factory, seed_variant_ingredient
+):
     """After bulk-fill, parent.stock_qty must equal the rollup
     (sum of variant.stock_qty × package_size) for variant-bearing
     ingredients, and equal the target for simple ingredients.
     """
     from app.rms.models import Ingredient, IngredientVariant
+
     queso_id = seed_variant_ingredient["queso_id"]
     harina_id = seed_variant_ingredient["harina_id"]
 
@@ -72,9 +79,7 @@ def test_bulk_fill_writes_to_variant_and_resyncs_parent(authed_client, session_f
         ing = s.get(Ingredient, queso_id)
         var = s.query(IngredientVariant).filter_by(ingredient_id=queso_id).first()
         # Variant should have packages added (target=3 kg, package=1 kg → 3 packages)
-        assert var.stock_qty >= 3.0, (
-            f"variant should have ≥3 packages, got {var.stock_qty}"
-        )
+        assert var.stock_qty >= 3.0, f"variant should have ≥3 packages, got {var.stock_qty}"
         # Parent must equal the rollup
         rollup = var.stock_qty * var.package_size
         assert abs(ing.stock_qty - rollup) < 0.01, (
@@ -93,15 +98,21 @@ def test_bulk_fill_is_idempotent(authed_client, session_factory, seed_variant_in
     authed_client.post("/inventario/bulk-fill-to-2x-min", follow_redirects=False)
     with session_factory() as s:
         from sqlalchemy import text
-        before = s.execute(text(
-            "SELECT COUNT(*) FROM stock_movement "
-            "WHERE movement_type='reorder' AND reason LIKE 'Llenado bulk%'"
-        )).scalar()
+
+        before = s.execute(
+            text(
+                "SELECT COUNT(*) FROM stock_movement "
+                "WHERE movement_type='reorder' AND reason LIKE 'Llenado bulk%'"
+            )
+        ).scalar()
     authed_client.post("/inventario/bulk-fill-to-2x-min", follow_redirects=False)
     with session_factory() as s:
         from sqlalchemy import text
-        after = s.execute(text(
-            "SELECT COUNT(*) FROM stock_movement "
-            "WHERE movement_type='reorder' AND reason LIKE 'Llenado bulk%'"
-        )).scalar()
+
+        after = s.execute(
+            text(
+                "SELECT COUNT(*) FROM stock_movement "
+                "WHERE movement_type='reorder' AND reason LIKE 'Llenado bulk%'"
+            )
+        ).scalar()
     assert after == before, f"idempotent re-run wrote {after - before} new bulk-fill rows"

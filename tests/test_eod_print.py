@@ -11,6 +11,7 @@ Print template contract:
 - 1-page layout via @media print
 - No sidebar / bottom nav
 """
+
 from __future__ import annotations
 
 
@@ -61,9 +62,7 @@ def test_eod_print_does_not_include_sidebar_or_bottom_nav(client, qseed):
     )
     # And it should NOT have the standard EOD form (which the regular
     # /eod view has but the print view should not).
-    assert '<form' not in body, (
-        "print view should not have a form (just static summary)"
-    )
+    assert "<form" not in body, "print view should not have a form (just static summary)"
 
 
 def test_eod_print_uses_print_css_media_query(client, qseed):
@@ -75,7 +74,7 @@ def test_eod_print_uses_print_css_media_query(client, qseed):
     # Either an inline @media print or a CSS link to one
     has_print = (
         "@media print" in body
-        or "media=\"print\"" in body
+        or 'media="print"' in body
         or "no-print" in body
         or "print-only" in body
     )

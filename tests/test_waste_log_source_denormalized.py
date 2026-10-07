@@ -18,6 +18,7 @@ row itself. These tests pin:
 10. record_waste() production source survives commit (regression for
     the original /auditoria chip bug).
 """
+
 from __future__ import annotations
 
 from sqlalchemy import text
@@ -150,9 +151,7 @@ def test_record_recipe_waste_callable_with_no_lines(session_factory):
 def test_migration_102_added_source_column(session_factory):
     s = session_factory()
     try:
-        cols = [row[1] for row in s.execute(
-            text("PRAGMA table_info(waste_log)")
-        ).all()]
+        cols = [row[1] for row in s.execute(text("PRAGMA table_info(waste_log)")).all()]
         assert "source" in cols
     finally:
         s.close()

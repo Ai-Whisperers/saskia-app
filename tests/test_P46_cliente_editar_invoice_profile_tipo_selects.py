@@ -15,6 +15,7 @@ Acceptance:
   - Both selects have at least 4 options each (SIFEN has 7 tipo_doc
     and 4 tipo_operacion values).
 """
+
 from __future__ import annotations
 
 import re
@@ -46,9 +47,7 @@ def test_cliente_editar_invoice_profile_has_tipo_selects(client, session_factory
         m = re.search(rf'<select[^>]*id="{sid}"[^>]*>(.*?)</select>', body, re.DOTALL)
         assert m, f"couldn't locate <select id='{sid}'>"
         options = re.findall(r'<option[^>]*value="([^"]+)"', m.group(1))
-        assert len(options) >= 4, (
-            f"<select id='{sid}'> must have >= 4 options; got {len(options)}"
-        )
+        assert len(options) >= 4, f"<select id='{sid}'> must have >= 4 options; got {len(options)}"
 
     # Common SIFEN values must be present.
     assert "CI_PARAGUAYA" in body, "CI_PARAGUAYA option missing"

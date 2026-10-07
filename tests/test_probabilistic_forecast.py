@@ -44,13 +44,15 @@ def test_probabilistic_forecast_basic(session_factory):
     # -1/day over 30 days → avg_daily = 1.0
     now = datetime.now(timezone.utc)
     for day_offset in range(30):
-        session.add(StockMovement(
-            ingredient_id=ing_id,
-            qty=-1.0,
-            movement_type="sale",
-            reference_type="sale",
-            recorded_at=now - timedelta(days=day_offset),
-        ))
+        session.add(
+            StockMovement(
+                ingredient_id=ing_id,
+                qty=-1.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now - timedelta(days=day_offset),
+            )
+        )
     session.commit()
     session.close()
 
@@ -92,13 +94,15 @@ def test_probabilistic_high_stockout_probability(session_factory):
     # High consumption: -1/day × 30 days = -30 total → λ = 1.0
     now = datetime.now(timezone.utc)
     for day_offset in range(30):
-        session.add(StockMovement(
-            ingredient_id=ing_id,
-            qty=-1.0,
-            movement_type="sale",
-            reference_type="sale",
-            recorded_at=now - timedelta(days=day_offset),
-        ))
+        session.add(
+            StockMovement(
+                ingredient_id=ing_id,
+                qty=-1.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now - timedelta(days=day_offset),
+            )
+        )
     session.commit()
     session.close()
 
@@ -129,13 +133,15 @@ def test_probabilistic_low_stockout_probability(session_factory):
     # Low consumption: -1/day × 30 days → λ = 1.0
     now = datetime.now(timezone.utc)
     for day_offset in range(30):
-        session.add(StockMovement(
-            ingredient_id=ing_id,
-            qty=-1.0,
-            movement_type="sale",
-            reference_type="sale",
-            recorded_at=now - timedelta(days=day_offset),
-        ))
+        session.add(
+            StockMovement(
+                ingredient_id=ing_id,
+                qty=-1.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now - timedelta(days=day_offset),
+            )
+        )
     session.commit()
     session.close()
 
@@ -165,13 +171,15 @@ def test_probabilistic_safety_stock_95pct(session_factory):
     # -1/day × 30 days → λ = 1.0
     now = datetime.now(timezone.utc)
     for day_offset in range(30):
-        session.add(StockMovement(
-            ingredient_id=ing_id,
-            qty=-1.0,
-            movement_type="sale",
-            reference_type="sale",
-            recorded_at=now - timedelta(days=day_offset),
-        ))
+        session.add(
+            StockMovement(
+                ingredient_id=ing_id,
+                qty=-1.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now - timedelta(days=day_offset),
+            )
+        )
     session.commit()
     session.close()
 
@@ -202,14 +210,24 @@ def test_probabilistic_sort_by_urgency(session_factory):
     session.commit()
 
     now = datetime.now(timezone.utc)
-    session.add_all([
-        StockMovement(ingredient_id=high_risk.id, qty=-1.0,
-                      movement_type="sale", reference_type="sale",
-                      recorded_at=now - timedelta(days=1)),
-        StockMovement(ingredient_id=low_risk.id, qty=-1.0,
-                      movement_type="sale", reference_type="sale",
-                      recorded_at=now - timedelta(days=1)),
-    ])
+    session.add_all(
+        [
+            StockMovement(
+                ingredient_id=high_risk.id,
+                qty=-1.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now - timedelta(days=1),
+            ),
+            StockMovement(
+                ingredient_id=low_risk.id,
+                qty=-1.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now - timedelta(days=1),
+            ),
+        ]
+    )
     session.commit()
     session.close()
 
@@ -233,14 +251,24 @@ def test_probabilistic_filter_by_ingredient(session_factory):
     session.commit()
 
     now = datetime.now(timezone.utc)
-    session.add_all([
-        StockMovement(ingredient_id=ing1.id, qty=-1.0,
-                      movement_type="sale", reference_type="sale",
-                      recorded_at=now),
-        StockMovement(ingredient_id=ing2.id, qty=-1.0,
-                      movement_type="sale", reference_type="sale",
-                      recorded_at=now),
-    ])
+    session.add_all(
+        [
+            StockMovement(
+                ingredient_id=ing1.id,
+                qty=-1.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now,
+            ),
+            StockMovement(
+                ingredient_id=ing2.id,
+                qty=-1.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now,
+            ),
+        ]
+    )
     session.commit()
     ing1_id = ing1.id
     session.close()
@@ -263,13 +291,15 @@ def test_probabilistic_horizon_days_param(session_factory):
 
     now = datetime.now(timezone.utc)
     for day_offset in range(30):
-        session.add(StockMovement(
-            ingredient_id=ing_id,
-            qty=-1.0,
-            movement_type="sale",
-            reference_type="sale",
-            recorded_at=now - timedelta(days=day_offset),
-        ))
+        session.add(
+            StockMovement(
+                ingredient_id=ing_id,
+                qty=-1.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now - timedelta(days=day_offset),
+            )
+        )
     session.commit()
     session.close()
 
@@ -296,13 +326,15 @@ def test_probabilistic_dataclass_shape(session_factory):
     session.commit()
     ing_id = ingredient.id
 
-    session.add(StockMovement(
-        ingredient_id=ing_id,
-        qty=-1.0,
-        movement_type="sale",
-        reference_type="sale",
-        recorded_at=datetime.now(timezone.utc),
-    ))
+    session.add(
+        StockMovement(
+            ingredient_id=ing_id,
+            qty=-1.0,
+            movement_type="sale",
+            reference_type="sale",
+            recorded_at=datetime.now(timezone.utc),
+        )
+    )
     session.commit()
     session.close()
 
@@ -345,13 +377,15 @@ def test_probabilistic_no_stock_consumption(session_factory):
     # Lots of consumption → very high stockout probability
     now = datetime.now(timezone.utc)
     for day_offset in range(30):
-        session.add(StockMovement(
-            ingredient_id=ing_id,
-            qty=-1.0,
-            movement_type="sale",
-            reference_type="sale",
-            recorded_at=now - timedelta(days=day_offset),
-        ))
+        session.add(
+            StockMovement(
+                ingredient_id=ing_id,
+                qty=-1.0,
+                movement_type="sale",
+                reference_type="sale",
+                recorded_at=now - timedelta(days=day_offset),
+            )
+        )
     session.commit()
     session.close()
 

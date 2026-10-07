@@ -24,14 +24,14 @@ from app.rms.costing import recipe_batch_cost_gs
 class QuoteItem:
     product_id: int
     product_name: str = ""
-    qty: int = 0                 # porciones/unidades pedidas
+    qty: int = 0  # porciones/unidades pedidas
     portion_label: str = ""
     sale_price_gs: int = 0
     yield_qty: float | None = None
     batches: float | None = None
     unit_cost_gs: int | None = None
     line_cost_gs: int | None = None
-    line_menu_gs: int = 0        # precio carta × qty
+    line_menu_gs: int = 0  # precio carta × qty
     missing: list[str] = field(default_factory=list)
     costable: bool = False
 

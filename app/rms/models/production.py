@@ -51,9 +51,7 @@ class ProductionCompletion(Base):
     # closure_notes is the cook's optional free-text justification
     # (NULL when blank). updated_at is the most recent write (set on
     # upsert and on close-day).
-    status: Mapped[str] = mapped_column(
-        Text, nullable=False, default="open", server_default="open"
-    )
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="open", server_default="open")
     closure_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
@@ -155,4 +153,3 @@ class ProductionPlan(Base):
             name="ck_plan_status",
         ),
     )
-

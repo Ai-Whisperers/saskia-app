@@ -313,11 +313,16 @@ session.commit()  # ← race window begins
 
 # Idempotency check happens AFTER the sale exists
 idempotency_key = f"sale_create:{request_id}"
-existing = session.execute(text("SELECT value FROM app_meta WHERE key = :k"), {"k": idempotency_key}).first()
+existing = session.execute(
+    text("SELECT value FROM app_meta WHERE key = :k"), {"k": idempotency_key}
+).first()
 if existing:
     session.rollback()
     return RedirectResponse(f"/ventas/{existing.value}")
-session.execute(text("INSERT INTO app_meta(key, value) VALUES (:k, :v)"), {"k": idempotency_key, "v": str(sale.id)})
+session.execute(
+    text("INSERT INTO app_meta(key, value) VALUES (:k, :v)"),
+    {"k": idempotency_key, "v": str(sale.id)},
+)
 session.commit()  # ← race window ends here; duplicate sale already committed
 ```
 

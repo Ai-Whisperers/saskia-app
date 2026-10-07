@@ -40,6 +40,8 @@ def test_app_rms_has_no_tags_or_tag_algebra_files():
     assert not (rms_dir / "tags.py").exists(), (
         "app/rms/tags.py should have been deleted in Sprint 2.2"
     )
+
+
 def test_no_code_references_deleted_modules():
     """No actual import statement references app.rms.tags (permanently deleted).
 
@@ -73,9 +75,7 @@ def test_no_code_references_deleted_modules():
                                 break
                 except OSError:
                     pass
-    assert offenders == [], (
-        f"Files still import app.rms.tags: {offenders}"
-    )
+    assert offenders == [], f"Files still import app.rms.tags: {offenders}"
 
 
 # ─── Public API exports ────────────────────────────────────────────────────
@@ -135,8 +135,7 @@ def test_tagging_package_exports_documented_names():
     import app.rms.tagging as pkg
 
     assert set(pkg.__all__) == expected, (
-        f"Missing: {expected - set(pkg.__all__)}\n"
-        f"Extra:   {set(pkg.__all__) - expected}"
+        f"Missing: {expected - set(pkg.__all__)}\nExtra:   {set(pkg.__all__) - expected}"
     )
 
 
@@ -166,10 +165,18 @@ def test_tagging_ensure_module_exposes_starter_tags():
     )
 
     assert len(STARTER_TAGS) == 31
-    assert all(callable(f) for f in (
-        ensure_tag, ensure_starter_tags, list_tags_for_kind,
-        tag_target, untag_target, tags_for_target, targets_with_tag,
-    ))
+    assert all(
+        callable(f)
+        for f in (
+            ensure_tag,
+            ensure_starter_tags,
+            list_tags_for_kind,
+            tag_target,
+            untag_target,
+            tags_for_target,
+            targets_with_tag,
+        )
+    )
 
 
 def test_tagging_filters_module_exposes_filter_classes():

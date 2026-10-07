@@ -8,6 +8,7 @@ week view. Phase 6 ship:
   - And a 'Ver semana' link to the week plan.
   - The route exposes `today_iso` for the template to use.
 """
+
 from __future__ import annotations
 
 
@@ -16,7 +17,7 @@ def test_manana_renders_today_link(client, qseed):
     r = client.get("/produccion/manana")
     body = r.content.decode("utf-8", errors="replace")
     assert r.status_code == 200
-    assert 'data-manana-page-nav' in body, "manana page-nav block missing"
+    assert "data-manana-page-nav" in body, "manana page-nav block missing"
     assert 'href="/produccion?for_date=' in body, "today link missing"
     assert "Hoy" in body, "Hoy button label missing"
 
@@ -56,6 +57,7 @@ def test_today_iso_is_in_context(client, qseed):
     assert r.status_code == 200
     # The link should have a date in the for_date query param.
     import re
+
     m = re.search(r'href="/produccion\?for_date=([\d-]+)"', body)
     assert m, "no for_date param in manana's today link"
     # Format: YYYY-MM-DD (10 chars)

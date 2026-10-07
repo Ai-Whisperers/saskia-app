@@ -106,9 +106,7 @@ class Pedido(Base):
         back_populates="pedido", cascade="all, delete-orphan"
     )
     customer: Mapped["Customer | None"] = relationship()
-    delivery_zone: Mapped["DeliveryZone | None"] = relationship(
-        back_populates="pedidos"
-    )
+    delivery_zone: Mapped["DeliveryZone | None"] = relationship(back_populates="pedidos")
 
     __table_args__ = (
         CheckConstraint(

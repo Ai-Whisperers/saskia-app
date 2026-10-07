@@ -28,6 +28,7 @@ Exit codes:
     0  seed ran successfully (or already seeded)
     1  fatal error — see stderr
 """
+
 from __future__ import annotations
 
 import os
@@ -84,10 +85,20 @@ def main() -> int:
         # Quick DB counters
         def cnt(table: str) -> int:
             return session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar() or 0
-        before = {t: cnt(t) for t in (
-            "tenant", "product", "recipe", "ingredient",
-            "category", "channel", "delivery_zone", "sale",
-        )}
+
+        before = {
+            t: cnt(t)
+            for t in (
+                "tenant",
+                "product",
+                "recipe",
+                "ingredient",
+                "category",
+                "channel",
+                "delivery_zone",
+                "sale",
+            )
+        }
         print(f"  counters: {before}")
 
         # Safety check: short-circuit if a tenant already exists with a
@@ -132,10 +143,19 @@ def main() -> int:
         print()
 
         # Snapshot after
-        after = {t: cnt(t) for t in (
-            "tenant", "product", "recipe", "ingredient",
-            "category", "channel", "delivery_zone", "sale",
-        )}
+        after = {
+            t: cnt(t)
+            for t in (
+                "tenant",
+                "product",
+                "recipe",
+                "ingredient",
+                "category",
+                "channel",
+                "delivery_zone",
+                "sale",
+            )
+        }
         print("=== After seed ===")
         print(f"  is_seeded: {is_sazon_seeded(session)}")
         print(f"  sazon_meta: {sazon_meta(session)}")
@@ -147,6 +167,7 @@ def main() -> int:
     except Exception as e:
         print(f"FATAL: {type(e).__name__}: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return 1
     finally:

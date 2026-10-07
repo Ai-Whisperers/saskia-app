@@ -231,6 +231,7 @@ the new DNI.
    ```python
    from app.services.backup_crypto import decrypt_backup
    from pathlib import Path
+
    blob = Path("rms-snapshot-20261007-030000.sqlite.enc").read_bytes()
    plaintext = decrypt_backup(blob, "1234567")  # current DNI
    assert plaintext.startswith(b"SQLite format 3")

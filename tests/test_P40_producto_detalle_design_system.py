@@ -12,6 +12,7 @@ Acceptance:
   - The metric-card markup is still present (we shouldn't break the
     existing functionality).
 """
+
 from __future__ import annotations
 
 import re
@@ -38,17 +39,11 @@ def test_producto_detalle_no_tailwind_classes(client, session_factory):
 
     # Tailwind flex patterns: "flex flex-col", "flex flex-row".
     tailwind_flex = re.findall(r'class="[^"]*\bflex flex-(?:col|row)\b[^"]*"', body)
-    assert not tailwind_flex, (
-        f"found Tailwind flex patterns: {tailwind_flex[:3]}"
-    )
+    assert not tailwind_flex, f"found Tailwind flex patterns: {tailwind_flex[:3]}"
 
     # Tailwind grid: "grid grid-cols-N".
     tailwind_grid = re.findall(r'class="[^"]*\bgrid grid-cols-\d+\b[^"]*"', body)
-    assert not tailwind_grid, (
-        f"found Tailwind grid patterns: {tailwind_grid[:3]}"
-    )
+    assert not tailwind_grid, f"found Tailwind grid patterns: {tailwind_grid[:3]}"
 
     # The metric-card class must still be present.
-    assert "metric-card" in body, (
-        "metric-card markup missing (regression)"
-    )
+    assert "metric-card" in body, "metric-card markup missing (regression)"

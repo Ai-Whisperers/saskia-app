@@ -65,17 +65,19 @@ from app.routers.produccion.analytics import (
 )
 from app.services.template_render import render
 
-VALID_SORT_KEYS = frozenset({
-    "product",      # product_name
-    "difficulty",   # recipe_difficulty
-    "demand",       # qty_demand_total
-    "meta",         # qty_to_produce (batches)
-    "pedidos",      # pending_pedido_qty
-    "lote",         # meta + pedidos (= lote final total) — DEFAULT
-    "hecho",        # completed_qty
-    "sobrante",     # batch_surplus_qty
-    "closure",      # closure_status
-})
+VALID_SORT_KEYS = frozenset(
+    {
+        "product",  # product_name
+        "difficulty",  # recipe_difficulty
+        "demand",  # qty_demand_total
+        "meta",  # qty_to_produce (batches)
+        "pedidos",  # pending_pedido_qty
+        "lote",  # meta + pedidos (= lote final total) — DEFAULT
+        "hecho",  # completed_qty
+        "sobrante",  # batch_surplus_qty
+        "closure",  # closure_status
+    }
+)
 
 
 def _sort_value(row: dict, key: str):  # noqa: ANN202
@@ -124,7 +126,11 @@ def _sort_produccion_rows(rows: list[dict], sort: str, dir: str) -> list[dict]:
 # these sortable attributes: ingredient_name (str), qty_required (num),
 # stock_on_hand (num), and we derive "to_buy" and "severity" on the fly.
 _VALID_INGREDIENT_SORT_KEYS = {
-    "ingredient", "required", "stock", "to_buy", "severity",
+    "ingredient",
+    "required",
+    "stock",
+    "to_buy",
+    "severity",
 }
 
 
@@ -139,7 +145,9 @@ def _sort_ingredient_lines(lines: list, sort: str, dir: str) -> list:
     def _line_sort_key(ln) -> tuple:  # noqa: ANN001
         delta = ln.stock_on_hand - ln.qty_required
         pct = (ln.stock_on_hand / ln.qty_required * 100) if ln.qty_required > 0 else 100
-        sev = severity_order.get("falta" if delta < 0 else ("justo" if pct < 80 else "suficiente"), 9)
+        sev = severity_order.get(
+            "falta" if delta < 0 else ("justo" if pct < 80 else "suficiente"), 9
+        )
         if safe_sort == "ingredient":
             return (ln.ingredient_name or "").lower()
         if safe_sort == "required":
@@ -569,12 +577,12 @@ def produccion_worksheet(
     # NOTE: query the full row (not just id) so the comprehension below
     # sees Product objects, not int scalars.
     _inactive_pids = {
-        p.id for p in session.execute(
-            select(Product).where(not Product.is_available)
-        ).scalars().all()
+        p.id
+        for p in session.execute(select(Product).where(not Product.is_available)).scalars().all()
     }
     daily_target = sum(
-        r.qty_to_produce for r in plan.rows
+        r.qty_to_produce
+        for r in plan.rows
         if r.qty_to_produce > 0 and r.product_id not in _inactive_pids
     )
     from datetime import datetime as _dt_cls
@@ -656,8 +664,11 @@ def produccion_worksheet(
     if len(plan_rows_filtered) != len(plan.rows):
         # Quick operator hint (debug log only; template handles empty plan)
         import logging as _logging
+
         _log = _logging.getLogger(__name__)
-        _log.info("M1: hid %d plan rows for inactive products", len(plan.rows) - len(plan_rows_filtered))
+        _log.info(
+            "M1: hid %d plan rows for inactive products", len(plan.rows) - len(plan_rows_filtered)
+        )
     # downstream uses plan.rows in many places — alias to filtered
     plan_rows_source = plan_rows_filtered
     recipe_by_id = {
@@ -885,27 +896,18 @@ def produccion_worksheet(
                 # PRODUCCION-V2 cutover (2026-10-05): same as the
                 # recipe rows above. `ui` is always "v2" now.
                 "qty_demand_total": (
-                    float(demand_by_pid[pid].qty_total)
-                    if pid in demand_by_pid
-                    else 0.0
+                    float(demand_by_pid[pid].qty_total) if pid in demand_by_pid else 0.0
                 ),
                 "qty_demand_pedidos": (
-                    float(demand_by_pid[pid].qty_pedidos)
-                    if pid in demand_by_pid
-                    else 0.0
+                    float(demand_by_pid[pid].qty_pedidos) if pid in demand_by_pid else 0.0
                 ),
                 "qty_demand_pedidos_pending": (
-                    float(
-                        demand_by_pid[pid].qty_pedidos
-                        - demand_by_pid[pid].qty_pedidos_confirmed
-                    )
+                    float(demand_by_pid[pid].qty_pedidos - demand_by_pid[pid].qty_pedidos_confirmed)
                     if pid in demand_by_pid
                     else 0.0
                 ),
                 "qty_demand_forecast": (
-                    float(demand_by_pid[pid].qty_forecast)
-                    if pid in demand_by_pid
-                    else 0.0
+                    float(demand_by_pid[pid].qty_forecast) if pid in demand_by_pid else 0.0
                 ),
                 # PRODUCCION-V2 Fase 2: closure state for ad-hoc rows.
                 # These rows have completions (we're building the dict
@@ -974,16 +976,13 @@ def produccion_worksheet(
     # Ad-hoc rows are excluded from the confidence average (they're
     # 100% by definition — the cook decided).
     day_lote_final_total = sum(
-        float(r.get("qty_to_produce", 0) or 0)
-        + float(r.get("pending_pedido_qty", 0) or 0)
+        float(r.get("qty_to_produce", 0) or 0) + float(r.get("pending_pedido_qty", 0) or 0)
         for r in plan_rows_view
     )
-    day_pedidos_total = sum(
-        float(r.get("pending_pedido_qty", 0) or 0)
-        for r in plan_rows_view
-    )
+    day_pedidos_total = sum(float(r.get("pending_pedido_qty", 0) or 0) for r in plan_rows_view)
     _conf_rows = [
-        r for r in plan_rows_view
+        r
+        for r in plan_rows_view
         if not r.get("is_ad_hoc", False) and (r.get("confidence_pct") or 0) > 0
     ]
     day_confidence_pct = (
@@ -1048,7 +1047,7 @@ def produccion_worksheet(
         page = max(1, min(page, max(1, (total_filtered + rows - 1) // rows)))
         total_pages = max(1, (total_filtered + rows - 1) // rows)
         start = (page - 1) * rows
-        visible_rows = primary_rows[start:start + rows]
+        visible_rows = primary_rows[start : start + rows]
     hidden_count = max(0, total_filtered - len(visible_rows))
 
     # 2026-10-07c: ingredients table smart-features. Filter by severity
@@ -1108,8 +1107,12 @@ def produccion_worksheet(
             # strings for the prev/next calendar day. `today` is the
             # Asunción-local current date (the nav's "Hoy" button always
             # points to it, even when the current for_date is in the past).
-            "prev_for_date": (plan.for_date - timedelta(days=1)).isoformat() if plan.for_date else "",
-            "next_for_date": (plan.for_date + timedelta(days=1)).isoformat() if plan.for_date else "",
+            "prev_for_date": (plan.for_date - timedelta(days=1)).isoformat()
+            if plan.for_date
+            else "",
+            "next_for_date": (plan.for_date + timedelta(days=1)).isoformat()
+            if plan.for_date
+            else "",
             "today_for_date": _asuncion_today().isoformat(),
             "view": "day",
             "ui_version": ui,  # PRODUCCION-V2 Fase 1: 'v1' (default) or 'v2' (demand fields)
@@ -1156,16 +1159,11 @@ def produccion_worksheet(
                     "id": p.id,
                     "name": p.name,
                     "forecast_qty": float(
-                        (demand_by_pid.get(p.id, None)
-                        and demand_by_pid[p.id].qty_forecast) or 0.0
+                        (demand_by_pid.get(p.id, None) and demand_by_pid[p.id].qty_forecast) or 0.0
                     ),
-                    "pending_pedidos": float(
-                        ped_units_by_pid.get(p.id, 0.0)
-                    ),
+                    "pending_pedidos": float(ped_units_by_pid.get(p.id, 0.0)),
                 }
-                for p in session.execute(
-                    select(Product).order_by(Product.name)
-                ).scalars().all()
+                for p in session.execute(select(Product).order_by(Product.name)).scalars().all()
             ],
             # T-2026-10-04 (Tier 4-G): quick-seed list for cold-start.
             # Top 5 products with one-click "venta de 1 unidad" CTA.
@@ -1238,8 +1236,8 @@ def produccion_worksheet(
             # misleading (Stroopwafel as a substitute for Pan lactal). Pass
             # the short-lines to the template instead — the operator gets
             # the count and a /reorder link, period.
-            "short_plan_lines": [ln for ln in plan.lines if (ln.stock_on_hand - ln.qty_required) < 0],
+            "short_plan_lines": [
+                ln for ln in plan.lines if (ln.stock_on_hand - ln.qty_required) < 0
+            ],
         },
     )
-
-

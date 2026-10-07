@@ -156,10 +156,10 @@ doesn't have a row yet.
 `inventory.py:157`, etc.
 
 ```python
-start = end - timedelta(days=7)         # weekly
-start = end - timedelta(days=30)        # monthly
-day_of_week_heatmap(session, days=90)   # quarterly
-price_history(session, ing.id, days=90) # quarterly
+start = end - timedelta(days=7)  # weekly
+start = end - timedelta(days=30)  # monthly
+day_of_week_heatmap(session, days=90)  # quarterly
+price_history(session, ing.id, days=90)  # quarterly
 ```
 
 **Problem:**
@@ -204,6 +204,7 @@ Values that operators might want to tweak but don't need a UI for. Larger
 or more dynamic configs live in SettingsKV; tabular configs (channels,
 payment methods) live in their own tables; these are the simple defaults.
 """
+
 from decimal import Decimal
 
 # ─── Money ────────────────────────────────────────────────────────
@@ -219,14 +220,14 @@ DEFAULT_INVOICE_TYPE = "boleta_resimple"
 
 # ─── Stock status thresholds (overridable per operator) ──────────
 # These are DEFAULTS — operators can override via /settings/inventory.
-DEFAULT_STOCK_RATIO_CRITICO = Decimal("0.5")    # stock_qty / min_stock_qty
-DEFAULT_STOCK_RATIO_SOBRESTOCK = Decimal("5.0") # stock_qty / min_stock_qty
-DEFAULT_DEAD_STOCK_DAYS = 30                    # no consumption in N days
+DEFAULT_STOCK_RATIO_CRITICO = Decimal("0.5")  # stock_qty / min_stock_qty
+DEFAULT_STOCK_RATIO_SOBRESTOCK = Decimal("5.0")  # stock_qty / min_stock_qty
+DEFAULT_DEAD_STOCK_DAYS = 30  # no consumption in N days
 
 # ─── Costing (overridable via ComplianceInfo) ─────────────────────
 DEFAULT_LABOR_COST_PER_HOUR_GS = 25_000
 DEFAULT_OVERHEAD_MULTIPLIER_PCT = 15
-DEFAULT_YIELD_PERCENTAGE = Decimal("0.85")      # 15% moisture loss for breads
+DEFAULT_YIELD_PERCENTAGE = Decimal("0.85")  # 15% moisture loss for breads
 
 # ─── Pagination ────────────────────────────────────────────────────
 DEFAULT_PAGE_SIZE = 50

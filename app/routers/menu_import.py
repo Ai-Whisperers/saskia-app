@@ -82,7 +82,12 @@ async def ocr_upload(
             "ocr_available": True,
             "preview": {
                 "matched": [
-                    {"name": ln.name, "price_gs": ln.price_gs, "category": ln.category, "product_id": ln.product_id}
+                    {
+                        "name": ln.name,
+                        "price_gs": ln.price_gs,
+                        "category": ln.category,
+                        "product_id": ln.product_id,
+                    }
                     for ln in result.matched
                 ],
                 "nuevos": [

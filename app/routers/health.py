@@ -248,9 +248,7 @@ def healthz_depth(request: Request) -> JSONResponse:
             "total_bytes": int(usage.total),
             "used_pct": round(100.0 * usage.used / usage.total, 1) if usage.total else 0.0,
         }
-    except (
-        Exception
-    ) as disk_exc:  # pragma: no cover - defensive
+    except Exception as disk_exc:  # pragma: no cover - defensive
         disk = {"ok": False, "error": repr(disk_exc), "path": str(DATA_DIR)}
 
     # --- r2 (best-effort HEAD probe; 3s timeout) ---
@@ -982,16 +980,11 @@ def api_smoke_waste_source_mix(request: Request) -> JSONResponse:
             content={"status": "error", "error": str(exc)[:500]},
         )
 
-    mix = {
-        str(r[0]): {"n_events": int(r[1]), "cost_gs": int(r[2])}
-        for r in rows
-    }
+    mix = {str(r[0]): {"n_events": int(r[1]), "cost_gs": int(r[2])} for r in rows}
     # Total + share for the dashboard without recomputing.
     n_total = sum(v["n_events"] for v in mix.values())
     n_production = mix.get("production", {}).get("n_events", 0)
-    share_production = (
-        round(100.0 * n_production / n_total, 1) if n_total else 0.0
-    )
+    share_production = round(100.0 * n_production / n_total, 1) if n_total else 0.0
     return JSONResponse(
         status_code=200,
         content={
@@ -1241,15 +1234,12 @@ def admin_backup_cron(request: Request) -> object:
     import hmac
     import os
 
-
     expected = os.getenv("SASKIA_CRON_BACKUP_TOKEN")
     if not expected:
         # Fail closed: never accept empty token, even if the request
         # forgot to send the header. A 503 lets monitoring distinguish
         # "you forgot to set the env var" from "the request is bad".
-        logger.error(
-            "admin_backup_cron: SASKIA_CRON_BACKUP_TOKEN not set in env"
-        )
+        logger.error("admin_backup_cron: SASKIA_CRON_BACKUP_TOKEN not set in env")
         return JSONResponse(
             status_code=503,
             content={

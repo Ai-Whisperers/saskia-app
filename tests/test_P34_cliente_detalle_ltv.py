@@ -15,6 +15,7 @@ Acceptance:
   - The header area contains a tier explanation phrase
     (visitas / Gastó / lifetime / compró).
 """
+
 from __future__ import annotations
 
 import re
@@ -47,15 +48,15 @@ def test_cliente_detalle_ltv_in_header(client, session_factory):
     body = r.text
 
     # Find the H1. The LTV must appear in the surrounding header block.
-    h1_match = re.search(r'<h1[^>]*>(.*?)</h1>', body, re.DOTALL)
+    h1_match = re.search(r"<h1[^>]*>(.*?)</h1>", body, re.DOTALL)
     assert h1_match, "no <h1> in /clientes/{id}"
     h1_pos = h1_match.start()
 
     # The header is the next 2500 chars (covers the title row + sub-line area).
-    header_section = body[h1_pos:h1_pos + 2500]
+    header_section = body[h1_pos : h1_pos + 2500]
 
     # LTV (Gs. number) must appear in this header section.
-    ltv_matches = re.findall(r'Gs\.\s*[\d.]+', header_section)
+    ltv_matches = re.findall(r"Gs\.\s*[\d.]+", header_section)
     assert ltv_matches, (
         f"LTV (Gs. <num>) not found in page header (first 2.5k chars after H1).\n"
         f"Header content: {header_section[:500]}"
@@ -66,6 +67,4 @@ def test_cliente_detalle_ltv_in_header(client, session_factory):
         phrase in header_section.lower()
         for phrase in ("visitas", "gastó", "lifetime", "ltv", "cliente desde")
     )
-    assert has_tier_help, (
-        f"no tier explanation in header. Header content: {header_section[:500]}"
-    )
+    assert has_tier_help, f"no tier explanation in header. Header content: {header_section[:500]}"

@@ -222,15 +222,13 @@ def products_list(
             func.sum(
                 case(
                     (
-                        ProductionCompletion.for_date
-                        >= func.date("now", "-30 day"),
+                        ProductionCompletion.for_date >= func.date("now", "-30 day"),
                         ProductionCompletion.completed_qty,
                     ),
                     else_=0.0,
                 )
             ),
-        )
-        .group_by(ProductionCompletion.product_id)
+        ).group_by(ProductionCompletion.product_id)
     ).all()
     produced_by_pid = {
         r[0]: {"total": float(r[1] or 0.0), "last_date": r[2], "last_30d": float(r[3] or 0.0)}
@@ -1114,7 +1112,9 @@ def _public_branding(session: Session) -> dict:
 
             raw = getattr(kv, "value_json", "") or ""
             val = _json.loads(raw) if raw else ""
-            kv_name = str(val).strip() if not isinstance(val, dict) else str(val.get("name", "")).strip()
+            kv_name = (
+                str(val).strip() if not isinstance(val, dict) else str(val.get("name", "")).strip()
+            )
         except Exception:
             kv_name = ""
 
@@ -1303,13 +1303,9 @@ def product_detail(
 
     # Get last 30 days units sold and revenue
     sales_metrics = session.execute(
-        select(
-            func.sum(Sale.qty),
-            func.sum(Sale.unit_price_gs * Sale.qty)
-        ).where(
-            Sale.sold_at >= thirty_days_ago,
-            Sale.product_id == p_id
-        ).where(Sale.voided_at.is_(None))
+        select(func.sum(Sale.qty), func.sum(Sale.unit_price_gs * Sale.qty))
+        .where(Sale.sold_at >= thirty_days_ago, Sale.product_id == p_id)
+        .where(Sale.voided_at.is_(None))
     ).one()
 
     last_30d_units = sales_metrics[0] or 0
@@ -1356,5 +1352,5 @@ def product_detail(
             "recipes_using": recipes_using,
             "recent_sales": recent_sales,
             "is_out_of_stock": is_out_of_stock,
-        }
+        },
     )

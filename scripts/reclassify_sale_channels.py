@@ -111,7 +111,7 @@ def normalize_channel(raw: str | None) -> str:
     """
     if not raw:
         return Channel.MOSTRADOR.value  # NULL → mostrador (sales like the
-                                          # current import fallback)
+        # current import fallback)
     key = raw.strip().lower()
     return _RAW_TO_CHANNEL.get(key, Channel.OTHER.value)
 
@@ -213,12 +213,14 @@ def reclassify(
                 csv_skipped += 1
                 continue
 
-            csv_updates.append({
-                "sold_at": parse_date(row.get("Fecha") or row.get("sold_at")),
-                "qty": parse_decimal(row.get("Unidades") or row.get("qty")),
-                "total_gs": parse_decimal(row.get("Total (₲)") or row.get("total_gs")),
-                "channel": canonical,
-            })
+            csv_updates.append(
+                {
+                    "sold_at": parse_date(row.get("Fecha") or row.get("sold_at")),
+                    "qty": parse_decimal(row.get("Unidades") or row.get("qty")),
+                    "total_gs": parse_decimal(row.get("Total (₲)") or row.get("total_gs")),
+                    "channel": canonical,
+                }
+            )
 
     # Strip rows that didn't yield a valid date — they can't be matched.
     csv_updates = [u for u in csv_updates if u["sold_at"] is not None]
@@ -254,10 +256,12 @@ def reclassify(
     print(f"\nApplying updates in batches of {batch_size}...")
     with Session() as session:
         import os as _os
+
         if _os.environ.get("DEBUG_RECLASSIFY"):
             from sqlalchemy import func as _func
             from sqlalchemy import select as _select
             from sqlalchemy import text as _text
+
             cnt = session.execute(_select(_func.count()).select_from(Sale)).scalar()
             print(f"DEBUG: {cnt} rows in sale table BEFORE updates")
             for row in session.execute(_select(Sale.sold_at, Sale.qty, Sale.channel)).all():
@@ -266,13 +270,15 @@ def reclassify(
             for row in session.execute(_text("SELECT sold_at, qty, channel FROM sale")).all():
                 print(f"  raw: sold_at={row[0]!r} qty={row[1]!r} channel={row[2]!r}")
             # And try the WHERE directly
-            cnt_match = session.execute(_text(
-                "SELECT COUNT(*) FROM sale WHERE sold_at = :sa AND qty = :qty"
-            ), {"sa": "2026-10-01 00:00:00", "qty": 2.0}).scalar()
+            cnt_match = session.execute(
+                _text("SELECT COUNT(*) FROM sale WHERE sold_at = :sa AND qty = :qty"),
+                {"sa": "2026-10-01 00:00:00", "qty": 2.0},
+            ).scalar()
             print(f"DEBUG: raw SELECT COUNT with params matches: {cnt_match}")
-            cnt_match2 = session.execute(_text(
-                "SELECT COUNT(*) FROM sale WHERE sold_at = :sa AND qty = :qty"
-            ), {"sa": "2026-10-01 00:00:00", "qty": 2}).scalar()
+            cnt_match2 = session.execute(
+                _text("SELECT COUNT(*) FROM sale WHERE sold_at = :sa AND qty = :qty"),
+                {"sa": "2026-10-01 00:00:00", "qty": 2},
+            ).scalar()
             print(f"DEBUG: raw SELECT COUNT with int qty matches: {cnt_match2}")
         for i in range(0, len(csv_updates), batch_size):
             batch = csv_updates[i : i + batch_size]
@@ -291,6 +297,7 @@ def reclassify(
                 # exports (one row per recipe per day per customer).
                 # DEBUG: print the compiled WHERE so we can see what's failing
                 import os as _os
+
                 if _os.environ.get("DEBUG_RECLASSIFY"):
                     stmt = (
                         update(Sale)
@@ -317,6 +324,7 @@ def reclassify(
                 from datetime import timedelta
 
                 from sqlalchemy import text as _text
+
                 sold_at_min = u["sold_at"] - timedelta(seconds=1)
                 sold_at_max = u["sold_at"] + timedelta(seconds=1)
                 result = session.execute(
@@ -331,10 +339,17 @@ def reclassify(
                 )
                 if _os.environ.get("DEBUG_RECLASSIFY"):
                     print(f"DEBUG: ORM update rowcount = {result.rowcount}")
-                    raw = session.execute(_text(
-                        "UPDATE sale SET channel = :new_ch "
-                        "WHERE sold_at = :sold_at AND qty = :qty AND channel != :new_ch"
-                    ), {"new_ch": u["channel"], "sold_at": u["sold_at"].isoformat(), "qty": float(u["qty"])})
+                    raw = session.execute(
+                        _text(
+                            "UPDATE sale SET channel = :new_ch "
+                            "WHERE sold_at = :sold_at AND qty = :qty AND channel != :new_ch"
+                        ),
+                        {
+                            "new_ch": u["channel"],
+                            "sold_at": u["sold_at"].isoformat(),
+                            "qty": float(u["qty"]),
+                        },
+                    )
                     print(f"DEBUG: raw SQL update rowcount = {raw.rowcount}")
                 if result.rowcount:
                     stats["rows_updated"] += result.rowcount

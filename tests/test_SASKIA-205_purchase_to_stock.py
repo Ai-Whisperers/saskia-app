@@ -68,7 +68,9 @@ def test_sl_mark_purchased_bumps_stock(client, session_factory):
     """Marking bought adds qty_to_buy to ingredient.stock_qty and writes
     a reorder StockMovement."""
     with session_factory() as s:
-        ing = _make_ingredient(s, name=f"Harina SL-{__import__('uuid').uuid4().hex[:6]}", unit="kg", stock=2.0)
+        ing = _make_ingredient(
+            s, name=f"Harina SL-{__import__('uuid').uuid4().hex[:6]}", unit="kg", stock=2.0
+        )
         item = _make_sl_item(s, ing, qty=5.0, unit="kg")
         item_id, ing_id = item.id, ing.id
 
@@ -79,9 +81,7 @@ def test_sl_mark_purchased_bumps_stock(client, session_factory):
         ing2 = s.get(Ingredient, ing_id)
         assert float(ing2.stock_qty) == pytest.approx(7.0)  # 2.0 + 5.0
         moves = (
-            s.query(StockMovement)
-            .filter_by(ingredient_id=ing_id, movement_type="reorder")
-            .all()
+            s.query(StockMovement).filter_by(ingredient_id=ing_id, movement_type="reorder").all()
         )
         assert len(moves) == 1
         assert moves[0].qty == pytest.approx(5.0)
@@ -91,7 +91,9 @@ def test_sl_mark_purchased_bumps_stock(client, session_factory):
 def test_sl_mark_purchased_idempotent(client, session_factory):
     """Re-marking does NOT double the stock."""
     with session_factory() as s:
-        ing = _make_ingredient(s, name=f"Azucar SL-{__import__('uuid').uuid4().hex[:6]}", unit="kg", stock=1.0)
+        ing = _make_ingredient(
+            s, name=f"Azucar SL-{__import__('uuid').uuid4().hex[:6]}", unit="kg", stock=1.0
+        )
         item = _make_sl_item(s, ing, qty=3.0, unit="kg")
         item_id, ing_id = item.id, ing.id
 
@@ -102,9 +104,7 @@ def test_sl_mark_purchased_idempotent(client, session_factory):
         ing2 = s.get(Ingredient, ing_id)
         assert float(ing2.stock_qty) == pytest.approx(4.0)  # 1.0 + 3.0, not +6
         moves = (
-            s.query(StockMovement)
-            .filter_by(ingredient_id=ing_id, movement_type="reorder")
-            .all()
+            s.query(StockMovement).filter_by(ingredient_id=ing_id, movement_type="reorder").all()
         )
         assert len(moves) == 1
 
@@ -112,7 +112,9 @@ def test_sl_mark_purchased_idempotent(client, session_factory):
 def test_sl_mark_purchased_converts_units(client, session_factory):
     """5000 g bought for a kg-stock ingredient lands as +5 kg."""
     with session_factory() as s:
-        ing = _make_ingredient(s, name=f"Manteca SL-{__import__('uuid').uuid4().hex[:6]}", unit="kg", stock=0.0)
+        ing = _make_ingredient(
+            s, name=f"Manteca SL-{__import__('uuid').uuid4().hex[:6]}", unit="kg", stock=0.0
+        )
         item = _make_sl_item(s, ing, qty=5000.0, unit="g")
         item_id, ing_id = item.id, ing.id
 
@@ -127,7 +129,9 @@ def test_sl_unmark_does_not_subtract(client, session_factory):
     """Unmark flips the boolean but stock stays (physical stock doesn't
     un-arrive)."""
     with session_factory() as s:
-        ing = _make_ingredient(s, name=f"Leche SL-{__import__('uuid').uuid4().hex[:6]}", unit="l", stock=1.0)
+        ing = _make_ingredient(
+            s, name=f"Leche SL-{__import__('uuid').uuid4().hex[:6]}", unit="l", stock=1.0
+        )
         item = _make_sl_item(s, ing, qty=4.0, unit="l")
         item_id, ing_id = item.id, ing.id
 
@@ -162,25 +166,21 @@ def test_wishlist_mark_purchased_creates_equipment_stock(client, session_factory
     """Direct mark-purchased (no send-to-shopping-list) creates the
     [EQUIPMENT] pseudo-ingredient with stock."""
     with session_factory() as s:
-        item = _make_wishlist(s, name=f"Batedeira W1-{__import__('uuid').uuid4().hex[:4]}", qty=2, price=1_200_000)
+        item = _make_wishlist(
+            s, name=f"Batedeira W1-{__import__('uuid').uuid4().hex[:4]}", qty=2, price=1_200_000
+        )
         item_id, name = item.id, item.name
 
         r = client.post(f"/wishlist/{item_id}/mark-purchased", follow_redirects=False)
         assert r.status_code == 303
 
-        eq = (
-            s.query(Ingredient).filter_by(name=f"[EQUIPMENT] {name}").one_or_none()
-        )
+        eq = s.query(Ingredient).filter_by(name=f"[EQUIPMENT] {name}").one_or_none()
         assert eq is not None
         assert float(eq.stock_qty) == pytest.approx(2.0)
         assert eq.purchase_price_gs == 1_200_000
         assert eq.category == "Equipment"
 
-        moves = (
-            s.query(StockMovement)
-            .filter_by(ingredient_id=eq.id, movement_type="reorder")
-            .all()
-        )
+        moves = s.query(StockMovement).filter_by(ingredient_id=eq.id, movement_type="reorder").all()
         assert len(moves) == 1
         assert moves[0].qty == pytest.approx(2.0)
 

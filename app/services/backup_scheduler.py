@@ -193,8 +193,7 @@ def _prune_old_sqlite_snapshots(folder: Path, keep_last_n: int) -> int:
     if not folder.exists():
         return 0
     files = sorted(
-        list(folder.glob("rms-snapshot-*.sqlite")) +
-        list(folder.glob("rms-snapshot-*.sqlite.enc")),
+        list(folder.glob("rms-snapshot-*.sqlite")) + list(folder.glob("rms-snapshot-*.sqlite.enc")),
         key=lambda f: f.stat().st_mtime,
         reverse=True,
     )
@@ -283,7 +282,8 @@ def _migrate_legacy_fernet_key(backup_dir: Path, dni: str) -> None:
             "D.5 migration FAILED to remove legacy r2-encryption.key "
             "at %s: %s. The file is no longer used but is still on "
             "disk. Remove it manually after deploy.",
-            legacy, exc,
+            legacy,
+            exc,
         )
 
 
@@ -381,7 +381,8 @@ def run_backup(
                 "D.5: failed to remove cleartext snapshot %s after "
                 "encrypting: %s. The file is now redundant; remove "
                 "it manually to free disk space.",
-                snap_path_cleartext, exc,
+                snap_path_cleartext,
+                exc,
             )
         # One-time migration: delete the legacy Fernet key on the
         # first run with DNI. Idempotent.

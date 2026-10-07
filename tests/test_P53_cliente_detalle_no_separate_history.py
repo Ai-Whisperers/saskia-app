@@ -11,6 +11,7 @@ Acceptance:
     in P3.6 — regression).
   - There is NO separate 'Historial de compras' table heading.
 """
+
 from __future__ import annotations
 
 import re
@@ -26,11 +27,14 @@ def test_cliente_detalle_no_separate_history_table(client, session_factory):
         cust = make_customer(s, name=f"collapse-{uuid.uuid4().hex[:6]}")
         # Create a pedido so the accordion renders.
         from app.rms.models import Pedido
-        s.add(Pedido(
-            customer_id=cust.id,
-            promised_date=__import__("datetime").date.today(),
-            status="fulfilled",
-        ))
+
+        s.add(
+            Pedido(
+                customer_id=cust.id,
+                promised_date=__import__("datetime").date.today(),
+                status="fulfilled",
+            )
+        )
         s.commit()
         cid = cust.id
     finally:
@@ -49,6 +53,5 @@ def test_cliente_detalle_no_separate_history_table(client, session_factory):
     # The separate 'Historial de compras' heading should be GONE
     # regardless of whether the customer has pedidos.
     assert not re.search(r"<h\d[^>]*>\s*Historial de compras\s*</h\d", body), (
-        "'Historial de compras' should be removed; info is in the "
-        "Pedidos recientes accordion now."
+        "'Historial de compras' should be removed; info is in the Pedidos recientes accordion now."
     )

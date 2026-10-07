@@ -11,6 +11,7 @@ Asserts that:
 
 We use a mock template context (no DB) so this runs in CI.
 """
+
 from __future__ import annotations
 
 import json
@@ -34,14 +35,22 @@ def _render_modal_html(products: list[dict] | None = None) -> str:
             {"id": 15, "name": 'Babka "de" chocolate', "forecast_qty": 0.0, "pending_pedidos": 0.0},
         ]
     # Replicate the Jinja template fragment:
-    src_json = "[" + ",".join(
-        '{"value": ' + json.dumps(p["id"])
-        + ', "label": ' + json.dumps(p["name"])
-        + ', "forecast_qty": ' + json.dumps(p.get("forecast_qty") or 0)
-        + ', "pending_pedidos": ' + json.dumps(p.get("pending_pedidos") or 0)
-        + "}"
-        for p in products
-    ) + "]"
+    src_json = (
+        "["
+        + ",".join(
+            '{"value": '
+            + json.dumps(p["id"])
+            + ', "label": '
+            + json.dumps(p["name"])
+            + ', "forecast_qty": '
+            + json.dumps(p.get("forecast_qty") or 0)
+            + ', "pending_pedidos": '
+            + json.dumps(p.get("pending_pedidos") or 0)
+            + "}"
+            for p in products
+        )
+        + "]"
+    )
     return f'<ui-combo id="adhoc-product" name="product_id" placeholder="Buscar producto…" src=\'{src_json}\' required></ui-combo>'
 
 
@@ -74,7 +83,12 @@ class TestUiComboIntegration:
     def test_combo_handles_unicode_product_names(self):
         products = [
             {"id": 1, "name": "Tarta de Manzana", "forecast_qty": 4.0, "pending_pedidos": 1.0},
-            {"id": 2, "name": "Tortilla de Papas (12x12 cm)", "forecast_qty": 0.0, "pending_pedidos": 0.0},
+            {
+                "id": 2,
+                "name": "Tortilla de Papas (12x12 cm)",
+                "forecast_qty": 0.0,
+                "pending_pedidos": 0.0,
+            },
         ]
         html = _render_modal_html(products)
         m = re.search(r"src='([^']*)'", html)
@@ -102,16 +116,16 @@ class TestUiComboScriptLoaded:
 
 class TestModalNoProductsHint:
     def test_hint_element_present(self):
-        modal = (TEMPLATE.read_text().split('<dialog id="adhoc-modal"')[1].split('</dialog>')[0])
+        modal = TEMPLATE.read_text().split('<dialog id="adhoc-modal"')[1].split("</dialog>")[0]
         assert 'id="adhoc-no-products-hint"' in modal
         # Default hidden
-        assert 'display: none' in modal
+        assert "display: none" in modal
 
     def test_hint_visible_when_src_empty(self):
         # T-2026-10-06g: refactored to handle both empty + malformed cases.
         # The JS now checks for empty items and shows a clear hint.
         template_text = TEMPLATE.read_text()
-        assert 'noProductsHint' in template_text or 'adhoc-no-products-hint' in template_text
+        assert "noProductsHint" in template_text or "adhoc-no-products-hint" in template_text
         # Find the JS that toggles the hint. The new pattern checks
         # items.length and sets the textContent/innerHTML accordingly.
         # Verify both branches exist:

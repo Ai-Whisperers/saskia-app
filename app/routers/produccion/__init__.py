@@ -13,6 +13,7 @@ tests/test_produccion_helpers.py pin the public API so subsequent
 extractions can move code freely without breaking app/main.py or
 any other caller.
 """
+
 from __future__ import annotations
 
 # Import _full so all the existing @router.get / @router.post decorators

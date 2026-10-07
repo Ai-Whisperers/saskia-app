@@ -8,6 +8,7 @@ Routes (3 GETs):
   GET /produccion/export.csv   - CSV download of the daily plan
   GET /produccion/prep         - prep/blank worksheet for printing
 """
+
 from __future__ import annotations
 
 import csv
@@ -175,14 +176,18 @@ def produccion_export_csv(
     writer.writerow(["product_name", "qty_to_produce", "source", "confidence", "is_ad_hoc"])
     for r in rows:
         bucket = source_to_bucket(r.forecast_source, is_ad_hoc=False)
-        writer.writerow([
-            r.product_name,
-            # Format as int when possible so 50.0 doesn't show as "50.0"
-            f"{r.qty_to_produce:g}" if r.qty_to_produce == int(r.qty_to_produce) else f"{r.qty_to_produce}",
-            bucket,
-            r.confidence_pct,
-            False,  # Plan rows are not ad-hoc by definition
-        ])
+        writer.writerow(
+            [
+                r.product_name,
+                # Format as int when possible so 50.0 doesn't show as "50.0"
+                f"{r.qty_to_produce:g}"
+                if r.qty_to_produce == int(r.qty_to_produce)
+                else f"{r.qty_to_produce}",
+                bucket,
+                r.confidence_pct,
+                False,  # Plan rows are not ad-hoc by definition
+            ]
+        )
     return Response(
         content=buf.getvalue(),
         media_type="text/csv; charset=utf-8",
@@ -254,9 +259,9 @@ def produccion_prep(
     # Sort: severity (Falta first) then ingredient_name. The user can
     # override via ?sort= but unknown keys fall back to severity.
     severity_order = {"falta": 0, "justo": 1, "suficiente": 2}
-    sort_key = sort if sort in (
-        "severity", "ingredient", "required", "stock", "to_buy"
-    ) else "severity"
+    sort_key = (
+        sort if sort in ("severity", "ingredient", "required", "stock", "to_buy") else "severity"
+    )
     sort_dir = -1 if dir == "desc" else 1
     if sort_key == "severity":
         prep_rows.sort(
@@ -306,5 +311,3 @@ def produccion_prep(
             "current_dir": dir,
         },
     )
-
-

@@ -9,6 +9,7 @@ Precio: la primera línea lleva el precio completo del menú; las demás
 0 — así el total de la venta == price_gs × qty y el recibo lista
 "Menú X (incluye A, B, C)".
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -42,12 +43,7 @@ def expand_menu_items(
     if qty <= 0:
         raise ValueError("qty debe ser > 0")
 
-    items = (
-        session.query(MenuItem)
-        .filter(MenuItem.menu_id == menu.id)
-        .order_by(MenuItem.id)
-        .all()
-    )
+    items = session.query(MenuItem).filter(MenuItem.menu_id == menu.id).order_by(MenuItem.id).all()
     if not items:
         raise MenuNotFound(f"menu {menu_id} no tiene productos")
 
@@ -70,7 +66,5 @@ def menus_with_items(session: Session) -> list[dict[str, Any]]:
             p = session.get(Product, it.product_id)
             if p is not None:
                 names.append(p.name)
-        out.append(
-            {"id": m.id, "name": m.name, "price_gs": int(m.price_gs), "incluye": names}
-        )
+        out.append({"id": m.id, "name": m.name, "price_gs": int(m.price_gs), "incluye": names})
     return out

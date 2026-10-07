@@ -80,6 +80,7 @@ def eod_view(
     # /eod, the same place the operator already is.
     try:
         from app.rms.production_demand import warm_snapshots_for_dates
+
         upcoming = [today + timedelta(days=offset) for offset in range(7)]
         warmed = warm_snapshots_for_dates(session, upcoming)
         logger.debug("eod_view: warmed demand snapshots for {} dates", warmed)
@@ -118,11 +119,7 @@ def eod_view(
     # pattern (4 stat cards) but tuned for the EOD operator surface.
     eod_items_total = len(items)
     eod_items_done = sum(1 for it in items if it.key in saved_keys)
-    eod_items_pct = (
-        round((eod_items_done * 100) / eod_items_total)
-        if eod_items_total
-        else 0
-    )
+    eod_items_pct = round((eod_items_done * 100) / eod_items_total) if eod_items_total else 0
 
     # CIE-02: restock step — show ingredients below minimum with a link to
     # /reorder. Checking the close step means she has looked at it.

@@ -20,6 +20,7 @@ The previous version of this test was too aggressive — it flagged
 dark mode --color-danger is #dc2626 (red) and white text on red is
 fine.
 """
+
 from __future__ import annotations
 
 import re
@@ -47,7 +48,7 @@ LIGHT_BACKGROUND_PATTERNS = [
 # Near-white text colors that would be invisible on a light bg.
 LIGHT_TEXT_PATTERNS = [
     r"color:\s*var\(--color-text\)\b",
-    r"color:\s*var\(--color-text,\s*#\d+\)",   # CSS fallback is ignored when var is defined
+    r"color:\s*var\(--color-text,\s*#\d+\)",  # CSS fallback is ignored when var is defined
     r"color:\s*#fff\b",
     r"color:\s*white\b",
     r"color:\s*var\(--gray-100\)",
@@ -132,9 +133,7 @@ class TestWhiteOnWhiteAudit:
             # Scan <style> blocks
             for lineno, snippet in _scan_style_blocks(html):
                 offenders.append(f"{name}:{lineno}: css rule: {snippet}")
-        assert not offenders, (
-            "white-on-white bugs found:\n" + "\n".join(offenders)
-        )
+        assert not offenders, "white-on-white bugs found:\n" + "\n".join(offenders)
 
     def test_soft_callouts_use_hard_dark_color(self):
         """Specifically: the 3 elements I patched in f2e3c18 + e9b89d9

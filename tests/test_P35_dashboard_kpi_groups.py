@@ -14,6 +14,7 @@ Acceptance:
   - The total KPI count is at least 8 (current 9) — we should not lose
     any in the regrouping.
 """
+
 from __future__ import annotations
 
 import re
@@ -29,9 +30,7 @@ def test_dashboard_kpi_groups_present(client):
     # or <h2>/<h3> containing the group name.
     group_names = ["dinero", "actividad", "costos"]
     found_groups = [g for g in group_names if g in body.lower()]
-    assert len(found_groups) >= 2, (
-        f"expected at least 2 KPI groups; found: {found_groups}"
-    )
+    assert len(found_groups) >= 2, f"expected at least 2 KPI groups; found: {found_groups}"
 
     # Count metric-card occurrences when the dashboard is populated.
     # The empty state shows the group structure but no metric cards,

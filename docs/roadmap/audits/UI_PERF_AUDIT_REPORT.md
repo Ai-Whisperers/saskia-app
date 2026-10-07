@@ -47,29 +47,19 @@ recipe_id: Mapped[Optional[int]] = mapped_column(
 )
 
 # SaleStockMove.affected_recipe_id (line 251)
-affected_recipe_id: Mapped[int] = mapped_column(
-    ForeignKey("recipe.id"), nullable=False, index=True
-)
+affected_recipe_id: Mapped[int] = mapped_column(ForeignKey("recipe.id"), nullable=False, index=True)
 
 # SaleStockMove.ingredient_id (line 253)
-ingredient_id: Mapped[int] = mapped_column(
-    ForeignKey("ingredient.id"), nullable=False, index=True
-)
+ingredient_id: Mapped[int] = mapped_column(ForeignKey("ingredient.id"), nullable=False, index=True)
 
 # Product.recipe_id (line 182)
-recipe_id: Mapped[Optional[int]] = mapped_column(
-    ForeignKey("recipe.id"), nullable=True, index=True
-)
+recipe_id: Mapped[Optional[int]] = mapped_column(ForeignKey("recipe.id"), nullable=True, index=True)
 
 # SaleStockMove.sale_id (line 249 already has index, line 606 is nullable)
-sale_id: Mapped[Optional[int]] = mapped_column(
-    ForeignKey("sale.id"), nullable=True, index=True
-)
+sale_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sale.id"), nullable=True, index=True)
 
 # PedidoLine.product_id (line 638)
-product_id: Mapped[int] = mapped_column(
-    ForeignKey("product.id"), nullable=False, index=True
-)
+product_id: Mapped[int] = mapped_column(ForeignKey("product.id"), nullable=False, index=True)
 
 # TagLink.tag_id (line 467)
 tag_id: Mapped[int] = mapped_column(
@@ -87,11 +77,11 @@ tag_id: Mapped[int] = mapped_column(
 
 ```python
 # CURRENT: 2 queries + Python loop
-quick_rows = session.execute(quick_sell_q).all()   # query 1
-product_by_id = {p.id: p for p in products}         # query 2 (already loaded)
+quick_rows = session.execute(quick_sell_q).all()  # query 1
+product_by_id = {p.id: p for p in products}  # query 2 (already loaded)
 quick_sell = []
-for pid, units, rev in quick_rows:                  # Python loop
-    p = product_by_id.get(pid)                      # dict lookup, no query
+for pid, units, rev in quick_rows:  # Python loop
+    p = product_by_id.get(pid)  # dict lookup, no query
     ...
 ```
 
@@ -191,6 +181,7 @@ if not os.getenv("SASKIA_DEBUG"):
 ```python
 # In middleware: add session to a set on open, remove on close
 _active_sessions: dict[int, Session] = {}
+
 
 async def dispatch(self, request: Request, call_next):
     # On response:

@@ -110,6 +110,7 @@ _DNI_FILE_REQUIRED_MODE: Final[int] = stat.S_IRUSR | stat.S_IWUSR  # 0o600 bits
 # Exceptions
 # ---------------------------------------------------------------------------
 
+
 class BackupCryptoError(Exception):
     """Base class for all backup_crypto failures.
 
@@ -141,6 +142,7 @@ class InvalidBackupFileError(BackupCryptoError):
 # Key derivation
 # ---------------------------------------------------------------------------
 
+
 def derive_key(dni: str, salt: bytes) -> bytes:
     """Derive a 32-byte AES-256 key from DNI + salt using PBKDF2.
 
@@ -163,9 +165,7 @@ def derive_key(dni: str, salt: bytes) -> bytes:
     if not dni:
         raise ValueError("dni must be a non-empty string")
     if len(salt) != SALT_SIZE:
-        raise ValueError(
-            f"salt must be exactly {SALT_SIZE} bytes, got {len(salt)}"
-        )
+        raise ValueError(f"salt must be exactly {SALT_SIZE} bytes, got {len(salt)}")
     return hashlib.pbkdf2_hmac(
         "sha256",
         dni.encode("utf-8"),
@@ -226,6 +226,7 @@ def derive_key_from_dni_file(path: Path) -> str:
 # Encrypt / decrypt
 # ---------------------------------------------------------------------------
 
+
 def encrypt_backup(plaintext: bytes, dni: str) -> bytes:
     """Encrypt `plaintext` with a DNI-derived key.
 
@@ -250,13 +251,7 @@ def encrypt_backup(plaintext: bytes, dni: str) -> bytes:
     # AESGCM.encrypt appends the 16-byte tag to the ciphertext.
     ciphertext_with_tag = aesgcm.encrypt(nonce, plaintext, associated_data=None)
 
-    return (
-        HEADER_MAGIC
-        + bytes([HEADER_VERSION])
-        + salt
-        + nonce
-        + ciphertext_with_tag
-    )
+    return HEADER_MAGIC + bytes([HEADER_VERSION]) + salt + nonce + ciphertext_with_tag
 
 
 def decrypt_backup(blob: bytes, dni: str) -> bytes:
@@ -309,8 +304,8 @@ def decrypt_backup(blob: bytes, dni: str) -> bytes:
             f"Sazon build and cannot be restored."
         )
 
-    salt = blob[9:9 + SALT_SIZE]
-    nonce = blob[9 + SALT_SIZE:HEADER_SIZE]
+    salt = blob[9 : 9 + SALT_SIZE]
+    nonce = blob[9 + SALT_SIZE : HEADER_SIZE]
     ciphertext_with_tag = blob[HEADER_SIZE:]
 
     key = derive_key(dni, salt)
@@ -323,8 +318,7 @@ def decrypt_backup(blob: bytes, dni: str) -> bytes:
         # right user-facing message is "wrong DNI or corrupt file"
         # for both cases (and we don't want to leak which one).
         raise DecryptionError(
-            f"decryption failed (wrong DNI, tampered file, or "
-            f"truncated ciphertext): {exc}"
+            f"decryption failed (wrong DNI, tampered file, or truncated ciphertext): {exc}"
         ) from exc
 
 

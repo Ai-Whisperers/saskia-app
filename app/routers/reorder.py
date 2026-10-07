@@ -220,6 +220,7 @@ def reorder_quick_restock(
     last_price_gs: int = 0
     if eff_supplier_id is not None:
         from app.rms.models import IngredientPriceEvent
+
         last_evt = session.scalar(
             select(IngredientPriceEvent)
             .where(
@@ -304,6 +305,7 @@ def reorder_bulk_quick_restock(
         last_price_gs: int = 0
         if eff_supplier_id is not None:
             from app.rms.models import IngredientPriceEvent
+
             last_evt = session.scalar(
                 select(IngredientPriceEvent)
                 .where(
@@ -332,8 +334,7 @@ def reorder_bulk_quick_restock(
         user_id=current_user_id(request) or "operator",
         action="write.reorder.bulk_quick_restock",
         request=request,
-        detail={"updated": updated, "skipped": skipped,
-                "ids": ingredient_ids[:500]},
+        detail={"updated": updated, "skipped": skipped, "ids": ingredient_ids[:500]},
     )
     session.commit()
     return RedirectResponse(url="/reorder", status_code=303)
@@ -344,7 +345,6 @@ def reorder_registrar(
     request: Request,
     ingredient_id: int = Form(...),
     qty: float = Form(...),
-
     qty_unit: str = Form(""),
     price_gs: int = Form(...),
     notes: str = Form(""),
@@ -672,13 +672,7 @@ async def reorder_upload_prices(
     }
     suppliers_by_name: dict[str, Supplier] = {
         s.name.lower(): s
-        for s in (
-            session.execute(
-                select(Supplier).where(Supplier.is_active)
-            )
-            .scalars()
-            .all()
-        )
+        for s in (session.execute(select(Supplier).where(Supplier.is_active)).scalars().all())
     }
 
     today = _datetime.now(timezone.utc).date()

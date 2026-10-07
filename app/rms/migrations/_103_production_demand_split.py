@@ -164,17 +164,11 @@ def _migration_103_production_demand_split(conn: Any) -> None:
         if is_postgres:
             conn.execute(
                 text(
-                    "ALTER TABLE production_completion "
-                    "ADD COLUMN IF NOT EXISTS closure_notes TEXT"
+                    "ALTER TABLE production_completion ADD COLUMN IF NOT EXISTS closure_notes TEXT"
                 )
             )
         else:
-            conn.execute(
-                text(
-                    "ALTER TABLE production_completion "
-                    "ADD COLUMN closure_notes TEXT"
-                )
-            )
+            conn.execute(text("ALTER TABLE production_completion ADD COLUMN closure_notes TEXT"))
     except Exception:
         pass
 

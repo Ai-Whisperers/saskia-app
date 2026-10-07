@@ -15,6 +15,7 @@ Acceptance:
   - If the customer has more than 5 transactions, a 'Ver todo'
     link/button is present.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -32,12 +33,14 @@ def test_cliente_detalle_loyalty_capped_at_5(client, session_factory):
         # Create 8 loyalty transactions to exceed the cap.
         now = datetime.now(timezone.utc)
         for i in range(8):
-            s.add(LoyaltyTransaction(
-                customer_id=cust.id,
-                delta=10,
-                reason="earn_sale",
-                recorded_at=now - timedelta(hours=i),
-            ))
+            s.add(
+                LoyaltyTransaction(
+                    customer_id=cust.id,
+                    delta=10,
+                    reason="earn_sale",
+                    recorded_at=now - timedelta(hours=i),
+                )
+            )
         s.commit()
         cid = cust.id
     finally:
@@ -52,9 +55,7 @@ def test_cliente_detalle_loyalty_capped_at_5(client, session_factory):
     # have a unique class, so we count the +10 pattern entries which
     # are unique to the ledger.
     delta_count = body.count("+10")
-    assert delta_count <= 5, (
-        f"expected at most 5 loyalty rows visible; got {delta_count}"
-    )
+    assert delta_count <= 5, f"expected at most 5 loyalty rows visible; got {delta_count}"
 
     # 'Ver todo' link must be present since we have >5 transactions.
     assert "Ver todo" in body or "loyalty" in body.lower(), (

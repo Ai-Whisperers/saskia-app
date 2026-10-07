@@ -15,6 +15,7 @@ Acceptance:
   - The dietary preferences label has a count badge matching the
     number of currently-rendered preference rows.
 """
+
 from __future__ import annotations
 
 import re
@@ -31,6 +32,7 @@ def test_cliente_editar_dietary_counts(client, session_factory):
         # Pre-populate dietary profile with known restrictions + 1 preference.
         # dietary_restrictions is a comma-separated string in the model.
         from app.rms.models import Customer
+
         c: Customer = s.get(Customer, cust.id)
         c.dietary_restrictions = "gluten,lactosa"
         c.dietary_preferences = '[{"tag":"integral","rank":1,"note":""}]'

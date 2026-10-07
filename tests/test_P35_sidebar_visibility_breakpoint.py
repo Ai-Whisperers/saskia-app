@@ -10,6 +10,7 @@ This test pins the new rule: the sidebar is visible by default from
 601px and up. Only true phone widths (≤600px) get the slide-out
 hamburger pattern.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -24,7 +25,7 @@ def test_css_sidebar_breakpoint_is_phone_width_only():
     # If that string reappears, the bug is back.
     assert "@media (max-width: 1023px)" not in css, (
         "BUG: sidebar hamburger still triggers at <=1023px. Ivan lost "
-        "the nav on his 13\" laptop. Should be <=600px (phone only)."
+        'the nav on his 13" laptop. Should be <=600px (phone only).'
     )
     # The new rule must be present (covers the 601-1024 laptop range)
     assert "@media (max-width: 600px)" in css, (
@@ -47,7 +48,7 @@ def test_sidebar_renders_in_authed_html(authed_client, qseed):
         "sidebar element missing from served HTML"
     )
     # Has at least one nav group + at least one nav item
-    assert body.count('sidebar-section') >= 1, "no sidebar sections rendered"
+    assert body.count("sidebar-section") >= 1, "no sidebar sections rendered"
     assert body.count('class="nav-item') >= 1, "no nav items rendered"
 
 
@@ -83,6 +84,7 @@ def test_base_sidebar_rule_does_not_hide_sidebar():
         "by default at every viewport, not just on phones"
     )
 
+
 def test_no_top_level_display_none_on_sidebar():
     """2026-10-07 Ivan: a .eod_print section in app-improvements.css
     had a top-level `.sidebar { display: none !important; }` rule
@@ -103,8 +105,10 @@ def test_no_top_level_display_none_on_sidebar():
     in_print = False
     i = 0
     while i < len(css_no_comments):
-        brace = min((css_no_comments.find("{", i), css_no_comments.find("}", i)),
-                    key=lambda x: x if x >= 0 else 10**9)
+        brace = min(
+            (css_no_comments.find("{", i), css_no_comments.find("}", i)),
+            key=lambda x: x if x >= 0 else 10**9,
+        )
         if brace < 0:
             break
         chunk = css_no_comments[i:brace]

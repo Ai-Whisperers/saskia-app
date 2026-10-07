@@ -7,6 +7,7 @@ Tests:
 - /produccion modal carries role="dialog" + aria-modal + aria-labelledby
 - deficit-prompt JS section + data-shift-saved marker both present
 """
+
 from __future__ import annotations
 
 
@@ -24,7 +25,7 @@ def test_merma_eventos_table_has_origen_column(authed_client, session_factory):
             qty=0.5,
             reason="vencida",
             cost_gs=1000,
-            recorded_at=__import__('datetime').datetime.now(__import__('datetime').timezone.utc),
+            recorded_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc),
             recorded_by="operator",
         )
         s.add(waste)
@@ -86,7 +87,7 @@ def test_merma_source_chip_renders_manual_for_legacy_event(authed_client, sessio
             qty=0.3,
             reason="quemada",
             cost_gs=500,
-            recorded_at=__import__('datetime').datetime.now(__import__('datetime').timezone.utc),
+            recorded_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc),
             recorded_by="operator",
         )
         s.add(waste)
@@ -126,6 +127,7 @@ def test_data_shift_saved_marker_present(authed_client):
     # the attribute is emitted on the flash banner conditional by reading the
     # template directly.
     import pathlib
+
     tpl = pathlib.Path("/opt/data/work/saskia-app/app/templates/produccion.html").read_text()
     assert 'data-shift-saved="1"' in tpl, (
         "data-shift-saved marker missing from produccion.html — deficit-prompt JS won't fire"
@@ -137,5 +139,5 @@ def test_deficit_prompt_js_present(authed_client):
     r = authed_client.get("/produccion?view=day")
     body = r.text
     # The IIFE that scans production-row + checks data-shift-saved + builds the prompt
-    assert 'querySelector(\'[data-shift-saved]\')' in body
+    assert "querySelector('[data-shift-saved]')" in body
     assert "shift-deficit-prompt" in body

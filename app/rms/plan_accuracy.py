@@ -108,12 +108,8 @@ class AccuracyReport:
     # to find the day with the worst plan-vs-actual mismatch without
     # reading the full 30-day daily table. Each entry is
     # (for_date, total_delta, accuracy, total_planned, total_completed).
-    worst_days: list[tuple[date, float, float, float, float]] = field(
-        default_factory=list
-    )
-    best_days: list[tuple[date, float, float, float, float]] = field(
-        default_factory=list
-    )
+    worst_days: list[tuple[date, float, float, float, float]] = field(default_factory=list)
+    best_days: list[tuple[date, float, float, float, float]] = field(default_factory=list)
 
     @property
     def under_baked_pct(self) -> float | None:
@@ -328,9 +324,7 @@ def _aggregate_daily_totals(
         cur["sold"] += r.sold_qty
     for cur in out.values():
         cur["delta"] = abs(cur["planned"] - cur["completed"])
-        cur["accuracy"] = (
-            cur["completed"] / cur["planned"] if cur["planned"] > 0 else 0.0
-        )
+        cur["accuracy"] = cur["completed"] / cur["planned"] if cur["planned"] > 0 else 0.0
     return out
 
 
@@ -367,9 +361,7 @@ def _top_best_days(
 
     Each entry: (for_date, delta, accuracy, planned, completed).
     """
-    candidates = [
-        (d, t) for d, t in daily_totals.items() if t["planned"] > 0
-    ]
+    candidates = [(d, t) for d, t in daily_totals.items() if t["planned"] > 0]
     # Sort by accuracy desc, then by delta asc (tiebreaker: perfect = best)
     candidates.sort(key=lambda kv: (-kv[1]["accuracy"], kv[1]["delta"]))
     out: list[tuple[date, float, float, float, float]] = []

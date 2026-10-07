@@ -122,8 +122,7 @@ class TestReclassifyEndToEnd:
         db_path = tmp_path / "reclassify_test.sqlite"
         csv_path = tmp_path / "VENTAS.csv"
         csv_path.write_text(
-            "Fecha,Canal de Venta,Unidades,Total (₲)\n"
-            "2026-10-01,Retail,2.0,50000\n",
+            "Fecha,Canal de Venta,Unidades,Total (₲)\n2026-10-01,Retail,2.0,50000\n",
             encoding="utf-8",
         )
 
@@ -182,9 +181,11 @@ class TestReclassifyEndToEnd:
 
         # 2. Monkeypatch the reclassify script's engine to point at our DB
         from sqlalchemy import create_engine
+
         test_engine = create_engine(f"sqlite:///{db_path}")
 
         import scripts.reclassify_sale_channels as rsc
+
         monkeypatch.setattr(rsc, "make_engine", lambda: test_engine)
 
         # 3. Run the reclassify (NOT dry_run — we want the actual update)
@@ -192,9 +193,7 @@ class TestReclassifyEndToEnd:
 
         # 4. Verify the row was updated
         conn = sqlite3.connect(str(db_path))
-        row = conn.execute(
-            "SELECT channel FROM sale WHERE id = 1"
-        ).fetchone()
+        row = conn.execute("SELECT channel FROM sale WHERE id = 1").fetchone()
         conn.close()
 
         assert row[0] == "retail", f"Expected retail, got {row[0]!r}"
@@ -205,8 +204,7 @@ class TestReclassifyEndToEnd:
         db_path = tmp_path / "reclassify_test.sqlite"
         csv_path = tmp_path / "VENTAS.csv"
         csv_path.write_text(
-            "Fecha,Canal de Venta,Unidades,Total (₲)\n"
-            "2026-10-01,Wholesale,3.0,75000\n",
+            "Fecha,Canal de Venta,Unidades,Total (₲)\n2026-10-01,Wholesale,3.0,75000\n",
             encoding="utf-8",
         )
 
@@ -225,9 +223,11 @@ class TestReclassifyEndToEnd:
         conn.close()
 
         from sqlalchemy import create_engine
+
         test_engine = create_engine(f"sqlite:///{db_path}")
 
         import scripts.reclassify_sale_channels as rsc
+
         monkeypatch.setattr(rsc, "make_engine", lambda: test_engine)
 
         stats = reclassify(csv_path, dry_run=True)

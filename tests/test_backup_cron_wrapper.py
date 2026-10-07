@@ -54,11 +54,13 @@ class _FakeHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         token = self.headers.get("X-Cron-Token", "")
         body = self.rfile.read(int(self.headers.get("Content-Length", "0") or "0"))
-        _received.append({
-            "path": self.path,
-            "token": token,
-            "body": body.decode("utf-8", errors="replace"),
-        })
+        _received.append(
+            {
+                "path": self.path,
+                "token": token,
+                "body": body.decode("utf-8", errors="replace"),
+            }
+        )
         self.send_response(self.next_status)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
@@ -91,21 +93,25 @@ def _run_wrapper(*args, env=None, timeout=30):
         full_env.update(env)
     return subprocess.run(
         [sys.executable, str(SCRIPT), *args],
-        capture_output=True, text=True, env=full_env, timeout=timeout,
+        capture_output=True,
+        text=True,
+        env=full_env,
+        timeout=timeout,
     )
 
 
 def _success_body(skipped: bool = False) -> bytes:
-    return json.dumps({
-        "status": "backup_complete",
-        "skipped": skipped,
-        "local_path": None if skipped else "/tmp/rms-backup.xlsx",
-        "r2_uploaded": not skipped,
-        "r2_key": None if skipped else "rms-snapshots/20261007-030000.sqlite.enc",
-        "local_pruned": 0,
-        "reason": "Backup completed" if not skipped else
-                  "Last backup < 24h ago, skipped",
-    }).encode("utf-8")
+    return json.dumps(
+        {
+            "status": "backup_complete",
+            "skipped": skipped,
+            "local_path": None if skipped else "/tmp/rms-backup.xlsx",
+            "r2_uploaded": not skipped,
+            "r2_key": None if skipped else "rms-snapshots/20261007-030000.sqlite.enc",
+            "local_pruned": 0,
+            "reason": "Backup completed" if not skipped else "Last backup < 24h ago, skipped",
+        }
+    ).encode("utf-8")
 
 
 def test_wrapper_imports():
@@ -115,6 +121,7 @@ def test_wrapper_imports():
     otherwise only show up in the crontab stderr.
     """
     import importlib.util
+
     spec = importlib.util.spec_from_file_location("backup_cron_wrapper", SCRIPT)
     mod = importlib.util.module_from_spec(spec)
     assert spec is not None
@@ -126,7 +133,9 @@ def test_wrapper_dry_run_prints_request_without_making_it(fake_server):
     network calls. The fake_server is alive but must receive zero
     requests."""
     result = _run_wrapper(
-        "--dry-run", "--url", fake_server,
+        "--dry-run",
+        "--url",
+        fake_server,
         env={"SASKIA_CRON_BACKUP_TOKEN": FAKE_TOKEN},
     )
     assert result.returncode == 0, f"dry-run exited {result.returncode}: {result.stderr}"
@@ -166,10 +175,12 @@ def test_wrapper_maps_500_to_exit_3(fake_server):
     """A 500 (backup raised) → exit 3. Cron monitoring fires on exit
     code 3 to alert 'backup raised'."""
     _FakeHandler.next_status = 500
-    _FakeHandler.next_body = json.dumps({
-        "error": "backup_failed",
-        "detail": "R2 outage: bucket unreachable",
-    }).encode("utf-8")
+    _FakeHandler.next_body = json.dumps(
+        {
+            "error": "backup_failed",
+            "detail": "R2 outage: bucket unreachable",
+        }
+    ).encode("utf-8")
     result = _run_wrapper("--url", fake_server, "--token", FAKE_TOKEN)
     assert result.returncode == 3, f"stdout: {result.stdout}\nstderr: {result.stderr}"
     assert "backup_failed" in result.stdout or "R2" in result.stdout
@@ -206,7 +217,11 @@ def test_wrapper_json_mode_outputs_valid_json(fake_server):
     _FakeHandler.next_status = 200
     _FakeHandler.next_body = _success_body(skipped=False)
     result = _run_wrapper(
-        "--url", fake_server, "--token", FAKE_TOKEN, "--json",
+        "--url",
+        fake_server,
+        "--token",
+        FAKE_TOKEN,
+        "--json",
     )
     assert result.returncode == 0, f"stdout: {result.stdout}\nstderr: {result.stderr}"
     last_json_line = None

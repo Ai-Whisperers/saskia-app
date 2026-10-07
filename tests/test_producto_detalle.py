@@ -1,6 +1,5 @@
 """Tests for the customer product detail page."""
 
-
 from app.rms.models import Product, Recipe, RecipeLine
 
 
@@ -42,6 +41,7 @@ def test_detalle_shows_current_stock(authed_client, session_factory):
     """Response contains the stock value (formatted)"""
     with session_factory() as s:
         from app.rms.models import Ingredient, Recipe
+
         ingredient = Ingredient(name="Pan Test", unit="und", stock_qty=10.5)
         s.add(ingredient)
 
@@ -57,7 +57,9 @@ def test_detalle_shows_current_stock(authed_client, session_factory):
 
     response = authed_client.get(f"/productos/{product_id}")
     # Stock 10.5 rendered as "10,50 und" (Paraguayan format: 2 decimals, comma)
-    assert "10,50" in response.text, f"Expected formatted stock in HTML; got first 300 chars: {response.text[:300]}"
+    assert "10,50" in response.text, (
+        f"Expected formatted stock in HTML; got first 300 chars: {response.text[:300]}"
+    )
 
 
 def test_detalle_shows_recipes_using(authed_client, session_factory):
@@ -65,6 +67,7 @@ def test_detalle_shows_recipes_using(authed_client, session_factory):
     with session_factory() as s:
         # Create recipe with ingredients
         from app.rms.models import Ingredient
+
         ingredient = Ingredient(name="Harina", unit="kg", stock_qty=10.0)
         s.add(ingredient)
         s.flush()
@@ -78,7 +81,7 @@ def test_detalle_shows_recipes_using(authed_client, session_factory):
             line_kind="ingredient",
             line_ref_id=ingredient.id,
             qty=0.5,
-            line_unit="kg"
+            line_unit="kg",
         )
         s.add(recipe_line)
 
@@ -120,9 +123,15 @@ def test_detalle_recent_sales_section(authed_client, session_factory):
 
         today = datetime.now(timezone.utc).replace(hour=12, minute=0, second=0, microsecond=0)
         apply_sale(
-            s, product_id=product_id, qty=2.0,
-            sold_at=today, notes=None, customer_id=None,
-            payment_method="efectivo", discount_gs=0, channel="mostrador"
+            s,
+            product_id=product_id,
+            qty=2.0,
+            sold_at=today,
+            notes=None,
+            customer_id=None,
+            payment_method="efectivo",
+            discount_gs=0,
+            channel="mostrador",
         )
         s.commit()
 

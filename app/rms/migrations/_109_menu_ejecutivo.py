@@ -45,8 +45,17 @@ def _migration_109_menu_ejecutivo(conn: Any) -> None:
                     active BOOLEAN NOT NULL DEFAULT TRUE,
                     created_at {TS}
                 )
-                """.replace("{PK}", "SERIAL PRIMARY KEY" if conn.dialect.name == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT")
-                .replace("{TS}", "TIMESTAMPTZ DEFAULT now()" if conn.dialect.name == "postgresql" else "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+                """.replace(
+                    "{PK}",
+                    "SERIAL PRIMARY KEY"
+                    if conn.dialect.name == "postgresql"
+                    else "INTEGER PRIMARY KEY AUTOINCREMENT",
+                ).replace(
+                    "{TS}",
+                    "TIMESTAMPTZ DEFAULT now()"
+                    if conn.dialect.name == "postgresql"
+                    else "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+                )
             )
             conn.exec_driver_sql(
                 """
@@ -56,11 +65,14 @@ def _migration_109_menu_ejecutivo(conn: Any) -> None:
                     product_id INTEGER NOT NULL REFERENCES product(id) ON DELETE CASCADE,
                     qty FLOAT NOT NULL DEFAULT 1
                 )
-                """.replace("{PK}", "SERIAL PRIMARY KEY" if conn.dialect.name == "postgresql" else "INTEGER PRIMARY KEY AUTOINCREMENT")
+                """.replace(
+                    "{PK}",
+                    "SERIAL PRIMARY KEY"
+                    if conn.dialect.name == "postgresql"
+                    else "INTEGER PRIMARY KEY AUTOINCREMENT",
+                )
             )
-            conn.exec_driver_sql(
-                "CREATE INDEX IF NOT EXISTS ix_menu_tenant_id ON menu (tenant_id)"
-            )
+            conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_menu_tenant_id ON menu (tenant_id)")
             conn.exec_driver_sql(
                 "CREATE INDEX IF NOT EXISTS ix_menu_item_menu_id ON menu_item (menu_id)"
             )
