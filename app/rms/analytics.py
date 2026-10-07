@@ -882,7 +882,7 @@ def probabilistic_consumption_forecast(
     for b in baseline:
         mu = max(b.avg_daily_consumption * float(horizon_days), 0.0)
         p_zero = math.exp(-mu) if mu > 0 else 1.0
-        stock = max(int(math.floor(b.current_stock_qty)), 0)
+        stock = max(math.floor(b.current_stock_qty), 0)
         cdf = 0.0
         term = math.exp(-mu)
         for k in range(stock + 1):
