@@ -9,6 +9,31 @@
 
 - **B.1 Venta Express**: `GET /ventas/express` — top-8 productos por venta 14d + favoritos, un form grande por producto que postea a `/ventas/nueva` (product_id + qty + efectivo, idempotency_key por producto). Cero lógica de venta nueva; reusa el flujo existente. Link "Express" en el page_header de `/ventas`. (port from polish/saskia-p0 `30ca6024`)
 
+### Added — SASKIA-310: terminology glossary + CI gate (Phase 9, 2026-10-07)
+
+Closes the copy/UX hardening program (SASKIA-301..308) with a
+regression lock for every Spanish-vs-English-loan-word decision.
+
+- **`app/docs/glossary.md`** (new) — concept-level terminology bank.
+  50+ rows mapping concepts to canonical Spanish (UI) and English
+  (code). Complements the existing string-level `app/docs/copy-vos.md`.
+- **`tests/test_terminology_consistency.py`** (new) — CI gate that
+  greps every `app/templates/**/*.html` for the 16 loan-word patterns
+  (Diff, Accuracy, Qty, Status, Owner, Endpoint, COGS, Revenue,
+  Loyalty, Batches, Forecast, Override, Counterparty, Reorder rate,
+  Login OK/FAIL). Test passes today; any future regression breaks
+  the build.
+- **Last 4 loan-word fixes** (8 instances across 3 files):
+  - `app/templates/caja.html`: `<th>Diff</th>` → `<th>Diferencia</th>`
+  - `app/templates/caja_z.html`: `<th>Diff</th>` → `<th>Diferencia</th>`
+  - `app/templates/produccion_accuracy.html`:
+    - KPI label "Accuracy promedio" → "Precisión promedio"
+    - 2 table headers `<th>Accuracy</th>` → `<th>Precisión</th>`
+    - Explanation text "Accuracy = producido ÷ plan" → "Precisión = …"
+
+4 tests, all pass on current main. CI integration: the test runs as
+part of the standard pytest discovery; no workflow changes needed.
+
 ### Added — Format utility JS (Phase 22 polish, 2026-10-07)
 
 Four new utility scripts that expose `window.*` globals for use across

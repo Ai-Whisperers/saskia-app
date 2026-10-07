@@ -38,7 +38,7 @@
     <strong class="kpi-value">{{ "%.1f"|format(report.total_sold) }} und</strong>
   </div>
   <div class="card kpi">
-    <span class="kpi-label">Accuracy promedio</span>
+    <span class="kpi-label">Precisión promedio</span>
     <strong class="kpi-value">
       {% if report.avg_accuracy is not none %}
       {{ (report.avg_accuracy * 100) | round(1) }}%
@@ -108,7 +108,7 @@
           <th>Fecha</th>
           <th class="text-right">Plan</th>
           <th class="text-right">Producido</th>
-          <th class="text-right">Accuracy</th>
+          <th class="text-right">Precisión</th>
         </tr>
       </thead>
       <tbody>
@@ -148,7 +148,7 @@
       <th class="text-right">Plan</th>
       <th class="text-right">Producido</th>
       <th class="text-right">Vendido</th>
-      <th class="text-right">Accuracy</th>
+      <th class="text-right">Precisión</th>
       <th class="text-right">Faltó hornear</th>
       <th class="text-right">Sobró hornear</th>
     </tr>
@@ -186,7 +186,7 @@
 
 <p class="text-muted mt-3">
   <small>
-    <strong>Cómo leerlo:</strong> "Accuracy" = producido ÷ plan.
+    <strong>Cómo leerlo:</strong> "Precisión" = producido ÷ plan.
     Cerca de 100% = bien calibrado. &lt;70% = faltó (perdiste ventas).
     &gt;120% = sobró (desperdicio / merma). "Faltó hornear" y "Sobró
     hornear" suman las diferencias día a día — no el neto, así que un
