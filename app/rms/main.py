@@ -62,13 +62,14 @@ from app.routers import (
     auditoria,
     auth,
     caja,
-    credits,
+    photo_credits,
     customers,
     dashboard,
     demo,
     dev,
     eod,
     excel_io,
+    fiado,
     health,
     help,
     herebus,
@@ -703,6 +704,7 @@ app.include_router(suppliers.router)
 app.include_router(products.router)
 app.include_router(sales.router)
 app.include_router(caja.router)
+app.include_router(fiado.router)
 app.include_router(refund.router)
 app.include_router(search.router)
 app.include_router(excel_io.router)
@@ -776,7 +778,7 @@ def proveedores_alias() -> object:
 app.include_router(users.router)
 app.include_router(reorder.router)
 app.include_router(help.router)
-app.include_router(credits.router)
+app.include_router(photo_credits.router)
 app.include_router(pedidos.public_router)
 # C2 — public tablet menu at /m/{slug}. Mounted at root so the URL
 # stays short enough for a 1280×720 walk-in tablet to type / display.

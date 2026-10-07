@@ -591,6 +591,35 @@ class CashSession(Base):
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class CreditAccount(Base):
+    """Fiado: línea de crédito por cliente (limit_gs NULL = sin límite)."""
+
+    __tablename__ = "credit_account"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customer.id"), unique=True, nullable=False, index=True)
+    limit_gs: Mapped[int | None] = mapped_column(nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.now)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class CreditTransaction(Base):
+    """Fiado ledger firmado: positivo = cargo, negativo = pago/ajuste."""
+
+    __tablename__ = "credit_transaction"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("credit_account.id"), nullable=False, index=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.now, index=True)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    amount_gs: Mapped[int] = mapped_column(nullable=False)
+    sale_id: Mapped[int | None] = mapped_column(ForeignKey("sale.id"), nullable=True, index=True)
+    idem_key: Mapped[str | None] = mapped_column(String(80), nullable=True, unique=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+
 class SaleStockMove(Base):
     """DEPRECATED stub — sale_stock_move table removed by migration 092 (BACKLOG #1).
 

@@ -690,6 +690,13 @@ def void_sale(
 
     session.execute(_delete(SalePayment).where(SalePayment.sale_id == sale.id))
 
+    # Fase 2 fiado: reverse any fiado charge linked to this sale so the
+    # customer's ledger returns to its pre-sale balance (signed ledger).
+    if sale.customer_id:
+        from app.rms.fiado import void_reversal
+
+        void_reversal(session, sale.id)
+
     # US 4.1 packaging restoration: now handled by the unified loop
     # above (which reads the packaging StockMovement row written by
     # apply_sale). The previous explicit packaging block was a safety

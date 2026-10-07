@@ -17,6 +17,7 @@ MAX_DISCOUNT_GS = 100_000_000  # 100M Gs. = $14,000 USD discount upper bound
 ALLOWED_PAYMENT_METHODS = frozenset(
     {
         "efectivo",
+        "fiado",
         "transferencia",
         "qr",
         "tarjeta",

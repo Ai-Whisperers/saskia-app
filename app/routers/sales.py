@@ -1150,6 +1150,32 @@ async def sale_create(
                 notes=f"POS redeem en sale #{sale.sale_id}",
             )
 
+    # Fase 2 fiado (venta simple): cargo automático al ledger del cliente.
+    if payment_method_clean == "fiado":
+        from app.rms.fiado import FiadoConflict as _FiadoConflict
+        from app.rms.fiado import registrar_cargo as _registrar_cargo
+
+        if customer_id is None:
+            raise HTTPException(status_code=400, detail="FIADO_REQUIERE_CLIENTE")
+        from app.rms.models import Sale as _SaleF
+
+        _sale_row = session.get(_SaleF, sale.sale_id)
+        try:
+            _registrar_cargo(
+                session,
+                customer_id,
+                max(
+                    0,
+                    int(_sale_row.qty * _sale_row.unit_price_gs)
+                    - int(_sale_row.discount_gs or 0),
+                ) if _sale_row is not None else 0,
+                sale_id=sale.sale_id,
+                note=f"Venta a fiado #{sale.sale_id}",
+                created_by=str(current_user_id(request) or "operator"),
+            )
+        except _FiadoConflict as _e:
+            raise HTTPException(status_code=409, detail=str(_e)) from None
+
     safe_commit(session)
     # PRODUCCION-V2 Fase 4: a new sale shifts the 14d rolling forecast
     # used by demand calculation. Invalidate today + the next 3 days
@@ -1616,7 +1642,9 @@ async def sale_create_multi(
             # stored on each Sale row). The remaining is what the
             # customer actually paid — what we earn on.
             rows = session.execute(select(_Sale).where(_Sale.id.in_(sale_ids))).scalars().all()
-            net_paid_gs = sum(max(0, int(r.total_price_gs) - int(r.discount_gs or 0)) for r in rows)
+            net_paid_gs = sum(
+            max(0, int(r.qty * r.unit_price_gs) - int(r.discount_gs or 0)) for r in rows
+        )
             _award_points(
                 session,
                 cust,
@@ -1639,8 +1667,6 @@ async def sale_create_multi(
     # each line). Single-method carts still get exactly one row so the
     # ledger is uniform (reports never special-case mixed sales).
     if sale_ids:
-        from datetime import datetime as _dt
-
         from sqlalchemy import select as _select
 
         from app.rms.models import Sale as _Sale
@@ -1719,6 +1745,36 @@ async def sale_create_multi(
                         created_at=_now,
                     )
                 )
+
+    # Fase 2 fiado: venta a fiado → cargo automático en el ledger del
+    # cliente (saldo positivo). La cuenta se crea al vuelo; el límite
+    # se valida en registrar_cargo (FiadoConflict → 409).
+    if payment_method_clean == "fiado" and sale_ids:
+        from app.rms.fiado import FiadoConflict, registrar_cargo
+
+        _actor = str(current_user_id(request) or "operator")
+        for _sid in sale_ids:
+            _sale_row = session.get(_Sale, _sid)
+            if _sale_row is None or _sale_row.customer_id is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="FIADO_REQUIERE_CLIENTE",
+                )
+            try:
+                registrar_cargo(
+                    session,
+                    _sale_row.customer_id,
+                    max(
+                        0,
+                        int(_sale_row.qty * _sale_row.unit_price_gs)
+                        - int(_sale_row.discount_gs or 0),
+                    ),
+                    sale_id=_sid,
+                    note=f"Venta a fiado #{_sid}",
+                    created_by=_actor,
+                )
+            except FiadoConflict as _e:
+                raise HTTPException(status_code=409, detail=str(_e)) from None
 
     safe_commit(session)
 

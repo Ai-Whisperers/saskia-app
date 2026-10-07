@@ -109,7 +109,7 @@ def test_mixed_payments_invalid_method_rejected(authed_client, session_factory, 
         json={
             "items": [{"product_id": _seed["a"], "qty": 1}],
             "payments": [
-                {"method": "fiado", "amount_gs": 10000},
+                {"method": "cripto", "amount_gs": 10000},
             ],
         },
         follow_redirects=False,

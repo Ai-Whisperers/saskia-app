@@ -70,6 +70,7 @@ from app.rms.migrations._104_product_sold_by_weight import (
 )
 from app.rms.migrations._105_sale_payments import _migration_105_sale_payments
 from app.rms.migrations._106_cash_sessions import _migration_106_cash_sessions
+from app.rms.migrations._107_credit_accounts import _migration_107_credit_accounts
 
 from loguru import logger
 from sqlalchemy import create_engine, event, text
@@ -1916,6 +1917,7 @@ def _migration_042_payment_method_catalog(conn: Any) -> None:
         ("efectivo", "Efectivo", False, 0.0, True),
         ("transferencia", "Transferencia", True, 0.0, False),
         ("qr", "QR", True, 0.0, False),
+        ("fiado", "Fiado (cuenta corriente)", True, 0.0, False),
         ("tarjeta", "Tarjeta", True, 3.0, False),
         ("otro", "Otro", False, 0.0, False),
     ]
@@ -4248,6 +4250,7 @@ MIGRATIONS = {
     104: _migration_104_product_sold_by_weight,
     105: _migration_105_sale_payments,
     106: _migration_106_cash_sessions,
+    107: _migration_107_credit_accounts,
 }
 
 
