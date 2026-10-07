@@ -105,7 +105,16 @@ def test_receta_detalle_margin_pill_honest():
     )
     # The new cost pill
     assert "Costo: Gs." in src, "New honest cost pill missing"
+
+    assert "/ 0.65" not in code, "Old placeholder margin formula (1 / 0.65) still in code (not in comment)"
+    # The new cost pill must use the shared m.gs macro (D3 lint)
+    assert "Costo: {{ m.gs(unit_cost.batch_cost_gs) }}/u" in src, (
+        "New honest cost pill must use m.gs macro"
+    )
     assert "batch_cost_gs" in src, "Cost pill must use unit_cost.batch_cost_gs"
+    # Currency drift lint: raw Gs. {{ pattern forbidden
+    drift_pattern = re.compile(r"Gs\.\s*\{\{")
+    assert not drift_pattern.search(src), "Currency drift: raw 'Gs. {{' in receta_detalle"
 
 
 def test_recetas_filter_toolbar_difficulty_multiselect():
