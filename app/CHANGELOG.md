@@ -5,6 +5,33 @@
 
 ## [Unreleased]
 
+### Fixed (2026-10-07) — `app/rms/models_legacy.py` docstring says wrong path
+
+The module docstring on line 1 read `app/rms/models.py — SQLAlchemy
+ORM models`, but the file is actually at `app/rms/models_legacy.py`.
+The misleading docstring has been there since at least the
+SASKIA-204 ruff-format commit (2026-10-07), and is a recurring source
+of confusion in audit reports.
+
+Updated to say `app/rms/models_legacy.py` and added a note that
+"the 'legacy' name is historical; this file is the source of truth,
+re-exported via app/rms/models/__init__.py."
+
+No logic change. No DB migration. No new tests (a 1-line docstring
+fix doesn't warrant test coverage).
+
+**Not addressed by this PR (still under review):** whether to
+rename the file. The `app/rms/models/` package exists on `main`
+with 17 submodule files, so a literal rename to `models.py` would
+shadow the package. Options:
+  1. Keep `models_legacy.py` and document it (this PR's choice)
+  2. Rename to `app/rms/_models_runtime.py` (signals "internal,
+     do not import directly"; public API stays `app.rms.models`)
+  3. Move the 2943 lines into `app/rms/models/_runtime.py` and
+     update the package's `__init__.py` to re-export
+
+Recommend (1) for now; revisit (2) in the next refactor pass.
+
 ### Added — Format utility JS (Phase 22 polish, 2026-10-07)
 Four new utility scripts that expose `window.*` globals for use across
 the app's server-rendered templates.

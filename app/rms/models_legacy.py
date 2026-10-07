@@ -1,4 +1,4 @@
-"""app/rms/models.py — SQLAlchemy ORM models.
+"""app/rms/models_legacy.py — SQLAlchemy ORM models (the "legacy" name is historical; this file is the source of truth, re-exported via app/rms/models/__init__.py).
 
 Per dev plan §9 Task 1 + v2 §5 (data model).
 
