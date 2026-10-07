@@ -113,9 +113,9 @@
 | **B.6** | Cmd+K + atajos POS + dirty state | 🟡 partial | canonical | M (3d) | `shortcuts.js` shipped 6d38bc1; further polish pending |
 | **B.7** | 3 insights accionables (60+d, margen<30%, stock N días) | 🟡 partial | canonical | M (2d) | insight card shipped (B7 6d38bc1); render of 3 specific insights pending |
 | **BACKLOG #32** | Poisson regression restocking | ❌ TODO | operator | L | "expected consumption next 3 days" |
-| **C.1** | Sentry + Telegram alerts (stock crítico, shelf<3, 5xx) | ❌ TODO | canonical | S | |
+| **C.1** | Sentry + Telegram alerts (stock crítico, shelf<3, 5xx) | ✅ Done 2026-10-07 | canonical | S | app/rms/notify.py (91b44f94) + 1-line before_send hook in main.py (aa0eb6cf) + 3 wiring tests; silent no-op without TG_BOT_TOKEN/TG_CHAT_ID; VPS env pending (operator lane) |
 | **C.2** | Vista cliente tablet `/m/{slug}` (1280×720) | ✅ partial | canonical | S | 2d30172 + 6d38bc1; further polish |
-| **C.3** | Arqueo de caja guiado `/cierre/arqueo` | ❌ TODO | canonical | S | |
+| **C.3** | Arqueo de caja guiado `/cierre/arqueo` | ✅ Done 2026-10-07 | canonical | S | 18e75696: conteo por denominaciones (100k..50) en caja.html, autollena counted_gs + diff en vivo; sin backend nuevo |
 | **C.6** | Bug fixes (aria-labels, sticky headers, missing indexes, dashboard N+1) | 🟡 partial | canonical | XS-M | partial — aria, indexes done; sticky headers + dashboard N+1 still open |
 
 ---
