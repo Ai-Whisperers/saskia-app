@@ -411,7 +411,7 @@
                 </span>
               {% endif %}
               <span style="font-size: 11px; color: var(--color-muted-foreground); white-space: nowrap;">
-                {{ "{:.0f}}% similar".format(sub.similarity * 100) }}
+                {{ "{:.0f}".format(sub.similarity * 100) ~ "% similar" }}
               </span>
             </div>
             {% endfor %}
