@@ -156,7 +156,7 @@
    → "Plan" because that's what the operator thinks of it as —
    "the number I plan to produce". The column still POSTs as qty[id]
    to /produccion/override-bulk (no breaking change). #}
-<form method="post" action="/produccion/override-bulk" id="tomorrow-plan-form">
+<form method="post" action="/produccion/override-bulk" id="tomorrow-plan-form" class="js-confirm-form" data-confirm-title="¿Guardar plan de mañana?" data-confirm-body="Se sobrescribirán los overrides del día con los valores del plan.">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="for_date" value="{{ tomorrow }}">
 

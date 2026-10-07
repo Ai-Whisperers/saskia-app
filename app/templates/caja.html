@@ -18,7 +18,7 @@
   <p><strong>Apertura:</strong> {{ fmt(open_sess.opening_gs) }}</p>
   <p><strong>Esperado ahora (X):</strong> {{ fmt(expected) }}</p>
 
-  <form method="post" action="/caja/cerrar" style="margin-top:var(--space-3);">
+  <form method="post" action="/caja/cerrar" style="margin-top:var(--space-3);" class="js-confirm-form" data-confirm-title="¿Cerrar caja?" data-confirm-body="Se registra el cierre del turno con el efectivo declarado." data-confirm-danger="true">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
     <label for="counted_gs">Conteo físico al cerrar (Gs.)</label>
     <input id="counted_gs" name="counted_gs" type="number" min="0" step="1" required

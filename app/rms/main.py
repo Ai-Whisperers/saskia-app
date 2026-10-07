@@ -551,10 +551,6 @@ class MetricsMiddleware(BaseHTTPMiddleware):
 app.add_middleware(MetricsMiddleware)
 
 # Security headers middleware: defense-in-depth HTTP response headers
-# (X-Frame-Options, CSP, HSTS, etc.). Registered BEFORE SessionMiddleware
-# so it runs OUTERMOST and its headers are guaranteed on every response.
-app.add_middleware(SecurityHeadersMiddleware)
-
 # Detect session leaks: warns + closes any Session opened during a
 # request that wasn't closed by the handler. Defense in depth against
 # future code that forgets to use `Depends(get_session)`.
@@ -563,6 +559,14 @@ app.add_middleware(SessionLifecycleMiddleware)
 # CSRF protection: signed double-submit cookie.
 # Set on every GET response to non-exempt paths; required on every POST.
 app.middleware("http")(csrf_cookie_middleware)
+
+# Security headers MUST be added AFTER csrf_cookie_middleware so that
+# the headers get applied to error responses raised from csrf (e.g.
+# the 403 missing_or_invalid_csrf_token JSONResponse). Starlette/FastAPI
+# runs middleware in REVERSE registration order (last registered =
+# outermost), so adding SecurityHeadersMiddleware here means it wraps
+# everything below it, including csrf's HTTPException responses.
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 # Session middleware: signs cookies with SESSION_SECRET.

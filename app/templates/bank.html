@@ -199,7 +199,7 @@
           <span class="badge bg-success" title="Conciliado con {{ tx.reconciled_with_type }} #{{ tx.reconciled_with_id }}">
             ✓ {{ tx.reconciled_with_type }}#{{ tx.reconciled_with_id }}
           </span>
-          <form class="d-inline" method="post" action="/bank/{{ tx.id }}/unreconcile" >
+          <form class="d-inline js-confirm-form" method="post" action="/bank/{{ tx.id }}/unreconcile" data-confirm-title="¿Descuadrar transacción?" data-confirm-body="La transacción volverá a estado pendiente de conciliar.">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn btn-sm btn-link" title="Desconciliar">×</button>
           </form>

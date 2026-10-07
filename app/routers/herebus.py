@@ -33,6 +33,7 @@ from app.rms.errors import (
     BadRequest,
     NotFound,
 )
+from app.rms.models.channels import Channel
 from app.rms.models import (
     BankTransaction,
     CompetitorPriceObservation,
@@ -1066,7 +1067,7 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
     # Channels breakdown
     by_channel = defaultdict(int)
     for s in sales_this_month:
-        ch = s.channel or "mostrador"
+        ch = s.channel or Channel.MOSTRADOR.value  # P43: Channel enum fallback
         by_channel[ch] += int(s.qty * s.unit_price_gs)
 
     # Top recipe by revenue (approximate)

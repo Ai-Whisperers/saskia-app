@@ -27,6 +27,8 @@ from decimal import Decimal as _D
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from app.rms.models.channels import Channel
+
 from app.rms.models import (
     Customer,
     DeliveryZone,
@@ -189,7 +191,15 @@ def seed_pack_demo(
             report["sales"] += 1
 
     # --- pedidos (pre-orders via WhatsApp etc.) --------------------------
-    channels = ["whatsapp", "whatsapp", "whatsapp", "mostrador", "phone", "pedidosya"]
+    # P43 (2026-10-07): use Channel enum values. "phone" was a legacy
+    # alias not in the canonical enum, so the migration 111 DB CHECK
+    # would reject any pedido.channel="phone" write. Map the legacy
+    # "phone" traffic to Channel.OTHER.value so the demo seed still
+    # exercises the same volume but with valid enum values.
+    channels = [
+        Channel.WHATSAPP.value, Channel.WHATSAPP.value, Channel.WHATSAPP.value,
+        Channel.MOSTRADOR.value, Channel.OTHER.value, Channel.PEDIDOSYA.value,
+    ]
     payments = ["efectivo", "efectivo", "qr", "transferencia", "tarjeta"]
     for _i in range(pedidos_total):
         age_days = rng.randint(1, days_of_history - 1)

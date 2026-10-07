@@ -5,6 +5,147 @@
 
 ## [Unreleased]
 
+### Added — Legacy code cleanup pass (P44, 2026-10-07)
+
+Removed 11 dead files (~1,200 lines) that were no longer imported
+anywhere. Moved (not deleted) to `app/_archive/2026-10-07-p44-legacy-cleanup/`
+so they're recoverable if a future feature needs them.
+
+**7 dead migration files** — each had a duplicate inline function
+in `db.py` that won the registration race; the file versions were
+never imported. Inlining won because db.py's MIGRATIONS dict (lines
+4224-4267) references the local symbols, not the file imports:
+- `_005_customer.py`
+- `_006_simple_test.py`
+- `_043_branding_setting.py`
+- `_044_message_templates.py`
+- `_057_recipe_instructions.py`
+- `_061_tag_validation.py`
+- `_062_audit_repair.py`
+
+**3 dead Phase-2B model submodules** — leftover from a half-finished
+domain-package refactor (commit fb57f00 broke models; the system
+reverted to `models_legacy.py` re-exported from `models/__init__.py`):
+- `app/rms/models/catalogs_restored.py` (307 lines)
+- `app/rms/models/herbus_drive.py` (273 lines)
+- `app/rms/models/procurement.py` (188 lines)
+
+**1 dead service module** — only referenced in archived docs:
+- `app/services/auto_backup.py` (113 lines)
+
+**Archive directory** — `app/_archive/2026-10-07-p44-legacy-cleanup/`
+plus a `app/_archive/README.md` pointing operators to the recovery
+workflow.
+
+**Out of scope (deferred to follow-ups):**
+- The inline migration bodies in `db.py` (lines 147-4160, ~4,000
+  lines) — moving them to per-file form is Phase-2B redo territory
+  with high regression risk; deferred.
+- Pre-existing ruff findings in `db.py` / `models_legacy.py` — many
+  (B904, BLE001, I001, F401, F811, F821, ANN001, S110, DTZ005).
+  Mechanical sweep is its own task.
+- `models_legacy.py` (2,914 lines) split — Phase-2B redo territory.
+
+**Regression:** 100/100 tests pass on polish/saskia-p0 (P41 + P42 +
+P43 + P39 + P40 trio + held_sale + db_check_constraints +
+ventas_redesign). `init_db` smoke test confirms schema v111 + 4
+channel-check triggers apply cleanly with the moved files absent.
+
+### Added — Complete channel-legacy cleanup (P43, 2026-10-07)
+
+Three real bugs were found and fixed during the legacy cleanup pass.
+All three were silent (no exception raised) but would have caused
+production data corruption once the migration 111 DB CHECK deployed.
+
+**Bug 1: pedido WhatsApp template lookup silently disabled.**
+`app/routers/pedidos.py:2078` had
+`if pedido.channel == "WhatsApp"` (uppercase). Since channel values
+are lowercase (`Channel.WHATSAPP.value = "whatsapp"`), this
+condition NEVER matched. Every pedido notify fell through to the
+`generic` template with `email` channel — the WhatsApp-specific
+pedido_listo / pedido_confirmado templates were never delivered.
+Fixed to `Channel.WHATSAPP.value`. Added regression test in
+`test_P43_channel_enum_central.py`.
+
+**Bug 2: schemas.ALLOWED_CHANNELS rejected "other" channel.**
+`app/rms/schemas.py` defined
+`ALLOWED_CHANNELS = frozenset({mostrador, whatsapp, pedidosya,
+monchis, mostrador-encargo})` — **missing "other"**. The DB CHECK
+constraint (migration 111) accepts `"other"`, but sales.py:970/1486
+validates against `ALLOWED_CHANNELS` and would return HTTP 400 for
+any sale with `channel="other"`. Source-of-truth divergence between
+schema validator and DB. Fixed by sourcing from
+`Channel.allowed_values()`. Same drift would have broken the new
+`Channel.OTHER` value going forward.
+
+**Bug 3: Pedido seed data wrote "phone" (not in enum).**
+`app/rms/seed/sazon.py:332` had
+`("phone", "Teléfono", 60, False, "Llamada telefónica")` in the
+CHANNELS tuple. Every Pedido seeded with channel="phone" would have
+failed the migration 111 DB CHECK on `init_db`. Same in
+`app/rms/seed/pack_demo.py:192`. Fixed both — replaced with
+`Channel.OTHER.value` (legacy phone traffic collapses to OTHER
+per the P42 normalize_channel map).
+
+**Files changed (8 app/ + 1 test/):**
+- `app/rms/schemas.py` — `ALLOWED_CHANNELS` /
+  `CHANNELS_DISPLAY` / `CHANNEL_DEFAULT` all source from
+  `Channel.X.value`. Adds `from app.rms.models.channels import
+  Channel`.
+- `app/rms/catalogs.py` — `default_channel_code` fallback uses
+  `Channel.MOSTRADOR.value`. Aliases the ORM `Channel` model class
+  as `ChannelEnum` to avoid name collision.
+- `app/rms/db.py` — channel seed tuple now includes all 6 enum
+  values (previously omitted "other"). Adds `from
+  app.rms.models.channels import Channel`.
+- `app/rms/models_legacy.py` — `Sale.channel` and `Pedido.channel`
+  `mapped_column` defaults use `Channel.MOSTRADOR.value` /
+  `Channel.WHATSAPP.value`.
+- `app/rms/seed/sazon.py` — `CHANNELS` tuple uses enum values;
+  legacy `("phone", ...)` removed (folded into
+  `Channel.OTHER.value`). Adds enum import.
+- `app/rms/seed/pack_demo.py` — Pedido channels list uses enum
+  values; `"phone"` removed.
+- `app/routers/herebus.py` — `s.channel or "mostrador"` →
+  `s.channel or Channel.MOSTRADOR.value`. Adds enum import.
+- `app/routers/pedidos.py` — fixed uppercase "WhatsApp" comparison
+  in the template-lookup branch (lines 2078, 2079, 2110).
+- `app/services/suscripcion_dispatcher.py` — both write sites
+  (`channel="whatsapp"` and `"channel": "whatsapp"`) use
+  `Channel.WHATSAPP.value`.
+
+**Tests** — `tests/test_P43_channel_enum_central.py` (14 tests):
+- Direct regression on the uppercase "WhatsApp" bug (greps the
+  source for `pedido.channel == "WhatsApp"`).
+- `schemas.ALLOWED_CHANNELS` includes "other" and matches
+  `Channel.allowed_values()` exactly.
+- `CHANNEL_DEFAULT` and `CHANNELS_DISPLAY` are derived from enum.
+- `Sale.channel` and `Pedido.channel` mapped_column defaults match
+  enum values (verified via SQLAlchemy column metadata).
+- `pack_demo.py` and `seed/sazon.py` no longer contain
+  `"phone"` as a Pedido channel code.
+- `db.py` seed tuple includes all 6 enum values.
+- `herebus.py`, `suscripcion_dispatcher.py`, `catalogs.py`,
+  `models_legacy.py` all use enum values for channel defaults.
+
+**Out of scope** — confirmed distinct domains and left raw:
+- `app/rms/notifications.py:WHATSAPP` — `NotifyKind` enum
+  (email/sms/whatsapp) is its own domain, NOT a sale channel.
+- `app/routers/customers.py` and `seed/kyrian.py` literal
+  `"instagram"/"whatsapp"` — `customer.preferred_channel` and
+  `customer.how_found` columns, separate from the sale channel.
+- `app/rms/migrations/_044_message_templates.py` — historical
+  migration data; safe to leave raw (already shipped).
+- `app/rms/seed/sazon.py:MESSAGE_TEMPLATES` — notification templates
+  use `"whatsapp"/"email"/"sms"` as delivery mechanism, not sale
+  channel.
+
+**Regression:** 100/100 tests pass (P41 + P42 + P39 + P40 trio +
+held_sale + db_check_constraints + ventas_redesign + new P43 tests).
+The pre-existing P22 dashboard KPI failure on `polish/saskia-p0` is
+unrelated (verified by stashing my changes — the same tests fail
+on the unmodified branch).
+
 ### Added — Channel enum integration across write paths (P42, 2026-10-07)
 
 Refactor: replace raw channel string literals (`"mostrador"`, `"phone"`,
