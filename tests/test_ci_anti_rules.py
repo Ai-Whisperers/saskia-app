@@ -74,6 +74,19 @@ def test_ci_anti_rule_step_references_all_required_libraries():
         # Anti-rule 9: another ORM
         "peewee",
         "sqlmodel",
+        # Anti-rule 10: async def in routers (enforced via grep, not lib)
+        # Anti-rule 12: WebSockets
+        "websockets",
+        # Anti-rule 14: gRPC
+        "grpcio",
+        # Anti-rule 15: CDC
+        "debezium",
+        # Anti-rule 16: Elasticsearch
+        "elasticsearch",
+        # Anti-rule 17: another migration tool
+        "alembic",
+        # Anti-rule 18: feature flag SaaS
+        "launchdarkly",
     ]
     missing = [lib for lib in must_check if lib not in content]
     assert not missing, (
@@ -174,4 +187,94 @@ def test_anti_rule_step_uses_pinned_heredoc_syntax():
     assert op == "|", (
         f"CI step uses 'run: {op}' (folded) but should use 'run: |' (literal). "
         f"Multi-line bash with newlines, regex, and case statements must be literal."
+    )
+
+
+def test_ci_anti_rule_step_checks_for_async_def_in_routers():
+    """Anti-rule 10: the CI step greps for `async def` in app/routers/*.py."""
+    ci_path = REPO / ".github" / "workflows" / "ci.yml"
+    if not ci_path.exists():
+        ci_path = REPO / ".github" / "ci.yml"
+    content = ci_path.read_text()
+    assert "async def" in content, (
+        "CI step should grep for `async def` in app/routers/*.py. "
+        "This is Anti-rule 10 enforcement."
+    )
+    # The grep pattern should target router files
+    assert "app/routers/" in content, (
+        "CI step should target the app/routers/ directory for the async-def check."
+    )
+
+
+def test_ci_anti_rule_step_checks_websocket_libs():
+    """Anti-rule 12: the CI step greps for `websockets` in pyproject."""
+    ci_path = REPO / ".github" / "workflows" / "ci.yml"
+    if not ci_path.exists():
+        ci_path = REPO / ".github" / "ci.yml"
+    content = ci_path.read_text()
+    assert "websockets" in content, (
+        "CI step should grep for the `websockets` lib. "
+        "This is Anti-rule 12 enforcement."
+    )
+
+
+def test_ci_anti_rule_step_checks_grpc():
+    """Anti-rule 14: the CI step greps for `grpcio` in pyproject."""
+    ci_path = REPO / ".github" / "workflows" / "ci.yml"
+    if not ci_path.exists():
+        ci_path = REPO / ".github" / "ci.yml"
+    content = ci_path.read_text()
+    assert "grpcio" in content, "Anti-rule 14 should grep for grpcio."
+
+
+def test_ci_anti_rule_step_checks_cdc():
+    """Anti-rule 15: the CI step greps for `debezium` in pyproject."""
+    ci_path = REPO / ".github" / "workflows" / "ci.yml"
+    if not ci_path.exists():
+        ci_path = REPO / ".github" / "ci.yml"
+    content = ci_path.read_text()
+    assert "debezium" in content, "Anti-rule 15 should grep for debezium."
+
+
+def test_ci_anti_rule_step_checks_elasticsearch():
+    """Anti-rule 16: the CI step greps for `elasticsearch` in pyproject."""
+    ci_path = REPO / ".github" / "workflows" / "ci.yml"
+    if not ci_path.exists():
+        ci_path = REPO / ".github" / "ci.yml"
+    content = ci_path.read_text()
+    assert "elasticsearch" in content, "Anti-rule 16 should grep for elasticsearch."
+
+
+def test_ci_anti_rule_step_checks_alembic():
+    """Anti-rule 17: the CI step greps for `alembic` in pyproject."""
+    ci_path = REPO / ".github" / "workflows" / "ci.yml"
+    if not ci_path.exists():
+        ci_path = REPO / ".github" / "ci.yml"
+    content = ci_path.read_text()
+    assert "alembic" in content, "Anti-rule 17 should grep for alembic."
+
+
+def test_ci_anti_rule_step_checks_feature_flag_saas():
+    """Anti-rule 18: the CI step greps for feature flag SaaS in pyproject."""
+    ci_path = REPO / ".github" / "workflows" / "ci.yml"
+    if not ci_path.exists():
+        ci_path = REPO / ".github" / "ci.yml"
+    content = ci_path.read_text()
+    assert "launchdarkly" in content, "Anti-rule 18 should grep for launchdarkly."
+
+
+def test_ci_anti_rule_step_total_check_count():
+    """The CI step enforces 13 anti-rules (1, 3, 4, 5, 9, 10, 11, 12, 14, 15, 16, 17, 18)."""
+    ci_path = REPO / ".github" / "workflows" / "ci.yml"
+    if not ci_path.exists():
+        ci_path = REPO / ".github" / "ci.yml"
+    content = ci_path.read_text()
+    # Count "Anti-rule N" markers
+    import re
+    n = len(re.findall(r"# Anti-rule \d+:", content))
+    # Should be 13 (1, 3, 4, 5, 9, 10, 11, 12, 14, 15, 16, 17, 18) + warn-only AR19
+    n_including_warn = len(re.findall(r"# Anti-rule \d+", content))
+    assert n_including_warn >= 13, (
+        f"Expected at least 13 Anti-rule checks, found {n_including_warn}. "
+        f"Did you forget to add the new ones?"
     )

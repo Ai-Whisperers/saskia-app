@@ -207,6 +207,120 @@ jobs:
             esac
           done
 
+          # Anti-rule 10: No async def in route handlers
+          for f in $changed; do
+            case "$f" in
+              app/routers/*.py)
+                # Look for 'async def ' in router files (handler definitions)
+                # Allow if it's a docstring/comment line
+                if grep -nE "^(async def |    async def )" "$f" 2>/dev/null; then
+                  echo "ERROR: $f contains an async def (route handler)"
+                  echo "  Per AGENTS.md Anti-rule 10 + app/rms/AGENTS.md: sync handlers only."
+                  fail=1
+                fi
+                ;;
+            esac
+          done
+
+          # Anti-rule 12: No WebSockets (other than Supabase real-time)
+          for f in $changed; do
+            case "$f" in
+              pyproject.toml|uv.lock|requirements*.txt)
+                if grep -q -E '"(websockets|websocket-client|aiohttp)"' "$f" 2>/dev/null; then
+                  echo "ERROR: $f adds a forbidden WebSocket library"
+                  echo "  Per AGENTS.md Anti-rule 12: HTTP request/response only."
+                  fail=1
+                fi
+                ;;
+            esac
+          done
+
+          # Anti-rule 14: No gRPC
+          for f in $changed; do
+            case "$f" in
+              pyproject.toml|uv.lock|requirements*.txt)
+                if grep -q -E '"(grpcio|grpcio-tools|protobuf)"' "$f" 2>/dev/null; then
+                  echo "ERROR: $f adds a forbidden gRPC/protobuf library"
+                  echo "  Per AGENTS.md Anti-rule 14: REST is fine."
+                  fail=1
+                fi
+                ;;
+            esac
+          done
+
+          # Anti-rule 15: No CDC (Kafka Connect, Debezium)
+          for f in $changed; do
+            case "$f" in
+              pyproject.toml|uv.lock|requirements*.txt)
+                if grep -q -E '"(debezium|confluent-kafka)"' "$f" 2>/dev/null; then
+                  echo "ERROR: $f adds a forbidden CDC library"
+                  echo "  Per AGENTS.md Anti-rule 15: no multi-service data sync."
+                  fail=1
+                fi
+                ;;
+            esac
+          done
+
+          # Anti-rule 16: No Elasticsearch / Meilisearch / Typesense
+          for f in $changed; do
+            case "$f" in
+              pyproject.toml|uv.lock|requirements*.txt)
+                if grep -q -E '"(elasticsearch|meilisearch|typesense)"' "$f" 2>/dev/null; then
+                  echo "ERROR: $f adds a forbidden search engine"
+                  echo "  Per AGENTS.md Anti-rule 16: Postgres FTS is sufficient."
+                  fail=1
+                fi
+                ;;
+            esac
+          done
+
+          # Anti-rule 17: No another ORM migration tool (Alembic etc.)
+          for f in $changed; do
+            case "$f" in
+              pyproject.toml|uv.lock|requirements*.txt)
+                if grep -q -E '"(alembic|yoyo-migrations|dbmate|sqlx-cli)"' "$f" 2>/dev/null; then
+                  echo "ERROR: $f adds a forbidden migration tool"
+                  echo "  Per AGENTS.md Anti-rule 17: hand-rolled migrations in app/rms/db.py are the only tool."
+                  fail=1
+                fi
+                ;;
+            esac
+          done
+
+          # Anti-rule 18: No feature flag SaaS
+          for f in $changed; do
+            case "$f" in
+              pyproject.toml|uv.lock|requirements*.txt)
+                if grep -q -E '"(launchdarkly|unleash|flagsmith)"' "$f" 2>/dev/null; then
+                  echo "ERROR: $f adds a forbidden feature flag SaaS client"
+                  echo "  Per AGENTS.md Anti-rule 18: app_meta + SETTINGS table is the only switchboard."
+                  fail=1
+                fi
+                ;;
+            esac
+          done
+
+          # Anti-rule 19: No Sentry breadcrumb on /healthz
+          # (This is a code-pattern check, hard to enforce in bash. The
+          # existing healthz endpoints are in app/routers/healthz.py. We
+          # check that no new file under app/ adds a Sentry call in a
+          # /healthz path. The check is approximate: we grep for
+          # /healthz + sentry_sdk together. False positives are
+          # possible; false negatives would require AST.)
+          for f in $changed; do
+            case "$f" in
+              app/*.py|app/**/*.py)
+                if grep -q "/healthz" "$f" 2>/dev/null && grep -q "sentry_sdk" "$f" 2>/dev/null; then
+                  echo "WARN: $f references /healthz and sentry_sdk. Verify no Sentry logging on healthz failures."
+                  echo "  Per AGENTS.md Anti-rule 19: /healthz is monitored externally, do not spam Sentry."
+                  # NOTE: warn-only by design. The /healthz/deps endpoint
+                  # DOES use Sentry for env-fingerprint failures (locked
+                  # hotfix bb21eff); a hard fail here would regress.
+                fi
+                ;;
+            esac
+          done
+
           if [ "$fail" = "1" ]; then
             echo ""
             echo "See AGENTS.md 'Anti-rules' section for the full list of 20 rules."

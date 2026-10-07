@@ -5,6 +5,58 @@
 
 ## [Unreleased]
 
+### Added — CI anti-rule enforcement wave 2 (2026-10-07)
+
+Extended the anti-rule enforcement step in
+`.github/workflows/ci.yml` from 6 to 13 anti-rules (6 more
+checks). The new additions cover:
+
+- **AR10**: No `async def` in `app/routers/*.py` (sync handlers
+  only; locked by app/rms/AGENTS.md).
+- **AR12**: No WebSockets libs (`websockets`, `websocket-client`,
+  `aiohttp`) in pyproject.
+- **AR14**: No gRPC/protobuf (`grpcio`, `grpcio-tools`,
+  `protobuf`) in pyproject.
+- **AR15**: No CDC (`debezium`, `confluent-kafka`) in
+  pyproject.
+- **AR16**: No search engines (`elasticsearch`, `meilisearch`,
+  `typesense`) in pyproject.
+- **AR17**: No other migration tool (`alembic`,
+  `yoyo-migrations`, `dbmate`, `sqlx-cli`) in pyproject.
+- **AR18**: No feature flag SaaS (`launchdarkly`, `unleash`,
+  `flagsmith`) in pyproject.
+- **AR19**: Warn-only check for `/healthz` + `sentry_sdk`
+  in the same file (the locked hotfix `bb21eff` uses Sentry
+  in `/healthz/deps`; we warn rather than fail to avoid
+  regressing that).
+
+### Added — CI anti-rule test wave 2
+
+8 new tests in `tests/test_ci_anti_rules.py`:
+
+- `test_ci_anti_rule_step_checks_for_async_def_in_routers`
+- `test_ci_anti_rule_step_checks_websocket_libs`
+- `test_ci_anti_rule_step_checks_grpc`
+- `test_ci_anti_rule_step_checks_cdc`
+- `test_ci_anti_rule_step_checks_elasticsearch`
+- `test_ci_anti_rule_step_checks_alembic`
+- `test_ci_anti_rule_step_checks_feature_flag_saas`
+- `test_ci_anti_rule_step_total_check_count` (asserts ≥13
+  Anti-rule blocks in the script)
+
+Total: **14 CI anti-rule tests**, all passing.
+
+### Status
+
+13 of 20 anti-rules are now enforced in CI. The remaining
+7 are documented in AGENTS.md and `migration_state.json` but
+not enforced (most are deployment-shape decisions, not
+import-shape decisions, and need deployment-time checks
+rather than code-review checks).
+
+### Files changed
+- `.github/workflows/ci.yml` — 7 new anti-rule blocks
+- `tests/test_ci_anti_rules.py` — 8 new tests
 ### Added — Pre-migration backup + fail-closed on newer schema (2026-10-07)
 
 Implements AGENTS.md Hard Rule 17 (pre-migration backup) and
