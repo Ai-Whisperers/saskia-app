@@ -120,3 +120,5 @@ Phase 0 step 0.1 (currency `₲` → `Gs.`) — 4 templates, ~30 min, 4 tests. N
 
 - **Final totals** — 115 tests, 8 phases, 13 commits (78f8afab →
   01e0b7c4), all ruff clean. ~2.5 working days end-to-end.
+
+  01e0b7c4), all ruff clean. ~2.5 working days end-to-end.
