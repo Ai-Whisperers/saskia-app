@@ -103,10 +103,6 @@ def test_receta_detalle_margin_pill_honest():
     assert "/ 0.65" not in code, (
         "Old placeholder margin formula (1 / 0.65) still in code (not in comment)"
     )
-    # The new cost pill
-    assert "Costo: Gs." in src, "New honest cost pill missing"
-
-    assert "/ 0.65" not in code, "Old placeholder margin formula (1 / 0.65) still in code (not in comment)"
     # The new cost pill must use the shared m.gs macro (D3 lint)
     assert "Costo: {{ m.gs(unit_cost.batch_cost_gs) }}/u" in src, (
         "New honest cost pill must use m.gs macro"

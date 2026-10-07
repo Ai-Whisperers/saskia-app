@@ -54,6 +54,7 @@ def test_eod_print_currency_fixed():
     """
     src = TEMPLATES.joinpath("eod_print.html").read_text()
     import re as _re
+
     drift_pattern = _re.compile(r"Gs\.\s*\{\{")
     assert not drift_pattern.search(src), "Currency drift: raw 'Gs. {{' in eod_print"
     # And must use the macro
