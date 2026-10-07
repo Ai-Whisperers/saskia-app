@@ -200,26 +200,39 @@ PEDIDO_TRANSITIONS: dict[str, frozenset[str]] = {
 CHANNELS = ("whatsapp", "pedidosya", "mostrador", "phone", "other")
 
 # Channel value normalisation map — raw input → canonical value
+# P39 (2026-10-07, Ivan): values must match Channel enum (lowercase) so
+# analytics can group sales by channel without case-sensitive matching.
+# The map previously returned display strings ("WhatsApp", "PedidosYa")
+# which contradicted ALLOWED_CHANNELS (lowercase) and created duplicate
+# channels in reports ("whatsapp" vs "WhatsApp"). The key input is now
+# forced lowercase and the values are the canonical lowercase strings.
 _CHANNEL_NORMALIZE: dict[str, str] = {
-    "whatsapp": "WhatsApp",
-    "wa": "WhatsApp",
-    "whats": "WhatsApp",
-    "wsp": "WhatsApp",
-    "pedidosya": "PedidosYa",
-    "mostrador": "Mostrador",
-    "phone": "Phone",
-    "tel": "Phone",
-    "telefono": "Phone",
-    "other": "Other",
-    "instagram": "Instagram",
-    "ig": "Instagram",
+    "whatsapp": "whatsapp",
+    "wa": "whatsapp",
+    "whats": "whatsapp",
+    "wsp": "whatsapp",
+    "pedidosya": "pedidosya",
+    "mostrador": "mostrador",
+    "phone": "phone",
+    "tel": "phone",
+    "telefono": "phone",
+    "other": "other",
+    "instagram": "instagram",
+    "ig": "instagram",
 }
 
 
 def normalize_channel(raw: str) -> str:
-    """Return a canonical channel display name from a free-text input."""
+    """Return a canonical channel code from a free-text input.
+
+    Returns the lowercase code (e.g. "whatsapp", "pedidosya") — matches
+    the Channel enum so /produccion analytics and sales channel filters
+    stay consistent. Falls back to "mostrador" if the input is empty
+    or unknown, instead of silently picking "whatsapp" as the prior
+    version did (which masked data-entry errors).
+    """
     key = (raw or "").strip().lower()
-    return _CHANNEL_NORMALIZE.get(key, "WhatsApp")
+    return _CHANNEL_NORMALIZE.get(key, "mostrador")
 
 
 def generate_public_token() -> str:

@@ -944,7 +944,7 @@ async def sale_create(
     # channel: optional, must be in ALLOWED_CHANNELS if set.
     # Empty string defaults to CHANNEL_DEFAULT ('mostrador'). Unknown
     # values are rejected so we don't end up with 'bitcoin' rows.
-    channel_clean = channel.strip() or CHANNEL_DEFAULT
+    channel_clean = (channel or "").strip().lower() or CHANNEL_DEFAULT
     if channel_clean not in ALLOWED_CHANNELS:
         raise HTTPException(
             status_code=400,
@@ -1460,7 +1460,7 @@ async def sale_create_multi(
                 )
             payments_plan.append((_pay.method, _pay.amount_gs))
 
-    channel_clean = body.channel.strip() or CHANNEL_DEFAULT
+    channel_clean = (body.channel or "").strip().lower() or CHANNEL_DEFAULT
     if channel_clean not in ALLOWED_CHANNELS:
         raise HTTPException(
             status_code=400,

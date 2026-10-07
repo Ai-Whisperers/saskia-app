@@ -27,6 +27,7 @@ from app.rms.dependencies import get_session
 from app.rms.models import Ingredient, Recipe
 from app.rms.production import plan_production
 from app.rms.recipes_consolidated import explode_recipe
+from app.rms.variants import rollup_ingredient_stock
 from app.services.template_render import render
 from app.routers.produccion._helpers import _asuncion_today, _week_monday
 from app.routers.produccion._router import router
@@ -99,7 +100,16 @@ def _build_recipe_breakdown(
             if cl.ingredient_id is None:
                 continue
             ing = session.get(Ingredient, cl.ingredient_id)
-            stock = float(ing.stock_qty) if ing and ing.stock_qty is not None else 0.0
+            # P39 (2026-10-07, Ivan): variants-aware stock. Before this fix the page
+            # read ing.stock_qty (the legacy parent column) which is 0 for 27
+            # of 103 ingredients that only have variants. /inventario and
+            # /produccion daily use rollup_ingredient_stock() — /prep-recipes
+            # now does too so the Faltante badges match reality.
+            if ing is None:
+                stock = 0.0
+            else:
+                rollup = rollup_ingredient_stock(session, ing.id)
+                stock = float(rollup.base_qty) if rollup else float(ing.stock_qty or 0.0)
             shortage = max(0.0, cl.qty - stock)
             if shortage > 0:
                 shortage_count += 1
