@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.charts import sparkline
 from app.rms.config import ASUNCION_TZ
@@ -624,9 +625,8 @@ async def carga_inicial_save(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Save bulk initial stock. Form fields: qty_<id> per row (blank = skip)."""
-    from app.auth import current_user_id
 
-    current_user_id(request) or "operator"
+    current_operator(request)
     saved = 0
     form = await request.form()
     for key in list(form.keys()):
@@ -811,9 +811,7 @@ def inventory_create(
 
     # Record an initial stock movement if opening stock was set
     if opening_qty is not None and opening_qty != stock_qty:
-        from app.auth import current_user_id
-
-        user_id = current_user_id(request) or "operator"
+        user_id = current_operator(request)
         movement = StockMovement(
             ingredient_id=ing.id,
             movement_type="initial",
@@ -1317,10 +1315,9 @@ def inventory_bulk_fill_to_2x_min(
     min_stock_qty==0 (sets to 10.0 default; matches reorder.py
     fallback). Off by default to avoid silently inventing targets.
     """
-    from app.auth import current_user_id
 
     force = request.query_params.get("force") == "1"
-    user_id = current_user_id(request) or "operator"
+    user_id = current_operator(request)
     now = datetime.now(timezone.utc)
 
     ingredients = list(session.scalars(select(Ingredient)).all())
@@ -1555,9 +1552,7 @@ def inventory_adjust(
         )
         return RedirectResponse(url=f"/inventario?{params}", status_code=303)
 
-    from app.auth import current_user_id
-
-    user_id = current_user_id(request) or "operator"
+    user_id = current_operator(request)
 
     # StockMovement: positive qty = stock in, negative = stock out.
     # Reference the variant_id when applicable so the audit trail can

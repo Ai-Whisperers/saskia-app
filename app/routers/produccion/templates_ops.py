@@ -18,6 +18,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import current_operator
 from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
 from app.rms.models import (
@@ -56,11 +57,10 @@ def produccion_template_set(
     if session.get(Product, product_id) is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-    from app.auth import current_user_id
     from app.rms.audit import record as audit_record
     from app.rms.production import upsert_template_row
 
-    user_id = current_user_id(request) or "operator"
+    user_id = current_operator(request)
     user_id = str(user_id)
     # PRODUCCION-V2 Fase 1: capture the prior template row's qty for the
     # audit log. The template doesn't carry for_date, so we record the
@@ -175,11 +175,10 @@ def produccion_template_fork_week(
         wd = ov.for_date.weekday()  # 0=Mon .. 6=Sun
         bucket[(wd, ov.product_id)] += float(ov.qty or 0.0)
 
-    from app.auth import current_user_id
     from app.rms.audit import record as audit_record
     from app.rms.production import upsert_template_row
 
-    user_id = current_user_id(request) or "operator"
+    user_id = current_operator(request)
     user_id = str(user_id)
     # PRODUCCION-V2 Fase 1: audit each template row we overwrite. The
     # template doesn't have for_date, so we log against the next
@@ -268,7 +267,6 @@ def load_template_into_day(
     clicking twice is safe; the second click is a no-op for those
     rows). Audits a single row with the count of templates applied.
     """
-    from app.auth import current_user_id
     from app.rms.audit import record as audit_record
     from app.rms.models import ProductionPlanTemplate
     from app.rms.production import upsert_override
@@ -295,7 +293,7 @@ def load_template_into_day(
         .scalars()
         .all()
     }
-    user = str(current_user_id(request) or "operator")
+    user = str(current_operator(request))
     applied = 0
     skipped = 0
     for tpl in tpl_rows:

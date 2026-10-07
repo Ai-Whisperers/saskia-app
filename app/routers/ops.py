@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from loguru import logger
 
-from app.auth import current_user_id
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.services.demo_reset import reset_demo_data
 from app.services.template_render import render
@@ -88,7 +88,7 @@ async def ops_reset_demo_data(request: Request) -> JSONResponse:
     what happened. Browsers won't navigate to this (it's a POST); we
     always return JSON regardless of Accept header.
     """
-    user_id = current_user_id(request) or "anonymous"
+    user_id = current_operator(request, fallback="anonymous")
     from fastapi import HTTPException
     from sqlalchemy.orm import Session
 

@@ -31,7 +31,7 @@ from loguru import logger
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
 
-from app.auth import current_user_id
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.clock import today_local
@@ -1146,7 +1146,7 @@ async def pedidos_create(
     # pattern: add all events at once, then flush once.
     from app.services.pedido_events import PedidoEventService
 
-    actor = str(current_user_id(request) or "operator")
+    actor = str(current_operator(request))
     PedidoEventService.record(
         session,
         pedido.id,
@@ -1174,7 +1174,7 @@ async def pedidos_create(
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.pedido.create",
         target_type="pedido",
         target_id=str(pedido.id),
@@ -1723,7 +1723,7 @@ async def pedidos_status(
         pedido.cancel_reason = reason
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.pedido.status",
         target_type="pedido",
         target_id=str(pedido.id),
@@ -1876,7 +1876,7 @@ def pedidos_fulfill(
         shortfalls = []
 
     if shortfalls and not force_flag:
-        user_id = current_user_id(request) or "operator"
+        user_id = current_operator(request)
         logger.warning(
             f"pedidos.fulfill: blocked pedido={pedido.id} user={user_id} "
             f"shortfall_count={len(shortfalls)} (operator must set force=true to override)"
@@ -1891,7 +1891,7 @@ def pedidos_fulfill(
         )
 
     if shortfalls and force_flag:
-        user_id = current_user_id(request) or "operator"
+        user_id = current_operator(request)
         logger.warning(
             f"pedidos.fulfill: FORCE-FULFILL pedido={pedido.id} user={user_id} "
             f"shortfall_count={len(shortfalls)} (stock will go negative)"
@@ -1951,7 +1951,7 @@ def pedidos_fulfill(
     # We use the actor on the request so the timeline shows who fulfilled it.
     from app.services.pedido_events import PedidoEventService
 
-    fulfill_actor = str(current_user_id(request) or "operator")
+    fulfill_actor = str(current_operator(request))
     PedidoEventService.record(
         session,
         pedido.id,
@@ -1968,7 +1968,7 @@ def pedidos_fulfill(
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.pedido.fulfill",
         target_type="pedido",
         target_id=str(pedido.id),
@@ -2289,7 +2289,7 @@ def pedidos_duplicate(
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.pedido.duplicate",
         target_type="pedido",
         target_id=str(copy.id),

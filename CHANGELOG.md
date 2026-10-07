@@ -1,3 +1,13 @@
+## 2026-10-07h — `current_operator()`: one home for the user-id-or-default fallback (audit follow-up 1)
+
+**What**: `app/auth.py::current_operator(request, *, fallback="operator")` replaces the 53 hand-rolled `current_user_id(request) or "operator"` sites across 17 routers/modules.
+
+**Latent bug fixed along the way**: those sites put a raw `int` user_id into `String` columns (`created_by`, `opened_by`, audit `user_id`) on the bcrypt backend — SQLite tolerated it, Postgres parity wouldn't. The helper `str()`s the id.
+
+**Consistency fixed**: 47× "operator" + 4× "operador" + 1× "anonymous" + 1× "test-user" all collapse onto one helper with explicit `fallback=` kwargs for the non-default cases.
+
+**Sweep**: 130 passed across every touched router's tests (settings, cash, fiado, customers, merma, sales, SASKIA-205/207/208/209/308 locks). Import audit: all 12 consumer files verified.
+
 ## 2026-10-07g — SASKIA-209: one-command migration rollback (`sazon rollback`)
 
 **The safety net is real.** Rule-17 pre-migration backups are now one command away from being a restore.

@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, NotFound
@@ -324,8 +325,6 @@ def merma_register(
             context={"operation": "record_waste", "original_error": str(exc)},
         ) from exc
 
-    from app.auth import current_user_id
-
     record_audit(
         request,
         session=session,
@@ -338,7 +337,7 @@ def merma_register(
             "reason": reason,
             "source": source,  # PROD-MERMA-1: tag entrypoint for /merma event log
         },
-        user_id=str(current_user_id(request) or "operator"),
+        user_id=str(current_operator(request)),
     )
     session.commit()
     # PROD-MERMA-1: route the redirect based on entrypoint so the operator lands
@@ -398,8 +397,6 @@ def merma_register_recipe(
             context={"original_error": str(exc)},
         ) from exc
 
-    from app.auth import current_user_id
-
     record_audit(
         request,
         session=session,
@@ -415,7 +412,7 @@ def merma_register_recipe(
             "reason": reason,
             "source": source,  # PROD-MERMA-1: tag entrypoint
         },
-        user_id=str(current_user_id(request) or "operator"),
+        user_id=str(current_operator(request)),
     )
     session.commit()
     # PROD-MERMA-1: redirect by entrypoint; recipe expansion yields N ingredient

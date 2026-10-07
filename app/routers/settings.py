@@ -13,6 +13,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.constants import (
     DEFAULT_IVA_RATE,
@@ -203,12 +204,11 @@ def save_business_settings(
     # bypass path — current_user_id() reads request.session, which the
     # bypass dependency does not populate. Fall back to "test-user"
     # so the audit row has a non-null user_id in test runs.
-    from app.auth import current_user_id as _current_user_id
     from app.rms.audit import record as _audit_record
 
     _audit_record(
         session,
-        user_id=_current_user_id(request) or "test-user",
+        user_id=current_operator(request, fallback="test-user"),
         action="settings.business.change",
         detail={
             "business_name": business_name,

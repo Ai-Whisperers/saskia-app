@@ -23,7 +23,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import current_user_id
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.errors import NotFound
@@ -274,7 +274,7 @@ def mark_purchased(
                 ),
                 reference_id=item.id,
                 reference_type="reorder",
-                created_by=current_user_id(request) or "operator",
+                created_by=current_operator(request),
             )
             stock_bumped = qty_in_stock_unit
             logger.info(

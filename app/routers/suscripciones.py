@@ -24,6 +24,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.models import Customer, Suscripcion
@@ -438,10 +439,9 @@ def suscripciones_dispatch(
     POST (not GET) because it's a write — creates Pedido rows + AppMeta
     dedupe keys + per-petido_event 'created' rows.
     """
-    from app.auth import current_user_id
     from app.services.suscripcion_dispatcher import generate_weekly_pedidos
 
-    actor = str(current_user_id(request) or "operator")
+    actor = str(current_operator(request))
     result = generate_weekly_pedidos(session, actor=actor)
 
     record_audit(
