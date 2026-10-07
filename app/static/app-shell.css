@@ -285,8 +285,16 @@ body.has-app-shell > .app-shell > .app-footer { grid-area: footer; }
 .teaser-card .teaser-sub { font-size: var(--text-xs); color: var(--color-text-muted); }
 @media (max-width: 900px) { .analisis-teaser { grid-template-columns: 1fr; } }
 
-/* ── 6. Responsive: sidebar → hamburger below 1024px ────────────── */
-@media (max-width: 1023px) {
+/* ── 6. Responsive: sidebar → hamburger only on PHONES (≤600px) ──
+   2026-10-07: Ivan — sidebar wasn't visible on 13" laptop windows
+   (1024×600 split screens, browser DevTools docked, etc.) because
+   the 1023px breakpoint collapsed the sidebar off-screen. Raising
+   to 600px means laptops, tablets, and split-screen layouts keep
+   the persistent sidebar. Only true phone widths get the slide-out
+   hamburger treatment. The sidebar is also auto-OPEN on first
+   render so the operator doesn't need to click the toggle to see
+   the navigation. */
+@media (max-width: 600px) {
   body.has-app-shell > .app-shell { display: block; }
   .sidebar {
     position: fixed; left: 0; top: 0; bottom: 0; z-index: var(--z-modal);
@@ -304,7 +312,7 @@ body.has-app-shell > .app-shell > .app-footer { grid-area: footer; }
     display: inline-flex !important;
   }
 }
-@media (min-width: 1024px) {
+@media (min-width: 601px) {
   .sidebar-toggle { display: none !important; }
   .sidebar-backdrop { display: none !important; }
 }

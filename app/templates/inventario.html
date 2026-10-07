@@ -29,8 +29,47 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
       Exportá CSV
     </a>
+    {# P34 (2026-10-07, Ivan) — bulk fill to 2× minimum stock.
+       One-click top-up: hits POST /inventario/bulk-fill-to-2x-min
+       and writes one StockMovement per ingredient touched (reason
+       column on /merma explains the jump). The form below is a tiny
+       JS-free confirm via a modal — keeping it as a real <form> so
+       it works without JS. #}
+    <button type="button" class="btn btn-secondary"
+            onclick="document.getElementById('bulk-fill-modal').showModal()">
+      <svg class="icon" aria-hidden="true"><use href="#icon-arrow-up"/></svg>
+      Llenar a 2× mínimo
+    </button>
   </div>
 </div>
+
+<dialog id="bulk-fill-modal" class="modal" aria-labelledby="bulk-fill-title">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h2 id="bulk-fill-title">¿Llenar todos los ingredientes a 2× el mínimo?</h2>
+    </div>
+    <div class="modal-body">
+      <p>
+        Esta acción sube el stock de cada ingrediente que esté por debajo de
+        <strong>2 × su stock mínimo</strong> (o hasta su <em>stock máximo</em>
+        si lo configuraste). Se escribe un movimiento de stock por ingrediente,
+        así que la auditoría de <code>/merma</code> muestra exactamente qué se
+        modificó y por qué.
+      </p>
+      <p class="text-muted text-sm">
+        Ingredientes sin mínimo definido (min = 0) se omiten. Para incluirlos,
+        primero definiles un mínimo en
+        <a href="/inventario">/inventario</a> y volvé a correrlo.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('bulk-fill-modal').close()">Cancelar</button>
+      <form method="post" action="/inventario/bulk-fill-to-2x-min" style="display:inline;">
+        <button type="submit" class="btn btn-primary">Sí, llenar ahora</button>
+      </form>
+    </div>
+  </div>
+</dialog>
 
 {# ── KPI strip (redesign 2026-09-25) ──────────────────────────────── #}
 {{ ui.skeleton_section(id="inventario-kpis", variant="kpi", count=4, label="Cargando inventario") }}

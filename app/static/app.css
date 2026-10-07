@@ -556,3 +556,21 @@ dialog.confidence-modal::backdrop{background:var(--color-surface-overlay);animat
 .confidence-band__swatch--med{background:var(--color-warn);opacity:0.7}
 .confidence-band__swatch--high{background:var(--color-success);opacity:0.8}
 .confidence-band__swatch--vhigh{background:var(--color-success)}
+
+/* P34 (2026-10-07) — sticky table headers on any scroll-wrapped table.
+   Three wrapping classes exist in the codebase:
+     .table-scroll         (new, the canonical pattern)
+     .table-sticky-wrap    (legacy inline style, used in /pedidos)
+     .table-wrap           (overflow-x:auto, used for narrow screens)
+   All three get a sticky thead with the same `top:` offset, so any
+   template that already wraps its long table instantly gets the
+   column-name header that stays visible while scrolling. Print
+   stylesheet neutralizes sticky so headers don't print twice or
+   mid-page. */
+.table-scroll,.table-sticky-wrap,.table-wrap{max-width:100%;max-height:min(70vh,640px);overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);background:var(--color-surface);-webkit-overflow-scrolling:touch}
+.table-scroll>.table,.table-scroll>table,.table-sticky-wrap>.table,.table-sticky-wrap>table,.table-wrap>.table,.table-wrap>table{border:0;border-radius:0;width:100%}
+.table-scroll thead th,.table-sticky-wrap thead th,.table-wrap thead th{position:sticky;top:var(--topnav-height,40px);z-index:2;background:var(--color-surface-subtle);box-shadow:0 1px 0 var(--color-border-strong)}
+.table-scroll thead th::after,.table-sticky-wrap thead th::after,.table-wrap thead th::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:var(--color-border-strong)}
+.table-scroll--tall,.table-sticky-wrap--tall,.table-wrap--tall{max-height:min(85vh,820px)}
+.table-scroll--short,.table-sticky-wrap--short,.table-wrap--short{max-height:min(45vh,420px)}
+@media print{.table-scroll,.table-sticky-wrap,.table-wrap{max-height:none;overflow:visible;border:0}.table-scroll thead th,.table-sticky-wrap thead th,.table-wrap thead th{position:static;box-shadow:none}}

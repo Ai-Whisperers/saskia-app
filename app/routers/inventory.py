@@ -1287,6 +1287,116 @@ def inventory_update(
     return RedirectResponse(url="/inventario", status_code=303)
 
 
+@router.post("/bulk-fill-to-2x-min")
+def inventory_bulk_fill_to_2x_min(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """P34 (2026-10-07, Ivan) — top up every ingredient below 2× its
+    minimum stock. Operator action: "make sure all ingredients are
+    filled to double the minimum we set".
+
+    Per-ingredient target:
+      target = max_stock_qty if set, else 2 × min_stock_qty
+    If target is 0 (min_stock_qty is 0), skip — operator must define a
+    minimum first via /inventario/{id}/editar.
+
+    Per-ingredient delta:
+      delta = max(0, target - stock_qty)
+    Only ingredients with delta > 0 get touched. Each touch writes a
+    StockMovement with movement_type='reorder' and a free-text reason
+    that names the new target, so /merma and the audit trail can
+    explain why stock jumped by N units.
+
+    Idempotent: re-running the endpoint after everything is at target
+    is a no-op (every delta == 0, no movements written, no stock
+    touched). Safe to put behind a "Llenar a 2× mínimo" button on
+    /inventario.
+
+    Optional `?force=1` query param: also fills ingredients where
+    min_stock_qty==0 (sets to 10.0 default; matches reorder.py
+    fallback). Off by default to avoid silently inventing targets.
+    """
+    from app.auth import current_user_id
+
+    force = request.query_params.get("force") == "1"
+    user_id = current_user_id(request) or "operator"
+    now = datetime.now(timezone.utc)
+
+    ingredients = list(session.scalars(select(Ingredient)).all())
+    filled = 0
+    total_delta = 0.0
+    skipped_no_min = 0
+    for ing in ingredients:
+        # No minimum set → cannot compute a target. Skip unless force.
+        if ing.min_stock_qty <= 0:
+            if not force:
+                skipped_no_min += 1
+                continue
+            target = 10.0  # mirror reorder.py fallback for the 0-min case
+        else:
+            # Use explicit max_stock_qty when set, else 2 × min.
+            target = ing.max_stock_qty if ing.max_stock_qty else ing.min_stock_qty * 2
+        # Read the current "as displayed" stock. For non-variant
+        # ingredients this is Ingredient.stock_qty directly. For
+        # variant ingredients, prefer the rollup (sum across packages
+        # in base unit) so the target — which is also in base unit —
+        # lines up with what the operator sees on /inventario.
+        from app.rms.variants import rollup_ingredient_stock
+
+        rollup = rollup_ingredient_stock(session, ing.id)
+        if rollup is not None and getattr(rollup, "variants", None):
+            current = rollup.base_qty
+        else:
+            current = ing.stock_qty or 0.0
+        delta = target - current
+        if delta <= 0:
+            continue
+        # Update the legacy parent.stock_qty column. The /ajustar
+        # route does the same for the no-variants path; for the
+        # variants path the rollup will be recomputed by the next
+        # page render. Variants-aware top-up is a follow-up — the
+        # operator can always use the per-ingredient /inventario/{id}
+        # "Ajustar" UI to fill a specific variant bag.
+        ing.stock_qty = max(0.0, (ing.stock_qty or 0.0) + delta)
+        # Audit-trail row. movement_type='reorder' is the closest fit
+        # in the existing taxonomy (sale|adjustment|merma|reorder|
+        # initial). The free-text reason names the target so /merma
+        # can explain why stock jumped by N units.
+        session.add(
+            StockMovement(
+                ingredient_id=ing.id,
+                movement_type="reorder",
+                qty=delta,
+                reason=(
+                    f"Llenado bulk a 2x min (target={target:g} "
+                    f"{ing.unit}, min={ing.min_stock_qty:g})"
+                ),
+                reference_id=None,
+                reference_type=None,
+                recorded_at=now,
+                created_by=user_id,
+            )
+        )
+        filled += 1
+        total_delta += delta
+
+    session.commit()
+    if filled == 0:
+        flash = "ok:Todos los ingredientes ya están al menos a 2× el mínimo."
+    else:
+        flash = (
+            f"ok:Llenado a 2× min: {filled} ingrediente(s) "
+            f"actualizado(s), +{total_delta:g} unidades."
+        )
+        if skipped_no_min:
+            flash += f" ({skipped_no_min} sin mínimo definido — no tocados.)"
+    return RedirectResponse(
+        url=f"/inventario?flash={flash.replace(' ', '%20')}",
+        status_code=303,
+    )
+
+
 @router.post("/{ing_id}/eliminar")
 def inventory_delete(
     ing_id: int,

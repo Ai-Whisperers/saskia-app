@@ -56,6 +56,7 @@ function updateBulkBtn() {
 
 {{ ui.skeleton_section(id="reorder-table", variant="line", count=10, label="Cargando reposiciones") }}
 <div data-loaded-section="reorder-table">
+<div class="table-scroll" style="max-height:75vh;">
 <table class="table is-hoverable is-striped">
   <thead>
     <tr>
@@ -286,6 +287,7 @@ function updateBulkBtn() {
     </tr>
   </tfoot>
 </table>
+</div>
 
 <div class="table-info">
   <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ count }}</strong> ingredientes</span>
