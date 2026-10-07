@@ -369,3 +369,23 @@ ruff clean on new tests.
 Refs: `docs/ux/copy-fix-list.md` (G.1-G.8, LOGIN.1-4, INICIO.1-17,
 PROD.11), `docs/ux/copy-ux-decisions.md` (D9: prod-manana promoted to
 Phase 1 because the duplicate H2 is a screen-reader bug, not just visual).
+
+## 2026-10-07g — SASKIA-303: POS regression locks (Phase 2)
+
+**Audit result:** the POS templates (`pedidos_nuevo.html`,
+`pedido_detalle.html`, `pedido_board.html`, `pedido_publico.html`,
+`pedido_stock_preview.html`) are already well-written. The 4 issues
+listed in `docs/ux/copy-fix-list.md` under POS.* are all already
+addressed in earlier work (Phase 13/14 ventana_text with `no es
+garantía` suffix, kanban redesign, etc.).
+
+**No code changes** — only regression tests to lock the good state.
+
+**Tests:** 1 new test file, 10 tests, all pass in 7s:
+- `tests/test_SASKIA-303_pos.py` (10) — locks placeholder hints,
+  status pill coverage, kanban column labels, public-page total
+  wording, ventana_text rendering, and stock preview table.
+
+**Lesson:** sometimes the highest-value deliverable is a regression
+test that says "this is already good, don't break it in a future
+refactor". Future POS work can now build on a tested foundation.
