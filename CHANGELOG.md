@@ -443,3 +443,18 @@ to Phase 1 and shipped in d2164de8.
   low-stock alerts, empty state, view tabs, template-load button,
   shift badge, HACCP/accuracy/prep page existence, horneado-extra
   ad-hoc section, movimientos/auditoria page existence.
+
+## 2026-10-07j — SASKIA-306: pedidos + proveedores + menus (Phase 5)
+
+**Audit result:** pedidos (already covered in SASKIA-303), proveedores,
+and menus templates are well-built. No copy/UX fixes required.
+
+**No code changes** — only regression tests to lock the good state.
+
+**Tests:** 1 new file, 12 tests, all pass in 8s:
+- `tests/test_SASKIA-306_pedidos_proveedores_menus.py` (12) — locks
+  supplier table+CTA, supplier form fields, volatility Gs. symbol
+  (regression for Phase 0), OCR missing-key callout, menu price
+  placeholder (25.000), pedido_detalle loyalty card + ventana_text
+  rendering, page existence for supplier_precios / supplier_orders /
+  menu_publico / menu_tablet.
