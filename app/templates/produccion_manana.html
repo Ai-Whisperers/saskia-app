@@ -64,10 +64,12 @@
     value="{{ rows|length }}"
     {% if rows %}delta="{{ rows|length }}" delta-direction="flat"{% endif %}
     ></ui-kpi-card>
+  {% if not station_hides_prices %}
   <ui-kpi-card
     label="Ingreso estimado mañana"
     value="{% if estimated_revenue_gs %}{{ m.gs_full(estimated_revenue_gs) }}{% else %}—{% endif %}"
     sub="precio catálogo × cantidad"></ui-kpi-card>
+  {% endif %}
   <ui-kpi-card
     label="Confianza media"
     value="{% if rows %}{{ (rows|sum(attribute='confidence_pct') / rows|length)|round(0, 'floor')|int }}%{% else %}—{% endif %}"
@@ -132,7 +134,7 @@
    producto al plan" CTA opens the ad-hoc modal (T-2026-10-06d also
    moved that modal out of the {% if plan_rows_view %} guard). #}
 <div class="card" style="padding: var(--space-6); text-align: center;">
-  <p style="margin: 0 0 var(--space-3) 0; color: #111827;">
+  <p style="margin: 0 0 var(--space-3) 0; color: var(--color-text);">
     No hay productos con venta en los últimos 14 días. Esperá unos días
     para que el sistema acumule datos, <strong>o agregá un producto
     manualmente al plan de hoy</strong> — el sistema aprende de cada

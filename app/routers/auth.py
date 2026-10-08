@@ -174,6 +174,9 @@ def _login_supabase(
         user_id=session_data["user_id"],
         email=session_data["email"],
     )
+    from app.rms.stations import apply_login
+
+    safe_next = apply_login(request.session, session_data.get("role") or "admin")
 
     resp = RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
     # Remember username for next login
@@ -215,6 +218,9 @@ def _login_local(
     from datetime import datetime
 
     login_user_local(request, user.id, user.username)
+    from app.rms.stations import apply_login
+
+    safe_next = apply_login(request.session, getattr(user, "role", None) or "admin")
     user.last_login_at = datetime.now(ASUNCION_TZ).isoformat()
     audit_record(
         session,

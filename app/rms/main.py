@@ -27,7 +27,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
@@ -71,6 +71,7 @@ from app.routers import (
     dev,
     eod,
     excel_io,
+    gerencia,
     fiado,
     menu_import,
     menus,
@@ -93,6 +94,7 @@ from app.routers import (
     sales,
     search,
     settings,
+    stations,
     settings_runtime,
     shopping,
     suppliers,
@@ -565,6 +567,52 @@ app.add_middleware(SessionLifecycleMiddleware)
 app.middleware("http")(csrf_cookie_middleware)
 
 
+class StationGateMiddleware(BaseHTTPMiddleware):
+    """Keep a chosen station inside its screens.
+
+    With auth disabled and no station in the session (the test default),
+    the gate does nothing so existing pages keep working. Once a station
+    is chosen, another station's screen is refused.
+    """
+
+    async def dispatch(self, request: Request, call_next):  # type: ignore[no-untyped-def]
+        path = request.url.path
+        if path.startswith(
+            ("/static", "/healthz", "/favicon", "/login", "/logout", "/forgot-password")
+        ):
+            return await call_next(request)
+        try:
+            session = request.session
+        except AssertionError:
+            return await call_next(request)
+        from app.auth import current_user_id, is_auth_disabled
+        from app.rms.stations import decide
+
+        try:
+            user_present = current_user_id(request) is not None
+        except Exception:  # noqa: BLE001 — gate must not take the app down
+            user_present = False
+        result = decide(
+            path,
+            session,
+            auth_disabled=is_auth_disabled(),
+            user_present=user_present,
+        )
+        if result is None:
+            return await call_next(request)
+        if result == "deny":
+            return HTMLResponse(
+                "<!doctype html><meta charset='utf-8'><title>Otro puesto</title>"
+                "<p>Esa pantalla es de otro puesto.</p>",
+                status_code=403,
+            )
+        return RedirectResponse(result.split(":", 1)[1], status_code=303)
+
+
+# Inner relative to SessionMiddleware (added below), so the session cookie
+# is already loaded when the gate reads it.
+app.add_middleware(StationGateMiddleware)
+
 # Session middleware: signs cookies with SESSION_SECRET.
 # Must be added BEFORE routers so login_user() can write to request.session.
 # Same-site=lax + https-only when behind CF Tunnel (which always terminates TLS).
@@ -696,7 +744,9 @@ def _is_public(path: str) -> bool:
 # Public paths (healthz, login, logout, forgot-password, static) are
 # handled by the router's own dependencies list below.
 app.include_router(auth.router)
+app.include_router(stations.router)
 app.include_router(health.router)
+app.include_router(gerencia.router)
 app.include_router(dashboard.router)
 # Dev-only combo smoke page; routes self-gate on DEV_COMBO_SMOKE env (404 in prod).
 app.include_router(dev.router)

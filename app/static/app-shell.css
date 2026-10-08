@@ -317,6 +317,25 @@ body.has-app-shell > .app-shell > .app-footer { grid-area: footer; }
   .sidebar-backdrop { display: none !important; }
 }
 
+/* Station chooser: no sidebar, so the five options sit in the middle. */
+body.has-app-shell > .app-shell.on-chooser {
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "topbar"
+    "main"
+    "footer";
+}
+body.has-app-shell > .app-shell.on-chooser > .sidebar,
+body.has-app-shell > .app-shell.on-chooser .sidebar-toggle,
+body.has-app-shell > .app-shell.on-chooser ~ .bottom-nav {
+  display: none !important;
+}
+body.has-app-shell > .app-shell.on-chooser > .app-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Keep the legacy topnav hidden when the new shell is active */
 .app-shell ~ .topnav, body.has-app-shell .topnav { display: none; }
 

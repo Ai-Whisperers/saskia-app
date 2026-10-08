@@ -297,6 +297,17 @@ async def dashboard(
     chart_preset: str = Query("30d", pattern="^(7d|30d|90d|current_month|last_month)$"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
+    # Gerencia has one landing page. The dense inicio screen stays for
+    # a session that has not picked a station.
+    try:
+        from app.rms.stations import canonical_station
+
+        if canonical_station(request.session.get("station")) == "gerencia":
+            from fastapi.responses import RedirectResponse
+
+            return RedirectResponse("/gerencia", status_code=303)
+    except Exception:  # noqa: BLE001 — no session, render the existing page
+        pass
     if period == "custom" and start and end:
         try:
             from datetime import datetime as dt_cls

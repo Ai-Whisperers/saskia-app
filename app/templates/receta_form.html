@@ -364,6 +364,8 @@
       </div>
     </section>
 
+    {# Cocina works in quantities. Sale price is set in Gerencia. #}
+    {% if not station_hides_prices %}
     {# ── Live cost summary (escandallo) ─────────────────────────── #}
     <section class="form-section form-section-side cost-summary" id="cost-summary">
       <header class="form-section-header">
@@ -393,6 +395,7 @@
 
       <small class="muted cost-disclaimer">Actualizado en tiempo real al cambiar ingredientes o rinde</small>
     </section>
+    {% endif %}
 
     {# ── Dietary tags (vertical compact) ──────────────────────── #}
     <section class="form-section form-section-side">
@@ -428,6 +431,7 @@
 
     {# ── Action: auto-create product toggle + buttons ──────── #}
     <section class="form-section form-section-side action-section">
+      {% if not station_hides_prices %}
       <label class="switch-toggle" for="also_create_product">
         <input type="checkbox" id="also_create_product" name="also_create_product" value="1" {% if mode == 'new' %}checked{% endif %}>
         <span class="switch-track"><span class="switch-thumb"></span></span>
@@ -436,6 +440,7 @@
           <small>Genera un Producto vinculado a esta receta, con precio sugerido (costo × 3).</small>
         </span>
       </label>
+      {% endif %}
 
       <div class="form-actions form-actions-bottom">
         <a href="/recetas" class="btn btn-secondary">Cancelar</a>

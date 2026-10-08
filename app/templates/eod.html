@@ -128,6 +128,7 @@
   </div>
 </div>
 
+{% if station != 'cocina' %}
 <form method="post" action="/eod/check">
   {# BACKLOG #9 (2026-10-01): per-render idempotency token injected by
      the server. Browser double-click on "Guardar cierre" will re-POST
@@ -213,7 +214,42 @@
     Guardar cierre
   </button>
 </form>
+{% endif %}
 
+{% if station == 'cocina' %}
+<section class="card mt-4" data-cocina-stock>
+  <div class="card-header">
+    <h2>Stock bajo</h2>
+  </div>
+  <p class="text-muted">
+    Nombre, cantidad, unidad y mínimo. El precio de la compra se anota en Inventario.
+  </p>
+  <table class="table is-striped">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th class="num">Cantidad</th>
+        <th>Unidad</th>
+        <th class="num">Mínimo</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in reorder_items %}
+      <tr>
+        <td>{{ it.name }}</td>
+        <td class="num">{{ "%.2f"|format(it.current_stock) }}</td>
+        <td>{{ it.unit }}</td>
+        <td class="num">{{ "%.2f"|format(it.min_stock) }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="4" class="empty">No hay ingredientes bajo mínimo.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% elif station not in ('escritorio', 'gerencia') %}
 {# CIE-02: Restock step — list of ingredients under minimum + link to /reorder #}
 <section class="card mt-4">
   <div class="card-header">
@@ -274,6 +310,7 @@
   <p class="empty">No hay ingredientes bajo mínimo hoy. ¡Todo en orden!</p>
   {% endif %}
 </section>
+{% endif %}
 
 <section class="card mt-4">
   <div class="card-header">
@@ -283,11 +320,16 @@
     </h2>
     <small class="text-muted">{{ today_iso }}</small>
   </div>
+  {% if station in ('escritorio', 'gerencia') %}
+  <p class="text-muted">Las piezas las anota Cocina. Acá solo se leen.</p>
+  {% endif %}
   {% if today_plan.rows %}
+  {% if station not in ('escritorio', 'gerencia') %}
   <p class="text-muted">
     Confróntalo con lo que produzcas hoy. Si algo no se terminó,
     registrá la diferencia en <a href="/merma">merma</a>.
   </p>
+  {% endif %}
   <table class="table is-hoverable is-striped">
     <thead>
       <tr>
@@ -303,6 +345,9 @@
         <td><strong>{{ r.product_name }}</strong></td>
         <td class="num">{{ "%.1f"|format(r.qty_to_produce) }}</td>
         <td class="num d-inline-flex">
+          {% if station in ('escritorio', 'gerencia') %}
+            {% if hecho is not none %}{{ "%.1f"|format(hecho) }}{% else %}—{% endif %}
+          {% else %}
           <form class="d-inline-flex" method="post" action="/eod/completar" style="display:inline-flex;gap:var(--space-1);align-items:center;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="product_id" value="{{ r.product_id }}">
@@ -312,6 +357,7 @@
                    aria-label="Hecho: {{ r.product_name }}">
             <button type="submit" class="btn btn-sm" aria-label="Guardar {{ r.product_name }}">✓</button>
           </form>
+          {% endif %}
           {% if hecho is not none %}
           {% set delta = hecho - r.qty_to_produce %}
             {% if delta > 0.05 %}

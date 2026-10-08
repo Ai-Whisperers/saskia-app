@@ -22,11 +22,12 @@ from app.auth import (
 )
 from app.rms.audit import record as audit_record
 from app.rms.dependencies import get_session
+from app.rms.stations import ACCEPTED_ROLES, ASSIGNABLE_ROLES
 from app.services.template_render import render
 
 router = APIRouter(prefix="/users", dependencies=[Depends(require_login)])
 
-VALID_ROLES = ("admin", "cashier", "manager")
+VALID_ROLES = ACCEPTED_ROLES
 
 
 def _is_admin(user: object) -> bool:
@@ -242,11 +243,7 @@ def user_roles_api() -> JSONResponse:
     Used by the combo system on /users form for role selection.
     """
     payload = []
-    for value, display in [
-        ("cashier", "Cajero"),
-        ("manager", "Gerente"),
-        ("admin", "Administrador"),
-    ]:
+    for value, display in ASSIGNABLE_ROLES:
         payload.append(
             {
                 "value": value,
