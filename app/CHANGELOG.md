@@ -1,3 +1,21 @@
+## 2026-10-08e — restore 6 lost UI features + fix 4 stale tests (69 passed)
+
+Night-run triage of the full suite exposed features regressions had silently dropped, plus
+copy-drift in tests. Restored:
+- **/inicio analytics teasers** (T-1): Top por margen / Concentración / Rotación / Heatmap /
+  Recetas complejas cards linking to /analisis anchors (anchors added to analisis.html).
+- **/inventario `sobre_stock` filter** (T-4): checkbox + `stock > max_stock_qty` matcher.
+- **/clientes/{id} Historial de compras**: compact direct-sales table (last 10, decorated
+  product names) — walk-in sales were rendered NOWHERE after P4.2's table removal; loyalty
+  ledger capped at 5 visible rows (P52).
+- **/eod inline anomaly summary** (P-39): anomaly_count was only wired into the print view.
+- **/produccion data-shift-saved="1"** literal marker (PROD-MERMA-2).
+- **/merma "Merma amplificada" card**: ingredients with ≥15% price rise (latest vs previous
+  price level) that also logged waste in the window.
+
+Tests updated to shipped copy: enrollment sub-text ("N ventas · M con cliente"), manana
+column "Pronóstico" (vos copy per rule 23). 69 passed across the 12 affected files.
+
 ## 2026-10-08d — tests: repo-root-relative paths replace hardcoded /opt/data/work/sazon-app
 
 14 test files read repo files or spawn processes with `cwd=` pointed at the ABSOLUTE shared

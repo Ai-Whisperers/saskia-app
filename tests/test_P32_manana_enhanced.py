@@ -1,5 +1,5 @@
 """PRO-PED: /produccion/manana shows per-client pedido line items and
-Forecast + Pedidos + Total + Plan columns with persisted Plan overrides.
+Pronóstico (forecast) + Pedidos + Total + Plan columns with persisted Plan overrides.
 
 Captures the behavior changes that landed in 8a91f0e2 (sidebar wrap) +
 the manana rewrite (pedidos per client, Plan column, pedidos_by_product
@@ -40,7 +40,7 @@ def test_manana_queproducir_columns(authed_client, qseed):
     assert r.status_code == 200
     body = r.text
     # Each column header appears in the table
-    for col in ("Forecast", "Pedidos", "Total", "Plan ⇄"):
+    for col in ("Pronóstico", "Pedidos", "Total", "Plan ⇄"):
         assert col in body, f"Column '{col}' missing from Qué producir table"
     # The "9 unidades comprometidas" pill from pedidos_by_product
     assert "9 unidades comprometidas" in body or "9</span>" in body

@@ -322,6 +322,10 @@ def inventory_list(
                     ok = True
                 elif estado == "ok" and i.stock_qty > (i.min_stock_qty or 0):
                     ok = True
+                elif estado == "sobre_stock" and (
+                    i.max_stock_qty is not None and i.stock_qty > i.max_stock_qty
+                ):
+                    ok = True
                 if ok:
                     break
             if not ok:

@@ -210,6 +210,17 @@ def eod_view(
                 )
                 cur += timedelta(days=1)
 
+    # P-39: inline anomaly summary on the EOD page itself (not just print).
+    from app.rms.settings_runtime import get_eod_config
+    from app.services.eod_anomaly import detect_anomalies
+
+    try:
+        eod_cfg = get_eod_config(session)
+        _anomalies = detect_anomalies(session, eod_cfg=eod_cfg)
+        anomaly_count = len(_anomalies) if _anomalies else 0
+    except Exception:
+        anomaly_count = 0
+
     return render(
         request,
         "eod.html",
@@ -219,6 +230,7 @@ def eod_view(
             "today_plan": today_plan,
             "completions": completions,
             "today_iso": today.isoformat(),
+            "anomaly_count": anomaly_count,
             # BACKLOG #15 — closed-day state surfaced on the page header
             "today_is_closed": today_is_closed,
             "open_days": [d.isoformat() for d in open_days],

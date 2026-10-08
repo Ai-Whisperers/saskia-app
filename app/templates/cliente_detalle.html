@@ -375,7 +375,7 @@
               </tr>
             </thead>
             <tbody>
-              {% for tx in recent_loyalty %}
+              {% for tx in recent_loyalty[:5] %}
               <tr>
                 <td>{{ tx.recorded_at.strftime('%Y-%m-%d %H:%M') if tx.recorded_at else '—' }}</td>
                 <td>
@@ -508,11 +508,38 @@
         {% endfor %}
       </div>
     </section>
-    {# P4.2: removed the redundant "Historial de compras" table.
-       The accordion above already shows the line items per pedido,
-       and the date/total/status for each is on the pedido row.
-       Saves ~6 rows of vertical space for frequent customers. #}
+    </section>
     {% endif %}
+  </div>
+</div>
+
+    {# P4.2 removed the heavy history table; T-restore (2026-10-08): walk-in
+       sales (mostrador, no pedido) were rendered NOWHERE on this page.
+       Compact table: last 10 direct sales, decorated live product names. #}
+    <section class="card mt-4">
+      <div class="card-header">
+        <h2><svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg> Historial de compras</h2>
+        <small class="text-muted">Ventas directas (sin pedido) · últimas 10</small>
+      </div>
+      {% if history_view %}
+      <table class="table is-hoverable is-striped">
+        <thead><tr><th>Fecha</th><th>Producto</th><th class="num">Cant.</th><th class="num">Total</th></tr></thead>
+        <tbody>
+          {% for row in history_view[:10] %}
+          {% set s = row.sale %}
+          <tr>
+            <td><small>{{ s.sold_at.strftime("%d/%m/%y") }}</small></td>
+            <td>{{ row.product_name }}</td>
+            <td class="num">{{ s.qty | int if s.qty % 1 == 0 else s.qty }}</td>
+            <td class="num">{{ m.gs_full(((s.qty or 0) * (s.unit_price_gs or 0) | int) - (s.discount_gs or 0)) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-muted" style="padding:0.75rem 1rem;margin:0;">Sin ventas directas todavía.</p>
+      {% endif %}
+    </section>
   </div>
 </div>
 

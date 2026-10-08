@@ -60,12 +60,11 @@ def test_max_alerts_per_day_constant_matches_default():
 
 def test_get_alerts_config_returns_dict_with_all_keys():
     """get_alerts_config(session) returns a complete dict."""
+    import app.rms.settings_registry as settings_mod
     from app.rms.settings_runtime import (
         DEFAULT_ALERTS_CONFIG,
         get_alerts_config,
     )
-
-    import app.rms.settings_registry as settings_mod
 
     orig = settings_mod.get_setting_value
     settings_mod.get_setting_value = lambda session, key: None
@@ -80,9 +79,8 @@ def test_get_alerts_config_returns_dict_with_all_keys():
 
 def test_get_alerts_config_coerces_stored_value():
     """Stored '100' is coerced to int 100."""
-    from app.rms.settings_runtime import get_alerts_config
-
     import app.rms.settings_registry as settings_mod
+    from app.rms.settings_runtime import get_alerts_config
 
     def fake(session, key):
         if key == "alerts.max_per_day":

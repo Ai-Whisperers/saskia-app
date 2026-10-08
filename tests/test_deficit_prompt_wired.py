@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pathlib
 
-TPL = pathlib.Path("/opt/data/work/saskia-app/app/templates/produccion.html")
+TPL = pathlib.Path(__file__).resolve().parents[1] / "app/templates/produccion.html"
 
 
 def _tpl() -> str:

@@ -17,7 +17,7 @@ from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, NotFound
-from app.rms.models import Ingredient, Recipe, Sale, WasteLog
+from app.rms.models import Ingredient, IngredientPriceEvent, Recipe, Sale, WasteLog
 from app.rms.observability import record_audit
 from app.rms.waste import (
     WasteReason,
@@ -179,6 +179,70 @@ def merma_list(
     except Exception:
         source_mix_14d = {}
 
+    # T-merma-trend (6d44dfb7 spec): "Merma amplificada" — ingredients whose
+    # purchase price ROSE (recent vs prior ~30d windows from price events)
+    # AND that logged waste inside the selected window. Rising cost + waste
+    # = the waste is getting more expensive to ignore.
+    amplified_rows: list[dict] = []
+    try:
+        # Compare each ingredient's LATEST recorded price vs the average of
+        # all EARLIER events (date-agnostic: works with frozen-clock tests
+        # and sparse real-world event history alike).
+        _all_rows = session.execute(
+            select(
+                IngredientPriceEvent.ingredient_id,
+                IngredientPriceEvent.price_gs,
+                IngredientPriceEvent.recorded_at,
+            ).order_by(
+                IngredientPriceEvent.ingredient_id,
+                IngredientPriceEvent.recorded_at,
+            )
+        ).all()
+        _by_ing: dict[int, list[tuple]] = {}
+        for iid, price, rec_at in _all_rows:
+            _by_ing.setdefault(iid, []).append((price, rec_at))
+        _price_rows = []
+        for iid, evs in _by_ing.items():
+            if len(evs) < 2:
+                continue
+            # recent = last price; prior = average of the trailing run of
+            # STRICTLY LOWER... no — of all events priced DIFFERENT from the
+            # latest (the previous price level), so a stable new price doesn't
+            # dilute the baseline with its own repeats.
+            recent = evs[-1][0]
+            prior_prices = [p for p, _ in evs[:-1] if p != recent]
+            if not prior_prices:
+                continue
+            prior_avg = sum(prior_prices) / len(prior_prices)
+            _price_rows.append((iid, recent, prior_avg))
+        _wasted_ids = set(
+            session.execute(
+                select(WasteLog.ingredient_id).where(
+                    WasteLog.recorded_at >= start_date
+                )
+            ).scalars().all()
+        )
+        for iid, recent_avg, prior_avg in _price_rows:
+            if iid not in _wasted_ids or not recent_avg or not prior_avg:
+                continue
+            if prior_avg <= 0:
+                continue
+            _pct = (recent_avg - prior_avg) / prior_avg * 100
+            if _pct >= 15:
+                _ing = session.get(Ingredient, iid)
+                if _ing is not None:
+                    amplified_rows.append(
+                        {
+                            "ingredient": _ing,
+                            "price_pct": _pct,
+                            "recent_avg": int(recent_avg),
+                            "prior_avg": int(prior_avg),
+                        }
+                    )
+        amplified_rows.sort(key=lambda r: r["price_pct"], reverse=True)
+    except Exception:
+        amplified_rows = []
+
     # Build preset query strings
     def preset_url(d: int) -> str:
         sd = (today - timedelta(days=d)).strftime("%Y-%m-%d")
@@ -188,6 +252,7 @@ def merma_list(
         request,
         "merma.html",
         {
+            "amplified_rows": amplified_rows,
             "items": items,
             "impact": impact,
             "pct": pct,

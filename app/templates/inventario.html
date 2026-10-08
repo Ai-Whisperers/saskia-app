@@ -120,7 +120,7 @@
   <div class="mf-pop" data-mf="estado">
     <button type="button" class="mf-btn" aria-expanded="false">Estado{% if estados_sel %} <span class="mf-count">{{ estados_sel|length }}</span>{% endif %} ▾</button>
     <div class="mf-panel" hidden>
-      {% for val, lbl in [('bajo', 'Stock bajo'), ('critico', 'Crítico'), ('negativo', 'Negativo'), ('sincargar', 'Sin carga inicial'), ('sinprecio', 'Sin precio'), ('ok', 'Stock OK')] %}
+      {% for val, lbl in [('bajo', 'Stock bajo'), ('critico', 'Crítico'), ('negativo', 'Negativo'), ('sobre_stock', 'Sobre-stock'), ('sincargar', 'Sin carga inicial'), ('sinprecio', 'Sin precio'), ('ok', 'Stock OK')] %}
       <label class="mf-option"><input type="checkbox" name="estado" value="{{ val }}" {% if val in estados_sel %}checked{% endif %}> {{ lbl }}</label>
       {% endfor %}
     </div>

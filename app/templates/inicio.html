@@ -98,6 +98,36 @@
     href="/clientes"></ui-kpi-card>
 </div>
 
+{# ══ T-1: analytics teasers — the 5 orphan metrics as glanceable cards ══ #}
+<div class="band-label">Análisis rápido</div>
+<div class="kpi-row mb-4" style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+  <a class="teaser-card" href="/analisis#top-margin" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ top_margin|length }}</span>
+    <span class="teaser-label">Top por margen</span>
+    <span class="teaser-sub">Productos más rentables →</span>
+  </a>
+  <a class="teaser-card" href="/analisis#concentration" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ concentration|length }}</span>
+    <span class="teaser-label">Concentración de costo</span>
+    <span class="teaser-sub">Insumos dominantes →</span>
+  </a>
+  <a class="teaser-card" href="/analisis#turnover" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ turnover|length }}</span>
+    <span class="teaser-label">Rotación de stock</span>
+    <span class="teaser-sub">Qué se mueve →</span>
+  </a>
+  <a class="teaser-card" href="/analisis#dow-heatmap" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ dow_buckets|length }}</span>
+    <span class="teaser-label">Heatmap día × hora</span>
+    <span class="teaser-sub">Tus horas fuertes →</span>
+  </a>
+  <a class="teaser-card" href="/analisis#complexity" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ complexity|length }}</span>
+    <span class="teaser-label">Recetas más complejas</span>
+    <span class="teaser-sub">Prep más largo →</span>
+  </a>
+</div>
+
 {# ══ P1-B7: 3 actionable insights ═════════════════════════════════════ #}
 <div class="insights-band mb-4">
   {% for insight in actionable_insights %}

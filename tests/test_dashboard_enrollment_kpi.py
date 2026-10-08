@@ -71,7 +71,7 @@ def test_enrollment_card_full_when_every_sale_has_customer(client, session_facto
     r = client.get("/")
     assert r.status_code == 200
     assert "100.0%" in r.text
-    assert "3 de 3 ventas" in r.text
+    assert "3 ventas · 3 con cliente" in r.text
 
 
 def test_enrollment_card_half_when_half_sales_have_customer(client, session_factory, qseed):
@@ -99,7 +99,7 @@ def test_enrollment_card_half_when_half_sales_have_customer(client, session_fact
     r = client.get("/")
     assert r.status_code == 200
     assert "50.0%" in r.text
-    assert "1 de 2 ventas" in r.text
+    assert "2 ventas · 1 con cliente" in r.text
 
 
 def test_enrollment_card_excludes_voided_sales(client, session_factory, qseed):
@@ -117,4 +117,4 @@ def test_enrollment_card_excludes_voided_sales(client, session_factory, qseed):
     assert r.status_code == 200
     # Should be 1 of 1 (the voided sale is excluded) → 100%
     assert "100.0%" in r.text
-    assert "1 de 1 ventas" in r.text
+    assert "1 ventas · 1 con cliente" in r.text

@@ -19,7 +19,6 @@ scheduler is a separate decision — see the Batch B4 CHANGELOG entry.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from app.rms.config import ASUNCION_TZ
 from app.services.auto_backup import (
@@ -27,8 +26,6 @@ from app.services.auto_backup import (
     DEFAULT_BACKUP_CONFIG,
     DEFAULT_KEEP_LAST_N,
     WARN_THRESHOLD_DAYS,
-    backup_filename,
-    last_backup_at,
     needs_auto_backup,
     needs_warning,
     prune_old_backups,
@@ -158,12 +155,11 @@ def test_prune_old_backups_explicit_arg_overrides_cfg(tmp_path):
 
 def test_get_backup_config_returns_full_defaults():
     """get_backup_config(session) → dict == DEFAULT_BACKUP_CONFIG."""
+    import app.rms.settings_registry as settings_mod
     from app.rms.settings_runtime import (
         DEFAULT_BACKUP_CONFIG,
         get_backup_config,
     )
-
-    import app.rms.settings_registry as settings_mod
 
     orig = settings_mod.get_setting_value
     settings_mod.get_setting_value = lambda session, key: None
@@ -177,9 +173,8 @@ def test_get_backup_config_returns_full_defaults():
 
 def test_get_backup_config_coerces_stored_value():
     """Stored '48' for auto_threshold_hours is coerced to int 48."""
-    from app.rms.settings_runtime import get_backup_config
-
     import app.rms.settings_registry as settings_mod
+    from app.rms.settings_runtime import get_backup_config
 
     def fake(session, key):
         if key == "backup.auto_threshold_hours":
