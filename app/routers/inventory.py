@@ -693,7 +693,9 @@ def inventory_new(request: Request, session: Session = Depends(get_session)) -> 
             "units": [u.value for u in Unit],
             "existing_categories": [{"label": c, "value": c} for c in cats],
             "allergens": [{"code": a.code, "label": a.label} for a in list_allergens(session)],
-            "dietary_tags": [{"code": d.code, "label": d.label} for d in list_dietary_tags(session)],
+            "dietary_tags": [
+                {"code": d.code, "label": d.label} for d in list_dietary_tags(session)
+            ],
         },
     )
 
@@ -1108,7 +1110,9 @@ def inventory_edit(
             "units": [u.value for u in Unit],
             "existing_categories": [{"label": c, "value": c} for c in cats],
             "allergens": [{"code": a.code, "label": a.label} for a in list_allergens(session)],
-            "dietary_tags": [{"code": d.code, "label": d.label} for d in list_dietary_tags(session)],
+            "dietary_tags": [
+                {"code": d.code, "label": d.label} for d in list_dietary_tags(session)
+            ],
         },
     )
 

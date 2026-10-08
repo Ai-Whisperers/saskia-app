@@ -49,9 +49,7 @@ def list_allergens(session: Session, include_inactive: bool = False) -> list[Tag
             {where_clause}
             ORDER BY sort_order ASC, code ASC
             """
-        ).format(
-            where_clause="" if include_inactive else "WHERE is_active = 1"
-        )
+        ).format(where_clause="" if include_inactive else "WHERE is_active = 1")
         rows = session.execute(text(sql)).fetchall()
     except Exception:
         # Table doesn't exist yet (pre-migration) — fall through to defaults.
@@ -77,9 +75,7 @@ def list_allergens(session: Session, include_inactive: bool = False) -> list[Tag
     ]
 
 
-def list_dietary_tags(
-    session: Session, include_inactive: bool = False
-) -> list[TagEntry]:
+def list_dietary_tags(session: Session, include_inactive: bool = False) -> list[TagEntry]:
     """Return active dietary tags sorted by sort_order (then code)."""
     try:
         sql = (  # noqa: S608 — static template; only interpolation is a hardcoded WHERE constant
@@ -89,9 +85,7 @@ def list_dietary_tags(
             {where_clause}
             ORDER BY sort_order ASC, code ASC
             """
-        ).format(
-            where_clause="" if include_inactive else "WHERE is_active = 1"
-        )
+        ).format(where_clause="" if include_inactive else "WHERE is_active = 1")
         rows = session.execute(text(sql)).fetchall()
     except Exception:
         rows = []

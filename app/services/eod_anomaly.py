@@ -171,9 +171,7 @@ def _check_voided_rate(
         key="eod.voided_rate",
         severity="warn",
         title=tmpl.subject,
-        body=tmpl.render(
-            voided=voided, total=len(sales), rate_pct=f"{rate:.0%}"
-        ),
+        body=tmpl.render(voided=voided, total=len(sales), rate_pct=f"{rate:.0%}"),
     )
 
 
