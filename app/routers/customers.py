@@ -1061,7 +1061,7 @@ def cliente_detail(
         select(LoyaltyTransaction)
         .where(LoyaltyTransaction.customer_id == customer.id)
         .order_by(LoyaltyTransaction.recorded_at.desc())
-        .limit(20)
+        .limit(5)
     ).all()
 
     # Tier badge days-since-last-sale: SQLite returns NAIVE datetimes while

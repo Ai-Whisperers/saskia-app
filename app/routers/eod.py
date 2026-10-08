@@ -156,6 +156,16 @@ def eod_view(
     range_days = 0
     is_range_mode = False
 
+    # P-39: inline anomaly summary. Same best-effort contract as
+    # /eod/print - detection failure must never block the EOD page.
+    from app.services.eod_anomaly import detect_anomalies
+
+    try:
+        _anomalies = detect_anomalies(session)
+        anomaly_count = len(_anomalies) if _anomalies else 0
+    except Exception:
+        anomaly_count = 0
+
     if range_start and range_end and range_end >= range_start:
         span_days = (range_end - range_start).days + 1
         if span_days <= 31:
@@ -230,6 +240,7 @@ def eod_view(
             "today_plan": today_plan,
             "completions": completions,
             "today_iso": today.isoformat(),
+            # P-39: inline anomaly summary (count; template gates the banner)
             "anomaly_count": anomaly_count,
             # BACKLOG #15 — closed-day state surfaced on the page header
             "today_is_closed": today_is_closed,
