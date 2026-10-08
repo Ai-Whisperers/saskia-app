@@ -15,11 +15,15 @@ from typing import Any
 
 def _migration_106_cash_sessions(conn: Any) -> None:
     """Create cash_session table (arqueo de caja X/Z)."""
+
+    from app.rms.db import atomic_ddl_block
+
     is_postgres = conn.dialect.name == "postgresql"
     pk = "SERIAL" if is_postgres else "INTEGER"
     ts = "TIMESTAMP" if is_postgres else "DATETIME"
-    try:
-        conn.exec_driver_sql(
+    atomic_ddl_block(
+        conn,
+        [
             f"""
             CREATE TABLE IF NOT EXISTS cash_session (
                 id {pk} NOT NULL PRIMARY KEY,
@@ -36,15 +40,11 @@ def _migration_106_cash_sessions(conn: Any) -> None:
                 note TEXT
             )
             """
-        )
-    except Exception:
-        pass
-    try:
-        conn.exec_driver_sql(
-            "CREATE INDEX IF NOT EXISTS ix_cash_session_status ON cash_session (status)"
-        )
-    except Exception:
-        pass
+        ],
+    )
+    atomic_ddl_block(
+        conn, ["CREATE INDEX IF NOT EXISTS ix_cash_session_status ON cash_session (status)"]
+    )
 
     # BACKLOG #4 (2026-10-02): always bump schema_version at the end.
     from app.rms.db import _bump_schema_version

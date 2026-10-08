@@ -1,10 +1,14 @@
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% block title %}Cotizador{% endblock %}
 {% block content %}
 <h1>
   <svg class="icon" aria-hidden="true"><use href="#icon-box"></use></svg>
   Cotizador de pedidos grandes
 </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 {% if request.query_params.get('flash') == 'empty' %}
 <div class="callout callout-warning">No cargaste ningún producto.</div>
 {% endif %}

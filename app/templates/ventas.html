@@ -5,10 +5,65 @@
 {% block title %}Ventas{% endblock %}
 
 {% block content %}
+{# ── POS TOPBAR (SASKIA-MIG-1) ────────────────────────────────────────
+   Replaces the hidden global topbar on /ventas. Keeps operator
+   affordances (date, history link, Cmd+K hint, logout) without
+   surrendering screen real estate to the standard sidebar+topbar. #}
+<nav class="pos-topbar" aria-label="Barra de la caja">
+  <div class="pos-topbar__left">
+    <a href="/" class="pos-topbar__brand" aria-label="Inicio">
+      <span class="brand-mark">S</span>
+      <span class="brand-name">{{ branding.business_name or "Sazón" }}</span>
+    </a>
+    <span class="pos-topbar__divider" aria-hidden="true">·</span>
+    <span class="pos-topbar__date">{{ now_str() if now_str is defined else '' }}</span>
+  </div>
+  <div class="pos-topbar__center">
+    <button type="button" class="pos-topbar__search" id="pos-cmdk-btn"
+            aria-label="Buscar producto, cliente o pedido (Cmd+K)"
+            title="Cmd+K">
+      <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+      <span>Buscar producto, cliente, pedido…</span>
+      <kbd>⌘K</kbd>
+    </button>
+  </div>
+  <div class="pos-topbar__right">
+    <a href="/ventas/historial" class="pos-topbar__link" aria-label="Ir al historial del día">
+      <svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg>
+      <span>Historial</span>
+    </a>
+    <a href="/reportes" class="pos-topbar__link" aria-label="Ir a reportes">
+      <svg class="icon" aria-hidden="true"><use href="#icon-chart"/></svg>
+      <span>Reportes</span>
+    </a>
+    <a href="/logout" class="pos-topbar__link" aria-label="Cerrar sesión" title="Cerrar sesión">
+      <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
+    </a>
+  </div>
+</nav>
+
 {{ ui.page_header("Ventas", desc="Registrá una venta al mostrador o consultá el historial del día", actions=("<a class='btn btn-ghost' href='/ventas/express'>⚡ Express</a>",)) }}
 
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}
+
+{# ── SASKIA-MIG-2: pre-shift session gate (soft banner) ──
+   Visible affordance when the cashier lands on /ventas without an
+   open arqueo de caja. Does NOT block the page (the cashier can
+   still register QR/transfer/fiado sales), but draws the eye so
+   they open the caja before ringing up efectivo. The hard gate
+   on POST /ventas/nueva is the safety net below. #}
+{% if cash_session_open is defined and not cash_session_open %}
+<div class="alert alert-warning" role="status" data-testid="caja-banner-soft">
+  <svg class="icon" aria-hidden="true"><use href="#icon-cash"/></svg>
+  <div>
+    <strong>Caja cerrada.</strong>
+    Para registrar ventas en efectivo necesitás abrir la caja primero.
+    {% if cash_session_id is not none %}(Última sesión #{{ cash_session_id }} cerrada.){% endif %}
+    <a href="/caja" class="btn btn-primary btn-sm" style="margin-left:var(--space-2);">Abrir caja</a>
+  </div>
+</div>
+{% endif %}
 
 {# Heading for the POS surface — distinguishes the active counter from the
    history view at /ventas/historial. Operators reading the screen

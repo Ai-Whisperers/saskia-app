@@ -8,6 +8,9 @@
   <div style="text-align: center; margin-bottom: 1.5rem;">
     <img src="/static/logo.svg" alt="Sazón" width="64" height="64" style="margin: 0 auto 12px; display: block;">
     <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 4px;">{{ branding.business_name }}</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
     <p class="text-muted text-sm" >{{ branding.tagline }}</p>
   </div>
 

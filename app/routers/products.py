@@ -809,10 +809,10 @@ def product_bulk_delete(
         deleted += 1
 
     session.commit()
-    flash = f"{deleted} producto(s) eliminado(s)"
-    if skipped:
-        flash += f", {skipped} omitido(s) por tener ventas"
-    return RedirectResponse(url=f"/productos?flash={flash}", status_code=303)
+    return RedirectResponse(
+        url=f"/productos?flash=products_bulk_deleted:{deleted}:{skipped}",
+        status_code=303,
+    )
 
 
 # ─── Bulk edit ──────────────────────────────────────────────────────────────────

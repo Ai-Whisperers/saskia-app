@@ -7,6 +7,9 @@
 {% block content %}
 <div class="d-flex" style="display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-4);">
   <h1>Pedido a {{ fmt.entity_name(supplier) }}</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
   <a href="/suppliers/{{ supplier.id }}/editar" class="btn btn-sm btn-ghost">
     <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
     Editar proveedor

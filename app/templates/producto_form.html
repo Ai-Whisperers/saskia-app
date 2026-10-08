@@ -14,6 +14,10 @@
     <p class="page-desc">{% if mode == 'new' %}Creá un producto para agregarlo al catálogo.{% else %}Actualizá los datos del producto.{% endif %}</p>
   </header>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
 {% if request.query_params.get('recipe_id') %}
   <div id="prefill-banner">
     {{ ui.alert_row(

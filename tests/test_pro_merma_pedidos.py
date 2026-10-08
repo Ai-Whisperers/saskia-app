@@ -72,7 +72,7 @@ def test_produccion_manana_muestra_pedidos(authed_client, session_factory):
             customer_name="Cliente Test",
             promised_date=manana,
             promised_time="10:00",
-            channel="WhatsApp",
+            channel="whatsapp",
             status="confirmed",
             payment_intent="efectivo",
             public_token="T" + "x" * 11,

@@ -4,6 +4,9 @@
 {% block title %}Demanda prevista{% endblock %}
 {% block content %}
 <h1>Demanda prevista (mañana)</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">Promedio 56d × factor del día × tendencia 14d. Batches = unidades ÷ rinde de receta.</p>
 
 {% if forecasts %}

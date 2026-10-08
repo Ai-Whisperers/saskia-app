@@ -9,6 +9,9 @@
   Ventas por método de pago
 </h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">Cantidad de ventas y total facturado por cada método de pago.</p>
 
 <form method="get" action="/reportes/metodos-pago" class="form mb-4">

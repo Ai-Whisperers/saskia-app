@@ -220,7 +220,7 @@ def save_business_settings(
     )
 
     session.commit()
-    return RedirectResponse(url="/settings?flash=Información+guardada", status_code=303)
+    return RedirectResponse(url="/settings?flash=settings_info_saved", status_code=303)
 
 
 @router.post("/fiscal", response_class=RedirectResponse)
@@ -269,7 +269,7 @@ def save_fiscal_settings(
             )
 
     session.commit()
-    return RedirectResponse(url="/settings?flash=Configuración+fiscal+guardada", status_code=303)
+    return RedirectResponse(url="/settings?flash=settings_fiscal_saved", status_code=303)
 
 
 @router.post("/theme", response_class=RedirectResponse)
@@ -312,7 +312,7 @@ def save_theme_settings(
         )
 
     session.commit()
-    return RedirectResponse(url=f"/settings?flash=Tema+{theme}+guardado", status_code=303)
+    return RedirectResponse(url=f"/settings?flash=settings_theme_saved_p:{theme}", status_code=303)
 
 
 @router.post("/seed-demo", response_class=RedirectResponse)
@@ -339,7 +339,7 @@ def settings_seed_demo(
         session.rollback()
         logger.exception(f"seed_demo_data failed: {exc}")
         return RedirectResponse(
-            url=f"/settings?flash=Error+al+cargar+ejemplo:+{type(exc).__name__}",
+            url=f"/settings?flash=settings_demo_error_detail:{type(exc).__name__}",
             status_code=303,
         )
 
@@ -358,16 +358,13 @@ def settings_seed_demo(
         detail={"overwrite": do_overwrite, "inserted": inserted},
     )
     session.commit()
-    msg = (
-        f"Datos de ejemplo cargados: "
-        f"{inserted.get('ingredients', '?')} ingredientes, "
-        f"{inserted.get('recipes', '?')} recetas, "
-        f"{inserted.get('products', '?')} productos"
-    )
-    # URL-encode the plus signs manually so they don't get treated as spaces
-    msg_url = msg.replace(" ", "+")
     return RedirectResponse(
-        url=f"/settings?flash={msg_url}",
+        url=(
+            f"/settings?flash=settings_seed_demo_count:"
+            f"{inserted.get('ingredients', '?')}:"
+            f"{inserted.get('recipes', '?')}:"
+            f"{inserted.get('products', '?')}"
+        ),
         status_code=303,
     )
 
@@ -399,7 +396,7 @@ def settings_seed_sazon(
         session.rollback()
         logger.exception(f"seed_sazon failed: {exc}")
         return RedirectResponse(
-            url=f"/settings?flash=Error+al+cargar+sazon:+{type(exc).__name__}",
+            url=f"/settings?flash=settings_seed_error_detail:{type(exc).__name__}",
             status_code=303,
         )
 
@@ -415,18 +412,16 @@ def settings_seed_sazon(
         detail={"overwrite": do_overwrite, "inserted": inserted},
     )
     session.commit()
-    msg = (
-        f"Datos de La Vaquita Holandesa cargados: "
-        f"{inserted.get('ingredients', '?')} ingredientes, "
-        f"{inserted.get('recipes', '?')} recetas, "
-        f"{inserted.get('products', '?')} productos, "
-        f"{inserted.get('customers', '?')} clientes, "
-        f"{inserted.get('sales', '?')} ventas, "
-        f"{inserted.get('pedidos', '?')} pedidos"
-    )
-    msg_url = msg.replace(" ", "+")
     return RedirectResponse(
-        url=f"/settings?flash={msg_url}",
+        url=(
+            f"/settings?flash=settings_seed_sazon_count:"
+            f"{inserted.get('ingredients', '?')}:"
+            f"{inserted.get('recipes', '?')}:"
+            f"{inserted.get('products', '?')}:"
+            f"{inserted.get('customers', '?')}:"
+            f"{inserted.get('sales', '?')}:"
+            f"{inserted.get('pedidos', '?')}"
+        ),
         status_code=303,
     )
 

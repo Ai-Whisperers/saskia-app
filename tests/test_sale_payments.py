@@ -56,7 +56,8 @@ def test_single_method_writes_one_uniform_row(authed_client, session_factory, _s
     assert rows[0].amount_gs == 20000
 
 
-def test_mixed_payments_split_and_sum_ok(authed_client, session_factory, _seed):
+def test_mixed_payments_split_and_sum_ok(client_with_caja, session_factory, _seed):
+    authed_client = client_with_caja  # SASKIA-MIG-2: open caja required for cash sales
     # total = 10000 + 25000 = 35000 → 20000 efectivo + 15000 transferencia
     r = authed_client.post(
         "/ventas/nueva/multi",
@@ -87,7 +88,8 @@ def test_mixed_payments_split_and_sum_ok(authed_client, session_factory, _seed):
     assert sum(x.amount_gs for x in rows) == 35000
 
 
-def test_mixed_payments_wrong_sum_rejected(authed_client, session_factory, _seed):
+def test_mixed_payments_wrong_sum_rejected(client_with_caja, session_factory, _seed):
+    authed_client = client_with_caja  # SASKIA-MIG-2: open caja required for cash sales
     r = authed_client.post(
         "/ventas/nueva/multi",
         json={
@@ -103,7 +105,8 @@ def test_mixed_payments_wrong_sum_rejected(authed_client, session_factory, _seed
     assert "suma" in r.text.lower() or "total" in r.text.lower()
 
 
-def test_mixed_payments_invalid_method_rejected(authed_client, session_factory, _seed):
+def test_mixed_payments_invalid_method_rejected(client_with_caja, session_factory, _seed):
+    authed_client = client_with_caja  # SASKIA-MIG-2: open caja required for cash sales
     r = authed_client.post(
         "/ventas/nueva/multi",
         json={

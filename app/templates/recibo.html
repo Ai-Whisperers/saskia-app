@@ -30,6 +30,9 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
       Sazón
     </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
     {% if branding.ruc %}
     <p class="text-muted" style="font-size: var(--text-sm); margin: 0;">
       RUC: {{ branding.ruc }}

@@ -12,6 +12,9 @@
   {% endif %}
 </h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 {# P-39: inline anomaly summary at the top of /eod so the operator sees
    anomalies before closing the day. The count is set by a follow-up
    backend hook (anomaly detection runs at the start of /eod GET). #}

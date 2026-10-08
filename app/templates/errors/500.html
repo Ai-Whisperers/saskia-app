@@ -6,6 +6,9 @@
   <div class="error-card card text-center">
     <div class="error-code error-code-danger">500</div>
     <h1>Algo salió mal</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
     <p class="text-muted">
       Tuvimos un problema procesando tu pedido. El equipo técnico ya tiene
       el reporte.

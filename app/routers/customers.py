@@ -1563,9 +1563,7 @@ def cliente_update(
         detail={"name": customer.name},
     )
     session.commit()
-    return RedirectResponse(
-        url=f"/clientes/{customer_id}?flash=Cliente+actualizado", status_code=303
-    )
+    return RedirectResponse(url=f"/clientes/{customer_id}?flash=customer_updated", status_code=303)
 
 
 @router.post("/bulk-eliminar")
@@ -1607,10 +1605,10 @@ def clientes_bulk_delete(
         deleted += 1
 
     session.commit()
-    flash = f"{deleted} cliente(s) eliminado(s)"
-    if skipped:
-        flash += f", {skipped} omitido(s) por tener ventas"
-    return RedirectResponse(url=f"/clientes?flash={flash}", status_code=303)
+    return RedirectResponse(
+        url=f"/clientes?flash=users_bulk_deleted:{deleted}:{skipped}",
+        status_code=303,
+    )
 
 
 @router.post("/{target_id}/merge")
@@ -1641,12 +1639,12 @@ def cliente_merge(
         source_id_list = [int(s) for s in source_ids.split(",") if s.strip()]
     except ValueError:
         return RedirectResponse(
-            url="/clientes/duplicados?flash=IDs+inv%C3%A1lidos",
+            url="/clientes/duplicados?flash=customer_invalid_ids",
             status_code=303,
         )
     if not source_id_list:
         return RedirectResponse(
-            url="/clientes/duplicados?flash=No+se+seleccionaron+duplicados",
+            url="/clientes/duplicados?flash=customer_no_duplicates_selected",
             status_code=303,
         )
 
@@ -1683,8 +1681,10 @@ def cliente_merge(
     )
     session.commit()
 
-    flash = f"Se+fusionaron+{len(result.sources_merged)}+clientes+en+1"
-    return RedirectResponse(url=f"/clientes?flash={flash}", status_code=303)
+    return RedirectResponse(
+        url=f"/clientes?flash=customers_merged:{len(result.sources_merged)}",
+        status_code=303,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────

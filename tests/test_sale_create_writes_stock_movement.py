@@ -68,7 +68,7 @@ def _seed_simple(session_factory):
         return product.id
 
 
-def test_sale_create_writes_stock_movement_row(client, session_factory):
+def test_sale_create_writes_stock_movement_row(client_with_caja, session_factory):
     """POST /ventas/nueva → at least one StockMovement row written.
 
     Verifies:
@@ -78,6 +78,7 @@ def test_sale_create_writes_stock_movement_row(client, session_factory):
       - The row's movement_type is "sale"
       - The row's qty is negative (decrement, not increment)
     """
+    client = client_with_caja  # SASKIA-MIG-2: open caja required for cash sales
     from app.rms.models import Sale, StockMovement
 
     product_id = _seed_simple(session_factory)
@@ -133,8 +134,9 @@ def test_sale_create_writes_stock_movement_row(client, session_factory):
             )
 
 
-def test_sale_create_writes_one_stock_movement_per_recipe_line(client, session_factory):
+def test_sale_create_writes_one_stock_movement_per_recipe_line(client_with_caja, session_factory):
     """POST /ventas/nueva for a 2-ingredient recipe → exactly 2 StockMovement rows."""
+    client = client_with_caja  # SASKIA-MIG-2: open caja required for cash sales
     from app.rms.models import StockMovement
 
     product_id = _seed_simple(session_factory)
@@ -166,7 +168,7 @@ def test_sale_create_writes_one_stock_movement_per_recipe_line(client, session_f
         )
 
 
-def test_sale_create_no_recipe_writes_no_stock_movement(client, session_factory):
+def test_sale_create_no_recipe_writes_no_stock_movement(client_with_caja, session_factory):
     """Product with no recipe: sale is saved, but no StockMovement row written.
 
     Documents the intentional behavior: a product with `recipe_id=None` is a
@@ -178,6 +180,7 @@ def test_sale_create_no_recipe_writes_no_stock_movement(client, session_factory)
     case is the documented exception. If you add StockMovement rows here,
     that breaks the contract.
     """
+    client = client_with_caja  # SASKIA-MIG-2: open caja required for cash sales
     from app.rms.models import Product, StockMovement
 
     with session_factory() as s:

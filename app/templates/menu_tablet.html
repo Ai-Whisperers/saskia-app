@@ -8,6 +8,7 @@
    No auth, no sidebar (the base template renders the logged-out
    chrome automatically because ``is_logged_in`` is False).#}
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
 {% block title %}{{ product.name }} — Menú{% endblock %}
 
@@ -19,6 +20,9 @@
   {# Header — shop brand + product name + portion #}
   <header class="menu-tablet__header">
     <h1 class="menu-tablet__shop"{%- if brand_color %} style="color: {{ brand_color }};"{% endif -%}>{{ shop_name }}</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
     <p class="menu-tablet__subtitle">Menú del día</p>
   </header>
 

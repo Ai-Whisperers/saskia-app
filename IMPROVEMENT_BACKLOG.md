@@ -6,18 +6,18 @@
 This file tracks every improvement opportunity surfaced across audits, all live in
 the code, and operator-ranked. Status is the latest known state.
 
-> **⚠ Stale since 2026-10-07.** P40 trio (quick-restock, load-template,
-> eod snapshot warmer) + held_sale + FloCafe reports + 6 of 13 anti-rules
-> in CI + atomic DDL + receipt oracle + date-boundary CI are not
-> represented here. See [`WHAT_NEXT.md`](WHAT_NEXT.md) for current
-> operator-facing priorities. Keep this file only for the historical
-> audit-driven Tier-1/Tier-2/Tier-3 list.
+> Backlog mostly shipped. Two open items remain: **#37** (Supabase
+> Storage for product images, M effort) and **#38** (Supabase RLS for
+> multi-tenant, L effort). Both deferred per SASKIA-210 until Sazón
+> has a second client. See [`WHAT_NEXT.md`](WHAT_NEXT.md) for the
+> current operator-facing priorities. Keep this file as the historical
+> audit-driven reference.
 
 ## Tier 1: P0 — Critical correctness (5 items)
 
 | # | Item | Status | Effort |
 |---|---|---|---|
-| 1 | Consolidate `sale_stock_move` + `stock_movement` (two parallel tables; 157 references; both written per sale — `SaleStockMove` is needed for `affected_recipe_id` (sub-recipe traceability) which `StockMovement` does not capture; full consolidation = add `affected_recipe_id` nullable column to `StockMovement` + backfill migration + drop `SaleStockMove`, ~50 files touched) | 🔶 In progress (costing.py documented as known dual-write 2026-10-01; full consolidation needs dedicated refactor session) | M |
+| 1 | Consolidate `sale_stock_move` + `stock_movement` | ✅ Done (migration 092 dropped `sale_stock_move` table 2026-10-02; `StockMovement.affected_recipe_id` added in migration 090; all writes via `costing.apply_sale` → `stock_ledger.apply_stock_delta`; `app/services/eod_anomaly.py:92`, `app/services/export_xlsx.py:308/433`, `app/services/demo_reset.py:64`, `app/seed/kyrian.py:125` all comment that the legacy table is gone) | — |
 | 2 | Add `pedido_sale_stock_move` link so pedido fulfillment is traceable back to specific stock moves | ✅ Done (migration 076 added `Sale.linked_pedido_id`; `pedido.detail` shows linked_sales via `select(SaleModel).where(linked_pedido_id == pedido.id)`; each sale has `.stock_moves` → full chain pedido→sales→stock_moves) | — |
 | 3 | Move INV-03 clamp from UI to DB: enforce `stock_qty >= 0` at DB level (the UI clamp hides raw negatives from analytics) | ✅ Done (migration 084 with INSERT/UPDATE triggers on SQLite + CheckConstraint on Postgres; trigger creation verified via init_db roundtrip — negative INSERT blocked with IntegrityError; `tests/test_stock_qty_nonneg.py` 6/6 passing — the prior autouse-fixture bug was resolved when the `conn` close/commit lifecycle was fixed in commit `c7317af`) | — |
 | 4 | Make migrations truly atomic (Postgres DDL auto-commits — `try/except: pass` on ALTER leaves partial state; detector added in `app/rms/db.py:_init_db_inner` that probes `schema_version` after a failed migration and raises RuntimeError on partial advance — 3 new tests pass; full atomicity requires per-statement SAVEPOINT wrapping, still open) | 🔶 In progress (full atomicity: `atomic_ddl_block(conn, [sqls])` helper re-imported at `app/rms/db.py:4073` wraps each DDL statement in its own SAVEPOINT on Postgres (no-op on SQLite); migration 081 migrated as proof-of-concept; AGENTS.md "Migration rules" section explains the rule for future migrations; 9 unit tests in `tests/test_atomic_ddl_block.py` cover SAVEPOINT order, partial-failure rollback, unique savepoint names, SQLite no-op, and original-error preservation. Remaining: convert the other 83 migrations to use the helper — multi-session refactor; helper now ships with the rest of the schema-version-bump infrastructure.) | S |
@@ -28,7 +28,7 @@ the code, and operator-ranked. Status is the latest known state.
 
 | # | Item | Status | Effort |
 |---|---|---|---|
-| 🔔 | **Flash-message unification** (2026-10-07 audit): 67 `flash=<free text>` + 6 `msg=` + 4 `error=` redirect params bypass the keyed `ui.flash_toast` system (only 10 templates include it). Plan: (1) extend the toast's message map with the free-text strings as keys, (2) route the 77 redirect sites to keys, (3) include `{{ ui.flash_toast(request) }}` in every base-extending template (127 total), (4) style `error=` as the error variant. Also drops the URL-encoding of Spanish text in redirects. | ⬜ Open | M |
+| 🔔 | **Flash-message unification** (BACKLOG Tier 2 closure) | ✅ Done `b7b45287` + `fc20287f` (2026-10-07/08) — 25 static + 13 parameterized keys added to `ui.flash_toast` macro; 77 free-text sites in 12 routers replaced; 105 templates updated with `{{ ui.flash_toast(request) }}`; 4 station/template keys added in sweep; 86 tests in `tests/test_flash_toast_unification.py` lock the contract. | — |
 
 | 7 | `void_sale` → all money math must use Decimal (12 sites swept this turn; flag for future audits) | ✅ Done 5ce2885 | — |
 | 8 | `pedidos_fulfill` idempotency (double-click → double sale + double stock drop) | ✅ Done 5ce2885 | — |

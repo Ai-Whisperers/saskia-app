@@ -12,8 +12,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-TEMPLATE = Path(__file__).parent.parent / "app" / "templates" / "produccion.html"
-SHORTCUTS = Path(__file__).parent.parent / "app" / "static" / "shortcuts.js"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+TEMPLATE = REPO_ROOT / "app" / "templates" / "produccion.html"
+SHORTCUTS = REPO_ROOT / "app" / "static" / "shortcuts.js"
 
 TEMPLATE_SRC = TEMPLATE.read_text(encoding="utf-8")
 SHORTCUTS_SRC = SHORTCUTS.read_text(encoding="utf-8")
@@ -118,8 +119,14 @@ def test_produccion_template_close_day_button_has_data_action():
 
 def test_produccion_template_hides_kbd_hint_on_mobile():
     """D.5 — kbd-hint must be hidden on touch / small viewports via CSS."""
-    # The CSS rule using @media + pointer:coarse
-    assert "kbd-hint" in TEMPLATE_SRC and "pointer: coarse" in TEMPLATE_SRC, (
+    # The kbd-hint element is in the template; the hide-on-touch rule
+    # lives in the global stylesheets (CSS deep-audit f65ce313 moved it
+    # out of the template's inline block).
+    assert "kbd-hint" in TEMPLATE_SRC, "D.5 — .kbd-hint element must exist"
+    css = (REPO_ROOT / "app" / "static" / "app-shell.css").read_text(encoding="utf-8") + (
+        REPO_ROOT / "app" / "static" / "app-improvements.css"
+    ).read_text(encoding="utf-8")
+    assert "kbd-hint" in css and "pointer: coarse" in css, (
         "D.5 — CSS must hide .kbd-hint on touch devices"
     )
 

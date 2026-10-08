@@ -5,6 +5,10 @@
 {{ ui.page_header("🏦 Movimientos bancarios", desc="Dutch EUR (JGHM VAN DER POL) + PY Guaraní (SASKIA WEISS VANDER)")
 }}
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
 <div class="kpi-strip">
   <ui-kpi-card label="EUR income" value="€{{ '{:,.2f}'.format(eur_income) }}" compact></ui-kpi-card>
   <ui-kpi-card label="EUR spent" value="€{{ '{:,.2f}'.format(eur_spent) }}" compact></ui-kpi-card>

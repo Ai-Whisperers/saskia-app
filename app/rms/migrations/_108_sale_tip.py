@@ -15,6 +15,8 @@ from typing import Any
 def _migration_108_sale_tip(conn: Any) -> None:
     """Add sale.tip_gs (propina por venta)."""
 
+    from app.rms.db import atomic_ddl_block
+
     def _column_exists() -> bool:
         if conn.dialect.name == "sqlite":
             row = conn.exec_driver_sql(
@@ -28,10 +30,7 @@ def _migration_108_sale_tip(conn: Any) -> None:
         return bool(row)
 
     if not _column_exists():
-        try:
-            conn.exec_driver_sql("ALTER TABLE sale ADD COLUMN tip_gs INTEGER NOT NULL DEFAULT 0")
-        except Exception:
-            pass
+        atomic_ddl_block(conn, ["ALTER TABLE sale ADD COLUMN tip_gs INTEGER NOT NULL DEFAULT 0"])
 
     # BACKLOG #4 (2026-10-02): always bump schema_version at the end.
     from app.rms.db import _bump_schema_version

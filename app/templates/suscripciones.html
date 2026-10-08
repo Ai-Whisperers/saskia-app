@@ -7,6 +7,9 @@
   <svg class="icon" aria-hidden="true"><use href="#icon-customer"/></svg>
   Suscripciones
 </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="hint">
   Pedidos recurrentes de clientes (ej.: <em>"1 kg de chipa cada sábado a las 9"</em>).
   Esta lista es de referencia: las suscripciones por sí solas <strong>no

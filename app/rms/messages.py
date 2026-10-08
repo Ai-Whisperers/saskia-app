@@ -72,6 +72,13 @@ SALE_INVALID_DATE = "Fecha de venta inválida."
 SALE_INVALID_PAYMENT_METHOD = "Forma de pago inválida."
 SALE_CUSTOMER_NOT_FOUND = "El cliente seleccionado no existe."
 SALE_RATE_LIMITED = "Demasiadas ventas en poco tiempo. Esperá un momento."
+# SASKIA-MIG-2: pre-shift session gate. Cash sales need an open arqueo
+# so the cierre-Z can compute expected = opening + efectivo del período.
+# Non-cash sales (QR, transferencia, fiado) are NOT blocked.
+SALE_CASH_SESSION_REQUIRED = (
+    "Para registrar ventas en efectivo necesitás abrir la caja. "
+    "Abrí la caja acá o cambiá el método de pago."
+)
 SALE_BODY_INVALID = "Cuerpo de petición inválido."
 SALE_TOO_MANY_ITEMS = "Máximo 50 ítems por venta."
 

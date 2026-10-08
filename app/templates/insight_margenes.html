@@ -4,6 +4,9 @@
 {% block title %}Márgenes{% endblock %}
 {% block content %}
 <h1>Deriva de márgenes</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">Precio de venta observado (primera vs última venta del período) contra el costo de receta actual. Márgenes que bajan = costo subiendo más rápido que el precio.</p>
 
 <form class="d-flex" method="get" action="/reportes/margenes" style="display:flex;gap:.5rem;align-items:center;margin-bottom:var(--space-3);">

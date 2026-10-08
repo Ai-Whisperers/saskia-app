@@ -114,8 +114,22 @@ def record_waste(
     session.add(log)
     # Decrement stock (avg-cost math below uses the PRE-move stock)
     old_stock = ing.stock_qty
-    new_stock = max(0.0, old_stock - qty_in_stock_unit)
-    ing.stock_qty = new_stock
+    # NOTE: do NOT assign ing.stock_qty here — apply_stock_delta() below is
+    # the single writer (SASKIA-207). Assigning here double-decremented
+    # (real bug: 50 g merma removed 0.1 kg). The max(0, ...) clamp that used
+    # to live here moved into the delta below so the ≥0 trigger still holds.
+    clamped_delta = -min(qty_in_stock_unit, max(old_stock or 0.0, 0.0))
+    # StockMovement audit record (negative qty = stock out)
+    apply_stock_delta(
+        session,
+        ing,
+        clamped_delta,
+        movement_type="merma",
+        reason=f"Merma: {reason.value}",
+        reference_id=log.id,
+        reference_type="waste_log",
+        created_by=recorded_by,
+    )
     # BACKLOG #13 (2026-10-02): keep ingredient.avg_cost_gs in sync with
     # the waste event using the moving-average formula:
     #   new_avg = ((old_avg * old_stock) - waste_cost) / new_stock
@@ -123,7 +137,8 @@ def record_waste(
     # (already denormalized in `cost_gs`). Falls back to NULL when
     # new_stock is zero (no basis to compute an average).
     old_avg = ing.avg_cost_gs
-    if new_stock > 0:
+    new_stock = ing.stock_qty  # set by apply_stock_delta() above
+    if new_stock and new_stock > 0:
         if old_avg is not None and old_stock > 0:
             numerator = (old_avg * old_stock) - cost_gs
             # Defensive: numerator shouldn't go negative (waste can't
@@ -137,17 +152,7 @@ def record_waste(
     else:
         # Stock fully depleted by this waste — no basis for an average.
         ing.avg_cost_gs = None
-    # StockMovement audit record (negative qty = stock out)
-    apply_stock_delta(
-        session,
-        ing,
-        -qty_in_stock_unit,
-        movement_type="merma",
-        reason=f"Merma: {reason.value}",
-        reference_id=log.id,
-        reference_type="waste_log",
-        created_by=recorded_by,
-    )
+
     session.flush()
     return log
 
@@ -342,14 +347,17 @@ def record_recipe_waste(
             source=source,  # PROD-MERMA-2 (Batch I)
         )
         session.add(log)
-        ing.stock_qty = max(0.0, (ing.stock_qty or 0) - qty)
+        # NOTE: do NOT assign ing.stock_qty here — apply_stock_delta() below
+        # is the single writer (SASKIA-207). The manual clamp+assign used to
+        # double-decrement (same bug class fixed in record_waste).
+        clamped_delta = -min(qty, max(ing.stock_qty or 0.0, 0.0))
         logs.append(log)
         total_cost += cost_gs
         # StockMovement audit record (negative qty = stock out)
         apply_stock_delta(
             session,
             ing,
-            -qty,
+            clamped_delta,
             movement_type="merma",
             reason=f"Merma receta '{recipe.name}': {reason.value}",
             reference_id=log.id,

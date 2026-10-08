@@ -8,6 +8,9 @@
 {% block content %}
 <h1>Cierre mensual — {{ close.period_label }}</h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">
   Período: {{ close.start.strftime("%d/%m/%Y") }} al {{ close.end.strftime("%d/%m/%Y") }} ·
   {{ close.total_sales }} ventas registradas
@@ -89,7 +92,7 @@
 <h2>Detalle por línea</h2>
 {{ ui.skeleton_section(id="cierre-detail", variant="line", count=8, label="Cargando detalle") }}
 <div data-loaded-section="cierre-detail">
-<table class="table is-striped is-hoverable">
+<table class="table is-striped is-hoverable sortable">
   <thead>
     <tr>
       <th>Línea</th>

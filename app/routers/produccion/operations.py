@@ -26,6 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import current_operator
+from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
 from app.rms.eod_completions import (
     close_day_for_product,

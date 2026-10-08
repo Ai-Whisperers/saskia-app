@@ -1,3 +1,41 @@
+## 2026-10-08b — SASKIA-MIG-1: full-bleed POS layout on /ventas (operator UX win)
+
+**User feedback**: *"our UI is not user friendly."* The operator's most-used screen (/ventas) was wrapped in the global sidebar+topbar, eating ~220px of horizontal real estate the POS couldn't use.
+
+**What changed**:
+- `app/templates/base.html`: adds `body--pos-fullbleed` class to `<body>` when `request.url.path == '/ventas'` (the cashier surface — `/ventas/historial` and `/ventas/express` are unaffected).
+- `app/static/app-shell.css`: new rules that hide the global sidebar, topbar, sidebar-backdrop, and mobile bottom-nav when `body--pos-fullbleed` is active, and reflow the grid to a single column (`main` over `footer`).
+- `app/templates/ventas.html`: new in-page POS topbar (`<nav class="pos-topbar">`) that replaces the hidden global chrome. Carries the brand mark + date, a Cmd+K search affordance, links to `/ventas/historial`, `/reportes`, and `/logout`.
+- `app/routers/sales.py`: resolved a pre-existing unresolved merge conflict in `ventas_express` (3 conflict blocks from an earlier rebase that was never completed). This was blocking `app.rms.main` from importing in some test environments. Picked the "Updated upstream" side per the project's ruff format gate.
+
+**Regression test**: `tests/test_SASKIA-MIG-1_pos_fullbleed.py` (10 tests) pins:
+- `/ventas` carries `body--pos-fullbleed`.
+- `/ventas` renders the in-page POS topbar with the right links + Cmd+K affordance.
+- `/ventas/historial`, `/ventas/express`, and non-POS pages (`/inicio`, `/reportes`, `/productos`, `/clientes`) do NOT carry `body--pos-fullbleed`.
+- POS topbar copy is vos-Spanish (no English leaks).
+
+**Why this is reversible**: the implementation hides the chrome with CSS (`display: none`) instead of removing the markup. Flipping the body class off restores the chrome without any template surgery.
+
+**Test status**: 238 ventas/POS/sale/money/units/migration/anti-rule tests pass with the changes.
+
+**No new dependencies**, no migrations, no new files in `app/rms/`. Pure UI layer.
+
+
+**Incident**: the 109→114 prod upgrade logged `MIGRATION v112 FAILED: OperationalError near "||" syntax error` yet the chain continued to v114 — leaving the four channel-CHECK triggers (from migrations 111/112) silently absent. Root cause, two layers deep:
+
+1. **SQLite compat**: `RAISE(ABORT, <expr>)` with a `||`-concatenated message requires **SQLite >= 3.47.0** (2024-10-21). The prod image ships **3.46.1** → `near "||": syntax error`. Dev machines run 3.53.x, so tests never caught it.
+2. **Fail-open runner**: `init_db` logged-and-continued past a failed migration, so v113/v114 applied on top of broken v112 — the gap became permanent and invisible.
+
+**Fixes**:
+- `_111`/`_112`: RAISE messages are now single string literals (work on every SQLite version). New `tests/test_SASKIA-318_sqlite_raise_compat.py` asserts no `||` in any RAISE, replays the full 1→114 chain on a fresh DB asserting all 4 channel triggers exist + enforce, and proves a failing migration now aborts `init_db` (fail-closed) instead of being skipped.
+- `db.py` runner: migration failure now **aborts init_db** (`raise`) — a chain must not skip a link. Recovery paths: rule-17 pre-migration backup + `sazon rollback` (SASKIA-209).
+- `tests/test_migration_partial_apply_detector.py` updated to the fail-closed contract (+ backup no-op so the unit test doesn't exercise the real backup path).
+- Stale specs updated: `test_static_content_audit.py` channel count 5→10 (SASKIA-204 extended set) and payment-method assertions now match the current seed catalog.
+- Orphan `app/rms/migrations/_098_customer_phone.py` deleted: recovered file was never registered in `MIGRATIONS` (98 → `_098_production_closed_day`), so it never ran via the chain; the `customer_phone` table it would create exists only on the drifted prod DB (2 rows, zero model/query consumers, not in `BACKUP_TABLES`). Its content stays in git history (`5c1e1b18`). Fixes the migration file-scan audits (bump + docstring + registry).
+- **Prod remediated in-place**: the 4 channel triggers were recreated directly on `/data/rms.sqlite` and verified enforcing (bogus channel INSERT aborts). Upgrade verified: schema 114, 1,535 sales + 58 products intact, `integrity_check ok`, `settings_kv` 23 rows, pre-upgrade backup `rms-pre-upgrade-109-to-114.sqlite` (3.0 MB) in `/data/backups/`.
+
+**Lesson**: an expression-capability DDL difference between dev/prod SQLite versions needs a CI guard — the full-chain replay test now covers it.
+
 ## 2026-10-07i — inventory valuation follows the variant-price SSOT (audit follow-up 2)
 
 **`stock_value_gs()`** (app/rms/inventory_intel.py) now prices ingredients via preferred-variant

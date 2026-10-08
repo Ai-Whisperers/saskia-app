@@ -10,7 +10,7 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from loguru import logger
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
@@ -288,6 +288,20 @@ def _compliance_alerts(session: Session) -> list[dict]:
 
 
 @router.get("/", response_class=HTMLResponse)
+async def home(request: Request) -> Response:
+    """Home = the chooser. Same page as /puesto.
+
+    The chooser is the navigation hub Kyrian made: it asks
+    "¿Qué vas a hacer?" and shows the station cards (Cocina,
+    Ventas, Inventario, Gerencia) plus a Dashboard card. The
+    owner picks what to do; staff are auto-redirected to their
+    pinned station by the gate middleware (decide()).
+    """
+    from app.routers.stations import puesto
+
+    return puesto(request)
+
+
 @router.get("/inicio", response_class=HTMLResponse)
 async def dashboard(
     request: Request,
@@ -297,17 +311,10 @@ async def dashboard(
     chart_preset: str = Query("30d", pattern="^(7d|30d|90d|current_month|last_month)$"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    # Gerencia has one landing page. The dense inicio screen stays for
-    # a session that has not picked a station.
-    try:
-        from app.rms.stations import canonical_station
-
-        if canonical_station(request.session.get("station")) == "gerencia":
-            from fastapi.responses import RedirectResponse
-
-            return RedirectResponse("/gerencia", status_code=303)
-    except Exception:  # noqa: S110 — station detection is best-effort; dashboard must render
-        pass
+    # Home page = old /inicio view: hero actions + actionable insights +
+    # day-band links into sub-pages. Shows for all stations (gerencia, ventas,
+    # produccion, etc) — the page itself tells the user what to do next.
+    # /gerencia remains a separate dense KPI view reachable from the nav.
     if period == "custom" and start and end:
         try:
             from datetime import datetime as dt_cls

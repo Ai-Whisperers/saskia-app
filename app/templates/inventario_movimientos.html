@@ -17,6 +17,9 @@
   Movimientos de stock
 </h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p>
   <strong>{{ fmt.entity_name(ingredient) }}</strong> —
   Stock actual: <span class="badge badge-ok">{{ "%.2f"|format(current_stock) }} {{ ingredient.unit }}</span>

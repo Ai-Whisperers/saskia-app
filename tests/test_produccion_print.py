@@ -9,6 +9,10 @@ paper.
 
 from __future__ import annotations
 
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 from datetime import date, timedelta
 
 
@@ -42,8 +46,12 @@ def test_print_view_renders_day_worksheet(authed_client):
     # Worksheet structure
     assert 'class="print-sheet"' in body, "print-sheet wrapper missing"
     assert "Imprimir" in body, "Print trigger button missing"
-    # @media print rules
-    assert "@media print" in body, "Print-specific CSS missing"
+    # @media print rules ship in the global stylesheets (CSS deep-audit
+    # f65ce313 moved them out of inline blocks)
+    css = (REPO_ROOT / "app" / "static" / "app.css").read_text(encoding="utf-8") + (
+        REPO_ROOT / "app" / "static" / "app-shell.css"
+    ).read_text(encoding="utf-8")
+    assert "@media print" in css, "Print-specific CSS missing"
     # Should have a products table OR an empty-state CTA
     assert "<table" in body or "Generá un plan" in body or "No hay productos" in body, (
         "Neither products table nor empty state found"
@@ -63,21 +71,20 @@ def test_print_view_includes_print_stylesheet_link(authed_client):
     """The print view (or base.html) must reference @media print rules."""
     r = authed_client.get("/produccion/print")
     assert r.status_code == 200
-    body = r.text
-    # Either inline @media print or a stylesheet with print rules
-    assert "@media print" in body or 'media="print"' in body or 'class="print-only"' in body, (
-        "Print stylesheet or @media print rules missing"
-    )
+    # Global stylesheets carry the @media print rules; the page loads them
+    css = (REPO_ROOT / "app" / "static" / "app.css").read_text(encoding="utf-8") + (
+        REPO_ROOT / "app" / "static" / "app-shell.css"
+    ).read_text(encoding="utf-8")
+    assert "@media print" in css, "Print stylesheet or @media print rules missing"
 
 
 def test_print_view_hides_chrome_on_print(authed_client):
     """@media print rules must hide nav, header, footer — show only the worksheet."""
     r = authed_client.get("/produccion/print")
     assert r.status_code == 200
-    body = r.text
     # Look for the standard "print: hide chrome" pattern
     # Either inline CSS or a separate stylesheet
-    assert "print" in body.lower(), "Print view should reference print-specific styles"
+    assert "print" in r.text.lower(), "Print view should reference print-specific styles"
 
 
 def test_print_view_button_on_day_view(authed_client):

@@ -91,7 +91,7 @@ def caja_abrir(
         detail={"opening_gs": sess.opening_gs},
     )
     session.commit()
-    return RedirectResponse("/caja?flash=caja_abierta", status_code=303)
+    return RedirectResponse("/caja?flash=caja_open", status_code=303)
 
 
 @router.post("/cerrar")
@@ -127,7 +127,7 @@ def caja_cerrar(
         },
     )
     session.commit()
-    return RedirectResponse(f"/caja?flash=caja_cerrada&zid={sess.id}", status_code=303)
+    return RedirectResponse(f"/caja?flash=caja_closed&zid={sess.id}", status_code=303)
 
 
 @router.get("/z/{session_id}", response_class=HTMLResponse)

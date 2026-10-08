@@ -7,6 +7,9 @@
 {% block content %}
 <h1>Historial de ventas</h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p>
   <a href="/ventas" class="btn btn-ghost">
     <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>

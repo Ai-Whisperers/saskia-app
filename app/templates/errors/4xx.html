@@ -6,6 +6,9 @@
   <div class="error-card card text-center">
     <div class="error-code">{{ status_code }}</div>
     <h1>{{ title }}</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
     <p class="text-muted">{{ message }}</p>
 
     {% if reason %}

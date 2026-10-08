@@ -3,6 +3,9 @@
 {% block title %}Afinidades{% endblock %}
 {% block content %}
 <h1>Afinidades de productos</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">Productos que se venden juntos (misma canasta: ventas dentro de 2 horas). Útil para combos y para el pedido sugerido.</p>
 
 {% if pairs %}

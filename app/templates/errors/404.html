@@ -6,6 +6,9 @@
   <div class="error-card card text-center">
     <div class="error-code">404</div>
     <h1>Página no encontrada</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
     <p class="text-muted">
       La ruta <code>{{ path }}</code> no existe o se movió.
     </p>

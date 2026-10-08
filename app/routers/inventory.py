@@ -1421,16 +1421,13 @@ def inventory_bulk_fill_to_2x_min(
 
     session.commit()
     if filled == 0:
-        flash = "ok:Todos los ingredientes ya están al menos a 2× el mínimo."
+        flash_key = "inventory_filled_already"
     else:
-        flash = (
-            f"ok:Llenado a 2× min: {filled} ingrediente(s) "
-            f"actualizado(s), +{total_delta:g} unidades."
-        )
-        if skipped_no_min:
-            flash += f" ({skipped_no_min} sin mínimo definido — no tocados.)"
+        # Param: filled, total_delta (formatted), skipped_no_min
+        delta_str = f"{total_delta:g}"
+        flash_key = f"inventory_filled:{filled}:{delta_str}:{skipped_no_min}"
     return RedirectResponse(
-        url=f"/inventario?flash={flash.replace(' ', '%20')}",
+        url=f"/inventario?flash={flash_key}",
         status_code=303,
     )
 

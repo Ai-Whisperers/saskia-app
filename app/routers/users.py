@@ -93,7 +93,7 @@ def users_create(
 
     if len(clean_password) < 6:
         return RedirectResponse(
-            url="/users?flash=La+contraseña+debe+tener+al+menos+6+caracteres",
+            url="/users?flash=user_password_too_short",
             status_code=303,
         )
 
@@ -103,7 +103,7 @@ def users_create(
     existing = session.query(User).filter(User.username == clean_username).first()
     if existing:
         return RedirectResponse(
-            url="/users?flash=El+nombre+de+usuario+ya+existe",
+            url="/users?flash=user_duplicate",
             status_code=303,
         )
 
@@ -123,7 +123,7 @@ def users_create(
     )
     session.commit()
 
-    return RedirectResponse(url="/users?flash=Usuario+creado", status_code=303)
+    return RedirectResponse(url="/users?flash=user_created", status_code=303)
 
 
 @router.post("/{user_id}/editar", response_class=RedirectResponse)
@@ -150,7 +150,7 @@ def users_edit(
     user = session.get(User, user_id)
 
     if user is None:
-        return RedirectResponse(url="/users?flash=Usuario+no+encontrado", status_code=303)
+        return RedirectResponse(url="/users?flash=user_not_found", status_code=303)
 
     # Check username uniqueness (excluding self)
     existing = (
@@ -163,7 +163,7 @@ def users_edit(
     )
     if existing:
         return RedirectResponse(
-            url="/users?flash=El+nombre+de+usuario+ya+existe",
+            url="/users?flash=user_duplicate",
             status_code=303,
         )
 
@@ -174,7 +174,7 @@ def users_edit(
     if new_password:
         if len(new_password) < 6:
             return RedirectResponse(
-                url="/users?flash=La+contraseña+debe+tener+al+menos+6+caracteres",
+                url="/users?flash=user_password_too_short",
                 status_code=303,
             )
         user.password_hash = hash_password(new_password)
@@ -198,7 +198,7 @@ def users_edit(
     )
     session.commit()
 
-    return RedirectResponse(url="/users?flash=Usuario+actualizado", status_code=303)
+    return RedirectResponse(url="/users?flash=user_updated", status_code=303)
 
 
 @router.post("/{user_id}/eliminar", response_class=RedirectResponse)
@@ -214,12 +214,12 @@ def users_delete(
     user = session.get(User, user_id)
 
     if user is None:
-        return RedirectResponse(url="/users?flash=Usuario+no+encontrado", status_code=303)
+        return RedirectResponse(url="/users?flash=user_not_found", status_code=303)
 
     current_uid = current_user_id(request)
     if user.id == current_uid:
         return RedirectResponse(
-            url="/users?flash=No+puedes+eliminarte+a+ti+mismo",
+            url="/users?flash=user_cannot_delete_self",
             status_code=303,
         )
 
@@ -233,7 +233,7 @@ def users_delete(
     )
     session.commit()
 
-    return RedirectResponse(url="/users?flash=Usuario+eliminado", status_code=303)
+    return RedirectResponse(url="/users?flash=user_deleted", status_code=303)
 
 
 @router.get("/api/roles", response_class=JSONResponse)

@@ -17,6 +17,7 @@
   {%- endif -%}
 {%-endmacro %}
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% block title %}Plan de preparación — semana del {{ week_start }}{% endblock %}
 
 {% block content %}
@@ -26,6 +27,9 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
       Plan de preparación semanal
     </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
     <p class="hint mt-1-only" >
       Semana del <strong>{{ week_start }}</strong>
     </p>

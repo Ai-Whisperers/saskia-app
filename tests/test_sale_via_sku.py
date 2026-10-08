@@ -42,11 +42,12 @@ def test_sale_via_sku_no_sku_param(client):
     assert resp.status_code == 422
 
 
-def test_post_sale_accepts_sku(client, session_factory):
+def test_post_sale_accepts_sku(client_with_caja, session_factory):
     """POST /ventas/nueva with sku= field looks up product automatically.
 
     This is the cashier flow: scan → POST with sku → sale created.
     """
+    client = client_with_caja  # SASKIA-MIG-2: open caja required for cash sales
     from app.rms.models import Product
 
     with session_factory() as s:

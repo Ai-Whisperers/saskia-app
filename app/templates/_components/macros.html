@@ -255,3 +255,64 @@ Asunción local TZ.
   {% if extra_params %}{{ extra_params|safe }}{% endif %}
 </form>
 {%- endmacro %}
+
+{% macro insights_nav(current) -%}
+{%- set insights = [
+  ("demand",      "Demanda",      "/reportes/demanda"),
+  ("food_cost",   "Costo ↔ Real", "/reportes/food-cost"),
+  ("freshness",   "Frescura",     "/reportes/frescura"),
+  ("margenes",    "Márgenes",     "/reportes/margenes"),
+  ("price_impact","Impacto $",    "/reportes/impacto-precio"),
+  ("stock",       "Rotación",     "/reportes/stock"),
+  ("afinidades",  "Afinidades",   "/reportes/afinidades"),
+] -%}
+<nav class="insights-nav" aria-label="Insights">
+  {%- for key, label, href in insights %}
+  <a href="{{ href }}" class="insights-nav__link{% if key == current %} insights-nav__link--active{% endif %}"{% if key == current %} aria-current="page"{% endif %}>{{ label }}</a>
+  {%- endfor %}
+</nav>
+{%- endmacro %}
+
+{% macro static_combo(name, options, value=None, label=None, placeholder='Elegí…', id=None, required=False) -%}
+{%- set src = [] -%}
+{%- for opt in options -%}
+  {%- if opt is mapping -%}
+    {%- set _ = src.append({'value': opt.value, 'label': opt.label}) -%}
+  {%- else -%}
+    {%- set _ = src.append({'value': opt[0], 'label': opt[1]}) -%}
+  {%- endif -%}
+{%- endfor -%}
+<saskia-combo
+  {% if id %}id="{{ id }}"{% endif %}
+  name="{{ name }}"
+  {% if value is not none %}value="{{ value }}"{% endif %}
+  {% if label %}display="{{ label }}"{% endif %}
+  src='{{ src | tojson }}'
+  placeholder="{{ placeholder }}"
+  {% if required %}required{% endif %}
+  aria-label="{{ label or name }}">
+</saskia-combo>
+{%- endmacro %}
+
+{% macro form_help(text, kind="info", id=None, icon=None, inline=False) -%}
+<small class="form-help form-help--{{ kind }}{% if inline %} form-help--inline{% endif %}"
+       {% if id %}id="{{ id }}"{% endif %}>
+  {%- if icon %}
+  <svg class="form-help__icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+  {%- endif %}
+  {{ text }}
+</small>
+{%- endmacro %}
+
+{% macro field_label(text, required=False, optional=False) -%}
+<label class="form-label{% if required %} form-label--required{% elif optional %} form-label--optional{% endif %}">
+  {{ text }}
+</label>
+{%- endmacro %}
+
+{% macro char_counter(name, max, current=0) -%}
+<div class="form-counter" data-counter-for="{{ name }}" data-counter-max="{{ max }}">
+  <span class="form-counter__text">Máx. {{ max }} caracteres</span>
+  <span class="form-counter__count">{{ current }}/{{ max }}</span>
+</div>
+{%- endmacro %}

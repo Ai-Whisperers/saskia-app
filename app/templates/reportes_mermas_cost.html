@@ -6,6 +6,9 @@
   <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
   Costo de mermas por ingrediente
 </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="hint">
   Ranking de ingredientes por costo total de mermas en los últimos
   <strong>{{ days }}</strong> días. Útil para detectar fugas de dinero

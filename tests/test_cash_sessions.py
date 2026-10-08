@@ -102,24 +102,49 @@ def test_double_open_rejected(session_factory, _seed):
         db.close()
 
 
-def test_cash_sales_count_via_sale_payment(authed_client, session_factory, _seed):
+def test_cash_sales_count_via_sale_payment(client, session_factory, _seed):
+    # SASKIA-MIG-2: this test predates the cash-session gate. It tests
+    # that ventas in a CLOSED session do NOT carry over to a NEW
+    # session's expected_gs. The fixture's CSRF post-hook handles
+    # token injection (per conftest.py).
     from app.rms import cash
+
+    # Open the fixture-managed caja manually (opened_by="c" so the
+    # fixture's teardown — keyed on opened_by="test-fixture" — leaves
+    # it alone; we close it ourselves below).
+    db = _svc_session(session_factory)
+    try:
+        cash.open_session(db, opening_gs=0, opened_by="c")
+        db.commit()
+    finally:
+        db.close()
 
     # 2 ventas en efectivo de 10000 c/u
     for _ in range(2):
-        r = authed_client.post(
+        r = client.post(
             "/ventas/nueva/multi",
             json={"items": [{"product_id": _seed["pid"], "qty": 1}], "payment_method": "efectivo"},
             follow_redirects=False,
         )
         assert r.status_code == 303, r.text[:200]
     # 1 venta con QR — NO cuenta para caja
-    r = authed_client.post(
+    r = client.post(
         "/ventas/nueva/multi",
         json={"items": [{"product_id": _seed["pid"], "qty": 1}], "payment_method": "qr"},
         follow_redirects=False,
     )
     assert r.status_code == 303
+
+    # Close the existing session so we can open a fresh one for the
+    # boundary check.
+    db = _svc_session(session_factory)
+    try:
+        open_sess = cash.get_open_session(db)
+        if open_sess is not None:
+            cash.close_session(db, counted_gs=open_sess.opening_gs, closed_by="c")
+            db.commit()
+    finally:
+        db.close()
 
     db = _svc_session(session_factory)
     try:

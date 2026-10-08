@@ -24,6 +24,11 @@ NAV_GROUPS: list[tuple[str, list[dict]]] = [
         [
             {"route": "/", "label": "Inicio", "icon": "icon-home", "exact": True},
             {"route": "/ventas", "label": "Ventas", "icon": "icon-sale"},
+            # SASKIA-MIG-2: pre-shift session gate. /caja was orphaned
+            # (no sidebar entry) — without it the cashier had no path
+            # to open the arqueo de caja X/Z that /ventas depends on.
+            # Placed in the same group as Ventas (operator daily flow).
+            {"route": "/caja", "label": "Caja", "icon": "icon-cash"},
             {"route": "/pedidos", "label": "Pedidos", "icon": "icon-box"},
             {"route": "/produccion", "label": "Producción", "icon": "icon-production"},
             # /produccion/manana is intentionally NOT in the sidebar — surfaced as a
@@ -57,11 +62,10 @@ NAV_GROUPS: list[tuple[str, list[dict]]] = [
         ],
     ),
     (
-        "Finanzas",
+        "Análisis y Reportes",
         [
             {"route": "/reportes", "label": "Reportes", "icon": "icon-report"},
             {"route": "/analisis", "label": "Análisis", "icon": "icon-chart"},
-            {"route": "/dashboard", "label": "KPIs mensuales", "icon": "icon-report", "sub": True},
             {"route": "/pricing", "label": "Precios por canal", "icon": "icon-tag", "sub": True},
             {
                 "route": "/vs-mercado",
@@ -69,6 +73,17 @@ NAV_GROUPS: list[tuple[str, list[dict]]] = [
                 "icon": "icon-tag",
                 "sub": True,
             },
+        ],
+    ),
+    (
+        "Dashboard",
+        [
+            {"route": "/dashboard", "label": "KPIs mensuales", "icon": "icon-report"},
+        ],
+    ),
+    (
+        "Finanzas",
+        [
             {"route": "/bank", "label": "Banco", "icon": "icon-bank"},
             {"route": "/riesgos", "label": "Riesgos", "icon": "icon-warn"},
         ],

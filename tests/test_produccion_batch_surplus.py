@@ -113,11 +113,21 @@ def test_template_has_surplus_column_header():
 
 
 def test_template_renders_surplus_pill_with_color_codes():
-    """B.9 — Pills must use color-coded classes (low/med/high)."""
+    """B.9 — Pills must use color-coded tier classes (low/med/high).
+
+    Class naming evolved to `surplus-pill surplus-tier-<low|med|high>` with the
+    tier computed in the template (B.9 v2); the CSS lives in app-improvements.css.
+    """
     assert "surplus-pill" in TEMPLATE_SRC, "B.9 — pill must have class='surplus-pill'"
-    assert "surplus-high" in TEMPLATE_SRC, "B.9 — pill must use surplus-high class for ≥30% surplus"
-    assert "surplus-med" in TEMPLATE_SRC, "B.9 — pill must use surplus-med class for 10-29% surplus"
-    assert "surplus-low" in TEMPLATE_SRC, "B.9 — pill must use surplus-low class for 1-9% surplus"
+    assert "tier-high" in TEMPLATE_SRC, "B.9 — pill must use tier-high class for big surplus"
+    assert "tier-med" in TEMPLATE_SRC, "B.9 — pill must use tier-med class for medium surplus"
+    assert "tier-low" in TEMPLATE_SRC, "B.9 — pill must use tier-low class for small surplus"
+    css_src = (Path(__file__).parent.parent / "app" / "static" / "app-improvements.css").read_text(
+        encoding="utf-8"
+    )
+    assert ".surplus-pill.surplus-tier-high" in css_src, (
+        "B.9 — app-improvements.css must color the tier-high pill"
+    )
 
 
 def test_template_renders_exacto_indicator():
@@ -145,6 +155,14 @@ def test_template_surplus_pill_includes_pct_in_title():
 
 
 def test_template_surplus_pill_print_styles():
-    """B.9 — Surplus pills must remain visible (with bordered style) on print."""
-    assert ".surplus-pill" in TEMPLATE_SRC, "B.9 — CSS rules for surplus-pill must exist"
-    assert "@media print" in TEMPLATE_SRC, "B.9 — print media query must adjust surplus-pill colors"
+    """B.9 — Surplus pills must remain visible (with bordered style) on print.
+
+    CSS-deep-audit (f65ce313) moved pill styles from the inline <style> block
+    to app/static/app-improvements.css; the contract is that the rules exist
+    in a stylesheet the template loads.
+    """
+    css_src = (Path(__file__).parent.parent / "app" / "static" / "app-improvements.css").read_text(
+        encoding="utf-8"
+    )
+    assert ".surplus-pill" in css_src, "B.9 — CSS rules for surplus-pill must exist"
+    assert "@media print" in css_src, "B.9 — print media query must adjust surplus-pill colors"

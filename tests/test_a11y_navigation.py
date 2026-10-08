@@ -48,14 +48,14 @@ def test_healthz_nav_link_not_api(client):
     assert 'href="/healthz"' in resp.text
 
 
-def test_aria_current_on_inicio(client):
-    """On /, the Inicio link should be marked current."""
+def test_home_is_chooser(client):
+    """/ is the chooser (the navigation hub). It asks ¿Qué vas a hacer?
+    and shows the four station cards plus Dashboard."""
     resp = client.get("/")
-    # The Inicio <a> should contain aria-current="page" anywhere in the tag
-    import re
-
-    m = re.search(r'<a href="/"[^>]*aria-current="page"[^>]*>.*?Inicio</a>', resp.text, re.DOTALL)
-    assert m is not None, "Inicio link not marked aria-current=page on /"
+    assert resp.status_code == 200
+    for label in ("Cocina", "Ventas", "Inventario", "Gerencia", "Dashboard"):
+        assert label in resp.text, f"{label} card missing from home chooser"
+    assert "¿Qué vas a hacer?" in resp.text
 
 
 def test_aria_current_on_productos(client):

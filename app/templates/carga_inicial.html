@@ -1,9 +1,13 @@
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 
 {% block title %}Carga inicial de inventario — Sazón{% endblock %}
 
 {% block content %}
 <h1 style="margin-bottom:.5rem">Carga inicial de inventario</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="muted mb-6" >
   {{ pendientes|length }} ingredientes nunca tuvieron stock cargado. Poné la
   cantidad real que hay hoy en la cocina (podés dejar vacío lo que quieras

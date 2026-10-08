@@ -1,7 +1,11 @@
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% block title %}Fiado · {{ cust.name }}{% endblock %}
 {% block content %}
 <h1>{{ cust.name }}</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p style="font-size:1.6rem;">
   Saldo: <strong style="color:{% if saldo > 0 %}var(--destructive,#b91c1c){% else %}var(--success,#15803d){% endif %};">
   {{ m.gs_full(saldo) }}</strong>

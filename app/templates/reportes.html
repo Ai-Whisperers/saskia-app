@@ -7,6 +7,9 @@
   Reportes
 </h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">Reportes financieros y operativos. Cada reporte tiene un botón de exporte PDF y filtros por fecha.</p>
 
 {{ ui.skeleton_section(id="reportes-index", variant="card", count=8, label="Cargando índice de reportes") }}

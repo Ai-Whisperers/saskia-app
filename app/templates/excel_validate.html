@@ -7,6 +7,9 @@
   Validación de import — {{ filename }}
 </h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted mb-4">Modo: <code>{{ mode }}</code>. Esto es una vista previa — no se escribió nada en la base de datos.</p>
 
 {% if has_errors %}

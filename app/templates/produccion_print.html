@@ -4,6 +4,7 @@
    ad-hoc form. The base.html + this template's @media print rules
    hide the navigation chrome when printing. #}
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 
 {% block title %}Producción {{ for_date }} — Para imprimir{% endblock %}
 
@@ -14,6 +15,9 @@
 {% block content %}
 <div class="print-sheet">
   <h1>📋 Producción — Plan del día</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
   <p class="date">
     <strong>{{ for_date }}</strong>
     {# T-2026-10-04 (D.4): print-pack header now shows ISO week

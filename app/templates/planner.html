@@ -5,6 +5,9 @@
 {% block content %}
 <div class="page-header">
   <h1><svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>  Plan manual de producción</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
   <p class="muted">Elegí receta + cantidad de tandas y calculamos cuánto necesitás cocinar — y qué ingredientes faltan</p>
   <p><a href="/produccion">← Volver a Producción</a></p>
 </div>

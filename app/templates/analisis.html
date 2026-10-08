@@ -6,6 +6,9 @@
 {% block content %}
 <h1>Análisis <small class="text-muted" style="font-size:var(--text-sm);font-weight:400;">· los últimos 30–90 días</small></h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 {# ── Food Cost Semáforo (C4) ───────────────────────────────────── #}
 {% set actual_pct = insights.food_cost.actual_food_cost_pct %}
 {% set theoretical_pct = insights.food_cost.theoretical_food_cost_pct %}

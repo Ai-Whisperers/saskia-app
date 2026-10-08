@@ -294,7 +294,7 @@ def eod_check_save(
 
     if not escritorio_writes_desk(request.session.get("station")):
         return RedirectResponse(
-            url="/eod?flash=Esas+casillas+se+guardan+en+Gerencia",
+            url="/eod?flash=eod_wrong_station_gerencia",
             status_code=303,
         )
 
@@ -329,7 +329,7 @@ def eod_check_save(
         except IntegrityError:
             session.rollback()
             return RedirectResponse(
-                url="/eod?flash=cierre_duplicado",
+                url="/eod?flash=eod_duplicate",
                 status_code=303,
             )
 
@@ -421,7 +421,7 @@ def eod_check_save(
             _logger.warning("Backup after EOD close failed: {}", exc)
 
     session.commit()
-    return RedirectResponse(url="/eod?flash=Cierre+guardado", status_code=303)
+    return RedirectResponse(url="/eod?flash=eod_saved", status_code=303)
 
 
 @router.post("/completar")
@@ -442,7 +442,7 @@ def eod_completar(
 
     if not cocina_writes_pieces(request.session.get("station")):
         return RedirectResponse(
-            url="/eod?flash=Las+piezas+se+anotan+en+Cocina",
+            url="/eod?flash=eod_wrong_station_cocina",
             status_code=303,
         )
 

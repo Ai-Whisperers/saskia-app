@@ -62,8 +62,8 @@
   --color-text-subtle: #929dab;
   --color-text-inverse: #171b21;
   --color-text-link: #f2ac6e;
-  --color-border: rgba(240, 242, 245, 0.08);
-  --color-border-strong: rgba(240, 242, 245, 0.14);
+  --color-border: #343e4b;
+  --color-border-strong: #3e4a59;
   --color-border-focus: #e99a52;
   --color-accent: #e99a52;
   --color-accent-hover: #f2ac6e;
@@ -103,8 +103,8 @@
     --color-text-subtle: #929dab;
     --color-text-inverse: #171b21;
     --color-text-link: #f2ac6e;
-    --color-border: rgba(240, 242, 245, 0.08);
-    --color-border-strong: rgba(240, 242, 245, 0.14);
+    --color-border: #343e4b;
+    --color-border-strong: #3e4a59;
     --color-border-focus: #e99a52;
     --color-accent: #e99a52;
     --color-accent-hover: #f2ac6e;

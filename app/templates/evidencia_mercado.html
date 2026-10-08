@@ -5,6 +5,10 @@
 {{ ui.page_header("🔍 Evidencia de mercado", desc="Precios observados de la competencia (research sazon-market-intel, corte 2026-09-30) — rangos por familia, cada punto con fuente y fecha")
 }}
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
 <div class="mb-3" style="margin-bottom:var(--space-3);display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
   <span class="text-muted text-sm" >{{ total }} observaciones</span>
   <a href="/vs-mercado/evidencia.csv" class="btn btn-sm" download="evidencia-mercado.csv">📥 CSV</a>

@@ -4,6 +4,9 @@
 {% block content %}
 <h1>Estado operativo</h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="hint">Vista rápida para identificar problemas. Si algo
   parece roto abajo, abrir <code>/healthz/errors</code> + filtrar
   <code>action_filter=http.500</code> en <a href="/auditoria">/auditoria</a>.

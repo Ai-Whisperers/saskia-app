@@ -2,6 +2,9 @@
 {% import "_components/atoms.html" as ui %}
 {% block title %}Lista de Compras · Sazón{% endblock %}
 {% block content %}
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 {{ ui.page_header("🛒 Lista de Compras", desc="Lo que necesito comprar para la operación")
 }}
 

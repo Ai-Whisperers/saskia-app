@@ -9,6 +9,9 @@
   Top productos
 </h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">Ranking de productos por ingresos en el período seleccionado.</p>
 
 <form method="get" action="/reportes/top-productos" class="form mb-4">

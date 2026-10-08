@@ -2,6 +2,9 @@
 {% import "_components/atoms.html" as ui %}
 {% block title %}Lista de deseos · Sazón{% endblock %}
 {% block content %}
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 {{ ui.page_header("🏪 Lista de deseos — equipamiento", desc="Lista priorizada para arrancar y escalar la panadería")
 }}
 

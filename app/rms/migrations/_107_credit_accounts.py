@@ -13,11 +13,15 @@ from typing import Any
 
 def _migration_107_credit_accounts(conn: Any) -> None:
     """Create credit_account + credit_transaction (fiado ledger)."""
+
+    from app.rms.db import atomic_ddl_block
+
     is_postgres = conn.dialect.name == "postgresql"
     pk = "SERIAL" if is_postgres else "INTEGER"
     ts = "TIMESTAMP" if is_postgres else "DATETIME"
-    try:
-        conn.exec_driver_sql(
+    atomic_ddl_block(
+        conn,
+        [
             f"""
             CREATE TABLE IF NOT EXISTS credit_account (
                 id {pk} NOT NULL PRIMARY KEY,
@@ -28,11 +32,11 @@ def _migration_107_credit_accounts(conn: Any) -> None:
                 updated_at {ts}
             )
             """
-        )
-    except Exception:
-        pass
-    try:
-        conn.exec_driver_sql(
+        ],
+    )
+    atomic_ddl_block(
+        conn,
+        [
             f"""
             CREATE TABLE IF NOT EXISTS credit_transaction (
                 id {pk} NOT NULL PRIMARY KEY,
@@ -46,23 +50,22 @@ def _migration_107_credit_accounts(conn: Any) -> None:
                 created_by VARCHAR(120)
             )
             """
-        )
-    except Exception:
-        pass
-    try:
-        conn.exec_driver_sql(
+        ],
+    )
+    atomic_ddl_block(
+        conn,
+        [
             "CREATE INDEX IF NOT EXISTS ix_credit_transaction_account_ts "
             "ON credit_transaction (account_id, ts)"
-        )
-    except Exception:
-        pass
-    try:
-        conn.exec_driver_sql(
+        ],
+    )
+    atomic_ddl_block(
+        conn,
+        [
             "CREATE INDEX IF NOT EXISTS ix_credit_transaction_sale_id "
             "ON credit_transaction (sale_id)"
-        )
-    except Exception:
-        pass
+        ],
+    )
 
     # BACKLOG #4 (2026-10-02): always bump schema_version at the end.
     from app.rms.db import _bump_schema_version

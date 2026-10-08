@@ -3589,22 +3589,26 @@ def _migration_076_sale_linked_pedido_id(conn: Any) -> None:
 
     try:
         if dialect == "sqlite":
-            conn.exec_driver_sql(
-                "ALTER TABLE sale ADD COLUMN linked_pedido_id INTEGER "
-                "REFERENCES pedido(id) ON DELETE SET NULL"
+            atomic_ddl_block(
+                conn,
+                [
+                    "ALTER TABLE sale ADD COLUMN linked_pedido_id INTEGER REFERENCES pedido(id) ON DELETE SET NULL"
+                ],
             )
         else:  # postgres
-            conn.exec_driver_sql(
-                "ALTER TABLE sale ADD COLUMN IF NOT EXISTS linked_pedido_id INTEGER "
-                "REFERENCES pedido(id) ON DELETE SET NULL"
+            atomic_ddl_block(
+                conn,
+                [
+                    "ALTER TABLE sale ADD COLUMN IF NOT EXISTS linked_pedido_id INTEGER REFERENCES pedido(id) ON DELETE SET NULL"
+                ],
             )
     except Exception as exc:
         # Column already exists (re-run after partial apply)
         logger.debug("migration 076 ADD COLUMN skipped: %s", exc)
 
     try:
-        conn.exec_driver_sql(
-            "CREATE INDEX IF NOT EXISTS ix_sale_linked_pedido_id ON sale (linked_pedido_id)"
+        atomic_ddl_block(
+            conn, ["CREATE INDEX IF NOT EXISTS ix_sale_linked_pedido_id ON sale (linked_pedido_id)"]
         )
     except Exception as exc:
         logger.debug("migration 076 CREATE INDEX skipped: %s", exc)
@@ -3613,16 +3617,18 @@ def _migration_076_sale_linked_pedido_id(conn: Any) -> None:
     # Most legacy sales won't be touched (they were POS-driven, no pedido).
     try:
         if dialect == "sqlite":
-            conn.exec_driver_sql(
-                "UPDATE sale SET linked_pedido_id = ("
-                "SELECT p.id FROM pedido p WHERE p.fulfilled_sale_id = sale.id"
-                ") WHERE linked_pedido_id IS NULL"
+            atomic_ddl_block(
+                conn,
+                [
+                    "UPDATE sale SET linked_pedido_id = (SELECT p.id FROM pedido p WHERE p.fulfilled_sale_id = sale.id) WHERE linked_pedido_id IS NULL"
+                ],
             )
         else:  # postgres — same SQL works
-            conn.exec_driver_sql(
-                "UPDATE sale SET linked_pedido_id = p.id "
-                "FROM pedido p WHERE p.fulfilled_sale_id = sale.id "
-                "AND sale.linked_pedido_id IS NULL"
+            atomic_ddl_block(
+                conn,
+                [
+                    "UPDATE sale SET linked_pedido_id = p.id FROM pedido p WHERE p.fulfilled_sale_id = sale.id AND sale.linked_pedido_id IS NULL"
+                ],
             )
     except Exception as exc:
         logger.debug("migration 076 backfill skipped: %s", exc)
@@ -3683,7 +3689,7 @@ def _migration_077_pedido_event_log(conn: Any) -> None:
         """
 
     try:
-        conn.exec_driver_sql(create_sql)
+        atomic_ddl_block(conn, [create_sql])
     except Exception as exc:
         logger.debug("migration 077 CREATE TABLE pedido_event skipped: %s", exc)
 
@@ -3694,7 +3700,7 @@ def _migration_077_pedido_event_log(conn: Any) -> None:
         "CREATE INDEX IF NOT EXISTS ix_pedido_event_pedido_ts ON pedido_event (pedido_id, ts)",
     ):
         try:
-            conn.exec_driver_sql(idx_sql)
+            atomic_ddl_block(conn, [idx_sql])
         except Exception as exc:
             logger.debug("migration 077 index skipped: %s", exc)
 
@@ -3771,7 +3777,7 @@ def _migration_078_communication_log(conn: Any) -> None:
         """
 
     try:
-        conn.exec_driver_sql(create_sql)
+        atomic_ddl_block(conn, [create_sql])
     except Exception as exc:
         logger.debug("migration 078 CREATE TABLE communication_log skipped: %s", exc)
 
@@ -3785,7 +3791,7 @@ def _migration_078_communication_log(conn: Any) -> None:
         "CREATE INDEX IF NOT EXISTS ix_communication_log_status_ts ON communication_log (status, ts_sent)",
     ):
         try:
-            conn.exec_driver_sql(idx_sql)
+            atomic_ddl_block(conn, [idx_sql])
         except Exception as exc:
             logger.debug("migration 078 index skipped: %s", exc)
 
@@ -3851,7 +3857,7 @@ def _migration_079_customer_address_structured(conn: Any) -> None:
 
     for sql in add_columns_sql:
         try:
-            conn.exec_driver_sql(sql)
+            atomic_ddl_block(conn, [sql])
         except Exception as exc:
             logger.debug("migration 079 ADD COLUMN skipped: %s", exc)
 
@@ -3933,7 +3939,7 @@ def _migration_080_customer_invoice_profile(conn: Any) -> None:
         """
 
     try:
-        conn.exec_driver_sql(create_sql)
+        atomic_ddl_block(conn, [create_sql])
     except Exception as exc:
         logger.debug("migration 080 CREATE TABLE customer_invoice_profile skipped: %s", exc)
 
@@ -3946,7 +3952,7 @@ def _migration_080_customer_invoice_profile(conn: Any) -> None:
         "ON customer_invoice_profile (customer_id, is_default)",
     ):
         try:
-            conn.exec_driver_sql(idx_sql)
+            atomic_ddl_block(conn, [idx_sql])
         except Exception as exc:
             logger.debug("migration 080 index skipped: %s", exc)
 
@@ -3956,10 +3962,12 @@ def _migration_080_customer_invoice_profile(conn: Any) -> None:
     # cashier had been invoicing under the customer's own company).
     # Idempotent because we use NOT EXISTS to skip customers that
     # already have a profile from a re-run.
-    ts = datetime.now(timezone.utc).isoformat()
+    # Backfill INSERT — inline ts (atomic_ddl_block takes a literal SQL
+    # string, no parameter binding). ts is per-migration, so a re-run
+    # backfills with a new timestamp; NOT EXISTS keeps it idempotent.
     try:
-        conn.exec_driver_sql(
-            """
+        ts = datetime.now(timezone.utc).isoformat()
+        sql = f"""
             INSERT INTO customer_invoice_profile
                 (customer_id, alias, ruc_ci, razon_social,
                  tipo_documento, tipo_operacion, is_default, is_active,
@@ -3977,8 +3985,8 @@ def _migration_080_customer_invoice_profile(conn: Any) -> None:
                 'B2C',
                 1,
                 1,
-                :ts,
-                :ts
+                '{ts}',
+                '{ts}'
             FROM customer c
             WHERE (c.invoice_ruc IS NOT NULL AND c.invoice_ruc != '')
                OR (c.invoice_name IS NOT NULL AND c.invoice_name != '')
@@ -3986,9 +3994,8 @@ def _migration_080_customer_invoice_profile(conn: Any) -> None:
                   SELECT 1 FROM customer_invoice_profile p
                   WHERE p.customer_id = c.id
               )
-            """,
-            {"ts": ts},
-        )
+        """
+        atomic_ddl_block(conn, [sql])
     except Exception as exc:
         logger.debug("migration 080 backfill skipped: %s", exc)
 
@@ -4034,7 +4041,7 @@ def _migration_081_pedido_delivery_window(conn: Any) -> None:
 
     for sql in add_columns_sql:
         try:
-            conn.exec_driver_sql(sql)
+            atomic_ddl_block(conn, [sql])
         except Exception as exc:
             logger.debug("migration 081 ADD COLUMN skipped: %s", exc)
 
@@ -4044,7 +4051,7 @@ def _migration_081_pedido_delivery_window(conn: Any) -> None:
         "CREATE INDEX IF NOT EXISTS ix_pedido_delivery_preference ON pedido(delivery_preference)",
     ):
         try:
-            conn.exec_driver_sql(idx_sql)
+            atomic_ddl_block(conn, [idx_sql])
         except Exception as exc:
             logger.debug("migration 081 index skipped: %s", exc)
 
@@ -4076,31 +4083,26 @@ def _migration_082_expense(conn: Any) -> None:
     `expenses_gs` from rows in the day window.
     """
     try:
-        conn.exec_driver_sql(
-            f"""
-            CREATE TABLE IF NOT EXISTS expense (
-                id {_serial_pk_type(conn)},
-                occurred_at DATETIME NOT NULL,
-                category VARCHAR(32) NOT NULL,
-                description VARCHAR(255) NOT NULL DEFAULT '',
-                amount_gs INTEGER NOT NULL,
-                is_voided BOOLEAN NOT NULL DEFAULT 0,
-                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )
-            """
+        atomic_ddl_block(
+            conn,
+            [
+                f"\n            CREATE TABLE IF NOT EXISTS expense (\n                id {_serial_pk_type(conn)},\n                occurred_at DATETIME NOT NULL,\n                category VARCHAR(32) NOT NULL,\n                description VARCHAR(255) NOT NULL DEFAULT '',\n                amount_gs INTEGER NOT NULL,\n                is_voided BOOLEAN NOT NULL DEFAULT 0,\n                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP\n            )\n            "
+            ],
         )
     except Exception as exc:
         logger.warning("migration 082 CREATE TABLE expense failed: %s", exc)
 
     try:
-        conn.exec_driver_sql(
-            "CREATE INDEX IF NOT EXISTS ix_expense_occurred_at ON expense(occurred_at)"
+        atomic_ddl_block(
+            conn, ["CREATE INDEX IF NOT EXISTS ix_expense_occurred_at ON expense(occurred_at)"]
         )
     except Exception as exc:
         logger.debug("migration 082 ix_expense_occurred_at skipped: %s", exc)
 
     try:
-        conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_expense_category ON expense(category)")
+        atomic_ddl_block(
+            conn, ["CREATE INDEX IF NOT EXISTS ix_expense_category ON expense(category)"]
+        )
     except Exception as exc:
         logger.debug("migration 082 ix_expense_category skipped: %s", exc)
 
@@ -4701,10 +4703,16 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
                 # the same connection. We then commit the whole tx.
                 mig_conn.commit()
         except Exception as exc:
-            # Don't fail the whole init_db — log and continue to next
-            # migration. The lifespan will retry on next boot.
-            logger.warning(f"migration v{v} failed: {exc!r}; continuing")
-            # Print to stderr so Render logs capture it
+            # FAIL-CLOSED: a migration chain is a chain — each step may
+            # depend on the previous one (e.g. 112 DROPs 111's triggers
+            # before CREATEing its own). Skipping a failed step and
+            # continuing let v113/v114 apply on top of a broken v112,
+            # permanently hiding the gap (real incident 2026-10-08: the
+            # channel CHECK triggers were lost this way in prod). Fail
+            # loudly instead; the rule-17 pre-migration backup plus
+            # `sazon rollback` make recovery safe.
+            logger.error(f"migration v{v} failed: {exc!r}; aborting init_db")
+            # Print to stderr so container/Render logs capture it
             print(f"MIGRATION v{v} FAILED: {exc!r}", file=sys.stderr)
             # Validation hook (Phase 14 #4): probe schema_version on a
             # FRESH connection. If it advanced despite the failure, the
@@ -4727,12 +4735,14 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
                 )
                 logger.error(msg)
                 print(msg, file=sys.stderr)
-                # CRITICAL: re-raise OUTSIDE the probe try/except so the
-                # caller sees it (init_db must NOT proceed to the next
-                # migration on a partial baseline).
                 raise RuntimeError(msg) from exc
             elif probe_err is not None:
                 logger.debug(f"schema probe after v{v} failure: {probe_err!r}")
+            raise RuntimeError(
+                f"migration v{v} failed: {exc!r}. init_db aborted — "
+                "fix the cause (see MIGRATION FAILED line above), restore "
+                "the pre-migration backup, or run `sazon rollback`."
+            ) from exc
 
         # 3. Apply recommended Postgres indexes (idempotent).
         # Wrapped in its own connection so failure here doesn't undo migrations.

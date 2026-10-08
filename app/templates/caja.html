@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% block title %}Caja{% endblock %}
 {% block content %}
 <h1>
@@ -6,6 +7,9 @@
   Caja
 </h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 {% if flash == 'caja_abierta' %}<div class="alert alert-success" role="status">Caja abierta.</div>{% endif %}
 {% if flash == 'caja_cerrada' %}<div class="alert alert-success" role="status">Caja cerrada. <a href="/caja/z/{{ zid }}">Ver ticket Z</a></div>{% endif %}
 {% if flash == 'caja_error' %}<div class="alert alert-warning" role="alert">{{ msg }}</div>{% endif %}

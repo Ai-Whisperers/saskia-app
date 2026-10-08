@@ -18,6 +18,7 @@ from fastapi.responses import (
     Response,
     StreamingResponse,
 )
+from loguru import logger
 from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
@@ -419,6 +420,16 @@ async def sales_list(
         offset=offset,
         fav=bool(fav),
     )
+    # SASKIA-MIG-2: surface the open-caja state to the template so it
+    # can render a soft banner (visible affordance) when the cashier
+    # lands on /ventas without an arqueo de caja X/Z open. The hard
+    # gate is enforced on POST /ventas/nueva (see below) — this banner
+    # is the friendly nudge, not a redirect.
+    from app.rms.cash import get_open_session
+
+    open_sess = get_open_session(session)
+    ctx["cash_session_open"] = open_sess is not None
+    ctx["cash_session_id"] = open_sess.id if open_sess is not None else None
     return render(request, "ventas.html", ctx)
 
 
@@ -855,6 +866,36 @@ async def sale_create(
             detail=SALE_INVALID_PAYMENT_METHOD,
         )
 
+    # SASKIA-MIG-2: pre-shift session gate. Cash sales need an open
+    # arqueo de caja so the cierre-Z can compute expected = opening
+    # + efectivo del período. Non-cash methods (QR, transferencia,
+    # fiado, etc.) pass through — the cash drawer doesn't open.
+    # 422 (Unprocessable Entity) signals "the data is valid but the
+    # server is in a state that can't process it" which fits.
+    # SASKIA-MIG-5: ?bypass=true emergency escape hatch (audit-logged).
+    from app.rms.audit import record as _audit_record
+    from app.rms.cash import get_open_session as _get_open_session
+    from app.rms.messages import SALE_CASH_SESSION_REQUIRED
+
+    effective_method = payment_method_clean or default_payment_method_code(session)
+    if effective_method == "efectivo" and _get_open_session(session) is None:
+        bypass = request.query_params.get("bypass", "").lower() == "true"
+        if bypass:
+            _audit_record(
+                session,
+                request=request,
+                user_id=current_operator(request, fallback="operador"),
+                action="sale_cash_session_bypass",
+                target_type="sale",
+                target_id="0",
+                detail={"reason": "operator-bypass", "payment_method": effective_method},
+            )
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail=SALE_CASH_SESSION_REQUIRED,
+            )
+
     # channel: optional, must be in ALLOWED_CHANNELS if set.
     # Empty string defaults to CHANNEL_DEFAULT ('mostrador'). Unknown
     # values are rejected so we don't end up with 'bitcoin' rows.
@@ -1116,8 +1157,8 @@ async def sale_create(
     # the DELETE before the request returns).
     try:
         invalidate_demand_for_sale_today(session)
-    except Exception:  # noqa: S110
-        pass
+    except Exception as exc:  # best-effort; surface but never block the request
+        logger.warning("demand invalidation for today's sales failed: {!r}", exc)
 
     # Audit + rate-limit (writes only — read paths not counted).
     from app.rms.audit import record as audit_record
@@ -1355,6 +1396,31 @@ async def sale_create_multi(
             status_code=400,
             detail=SALE_INVALID_PAYMENT_METHOD,
         )
+
+    # SASKIA-MIG-2: pre-shift session gate. Mirrors the gate in
+    # sale_create — only efectivo is gated, non-cash passes through.
+    # SASKIA-MIG-5: ?bypass=true emergency escape hatch (audit-logged).
+    from app.rms.audit import record as _audit_record
+    from app.rms.cash import get_open_session as _get_open_session
+    from app.rms.messages import SALE_CASH_SESSION_REQUIRED
+
+    if payment_method_clean == "efectivo" and _get_open_session(session) is None:
+        bypass = request.query_params.get("bypass", "").lower() == "true"
+        if bypass:
+            _audit_record(
+                session,
+                request=request,
+                user_id=current_operator(request, fallback="operador"),
+                action="sale_cash_session_bypass",
+                target_type="sale",
+                target_id="0",
+                detail={"reason": "operator-bypass", "payment_method": payment_method_clean},
+            )
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail=SALE_CASH_SESSION_REQUIRED,
+            )
 
     # WP-1.2 pagos mixtos: validate the split BEFORE touching the DB.
     # Each method must be known; the sum must equal the cart total

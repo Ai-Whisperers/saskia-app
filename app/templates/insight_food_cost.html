@@ -4,6 +4,9 @@
 {% block title %}Costo teórico vs real{% endblock %}
 {% block content %}
 <h1>Costo teórico vs real ({{ days }} días)</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">Teórico = ventas × costo de receta. Real = movimientos de stock + merma. La brecha = porciones extra, merma no registrada o faltantes.</p>
 
 <div class="grid grid-4 mb-4" style="gap:var(--space-3);">

@@ -8,6 +8,9 @@
   Resumen diario — {{ for_date }}
 </h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 {{ ui.skeleton_section(id="diario-kpis", variant="kpi", count=6, label="Cargando resumen diario") }}
 <div class="grid grid-3 mb-4" data-loaded-section="diario-kpis">
   <div class="metric-card">
