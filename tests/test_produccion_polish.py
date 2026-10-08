@@ -1,4 +1,5 @@
-"""TDD: Produccion page visual fixes (2026-10-06 polish round).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+TDD: Produccion page visual fixes (2026-10-06 polish round).
 
 Covers the issues found in the visual analysis screenshot:
   C1 - right-edge overflow on products table (overflow-x:auto wrap)

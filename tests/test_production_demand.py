@@ -1,4 +1,5 @@
-"""tests/test_production_demand.py — PRODUCCION-V2 Fase 1.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_production_demand.py — PRODUCCION-V2 Fase 1.
 
 Tests for the new app/rms/production_demand.py module: the demanda
 column that backs the upcoming 4-col /produccion day view.

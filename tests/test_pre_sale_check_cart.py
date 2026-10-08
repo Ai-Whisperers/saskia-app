@@ -1,4 +1,5 @@
-"""tests/test_pre_sale_check_cart.py — multi-line pre-billing checklist.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_pre_sale_check_cart.py — multi-line pre-billing checklist.
 
 Companion to app/rms/sales/pre_sale_check_cart.py and the
 /ventas/nueva/preflight/multi route.

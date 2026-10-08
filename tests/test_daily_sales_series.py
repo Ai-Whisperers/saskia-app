@@ -1,4 +1,5 @@
-"""tests/test_daily_sales_series.py — E4.S2 daily_sales_series helper + presets.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_daily_sales_series.py — E4.S2 daily_sales_series helper + presets.
 
 The dashboard chart needs a per-day series with one row per day in the
 range (zero-fill for no-sales days), a configurable preset (7d/30d/90d/

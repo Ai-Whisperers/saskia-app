@@ -1,4 +1,5 @@
-"""tests/test_loyalty_cfg_override.py — Batch B1 (2026-10-07).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_loyalty_cfg_override.py — Batch B1 (2026-10-07).
 
 Verifies that suggest_for_customer honors an operator-provided
 loyalty_cfg dict, not just the module-level constants.

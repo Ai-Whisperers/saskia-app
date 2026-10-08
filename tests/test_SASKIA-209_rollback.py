@@ -1,4 +1,5 @@
-"""SASKIA-209 — migration rollback contract tests.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+SASKIA-209 — migration rollback contract tests.
 
 Locks: archive matching (newest to_version==current), evidence
 archive written, restore integrity + version check, atomic swap with

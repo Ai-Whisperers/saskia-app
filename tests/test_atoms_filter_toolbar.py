@@ -1,4 +1,5 @@
-"""Tests for the filter_toolbar macro in app/templates/_components/atoms.html.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for the filter_toolbar macro in app/templates/_components/atoms.html.
 
 The macro renders a GET-form row with search/select/date inputs. 2026-10-01
 extension adds a 'combo' type that renders <ui-combo> (A-1 atom) — see

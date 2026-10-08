@@ -1,4 +1,5 @@
-"""tests/test_monthly_closure_and_expense_model.py — Sprint 3.1 schema pin.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_monthly_closure_and_expense_model.py — Sprint 3.1 schema pin.
 
 Sprint 3.1 of the 2026-10-02 backend overhaul: pins the new schema additions
 (Expense.receipt_url + recurring_period, MonthlyClosure table, migrations

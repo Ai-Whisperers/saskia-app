@@ -1,4 +1,5 @@
-"""tests/test_expense_and_closure_services.py — Sprint 3.1 service tests.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_expense_and_closure_services.py — Sprint 3.1 service tests.
 
 Sprint 3.1 of the 2026-10-02 backend overhaul: tests the service layer for
 Expense CRUD + MonthlyClosure. Pure DB-touching tests (no HTTP).

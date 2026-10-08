@@ -1,4 +1,5 @@
-"""tests/test_address_phase13_delivery_ux.py — Phase 13 (2026-10-01) tests.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_address_phase13_delivery_ux.py — Phase 13 (2026-10-01) tests.
 
 Covers:
   1. address_compose — discrete fields -> composed string

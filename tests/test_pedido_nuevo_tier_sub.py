@@ -1,4 +1,5 @@
-"""Tier 6.4 (2026-10-01) — /pedidos/nuevo customer tier + suscripción prefill.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tier 6.4 (2026-10-01) — /pedidos/nuevo customer tier + suscripción prefill.
 
 Two flows added to /pedidos/nuevo:
   1. Tier badge — a small BRONZE/SILVER/GOLD/PLATINUM pill that renders

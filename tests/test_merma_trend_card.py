@@ -1,4 +1,5 @@
-"""tests/test_merma_trend_card.py — BACKLOG #34 template wiring.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_merma_trend_card.py — BACKLOG #34 template wiring.
 
 Verifies the /merma (merma_list) route:
 1. Passes trend_rows + amplified_rows into the template context.

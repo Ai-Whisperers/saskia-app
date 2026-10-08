@@ -1,4 +1,4 @@
-"""Ivan 2026-10-07 — sidebar disappeared at 13" laptop window widths.
+"""Ivan, early Oct 2026 — sidebar disappeared at 13" laptop window widths.
 
 The previous CSS collapsed the sidebar at <1024px. Many operators use
 1024×600 split-screen layouts (laptop + side monitor, browser DevTools
@@ -86,7 +86,7 @@ def test_base_sidebar_rule_does_not_hide_sidebar():
 
 
 def test_no_top_level_display_none_on_sidebar():
-    """2026-10-07 Ivan: a .eod_print section in app-improvements.css
+    """Early-Oct-2026 Ivan note: a .eod_print section in app-improvements.css
     had a top-level `.sidebar { display: none !important; }` rule
     (missing the .eod-print prefix). This hid the persistent sidebar
     on every page, not just eod_print. Pin the fix: any top-level

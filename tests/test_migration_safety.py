@@ -1,4 +1,5 @@
-"""tests/test_migration_safety.py — AGENTS.md Hard Rules 12-19.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_migration_safety.py — AGENTS.md Hard Rules 12-19.
 
 Locks the FloCafe 8-rule pattern in code:
 - Forward-only (no downgrade)

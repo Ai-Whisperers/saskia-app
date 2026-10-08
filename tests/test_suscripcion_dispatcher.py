@@ -1,4 +1,5 @@
-"""tests/test_suscripcion_dispatcher.py — phase 13.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_suscripcion_dispatcher.py — phase 13.
 
 Verify the suscripcion->pedido bridge:
 - generate_weekly_pedidos creates one Pedido per active Suscripcion

@@ -1,4 +1,5 @@
-"""tests/test_sales_history_filter.py — Sales history filter tests.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_sales_history_filter.py — Sales history filter tests.
 
 Tests T-2: channel + payment_method filters on /ventas history.
 """

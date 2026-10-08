@@ -1,4 +1,5 @@
-"""Tests for Tier-3-D: worksheet-mode print.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for Tier-3-D: worksheet-mode print.
 
 T-2026-10-04: The cook currently prints /produccion/print and writes
 quantities on paper by hand. With 'mode=worksheet', the print view

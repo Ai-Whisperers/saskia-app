@@ -1,4 +1,5 @@
-"""tests/test_pre_sale_check.py — pre-billing checklist tests.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_pre_sale_check.py — pre-billing checklist tests.
 
 Companion to app/rms/sales/pre_sale_check.py (ported from
 ury-erp/ury posClosing.js validation pattern).

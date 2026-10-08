@@ -1,4 +1,5 @@
-"""tests/test_analytics_properties_phase14_tier4.py — Phase 14 Tier 4 (2026-10-01).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_analytics_properties_phase14_tier4.py — Phase 14 Tier 4 (2026-10-01).
 
 Property-based tests for app/rms/analytics.py and app/services/reports.py using hypothesis.
 

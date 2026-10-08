@@ -1,4 +1,5 @@
-"""Phase 14 Tier 4 CRUD roundtrip tests for Sazón.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Phase 14 Tier 4 CRUD roundtrip tests for Sazón.
 
 Tests real write-path business rules by covering the three most-used CRUD paths:
 1. Order/Pedido create + fulfill + void

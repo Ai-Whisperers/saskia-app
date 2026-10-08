@@ -217,10 +217,10 @@ def merma_list(
             _price_rows.append((iid, recent, prior_avg))
         _wasted_ids = set(
             session.execute(
-                select(WasteLog.ingredient_id).where(
-                    WasteLog.recorded_at >= start_date
-                )
-            ).scalars().all()
+                select(WasteLog.ingredient_id).where(WasteLog.recorded_at >= start_date)
+            )
+            .scalars()
+            .all()
         )
         for iid, recent_avg, prior_avg in _price_rows:
             if iid not in _wasted_ids or not recent_avg or not prior_avg:

@@ -1,4 +1,5 @@
-"""Tests for BACKLOG #34 — Waste ROI per ingredient + price trend.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for BACKLOG #34 — Waste ROI per ingredient + price trend.
 
 The `waste_impact_with_trends()` function joins WasteLog (cost
 denormalized at insert time) with IngredientPriceEvent (append-only

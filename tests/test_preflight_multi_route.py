@@ -1,4 +1,5 @@
-"""tests/test_preflight_multi_route.py — POST /ventas/nueva/preflight/multi."""
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_preflight_multi_route.py — POST /ventas/nueva/preflight/multi."""
 
 from __future__ import annotations
 
