@@ -124,6 +124,10 @@ regression test `test_dashboard_empty_state_still_renders_kpi_tiles` locks it. 1
 
 ### Added
 
+- **SASKIA-313 wave 2c (input/perf)**: port 4 orphan modules from phase-3-m1 — `stepper.js` + `.css` (number min/max steppers), `lazy-load.js` (IntersectionObserver + fallback), `perf-monitor.js` (timing overlay), `clipboard.js` + `.css` (data-copy buttons) + `form-help.css` (help-text styles, from the same source commit as perf-monitor). All wired in base.html with `?v={{ asset_version() }}`. Tests: +123 (test_stepper, test_lazy_load, test_perf_monitor, test_clipboard, test_form_help).
+
+### Added
+
 - **SASKIA-312 wave 2b (reading/state UX)**: port 3 orphan modules from phase-3-m1 — `state-preservation.js` (cross-page form/filter state via `data-saskia-state`), `sortable-table.js` + `.css` (click-to-sort tables), `search-highlight.js` + `.css` (`<mark>` highlighting). `m.days_filter()` gains `data_saskia_state/page` hooks; `/insights/food-cost` uses the chip filter; `/pedidos` table is sortable. All wired in base.html with `?v={{ asset_version() }}`. Tests: +63 (test_cross_page_state, test_cross_page_state_implementation, test_sortable_tables, test_search_highlight).
 
 ### Fixed
