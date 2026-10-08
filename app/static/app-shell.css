@@ -411,3 +411,152 @@ body.has-app-shell > .app-shell > .app-footer { grid-area: footer; }
     transform: scale(0.96);
   }
 }
+
+/* ─── POS full-bleed (SASKIA-MIG-1) ──────────────────────────────────
+   On /ventas the operator needs every pixel for the cashier surface.
+   The standard sidebar+topbar take ~220px of horizontal real estate
+   that the POS can't use. Hide them, and let .app-main span the full
+   width. The in-page POS topbar (ventas.html) provides the operator
+   affordances (date, history link, Cmd+K hint, logout) that the
+   chrome was carrying. */
+body.has-app-shell.body--pos-fullbleed > .app-shell {
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "main"
+    "footer";
+}
+body.has-app-shell.body--pos-fullbleed > .app-shell > .sidebar,
+body.has-app-shell.body--pos-fullbleed > .app-shell > .topbar,
+body.has-app-shell.body--pos-fullbleed > .app-shell > .sidebar-backdrop {
+  display: none !important;
+}
+body.has-app-shell.body--pos-fullbleed > .app-shell > .app-main.container {
+  /* Drop the global container's side padding so the POS panes can use
+     every pixel of the viewport. The .pos-layout child handles its
+     own gutter. */
+  max-width: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+body.has-app-shell.body--pos-fullbleed > .app-shell > .app-main.container {
+  padding-top: 0;
+}
+/* Hide the mobile bottom-nav on /ventas too — the POS topbar replaces it. */
+body.has-app-shell.body--pos-fullbleed .bottom-nav {
+  display: none !important;
+}
+
+/* POS topbar (in-page, replaces the hidden global topbar) */
+.pos-topbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(280px, 2fr) minmax(220px, 1fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 0.625rem 1rem;
+  background: var(--color-surface, #fff);
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  font-size: var(--text-sm, 0.875rem);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+.pos-topbar__left,
+.pos-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.pos-topbar__right {
+  justify-content: flex-end;
+}
+.pos-topbar__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  font-weight: 600;
+}
+.pos-topbar__brand .brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  background: var(--color-accent, #4f46e5);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.pos-topbar__divider {
+  color: var(--color-text-muted, #6b7280);
+}
+.pos-topbar__date {
+  color: var(--color-text-muted, #6b7280);
+  font-variant-numeric: tabular-nums;
+}
+.pos-topbar__center {
+  display: flex;
+  justify-content: center;
+}
+.pos-topbar__search {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 32rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 0.5rem;
+  background: var(--color-surface-alt, #f9fafb);
+  color: var(--color-text-muted, #6b7280);
+  font: inherit;
+  cursor: pointer;
+}
+.pos-topbar__search:hover {
+  background: var(--color-surface-hover, #f3f4f6);
+}
+.pos-topbar__search > span {
+  flex: 1;
+  text-align: left;
+}
+.pos-topbar__search kbd {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 0.25rem;
+  background: #fff;
+  color: var(--color-text-muted, #6b7280);
+}
+.pos-topbar__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  color: var(--color-text, #111827);
+  font-weight: 500;
+}
+.pos-topbar__link:hover {
+  background: var(--color-surface-hover, #f3f4f6);
+}
+.pos-topbar__link .icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+@media (max-width: 720px) {
+  .pos-topbar {
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem;
+  }
+  .pos-topbar__center {
+    display: none;
+  }
+  .pos-topbar__link span {
+    display: none;
+  }
+}
