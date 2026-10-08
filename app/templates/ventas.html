@@ -47,6 +47,24 @@
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}
 
+{# ── SASKIA-MIG-2: pre-shift session gate (soft banner) ──
+   Visible affordance when the cashier lands on /ventas without an
+   open arqueo de caja. Does NOT block the page (the cashier can
+   still register QR/transfer/fiado sales), but draws the eye so
+   they open the caja before ringing up efectivo. The hard gate
+   on POST /ventas/nueva is the safety net below. #}
+{% if cash_session_open is defined and not cash_session_open %}
+<div class="alert alert-warning" role="status" data-testid="caja-banner-soft">
+  <svg class="icon" aria-hidden="true"><use href="#icon-cash"/></svg>
+  <div>
+    <strong>Caja cerrada.</strong>
+    Para registrar ventas en efectivo necesitás abrir la caja primero.
+    {% if cash_session_id is not none %}(Última sesión #{{ cash_session_id }} cerrada.){% endif %}
+    <a href="/caja" class="btn btn-primary btn-sm" style="margin-left:var(--space-2);">Abrir caja</a>
+  </div>
+</div>
+{% endif %}
+
 {# Heading for the POS surface — distinguishes the active counter from the
    history view at /ventas/historial. Operators reading the screen
    shouldn't have to wonder "is this the cashier or the log?". #}

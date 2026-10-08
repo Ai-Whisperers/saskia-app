@@ -74,8 +74,9 @@ def _post_sale(client, product_id: int, idempotency_key: str = "", qty: float = 
 # ─── Tests ──────────────────────────────────────────────────────────────────
 
 
-def test_same_idempotency_key_creates_exactly_one_sale(client, session_factory):
+def test_same_idempotency_key_creates_exactly_one_sale(client_with_caja, session_factory):
     """Two POSTs with the same key produce one Sale row, not two."""
+    client = client_with_caja  # SASKIA-MIG-2: open caja required for cash sales
     product_id = _seed_minimal(session_factory)
     idem = uuid.uuid4().hex
 
@@ -93,8 +94,9 @@ def test_same_idempotency_key_creates_exactly_one_sale(client, session_factory):
     assert n_sales == 1, f"expected 1 sale, got {n_sales}"
 
 
-def test_same_idempotency_key_does_not_double_decrement_stock(client, session_factory):
+def test_same_idempotency_key_does_not_double_decrement_stock(client_with_caja, session_factory):
     """Retry with same key must not decrement ingredient stock twice."""
+    client = client_with_caja  # SASKIA-MIG-2: open caja required for cash sales
     product_id = _seed_minimal(session_factory)
     idem = uuid.uuid4().hex
 
@@ -114,8 +116,9 @@ def test_same_idempotency_key_does_not_double_decrement_stock(client, session_fa
         )
 
 
-def test_different_idempotency_keys_create_distinct_sales(client, session_factory):
+def test_different_idempotency_keys_create_distinct_sales(client_with_caja, session_factory):
     """Two POSTs with DIFFERENT keys produce two Sale rows."""
+    client = client_with_caja  # SASKIA-MIG-2: open caja required for cash sales
     product_id = _seed_minimal(session_factory)
 
     _post_sale(client, product_id, idempotency_key=uuid.uuid4().hex)
@@ -128,8 +131,9 @@ def test_different_idempotency_keys_create_distinct_sales(client, session_factor
     assert n_sales == 2, f"expected 2 sales, got {n_sales}"
 
 
-def test_empty_idempotency_key_creates_sale_without_record(client, session_factory):
+def test_empty_idempotency_key_creates_sale_without_record(client_with_caja, session_factory):
     """Empty key means 'no idempotency' — sale creates, no AppMeta row written."""
+    client = client_with_caja  # SASKIA-MIG-2: open caja required for cash sales
     product_id = _seed_minimal(session_factory)
 
     r = _post_sale(client, product_id, idempotency_key="")
@@ -144,8 +148,9 @@ def test_empty_idempotency_key_creates_sale_without_record(client, session_facto
         assert idem_rows == 0, f"unexpected idem record for empty key: {idem_rows}"
 
 
-def test_retry_returns_to_original_sale(client, session_factory):
+def test_retry_returns_to_original_sale(client_with_caja, session_factory):
     """Retry with same key should advertise the original sale, not a new one."""
+    client = client_with_caja  # SASKIA-MIG-2: open caja required for cash sales
     product_id = _seed_minimal(session_factory)
     idem = uuid.uuid4().hex
 

@@ -24,6 +24,11 @@ NAV_GROUPS: list[tuple[str, list[dict]]] = [
         [
             {"route": "/", "label": "Inicio", "icon": "icon-home", "exact": True},
             {"route": "/ventas", "label": "Ventas", "icon": "icon-sale"},
+            # SASKIA-MIG-2: pre-shift session gate. /caja was orphaned
+            # (no sidebar entry) — without it the cashier had no path
+            # to open the arqueo de caja X/Z that /ventas depends on.
+            # Placed in the same group as Ventas (operator daily flow).
+            {"route": "/caja", "label": "Caja", "icon": "icon-cash"},
             {"route": "/pedidos", "label": "Pedidos", "icon": "icon-box"},
             {"route": "/produccion", "label": "Producción", "icon": "icon-production"},
             # /produccion/manana is intentionally NOT in the sidebar — surfaced as a
