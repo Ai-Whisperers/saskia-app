@@ -305,10 +305,12 @@ def test_data_01_low_stock_line_no_wrap(client):
         follow_redirects=False,
     )
 
-    r = client.get("/")
+    # 2026-10-08: / became the station chooser (PR #74 hub); the operator
+    # dashboard with the Alertas card lives at /inicio.
+    r = client.get("/inicio")
     assert r.status_code == 200
     body = r.text
     assert "leche entera test" in body
-    # 2026-09-26: the low-stock line moved into the Alertas card severity row
+    # The low-stock line lives in the Alertas card severity row
     # (compact by design, no wrapping issue). Old white-space:nowrap span removed.
     assert "sev-pill critico" in body, "Low-stock must render in the Alertas severity row"

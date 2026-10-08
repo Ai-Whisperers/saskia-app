@@ -255,7 +255,7 @@ def test_pedido_prefill_js_has_tier_and_sub_renderers() -> None:
     """static/pedido-prefill.js exports the Tier 6.4 render functions."""
     from pathlib import Path
 
-    p = Path("/opt/data/profiles/ivan/scratch/sazon-app-work/app/static/pedido-prefill.js")
+    p = Path(__file__).resolve().parents[1] / "app" / "static" / "pedido-prefill.js"
     text = p.read_text(encoding="utf-8")
     assert "function renderTierBadge" in text, "pedido-prefill.js must export renderTierBadge()"
     assert "function renderSubscriptionPicker" in text, (

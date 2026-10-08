@@ -966,7 +966,10 @@ def produccion_worksheet(
         else:
             day_open_count += 1
     day_total_count = day_open_count + day_done_count + day_cancelled_count
-    if sum(1 for r in plan_rows_view if r["qty_to_produce"] > 0) == 0:
+    if sum(1 for r in plan_rows_view if r["qty_to_produce"] > 0) == 0 and cold_start_kind is None:
+        # Only downgrade to "no_rows" when nothing else applies — a fresh
+        # install (no sales) must keep the "no_sales" onboarding card
+        # instead of being swallowed by this generic empty-plan state.
         cold_start_kind = "no_rows"
 
     # PRODUCCION-V3 Phase 3: hero stats. Compute 3 numbers the cook

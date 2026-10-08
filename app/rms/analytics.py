@@ -849,6 +849,8 @@ class ProbabilisticForecast:
     p_any_consumption: float
     p_stockout_within_horizon: float
     safety_stock_95pct: float
+    current_stock: float
+    horizon_days: int
 
 
 def probabilistic_consumption_forecast(
@@ -892,6 +894,8 @@ def probabilistic_consumption_forecast(
                 p_any_consumption=1.0 - p_zero,
                 p_stockout_within_horizon=p_stockout,
                 safety_stock_95pct=mu + 1.645 * math.sqrt(mu) if mu > 0 else 0.0,
+                current_stock=float(b.current_stock_qty),
+                horizon_days=int(horizon_days),
             )
         )
     out.sort(key=lambda f: f.p_stockout_within_horizon, reverse=True)

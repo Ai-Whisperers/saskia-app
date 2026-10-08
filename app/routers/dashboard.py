@@ -315,6 +315,8 @@ async def dashboard(
     # day-band links into sub-pages. Shows for all stations (gerencia, ventas,
     # produccion, etc) — the page itself tells the user what to do next.
     # /gerencia remains a separate dense KPI view reachable from the nav.
+    # (2026-10-08: the station-redirect try/except was removed with the
+    # chooser-home change — no silent except remains in this handler.)
     if period == "custom" and start and end:
         try:
             from datetime import datetime as dt_cls
