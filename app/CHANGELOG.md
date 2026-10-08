@@ -43,6 +43,67 @@ or `{% block content %}` (fallback).
 
 Backlog item closed: **#T2-flash-messages** in IMPROVEMENT_BACKLOG.md.
 
+## 2026-10-08g — SASKIA-MIG Items 2, 5, 6 (cash-session gate, preflight verify, receta→stock chain)
+
+UI migration items 2, 5, 6 from the Sazón UI migration plan
+(`.hermes/plans/2026-10-08_034500-SAZON-UI-MIGRATION-FROM-COMPETITORS.md`).
+
+**SASKIA-MIG-2 — Pre-shift cash session gate**
+- `app/rms/cash.py` — `get_open_session` already exists (migration 106). The gate
+  just calls it.
+- `app/rms/messages.py` — new `SALE_CASH_SESSION_REQUIRED` constant (Spanish vos).
+- `app/rms/nav.py` — added `/caja` to the Operación sidebar section.
+- `app/static/icons.svg` — added `icon-cash` symbol.
+- `app/routers/sales.py` — `sale_create` and `sale_create_multi` now raise 422
+  on cash (efectivo) sales when no open arqueo exists. Non-cash (QR,
+  transferencia, fiado) pass through.
+- `app/templates/ventas.html` — soft banner ("Caja cerrada — abrí turno antes de
+  cobrar en efectivo") on `/ventas` GET when no open session exists.
+- 13 new tests in `tests/test_SASKIA-MIG-2_cash_session_gate.py`.
+
+**SASKIA-MIG-5 — Pre-billing checklist (verify + bypass)**
+- The preflight layer (`app/rms/sales/pre_sale_check.py`,
+  `pre_sale_check_cart.py`, `/ventas/nueva/preflight`, `/ventas/nueva/preflight/multi`,
+  ventas.html banner JS) was already implemented as an ADVISORY layer. This PR
+  adds `?bypass=true` as the cash-session gate's emergency escape hatch
+  (audit-logged with action=`sale_cash_session_bypass`, target_type=`sale`,
+  detail=`{reason: operator-bypass, payment_method}`).
+- ?bypass=true is SEPARATE from the preflight blockers — the preflight still
+  surfaces stock-shortage / qty-oversell / allergen warnings regardless of the
+  cash gate state. Power-outage escape.
+- 9 new tests in `tests/test_SASKIA-MIG-5_preflight_checklist.py` locking the
+  preflight API contract (single-item, multi-cart, blockers, oversell, box
+  independent of caja gate, bypass bypasses only gate not preflight, banner
+  element rendered, form action correct).
+
+**SASKIA-MIG-6 — Receta → venta → inventario end-to-end verify**
+- 1 new test in `tests/test_SASKIA-MIG-6_receta_venta_inventario_close.py`:
+  seeds ingredient → recipe with N units → product → POST /ventas/nueva/multi
+  → assert StockMovement rows for each recipe line + SalePayment row + final
+  ingredient stock reduced by recipe consumption.
+- Pre-existing tests `test_sale_create_writes_stock_movement.py` (3),
+  `test_stock_drop.py` (7) continue to cover the chain.
+
+**Test fixture update (conftest)**
+- New `client_with_caja` fixture opens a cash session for tests that hit
+  `/ventas/nueva` with default cash. Returns the `client` (or `authed_client`)
+  under both `client_with_caja` and `client`/`authed_client` aliases via a
+  top-of-function `client = client_with_caja` line.
+- Tests touched: `test_sale_create_writes_stock_movement.py`,
+  `test_sale_via_sku.py`, `test_sale_payments.py`, `test_cash_sessions.py`,
+  `test_sale_idempotency.py`.
+- One test in `test_cash_sessions.py` (`test_cash_sales_count_via_sale_payment`)
+  was rewritten to use the existing `authed_client` fixture and manually
+  close-then-open the caja, since it tests the cross-session boundary
+  (fixture's open session would conflict with the test's own).
+
+**Total**: 64/64 tests pass across the Item 1 / 2 / 5 / 6 sweep + existing
+sale/caja/receta suite. No new dependencies. No new migrations (Items 5's
+`PosChecklistLog` tables were deemed over-engineering for the current advisory
+preflight; the ?bypass=true escape hatch covers the operator-emergency case
+the hard block was designed to support).
+>>>>>>> 8f2cec04 (SASKIA-MIG-2,5,6: pre-shift caja gate + preflight verify + receta-venta-inventario chain)
+
 ## 2026-10-08e — restore 6 lost UI features + fix 4 stale tests (69 passed)
 
 Night-run triage of the full suite exposed features regressions had silently dropped, plus

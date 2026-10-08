@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import os as _os
 
+from sqlalchemy.orm import sessionmaker
+
 # Register browser helpers as a top-level plugin so the non-top-level
 # pytest_plugins declaration in tests/browser/conftest.py is no longer
 # needed (pytest >=7 made it a hard error). The plugin auto-skips if
@@ -358,6 +360,58 @@ def authed_client(client):
     Most tests don't need to distinguish; this name documents intent.
     """
     return client
+
+
+@pytest.fixture
+def client_with_caja(client, session_factory):
+    """TestClient with an open cash session pre-created (SASKIA-MIG-2).
+
+    POST /ventas/nueva with payment_method=efectivo (the default) now
+    requires an open arqueo de caja. Existing sale-create / stock-drop /
+    idempotency tests predate that gate and need a pre-opened caja to
+    exercise the default-cash path. New tests that explicitly want to
+    exercise the gate should use `client` (no caja) and assert 422.
+
+    Teardown is robust: it only closes the session that THIS fixture
+    opened (tracked by opened_by = "test-fixture"). If a test opened
+    its own session with a different opened_by, it is left alone —
+    the test is responsible for closing it.
+    """
+    from sqlalchemy import select
+
+    from app.rms import cash
+    from app.rms.models_legacy import CashSession as _CashSession
+
+    s = sessionmaker(bind=session_factory.kw["bind"])()
+    try:
+        cash.open_session(s, opening_gs=0, opened_by="test-fixture")
+        s.commit()
+    except cash.CashSessionConflict:
+        s.rollback()
+    finally:
+        s.close()
+    try:
+        yield client
+    finally:
+        # Close ONLY the session this fixture opened.
+        s2 = sessionmaker(bind=session_factory.kw["bind"])()
+        try:
+            ours = s2.execute(
+                select(_CashSession).where(
+                    _CashSession.status == "open",
+                    _CashSession.opened_by == "test-fixture",
+                )
+            ).scalar_one_or_none()
+            if ours is not None:
+                cash.close_session(s2, counted_gs=ours.opening_gs, closed_by="test-fixture")
+                s2.commit()
+        except Exception:
+            try:
+                s2.rollback()
+            except Exception:
+                pass
+        finally:
+            s2.close()
 
 
 @pytest.fixture
