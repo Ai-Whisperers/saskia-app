@@ -222,7 +222,7 @@ def get_loyalty_config(session: Session) -> dict[str, int]:
     Returns a fresh dict every call (callers may mutate freely). Keys
     missing from the DB fall back to DEFAULT_LOYALTY_CONFIG values.
     """
-    from app.rms.settings import get_setting_value
+    from app.rms.settings_registry import get_setting_value
 
     out = dict(DEFAULT_LOYALTY_CONFIG)
     for key in DEFAULT_LOYALTY_CONFIG:
@@ -246,7 +246,7 @@ DEFAULT_EOD_CONFIG: dict[str, int | float] = {
 
 def get_eod_config(session: Session) -> dict[str, int | float]:
     """Read the EOD anomaly detector config from SettingsKV."""
-    from app.rms.settings import get_setting_value
+    from app.rms.settings_registry import get_setting_value
 
     out = dict(DEFAULT_EOD_CONFIG)
     type_coerce = {
@@ -272,7 +272,7 @@ DEFAULT_ALERTS_CONFIG: dict[str, int] = {
 
 def get_alerts_config(session: Session) -> dict[str, int]:
     """Read the alerts dispatch config from SettingsKV."""
-    from app.rms.settings import get_setting_value
+    from app.rms.settings_registry import get_setting_value
 
     out = dict(DEFAULT_ALERTS_CONFIG)
     for key in DEFAULT_ALERTS_CONFIG:
@@ -295,7 +295,7 @@ DEFAULT_BACKUP_CONFIG: dict[str, int] = {
 
 def get_backup_config(session: Session) -> dict[str, int]:
     """Read the backup config from SettingsKV."""
-    from app.rms.settings import get_setting_value
+    from app.rms.settings_registry import get_setting_value
 
     out = dict(DEFAULT_BACKUP_CONFIG)
     for key in DEFAULT_BACKUP_CONFIG:
@@ -320,7 +320,7 @@ DEFAULT_RATE_LIMIT_CONFIG: dict[str, int] = {
 
 def get_rate_limit_config(session: Session) -> dict[str, int]:
     """Read the rate-limit config from SettingsKV."""
-    from app.rms.settings import get_setting_value
+    from app.rms.settings_registry import get_setting_value
 
     out = dict(DEFAULT_RATE_LIMIT_CONFIG)
     for key in DEFAULT_RATE_LIMIT_CONFIG:
@@ -348,7 +348,7 @@ def get_pre_sale_config(session: Session) -> dict[str, int]:
     checklist (qty cap, discount %, low-stock warning) operator-tunable
     without code changes.
     """
-    from app.rms.settings import get_setting_value
+    from app.rms.settings_registry import get_setting_value
 
     out = dict(DEFAULT_PRE_SALE_CONFIG)
     for key in DEFAULT_PRE_SALE_CONFIG:

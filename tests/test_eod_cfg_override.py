@@ -204,7 +204,7 @@ def test_detect_anomalies_accepts_eod_cfg_kwarg(session_factory, product_id):
 
 def test_get_eod_config_returns_dict_with_all_keys():
     """get_eod_config(session) returns a complete dict."""
-    from app.rms.settings import get_setting_value
+    from app.rms.settings_registry import get_setting_value
     from app.rms.settings_runtime import (
         DEFAULT_EOD_CONFIG,
         get_eod_config,
@@ -212,7 +212,7 @@ def test_get_eod_config_returns_dict_with_all_keys():
 
     # Monkeypatch get_setting_value to return None for all keys
     # → all defaults applied.
-    import app.rms.settings as settings_mod
+    import app.rms.settings_registry as settings_mod
 
     orig = settings_mod.get_setting_value
     settings_mod.get_setting_value = lambda session, key: None
@@ -230,7 +230,7 @@ def test_get_eod_config_coerces_float():
     """Stored '0.25' is coerced to float 0.25."""
     from app.rms.settings_runtime import get_eod_config
 
-    import app.rms.settings as settings_mod
+    import app.rms.settings_registry as settings_mod
 
     def fake(session, key):
         if key == "eod.voided_rate_threshold":

@@ -228,7 +228,7 @@ def test_get_loyalty_config_returns_dict_with_all_keys():
     # Fake session — get_loyalty_config only calls get_setting_value
     # which calls session.execute(). For the pure-Python test of the
     # default-coercion path, monkeypatch get_setting_value.
-    import app.rms.settings as settings_mod
+    import app.rms.settings_registry as settings_mod
 
     def fake_get_setting_value(session, key):
         # Return None for all keys → caller falls back to defaults.
@@ -248,7 +248,7 @@ def test_get_loyalty_config_coerces_stored_value():
     """Stored value '5' is coerced to int 5."""
     from app.rms.settings_runtime import get_loyalty_config
 
-    import app.rms.settings as settings_mod
+    import app.rms.settings_registry as settings_mod
 
     def fake_get_setting_value(session, key):
         if key == "loyalty.birthday_discount_pct":

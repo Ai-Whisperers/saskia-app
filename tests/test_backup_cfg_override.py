@@ -163,7 +163,7 @@ def test_get_backup_config_returns_full_defaults():
         get_backup_config,
     )
 
-    import app.rms.settings as settings_mod
+    import app.rms.settings_registry as settings_mod
 
     orig = settings_mod.get_setting_value
     settings_mod.get_setting_value = lambda session, key: None
@@ -179,7 +179,7 @@ def test_get_backup_config_coerces_stored_value():
     """Stored '48' for auto_threshold_hours is coerced to int 48."""
     from app.rms.settings_runtime import get_backup_config
 
-    import app.rms.settings as settings_mod
+    import app.rms.settings_registry as settings_mod
 
     def fake(session, key):
         if key == "backup.auto_threshold_hours":
