@@ -45,6 +45,10 @@
   <link rel="stylesheet" href="/static/stepper.css?v={{ asset_version() }}">
   <link rel="stylesheet" href="/static/clipboard.css?v={{ asset_version() }}">
   <link rel="stylesheet" href="/static/form-help.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/print.css?v={{ asset_version() }}" media="print">
+  <link rel="stylesheet" href="/static/touch-targets.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/form-validator.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/saskia-tooltip.css?v={{ asset_version() }}">
   {% block head_extra %}{% endblock %}
 
   <script>
@@ -366,6 +370,9 @@
   <script src="/static/lazy-load.js?v={{ asset_version() }}" defer></script>
   <script src="/static/perf-monitor.js?v={{ asset_version() }}" defer></script>
   <script src="/static/clipboard.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/print-area.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/form-validator.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/saskia-tooltip.js?v={{ asset_version() }}" defer></script>
   {% block page_scripts %}{% endblock %}
 
   {# Sticky bottom-nav for mobile (≤768px). Hidden on desktop via mobile.css. #}
