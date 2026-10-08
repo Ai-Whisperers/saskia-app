@@ -1,3 +1,12 @@
+{% macro nav_link(path, label, exact=False, current_path="", icon="") -%}
+{%- set active = (current_path == path) if exact else current_path.startswith(path) -%}
+<a href="{{ path }}" class="nav-item{% if active %} active{% endif %}" role="menuitem"{% if active %} aria-current="page"{% endif%}>
+{%- if icon %}
+  <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+{%- endif %}
+{{ label }}</a>
+{%- endmacro %}
+
 {% macro filter_chip(group, value, label, current_values, icon="") -%}
 {#- Single filter chip (toggle). `group` is the URL key (e.g. "filter_allergen"),
     `value` is the chip's value, `current_values` is the parsed set of active
