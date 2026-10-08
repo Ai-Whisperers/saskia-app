@@ -1,3 +1,37 @@
+## 2026-10-08g — scattered-failure sweep: real fixes + contract updates
+
+Continued the post-deploy suite triage. 10 remaining failure clusters resolved;
+`test_no_hardcoded_dates` went 592P/2F → green, `test_sazon_seed` 25/25 (already
+fixed by `b547e603`).
+
+**Real bugs fixed**
+- `app/routers/dashboard.py:310` — silent except in station detection now logs
+  via `logger.warning` (no_silent_excepts audit).
+- `app/routers/produccion/_full.py` — cold-start priority: the `no_rows`
+  override no longer clobbers `no_sales`, so a fresh install (zero sales,
+  zero products) sees the "Aún no hay ventas registradas" onboarding card.
+- `app/rms/analytics.py` — `ProbabilisticForecast` regains `current_stock` +
+  `horizon_days` fields (dropped in a refactor; the stockout context is the
+  point of the report).
+- `app/templates/pedido_board.html` — T-3 click-to-call shipped: pedido cards
+  with `customer_phone` now render a `tel:` link (feature existed only in
+  tests, never in the template).
+
+**Test contracts updated to current reality**
+- `test_produccion_phase_e_step4` — router grows are allowed; the locked
+  contract is no route LOSS during the package split.
+- `test_plan_accuracy_endpoint` — ported to the shipped
+  `compute_plan_accuracy()` + GET /produccion/accuracy (old drafts targeted a
+  never-shipped JSON endpoint + undefined `testdb` fixture).
+- `test_pedido_prefill_phase78` / `test_pedido_nuevo_tier_sub` — dead absolute
+  scratch paths → repo-relative (the JS features shipped long ago).
+- `test_station_work` — station-refusal redirects assert the keyed flash keys
+  (`eod_wrong_station_*`) from the flash unification.
+- `allow-hardcoded-dates` markers on the two fixtures that legitimately pin
+  fixed calendar anchors.
+
+106 tests across the touched files green; ruff check + format clean.
+
 ## 2026-10-08f — flash-message unification (BACKLOG Tier 2, 77 sites → 47 keys)
 
 Closed BACKLOG Tier 2 item: route 77 free-text `flash=<Spanish string>` and 10

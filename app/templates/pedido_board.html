@@ -159,6 +159,10 @@
       {% if p.channel %} · {{ p.channel }}{% endif %}
     </div>
     {% if p.customer %}<div class="card-customer">{{ p.customer.name }}</div>{% endif %}
+    {# T-3: click-to-call — the cook phones the customer when the pedido is ready. #}
+    {% if p.customer_phone %}
+    <a class="card-customer-phone" href="tel:{{ p.customer_phone }}">📞 {{ p.customer_phone }}</a>
+    {% endif %}
     <ul class="card-items">
       {% for line in p.lines %}
       <li>
