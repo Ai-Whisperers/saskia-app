@@ -328,7 +328,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                     s,
                     product_id=p.id,
                     qty=2.0,
-                    sold_at=today_noon_utc if False else now - timedelta(hours=i),
+                    sold_at=now - timedelta(hours=i),
                     notes=None,
                     customer_id=None,
                     payment_method="efectivo",
