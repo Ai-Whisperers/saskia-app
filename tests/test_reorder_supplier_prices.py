@@ -133,9 +133,7 @@ def test_inactive_suppliers_excluded(session_factory) -> None:
     try:
         active = make_supplier(s, name="Active", is_active=True)
         inactive = make_supplier(s, name="Inactive", is_active=False)
-        ing = make_ingredient(
-            s, supplier_id=active.id, locked_supplier_id=active.id
-        )
+        ing = make_ingredient(s, supplier_id=active.id, locked_supplier_id=active.id)
         s.commit()
         out = get_supplier_price_options(s, ing.id)
         assert inactive.id not in out

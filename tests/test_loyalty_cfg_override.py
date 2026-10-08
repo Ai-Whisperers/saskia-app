@@ -7,6 +7,7 @@ Each test customizes one knob and checks the resulting
 Suggestion reflects the override. Defaults are tested separately
 in tests/test_loyalty_suggestions.py (the original suite).
 """
+
 from __future__ import annotations
 
 import datetime as _dt

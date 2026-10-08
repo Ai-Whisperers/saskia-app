@@ -143,6 +143,9 @@ shipped by prior sessions).
 the standard pytest discovery; no workflow changes.
 
 
+### Fixed
+
+- **seed_sazon crash**: `app/rms/seed/sazon.py` referenced `ASUNCION_TZ` (5 sites) without importing it — the import was dropped as "unused" during the PR #54 ruff sweep, crashing any fresh-DB seed with `NameError`. Also fixed the `Channel` shadowing bug: the P43 change re-imported the `Channel` **enum** over the ORM model (noqa: F811), so `select(Channel)` in the channel-seeding loop raised `sqlalchemy.exc.ArgumentError: got <enum 'Channel'>`. Enum is now imported as `ChannelEnum` (same pattern as `app/rms/catalogs.py`); 25 seed tests go from 1 passed + 24 errors to 25/25 green.
 
 ### Added
 

@@ -4,6 +4,7 @@ Verifies the operator-tunable alert rate limit. ``dispatch_anomalies``
 accepts an optional ``max_per_day`` kwarg that overrides the
 DEFAULT_ALERTS_CONFIG default.
 """
+
 from __future__ import annotations
 
 from unittest.mock import patch as umock_patch

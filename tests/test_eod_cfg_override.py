@@ -6,6 +6,7 @@ then calls ``detect_anomalies`` with a custom eod_cfg dict and
 checks the resulting list of Anomaly objects reflects the
 override.
 """
+
 from __future__ import annotations
 
 from datetime import date, time
@@ -14,6 +15,7 @@ from datetime import datetime as _dt
 import pytest
 
 pytestmark = pytest.mark.smoke
+
 
 @pytest.fixture
 def product_id(session_factory) -> int:
@@ -26,7 +28,6 @@ def product_id(session_factory) -> int:
 
     data = quick_seed(session_factory, "basic")
     return int(data["product"].id)
-
 
 
 def _today() -> date:
@@ -59,11 +60,7 @@ def test_voided_rate_threshold_override_lowers_bar(session_factory, product_id):
                 {
                     "pid": product_id,
                     "sold_at": _dt.combine(_today(), time(12, 0)),
-                    "voided_at": (
-                        _dt.combine(_today(), time(13, 0))
-                        if i == 0
-                        else None
-                    ),
+                    "voided_at": (_dt.combine(_today(), time(13, 0)) if i == 0 else None),
                 },
             )
         s.commit()
@@ -178,11 +175,7 @@ def test_detect_anomalies_accepts_eod_cfg_kwarg(session_factory, product_id):
                 {
                     "pid": product_id,
                     "sold_at": _dt.combine(_today(), time(12, 0)),
-                    "voided_at": (
-                        _dt.combine(_today(), time(13, 0))
-                        if i == 0
-                        else None
-                    ),
+                    "voided_at": (_dt.combine(_today(), time(13, 0)) if i == 0 else None),
                 },
             )
         s.commit()
