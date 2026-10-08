@@ -110,6 +110,10 @@ def _security_headers() -> dict[str, str]:
         "permissions-policy": _PERMISSIONS_POLICY,
         "cross-origin-resource-policy": "same-origin",
         "cross-origin-opener-policy": "same-origin",
+        # Explicit default: declares no cross-origin isolation (none of
+        # our resources are cross-origin isolated consumers). Satisfies
+        # ZAP rule 90004 without breaking third-party asset loads.
+        "cross-origin-embedder-policy": "unsafe-none",
     }
     if os.getenv("HTTPS_ONLY", "true").lower() == "true":
         headers["strict-transport-security"] = "max-age=31536000; includeSubDomains"

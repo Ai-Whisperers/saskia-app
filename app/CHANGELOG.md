@@ -122,6 +122,10 @@ regression test `test_dashboard_empty_state_still_renders_kpi_tiles` locks it. 1
 
 ## [Unreleased]
 
+### Security
+
+- **ZAP promotion (SASKIA-312)**: OWASP ZAP API scan threshold raised `-l WARN` → `-l HIGH` in `.github/workflows/security-zap.yml`; `fail_action` stays on. All remaining WARN alerts triaged: (1) real full-path leak in `/demo/seed` 403 detail fixed (`app/routers/demo.py` no longer embeds `/opt/build-apps/...`), regression test added; (2) `COEP: unsafe-none` now set explicitly in `SecurityHeadersMiddleware` (satisfies ZAP 90004 without enabling isolation), header test added; (3) rule 110009 on `/users/api/roles` IGNOREd as false positive (ZAP evidence = the URL path itself), with header rationale per the rules-file meta-test.
+
 ### Fixed
 
 - **CI hygiene (SASKIA-311)**: `app/routers/merma.py` reformatted (landed unformatted via 6568f6b3). 59 `test_no_hardcoded_dates` failures across 60 test files resolved: files whose fixed dates are load-bearing fixtures (calendar edges, tz math, far-future sentinels) now carry the `# allow-hardcoded-dates:` header marker (the test's documented escape hatch); provenance-only date mentions rewritten in prose (`test_P35_sidebar_visibility_breakpoint`). The scanner itself is unchanged.
