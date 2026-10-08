@@ -1,0 +1,1697 @@
+[
+  {
+    "id": "product::babka",
+    "slug": "babka",
+    "name": "babka",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/babka.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-babka.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::bitterballen",
+    "slug": "bitterballen",
+    "name": "bitterballen",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/bitterballen.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-bitterballen.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::bitterballen_vegetariano",
+    "slug": "bitterballen_vegetariano",
+    "name": "bitterballen_vegetariano",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/bitterballen_vegetariano.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-bitterballen_vegetariano.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::bizcocho_basico_25_cm_basiscake",
+    "slug": "bizcocho_basico_25_cm_basiscake",
+    "name": "bizcocho_basico_25_cm_basiscake",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/bizcocho_basico_25_cm_basiscake.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-bizcocho_basico_25_cm_basiscake.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::bizcocho_basico_30_cm_basiscake",
+    "slug": "bizcocho_basico_30_cm_basiscake",
+    "name": "bizcocho_basico_30_cm_basiscake",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/bizcocho_basico_30_cm_basiscake.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-bizcocho_basico_30_cm_basiscake.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::bombones_de_chocolate",
+    "slug": "bombones_de_chocolate",
+    "name": "bombones_de_chocolate",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/bombones_de_chocolate.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-bombones_de_chocolate.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::cheesecake_30x50",
+    "slug": "cheesecake_30x50",
+    "name": "cheesecake_30x50",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/cheesecake_30x50.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-cheesecake_30x50.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::frikandel_100_unidades",
+    "slug": "frikandel_100_unidades",
+    "name": "frikandel_100_unidades",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/frikandel_100_unidades.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-frikandel_100_unidades.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::galletas_de_especuloos_speculaasjes",
+    "slug": "galletas_de_especuloos_speculaasjes",
+    "name": "galletas_de_especuloos_speculaasjes",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/galletas_de_especuloos_speculaasjes.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-galletas_de_especuloos_speculaasjes.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::goulash_crockettes",
+    "slug": "goulash_crockettes",
+    "name": "goulash_crockettes",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/goulash_crockettes.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-goulash_crockettes.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::hojaldre_bladerdeeg",
+    "slug": "hojaldre_bladerdeeg",
+    "name": "hojaldre_bladerdeeg",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/hojaldre_bladerdeeg.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-hojaldre_bladerdeeg.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::ketjap_manis_version_rapida",
+    "slug": "ketjap_manis_version_rapida",
+    "name": "ketjap_manis_version_rapida",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/ketjap_manis_version_rapida.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-ketjap_manis_version_rapida.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::muffin_de_chocolate_20x20_cm",
+    "slug": "muffin_de_chocolate_20x20_cm",
+    "name": "muffin_de_chocolate_20x20_cm",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/muffin_de_chocolate_20x20_cm.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-muffin_de_chocolate_20x20_cm.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::oliebollen_bunuelos_tradicionales_holandeses",
+    "slug": "oliebollen_bunuelos_tradicionales_holandeses",
+    "name": "oliebollen_bunuelos_tradicionales_holandeses",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/oliebollen_bunuelos_tradicionales_holandeses.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-oliebollen_bunuelos_tradicionales_holandeses.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::ontbijtkoek_700g_de_harina",
+    "slug": "ontbijtkoek_700g_de_harina",
+    "name": "ontbijtkoek_700g_de_harina",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/ontbijtkoek_700g_de_harina.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-ontbijtkoek_700g_de_harina.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::pastelitos_rosados_roze_koeken",
+    "slug": "pastelitos_rosados_roze_koeken",
+    "name": "pastelitos_rosados_roze_koeken",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/pastelitos_rosados_roze_koeken.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-pastelitos_rosados_roze_koeken.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::petisus_de_hojaldre_y_crema_tompoezen",
+    "slug": "petisus_de_hojaldre_y_crema_tompoezen",
+    "name": "petisus_de_hojaldre_y_crema_tompoezen",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/petisus_de_hojaldre_y_crema_tompoezen.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-petisus_de_hojaldre_y_crema_tompoezen.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::proficteroles_de_den_bosch_bossche_bollen",
+    "slug": "proficteroles_de_den_bosch_bossche_bollen",
+    "name": "proficteroles_de_den_bosch_bossche_bollen",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/proficteroles_de_den_bosch_bossche_bollen.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-proficteroles_de_den_bosch_bossche_bollen.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::stroop_wafel",
+    "slug": "stroop_wafel",
+    "name": "stroop_wafel",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/stroop_wafel.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-stroop_wafel.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::suppli_cacio_e_pepe",
+    "slug": "suppli_cacio_e_pepe",
+    "name": "suppli_cacio_e_pepe",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/suppli_cacio_e_pepe.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-suppli_cacio_e_pepe.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart",
+    "slug": "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart",
+    "name": "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::torta_de_zanahoria_43x33x1_5_cm",
+    "slug": "torta_de_zanahoria_43x33x1_5_cm",
+    "name": "torta_de_zanahoria_43x33x1_5_cm",
+    "type": "product",
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/torta_de_zanahoria_43x33x1_5_cm.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-torta_de_zanahoria_43x33x1_5_cm.jpg"
+      }
+    ],
+    "is_base": true
+  },
+  {
+    "id": "product::docena_stroopwafels",
+    "slug": "docena_stroopwafels",
+    "name": "Docena stroopwafels",
+    "type": "product",
+    "aspect_ratio": null,
+    "size_px": null,
+    "outputs": [],
+    "is_base": false,
+    "reuses_image_from": "stroop_wafel"
+  },
+  {
+    "id": "product::docena_tompoezen",
+    "slug": "docena_tompoezen",
+    "name": "Docena tompoezen",
+    "type": "product",
+    "aspect_ratio": null,
+    "size_px": null,
+    "outputs": [],
+    "is_base": false,
+    "reuses_image_from": "petisus_de_hojaldre_y_crema_tompoezen"
+  },
+  {
+    "id": "product::docena_oliebollen",
+    "slug": "docena_oliebollen",
+    "name": "Docena oliebollen",
+    "type": "product",
+    "aspect_ratio": null,
+    "size_px": null,
+    "outputs": [],
+    "is_base": false,
+    "reuses_image_from": "oliebollen_bunuelos_tradicionales_holandeses"
+  },
+  {
+    "id": "product::docena_muffins_chocolate",
+    "slug": "docena_muffins_chocolate",
+    "name": "Docena muffins de chocolate",
+    "type": "product",
+    "aspect_ratio": null,
+    "size_px": null,
+    "outputs": [],
+    "is_base": false,
+    "reuses_image_from": "muffin_de_chocolate_20x20_cm"
+  },
+  {
+    "id": "product::caja_bombones",
+    "slug": "caja_bombones",
+    "name": "Caja bombones",
+    "type": "product",
+    "aspect_ratio": null,
+    "size_px": null,
+    "outputs": [],
+    "is_base": false,
+    "reuses_image_from": "bombones_de_chocolate"
+  },
+  {
+    "id": "product::babka_entera",
+    "slug": "babka_entera",
+    "name": "Babka entera",
+    "type": "product",
+    "aspect_ratio": null,
+    "size_px": null,
+    "outputs": [],
+    "is_base": false,
+    "reuses_image_from": "babka"
+  },
+  {
+    "id": "product::cheesecake_entera",
+    "slug": "cheesecake_entera",
+    "name": "Cheesecake entera",
+    "type": "product",
+    "aspect_ratio": null,
+    "size_px": null,
+    "outputs": [],
+    "is_base": false,
+    "reuses_image_from": "cheesecake_30x50"
+  },
+  {
+    "id": "product::bizcocho_25_cm_entero",
+    "slug": "bizcocho_25_cm_entero",
+    "name": "Bizcocho 25 cm entero",
+    "type": "product",
+    "aspect_ratio": null,
+    "size_px": null,
+    "outputs": [],
+    "is_base": false,
+    "reuses_image_from": "bizcocho_basico_25_cm_basiscake"
+  },
+  {
+    "id": "product::bizcocho_30_cm_entero",
+    "slug": "bizcocho_30_cm_entero",
+    "name": "Bizcocho 30 cm entero",
+    "type": "product",
+    "aspect_ratio": null,
+    "size_px": null,
+    "outputs": [],
+    "is_base": false,
+    "reuses_image_from": "bizcocho_basico_30_cm_basiscake"
+  },
+  {
+    "id": "ingredient::Harina de centeno",
+    "slug": "Harina de centeno",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Harina de centeno.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Harina de repostería",
+    "slug": "Harina de repostería",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Harina de repostería.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Harina de trigo",
+    "slug": "Harina de trigo",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Harina de trigo.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Harina Patentada",
+    "slug": "Harina Patentada",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Harina Patentada.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Maicena",
+    "slug": "Maicena",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Maicena.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Pan rallado",
+    "slug": "Pan rallado",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Pan rallado.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Azúcar",
+    "slug": "Azúcar",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Azúcar.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Azúcar glas",
+    "slug": "Azúcar glas",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Azúcar glas.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Azúcar morena",
+    "slug": "Azúcar morena",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Azúcar morena.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Melaza",
+    "slug": "Melaza",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Melaza.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Miel",
+    "slug": "Miel",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Miel.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Crema agria",
+    "slug": "Crema agria",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Crema agria.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Crema de leche",
+    "slug": "Crema de leche",
+    "name": "l",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Crema de leche.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Crema pastelera",
+    "slug": "Crema pastelera",
+    "name": "l",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Crema pastelera.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Huevos",
+    "slug": "Huevos",
+    "name": "und",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Huevos.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Leche",
+    "slug": "Leche",
+    "name": "l",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Leche.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Manteca",
+    "slug": "Manteca",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Manteca.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Queso muzzarella",
+    "slug": "Queso muzzarella",
+    "name": "l",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Queso muzzarella.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Queso crema",
+    "slug": "Queso crema",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Queso crema.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Suero de leche (buttermilk)",
+    "slug": "Suero de leche (buttermilk)",
+    "name": "l",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Suero de leche (buttermilk).jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Leche condensada",
+    "slug": "Leche condensada",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Leche condensada.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Leche en polvo",
+    "slug": "Leche en polvo",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Leche en polvo.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Cacao en polvo",
+    "slug": "Cacao en polvo",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Cacao en polvo.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Café instantaneo",
+    "slug": "Café instantaneo",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Café instantaneo.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Chocolate",
+    "slug": "Chocolate",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Chocolate.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Laurel",
+    "slug": "Laurel",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Laurel.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Vainilla",
+    "slug": "Vainilla",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Vainilla.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Ajo",
+    "slug": "Ajo",
+    "name": "und",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Ajo.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Anís estrellado",
+    "slug": "Anís estrellado",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Anís estrellado.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Canela",
+    "slug": "Canela",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Canela.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Especias mixtas",
+    "slug": "Especias mixtas",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Especias mixtas.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Mezcla de especias para Speculaas",
+    "slug": "Mezcla de especias para Speculaas",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Mezcla de especias para Speculaas.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Jengibre",
+    "slug": "Jengibre",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Jengibre.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Jengibre molido",
+    "slug": "Jengibre molido",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Jengibre molido.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Nuez moscada",
+    "slug": "Nuez moscada",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Nuez moscada.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Ralladura de limón",
+    "slug": "Ralladura de limón",
+    "name": "und",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Ralladura de limón.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Sal",
+    "slug": "Sal",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Sal.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Perejil",
+    "slug": "Perejil",
+    "name": "und",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Perejil.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Cebolla en polvo",
+    "slug": "Cebolla en polvo",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Cebolla en polvo.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Ajo en polvo",
+    "slug": "Ajo en polvo",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Ajo en polvo.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Knorr",
+    "slug": "Knorr",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Knorr.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Pimienta",
+    "slug": "Pimienta",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Pimienta.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Mostaza",
+    "slug": "Mostaza",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Mostaza.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Bicarbonato de sodio",
+    "slug": "Bicarbonato de sodio",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Bicarbonato de sodio.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Levadura fresca",
+    "slug": "Levadura fresca",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Levadura fresca.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Levadura seca",
+    "slug": "Levadura seca",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Levadura seca.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Polvo de hornear",
+    "slug": "Polvo de hornear",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Polvo de hornear.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Frambuesas",
+    "slug": "Frambuesas",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Frambuesas.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Fruta",
+    "slug": "Fruta",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Fruta.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Nueces",
+    "slug": "Nueces",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Nueces.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Pasas",
+    "slug": "Pasas",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Pasas.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Frutilla",
+    "slug": "Frutilla",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Frutilla.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Mango",
+    "slug": "Mango",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Mango.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Fruta Confitada",
+    "slug": "Fruta Confitada",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Fruta Confitada.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Mburukuja",
+    "slug": "Mburukuja",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Mburukuja.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Manzana",
+    "slug": "Manzana",
+    "name": "und",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Manzana.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Cebolla",
+    "slug": "Cebolla",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Cebolla.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Zanahoria",
+    "slug": "Zanahoria",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Zanahoria.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Garbanzo",
+    "slug": "Garbanzo",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Garbanzo.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Cebolla morada",
+    "slug": "Cebolla morada",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Cebolla morada.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Panceta de cerdo",
+    "slug": "Panceta de cerdo",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Panceta de cerdo.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Pechuga de pollo",
+    "slug": "Pechuga de pollo",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Pechuga de pollo.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Bola de lomo",
+    "slug": "Bola de lomo",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Bola de lomo.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Carnaza de segunda",
+    "slug": "Carnaza de segunda",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Carnaza de segunda.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Agua",
+    "slug": "Agua",
+    "name": "l",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Agua.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Jugo de limón",
+    "slug": "Jugo de limón",
+    "name": "l",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Jugo de limón.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Jugo de remolacha",
+    "slug": "Jugo de remolacha",
+    "name": "l",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Jugo de remolacha.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Vinagre",
+    "slug": "Vinagre",
+    "name": "l",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Vinagre.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Ketjap manis",
+    "slug": "Ketjap manis",
+    "name": "l",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Ketjap manis.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Salsa de soja",
+    "slug": "Salsa de soja",
+    "name": "l",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Salsa de soja.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Nata para montar",
+    "slug": "Nata para montar",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Nata para montar.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Aceite",
+    "slug": "Aceite",
+    "name": "l",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Aceite.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Estabilizante para nata",
+    "slug": "Estabilizante para nata",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Estabilizante para nata.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Polvo para natillas",
+    "slug": "Polvo para natillas",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Polvo para natillas.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Masa choux",
+    "slug": "Masa choux",
+    "name": "und",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Masa choux.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Masa de hojaldre",
+    "slug": "Masa de hojaldre",
+    "name": "und",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Masa de hojaldre.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Gelatina",
+    "slug": "Gelatina",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Gelatina.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Cafe Espresso Molido",
+    "slug": "Cafe Espresso Molido",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Cafe Espresso Molido.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Galletas dulces (base cheesecake)",
+    "slug": "Galletas dulces (base cheesecake)",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Galletas dulces (base cheesecake).jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Gelatina sin sabor",
+    "slug": "Gelatina sin sabor",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Gelatina sin sabor.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Caldo de carne en cubos",
+    "slug": "Caldo de carne en cubos",
+    "name": "und",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Caldo de carne en cubos.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Morrón rojo",
+    "slug": "Morrón rojo",
+    "name": "und",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Morrón rojo.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Apio",
+    "slug": "Apio",
+    "name": "und",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Apio.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Puré de tomate",
+    "slug": "Puré de tomate",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Puré de tomate.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Pimentón ahumado",
+    "slug": "Pimentón ahumado",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Pimentón ahumado.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Falda de res",
+    "slug": "Falda de res",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Falda de res.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Alcaravea",
+    "slug": "Alcaravea",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Alcaravea.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Cayena",
+    "slug": "Cayena",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Cayena.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Echalote",
+    "slug": "Echalote",
+    "name": "und",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Echalote.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Girgolas frescas",
+    "slug": "Girgolas frescas",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Girgolas frescas.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Tomillo fresco",
+    "slug": "Tomillo fresco",
+    "name": "und",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Tomillo fresco.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Caldo de hongos en cubos",
+    "slug": "Caldo de hongos en cubos",
+    "name": "und",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Caldo de hongos en cubos.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Arroz para sushi",
+    "slug": "Arroz para sushi",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Arroz para sushi.jpg"
+      }
+    ]
+  },
+  {
+    "id": "ingredient::Queso rallado",
+    "slug": "Queso rallado",
+    "name": "kg",
+    "type": "ingredient",
+    "aspect_ratio": "1:1",
+    "size_px": "1024x1024",
+    "outputs": [
+      {
+        "path": "app/static/ingredients/Queso rallado.jpg"
+      }
+    ]
+  }
+]
