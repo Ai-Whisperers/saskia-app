@@ -122,6 +122,13 @@ regression test `test_dashboard_empty_state_still_renders_kpi_tiles` locks it. 1
 
 ## [Unreleased]
 
+### Fixed
+
+- **`/ventas/buscar` 400 (route-order bug)**: the SKU lookup route was declared *after* `/{sale_id}` in `app/routers/sales.py`, so `GET /ventas/buscar?sku=…` matched the sale-detail path param (`sale_id: int`) and failed int conversion → custom 400 `"sale_id debe ser un número entero"`. Barcode scan flow was broken on main. Moved `/buscar` before `/{sale_id}`.
+- **`test_produccion_pedido_highlight` stale assertions**: the 3 tests asserted `production-row--has-pedido` appears in the rendered HTML, but the PR4 CSS refactor (5bfb09df) moved those rules to `app/static/app-improvements.css`. Tests now use the CSS_BODY pattern (template + extracted sheet) from `test_produccion_polish.py`.
+
+Both were failing on clean origin/main (verified before fixing): 6 failed → 7/7 green.
+
 ### Added — SASKIA-309: regression tests for Phase 8 (errors + help + misc, 2026-10-07)
 
 Locks the Phase 8 work of the copy/UX hardening program in place. No

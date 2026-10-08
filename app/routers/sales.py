@@ -710,231 +710,6 @@ async def sales_export_csv(
     )
 
 
-@router.get("/{sale_id}", response_class=HTMLResponse)
-async def sale_detail(
-    request: Request,
-    sale_id: int,
-    session: Session = Depends(get_session),
-) -> HTMLResponse:
-    """Operator-facing single-sale detail page (BACKLOG #16).
-
-    Distinct from /recibo (the printable customer receipt):
-    - Full nav + breadcrumbs
-    - Action buttons: view recibo, void, refund
-    - Wider layout — fits channel, payment method, customer link
-    - Stock-move ledger so the operator can trace what got consumed
-    - Refund history table (M1, 2026-10-02)
-
-    Placed before /recibo so the {sale_id} path matches first; FastAPI
-    routing prefers more-specific literals, so /{sale_id}/recibo still
-    wins for the printable receipt.
-    """
-    from app.rms.errors import NotFound
-    from app.rms.models import Ingredient, StockMovement
-    from app.rms.refunds import list_refunds_for, sum_refunds_for
-
-    sale = session.get(Sale, sale_id)
-    if sale is None:
-        raise NotFound("venta", id=sale_id)
-
-    # Stock-move ledger for this sale (BACKLOG #16 traceability).
-    # After BACKLOG #1 (this session), the ledger lives in stock_movement
-    # keyed by (reference_id=sale_id, reference_type='sale'). Voids
-    # create a NEW positive-qty row, so both rows show up in the list.
-    moves = (
-        session.execute(
-            select(StockMovement)
-            .where(StockMovement.reference_id == sale_id)
-            .where(StockMovement.reference_type == "sale")
-            .order_by(StockMovement.id.asc())
-        )
-        .scalars()
-        .all()
-    )
-
-    stock_moves = []
-    for sm in moves:
-        ing = session.get(Ingredient, sm.ingredient_id) if sm.ingredient_id else None
-        stock_moves.append(
-            {
-                "id": sm.id,
-                "ingredient_id": sm.ingredient_id,
-                "ingredient_name": ing.name if ing else f"#{sm.ingredient_id}",
-                "qty": abs(float(sm.qty)),
-                "unit": ing.unit if ing else "",
-                "affected_recipe_id": sm.affected_recipe_id,
-                "recorded_at_str": sm.recorded_at.isoformat() if sm.recorded_at else "—",
-            }
-        )
-
-    # M1: refund history (newest first for the operator table).
-    refund_rows = list_refunds_for(session, "sale", sale_id)
-    refunds_total_gs = sum_refunds_for(session, "sale", sale_id)
-    sale_total = int(sale.unit_price_gs or 0)
-    refunds_remaining_gs = sale_total - refunds_total_gs
-
-    refunds = [
-        {
-            "id": r.id,
-            "amount_gs": int(r.amount_gs),
-            "payment_method": r.payment_method,
-            "restock_qty": bool(r.restock_qty),
-            "restocked_qty": float(r.restocked_qty or 0),
-            "reason": r.reason,
-            "recorded_by": r.recorded_by,
-            "recorded_at_str": r.recorded_at.strftime("%Y-%m-%d %H:%M") if r.recorded_at else "—",
-        }
-        for r in sorted(refund_rows, key=lambda x: x.recorded_at, reverse=True)
-    ]
-
-    return render(
-        request,
-        "ventas_detalle.html",
-        {
-            "sale": _decorated(sale),
-            "stock_moves": stock_moves,
-            "refunds": refunds,
-            "refunds_total_gs": refunds_total_gs,
-            "refunds_count": len(refunds),
-            "refunds_remaining_gs": refunds_remaining_gs,
-        },
-    )
-
-
-@router.get("/{sale_id}/recibo", response_class=HTMLResponse)
-async def sale_receipt(
-    request: Request,
-    sale_id: int,
-    session: Session = Depends(get_session),
-) -> HTMLResponse:
-    """Printable single-sale receipt for handing to the customer.
-
-    Renders a minimal A6-friendly page with title, date, line, total,
-    payment method, and a "thank you" footer. Print stylesheet hides
-    the nav. Operator can press ⌘P / Ctrl+P to print or save as PDF.
-    """
-    sale = session.get(Sale, sale_id)
-    if sale is None:
-        raise NotFound("venta", id=sale_id)
-    # Phase 4 tier 2.2 (2026-10-01): if this sale has a customer AND
-    # a ledger row, surface "+X puntos" + "Nuevo saldo: Y" on the
-    # receipt. Two queries max; both are FK-indexed so they cost <1ms.
-    loyalty_snapshot = None
-    if sale.customer_id:
-        from app.rms.models import Customer as _Cust
-        from app.rms.models import LoyaltyTransaction as _LT
-
-        cust = session.get(_Cust, sale.customer_id)
-        if cust is not None:
-            earn_row = session.execute(
-                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "earn_sale").limit(1)
-            ).scalar_one_or_none()
-            redeemed_row = session.execute(
-                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "redeem").limit(1)
-            ).scalar_one_or_none()
-            # Ledger rows are signed: earn_sale → positive delta,
-            # redeem → negative delta. Surface them to the cashier
-            # as absolute point counts so the receipt reads naturally
-            # ("canjeaste 5 puntos") instead of (-5).
-            earn_abs = int(earn_row.delta) if earn_row else 0
-            redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
-            loyalty_snapshot = {
-                "customer_name": cust.name or cust.phone or "Cliente",
-                "earn_points": earn_abs,
-                "redeemed_points": redeem_abs,
-                "current_balance": int(cust.loyalty_points or 0),
-                # T-2026-10-01: pre-format the discount Gs at the source
-                # instead of having the template multiply by a hardcoded
-                # 1000. The POINTS_VALUE_GS rate (1 pt = 100 Gs) lives
-                # in app/rms/loyalty/ledger.py — change there, not here.
-                "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
-            }
-    return render(
-        request,
-        "recibo.html",
-        {
-            "sale": _decorated(sale),
-            "loyalty_snapshot": loyalty_snapshot,
-            "branding": get_branding(session),
-        },
-    )
-
-
-@router.get("/{sale_id:int}", response_class=HTMLResponse)
-async def sale_detail_int(
-    request: Request,
-    sale_id: int,
-    session: Session = Depends(get_session),
-) -> HTMLResponse:
-    """Operator-facing full-width detail view for a single sale.
-
-    BACKLOG #16 (2026-10-02): complements the printable A6 receipt
-    (/ventas/{sale_id}/recibo) with a normal-width operator page that
-    shows product, customer, payment method, channel, void metadata,
-    and any loyalty ledger entries tied to the sale. Linkable by URL
-    so /ventas/helpdesk tickets can deep-link to a specific sale.
-    """
-    sale = session.get(Sale, sale_id)
-    if sale is None:
-        raise NotFound("venta", id=sale_id)
-
-    # Loyalty snapshot (same data shape as the receipt route)
-    loyalty_snapshot = None
-    if sale.customer_id:
-        from app.rms.models import Customer as _Cust
-        from app.rms.models import LoyaltyTransaction as _LT
-
-        cust = session.get(_Cust, sale.customer_id)
-        if cust is not None:
-            earn_row = session.execute(
-                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "earn_sale").limit(1)
-            ).scalar_one_or_none()
-            redeemed_row = session.execute(
-                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "redeem").limit(1)
-            ).scalar_one_or_none()
-            earn_abs = int(earn_row.delta) if earn_row else 0
-            redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
-            loyalty_snapshot = {
-                "customer_name": cust.name or cust.phone or "Cliente",
-                "customer_phone": cust.phone,
-                "customer_id": cust.id,
-                "earn_points": earn_abs,
-                "redeemed_points": redeem_abs,
-                "current_balance": int(cust.loyalty_points or 0),
-                "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
-            }
-
-    # Stock-move audit trail (which ingredients this sale consumed).
-    # Two queries max; both FK-indexed.
-    stock_moves = (
-        session.execute(
-            select(StockMovement)
-            .where(StockMovement.reference_id == sale_id)
-            .where(StockMovement.reference_type == "sale")
-        )
-        .scalars()
-        .all()
-    )
-
-    # Related pedido (if sale came from a pedido fulfillment)
-    related_pedido = None
-    if sale.linked_pedido_id:
-        from app.rms.models import Pedido
-
-        related_pedido = session.get(Pedido, sale.linked_pedido_id)
-
-    return render(
-        request,
-        "ventas_detalle.html",
-        {
-            "sale": _decorated(sale),
-            "loyalty_snapshot": loyalty_snapshot,
-            "stock_moves": stock_moves,
-            "related_pedido": related_pedido,
-        },
-    )
-
-
 @router.get("/buscar", response_model=None)
 def sale_lookup_by_sku(
     request: Request,
@@ -2517,6 +2292,231 @@ async def ventas_hold_cart(
             else str(held.held_at),
             "item_count": len((cart or {}).get("items", [])),
         }
+    )
+
+
+@router.get("/{sale_id}", response_class=HTMLResponse)
+async def sale_detail(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Operator-facing single-sale detail page (BACKLOG #16).
+
+    Distinct from /recibo (the printable customer receipt):
+    - Full nav + breadcrumbs
+    - Action buttons: view recibo, void, refund
+    - Wider layout — fits channel, payment method, customer link
+    - Stock-move ledger so the operator can trace what got consumed
+    - Refund history table (M1, 2026-10-02)
+
+    Placed before /recibo so the {sale_id} path matches first; FastAPI
+    routing prefers more-specific literals, so /{sale_id}/recibo still
+    wins for the printable receipt.
+    """
+    from app.rms.errors import NotFound
+    from app.rms.models import Ingredient, StockMovement
+    from app.rms.refunds import list_refunds_for, sum_refunds_for
+
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+
+    # Stock-move ledger for this sale (BACKLOG #16 traceability).
+    # After BACKLOG #1 (this session), the ledger lives in stock_movement
+    # keyed by (reference_id=sale_id, reference_type='sale'). Voids
+    # create a NEW positive-qty row, so both rows show up in the list.
+    moves = (
+        session.execute(
+            select(StockMovement)
+            .where(StockMovement.reference_id == sale_id)
+            .where(StockMovement.reference_type == "sale")
+            .order_by(StockMovement.id.asc())
+        )
+        .scalars()
+        .all()
+    )
+
+    stock_moves = []
+    for sm in moves:
+        ing = session.get(Ingredient, sm.ingredient_id) if sm.ingredient_id else None
+        stock_moves.append(
+            {
+                "id": sm.id,
+                "ingredient_id": sm.ingredient_id,
+                "ingredient_name": ing.name if ing else f"#{sm.ingredient_id}",
+                "qty": abs(float(sm.qty)),
+                "unit": ing.unit if ing else "",
+                "affected_recipe_id": sm.affected_recipe_id,
+                "recorded_at_str": sm.recorded_at.isoformat() if sm.recorded_at else "—",
+            }
+        )
+
+    # M1: refund history (newest first for the operator table).
+    refund_rows = list_refunds_for(session, "sale", sale_id)
+    refunds_total_gs = sum_refunds_for(session, "sale", sale_id)
+    sale_total = int(sale.unit_price_gs or 0)
+    refunds_remaining_gs = sale_total - refunds_total_gs
+
+    refunds = [
+        {
+            "id": r.id,
+            "amount_gs": int(r.amount_gs),
+            "payment_method": r.payment_method,
+            "restock_qty": bool(r.restock_qty),
+            "restocked_qty": float(r.restocked_qty or 0),
+            "reason": r.reason,
+            "recorded_by": r.recorded_by,
+            "recorded_at_str": r.recorded_at.strftime("%Y-%m-%d %H:%M") if r.recorded_at else "—",
+        }
+        for r in sorted(refund_rows, key=lambda x: x.recorded_at, reverse=True)
+    ]
+
+    return render(
+        request,
+        "ventas_detalle.html",
+        {
+            "sale": _decorated(sale),
+            "stock_moves": stock_moves,
+            "refunds": refunds,
+            "refunds_total_gs": refunds_total_gs,
+            "refunds_count": len(refunds),
+            "refunds_remaining_gs": refunds_remaining_gs,
+        },
+    )
+
+
+@router.get("/{sale_id}/recibo", response_class=HTMLResponse)
+async def sale_receipt(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Printable single-sale receipt for handing to the customer.
+
+    Renders a minimal A6-friendly page with title, date, line, total,
+    payment method, and a "thank you" footer. Print stylesheet hides
+    the nav. Operator can press ⌘P / Ctrl+P to print or save as PDF.
+    """
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+    # Phase 4 tier 2.2 (2026-10-01): if this sale has a customer AND
+    # a ledger row, surface "+X puntos" + "Nuevo saldo: Y" on the
+    # receipt. Two queries max; both are FK-indexed so they cost <1ms.
+    loyalty_snapshot = None
+    if sale.customer_id:
+        from app.rms.models import Customer as _Cust
+        from app.rms.models import LoyaltyTransaction as _LT
+
+        cust = session.get(_Cust, sale.customer_id)
+        if cust is not None:
+            earn_row = session.execute(
+                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "earn_sale").limit(1)
+            ).scalar_one_or_none()
+            redeemed_row = session.execute(
+                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "redeem").limit(1)
+            ).scalar_one_or_none()
+            # Ledger rows are signed: earn_sale → positive delta,
+            # redeem → negative delta. Surface them to the cashier
+            # as absolute point counts so the receipt reads naturally
+            # ("canjeaste 5 puntos") instead of (-5).
+            earn_abs = int(earn_row.delta) if earn_row else 0
+            redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
+            loyalty_snapshot = {
+                "customer_name": cust.name or cust.phone or "Cliente",
+                "earn_points": earn_abs,
+                "redeemed_points": redeem_abs,
+                "current_balance": int(cust.loyalty_points or 0),
+                # T-2026-10-01: pre-format the discount Gs at the source
+                # instead of having the template multiply by a hardcoded
+                # 1000. The POINTS_VALUE_GS rate (1 pt = 100 Gs) lives
+                # in app/rms/loyalty/ledger.py — change there, not here.
+                "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
+            }
+    return render(
+        request,
+        "recibo.html",
+        {
+            "sale": _decorated(sale),
+            "loyalty_snapshot": loyalty_snapshot,
+            "branding": get_branding(session),
+        },
+    )
+
+
+@router.get("/{sale_id:int}", response_class=HTMLResponse)
+async def sale_detail_int(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Operator-facing full-width detail view for a single sale.
+
+    BACKLOG #16 (2026-10-02): complements the printable A6 receipt
+    (/ventas/{sale_id}/recibo) with a normal-width operator page that
+    shows product, customer, payment method, channel, void metadata,
+    and any loyalty ledger entries tied to the sale. Linkable by URL
+    so /ventas/helpdesk tickets can deep-link to a specific sale.
+    """
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+
+    # Loyalty snapshot (same data shape as the receipt route)
+    loyalty_snapshot = None
+    if sale.customer_id:
+        from app.rms.models import Customer as _Cust
+        from app.rms.models import LoyaltyTransaction as _LT
+
+        cust = session.get(_Cust, sale.customer_id)
+        if cust is not None:
+            earn_row = session.execute(
+                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "earn_sale").limit(1)
+            ).scalar_one_or_none()
+            redeemed_row = session.execute(
+                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "redeem").limit(1)
+            ).scalar_one_or_none()
+            earn_abs = int(earn_row.delta) if earn_row else 0
+            redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
+            loyalty_snapshot = {
+                "customer_name": cust.name or cust.phone or "Cliente",
+                "customer_phone": cust.phone,
+                "customer_id": cust.id,
+                "earn_points": earn_abs,
+                "redeemed_points": redeem_abs,
+                "current_balance": int(cust.loyalty_points or 0),
+                "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
+            }
+
+    # Stock-move audit trail (which ingredients this sale consumed).
+    # Two queries max; both FK-indexed.
+    stock_moves = (
+        session.execute(
+            select(StockMovement)
+            .where(StockMovement.reference_id == sale_id)
+            .where(StockMovement.reference_type == "sale")
+        )
+        .scalars()
+        .all()
+    )
+
+    # Related pedido (if sale came from a pedido fulfillment)
+    related_pedido = None
+    if sale.linked_pedido_id:
+        from app.rms.models import Pedido
+
+        related_pedido = session.get(Pedido, sale.linked_pedido_id)
+
+    return render(
+        request,
+        "ventas_detalle.html",
+        {
+            "sale": _decorated(sale),
+            "loyalty_snapshot": loyalty_snapshot,
+            "stock_moves": stock_moves,
+            "related_pedido": related_pedido,
+        },
     )
 
 
