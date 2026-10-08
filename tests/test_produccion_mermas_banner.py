@@ -40,7 +40,6 @@ def test_mermas_banner_hides_when_zero(authed_client):
     """When today_waste_count == 0, the banner is hidden."""
     r = authed_client.get("/produccion?view=day")
     assert r.status_code == 200
-    body = r.text  # noqa: F841 — kept for future assertion
     # With no waste recorded today, the banner should not render.
     # The {% if today_waste_count > 0 %} gate hides it.
     # We just verify the page renders successfully (no template errors).

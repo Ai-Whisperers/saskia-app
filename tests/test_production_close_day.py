@@ -1,4 +1,5 @@
-"""tests/test_production_close_day.py — PRODUCCION-V2 Fase 2.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_production_close_day.py — PRODUCCION-V2 Fase 2.
 
 Tests for the close-day endpoint and the helper in app/rms/eod_completions.py.
 
@@ -18,7 +19,6 @@ import pytest
 
 from app.rms.eod_completions import close_day_for_product
 from app.rms.models import ProductionCompletion
-
 
 # ---------------------------------------------------------------------------
 # Helper: close_day_for_product
@@ -151,18 +151,14 @@ def test_close_day_rejects_invalid_status(session_factory):
 
     with session_factory() as s:
         with pytest.raises(ValueError, match="status must be"):
-            close_day_for_product(
-                s, product_id=pid, for_date=target, status="banana"
-            )
+            close_day_for_product(s, product_id=pid, for_date=target, status="banana")
 
 
 def test_close_day_raises_keyerror_for_unknown_product(session_factory):
     """Product that doesn't exist → KeyError."""
     with session_factory() as s:
         with pytest.raises(KeyError, match="Product 99999 not found"):
-            close_day_for_product(
-                s, product_id=99999, for_date=date(2026, 10, 5), status="done"
-            )
+            close_day_for_product(s, product_id=99999, for_date=date(2026, 10, 5), status="done")
 
 
 def test_close_day_truncates_long_notes_to_500_chars_in_router(client, session_factory):
@@ -386,9 +382,7 @@ def test_reopen_endpoint_flips_status_to_open(client, session_factory):
         make_completion(s, product=prod, for_date=target, completed_qty=10.0)
         s.commit()
     with session_factory() as s:
-        close_day_for_product(
-            s, product_id=pid, for_date=target, status="done", closure_notes="ok"
-        )
+        close_day_for_product(s, product_id=pid, for_date=target, status="done", closure_notes="ok")
         s.commit()
 
     resp = client.post(
@@ -469,7 +463,9 @@ def test_day_view_v2_renders_demanda_column(client, session_factory):
         prod = make_product(s, name="Chipitas")
         s.commit()
         target = _date(2030, 1, 1)
-        from datetime import datetime as _dt, timezone as _tz
+        from datetime import datetime as _dt
+        from datetime import timezone as _tz
+
         s.add(
             ProductionPlanTemplate(
                 weekday=target.weekday(),
@@ -518,7 +514,7 @@ def test_day_view_v2_renders_ui_badge(client, session_factory):
     # The v2 badge is always visible (the only UI version now).
     assert "v2 ✨" in body, "v2 label should be visible in the header badge"
     # The old v1 link should be gone.
-    assert 'href="/produccion?view' not in body or 'ui=v1' not in body, (
+    assert 'href="/produccion?view' not in body or "ui=v1" not in body, (
         "v1 link should be removed from the header after cutover"
     )
 
@@ -536,14 +532,14 @@ def test_day_view_closure_summary_zero_state(client, session_factory):
     body = resp.text
     # Save the body for debugging if this fails again.
     import os
+
     debug_path = os.environ.get("SASKIA_DEBUG_PAGE")
     if debug_path:
         with open(debug_path, "w") as f:
             f.write(body)
     # Debug: confirm we're getting the day view, not the login page.
     assert "Ejecución del turno" in body, (
-        f"day view should be rendered; body length={len(body)}; "
-        f"first 200 chars: {body[:200]!r}"
+        f"day view should be rendered; body length={len(body)}; first 200 chars: {body[:200]!r}"
     )
     assert "0 cerradas" in body, "day-level 'cerradas' badge should be visible"
     assert "0 pendientes" in body, "day-level 'pendientes' badge should be visible"
@@ -561,9 +557,7 @@ def test_day_view_closure_summary_reflects_real_closure(client, session_factory)
         ids = [p1.id, p2.id]
         target = date(2026, 10, 5)
         for pid in ids:
-            make_completion(
-                s, product=s.get(type(p1), pid), for_date=target, completed_qty=2.0
-            )
+            make_completion(s, product=s.get(type(p1), pid), for_date=target, completed_qty=2.0)
         s.commit()
     # Close one of them
     with session_factory() as s:
@@ -594,8 +588,8 @@ def test_day_view_closure_cell_renders_button_per_row(client, session_factory):
     body = resp.text
     assert "Cerrar turno" in body, "open row should show 'Cerrar turno' button"
     assert "closure-btn" in body, "per-row closure cell should be present"
-    assert "data-action=\"close-day\"" in body, "button must declare its action"
-    assert f"data-product-id=\"{pid}\"" in body, "button must carry the product id"
+    assert 'data-action="close-day"' in body, "button must declare its action"
+    assert f'data-product-id="{pid}"' in body, "button must carry the product id"
 
 
 def test_day_view_closure_cell_renders_reopen_for_done_row(client, session_factory):
@@ -617,7 +611,7 @@ def test_day_view_closure_cell_renders_reopen_for_done_row(client, session_facto
     body = resp.text
     assert "Reabrir" in body, "closed row should show 'Reabrir' button"
     assert "Cerrado" in body, "closed row should show the 'Cerrado' pill"
-    assert "data-action=\"reopen-day\"" in body, "reopen button must declare its action"
+    assert 'data-action="reopen-day"' in body, "reopen button must declare its action"
 
 
 def test_day_view_closure_cell_renders_cancelled_pill(client, session_factory):

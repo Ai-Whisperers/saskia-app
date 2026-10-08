@@ -81,7 +81,7 @@ def test_planner_to_shopping_pipeline_syntax():
     """Verify the planner template uses combo (no native select)."""
     from pathlib import Path
 
-    p = Path("/opt/data/work/sazon-app/app/templates/planner.html")
+    p = Path("/opt/data/work/saskia-app/app/templates/planner.html")
     content = p.read_text()
     # Should have ui-combo (recipe picker)
     assert "ui-combo" in content
@@ -93,7 +93,7 @@ def test_shopping_list_template_no_native_select():
     """Bank manual-entry uses combos not selects."""
     from pathlib import Path
 
-    p = Path("/opt/data/work/sazon-app/app/templates/bank.html")
+    p = Path("/opt/data/work/saskia-app/app/templates/bank.html")
     content = p.read_text()
     # After Phase D fix, the only <select> is gone (currency/category now combos)
     assert '<select id="currency"' not in content
@@ -122,7 +122,7 @@ def test_recipe_photos_template_exists():
     """The recipe_photos.html template is rendered."""
     from pathlib import Path
 
-    p = Path("/opt/data/work/sazon-app/app/templates/recipe_photos.html")
+    p = Path("/opt/data/work/saskia-app/app/templates/recipe_photos.html")
     assert p.exists()
     content = p.read_text()
     assert "{% for p in photos %}" in content
@@ -175,7 +175,7 @@ def test_dashboard_kpis_present():
     # The new operational KPIs are present in dashboard.html
     from pathlib import Path
 
-    p = Path("/opt/data/work/sazon-app/app/templates/dashboard.html")
+    p = Path("/opt/data/work/saskia-app/app/templates/dashboard.html")
     content = p.read_text()
     assert "sl_open_count" in content
     assert "wishlist_count" in content

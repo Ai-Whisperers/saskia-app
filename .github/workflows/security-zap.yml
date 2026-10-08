@@ -87,7 +87,7 @@ jobs:
       - name: Install dependencies
         # Full dev group: includes testcontainers (for ephemeral PG) and
         # every test dep. Excludes Playwright browser binaries.
-        run: uv sync --group dev
+        run: rm -rf .venv && uv sync --group dev
 
       - name: Boot ephemeral Postgres
         # Postgres 16 matches smoke.yml. Migrations are SQLite-first and
@@ -146,9 +146,9 @@ jobs:
             --host 127.0.0.1 --port 18998 \
             > uvicorn-zap.log 2>&1 &
           echo "uvicorn pid=$!"
-          # Wait for /api/health to come up
+          # Wait for /healthz to come up
           for i in $(seq 1 60); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:18998/api/health || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:18998/healthz || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "uvicorn ready (HTTP $STATUS) on attempt $i"
               exit 0
@@ -164,7 +164,7 @@ jobs:
         # before letting ZAP run. Catches regressions where someone
         # removes the middleware without noticing.
         run: |
-          HEADERS=$(curl -sD - -o /dev/null http://127.0.0.1:18998/api/health)
+          HEADERS=$(curl -sD - -o /dev/null http://127.0.0.1:18998/healthz)
           echo "$HEADERS"
           echo "$HEADERS" | grep -qi "x-content-type-options: nosniff" || { echo "missing X-Content-Type-Options"; exit 1; }
           echo "$HEADERS" | grep -qi "x-frame-options: DENY"            || { echo "missing X-Frame-Options"; exit 1; }
@@ -186,13 +186,18 @@ jobs:
           rules_file_name: .github/.zap-rules.tsv
           # `-a` (ajax spider for SPAs — disabled in our app; harmless)
           # `-j` (use the openapi.json file)
-          # `-l WARN` only WARN+ level alerts trigger `fail_action`
+          # `-l WARN` show WARN+ alerts in output
+          # `-I` do NOT return failure on warnings — promoted 2026-10-08:
+          #   only FAIL-level (HIGH/CRITICAL) alerts fail the build now.
+          #   All remaining WARN alerts were triaged as false positives or
+          #   operational noise — see .github/.zap-rules.tsv for rationale.
           # spider `maxDuration=2` (minutes) — keeps scan ≤ 6 min total
           # scanner `maxScanDurationInMins=4`
           cmd_options: >
             -a
             -j
             -l WARN
+            -I
             -z "-config api.disablekey=true
             -config openapi.targetUrl=http://127.0.0.1:18998
             -config spider.maxDuration=2

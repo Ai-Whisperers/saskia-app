@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         # Smoke boots a real Postgres; needs testcontainers. Use full dev
         # group (includes testcontainers but skips Playwright).
-        run: uv sync --group dev
+        run: rm -rf .venv && uv sync --group dev
 
       - name: Boot ephemeral Postgres
         # Use Postgres 16 to match production's Neon Postgres 18.x as

@@ -1,4 +1,5 @@
-"""Tier 6.1 (2026-10-01) — /clientes list page flow coverage.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tier 6.1 (2026-10-01) — /clientes list page flow coverage.
 
 Three small flows added to /clientes:
   1. One-click "+ Pedido" row action (link to /pedidos/nuevo?customer_id=N).

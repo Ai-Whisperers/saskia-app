@@ -1,6 +1,7 @@
 """Add `pytest.mark.e2e` to every tests/e2e/*.py test module that
 doesn't have it yet. Preserves existing markers (crud, security, etc.).
 """
+
 from pathlib import Path
 
 e2e_dir = Path("tests/e2e")
@@ -12,6 +13,7 @@ for path in sorted(e2e_dir.glob("test_*.py")):
         # Has pytestmark — replace single marker with a list that includes e2e
         # + the existing marker.
         import re
+
         # Match: pytestmark = pytest.mark.foo OR pytestmark = [pytest.mark.foo]
         new = re.sub(
             r"^pytestmark = (pytest\.mark\.\w+)$",
@@ -34,9 +36,13 @@ for path in sorted(e2e_dir.glob("test_*.py")):
         lines = text.splitlines()
         last_import = -1
         for i, line in enumerate(lines):
-            if line.startswith("import ") or line.startswith("from "):
+            if line.startswith(("import ", "from ")):
                 last_import = i
-        new = "\n".join(lines[: last_import + 1]) + "\n\npytestmark = pytest.mark.e2e\n" + "\n".join(lines[last_import + 1 :])
+        new = (
+            "\n".join(lines[: last_import + 1])
+            + "\n\npytestmark = pytest.mark.e2e\n"
+            + "\n".join(lines[last_import + 1 :])
+        )
     if new != text:
         path.write_text(new)
         print(f"  marked: {path.name}")

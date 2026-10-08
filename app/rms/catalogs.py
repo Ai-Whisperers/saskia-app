@@ -10,7 +10,8 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.rms.models import Channel, PaymentMethod
+from app.rms.models import Channel, PaymentMethod  # Channel here = the ORM model (channel DB table)
+from app.rms.models.channels import Channel as ChannelEnum  # ChannelEnum = the canonical enum
 
 
 def list_channels(session: Session, include_inactive: bool = False) -> list[Channel]:
@@ -42,11 +43,17 @@ def payment_method_codes(session: Session) -> list[str]:
 
 
 def default_channel_code(session: Session) -> str:
-    """Return the code marked is_default=True, or 'mostrador' as fallback."""
+    """Return the code marked is_default=True, or Channel.MOSTRADOR.value as fallback.
+
+    P43 (2026-10-07): use the canonical Channel enum value instead of a
+    raw "mostrador" string. Both representations are identical for now,
+    but sourcing from the enum keeps the fallback in lock-step with
+    the DB CHECK constraint (migration 111) and the Channel enum.
+    """
     row = session.execute(
         select(Channel).where(Channel.is_default.is_(True), Channel.is_active.is_(True))
     ).scalar_one_or_none()
-    return row.code if row else "mostrador"
+    return row.code if row else ChannelEnum.MOSTRADOR.value
 
 
 def default_payment_method_code(session: Session) -> str:

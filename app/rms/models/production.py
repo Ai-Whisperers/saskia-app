@@ -51,9 +51,7 @@ class ProductionCompletion(Base):
     # closure_notes is the cook's optional free-text justification
     # (NULL when blank). updated_at is the most recent write (set on
     # upsert and on close-day).
-    status: Mapped[str] = mapped_column(
-        Text, nullable=False, default="open", server_default="open"
-    )
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="open", server_default="open")
     closure_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
@@ -63,7 +61,7 @@ class ProductionCompletion(Base):
     )
 
     # Relationships
-    product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    product: Mapped["Product"] = relationship("Product")
 
 
 class ProductionPlanTemplate(Base):
@@ -94,7 +92,7 @@ class ProductionPlanTemplate(Base):
     )
 
     # Relationships
-    product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    product: Mapped["Product"] = relationship("Product")
 
 
 class ProductionPlanOverride(Base):
@@ -122,7 +120,7 @@ class ProductionPlanOverride(Base):
     )
 
     # Relationships
-    product: Mapped["Product"] = relationship("Product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    product: Mapped["Product"] = relationship("Product")
 
 
 class ProductionPlan(Base):
@@ -143,8 +141,8 @@ class ProductionPlan(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
-    recipe: Mapped["Recipe"] = relationship("Recipe")  # noqa: F821 — SQLAlchemy 2.0 forward ref
-    shopping_items: Mapped[list["ShoppingListItem"]] = relationship(  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    recipe: Mapped["Recipe"] = relationship("Recipe")
+    shopping_items: Mapped[list["ShoppingListItem"]] = relationship(
         back_populates="production_plan", cascade="all, delete-orphan"
     )
 
@@ -155,4 +153,3 @@ class ProductionPlan(Base):
             name="ck_plan_status",
         ),
     )
-

@@ -21,6 +21,7 @@ from fastapi.responses import (
 from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.catalogs import (
@@ -32,7 +33,6 @@ from app.rms.catalogs import (
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
 from app.rms.db import safe_commit
-from app.rms.production_demand import invalidate_demand_for_sale_today
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, Conflict, NotFound, ValidationError
 from app.rms.loyalty import discount_gs_for_points
@@ -50,16 +50,16 @@ from app.rms.messages import (
     SALE_SKU_REQUIRED,
     SALE_TOO_MANY_ITEMS,
 )
-from app.rms.models.channels import Channel
 from app.rms.models import Customer, Product, Sale, StockMovement
+from app.rms.models.channels import Channel
 from app.rms.money import to_int_gs
+from app.rms.production_demand import invalidate_demand_for_sale_today
 from app.rms.public_tokens import (
     enforce_rate_limit as public_token_enforce_rate_limit,
 )
 from app.rms.public_tokens import (
     is_token_valid,
 )
-from app.rms.settings_runtime import get_branding
 from app.rms.schemas import (
     ALLOWED_CHANNELS,
     CHANNEL_DEFAULT,
@@ -67,6 +67,7 @@ from app.rms.schemas import (
     PAYMENT_METHOD_DEFAULT,
     PAYMENT_METHODS_DISPLAY,
 )
+from app.rms.settings_runtime import get_branding
 from app.services.template_render import render
 
 router = APIRouter(prefix="/ventas", dependencies=[Depends(require_login)])
@@ -138,6 +139,10 @@ def _build_sales_context(
     offset: int | None,
     session: Session,
     fav: bool = False,
+    # SASKIA-204 (2026-10-07): channel filter for /ventas/historial.
+    # Accepts any Channel enum value or None (no filter). Mismatches
+    # fall back to None to keep the page loading.
+    channel: str | None = None,
 ) -> dict:
     """Build the render context shared by /ventas and /ventas/historial.
 
@@ -174,11 +179,18 @@ def _build_sales_context(
                 )
             )
         )
+    # SASKIA-204 (2026-10-07): channel filter. Validates against
+    # Channel.allowed_values() — typos fall back to None so the
+    # page still loads (better than 500).
+    if channel and channel in Channel.allowed_values():
+        sales_q = sales_q.where(Sale.channel == channel)
 
     # Count total matching (for pagination has_more)
     count_q = select(func.count(Sale.id))
     if product_id is not None:
         count_q = count_q.where(Sale.product_id == product_id)
+    if channel and channel in Channel.allowed_values():
+        count_q = count_q.where(Sale.channel == channel)
     if days is not None and days > 0:
         cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
         count_q = count_q.where(Sale.sold_at >= cutoff)
@@ -212,6 +224,8 @@ def _build_sales_context(
     ).where(Sale.voided_at.is_(None))
     if product_id is not None:
         totals_q = totals_q.where(Sale.product_id == product_id)
+    if channel and channel in Channel.allowed_values():
+        totals_q = totals_q.where(Sale.channel == channel)
     if days is not None and days > 0:
         cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
         totals_q = totals_q.where(Sale.sold_at >= cutoff)
@@ -305,10 +319,11 @@ def _build_sales_context(
     # actually make with current ingredient stock". Built as a dict
     # (id -> ceiling) for O(1) template lookup.
     from app.rms.menu_inventory import (
-        product_stock_ceiling,
         product_is_sold_out,
         product_low_stock_threshold,
+        product_stock_ceiling,
     )
+
     stock_ceilings: dict[int, float | None] = {}
     stock_sold_out: dict[int, bool] = {}
     stock_low: dict[int, float | None] = {}
@@ -325,8 +340,7 @@ def _build_sales_context(
             "id": m["id"],
             "name": m["name"],
             "price_gs": m["price_gs"],
-            "items_summary": ", ".join(m["incluye"][:4])
-            + ("…" if len(m["incluye"]) > 4 else ""),
+            "items_summary": ", ".join(m["incluye"][:4]) + ("…" if len(m["incluye"]) > 4 else ""),
         }
         for m in menus_with_items(session)
     ]
@@ -361,6 +375,15 @@ def _build_sales_context(
             "avg_ticket_gs": int(total_gs / total_count) if total_count else 0,
             "filters": _filter_summary(q=q, product_id=product_id, days=days, products=products),
         },
+        # SASKIA-204 (2026-10-07): channel filter state for the
+        # template. `channel` is the raw selected value (or empty
+        # string), `channel_label` is what the combo displays when
+        # collapsed, `all_channels` is the display-ordered tuple of
+        # channel values from Channel.display_order() — the template
+        # maps them via a hardcoded label dict.
+        "channel": channel or "",
+        "channel_label": channel or "",
+        "all_channels": Channel.display_order(),
         "has_more": has_more,
         "current_offset": start_offset,
         "current_page_size": PAGE_SIZE,
@@ -399,6 +422,86 @@ async def sales_list(
     return render(request, "ventas.html", ctx)
 
 
+# --- B.1 Venta Express (2026-10-07, polish/saskia-p0) ---
+@router.get("/express")
+def ventas_express(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Venta Express: 8 botones gigantes + cantidad numerica + Enter.
+
+    Para venta de mostrador de un solo item (-45s vs POS completo).
+    Reusa POST /ventas/nueva (product_id + qty + payment_method) - cero
+    logica de venta nueva. Top 8 = top venta 14d primero + favoritos.
+    """
+    from app.rms.models import Product, Sale
+
+    since = datetime.now(ASUNCION_TZ) - timedelta(days=14)
+    rows = session.execute(
+        select(
+            Sale.product_id,
+            func.sum(Sale.qty).label("units"),
+        )
+        .where(Sale.sold_at >= since, Sale.voided_at.is_(None))
+        .group_by(Sale.product_id)
+        .order_by(func.sum(Sale.qty * Sale.unit_price_gs).desc())
+        .limit(8)
+    ).all()
+
+    ids = [pid for pid, _ in rows]
+    prod_map = {}
+    if ids:
+        prods = session.scalars(select(Product).where(Product.id.in_(ids))).all()
+        prod_map = {p.id: p for p in prods}
+    if len(prod_map) < 8:
+        favs = session.scalars(
+            select(Product)
+            .where(Product.is_favorite.is_(True), Product.is_available.is_(True))
+            .order_by(Product.name)
+            .limit(8)
+        ).all()
+        for p in favs:
+            prod_map.setdefault(p.id, p)
+
+    items = []
+    seen = set()
+    for pid, units in rows:
+        p = prod_map.get(pid)
+        if p is None or p.id in seen or not p.is_available:
+            continue
+        seen.add(p.id)
+        items.append(
+            {
+                "product_id": p.id,
+                "name": p.name,
+                "sale_price_gs": p.sale_price_gs,
+                "units": float(units or 0),
+            }
+        )
+    for p in prod_map.values():
+        if p.id in seen or not p.is_available:
+            continue
+        seen.add(p.id)
+        items.append(
+            {
+                "product_id": p.id,
+                "name": p.name,
+                "sale_price_gs": p.sale_price_gs,
+                "units": 0.0,
+            }
+        )
+    items = items[:8]
+
+    from app.rms.schemas import ALLOWED_PAYMENT_METHODS
+
+    ctx = {
+        "items": items,
+        "idem_key": _generate_idem_key(),
+        "payment_methods": sorted(ALLOWED_PAYMENT_METHODS),
+    }
+    return render(request, "ventas_express.html", ctx)
+
+
 # ─────────────────────────────────────────────────────────────────────
 # QA / Smoke tests (2026-09-29)
 # ─────────────────────────────────────────────────────────────────────
@@ -435,6 +538,10 @@ async def sales_history(
     days: int | None = None,
     page: int | None = Query(None),
     offset: int | None = None,
+    # SASKIA-204 (2026-10-07): filter sales by channel. Accepts any
+    # Channel enum value; mismatches (typos, retired values) get the
+    # None fallback so the page still loads.
+    channel: str | None = None,
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Sales history (US 4.3 split).
@@ -458,6 +565,7 @@ async def sales_history(
         product_id=product_id,
         days=days,
         offset=computed_offset,
+        channel=channel,
     )
     # Derive pagination metadata and add to existing ctx (do NOT reassign ctx)
     total = ctx.get("total_count", 0)
@@ -502,6 +610,8 @@ def _build_filtered_sales_query(
     q: str | None,
     product_id: int | None,
     days: int | None,
+    # SASKIA-204 (2026-10-07): channel filter for the export.
+    channel: str | None = None,
 ) -> Select:
     """Build a Sale query applying the same filters as sales_list.
 
@@ -531,6 +641,10 @@ def _build_filtered_sales_query(
                 )
             )
         )
+    # SASKIA-204 (2026-10-07): channel filter. Same validation as
+    # _build_sales_context — typos fall back to None.
+    if channel and channel in Channel.allowed_values():
+        sales_q = sales_q.where(Sale.channel == channel)
     return sales_q
 
 
@@ -539,6 +653,9 @@ async def sales_export_csv(
     q: str | None = None,
     product_id: int | None = None,
     days: int | None = None,
+    # SASKIA-204 (2026-10-07): channel filter — operators exporting
+    # for IVA/accounting want to filter to one channel at a time.
+    channel: str | None = None,
     session: Session = Depends(get_session),
 ) -> Response:
     """CSV export of the sales history (matches the filters on /ventas).
@@ -547,7 +664,7 @@ async def sales_export_csv(
     Content-disposition: attachment so browsers download instead of
     rendering. UTF-8 BOM-prefixed so Excel opens it correctly in PY.
     """
-    sales_q = _build_filtered_sales_query(q=q, product_id=product_id, days=days)
+    sales_q = _build_filtered_sales_query(q=q, product_id=product_id, days=days, channel=channel)
     sales = session.scalars(sales_q).all()
 
     def _row_stream() -> Iterator[str]:
@@ -589,231 +706,6 @@ async def sales_export_csv(
         media_type="text/csv; charset=utf-8",
         headers={
             "Content-Disposition": 'attachment; filename="ventas.csv"',
-        },
-    )
-
-
-@router.get("/{sale_id}", response_class=HTMLResponse)
-async def sale_detail(
-    request: Request,
-    sale_id: int,
-    session: Session = Depends(get_session),
-) -> HTMLResponse:
-    """Operator-facing single-sale detail page (BACKLOG #16).
-
-    Distinct from /recibo (the printable customer receipt):
-    - Full nav + breadcrumbs
-    - Action buttons: view recibo, void, refund
-    - Wider layout — fits channel, payment method, customer link
-    - Stock-move ledger so the operator can trace what got consumed
-    - Refund history table (M1, 2026-10-02)
-
-    Placed before /recibo so the {sale_id} path matches first; FastAPI
-    routing prefers more-specific literals, so /{sale_id}/recibo still
-    wins for the printable receipt.
-    """
-    from app.rms.errors import NotFound
-    from app.rms.models import Ingredient, StockMovement
-    from app.rms.refunds import list_refunds_for, sum_refunds_for
-
-    sale = session.get(Sale, sale_id)
-    if sale is None:
-        raise NotFound("venta", id=sale_id)
-
-    # Stock-move ledger for this sale (BACKLOG #16 traceability).
-    # After BACKLOG #1 (this session), the ledger lives in stock_movement
-    # keyed by (reference_id=sale_id, reference_type='sale'). Voids
-    # create a NEW positive-qty row, so both rows show up in the list.
-    moves = (
-        session.execute(
-            select(StockMovement)
-            .where(StockMovement.reference_id == sale_id)
-            .where(StockMovement.reference_type == "sale")
-            .order_by(StockMovement.id.asc())
-        )
-        .scalars()
-        .all()
-    )
-
-    stock_moves = []
-    for sm in moves:
-        ing = session.get(Ingredient, sm.ingredient_id) if sm.ingredient_id else None
-        stock_moves.append(
-            {
-                "id": sm.id,
-                "ingredient_id": sm.ingredient_id,
-                "ingredient_name": ing.name if ing else f"#{sm.ingredient_id}",
-                "qty": abs(float(sm.qty)),
-                "unit": ing.unit if ing else "",
-                "affected_recipe_id": sm.affected_recipe_id,
-                "recorded_at_str": sm.recorded_at.isoformat() if sm.recorded_at else "—",
-            }
-        )
-
-    # M1: refund history (newest first for the operator table).
-    refund_rows = list_refunds_for(session, "sale", sale_id)
-    refunds_total_gs = sum_refunds_for(session, "sale", sale_id)
-    sale_total = int(sale.unit_price_gs or 0)
-    refunds_remaining_gs = sale_total - refunds_total_gs
-
-    refunds = [
-        {
-            "id": r.id,
-            "amount_gs": int(r.amount_gs),
-            "payment_method": r.payment_method,
-            "restock_qty": bool(r.restock_qty),
-            "restocked_qty": float(r.restocked_qty or 0),
-            "reason": r.reason,
-            "recorded_by": r.recorded_by,
-            "recorded_at_str": r.recorded_at.strftime("%Y-%m-%d %H:%M") if r.recorded_at else "—",
-        }
-        for r in sorted(refund_rows, key=lambda x: x.recorded_at, reverse=True)
-    ]
-
-    return render(
-        request,
-        "ventas_detalle.html",
-        {
-            "sale": _decorated(sale),
-            "stock_moves": stock_moves,
-            "refunds": refunds,
-            "refunds_total_gs": refunds_total_gs,
-            "refunds_count": len(refunds),
-            "refunds_remaining_gs": refunds_remaining_gs,
-        },
-    )
-
-
-@router.get("/{sale_id}/recibo", response_class=HTMLResponse)
-async def sale_receipt(
-    request: Request,
-    sale_id: int,
-    session: Session = Depends(get_session),
-) -> HTMLResponse:
-    """Printable single-sale receipt for handing to the customer.
-
-    Renders a minimal A6-friendly page with title, date, line, total,
-    payment method, and a "thank you" footer. Print stylesheet hides
-    the nav. Operator can press ⌘P / Ctrl+P to print or save as PDF.
-    """
-    sale = session.get(Sale, sale_id)
-    if sale is None:
-        raise NotFound("venta", id=sale_id)
-    # Phase 4 tier 2.2 (2026-10-01): if this sale has a customer AND
-    # a ledger row, surface "+X puntos" + "Nuevo saldo: Y" on the
-    # receipt. Two queries max; both are FK-indexed so they cost <1ms.
-    loyalty_snapshot = None
-    if sale.customer_id:
-        from app.rms.models import Customer as _Cust
-        from app.rms.models import LoyaltyTransaction as _LT
-
-        cust = session.get(_Cust, sale.customer_id)
-        if cust is not None:
-            earn_row = session.execute(
-                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "earn_sale").limit(1)
-            ).scalar_one_or_none()
-            redeemed_row = session.execute(
-                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "redeem").limit(1)
-            ).scalar_one_or_none()
-            # Ledger rows are signed: earn_sale → positive delta,
-            # redeem → negative delta. Surface them to the cashier
-            # as absolute point counts so the receipt reads naturally
-            # ("canjeaste 5 puntos") instead of (-5).
-            earn_abs = int(earn_row.delta) if earn_row else 0
-            redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
-            loyalty_snapshot = {
-                "customer_name": cust.name or cust.phone or "Cliente",
-                "earn_points": earn_abs,
-                "redeemed_points": redeem_abs,
-                "current_balance": int(cust.loyalty_points or 0),
-                # T-2026-10-01: pre-format the discount Gs at the source
-                # instead of having the template multiply by a hardcoded
-                # 1000. The POINTS_VALUE_GS rate (1 pt = 100 Gs) lives
-                # in app/rms/loyalty/ledger.py — change there, not here.
-                "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
-            }
-    return render(
-        request,
-        "recibo.html",
-        {
-            "sale": _decorated(sale),
-            "loyalty_snapshot": loyalty_snapshot,
-            "branding": get_branding(session),
-        },
-    )
-
-
-@router.get("/{sale_id:int}", response_class=HTMLResponse)
-async def sale_detail_int(
-    request: Request,
-    sale_id: int,
-    session: Session = Depends(get_session),
-) -> HTMLResponse:
-    """Operator-facing full-width detail view for a single sale.
-
-    BACKLOG #16 (2026-10-02): complements the printable A6 receipt
-    (/ventas/{sale_id}/recibo) with a normal-width operator page that
-    shows product, customer, payment method, channel, void metadata,
-    and any loyalty ledger entries tied to the sale. Linkable by URL
-    so /ventas/helpdesk tickets can deep-link to a specific sale.
-    """
-    sale = session.get(Sale, sale_id)
-    if sale is None:
-        raise NotFound("venta", id=sale_id)
-
-    # Loyalty snapshot (same data shape as the receipt route)
-    loyalty_snapshot = None
-    if sale.customer_id:
-        from app.rms.models import Customer as _Cust
-        from app.rms.models import LoyaltyTransaction as _LT
-
-        cust = session.get(_Cust, sale.customer_id)
-        if cust is not None:
-            earn_row = session.execute(
-                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "earn_sale").limit(1)
-            ).scalar_one_or_none()
-            redeemed_row = session.execute(
-                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "redeem").limit(1)
-            ).scalar_one_or_none()
-            earn_abs = int(earn_row.delta) if earn_row else 0
-            redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
-            loyalty_snapshot = {
-                "customer_name": cust.name or cust.phone or "Cliente",
-                "customer_phone": cust.phone,
-                "customer_id": cust.id,
-                "earn_points": earn_abs,
-                "redeemed_points": redeem_abs,
-                "current_balance": int(cust.loyalty_points or 0),
-                "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
-            }
-
-    # Stock-move audit trail (which ingredients this sale consumed).
-    # Two queries max; both FK-indexed.
-    stock_moves = (
-        session.execute(
-            select(StockMovement)
-            .where(StockMovement.reference_id == sale_id)
-            .where(StockMovement.reference_type == "sale")
-        )
-        .scalars()
-        .all()
-    )
-
-    # Related pedido (if sale came from a pedido fulfillment)
-    related_pedido = None
-    if sale.linked_pedido_id:
-        from app.rms.models import Pedido
-
-        related_pedido = session.get(Pedido, sale.linked_pedido_id)
-
-    return render(
-        request,
-        "ventas_detalle.html",
-        {
-            "sale": _decorated(sale),
-            "loyalty_snapshot": loyalty_snapshot,
-            "stock_moves": stock_moves,
-            "related_pedido": related_pedido,
         },
     )
 
@@ -1146,7 +1038,6 @@ async def sale_create(
     # Void/return reversal is handled by ``reverse_points_for_void``
     # (called from /ventas/{id}/anular).
     if customer_id is not None:
-        from app.auth import current_user_id
         from app.rms.customers import get_customer as _get_cust
         from app.rms.loyalty import award_points as _award_points
         from app.rms.models import Sale as _Sale
@@ -1165,7 +1056,7 @@ async def sale_create(
                 cust,
                 net_paid_gs,
                 sale_id=sale.sale_id,
-                actor=str(current_user_id(request) or "operator"),
+                actor=str(current_operator(request)),
             )
 
     # Phase 4 loyalty POS redeem (2026-10-01): if the cashier redeemed
@@ -1174,7 +1065,6 @@ async def sale_create(
     # balance check + discount math already happened above; redeem_points
     # itself is a no-op when points_to_redeem == 0.
     if points_to_redeem > 0 and customer_id is not None:
-        from app.auth import current_user_id
         from app.rms.customers import get_customer as _get_cust_redeem
         from app.rms.loyalty import redeem_points as _redeem_points
 
@@ -1185,7 +1075,7 @@ async def sale_create(
                 cust_redeem,
                 points_to_redeem,
                 sale_id=sale.sale_id,
-                actor=str(current_user_id(request) or "operator"),
+                actor=str(current_operator(request)),
                 notes=f"POS redeem en sale #{sale.sale_id}",
             )
 
@@ -1205,12 +1095,13 @@ async def sale_create(
                 customer_id,
                 max(
                     0,
-                    int(_sale_row.qty * _sale_row.unit_price_gs)
-                    - int(_sale_row.discount_gs or 0),
-                ) if _sale_row is not None else 0,
+                    int(_sale_row.qty * _sale_row.unit_price_gs) - int(_sale_row.discount_gs or 0),
+                )
+                if _sale_row is not None
+                else 0,
                 sale_id=sale.sale_id,
                 note=f"Venta a fiado #{sale.sale_id}",
-                created_by=str(current_user_id(request) or "operator"),
+                created_by=str(current_operator(request)),
             )
         except _FiadoConflict as _e:
             raise HTTPException(status_code=409, detail=str(_e)) from None
@@ -1225,20 +1116,19 @@ async def sale_create(
     # the DELETE before the request returns).
     try:
         invalidate_demand_for_sale_today(session)
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: S110
         pass
 
     # Audit + rate-limit (writes only — read paths not counted).
-    from app.auth import current_user_id
     from app.rms.audit import record as audit_record
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(status_code=429, detail=SALE_RATE_LIMITED)
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.sale.create",
         request=request,
         detail={
@@ -1368,7 +1258,7 @@ async def sale_create_multi(
 
     try:
         body = _Body.model_validate(await request.json())
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         raise HTTPException(status_code=400, detail=SALE_BODY_INVALID) from None
 
     items = body.items
@@ -1412,9 +1302,7 @@ async def sale_create_multi(
         if item.qty != int(item.qty):
             if item.product_id not in _weight_products:
                 _p = session.get(Product, item.product_id)
-                _weight_products[item.product_id] = bool(
-                    _p is not None and _p.sold_by_weight
-                )
+                _weight_products[item.product_id] = bool(_p is not None and _p.sold_by_weight)
             if not _weight_products[item.product_id]:
                 raise HTTPException(
                     status_code=400,
@@ -1599,11 +1487,7 @@ async def sale_create_multi(
             # the override is safe to persist.
             # WP-4.2: 0 explícito se honra (línea expandida de menú
             # ejecutivo sin precio propio). None → precio de catálogo.
-            unit_price = (
-                item.unit_price_gs
-                if item.unit_price_gs is not None
-                else catalog_price
-            )
+            unit_price = item.unit_price_gs if item.unit_price_gs is not None else catalog_price
 
             # All items in the cart share the same metadata (customer, payment, channel)
             # Phase 14 #20: discount math uses Decimal (NOT float) so a huge
@@ -1699,7 +1583,6 @@ async def sale_create_multi(
     # (earn_sale) per invoice — fk'd to the first sale.id. Then write
     # the redeem row (if any) so the ledger stays consistent.
     if customer_id is not None and sale_ids:
-        from app.auth import current_user_id
         from app.rms.customers import (
             award_points as _award_points,
         )
@@ -1719,14 +1602,14 @@ async def sale_create_multi(
             # customer actually paid — what we earn on.
             rows = session.execute(select(_Sale).where(_Sale.id.in_(sale_ids))).scalars().all()
             net_paid_gs = sum(
-            max(0, int(r.qty * r.unit_price_gs) - int(r.discount_gs or 0)) for r in rows
-        )
+                max(0, int(r.qty * r.unit_price_gs) - int(r.discount_gs or 0)) for r in rows
+            )
             _award_points(
                 session,
                 cust,
                 net_paid_gs,
                 sale_id=sale_ids[0],
-                actor=str(current_user_id(request) or "operator"),
+                actor=str(current_operator(request)),
             )
             if points_to_redeem > 0:
                 _redeem_points(
@@ -1734,7 +1617,7 @@ async def sale_create_multi(
                     cust,
                     points_to_redeem,
                     sale_id=sale_ids[0],
-                    actor=str(current_user_id(request) or "operator"),
+                    actor=str(current_operator(request)),
                     notes=f"POS redeem en sale multi #{sale_ids[0]}",
                 )
 
@@ -1748,9 +1631,7 @@ async def sale_create_multi(
         from app.rms.models import Sale as _Sale
         from app.rms.models import SalePayment as _SalePayment
 
-        _rows = session.execute(
-            _select(_Sale).where(_Sale.id.in_(sale_ids))
-        ).scalars().all()
+        _rows = session.execute(_select(_Sale).where(_Sale.id.in_(sale_ids))).scalars().all()
         _cart_total = sum(
             max(0, int(r.qty * r.unit_price_gs) - int(r.discount_gs or 0)) for r in _rows
         )
@@ -1774,9 +1655,7 @@ async def sale_create_multi(
             # gets its own payment rows so void cascade cleans up cleanly.
             _remaining = dict(payments_plan)
             for _ri, _row in enumerate(_rows):
-                _row_total = max(
-                    0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0)
-                )
+                _row_total = max(0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0))
                 if _ri == 0:
                     _row_total += tip_gs  # propina viaja en la primera fila
                 _left = _row_total
@@ -1815,9 +1694,7 @@ async def sale_create_multi(
             # Uniform single row mirroring payment_method.
             _now = datetime.now(ASUNCION_TZ)
             for _ri, _row in enumerate(_rows):
-                _row_total = max(
-                    0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0)
-                )
+                _row_total = max(0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0))
                 if _ri == 0:
                     _row_total += tip_gs
                 if _row_total <= 0:
@@ -1837,7 +1714,7 @@ async def sale_create_multi(
     if payment_method_clean == "fiado" and sale_ids:
         from app.rms.fiado import FiadoConflict, registrar_cargo
 
-        _actor = str(current_user_id(request) or "operator")
+        _actor = str(current_operator(request))
         for _sid in sale_ids:
             _sale_row = session.get(_Sale, _sid)
             if _sale_row is None or _sale_row.customer_id is None:
@@ -1864,16 +1741,15 @@ async def sale_create_multi(
     safe_commit(session)
 
     # Rate-limit + audit
-    from app.auth import current_user_id
     from app.rms.audit import record as audit_record
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(status_code=429, detail=SALE_RATE_LIMITED)
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.sale.create_multi",
         request=request,
         detail={"item_count": len(items), "sale_ids": sale_ids},
@@ -1947,11 +1823,11 @@ def _fire_printer_for_sale(
         try:
             cfg = config_from_env()
             send_to_printer(receipt.encode("utf-8"), cfg)
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             from loguru import logger
 
             logger.warning("printer send failed (non-fatal)")
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         from loguru import logger
 
         logger.warning(f"printer trigger skipped: {exc!r}")
@@ -1992,10 +1868,10 @@ async def sale_void(
                     session,
                     _cust_void,
                     sale_id=sale_id,
-                    actor=str(current_user_id(request) or "operator"),
+                    actor=str(current_operator(request)),
                 )
                 session.flush()
-    except Exception as _loyalty_void_exc:  # noqa: BLE001
+    except Exception as _loyalty_void_exc:
         from loguru import logger as _logger
 
         _logger.warning("loyalty void-reversal failed for sale {}: {}", sale_id, _loyalty_void_exc)
@@ -2040,7 +1916,7 @@ async def sale_void(
             detail={"reason": reason_clean, "voided_by": user_id},
         )
         session.commit()  # void_sale already committed; the audit row needs its own
-    except Exception as exc:  # best-effort: never block the void  # noqa: BLE001
+    except Exception as exc:  # best-effort: never block the void
         from loguru import logger as _logger
 
         _logger.warning("audit for void sale {} failed: {}", sale_id, exc)
@@ -2093,7 +1969,7 @@ def share_sale_recibo(
             detail={"public_token_suffix": token[-4:], "expires_at": expires_at.isoformat()},
         )
         session.commit()
-    except Exception:  # noqa: BLE001 — audit best-effort
+    except Exception:
         session.rollback()
 
     public_url = f"/r/{token}"
@@ -2148,7 +2024,7 @@ def public_recibo(request: Request, token: str) -> HTMLResponse:
         )
         try:
             session.commit()
-        except Exception:  # noqa: BLE001 — audit best-effort
+        except Exception:
             session.rollback()
 
         # Reuse the same recibo.html template the cashier sees. The
@@ -2223,9 +2099,11 @@ async def preflight_sale(
     The /ventas/nueva form shows a yellow banner for warnings and a
     red banner for blockers.
     """
-    from datetime import datetime, date as _date
+    from datetime import date, datetime
+
     from app.rms.sales.pre_sale_check import (
-        PreSaleIntent, validate_sale_intent,
+        PreSaleIntent,
+        validate_sale_intent,
     )
 
     sold_at_date: date | None = None
@@ -2250,18 +2128,21 @@ async def preflight_sale(
         points_to_redeem=points_to_redeem,
     )
 
-    today = datetime.now().date()
+    today = datetime.now(ASUNCION_TZ).date()
     checklist = validate_sale_intent(session, intent, today=today)
 
-    def _serialize(w) -> dict:
+    def _serialize(w) -> dict:  # noqa: ANN001
         return {"code": w.code, "severity": w.severity, "message": w.message}
 
-    return JSONResponse({
-        "warnings": [_serialize(w) for w in checklist.warnings],
-        "blockers": [_serialize(w) for w in checklist.blockers],
-        "is_ready": checklist.is_ready,
-        "is_clean": checklist.is_clean,
-    })
+    return JSONResponse(
+        {
+            "warnings": [_serialize(w) for w in checklist.warnings],
+            "blockers": [_serialize(w) for w in checklist.blockers],
+            "is_ready": checklist.is_ready,
+            "is_clean": checklist.is_clean,
+        }
+    )
+
 
 # ---- Multi-line pre-billing checklist (cart) --------------------------
 #
@@ -2293,17 +2174,27 @@ async def preflight_sale_multi(
 
     Returns: {warnings, blockers, is_ready, is_clean, line_count}
     """
-    from datetime import datetime, date as _date
+    from datetime import date as _date
+    from datetime import datetime
+
     from app.rms.sales.pre_sale_check_cart import (
-        CartIntent, CartLine, validate_cart_intent,
+        CartIntent,
+        CartLine,
+        validate_cart_intent,
     )
 
     try:
         body = await request.json()
     except Exception:
         return JSONResponse(
-            {"error": "Invalid JSON body", "warnings": [], "blockers": [],
-             "is_ready": False, "is_clean": False, "line_count": 0},
+            {
+                "error": "Invalid JSON body",
+                "warnings": [],
+                "blockers": [],
+                "is_ready": False,
+                "is_clean": False,
+                "line_count": 0,
+            },
             status_code=400,
         )
 
@@ -2324,15 +2215,17 @@ async def preflight_sale_multi(
         if not isinstance(item, dict):
             continue
         try:
-            lines.append(CartLine(
-                line_index=idx,
-                product_id=int(item.get("product_id", 0)),
-                qty=float(item.get("qty", 0)),
-                discount_gs=int(item.get("discount_gs", 0)),
-                unit_price_gs_override=item.get("unit_price_gs_override"),
-                packaging_item_id=item.get("packaging_item_id"),
-                packaging_qty=item.get("packaging_qty"),
-            ))
+            lines.append(
+                CartLine(
+                    line_index=idx,
+                    product_id=int(item.get("product_id", 0)),
+                    qty=float(item.get("qty", 0)),
+                    discount_gs=int(item.get("discount_gs", 0)),
+                    unit_price_gs_override=item.get("unit_price_gs_override"),
+                    packaging_item_id=item.get("packaging_item_id"),
+                    packaging_qty=item.get("packaging_qty"),
+                )
+            )
         except (TypeError, ValueError):
             # Skip malformed lines — they'll surface as PRODUCT_NOT_FOUND
             continue
@@ -2346,20 +2239,21 @@ async def preflight_sale_multi(
         points_to_redeem=int(body.get("points_to_redeem", 0)),
     )
 
-    today = datetime.now().date()
+    today = datetime.now(ASUNCION_TZ).date()
     checklist = validate_cart_intent(session, cart, today=today)
 
-    def _serialize(w) -> dict:
+    def _serialize(w) -> dict:  # noqa: ANN001
         return {"code": w.code, "severity": w.severity, "message": w.message}
 
-    return JSONResponse({
-        "warnings": [_serialize(w) for w in checklist.warnings],
-        "blockers": [_serialize(w) for w in checklist.blockers],
-        "is_ready": checklist.is_ready,
-        "is_clean": checklist.is_clean,
-        "line_count": len(lines),
-    })
-
+    return JSONResponse(
+        {
+            "warnings": [_serialize(w) for w in checklist.warnings],
+            "blockers": [_serialize(w) for w in checklist.blockers],
+            "is_ready": checklist.is_ready,
+            "is_clean": checklist.is_clean,
+            "line_count": len(lines),
+        }
+    )
 
 
 # B-7 (2026-10-07): held-sale routes — ported from Hao0321/pos-pro
@@ -2377,7 +2271,7 @@ async def ventas_hold_cart(
     try:
         body = await request.json()
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
+        raise HTTPException(status_code=400, detail="Invalid JSON body")  # noqa: B904
 
     cart = body.get("cart") or {}
     label = (body.get("label") or "").strip()[:120]
@@ -2387,14 +2281,243 @@ async def ventas_hold_cart(
     try:
         held = _hold_cart(db, cart, held_by=held_by, label=label or "sin etiqueta")
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc))  # noqa: B904
 
-    return JSONResponse({
-        "id": held.id,
-        "label": held.label,
-        "held_at": held.held_at.isoformat() if hasattr(held.held_at, "isoformat") else str(held.held_at),
-        "item_count": len((cart or {}).get("items", [])),
-    })
+    return JSONResponse(
+        {
+            "id": held.id,
+            "label": held.label,
+            "held_at": held.held_at.isoformat()
+            if hasattr(held.held_at, "isoformat")
+            else str(held.held_at),
+            "item_count": len((cart or {}).get("items", [])),
+        }
+    )
+
+
+@router.get("/{sale_id}", response_class=HTMLResponse)
+async def sale_detail(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Operator-facing single-sale detail page (BACKLOG #16).
+
+    Distinct from /recibo (the printable customer receipt):
+    - Full nav + breadcrumbs
+    - Action buttons: view recibo, void, refund
+    - Wider layout — fits channel, payment method, customer link
+    - Stock-move ledger so the operator can trace what got consumed
+    - Refund history table (M1, 2026-10-02)
+
+    Placed before /recibo so the {sale_id} path matches first; FastAPI
+    routing prefers more-specific literals, so /{sale_id}/recibo still
+    wins for the printable receipt.
+    """
+    from app.rms.errors import NotFound
+    from app.rms.models import Ingredient, StockMovement
+    from app.rms.refunds import list_refunds_for, sum_refunds_for
+
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+
+    # Stock-move ledger for this sale (BACKLOG #16 traceability).
+    # After BACKLOG #1 (this session), the ledger lives in stock_movement
+    # keyed by (reference_id=sale_id, reference_type='sale'). Voids
+    # create a NEW positive-qty row, so both rows show up in the list.
+    moves = (
+        session.execute(
+            select(StockMovement)
+            .where(StockMovement.reference_id == sale_id)
+            .where(StockMovement.reference_type == "sale")
+            .order_by(StockMovement.id.asc())
+        )
+        .scalars()
+        .all()
+    )
+
+    stock_moves = []
+    for sm in moves:
+        ing = session.get(Ingredient, sm.ingredient_id) if sm.ingredient_id else None
+        stock_moves.append(
+            {
+                "id": sm.id,
+                "ingredient_id": sm.ingredient_id,
+                "ingredient_name": ing.name if ing else f"#{sm.ingredient_id}",
+                "qty": abs(float(sm.qty)),
+                "unit": ing.unit if ing else "",
+                "affected_recipe_id": sm.affected_recipe_id,
+                "recorded_at_str": sm.recorded_at.isoformat() if sm.recorded_at else "—",
+            }
+        )
+
+    # M1: refund history (newest first for the operator table).
+    refund_rows = list_refunds_for(session, "sale", sale_id)
+    refunds_total_gs = sum_refunds_for(session, "sale", sale_id)
+    sale_total = int(sale.unit_price_gs or 0)
+    refunds_remaining_gs = sale_total - refunds_total_gs
+
+    refunds = [
+        {
+            "id": r.id,
+            "amount_gs": int(r.amount_gs),
+            "payment_method": r.payment_method,
+            "restock_qty": bool(r.restock_qty),
+            "restocked_qty": float(r.restocked_qty or 0),
+            "reason": r.reason,
+            "recorded_by": r.recorded_by,
+            "recorded_at_str": r.recorded_at.strftime("%Y-%m-%d %H:%M") if r.recorded_at else "—",
+        }
+        for r in sorted(refund_rows, key=lambda x: x.recorded_at, reverse=True)
+    ]
+
+    return render(
+        request,
+        "ventas_detalle.html",
+        {
+            "sale": _decorated(sale),
+            "stock_moves": stock_moves,
+            "refunds": refunds,
+            "refunds_total_gs": refunds_total_gs,
+            "refunds_count": len(refunds),
+            "refunds_remaining_gs": refunds_remaining_gs,
+        },
+    )
+
+
+@router.get("/{sale_id}/recibo", response_class=HTMLResponse)
+async def sale_receipt(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Printable single-sale receipt for handing to the customer.
+
+    Renders a minimal A6-friendly page with title, date, line, total,
+    payment method, and a "thank you" footer. Print stylesheet hides
+    the nav. Operator can press ⌘P / Ctrl+P to print or save as PDF.
+    """
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+    # Phase 4 tier 2.2 (2026-10-01): if this sale has a customer AND
+    # a ledger row, surface "+X puntos" + "Nuevo saldo: Y" on the
+    # receipt. Two queries max; both are FK-indexed so they cost <1ms.
+    loyalty_snapshot = None
+    if sale.customer_id:
+        from app.rms.models import Customer as _Cust
+        from app.rms.models import LoyaltyTransaction as _LT
+
+        cust = session.get(_Cust, sale.customer_id)
+        if cust is not None:
+            earn_row = session.execute(
+                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "earn_sale").limit(1)
+            ).scalar_one_or_none()
+            redeemed_row = session.execute(
+                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "redeem").limit(1)
+            ).scalar_one_or_none()
+            # Ledger rows are signed: earn_sale → positive delta,
+            # redeem → negative delta. Surface them to the cashier
+            # as absolute point counts so the receipt reads naturally
+            # ("canjeaste 5 puntos") instead of (-5).
+            earn_abs = int(earn_row.delta) if earn_row else 0
+            redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
+            loyalty_snapshot = {
+                "customer_name": cust.name or cust.phone or "Cliente",
+                "earn_points": earn_abs,
+                "redeemed_points": redeem_abs,
+                "current_balance": int(cust.loyalty_points or 0),
+                # T-2026-10-01: pre-format the discount Gs at the source
+                # instead of having the template multiply by a hardcoded
+                # 1000. The POINTS_VALUE_GS rate (1 pt = 100 Gs) lives
+                # in app/rms/loyalty/ledger.py — change there, not here.
+                "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
+            }
+    return render(
+        request,
+        "recibo.html",
+        {
+            "sale": _decorated(sale),
+            "loyalty_snapshot": loyalty_snapshot,
+            "branding": get_branding(session),
+        },
+    )
+
+
+@router.get("/{sale_id:int}", response_class=HTMLResponse)
+async def sale_detail_int(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Operator-facing full-width detail view for a single sale.
+
+    BACKLOG #16 (2026-10-02): complements the printable A6 receipt
+    (/ventas/{sale_id}/recibo) with a normal-width operator page that
+    shows product, customer, payment method, channel, void metadata,
+    and any loyalty ledger entries tied to the sale. Linkable by URL
+    so /ventas/helpdesk tickets can deep-link to a specific sale.
+    """
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+
+    # Loyalty snapshot (same data shape as the receipt route)
+    loyalty_snapshot = None
+    if sale.customer_id:
+        from app.rms.models import Customer as _Cust
+        from app.rms.models import LoyaltyTransaction as _LT
+
+        cust = session.get(_Cust, sale.customer_id)
+        if cust is not None:
+            earn_row = session.execute(
+                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "earn_sale").limit(1)
+            ).scalar_one_or_none()
+            redeemed_row = session.execute(
+                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "redeem").limit(1)
+            ).scalar_one_or_none()
+            earn_abs = int(earn_row.delta) if earn_row else 0
+            redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
+            loyalty_snapshot = {
+                "customer_name": cust.name or cust.phone or "Cliente",
+                "customer_phone": cust.phone,
+                "customer_id": cust.id,
+                "earn_points": earn_abs,
+                "redeemed_points": redeem_abs,
+                "current_balance": int(cust.loyalty_points or 0),
+                "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
+            }
+
+    # Stock-move audit trail (which ingredients this sale consumed).
+    # Two queries max; both FK-indexed.
+    stock_moves = (
+        session.execute(
+            select(StockMovement)
+            .where(StockMovement.reference_id == sale_id)
+            .where(StockMovement.reference_type == "sale")
+        )
+        .scalars()
+        .all()
+    )
+
+    # Related pedido (if sale came from a pedido fulfillment)
+    related_pedido = None
+    if sale.linked_pedido_id:
+        from app.rms.models import Pedido
+
+        related_pedido = session.get(Pedido, sale.linked_pedido_id)
+
+    return render(
+        request,
+        "ventas_detalle.html",
+        {
+            "sale": _decorated(sale),
+            "loyalty_snapshot": loyalty_snapshot,
+            "stock_moves": stock_moves,
+            "related_pedido": related_pedido,
+        },
+    )
 
 
 @router.get("/held", response_class=HTMLResponse)
@@ -2424,13 +2547,17 @@ def ventas_held_list_json(
     payload = []
     for r in rows:
         cart = r.parse_cart()
-        payload.append({
-            "id": r.id,
-            "label": r.label,
-            "held_by": r.held_by,
-            "held_at": r.held_at.isoformat() if hasattr(r.held_at, "isoformat") else str(r.held_at),
-            "item_count": len(cart.get("items", [])),
-        })
+        payload.append(
+            {
+                "id": r.id,
+                "label": r.label,
+                "held_by": r.held_by,
+                "held_at": r.held_at.isoformat()
+                if hasattr(r.held_at, "isoformat")
+                else str(r.held_at),
+                "item_count": len(cart.get("items", [])),
+            }
+        )
     return JSONResponse({"held": payload, "count": len(payload)})
 
 
@@ -2445,7 +2572,7 @@ def ventas_held_resume(
     try:
         cart = _resume_held(db, held_id)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc))  # noqa: B904
     return JSONResponse({"cart": cart})
 
 

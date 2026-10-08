@@ -1,4 +1,5 @@
-"""Tests for /produccion/accuracy Top-5 worst days widget.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for /produccion/accuracy Top-5 worst days widget.
 
 Sazon-Improvement v2 (2026-10-06) Phase E step 5: the /accuracy
 dashboard now surfaces the top 5 days with the biggest plan-vs-actual
@@ -15,6 +16,7 @@ and exposed as two new fields on AccuracyReport:
   - worst_days: list of (date, total_delta, total_planned, total_completed)
   - best_days:  same shape, ordered by avg_accuracy desc
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -22,7 +24,6 @@ from datetime import date
 from app.rms.plan_accuracy import (
     AccuracyReport,
     DailyAccuracyRow,
-    compute_plan_accuracy,
 )
 
 
@@ -54,16 +55,28 @@ def test_daily_delta_aggregation():
     # Synthetic data: 2 days, 1 product each, 1 day under-baked + 1 over-baked
     rows = [
         DailyAccuracyRow(
-            product_id=1, product_name="Pan", for_date=date(2026, 10, 5),
-            planned_qty=10.0, completed_qty=8.0, sold_qty=7.0,
+            product_id=1,
+            product_name="Pan",
+            for_date=date(2026, 10, 5),
+            planned_qty=10.0,
+            completed_qty=8.0,
+            sold_qty=7.0,
         ),
         DailyAccuracyRow(
-            product_id=2, product_name="Chipa", for_date=date(2026, 10, 5),
-            planned_qty=5.0, completed_qty=4.0, sold_qty=3.0,
+            product_id=2,
+            product_name="Chipa",
+            for_date=date(2026, 10, 5),
+            planned_qty=5.0,
+            completed_qty=4.0,
+            sold_qty=3.0,
         ),
         DailyAccuracyRow(
-            product_id=1, product_name="Pan", for_date=date(2026, 10, 6),
-            planned_qty=20.0, completed_qty=25.0, sold_qty=18.0,
+            product_id=1,
+            product_name="Pan",
+            for_date=date(2026, 10, 6),
+            planned_qty=20.0,
+            completed_qty=25.0,
+            sold_qty=18.0,
         ),
     ]
     totals = _aggregate_daily_totals(rows)
@@ -81,28 +94,38 @@ def test_daily_delta_aggregation():
 
 def test_worst_days_sorted_by_delta_desc():
     """worst_days returns up to 5 days, ordered by |delta| descending."""
-    from app.rms.plan_accuracy import _top_worst_days, _aggregate_daily_totals
+    from app.rms.plan_accuracy import _aggregate_daily_totals, _top_worst_days
 
     rows = [
         DailyAccuracyRow(
-            product_id=1, product_name="A", for_date=date(2026, 10, 1),
-            planned_qty=10.0, completed_qty=10.0, sold_qty=10.0,
+            product_id=1,
+            product_name="A",
+            for_date=date(2026, 10, 1),
+            planned_qty=10.0,
+            completed_qty=10.0,
+            sold_qty=10.0,
         ),
         DailyAccuracyRow(
-            product_id=1, product_name="A", for_date=date(2026, 10, 2),
-            planned_qty=10.0, completed_qty=2.0, sold_qty=2.0,
+            product_id=1,
+            product_name="A",
+            for_date=date(2026, 10, 2),
+            planned_qty=10.0,
+            completed_qty=2.0,
+            sold_qty=2.0,
         ),
         DailyAccuracyRow(
-            product_id=1, product_name="A", for_date=date(2026, 10, 3),
-            planned_qty=10.0, completed_qty=0.0, sold_qty=0.0,
+            product_id=1,
+            product_name="A",
+            for_date=date(2026, 10, 3),
+            planned_qty=10.0,
+            completed_qty=0.0,
+            sold_qty=0.0,
         ),
     ]
     totals = _aggregate_daily_totals(rows)
     worst = _top_worst_days(totals, n=5)
     # 10-03: delta=10 (worst), 10-02: delta=8, 10-01: delta=0
-    assert [d[0] for d in worst] == [
-        date(2026, 10, 3), date(2026, 10, 2), date(2026, 10, 1)
-    ]
+    assert [d[0] for d in worst] == [date(2026, 10, 3), date(2026, 10, 2), date(2026, 10, 1)]
     # 10-01 has delta=0 but is included (no under-bake or over-bake);
     # the cook might want to see "good days" too.
     assert worst[0][1] == 10.0
@@ -111,21 +134,33 @@ def test_worst_days_sorted_by_delta_desc():
 
 def test_best_days_sorted_by_accuracy_desc():
     """best_days returns up to 5 days with planned > 0, ordered by accuracy desc."""
-    from app.rms.plan_accuracy import _top_best_days, _aggregate_daily_totals
+    from app.rms.plan_accuracy import _aggregate_daily_totals, _top_best_days
 
     rows = [
         DailyAccuracyRow(
-            product_id=1, product_name="A", for_date=date(2026, 10, 1),
-            planned_qty=10.0, completed_qty=10.0, sold_qty=10.0,
+            product_id=1,
+            product_name="A",
+            for_date=date(2026, 10, 1),
+            planned_qty=10.0,
+            completed_qty=10.0,
+            sold_qty=10.0,
         ),
         DailyAccuracyRow(
-            product_id=1, product_name="A", for_date=date(2026, 10, 2),
-            planned_qty=10.0, completed_qty=8.0, sold_qty=7.0,
+            product_id=1,
+            product_name="A",
+            for_date=date(2026, 10, 2),
+            planned_qty=10.0,
+            completed_qty=8.0,
+            sold_qty=7.0,
         ),
         # No plan for 10-03 → should NOT appear in best_days
         DailyAccuracyRow(
-            product_id=1, product_name="A", for_date=date(2026, 10, 3),
-            planned_qty=0.0, completed_qty=5.0, sold_qty=3.0,
+            product_id=1,
+            product_name="A",
+            for_date=date(2026, 10, 3),
+            planned_qty=0.0,
+            completed_qty=5.0,
+            sold_qty=3.0,
         ),
     ]
     totals = _aggregate_daily_totals(rows)
@@ -138,12 +173,16 @@ def test_best_days_sorted_by_accuracy_desc():
 
 def test_top_n_returns_at_most_n():
     """If there are more than N days, the lists are capped at N."""
-    from app.rms.plan_accuracy import _top_worst_days, _aggregate_daily_totals
+    from app.rms.plan_accuracy import _aggregate_daily_totals, _top_worst_days
 
     rows = [
         DailyAccuracyRow(
-            product_id=1, product_name="A", for_date=date(2026, 10, i),
-            planned_qty=10.0, completed_qty=float(i % 5), sold_qty=0.0,
+            product_id=1,
+            product_name="A",
+            for_date=date(2026, 10, i),
+            planned_qty=10.0,
+            completed_qty=float(i % 5),
+            sold_qty=0.0,
         )
         for i in range(1, 11)  # 10 days
     ]

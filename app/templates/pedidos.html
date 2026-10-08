@@ -46,6 +46,7 @@
            value="{{ search }}"
            placeholder="Buscar por nombre o teléfono…"
            aria-label="Buscar por nombre o teléfono"
+           data-search-highlight="#pedidos-tbody"
            style="padding: .4rem .6rem; border: 1px solid var(--color-border); border-radius: var(--radius); min-width: 220px; flex-grow: 1;">
     <button type="submit" class="btn btn-sm">Buscar</button>
     {% if search %}
@@ -151,19 +152,18 @@
 
   <div class="table-sticky-wrap"
        style="max-height: 70vh; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius);">
-    <div class="table-wrap">
-    <table class="table is-hoverable is-striped mb-0" >
+    <table class="table is-hoverable is-striped sortable" style="margin-bottom: 0;">
       <thead>
         <tr>
-          <th style="width: 2rem;"><input type="checkbox" id="select-all" aria-label="Seleccionar todos"></th>
-          <th>Estado</th>
-          <th>Cliente</th>
-          <th>Fecha prometida</th>
-          <th>Canal</th>
-          <th>Pago</th>
-          <th class="num">Líneas</th>
-          <th class="num">Total</th>
-          <th class="actions">Acciones</th>
+          <th style="width: 2rem;" data-no-sort><input type="checkbox" id="select-all" aria-label="Seleccionar todos"></th>
+          <th data-sort-key="status">Estado</th>
+          <th data-sort-key="customer">Cliente</th>
+          <th data-sort-key="promised_at">Fecha prometida</th>
+          <th data-sort-key="channel">Canal</th>
+          <th data-sort-key="payment">Pago</th>
+          <th class="num" data-sort-key="lines">Líneas</th>
+          <th class="num" data-sort-key="total_gs">Total</th>
+          <th class="actions" data-no-sort>Acciones</th>
         </tr>
       </thead>
       <tbody id="pedidos-tbody">

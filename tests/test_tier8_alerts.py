@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
-
 from app.observability import alerts
 from app.services.eod_anomaly import Anomaly
 
@@ -75,6 +73,4 @@ def test_dispatch_failure_passes_through() -> None:
             severity="error",
         )
     assert result is True
-    mock.assert_called_once_with(
-        subject="migrate fail", body="oops", severity="error"
-    )
+    mock.assert_called_once_with(subject="migrate fail", body="oops", severity="error")

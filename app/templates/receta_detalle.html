@@ -21,12 +21,16 @@
     <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
     Crear producto
   </a>
-  {# Margin pill — red (critical) when negative, green (success) when positive #}
-  {% if batch_cost.batch_cost_gs is not none and unit_cost.batch_cost_gs is not none and recipe.yield_qty and unit_cost.batch_cost_gs > 0 %}
-  {% set margin_pct = (100 * (1 - unit_cost.batch_cost_gs / (unit_cost.batch_cost_gs / 0.65)))|round|int %}
-  <span class="badge {% if margin_pct < 0 %}badge-critical{% else %}badge-success{% endif %}"
-        title="Margen estimado">
-    ~{{ margin_pct }}% margen
+  {# 2026-10-07 (SASKIA-304): removed the bogus margin pill.
+     The old formula `100 * (1 - unit_cost / (unit_cost / 0.65))` was a
+     placeholder that always computed 35% — it told the operator a
+     confident number that had no relation to the actual sale price.
+     The recipe → product sale-price wiring is a separate piece of work
+     (see plan Phase 6.5). For now we just show the cost, which is
+     always honest. #}
+  {% if unit_cost.batch_cost_gs %}
+  <span class="badge badge-neutral" title="Costo de producir una unidad de esta receta">
+    Costo: {{ m.gs(unit_cost.batch_cost_gs) }}/u
   </span>
   {% endif %}
 </div>

@@ -181,7 +181,7 @@ def send_whatsapp_summary(body: str, *, to: str | None = None) -> NotifyResult:
     request.add_header("Content-Type", "application/x-www-form-urlencoded")
 
     try:
-        with urllib.request.urlopen(request, timeout=10.0) as resp:  # noqa: S310 — WhatsApp webhook URL configured by ops, validated upstream
+        with urllib.request.urlopen(request, timeout=10.0) as resp:  # noqa: S310
             _ = resp.read().decode()  # drain body for connection reuse
             spool = _spool_message("whatsapp", body)
             return NotifyResult(
@@ -191,7 +191,7 @@ def send_whatsapp_summary(body: str, *, to: str | None = None) -> NotifyResult:
                 bytes_sent=len(body),
                 error=None,
             )
-    except Exception as e:  # network / twilio error  # noqa: BLE001
+    except Exception as e:  # network / twilio error
         spool = _spool_message("whatsapp-FAILED", body)
         return NotifyResult(
             ok=False,
@@ -242,7 +242,7 @@ def send_email_summary(
             detail=f"sent to {to}; spool: {spool}",
             bytes_sent=len(body),
         )
-    except Exception as e:  # noqa: BLE001 — defensive default
+    except Exception as e:
         spool = _spool_message("email-FAILED", body)
         return NotifyResult(
             ok=False,

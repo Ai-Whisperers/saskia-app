@@ -5,6 +5,7 @@ because it duplicates the shape of the 'Hoy' card. Adds a CTA to
 /auditoria?source=merma so operators can drill into per-ingredient
 detail without re-rendering the same table on the same page.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -21,7 +22,9 @@ def _make_ingredient(session_factory, name: str) -> int:
         return ing.id
 
 
-def _waste_row(session_factory, ing_id: int, qty: float, cost: int = 100, when: datetime | None = None):
+def _waste_row(
+    session_factory, ing_id: int, qty: float, cost: int = 100, when: datetime | None = None
+):
     with session_factory() as s:
         s.add(
             WasteLog(
@@ -82,10 +85,9 @@ def test_resumen_card_still_renders(authed_client, session_factory):
     r = authed_client.get("/merma")
     body = r.text
     import re
+
     # Resumen heading doesn't include an svg icon; match `<h2>...Resumen...`
-    assert re.search(r'<h2[^>]*>.*?Resumen', body), (
-        "Resumen card heading missing"
-    )
+    assert re.search(r"<h2[^>]*>.*?Resumen", body), "Resumen card heading missing"
     assert "Costo total" in body, "Costo total metric label missing"
     assert "Eventos" in body, "Eventos metric label missing"
 
@@ -98,5 +100,6 @@ def test_hoy_card_still_present_with_resumen(authed_client, session_factory):
     r = authed_client.get("/merma")
     body = r.text
     import re
-    assert re.search(r'<h2[^>]*>\s*<svg[^>]*>.*?</svg>\s*Hoy\s*</h2>', body), "Hoy card missing"
-    assert re.search(r'<h2[^>]*>.*?Resumen', body), "Resumen card missing"
+
+    assert re.search(r"<h2[^>]*>\s*<svg[^>]*>.*?</svg>\s*Hoy\s*</h2>", body), "Hoy card missing"
+    assert re.search(r"<h2[^>]*>.*?Resumen", body), "Resumen card missing"

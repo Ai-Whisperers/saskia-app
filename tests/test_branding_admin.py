@@ -94,8 +94,7 @@ def test_upload_favicon_endpoint(client):
     """POST /api/admin/branding/upload accepts a small ICO."""
     # Minimal ICO header (about 22 bytes) — endpoint must validate by extension
     ico_bytes = (
-        b"\x00\x00\x01\x00\x01\x00\x10\x10\x00\x00\x01\x00\x18\x00"
-        b"\x68\x03\x00\x00\x16\x00\x00\x00"
+        b"\x00\x00\x01\x00\x01\x00\x10\x10\x00\x00\x01\x00\x18\x00\x68\x03\x00\x00\x16\x00\x00\x00"
     )
     resp = client.post(
         "/api/admin/branding/upload",

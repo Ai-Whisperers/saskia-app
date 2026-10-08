@@ -127,7 +127,13 @@ def _resolve_export_range(
     """
     if period in (None, "", "all", "full"):
         return None, None
-    today = today or datetime.now(timezone.utc).date()
+    # AGENTS.md rule 20: "today" is the ASUNCIÓN date, not the UTC date.
+    # datetime.now(utc).date() is tomorrow's Asunción date between
+    # 19:00-00:00 Asunción (UTC-3/-4) — the export would then cover a
+    # day the operator hasn't lived through and exclude the current one.
+    from app.rms.config import ASUNCION_TZ as _ASUNCION_TZ
+
+    today = today or datetime.now(_ASUNCION_TZ).date()
     if period == "today":
         local_start = datetime.combine(today, time.min)
         local_end = datetime.combine(today, time.max)

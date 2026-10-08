@@ -72,7 +72,7 @@ def _kitchen(session: Session, today: date) -> tuple[int, int]:
 
         plan = plan_production(session, for_date=today)
         done_map = completions_for_date(session, today)
-    except Exception:  # noqa: BLE001 — the landing page must still render
+    except Exception:
         return 0, 0
     rows = getattr(plan, "rows", None) or []
     planned = len(rows)
@@ -87,7 +87,7 @@ def _kitchen(session: Session, today: date) -> tuple[int, int]:
 def _low_stock(session: Session) -> int:
     try:
         return len(compute_reorder_list(session))
-    except Exception:  # noqa: BLE001
+    except Exception:
         return 0
 
 
@@ -96,7 +96,7 @@ def _closing(session: Session, today: date) -> tuple[int, int, bool]:
     total = len(items)
     try:
         closed = eod_is_day_closed(session, today)
-    except Exception:  # noqa: BLE001
+    except Exception:
         closed = False
     if closed:
         return total, total, True
@@ -116,7 +116,7 @@ def _notices(
     if low_stock_count:
         try:
             names = [item.name for item in compute_reorder_list(session)[:3]]
-        except Exception:  # noqa: BLE001
+        except Exception:
             names = []
         if names:
             notices.append(

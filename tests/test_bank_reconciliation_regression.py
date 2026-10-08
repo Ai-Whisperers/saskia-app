@@ -1,4 +1,5 @@
-"""Test bank reconciliation feature."""
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Test bank reconciliation feature."""
 
 
 def test_bank_page_renders(client):

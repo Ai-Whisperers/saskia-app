@@ -69,7 +69,9 @@ def _decorate(
 ) -> dict:
     """Compute batch + unit cost for a recipe row (data passed in from batch loader)."""
     total_minutes = (
-        (r.prep_minutes or 0) + (r.cook_minutes or 0) if (r.prep_minutes or r.cook_minutes) else None
+        (r.prep_minutes or 0) + (r.cook_minutes or 0)
+        if (r.prep_minutes or r.cook_minutes)
+        else None
     )
     return {
         "id": r.id,
@@ -529,7 +531,7 @@ async def recipe_create(
         if not cook_min:
             recipe.cook_minutes = estimate_cook_minutes(recipe)
         session.commit()
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.warning("auto-fill inference failed for recipe %s: %s", recipe.id, exc)
         session.rollback()
 
@@ -541,7 +543,7 @@ async def recipe_create(
         cascade_refresh(session, recipe_id=recipe.id)
         _product_inherit_sync(session, recipe.id)
         session.commit()
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.warning("tag cascade failed for recipe %s: %s", recipe.id, exc)
         session.rollback()
 
@@ -713,7 +715,7 @@ async def recipe_detail(
             import json as _json
 
             recipe_phases = _json.loads(r.instructions)
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         recipe_phases = None
     return render(
         request,
@@ -996,7 +998,7 @@ async def recipe_update(
         for rid in refreshed:
             _product_inherit_sync(session, rid)
         session.commit()
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.warning("tag cascade failed for recipe %s: %s", r.id, exc)
         session.rollback()
 
@@ -1223,7 +1225,9 @@ def recipe_search_api(
     cashier can see the merma impact in the picker dropdown.
     """
     from datetime import datetime, timezone
-    from sqlalchemy import bindparam as sa_bindparam, text as sa_text
+
+    from sqlalchemy import bindparam as sa_bindparam
+    from sqlalchemy import text as sa_text
 
     # Basic search by name
     query = select(Recipe).where(Recipe.name.ilike(f"%{q}%")).order_by(Recipe.name).limit(limit)
@@ -1252,7 +1256,7 @@ def recipe_search_api(
             {"ids": recipe_ids, "today": today_start},
         ).fetchall()
         batches_today_map = {rid: float(total or 0) for rid, total in rows}
-    except Exception:
+    except Exception:  # noqa: S110
         # Table may not exist in some test DBs; default to empty
         pass
 
@@ -1265,9 +1269,7 @@ def recipe_search_api(
             "yield_unit": r.yield_unit,
             "image_url": r.image_url or "",
             "batches_today": batches_today_map.get(r.id, 0.0),
-            "portions_today": (
-                (batches_today_map.get(r.id, 0.0) or 0.0) * (r.yield_qty or 0.0)
-            ),
+            "portions_today": ((batches_today_map.get(r.id, 0.0) or 0.0) * (r.yield_qty or 0.0)),
         }
         for r in recipes
     ]

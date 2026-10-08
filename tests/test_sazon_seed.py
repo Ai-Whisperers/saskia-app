@@ -9,7 +9,7 @@ all pages in the app.
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
 from app.rms.models import (
     BankTransaction,
@@ -29,7 +29,6 @@ from app.rms.models import (
     MessageTemplate,
     PaymentMethod,
     Pedido,
-    PedidoLine,
     Product,
     ProductionCompletion,
     ProductionPlanTemplate,
@@ -59,7 +58,7 @@ def sazon_db(app_engine_session):
     SessionLocal = make_session_factory(app_engine_session)
     session = SessionLocal()
     try:
-        report = seed_sazon(session, overwrite=True)
+        _report = seed_sazon(session, overwrite=True)
         yield session
     finally:
         session.close()
@@ -85,17 +84,17 @@ def test_saskia_user_created(sazon_db):
 
 def test_saskia_can_login(sazon_db):
     """Saskia's bcrypt-hashed password should verify."""
-    saskia = sazon_db.execute(
-        select(User).where(User.username == "saskia")
-    ).scalar_one()
+    saskia = sazon_db.execute(select(User).where(User.username == "saskia")).scalar_one()
     assert saskia.check_password("saskia1234")
 
 
 def test_branding_settings_populated(sazon_db):
     """All 11 BRANDING settings should be present."""
-    branding_keys = sazon_db.execute(
-        select(SettingsKV).where(SettingsKV.key.like("branding.%"))
-    ).scalars().all()
+    branding_keys = (
+        sazon_db.execute(select(SettingsKV).where(SettingsKV.key.like("branding.%")))
+        .scalars()
+        .all()
+    )
     assert len(branding_keys) >= 10
 
 
@@ -123,12 +122,8 @@ def test_suppliers_populated(sazon_db):
 def test_ingredients_comprehensive(sazon_db):
     """At least 40 ingredients with variants + price events."""
     n_ing = sazon_db.execute(select(func.count()).select_from(Ingredient)).scalar()
-    n_var = sazon_db.execute(
-        select(func.count()).select_from(IngredientVariant)
-    ).scalar()
-    n_prices = sazon_db.execute(
-        select(func.count()).select_from(IngredientPriceEvent)
-    ).scalar()
+    n_var = sazon_db.execute(select(func.count()).select_from(IngredientVariant)).scalar()
+    n_prices = sazon_db.execute(select(func.count()).select_from(IngredientPriceEvent)).scalar()
     assert n_ing >= 40, f"expected ≥40 ingredients, got {n_ing}"
     assert n_var >= 30, f"expected ≥30 variants, got {n_var}"
     assert n_prices >= 100, f"expected ≥100 price events, got {n_prices}"
@@ -137,9 +132,7 @@ def test_ingredients_comprehensive(sazon_db):
 def test_recipes_comprehensive(sazon_db):
     """At least 20 recipes with 100+ recipe lines."""
     n_rec = sazon_db.execute(select(func.count()).select_from(Recipe)).scalar()
-    n_lines = sazon_db.execute(
-        select(func.count()).select_from(RecipeLine)
-    ).scalar()
+    n_lines = sazon_db.execute(select(func.count()).select_from(RecipeLine)).scalar()
     assert n_rec >= 20, f"expected ≥20 recipes, got {n_rec}"
     assert n_lines >= 100, f"expected ≥100 recipe_lines, got {n_lines}"
 
@@ -153,9 +146,7 @@ def test_products_comprehensive(sazon_db):
 def test_customers_with_addresses(sazon_db):
     """At least 10 customers with addresses."""
     n_cust = sazon_db.execute(select(func.count()).select_from(Customer)).scalar()
-    n_addr = sazon_db.execute(
-        select(func.count()).select_from(CustomerAddress)
-    ).scalar()
+    n_addr = sazon_db.execute(select(func.count()).select_from(CustomerAddress)).scalar()
     assert n_cust >= 10, f"expected ≥10 customers, got {n_cust}"
     assert n_addr >= 5, f"expected ≥5 addresses, got {n_addr}"
 
@@ -195,9 +186,7 @@ def test_shopping_list(sazon_db):
 
 def test_haccp_temps(sazon_db):
     """At least 14 days of freezer temps (2x/day)."""
-    n = sazon_db.execute(
-        select(func.count()).select_from(FreezerTemperatureLog)
-    ).scalar()
+    n = sazon_db.execute(select(func.count()).select_from(FreezerTemperatureLog)).scalar()
     assert n >= 14
 
 
@@ -209,21 +198,15 @@ def test_market_benchmarks(sazon_db):
 
 def test_production_planning(sazon_db):
     """Templates + completions for last 7 days."""
-    n_t = sazon_db.execute(
-        select(func.count()).select_from(ProductionPlanTemplate)
-    ).scalar()
-    n_c = sazon_db.execute(
-        select(func.count()).select_from(ProductionCompletion)
-    ).scalar()
+    n_t = sazon_db.execute(select(func.count()).select_from(ProductionPlanTemplate)).scalar()
+    n_c = sazon_db.execute(select(func.count()).select_from(ProductionCompletion)).scalar()
     assert n_t >= 10
     assert n_c >= 20
 
 
 def test_compliance_info(sazon_db):
     """Compliance row for the business."""
-    c = sazon_db.execute(
-        select(ComplianceInfo).where(ComplianceInfo.id == 1)
-    ).scalar_one_or_none()
+    c = sazon_db.execute(select(ComplianceInfo).where(ComplianceInfo.id == 1)).scalar_one_or_none()
     assert c is not None
     assert c.razon_social == "La Vaquita Holandesa S.A."
     assert c.ruc == "80012345-6"
@@ -231,32 +214,16 @@ def test_compliance_info(sazon_db):
 
 def test_business_infra(sazon_db):
     """Date presets, message templates, storage, delivery zones, channels, tags."""
-    n_dates = sazon_db.execute(
-        select(func.count()).select_from(DateRangePreset)
-    ).scalar()
-    n_msg = sazon_db.execute(
-        select(func.count()).select_from(MessageTemplate)
-    ).scalar()
-    n_st = sazon_db.execute(
-        select(func.count()).select_from(StorageType)
-    ).scalar()
-    n_sk = sazon_db.execute(
-        select(func.count()).select_from(StorageKeyword)
-    ).scalar()
-    n_mt = sazon_db.execute(
-        select(func.count()).select_from(MarginTier)
-    ).scalar()
-    n_ss = sazon_db.execute(
-        select(func.count()).select_from(StockStatusConfig)
-    ).scalar()
-    n_dz = sazon_db.execute(
-        select(func.count()).select_from(DeliveryZone)
-    ).scalar()
+    n_dates = sazon_db.execute(select(func.count()).select_from(DateRangePreset)).scalar()
+    n_msg = sazon_db.execute(select(func.count()).select_from(MessageTemplate)).scalar()
+    n_st = sazon_db.execute(select(func.count()).select_from(StorageType)).scalar()
+    n_sk = sazon_db.execute(select(func.count()).select_from(StorageKeyword)).scalar()
+    n_mt = sazon_db.execute(select(func.count()).select_from(MarginTier)).scalar()
+    n_ss = sazon_db.execute(select(func.count()).select_from(StockStatusConfig)).scalar()
+    n_dz = sazon_db.execute(select(func.count()).select_from(DeliveryZone)).scalar()
     n_ch = sazon_db.execute(select(func.count()).select_from(Channel)).scalar()
     n_tg = sazon_db.execute(select(func.count()).select_from(Tag)).scalar()
-    n_bk = sazon_db.execute(
-        select(func.count()).select_from(BankTransaction)
-    ).scalar()
+    n_bk = sazon_db.execute(select(func.count()).select_from(BankTransaction)).scalar()
 
     assert n_dates >= 8
     assert n_msg >= 5
@@ -278,12 +245,11 @@ def test_app_meta_onboarding_guard(sazon_db):
       sazon_tenant_name, sazon_admin_user, sazon_loaded
     """
     from sqlalchemy import select
-    from app.rms.models import AppMeta
-    from app.rms.seed.sazon import is_sazon_seeded, sazon_meta, SAZON_META_KEYS
 
-    rows = sazon_db.execute(
-        select(AppMeta).where(AppMeta.key.in_(SAZON_META_KEYS))
-    ).scalars().all()
+    from app.rms.models import AppMeta
+    from app.rms.seed.sazon import SAZON_META_KEYS, is_sazon_seeded, sazon_meta
+
+    rows = sazon_db.execute(select(AppMeta).where(AppMeta.key.in_(SAZON_META_KEYS))).scalars().all()
     by_key = {r.key: r.value for r in rows}
     assert len(rows) == 6, f"expected 6 sazon_* AppMeta rows, got {len(rows)}: {by_key}"
     assert by_key["sazon_seed_version"] == "1.0"
@@ -293,6 +259,7 @@ def test_app_meta_onboarding_guard(sazon_db):
     assert by_key["sazon_loaded"].lower() in ("true", "1", "yes")
     # ISO timestamp
     import re as _re
+
     assert _re.match(r"^\d{4}-\d{2}-\d{2}T", by_key["sazon_seeded_at"])
 
     # Helpers
@@ -304,8 +271,8 @@ def test_app_meta_onboarding_guard(sazon_db):
 
 def test_is_sazon_seeded_false_on_fresh_db(app_engine):
     """On a fresh DB (no seed), is_sazon_seeded() must return False."""
-    from app.rms.seed.sazon import is_sazon_seeded, sazon_meta
     from app.rms.db import make_session_factory
+    from app.rms.seed.sazon import is_sazon_seeded, sazon_meta
 
     SessionLocal = make_session_factory(app_engine)
     session = SessionLocal()
@@ -343,20 +310,21 @@ def test_idempotent_rerun(sazon_db, app_engine_session):
     were already idempotent; tags and audit_log still increment (they
     are derived from a random seed).
     """
-    from app.rms.db import make_session_factory
     from sqlalchemy import func, select
+
+    from app.rms.db import make_session_factory
     from app.rms.models import (
+        BankTransaction,
+        Customer,
+        FreezerTemperatureLog,
         Ingredient,
         Product,
-        Customer,
+        ProductionCompletion,
+        Sale,
+        StockMovement,
         Supplier,
         Tenant,
         User,
-        Sale,
-        StockMovement,
-        ProductionCompletion,
-        BankTransaction,
-        FreezerTemperatureLog,
     )
 
     SessionLocal = make_session_factory(app_engine_session)
@@ -368,9 +336,7 @@ def test_idempotent_rerun(sazon_db, app_engine_session):
         n_prod_comp_before = session.execute(
             select(func.count()).select_from(ProductionCompletion)
         ).scalar()
-        n_bank_before = session.execute(
-            select(func.count()).select_from(BankTransaction)
-        ).scalar()
+        n_bank_before = session.execute(select(func.count()).select_from(BankTransaction)).scalar()
         n_haccp_before = session.execute(
             select(func.count()).select_from(FreezerTemperatureLog)
         ).scalar()
@@ -399,7 +365,9 @@ def test_idempotent_rerun(sazon_db, app_engine_session):
         n_sales_after = session.execute(select(func.count()).select_from(Sale)).scalar()
         n_mov_after = session.execute(select(func.count()).select_from(StockMovement)).scalar()
         assert d["sales"] == 0, f"sales should not re-insert: {d.get('sales')}"
-        assert d["stock_movements"] == 0, f"stock_movements should not re-insert: {d.get('stock_movements')}"
+        assert d["stock_movements"] == 0, (
+            f"stock_movements should not re-insert: {d.get('stock_movements')}"
+        )
         assert n_sales_after == n_sales_before, (
             f"sales grew from {n_sales_before} to {n_sales_after} on re-run"
         )
@@ -411,9 +379,7 @@ def test_idempotent_rerun(sazon_db, app_engine_session):
         n_prod_comp_after = session.execute(
             select(func.count()).select_from(ProductionCompletion)
         ).scalar()
-        n_bank_after = session.execute(
-            select(func.count()).select_from(BankTransaction)
-        ).scalar()
+        n_bank_after = session.execute(select(func.count()).select_from(BankTransaction)).scalar()
         n_haccp_after = session.execute(
             select(func.count()).select_from(FreezerTemperatureLog)
         ).scalar()

@@ -23,8 +23,6 @@ import json
 import secrets
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta, timezone
-
-from app.rms.clock import now, today_local
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, Request, UploadFile
@@ -33,16 +31,17 @@ from loguru import logger
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
 
-from app.auth import current_user_id
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
+from app.rms.clock import today_local
 from app.rms.config import ASUNCION_TZ
 from app.rms.costing import apply_sale
 from app.rms.csrf import verify_form_csrf
 from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
-from app.rms.models.channels import Channel
 from app.rms.models import Customer, Pedido, PedidoLine, Product, Recipe, Sale
+from app.rms.models.channels import Channel
 from app.rms.production_demand import invalidate_demand_for_dates
 
 
@@ -61,6 +60,8 @@ def _as_date(d: "date | datetime | None") -> date | None:
     if isinstance(d, datetime):
         return d.date()
     return d
+
+
 from app.rms.public_tokens import (
     enforce_rate_limit as public_token_enforce_rate_limit,
 )
@@ -198,7 +199,12 @@ PEDIDO_TRANSITIONS: dict[str, frozenset[str]] = {
     for s, targets in PedidoStateMachine._TRANSITIONS.items()
 }
 
-CHANNELS = (Channel.WHATSAPP.value, Channel.PEDIDOSYA.value, Channel.MOSTRADOR.value, Channel.OTHER.value)
+CHANNELS = (
+    Channel.WHATSAPP.value,
+    Channel.PEDIDOSYA.value,
+    Channel.MOSTRADOR.value,
+    Channel.OTHER.value,
+)
 
 # Channel value normalisation map — raw input → canonical value
 # P39 (2026-10-07, Ivan): values must match Channel enum (lowercase) so
@@ -302,7 +308,7 @@ def _parse_date_or_none(value: Any) -> date | None:
         return None
     try:
         # ISO date; we'll coerce at the SQLAlchemy level
-        return datetime.strptime(s, "%Y-%m-%d").date()  # noqa: DTZ007 — only .date() is consumed
+        return datetime.strptime(s, "%Y-%m-%d").date()  # noqa: DTZ007
     except (ValueError, TypeError):
         return None
 
@@ -374,7 +380,7 @@ def _decorate_pedido(p: Pedido, session: Session) -> dict:
     Denormalizes: customer_name (already on the model), 30d spend, total Gs,
     qty total, line count, age in days, normalized channel display.
     """
-    today = datetime.now(ASUNCION_TZ).date()
+    today = today_local().date()
     promised = p.promised_date.date() if isinstance(p.promised_date, datetime) else p.promised_date
     age_days = (today - promised).days
     return {
@@ -461,7 +467,7 @@ def _group_pedidos(session: Session, pedidos: Iterable[Pedido]) -> dict[str, lis
     - Esta semana: promised_date in [today+2, today+7]
     - Pendientes viejos: status='pending' AND promised_date < today
     """
-    today = datetime.now(ASUNCION_TZ).date()
+    today = today_local().date()
     out: dict[str, list[dict]] = {
         "hoy_manana": [],
         "esta_semana": [],
@@ -511,7 +517,7 @@ def pedidos_list(
     Results are paginated; the groups are computed from the full filtered set,
     then sliced per page for display.
     """
-    today = datetime.now(ASUNCION_TZ).date()
+    today = today_local().date()
     horizon = today + timedelta(days=7)
 
     stmt_base = (
@@ -591,7 +597,7 @@ def pedidos_board(
 ) -> HTMLResponse:
     """Kitchen display: large cards for prep staff. Auto-refreshes every 30s.
     Shows pending + confirmed + ready orders grouped by time slot."""
-    today = datetime.now(ASUNCION_TZ).date()
+    today = today_local().date()
     horizon = today + timedelta(days=3)
 
     stmt = (
@@ -1140,7 +1146,7 @@ async def pedidos_create(
     # pattern: add all events at once, then flush once.
     from app.services.pedido_events import PedidoEventService
 
-    actor = str(current_user_id(request) or "operator")
+    actor = str(current_operator(request))
     PedidoEventService.record(
         session,
         pedido.id,
@@ -1168,7 +1174,7 @@ async def pedidos_create(
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.pedido.create",
         target_type="pedido",
         target_id=str(pedido.id),
@@ -1191,7 +1197,7 @@ async def pedidos_create(
     if promised_date_norm is not None:
         try:
             invalidate_demand_for_dates(session, [promised_date_norm])
-        except Exception:  # noqa: BLE001 — best-effort invalidation
+        except Exception:  # noqa: S110
             pass  # cache stays stale; 5-min TTL will eventually catch up
     safe_commit(session)
 
@@ -1232,7 +1238,7 @@ def pedidos_export_csv(
     import csv
     import io
 
-    today = datetime.now(ASUNCION_TZ).date()
+    today = today_local().date()
     horizon = today + timedelta(days=365)  # full history
 
     stmt = (
@@ -1375,7 +1381,7 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
         )
         try:
             session.commit()
-        except Exception:  # noqa: BLE001 — audit best-effort
+        except Exception:
             session.rollback()
         decorated = _decorate_pedido(pedido, session)
         decorated["lines"] = [
@@ -1717,7 +1723,7 @@ async def pedidos_status(
         pedido.cancel_reason = reason
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.pedido.status",
         target_type="pedido",
         target_id=str(pedido.id),
@@ -1843,7 +1849,7 @@ def pedidos_fulfill(
                 continue
             try:
                 moves = _compute_stock_moves(session, recipe, float(ln.qty), set())
-            except Exception as exc:  # noqa: BLE001 — defensive default
+            except Exception as exc:
                 logger.warning(
                     f"pedidos.fulfill: _compute_stock_moves failed for product "
                     f"{line_product.id}: {exc!r}"
@@ -1861,7 +1867,7 @@ def pedidos_fulfill(
                             "product": line_product.name,
                         }
                     )
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         # Defensive: if the calc itself blows up, do not block the fulfill;
         # log loudly so ops sees it, but proceed (matches pre-fix behavior).
         logger.warning(
@@ -1870,7 +1876,7 @@ def pedidos_fulfill(
         shortfalls = []
 
     if shortfalls and not force_flag:
-        user_id = current_user_id(request) or "operator"
+        user_id = current_operator(request)
         logger.warning(
             f"pedidos.fulfill: blocked pedido={pedido.id} user={user_id} "
             f"shortfall_count={len(shortfalls)} (operator must set force=true to override)"
@@ -1885,7 +1891,7 @@ def pedidos_fulfill(
         )
 
     if shortfalls and force_flag:
-        user_id = current_user_id(request) or "operator"
+        user_id = current_operator(request)
         logger.warning(
             f"pedidos.fulfill: FORCE-FULFILL pedido={pedido.id} user={user_id} "
             f"shortfall_count={len(shortfalls)} (stock will go negative)"
@@ -1905,7 +1911,7 @@ def pedidos_fulfill(
         try:
             session.execute(_sa_text("DROP TRIGGER IF EXISTS ingredient_stock_qty_positive_insert"))
             session.execute(_sa_text("DROP TRIGGER IF EXISTS ingredient_stock_qty_positive_update"))
-        except Exception as _drop_exc:  # pragma: no cover - defensive  # noqa: BLE001 — SQLite trigger drop is best-effort
+        except Exception as _drop_exc:  # pragma: no cover - defensive
             logger.warning(f"force-fulfill: could not drop stock triggers: {_drop_exc!r}")
 
     # Snapshot sold_at to now in Asunción TZ so /reportes groups by the
@@ -1945,7 +1951,7 @@ def pedidos_fulfill(
     # We use the actor on the request so the timeline shows who fulfilled it.
     from app.services.pedido_events import PedidoEventService
 
-    fulfill_actor = str(current_user_id(request) or "operator")
+    fulfill_actor = str(current_operator(request))
     PedidoEventService.record(
         session,
         pedido.id,
@@ -1962,7 +1968,7 @@ def pedidos_fulfill(
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.pedido.fulfill",
         target_type="pedido",
         target_id=str(pedido.id),
@@ -2048,7 +2054,7 @@ def pedidos_fulfill(
                 )
             )
             session.commit()
-        except Exception as _recreate_exc:  # pragma: no cover - defensive  # noqa: BLE001 — SQLite trigger recreate is best-effort
+        except Exception as _recreate_exc:  # pragma: no cover - defensive
             logger.warning(f"force-fulfill: could not recreate stock triggers: {_recreate_exc!r}")
 
     # ── Notify customer via WhatsApp or SMS ──────────────────────────────────
@@ -2075,8 +2081,14 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
 
         from app.rms.models import MessageTemplate as MT
 
-        template_key = "pedido_listo" if pedido.channel == "WhatsApp" else "generic"
-        template_channel = "whatsapp" if pedido.channel == "WhatsApp" else "email"
+        # P43 (2026-10-07): was comparing against "WhatsApp" (uppercase)
+        # which never matches because channel values are lowercase
+        # (Channel.WHATSAPP.value = "whatsapp"). This silently disabled
+        # the pedido_listo / whatsapp template path.
+        template_key = "pedido_listo" if pedido.channel == Channel.WHATSAPP.value else "generic"
+        template_channel = (
+            Channel.WHATSAPP.value if pedido.channel == Channel.WHATSAPP.value else "email"
+        )
         row = session.execute(
             _select(MT).where(
                 MT.channel == template_channel,
@@ -2096,14 +2108,15 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
                     "business_name": "Sazón",
                 },
             )
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.warning(
             f"pedidos._send_fulfill_notification: render_template failed (fallback to legacy msg): {exc!r}"
         )
     if msg is None:
         msg = (
             f"¡Tu pedido #{pedido.id} esta listo para retirar! Te esperamos 😊"
-            if pedido.channel == "WhatsApp"
+            if pedido.channel
+            == Channel.WHATSAPP.value  # P43: lowercase comparison (was "WhatsApp")
             else f"Tu pedido #{pedido.id} esta listo para retirar. Gracias!"
         )
 
@@ -2131,7 +2144,7 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
             if not ok:
                 log.warning("Twilio error for pedido %s: %s %s", pedido.id, r.status_code, r.text)
             return ok
-        except Exception as exc:  # noqa: BLE001 — defensive default
+        except Exception as exc:
             log.error("Twilio exception for pedido %s: %s", pedido.id, exc)
             return False
 
@@ -2183,7 +2196,7 @@ def pedidos_stock_preview(
             continue
         try:
             moves = _compute_stock_moves(session, recipe, float(ln.qty), set())
-        except Exception as exc:  # noqa: BLE001 — defensive default
+        except Exception as exc:
             logger.warning(
                 f"pedidos.stock_preview: _compute_stock_moves failed for product {product.id}: {exc!r}"
             )
@@ -2276,7 +2289,7 @@ def pedidos_duplicate(
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.pedido.duplicate",
         target_type="pedido",
         target_id=str(copy.id),
@@ -2337,7 +2350,7 @@ def pedidos_bulk_fulfill(
     if affected_dates:
         try:
             invalidate_demand_for_dates(session, list(affected_dates))
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: S110
             pass
     safe_commit(session)
     flash = f"{fulfilled} pedido(s) marcado(s) como completado(s)"
@@ -2377,7 +2390,7 @@ def pedidos_bulk_cancel(
     if affected_dates:
         try:
             invalidate_demand_for_dates(session, list(affected_dates))
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: S110
             pass
     safe_commit(session)
     flash = f"{cancelled} pedido(s) cancelado(s)"

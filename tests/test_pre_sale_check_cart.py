@@ -1,8 +1,10 @@
-"""tests/test_pre_sale_check_cart.py — multi-line pre-billing checklist.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_pre_sale_check_cart.py — multi-line pre-billing checklist.
 
 Companion to app/rms/sales/pre_sale_check_cart.py and the
 /ventas/nueva/preflight/multi route.
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -14,9 +16,11 @@ from app.rms.sales.pre_sale_check_cart import (
 )
 
 
-def _make_product_with_recipe(session_factory, *, name="Torta", price=10000,
-                              ingredient_stock=5000.0, recipe_qty=200.0):
+def _make_product_with_recipe(
+    session_factory, *, name="Torta", price=10000, ingredient_stock=5000.0, recipe_qty=200.0
+):
     from app.rms.models import Ingredient, Product, Recipe, RecipeLine
+
     with session_factory() as session:
         with session.begin():
             ing = Ingredient(
@@ -31,8 +35,11 @@ def _make_product_with_recipe(session_factory, *, name="Torta", price=10000,
             session.add(r)
             session.flush()
             line = RecipeLine(
-                recipe_id=r.id, line_kind="ingredient",
-                line_ref_id=ing_id, qty=recipe_qty, line_unit="g",
+                recipe_id=r.id,
+                line_kind="ingredient",
+                line_ref_id=ing_id,
+                qty=recipe_qty,
+                line_unit="g",
             )
             session.add(line)
             session.flush()
@@ -84,6 +91,7 @@ def test_aggregated_stock_check_two_lines_same_ingredient(session_factory):
     each × 2 lines = 400g. Stock: 100g. Shortage!
     """
     from app.rms.models import Ingredient, Product, Recipe, RecipeLine
+
     with session_factory() as session:
         with session.begin():
             ing = Ingredient(name="Harina-Agg", stock_qty=50.0, unit="g")
@@ -95,8 +103,11 @@ def test_aggregated_stock_check_two_lines_same_ingredient(session_factory):
             session.flush()
             # Per-sale demand: 200/1 × 1 = 200g per unit sold
             line = RecipeLine(
-                recipe_id=r.id, line_kind="ingredient",
-                line_ref_id=ing_id, qty=200.0, line_unit="g",
+                recipe_id=r.id,
+                line_kind="ingredient",
+                line_ref_id=ing_id,
+                qty=200.0,
+                line_unit="g",
             )
             session.add(line)
             session.flush()
@@ -106,10 +117,12 @@ def test_aggregated_stock_check_two_lines_same_ingredient(session_factory):
             session.flush()
             p1_id, p2_id = p1.id, p2.id
 
-    cart = CartIntent(lines=(
-        CartLine(line_index=0, product_id=p1_id, qty=1),
-        CartLine(line_index=1, product_id=p2_id, qty=1),
-    ))
+    cart = CartIntent(
+        lines=(
+            CartLine(line_index=0, product_id=p1_id, qty=1),
+            CartLine(line_index=1, product_id=p2_id, qty=1),
+        )
+    )
     with session_factory() as session:
         result = validate_cart_intent(session, cart, today=date(2026, 10, 7))
     cart_shortage = [w for w in result.warnings if w.code == "CART_STOCK_SHORTAGE"]
@@ -121,7 +134,9 @@ def test_aggregated_stock_check_two_lines_same_ingredient(session_factory):
 
 def test_no_stock_shortage_when_enough_stock(session_factory):
     """With plenty of stock, no shortage warning."""
-    p1 = _make_product_with_recipe(session_factory, name="Plenty", recipe_qty=200.0, ingredient_stock=10000.0)
+    p1 = _make_product_with_recipe(
+        session_factory, name="Plenty", recipe_qty=200.0, ingredient_stock=10000.0
+    )
     cart = CartIntent(lines=(CartLine(line_index=0, product_id=p1, qty=2),))
     with session_factory() as session:
         result = validate_cart_intent(session, cart, today=date(2026, 10, 7))
@@ -133,6 +148,7 @@ def test_no_stock_shortage_when_enough_stock(session_factory):
 
 def test_closed_day_is_cart_blocker(session_factory, monkeypatch):
     from app.rms import eod_closed
+
     monkeypatch.setattr(eod_closed, "eod_is_day_closed", lambda *a, **kw: True)
     p1 = _make_product_with_recipe(session_factory, name="Closed")
     cart = CartIntent(
@@ -163,8 +179,8 @@ def test_missing_payment_is_info(session_factory):
 
 def test_customer_allergen_blocks_cart(session_factory):
     """An allergen match on ANY line blocks the whole cart."""
-    from app.rms.models import Ingredient, Product, Recipe, RecipeLine
-    from app.rms.models import Customer
+    from app.rms.models import Customer, Ingredient, Product, Recipe, RecipeLine
+
     p1 = _make_product_with_recipe(session_factory, name="Ok")
     # Create a product with a "nuts" allergen
     with session_factory() as session:
@@ -176,7 +192,9 @@ def test_customer_allergen_blocks_cart(session_factory):
             r = Recipe(name="Maní-Cart-Recipe", yield_qty=1, yield_unit="und", allergens="nuts")
             session.add(r)
             session.flush()
-            line = RecipeLine(recipe_id=r.id, line_kind="ingredient", line_ref_id=ing_id, qty=10, line_unit="g")
+            line = RecipeLine(
+                recipe_id=r.id, line_kind="ingredient", line_ref_id=ing_id, qty=10, line_unit="g"
+            )
             session.add(line)
             session.flush()
             p2 = Product(name="Maní-Cart-Sale", sku="MANI-CART", sale_price_gs=5000, recipe_id=r.id)
@@ -209,10 +227,12 @@ def test_customer_allergen_blocks_cart(session_factory):
 
 
 def test_cart_intent_total_qty():
-    cart = CartIntent(lines=(
-        CartLine(line_index=0, product_id=1, qty=2),
-        CartLine(line_index=1, product_id=2, qty=3),
-    ))
+    cart = CartIntent(
+        lines=(
+            CartLine(line_index=0, product_id=1, qty=2),
+            CartLine(line_index=1, product_id=2, qty=3),
+        )
+    )
     assert cart.total_qty == 5
 
 

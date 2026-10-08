@@ -1,5 +1,5 @@
 """TDD: the Vaquita Holandesa seed must be loadable + idempotent for the
-Saskia (saskia-vps) business.
+Sazón RMS business.
 
 Why this test exists:
 - The user reported "0 de 0 productos" but the DB has 29 products.
@@ -11,11 +11,12 @@ Why this test exists:
 - This test guards against that regression.
 
 We test the operator script's contract:
-1. The script must mention Vaquita + Saskia + use overwrite=False.
+1. The script must mention Vaquita + Sazón + use overwrite=False.
 2. Running the script on a DB with 29 products + 721 sales must
    REFUSE (exit 2), not silently append 29 NEW products.
 3. Running seed_sazon on a FRESH empty DB is idempotent at the row level.
 """
+
 from __future__ import annotations
 
 import os
@@ -24,7 +25,6 @@ from pathlib import Path
 
 import pytest
 
-
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 SEED_SCRIPT = SCRIPTS_DIR / "seed_vaquita_holandesa_for_saskia.py"
 
@@ -32,14 +32,14 @@ SEED_SCRIPT = SCRIPTS_DIR / "seed_vaquita_holandesa_for_saskia.py"
 def test_seed_script_exists():
     assert SEED_SCRIPT.exists(), (
         f"missing {SEED_SCRIPT}. The operator-facing script that loads "
-        "the Vaquita Holandesa catalog into the Saskia business must exist."
+        "the Vaquita Holandesa catalog into the Sazón RMS business must exist."
     )
 
 
 def test_seed_script_mentions_vaquita_and_saskia():
     text = SEED_SCRIPT.read_text()
     assert "Vaquita" in text, "script must reference La Vaquita Holandesa"
-    assert "Saskia" in text, "script must reference the Saskia business"
+    assert "Sazón" in text or "Saz\u00f3n" in text, "script must reference the Sazón RMS business"
 
 
 def test_seed_script_calls_seed_sazon_with_overwrite_false():
@@ -58,7 +58,7 @@ def test_seed_script_refuses_on_existing_user_data(tmp_path):
     """
     db_path = tmp_path / "saskia-test.sqlite"
 
-    # Seed a realistic DB that looks like the Saskia deployment
+    # Seed a realistic DB that looks like the Sazón RMS deployment
     con = sqlite3.connect(str(db_path))
     cur = con.cursor()
     cur.executescript("""
@@ -98,6 +98,7 @@ def test_seed_script_refuses_on_existing_user_data(tmp_path):
     # Run the operator script — must refuse (exit 2)
     import subprocess
     import sys as _sys
+
     env = {**os.environ, "AIW_SASKIA_DB_PATH": str(db_path)}
     # Use the same Python that's running this test (which has app.* deps)
     proc = subprocess.run(
@@ -112,9 +113,7 @@ def test_seed_script_refuses_on_existing_user_data(tmp_path):
         f"{proc.returncode}.\nstdout: {proc.stdout}\nstderr: {proc.stderr}"
     )
     combined = proc.stdout + proc.stderr
-    assert "REFUSE" in combined, (
-        f"script must print REFUSE message, got: {combined}"
-    )
+    assert "REFUSE" in combined, f"script must print REFUSE message, got: {combined}"
 
 
 def test_seed_sazon_idempotent_in_empty_db(tmp_path):
@@ -131,8 +130,10 @@ def test_seed_sazon_idempotent_in_empty_db(tmp_path):
     try:
         from app.rms.db import make_engine, make_session_factory
         from app.rms.seed import seed_sazon
+
         engine = make_engine(f"sqlite:///{db_path}")
         from app.rms.models import Base  # type: ignore
+
         try:
             Base.metadata.create_all(engine)
         except Exception:
@@ -146,13 +147,10 @@ def test_seed_sazon_idempotent_in_empty_db(tmp_path):
         s2 = SessionLocal()
         try:
             from sqlalchemy import text
-            n_after_first = s2.execute(
-                text("SELECT COUNT(*) FROM product")
-            ).scalar()
+
+            n_after_first = s2.execute(text("SELECT COUNT(*) FROM product")).scalar()
             seed_sazon(s2, overwrite=False)
-            n_after_second = s2.execute(
-                text("SELECT COUNT(*) FROM product")
-            ).scalar()
+            n_after_second = s2.execute(text("SELECT COUNT(*) FROM product")).scalar()
         finally:
             s2.close()
         assert n_after_first == n_after_second, (

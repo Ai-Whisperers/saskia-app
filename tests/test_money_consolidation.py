@@ -42,11 +42,9 @@ import inspect
 
 import pytest
 
-from app.rms import money
-from app.rms import validation
+from app.rms import money, validation
 from app.rms.money import format_gs, parse_gs
 from app.rms.validation import parse_money_gs, parse_quantity
-
 
 # ─── Existence ─────────────────────────────────────────────────────────────
 
@@ -147,12 +145,28 @@ def test_parse_money_gs_accepts_int_and_float_inputs():
 
 
 ACCEPT_CASES = [
-    "0", "1", "100", "12500", "12.500", "12,500", "1.234.567",
-    "1,234,567", "Gs. 6.500", "Gs 6.500", "₲12500", "₲ 12.500",
+    "0",
+    "1",
+    "100",
+    "12500",
+    "12.500",
+    "12,500",
+    "1.234.567",
+    "1,234,567",
+    "Gs. 6.500",
+    "Gs 6.500",
+    "₲12500",
+    "₲ 12.500",
     "  12.500  ",
 ]
 REJECT_CASES = [
-    "-100", "-1", "1.5", "abc", "", "1.5.5", "1,5",
+    "-100",
+    "-1",
+    "1.5",
+    "abc",
+    "",
+    "1.5.5",
+    "1,5",
 ]
 
 

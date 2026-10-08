@@ -81,7 +81,8 @@
   </div>
 
   {% if range_summary %}
-  <table class="table is-striped mt-3" >
+  <div class="table-sticky-wrap" style="max-height:min(70vh,520px);margin-top:var(--space-3);">
+  <table class="table is-striped">
     <thead>
       <tr>
         <th>Día</th>
@@ -101,6 +102,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% endif %}
   <p class="text-muted" style="padding:var(--space-3) var(--space-4);font-size:var(--text-sm);">
     El cierre diario (checklist de 9 pasos) se hace por día — usá los enlaces
@@ -183,6 +185,7 @@
 
   {{ ui.skeleton_section(id="eod-table", variant="line", count=8, label="Cargando cierre diario") }}
   <div data-loaded-section="eod-table">
+  <div class="table-sticky-wrap" style="max-height:min(70vh,520px);">
   <table class="table is-hoverable">
     <thead>
       <tr>
@@ -201,8 +204,8 @@
       </tr>
       {% endfor %}
     </tbody>
-  </div>
   </table>
+  </div>
   <p class="text-muted">El cierre se guarda cuando hacés click en "Marcar cierre del día".</p>
   <div class="form-row">
     <label for="notes_for_next">Notas para el turno siguiente</label>
@@ -271,6 +274,7 @@
     Estos son los ingredientes que están por debajo del mínimo. La lista completa y el ingreso de compras está en
     <a href="/reorder">Reponer</a>.
   </p>
+  <div class="table-sticky-wrap" style="max-height:min(70vh,520px);">
   <table class="table is-striped">
     <thead>
       <tr>
@@ -299,6 +303,7 @@
     </tfoot>
     {% endif %}
   </table>
+  </div>
   <a href="/reorder" class="btn">
     <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
     Abrir Reponer
@@ -330,6 +335,7 @@
     registrá la diferencia en <a href="/merma">merma</a>.
   </p>
   {% endif %}
+  <div class="table-sticky-wrap" style="max-height:min(70vh,520px);">
   <table class="table is-hoverable is-striped">
     <thead>
       <tr>
@@ -373,6 +379,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   <p class="text-muted" style="font-size:var(--text-xs);margin-top:var(--space-2);">
     Plan = pronóstico · Hecho = lo que realmente produciste
   </p>

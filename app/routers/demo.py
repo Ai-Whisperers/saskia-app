@@ -57,9 +57,11 @@ def demo_seed(session: Any = Depends(get_session)) -> JSONResponse:
     if not _is_enabled():
         raise HTTPException(
             status_code=403,
+            # Don't leak the server-side path (/opt/build-apps/...) in the
+            # response — OWASP ZAP rule 110009 "Full Path Disclosure".
             detail=(
-                "Demo seed is disabled. Set AIW_DEMO_SEED_ENABLED=true "
-                "in /opt/build-apps/sazon-rms/.env to enable."
+                "Demo seed is disabled (AIW_DEMO_SEED_ENABLED not set to "
+                "true). Ask the operator to enable it."
             ),
         )
 
@@ -68,8 +70,17 @@ def demo_seed(session: Any = Depends(get_session)) -> JSONResponse:
         bundle = seed_kyrian(session)
         session.commit()
     except Exception as exc:
+        # Roll back first so the session is clean for the next request.
         session.rollback()
-        raise HTTPException(status_code=500, detail=f"Demo seed failed: {exc!r}") from exc
+        # Don't leak the exception repr back to the client — it includes
+        # file paths and stack info (OWASP ZAP rule 110009, "Full Path
+        # Disclosure"). Log server-side for the operator; return a
+        # generic message.
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.exception("Demo seed failed for /demo/seed")
+        raise HTTPException(status_code=500, detail="Demo seed failed. See server logs.") from exc
 
     return JSONResponse(
         {

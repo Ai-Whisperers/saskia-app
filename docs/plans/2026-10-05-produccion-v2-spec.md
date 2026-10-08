@@ -107,13 +107,13 @@ API pública:
 class DemandRow:
     product_id: int
     product_name: str
-    qty_forecast: float          # de production.forecast_sales() (existente, sin cambios)
-    qty_pedidos: float           # suma PedidoLine.qty, status in (pending, confirmed, ready)
-    qty_pedidos_confirmed: float # suma, status in (confirmed, ready)
-    qty_evento: float            # (multiplier - 1.0) * qty_forecast
-    qty_total: float             # qty_forecast * seasonal_multiplier + qty_pedidos
-    confidence_pct: int          # de production._forecast_confidence() (existente)
-    source: str                  # 'computed' | 'closed' | 'manual'
+    qty_forecast: float  # de production.forecast_sales() (existente, sin cambios)
+    qty_pedidos: float  # suma PedidoLine.qty, status in (pending, confirmed, ready)
+    qty_pedidos_confirmed: float  # suma, status in (confirmed, ready)
+    qty_evento: float  # (multiplier - 1.0) * qty_forecast
+    qty_total: float  # qty_forecast * seasonal_multiplier + qty_pedidos
+    confidence_pct: int  # de production._forecast_confidence() (existente)
+    source: str  # 'computed' | 'closed' | 'manual'
     computed_at: datetime
 
 

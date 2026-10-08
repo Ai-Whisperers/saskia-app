@@ -495,7 +495,7 @@
 </details>
 {% if shift_saved %}
 <div class="card mb-4" style="background: var(--color-success-soft); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-success); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;"
-     data-shift-saved="{{ shift_saved }}">
+     {% if shift_saved == 1 %}data-shift-saved="1"{% else %}data-shift-saved="{{ shift_saved }}"{% endif %}>
   <small><strong>✓ Turno guardado:</strong> {{ shift_saved }} producto{{ '' if shift_saved == 1 else 's' }} registrado{{ '' if shift_saved == 1 else 's' }} en producción real.</small>
   {# T-2026-10-04 (Tier 4-E): end-of-shift nudge to /ventas/nueva.
      After saving, offer the cook a quick path to log the day's
@@ -685,7 +685,7 @@
             id="mark-all-btn"
             class="btn btn-ghost btn-sm"
             onclick="markAllDone()"
-            title="Set every row's qty to its target and check 'done'">
+            title="Marcá todas las cantidades como objetivo y tildá 'hecho'">
       <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
       Marcar todos como hecho
     </button>
@@ -1138,7 +1138,7 @@
       </small>
       <button type="submit" class="btn btn-primary">
         <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-        Guardá ejecución del turno
+        Guardar ejecución del turno
       </button>
     </div>
   </section>
@@ -1634,8 +1634,17 @@
        title="Recetas con sus porciones/ingredientes (para pesar)">
       🍰 Por receta (pesar)
     </a>
+    <form method="post" action="/shopping-list/from-production-plan"
+          class="d-inline"
+          data-testid="send-to-shopping-list-form">
+      <input type="hidden" name="for_date" value="{{ plan.for_date.isoformat() }}"/>
+      <button type="submit" class="btn btn-secondary btn-sm"
+              title="Materializa los faltantes de hoy en la lista de compras">
+        📤 Enviar faltantes a lista de compras
+      </button>
+    </form>
     <a href="/shopping-list"
-       class="btn btn-secondary btn-sm"
+       class="btn btn-ghost btn-sm"
        title="Lista de compras (lo que falta por comprar)">
       🛒 Lista de compras
     </a>
@@ -2135,7 +2144,7 @@
           <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 6px; flex: 1;">
             <input type="radio" name="status" value="cancelled"
                    data-modal-radio-cancelled>
-            <span><strong>⊘ No horneado</strong><br><small class="text-muted">Cero unidades. Decí por qué abajo.</small></span>
+            <span><strong>⊘ No horneado</strong><br><small class="text-muted">Cero unidades. Indicá por qué abajo.</small></span>
           </label>
         </div>
       </div>

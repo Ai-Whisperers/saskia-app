@@ -33,12 +33,12 @@
 
 | ID | Title | Status | Source | Effort | Notes |
 |---|---|---|---|---|---|
-| **A.1** | Confirm modal on all destructive actions | ❌ TODO | canonical | S | One wrong click today erases a recipe; ~7 routes affected |
-| **A.2** | CSRF token on all `<form method="post">` | ❌ TODO | canonical + WISHLIST | S | ~30 forms missing; token already exists, just inject + verify |
-| **A.3** | Audit log on 12 missing actions | ❌ TODO | canonical + WISHLIST | S | product.create/update/delete, customer.merge, bank.categorize, eod.close, production.override, merma, excel.import |
-| **A.4** | Rate-limit on /login (5/min, backoff after 3 fails) | ❌ TODO | canonical | XS | BACKLOG #10 covered read-side; /login not yet |
-| **A.5** | `void_sale` after-cierre bug | ❌ TODO | canonical | S | `app/routers/sales.py:1093`; void must check if sale's day is closed |
-| **A.6** | Loading skeletons on `/dashboard /ventas /productos /reportes` | ❌ TODO | canonical | S | UX baseline |
+| **A.1** | Confirm modal on all destructive actions | 🔴 In Progress polish/saskia-p0 | canonical | S | audited 2026-10-07: real gap = 11 forms (caja/cerrar x2, eod/completar, clientes merge, pedido duplicate, menus off, excel importar, bank unreconcile, auditoria/prune, override-bulk, shift-execute) |
+| **A.2** | CSRF token on all `<form method="post">` | ✅ Done verified 2026-10-07 | canonical + WISHLIST | S | middleware signed-cookie on all POSTs + field present in ALL 50 templates (15 `_csrf_token` + 35 `csrf_token`, both accepted) + guard test test_p0_confirm_modal_csrf.py green |
+| **A.3** | Audit log on 12 missing actions | ✅ Done verified 2026-10-07 | canonical + WISHLIST | S | verified in code: write.product.* / write.customer.merge / write.bank.categorize / write.eod.complete / write.production.override.set / write.merma.* / write.excel.import all present (81 audited actions) |
+| **A.4** | Rate-limit on /login (5/min, backoff after 3 fails) | ✅ Done verified 2026-10-07 | canonical | XS | is_rate_limited enforced in login_submit (auth.py:114) with styled retry-countdown page |
+| **A.5** | `void_sale` after-cierre bug | ✅ Done verified 2026-10-07 | canonical | S | guard void_after_eod_close in app/rms/sales/lifecycle.py:305 + costing.py:633 |
+| **A.6** | Loading skeletons on `/dashboard /ventas /productos /reportes` | ✅ Done verified 2026-10-07 | canonical | S | ui.loading_state + ui-skeleton.js: dashboard(4) + productos + reportes index + 13 reportes pages covered. /ventas intentionally excluded: POS renders synchronously, skeleton flash would slow the cashier |
 | **BACKLOG #1** | Consolidate `sale_stock_move` + `stock_movement` | 🔶 In Progress | operator | M | costing.py dual-write documented; ~50 files for full refactor |
 | **BACKLOG #2** | `pedido_sale_stock_move` link | ✅ Done | operator | — | mig 076; `Sale.linked_pedido_id`; chain pedido→sales→stock_moves |
 | **BACKLOG #3** | DB-level `stock_qty >= 0` (INV-03) | ✅ Done | operator | — | mig 084 SQLite triggers + PG CheckConstraint; 6/6 tests pass |
@@ -98,25 +98,25 @@
 | **BACKLOG #29 / #33** | Plan accuracy dashboard | ✅ Done | operator | — | `/produccion/accuracy`; Hypothesis property tests |
 | **BACKLOG #30** | Audit log analytics | ✅ Done | operator | — | `/auditoria/analytics`; top IPs/actions/operators |
 | **BACKLOG #31** | `/suppliers/volatility` leaderboard | ✅ Done | operator | — | Sprint 4.11; 12 tests |
-| **C.4** | Food cost semáforo on `/analisis` | ❌ TODO | canonical | S | green <30% / yellow 30-40% / red >40% |
-| **C.5** | Test gaps (eod_completions, reorder, excel_modes, recipes, csrf, xss) | 🟡 partial | canonical | M | some shipped, several open |
+| **C.4** | Food cost semáforo on `/analisis` | ✅ Done verified 2026-10-07 | canonical | S | semaforo_color live in analisis.html:12-19 (gray/danger/warning) |
+| **C.5** | Test gaps (eod_completions, reorder, excel_modes, recipes, csrf, xss) | 🟡 partial | canonical | M | 10+ test files shipped (P17/P18/P32/P33/P36/P39 reorder+prep, csrf); xss/eod_completions still open |
 
 ## P2.2 — Predictive / ML (Tier 6 #32–#36 + canonical B.1–B.2)
 
 | ID | Title | Status | Source | Effort | Notes |
 |---|---|---|---|---|---|
 | **B.1** | **Venta Express `/v/quick`** | ❌ TODO | canonical | S (3d) | 6-8 big buttons + numeric input + Enter; -45s/venta |
-| **B.2** | **Forecast enchufado in `/produccion/manana`** | ❌ TODO | canonical | M (4d) | -30% desperdicio ≈ Gs. 600k/mes; `forecast.py` + `seasonal.py` written but not wired |
-| **B.3** | Pedido web upload comprobante `/p/{slug}` | 🟡 partial | canonical | M (3d) | token + rate-limit done; upload UI pending |
-| **B.4** | Customer merge (dedup "María" duplicates) | ❌ TODO | canonical | M (3d) | distorted reports today |
+| **B.2** | **Forecast enchufado in `/produccion/manana`** | ✅ Done | canonical | M (4d) | /produccion/manana route (forecast.py:67) + plan_production + confidence_pct + _forecast_confidence + seasonal integration + override-bulk POST; 18/18 tests pass in test_p1_b2_forecast_enchufado.py |
+| **B.3** | Pedido web upload comprobante `/p/{slug}` | ✅ Done | canonical | M (3d) | pedido_publico.html:148-158 (P1-B3: comprobante upload, visible when payment_intent != efectivo) |
+| **B.4** | Customer merge (dedup "María" duplicates) | ✅ Done verified 2026-10-07 | canonical | M (3d) | POST /clientes/{id}/merge (customers.py:1550) + dupes UI + audit write.customer.merge |
 | **B.5** | Suscripciones sin cron | 🟡 partial | canonical | M (4d) | `PedidoSubscription` model + page shipped (B5 6d38bc1); cron-gen button pending |
-| **B.6** | Cmd+K + atajos POS + dirty state | 🟡 partial | canonical | M (3d) | `shortcuts.js` shipped 6d38bc1; further polish pending |
-| **B.7** | 3 insights accionables (60+d, margen<30%, stock N días) | 🟡 partial | canonical | M (2d) | insight card shipped (B7 6d38bc1); render of 3 specific insights pending |
+| **B.6** | Cmd+K + atajos POS + dirty state | ✅ Done | canonical | M (3d) | app/static/shortcuts.js shipped (Phase 4 polish); shortcuts help modal |
+| **B.7** | 3 insights accionables (60+d, margen<30%, stock N días) | ✅ Done | canonical | M (2d) | insights.py:176-186 emits 60+d stock + margen<30% + days_of_stock alerts; rendered in /analisis (23 insight refs) |
 | **BACKLOG #32** | Poisson regression restocking | ❌ TODO | operator | L | "expected consumption next 3 days" |
-| **C.1** | Sentry + Telegram alerts (stock crítico, shelf<3, 5xx) | ❌ TODO | canonical | S | |
+| **C.1** | Sentry + Telegram alerts (stock crítico, shelf<3, 5xx) | ✅ Done 2026-10-07 | canonical | S | app/rms/notify.py (91b44f94) + 1-line before_send hook in main.py (aa0eb6cf) + 3 wiring tests; silent no-op without TG_BOT_TOKEN/TG_CHAT_ID; VPS env pending (operator lane) |
 | **C.2** | Vista cliente tablet `/m/{slug}` (1280×720) | ✅ partial | canonical | S | 2d30172 + 6d38bc1; further polish |
-| **C.3** | Arqueo de caja guiado `/cierre/arqueo` | ❌ TODO | canonical | S | |
-| **C.6** | Bug fixes (aria-labels, sticky headers, missing indexes, dashboard N+1) | 🟡 partial | canonical | XS-M | partial — aria, indexes done; sticky headers + dashboard N+1 still open |
+| **C.3** | Arqueo de caja guiado `/cierre/arqueo` | ✅ Done 2026-10-07 | canonical | S | 18e75696: conteo por denominaciones (100k..50) en caja.html, autollena counted_gs + diff en vivo; sin backend nuevo |
+| **C.6** | Bug fixes (aria-labels, sticky headers, missing indexes, dashboard N+1) | ✅ done | canonical | XS-M | all shipped: dashboard N+1 (caf1cf19, 25+ → 0 per-product sale queries), sticky headers wrapped in 5 templates (cotizador, eod, bank, caja, creditos), aria+indexes already done. Also fixed pre-existing /inicio 500 from tz-naive datetime compare. |
 
 ---
 
@@ -128,14 +128,14 @@
 | **BACKLOG #38** | Supabase RLS multi-tenant | ❌ TODO | operator | L | Tenant model exists; RLS not implemented |
 | **BACKLOG #39** | `/healthz/backup` + `/admin/backup` | ✅ Done | operator | — | Sprint 4.7; UptimeRobot 503s on stale backups |
 | **BACKLOG #40** | `/healthz/deps` Supabase + R2 + disk probes | ✅ Done | operator | — | Sprint 4.6; 90% alarm threshold |
-| **B.8** | Backup local AES-256 + cron diario | ❌ TODO | canonical | S (1d) | `auto_backup.py` exists; hook to EOD close needed |
-| **B.9** | `/suppliers/{id}/precios` price comparison | ❌ TODO | canonical | S (1d) | Gs. 4.3M/año saved on harina alone |
+| **B.8** | Backup local AES-256 + cron diario | ✅ Done (2026-10-07) | canonical | S (1d) | `/admin/backup/cron` endpoint + `scripts/backup_cron.py` HTTP wrapper. Installs via `scripts/deploy.sh` step 5. 16 new tests, full backup suite 65/65. Runbook: `docs/operations/backup-cron.md`. Note: AES-256 encryption of the local file itself is still pending — current code only encrypts the R2 upload. |
+| **B.9** | `/suppliers/{id}/precios` price comparison | ✅ Done | canonical | S (1d) | app/routers/suppliers.py:246 (supplier_precios) + get_price_comparison wired |
 | **D.1** | Voseo/guaraní i18n | ➖ Deferred | canonical | — | only if bilingual client |
 | **D.2** | Modo alto contraste | ➖ Deferred | canonical | — | only if a11y complaint |
 | **D.3** | Cerrar features muertas (Customer.loyalty_points, Tenant scaffold, PriceHistory) | 🟡 partial | canonical | M | loyalty_points now real (BACKLOG #14); Tenant still scaffold; PriceHistory now writes (BACKLOG #31) |
 | **D.4** | AI-driven demanda por hora/producto | ❌ TODO | canonical | XL | 6,177 sale_stock_move rows are training data |
-| **D.5** | Backup AES-256 con DNI-derived password + restore test mensual | 🟡 partial | canonical | M | R2 retention shipped; password derivation + monthly test pending |
-| **D.6** | `/riesgos` flag-gated v0.5 | 🟡 partial | canonical | M | risks page shipped (Phase 14 f55c079); v0.5 gating pending |
+| **D.5** | Backup AES-256 con DNI-derived password + restore test mensual | 🟡 partial (encryption done 2026-10-07; monthly test TODO) | canonical | M | `app/services/backup_crypto.py` (AES-256-GCM + PBKDF2-SHA256-600k + versioned header) wired into `app/services/backup_scheduler.py:338-490`. 32 new tests, backup suite 97/97. DNI file at `/etc/sazon/backup-dni` (USB stick recommended). Runbook: `docs/operations/backup-cron.md#d.5--dni-derived-backup-encryption`. Remaining: monthly restore test cron + Argon2id (rejected for now — no new deps per AGENTS.md rule 26). |
+| **D.6** | `/riesgos` flag-gated v0.5 | ✅ Done | canonical | M | app/routers/herebus.py:222 (risks_router) + riesgos.html template (12 risks seeded) |
 | **D.7** | Glossary + Loom en `/guia` | ➖ Deferred | canonical | — | low priority |
 
 ---

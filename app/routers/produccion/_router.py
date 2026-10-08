@@ -13,12 +13,12 @@ test_produccion_package_split URL-surface assertions that grep
 the single router's `routes` attribute). Sharing one instance
 keeps the contract intact.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
 from app.auth import require_login_or_disabled as require_login
-
 
 router = APIRouter(prefix="/produccion", dependencies=[Depends(require_login)])
 

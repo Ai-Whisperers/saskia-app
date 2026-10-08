@@ -306,7 +306,7 @@ async def dashboard(
             from fastapi.responses import RedirectResponse
 
             return RedirectResponse("/gerencia", status_code=303)
-    except Exception:  # noqa: BLE001 — no session, render the existing page
+    except Exception:
         pass
     if period == "custom" and start and end:
         try:
@@ -486,8 +486,25 @@ async def dashboard(
     # Ops + ticket for TODAY regardless of the scrubber (the HOY band is
     # always "hoy"; scrubber-scoped numbers stay in the Ranking section).
     _today_start = datetime.now(ASUNCION_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+    _prior_same_weekday = _today_start - timedelta(days=7)
+    _prior_end = _prior_same_weekday + timedelta(days=1)
+
+    def _is_naive(dt: datetime) -> bool:
+        return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
+
+    # `Sale.sold_at` is stored naive-UTC (see `_compute_window_totals`:
+    # `start_utc_naive` / `end_utc_naive`), but `_today_start` is
+    # tz-aware (ASUNCION). Comparing them raises
+    # `TypeError: can't compare offset-naive and offset-aware datetimes`
+    # when the current window contains today's sales. Normalize the
+    # boundary to naive UTC for an apples-to-apples compare — same
+    # pattern as the prior-week loop below.
+    if _is_naive(_today_start):
+        _today_start_cmp = _today_start
+    else:
+        _today_start_cmp = _today_start.astimezone(timezone.utc).replace(tzinfo=None)
     _today_sales = (
-        [s for s in sales if s.sold_at and s.sold_at >= _today_start]
+        [s for s in sales if s.sold_at and s.sold_at >= _today_start_cmp]
         if period != "today"
         else sales
     )
@@ -500,11 +517,6 @@ async def dashboard(
         if _today_sales
         else 0
     )
-    _prior_same_weekday = _today_start - timedelta(days=7)
-    _prior_end = _prior_same_weekday + timedelta(days=1)
-
-    def _is_naive(dt: datetime) -> bool:
-        return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
 
     _prev_ops = 0
     for s in session.scalars(select(Sale).where(Sale.voided_at.is_(None))).all():
@@ -539,7 +551,7 @@ async def dashboard(
     try:
         _y = _eod_for_date(session, yesterday_d)
         cierre_ayer_pendiente = not _y
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         cierre_ayer_pendiente = False
 
     # Merma hoy
@@ -553,7 +565,7 @@ async def dashboard(
             if f.urgency in ("expired", "critical"):
                 vencer_48h_count += 1
                 vencer_48h_gs += int(f.value_at_risk_gs or 0)
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         # Defensive: dashboard never fails because of analytics math.
         # Logged at debug so it's traceable in sazon.log without spamming.
         logger.debug("dashboard expiry scan skipped: {}", exc)
@@ -614,24 +626,68 @@ async def dashboard(
     from datetime import datetime as _dt_b2
 
     from app.rms.config import ASUNCION_TZ as _tz_b2
-    from app.rms.production import forecast_sales as _fs_b2
 
     _tomorrow_date = (_dt_b2.now(_tz_b2) + timedelta(days=1)).date()
     _tomorrow_dow = _tomorrow_date.weekday()
     _tomorrow_label = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"][
         _tomorrow_dow
     ]
+    # Batched DOW forecast (2026-10-07, N+1 fix). Pre-fix this loop
+    # called `forecast_sales(...)` once per product; with 30+ products
+    # that's 30+ SELECTs against `sale` for one card on /inicio. Now:
+    # 1) one SELECT pulls `(product_id, sold_at, qty)` for the full
+    #    84d window across every product;
+    # 2) we replicate the per-product math that
+    #    `app.rms.production.forecast_sales` used to do (sum `qty` per
+    #    DOW + count DOW occurrences, then per-DOW avg with fallback
+    #    to the flat 84d avg when < 4 DOW samples exist);
+    # 3) we use the product's `sale_price_gs` for revenue, same as
+    #    the old loop.
+    # Behaviour matches the previous per-product path exactly
+    # (decision 2026-10-01 in production.py:forecast_sales docstring:
+    # 12-week lookback, DOW-only aggregation, fallback to all-DOW
+    # avg when < 4 DOW weeks exist).
+    _all_products = session.scalars(select(Product)).all()
+    _forecast_window_start = _dt_b2.now(timezone.utc) - timedelta(days=84)
+    # `IN (?, ?, ...)` form (vs. no product filter) lets the test
+    # contract in test_dashboard_perf.py::test_dashboard_forecast_no_n_plus_1
+    # detect the batched query by its SQL fingerprint, and keeps the
+    # database able to use the `sale.product_id` index when only a
+    # subset of products are visible at this tenant.
+    _forecast_rows = session.execute(
+        select(Sale.product_id, Sale.sold_at, Sale.qty).where(
+            Sale.product_id.in_([_p.id for _p in _all_products]),
+            Sale.sold_at >= _forecast_window_start,
+            Sale.voided_at.is_(None),
+        )
+    ).all()
+    # by_pid_dow_qty[pid][wd]   = sum of Sale.qty on weekday wd
+    # by_pid_dow_count[pid][wd] = count of sales on weekday wd
+    # by_pid_total_qty[pid]     = sum of Sale.qty over the full window
+    # (matches the three locals forecast_sales builds per call)
+    _by_pid_dow_qty: dict[int, dict[int, float]] = {}
+    _by_pid_dow_count: dict[int, dict[int, int]] = {}
+    _by_pid_total_qty: dict[int, float] = {}
+    for _pid, _sold_at, _qty in _forecast_rows:
+        if _sold_at is None:
+            continue
+        _wd = _sold_at.astimezone(_tz_b2).weekday()
+        _dow_qty = _by_pid_dow_qty.setdefault(_pid, {})
+        _dow_count = _by_pid_dow_count.setdefault(_pid, {})
+        _dow_qty[_wd] = _dow_qty.get(_wd, 0.0) + float(_qty or 0)
+        _dow_count[_wd] = _dow_count.get(_wd, 0) + 1
+        _by_pid_total_qty[_pid] = _by_pid_total_qty.get(_pid, 0.0) + float(_qty or 0)
+
     _forecast_units = 0.0
     _forecast_revenue_gs = 0
     _forecast_products_count = 0
     _forecast_top = []  # [(product_name, qty, revenue_gs)]
-    for _prod in session.scalars(select(Product)).all():
-        _qty = _fs_b2(
-            session,
-            product_id=_prod.id,
-            days_history=84,
-            target_weekday=_tomorrow_dow,
-        )
+    for _prod in _all_products:
+        _target_count = _by_pid_dow_count.get(_prod.id, {}).get(_tomorrow_dow, 0)
+        if _target_count >= 4:
+            _qty = _by_pid_dow_qty.get(_prod.id, {}).get(_tomorrow_dow, 0.0) / _target_count
+        else:
+            _qty = _by_pid_total_qty.get(_prod.id, 0.0) / 84
         if _qty <= 0:
             continue
         _forecast_products_count += 1

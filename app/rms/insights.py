@@ -32,6 +32,7 @@ from app.rms.menu_engineering import (
 )
 from app.rms.models import Ingredient, Product, Recipe, Sale
 from app.rms.price_history import price_stats
+
 # Fase 5 (2026-10-05): migrate /inicio off the deprecated
 # `production_scheduler` module. We no longer import `plan_production`
 # here because the /inicio card only shows the top 5 products and the
@@ -100,7 +101,7 @@ def build_insights(session: Session) -> InsightsPanel:
     top_products = _top_products_by_velocity(session, limit=top_n)
     tomorrow_plans: list[SimpleNamespace] = []
     for prod, velocity in top_products:
-        target_qty = max(1, int(round(velocity)))
+        target_qty = max(1, round(velocity))
         # Recipe yield_qty was already pre-fetched in
         # _top_products_by_velocity (no extra query).
         yield_per_batch = prod._recipe_yield_cache  # set by _top_products_by_velocity
@@ -329,7 +330,7 @@ def build_actionable_insights(session: Session) -> list[dict]:
             insight = insight_func(session)
             if insight:
                 insights.append(insight)
-        except Exception as e:  # noqa: BLE001 — log but don't break the dashboard
+        except Exception as e:
             from loguru import logger
 
             logger.debug(f"Actionable insight calculation failed: {e}")
@@ -369,19 +370,14 @@ def _top_products_by_velocity(
     if not rows:
         return []
     product_ids = [r.product_id for r in rows]
-    products = list(
-        session.scalars(select(Product).where(Product.id.in_(product_ids))).all()
-    )
+    products = list(session.scalars(select(Product).where(Product.id.in_(product_ids))).all())
     products_by_id: dict[int, Product] = {p.id: p for p in products}
     # Pre-fetch recipes for batch_count (1 query, even if 0 products have recipes).
     recipe_ids = {p.recipe_id for p in products if p.recipe_id is not None}
     recipes_by_id: dict[int, Recipe] = {}
     if recipe_ids:
         recipes_by_id = {
-            r.id: r
-            for r in session.scalars(
-                select(Recipe).where(Recipe.id.in_(recipe_ids))
-            ).all()
+            r.id: r for r in session.scalars(select(Recipe).where(Recipe.id.in_(recipe_ids))).all()
         }
     DEFAULT_YIELD = 10
     result: list[tuple[Product, float]] = []

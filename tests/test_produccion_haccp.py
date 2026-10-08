@@ -1,4 +1,5 @@
-"""Tests for /produccion/haccp — HACCP freezer temperature log (B.6).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for /produccion/haccp — HACCP freezer temperature log (B.6).
 
 Paraguay MSPBS HACCP exige registro de temperatura de freezers donde
 se almacenan productos crudos, semi-elaborados y elaborados. Sin

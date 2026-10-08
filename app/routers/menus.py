@@ -9,6 +9,7 @@ POST /menus/{id}/off   → desactivar (soft)
 El POS ya vende menús vía /ventas/nueva/multi items=[{menu_id, qty}]
 (expansión en app/rms/menu_ejecutivo.expand_menu_items).
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -44,10 +45,7 @@ async def menus_home(
 
     menus = menus_with_items(session)
     products = (
-        session.query(Product)
-        .filter(Product.is_available.is_(True))
-        .order_by(Product.name)
-        .all()
+        session.query(Product).filter(Product.is_available.is_(True)).order_by(Product.name).all()
     )
     return render(
         request,

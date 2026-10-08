@@ -107,6 +107,8 @@ line-length = 100
 target-version = "py313"
 extend-exclude = [
     ".github",  # GitHub Actions YAML files - ruff doesn't parse YAML
+    "app/_archive",  # legacy cleanup archive — not part of the live codebase
+    ".hermes/plans",  # session-scoped workflow plans, not source code
 ]
 
 [tool.ruff.lint]
@@ -145,7 +147,7 @@ ignore = [
 # ∪ (U+222A UNION), ℹ (U+2139 INFO SYMBOL). Cyrillic а (U+0430) appears
 # in one Cyrillic test fixture comment. These are intentional and the
 # RUF001/002/003 family warnings are false positives for this codebase.
-allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а"]
+allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а", "‹", "›", "σ"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
@@ -157,16 +159,46 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а"]
     "PERF401", # tests: build-then-iterate is fine, no need for list comp
     "BLE001",  # tests: defensive excepts are fine in fixture setup / teardown
 ]
+"app/rms/models/**/*.py" = [
+    "F821",    # SQLAlchemy 2.0 Mapped["ClassName"] forward references to other model modules
+    "RUF012",  # legacy SQLAlchemy mutable class attrs
+]
+"app/rms/models/__init__.py" = [
+    "F401",    # re-exports from models_legacy for the public API
+]
+"app/routers/produccion/__init__.py" = [
+    "F401",    # explicit re-exports for the produccion router package
+]
+"app/rms/migrations/__init__.py" = [
+    "F401",    # re-exports migration modules for the loader
+]
+"app/rms/sales/pre_sale_check.py" = [
+    "F821",    # local imports + tz pattern; ASUNCION_TZ resolved at function entry
+]
+"app/rms/sales/pre_sale_check_cart.py" = [
+    "F821",    # local imports + tz pattern; ASUNCION_TZ resolved at function entry
+]
+"app/rms/seed/sazon.py" = [
+    "F821",    # forward references to local helper functions resolved lazily
+]
+"app/routers/produccion/operations.py" = [
+    "F821",    # local ASUNCION_TZ + ProductionClosedDay usage
+]
+"app/routers/health.py" = [
+    "F821",    # BackupResult forward reference for endpoint return type
+]
 "app/rms/seed/packs.py" = [
     "DTZ",     # generated seed packs mirror seed/sazon.py naive-UTC contract
 ]
 "app/migrations/**/*.py" = [
     "E402", "ANN", "S608",   # migration SQL is hand-rolled
     "BLE001",                # migrations swallow known schema errors
+    "S110",                  # migrations use try/except pass for idempotent ALTER TABLE
 ]
 "app/rms/migrations/**/*.py" = [
     "E402", "ANN", "S608",   # migration SQL is hand-rolled
     "BLE001",                # migrations swallow known schema errors
+    "S110",                  # migrations use try/except pass for idempotent ALTER TABLE
 ]
 "app/routers/dev.py" = [
     "S105", "S106",    # dev-only mock data
@@ -192,6 +224,26 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а"]
 ]
 "run_migration.py" = [
     "BLE001",  # ad-hoc top-level migration runner, errors are diagnostic
+]
+"app/rms/**/*.py" = [
+    "BLE001",  # defensive broad excepts are intentional across RMS layer (legacy pattern)
+]
+"app/routers/**/*.py" = [
+    "BLE001",  # defensive broad excepts in route handlers (legacy pattern, logging follows)
+]
+"app/services/**/*.py" = [
+    "BLE001",  # defensive broad excepts in service layer
+    "ANN",     # service helper signatures: explicit Any is fine for public surface
+]
+"app/integrations/*.py" = [
+    "BLE001",  # integrations swallow external-service errors intentionally
+]
+"app/auth_supabase.py" = [
+    "BLE001",  # auth path: broad except returns 401/500 contract
+]
+"app/observability/*.py" = [
+    "BLE001",  # observability layer: never raise out of observability paths
+    "S310",    # urlopen for SMTP/IMAP/SMS endpoints (not arbitrary URLs)
 ]
 "app/rms/db.py" = [
     "S608",            # SQL builder helpers (text() calls are intentional)

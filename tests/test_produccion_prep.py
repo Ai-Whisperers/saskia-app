@@ -1,4 +1,5 @@
-"""Tests for /produccion/prep — weekly ingredient prep sheet.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for /produccion/prep — weekly ingredient prep sheet.
 
 T-2026-10-04 (P2): The cook needs to know what to buy and what to
 prep for the whole week, not just today. This route aggregates the
@@ -45,7 +46,7 @@ def test_prep_view_groups_by_severity(authed_client):
     # Should have at least one severity marker in CSS or template
     # (Suficiente, Justo, Falta are the three levels)
     # We accept any of them since the data is variable.
-    has_severity = any(s in body for s in ["Suficiente", "Justo", "Falta"])  # noqa: F841 — future assertion
+    any(s in body for s in ["Suficiente", "Justo", "Falta"])
     # If the seed has 0 plan rows, no severity is rendered — that's fine.
     # But the page should still be 200.
     assert r.status_code == 200

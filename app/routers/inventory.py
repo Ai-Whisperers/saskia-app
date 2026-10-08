@@ -17,7 +17,9 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
+from app.rms.catalogs_tags import list_allergens, list_dietary_tags
 from app.rms.charts import sparkline
 from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
@@ -253,7 +255,7 @@ def inventory_list(
     kpi_no_cost = sum(1 for i in all_ings if not i.purchase_price_gs)
     try:
         kpi_value_gs = stock_value_gs(session)
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         kpi_value_gs = sum((i.stock_qty or 0) * (i.purchase_price_gs or 0) for i in all_ings)
 
     q = (request.query_params.get("q") or "").strip().lower()
@@ -320,6 +322,10 @@ def inventory_list(
                 elif estado == "sinprecio" and i.purchase_price_gs is None:
                     ok = True
                 elif estado == "ok" and i.stock_qty > (i.min_stock_qty or 0):
+                    ok = True
+                elif estado == "sobre_stock" and (
+                    i.max_stock_qty is not None and i.stock_qty > i.max_stock_qty
+                ):
                     ok = True
                 if ok:
                     break
@@ -624,9 +630,8 @@ async def carga_inicial_save(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Save bulk initial stock. Form fields: qty_<id> per row (blank = skip)."""
-    from app.auth import current_user_id
 
-    current_user_id(request) or "operator"
+    current_operator(request)
     saved = 0
     form = await request.form()
     for key in list(form.keys()):
@@ -687,6 +692,10 @@ def inventory_new(request: Request, session: Session = Depends(get_session)) -> 
             "action": "Nuevo",
             "units": [u.value for u in Unit],
             "existing_categories": [{"label": c, "value": c} for c in cats],
+            "allergens": [{"code": a.code, "label": a.label} for a in list_allergens(session)],
+            "dietary_tags": [
+                {"code": d.code, "label": d.label} for d in list_dietary_tags(session)
+            ],
         },
     )
 
@@ -784,7 +793,7 @@ def inventory_create(
         if issues:
             ing.tag_validation_issues = "\n".join(issues)
             session.commit()
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         logger.warning(
             "tag validation refresh failed for new ingredient ing_id=%s",
             ing.id,
@@ -811,9 +820,7 @@ def inventory_create(
 
     # Record an initial stock movement if opening stock was set
     if opening_qty is not None and opening_qty != stock_qty:
-        from app.auth import current_user_id
-
-        user_id = current_user_id(request) or "operator"
+        user_id = current_operator(request)
         movement = StockMovement(
             ingredient_id=ing.id,
             movement_type="initial",
@@ -833,7 +840,7 @@ def inventory_create(
         try:
             record_price_event(session, ing.id, price, source="manual")
             session.commit()
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             # Don't fail the whole request on a price-history write error.
             logger.warning(
                 "record_price_event failed for new ingredient ing_id={}",
@@ -1075,7 +1082,7 @@ def _price_stats_safe(session: Session, ing_id: int) -> object:
         from app.rms.price_history import price_stats
 
         return price_stats(session, ing_id, days=90)
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         return None
 
 
@@ -1105,6 +1112,10 @@ def inventory_edit(
             "action": "Editar",
             "units": [u.value for u in Unit],
             "existing_categories": [{"label": c, "value": c} for c in cats],
+            "allergens": [{"code": a.code, "label": a.label} for a in list_allergens(session)],
+            "dietary_tags": [
+                {"code": d.code, "label": d.label} for d in list_dietary_tags(session)
+            ],
         },
     )
 
@@ -1242,7 +1253,7 @@ def inventory_update(
         try:
             record_price_event(session, ing.id, price, source="manual")
             session.commit()
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             logger.warning(
                 "record_price_event failed for ingredient ing_id={} update",
                 ing.id,
@@ -1258,7 +1269,7 @@ def inventory_update(
         for rid in refreshed:
             _product_inherit_sync(session, rid)
         session.commit()
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         logger.warning(
             "tag cascade failed for ingredient ing_id=%s update",
             ing.id,
@@ -1279,7 +1290,7 @@ def inventory_update(
         if ing_row is not None:
             ing_row.tag_validation_issues = "\n".join(issues) if issues else None
             session.commit()
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         logger.warning(
             "tag validation refresh failed for ing_id=%s",
             ing.id,
@@ -1320,10 +1331,9 @@ def inventory_bulk_fill_to_2x_min(
     min_stock_qty==0 (sets to 10.0 default; matches reorder.py
     fallback). Off by default to avoid silently inventing targets.
     """
-    from app.auth import current_user_id
 
     force = request.query_params.get("force") == "1"
-    user_id = current_user_id(request) or "operator"
+    user_id = current_operator(request)
     now = datetime.now(timezone.utc)
 
     ingredients = list(session.scalars(select(Ingredient)).all())
@@ -1558,9 +1568,7 @@ def inventory_adjust(
         )
         return RedirectResponse(url=f"/inventario?{params}", status_code=303)
 
-    from app.auth import current_user_id
-
-    user_id = current_user_id(request) or "operator"
+    user_id = current_operator(request)
 
     # StockMovement: positive qty = stock in, negative = stock out.
     # Reference the variant_id when applicable so the audit trail can

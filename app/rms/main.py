@@ -27,7 +27,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
@@ -63,7 +63,6 @@ from app.routers import (
     auth,
     caja,
     copiloto,
-    photo_credits,
     cotizador,
     customers,
     dashboard,
@@ -71,10 +70,7 @@ from app.routers import (
     dev,
     eod,
     excel_io,
-    gerencia,
     fiado,
-    menu_import,
-    menus,
     health,
     help,
     herebus,
@@ -82,9 +78,12 @@ from app.routers import (
     insights_derived,
     insights_stock,
     inventory,
+    menu_import,
+    menus,
     merma,
     ops,
     pedidos,
+    photo_credits,
     produccion,
     products,
     recipes,
@@ -94,7 +93,6 @@ from app.routers import (
     sales,
     search,
     settings,
-    stations,
     settings_runtime,
     shopping,
     suppliers,
@@ -167,7 +165,7 @@ def _configure_logging() -> None:
                 diagnose=False,  # never leak env vars to disk
                 format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <7} | {extra[request_id]} | {extra[user_id]} | {name}:{function}:{line} | {message}",
             )
-        except Exception as exc:  # noqa: BLE001 — defensive default: never break startup over a logging config failure.
+        except Exception as exc:
             sys.stderr.write(f"WARN: could not initialise log file sink at {log_file!r}: {exc!r}\n")
 
 
@@ -220,6 +218,12 @@ async def lifespan(app: FastAPI):
             from sentry_sdk.integrations.fastapi import FastApiIntegration
             from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
+            # C.1 — mirror Sentry errors to Telegram so the operator
+            # sees production incidents without opening Sentry.
+            # The hook is a silent no-op when TG_BOT_TOKEN / TG_CHAT_ID
+            # are unset (see app/rms/notify.py:telegram_configured).
+            from app.rms.notify import sentry_before_send
+
             sentry_sdk.init(
                 dsn=sentry_dsn,
                 integrations=[FastApiIntegration(), SqlalchemyIntegration()],
@@ -228,8 +232,9 @@ async def lifespan(app: FastAPI):
                 send_default_pii=False,
                 environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
                 release=app.version,
+                before_send=sentry_before_send,
             )
-        except Exception as exc:  # noqa: BLE001 — defensive default
+        except Exception as exc:
             print(f"WARNING: Sentry init failed: {exc}", file=sys.stderr)
 
     ensure_dirs()
@@ -264,7 +269,7 @@ async def lifespan(app: FastAPI):
             app.state.migration_status = "ok"
             app.state.migration_error = None
             app.state.migration_schema_version = post
-        except Exception as exc:  # noqa: BLE001 — defensive default
+        except Exception as exc:
             # Migrations must never crash the app. Log and continue.
             print(f"MIGRATIONS: failed to apply: {exc!r}", file=sys.stderr)
             logger.exception("migration apply failed on startup")
@@ -274,7 +279,7 @@ async def lifespan(app: FastAPI):
 
                 with engine.connect() as conn:
                     pre = _sv(conn)
-            except Exception:  # noqa: BLE001 — defensive default
+            except Exception:
                 pre = None
             app.state.migration_status = "failed"
             app.state.migration_error = repr(exc)
@@ -300,7 +305,7 @@ async def lifespan(app: FastAPI):
                     ),
                     severity="error",
                 )
-            except Exception as alert_exc:  # noqa: BLE001
+            except Exception as alert_exc:
                 # Never let a broken alert path block the main one.
                 logger.warning(f"migration alert dispatch failed: {alert_exc!r}")
 
@@ -314,7 +319,7 @@ async def lifespan(app: FastAPI):
 
         with _make_session(engine)() as _bs:
             run_password_sync(_bs)
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         logger.exception("password bootstrap failed (non-fatal)")
 
     # Phase 1.C — Apply HACCP defaults to ingredients that have a known
@@ -327,7 +332,7 @@ async def lifespan(app: FastAPI):
             n = apply_haccp_defaults(_bs)
             if n:
                 logger.info("haccp: applied defaults to %d ingredients", n)
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         logger.exception("haccp seed failed (non-fatal)")
 
     # market-intel 2026-09-30 — evidencia de competencia retail
@@ -342,7 +347,7 @@ async def lifespan(app: FastAPI):
             n_added, _n_skipped = seed_competitor_prices(_bs)
             if n_added:
                 logger.info("market-intel: %d observaciones de competencia sembradas", n_added)
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         logger.exception("market-intel seed failed (non-fatal)")
 
     app.state.engine = engine
@@ -364,7 +369,7 @@ async def lifespan(app: FastAPI):
 
             get_supabase_client()
             logger.info("supabase client pre-warmed")
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.warning(f"supabase pre-warm failed (non-fatal): {exc!r}")
 
     # Backup scheduler: idempotent, no-op if R2 not configured.
@@ -375,7 +380,7 @@ async def lifespan(app: FastAPI):
 
         with app.state.session_factory() as _s:
             run_backup(_s, DB_PATH)
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         # Don't crash the app on backup failures; the request handlers
         # are independent of this. (Errors are recorded in app_meta.)
         logger.warning(f"backup scheduler failed: {exc!r}")
@@ -397,7 +402,7 @@ async def lifespan(app: FastAPI):
                 ),
                 severity="critical",
             )
-        except Exception as alert_exc:  # noqa: BLE001
+        except Exception as alert_exc:
             logger.warning(f"backup alert dispatch failed: {alert_exc!r}")
     yield
 
@@ -553,10 +558,6 @@ class MetricsMiddleware(BaseHTTPMiddleware):
 app.add_middleware(MetricsMiddleware)
 
 # Security headers middleware: defense-in-depth HTTP response headers
-# (X-Frame-Options, CSP, HSTS, etc.). Registered BEFORE SessionMiddleware
-# so it runs OUTERMOST and its headers are guaranteed on every response.
-app.add_middleware(SecurityHeadersMiddleware)
-
 # Detect session leaks: warns + closes any Session opened during a
 # request that wasn't closed by the handler. Defense in depth against
 # future code that forgets to use `Depends(get_session)`.
@@ -566,52 +567,14 @@ app.add_middleware(SessionLifecycleMiddleware)
 # Set on every GET response to non-exempt paths; required on every POST.
 app.middleware("http")(csrf_cookie_middleware)
 
+# Security headers MUST be added AFTER csrf_cookie_middleware so that
+# the headers get applied to error responses raised from csrf (e.g.
+# the 403 missing_or_invalid_csrf_token JSONResponse). Starlette/FastAPI
+# runs middleware in REVERSE registration order (last registered =
+# outermost), so adding SecurityHeadersMiddleware here means it wraps
+# everything below it, including csrf's HTTPException responses.
+app.add_middleware(SecurityHeadersMiddleware)
 
-class StationGateMiddleware(BaseHTTPMiddleware):
-    """Keep a chosen station inside its screens.
-
-    With auth disabled and no station in the session (the test default),
-    the gate does nothing so existing pages keep working. Once a station
-    is chosen, another station's screen is refused.
-    """
-
-    async def dispatch(self, request: Request, call_next):  # type: ignore[no-untyped-def]
-        path = request.url.path
-        if path.startswith(
-            ("/static", "/healthz", "/favicon", "/login", "/logout", "/forgot-password")
-        ):
-            return await call_next(request)
-        try:
-            session = request.session
-        except AssertionError:
-            return await call_next(request)
-        from app.auth import current_user_id, is_auth_disabled
-        from app.rms.stations import decide
-
-        try:
-            user_present = current_user_id(request) is not None
-        except Exception:  # noqa: BLE001 — gate must not take the app down
-            user_present = False
-        result = decide(
-            path,
-            session,
-            auth_disabled=is_auth_disabled(),
-            user_present=user_present,
-        )
-        if result is None:
-            return await call_next(request)
-        if result == "deny":
-            return HTMLResponse(
-                "<!doctype html><meta charset='utf-8'><title>Otro puesto</title>"
-                "<p>Esa pantalla es de otro puesto.</p>",
-                status_code=403,
-            )
-        return RedirectResponse(result.split(":", 1)[1], status_code=303)
-
-
-# Inner relative to SessionMiddleware (added below), so the session cookie
-# is already loaded when the gate reads it.
-app.add_middleware(StationGateMiddleware)
 
 # Session middleware: signs cookies with SESSION_SECRET.
 # Must be added BEFORE routers so login_user() can write to request.session.
@@ -744,9 +707,7 @@ def _is_public(path: str) -> bool:
 # Public paths (healthz, login, logout, forgot-password, static) are
 # handled by the router's own dependencies list below.
 app.include_router(auth.router)
-app.include_router(stations.router)
 app.include_router(health.router)
-app.include_router(gerencia.router)
 app.include_router(dashboard.router)
 # Dev-only combo smoke page; routes self-gate on DEV_COMBO_SMOKE env (404 in prod).
 app.include_router(dev.router)
@@ -1080,7 +1041,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> Respo
             _sentry.set_tag("request_id", rid)
             _sentry.set_tag("request_method", request.method)
             _sentry.set_tag("request_path", request.url.path)
-    except Exception:  # noqa: BLE001, S110 — defensive default, Sentry errors never break response
+    except Exception:  # noqa: S110
         # Sentry not installed, not initialised, or Hub is unavailable.
         # Never let an observability hook break the response.
         pass
@@ -1103,7 +1064,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> Respo
                 },
             )
             _s.commit()
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         logger.warning("audit.record for http.500 failed (non-fatal)")
 
     # Browsers get the styled 500 page; API clients get JSON.
@@ -1120,7 +1081,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> Respo
                 },
                 status_code=500,
             )
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             logger.warning("500 template render failed")
 
     return JSONResponse(
@@ -1177,7 +1138,9 @@ def migrate() -> None:
 
     raw = os.environ.get("DATABASE_URL")
     if not raw:
-        local_db = os.environ.get("AIW_RMS_DB_PATH") or os.environ.get("AIW_SASKIA_DB_PATH")  # AIW_SASKIA_* = legacy env name still set in prod (saskia-vps service)
+        local_db = os.environ.get("AIW_RMS_DB_PATH") or os.environ.get(
+            "AIW_SASKIA_DB_PATH"
+        )  # AIW_SASKIA_* = legacy env name still set in prod (saskia-vps service)
         if local_db:
             raw = f"sqlite:///{local_db}"
         else:
@@ -1193,7 +1156,7 @@ def migrate() -> None:
     try:
         with engine.connect() as conn:
             before = _current_schema_version(conn)
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         before = 0
 
     if before == CURRENT_SCHEMA_VERSION:
@@ -1242,6 +1205,9 @@ def run() -> None:
     if argv and argv[0] == "migrate":
         migrate()
         return
+    if argv and argv[0] == "rollback":
+        _rollback()
+        return
     if argv and argv[0] in ("seed", "demo"):
         _seed()
         return
@@ -1253,6 +1219,73 @@ def run() -> None:
         return
     # Default: serve (backward compat with pre-argv-dispatch entry)
     _serve()
+
+
+def _rollback() -> None:
+    """Undo the last applied migration by restoring its rule-17 backup.
+
+    Usage:
+        uv run sazon rollback             # roll back current → previous
+        uv run sazon rollback --to 113    # explicit target (must match archive)
+        uv run sazon rollback --dry-run   # show what WOULD happen, change nothing
+
+    SQLite-only (prod shape). Fail-closed: no matching archive, integrity
+    failure, or non-SQLite URL → refused, live DB untouched.
+    """
+    import sys
+
+    from app.rms.db_dialect import make_engine
+    from app.rms.rollback import RollbackError, rollback_sqlite
+
+    raw = os.environ.get("DATABASE_URL")
+    if not raw:
+        local_db = os.environ.get("AIW_RMS_DB_PATH") or os.environ.get("AIW_SASKIA_DB_PATH")
+        if local_db:
+            raw = f"sqlite:///{local_db}"
+        else:
+            print(
+                "ERROR: DATABASE_URL (or AIW_RMS_DB_PATH) not set. "
+                "Cannot determine which DB to roll back.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    to_version: int | None = None
+    if "--to" in sys.argv:
+        i = sys.argv.index("--to")
+        to_version = int(sys.argv[i + 1])
+
+    dry_run = "--dry-run" in sys.argv
+    engine = make_engine(raw)
+    current_version = None
+    try:
+        if dry_run:
+            # Light dry-run: report versions + the archive that would be used
+            from pathlib import Path as _P
+
+            from app.rms.db import _backup_dir_path
+            from app.rms.rollback import find_rollback_backup
+
+            url = str(engine.url)
+            db_path = _P(url.replace("sqlite:///", "", 1))
+            from app.rms.rollback import _read_schema_version
+
+            current_version = _read_schema_version(db_path)
+            backup = find_rollback_backup(current_version, _backup_dir_path())
+            print(f"DRY-RUN: would roll back v{current_version} using {backup.name}")
+            return
+
+        result = rollback_sqlite(engine, to_version=to_version)
+        print(
+            f"rolled back v{result.previous_version} → v{result.restored_version} "
+            f"using {result.backup_used.name}\n"
+            f"evidence: {result.evidence_path.name}\n"
+            f"log: {result.log_key}\n"
+            f"next: uv run sazon migrate to re-apply, or inspect the app."
+        )
+    except RollbackError as exc:
+        print(f"ROLLBACK REFUSED: {exc}", file=sys.stderr)
+        sys.exit(2)
 
 
 def _seed() -> None:
@@ -1274,7 +1307,9 @@ def _seed() -> None:
 
     raw = os.environ.get("DATABASE_URL")
     if not raw:
-        local_db = os.environ.get("AIW_RMS_DB_PATH") or os.environ.get("AIW_SASKIA_DB_PATH")  # AIW_SASKIA_* = legacy env name still set in prod (saskia-vps service)
+        local_db = os.environ.get("AIW_RMS_DB_PATH") or os.environ.get(
+            "AIW_SASKIA_DB_PATH"
+        )  # AIW_SASKIA_* = legacy env name still set in prod (saskia-vps service)
         if local_db:
             raw = f"sqlite:///{local_db}"
         else:

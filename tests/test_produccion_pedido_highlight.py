@@ -3,46 +3,48 @@
 T-2026-10-04 (P1): The cook needs to spot 'we owe 3 tortas today'
 instantly. A 4px blue accent + tinted background on rows with a
 pending pedido makes the commitment pop visually.
+
+Note: since the PR4 CSS refactor (5bfb09df) the highlight rules live in
+app/static/app-improvements.css, not an inline <style> block — so the
+"defined" assertions check TEMPLATE + CSS body (CSS_BODY pattern from
+test_produccion_polish.py), while the runtime assertions still check the
+rendered page.
 """
+
+from pathlib import Path
+
+_TEMPLATE_PATH = Path(__file__).parent.parent / "app" / "templates" / "produccion.html"
+_IMPROVEMENTS_PATH = Path(__file__).parent.parent / "app" / "static" / "app-improvements.css"
+# When the test wants to look at "the page's CSS", check both.
+CSS_BODY = (
+    _TEMPLATE_PATH.read_text(encoding="utf-8")
+    + "\n"
+    + _IMPROVEMENTS_PATH.read_text(encoding="utf-8")
+)
 
 
 def test_row_highlight_class_applied_when_pedido(authed_client):
-    """When a row has a pending pedido, the production-row--has-pedido class is applied."""
+    """The highlight rule exists in the page's CSS (template or extracted sheet)."""
     r = authed_client.get("/produccion?view=day")
     assert r.status_code == 200
-    body = r.text
-    # The CSS class is in the template — even with no data, the
-    # template should not error.
-    # We just verify the class is referenced in the rendered CSS
-    assert "production-row--has-pedido" in body
+    # The rule must exist in the page's CSS — even with no data rows.
+    assert ".production-row--has-pedido" in CSS_BODY
 
 
 def test_pedido_qty_class_is_defined(authed_client):
     """The .pedido-qty class is wired into the badge for visual emphasis."""
     r = authed_client.get("/produccion?view=day")
     assert r.status_code == 200
-    body = r.text
-    # The CSS rule for .pedido-qty should exist in the embedded <style>
-    assert "pedido-qty" in body
+    # The badge class rule + its CSS exist (template or extracted sheet).
+    assert "pedido-qty" in CSS_BODY
+    assert ".pedido-qty" in CSS_BODY
 
 
 def test_print_rule_preserves_highlight(authed_client):
     """The @media print rule keeps the highlight visible on paper."""
     r = authed_client.get("/produccion?view=day")
     assert r.status_code == 200
-    body = r.text
     # The print stylesheet should override for production-row--has-pedido
-    # (so it's visible when bakers print the worksheet)
-    assert "production-row--has-pedido" in body
-
-
-def test_row_highlight_only_when_pedido_qty_positive(authed_client, session_factory):
-    """The class is conditional on pending_pedido_qty > 0."""
-    # Without an existing pedido, no row should have the class.
-    # We verify the template logic by checking the conditional.
-    r = authed_client.get("/produccion?view=day")
-    body = r.text  # noqa: F841 — kept for future assertion (TODO: assert on pending-pedido class)
-    # The class should be applied via a Jinja conditional
-    # (we can't easily test the conditional directly, but the
-    # surrounding context should not have syntax errors)
-    assert r.status_code == 200
+    # (so it's visible when bakers print the worksheet).
+    assert "@media print" in CSS_BODY
+    assert ".production-row--has-pedido" in CSS_BODY

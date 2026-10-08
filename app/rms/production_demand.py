@@ -131,13 +131,13 @@ class DemandRow:
 
     product_id: int
     product_name: str
-    qty_forecast: float          # raw forecast (before seasonal multiplier)
-    qty_pedidos: float           # pending + confirmed + ready
-    qty_pedidos_confirmed: float # confirmed + ready (subset of the above)
-    qty_evento: float            # (multiplier - 1.0) * qty_forecast
-    qty_total: float             # seasonalized forecast + pedidos
-    confidence_pct: int          # 0-100 from production._forecast_confidence
-    source: str                  # 'computed' | 'closed' | 'manual'
+    qty_forecast: float  # raw forecast (before seasonal multiplier)
+    qty_pedidos: float  # pending + confirmed + ready
+    qty_pedidos_confirmed: float  # confirmed + ready (subset of the above)
+    qty_evento: float  # (multiplier - 1.0) * qty_forecast
+    qty_total: float  # seasonalized forecast + pedidos
+    confidence_pct: int  # 0-100 from production._forecast_confidence
+    source: str  # 'computed' | 'closed' | 'manual'
     computed_at: datetime
 
 
@@ -203,7 +203,9 @@ def get_demand(
     # Aggregate into per-product dict: product_id -> {pending, confirmed, ready}
     pedidos_by_pid: dict[int, dict[str, float]] = {}
     for pid, status, qty in pedido_rows:
-        bucket = pedidos_by_pid.setdefault(int(pid), {"pending": 0.0, "confirmed": 0.0, "ready": 0.0})
+        bucket = pedidos_by_pid.setdefault(
+            int(pid), {"pending": 0.0, "confirmed": 0.0, "ready": 0.0}
+        )
         if status in bucket:
             bucket[status] = bucket.get(status, 0.0) + float(qty)
 
@@ -275,7 +277,7 @@ def get_demand(
     if ttl > 0:
         try:
             _persist_snapshot(session, for_date, list(rows.values()))
-        except Exception:  # noqa: S110, BLE001 — snapshot is best-effort, never break the read
+        except Exception:  # noqa: S110
             pass
 
     return rows
@@ -300,7 +302,6 @@ def _persist_snapshot(
     """
     if not rows:
         return
-    from app.rms.models import ProductionDemandSnapshot  # noqa: WPS433 — late import for mapper order
 
     for r in rows:
         try:
@@ -340,7 +341,7 @@ def _persist_snapshot(
                     "computed_at": r.computed_at.isoformat(),
                 },
             )
-        except Exception as exc:  # noqa: BLE001 — best-effort per row; never break the batch
+        except Exception as exc:
             from loguru import logger as _logger
 
             _logger.debug(f"production_demand._persist_snapshot: row failed: {exc!r}")
@@ -364,13 +365,13 @@ def demand_snapshot_ttl_seconds(session: Session) -> int:
     defensively because get_setting_value is typed as `object`.
     """
     try:
-        from app.rms.settings import get_setting_value
+        from app.rms.settings_registry import get_setting_value
 
         raw = get_setting_value(session, "production.demand_snapshot_ttl_seconds")
         if raw is None or raw == "":
             return 300
         return int(str(raw))
-    except Exception:  # noqa: BLE001 — never break the read path on a settings lookup
+    except Exception:
         return 300
 
 
@@ -396,9 +397,7 @@ def _read_snapshot(
 
     rows = list(
         session.scalars(
-            select(ProductionDemandSnapshot).where(
-                ProductionDemandSnapshot.for_date == for_date
-            )
+            select(ProductionDemandSnapshot).where(ProductionDemandSnapshot.for_date == for_date)
         ).all()
     )
     if not rows:
@@ -441,9 +440,7 @@ def invalidate_demand_cache(session: Session, *, for_date: date) -> int:
     way, O(rows-for-date), typically <50 rows.
     """
     deleted = session.execute(
-        text(
-            "DELETE FROM production_demand_snapshot WHERE for_date = :for_date"
-        ),
+        text("DELETE FROM production_demand_snapshot WHERE for_date = :for_date"),
         {"for_date": for_date.isoformat()},
     ).rowcount
     return int(deleted or 0)
@@ -454,9 +451,7 @@ def invalidate_demand_cache(session: Session, *, for_date: date) -> int:
 # ---------------------------------------------------------------------------
 
 
-def invalidate_demand_for_dates(
-    session: Session, for_dates: list[date] | tuple[date, ...]
-) -> int:
+def invalidate_demand_for_dates(session: Session, for_dates: list[date] | tuple[date, ...]) -> int:
     """Drop snapshot rows for a list of dates. Returns the total count deleted.
 
     Best-effort: errors are logged at debug level and swallowed. A stale
@@ -486,7 +481,7 @@ def invalidate_demand_for_dates(
         seen.add(d)
         try:
             total += invalidate_demand_cache(session, for_date=d)
-        except Exception as exc:  # noqa: BLE001 — best-effort invalidation
+        except Exception as exc:
             _logger.debug(
                 f"production_demand.invalidate_demand_for_dates: {d.isoformat()} failed: {exc!r}"
             )
@@ -627,11 +622,11 @@ def warm_snapshots_for_dates(
         try:
             get_demand(session, for_date=d)
             warmed += 1
-        except Exception as exc:  # noqa: BLE001 — best-effort
+        except Exception as exc:
             from loguru import logger as _logger
+
             _logger.debug(
-                f"production_demand.warm_snapshots_for_dates: "
-                f"{d.isoformat()} failed: {exc!r}"
+                f"production_demand.warm_snapshots_for_dates: {d.isoformat()} failed: {exc!r}"
             )
             continue
     # Commit so the writes are visible to readers using a different
@@ -641,7 +636,7 @@ def warm_snapshots_for_dates(
     # request in production) does not.
     try:
         session.commit()
-    except Exception:  # noqa: BLE001
+    except Exception:
         # If commit fails (e.g. read-only test DB), best-effort.
         session.rollback()
     return warmed

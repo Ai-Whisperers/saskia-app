@@ -44,6 +44,13 @@ THOUSANDS_SEPARATOR = "."  # Paraguayan convention: 8.696.000
 DEFAULT_IVA_RATE = "10"
 VALID_IVA_RATES = frozenset({"5", "10", "exento"})
 
+# Single-rate Decimal used by `app/rms/accounting.py:extract_iva()` for
+# `tax_mode="excluded"`. Phase 2 will introduce per-product IVA via a
+# Product.iva_rate column (contadora review pending); this stays as the
+# fallback default. Mirrors DEFAULT_IVA_RATE above (string form).
+PARAGUAY_IVA_RATE = Decimal("0.10")
+IVA_DIVISOR = Decimal("1.10")  # gross / 1.10 = net (included-mode base)
+
 DEFAULT_TAX_REGIME = "resimple"  # Most small businesses in Paraguay
 VALID_TAX_REGIMES = frozenset({"resimple", "general"})
 
@@ -154,9 +161,11 @@ __all__ = [
     "DEFAULT_TAX_REGIME",
     "DEFAULT_YIELD_PERCENTAGE",
     "INVOICE_TYPES",
+    "IVA_DIVISOR",
     # Margin tiers (legacy)
     "MARGIN_TIER_DEFAULTS",
     "MAX_PAGE_SIZE",
+    "PARAGUAY_IVA_RATE",
     "STOCK_STATUS_BAJO_MIN",
     "STOCK_STATUS_CRITICO",
     "STOCK_STATUS_MUERTO",

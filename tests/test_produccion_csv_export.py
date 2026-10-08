@@ -1,4 +1,5 @@
-"""Tests for /produccion CSV export (Phase A of Sazon-Improvement v2 plan).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for /produccion CSV export (Phase A of Sazon-Improvement v2 plan).
 
 Operators need a way to grab the daily plan in CSV so they can paste
 into WhatsApp for the team or import into Excel. The audit / subagent
@@ -13,6 +14,7 @@ CSV contract:
 - No customer PII (audit gap: PII leak risk)
 - Respects for_date query param (defaults to today Asunción-local)
 """
+
 from __future__ import annotations
 
 import csv
@@ -52,7 +54,9 @@ def test_csv_export_columns_match_spec(client, qseed):
     body = r.content.decode("utf-8")
     first_line = body.split("\n", 1)[0].strip()
     expected = "product_name,qty_to_produce,source,confidence,is_ad_hoc"
-    assert first_line == expected, f"header mismatch:\n  got:      {first_line!r}\n  expected: {expected!r}"
+    assert first_line == expected, (
+        f"header mismatch:\n  got:      {first_line!r}\n  expected: {expected!r}"
+    )
 
 
 def test_csv_export_does_not_leak_customer_pii(client, qseed):
@@ -63,9 +67,7 @@ def test_csv_export_does_not_leak_customer_pii(client, qseed):
     body = r.content.decode("utf-8").lower()
     # Common PII column names
     for forbidden in ("customer", "phone", "address", "email", "cedula", "ruc"):
-        assert forbidden not in body, (
-            f"PII column {forbidden!r} leaked into production CSV"
-        )
+        assert forbidden not in body, f"PII column {forbidden!r} leaked into production CSV"
 
 
 def test_csv_export_respects_for_date(client, qseed):

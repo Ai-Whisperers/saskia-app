@@ -42,7 +42,7 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="rows" id="ocr-rows" value="">
   <table class="table">
-    <thead><tr><th></th><th>Nombre</th><th>Precio (Gs)</th><th>Categoría</th><th>Estado</th></tr></thead>
+    <thead><tr><th></th><th>Nombre</th><th>Precio (Gs.)</th><th>Categoría</th><th>Estado</th></tr></thead>
     <tbody>
     {% for item in preview.matched + preview.nuevos + preview.dudosos %}
       <tr>

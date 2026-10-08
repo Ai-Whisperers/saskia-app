@@ -13,6 +13,7 @@ Acceptance:
   - Body contains a 'Cargar datos demo' button/link OR pytest.skip if
     the underlying route doesn't exist.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -25,14 +26,13 @@ def test_dashboard_empty_state_demo_cta(client):
     body = r.text
 
     # The empty state heading must be present.
-    assert "Sin datos este mes todavía" in body, (
-        "empty-state heading missing"
-    )
+    assert "Sin datos este mes todavía" in body, "empty-state heading missing"
 
     # Check if a 'Cargar datos demo' link exists.
     if "Cargar datos demo" in body or "Cargar demo" in body:
         # The link is present. Verify it points to a real route.
         import re
+
         link = re.search(r'href="([^"]*)"[^>]*>[^<]*(?:Cargar datos demo|Cargar demo)', body)
         if link:
             href = link.group(1)

@@ -17,9 +17,14 @@ This test pins:
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
-RMS = "/opt/data/work/sazon-app/app/rms"
-INTEGRATIONS = "/opt/data/work/sazon-app/app/integrations"
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+SAZON_APP = str(_REPO_ROOT)
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+RMS = str(_REPO_ROOT / "app" / "rms")
+INTEGRATIONS = str(_REPO_ROOT / "app" / "integrations")
 
 
 def test_integrations_package_exists():
@@ -115,7 +120,7 @@ def test_no_app_rms_api_references_in_codebase():
     import subprocess
 
     r = subprocess.run(
-        ["grep", "-rn", "app\\.rms\\.api\\.", "/opt/data/work/sazon-app/", "--include=*.py"],
+        ["grep", "-rn", "app\\.rms\\.api\\.", SAZON_APP + "/", "--include=*.py"],
         capture_output=True,
         text=True,
     )
@@ -133,7 +138,7 @@ def test_no_app_rms_scrapers_references():
     import subprocess
 
     r = subprocess.run(
-        ["grep", "-rn", "app\\.rms\\.scrapers", "/opt/data/work/sazon-app/", "--include=*.py"],
+        ["grep", "-rn", "app\\.rms\\.scrapers", SAZON_APP + "/", "--include=*.py"],
         capture_output=True,
         text=True,
     )
@@ -155,7 +160,7 @@ def test_no_app_rms_barcode_or_printer_references():
                 "grep",
                 "-rn",
                 f"app\\.rms\\.{mod}\\b",
-                "/opt/data/work/sazon-app/",
+                SAZON_APP + "/",
                 "--include=*.py",
             ],
             capture_output=True,
@@ -178,7 +183,7 @@ def test_no_app_rms_seed_competitor_prices_references():
             "grep",
             "-rn",
             "app\\.rms\\.seed_competitor_prices",
-            "/opt/data/work/sazon-app/",
+            SAZON_APP + "/",
             "--include=*.py",
         ],
         capture_output=True,

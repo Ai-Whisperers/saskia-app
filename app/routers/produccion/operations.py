@@ -14,9 +14,10 @@ Routes (9 POSTs):
   POST /produccion/close-day/reopen    - reopen a closed day
   POST /produccion/ad-hoc/bulk         - bulk paste-CSV for ad-hoc rows
 """
+
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
 from fastapi import Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -24,30 +25,21 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import current_operator
 from app.rms.dependencies import get_session
 from app.rms.eod_completions import (
     close_day_for_product,
+)
+from app.rms.eod_completions import (
     upsert_completion as _upsert_completion,
 )
 from app.rms.models import (
-    Ingredient,
-    Pedido,
-    PedidoLine,
     Product,
     ProductionClosedDay,
-    ProductionPlanOverride,
-    Recipe,
-    Sale,
 )
 from app.rms.observability import record_audit
-from app.rms.production import get_weekly_template, plan_production
-from app.rms.production_demand import get_demand, persist_plan_audit
-from app.routers.produccion._helpers import (
-    _asuncion_today,
-    _parse_overrides,
-)
+from app.rms.production_demand import persist_plan_audit
 from app.routers.produccion._router import router
-from app.services.template_render import render
 
 
 @router.post("/override")
@@ -66,7 +58,7 @@ def produccion_override(
     """
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -76,11 +68,10 @@ def produccion_override(
     if session.get(Product, product_id) is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-    from app.auth import current_user_id
     from app.rms.models import ProductionPlanOverride
     from app.rms.production import upsert_override
 
-    user_id = current_user_id(request) or "operator"
+    user_id = current_operator(request)
     user_id = str(user_id)
     # PRODUCCION-V2 Fase 1: capture old_qty for the audit log BEFORE the
     # upsert/delete so the audit row shows before/after. None for first write.
@@ -152,7 +143,6 @@ def produccion_copy_last_week(
     not present in the source are kept (so this is additive, not a
     destructive replace).
     """
-    from app.auth import current_user_id
     from app.rms.models import ProductionPlanOverride
     from app.rms.production import plan_production, upsert_override
 
@@ -162,13 +152,13 @@ def produccion_copy_last_week(
     # Rate-limit the same as a manual override (1 per 6s)
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
         )
 
-    user_id = current_user_id(request) or "operator"
+    user_id = current_operator(request)
     user_id = str(user_id)
 
     # Read source plan (may be empty if source has no forecast)
@@ -178,10 +168,14 @@ def produccion_copy_last_week(
         if r.qty_to_produce <= 0:
             continue
         # Find existing override for (product, target) to know old_qty
-        prior = session.query(ProductionPlanOverride).filter(
-            ProductionPlanOverride.product_id == r.product_id,
-            ProductionPlanOverride.for_date == target,
-        ).one_or_none()
+        prior = (
+            session.query(ProductionPlanOverride)
+            .filter(
+                ProductionPlanOverride.product_id == r.product_id,
+                ProductionPlanOverride.for_date == target,
+            )
+            .one_or_none()
+        )
         old_qty = float(prior.qty) if prior is not None else None
         upsert_override(
             session,
@@ -237,23 +231,22 @@ def produccion_closed_toggle(
     Returns 303 redirect to the day view so the operator sees the
     banner / banner removal immediately.
     """
-    from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         from fastapi import HTTPException
 
         raise HTTPException(status_code=429, detail="rate_limited")
 
     if action == "close":
         existing = session.get(ProductionClosedDay, for_date)
-        closed_by_user = current_user_id(request) or "operator"
+        closed_by_user = current_operator(request)
         if existing is None:
             row = ProductionClosedDay(
                 for_date=for_date,
                 reason=(reason or "Cerrado")[:120],
                 closed_by=closed_by_user,
-                closed_at=datetime.utcnow(),  # noqa: DTZ003 — DB-naive-UTC convention
+                closed_at=datetime.now(ASUNCION_TZ),
             )
             session.add(row)
             record_audit(
@@ -267,7 +260,7 @@ def produccion_closed_toggle(
         else:
             # Update reason in case operator wants to refine it
             existing.reason = (reason or existing.reason or "Cerrado")[:120]
-            existing.closed_at = datetime.utcnow()  # noqa: DTZ003 — DB-naive-UTC convention
+            existing.closed_at = datetime.now(ASUNCION_TZ)
     else:  # reopen
         existing = session.get(ProductionClosedDay, for_date)
         if existing is not None:
@@ -302,13 +295,12 @@ async def produccion_override_bulk(
     """
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
         )
 
-    from app.auth import current_user_id
     from app.rms.models import Product, ProductionPlanOverride
     from app.rms.production import upsert_override
 
@@ -319,7 +311,7 @@ async def produccion_override_bulk(
     except ValueError:
         raise HTTPException(status_code=400, detail="Fecha inválida") from None
 
-    user_id = str(current_user_id(request) or "operator")
+    user_id = str(current_operator(request))
 
     # Collect qty[<product_id>] fields
     entries: dict[int, float] = {}
@@ -425,10 +417,9 @@ async def produccion_shift_execute(
     """
     from datetime import datetime, timezone
 
-    from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -439,6 +430,7 @@ async def produccion_shift_execute(
     # backfill would corrupt the 14-day rolling forecast. Also reject
     # future dates (use /produccion/override for tomorrow's plan).
     from datetime import timedelta
+
     from app.rms.config import ASUNCION_TZ, BACKDATE_WINDOW_DAYS
 
     today_local = datetime.now(ASUNCION_TZ).date()
@@ -462,7 +454,7 @@ async def produccion_shift_execute(
 
     form = await request.form()
     form_opened_at_raw = form.get("form_opened_at")
-    user_id = str(current_user_id(request) or "operator")
+    user_id = str(current_operator(request))
 
     # T-2026-10-04 (Tier 5-K): detect concurrent modification. Compare
     # the form's open-time against the latest updated_at on this date.
@@ -634,10 +626,9 @@ async def produccion_ad_hoc(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Record an unplanned bake: walked-in, decided-on-the-fly, leftovers."""
-    from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -653,7 +644,7 @@ async def produccion_ad_hoc(
             detail="Producto no encontrado",
         )
 
-    user_id = str(current_user_id(request) or "operator")
+    user_id = str(current_operator(request))
     tag = "ad_hoc"
     if notes.strip():
         tag = f"ad_hoc: {notes.strip()[:200]}"
@@ -757,10 +748,9 @@ def produccion_close_day(
     audit log + visibility of the closed state is the social contract),
     but the UI surfaces a "Cerrado" badge so the next cook knows.
     """
-    from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -768,7 +758,7 @@ def produccion_close_day(
     if session.get(Product, product_id) is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-    user_id = str(current_user_id(request) or "operator")
+    user_id = str(current_operator(request))
     notes = closure_notes.strip()[:500] or None  # truncate; NULL when blank
     try:
         close_day_for_product(
@@ -831,10 +821,9 @@ def produccion_close_day_reopen(
     right state. Future Fase 3 might add a reopen audit; for now
     /accuracy treats reopens as "in flight" and the cook can re-close.
     """
-    from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -842,7 +831,7 @@ def produccion_close_day_reopen(
     if session.get(Product, product_id) is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-    user_id = str(current_user_id(request) or "operator")
+    user_id = str(current_operator(request))
     try:
         close_day_for_product(
             session,
@@ -899,7 +888,7 @@ async def produccion_ad_hoc_bulk(
     """
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -931,9 +920,8 @@ async def produccion_ad_hoc_bulk(
     valid_product_ids: set[int] = set(session.execute(select(Product.id)).scalars().all())
 
     # PRODUCCION-V2 Fase 1: get the cook's user id for the audit log.
-    from app.auth import current_user_id
 
-    bulk_user_id = str(current_user_id(request) or "operator")
+    bulk_user_id = str(current_operator(request))
     from app.rms.models import ProductionCompletion
 
     created: list[dict] = []
@@ -1054,5 +1042,3 @@ async def produccion_ad_hoc_bulk(
 
 
 # --- PRO-01: weekly template ---
-
-

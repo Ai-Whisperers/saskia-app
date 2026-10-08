@@ -43,9 +43,7 @@ DATA_DIR = Path(os.getenv("AIW_RMS_DATA_DIR", str(default_data_dir())))
 # fallback, prod would read the default DATA_DIR/rms.sqlite (empty)
 # instead of the seeded /data/rms.sqlite.
 DB_PATH = Path(
-    os.getenv("AIW_RMS_DB_PATH")
-    or os.getenv("AIW_SASKIA_DB_PATH")
-    or str(DATA_DIR / "rms.sqlite")
+    os.getenv("AIW_RMS_DB_PATH") or os.getenv("AIW_SASKIA_DB_PATH") or str(DATA_DIR / "rms.sqlite")
 )
 
 # Local backup dir
@@ -76,6 +74,13 @@ R2_CONFIG_PATH = Path(
 BACKUP_THRESHOLD_HOURS = int(os.getenv("AIW_RMS_BACKUP_HOURS", "24"))
 KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_RMS_KEEP_LOCAL_DAYS", "30"))
 
+# D.5 — DNI-derived backup encryption. The DNI file is operator-managed
+# (typically on a USB stick, NOT on the VPS). The path is REQUIRED for
+# scheduled backups to run; if the file is missing, the cron fails
+# closed with exit code 2. The file must be mode 0600 or 0400 — see
+# app/services/backup_crypto.py for the perms check.
+BACKUP_DNI_FILE = os.getenv("AIW_RMS_BACKUP_DNI_FILE", "/etc/sazon/backup-dni")
+
 # PRODUCCION-V3 Phase 0: cap how far back shift-execute can write a
 # ProductionCompletion row. The 14-day rolling forecast uses the last
 # 14 days of completions; a stray 2020-01-01 backfill would corrupt
@@ -84,7 +89,7 @@ KEEP_LOCAL_BACKUPS_DAYS = int(os.getenv("AIW_RMS_KEEP_LOCAL_DAYS", "30"))
 BACKDATE_WINDOW_DAYS = int(os.getenv("AIW_RMS_BACKDATE_DAYS", "7"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 111  # 110 = held_sale (B-7 pos hold-sale port from Hao0321/pos-pro); 111 = sale.channel + pedido.channel CHECK constraint (P41)
+CURRENT_SCHEMA_VERSION = 116  # 116 = eod alert templates seeded (Batch C, 2026-10-08) + dietary_tag catalog tables (Batch C, 2026-10-08) (SASKIA-206); 114 = settings consolidation AppMeta→settings_kv (Sprint 2.1)
 # 086 = monthly_closure table (Sprint 3.1 BACKLOG #15)
 # 087 = soft_delete_columns on owned tables (Sprint 3.2)
 # 088 = audit_columns on owned tables (Sprint 3.2)

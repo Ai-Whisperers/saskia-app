@@ -29,7 +29,7 @@ def _migration_107_credit_accounts(conn: Any) -> None:
             )
             """
         )
-    except Exception:  # noqa: S110 — table may already exist
+    except Exception:
         pass
     try:
         conn.exec_driver_sql(
@@ -47,21 +47,21 @@ def _migration_107_credit_accounts(conn: Any) -> None:
             )
             """
         )
-    except Exception:  # noqa: S110
+    except Exception:
         pass
     try:
         conn.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS ix_credit_transaction_account_ts "
             "ON credit_transaction (account_id, ts)"
         )
-    except Exception:  # noqa: S110
+    except Exception:
         pass
     try:
         conn.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS ix_credit_transaction_sale_id "
             "ON credit_transaction (sale_id)"
         )
-    except Exception:  # noqa: S110
+    except Exception:
         pass
 
     # BACKLOG #4 (2026-10-02): always bump schema_version at the end.

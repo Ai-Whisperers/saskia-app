@@ -9,13 +9,10 @@ Acceptance:
   - When detail pairs include a sensitive key (e.g., "password"),
     the rendered value is masked (e.g., "***" or empty).
 """
+
 from __future__ import annotations
 
-import re
-import uuid
 from datetime import datetime, timezone
-
-from sqlalchemy.orm import sessionmaker
 
 from app.rms.models import AuditLog
 
@@ -41,7 +38,7 @@ def test_auditoria_redacts_password(client, session_factory):
         )
         s.add(entry)
         s.commit()
-        entry_id = entry.id
+        _entry_id = entry.id
     finally:
         s.close()
 
@@ -50,9 +47,7 @@ def test_auditoria_redacts_password(client, session_factory):
     body = r.text
 
     # The literal password must NOT appear in the body.
-    assert "hunter2-actual-password" not in body, (
-        "password leaked in plain text on /auditoria"
-    )
+    assert "hunter2-actual-password" not in body, "password leaked in plain text on /auditoria"
 
     # The page should render this audit entry. We look for the username
     # which is non-sensitive.

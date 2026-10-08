@@ -10,12 +10,8 @@ that opens a <dialog> with a 5-band explanation.
 Implementation lives in app/routers/produccion.py (FORECAST_SOURCE_LABELS,
 bucket helper) and app/templates/produccion.html (legend, badge, modal).
 """
+
 from __future__ import annotations
-
-import re
-import pytest
-from fastapi.testclient import TestClient  # noqa: F401 (type hint only)
-
 
 # 4 source buckets per the design spec. `is_ad_hoc` is a row-level
 # flag, `forecast_source` is one of 5 strings, so the route groups them.
@@ -35,6 +31,7 @@ def test_route_exposes_4_source_buckets():
     """The route must expose a `source_buckets` map (canonical 4 names →
     Spanish labels) for the legend + badges."""
     from app.routers.produccion import SOURCE_BUCKETS
+
     assert set(SOURCE_BUCKETS) == _FOUR_BUCKETS, (
         f"expected 4 source buckets, got {set(SOURCE_BUCKETS)}"
     )
@@ -47,6 +44,7 @@ def test_route_exposes_5_band_confidence():
     """Confidence has 5 bands: Muy baja / Baja / Media / Alta / Muy alta.
     Each band has a copy string (the modal text) and a CSS modifier."""
     from app.routers.produccion import CONFIDENCE_BANDS
+
     assert len(CONFIDENCE_BANDS) == 5, f"expected 5 bands, got {len(CONFIDENCE_BANDS)}"
     names = [b[0] for b in CONFIDENCE_BANDS]
     assert names == ["Muy baja", "Baja", "Media", "Alta", "Muy alta"]
@@ -56,6 +54,7 @@ def test_forecast_source_to_bucket_mapping():
     """Each granular `forecast_source` value maps to exactly one of the
     4 buckets. `is_ad_hoc=True` is the horneado-extra bucket regardless."""
     from app.routers.produccion import source_to_bucket
+
     assert source_to_bucket("rolling_14d_avg") == "historial"
     assert source_to_bucket("template") == "receta"
     assert source_to_bucket("manual") == "receta"
@@ -97,6 +96,6 @@ def test_production_page_includes_confidence_modal(client, qseed):
     r = client.get("/produccion?for_date=2026-10-06&view=day")
     body = r.content.decode("utf-8", errors="replace")
     assert r.status_code == 200
-    assert "id=\"confidence-modal\"" in body, "confidence modal not in DOM"
+    assert 'id="confidence-modal"' in body, "confidence modal not in DOM"
     for band in ("Muy baja", "Baja", "Media", "Alta", "Muy alta"):
         assert band in body, f"confidence band missing: {band}"

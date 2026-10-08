@@ -244,7 +244,7 @@ def _now_str() -> str:
         ]
         _n = datetime.now(ASUNCION_TZ)
         return f"{_DIAS[_n.weekday()]} {_n.day} {_MESES[_n.month - 1]} {_n.year} · {_n.strftime('%H:%M')}"  # locale set below
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         return datetime.now(ASUNCION_TZ).strftime("%d/%m/%Y %H:%M")
 
 
@@ -255,7 +255,7 @@ def _greeting() -> str:
     """Time-aware Spanish greeting (Asunción tz)."""
     try:
         h = datetime.now(ASUNCION_TZ).hour
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         h = datetime.now(ASUNCION_TZ).hour
     if 12 <= h < 19:
         return "Buenas tardes"
@@ -315,7 +315,6 @@ def render(
         # the 4-col grilla when set; v1 keeps the legacy 8-col layout.
         pass
 
-
     ctx["csrf_token"] = _csrf_token_for_request(request)
     # Inject Asuncion-local time + tz-aware datetime on every render.
     # Existing routes that pass their own `now`/`now_local` win (setdefault).
@@ -338,7 +337,7 @@ def render(
         ctx.setdefault("POINTS_VALUE_GS", POINTS_VALUE_GS)
         ctx.setdefault("POINTS_PER_GS_EARN", POINTS_PER_GS_EARN)
         ctx.setdefault("LOYALTY_RETURN_RATE_PCT", effective_return_rate())
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         ctx.setdefault("POINTS_VALUE_GS", 100)
         ctx.setdefault("POINTS_PER_GS_EARN", 1 / 1000)
         ctx.setdefault("LOYALTY_RETURN_RATE_PCT", 10.0)
@@ -359,7 +358,7 @@ def render(
             # get_current_user (which raises/redirects on unauthenticated).
             # This way we get a True/False signal, not a redirect.
             ctx["is_logged_in"] = current_user_id(request) is not None
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         ctx["is_logged_in"] = False
 
     # SS-1: sidebar/nav renders from the nav table (app/rms/nav.py).
@@ -417,7 +416,7 @@ def render(
                 from app.rms.settings_runtime import DEFAULT_BRANDING
 
                 ctx["branding"] = DEFAULT_BRANDING
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             from app.rms.settings_runtime import DEFAULT_BRANDING
 
             ctx["branding"] = DEFAULT_BRANDING

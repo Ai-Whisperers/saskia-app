@@ -7,10 +7,10 @@ base.html calls fmt.crumbs_for(request.url.path) which uses:
 This test verifies the crumb system returns correct breadcrumbs and that
 base.html's breadcrumb block renders them.
 """
+
 from __future__ import annotations
 
-from app.rms.nav import crumbs_for, ENTITY_CRUMBS
-
+from app.rms.nav import ENTITY_CRUMBS, crumbs_for
 
 # ---------------------------------------------------------------------------
 # Pure unit tests on crumbs_for()
@@ -91,9 +91,7 @@ def test_entity_crumb_with_entity_name():
 
 def test_entity_crumbs_minimum_coverage():
     """We should have a healthy number of entity-prefixed routes mapped."""
-    assert len(ENTITY_CRUMBS) >= 5, (
-        f"Expected ≥5 entity crumb prefixes, got {len(ENTITY_CRUMBS)}"
-    )
+    assert len(ENTITY_CRUMBS) >= 5, f"Expected ≥5 entity crumb prefixes, got {len(ENTITY_CRUMBS)}"
 
 
 def test_entity_crumbs_have_required_keys():

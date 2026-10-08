@@ -8,15 +8,10 @@ Why this test exists:
 - The fix: redirect back to /login?error=...&retry_after=N which renders
   the existing login template with a countdown + retry button.
 """
+
 from __future__ import annotations
 
-import os
-import sqlite3
-import tempfile
 from pathlib import Path
-
-import pytest
-
 
 AUTH_PY = Path(__file__).resolve().parents[1] / "app" / "routers" / "auth.py"
 LOGIN_HTML = Path(__file__).resolve().parents[1] / "app" / "templates" / "login.html"

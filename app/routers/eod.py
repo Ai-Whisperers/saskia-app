@@ -44,7 +44,7 @@ def _parse_range_date(raw: str | None) -> date | None:
     if not raw:
         return None
     try:
-        return datetime.strptime(raw, "%Y-%m-%d").date()  # noqa: DTZ007 — only .date() is consumed
+        return datetime.strptime(raw, "%Y-%m-%d").date()  # noqa: DTZ007
     except ValueError:
         return None
 
@@ -80,10 +80,11 @@ def eod_view(
     # /eod, the same place the operator already is.
     try:
         from app.rms.production_demand import warm_snapshots_for_dates
+
         upcoming = [today + timedelta(days=offset) for offset in range(7)]
         warmed = warm_snapshots_for_dates(session, upcoming)
         logger.debug("eod_view: warmed demand snapshots for {} dates", warmed)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("eod_view: warm_snapshots_for_dates failed: {!r}", exc)
 
     # Load saved EOD checklist progress from app_meta so refreshing the
@@ -118,11 +119,7 @@ def eod_view(
     # pattern (4 stat cards) but tuned for the EOD operator surface.
     eod_items_total = len(items)
     eod_items_done = sum(1 for it in items if it.key in saved_keys)
-    eod_items_pct = (
-        int(round((eod_items_done * 100) / eod_items_total))
-        if eod_items_total
-        else 0
-    )
+    eod_items_pct = round((eod_items_done * 100) / eod_items_total) if eod_items_total else 0
 
     # CIE-02: restock step — show ingredients below minimum with a link to
     # /reorder. Checking the close step means she has looked at it.
@@ -158,6 +155,16 @@ def eod_view(
     range_total_operaciones = 0
     range_days = 0
     is_range_mode = False
+
+    # P-39: inline anomaly summary. Same best-effort contract as
+    # /eod/print - detection failure must never block the EOD page.
+    from app.services.eod_anomaly import detect_anomalies
+
+    try:
+        _anomalies = detect_anomalies(session)
+        anomaly_count = len(_anomalies) if _anomalies else 0
+    except Exception:
+        anomaly_count = 0
 
     if range_start and range_end and range_end >= range_start:
         span_days = (range_end - range_start).days + 1
@@ -213,6 +220,17 @@ def eod_view(
                 )
                 cur += timedelta(days=1)
 
+    # P-39: inline anomaly summary on the EOD page itself (not just print).
+    from app.rms.settings_runtime import get_eod_config
+    from app.services.eod_anomaly import detect_anomalies
+
+    try:
+        eod_cfg = get_eod_config(session)
+        _anomalies = detect_anomalies(session, eod_cfg=eod_cfg)
+        anomaly_count = len(_anomalies) if _anomalies else 0
+    except Exception:
+        anomaly_count = 0
+
     return render(
         request,
         "eod.html",
@@ -222,6 +240,8 @@ def eod_view(
             "today_plan": today_plan,
             "completions": completions,
             "today_iso": today.isoformat(),
+            # P-39: inline anomaly summary (count; template gates the banner)
+            "anomaly_count": anomaly_count,
             # BACKLOG #15 — closed-day state surfaced on the page header
             "today_is_closed": today_is_closed,
             "open_days": [d.isoformat() for d in open_days],
@@ -395,7 +415,7 @@ def eod_check_save(
                         "local_pruned": backup_result.local_pruned,
                     },
                 )
-        except Exception as exc:  # noqa: BLE001 — never block EOD on backup failure
+        except Exception as exc:
             from loguru import logger as _logger
 
             _logger.warning("Backup after EOD close failed: {}", exc)
@@ -428,7 +448,7 @@ def eod_completar(
 
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -485,10 +505,16 @@ def eod_run_anomalies(
     so the operator sees what fired.
     """
     from app.observability.alerts import dispatch_anomalies
+    from app.rms.settings_runtime import get_alerts_config, get_eod_config
     from app.services.eod_anomaly import detect_anomalies
 
-    anomalies = detect_anomalies(session)
-    dispatched = dispatch_anomalies(anomalies)
+    # Batch B2 + B3 (2026-10-07): fetch operator-tunable thresholds
+    # from SettingsKV. Defaults are applied inside get_*_config() for
+    # any missing key.
+    eod_cfg = get_eod_config(session)
+    alerts_cfg = get_alerts_config(session)
+    anomalies = detect_anomalies(session, eod_cfg=eod_cfg)
+    dispatched = dispatch_anomalies(anomalies, max_per_day=alerts_cfg["max_per_day"])
     return render(
         request,
         "eod_anomalies.html",
@@ -521,12 +547,12 @@ def eod_print(
 
     today = datetime.now(ASUNCION_TZ).date()
     items = fresh_eod_checklist()
-    progress = eod_progress(items)
+    _progress = eod_progress(items)
 
     # Checklist progress (X de Y)
     items_total = len(items)
     items_done = sum(1 for it in items if it.status == EODItemStatus.DONE)
-    items_pct = int(round((items_done * 100) / items_total)) if items_total else 0
+    items_pct = round((items_done * 100) / items_total) if items_total else 0
 
     # Today's production plan
     today_plan = plan_production(session, for_date=today)
@@ -541,10 +567,12 @@ def eod_print(
     # Anomaly count — surface today's anomalies in the print summary
     # so the binder shows what was flagged. Read from the eod anomaly
     # helper, returning (count, total) for the print section.
+    from app.rms.settings_runtime import get_eod_config
     from app.services.eod_anomaly import detect_anomalies
 
     try:
-        anomalies = detect_anomalies(session)
+        eod_cfg = get_eod_config(session)
+        anomalies = detect_anomalies(session, eod_cfg=eod_cfg)
         anomaly_count = len(anomalies) if anomalies else 0
     except Exception:
         # If the anomaly helper isn't available in this version, skip silently

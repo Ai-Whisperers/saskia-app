@@ -193,6 +193,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 {% else %}
                   <span class="badge badge-muted">{{ '%.0d'|format(fc.days_of_stock) }}d</span>
                 {% endif %}
+                {# SASKIA-208: P95 (conservative) stockout from the Poisson
+                   weekday model. Shown when it lands ≥2 days sooner than
+                   the flat average — that gap is the weekend-uplift risk
+                   the operator should order against. #}
+                {% set rf = restock_map.get(item.ingredient_id) if restock_map else None %}
+                {% if rf and rf.days_to_p95 is not none and fc.days_of_stock < 1000000 and rf.days_to_p95 <= fc.days_of_stock - 2 %}
+                  <span class="badge badge-warn" title="P95 (escenario conservador, fin de semana incluido): se acaban las existencias el {{ rf.p95_stockout_date.strftime('%d/%m/%Y') }} — pedí para el {{ rf.days_to_p95 }}d">P95 {{ rf.days_to_p95 }}d</span>
+                {% endif %}
               {% else %}
                 <span class="text-muted">—</span>
               {% endif %}

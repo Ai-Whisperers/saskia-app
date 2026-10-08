@@ -30,9 +30,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import select
 
-from app.rms.eod_completions import completions_for_date
 from app.rms.models import Product, ProductionCompletion
-
 
 # --- Test fixtures ----------------------------------------------------------
 
@@ -92,9 +90,7 @@ def _seed_day_view_product(session_factory) -> int:
 # --- 1. Shift-checkbox silent-data-loss fix ---------------------------------
 
 
-def test_shift_execute_checkbox_persists_closure_done(
-    authed_client, session_factory, croissant_id
-):
+def test_shift_execute_checkbox_persists_closure_done(authed_client, session_factory, croissant_id):
     """Posting `done_<pid>=1` must persist closure_status='done'.
 
     Regression for the audit blocker (B5 + H5): the cook checks the
@@ -162,9 +158,7 @@ def test_shift_execute_unchecked_box_leaves_status_open(
         )
 
 
-def test_shift_execute_checkbox_uncheck_reopens(
-    authed_client, session_factory, croissant_id
-):
+def test_shift_execute_checkbox_uncheck_reopens(authed_client, session_factory, croissant_id):
     """Re-posting with the checkbox CHECKED again must keep status='done'.
 
     (The uncheck path — done -> open — is handled by the dedicated
@@ -241,9 +235,7 @@ def test_shift_execute_checkbox_without_qty_creates_zero_done(
 # --- 2. Backdate cap --------------------------------------------------------
 
 
-def test_shift_execute_rejects_far_past_for_date(
-    authed_client, session_factory, croissant_id
-):
+def test_shift_execute_rejects_far_past_for_date(authed_client, session_factory, croissant_id):
     """for_date older than BACKDATE_WINDOW_DAYS (default 7) must 400.
 
     Regression for the audit blocker (M14/L13): a cook who backfills
@@ -262,9 +254,7 @@ def test_shift_execute_rejects_far_past_for_date(
             f"completed_{croissant_id}": "5",
         },
     )
-    assert r.status_code == 400, (
-        f"far-past for_date must 400; got {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code == 400, f"far-past for_date must 400; got {r.status_code}: {r.text[:200]}"
     # Friendly Spanish error
     body = r.text.lower()
     assert "pasado" in body or "antigua" in body or "ventana" in body, (
@@ -272,9 +262,7 @@ def test_shift_execute_rejects_far_past_for_date(
     )
 
 
-def test_shift_execute_rejects_future_for_date(
-    authed_client, session_factory, croissant_id
-):
+def test_shift_execute_rejects_future_for_date(authed_client, session_factory, croissant_id):
     """for_date > today must 400.
 
     A cook can't bake tomorrow's bread today (the system can't
@@ -296,9 +284,7 @@ def test_shift_execute_rejects_future_for_date(
     assert r.status_code == 400
 
 
-def test_shift_execute_accepts_within_window(
-    authed_client, session_factory, croissant_id
-):
+def test_shift_execute_accepts_within_window(authed_client, session_factory, croissant_id):
     """for_date within BACKDATE_WINDOW_DAYS (default 7) must succeed.
 
     The cook legitimately needs to backfill 2-3 missed days.
@@ -420,9 +406,7 @@ def test_day_view_contains_hecho_column(authed_client, session_factory):
     today = datetime.now(UTC).date()
     r = authed_client.get(f"/produccion?for_date={today.isoformat()}&view=day")
     body = r.text
-    assert ">Hecho" in body, (
-        "day view must contain the 'Hecho' column header (was 'Progreso')"
-    )
+    assert ">Hecho" in body, "day view must contain the 'Hecho' column header (was 'Progreso')"
     # The old header should be gone. But 'progreso' is a Spanish word
     # that could appear in tooltips — accept only if it's a column header.
     # The simplest regression: the OLD column header "<th>Progreso" or
@@ -453,9 +437,7 @@ def test_day_view_pedidos_column_no_plus_prefix(authed_client, session_factory):
 # --- 5. Idempotency check (audit closure) -----------------------------------
 
 
-def test_shift_execute_idempotent_same_form(
-    authed_client, session_factory, croissant_id
-):
+def test_shift_execute_idempotent_same_form(authed_client, session_factory, croissant_id):
     """Posting the same form twice within 60s must NOT duplicate rows.
 
     The audit M6 finding: the cook's browser sometimes re-submits
@@ -487,7 +469,5 @@ def test_shift_execute_idempotent_same_form(
             ).scalars()
         )
         # Upsert: 2 POSTs → 1 row, NOT 2.
-        assert len(rows) == 1, (
-            f"same form posted twice must upsert to 1 row; got {len(rows)}"
-        )
+        assert len(rows) == 1, f"same form posted twice must upsert to 1 row; got {len(rows)}"
         assert float(rows[0].completed_qty) == 8.0

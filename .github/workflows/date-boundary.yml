@@ -66,14 +66,8 @@ jobs:
         with:
           version: "0.5.x"
 
-      - name: Cache uv-managed venv
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
-
       - name: Install Python deps (real clock)
-        run: uv sync --all-extras
+        run: rm -rf .venv && uv sync --all-extras
 
       - name: Pin the clock to the last day of this month
         id: pin

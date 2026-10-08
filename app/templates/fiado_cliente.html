@@ -4,9 +4,9 @@
 <h1>{{ cust.name }}</h1>
 <p style="font-size:1.6rem;">
   Saldo: <strong style="color:{% if saldo > 0 %}var(--destructive,#b91c1c){% else %}var(--success,#15803d){% endif %};">
-  Gs. {{ '{:,}'.format(saldo).replace(',', '.') }}</strong>
+  {{ m.gs_full(saldo) }}</strong>
 </p>
-<p>Límite: {% if limit_gs %}Gs. {{ '{:,}'.format(limit_gs).replace(',', '.') }}{% else %}sin límite{% endif %}
+<p>Límite: {% if limit_gs %}{{ m.gs_full(limit_gs) }}{% else %}sin límite{% endif %}
    · Estado: {% if active %}activa{% else %}<strong>suspendida</strong>{% endif %}</p>
 
 {% if flash == 'fiado_cargo' %}<div class="alert alert-success" role="status">Cargo registrado.</div>{% endif %}
@@ -56,7 +56,7 @@
       <td style="padding:4px 10px;">{{ tx.ts.strftime('%d/%m/%Y %H:%M') }}</td>
       <td style="padding:4px 10px;">{{ tx.kind }}</td>
       <td style="padding:4px 10px;color:{% if tx.amount_gs > 0 %}var(--destructive,#b91c1c){% else %}var(--success,#15803d){% endif %};">
-        {{ '+' if tx.amount_gs > 0 else '' }}Gs. {{ '{:,}'.format(tx.amount_gs).replace(',', '.') }}
+        {{ ('+' if tx.amount_gs > 0 else '') ~ m.gs_full(tx.amount_gs) }}
       </td>
       <td style="padding:4px 10px;">{{ tx.note or '' }}</td>
     </tr>

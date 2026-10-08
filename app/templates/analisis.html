@@ -104,7 +104,7 @@
   {{ ui.skeleton_section(id="analisis-erosion", variant="line", count=4, label="Cargando alertas de margen") }}
   <div data-loaded-section="analisis-erosion">
   <table class="table is-hoverable">
-    <thead><tr><th>Producto</th><th>Ingrediente</th><th class="num">Precio viejo</th><th class="num">Precio nuevo</th><th class="num">Δ Margen</th></tr></thead>
+    <thead><tr><th>Producto</th><th>Ingrediente</th><th class="num">Precio viejo</th><th class="num">Precio nuevo</th><th class="num">Cambio (margen)</th></tr></thead>
     <tbody>
       {% for a in erosion_alerts %}
       <tr>
@@ -127,7 +127,8 @@
 {% if top_margin %}
 <section class="card mt-4">
   <div class="card-header">
-    <h2><svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg> Productos más rentables (últimos 30 días)</h2>
+    <span id="top-margin"></span>
+  <h2><svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg> Productos más rentables (últimos 30 días)</h2>
     <small class="text-muted">Ordenados por ganancia absoluta</small>
   </div>
   {{ ui.skeleton_section(id="analisis-top-margin", variant="line", count=5, label="Cargando top rentables") }}
@@ -157,7 +158,8 @@
 {% if concentration %}
 <section class="card mt-4">
   <div class="card-header">
-    <h2><svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg> Costo concentrado en pocos ingredientes</h2>
+    <span id="concentration"></span>
+  <h2><svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg> Costo concentrado en pocos ingredientes</h2>
     <small class="text-muted">Últimos 90 días · donde se va tu plata</small>
   </div>
   {{ ui.skeleton_section(id="analisis-concentration", variant="line", count=3, label="Cargando concentración de costo") }}
@@ -185,7 +187,8 @@
 {% if dow_buckets %}
 <section class="card mt-4">
   <div class="card-header">
-    <h2><svg class="icon" aria-hidden="true"><use href="#icon-chart"/></svg> Promedio de ventas por día de la semana</h2>
+    <span id="dow-heatmap"></span>
+  <h2><svg class="icon" aria-hidden="true"><use href="#icon-chart"/></svg> Promedio de ventas por día de la semana</h2>
     <small class="text-muted">Últimos 90 días · para planificar producción</small>
   </div>
   {{ ui.skeleton_section(id="analisis-dow", variant="line", count=4, label="Cargando ventas por día") }}
@@ -212,7 +215,8 @@
 {% if turnover %}
 <section class="card mt-4">
   <div class="card-header">
-    <h2><svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg> Rotación de stock (últimos 30 días)</h2>
+    <span id="turnover"></span>
+  <h2><svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg> Rotación de stock (últimos 30 días)</h2>
     <small class="text-muted">Cuántas veces se renovó el stock de los ingredientes más activos</small>
   </div>
   {{ ui.skeleton_section(id="analisis-turnover", variant="line", count=5, label="Cargando rotación de stock") }}
@@ -247,7 +251,8 @@
 {% if complexity %}
 <section class="card mt-4">
   <div class="card-header">
-    <h2><svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg> Recetas más complejas</h2>
+    <span id="complexity"></span>
+  <h2><svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg> Recetas más complejas</h2>
     <small class="text-muted">Más ingredientes y más tiempo de preparación</small>
   </div>
   {{ ui.skeleton_section(id="analisis-complex", variant="line", count=4, label="Cargando recetas complejas") }}

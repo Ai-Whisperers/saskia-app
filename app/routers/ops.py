@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from loguru import logger
 
-from app.auth import current_user_id
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.services.demo_reset import reset_demo_data
 from app.services.template_render import render
@@ -60,7 +60,7 @@ def ops_status(request: Request) -> HTMLResponse:
 
         with request.app.state.session_factory() as _s:
             reorder_stats = customer_reorder_rates(_s, since_days=90, top_n=5)
-    except Exception as exc:  # noqa: BLE001 — defensive default; failures re-rendered as zeros in template
+    except Exception as exc:
         # T-2026-10-04: log the failure so test_no_silent_excepts and
         # production log readers can see it instead of silently swallowing.
         # Reorder stats are a dashboard feature, not critical path; the
@@ -88,7 +88,7 @@ async def ops_reset_demo_data(request: Request) -> JSONResponse:
     what happened. Browsers won't navigate to this (it's a POST); we
     always return JSON regardless of Accept header.
     """
-    user_id = current_user_id(request) or "anonymous"
+    user_id = current_operator(request, fallback="anonymous")
     from fastapi import HTTPException
     from sqlalchemy.orm import Session
 
@@ -110,7 +110,7 @@ async def ops_reset_demo_data(request: Request) -> JSONResponse:
     finally:
         try:
             session.close()
-        except Exception as exc:  # noqa: BLE001 — defensive default
+        except Exception as exc:
             # Session may already be closed by dependency cleanup; not fatal.
             logger.debug("ops session close failed: {}", exc)
 

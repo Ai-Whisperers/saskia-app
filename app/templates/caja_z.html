@@ -19,7 +19,7 @@
   <p><strong>Apertura:</strong> {{ money(open_sess.opening_gs) }}</p>
   <p><strong>Esperado ahora (X):</strong> {{ money(expected) }}</p>
 
-  <form method="post" action="/caja/cerrar" style="margin-top:var(--space-3);">
+  <form method="post" action="/caja/cerrar" style="margin-top:var(--space-3);" class="js-confirm-form" data-confirm-title="¿Cerrar caja?" data-confirm-body="Se registra el cierre del turno con el efectivo declarado." data-confirm-danger="true">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
     <label for="counted_gs">Conteo físico al cerrar (Gs.)</label>
     <input id="counted_gs" name="counted_gs" type="number" min="0" step="1" required
@@ -52,7 +52,7 @@
       <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Apertura</th>
       <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Esperado</th>
       <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Contado</th>
-      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Diff</th>
+      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Diferencia</th>
       <th style="padding:4px 10px;border-bottom:1px solid var(--border);"></th>
     </tr>
   </thead>

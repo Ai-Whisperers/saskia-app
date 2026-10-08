@@ -1,4 +1,5 @@
-"""Tests for /reportes/demand route (T-2026-10-04).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for /reportes/demand route (T-2026-10-04).
 
 Background: the menu at reportes index referenced /reportes/demand
 ("Demanda prevista") at app/routers/reportes.py:109, but the route

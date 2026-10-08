@@ -18,6 +18,7 @@ from app.rms.inventory_intel import (
 )
 from app.rms.models import (
     Ingredient,
+    IngredientVariant,
     Product,
     Recipe,
     RecipeLine,
@@ -265,6 +266,44 @@ def test_stock_value_gs_basic(session_factory):
 def test_stock_value_gs_empty(session_factory):
     with session_factory() as s:
         assert stock_value_gs(s) == 0
+
+
+def test_stock_value_gs_uses_preferred_variant_price(session_factory):
+    """SASKIA-210-audit: a preferred variant's price IS the effective cost.
+
+    Parent price 1000 with preferred variant at 1200 → valuation uses
+    1200. A non-preferred variant's price is ignored.
+    """
+    with session_factory() as s:
+        ing = Ingredient(name="v_pref_xyz", unit="kg", stock_qty=2.0, purchase_price_gs=1000)
+        s.add(ing)
+        s.flush()
+        s.add(
+            IngredientVariant(
+                ingredient_id=ing.id,
+                package_size=25,
+                package_unit="kg",
+                notes="saco 25kg",
+                purchase_price_gs=1200,
+                preferred=True,
+            )
+        )
+        other = Ingredient(name="v_other_xyz", unit="kg", stock_qty=1.0, purchase_price_gs=800)
+        s.add(other)
+        s.flush()
+        s.add(
+            IngredientVariant(
+                ingredient_id=other.id,
+                package_size=1,
+                package_unit="kg",
+                notes="variante no preferida",
+                purchase_price_gs=9999,
+                preferred=False,
+            )
+        )
+        s.commit()
+        # 2*1200 (preferred variant) + 1*800 (parent fallback) = 3200
+        assert stock_value_gs(s) == 3200
 
 
 # ---------------------------------------------------------------------------

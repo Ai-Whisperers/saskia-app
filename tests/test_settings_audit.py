@@ -1,4 +1,5 @@
-"""Tests for audit log coverage on settings mutations (Phase 14, mid-tier)."""
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for audit log coverage on settings mutations (Phase 14, mid-tier)."""
 
 from __future__ import annotations
 

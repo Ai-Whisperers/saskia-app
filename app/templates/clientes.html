@@ -117,7 +117,7 @@
       <td>
         {{ ui.status_pill(c.tier_label, c.tier_sev) }}
       </td>
-      <td class="num"><small>{{ c.last_sale_at.strftime("%d/%m/%y") if c.last_sale_at else "—" }}</small></td>
+      <td class="num"><small>{% if c.last_sale_at %}{{ c.last_sale_at.strftime("%d/%m/%y") }}{% else %}<span title="Sin ventas registradas">Nunca compró</span>{% endif %}</small></td>
       <td class="num">
         {# Tier 6.1: subscription badge + open pedido count. When a customer
            has an active suscripción, a quick "+ Pedido" shortcut is shown

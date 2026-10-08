@@ -10,6 +10,7 @@ Acceptance:
     the by-hour table.
   - A day-of-week filter exists (a <select> or set of links).
 """
+
 from __future__ import annotations
 
 import re
@@ -31,6 +32,5 @@ def test_reportes_ventas_hora_heatmap_first(client):
 
     # Heatmap should be BEFORE the table.
     assert heatmap_idx < table_match.start(), (
-        f"heatmap (idx={heatmap_idx}) should appear before the table "
-        f"(idx={table_match.start()})"
+        f"heatmap (idx={heatmap_idx}) should appear before the table (idx={table_match.start()})"
     )

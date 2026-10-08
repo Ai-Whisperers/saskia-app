@@ -32,7 +32,6 @@ def test_yesterday_snapshot_template_has_banner(authed_client):
     """The template source has the banner markup (renders when count > 0)."""
     r = authed_client.get("/produccion?view=day")
     assert r.status_code == 200
-    body = r.text  # noqa: F841 — kept for future assertion
     # The banner div class is in the source. With no yesterday completions
     # in seed data, the {% if %} block hides the div at runtime — but the
     # template source has the markup.

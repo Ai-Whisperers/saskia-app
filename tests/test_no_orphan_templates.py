@@ -8,12 +8,11 @@ produccion_calendario.html). One of them was a side effect of incomplete
 P5 work (the full-ledger page) that left a failing test in the suite.
 Both are now git-history-only and the gate keeps it that way.
 """
+
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
-
 
 TEMPLATES_DIR = Path("app/templates")
 
@@ -43,7 +42,11 @@ def _all_references() -> set[str]:
     """
     refs = set()
     root = Path(".")
-    for src in list(root.rglob("app/**/*.py")) + list(root.rglob("app/**/*.html")) + list(root.rglob("tests/**/*.py")):
+    for src in (
+        list(root.rglob("app/**/*.py"))
+        + list(root.rglob("app/**/*.html"))
+        + list(root.rglob("tests/**/*.py"))
+    ):
         try:
             text = src.read_text(encoding="utf-8", errors="ignore")
         except Exception:
@@ -52,7 +55,7 @@ def _all_references() -> set[str]:
         for m in re.findall(r'["\']([a-zA-Z0-9_/\-]+\.html)["\']', text):
             refs.add(m)
         # Direct imports of a module that may render it
-        for m in re.findall(r'from\s+app\.templates\.([a-zA-Z0-9_/\-]+)', text):
+        for m in re.findall(r"from\s+app\.templates\.([a-zA-Z0-9_/\-]+)", text):
             refs.add(f"{m}.html")
     return refs
 

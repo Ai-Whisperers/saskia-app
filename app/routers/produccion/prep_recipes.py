@@ -14,12 +14,13 @@ Each card has:
     shopping list)
   - Severity flag per recipe (Falta / Justo / Suficiente)
 """
+
 from __future__ import annotations
 
 from datetime import date, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
@@ -28,9 +29,9 @@ from app.rms.models import Ingredient, Recipe
 from app.rms.production import plan_production
 from app.rms.recipes_consolidated import explode_recipe
 from app.rms.variants import rollup_ingredient_stock
-from app.services.template_render import render
-from app.routers.produccion._helpers import _asuncion_today, _week_monday
+from app.routers.produccion._helpers import _asuncion_today
 from app.routers.produccion._router import router
+from app.services.template_render import render
 
 
 def _build_recipe_breakdown(
@@ -153,7 +154,7 @@ def _build_recipe_breakdown(
                 "batches": batches,
                 "yield_qty": yield_qty,
                 "qty_to_produce": qty,
-                "unit": "lotes" if batches != int(batches) else "lotes",
+                "unit": "lotes",
                 "lines": ing_lines,
                 "shortage_count": shortage_count,
                 "total_shortage": total_shortage,

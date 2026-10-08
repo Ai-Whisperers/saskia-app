@@ -152,3 +152,16 @@ def test_dashboard_merma_has_target_bar_even_at_zero(client):
     assert _kpi_severity(block) == "is-ok", (
         f"Merma % at 0% should be is-ok (well under target). Got: {_kpi_severity(block)}."
     )
+
+
+def test_dashboard_empty_state_still_renders_kpi_tiles(client):
+    """Regression lock (2026-10-08): b26ce082 added an empty-state branch that
+    REPLACED the KPI strips entirely — breaking the P-22 contract on any DB
+    with zero sales/customers this month. The tiles (with 0-danger bars and
+    'sin escandallo' objetivos) must render in BOTH branches."""
+    r = client.get("/dashboard")
+    assert r.status_code == 200
+    for label in ("Ingresos", "Margen bruto %", "Recurrencia %", "Costo de materia prima %"):
+        assert f'<div class="metric-card__label">{label}</div>' in r.text, (
+            f"'{label}' missing — dashboard empty-state hides KPI tiles again?"
+        )

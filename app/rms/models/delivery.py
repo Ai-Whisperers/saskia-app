@@ -44,7 +44,7 @@ class DeliveryZone(Base):
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    pedidos: Mapped[list["Pedido"]] = relationship(back_populates="delivery_zone")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    pedidos: Mapped[list["Pedido"]] = relationship(back_populates="delivery_zone")
 
     __table_args__ = (Index("ix_delivery_zone_active", "is_active", "position"),)
 

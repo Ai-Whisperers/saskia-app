@@ -1,4 +1,5 @@
-"""tests/test_expense_migration_082.py — Phase 14 (2026-10-01).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_expense_migration_082.py — Phase 14 (2026-10-01).
 
 Tests:
 - Migration 082 creates the expense table with expected columns

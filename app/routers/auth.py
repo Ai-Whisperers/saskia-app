@@ -80,12 +80,12 @@ def clear_rate_limit(
     succeeds. This is a no-op for the attacker (each request resets
     their own counter; they still get throttled on subsequent hits).
     """
-    from app.rms.rate_limit import _client_ip  # noqa: WPS433
     from app.rms.models_legacy import AuditLog
+    from app.rms.rate_limit import _client_ip
 
     ip = _client_ip(request)
     # Only clear this IP's login failures, not all of them
-    deleted = (
+    _deleted = (
         session.query(AuditLog)
         .filter(AuditLog.action == "login.failure", AuditLog.ip == ip)
         .delete(synchronize_session=False)

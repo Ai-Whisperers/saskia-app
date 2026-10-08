@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import current_user_id
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.fiado import (
@@ -98,7 +98,7 @@ def fiado_cargar(
 ) -> RedirectResponse:
     from app.rms.money import to_int_gs
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         return RedirectResponse(f"/fiado/{customer_id}?flash=rate_limited", status_code=303)
     try:
         tx = registrar_cargo(
@@ -106,7 +106,7 @@ def fiado_cargar(
             customer_id,
             to_int_gs(amount_gs),
             note=note or None,
-            created_by=str(current_user_id(request) or "operador"),
+            created_by=str(current_operator(request, fallback="operador")),
         )
         session.commit()
     except (FiadoError, FiadoConflict) as e:
@@ -134,7 +134,7 @@ def fiado_cobrar(
 ) -> RedirectResponse:
     from app.rms.money import to_int_gs
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         return RedirectResponse(f"/fiado/{customer_id}?flash=rate_limited", status_code=303)
     try:
         result = registrar_pago(
@@ -143,7 +143,7 @@ def fiado_cobrar(
             to_int_gs(amount_gs),
             idem_key=idempotency_key or None,
             note=note or None,
-            created_by=str(current_user_id(request) or "operador"),
+            created_by=str(current_operator(request, fallback="operador")),
         )
         session.commit()
     except (FiadoError, FiadoConflict) as e:

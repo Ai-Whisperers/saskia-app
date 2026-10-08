@@ -4,6 +4,7 @@ Adds a 'Hoy' panel that shows what moved TODAY only (event count,
 cost, top 3 ingredients). Closes the loop between /merma (where waste
 is logged) and /inventario (where stock is verified).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -11,7 +12,14 @@ from datetime import datetime, timedelta, timezone
 from app.rms.models import Ingredient, WasteLog
 
 
-def _waste_row(session, ing_id: int, qty: float, reason: str = "vencida", cost: int = 100, when: datetime | None = None):
+def _waste_row(
+    session,
+    ing_id: int,
+    qty: float,
+    reason: str = "vencida",
+    cost: int = 100,
+    when: datetime | None = None,
+):
     row = WasteLog(
         ingredient_id=ing_id,
         qty=qty,
@@ -46,8 +54,11 @@ def test_hoy_card_renders_when_today_has_events(authed_client, session_factory):
     assert r.status_code == 200
     body = r.text
     import re
+
     # Heading "<h2 ...><svg...><use.../></svg>\n      Hoy\n    </h2>"
-    assert re.search(r'<h2[^>]*>\s*<svg[^>]*>.*?</svg>\s*Hoy\s*</h2>', body), "Hoy card heading missing"
+    assert re.search(r"<h2[^>]*>\s*<svg[^>]*>.*?</svg>\s*Hoy\s*</h2>", body), (
+        "Hoy card heading missing"
+    )
     assert "1 evento" in body, "Event count '1 evento' missing from card subtitle"
     assert "Gs. 200" in body, "Today's cost missing from card subtitle"
     # Top ingredient link
@@ -62,7 +73,10 @@ def test_hoy_card_shows_empty_state_when_no_events_today(authed_client, session_
     assert r.status_code == 200
     body = r.text
     import re
-    assert re.search(r'<h2[^>]*>\s*<svg[^>]*>.*?</svg>\s*Hoy\s*</h2>', body), "Hoy card heading missing"
+
+    assert re.search(r"<h2[^>]*>\s*<svg[^>]*>.*?</svg>\s*Hoy\s*</h2>", body), (
+        "Hoy card heading missing"
+    )
     assert "No registraste merma hoy" in body, "Empty-state copy missing when no events today"
 
 
@@ -75,9 +89,12 @@ def test_hoy_card_ignores_events_from_yesterday(authed_client, session_factory):
     r = authed_client.get("/merma")
     body = r.text
     import re
+
     m = re.search(r'<small class="text-muted">(\d+) evento', body)
     assert m is not None, "Hoy card subtitle missing"
-    assert int(m.group(1)) == 0, f"Hoy card should show 0 events when only yesterday had events, got {m.group(1)}"
+    assert int(m.group(1)) == 0, (
+        f"Hoy card should show 0 events when only yesterday had events, got {m.group(1)}"
+    )
 
 
 def test_hoy_card_singular_event_label(authed_client, session_factory):

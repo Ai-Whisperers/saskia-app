@@ -16,13 +16,12 @@ Coverage:
 5. The login.html template renders a "Limpiar bloqueo" form when
    the page is shown with retry_after set.
 """
-import re
+
 from pathlib import Path
 
 import pytest
 
 from app.rms.models_legacy import AuditLog
-
 
 pytestmark = pytest.mark.auth
 
@@ -31,6 +30,7 @@ def _seed_failure_rows(session_factory, ip: str, count: int) -> None:
     """Seed login.failure rows directly into the SQLite DB for the
     given IP. Idempotent: clears existing rows for that IP first."""
     from datetime import datetime, timezone
+
     s = session_factory()
     try:
         s.query(AuditLog).filter(
@@ -39,12 +39,14 @@ def _seed_failure_rows(session_factory, ip: str, count: int) -> None:
         ).delete(synchronize_session=False)
         now = datetime.now(timezone.utc)
         for _ in range(count):
-            s.add(AuditLog(
-                action="login.failure",
-                detail={"reason": "test"},
-                ip=ip,
-                occurred_at=now,
-            ))
+            s.add(
+                AuditLog(
+                    action="login.failure",
+                    detail={"reason": "test"},
+                    ip=ip,
+                    occurred_at=now,
+                )
+            )
         s.commit()
     finally:
         s.close()
@@ -53,10 +55,14 @@ def _seed_failure_rows(session_factory, ip: str, count: int) -> None:
 def _count_failures(session_factory, ip: str) -> int:
     s = session_factory()
     try:
-        return s.query(AuditLog).filter(
-            AuditLog.action == "login.failure",
-            AuditLog.ip == ip,
-        ).count()
+        return (
+            s.query(AuditLog)
+            .filter(
+                AuditLog.action == "login.failure",
+                AuditLog.ip == ip,
+            )
+            .count()
+        )
     finally:
         s.close()
 
@@ -109,8 +115,9 @@ def test_login_template_shows_reset_form_when_retry_after():
     tpl = Path("app/templates/login.html").read_text(encoding="utf-8")
 
     # The form must target the new endpoint
-    assert 'action="/login/clear-rate-limit"' in tpl, \
+    assert 'action="/login/clear-rate-limit"' in tpl, (
         "login.html must render a <form action=/login/clear-rate-limit> when retry_after is set"
+    )
 
     # The visible text is the recovery affordance
     assert "Limpiar bloqueo" in tpl, "login.html must show a 'Limpiar bloqueo' link"
@@ -119,14 +126,16 @@ def test_login_template_shows_reset_form_when_retry_after():
     # contains the action area (button + form), not the text-only
     # countdown block.
     tpl_lines = tpl.splitlines()
-    candidates = []
+    _candidates = []
     for i, line in enumerate(tpl_lines):
         if "if retry_after" in line:
             # Find matching endif
             for j in range(i + 1, len(tpl_lines)):
                 if "{% endif %}" in tpl_lines[j]:
-                    block = "\n".join(tpl_lines[i:j + 1])
+                    block = "\n".join(tpl_lines[i : j + 1])
                     if "Limpiar bloqueo" in block:
                         return  # success
                     break
-    assert False, "Limpiar bloqueo must live inside a {% if retry_after %} block that contains the action area"
+    assert False, (
+        "Limpiar bloqueo must live inside a {% if retry_after %} block that contains the action area"
+    )

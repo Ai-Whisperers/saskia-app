@@ -126,29 +126,37 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
             pass
 
         elif scenario == "with_sale":
-            # Anchor "today" to UTC midnight so the bucketed local-date
-            # matches `_asuncion_today()` regardless of runner TZ.
-            # Previously this used `now - 1h` which bucketed into
-            # yesterday on CI runners in UTC, since Asunción is UTC-3/-4
-            # and a UTC sale at 02:00 lands at 23:00 the previous
-            # Asunción-day. Anchoring at midnight UTC puts the sale at
-            # 21:00/20:00 the previous Asunción-day in the worst case
-            # — wait, that's still yesterday. We want the sale to fall
-            # in *today's* bucket, so anchor at noon UTC, which is
-            # always 08:00-09:00 in Asunción, well within "today".
-            today_noon_utc = datetime.now(timezone.utc).replace(
-                hour=12, minute=0, second=0, microsecond=0
+            # The sale MUST land inside *today's* Asunción window for
+            # any test that reads /inicio or /dashboard with the default
+            # period=today. Time-of-day-dependent anchors have failed
+            # twice here: `now - 1h` bucketed into yesterday for UTC
+            # runners at 02:00Z (00:00-02:00 Asunción); noon UTC
+            # bucketed into TOMORROW for runs between 21:00-00:00
+            # Asunción (noon-UTC is next morning in Asunción then).
+            # Correct anchor: "now in Asunción, minus 1 minute" — always
+            # inside today's Asunción window (except the midnight
+            # second, where now-1min is still today or 23:59 yesterday
+            # → also fine, since window tests only need the sale inside
+            # *some* recent window; today-window covers 23:59 X → 00:00
+            # X+1 in Asunción seconds).
+            from app.rms.clock import ASUNCION_TZ
+
+            _now_local = datetime.now(ASUNCION_TZ)
+            _safe_local = max(
+                _now_local.replace(second=0, microsecond=0) - timedelta(minutes=1),
+                _now_local.replace(hour=0, minute=1, second=0, microsecond=0),
             )
+            sold_at_utc_naive = _safe_local.astimezone(timezone.utc).replace(tzinfo=None)
             sale = apply_sale(
                 s,
                 product_id=p.id,
                 qty=2.0,
-                sold_at=today_noon_utc,
+                sold_at=sold_at_utc_naive,
                 notes=None,
                 customer_id=None,
                 payment_method="efectivo",
                 discount_gs=0,
-                channel="Mostrador",
+                channel="mostrador",
             )
             out["sale"] = sale
 
@@ -179,6 +187,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
             display per-cliente).
             """
             import secrets as _secrets
+
             from app.rms.config import ASUNCION_TZ
 
             # Match the route's "tomorrow" computation exactly so the
@@ -202,13 +211,14 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                     customer_id=None,
                     payment_method="efectivo",
                     discount_gs=0,
-                    channel="Mostrador",
+                    channel="mostrador",
                 )
 
             c1 = _make_or_get_customer(s, "María Rodríguez")
             c2 = _make_or_get_customer(s, "Carlos Pereira")
             ped1 = Pedido(
-                customer_id=c1.id, customer_name=c1.name,
+                customer_id=c1.id,
+                customer_name=c1.name,
                 customer_phone="0981222333",
                 status="confirmed",
                 promised_date=_tomorrow_asu,
@@ -217,7 +227,8 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                 public_token=_secrets.token_hex(4),
             )
             ped2 = Pedido(
-                customer_id=c2.id, customer_name=c2.name,
+                customer_id=c2.id,
+                customer_name=c2.name,
                 customer_phone="0981444555",
                 status="pending",
                 promised_date=_tomorrow_asu,
@@ -230,13 +241,10 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
             # Pedido 1: 6 unidades del producto QA + 1 unidad de un
             # segundo producto (lo creamos ad-hoc).
             p2 = _make_quick_product(s, "Empanada QA", rec)
-            s.add(PedidoLine(pedido_id=ped1.id, product_id=p.id,
-                             qty=6.0, unit_price_gs=12000))
-            s.add(PedidoLine(pedido_id=ped1.id, product_id=p2.id,
-                             qty=12.0, unit_price_gs=5000))
+            s.add(PedidoLine(pedido_id=ped1.id, product_id=p.id, qty=6.0, unit_price_gs=12000))
+            s.add(PedidoLine(pedido_id=ped1.id, product_id=p2.id, qty=12.0, unit_price_gs=5000))
             # Pedido 2: 3 unidades del producto QA.
-            s.add(PedidoLine(pedido_id=ped2.id, product_id=p.id,
-                             qty=3.0, unit_price_gs=12000))
+            s.add(PedidoLine(pedido_id=ped2.id, product_id=p.id, qty=3.0, unit_price_gs=12000))
             s.flush()
             out.update({"pedidos": [ped1, ped2], "product": p, "p2": p2})
 
@@ -250,7 +258,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                 customer_id=None,
                 payment_method="efectivo",
                 discount_gs=0,
-                channel="Mostrador",
+                channel="mostrador",
             )
             from app.rms.costing import void_sale
 
@@ -321,12 +329,12 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                     s,
                     product_id=p.id,
                     qty=2.0,
-                    sold_at=today_noon_utc if False else now - timedelta(hours=i),
+                    sold_at=now - timedelta(hours=i),
                     notes=None,
                     customer_id=None,
                     payment_method="efectivo",
                     discount_gs=0,
-                    channel="Mostrador",
+                    channel="mostrador",
                 )
             out["n_products"] = 25
 
@@ -336,7 +344,6 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
             the operator has insufficient stock for. Used by the
             prep-recipes vs shopping-list cross-check test.
             """
-            from app.rms.models import RecipeLine
 
             for i in range(3):
                 ing = _make_quick_ingredient(
@@ -349,9 +356,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                 # both views to agree on them.
                 ing.stock_qty = 10.0
                 s.flush()
-                rec = _make_quick_recipe(
-                    s, f"PlanShort Rec {i}", ing, yield_qty=10.0
-                )
+                rec = _make_quick_recipe(s, f"PlanShort Rec {i}", ing, yield_qty=10.0)
                 # Replace the default 0.3 kg line with 1 kg/batch so
                 # 1 unit sold → 0.1 kg consumed × 3 × 14 = 4.2 kg
                 # (fits under the 10 kg starting stock; no sale-side
@@ -371,7 +376,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                         customer_id=None,
                         payment_method="efectivo",
                         discount_gs=0,
-                        channel="Mostrador",
+                        channel="mostrador",
                     )
             s.commit()
 

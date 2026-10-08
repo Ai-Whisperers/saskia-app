@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth import require_login_or_disabled as require_login
 from app.rms.costing import batch_products_cost_margin, product_margin, product_unit_cost_gs
 from app.rms.dependencies import get_session
-from app.rms.models import Product, Recipe, Sale, Ingredient, RecipeLine, Customer
+from app.rms.models import Customer, Product, Recipe, Sale
 from app.rms.observability import record_audit
 from app.rms.rate_limit import read_rate_limit_dependency
 from app.services.template_render import render
@@ -222,15 +222,13 @@ def products_list(
             func.sum(
                 case(
                     (
-                        ProductionCompletion.for_date
-                        >= func.date("now", "-30 day"),
+                        ProductionCompletion.for_date >= func.date("now", "-30 day"),
                         ProductionCompletion.completed_qty,
                     ),
                     else_=0.0,
                 )
             ),
-        )
-        .group_by(ProductionCompletion.product_id)
+        ).group_by(ProductionCompletion.product_id)
     ).all()
     produced_by_pid = {
         r[0]: {"total": float(r[1] or 0.0), "last_date": r[2], "last_30d": float(r[3] or 0.0)}
@@ -255,7 +253,7 @@ def products_list(
     # before. Falls back to the per-product path only on cache misses.
     try:
         prime_batch = batch_compute_prime_cost(session, list(products))
-    except Exception:  # noqa: BLE001 — defensive: if the batch path raises on a malformed product, fall back to per-product so the list page still loads.
+    except Exception:
         prime_batch = {}
     decorated = []
     for p in products:
@@ -829,7 +827,7 @@ async def product_bulk_edit(
     set_availability (bool), set_category (string)."""
     try:
         body = await request.json()
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         return JSONResponse(status_code=400, content={"error": "JSON body required"})
 
     product_ids: list[int] = body.get("product_ids", [])
@@ -961,7 +959,7 @@ async def products_import_csv(
                 session.add(product)
                 created += 1
             session.commit()
-        except Exception as e:  # noqa: BLE001 — defensive default
+        except Exception as e:
             session.rollback()
             errors.append({"row": row_num, "error": str(e)})
 
@@ -1044,7 +1042,7 @@ async def product_upload_image(
             if msg.startswith("too_large"):
                 raise HTTPException(status_code=413, detail=msg) from exc
             raise HTTPException(status_code=500, detail=msg) from exc
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             # Supabase rejected (DNS, network, RLS, 4xx from bad path).
             # Log + fall back to local storage so the operator's upload
             # still succeeds. /healthz/summary will surface the supabase
@@ -1114,8 +1112,10 @@ def _public_branding(session: Session) -> dict:
 
             raw = getattr(kv, "value_json", "") or ""
             val = _json.loads(raw) if raw else ""
-            kv_name = str(val).strip() if not isinstance(val, dict) else str(val.get("name", "")).strip()
-        except Exception:  # noqa: BLE001 - malformed KV must never break the menu
+            kv_name = (
+                str(val).strip() if not isinstance(val, dict) else str(val.get("name", "")).strip()
+            )
+        except Exception:
             kv_name = ""
 
     name = kv_name or business or "Sazon"
@@ -1273,47 +1273,44 @@ def product_detail(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Customer-facing product detail page with metrics, recipes-using, recent sales.
-    
+
     URL: /productos/{id}
     Shows product name, metrics strip, recipes using this product, recent sales.
     """
     p = session.get(Product, p_id)
     if p is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
-    
+
     # Compute metrics using existing service modules or direct SQL queries
     from sqlalchemy import text
-    from app.rms.costing import product_unit_cost_gs, product_margin
-    
+
+    from app.rms.costing import product_margin, product_unit_cost_gs
+
     # Current stock - use direct SQL query since no service function exists
     stock_query = text("""
-        SELECT COALESCE(SUM(stock_qty), 0.0) 
-        FROM ingredient 
+        SELECT COALESCE(SUM(stock_qty), 0.0)
+        FROM ingredient
         WHERE name = (SELECT name FROM product WHERE id = :p_id)
     """)
     stock_result = session.execute(stock_query, {"p_id": p_id}).scalar_one_or_none()
-    
+
     # Current cost and margin
     cost = product_unit_cost_gs(session, p_id)
     margin = product_margin(session, p_id)
-    
+
     # 30-day metrics - use direct SQL query since no service function exists
     thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
-    
+
     # Get last 30 days units sold and revenue
     sales_metrics = session.execute(
-        select(
-            func.sum(Sale.qty),
-            func.sum(Sale.unit_price_gs * Sale.qty)
-        ).where(
-            Sale.sold_at >= thirty_days_ago,
-            Sale.product_id == p_id
-        ).where(Sale.voided_at.is_(None))
+        select(func.sum(Sale.qty), func.sum(Sale.unit_price_gs * Sale.qty))
+        .where(Sale.sold_at >= thirty_days_ago, Sale.product_id == p_id)
+        .where(Sale.voided_at.is_(None))
     ).one()
-    
+
     last_30d_units = sales_metrics[0] or 0
     last_30d_revenue = sales_metrics[1] or 0
-    
+
     # Recipes using this product (max 10) - use direct SQL query
     recipes_query = text("""
         SELECT DISTINCT r.* FROM recipe r
@@ -1322,7 +1319,7 @@ def product_detail(
         LIMIT 10
     """)
     recipes_using = session.execute(recipes_query, {"p_id": p_id}).fetchall()
-    
+
     # Recent sales (last 20, exclude voided) - use direct SQL query
     recent_sales = session.execute(
         select(Sale.sold_at, Customer.name, Sale.qty, Sale.unit_price_gs * Sale.qty)
@@ -1332,15 +1329,15 @@ def product_detail(
         .order_by(Sale.sold_at.desc())
         .limit(20)
     ).all()
-    
+
     # Margin percentage
     avg_margin_pct = None
     if margin and margin[1] is not None:
         avg_margin_pct = margin[1] * 100
-    
+
     # Check if out of stock
     is_out_of_stock = stock_result is not None and stock_result <= 0
-    
+
     return render(
         request,
         "producto_detalle.html",
@@ -1355,5 +1352,5 @@ def product_detail(
             "recipes_using": recipes_using,
             "recent_sales": recent_sales,
             "is_out_of_stock": is_out_of_stock,
-        }
+        },
     )

@@ -185,9 +185,7 @@ def test_inicio_drops_legacy_metric_card_divs():
 def test_analisis_uses_ui_kpi_card():
     """analisis.html adopts the component for its 4 panorama tiles."""
     text = ANALISIS_PATH.read_text(encoding="utf-8")
-    assert text.count("<ui-kpi-card") == 4, (
-        "analisis.html should have 4 <ui-kpi-card> instances"
-    )
+    assert text.count("<ui-kpi-card") == 4, "analisis.html should have 4 <ui-kpi-card> instances"
 
 
 def test_analisis_preserves_skeleton_loading():
@@ -199,9 +197,7 @@ def test_analisis_preserves_skeleton_loading():
 def test_bank_uses_ui_kpi_card():
     """bank.html adopts the component for its 4 KPI tiles."""
     text = BANK_PATH.read_text(encoding="utf-8")
-    assert text.count("<ui-kpi-card") == 4, (
-        "bank.html should have 4 <ui-kpi-card> instances"
-    )
+    assert text.count("<ui-kpi-card") == 4, "bank.html should have 4 <ui-kpi-card> instances"
     for label in ("EUR income", "EUR spent", "EUR net", "PYG balance"):
         assert f'label="{label}"' in text, f"bank label {label!r} missing"
 

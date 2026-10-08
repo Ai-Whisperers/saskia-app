@@ -10,27 +10,30 @@ Acceptance:
     /pedidos/bulk-fulfill and /pedidos/bulk-cancel.
   - A 'seleccionar todos' checkbox is present.
 """
+
 from __future__ import annotations
 
-import re
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import sessionmaker
 
-from app.rms.models import Pedido, Customer
+from app.rms.models import Customer, Pedido
 
 
 def _make_pedido(s):
     """Create a minimal pedido so the bulk-toolbar renders."""
     cust = Customer(name=f"c-{uuid.uuid4().hex[:6]}", phone="+595 9XX")
-    s.add(cust); s.flush()
+    s.add(cust)
+    s.flush()
     ped = Pedido(
-        customer_id=cust.id, status="pending",
+        customer_id=cust.id,
+        status="pending",
         promised_date=(datetime.now(timezone.utc) + timedelta(days=1)).date(),
         created_at=datetime.now(timezone.utc),
     )
-    s.add(ped); s.flush()
+    s.add(ped)
+    s.flush()
     return ped.id
 
 
@@ -47,12 +50,6 @@ def test_pedidos_bulk_action_forms_present(client, session_factory):
     assert r.status_code == 200
     body = r.text
 
-    assert "/pedidos/bulk-fulfill" in body, (
-        "expected /pedidos/bulk-fulfill form on /pedidos list"
-    )
-    assert "/pedidos/bulk-cancel" in body, (
-        "expected /pedidos/bulk-cancel form on /pedidos list"
-    )
-    assert 'id="select-all"' in body, (
-        "expected 'select-all' checkbox on /pedidos list"
-    )
+    assert "/pedidos/bulk-fulfill" in body, "expected /pedidos/bulk-fulfill form on /pedidos list"
+    assert "/pedidos/bulk-cancel" in body, "expected /pedidos/bulk-cancel form on /pedidos list"
+    assert 'id="select-all"' in body, "expected 'select-all' checkbox on /pedidos list"

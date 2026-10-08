@@ -12,9 +12,9 @@ Acceptance:
   - GET /admin/health/deps (with admin auth) returns 200 with env
     values present, OR returns 403 without auth.
 """
+
 from __future__ import annotations
 
-import os
 import re
 
 
@@ -23,6 +23,7 @@ def test_healthz_deps_no_env_leak(client):
     r = client.get("/healthz/deps")
     if r.status_code == 404:
         import pytest
+
         pytest.skip("/healthz/deps not implemented")
     assert r.status_code == 200
     body = r.text
@@ -36,9 +37,7 @@ def test_healthz_deps_no_env_leak(client):
     ]
     for pat in env_value_patterns:
         m = re.search(pat, body)
-        assert not m, (
-            f"/healthz/deps leaks env value matching {pat}: {m.group(0)[:80]}"
-        )
+        assert not m, f"/healthz/deps leaks env value matching {pat}: {m.group(0)[:80]}"
 
 
 def test_admin_health_deps_for_operators(client):
@@ -47,6 +46,7 @@ def test_admin_health_deps_for_operators(client):
     r = client.get("/admin/health/deps")
     if r.status_code == 404:
         import pytest
+
         pytest.skip("/admin/health/deps not yet implemented")
     # If 403/302 → exists but requires auth (good).
     assert r.status_code in (200, 302, 403), (

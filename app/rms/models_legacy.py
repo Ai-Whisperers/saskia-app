@@ -1,4 +1,4 @@
-"""app/rms/models.py — SQLAlchemy ORM models.
+"""app/rms/models_legacy.py — SQLAlchemy ORM models (the "legacy" name is historical; this file is the source of truth, re-exported via app/rms/models/__init__.py).
 
 Per dev plan §9 Task 1 + v2 §5 (data model).
 
@@ -34,6 +34,8 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+from app.rms.models.channels import Channel
 
 
 class Base(DeclarativeBase):
@@ -286,7 +288,6 @@ class Recipe(Base):
     # — empezar 18:00 hoy, listo 06:00 mañana" reminder on /produccion.
     # Suggested: 240-480 (poolish), 720-960 (masa madre), 1440-4320
     # (levain builds).
-    fermentation_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     family: Mapped[Optional[str]] = mapped_column(
         String(32), nullable=True
     )  # category (legacy, read-only)
@@ -489,7 +490,13 @@ class Sale(Base):
     # Defaults to 'mostrador' so existing rows have a sensible value
     # and a brand-new sale (form default) lands on mostrador too.
     channel: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="mostrador", server_default="mostrador"
+        # P43 (2026-10-07): use Channel enum value as default. The DB
+        # CHECK constraint (migration 111) requires canonical enum
+        # values, and the Python default must match.
+        String(32),
+        nullable=False,
+        default=Channel.MOSTRADOR.value,
+        server_default=Channel.MOSTRADOR.value,
     )
 
     # Phase 1.B — Fiscal invoice fields (Paraguay DNIT compliance).
@@ -546,10 +553,18 @@ class Sale(Base):
         # P41 (2026-10-07): enforce channel enum at the DB level. The
         # Python Channel enum (app/rms/models/channels.py) is the source
         # of truth; this CHECK is defense-in-depth. SQLite enforces this
-        # via triggers in migration 111 (SQLite can't ADD CONSTRAINT).
+        # via triggers in migration 112 (SQLite can't ADD CONSTRAINT).
+        #
+        # SASKIA-204 (2026-10-07): extended with HEREBUS channels
+        # (retail/wholesale/distributor/eventual). Must mirror
+        # Channel.allowed_values() in app/rms/models/channels.py and
+        # migration 112's _ALLOWED_CHANNELS — the test
+        # test_channel_enum_and_migration_have_same_allowed_set enforces
+        # this.
         CheckConstraint(
             "channel IN ('mostrador','mostrador-encargo','whatsapp',"
-            "'pedidosya','monchis','other')",
+            "'pedidosya','monchis','other','retail','wholesale',"
+            "'distributor','eventual')",
             name="ck_sale_channel_enum",
         ),
         # Covers: sales list by date range, dashboard charts, daily/weekly summaries,
@@ -557,7 +572,6 @@ class Sale(Base):
         # sold_at AND ignores voided sales in the same pass.
         Index("ix_sale_sold_at_voided", "sold_at", "voided_at"),
     )
-
 
 
 class SalePayment(Base):
@@ -579,9 +593,7 @@ class SalePayment(Base):
     amount_gs: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
-    __table_args__ = (
-        CheckConstraint("amount_gs >= 0", name="ck_sale_payment_amount_nonneg"),
-    )
+    __table_args__ = (CheckConstraint("amount_gs >= 0", name="ck_sale_payment_amount_nonneg"),)
 
 
 class CashSession(Base):
@@ -609,10 +621,14 @@ class CreditAccount(Base):
     __tablename__ = "credit_account"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    customer_id: Mapped[int] = mapped_column(ForeignKey("customer.id"), unique=True, nullable=False, index=True)
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("customer.id"), unique=True, nullable=False, index=True
+    )
     limit_gs: Mapped[int | None] = mapped_column(nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=datetime.now
+    )
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
@@ -622,15 +638,18 @@ class CreditTransaction(Base):
     __tablename__ = "credit_transaction"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    account_id: Mapped[int] = mapped_column(ForeignKey("credit_account.id"), nullable=False, index=True)
-    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.now, index=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("credit_account.id"), nullable=False, index=True
+    )
+    ts: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=datetime.now, index=True
+    )
     kind: Mapped[str] = mapped_column(String(20), nullable=False)
     amount_gs: Mapped[int] = mapped_column(nullable=False)
     sale_id: Mapped[int | None] = mapped_column(ForeignKey("sale.id"), nullable=True, index=True)
     idem_key: Mapped[str | None] = mapped_column(String(80), nullable=True, unique=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
-
 
 
 class Menu(Base):
@@ -661,8 +680,12 @@ class MenuItem(Base):
     __tablename__ = "menu_item"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    menu_id: Mapped[int] = mapped_column(ForeignKey("menu.id", ondelete="CASCADE"), nullable=False, index=True)
-    product_id: Mapped[int] = mapped_column(ForeignKey("product.id", ondelete="CASCADE"), nullable=False, index=True)
+    menu_id: Mapped[int] = mapped_column(
+        ForeignKey("menu.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("product.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     qty: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
 
     menu: Mapped["Menu"] = relationship("Menu", back_populates="items")
@@ -988,9 +1011,7 @@ class ProductionCompletion(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    status: Mapped[str] = mapped_column(
-        Text, nullable=False, default="open", server_default="open"
-    )
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="open", server_default="open")
     closure_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
@@ -1180,9 +1201,7 @@ class ProductionPlanAudit(Base):
     new_qty: Mapped[float] = mapped_column(Float, nullable=False)
     change_source: Mapped[str] = mapped_column(String(32), nullable=False)
     changed_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    changed_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    changed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
@@ -1642,6 +1661,11 @@ class ShoppingListItem(Base):
     purpose_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     purchased: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     purchased_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # SASKIA-206 (2026-10-07): price frozen at row creation so re-opening
+    # an old list shows the quoted price, not today's catalog price.
+    # Nullable: pre-113 rows have no snapshot — UI falls back to the
+    # live ingredient.purchase_price_gs.
+    unit_price_snapshot_gs: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     ingredient: Mapped["Ingredient"] = relationship("Ingredient")
@@ -1770,7 +1794,12 @@ class Pedido(Base):
     customer_phone: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     promised_date: Mapped[datetime] = mapped_column(Date, nullable=False, index=True)
     promised_time: Mapped[str | None] = mapped_column(String(8), nullable=True)
-    channel: Mapped[str] = mapped_column(String(32), nullable=False, default="whatsapp")
+    # P43 (2026-10-07): use Channel enum value as default. The DB
+    # CHECK (ck_pedido_channel_enum, see __table_args__ below) accepts
+    # NULL because the underlying column is nullable in the DB schema
+    # even though the model declares nullable=False (pre-existing
+    # discrepancy, not part of P43).
+    channel: Mapped[str] = mapped_column(String(32), nullable=False, default=Channel.WHATSAPP.value)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending", index=True)
     payment_intent: Mapped[str] = mapped_column(String(32), nullable=False, default="efectivo")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -1849,10 +1878,18 @@ class Pedido(Base):
         ),
         # P41 (2026-10-07): enforce channel enum (NULL allowed since
         # column is nullable). Same enum as Sale.channel. SQLite
-        # enforcement via triggers in migration 111.
+        # enforcement via triggers in migration 112.
+        #
+        # SASKIA-204 (2026-10-07): extended with HEREBUS channels
+        # (retail/wholesale/distributor/eventual). Must mirror
+        # Channel.allowed_values() in app/rms/models/channels.py and
+        # migration 112's _ALLOWED_CHANNELS — the test
+        # test_channel_enum_and_migration_have_same_allowed_set
+        # enforces this alignment.
         CheckConstraint(
             "channel IS NULL OR channel IN ('mostrador','mostrador-encargo',"
-            "'whatsapp','pedidosya','monchis','other')",
+            "'whatsapp','pedidosya','monchis','other','retail','wholesale',"
+            "'distributor','eventual')",
             name="ck_pedido_channel_enum",
         ),
     )
@@ -2451,8 +2488,10 @@ class Category(Base):
       - 'product'        — categories shown on /productos forms
       - 'recipe_family'  — families shown on /recetas forms
 
-    Operators can add/edit/reorder from /settings/categories (TODO).
-    For now, seed data matches the prior hardcoded values exactly.
+    Operators manage categories at /settings (Ajustes → Catálogo:
+    add/edit/reorder/deactivate via /api/categories CRUD; e2e-covered in
+    tests/e2e/test_settings_runtime_crud.py). Seed data matches the prior
+    hardcoded values exactly.
 
     Uniqueness: (scope, name) — same name allowed across scopes
     ("Pastelería" is both a product category and a recipe family).

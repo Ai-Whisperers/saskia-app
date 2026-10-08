@@ -1,20 +1,22 @@
-"""tests/test_day_hour_heatmap.py — BACKLOG #36 day-of-week × hour-of-day grid.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_day_hour_heatmap.py — BACKLOG #36 day-of-week × hour-of-day grid.
 
 Verifies the 7×24 heatmap bucket assignment, TZ conversion, empty-cells
 fallback, and color-scaling max.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 
 @pytest.fixture()
 def hh_engine():
     from app.rms.db import init_db, make_engine
+
     engine = make_engine("sqlite:///:memory:")
     init_db(engine)
     yield engine
@@ -30,10 +32,13 @@ def hh_session(hh_engine):
         s.close()
 
 
-def _seed_sale(s, *, sold_at: datetime, qty=1, unit_price_gs=10_000,
-               discount_gs=0, product_id=1):
+def _seed_sale(s, *, sold_at: datetime, qty=1, unit_price_gs=10_000, discount_gs=0, product_id=1):
     from app.rms.models_legacy import Product, Sale
-    if s.execute(__import__("sqlalchemy").text("SELECT id FROM product WHERE id=1")).first() is None:
+
+    if (
+        s.execute(__import__("sqlalchemy").text("SELECT id FROM product WHERE id=1")).first()
+        is None
+    ):
         s.add(Product(id=1, name="Test", sale_price_gs=10_000, portion_label="unit"))
         s.flush()
     sale = Sale(
@@ -97,17 +102,11 @@ def test_day_hour_heatmap_buckets_by_asuncion_local(hh_session):
 
     hm = day_hour_heatmap(hh_session, days=10)
     # Monday 09:00 (Asuncion) should have the sale
-    cell = next(
-        c for c in hm.cells
-        if c.weekday == 0 and c.hour == 9
-    )
+    cell = next(c for c in hm.cells if c.weekday == 0 and c.hour == 9)
     assert cell.sales_gs == 1000
     assert cell.n_sales == 1
     # Monday 12:00 should NOT (UTC bucket)
-    cell_wrong = next(
-        c for c in hm.cells
-        if c.weekday == 0 and c.hour == 12
-    )
+    cell_wrong = next(c for c in hm.cells if c.weekday == 0 and c.hour == 12)
     assert cell_wrong.sales_gs == 0
 
 
@@ -120,15 +119,11 @@ def test_day_hour_heatmap_discount_subtracted(hh_session):
     from app.rms.analytics import day_hour_heatmap
 
     sale_at = datetime(2026, 10, 5, 14, 0, tzinfo=timezone.utc).replace(tzinfo=None)
-    _seed_sale(hh_session, sold_at=sale_at, qty=2,
-               unit_price_gs=5_000, discount_gs=3_000)
+    _seed_sale(hh_session, sold_at=sale_at, qty=2, unit_price_gs=5_000, discount_gs=3_000)
     # 2 × 5000 − 3000 = 7000
 
     hm = day_hour_heatmap(hh_session, days=10)
-    cell = next(
-        c for c in hm.cells
-        if c.weekday == 0 and c.hour == 11
-    )
+    cell = next(c for c in hm.cells if c.weekday == 0 and c.hour == 11)
     assert cell.sales_gs == 7_000
 
 
@@ -149,7 +144,6 @@ def test_day_hour_heatmap_multiple_sales_stack(hh_session):
 def test_day_hour_heatmap_voided_excluded(hh_session):
     """Voided sales don't appear in the heatmap."""
     from app.rms.analytics import day_hour_heatmap
-    from app.rms.models_legacy import Sale
 
     sale_at = datetime(2026, 10, 5, 10, 0, tzinfo=timezone.utc).replace(tzinfo=None)
     sale = _seed_sale(hh_session, sold_at=sale_at, unit_price_gs=2_000)
@@ -208,12 +202,16 @@ def test_day_hour_heatmap_total_equals_sum(hh_session):
     """Invariant: total_sales_gs == sum(cell.sales_gs for all cells)."""
     from app.rms.analytics import day_hour_heatmap
 
-    _seed_sale(hh_session,
-               sold_at=datetime(2026, 10, 5, 13, 0, tzinfo=timezone.utc).replace(tzinfo=None),
-               unit_price_gs=3_000)
-    _seed_sale(hh_session,
-               sold_at=datetime(2026, 10, 7, 17, 0, tzinfo=timezone.utc).replace(tzinfo=None),
-               unit_price_gs=7_000)
+    _seed_sale(
+        hh_session,
+        sold_at=datetime(2026, 10, 5, 13, 0, tzinfo=timezone.utc).replace(tzinfo=None),
+        unit_price_gs=3_000,
+    )
+    _seed_sale(
+        hh_session,
+        sold_at=datetime(2026, 10, 7, 17, 0, tzinfo=timezone.utc).replace(tzinfo=None),
+        unit_price_gs=7_000,
+    )
     hm = day_hour_heatmap(hh_session, days=10)
     assert hm.total_sales_gs == sum(c.sales_gs for c in hm.cells)
     assert hm.total_n_sales == sum(c.n_sales for c in hm.cells)

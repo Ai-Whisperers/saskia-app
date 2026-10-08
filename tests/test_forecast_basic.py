@@ -25,7 +25,7 @@ def test_forecast_zero_consumption_via_apply_sale(qseed):
                 qty=1.0,
                 sold_at=now - timedelta(days=i),
                 payment_method="efectivo",
-                channel="Mostrador",
+                channel="mostrador",
                 notes=None,
                 customer_id=None,
                 discount_gs=0,

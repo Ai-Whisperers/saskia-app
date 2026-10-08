@@ -54,13 +54,11 @@ def _migration_110_held_sale(conn: Any) -> None:
             )
             """
         )
-    except Exception:  # noqa: S110 — table may already exist
+    except Exception:
         pass
     try:
-        conn.exec_driver_sql(
-            "CREATE INDEX IF NOT EXISTS ix_held_sale_status ON held_sale (status)"
-        )
-    except Exception:  # noqa: S110
+        conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_held_sale_status ON held_sale (status)")
+    except Exception:
         pass
 
     # BACKLOG #4 (2026-10-02): always bump schema_version at the end.

@@ -98,12 +98,8 @@ class Ingredient(Base):
     # Use RecipeLine.ingredient relationship (viewonly=True, primaryjoin with line_kind check)
     # or query RecipeLine directly: SELECT FROM recipe_line WHERE line_kind='ingredient'
     # AND line_ref_id = :id. Helper functions live in costing.py.
-    stock_moves: Mapped[list["SaleStockMove"]] = relationship(  # noqa: F821 — SQLAlchemy 2.0 forward ref
-        back_populates="ingredient"
-    )
-    supplier: Mapped[Optional["Supplier"]] = relationship(  # noqa: F821 — SQLAlchemy 2.0 forward ref
-        back_populates="ingredients"
-    )
+    stock_moves: Mapped[list["SaleStockMove"]] = relationship(back_populates="ingredient")
+    supplier: Mapped[Optional["Supplier"]] = relationship(back_populates="ingredients")
 
     __table_args__ = (
         CheckConstraint("unit IN ('g', 'kg', 'ml', 'l', 'und')", name="ck_ingredient_unit"),
@@ -156,7 +152,7 @@ class Recipe(Base):
         cascade="all, delete-orphan",
     )
     products: Mapped[list["Product"]] = relationship(back_populates="recipe")
-    stock_moves: Mapped[list["SaleStockMove"]] = relationship(  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    stock_moves: Mapped[list["SaleStockMove"]] = relationship(
         back_populates="affected_recipe",
         foreign_keys="SaleStockMove.affected_recipe_id",
     )
@@ -257,7 +253,7 @@ class Product(Base):
 
     # Relationships
     recipe: Mapped[Optional["Recipe"]] = relationship(back_populates="products")
-    sales: Mapped[list["Sale"]] = relationship(back_populates="product")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    sales: Mapped[list["Sale"]] = relationship(back_populates="product")
 
     __table_args__ = (
         CheckConstraint("sale_price_gs >= 0", name="ck_product_price_nonneg"),
@@ -318,7 +314,7 @@ class IngredientVariant(Base):
 
     # Relationships
     ingredient: Mapped["Ingredient"] = relationship(back_populates="variants")
-    supplier: Mapped[Optional["Supplier"]] = relationship()  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    supplier: Mapped[Optional["Supplier"]] = relationship()
 
     __table_args__ = (
         CheckConstraint("package_size > 0", name="ck_variant_size_positive"),
@@ -398,7 +394,7 @@ class PriceHistory(Base):
     recorded_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     ingredient: Mapped["Ingredient"] = relationship("Ingredient")
-    supplier: Mapped[Optional["Supplier"]] = relationship("Supplier")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    supplier: Mapped[Optional["Supplier"]] = relationship("Supplier")
 
     __table_args__ = (
         CheckConstraint("qty_purchased > 0", name="ck_pricehistory_qty_positive"),

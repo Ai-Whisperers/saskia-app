@@ -7,26 +7,26 @@ Routes (2 POSTs):
   POST /produccion/template            - set a weekday's product qty
   POST /produccion/template/fork-week  - copy this week's template to a target week
 """
+
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import datetime
 
-from fastapi import Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import Depends, Form, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import current_operator
+from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
 from app.rms.models import (
     Product,
     ProductionPlanOverride,
 )
-from app.rms.observability import record_audit
-from app.rms.production import get_weekly_template, plan_production
-from app.routers.produccion._helpers import _asuncion_today
+from app.rms.production_demand import persist_plan_audit
 from app.routers.produccion._router import router
-from app.services.template_render import render
 
 
 @router.post("/template")
@@ -45,7 +45,7 @@ def produccion_template_set(
     """
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -57,11 +57,10 @@ def produccion_template_set(
     if session.get(Product, product_id) is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-    from app.auth import current_user_id
     from app.rms.audit import record as audit_record
     from app.rms.production import upsert_template_row
 
-    user_id = current_user_id(request) or "operator"
+    user_id = current_operator(request)
     user_id = str(user_id)
     # PRODUCCION-V2 Fase 1: capture the prior template row's qty for the
     # audit log. The template doesn't carry for_date, so we record the
@@ -141,7 +140,7 @@ def produccion_template_fork_week(
     """
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -176,11 +175,10 @@ def produccion_template_fork_week(
         wd = ov.for_date.weekday()  # 0=Mon .. 6=Sun
         bucket[(wd, ov.product_id)] += float(ov.qty or 0.0)
 
-    from app.auth import current_user_id
     from app.rms.audit import record as audit_record
     from app.rms.production import upsert_template_row
 
-    user_id = current_user_id(request) or "operator"
+    user_id = current_operator(request)
     user_id = str(user_id)
     # PRODUCCION-V2 Fase 1: audit each template row we overwrite. The
     # template doesn't have for_date, so we log against the next
@@ -202,9 +200,7 @@ def produccion_template_fork_week(
             )
             .one_or_none()
         )
-        old_qty = (
-            float(prior_fork_template.qty) if prior_fork_template is not None else None
-        )
+        old_qty = float(prior_fork_template.qty) if prior_fork_template is not None else None
         days_ahead = (wd - today.weekday()) % 7
         next_occurrence = today + _td_fork(days=days_ahead)
         upsert_template_row(
@@ -253,6 +249,7 @@ __all__ = ["router"]
 # returns the qty the production plan will bake for that date so the
 # form can warn "Pediste N pero el plan dice M".
 
+
 @router.post("/template/load-day")
 def load_template_into_day(
     request: Request,
@@ -270,30 +267,33 @@ def load_template_into_day(
     clicking twice is safe; the second click is a no-op for those
     rows). Audits a single row with the count of templates applied.
     """
-    from app.auth import current_user_id
     from app.rms.audit import record as audit_record
-    from app.rms.production import upsert_override
     from app.rms.models import ProductionPlanTemplate
-    target = datetime.strptime(for_date, "%Y-%m-%d").date()
+    from app.rms.production import upsert_override
+
+    target = datetime.strptime(for_date, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ).date()
     weekday = target.weekday()  # 0=Mon
-    tpl_rows = session.execute(
-        select(ProductionPlanTemplate).where(
-            ProductionPlanTemplate.weekday == weekday
+    tpl_rows = (
+        session.execute(
+            select(ProductionPlanTemplate).where(ProductionPlanTemplate.weekday == weekday)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     if not tpl_rows:
         return RedirectResponse(
             url=f"/produccion?for_date={for_date}&flash=sin_plantilla",
             status_code=303,
         )
     existing = {
-        r.product_id for r in session.execute(
-            select(ProductionPlanOverride).where(
-                ProductionPlanOverride.for_date == target
-            )
-        ).scalars().all()
+        r.product_id
+        for r in session.execute(
+            select(ProductionPlanOverride).where(ProductionPlanOverride.for_date == target)
+        )
+        .scalars()
+        .all()
     }
-    user = str(current_user_id(request) or "operator")
+    user = str(current_operator(request))
     applied = 0
     skipped = 0
     for tpl in tpl_rows:
@@ -310,7 +310,7 @@ def load_template_into_day(
                 notes="P40: desde plantilla semanal",
             )
             applied += 1
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("P40 load-template failed product={} err={}", tpl.product_id, exc)
     session.commit()
     audit_record(

@@ -8,21 +8,20 @@ Routes:
   GET  /produccion/haccp     - HACCP freezer log view (list + form)
   POST /produccion/haccp     - save a new temperature log entry
 """
+
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
 from dataclasses import dataclass
-from zoneinfo import ZoneInfo
+from datetime import date, datetime, timedelta
 
 from fastapi import Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.rms.dependencies import get_session
 from app.rms.config import ASUNCION_TZ
-from app.rms.models import FreezerTemperatureLog, Ingredient, Product, Recipe, RecipeLine
+from app.rms.dependencies import get_session
+from app.rms.models import FreezerTemperatureLog
 from app.rms.observability import record_audit
 from app.rms.plan_accuracy import compute_plan_accuracy, date_range_presets
 from app.rms.production import plan_production
@@ -187,6 +186,7 @@ class HaccpPendingItem:
     the entire day for that freezer). Otherwise weight is the
     literal shift ("AM" or "PM").
     """
+
     location: str
     weight: str  # "AM" | "PM" | "BOTH"
 
@@ -338,7 +338,7 @@ def produccion_haccp_post(
     """
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",

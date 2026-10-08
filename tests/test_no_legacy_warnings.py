@@ -9,6 +9,11 @@ This test asserts that a clean run reports zero warnings.
 
 from __future__ import annotations
 
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+SAZON_APP = str(_REPO_ROOT)
+
 import pytest
 
 pytestmark = pytest.mark.manual

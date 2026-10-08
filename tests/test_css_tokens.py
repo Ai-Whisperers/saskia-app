@@ -28,13 +28,13 @@ content. It doesn't parse CSS. For full CSS validation, use
 stylelint or css-validator in a separate step (not in scope for
 this PR).
 """
+
 from __future__ import annotations
 
 import re
 from pathlib import Path
 
 import pytest
-
 
 REPO = Path(__file__).resolve().parents[1]
 TOKENS_CSS = REPO / "app" / "static" / "tokens.css"
@@ -149,9 +149,9 @@ def test_root_block_is_present(tokens_css):
 
 
 FORBIDDEN_IMPORTS = [
-    "@import \"tailwindcss\"",
-    "@import \"tw-animate-css\"",
-    "@import \"shadcn/tailwind.css\"",
+    '@import "tailwindcss"',
+    '@import "tw-animate-css"',
+    '@import "shadcn/tailwind.css"',
     "@custom-variant",
 ]
 
@@ -197,8 +197,7 @@ def test_chart_palette_uses_hex_not_oklch(tokens_css):
         assert m, f"--chart-{i} missing"
         value = m.group(1).strip()
         assert not value.startswith("oklch("), (
-            f"--chart-{i} uses oklch({value}); "
-            f"older browsers may not support oklch. Use hex."
+            f"--chart-{i} uses oklch({value}); older browsers may not support oklch. Use hex."
         )
 
 
@@ -214,8 +213,8 @@ def test_tokens_css_loaded_before_app_css():
     a file that defines the same --variable, the file's value wins.
     """
     html = BASE_HTML.read_text(encoding="utf-8")
-    tokens_idx = html.find('tokens.css')
-    app_idx = html.find('app.css')
+    tokens_idx = html.find("tokens.css")
+    app_idx = html.find("app.css")
     assert tokens_idx > 0, "tokens.css is not linked in base.html"
     assert app_idx > 0, "app.css is not linked in base.html"
     assert tokens_idx < app_idx, (

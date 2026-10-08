@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""Idempotent Vaquita Holandesa seed for the Saskia (saskia-vps) deployment.
+"""Idempotent Vaquita Holandesa seed for the Sazón RMS deployment.
 
 What this does:
 - Runs `seed_sazon()` which is the canonical "La Vaquita Holandesa"
-  demo seed (the Dutch-PY bakery that the Saskia business is built on).
+  demo seed (the Dutch-PY bakery that the Sazón business is built on).
 - Idempotent: safe to run multiple times. Only creates rows that don't
-  exist; updates tenant + branding to "Saskia" (the operator-facing name).
+  exist; updates tenant + branding to "Sazón RMS" (the operator-facing name).
 - Does NOT touch the user accounts (preserves existing admin/demo/ivan
   logins) or sales history.
 
-Why "Vaquita" is the seed for "Saskia":
+Why "Vaquita" is the seed for "Sazón RMS":
 - The Sazon-RMS codebase was forked from a Vaquita Holandesa deployment.
 - The product catalog (Muffin, Pan lactal, Stroopwafels, Oliebollen,
   Tompoezen, Cheesecake, etc.) IS the Vaquita menu — just branded as
-  Saskia at the operator level.
+  Sazón RMS at the operator level.
 - Re-running this keeps the catalog coherent: ingredients, recipes,
   prices, suppliers, tags all line up.
 
@@ -28,6 +28,7 @@ Exit codes:
     0  seed ran successfully (or already seeded)
     1  fatal error — see stderr
 """
+
 from __future__ import annotations
 
 import os
@@ -50,6 +51,8 @@ def main() -> int:
     # Force the app to skip the test-auth-bypass boot guard
     sys.modules.setdefault("pytest", type(sys)("pytest"))
 
+    from sqlalchemy import text
+
     from app.rms.db import make_engine, make_session_factory
     from app.rms.seed import (
         SazonReport,
@@ -57,7 +60,6 @@ def main() -> int:
         sazon_meta,
         seed_sazon,
     )
-    from sqlalchemy import text
 
     # Resolve DB path from env
     raw = os.environ.get("AIW_SASKIA_DB_PATH") or os.environ.get("AIW_RMS_DB_PATH")
@@ -76,17 +78,27 @@ def main() -> int:
     try:
         # Snapshot before
         meta_before = sazon_meta(session)
-        print(f"=== Before seed ===")
+        print("=== Before seed ===")
         print(f"  is_seeded: {is_sazon_seeded(session)}")
         print(f"  sazon_meta: {meta_before}")
 
         # Quick DB counters
         def cnt(table: str) -> int:
             return session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar() or 0
-        before = {t: cnt(t) for t in (
-            "tenant", "product", "recipe", "ingredient",
-            "category", "channel", "delivery_zone", "sale",
-        )}
+
+        before = {
+            t: cnt(t)
+            for t in (
+                "tenant",
+                "product",
+                "recipe",
+                "ingredient",
+                "category",
+                "channel",
+                "delivery_zone",
+                "sale",
+            )
+        }
         print(f"  counters: {before}")
 
         # Safety check: short-circuit if a tenant already exists with a
@@ -131,21 +143,31 @@ def main() -> int:
         print()
 
         # Snapshot after
-        after = {t: cnt(t) for t in (
-            "tenant", "product", "recipe", "ingredient",
-            "category", "channel", "delivery_zone", "sale",
-        )}
-        print(f"=== After seed ===")
+        after = {
+            t: cnt(t)
+            for t in (
+                "tenant",
+                "product",
+                "recipe",
+                "ingredient",
+                "category",
+                "channel",
+                "delivery_zone",
+                "sale",
+            )
+        }
+        print("=== After seed ===")
         print(f"  is_seeded: {is_sazon_seeded(session)}")
         print(f"  sazon_meta: {sazon_meta(session)}")
         print(f"  counters: {after}")
         print(f"  deltas: { {k: after[k] - before[k] for k in before} }")
         print()
-        print("OK — Vaquita Holandesa seed confirmed for Saskia business.")
+        print("OK — Vaquita Holandesa seed confirmed for Sazón RMS business.")
         return 0
     except Exception as e:
         print(f"FATAL: {type(e).__name__}: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return 1
     finally:

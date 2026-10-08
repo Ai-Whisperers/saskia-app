@@ -39,6 +39,7 @@ from sqlalchemy import select
 
 from app.rms.config import ASUNCION_TZ
 from app.rms.models import AppMeta, Pedido, Suscripcion
+from app.rms.models.channels import Channel
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -170,7 +171,7 @@ def generate_weekly_pedidos(
             promised_date=promised,
             promised_time=s.preferred_time or "",
             status="pending",
-            channel="whatsapp",
+            channel=Channel.WHATSAPP.value,
             payment_intent="efectivo",
             notes=f"[Auto-generado desde suscripción #{s.id} · {s.product_summary}]",
             public_token=_new_public_token(),
@@ -198,7 +199,7 @@ def generate_weekly_pedidos(
             actor=actor,
             payload={
                 "n_lines": 0,
-                "channel": "whatsapp",
+                "channel": Channel.WHATSAPP.value,
                 "promised_date": promised.isoformat(),
                 "total_gs": 0,
                 "source": "suscripcion_dispatch",

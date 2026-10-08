@@ -26,6 +26,7 @@ Used by:
     - app/templates/ventas.html (qty input max)
     - app/routers/sales.py (menu context, optional)
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -47,10 +48,14 @@ def _recipe_per_unit_demand(session: "Session", recipe: Recipe) -> dict[int, flo
     if recipe.yield_qty is None or recipe.yield_qty <= 0:
         return {}
     demand: dict[int, float] = {}
-    lines = session.query(RecipeLine).filter(
-        RecipeLine.recipe_id == recipe.id,
-        RecipeLine.line_kind == "ingredient",
-    ).all()
+    lines = (
+        session.query(RecipeLine)
+        .filter(
+            RecipeLine.recipe_id == recipe.id,
+            RecipeLine.line_kind == "ingredient",
+        )
+        .all()
+    )
     for line in lines:
         if line.qty is None or line.qty <= 0:
             continue
@@ -80,7 +85,7 @@ def product_stock_ceiling(session: "Session", product_id: int) -> float | None:
         if ing is None or ing.stock_qty is None:
             continue
         # Floor at 0 — can't make negative units
-                # Floor at 0 — can't make negative units
+        # Floor at 0 — can't make negative units
         units_from_this = max(0.0, float(ing.stock_qty) / per_unit)
         if min_units is None or units_from_this < min_units:
             min_units = units_from_this
@@ -110,6 +115,7 @@ def product_low_stock_threshold(
     """
     if units is None:
         from app.rms import config
+
         units = float(config.SAZON_MENU_LOW_STOCK_UNITS)
     product = session.get(Product, product_id)
     if product is None or product.recipe_id is None:

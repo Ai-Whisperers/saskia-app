@@ -11,6 +11,7 @@
 
 <form method="post" action="/cotizador">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="table-sticky-wrap" style="max-height:min(70vh,520px)">
   <table class="table">
     <thead><tr><th>Producto</th><th>Precio carta</th><th>Cantidad</th></tr></thead>
     <tbody>
@@ -23,6 +24,7 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
   <label class="field" style="max-width:220px">
     <span>Descuento por volumen (%)</span>
     <select name="descuento">
@@ -36,6 +38,7 @@
 
 {% if quote and quote.items %}
 <h2>Cotización</h2>
+<div class="table-sticky-wrap" style="max-height:min(70vh,520px)">
 <table class="table">
   <thead><tr><th>Producto</th><th>Cant.</th><th>Lotes</th><th>Costo</th><th>Carta</th><th>Margen</th></tr></thead>
   <tbody>
@@ -60,6 +63,7 @@
     {% endif %}
   </tfoot>
 </table>
+</div>
 <form method="post" action="/cotizador/pdf">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   {% for it in quote.items %}<input type="hidden" name="qty_{{ it.product_id }}" value="{{ it.qty }}">{% endfor %}

@@ -1,4 +1,5 @@
-"""tests/test_production_demand.py — PRODUCCION-V2 Fase 1.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_production_demand.py — PRODUCCION-V2 Fase 1.
 
 Tests for the new app/rms/production_demand.py module: the demanda
 column that backs the upcoming 4-col /produccion day view.
@@ -65,18 +66,14 @@ def test_demand_row_is_frozen():
 
 def test_compute_demand_qty_basic():
     """Plain sum: forecast=10, pedidos=5, multiplier=1.0 → total=15, evento=0."""
-    total, evento = compute_demand_qty(
-        qty_forecast=10.0, qty_pedidos=5.0, seasonal_multiplier=1.0
-    )
+    total, evento = compute_demand_qty(qty_forecast=10.0, qty_pedidos=5.0, seasonal_multiplier=1.0)
     assert total == 15.0
     assert evento == 0.0
 
 
 def test_compute_demand_qty_with_multiplier():
     """seasonal_multiplier>1 boosts the forecast and surfaces as evento."""
-    total, evento = compute_demand_qty(
-        qty_forecast=10.0, qty_pedidos=5.0, seasonal_multiplier=2.0
-    )
+    total, evento = compute_demand_qty(qty_forecast=10.0, qty_pedidos=5.0, seasonal_multiplier=2.0)
     # seasonalized forecast = 10*2=20, pedidos=5, total=25, evento=10
     assert total == 25.0
     assert evento == 10.0
@@ -84,18 +81,14 @@ def test_compute_demand_qty_with_multiplier():
 
 def test_compute_demand_qty_zero_forecast():
     """Zero forecast, some pedidos: total = pedidos only."""
-    total, evento = compute_demand_qty(
-        qty_forecast=0.0, qty_pedidos=7.5, seasonal_multiplier=1.0
-    )
+    total, evento = compute_demand_qty(qty_forecast=0.0, qty_pedidos=7.5, seasonal_multiplier=1.0)
     assert total == 7.5
     assert evento == 0.0
 
 
 def test_compute_demand_qty_zero_pedidos():
     """Zero pedidos, some forecast with multiplier: total = seasonalized forecast."""
-    total, evento = compute_demand_qty(
-        qty_forecast=8.0, qty_pedidos=0.0, seasonal_multiplier=1.5
-    )
+    total, evento = compute_demand_qty(qty_forecast=8.0, qty_pedidos=0.0, seasonal_multiplier=1.5)
     # seasonalized = 8*1.5=12, pedidos=0, total=12, evento=4
     assert total == 12.0
     assert evento == 4.0
@@ -104,9 +97,7 @@ def test_compute_demand_qty_zero_pedidos():
 def test_compute_demand_qty_defends_against_negative_inputs():
     """Negative inputs are clamped to 0 (defensive; production data should be nonneg
     but corrupt caches are possible)."""
-    total, evento = compute_demand_qty(
-        qty_forecast=-5.0, qty_pedidos=-3.0, seasonal_multiplier=0.5
-    )
+    total, evento = compute_demand_qty(qty_forecast=-5.0, qty_pedidos=-3.0, seasonal_multiplier=0.5)
     # multiplier<=0 treated as 1.0; forecast clamped to 0; pedidos clamped to 0
     assert total == 0.0
     assert evento == 0.0
@@ -114,27 +105,21 @@ def test_compute_demand_qty_defends_against_negative_inputs():
 
 def test_split_pedidos_status_basic():
     """pending=3 + confirmed=5 + ready=2 → total=10, confirmed=7."""
-    total, confirmed = split_pedidos_status(
-        pending_qty=3.0, confirmed_qty=5.0, ready_qty=2.0
-    )
+    total, confirmed = split_pedidos_status(pending_qty=3.0, confirmed_qty=5.0, ready_qty=2.0)
     assert total == 10.0
     assert confirmed == 7.0
 
 
 def test_split_pedidos_status_only_pending():
     """All pending → confirmed=0, total=pending."""
-    total, confirmed = split_pedidos_status(
-        pending_qty=5.0, confirmed_qty=0.0, ready_qty=0.0
-    )
+    total, confirmed = split_pedidos_status(pending_qty=5.0, confirmed_qty=0.0, ready_qty=0.0)
     assert total == 5.0
     assert confirmed == 0.0
 
 
 def test_split_pedidos_status_only_confirmed_and_ready():
     """No pending → total == confirmed (the "riesgo" gap is 0)."""
-    total, confirmed = split_pedidos_status(
-        pending_qty=0.0, confirmed_qty=4.0, ready_qty=6.0
-    )
+    total, confirmed = split_pedidos_status(pending_qty=0.0, confirmed_qty=4.0, ready_qty=6.0)
     assert total == 10.0
     assert confirmed == 10.0
 
@@ -146,16 +131,16 @@ def test_split_pedidos_status_only_confirmed_and_ready():
 
 @st.composite
 def _nonneg_float(draw, max_value: float = 1e6):
-    return draw(st.floats(min_value=0.0, max_value=max_value, allow_nan=False, allow_infinity=False))
+    return draw(
+        st.floats(min_value=0.0, max_value=max_value, allow_nan=False, allow_infinity=False)
+    )
 
 
 @st.composite
 def _multiplier(draw):
     # seasonal_multiplier in the calendar is >=1.0; allow a wider range to
     # probe the defensive clamp at <=0.
-    return draw(
-        st.floats(min_value=0.0, max_value=3.0, allow_nan=False, allow_infinity=False)
-    )
+    return draw(st.floats(min_value=0.0, max_value=3.0, allow_nan=False, allow_infinity=False))
 
 
 @settings(max_examples=200, suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -261,7 +246,7 @@ def test_get_demand_sums_two_pedido_lines_same_product(session_factory):
         result = get_demand(s, for_date=target)
 
     row = result[prod_id]
-    assert row.qty_pedidos == 8.0           # 3 pending + 5 confirmed
+    assert row.qty_pedidos == 8.0  # 3 pending + 5 confirmed
     assert row.qty_pedidos_confirmed == 5.0  # only confirmed
     # The "riesgo" gap (pending) = 3, surfaced in the UI as a badge.
 
@@ -279,29 +264,23 @@ def test_get_demand_excludes_cancelled_and_fulfilled_pedidos(session_factory):
         # cancelled — must not appear in demanda
         p_c = make_pedido(s, status="cancelled", promised_date=target, customer_name="X")
         s.flush()
-        s.add(
-            PedidoLine(pedido_id=p_c.id, product_id=prod_id, qty=99.0, unit_price_gs=10000)
-        )
+        s.add(PedidoLine(pedido_id=p_c.id, product_id=prod_id, qty=99.0, unit_price_gs=10000))
         # fulfilled — must not appear (the sale already debited stock)
         p_f = make_pedido(s, status="fulfilled", promised_date=target, customer_name="Y")
         s.flush()
-        s.add(
-            PedidoLine(pedido_id=p_f.id, product_id=prod_id, qty=99.0, unit_price_gs=10000)
-        )
+        s.add(PedidoLine(pedido_id=p_f.id, product_id=prod_id, qty=99.0, unit_price_gs=10000))
         # ready — must appear
         p_r = make_pedido(s, status="ready", promised_date=target, customer_name="Z")
         s.flush()
-        s.add(
-            PedidoLine(pedido_id=p_r.id, product_id=prod_id, qty=2.0, unit_price_gs=10000)
-        )
+        s.add(PedidoLine(pedido_id=p_r.id, product_id=prod_id, qty=2.0, unit_price_gs=10000))
         s.commit()
 
     with session_factory() as s:
         result = get_demand(s, for_date=target)
 
     row = result[prod_id]
-    assert row.qty_pedidos == 2.0            # only the ready pedido
-    assert row.qty_pedidos_confirmed == 2.0   # ready counts as confirmed
+    assert row.qty_pedidos == 2.0  # only the ready pedido
+    assert row.qty_pedidos_confirmed == 2.0  # ready counts as confirmed
 
 
 def test_get_demand_writes_to_snapshot_table(session_factory):
@@ -542,9 +521,8 @@ def test_get_demand_cache_hit_returns_same_value_without_recompute(
 
 def test_get_demand_cache_miss_when_ttl_zero(session_factory):
     """TTL=0 disables the cache; every call recomputes."""
-    from tests.factories import make_product
-
     from app.rms import production_demand as pd_mod
+    from tests.factories import make_product
 
     target = date(2026, 10, 5)
     with session_factory() as s:
@@ -578,9 +556,7 @@ def test_get_demand_cache_miss_when_ttl_zero(session_factory):
             get_demand(s, for_date=target)
         n_total = call_count["n"]
         # With TTL=0, both calls should hit forecast_sales.
-        assert n_total > n_first, (
-            f"TTL=0 should always recompute; got {n_first} then {n_total}"
-        )
+        assert n_total > n_first, f"TTL=0 should always recompute; got {n_first} then {n_total}"
     finally:
         pd_mod.demand_snapshot_ttl_seconds = real_reader
         prod_mod.forecast_sales = real_forecast
@@ -644,10 +620,7 @@ def test_get_demand_cache_stale_after_ttl_window(session_factory):
     stale_time = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=600)
     with session_factory() as s:
         s.execute(
-            text(
-                "UPDATE production_demand_snapshot "
-                "SET computed_at = :t WHERE for_date = :d"
-            ),
+            text("UPDATE production_demand_snapshot SET computed_at = :t WHERE for_date = :d"),
             {"t": stale_time.isoformat(), "d": target.isoformat()},
         )
         s.commit()
@@ -705,9 +678,7 @@ def test_invalidate_demand_for_dates_drops_all_listed(session_factory):
             text(
                 "SELECT for_date, COUNT(*) FROM production_demand_snapshot "
                 "WHERE for_date IN :ds GROUP BY for_date"
-            ).bindparams(
-                bindparam("ds", expanding=True)
-            ),
+            ).bindparams(bindparam("ds", expanding=True)),
             {"ds": [d1.isoformat(), d2.isoformat(), d3.isoformat()]},
         ).all()
     assert len(before) == 3
@@ -720,11 +691,8 @@ def test_invalidate_demand_for_dates_drops_all_listed(session_factory):
     with session_factory() as s:
         remaining = s.execute(
             text(
-                "SELECT COUNT(*) FROM production_demand_snapshot "
-                "WHERE for_date IN :ds"
-            ).bindparams(
-                bindparam("ds", expanding=True)
-            ),
+                "SELECT COUNT(*) FROM production_demand_snapshot WHERE for_date IN :ds"
+            ).bindparams(bindparam("ds", expanding=True)),
             {"ds": [d1.isoformat(), d2.isoformat(), d3.isoformat()]},
         ).scalar()
     assert remaining == 0
@@ -732,9 +700,10 @@ def test_invalidate_demand_for_dates_drops_all_listed(session_factory):
 
 def test_invalidate_demand_for_sale_today_covers_window(session_factory):
     """invalidate_demand_for_sale_today invalidates today + N-1 forward days."""
+    from datetime import datetime
+
     from app.rms.config import ASUNCION_TZ
     from tests.factories import make_product
-    from datetime import datetime
 
     today = datetime.now(ASUNCION_TZ).date()
     # Seed 5 distinct dates: today, +1, +2, +3, +4. The window=4 hook
@@ -756,10 +725,7 @@ def test_invalidate_demand_for_sale_today_covers_window(session_factory):
     with session_factory() as s:
         # Today + 3 forward = all 4 invalidated. Day +4 should remain.
         surviving = s.execute(
-            text(
-                "SELECT for_date FROM production_demand_snapshot "
-                "WHERE for_date = :d"
-            ),
+            text("SELECT for_date FROM production_demand_snapshot WHERE for_date = :d"),
             {"d": (today + timedelta(days=4)).isoformat()},
         ).all()
     # Day +4 should still have rows since window=4 only covers [today, today+3].
@@ -767,7 +733,8 @@ def test_invalidate_demand_for_sale_today_covers_window(session_factory):
 
 
 def test_pedido_create_invalidates_promised_date_cache(
-    session_factory, authed_client,
+    session_factory,
+    authed_client,
 ):
     """A new pedido invalidates the demand cache for its promised_date.
 
@@ -775,9 +742,10 @@ def test_pedido_create_invalidates_promised_date_cache(
     router calls invalidate_demand_for_dates([pedido.promised_date]).
     The next /produccion?ui=v2 render must recompute.
     """
-    from tests.factories import make_product
-    from app.rms.config import ASUNCION_TZ
     from datetime import datetime
+
+    from app.rms.config import ASUNCION_TZ
+    from tests.factories import make_product
 
     today = datetime.now(ASUNCION_TZ).date()
     target = today + timedelta(days=1)
@@ -793,10 +761,7 @@ def test_pedido_create_invalidates_promised_date_cache(
         s.commit()
     with session_factory() as s:
         before = s.execute(
-            text(
-                "SELECT COUNT(*) FROM production_demand_snapshot "
-                "WHERE for_date = :d"
-            ),
+            text("SELECT COUNT(*) FROM production_demand_snapshot WHERE for_date = :d"),
             {"d": target.isoformat()},
         ).scalar()
     assert before >= 1
@@ -821,23 +786,21 @@ def test_pedido_create_invalidates_promised_date_cache(
     # The cache for that date must be empty now.
     with session_factory() as s:
         after = s.execute(
-            text(
-                "SELECT COUNT(*) FROM production_demand_snapshot "
-                "WHERE for_date = :d"
-            ),
+            text("SELECT COUNT(*) FROM production_demand_snapshot WHERE for_date = :d"),
             {"d": target.isoformat()},
         ).scalar()
     assert after == 0, "new pedido should invalidate promised_date cache"
 
 
 def test_pedido_status_change_invalidates_cache(
-    session_factory, authed_client,
+    session_factory,
+    authed_client,
 ):
     """A pedido status change (POST /pedidos/{id}/status) invalidates cache."""
-    from tests.factories import make_customer, make_pedido, make_product, pedido_item
-    from app.rms.config import ASUNCION_TZ
     from datetime import datetime
-    from datetime import date as _date
+
+    from app.rms.config import ASUNCION_TZ
+    from tests.factories import make_customer, make_pedido, make_product, pedido_item
 
     today = datetime.now(ASUNCION_TZ).date()
     target = today + timedelta(days=2)
@@ -863,10 +826,7 @@ def test_pedido_status_change_invalidates_cache(
         s.commit()
     with session_factory() as s:
         before = s.execute(
-            text(
-                "SELECT COUNT(*) FROM production_demand_snapshot "
-                "WHERE for_date = :d"
-            ),
+            text("SELECT COUNT(*) FROM production_demand_snapshot WHERE for_date = :d"),
             {"d": target.isoformat()},
         ).scalar()
     assert before >= 1
@@ -880,24 +840,23 @@ def test_pedido_status_change_invalidates_cache(
 
     with session_factory() as s:
         after = s.execute(
-            text(
-                "SELECT COUNT(*) FROM production_demand_snapshot "
-                "WHERE for_date = :d"
-            ),
+            text("SELECT COUNT(*) FROM production_demand_snapshot WHERE for_date = :d"),
             {"d": target.isoformat()},
         ).scalar()
     assert after == 0, "status change should invalidate promised_date cache"
 
 
 def test_pedido_fulfill_invalidates_promised_and_today(
-    session_factory, authed_client,
+    session_factory,
+    authed_client,
 ):
     """A pedido fulfill (POST /pedidos/{id}/fulfill) invalidates the
     promised_date AND today's cache (because fulfill creates a Sale row
     that shifts the 14d rolling forecast)."""
-    from tests.factories import make_customer, make_pedido, make_product, pedido_item
-    from app.rms.config import ASUNCION_TZ
     from datetime import datetime
+
+    from app.rms.config import ASUNCION_TZ
+    from tests.factories import make_customer, make_pedido, make_product, pedido_item
 
     today = datetime.now(ASUNCION_TZ).date()
     target = today + timedelta(days=1)
@@ -923,17 +882,11 @@ def test_pedido_fulfill_invalidates_promised_and_today(
         s.commit()
     with session_factory() as s:
         before_promised = s.execute(
-            text(
-                "SELECT COUNT(*) FROM production_demand_snapshot "
-                "WHERE for_date = :d"
-            ),
+            text("SELECT COUNT(*) FROM production_demand_snapshot WHERE for_date = :d"),
             {"d": target.isoformat()},
         ).scalar()
         before_today = s.execute(
-            text(
-                "SELECT COUNT(*) FROM production_demand_snapshot "
-                "WHERE for_date = :d"
-            ),
+            text("SELECT COUNT(*) FROM production_demand_snapshot WHERE for_date = :d"),
             {"d": today.isoformat()},
         ).scalar()
     assert before_promised >= 1
@@ -950,20 +903,12 @@ def test_pedido_fulfill_invalidates_promised_and_today(
 
     with session_factory() as s:
         after_promised = s.execute(
-            text(
-                "SELECT COUNT(*) FROM production_demand_snapshot "
-                "WHERE for_date = :d"
-            ),
+            text("SELECT COUNT(*) FROM production_demand_snapshot WHERE for_date = :d"),
             {"d": target.isoformat()},
         ).scalar()
         after_today = s.execute(
-            text(
-                "SELECT COUNT(*) FROM production_demand_snapshot "
-                "WHERE for_date = :d"
-            ),
+            text("SELECT COUNT(*) FROM production_demand_snapshot WHERE for_date = :d"),
             {"d": today.isoformat()},
         ).scalar()
     assert after_promised == 0, "fulfill should invalidate promised_date cache"
     assert after_today == 0, "fulfill should invalidate today's cache (forecast shift)"
-
-

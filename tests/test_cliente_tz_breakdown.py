@@ -1,4 +1,5 @@
-"""BACKLOG #27 (2026-10-01) — Sale.tz breakdown on /clientes/{id}.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+BACKLOG #27 (2026-10-01) — Sale.tz breakdown on /clientes/{id}.
 
 Sale.tz is recorded for every sale but the column was never queried
 on the cliente detail page. We expose a tz breakdown (most-used tz

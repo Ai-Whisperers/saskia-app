@@ -7,13 +7,17 @@ for unsafe patterns and fails on them.
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+SAZON_APP = str(_REPO_ROOT)
+
+import re
 
 
 def _collect_app_py_files() -> list[Path]:
     """All .py files under app/ (production code, not tests/scripts)."""
-    root = Path("/opt/data/work/sazon-app/app")
+    root = Path(SAZON_APP + "/app")
     return sorted(p for p in root.rglob("*.py") if "__pycache__" not in str(p))
 
 
@@ -87,7 +91,7 @@ def test_no_session_commit_without_close_in_app():
     from pathlib import Path
 
     violations = []
-    for py_file in sorted(Path("/opt/data/work/sazon-app/app").rglob("*.py")):
+    for py_file in sorted(Path(SAZON_APP + "/app").rglob("*.py")):
         if "__pycache__" in str(py_file):
             continue
         try:

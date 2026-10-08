@@ -19,9 +19,7 @@ from __future__ import annotations
 
 def test_packages_exist():
     """The new packages are importable."""
-    import app.rms.profitability
     import app.rms.profitability.cost as pc
-    import app.rms.sales
     import app.rms.sales.lifecycle as sl
 
     assert hasattr(pc, "recipe_batch_cost_gs")
@@ -63,12 +61,20 @@ def test_sales_exceptions_re_exported():
     """The exceptions are in profitability.cost but re-exported from sales."""
     from app.rms.profitability.cost import (
         CycleInRecipeTree as PCCycle,
+    )
+    from app.rms.profitability.cost import (
         ProductWithoutRecipe as PCProduct,
+    )
+    from app.rms.profitability.cost import (
         RecipeWithoutYield as PCRecipe,
     )
     from app.rms.sales import (
         CycleInRecipeTree as SLCycle,
+    )
+    from app.rms.sales import (
         ProductWithoutRecipe as SLProduct,
+    )
+    from app.rms.sales import (
         RecipeWithoutYield as SLRecipe,
     )
 
@@ -90,9 +96,7 @@ def test_only_one_costing_module():
         "sales_old",
     ]
     for name in forbidden:
-        assert not os.path.exists(os.path.join(rms, name)), (
-            f"forbidden file/dir exists: {name}"
-        )
+        assert not os.path.exists(os.path.join(rms, name)), f"forbidden file/dir exists: {name}"
 
 
 def test_shim_is_thin():
@@ -100,9 +104,7 @@ def test_shim_is_thin():
     with open("/opt/data/work/saskia-app/app/rms/costing.py") as f:
         content = f.read()
     line_count = len(content.split("\n"))
-    assert line_count < 80, (
-        f"costing.py shim is {line_count} lines — should be a thin re-export"
-    )
+    assert line_count < 80, f"costing.py shim is {line_count} lines — should be a thin re-export"
 
 
 def test_lifecycle_uses_profitability_exceptions():
@@ -153,10 +155,5 @@ def test_costing_shim_no_logic():
     # - 'from __future__ import annotations'
     for line in lines:
         assert (
-            line.startswith("from ")
-            or line.startswith("import ")
-            or line.endswith(",")
-            or line.endswith("[")
-            or line.endswith(")")
-            or line == "]"
+            line.startswith(("from ", "import ")) or line.endswith((",", "[", ")")) or line == "]"
         ), f"Unexpected line in costing.py shim: {line!r}"

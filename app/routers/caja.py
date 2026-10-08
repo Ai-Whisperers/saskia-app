@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import current_user_id
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.cash import (
     CashSessionConflict,
@@ -68,14 +68,14 @@ def caja_abrir(
 ) -> RedirectResponse:
     from app.rms.money import to_int_gs
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         return RedirectResponse("/caja?flash=rate_limited", status_code=303)
     try:
         opening = to_int_gs(str(opening_gs))
         sess = open_session(
             session,
             opening_gs=opening,
-            opened_by=str(current_user_id(request) or "operador"),
+            opened_by=str(current_operator(request, fallback="operador")),
             channel=channel or None,
             note=note or None,
         )
@@ -102,14 +102,14 @@ def caja_cerrar(
 ) -> RedirectResponse:
     from app.rms.money import to_int_gs
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         return RedirectResponse("/caja?flash=rate_limited", status_code=303)
     try:
         counted = to_int_gs(str(counted_gs))
         sess = close_session(
             session,
             counted_gs=counted,
-            closed_by=str(current_user_id(request) or "operador"),
+            closed_by=str(current_operator(request, fallback="operador")),
         )
         session.commit()
     except (CashSessionError, CashSessionConflict) as e:

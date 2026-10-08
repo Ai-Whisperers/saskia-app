@@ -1,4 +1,5 @@
-"""Tests for the dashboard aggregation discount fix (Phase 14 #22).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for the dashboard aggregation discount fix (Phase 14 #22).
 
 Both `_build_hourly_sales_chart` and `_build_payment_methods_donut`
 previously aggregated `qty × unit_price` (gross), silently overcounting

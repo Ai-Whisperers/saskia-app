@@ -196,6 +196,23 @@ def current_user_id(request: Request) -> Optional[int]:
     return request.session.get(LOCAL_SESSION_KEY_USER_ID)
 
 
+def current_operator(request: Request, *, fallback: str = "operator") -> str:
+    """Current user as a display/audit string, with a default operator.
+
+    The repo-wide convention for ``created_by`` / ``user_id`` columns
+    (String): logged-in users are str(user_id), anonymous/local paths
+    get ``fallback`` (default "operator"). Replaces the 50+ hand-rolled
+    ``current_operator(request)`` sites AND fixes their
+    latent type inconsistency — those put a raw int into String columns
+    on the bcrypt backend. The explicit "test-user" / "anonymous" /
+    "operador" variants pass their fallback explicitly.
+    """
+    uid = current_user_id(request)
+    if uid is None:
+        return fallback
+    return str(uid)
+
+
 def require_login(request: Request) -> object:
     """FastAPI dependency: returns user_id if logged in, else raises 401/redirect.
 

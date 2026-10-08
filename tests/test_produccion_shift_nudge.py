@@ -11,14 +11,11 @@ We verify:
   - Without shift_saved, the banner is hidden.
 """
 
-import pytest  # noqa: F401 — fixtures via authed_client
-
 
 def test_shift_saved_banner_wired(authed_client):
     """Without ?shift_saved=1, the nudge banner is hidden."""
     r = authed_client.get("/produccion?view=day")
     assert r.status_code == 200
-    body = r.text  # noqa: F841 — kept for future assertion
     # Without shift_saved, the success banner shouldn't render.
     # The page may still contain 'Turno guardado' text in JS examples
     # or templates, so we just verify 200.

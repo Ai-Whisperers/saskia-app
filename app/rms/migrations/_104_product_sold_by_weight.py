@@ -31,7 +31,7 @@ def _migration_104_product_sold_by_weight(conn: Any) -> None:
             conn.execute(
                 text("ALTER TABLE product ADD COLUMN sold_by_weight BOOLEAN NOT NULL DEFAULT 0")
             )
-    except Exception:  # noqa: S110 — column may already exist
+    except Exception:
         pass
 
     # BACKLOG #4 (2026-10-02): always bump schema_version at the end.

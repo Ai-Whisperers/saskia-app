@@ -48,6 +48,38 @@ sys.path.insert(0, str(PROJECT))
 
 from sqlalchemy import select
 
+# SASKIA-204 (2026-10-07): Raw → canonical channel mapping. Same
+# logic as scripts/reclassify_sale_channels.py:_RAW_TO_CHANNEL.
+# Kept inline here so the import script doesn't depend on the
+# reclassify script (separate invocation context).
+_RAW_TO_CHANNEL = {
+    "mostrador": "mostrador",
+    "mostrador-encargo": "mostrador-encargo",
+    "whatsapp": "whatsapp",
+    "wpp": "whatsapp",
+    "wa": "whatsapp",
+    "pedidosya": "pedidosya",
+    "monchis": "monchis",
+    "retail": "retail",
+    "minorista": "retail",
+    "wholesale": "wholesale",
+    "mayorista": "wholesale",
+    "distributor": "distributor",
+    "distribuidor": "distributor",
+    "eventual": "eventual",
+    "feria": "eventual",
+    "other": "other",
+    "otro": "other",
+}
+
+
+def _normalize_channel(raw):
+    """Map raw Canal de Venta value to canonical Channel enum value."""
+    if not raw:
+        return None  # caller will use the mostrador fallback
+    return _RAW_TO_CHANNEL.get(raw.strip().lower())
+
+
 from app.rms.db import make_engine, make_session_factory
 from app.rms.models import (
     BankTransaction,
@@ -617,9 +649,13 @@ def import_sales(session: Any, dump: Any) -> int:
         unit_price = int(total_gs / qty) if qty else total_gs
         customer_name = row[idx["Cliente"]] if len(row) > idx["Cliente"] else None
         customer_id = customer_map.get(customer_name)
-        channel = (
-            row[idx["Canal de Venta"]] if len(row) > idx["Canal de Venta"] else "mostrador"
-        ) or "mostrador"
+        # SASKIA-204 (2026-10-07): normalize the raw Canal de Venta
+        # value via the same function the re-classify script uses, so
+        # future imports don't have the silent-skew bug where
+        # non-mostrador values collapsed to "mostrador" via the bare
+        # `or "mostrador"` fallback. Fallback preserved for NULL/empty.
+        channel_raw = row[idx["Canal de Venta"]] if len(row) > idx["Canal de Venta"] else ""
+        channel = _normalize_channel(channel_raw) or "mostrador"
         payment_method = (row[idx["Pago"]] if len(row) > idx["Pago"] else None) or "efectivo"
         notes = row[idx["Notas"]] if len(row) > idx["Notas"] else None
 

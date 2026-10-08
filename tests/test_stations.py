@@ -100,7 +100,9 @@ def test_owner_login_opens_chooser_staff_login_is_pinned():
 
 def test_staff_cannot_open_the_chooser_or_another_screen():
     session = {"station": "cocina", "station_locked": True, "user_role": "cocina"}
-    assert decide("/puesto", session, auth_disabled=False, user_present=True) == "redirect:/produccion"
+    assert (
+        decide("/puesto", session, auth_disabled=False, user_present=True) == "redirect:/produccion"
+    )
     assert decide("/ventas", session, auth_disabled=False, user_present=True) == "deny"
     assert decide("/produccion", session, auth_disabled=False, user_present=True) is None
 

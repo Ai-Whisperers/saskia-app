@@ -35,7 +35,7 @@ def _migration_099_production_completion_updated_at(conn: Any) -> None:
 
     try:
         conn.execute(text(f"ALTER TABLE production_completion ADD COLUMN updated_at {col_type}"))
-    except Exception:  # noqa: S110 — column already exists; idempotent
+    except Exception:
         pass
 
     # 2) Backfill any existing rows to "now" so we have a sensible
@@ -48,7 +48,7 @@ def _migration_099_production_completion_updated_at(conn: Any) -> None:
                 "UPDATE production_completion SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL"
             )
         )
-    except Exception:  # noqa: S110 — backfill on legacy rows; not critical
+    except Exception:
         pass
 
     # 3) Index for "what changed since X" queries.
@@ -58,7 +58,7 @@ def _migration_099_production_completion_updated_at(conn: Any) -> None:
                 "CREATE INDEX IF NOT EXISTS idx_production_completion_updated ON production_completion(for_date, updated_at)"
             )
         )
-    except Exception:  # noqa: S110 — index may already exist; idempotent
+    except Exception:
         pass
 
     # BACKLOG #4 (2026-10-02): migrations 085+ shipped without bumping

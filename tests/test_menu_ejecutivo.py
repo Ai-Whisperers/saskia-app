@@ -3,6 +3,7 @@
 Menú ejecutivo: expansión a productos con precio de menú en la 1ra
 línea; venta por API descuenta stock por producto; ABM page renders.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -18,6 +19,7 @@ def _mk(session_factory, model, **kw):
 
 def _products(session_factory, n=2, price=20_000):
     from tests.factories import make_product
+
     ids = []
     with session_factory() as s:
         for i in range(n):
@@ -34,8 +36,12 @@ def test_expand_menu_pricing(session_factory):
 
     ids = _products(session_factory)
     mid = _mk(
-        session_factory, Menu,
-        name="Ejecutivo", price_gs=35_000, active=True, tenant_id=1,
+        session_factory,
+        Menu,
+        name="Ejecutivo",
+        price_gs=35_000,
+        active=True,
+        tenant_id=1,
     )
     with session_factory() as s:
         s.add(MenuItem(menu_id=mid, product_id=ids[0], qty=1))
@@ -105,7 +111,9 @@ def test_pos_shows_menus_strip(authed_client, session_factory):
     from app.rms.models_legacy import Menu, MenuItem
 
     ids = _products(session_factory)
-    mid = _mk(session_factory, Menu, name="Ejecutivo Midday", price_gs=35_000, active=True, tenant_id=1)
+    mid = _mk(
+        session_factory, Menu, name="Ejecutivo Midday", price_gs=35_000, active=True, tenant_id=1
+    )
     with session_factory() as s:
         s.add(MenuItem(menu_id=mid, product_id=ids[0], qty=1))
         s.commit()
@@ -114,7 +122,7 @@ def test_pos_shows_menus_strip(authed_client, session_factory):
     assert r.status_code == 200
     body = r.content.decode()
     assert "Menús ejecutivos" in body
-    assert 'data-menu-id' in body or f"addMenuToCart({mid}" in body
+    assert "data-menu-id" in body or f"addMenuToCart({mid}" in body
     assert "Ejecutivo Midday" in body
     assert "Gs. 35.000" in body
 

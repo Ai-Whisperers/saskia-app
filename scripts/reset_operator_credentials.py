@@ -17,6 +17,7 @@ After: all operator accounts get memorable default passwords:
 This is a one-shot script. Idempotent re-runs are no-ops since bcrypt
 verification is always checked first.
 """
+
 import os
 import sqlite3
 import sys
@@ -24,21 +25,23 @@ from pathlib import Path
 
 import bcrypt
 
-db_path = os.environ.get("AIW_SASKIA_DB_PATH") or os.environ.get("AIW_RMS_DB_PATH") or "/data/rms.sqlite"
+db_path = (
+    os.environ.get("AIW_SASKIA_DB_PATH") or os.environ.get("AIW_RMS_DB_PATH") or "/data/rms.sqlite"
+)
 if not Path(db_path).exists():
     sys.exit(f"FATAL: {db_path} does not exist")
 
 # (username, password) pairs
 PWDS = {
-    "demo":   "demo1234",
-    "admin":  "admin1234",
-    "ivan":   "ivan1234",
+    "demo": "demo1234",
+    "admin": "admin1234",
+    "ivan": "ivan1234",
     "saskia": "saskia1234",
-    "gaby":   "gaby1234",
-    "caja":   "caja1234",
-    "visor":  "visor1234",
-    "lucia":  "lucia1234",
-    "diego":  "diego1234",
+    "gaby": "gaby1234",
+    "caja": "caja1234",
+    "visor": "visor1234",
+    "lucia": "lucia1234",
+    "diego": "diego1234",
 }
 
 con = sqlite3.connect(db_path)

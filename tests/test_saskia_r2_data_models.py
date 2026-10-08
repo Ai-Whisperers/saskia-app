@@ -676,7 +676,7 @@ class TestMigrations:
             v = s.scalar(
                 select(IngredientVariant)
                 .where(IngredientVariant.ingredient_id == ing.id)
-                .where(IngredientVariant.preferred == True)  # noqa: E712
+                .where(IngredientVariant.preferred)
             )
         assert v is not None
 

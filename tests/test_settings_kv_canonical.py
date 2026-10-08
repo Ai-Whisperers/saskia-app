@@ -15,7 +15,7 @@ Acceptance:
 
 from __future__ import annotations
 
-import math
+import pathlib
 
 import pytest
 from sqlalchemy import create_engine, select
@@ -24,18 +24,17 @@ from sqlalchemy.orm import Session
 from app.rms import settings_runtime as sr
 from app.rms.models import Base, SettingsKV
 
-
 # ─── File-system invariants ────────────────────────────────────────────────
 
 
 def test_settings_runtime_is_the_only_settings_module_in_app_rms():
-    """Only ``settings_runtime.py`` lives in app/rms/."""
+    """Only the canonical pair (settings_registry + settings_runtime) lives in app/rms/."""
     import pathlib
 
-    rms_dir = pathlib.Path("/opt/data/work/saskia-app/app/rms")
+    rms_dir = pathlib.Path(__file__).resolve().parents[1] / "app" / "rms"
     settings_files = sorted(p.name for p in rms_dir.glob("settings*.py"))
-    assert settings_files == ["settings_runtime.py"], (
-        f"Expected only settings_runtime.py, found: {settings_files}"
+    assert settings_files == ["settings_registry.py", "settings_runtime.py"], (
+        f"Expected only settings_registry.py + settings_runtime.py, found: {settings_files}"
     )
 
 
@@ -47,20 +46,22 @@ def test_no_code_references_the_deleted_settings_modules():
     result = subprocess.run(
         [
             "grep",
-            "-rln",
+            "-rlnE",
             r"app\.rms\.settings\b|app\.rms\.settings_original",
-            "/opt/data/work/saskia-app",
+            str(pathlib.Path(__file__).resolve().parents[1]),
             "--include=*.py",
+            # This test's own docstring/pattern mention the module names —
+            # a worktree-relative scan would flag itself (the hardcoded
+            # path never did). Exclude self + the registry (which
+            # legitimately documents the move).
+            "--exclude=test_settings_kv_canonical.py",
+            "--exclude=settings_registry.py",
         ],
         capture_output=True,
         text=True,
     )
-    offenders = sorted(
-        line for line in result.stdout.strip().split("\n") if line.strip()
-    )
-    assert offenders == [], (
-        f"Files still import the deleted modules: {offenders}"
-    )
+    offenders = sorted(line for line in result.stdout.strip().split("\n") if line.strip())
+    assert offenders == [], f"Files still import the deleted modules: {offenders}"
 
 
 # ─── settings_get / settings_set roundtrip ────────────────────────────────
@@ -76,9 +77,7 @@ def _fresh_session() -> Session:
 def test_settings_get_returns_default_when_missing():
     """settings_get returns the default when the key is not stored."""
     sess = _fresh_session()
-    assert sr.settings_get(sess, "does.not.exist", default={"fallback": True}) == {
-        "fallback": True
-    }
+    assert sr.settings_get(sess, "does.not.exist", default={"fallback": True}) == {"fallback": True}
     assert sr.settings_get(sess, "does.not.exist") is None
 
 
@@ -86,9 +85,7 @@ def test_settings_set_persists_json_value():
     """settings_set serializes dict/list via JSON."""
     sess = _fresh_session()
     sr.settings_set(sess, "k.dict", {"a": 1, "b": [2, 3]})
-    row = sess.execute(
-        select(SettingsKV).where(SettingsKV.key == "k.dict")
-    ).scalar_one()
+    row = sess.execute(select(SettingsKV).where(SettingsKV.key == "k.dict")).scalar_one()
     assert row.value_json == '{"a": 1, "b": [2, 3]}'
     assert sr.settings_get(sess, "k.dict") == {"a": 1, "b": [2, 3]}
 
@@ -211,7 +208,10 @@ def test_branding_default_when_unset():
     """get_branding returns DEFAULT_BRANDING when no row exists."""
     sess = _fresh_session()
     cfg = sr.get_branding(sess)
-    assert cfg["business_name"] == "Saskia RMS"
+    # 2026-10-07: DEFAULT_BRANDING.business_name is "Sazón" (matches the
+    # Sazón starter per settings_runtime.py; the earlier "Saskia RMS"
+    # expectation predates the multi-client rename).
+    assert cfg["business_name"] == "Sazón"
     assert cfg["accent_color"] == "#f97316"
 
 
@@ -224,13 +224,15 @@ def test_set_branding_round_trip():
         tagline="Horneando desde 1990",
         footer="Hecho en Asunción",
         accent_color="#000000",
-        logo_path="/static/logo.png",
+        logo_filename="logo.png",
     )
     cfg = sr.get_branding(sess)
     assert cfg["business_name"] == "Panadería Sol"
     assert cfg["tagline"] == "Horneando desde 1990"
     assert cfg["accent_color"] == "#000000"
-    assert cfg["logo_path"] == "/static/logo.png"
+    # 2026-10-07: key renamed logo_path → logo_filename (uploads land in
+    # app/static/branding/<id>/, only the filename persists).
+    assert cfg["logo_filename"] == "logo.png"
 
 
 def test_set_branding_partial_update():
@@ -287,6 +289,7 @@ def test_get_branding_preserves_4digit_in_middle_of_footer():
 def test_settings_runtime_public_api_exports():
     """The module's __all__ is the contract for downstream imports."""
     expected = {
+        # Pre-existing exports
         "DEFAULT_BRANDING",
         "DEFAULT_PRICING_MARKUP",
         "compute_suggested_price",
@@ -296,5 +299,19 @@ def test_settings_runtime_public_api_exports():
         "set_pricing_markup",
         "settings_get",
         "settings_set",
+        # Batch B1+B2+B3+B4+B5 (2026-10-07): per-domain cfg helpers
+        "DEFAULT_ALERTS_CONFIG",
+        "DEFAULT_BACKUP_CONFIG",
+        "DEFAULT_EOD_CONFIG",
+        "DEFAULT_LOYALTY_CONFIG",
+        # Batch B5 (2026-10-07): rate-limit cfg helper
+        "DEFAULT_PRE_SALE_CONFIG",
+        "DEFAULT_RATE_LIMIT_CONFIG",
+        "get_alerts_config",
+        "get_backup_config",
+        "get_eod_config",
+        "get_loyalty_config",
+        "get_pre_sale_config",
+        "get_rate_limit_config",
     }
     assert set(sr.__all__) == expected

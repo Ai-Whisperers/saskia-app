@@ -27,6 +27,7 @@ import os
 import sys
 from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from loguru import logger
@@ -60,10 +61,13 @@ from app.rms.migrations._095_soft_delete_columns import _migration_095_soft_dele
 from app.rms.migrations._096_audit_columns import _migration_096_audit_columns
 from app.rms.migrations._097_ingredient_avg_cost import _migration_097_ingredient_avg_cost
 from app.rms.migrations._098_production_closed_day import _migration_098_production_closed_day
-from app.rms.migrations._098_customer_phone import _migration_098_customer_phone
-from app.rms.migrations._099_production_completion_updated_at import _migration_099_production_completion_updated_at
+from app.rms.migrations._099_production_completion_updated_at import (
+    _migration_099_production_completion_updated_at,
+)
 from app.rms.migrations._100_freezer_temperature_log import _migration_100_freezer_temperature_log
-from app.rms.migrations._101_recipe_fermentation_minutes import _migration_101_recipe_fermentation_minutes
+from app.rms.migrations._101_recipe_fermentation_minutes import (
+    _migration_101_recipe_fermentation_minutes,
+)
 from app.rms.migrations._102_waste_log_source import _migration_102_waste_log_source
 from app.rms.migrations._103_production_demand_split import _migration_103_production_demand_split
 from app.rms.migrations._104_product_sold_by_weight import (
@@ -76,17 +80,18 @@ from app.rms.migrations._108_sale_tip import _migration_108_sale_tip
 from app.rms.migrations._109_menu_ejecutivo import _migration_109_menu_ejecutivo
 from app.rms.migrations._110_held_sale import _migration_110_held_sale
 from app.rms.migrations._111_sale_channel_check import _migration_111_sale_channel_check
-
-from loguru import logger
-from sqlalchemy import create_engine, event, text
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, sessionmaker
-
-from app.rms.config import (
-    CURRENT_SCHEMA_VERSION,
-    DB_PATH,
-    ensure_dirs,
+from app.rms.migrations._112_extended_channel_check import _migration_112_extended_channel_check
+from app.rms.migrations._113_shopping_price_snapshot import _migration_113_shopping_price_snapshot
+from app.rms.migrations._114_settings_kv_consolidation import (
+    _migration_114_settings_kv_consolidation,
 )
+from app.rms.migrations._115_allergen_dietary_tags import (
+    _migration_115_allergen_dietary_tags,
+)
+from app.rms.migrations._116_eod_alert_templates import (
+    _migration_116_eod_alert_templates,
+)
+from app.rms.models.channels import Channel
 
 
 def _set_sqlite_pragmas(dbapi_conn: Any, _: Any) -> None:
@@ -1856,12 +1861,23 @@ def _migration_041_channel_catalog(conn: Any) -> None:
         )
     )
 
+    # P43 (2026-10-07): seed ALL Channel enum values (previously
+    # omitted "other"). Source the codes from Channel.X.value so the
+    # seed stays in sync with the enum if it ever grows.
     channels = [
-        ("mostrador", "Mostrador", 10, True),
-        ("mostrador-encargo", "Mostrador (encargo)", 20, False),
-        ("whatsapp", "WhatsApp", 30, False),
-        ("pedidosya", "PedidosYa", 40, False),
-        ("monchis", "Monchis", 50, False),
+        (Channel.MOSTRADOR.value, "Mostrador", 10, True),
+        (Channel.MOSTRADOR_ENCARGO.value, "Mostrador (encargo)", 20, False),
+        (Channel.WHATSAPP.value, "WhatsApp", 30, False),
+        (Channel.PEDIDOSYA.value, "PedidosYa", 40, False),
+        (Channel.MONCHIS.value, "Monchis", 50, False),
+        # SASKIA-204 (2026-10-07): HEREBUS channels. Added in
+        # migration 112 to surface silent skew where 9 of 346 sales
+        # were collapsing to "mostrador" via the import fallback.
+        (Channel.RETAIL.value, "Retail", 70, False),
+        (Channel.WHOLESALE.value, "Mayorista", 80, False),
+        (Channel.DISTRIBUTOR.value, "Distribuidor", 90, False),
+        (Channel.EVENTUAL.value, "Eventual", 100, False),
+        (Channel.OTHER.value, "Otro", 60, False),
     ]
     for code, label, sort, is_default in channels:
         conn.execute(
@@ -2746,7 +2762,7 @@ def _migration_060_tag_normalization(conn: Any) -> None:
             iid, name = r
             try:
                 tags = infer_dietary_tags(name or "")
-            except Exception:  # noqa: S112 — skip rows with bad data, log elsewhere
+            except Exception:  # noqa: S112
                 continue
             new_value = _to_canonical_m60(",".join(tags)) if tags else None
             # SELECT prior value to skip no-op writes (Postgres triggers fire
@@ -3012,7 +3028,7 @@ def _migration_067_pedido_public_token_expiry(conn: Any) -> None:
                     # Fallback: try the most common SQLite format.
                     from datetime import datetime as _dt2
 
-                    parsed = _dt2.strptime(normalized, "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007 — stored as naive UTC in DB
+                    parsed = _dt2.strptime(normalized, "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007
                 expires = parsed + _td(days=30)
             else:
                 expires = created + _td(days=30)
@@ -4260,6 +4276,11 @@ MIGRATIONS = {
     109: _migration_109_menu_ejecutivo,
     110: _migration_110_held_sale,
     111: _migration_111_sale_channel_check,
+    112: _migration_112_extended_channel_check,
+    113: _migration_113_shopping_price_snapshot,
+    114: _migration_114_settings_kv_consolidation,
+    115: _migration_115_allergen_dietary_tags,
+    116: _migration_116_eod_alert_templates,
 }
 
 
@@ -4376,9 +4397,7 @@ def _current_schema_version(conn: Any) -> int:
     """
     import json as _json
 
-    row = conn.execute(
-        text("SELECT value FROM app_meta WHERE key = 'schema_version'")
-    ).first()
+    row = conn.execute(text("SELECT value FROM app_meta WHERE key = 'schema_version'")).first()
     if row is None:
         return 0
     val = row[0]
@@ -4401,7 +4420,7 @@ def _current_schema_version(conn: Any) -> int:
 # On Render/VPS this is ephemeral (reboots wipe it) — for permanent
 # backups, the daily 03:15 cron pushes to R2. This dir is a safety
 # net for "I just made a change and want to roll back RIGHT NOW".
-PRE_MIGRATION_BACKUP_DIR = "/tmp/sazon-backups"
+PRE_MIGRATION_BACKUP_DIR = "/tmp/sazon-backups"  # noqa: S108
 
 
 def _backup_dir_path() -> "Path":
@@ -4469,8 +4488,9 @@ def sync_backup_before_migration(
 
     # Lazy imports to keep db.py import-safe (no side effects on
     # import — important for tests that import db.py without a DB).
-    from app.rms.backup import backup_database
     from sqlalchemy.orm import sessionmaker
+
+    from app.rms.backup import backup_database
 
     ts = _dt.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     dest = backup_dir_path / f"sazon-pre-mig-v{from_version:04d}-to-v{to_version:04d}-{ts}.json.gz"
@@ -4644,9 +4664,7 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
                 to_version=current + 1,
             )
             if backup_path is not None:
-                logger.info(
-                    f"Pre-migration backup written: {backup_path}"
-                )
+                logger.info(f"Pre-migration backup written: {backup_path}")
         except Exception as backup_exc:
             # Fail-closed: a bad backup should stop the migration
             # unless the operator has explicitly opted into degraded

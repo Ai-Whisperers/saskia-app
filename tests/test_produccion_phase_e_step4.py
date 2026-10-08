@@ -9,12 +9,14 @@ the 3 GET print/export routes into focused modules. The contract is:
 3. No new 500s on the POST routes (verified via the existing
    v2 test suites which exercise these endpoints).
 """
+
 from __future__ import annotations
 
 
 def test_operations_module_imports():
     """app/routers/produccion/operations.py must exist and import cleanly."""
-    from app.routers.produccion import operations  # noqa: F401
+    from app.routers.produccion import operations
+
     assert hasattr(operations, "produccion_override")
     assert hasattr(operations, "produccion_copy_last_week")
     assert hasattr(operations, "produccion_closed_toggle")
@@ -28,7 +30,8 @@ def test_operations_module_imports():
 
 def test_print_export_module_imports():
     """app/routers/produccion/print_export.py must exist and import cleanly."""
-    from app.routers.produccion import print_export  # noqa: F401
+    from app.routers.produccion import print_export
+
     assert hasattr(print_export, "produccion_print")
     assert hasattr(print_export, "produccion_export_csv")
     assert hasattr(print_export, "produccion_prep")
@@ -36,14 +39,16 @@ def test_print_export_module_imports():
 
 def test_templates_module_imports():
     """app/routers/produccion/templates_ops.py must exist (2 template POSTs)."""
-    from app.routers.produccion import templates_ops  # noqa: F401
+    from app.routers.produccion import templates_ops
+
     assert hasattr(templates_ops, "produccion_template_set")
     assert hasattr(templates_ops, "produccion_template_fork_week")
 
 
 def test_forecast_module_imports():
     """app/routers/produccion/forecast.py must exist (api/forecast + manana)."""
-    from app.routers.produccion import forecast  # noqa: F401
+    from app.routers.produccion import forecast
+
     assert hasattr(forecast, "produccion_api_forecast")
     assert hasattr(forecast, "produccion_manana")
 

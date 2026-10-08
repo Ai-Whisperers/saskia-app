@@ -29,8 +29,6 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from loguru import logger
 from sqlalchemy import text
 
-from app.rms.clock import now as clock_now
-
 router = APIRouter()
 
 
@@ -56,7 +54,7 @@ def _get_last_backup_at(request: Request) -> str | None:
         with request.app.state.session_factory() as s:
             row = s.scalars(select(AppMeta).where(AppMeta.key == "last_backup_at")).first()
             return row.value if row else None
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         # On any DB error we report "no backup" rather than failing the
         # endpoint. The /healthz/db endpoint already surfaces DB issues.
         return None
@@ -89,8 +87,8 @@ def _check_supabase_reachable(url: str, timeout: float = 2.0) -> dict[str, Any]:
 
     t0 = _time.monotonic()
     try:
-        req = urllib.request.Request(health, method="GET")  # noqa: S310 — health probe, scheme parsed from env URL
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 — health probe, scheme parsed from env URL
+        req = urllib.request.Request(health, method="GET")  # noqa: S310
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
             latency_ms = int((_time.monotonic() - t0) * 1000)
             ok = 200 <= resp.status < 300
             return {
@@ -164,7 +162,7 @@ def _check_r2_reachable(timeout: float = 2.0) -> bool:
         # as `object` upstream, so we cast for type-checker clarity.
         client.head_bucket(Bucket=settings.bucket)  # type: ignore[attr-defined]
         return True
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         return False
 
 
@@ -250,9 +248,7 @@ def healthz_depth(request: Request) -> JSONResponse:
             "total_bytes": int(usage.total),
             "used_pct": round(100.0 * usage.used / usage.total, 1) if usage.total else 0.0,
         }
-    except (
-        Exception  # noqa: BLE001 — disk probe is best-effort
-    ) as disk_exc:  # pragma: no cover - defensive
+    except Exception as disk_exc:  # pragma: no cover - defensive
         disk = {"ok": False, "error": repr(disk_exc), "path": str(DATA_DIR)}
 
     # --- r2 (best-effort HEAD probe; 3s timeout) ---
@@ -270,7 +266,7 @@ def healthz_depth(request: Request) -> JSONResponse:
             with urllib.request.urlopen(req, timeout=3) as resp:  # noqa: S310
                 r2["status"] = resp.status
                 r2["ok"] = 200 <= resp.status < 400
-        except Exception as r2_exc:  # noqa: BLE001 — best-effort probe
+        except Exception as r2_exc:
             r2["ok"] = False
             r2["error"] = repr(r2_exc)[:200]
 
@@ -395,7 +391,7 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
     for pkg in ("supabase", "supabase-auth", "fastapi", "starlette"):
         try:
             pkgs[pkg] = md.version(pkg)
-        except Exception:  # noqa: BLE001 — defensive default
+        except Exception:
             pkgs[pkg] = "NOT INSTALLED"
 
     # --- Supabase reachability ---
@@ -431,7 +427,7 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
     # --- Disk usage ---
     # The app stores DB + state under this root. On VPS: /opt/data.
     # On dev boxes: /tmp. Report on whatever exists.
-    disk_root = "/opt/data" if os.path.isdir("/opt/data") else "/tmp"  # noqa: S108 — operator chose /tmp as fallback root
+    disk_root = "/opt/data" if os.path.isdir("/opt/data") else "/tmp"  # noqa: S108
     try:
         usage = _disk_usage(disk_root)
         total_gb = usage.total / (1024**3)
@@ -533,7 +529,7 @@ def healthz_db(request: Request) -> JSONResponse:
                     payload["last_audit_at"] = last.isoformat()
                 else:
                     payload["last_audit_at"] = str(last)
-        except Exception as inner_exc:  # noqa: BLE001 — defensive default
+        except Exception as inner_exc:
             # Don't 503 the whole endpoint — DB is reachable, the metadata
             # queries aren't. Surface the detail so the operator can tell
             # the difference between "DB down" and "audit table missing".
@@ -549,7 +545,7 @@ def healthz_db(request: Request) -> JSONResponse:
 
         _set_db_up(True)
         return payload
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         from app.rms.metrics import set_db_up as _set_db_up
 
         _set_db_up(False)
@@ -581,7 +577,7 @@ def _summary_check_db(request: Request) -> dict[str, Any]:
                 if last
                 else None,
             }
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         return {"ok": False, "detail": str(exc)[:200]}
 
 
@@ -620,7 +616,7 @@ def _summary_check_errors(request: Request) -> dict[str, Any]:
                 or 0
             )
         return {"ok": True, "last_1h": int(n_1h), "last_24h": int(n_24h)}
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         return {"ok": False, "detail": str(exc)[:200]}
 
 
@@ -686,7 +682,7 @@ def _summary_check_disk(request: Request) -> dict[str, Any]:
             "used_pct": used_pct,
             "free_gb": round(u.free / 1024**3, 1),
         }
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         return {"ok": False, "detail": str(exc)[:200]}
 
 
@@ -807,7 +803,7 @@ def healthz_migrate(request: Request) -> object:
 
     try:
         init_db(engine)
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.exception("admin_migrate failed")
         return JSONResponse(
             status_code=500,
@@ -949,6 +945,7 @@ def api_smoke_waste_source_mix(request: Request) -> JSONResponse:
     aggregate, no PII — each row is `count, cost_gs` per source).
     """
     from datetime import datetime, timedelta, timezone
+
     from sqlalchemy import text
 
     # Reuse the lifespan-installed engine so we don't open a second
@@ -976,23 +973,18 @@ def api_smoke_waste_source_mix(request: Request) -> JSONResponse:
                 ),
                 {"start": start, "end": end},
             ).all()
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.exception("api_smoke_waste_source_mix failed")
         return JSONResponse(
             status_code=500,
             content={"status": "error", "error": str(exc)[:500]},
         )
 
-    mix = {
-        str(r[0]): {"n_events": int(r[1]), "cost_gs": int(r[2])}
-        for r in rows
-    }
+    mix = {str(r[0]): {"n_events": int(r[1]), "cost_gs": int(r[2])} for r in rows}
     # Total + share for the dashboard without recomputing.
     n_total = sum(v["n_events"] for v in mix.values())
     n_production = mix.get("production", {}).get("n_events", 0)
-    share_production = (
-        round(100.0 * n_production / n_total, 1) if n_total else 0.0
-    )
+    share_production = round(100.0 * n_production / n_total, 1) if n_total else 0.0
     return JSONResponse(
         status_code=200,
         content={
@@ -1044,7 +1036,7 @@ def admin_migrate(request: Request) -> object:
 
     try:
         init_db(engine)
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.exception("admin_migrate failed")
         return JSONResponse(
             status_code=500,
@@ -1084,7 +1076,11 @@ def admin_migrate(request: Request) -> object:
 # BACKUP_THRESHOLD_HOURS in app/rms/config.py.
 
 
-BACKUP_STALE_HOURS = 24  # kept in sync with BACKUP_THRESHOLD_HOURS
+# Batch B4 (2026-10-07): was previously a hardcode duplicate of
+# BACKUP_THRESHOLD_HOURS in app/rms/config.py. Now imports the
+# canonical value. If the operator changes the env var
+# (AIW_RMS_BACKUP_HOURS), /healthz/backup stays in sync automatically.
+from app.rms.config import BACKUP_THRESHOLD_HOURS as BACKUP_STALE_HOURS
 
 
 @router.get("/healthz/backup", response_model=None)
@@ -1144,15 +1140,14 @@ def healthz_backup(request: Request) -> JSONResponse:
     )
 
 
-def _run_backup_admin(request: Request) -> "BackupResult":  # noqa: F821 — BackupResult imported inside
+def _run_backup_admin(request: Request) -> "BackupResult":
     """Run run_backup in a fresh session; returns a BackupResult.
 
     Extracted from admin_backup() so tests can patch it (mocking at
     the request.app.state.session_factory level is more invasive).
     """
     from app.rms.config import DB_PATH
-    from app.services.backup_scheduler import (  # noqa: F401 — used in return-type annotation
-        BackupResult,
+    from app.services.backup_scheduler import (
         run_backup,
     )
 
@@ -1186,13 +1181,111 @@ def admin_backup(request: Request) -> object:
 
     try:
         result = _run_backup_admin(request)
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.exception("admin_backup failed")
         return JSONResponse(
             status_code=500,
             content={"error": "backup_failed", "detail": str(exc)[:500]},
         )
 
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "backup_complete",
+            "local_path": str(result.local_path) if result.local_path else None,
+            "r2_uploaded": result.r2_uploaded,
+            "r2_key": result.r2_key,
+            "local_pruned": result.local_pruned,
+            "skipped": result.skipped,
+            "reason": result.reason,
+        },
+    )
+
+
+@router.post("/admin/backup/cron")
+def admin_backup_cron(request: Request) -> object:
+    """B.8 (BACKLOG #39): host-level cron trigger for run_backup().
+
+    The lifespan hook in app/rms/main.py runs run_backup() on app
+    startup. That works for short deploys but a container that's been
+    up for 30 days only backs up once. This endpoint lets a host-level
+    cron job (`0 3 * * * curl -X POST -H "X-Cron-Token:
+    $SASKIA_CRON_BACKUP_TOKEN" https://.../admin/backup/cron`) trigger
+    a backup on a fixed daily schedule independent of deploys.
+
+    Auth: shared secret in `SASKIA_CRON_BACKUP_TOKEN` env var. The
+    token is checked with `hmac.compare_digest` to avoid timing
+    oracles. Missing token in env → 503 (fail closed so a misconfigured
+    deploy doesn't accept empty tokens). Missing header → 401. Wrong
+    token → 401 with a generic error (no token-guessing oracle).
+
+    The endpoint runs _run_backup_admin() synchronously so the cron
+    wrapper script sees a final status in the response body (no
+    polling needed). Returns the same JSON shape as /admin/backup.
+
+    Exit-code contract for the cron wrapper (see scripts/backup_cron.py):
+    - 200 → success (skipped=True is also success; the wrapper logs it
+      and exits 0)
+    - 401/503 → config error, do not retry, alert the operator
+    - 500 → backup raised; the wrapper exits 2 so monitoring can fire
+
+    Setting up:
+    1. Generate a token: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+    2. Put it in /etc/sazon/cron-backup.env: `SASKIA_CRON_BACKUP_TOKEN=<token>`
+    3. Source that env in the crontab, then curl this endpoint
+       (see docs/operations/backup-cron.md for the full crontab line).
+    """
+    import hmac
+    import os
+
+    expected = os.getenv("SASKIA_CRON_BACKUP_TOKEN")
+    if not expected:
+        # Fail closed: never accept empty token, even if the request
+        # forgot to send the header. A 503 lets monitoring distinguish
+        # "you forgot to set the env var" from "the request is bad".
+        logger.error("admin_backup_cron: SASKIA_CRON_BACKUP_TOKEN not set in env")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "cron_token_unconfigured",
+                "hint": (
+                    "Set SASKIA_CRON_BACKUP_TOKEN in the app's env "
+                    "(see docs/operations/backup-cron.md)."
+                ),
+            },
+        )
+
+    # Read the X-Cron-Token header. Request.headers is case-insensitive
+    # in Starlette so "X-Cron-Token" / "x-cron-token" both work.
+    provided = request.headers.get("X-Cron-Token", "")
+    if not provided:
+        return JSONResponse(
+            status_code=401,
+            content={"error": "missing_cron_token"},
+        )
+
+    # compare_digest is constant-time, avoiding the timing oracle
+    # that == would create.
+    if not hmac.compare_digest(provided, expected):
+        return JSONResponse(
+            status_code=401,
+            content={"error": "invalid_cron_token"},
+        )
+
+    try:
+        result = _run_backup_admin(request)
+    except Exception as exc:
+        logger.exception("admin_backup_cron failed")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "backup_failed", "detail": str(exc)[:500]},
+        )
+
+    logger.info(
+        f"admin_backup_cron: status=complete "
+        f"skipped={result.skipped} r2_uploaded={result.r2_uploaded} "
+        f"local_pruned={result.local_pruned}"
+    )
     return JSONResponse(
         status_code=200,
         content={

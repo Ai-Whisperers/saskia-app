@@ -71,7 +71,7 @@
 <section>
   <h2>3. Reposición necesaria</h2>
   {% if reorder_count > 0 %}
-  <p><strong>{{ reorder_count }} ingredientes por debajo del mínimo</strong> — estimado ₲ {{ "{:,}".format(reorder_total_gs).replace(",", ".") }}</p>
+  <p><strong>{{ reorder_count }} ingredientes por debajo del mínimo</strong> — estimado {{ m.gs_full(reorder_total_gs) }}</p>
   <table>
     <thead>
       <tr>
@@ -87,7 +87,7 @@
         <td>{{ item.ingredient_name }}</td>
         <td class="text-right" >{{ "%.2f"|format(item.stock_qty) }} {{ item.unit }}</td>
         <td class="text-right" >{{ "%.2f"|format(item.min_qty) }} {{ item.unit }}</td>
-        <td class="text-right" >{% if item.has_price %}₲ {{ "{:,}".format(item.estimated_cost_gs).replace(",", ".") }}{% else %}-{% endif %}</td>
+        <td class="text-right" >{% if item.has_price %}{{ m.gs_full(item.estimated_cost_gs) }}{% else %}-{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>

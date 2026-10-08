@@ -18,11 +18,6 @@ This test must:
 2. Set AIW_RMS_DB_PATH to override AIW_SASKIA_DB_PATH (canonical wins).
 3. With neither set, fall back to DATA_DIR/rms.sqlite.
 """
-import importlib
-import os
-from pathlib import Path
-
-import pytest
 
 
 def _reload_config(monkeypatch, env: dict[str, str | None]):
@@ -42,11 +37,13 @@ def _reload_config(monkeypatch, env: dict[str, str | None]):
 
     # Drop config + any module that imported DB_PATH
     import sys
+
     for mod_name in list(sys.modules.keys()):
         if mod_name == "app.rms.config" or mod_name.startswith("app."):
             del sys.modules[mod_name]
 
     from app.rms import config
+
     return config
 
 
@@ -56,11 +53,14 @@ def test_db_path_accepts_legacy_aiw_saskia_db_path(monkeypatch, tmp_path):
     DATA_DIR/rms.sqlite which is empty in prod."""
     target = tmp_path / "saskia.sqlite"
     target.touch()
-    config = _reload_config(monkeypatch, {
-        "AIW_SASKIA_DB_PATH": str(target),
-        "AIW_RMS_DB_PATH": None,
-        "AIW_RMS_DATA_DIR": None,
-    })
+    config = _reload_config(
+        monkeypatch,
+        {
+            "AIW_SASKIA_DB_PATH": str(target),
+            "AIW_RMS_DB_PATH": None,
+            "AIW_RMS_DATA_DIR": None,
+        },
+    )
     assert config.DB_PATH == target, (
         f"DB_PATH should be {target} (from AIW_SASKIA_DB_PATH), got {config.DB_PATH}"
     )
@@ -73,10 +73,13 @@ def test_db_path_prefers_aiw_rms_db_path_over_legacy(monkeypatch, tmp_path):
     legacy = tmp_path / "legacy.sqlite"
     canonical.touch()
     legacy.touch()
-    config = _reload_config(monkeypatch, {
-        "AIW_RMS_DB_PATH": str(canonical),
-        "AIW_SASKIA_DB_PATH": str(legacy),
-    })
+    config = _reload_config(
+        monkeypatch,
+        {
+            "AIW_RMS_DB_PATH": str(canonical),
+            "AIW_SASKIA_DB_PATH": str(legacy),
+        },
+    )
     assert config.DB_PATH == canonical, (
         f"AIW_RMS_DB_PATH should win over AIW_SASKIA_DB_PATH. "
         f"Got {config.DB_PATH}, expected {canonical}"
@@ -85,12 +88,13 @@ def test_db_path_prefers_aiw_rms_db_path_over_legacy(monkeypatch, tmp_path):
 
 def test_db_path_defaults_to_data_dir_when_neither_set(monkeypatch, tmp_path):
     """With both env vars unset, DB_PATH falls back to DATA_DIR/rms.sqlite."""
-    config = _reload_config(monkeypatch, {
-        "AIW_RMS_DB_PATH": None,
-        "AIW_SASKIA_DB_PATH": None,
-        "AIW_RMS_DATA_DIR": str(tmp_path / "data"),
-    })
-    expected = tmp_path / "data" / "rms.sqlite"
-    assert config.DB_PATH == expected, (
-        f"DB_PATH should default to {expected}, got {config.DB_PATH}"
+    config = _reload_config(
+        monkeypatch,
+        {
+            "AIW_RMS_DB_PATH": None,
+            "AIW_SASKIA_DB_PATH": None,
+            "AIW_RMS_DATA_DIR": str(tmp_path / "data"),
+        },
     )
+    expected = tmp_path / "data" / "rms.sqlite"
+    assert config.DB_PATH == expected, f"DB_PATH should default to {expected}, got {config.DB_PATH}"

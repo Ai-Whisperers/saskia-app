@@ -1,4 +1,5 @@
-"""tests/test_public_recibo.py — BACKLOG #17 (/r/{token} digital recibo share).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_public_recibo.py — BACKLOG #17 (/r/{token} digital recibo share).
 
 Coverage:
   - POST /ventas/{id}/share issues a fresh token + 30-day expiry

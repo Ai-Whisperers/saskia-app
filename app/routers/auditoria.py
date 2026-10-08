@@ -8,7 +8,13 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
@@ -40,7 +46,7 @@ _MERMA_SOURCE_CHIPS = {
 }
 
 
-def _source_chip_for(row) -> tuple[str, str]:
+def _source_chip_for(row) -> tuple[str, str]:  # noqa: ANN001
     """Return (chip_text, badge_class) for a merma audit row, or ("", "")
     if the row is not a merma event or has no source tag."""
     if not row.action or not row.action.startswith("write.merma"):
@@ -146,7 +152,8 @@ def auditoria_index(
     # we apply it unconditionally (no-op on non-merma rows).
     if source:
         rows = [
-            r for r in rows
+            r
+            for r in rows
             if isinstance(r.detail, dict) and str(r.detail.get("source", "") or "") == source
         ]
 
@@ -160,10 +167,20 @@ def auditoria_index(
     paginated = rows[offset : offset + PAGE_SIZE]
 
     # P-43: redact sensitive keys in audit detail before rendering.
-    SENSITIVE_KEYS = frozenset({
-        "password", "passwd", "secret", "api_key", "apikey",
-        "token", "authorization", "auth", "credential", "credentials",
-    })
+    SENSITIVE_KEYS = frozenset(
+        {
+            "password",
+            "passwd",
+            "secret",
+            "api_key",
+            "apikey",
+            "token",
+            "authorization",
+            "auth",
+            "credential",
+            "credentials",
+        }
+    )
 
     def fmt_detail(detail: dict) -> list[tuple[str, str]]:
         if not detail:
@@ -191,7 +208,9 @@ def auditoria_index(
         {
             "row": r,
             "detail_pairs": fmt_detail(r.detail or {}),
-            "user_agent_short": (r.user_agent[:60] + "...") if r.user_agent and len(r.user_agent) > 60 else r.user_agent,
+            "user_agent_short": (r.user_agent[:60] + "...")
+            if r.user_agent and len(r.user_agent) > 60
+            else r.user_agent,
             # PROD-MERMA-2: surface the entrypoint on /auditoria so operators
             # triaging merma events see where they came from without expanding
             # the detail panel. Empty string when not applicable.
@@ -202,24 +221,28 @@ def auditoria_index(
 
     presets = _date_presets()
 
-    return render(request, "auditoria.html", {
-        "formatted_rows": formatted_rows,
-        "page": page,
-        "total_pages": total_pages,
-        "total_count": total_count,
-        "limit": limit,
-        "action_filter": action_filter or "",
-        "start_date": start_date or "",
-        "end_date": end_date or "",
-        "ip_filter": ip_filter or "",
-        "user_filter": user_filter or "",
-        "target_type": target_type or "",
-        "target_id": target_id or "",
-        "source": source or "",  # PROD-MERMA-2
-        "presets": presets,
-        "page_start": (page - 1) * 50 + 1,
-        "page_end": min(page * 50, total_count),
-    })
+    return render(
+        request,
+        "auditoria.html",
+        {
+            "formatted_rows": formatted_rows,
+            "page": page,
+            "total_pages": total_pages,
+            "total_count": total_count,
+            "limit": limit,
+            "action_filter": action_filter or "",
+            "start_date": start_date or "",
+            "end_date": end_date or "",
+            "ip_filter": ip_filter or "",
+            "user_filter": user_filter or "",
+            "target_type": target_type or "",
+            "target_id": target_id or "",
+            "source": source or "",  # PROD-MERMA-2
+            "presets": presets,
+            "page_start": (page - 1) * 50 + 1,
+            "page_end": min(page * 50, total_count),
+        },
+    )
 
 
 @router.get("/export.csv")
@@ -231,7 +254,9 @@ def auditoria_export_csv(
     user_filter: str | None = Query(None),
     target_type: str | None = Query(None),
     target_id: str | None = Query(None),
-    source: str | None = Query(None, description="Filter by detail.source (production|manual)"),  # PROD-MERMA-2
+    source: str | None = Query(
+        None, description="Filter by detail.source (production|manual)"
+    ),  # PROD-MERMA-2
     session: Session = Depends(get_session),
 ) -> Response:
     """Export audit log rows matching the current filters as a CSV download.

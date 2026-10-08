@@ -31,15 +31,13 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+# --- Tax config ---
+# PARAGUAY_IVA_RATE + IVA_DIVISOR live in app/rms/constants.py (T3 location
+# per static-content audit). Re-exported here so callers that already do
+# `from app.rms.accounting import PARAGUAY_IVA_RATE` keep working.
+from app.rms.constants import IVA_DIVISOR, PARAGUAY_IVA_RATE
 from app.rms.models import Customer, Ingredient, Product, Sale, StockMovement
 from app.rms.money import to_int_gs
-
-# --- Tax config ---
-
-
-# Paraguay IVA: 10% on most food items.
-PARAGUAY_IVA_RATE = Decimal("0.10")
-IVA_DIVISOR = Decimal("1.10")  # gross / 1.10 = net
 
 
 def sales_in_window(

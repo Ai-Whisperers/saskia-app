@@ -109,7 +109,9 @@ def test_reorder_urgency_label_spanish_in_template():
     """The /reorder template contains Spanish urgency labels (no raw %)."""
     from pathlib import Path
 
-    template = Path("/opt/data/work/sazon-app/app/templates/reorder.html").read_text()
+    repo_root = Path(__file__).resolve().parents[1]
+
+    template = Path(str(repo_root) + "/app/templates/reorder.html").read_text()
     # Spanish labels per app/rms/reorder.py
     assert "sin stock" in template.lower()
     assert "bajo mínimo" in template.lower()

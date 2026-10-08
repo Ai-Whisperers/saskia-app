@@ -23,6 +23,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.errors import NotFound
@@ -46,6 +47,17 @@ def price_field(p: float) -> int:
 
 
 _FLOAT_LONG = __import__("re").compile(r"\d+\.\d{3,}")
+
+
+def _price_snapshot(session: Session, ingredient_id: int) -> int | None:
+    """Freeze the ingredient's current purchase price onto a new
+    ShoppingListItem row (SASKIA-206). Returns None when the ingredient
+    has no price yet — the UI falls back to the live price for those
+    rows, matching pre-113 behavior."""
+    ing = session.get(Ingredient, ingredient_id)
+    if ing is None or not ing.purchase_price_gs:
+        return None  # no price yet (NULL or 0) — UI falls back to live
+    return int(ing.purchase_price_gs)
 
 
 def _clean_purpose(text: str | None) -> str | None:
@@ -151,8 +163,16 @@ def shopping_list_index(
 
     items = session.execute(stmt).scalars().all()
 
+    # SASKIA-206: prefer the frozen row price; fall back to live price
+    # for pre-113 rows without a snapshot.
     total_gs = sum(
-        price_field(i.qty_to_buy or 0) * (i.ingredient.purchase_price_gs or 0) for i in items
+        price_field(i.qty_to_buy or 0)
+        * (
+            i.unit_price_snapshot_gs
+            if i.unit_price_snapshot_gs is not None
+            else (i.ingredient.purchase_price_gs or 0)
+        )
+        for i in items
     )
 
     by_ingredient = {}
@@ -207,18 +227,72 @@ def mark_purchased(
     item_id: int,
     session: Session = Depends(get_session),
 ) -> object:
+    """Mark a shopping-list row bought AND land it in inventory.
+
+    SASKIA-205 (2026-10-07): previously this only flipped `purchased`,
+    so bought stock never appeared on /inventario and reorder
+    suggestions kept nagging for ingredients the operator had already
+    bought. Now the bought qty is converted to the ingredient's stock
+    unit, added to `stock_qty`, and an audit-trail StockMovement
+    (movement_type='reorder') is written — same taxonomy the bulk
+    restock on /inventario uses.
+
+    Idempotency: the stock bump only happens on the purchased=False →
+    True transition. Re-marking or /unmark + re-mark must not double
+    the stock (unmark does NOT subtract — physical stock doesn't
+    un-arrive; the operator can correct via /inventario/ajuste).
+    """
     item = session.get(ShoppingListItem, item_id)
     if not item:
         raise NotFound("ShoppingListItem", id=item_id)
+
+    was_purchased = bool(item.purchased)
     item.purchased = True
     item.purchased_at = datetime.now(timezone.utc)
+
+    stock_bumped = 0.0
+    if not was_purchased and item.ingredient_id:
+        ing = session.get(Ingredient, item.ingredient_id)
+        if ing is not None:
+            # SASKIA-205/207: single stock-ledger path (convert + bump +
+            # movement row). 'raw' policy: non-convertible units land
+            # unconverted rather than blocking the operator.
+            from app.rms.stock_ledger import apply_stock_delta, qty_to_stock_unit
+
+            qty_in_stock_unit = qty_to_stock_unit(
+                item.qty_to_buy or 0, item.unit, ing, on_mismatch="raw"
+            )
+            apply_stock_delta(
+                session,
+                ing,
+                qty_in_stock_unit,
+                movement_type="reorder",
+                reason=(
+                    f"Compra shopping-list #{item.id}"
+                    f" ({item.qty_to_buy:g} {item.unit})"
+                    f" — {item.purpose_text or 'sin destino'}"
+                ),
+                reference_id=item.id,
+                reference_type="reorder",
+                created_by=current_operator(request),
+            )
+            stock_bumped = qty_in_stock_unit
+            logger.info(
+                "shopping_purchase_to_stock item={} ing={} +{} {}",
+                item.id,
+                ing.id,
+                qty_in_stock_unit,
+                ing.unit,
+            )
+
     session.commit()
     logger.info(
-        "shopping_item_purchased id={} ingredient_id={} qty={} {}",
+        "shopping_item_purchased id={} ingredient_id={} qty={} {} stock_bumped={}",
         item.id,
         item.ingredient_id,
         item.qty_to_buy,
         item.unit,
+        stock_bumped,
     )
     record_audit(
         request,
@@ -226,7 +300,10 @@ def mark_purchased(
         action="shopping.mark_purchased",
         target_type="ShoppingListItem",
         target_id=item.id,
-        detail={"ingredient_id": item.ingredient_id},
+        detail={
+            "ingredient_id": item.ingredient_id,
+            "stock_bumped": stock_bumped,
+        },
     )
     return RedirectResponse(url="/shopping-list", status_code=303)
 
@@ -299,7 +376,7 @@ def from_production_plan(
     from app.rms.production import plan_production
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -345,6 +422,7 @@ def from_production_plan(
                 qty_to_buy=need,
                 unit=ln.unit,
                 purpose_text=purpose,
+                unit_price_snapshot_gs=_price_snapshot(session, ln.ingredient_id),
             )
         )
         existing_by_ing[ln.ingredient_id] = need
@@ -401,6 +479,7 @@ def sync_low_stock(
             qty_to_buy=needed,
             unit=ing.unit,
             purpose_text=purpose_text,
+            unit_price_snapshot_gs=_price_snapshot(session, ing.id),
         )
         session.add(item)
         added += 1
@@ -429,6 +508,7 @@ def add_item(
         qty_to_buy=qty_to_buy,
         unit=unit or ing.unit,
         purpose_text=purpose_text or "Manual addition",
+        unit_price_snapshot_gs=_price_snapshot(session, ingredient_id),
     )
     session.add(item)
     session.commit()
@@ -471,6 +551,7 @@ def save_plan_as_shopping_list(
             qty_to_buy=shortage,
             unit=line.line_unit or ing.unit,
             purpose_text=f"Plan #{plan.id} ({plan.batches_qty}× {plan.recipe.name})",
+            unit_price_snapshot_gs=_price_snapshot(session, ing.id),
         )
         session.add(item)
         n_added += 1

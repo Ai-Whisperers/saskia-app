@@ -28,12 +28,14 @@ the code, and operator-ranked. Status is the latest known state.
 
 | # | Item | Status | Effort |
 |---|---|---|---|
+| 🔔 | **Flash-message unification** (2026-10-07 audit): 67 `flash=<free text>` + 6 `msg=` + 4 `error=` redirect params bypass the keyed `ui.flash_toast` system (only 10 templates include it). Plan: (1) extend the toast's message map with the free-text strings as keys, (2) route the 77 redirect sites to keys, (3) include `{{ ui.flash_toast(request) }}` in every base-extending template (127 total), (4) style `error=` as the error variant. Also drops the URL-encoding of Spanish text in redirects. | ⬜ Open | M |
+
 | 7 | `void_sale` → all money math must use Decimal (12 sites swept this turn; flag for future audits) | ✅ Done 5ce2885 | — |
 | 8 | `pedidos_fulfill` idempotency (double-click → double sale + double stock drop) | ✅ Done 5ce2885 | — |
 | 9 | No idempotency on `/eod/check` (double-click submits two checklists) | ✅ Done 2026-09-29 (F3 race + AppMeta unique-key reserve in `app/routers/eod.py`) | — |
 | 10 | Rate-limit on reads (`/ventas/export.csv` can be scraped 1000×/min, cheap DoS) | ✅ SHIPPED (2026-10-01, cea8111 — read_rate_limit_dependency on /api/search 60/min and /reportes/* 30/min) | S |
 | 11 | Sentry / error tracking (when /ventas 500s, neither Ivan nor the operator sees the trace) | ✅ SHIPPED (2026-10-01, tests added in test_sentry_init.py — code in main.py:206-229, 917-928 was already there from a prior turn) | S |
-| 12 | Forward-only migrations — no rollback path (manual write required if 027 breaks) | ❌ TODO | L |
+| 12 | Forward-only migrations — no rollback path (manual write required if 027 breaks) | ✅ Done 2026-10-07 (SASKIA-209: `app/rms/rollback.py` — newest rule-01 archive matching target version → evidence archive → fresh-DB restore + integrity_check + version verify → atomic swap with WAL cleanup + app_meta rollback log; CLI: `sazon rollback --to N --dry-run`; 9 contract tests in `tests/test_SASKIA-209_rollback.py`; 102 sweep pass; commit `dc26df1f`) | — |
 
 ## Tier 3: P1 — Quality / refactoring
 
@@ -73,8 +75,8 @@ the code, and operator-ranked. Status is the latest known state.
 
 | # | Item | Status | Effort |
 |---|---|---|---|
-| 32 | Predictive restocking: Poisson regression on `sale_stock_move` → "expected consumption next 3 days" | ❌ TODO | L |
-| 33 | Plan accuracy dashboard from `ProductionCompletion` | ❌ TODO | M |
+| 32 | Predictive restocking: Poisson regression on `sale_stock_move` → "expected consumption next 3 days" | ✅ Done 2026-10-06 (SASKIA-208: `app/rms/restock_forecast.py:poisson_weekday_rates(session, ingredient_id, window_days)`; per-ingredient Poisson rates aggregated into a forecast; `/eod` + `/reorder` surfaces use it; commit `ede316a3`) | — |
+| 33 | Plan accuracy dashboard from `ProductionCompletion` | ✅ Done 2026-10-02 (`app/rms/plan_accuracy.py:compute_plan_accuracy()` returns AccuracyReport with daily rows + per-product summaries; `/produccion/accuracy` route renders 7d/30d/90d presets; 5 test files: `test_plan_accuracy.py` (9 unit), `test_plan_accuracy_endpoint.py`, `test_plan_accuracy_page.py` (6 page-wire), `test_plan_accuracy_properties_phase14_tier6.py`, `test_plan_accuracy_top_days.py`) | — |
 | 34 | Waste ROI per ingredient (`WasteLog.cost_gs` ÷ `IngredientPriceEvent` trend) | ✅ Done 2026-10-02 (Sprint 4.10: `app/rms/sales_intel.py:waste_roi_by_ingredient(session, since_days=90)` aggregates `WasteLog.cost_gs` per ingredient with avg-per-event + event count, sorted by cost desc; `waste_vs_purchase_trend(ingredient_id, since_days)` returns per-month buckets for sparkline; `/reportes/mermas-cost?days=90` page renders the leaderboard with period selector + ingredient deep-link; 11 tests in `tests/test_waste_roi.py`. Note: full "ROI" (waste_gs ÷ consumed_gs) deferred — needs Sale→RecipeLine→IngredientPriceEvent join that's expensive; v1 ships waste stats only and points operator to `/avikeled/dashboard` for revenue context.) | — |
 | 35 | Per-customer reorder rate (Sale ↔ Customer over time) | ✅ Done 2026-10-02 (Sprint 4.9: `app/rms/sales_intel.py:customer_reorder_rates(session, since_days=90, top_n=10)` returns total_customers + customers_with_2plus_orders + reorder_rate + avg/median gap days + top_repeaters; `/ops/status` page surfaces reorder stats with `≤<code>rate < 20%` early-warning hint; 7 tests in `tests/test_customer_reorder_rates.py`) | — |
 | 36 | Time-of-day sales heatmap (Sale.sold_at by hour) | ✅ Done 2026-10-02 (Sprint 4.8: `app/rms/sales_intel.py:sales_heatmap(session, since_days=90)` returns 7×24 grid bucketed by local weekday + hour; `/reportes/ventas-hora` renders it with CSS hsl() color scale; 5 tests in `tests/test_ventas_hora_heatmap.py`) | — |

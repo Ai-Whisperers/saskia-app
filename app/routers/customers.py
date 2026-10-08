@@ -20,6 +20,7 @@ from starlette.responses import RedirectResponse as StarletteRedirectResponse
 
 logger = logging.getLogger(__name__)
 
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.customers import (
     batch_customer_stats,
@@ -519,6 +520,14 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
         from app.rms.config import ASUNCION_TZ
 
         today_asuncion = datetime.now(ASUNCION_TZ).date()
+        # Batch B1 (2026-10-07): fetch operator-tunable loyalty
+        # thresholds from SettingsKV. Defaults are applied inside
+        # get_loyalty_config() for any missing key. Wrapped in
+        # try/except (already inside an outer except) so a stale
+        # settings row never 500s the picker.
+        from app.rms.settings_runtime import get_loyalty_config
+
+        loyalty_cfg = get_loyalty_config(session)
         suggestions_raw = suggest_for_customer(
             c,
             last_sale_at=stats.last_sale_at,
@@ -526,6 +535,7 @@ def _customer_detail_payload(c: Customer, session: Session) -> dict:
             tier=stats.tier.value,
             redeemed_on_last_visit=redeemed_on_last_visit_flag,
             today=today_asuncion,
+            loyalty_cfg=loyalty_cfg,
         )
         suggestions = [
             {
@@ -984,7 +994,7 @@ async def log_suggestion_applied(
             # JSON path (customer_picker.js uses keepalive fetch)
             try:
                 payload = await request.json()
-            except Exception:  # noqa: BLE001 — defensive: malformed JSON body just means empty payload
+            except Exception:
                 payload = {}
             kind = str((payload or {}).get("kind") or "unknown").strip() or "unknown"
             pct = (payload or {}).get("discount_pct")
@@ -1051,7 +1061,7 @@ def cliente_detail(
         select(LoyaltyTransaction)
         .where(LoyaltyTransaction.customer_id == customer.id)
         .order_by(LoyaltyTransaction.recorded_at.desc())
-        .limit(20)
+        .limit(5)
     ).all()
 
     # Tier badge days-since-last-sale: SQLite returns NAIVE datetimes while
@@ -1214,7 +1224,6 @@ async def cliente_redeem_points(
     Errors render the detail page again with a flash message; success
     redirects back to /clientes/{id} with a flash.
     """
-    from app.auth import current_user_id
     from app.rms.customers import get_customer
     from app.rms.loyalty import redeem_points
 
@@ -1240,7 +1249,7 @@ async def cliente_redeem_points(
             session,
             customer,
             pts,
-            actor=str(current_user_id(request) or "operator"),
+            actor=str(current_operator(request)),
             notes=notes,
         )
     except ValueError:
@@ -1259,13 +1268,16 @@ async def cliente_redeem_points(
     )
 
 
-@router.get("/{customer_id}/editar", response_class=HTMLResponse)
-def cliente_edit(
+def _render_cliente_edit(
     request: Request,
-    customer_id: int = Path(...),
-    session: Session = Depends(get_session),
+    session: Session,
+    customer_id: int,
+    form_values: dict | None = None,
+    form_error: str = "",
 ) -> object:
-    """Edit form for an existing customer."""
+    """Render the cliente_editar.html form. Used by both the GET handler
+    and the POST handler on validation failure (P3.1) so the user`s
+    typed values are preserved."""
     customer = session.get(Customer, customer_id)
     if customer is None:
         return StarletteRedirectResponse(url="/clientes", status_code=303)
@@ -1312,8 +1324,22 @@ def cliente_edit(
             "invoice_profiles": invoice_profiles,
             "how_found_options": sorted(ALLOWED_HOW_FOUND),
             "channel_options": sorted(ALLOWED_CHANNELS),
+            # P3.1: preserve user-typed values + show a visible error
+            # when server-side validation rejects the POST.
+            "form_values": form_values,
+            "form_error": form_error,
         },
     )
+
+
+@router.get("/{customer_id}/editar", response_class=HTMLResponse)
+def cliente_edit(
+    request: Request,
+    customer_id: int = Path(...),
+    session: Session = Depends(get_session),
+) -> object:
+    """Edit form for an existing customer."""
+    return _render_cliente_edit(request, session, customer_id)
 
 
 @router.post("/api/{customer_id}/addresses", response_class=JSONResponse)
@@ -1419,8 +1445,10 @@ def cliente_update(
     invoice_name: str = Form(""),
     invoice_ruc: str = Form(""),
     session: Session = Depends(get_session),
-) -> RedirectResponse:
-    """Update an existing customer's fields."""
+) -> object:  # type: ignore[return-value]
+    """Update an existing customer's fields. On validation failure
+    (P3.1) re-renders the form with the user's typed values + a visible
+    error rather than raising HTTPException 400."""
     from app.rms.validation import (
         optional_text,
         require_text,
@@ -1432,10 +1460,48 @@ def cliente_update(
     customer = session.get(Customer, customer_id)
     if customer is None:
         return RedirectResponse(url="/clientes", status_code=303)
-    customer.name = require_text(name, field="nombre", max_len=120)
-    customer.phone = validate_phone(phone)
-    customer.email = validate_email(email)
-    customer.cedula = validate_cedula(cedula)
+
+    # Snapshot the user's typed values BEFORE validation runs so we can
+    # re-render the form on failure. P3.1.
+    form_values = {
+        "name": name,
+        "phone": phone,
+        "email": email,
+        "cedula": cedula,
+        "notes": notes,
+        "birthday": birthday,
+        "how_found": how_found,
+        "preferred_channel": preferred_channel,
+        "marketing_consent": marketing_consent,
+        "invoice_name": invoice_name,
+        "invoice_ruc": invoice_ruc,
+    }
+
+    from fastapi import HTTPException as _HE
+
+    def _fail(msg: str):  # noqa: ANN202 — raises HTTPException; FastAPI infers
+        """Roll back, re-render the form with values + error."""
+        session.rollback()
+        return _render_cliente_edit(
+            request, session, customer_id, form_values=form_values, form_error=msg
+        )
+
+    try:
+        customer.name = require_text(name, field="nombre", max_len=120)
+    except _HE:
+        return _fail("El nombre es obligatorio y no puede estar vacío.")
+    try:
+        customer.phone = validate_phone(phone)
+    except _HE as exc:
+        return _fail(f"Teléfono inválido: {exc.detail}")
+    try:
+        customer.email = validate_email(email)
+    except _HE as exc:
+        return _fail(f"Email inválido: {exc.detail}")
+    try:
+        customer.cedula = validate_cedula(cedula)
+    except _HE as exc:
+        return _fail(f"Cédula inválida: {exc.detail}")
     customer.notes = optional_text(notes, max_len=2000)
 
     # P3 dietary profile: restrictions (canonical tags, cleaned), ordered
@@ -1453,7 +1519,7 @@ def cliente_update(
     customer.dietary_restrictions = format_restrictions(clean_restrictions) or None
     try:
         prefs = parse_preferences(dietary_prefs_payload)
-    except Exception:  # noqa: BLE001 — malformed JSON from a stale tab
+    except Exception:
         prefs = []
     customer.dietary_preferences = format_preferences(prefs) if prefs else None
     customer.dietary_confirm_always = dietary_confirm_always == "1"

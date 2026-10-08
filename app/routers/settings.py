@@ -13,6 +13,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.constants import (
     DEFAULT_IVA_RATE,
@@ -91,7 +92,7 @@ def _safe_get_user(session: object, user_id: object) -> object:
         return None
     try:
         return session.get(User, user_id)
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         return None
 
 
@@ -203,12 +204,11 @@ def save_business_settings(
     # bypass path — current_user_id() reads request.session, which the
     # bypass dependency does not populate. Fall back to "test-user"
     # so the audit row has a non-null user_id in test runs.
-    from app.auth import current_user_id as _current_user_id
     from app.rms.audit import record as _audit_record
 
     _audit_record(
         session,
-        user_id=_current_user_id(request) or "test-user",
+        user_id=current_operator(request, fallback="test-user"),
         action="settings.business.change",
         detail={
             "business_name": business_name,
@@ -334,7 +334,7 @@ def settings_seed_demo(
         do_overwrite = overwrite == "1"
         # Use a short, deterministic seed so the same demo data is reproduced
         report = seed_demo_data(session, overwrite=do_overwrite, seed=20260922)
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         # Roll back partial work and surface the error
         session.rollback()
         logger.exception(f"seed_demo_data failed: {exc}")
@@ -395,7 +395,7 @@ def settings_seed_sazon(
     try:
         do_overwrite = overwrite == "1"
         report = seed_sazon(session, overwrite=do_overwrite)
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         session.rollback()
         logger.exception(f"seed_sazon failed: {exc}")
         return RedirectResponse(

@@ -23,7 +23,7 @@ class RecipePricing(Base):
     margin_percent: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Relationships
-    recipe: Mapped["Recipe"] = relationship("Recipe")  # noqa: F821 — SQLAlchemy 2.0 forward ref
+    recipe: Mapped["Recipe"] = relationship("Recipe")
 
     def __repr__(self) -> str:
         return f"RecipePricing(id={self.id}, recipe_id={self.recipe_id}, price_gs={self.price_gs})"

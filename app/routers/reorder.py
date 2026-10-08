@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import current_user_id
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.dependencies import get_session
@@ -127,6 +127,26 @@ def reorder_view(
         for ing_id, fc in forecast_objs.items()
     }
 
+    # Poisson weekday forecast (SASKIA-208 / BACKLOG #5): P95 stockout date
+    # + weekend-uplift per ingredient. Replaces the flat average's blind
+    # spot (Saturday-heavy demand runs out days earlier than the mean
+    # suggests). Only the at-risk set is computed; the template shows the
+    # P95 date next to the flat projection when they disagree.
+    from app.rms.restock_forecast import forecast_restock_batch
+
+    restock_map: dict[int, dict] = {
+        ing_id: {
+            "p95_stockout_date": fc.p95_stockout_date,
+            "days_to_p95": fc.days_to_p95_stockout,
+            "recommended_qty": fc.recommended_restock_qty,
+            "weekend_uplift_pct": fc.weekend_uplift_pct,
+            "confidence": fc.confidence,
+        }
+        for ing_id, fc in forecast_restock_batch(
+            session, ingredient_ids, only_at_risk=False
+        ).items()
+    }
+
     if format == "json":
         return JSONResponse(
             {
@@ -172,6 +192,7 @@ def reorder_view(
             "price_stats": price_stats,
             "cheapest_suppliers": cheapest_suppliers,
             "forecast_map": forecast_map,
+            "restock_map": restock_map,
             "page_start": 1,
             "page_end": len(items),
         },
@@ -197,7 +218,7 @@ def reorder_quick_restock(
     Idempotent: if the ingredient is already at 2x min, no price event
     is written. Always audits + increments the supplier streak.
     """
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Espera un momento.",
@@ -220,6 +241,7 @@ def reorder_quick_restock(
     last_price_gs: int = 0
     if eff_supplier_id is not None:
         from app.rms.models import IngredientPriceEvent
+
         last_evt = session.scalar(
             select(IngredientPriceEvent)
             .where(
@@ -246,7 +268,7 @@ def reorder_quick_restock(
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.reorder.quick_restock",
         request=request,
         detail={
@@ -273,7 +295,7 @@ def reorder_bulk_quick_restock(
     as purchased in one click. ingredient_ids is a comma-separated
     list. Empty input is a no-op (button should be disabled anyway).
     """
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Espera un momento.",
@@ -304,6 +326,7 @@ def reorder_bulk_quick_restock(
         last_price_gs: int = 0
         if eff_supplier_id is not None:
             from app.rms.models import IngredientPriceEvent
+
             last_evt = session.scalar(
                 select(IngredientPriceEvent)
                 .where(
@@ -329,11 +352,10 @@ def reorder_bulk_quick_restock(
             record_purchase_supplier(session, iid, eff_supplier_id)
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.reorder.bulk_quick_restock",
         request=request,
-        detail={"updated": updated, "skipped": skipped,
-                "ids": ingredient_ids[:500]},
+        detail={"updated": updated, "skipped": skipped, "ids": ingredient_ids[:500]},
     )
     session.commit()
     return RedirectResponse(url="/reorder", status_code=303)
@@ -343,7 +365,7 @@ def reorder_bulk_quick_restock(
 def reorder_registrar(
     request: Request,
     ingredient_id: int = Form(...),
-
+    qty: float = Form(...),
     qty_unit: str = Form(""),
     price_gs: int = Form(...),
     notes: str = Form(""),
@@ -368,7 +390,7 @@ def reorder_registrar(
     intact (operator skipped the dropdown — e.g. used the keyboard
     shortcut to submit without picking one).
     """
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -419,7 +441,7 @@ def reorder_registrar(
         record_purchase_supplier(session, ingredient_id, chosen_supplier_id)
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.reorder.restock",
         request=request,
         detail={
@@ -478,7 +500,7 @@ def reorder_scrape(
     try:
         audit_record(
             session,
-            user_id=current_user_id(request) or "operator",
+            user_id=current_operator(request),
             action="read.scraper.run",
             target_type="reorder",
             target_id="scraper",
@@ -489,7 +511,7 @@ def reorder_scrape(
             },
         )
         session.commit()
-    except Exception:  # noqa: BLE001 — defensive: don't fail the scrape over an audit miss
+    except Exception:
         session.rollback()  # don't fail the scrape over an audit miss
     return JSONResponse(payload)
 
@@ -509,7 +531,7 @@ def reorder_lock_supplier(
     frontend can refresh. On error returns 4xx with ``{"ok": false,
     "error": "..."}``.
     """
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -528,7 +550,7 @@ def reorder_lock_supplier(
             detail=f"El proveedor '{sup.name}' está inactivo. Reactiválo en /settings/catalog antes de fijar.",
         )
 
-    actor = str(current_user_id(request) or "operator")
+    actor = str(current_operator(request))
     lock_supplier(
         session,
         ingredient_id=ingredient_id,
@@ -553,7 +575,7 @@ def reorder_unlock_supplier(
     ``{"ok": true, "ingredient_id": ...}`` on success. No-op (still 200)
     if there was no lock.
     """
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -563,7 +585,7 @@ def reorder_unlock_supplier(
     if ing is None:
         raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
 
-    actor = str(current_user_id(request) or "operator")
+    actor = str(current_operator(request))
     unlock_supplier(
         session,
         ingredient_id=ingredient_id,
@@ -622,7 +644,7 @@ async def reorder_upload_prices(
           ]
         }
     """
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -671,13 +693,7 @@ async def reorder_upload_prices(
     }
     suppliers_by_name: dict[str, Supplier] = {
         s.name.lower(): s
-        for s in (
-            session.execute(
-                select(Supplier).where(Supplier.is_active == True)  # noqa: E712
-            )
-            .scalars()
-            .all()
-        )
+        for s in (session.execute(select(Supplier).where(Supplier.is_active)).scalars().all())
     }
 
     today = _datetime.now(timezone.utc).date()
@@ -738,7 +754,7 @@ async def reorder_upload_prices(
         # Date parsing
         if date_raw:
             try:
-                when = _datetime.strptime(date_raw, "%Y-%m-%d").date()  # noqa: DTZ007 — only .date() is consumed
+                when = _datetime.strptime(date_raw, "%Y-%m-%d").date()  # noqa: DTZ007
             except ValueError:
                 errors.append(
                     {
@@ -813,7 +829,7 @@ async def reorder_upload_prices(
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.reorder.csv_upload",
         request=request,
         detail={
@@ -891,7 +907,7 @@ def reorder_generate_po(
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.reorder.generate_po",
         request=request,
         detail={"n_items": len(selected_items), "suppliers": list(by_supplier.keys())},

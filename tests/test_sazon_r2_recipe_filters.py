@@ -133,7 +133,9 @@ def test_receta_form_visual_distinction_css_present():
     """
     from pathlib import Path
 
-    template = Path("/opt/data/work/sazon-app/app/templates/receta_form.html").read_text()
+    repo_root = Path(__file__).resolve().parents[1]
+
+    template = Path(str(repo_root) + "/app/templates/receta_form.html").read_text()
     assert '.line-row[data-kind="sub_recipe"]' in template, (
         "US 3.1 AC violation: no visual distinction for sub-recipe lines. "
         "Add a CSS rule that targets .line-row[data-kind='sub_recipe']."

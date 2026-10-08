@@ -13,6 +13,7 @@ Acceptance:
     for showInlineError).
   - The page does NOT call alert( in any inline <script> block.
 """
+
 from __future__ import annotations
 
 import re
@@ -38,11 +39,10 @@ def test_cliente_editar_no_alert_calls(client, session_factory):
     # No alert() calls in inline <script> blocks. We strip comments
     # first so a doc-string that mentions alert() doesn't false-positive.
     # Naive but adequate for this template.
-    import re as _re
     no_comments = re.sub(r"<!--.*?-->", "", body, flags=re.DOTALL)
     # Also strip JS-style line comments before checking (best-effort).
     no_line_comments = re.sub(r"//[^\n]*", "", no_comments)
-    alert_calls = re.findall(r'\balert\s*\(', no_line_comments)
+    alert_calls = re.findall(r"\balert\s*\(", no_line_comments)
     assert not alert_calls, (
         f"expected no alert() calls in inline JS; found {len(alert_calls)}: "
         f"the page should use an inline error banner instead."

@@ -1,4 +1,5 @@
-"""Tests for /produccion/copy-last-week (Phase C of Sazon-Improvement v2 plan).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for /produccion/copy-last-week (Phase C of Sazon-Improvement v2 plan).
 
 The "copy last week's plan" button saves the operator 20 minutes per
 menu-planning session. It reads the source day's plan_production() output
@@ -17,6 +18,7 @@ Contract:
 - If source has no rows, returns 200/302/303 with empty apply
 - Source date may be missing (no plan for that date) — graceful empty
 """
+
 from __future__ import annotations
 
 
@@ -42,7 +44,9 @@ def test_copy_last_week_handles_no_prior_week_gracefully(client, qseed):
         data={"for_date": "2026-10-13", "source_date": "2020-01-01"},
         follow_redirects=False,
     )
-    assert r.status_code in (302, 303), f"expected redirect even on empty source, got {r.status_code}"
+    assert r.status_code in (302, 303), (
+        f"expected redirect even on empty source, got {r.status_code}"
+    )
 
 
 def test_copy_last_week_uses_default_source_date_when_missing(client, qseed):
@@ -68,9 +72,7 @@ def test_copy_last_week_validates_dates(client, qseed):
         follow_redirects=False,
     )
     # Either 422 (validation) or 400 (bad request) — both acceptable
-    assert r.status_code in (302, 303, 400, 422), (
-        f"expected validation error, got {r.status_code}"
-    )
+    assert r.status_code in (302, 303, 400, 422), f"expected validation error, got {r.status_code}"
 
 
 def test_copy_last_week_is_idempotent(client, qseed):
@@ -88,6 +90,4 @@ def test_copy_last_week_is_idempotent(client, qseed):
         follow_redirects=False,
     )
     assert r1.status_code in (302, 303)
-    assert r2.status_code in (302, 303), (
-        f"second call should also succeed, got {r2.status_code}"
-    )
+    assert r2.status_code in (302, 303), f"second call should also succeed, got {r2.status_code}"

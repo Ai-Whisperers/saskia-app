@@ -13,12 +13,12 @@ Two bugs were creating duplicate channels in reports:
 P39 fixes both: sales does .lower().strip(), and pedidos normalize
 returns the canonical lowercase codes. This test pins down both.
 """
-import pytest
 
 
 def test_sale_channel_is_lowercased(client, session_factory):
     """Submitting 'WhatsApp' or 'WHATSAPP' must store 'whatsapp'."""
     from app.rms.models import Product
+
     with session_factory() as s:
         prod = s.query(Product).filter(Product.name == "P39-channel-test-prod").first()
         if prod is None:
@@ -30,22 +30,30 @@ def test_sale_channel_is_lowercased(client, session_factory):
     client.post("/login", data={"username": "demo", "password": "demo1234"})
 
     # Try various casings - the new code lowercases all of them
-    for raw, expected_canon in [("WhatsApp", "whatsapp"), ("WHATSAPP", "whatsapp"),
-                                 ("whatSapp", "whatsapp"), ("whatsapp", "whatsapp")]:
-        response = client.post("/ventas/nueva", data={
-            "product_id": prod_id,
-            "qty": 1,
-            "channel": raw,
-        }, follow_redirects=False)
+    for raw, expected_canon in [
+        ("WhatsApp", "whatsapp"),
+        ("WHATSAPP", "whatsapp"),
+        ("whatSapp", "whatsapp"),
+        ("whatsapp", "whatsapp"),
+    ]:
+        _response = client.post(
+            "/ventas/nueva",
+            data={
+                "product_id": prod_id,
+                "qty": 1,
+                "channel": raw,
+            },
+            follow_redirects=False,
+        )
         # 200 (form rerender) or 303 (success redirect) - we don't care,
         # we care about what got persisted
         with session_factory() as s2:
             from app.rms.models import Sale
+
             recent = s2.query(Sale).filter_by(product_id=prod_id).order_by(Sale.id.desc()).first()
             if recent is not None:
                 assert recent.channel == expected_canon, (
-                    f"input {raw!r} → stored {recent.channel!r} "
-                    f"(expected {expected_canon!r})"
+                    f"input {raw!r} → stored {recent.channel!r} (expected {expected_canon!r})"
                 )
 
 
@@ -53,6 +61,7 @@ def test_normalize_channel_returns_canonical_lowercase(session_factory):
     """The pedidos normalize_channel() helper must return lowercase
     canonical codes, not display names like 'WhatsApp'."""
     from app.routers.pedidos import normalize_channel
+
     assert normalize_channel("whatsapp") == "whatsapp"
     assert normalize_channel("WhatsApp") == "whatsapp"
     assert normalize_channel("WHATSAPP") == "whatsapp"
@@ -66,20 +75,29 @@ def test_normalize_channel_returns_canonical_lowercase(session_factory):
 def test_pedido_save_uses_normalized_channel(client, session_factory):
     """Creating a pedido with 'WhatsApp' must store 'whatsapp'."""
     from datetime import date
+
     client.post("/login", data={"username": "demo", "password": "demo1234"})
 
-    response = client.post("/pedidos/nuevo", data={
-        "customer_name": "P39 Channel Test",
-        "customer_phone": "0000",
-        "promised_date": date.today().isoformat(),
-        "channel": "WhatsApp",
-        "payment_intent": "efectivo",
-    }, follow_redirects=False)
+    _response = client.post(
+        "/pedidos/nuevo",
+        data={
+            "customer_name": "P39 Channel Test",
+            "customer_phone": "0000",
+            "promised_date": date.today().isoformat(),
+            "channel": "WhatsApp",
+            "payment_intent": "efectivo",
+        },
+        follow_redirects=False,
+    )
 
     with session_factory() as s:
         from app.rms.models import Pedido
-        recent = s.query(Pedido).filter_by(customer_name="P39 Channel Test").order_by(Pedido.id.desc()).first()
+
+        recent = (
+            s.query(Pedido)
+            .filter_by(customer_name="P39 Channel Test")
+            .order_by(Pedido.id.desc())
+            .first()
+        )
         if recent is not None:
-            assert recent.channel == "whatsapp", (
-                f"expected 'whatsapp', got {recent.channel!r}"
-            )
+            assert recent.channel == "whatsapp", f"expected 'whatsapp', got {recent.channel!r}"

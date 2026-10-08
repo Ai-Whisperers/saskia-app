@@ -74,7 +74,7 @@ def _decorated(s: Sale) -> dict:
         "notes": s.notes,
         "voided_at": s.voided_at,
         "voided_at_str": s.voided_at.strftime("%d/%m/%Y %H:%M") if s.voided_at else None,
-        "customer_id": s.customer_id,                                # <-- the fix
+        "customer_id": s.customer_id,  # <-- the fix
         "customer_phone": s.customer.phone if s.customer else None,
         "customer_name": s.customer.name if s.customer else None,
         "payment_method": s.payment_method,

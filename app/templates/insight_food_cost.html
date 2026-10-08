@@ -16,8 +16,9 @@
   </div>
 </div>
 
-<form method="get" class="mb-4 d-flex" style="display:flex;gap:var(--space-2);align-items:end;">
-  <label>Días <input type="number" name="days" value="{{ days }}" min="1" max="365" style="width:90px;"></label>
+<form method="get" class="mb-4" style="display:flex;gap:var(--space-2);align-items:end;" data-saskia-autosave>
+  {{ m.days_filter(options=[7, 30, 60, 90, 180], current=days|int, name="days", 
+                    data_saskia_state="days", data_saskia_page="/insights/food-cost") }}
   <button class="btn btn-primary" type="submit">Recalcular</button>
 </form>
 

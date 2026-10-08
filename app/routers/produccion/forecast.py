@@ -7,30 +7,21 @@ Routes (2 GETs):
   GET /produccion/api/forecast  - JSON forecast for a date (consumed by JS)
   GET /produccion/manana        - tomorrow's plan preview page
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
-from fastapi import Depends, Query, Request
+from fastapi import Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.rms.dependencies import get_session
 from app.rms.models import (
-    Ingredient,
     Product,
-    ProductionPlanOverride,
-    Recipe,
-    RecipeLine,
 )
-from app.rms.production import get_weekly_template, plan_production
-from app.rms.production_demand import get_demand
-from app.routers.produccion._helpers import (
-    _asuncion_today,
-    _fermentation_reminder,
-    _week_monday,
-)
+from app.rms.production import plan_production
 from app.routers.produccion._router import router
 from app.services.template_render import render
 
@@ -147,23 +138,19 @@ def produccion_manana(
     from app.rms.models import Pedido
     from app.routers.pedidos import _pedido_total_gs
 
-    pedidos_q = (
-        session.execute(
-            select(Pedido)
-            .where(
-                Pedido.promised_date == tomorrow,
-                Pedido.status.in_(["pending", "confirmed", "ready"]),
-            )
-            .order_by(Pedido.promised_time.nulls_last(), Pedido.id)
+    pedidos_q = session.execute(
+        select(Pedido)
+        .where(
+            Pedido.promised_date == tomorrow,
+            Pedido.status.in_(["pending", "confirmed", "ready"]),
         )
-        .scalars()
-    )
+        .order_by(Pedido.promised_time.nulls_last(), Pedido.id)
+    ).scalars()
     pedidos_manana = []
     pedidos_by_product: dict[int, float] = {}  # product_id -> qty committed
     # Cache product names by id so the per-line label is one query
     products_by_id = {
-        p.id: p.name
-        for p in session.execute(select(Product).where(Product.id > 0)).scalars()
+        p.id: p.name for p in session.execute(select(Product).where(Product.id > 0)).scalars()
     }
     for p_ in pedidos_q:
         pedido_lines = []
@@ -214,5 +201,3 @@ def produccion_manana(
             "low_confidence_count": sum(1 for r in rows if r.confidence_pct < 70),
         },
     )
-
-

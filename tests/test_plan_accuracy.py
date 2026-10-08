@@ -1,4 +1,5 @@
-"""tests/test_plan_accuracy.py — BACKLOG #29 + #33 unit tests.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_plan_accuracy.py — BACKLOG #29 + #33 unit tests.
 
 Covers:
   - empty DB → AccuracyReport with zero totals

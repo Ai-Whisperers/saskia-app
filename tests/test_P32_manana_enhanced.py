@@ -1,14 +1,13 @@
 """PRO-PED: /produccion/manana shows per-client pedido line items and
-Forecast + Pedidos + Total + Plan columns with persisted Plan overrides.
+Pronóstico (forecast) + Pedidos + Total + Plan columns with persisted Plan overrides.
 
 Captures the behavior changes that landed in 8a91f0e2 (sidebar wrap) +
 the manana rewrite (pedidos per client, Plan column, pedidos_by_product
 in forecast table). 4 tests, all run in <8s.
 """
-import re
-from datetime import date, timedelta
 
-import pytest
+import re
+from datetime import timedelta
 
 from app.rms.config import ASUNCION_TZ
 
@@ -16,7 +15,6 @@ from app.rms.config import ASUNCION_TZ
 def test_manana_pedidos_per_client(authed_client, qseed):
     """Each pedido renders as a card with the line items the client
     is actually buying (not just the customer name + total)."""
-    from datetime import datetime, timezone
     qseed("with_manana_pedidos")
     r = authed_client.get("/produccion/manana")
     assert r.status_code == 200
@@ -37,13 +35,12 @@ def test_manana_queproducir_columns(authed_client, qseed):
     """The "Qué producir" table has Forecast + Pedidos + Total + Plan
     columns. Plan is the editable override (the old Override column
     renamed for clarity)."""
-    from datetime import datetime, timezone
     qseed("with_manana_pedidos")
     r = authed_client.get("/produccion/manana")
     assert r.status_code == 200
     body = r.text
     # Each column header appears in the table
-    for col in ("Forecast", "Pedidos", "Total", "Plan ⇄"):
+    for col in ("Pronóstico", "Pedidos", "Total", "Plan ⇄"):
         assert col in body, f"Column '{col}' missing from Qué producir table"
     # The "9 unidades comprometidas" pill from pedidos_by_product
     assert "9 unidades comprometidas" in body or "9</span>" in body
@@ -55,7 +52,8 @@ def test_manana_plan_persists(authed_client, qseed):
     """POST /produccion/override-bulk with qty[<id>]=N persists into
     ProductionPlanOverride. Reloading /produccion/manana shows the
     pre-filled Plan input."""
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     qseed("with_manana_pedidos")
     r = authed_client.get("/produccion/manana")
     assert r.status_code == 200
@@ -75,8 +73,7 @@ def test_manana_plan_persists(authed_client, qseed):
     pat = rf'name="qty\[{pid}\]"[^>]*value="([\d.]+)"'
     m2 = re.search(pat, r3.text)
     assert m2 and m2.group(1) in ("12", "12.0"), (
-        f"Plan override not persisted for product {pid}: "
-        f"{m2.group(0) if m2 else 'no match'}"
+        f"Plan override not persisted for product {pid}: {m2.group(0) if m2 else 'no match'}"
     )
 
 
@@ -95,9 +92,10 @@ def test_sidebar_app_shell_wrapper(authed_client, qseed):
     # The sidebar and main are direct children of the wrapper, in order
     m = re.search(
         r'<div id="app-shell" class="app-shell">\s*<aside class="sidebar"',
-        body, re.DOTALL,
+        body,
+        re.DOTALL,
     )
     assert m, "sidebar is not a direct child of #app-shell"
     # The wrapper closes after the footer
     assert body.count('<div id="app-shell" class="app-shell">') == 1
-    assert body.count('</div><!-- /.app-shell -->') == 1
+    assert body.count("</div><!-- /.app-shell -->") == 1

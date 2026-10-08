@@ -49,7 +49,7 @@
     {% endif %}
     href="/reportes/diario"></ui-kpi-card>
   <ui-kpi-card
-    label="Operaciones"
+    label="Ventas"
     value="{% if ops_today %}{{ ops_today }}{% else %}—{% endif %}"
     {% if ops_today and ops_delta_label %}
     delta="{{ ops_delta_label.split(' ')[1] }}"
@@ -84,7 +84,7 @@
    suggestions)? Industry norm is 40-60% for a healthy program; below
    30% means the cashier isn't being prompted enough or there's friction.
    Delta is percentage-points vs prior period (not relative %). #}
-<div class="band-label">Loyalty</div>
+<div class="band-label">Fidelización</div>
 <div class="kpi-row mb-4">
   <ui-kpi-card
     label="Clientes asociados"
@@ -94,8 +94,38 @@
     delta-direction="{{ 'up' if enrollment_delta_pp > 0 else 'down' if enrollment_delta_pp < 0 else 'flat' }}"
     delta-prior="vs período anterior"
     {% endif %}
-    sub="{% if enrollment_total_today %}{{ enrollment_with_today }} de {{ enrollment_total_today }} ventas{% else %}sin ventas{% endif %}"
+    sub="{% if enrollment_total_today %}{{ enrollment_total_today }} ventas · {{ enrollment_with_today }} con cliente{% else %}sin ventas{% endif %}"
     href="/clientes"></ui-kpi-card>
+</div>
+
+{# ══ T-1: analytics teasers — the 5 orphan metrics as glanceable cards ══ #}
+<div class="band-label">Análisis rápido</div>
+<div class="kpi-row mb-4" style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+  <a class="teaser-card" href="/analisis#top-margin" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ top_margin|length }}</span>
+    <span class="teaser-label">Top por margen</span>
+    <span class="teaser-sub">Productos más rentables →</span>
+  </a>
+  <a class="teaser-card" href="/analisis#concentration" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ concentration|length }}</span>
+    <span class="teaser-label">Concentración de costo</span>
+    <span class="teaser-sub">Insumos dominantes →</span>
+  </a>
+  <a class="teaser-card" href="/analisis#turnover" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ turnover|length }}</span>
+    <span class="teaser-label">Rotación de stock</span>
+    <span class="teaser-sub">Qué se mueve →</span>
+  </a>
+  <a class="teaser-card" href="/analisis#dow-heatmap" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ dow_buckets|length }}</span>
+    <span class="teaser-label">Heatmap día × hora</span>
+    <span class="teaser-sub">Tus horas fuertes →</span>
+  </a>
+  <a class="teaser-card" href="/analisis#complexity" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ complexity|length }}</span>
+    <span class="teaser-label">Recetas más complejas</span>
+    <span class="teaser-sub">Prep más largo →</span>
+  </a>
 </div>
 
 {# ══ P1-B7: 3 actionable insights ═════════════════════════════════════ #}
@@ -178,16 +208,25 @@
     {% endif %}
 
     {% if merma_hoy %}
-    <div class="accion-row is-done">
-      <span class="accion-chip sev-ok"><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg></span>
-      <span class="accion-main">
-        <span class="accion-title">Merma del día</span>
-        <span class="accion-sub">registrada ✓</span>
-      </span>
-    </div>
+    {# Close Acciones del día here so Hecho hoy can be a separate card. #}
+    </section>
     {% endif %}
 
-    {% if not (pedido_hoy or pedido_manana or stock_low or vencer_48h_count or cierre_ayer_pendiente or birthdays) %}
+    {# ── Hecho hoy (informational, not actionable) ─────────────────────── #}
+    {% if merma_hoy %}
+    <section class="card hecho-hoy mt-3" aria-label="Hecho hoy">
+      <div class="card-header">
+        <h2 class="text-md" >Hecho hoy</h2>
+      </div>
+      <div class="accion-row is-done">
+        <span class="accion-chip sev-ok"><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg></span>
+        <span class="accion-main">
+          <span class="accion-title">Merma del día</span>
+          <span class="accion-sub">registrada ✓</span>
+        </span>
+      </div>
+    </section>
+    {% elif not (pedido_hoy or pedido_manana or stock_low or vencer_48h_count or cierre_ayer_pendiente or birthdays) %}
     <div class="alert alert-success" role="status">
       <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
       Todo en orden por hoy.
@@ -224,7 +263,7 @@
     <div class="card-header">
       <h2 class="text-md" >Pronóstico — {{ forecast_tomorrow_label }} {{ forecast_tomorrow_date }}</h2>
       <small class="text-muted">12 semanas · día de la semana · confianza
-        {% if forecast_confidence == 'high' %}<span class="sev-pill saludable">alta</span>
+        {% if forecast_confidence == 'high' %}<span class="sev-pill ok">alta</span>
         {% elif forecast_confidence == 'medium' %}<span class="sev-pill aviso">media</span>
         {% else %}<span class="sev-pill critico">baja</span>{% endif %}
       </small>

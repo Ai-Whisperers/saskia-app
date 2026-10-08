@@ -13,6 +13,7 @@ Acceptance:
     the ingredient has no supplier.
   - The button still works for rows that DO have a supplier.
 """
+
 from __future__ import annotations
 
 import re
@@ -30,7 +31,11 @@ def test_reorder_no_supplier_row_blocks_submit(client, session_factory):
     try:
         # Make ingredient below min, no supplier.
         make_ingredient(
-            s, name=unique, unit="kg", stock_qty=0.5, min_stock_qty=5.0,
+            s,
+            name=unique,
+            unit="kg",
+            stock_qty=0.5,
+            min_stock_qty=5.0,
             purchase_price_gs=4500,
         )
         s.commit()
@@ -42,18 +47,14 @@ def test_reorder_no_supplier_row_blocks_submit(client, session_factory):
     body = r.text
 
     # At least one Reponer button (confirm-btn) should be disabled.
-    confirm_btns = re.findall(
-        r'<button[^>]*class="[^"]*confirm-btn[^"]*"[^>]*>', body
-    )
+    confirm_btns = re.findall(r'<button[^>]*class="[^"]*confirm-btn[^"]*"[^>]*>', body)
     assert confirm_btns, "no confirm-btn found in body"
     # At least one of them should be disabled.
     assert any("disabled" in btn for btn in confirm_btns), (
         f"expected at least one confirm-btn to be disabled; got: {confirm_btns}"
     )
     # And the data-blocked attribute should mark the reason.
-    assert "data-blocked" in body, (
-        "expected data-blocked attribute on disabled Reponer buttons"
-    )
+    assert "data-blocked" in body, "expected data-blocked attribute on disabled Reponer buttons"
 
 
 def test_reorder_with_supplier_row_unblocks_submit(client, session_factory):
@@ -62,7 +63,11 @@ def test_reorder_with_supplier_row_unblocks_submit(client, session_factory):
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
         ing = make_ingredient(
-            s, name=unique, unit="kg", stock_qty=0.5, min_stock_qty=5.0,
+            s,
+            name=unique,
+            unit="kg",
+            stock_qty=0.5,
+            min_stock_qty=5.0,
             purchase_price_gs=4500,
         )
         sup = make_supplier(s, name=f"sup-{unique}", phone="+595 9XX")
@@ -75,12 +80,8 @@ def test_reorder_with_supplier_row_unblocks_submit(client, session_factory):
     r = client.get("/reorder")
     body = r.text
 
-    confirm_btns = re.findall(
-        r'<button[^>]*class="[^"]*confirm-btn[^"]*"[^>]*>', body
-    )
+    confirm_btns = re.findall(r'<button[^>]*class="[^"]*confirm-btn[^"]*"[^>]*>', body)
     assert confirm_btns, "no confirm-btn found in body"
     # When the row has a supplier, no confirm-btn should be disabled.
     for btn in confirm_btns:
-        assert "disabled" not in btn, (
-            f"confirm-btn should be enabled when supplier exists: {btn}"
-        )
+        assert "disabled" not in btn, f"confirm-btn should be enabled when supplier exists: {btn}"

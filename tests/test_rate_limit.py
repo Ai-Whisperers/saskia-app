@@ -213,13 +213,24 @@ def test_login_returns_429_after_failures(session_factory, monkeypatch):
         assert len(rows) == 1
 
 
-def test_login_submit_returns_429_when_limiter_blocks(client, session_factory, monkeypatch):
-    """End-to-end: login_submit returns 429 with Retry-After header when blocked.
+def test_login_submit_redirects_to_styled_page_when_limiter_blocks(
+    client, session_factory, monkeypatch
+):
+    """End-to-end: when the rate limiter blocks, login_submit redirects to
+    /login with error=demasiados+intentos query params (operator-UX, not 429 JSON).
 
-    This is the thin glue test that verifies the rate-limiter integrates with
-    the login route. Uses fresh seed + unique IP for isolation.
+    History: the original commit (85a32d4d, feat(rate-limit)) returned a raw
+    429 + Retry-After header. Commit f5f4175c (fix(login): render styled
+    rate-limit page with retry countdown) changed the response to a 303
+    redirect to /login?error=demasiados+intentos...&retry_after=Ns so the
+    operator sees a styled countdown rather than a raw HTTP error.
+
+    This test pins the current (post-f5f4175c) behavior. If we ever revert
+    to raw 429, update this test rather than re-introducing a raw error page
+    that operators cannot recover from without operator-terminal access.
     """
     from datetime import datetime, timezone
+    from urllib.parse import parse_qs, urlparse
 
     from app.rms.audit import record as audit_record
     from app.rms.models import AuditLog, User
@@ -250,8 +261,20 @@ def test_login_submit_returns_429_when_limiter_blocks(client, session_factory, m
         headers={"X-Forwarded-For": test_ip},
         follow_redirects=False,
     )
-    assert r.status_code == 429, f"expected 429, got {r.status_code}"
-    assert "Retry-After" in r.headers
+    # 303 redirect to styled login page, NOT a raw 429.
+    assert r.status_code == 303, f"expected 303 redirect, got {r.status_code}"
+    location = r.headers.get("location") or r.headers.get("Location") or ""
+    assert location.startswith("/login"), f"expected redirect to /login, got Location: {location!r}"
+    # The redirect carries the rate-limit error message + retry-after seconds
+    qs = parse_qs(urlparse(location).query)
+    assert "error" in qs, f"expected error= in query string, got {qs}"
+    err_text = (qs["error"][0] or "").lower()
+    assert "demasiados" in err_text or "intentos" in err_text, (
+        f"expected 'demasiados' or 'intentos' in error param, got {err_text!r}"
+    )
+    assert "retry_after" in qs, f"expected retry_after= in query string, got {qs}"
+    retry_after = int(qs["retry_after"][0])
+    assert 0 < retry_after <= 600, f"retry_after should be reasonable, got {retry_after}"
     # Confirm audit row written
     with session_factory() as s:
         rl_rows = (

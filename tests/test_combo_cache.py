@@ -9,6 +9,9 @@ ui-combo live in tests/test_ui_components.py::test_saskia_combo_*.
 import re
 from pathlib import Path
 
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+SAZON_APP = str(_REPO_ROOT)
+
 import pytest
 
 pytestmark = pytest.mark.xfail(
@@ -22,7 +25,7 @@ pytestmark = pytest.mark.xfail(
 
 def test_combo_cache_ttl_constant():
     """Cache TTL should be a finite, reasonable value (30s)."""
-    js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js").read_text()
+    js = Path(SAZON_APP + "/app/static/ui-combo.js").read_text()
     # Find the TTL check
     m = re.search(r"Date\.now\(\)\s*-\s*entry\.ts\s*<\s*(\d+)", js)
     assert m is not None, "Expected a TTL check in combo.js"
@@ -34,7 +37,7 @@ def test_combo_cache_ttl_constant():
 
 def test_combo_cache_writeback():
     """After a successful fetch, combo.js should write to the cache."""
-    js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js").read_text()
+    js = Path(SAZON_APP + "/app/static/ui-combo.js").read_text()
     # Should set the cache with ts and data fields after the network call resolves
     assert "_sharedCache.set" in js
     assert "ts: Date.now()" in js
@@ -43,7 +46,7 @@ def test_combo_cache_writeback():
 
 def test_combo_cache_expiry_evicts():
     """Expired cache entries should be evicted on read."""
-    js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js").read_text()
+    js = Path(SAZON_APP + "/app/static/ui-combo.js").read_text()
     # Should delete cache entry on expiry (using either instance or shared cache handle)
     assert "_sharedCache.delete(" in js or "sharedCache.delete(cacheKey)" in js, (
         "Expected cache eviction on expiry"
@@ -52,7 +55,7 @@ def test_combo_cache_expiry_evicts():
 
 def test_combo_cache_shared_across_instances():
     """Cache lives on the class (not on each instance) so any combo can hit it."""
-    js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js").read_text()
+    js = Path(SAZON_APP + "/app/static/ui-combo.js").read_text()
     # Class-level reference — not `this._cache`
     assert "UICombo._sharedCache" in js
     assert "this._cache" not in js, "Should not have a per-instance cache anymore"
@@ -60,7 +63,7 @@ def test_combo_cache_shared_across_instances():
 
 def test_combo_clear_cache_helper():
     """A clearCache() method should be exposed on the class."""
-    js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js").read_text()
+    js = Path(SAZON_APP + "/app/static/ui-combo.js").read_text()
     # Static method to flush the cache
     m = re.search(
         r"static\s+clearCache\s*\(\s*\)\s*\{[^}]*_sharedCache\.clear\s*\(\s*\)", js, re.DOTALL
@@ -70,7 +73,7 @@ def test_combo_clear_cache_helper():
 
 def test_combo_render_uses_fragment():
     """The render path uses DocumentFragment to batch DOM writes."""
-    js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js").read_text()
+    js = Path(SAZON_APP + "/app/static/ui-combo.js").read_text()
     # Should create a fragment and append all rows to it before one big append
     assert "createDocumentFragment" in js
     assert "frag.appendChild(row)" in js
@@ -79,7 +82,7 @@ def test_combo_render_uses_fragment():
 
 def test_combo_no_naive_per_row_append():
     """_render should no longer call appendChild on the live results element per row."""
-    js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js").read_text()
+    js = Path(SAZON_APP + "/app/static/ui-combo.js").read_text()
     # Find the _render section and confirm there's no direct results.appendChild inside
     # the forEach body (only fragment appendChild is allowed).
     render_section = js[js.index("_render(matches)") : js.index("setValue(item)")]
@@ -89,7 +92,7 @@ def test_combo_no_naive_per_row_append():
 
 def test_combo_debounce_preserved_after_cache():
     """Even with caching, debounce should still gate search input."""
-    js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js").read_text()
+    js = Path(SAZON_APP + "/app/static/ui-combo.js").read_text()
     # The debounce timer should still wrap _fetch
     assert "clearTimeout(self.debounceTimer)" in js
     assert "self._fetch(q)" in js
@@ -97,7 +100,7 @@ def test_combo_debounce_preserved_after_cache():
 
 def test_base_template_preloads_combo():
     """base.html should preload combo.js for faster form interactions."""
-    base = Path("/opt/data/work/sazon-app/app/templates/base.html").read_text()
+    base = Path(SAZON_APP + "/app/templates/base.html").read_text()
     # Preload hint should exist
     assert '<link rel="preload" href="/static/ui-combo.js"' in base
     # And the script should be version-busted for safe cache hits
@@ -106,7 +109,7 @@ def test_base_template_preloads_combo():
 
 def test_users_api_roles_response_shape():
     """/users/api/roles returns the expected JSON shape for the combo."""
-    users_router = Path("/opt/data/work/sazon-app/app/routers/users.py").read_text()
+    users_router = Path(SAZON_APP + "/app/routers/users.py").read_text()
     # Endpoint should exist and return JSON with results + count
     assert "/api/roles" in users_router
     assert "results" in users_router
@@ -116,7 +119,7 @@ def test_users_api_roles_response_shape():
 
 def test_combo_supports_static_source():
     """combo.js should accept data-source="static" for inline options."""
-    js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js").read_text()
+    js = Path(SAZON_APP + "/app/static/ui-combo.js").read_text()
     # Static source branch should exist
     assert 'this.opts.source === "static"' in js
     assert "_readStaticOptions" in js
@@ -129,7 +132,7 @@ def test_productos_uses_static_combo():
 
     2026-09-27: upgraded from static ui-combo to the shared mf-pop filter
     toolbar pattern (same as inventario). Still zero-native-select."""
-    p = Path("/opt/data/work/sazon-app/app/templates/productos.html").read_text()
+    p = Path(SAZON_APP + "/app/templates/productos.html").read_text()
     # Old native select should be gone
     assert '<select name="has_recipe">' not in p
     assert "<select" not in p
@@ -142,7 +145,7 @@ def test_productos_uses_static_combo():
 
 def test_receta_form_scale_uses_static_combo():
     """receta_form.html scale selector uses a static combo."""
-    r = Path("/opt/data/work/sazon-app/app/templates/receta_form.html").read_text()
+    r = Path(SAZON_APP + "/app/templates/receta_form.html").read_text()
     # Old native scale select with onchange should be gone
     assert '<select id="scale"' not in r
     # Should have the scale_combo + 8 multiplier options
@@ -153,7 +156,7 @@ def test_receta_form_scale_uses_static_combo():
 
 def test_receta_form_yield_unit_uses_combo():
     """receta_form.html yield_unit uses the units API combo."""
-    r = Path("/opt/data/work/sazon-app/app/templates/receta_form.html").read_text()
+    r = Path(SAZON_APP + "/app/templates/receta_form.html").read_text()
     # yield_unit select gone
     assert '<select id="yield_unit"' not in r
     # New combo present
@@ -163,7 +166,7 @@ def test_receta_form_yield_unit_uses_combo():
 
 def test_receta_form_lines_use_combos():
     """receta_form.html line_kind + line_unit combos present for both rendered and JS-template rows."""
-    r = Path("/opt/data/work/sazon-app/app/templates/receta_form.html").read_text()
+    r = Path(SAZON_APP + "/app/templates/receta_form.html").read_text()
     # No <select name="line_kind"> and no <select name="line_unit">
     assert '<select name="line_kind">' not in r
     assert '<select name="line_unit"' not in r
@@ -178,7 +181,7 @@ def test_receta_form_lines_use_combos():
 
 def test_reorder_qty_unit_uses_static_combo():
     """reorder.html qty_unit uses a static combo (preserves conditional logic)."""
-    f = Path("/opt/data/work/sazon-app/app/templates/reorder.html").read_text()
+    f = Path(SAZON_APP + "/app/templates/reorder.html").read_text()
     # Old native select gone
     assert '<select name="qty_unit"' not in f
     # New combo present, conditional logic preserved
@@ -189,7 +192,7 @@ def test_reorder_qty_unit_uses_static_combo():
 
 def test_zero_native_selects_remain():
     """Across the entire templates/ folder, no native <select> survives conversion."""
-    templates_dir = Path("/opt/data/work/sazon-app/app/templates")
+    templates_dir = Path(SAZON_APP + "/app/templates")
     pattern = re.compile(r"<select[^>]*>.*?</select>", re.DOTALL)
     leftovers = []
     for html_file in templates_dir.glob("*.html"):

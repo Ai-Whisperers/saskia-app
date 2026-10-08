@@ -13,10 +13,11 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, NotFound
-from app.rms.models import Ingredient, Recipe, Sale, WasteLog
+from app.rms.models import Ingredient, IngredientPriceEvent, Recipe, Sale, WasteLog
 from app.rms.observability import record_audit
 from app.rms.waste import (
     WasteReason,
@@ -131,7 +132,10 @@ def merma_list(
     # datetime.utcnow). Compare with naive-UTC bounds so SQLAlchemy doesn't
     # drop the comparison, and use UTC date (not local) so the day boundary
     # matches the timestamps the app writes.
-    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
+    from datetime import timezone as _tz
+
     _utcnow = _dt.now(_tz.utc).replace(tzinfo=None)
     today_start = _dt.combine(_utcnow.date(), _dt.min.time())
     today_end = today_start + _td(days=1)
@@ -144,7 +148,11 @@ def merma_list(
             )
         ).scalar_one()
     )
-    today_total_cost = sum(today_impact.by_ingredient[i][2] for i in range(len(today_impact.by_ingredient))) if today_impact.by_ingredient else 0
+    today_total_cost = (
+        sum(today_impact.by_ingredient[i][2] for i in range(len(today_impact.by_ingredient)))
+        if today_impact.by_ingredient
+        else 0
+    )
     today_top_ingredients = sorted(today_impact.by_ingredient, key=lambda x: x[2], reverse=True)[:3]
 
     # PROD-MERMA-2 (Batch I follow-up): 14-day source mix for the operator
@@ -168,8 +176,72 @@ def merma_list(
                 "n_events": int(n),
                 "cost_gs": int(cost),
             }
-    except Exception:  # noqa: BLE001 — defensive: never block the page
+    except Exception:
         source_mix_14d = {}
+
+    # T-merma-trend (6d44dfb7 spec): "Merma amplificada" — ingredients whose
+    # purchase price ROSE (recent vs prior ~30d windows from price events)
+    # AND that logged waste inside the selected window. Rising cost + waste
+    # = the waste is getting more expensive to ignore.
+    amplified_rows: list[dict] = []
+    try:
+        # Compare each ingredient's LATEST recorded price vs the average of
+        # all EARLIER events (date-agnostic: works with frozen-clock tests
+        # and sparse real-world event history alike).
+        _all_rows = session.execute(
+            select(
+                IngredientPriceEvent.ingredient_id,
+                IngredientPriceEvent.price_gs,
+                IngredientPriceEvent.recorded_at,
+            ).order_by(
+                IngredientPriceEvent.ingredient_id,
+                IngredientPriceEvent.recorded_at,
+            )
+        ).all()
+        _by_ing: dict[int, list[tuple]] = {}
+        for iid, price, rec_at in _all_rows:
+            _by_ing.setdefault(iid, []).append((price, rec_at))
+        _price_rows = []
+        for iid, evs in _by_ing.items():
+            if len(evs) < 2:
+                continue
+            # recent = last price; prior = average of the trailing run of
+            # STRICTLY LOWER... no — of all events priced DIFFERENT from the
+            # latest (the previous price level), so a stable new price doesn't
+            # dilute the baseline with its own repeats.
+            recent = evs[-1][0]
+            prior_prices = [p for p, _ in evs[:-1] if p != recent]
+            if not prior_prices:
+                continue
+            prior_avg = sum(prior_prices) / len(prior_prices)
+            _price_rows.append((iid, recent, prior_avg))
+        _wasted_ids = set(
+            session.execute(
+                select(WasteLog.ingredient_id).where(WasteLog.recorded_at >= start_date)
+            )
+            .scalars()
+            .all()
+        )
+        for iid, recent_avg, prior_avg in _price_rows:
+            if iid not in _wasted_ids or not recent_avg or not prior_avg:
+                continue
+            if prior_avg <= 0:
+                continue
+            _pct = (recent_avg - prior_avg) / prior_avg * 100
+            if _pct >= 15:
+                _ing = session.get(Ingredient, iid)
+                if _ing is not None:
+                    amplified_rows.append(
+                        {
+                            "ingredient": _ing,
+                            "price_pct": _pct,
+                            "recent_avg": int(recent_avg),
+                            "prior_avg": int(prior_avg),
+                        }
+                    )
+        amplified_rows.sort(key=lambda r: r["price_pct"], reverse=True)
+    except Exception:
+        amplified_rows = []
 
     # Build preset query strings
     def preset_url(d: int) -> str:
@@ -180,6 +252,7 @@ def merma_list(
         request,
         "merma.html",
         {
+            "amplified_rows": amplified_rows,
             "items": items,
             "impact": impact,
             "pct": pct,
@@ -253,7 +326,7 @@ def merma_register(
     if ip:
         ip = ip.split(",")[0].strip()
     # Re-use the rate-limit helper through session_factory
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429, detail="Demasiadas acciones en 1 minuto. Esperá un momento."
         )
@@ -266,7 +339,9 @@ def merma_register(
     dup_window_seconds = 60
     dup_qty_tolerance_abs = 0.01
     dup_qty_tolerance_pct = 0.05
-    from datetime import datetime, timedelta, timezone as _tz
+    from datetime import datetime, timedelta
+    from datetime import timezone as _tz
+
     cutoff = datetime.now(_tz.utc) - timedelta(seconds=dup_window_seconds)
     qty_abs = abs(float(qty))
     tol = max(dup_qty_tolerance_abs, qty_abs * dup_qty_tolerance_pct)
@@ -315,8 +390,6 @@ def merma_register(
             context={"operation": "record_waste", "original_error": str(exc)},
         ) from exc
 
-    from app.auth import current_user_id
-
     record_audit(
         request,
         session=session,
@@ -329,7 +402,7 @@ def merma_register(
             "reason": reason,
             "source": source,  # PROD-MERMA-1: tag entrypoint for /merma event log
         },
-        user_id=str(current_user_id(request) or "operator"),
+        user_id=str(current_operator(request)),
     )
     session.commit()
     # PROD-MERMA-1: route the redirect based on entrypoint so the operator lands
@@ -369,7 +442,7 @@ def merma_register_recipe(
 
     from app.rms.rate_limit import is_write_rate_limited
 
-    if is_write_rate_limited(session, request, max_per_minute=10):
+    if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
@@ -389,8 +462,6 @@ def merma_register_recipe(
             context={"original_error": str(exc)},
         ) from exc
 
-    from app.auth import current_user_id
-
     record_audit(
         request,
         session=session,
@@ -406,7 +477,7 @@ def merma_register_recipe(
             "reason": reason,
             "source": source,  # PROD-MERMA-1: tag entrypoint
         },
-        user_id=str(current_user_id(request) or "operator"),
+        user_id=str(current_operator(request)),
     )
     session.commit()
     # PROD-MERMA-1: redirect by entrypoint; recipe expansion yields N ingredient

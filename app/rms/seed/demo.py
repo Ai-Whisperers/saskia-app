@@ -57,7 +57,7 @@ from app.rms.tagging import TagKind, ensure_starter_tags, ensure_tag, tag_target
 # Sale.sold_at is DateTime without tz; we store UTC-naive.
 
 DEMO_USER_EMAIL = "demo@herbus.local"
-DEMO_USER_PASSWORD = "demo1234"  # noqa: S105 — seed/demo credentials, not a real password
+DEMO_USER_PASSWORD = "demo1234"  # noqa: S105
 DEMO_USER_USERNAME = "demo"
 
 # Realistic Paraguayan bakery ingredients.
@@ -825,7 +825,7 @@ def seed_demo_data(
             detail=report.as_dict(),
         )
         report.audit_log_rows = 2
-    except Exception as exc:  # noqa: BLE001 — defensive default
+    except Exception as exc:
         logger.warning(f"audit seed failed: {exc}")
 
     # --- AppMeta schema_version pin (idempotent) ---
@@ -846,7 +846,7 @@ def seed_demo_data(
             ts_q = now_str.replace("'", "''")
             session.execute(
                 sa_text(
-                    f"INSERT INTO app_meta (key, value, updated_at) "  # noqa: S608 — ts_q is sanitized timestamp, not user input
+                    f"INSERT INTO app_meta (key, value, updated_at) "  # noqa: S608
                     f"VALUES ('last_seed_at', '\"{ts_q}\"'::jsonb, '{ts_q}') "
                     f"ON CONFLICT (key) DO NOTHING"
                 )
@@ -882,12 +882,12 @@ def _delete_seeded_data(session: Session) -> None:
     ):
         try:
             session.execute(delete(model))
-        except Exception as e:  # noqa: BLE001 — defensive default
+        except Exception as e:
             logger.warning(f"Could not wipe {model.__name__}: {e}")
             session.rollback()
     try:
         session.execute(delete(AppMeta).where(AppMeta.key == "last_seed_at"))
-    except Exception as e:  # noqa: BLE001 — defensive default
+    except Exception as e:
         logger.warning(f"Could not delete last_seed_at: {e}")
         session.rollback()
     # AuditLog: only delete the seeded events (action='seed.complete')
@@ -895,7 +895,7 @@ def _delete_seeded_data(session: Session) -> None:
 
     try:
         session.execute(delete(AuditLog).where(AuditLog.action == "seed.complete"))
-    except Exception as e:  # noqa: BLE001 — defensive default
+    except Exception as e:
         logger.warning(f"Could not wipe audit log: {e}")
         session.rollback()
     session.commit()

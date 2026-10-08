@@ -3,6 +3,19 @@
 {% import "_components/atoms.html" as ui %}
 {% block title %}Merma{% endblock %}
 {% block content %}
+{% if amplified_rows %}
+<div class="alert alert-warning" style="margin:1rem 0;padding:0.75rem 1rem;border-left:4px solid #d97706;" data-merma-amplified>
+  <strong>⚠ Merma amplificada</strong> — {{ amplified_rows|length }} insumo{{ 's' if amplified_rows|length != 1 }} con alza de precio y merma registrada:
+  <ul style="margin:0.5rem 0 0 1.2rem;">
+    {% for row in amplified_rows[:5] %}
+    <li>
+      {{ row.ingredient.name }} — precio {% if row.price_pct >= 0 %}+{% endif %}{{ "%.1f" | format(row.price_pct) }}%
+      ({{ m.gs_full(row.prior_avg) }} → {{ m.gs_full(row.recent_avg) }})
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
 {{ ui.page_header(
      title='Merma (desperdicio)',
      desc='Anotá ingredientes desperdiciados para mantener el stock coherente. Para tandas enteras, usá el botón 🔥 Merma desde /producción.',

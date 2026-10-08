@@ -18,8 +18,6 @@ def test_openpyxl_not_loaded_until_excel_endpoint_hit():
     if "app.rms.main" in sys.modules:
         del sys.modules["app.rms.main"]
 
-    import app.rms.main  # noqa: F401
-
     loaded = [m for m in sys.modules if m.startswith("openpyxl")]
     assert loaded == [], f"openpyxl should be lazy-loaded but found: {loaded[:3]}"
 
@@ -29,7 +27,8 @@ def test_excel_io_router_does_not_import_openpyxl_at_module_level():
     import ast
     from pathlib import Path
 
-    src = Path("/opt/data/work/sazon-app/app/routers/excel_io.py").read_text()
+    repo_root = Path(__file__).resolve().parents[1]
+    src = Path(str(repo_root) + "/app/routers/excel_io.py").read_text()
     tree = ast.parse(src)
     # Walk top-level imports
     top_level_imports = []

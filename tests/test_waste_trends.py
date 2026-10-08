@@ -1,4 +1,5 @@
-"""Tests for BACKLOG #34 — Waste ROI per ingredient + price trend.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for BACKLOG #34 — Waste ROI per ingredient + price trend.
 
 The `waste_impact_with_trends()` function joins WasteLog (cost
 denormalized at insert time) with IngredientPriceEvent (append-only
@@ -23,6 +24,7 @@ Coverage:
 - amplified_waste_ingredients() filters correctly
 - 60-day floor (functions clamp `days` to 60 minimum)
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -30,27 +32,21 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.rms.models import (
-    Ingredient,
     IngredientPriceEvent,
     WasteLog,
 )
 from app.rms.waste import (
-    WasteReason,
     WasteIngredientTrend,
     amplified_waste_ingredients,
-    record_waste,
     waste_impact_with_trends,
 )
 from tests.factories import make_ingredient
-
 
 NOW = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
 
 
 def _seed_ingredient(s, *, name, price_gs, stock_qty=10.0, unit="kg"):
-    return make_ingredient(
-        s, name=name, unit=unit, stock_qty=stock_qty, purchase_price_gs=price_gs
-    )
+    return make_ingredient(s, name=name, unit=unit, stock_qty=stock_qty, purchase_price_gs=price_gs)
 
 
 def _seed_price_event(s, *, ingredient_id, price_gs, days_ago):
@@ -81,13 +77,15 @@ def test_waste_only_no_price_history_trend_is_none(session_factory):
         ing = _seed_ingredient(s, name="harina", price_gs=5000)
         s.flush()
         # Waste event 30 days ago
-        s.add(WasteLog(
-            ingredient_id=ing.id,
-            qty=1.0,
-            reason="vencida",
-            cost_gs=5000,
-            recorded_at=NOW - timedelta(days=30),
-        ))
+        s.add(
+            WasteLog(
+                ingredient_id=ing.id,
+                qty=1.0,
+                reason="vencida",
+                cost_gs=5000,
+                recorded_at=NOW - timedelta(days=30),
+            )
+        )
         s.flush()
 
         rows = waste_impact_with_trends(s, days=60, now=NOW)
@@ -111,13 +109,15 @@ def test_flat_price_trend_is_zero(session_factory):
         for d in (50, 40, 30, 20, 10):
             _seed_price_event(s, ingredient_id=ing.id, price_gs=5000, days_ago=d)
         # Waste event 5 days ago
-        s.add(WasteLog(
-            ingredient_id=ing.id,
-            qty=1.0,
-            reason="vencida",
-            cost_gs=5000,
-            recorded_at=NOW - timedelta(days=5),
-        ))
+        s.add(
+            WasteLog(
+                ingredient_id=ing.id,
+                qty=1.0,
+                reason="vencida",
+                cost_gs=5000,
+                recorded_at=NOW - timedelta(days=5),
+            )
+        )
         s.flush()
 
         rows = waste_impact_with_trends(s, days=60, now=NOW)
@@ -140,22 +140,22 @@ def test_rising_price_positive_trend(session_factory):
         for d in (25, 20, 15, 10, 5):
             _seed_price_event(s, ingredient_id=ing.id, price_gs=5000, days_ago=d)
         # Waste event 1 day ago
-        s.add(WasteLog(
-            ingredient_id=ing.id,
-            qty=1.0,
-            reason="vencida",
-            cost_gs=5000,
-            recorded_at=NOW - timedelta(days=1),
-        ))
+        s.add(
+            WasteLog(
+                ingredient_id=ing.id,
+                qty=1.0,
+                reason="vencida",
+                cost_gs=5000,
+                recorded_at=NOW - timedelta(days=1),
+            )
+        )
         s.flush()
 
         rows = waste_impact_with_trends(s, days=60, now=NOW)
         assert len(rows) == 1
         assert rows[0].avg_price_recent_gs == 5000
         assert rows[0].avg_price_prior_gs == 4000
-        assert rows[0].trend_pct == 25.0, (
-            f"expected 25.0, got {rows[0].trend_pct}"
-        )
+        assert rows[0].trend_pct == 25.0, f"expected 25.0, got {rows[0].trend_pct}"
         # 25% > 5% threshold → amplified
         amplified = amplified_waste_ingredients(rows)
         assert len(amplified) == 1
@@ -177,13 +177,15 @@ def test_falling_price_negative_trend_not_amplified(session_factory):
         for d in (25, 20, 15, 10, 5):
             _seed_price_event(s, ingredient_id=ing.id, price_gs=5000, days_ago=d)
         # Waste
-        s.add(WasteLog(
-            ingredient_id=ing.id,
-            qty=1.0,
-            reason="vencida",
-            cost_gs=5000,
-            recorded_at=NOW - timedelta(days=1),
-        ))
+        s.add(
+            WasteLog(
+                ingredient_id=ing.id,
+                qty=1.0,
+                reason="vencida",
+                cost_gs=5000,
+                recorded_at=NOW - timedelta(days=1),
+            )
+        )
         s.flush()
 
         rows = waste_impact_with_trends(s, days=60, now=NOW)
@@ -209,11 +211,15 @@ def test_multiple_ingredients_sorted_by_cost_desc(session_factory):
             (mid, 2.0, 6000),
             (expensive, 1.0, 10000),
         ]:
-            s.add(WasteLog(
-                ingredient_id=ing.id, qty=qty,
-                reason="vencida", cost_gs=cost,
-                recorded_at=NOW - timedelta(days=5),
-            ))
+            s.add(
+                WasteLog(
+                    ingredient_id=ing.id,
+                    qty=qty,
+                    reason="vencida",
+                    cost_gs=cost,
+                    recorded_at=NOW - timedelta(days=5),
+                )
+            )
         s.flush()
 
         rows = waste_impact_with_trends(s, days=60, now=NOW)
@@ -246,11 +252,15 @@ def test_amplified_filters_by_threshold(session_factory):
             _seed_price_event(s, ingredient_id=hot.id, price_gs=6000, days_ago=d)
         # Both have waste
         for ing in (mild, hot):
-            s.add(WasteLog(
-                ingredient_id=ing.id, qty=1.0,
-                reason="vencida", cost_gs=5000,
-                recorded_at=NOW - timedelta(days=5),
-            ))
+            s.add(
+                WasteLog(
+                    ingredient_id=ing.id,
+                    qty=1.0,
+                    reason="vencida",
+                    cost_gs=5000,
+                    recorded_at=NOW - timedelta(days=5),
+                )
+            )
         s.flush()
 
         rows = waste_impact_with_trends(s, days=60, now=NOW)
@@ -280,11 +290,15 @@ def test_only_recent_prices_no_prior_no_trend(session_factory):
         # Only recent events
         for d in (20, 10, 5):
             _seed_price_event(s, ingredient_id=ing.id, price_gs=5000, days_ago=d)
-        s.add(WasteLog(
-            ingredient_id=ing.id, qty=1.0,
-            reason="vencida", cost_gs=5000,
-            recorded_at=NOW - timedelta(days=2),
-        ))
+        s.add(
+            WasteLog(
+                ingredient_id=ing.id,
+                qty=1.0,
+                reason="vencida",
+                cost_gs=5000,
+                recorded_at=NOW - timedelta(days=2),
+            )
+        )
         s.flush()
 
         rows = waste_impact_with_trends(s, days=60, now=NOW)
@@ -305,11 +319,15 @@ def test_only_prior_prices_no_recent_no_trend(session_factory):
         # Only prior events
         for d in (50, 45, 40):
             _seed_price_event(s, ingredient_id=ing.id, price_gs=4000, days_ago=d)
-        s.add(WasteLog(
-            ingredient_id=ing.id, qty=1.0,
-            reason="vencida", cost_gs=5000,
-            recorded_at=NOW - timedelta(days=2),
-        ))
+        s.add(
+            WasteLog(
+                ingredient_id=ing.id,
+                qty=1.0,
+                reason="vencida",
+                cost_gs=5000,
+                recorded_at=NOW - timedelta(days=2),
+            )
+        )
         s.flush()
 
         rows = waste_impact_with_trends(s, days=60, now=NOW)
@@ -331,11 +349,15 @@ def test_days_param_clamped_minimum_60(session_factory):
         _seed_price_event(s, ingredient_id=ing.id, price_gs=4000, days_ago=55)
         # 7-day-old price event
         _seed_price_event(s, ingredient_id=ing.id, price_gs=5000, days_ago=7)
-        s.add(WasteLog(
-            ingredient_id=ing.id, qty=1.0,
-            reason="vencida", cost_gs=5000,
-            recorded_at=NOW - timedelta(days=2),
-        ))
+        s.add(
+            WasteLog(
+                ingredient_id=ing.id,
+                qty=1.0,
+                reason="vencida",
+                cost_gs=5000,
+                recorded_at=NOW - timedelta(days=2),
+            )
+        )
         s.flush()
 
         # days=7 should still surface both halves correctly because
@@ -355,11 +377,15 @@ def test_waste_outside_window_ignored(session_factory):
         ing = _seed_ingredient(s, name="harina", price_gs=5000)
         s.flush()
         # Waste 200 days ago → outside 60-day window
-        s.add(WasteLog(
-            ingredient_id=ing.id, qty=1.0,
-            reason="vencida", cost_gs=5000,
-            recorded_at=NOW - timedelta(days=200),
-        ))
+        s.add(
+            WasteLog(
+                ingredient_id=ing.id,
+                qty=1.0,
+                reason="vencida",
+                cost_gs=5000,
+                recorded_at=NOW - timedelta(days=200),
+            )
+        )
         s.flush()
 
         rows = waste_impact_with_trends(s, days=60, now=NOW)

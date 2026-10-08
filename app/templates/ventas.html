@@ -5,7 +5,7 @@
 {% block title %}Ventas{% endblock %}
 
 {% block content %}
-{{ ui.page_header("Ventas", desc="Registrá una venta al mostrador o consultá el historial del día") }}
+{{ ui.page_header("Ventas", desc="Registrá una venta al mostrador o consultá el historial del día", actions=("<a class='btn btn-ghost' href='/ventas/express'>⚡ Express</a>",)) }}
 
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}

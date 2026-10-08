@@ -12,6 +12,8 @@ constraints are simpler and explicit.
 
 from __future__ import annotations
 
+from app.rms.models.channels import Channel
+
 MAX_QTY = 1_000_000  # sanity cap — never selling a million of anything
 MAX_DISCOUNT_GS = 100_000_000  # 100M Gs. = $14,000 USD discount upper bound
 ALLOWED_PAYMENT_METHODS = frozenset(
@@ -38,25 +40,14 @@ PAYMENT_METHODS_DISPLAY: tuple[str, ...] = (
 PAYMENT_METHOD_DEFAULT = "efectivo"
 
 # Stream A prelaunch: which sales channel produced this sale.
-# mostrador = walk-in counter; whatsapp/pedidosya/monchis = delivery apps
-# / aggregators; mostrador-encargo = in-person pre-order pickup.
-ALLOWED_CHANNELS = frozenset(
-    {
-        "mostrador",
-        "whatsapp",
-        "pedidosya",
-        "monchis",
-        "mostrador-encargo",
-    }
-)
-CHANNELS_DISPLAY: tuple[str, ...] = (
-    "mostrador",
-    "mostrador-encargo",
-    "whatsapp",
-    "pedidosya",
-    "monchis",
-)
-CHANNEL_DEFAULT = "mostrador"
+# P43 (2026-10-07): source from Channel enum to stay in sync with the
+# DB CHECK constraint (migration 111). Previously this set omitted
+# "other" — meaning a sale with channel="other" would pass the DB
+# CHECK but be rejected by sales.py:970/1486 with HTTP 400.
+ALLOWED_CHANNELS = frozenset(Channel.allowed_values())
+# P43: source from enum so display order stays in sync with allowed set.
+CHANNELS_DISPLAY: tuple[str, ...] = Channel.display_order()
+CHANNEL_DEFAULT = Channel.MOSTRADOR.value
 
 
 # Re-export common constants. Routers import these for validation.
