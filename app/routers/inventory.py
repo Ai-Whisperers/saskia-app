@@ -21,6 +21,7 @@ from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.charts import sparkline
 from app.rms.config import ASUNCION_TZ
+from app.rms.catalogs_tags import list_allergens, list_dietary_tags
 from app.rms.dependencies import get_session
 from app.rms.errors import (
     AlreadyExists,
@@ -691,6 +692,8 @@ def inventory_new(request: Request, session: Session = Depends(get_session)) -> 
             "action": "Nuevo",
             "units": [u.value for u in Unit],
             "existing_categories": [{"label": c, "value": c} for c in cats],
+            "allergens": [{"code": a.code, "label": a.label} for a in list_allergens(session)],
+            "dietary_tags": [{"code": d.code, "label": d.label} for d in list_dietary_tags(session)],
         },
     )
 
@@ -1104,6 +1107,8 @@ def inventory_edit(
             "action": "Editar",
             "units": [u.value for u in Unit],
             "existing_categories": [{"label": c, "value": c} for c in cats],
+            "allergens": [{"code": a.code, "label": a.label} for a in list_allergens(session)],
+            "dietary_tags": [{"code": d.code, "label": d.label} for d in list_dietary_tags(session)],
         },
     )
 

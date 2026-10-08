@@ -24,6 +24,17 @@ itself was fine (test_integrations_and_seed_split failed 3 tests for exactly thi
 derive the root from `Path(__file__).resolve().parents[1]`. Also removed a dead
 `today_noon_utc if False else` leftover and fixed the import-order fallout.
 
+## 2026-10-08 — Batch C (T1 catalogs for ingredient tags)
+
+- New migration **115_allergen_dietary_tags** creates `allergen` + `dietary_tag` catalog tables
+  seeded with the prior hardcoded lists (preserves existing data).
+- `app/rms/catalogs_tags.py` exposes `list_allergens()`, `list_dietary_tags()`,
+  `allergen_codes()`, `dietary_tag_codes()` — raw queries with fallback to defaults for resilience.
+- `app/routers/inventory.py` passes `allergens` + `dietary_tags` into the inventory form template.
+- `app/templates/inventario_form.html` now renders the chip-toggle-groups from catalog data
+  (operators can edit labels / add codes from `/settings/catalog` without code deploy).
+- Schema version bumped to **115**. 13 new tests in `test_allergen_dietary_tag_catalogs.py`.
+
 ## 2026-10-08c — two TZ bugs: qseed 'with_sale' time-of-day trap + export 'today' UTC-date bug
 
 **1. `tests/_fixtures_quick_seed.py`**: the `with_sale` scenario anchored `sold_at` at noon UTC
