@@ -45,11 +45,34 @@ imports wired up. All three are dead:
 `docs/archive/2026-09/operations/2026-09-fase-1-specs.md` (an archived
 spec). No code imports it.
 
-## Action
-Move all 10 files to `app/_archive/2026-10-07-p44-legacy-cleanup/`.
-Create `app/_archive/README.md` pointing operators to the archive if
-they need to recover anything. **Don't delete** in case there's a
-recovery scenario; archive instead.
+## Action (revised 2026-10-08)
+
+1. **Already done in PR #54** (commit `a93a699b`): copies of 10 files
+   saved to `app/_archive/2026-10-07-p44-legacy-cleanup/` plus
+   `app/_archive/README.md`.
+
+2. **This commit (2026-10-08)**: `git rm` the 9 actually-dead files
+   from their original locations:
+   - 7 dead migration files (replaced by inline functions in `db.py`)
+   - 3 dead model submodules (Phase 2B refactor leftovers)
+
+3. **Skip** `app/services/auto_backup.py` — it IS used by 39 tests
+   in `tests/test_auto_backup.py` + `tests/test_backup_cfg_override.py`.
+   Also remove the duplicate copy from the archive directory
+   (operators don't need to recover what's still in active code).
+
+## Verification (2026-10-08)
+
+- `git grep` for any reference to the 9 removed files in `app/`/`tests/`:
+  - Only CHANGELOG.md mentions exist (history pointers, not imports).
+- `app/rms.migrations` package still auto-discovers the same 41
+  migrations (none of the dead files had a function in the same
+  version slot as an inline replacement... wait, `_006_simple_test`
+  is in slot 6; the inline `_migration_006_waste_log` is in `db.py`'s
+  local MIGRATIONS dict. Confirmed via `app/rms/db.py:4661` that the
+  runner uses the db.py dict, not the pkgutil one).
+- `ruff check` clean (re-running the auto_backup test file imports
+  is fine — the function is still importable from `app/services/`).
 
 ## Out of scope (deferred)
 - The inline migrations themselves in `db.py` (lines 1-3100) — moving
@@ -70,4 +93,11 @@ recovery scenario; archive instead.
   original state but don't add new findings to the active codebase)
 
 ## Branch
-polish/saskia-p0 (continues from P43).
+polish/saskia-p0 (continues from P43).## Correction (2026-10-08)
+
+`app/services/auto_backup.py` is **NOT** dead — it is imported by:
+- `tests/test_auto_backup.py` (9 tests)
+- `tests/test_backup_cfg_override.py` (3 tests)
+
+Keep it in app/. This P44 commit moves only the 9 actually-dead files
+and leaves `auto_backup.py` where it is.
