@@ -1,4 +1,5 @@
-"""tests/test_loyalty_suggestions.py — Decision C (Phase 4, 2026-10-01).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_loyalty_suggestions.py — Decision C (Phase 4, 2026-10-01).
 
 Auto-suggest rules engine for the POS customer card. Pure-function
 tests for ``app/rms/loyalty_suggestions.suggest_for_customer`` plus

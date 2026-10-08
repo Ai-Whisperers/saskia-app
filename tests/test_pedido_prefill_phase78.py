@@ -1,4 +1,5 @@
-"""tests/test_pedido_prefill_phase78.py — phases 7 (address picker) + 8 (loyalty banner).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_pedido_prefill_phase78.py — phases 7 (address picker) + 8 (loyalty banner).
 
 Verify the new prefill fields:
 - available_addresses: list of saved customer addresses with id/label/

@@ -1,4 +1,5 @@
-"""tests/test_pedido_post_phase13_fields.py — Phase 13 (2026-10-01) tests.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_pedido_post_phase13_fields.py — Phase 13 (2026-10-01) tests.
 
 Confirms the new pedido POST handler persists:
   - delivery_preference

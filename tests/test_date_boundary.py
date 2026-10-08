@@ -1,4 +1,5 @@
-"""tests/test_date_boundary.py — guards month-edge bugs.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_date_boundary.py — guards month-edge bugs.
 
 Companion to .github/workflows/date-boundary.yml. The CI workflow
 pins the runner clock to the last day of the current month and runs

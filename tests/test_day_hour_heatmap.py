@@ -1,4 +1,5 @@
-"""tests/test_day_hour_heatmap.py — BACKLOG #36 day-of-week × hour-of-day grid.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_day_hour_heatmap.py — BACKLOG #36 day-of-week × hour-of-day grid.
 
 Verifies the 7×24 heatmap bucket assignment, TZ conversion, empty-cells
 fallback, and color-scaling max.

@@ -1,4 +1,5 @@
-"""Tests for /produccion CSV export (Phase A of Sazon-Improvement v2 plan).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for /produccion CSV export (Phase A of Sazon-Improvement v2 plan).
 
 Operators need a way to grab the daily plan in CSV so they can paste
 into WhatsApp for the team or import into Excel. The audit / subagent

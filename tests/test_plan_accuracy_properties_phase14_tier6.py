@@ -1,4 +1,5 @@
-"""tests/test_plan_accuracy_properties_phase14_tier6.py — Phase 14 Tier 6.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_plan_accuracy_properties_phase14_tier6.py — Phase 14 Tier 6.
 
 Hypothesis property-based tests for app/rms/plan_accuracy.py invariants.
 

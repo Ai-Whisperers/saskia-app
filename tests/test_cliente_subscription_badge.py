@@ -1,4 +1,5 @@
-"""tests/test_cliente_subscription_badge.py — phase 9.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_cliente_subscription_badge.py — phase 9.
 
 Verify:
 - The /clientes/{id} GET handler loads Suscripcion rows

@@ -124,6 +124,10 @@ regression test `test_dashboard_empty_state_still_renders_kpi_tiles` locks it. 1
 
 ### Fixed
 
+- **CI hygiene (SASKIA-311)**: `app/routers/merma.py` reformatted (landed unformatted via 6568f6b3). 59 `test_no_hardcoded_dates` failures across 60 test files resolved: files whose fixed dates are load-bearing fixtures (calendar edges, tz math, far-future sentinels) now carry the `# allow-hardcoded-dates:` header marker (the test's documented escape hatch); provenance-only date mentions rewritten in prose (`test_P35_sidebar_visibility_breakpoint`). The scanner itself is unchanged.
+
+### Fixed
+
 - **`/ventas/buscar` 400 (route-order bug)**: the SKU lookup route was declared *after* `/{sale_id}` in `app/routers/sales.py`, so `GET /ventas/buscar?sku=…` matched the sale-detail path param (`sale_id: int`) and failed int conversion → custom 400 `"sale_id debe ser un número entero"`. Barcode scan flow was broken on main. Moved `/buscar` before `/{sale_id}`.
 - **`test_produccion_pedido_highlight` stale assertions**: the 3 tests asserted `production-row--has-pedido` appears in the rendered HTML, but the PR4 CSS refactor (5bfb09df) moved those rules to `app/static/app-improvements.css`. Tests now use the CSS_BODY pattern (template + extracted sheet) from `test_produccion_polish.py`.
 

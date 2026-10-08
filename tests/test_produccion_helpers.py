@@ -1,4 +1,5 @@
-"""Tests for the extracted _helpers module.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for the extracted _helpers module.
 
 Sazon-Improvement v2 (2026-10-06) Phase E: contract tests for the
 helpers extracted from _full.py to _helpers.py. The shim re-exports

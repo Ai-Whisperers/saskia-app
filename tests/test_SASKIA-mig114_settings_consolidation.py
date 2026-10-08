@@ -1,4 +1,5 @@
-"""Sprint 2.1 — migration 114 data-copy test (AppMeta → settings_kv).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Sprint 2.1 — migration 114 data-copy test (AppMeta → settings_kv).
 
 Locks: registry + legacy keys copy over, KV wins on conflict, empty
 AppMeta values are skipped, non-settings AppMeta rows stay, idempotent

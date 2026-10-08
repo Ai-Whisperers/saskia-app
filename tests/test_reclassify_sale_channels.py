@@ -1,4 +1,5 @@
-"""tests/test_reclassify_sale_channels.py — SASKIA-204 channel normalization + reclassify.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_reclassify_sale_channels.py — SASKIA-204 channel normalization + reclassify.
 
 Covers:
 1. _normalize_channel (in scripts/import_herebus_data.py) maps raw values

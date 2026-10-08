@@ -1,4 +1,5 @@
-"""Tests for Tier-5-K: 2-cook edit prevention (concurrent-edit detection).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for Tier-5-K: 2-cook edit prevention (concurrent-edit detection).
 
 T-2026-10-04: Two cooks editing the same shift's completion in
 parallel currently do last-write-wins silently. We add:

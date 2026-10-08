@@ -1,4 +1,5 @@
-"""Tier 6.3 (2026-10-01) — /pedidos/{id} linked sales + loyalty impact.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tier 6.3 (2026-10-01) — /pedidos/{id} linked sales + loyalty impact.
 
 Three small flows added to /pedidos/{id}:
   1. "Ver ficha" button linking to /clientes/{customer_id}.

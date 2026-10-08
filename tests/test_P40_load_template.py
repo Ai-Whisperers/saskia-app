@@ -1,4 +1,5 @@
-"""P40 — /produccion/template/load-day one-click "Cargar plan desde plantilla".
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+P40 — /produccion/template/load-day one-click "Cargar plan desde plantilla".
 
 Pre-P40: 21 production_plan_template rows were seeded for weekly planning
 but no production_plan_override rows had ever been written. The day

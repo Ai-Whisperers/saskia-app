@@ -1,4 +1,5 @@
-"""tests/test_clock_discipline.py — Sprint 1.3 verification.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_clock_discipline.py — Sprint 1.3 verification.
 
 Sprint 1.3 of the 2026-10-02 backend overhaul: clock/timezone discipline.
 

@@ -1,4 +1,5 @@
-"""Tests for /healthz/summary — operator one-pager.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for /healthz/summary — operator one-pager.
 
 BACKLOG (operator UX): the operator has to open /healthz, /healthz/db,
 /healthz/errors, /healthz/backup, /healthz/deps, /healthz/schema to

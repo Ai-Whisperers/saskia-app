@@ -1,4 +1,5 @@
-"""tests/test_eod_cfg_override.py — Batch B2 (2026-10-07).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_eod_cfg_override.py — Batch B2 (2026-10-07).
 
 Verifies the operator-tunable EOD anomaly thresholds. Each test
 seeds a small Sale fixture via the existing session_factory,

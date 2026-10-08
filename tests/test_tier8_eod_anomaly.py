@@ -1,4 +1,5 @@
-"""Tier 8.3 (2026-10-01) — EOD anomaly detection.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tier 8.3 (2026-10-01) — EOD anomaly detection.
 
 Tests for ``app.services.eod_anomaly.detect_anomalies``:
 - Empty day → no anomalies

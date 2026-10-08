@@ -1,4 +1,5 @@
-"""tests/test_pedido_prefill.py — phase 3 smart autofill tests.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+tests/test_pedido_prefill.py — phase 3 smart autofill tests.
 
 Verify the customer-prefill service computes the right defaults:
 

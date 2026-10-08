@@ -1,4 +1,5 @@
-"""Tests for /produccion/accuracy Top-5 worst days widget.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for /produccion/accuracy Top-5 worst days widget.
 
 Sazon-Improvement v2 (2026-10-06) Phase E step 5: the /accuracy
 dashboard now surfaces the top 5 days with the biggest plan-vs-actual

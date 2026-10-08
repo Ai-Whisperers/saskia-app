@@ -1,4 +1,5 @@
-"""Tests for /produccion/copy-last-week (Phase C of Sazon-Improvement v2 plan).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for /produccion/copy-last-week (Phase C of Sazon-Improvement v2 plan).
 
 The "copy last week's plan" button saves the operator 20 minutes per
 menu-planning session. It reads the source day's plan_production() output

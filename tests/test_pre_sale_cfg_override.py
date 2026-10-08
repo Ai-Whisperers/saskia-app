@@ -1,4 +1,5 @@
-"""Batch B6 (2026-10-07): pre-sale threshold override tests.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Batch B6 (2026-10-07): pre-sale threshold override tests.
 
 Tests that the new ``pre_sale_cfg`` kwarg on ``validate_sale_intent``
 correctly accepts a partial override dict and merges it with

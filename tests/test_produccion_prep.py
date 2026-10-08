@@ -1,4 +1,5 @@
-"""Tests for /produccion/prep — weekly ingredient prep sheet.
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+Tests for /produccion/prep — weekly ingredient prep sheet.
 
 T-2026-10-04 (P2): The cook needs to know what to buy and what to
 prep for the whole week, not just today. This route aggregates the

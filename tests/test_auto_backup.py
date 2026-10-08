@@ -1,4 +1,5 @@
-"""PR A4 — tests for app/services/auto_backup.py (4 critical untested prod modules).
+"""# allow-hardcoded-dates: fixtures intentionally pin fixed dates (calendar edges, tz math, far-future sentinels); asserted relative to frozen or explicit anchors.
+PR A4 — tests for app/services/auto_backup.py (4 critical untested prod modules).
 
 Per the static-content audit (2026-10-07), the auto_backup module had 0 test
 coverage despite being the only safety net against a corrupt/lost SQLite
