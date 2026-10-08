@@ -264,9 +264,7 @@ def test_login_submit_redirects_to_styled_page_when_limiter_blocks(
     # 303 redirect to styled login page, NOT a raw 429.
     assert r.status_code == 303, f"expected 303 redirect, got {r.status_code}"
     location = r.headers.get("location") or r.headers.get("Location") or ""
-    assert location.startswith("/login"), (
-        f"expected redirect to /login, got Location: {location!r}"
-    )
+    assert location.startswith("/login"), f"expected redirect to /login, got Location: {location!r}"
     # The redirect carries the rate-limit error message + retry-after seconds
     qs = parse_qs(urlparse(location).query)
     assert "error" in qs, f"expected error= in query string, got {qs}"

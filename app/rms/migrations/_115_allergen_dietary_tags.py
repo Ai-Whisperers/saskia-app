@@ -31,7 +31,6 @@ from typing import Any
 
 from sqlalchemy import text
 
-
 # Seed values match the prior hardcoded lists (preserves behavior).
 _DEFAULT_ALLERGENS = [
     ("gluten", "Gluten", 1),
@@ -75,6 +74,7 @@ def _migration_115_allergen_dietary_tags(conn: Any) -> None:
     Idempotent: CREATE TABLE IF NOT EXISTS; seed only when empty.
     """
     from app.rms.db import _bump_schema_version
+
     # allergen table
     conn.execute(
         text(
@@ -90,9 +90,7 @@ def _migration_115_allergen_dietary_tags(conn: Any) -> None:
         """
         )
     )
-    conn.execute(
-        text("CREATE INDEX IF NOT EXISTS idx_allergen_sort ON allergen(sort_order)")
-    )
+    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_allergen_sort ON allergen(sort_order)"))
 
     # dietary_tag table
     conn.execute(
@@ -109,11 +107,7 @@ def _migration_115_allergen_dietary_tags(conn: Any) -> None:
         """
         )
     )
-    conn.execute(
-        text(
-            "CREATE INDEX IF NOT EXISTS idx_dietary_tag_sort ON dietary_tag(sort_order)"
-        )
-    )
+    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_dietary_tag_sort ON dietary_tag(sort_order)"))
 
     # Seed allergens only if empty (idempotent — does not overwrite operator edits)
     existing = conn.execute(text("SELECT COUNT(*) FROM allergen")).scalar()

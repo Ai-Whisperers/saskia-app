@@ -107,8 +107,6 @@ def test_documented_race_check_then_act():
     # The path was previously hardcoded to /opt/data/scratch/sazon-app/...
     # which is brittle when the project lives in any other worktree; derive
     # it from __file__ instead so the test follows the repo wherever it goes.
-    assert "count(" in src_text, (
-        "is_write_rate_limited should query count then check limit"
-    )
+    assert "count(" in src_text, "is_write_rate_limited should query count then check limit"
     # Document: proper fix requires schema work (atomic counter).
     # See SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md F9.

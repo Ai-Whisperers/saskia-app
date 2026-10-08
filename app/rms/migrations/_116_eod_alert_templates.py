@@ -23,7 +23,6 @@ from typing import Any
 
 from sqlalchemy import text
 
-
 # (key, subject, body) — matches the prior hardcoded copy exactly.
 # Placeholders use the same {name} format() syntax as the pedidos
 # templates. The ``detector`` substitutes these at dispatch time.
@@ -84,10 +83,7 @@ def _migration_116_eod_alert_templates(conn: Any) -> None:
 
     # Sanity check: message_template table should exist from migration 044.
     exists = conn.execute(
-        text(
-            "SELECT name FROM sqlite_master "
-            "WHERE type='table' AND name='message_template'"
-        )
+        text("SELECT name FROM sqlite_master WHERE type='table' AND name='message_template'")
     ).fetchone()
     if not exists:
         # Migration 044 hasn't run yet — fall through. Migration ordering

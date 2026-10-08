@@ -15,11 +15,10 @@ from __future__ import annotations
 from sqlalchemy import text
 
 from app.rms.alert_templates import (
-    AlertTemplate,
     _FALLBACK_TEMPLATES,
+    AlertTemplate,
     get_eod_alert_template,
 )
-
 
 EOD_KEYS = [
     "eod.cash_zero_with_active_sales",
@@ -63,6 +62,7 @@ class TestMigrationSeed:
         from app.rms.migrations._116_eod_alert_templates import (
             _migration_116_eod_alert_templates,
         )
+
         # Operator edits the voided_rate body
         with app_engine.begin() as conn:
             conn.execute(
@@ -100,9 +100,7 @@ class TestHelperAPI:
     def test_format_substitutes_placeholders(self, session_factory):
         with session_factory() as s:
             tmpl = get_eod_alert_template(s, "eod.voided_rate")
-            body = tmpl.render(
-                voided=3, total=10, rate_pct="30%"
-            )
+            body = tmpl.render(voided=3, total=10, rate_pct="30%")
         assert "3" in body and "10" in body and "30%" in body
         assert "{voided}" not in body, "Placeholder not substituted"
 
@@ -133,9 +131,7 @@ class TestFallbackPath:
             tmpl = get_eod_alert_template(s, "eod.voided_rate")
         # Falls back to the in-code fallback dict (key still matches)
         assert tmpl.key == "eod.voided_rate"
-        assert "{voided}" in tmpl.body, (
-            "Fallback body should still have the same placeholders"
-        )
+        assert "{voided}" in tmpl.body, "Fallback body should still have the same placeholders"
 
     def test_fallback_dict_has_all_four(self):
         for k in EOD_KEYS:
@@ -151,6 +147,7 @@ class TestAnomalyUsesTemplates:
     we trigger the anomaly and assert that the title/body exactly match
     what's stored in the message_template row.
     """
+
     def test_voided_rate_uses_template_subject(self, session_factory):
         """Subject should match the seeded template, not a literal."""
         with session_factory() as s:

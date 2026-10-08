@@ -1,0 +1,113 @@
+/* Phase 23: Form field help text styles
+ *
+ * Provides clear contextual help below form fields.
+ * Uses accessible markup (aria-describedby) for screen readers.
+ */
+
+.form-help {
+    display: block;
+    margin-top: 4px;
+    font-size: var(--text-sm, 0.85rem);
+    color: var(--color-muted, #666);
+    line-height: 1.4;
+}
+
+.form-help--info {
+    color: var(--color-info, #3b82f6);
+}
+
+.form-help--warn {
+    color: var(--color-warn, #f59e0b);
+}
+
+.form-help--error {
+    color: var(--color-danger, #ef4444);
+    font-weight: 500;
+}
+
+/* Inline help (e.g., "Required" marker) */
+.form-help--inline {
+    display: inline;
+    margin-left: 8px;
+}
+
+/* Help with icon */
+.form-help__icon {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 4px;
+    vertical-align: middle;
+    opacity: 0.7;
+}
+
+/* Field with help gets extra bottom margin */
+.form-row .form-help + .form-control,
+.form-row .form-control + .form-help {
+    margin-bottom: 4px;
+}
+
+/* Required field indicator */
+.form-label--required::after {
+    content: ' *';
+    color: var(--color-danger, #ef4444);
+    font-weight: 600;
+}
+
+/* Optional field indicator */
+.form-label--optional::after {
+    content: ' (opcional)';
+    color: var(--color-muted, #666);
+    font-weight: 400;
+    font-size: 0.85em;
+}
+
+/* Character counter */
+.form-counter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+    font-size: var(--text-sm, 0.85rem);
+    color: var(--color-muted, #666);
+}
+
+.form-counter--over {
+    color: var(--color-danger, #ef4444);
+    font-weight: 500;
+}
+
+.form-counter--near {
+    color: var(--color-warn, #f59e0b);
+}
+
+/* Dark mode */
+[data-theme="dark"] .form-help {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme="dark"] .form-help--info {
+    color: #60a5fa;
+}
+
+[data-theme="dark"] .form-help--warn {
+    color: #fbbf24;
+}
+
+[data-theme="dark"] .form-help--error {
+    color: #f87171;
+}
+
+/* Print: hide help text */
+@media print {
+    .form-help {
+        color: #333;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .form-help {
+        transition: none;
+    }
+}

@@ -1,0 +1,25 @@
+/* Phase 30: Clipboard feedback styles */
+
+[data-copy],
+[data-copy-from] {
+    transition: all 0.15s ease;
+}
+
+.copy-success {
+    background: var(--color-success, #22c55e) !important;
+    color: white !important;
+    border-color: var(--color-success, #22c55e) !important;
+}
+
+.copy-error {
+    background: var(--color-danger, #ef4444) !important;
+    color: white !important;
+    border-color: var(--color-danger, #ef4444) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-copy],
+    [data-copy-from] {
+        transition: none;
+    }
+}

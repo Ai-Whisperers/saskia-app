@@ -22,14 +22,23 @@ from app.rms.catalogs_tags import (
     list_dietary_tags,
 )
 
-
 # Canonical defaults — must match the prior hardcoded lists in inventario_form.html.
 CANONICAL_ALLERGENS = {
-    "gluten", "dairy", "eggs", "nuts", "soy", "sesame", "sulfites",
+    "gluten",
+    "dairy",
+    "eggs",
+    "nuts",
+    "soy",
+    "sesame",
+    "sulfites",
 }
 CANONICAL_DIETARY_TAGS = {
-    "vegan", "vegetarian", "gluten_free", "sugar_free",
-    "keto_friendly", "high_protein",
+    "vegan",
+    "vegetarian",
+    "gluten_free",
+    "sugar_free",
+    "keto_friendly",
+    "high_protein",
 }
 
 
@@ -38,16 +47,12 @@ class TestCatalogSeed:
 
     def test_allergen_table_exists(self, app_engine):
         with app_engine.connect() as conn:
-            rows = conn.execute(
-                text("SELECT COUNT(*) FROM allergen")
-            ).scalar()
+            rows = conn.execute(text("SELECT COUNT(*) FROM allergen")).scalar()
         assert rows == 7, f"Expected 7 seeded allergens, got {rows}"
 
     def test_dietary_tag_table_exists(self, app_engine):
         with app_engine.connect() as conn:
-            rows = conn.execute(
-                text("SELECT COUNT(*) FROM dietary_tag")
-            ).scalar()
+            rows = conn.execute(text("SELECT COUNT(*) FROM dietary_tag")).scalar()
         assert rows == 6, f"Expected 6 seeded dietary tags, got {rows}"
 
     def test_seed_runs_only_when_empty(self, app_engine):
@@ -59,19 +64,16 @@ class TestCatalogSeed:
                     "VALUES ('shellfish','Mariscos', 99)"
                 )
             )
-            before = conn.execute(
-                text("SELECT COUNT(*) FROM allergen")
-            ).scalar()
+            before = conn.execute(text("SELECT COUNT(*) FROM allergen")).scalar()
             assert before == 8, "Extra row should be there before re-run"
         # Simulate migration re-run — idempotency lives in the seed-when-empty gate.
         from app.rms.migrations._115_allergen_dietary_tags import (
             _migration_115_allergen_dietary_tags,
         )
+
         with app_engine.begin() as conn:
             _migration_115_allergen_dietary_tags(conn)
-            after = conn.execute(
-                text("SELECT COUNT(*) FROM allergen")
-            ).scalar()
+            after = conn.execute(text("SELECT COUNT(*) FROM allergen")).scalar()
         assert after == 8, f"Re-running migration clobbered operator data (got {after})"
 
 
@@ -84,7 +86,13 @@ class TestHelperAPI:
         codes = [e.code for e in entries]
         # Sort order from migration: gluten=1, dairy=2, eggs=3, etc.
         assert codes == [
-            "gluten", "dairy", "eggs", "nuts", "soy", "sesame", "sulfites",
+            "gluten",
+            "dairy",
+            "eggs",
+            "nuts",
+            "soy",
+            "sesame",
+            "sulfites",
         ]
 
     def test_list_dietary_tags_returns_sort_order(self, session_factory):
@@ -92,8 +100,12 @@ class TestHelperAPI:
             entries = list_dietary_tags(s)
         codes = [e.code for e in entries]
         assert codes == [
-            "vegan", "vegetarian", "gluten_free",
-            "sugar_free", "keto_friendly", "high_protein",
+            "vegan",
+            "vegetarian",
+            "gluten_free",
+            "sugar_free",
+            "keto_friendly",
+            "high_protein",
         ]
 
     def test_entries_have_code_and_label(self, session_factory):
@@ -148,18 +160,14 @@ class TestOperatorEdits:
 
     def test_inactive_allergen_excluded_by_default(self, session_factory):
         with session_factory() as s:
-            s.execute(
-                text("UPDATE allergen SET is_active = 0 WHERE code = 'sesame'")
-            )
+            s.execute(text("UPDATE allergen SET is_active = 0 WHERE code = 'sesame'"))
             s.commit()
             visible = allergen_codes(s)
         assert "sesame" not in visible
 
     def test_inactive_allergen_included_when_requested(self, session_factory):
         with session_factory() as s:
-            s.execute(
-                text("UPDATE allergen SET is_active = 0 WHERE code = 'sesame'")
-            )
+            s.execute(text("UPDATE allergen SET is_active = 0 WHERE code = 'sesame'"))
             s.commit()
             visible = allergen_codes(s)
             all_visible = [t.code for t in list_allergens(s, include_inactive=True)]
@@ -179,6 +187,7 @@ class TestBackwardsCompatibility:
             conn.execute(text("DROP TABLE IF EXISTS allergen"))
             conn.execute(text("DROP TABLE IF EXISTS dietary_tag"))
         from app.rms.db import make_session_factory
+
         factory = make_session_factory(app_engine)
         with factory() as s:
             al = allergen_codes(s)
@@ -187,6 +196,7 @@ class TestBackwardsCompatibility:
         from app.rms.migrations._115_allergen_dietary_tags import (
             _migration_115_allergen_dietary_tags,
         )
+
         with app_engine.begin() as conn:
             _migration_115_allergen_dietary_tags(conn)
         assert set(al) == CANONICAL_ALLERGENS
@@ -200,15 +210,11 @@ class TestCatalogSortedByCode:
         # Add two allergens with the same sort_order
         with session_factory() as s:
             s.execute(
-                text(
-                    "INSERT INTO allergen (code, label, sort_order) "
-                    "VALUES ('zinc','Zinc', 50)"
-                )
+                text("INSERT INTO allergen (code, label, sort_order) VALUES ('zinc','Zinc', 50)")
             )
             s.execute(
                 text(
-                    "INSERT INTO allergen (code, label, sort_order) "
-                    "VALUES ('apple','Manzana', 50)"
+                    "INSERT INTO allergen (code, label, sort_order) VALUES ('apple','Manzana', 50)"
                 )
             )
             s.commit()

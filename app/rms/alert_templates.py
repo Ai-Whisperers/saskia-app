@@ -33,7 +33,7 @@ class AlertTemplate:
     body: str
     locale: str = "es-PY"
 
-    def render(self, **kwargs) -> str:
+    def render(self, **kwargs: object) -> str:
         """Substitute ``{placeholders}`` in the body.
 
         Mirrors ``str.format(**)`` semantics. Missing keys raise

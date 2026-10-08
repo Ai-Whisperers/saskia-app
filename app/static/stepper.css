@@ -1,0 +1,75 @@
+/* Phase 36: Stepper styles */
+
+.stepper {
+    display: inline-flex;
+    align-items: stretch;
+    gap: 0;
+}
+
+.stepper__input {
+    flex: 1;
+    min-width: 4em;
+    text-align: center;
+    border-radius: 0 !important;
+}
+
+.stepper__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--color-border, #d1d5db);
+    background: var(--color-bg-elevated, #f9fafb);
+    color: var(--color-fg, #111827);
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.stepper__btn:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: 0;
+}
+
+.stepper__btn:last-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: 0;
+}
+
+.stepper__btn:hover:not(:disabled) {
+    background: var(--color-bg-hover, #f3f4f6);
+}
+
+.stepper__btn:active:not(:disabled) {
+    background: var(--color-bg-active, #e5e7eb);
+}
+
+.stepper__btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Touch targets - 44px min for mobile */
+@media (max-width: 768px) {
+    .stepper__btn {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* Dark mode */
+[data-theme="dark"] .stepper__btn {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="dark"] .stepper__btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+}

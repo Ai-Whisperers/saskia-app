@@ -42,14 +42,14 @@ def list_allergens(session: Session, include_inactive: bool = False) -> list[Tag
     the migration runs.
     """
     try:
-        sql = """
+        sql = (  # noqa: S608 — static template; only interpolation is a hardcoded WHERE constant
+            """
             SELECT id, code, label, sort_order, is_active
             FROM allergen
             {where_clause}
             ORDER BY sort_order ASC, code ASC
-        """.format(
-            where_clause="" if include_inactive else "WHERE is_active = 1"
-        )
+            """
+        ).format(where_clause="" if include_inactive else "WHERE is_active = 1")
         rows = session.execute(text(sql)).fetchall()
     except Exception:
         # Table doesn't exist yet (pre-migration) — fall through to defaults.
@@ -75,19 +75,17 @@ def list_allergens(session: Session, include_inactive: bool = False) -> list[Tag
     ]
 
 
-def list_dietary_tags(
-    session: Session, include_inactive: bool = False
-) -> list[TagEntry]:
+def list_dietary_tags(session: Session, include_inactive: bool = False) -> list[TagEntry]:
     """Return active dietary tags sorted by sort_order (then code)."""
     try:
-        sql = """
+        sql = (  # noqa: S608 — static template; only interpolation is a hardcoded WHERE constant
+            """
             SELECT id, code, label, sort_order, is_active
             FROM dietary_tag
             {where_clause}
             ORDER BY sort_order ASC, code ASC
-        """.format(
-            where_clause="" if include_inactive else "WHERE is_active = 1"
-        )
+            """
+        ).format(where_clause="" if include_inactive else "WHERE is_active = 1")
         rows = session.execute(text(sql)).fetchall()
     except Exception:
         rows = []
@@ -145,8 +143,8 @@ _FALLBACK_DIETARY_TAGS = [
 
 __all__ = [
     "TagEntry",
-    "list_allergens",
-    "list_dietary_tags",
     "allergen_codes",
     "dietary_tag_codes",
+    "list_allergens",
+    "list_dietary_tags",
 ]
