@@ -1,24 +1,40 @@
-# the operator · What Next? (refresh 2026-10-07b)
+# the operator · What Next? (refresh 2026-10-08)
 
-> **Supersedes** `WHAT_NEXT_2026-10-07-archived.md`. Older
-> `IMPROVEMENT_BACKLOG.md`, `COMPLETE_*.md`, `PHASE2_*.md` are stale —
-> use `git log` as ground truth: `git log --oneline --since="2026-10-01"`.
+> **Supersedes** `WHAT_NEXT_2026-10-07b-archived.md`. Older
+> `IMPROVEMENT_BACKLOG.md`, `COMPLETE_*.md`, `PHASE2_*.md` are stale — use
+> `git log` as ground truth: `git log --oneline --since="2026-10-01"`.
 
-## 📊 Current State (2026-10-07)
+## 📊 Current State (2026-10-08)
 
 | Knob | Value | Source |
 |------|-------|--------|
 | Schema | v112 | `app/rms/config.py:87` |
 | Migrations on disk | 37 | `app/rms/migrations/_*.py` |
-| Tests collected | 6,854 (129 deselected) | `pytest --collect-only` |
-| Shopping tests | 14/14 ✅ | `test_P39_*`, `test_P19_*`, `test_shopping_*`, `test_shopping_from_plan` |
-| Stale test paths | 0 | `test_shopping_benchmarks.py` paths fixed |
-| Held-sale tests | 25/25 ✅ | `tests/test_held_sales*.py` |
-| P40 tests | 13/13 ✅ | `tests/test_P40_*.py` |
-| Open ruff findings | 0 (in P40 files + held_sale) | `ruff check` |
+| Tests collected | 7,328 (129 deselected) | `pytest --collect-only` |
+| SASKIA-3XX tests | 18/18 ✅ | `test_terminology_consistency` (4) + `test_SASKIA-309_*` (14) |
+| Closed SASKIA items | 310/310 | SASKIA-301..310 (Phases 0-9) shipped; copy/UX program complete |
+| Open ruff findings | 0 | `ruff check` |
 
 ## ✅ Closed in the last week (since 2026-10-01, top items only)
 
+- **SASKIA-309: Phase 8 regression locks** — `b9ad6c58` (#65). 14 new
+  tests across 3 files: `test_SASKIA-309_500_no_secrets.py`
+  (errors/500.html — no stack traces, secrets, env-var prefixes, API
+  tokens), `test_SASKIA-309_dev_pages_not_in_nav.py`
+  (/dev/* URLs not in operator nav), `test_SASKIA-309_guia_intro.py`
+  (README has operator-facing intro + all TOC links resolve).
+  Also: 1-line ruff format fix on `app/rms/main.py:1242`.
+- **SASKIA-310: terminology glossary + CI gate (Phase 9)** — `880aa710`
+  (#64). Concept-level glossary at `app/docs/glossary.md` (50+ rows,
+  complements string-level `copy-vos.md`). CI gate
+  `tests/test_terminology_consistency.py` scans every
+  `app/templates/**/*.html` for 16 English loan-word patterns.
+  Last 4 loan-word fixes: `Diff`→`Diferencia` (caja, caja_z),
+  `Accuracy`→`Precisión` (produccion_accuracy: KPI label + 2 headers
+  + explanation). Copy/UX program (SASKIA-301..310) is now closed.
+- **SASKIA-209: one-command migration rollback** — `dc26df1f`. Implements
+  BACKLOG #12. `app/rms/rollback.py` + CLI `sazon rollback --to N
+  --dry-run`; 9 contract tests; sweep 102 pass.
 - **Production Planner → Shopping List** — `eaaf6a12` + `bc9a76ff`
   + `8edaefd6` + `ff0ed55e`. Operator one-click: pick tomorrow's plan
   on `/produccion`, "Enviar faltantes a lista de compras" button
@@ -55,10 +71,11 @@
 
 ### #1 — **Deploy the batch to VPS** — 30 min, real impact
 
-P40 + held_sale + public-menu branding + SASKIA-202 N+1 fix + SASKIA-203
-shopping-list button are sitting on `main`. None are live. The 30-day
-"0 demand_snapshot rows" gap will only start healing after VPS
-deployment, because /eod runs there.
+SASKIA-301..310 (24 templates + 129 tests + glossary + CI gate) +
+held_sale + public-menu branding + SASKIA-202 N+1 fix + SASKIA-203
+shopping-list button + SASKIA-209 migration rollback are all sitting
+on `main`. None are live. The 30-day "0 demand_snapshot rows" gap
+will only start healing after VPS deployment, because /eod runs there.
 
 ```
 ssh paragu-ai 'cd /opt/saskia && docker compose pull && docker compose up -d'
@@ -66,16 +83,40 @@ ssh paragu-ai 'curl https://sazon-vps.paragu-ai.com/healthz'
 ```
 
 Risk: medium. Pre-migration backup runs first (AGENTS.md rule 17) and
-`fail_closed_on_newer_schema()` aborts if anything is off.
+`fail_closed_on_newer_schema()` aborts if anything is off. The new
+`sazon rollback --to N` is the safety net (SASKIA-209).
 
-### ❌ Deferred — C.1 Sentry→Telegram activation
+### #2 — **Fix the systemic CI failures (Postgres testcontainers + ZAP threshold)** — 1 hour
+
+Every recent PR has these same failures:
+- `smoke` job: Postgres `sazon` user password auth (Postgres testcontainers)
+- `OWASP ZAP API scan`: 3 WARN, 0 FAIL (threshold config)
+
+Until fixed, every PR carries pre-existing failure noise that makes
+real regressions harder to spot. Real bugs hide. Concrete next step:
+fix the `sazon` user password in the testcontainers config + add
+`--ignore-warnings` to ZAP scan or set the threshold to WARN-pass.
+
+### #3 — **Tackle Supabase RLS + Storage (BACKLOG #37, #38)** — L effort, security-sensitive
+
+Two genuinely-open items from IMPROVEMENT_BACKLOG Tier 7 (P3 Supabase/infra):
+- **#37**: Supabase Storage for product images (today URLs to external CDN)
+- **#38**: Supabase RLS for multi-tenant readiness (Tenant table exists)
+
+Both are security/data-architecture items — need Iván's explicit OK per
+AGENTS.md Decision framework before implementation. Not agent-decided.
+Surfaces when Sazón gets a second client; deferred until then per
+SPEC SASKIA-210 ("per-client instances, not shared-DB tenancy;
+deferred until Saskia is happy", `2206111b`).
+
+## ❌ Deferred — C.1 Sentry→Telegram activation
 
 **Out of scope until Sazon has ≥30 customers asking for Telegram
 notifications.** Iván explicitly deferred this on 2026-10-07: "sazon
 wont have any telgram bot or any things like that at least not until we
 have 30 customers that ask for it." The `aa0eb6cf` code path stays
 shipped but dormant (silent no-op when `TG_BOT_TOKEN`/`TG_CHAT_ID`
-unset — preserves test_sentry_lazy_import contract).
+unset — preserves `test_sentry_lazy_import` contract).
 
 If demand materializes later:
 - BWS has `sazon-telegram` (the bot token + chat ID)
@@ -85,27 +126,33 @@ If demand materializes later:
 ## 🛠 Tooling & Plumbing
 
 - **Stale docs**: prior `IMPROVEMENT_BACKLOG.md`, `COMPLETE_*.md`,
-  `PHASE2_*.md` are superseded by this file. Don't re-edit them.
-- **`WHAT_NEXT_2026-10-07-archived.md`** is the prior state — read for
+  `PHASE2_*.md` are superseded by this file. Don't re-edit them. As
+  of 2026-10-08, IMPROVEMENT_BACKLOG.md has been refreshed for the
+  3 most-recently-shipped items (#12, #32, #33) — the rest of the
+  Tier 1-7 history remains as the audit-driven reference.
+- **`WHAT_NEXT_2026-10-07b-archived.md`** is the prior state — read for
   history, don't revive items from it without checking `git log`.
 - **Backup discipline**: AGENTS.md rule 17 (pre-migration backup) is
-  now enforced at `init_db()`.
+  now enforced at `init_db()`. SASKIA-209 added `sazon rollback` as the
+  recovery path.
 
 ## 💼 Business-Operational priorities (operator-visible)
 
-- **Wishlist purchases don't trigger inventory** (#2 in old WHAT_NEXT).
-  Still open.
-- **Predictive restocking** (Poisson regression on sale_stock_move →
-  "expected consumption next 3 days"). Depends on demand_snapshot,
-  which now fills daily thanks to P40 part 3.
-- **Forward-only migration rollback path**: still TODO (L effort).
-- **Supabase RLS + Storage for multi-tenant readiness**: still TODO.
-- **Snapshot price on ShoppingListItem**: see shopping-list audit, gap
-  not yet created.
+- **Deploy the new SASKIA/Sprint work to VPS** — see #1 above.
+- **Predictive restocking** — Poisson weekday forecast ships
+  (SASKIA-208, `ede316a3`), but only runs after VPS deploy.
+- **Forward-only migration rollback**: SHIPPED 2026-10-07 (SASKIA-209)
+  — `sazon rollback --to N --dry-run`.
+- **Supabase RLS + Storage for multi-tenant readiness**: still TODO
+  (BACKLOG #37, #38); deferred per SASKIA-210.
+- **Wishlist purchases → inventory** (was on the wishlist list earlier):
+  SASKIA-205 already wired this — `app/routers/herebus.py:104`
+  `wishlist_mark_purchased` creates `[EQUIPMENT] {name}` ingredient +
+  StockMovement `reorder`. Idempotent on False→True transition.
 
 ---
 
-**Generated:** 2026-10-07b by SASKIA-203 shopping-list affordance PR.
+**Generated:** 2026-10-08 after SASKIA-309 (#65) + SASKIA-310 (#64) merged.
 **Update pattern:** when this falls out of date, run `git log --oneline
 --since="<DATE>"` and rewrite the "Closed in the last week" section.
 Archive the old version as `WHAT_NEXT_YYYY-MM-DD-archived.md` first.
