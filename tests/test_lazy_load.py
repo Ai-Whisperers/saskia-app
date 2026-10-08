@@ -2,10 +2,10 @@
 
 Verifies the data-lazy-src auto-applied IntersectionObserver utility.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-
 
 LAZY_JS = Path(__file__).parent.parent / "app" / "static" / "lazy-load.js"
 BASE_HTML = Path(__file__).parent.parent / "app" / "templates" / "base.html"

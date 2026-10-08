@@ -2,10 +2,10 @@
 
 Verifies the perf-monitor.js Web Vitals tracking utility.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-
 
 PERF_JS = Path(__file__).parent.parent / "app" / "static" / "perf-monitor.js"
 BASE_HTML = Path(__file__).parent.parent / "app" / "templates" / "base.html"

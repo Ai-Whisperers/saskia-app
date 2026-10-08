@@ -2,10 +2,10 @@
 
 Verifies the data-stepper enhanced number input.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-
 
 STEPPER_JS = Path(__file__).parent.parent / "app" / "static" / "stepper.js"
 STEPPER_CSS = Path(__file__).parent.parent / "app" / "static" / "stepper.css"

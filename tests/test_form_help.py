@@ -2,10 +2,10 @@
 
 Verifies the form_help, field_label, and char_counter macros + CSS.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-
 
 HELP_CSS = Path(__file__).parent.parent / "app" / "static" / "form-help.css"
 MACROS = Path(__file__).parent.parent / "app" / "templates" / "_components" / "macros.html"
@@ -163,7 +163,7 @@ def test_form_help_macro_returns_valid_html():
     """form_help macro should generate valid HTML structure."""
     text = MACROS.read_text()
     # Check that the macro outputs proper HTML
-    assert "class=\"form-help" in text
+    assert 'class="form-help' in text
     assert "form-help--{{ kind }}" in text
 
 

@@ -2,10 +2,10 @@
 
 Verifies the data-copy and data-copy-from click-to-copy utility.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-
 
 CLIPBOARD_JS = Path(__file__).parent.parent / "app" / "static" / "clipboard.js"
 CLIPBOARD_CSS = Path(__file__).parent.parent / "app" / "static" / "clipboard.css"
