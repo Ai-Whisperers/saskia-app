@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 APP_JS = Path(__file__).parent.parent / "app" / "static" / "app.js"
 
 

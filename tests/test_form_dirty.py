@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 FORM_DIRTY_JS = Path(__file__).parent.parent / "app" / "static" / "form-dirty.js"
 
 

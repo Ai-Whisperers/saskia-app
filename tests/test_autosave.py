@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 AUTOSAVE_JS = Path(__file__).parent.parent / "app" / "static" / "autosave.js"
 BASE_HTML = Path(__file__).parent.parent / "app" / "templates" / "base.html"
 
