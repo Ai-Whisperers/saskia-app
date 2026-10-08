@@ -179,7 +179,6 @@ def set_branding(session: object, **fields: object) -> dict:
     return current
 
 
-
 # ─── Batch B: per-domain config helpers (2026-10-07) ─────────────────────
 # Each domain has:
 #   - DEFAULT_<DOMAIN>_CONFIG  module-level dict (frozen defaults)

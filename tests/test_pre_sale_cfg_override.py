@@ -47,9 +47,7 @@ def test_legacy_constants_alias_default_pre_sale_config():
 # ── validate_sale_intent override ───────────────────────────────────────
 
 
-def test_validate_sale_intent_qty_cap_override_blocks(
-    session_factory, monkeypatch
-):
+def test_validate_sale_intent_qty_cap_override_blocks(session_factory, monkeypatch):
     """Override tightening max_qty_per_sale produces a blocker.
 
     With default cap=999, qty=200 is allowed. With override cap=100,
@@ -62,16 +60,12 @@ def test_validate_sale_intent_qty_cap_override_blocks(
         product = _make_product_helper(s)
 
         # Default: qty=200 allowed
-        intent = PreSaleIntent(
-            product_id=product.id, sku="", qty=200, sold_at=date(2026, 10, 7)
-        )
+        intent = PreSaleIntent(product_id=product.id, sku="", qty=200, sold_at=date(2026, 10, 7))
         d_default = validate_sale_intent(s, intent, today=date(2026, 10, 7))
         assert not any(w.code == "QTY_TOO_LARGE" for w in d_default.blockers)
 
         # Override cap=100: qty=200 blocked
-        intent2 = PreSaleIntent(
-            product_id=product.id, sku="", qty=200, sold_at=date(2026, 10, 7)
-        )
+        intent2 = PreSaleIntent(product_id=product.id, sku="", qty=200, sold_at=date(2026, 10, 7))
         d_override = validate_sale_intent(
             s,
             intent2,
@@ -83,9 +77,7 @@ def test_validate_sale_intent_qty_cap_override_blocks(
         s.close()
 
 
-def test_validate_sale_intent_discount_cap_override(
-    session_factory, monkeypatch
-):
+def test_validate_sale_intent_discount_cap_override(session_factory, monkeypatch):
     """Override lowering max_discount_pct produces a warning.
 
     With default cap=20%, discount=10% is allowed (no warning).
@@ -122,9 +114,7 @@ def test_validate_sale_intent_discount_cap_override(
         s.close()
 
 
-def test_validate_sale_intent_partial_cfg_merges_with_defaults(
-    session_factory
-):
+def test_validate_sale_intent_partial_cfg_merges_with_defaults(session_factory):
     """Partial override dict only changes the named keys."""
     # _make_product_helper defined at the bottom of this file
 
@@ -133,9 +123,7 @@ def test_validate_sale_intent_partial_cfg_merges_with_defaults(
         product = _make_product_helper(s)
 
         # Override max_qty_per_sale=10, max_discount_pct stays at default
-        intent = PreSaleIntent(
-            product_id=product.id, sku="", qty=20, sold_at=date(2026, 10, 7)
-        )
+        intent = PreSaleIntent(product_id=product.id, sku="", qty=20, sold_at=date(2026, 10, 7))
         d = validate_sale_intent(
             s,
             intent,

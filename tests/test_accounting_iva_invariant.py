@@ -19,6 +19,7 @@ from app.rms.constants import IVA_DIVISOR, PARAGUAY_IVA_RATE
 
 # ─── Sanity: the constants exist where they should ─────────────────
 
+
 def test_constants_live_in_constants_module() -> None:
     """The single source of truth is app/rms/constants.py."""
     from app.rms import constants, accounting
@@ -34,9 +35,7 @@ def test_constants_live_in_constants_module() -> None:
 # Gross amounts in the realistic Sazón range: 1k Gs. (a chipita) to
 # 100M Gs. (a busy day). Divided by 100 so Decimal division by 1.10
 # doesn't lose the cents.
-POSITIVE_GROSS = st.integers(min_value=1_000, max_value=100_000_000).filter(
-    lambda x: x % 100 == 0
-)
+POSITIVE_GROSS = st.integers(min_value=1_000, max_value=100_000_000).filter(lambda x: x % 100 == 0)
 
 
 @given(gross=POSITIVE_GROSS)
