@@ -1197,8 +1197,12 @@ async def pedidos_create(
     if promised_date_norm is not None:
         try:
             invalidate_demand_for_dates(session, [promised_date_norm])
-        except Exception:  # noqa: S110
-            pass  # cache stays stale; 5-min TTL will eventually catch up
+        except Exception as exc:  # best-effort; surface but never block the request
+            logger.warning(
+                "demand invalidation failed for {}: {!r} (5-min TTL will catch up)",
+                promised_date_norm,
+                exc,
+            )
     safe_commit(session)
 
     # T-2026-10-01: stamp the idempotency reservation with the new
@@ -2349,8 +2353,8 @@ def pedidos_bulk_fulfill(
     if affected_dates:
         try:
             invalidate_demand_for_dates(session, list(affected_dates))
-        except Exception:  # noqa: S110
-            pass
+        except Exception as exc:  # best-effort; surface but never block the request
+            logger.warning("demand invalidation failed for {}: {!r}", affected_dates, exc)
     safe_commit(session)
     return RedirectResponse(
         url=f"/pedidos?flash=pedidos_bulk_fulfilled:{fulfilled}",
@@ -2391,8 +2395,8 @@ def pedidos_bulk_cancel(
     if affected_dates:
         try:
             invalidate_demand_for_dates(session, list(affected_dates))
-        except Exception:  # noqa: S110
-            pass
+        except Exception as exc:  # best-effort; surface but never block the request
+            logger.warning("demand invalidation failed for {}: {!r}", affected_dates, exc)
     safe_commit(session)
     return RedirectResponse(
         url=f"/pedidos?flash=pedidos_bulk_cancelled:{cancelled}",

@@ -1,24 +1,25 @@
 """tests/test_mobile_ux.py — E4.S4 mobile UX regression tests.
 
 Covers:
-- mobile.css is served (200, content-type text/css)
-- mobile.css bumps touch targets to ≥44px on ≤768px viewports
-- mobile.css hides bottom-nav on desktop, shows on mobile
+- the mobile stylesheet (absorbed into app-shell.css by the CSS deep-audit
+  f65ce313) is served (200, content-type text/css)
+- mobile rules bump touch targets to ≥44px on ≤768px viewports
+- the stylesheet hides bottom-nav on desktop, shows on mobile
 - /inicio (and other pages) include the bottom-nav with 5 links
-- base.html links to /static/mobile.css
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-MOBILE_CSS = REPO_ROOT / "app" / "static" / "mobile.css"
+MOBILE_CSS = REPO_ROOT / "app" / "static" / "app-shell.css"
 BASE_HTML = REPO_ROOT / "app" / "templates" / "base.html"
 
 
 def test_mobile_css_file_exists_and_nonempty():
-    assert MOBILE_CSS.exists(), "mobile.css missing"
+    assert MOBILE_CSS.exists(), "app-shell.css (mobile rules home) missing"
     content = MOBILE_CSS.read_text(encoding="utf-8")
     assert len(content) > 500
 
@@ -27,7 +28,7 @@ def test_mobile_css_bumps_btn_height_to_44px():
     content = MOBILE_CSS.read_text(encoding="utf-8")
     # The mobile rule must bump --btn-height to at least 44px
     assert "--btn-height: 44px" in content, (
-        "mobile.css must set --btn-height to 44px on mobile viewports"
+        "app-shell.css must set --btn-height to 44px on mobile viewports"
     )
 
 
@@ -45,11 +46,6 @@ def test_mobile_css_has_safe_area_inset_for_iphones():
     assert "safe-area-inset-bottom" in content
 
 
-def test_base_html_links_to_mobile_css():
-    content = BASE_HTML.read_text(encoding="utf-8")
-    assert "/static/mobile.css" in content, "base.html must link to /static/mobile.css"
-
-
 def test_base_html_renders_bottom_nav_with_5_links(authed_client):
     """The base.html <nav class="bottom-nav"> appears with all 5 quick-nav entries."""
     r = authed_client.get("/inicio")
@@ -62,8 +58,8 @@ def test_base_html_renders_bottom_nav_with_5_links(authed_client):
 
 
 def test_mobile_css_served_via_static_route(authed_client):
-    """/static/mobile.css returns 200 with text/css content type."""
-    r = authed_client.get("/static/mobile.css")
+    """The stylesheet carrying the mobile rules returns 200 with text/css."""
+    r = authed_client.get("/static/app-shell.css")
     assert r.status_code == 200
     ct = r.headers.get("content-type", "")
     assert "text/css" in ct or "css" in ct
@@ -74,8 +70,6 @@ def test_bottom_nav_includes_safe_anchors(authed_client):
     r = authed_client.get("/inicio")
     body = r.text
     # Pull out the bottom-nav block
-    import re
-
     nav_match = re.search(r'<nav class="bottom-nav"[^>]*>(.*?)</nav>', body, re.DOTALL)
     assert nav_match, "no bottom-nav block"
     nav_html = nav_match.group(1)

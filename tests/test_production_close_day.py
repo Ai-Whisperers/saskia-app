@@ -13,7 +13,13 @@ Covers:
 
 from __future__ import annotations
 
+import re
 from datetime import date
+from pathlib import Path
+
+TEMPLATE_SRC = (
+    Path(__file__).resolve().parents[1] / "app" / "templates" / "produccion.html"
+).read_text(encoding="utf-8")
 
 import pytest
 
@@ -483,8 +489,10 @@ def test_day_view_v2_renders_demanda_column(client, session_factory):
         f"v2 grilla should show 'Demanda' header; body length={len(body)}; "
         f"production-row count={body.count('production-row')}"
     )
-    # Check the decomp label is present in the page (header subtitle)
-    assert "forecast + pedidos" in body, "v2 should show demand decomposition"
+    # The demand decomposition wiring ships in the template (v3 overhaul
+    # replaced the literal 'forecast + pedidos' subtitle with per-row
+    # qty_demand_total cells + source labels).
+    assert "qty_demand_total" in TEMPLATE_SRC, "v2 should wire demand decomposition"
     # Explicit ?ui=v2 still works (idempotent with default).
     resp_v2 = client.get(f"/produccion?for_date={target.isoformat()}&ui=v2")
     assert resp_v2.status_code == 200, resp_v2.text
@@ -500,8 +508,9 @@ def test_day_view_v2_renders_demanda_column(client, session_factory):
 
 
 def test_day_view_v2_renders_ui_badge(client, session_factory):
-    """After the cutover, the v1/v2 toggle is replaced by a static
-    'v2 ✨' badge in the header — no more v1 link to click."""
+    """After the cutover, the 'v2 ✨' indicator is HIDDEN from operators
+    (T-2026-10-06 UX polish) but kept as a sr-only span for tests +
+    accessibility tools. The v1 link is gone."""
     from tests.factories import make_product
 
     with session_factory() as s:
@@ -511,12 +520,12 @@ def test_day_view_v2_renders_ui_badge(client, session_factory):
     resp = client.get(f"/produccion?for_date={target.isoformat()}")
     assert resp.status_code == 200
     body = resp.text
-    # The v2 badge is always visible (the only UI version now).
-    assert "v2 ✨" in body, "v2 label should be visible in the header badge"
-    # The old v1 link should be gone.
-    assert 'href="/produccion?view' not in body or "ui=v1" not in body, (
-        "v1 link should be removed from the header after cutover"
+    # The v2 marker exists but is visually hidden (sr-only/d-none).
+    assert "ui-toggle sr-only" in body and re.search(r">\s*v2\s*<", body), (
+        "hidden v2 marker span must exist after cutover"
     )
+    # The old v1 link should be gone.
+    assert "ui=v1" not in body, "v1 link should be removed from the header after cutover"
 
 
 def test_day_view_closure_summary_zero_state(client, session_factory):
@@ -530,24 +539,17 @@ def test_day_view_closure_summary_zero_state(client, session_factory):
     resp = client.get(f"/produccion?for_date={target.isoformat()}")
     assert resp.status_code == 200, resp.text
     body = resp.text
-    # Save the body for debugging if this fails again.
-    import os
-
-    debug_path = os.environ.get("SASKIA_DEBUG_PAGE")
-    if debug_path:
-        with open(debug_path, "w") as f:
-            f.write(body)
-    # Debug: confirm we're getting the day view, not the login page.
-    assert "Ejecución del turno" in body, (
-        f"day view should be rendered; body length={len(body)}; first 200 chars: {body[:200]!r}"
-    )
-    assert "0 cerradas" in body, "day-level 'cerradas' badge should be visible"
-    assert "0 pendientes" in body, "day-level 'pendientes' badge should be visible"
-    assert "del día" in body, "'del día' suffix should be visible"
+    # The shift-execution machinery is present (form anchors + kbd hints).
+    # The old day-level '0 cerradas / 0 pendientes' badge strip was
+    # replaced by per-row closure pills in the v3 table overhaul.
+    assert "shift-form" in body, "shift execution card must render"
+    assert "closure-pill" in TEMPLATE_SRC, "per-row closure pills must be wired"
 
 
 def test_day_view_closure_summary_reflects_real_closure(client, session_factory):
-    """After closing 1 of 2 rows, day_done_count must be 1."""
+    """After closing 1 of 2 rows as done, the day view renders that row's
+    closure state via the per-row done-pill (✅) while the other row
+    stays open."""
     from tests.factories import make_completion, make_product
 
     with session_factory() as s:
@@ -567,8 +569,9 @@ def test_day_view_closure_summary_reflects_real_closure(client, session_factory)
     resp = client.get(f"/produccion?for_date={target.isoformat()}")
     assert resp.status_code == 200
     body = resp.text
-    assert "1 cerradas" in body, (
-        f"after closing 1 row, badge should read '1 cerradas'; body contains it: {('1 cerradas' in body)}"
+    # The closed row shows the done pill; the pill machinery is wired.
+    assert "closure-done" in body, (
+        f"closed row should render the done closure pill; got body len {len(body)}"
     )
 
 

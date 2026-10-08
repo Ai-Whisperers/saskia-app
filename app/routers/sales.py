@@ -18,6 +18,7 @@ from fastapi.responses import (
     Response,
     StreamingResponse,
 )
+from loguru import logger
 from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
@@ -1156,8 +1157,8 @@ async def sale_create(
     # the DELETE before the request returns).
     try:
         invalidate_demand_for_sale_today(session)
-    except Exception:  # noqa: S110
-        pass
+    except Exception as exc:  # best-effort; surface but never block the request
+        logger.warning("demand invalidation for today's sales failed: {!r}", exc)
 
     # Audit + rate-limit (writes only — read paths not counted).
     from app.rms.audit import record as audit_record

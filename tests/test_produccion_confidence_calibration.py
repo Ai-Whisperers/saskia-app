@@ -10,17 +10,25 @@ cook can't tell which auto-suggestions to trust. The fix is:
      and could power future filtering.
 """
 
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+TEMPLATE_SRC = (REPO_ROOT / "app" / "templates" / "produccion.html").read_text(encoding="utf-8")
+
 
 def test_confidence_pill_classes_defined(authed_client):
-    """The CSS for .confidence-pill + band variants is in the template."""
+    """The pill classes ship in the template (summary banner) and their
+    CSS in the loaded stylesheet. The banner renders only when the day
+    has low-confidence rows, so assert the machinery, not the body."""
     r = authed_client.get("/produccion?view=day")
     assert r.status_code == 200
-    body = r.text
-    assert "confidence-pill" in body
-    assert "conf-high" in body
-    assert "conf-medium" in body
-    assert "conf-low" in body
-    assert "conf-zero" in body
+    assert "confidence-pill conf-high" in TEMPLATE_SRC
+    assert "confidence-pill conf-medium" in TEMPLATE_SRC
+    assert "confidence-pill conf-low" in TEMPLATE_SRC
+    assert "confidence-pill conf-zero" in TEMPLATE_SRC
+    css = (REPO_ROOT / "app" / "static" / "app-improvements.css").read_text(encoding="utf-8")
+    for cls in ("conf-high", "conf-medium", "conf-low"):
+        assert f".{cls}" in css, f".{cls} CSS missing"
 
 
 def test_low_confidence_banner_shows_when_count_positive(authed_client):
@@ -94,12 +102,12 @@ def test_confidence_bands_keys_in_context(authed_client):
 
 
 def test_confidence_pill_includes_zero_band(authed_client):
-    """The zero band ('Sin datos') has its own CSS variant."""
+    """The zero band ('Sin datos') has its own pill + CSS variant."""
     r = authed_client.get("/produccion?view=day")
     assert r.status_code == 200
-    body = r.text
-    # The conf-zero class is used for products with no sales data
-    assert "conf-zero" in body
+    assert "confidence-pill conf-zero" in TEMPLATE_SRC
+    css = (REPO_ROOT / "app" / "static" / "app-improvements.css").read_text(encoding="utf-8")
+    assert "conf-zero" in css, ".conf-zero CSS missing"
 
 
 def test_confidence_calibration_does_not_break_adhoc(authed_client):

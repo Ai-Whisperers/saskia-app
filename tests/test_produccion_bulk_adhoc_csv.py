@@ -20,7 +20,7 @@ from __future__ import annotations
 from pathlib import Path
 
 TEMPLATE = Path(__file__).parent.parent / "app" / "templates" / "produccion.html"
-ROUTER = Path(__file__).parent.parent / "app" / "routers" / "produccion" / "_full.py"
+ROUTER = Path(__file__).parent.parent / "app" / "routers" / "produccion" / "operations.py"
 
 TEMPLATE_SRC = TEMPLATE.read_text(encoding="utf-8")
 ROUTER_SRC = ROUTER.read_text(encoding="utf-8")

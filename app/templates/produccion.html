@@ -194,6 +194,36 @@
    stats to a 4-card vertical column on the left. Now they're
    their own row, full width, with the grid auto-fitting 4 cards. #}
 {% if view == 'day' %}
+  {# CLOSED-DAY banner + toggle: renders even on an empty plan (guard-free). #}
+  {% if closed_day_active %}
+    <div id="closed-day-banner" class="card mb-4" style="border:1px solid #f59e0b; background:#fffbeb; padding: var(--space-4); margin-bottom: var(--space-4);">
+      <strong>🔒 Día cerrado</strong>
+      {% if closed_day_reason %}<span style="margin-left: var(--space-2);">{{ closed_day_reason }}</span>{% endif %}
+      {% if closed_day_at %}<span class="text-muted" style="margin-left: var(--space-2); font-size: var(--text-xs);">desde {{ closed_day_at }}</span>{% endif %}
+      <form method="post" action="/produccion/closed" class="js-confirm-form" style="display:inline-block; margin-left: var(--space-3);"
+            data-confirm-title="¿Reabrir este día?"
+            data-confirm-body="El plan vuelve a ser editable y los turnos se pueden marcar de nuevo.">
+        <input type="hidden" name="for_date" value="{{ for_date.isoformat() if for_date.isoformat is defined else for_date }}">
+        <input type="hidden" name="action" value="reopen">
+        <input type="hidden" name="reason" value="">
+        <button type="submit" class="btn btn-sm">Reabrir día</button>
+      </form>
+    </div>
+  {% else %}
+    <div id="closed-day-toggle" class="no-print" style="margin-bottom: var(--space-3); text-align: right;">
+      <form method="post" action="/produccion/closed" class="js-confirm-form" style="display:inline-block;"
+            data-confirm-title="¿Cerrar este día?"
+            data-confirm-body="Nadie podrá marcar producción para esta fecha hasta que se reabra.">
+        <input type="hidden" name="for_date" value="{{ for_date.isoformat() if for_date.isoformat is defined else for_date }}">
+        <input type="hidden" name="action" value="close">
+        <input type="hidden" name="reason" value="Feriado nacional">
+        <button type="submit" class="btn btn-sm btn-ghost" data-action="toggle-close-day">Cerrar este día</button>
+      </form>
+    </div>
+  {% endif %}
+{% endif %}
+
+{% if view == 'day' %}
   {% include "_components/hero_stats.html" %}
 {% endif %}
 
@@ -894,6 +924,9 @@
             <a href="#confidence-modal" data-confidence-help class="confidence-help" title="¿Qué significa el porcentaje?">?</a>
           </th>
           <th style="width: 6rem;">Receta</th>
+          {# T-2026-10-04 (C.5): inline cost/margin column (restored from a2f29b8e).
+             Hidden on print via .no-print. #}
+          <th class="num no-print" style="min-width: 7rem;" title="Costo total del lote (cost_per_unit × qty) y margen %">Costo / Margen</th>
           <th class="num" style="width: 4.5rem;">{{ m.sort_th("Sobrante", "sobrante", current_sort, current_dir) }}</th>
           {# Cierre — hidden on print. #}
           <th class="no-print" style="width: 8rem;">{{ m.sort_th("Cierre", "closure", current_sort, current_dir) }}</th>
@@ -930,18 +963,31 @@
               </span>
             {% endif %}
           </td>
-          {# 2026-10-07 NEW column — Dificultad (stars 1-5). #}
+          {# 2026-10-07 NEW column — Dificultad (stars 1-5) + C.6 allergen badge. #}
           <td class="num" data-label="Dificultad">
             {% if r.is_ad_hoc %}
               <span class="text-muted">—</span>
-            {% elif r.recipe_difficulty %}
-              <span class="difficulty-stars difficulty-{{ r.recipe_difficulty }}"
-                    title="Dificultad {{ r.recipe_difficulty }}/5"
-                    aria-label="Dificultad {{ r.recipe_difficulty }} de 5">
-                {% for i in range(r.recipe_difficulty) %}★{% endfor %}{% for i in range(5 - r.recipe_difficulty) %}<span class="difficulty-star--off">★</span>{% endfor %}
-              </span>
             {% else %}
-              <span class="text-muted">—</span>
+              {% if r.recipe_difficulty %}
+                <span class="difficulty-stars difficulty-badge difficulty-{{ r.recipe_difficulty }}"
+                      data-difficulty="{{ r.recipe_difficulty }}"
+                      title="Dificultad {{ r.recipe_difficulty }}/5"
+                      aria-label="Dificultad {{ r.recipe_difficulty }} de 5">
+                  {% for i in range(r.recipe_difficulty) %}★{% endfor %}{% for i in range(5 - r.recipe_difficulty) %}<span class="difficulty-star--off">★</span>{% endfor %}
+                </span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+              {# T-2026-10-04 (C.6): allergen micro-badge, capped at 3 + ellipsis.
+                 Restored from a2f29b8e (lost in the e5c9e288 table overhaul). #}
+              {% if r.recipe_allergens %}
+                {% set allergen_list = r.recipe_allergens.split(',') | map('trim') | list %}
+                <span class="badge allergen-badge"
+                      data-allergens="{{ r.recipe_allergens }}"
+                      title="Alérgenos: {{ r.recipe_allergens }}">
+                  ⚠️ {{ allergen_list[:3] | join(', ') }}{% if allergen_list|length > 3 %}…{% endif %}
+                </span>
+              {% endif %}
             {% endif %}
           </td>
           <td class="num" data-label="Demanda">
@@ -1036,6 +1082,35 @@
                     style="margin-left: var(--space-1);">
               🔥
             </button>
+          </td>
+          {# T-2026-10-04 (C.5): inline cost/margin cell (restored from a2f29b8e).
+             Total cost of the planned batch + margin %, hidden on print. #}
+          <td class="num no-print" data-label="Costo / Margen">
+            {% if r.cost_per_unit_gs and r.cost_per_unit_gs > 0 and r.qty_to_produce > 0 %}
+              {% set total_cost = r.cost_per_unit_gs * r.qty_to_produce %}
+              {% if r.retail_gs and r.retail_gs > 0 %}
+                {% set margin_pct = ((r.retail_gs - r.cost_per_unit_gs) / r.retail_gs * 100) | int %}
+                <span class="cost-line"
+                      data-cost="{{ total_cost }}"
+                      data-margin="{{ margin_pct }}"
+                      title="Costo por unidad: Gs {{ '{:,}'.format(r.cost_per_unit_gs) }} · Retail: Gs {{ '{:,}'.format(r.retail_gs) }}">
+                  <strong>Gs {{ '{:,}'.format(total_cost) }}</strong>
+                  <small class="text-muted margin-pct margin-{% if margin_pct >= 40 %}good{% elif margin_pct >= 20 %}ok{% else %}low{% endif %}"
+                         style="display: block; font-size: var(--text-xs);">
+                    {{ margin_pct }}% margen
+                  </small>
+                </span>
+              {% else %}
+                <span class="cost-line" data-cost="{{ total_cost }}" title="Sin precio retail configurado">
+                  <strong>Gs {{ '{:,}'.format(total_cost) }}</strong>
+                  <small class="text-muted" style="display: block; font-size: var(--text-xs);">sin retail</small>
+                </span>
+              {% endif %}
+            {% elif r.is_ad_hoc %}
+              <span class="text-muted">—</span>
+            {% else %}
+              <span class="text-muted">sin precio</span>
+            {% endif %}
           </td>
           {# T-2026-10-05 (B.9): batch-surplus cell.
              Tiers (2026-10-07 round-2): gray for tolerable (≤20%),
@@ -1202,6 +1277,13 @@
   </section>
 </form>
 
+{# ── Ad-hoc bake entry (Sprint 4) ── #}
+{# PRODUCCION-V3 Phase 4: prominent ad-hoc card. The audit (H4, M6)
+   found the "Horneado extra" button was easy to miss — same visual
+   weight as the CSV paste. Now the primary button is accent-colored,
+   the ad-hoc count from the day is shown inline, and the card is
+   positioned right after the source legend so the cook sees it
+   after reading the table. #}
 {# ── Ad-hoc bake entry (Sprint 4) ── #}
 {# PRODUCCION-V3 Phase 4: prominent ad-hoc card. The audit (H4, M6)
    found the "Horneado extra" button was easy to miss — same visual

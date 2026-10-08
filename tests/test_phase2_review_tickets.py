@@ -8,11 +8,12 @@
 
 from __future__ import annotations
 
+from sqlalchemy import text
+from sqlalchemy.orm import sessionmaker
+
 
 def test_inv_03_negative_stock_clamped_in_reorder(client, app_engine):
     """INV-03: An ingredient with negative stock_qty shows 0 kg in Reponer."""
-    from sqlalchemy.orm import sessionmaker
-
     from app.rms.models import Ingredient
     from app.rms.reorder import compute_reorder_list
 
@@ -32,6 +33,9 @@ def test_inv_03_negative_stock_clamped_in_reorder(client, app_engine):
     )
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
+        # Simulate a LEGACY row (pre-084 DBs have no ≥0 trigger; oversell
+        # negatives could persist). Drop the trigger for this session only.
+        s.execute(text("DROP TRIGGER IF EXISTS ingredient_stock_qty_positive_update"))
         ing = s.query(Ingredient).filter_by(name="azúcar impalpable test").first()
         ing.stock_qty = -3.0  # simulate oversell
         s.commit()
@@ -67,6 +71,8 @@ def test_inv_03_suggested_qty_uses_clamped_stock(client, app_engine):
     )
     sf = sessionmaker(bind=app_engine)
     with sf() as s:
+        # Legacy-row simulation — see the azúcar test above.
+        s.execute(text("DROP TRIGGER IF EXISTS ingredient_stock_qty_positive_update"))
         ing = s.query(Ingredient).filter_by(name="manteca test").first()
         ing.stock_qty = -0.01
         s.commit()
