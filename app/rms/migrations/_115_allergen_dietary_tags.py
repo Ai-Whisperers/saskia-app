@@ -31,7 +31,6 @@ from typing import Any
 
 from sqlalchemy import text
 
-
 # Seed values match the prior hardcoded lists (preserves behavior).
 _DEFAULT_ALLERGENS = [
     ("gluten", "Gluten", 1),

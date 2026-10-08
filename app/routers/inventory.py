@@ -19,9 +19,9 @@ from sqlalchemy.orm import Session
 
 from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
+from app.rms.catalogs_tags import list_allergens, list_dietary_tags
 from app.rms.charts import sparkline
 from app.rms.config import ASUNCION_TZ
-from app.rms.catalogs_tags import list_allergens, list_dietary_tags
 from app.rms.dependencies import get_session
 from app.rms.errors import (
     AlreadyExists,

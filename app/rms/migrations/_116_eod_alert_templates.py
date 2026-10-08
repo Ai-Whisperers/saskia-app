@@ -23,7 +23,6 @@ from typing import Any
 
 from sqlalchemy import text
 
-
 # (key, subject, body) — matches the prior hardcoded copy exactly.
 # Placeholders use the same {name} format() syntax as the pedidos
 # templates. The ``detector`` substitutes these at dispatch time.

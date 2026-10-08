@@ -15,11 +15,10 @@ from __future__ import annotations
 from sqlalchemy import text
 
 from app.rms.alert_templates import (
-    AlertTemplate,
     _FALLBACK_TEMPLATES,
+    AlertTemplate,
     get_eod_alert_template,
 )
-
 
 EOD_KEYS = [
     "eod.cash_zero_with_active_sales",

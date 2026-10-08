@@ -58,7 +58,7 @@ DEFAULT_EOD_CONFIG: dict[str, int | float] = {
 # The helper falls back to the prior hardcoded copy when the table is
 # missing or the row is absent — preserves operator-observable behavior
 # even before migration 116 runs.
-from app.rms.alert_templates import get_eod_alert_template  # noqa: E402
+from app.rms.alert_templates import get_eod_alert_template
 
 
 @dataclass(frozen=True)

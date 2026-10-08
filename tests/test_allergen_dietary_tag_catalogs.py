@@ -22,7 +22,6 @@ from app.rms.catalogs_tags import (
     list_dietary_tags,
 )
 
-
 # Canonical defaults — must match the prior hardcoded lists in inventario_form.html.
 CANONICAL_ALLERGENS = {
     "gluten", "dairy", "eggs", "nuts", "soy", "sesame", "sulfites",
