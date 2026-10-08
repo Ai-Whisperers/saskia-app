@@ -1,21 +1,32 @@
-"""Optimized settings.py with N+1 query elimination."""
+"""app/rms/settings_registry.py — the operator-facing settings registry.
+
+Sprint 2.1 (2026-10-07 completion): the 42-key registry MOVED here
+verbatim from the deleted app/rms/settings.py, re-backed onto
+SettingsKV (JSON values via settings_runtime) instead of AppMeta
+string rows. One persistence layer: settings_kv.
+
+Compatibility notes:
+- get_setting_value(key) keeps its signature and validator semantics
+  (production.demand_snapshot_ttl_seconds consumer in production_demand).
+- set_setting(key, value) validates via the spec's validator, stores
+  JSON in settings_kv.
+- reset_setting_to_default deletes the KV row (default wins again).
+- Data migration 114 copied any pre-existing AppMeta values for these
+  keys into settings_kv at upgrade time.
+"""
+
+from __future__ import annotations
 
 import json
-import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.rms.models import AppMeta
-
-if TYPE_CHECKING:
-    pass
-
-logger = logging.getLogger(__name__)
+from app.rms.models import SettingsKV
+from app.rms.settings_runtime import settings_get, settings_set
 
 
 class SettingGroup(str, Enum):
@@ -598,37 +609,134 @@ SETTINGS: list[Setting] = [
 # --- Public API (OPTIMIZED) ---
 
 
+def _kv_get_raw(session: Session, key: str) -> str | None:
+    """Stored value as raw string (registry validators parse it)."""
+    row = session.execute(select(SettingsKV).where(SettingsKV.key == key)).scalar_one_or_none()
+    if row is None:
+        return None
+    return row.value_json
+
+
 def get_setting(session: Session, key: str) -> str | None:
-    """Read a single setting; returns None if not set (use default)."""
-    row = session.execute(select(AppMeta).where(AppMeta.key == key)).scalar_one_or_none()
-    return row.value if row else None
+    """Read a single setting's raw value; None if not set.
+
+    Contract preserved from the AppMeta era: the returned string is the
+    bare value (validators parse it). KV stores JSON, so a stored string
+    is unwrapped from its quotes here; non-string JSON passes through as
+    its serialized text (json.loads-able, same as before).
+    """
+    raw = _kv_get_raw(session, key)
+    if raw is None:
+        return None
+    import json as _json
+
+    try:
+        unwrapped = _json.loads(raw)
+    except (TypeError, ValueError):
+        return raw
+    if isinstance(unwrapped, str):
+        return unwrapped
+    return raw
 
 
-def get_setting_value_optimized(spec: Setting, raw: str | None) -> object:
-    """Get value from raw data + default (no DB calls)."""
+def get_setting_value(session: Session, key: str) -> Any:
+    """Read + validate + coerce. Returns the spec default if not set."""
+    spec = next((s for s in SETTINGS if s.key == key), None)
+    if spec is None:
+        # Unknown key: pass through unvalidated (legacy contract)
+        raw = _kv_get_raw(session, key)
+        if raw is None:
+            return None
+        import json as _json
+
+        try:
+            return _json.loads(raw)
+        except (TypeError, ValueError):
+            return raw
+    if spec.validator == "json":
+        return settings_get(session, key, _json_validator(spec.default))
+    raw = _kv_get_raw(session, key)
     if raw is None:
         raw = spec.default
-    validator = VALIDATORS[spec.validator]
-    return validator(raw)
+    else:
+        # KV stores JSON: a bare string is quoted; unwrap for the
+        # string-based validators exactly as set_setting wrote it.
+        import json as _json
+
+        try:
+            unwrapped = _json.loads(raw)
+        except (TypeError, ValueError):
+            unwrapped = raw
+        if not isinstance(unwrapped, str):
+            return unwrapped  # already the coerced JSON type
+        raw = unwrapped
+    return VALIDATORS[spec.validator](raw)
+
+
+def set_setting(session: Session, key: str, value: Any, *, user_id: str | None = None) -> None:
+    """Persist a setting. Validates via the spec; raises ValueError on
+    unknown key or invalid value. Stored as JSON in settings_kv."""
+    spec = next((s for s in SETTINGS if s.key == key), None)
+    if spec is None:
+        raise ValueError(f"Unknown setting key: {key!r}")
+    if spec.validator == "json":
+        settings_set(session, key, value)
+        return
+    if spec.validator == "bool":
+        if isinstance(value, bool):
+            raw = "1" if value else "0"
+        else:
+            raw = "1" if str(value).lower() in ("1", "true", "yes", "on") else "0"
+    else:
+        raw = str(value)
+    VALIDATORS[spec.validator](raw)  # round-trip validation
+    settings_set(session, key, raw)
+
+
+def reset_setting_to_default(session: Session, key: str) -> None:
+    """Delete the stored row so the spec default applies again."""
+    spec = next((s for s in SETTINGS if s.key == key), None)
+    if spec is None:
+        raise ValueError(f"Unknown setting key: {key!r}")
+    row = session.execute(select(SettingsKV).where(SettingsKV.key == key)).scalar_one_or_none()
+    if row is not None:
+        session.delete(row)
+        session.flush()
 
 
 def fetch_all_settings_once(session: Session) -> dict[str, str]:
-    """Fetch ALL settings in 1 query instead of N+1."""
-    logger.debug("Fetching all settings in single query")
+    """All registry keys' stored raw values in 1 query."""
     rows = session.execute(
-        select(AppMeta.key, AppMeta.value).where(AppMeta.key.in_(s.key for s in SETTINGS))
+        select(SettingsKV.key, SettingsKV.value_json).where(
+            SettingsKV.key.in_(s.key for s in SETTINGS)
+        )
     ).all()
-    return {r.key: r.value for r in rows}
+    return {r.key: r.value_json for r in rows}
 
 
-def list_settings_optimized(session: Session) -> list[dict]:
-    """Return all settings with current value, using 1 DB query."""
-    all_settings = fetch_all_settings_once(session)  # 1 query total
-
+def list_settings(session: Session) -> list[dict]:
+    """All settings with current value (single DB query)."""
+    stored_map = fetch_all_settings_once(session)
     out: list[dict] = []
     for spec in SETTINGS:
-        stored = all_settings.get(spec.key)  # No DB call, use cache
-        current = get_setting_value_optimized(spec, stored)  # No DB call
+        stored = stored_map.get(spec.key)
+        # current value via the same path as get_setting_value
+        if spec.validator == "json":
+            current = settings_get(session, spec.key, _json_validator(spec.default))
+        elif stored is None:
+            current = VALIDATORS[spec.validator](spec.default)
+        else:
+            import json as _json
+
+            try:
+                unwrapped = _json.loads(stored)
+            except (TypeError, ValueError):
+                unwrapped = stored
+            current = (
+                unwrapped
+                if not isinstance(unwrapped, str)
+                else VALIDATORS[spec.validator](unwrapped)
+            )
         out.append(
             {
                 "key": spec.key,
@@ -643,99 +751,9 @@ def list_settings_optimized(session: Session) -> list[dict]:
     return out
 
 
-def settings_by_group_optimized(session: Session) -> dict[str, list[dict]]:
-    """Return settings grouped by group, using optimized list_settings."""
+def settings_by_group(session: Session) -> dict[str, list[dict]]:
+    """Group list_settings() output by SettingGroup."""
     grouped: dict[str, list[dict]] = {}
-    for entry in list_settings_optimized(session):
+    for entry in list_settings(session):
         grouped.setdefault(entry["group"], []).append(entry)
     return grouped
-
-
-def get_setting_optimized(session: Session, key: str) -> str | None:
-    """Get single setting with single query (no N+1)."""
-    row = session.execute(select(AppMeta).where(AppMeta.key == key)).scalar_one_or_none()
-    return row.value if row else None
-
-
-def get_setting_value(session: Session, key: str) -> object:
-    """Read + validate + coerce. Returns the default if not set."""
-    raw = get_setting(session, key)
-    spec = next((s for s in SETTINGS if s.key == key), None)
-    if spec is None:
-        return raw
-    if raw is None:
-        raw = spec.default
-    validator = VALIDATORS[spec.validator]
-    return validator(raw)
-
-
-def set_setting(session: Session, key: str, value: object, *, user_id: str | None = None) -> None:
-    """Persist a setting. Validates against the spec's validator.
-
-    Raises ValueError on unknown key or invalid value.
-    """
-    spec = next((s for s in SETTINGS if s.key == key), None)
-    if spec is None:
-        raise ValueError(f"Unknown setting key: {key!r}")
-    if spec.validator == "json":
-        raw = json.dumps(value)
-    elif spec.validator == "bool":
-        if isinstance(value, bool):
-            raw = "1" if value else "0"
-        else:
-            raw = "1" if str(value).lower() in ("1", "true", "yes", "on") else "0"
-    else:
-        raw = str(value)
-    # Validate round-trip
-    VALIDATORS[spec.validator](raw)
-    row = session.execute(select(AppMeta).where(AppMeta.key == key)).scalar_one_or_none()
-    if row is None:
-        row = AppMeta(key=key, value=raw, updated_at=datetime.now(timezone.utc).isoformat())
-        session.add(row)
-    else:
-        row.value = raw
-        row.updated_at = datetime.now(timezone.utc).isoformat()
-    session.flush()
-
-
-def reset_setting_to_default(session: Session, key: str) -> None:
-    """Clear stored value (revert to spec default)."""
-    row = session.execute(select(AppMeta).where(AppMeta.key == key)).scalar_one_or_none()
-    if row is not None:
-        session.delete(row)
-        session.flush()
-
-
-# Backwards compatibility - use optimized versions
-def list_settings(session: Session) -> list[dict]:
-    """Return all settings with their current value, using optimized version."""
-    return list_settings_optimized(session)
-
-
-def settings_by_group(session: Session) -> dict[str, list[dict]]:
-    """Return settings grouped by SettingGroup value, using optimized version."""
-    return settings_by_group_optimized(session)
-
-
-def get_setting_cached(session: Session, key: str) -> str | None:
-    """Get single setting optimized (single query)."""
-    return get_setting_optimized(session, key)
-
-
-__all__ = [
-    "SETTINGS",
-    "VALIDATORS",
-    "Setting",
-    "SettingGroup",
-    "fetch_all_settings_once",
-    "get_setting",
-    "get_setting_cached",
-    "get_setting_optimized",
-    "get_setting_value",
-    "list_settings",
-    "list_settings_optimized",
-    "reset_setting_to_default",
-    "set_setting",
-    "settings_by_group",
-    "settings_by_group_optimized",
-]

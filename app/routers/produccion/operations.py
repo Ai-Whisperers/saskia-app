@@ -25,6 +25,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import current_operator
 from app.rms.dependencies import get_session
 from app.rms.eod_completions import (
     close_day_for_product,
@@ -67,11 +68,10 @@ def produccion_override(
     if session.get(Product, product_id) is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-    from app.auth import current_user_id
     from app.rms.models import ProductionPlanOverride
     from app.rms.production import upsert_override
 
-    user_id = current_user_id(request) or "operator"
+    user_id = current_operator(request)
     user_id = str(user_id)
     # PRODUCCION-V2 Fase 1: capture old_qty for the audit log BEFORE the
     # upsert/delete so the audit row shows before/after. None for first write.
@@ -143,7 +143,6 @@ def produccion_copy_last_week(
     not present in the source are kept (so this is additive, not a
     destructive replace).
     """
-    from app.auth import current_user_id
     from app.rms.models import ProductionPlanOverride
     from app.rms.production import plan_production, upsert_override
 
@@ -159,7 +158,7 @@ def produccion_copy_last_week(
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
         )
 
-    user_id = current_user_id(request) or "operator"
+    user_id = current_operator(request)
     user_id = str(user_id)
 
     # Read source plan (may be empty if source has no forecast)
@@ -232,7 +231,6 @@ def produccion_closed_toggle(
     Returns 303 redirect to the day view so the operator sees the
     banner / banner removal immediately.
     """
-    from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
     if is_write_rate_limited(session, request):
@@ -242,7 +240,7 @@ def produccion_closed_toggle(
 
     if action == "close":
         existing = session.get(ProductionClosedDay, for_date)
-        closed_by_user = current_user_id(request) or "operator"
+        closed_by_user = current_operator(request)
         if existing is None:
             row = ProductionClosedDay(
                 for_date=for_date,
@@ -303,7 +301,6 @@ async def produccion_override_bulk(
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
         )
 
-    from app.auth import current_user_id
     from app.rms.models import Product, ProductionPlanOverride
     from app.rms.production import upsert_override
 
@@ -314,7 +311,7 @@ async def produccion_override_bulk(
     except ValueError:
         raise HTTPException(status_code=400, detail="Fecha inválida") from None
 
-    user_id = str(current_user_id(request) or "operator")
+    user_id = str(current_operator(request))
 
     # Collect qty[<product_id>] fields
     entries: dict[int, float] = {}
@@ -420,7 +417,6 @@ async def produccion_shift_execute(
     """
     from datetime import datetime, timezone
 
-    from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
     if is_write_rate_limited(session, request):
@@ -458,7 +454,7 @@ async def produccion_shift_execute(
 
     form = await request.form()
     form_opened_at_raw = form.get("form_opened_at")
-    user_id = str(current_user_id(request) or "operator")
+    user_id = str(current_operator(request))
 
     # T-2026-10-04 (Tier 5-K): detect concurrent modification. Compare
     # the form's open-time against the latest updated_at on this date.
@@ -630,7 +626,6 @@ async def produccion_ad_hoc(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Record an unplanned bake: walked-in, decided-on-the-fly, leftovers."""
-    from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
     if is_write_rate_limited(session, request):
@@ -649,7 +644,7 @@ async def produccion_ad_hoc(
             detail="Producto no encontrado",
         )
 
-    user_id = str(current_user_id(request) or "operator")
+    user_id = str(current_operator(request))
     tag = "ad_hoc"
     if notes.strip():
         tag = f"ad_hoc: {notes.strip()[:200]}"
@@ -753,7 +748,6 @@ def produccion_close_day(
     audit log + visibility of the closed state is the social contract),
     but the UI surfaces a "Cerrado" badge so the next cook knows.
     """
-    from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
     if is_write_rate_limited(session, request):
@@ -764,7 +758,7 @@ def produccion_close_day(
     if session.get(Product, product_id) is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-    user_id = str(current_user_id(request) or "operator")
+    user_id = str(current_operator(request))
     notes = closure_notes.strip()[:500] or None  # truncate; NULL when blank
     try:
         close_day_for_product(
@@ -827,7 +821,6 @@ def produccion_close_day_reopen(
     right state. Future Fase 3 might add a reopen audit; for now
     /accuracy treats reopens as "in flight" and the cook can re-close.
     """
-    from app.auth import current_user_id
     from app.rms.rate_limit import is_write_rate_limited
 
     if is_write_rate_limited(session, request):
@@ -838,7 +831,7 @@ def produccion_close_day_reopen(
     if session.get(Product, product_id) is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-    user_id = str(current_user_id(request) or "operator")
+    user_id = str(current_operator(request))
     try:
         close_day_for_product(
             session,
@@ -927,9 +920,8 @@ async def produccion_ad_hoc_bulk(
     valid_product_ids: set[int] = set(session.execute(select(Product.id)).scalars().all())
 
     # PRODUCCION-V2 Fase 1: get the cook's user id for the audit log.
-    from app.auth import current_user_id
 
-    bulk_user_id = str(current_user_id(request) or "operator")
+    bulk_user_id = str(current_operator(request))
     from app.rms.models import ProductionCompletion
 
     created: list[dict] = []

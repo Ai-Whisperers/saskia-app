@@ -21,6 +21,7 @@ from fastapi.responses import (
 from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.catalogs import (
@@ -419,6 +420,86 @@ async def sales_list(
         fav=bool(fav),
     )
     return render(request, "ventas.html", ctx)
+
+
+# --- B.1 Venta Express (2026-10-07, polish/saskia-p0) ---
+@router.get("/express")
+def ventas_express(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Venta Express: 8 botones gigantes + cantidad numerica + Enter.
+
+    Para venta de mostrador de un solo item (-45s vs POS completo).
+    Reusa POST /ventas/nueva (product_id + qty + payment_method) - cero
+    logica de venta nueva. Top 8 = top venta 14d primero + favoritos.
+    """
+    from app.rms.models import Product, Sale
+
+    since = datetime.now(ASUNCION_TZ) - timedelta(days=14)
+    rows = session.execute(
+        select(
+            Sale.product_id,
+            func.sum(Sale.qty).label("units"),
+        )
+        .where(Sale.sold_at >= since, Sale.voided_at.is_(None))
+        .group_by(Sale.product_id)
+        .order_by(func.sum(Sale.qty * Sale.unit_price_gs).desc())
+        .limit(8)
+    ).all()
+
+    ids = [pid for pid, _ in rows]
+    prod_map = {}
+    if ids:
+        prods = session.scalars(select(Product).where(Product.id.in_(ids))).all()
+        prod_map = {p.id: p for p in prods}
+    if len(prod_map) < 8:
+        favs = session.scalars(
+            select(Product)
+            .where(Product.is_favorite.is_(True), Product.is_available.is_(True))
+            .order_by(Product.name)
+            .limit(8)
+        ).all()
+        for p in favs:
+            prod_map.setdefault(p.id, p)
+
+    items = []
+    seen = set()
+    for pid, units in rows:
+        p = prod_map.get(pid)
+        if p is None or p.id in seen or not p.is_available:
+            continue
+        seen.add(p.id)
+        items.append(
+            {
+                "product_id": p.id,
+                "name": p.name,
+                "sale_price_gs": p.sale_price_gs,
+                "units": float(units or 0),
+            }
+        )
+    for p in prod_map.values():
+        if p.id in seen or not p.is_available:
+            continue
+        seen.add(p.id)
+        items.append(
+            {
+                "product_id": p.id,
+                "name": p.name,
+                "sale_price_gs": p.sale_price_gs,
+                "units": 0.0,
+            }
+        )
+    items = items[:8]
+
+    from app.rms.schemas import ALLOWED_PAYMENT_METHODS
+
+    ctx = {
+        "items": items,
+        "idem_key": _generate_idem_key(),
+        "payment_methods": sorted(ALLOWED_PAYMENT_METHODS),
+    }
+    return render(request, "ventas_express.html", ctx)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -1182,7 +1263,6 @@ async def sale_create(
     # Void/return reversal is handled by ``reverse_points_for_void``
     # (called from /ventas/{id}/anular).
     if customer_id is not None:
-        from app.auth import current_user_id
         from app.rms.customers import get_customer as _get_cust
         from app.rms.loyalty import award_points as _award_points
         from app.rms.models import Sale as _Sale
@@ -1201,7 +1281,7 @@ async def sale_create(
                 cust,
                 net_paid_gs,
                 sale_id=sale.sale_id,
-                actor=str(current_user_id(request) or "operator"),
+                actor=str(current_operator(request)),
             )
 
     # Phase 4 loyalty POS redeem (2026-10-01): if the cashier redeemed
@@ -1210,7 +1290,6 @@ async def sale_create(
     # balance check + discount math already happened above; redeem_points
     # itself is a no-op when points_to_redeem == 0.
     if points_to_redeem > 0 and customer_id is not None:
-        from app.auth import current_user_id
         from app.rms.customers import get_customer as _get_cust_redeem
         from app.rms.loyalty import redeem_points as _redeem_points
 
@@ -1221,7 +1300,7 @@ async def sale_create(
                 cust_redeem,
                 points_to_redeem,
                 sale_id=sale.sale_id,
-                actor=str(current_user_id(request) or "operator"),
+                actor=str(current_operator(request)),
                 notes=f"POS redeem en sale #{sale.sale_id}",
             )
 
@@ -1247,7 +1326,7 @@ async def sale_create(
                 else 0,
                 sale_id=sale.sale_id,
                 note=f"Venta a fiado #{sale.sale_id}",
-                created_by=str(current_user_id(request) or "operator"),
+                created_by=str(current_operator(request)),
             )
         except _FiadoConflict as _e:
             raise HTTPException(status_code=409, detail=str(_e)) from None
@@ -1266,7 +1345,6 @@ async def sale_create(
         pass
 
     # Audit + rate-limit (writes only — read paths not counted).
-    from app.auth import current_user_id
     from app.rms.audit import record as audit_record
     from app.rms.rate_limit import is_write_rate_limited
 
@@ -1275,7 +1353,7 @@ async def sale_create(
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.sale.create",
         request=request,
         detail={
@@ -1730,7 +1808,6 @@ async def sale_create_multi(
     # (earn_sale) per invoice — fk'd to the first sale.id. Then write
     # the redeem row (if any) so the ledger stays consistent.
     if customer_id is not None and sale_ids:
-        from app.auth import current_user_id
         from app.rms.customers import (
             award_points as _award_points,
         )
@@ -1757,7 +1834,7 @@ async def sale_create_multi(
                 cust,
                 net_paid_gs,
                 sale_id=sale_ids[0],
-                actor=str(current_user_id(request) or "operator"),
+                actor=str(current_operator(request)),
             )
             if points_to_redeem > 0:
                 _redeem_points(
@@ -1765,7 +1842,7 @@ async def sale_create_multi(
                     cust,
                     points_to_redeem,
                     sale_id=sale_ids[0],
-                    actor=str(current_user_id(request) or "operator"),
+                    actor=str(current_operator(request)),
                     notes=f"POS redeem en sale multi #{sale_ids[0]}",
                 )
 
@@ -1862,7 +1939,7 @@ async def sale_create_multi(
     if payment_method_clean == "fiado" and sale_ids:
         from app.rms.fiado import FiadoConflict, registrar_cargo
 
-        _actor = str(current_user_id(request) or "operator")
+        _actor = str(current_operator(request))
         for _sid in sale_ids:
             _sale_row = session.get(_Sale, _sid)
             if _sale_row is None or _sale_row.customer_id is None:
@@ -1889,7 +1966,6 @@ async def sale_create_multi(
     safe_commit(session)
 
     # Rate-limit + audit
-    from app.auth import current_user_id
     from app.rms.audit import record as audit_record
     from app.rms.rate_limit import is_write_rate_limited
 
@@ -1898,7 +1974,7 @@ async def sale_create_multi(
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.sale.create_multi",
         request=request,
         detail={"item_count": len(items), "sale_ids": sale_ids},
@@ -2017,7 +2093,7 @@ async def sale_void(
                     session,
                     _cust_void,
                     sale_id=sale_id,
-                    actor=str(current_user_id(request) or "operator"),
+                    actor=str(current_operator(request)),
                 )
                 session.flush()
     except Exception as _loyalty_void_exc:

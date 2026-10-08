@@ -1205,6 +1205,9 @@ def run() -> None:
     if argv and argv[0] == "migrate":
         migrate()
         return
+    if argv and argv[0] == "rollback":
+        _rollback()
+        return
     if argv and argv[0] in ("seed", "demo"):
         _seed()
         return
@@ -1216,6 +1219,73 @@ def run() -> None:
         return
     # Default: serve (backward compat with pre-argv-dispatch entry)
     _serve()
+
+
+def _rollback() -> None:
+    """Undo the last applied migration by restoring its rule-17 backup.
+
+    Usage:
+        uv run sazon rollback             # roll back current → previous
+        uv run sazon rollback --to 113    # explicit target (must match archive)
+        uv run sazon rollback --dry-run   # show what WOULD happen, change nothing
+
+    SQLite-only (prod shape). Fail-closed: no matching archive, integrity
+    failure, or non-SQLite URL → refused, live DB untouched.
+    """
+    import sys
+
+    from app.rms.db_dialect import make_engine
+    from app.rms.rollback import RollbackError, rollback_sqlite
+
+    raw = os.environ.get("DATABASE_URL")
+    if not raw:
+        local_db = os.environ.get("AIW_RMS_DB_PATH") or os.environ.get("AIW_SASKIA_DB_PATH")
+        if local_db:
+            raw = f"sqlite:///{local_db}"
+        else:
+            print(
+                "ERROR: DATABASE_URL (or AIW_RMS_DB_PATH) not set. "
+                "Cannot determine which DB to roll back.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    to_version: int | None = None
+    if "--to" in sys.argv:
+        i = sys.argv.index("--to")
+        to_version = int(sys.argv[i + 1])
+
+    dry_run = "--dry-run" in sys.argv
+    engine = make_engine(raw)
+    current_version = None
+    try:
+        if dry_run:
+            # Light dry-run: report versions + the archive that would be used
+            from pathlib import Path as _P
+
+            from app.rms.db import _backup_dir_path
+            from app.rms.rollback import find_rollback_backup
+
+            url = str(engine.url)
+            db_path = _P(url.replace("sqlite:///", "", 1))
+            from app.rms.rollback import _read_schema_version
+
+            current_version = _read_schema_version(db_path)
+            backup = find_rollback_backup(current_version, _backup_dir_path())
+            print(f"DRY-RUN: would roll back v{current_version} using {backup.name}")
+            return
+
+        result = rollback_sqlite(engine, to_version=to_version)
+        print(
+            f"rolled back v{result.previous_version} → v{result.restored_version} "
+            f"using {result.backup_used.name}\n"
+            f"evidence: {result.evidence_path.name}\n"
+            f"log: {result.log_key}\n"
+            f"next: uv run sazon migrate to re-apply, or inspect the app."
+        )
+    except RollbackError as exc:
+        print(f"ROLLBACK REFUSED: {exc}", file=sys.stderr)
+        sys.exit(2)
 
 
 def _seed() -> None:

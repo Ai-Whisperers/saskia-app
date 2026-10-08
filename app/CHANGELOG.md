@@ -5,6 +5,58 @@
 
 ## [Unreleased]
 
+### Added — SASKIA-309: regression tests for Phase 8 (errors + help + misc, 2026-10-07)
+
+Locks the Phase 8 work of the copy/UX hardening program in place. No
+template changes — every check is green today (the work was already
+shipped by prior sessions).
+
+- `tests/test_SASKIA-309_500_no_secrets.py` (4 tests) — `errors/500.html`
+  must NOT contain stack traces, internal paths, secret keywords, or
+  API-style token formats. Also locks the friendly user-facing message.
+- `tests/test_SASKIA-309_dev_pages_not_in_nav.py` (4 tests) — `/dev/*`
+  URLs must not appear in operator-facing templates. Catches regressions
+  where a dev-only URL leaks into the sidebar/topbar.
+- `tests/test_SASKIA-309_guia_intro.py` (6 tests) — `docs/user-guide/README.md`
+  has a Spanish intro addressed to the operator, a table of contents,
+  and every TOC link resolves to an existing `.md` file. Catches broken
+  guide routes + deleted section files.
+
+14 tests, all pass on current main. CI integration: runs as part of
+the standard pytest discovery; no workflow changes.
+
+
+
+### Added
+
+- **B.1 Venta Express**: `GET /ventas/express` — top-8 productos por venta 14d + favoritos, un form grande por producto que postea a `/ventas/nueva` (product_id + qty + efectivo, idempotency_key por producto). Cero lógica de venta nueva; reusa el flujo existente. Link "Express" en el page_header de `/ventas`. (port from polish/saskia-p0 `30ca6024`)
+
+### Added — SASKIA-310: terminology glossary + CI gate (Phase 9, 2026-10-07)
+
+Closes the copy/UX hardening program (SASKIA-301..308) with a
+regression lock for every Spanish-vs-English-loan-word decision.
+
+- **`app/docs/glossary.md`** (new) — concept-level terminology bank.
+  50+ rows mapping concepts to canonical Spanish (UI) and English
+  (code). Complements the existing string-level `app/docs/copy-vos.md`.
+- **`tests/test_terminology_consistency.py`** (new) — CI gate that
+  greps every `app/templates/**/*.html` for the 16 loan-word patterns
+  (Diff, Accuracy, Qty, Status, Owner, Endpoint, COGS, Revenue,
+  Loyalty, Batches, Forecast, Override, Counterparty, Reorder rate,
+  Login OK/FAIL). Test passes today; any future regression breaks
+  the build.
+- **Last 4 loan-word fixes** (8 instances across 3 files):
+  - `app/templates/caja.html`: `<th>Diff</th>` → `<th>Diferencia</th>`
+  - `app/templates/caja_z.html`: `<th>Diff</th>` → `<th>Diferencia</th>`
+  - `app/templates/produccion_accuracy.html`:
+    - KPI label "Accuracy promedio" → "Precisión promedio"
+    - 2 table headers `<th>Accuracy</th>` → `<th>Precisión</th>`
+    - Explanation text "Accuracy = producido ÷ plan" → "Precisión = …"
+
+4 tests, all pass on current main. CI integration: the test runs as
+part of the standard pytest discovery; no workflow changes needed.
+
+### Added — Format utility JS (Phase 22 polish, 2026-10-07)
 
 ### Refactored (2026-10-07) — Batch B4: backup threshold consistency
 

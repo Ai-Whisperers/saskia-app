@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import current_user_id
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.dependencies import get_session
@@ -268,7 +268,7 @@ def reorder_quick_restock(
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.reorder.quick_restock",
         request=request,
         detail={
@@ -352,7 +352,7 @@ def reorder_bulk_quick_restock(
             record_purchase_supplier(session, iid, eff_supplier_id)
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.reorder.bulk_quick_restock",
         request=request,
         detail={"updated": updated, "skipped": skipped, "ids": ingredient_ids[:500]},
@@ -441,7 +441,7 @@ def reorder_registrar(
         record_purchase_supplier(session, ingredient_id, chosen_supplier_id)
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.reorder.restock",
         request=request,
         detail={
@@ -500,7 +500,7 @@ def reorder_scrape(
     try:
         audit_record(
             session,
-            user_id=current_user_id(request) or "operator",
+            user_id=current_operator(request),
             action="read.scraper.run",
             target_type="reorder",
             target_id="scraper",
@@ -550,7 +550,7 @@ def reorder_lock_supplier(
             detail=f"El proveedor '{sup.name}' está inactivo. Reactiválo en /settings/catalog antes de fijar.",
         )
 
-    actor = str(current_user_id(request) or "operator")
+    actor = str(current_operator(request))
     lock_supplier(
         session,
         ingredient_id=ingredient_id,
@@ -585,7 +585,7 @@ def reorder_unlock_supplier(
     if ing is None:
         raise HTTPException(status_code=404, detail="Ingrediente no encontrado")
 
-    actor = str(current_user_id(request) or "operator")
+    actor = str(current_operator(request))
     unlock_supplier(
         session,
         ingredient_id=ingredient_id,
@@ -829,7 +829,7 @@ async def reorder_upload_prices(
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.reorder.csv_upload",
         request=request,
         detail={
@@ -907,7 +907,7 @@ def reorder_generate_po(
 
     audit_record(
         session,
-        user_id=current_user_id(request) or "operator",
+        user_id=current_operator(request),
         action="write.reorder.generate_po",
         request=request,
         detail={"n_items": len(selected_items), "suppliers": list(by_supplier.keys())},

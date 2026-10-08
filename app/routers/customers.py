@@ -20,6 +20,7 @@ from starlette.responses import RedirectResponse as StarletteRedirectResponse
 
 logger = logging.getLogger(__name__)
 
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.customers import (
     batch_customer_stats,
@@ -1223,7 +1224,6 @@ async def cliente_redeem_points(
     Errors render the detail page again with a flash message; success
     redirects back to /clientes/{id} with a flash.
     """
-    from app.auth import current_user_id
     from app.rms.customers import get_customer
     from app.rms.loyalty import redeem_points
 
@@ -1249,7 +1249,7 @@ async def cliente_redeem_points(
             session,
             customer,
             pts,
-            actor=str(current_user_id(request) or "operator"),
+            actor=str(current_operator(request)),
             notes=notes,
         )
     except ValueError:

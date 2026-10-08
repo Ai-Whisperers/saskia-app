@@ -26,7 +26,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import current_user_id
+from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.config import ASUNCION_TZ
 from app.rms.dependencies import get_session
@@ -159,7 +159,7 @@ async def wishlist_mark_purchased(
             reason=f"Compra wishlist #{item.id} — {item.name}",
             reference_id=item.id,
             reference_type="reorder",
-            created_by=current_user_id(request) or "operator",
+            created_by=current_operator(request),
         )
         eq_ing.purchase_price_gs = item.unit_price_gs or eq_ing.purchase_price_gs
         stock_bumped = qty

@@ -1,3 +1,52 @@
+## 2026-10-07i — inventory valuation follows the variant-price SSOT (audit follow-up 2)
+
+**`stock_value_gs()`** (app/rms/inventory_intel.py) now prices ingredients via preferred-variant
+price when one exists (parent `purchase_price_gs` remains the no-variant fallback — same contract
+as `current_variant_price()`). Preferred prices fetched in ONE batched query — no N+1. This is the
+KPI behind the inventory page's value header; previously a preferred variant at a different price
+silently mis-valued the whole stock.
+
+Test: `test_stock_value_gs_uses_preferred_variant_price` (preferred 1200 overrides parent 1000;
+non-preferred 9999 ignored; parent fallback intact). 20/20 in test_inventory_intel.
+
+Broader 89-read audit note: the remaining direct `purchase_price_gs` reads are mostly legit
+(parent-price fallbacks inside variants.py itself, seed/import writers, per-variant admin views).
+Flagged for per-site review only where a consumer *displays* an ingredient cost (the recipe-form
+3-consumer contract was already unified in a prior sprint).
+
+## 2026-10-07h — `current_operator()`: one home for the user-id-or-default fallback (audit follow-up 1)
+
+**What**: `app/auth.py::current_operator(request, *, fallback="operator")` replaces the 53 hand-rolled `current_user_id(request) or "operator"` sites across 17 routers/modules.
+
+**Latent bug fixed along the way**: those sites put a raw `int` user_id into `String` columns (`created_by`, `opened_by`, audit `user_id`) on the bcrypt backend — SQLite tolerated it, Postgres parity wouldn't. The helper `str()`s the id.
+
+**Consistency fixed**: 47× "operator" + 4× "operador" + 1× "anonymous" + 1× "test-user" all collapse onto one helper with explicit `fallback=` kwargs for the non-default cases.
+
+**Sweep**: 130 passed across every touched router's tests (settings, cash, fiado, customers, merma, sales, SASKIA-205/207/208/209/308 locks). Import audit: all 12 consumer files verified.
+
+## 2026-10-07g — SASKIA-209: one-command migration rollback (`sazon rollback`)
+
+**The safety net is real.** Rule-17 pre-migration backups are now one command away from being a restore.
+
+- **`app/rms/rollback.py`**: `rollback_sqlite()` — finds the newest rule-17 archive matching the current version (`sazon-pre-mig-v<A>-to-v<B>` where B == current), archives the CURRENT state first as evidence (`sazon-post-mig-rollback-evidence-*`), restores into a fresh temp DB, `PRAGMA integrity_check`s it, verifies schema_version == target, writes an `app_meta migration_rollback_log:<ts>` entry, then atomically `os.replace`s over the live file with WAL/-shm sidecar cleanup. Fail-closed on: no matching archive, wrong `--to`, integrity failure, non-SQLite URL, version ≤ 1 — live DB untouched in every refusal path.
+- **CLI**: `uv run sazon rollback` (plus `--to N` explicit target, `--dry-run` to preview the archive used). Dispatch added to `run()`; non-SQLite gets a point-in-time-recovery pointer instead of a wrong tool.
+- **9 contract tests**: roundtrip (marker row gone, log row present, version restored), WAL cleanup, archive matching (newest wins, no-match, missing dir), refusals (wrong target, no backup + DB untouched, non-SQLite, low version).
+- **Scope notes** (per the one-pager): SQLite-only (prod shape), no data backfill reversal (whole-file restore is inherent), run `sazon migrate` afterwards to re-apply. Postgres → server-level PITR.
+
+**Sweep**: 102 passed (rollback 9 + migration-safety + settings + SASKIA-305/306/207/208 locks).
+
+## 2026-10-07f — Sprint 2.1 COMPLETE: settings consolidation (AppMeta → settings_kv)
+
+**The dual-persistence trap is closed.** One settings store: `settings_kv` (JSON, via settings_runtime).
+
+- **`app/rms/settings_registry.py` (new)**: the 42-key Setting/SettingGroup/VALIDATORS registry moved verbatim from the deleted `app/rms/settings.py`, API re-backed onto SettingsKV with the old call signatures preserved (`get_setting_value`, `set_setting`, `list_settings`, `settings_by_group`, `reset_setting_to_default`).
+- **Deleted**: `app/rms/settings.py` (538 lines) + `app/rms/settings_original.py` (411 lines). `settings.py` had exactly ONE production importer (production_demand.py lazy import) — re-pointed.
+- **Migration 114** (`_114_settings_kv_consolidation.py`): copies operator-customized values from AppMeta (42 registry keys + legacy /settings router keys: business_*, theme, timbrado, punto_expedicion, invoice_sequence) into settings_kv, then deletes the copied rows. KV-wins on conflict (idempotent), empty values skipped, non-settings AppMeta rows (eod markers, backup stamps, seed flags) untouched. SCHEMA_VERSION → 114.
+- **Tests**: 4 new migration tests (fresh-init to 114, copy+delete, idempotent+KV-wins, empty-skip); test_settings.py re-seeded via SettingsKV; the 2 Sprint 2.1 strict-xfails in test_settings_kv_canonical flipped to plain green (the invariant tests now pass for real). File-scan made worktree-relative (hardcoded /opt/data/work path would have scanned the wrong tree) with self-exclusion.
+- **Sibling coordination**: rebased onto 387d11ca + 51a880d2 (SASKIA-301..308 + ruff waves); sibling's new test_SASKIA-308_settings_eod_auditoria.py passes against the consolidation. My worktree's .venv symlink was transitively broken by a self-referencing loop in the shared checkout's .venv — rebuilt locally with uv sync --frozen.
+
+**Sweep**: 77 passed across settings + migration-safety + SASKIA-308 locks.
+
 ## 2026-10-07e — SASKIA-301: copy/UX hardening Phase 0 (globals)
 
 **Goal:** fix the 8 categories of copy/UX drift identified in

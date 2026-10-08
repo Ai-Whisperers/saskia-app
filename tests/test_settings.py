@@ -1,4 +1,4 @@
-"""tests/test_settings.py — verify app/rms/settings.py (E10).
+"""tests/test_settings.py — verify app/rms/settings_registry.py (E10, Sprint 2.1).
 
 Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E10.
 
@@ -20,8 +20,7 @@ import json
 import pytest
 from sqlalchemy import select
 
-from app.rms.models import AppMeta
-from app.rms.settings import (
+from app.rms.settings_registry import (
     SETTINGS,
     SettingGroup,
     get_setting,
@@ -160,17 +159,17 @@ def test_set_setting_round_trip_json(session_factory):
     try:
         # Pick a setting with a json validator — none in the current 30.
         # Add a json setting ad-hoc.
-        from app.rms.settings import VALIDATORS
+        from app.rms.settings_registry import VALIDATORS
 
         VALIDATORS["json"]
-        # Use list_settings round-trip for json
-        # Actually there's no json setting; we test json round-trip by
-        # calling get_setting_value with a stored JSON string.
-        s.add(AppMeta(key="test.json", value='["a", "b", 1]', updated_at="2026-01-01"))
+        # There's no json setting in the registry; test json round-trip by
+        # storing via a raw SettingsKV row (the store set_setting uses).
+        from app.rms.models import SettingsKV
+
+        s.add(SettingsKV(key="test.json", value_json='["a", "b", 1]'))
         s.commit()
-        # There's no spec for test.json, so get_setting_value returns raw
+        # No spec for test.json → get_setting returns the raw stored text
         assert get_setting(s, "test.json") == '["a", "b", 1]'
-        # With validator: use VALIDATORS directly
         assert json.loads(get_setting(s, "test.json")) == ["a", "b", 1]
     finally:
         s.close()
@@ -195,8 +194,14 @@ def test_set_setting_overwrites_existing(session_factory):
         s.commit()
         assert get_setting_value(s, "general.business_name") == "B"
         # Only one row
+        from app.rms.models import SettingsKV
+
         n = len(
-            list(s.execute(select(AppMeta).where(AppMeta.key == "general.business_name")).scalars())
+            list(
+                s.execute(
+                    select(SettingsKV).where(SettingsKV.key == "general.business_name")
+                ).scalars()
+            )
         )
         assert n == 1
     finally:
