@@ -286,6 +286,20 @@ regression test `test_dashboard_empty_state_still_renders_kpi_tiles` locks it. 1
 
 ### Fixed
 
+- **SASKIA-317**: parallel-suite FD exhaustion. The v60/v61/v62 migration hooks opened a
+  fresh `make_engine()` (no url) per `init_db()` — that resolves `config.DB_PATH`, frozen at
+  import time, which under pytest is the real production DB. Each call leaked pooled
+  sqlite FDs (~2/call); a full `-n 2` run exhausted the worker's 4096 FD limit mid-suite and
+  every subsequent sqlite open failed ("unable to open database file") → xdist
+  INTERNALERROR → hundreds of spurious errors per run (the flaky 200+ error cascade on main
+  CI). The hooks now bind their Session to the migration's own `conn` — same DB the
+  migration targets, zero extra engines. Verified: full suite `-n 2 --dist=loadscope` now
+  completes (7466 passed) with worker FDs flat at 15 (pre-fix: death at ~14% with FDs
+  ≥4096). Also set coverage `parallel = true` so concurrent runs can't collide on the shared
+  `/tmp/.coverage-sazon` sqlite.
+
+### Fixed
+
 - **SASKIA-319**: `tests/test_flash_toast_unification.py` import order (ruff I001) — was failing the Lint gate on main.
 
 ### Added

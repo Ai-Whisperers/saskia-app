@@ -304,6 +304,7 @@ dev = [
 # not when the goal isn't met. See the strategy doc for the
 # 35% → 80% growth plan.
 [tool.coverage.run]
+parallel = true
 source = ["app"]
 omit = [
     "app/rms/migrations/*",  # noqa: historical, not importable
@@ -311,6 +312,14 @@ omit = [
 ]
 # CI runners and hermes's sandbox sometimes can't write to CWD.
 # Use /tmp explicitly so the coverage data file is always writable.
+# SASKIA-317: parallel = true makes each process write a unique suffixed file
+# (data_file.<host>.<pid>.<rand>) instead of all workers/runs appending to the
+# single /tmp/.coverage-sazon sqlite. Without it, two concurrent pytest runs
+# (xdist workers, sibling sessions, CI + local) open the same sqlite and the
+# loser dies with "sqlite3.OperationalError: unable to open database file" —
+# which under xdist escalates to INTERNALERROR and errors out the rest of the
+# suite (the 200+ error cascade that failed main CI). pytest-cov combines the
+# parallel files automatically at report time.
 data_file = "/tmp/.coverage-sazon"
 
 [tool.coverage.report]
