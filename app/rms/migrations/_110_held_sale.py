@@ -38,12 +38,12 @@ from typing import Any
 
 def _migration_110_held_sale(conn: Any) -> None:
     """Create held_sale table for in-progress cart pause/resume."""
+
+    from app.rms.db import atomic_ddl_block
     is_postgres = conn.dialect.name == "postgresql"
     pk = "SERIAL" if is_postgres else "INTEGER"
     ts = "TIMESTAMP" if is_postgres else "DATETIME"
-    try:
-        conn.exec_driver_sql(
-            f"""
+    atomic_ddl_block(conn, [f"""
             CREATE TABLE IF NOT EXISTS held_sale (
                 id {pk} NOT NULL PRIMARY KEY,
                 held_at {ts} NOT NULL,
@@ -52,14 +52,8 @@ def _migration_110_held_sale(conn: Any) -> None:
                 cart_json TEXT NOT NULL,
                 status VARCHAR(20) NOT NULL DEFAULT 'active'
             )
-            """
-        )
-    except Exception:
-        pass
-    try:
-        conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_held_sale_status ON held_sale (status)")
-    except Exception:
-        pass
+            """])
+    atomic_ddl_block(conn, ["CREATE INDEX IF NOT EXISTS ix_held_sale_status ON held_sale (status)"])
 
     # BACKLOG #4 (2026-10-02): always bump schema_version at the end.
     from app.rms.db import _bump_schema_version

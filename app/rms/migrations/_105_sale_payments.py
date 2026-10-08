@@ -16,11 +16,11 @@ from typing import Any
 
 def _migration_105_sale_payments(conn: Any) -> None:
     """Create sale_payment ledger table for pagos mixtos."""
+
+    from app.rms.db import atomic_ddl_block
     is_postgres = conn.dialect.name == "postgresql"
     pk = "SERIAL" if is_postgres else "INTEGER"
-    try:
-        conn.exec_driver_sql(
-            f"""
+    atomic_ddl_block(conn, [f"""
             CREATE TABLE IF NOT EXISTS sale_payment (
                 id {pk} NOT NULL PRIMARY KEY,
                 sale_id INTEGER NOT NULL REFERENCES sale(id) ON DELETE CASCADE,
@@ -32,16 +32,8 @@ def _migration_105_sale_payments(conn: Any) -> None:
                     method IN ('efectivo','transferencia','qr','tarjeta','otro')
                 )
             )
-            """
-        )
-    except Exception:
-        pass
-    try:
-        conn.exec_driver_sql(
-            "CREATE INDEX IF NOT EXISTS ix_sale_payment_sale_id ON sale_payment (sale_id)"
-        )
-    except Exception:
-        pass
+            """])
+    atomic_ddl_block(conn, ["CREATE INDEX IF NOT EXISTS ix_sale_payment_sale_id ON sale_payment (sale_id)"])
 
     # BACKLOG #4 (2026-10-02): always bump schema_version at the end.
     from app.rms.db import _bump_schema_version

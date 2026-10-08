@@ -14,11 +14,10 @@ from typing import Any
 
 def _migration_109_menu_ejecutivo(conn: Any) -> None:
     """Create menu + menu_item (menús ejecutivos)."""
+    from app.rms.db import atomic_ddl_block
+
     if conn.dialect.name == "postgresql":
-        try:
-            conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS pgcrypto")
-        except Exception:
-            pass
+        atomic_ddl_block(conn, ["CREATE EXTENSION IF NOT EXISTS pgcrypto"])
 
     def _tables_missing() -> bool:
         if conn.dialect.name == "sqlite":
@@ -34,9 +33,9 @@ def _migration_109_menu_ejecutivo(conn: Any) -> None:
         return int(row or 0) < 2
 
     if _tables_missing():
-        try:
-            conn.exec_driver_sql(
-                """
+        atomic_ddl_block(
+            conn,
+            ["""
                 CREATE TABLE menu (
                     id {PK},
                     tenant_id INTEGER NOT NULL DEFAULT 1,
@@ -46,19 +45,20 @@ def _migration_109_menu_ejecutivo(conn: Any) -> None:
                     created_at {TS}
                 )
                 """.replace(
-                    "{PK}",
-                    "SERIAL PRIMARY KEY"
-                    if conn.dialect.name == "postgresql"
-                    else "INTEGER PRIMARY KEY AUTOINCREMENT",
-                ).replace(
-                    "{TS}",
-                    "TIMESTAMPTZ DEFAULT now()"
-                    if conn.dialect.name == "postgresql"
-                    else "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-                )
-            )
-            conn.exec_driver_sql(
-                """
+                "{PK}",
+                "SERIAL PRIMARY KEY"
+                if conn.dialect.name == "postgresql"
+                else "INTEGER PRIMARY KEY AUTOINCREMENT",
+            ).replace(
+                "{TS}",
+                "TIMESTAMPTZ DEFAULT now()"
+                if conn.dialect.name == "postgresql"
+                else "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+            )],
+        )
+        atomic_ddl_block(
+            conn,
+            ["""
                 CREATE TABLE menu_item (
                     id {PK},
                     menu_id INTEGER NOT NULL REFERENCES menu(id) ON DELETE CASCADE,
@@ -66,18 +66,14 @@ def _migration_109_menu_ejecutivo(conn: Any) -> None:
                     qty FLOAT NOT NULL DEFAULT 1
                 )
                 """.replace(
-                    "{PK}",
-                    "SERIAL PRIMARY KEY"
-                    if conn.dialect.name == "postgresql"
-                    else "INTEGER PRIMARY KEY AUTOINCREMENT",
-                )
-            )
-            conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_menu_tenant_id ON menu (tenant_id)")
-            conn.exec_driver_sql(
-                "CREATE INDEX IF NOT EXISTS ix_menu_item_menu_id ON menu_item (menu_id)"
-            )
-        except Exception:
-            pass
+                "{PK}",
+                "SERIAL PRIMARY KEY"
+                if conn.dialect.name == "postgresql"
+                else "INTEGER PRIMARY KEY AUTOINCREMENT",
+            )],
+        )
+        atomic_ddl_block(conn, ["CREATE INDEX IF NOT EXISTS ix_menu_tenant_id ON menu (tenant_id)"])
+        atomic_ddl_block(conn, ["CREATE INDEX IF NOT EXISTS ix_menu_item_menu_id ON menu_item (menu_id)"])
 
     from app.rms.db import _bump_schema_version
 
