@@ -10,7 +10,7 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from loguru import logger
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
@@ -288,6 +288,20 @@ def _compliance_alerts(session: Session) -> list[dict]:
 
 
 @router.get("/", response_class=HTMLResponse)
+async def home(request: Request) -> Response:
+    """Home = the chooser. Same page as /puesto.
+
+    The chooser is the navigation hub Kyrian made: it asks
+    "¿Qué vas a hacer?" and shows the station cards (Cocina,
+    Ventas, Inventario, Gerencia) plus a Dashboard card. The
+    owner picks what to do; staff are auto-redirected to their
+    pinned station by the gate middleware (decide()).
+    """
+    from app.routers.stations import puesto
+
+    return puesto(request)
+
+
 @router.get("/inicio", response_class=HTMLResponse)
 async def dashboard(
     request: Request,
