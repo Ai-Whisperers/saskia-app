@@ -100,7 +100,7 @@
      when other things (skip-link, etc.) are siblings of body. #}
   <div id="app-shell" class="app-shell{% if on_chooser %} on-chooser{% endif %}">
   <aside class="sidebar" aria-label="Navegación principal">
-      <a class="brand" href="{{ station_home or '/' }}">
+      <a class="brand" href="/gerencia">
         <span class="brand-mark">S</span>
         <span class="brand-name">{{ branding.business_name or "Sazón" }}</span>
       </a>
@@ -256,7 +256,7 @@
 {% else %}
   {# ══ Logged out: minimal chrome (login + public pages) ══ #}
   <nav class="topnav" aria-label="Navegación">
-    <a href="/" class="brand">
+    <a href="/gerencia" class="brand">
       <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
       <span>Sazón</span>
     </a>
