@@ -413,9 +413,9 @@ class TestKeyCounts:
         if len(matches) < 1:
             pytest.fail("parameterized templates dict not found")
         entries = re.findall(r"^\s*'[a-z_]+':\s*\(", matches[0], re.MULTILINE)
-        assert (
-            len(entries) >= 10
-        ), f"Expected at least 10 parameterized templates, found {len(entries)}"
+        assert len(entries) >= 10, (
+            f"Expected at least 10 parameterized templates, found {len(entries)}"
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────
