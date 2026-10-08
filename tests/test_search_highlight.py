@@ -2,10 +2,10 @@
 
 Verifies the search-highlight.js utility for client-side result highlighting.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-
 
 SEARCH_JS = Path(__file__).parent.parent / "app" / "static" / "search-highlight.js"
 SEARCH_CSS = Path(__file__).parent.parent / "app" / "static" / "search-highlight.css"
