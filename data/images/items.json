@@ -2,8 +2,14 @@
   {
     "id": "product::babka",
     "slug": "babka",
-    "name": "babka",
+    "name": "Babka",
     "type": "product",
+    "category": "TO001-U",
+    "recipe_slug": "babka__rec_017",
+    "unit": "1 unidad",
+    "price_gs": "Tortas",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
@@ -13,82 +19,63 @@
       {
         "path": "app/static/recipes/receta-babka.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::bitterballen",
-    "slug": "bitterballen",
-    "name": "bitterballen",
+    "id": "product::bizcocho_basico_25_cm",
+    "slug": "bizcocho_basico_25_cm",
+    "name": "Bizcocho básico 25 cm (Basiscake)",
     "type": "product",
+    "category": "PA002-U",
+    "recipe_slug": "bizcocho_basico_25_cm_basiscake__rec_011",
+    "unit": "1 unidad",
+    "price_gs": "Panadería",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
       {
-        "path": "app/static/products/bitterballen.jpg"
+        "path": "app/static/products/bizcocho_basico_25_cm.jpg"
       },
       {
-        "path": "app/static/recipes/receta-bitterballen.jpg"
+        "path": "app/static/recipes/receta-bizcocho_basico_25_cm.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::bitterballen_vegetariano",
-    "slug": "bitterballen_vegetariano",
-    "name": "bitterballen_vegetariano",
+    "id": "product::bizcocho_basico_30_cm",
+    "slug": "bizcocho_basico_30_cm",
+    "name": "Bizcocho básico 30 cm (Basiscake)",
     "type": "product",
+    "category": "PA003-U",
+    "recipe_slug": "bizcocho_basico_30_cm_basiscake__rec_012",
+    "unit": "1 unidad",
+    "price_gs": "Panadería",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
       {
-        "path": "app/static/products/bitterballen_vegetariano.jpg"
+        "path": "app/static/products/bizcocho_basico_30_cm.jpg"
       },
       {
-        "path": "app/static/recipes/receta-bitterballen_vegetariano.jpg"
+        "path": "app/static/recipes/receta-bizcocho_basico_30_cm.jpg"
       }
-    ],
-    "is_base": true
-  },
-  {
-    "id": "product::bizcocho_basico_25_cm_basiscake",
-    "slug": "bizcocho_basico_25_cm_basiscake",
-    "name": "bizcocho_basico_25_cm_basiscake",
-    "type": "product",
-    "aspect_ratio": "4:3",
-    "size_px": "1200x900",
-    "outputs": [
-      {
-        "path": "app/static/products/bizcocho_basico_25_cm_basiscake.jpg"
-      },
-      {
-        "path": "app/static/recipes/receta-bizcocho_basico_25_cm_basiscake.jpg"
-      }
-    ],
-    "is_base": true
-  },
-  {
-    "id": "product::bizcocho_basico_30_cm_basiscake",
-    "slug": "bizcocho_basico_30_cm_basiscake",
-    "name": "bizcocho_basico_30_cm_basiscake",
-    "type": "product",
-    "aspect_ratio": "4:3",
-    "size_px": "1200x900",
-    "outputs": [
-      {
-        "path": "app/static/products/bizcocho_basico_30_cm_basiscake.jpg"
-      },
-      {
-        "path": "app/static/recipes/receta-bizcocho_basico_30_cm_basiscake.jpg"
-      }
-    ],
-    "is_base": true
+    ]
   },
   {
     "id": "product::bombones_de_chocolate",
     "slug": "bombones_de_chocolate",
-    "name": "bombones_de_chocolate",
+    "name": "Bombones de chocolate",
     "type": "product",
+    "category": "ES004-U",
+    "recipe_slug": "bombones_de_chocolate__rec_018",
+    "unit": "1 unidad",
+    "price_gs": "Especiales",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
@@ -98,65 +85,129 @@
       {
         "path": "app/static/recipes/receta-bombones_de_chocolate.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::cheesecake_30x50",
-    "slug": "cheesecake_30x50",
-    "name": "cheesecake_30x50",
+    "id": "product::torta_de_zanahoria",
+    "slug": "torta_de_zanahoria",
+    "name": "Torta de zanahoria (43x33x1.5 cm)",
     "type": "product",
+    "category": "TO005-U",
+    "recipe_slug": "torta_de_zanahoria_43x33x1_5_cm__rec_005",
+    "unit": "1 unidad",
+    "price_gs": "Tortas",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
       {
-        "path": "app/static/products/cheesecake_30x50.jpg"
+        "path": "app/static/products/torta_de_zanahoria.jpg"
       },
       {
-        "path": "app/static/recipes/receta-cheesecake_30x50.jpg"
+        "path": "app/static/recipes/receta-torta_de_zanahoria.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::frikandel_100_unidades",
-    "slug": "frikandel_100_unidades",
-    "name": "frikandel_100_unidades",
+    "id": "product::cheesecake",
+    "slug": "cheesecake",
+    "name": "Cheesecake (30x50)",
     "type": "product",
+    "category": "TO006-U",
+    "recipe_slug": "cheesecake_30x50__rec_002",
+    "unit": "1 unidad",
+    "price_gs": "Tortas",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
       {
-        "path": "app/static/products/frikandel_100_unidades.jpg"
+        "path": "app/static/products/cheesecake.jpg"
       },
       {
-        "path": "app/static/recipes/receta-frikandel_100_unidades.jpg"
+        "path": "app/static/recipes/receta-cheesecake.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::galletas_de_especuloos_speculaasjes",
-    "slug": "galletas_de_especuloos_speculaasjes",
-    "name": "galletas_de_especuloos_speculaasjes",
+    "id": "product::muffin_de_chocolate",
+    "slug": "muffin_de_chocolate",
+    "name": "Muffin de chocolate (20x20 cm)",
     "type": "product",
+    "category": "PA007-U",
+    "recipe_slug": "muffin_de_chocolate_20x20_cm__rec_001",
+    "unit": "1 unidad",
+    "price_gs": "Panadería",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
       {
-        "path": "app/static/products/galletas_de_especuloos_speculaasjes.jpg"
+        "path": "app/static/products/muffin_de_chocolate.jpg"
       },
       {
-        "path": "app/static/recipes/receta-galletas_de_especuloos_speculaasjes.jpg"
+        "path": "app/static/recipes/receta-muffin_de_chocolate.jpg"
       }
-    ],
-    "is_base": true
+    ]
+  },
+  {
+    "id": "product::frikandel",
+    "slug": "frikandel",
+    "name": "Frikandel (100 unidades)",
+    "type": "product",
+    "category": "SA008-U",
+    "recipe_slug": "frikandel_100_unidades__rec_022",
+    "unit": "1 unidad",
+    "price_gs": "Salados",
+    "sku": "10",
+    "is_variant": false,
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/frikandel.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-frikandel.jpg"
+      }
+    ]
+  },
+  {
+    "id": "product::galletas_de_especuloos",
+    "slug": "galletas_de_especuloos",
+    "name": "Galletas de especuloos (Speculaasjes)",
+    "type": "product",
+    "category": "PA009-U",
+    "recipe_slug": "galletas_de_especuloos_speculaasjes__rec_010",
+    "unit": "1 unidad",
+    "price_gs": "Panadería",
+    "sku": "10",
+    "is_variant": false,
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/galletas_de_especuloos.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-galletas_de_especuloos.jpg"
+      }
+    ]
   },
   {
     "id": "product::goulash_crockettes",
     "slug": "goulash_crockettes",
-    "name": "goulash_crockettes",
+    "name": "goulash crockettes",
     "type": "product",
+    "category": "SA010-U",
+    "recipe_slug": "goulash_crockettes__rec_019",
+    "unit": "1 unidad",
+    "price_gs": "Salados",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
@@ -166,150 +217,173 @@
       {
         "path": "app/static/recipes/receta-goulash_crockettes.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::hojaldre_bladerdeeg",
-    "slug": "hojaldre_bladerdeeg",
-    "name": "hojaldre_bladerdeeg",
+    "id": "product::hojaldre",
+    "slug": "hojaldre",
+    "name": "Hojaldre (Bladerdeeg)",
     "type": "product",
+    "category": "PS011-U",
+    "recipe_slug": "hojaldre_bladerdeeg__rec_008",
+    "unit": "1 unidad",
+    "price_gs": "Pastelería",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
       {
-        "path": "app/static/products/hojaldre_bladerdeeg.jpg"
+        "path": "app/static/products/hojaldre.jpg"
       },
       {
-        "path": "app/static/recipes/receta-hojaldre_bladerdeeg.jpg"
+        "path": "app/static/recipes/receta-hojaldre.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::ketjap_manis_version_rapida",
-    "slug": "ketjap_manis_version_rapida",
-    "name": "ketjap_manis_version_rapida",
+    "id": "product::ketjap_manis",
+    "slug": "ketjap_manis",
+    "name": "Ketjap manis (versión rápida)",
     "type": "product",
+    "category": "ES012-U",
+    "recipe_slug": "ketjap_manis_version_rapida__rec_007",
+    "unit": "1 unidad",
+    "price_gs": "Especiales",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
       {
-        "path": "app/static/products/ketjap_manis_version_rapida.jpg"
+        "path": "app/static/products/ketjap_manis.jpg"
       },
       {
-        "path": "app/static/recipes/receta-ketjap_manis_version_rapida.jpg"
+        "path": "app/static/recipes/receta-ketjap_manis.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::muffin_de_chocolate_20x20_cm",
-    "slug": "muffin_de_chocolate_20x20_cm",
-    "name": "muffin_de_chocolate_20x20_cm",
+    "id": "product::oliebollen",
+    "slug": "oliebollen",
+    "name": "Oliebollen (Buñuelos tradicionales holandeses)",
     "type": "product",
+    "category": "ES013-U",
+    "recipe_slug": "oliebollen_bunuelos_tradicionales_holandeses__rec_016",
+    "unit": "1 unidad",
+    "price_gs": "Especiales",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
       {
-        "path": "app/static/products/muffin_de_chocolate_20x20_cm.jpg"
+        "path": "app/static/products/oliebollen.jpg"
       },
       {
-        "path": "app/static/recipes/receta-muffin_de_chocolate_20x20_cm.jpg"
+        "path": "app/static/recipes/receta-oliebollen.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::oliebollen_bunuelos_tradicionales_holandeses",
-    "slug": "oliebollen_bunuelos_tradicionales_holandeses",
-    "name": "oliebollen_bunuelos_tradicionales_holandeses",
+    "id": "product::ontbijtkoek",
+    "slug": "ontbijtkoek",
+    "name": "Ontbijtkoek (700g de harina)",
     "type": "product",
+    "category": "PA014-U",
+    "recipe_slug": "ontbijtkoek_700g_de_harina__rec_004",
+    "unit": "1 unidad",
+    "price_gs": "Panadería",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
       {
-        "path": "app/static/products/oliebollen_bunuelos_tradicionales_holandeses.jpg"
+        "path": "app/static/products/ontbijtkoek.jpg"
       },
       {
-        "path": "app/static/recipes/receta-oliebollen_bunuelos_tradicionales_holandeses.jpg"
+        "path": "app/static/recipes/receta-ontbijtkoek.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::ontbijtkoek_700g_de_harina",
-    "slug": "ontbijtkoek_700g_de_harina",
-    "name": "ontbijtkoek_700g_de_harina",
+    "id": "product::pastelitos_rosados",
+    "slug": "pastelitos_rosados",
+    "name": "Pastelitos rosados (Roze koeken)",
     "type": "product",
+    "category": "ES015-U",
+    "recipe_slug": "pastelitos_rosados_roze_koeken__rec_009",
+    "unit": "1 unidad",
+    "price_gs": "Especiales",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
       {
-        "path": "app/static/products/ontbijtkoek_700g_de_harina.jpg"
+        "path": "app/static/products/pastelitos_rosados.jpg"
       },
       {
-        "path": "app/static/recipes/receta-ontbijtkoek_700g_de_harina.jpg"
+        "path": "app/static/recipes/receta-pastelitos_rosados.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::pastelitos_rosados_roze_koeken",
-    "slug": "pastelitos_rosados_roze_koeken",
-    "name": "pastelitos_rosados_roze_koeken",
+    "id": "product::petisus_de_hojaldre_y_crema",
+    "slug": "petisus_de_hojaldre_y_crema",
+    "name": "Petisús de hojaldre y crema (Tompoezen)",
     "type": "product",
+    "category": "PS016-U",
+    "recipe_slug": "petisus_de_hojaldre_y_crema_tompoezen__rec_015",
+    "unit": "1 unidad",
+    "price_gs": "Pastelería",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
       {
-        "path": "app/static/products/pastelitos_rosados_roze_koeken.jpg"
+        "path": "app/static/products/petisus_de_hojaldre_y_crema.jpg"
       },
       {
-        "path": "app/static/recipes/receta-pastelitos_rosados_roze_koeken.jpg"
+        "path": "app/static/recipes/receta-petisus_de_hojaldre_y_crema.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::petisus_de_hojaldre_y_crema_tompoezen",
-    "slug": "petisus_de_hojaldre_y_crema_tompoezen",
-    "name": "petisus_de_hojaldre_y_crema_tompoezen",
+    "id": "product::proficteroles_de_den_bosch",
+    "slug": "proficteroles_de_den_bosch",
+    "name": "Proficteroles de Den Bosch (Bossche bollen)",
     "type": "product",
+    "category": "PA017-U",
+    "recipe_slug": "proficteroles_de_den_bosch_bossche_bollen__rec_014",
+    "unit": "1 unidad",
+    "price_gs": "Panadería",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
       {
-        "path": "app/static/products/petisus_de_hojaldre_y_crema_tompoezen.jpg"
+        "path": "app/static/products/proficteroles_de_den_bosch.jpg"
       },
       {
-        "path": "app/static/recipes/receta-petisus_de_hojaldre_y_crema_tompoezen.jpg"
+        "path": "app/static/recipes/receta-proficteroles_de_den_bosch.jpg"
       }
-    ],
-    "is_base": true
-  },
-  {
-    "id": "product::proficteroles_de_den_bosch_bossche_bollen",
-    "slug": "proficteroles_de_den_bosch_bossche_bollen",
-    "name": "proficteroles_de_den_bosch_bossche_bollen",
-    "type": "product",
-    "aspect_ratio": "4:3",
-    "size_px": "1200x900",
-    "outputs": [
-      {
-        "path": "app/static/products/proficteroles_de_den_bosch_bossche_bollen.jpg"
-      },
-      {
-        "path": "app/static/recipes/receta-proficteroles_de_den_bosch_bossche_bollen.jpg"
-      }
-    ],
-    "is_base": true
+    ]
   },
   {
     "id": "product::stroop_wafel",
     "slug": "stroop_wafel",
-    "name": "stroop_wafel",
+    "name": "Stroop wafel",
     "type": "product",
+    "category": "PS018-U",
+    "recipe_slug": "stroop_wafel__rec_003",
+    "unit": "1 unidad",
+    "price_gs": "Pastelería",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
@@ -319,14 +393,19 @@
       {
         "path": "app/static/recipes/receta-stroop_wafel.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
     "id": "product::suppli_cacio_e_pepe",
     "slug": "suppli_cacio_e_pepe",
-    "name": "suppli_cacio_e_pepe",
+    "name": "suppli cacio e pepe",
     "type": "product",
+    "category": "SA019-U",
+    "recipe_slug": "suppli_cacio_e_pepe__rec_021",
+    "unit": "1 unidad",
+    "price_gs": "Salados",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
@@ -336,1361 +415,1616 @@
       {
         "path": "app/static/recipes/receta-suppli_cacio_e_pepe.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart",
-    "slug": "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart",
-    "name": "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart",
+    "id": "product::tarta_de_manzana_de_mi_madre",
+    "slug": "tarta_de_manzana_de_mi_madre",
+    "name": "Tarta de manzana de mi madre (Mijn moeders appeltaart)",
     "type": "product",
+    "category": "PA020-U",
+    "recipe_slug": "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013",
+    "unit": "1 unidad",
+    "price_gs": "Panadería",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
       {
-        "path": "app/static/products/tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart.jpg"
+        "path": "app/static/products/tarta_de_manzana_de_mi_madre.jpg"
       },
       {
-        "path": "app/static/recipes/receta-tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart.jpg"
+        "path": "app/static/recipes/receta-tarta_de_manzana_de_mi_madre.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::torta_de_zanahoria_43x33x1_5_cm",
-    "slug": "torta_de_zanahoria_43x33x1_5_cm",
-    "name": "torta_de_zanahoria_43x33x1_5_cm",
+    "id": "product::bitterballen_vegetariano",
+    "slug": "bitterballen_vegetariano",
+    "name": "bitterballen vegetariano",
     "type": "product",
+    "category": "SA021-U",
+    "recipe_slug": "bitterballen_vegetariano__rec_020",
+    "unit": "1 unidad",
+    "price_gs": "Salados",
+    "sku": "10",
+    "is_variant": false,
     "aspect_ratio": "4:3",
     "size_px": "1200x900",
     "outputs": [
       {
-        "path": "app/static/products/torta_de_zanahoria_43x33x1_5_cm.jpg"
+        "path": "app/static/products/bitterballen_vegetariano.jpg"
       },
       {
-        "path": "app/static/recipes/receta-torta_de_zanahoria_43x33x1_5_cm.jpg"
+        "path": "app/static/recipes/receta-bitterballen_vegetariano.jpg"
       }
-    ],
-    "is_base": true
+    ]
   },
   {
-    "id": "product::docena_stroopwafels",
-    "slug": "docena_stroopwafels",
-    "name": "Docena stroopwafels",
+    "id": "product::bitterballen",
+    "slug": "bitterballen",
+    "name": "bitterballen",
     "type": "product",
-    "aspect_ratio": null,
-    "size_px": null,
-    "outputs": [],
-    "is_base": false,
-    "reuses_image_from": "stroop_wafel"
-  },
-  {
-    "id": "product::docena_tompoezen",
-    "slug": "docena_tompoezen",
-    "name": "Docena tompoezen",
-    "type": "product",
-    "aspect_ratio": null,
-    "size_px": null,
-    "outputs": [],
-    "is_base": false,
-    "reuses_image_from": "petisus_de_hojaldre_y_crema_tompoezen"
-  },
-  {
-    "id": "product::docena_oliebollen",
-    "slug": "docena_oliebollen",
-    "name": "Docena oliebollen",
-    "type": "product",
-    "aspect_ratio": null,
-    "size_px": null,
-    "outputs": [],
-    "is_base": false,
-    "reuses_image_from": "oliebollen_bunuelos_tradicionales_holandeses"
-  },
-  {
-    "id": "product::docena_muffins_chocolate",
-    "slug": "docena_muffins_chocolate",
-    "name": "Docena muffins de chocolate",
-    "type": "product",
-    "aspect_ratio": null,
-    "size_px": null,
-    "outputs": [],
-    "is_base": false,
-    "reuses_image_from": "muffin_de_chocolate_20x20_cm"
-  },
-  {
-    "id": "product::caja_bombones",
-    "slug": "caja_bombones",
-    "name": "Caja bombones",
-    "type": "product",
-    "aspect_ratio": null,
-    "size_px": null,
-    "outputs": [],
-    "is_base": false,
-    "reuses_image_from": "bombones_de_chocolate"
+    "category": "SA022-U",
+    "recipe_slug": "bitterballen__rec_006",
+    "unit": "1 unidad",
+    "price_gs": "Salados",
+    "sku": "10",
+    "is_variant": false,
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": [
+      {
+        "path": "app/static/products/bitterballen.jpg"
+      },
+      {
+        "path": "app/static/recipes/receta-bitterballen.jpg"
+      }
+    ]
   },
   {
     "id": "product::babka_entera",
     "slug": "babka_entera",
     "name": "Babka entera",
     "type": "product",
-    "aspect_ratio": null,
-    "size_px": null,
-    "outputs": [],
-    "is_base": false,
-    "reuses_image_from": "babka"
+    "category": "TO023-L",
+    "recipe_slug": "babka__rec_017",
+    "unit": "Lote completo",
+    "price_gs": "Tortas",
+    "sku": "10",
+    "is_variant": true,
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": []
   },
   {
     "id": "product::cheesecake_entera",
     "slug": "cheesecake_entera",
     "name": "Cheesecake entera",
     "type": "product",
-    "aspect_ratio": null,
-    "size_px": null,
-    "outputs": [],
-    "is_base": false,
-    "reuses_image_from": "cheesecake_30x50"
+    "category": "TO024-L",
+    "recipe_slug": "cheesecake_30x50__rec_002",
+    "unit": "Lote completo",
+    "price_gs": "Tortas",
+    "sku": "10",
+    "is_variant": true,
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": []
+  },
+  {
+    "id": "product::docena_gofres_de_sirope",
+    "slug": "docena_gofres_de_sirope",
+    "name": "Docena gofres de sirope",
+    "type": "product",
+    "category": "PS025-L",
+    "recipe_slug": "stroop_wafel__rec_003",
+    "unit": "Lote completo",
+    "price_gs": "Pastelería",
+    "sku": "10",
+    "is_variant": true,
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": []
+  },
+  {
+    "id": "product::docena_petisus",
+    "slug": "docena_petisus",
+    "name": "Docena petisús",
+    "type": "product",
+    "category": "PS026-L",
+    "recipe_slug": "petisus_de_hojaldre_y_crema_tompoezen__rec_015",
+    "unit": "Lote completo",
+    "price_gs": "Pastelería",
+    "sku": "10",
+    "is_variant": true,
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": []
+  },
+  {
+    "id": "product::docena_bunuelos",
+    "slug": "docena_bunuelos",
+    "name": "Docena buñuelos",
+    "type": "product",
+    "category": "ES027-L",
+    "recipe_slug": "oliebollen_bunuelos_tradicionales_holandeses__rec_016",
+    "unit": "Lote completo",
+    "price_gs": "Especiales",
+    "sku": "10",
+    "is_variant": true,
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": []
   },
   {
     "id": "product::bizcocho_25_cm_entero",
     "slug": "bizcocho_25_cm_entero",
     "name": "Bizcocho 25 cm entero",
     "type": "product",
-    "aspect_ratio": null,
-    "size_px": null,
-    "outputs": [],
-    "is_base": false,
-    "reuses_image_from": "bizcocho_basico_25_cm_basiscake"
+    "category": "PA028-L",
+    "recipe_slug": "bizcocho_basico_25_cm_basiscake__rec_011",
+    "unit": "Lote completo",
+    "price_gs": "Panadería",
+    "sku": "10",
+    "is_variant": true,
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": []
   },
   {
     "id": "product::bizcocho_30_cm_entero",
     "slug": "bizcocho_30_cm_entero",
     "name": "Bizcocho 30 cm entero",
     "type": "product",
-    "aspect_ratio": null,
-    "size_px": null,
-    "outputs": [],
-    "is_base": false,
-    "reuses_image_from": "bizcocho_basico_30_cm_basiscake"
+    "category": "PA029-L",
+    "recipe_slug": "bizcocho_basico_30_cm_basiscake__rec_012",
+    "unit": "Lote completo",
+    "price_gs": "Panadería",
+    "sku": "10",
+    "is_variant": true,
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": []
   },
   {
-    "id": "ingredient::Harina de centeno",
-    "slug": "Harina de centeno",
-    "name": "kg",
+    "id": "product::caja_bombones",
+    "slug": "caja_bombones",
+    "name": "Caja bombones",
+    "type": "product",
+    "category": "ES030-L",
+    "recipe_slug": "bombones_de_chocolate__rec_018",
+    "unit": "Lote completo",
+    "price_gs": "Especiales",
+    "sku": "10",
+    "is_variant": true,
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": []
+  },
+  {
+    "id": "product::docena_muffins_chocolate",
+    "slug": "docena_muffins_chocolate",
+    "name": "Docena muffins chocolate",
+    "type": "product",
+    "category": "PA031-L",
+    "recipe_slug": "muffin_de_chocolate_20x20_cm__rec_001",
+    "unit": "Lote completo",
+    "price_gs": "Panadería",
+    "sku": "10",
+    "is_variant": true,
+    "aspect_ratio": "4:3",
+    "size_px": "1200x900",
+    "outputs": []
+  },
+  {
+    "id": "ingredient::harina_de_centeno",
+    "slug": "harina_de_centeno",
+    "name": "Harina de centeno",
     "type": "ingredient",
+    "category": "Harinas y bases",
+    "ing_id": "ING-001",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Harina de centeno.jpg"
+        "path": "app/static/ingredients/harina_de_centeno.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Harina de repostería",
-    "slug": "Harina de repostería",
-    "name": "kg",
+    "id": "ingredient::harina_de_reposter_a",
+    "slug": "harina_de_reposter_a",
+    "name": "Harina de repostería",
     "type": "ingredient",
+    "category": "Harinas y bases",
+    "ing_id": "ING-002",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Harina de repostería.jpg"
+        "path": "app/static/ingredients/harina_de_reposter_a.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Harina de trigo",
-    "slug": "Harina de trigo",
-    "name": "kg",
+    "id": "ingredient::harina_de_trigo",
+    "slug": "harina_de_trigo",
+    "name": "Harina de trigo",
     "type": "ingredient",
+    "category": "Harinas y bases",
+    "ing_id": "ING-003",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Harina de trigo.jpg"
+        "path": "app/static/ingredients/harina_de_trigo.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Harina Patentada",
-    "slug": "Harina Patentada",
-    "name": "kg",
+    "id": "ingredient::harina_patentada",
+    "slug": "harina_patentada",
+    "name": "Harina Patentada",
     "type": "ingredient",
+    "category": "Harinas y bases",
+    "ing_id": "ING-004",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Harina Patentada.jpg"
+        "path": "app/static/ingredients/harina_patentada.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Maicena",
-    "slug": "Maicena",
-    "name": "kg",
+    "id": "ingredient::maicena",
+    "slug": "maicena",
+    "name": "Maicena",
     "type": "ingredient",
+    "category": "Harinas y bases",
+    "ing_id": "ING-005",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Maicena.jpg"
+        "path": "app/static/ingredients/maicena.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Pan rallado",
-    "slug": "Pan rallado",
-    "name": "kg",
+    "id": "ingredient::pan_rallado",
+    "slug": "pan_rallado",
+    "name": "Pan rallado",
     "type": "ingredient",
+    "category": "Harinas y bases",
+    "ing_id": "ING-006",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Pan rallado.jpg"
+        "path": "app/static/ingredients/pan_rallado.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Azúcar",
-    "slug": "Azúcar",
-    "name": "kg",
+    "id": "ingredient::az_car",
+    "slug": "az_car",
+    "name": "Azúcar",
     "type": "ingredient",
+    "category": "Endulzantes",
+    "ing_id": "ING-007",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Azúcar.jpg"
+        "path": "app/static/ingredients/az_car.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Azúcar glas",
-    "slug": "Azúcar glas",
-    "name": "kg",
+    "id": "ingredient::az_car_glas",
+    "slug": "az_car_glas",
+    "name": "Azúcar glas",
     "type": "ingredient",
+    "category": "Endulzantes",
+    "ing_id": "ING-008",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Azúcar glas.jpg"
+        "path": "app/static/ingredients/az_car_glas.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Azúcar morena",
-    "slug": "Azúcar morena",
-    "name": "kg",
+    "id": "ingredient::az_car_morena",
+    "slug": "az_car_morena",
+    "name": "Azúcar morena",
     "type": "ingredient",
+    "category": "Endulzantes",
+    "ing_id": "ING-009",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Azúcar morena.jpg"
+        "path": "app/static/ingredients/az_car_morena.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Melaza",
-    "slug": "Melaza",
-    "name": "kg",
+    "id": "ingredient::melaza",
+    "slug": "melaza",
+    "name": "Melaza",
     "type": "ingredient",
+    "category": "Endulzantes",
+    "ing_id": "ING-010",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Melaza.jpg"
+        "path": "app/static/ingredients/melaza.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Miel",
-    "slug": "Miel",
-    "name": "kg",
+    "id": "ingredient::miel",
+    "slug": "miel",
+    "name": "Miel",
     "type": "ingredient",
+    "category": "Endulzantes",
+    "ing_id": "ING-011",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Miel.jpg"
+        "path": "app/static/ingredients/miel.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Crema agria",
-    "slug": "Crema agria",
-    "name": "kg",
+    "id": "ingredient::crema_agria",
+    "slug": "crema_agria",
+    "name": "Crema agria",
     "type": "ingredient",
+    "category": "Lácteos y huevos",
+    "ing_id": "ING-012",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Crema agria.jpg"
+        "path": "app/static/ingredients/crema_agria.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Crema de leche",
-    "slug": "Crema de leche",
-    "name": "l",
+    "id": "ingredient::crema_de_leche",
+    "slug": "crema_de_leche",
+    "name": "Crema de leche",
     "type": "ingredient",
+    "category": "Lácteos y huevos",
+    "ing_id": "ING-013",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Crema de leche.jpg"
+        "path": "app/static/ingredients/crema_de_leche.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Crema pastelera",
-    "slug": "Crema pastelera",
-    "name": "l",
+    "id": "ingredient::crema_pastelera",
+    "slug": "crema_pastelera",
+    "name": "Crema pastelera",
     "type": "ingredient",
+    "category": "Lácteos y huevos",
+    "ing_id": "ING-014",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Crema pastelera.jpg"
+        "path": "app/static/ingredients/crema_pastelera.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Huevos",
-    "slug": "Huevos",
-    "name": "und",
+    "id": "ingredient::huevos",
+    "slug": "huevos",
+    "name": "Huevos",
     "type": "ingredient",
+    "category": "Lácteos y huevos",
+    "ing_id": "ING-015",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Huevos.jpg"
+        "path": "app/static/ingredients/huevos.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Leche",
-    "slug": "Leche",
-    "name": "l",
+    "id": "ingredient::leche",
+    "slug": "leche",
+    "name": "Leche",
     "type": "ingredient",
+    "category": "Lácteos y huevos",
+    "ing_id": "ING-016",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Leche.jpg"
+        "path": "app/static/ingredients/leche.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Manteca",
-    "slug": "Manteca",
-    "name": "kg",
+    "id": "ingredient::manteca",
+    "slug": "manteca",
+    "name": "Manteca",
     "type": "ingredient",
+    "category": "Lácteos y huevos",
+    "ing_id": "ING-017",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Manteca.jpg"
+        "path": "app/static/ingredients/manteca.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Queso muzzarella",
-    "slug": "Queso muzzarella",
-    "name": "l",
+    "id": "ingredient::queso_muzzarella",
+    "slug": "queso_muzzarella",
+    "name": "Queso muzzarella",
     "type": "ingredient",
+    "category": "Lácteos y huevos",
+    "ing_id": "ING-018",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Queso muzzarella.jpg"
+        "path": "app/static/ingredients/queso_muzzarella.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Queso crema",
-    "slug": "Queso crema",
-    "name": "kg",
+    "id": "ingredient::queso_crema",
+    "slug": "queso_crema",
+    "name": "Queso crema",
     "type": "ingredient",
+    "category": "Lácteos y huevos",
+    "ing_id": "ING-019",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Queso crema.jpg"
+        "path": "app/static/ingredients/queso_crema.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Suero de leche (buttermilk)",
-    "slug": "Suero de leche (buttermilk)",
-    "name": "l",
+    "id": "ingredient::suero_de_leche_buttermilk",
+    "slug": "suero_de_leche_buttermilk",
+    "name": "Suero de leche (buttermilk)",
     "type": "ingredient",
+    "category": "Lácteos y huevos",
+    "ing_id": "ING-020",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Suero de leche (buttermilk).jpg"
+        "path": "app/static/ingredients/suero_de_leche_buttermilk.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Leche condensada",
-    "slug": "Leche condensada",
-    "name": "kg",
+    "id": "ingredient::leche_condensada",
+    "slug": "leche_condensada",
+    "name": "Leche condensada",
     "type": "ingredient",
+    "category": "Lácteos y huevos",
+    "ing_id": "ING-021",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Leche condensada.jpg"
+        "path": "app/static/ingredients/leche_condensada.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Leche en polvo",
-    "slug": "Leche en polvo",
-    "name": "kg",
+    "id": "ingredient::leche_en_polvo",
+    "slug": "leche_en_polvo",
+    "name": "Leche en polvo",
     "type": "ingredient",
+    "category": "Lácteos y huevos",
+    "ing_id": "ING-022",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Leche en polvo.jpg"
+        "path": "app/static/ingredients/leche_en_polvo.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Cacao en polvo",
-    "slug": "Cacao en polvo",
-    "name": "kg",
+    "id": "ingredient::cacao_en_polvo",
+    "slug": "cacao_en_polvo",
+    "name": "Cacao en polvo",
     "type": "ingredient",
+    "category": "Cacao café y chocolate",
+    "ing_id": "ING-023",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Cacao en polvo.jpg"
+        "path": "app/static/ingredients/cacao_en_polvo.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Café instantaneo",
-    "slug": "Café instantaneo",
-    "name": "kg",
+    "id": "ingredient::caf_instantaneo",
+    "slug": "caf_instantaneo",
+    "name": "Café instantaneo",
     "type": "ingredient",
+    "category": "Cacao café y chocolate",
+    "ing_id": "ING-024",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Café instantaneo.jpg"
+        "path": "app/static/ingredients/caf_instantaneo.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Chocolate",
-    "slug": "Chocolate",
-    "name": "kg",
+    "id": "ingredient::chocolate",
+    "slug": "chocolate",
+    "name": "Chocolate",
     "type": "ingredient",
+    "category": "Cacao café y chocolate",
+    "ing_id": "ING-025",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Chocolate.jpg"
+        "path": "app/static/ingredients/chocolate.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Laurel",
-    "slug": "Laurel",
-    "name": "kg",
+    "id": "ingredient::laurel",
+    "slug": "laurel",
+    "name": "Laurel",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-026",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Laurel.jpg"
+        "path": "app/static/ingredients/laurel.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Vainilla",
-    "slug": "Vainilla",
-    "name": "kg",
+    "id": "ingredient::vainilla",
+    "slug": "vainilla",
+    "name": "Vainilla",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-027",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Vainilla.jpg"
+        "path": "app/static/ingredients/vainilla.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Ajo",
-    "slug": "Ajo",
-    "name": "und",
+    "id": "ingredient::ajo",
+    "slug": "ajo",
+    "name": "Ajo",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-028",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Ajo.jpg"
+        "path": "app/static/ingredients/ajo.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Anís estrellado",
-    "slug": "Anís estrellado",
-    "name": "kg",
+    "id": "ingredient::an_s_estrellado",
+    "slug": "an_s_estrellado",
+    "name": "Anís estrellado",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-029",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Anís estrellado.jpg"
+        "path": "app/static/ingredients/an_s_estrellado.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Canela",
-    "slug": "Canela",
-    "name": "kg",
+    "id": "ingredient::canela",
+    "slug": "canela",
+    "name": "Canela",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-030",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Canela.jpg"
+        "path": "app/static/ingredients/canela.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Especias mixtas",
-    "slug": "Especias mixtas",
-    "name": "kg",
+    "id": "ingredient::especias_mixtas",
+    "slug": "especias_mixtas",
+    "name": "Especias mixtas",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-031",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Especias mixtas.jpg"
+        "path": "app/static/ingredients/especias_mixtas.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Mezcla de especias para Speculaas",
-    "slug": "Mezcla de especias para Speculaas",
-    "name": "kg",
+    "id": "ingredient::mezcla_de_especias_para_speculaas",
+    "slug": "mezcla_de_especias_para_speculaas",
+    "name": "Mezcla de especias para Speculaas",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-032",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Mezcla de especias para Speculaas.jpg"
+        "path": "app/static/ingredients/mezcla_de_especias_para_speculaas.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Jengibre",
-    "slug": "Jengibre",
-    "name": "kg",
+    "id": "ingredient::jengibre",
+    "slug": "jengibre",
+    "name": "Jengibre",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-033",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Jengibre.jpg"
+        "path": "app/static/ingredients/jengibre.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Jengibre molido",
-    "slug": "Jengibre molido",
-    "name": "kg",
+    "id": "ingredient::jengibre_molido",
+    "slug": "jengibre_molido",
+    "name": "Jengibre molido",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-034",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Jengibre molido.jpg"
+        "path": "app/static/ingredients/jengibre_molido.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Nuez moscada",
-    "slug": "Nuez moscada",
-    "name": "kg",
+    "id": "ingredient::nuez_moscada",
+    "slug": "nuez_moscada",
+    "name": "Nuez moscada",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-035",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Nuez moscada.jpg"
+        "path": "app/static/ingredients/nuez_moscada.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Ralladura de limón",
-    "slug": "Ralladura de limón",
-    "name": "und",
+    "id": "ingredient::ralladura_de_lim_n",
+    "slug": "ralladura_de_lim_n",
+    "name": "Ralladura de limón",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-036",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Ralladura de limón.jpg"
+        "path": "app/static/ingredients/ralladura_de_lim_n.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Sal",
-    "slug": "Sal",
-    "name": "kg",
+    "id": "ingredient::sal",
+    "slug": "sal",
+    "name": "Sal",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-037",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Sal.jpg"
+        "path": "app/static/ingredients/sal.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Perejil",
-    "slug": "Perejil",
-    "name": "und",
+    "id": "ingredient::perejil",
+    "slug": "perejil",
+    "name": "Perejil",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-038",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Perejil.jpg"
+        "path": "app/static/ingredients/perejil.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Cebolla en polvo",
-    "slug": "Cebolla en polvo",
-    "name": "kg",
+    "id": "ingredient::cebolla_en_polvo",
+    "slug": "cebolla_en_polvo",
+    "name": "Cebolla en polvo",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-039",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Cebolla en polvo.jpg"
+        "path": "app/static/ingredients/cebolla_en_polvo.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Ajo en polvo",
-    "slug": "Ajo en polvo",
-    "name": "kg",
+    "id": "ingredient::ajo_en_polvo",
+    "slug": "ajo_en_polvo",
+    "name": "Ajo en polvo",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-040",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Ajo en polvo.jpg"
+        "path": "app/static/ingredients/ajo_en_polvo.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Knorr",
-    "slug": "Knorr",
-    "name": "kg",
+    "id": "ingredient::knorr",
+    "slug": "knorr",
+    "name": "Knorr",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-041",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Knorr.jpg"
+        "path": "app/static/ingredients/knorr.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Pimienta",
-    "slug": "Pimienta",
-    "name": "kg",
+    "id": "ingredient::pimienta",
+    "slug": "pimienta",
+    "name": "Pimienta",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-042",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Pimienta.jpg"
+        "path": "app/static/ingredients/pimienta.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Mostaza",
-    "slug": "Mostaza",
-    "name": "kg",
+    "id": "ingredient::mostaza",
+    "slug": "mostaza",
+    "name": "Mostaza",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-043",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Mostaza.jpg"
+        "path": "app/static/ingredients/mostaza.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Bicarbonato de sodio",
-    "slug": "Bicarbonato de sodio",
-    "name": "kg",
+    "id": "ingredient::bicarbonato_de_sodio",
+    "slug": "bicarbonato_de_sodio",
+    "name": "Bicarbonato de sodio",
     "type": "ingredient",
+    "category": "Levaduras y gasificantes",
+    "ing_id": "ING-044",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Bicarbonato de sodio.jpg"
+        "path": "app/static/ingredients/bicarbonato_de_sodio.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Levadura fresca",
-    "slug": "Levadura fresca",
-    "name": "kg",
+    "id": "ingredient::levadura_fresca",
+    "slug": "levadura_fresca",
+    "name": "Levadura fresca",
     "type": "ingredient",
+    "category": "Levaduras y gasificantes",
+    "ing_id": "ING-045",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Levadura fresca.jpg"
+        "path": "app/static/ingredients/levadura_fresca.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Levadura seca",
-    "slug": "Levadura seca",
-    "name": "kg",
+    "id": "ingredient::levadura_seca",
+    "slug": "levadura_seca",
+    "name": "Levadura seca",
     "type": "ingredient",
+    "category": "Levaduras y gasificantes",
+    "ing_id": "ING-046",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Levadura seca.jpg"
+        "path": "app/static/ingredients/levadura_seca.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Polvo de hornear",
-    "slug": "Polvo de hornear",
-    "name": "kg",
+    "id": "ingredient::polvo_de_hornear",
+    "slug": "polvo_de_hornear",
+    "name": "Polvo de hornear",
     "type": "ingredient",
+    "category": "Levaduras y gasificantes",
+    "ing_id": "ING-047",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Polvo de hornear.jpg"
+        "path": "app/static/ingredients/polvo_de_hornear.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Frambuesas",
-    "slug": "Frambuesas",
-    "name": "kg",
+    "id": "ingredient::frambuesas",
+    "slug": "frambuesas",
+    "name": "Frambuesas",
     "type": "ingredient",
+    "category": "Frutas y frutos secos",
+    "ing_id": "ING-048",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Frambuesas.jpg"
+        "path": "app/static/ingredients/frambuesas.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Fruta",
-    "slug": "Fruta",
-    "name": "kg",
+    "id": "ingredient::fruta",
+    "slug": "fruta",
+    "name": "Fruta",
     "type": "ingredient",
+    "category": "Frutas y frutos secos",
+    "ing_id": "ING-049",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Fruta.jpg"
+        "path": "app/static/ingredients/fruta.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Nueces",
-    "slug": "Nueces",
-    "name": "kg",
+    "id": "ingredient::nueces",
+    "slug": "nueces",
+    "name": "Nueces",
     "type": "ingredient",
+    "category": "Frutas y frutos secos",
+    "ing_id": "ING-050",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Nueces.jpg"
+        "path": "app/static/ingredients/nueces.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Pasas",
-    "slug": "Pasas",
-    "name": "kg",
+    "id": "ingredient::pasas",
+    "slug": "pasas",
+    "name": "Pasas",
     "type": "ingredient",
+    "category": "Frutas y frutos secos",
+    "ing_id": "ING-051",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Pasas.jpg"
+        "path": "app/static/ingredients/pasas.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Frutilla",
-    "slug": "Frutilla",
-    "name": "kg",
+    "id": "ingredient::frutilla",
+    "slug": "frutilla",
+    "name": "Frutilla",
     "type": "ingredient",
+    "category": "Frutas y frutos secos",
+    "ing_id": "ING-052",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Frutilla.jpg"
+        "path": "app/static/ingredients/frutilla.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Mango",
-    "slug": "Mango",
-    "name": "kg",
+    "id": "ingredient::mango",
+    "slug": "mango",
+    "name": "Mango",
     "type": "ingredient",
+    "category": "Frutas y frutos secos",
+    "ing_id": "ING-053",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Mango.jpg"
+        "path": "app/static/ingredients/mango.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Fruta Confitada",
-    "slug": "Fruta Confitada",
-    "name": "kg",
+    "id": "ingredient::fruta_confitada",
+    "slug": "fruta_confitada",
+    "name": "Fruta Confitada",
     "type": "ingredient",
+    "category": "Frutas y frutos secos",
+    "ing_id": "ING-054",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Fruta Confitada.jpg"
+        "path": "app/static/ingredients/fruta_confitada.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Mburukuja",
-    "slug": "Mburukuja",
-    "name": "kg",
+    "id": "ingredient::mburukuja",
+    "slug": "mburukuja",
+    "name": "Mburukuja",
     "type": "ingredient",
+    "category": "Frutas y frutos secos",
+    "ing_id": "ING-055",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Mburukuja.jpg"
+        "path": "app/static/ingredients/mburukuja.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Manzana",
-    "slug": "Manzana",
-    "name": "und",
+    "id": "ingredient::manzana",
+    "slug": "manzana",
+    "name": "Manzana",
     "type": "ingredient",
+    "category": "Frutas y frutos secos",
+    "ing_id": "ING-056",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Manzana.jpg"
+        "path": "app/static/ingredients/manzana.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Cebolla",
-    "slug": "Cebolla",
-    "name": "kg",
+    "id": "ingredient::cebolla",
+    "slug": "cebolla",
+    "name": "Cebolla",
     "type": "ingredient",
+    "category": "Verduras y legumbres",
+    "ing_id": "ING-057",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Cebolla.jpg"
+        "path": "app/static/ingredients/cebolla.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Zanahoria",
-    "slug": "Zanahoria",
-    "name": "kg",
+    "id": "ingredient::zanahoria",
+    "slug": "zanahoria",
+    "name": "Zanahoria",
     "type": "ingredient",
+    "category": "Verduras y legumbres",
+    "ing_id": "ING-058",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Zanahoria.jpg"
+        "path": "app/static/ingredients/zanahoria.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Garbanzo",
-    "slug": "Garbanzo",
-    "name": "kg",
+    "id": "ingredient::garbanzo",
+    "slug": "garbanzo",
+    "name": "Garbanzo",
     "type": "ingredient",
+    "category": "Verduras y legumbres",
+    "ing_id": "ING-059",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Garbanzo.jpg"
+        "path": "app/static/ingredients/garbanzo.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Cebolla morada",
-    "slug": "Cebolla morada",
-    "name": "kg",
+    "id": "ingredient::cebolla_morada",
+    "slug": "cebolla_morada",
+    "name": "Cebolla morada",
     "type": "ingredient",
+    "category": "Verduras y legumbres",
+    "ing_id": "ING-060",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Cebolla morada.jpg"
+        "path": "app/static/ingredients/cebolla_morada.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Panceta de cerdo",
-    "slug": "Panceta de cerdo",
-    "name": "kg",
+    "id": "ingredient::panceta_de_cerdo",
+    "slug": "panceta_de_cerdo",
+    "name": "Panceta de cerdo",
     "type": "ingredient",
+    "category": "Carnes",
+    "ing_id": "ING-061",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Panceta de cerdo.jpg"
+        "path": "app/static/ingredients/panceta_de_cerdo.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Pechuga de pollo",
-    "slug": "Pechuga de pollo",
-    "name": "kg",
+    "id": "ingredient::pechuga_de_pollo",
+    "slug": "pechuga_de_pollo",
+    "name": "Pechuga de pollo",
     "type": "ingredient",
+    "category": "Carnes",
+    "ing_id": "ING-062",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Pechuga de pollo.jpg"
+        "path": "app/static/ingredients/pechuga_de_pollo.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Bola de lomo",
-    "slug": "Bola de lomo",
-    "name": "kg",
+    "id": "ingredient::bola_de_lomo",
+    "slug": "bola_de_lomo",
+    "name": "Bola de lomo",
     "type": "ingredient",
+    "category": "Carnes",
+    "ing_id": "ING-063",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Bola de lomo.jpg"
+        "path": "app/static/ingredients/bola_de_lomo.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Carnaza de segunda",
-    "slug": "Carnaza de segunda",
-    "name": "kg",
+    "id": "ingredient::carnaza_de_segunda",
+    "slug": "carnaza_de_segunda",
+    "name": "Carnaza de segunda",
     "type": "ingredient",
+    "category": "Carnes",
+    "ing_id": "ING-064",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Carnaza de segunda.jpg"
+        "path": "app/static/ingredients/carnaza_de_segunda.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Agua",
-    "slug": "Agua",
-    "name": "l",
+    "id": "ingredient::agua",
+    "slug": "agua",
+    "name": "Agua",
     "type": "ingredient",
+    "category": "Salsas y líquidos",
+    "ing_id": "ING-065",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Agua.jpg"
+        "path": "app/static/ingredients/agua.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Jugo de limón",
-    "slug": "Jugo de limón",
-    "name": "l",
+    "id": "ingredient::jugo_de_lim_n",
+    "slug": "jugo_de_lim_n",
+    "name": "Jugo de limón",
     "type": "ingredient",
+    "category": "Salsas y líquidos",
+    "ing_id": "ING-066",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Jugo de limón.jpg"
+        "path": "app/static/ingredients/jugo_de_lim_n.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Jugo de remolacha",
-    "slug": "Jugo de remolacha",
-    "name": "l",
+    "id": "ingredient::jugo_de_remolacha",
+    "slug": "jugo_de_remolacha",
+    "name": "Jugo de remolacha",
     "type": "ingredient",
+    "category": "Salsas y líquidos",
+    "ing_id": "ING-067",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Jugo de remolacha.jpg"
+        "path": "app/static/ingredients/jugo_de_remolacha.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Vinagre",
-    "slug": "Vinagre",
-    "name": "l",
+    "id": "ingredient::vinagre",
+    "slug": "vinagre",
+    "name": "Vinagre",
     "type": "ingredient",
+    "category": "Salsas y líquidos",
+    "ing_id": "ING-068",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Vinagre.jpg"
+        "path": "app/static/ingredients/vinagre.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Ketjap manis",
-    "slug": "Ketjap manis",
-    "name": "l",
+    "id": "ingredient::ketjap_manis",
+    "slug": "ketjap_manis",
+    "name": "Ketjap manis",
     "type": "ingredient",
+    "category": "Salsas y líquidos",
+    "ing_id": "ING-069",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Ketjap manis.jpg"
+        "path": "app/static/ingredients/ketjap_manis.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Salsa de soja",
-    "slug": "Salsa de soja",
-    "name": "l",
+    "id": "ingredient::salsa_de_soja",
+    "slug": "salsa_de_soja",
+    "name": "Salsa de soja",
     "type": "ingredient",
+    "category": "Salsas y líquidos",
+    "ing_id": "ING-070",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Salsa de soja.jpg"
+        "path": "app/static/ingredients/salsa_de_soja.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Nata para montar",
-    "slug": "Nata para montar",
-    "name": "kg",
+    "id": "ingredient::nata_para_montar",
+    "slug": "nata_para_montar",
+    "name": "Nata para montar",
     "type": "ingredient",
+    "category": "Salsas y líquidos",
+    "ing_id": "ING-071",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Nata para montar.jpg"
+        "path": "app/static/ingredients/nata_para_montar.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Aceite",
-    "slug": "Aceite",
-    "name": "l",
+    "id": "ingredient::aceite",
+    "slug": "aceite",
+    "name": "Aceite",
     "type": "ingredient",
+    "category": "Aceites y grasas",
+    "ing_id": "ING-072",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Aceite.jpg"
+        "path": "app/static/ingredients/aceite.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Estabilizante para nata",
-    "slug": "Estabilizante para nata",
-    "name": "kg",
+    "id": "ingredient::estabilizante_para_nata",
+    "slug": "estabilizante_para_nata",
+    "name": "Estabilizante para nata",
     "type": "ingredient",
+    "category": "Preparados y otros",
+    "ing_id": "ING-073",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Estabilizante para nata.jpg"
+        "path": "app/static/ingredients/estabilizante_para_nata.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Polvo para natillas",
-    "slug": "Polvo para natillas",
-    "name": "kg",
+    "id": "ingredient::polvo_para_natillas",
+    "slug": "polvo_para_natillas",
+    "name": "Polvo para natillas",
     "type": "ingredient",
+    "category": "Preparados y otros",
+    "ing_id": "ING-074",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Polvo para natillas.jpg"
+        "path": "app/static/ingredients/polvo_para_natillas.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Masa choux",
-    "slug": "Masa choux",
-    "name": "und",
+    "id": "ingredient::masa_choux",
+    "slug": "masa_choux",
+    "name": "Masa choux",
     "type": "ingredient",
+    "category": "Preparados y otros",
+    "ing_id": "ING-075",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Masa choux.jpg"
+        "path": "app/static/ingredients/masa_choux.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Masa de hojaldre",
-    "slug": "Masa de hojaldre",
-    "name": "und",
+    "id": "ingredient::masa_de_hojaldre",
+    "slug": "masa_de_hojaldre",
+    "name": "Masa de hojaldre",
     "type": "ingredient",
+    "category": "Preparados y otros",
+    "ing_id": "ING-076",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Masa de hojaldre.jpg"
+        "path": "app/static/ingredients/masa_de_hojaldre.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Gelatina",
-    "slug": "Gelatina",
-    "name": "kg",
+    "id": "ingredient::gelatina",
+    "slug": "gelatina",
+    "name": "Gelatina",
     "type": "ingredient",
+    "category": "Preparados y otros",
+    "ing_id": "ING-077",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Gelatina.jpg"
+        "path": "app/static/ingredients/gelatina.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Cafe Espresso Molido",
-    "slug": "Cafe Espresso Molido",
-    "name": "kg",
+    "id": "ingredient::cafe_espresso_molido",
+    "slug": "cafe_espresso_molido",
+    "name": "Cafe Espresso Molido",
     "type": "ingredient",
+    "category": "Preparados y otros",
+    "ing_id": "ING-078",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Cafe Espresso Molido.jpg"
+        "path": "app/static/ingredients/cafe_espresso_molido.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Galletas dulces (base cheesecake)",
-    "slug": "Galletas dulces (base cheesecake)",
-    "name": "kg",
+    "id": "ingredient::galletas_dulces_base_cheesecake",
+    "slug": "galletas_dulces_base_cheesecake",
+    "name": "Galletas dulces (base cheesecake)",
     "type": "ingredient",
+    "category": "Preparados y otros",
+    "ing_id": "ING-079",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Galletas dulces (base cheesecake).jpg"
+        "path": "app/static/ingredients/galletas_dulces_base_cheesecake.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Gelatina sin sabor",
-    "slug": "Gelatina sin sabor",
-    "name": "kg",
+    "id": "ingredient::gelatina_sin_sabor",
+    "slug": "gelatina_sin_sabor",
+    "name": "Gelatina sin sabor",
     "type": "ingredient",
+    "category": "Preparados y otros",
+    "ing_id": "ING-080",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Gelatina sin sabor.jpg"
+        "path": "app/static/ingredients/gelatina_sin_sabor.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Caldo de carne en cubos",
-    "slug": "Caldo de carne en cubos",
-    "name": "und",
+    "id": "ingredient::caldo_de_carne_en_cubos",
+    "slug": "caldo_de_carne_en_cubos",
+    "name": "Caldo de carne en cubos",
     "type": "ingredient",
+    "category": "Preparados y otros",
+    "ing_id": "ING-081",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Caldo de carne en cubos.jpg"
+        "path": "app/static/ingredients/caldo_de_carne_en_cubos.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Morrón rojo",
-    "slug": "Morrón rojo",
-    "name": "und",
+    "id": "ingredient::morr_n_rojo",
+    "slug": "morr_n_rojo",
+    "name": "Morrón rojo",
     "type": "ingredient",
+    "category": "Verduras y legumbres",
+    "ing_id": "ING-082",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Morrón rojo.jpg"
+        "path": "app/static/ingredients/morr_n_rojo.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Apio",
-    "slug": "Apio",
-    "name": "und",
+    "id": "ingredient::apio",
+    "slug": "apio",
+    "name": "Apio",
     "type": "ingredient",
+    "category": "Verduras y legumbres",
+    "ing_id": "ING-083",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Apio.jpg"
+        "path": "app/static/ingredients/apio.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Puré de tomate",
-    "slug": "Puré de tomate",
-    "name": "kg",
+    "id": "ingredient::pur_de_tomate",
+    "slug": "pur_de_tomate",
+    "name": "Puré de tomate",
     "type": "ingredient",
+    "category": "Preparados y otros",
+    "ing_id": "ING-084",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Puré de tomate.jpg"
+        "path": "app/static/ingredients/pur_de_tomate.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Pimentón ahumado",
-    "slug": "Pimentón ahumado",
-    "name": "kg",
+    "id": "ingredient::piment_n_ahumado",
+    "slug": "piment_n_ahumado",
+    "name": "Pimentón ahumado",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-085",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Pimentón ahumado.jpg"
+        "path": "app/static/ingredients/piment_n_ahumado.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Falda de res",
-    "slug": "Falda de res",
-    "name": "kg",
+    "id": "ingredient::falda_de_res",
+    "slug": "falda_de_res",
+    "name": "Falda de res",
     "type": "ingredient",
+    "category": "Carnes",
+    "ing_id": "ING-086",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Falda de res.jpg"
+        "path": "app/static/ingredients/falda_de_res.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Alcaravea",
-    "slug": "Alcaravea",
-    "name": "kg",
+    "id": "ingredient::alcaravea",
+    "slug": "alcaravea",
+    "name": "Alcaravea",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-087",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Alcaravea.jpg"
+        "path": "app/static/ingredients/alcaravea.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Cayena",
-    "slug": "Cayena",
-    "name": "kg",
+    "id": "ingredient::cayena",
+    "slug": "cayena",
+    "name": "Cayena",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-088",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Cayena.jpg"
+        "path": "app/static/ingredients/cayena.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Echalote",
-    "slug": "Echalote",
-    "name": "und",
+    "id": "ingredient::echalote",
+    "slug": "echalote",
+    "name": "Echalote",
     "type": "ingredient",
+    "category": "Verduras y legumbres",
+    "ing_id": "ING-089",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Echalote.jpg"
+        "path": "app/static/ingredients/echalote.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Girgolas frescas",
-    "slug": "Girgolas frescas",
-    "name": "kg",
+    "id": "ingredient::girgolas_frescas",
+    "slug": "girgolas_frescas",
+    "name": "Girgolas frescas",
     "type": "ingredient",
+    "category": "Verduras y legumbres",
+    "ing_id": "ING-090",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Girgolas frescas.jpg"
+        "path": "app/static/ingredients/girgolas_frescas.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Tomillo fresco",
-    "slug": "Tomillo fresco",
-    "name": "und",
+    "id": "ingredient::tomillo_fresco",
+    "slug": "tomillo_fresco",
+    "name": "Tomillo fresco",
     "type": "ingredient",
+    "category": "Especias y condimentos",
+    "ing_id": "ING-091",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Tomillo fresco.jpg"
+        "path": "app/static/ingredients/tomillo_fresco.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Caldo de hongos en cubos",
-    "slug": "Caldo de hongos en cubos",
-    "name": "und",
+    "id": "ingredient::caldo_de_hongos_en_cubos",
+    "slug": "caldo_de_hongos_en_cubos",
+    "name": "Caldo de hongos en cubos",
     "type": "ingredient",
+    "category": "Preparados y otros",
+    "ing_id": "ING-092",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Caldo de hongos en cubos.jpg"
+        "path": "app/static/ingredients/caldo_de_hongos_en_cubos.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Arroz para sushi",
-    "slug": "Arroz para sushi",
-    "name": "kg",
+    "id": "ingredient::arroz_para_sushi",
+    "slug": "arroz_para_sushi",
+    "name": "Arroz para sushi",
     "type": "ingredient",
+    "category": "Harinas y bases",
+    "ing_id": "ING-093",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Arroz para sushi.jpg"
+        "path": "app/static/ingredients/arroz_para_sushi.jpg"
       }
     ]
   },
   {
-    "id": "ingredient::Queso rallado",
-    "slug": "Queso rallado",
-    "name": "kg",
+    "id": "ingredient::queso_rallado",
+    "slug": "queso_rallado",
+    "name": "Queso rallado",
     "type": "ingredient",
+    "category": "Lácteos y huevos",
+    "ing_id": "ING-094",
     "aspect_ratio": "1:1",
     "size_px": "1024x1024",
     "outputs": [
       {
-        "path": "app/static/ingredients/Queso rallado.jpg"
+        "path": "app/static/ingredients/queso_rallado.jpg"
       }
     ]
   }

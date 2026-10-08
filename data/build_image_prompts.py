@@ -89,6 +89,39 @@ CATEGORY_STYLES = {
     },
 }
 
+# Per-item REAL descriptions — sourced from the sazon seed (app/rms/seed/sazon.py)
+# + Dutch heritage knowledge. Keyed on the recipe slug (which is shared between
+# the base product and its package variants). This is the source of truth for
+# "what is this thing" — the AI gets the description, not just the name.
+ITEM_DESCRIPTIONS = {
+    # Tortas (cakes)
+    "babka__rec_017": "traditional Polish-Jewish sweet braided bread, ring-shaped (bundt form), dark chocolate and cinnamon filling visible in the spiral, golden-brown crust, dusted with coarse sugar",
+    "bizcocho_basico_25_cm_basiscake__rec_011": "plain Dutch basiscake (sponge cake), round 25 cm, golden crust, soft pale-yellow crumb visible from the side, simple and undecorated",
+    "bizcocho_basico_30_cm_basiscake__rec_012": "plain Dutch basiscake (sponge cake), round 30 cm, golden crust, soft pale-yellow crumb visible from the side, simple and undecorated",
+    "torta_de_zanahoria_43x33x1_5_cm__rec_005": "rectangular carrot cake 43x33 cm, thick cream cheese frosting on top, visible orange carrot flecks in the crumb, chopped walnuts on top",
+    "cheesecake_30x50__rec_002": "rectangular Dutch-style cheesecake 30x50 cm, tall (5+ cm), pale golden top with characteristic crack, graham-cracker-style crust on the bottom, no topping or fruit",
+    # Pastelería (pastries)
+    "muffin_de_chocolate_20x20_cm__rec_001": "single jumbo chocolate muffin in a crinkled brown paper liner, dark chocolate top with white chocolate chips visible, domed top rising above the liner, no frosting",
+    "galletas_de_especuloos_speculaasjes__rec_010": "Dutch speculaas cookies, thin crisp brown spice cookies (~6-8 cm), traditional windmill or farmer shape stamped into them, deeply caramelized, slight crackle pattern",
+    "hojaldre_bladerdeeg__rec_008": "Dutch puff pastry (bladerdeeg), golden flaky rectangular block cut into 4-5 visible squares, visible paper-thin lamination on the side, buttery crisp",
+    "pastelitos_rosados_roze_koeken__rec_009": "Dutch roze koeken, small round pink-glazed puff pastry, flat disc shape (~8 cm), bright pink fondant icing on top, one layer visible from the side, glaze dripping slightly over the edge",
+    "petisus_de_hojaldre_y_crema_tompoezen__rec_015": "Dutch tompoezen, two flat round discs of puff pastry with a tall THICK layer of pale yellow custard cream between them, dusted with powdered sugar on top",
+    "proficteroles_de_den_bosch_bossche_bollen__rec_014": "Bossche bollen from Den Bosch, large round profiterole (~8 cm), split in half horizontally with a thick layer of whipped cream and chocolate glaze dripping on top, no cherry",
+    "stroop_wafel__rec_003": "Dutch stroopwafel, two thin round flat waffle discs (~10 cm diameter) with a dark caramel syrup layer sandwiched between, classic deep waffle grid imprint on both faces, golden-brown edges",
+    "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013": "Dutch appeltaart (moeder's appeltaart), round 25 cm, lattice pastry strips on top revealing cooked apple filling beneath, golden crust, rustic homemade look, no powdered sugar",
+    "ontbijtkoek_700g_de_harina__rec_004": "Dutch ontbijtkoek (breakfast cake), dense rectangular loaf, dark brown almost mahogany color from rye and honey, sliced ~1 cm thick showing tight dark crumb, no frosting",
+    "bombones_de_chocolate__rec_018": "small hand-rolled dark chocolate truffles, 4-6 round balls (~3 cm), dusted with cocoa powder, irregular hand-shaped surface, on a small Delft plate",
+    # Salados (savory)
+    "frikandel_100_unidades__rec_022": "Dutch frikandel, 3-4 elongated skinless minced-meat sausages (~12 cm long, ~2 cm diameter), dark brown crispy outside from deep-frying, deep golden color, no bread roll",
+    "goulash_crockettes__rec_019": "Dutch kroketten, 3-4 cylindrical breaded croquettes (~6 cm long), crispy golden panko coating, oozing thick brown beef-ragout filling visible where one is bitten",
+    "oliebollen_bunuelos_tradicionales_holandeses__rec_016": "Dutch oliebollen, 3-4 round irregular deep-fried dough balls (~6-8 cm), dusted heavily with powdered sugar, dark golden-brown crispy surface, no filling",
+    "bitterballen_vegetariano__rec_020": "Dutch vegetarian bitterballen, 3-4 round breaded croquettes (~3-4 cm diameter), crispy golden panko coating, one bitten open showing thick brown vegetable ragout filling",
+    "bitterballen__rec_006": "Dutch bitterballen, 3-4 round breaded croquettes (~3-4 cm diameter), crispy golden panko coating, one bitten open showing thick brown beef-ragout filling",
+    "suppli_cacio_e_pepe__rec_021": "Italian suppli al telefono, 2-3 oval rice balls (~7 cm), crispy golden breadcrumb coating, one bitten showing stretchy mozzarella cheese pull inside, cacio e pepe flavor",
+    # Especialidades
+    "ketjap_manis_version_rapida__rec_007": "small glass jar of Indonesian ketjap manis (sweet soy sauce), thick dark brown syrupy liquid, no label facing camera, on aged wood",
+}
+
 # Per-name overrides / recipes
 NAME_OVERRIDES = {
     "babka": "cake",
@@ -119,11 +152,10 @@ NAME_OVERRIDES = {
 # list lives in the template doc. The MiniMax API caps prompts at 1500 chars,
 # so we ship a tight version that covers the worst offenders.
 NEGATIVE = (
-    "flat-lay, overhead top-down, white seamless studio backdrop, neon, "
-    "dark moody, 3D render, CGI, miniature, cartoon, anime, hands holding food, "
-    "chef in background, branded packaging facing camera, text overlay, "
-    "Instagram filter, motion blur, lens flare, tilt-shift, fisheye, B&W, sepia, "
-    "perfect cross-section reveal, oversaturated, AI-glossy"
+    "flat-lay, overhead top-down, white studio backdrop, neon, dark moody, "
+    "3D render, CGI, miniature, cartoon, anime, hands holding food, chef, "
+    "branding facing camera, text overlay, Instagram filter, motion blur, "
+    "lens flare, tilt-shift, fisheye, B&W, sepia, oversaturated, AI-glossy"
 )
 # Full version for reference / non-API use (ComfyUI etc. that accept longer)
 NEGATIVE_FULL = (
@@ -158,7 +190,13 @@ def category_for(slug: str, type_: str) -> str:
 
 
 def build_subject(item: dict) -> str:
-    """Build the SUBJECT line — what the AI should draw. Kept short."""
+    """Build the SUBJECT line — what the AI should draw. Kept short.
+
+    Uses the real per-item description from ITEM_DESCRIPTIONS when available
+    (keyed on the recipe slug, which is the same for the base product and
+    its package variants like "docena_..." or "X_entera"). Falls back to a
+    generic name-based subject if the slug isn't in the table.
+    """
     name = item["name"]
     type_ = item["type"]
     slug = item["slug"]
@@ -167,12 +205,18 @@ def build_subject(item: dict) -> str:
     if type_ == "ingredient":
         return f'single "{name}" in home-pantry form (1kg bag, jar, or fresh). Container muted, brand not facing camera'
 
-    if cat == "docena":
-        return f'a "{name}" arranged for sale: 6 in front, 6 fading into soft bokeh'
+    # Prefer the real description from the catalog
+    recipe_slug = item.get("recipe_slug") or slug
+    description = ITEM_DESCRIPTIONS.get(recipe_slug)
+    if description:
+        if cat == "docena":
+            return f"a dozen of these, freshly baked and arranged for sale. 6 in front, 6 fading into soft bokeh. Item: {description}"
+        return description
 
-    # Default product subject — use display name, not slug
-    display = item.get("name", slug)
-    return f'a finished "{display}" portion, ready to eat, on a small plate'
+    # Fallback: name + category hint
+    if cat == "docena":
+        return f'a dozen of "{name}", arranged for sale: 6 in front, 6 fading into soft bokeh'
+    return f'a finished "{name}" portion, ready to eat, on a small plate'
 
 
 def build_prompt(item: dict) -> dict:
@@ -201,11 +245,11 @@ SURFACE: {style['surface']}. BG: soft-bokeh home-kitchen hint, f/2.0-2.8 lived-i
 LIGHT: single warm window ~4500K, camera-left at ~30°, warm cast shadow camera-right. No flash, no rig.
 PROPS: {style['props']}. No people, hands, chef, or branding.
 TEXTURE: {style['texture']}.
-ANGLE: {style['angle']}. FRAME: {style['frame']}. Some crumbs/sugar-dust is GOOD.
+ANGLE: {style['angle']}. FRAME: {style['frame']}.
 ASPECT: {aspect_line}.
 COLOR: warm, slightly desaturated (-10%), wood/cream/brown + Delft-blue accent. No filter, no oversaturation.
-MOOD: homemade, warm, just-baked, lived-in. Not studio, not Michelin.
-STYLE: photoreal, f/2.0-2.8, mild ISO-400-800 film grain, no AI-gloss, no CGI, no miniature, no cartoon.
+MOOD: homemade, lived-in, just-baked.
+STYLE: photoreal, f/2.5, mild film grain, no AI-gloss, no CGI, no miniature.
 NEGATIVE: {NEGATIVE}."""
 
     return {
