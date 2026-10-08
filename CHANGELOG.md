@@ -1,4 +1,25 @@
-## 2026-10-08a — SASKIA-318: SQLite RAISE() compat + fail-closed migration runner (prod incident fix)
+## 2026-10-08b — SASKIA-MIG-1: full-bleed POS layout on /ventas (operator UX win)
+
+**User feedback**: *"our UI is not user friendly."* The operator's most-used screen (/ventas) was wrapped in the global sidebar+topbar, eating ~220px of horizontal real estate the POS couldn't use.
+
+**What changed**:
+- `app/templates/base.html`: adds `body--pos-fullbleed` class to `<body>` when `request.url.path == '/ventas'` (the cashier surface — `/ventas/historial` and `/ventas/express` are unaffected).
+- `app/static/app-shell.css`: new rules that hide the global sidebar, topbar, sidebar-backdrop, and mobile bottom-nav when `body--pos-fullbleed` is active, and reflow the grid to a single column (`main` over `footer`).
+- `app/templates/ventas.html`: new in-page POS topbar (`<nav class="pos-topbar">`) that replaces the hidden global chrome. Carries the brand mark + date, a Cmd+K search affordance, links to `/ventas/historial`, `/reportes`, and `/logout`.
+- `app/routers/sales.py`: resolved a pre-existing unresolved merge conflict in `ventas_express` (3 conflict blocks from an earlier rebase that was never completed). This was blocking `app.rms.main` from importing in some test environments. Picked the "Updated upstream" side per the project's ruff format gate.
+
+**Regression test**: `tests/test_SASKIA-MIG-1_pos_fullbleed.py` (10 tests) pins:
+- `/ventas` carries `body--pos-fullbleed`.
+- `/ventas` renders the in-page POS topbar with the right links + Cmd+K affordance.
+- `/ventas/historial`, `/ventas/express`, and non-POS pages (`/inicio`, `/reportes`, `/productos`, `/clientes`) do NOT carry `body--pos-fullbleed`.
+- POS topbar copy is vos-Spanish (no English leaks).
+
+**Why this is reversible**: the implementation hides the chrome with CSS (`display: none`) instead of removing the markup. Flipping the body class off restores the chrome without any template surgery.
+
+**Test status**: 238 ventas/POS/sale/money/units/migration/anti-rule tests pass with the changes.
+
+**No new dependencies**, no migrations, no new files in `app/rms/`. Pure UI layer.
+
 
 **Incident**: the 109→114 prod upgrade logged `MIGRATION v112 FAILED: OperationalError near "||" syntax error` yet the chain continued to v114 — leaving the four channel-CHECK triggers (from migrations 111/112) silently absent. Root cause, two layers deep:
 

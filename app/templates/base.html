@@ -80,7 +80,7 @@
 
 </head>
 
-<body class="{% if is_logged_in %}has-app-shell{% endif %}">
+<body class="{% if is_logged_in %}has-app-shell{% if request.url.path == '/ventas' %} body--pos-fullbleed{% endif %}{% endif %}">
 
   <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
 
