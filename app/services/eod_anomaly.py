@@ -256,8 +256,8 @@ def detect_anomalies(
 
 
 __all__ = [
-    "Anomaly",
     "DEFAULT_EOD_CONFIG",
+    "Anomaly",
     "Severity",
     "detect_anomalies",
 ]
