@@ -97,6 +97,10 @@
 #       KEPT — Sazon always sets CSP via SecurityHeadersMiddleware.
 #       (This rule was suppressed before; PR#000 fixed the underlying
 #       bug so suppression is no longer needed.)
+#   - 90004 Cross-Origin-Resource-Policy Header Missing or Invalid
+#       KEPT — Sazon sets CORP=same-origin via SecurityHeadersMiddleware
+#       (2026-10-08). If a future change removes the header, ZAP will
+#       surface it correctly.
 #
 # If you add new rules here, document WHY in the comment column above.
 # The downstream cost of "alert we always ignore" is silent bugs from

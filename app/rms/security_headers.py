@@ -43,6 +43,10 @@ Headers added to every response (success or error, GET or POST):
     - Permissions-Policy: minimal
         Disable geolocation, camera, microphone, payment APIs. The RMS
         doesn't need any of them.
+    - Cross-Origin-Resource-Policy: same-origin
+        Defense-in-depth against Spectre-class cross-origin read attacks
+        (OWASP ZAP rule 90004). Sazón is same-origin by design; we have
+        no legitimate cross-origin resource consumers.
 
 Headers NOT modified here:
     - Set-Cookie: SameSite=Lax + HttpsOnly are already set in
@@ -100,6 +104,7 @@ def _security_headers() -> dict[str, str]:
         "referrer-policy": "strict-origin-when-cross-origin",
         "content-security-policy": _CSP,
         "permissions-policy": _PERMISSIONS_POLICY,
+        "cross-origin-resource-policy": "same-origin",
     }
     if os.getenv("HTTPS_ONLY", "true").lower() == "true":
         headers["strict-transport-security"] = "max-age=31536000; includeSubDomains"

@@ -1,3 +1,35 @@
+## 2026-10-08c — CI: fix smoke-test Postgres auth + add CORP security header (ZAP 90004)
+
+Two pre-existing CI failures (smoke + OWASP ZAP) were making every PR's red
+make-believe misleading — neither failure was from the PR's code.
+
+**Smoke test** (`scripts/smoke_test_deploy_shape.py:108-115`): when
+`--skip-docker` is passed (the CI mode), the script was hardcoding
+`postgresql+psycopg://sazon:sazon@localhost:5432/saskia` while the
+workflow (`.github/workflows/smoke.yml`) had already started a
+`saskia/saskia/saskia` Postgres. Connection failed with
+`password authentication failed for user "sazon"`. Now uses
+`os.environ.get("DATABASE_URL", ...)` so the caller's URL wins.
+
+**OWASP ZAP** (`app/rms/security_headers.py:107` + `.github/.zap-rules.tsv`):
+3 WARN-level findings of rule 90004 (`Cross-Origin-Resource-Policy Header
+Missing`) on every scan. Per the rules file's own policy, "alert we
+always ignore" creates silent bugs from future code changes. The right
+fix is to actually set the header:
+`Cross-Origin-Resource-Policy: same-origin` is now added by
+`SecurityHeadersMiddleware` alongside the existing 5 security headers.
+Sazón is same-origin by design; no legitimate cross-origin consumers.
+Rule 90004 documented in `.zap-rules.tsv` as "KEPT — now correctly
+suppressed because the header is set."
+
+**2 new regression tests** in `tests/test_security_headers.py`:
+- `test_cross_origin_resource_policy_present` — CORP=same-origin on `/login`
+- `test_cross_origin_resource_policy_on_error_responses` — CORP on 4xx/5xx
+  error responses (catches regression where `SecurityHeadersMiddleware`'s
+  except branch forgets to attach it)
+
+10/10 tests pass locally. ruff + format clean.
+
 ## 2026-10-08b — clientes: 'Nunca compró' fallback for the Última compra column (T-7)
 
 The column rendered a bare `—` for customers with zero sales; the operator can't tell

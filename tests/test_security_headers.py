@@ -73,3 +73,36 @@ def test_security_headers_on_healthz(client):
     r = client.get("/healthz")
     headers_lower = {k.lower() for k in r.headers.keys()}
     assert "x-frame-options" in headers_lower or "content-security-policy" in headers_lower
+
+
+def test_cross_origin_resource_policy_present(client):
+    """Cross-Origin-Resource-Policy: same-origin defends against Spectre-class
+    cross-origin read attacks. OWASP ZAP rule 90004 will fail CI if this is
+    missing. Sazón is same-origin by design; we have no legitimate cross-origin
+    resource consumers.
+    """
+    r = client.get("/login")
+    headers_lower = {k.lower(): v for k, v in r.headers.items()}
+    assert "cross-origin-resource-policy" in headers_lower, (
+        f"No Cross-Origin-Resource-Policy header. Headers: {dict(r.headers)}"
+    )
+    assert headers_lower["cross-origin-resource-policy"].lower() == "same-origin", (
+        f"Cross-Origin-Resource-Policy is '{headers_lower['cross-origin-resource-policy']}', expected 'same-origin'"
+    )
+
+
+def test_cross_origin_resource_policy_on_error_responses(client):
+    """CORP must also be present on 4xx/5xx error responses, not just 200s.
+
+    The pure-ASGI SecurityHeadersMiddleware catches HTTPException raised from
+    inner middleware (CSRF 403, /login POST 401, etc.) and builds a JSONResponse
+    with headers attached. If the except branch forgot to forward CORP, ZAP
+    would still flag rule 90004 on the error paths.
+    """
+    # CSRF: POST to a CSRF-protected endpoint without a token → 403
+    r = client.post("/clientes", json={"name": "test"})
+    headers_lower = {k.lower(): v for k, v in r.headers.items()}
+    assert "cross-origin-resource-policy" in headers_lower, (
+        f"Missing CORP on error. Status: {r.status_code}, headers: {dict(r.headers)}"
+    )
+    assert headers_lower["cross-origin-resource-policy"].lower() == "same-origin"

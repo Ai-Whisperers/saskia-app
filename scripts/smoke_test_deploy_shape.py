@@ -107,7 +107,14 @@ def main() -> int | None:
                 return 1
             db_url = "postgresql+psycopg://sazon:sazon@localhost:5433/saskia"
         else:
-            db_url = "postgresql+psycopg://sazon:sazon@localhost:5432/saskia"
+            # When --skip-docker is set, the caller (CI workflow) has already
+            # started Postgres with whatever user/pass/db it chose and set
+            # DATABASE_URL in the env. Use that URL verbatim instead of
+            # hardcoding `sazon/sazon`, which only matches when this script
+            # spins up Postgres itself.
+            db_url = os.environ.get(
+                "DATABASE_URL", "postgresql+psycopg://sazon:sazon@localhost:5432/saskia"
+            )
 
         if args.skip_build:
             print(f"[smoke] starting uvicorn on :{args.port} (venv)…")
