@@ -2,6 +2,7 @@
 
 Verifies the data-undo form interception utility.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

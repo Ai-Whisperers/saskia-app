@@ -3,6 +3,7 @@
 The shared form-dirty.js binds to forms with [data-saskia-dirty] and
 prompts via beforeunload if the user has unsaved changes.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

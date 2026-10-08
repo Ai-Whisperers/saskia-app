@@ -128,6 +128,10 @@ the standard pytest discovery; no workflow changes.
 
 ### Added
 
+- **Phase3m1 wave 2a (input-safety)**: port 3 orphan utilities from the phase-3-m1 batch — `autosave.js` (form drafts, 24h expiry), `undo.js` (undo for destructive actions), `form-dirty.js` (unsaved-changes `beforeunload` guard, binds `[data-saskia-dirty]`). All wired into `base.html` with `?v={{ asset_version() }}` cache busting. Tests: +74 (test_autosave, test_undo, test_form_dirty, test_confirm_dialogs).
+
+### Added
+
 - **B.1 Venta Express**: `GET /ventas/express` — top-8 productos por venta 14d + favoritos, un form grande por producto que postea a `/ventas/nueva` (product_id + qty + efectivo, idempotency_key por producto). Cero lógica de venta nueva; reusa el flujo existente. Link "Express" en el page_header de `/ventas`. (port from polish/saskia-p0 `30ca6024`)
 
 ### Added — SASKIA-310: terminology glossary + CI gate (Phase 9, 2026-10-07)

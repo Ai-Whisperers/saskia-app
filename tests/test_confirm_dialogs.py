@@ -5,6 +5,7 @@ app.js already implements:
 - js-confirm-link: intercept links/buttons with data-confirm-* attrs
 - data-confirm-title, data-confirm-body, data-confirm-danger attrs
 """
+
 from __future__ import annotations
 
 from pathlib import Path
