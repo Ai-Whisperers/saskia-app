@@ -104,11 +104,7 @@ def test_full_receta_venta_inventario_chain(client_with_caja, session_factory):
     try:
         sale = s.query(Sale).order_by(Sale.id.desc()).first()
         assert sale is not None, "No sale was created"
-        moves = (
-            s.query(StockMovement)
-            .filter_by(reference_type="sale", reference_id=sale.id)
-            .all()
-        )
+        moves = s.query(StockMovement).filter_by(reference_type="sale", reference_id=sale.id).all()
         assert len(moves) == 2, (
             f"Expected 2 StockMovement rows (one per recipe line), "
             f"got {len(moves)}: {[(m.ingredient_id, m.qty) for m in moves]}"

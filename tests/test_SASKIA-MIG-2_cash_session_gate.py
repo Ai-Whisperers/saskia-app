@@ -82,7 +82,7 @@ def test_ventas_renders_banner_when_no_open_session(authed_client):
     rather than to free-text Spanish (which can change for tone)."""
     r = authed_client.get("/ventas", follow_redirects=False)
     assert r.status_code == 200
-    assert b"data-testid=\"caja-banner-soft\"" in r.content
+    assert b'data-testid="caja-banner-soft"' in r.content
     assert b"Caja cerrada" in r.content
     assert b"Abrir caja" in r.content
     # The banner links to /caja
@@ -103,16 +103,14 @@ def test_ventas_no_banner_when_session_is_open(authed_client, session_factory):
 
     r = authed_client.get("/ventas", follow_redirects=False)
     assert r.status_code == 200
-    assert b"data-testid=\"caja-banner-soft\"" not in r.content
+    assert b'data-testid="caja-banner-soft"' not in r.content
     assert b"Caja cerrada" not in r.content
 
 
 # ── 3. Hard gate on POST /ventas/nueva (cash only) ──────────────
 
 
-def test_post_ventas_nueva_efectivo_blocked_without_session(
-    authed_client, session_factory
-):
+def test_post_ventas_nueva_efectivo_blocked_without_session(authed_client, session_factory):
     """POST /ventas/nueva with payment_method=efectivo AND no open
     cash session must return 422. This is the hard safety net below
     the soft banner — a cashier who skips the banner still cannot
@@ -134,9 +132,7 @@ def test_post_ventas_nueva_efectivo_blocked_without_session(
     )
 
 
-def test_post_ventas_nueva_qr_allowed_without_session(
-    authed_client, session_factory
-):
+def test_post_ventas_nueva_qr_allowed_without_session(authed_client, session_factory):
     """POST /ventas/nueva with a non-efectivo method (QR) must
     SUCCEED even without an open cash session. The cash drawer
     never opens for QR sales, so the cierre-Z arithmetic would
@@ -151,9 +147,7 @@ def test_post_ventas_nueva_qr_allowed_without_session(
     # 303 is the standard sale-create redirect to the recibo; both are fine.
 
 
-def test_post_ventas_nueva_efectivo_allowed_with_session(
-    authed_client, session_factory
-):
+def test_post_ventas_nueva_efectivo_allowed_with_session(authed_client, session_factory):
     """Once a cash session is open, POST /ventas/nueva with efectivo
     must succeed (the gate is no longer armed)."""
     from app.rms import cash
@@ -177,9 +171,7 @@ def test_post_ventas_nueva_efectivo_allowed_with_session(
 # ── 4. Hard gate on POST /ventas/nueva/multi (cash only) ────────
 
 
-def test_post_ventas_nueva_multi_efectivo_blocked_without_session(
-    authed_client, session_factory
-):
+def test_post_ventas_nueva_multi_efectivo_blocked_without_session(authed_client, session_factory):
     """Same gate applies to the multi-item path that the POS UI
     actually uses. /ventas/nueva is the form-style endpoint (single
     product), /ventas/nueva/multi is the JSON endpoint the JS cart
@@ -193,9 +185,7 @@ def test_post_ventas_nueva_multi_efectivo_blocked_without_session(
     assert r.status_code == 422, r.text[:300]
 
 
-def test_post_ventas_nueva_multi_default_efectivo_blocked(
-    authed_client, session_factory
-):
+def test_post_ventas_nueva_multi_default_efectivo_blocked(authed_client, session_factory):
     """If the client omits payment_method, the server resolves to
     the default (efectivo per Phase 4 catalogs) and the gate must
     still fire. This is the realistic scenario: a quick-sale UI
@@ -234,15 +224,13 @@ def test_ventas_subroutes_have_no_banner(authed_client, path):
     cashier surface and must not show the caja-closed banner."""
     r = authed_client.get(path, follow_redirects=False)
     assert r.status_code == 200, r.text[:300]
-    assert b"data-testid=\"caja-banner-soft\"" not in r.content
+    assert b'data-testid="caja-banner-soft"' not in r.content
 
 
 # ── 6. SASKIA-MIG-5: ?bypass=true emergency escape hatch ────────
 
 
-def test_bypass_query_param_skips_caja_gate(
-    authed_client, session_factory
-):
+def test_bypass_query_param_skips_caja_gate(authed_client, session_factory):
     """SASKIA-MIG-5: ?bypass=true on /ventas/nueva/multi skips the
     cash-session gate. This is the emergency escape hatch for
     power-outage / system-bug situations where opening a caja is not
@@ -292,14 +280,8 @@ def test_bypass_writes_audit_row(authed_client, session_factory):
 
     s = _svc_session(session_factory)
     try:
-        bypass_rows = (
-            s.query(AuditLog)
-            .filter(AuditLog.action == "sale_cash_session_bypass")
-            .all()
-        )
-        assert len(bypass_rows) >= 1, (
-            "No sale_cash_session_bypass audit row was written"
-        )
+        bypass_rows = s.query(AuditLog).filter(AuditLog.action == "sale_cash_session_bypass").all()
+        assert len(bypass_rows) >= 1, "No sale_cash_session_bypass audit row was written"
         assert bypass_rows[-1].detail.get("reason") == "operator-bypass"
     finally:
         s.close()

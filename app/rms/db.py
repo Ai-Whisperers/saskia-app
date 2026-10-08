@@ -3589,15 +3589,27 @@ def _migration_076_sale_linked_pedido_id(conn: Any) -> None:
 
     try:
         if dialect == "sqlite":
-            atomic_ddl_block(conn, ['ALTER TABLE sale ADD COLUMN linked_pedido_id INTEGER REFERENCES pedido(id) ON DELETE SET NULL'])
+            atomic_ddl_block(
+                conn,
+                [
+                    "ALTER TABLE sale ADD COLUMN linked_pedido_id INTEGER REFERENCES pedido(id) ON DELETE SET NULL"
+                ],
+            )
         else:  # postgres
-            atomic_ddl_block(conn, ['ALTER TABLE sale ADD COLUMN IF NOT EXISTS linked_pedido_id INTEGER REFERENCES pedido(id) ON DELETE SET NULL'])
+            atomic_ddl_block(
+                conn,
+                [
+                    "ALTER TABLE sale ADD COLUMN IF NOT EXISTS linked_pedido_id INTEGER REFERENCES pedido(id) ON DELETE SET NULL"
+                ],
+            )
     except Exception as exc:
         # Column already exists (re-run after partial apply)
         logger.debug("migration 076 ADD COLUMN skipped: %s", exc)
 
     try:
-        atomic_ddl_block(conn, ['CREATE INDEX IF NOT EXISTS ix_sale_linked_pedido_id ON sale (linked_pedido_id)'])
+        atomic_ddl_block(
+            conn, ["CREATE INDEX IF NOT EXISTS ix_sale_linked_pedido_id ON sale (linked_pedido_id)"]
+        )
     except Exception as exc:
         logger.debug("migration 076 CREATE INDEX skipped: %s", exc)
 
@@ -3605,9 +3617,19 @@ def _migration_076_sale_linked_pedido_id(conn: Any) -> None:
     # Most legacy sales won't be touched (they were POS-driven, no pedido).
     try:
         if dialect == "sqlite":
-            atomic_ddl_block(conn, ['UPDATE sale SET linked_pedido_id = (SELECT p.id FROM pedido p WHERE p.fulfilled_sale_id = sale.id) WHERE linked_pedido_id IS NULL'])
+            atomic_ddl_block(
+                conn,
+                [
+                    "UPDATE sale SET linked_pedido_id = (SELECT p.id FROM pedido p WHERE p.fulfilled_sale_id = sale.id) WHERE linked_pedido_id IS NULL"
+                ],
+            )
         else:  # postgres — same SQL works
-            atomic_ddl_block(conn, ['UPDATE sale SET linked_pedido_id = p.id FROM pedido p WHERE p.fulfilled_sale_id = sale.id AND sale.linked_pedido_id IS NULL'])
+            atomic_ddl_block(
+                conn,
+                [
+                    "UPDATE sale SET linked_pedido_id = p.id FROM pedido p WHERE p.fulfilled_sale_id = sale.id AND sale.linked_pedido_id IS NULL"
+                ],
+            )
     except Exception as exc:
         logger.debug("migration 076 backfill skipped: %s", exc)
 
@@ -4061,17 +4083,26 @@ def _migration_082_expense(conn: Any) -> None:
     `expenses_gs` from rows in the day window.
     """
     try:
-        atomic_ddl_block(conn, [f"\n            CREATE TABLE IF NOT EXISTS expense (\n                id {_serial_pk_type(conn)},\n                occurred_at DATETIME NOT NULL,\n                category VARCHAR(32) NOT NULL,\n                description VARCHAR(255) NOT NULL DEFAULT '',\n                amount_gs INTEGER NOT NULL,\n                is_voided BOOLEAN NOT NULL DEFAULT 0,\n                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP\n            )\n            "])
+        atomic_ddl_block(
+            conn,
+            [
+                f"\n            CREATE TABLE IF NOT EXISTS expense (\n                id {_serial_pk_type(conn)},\n                occurred_at DATETIME NOT NULL,\n                category VARCHAR(32) NOT NULL,\n                description VARCHAR(255) NOT NULL DEFAULT '',\n                amount_gs INTEGER NOT NULL,\n                is_voided BOOLEAN NOT NULL DEFAULT 0,\n                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP\n            )\n            "
+            ],
+        )
     except Exception as exc:
         logger.warning("migration 082 CREATE TABLE expense failed: %s", exc)
 
     try:
-        atomic_ddl_block(conn, ['CREATE INDEX IF NOT EXISTS ix_expense_occurred_at ON expense(occurred_at)'])
+        atomic_ddl_block(
+            conn, ["CREATE INDEX IF NOT EXISTS ix_expense_occurred_at ON expense(occurred_at)"]
+        )
     except Exception as exc:
         logger.debug("migration 082 ix_expense_occurred_at skipped: %s", exc)
 
     try:
-        atomic_ddl_block(conn, ['CREATE INDEX IF NOT EXISTS ix_expense_category ON expense(category)'])
+        atomic_ddl_block(
+            conn, ["CREATE INDEX IF NOT EXISTS ix_expense_category ON expense(category)"]
+        )
     except Exception as exc:
         logger.debug("migration 082 ix_expense_category skipped: %s", exc)
 
