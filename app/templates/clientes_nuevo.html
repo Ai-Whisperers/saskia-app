@@ -3,89 +3,88 @@
 {% import "_components/macros.html" as m %}
 {% block title %}Nuevo cliente{% endblock %}
 {% block content %}
-<nav class="breadcrumbs">
-  <a href="/clientes">Clientes</a> &rsaquo;
-  Nuevo
-</nav>
-
 <h1>Nuevo cliente</h1>
-
+<p class="page-desc" title="Si el teléfono ya existe, se actualiza ese cliente.">Nombre y cómo contactarlo.</p>
 
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}
 {# POST submits to /clientes/nuevo and the router creates the row, then
    redirects to /clientes/{id} so the operator can review/add details. #}
-<form method="post" action="/clientes/nuevo" class="card" style="max-width:560px;">
+<form method="post" action="/clientes/nuevo" class="sheet-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
   {% if error %}<div class="alert is-error" role="alert" aria-live="polite" id="form-error">{{ error }}</div>{% endif %}
 
-  <div class="form-row is-required">
-    <label for="name">Nombre</label>
-    <input type="text" id="name" name="name" value="{{ form.name or '' }}" required maxlength="120" aria-required="true" autofocus>
-  </div>
-
-  <div class="form-row">
-    <label for="phone">Teléfono</label>
-    <input type="tel" id="phone" name="phone" value="{{ form.phone or '' }}" maxlength="32">
-  </div>
-
-  <div class="form-row">
-    <label for="email">Email</label>
-    <input type="email" id="email" name="email" value="{{ form.email or '' }}" maxlength="120">
-  </div>
-
-  <div class="form-row">
-    <label for="cedula">CI / RUC</label>
-    <input type="text" id="cedula" name="cedula" value="{{ form.cedula or '' }}" maxlength="32">
-  </div>
-
-  <div class="form-row">
-    <label for="notes">Notas</label>
-    <textarea id="notes" name="notes" rows="3" maxlength="2000">{{ form.notes or '' }}</textarea>
-  </div>
-
-  <fieldset style="margin-top:var(--space-4);border:1px solid var(--border);border-radius:8px;padding:var(--space-3);">
-    <legend style="font-weight:600;padding:0 var(--space-2);">Perfil (opcional)</legend>
-    <div class="d-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
-      <div>
-        <label for="birthday">Cumpleaños</label>
-        <input type="text" id="birthday" name="birthday" value="{{ form.birthday or '' }}"
-               placeholder="DD-MM o DD-MM-AAAA" maxlength="10" style="margin-top:4px;">
-        <small class="muted">Para promos de cumpleaños.</small>
+  <div class="sheet-grid">
+    <section class="order-section">
+      <h2>Contacto</h2>
+      <div class="form-row is-required">
+        <label for="name">Nombre</label>
+        <input type="text" id="name" name="name" value="{{ form.name or '' }}" required maxlength="120" aria-required="true" autofocus>
       </div>
-      <div>
+      <div class="sheet-pair">
+        <div class="form-row">
+          <label for="phone">Teléfono</label>
+          <input type="tel" id="phone" name="phone" value="{{ form.phone or '' }}" maxlength="32">
+        </div>
+        <div class="form-row">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" value="{{ form.email or '' }}" maxlength="120">
+        </div>
+      </div>
+      <div class="form-row">
+        <label for="cedula">CI / RUC</label>
+        <input type="text" id="cedula" name="cedula" value="{{ form.cedula or '' }}" maxlength="32">
+      </div>
+    </section>
+    <section class="order-section">
+      <h2>Notas</h2>
+      <div class="form-row">
+        <label for="notes" class="sr-only">Notas</label>
+        <textarea id="notes" name="notes" rows="4" maxlength="2000" placeholder="Notas internas">{{ form.notes or '' }}</textarea>
+      </div>
+    </section>
+  </div>
+
+  <details>
+    <summary>Perfil</summary>
+    <div class="sheet-pair">
+      <div class="form-row">
+        <label for="birthday" title="Para promos de cumpleaños.">Cumpleaños</label>
+        <input type="text" id="birthday" name="birthday" value="{{ form.birthday or '' }}"
+               placeholder="DD-MM o DD-MM-AAAA" maxlength="10">
+      </div>
+      <div class="form-row">
         <label for="how_found">¿Cómo nos encontró?</label>
-        <select class="mt-4" id="how_found" name="how_found" >
+        <select id="how_found" name="how_found">
           <option value="">—</option>
           {% for opt in how_found_options %}
           <option value="{{ opt }}" {% if form.how_found == opt %}selected{% endif %}>{{ opt|title }}</option>
           {% endfor %}
         </select>
       </div>
-      <div>
+      <div class="form-row">
         <label for="preferred_channel">Canal preferido</label>
-        <select class="mt-4" id="preferred_channel" name="preferred_channel" >
+        <select id="preferred_channel" name="preferred_channel">
           <option value="">—</option>
           {% for opt in channel_options %}
           <option value="{{ opt }}" {% if form.preferred_channel == opt %}selected{% endif %}>{{ opt|title }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="d-flex" style="display:flex;align-items:end;">
-        <label class="d-flex" style="display:flex;align-items:center;gap:var(--space-2);padding-bottom:22px;">
+      <div class="form-row">
+        <label class="checkbox">
           <input type="checkbox" id="marketing_consent" name="marketing_consent" value="1"
                  {% if form.marketing_consent %}checked{% endif %}>
-          <span>Acepta recibir promos <span class="muted">(WhatsApp)</span></span>
+          Acepta recibir promos por WhatsApp
         </label>
       </div>
     </div>
-  </fieldset>
+  </details>
 
-  <div style="margin-top:var(--space-4);display:flex;gap:var(--space-3);align-items:center;">
-    <button type="submit" class="btn btn-primary">Crear cliente</button>
+  <div class="sheet-footer">
     <a href="/clientes" class="btn btn-ghost">Cancelar</a>
-    <small class="muted" style="margin-left:auto;">Si el teléfono ya existe, se actualizará ese cliente.</small>
+    <button type="submit" class="btn btn-primary">Crear cliente</button>
   </div>
 </form>
 

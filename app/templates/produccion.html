@@ -19,10 +19,12 @@
 
 {% block title %}Producción · {{ for_date }}{% endblock %}
 {% block content %}
+<div class="kitchen-page">
 {% if template_nudge %}
-<div class="alert alert-warning mb-6" style="display:flex;flex-direction:column;gap:var(--space-2);">
+<details class="kitchen-nudge">
+  <summary>Plantilla semanal</summary>
   <div>
-    📋 {% if has_weekly_template %}Tu plantilla semanal está guardada. Cargala en el plan de hoy con un click — así
+    {% if has_weekly_template %}Tu plantilla semanal está guardada. Cargala en el plan de hoy con un click — así
     se ignoran los promedios 14d para los productos que tengan override.
     {% else %}Todavía no guardaste un plan semanal para este día — el plan se arma con
     el promedio de ventas. Después de una semana de ventas, andá a
@@ -32,16 +34,14 @@
   {% if has_weekly_template %}
   <form method="post" action="/produccion/template/load-day" class="js-confirm-form"
         data-confirm-title="¿Cargar plan desde plantilla?"
-        data-confirm-body="Se creará un override por cada producto de la plantilla semanal que aún no esté cargado para hoy."
-        style="display:inline-block;">
+        data-confirm-body="Se creará un override por cada producto de la plantilla semanal que aún no esté cargado para hoy.">
     <input type="hidden" name="for_date" value="{{ for_date.isoformat() }}">
-    <button type="submit" class="btn btn-sm btn-primary">
-      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+    <button type="submit" class="btn btn-sm">
       Cargar plan desde plantilla semanal
     </button>
   </form>
   {% endif %}
-</div>
+</details>
 {% endif %}
 
 {# ════════════════════════════════════════════════════════════════════
@@ -49,15 +49,11 @@
    The Día / Semana / Mes switcher is part of the header so bakers
    can flip between views without scrolling down to a buried drawer.
    ════════════════════════════════════════════════════════════════════ #}
-<div class="page-header d-flex" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-4); flex-wrap: wrap; gap: var(--space-3);">
-  <div>
-    <h1 style="display: flex; align-items: center; gap: var(--space-2); margin: 0;">
-      <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
-      Producción
-    </h1>
-
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}
+<div class="page-header kitchen-head">
+  <div class="kitchen-head__title">
+    <h1>Producción</h1>
     {% if view == 'day' %}
     <p class="hint" style="margin: var(--space-1) 0 0 0; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;">
       Plan diario para el <strong>{{ for_date }}</strong>
@@ -94,11 +90,11 @@
     {% endif %}
   </div>
 
-  <nav class="view-tabs d-inline-flex" aria-label="Cambiar vista" role="tablist"
-       style="display:inline-flex; gap: var(--space-1); padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius);">
-    <a href="/produccion?view=day" class="btn btn-sm {% if view == 'day' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'day' else 'false' }}">Día</a>
-    <a href="/produccion?view=week{% if view == 'week' and prev_week_iso %}&week={{ prev_week_iso }}{% endif %}" class="btn btn-sm {% if view == 'week' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'week' else 'false' }}">Semana</a>
-    <a href="/produccion?view=month" class="btn btn-sm {% if view == 'month' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'month' else 'false' }}">Mes</a>
+  <div class="kitchen-head__tools">
+  <nav class="view-tabs kitchen-views" aria-label="Cambiar vista" role="tablist">
+    <a href="/produccion?view=day" class="kitchen-view{% if view == 'day' %} is-on{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'day' else 'false' }}">Día</a>
+    <a href="/produccion?view=week{% if view == 'week' and prev_week_iso %}&week={{ prev_week_iso }}{% endif %}" class="kitchen-view{% if view == 'week' %} is-on{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'week' else 'false' }}">Semana</a>
+    <a href="/produccion?view=month" class="kitchen-view{% if view == 'month' %} is-on{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'month' else 'false' }}">Mes</a>
   </nav>
   {# PRODUCCION-V2 Fase 2: UI version toggle (v1 ⇄ v2). Default v1 keeps
      the existing 8-col grilla; v2 adds the DEMANDA column (decomposed
@@ -110,34 +106,23 @@
      It was confusing — operators don't care if it's v1 or v2. The v1 vs v2
      choice is still reachable via ?ui=v1 query for engineers debugging.
      Keeping a hidden span for tests + accessibility tools. #}
-  <span class="ui-toggle sr-only d-none"
-        
+  <span class="ui-toggle sr-only" style="display: none;"
+        aria-hidden="true"
         aria-label="Versión del UI"
         title="UI v2 (DEMANDA, META, REAL, Pedidos)">
     v2
   </span>
 
-  <a href="/produccion/manana" class="btn inline-flex-center-gap-2"
-     >
-    <svg class="icon" aria-hidden="true"><use href="#icon-spark"/></svg>
-    Producción de mañana
-    <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg>
-  </a>
-  <a href="/produccion/accuracy" class="btn inline-flex-center-gap-2"
-     
-     title="Precisión del plan vs. producción real">
-    <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
-    Precisión histórica
-    <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg>
-  </a>
-  {# T-2026-10-04 (P0): printable worksheet for the kitchen shift #}
-  <a href="/produccion/print?for_date={{ for_date }}"
-     class="btn inline-flex-center-gap-2"
-     
-     title="Imprimí el plan de hoy para el turno">
-    <svg class="icon" aria-hidden="true"><use href="#icon-print"/></svg>
-    Imprimir
-  </a>
+  {% if view == 'day' and plan_rows_view %}
+  <a href="/produccion/print?for_date={{ for_date }}" class="btn btn-primary"
+     title="Imprimí el plan de hoy para el turno">Imprimir</a>
+  {% endif %}
+  <details class="kitchen-more">
+    <summary>Más</summary>
+    <div class="kitchen-more__menu" role="menu">
+  <a href="/produccion/manana" role="menuitem">Producción de mañana</a>
+  <a href="/produccion/accuracy" role="menuitem" title="Precisión del plan vs. producción real">Precisión histórica</a>
+  <a href="/produccion/print?for_date={{ for_date }}" role="menuitem" title="Imprimí el plan de hoy para el turno">Imprimir</a>
   {# Sazon-Improvement v2 (2026-10-06) Phase C: copy last week's plan into
      this date. Saves ~20min on menu planning. Default source = 7d before. #}
   <form class="d-inline-flex" method="post" action="/produccion/copy-last-week"
@@ -176,13 +161,10 @@
     Hoja en blanco para imprimir
   </a>
   {# T-2026-10-04 (P2): link to the weekly ingredient prep sheet. #}
-  <a href="/produccion/prep"
-     class="btn inline-flex-center-gap-2"
-     
-     title="Plan de preparación semanal (ingredientes agregados)">
-    <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
-    Prep semanal
-  </a>
+  <a href="/produccion/prep" role="menuitem" title="Plan de preparación semanal (ingredientes agregados)">Prep semanal</a>
+    </div>
+  </details>
+  </div>
 </div>
 
 {# PRODUCCION-V3 Phase 3 (post-screenshot fix): hero stats (4 cards:
@@ -251,8 +233,8 @@
    it works in both themes. Soft backgrounds are always light, so
    dark text is the right choice universally. #}
 {% if not plan_rows_view %}
-<div class="card mb-4" style="background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6);">
-  <div class="card-body" style="font-size: var(--text-sm); color: #111827;">
+<div class="card mb-4 kitchen-dup-empty" style="background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6);">
+  <div class="card-body" style="font-size: var(--text-sm); color: var(--color-text);">
     <strong>📭 Sin producción planificada.</strong>
     ¿Necesitás calcular producción para una receta específica (catering, pedido grande)?
     Usá la <a href="/recetas">vista de recetas</a> para ver rendimientos, o andá a
@@ -261,26 +243,8 @@
 </div>
 {% endif %}
 
-{# ── US 4.4 — urgent pending orders + kitchen-ticket panel ──
-    The count banner keeps the at-a-glance alert; the per-pedido list below
-    it is the actual US 4.4 contract (cook sees WHAT to make per pedido,
-    with links to /pedidos/{id}). Restored after the da0abe8 redesign
-    dropped it — route still computes the full pending_pedidos payload. #}
-{% if pending_pedidos %}
-<div class="alert alert-warning mb-4" role="alert"
-     style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; background: rgba(245, 158, 11, 0.08); border-left: 4px solid var(--color-warning, #f59e0b); padding: var(--space-3) var(--space-4); border-radius: var(--radius);">
-  <div style="display: flex; align-items: center; gap: var(--space-3);">
-    <svg class="icon" aria-hidden="true" style="color: var(--color-warning, #f59e0b); flex-shrink: 0;"><use href="#icon-warn"/></svg>
-    <div>
-      <strong>🚨 Pedidos pendientes para hoy:</strong>
-      Tenés {{ pending_pedidos|length }} pedido{{ 's' if pending_pedidos|length != 1 else '' }} confirmado{{ 's' if pending_pedidos|length != 1 else '' }} que retirar o entregar hoy.
-    </div>
-  </div>
-  <a href="/pedidos?status_filter=pendientes&search=" class="btn btn-secondary btn-sm">
-    Ver pedidos prioritarios →
-  </a>
-</div>
-{% endif %}
+{# Pending orders live in the notification bundle below. A second banner
+   repeated the same warning above the plan. #}
 
 {# 2026-10-07d: bundle all 8 notifications into ONE outer details.
    Operator click expands the bundle; click again collapses all.
@@ -305,7 +269,8 @@
          data-notification-bundle="produccion-notifications"
          data-critical-count="{{ ns_total_critical }}"
          data-warning-count="{{ ns_total_warning }}"
-         data-info-count="{{ ns_total_info }}">
+         data-info-count="{{ ns_total_info }}"
+         {% if ns_total_critical > 0 or haccp_alert == 'warning' %}open{% endif %}>
   <summary class="notifications-bundle__summary"
            aria-label="Notificaciones del día">
     <span class="notifications-bundle__icon" aria-hidden="true">
@@ -344,6 +309,7 @@
   <div class="notifications-bundle__body">
 
 {# ── 1/8 Pedidos pendientes ── #}
+{% if pending_pedidos %}
 <details class="notification-collapse notification-collapse--warning"
          data-notification-section="data-pending-pedidos-section">
   <summary style="cursor: pointer; list-style: none; padding: var(--space-3) var(--space-4);">
@@ -367,7 +333,7 @@
           </div>
           <ul class="mt-2" style="margin-top:var(--space-2);padding-left:var(--space-5);">
             {% for it in p.line_items %}
-            <li>{{ it.qty }} × {{ it.product_name }} ({{ m.gs_full(it.unit_price_gs) }})</li>
+            <li>{{ it.qty }} × {{ it.product_name }}{% if not station_hides_prices %} ({{ m.gs_full(it.unit_price_gs) }}){% endif %}</li>
             {% endfor %}
           </ul>
           {% if p.notes %}<small class="text-muted">📝 {{ p.notes }}</small>{% endif %}
@@ -377,6 +343,7 @@
     </div>
   </div>
 </details>
+{% endif %}
 
 {# ── Low-stock ingredients warning (pre-existing) ──
    2026-10-07c: collapsed by default — operator opens only on demand. #}
@@ -550,11 +517,11 @@
    only open it when they want to understand the math. Saves ~80px of
    vertical space on every page load. #}
 <details class="cal-box" style="margin-bottom: var(--space-3); background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6); border-radius: 4px;">
-  <summary style="cursor: pointer; padding: var(--space-2) var(--space-3); color: #111827; font-size: var(--text-sm); user-select: none;">
+  <summary style="cursor: pointer; padding: var(--space-2) var(--space-3); color: var(--color-text); font-size: var(--text-sm); user-select: none;">
     <strong>Cómo se calcula</strong>
     <span class="text-muted" style="font-size: var(--text-xs); margin-left: var(--space-2);">(clic para ver)</span>
   </summary>
-  <small style="display: block; color: #111827; padding: 0 var(--space-3) var(--space-2) var(--space-3);">
+  <small style="display: block; color: var(--color-text); padding: 0 var(--space-3) var(--space-2) var(--space-3);">
     "Sugerido por ventas" = promedio rolling 14d · "Plantilla semanal" = override recurrente por día de la semana · "Ajuste del día" = lo que vos decidiste hoy.
   </small>
 </details>
@@ -592,29 +559,6 @@
      data-concurrent-warn
      style="background: var(--color-warning-soft, #fef3c7); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-warning, #f59e0b); display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
   <svg class="icon" aria-hidden="true"><use href="#icon-warning"/></svg>
-  <small>
-    <strong>Otro turno se actualizó mientras escribías.</strong>
-    Tus valores reemplazaron a los anteriores. Verificá que las cantidades
-    reales (columna <em>Real</em>) coincidan con lo que se hornó.
-  </small>
-  <a href="/produccion?for_date={{ for_date }}&view=day"
-     class="btn btn-sm btn-ghost d-inline-flex"
-     style="display:inline-flex; align-items:center; gap: var(--space-1);"
-     title="Recargá la página para ver los valores más recientes">
-    <svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>
-    Recargar
-  </a>
-</div>
-{% endif %}
-{# T-2026-10-04 (Tier 5-K): warn the cook when their save stomped a
-   concurrent edit. Last-write-wins is still the rule (we don't
-   reject the save), but a soft warning nudges them to verify. #}
-{% if concurrent_modify %}
-<div class="card mb-4"
-     data-concurrent-modify="1"
-     data-concurrent-warn
-     style="background: var(--color-warning-soft, #fef3c7); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-warning, #f59e0b); display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
-  <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
   <small>
     <strong>Otro turno se actualizó mientras escribías.</strong>
     Tus valores reemplazaron a los anteriores. Verificá que las cantidades
@@ -1375,8 +1319,8 @@
    T-2026-10-06c white-on-white fix: hard #111827 not var() because
    CSS fallbacks are ignored when --color-text is defined. #}
 {% if cold_start_kind == "no_sales" %}
-    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem; color: #111827;">Aún no hay ventas registradas</h3>
-    <p style="margin: 0 0 var(--space-3) 0; color: #111827;">
+    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem; color: var(--color-text);">Aún no hay ventas registradas</h3>
+    <p style="margin: 0 0 var(--space-3) 0; color: var(--color-text);">
       El plan automático se basa en tus ventas pasadas. Mientras tanto, podés
       definir un plan recurrente para cada día de la semana, registrar tu
       primera venta, o <strong>agregar un producto manualmente al plan de hoy</strong>.
@@ -1415,8 +1359,8 @@
     </div>
     {% endif %}
   {% elif cold_start_kind == "no_template" %}
-    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem; color: #111827;">Sin plantilla semanal</h3>
-    <p style="margin: 0 0 var(--space-3) 0; color: #111827;">
+    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem; color: var(--color-text);">Sin plantilla semanal</h3>
+    <p style="margin: 0 0 var(--space-3) 0; color: var(--color-text);">
       Hay ventas registradas pero todavía no guardaste una plantilla recurrente
       por día de la semana. El plan se calcula solo con promedio de 14 días.
       <strong>Mientras tanto, podés agregar un producto al plan de hoy.</strong>
@@ -1431,8 +1375,8 @@
       </a>
     </div>
   {% elif cold_start_kind == "cold_plan" %}
-    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem; color: #111827;">Plan frío (datos insuficientes)</h3>
-    <p style="margin: 0 0 var(--space-3) 0; color: #111827;">
+    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem; color: var(--color-text);">Plan frío (datos insuficientes)</h3>
+    <p style="margin: 0 0 var(--space-3) 0; color: var(--color-text);">
       Todos los productos aparecen con cantidad 1 porque hay menos de 14 días
       de historial. Ajustá manualmente o esperá más ventas para que el promedio
       se estabilice.
@@ -1447,8 +1391,8 @@
       </a>
     </div>
   {% elif cold_start_kind == "no_rows" %}
-    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem; color: #111827;">Plan vacío (cantidades en cero)</h3>
-    <p style="margin: 0 0 var(--space-3) 0; color: #111827;">
+    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem; color: var(--color-text);">Plan vacío (cantidades en cero)</h3>
+    <p style="margin: 0 0 var(--space-3) 0; color: var(--color-text);">
       Hay productos en el plan pero con cantidad 0. Ajustá las cantidades
       para activar la producción de hoy.
     </p>
@@ -1472,8 +1416,8 @@
        T-2026-10-06d: added CTA to open ad-hoc modal so the operator
        can add their first row even when cold_start_kind is unknown. #}
     <div style="margin: 0; padding: var(--space-3); background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6); border-radius: 4px;">
-      <strong style="color: #111827;">📭 No hay producción planificada.</strong>
-      <p style="margin: var(--space-2) 0; color: #111827;">
+      <strong style="color: var(--color-text);">📭 No hay producción planificada.</strong>
+      <p style="margin: var(--space-2) 0; color: var(--color-text);">
         Verificá que haya ventas registradas en los últimos 14 días, copiá un plan
         anterior, o agregá un producto manualmente para arrancar.
       </p>
@@ -1973,25 +1917,24 @@
    3. If the catalog grows >200, swap to endpoint= once we ungate the
       lookup API. #}
 <dialog id="adhoc-modal"
-        style="border: none;
-        border-radius: 8px;
+        style="border: 1px solid var(--color-border);
+        border-radius: 12px;
         padding: 0;
         max-width: 480px;
-        box-shadow: var(--shadow-lg);
-        background: #1f2937;
-        color: #f3f4f6;">
+        background: var(--color-surface-raised);
+        color: var(--color-text);">
   <form method="post" action="/produccion/ad-hoc" style="padding: var(--space-4);">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="for_date" value="{{ for_date }}">
-    <h3 style="margin: 0 0 var(--space-3) 0; color: #f3f4f6;">Horneado extra</h3>
-    <p style="margin: 0 0 var(--space-3) 0; color: #d1d5db; font-size: var(--text-sm);">
+    <h3 style="margin: 0 0 var(--space-3) 0;">Horneado extra</h3>
+    <p style="margin: 0 0 var(--space-3) 0; color: var(--color-text-muted); font-size: var(--text-sm);">
       {# T-2026-10-06e (UX): help text explaining the default qty so the operator
          understands what the pre-filled number means. #}
       Cantidad pre-cargada = <strong>rolling ventas 14d + pedidos pendientes para hoy</strong>.
       Ajustá según tu criterio o dejá el valor si coincide con tu plan.
     </p>
     <div class="form-row mb-3" >
-      <label for="adhoc-product" style="display: block; margin-bottom: var(--space-1); font-weight: bold; color: #f3f4f6;">Producto</label>
+      <label for="adhoc-product" style="display: block; margin-bottom: var(--space-1); font-weight: 600;">Producto</label>
       {# T-2026-10-06f: <ui-combo> ships the product list inline as src=
          (a JSON-encoded list of {value, label, forecast_qty, pending_pedidos}
          objects). The JS listener reads getSelectedData() to pre-fill the
@@ -2007,28 +1950,26 @@
          (we wire that below). But on a fresh tenant with 0 products, this
          hint below the combo explains what to do. #}
       <small id="adhoc-no-products-hint"
-             style="color: #9ca3af; font-size: var(--text-xs); display: none; margin-top: var(--space-1);">
+             style="color: var(--color-text-muted); font-size: var(--text-xs); display: none; margin-top: var(--space-1);">
         No hay productos cargados. Pedile al administrador que cargue productos en
-        <a href="/products" style="color: #93c5fd;">Productos</a> antes de continuar.
+        <a href="/products" style="color: var(--color-text-link);">Productos</a> antes de continuar.
       </small>
     </div>
     <div class="form-row mb-3" >
-      <label for="adhoc-qty" style="display: block; margin-bottom: var(--space-1); font-weight: bold; color: #f3f4f6;">Cantidad horneada</label>
-      <input type="number" name="qty" id="adhoc-qty" required min="0.5" step="0.5"
-             style="width: 100%; padding: var(--space-2); border: 1px solid #4b5563; border-radius: 4px; background: #111827; color: #f3f4f6;">
-      <small id="adhoc-qty-hint" style="color: #9ca3af; font-size: var(--text-xs); display: block; margin-top: var(--space-1);">
+      <label for="adhoc-qty" style="display: block; margin-bottom: var(--space-1); font-weight: 600;">Cantidad horneada</label>
+      <input type="number" name="qty" id="adhoc-qty" required min="0.5" step="0.5">
+      <small id="adhoc-qty-hint" style="color: var(--color-text-muted); font-size: var(--text-xs); display: block; margin-top: var(--space-1);">
         Sugerido: <span data-suggested>—</span> (rolling + pedidos). Ajustá si querés.
       </small>
     </div>
     <div class="form-row mb-3" >
-      <label for="adhoc-notes" style="display: block; margin-bottom: var(--space-1); font-weight: bold; color: #f3f4f6;">Nota (opcional)</label>
+      <label for="adhoc-notes" style="display: block; margin-bottom: var(--space-1); font-weight: 600;">Nota (opcional)</label>
       <input type="text" name="notes" id="adhoc-notes" maxlength="200"
-             placeholder="ej: walk-in cumpleañero, sobrantes de masa"
-             style="width: 100%; padding: var(--space-2); border: 1px solid #4b5563; border-radius: 4px; background: #111827; color: #f3f4f6;">
+             placeholder="ej: walk-in cumpleañero, sobrantes de masa">
     </div>
     <div style="display: flex; gap: var(--space-2); justify-content: flex-end;">
-      <button type="button" class="btn btn-ghost" style="color: #f3f4f6;" onclick="document.getElementById('adhoc-modal').close()">Cancelar</button>
-      <button type="submit" class="btn btn-primary">Guardar horneado</button>
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('adhoc-modal').close()">Cancelar</button>
+      <button type="submit" class="btn btn-primary">Guardá horneado</button>
     </div>
   </form>
 </dialog>
@@ -2109,7 +2050,7 @@
       {{ request.query_params.get('rows', '?') }} filas copiadas
     </span>
   {% elif request.query_params.get('fork') == 'empty' %}
-    <span class="badge" style="background: var(--color-text-muted); color: #111827; margin-left: var(--space-2);">
+    <span class="badge" style="background: var(--color-text-muted); color: var(--color-text); margin-left: var(--space-2);">
       Esta semana no tiene overrides para clonar
     </span>
   {% endif %}
@@ -2449,4 +2390,5 @@
 })();
 </script>
 
+</div>
 {% endblock %}

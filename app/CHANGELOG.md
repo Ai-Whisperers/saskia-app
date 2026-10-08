@@ -1,3 +1,12 @@
+## 2026-10-08h — compact create and edit forms
+
+Order, product, ingredient, customer, supplier, subscription, recipe, and waste
+forms lead with the primary fields. Optional notes and profile fields stay behind
+a disclosure, with one breadcrumb and a sticky save bar. Nuevo pedido leads with
+the customer, when and how, then the products. Nuevo producto groups general
+information, prices, and the recipe; tags are a searchable list. Saved fields,
+prices, IVA, stock, and station permissions are unchanged.
+
 ## 2026-10-08g — scattered-failure sweep: real fixes + contract updates
 
 Continued the post-deploy suite triage. 10 remaining failure clusters resolved;
@@ -136,7 +145,6 @@ sale/caja/receta suite. No new dependencies. No new migrations (Items 5's
 `PosChecklistLog` tables were deemed over-engineering for the current advisory
 preflight; the ?bypass=true escape hatch covers the operator-emergency case
 the hard block was designed to support).
->>>>>>> 8f2cec04 (SASKIA-MIG-2,5,6: pre-shift caja gate + preflight verify + receta-venta-inventario chain)
 
 ## 2026-10-08e — restore 6 lost UI features + fix 4 stale tests (69 passed)
 

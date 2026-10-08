@@ -4,8 +4,7 @@
 {% block content %}
 {{ ui.page_header(
      title=('Editar' if mode == 'edit' else 'Nueva') ~ ' suscripción',
-     desc='Pedido recurrente de un cliente. Esta lista es solo de referencia, no genera pedidos automáticos.',
-     crumbs=[('Suscripciones', '/suscripciones'), ('Editar' if mode == 'edit' else 'Nueva', None)]
+     desc='Pedido recurrente. No genera pedidos automáticos.'
    ) }}
 
 
@@ -19,7 +18,7 @@
 </div>
 {% endif %}
 
-<form method="post"
+<form method="post" class="sheet-form"
       action="{{ '/suscripciones/nuevo' if mode == 'new' else '/suscripciones/' ~ suscripcion.id ~ '/editar' }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
@@ -112,17 +111,20 @@
            placeholder="0">
   </div>
 
-  <div class="form-row">
-    <label for="notes">Notas</label>
-    <textarea id="notes" name="notes" rows="3" maxlength="2000"
-              placeholder="Ej: pasa los sábados a retirar antes del cierre">{{ suscripcion.notes if suscripcion and suscripcion.notes else '' }}</textarea>
-  </div>
+  <details>
+    <summary>Notas</summary>
+    <div class="form-row">
+      <label for="notes" class="sr-only">Notas</label>
+      <textarea id="notes" name="notes" rows="3" maxlength="2000"
+                placeholder="Ej: pasa los sábados a retirar antes del cierre">{{ suscripcion.notes if suscripcion and suscripcion.notes else '' }}</textarea>
+    </div>
+  </details>
 
-  <div class="form-actions">
+  <div class="sheet-footer">
+    <a href="/suscripciones" class="btn">Cancelar</a>
     <button type="submit" class="btn btn-primary" {% if not customers %}disabled{% endif %}>
       Guardar
     </button>
-    <a href="/suscripciones" class="btn">Cancelar</a>
   </div>
 </form>
 
