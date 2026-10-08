@@ -1563,9 +1563,7 @@ def cliente_update(
         detail={"name": customer.name},
     )
     session.commit()
-    return RedirectResponse(
-        url=f"/clientes/{customer_id}?flash=customer_updated", status_code=303
-    )
+    return RedirectResponse(url=f"/clientes/{customer_id}?flash=customer_updated", status_code=303)
 
 
 @router.post("/bulk-eliminar")

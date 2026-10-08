@@ -35,7 +35,8 @@ def _migration_109_menu_ejecutivo(conn: Any) -> None:
     if _tables_missing():
         atomic_ddl_block(
             conn,
-            ["""
+            [
+                """
                 CREATE TABLE menu (
                     id {PK},
                     tenant_id INTEGER NOT NULL DEFAULT 1,
@@ -45,20 +46,22 @@ def _migration_109_menu_ejecutivo(conn: Any) -> None:
                     created_at {TS}
                 )
                 """.replace(
-                "{PK}",
-                "SERIAL PRIMARY KEY"
-                if conn.dialect.name == "postgresql"
-                else "INTEGER PRIMARY KEY AUTOINCREMENT",
-            ).replace(
-                "{TS}",
-                "TIMESTAMPTZ DEFAULT now()"
-                if conn.dialect.name == "postgresql"
-                else "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-            )],
+                    "{PK}",
+                    "SERIAL PRIMARY KEY"
+                    if conn.dialect.name == "postgresql"
+                    else "INTEGER PRIMARY KEY AUTOINCREMENT",
+                ).replace(
+                    "{TS}",
+                    "TIMESTAMPTZ DEFAULT now()"
+                    if conn.dialect.name == "postgresql"
+                    else "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+                )
+            ],
         )
         atomic_ddl_block(
             conn,
-            ["""
+            [
+                """
                 CREATE TABLE menu_item (
                     id {PK},
                     menu_id INTEGER NOT NULL REFERENCES menu(id) ON DELETE CASCADE,
@@ -66,14 +69,17 @@ def _migration_109_menu_ejecutivo(conn: Any) -> None:
                     qty FLOAT NOT NULL DEFAULT 1
                 )
                 """.replace(
-                "{PK}",
-                "SERIAL PRIMARY KEY"
-                if conn.dialect.name == "postgresql"
-                else "INTEGER PRIMARY KEY AUTOINCREMENT",
-            )],
+                    "{PK}",
+                    "SERIAL PRIMARY KEY"
+                    if conn.dialect.name == "postgresql"
+                    else "INTEGER PRIMARY KEY AUTOINCREMENT",
+                )
+            ],
         )
         atomic_ddl_block(conn, ["CREATE INDEX IF NOT EXISTS ix_menu_tenant_id ON menu (tenant_id)"])
-        atomic_ddl_block(conn, ["CREATE INDEX IF NOT EXISTS ix_menu_item_menu_id ON menu_item (menu_id)"])
+        atomic_ddl_block(
+            conn, ["CREATE INDEX IF NOT EXISTS ix_menu_item_menu_id ON menu_item (menu_id)"]
+        )
 
     from app.rms.db import _bump_schema_version
 
