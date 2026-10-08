@@ -100,9 +100,14 @@ def test_documented_race_check_then_act():
     # Read source and verify the check-then-act pattern exists
     from pathlib import Path
 
-    src = Path("/opt/data/scratch/sazon-app/app/rms/rate_limit.py").read_text()
+    src = Path(__file__).resolve().parents[1] / "app" / "rms" / "rate_limit.py"
+    src_text = src.read_text()
     # The race pattern: count query, then conditional return True/False
-    assert "count()\n" in src or "count =" in src, (
+    # (originally documented in SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md F9).
+    # The path was previously hardcoded to /opt/data/scratch/sazon-app/...
+    # which is brittle when the project lives in any other worktree; derive
+    # it from __file__ instead so the test follows the repo wherever it goes.
+    assert "count(" in src_text, (
         "is_write_rate_limited should query count then check limit"
     )
     # Document: proper fix requires schema work (atomic counter).

@@ -24,6 +24,28 @@ itself was fine (test_integrations_and_seed_split failed 3 tests for exactly thi
 derive the root from `Path(__file__).resolve().parents[1]`. Also removed a dead
 `today_noon_utc if False else` leftover and fixed the import-order fallout.
 
+## 2026-10-08 — Batch C (EOD alert bodies extracted to DB)
+
+- New migration **116_eod_alert_templates** seeds `message_template` rows for the 4 EOD anomaly alert titles + bodies that were hardcoded in `app/services/eod_anomaly.py`.
+- `app/rms/alert_templates.py` exposes `get_eod_alert_template()` and `AlertTemplate.render(**kwargs)` for format-style substitution.
+- `app/services/eod_anomaly.py` refactored: each `_check_*()` function now reads the template from the helper instead of building inline strings.
+- Operators can edit alert copy from the same `/settings/templates` UI as the pedidos templates — no code deploy.
+- Schema version bumped to **116**. 13 new tests in `test_eod_alert_templates.py` covering migration seed, helper API, fallback path, operator edit, and refactor verification.
+
+**Pinned lesson (Batch C, applies to all future migrations that touch `message_template`):**
+SQLAlchemy's `Base.metadata.create_all()` strips SQL `DEFAULT` clauses when it generates the table DDL. The `updated_at DATETIME NOT NULL` column has no server-side default in the resulting SQLite table, so any `INSERT OR IGNORE` that omits `updated_at` silently fails (rowcount=0, no error). The original migration 044 (defined inline in `db.py`, not the file) gets the INSERT right because it explicitly passes `updated_at = CURRENT_TIMESTAMP`. Always pass `CURRENT_TIMESTAMP` explicitly when inserting into this table from raw text() — the Python-level ORM defaults don't apply to raw SQL.
+
+## 2026-10-08 — Batch C (T1 catalogs for ingredient tags)
+
+- New migration **115_allergen_dietary_tags** creates `allergen` + `dietary_tag` catalog tables
+  seeded with the prior hardcoded lists (preserves existing data).
+- `app/rms/catalogs_tags.py` exposes `list_allergens()`, `list_dietary_tags()`,
+  `allergen_codes()`, `dietary_tag_codes()` — raw queries with fallback to defaults for resilience.
+- `app/routers/inventory.py` passes `allergens` + `dietary_tags` into the inventory form template.
+- `app/templates/inventario_form.html` now renders the chip-toggle-groups from catalog data
+  (operators can edit labels / add codes from `/settings/catalog` without code deploy).
+- Schema version bumped to **115**. 13 new tests in `test_allergen_dietary_tag_catalogs.py`.
+
 ## 2026-10-08c — two TZ bugs: qseed 'with_sale' time-of-day trap + export 'today' UTC-date bug
 
 **1. `tests/_fixtures_quick_seed.py`**: the `with_sale` scenario anchored `sold_at` at noon UTC

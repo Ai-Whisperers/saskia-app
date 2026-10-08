@@ -100,10 +100,13 @@
     <div class="form-row">
       <span class="form-label-like">Alérgenos (tocá para marcar)</span>
       <div class="chip-toggle-group" role="group" aria-label="Alérgenos">
+        {# Batch C (2026-10-08): allergens now come from the catalog table, #}
+        {# not a hardcoded list — operators can edit labels / add codes   #}
+        {# from /settings/catalog without a code deploy.                  #}
         {%- set _cur = (ingredient.allergens if ingredient and ingredient.allergens else '')|lower -%}
-        {%- set _codes = [("gluten","Gluten"),("dairy","Lácteos"),("eggs","Huevos"),("nuts","Frutos secos"),("soy","Soja"),("sesame","Sésamo"),("sulfites","Sulfitos")] -%}
-        {%- for code, lbl in _codes -%}
-        <label class="chip-toggle"><input type="checkbox" data-allergen="{{ code }}" {% if code in _cur %}checked{% endif %}> {{ lbl }}</label>
+        {%- set _allergens = allergens or [] -%}
+        {%- for a in _allergens -%}
+        <label class="chip-toggle"><input type="checkbox" data-allergen="{{ a.code }}" {% if a.code in _cur %}checked{% endif %}> {{ a.label }}</label>
         {%- endfor -%}
       </div>
       <input type="hidden" name="allergens" id="allergens" value="{{ ingredient.allergens if ingredient and ingredient.allergens else '' }}">
@@ -113,10 +116,11 @@
     <div class="form-row">
       <span class="form-label-like">Etiquetas dietéticas</span>
       <div class="chip-toggle-group" role="group" aria-label="Etiquetas dietéticas">
+        {# Same catalog-driven pattern as allergens (see comment above). #}
         {%- set _curd = (ingredient.dietary_tags if ingredient and ingredient.dietary_tags else '')|lower -%}
-        {%- set _dtags = [("vegan","Vegano"),("vegetarian","Vegetariano"),("gluten_free","Sin gluten"),("sugar_free","Sin azúcar"),("keto_friendly","Keto"),("high_protein","Alto en proteína")] -%}
-        {%- for code, lbl in _dtags -%}
-        <label class="chip-toggle"><input type="checkbox" data-dietary="{{ code }}" {% if code in _curd %}checked{% endif %}> {{ lbl }}</label>
+        {%- set _dietary_tags = dietary_tags or [] -%}
+        {%- for d in _dietary_tags -%}
+        <label class="chip-toggle"><input type="checkbox" data-dietary="{{ d.code }}" {% if d.code in _curd %}checked{% endif %}> {{ d.label }}</label>
         {%- endfor -%}
       </div>
       <input type="hidden" name="dietary_tags" id="dietary_tags" value="{{ ingredient.dietary_tags if ingredient and ingredient.dietary_tags else '' }}">

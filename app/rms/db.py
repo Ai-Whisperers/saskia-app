@@ -85,6 +85,12 @@ from app.rms.migrations._113_shopping_price_snapshot import _migration_113_shopp
 from app.rms.migrations._114_settings_kv_consolidation import (
     _migration_114_settings_kv_consolidation,
 )
+from app.rms.migrations._115_allergen_dietary_tags import (
+    _migration_115_allergen_dietary_tags,
+)
+from app.rms.migrations._116_eod_alert_templates import (
+    _migration_116_eod_alert_templates,
+)
 from app.rms.models.channels import Channel
 
 
@@ -4273,6 +4279,8 @@ MIGRATIONS = {
     112: _migration_112_extended_channel_check,
     113: _migration_113_shopping_price_snapshot,
     114: _migration_114_settings_kv_consolidation,
+    115: _migration_115_allergen_dietary_tags,
+    116: _migration_116_eod_alert_templates,
 }
 
 

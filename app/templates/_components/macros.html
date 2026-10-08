@@ -7,6 +7,26 @@
 {{ label }}</a>
 {%- endmacro %}
 
+{# Date-range filter chip row. Replaces native <select> for "Últimos N días" pickers.
+   Pass `options` as a list of integers (e.g. [7, 30, 90, 180]) and `current` as
+   the currently active value. Renders a GET form with hidden params for any
+   extra filters (preserves them in the URL). Each chip is a submit button. -#}
+{# Insights navigation: tabs between the 6 insight pages. Active page
+   gets aria-current=page and the active class. Use as page-header
+   action slot. #}
+{# Static-option combo. Pass options as list of (value, label) tuples
+   or a list of {value, label} dicts. Replaces banned native <select>
+   for fixed-enum pickers. The combo JS still owns the trigger button
+   + chevron + filter UX. #}
+ath, label, exact=False, current_path="", icon="") -%}
+{%- set active = (current_path == path) if exact else current_path.startswith(path) -%}
+<a href="{{ path }}" class="nav-item{% if active %} active{% endif %}" role="menuitem"{% if active %} aria-current="page"{% endif%}>
+{%- if icon %}
+  <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+{%- endif %}
+{{ label }}</a>
+{%- endmacro %}
+
 {% macro filter_chip(group, value, label, current_values, icon="") -%}
 {#- Single filter chip (toggle). `group` is the URL key (e.g. "filter_allergen"),
     `value` is the chip's value, `current_values` is the parsed set of active
@@ -39,28 +59,6 @@
    Pass `options` as a list of integers (e.g. [7, 30, 90, 180]) and `current` as
    the currently active value. Renders a GET form with hidden params for any
    extra filters (preserves them in the URL). Each chip is a submit button. -#}
-{% macro days_filter(options, current, name="days", extra_params="", label="Período", id="days-filter", data_saskia_state=None, data_saskia_page=None) -%}
-{%- set qp = request.query_params.multi_items() if request is defined else [] -%}
-<form method="get" class="filter-bar days-filter" id="{{ id }}" aria-label="{{ label }}"
-      {% if data_saskia_page %}data-saskia-page="{{ data_saskia_page }}"{% endif %}>
-  <span class="days-filter__label">{{ label }}:</span>
-  <div class="days-filter__chips" role="group" aria-label="{{ label }}">
-    {%- for opt in options -%}
-    <button type="submit" name="{{ name }}" value="{{ opt }}"
-            class="chip{% if opt == current %} chip--active{% endif %}"
-            {% if opt == current %}aria-current="true"{% endif %}
-            {% if data_saskia_state %}data-saskia-state="{{ data_saskia_state }}"{% endif %}>
-      {{ opt }}d
-    </button>
-    {%- endfor -%}
-  </div>
-  {%- for k, v in qp if k != name -%}
-  <input type="hidden" name="{{ k }}" value="{{ v }}">
-  {%- endfor -%}
-  {% if extra_params %}{{ extra_params|safe }}{% endif %}
-</form>
-{%- endmacro %}
-
 {# Insights navigation: tabs between the 6 insight pages. Active page
    gets aria-current=page and the active class. Use as page-header
    action slot. #}
@@ -106,7 +104,6 @@
 </saskia-combo>
 {%- endmacro %}
 
-<<<<<<< HEAD
 
 
 {# url_with_filters(request, overrides_dict) — build a URL that preserves
@@ -134,7 +131,6 @@
     {{- '' -}}
   {%- endif -%}
 {%- endmacro -%}
-=======
 {# Phase 23: Form field help text component
    Usage:
      {{ m.form_help("Ingresá el precio en guaraníes (sin puntos)", kind="info") }}
@@ -166,4 +162,29 @@
   <span class="form-counter__count">{{ current }}/{{ max }}</span>
 </div>
 {%- endmacro %}
->>>>>>> 4eb6b721 (Phase 23: form help text + perf monitor (sortable 69/75))
+
+{# Date-range filter chip row. Replaces native <select> for "Últimos N días" pickers.
+   Pass `options` as a list of integers (e.g. [7, 30, 90, 180]) and `current` as
+   the currently active value. Renders a GET form with hidden params for any
+   extra filters (preserves them in the URL). Each chip is a submit button. -#}
+{% macro days_filter(options, current, name="days", extra_params="", label="Período", id="days-filter", data_saskia_state=None, data_saskia_page=None) -%}
+{%- set qp = request.query_params.multi_items() if request is defined else [] -%}
+<form method="get" class="filter-bar days-filter" id="{{ id }}" aria-label="{{ label }}"
+      {% if data_saskia_page %}data-saskia-page="{{ data_saskia_page }}"{% endif %}>
+  <span class="days-filter__label">{{ label }}:</span>
+  <div class="days-filter__chips" role="group" aria-label="{{ label }}">
+    {%- for opt in options -%}
+    <button type="submit" name="{{ name }}" value="{{ opt }}"
+            class="chip{% if opt == current %} chip--active{% endif %}"
+            {% if opt == current %}aria-current="true"{% endif %}
+            {% if data_saskia_state %}data-saskia-state="{{ data_saskia_state }}"{% endif %}>
+      {{ opt }}d
+    </button>
+    {%- endfor -%}
+  </div>
+  {%- for k, v in qp if k != name -%}
+  <input type="hidden" name="{{ k }}" value="{{ v }}">
+  {%- endfor -%}
+  {% if extra_params %}{{ extra_params|safe }}{% endif %}
+</form>
+{%- endmacro %}

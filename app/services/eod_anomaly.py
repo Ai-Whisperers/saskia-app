@@ -53,6 +53,14 @@ DEFAULT_EOD_CONFIG: dict[str, int | float] = {
 }
 
 
+# Batch C (2026-10-08): titles + bodies for the 4 EOD alerts are now
+# loaded from the ``message_template`` table via get_eod_alert_template.
+# The helper falls back to the prior hardcoded copy when the table is
+# missing or the row is absent — preserves operator-observable behavior
+# even before migration 116 runs.
+from app.rms.alert_templates import get_eod_alert_template  # noqa: E402
+
+
 @dataclass(frozen=True)
 class Anomaly:
     """A single EOD anomaly. Subject/body for ``send_alert``."""
@@ -135,15 +143,12 @@ def _check_cash_zero_with_active(session: Session, day: date) -> Anomaly | None:
         return None
     if len(active) < 5:
         return None
+    tmpl = get_eod_alert_template(session, "eod.cash_zero_with_active_sales")
     return Anomaly(
         key="eod.cash_zero_with_active_sales",
         severity="info",
-        title="Cierre sin ventas en efectivo",
-        body=(
-            f"Hay {len(active)} ventas activas hoy pero ninguna en "
-            f"efectivo. Si la panadería estuvo abierta al público, "
-            f"revisá que el método de pago se esté registrando bien."
-        ),
+        title=tmpl.subject,
+        body=tmpl.render(active_count=len(active)),
     )
 
 
@@ -161,15 +166,13 @@ def _check_voided_rate(
     threshold = float(cfg["voided_rate_threshold"])
     if rate < threshold:
         return None
+    tmpl = get_eod_alert_template(session, "eod.voided_rate")
     return Anomaly(
         key="eod.voided_rate",
         severity="warn",
-        title="Tasa de anulaciones alta",
-        body=(
-            f"Hoy se anularon {voided} de {len(sales)} ventas "
-            f"({rate:.0%}). Normal es 1-3%. Si fue error de operador, "
-            f"no hay problema. Si fue sistemático, revisá el flujo de "
-            f"cobro."
+        title=tmpl.subject,
+        body=tmpl.render(
+            voided=voided, total=len(sales), rate_pct=f"{rate:.0%}"
         ),
     )
 
@@ -184,16 +187,15 @@ def _check_uninvoiced_factura(
     if not bad:
         return None
     cap = int(cfg["max_uninvoiced_ids_displayed"])
+    tmpl = get_eod_alert_template(session, "eod.uninvoiced_factura")
+    ids = ", ".join(str(s["id"]) for s in bad[:cap])
+    if len(bad) > cap:
+        ids += "..."
     return Anomaly(
         key="eod.uninvoiced_factura",
         severity="error",
-        title="Ventas con factura sin número",
-        body=(
-            f"{len(bad)} ventas marcadas como 'factura' no tienen número "
-            f"de timbrado. DNIT puede multar. IDs: "
-            + ", ".join(str(s["id"]) for s in bad[:cap])
-            + ("..." if len(bad) > cap else "")
-        ),
+        title=tmpl.subject,
+        body=tmpl.render(bad_count=len(bad), ids=ids),
     )
 
 
@@ -202,15 +204,13 @@ def _check_negative_grand_total(session: Session, day: date) -> Anomaly | None:
     total = sum(_row_total_gs(s) for s in sales if not s["voided"])
     if total >= 0:
         return None
+    tmpl = get_eod_alert_template(session, "eod.negative_grand_total")
+    ids = ", ".join(str(s["id"]) for s in sales[:10])
     return Anomaly(
         key="eod.negative_grand_total",
         severity="critical",
-        title="Total de ventas del día NEGATIVO",
-        body=(
-            f"El total de hoy (sin anuladas) es Gs. {total:,}. No debería "
-            f"ser negativo. Probable bug en la migración o en la "
-            f"lógica de descuento. IDs: " + ", ".join(str(s["id"]) for s in sales[:10])
-        ),
+        title=tmpl.subject,
+        body=tmpl.render(total=total, ids=ids),
     )
 
 
