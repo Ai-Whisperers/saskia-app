@@ -1,3 +1,10 @@
+## 2026-10-08b — clientes: 'Nunca compró' fallback for the Última compra column (T-7)
+
+The column rendered a bare `—` for customers with zero sales; the operator can't tell
+"no data" from "date column broken". Now renders `Nunca compró` (vos copy per copy-vos.md).
+Fixes `test_clientes_shows_nunca_compro_fallback`, which had been failing since 6d44dfb7
+wrote the test without the template feature (test file outside default CI lane).
+
 ## 2026-10-08a — dashboard: KPI tiles render in the empty-state branch too (P-22 regression fix)
 
 **Bug**: commit b26ce082 (10-05) added a "Sin datos este mes" empty-state branch to
