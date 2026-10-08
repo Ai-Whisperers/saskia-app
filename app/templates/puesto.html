@@ -1,6 +1,10 @@
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% block title %}Elegí el puesto{% endblock %}
 {% block content %}
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <section class="station-chooser">
   <h1>¿Qué vas a hacer?</h1>
   <p class="muted">Elegí un puesto. El trabajo de los otros queda afuera hasta que vuelvas a elegir.</p>

@@ -320,6 +320,10 @@
       'settings_seed_error': ('error', 'Error al cargar sazón.'),
       'settings_catalog_error': ('error', 'Error al guardar el catálogo.'),
       'inventory_filled_already': ('info', 'Todos los ingredientes ya están al menos a 2× el mínimo.'),
+      'eod_wrong_station_gerencia': ('warn', 'Esas casillas se guardan en Gerencia.'),
+      'eod_wrong_station_cocina': ('warn', 'Las piezas se anotan en Cocina.'),
+      'plantilla_cargada': ('success', 'Plantilla semanal cargada.'),
+      'ya_existia': ('info', 'La plantilla ya existía para esa fecha.'),
     } %}
     {% set m = messages.get(flash) %}
     {# Parameterized templates: flash like "key:value1:value2" where the

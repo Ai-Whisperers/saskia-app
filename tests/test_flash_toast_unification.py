@@ -178,6 +178,12 @@ class TestNewStaticKeys:
         ("settings_fiscal_saved", "Configuraci"),
         ("settings_theme_saved", "Tema guardado"),
         ("inventory_filled_already", "Todos los ingredientes"),
+        # Station guard warnings
+        ("eod_wrong_station_gerencia", "Gerencia"),
+        ("eod_wrong_station_cocina", "Cocina"),
+        # Production template load
+        ("plantilla_cargada", "Plantilla semanal"),
+        ("ya_existia", "ya existía"),
     ])
     def test_new_key_renders(self, template, key, expected_msg):
         rendered = _render(template, key)
