@@ -125,6 +125,8 @@ regression test `test_dashboard_empty_state_still_renders_kpi_tiles` locks it. 1
 ### Fixed
 
 - **CI hygiene (SASKIA-311)**: `app/routers/merma.py` reformatted (landed unformatted via 6568f6b3). 59 `test_no_hardcoded_dates` failures across 60 test files resolved: files whose fixed dates are load-bearing fixtures (calendar edges, tz math, far-future sentinels) now carry the `# allow-hardcoded-dates:` header marker (the test's documented escape hatch); provenance-only date mentions rewritten in prose (`test_P35_sidebar_visibility_breakpoint`). The scanner itself is unchanged.
+- **merma.html currency-drift violation** (same sibling commit): `Gs. {{ row.prior_avg }}`
+  raw rendering replaced with `m.gs_full()` (formats int Gs, thousands dot).
 
 ### Fixed
 

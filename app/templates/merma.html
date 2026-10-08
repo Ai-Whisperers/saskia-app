@@ -10,7 +10,7 @@
     {% for row in amplified_rows[:5] %}
     <li>
       {{ row.ingredient.name }} — precio {% if row.price_pct >= 0 %}+{% endif %}{{ "%.1f" | format(row.price_pct) }}%
-      (Gs. {{ row.prior_avg }} → Gs. {{ row.recent_avg }})
+      ({{ m.gs_full(row.prior_avg) }} → {{ m.gs_full(row.recent_avg) }})
     </li>
     {% endfor %}
   </ul>
