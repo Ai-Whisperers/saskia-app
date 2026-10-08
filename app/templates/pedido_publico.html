@@ -17,6 +17,9 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
       {{ shop_name }}
     </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
     <p class="text-muted" style="font-size: var(--text-sm); margin: 0;">
       Confirmación de pedido
     </p>

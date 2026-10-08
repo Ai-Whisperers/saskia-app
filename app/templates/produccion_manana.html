@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
 {# Culinary unit filter (same as produccion.html).
    g/ml → integer; und → ceil; kg/l → 1 decimal; everything else → 1 decimal. #}
@@ -21,6 +22,9 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
       Producción de mañana
     </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
     <p class="hint mt-1-only" >
       Plan generado automáticamente para el <strong>{{ tomorrow }}</strong>{% if seasonal_note %}
       · <span class="badge badge-seasonal">{{ seasonal_note }}</span>{% endif %}.

@@ -4,6 +4,9 @@
 {% block title %}Impacto de precio{% endblock %}
 {% block content %}
 <h1>Impacto: {{ impact.ingredient_name }}</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">{{ m.gs(old_price) }} → {{ m.gs(new_price) }} por unidad base.</p>
 
 <h2>Recetas afectadas ({{ impact.affected_recipes|length }})</h2>

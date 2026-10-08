@@ -4,6 +4,9 @@
 {% block title %}Stock — rotación y muerto{% endblock %}
 {% block content %}
 <h1>Rotación y stock muerto</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">Últimos {{ days }} días. El stock muerto es dinero en la estantería: insumos sin consumo en {{ dead_days }} días.</p>
 
 <h2 style="font-size:1.05rem;margin-top:var(--space-4);">💀 Stock muerto</h2>

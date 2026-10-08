@@ -120,7 +120,7 @@ def fiado_cargar(
         detail={"amount_gs": tx.amount_gs, "note": note},
     )
     session.commit()
-    return RedirectResponse(f"/fiado/{customer_id}?flash=fiado_cargo", status_code=303)
+    return RedirectResponse(f"/fiado/{customer_id}?flash=fiado_charge", status_code=303)
 
 
 @router.post("/{customer_id}/cobrar")
@@ -149,7 +149,7 @@ def fiado_cobrar(
     except (FiadoError, FiadoConflict) as e:
         return RedirectResponse(f"/fiado/{customer_id}?flash=fiado_error&msg={e}", status_code=303)
     if result is None:
-        return RedirectResponse(f"/fiado/{customer_id}?flash=fiado_duplicado", status_code=303)
+        return RedirectResponse(f"/fiado/{customer_id}?flash=fiado_duplicate", status_code=303)
     nuevo_saldo = saldo(session, customer_id)
     record_audit(
         request,
@@ -161,7 +161,7 @@ def fiado_cobrar(
     )
     session.commit()
     return RedirectResponse(
-        f"/fiado/{customer_id}?flash=fiado_pago&saldo={nuevo_saldo}", status_code=303
+        f"/fiado/{customer_id}?flash=fiado_payment&saldo={nuevo_saldo}", status_code=303
     )
 
 
@@ -184,4 +184,4 @@ def fiado_estado(
         detail={"active": acc.active},
     )
     session.commit()
-    return RedirectResponse(f"/fiado/{customer_id}?flash=fiado_estado", status_code=303)
+    return RedirectResponse(f"/fiado/{customer_id}?flash=fiado_status", status_code=303)

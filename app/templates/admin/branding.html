@@ -3,6 +3,7 @@
 {# Route: GET /admin/branding (rendered via app/routers/settings_runtime.py) #}
 
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% block title %}Branding — {{ branding.business_name }}{% endblock %}
 
 {% block head_extra %}
@@ -13,6 +14,9 @@
 <h1 style="max-width:1200px; margin: 1.5rem auto 0; padding: 0 1.5rem;">
   Branding &amp; Identidad del negocio
 </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p style="max-width:1200px; margin: 0.5rem auto 0; padding: 0 1.5rem; color: var(--muted-foreground);">
   Cambiá el nombre, logo, imagen de fondo y color del sistema. Los cambios se aplican
   inmediatamente en el sidebar, login, tickets y PDF — sin reiniciar.

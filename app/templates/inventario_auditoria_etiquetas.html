@@ -15,6 +15,9 @@
   <header style="margin-bottom:var(--space-4);">
     <a href="/inventario" class="btn btn-ghost mb-2" >← Volver a inventario</a>
     <h1>🧪 Auditoría de etiquetas</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
     <p class="text-muted" style="max-width:60ch;">
       Esta página muestra los ingredientes con contradicciones lógicas en sus
       etiquetas (ej. declara <em>sin gluten</em> pero su columna de alérgenos

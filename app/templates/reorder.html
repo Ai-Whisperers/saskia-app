@@ -4,6 +4,9 @@
 {% block title %}Reponer stock{% endblock %}
 {% block content %}
 <h1>Reponer stock</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="hint">Ingredientes con stock por debajo del mínimo. Total estimado:
   <strong>{{ m.gs_full(total_cost_gs) }}</strong>.</p>
 

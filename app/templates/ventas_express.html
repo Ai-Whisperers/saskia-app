@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 
 {% block title %}Venta Express{% endblock %}
 
@@ -32,6 +33,9 @@
 <div class="express-wrap">
   <header class="express-head" style="display:flex;justify-content:space-between;align-items:center;">
     <h1>Venta Express</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
     <a class="btn btn-ghost" href="/ventas">&larr; Volver al POS</a>
   </header>
 

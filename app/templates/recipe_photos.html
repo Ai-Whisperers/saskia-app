@@ -4,6 +4,10 @@
 {% block content %}
 {{ ui.page_header("📷 Foto de " ~ (recipe.name or ""), desc="Elegí la mejor foto del cookbook") }}
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
 {% if request.query_params.get('saved') %}
 <div class="card mb-3" style="background:#d1fae5;border-color:#10b981;">
   <div class="card-body">✅ Foto actualizada.</div>

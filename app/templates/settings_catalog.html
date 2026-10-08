@@ -5,6 +5,9 @@
 
 {% block content %}
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 {{ ui.page_header("Catálogos y configuración", desc="Gestioná categorías, canales de venta, formas de pago, plantillas de mensajes y más.
     Todos los cambios se aplican de inmediato — se aplica al instante.")
 }}

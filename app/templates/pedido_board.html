@@ -20,6 +20,9 @@
 
 <h1><svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>  Cocina — pedidos del día</h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <div class="board-filters" role="group" aria-label="Filtrar pedidos">
   <button type="button" class="filter-btn active" data-filter="all">Todos</button>
   <button type="button" class="filter-btn" data-filter="on-time">A tiempo</button>

@@ -1,10 +1,14 @@
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% block title %}Menús ejecutivos{% endblock %}
 {% block content %}
 <h1>
   <svg class="icon" aria-hidden="true"><use href="#icon-box"></use></svg>
   Menús ejecutivos
 </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="muted">Combo con precio propio: se vende como una unidad y descuenta el stock de cada producto incluido.</p>
 
 <div class="card" style="margin-top:12px;">

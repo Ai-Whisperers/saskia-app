@@ -1884,9 +1884,8 @@ def pedidos_fulfill(
         # Roll back any pending flushes from the idempotency AppMeta reservation
         # so the operator can retry without a duplicate-key error.
         session.rollback()
-        flash_msg = f"Stock+insuficiente+para+{len(shortfalls)}+ingredientes"
         return RedirectResponse(
-            url=f"/pedidos/{pedido_id}/stock-preview?flash={flash_msg}",
+            url=f"/pedidos/{pedido_id}/stock-preview?flash=pedido_stock_insufficient:{len(shortfalls)}",
             status_code=303,
         )
 
@@ -2353,8 +2352,10 @@ def pedidos_bulk_fulfill(
         except Exception:  # noqa: S110
             pass
     safe_commit(session)
-    flash = f"{fulfilled} pedido(s) marcado(s) como completado(s)"
-    return RedirectResponse(url=f"/pedidos?flash={flash}", status_code=303)
+    return RedirectResponse(
+        url=f"/pedidos?flash=pedidos_bulk_fulfilled:{fulfilled}",
+        status_code=303,
+    )
 
 
 @router.post("/bulk-cancel")
@@ -2393,5 +2394,7 @@ def pedidos_bulk_cancel(
         except Exception:  # noqa: S110
             pass
     safe_commit(session)
-    flash = f"{cancelled} pedido(s) cancelado(s)"
-    return RedirectResponse(url=f"/pedidos?flash={flash}", status_code=303)
+    return RedirectResponse(
+        url=f"/pedidos?flash=pedidos_bulk_cancelled:{cancelled}",
+        status_code=303,
+    )

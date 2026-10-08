@@ -2,6 +2,9 @@
 {% import "_components/atoms.html" as ui %}
 {% block title %}Estado del sistema · Sazón{% endblock %}
 {% block content %}
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 {{ ui.page_header(
   "Estado del sistema",
   desc="Vista consolidada para operadores. Cada tarjeta abre su detalle en JSON para profundizar.",

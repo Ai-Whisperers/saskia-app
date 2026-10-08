@@ -7,6 +7,9 @@
   Auditoría
 </h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 {% if request.query_params.get('pruned') %}
 <div class="alert alert-info" role="status">
   Se eliminaron {{ request.query_params.get('pruned') }} entradas antiguas.

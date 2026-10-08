@@ -4,6 +4,9 @@
 {% block title %}Frescura{% endblock %}
 {% block content %}
 <h1>Frescura de insumos</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">Días hasta vencer según vida útil − fecha del último registro de precio (aprox. sin lotes).</p>
 
 {% if cook_today %}

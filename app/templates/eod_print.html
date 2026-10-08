@@ -2,6 +2,7 @@
    EOD summary for the binder archive. Hides sidebar / bottom nav / form
    controls. Uses @media print to lay out on A4/Letter. #}
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 
 {% block title %}Cierre del día · Imprimible · {{ today.isoformat() }}{% endblock %}
 
@@ -14,6 +15,9 @@
 {% block content %}
 <header class="print-only" style="border-bottom: 2px solid #000; padding-bottom: 0.5rem; margin-bottom: 1rem;">
   <h1 class="m-0" >Cierre del día — {{ today.strftime("%A %d de %B de %Y") }}</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
   <p style="margin: 0.25rem 0 0;">Sazón · Asunción, Paraguay
     {% if today_is_closed %} — <strong>Día cerrado</strong>{% endif %}
   </p>

@@ -5,6 +5,10 @@
 {{ ui.page_header("💰 Precios por receta", desc="Costos y precios por canal (mayorista, minorista, distribuidor, etc.)")
 }}
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
 <div class="kpi-strip">
   {{ ui.metric_card(label="Recetas con pricing", value=rows|length, compact=True) }}
   {{ ui.metric_card(label="Costo total (batch)", value=m.gs(total_cost_gs), compact=True) }}

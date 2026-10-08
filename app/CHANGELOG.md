@@ -1,3 +1,48 @@
+## 2026-10-08f — flash-message unification (BACKLOG Tier 2, 77 sites → 47 keys)
+
+Closed BACKLOG Tier 2 item: route 77 free-text `flash=<Spanish string>` and 10
+`msg=`/`error=` redirect params through the keyed `ui.flash_toast` system so
+operators see consistent toast UX on every page.
+
+**`app/templates/_components/atoms.html`**
+- 25 new static keys (e.g. `user_created`, `caja_open`, `eod_saved`, `fiado_charge`,
+  `ocr_ok`, `sale_duplicate`, `pedido_fulfill_duplicate`)
+- New parameterized template dict for dynamic values: `users_bulk_deleted:N:M`,
+  `products_bulk_deleted:N:M`, `pedidos_bulk_fulfilled:N`, `pedidos_bulk_cancelled:N`,
+  `pedido_stock_insufficient:N`, `settings_seed_demo_count:N:N:N`,
+  `settings_seed_sazon_count:N:N:N:N:N:N`, `settings_theme_saved_p:<name>`,
+  `settings_demo_error_detail:<excname>`, `settings_seed_error_detail:<excname>`,
+  `inventory_filled:N:M:M`, `inventory_filled_already`. Mirrors the existing
+  `points_redeemed:N:D` convention.
+- All keys render with `|tojson` (XSS-safe), with `severity` ∈
+  {success, warn, error, info}.
+
+**`app/routers/*.py`** — replaced free-text sites:
+- `users.py` (7), `eod.py` (2), `caja.py` (2), `fiado.py` (4), `menu_import.py` (1),
+  `cotizador.py` (1), `produccion/templates_ops.py` (1), `settings.py` (5),
+  `customers.py` (5), `pedidos.py` (3), `inventory.py` (2), `products.py` (1)
+- URL-encoded `flash=...` strings (`%C3%A9` etc.) now use clean English keys
+  decoded at the toast layer.
+
+**`app/templates/*.html`** — added `{{ ui.flash_toast(request) }}` to all 105
+base-extending templates that were missing it (out of 114 total). Auto-import
+of `_components/atoms.html` as `ui` for templates that didn't already import it.
+Insertion point: right after `{{ ui.page_header(...) }}` (preferred) or `<h1>`
+or `{% block content %}` (fallback).
+
+**`tests/test_flash_toast_unification.py`** (new) — 82 tests covering:
+- All 22 pre-existing static keys (regression-locked)
+- All 31 new static keys
+- 13 parameterized templates (including edge cases: skipped=0, with-skipped, 6-count seed)
+- 7 free-text values correctly render NOTHING (regression)
+- Macro contract: emits `<script>`, uses `window.UIToast`, source uses `|tojson`
+- Empty flash param = no output
+- Severity is always one of {success, warn, error, info}
+- ≥60 static keys + ≥10 parameterized templates
+- All 100+ base-extending templates include the toast call
+
+Backlog item closed: **#T2-flash-messages** in IMPROVEMENT_BACKLOG.md.
+
 ## 2026-10-08e — restore 6 lost UI features + fix 4 stale tests (69 passed)
 
 Night-run triage of the full suite exposed features regressions had silently dropped, plus

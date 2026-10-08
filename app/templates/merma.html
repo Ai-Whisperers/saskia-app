@@ -22,6 +22,10 @@
      crumbs=[('Operación', '/dashboard'), ('Merma', None)]
    ) }}
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
 {# PROD-MERMA-1: callout pointing operators to /produccion for batch losses.
    Removed the recipe-card form from this page; whole-batch waste is now
    logged inline from the production shift-execution table. #}

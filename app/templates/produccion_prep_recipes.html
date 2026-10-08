@@ -28,6 +28,7 @@
   {%- endif -%}
 {%-endmacro %}
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% block title %}Recetas del día — {{ for_date_display }}{% endblock %}
 
 {% block content %}
@@ -37,6 +38,9 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg>
       Recetas para preparar hoy
     </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
     <p class="hint mt-1-only" >
       {{ for_date_display }}
       — para que cada receta pese sus ingredientes en orden.

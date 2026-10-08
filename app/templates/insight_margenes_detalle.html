@@ -4,6 +4,9 @@
 {% block title %}{{ fmt.entity_name(product) }} — historial de precios{{ ui.report_source_footer() }}{% endblock %}
 {% block content %}
 <h1>{{ fmt.entity_name(product) }} — historial de precios</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">Precio de venta observado por día (última venta del día).</p>
 
 <form class="d-flex" method="get" action="/reportes/margenes/{{ product.id }}" style="display:flex;gap:.5rem;align-items:center;margin-bottom:var(--space-3);">

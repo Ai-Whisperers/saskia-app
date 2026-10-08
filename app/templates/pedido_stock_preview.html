@@ -11,6 +11,9 @@
   <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
   Preview de stock — Pedido #{{ pedido_id }}
 </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="hint">Esto es lo que se va a descontar al cumplir el pedido.</p>
 
 {% if warnings %}

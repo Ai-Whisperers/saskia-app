@@ -8,6 +8,10 @@
      crumbs=[('Proveedores', '/suppliers'), ('Editar' if mode == 'edit' else 'Nuevo', None)]
    ) }}
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
 <form method="post" action="{{ '/suppliers/nuevo' if mode == 'new' else '/suppliers/' ~ supplier.id ~ '/editar' }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <div class="form-row">

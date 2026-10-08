@@ -10,6 +10,10 @@
      crumbs=[('Inventario', '/inventario'), (action, None)]
    ) }}
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
 <form method="post" action="/inventario{{ '/nuevo' if mode == 'new' else '/' ~ ingredient.id ~ '/editar' }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 <div class="form-grid-2col inv-form-wrap">

@@ -10,6 +10,9 @@
 
 <h1>Nuevo cliente</h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 {# POST submits to /clientes/nuevo and the router creates the row, then
    redirects to /clientes/{id} so the operator can review/add details. #}
 <form method="post" action="/clientes/nuevo" class="card" style="max-width:560px;">

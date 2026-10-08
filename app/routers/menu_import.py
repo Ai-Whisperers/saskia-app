@@ -118,7 +118,7 @@ async def ocr_confirm(
     except json.JSONDecodeError:
         confirmed = []
     if not isinstance(confirmed, list) or not confirmed:
-        return RedirectResponse("/menu-import/ocr?flash=ocr_nada", status_code=303)
+        return RedirectResponse("/menu-import/ocr?flash=ocr_empty", status_code=303)
     # Convertir a CSV y reusar import_menu_csv (dry_run=False): misma
     # vía que la importación manual → mismas validaciones y audit.
     import csv

@@ -9,6 +9,9 @@
   Precios
 </h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <div class="period-toggle flex gap-2 mb-4">
   {% for d in [7, 30, 90, 365] %}
   <a href="?{% if detail %}ingredient_id={{ detail.ingredient.id }}&amp;{% endif %}days={{ d }}"

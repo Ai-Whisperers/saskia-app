@@ -11,6 +11,10 @@
      crumbs=[('Pedidos', '/pedidos'), ('Nuevo', None)]
    ) }}
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
 <form method="post" action="/pedidos/nuevo" id="pedido-form" novalidate>
   {# T-2026-10-01: idempotency key generated client-side on first
      submit, then locked in. Backend deduplicates POSTs that arrive

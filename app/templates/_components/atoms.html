@@ -285,8 +285,127 @@
       'refund_err_cap_exceeded': ('error', 'El reembolso excede el saldo pendiente.'),
       'refund_err_eod_closed': ('error', 'No se puede reembolsar: el día ya fue cerrado.'),
       'refund_err_payment_method_mismatch': ('error', 'El método de reembolso debe coincidir con el de la venta.'),
+      'user_created': ('success', 'Usuario creado.'),
+      'user_updated': ('success', 'Usuario actualizado.'),
+      'user_deleted': ('success', 'Usuario eliminado.'),
+      'user_not_found': ('error', 'Usuario no encontrado.'),
+      'user_duplicate': ('error', 'El nombre de usuario ya existe.'),
+      'user_password_too_short': ('error', 'La contraseña debe tener al menos 6 caracteres.'),
+      'user_cannot_delete_self': ('error', 'No podés eliminarte a vos mismo.'),
+      'eod_saved': ('success', 'Cierre guardado.'),
+      'eod_duplicate': ('warn', 'Ya hiciste el cierre de hoy.'),
+      'caja_open': ('success', 'Caja abierta.'),
+      'caja_closed': ('success', 'Caja cerrada.'),
+      'caja_error': ('error', 'Error en la caja.'),
+      'fiado_charge': ('success', 'Cargo registrado en el fiado.'),
+      'fiado_payment': ('success', 'Pago de fiado registrado.'),
+      'fiado_status': ('success', 'Estado de fiado actualizado.'),
+      'fiado_duplicate': ('warn', 'Este cargo ya estaba registrado.'),
+      'fiado_error': ('error', 'Error al registrar el movimiento de fiado.'),
+      'ocr_ok': ('success', 'Menú importado por OCR.'),
+      'ocr_empty': ('warn', 'No se detectó texto en la imagen.'),
+      'empty': ('warn', 'No hay datos para mostrar.'),
+      'sin_plantilla': ('warn', 'No hay plantilla semanal cargada.'),
+      'rate_limited': ('error', 'Demasiados intentos. Esperá un momento y probá de nuevo.'),
+      'sale_duplicate': ('warn', 'Ya existe una venta con esos datos.'),
+      'pedido_fulfill_duplicate': ('warn', 'Este pedido ya fue marcado como cumplido.'),
+      'customer_deleted': ('success', 'Clientes eliminados.'),
+      'customers_merged': ('success', 'Clientes fusionados.'),
+      'customer_invalid_ids': ('error', 'IDs inválidos.'),
+      'customer_no_duplicates_selected': ('warn', 'No se seleccionaron duplicados.'),
+      'settings_info_saved': ('success', 'Información guardada.'),
+      'settings_fiscal_saved': ('success', 'Configuración fiscal guardada.'),
+      'settings_theme_saved': ('success', 'Tema guardado.'),
+      'settings_demo_error': ('error', 'Error al cargar ejemplo.'),
+      'settings_seed_error': ('error', 'Error al cargar sazón.'),
+      'settings_catalog_error': ('error', 'Error al guardar el catálogo.'),
+      'inventory_filled_already': ('info', 'Todos los ingredientes ya están al menos a 2× el mínimo.'),
     } %}
     {% set m = messages.get(flash) %}
+    {# Parameterized templates: flash like "key:value1:value2" where the
+       key is the lookup into the templates dict, and the values are
+       inserted via str.format(**). Mirrors points_redeemed:N:D pattern. #}
+    {% if not m and flash and ':' in flash and not flash.startswith('points_redeemed:') %}
+      {% set _prefix = flash.split(':', 1)[0] %}
+      {% set _rest = flash[(_prefix|length) + 1:] %}
+      {% set _vals = _rest.split(':') %}
+      {% set _templates = {
+        'users_bulk_deleted': ('success', '{deleted} cliente(s) eliminado(s){skipped}'),
+        'pedidos_bulk_fulfilled': ('success', '{count} pedido(s) marcado(s) como completado(s)'),
+        'pedidos_bulk_cancelled': ('success', '{cancelled} pedido(s) cancelado(s)'),
+        'pedido_stock_insufficient': ('error', 'Stock insuficiente para {count} ingredientes'),
+        'caja_seed_count': ('success', 'Ejemplo cargado: {products} productos, {pedidos} pedidos'),
+        'settings_theme_saved_p': ('success', 'Tema {theme} guardado'),
+        'settings_demo_error_detail': ('error', 'Error al cargar ejemplo: {detail}'),
+        'settings_seed_error_detail': ('error', 'Error al cargar sazón: {detail}'),
+        'settings_catalog_saved': ('success', '{products} productos guardados en el catálogo'),
+        'settings_seed_demo_count': ('success', 'Ejemplo cargado: {ingredients} ingredientes, {recipes} recetas, {products} productos'),
+        'settings_seed_sazon_count': ('success', 'Sazón cargado: {ingredients} ingredientes, {recipes} recetas, {products} productos, {customers} clientes, {sales} ventas, {pedidos} pedidos'),
+        'products_bulk_deleted': ('success', '{deleted} producto(s) eliminado(s){skipped}'),
+        'inventory_filled': ('success', 'Llenado a 2× min: {filled} ingrediente(s) actualizado(s), +{delta} unidades.{skipped}'),
+        'inventory_filled_already': ('info', 'Todos los ingredientes ya están al menos a 2× el mínimo.'),
+      } %}
+      {% if _prefix in _templates %}
+        {% set _tpl = _templates[_prefix] %}
+        {% set _msg = _tpl[1] %}
+        {% if _prefix == 'users_bulk_deleted' %}
+          {% set _msg = _tpl[1].format(deleted=_vals[0] if _vals|length > 0 else '?', skipped=(', ' + _vals[1] + ' omitido(s) por tener ventas') if _vals|length > 1 and _vals[1] != '0' else '') %}
+        {% elif _prefix == 'pedidos_bulk_fulfilled' %}
+          {% set _msg = _tpl[1].format(count=_vals[0] if _vals|length > 0 else '?') %}
+        {% elif _prefix == 'pedido_stock_insufficient' %}
+          {% set _msg = _tpl[1].format(count=_vals[0] if _vals|length > 0 else '?') %}
+        {% elif _prefix == 'caja_seed_count' %}
+          {% set _msg = _tpl[1].format(products=_vals[0] if _vals|length > 0 else '?', pedidos=_vals[1] if _vals|length > 1 else '?') %}
+        {% elif _prefix == 'settings_theme_saved_p' %}
+          {% set _msg = _tpl[1].format(theme=_vals[0] if _vals|length > 0 else '?') %}
+        {% elif _prefix in ('settings_demo_error_detail', 'settings_seed_error_detail') %}
+          {% set _msg = _tpl[1].format(detail=_vals[0] if _vals|length > 0 else '?') %}
+        {% elif _prefix == 'settings_catalog_saved' %}
+          {% set _msg = _tpl[1].format(products=_vals[0] if _vals|length > 0 else '?') %}
+        {% elif _prefix == 'settings_seed_demo_count' %}
+          {% set _msg = _tpl[1].format(
+            ingredients=_vals[0] if _vals|length > 0 else '?',
+            recipes=_vals[1] if _vals|length > 1 else '?',
+            products=_vals[2] if _vals|length > 2 else '?',
+          ) %}
+        {% elif _prefix == 'settings_seed_sazon_count' %}
+          {% set _msg = _tpl[1].format(
+            ingredients=_vals[0] if _vals|length > 0 else '?',
+            recipes=_vals[1] if _vals|length > 1 else '?',
+            products=_vals[2] if _vals|length > 2 else '?',
+            customers=_vals[3] if _vals|length > 3 else '?',
+            sales=_vals[4] if _vals|length > 4 else '?',
+            pedidos=_vals[5] if _vals|length > 5 else '?',
+          ) %}
+        {% elif _prefix == 'products_bulk_deleted' %}
+          {% set _msg = _tpl[1].format(
+            deleted=_vals[0] if _vals|length > 0 else '?',
+            skipped=(', ' + _vals[1] + ' omitido(s) por tener ventas') if _vals|length > 1 and _vals[1] != '0' else ''
+          ) %}
+        {% elif _prefix == 'inventory_filled' %}
+          {% set _msg = _tpl[1].format(
+            filled=_vals[0] if _vals|length > 0 else '?',
+            delta=_vals[1] if _vals|length > 1 else '?',
+            skipped=(' (' + _vals[2] + ' sin mínimo definido — no tocados.)') if _vals|length > 2 and _vals[2] != '0' else ''
+          ) %}
+        {% elif _prefix == 'inventory_filled_already' %}
+          {% set _msg = _tpl[1] %}
+        {% elif _prefix == 'pedidos_bulk_cancelled' %}
+          {% set _msg = _tpl[1].format(cancelled=_vals[0] if _vals|length > 0 else '?') %}
+        {% endif %}
+        <script>
+(function () {
+  function fire() {
+    if (window.UIToast) {
+      UIToast.show({ severity: '{{ _tpl[0] }}', message: {{ _msg|tojson }}, duration: 5000 });
+    }
+  }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', fire); }
+  else { fire(); }
+})();
+</script>
+      {% endif %}
+    {% endif %}
     {# Loyalty redeem: flash like "points_redeemed:10:10000" — show the discount #}
     {% if not m and flash and flash.startswith('points_redeemed:') %}
       {% set parts = flash.split(':') %}

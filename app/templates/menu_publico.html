@@ -14,6 +14,7 @@
    No auth: base.html renders logged-out chrome because is_logged_in
    is False — no sidebar, no search.#}
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% import "_components/macros.html" as m %}
 {% block title %}Menú — {{ shop_name }}{% endblock %}
 
@@ -25,6 +26,9 @@
   {# Header — shop brand + tagline #}
   <header class="menu-publico__header">
     <h1 class="menu-publico__shop"{%- if brand_color %} style="color: {{ brand_color }};"{% endif -%}>{{ shop_name }}</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
     <p class="menu-publico__subtitle">
       Menú digital — {{ total_items }} producto{{ '' if total_items == 1 else 's' }}
     </p>

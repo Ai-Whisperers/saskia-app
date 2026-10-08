@@ -9,6 +9,9 @@
   Comparación de períodos
 </h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">Compara ventas, cantidad de operaciones y margen entre dos períodos.</p>
 
 <form method="get" action="/reportes/comparacion" class="form mb-4">

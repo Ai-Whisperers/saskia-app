@@ -8,6 +8,9 @@
   Valor promedio del pedido
 </h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">Revenue total dividido por cantidad de ventas. Indicador clave para entender el ticket promedio.</p>
 
 <form method="get" action="/reportes/valor-pedido" class="form mb-4">

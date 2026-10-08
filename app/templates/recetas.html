@@ -13,6 +13,9 @@
 {% block content %}
 <h1>Recetas</h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p>
   <a href="/recetas/nueva" class="btn btn-primary">
     <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>

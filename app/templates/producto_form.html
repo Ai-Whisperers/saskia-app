@@ -12,6 +12,10 @@
      crumbs=[('Productos', '/productos'), (action, None)]
    ) }}
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
 {% if request.query_params.get('recipe_id') %}
   <div id="prefill-banner" style="margin-bottom: var(--space-4);">
     {{ ui.alert_row(

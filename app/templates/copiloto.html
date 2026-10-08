@@ -1,10 +1,14 @@
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% block title %}Copiloto{% endblock %}
 {% block content %}
 <h1>
   <svg class="icon" aria-hidden="true"><use href="#icon-recipe"></use></svg>
   Copiloto IA
 </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 {% if not llm_available %}
 <div class="callout callout-warning">
   IA no configurada (falta <code>ZAI_API_KEY</code>): respondo con números

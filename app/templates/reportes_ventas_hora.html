@@ -9,6 +9,9 @@
   Ventas por hora
 </h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
 <p class="text-muted">Cantidad de ventas por cada hora (0–23). Útil para planificar personal y producción.</p>
 
 {% if peak_hour >= 0 %}

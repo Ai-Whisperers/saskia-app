@@ -8,6 +8,10 @@
      crumbs=[('Suscripciones', '/suscripciones'), ('Editar' if mode == 'edit' else 'Nueva', None)]
    ) }}
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
 {% if not customers %}
 <div class="card" style="border-left: 4px solid var(--color-warn, #c08400); padding: var(--space-3);">
   <strong>No hay clientes todavía.</strong> Antes de crear una suscripción necesitás

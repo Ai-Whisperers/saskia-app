@@ -4,6 +4,10 @@
 {% block content %}
 {{ ui.page_header("📊 Benchmark — " ~ (b.product_label or ""), desc="Compará tu pricing vs competencia") }}
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
 {% if saved %}
 <div class="card mb-3" style="background:#d1fae5;border-color:#10b981;">
   <div class="card-body">

@@ -1,9 +1,13 @@
 {% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
 {% block title %}Anomalías del cierre{% endblock %}
 {% block content %}
 <div class="container">
   <h1>Anomalías del cierre</h1>
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
   {% if anomalies %}
     <p>Se encontraron <strong>{{ anomalies|length }}</strong> anomalía(s).
        {{ dispatched }} notificacion(es) enviada(s).</p>

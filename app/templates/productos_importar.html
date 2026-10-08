@@ -10,6 +10,10 @@
      crumbs=[('Productos', '/productos'), ('Importar', None)]
    ) }}
 
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
 <div class="card" style="max-width:760px;">
 
   {# ── Instructions ────────────────────────────────────────────────────────── #}
