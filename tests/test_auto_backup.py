@@ -30,7 +30,6 @@ from app.services.auto_backup import (
     prune_old_backups,
 )
 
-
 # ─── needs_auto_backup (24h threshold) ──────────────────────────────
 
 

@@ -63,7 +63,9 @@ def test_missing_reportlab_raises_503_with_install_hint() -> None:
     """Simulate reportlab not being installed → HTTPException(503) + hint."""
     # Save the real module + all reportlab.* submodules
     saved_modules = {
-        name: mod for name, mod in sys.modules.items() if name == "reportlab" or name.startswith("reportlab.")
+        name: mod
+        for name, mod in sys.modules.items()
+        if name == "reportlab" or name.startswith("reportlab.")
     }
 
     # Remove the reportlab tree

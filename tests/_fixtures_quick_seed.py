@@ -142,10 +142,11 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
             from app.rms.clock import ASUNCION_TZ
 
             _now_local = datetime.now(ASUNCION_TZ)
-            _safe_local = max(_now_local.replace(second=0, microsecond=0) - timedelta(minutes=1), _now_local.replace(hour=0, minute=1, second=0, microsecond=0))
-            sold_at_utc_naive = (
-                _safe_local.astimezone(timezone.utc).replace(tzinfo=None)
+            _safe_local = max(
+                _now_local.replace(second=0, microsecond=0) - timedelta(minutes=1),
+                _now_local.replace(hour=0, minute=1, second=0, microsecond=0),
             )
+            sold_at_utc_naive = _safe_local.astimezone(timezone.utc).replace(tzinfo=None)
             sale = apply_sale(
                 s,
                 product_id=p.id,

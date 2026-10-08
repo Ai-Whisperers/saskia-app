@@ -16,10 +16,10 @@ used by tests + small scripts. The production backup scheduler
 AIW_RMS_BACKUP_HOURS env var. Wiring the SettingsKV values into the
 scheduler is a separate decision — see the Batch B4 CHANGELOG entry.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from app.rms.config import ASUNCION_TZ
 from app.services.auto_backup import (
@@ -27,8 +27,6 @@ from app.services.auto_backup import (
     DEFAULT_BACKUP_CONFIG,
     DEFAULT_KEEP_LAST_N,
     WARN_THRESHOLD_DAYS,
-    backup_filename,
-    last_backup_at,
     needs_auto_backup,
     needs_warning,
     prune_old_backups,
@@ -68,19 +66,13 @@ def test_needs_auto_backup_explicit_threshold_overrides():
 def test_needs_auto_backup_cfg_override_lowers_threshold():
     """backup_cfg={"auto_threshold_hours": 1} → 2-hour-old backup fires."""
     two_hours_ago = datetime.now(ASUNCION_TZ) - timedelta(hours=2)
-    assert (
-        needs_auto_backup(two_hours_ago, backup_cfg={"auto_threshold_hours": 1})
-        is True
-    )
+    assert needs_auto_backup(two_hours_ago, backup_cfg={"auto_threshold_hours": 1}) is True
 
 
 def test_needs_auto_backup_cfg_override_raises_threshold():
     """backup_cfg={"auto_threshold_hours": 100} → 48h backup doesn't fire."""
     ancient = datetime.now(ASUNCION_TZ) - timedelta(hours=48)
-    assert (
-        needs_auto_backup(ancient, backup_cfg={"auto_threshold_hours": 100})
-        is False
-    )
+    assert needs_auto_backup(ancient, backup_cfg={"auto_threshold_hours": 100}) is False
 
 
 def test_needs_warning_default_uses_7d():
@@ -95,10 +87,7 @@ def test_needs_warning_default_uses_7d():
 def test_needs_warning_cfg_override_raises_threshold():
     """backup_cfg={"warn_threshold_days": 30} → 10d backup doesn't fire."""
     ten_days = datetime.now(ASUNCION_TZ) - timedelta(days=10)
-    assert (
-        needs_warning(ten_days, backup_cfg={"warn_threshold_days": 30})
-        is False
-    )
+    assert needs_warning(ten_days, backup_cfg={"warn_threshold_days": 30}) is False
 
 
 def test_prune_old_backups_default_keeps_30(tmp_path):
@@ -149,21 +138,18 @@ def test_prune_old_backups_explicit_arg_overrides_cfg(tmp_path):
         mtime = (base + timedelta(seconds=i)).timestamp()
         _os.utime(f, (mtime, mtime))
 
-    deleted = prune_old_backups(
-        tmp_path, keep_last_n=2, backup_cfg={"keep_last_n": 100}
-    )
+    deleted = prune_old_backups(tmp_path, keep_last_n=2, backup_cfg={"keep_last_n": 100})
     assert deleted == 8
     assert len(list(tmp_path.glob("rms-backup-*.xlsx"))) == 2
 
 
 def test_get_backup_config_returns_full_defaults():
     """get_backup_config(session) → dict == DEFAULT_BACKUP_CONFIG."""
+    import app.rms.settings_registry as settings_mod
     from app.rms.settings_runtime import (
         DEFAULT_BACKUP_CONFIG,
         get_backup_config,
     )
-
-    import app.rms.settings_registry as settings_mod
 
     orig = settings_mod.get_setting_value
     settings_mod.get_setting_value = lambda session, key: None
@@ -177,9 +163,8 @@ def test_get_backup_config_returns_full_defaults():
 
 def test_get_backup_config_coerces_stored_value():
     """Stored '48' for auto_threshold_hours is coerced to int 48."""
-    from app.rms.settings_runtime import get_backup_config
-
     import app.rms.settings_registry as settings_mod
+    from app.rms.settings_runtime import get_backup_config
 
     def fake(session, key):
         if key == "backup.auto_threshold_hours":

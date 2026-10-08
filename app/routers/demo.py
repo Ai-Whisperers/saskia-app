@@ -78,9 +78,7 @@ def demo_seed(session: Any = Depends(get_session)) -> JSONResponse:
 
         logger = logging.getLogger(__name__)
         logger.exception("Demo seed failed for /demo/seed")
-        raise HTTPException(
-            status_code=500, detail="Demo seed failed. See server logs."
-        ) from exc
+        raise HTTPException(status_code=500, detail="Demo seed failed. See server logs.") from exc
 
     return JSONResponse(
         {
