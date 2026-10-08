@@ -89,3 +89,7 @@ app/static/branding/
 # Receipt oracle debug output (test artifact; recreated on demand via
 # UPDATE_RECIBO_GOLDEN=1 or by running tests/test_recibo_oracle.py)
 tests/fixtures/recibo/_actual.html
+
+# Git bundle archives (290 MB+ for full repo history; kept on local disk only)
+# The ABANDONED.md note in .hermes/archives/ documents what they contain.
+.hermes/archives/*.bundle
