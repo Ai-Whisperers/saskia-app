@@ -119,6 +119,7 @@ CRUMBS: dict[str, list[tuple[str, str | None]]] = {
     "/proveedores": [("Inicio", "/"), ("Proveedores", None)],
     "/wishlist": [("Inicio", "/"), ("Equipamiento", None)],
     "/clientes": [("Inicio", "/"), ("Clientes", None)],
+    "/clientes/nuevo": [("Inicio", "/"), ("Clientes", "/clientes"), ("Nuevo", None)],
     "/suscripciones": [("Inicio", "/"), ("Suscripciones", None)],
     "/suscripciones/nuevo": [("Inicio", "/"), ("Suscripciones", "/suscripciones"), ("Nueva", None)],
     "/reportes": [("Inicio", "/"), ("Reportes", None)],

@@ -5,19 +5,20 @@
 {% block title %}Nuevo pedido{% endblock %}
 
 {% block content %}
-{{ ui.page_header(
-     title='Nuevo pedido',
-     desc='Creá un pedido nuevo. Empezá tipeando el nombre del cliente.',
-     crumbs=[('Pedidos', '/pedidos'), ('Nuevo', None)]
-   ) }}
-
-<form method="post" action="/pedidos/nuevo" id="pedido-form" novalidate>
+<form method="post" action="/pedidos/nuevo" id="pedido-form" class="order-create" novalidate>
   {# T-2026-10-01: idempotency key generated client-side on first
      submit, then locked in. Backend deduplicates POSTs that arrive
      within 5s with the same key. UUID is generated lazily on the
      first submit attempt so a stale tab doesn't leak. #}
   <input type="hidden" name="idempotency_key" id="idempotency-key-input" value="">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="order-create__main">
+  <header class="order-create__title">
+    <h1>Nuevo pedido</h1>
+  </header>
+
+  <section class="order-section" aria-labelledby="order-client-heading">
+    <h2 id="order-client-heading">Cliente</h2>
   {# ── Cliente (combobox) ─────────────────────────────────────────
      Single field that:
      - type-ahead filters existing customers (live API search)
@@ -25,8 +26,9 @@
      - typing a free-form name creates a "new" customer at submit time
      - works without JS (POSTs both customer_name + customer_id)
   #}
-  <div class="form-row">
-    <label for="customer_picker_input">Cliente</label>
+  <div class="order-client-row">
+    <div class="form-row order-client-search">
+    <label for="customer_picker_input" class="sr-only">Cliente</label>
     {{ ui.combo_field(
       name='customer_id',
       placeholder='Buscá por nombre o teléfono — escribí 2+ letras',
@@ -36,6 +38,9 @@
       value=(preset_customer.id if preset_customer else none),
       display=(preset_customer.name if preset_customer else none)
     ) }}
+    </div>
+    <button type="button" class="btn" id="open-new-customer">+ Nuevo</button>
+  </div>
     <small class="hint">
       Escribí 2+ letras para buscar clientes existentes.
       Si no aparece, simplemente seguí escribiendo — se crea al guardar.
@@ -58,7 +63,6 @@
       <strong>📦 Suscripciones activas:</strong>
       <ul class="sub-list" style="list-style:none;padding-left:0;margin:6px 0 0 0;"></ul>
     </div>
-  </div>
 
   {# ── Crear cliente nuevo (colapsado) ─────────────────────────
      El combo de arriba ya soporta "tipear nombre libre → al guardar
@@ -68,14 +72,7 @@
   #}
   <div class="form-row">
     <details id="pedido-new-customer-panel" class="customer-picker-new-panel">
-      <summary style="cursor:pointer;font-size:var(--text-sm);color:var(--color-accent);
-                       display:inline-flex;align-items:center;gap:var(--space-1);
-                       padding:var(--space-2) 0;">
-        <svg class="icon" aria-hidden="true" style="width:1em;height:1em">
-          <use href="#icon-plus"/>
-        </svg>
-        Crear cliente nuevo con teléfono / RUC / notas
-      </summary>
+      <summary>Completar ficha (teléfono, RUC, notas)</summary>
       <div id="pedido-new-customer-error" class="customer-picker-error" hidden></div>
       <div class="grid grid-2 mt-3" >
         <div class="form-row mb-2" >
@@ -142,6 +139,13 @@
       }
 
       cancel && cancel.addEventListener('click', function () { panel.open = false; clearError(); });
+
+      var openBtn = document.getElementById('open-new-customer');
+      openBtn && openBtn.addEventListener('click', function () {
+        panel.open = true;
+        var nameEl = document.getElementById('pedido-new-customer-name');
+        if (nameEl) nameEl.focus();
+      });
 
       btn.addEventListener('click', function () {
         clearError();
@@ -280,18 +284,129 @@
       </div>
     </div>
   </div>
+  </section>
 
-  <div class="grid grid-2">
-    <div class="form-row">
-      <label for="promised_date">Fecha prometida</label>
-      <ui-date id="promised_date" name="promised_date" value="{{ default_promised_date }}"></ui-date>
+  <section class="order-section" aria-labelledby="order-entrega-heading">
+    <h2 id="order-entrega-heading">Entrega</h2>
+    <div class="order-entrega-row">
+      <label class="order-field">
+        <span>Cómo lo recibe</span>
+        <select id="fulfillment-mode" aria-label="Cómo lo recibe">
+          <option value="pickup">Retiro</option>
+          <option value="delivery">Delivery</option>
+        </select>
+      </label>
+      <div class="order-field">
+        <label for="promised_date">Fecha</label>
+        <ui-date id="promised_date" name="promised_date" value="{{ default_promised_date }}"></ui-date>
+      </div>
+      <label class="order-field">
+        <span>Cuándo</span>
+        <select id="when-mode" aria-label="Cuándo">
+          <option value="asap">Lo antes posible</option>
+          <option value="time">Hora específica</option>
+          <option value="window">Franja horaria</option>
+          <option value="scheduled">Otro día</option>
+        </select>
+      </label>
     </div>
-    <div class="form-row">
-      <label for="promised_time">Hora (opcional)</label>
+    <div id="promised-time-wrap" hidden>
+      <label for="promised_time">Hora</label>
       <input type="time" id="promised_time" name="promised_time">
     </div>
-  </div>
 
+    {# ── Phase 13: ventana preferida de entrega (not a delivery promise) ── #}
+    <fieldset class="ventana-preferida">
+      <legend>Ventana de entrega</legend>
+      <label class="radio-row">
+        <input type="radio" name="delivery_preference" value="asap" checked>
+        <span>Lo antes posible</span>
+      </label>
+      <label class="radio-row">
+        <input type="radio" name="delivery_preference" value="window">
+        <span>En una franja horaria (preferida, no es garantía)</span>
+      </label>
+      <div class="ventana-window d-grid" id="ventana-window-fields" hidden
+           style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);" class="grid-2-col">
+        <div>
+          <label for="delivery_window_start">Desde</label>
+          <input type="time" id="delivery_window_start" name="delivery_window_start">
+        </div>
+        <div>
+          <label for="delivery_window_end">Hasta</label>
+          <input type="time" id="delivery_window_end" name="delivery_window_end">
+        </div>
+      </div>
+      <label class="radio-row">
+        <input type="radio" name="delivery_preference" value="scheduled">
+        <span>Programar para otro día</span>
+      </label>
+      <div class="ventana-scheduled" id="ventana-scheduled-fields" hidden>
+        <label for="delivery_scheduled_date">Fecha programada</label>
+        <input type="date" id="delivery_scheduled_date" name="delivery_scheduled_date">
+        <small class="muted">(la franja horaria se mantiene arriba si la elegiste)</small>
+      </div>
+    </fieldset>
+  </section>
+
+  <section class="order-section" aria-labelledby="order-products-heading">
+    <div class="order-section__head">
+      <h2 id="order-products-heading">Productos</h2>
+      <button type="button" class="btn" id="add-line-btn">+ Agregar</button>
+    </div>
+  <table class="table" id="lines-table">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="num" style="width: 100px;">Cantidad</th>
+        <th class="num" style="width: 130px;">Precio</th>
+        <th class="actions"></th>
+      </tr>
+    </thead>
+    <tbody id="lines-body">
+      <tr class="line-row">
+        <td>
+          {{ ui.combo_field(
+            name='line_product_id',
+            placeholder='Escribí para buscar (muffin, factura, pan…)',
+            endpoint='/productos/api/search/',
+            value_field='id',
+            label_field='name'
+          ) }}
+        </td>
+        <td class="num">
+          <input type="number" name="line_qty" min="0.01" step="0.01" value="1" required>
+        </td>
+        <td class="num">
+          <div class="currency-input-wrap">
+            <input type="number" name="line_unit_price_gs" min="0" step="100" value="0" inputmode="numeric" class="currency-input">
+          </div>
+        </td>
+        <td class="actions">
+          <button type="button" class="btn btn-sm btn-danger-ghost" onclick="removeLine(this)">Quitar</button>
+        </td>
+      </tr>
+      {# T-2026-10-01: per-line stock warning span. Hidden by default;
+         pedido-combos.js reveals + fills it after the forecast call. #}
+      <tr class="line-row-meta" hidden>
+        <td colspan="4" style="padding:4px 8px;">
+          <span class="line-stock-warning"
+                style="display:inline-block;padding:4px 10px;border-radius:4px;
+                       font-size:var(--text-sm);background:#fff7e6;border:1px solid #f0c674;
+                       color:#7a4f01;">
+          </span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  </section>
+
+
+  <section class="order-section order-section--quiet" aria-labelledby="order-more-heading">
+    <h2 id="order-more-heading">Detalles adicionales</h2>
+    <details>
+      <summary>Canal y pago</summary>
   <div class="grid grid-2">
     <div class="form-row">
       <label for="channel">Canal</label>
@@ -318,6 +433,11 @@
       ) }}
     </div>
   </div>
+    </details>
+
+    <details id="delivery-details">
+      <summary>Datos de entrega</summary>
+      <div id="delivery-fields">
 
   {% if delivery_zones %}
   <div class="form-row mt-2">
@@ -457,39 +577,22 @@
       </details>
     </div>
 
-    {# ── Phase 13: ventana preferida de entrega (not a delivery promise) ── #}
-    <fieldset class="ventana-preferida">
-      <legend>Ventana de entrega</legend>
-      <label class="radio-row">
-        <input type="radio" name="delivery_preference" value="asap" checked>
-        <span>Lo antes posible</span>
-      </label>
-      <label class="radio-row">
-        <input type="radio" name="delivery_preference" value="window">
-        <span>En una franja horaria (preferida, no es garantía)</span>
-      </label>
-      <div class="ventana-window d-grid" id="ventana-window-fields" hidden
-           style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);" class="grid-2-col">
-        <div>
-          <label for="delivery_window_start">Desde</label>
-          <input type="time" id="delivery_window_start" name="delivery_window_start">
-        </div>
-        <div>
-          <label for="delivery_window_end">Hasta</label>
-          <input type="time" id="delivery_window_end" name="delivery_window_end">
-        </div>
-      </div>
-      <label class="radio-row">
-        <input type="radio" name="delivery_preference" value="scheduled">
-        <span>Programar para otro día</span>
-      </label>
-      <div class="ventana-scheduled" id="ventana-scheduled-fields" hidden>
-        <label for="delivery_scheduled_date">Fecha programada</label>
-        <input type="date" id="delivery_scheduled_date" name="delivery_scheduled_date">
-        <small class="muted">(la franja horaria se mantiene arriba si la elegiste)</small>
-      </div>
-    </fieldset>
 
+    <div class="form-row" id="save-address-row" hidden>
+      <label class="switch-toggle" for="save_address">
+        <input type="checkbox" id="save_address" name="save_address" value="1">
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+        <span>Guardar dirección en la ficha del cliente</span>
+      </label>
+      <input type="text" id="address_label" name="address_label"
+             placeholder="Etiqueta: casa / oficina / mamá…"
+             style="margin-top: var(--space-2);" maxlength="32">
+    </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Facturación</summary>
     {# ── Phase 13: multi-profile facturación (RUC + Razón Social paired) ── #}
     <div class="form-row" id="invoice-profile-row">
       <label for="customer_invoice_profile_select">Perfil de facturación</label>
@@ -526,104 +629,30 @@
                value="{{ preset_customer.invoice_name or '' if preset_customer else '' }}">
       </div>
     </div>
-    <div class="form-row" id="save-address-row" hidden>
-      <label class="switch-toggle" for="save_address">
-        <input type="checkbox" id="save_address" name="save_address" value="1">
-        <span class="switch-track"><span class="switch-thumb"></span></span>
-        <span>Guardar dirección en la ficha del cliente</span>
-      </label>
-      <input type="text" id="address_label" name="address_label"
-             placeholder="Etiqueta: casa / oficina / mamá…"
-             style="margin-top: var(--space-2);" maxlength="32">
-    </div>
 
+    </details>
+
+    <details>
+      <summary>Notas</summary>
   <div class="form-row">
     <label for="notes">Notas</label>
     <textarea id="notes" name="notes" rows="2"
               placeholder="Sin TACC, retirar antes de las 17h, etc."></textarea>
   </div>
-
-  <script>
-    // P3: reveal "guardar dirección" once an address is typed (JS-on only;
-    // the row starts hidden so no-JS forms are unaffected).
-    (function () {
-      var addr = document.getElementById("address_text");
-      var row = document.getElementById("save-address-row");
-      if (!addr || !row) return;
-      addr.addEventListener("input", function () {
-        if (addr.value.trim()) {
-          if (row.hidden && row.dataset.customerHasAddresses !== "1") row.hidden = false;
-        } else {
-          row.hidden = true;
-        }
-      });
-    })();
-  </script>
-
-  <h2 style="margin-top: var(--space-5);">
-    <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
-    Ítems del pedido
-  </h2>
-  <p class="hint">Tocá «+ Agregar ítem» para sumar líneas. El precio queda guardado al crear el pedido.</p>
-
-  <table class="table" id="lines-table">
-    <thead>
-      <tr>
-        <th>Producto</th>
-        <th class="num" style="width: 100px;">Cantidad</th>
-        <th class="num" style="width: 130px;">Precio unit. (Gs.)</th>
-        <th class="actions"></th>
-      </tr>
-    </thead>
-    <tbody id="lines-body">
-      <tr class="line-row">
-        <td>
-          {{ ui.combo_field(
-            name='line_product_id',
-            placeholder='Escribí para buscar (muffin, factura, pan…)',
-            endpoint='/productos/api/search/',
-            value_field='id',
-            label_field='name'
-          ) }}
-        </td>
-        <td class="num">
-          <input type="number" name="line_qty" min="0.01" step="0.01" value="1" required>
-        </td>
-        <td class="num">
-          <div class="currency-input-wrap">
-            <input type="number" name="line_unit_price_gs" min="0" step="100" value="0" inputmode="numeric" class="currency-input">
-          </div>
-        </td>
-        <td class="actions">
-          <button type="button" class="btn btn-sm btn-danger-ghost" onclick="removeLine(this)">Quitar</button>
-        </td>
-      </tr>
-      {# T-2026-10-01: per-line stock warning span. Hidden by default;
-         pedido-combos.js reveals + fills it after the forecast call. #}
-      <tr class="line-row-meta" hidden>
-        <td colspan="4" style="padding:4px 8px;">
-          <span class="line-stock-warning"
-                style="display:inline-block;padding:4px 10px;border-radius:4px;
-                       font-size:var(--text-sm);background:#fff7e6;border:1px solid #f0c674;
-                       color:#7a4f01;">
-          </span>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-
-  <button type="button" class="btn" id="add-line-btn">
-    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-    Agregar ítem
-  </button>
-
-  <div class="form-actions mt-4">
-    <button type="submit" class="btn btn-primary" id="submit-btn">
-      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-      Crear pedido
-    </button>
-    <a href="/pedidos" class="btn btn-ghost">Cancelar</a>
+    </details>
+  </section>
   </div>
+
+  <aside class="order-summary" aria-labelledby="order-summary-heading">
+    <h2 id="order-summary-heading">Resumen</h2>
+    <p id="order-summary-count">0 productos</p>
+    <ul id="order-summary-lines"></ul>
+    <p class="order-summary__total"><span>Total</span> <strong id="order-summary-total">Gs. 0</strong></p>
+    <div class="order-summary__actions">
+      <a href="/pedidos" class="btn">Cancelar</a>
+      <button type="submit" class="btn btn-primary" id="submit-btn">Crear pedido</button>
+    </div>
+  </aside>
 </form>
 
 <template id="line-row-template">
@@ -663,4 +692,165 @@
 <script id="customer-prefill" type="application/json">{{ customer_prefill | tojson }}</script>
 {% endif %}
 <script src="/static/pedido-prefill.js" defer></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    var form = document.getElementById("pedido-form");
+    var when = document.getElementById("when-mode");
+    var timeWrap = document.getElementById("promised-time-wrap");
+    var timeInput = document.getElementById("promised_time");
+    var fulfillment = document.getElementById("fulfillment-mode");
+    var deliveryDetails = document.getElementById("delivery-details");
+
+    function preferenceRadio(value) {
+      return document.querySelector(
+        'input[name="delivery_preference"][value="' + value + '"]'
+      );
+    }
+
+    function applyWhen(dispatch) {
+      if (!when) return;
+      var mode = when.value;
+      var pref = mode === "window" || mode === "scheduled" ? mode : "asap";
+      var radio = preferenceRadio(pref);
+      if (radio) {
+        radio.checked = true;
+        if (dispatch) radio.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      if (timeWrap) timeWrap.hidden = mode !== "time";
+    }
+
+    if (when) {
+      var checked = document.querySelector('input[name="delivery_preference"]:checked');
+      if (timeInput && timeInput.value) when.value = "time";
+      else if (checked && (checked.value === "window" || checked.value === "scheduled")) {
+        when.value = checked.value;
+      }
+      applyWhen(false);
+      when.addEventListener("change", function () { applyWhen(true); });
+    }
+
+    function syncFulfillment(openIfDelivery) {
+      if (!form || !fulfillment) return;
+      var addr = document.getElementById("address_text");
+      var zone = form.querySelector('ui-combo[name="delivery_zone_id"]');
+      var zoneValue = zone && typeof zone.getValue === "function" ? zone.getValue() : "";
+      if ((addr && addr.value.trim()) || zoneValue) fulfillment.value = "delivery";
+      var delivery = fulfillment.value === "delivery";
+      form.classList.toggle("is-delivery", delivery);
+      if (delivery && openIfDelivery && deliveryDetails) deliveryDetails.open = true;
+    }
+
+    if (fulfillment) {
+      fulfillment.addEventListener("change", function () { syncFulfillment(true); });
+      syncFulfillment(false);
+      setTimeout(function () { syncFulfillment(false); }, 0);
+    }
+
+    var addrInput = document.getElementById("address_text");
+    var saveRow = document.getElementById("save-address-row");
+    if (addrInput && saveRow) {
+      addrInput.addEventListener("input", function () {
+        if (addrInput.value.trim()) {
+          if (saveRow.hidden && saveRow.dataset.customerHasAddresses !== "1") saveRow.hidden = false;
+        } else {
+          saveRow.hidden = true;
+        }
+        syncFulfillment(false);
+      });
+    }
+
+    if (form) {
+      form.addEventListener("submit", function () {
+        if (form.classList.contains("is-delivery")) return;
+        var zone = form.querySelector('ui-combo[name="delivery_zone_id"]');
+        if (zone && typeof zone.clear === "function") zone.clear();
+        var box = document.getElementById("delivery-fields");
+        if (!box) return;
+        box.querySelectorAll("input, textarea, select").forEach(function (el) {
+          if (el.type === "checkbox" || el.type === "radio") el.checked = false;
+          else el.value = "";
+        });
+      });
+    }
+
+    var countEl = document.getElementById("order-summary-count");
+    var linesEl = document.getElementById("order-summary-lines");
+    var totalEl = document.getElementById("order-summary-total");
+    var body = document.getElementById("lines-body");
+
+    function formatGs(amount) {
+      var value = Math.round(Number(amount) || 0);
+      var sign = value < 0 ? "-" : "";
+      var digits = String(Math.abs(value));
+      var grouped = "";
+      while (digits.length > 3) {
+        grouped = "." + digits.slice(-3) + grouped;
+        digits = digits.slice(0, -3);
+      }
+      return "Gs. " + sign + digits + grouped;
+    }
+
+    function lineLabel(row) {
+      var combo = row.querySelector("ui-combo");
+      if (!combo) return "Producto";
+      if (typeof combo.getDisplay === "function" && combo.getDisplay()) return combo.getDisplay();
+      return combo.getAttribute("display") || "Producto";
+    }
+
+    function refreshSummary() {
+      if (!body || !countEl || !linesEl || !totalEl) return;
+      var qtySum = 0;
+      var total = 0;
+      var items = [];
+      body.querySelectorAll(".line-row").forEach(function (row) {
+        var combo = row.querySelector("ui-combo");
+        var selected = combo && typeof combo.getValue === "function" ? combo.getValue() : "";
+        var qtyEl = row.querySelector('[name="line_qty"]');
+        var priceEl = row.querySelector('[name="line_unit_price_gs"]');
+        var qty = qtyEl ? parseFloat(qtyEl.value) : 0;
+        var price = priceEl ? parseFloat(priceEl.value) : 0;
+        if (!selected && !(isFinite(price) && price > 0)) return;
+        if (!isFinite(qty) || qty <= 0) return;
+        qtySum += qty;
+        total += qty * (isFinite(price) ? price : 0);
+        items.push(lineLabel(row) + "  × " + qty);
+      });
+      var shown = Math.round(qtySum) === qtySum ? String(qtySum) : String(Math.round(qtySum * 100) / 100);
+      countEl.textContent = shown + (qtySum === 1 ? " producto" : " productos");
+      linesEl.textContent = "";
+      items.slice(0, 8).forEach(function (text) {
+        var li = document.createElement("li");
+        li.textContent = text;
+        linesEl.appendChild(li);
+      });
+      totalEl.textContent = formatGs(total);
+    }
+
+    var picker = document.getElementById("customer_picker_input");
+    if (picker) {
+      picker.addEventListener("change", function () {
+        var tries = 0;
+        var timer = setInterval(function () {
+          tries += 1;
+          syncFulfillment(false);
+          var checked = document.querySelector('input[name="delivery_preference"]:checked');
+          if (when && checked && (checked.value === "window" || checked.value === "scheduled")) {
+            when.value = checked.value;
+            if (timeWrap) timeWrap.hidden = true;
+          }
+          if (tries >= 8) clearInterval(timer);
+        }, 250);
+      });
+    }
+
+    if (form) {
+      form.addEventListener("input", refreshSummary);
+      form.addEventListener("change", refreshSummary);
+    }
+    if (body && window.MutationObserver) {
+      new MutationObserver(refreshSummary).observe(body, { childList: true, subtree: true });
+    }
+    refreshSummary();
+  });
+</script>
 {% endblock %}

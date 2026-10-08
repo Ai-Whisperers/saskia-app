@@ -4,45 +4,55 @@
 {% block content %}
 {{ ui.page_header(
      title=('Editar' if mode == 'edit' else 'Nuevo') ~ ' proveedor',
-     desc='Datos de contacto y notas del proveedor.',
-     crumbs=[('Proveedores', '/suppliers'), ('Editar' if mode == 'edit' else 'Nuevo', None)]
+     desc='Contacto y datos de facturación.'
    ) }}
 
-<form method="post" action="{{ '/suppliers/nuevo' if mode == 'new' else '/suppliers/' ~ supplier.id ~ '/editar' }}">
+<form method="post" action="{{ '/suppliers/nuevo' if mode == 'new' else '/suppliers/' ~ supplier.id ~ '/editar' }}" class="sheet-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <div class="form-row">
-    <label for="name">Nombre del proveedor *</label>
-    <input type="text" id="name" name="name" required maxlength="120" value="{{ supplier.name if supplier else '' }}" placeholder="Ej: Harinas del Paraguay S.A.">
+  <div class="sheet-grid">
+    <section class="order-section">
+      <h2>Contacto</h2>
+      <div class="form-row">
+        <label for="name">Nombre</label>
+        <input type="text" id="name" name="name" required maxlength="120" value="{{ supplier.name if supplier else '' }}" placeholder="Ej: Harinas del Paraguay S.A.">
+      </div>
+      <div class="form-row">
+        <label for="contact_name">Persona de contacto</label>
+        <input type="text" id="contact_name" name="contact_name" maxlength="120" value="{{ supplier.contact_name if supplier and supplier.contact_name else '' }}">
+      </div>
+      <div class="sheet-pair">
+        <div class="form-row">
+          <label for="phone">Teléfono</label>
+          <input type="text" id="phone" name="phone" maxlength="32" value="{{ supplier.phone if supplier and supplier.phone else '' }}">
+        </div>
+        <div class="form-row">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" maxlength="120" value="{{ supplier.email if supplier and supplier.email else '' }}">
+        </div>
+      </div>
+    </section>
+    <section class="order-section">
+      <h2>Facturación</h2>
+      <div class="form-row">
+        <label for="ruc">RUC / Cédula</label>
+        <input type="text" id="ruc" name="ruc" maxlength="20" value="{{ supplier.ruc if supplier and supplier.ruc else '' }}">
+      </div>
+      <div class="form-row">
+        <label for="address">Dirección</label>
+        <textarea id="address" name="address" rows="3" maxlength="200">{{ supplier.address if supplier and supplier.address else '' }}</textarea>
+      </div>
+    </section>
   </div>
-  <div class="form-row">
-    <label for="contact_name">Persona de contacto</label>
-    <input type="text" id="contact_name" name="contact_name" maxlength="120" value="{{ supplier.contact_name if supplier and supplier.contact_name else '' }}" placeholder="Ej: Juan Pérez">
-  </div>
-  <div class="grid grid-2">
+  <details>
+    <summary>Notas</summary>
     <div class="form-row">
-      <label for="phone">Teléfono</label>
-      <input type="text" id="phone" name="phone" maxlength="32" value="{{ supplier.phone if supplier and supplier.phone else '' }}" placeholder="Ej: +595 21 123 456">
+      <label for="notes" class="sr-only">Notas</label>
+      <textarea id="notes" name="notes" rows="2" maxlength="2000">{{ supplier.notes if supplier and supplier.notes else '' }}</textarea>
     </div>
-    <div class="form-row">
-      <label for="email">Email</label>
-      <input type="email" id="email" name="email" maxlength="120" value="{{ supplier.email if supplier and supplier.email else '' }}" placeholder="Ej: ventas@harinas.com.py">
-    </div>
-  </div>
-  <div class="form-row">
-    <label for="address">Dirección</label>
-    <textarea id="address" name="address" rows="2" maxlength="200">{{ supplier.address if supplier and supplier.address else '' }}</textarea>
-  </div>
-  <div class="form-row">
-    <label for="ruc">RUC / Cédula</label>
-    <input type="text" id="ruc" name="ruc" maxlength="20" value="{{ supplier.ruc if supplier and supplier.ruc else '' }}" placeholder="Ej: 12345678-9">
-  </div>
-  <div class="form-row">
-    <label for="notes">Notas</label>
-    <textarea id="notes" name="notes" rows="2" maxlength="2000">{{ supplier.notes if supplier and supplier.notes else '' }}</textarea>
-  </div>
-  <div class="form-actions">
-    <button type="submit" class="btn btn-primary">Guardar</button>
+  </details>
+  <div class="sheet-footer">
     <a href="/suppliers" class="btn">Cancelar</a>
+    <button type="submit" class="btn btn-primary">Guardá</button>
   </div>
 </form>
 

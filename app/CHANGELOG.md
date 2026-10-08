@@ -1,3 +1,39 @@
+# App CHANGELOG — Sazón
+
+> **For Kiki, the operator, and any agent.** App-level changelog separate from the
+> repo-level changelog. Tracks changes to the `app/` source code, not the docs.
+
+## [Unreleased]
+
+### Changed — Compact forms across create and edit screens (2026-10-08)
+
+Ingredient, customer, supplier, subscription, recipe, and waste
+forms use the same sections, paired fields, and sticky save bar as
+new orders and products. Optional notes and profile fields stay on
+the page behind a disclosure. Saved fields are unchanged.
+
+### Changed — Nuevo producto uses the same compact form (2026-10-08)
+
+The product form is grouped into general information, prices, and
+recipe, with certification, the tablet menu, and notes behind
+disclosures. Tags are a searchable list. SKU generation, prices, IVA,
+recipe linking, and the saved fields are unchanged.
+
+### Changed — Nuevo pedido reads as an order, not a form (2026-10-08)
+
+The new-order screen leads with customer, when and how, then products.
+Delivery address, billing, and notes stay on the page and open only
+when they apply. A sticky summary shows quantity and total while the
+order is built. Submitted fields, customer creation, RUC/CI, billing
+profiles, and delivery windows are unchanged.
+
+### Changed — Shared premium surface (2026-10-08)
+
+Every station uses the same quieter surfaces, type, and controls.
+Borders stay hairline, secondary tools sit in a Más menu on the
+busiest lists, and safety alerts keep a stronger treatment than
+informational notes. Workflows and permissions are unchanged.
+
 ## 2026-10-08e — restore 6 lost UI features + fix 4 stale tests (69 passed)
 
 Night-run triage of the full suite exposed features regressions had silently dropped, plus

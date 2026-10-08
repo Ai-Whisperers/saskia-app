@@ -18,14 +18,13 @@
 {% endif %}
 {{ ui.page_header(
      title='Merma (desperdicio)',
-     desc='Anotá ingredientes desperdiciados para mantener el stock coherente. Para tandas enteras, usá el botón 🔥 Merma desde /producción.',
-     crumbs=[('Operación', '/dashboard'), ('Merma', None)]
+     desc='Anotá el ingrediente, la cantidad y el motivo.'
    ) }}
 
 {# PROD-MERMA-1: callout pointing operators to /produccion for batch losses.
    Removed the recipe-card form from this page; whole-batch waste is now
    logged inline from the production shift-execution table. #}
-<div class="card mb-4" style="background: var(--color-surface-muted, #f8fafc); border-left: 4px solid var(--color-warning, #f59e0b);">
+<div class="card mb-4" style="border-left: 4px solid var(--color-warning, #f59e0b);">
   <div class="card-body d-flex" style="display:flex; align-items:center; gap:var(--space-3); flex-wrap:wrap;">
     <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
     <div class="flex-1" style="flex:1; min-width: 240px;">
@@ -61,11 +60,6 @@
     <button type="submit" class="btn btn-sm">Aplicar</button>
   </form>
 </div>
-
-<p class="text-muted">
-  Anotá lo que tiraste: un ingrediente vencido, una crema derramada, un kilo de harina que se humedeció.
-  <strong>Ejemplo:</strong> se vencieron 200 g de crema — elegí el ingrediente, poné <code>200</code>, motivo <em>vencida</em>.
-</p>
 
 {# PROD-MERMA-1: recipe-batch card moved to /produccion (per-row quick-merma modal). #}
 {# The old "Merma de receta completa" section was removed in feat/prod-quick-merma. #}
@@ -131,13 +125,10 @@
       Registrar merma de ingrediente
     </h2>
   </div>
-  <form method="post" action="/merma/registrar" class="form">
+  <form method="post" action="/merma/registrar" class="form sheet-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="form-row">
       <label for="ingredient_combo">Ingrediente</label>
-      {# Combobox replaces the 30+-item native <select>. Picks set
-         the hidden ingredient_id; typing without picking is rejected
-         (operator must select — we don't auto-create ingredients). #}
       {{ ui.combo_field(
         name='ingredient_id',
         placeholder='Escribí el ingrediente (harina, aceite…)',
@@ -145,42 +136,40 @@
         value_field='id',
         label_field='name',
       ) }}
-      <small class="hint">
-        Si no encontrás el ingrediente, creá uno primero en
-        <a href="/inventario/nuevo">Inventario</a>.
-      </small>
     </div>
-    <div class="form-row">
-      <label for="qty">Cantidad</label>
-      <input type="number" id="qty" name="qty" required step="0.01" min="0.01" max="9999" value="1">
-      {{ ui.combo_field(
-        name='qty_unit',
-        placeholder='Seleccioná unidad',
-        endpoint='/recetas/api/units?q=',
-        value_field='value',
-        label_field='display',
-      ) }}
+    <div class="sheet-pair">
+      <div class="form-row">
+        <label for="qty">Cantidad</label>
+        <input type="number" id="qty" name="qty" required step="0.01" min="0.01" max="9999" value="1">
+        {{ ui.combo_field(
+          name='qty_unit',
+          placeholder='Seleccioná unidad',
+          endpoint='/recetas/api/units?q=',
+          value_field='value',
+          label_field='display',
+        ) }}
+      </div>
+      <div class="form-row">
+        <label for="reason">Motivo</label>
+        {{ ui.combo_field(
+          name='reason',
+          placeholder='Seleccioná motivo',
+          endpoint='/merma/api/reasons?q=',
+          value_field='value',
+          label_field='value',
+        ) }}
+      </div>
     </div>
-    <div class="form-row">
-      <label for="reason">Motivo</label>
-      {{ ui.combo_field(
-        name='reason',
-        placeholder='Seleccioná motivo',
-        endpoint='/merma/api/reasons?q=',
-        value_field='value',
-        label_field='value',
-      ) }}
-    </div>
-    <div class="form-row">
-      <label for="notes">Notas</label>
-      <textarea id="notes" name="notes" rows="2"></textarea>
-    </div>
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary">
-        <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-        Registrar merma
-      </button>
+    <details>
+      <summary>Notas</summary>
+      <div class="form-row">
+        <label for="notes" class="sr-only">Notas</label>
+        <textarea id="notes" name="notes" rows="2"></textarea>
+      </div>
+    </details>
+    <div class="sheet-footer">
       <a href="/merma" class="btn btn-ghost">Cancelar</a>
+      <button type="submit" class="btn btn-primary">Registrar merma</button>
     </div>
   </form>
 </section>

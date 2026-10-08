@@ -6,14 +6,16 @@
 {% block title %}Productos — {{ action }}{% endblock %}
 
 {% block content %}
-{{ ui.page_header(
-     title=action ~ ' producto',
-     desc='Datos básicos, receta vinculada, imagen y disponibilidad.',
-     crumbs=[('Productos', '/productos'), (action, None)]
-   ) }}
+<form method="post" action="/productos{{ '/nuevo' if mode == 'new' else '/' ~ product.id ~ '/editar' }}"
+      enctype="multipart/form-data" id="product-form" class="sheet-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <header class="order-create__title">
+    <h1>{{ action }} producto</h1>
+    <p class="page-desc">{% if mode == 'new' %}Creá un producto para agregarlo al catálogo.{% else %}Actualizá los datos del producto.{% endif %}</p>
+  </header>
 
 {% if request.query_params.get('recipe_id') %}
-  <div id="prefill-banner" style="margin-bottom: var(--space-4);">
+  <div id="prefill-banner">
     {{ ui.alert_row(
          'warn',
          'Pre-llenado desde receta — revisá que el nombre no exista ya en Productos.'
@@ -21,159 +23,177 @@
   </div>
 {% endif %}
 
-<form method="post" action="/productos{{ '/nuevo' if mode == 'new' else '/' ~ product.id ~ '/editar' }}"
-      enctype="multipart/form-data" id="product-form">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <div class="form-row">
-    <label for="name">Nombre</label>
-    <input type="text" id="name" name="name" required maxlength="120"
-           value="{{ request.query_params.get('name', product.name if product else '') }}"
-           placeholder="Ej: Muffin de chocolate"
-           hx-post="/api/validate/product" hx-trigger="blur" hx-include="closest form"
-           onhtmx:after-request="handleProductValidation(this, event)">
-    <span class="field-error" id="name-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
-  </div>
+  <div class="sheet-grid">
+    <section class="order-section" aria-labelledby="product-general-heading">
+      <h2 id="product-general-heading">Información general</h2>
+      <div class="form-row">
+        <label for="name">Nombre</label>
+        <input type="text" id="name" name="name" required maxlength="120"
+               value="{{ request.query_params.get('name', product.name if product else '') }}"
+               placeholder="Ej: Muffin de chocolate"
+               hx-post="/api/validate/product" hx-trigger="blur" hx-include="closest form"
+               onhtmx:after-request="handleProductValidation(this, event)">
+        <span class="field-error" id="name-error"></span>
+      </div>
 
-  <div class="form-row">
-    <label for="sku">SKU / Código de barras</label>
-    <div class="d-flex" style="display:flex;gap:var(--space-2);align-items:center;">
-      <input type="text" id="sku" name="sku" maxlength="32"
-             value="{{ product.sku if product and product.sku else '' }}"
-             placeholder="Se genera automáticamente al escribir el nombre"
-             style="flex:1;">
-      <button type="button" class="btn btn-sm btn-ghost" id="sku-regen" title="Regenerar SKU">
-        <svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>
-      </button>
-    </div>
-    <small class="muted">Formato: <code>PREFIX-NNN</code> basado en el nombre. Editable.</small>
-  </div>
+      <div class="sheet-pair">
+        {{ t.category_picker(
+             name='category',
+             current_value=request.query_params.get('category', product.category if product else ''),
+             options_markup=t.render_category_options(product_categories),
+             allow_custom=True,
+             label='Categoría',
+             help=''
+           ) }}
 
-  {% set product_cats = t.render_category_options(product_categories) %}
-  {% set product_tags = t.render_tag_pills(dietary_tags) %}
-
-  {{ t.category_picker(
-       name='category',
-       current_value=request.query_params.get('category', product.category if product else ''),
-       options_markup=t.render_category_options(product_categories),
-       allow_custom=True,
-       label='Categoría',
-       help='Elegí una de las categorías predefinidas o escribí una nueva.'
-     ) }}
-
-  {{ t.tag_picker(
-       name='tags',
-       current_value=request.query_params.get('tags', product.tags if product else ''),
-       options_markup=t.render_tag_pills(dietary_tags),
-       allow_custom=True,
-       label='Etiquetas',
-       help='Tocá una etiqueta para activarla. Útil para búsquedas y filtros rápidos.'
-     ) }}
-
-  <div class="form-row">
-    <label for="portion_label">Etiqueta de porción</label>
-    <input type="text" id="portion_label" name="portion_label" maxlength="60" required
-           value="{{ request.query_params.get('portion_label', product.portion_label if product else '1 unidad') }}">
-    <small class="muted">Se rellena automáticamente si elegís una receta.</small>
-  </div>
-
-  <div class="form-row">
-    <label for="sale_price_gs">Precio de venta (Gs.)</label>
-    <div class="currency-input-wrap">
-      <input type="number" id="sale_price_gs" name="sale_price_gs" required step="1" min="0" inputmode="numeric" class="currency-input"
-             value="{{ request.query_params.get('sale_price_gs', product.sale_price_gs if product else '0') }}"
-             placeholder="8000"
-             hx-post="/api/validate/product" hx-trigger="blur" hx-include="closest form"
-             onhtmx:after-request="handleProductValidation(this, event)">
-    </div>
-    <span class="field-error" id="sale_price_gs-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
-    <small class="muted" id="price-suggestion"></small>
-  </div>
-
-  <div class="form-row">
-    <label for="mayorista_price_gs">Precio mayorista (Gs.)</label>
-    <div class="currency-input-wrap">
-      <input type="number" id="mayorista_price_gs" name="mayorista_price_gs" step="0.01" min="0" inputmode="numeric" class="currency-input"
-             value="{{ product.mayorista_price_gs if product and product.mayorista_price_gs is not none else '' }}"
-             placeholder="Mayorista (opcional)">
-    </div>
-    <small class="muted">Precio B2B para ventas por cantidad. Dejá en blanco si no aplica.</small>
-  </div>
-
-  <div class="form-row">
-    <label for="iva_rate">IVA%</label>
-    <select id="iva_rate" name="iva_rate" class="form-control" style="max-width:200px;">
-      <option value="10" {% if (product and product.iva_rate=='10') or (not product) %}selected{% endif %}>10%</option>
-      <option value="5" {% if product and product.iva_rate=='5' %}selected{% endif %}>5%</option>
-      <option value="0" {% if product and product.iva_rate=='0' %}selected{% endif %}>0%</option>
-      <option value="exento" {% if product and product.iva_rate=='exento' %}selected{% endif %}>Exento</option>
-    </select>
-  </div>
-
-  <div class="form-row">
-    <label for="recipe_id_combo">Receta</label>
-    {{ ui.combo_field(
-      name='recipe_id',
-      value=request.query_params.get('recipe_id', ''),
-      placeholder='— Sin receta —',
-      endpoint='/recetas/api/search/',
-      value_field='id',
-      label_field='name'
-    ) }}
-    <small class="muted">Sin receta: las ventas se registran pero no bajan stock ni calculan margen. Al elegir una receta, se sugieren precio/porción/tags.</small>
-  </div>
-
-  {# --- Image upload + URL --- #}
-  <div class="form-row">
-    <label>Imagen del producto</label>
-
-    <div class="image-upload-area" id="image-upload-area">
-      <div class="image-preview" id="image-preview">
-        {% if product and product.image_url %}
-          <img src="{{ product.image_url }}" alt="Imagen del producto" id="image-preview-img">
-          <button type="button" class="btn btn-sm btn-danger-ghost" id="image-remove">Quitar imagen</button>
-        {% else %}
-          <div class="image-empty" id="image-empty">
-            <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-image"/></svg>
-            <span>Sin imagen</span>
+        <div class="form-row tag-multi" id="tag-multi">
+          <label id="tag-multi-label">Etiquetas</label>
+          <button type="button" class="tag-multi__trigger" id="tag-multi-button"
+                  aria-haspopup="listbox" aria-expanded="false" aria-controls="tag-multi-panel">
+            Seleccionar
+          </button>
+          <div class="tag-multi__chips" id="tag-multi-chips"></div>
+          <div class="tag-multi__panel" id="tag-multi-panel" hidden>
+            <input type="search" id="tag-multi-search" placeholder="Buscar etiqueta…" aria-label="Buscar etiqueta">
+            <div class="tag-multi__list" id="tag-multi-list" role="listbox" aria-multiselectable="true" aria-labelledby="tag-multi-label">
+              {% for tag in dietary_tags %}
+              <button type="button" class="tag-multi__option" role="option" data-value="{{ tag.name }}" aria-selected="false">{{ tag.name }}</button>
+              {% endfor %}
+            </div>
+            <div class="tag-multi__add">
+              <input type="text" id="tag-multi-custom" maxlength="40" placeholder="Nueva etiqueta" aria-label="Nueva etiqueta">
+              <button type="button" class="btn" id="tag-multi-add">Agregar</button>
+            </div>
           </div>
-        {% endif %}
+          <input type="hidden" name="tags" id="tags-input"
+                 value="{{ request.query_params.get('tags', product.tags if product else '') or '' }}">
+        </div>
       </div>
 
-      <div class="image-controls">
-        <label class="btn btn-secondary image-upload-btn">
-          <svg class="icon" aria-hidden="true"><use href="#icon-upload"/></svg>
-          Subir imagen
-          <input type="file" id="image-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
-        </label>
-        <span class="muted">o pegá una URL:</span>
-        <input type="url" id="image_url" name="image_url"
-               value="{{ product.image_url if product and product.image_url else '' }}"
-               placeholder="https://..."
-               class="image-url-input">
+      <div class="form-row">
+        <label for="sku">SKU / Código</label>
+        <div class="sku-row">
+          <input type="text" id="sku" name="sku" maxlength="32"
+                 value="{{ product.sku if product and product.sku else '' }}"
+                 placeholder="Se arma al escribir el nombre"
+                 title="Se arma como PREFIX-NNN a partir del nombre. Podés editarlo.">
+          <button type="button" class="btn" id="sku-regen" title="Regenerar código" aria-label="Regenerar código">↻</button>
+        </div>
       </div>
-      <small class="muted">PNG, JPG, WebP o GIF. Máximo 5 MB.</small>
+    </section>
+
+    <section class="order-section" aria-labelledby="product-price-heading">
+      <h2 id="product-price-heading">Precios y disponibilidad</h2>
+      <div class="sheet-pair">
+        <div class="form-row">
+          <label for="sale_price_gs">Precio de venta</label>
+          <div class="currency-input-wrap">
+            <input type="number" id="sale_price_gs" name="sale_price_gs" required step="1" min="0" inputmode="numeric" class="currency-input"
+                   value="{{ request.query_params.get('sale_price_gs', product.sale_price_gs if product else '0') }}"
+                   placeholder="15000"
+                   hx-post="/api/validate/product" hx-trigger="blur" hx-include="closest form"
+                   onhtmx:after-request="handleProductValidation(this, event)">
+          </div>
+          <span class="field-error" id="sale_price_gs-error"></span>
+          <small class="muted" id="price-suggestion"></small>
+        </div>
+        <div class="form-row">
+          <label for="mayorista_price_gs" title="Precio para ventas por cantidad. Dejalo vacío si no aplica.">Precio mayorista</label>
+          <div class="currency-input-wrap">
+            <input type="number" id="mayorista_price_gs" name="mayorista_price_gs" step="0.01" min="0" inputmode="numeric" class="currency-input"
+                   value="{{ product.mayorista_price_gs if product and product.mayorista_price_gs is not none else '' }}"
+                   placeholder="Opcional"
+                   title="Precio para ventas por cantidad. Dejalo vacío si no aplica.">
+          </div>
+        </div>
+      </div>
+      <div class="sheet-pair">
+        <div class="form-row">
+          <label for="iva_rate">IVA</label>
+          <select id="iva_rate" name="iva_rate">
+            <option value="10" {% if (product and product.iva_rate=='10') or (not product) %}selected{% endif %}>10%</option>
+            <option value="5" {% if product and product.iva_rate=='5' %}selected{% endif %}>5%</option>
+            <option value="0" {% if product and product.iva_rate=='0' %}selected{% endif %}>0%</option>
+            <option value="exento" {% if product and product.iva_rate=='exento' %}selected{% endif %}>Exento</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <span class="sheet-label">Disponible para venta</span>
+          <label class="switch-toggle" for="is_available" title="Ocultalo del mostrador sin borrarlo.">
+            <input type="checkbox" id="is_available" name="is_available"
+                   {% if (product and product.is_available) or (not product) %}checked{% endif %}>
+            <span class="switch-track"><span class="switch-thumb"></span></span>
+          </label>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="order-section" aria-labelledby="product-recipe-heading">
+    <h2 id="product-recipe-heading">Receta y producto</h2>
+    <div class="sheet-pair">
+      <div>
+        <div class="form-row">
+          <label for="recipe_id_combo">Receta vinculada</label>
+          {{ ui.combo_field(
+            name='recipe_id',
+            value=request.query_params.get('recipe_id', ''),
+            placeholder='Seleccionar receta',
+            endpoint='/recetas/api/search/',
+            value_field='id',
+            label_field='name'
+          ) }}
+          <p class="sheet-note">Sin una receta vinculada, las ventas no bajan stock ni calculan el margen.</p>
+        </div>
+        <div class="form-row">
+          <label for="portion_label" title="Se completa si elegís una receta.">Porción</label>
+          <input type="text" id="portion_label" name="portion_label" maxlength="60" required
+                 title="Se completa si elegís una receta."
+                 value="{{ request.query_params.get('portion_label', product.portion_label if product else '1 unidad') }}">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Imagen</label>
+        <div class="image-upload-area" id="image-upload-area">
+          <div class="image-preview" id="image-preview">
+            {% if product and product.image_url %}
+              <img src="{{ product.image_url }}" alt="Imagen del producto" id="image-preview-img">
+              <button type="button" class="btn btn-sm btn-danger-ghost" id="image-remove">Quitar imagen</button>
+            {% else %}
+              <div class="image-empty" id="image-empty">
+                <span>Sin imagen</span>
+              </div>
+            {% endif %}
+          </div>
+          <div class="image-controls">
+            <label class="btn image-upload-btn" title="PNG, JPG, WebP o GIF. Máximo 5 MB.">
+              + Subir imagen
+              <input type="file" id="image-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+            </label>
+            <input type="url" id="image_url" name="image_url"
+                   value="{{ product.image_url if product and product.image_url else '' }}"
+                   placeholder="o pegá una URL"
+                   class="image-url-input"
+                   title="PNG, JPG, WebP o GIF. Máximo 5 MB.">
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <div class="form-row form-row-toggle">
-    <label>
-      <input type="checkbox" id="is_available" name="is_available"
-             {% if (product and product.is_available) or (not product) %}checked{% endif %}>
-      Disponible para venta
-    </label>
-    <small class="muted">Desactivá esto para ocultar el producto del POS sin eliminarlo.</small>
-  </div>
+  <section class="order-section order-section--quiet" aria-labelledby="product-advanced-heading">
+    <h2 id="product-advanced-heading">Configuración avanzada</h2>
 
-  <div class="form-row">
-    <label for="notes">Notas</label>
-    <textarea id="notes" name="notes" rows="2">{{ product.notes if product and product.notes else '' }}</textarea>
-  </div>
+    <details>
+      <summary>Notas</summary>
+      <div class="form-row">
+        <label for="notes">Notas</label>
+        <textarea id="notes" name="notes" rows="2">{{ product.notes if product and product.notes else '' }}</textarea>
+      </div>
+    </details>
 
-  <details class="rspa-section mb-6" >
-    <summary style="cursor:pointer; font-weight:600; user-select:none;">
-      Certificación / RSPA
-    </summary>
-    <div style="padding: 0.75rem 0 0.25rem;">
+    <details class="rspa-section">
+      <summary>Certificación / RSPA</summary>
       <div class="form-row form-row-toggle">
         <label>
           <input type="checkbox" id="requires_rspa" name="requires_rspa"
@@ -195,16 +215,12 @@
                  value="{{ product.rspa_expiry if product and product.rspa_expiry else '' }}">
         </div>
       </div>
-    </div>
-  </details>
+    </details>
 
-  {# C2 — Tablet-menu visibility. Operators opt each product in/out
-     of the public /m/{slug} menu; the slug is the URL tail. #}
-  <details class="tablet-section mb-6" >
-    <summary style="cursor:pointer; font-weight:600; user-select:none;">
-      Menú tablet (C2)
-    </summary>
-    <div style="padding: 0.75rem 0 0.25rem;">
+    {# C2 — Tablet-menu visibility. Operators opt each product in/out
+       of the public /m/{slug} menu; the slug is the URL tail. #}
+    <details class="tablet-section">
+      <summary>Menú tablet (C2)</summary>
       <div class="form-row form-row-toggle">
         <label>
           <input type="checkbox" id="tablet_visible" name="tablet_visible"
@@ -213,21 +229,20 @@
         </label>
       </div>
       <div class="form-row">
-        <label for="tablet_slug">Slug URL <small style="color:var(--color-text-muted);">(opcional, se genera del nombre)</small></label>
+        <label for="tablet_slug">Slug URL</label>
         <input type="text" id="tablet_slug" name="tablet_slug" maxlength="60"
                pattern="[a-z0-9]+(-[a-z0-9]+)*"
                placeholder="ej: chipa-guazu"
+               title="Opcional. Si lo dejás vacío, se arma a partir del nombre."
                value="{{ product.tablet_slug if product and product.tablet_slug else '' }}">
-        <small style="color:var(--color-text-muted); font-size:var(--text-xs);">
-          URL del menú: <code>/m/<span id="tablet-slug-preview">{{ product.tablet_slug or '' }}</span></code>
-        </small>
+        <small class="muted">URL del menú: <code>/m/<span id="tablet-slug-preview">{{ product.tablet_slug or '' }}</span></code></small>
       </div>
-    </div>
-  </details>
+    </details>
+  </section>
 
-  <div class="form-actions">
-    <button type="submit" class="btn btn-primary">Guardar</button>
+  <div class="sheet-footer">
     <a href="/productos" class="btn">Cancelar</a>
+    <button type="submit" class="btn btn-primary">{% if mode == 'new' %}Guardá producto{% else %}Guardá cambios{% endif %}</button>
   </div>
 </form>
 
@@ -515,6 +530,129 @@ function handleProductValidation(inputEl, event) {
     errorEl.style.display = errors[fieldName] ? '' : 'none';
   }
 }
+
+(function () {
+  var root = document.getElementById('tag-multi');
+  if (!root) return;
+  var hidden = document.getElementById('tags-input');
+  var button = document.getElementById('tag-multi-button');
+  var panel = document.getElementById('tag-multi-panel');
+  var search = document.getElementById('tag-multi-search');
+  var list = document.getElementById('tag-multi-list');
+  var chips = document.getElementById('tag-multi-chips');
+  var custom = document.getElementById('tag-multi-custom');
+  var addBtn = document.getElementById('tag-multi-add');
+
+  function optionFor(name) {
+    return Array.from(list.querySelectorAll('.tag-multi__option')).find(function (opt) {
+      return opt.getAttribute('data-value') === name;
+    });
+  }
+  function tags() {
+    return (hidden.value || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  }
+  function setTags(arr) {
+    var unique = [];
+    arr.forEach(function (t) {
+      var k = (t || '').trim();
+      if (k && unique.indexOf(k) === -1) unique.push(k);
+    });
+    hidden.value = unique.join(', ');
+    hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    paint();
+  }
+  function paint() {
+    var selected = tags();
+    list.querySelectorAll('.tag-multi__option').forEach(function (opt) {
+      var on = selected.indexOf(opt.getAttribute('data-value')) !== -1;
+      opt.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    chips.textContent = '';
+    selected.forEach(function (name) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'tag-multi__chip';
+      chip.textContent = name + ' ×';
+      chip.setAttribute('aria-label', 'Quitar ' + name);
+      chip.addEventListener('click', function () {
+        setTags(tags().filter(function (t) { return t !== name; }));
+      });
+      chips.appendChild(chip);
+    });
+    var extra = selected.filter(function (name) {
+      return !optionFor(name);
+    });
+    extra.forEach(function (name) {
+      if (optionFor(name)) return;
+      var opt = document.createElement('button');
+      opt.type = 'button';
+      opt.className = 'tag-multi__option';
+      opt.setAttribute('role', 'option');
+      opt.setAttribute('data-value', name);
+      opt.setAttribute('aria-selected', 'true');
+      opt.textContent = name;
+      list.appendChild(opt);
+    });
+    button.textContent = selected.length === 1
+      ? '1 seleccionada'
+      : (selected.length ? selected.length + ' seleccionadas' : 'Seleccionar');
+  }
+  function toggle(name) {
+    var current = tags();
+    var i = current.indexOf(name);
+    if (i === -1) current.push(name); else current.splice(i, 1);
+    setTags(current);
+  }
+  function openPanel(open) {
+    panel.hidden = !open;
+    button.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) search.focus();
+  }
+
+  list.addEventListener('click', function (event) {
+    var opt = event.target.closest('.tag-multi__option');
+    if (!opt || !list.contains(opt)) return;
+    toggle(opt.getAttribute('data-value'));
+  });
+  button.addEventListener('click', function () { openPanel(panel.hidden); });
+  search.addEventListener('input', function () {
+    var q = search.value.trim().toLowerCase();
+    list.querySelectorAll('.tag-multi__option').forEach(function (opt) {
+      opt.hidden = q && opt.textContent.toLowerCase().indexOf(q) === -1;
+    });
+  });
+  search.addEventListener('keydown', function (event) {
+    var visible = Array.from(list.querySelectorAll('.tag-multi__option')).filter(function (opt) { return !opt.hidden; });
+    if (event.key === 'ArrowDown' && visible[0]) { event.preventDefault(); visible[0].focus(); }
+    if (event.key === 'Escape') { event.preventDefault(); openPanel(false); button.focus(); }
+  });
+  list.addEventListener('keydown', function (event) {
+    var visible = Array.from(list.querySelectorAll('.tag-multi__option')).filter(function (opt) { return !opt.hidden; });
+    var index = visible.indexOf(document.activeElement);
+    if (event.key === 'ArrowDown' && visible[index + 1]) { event.preventDefault(); visible[index + 1].focus(); }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (index > 0) visible[index - 1].focus(); else search.focus();
+    }
+    if (event.key === 'Escape') { event.preventDefault(); openPanel(false); button.focus(); }
+  });
+  function addCustom() {
+    var value = custom.value.trim();
+    if (!value) return;
+    var current = tags();
+    if (current.indexOf(value) === -1) current.push(value);
+    custom.value = '';
+    setTags(current);
+  }
+  addBtn.addEventListener('click', addCustom);
+  custom.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter') { event.preventDefault(); addCustom(); }
+  });
+  document.addEventListener('click', function (event) {
+    if (!root.contains(event.target)) openPanel(false);
+  });
+  paint();
+})();
 </script>
 
 {% endblock %}
