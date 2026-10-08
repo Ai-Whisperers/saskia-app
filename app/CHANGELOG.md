@@ -189,6 +189,10 @@ regression test `test_dashboard_empty_state_still_renders_kpi_tiles` locks it. 1
 
 ## [Unreleased]
 
+### Fixed
+
+- **SASKIA-319**: `tests/test_flash_toast_unification.py` import order (ruff I001) — was failing the Lint gate on main.
+
 ### Added
 
 - **SASKIA-314 wave 2d (ux-safety, final orphan wave)**: port last 3 phase-3-m1 orphan modules — `print-area.js` + `print.css` (media="print"), `form-validator.js` + `.css`, `saskia-tooltip.js` + `.css` — plus `touch-targets.css` (touch ≥44px). All wired in base.html with `?v={{ asset_version() }}`. Tests: +102 (test_form_validator, test_print_area, test_print_stylesheet, test_touch_and_tooltip).
