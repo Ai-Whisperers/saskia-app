@@ -17,8 +17,8 @@ from types import SimpleNamespace
 
 from app.rms.audit import record as audit_record
 from app.rms.rate_limit import (
-    DEFAULT_RATE_LIMIT_CONFIG,
     DEFAULT_LIMIT,
+    DEFAULT_RATE_LIMIT_CONFIG,
     DEFAULT_READ_LIMIT,
     DEFAULT_READ_WINDOW_SECONDS,
     DEFAULT_WINDOW_MINUTES,

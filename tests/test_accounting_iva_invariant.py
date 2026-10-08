@@ -11,18 +11,18 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from hypothesis import HealthCheck, assume, given, settings, strategies as st
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
 
 from app.rms.accounting import extract_iva
 from app.rms.constants import IVA_DIVISOR, PARAGUAY_IVA_RATE
-
 
 # ─── Sanity: the constants exist where they should ─────────────────
 
 
 def test_constants_live_in_constants_module() -> None:
     """The single source of truth is app/rms/constants.py."""
-    from app.rms import constants, accounting
+    from app.rms import accounting, constants
 
     assert accounting.PARAGUAY_IVA_RATE is constants.PARAGUAY_IVA_RATE
     assert accounting.IVA_DIVISOR is constants.IVA_DIVISOR

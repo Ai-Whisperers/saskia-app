@@ -15,13 +15,12 @@ from datetime import date
 
 from app.rms.sales.pre_sale_check import (
     DEFAULT_PRE_SALE_CONFIG,
+    LOW_STOCK_WARN_THRESHOLD_PCT,
     MAX_DISCOUNT_PCT_WITHOUT_OVERRIDE,
     MAX_QTY_PER_SALE,
-    LOW_STOCK_WARN_THRESHOLD_PCT,
     PreSaleIntent,
     validate_sale_intent,
 )
-
 
 # ── DEFAULT_PRE_SALE_CONFIG shape ────────────────────────────────────────
 

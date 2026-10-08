@@ -35,10 +35,8 @@ def test_pedido_qty_class_is_defined(authed_client):
     """The .pedido-qty class is wired into the badge for visual emphasis."""
     r = authed_client.get("/produccion?view=day")
     assert r.status_code == 200
-    body = r.text
-    # The badge class renders in the row loop markup...
+    # The badge class rule + its CSS exist (template or extracted sheet).
     assert "pedido-qty" in CSS_BODY
-    # ...and the CSS rule exists for it.
     assert ".pedido-qty" in CSS_BODY
 
 

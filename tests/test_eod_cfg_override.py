@@ -9,10 +9,10 @@ override.
 
 from __future__ import annotations
 
-from datetime import date, datetime as _dt, time
+from datetime import date, time
+from datetime import datetime as _dt
 
 import pytest
-
 
 pytestmark = pytest.mark.smoke
 
@@ -38,7 +38,6 @@ def test_voided_rate_threshold_override_lowers_bar(session_factory, product_id):
     """Threshold 0.05 fires with 1 voided of 10 sales (10% > 5%)."""
     from app.rms.settings_runtime import DEFAULT_EOD_CONFIG
     from app.services.eod_anomaly import (
-        detect_anomalies,
         _check_voided_rate,
     )
 
@@ -197,15 +196,13 @@ def test_detect_anomalies_accepts_eod_cfg_kwarg(session_factory, product_id):
 
 def test_get_eod_config_returns_dict_with_all_keys():
     """get_eod_config(session) returns a complete dict."""
-    from app.rms.settings_registry import get_setting_value
+    # Monkeypatch get_setting_value to return None for all keys
+    # → all defaults applied.
+    import app.rms.settings_registry as settings_mod
     from app.rms.settings_runtime import (
         DEFAULT_EOD_CONFIG,
         get_eod_config,
     )
-
-    # Monkeypatch get_setting_value to return None for all keys
-    # → all defaults applied.
-    import app.rms.settings_registry as settings_mod
 
     orig = settings_mod.get_setting_value
     settings_mod.get_setting_value = lambda session, key: None
@@ -221,9 +218,8 @@ def test_get_eod_config_returns_dict_with_all_keys():
 
 def test_get_eod_config_coerces_float():
     """Stored '0.25' is coerced to float 0.25."""
-    from app.rms.settings_runtime import get_eod_config
-
     import app.rms.settings_registry as settings_mod
+    from app.rms.settings_runtime import get_eod_config
 
     def fake(session, key):
         if key == "eod.voided_rate_threshold":
