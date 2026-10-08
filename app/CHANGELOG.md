@@ -45,13 +45,38 @@ Sazón is same-origin by design; no legitimate cross-origin consumers.
 Rule 90004 documented in `.zap-rules.tsv` as "KEPT — now correctly
 suppressed because the header is set."
 
-**2 new regression tests** in `tests/test_security_headers.py`:
+**ZAP rule 90004 — CORP and COOP** (`app/rms/security_headers.py:107-108`):
+OWASP ZAP had 3 different WARN-level findings of rule 90004 (one each
+for Cross-Origin-Resource-Policy, Cross-Origin-Embedder-Policy, and
+Cross-Origin-Opener-Policy). The right fix is to actually set the
+headers: `Cross-Origin-Resource-Policy: same-origin` and
+`Cross-Origin-Opener-Policy: same-origin`. Sazón is same-origin by
+design; no legitimate cross-origin consumers. Both added by
+`SecurityHeadersMiddleware` alongside the existing 5 security headers.
+COEP is "must-have for cross-origin embeds" — not needed; no cross-origin
+embedders in Sazón today.
+
+**ZAP rule 110009 — Full Path Disclosure** (`app/routers/demo.py:70-82`):
+`/demo/seed` was leaking `repr(exc)` in the 500 detail, which exposed
+filesystem paths and stack frames. Fixed: 500 detail is now a generic
+message (`"Demo seed failed. See server logs."`); the real exception
+is logged server-side via `logger.exception(...)`.
+
+**3 new regression tests**:
 - `test_cross_origin_resource_policy_present` — CORP=same-origin on `/login`
 - `test_cross_origin_resource_policy_on_error_responses` — CORP on 4xx/5xx
   error responses (catches regression where `SecurityHeadersMiddleware`'s
   except branch forgets to attach it)
+- `test_cross_origin_opener_policy_present` — COOP=same-origin on `/login`
+- `test_demo_seed_500_does_not_leak_exception_repr` — confirms that
+  `/demo/seed`'s 500 detail does NOT contain file paths or the exception
+  repr when `seed_kyrian` raises
 
-10/10 tests pass locally. ruff + format clean.
+18/18 tests pass locally (11 security_headers + 7 demo_seed). ruff + format clean.
+
+`.github/.zap-rules.tsv` updated to document the 5 rules that Sazón now
+correctly suppresses (CORP, COEP, COOP — counted as 90004 instances;
+110009), and to set LAST_VERIFIED=2026-10-08.
 
 ## 2026-10-08b — clientes: 'Nunca compró' fallback for the Última compra column (T-7)
 

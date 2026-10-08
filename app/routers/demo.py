@@ -68,8 +68,19 @@ def demo_seed(session: Any = Depends(get_session)) -> JSONResponse:
         bundle = seed_kyrian(session)
         session.commit()
     except Exception as exc:
+        # Roll back first so the session is clean for the next request.
         session.rollback()
-        raise HTTPException(status_code=500, detail=f"Demo seed failed: {exc!r}") from exc
+        # Don't leak the exception repr back to the client — it includes
+        # file paths and stack info (OWASP ZAP rule 110009, "Full Path
+        # Disclosure"). Log server-side for the operator; return a
+        # generic message.
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.exception("Demo seed failed for /demo/seed")
+        raise HTTPException(
+            status_code=500, detail="Demo seed failed. See server logs."
+        ) from exc
 
     return JSONResponse(
         {

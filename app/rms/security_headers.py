@@ -47,6 +47,10 @@ Headers added to every response (success or error, GET or POST):
         Defense-in-depth against Spectre-class cross-origin read attacks
         (OWASP ZAP rule 90004). Sazón is same-origin by design; we have
         no legitimate cross-origin resource consumers.
+    - Cross-Origin-Opener-Policy: same-origin
+        Isolates the window from cross-origin popups/tabs (Spectre-class
+        side-channel defense). Combined CORP+COOP=same-origin fully
+        isolates the browsing context.
 
 Headers NOT modified here:
     - Set-Cookie: SameSite=Lax + HttpsOnly are already set in
@@ -105,6 +109,7 @@ def _security_headers() -> dict[str, str]:
         "content-security-policy": _CSP,
         "permissions-policy": _PERMISSIONS_POLICY,
         "cross-origin-resource-policy": "same-origin",
+        "cross-origin-opener-policy": "same-origin",
     }
     if os.getenv("HTTPS_ONLY", "true").lower() == "true":
         headers["strict-transport-security"] = "max-age=31536000; includeSubDomains"

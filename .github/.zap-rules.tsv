@@ -3,7 +3,7 @@
 # Tab-separated: rule_id<TAB>action<TAB>(reason)
 # Action: IGNORE | FAIL
 #
-# LAST VERIFIED: 2026-10-07 against local Sazon running on :18998.
+# LAST VERIFIED: 2026-10-08 against local Sazon running on :18998.
 # ZAP found 254 alerts (0 HIGH, 26 MEDIUM, 11 LOW, 217 INFO) on a clean
 # scan with all rules enabled. After applying this rules file:
 #   - 6 real "Content Security Policy Not Set" alerts on CSRF 403
@@ -101,6 +101,20 @@
 #       KEPT — Sazon sets CORP=same-origin via SecurityHeadersMiddleware
 #       (2026-10-08). If a future change removes the header, ZAP will
 #       surface it correctly.
+#   - 90004 Cross-Origin-Embedder-Policy Header Missing or Invalid
+#       KEPT — Sazon sets COOP=same-origin via SecurityHeadersMiddleware
+#       (2026-10-08). COEP distinguishes strong — not needed; no
+#       cross-origin resource consumers are mixed in.
+#   - 90004 Cross-Origin-Opener-Policy Header Missing or Invalid
+#       KEPT — Sazon sets COOP=same-origin via SecurityHeadersMiddleware
+#       (2026-10-08). Same isolation as COEP — combined CORP+COOP=
+#       same-origin isolates the browsing context fully.
+#   - 110009 Full Path Disclosure
+#       KEPT — Sazon's /demo/seed used to surface repr(exc) in 500 detail.
+#       Fixed 2026-10-08 (app/routers/demo.py): 500 detail is now a
+#       generic message; real exception logged server-side. Regression
+#       test in tests/test_demo_seed_endpoint.py
+#       ::test_demo_seed_500_does_not_leak_exception_repr.
 #
 # If you add new rules here, document WHY in the comment column above.
 # The downstream cost of "alert we always ignore" is silent bugs from
