@@ -3940,9 +3940,40 @@ def _migration_080_customer_invoice_profile(conn: Any) -> None:
     # cashier had been invoicing under the customer's own company).
     # Idempotent because we use NOT EXISTS to skip customers that
     # already have a profile from a re-run.
-    ts = datetime.now(timezone.utc).isoformat()
+    # Backfill INSERT — inline ts (atomic_ddl_block takes a literal SQL
+    # string, no parameter binding). ts is per-migration, so a re-run
+    # backfills with a new timestamp; NOT EXISTS keeps it idempotent.
     try:
-        atomic_ddl_block(conn, ["\n            INSERT INTO customer_invoice_profile\n                (customer_id, alias, ruc_ci, razon_social,\n                 tipo_documento, tipo_operacion, is_default, is_active,\n                 created_at, updated_at)\n            SELECT\n                c.id,\n                CASE WHEN c.invoice_name IS NOT NULL\n                       AND c.invoice_name != c.name\n                     THEN c.invoice_name\n                     ELSE 'Personal' END,\n                COALESCE(NULLIF(c.invoice_ruc, ''), ''),\n                COALESCE(NULLIF(c.invoice_name, ''), c.name),\n                CASE WHEN LENGTH(COALESCE(NULLIF(c.invoice_ruc, ''), '')) >= 9\n                     THEN 'RUC' ELSE 'CI_PARAGUAYA' END,\n                'B2C',\n                1,\n                1,\n                :ts,\n                :ts\n            FROM customer c\n            WHERE (c.invoice_ruc IS NOT NULL AND c.invoice_ruc != '')\n               OR (c.invoice_name IS NOT NULL AND c.invoice_name != '')\n              AND NOT EXISTS (\n                  SELECT 1 FROM customer_invoice_profile p\n                  WHERE p.customer_id = c.id\n              )\n            "])
+        ts = datetime.now(timezone.utc).isoformat()
+        sql = f"""
+            INSERT INTO customer_invoice_profile
+                (customer_id, alias, ruc_ci, razon_social,
+                 tipo_documento, tipo_operacion, is_default, is_active,
+                 created_at, updated_at)
+            SELECT
+                c.id,
+                CASE WHEN c.invoice_name IS NOT NULL
+                       AND c.invoice_name != c.name
+                     THEN c.invoice_name
+                     ELSE 'Personal' END,
+                COALESCE(NULLIF(c.invoice_ruc, ''), ''),
+                COALESCE(NULLIF(c.invoice_name, ''), c.name),
+                CASE WHEN LENGTH(COALESCE(NULLIF(c.invoice_ruc, ''), '')) >= 9
+                     THEN 'RUC' ELSE 'CI_PARAGUAYA' END,
+                'B2C',
+                1,
+                1,
+                '{ts}',
+                '{ts}'
+            FROM customer c
+            WHERE (c.invoice_ruc IS NOT NULL AND c.invoice_ruc != '')
+               OR (c.invoice_name IS NOT NULL AND c.invoice_name != '')
+              AND NOT EXISTS (
+                  SELECT 1 FROM customer_invoice_profile p
+                  WHERE p.customer_id = c.id
+              )
+        """
+        atomic_ddl_block(conn, [sql])
     except Exception as exc:
         logger.debug("migration 080 backfill skipped: %s", exc)
 
