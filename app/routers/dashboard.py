@@ -306,7 +306,7 @@ async def dashboard(
             from fastapi.responses import RedirectResponse
 
             return RedirectResponse("/gerencia", status_code=303)
-    except Exception:
+    except Exception:  # noqa: S110 — station detection is best-effort; dashboard must render
         pass
     if period == "custom" and start and end:
         try:

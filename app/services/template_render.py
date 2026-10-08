@@ -368,7 +368,7 @@ def render(
     try:
         station_id = request.session.get("station")
         station_locked = bool(request.session.get("station_locked"))
-    except Exception:  # noqa: BLE001 — login page has a session; fail open to full nav
+    except Exception:
         station_id = None
     on_chooser = request.url.path.startswith("/puesto") or bool(ctx.get("on_chooser"))
     ctx["station"] = station_id
@@ -396,7 +396,7 @@ def render(
                 ctx["nav_groups"] = nav_groups_for(station_id, NAV_GROUPS)
             else:
                 ctx["nav_groups"] = NAV_GROUPS
-    except Exception:  # noqa: BLE001 — defensive default
+    except Exception:
         ctx.setdefault("nav_groups", [])
         ctx.setdefault("station_hides_prices", False)
         ctx.setdefault("station_home", "/")

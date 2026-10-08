@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 
 from app.rms.stations import (
     SESSION_LOCKED,
@@ -32,7 +32,7 @@ def _redirect_if_locked(request: Request) -> RedirectResponse | None:
 
 
 @router.get("/puesto")
-def puesto(request: Request):
+def puesto(request: Request) -> Response:
     """Five stations. Staff are sent to their pinned home before this renders."""
     locked = _redirect_if_locked(request)
     if locked is not None:
@@ -48,7 +48,7 @@ def puesto(request: Request):
 
 
 @router.post("/puesto")
-def puesto_elegir(request: Request, station: str = Form(...)):
+def puesto_elegir(request: Request, station: str = Form(...)) -> Response:
     """Owner enters a station. A pinned login cannot change it."""
     locked = _redirect_if_locked(request)
     if locked is not None:
@@ -62,7 +62,7 @@ def puesto_elegir(request: Request, station: str = Form(...)):
 
 
 @router.get("/puesto/cambiar")
-def puesto_cambiar(request: Request):
+def puesto_cambiar(request: Request) -> Response:
     """Owner returns to the five stations. Staff stay where they are."""
     locked = _redirect_if_locked(request)
     if locked is not None:
