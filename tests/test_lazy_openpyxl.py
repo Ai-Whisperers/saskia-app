@@ -27,7 +27,8 @@ def test_excel_io_router_does_not_import_openpyxl_at_module_level():
     import ast
     from pathlib import Path
 
-    src = Path("/opt/data/work/sazon-app/app/routers/excel_io.py").read_text()
+    repo_root = Path(__file__).resolve().parents[1]
+    src = Path(str(repo_root) + "/app/routers/excel_io.py").read_text()
     tree = ast.parse(src)
     # Walk top-level imports
     top_level_imports = []

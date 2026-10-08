@@ -75,6 +75,21 @@ def test_security_headers_on_healthz(client):
     assert "x-frame-options" in headers_lower or "content-security-policy" in headers_lower
 
 
+def test_cross_origin_opener_policy_present(client):
+    """Cross-Origin-Opener-Policy: same-origin isolates the window from
+    cross-origin popups/tabs (Spectre-class side-channel defense). OWASP
+    ZAP rule 90004 also fires for COOP absence.
+    """
+    r = client.get("/login")
+    headers_lower = {k.lower(): v for k, v in r.headers.items()}
+    assert "cross-origin-opener-policy" in headers_lower, (
+        f"No Cross-Origin-Opener-Policy header. Headers: {dict(r.headers)}"
+    )
+    assert headers_lower["cross-origin-opener-policy"].lower() == "same-origin", (
+        f"Cross-Origin-Opener-Policy is '{headers_lower['cross-origin-opener-policy']}', expected 'same-origin'"
+    )
+
+
 def test_cross_origin_resource_policy_present(client):
     """Cross-Origin-Resource-Policy: same-origin defends against Spectre-class
     cross-origin read attacks. OWASP ZAP rule 90004 will fail CI if this is

@@ -1,3 +1,11 @@
+## 2026-10-08d — tests: repo-root-relative paths replace hardcoded /opt/data/work/sazon-app
+
+14 test files read repo files or spawn processes with `cwd=` pointed at the ABSOLUTE shared
+checkout path. When the shared checkout moved/renamed, those tests broke even though the repo
+itself was fine (test_integrations_and_seed_split failed 3 tests for exactly this). All now
+derive the root from `Path(__file__).resolve().parents[1]`. Also removed a dead
+`today_noon_utc if False else` leftover and fixed the import-order fallout.
+
 ## 2026-10-08c — two TZ bugs: qseed 'with_sale' time-of-day trap + export 'today' UTC-date bug
 
 **1. `tests/_fixtures_quick_seed.py`**: the `with_sale` scenario anchored `sold_at` at noon UTC

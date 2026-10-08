@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+SAZON_APP = str(_REPO_ROOT)
+
 
 def test_backup_script_imports():
     """The script can be imported without error."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
-        "backup", "/opt/data/work/sazon-app/scripts/backup.py"
+        "backup", SAZON_APP + "/scripts/backup.py"
     )
     mod = importlib.util.module_from_spec(spec)
     # Don't execute main, just verify the module loads.

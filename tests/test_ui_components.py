@@ -12,6 +12,10 @@ Tests:
 Uses the live FastAPI server. Skipped if no server.
 """
 
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+SAZON_APP = str(_REPO_ROOT)
 import http.client
 import json
 import os
@@ -239,7 +243,7 @@ def test_lint_tier1_passes():
         [".venv/bin/python", "scripts/lint_tier1.py"],
         capture_output=True,
         text=True,
-        cwd="/opt/data/work/sazon-app",
+        cwd=SAZON_APP + "",
     )
     assert "✅" in result.stdout, f"lint failed:\n{result.stdout}\n{result.stderr}"
 
@@ -302,7 +306,7 @@ def test_skeleton_macro_in_atoms(client):
             "grep",
             "-c",
             "skeleton_section\\|loading_state",
-            "/opt/data/work/sazon-app/app/templates/_components/atoms.html",
+            SAZON_APP + "/app/templates/_components/atoms.html",
         ],
         capture_output=True,
         text=True,
@@ -374,7 +378,7 @@ def test_combo_field_macro_defined(client):
             "grep",
             "-c",
             "macro combo_field",
-            "/opt/data/work/sazon-app/app/templates/_components/atoms.html",
+            SAZON_APP + "/app/templates/_components/atoms.html",
         ],
         capture_output=True,
         text=True,
@@ -556,7 +560,7 @@ def test_d17_static_combo_package_unit_migrated():
     import pathlib
 
     src = pathlib.Path(
-        "/opt/data/work/sazon-app/app/templates/ingrediente_detalle.html"
+        SAZON_APP + "/app/templates/ingrediente_detalle.html"
     ).read_text()
     assert "ui.combo_field(" in src
     assert "package_unit" in src
@@ -564,7 +568,7 @@ def test_d17_static_combo_package_unit_migrated():
     # Template compiles
     from jinja2 import Environment, FileSystemLoader
 
-    env = Environment(loader=FileSystemLoader("/opt/data/work/sazon-app/app/templates"))
+    env = Environment(loader=FileSystemLoader(SAZON_APP + "/app/templates"))
     env.get_template("ingrediente_detalle.html")
 
 
@@ -572,7 +576,7 @@ def test_d17_receta_form_line_rows_migrated():
     """D17: receta_form.html line rows (line_kind, line_target_id, line_unit) use <ui-combo>."""
     import pathlib
 
-    src = pathlib.Path("/opt/data/work/sazon-app/app/templates/receta_form.html").read_text()
+    src = pathlib.Path(SAZON_APP + "/app/templates/receta_form.html").read_text()
     # All 3 line-row combos migrated
     assert "name='line_kind'" in src or 'name="line_kind"' in src
     assert "name='line_target_id'" in src or 'name="line_target_id"' in src
@@ -582,7 +586,7 @@ def test_d17_receta_form_line_rows_migrated():
     # Template compiles
     from jinja2 import Environment, FileSystemLoader
 
-    env = Environment(loader=FileSystemLoader("/opt/data/work/sazon-app/app/templates"))
+    env = Environment(loader=FileSystemLoader(SAZON_APP + "/app/templates"))
     env.get_template("receta_form.html")
 
 
@@ -591,7 +595,7 @@ def test_d17_receta_form_family_and_scale_migrated():
     2026-09-30) + scale_combo uses <ui-combo> with autosubmit."""
     import pathlib
 
-    src = pathlib.Path("/opt/data/work/sazon-app/app/templates/receta_form.html").read_text()
+    src = pathlib.Path(SAZON_APP + "/app/templates/receta_form.html").read_text()
     # family single-combo removed from the form UI (legacy field still
     # accepted server-side); menu_tags picker is the categorization field.
     assert "family_combo" not in src
@@ -601,7 +605,7 @@ def test_d17_receta_form_family_and_scale_migrated():
     assert 'id="scale_combo"' not in src or src.count('<div class="ui-combo"') == 0
     from jinja2 import Environment, FileSystemLoader
 
-    env = Environment(loader=FileSystemLoader("/opt/data/work/sazon-app/app/templates"))
+    env = Environment(loader=FileSystemLoader(SAZON_APP + "/app/templates"))
     env.get_template("receta_form.html")
 
 
@@ -609,7 +613,7 @@ def test_d17_no_legacy_saskia_combo_divs_anywhere():
     """D17: Zero legacy <div class="ui-combo"> divs remain across all templates."""
     import pathlib
 
-    tpl_dir = pathlib.Path("/opt/data/work/sazon-app/app/templates")
+    tpl_dir = pathlib.Path(SAZON_APP + "/app/templates")
     total = 0
     for f in tpl_dir.glob("*.html"):
         text = f.read_text()
@@ -624,7 +628,7 @@ def test_d17_saskia_combo_supports_endpoint_attribute_change():
     """D17: <ui-combo> re-fetches when endpoint attribute changes at runtime."""
     import pathlib
 
-    src = pathlib.Path("/opt/data/work/sazon-app/app/static/ui-combo.js").read_text()
+    src = pathlib.Path(SAZON_APP + "/app/static/ui-combo.js").read_text()
     # attributeChangedCallback must re-fetch on endpoint change
     assert "endpoint" in src and "_filterAndRender" in src
     # The change handler should clear stale value
@@ -635,7 +639,7 @@ def test_d17_saskia_combo_mirrors_value_to_hidden_input():
     """D17: <ui-combo> auto-creates hidden mirror input for form serialization."""
     import pathlib
 
-    src = pathlib.Path("/opt/data/work/sazon-app/app/static/ui-combo.js").read_text()
+    src = pathlib.Path(SAZON_APP + "/app/static/ui-combo.js").read_text()
     # _emitChange should create hidden mirror with the same name
     assert "data-ui-combo-mirror" in src
     assert "type = 'hidden'" in src or 'type: "hidden"' in src or 'type = "hidden"' in src
@@ -645,7 +649,7 @@ def test_d17_saskia_combo_supports_allow_create():
     """D17: <ui-combo> with allow-create dispatches create-option event on Enter."""
     import pathlib
 
-    src = pathlib.Path("/opt/data/work/sazon-app/app/static/ui-combo.js").read_text()
+    src = pathlib.Path(SAZON_APP + "/app/static/ui-combo.js").read_text()
     assert "allow-create" in src
     assert "create-option" in src
 
@@ -654,7 +658,7 @@ def test_d17_saskia_combo_supports_autosubmit():
     """D17: <ui-combo> with autosubmit submits closest form on selection."""
     import pathlib
 
-    src = pathlib.Path("/opt/data/work/sazon-app/app/static/ui-combo.js").read_text()
+    src = pathlib.Path(SAZON_APP + "/app/static/ui-combo.js").read_text()
     assert "autosubmit" in src
     assert "form.submit()" in src
 
@@ -663,7 +667,7 @@ def test_d17_receta_form_line_kind_bridge_present():
     """D17: receta_form.html has post-migration bridge that swaps line_target endpoint when line_kind changes."""
     import pathlib
 
-    src = pathlib.Path("/opt/data/work/sazon-app/app/templates/receta_form.html").read_text()
+    src = pathlib.Path(SAZON_APP + "/app/templates/receta_form.html").read_text()
     assert "bridgeLineKindCombos" in src
     assert "/recetas/api/search/" in src
     assert "/inventario/api/search/" in src
@@ -673,7 +677,7 @@ def test_inline_color_violations_removed():
     """Real color violations (color:red/green/#hex) should not appear in critical templates."""
     import pathlib
 
-    templates_dir = pathlib.Path("/opt/data/work/sazon-app/app/templates")
+    templates_dir = pathlib.Path(SAZON_APP + "/app/templates")
     # These are the files we explicitly cleaned up
     targets = ["benchmarks.html", "planner.html", "dashboard.html", "reportes_retencion.html"]
     for fname in targets:
@@ -692,7 +696,7 @@ def test_pedido_board_no_autoplay():
     """Audio should NOT autoplay. Only play on user click of sound-toggle."""
     import pathlib
 
-    src = pathlib.Path("/opt/data/work/sazon-app/app/templates/pedido_board.html").read_text()
+    src = pathlib.Path(SAZON_APP + "/app/templates/pedido_board.html").read_text()
     # No top-level audio.play() call outside the IIFE
     # The toggle handler does call play() but only inside the toggle function (user-initiated)
     assert "STORAGE_KEY = 'sazon:board-sound-enabled'" in src
@@ -707,7 +711,7 @@ def test_stock_preview_tr_alert_danger_has_css():
     """tr.alert-danger must have a CSS rule in app.css."""
     import pathlib
 
-    css = pathlib.Path("/opt/data/work/sazon-app/app/static/app.css").read_text()
+    css = pathlib.Path(SAZON_APP + "/app/static/app.css").read_text()
     assert "tr.alert-danger" in css, "tr.alert-danger rule missing from app.css"
     assert "background:var(--color-danger-soft)" in css or "var(--color-danger-soft)" in css
 
@@ -716,7 +720,7 @@ def test_users_html_extracted_assets_exist():
     """users.html should reference external users.js and users.css, not inline them."""
     import pathlib
 
-    src = pathlib.Path("/opt/data/work/sazon-app/app/templates/users.html").read_text()
+    src = pathlib.Path(SAZON_APP + "/app/templates/users.html").read_text()
     # No more inline <script>...</script> blocks in users.html
     assert "<script>" not in src, "users.html still has inline <script> block"
     assert "<style>" not in src, "users.html still has inline <style> block"
@@ -725,7 +729,7 @@ def test_users_html_extracted_assets_exist():
     assert "users.js" in src
 
     # Files exist
-    js_path = pathlib.Path("/opt/data/work/sazon-app/app/static/users.js")
-    css_path = pathlib.Path("/opt/data/work/sazon-app/app/static/users.css")
+    js_path = pathlib.Path(SAZON_APP + "/app/static/users.js")
+    css_path = pathlib.Path(SAZON_APP + "/app/static/users.css")
     assert js_path.exists() and js_path.stat().st_size > 100
     assert css_path.exists() and css_path.stat().st_size > 100

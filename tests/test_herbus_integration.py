@@ -1,5 +1,9 @@
 """Tests for the HEREBUS integration (Wave 1-4)."""
 
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+SAZON_APP = str(_REPO_ROOT)
 import pytest
 
 
@@ -26,7 +30,7 @@ class TestWave1NavReorg:
         """The 'Operación HEREBUS' label must NOT appear in base.html anymore."""
         from pathlib import Path
 
-        base = Path("/opt/data/work/sazon-app/app/templates/base.html")
+        base = Path(SAZON_APP + "/app/templates/base.html")
         content = base.read_text()
         assert "Operación HEREBUS" not in content, (
             "Old 'Operación HEREBUS' bucket label still present"
@@ -87,7 +91,7 @@ class TestWave2PlannerIntegration:
         """The /produccion day-view must include 'recipes' in the render context."""
         from pathlib import Path
 
-        router = Path("/opt/data/work/sazon-app/app/routers/produccion.py")
+        router = Path(SAZON_APP + "/app/routers/produccion.py")
         content = router.read_text()
         assert "select(Recipe)" in content, "/produccion router doesn't fetch recipes"
         assert '"recipes"' in content, "'recipes' key not in /produccion render context"
@@ -101,7 +105,7 @@ class TestWave2PlannerIntegration:
         """The day-view of /produccion must embed the planner form."""
         from pathlib import Path
 
-        template = Path("/opt/data/work/sazon-app/app/templates/produccion.html")
+        template = Path(SAZON_APP + "/app/templates/produccion.html")
         content = template.read_text()
         assert "produccion-planner/compute" in content, "Planner form action not embedded"
         assert "Plan manual" in content, "Plan manual section header missing"
@@ -116,7 +120,7 @@ class TestWave2PlannerIntegration:
         """The standalone /produccion-planner page should link back to /produccion."""
         from pathlib import Path
 
-        template = Path("/opt/data/work/sazon-app/app/templates/planner.html")
+        template = Path(SAZON_APP + "/app/templates/planner.html")
         content = template.read_text()
         assert "Volver a Producción" in content, "Back-link to /produccion missing"
 
@@ -142,7 +146,7 @@ class TestWave3DashboardKPIs:
         """The main / dashboard router should pass HEREBUS KPIs (sl, wishlist, risk)."""
         from pathlib import Path
 
-        router = Path("/opt/data/work/sazon-app/app/routers/dashboard.py")
+        router = Path(SAZON_APP + "/app/routers/dashboard.py")
         content = router.read_text()
         for key in [
             '"sl_open_count"',
@@ -163,7 +167,7 @@ class TestWave3DashboardKPIs:
         """The main / dashboard router must import the HEREBUS models."""
         from pathlib import Path
 
-        router = Path("/opt/data/work/sazon-app/app/routers/dashboard.py")
+        router = Path(SAZON_APP + "/app/routers/dashboard.py")
         content = router.read_text()
         for model in ["WishlistItem", "ShoppingListItem", "RiskItem"]:
             assert model in content, f"Missing model import: {model}"
@@ -177,7 +181,7 @@ class TestWave3DashboardKPIs:
         """The home / page must render the new Operación card with HEREBUS KPIs."""
         from pathlib import Path
 
-        template = Path("/opt/data/work/sazon-app/app/templates/inicio.html")
+        template = Path(SAZON_APP + "/app/templates/inicio.html")
         content = template.read_text()
         for key in [
             "sl_open_count",
@@ -209,7 +213,7 @@ class TestWave4DeliveryZonesFolded:
         """The /delivery-zones GET must redirect to /settings#zonas-delivery."""
         from pathlib import Path
 
-        router = Path("/opt/data/work/sazon-app/app/routers/herebus.py")
+        router = Path(SAZON_APP + "/app/routers/herebus.py")
         content = router.read_text()
         # Find the GET "" handler
         idx = content.find("def delivery_zones_list(")
@@ -227,7 +231,7 @@ class TestWave4DeliveryZonesFolded:
         """The settings.py handler must include delivery_zones in context."""
         from pathlib import Path
 
-        router = Path("/opt/data/work/sazon-app/app/routers/settings.py")
+        router = Path(SAZON_APP + "/app/routers/settings.py")
         content = router.read_text()
         assert '"delivery_zones"' in content, "delivery_zones missing from /settings context"
 
@@ -240,7 +244,7 @@ class TestWave4DeliveryZonesFolded:
         """settings.html must have a Zonas de Delivery section."""
         from pathlib import Path
 
-        template = Path("/opt/data/work/sazon-app/app/templates/settings.html")
+        template = Path(SAZON_APP + "/app/templates/settings.html")
         content = template.read_text()
         assert 'id="zonas-delivery"' in content, "Anchor id missing"
         assert "Zonas de Delivery" in content, "Section heading missing"

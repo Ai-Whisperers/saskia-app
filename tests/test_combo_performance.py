@@ -7,6 +7,9 @@ the suite; rewrite or remove when there's dedicated time.
 
 from pathlib import Path
 
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+SAZON_APP = str(_REPO_ROOT)
+
 import pytest
 
 pytestmark = pytest.mark.xfail(
@@ -19,7 +22,7 @@ pytestmark = pytest.mark.xfail(
 
 def test_combo_has_shared_cache():
     """Test that combo.js implements a shared cache layer."""
-    combo_js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js")
+    combo_js = Path(SAZON_APP + "/app/static/ui-combo.js")
     content = combo_js.read_text()
 
     # Shared cache should be class-level (via _sharedCache)
@@ -32,7 +35,7 @@ def test_combo_has_shared_cache():
 
 def test_combo_uses_document_fragment():
     """Test that combo.js renders via DocumentFragment for performance."""
-    combo_js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js")
+    combo_js = Path(SAZON_APP + "/app/static/ui-combo.js")
     content = combo_js.read_text()
 
     # DocumentFragment batches DOM writes — should appear in _render
@@ -43,7 +46,7 @@ def test_combo_uses_document_fragment():
 
 def test_combo_debounce_present():
     """Test that combo.js keeps the input debounce."""
-    combo_js = Path("/opt/data/work/sazon-app/app/static/ui-combo.js")
+    combo_js = Path(SAZON_APP + "/app/static/ui-combo.js")
     content = combo_js.read_text()
 
     # The existing debounce timer should still be there
@@ -53,7 +56,7 @@ def test_combo_debounce_present():
 
 def test_users_role_conversion():
     """Test that users.html role selects are converted to combos."""
-    users_html = Path("/opt/data/work/sazon-app/app/templates/users.html")
+    users_html = Path(SAZON_APP + "/app/templates/users.html")
     content = users_html.read_text()
 
     # Should reference the new roles API
@@ -66,7 +69,7 @@ def test_users_role_conversion():
 
 def test_users_roles_api():
     """Test that the /users/api/roles endpoint exists."""
-    users_router = Path("/opt/data/work/sazon-app/app/routers/users.py")
+    users_router = Path(SAZON_APP + "/app/routers/users.py")
     content = users_router.read_text()
 
     assert "/api/roles" in content
@@ -77,7 +80,7 @@ def test_users_roles_api():
 
 def test_producto_form_recipe_combo():
     """Test that producto_form.html recipe select is converted."""
-    pf = Path("/opt/data/work/sazon-app/app/templates/producto_form.html")
+    pf = Path(SAZON_APP + "/app/templates/producto_form.html")
     content = pf.read_text()
 
     # Should reference the recipes search API
@@ -89,7 +92,7 @@ def test_producto_form_recipe_combo():
 
 def test_recetas_ingredient_filter_conversion():
     """Test that recetas.html ingredient filter is converted."""
-    rh = Path("/opt/data/work/sazon-app/app/templates/recetas.html")
+    rh = Path(SAZON_APP + "/app/templates/recetas.html")
     content = rh.read_text()
 
     # Should reference the inventory search API
@@ -99,7 +102,7 @@ def test_recetas_ingredient_filter_conversion():
 
 def test_merma_reason_filter_conversion():
     """Test that merma.html reason filter is converted."""
-    mh = Path("/opt/data/work/sazon-app/app/templates/merma.html")
+    mh = Path(SAZON_APP + "/app/templates/merma.html")
     content = mh.read_text()
 
     # Should reference the merma reasons API
