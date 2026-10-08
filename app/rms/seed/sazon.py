@@ -2545,7 +2545,6 @@ INGREDIENTS: list[tuple] = [
 ]
 
 
-
 # 20+ recipes
 # Tuple: (name, yield_qty, yield_unit, prep_minutes, cook_minutes, difficulty 1-5, family, menu_tags, dietary_tags, notes)
 RECIPES: list[tuple] = [
@@ -2816,7 +2815,6 @@ RECIPES: list[tuple] = [
 ]
 
 
-
 # Recipe lines: (recipe_name, ingredient_name, qty, line_unit, notes)
 RECIPE_LINES: list[tuple[str, str, float, str, str | None]] = [
     # === babka__rec_017 ===
@@ -2901,9 +2899,21 @@ RECIPE_LINES: list[tuple[str, str, float, str, str | None]] = [
     # === galletas_de_especuloos_speculaasjes__rec_010 ===
     ("galletas_de_especuloos_speculaasjes__rec_010", "Manteca", 0.19, "kg", None),
     ("galletas_de_especuloos_speculaasjes__rec_010", "Azúcar morena", 0.205, "kg", None),
-    ("galletas_de_especuloos_speculaasjes__rec_010", "Suero de leche (buttermilk)", 0.045, "l", None),
+    (
+        "galletas_de_especuloos_speculaasjes__rec_010",
+        "Suero de leche (buttermilk)",
+        0.045,
+        "l",
+        None,
+    ),
     ("galletas_de_especuloos_speculaasjes__rec_010", "Harina de trigo", 0.4, "kg", None),
-    ("galletas_de_especuloos_speculaasjes__rec_010", "Mezcla de especias para Speculaas", 0.004, "kg", None),
+    (
+        "galletas_de_especuloos_speculaasjes__rec_010",
+        "Mezcla de especias para Speculaas",
+        0.004,
+        "kg",
+        None,
+    ),
     ("galletas_de_especuloos_speculaasjes__rec_010", "Bicarbonato de sodio", 0.002, "kg", None),
     # === goulash_crockettes__rec_019 ===
     ("goulash_crockettes__rec_019", "Aceite", 0.04, "l", None),
@@ -2944,7 +2954,13 @@ RECIPE_LINES: list[tuple[str, str, float, str, str | None]] = [
     ("oliebollen_bunuelos_tradicionales_holandeses__rec_016", "Leche", 1.0, "l", None),
     ("oliebollen_bunuelos_tradicionales_holandeses__rec_016", "Harina de trigo", 1.0, "kg", None),
     ("oliebollen_bunuelos_tradicionales_holandeses__rec_016", "Azúcar", 0.045, "kg", None),
-    ("oliebollen_bunuelos_tradicionales_holandeses__rec_016", "Ralladura de limón", 1.0, "und", None),
+    (
+        "oliebollen_bunuelos_tradicionales_holandeses__rec_016",
+        "Ralladura de limón",
+        1.0,
+        "und",
+        None,
+    ),
     ("oliebollen_bunuelos_tradicionales_holandeses__rec_016", "Sal", 0.02, "kg", None),
     # === ontbijtkoek_700g_de_harina__rec_004 ===
     ("ontbijtkoek_700g_de_harina__rec_004", "Harina de centeno", 0.7, "kg", None),
@@ -2968,7 +2984,13 @@ RECIPE_LINES: list[tuple[str, str, float, str, str | None]] = [
     ("petisus_de_hojaldre_y_crema_tompoezen__rec_015", "Crema pastelera", 0.001, "l", None),
     ("petisus_de_hojaldre_y_crema_tompoezen__rec_015", "Crema de leche", 0.4, "l", None),
     ("petisus_de_hojaldre_y_crema_tompoezen__rec_015", "Azúcar", 0.045, "kg", None),
-    ("petisus_de_hojaldre_y_crema_tompoezen__rec_015", "Estabilizante para nata", 0.001, "kg", None),
+    (
+        "petisus_de_hojaldre_y_crema_tompoezen__rec_015",
+        "Estabilizante para nata",
+        0.001,
+        "kg",
+        None,
+    ),
     ("petisus_de_hojaldre_y_crema_tompoezen__rec_015", "Azúcar glas", 0.125, "kg", None),
     ("petisus_de_hojaldre_y_crema_tompoezen__rec_015", "Agua", 0.002, "l", None),
     # === proficteroles_de_den_bosch_bossche_bollen__rec_014 ===
@@ -3000,16 +3022,46 @@ RECIPE_LINES: list[tuple[str, str, float, str, str | None]] = [
     ("suppli_cacio_e_pepe__rec_021", "Sal", 0.005, "kg", None),
     ("suppli_cacio_e_pepe__rec_021", "Pan rallado", 0.06, "kg", None),
     # === tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013 ===
-    ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Harina de trigo", 0.35, "kg", None),
-    ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Polvo de hornear", 0.002, "kg", None),
+    (
+        "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013",
+        "Harina de trigo",
+        0.35,
+        "kg",
+        None,
+    ),
+    (
+        "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013",
+        "Polvo de hornear",
+        0.002,
+        "kg",
+        None,
+    ),
     ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Sal", 0.001, "kg", None),
-    ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Vainilla", 0.001, "kg", None),
+    (
+        "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013",
+        "Vainilla",
+        0.001,
+        "kg",
+        None,
+    ),
     ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Azúcar", 0.175, "kg", None),
     ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Manteca", 0.25, "kg", None),
     ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Manzana", 6.0, "und", None),
     ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Canela", 0.002, "kg", None),
-    ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Polvo para natillas", 0.003, "kg", None),
-    ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Azúcar morena", 0.003, "kg", None),
+    (
+        "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013",
+        "Polvo para natillas",
+        0.003,
+        "kg",
+        None,
+    ),
+    (
+        "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013",
+        "Azúcar morena",
+        0.003,
+        "kg",
+        None,
+    ),
     ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Pasas", 0.06, "kg", None),
     # === bitterballen_vegetariano__rec_020 ===
     ("bitterballen_vegetariano__rec_020", "Manteca", 0.085, "kg", None),
@@ -3050,7 +3102,6 @@ RECIPE_LINES: list[tuple[str, str, float, str, str | None]] = [
     ("bitterballen__rec_006", "Pan rallado", 0.1, "kg", None),
     ("bitterballen__rec_006", "Nuez moscada", 0.001, "kg", None),
 ]
-
 
 
 # Products (40+).
@@ -3507,7 +3558,6 @@ PRODUCTS: list[tuple] = [
 ]
 
 
-
 # 15 customers with realistic Paraguayan data
 # Tuple: (name, phone, email, cedula, notes, loyalty_points, zone, address,
 #         birthday, how_found, preferred_channel, marketing_consent,
@@ -3775,21 +3825,110 @@ CUSTOMERS: list[tuple] = [
 #         channel_idx (Channel enum), notes, line_items: list[(product_name, qty)])
 # Channel: 0=MOSTRADOR, 1=WHATSAPP, 2=PEDIDOSYA, 3=PHONE
 PEDIDOS: list[tuple] = [
-    (0, -30, 10, 0, 'fulfilled', 'efectivo', 0, 'Cliente habitual, viernes', [('Muffin de chocolate (20x20 cm)', 6), ('Docena gofres de sirope', 1)]),
-    (1, -28, 14, 30, 'fulfilled', 'transferencia', 1, 'Pedido con factura', [('Cheesecake entera', 1)]),
-    (2, -21, 9, 0, 'fulfilled', 'efectivo', 0, None, [('Cheesecake (30x50)', 6)]),
-    (5, -14, 16, 0, 'fulfilled', 'efectivo', 0, 'Cliente celíaca', [('Cheesecake entera', 1)]),
-    (6, -7, 11, 0, 'fulfilled', 'tarjeta', 0, 'Factura con RUC', [('Babka', 2)]),
-    (8, -5, 8, 30, 'fulfilled', 'efectivo', 0, 'Para la oficina', [('Hojaldre (Bladerdeeg)', 4)]),
-    (2, -2, 10, 30, 'fulfilled', 'tarjeta', 0, 'Ya retirado', [('Petisús de hojaldre y crema (Tompoezen)', 2)]),
-    (4, -1, 15, 0, 'ready', 'efectivo', 1, 'Llamó por WhatsApp. Listo para retirar.', [('Muffin de chocolate (20x20 cm)', 6)]),
-    (9, 0, 11, 0, 'ready', 'transferencia', 1, 'Opciones vegetarianas', [('Tarta de manzana de mi madre (Mijn moeders appeltaart)', 1)]),
-    (12, 0, 18, 0, 'confirmed', 'transferencia', 1, 'Para evento mañana a las 20h', [('Cheesecake entera', 1)]),
-    (11, 1, 9, 0, 'confirmed', 'efectivo', 0, 'Pedido diario', [('Muffin de chocolate (20x20 cm)', 12)]),
-    (13, 2, 16, 0, 'pending', 'efectivo', 3, 'Llamó por teléfono. Para lunes 16h.', [('Docena gofres de sirope', 1)]),
-    (7, 1, 11, 0, 'confirmed', 'transferencia', 1, 'Decorada con flores', [('Cheesecake entera', 1)]),
+    (
+        0,
+        -30,
+        10,
+        0,
+        "fulfilled",
+        "efectivo",
+        0,
+        "Cliente habitual, viernes",
+        [("Muffin de chocolate (20x20 cm)", 6), ("Docena gofres de sirope", 1)],
+    ),
+    (
+        1,
+        -28,
+        14,
+        30,
+        "fulfilled",
+        "transferencia",
+        1,
+        "Pedido con factura",
+        [("Cheesecake entera", 1)],
+    ),
+    (2, -21, 9, 0, "fulfilled", "efectivo", 0, None, [("Cheesecake (30x50)", 6)]),
+    (5, -14, 16, 0, "fulfilled", "efectivo", 0, "Cliente celíaca", [("Cheesecake entera", 1)]),
+    (6, -7, 11, 0, "fulfilled", "tarjeta", 0, "Factura con RUC", [("Babka", 2)]),
+    (8, -5, 8, 30, "fulfilled", "efectivo", 0, "Para la oficina", [("Hojaldre (Bladerdeeg)", 4)]),
+    (
+        2,
+        -2,
+        10,
+        30,
+        "fulfilled",
+        "tarjeta",
+        0,
+        "Ya retirado",
+        [("Petisús de hojaldre y crema (Tompoezen)", 2)],
+    ),
+    (
+        4,
+        -1,
+        15,
+        0,
+        "ready",
+        "efectivo",
+        1,
+        "Llamó por WhatsApp. Listo para retirar.",
+        [("Muffin de chocolate (20x20 cm)", 6)],
+    ),
+    (
+        9,
+        0,
+        11,
+        0,
+        "ready",
+        "transferencia",
+        1,
+        "Opciones vegetarianas",
+        [("Tarta de manzana de mi madre (Mijn moeders appeltaart)", 1)],
+    ),
+    (
+        12,
+        0,
+        18,
+        0,
+        "confirmed",
+        "transferencia",
+        1,
+        "Para evento mañana a las 20h",
+        [("Cheesecake entera", 1)],
+    ),
+    (
+        11,
+        1,
+        9,
+        0,
+        "confirmed",
+        "efectivo",
+        0,
+        "Pedido diario",
+        [("Muffin de chocolate (20x20 cm)", 12)],
+    ),
+    (
+        13,
+        2,
+        16,
+        0,
+        "pending",
+        "efectivo",
+        3,
+        "Llamó por teléfono. Para lunes 16h.",
+        [("Docena gofres de sirope", 1)],
+    ),
+    (
+        7,
+        1,
+        11,
+        0,
+        "confirmed",
+        "transferencia",
+        1,
+        "Decorada con flores",
+        [("Cheesecake entera", 1)],
+    ),
 ]
-
 
 
 # Freezer temperature log (last 14 days, 2 readings per day)
@@ -3802,38 +3941,36 @@ HACCP_TEMP_MAX_C = -16.0
 # Market benchmarks
 # Tuple: (label, our_wholesale_gs, our_retail_gs, market_avg_gs, market_min_gs)
 BENCHMARKS: list[tuple[str, int, int, int, int]] = [
-    ('Muffin de chocolate (20x20 cm)', 5500, 8500, 9500, 7500),
-    ('Docena muffins chocolate', 55000, 85000, 88000, 75000),
-    ('Cheesecake (30x50)', 14000, 25000, 26000, 20000),
-    ('Cheesecake entera', 130000, 220000, 210000, 170000),
-    ('Stroop wafel', 4500, 7000, 8000, 5500),
-    ('Docena gofres de sirope', 55000, 85000, 88000, 75000),
-    ('Hojaldre (Bladerdeeg)', 6000, 8500, 9000, 7000),
-    ('Tarta de manzana de mi madre (Mijn moeders appeltaart)', 14000, 22000, 23000, 18000),
-    ('Petisús de hojaldre y crema (Tompoezen)', 5000, 7500, 8000, 6000),
-    ('Docena petisús', 50000, 75000, 80000, 60000),
-    ('Oliebollen (Buñuelos tradicionales holandeses)', 3500, 5500, 5500, 4000),
-    ('Docena buñuelos', 35000, 55000, 55000, 40000),
-    ('Babka', 12000, 18000, 17000, 14000),
-    ('Babka entera', 100000, 150000, 140000, 110000),
-    ('Bizcocho 25 cm entero', 120000, 180000, 170000, 140000),
-    ('Bizcocho 30 cm entero', 150000, 220000, 210000, 170000),
+    ("Muffin de chocolate (20x20 cm)", 5500, 8500, 9500, 7500),
+    ("Docena muffins chocolate", 55000, 85000, 88000, 75000),
+    ("Cheesecake (30x50)", 14000, 25000, 26000, 20000),
+    ("Cheesecake entera", 130000, 220000, 210000, 170000),
+    ("Stroop wafel", 4500, 7000, 8000, 5500),
+    ("Docena gofres de sirope", 55000, 85000, 88000, 75000),
+    ("Hojaldre (Bladerdeeg)", 6000, 8500, 9000, 7000),
+    ("Tarta de manzana de mi madre (Mijn moeders appeltaart)", 14000, 22000, 23000, 18000),
+    ("Petisús de hojaldre y crema (Tompoezen)", 5000, 7500, 8000, 6000),
+    ("Docena petisús", 50000, 75000, 80000, 60000),
+    ("Oliebollen (Buñuelos tradicionales holandeses)", 3500, 5500, 5500, 4000),
+    ("Docena buñuelos", 35000, 55000, 55000, 40000),
+    ("Babka", 12000, 18000, 17000, 14000),
+    ("Babka entera", 100000, 150000, 140000, 110000),
+    ("Bizcocho 25 cm entero", 120000, 180000, 170000, 140000),
+    ("Bizcocho 30 cm entero", 150000, 220000, 210000, 170000),
 ]
-
 
 
 # Waste log entries
 # Tuple: (ingredient_name, qty, reason, days_ago, recorded_by, notes)
 WASTE_LOG: list[tuple[str, float, str, int, str, str | None]] = [
-    ('Leche', 0.5, 'vencimiento', 12, 'lucia', 'Caja próxima a vencer'),
-    ('Manteca', 0.2, 'mal_estado', 5, 'lucia', 'Rancio'),
-    ('Huevos', 6, 'rotura', 4, 'saskia', 'Caja rota al recibir del proveedor'),
-    ('Harina de trigo', 0.5, 'derrame', 2, 'diego', 'Bolsa rota'),
-    ('Queso crema', 0.3, 'vencimiento', 1, 'saskia', 'Una vez abierto dura poco'),
-    ('Chocolate', 0.2, 'mal_estado', 15, 'lucia', 'Bolsa mal cerrada'),
-    ('Leche condensada', 0.4, 'mal_estado', 20, 'saskia', 'Lata hinchada'),
+    ("Leche", 0.5, "vencimiento", 12, "lucia", "Caja próxima a vencer"),
+    ("Manteca", 0.2, "mal_estado", 5, "lucia", "Rancio"),
+    ("Huevos", 6, "rotura", 4, "saskia", "Caja rota al recibir del proveedor"),
+    ("Harina de trigo", 0.5, "derrame", 2, "diego", "Bolsa rota"),
+    ("Queso crema", 0.3, "vencimiento", 1, "saskia", "Una vez abierto dura poco"),
+    ("Chocolate", 0.2, "mal_estado", 15, "lucia", "Bolsa mal cerrada"),
+    ("Leche condensada", 0.4, "mal_estado", 20, "saskia", "Lata hinchada"),
 ]
-
 
 
 # Initial stock movement records (one per ingredient: positive entry)
@@ -3842,30 +3979,28 @@ WASTE_LOG: list[tuple[str, float, str, int, str, str | None]] = [
 # Production plan template (weekly, every weekday gets a basic plan)
 # Tuple: (weekday 0-6, product_idx_in_PRODUCTS, qty, notes)
 PRODUCTION_TEMPLATES: list[tuple[int, int, float, str | None]] = [
-    (0, 6, 24, 'Lunes base'),
+    (0, 6, 24, "Lunes base"),
     (0, 15, 12, None),
-    (0, 0, 6, 'Lunes base'),
-    (1, 6, 18, 'Martes'),
+    (0, 0, 6, "Lunes base"),
+    (1, 6, 18, "Martes"),
     (1, 17, 12, None),
     (1, 0, 8, None),
-    (2, 6, 24, 'Miércoles'),
+    (2, 6, 24, "Miércoles"),
     (2, 17, 12, None),
     (2, 0, 8, None),
-    (3, 6, 30, 'Jueves popular'),
+    (3, 6, 30, "Jueves popular"),
     (3, 5, 18, None),
     (3, 19, 10, None),
-    (4, 6, 36, 'Viernes — día pico'),
-    (4, 5, 24, 'Viernes — día pico'),
+    (4, 6, 36, "Viernes — día pico"),
+    (4, 5, 24, "Viernes — día pico"),
     (4, 17, 12, None),
-    (4, 15, 12, 'Petisú fin de semana'),
-    (5, 6, 24, 'Sábado'),
+    (4, 15, 12, "Petisú fin de semana"),
+    (5, 6, 24, "Sábado"),
     (5, 5, 18, None),
     (5, 12, 12, None),
-    (6, 6, 18, 'Domingo'),
+    (6, 6, 18, "Domingo"),
     (6, 0, 4, None),
 ]
-
-
 
 
 @dataclass
@@ -4693,14 +4828,14 @@ def seed_sazon(
     for days_ago in range(7):
         d = today - timedelta(days=days_ago)
         for prod_name in [
-            'Muffin de chocolate (20x20 cm)',
-            'Cheesecake (30x50)',
-            'Petisús de hojaldre y crema (Tompoezen)',
-            'Babka',
-            'Stroop wafel',
-            'Tarta de manzana de mi madre (Mijn moeders appeltaart)',
-            'Babka entera',
-            'Cheesecake entera',
+            "Muffin de chocolate (20x20 cm)",
+            "Cheesecake (30x50)",
+            "Petisús de hojaldre y crema (Tompoezen)",
+            "Babka",
+            "Stroop wafel",
+            "Tarta de manzana de mi madre (Mijn moeders appeltaart)",
+            "Babka entera",
+            "Cheesecake entera",
         ]:
             prod = product_objs_by_name.get(prod_name)
             if not prod:
