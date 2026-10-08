@@ -1,3 +1,15 @@
+## 2026-10-08a — dashboard: KPI tiles render in the empty-state branch too (P-22 regression fix)
+
+**Bug**: commit b26ce082 (10-05) added a "Sin datos este mes" empty-state branch to
+`dashboard.html` that REPLACED the KPI strips with hidden group placeholders — silently breaking
+the P-22 contract (KPI tiles always render, zero data shows danger bars / 'sin escandallo'
+objetivos) on any month with no sales. 14 tests in `test_P22_dashboard_kpi_target_indicators.py`
+failed; the file isn't in the default CI lane so nobody noticed.
+
+**Fix**: KPI row extracted to `_dashboard_kpi_row.html` and included in BOTH branches. New
+regression test `test_dashboard_empty_state_still_renders_kpi_tiles` locks it. 13 passed /
+2 skipped (skips are N/A-when-bar-exists branches).
+
 # App CHANGELOG — Sazón
 
 > **For Kiki, the operator, and any agent.** App-level changelog separate from the
