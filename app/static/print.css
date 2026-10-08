@@ -1,0 +1,183 @@
+/* Phase 22: Print stylesheet for reports, batch sheets, and analytics */
+
+/* Basic print reset */
+* {
+  -webkit-print-color-adjust: exact;
+  color-adjust: exact;
+  box-shadow: none !important;
+}
+
+body {
+  font-size: 12pt;
+  line-height: 1.4;
+  color: #000;
+  background: #fff !important;
+  margin: 0;
+  padding: 2em;
+}
+
+/* Hide non-printable elements */
+.modal-backdrop,
+nav,
+footer,
+.filter-toolbar,
+.sticky-footer,
+.btn-ghost,
+.btn-icon,
+.back-to-top,
+.skeleton-section {
+  display: none !important;
+}
+
+/* Hide interactive and visual elements */
+.combo-toggle,
+.form-input:focus,
+.table th.sortable,
+.kpi-strip,
+.progress-bar,
+.toast-container,
+.alert-strip {
+  display: none !important;
+}
+
+/* Table styles */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  border: 1px solid #ccc;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  background: #f5f5f5;
+  font-weight: bold;
+  border-bottom: 2px solid #999;
+}
+
+/* Batch sheet optimization */
+.batches-overview {
+  page-break-inside: avoid;
+}
+
+.batches-overview table {
+  width: 100%;
+}
+
+/* Report styling */
+.report-header {
+  border-bottom: 2px solid #000;
+  margin-bottom: 1em;
+  padding-bottom: 0.5em;
+}
+
+.report-title {
+  font-size: 18pt;
+  font-weight: bold;
+  margin: 0 0 0.5em 0;
+}
+
+/* Charts and images */
+.chart-container {
+  max-width: 100%;
+  height: auto;
+  page-break-inside: avoid;
+}
+
+/* Form fields in print */
+.form-control,
+select {
+  border: 1px solid #ccc;
+  padding: 2px 4px;
+  background: #fff !important;
+}
+
+/* Show only essential links */
+a[href]:after {
+  content: " (" attr(href) ")";
+  font-size: 9pt;
+  color: #666;
+}
+
+/* Page breaks */
+h1, h2, h3 {
+  page-break-after: avoid;
+}
+
+table {
+  page-break-inside: avoid;
+}
+
+table tr {
+  page-break-inside: avoid;
+}
+
+/* Footer for print */
+@page {
+  margin: 2cm;
+  @bottom-right {
+    content: counter(page);
+    font-size: 9pt;
+  }
+}
+
+/* Responsive grid for print */
+.grid-2 {
+  display: block;
+  width: 100%;
+}
+
+.grid-2 > div {
+  float: left;
+  width: 50%;
+}
+
+/* Reset floats after grid */
+.grid-2::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* Sticky table headers for long tables */
+thead {
+  display: table-header-group;
+}
+
+/* Print-friendly badges */
+.badge {
+  border: 1px solid #999;
+  padding: 2px 6px;
+  font-size: 11pt;
+  background: #fff !important;
+}
+
+/* Hide interactive chart controls */
+.chart-controls {
+  display: none;
+}
+
+/* Ensure text is visible */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]:after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 9pt;
+  white-space: nowrap;
+  margin-bottom: 5px;
+}
