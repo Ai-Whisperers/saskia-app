@@ -57,9 +57,11 @@ def demo_seed(session: Any = Depends(get_session)) -> JSONResponse:
     if not _is_enabled():
         raise HTTPException(
             status_code=403,
+            # Don't leak the server-side path (/opt/build-apps/...) in the
+            # response — OWASP ZAP rule 110009 "Full Path Disclosure".
             detail=(
-                "Demo seed is disabled. Set AIW_DEMO_SEED_ENABLED=true "
-                "in /opt/build-apps/sazon-rms/.env to enable."
+                "Demo seed is disabled (AIW_DEMO_SEED_ENABLED not set to "
+                "true). Ask the operator to enable it."
             ),
         )
 

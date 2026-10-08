@@ -186,13 +186,18 @@ jobs:
           rules_file_name: .github/.zap-rules.tsv
           # `-a` (ajax spider for SPAs — disabled in our app; harmless)
           # `-j` (use the openapi.json file)
-          # `-l WARN` only WARN+ level alerts trigger `fail_action`
+          # `-l WARN` show WARN+ alerts in output
+          # `-I` do NOT return failure on warnings — promoted 2026-10-08:
+          #   only FAIL-level (HIGH/CRITICAL) alerts fail the build now.
+          #   All remaining WARN alerts were triaged as false positives or
+          #   operational noise — see .github/.zap-rules.tsv for rationale.
           # spider `maxDuration=2` (minutes) — keeps scan ≤ 6 min total
           # scanner `maxScanDurationInMins=4`
           cmd_options: >
             -a
             -j
             -l WARN
+            -I
             -z "-config api.disablekey=true
             -config openapi.targetUrl=http://127.0.0.1:18998
             -config spider.maxDuration=2

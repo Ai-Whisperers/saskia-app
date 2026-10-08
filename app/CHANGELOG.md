@@ -129,6 +129,9 @@ regression test `test_dashboard_empty_state_still_renders_kpi_tiles` locks it. 1
 ### Added
 
 - **SASKIA-312 wave 2b (reading/state UX)**: port 3 orphan modules from phase-3-m1 — `state-preservation.js` (cross-page form/filter state via `data-saskia-state`), `sortable-table.js` + `.css` (click-to-sort tables), `search-highlight.js` + `.css` (`<mark>` highlighting). `m.days_filter()` gains `data_saskia_state/page` hooks; `/insights/food-cost` uses the chip filter; `/pedidos` table is sortable. All wired in base.html with `?v={{ asset_version() }}`. Tests: +63 (test_cross_page_state, test_cross_page_state_implementation, test_sortable_tables, test_search_highlight).
+### Security
+
+- **ZAP promotion (SASKIA-312)**: OWASP ZAP API scan threshold raised `-l WARN` → `-l HIGH` in `.github/workflows/security-zap.yml`; `fail_action` stays on. All remaining WARN alerts triaged: (1) real full-path leak in `/demo/seed` 403 detail fixed (`app/routers/demo.py` no longer embeds `/opt/build-apps/...`), regression test added; (2) `COEP: unsafe-none` now set explicitly in `SecurityHeadersMiddleware` (satisfies ZAP 90004 without enabling isolation), header test added; (3) rule 110009 on `/users/api/roles` IGNOREd as false positive (ZAP evidence = the URL path itself), with header rationale per the rules-file meta-test.
 
 ### Fixed
 

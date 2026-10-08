@@ -100,3 +100,11 @@ def test_demo_seed_500_does_not_leak_exception_repr(client, monkeypatch):
     assert "Demo seed failed. See server logs." in body or "Demo seed failed" in body, (
         f"Missing generic 500 message. Body: {body[:500]}"
     )
+
+
+def test_demo_seed_403_does_not_leak_server_path(client, monkeypatch):
+    """ZAP rule 110009: the disabled-flag 403 must not leak /opt/... paths."""
+    monkeypatch.setenv("AIW_DEMO_SEED_ENABLED", "")
+    r = client.post("/demo/seed")
+    assert r.status_code == 403, r.text
+    assert "/opt/" not in r.text, f"403 detail leaks server path: {r.text!r}"
