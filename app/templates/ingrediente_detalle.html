@@ -109,6 +109,35 @@
     </dl>
   </section>
 
+  <section class="detail-card" data-ingredient-margins>
+    <h2>Margen en los productos</h2>
+    <p class="text-muted">El precio de venta se cambia en Gerencia.</p>
+    {% if product_margins %}
+    <table class="table is-striped">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th class="num">Precio de venta</th>
+          <th class="num">Margen, último costo</th>
+          <th class="num">Margen, costo más alto</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in product_margins %}
+        <tr>
+          <td>{{ row.product_name }}</td>
+          <td class="num">{{ m.gs_full(row.sale_price_gs) }}</td>
+          <td class="num">{% if row.margin_last_gs is none %}—{% else %}{{ m.gs_full(row.margin_last_gs) }}{% endif %}</td>
+          <td class="num">{% if row.margin_high_gs is none %}—{% else %}{{ m.gs_full(row.margin_high_gs) }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">Ningún producto usa este ingrediente.</p>
+    {% endif %}
+  </section>
+
   {% if price_stats and price_stats.count > 1 %}
   <section class="detail-card">
     <h2>Historial de precios ({{ price_stats.count }} registros)</h2>

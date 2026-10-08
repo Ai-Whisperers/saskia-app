@@ -2126,11 +2126,10 @@ ui-date:focus-visible, ui-combo:focus-visible,
   .menu-publico__footer { text-align: center; margin-top: var(--space-5); padding-bottom: var(--space-4); }
 
 
-/* ─── pedido_board (extracted from pedido_board.html) ─── */
-body { background: #111; color: #eee; font-size: 18px; }
-  h1 { color: #fff; margin-bottom: .5em; }
-  h2 { color: #aaa; font-size: 1.1rem; text-transform: uppercase; letter-spacing: .1em; margin: 1.5em 0 .5em; }
-  .board-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+/* ─── pedido_board (extracted from pedido_board.html) ───
+   Body, h1, and h2 used to be set here. That painted every screen
+   near-black. The board keeps its own card colors below. */
+.board-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
   .order-card {
     background: #1a1a1a;
     border: 2px solid #333;

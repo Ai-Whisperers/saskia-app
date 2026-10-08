@@ -1060,6 +1060,8 @@ def inventory_detail(
     rollup = rollup_ingredient_stock(session, ing_id)
     forecast = days_until_short(session, ing_id)
 
+    from app.rms.ingredient_margins import product_margins_for_ingredient
+
     return render(
         request,
         "ingrediente_detalle.html",
@@ -1070,6 +1072,7 @@ def inventory_detail(
             "forecast": forecast,
             # Price history stats for the detail strip (price_history.py).
             "price_stats": _price_stats_safe(session, ing_id),
+            "product_margins": product_margins_for_ingredient(session, ing_id),
         },
     )
 

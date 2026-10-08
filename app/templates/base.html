@@ -39,6 +39,7 @@
   <link rel="stylesheet" href="/static/app-shell.css?v={{ asset_version() }}">
   <link rel="stylesheet" href="/static/app-components.css?v={{ asset_version() }}">
   <link rel="stylesheet" href="/static/combobox.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/theme.css?v={{ asset_version() }}">
   <link rel="stylesheet" href="/static/sortable-table.css?v={{ asset_version() }}">
   <link rel="stylesheet" href="/static/search-highlight.css?v={{ asset_version() }}">
   <link rel="stylesheet" href="/static/stepper.css?v={{ asset_version() }}">
@@ -93,9 +94,9 @@
      <div id="app-shell"> so the mobile hamburger toggle (which uses
      #app-shell) actually works, and so the grid layout doesn't break
      when other things (skip-link, etc.) are siblings of body. #}
-  <div id="app-shell" class="app-shell">
+  <div id="app-shell" class="app-shell{% if on_chooser %} on-chooser{% endif %}">
   <aside class="sidebar" aria-label="Navegación principal">
-      <a class="brand" href="/">
+      <a class="brand" href="{{ station_home or '/' }}">
         <span class="brand-mark">S</span>
         <span class="brand-name">{{ branding.business_name or "Sazón" }}</span>
       </a>
@@ -133,20 +134,28 @@
       </div>
 
       <div class="topbar-actions">
+        {% if not on_chooser and (create_actions or not station) %}
         <div class="nuevo-wrap" id="nuevo-wrap">
-          <button type="button" class="btn btn-primary" id="nuevo-btn" aria-haspopup="true" aria-expanded="false" aria-controls="nuevo-menu" title="Crear nuevo — elegí: Venta, Pedido, Producto, Ingrediente, Receta o Cliente">
+          <button type="button" class="btn btn-primary" id="nuevo-btn" aria-haspopup="true" aria-expanded="false" aria-controls="nuevo-menu" title="Crear nuevo">
             <svg class="icon" aria-hidden="true"><use href="#icon-menu"/></svg>
             <span aria-hidden="true">+</span> Nuevo
           </button>
           <div class="nuevo-menu" id="nuevo-menu" role="menu" aria-label="Crear nuevo">
+            {% if create_actions %}
+            {% for item in create_actions %}
+            <a href="{{ item.route }}" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#{{ item.icon }}"/></svg> {{ item.label }}</a>
+            {% endfor %}
+            {% else %}
             <a href="/ventas" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg> Venta</a>
             <a href="/pedidos/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg> Pedido</a>
             <a href="/productos/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg> Producto</a>
             <a href="/inventario/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg> Ingrediente</a>
             <a href="/recetas/nueva" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg> Receta</a>
             <a href="/clientes/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-customer"/></svg> Cliente</a>
+            {% endif %}
           </div>
         </div>
+        {% endif %}
 
         <div class="notif-center" id="notif-center">
           <button type="button" class="notif-btn btn-ghost btn-icon" id="notif-btn"
@@ -169,6 +178,9 @@
                 aria-label="Cambiar tema claro/oscuro" title="Cambiar tema">
           <svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg>
         </button>
+        {% if show_station_switch %}
+        <a href="/puesto/cambiar" class="btn btn-ghost" title="Elegir otro puesto">Cambiar puesto</a>
+        {% endif %}
         <a href="/logout" class="btn-ghost btn-icon d-inline-flex" aria-label="Cerrar sesión" title="Cerrar sesión" style="display:inline-flex;align-items:center;justify-content:center;">
           <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
         </a>
@@ -358,6 +370,16 @@
 
   {# Sticky bottom-nav for mobile (≤768px). Hidden on desktop via mobile.css. #}
   <nav class="bottom-nav" aria-label="Navegación rápida">
+    {% if station %}
+    {% for group, items in nav_groups %}
+    {% for item in items %}
+    <a href="{{ item.route }}" class="{% if request.url.path == item.route or (item.route != '/' and request.url.path.startswith(item.route)) %}active{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#{{ item.icon }}"/></svg>
+      <span>{{ item.label }}</span>
+    </a>
+    {% endfor %}
+    {% endfor %}
+    {% else %}
     <a href="/inicio" class="{% if request.url.path in ('/inicio', '/') %}active{% endif %}">
       <svg class="icon" aria-hidden="true"><use href="#icon-home"/></svg>
       <span>Inicio</span>
@@ -378,6 +400,7 @@
       <svg class="icon" aria-hidden="true"><use href="#icon-menu"/></svg>
       <span>Más</span>
     </a>
+    {% endif %}
   </nav>
 </body>
 

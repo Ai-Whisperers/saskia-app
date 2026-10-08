@@ -361,14 +361,46 @@ def render(
     except Exception:
         ctx["is_logged_in"] = False
 
-    # SS-1: sidebar/nav renders from the nav table (app/rms/nav.py)
-    if "nav_groups" not in ctx:
-        try:
-            from app.rms.nav import NAV_GROUPS
+    # SS-1: sidebar/nav renders from the nav table (app/rms/nav.py).
+    # A chosen station shows only that station's screens.
+    station_id = None
+    station_locked = False
+    try:
+        station_id = request.session.get("station")
+        station_locked = bool(request.session.get("station_locked"))
+    except Exception:
+        station_id = None
+    on_chooser = request.url.path.startswith("/puesto") or bool(ctx.get("on_chooser"))
+    ctx["station"] = station_id
+    ctx["on_chooser"] = on_chooser
+    ctx["show_station_switch"] = bool(station_id) and not station_locked
+    try:
+        from app.rms.nav import NAV_GROUPS
+        from app.rms.stations import (
+            STATIONS,
+            canonical_station,
+            create_actions_for,
+            hides_prices,
+            nav_groups_for,
+        )
 
-            ctx["nav_groups"] = NAV_GROUPS
-        except Exception:
-            ctx["nav_groups"] = []
+        station_id = canonical_station(station_id)
+        ctx["station"] = station_id
+        ctx["station_hides_prices"] = hides_prices(station_id)
+        ctx["station_home"] = STATIONS[station_id].home if station_id in STATIONS else "/"
+        ctx["create_actions"] = create_actions_for(station_id) if station_id else None
+        if "nav_groups" not in ctx:
+            if on_chooser:
+                ctx["nav_groups"] = []
+            elif station_id:
+                ctx["nav_groups"] = nav_groups_for(station_id, NAV_GROUPS)
+            else:
+                ctx["nav_groups"] = NAV_GROUPS
+    except Exception:
+        ctx.setdefault("nav_groups", [])
+        ctx.setdefault("station_hides_prices", False)
+        ctx.setdefault("station_home", "/")
+        ctx.setdefault("create_actions", None)
 
     if "branding" not in ctx:
         try:

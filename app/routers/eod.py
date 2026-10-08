@@ -287,21 +287,17 @@ def eod_check_save(
 ) -> RedirectResponse:
     """Persist the operator's EOD checklist progress.
 
-    The form submits one checkbox per checklist item (HTML input `name={key}`).
-    Each item's "done" state is stored in app_meta so it survives a page
-    reload. The notes_for_next textarea is also persisted (Text column on
-    app_meta).
-
-    BACKLOG #9 — Idempotency: an optional ``idempotency_key`` form field
-    prevents the double-click problem (a fast click on "Guardar cierre"
-    used to write two audit rows + fire two backup checks). When the
-    template injects a per-render token (see eod.html), a duplicate
-    POST surfaces an IntegrityError on the ``eod_save_idem:<key>`` AppMeta
-    row and we redirect back to /eod with a "Cierre ya guardado" flash —
-    no second audit row, no second backup attempt. Without a key, we
-    fall back to the legacy upsert path (still safe but allows the
-    duplicate-audit behaviour for old templates in the wild).
+    Cocina does not own these checkboxes. A save from that station
+    returns without writing, so piece counts already stored stay as they are.
     """
+    from app.rms.stations import escritorio_writes_desk
+
+    if not escritorio_writes_desk(request.session.get("station")):
+        return RedirectResponse(
+            url="/eod?flash=Esas+casillas+se+guardan+en+Gerencia",
+            status_code=303,
+        )
+
     from datetime import datetime, timezone
 
     from app.rms.models import AppMeta
@@ -437,7 +433,19 @@ def eod_completar(
     notes: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Record how much of a planned product was actually produced (T5)."""
+    """Record how much of a planned product was actually produced (T5).
+
+    Escritorio can read the counts. Saving them from that station is a no-op
+    so a checkbox close cannot overwrite what Cocina already wrote.
+    """
+    from app.rms.stations import cocina_writes_pieces
+
+    if not cocina_writes_pieces(request.session.get("station")):
+        return RedirectResponse(
+            url="/eod?flash=Las+piezas+se+anotan+en+Cocina",
+            status_code=303,
+        )
+
     from app.rms.rate_limit import is_write_rate_limited
 
     if is_write_rate_limited(session, request):

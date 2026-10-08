@@ -144,6 +144,36 @@ regression test `test_dashboard_empty_state_still_renders_kpi_tiles` locks it. 1
 
 ## [Unreleased]
 
+### Changed — Kitchen production workspace (2026-10-08)
+
+The production page leads with the day, a compact overview, and the
+plan. Print, copy, CSV, and the other tools sit in one Más menu.
+Repeated empty-state and pending-order warnings are no longer shown
+twice. HACCP and stock alerts stay in the notification bundle and
+open when they need a decision.
+
+### Changed — Calmer operational theme (2026-10-08)
+
+One shared visual system for every station. The dark theme uses a softer
+charcoal with a spare orange accent, 14px body type, and compact KPI
+cards. Sidebar groups, tables, and buttons drop the heavy uppercase
+treatment. Features, permissions, and workflows are unchanged.
+
+### Changed — Gerencia replaces Overview and Escritorio (2026-10-08)
+
+One management station. Its home is a short day page: today's sales,
+open orders, kitchen progress, low stock, the daily close, and a few
+notices. Orders, products, customers, inventory, the daily close,
+reports, users, settings, and Excel stay on their own screens.
+
+### Added — Station work on the existing screens (2026-10-07)
+
+Cocina's cierre keeps the piece counts and a low-stock line (name, quantity,
+unit, minimum) with no price. Escritorio's cierre keeps cleaning, storage,
+receipts, and notes, and saving those boxes does not change the piece counts.
+The ingredient page shows margin against the latest cost and against the
+highest cost in the period. Usuarios can pin a login to Cocina, Ventas,
+Inventario, Overview, or Escritorio.
 ### Added
 
 - **SASKIA-313 wave 2c (input/perf)**: port 4 orphan modules from phase-3-m1 — `stepper.js` + `.css` (number min/max steppers), `lazy-load.js` (IntersectionObserver + fallback), `perf-monitor.js` (timing overlay), `clipboard.js` + `.css` (data-copy buttons) + `form-help.css` (help-text styles, from the same source commit as perf-monitor). All wired in base.html with `?v={{ asset_version() }}`. Tests: +123 (test_stepper, test_lazy_load, test_perf_monitor, test_clipboard, test_form_help).
