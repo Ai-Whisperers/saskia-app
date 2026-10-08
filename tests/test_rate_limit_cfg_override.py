@@ -17,8 +17,8 @@ from types import SimpleNamespace
 
 from app.rms.audit import record as audit_record
 from app.rms.rate_limit import (
-    DEFAULT_RATE_LIMIT_CONFIG,
     DEFAULT_LIMIT,
+    DEFAULT_RATE_LIMIT_CONFIG,
     DEFAULT_READ_LIMIT,
     DEFAULT_READ_WINDOW_SECONDS,
     DEFAULT_WINDOW_MINUTES,
@@ -88,9 +88,7 @@ def test_is_rate_limited_accepts_cfg_override(session_factory):
         assert d_default.allowed is True
 
         # With override cap=2: blocked (3 >= 2)
-        d_override = is_rate_limited(
-            s, req, rate_limit_cfg={"login_max_failures": 2}, now=now
-        )
+        d_override = is_rate_limited(s, req, rate_limit_cfg={"login_max_failures": 2}, now=now)
         assert d_override.allowed is False
 
 
@@ -112,9 +110,7 @@ def test_is_rate_limited_partial_cfg_merges_with_defaults(session_factory):
 
         # Override only the cap; window stays at default (5 min).
         # With cap=2 and 1 failure → still allowed.
-        d = is_rate_limited(
-            s, req, rate_limit_cfg={"login_max_failures": 2}, now=now
-        )
+        d = is_rate_limited(s, req, rate_limit_cfg={"login_max_failures": 2}, now=now)
         assert d.allowed is True
 
 
@@ -140,9 +136,10 @@ def test_is_write_rate_limited_accepts_cfg_override(session_factory):
         # Default cap=10 → allowed (3 < 10)
         assert is_write_rate_limited(s, req, now=now) is False
         # Override cap=2 → blocked (3 >= 2)
-        assert is_write_rate_limited(
-            s, req, rate_limit_cfg={"write_max_per_minute": 2}, now=now
-        ) is True
+        assert (
+            is_write_rate_limited(s, req, rate_limit_cfg={"write_max_per_minute": 2}, now=now)
+            is True
+        )
 
 
 # ── is_read_rate_limited override ──────────────────────────────────────

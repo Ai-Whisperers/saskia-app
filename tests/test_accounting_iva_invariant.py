@@ -11,17 +11,18 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from hypothesis import HealthCheck, assume, given, settings, strategies as st
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
 
 from app.rms.accounting import extract_iva
 from app.rms.constants import IVA_DIVISOR, PARAGUAY_IVA_RATE
 
-
 # ─── Sanity: the constants exist where they should ─────────────────
+
 
 def test_constants_live_in_constants_module() -> None:
     """The single source of truth is app/rms/constants.py."""
-    from app.rms import constants, accounting
+    from app.rms import accounting, constants
 
     assert accounting.PARAGUAY_IVA_RATE is constants.PARAGUAY_IVA_RATE
     assert accounting.IVA_DIVISOR is constants.IVA_DIVISOR
@@ -34,9 +35,7 @@ def test_constants_live_in_constants_module() -> None:
 # Gross amounts in the realistic Sazón range: 1k Gs. (a chipita) to
 # 100M Gs. (a busy day). Divided by 100 so Decimal division by 1.10
 # doesn't lose the cents.
-POSITIVE_GROSS = st.integers(min_value=1_000, max_value=100_000_000).filter(
-    lambda x: x % 100 == 0
-)
+POSITIVE_GROSS = st.integers(min_value=1_000, max_value=100_000_000).filter(lambda x: x % 100 == 0)
 
 
 @given(gross=POSITIVE_GROSS)

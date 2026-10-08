@@ -559,9 +559,7 @@ def test_d17_static_combo_package_unit_migrated():
     """D17: ingrediente_detalle.html source uses ui.combo_field() for package_unit."""
     import pathlib
 
-    src = pathlib.Path(
-        SAZON_APP + "/app/templates/ingrediente_detalle.html"
-    ).read_text()
+    src = pathlib.Path(SAZON_APP + "/app/templates/ingrediente_detalle.html").read_text()
     assert "ui.combo_field(" in src
     assert "package_unit" in src
     assert '"und"' in src and '"kg"' in src

@@ -12,9 +12,7 @@ def test_backup_script_imports():
     """The script can be imported without error."""
     import importlib.util
 
-    spec = importlib.util.spec_from_file_location(
-        "backup", SAZON_APP + "/scripts/backup.py"
-    )
+    spec = importlib.util.spec_from_file_location("backup", SAZON_APP + "/scripts/backup.py")
     mod = importlib.util.module_from_spec(spec)
     # Don't execute main, just verify the module loads.
     assert spec is not None
