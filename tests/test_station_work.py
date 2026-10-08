@@ -62,7 +62,9 @@ def test_cocina_cierre_refuses_desk_checkboxes(client):
         follow_redirects=False,
     )
     assert saved.status_code == 303
-    assert "Gerencia" in saved.headers["location"]
+    # Redirect carries the keyed flash (flash-messages unification) naming the
+    # owning station; the substantive guarantee is the refusal itself.
+    assert "eod_wrong_station_gerencia" in saved.headers["location"]
 
 
 def test_escritorio_cierre_reads_pieces_and_keeps_checkboxes(client, session_factory):
@@ -87,7 +89,7 @@ def test_escritorio_cierre_reads_pieces_and_keeps_checkboxes(client, session_fac
         follow_redirects=False,
     )
     assert saved.status_code == 303
-    assert "Cocina" in saved.headers["location"]
+    assert "eod_wrong_station_cocina" in saved.headers["location"]
     with session_factory() as s:
         rows = s.scalars(
             select(ProductionCompletion).where(ProductionCompletion.product_id == product_id)
