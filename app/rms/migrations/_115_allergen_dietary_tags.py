@@ -69,8 +69,12 @@ def _migration_115_allergen_dietary_tags(conn: Any) -> None:
       - ``is_active`` is a soft-delete flag — never hard-delete a code
         that may appear in existing rows.
 
+    Local import to avoid circular dependency: this migration file is
+    imported by ``app.rms.db`` at module load time.
+
     Idempotent: CREATE TABLE IF NOT EXISTS; seed only when empty.
     """
+    from app.rms.db import _bump_schema_version
     # allergen table
     conn.execute(
         text(
@@ -138,3 +142,6 @@ def _migration_115_allergen_dietary_tags(conn: Any) -> None:
                 ),
                 {"code": code, "label": label, "sort_order": sort_order},
             )
+
+    # Bump schema version per convention — each migration owns its bump.
+    _bump_schema_version(conn, 115)

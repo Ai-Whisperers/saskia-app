@@ -89,7 +89,7 @@ BACKUP_DNI_FILE = os.getenv("AIW_RMS_BACKUP_DNI_FILE", "/etc/sazon/backup-dni")
 BACKDATE_WINDOW_DAYS = int(os.getenv("AIW_RMS_BACKDATE_DAYS", "7"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 115  # 115 = allergen + dietary_tag catalog tables (Batch C, 2026-10-08) (SASKIA-206); 114 = settings consolidation AppMeta→settings_kv (Sprint 2.1)
+CURRENT_SCHEMA_VERSION = 116  # 116 = eod alert templates seeded (Batch C, 2026-10-08) + dietary_tag catalog tables (Batch C, 2026-10-08) (SASKIA-206); 114 = settings consolidation AppMeta→settings_kv (Sprint 2.1)
 # 086 = monthly_closure table (Sprint 3.1 BACKLOG #15)
 # 087 = soft_delete_columns on owned tables (Sprint 3.2)
 # 088 = audit_columns on owned tables (Sprint 3.2)
