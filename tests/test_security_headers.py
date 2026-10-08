@@ -121,3 +121,16 @@ def test_cross_origin_resource_policy_on_error_responses(client):
         f"Missing CORP on error. Status: {r.status_code}, headers: {dict(r.headers)}"
     )
     assert headers_lower["cross-origin-resource-policy"].lower() == "same-origin"
+
+
+def test_cross_origin_embedder_policy_present(client):
+    """COEP=unsafe-none (explicit default) satisfies ZAP rule 90004 without
+    enabling cross-origin isolation — no third-party isolated consumers."""
+    r = client.get("/healthz")
+    headers_lower = {k.lower(): v for k, v in r.headers.items()}
+    assert "cross-origin-embedder-policy" in headers_lower, (
+        "Cross-Origin-Embedder-Policy header missing"
+    )
+    assert headers_lower["cross-origin-embedder-policy"].lower() == "unsafe-none", (
+        f"Cross-Origin-Embedder-Policy is '{headers_lower['cross-origin-embedder-policy']}', expected 'unsafe-none'"
+    )
