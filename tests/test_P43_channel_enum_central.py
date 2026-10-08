@@ -28,6 +28,7 @@ Plus coverage:
 
 from app.rms.models.channels import Channel
 from app.rms.schemas import ALLOWED_CHANNELS, CHANNEL_DEFAULT, CHANNELS_DISPLAY
+from tests.conftest import REPO_ROOT
 
 
 def test_pedido_whatsapp_template_lookup_uses_lowercase():
@@ -44,9 +45,8 @@ def test_pedido_whatsapp_template_lookup_uses_lowercase():
     # module and searching for any remaining "WhatsApp" string
     # comparisons against `pedido.channel`.
     import re
-    from pathlib import Path
 
-    src = Path("/opt/data/work/saskia-app/app/routers/pedidos.py").read_text()
+    src = (REPO_ROOT / "app/routers/pedidos.py").read_text()
     # The fix uses Channel.WHATSAPP.value, so the literal "WhatsApp"
     # should only appear in comments — never in a `pedido.channel == "WhatsApp"`
     # pattern.
@@ -150,9 +150,8 @@ def test_pack_demo_channels_list_excludes_phone():
     Post-P43: replaced "phone" with Channel.OTHER.value. We verify by
     reading the source code.
     """
-    from pathlib import Path
 
-    src = Path("/opt/data/work/saskia-app/app/rms/seed/pack_demo.py").read_text()
+    src = (REPO_ROOT / "app/rms/seed/pack_demo.py").read_text()
     # Find the channels list definition
     import re
 
@@ -180,9 +179,8 @@ def test_seed_sazon_channels_excludes_phone():
 
     Post-P43: ('phone', ...) replaced with (Channel.OTHER.value, ...).
     """
-    from pathlib import Path
 
-    src = Path("/opt/data/work/saskia-app/app/rms/seed/sazon.py").read_text()
+    src = (REPO_ROOT / "app/rms/seed/sazon.py").read_text()
     # The CHANNELS list should not have a tuple starting with "phone"
     import re
 
@@ -205,9 +203,8 @@ def test_db_seed_channels_includes_all_enum_values():
 
     Post-P43: seed includes all 6 enum values via Channel.X.value.
     """
-    from pathlib import Path
 
-    src = Path("/opt/data/work/saskia-app/app/rms/db.py").read_text()
+    src = (REPO_ROOT / "app/rms/db.py").read_text()
     # Verify all 6 enum values appear in the seed tuple
     for ch in Channel:
         # Look for `Channel.X.value,` in the seed section (within 100
@@ -232,9 +229,8 @@ def test_herebus_channel_fallback_uses_enum():
     The behavior is identical (same string) but the source-of-truth
     alignment means a future enum change propagates automatically.
     """
-    from pathlib import Path
 
-    src = Path("/opt/data/work/saskia-app/app/routers/herebus.py").read_text()
+    src = (REPO_ROOT / "app/routers/herebus.py").read_text()
     # Should NOT have raw "mostrador" fallback inside herebus.py
     # for the channel default
     import re
@@ -253,9 +249,8 @@ def test_suscripcion_dispatcher_uses_enum():
 
     Post-P43: replaced with Channel.WHATSAPP.value at both write sites.
     """
-    from pathlib import Path
 
-    src = Path("/opt/data/work/saskia-app/app/services/suscripcion_dispatcher.py").read_text()
+    src = (REPO_ROOT / "app/services/suscripcion_dispatcher.py").read_text()
     # Should NOT have raw channel="whatsapp" assignments
     assert 'channel="whatsapp"' not in src, (
         'suscripcion_dispatcher.py still has channel="whatsapp" — '
@@ -269,9 +264,8 @@ def test_suscripcion_dispatcher_uses_enum():
 
 def test_catalogs_fallback_uses_enum():
     """Regression: catalogs.py:49 fallback should be Channel.MOSTRADOR.value."""
-    from pathlib import Path
 
-    src = Path("/opt/data/work/saskia-app/app/rms/catalogs.py").read_text()
+    src = (REPO_ROOT / "app/rms/catalogs.py").read_text()
     # Should NOT have raw "mostrador" string as the fallback
     import re
 
@@ -289,9 +283,8 @@ def test_models_use_enum_defaults():
     Pre-P43: default="mostrador" and default="whatsapp" literals.
     Post-P43: default=Channel.MOSTRADOR.value / Channel.WHATSAPP.value.
     """
-    from pathlib import Path
 
-    src = Path("/opt/data/work/saskia-app/app/rms/models_legacy.py").read_text()
+    src = (REPO_ROOT / "app/rms/models_legacy.py").read_text()
     # Should NOT have raw default="mostrador" on Sale.channel
     # or default="whatsapp" on Pedido.channel
     # But we still expect Channel.MOSTRADOR.value to be present

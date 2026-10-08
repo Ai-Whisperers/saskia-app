@@ -29,6 +29,8 @@ What we lock here:
 
 from __future__ import annotations
 
+from tests.conftest import REPO_ROOT
+
 # ─── File-system invariants ────────────────────────────────────────────────
 
 
@@ -36,7 +38,7 @@ def test_app_rms_has_no_tags_or_tag_algebra_files():
     """Old top-level tags.py / tag_algebra.py are gone."""
     import pathlib
 
-    rms_dir = pathlib.Path("/opt/data/work/saskia-app/app/rms")
+    rms_dir = pathlib.Path(str(REPO_ROOT / "app" / "rms"))
     assert not (rms_dir / "tags.py").exists(), (
         "app/rms/tags.py should have been deleted in Sprint 2.2"
     )
@@ -60,7 +62,7 @@ def test_no_code_references_deleted_modules():
     import_pattern = re.compile(r"^\s*(?:from\s+app\.rms\.tags\b|import\s+app\.rms\.tags\b)")
 
     offenders = []
-    rms_dir = "/opt/data/work/saskia-app"
+    rms_dir = str(REPO_ROOT)
     for root in [f"{rms_dir}/app", f"{rms_dir}/scripts", f"{rms_dir}/tests"]:
         for dirpath, _dirs, files in __import__("os").walk(root):
             for f in files:

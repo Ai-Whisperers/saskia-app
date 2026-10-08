@@ -1,3 +1,18 @@
+## 2026-10-08c — SASKIA-320: tests audited a foreign checkout, not the repo under test
+
+**Root cause**: 20+ test files hardcoded `/opt/data/work/saskia-app` (a stale second checkout on the host) and asserted contracts against THAT tree. Main's `test` job was red with auth-audit + profitability-shim failures that misdescribed the real tree.
+
+**What changed**:
+- `tests/conftest.py`: new `REPO_ROOT` (repo-under-test root); all hardcoded host paths replaced across 20+ test files.
+- `tests/test_profitability_sales_split.py`: 3 shim-architecture contracts marked `xfail(strict=False)` with reason — the shim was reverted on main; `costing.py` is the live module and `profitability/` + `sales/` coexist as parallel copies (consolidation = SASKIA-321).
+- `tests/test_routers_require_auth.py`: exempted `photo_credits.py` (public attribution page) and `stations.py` (own pre-auth station-lock flow) with documented rationale.
+- `app/routers/demo.py`: **real security gap closed** — POST /demo/seed was flag-gated but unauthenticated; now requires login.
+- `tests/test_SASKIA-307_reportes_insights_dashboard.py`: dashboard KPI test audits `dashboard.html` + the `_dashboard_kpi_row.html` partial it includes.
+- `tests/test_uptimerobot_setup.py`: BWS-keys check skips when the host secret cache is absent (CI-safe).
+
+**Test status**: full touched-suite sweep 207 passed / 9 skipped / 15 xfailed; ruff check + format clean.
+
+
 ## 2026-10-08b — SASKIA-MIG-1: full-bleed POS layout on /ventas (operator UX win)
 
 **User feedback**: *"our UI is not user friendly."* The operator's most-used screen (/ventas) was wrapped in the global sidebar+topbar, eating ~220px of horizontal real estate the POS couldn't use.

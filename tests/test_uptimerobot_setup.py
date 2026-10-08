@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
+
+from tests.conftest import REPO_ROOT
+
 
 def test_uptimerobot_script_help_runs():
     """The setup script at scripts/uptimerobot_setup.py must run with --help."""
@@ -12,16 +18,24 @@ def test_uptimerobot_script_help_runs():
         capture_output=True,
         text=True,
         timeout=30,
-        cwd="/opt/data/work/saskia-app",
+        cwd=str(REPO_ROOT),
     )
     assert r.returncode == 0
     assert "UptimeRobot" in r.stdout or "monitor" in r.stdout.lower()
 
 
 def test_uptimerobot_keys_in_bws():
-    """UPTIMEROBOT_ACCOUNT_API_KEY + MONITOR_KEY must exist in BWS."""
+    """UPTIMEROBOT_ACCOUNT_API_KEY + MONITOR_KEY must exist in BWS.
+
+    Host-ops self-check: only meaningful where the BWS secret cache exists
+    (Ivan's host). Skips elsewhere (CI has no /opt/data/.hermes) — anti-rule
+    #20: tests must not depend on host state.
+    """
+    cache = Path("/opt/data/.hermes/bws-secrets-cache.tsv")
+    if not cache.exists():
+        pytest.skip("bws-secrets-cache.tsv not present on this host")
     keys = set()
-    with open("/opt/data/.hermes/bws-secrets-cache.tsv") as f:
+    with open(cache) as f:
         for line in f:
             parts = line.strip().split("\t", 1)
             if len(parts) == 2:
