@@ -11,6 +11,7 @@ Usage:
     .venv/bin/python data/build_image_prompts.py --out data/images/prompts.jsonl
     .venv/bin/python data/build_image_prompts.py --only-type product
 """
+
 from __future__ import annotations
 
 import argparse
@@ -230,22 +231,26 @@ def build_prompt(item: dict) -> dict:
     if aspect == "1:1":
         aspect_line = "1:1 square aspect ratio, 1024×1024 px, image occupies 60% of frame width"
     elif aspect == "3:2":
-        aspect_line = "3:2 landscape aspect ratio, 1500×1000 px, image occupies 55-70% of frame width"
+        aspect_line = (
+            "3:2 landscape aspect ratio, 1500×1000 px, image occupies 55-70% of frame width"
+        )
     else:  # 4:3 default
-        aspect_line = "4:3 landscape aspect ratio, 1200×900 px, image occupies 55-70% of frame width"
+        aspect_line = (
+            "4:3 landscape aspect ratio, 1200×900 px, image occupies 55-70% of frame width"
+        )
 
     # The big prompt — must stay under 1500 chars for MiniMax image-01.
     # Full template with all rules lives in
     # docs/operations/2026-10-08-vaquita-image-template.md.
-    full_prompt = f"""{item['type'].upper()} image for {BRAND}
+    full_prompt = f"""{item["type"].upper()} image for {BRAND}
 
 SUBJECT: {subject}.
 
-SURFACE: {style['surface']}. BG: soft-bokeh home-kitchen hint, f/2.0-2.8 lived-in kitchen in blur. No studio sweep.
+SURFACE: {style["surface"]}. BG: soft-bokeh home-kitchen hint, f/2.0-2.8 lived-in kitchen in blur. No studio sweep.
 LIGHT: single warm window ~4500K, camera-left at ~30°, warm cast shadow camera-right. No flash, no rig.
-PROPS: {style['props']}. No people, hands, chef, or branding.
-TEXTURE: {style['texture']}.
-ANGLE: {style['angle']}. FRAME: {style['frame']}.
+PROPS: {style["props"]}. No people, hands, chef, or branding.
+TEXTURE: {style["texture"]}.
+ANGLE: {style["angle"]}. FRAME: {style["frame"]}.
 ASPECT: {aspect_line}.
 COLOR: warm, slightly desaturated (-10%), wood/cream/brown + Delft-blue accent. No filter, no oversaturation.
 MOOD: homemade, lived-in, just-baked.

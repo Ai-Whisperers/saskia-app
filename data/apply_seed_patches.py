@@ -14,6 +14,7 @@ Sections to replace (from bottom of file upward to keep offsets stable):
 Within seed_sazon(), two embedded values to change:
   - production_completion's hardcoded product-name list (~line 4102-4109)
 """
+
 import os
 import sys
 
@@ -86,18 +87,19 @@ def section_bounds(name):
 
 
 SECTIONS = {
-    "INGREDIENTS":          section_bounds("INGREDIENTS"),
-    "RECIPES":              section_bounds("RECIPES"),
-    "RECIPE_LINES":         section_bounds("RECIPE_LINES"),
-    "PRODUCTS":             section_bounds("PRODUCTS"),
-    "PEDIDOS":              section_bounds("PEDIDOS"),
-    "BENCHMARKS":           section_bounds("BENCHMARKS"),
-    "WASTE_LOG":            section_bounds("WASTE_LOG"),
+    "INGREDIENTS": section_bounds("INGREDIENTS"),
+    "RECIPES": section_bounds("RECIPES"),
+    "RECIPE_LINES": section_bounds("RECIPE_LINES"),
+    "PRODUCTS": section_bounds("PRODUCTS"),
+    "PEDIDOS": section_bounds("PEDIDOS"),
+    "BENCHMARKS": section_bounds("BENCHMARKS"),
+    "WASTE_LOG": section_bounds("WASTE_LOG"),
     "PRODUCTION_TEMPLATES": section_bounds("PRODUCTION_TEMPLATES"),
 }
 
 for name, (s, e) in SECTIONS.items():
-    print(f"{name:25s} lines {s}-{e} ({e-s+1} lines)")
+    print(f"{name:25s} lines {s}-{e} ({e - s + 1} lines)")
+
 
 # ────────────────────────────────────────────────────────────────────
 # Replace sections IN REVERSE ORDER (bottom-up) to keep offsets stable.
@@ -121,10 +123,12 @@ def replace_section(name, new_body):
         else:
             break
     # Apply indent to body if needed
-    new_lines = [line if line.startswith(first_indent) or not line.strip() else first_indent + line
-                 for line in new_body]
+    new_lines = [
+        line if line.startswith(first_indent) or not line.strip() else first_indent + line
+        for line in new_body
+    ]
     # Re-build lines
-    new_lines_all = lines[:s_idx] + new_lines + lines[e_idx + 1:]
+    new_lines_all = lines[:s_idx] + new_lines + lines[e_idx + 1 :]
     lines = new_lines_all
     return len(new_body), e - s + 1
 
@@ -207,13 +211,13 @@ output_lines = list(lines)  # copy
 # Apply in reverse
 PATCHES = [
     ("PRODUCTION_TEMPLATES", new_prod_templates_lines),
-    ("WASTE_LOG",            new_waste_log_lines),
-    ("BENCHMARKS",           new_benchmarks_lines),
-    ("PEDIDOS",              new_pedidos_lines),
-    ("PRODUCTS",             new_products_lines),
-    ("RECIPE_LINES",         new_recipe_lines_lines),
-    ("RECIPES",              new_recipes_lines),
-    ("INGREDIENTS",          new_ingredients_lines),
+    ("WASTE_LOG", new_waste_log_lines),
+    ("BENCHMARKS", new_benchmarks_lines),
+    ("PEDIDOS", new_pedidos_lines),
+    ("PRODUCTS", new_products_lines),
+    ("RECIPE_LINES", new_recipe_lines_lines),
+    ("RECIPES", new_recipes_lines),
+    ("INGREDIENTS", new_ingredients_lines),
 ]
 
 
@@ -232,8 +236,8 @@ def apply_patch(name, new_body_lines):
     s, e = SECTIONS[name]
     s_idx, e_idx = s - 1, e - 1
 
-    opener = lines[s_idx]   # "INGREDIENTS: list[tuple] = ["
-    closer = lines[e_idx]   # "]"
+    opener = lines[s_idx]  # "INGREDIENTS: list[tuple] = ["
+    closer = lines[e_idx]  # "]"
 
     out_body = list(new_body_lines)
     # Strip trailing blanks
@@ -250,7 +254,9 @@ def apply_patch(name, new_body_lines):
     replacement = [opener] + out_body + [closer, ""]
 
     new_lines = lines[:s_idx] + replacement + lines[e_idx + 1 :]
-    delta = len(replacement) - (e_idx - s_idx + 1) - 1  # existing range minus pre-existing post-blank
+    delta = (
+        len(replacement) - (e_idx - s_idx + 1) - 1
+    )  # existing range minus pre-existing post-blank
     lines = new_lines
     return delta
 
@@ -314,10 +320,18 @@ print()
 
 # Sanity check: import the patched file
 import subprocess
+
 r = subprocess.run(
-    [".venv/bin/python", "-c", f"import ast; ast.parse(open('{out_path}').read()); print('SYNTAX OK')"],
-    capture_output=True, text=True,
+    [
+        ".venv/bin/python",
+        "-c",
+        f"import ast; ast.parse(open('{out_path}').read()); print('SYNTAX OK')",
+    ],
+    capture_output=True,
+    text=True,
 )
 print(f"Syntax check: rc={r.returncode}")
-if r.stdout: print(r.stdout)
-if r.stderr: print('STDERR:', r.stderr[:2000])
+if r.stdout:
+    print(r.stdout)
+if r.stderr:
+    print("STDERR:", r.stderr[:2000])
