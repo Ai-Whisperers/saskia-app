@@ -19,6 +19,11 @@ import os
 import sys
 from pathlib import Path
 
+# Per-ingredient visual lookup (specific container/appearance for each
+# ingredient so the result is recognizable at 32x32 px thumbnail size).
+sys.path.insert(0, str(Path(__file__).parent))
+from ingredient_visuals import INGREDIENT_VISUALS
+
 ROOT = Path(__file__).resolve().parent.parent
 ITEMS_PATH = ROOT / "data" / "images" / "items.json"
 OUT_PATH = ROOT / "data" / "images" / "prompts.jsonl"
@@ -74,11 +79,11 @@ CATEGORY_STYLES = {
         "texture": "see also the underlying cookie/cake/fried style",
     },
     "ingredient": {
-        "surface": "aged light-oak counter",
-        "props": "no extra props; a small handwritten paper label in a corner is OK",
-        "angle": "3/4 angle, slightly above",
-        "frame": "60% width, the container or raw item is the hero",
-        "texture": "natural, untouched, no styled flour burst, packaging unbrushed",
+        "surface": "plain light-oak counter, very clean, no clutter around the subject",
+        "props": "no other props; subject is the only thing in the frame",
+        "angle": "3/4 angle, slightly above, centered in the frame",
+        "frame": "80-90% of frame width, the ingredient fills most of the image so it's clearly recognizable at thumbnail size (32px and 80px), strong silhouette, no busy background",
+        "texture": "natural, untouched, clearly visible, simple and bold so it reads at small sizes",
     },
     "default": {
         "surface": "aged light-oak counter",
@@ -249,6 +254,7 @@ def category_for(slug: str, type_: str) -> str:
     return "default"
 
 
+
 def build_subject(item: dict) -> str:
     """Build the SUBJECT line — what the AI should draw. Kept short.
 
@@ -263,7 +269,12 @@ def build_subject(item: dict) -> str:
     cat = category_for(slug, type_)
 
     if type_ == "ingredient":
-        return f'single "{name}" in home-pantry form (1kg bag, jar, or fresh). Container muted, brand not facing camera'
+        # Per-ingredient visual spec tells the AI the SPECIFIC container, color,
+        # and shape so the result is recognizable at 32x32 px (mini-thumbnail).
+        spec = INGREDIENT_VISUALS.get(slug)
+        if spec:
+            return spec
+        return f'single "{name}" in a recognizable container, simple background, fills most of frame'
 
     # Prefer the real description from the catalog
     recipe_slug = item.get("recipe_slug") or slug
@@ -288,7 +299,7 @@ def build_prompt(item: dict) -> dict:
 
     # Aspect-ratio guidance
     if aspect == "1:1":
-        aspect_line = "1:1 square aspect ratio, 1024×1024 px, image occupies 60% of frame width"
+        aspect_line = "1:1 square aspect ratio, 1024×1024 px, image occupies 80-90% of frame width (thumbnail-friendly, recognizable at 32px and 80px)"
     elif aspect == "3:2":
         aspect_line = "3:2 landscape aspect ratio, 1500×1000 px, image occupies 55-70% of frame width"
     else:  # 4:3 default
@@ -297,9 +308,14 @@ def build_prompt(item: dict) -> dict:
     # The big prompt — must stay under 1500 chars for MiniMax image-01.
     # Full template with all rules lives in
     # docs/operations/2026-10-08-vaquita-image-template.md.
-    full_prompt = f"""{item['type'].upper()} image for {BRAND}
+    # For ingredients, add a HERO line that names the specific container + identity.
+    # This goes FIRST so the model anchors on it before reading style rules.
+    hero_line = ""
+    if item["type"] == "ingredient":
+        hero_line = f"HERO ELEMENT: {subject}.\n\n"
 
-SUBJECT: {subject}.
+    full_prompt = f"""{item['type'].upper()} image for {BRAND}
+{hero_line}SUBJECT: {subject}.
 
 SURFACE: {style['surface']}. BG: soft-bokeh home-kitchen hint, f/2.0-2.8 lived-in kitchen in blur. No studio sweep.
 LIGHT: single warm window ~4500K, camera-left at ~30°, warm cast shadow camera-right. No flash, no rig.
@@ -316,23 +332,23 @@ NEGATIVE: {NEGATIVE}."""
     # We trim from the end of the SUBJECT line first, preserving the
     # rest of the template structure intact.
     if len(full_prompt) > 1490:
-        # Find the SUBJECT line and trim it
-        subject_marker = f"SUBJECT: {subject}."
-        # Replace long subject with a shorter form
-        # (use a marker the user can see)
-        target_len = 1450
-        excess = len(full_prompt) - target_len
-        # Truncate the subject at the closest sentence boundary before
-        # the excess, then append "..." to mark the cut
-        shorter_subject = subject[: max(20, len(subject) - excess - 5)]
-        if "." in shorter_subject[:-10]:
-            # Cut at last sentence boundary
-            shorter_subject = shorter_subject.rsplit(".", 1)[0] + "."
-        shorter_subject = shorter_subject.rstrip(",") + " (see template)"
-        full_prompt = full_prompt.replace(
-            f"SUBJECT: {subject}.",
-            f"SUBJECT: {shorter_subject}.",
-        )
+        # If we have a HERO line, the SUBJECT line is redundant — drop SUBJECT.
+        if item["type"] == "ingredient" and "HERO ELEMENT" in full_prompt:
+            # Remove the entire "SUBJECT: ...\n\n" block
+            import re
+            full_prompt = re.sub(r"SUBJECT:.*?\.\s*\n\n", "", full_prompt, count=1, flags=re.DOTALL)
+        else:
+            # Truncate the subject at the closest sentence boundary
+            target_len = 1450
+            excess = len(full_prompt) - target_len
+            shorter_subject = subject[: max(20, len(subject) - excess - 5)]
+            if "." in shorter_subject[:-10]:
+                shorter_subject = shorter_subject.rsplit(".", 1)[0] + "."
+            shorter_subject = shorter_subject.rstrip(",") + " (see template)"
+            full_prompt = full_prompt.replace(
+                f"SUBJECT: {subject}.",
+                f"SUBJECT: {shorter_subject}.",
+            )
 
     return {
         "id": item["id"],
