@@ -2822,20 +2822,30 @@ def _migration_060_tag_normalization(conn: Any) -> None:
     # ingredient.tag_validation_issues cascade lives in 061 which
     # touches raw SQL only).
     try:
-        from app.rms.db import make_engine as _make_engine
-        from app.rms.db import make_session_factory
+        # SASKIA-317: bind the Session to THIS migration's connection instead of
+        # _make_engine(). make_engine() with no url resolves config.DB_PATH, a constant
+        # frozen at import time — under pytest that is the REAL production DB path (the
+        # tmp_db_path env override happens after import), so every init_db() call here
+        # opened a pooled connection to the real rms.sqlite and never disposed it,
+        # leaking ~2 FDs per call until the xdist worker hit its 4096 FD limit and every
+        # subsequent sqlite open failed ("unable to open database file" → INTERNALERROR →
+        # thousands of spurious errors). Session(bind=conn) keeps the ORM work on the
+        # same DB the migration is running against — which is also the semantically
+        # correct target for a migration-time backfill.
+        from sqlalchemy.orm import Session
+
         from app.rms.models import Recipe
 
-        eng = _make_engine()
-        SessionLocal = make_session_factory(eng)
-        with SessionLocal() as s:
+        s = Session(bind=conn)
+        try:
             ids = [r.id for r in s.query(Recipe.id).all()]
-        for rid in ids:
-            with SessionLocal() as s:
-                from app.rms.tag_algebra import cascade_refresh
+            from app.rms.tag_algebra import cascade_refresh
 
+            for rid in ids:
                 cascade_refresh(s, recipe_id=rid)
-                s.commit()  # without commit, with-exit rolls back the writes
+            s.commit()  # without commit, close rolls back the writes
+        finally:
+            s.close()
     except Exception as exc:
         import sys as _sys
 
@@ -2868,10 +2878,6 @@ def _migration_062_audit_repair(conn: Any) -> None:
 
     Idempotent: re-running does nothing once all tags are consistent.
     """
-    from app.rms.db import make_engine as _make_engine
-    from app.rms.db import make_session_factory
-    from app.rms.tagging.audit_repair import repair_all_ingredients
-
     # Wrapped: repair_all_ingredients reads Ingredient via ORM and may
     # reference columns added in later migrations (e.g.
     # `last_purchase_supplier_id` from migration 072). On a fresh DB
@@ -2880,9 +2886,15 @@ def _migration_062_audit_repair(conn: Any) -> None:
     # runs the audit tool, the columns will exist and the repair will
     # land. (See test_daily_sales_series.py for the regression case.)
     try:
-        eng = _make_engine()
-        SessionLocal = make_session_factory(eng)
-        with SessionLocal() as s:
+        # SASKIA-317: bind to the migration's own connection (see the v60 comment —
+        # _make_engine() resolves the import-time config.DB_PATH = the real production DB
+        # under pytest, leaking pooled FDs on every init_db() until the worker dies).
+        from sqlalchemy.orm import Session
+
+        from app.rms.tagging.audit_repair import repair_all_ingredients
+
+        s = Session(bind=conn)
+        try:
             repair_all_ingredients(s)
             # Re-backfill the validation_issues column so the audit page
             # reflects the new state immediately.
@@ -2890,6 +2902,8 @@ def _migration_062_audit_repair(conn: Any) -> None:
 
             backfill_validation_issues(s)
             s.commit()
+        finally:
+            s.close()
     except Exception as exc:
         import sys as _sys
 
@@ -3186,13 +3200,15 @@ def _migration_061_tag_validation(conn: Any) -> None:
     # the operator runs the audit tool. (See test_daily_sales_series.py
     # for the regression case.)
     try:
-        from app.rms.db import make_engine as _make_engine
-        from app.rms.db import make_session_factory
+        # SASKIA-317: bind to the migration's own connection (see the v60 comment —
+        # _make_engine() resolves the import-time config.DB_PATH = the real production DB
+        # under pytest, leaking pooled FDs on every init_db() until the worker dies).
+        from sqlalchemy.orm import Session
+
         from app.rms.tagging.audit import audit_all_ingredients
 
-        eng = _make_engine()
-        SessionLocal = make_session_factory(eng)
-        with SessionLocal() as s:
+        s = Session(bind=conn)
+        try:
             issues_by_id = audit_all_ingredients(s)
             for iid, issues in issues_by_id.items():
                 s.execute(
@@ -3200,6 +3216,8 @@ def _migration_061_tag_validation(conn: Any) -> None:
                     {"v": "\n".join(issues), "i": iid},
                 )
             s.commit()
+        finally:
+            s.close()
     except Exception as exc:
         import sys as _sys
 
