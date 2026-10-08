@@ -4701,10 +4701,16 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
                 # the same connection. We then commit the whole tx.
                 mig_conn.commit()
         except Exception as exc:
-            # Don't fail the whole init_db — log and continue to next
-            # migration. The lifespan will retry on next boot.
-            logger.warning(f"migration v{v} failed: {exc!r}; continuing")
-            # Print to stderr so Render logs capture it
+            # FAIL-CLOSED: a migration chain is a chain — each step may
+            # depend on the previous one (e.g. 112 DROPs 111's triggers
+            # before CREATEing its own). Skipping a failed step and
+            # continuing let v113/v114 apply on top of a broken v112,
+            # permanently hiding the gap (real incident 2026-10-08: the
+            # channel CHECK triggers were lost this way in prod). Fail
+            # loudly instead; the rule-17 pre-migration backup plus
+            # `sazon rollback` make recovery safe.
+            logger.error(f"migration v{v} failed: {exc!r}; aborting init_db")
+            # Print to stderr so container/Render logs capture it
             print(f"MIGRATION v{v} FAILED: {exc!r}", file=sys.stderr)
             # Validation hook (Phase 14 #4): probe schema_version on a
             # FRESH connection. If it advanced despite the failure, the
@@ -4727,12 +4733,14 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
                 )
                 logger.error(msg)
                 print(msg, file=sys.stderr)
-                # CRITICAL: re-raise OUTSIDE the probe try/except so the
-                # caller sees it (init_db must NOT proceed to the next
-                # migration on a partial baseline).
                 raise RuntimeError(msg) from exc
             elif probe_err is not None:
                 logger.debug(f"schema probe after v{v} failure: {probe_err!r}")
+            raise RuntimeError(
+                f"migration v{v} failed: {exc!r}. init_db aborted — "
+                "fix the cause (see MIGRATION FAILED line above), restore "
+                "the pre-migration backup, or run `sazon rollback`."
+            ) from exc
 
         # 3. Apply recommended Postgres indexes (idempotent).
         # Wrapped in its own connection so failure here doesn't undo migrations.

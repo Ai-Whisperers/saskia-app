@@ -131,9 +131,7 @@ def _migration_111_sale_channel_check(conn: Any) -> None:
             FOR EACH ROW
             WHEN NEW.channel NOT IN ({in_clause})
             BEGIN
-                SELECT RAISE(ABORT, 'sale.channel must be one of '
-                    || '{allowed_str}'
-                    || '; got: ' || COALESCE(NEW.channel, 'NULL'));
+                SELECT RAISE(ABORT, 'sale.channel must be one of: {allowed_str}');
             END
             """
         )
@@ -146,9 +144,7 @@ def _migration_111_sale_channel_check(conn: Any) -> None:
             FOR EACH ROW
             WHEN NEW.channel NOT IN ({in_clause})
             BEGIN
-                SELECT RAISE(ABORT, 'sale.channel must be one of '
-                    || '{allowed_str}'
-                    || '; got: ' || COALESCE(NEW.channel, 'NULL'));
+                SELECT RAISE(ABORT, 'sale.channel must be one of: {allowed_str}');
             END
             """
         )
@@ -163,9 +159,7 @@ def _migration_111_sale_channel_check(conn: Any) -> None:
             FOR EACH ROW
             WHEN NEW.channel IS NOT NULL AND NEW.channel NOT IN ({in_clause})
             BEGIN
-                SELECT RAISE(ABORT, 'pedido.channel must be one of '
-                    || '{allowed_str}'
-                    || ' or NULL; got: ' || NEW.channel);
+                SELECT RAISE(ABORT, 'pedido.channel must be one of: {allowed_str} (or NULL)');
             END
             """
         )
@@ -178,9 +172,7 @@ def _migration_111_sale_channel_check(conn: Any) -> None:
             FOR EACH ROW
             WHEN NEW.channel IS NOT NULL AND NEW.channel NOT IN ({in_clause})
             BEGIN
-                SELECT RAISE(ABORT, 'pedido.channel must be one of '
-                    || '{allowed_str}'
-                    || ' or NULL; got: ' || NEW.channel);
+                SELECT RAISE(ABORT, 'pedido.channel must be one of: {allowed_str} (or NULL)');
             END
             """
         )

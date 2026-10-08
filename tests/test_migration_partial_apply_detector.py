@@ -32,6 +32,9 @@ def fake_engine():
         def commit(self):
             self.committed = True
 
+        def close(self):
+            pass
+
         def execute(self, stmt, *params):
             self.executed.append((stmt, params))
 
@@ -56,6 +59,11 @@ def fake_engine():
 
 def test_migration_partial_apply_detected_and_raised(monkeypatch, fake_engine):
     """If a migration fails but schema_version advances, init_db raises."""
+    monkeypatch.setattr(
+        db_mod,
+        "sync_backup_before_migration",
+        lambda *a, **kw: None,  # unit test: the backup path is covered elsewhere
+    )
     # Monkeypatch schema_version to first return 0 (initial probe),
     # then return 5 after the failing migration ran.
     calls = {"n": 0}
@@ -104,8 +112,10 @@ def test_migration_partial_apply_detected_and_raised(monkeypatch, fake_engine):
         db_mod._init_db_inner(fake_engine, "sqlite", FakeBase)
 
 
-def test_migration_failure_without_advance_does_not_raise(monkeypatch, fake_engine):
-    """Migration fails but schema_version did NOT advance — keeps going."""
+def test_migration_failure_without_advance_fails_closed(monkeypatch, fake_engine):
+    """Migration fails but schema_version did NOT advance — init_db aborts
+    (SASKIA-318 fail-closed: a chain must not skip a failed link; the old
+    log-and-continue behavior silently dropped v112's triggers in prod)."""
     calls = {"n": 0}
 
     def fake_schema_version(conn):
@@ -114,6 +124,11 @@ def test_migration_failure_without_advance_does_not_raise(monkeypatch, fake_engi
 
     monkeypatch.setattr(db_mod, "schema_version", fake_schema_version)
     monkeypatch.setattr(db_mod, "CURRENT_SCHEMA_VERSION", 5)
+    monkeypatch.setattr(
+        db_mod,
+        "sync_backup_before_migration",
+        lambda *a, **kw: None,  # unit test: the backup path is covered elsewhere
+    )
 
     def bad_migration_5(conn):
         raise RuntimeError("simulated: full migration failure")
@@ -127,8 +142,8 @@ def test_migration_failure_without_advance_does_not_raise(monkeypatch, fake_engi
     class FakeBase:
         metadata = FakeMeta()
 
-    # Should NOT raise — the detector only fires on partial-apply.
-    db_mod._init_db_inner(fake_engine, "sqlite", FakeBase)
+    with pytest.raises(RuntimeError, match="migration v5 failed"):
+        db_mod._init_db_inner(fake_engine, "sqlite", FakeBase)
 
 
 def test_migration_success_probes_cleanly(monkeypatch, fake_engine):
@@ -143,6 +158,11 @@ def test_migration_success_probes_cleanly(monkeypatch, fake_engine):
 
     monkeypatch.setattr(db_mod, "schema_version", fake_schema_version)
     monkeypatch.setattr(db_mod, "CURRENT_SCHEMA_VERSION", 5)
+    monkeypatch.setattr(
+        db_mod,
+        "sync_backup_before_migration",
+        lambda *a, **kw: None,  # unit test: the backup path is covered elsewhere
+    )
 
     def good_migration_5(conn):
         from app.rms.db import _bump_schema_version

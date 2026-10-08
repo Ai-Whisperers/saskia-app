@@ -96,13 +96,25 @@ def test_get_or_create_rejects_invalid_scope(session):
 
 
 def test_channels_seeded(db_engine, session):
-    """Migration 041 seeded 5 channels with mostrador default."""
+    """Migration 041 seeded 5 channels; SASKIA-204 extended the set to 10
+    (retail/wholesale/distributor/eventual/other added, mostrador default)."""
     from app.rms.catalogs import default_channel_code, list_channels
 
     channels = list_channels(session)
-    assert len(channels) == 5
+    assert len(channels) == 10
     codes = {c.code for c in channels}
-    assert codes == {"mostrador", "mostrador-encargo", "whatsapp", "pedidosya", "monchis"}
+    assert codes == {
+        "mostrador",
+        "mostrador-encargo",
+        "whatsapp",
+        "pedidosya",
+        "monchis",
+        "retail",
+        "wholesale",
+        "distributor",
+        "eventual",
+        "other",
+    }
     assert default_channel_code(session) == "mostrador"
 
 
@@ -121,11 +133,15 @@ def test_channel_default_switching(session):
 
 
 def test_payment_methods_seeded(session):
-    """Migration 042 seeded 5 payment methods."""
+    """Migration 042 seeded 5 payment methods; the seed catalog later grew
+    (qr, caja_chica added) — the original 5 must all still be present with
+    their contracts intact."""
     from app.rms.catalogs import list_payment_methods
 
     methods = list_payment_methods(session)
-    assert len(methods) == 5
+    assert len(methods) >= 5
+    codes = {m.code for m in methods}
+    assert {"efectivo", "transferencia", "tarjeta"} <= codes
     tarjeta = next(m for m in methods if m.code == "tarjeta")
     assert tarjeta.fee_pct == 3.0
     assert tarjeta.requires_reference is True
@@ -387,7 +403,7 @@ def test_api_channels_returns_seeded_data(client):
     r = client.get("/api/channels")
     assert r.status_code == 200
     data = r.json()
-    assert len(data) == 5
+    assert len(data) == 10  # SASKIA-204 extended channel set
     assert any(c["code"] == "mostrador" for c in data)
 
 
@@ -395,7 +411,8 @@ def test_api_payment_methods_returns_seeded_data(client):
     r = client.get("/api/payment-methods")
     assert r.status_code == 200
     data = r.json()
-    assert len(data) == 5
+    assert len(data) >= 5
+    assert any(m["code"] == "efectivo" for m in data)
 
 
 def test_api_pricing_markup_roundtrip(client):

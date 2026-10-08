@@ -1,3 +1,20 @@
+## 2026-10-08a — SASKIA-318: SQLite RAISE() compat + fail-closed migration runner (prod incident fix)
+
+**Incident**: the 109→114 prod upgrade logged `MIGRATION v112 FAILED: OperationalError near "||" syntax error` yet the chain continued to v114 — leaving the four channel-CHECK triggers (from migrations 111/112) silently absent. Root cause, two layers deep:
+
+1. **SQLite compat**: `RAISE(ABORT, <expr>)` with a `||`-concatenated message requires **SQLite >= 3.47.0** (2024-10-21). The prod image ships **3.46.1** → `near "||": syntax error`. Dev machines run 3.53.x, so tests never caught it.
+2. **Fail-open runner**: `init_db` logged-and-continued past a failed migration, so v113/v114 applied on top of broken v112 — the gap became permanent and invisible.
+
+**Fixes**:
+- `_111`/`_112`: RAISE messages are now single string literals (work on every SQLite version). New `tests/test_SASKIA-318_sqlite_raise_compat.py` asserts no `||` in any RAISE, replays the full 1→114 chain on a fresh DB asserting all 4 channel triggers exist + enforce, and proves a failing migration now aborts `init_db` (fail-closed) instead of being skipped.
+- `db.py` runner: migration failure now **aborts init_db** (`raise`) — a chain must not skip a link. Recovery paths: rule-17 pre-migration backup + `sazon rollback` (SASKIA-209).
+- `tests/test_migration_partial_apply_detector.py` updated to the fail-closed contract (+ backup no-op so the unit test doesn't exercise the real backup path).
+- Stale specs updated: `test_static_content_audit.py` channel count 5→10 (SASKIA-204 extended set) and payment-method assertions now match the current seed catalog.
+- Orphan `app/rms/migrations/_098_customer_phone.py` deleted: recovered file was never registered in `MIGRATIONS` (98 → `_098_production_closed_day`), so it never ran via the chain; the `customer_phone` table it would create exists only on the drifted prod DB (2 rows, zero model/query consumers, not in `BACKUP_TABLES`). Its content stays in git history (`5c1e1b18`). Fixes the migration file-scan audits (bump + docstring + registry).
+- **Prod remediated in-place**: the 4 channel triggers were recreated directly on `/data/rms.sqlite` and verified enforcing (bogus channel INSERT aborts). Upgrade verified: schema 114, 1,535 sales + 58 products intact, `integrity_check ok`, `settings_kv` 23 rows, pre-upgrade backup `rms-pre-upgrade-109-to-114.sqlite` (3.0 MB) in `/data/backups/`.
+
+**Lesson**: an expression-capability DDL difference between dev/prod SQLite versions needs a CI guard — the full-chain replay test now covers it.
+
 ## 2026-10-07i — inventory valuation follows the variant-price SSOT (audit follow-up 2)
 
 **`stock_value_gs()`** (app/rms/inventory_intel.py) now prices ingredients via preferred-variant
