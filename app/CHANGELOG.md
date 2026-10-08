@@ -1,3 +1,18 @@
+## 2026-10-08c — two TZ bugs: qseed 'with_sale' time-of-day trap + export 'today' UTC-date bug
+
+**1. `tests/_fixtures_quick_seed.py`**: the `with_sale` scenario anchored `sold_at` at noon UTC
+("always 08:00-09:00 Asunción") — TRUE only after 09:00 Asunción. Between 21:00-00:00 Asunción,
+noon-UTC is NEXT MORNING → the sale falls outside every period=today window and 5+ dashboard
+tests fail at night runs. New anchor: now-in-Asunción minus 1 minute (always inside today).
+
+**2. `app/services/export_xlsx.py`**: `/excel/exportar?period=today` computed "today" from
+`datetime.now(timezone.utc).date()` — the UTC date, which is tomorrow's Asunción date after
+19:00-00:00 local. The operator's evening sales landed in an export window for a day that
+hasn't happened. Now uses the Asunción date (AGENTS.md rule 20).
+
+Both classes are time-of-day dependent — they pass all day and fail at night, which is why
+daytime CI runs never caught them.
+
 ## 2026-10-08c — CI: fix smoke-test Postgres auth + add CORP security header (ZAP 90004)
 
 Two pre-existing CI failures (smoke + OWASP ZAP) were making every PR's red
