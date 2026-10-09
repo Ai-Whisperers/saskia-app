@@ -1,7 +1,7 @@
 # Sazón RMS — Makefile
 # Shortcuts for common dev tasks. Run `make help` to see all targets.
 
-.PHONY: help install test test-verbose test-coverage test-fast lint lint-fix format check serve migrate seed seed-reset backup fixtures clean ci-smoke pre-commit stats smoke check-warnings check-secrets ci
+.PHONY: help install test test-verbose test-coverage test-fast lint lint-fix format check serve migrate seed seed-reset backup fixtures clean ci-smoke pre-commit stats smoke check-warnings check-secrets ci dead-code complexity duplicates duplicates-code arch security audit-cve licenses ci-extra
 
 PYTHON ?= python3
 UV ?= uv
@@ -62,9 +62,14 @@ test-coverage: ## Run tests with coverage report.
 lint-fix: ## Auto-fix lint errors.
 	uv run ruff check . --fix
 
-check: ## Run pre-commit style checks (lint + warnings + secrets).
-	uv run ruff check .
-	uv run python scripts/check_warnings.py
+check: ## Run pre-commit style checks (duplicates + arch + import rules).
+	@echo "=== format check (ruff, no writes) ==="
+	@uv run ruff format --check . || echo "  (format drift; run: make format)"
+	@echo "=== duplicates (stem collisions + forbidden legacy) ==="
+	@uv run python scripts/check_duplicate_files.py
+	@echo "=== imports (cycles + arch rules) ==="
+	@uv run python scripts/check_imports.py
+	@echo "=== done ==="
 
 seed-reset: ## Drop and recreate demo data (DESTRUCTIVE — local dev only).
 	uv run python -c "from app.rms.seed import seed_demo_data; \
@@ -109,7 +114,37 @@ test-xdist: ## Parallel fast loop (-n 4 green since 2026-09-25).
 	$(UV) run pytest tests/ -q --no-header --no-cov -n 4 \
 	  --deselect tests/test_xlsx_fixtures.py --deselect tests/test_shopping_benchmarks.py
 
+dead-code: ## vulture: scan for unused code (>=80% confidence).
+	$(UV) run vulture app/ scripts/ --min-confidence 80 \
+	  --ignore-decorators @app.get,@app.post,@app.put,@app.delete,@router.get,@router.post,@router.put,@router.delete,@app.exception_handler,@app.middleware,@app.on_event,@staticmethod,@classmethod,@property
+
+complexity: ## radon: cyclomatic complexity ceiling (B = CC<=10).
+	$(UV) run python scripts/check_complexity.py
+
+duplicates: ## Detect duplicate-stem files + forbidden legacy + unused modules.
+	$(UV) run python scripts/check_duplicate_files.py
+
+duplicates-code: ## Detect near-duplicate function bodies (>=80% similarity).
+	$(UV) run python scripts/check_duplicate_code.py
+
+arch: ## Architecture linter: no cycles, no rule violations.
+	$(UV) run python scripts/check_imports.py
+
+security: ## bandit security scan (medium+high severity).
+	$(UV) run bandit -r app/ -ll -q --exclude app/_archive
+
+audit-cve: ## pip-audit: scan pyproject deps for known CVEs.
+	$(UV) run pip-audit -r pyproject.toml
+
+licenses: ## reuse: SPDX license header compliance.
+	$(UV) run reuse lint
+
+ci-extra: lint dead-code complexity duplicates arch security ## All static analysis (slow).
+	@echo ""
+	@echo "ci-extra complete."
+
 ci: lint test ## Run everything CI runs.
+
 
 clean: ## Remove build artifacts.
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

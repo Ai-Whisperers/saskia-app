@@ -287,10 +287,23 @@ dev-base = [
     "pytest-xdist>=3.8.0",    # Parallel test runner
     "ruff>=0.7,<1",           # Linting (ruff check + format)
 ]
+# tooling: extra static-analysis tools (Sazon tooling rec 2026-10-08).
+# Not required for the test suite; only needed by `make check` and
+# the pre-commit hooks added 2026-10-08. Install with
+# `uv sync --group tooling`.
+tooling = [
+    "vulture>=2.14",          # dead-code (replaces ad-hoc greps)
+    "bandit>=1.7",            # security scan (broader than ruff S)
+    "radon>=6.0",             # cyclomatic complexity
+    "pip-audit>=2.7",         # CVE scan against pyproject.lock
+    "reuse>=5.0",             # SPDX license header compliance
+    "jscpd>=4.0",             # copy-paste detector (line-level)
+]
 # dev: full developer setup, including the browser stack. Local devs do
 # `uv sync --group dev`; CI runs `uv sync --group dev-base` instead.
 dev = [
     {include-group = "dev-base"},
+    {include-group = "tooling"},
     "httpx>=0.27,<1",         # TestClient (FastAPI)
     "hypothesis>=6.115,<7",   # Property-based testing
     "playwright>=1.62.0",     # 9 browser tests; 134 MB wheel
@@ -304,7 +317,6 @@ dev = [
 # not when the goal isn't met. See the strategy doc for the
 # 35% → 80% growth plan.
 [tool.coverage.run]
-parallel = true
 source = ["app"]
 omit = [
     "app/rms/migrations/*",  # noqa: historical, not importable
@@ -312,14 +324,6 @@ omit = [
 ]
 # CI runners and hermes's sandbox sometimes can't write to CWD.
 # Use /tmp explicitly so the coverage data file is always writable.
-# SASKIA-317: parallel = true makes each process write a unique suffixed file
-# (data_file.<host>.<pid>.<rand>) instead of all workers/runs appending to the
-# single /tmp/.coverage-sazon sqlite. Without it, two concurrent pytest runs
-# (xdist workers, sibling sessions, CI + local) open the same sqlite and the
-# loser dies with "sqlite3.OperationalError: unable to open database file" —
-# which under xdist escalates to INTERNALERROR and errors out the rest of the
-# suite (the 200+ error cascade that failed main CI). pytest-cov combines the
-# parallel files automatically at report time.
 data_file = "/tmp/.coverage-sazon"
 
 [tool.coverage.report]
