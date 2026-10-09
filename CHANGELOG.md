@@ -62,6 +62,27 @@ to uv.lock. The cache will never get invalidated."
 
 **Test status**: `uv lock --check` clean; ruff check + format pass.
 
+## 2026-10-09 — Docs quality: pymarkdownlnt auto-fix + duplicate deletions
+
+**Scope**: docs-quality followup PRs 2+3 from the audit
+(`docs/operations/2026-10-09-docs-quality-audit.md`).
+
+**What changed**:
+- `pymarkdownlnt fix` across `docs/` + root files:
+  **11,510 → 20 findings** (99.8% reduction). Remaining 20 are
+  MD030/MD032/MD022 micro-formatting on AGENTS.md (15) and CHANGELOG.md
+  (5) — the auto-fixer refuses to touch those (nested-list ambiguity on
+  the contract files); hand-fixing was attempted and reverted as
+  riskier than the noise. Documented remainder.
+- Deleted 3 byte-identical duplicate pairs (md5-verified):
+  - `docs/user-guide/17-lista-compras.md` (18-lista-compras renamed to 17)
+  - `docs/user-guide/18-suscripciones.md` (19-suscripciones renamed to 18)
+  - `docs/reports/designer-page-report-2026-09-27.md`
+    (`docs/reports/redesign-2026-09-27/REPORT.md` is canonical)
+- `docs/user-guide/README.md` links verified post-rename (0 broken).
+
+**Test status**: user-guide link check clean; ruff clean.
+
 ## 2026-10-09 — CI recovery: ruff mass-fix + CHANGELOG-path bug fix
 
 **Scope**: unblock PRs #93/#94/#96 by fixing the 594-error ruff baseline

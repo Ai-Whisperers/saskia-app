@@ -130,7 +130,7 @@ Listo · Producto · Dificultad · Demanda · Lotes · Pedidos · Lote final · 
 
 ### L-PLAN-9: weekly_template + override is the Sazon canonical pattern 🔵
 **Source:** `app/rms/production.py:475` — `get_weekly_template()`, `upsert_template_row()`, `get_overrides_for_date()`, `upsert_override()`. Two tables: `production_plan_template` (Mon-Sun × product × qty) and `production_plan_override` (date × product × qty). Load-from-template button in produccion.html:34-46.
-**Why it works:** Cooks learn the weekly rhythm ("Tuesdays need 200 medialunas"), can override per-day ("Tuesday 14 is Pascuas → +50%"). 
+**Why it works:** Cooks learn the weekly rhythm ("Tuesdays need 200 medialunas"), can override per-day ("Tuesday 14 is Pascuas → +50%").
 **No competitor** has this — they all forecast only from history, no weekly rhythm teaching.
 **Lesson:** Keep. Maybe expose a `production_plan_audit` record when the template gets forked (currently it does — verify in `templates_ops.py`).
 
@@ -452,7 +452,7 @@ pos_profile, branch, checklist_type (Opening | Closing),
 pos_opening_entry, shift_date, status (In Progress | Complete),
 completed_by, completed_at, items (table-field → ury_checklist_log_item)
 ```
-+ `ury_checklist_item` JSON:
+- `ury_checklist_item` JSON:
 ```
 item_label, applies_to (Opening | Closing | Both), is_mandatory
 ```
