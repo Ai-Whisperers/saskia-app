@@ -72,7 +72,7 @@ jobs:
       - name: SSH into VPS, run deploy.sh --env=test
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-          SAZKIA_DEPLOY_KEY: ${{ secrets.SASKIA_VPS_SSH_KEY }}
+          SAZKIA_DEPLOY_KEY: ${{ secrets.VPS_KEY }}
         run: |
           mkdir -p ~/.ssh
           echo "$SAZKIA_DEPLOY_KEY" > ~/.ssh/id_ed25519

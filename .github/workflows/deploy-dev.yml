@@ -88,7 +88,7 @@ jobs:
       - name: SSH into VPS, run deploy.sh --env=dev
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-          SAZKIA_DEPLOY_KEY: ${{ secrets.SASKIA_VPS_SSH_KEY }}
+          SAZKIA_DEPLOY_KEY: ${{ secrets.VPS_KEY }}
         run: |
           # Write the SSH key to a known path with 0600 perms
           mkdir -p ~/.ssh
