@@ -1227,59 +1227,128 @@ def _apply_lines_from_form(session: Session, recipe_id: int, form: "object") -> 
     skipped list. The caller can choose to surface these as a Spanish 400 (so
     the operator knows WHY a line was ignored instead of silently dropping it).
     """
+    form_fields = _extract_line_form_fields(form)
+    n = _max_line_count(form_fields)
     skipped: list[str] = []
-    kinds = form.getlist("line_kind")
-    target_ids = form.getlist("line_target_id")
-    qtys = form.getlist("line_qty")
-    line_units = form.getlist("line_unit")
-    notes_list = form.getlist("line_notes")
-
-    n = max(len(kinds), len(target_ids), len(qtys), len(line_units))
     for i in range(n):
-        kind = str(kinds[i]).strip() if i < len(kinds) else ""
-        target = str(target_ids[i]).strip() if i < len(target_ids) else ""
-        qty_raw = str(qtys[i]).strip() if i < len(qtys) else ""
-        ln_unit_raw = str(line_units[i]).strip() if i < len(line_units) else ""
-        ln_notes = str(notes_list[i]).strip() if i < len(notes_list) else ""
-
-        if not kind or not target or not qty_raw:
-            skipped.append(f"Línea {i + 1}: tipo, ingrediente o cantidad vacíos")
+        line_data = _extract_line_data(form_fields, i)
+        skip_reason = _validate_line_data(line_data, i)
+        if skip_reason:
+            skipped.append(skip_reason)
             continue
-        try:
-            qty = float(qty_raw)
-            target_id = int(target)
-        except ValueError:
-            skipped.append(f"Línea {i + 1}: cantidad '{qty_raw}' o id '{target}' inválidos")
-            continue
-        if qty <= 0:
-            skipped.append(f"Línea {i + 1}: cantidad debe ser mayor a 0")
-            continue
-        if target_id <= 0:
-            skipped.append(f"Línea {i + 1}: id de ingrediente inválido")
-            continue
-
-        # Validate the unit (if supplied) against the canonical enum.
-        # On invalid value, fall back to empty string — the costing walk will
-        # then default to the linked ingredient's unit (back-compat).
-        line_unit_value = ""
-        if ln_unit_raw:
-            try:
-                line_unit_value = Unit.coerce(ln_unit_raw).value
-            except ValueError:
-                line_unit_value = ""
-
-        session.add(
-            RecipeLine(
-                recipe_id=recipe_id,
-                line_kind=kind,
-                line_ref_id=target_id,
-                qty=qty,
-                line_unit=line_unit_value,
-                notes=ln_notes or None,
-            )
-        )
-
+        _add_recipe_line(session, recipe_id, line_data)
     return skipped
+
+
+def _extract_line_form_fields(form) -> dict:
+    """Extract repeated form fields for recipe lines.
+    
+    Extracted from _apply_lines_from_form to reduce complexity.
+    """
+    return {
+        "kinds": form.getlist("line_kind"),
+        "target_ids": form.getlist("line_target_id"),
+        "qtys": form.getlist("line_qty"),
+        "line_units": form.getlist("line_unit"),
+        "notes_list": form.getlist("line_notes"),
+    }
+
+
+def _max_line_count(form_fields: dict) -> int:
+    """Get the maximum count of any form field.
+    
+    Extracted from _apply_lines_from_form to reduce complexity.
+    """
+    return max(
+        len(form_fields["kinds"]),
+        len(form_fields["target_ids"]),
+        len(form_fields["qtys"]),
+        len(form_fields["line_units"]),
+    )
+
+
+def _extract_line_data(form_fields: dict, i: int) -> dict:
+    """Extract data for a single line from the form fields.
+    
+    Extracted from _apply_lines_from_form to reduce complexity.
+    """
+    return {
+        "kind": _get_field(form_fields["kinds"], i),
+        "target": _get_field(form_fields["target_ids"], i),
+        "qty_raw": _get_field(form_fields["qtys"], i),
+        "ln_unit_raw": _get_field(form_fields["line_units"], i),
+        "ln_notes": _get_field(form_fields["notes_list"], i),
+    }
+
+
+def _get_field(field_list: list, i: int) -> str:
+    """Get a field value at index i, or empty string if not present.
+    
+    Extracted from _extract_line_data to reduce complexity.
+    """
+    if i < len(field_list):
+        return str(field_list[i]).strip()
+    return ""
+
+
+def _validate_line_data(line_data: dict, i: int) -> str | None:
+    """Validate line data and return a skip reason if invalid.
+    
+    Extracted from _apply_lines_from_form to reduce complexity.
+    """
+    kind = line_data["kind"]
+    target = line_data["target"]
+    qty_raw = line_data["qty_raw"]
+
+    if not kind or not target or not qty_raw:
+        return f"Línea {i + 1}: tipo, ingrediente o cantidad vacíos"
+    try:
+        qty = float(qty_raw)
+        target_id = int(target)
+    except ValueError:
+        return f"Línea {i + 1}: cantidad '{qty_raw}' o id '{target}' inválidos"
+    if qty <= 0:
+        return f"Línea {i + 1}: cantidad debe ser mayor a 0"
+    if target_id <= 0:
+        return f"Línea {i + 1}: id de ingrediente inválido"
+
+    # Store parsed values for later use
+    line_data["qty"] = qty
+    line_data["target_id"] = target_id
+    return None
+
+
+def _add_recipe_line(session: Session, recipe_id: int, line_data: dict) -> None:
+    """Add a RecipeLine to the session.
+    
+    Extracted from _apply_lines_from_form to reduce complexity.
+    """
+    line_unit_value = _coerce_line_unit(line_data["ln_unit_raw"])
+    session.add(
+        RecipeLine(
+            recipe_id=recipe_id,
+            line_kind=line_data["kind"],
+            line_ref_id=line_data["target_id"],
+            qty=line_data["qty"],
+            line_unit=line_unit_value,
+            notes=line_data["ln_notes"] or None,
+        )
+    )
+
+
+def _coerce_line_unit(ln_unit_raw: str) -> str:
+    """Coerce a line unit string to its canonical enum value.
+    
+    On invalid value, fall back to empty string — the costing walk will
+    then default to the linked ingredient's unit (back-compat).
+    Extracted from _add_recipe_line to reduce complexity.
+    """
+    if not ln_unit_raw:
+        return ""
+    try:
+        return Unit.coerce(ln_unit_raw).value
+    except ValueError:
+        return ""
 
 
 def _detect_sub_recipe_cycle(
