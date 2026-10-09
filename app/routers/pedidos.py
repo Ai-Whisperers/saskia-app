@@ -1568,14 +1568,16 @@ def pedidos_detail(
     )
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
-    
+
     # Build decorated pedido with lines, timeline, recent pedidos
     decorated = _build_pedido_detail_decorated(session, pedido)
-    
+
     # Add linked sales and loyalty impact
     decorated["linked_sales"] = _load_linked_sales(session, pedido)
-    decorated["loyalty_impact"] = _compute_loyalty_impact(session, pedido, decorated["linked_sales"])
-    
+    decorated["loyalty_impact"] = _compute_loyalty_impact(
+        session, pedido, decorated["linked_sales"]
+    )
+
     return render(
         request,
         "pedido_detalle.html",
@@ -1585,7 +1587,7 @@ def pedidos_detail(
 
 def _build_pedido_detail_decorated(session: Session, pedido: Pedido) -> dict:
     """Build the decorated pedido dict with lines, timeline, and recent pedidos.
-    
+
     Extracted from pedidos_detail to reduce complexity.
     """
     spend_30d = _customer_30d_spend_gs(session, pedido.customer_id)
@@ -1599,7 +1601,7 @@ def _build_pedido_detail_decorated(session: Session, pedido: Pedido) -> dict:
 
 def _build_pedido_lines(pedido: Pedido) -> list[dict]:
     """Build the pedido lines list with computed totals.
-    
+
     Extracted from pedidos_detail to reduce complexity.
     """
     return [
@@ -1618,7 +1620,7 @@ def _build_pedido_lines(pedido: Pedido) -> list[dict]:
 
 def _build_pedido_timeline(session: Session, pedido: Pedido) -> list[dict]:
     """Build the pedido timeline events.
-    
+
     Extracted from pedidos_detail to reduce complexity.
     """
     timeline = build_pedido_timeline(session, pedido)
@@ -1627,7 +1629,7 @@ def _build_pedido_timeline(session: Session, pedido: Pedido) -> list[dict]:
 
 def _build_recent_pedidos(session: Session, pedido: Pedido) -> list[dict]:
     """Build the customer's recent pedidos (excluding current).
-    
+
     Extracted from pedidos_detail to reduce complexity.
     """
     if not pedido.customer_id:
@@ -1640,16 +1642,16 @@ def _build_recent_pedidos(session: Session, pedido: Pedido) -> list[dict]:
 
 def _load_linked_sales(session: Session, pedido: Pedido) -> list[dict]:
     """Load sales linked to this pedido via linked_pedido_id.
-    
+
     Tier 6.3 (2026-10-01): Pedido.sales relationship returns every Sale
     whose linked_pedido_id == this pedido.id.
     Extracted from pedidos_detail to reduce complexity.
     """
     from app.rms.models import Sale as SaleModel
-    
+
     if not pedido.customer_id:
         return []
-    
+
     sales = session.scalars(
         select(SaleModel)
         .where(SaleModel.linked_pedido_id == pedido.id)
@@ -1667,11 +1669,9 @@ def _load_linked_sales(session: Session, pedido: Pedido) -> list[dict]:
     ]
 
 
-def _compute_loyalty_impact(
-    session: Session, pedido: Pedido, linked_sales: list[dict]
-) -> dict:
+def _compute_loyalty_impact(session: Session, pedido: Pedido, linked_sales: list[dict]) -> dict:
     """Compute loyalty points earned/redeemed for this pedido.
-    
+
     Extracted from pedidos_detail to reduce complexity.
     """
     loyalty_impact: dict = {
@@ -1680,12 +1680,12 @@ def _compute_loyalty_impact(
         "net_points": 0,
         "transactions": [],
     }
-    
+
     if not pedido.customer_id or not linked_sales:
         return loyalty_impact
-    
+
     from app.rms.models import LoyaltyTransaction
-    
+
     sale_ids = [s["id"] for s in linked_sales]
     txs = session.scalars(
         select(LoyaltyTransaction)
@@ -1694,7 +1694,7 @@ def _compute_loyalty_impact(
         .order_by(LoyaltyTransaction.recorded_at.desc())
         .limit(20)
     ).all()
-    
+
     for tx in txs:
         loyalty_impact["transactions"].append(
             {
@@ -1711,7 +1711,7 @@ def _compute_loyalty_impact(
             # store the absolute amount in `redeemed_points` so the
             # display "pts canjeados" shows "50" not "-50".
             loyalty_impact["redeemed_points"] += abs(int(tx.delta or 0))
-    
+
     loyalty_impact["net_points"] = (
         loyalty_impact["earned_points"] - loyalty_impact["redeemed_points"]
     )
@@ -1720,18 +1720,16 @@ def _compute_loyalty_impact(
 
 def _build_pedido_detail_context(decorated: dict) -> dict:
     """Build the template context for the pedido detail page.
-    
+
     Extracted from pedidos_detail to reduce complexity.
     """
-    pedido = decorated.get("_pedido")  # May not be present
     return {
         "pedido": decorated,
         "transitions": PedidoStateMachine.allowed_next(decorated.get("status", "")),
         "can_fulfill": PedidoStateMachine.is_fulfillable(decorated.get("status", "")),
         "channels": CHANNELS,
         "payment_methods": sorted(
-            set(ALLOWED_PAYMENT_METHODS)
-            | {"efectivo", "transferencia", "qr", "tarjeta", "otro"}
+            set(ALLOWED_PAYMENT_METHODS) | {"efectivo", "transferencia", "qr", "tarjeta", "otro"}
         ),
         # Phase 13 (2026-10-01): the rendered ventana text for the
         # template's badge (uses "ventana preferida" wording + the

@@ -357,9 +357,6 @@ async def recipe_new(request: Request, session: Session = Depends(get_session)) 
     - recipe_families: rows from `category` WHERE scope='recipe_family'
     - dietary_tags: rows from `tag` WHERE kind='recipe'
     """
-    from app.rms.categories import list_categories as list_cats
-    from app.rms.tagging import list_tags_for_kind
-
     ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
     # Variant-aware price so JS live cost matches server-side batch/unit
     # totals. preferred_price_gs is what the costing walk uses via
@@ -369,6 +366,9 @@ async def recipe_new(request: Request, session: Session = Depends(get_session)) 
     for _ing in ingredients:
         _vp = _cvp_new(session, _ing.id)
         _ing.preferred_price_gs = int(_vp) if _vp else (_ing.purchase_price_gs or 0)
+    from app.rms.categories import list_categories as list_cats
+    from app.rms.tagging import list_tags_for_kind
+
     other_recipes = session.scalars(select(Recipe).order_by(Recipe.name)).all()
     return render(
         request,
@@ -804,56 +804,59 @@ async def recipe_edit(
     r = session.get(Recipe, r_id)
     if r is None:
         raise NotFound("receta")
-    
+
     # Load and decorate recipe lines
     lines = _load_recipe_lines_with_costs(session, r_id)
-    
+
     # Load ingredients with variant-aware prices
     ingredients = _load_ingredients_with_prices(session)
-    
+
     # Load other recipes (for sub-recipe dropdown)
     other_recipes = _load_other_recipes(session, r_id)
-    
+
     # Load cost breakdown
     from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
+
     batch_cost = recipe_batch_cost_gs(session, r_id)
     unit_cost = recipe_unit_cost_gs(session, r_id)
-    
+
     # Load products using this recipe
     products_using = session.scalars(select(Product).where(Product.recipe_id == r_id)).all()
-    
+
     # Parse scale factor from query params
     scale_factor = _parse_scale_factor(request)
-    
-    # Build template context
-    from app.rms.categories import list_categories as list_cats
-    from app.rms.tagging import list_tags_for_kind
-    
+
     return render(
         request,
         "receta_form.html",
         _build_recipe_edit_context(
-            r, lines, ingredients, other_recipes, batch_cost, unit_cost,
-            products_using, scale_factor
+            r,
+            lines,
+            ingredients,
+            other_recipes,
+            batch_cost,
+            unit_cost,
+            products_using,
+            scale_factor,
         ),
     )
 
 
 def _load_recipe_lines_with_costs(session: Session, r_id: int) -> list[dict]:
     """Load recipe lines with variant-aware costs and target names.
-    
+
     Extracted from recipe_edit to reduce complexity.
     """
     raw_lines = session.scalars(
         select(RecipeLine).where(RecipeLine.recipe_id == r_id).order_by(RecipeLine.id)
     ).all()
-    
+
     from app.rms.costing import resolve_line_target
     from app.rms.variants import current_variant_price
-    
+
     # Unit conversion factors for same-family normalization
     _UF = {"g": 1, "kg": 1000, "ml": 1, "l": 1000, "und": 1, "u": 1, "porcion": 1}
-    
+
     lines = []
     for ln in raw_lines:
         target = resolve_line_target(session, ln)
@@ -870,7 +873,9 @@ def _load_recipe_lines_with_costs(session: Session, r_id: int) -> list[dict]:
                 # cost_per_kg_gs: the ingredient's variant-aware purchase price per kg — what JS multiplies by qty_norm
                 # Use current_variant_price so it matches the line cost above AND the
                 # recipe_batch_cost_gs() walk in app/rms/costing.py.
-                "price_per_kg_gs": _variant_price_for_line(session, target, ln, current_variant_price),
+                "price_per_kg_gs": _variant_price_for_line(
+                    session, target, ln, current_variant_price
+                ),
                 # unit_cost_gs: the normalized line total cost = qty_in_kg × price_per_kg_gs
                 "unit_cost_gs": _line_cost(ln, target, session, current_variant_price, _UF),
             }
@@ -878,11 +883,13 @@ def _load_recipe_lines_with_costs(session: Session, r_id: int) -> list[dict]:
     return lines
 
 
-def _variant_price_for_line(sess: Session, tgt: object, ln: RecipeLine, current_variant_price) -> int:
+def _variant_price_for_line(
+    sess: Session, tgt: object, ln: RecipeLine, current_variant_price: int
+) -> int:
     """Variant-aware ingredient price for a recipe line. Falls back to
     parent purchase_price_gs when no variants exist (backward compat).
     Returns 0 for sub-recipe lines or missing targets.
-    
+
     Extracted from recipe_edit to reduce complexity.
     """
     if tgt is None or ln.line_kind != "ingredient":
@@ -891,12 +898,14 @@ def _variant_price_for_line(sess: Session, tgt: object, ln: RecipeLine, current_
     return int(price) if price else 0
 
 
-def _line_cost(ln: RecipeLine, target: object, session: Session, current_variant_price, _UF: dict) -> int:
+def _line_cost(
+    ln: RecipeLine, target: object, session: Session, current_variant_price: int, _UF: dict
+) -> int:
     """Compute Gs. cost for a recipe line, or 0 if price unavailable.
-    
+
     Uses current_variant_price() so the displayed cost matches what
     recipe_batch_cost_gs() computes server-side.
-    
+
     Extracted from recipe_edit to reduce complexity.
     """
     if target is None or ln.line_kind != "ingredient":
@@ -911,11 +920,7 @@ def _line_cost(ln: RecipeLine, target: object, session: Session, current_variant
     lf = _UF.get(lu, 1)
     tf = _UF.get(tu, 1)
     # Same family: weight (g/kg) or volume (ml/l) — normalize
-    if (
-        lf != 1
-        and tf != 1
-        and (lu in ("und", "u", "porcion")) == (tu in ("und", "u", "porcion"))
-    ):
+    if lf != 1 and tf != 1 and (lu in ("und", "u", "porcion")) == (tu in ("und", "u", "porcion")):
         qty_norm = ln.qty * lf / tf
     else:
         qty_norm = ln.qty
@@ -924,11 +929,11 @@ def _line_cost(ln: RecipeLine, target: object, session: Session, current_variant
 
 def _load_ingredients_with_prices(session: Session) -> list[Ingredient]:
     """Load all ingredients with variant-aware preferred prices attached.
-    
+
     Extracted from recipe_edit to reduce complexity.
     """
     from app.rms.variants import current_variant_price as _cvp
-    
+
     ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
     for _ing in ingredients:
         _vp = _cvp(session, _ing.id)
@@ -938,17 +943,15 @@ def _load_ingredients_with_prices(session: Session) -> list[Ingredient]:
 
 def _load_other_recipes(session: Session, r_id: int) -> list[Recipe]:
     """Load all recipes except the current one (for sub-recipe dropdown).
-    
+
     Extracted from recipe_edit to reduce complexity.
     """
-    return session.scalars(
-        select(Recipe).where(Recipe.id != r_id).order_by(Recipe.name)
-    ).all()
+    return session.scalars(select(Recipe).where(Recipe.id != r_id).order_by(Recipe.name)).all()
 
 
 def _parse_scale_factor(request: Request) -> float:
     """Parse scale factor from query params, clamped to [0.25, 10.0].
-    
+
     Extracted from recipe_edit to reduce complexity.
     """
     scale = request.query_params.get("scale", "1")
@@ -969,12 +972,12 @@ def _build_recipe_edit_context(
     scale_factor: float,
 ) -> dict:
     """Build the template context for the recipe edit form.
-    
+
     Extracted from recipe_edit to reduce complexity.
     """
     from app.rms.categories import list_categories as list_cats
     from app.rms.tagging import list_tags_for_kind
-    
+
     return {
         "mode": "edit",
         "recipe": r,

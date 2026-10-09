@@ -1101,11 +1101,28 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
         request,
         "dashboard.html",
         _build_dashboard_context(
-            revenue_gs, portions, unique_customers, repeat,
-            food_cost_pct, gross_margin_pct, waste_total_gs, waste_pct,
-            recipe_count, recipes_cooked, avg_order, by_channel, top_recipe,
-            sl_count, sl_total, wishlist_count, wishlist_total,
-            risk_count, risk_severity, sazon_seeded, sazon_info, month_start,
+            revenue_gs,
+            portions,
+            unique_customers,
+            repeat,
+            food_cost_pct,
+            gross_margin_pct,
+            waste_total_gs,
+            waste_pct,
+            recipe_count,
+            recipes_cooked,
+            avg_order,
+            by_channel,
+            top_recipe,
+            sl_count,
+            sl_total,
+            wishlist_count,
+            wishlist_total,
+            risk_count,
+            risk_severity,
+            sazon_seeded,
+            sazon_info,
+            month_start,
             sales_this_month,
         ),
     )
@@ -1113,17 +1130,15 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
 
 def _load_month_sales(session: Session, month_start: datetime) -> list[Sale]:
     """Load all sales from the start of the month.
-    
+
     Extracted from dashboard_index to reduce complexity.
     """
-    return session.execute(
-        select(Sale).where(Sale.sold_at >= month_start)
-    ).scalars().all()
+    return session.execute(select(Sale).where(Sale.sold_at >= month_start)).scalars().all()
 
 
 def _compute_revenue_metrics(sales_this_month: list[Sale]) -> tuple[int, float, int, int]:
     """Compute revenue, portions, unique customers, and repeat customers.
-    
+
     Extracted from dashboard_index to reduce complexity.
     """
     revenue_gs = sum(int(s.qty * s.unit_price_gs) for s in sales_this_month)
@@ -1142,24 +1157,24 @@ def _compute_food_cost_and_margin(
     session: Session, sales_this_month: list[Sale], revenue_gs: int
 ) -> tuple[float | None, float | None]:
     """Compute food cost percentage and gross margin.
-    
+
     Returns None for both if no recipe costing data (would be fiction).
     Extracted from dashboard_index to reduce complexity.
     """
     total_food_cost_gs = _compute_total_food_cost(session, sales_this_month)
-    
+
     if revenue_gs > 0 and total_food_cost_gs > 0:
         food_cost_pct = total_food_cost_gs / revenue_gs * 100
         gross_margin_pct = 100 - food_cost_pct
         return food_cost_pct, gross_margin_pct
-    
+
     # No recipe costing data → reporting a margin would be fiction (e.g. 100%)
     return None, None
 
 
 def _compute_total_food_cost(session: Session, sales_this_month: list[Sale]) -> int:
     """Compute total food cost across all sales using RecipePricing.
-    
+
     Extracted from dashboard_index to reduce complexity.
     """
     total_food_cost_gs = 0
@@ -1182,7 +1197,7 @@ def _compute_waste_metrics(
     session: Session, month_start: datetime, revenue_gs: int
 ) -> tuple[int, float]:
     """Compute waste total and percentage of revenue.
-    
+
     Extracted from dashboard_index to reduce complexity.
     """
     waste_gs = (
@@ -1199,7 +1214,7 @@ def _compute_recipe_metrics(
     session: Session, sales_this_month: list[Sale], revenue_gs: int
 ) -> tuple[int, int, float]:
     """Compute recipe count, recipes cooked, and average order value.
-    
+
     Extracted from dashboard_index to reduce complexity.
     """
     recipe_count = session.execute(select(Recipe)).scalars().all()
@@ -1212,7 +1227,7 @@ def _compute_channel_and_top_recipe(
     sales_this_month: list[Sale],
 ) -> tuple[dict, tuple[str, int]]:
     """Compute revenue by channel and top recipe by revenue.
-    
+
     Extracted from dashboard_index to reduce complexity.
     """
     # Channels breakdown
@@ -1220,14 +1235,14 @@ def _compute_channel_and_top_recipe(
     for s in sales_this_month:
         ch = s.channel or Channel.MOSTRADOR.value  # P43: Channel enum fallback
         by_channel[ch] += int(s.qty * s.unit_price_gs)
-    
+
     # Top recipe by revenue
     by_recipe = defaultdict(int)
     for s in sales_this_month:
         if s.product:
             by_recipe[s.product.name] += int(s.qty * s.unit_price_gs)
     top_recipe = max(by_recipe.items(), key=lambda kv: kv[1], default=("—", 0))
-    
+
     return dict(by_channel), top_recipe
 
 
@@ -1235,15 +1250,16 @@ def _compute_aggregate_kpis(
     session: Session,
 ) -> tuple[int, int, int, int, int, int]:
     """Compute shopping list, wishlist, and risk KPIs in batched queries.
-    
+
     Total ~3 queries — see test_dashboard_perf.py budget.
     Returns: (sl_count, sl_total_gs, wishlist_count, wishlist_total_gs,
               risk_count, risk_severity_gs).
     Extracted from dashboard_index to reduce complexity.
     """
     from sqlalchemy import func as sa_func
+
     from app.rms.models import Ingredient, RiskItem, ShoppingListItem, WishlistItem
-    
+
     # Shopping list: count + total estimated ₲ in one query
     sl_agg = session.execute(
         select(
@@ -1257,7 +1273,7 @@ def _compute_aggregate_kpis(
         .where(ShoppingListItem.purchased.is_(False))
     ).one()
     sl_open_count, sl_total_gs = int(sl_agg[0] or 0), int(sl_agg[1] or 0)
-    
+
     # Wishlist: count + total
     wishlist_agg = session.execute(
         select(
@@ -1269,7 +1285,7 @@ def _compute_aggregate_kpis(
         ).where(WishlistItem.purchased.is_(False))
     ).one()
     wishlist_count, wishlist_total_gs = int(wishlist_agg[0] or 0), int(wishlist_agg[1] or 0)
-    
+
     # Risks: count + total severity (probability × impact)
     risk_agg = session.execute(
         select(
@@ -1281,17 +1297,24 @@ def _compute_aggregate_kpis(
         ).where(RiskItem.status == "activo")
     ).one()
     risk_count, risk_severity_gs = int(risk_agg[0] or 0), int(risk_agg[1] or 0)
-    
-    return sl_open_count, sl_total_gs, wishlist_count, wishlist_total_gs, risk_count, risk_severity_gs
+
+    return (
+        sl_open_count,
+        sl_total_gs,
+        wishlist_count,
+        wishlist_total_gs,
+        risk_count,
+        risk_severity_gs,
+    )
 
 
 def _get_sazon_status(session: Session) -> tuple[bool, dict]:
     """Check if Sazon demo data has been seeded.
-    
+
     Extracted from dashboard_index to reduce complexity.
     """
     from app.rms.seed.sazon import is_sazon_seeded, sazon_meta
-    
+
     sazon_seeded = is_sazon_seeded(session)
     sazon_info = sazon_meta(session) if sazon_seeded else {}
     return sazon_seeded, sazon_info
@@ -1323,7 +1346,7 @@ def _build_dashboard_context(
     sales_this_month: list[Sale],
 ) -> dict:
     """Build the template context dict for the dashboard.
-    
+
     Extracted from dashboard_index to reduce complexity.
     """
     return {
@@ -1333,9 +1356,7 @@ def _build_dashboard_context(
         "repeat_customers": repeat,
         "repeat_pct": (int(repeat / unique_customers * 100) if unique_customers > 0 else 0),
         "food_cost_pct": round(food_cost_pct, 1) if food_cost_pct is not None else None,
-        "gross_margin_pct": round(gross_margin_pct, 1)
-        if gross_margin_pct is not None
-        else None,
+        "gross_margin_pct": round(gross_margin_pct, 1) if gross_margin_pct is not None else None,
         "waste_gs": waste_total_gs,
         "waste_pct": round(waste_pct, 1),
         "recipe_count": recipe_count,

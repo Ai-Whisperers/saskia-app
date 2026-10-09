@@ -105,11 +105,6 @@ def validate_cart_intent(
 
     _ASUNCION = ZoneInfo("America/Asuncion")
 
-    from app.rms.derived_intel import check_customer_risk
-    from app.rms.eod_closed import eod_is_day_closed
-    from app.rms.models import Ingredient, Product, Recipe
-    from app.rms.sales.lifecycle import _compute_stock_moves
-
     if today is None:
         today = _datetime.now(_ASUNCION).date()
 

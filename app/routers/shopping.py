@@ -101,7 +101,7 @@ def consolidate_open_items(session: Session) -> int:
 
 def _clean_single_row_purposes(rows: list) -> None:
     """Clean float garbage in single-row buckets.
-    
+
     Extracted from consolidate_open_items to reduce complexity.
     """
     for it in rows:
@@ -112,7 +112,7 @@ def _clean_single_row_purposes(rows: list) -> None:
 
 def _merge_duplicate_rows(session: Session, rows: list, _re) -> int:
     """Merge duplicate rows into one, returning count of rows deleted.
-    
+
     Keeps the first row (newest), sums quantities, merges purpose texts,
     and deletes the rest.
     Extracted from consolidate_open_items to reduce complexity.
@@ -120,7 +120,7 @@ def _merge_duplicate_rows(session: Session, rows: list, _re) -> int:
     keep = rows[0]  # newest (ordered by created_at desc)
     keep.qty_to_buy = sum(float(r.qty_to_buy or 0) for r in rows)
     keep.purpose_text = _merge_purpose_texts(rows, _re)
-    
+
     deleted = 0
     for r in rows[1:]:
         session.delete(r)
@@ -130,13 +130,13 @@ def _merge_duplicate_rows(session: Session, rows: list, _re) -> int:
 
 def _merge_purpose_texts(rows: list, _re) -> str | None:
     """Extract short purpose keys from rows and join them.
-    
+
     Rules:
     - 'Plan #1 (1× Carrot Cake...)' → 'Plan #1'
     - 'Auto: stock ...' → 'Auto'
     - Other text → first 40 chars
     - Joined with ' + '
-    
+
     Extracted from consolidate_open_items to reduce complexity.
     """
     keys: list[str] = []

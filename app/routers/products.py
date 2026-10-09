@@ -168,56 +168,68 @@ def products_list(
     Optional filter (?q=substring, ?has_recipe=yes/no).
     """
     PER_PAGE = 50
-    
+
     # Build base query with filters
     stmt, count_stmt = _build_products_query(q, has_recipe, disponibles, tag, category)
-    
+
     # Apply filters that affect pagination
     margen_sel = (margen or "").strip()
     disp_sel = (disponibles or "").strip()
     tag_sel = (tag or "").strip()
     category_sel = (category or "").strip()
-    
+
     # Count total
     total = session.scalar(count_stmt) or 0
     total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
     page = min(page, total_pages)
-    
+
     # Load supporting data
     sold_product_ids = _load_sold_product_ids(session)
     produced_by_pid = _load_production_stats(session)
-    
+
     # Apply pagination and eager-load
     offset = (page - 1) * PER_PAGE
     stmt = stmt.offset(offset).limit(PER_PAGE)
     stmt = stmt.options(selectinload(Product.recipe))
     products = session.scalars(stmt).all()
-    
+
     # Decorate products with cost, margin, prime cost
     decorated = _decorate_products_with_costs(session, list(products))
-    
+
     # Add production stats
     _add_production_stats_to_products(decorated, produced_by_pid, sold_product_ids)
-    
+
     # Add cost freshness
     _add_cost_freshness(session, decorated, list(products))
-    
+
     # Apply margin filter (post-costing, in-memory)
     if margen_sel:
         decorated = _filter_by_margin(decorated, margen_sel)
         total = len(decorated)
-    
+
     # Apply in-memory sort
     if sort and sort in ("name", "sale_price_gs", "cost_gs", "margin_gs"):
         reverse = dir == "desc"
         decorated.sort(key=lambda r: r.get(sort) or 0, reverse=reverse)
-    
+
     return render(
         request,
         "productos.html",
         _build_template_context(
-            decorated, q, has_recipe, margen_sel, disp_sel, tag_sel,
-            category_sel, sort, dir, page, total_pages, total, PER_PAGE, session
+            decorated,
+            q,
+            has_recipe,
+            margen_sel,
+            disp_sel,
+            tag_sel,
+            category_sel,
+            sort,
+            dir,
+            page,
+            total_pages,
+            total,
+            PER_PAGE,
+            session,
         ),
     )
 
@@ -230,13 +242,13 @@ def _build_products_query(
     category: str | None,
 ) -> tuple:
     """Build the base products query with filters applied.
-    
+
     Returns (stmt, count_stmt).
     Extracted from products_list to reduce complexity.
     """
     stmt = select(Product)
     count_stmt = select(func.count()).select_from(Product)
-    
+
     if q:
         stmt = stmt.where(func.lower(Product.name).like(f"%{q.lower()}%"))
         count_stmt = count_stmt.where(func.lower(Product.name).like(f"%{q.lower()}%"))
@@ -246,7 +258,7 @@ def _build_products_query(
     elif has_recipe == "no":
         stmt = stmt.where(Product.recipe_id.is_(None))
         count_stmt = count_stmt.where(Product.recipe_id.is_(None))
-    
+
     disp_sel = (disponibles or "").strip()
     if disp_sel == "si":
         stmt = stmt.where(Product.is_available.is_(True))
@@ -254,23 +266,23 @@ def _build_products_query(
     elif disp_sel == "no":
         stmt = stmt.where(Product.is_available.is_(False))
         count_stmt = count_stmt.where(Product.is_available.is_(False))
-    
+
     tag_sel = (tag or "").strip()
     if tag_sel:
         stmt = stmt.where(Product.tags.ilike(f"%{tag_sel}%"))
         count_stmt = count_stmt.where(Product.tags.ilike(f"%{tag_sel}%"))
-    
+
     category_sel = (category or "").strip()
     if category_sel:
         stmt = stmt.where(Product.category == category_sel)
         count_stmt = count_stmt.where(Product.category == category_sel)
-    
+
     return stmt, count_stmt
 
 
 def _load_sold_product_ids(session: Session) -> set:
     """Load set of product IDs that have at least one sale.
-    
+
     Extracted from products_list to reduce complexity.
     """
     return set(session.scalars(select(Sale.product_id).distinct()).all())
@@ -278,12 +290,12 @@ def _load_sold_product_ids(session: Session) -> set:
 
 def _load_production_stats(session: Session) -> dict[int, dict]:
     """Load production completion stats per product.
-    
+
     Returns dict mapping product_id to {total, last_date, last_30d}.
     Extracted from products_list to reduce complexity.
     """
     from app.rms.models import ProductionCompletion
-    
+
     produced_rows = session.execute(
         select(
             ProductionCompletion.product_id,
@@ -308,11 +320,11 @@ def _load_production_stats(session: Session) -> dict[int, dict]:
 
 def _decorate_products_with_costs(session: Session, products: list) -> list[dict]:
     """Decorate products with cost, margin, and prime cost data.
-    
+
     Extracted from products_list to reduce complexity.
     """
     from app.rms.prime_cost import batch_compute_prime_cost, compute_prime_cost
-    
+
     # One batch call replaces N+1 cost/margin queries (Neon round-trips).
     batch_results = batch_products_cost_margin(session, products)
     # Batched prime cost (compliance-info singleton + product.recipe
@@ -322,7 +334,7 @@ def _decorate_products_with_costs(session: Session, products: list) -> list[dict
         prime_batch = batch_compute_prime_cost(session, products)
     except Exception:
         prime_batch = {}
-    
+
     decorated = []
     for p in products:
         cost, margin = batch_results.get(
@@ -339,7 +351,7 @@ def _decorate_products_with_costs(session: Session, products: list) -> list[dict
 
 def _build_product_dict(p: Product, cost: object, margin: tuple, pc: object) -> dict:
     """Build a decorated product dict with all cost/margin fields.
-    
+
     Extracted from products_list to reduce complexity.
     """
     return {
@@ -372,7 +384,7 @@ def _add_production_stats_to_products(
     sold_product_ids: set,
 ) -> None:
     """Add production stats and dead-product flag to decorated products.
-    
+
     Extracted from products_list to reduce complexity.
     """
     for r in decorated:
@@ -387,11 +399,11 @@ def _add_production_stats_to_products(
 
 def _add_cost_freshness(session: Session, decorated: list[dict], products: list) -> None:
     """Add cost freshness timestamp to each product.
-    
+
     Extracted from products_list to reduce complexity.
     """
     from app.rms.cost_freshness import product_cost_freshness
-    
+
     freshness = product_cost_freshness(session, products)
     for r in decorated:
         r["cost_updated_at"] = freshness.get(r["id"])
@@ -399,10 +411,11 @@ def _add_cost_freshness(session: Session, decorated: list[dict], products: list)
 
 def _filter_by_margin(decorated: list[dict], margen_sel: str) -> list[dict]:
     """Filter products by margin state.
-    
+
     States: negativo (<0), bajo (<30%), ok (30-70%), alto (>70%).
     Extracted from products_list to reduce complexity.
     """
+
     def _mstate(r: dict) -> str:
         if r["margin_ratio"] is None:
             return "sin-datos"
@@ -414,7 +427,7 @@ def _filter_by_margin(decorated: list[dict], margen_sel: str) -> list[dict]:
         if pct <= 70:
             return "ok"
         return "alto"
-    
+
     return [r for r in decorated if _mstate(r) == margen_sel]
 
 
@@ -435,7 +448,7 @@ def _build_template_context(
     session: Session,
 ) -> dict:
     """Build the template context dict for the products page.
-    
+
     Extracted from products_list to reduce complexity.
     """
     return {

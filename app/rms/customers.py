@@ -97,9 +97,7 @@ def _find_customer_by_phone(session: Session, phone: str) -> Customer | None:
 
     Extracted from ensure_customer to reduce complexity.
     """
-    return session.execute(
-        select(Customer).where(Customer.phone == phone)
-    ).scalar_one_or_none()
+    return session.execute(select(Customer).where(Customer.phone == phone)).scalar_one_or_none()
 
 
 def _update_customer_fields(
@@ -145,6 +143,8 @@ def _create_new_customer(
     session.add(cust)
     session.flush()
     return cust
+
+
 def search_customers(
     session: Session,
     query: str,

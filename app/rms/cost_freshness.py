@@ -50,7 +50,6 @@ def product_cost_freshness(session: Session, products: list) -> dict[int, dateti
     None means: no recipe, or the recipe tree has zero priced events —
     the cost shown is effectively 'never computed'.
     """
-    from app.rms.models import IngredientPriceEvent, RecipeLine
 
     recipe_ids = sorted({p.recipe_id for p in products if p.recipe_id})
     if not recipe_ids:
@@ -74,11 +73,11 @@ def product_cost_freshness(session: Session, products: list) -> dict[int, dateti
 
 def _load_ingredient_ids(session: Session, recipe_ids: list[int]) -> set[int]:
     """Load set of ingredient IDs referenced by the given recipes.
-    
+
     Extracted from product_cost_freshness to reduce complexity.
     """
     from app.rms.models import RecipeLine
-    
+
     return set(
         session.execute(
             select(RecipeLine.line_ref_id).where(
@@ -91,15 +90,13 @@ def _load_ingredient_ids(session: Session, recipe_ids: list[int]) -> set[int]:
     )
 
 
-def _load_latest_price_events(
-    session: Session, ingredient_ids: set[int]
-) -> dict[int, datetime]:
+def _load_latest_price_events(session: Session, ingredient_ids: set[int]) -> dict[int, datetime]:
     """Load latest IngredientPriceEvent timestamp per ingredient.
-    
+
     Extracted from product_cost_freshness to reduce complexity.
     """
     from app.rms.models import IngredientPriceEvent
-    
+
     return {
         ing_id: recorded_at
         for ing_id, recorded_at in session.execute(
@@ -113,15 +110,13 @@ def _load_latest_price_events(
     }
 
 
-def _load_recipe_to_ingredients(
-    session: Session, recipe_ids: list[int]
-) -> dict[int, set[int]]:
+def _load_recipe_to_ingredients(session: Session, recipe_ids: list[int]) -> dict[int, set[int]]:
     """Load mapping of recipe_id → set of ingredient IDs.
-    
+
     Extracted from product_cost_freshness to reduce complexity.
     """
     from app.rms.models import RecipeLine
-    
+
     recipe_ings: dict[int, set[int]] = {}
     for recipe_id, ing_id in session.execute(
         select(RecipeLine.recipe_id, RecipeLine.line_ref_id).where(
@@ -140,10 +135,10 @@ def _build_freshness_map(
     recipe_ings: dict[int, set[int]],
 ) -> dict[int, datetime | None]:
     """Build the product_id → freshness timestamp map.
-    
+
     For each product, walks the recipe tree top-down (cycle-safe) and
     computes the max price event timestamp across all ingredients.
-    
+
     Extracted from product_cost_freshness to reduce complexity.
     """
     result: dict[int, datetime | None] = {}
@@ -162,12 +157,12 @@ def _build_freshness_map(
 
 def _walk_recipe_tree(session: Session, root_recipe_id: int) -> set[int]:
     """Walk recipe tree top-down from root, cycle-safe.
-    
+
     Returns set of all recipe IDs in the tree (including root).
     Extracted from product_cost_freshness to reduce complexity.
     """
     from app.rms.models import RecipeLine
-    
+
     seen: set[int] = set()
     frontier = [root_recipe_id]
     while frontier:
