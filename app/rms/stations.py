@@ -61,6 +61,8 @@ class Station:
     # Path prefixes this station owns. /eod is shared by cocina and gerencia.
     prefixes: tuple[str, ...]
     exact: tuple[str, ...] = ()
+    # Shown on the back of the chooser card.
+    features: tuple[str, ...] = ()
 
 
 STATIONS: dict[str, Station] = {
@@ -70,6 +72,7 @@ STATIONS: dict[str, Station] = {
         blurb="Pesar la tanda, anotar la merma, armar la semana y cerrar las piezas.",
         home="/produccion",
         prefixes=("/recetas", "/produccion", "/merma", "/eod"),
+        features=("Producción", "Recetas", "Merma", "Cierre del día"),
     ),
     "ventas": Station(
         id="ventas",
@@ -77,6 +80,7 @@ STATIONS: dict[str, Station] = {
         blurb="Anotar lo que salió hoy por el mostrador.",
         home="/ventas",
         prefixes=("/ventas",),
+        features=("Nueva venta", "Productos del mostrador", "Menús ejecutivos"),
     ),
     "inventario": Station(
         id="inventario",
@@ -84,6 +88,7 @@ STATIONS: dict[str, Station] = {
         blurb="Qué queda, a qué precio se compró y qué hay que reponer.",
         home="/inventario",
         prefixes=("/inventario", "/reorder"),
+        features=("Stock", "Precio de compra", "Reponer"),
     ),
     "gerencia": Station(
         id="gerencia",
@@ -108,6 +113,17 @@ STATIONS: dict[str, Station] = {
             "/eod",
         ),
         exact=("/",),
+        features=(
+            "Pedidos",
+            "Productos",
+            "Clientes",
+            "Inventario",
+            "Cierre del día",
+            "Reportes",
+            "Usuarios",
+            "Configuración",
+            "Excel",
+        ),
     ),
 }
 

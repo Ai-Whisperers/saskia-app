@@ -1,3 +1,14 @@
+## 2026-10-09 — puesto cards in coffee, dark type
+
+Chooser cards use a coffee fill. The role name and the feature list are
+dark brown, so the type stays readable on the front and on the turn.
+
+## 2026-10-09 — puesto cards flip to their features
+
+The chooser shows each role name. Hover or keyboard focus turns the card
+and lists what that puesto includes. Touch screens keep the name and the
+list together, without the turn.
+
 ## 2026-10-09 — eggshell on every section
 
 Light and dark both use the eggshell surfaces, brown text, and warm

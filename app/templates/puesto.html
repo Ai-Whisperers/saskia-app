@@ -7,25 +7,55 @@
 {{ ui.flash_toast(request) }}
 <section class="station-chooser">
   <h1>¿Qué vas a hacer?</h1>
-  <p class="muted">Elegí un puesto. El trabajo de los otros queda afuera hasta que vuelvas a elegir.</p>
+  <p class="muted">Elegí un puesto. Pasá el cursor para ver qué incluye. El trabajo de los otros queda afuera hasta que vuelvas a elegir.</p>
   <div class="station-grid">
     {% for s in stations %}
     <form method="post" action="/puesto">
       <input type="hidden" name="station" value="{{ s.id }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <button type="submit" class="station-card">
-        <span class="station-card-title">{{ s.label }}</span>
-        <span class="station-card-blurb">{{ s.blurb }}</span>
+        <span class="station-flip">
+          <span class="station-face station-face-front">
+            <span class="station-card-title">{{ s.label }}</span>
+          </span>
+          <span class="station-face station-face-back">
+            <span class="station-features{% if s.features|length > 5 %} is-dense{% endif %}" role="list">
+              {% for feature in s.features %}
+              <span role="listitem">{{ feature }}</span>
+              {% endfor %}
+            </span>
+          </span>
+        </span>
       </button>
     </form>
     {% endfor %}
     <a href="/menus" class="station-card station-card-link">
-      <span class="station-card-title">Menús</span>
-      <span class="station-card-blurb">Armar el combo del día y su precio.</span>
+      <span class="station-flip">
+        <span class="station-face station-face-front">
+          <span class="station-card-title">Menús</span>
+        </span>
+        <span class="station-face station-face-back">
+          <span class="station-features" role="list">
+            <span role="listitem">Nombre y precio</span>
+            <span role="listitem">Productos incluidos</span>
+            <span role="listitem">Menús activos</span>
+          </span>
+        </span>
+      </span>
     </a>
     <a href="/dashboard" class="station-card station-card-link">
-      <span class="station-card-title">Dashboard</span>
-      <span class="station-card-blurb">KPIs del mes: ventas, márgenes, producción.</span>
+      <span class="station-flip">
+        <span class="station-face station-face-front">
+          <span class="station-card-title">Dashboard</span>
+        </span>
+        <span class="station-face station-face-back">
+          <span class="station-features" role="list">
+            <span role="listitem">Dinero</span>
+            <span role="listitem">Actividad</span>
+            <span role="listitem">Costos</span>
+          </span>
+        </span>
+      </span>
     </a>
   </div>
 </section>
@@ -51,28 +81,118 @@
     height: 100%;
   }
   .station-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: .45rem;
+    display: block;
     width: 100%;
     height: 100%;
-    min-height: 9.5rem;
-    padding: 1.1rem 1rem;
+    min-height: 11.5rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #2a160c;
+    font: inherit;
     text-align: center;
-    border: 1px solid var(--color-border, #e3d8c8);
-    border-radius: 12px;
-    background: var(--color-surface, #fbf7f1);
     cursor: pointer;
+    perspective: 1000px;
   }
-  .station-card:hover { border-color: var(--color-accent, #8a5a2a); }
-  .station-card-title { font-size: 1.15rem; font-weight: 650; }
-  .station-card-blurb { color: var(--color-text-muted, #6e5e50); font-size: .95rem; line-height: 1.35; }
+  .station-card:focus-visible {
+    outline: 2px solid var(--color-accent, #8a5a2a);
+    outline-offset: 3px;
+    border-radius: 12px;
+  }
+  .station-flip {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    min-height: 11.5rem;
+  }
+  .station-face {
+    grid-area: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 0.9rem;
+    border: 1px solid #6f4b2a;
+    border-radius: 12px;
+    background: #c4a574;
+    color: #2a160c;
+  }
+  .station-card-title {
+    font-size: 1.35rem;
+    font-weight: 650;
+    color: #2a160c;
+  }
+  .station-features {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+    width: 100%;
+    text-align: left;
+    color: #2a160c;
+    font-size: 0.92rem;
+    line-height: 1.3;
+  }
+  .station-features.is-dense {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.28rem 0.7rem;
+  }
   .station-card-link {
     text-decoration: none;
     color: inherit;
     font: inherit;
+  }
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .station-flip {
+      transform-style: preserve-3d;
+      transition: transform 0.45s ease;
+    }
+    .station-face {
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+    .station-face-front { transform: rotateY(0deg) translateZ(1px); }
+    .station-face-back { transform: rotateY(180deg) translateZ(1px); }
+    .station-card:hover .station-flip,
+    .station-card:focus-visible .station-flip { transform: rotateY(180deg); }
+    .station-card:hover .station-face,
+    .station-card:focus-visible .station-face {
+      border-color: var(--color-accent, #8a5a2a);
+    }
+  }
+  @media (hover: hover) and (prefers-reduced-motion: reduce) {
+    .station-face-back { visibility: hidden; }
+    .station-card:hover .station-face-front,
+    .station-card:focus-visible .station-face-front { visibility: hidden; }
+    .station-card:hover .station-face-back,
+    .station-card:focus-visible .station-face-back { visibility: visible; }
+    .station-card:hover .station-face,
+    .station-card:focus-visible .station-face {
+      border-color: var(--color-accent, #8a5a2a);
+    }
+  }
+  @media (hover: none) {
+    .station-card {
+      border: 1px solid #6f4b2a;
+      border-radius: 12px;
+      background: #c4a574;
+      color: #2a160c;
+      padding: 0.85rem 0.9rem;
+    }
+    .station-flip {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.55rem;
+      min-height: 0;
+    }
+    .station-face {
+      position: static;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      min-height: 0;
+    }
   }
   @media (max-width: 720px) {
     .station-grid { grid-template-columns: 1fr 1fr; }
