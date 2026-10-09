@@ -60,7 +60,10 @@ jobs:
 
       - name: Render test stack file (sanity check)
         run: |
-          uv pip install --system pyyaml
+          # Use --break-system-packages because the GH runner's /usr python
+          # is externally managed (PEP 668). pyyaml is the only dep
+          # render_stack.py needs.
+          uv pip install --system --break-system-packages pyyaml
           python3 deploy/render_stack.py --env=test --output=/tmp/docker-stack.test.yml
           echo "render OK ($(wc -c < /tmp/docker-stack.test.yml) bytes)"
 

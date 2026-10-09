@@ -64,7 +64,10 @@ jobs:
           # it only reads via the local bws CLI we install in the next step.
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: |
-          uv pip install --system pyyaml
+          # Use --break-system-packages because the GH runner's /usr python
+          # is externally managed (PEP 668). pyyaml is the only dep
+          # render_stack.py needs.
+          uv pip install --system --break-system-packages pyyaml
           python3 deploy/render_stack.py --env=dev --output=/tmp/docker-stack.dev.yml
           echo "render OK ($(wc -c < /tmp/docker-stack.dev.yml) bytes)"
 
