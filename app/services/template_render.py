@@ -308,25 +308,39 @@ def render(
     failures fall back to DEFAULT_BRANDING so a missing/broken settings
     row never breaks the render path.
     """
+    ctx = _init_template_context(request, context)
+    _inject_loyalty_constants(ctx)
+    _inject_auth_state(request, ctx)
+    _inject_navigation(request, ctx)
+    _inject_branding(request, ctx)
+
+    template = TEMPLATES.get_template(template_name)
+    html = template.render(ctx)
+    return HTMLResponse(html, status_code=status_code)
+
+
+def _init_template_context(request: Request, context: dict | None) -> dict:
+    """Initialize the template context with request and standard fields.
+    
+    Extracted from render to reduce complexity.
+    """
     ctx = context or {}
     ctx.setdefault("request", request)
-    if "ui_version" in ctx:
-        # PRODUCCION-V2 Fase 2: ui_version='v1' (default) or 'v2'. Renders
-        # the 4-col grilla when set; v1 keeps the legacy 8-col layout.
-        pass
-
     ctx["csrf_token"] = _csrf_token_for_request(request)
-    # Inject Asuncion-local time + tz-aware datetime on every render.
-    # Existing routes that pass their own `now`/`now_local` win (setdefault).
     ctx.setdefault("now_local", _now_local())
     ctx.setdefault("now", _now())
+    return ctx
 
-    # T-2026-10-01: inject the loyalty constants on every render so
-    # any template (or downstream <script>) can show the real rate.
-    # Pre-this-fix: hardcoded `*1000` literals in 4+ places caused a
-    # 100% lifetime-spend return rate. The constants now live in
-    # app/rms/loyalty/ledger.py; the routes are the single point of
-    # change when the operator tunes the rate.
+
+def _inject_loyalty_constants(ctx: dict) -> None:
+    """Inject loyalty constants on every render.
+    
+    T-2026-10-01: inject the loyalty constants on every render so
+    any template (or downstream <script>) can show the real rate.
+    Pre-this-fix: hardcoded `*1000` literals in 4+ places caused a
+    100% lifetime-spend return rate.
+    Extracted from render to reduce complexity.
+    """
     try:
         from app.rms.loyalty import (
             POINTS_PER_GS_EARN,
@@ -342,38 +356,59 @@ def render(
         ctx.setdefault("POINTS_PER_GS_EARN", 1 / 1000)
         ctx.setdefault("LOYALTY_RETURN_RATE_PCT", 10.0)
 
-    # Phase 5 — load branding once per request. Lazy import keeps
-    # template_render import-light.
-    # auth state for chrome (hide nav/search on the login screen).
-    # Fail CLOSED: if we can't determine auth state, hide the chrome
-    # rather than leak the entire app nav structure to anonymous users.
+
+def _inject_auth_state(request: Request, ctx: dict) -> None:
+    """Inject auth state for chrome (hide nav/search on login screen).
+    
+    Fail CLOSED: if we can't determine auth state, hide the chrome
+    rather than leak the entire app nav structure to anonymous users.
+    Extracted from render to reduce complexity.
+    """
     try:
         from app.auth import current_user_id, is_auth_disabled
 
         if is_auth_disabled():
-            # Test/dev bypass: auth is disabled, user is always logged in
             ctx["is_logged_in"] = True
         else:
-            # Use current_user_id (returns Optional[int]) instead of
-            # get_current_user (which raises/redirects on unauthenticated).
-            # This way we get a True/False signal, not a redirect.
             ctx["is_logged_in"] = current_user_id(request) is not None
     except Exception:
         ctx["is_logged_in"] = False
 
-    # SS-1: sidebar/nav renders from the nav table (app/rms/nav.py).
-    # A chosen station shows only that station's screens.
-    station_id = None
-    station_locked = False
+
+def _inject_navigation(request: Request, ctx: dict) -> None:
+    """Inject navigation state (station, nav_groups, etc.).
+    
+    SS-1: sidebar/nav renders from the nav table (app/rms/nav.py).
+    A chosen station shows only that station's screens.
+    Extracted from render to reduce complexity.
+    """
+    station_id, station_locked = _get_station_state(request)
+    on_chooser = request.url.path.startswith("/puesto") or bool(ctx.get("on_chooser"))
+    ctx["station"] = station_id
+    ctx["on_chooser"] = on_chooser
+    ctx["show_station_switch"] = bool(station_id) and not station_locked
+    _set_navigation_groups(request, ctx, station_id, on_chooser)
+
+
+def _get_station_state(request: Request) -> tuple:
+    """Get the station ID and locked state from the session.
+    
+    Extracted from _inject_navigation to reduce complexity.
+    """
     try:
         station_id = request.session.get("station")
         station_locked = bool(request.session.get("station_locked"))
     except Exception:
         station_id = None
-    on_chooser = request.url.path.startswith("/puesto") or bool(ctx.get("on_chooser"))
-    ctx["station"] = station_id
-    ctx["on_chooser"] = on_chooser
-    ctx["show_station_switch"] = bool(station_id) and not station_locked
+        station_locked = False
+    return station_id, station_locked
+
+
+def _set_navigation_groups(request: Request, ctx: dict, station_id, on_chooser: bool) -> None:
+    """Set the navigation groups in the context.
+    
+    Extracted from _inject_navigation to reduce complexity.
+    """
     try:
         from app.rms.nav import NAV_GROUPS
         from app.rms.stations import (
@@ -402,26 +437,39 @@ def render(
         ctx.setdefault("station_home", "/")
         ctx.setdefault("create_actions", None)
 
-    if "branding" not in ctx:
-        try:
-            from app.rms.db import get_db_session, make_session_factory
-            from app.rms.settings_runtime import get_branding
 
-            engine = request.app.state.engine if hasattr(request.app.state, "engine") else None
-            if engine is not None:
-                sf = make_session_factory(engine)
-                with get_db_session(sf) as session:
-                    ctx["branding"] = get_branding(session)
-            else:
-                from app.rms.settings_runtime import DEFAULT_BRANDING
+def _inject_branding(request: Request, ctx: dict) -> None:
+    """Inject branding into the context if not already present.
+    
+    Phase 5 — load branding once per request. Failures fall back to
+    DEFAULT_BRANDING so a missing/broken settings row never breaks
+    the render path.
+    Extracted from render to reduce complexity.
+    """
+    if "branding" in ctx:
+        return
+    try:
+        from app.rms.db import get_db_session, make_session_factory
+        from app.rms.settings_runtime import get_branding
 
-                ctx["branding"] = DEFAULT_BRANDING
-        except Exception:
-            from app.rms.settings_runtime import DEFAULT_BRANDING
+        engine = request.app.state.engine if hasattr(request.app.state, "engine") else None
+        if engine is not None:
+            sf = make_session_factory(engine)
+            with get_db_session(sf) as session:
+                ctx["branding"] = get_branding(session)
+        else:
+            ctx["branding"] = _load_default_branding()
+    except Exception:
+        ctx["branding"] = _load_default_branding()
 
-            ctx["branding"] = DEFAULT_BRANDING
 
-    return templates.TemplateResponse(request, template_name, ctx, status_code=status_code)
+def _load_default_branding() -> dict:
+    """Load the default branding dict.
+    
+    Extracted from _inject_branding to reduce complexity.
+    """
+    from app.rms.settings_runtime import DEFAULT_BRANDING
+
+    return dict(DEFAULT_BRANDING)
 
 
-__all__ = ["render", "templates"]
