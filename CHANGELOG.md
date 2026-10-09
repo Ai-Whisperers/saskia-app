@@ -1,3 +1,27 @@
+## 2026-10-09 — Docs PR 6: TODO triage + active-comment scanner
+
+**Scope**: docs-quality followup PR 6. The 235 TODO markers from the
+audit were 99% false positives (Spanish prose, audit quotes, archived
+sprint tables). Real code TODO comments: 2.
+
+**What changed**:
+- `scripts/check_active_todos.py` (new): scans for code-comment-style
+  TODO/FIXME/XXX (`#` / `//` / `<!-- -->` at line start). Excludes
+  prose, archived docs, and a hand-maintained skip list. Returns the
+  real 2.
+- `docs/operations/2026-10-09-todo-triage.md` (new): full audit
+  breakdown, triage policy, and the 2 real TODOs with resolution paths.
+- `Makefile`: `todos` (default), `todos-stats`. **NOT** wired as a CI
+  gate — the real count is too small and judgement-heavy.
+
+**The 2 real TODOs**:
+- `app/rms/models/channels.py:79` — legacy constants to remove (1-2h
+  refactor)
+- `tests/test_dashboard_kpis_end_to_to_end.py:115` — `?period=custom`
+  without dates returns 500 (30 min fix)
+
+**Test status**: scanner returns exactly 2 from main.
+
 ## 2026-10-09 — Docs PR 5: CI docs-lint gate + baseline
 
 **Scope**: docs-quality followup PR 5. Wire the existing

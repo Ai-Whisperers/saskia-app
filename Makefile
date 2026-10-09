@@ -1,7 +1,7 @@
 # Sazón RMS — Makefile
 # Shortcuts for common dev tasks. Run `make help` to see all targets.
 
-.PHONY: help install test test-verbose test-coverage test-fast lint lint-fix format check serve migrate seed seed-reset backup fixtures clean ci-smoke pre-commit stats smoke check-warnings check-secrets ci dead-code complexity duplicates duplicates-code arch security audit-cve licenses ci-extra docs-lint-check docs-lint-baseline
+.PHONY: help install test test-verbose test-coverage test-fast lint lint-fix format check serve migrate seed seed-reset backup fixtures clean ci-smoke pre-commit stats smoke check-warnings check-secrets ci dead-code complexity duplicates duplicates-code arch security audit-cve licenses ci-extra docs-lint-check docs-lint-baseline todos todos-stats
 
 PYTHON ?= python3
 UV ?= uv
@@ -208,6 +208,12 @@ docs-lint-check: ## docs-lint CI gate: fail on findings not in the baseline.
 docs-lint-baseline: ## Regenerate docs-quality-baseline.json from current findings.
 	$(UV) run python scripts/check_docs_quality.py docs/ --baseline docs-quality-baseline.json
 	@echo "Review the diff: every entry needs a rationale."
+todos: ## Active TODO comments (code-only). See docs/operations/2026-10-09-todo-triage.md.
+	$(PYTHON) scripts/check_active_todos.py
+
+todos-stats: ## Stats-only view of the active TODO inventory.
+	$(PYTHON) scripts/check_active_todos.py --stats
+
 docs-lint-strict: ## Markdown quality check, all rules (no disables).
 	$(UV) run python scripts/check_docs_quality.py --strict
 
