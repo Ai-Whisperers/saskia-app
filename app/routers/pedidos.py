@@ -1568,9 +1568,41 @@ def pedidos_detail(
     )
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    
+    # Build decorated pedido with lines, timeline, recent pedidos
+    decorated = _build_pedido_detail_decorated(session, pedido)
+    
+    # Add linked sales and loyalty impact
+    decorated["linked_sales"] = _load_linked_sales(session, pedido)
+    decorated["loyalty_impact"] = _compute_loyalty_impact(session, pedido, decorated["linked_sales"])
+    
+    return render(
+        request,
+        "pedido_detalle.html",
+        _build_pedido_detail_context(decorated),
+    )
+
+
+def _build_pedido_detail_decorated(session: Session, pedido: Pedido) -> dict:
+    """Build the decorated pedido dict with lines, timeline, and recent pedidos.
+    
+    Extracted from pedidos_detail to reduce complexity.
+    """
     spend_30d = _customer_30d_spend_gs(session, pedido.customer_id)
     decorated = _decorate_pedido(pedido, session)
-    decorated["lines"] = [
+    decorated["lines"] = _build_pedido_lines(pedido)
+    decorated["spend_30d_gs"] = spend_30d
+    decorated["timeline"] = _build_pedido_timeline(session, pedido)
+    decorated["recent_pedidos"] = _build_recent_pedidos(session, pedido)
+    return decorated
+
+
+def _build_pedido_lines(pedido: Pedido) -> list[dict]:
+    """Build the pedido lines list with computed totals.
+    
+    Extracted from pedidos_detail to reduce complexity.
+    """
+    return [
         {
             "id": ln.id,
             "product_id": ln.product_id,
@@ -1582,109 +1614,132 @@ def pedidos_detail(
         }
         for ln in pedido.lines
     ]
-    decorated["spend_30d_gs"] = spend_30d
 
-    # Phase 4: build the timeline + customer pedido history
+
+def _build_pedido_timeline(session: Session, pedido: Pedido) -> list[dict]:
+    """Build the pedido timeline events.
+    
+    Extracted from pedidos_detail to reduce complexity.
+    """
     timeline = build_pedido_timeline(session, pedido)
-    decorated["timeline"] = [ev.to_dict() for ev in timeline]
-    if pedido.customer_id:
-        recent = customer_recent_pedidos(
-            session, pedido.customer_id, limit=8, exclude_pedido_id=pedido.id
-        )
-        decorated["recent_pedidos"] = [s.to_dict() for s in recent]
-    else:
-        decorated["recent_pedidos"] = []
+    return [ev.to_dict() for ev in timeline]
 
-    # Tier 6.3 (2026-10-01): linked sales (migration 076) + loyalty impact.
-    # Pedido.sales relationship returns every Sale whose
-    # linked_pedido_id == this pedido.id (vs. the legacy single
-    # fulfilled_sale_id which only pointed at the FIRST sale). The
-    # detail page now shows the full set so the operator can verify
-    # each line was fulfilled.
-    from app.rms.models import LoyaltyTransaction
+
+def _build_recent_pedidos(session: Session, pedido: Pedido) -> list[dict]:
+    """Build the customer's recent pedidos (excluding current).
+    
+    Extracted from pedidos_detail to reduce complexity.
+    """
+    if not pedido.customer_id:
+        return []
+    recent = customer_recent_pedidos(
+        session, pedido.customer_id, limit=8, exclude_pedido_id=pedido.id
+    )
+    return [s.to_dict() for s in recent]
+
+
+def _load_linked_sales(session: Session, pedido: Pedido) -> list[dict]:
+    """Load sales linked to this pedido via linked_pedido_id.
+    
+    Tier 6.3 (2026-10-01): Pedido.sales relationship returns every Sale
+    whose linked_pedido_id == this pedido.id.
+    Extracted from pedidos_detail to reduce complexity.
+    """
     from app.rms.models import Sale as SaleModel
+    
+    if not pedido.customer_id:
+        return []
+    
+    sales = session.scalars(
+        select(SaleModel)
+        .where(SaleModel.linked_pedido_id == pedido.id)
+        .order_by(SaleModel.id.asc())
+    ).all()
+    return [
+        {
+            "id": s.id,
+            "product_name": (s.product.name if s.product else f"#{s.product_id}"),
+            "qty": float(s.qty),
+            "unit_price_gs": int(s.unit_price_gs or 0),
+            "sold_at": s.sold_at,
+        }
+        for s in sales
+    ]
 
-    linked_sales: list[dict] = []
-    if pedido.customer_id:
-        sales = session.scalars(
-            select(SaleModel)
-            .where(SaleModel.linked_pedido_id == pedido.id)
-            .order_by(SaleModel.id.asc())
-        ).all()
-        linked_sales = [
-            {
-                "id": s.id,
-                "product_name": (s.product.name if s.product else f"#{s.product_id}"),
-                "qty": float(s.qty),
-                "unit_price_gs": int(s.unit_price_gs or 0),
-                "sold_at": s.sold_at,
-            }
-            for s in sales
-        ]
-    decorated["linked_sales"] = linked_sales
 
-    # Loyalty impact: sum up the points earned / redeemed on the
-    # LoyaltyTransaction rows whose sale_id points at a sale generated
-    # by this pedido. Operators use this to confirm "this pedido le
-    # sumó X puntos al cliente".
+def _compute_loyalty_impact(
+    session: Session, pedido: Pedido, linked_sales: list[dict]
+) -> dict:
+    """Compute loyalty points earned/redeemed for this pedido.
+    
+    Extracted from pedidos_detail to reduce complexity.
+    """
     loyalty_impact: dict = {
         "earned_points": 0,
         "redeemed_points": 0,
         "net_points": 0,
         "transactions": [],
     }
-    if pedido.customer_id and linked_sales:
-        sale_ids = [s["id"] for s in linked_sales]
-        txs = session.scalars(
-            select(LoyaltyTransaction)
-            .where(LoyaltyTransaction.customer_id == pedido.customer_id)
-            .where(LoyaltyTransaction.sale_id.in_(sale_ids))
-            .order_by(LoyaltyTransaction.recorded_at.desc())
-            .limit(20)
-        ).all()
-        for tx in txs:
-            loyalty_impact["transactions"].append(
-                {
-                    "delta": int(tx.delta or 0),
-                    "reason": tx.reason or "",
-                    "recorded_at": tx.recorded_at,
-                    "sale_id": tx.sale_id,
-                }
-            )
-            if (tx.reason or "") == "earn_sale":
-                loyalty_impact["earned_points"] += int(tx.delta or 0)
-            elif (tx.reason or "") == "redeem":
-                # `delta` for a redeem row is NEGATIVE (e.g. -50). We
-                # store the absolute amount in `redeemed_points` so the
-                # display "pts canjeados" shows "50" not "-50". The
-                # net_points math then becomes earned + redeemed (where
-                # redeemed is already positive) only when subtracting.
-                loyalty_impact["redeemed_points"] += abs(int(tx.delta or 0))
-        loyalty_impact["net_points"] = (
-            loyalty_impact["earned_points"] - loyalty_impact["redeemed_points"]
+    
+    if not pedido.customer_id or not linked_sales:
+        return loyalty_impact
+    
+    from app.rms.models import LoyaltyTransaction
+    
+    sale_ids = [s["id"] for s in linked_sales]
+    txs = session.scalars(
+        select(LoyaltyTransaction)
+        .where(LoyaltyTransaction.customer_id == pedido.customer_id)
+        .where(LoyaltyTransaction.sale_id.in_(sale_ids))
+        .order_by(LoyaltyTransaction.recorded_at.desc())
+        .limit(20)
+    ).all()
+    
+    for tx in txs:
+        loyalty_impact["transactions"].append(
+            {
+                "delta": int(tx.delta or 0),
+                "reason": tx.reason or "",
+                "recorded_at": tx.recorded_at,
+                "sale_id": tx.sale_id,
+            }
         )
-    decorated["loyalty_impact"] = loyalty_impact
-
-    return render(
-        request,
-        "pedido_detalle.html",
-        {
-            "pedido": decorated,
-            "transitions": PedidoStateMachine.allowed_next(pedido.status),
-            "can_fulfill": PedidoStateMachine.is_fulfillable(pedido.status),
-            "channels": CHANNELS,
-            "payment_methods": sorted(
-                set(ALLOWED_PAYMENT_METHODS)
-                | {"efectivo", "transferencia", "qr", "tarjeta", "otro"}
-            ),
-            # Phase 13 (2026-10-01): the rendered ventana text for the
-            # template's badge (uses "ventana preferida" wording + the
-            # "(no es garantía)" suffix that the cashier should always
-            # see). Scheduled_date comes from the pedido; preference
-            # defaults to "asap" for legacy rows that predate migration 081.
-            "ventana_text": _ventana_text_for(decorated),
-        },
+        if (tx.reason or "") == "earn_sale":
+            loyalty_impact["earned_points"] += int(tx.delta or 0)
+        elif (tx.reason or "") == "redeem":
+            # `delta` for a redeem row is NEGATIVE (e.g. -50). We
+            # store the absolute amount in `redeemed_points` so the
+            # display "pts canjeados" shows "50" not "-50".
+            loyalty_impact["redeemed_points"] += abs(int(tx.delta or 0))
+    
+    loyalty_impact["net_points"] = (
+        loyalty_impact["earned_points"] - loyalty_impact["redeemed_points"]
     )
+    return loyalty_impact
+
+
+def _build_pedido_detail_context(decorated: dict) -> dict:
+    """Build the template context for the pedido detail page.
+    
+    Extracted from pedidos_detail to reduce complexity.
+    """
+    pedido = decorated.get("_pedido")  # May not be present
+    return {
+        "pedido": decorated,
+        "transitions": PedidoStateMachine.allowed_next(decorated.get("status", "")),
+        "can_fulfill": PedidoStateMachine.is_fulfillable(decorated.get("status", "")),
+        "channels": CHANNELS,
+        "payment_methods": sorted(
+            set(ALLOWED_PAYMENT_METHODS)
+            | {"efectivo", "transferencia", "qr", "tarjeta", "otro"}
+        ),
+        # Phase 13 (2026-10-01): the rendered ventana text for the
+        # template's badge (uses "ventana preferida" wording + the
+        # "(no es garantía)" suffix that the cashier should always
+        # see). Scheduled_date comes from the pedido; preference
+        # defaults to "asap" for legacy rows that predate migration 081.
+        "ventana_text": _ventana_text_for(decorated),
+    }
 
 
 @router.post("/{pedido_id}/status")
