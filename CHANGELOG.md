@@ -1,3 +1,21 @@
+## 2026-10-09 — Monthly action SHA-pin refresh automation
+
+**Scope**: WHAT_NEXT #4 — PR #96 pinned 37 actions but nothing re-checked
+them. Tag drift would go unnoticed.
+
+**What changed**:
+- `scripts/refresh_action_pins.py` (new): resolves each pinned version
+  tag live via the GitHub API (peels annotated tags), reports drift,
+  `--fix` rewrites. First run already found real drift:
+  `astral-sh/setup-uv@v7` 94527f2e -> 37802adc across workflows.
+- `.github/workflows/refresh-pins.yml` (new): monthly cron + manual
+  dispatch; on drift, re-pins on a dated branch and opens a PR for
+  review. zizmor-clean (SHA-pinned, persist-credentials: false,
+  minimal permissions).
+
+**Test status**: ruff clean; zizmor rc=0; scanner verified live against
+the repo (drift found + reported correctly).
+
 ## 2026-10-09 — Activate safeguard (dev env + CI gate) + OTel on dev
 
 **Scope**: WHAT_NEXT #2 — fastapi-safeguard was wired and baseline-triaged
