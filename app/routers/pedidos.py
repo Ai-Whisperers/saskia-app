@@ -2231,16 +2231,43 @@ def pedidos_stock_preview(
     Used as a confirmation step before calling /fulfill — lets the operator
     see stock warnings before committing to the sale.
     """
-    from app.rms.costing import _compute_stock_moves
-
-    pedido = session.get(
-        Pedido, pedido_id, options=[selectinload(Pedido.lines).selectinload(PedidoLine.product)]
-    )
+    pedido = _load_pedido_with_lines(session, pedido_id)
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
 
-    warnings: list[dict] = []
+    consumed, warnings = _compute_stock_preview(session, pedido)
+
+    return render(
+        request,
+        "pedido_stock_preview.html",
+        {
+            "pedido_id": pedido_id,
+            "consumed": consumed,
+            "warnings": warnings,
+            "idempotency_key": secrets.token_urlsafe(16),
+        },
+    )
+
+
+def _load_pedido_with_lines(session, pedido_id: int):
+    """Load a pedido with its lines and products eagerly loaded.
+    
+    Extracted from pedidos_stock_preview to reduce complexity.
+    """
+    return session.get(
+        Pedido, pedido_id, options=[selectinload(Pedido.lines).selectinload(PedidoLine.product)]
+    )
+
+
+def _compute_stock_preview(session, pedido) -> tuple[list, list]:
+    """Compute stock consumption and warnings for a pedido.
+    
+    Extracted from pedidos_stock_preview to reduce complexity.
+    """
+    from app.rms.costing import _compute_stock_moves
+
     consumed: list[dict] = []
+    warnings: list[dict] = []
 
     for ln in pedido.lines:
         if ln.qty <= 0:
@@ -2258,43 +2285,63 @@ def pedidos_stock_preview(
                 f"pedidos.stock_preview: _compute_stock_moves failed for product {product.id}: {exc!r}"
             )
             continue
-        for _affected_recipe_id, ingredient_id, qty_delta in moves:
-            ing = session.get(Ingredient, ingredient_id) if Ingredient else None
-            ing_name = ing.name if ing else f"# {ingredient_id}"
-            current = ing.stock_qty if ing else 0
-            after = current - abs(qty_delta)
-            consumed.append(
-                {
-                    "ingredient": ing_name,
-                    "product": product.name,
-                    "qty_needed": round(abs(qty_delta), 3),
-                    "current_stock": round(current, 3) if current else 0,
-                    "after_stock": round(after, 3),
-                    "warning": after < 0,
-                }
-            )
-            if after < 0:
-                warnings.append(
-                    {
-                        "ingredient": ing_name,
-                        "shortfall": round(abs(after), 3),
-                        "product": product.name,
-                    }
-                )
+        _process_stock_moves(session, moves, product, consumed, warnings)
 
-    return render(
-        request,
-        "pedido_stock_preview.html",
-        {
-            "pedido_id": pedido_id,
-            "consumed": consumed,
-            "warnings": warnings,
-            "idempotency_key": secrets.token_urlsafe(16),
-        },
-    )
+    return consumed, warnings
 
 
-# --- Duplicate pedido ----------------------------------------------------------
+def _process_stock_moves(session, moves, product, consumed: list, warnings: list) -> None:
+    """Process stock moves and update consumed/warnings lists.
+    
+    Extracted from _compute_stock_preview to reduce complexity.
+    """
+    for _affected_recipe_id, ingredient_id, qty_delta in moves:
+        ing_info = _get_ingredient_info(session, ingredient_id)
+        ing_name = ing_info["name"]
+        current = ing_info["stock_qty"]
+        after = current - abs(qty_delta)
+        consumed.append(_build_consumed_entry(ing_name, product, qty_delta, current, after))
+        if after < 0:
+            warnings.append(_build_warning_entry(ing_name, product, after))
+
+
+def _get_ingredient_info(session, ingredient_id: int) -> dict:
+    """Get ingredient name and current stock.
+    
+    Extracted from _process_stock_moves to reduce complexity.
+    """
+    ing = session.get(Ingredient, ingredient_id) if Ingredient else None
+    return {
+        "name": ing.name if ing else f"# {ingredient_id}",
+        "stock_qty": ing.stock_qty if ing else 0,
+    }
+
+
+def _build_consumed_entry(ing_name: str, product, qty_delta, current, after) -> dict:
+    """Build a consumed entry dict.
+    
+    Extracted from _process_stock_moves to reduce complexity.
+    """
+    return {
+        "ingredient": ing_name,
+        "product": product.name,
+        "qty_needed": round(abs(qty_delta), 3),
+        "current_stock": round(current, 3) if current else 0,
+        "after_stock": round(after, 3),
+        "warning": after < 0,
+    }
+
+
+def _build_warning_entry(ing_name: str, product, after) -> dict:
+    """Build a warning entry dict.
+    
+    Extracted from _process_stock_moves to reduce complexity.
+    """
+    return {
+        "ingredient": ing_name,
+        "shortfall": round(abs(after), 3),
+        "product": product.name,
+    }
 
 
 @router.post("/{pedido_id}/duplicate")
