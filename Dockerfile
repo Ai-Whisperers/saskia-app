@@ -61,4 +61,15 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 # Run migrations on every boot (idempotent — uses schema_version), then start uvicorn.
 # `--reload` is OFF in prod. The lifespan in app/rms/main.py also calls init_db() so this
 # is a belt-and-suspenders to make sure migrations apply even if the lifespan fails.
+#
+# Why --workers 1 (not --workers N) and replicas: N at the Swarm level:
+#   - The create_app() refactor (2026-10-09, commit 881963c9) makes the FastAPI
+#     app a factory that returns independent instances, so either model works.
+#   - We use Swarm replicas (docker-stack.yml: replicas: 1) for horizontal
+#     scaling because Traefik can route to multiple Swarm tasks (containers)
+#     more efficiently than uvicorn can fork workers within one container.
+#     Traefik also handles graceful restart per container (uvicorn --workers N
+#     has well-known shutdown signal issues for in-flight requests).
+#   - One uvicorn process per container also means each request gets a clean
+#     lifespan, no shared asyncio loop, no fork-after-import bugs.
 CMD ["sh", "-c", "sazon migrate && exec uvicorn app.rms.main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips='*'"]

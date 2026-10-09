@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from typing import Final
 
 from app.rms.tagging.vocabulary import (
     ALLERGEN_KEYWORDS,
@@ -25,6 +26,226 @@ from app.rms.tagging.vocabulary import (
     TAG_ALIASES,
     TAG_ALLERGEN_BLOCKERS,
 )
+
+# -----------------------------------------------------------------------------
+# Category inference (moved from app/rms/ingredient_intel.py on 2026-10-09
+# to break the bidirectional lazy-import cycle). The data + helper functions
+# + infer_category() now live here, where the validate_ingredient() cross-
+# validation can use it directly (no lazy import needed). The
+# ingredient_intel.py module re-exports these names for backward compat.
+# -----------------------------------------------------------------------------
+
+# Category keywords: first match wins. Order matters: more specific
+# before general (e.g. "aceite de oliva" must beat "aceite").
+_CATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
+    "grasas": (
+        # Specific first so "manteca vegetal" beats generic "manteca"
+        "aceite de oliva",
+        "aceite de coco",
+        "manteca vegetal",
+        "manteca de cerdo",
+        "manteca clarificada",
+        "aceite",
+        "margarina",
+        "grasa",
+    ),
+    "lácteos": (
+        "leche",
+        "crema",
+        "manteca",
+        "mantequilla",
+        "yogur",
+        "queso",
+        "queso crema",
+        "ricota",
+        "requesón",
+        "dulce de leche",
+        "leche condensada",
+        "leche en polvo",
+        "crema agria",
+    ),
+    "harinas": (
+        "harina",
+        "maicena",
+        "fécula",
+        "almidón",
+        "polenta",
+        "mandioca",  # chipa, empanadas
+    ),
+    "endulzantes": (
+        "azúcar impalpable",
+        "azúcar glass",
+        "azúcar mascabo",
+        "azúcar",
+        "miel",
+        "stevia",
+        "dextrosa",
+        "glucosa",
+        "jarabe",
+        "melaza",
+        "panela",
+        "rapadura",
+        "eritritol",
+    ),
+    "leudantes": (
+        "levadura",
+        "polvo de hornear",
+        "bicarbonato",
+        "royal",
+        "polvo para hornear",
+        "cremor tártaro",
+    ),
+    "huevos": (
+        "huevo",
+        "huevos",
+        "clara",
+        "yema",
+    ),
+    "carnes": (
+        # 2026-09-29: word-boundary issues with substring match — 'res'
+        # matched 'fresco' (Jengibre fresco → carnes!). Use word-boundary
+        # via the _KEYWORD_BOUNDARY pattern in infer_category instead.
+        "carne",
+        "pollo",
+        "cerdo",
+        "pavo",
+        "pescado",
+        "atún",
+        "marisco",
+        "pechuga",
+        "panceta",
+        "chorizo",
+        "jamón",
+        "res",
+    ),
+    "decoración": (
+        "esencia",
+        "ralladura",
+        "colorante",
+        "glaseado",
+        "chocolate cobertura",
+        "fondant",
+        "sprinkles",
+        "cacao",
+        "perla",
+        "confite",
+    ),
+    "especias": (
+        "canela",
+        "pimienta",
+        "comino",
+        "orégano",
+        "pimentón",
+        "nuez moscada",
+        "clavo",
+        "anís",
+        "anís estrella",
+        "vainilla",
+        "vainilla en vaina",
+        "extracto de vainilla",
+        "jengibre",
+        "curry",
+        "azafrán",
+    ),
+    "frutos-secos": (
+        "almendra",
+        "nuez",
+        "nueces",
+        "avellana",
+        "pistacho",
+        "maní",
+        "castaña",
+        "coco",
+    ),
+    "frutas": (
+        "fruta",
+        "frutas",
+        "limón",
+        "limones",
+        "naranja",
+        "naranjas",
+        "manzana",
+        "manzanas",
+        "banana",
+        "bananas",
+        "frutilla",
+        "frutillas",
+        "arándano",
+        "arándanos",
+        "ciruela",
+        "ciruelas",
+        "pera",
+        "peras",
+        "uva",
+        "uvas",
+        "frambuesa",
+        "frambuesas",
+        "cereza",
+        "cerezas",
+        "ananá",
+        "ananás",
+        "piña",
+        "mango",
+        "durazno",
+        "duraznos",
+        "damasco",
+        "damascos",
+        "kiwi",
+        "melón",
+        "sandía",
+        "paltas",
+        "palta",
+    ),
+    "líquidos": (
+        "agua",
+        "jugo",
+        "caldo",
+        "café",
+        "espresso",
+        "té",
+        "mate",
+    ),
+    "semillas": (
+        "semilla de chía",
+        "semilla de lino",
+        "semilla de girasol",
+    ),
+    "otros": (),  # sentinel — anything not matched
+}
+
+
+def _normalize(name: str) -> str:
+    """Lowercase + strip + collapse whitespace."""
+    return re.sub(r"\s+", " ", name.strip().lower())
+
+
+def _keyword_in(keyword: str, normalized: str) -> bool:
+    """Word-boundary containment for category keywords (2026-09-29).
+
+    The old substring match caused `'res' in 'jengibre fresco'` to be
+    True — classifying every ingredient containing 'fresco' as 'carnes'.
+    Now keywords need a real token boundary on both sides.
+
+    Multi-word keywords like 'aceite de oliva' still match if the phrase
+    appears in the normalized name (the spaces in the keyword already
+    act as boundaries for single-keyword sub-checks).
+    """
+    # Whole-token match: keyword must be at start, end, or surrounded by
+    # whitespace, hyphen, slash, or punctuation. Use a small set of
+    # word separators so 'café-' doesn't false-match inside 'café-con-leche'.
+    pattern = r"(?:^|[\s\-/,.;:])" + re.escape(keyword) + r"(?:$|[\s\-/,.;:])"
+    return re.search(pattern, normalized) is not None
+
+
+def infer_category(name: str) -> str:
+    """Return one of the closed category set, or 'otros' if no match."""
+    norm = _normalize(name)
+    for cat, keywords in _CATEGORY_KEYWORDS.items():
+        for kw in keywords:
+            if _keyword_in(kw, norm):
+                return cat
+    return "otros"
+
 
 # ─────────────────────────────────────────────────────────────────────────
 # Normalization
@@ -439,8 +660,8 @@ def validate_ingredient(ing: object) -> list[str]:
     # import), but most often this is a typo (Jengibre fresco → carnes).
     stored_category = (getattr(ing, "category", None) or "").strip().lower()
     if stored_category and stored_category != "otros":
-        from app.rms.ingredient_intel import infer_category
-
+        # 2026-10-09: infer_category now lives in this module (was in
+        # ingredient_intel). The cycle is broken; no lazy import needed.
         inferred = infer_category(getattr(ing, "name", "") or "")
         if inferred and inferred != stored_category:
             issues.append(f"category '{stored_category}' may be wrong; name suggests '{inferred}'")

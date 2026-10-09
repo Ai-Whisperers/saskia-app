@@ -50,12 +50,12 @@ def _seed_minimal_sale(session_factory):
         s.commit()
 
 
-def test_idempotency_value_stores_request_id_in_json(client, session_factory):
+def test_idempotency_value_stores_request_id_in_json(client_with_caja, session_factory):
     """The idempotency record's value column contains JSON with sale_id + request_id."""
     _seed_minimal_sale(session_factory)
     idem = uuid.uuid4().hex
 
-    r = client.post(
+    r = client_with_caja.post(
         "/ventas/nueva",
         data={
             "product_id": "1",
@@ -85,12 +85,12 @@ def test_idempotency_value_stores_request_id_in_json(client, session_factory):
     assert payload["request_id"] == "test-rid-12345"
 
 
-def test_idempotency_value_works_without_request_id_header(client, session_factory):
+def test_idempotency_value_works_without_request_id_header(client_with_caja, session_factory):
     """Without X-Request-Id header, request_id is generated and stored."""
     _seed_minimal_sale(session_factory)
     idem = uuid.uuid4().hex
 
-    r = client.post(
+    r = client_with_caja.post(
         "/ventas/nueva",
         data={
             "product_id": "1",
@@ -121,12 +121,12 @@ def test_idempotency_value_works_without_request_id_header(client, session_facto
     )
 
 
-def test_existing_idempotency_record_reads_sale_id_back(client, session_factory):
+def test_existing_idempotency_record_reads_sale_id_back(client_with_caja, session_factory):
     """Operators looking at the value column can still extract sale_id."""
     _seed_minimal_sale(session_factory)
     idem = uuid.uuid4().hex
 
-    r = client.post(
+    r = client_with_caja.post(
         "/ventas/nueva",
         data={
             "product_id": "1",

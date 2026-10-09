@@ -152,7 +152,7 @@ def _seed_one_sale(session_factory):
 def test_dashboard_includes_charts(client, session_factory):
     """The dashboard HTML contains the chart cards."""
     _seed_one_sale(session_factory)
-    resp = client.get("/", headers={"Accept": "text/html"})
+    resp = client.get("/inicio", headers={"Accept": "text/html"})
     assert resp.status_code == 200
     body = resp.text
 
@@ -177,7 +177,7 @@ def test_dashboard_charts_have_aria(client, session_factory):
     chart-card class is present and the template machinery works.
     """
     _seed_one_sale(session_factory)
-    resp = client.get("/", headers={"Accept": "text/html"})
+    resp = client.get("/inicio", headers={"Accept": "text/html"})
     assert resp.status_code == 200
     body = resp.text
     # Chart cards are present
@@ -213,9 +213,9 @@ def test_dashboard_data_freshness_changes(client, session_factory):
     import time
 
     _seed_one_sale(session_factory)
-    r1 = client.get("/", headers={"Accept": "text/html"})
+    r1 = client.get("/inicio", headers={"Accept": "text/html"})
     time.sleep(2)  # ensure timestamp would differ if computed live
-    r2 = client.get("/", headers={"Accept": "text/html"})
+    r2 = client.get("/inicio", headers={"Accept": "text/html"})
     # Both should have the freshness marker; exact format depends on the time.
     assert "Actualizado a las" in r1.text
     assert "Actualizado a las" in r2.text
@@ -223,7 +223,7 @@ def test_dashboard_data_freshness_changes(client, session_factory):
 
 def test_dashboard_charts_no_javascript(client):
     """Dashboard charts are SVG, no JS chart library required."""
-    resp = client.get("/", headers={"Accept": "text/html"})
+    resp = client.get("/inicio", headers={"Accept": "text/html"})
     assert resp.status_code == 200
     body = resp.text
     # No chart.js / apexcharts / d3 loaded

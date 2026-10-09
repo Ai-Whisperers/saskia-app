@@ -142,9 +142,9 @@ def backup_database(
 
     # Schema version + dialect
     from app.rms.config import CURRENT_SCHEMA_VERSION
-    from app.rms.db import _get_db_url_safe
+    from app.rms.db_url import db_url_safe
 
-    dialect = _get_db_url_safe()
+    dialect = db_url_safe()
 
     flat = json.dumps(state, sort_keys=True, ensure_ascii=False)
     sha = hashlib.sha256(flat.encode()).hexdigest()

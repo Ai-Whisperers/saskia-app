@@ -44,7 +44,9 @@ def test_inventario_has_table_wrap():
 
 def test_pedidos_has_table_wrap():
     src = _read("app/templates/pedidos.html")
-    assert 'class="table-wrap"' in src, "T-16 missing in pedidos.html"
+    # pedidos uses table-sticky-wrap (table-wrap + max-height vertical scroll),
+    # which also provides the T-16 overflow-x guarantee.
+    assert 'class="table-wrap"' in src or "table-sticky-wrap" in src, "T-16 missing in pedidos.html"
 
 
 def test_clientes_has_table_wrap():

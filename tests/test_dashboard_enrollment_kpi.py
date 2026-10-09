@@ -49,7 +49,7 @@ def _make_sale(s, customer_id, product_id, qty=1.0, price=10000, when=None, void
 
 def test_enrollment_card_empty_when_no_sales(client, session_factory, qseed):
     """No sales today → 'sin ventas' empty state."""
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     assert "Clientes asociados" in r.text, "KPI card label missing"
     assert "sin ventas" in r.text
@@ -68,7 +68,7 @@ def test_enrollment_card_full_when_every_sale_has_customer(client, session_facto
         _make_sale(s, c2.id, product.id, when=now)
         _make_sale(s, c1.id, product.id, when=now)
         s.commit()
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     assert "100.0%" in r.text
     assert "3 ventas · 3 con cliente" in r.text
@@ -96,7 +96,7 @@ def test_enrollment_card_half_when_half_sales_have_customer(client, session_fact
         )
         s.flush()
         s.commit()
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     assert "50.0%" in r.text
     assert "2 ventas · 1 con cliente" in r.text
@@ -113,7 +113,7 @@ def test_enrollment_card_excludes_voided_sales(client, session_factory, qseed):
         _make_sale(s, c.id, product.id, when=now)
         _make_sale(s, None, product.id, when=now, voided=True)
         s.commit()
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     # Should be 1 of 1 (the voided sale is excluded) → 100%
     assert "100.0%" in r.text

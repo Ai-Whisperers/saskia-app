@@ -31,9 +31,8 @@ def test_skeleton_component_loaded_in_base():
     from pathlib import Path
 
     base = Path("app/templates/base.html").read_text(encoding="utf-8")
-    assert "saskia-skeleton" in base, (
-        "T-13 missing: saskia-skeleton component not loaded in base.html"
-    )
+    # Renamed saskia-skeleton → ui-skeleton in the component rename wave.
+    assert "ui-skeleton" in base, "T-13 missing: ui-skeleton component not loaded in base.html"
 
 
 def test_skeleton_component_defined_in_js():
@@ -41,4 +40,4 @@ def test_skeleton_component_defined_in_js():
     from pathlib import Path
 
     base = Path("app/templates/base.html").read_text(encoding="utf-8")
-    assert "saskia-skeleton.js" in base, "T-13 missing: saskia-skeleton.js not loaded"
+    assert "ui-skeleton.js" in base, "T-13 missing: ui-skeleton.js not loaded"
