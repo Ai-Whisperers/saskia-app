@@ -91,6 +91,9 @@ from app.rms.migrations._115_allergen_dietary_tags import (
 from app.rms.migrations._116_eod_alert_templates import (
     _migration_116_eod_alert_templates,
 )
+from app.rms.migrations._117_ingredient_image_url import (
+    _migration_117_ingredient_image_url,
+)
 from app.rms.models.channels import Channel
 
 
@@ -4301,6 +4304,7 @@ MIGRATIONS = {
     114: _migration_114_settings_kv_consolidation,
     115: _migration_115_allergen_dietary_tags,
     116: _migration_116_eod_alert_templates,
+    117: _migration_117_ingredient_image_url,
 }
 
 
