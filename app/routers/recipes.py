@@ -676,112 +676,22 @@ async def recipe_detail(
     r = session.get(Recipe, r_id)
     if r is None:
         raise NotFound("receta")
-    lines = session.scalars(
-        select(RecipeLine).where(RecipeLine.recipe_id == r_id).order_by(RecipeLine.id)
-    ).all()
 
-    # Resolve line targets for display
-    from app.rms.costing import resolve_line_target
+    resolved_lines = _load_resolved_lines(session, r_id)
+    batch_cost, unit_cost = _load_costs(session, r_id)
+    products_using = _load_products_using(session, r_id)
+    tags = _load_recipe_tags(session, r_id)
+    aggregated_allergens = _aggregate_allergens(session, r)
+    vista, consolidated_lines = _resolve_vista(session, request, r_id)
+    recipe_phases = _parse_recipe_phases(r)
 
-    resolved_lines = []
-    for ln in lines:
-        target = resolve_line_target(session, ln)
-        resolved_lines.append(
-            {
-                "line": ln,
-                "target": target,
-                "target_name": target.name if target else f"#{ln.line_ref_id}",
-                "is_ingredient": ln.line_kind == "ingredient",
-            }
-        )
-
-    # Cost breakdown
-    from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
-
-    batch_cost = recipe_batch_cost_gs(session, r_id)
-    unit_cost = recipe_unit_cost_gs(session, r_id)
-
-    # Used by products
-    products_using = session.scalars(select(Product).where(Product.recipe_id == r_id)).all()
-
-    # Tags for this recipe
-    from app.rms.models import TagLink
-
-    tag_links = session.scalars(
-        select(TagLink).where(
-            TagLink.target_kind == "recipe",
-            TagLink.target_id == r_id,
-        )
-    ).all()
-    tag_ids = [tl.tag_id for tl in tag_links]
-    tags = []
-    if tag_ids:
-        from app.rms.models import Tag
-
-        tags = list(session.scalars(select(Tag).where(Tag.id.in_(tag_ids))))
-
-    # Wave 3 — aggregate allergens from all ingredient lines so the recipe
-    # detail page can show a "CONTIENE: gluten, dairy, eggs" summary required
-    # by INAN Resolución S.G. N° 614/2023 for any retail food product.
-    from app.rms.models import Ingredient as _Ingredient
-
-    ingredient_refs = (
-        {
-            ing.id: ing
-            for ing in session.scalars(
-                select(_Ingredient).where(
-                    _Ingredient.id.in_(
-                        [ln.line_ref_id for ln in r.lines if ln.line_kind == "ingredient"]
-                    )
-                )
-            ).all()
-        }
-        if r.lines
-        else {}
-    )
-    aggregated_allergens: list[str] = []
-    seen: set[str] = set()
-    for line in r.lines:
-        # Skip sub-recipe lines (need recursion) for v1 — fall back to direct
-        # ingredient allergens. Future: walk RecipeLine.line_kind == "recipe".
-        if line.line_kind != "ingredient":
-            continue
-        ing = ingredient_refs.get(line.line_ref_id)
-        if not ing or not ing.allergens:
-            continue
-        for a in ing.allergens.split(","):
-            a_clean = a.strip()
-            if a_clean and a_clean not in seen:
-                seen.add(a_clean)
-                aggregated_allergens.append(a_clean)
-
-    # UI-V2 dual view: ?vista=estructural (default, assembly) vs
-    # ?vista=consolidada (exploded purchase list). Both computed here;
-    # the template toggles which table renders.
-    from app.rms.recipes_consolidated import explode_recipe
-    from app.rms.tag_algebra import derive_recipe_tags as _derive_tags
-
-    vista = (request.query_params.get("vista") or "estructural").lower()
-    if vista not in ("estructural", "consolidada"):
-        vista = "estructural"
-    consolidated_lines = explode_recipe(session, r_id) if vista == "consolidada" else []
-
-    # Parse instructions JSON for template
-    recipe_phases = None
-    try:
-        if r.instructions:
-            import json as _json
-
-            recipe_phases = _json.loads(r.instructions)
-    except Exception:
-        recipe_phases = None
     return render(
         request,
         "receta_detalle.html",
         {
             "recipe": r,
             "recipe_phases": recipe_phases,
-            "tag_derivation": _derive_tags(session, r_id),
+            "tag_derivation": _derive_recipe_tags(session, r_id),
             "vista": vista,
             "consolidated_lines": consolidated_lines,
             "derived_tags": [t for t in (r.derived_dietary_tags or "").split(",") if t],
@@ -793,6 +703,168 @@ async def recipe_detail(
             "aggregated_allergens": aggregated_allergens,
         },
     )
+
+
+def _load_resolved_lines(session, r_id: int) -> list:
+    """Load recipe lines with resolved target info.
+    
+    Extracted from recipe_detail to reduce complexity.
+    """
+    from app.rms.costing import resolve_line_target
+
+    lines = session.scalars(
+        select(RecipeLine).where(RecipeLine.recipe_id == r_id).order_by(RecipeLine.id)
+    ).all()
+    resolved = []
+    for ln in lines:
+        target = resolve_line_target(session, ln)
+        resolved.append(
+            {
+                "line": ln,
+                "target": target,
+                "target_name": target.name if target else f"#{ln.line_ref_id}",
+                "is_ingredient": ln.line_kind == "ingredient",
+            }
+        )
+    return resolved
+
+
+def _load_costs(session, r_id: int) -> tuple:
+    """Load batch and unit costs for a recipe.
+    
+    Extracted from recipe_detail to reduce complexity.
+    """
+    from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
+
+    return recipe_batch_cost_gs(session, r_id), recipe_unit_cost_gs(session, r_id)
+
+
+def _load_products_using(session, r_id: int) -> list:
+    """Load products that use this recipe.
+    
+    Extracted from recipe_detail to reduce complexity.
+    """
+    return list(session.scalars(select(Product).where(Product.recipe_id == r_id)).all())
+
+
+def _load_recipe_tags(session, r_id: int) -> list:
+    """Load tags associated with this recipe.
+    
+    Extracted from recipe_detail to reduce complexity.
+    """
+    from app.rms.models import Tag, TagLink
+
+    tag_links = session.scalars(
+        select(TagLink).where(
+            TagLink.target_kind == "recipe",
+            TagLink.target_id == r_id,
+        )
+    ).all()
+    if not tag_links:
+        return []
+    tag_ids = [tl.tag_id for tl in tag_links]
+    return list(session.scalars(select(Tag).where(Tag.id.in_(tag_ids))))
+
+
+def _aggregate_allergens(session, r: Recipe) -> list:
+    """Aggregate allergens from all ingredient lines.
+    
+    Wave 3 — aggregate allergens from all ingredient lines so the recipe
+    detail page can show a "CONTIENE: gluten, dairy, eggs" summary required
+    by INAN Resolución S.G. N° 614/2023 for any retail food product.
+    
+    Extracted from recipe_detail to reduce complexity.
+    """
+    if not r.lines:
+        return []
+    ingredient_refs = _load_ingredient_refs(session, r.lines)
+    return _collect_aggregated_allergens(r.lines, ingredient_refs)
+
+
+def _load_ingredient_refs(session, lines) -> dict:
+    """Load ingredient references for recipe lines.
+    
+    Extracted from _aggregate_allergens to reduce complexity.
+    """
+    from app.rms.models import Ingredient as _Ingredient
+
+    ingredient_line_ids = [ln.line_ref_id for ln in lines if ln.line_kind == "ingredient"]
+    if not ingredient_line_ids:
+        return {}
+    return {
+        ing.id: ing
+        for ing in session.scalars(
+            select(_Ingredient).where(_Ingredient.id.in_(ingredient_line_ids))
+        ).all()
+    }
+
+
+def _collect_aggregated_allergens(lines, ingredient_refs: dict) -> list:
+    """Collect aggregated allergens from ingredient lines.
+    
+    Extracted from _aggregate_allergens to reduce complexity.
+    """
+    aggregated: list[str] = []
+    seen: set[str] = set()
+    for line in lines:
+        for allergen in _extract_line_allergens(line, ingredient_refs):
+            if allergen not in seen:
+                seen.add(allergen)
+                aggregated.append(allergen)
+    return aggregated
+
+
+def _extract_line_allergens(line, ingredient_refs: dict) -> list:
+    """Extract allergens from a single recipe line.
+    
+    Extracted from _collect_aggregated_allergens to reduce complexity.
+    """
+    if line.line_kind != "ingredient":
+        return []
+    ing = ingredient_refs.get(line.line_ref_id)
+    if not ing or not ing.allergens:
+        return []
+    return [a.strip() for a in ing.allergens.split(",") if a.strip()]
+
+
+def _resolve_vista(session, request: Request, r_id: int) -> tuple:
+    """Resolve the vista (estructural/consolidada) and load consolidated lines.
+    
+    UI-V2 dual view: ?vista=estructural (default, assembly) vs
+    ?vista=consolidada (exploded purchase list). Both computed here;
+    the template toggles which table renders.
+    Extracted from recipe_detail to reduce complexity.
+    """
+    from app.rms.recipes_consolidated import explode_recipe
+
+    vista = (request.query_params.get("vista") or "estructural").lower()
+    if vista not in ("estructural", "consolidada"):
+        vista = "estructural"
+    consolidated_lines = explode_recipe(session, r_id) if vista == "consolidada" else []
+    return vista, consolidated_lines
+
+
+def _parse_recipe_phases(r: Recipe):
+    """Parse instructions JSON for template.
+    
+    Extracted from recipe_detail to reduce complexity.
+    """
+    if not r.instructions:
+        return None
+    import json as _json
+    try:
+        return _json.loads(r.instructions)
+    except Exception:
+        return None
+
+
+def _derive_recipe_tags(session, r_id: int):
+    """Derive tags for a recipe.
+    
+    Extracted from recipe_detail to reduce complexity.
+    """
+    from app.rms.tag_algebra import derive_recipe_tags as _derive_tags
+    return _derive_tags(session, r_id)
 
 
 @router.get("/{r_id}/editar", response_class=HTMLResponse)
