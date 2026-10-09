@@ -173,6 +173,23 @@ to uv.lock. The cache will never get invalidated."
 - `docs/user-guide/README.md` links verified post-rename (0 broken).
 
 **Test status**: user-guide link check clean; ruff clean.
+## 2026-10-09 — Login-path monitor
+
+(Lint follow-ups: ruff format + drop unused noqa on the same script.)
+
+**Scope**: post-incident tooling for the 2026-10-09 Supabase NXDOMAIN outage
+(/healthz stayed green while every login returned 500 ConnectError).
+
+**What changed**:
+- `scripts/monitor_login.py`: stdlib-only monitor that POSTs real
+  credentials to `/login` and asserts the redirect target + `sazon_session`
+  cookie. Exit 1 on any failure mode (5xx, transport error, bad credentials,
+  missing cookie). Runnable from cron (Hermes/VPS) or manually.
+
+**Verify**: `python3 scripts/monitor_login.py` →
+`LOGIN-MONITOR OK: demo -> .../puesto`.
+
+---
 
 ## 2026-10-09 — CI recovery: ruff mass-fix + CHANGELOG-path bug fix
 
