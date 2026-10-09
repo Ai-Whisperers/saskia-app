@@ -412,11 +412,35 @@ def customer_reorder_rates(
     from app.rms.models import Customer
 
     cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=since_days)
+    sales_rows = _fetch_sales_in_window(session, cutoff)
+    by_customer = _group_sales_by_customer(sales_rows)
 
-    # Fetch all valid sales in window: customer_id, sold_at (local), qty,
-    # unit_price_gs, discount_gs. We compute line_total + gaps locally
-    # rather than in SQL — the gap needs the customer's per-row timeline.
-    sales_rows = session.execute(
+    total_customers = len(by_customer)
+    repeaters = {cid: orders for cid, orders in by_customer.items() if len(orders) >= 2}
+    customers_with_2plus = len(repeaters)
+
+    reorder_rate = (customers_with_2plus / total_customers) if total_customers else 0.0
+    all_gaps_days = _compute_order_gaps(repeaters)
+    avg_gap, median_gap = _compute_gap_stats(all_gaps_days)
+    repeater_stats = _build_repeater_stats(repeaters, top_n)
+    _enrich_with_customer_names(session, repeater_stats)
+
+    return {
+        "total_customers": total_customers,
+        "customers_with_2plus_orders": customers_with_2plus,
+        "reorder_rate": round(reorder_rate, 4),
+        "avg_days_between_orders": round(avg_gap, 1),
+        "median_days_between_orders": round(median_gap, 1),
+        "top_repeaters": repeater_stats,
+    }
+
+
+def _fetch_sales_in_window(session, cutoff):
+    """Fetch all valid sales in the time window.
+    
+    Extracted from customer_reorder_rates to reduce complexity.
+    """
+    return session.execute(
         select(
             Sale.customer_id,
             Sale.sold_at,
@@ -432,6 +456,14 @@ def customer_reorder_rates(
         .order_by(Sale.customer_id, Sale.sold_at)
     ).all()
 
+
+def _group_sales_by_customer(sales_rows) -> dict[int, list[tuple]]:
+    """Group sales by customer, computing line totals and local times.
+    
+    Extracted from customer_reorder_rates to reduce complexity.
+    """
+    from app.rms.config import ASUNCION_TZ
+
     by_customer: dict[int, list[tuple[datetime, int]]] = {}
     for cid, sold_at, qty_v, unit_price_v, discount_v in sales_rows:
         if sold_at is None:
@@ -439,25 +471,44 @@ def customer_reorder_rates(
         local_dt = sold_at.astimezone(ASUNCION_TZ) if sold_at.tzinfo else sold_at
         line_total = round(float(unit_price_v or 0) * float(qty_v or 0)) - int(discount_v or 0)
         by_customer.setdefault(int(cid), []).append((local_dt, line_total))
+    return by_customer
 
-    total_customers = len(by_customer)
-    repeaters = {cid: orders for cid, orders in by_customer.items() if len(orders) >= 2}
-    customers_with_2plus = len(repeaters)
 
-    reorder_rate = (customers_with_2plus / total_customers) if total_customers else 0.0
-
-    all_gaps_days: list[float] = []
+def _compute_order_gaps(repeaters: dict) -> list[float]:
+    """Compute gaps in days between consecutive orders for each repeater.
+    
+    Extracted from customer_reorder_rates to reduce complexity.
+    """
+    all_gaps: list[float] = []
     for orders in repeaters.values():
         timestamps = sorted(ts for ts, _ in orders)
         for prev, curr in itertools.pairwise(timestamps):
             gap = (curr - prev).total_seconds() / 86400.0
             if gap >= 0:
-                all_gaps_days.append(gap)
+                all_gaps.append(gap)
+    return all_gaps
 
-    avg_gap = sum(all_gaps_days) / len(all_gaps_days) if all_gaps_days else 0.0
-    median_gap = float(median(all_gaps_days)) if all_gaps_days else 0.0
 
-    repeater_stats = [
+def _compute_gap_stats(all_gaps_days: list[float]) -> tuple[float, float]:
+    """Compute avg and median gap in days.
+    
+    Extracted from customer_reorder_rates to reduce complexity.
+    """
+    from statistics import median
+
+    if not all_gaps_days:
+        return 0.0, 0.0
+    avg = sum(all_gaps_days) / len(all_gaps_days)
+    med = float(median(all_gaps_days))
+    return avg, med
+
+
+def _build_repeater_stats(repeaters: dict, top_n: int) -> list[dict]:
+    """Build sorted repeater stats list, truncated to top_n.
+    
+    Extracted from customer_reorder_rates to reduce complexity.
+    """
+    stats = [
         {
             "customer_id": cid,
             "customer_name": "",
@@ -466,26 +517,28 @@ def customer_reorder_rates(
         }
         for cid, orders in repeaters.items()
     ]
-    repeater_stats.sort(key=lambda r: (r["total_orders"], r["total_gs"]), reverse=True)
-    repeater_stats = repeater_stats[:top_n]
+    stats.sort(key=lambda r: (r["total_orders"], r["total_gs"]), reverse=True)
+    return stats[:top_n]
 
-    if repeater_stats:
-        ids = [r["customer_id"] for r in repeater_stats]
-        names_by_id = {
-            c.id: c.name
-            for c in session.scalars(select(Customer).where(Customer.id.in_(ids))).all()
-        }
-        for r in repeater_stats:
-            r["customer_name"] = names_by_id.get(r["customer_id"], "?")
 
-    return {
-        "total_customers": total_customers,
-        "customers_with_2plus_orders": customers_with_2plus,
-        "reorder_rate": round(reorder_rate, 4),
-        "avg_days_between_orders": round(avg_gap, 1),
-        "median_days_between_orders": round(median_gap, 1),
-        "top_repeaters": repeater_stats,
+def _enrich_with_customer_names(session, repeater_stats: list[dict]) -> None:
+    """Enrich repeater stats with customer names.
+    
+    Extracted from customer_reorder_rates to reduce complexity.
+    """
+    from sqlalchemy import select
+
+    from app.rms.models import Customer
+
+    if not repeater_stats:
+        return
+    ids = [r["customer_id"] for r in repeater_stats]
+    names_by_id = {
+        c.id: c.name
+        for c in session.scalars(select(Customer).where(Customer.id.in_(ids))).all()
     }
+    for r in repeater_stats:
+        r["customer_name"] = names_by_id.get(r["customer_id"], "?")
 
 
 def customer_retention(
