@@ -715,35 +715,135 @@ def inventory_create(
     reorder_point: str = Form(""),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
-    """Create new ingredient."""
-    # BUG-00: empty name must yield a 400 with a Spanish error, not a 500.
-    # Use default "" instead of required Form(...) so FastAPI's auto-validation
-    # does not produce an English "name es obligatorio" before our handler runs.
-    name = name.strip() if name else ""
-    if not name:
-        raise BadRequest(INGREDIENT_NAME_REQUIRED)
-    try:
-        unit_enum = Unit.coerce(unit)
-    except ValueError as e:
-        raise BadRequest(f"Unidad inválida: {e}", context={"unit": str(unit)}, cause=e) from e
+    """Create new ingredient.
 
+    Refactored 2026-10-09 to reduce cognitive complexity from 16 to <10.
+    """
+    name_clean = _validate_name(name)
+    unit_enum = _validate_unit(unit)
     price = _parse_price(purchase_price_gs)
+    _validate_non_negative_stock(stock_qty, min_stock_qty)
+
+    opening_qty, opening_date = _parse_opening_stock(opening_stock_qty, opening_stock_date)
+    reorder = _parse_reorder_value(reorder_point)
+
+    classification = classify_ingredient(name_clean, session=session)
+    ing = _build_ingredient(
+        name=name_clean,
+        unit_enum=unit_enum,
+        stock_qty=stock_qty,
+        min_stock_qty=min_stock_qty,
+        price=price,
+        notes=notes,
+        category=category,
+        classification=classification,
+        opening_qty=opening_qty,
+        opening_date=opening_date,
+        reorder=reorder,
+    )
+
+    session.add(ing)
+    try:
+        session.commit()
+    except IntegrityError as e:
+        session.rollback()
+        raise AlreadyExists(
+            f"Ya existe un ingrediente con nombre {name!r}",
+            context={"name": name},
+            cause=e,
+        ) from e
+
+    _populate_tag_validation(session, ing)
+    _log_ingredient_creation(request, session, ing)
+
+    if opening_qty is not None and opening_qty != stock_qty:
+        _record_initial_stock_movement(request, session, ing, opening_qty)
+
+    _record_initial_price(session, ing.id, price)
+
+    return RedirectResponse(url="/inventario", status_code=303)
+
+
+def _validate_name(name: str) -> str:
+    """Validate that the ingredient name is non-empty.
+
+    Extracted from inventory_create to reduce complexity.
+    """
+    name_clean = name.strip() if name else ""
+    if not name_clean:
+        raise BadRequest(INGREDIENT_NAME_REQUIRED)
+    return name_clean
+
+
+def _validate_unit(unit: str) -> Unit:
+    """Parse and validate the unit field.
+
+    Extracted from inventory_create to reduce complexity.
+    """
+    try:
+        return Unit.coerce(unit)
+    except ValueError as e:
+        raise BadRequest(
+            f"Unidad inválida: {e}", context={"unit": str(unit)}, cause=e
+        ) from e
+
+
+def _validate_non_negative_stock(stock_qty: float, min_stock_qty: float) -> None:
+    """Validate that stock quantities are non-negative.
+
+    Extracted from inventory_create to reduce complexity.
+    """
     if stock_qty < 0:
-        raise BadRequest("El stock no puede ser negativo.", context={"stock_qty": stock_qty})
+        raise BadRequest(
+            "El stock no puede ser negativo.", context={"stock_qty": stock_qty}
+        )
     if min_stock_qty < 0:
         raise BadRequest(
-            "El stock mínimo no puede ser negativo.", context={"min_stock_qty": min_stock_qty}
+            "El stock mínimo no puede ser negativo.",
+            context={"min_stock_qty": min_stock_qty},
         )
 
+
+def _parse_opening_stock(
+    opening_stock_qty: str, opening_stock_date: str
+) -> tuple[float | None, str | None]:
+    """Parse opening stock fields.
+
+    Extracted from inventory_create to reduce complexity.
+    """
     opening_qty = float(opening_stock_qty) if opening_stock_qty.strip() else None
     opening_date = opening_stock_date.strip() or None
-    reorder = float(reorder_point) if reorder_point.strip() else None
+    return opening_qty, opening_date
 
-    # Wave 2 — auto-fill inference on create.
-    # If operator left the classification fields empty, fill from `name` keyword match.
-    # Operator can always override any field after creation via /editar.
-    name_for_inference = name.strip()
-    classification = classify_ingredient(name_for_inference, session=session)
+
+def _parse_reorder_value(reorder_point: str) -> float | None:
+    """Parse the reorder point field.
+
+    Extracted from inventory_create to reduce complexity.
+    """
+    return float(reorder_point) if reorder_point.strip() else None
+
+
+def _build_ingredient(
+    name: str,
+    unit_enum: Unit,
+    stock_qty: float,
+    min_stock_qty: float,
+    price: Any,
+    notes: str,
+    category: str,
+    classification: dict,
+    opening_qty: float | None,
+    opening_date: str | None,
+    reorder: float | None,
+) -> Ingredient:
+    """Build the Ingredient object with inferred classification.
+
+    Extracted from inventory_create to reduce complexity. Uses inferred
+    classification as defaults; operator-provided category overrides.
+    """
+    from decimal import Decimal
+
     inferred_category = classification["category"]
     inferred_subcategory = classification["subcategory"]
     inferred_role = classification["role"]
@@ -752,7 +852,7 @@ def inventory_create(
     inferred_shelf_life = classification["shelf_life_days"]
     inferred_storage = classification["storage"]
 
-    ing = Ingredient(
+    return Ingredient(
         name=name.strip(),
         unit=unit_enum.value,
         stock_qty=stock_qty,
@@ -772,20 +872,15 @@ def inventory_create(
         opening_stock_date=opening_date,
         reorder_point=reorder,
     )
-    session.add(ing)
-    try:
-        session.commit()
-    except IntegrityError as e:
-        session.rollback()
-        raise AlreadyExists(
-            f"Ya existe un ingrediente con nombre {name!r}",
-            context={"name": name},
-            cause=e,
-        ) from e
 
-    # Tag validation (061): populate tag_validation_issues column on the
-    # newly-created ingredient so the audit banner catches any issues
-    # immediately (e.g. operator claimed 'vegano' but allergens include dairy).
+
+def _populate_tag_validation(session: Session, ing: Ingredient) -> None:
+    """Populate tag_validation_issues column on the new ingredient.
+
+    Extracted from inventory_create to reduce complexity. Catches any
+    issues immediately (e.g. operator claimed 'vegano' but allergens
+    include dairy).
+    """
     try:
         from app.rms.tagging.classify import validate_ingredient
 
@@ -801,7 +896,14 @@ def inventory_create(
         )
         session.rollback()
 
-    # Audit + info log
+
+def _log_ingredient_creation(
+    request: Request, session: Session, ing: Ingredient
+) -> None:
+    """Log the ingredient creation for audit and info.
+
+    Extracted from inventory_create to reduce complexity.
+    """
     logger.info(
         "ingredient_created id={} name={!r} unit={} stock={}",
         ing.id,
@@ -818,37 +920,50 @@ def inventory_create(
         detail={"name": ing.name, "unit": ing.unit},
     )
 
-    # Record an initial stock movement if opening stock was set
-    if opening_qty is not None and opening_qty != stock_qty:
-        user_id = current_operator(request)
-        movement = StockMovement(
-            ingredient_id=ing.id,
-            movement_type="initial",
-            qty=opening_qty,
-            reason="stock inicial",
-            reference_id=None,
-            reference_type=None,
-            recorded_at=datetime.now(timezone.utc),
-            created_by=user_id,
-        )
-        session.add(movement)
+
+def _record_initial_stock_movement(
+    request: Request, session: Session, ing: Ingredient, opening_qty: float
+) -> None:
+    """Record the initial stock movement if opening stock was set.
+
+    Extracted from inventory_create to reduce complexity.
+    """
+    user_id = current_operator(request)
+    movement = StockMovement(
+        ingredient_id=ing.id,
+        movement_type="initial",
+        qty=opening_qty,
+        reason="stock inicial",
+        reference_id=None,
+        reference_type=None,
+        recorded_at=datetime.now(timezone.utc),
+        created_by=user_id,
+    )
+    session.add(movement)
+    session.commit()
+
+
+def _record_initial_price(
+    session: Session, ing_id: int, price: Any
+) -> None:
+    """Record the initial price event if price was provided.
+
+    Extracted from inventory_create to reduce complexity. Phase B — Q1
+    core: when an operator creates an ingredient with a price, record
+    the first price event so the history starts populated.
+    """
+    if price is None:
+        return
+    try:
+        record_price_event(session, ing_id, price, source="manual")
         session.commit()
-
-    # Phase B — Q1 core: when an operator creates an ingredient with a price,
-    # record the first price event so the history starts populated.
-    if price is not None:
-        try:
-            record_price_event(session, ing.id, price, source="manual")
-            session.commit()
-        except Exception:
-            # Don't fail the whole request on a price-history write error.
-            logger.warning(
-                "record_price_event failed for new ingredient ing_id={}",
-                ing.id,
-                exc_info=True,
-            )
-
-    return RedirectResponse(url="/inventario", status_code=303)
+    except Exception:
+        # Don't fail the whole request on a price-history write error.
+        logger.warning(
+            "record_price_event failed for new ingredient ing_id=%s",
+            ing_id,
+            exc_info=True,
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────
