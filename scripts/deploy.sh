@@ -119,7 +119,11 @@ else
   # git archive: ships EXACTLY what's committed (no untracked caches, no
   # receipts/, no .hypothesis — the worktree tar hit 57MB and corrupted in
   # transit on CI runners). Deterministic content = deterministic deploy.
-  git archive --format=tar.gz --output="$TAR_FILE" HEAD
+  # Ship only what the runtime needs. docs/ (34MB of screenshots) and
+  # receipts/ + data/ source dumps made the archive 58MB — big enough that
+  # scp truncated it on CI runners ("gzip: invalid compressed data").
+  git archive --format=tar.gz --output="$TAR_FILE" \
+      HEAD app deploy scripts pyproject.toml uv.lock Dockerfile
 fi
 run scp -q -i "$KEY" -o StrictHostKeyChecking=no "$TAR_FILE" "$VPS:/tmp/"
 
