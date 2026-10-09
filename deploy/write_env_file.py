@@ -32,6 +32,7 @@ Exit codes:
     2   bws secret for a required key not found
     3   write failed
 """
+
 from __future__ import annotations
 
 import argparse
@@ -74,12 +75,15 @@ def bws_get(key: str) -> str:
     r = subprocess.run(
         [BWS_BIN, "secret", "list"],
         env={**os.environ, "BWS_ACCESS_TOKEN": token},
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     if r.returncode != 0:
         print(f"bws secret list FAILED: {r.stderr}", file=sys.stderr)
         sys.exit(1)
     import json
+
     secrets = json.loads(r.stdout)
     for s in secrets:
         if s["key"] == key:

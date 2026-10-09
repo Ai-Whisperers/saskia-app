@@ -3,20 +3,32 @@
 # declarative — all logic lives in the scripts.
 #
 # Adding a new env: copy a row, change the host/volume/middleware names,
-# add a BWS secret set, add a Cloudflare CNAME. The scripts and CI read
+# add a BWS secret set, add a Cloudflare A record. The scripts and CI read
 # this file as the single source of truth.
 
 prod:
   hostname: saskia-vps.paragu-ai.com
-  stack_name: saskia              # Docker stack namespace
-  service_name: saskia_web        # = stack_name + "_web"
-  image_tag_base: prod            # image: sazon-rms:prod-YYYYMMDD-HHMMSS
+  stack_name: saskia-vps         # Docker stack namespace (matches live 'docker stack ls')
+  service_name: saskia-vps_web
+  image_tag_base: prod           # image: sazon-rms:prod-YYYYMMDD-HHMMSS
   data_volume: saskia-prod-data
   logs_volume: saskia-prod-logs
-  router_name: saskia-prod
-  middleware_name: saskia-prod-headers
-  service_lb_name: saskia-prod-web
+  # NOTE: router_name + middleware_name + service_lb_name MUST match the
+  # LIVE service labels. The live saskia-vps was deployed with the legacy
+  # pattern (no env-prefix on router/middleware/service), so changing them
+  # here would create new Traefik objects while the old ones still route
+  # — a deploy would briefly route to nothing. Keep these stable until
+  # we deliberately migrate.
+  router_name: saskia-vps        # MATCHES live saskia-vps labels
+  middleware_name: saskia-headers  # MATCHES live saskia-vps labels
+  service_lb_name: saskia-web      # MATCHES live saskia-vps labels
   env_file: /etc/sazon/.env.prod
+  # Resource limits per env. prod = full size; test/dev are smaller so
+  # 3 stacks can coexist on a 23GB VPS (langfuse_clickhouse is at 200% CPU).
+  cpu_limit: '1.0'
+  memory_limit: 1024M
+  cpu_reservation: '0.25'
+  memory_reservation: 256M
   csp: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'self';"
   frame_deny: "true"
   backup_retention_days: 14       # keep prod backups 14 days (existing)
@@ -52,6 +64,11 @@ test:
   middleware_name: saskia-test-headers
   service_lb_name: saskia-test-web
   env_file: /etc/sazon/.env.test
+  # test runs alongside prod on the same VPS; half the resource budget.
+  cpu_limit: '0.5'
+  memory_limit: 512M
+  cpu_reservation: '0.1'
+  memory_reservation: 128M
   csp: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'self';"
   frame_deny: "true"
   backup_retention_days: 7
@@ -80,8 +97,11 @@ dev:
   middleware_name: saskia-dev-headers
   service_lb_name: saskia-dev-web
   env_file: /etc/sazon/.env.dev
-  # Dev CSP is relaxed: allow ws:/wss: (HTMX debug + live-reload if used),
-  # allow http: img-src (placeholder/dev images hosted on the VPS).
+  # Dev is meant for fast iteration; smallest resource budget.
+  cpu_limit: '0.3'
+  memory_limit: 384M
+  cpu_reservation: '0.1'
+  memory_reservation: 96M
   csp: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; font-src 'self' data:; connect-src 'self' https: ws: wss:; frame-ancestors 'self';"
   frame_deny: "false"               # dev sometimes embeds external previews
   backup_retention_days: 3

@@ -146,10 +146,10 @@ ENV_FILE_HOST="/etc/sazon/.env.${ENV}"
 STACK_FILE="/tmp/docker-stack.${ENV}.yml"
 DEPLOY_TAG="${ENV}-$(date -u +%Y%m%d-%H%M%S)"
 
-# Stack name is env-specific: prod=saskia (keeps the existing live service
-# stable), test=saskia-test, dev=saskia-dev. Service = stack_name + "_web".
+# Stack name is env-specific. prod keeps the existing saskia-vps stack
+# (don't rename — Traefik labels and CF routing depend on that name).
 case "$ENV" in
-  prod) STACK_NAME="saskia"; SERVICE_NAME="saskia_web" ;;
+  prod) STACK_NAME="saskia-vps"; SERVICE_NAME="saskia-vps_web" ;;
   test) STACK_NAME="saskia-test"; SERVICE_NAME="saskia-test_web" ;;
   dev)  STACK_NAME="saskia-dev";  SERVICE_NAME="saskia-dev_web" ;;
 esac

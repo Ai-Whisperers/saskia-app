@@ -5,7 +5,7 @@ version: "3.9"
 # the rendered files under /tmp/docker-stack.<env>.yml — they are throwaway.
 #
 # Traefik routing topology (1 Traefik instance, 3 swarm stacks, 3 hostnames):
-#   saskia-vps.paragu-ai.com  →  stack=saskia       (prod)   sazon-rms:prod-...
+#   saskia-vps.paragu-ai.com  →  stack=saskia-vps   (prod)   sazon-rms:prod-...
 #   saskia-test.paragu-ai.com →  stack=saskia-test  (test)   sazon-rms:test-...
 #   saskia-dev.paragu-ai.com  →  stack=saskia-dev   (dev)    sazon-rms:dev-...
 #
@@ -13,10 +13,13 @@ version: "3.9"
 #   - Its own named volume (saskia-<env>-data) → /data/rms.sqlite (SQLite DB)
 #   - Its own Traefik router + middleware (env-prefixed to avoid swarm-scope clash)
 #   - Its own env_file mounted from /etc/sazon/.env.<env> (BWS-driven, never in git)
+#   - Per-env CPU/memory limits (prod is full size, test/dev are smaller
+#     so 3 stacks can coexist on the 23GB VPS without resource thrash).
 #
 # Why one template, three rendered files: the per-env diffs are tiny (image tag,
-# hostname, volume name, middleware name, env_file path). A 3×-duplicated file
-# would drift on the next refactor. Single source of truth = single template.
+# hostname, volume name, middleware name, env_file path, resource limits). A
+# 3×-duplicated file would drift on the next refactor. Single source of truth
+# = single template.
 
 services:
   web:
@@ -32,11 +35,11 @@ services:
       replicas: 1
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1024M
+          cpus: '{{CPU_LIMIT}}'
+          memory: '{{MEMORY_LIMIT}}'
         reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '{{CPU_RESERVATION}}'
+          memory: '{{MEMORY_RESERVATION}}'
       restart_policy:
         condition: on-failure
         delay: 10s

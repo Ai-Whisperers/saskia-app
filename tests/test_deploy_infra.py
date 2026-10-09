@@ -23,8 +23,6 @@
 
 from __future__ import annotations
 
-import json
-import os
 import subprocess
 import sys
 import unittest
@@ -50,10 +48,21 @@ class TestEnvConfigSchema(unittest.TestCase):
 
     def test_required_keys_per_env(self):
         required = {
-            "hostname", "stack_name", "service_name", "image_tag_base",
-            "data_volume", "logs_volume", "router_name", "middleware_name",
-            "service_lb_name", "env_file", "csp", "frame_deny",
-            "backup_retention_days", "backup_schedule", "bws_keys",
+            "hostname",
+            "stack_name",
+            "service_name",
+            "image_tag_base",
+            "data_volume",
+            "logs_volume",
+            "router_name",
+            "middleware_name",
+            "service_lb_name",
+            "env_file",
+            "csp",
+            "frame_deny",
+            "backup_retention_days",
+            "backup_schedule",
+            "bws_keys",
         }
         for env, row in self.envs.items():
             with self.subTest(env=env):
@@ -90,7 +99,11 @@ class TestEnvConfigSchema(unittest.TestCase):
 
     def test_middleware_names_are_unique(self):
         names = [self.envs[e]["middleware_name"] for e in ("prod", "test", "dev")]
-        self.assertEqual(len(names), len(set(names)), "middleware names must be unique across envs (Traefik swarm-scope)")
+        self.assertEqual(
+            len(names),
+            len(set(names)),
+            "middleware names must be unique across envs (Traefik swarm-scope)",
+        )
 
 
 class TestTemplateConsistency(unittest.TestCase):
@@ -103,13 +116,24 @@ class TestTemplateConsistency(unittest.TestCase):
 
     def test_no_unfilled_placeholders(self):
         import re
+
         placeholders = set(re.findall(r"\{\{(\w+)\}\}", self.template))
         for env, row in self.envs.items():
             with self.subTest(env=env):
                 expected = {
-                    "ENV", "HOSTNAME", "IMAGE_TAG_BASE", "STACK_NAME", "SERVICE_NAME",
-                    "DATA_VOLUME", "LOGS_VOLUME", "ROUTER_NAME", "MIDDLEWARE_NAME",
-                    "SERVICE_LB_NAME", "ENV_FILE", "CSP", "FRAME_DENY",
+                    "ENV",
+                    "HOSTNAME",
+                    "IMAGE_TAG_BASE",
+                    "STACK_NAME",
+                    "SERVICE_NAME",
+                    "DATA_VOLUME",
+                    "LOGS_VOLUME",
+                    "ROUTER_NAME",
+                    "MIDDLEWARE_NAME",
+                    "SERVICE_LB_NAME",
+                    "ENV_FILE",
+                    "CSP",
+                    "FRAME_DENY",
                 }
                 missing = placeholders - expected
                 self.assertEqual(missing, set(), f"template uses unknown placeholders: {missing}")
@@ -127,6 +151,7 @@ class TestRenderStackScript(unittest.TestCase):
             import yaml  # noqa
         except ImportError:
             import pytest
+
             pytest.skip("pyyaml not installed")
 
     def _render(self, env: str) -> dict:
@@ -162,27 +187,35 @@ class TestRenderStackScript(unittest.TestCase):
         self.assertEqual(d["services"]["web"]["image"], "sazon-rms:prod-latest")
 
     def test_render_volumes_are_per_env(self):
-        for env, expected_data in [("prod", "saskia-prod-data"),
-                                    ("test", "saskia-test-data"),
-                                    ("dev", "saskia-dev-data")]:
+        for env, expected_data in [
+            ("prod", "saskia-prod-data"),
+            ("test", "saskia-test-data"),
+            ("dev", "saskia-dev-data"),
+        ]:
             with self.subTest(env=env):
                 d = self._render(env)
                 vols = d["services"]["web"]["volumes"]
-                self.assertTrue(any(v.startswith(expected_data + ":") for v in vols),
-                                f"env={env} missing data volume {expected_data}: {vols}")
+                self.assertTrue(
+                    any(v.startswith(expected_data + ":") for v in vols),
+                    f"env={env} missing data volume {expected_data}: {vols}",
+                )
 
     def test_render_env_file_path(self):
-        for env, expected in [("prod", "/etc/sazon/.env.prod"),
-                               ("test", "/etc/sazon/.env.test"),
-                               ("dev", "/etc/sazon/.env.dev")]:
+        for env, expected in [
+            ("prod", "/etc/sazon/.env.prod"),
+            ("test", "/etc/sazon/.env.test"),
+            ("dev", "/etc/sazon/.env.dev"),
+        ]:
             with self.subTest(env=env):
                 d = self._render(env)
                 env_files = d["services"]["web"]["env_file"]
                 self.assertIn(expected, env_files, f"env={env} missing env_file {expected}")
 
     def test_render_middleware_names_unique(self):
-        mws = {env: self._render(env)["services"]["web"]["deploy"]["labels"]
-               for env in ("prod", "test", "dev")}
+        mws = {
+            env: self._render(env)["services"]["web"]["deploy"]["labels"]
+            for env in ("prod", "test", "dev")
+        }
         # Extract the middleware name from the "middlewares.X.headers.contentSecurityPolicy=..." label
         names = set()
         for env, labels in mws.items():
@@ -209,6 +242,7 @@ class TestRenderStackScript(unittest.TestCase):
         sys.path.insert(0, str(DEPLOY_DIR))
         try:
             import render_stack
+
             with self.assertRaises(SystemExit) as cm:
                 render_stack.render("staging")
             self.assertEqual(cm.exception.code, 2)
@@ -225,6 +259,7 @@ class TestWriteEnvFileScript(unittest.TestCase):
             import yaml  # noqa
         except ImportError:
             import pytest
+
             pytest.skip("pyyaml not installed")
 
     def setUp(self):
@@ -236,22 +271,29 @@ class TestWriteEnvFileScript(unittest.TestCase):
 
     def test_missing_bws_key_returns_2(self):
         import write_env_file
+
         # Mock the env_file path to a tmp path so mkdir() doesn't try
         # to write to /etc/sazon (which doesn't exist in the test env).
-        with mock.patch.object(write_env_file, "load_envs", return_value={
-            "prod": {
-                "env_file": "/tmp/test-env-file-prod",
-                "bws_keys": ["FERNET_KEY"],
-            }
-        }), \
-        mock.patch.object(write_env_file, "bws_get", side_effect=KeyError("FERNET_KEY")):
+        with (
+            mock.patch.object(
+                write_env_file,
+                "load_envs",
+                return_value={
+                    "prod": {
+                        "env_file": "/tmp/test-env-file-prod",
+                        "bws_keys": ["FERNET_KEY"],
+                    }
+                },
+            ),
+            mock.patch.object(write_env_file, "bws_get", side_effect=KeyError("FERNET_KEY")),
+        ):
             rc = write_env_file.write_env_file("prod")
         self.assertEqual(rc, 2)
 
     def test_existing_bws_key_returns_value(self):
         import write_env_file
-        with mock.patch.object(write_env_file, "bws_get",
-                               return_value="value-from-bws"):
+
+        with mock.patch.object(write_env_file, "bws_get", return_value="value-from-bws"):
             val = write_env_file.bws_get("FERNET_KEY")
         self.assertEqual(val, "value-from-bws")
 
@@ -261,7 +303,6 @@ class TestWriteEnvFileScript(unittest.TestCase):
         # (we test the idempotency by mocking hashlib to be sensitive).
         # Skipped in this minimal version — the full test would require
         # a /etc/sazon directory which we don't have in the test runner.
-        import write_env_file
         # The write logic is straightforward: only writes if hash changed.
         # Verified manually with the live deploy — covered in the deploy
         # verification step (deploy-flow skill: step 4).
@@ -278,7 +319,9 @@ class TestDeployDryRun(unittest.TestCase):
         # the dry-run output above. Use combined output for the check.
         r = subprocess.run(
             ["bash", str(SCRIPTS_DIR / "deploy.sh"), "--env=prod", "--dry-run"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             cwd=REPO_ROOT,
         )
         self.assertNotEqual(r.returncode, 0, "prod should refuse non-main branch")
@@ -288,7 +331,9 @@ class TestDeployDryRun(unittest.TestCase):
     def test_dry_run_test_succeeds(self):
         r = subprocess.run(
             ["bash", str(SCRIPTS_DIR / "deploy.sh"), "--env=test", "--dry-run"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             cwd=REPO_ROOT,
         )
         # Note: we're on feat/three-env-deploy, so the deploy is allowed
@@ -297,7 +342,11 @@ class TestDeployDryRun(unittest.TestCase):
         # AND to stderr for the per-step commands (the run() helper
         # echoes "DRY: cmd" to stderr). Use combined output for the check.
         out = r.stdout + r.stderr
-        self.assertEqual(r.returncode, 0, f"test dry-run should succeed: rc={r.returncode} out={r.stdout!r} err={r.stderr!r}")
+        self.assertEqual(
+            r.returncode,
+            0,
+            f"test dry-run should succeed: rc={r.returncode} out={r.stdout!r} err={r.stderr!r}",
+        )
         self.assertIn("sazon-rms:test-", out)
         self.assertIn("saskia-test", out)
         # The render step references the VPS-side env file path
@@ -306,18 +355,26 @@ class TestDeployDryRun(unittest.TestCase):
     def test_dry_run_dev_succeeds(self):
         r = subprocess.run(
             ["bash", str(SCRIPTS_DIR / "deploy.sh"), "--env=dev", "--dry-run"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             cwd=REPO_ROOT,
         )
         out = r.stdout + r.stderr
-        self.assertEqual(r.returncode, 0, f"dev dry-run should succeed: rc={r.returncode} out={r.stdout!r} err={r.stderr!r}")
+        self.assertEqual(
+            r.returncode,
+            0,
+            f"dev dry-run should succeed: rc={r.returncode} out={r.stdout!r} err={r.stderr!r}",
+        )
         self.assertIn("sazon-rms:dev-", out)
         self.assertIn("saskia-dev", out)
 
     def test_dry_run_unknown_env_rejects(self):
         r = subprocess.run(
             ["bash", str(SCRIPTS_DIR / "deploy.sh"), "--env=staging", "--dry-run"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             cwd=REPO_ROOT,
         )
         self.assertNotEqual(r.returncode, 0)
@@ -327,7 +384,9 @@ class TestDeployDryRun(unittest.TestCase):
     def test_dry_run_missing_env_rejects(self):
         r = subprocess.run(
             ["bash", str(SCRIPTS_DIR / "deploy.sh"), "--dry-run"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             cwd=REPO_ROOT,
         )
         self.assertNotEqual(r.returncode, 0)
@@ -341,7 +400,9 @@ class TestPromoteScript(unittest.TestCase):
     def test_promote_without_args_rejects(self):
         r = subprocess.run(
             ["bash", str(SCRIPTS_DIR / "promote.sh")],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
             cwd=REPO_ROOT,
         )
         self.assertNotEqual(r.returncode, 0)
@@ -349,7 +410,9 @@ class TestPromoteScript(unittest.TestCase):
     def test_promote_same_env_rejects(self):
         r = subprocess.run(
             ["bash", str(SCRIPTS_DIR / "promote.sh"), "--from=prod", "--to=prod"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
             cwd=REPO_ROOT,
         )
         self.assertNotEqual(r.returncode, 0)
@@ -359,7 +422,9 @@ class TestPromoteScript(unittest.TestCase):
     def test_promote_invalid_direction_rejects(self):
         r = subprocess.run(
             ["bash", str(SCRIPTS_DIR / "promote.sh"), "--from=prod", "--to=test"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
             cwd=REPO_ROOT,
         )
         # prod→test is not a valid direction (only test→prod, dev→test, dev→prod)
@@ -372,7 +437,9 @@ class TestReleaseScript(unittest.TestCase):
     def test_release_off_main_refuses(self):
         r = subprocess.run(
             ["bash", str(SCRIPTS_DIR / "release.sh"), "--dry-run"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
             cwd=REPO_ROOT,
         )
         # We're on feat/three-env-deploy, so release.sh should refuse

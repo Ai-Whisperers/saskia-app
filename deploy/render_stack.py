@@ -16,6 +16,7 @@ Usage:
     python deploy/render_stack.py --env=test
     python deploy/render_stack.py --env=dev --output=/tmp/docker-stack.dev.yml
 """
+
 from __future__ import annotations
 
 import argparse
@@ -66,12 +67,17 @@ def render(env: str) -> str:
         "ENV_FILE": row["env_file"],
         "CSP": row["csp"],
         "FRAME_DENY": row["frame_deny"],
+        "CPU_LIMIT": row["cpu_limit"],
+        "MEMORY_LIMIT": row["memory_limit"],
+        "CPU_RESERVATION": row["cpu_reservation"],
+        "MEMORY_RESERVATION": row["memory_reservation"],
     }
 
     # Sanity: every {{...}} in the template must be in the substitution
     # map. If we miss one, the rendered file will be syntactically
     # invalid YAML and docker will reject it with a confusing error.
     import re
+
     placeholders = set(re.findall(r"\{\{(\w+)\}\}", template))
     missing = placeholders - subs.keys()
     if missing:
@@ -91,8 +97,11 @@ def main() -> int:
     p = argparse.ArgumentParser(description="Render a per-env stack file from the template.")
     p.add_argument("--env", required=True, choices=ALLOWED_ENVS, help="Target environment")
     p.add_argument("--output", help="Write to this file instead of stdout")
-    p.add_argument("--validate", action="store_true",
-                   help="Run docker-compose config to validate the rendered file (requires docker)")
+    p.add_argument(
+        "--validate",
+        action="store_true",
+        help="Run docker-compose config to validate the rendered file (requires docker)",
+    )
     args = p.parse_args()
 
     rendered = render(args.env)
@@ -105,10 +114,13 @@ def main() -> int:
 
     if args.validate:
         import subprocess
+
         r = subprocess.run(
             ["docker", "compose", "-f", args.output or "/dev/stdin", "config"],
             input=rendered if not args.output else None,
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         if r.returncode != 0:
             print(f"docker compose config FAILED:\n{r.stderr}", file=sys.stderr)
