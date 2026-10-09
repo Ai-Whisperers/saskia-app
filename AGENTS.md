@@ -73,6 +73,8 @@ Supports **two deployment modes**:
 24. **Code identifiers, error logs, and developer-facing documentation are in English.** This is the explicit carve-out — only user-facing strings are Spanish.
 25. **Spanish (vos) form for verb conjugations.** "Guardá", not "Salvá".
 
+**Redesign (mandatory).** Simplify visibility, never functionality. Before changing what a page shows, follow `docs/ux/redesign-prompt.md`. Show the essential step first. Keep secondary and advanced controls one interaction away, labeled in Spanish (vos). Never delete a field, action, setting, filter, calculation, or workflow to make a screen cleaner, and never change business logic to fit the layout. Context-sensitive fields appear when the choice that needs them is made (Mostrador vs Delivery, recipe-linked portion details). A page is not done until every previously reachable capability still works for the roles that could use it.
+
 ### Security (5 sub-rules)
 
 26. **No new dependencies without explicit Iván OK.** Each new dep is a security review. If you think you need pandas / numpy / pint / py-moneyed / SQLModel / anything not in `pyproject.toml`, **ask first**.
@@ -319,6 +321,7 @@ For deeper context, read these in order:
 6. `app/docs/threat-model.md` — security posture
 7. `app/docs/architecture.md` — system architecture
 8. `app/docs/copy-vos.md` — UI copy rules (Paraguayan Spanish)
+8b. `docs/ux/redesign-prompt.md` — master redesign prompt (simplify visibility, never functionality)
 9. `docs/operations/2026-10-04-sibling-session-coordination.md` — worktree policy
 10. `docs/operations/2026-10-04-test-execution-plan.md` — test plan
 11. `IMPROVEMENT_BACKLOG.md` — what to work next

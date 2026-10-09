@@ -128,6 +128,25 @@ def test_chooser_page_lists_four_stations(client):
     assert "¿Qué vas a hacer?" in r.text
 
 
+def test_chooser_card_backs_list_role_features(client):
+    r = client.get("/puesto")
+    for feature in (
+        "Producción",
+        "Recetas",
+        "Merma",
+        "Nueva venta",
+        "Precio de compra",
+        "Reponer",
+        "Reportes",
+        "Nombre y precio",
+        "Dinero",
+        "Actividad",
+        "Costos",
+    ):
+        assert feature in r.text, feature
+    assert "station-face-back" in r.text
+
+
 def _cookie_header(response) -> str:
     """Replay Set-Cookie on the next request.
 
