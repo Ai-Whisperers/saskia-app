@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff7ed"/>
+      <stop offset="100%" stop-color="#fed7aa"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- Top accent bar -->
+  <rect y="0" width="1200" height="6" fill="url(#accent)"/>
+  <!-- Left panel: brand mark -->
+  <circle cx="200" cy="315" r="130" fill="#f97316"/>
+  <text x="200" y="375" font-family="system-ui, sans-serif" font-size="160" font-weight="700" fill="white" text-anchor="middle">S</text>
+  <!-- Right panel: text -->
+  <text x="420" y="240" font-family="system-ui, sans-serif" font-size="72" font-weight="700" fill="#9a3412">Sazón RMS</text>
+  <text x="420" y="330" font-family="system-ui, sans-serif" font-size="36" fill="#78350f">Sistema de gestión para</text>
+  <text x="420" y="380" font-family="system-ui, sans-serif" font-size="36" fill="#78350f">panadería y cafetería</text>
+  <!-- Tagline -->
+  <text x="420" y="470" font-family="system-ui, sans-serif" font-size="28" fill="#c2410c">sazon-vps.paragu-ai.com</text>
+  <!-- Decorative: pastry icon -->
+  <g transform="translate(980, 80)">
+    <circle cx="80" cy="80" r="70" fill="#fb923c" opacity="0.3"/>
+    <text x="80" y="110" font-family="system-ui, sans-serif" font-size="80" fill="#c2410c" text-anchor="middle">🥐</text>
+  </g>
+  <!-- Bottom accent -->
+  <rect y="624" width="1200" height="6" fill="url(#accent)"/>
+</svg>

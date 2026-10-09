@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+
+{% block title %}Smoke test — ui-combo{% endblock %}
+
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+  Sazón UI components smoke test
+</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="text-muted">
+  Closes P0-D17. This page exercises the <code>&lt;ui-combo&gt;</code> component
+  and the <code>ui.combo_field()</code> macro in client-side and server-side modes.
+</p>
+
+<form method="get" action="/dev/combo-smoke" class="form mb-4">
+  <div class="grid grid-2">
+    <div class="form-row">
+      {{ ui.combo_field(
+        name='category',
+        value=selected_category,
+        display=selected_category_display,
+        placeholder='Buscar categoría…',
+        src=categories_src,
+        label='Categoría (client-side)',
+        label_for='category'
+      ) }}
+    </div>
+    <div class="form-row">
+      {{ ui.combo_field(
+        name='product_id',
+        value=selected_product,
+        display=selected_product_display,
+        placeholder='Buscar producto (DB real)…',
+        endpoint='/productos/api/search?q=',
+        label='Producto (server-side, real DB)',
+        label_for='product_id'
+      ) }}
+    </div>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Ver selección</button>
+    <a href="/dev/combo-smoke" class="btn btn-ghost">Limpiar</a>
+  </div>
+</form>
+
+{% if submitted %}
+<div class="card">
+  <h2>Form submitted ✓</h2>
+  <dl class="dl-grid">
+    <dt>category</dt><dd><code>{{ submitted.category or '—' }}</code></dd>
+    <dt>product_id</dt><dd><code>{{ submitted.product_id or '—' }}</code></dd>
+  </dl>
+</div>
+{% else %}
+<p class="text-muted">Submit the form to verify the hidden inputs get the right values.</p>
+{% endif %}
+
+<h2>Cómo se usa mañana</h2>
+<pre class="code"><code>{{ '{{ ui.combo_field(name="category", src=...) }}' }}</code></pre>
+
+<p class="text-muted">
+  <strong>TODO tomorrow:</strong>
+  <ul style="margin-top: 0.5rem;">
+    <li>Async fetch debounce (already 150ms; verify)</li>
+    <li>Real /api/lookup/&lt;entity&gt; endpoints (today returns mock data)</li>
+    <li>Adopt on 30 native &lt;select&gt; elements across filter forms</li>
+    <li>Currency formatter for price combos (closes D15)</li>
+    <li>WCAG: axe-core scan on combo interaction</li>
+  </ul>
+</p>
+
+{% endblock %}

@@ -1,0 +1,338 @@
+{
+  "/dashboard": {
+    "file": "dashboard.png",
+    "status": "ok"
+  },
+  "/analisis": {
+    "file": "analisis.png",
+    "status": "ok"
+  },
+  "/": {
+    "file": "inicio.png",
+    "status": "ok"
+  },
+  "/ventas": {
+    "file": "ventas.png",
+    "status": "ok"
+  },
+  "/ventas/historial": {
+    "file": "ventas-historial.png",
+    "status": "ok"
+  },
+  "/pedidos": {
+    "file": "pedidos.png",
+    "status": "ok"
+  },
+  "/pedidos/board": {
+    "file": "pedidos-board.png",
+    "status": "ok"
+  },
+  "/pedidos/nuevo": {
+    "file": "pedidos-nuevo.png",
+    "status": "ok"
+  },
+  "/inventario": {
+    "file": "inventario.png",
+    "status": "ok"
+  },
+  "/inventario/nuevo": {
+    "file": "inventario-nuevo.png",
+    "status": "ok"
+  },
+  "/inventario/1": {
+    "file": "inventario-detalle.png",
+    "status": "ok"
+  },
+  "/productos": {
+    "file": "productos.png",
+    "status": "ok"
+  },
+  "/productos/nuevo": {
+    "file": "productos-nuevo.png",
+    "status": "ok"
+  },
+  "/productos/1/editar": {
+    "file": "producto-editar.png",
+    "status": "ok"
+  },
+  "/recetas": {
+    "file": "recetas.png",
+    "status": "ok"
+  },
+  "/recetas/nueva": {
+    "file": "recetas-nueva.png",
+    "status": "ok"
+  },
+  "/recetas/1": {
+    "file": "receta-detalle.png",
+    "status": "ok"
+  },
+  "/recetas/1/editar": {
+    "file": "receta-editar.png",
+    "status": "ok"
+  },
+  "/clientes": {
+    "file": "clientes.png",
+    "status": "ok"
+  },
+  "/clientes/1": {
+    "file": "cliente-detalle.png",
+    "status": "ok"
+  },
+  "/clientes/1/editar": {
+    "file": "cliente-editar.png",
+    "status": "ok"
+  },
+  "/produccion": {
+    "file": "produccion.png",
+    "status": "ok"
+  },
+  "/produccion-planner": {
+    "file": "produccion-planner.png",
+    "status": "ok"
+  },
+  "/eod": {
+    "file": "eod.png",
+    "status": "ok"
+  },
+  "/merma": {
+    "file": "merma.png",
+    "status": "ok"
+  },
+  "/reportes": {
+    "file": "reportes.png",
+    "status": "ok"
+  },
+  "/reportes/iva": {
+    "file": "reportes-iva.png",
+    "status": "ok"
+  },
+  "/reportes/libro-ventas": {
+    "file": "reportes-libro-ventas.png",
+    "status": "ok"
+  },
+  "/reportes/diario": {
+    "file": "reportes-diario.png",
+    "status": "ok"
+  },
+  "/reportes/comparacion": {
+    "file": "reportes-comparacion.png",
+    "status": "ok"
+  },
+  "/reportes/top-productos": {
+    "file": "reportes-top-productos.png",
+    "status": "ok"
+  },
+  "/reportes/retencion": {
+    "file": "reportes-retencion.png",
+    "status": "ok"
+  },
+  "/reportes/valor-pedido": {
+    "file": "reportes-valor-pedido.png",
+    "status": "ok"
+  },
+  "/reportes/ventas-hora": {
+    "file": "reportes-ventas-hora.png",
+    "status": "ok"
+  },
+  "/reportes/metodos-pago": {
+    "file": "reportes-metodos-pago.png",
+    "status": "ok"
+  },
+  "/reportes/precios": {
+    "file": "reportes-precios.png",
+    "status": "ok"
+  },
+  "/reportes/cierre-mensual": {
+    "file": "reportes-cierre-mensual.png",
+    "status": "ok"
+  },
+  "/reportes/food-cost-variance": {
+    "file": "reportes-food-cost-variance.png",
+    "status": "ok"
+  },
+  "/reportes/demand": {
+    "file": "reportes-demand.png",
+    "status": "ok"
+  },
+  "/reportes/freshness": {
+    "file": "reportes-freshness.png",
+    "status": "ok"
+  },
+  "/reportes/stock-intel": {
+    "file": "reportes-stock-intel.png",
+    "status": "ok"
+  },
+  "/reportes/afinidades": {
+    "file": "reportes-afinidades.png",
+    "status": "ok"
+  },
+  "/reportes/margenes": {
+    "file": "reportes-margenes.png",
+    "status": "ok"
+  },
+  "/shopping-list": {
+    "file": "shopping-list.png",
+    "status": "ok"
+  },
+  "/suppliers": {
+    "file": "suppliers-dup.png",
+    "status": "ok"
+  },
+  "/proveedores": {
+    "file": "proveedores-alias.png",
+    "status": "ok"
+  },
+  "/wishlist": {
+    "file": "wishlist.png",
+    "status": "ok"
+  },
+  "/reorder": {
+    "file": "reorder.png",
+    "status": "ok"
+  },
+  "/pricing": {
+    "file": "pricing.png",
+    "status": "ok"
+  },
+  "/vs-mercado": {
+    "file": "vs-mercado.png",
+    "status": "ok"
+  },
+  "/bank": {
+    "file": "bank.png",
+    "status": "ok"
+  },
+  "/delivery-zones": {
+    "file": "delivery-zones.png",
+    "status": "ok"
+  },
+  "/auditoria": {
+    "file": "auditoria.png",
+    "status": "ok"
+  },
+  "/ops/status": {
+    "file": "ops-status.png",
+    "status": "ok"
+  },
+  "/excel": {
+    "file": "excel.png",
+    "status": "ok"
+  },
+  "/settings": {
+    "file": "settings.png",
+    "status": "ok"
+  },
+  "/settings/catalog": {
+    "file": "settings-catalog.png",
+    "status": "ok"
+  },
+  "/users": {
+    "file": "users.png",
+    "status": "ok"
+  },
+  "/guia": {
+    "file": "guia.png",
+    "status": "ok"
+  },
+  "/riesgos": {
+    "file": "riesgos.png",
+    "status": "ok"
+  },
+  "/login": {
+    "file": "login.png",
+    "status": "ok"
+  },
+  "/ventas/buscar": {
+    "file": "ventas-buscar.png",
+    "status": "ok"
+  },
+  "/ventas/6/recibo": {
+    "file": "venta-recibo.png",
+    "status": "ok"
+  },
+  "/inventario/1/editar": {
+    "file": "inventario-editar.png",
+    "status": "ok"
+  },
+  "/inventario/1/movimientos": {
+    "file": "inventario-movimientos.png",
+    "status": "ok"
+  },
+  "/inventario/1/variantes": {
+    "file": "inventario-variantes.png",
+    "status": "ok"
+  },
+  "/pedidos/1": {
+    "file": "pedido-detalle.png",
+    "status": "ok"
+  },
+  "/pedidos/1/stock-preview": {
+    "file": "pedido-stock-preview.png",
+    "status": "ok"
+  },
+  "/pedidos/1/duplicate": {
+    "file": "pedido-duplicate.png",
+    "status": "ok"
+  },
+  "/recetas/1/crear-producto": {
+    "file": "receta-crear-producto.png",
+    "status": "ok"
+  },
+  "/recetas/1/set-photo": {
+    "file": "receta-set-photo.png",
+    "status": "ok"
+  },
+  "/suppliers/nuevo": {
+    "file": "supplier-nuevo.png",
+    "status": "ok"
+  },
+  "/reportes/margenes/1": {
+    "file": "reportes-margenes-detalle.png",
+    "status": "ok"
+  },
+  "/reportes/price-impact/1?new_price=7000": {
+    "file": "reportes-price-impact.png",
+    "status": "ok"
+  },
+  "/vs-mercado/1/edit": {
+    "file": "vs-mercado-editar.png",
+    "status": "ok"
+  },
+  "/guia/ventas": {
+    "file": "guia-seccion.png",
+    "status": "ok"
+  },
+  "EXPORT /ventas/export.csv": {
+    "file": "export-ventas.csv",
+    "status": "ok (518 bytes)"
+  },
+  "EXPORT /productos/export.csv": {
+    "file": "export-productos.csv",
+    "status": "ok (168 bytes)"
+  },
+  "EXPORT /inventario/export.csv": {
+    "file": "export-inventario.csv",
+    "status": "ok (222 bytes)"
+  },
+  "EXPORT /pedidos/export-csv?status_filter=todos": {
+    "file": "export-pedidos.csv",
+    "status": "ok (296 bytes)"
+  },
+  "EXPORT /reportes/precios/csv": {
+    "file": "export-reportes-precios.csv",
+    "status": "ok (54 bytes)"
+  },
+  "EXPORT /excel/exportar": {
+    "file": "export-excel.xlsx",
+    "status": "ok (9550 bytes)"
+  },
+  "EXPORT /reportes/diario/pdf": {
+    "file": "export-reportes-diario.pdf",
+    "status": "ok (1952 bytes)"
+  },
+  "EXPORT /reportes/iva/pdf": {
+    "file": "export-reportes-iva.pdf",
+    "status": "ok (2193 bytes)"
+  }
+}

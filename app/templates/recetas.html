@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% import "_components/ingredient_tags.html" as t %}
+
+{% block title %}Recetas{% endblock %}
+
+{% block head %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Recetas y gestión de productos de Sazón">
+{% endblock %}
+
+{% block content %}
+<h1>Recetas</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p>
+  <a href="/recetas/nueva" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Nueva receta
+  </a>
+  <a href="/recetas/export" class="btn" download>Exportar CSV</a>
+</p>
+
+{# --- Filter toolbar (mf-pop pattern, same as inventario) --- #}
+<form method="get" action="/recetas" class="inv-toolbar d-flex" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
+  <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre…"
+         style="flex:1;min-width:180px;height:36px;" aria-label="Buscar por nombre">
+  {% if all_families %}
+  <div class="mf-pop" data-mf="familia">
+    <button type="button" class="mf-btn" aria-expanded="false">Familia{% if familias_sel %} <span class="mf-count">{{ familias_sel|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      {% for f in all_families %}
+      <label class="mf-option"><input type="checkbox" name="familia" value="{{ f }}" {% if f in familias_sel %}checked{% endif %}> {{ f }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  <div class="mf-pop" data-mf="dificultad">
+    <button type="button" class="mf-btn" aria-expanded="false">Dificultad{% if dif_sel %} <span class="mf-count">{{ dif_sel|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      <p class="mf-hint">Mostrar recetas de CUALQUIER dificultad marcada:</p>
+      {% for val, lbl in [('1', '1 — Muy fácil'), ('2', '2 — Fácil'), ('3', '3 — Media'), ('4', '4 — Difícil'), ('5', '5 — Muy difícil')] %}
+      <label class="mf-option"><input type="checkbox" name="dificultad" value="{{ val }}" {% if val in dif_sel %}checked{% endif %}> {{ lbl }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {% if all_recipe_tags %}
+  <div class="mf-pop" data-mf="dieteticas">
+    <button type="button" class="mf-btn" aria-expanded="false">Dietéticas{% if diet_sel %} <span class="mf-count">{{ diet_sel|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      <p class="mf-hint">Coincidir con TODAS las marcadas:</p>
+      {% for tg in all_recipe_tags %}
+      <label class="mf-option"><input type="checkbox" name="dieteticas" value="{{ tg }}" {% if tg in diet_sel %}checked{% endif %}> {{ t.tag_label(tg) }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {# P3 UX batch: ingredient filter is now a MULTI-select popover
+     (was a single ui-combo). Checkbox semantics: recipe must use
+     ALL selected ingredients (same AND semantics the router already
+     implements for ingredient_ids). The legacy single ingredient_id
+     param still renders as a pre-checked option when present. #}
+  <div class="mf-pop" data-mf="ingredientes">
+    <button type="button" class="mf-btn" aria-expanded="false">Ingredientes{% if ing_multi_sel %} <span class="mf-count">{{ ing_multi_sel|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      <p class="mf-hint">Recetas que usan TODOS los marcados:</p>
+      <div class="mf-scroll" style="max-height:260px;overflow:auto;">
+      {% for ing in all_ingredients %}
+      <label class="mf-option"><input type="checkbox" name="ingredient_multi" value="{{ ing.id }}" {% if ing.id|string in ing_multi_sel %}checked{% endif %}> {{ ing.name }}</label>
+      {% endfor %}
+      </div>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary h-control" >Filtrar</button>
+  {% if q or familias_sel or dif_sel or diet_sel or ingredient_id %}
+  <a href="/recetas" class="btn h-control" >Limpiar todo</a>
+  {% endif %}
+</form>
+{# ── Active filter chips ── #}
+{% set rec_active_filters = [] %}
+{% if q %}{% set _ = rec_active_filters.append({'key': 'q', 'label': 'Búsqueda', 'value': q}) %}{% endif %}
+{% if familias_sel %}{% set _ = rec_active_filters.append({'key': 'familia', 'label': 'Familia', 'value': familias_sel|join(', ')}) %}{% endif %}
+{% if dif_sel %}{% set _ = rec_active_filters.append({'key': 'dificultad', 'label': 'Dificultad', 'value': dif_sel}) %}{% endif %}
+{% if diet_sel %}{% set _ = rec_active_filters.append({'key': 'dieteticas', 'label': 'Dietéticas', 'value': diet_sel|join(', ')}) %}{% endif %}
+{% if ingredient_id %}{% set _ = rec_active_filters.append({'key': 'ingredient_id', 'label': 'Ingrediente', 'value': ingredient_id}) %}{% endif %}
+
+{% if rec_active_filters %}
+<div class="active-filters d-flex" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:var(--space-3);">
+  {% for f in rec_active_filters %}
+    {% set rec_remove_params = [] %}
+    {% for k, v in request.query_params.multi_items() %}
+      {% if k != f.key %}{% set _ = rec_remove_params.append(k ~ '=' ~ v) %}{% endif %}
+    {% endfor %}
+    <span class="filter-chip">{{ f.label }}: {{ f.value }} <a href="{{ request.url.path }}{% if rec_remove_params %}?{{ rec_remove_params | join('&') }}{% endif %}">×</a></span>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div  class="inv-result-count text-muted" style="font-size:var(--text-xs); margin-bottom:var(--space-3)">
+  {{ total }} de {{ total_all }} recetas{% if q %} · búsqueda “{{ q }}”{% endif %}
+</div>
+
+{% if recipes %}
+{{ ui.skeleton_section(id="recipes-table", variant="line", count=10, label="Cargando recetas") }}
+<div data-loaded-section="recipes-table">
+<table class="table is-hoverable is-striped mb-0" >
+  <thead>
+    <tr>
+      <th style="width:70px;">Foto</th>
+      <th>{{ m.sort_th("Nombre", "name", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Rinde", "yield_qty", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Dificultad", "difficulty", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Prep", "prep_minutes", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Cocción", "cook_minutes", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Tiempo total", "total_minutes", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Líneas", "line_count", sort, dir) }}</th>
+      {% if not station_hides_prices %}
+      <th class="num">{{ m.sort_th("Costo del lote (Gs.)", "batch_cost_gs", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Costo / porción (Gs.)", "unit_cost_gs", sort, dir) }}</th>
+      <th class="num">Costo total (Gs.)</th>
+      {% endif %}
+      <th class="actions"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in recipes %}
+    <tr>
+      <td>
+              {% if r.image_url %}
+                <button type="button" class="recipe-thumb" data-recipe-photo
+                        data-src="{{ r.image_url }}" data-name="{{ fmt.entity_name(r) }}"
+                        aria-label="Ver foto de {{ fmt.entity_name(r) }}">
+                  <img src="{{ r.image_url }}" alt="{{ fmt.entity_name(r) }}">
+                </button>
+              {% else %}
+                <span class="muted" aria-label="Sin foto">—</span>
+              {% endif %}
+            </td>
+      <td><strong data-copy="{{ r.id }}"><a href="/recetas/{{ r.id }}">{{ fmt.entity_name(r) }}</a></strong>
+        {% if r.family %}<span class="badge badge-neutral">{{ r.family }}</span>{% endif %}
+        {% if r.dietary_tags %}
+          <div class="tag-pill-row">
+            {{ t.tag_pills(r.dietary_tags) }}
+          </div>
+        {% endif %}
+      </td>
+      <td class="num">
+        {% if r.yield_qty is none %}
+          <em class="muted">sin rinde</em>
+        {% else %}
+          {{ r.yield_qty|round(2) }} {{ r.yield_unit }}
+        {% endif %}
+      </td>
+      <td class="text-center" >
+        {% if r.difficulty %}
+          <span aria-label="Dificultad {{ r.difficulty }}">{{ '⭐' * r.difficulty }}</span>
+        {% else %}
+          <span class="muted">—</span>
+        {% endif %}
+      </td>
+      <td>{{ r.line_count }}</td>
+      <td class="num col-prep text-center" >{% if r.prep_minutes %}{{ r.prep_minutes }} min{% endif %}</td>
+      <td class="num col-cook text-center" >{% if r.cook_minutes %}{{ r.cook_minutes }} min{% endif %}</td>
+      <td class="num text-center" >{{ r.total_minutes_fmt }}</td>
+      {% if not station_hides_prices %}
+      <td class="num">{% if r.batch_cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(r.batch_cost_gs) }}{% endif %}</td>
+      <td class="num">{% if r.unit_cost_gs is none %}<em class="muted">—</em>{% else %}{{ m.gs(r.unit_cost_gs) }}{% endif %}</td>
+      <td class="num">{% if r.batch_cost_gs is none %}<span class="badge badge-warn">⚠️ sin costo</span>{% else %}{{ m.gs(r.batch_cost_gs) }}{% endif %}</td>
+      {% endif %}
+      <td class="actions">
+        <a href="/recetas/{{ r.id }}/editar" class="btn btn-sm btn-ghost">
+          <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+          Editar
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+</div>
+{% if pagination and pagination.total_count > 0 %}
+<div class="table-info">
+  Mostrando <strong>{{ page_start }}–{{ page_end }}</strong>
+  de <strong>{{ pagination.total_count }}</strong> recetas
+  (página {{ pagination.page }} de {{ pagination.total_pages }})
+</div>
+{% if pagination.total_pages > 1 %}
+<nav class="pagination" aria-label="Paginación de recetas">
+  {% if pagination.page > 1 %}
+  <a href="?page={{ pagination.page - 1 }}&amp;q={{ q }}&amp;sort={{ sort }}&amp;dir={{ dir }}"
+     class="btn btn-ghost">← Anterior</a>
+  {% endif %}
+  {% if pagination.page < pagination.total_pages %}
+  <a href="?page={{ pagination.page + 1 }}&amp;q={{ q }}&amp;sort={{ sort }}&amp;dir={{ dir }}"
+     class="btn btn-ghost">Siguiente →</a>
+  {% endif %}
+</nav>
+{% endif %}
+{% endif %}
+{% else %}
+{{ ui.empty_state(title="Todavía no cargaste recetas", icon="icon-recipe", hint="Las recetas calculan el costo real de cada producto y permiten ver el margen.", cta_href="/recetas/nueva", cta_label="Agregá la primera") }}
+{% endif %}
+
+{# --- Recipe photo modal (US 1.1: image behind button → modal) --- #}
+<dialog id="recipe-photo-modal" class="modal" aria-labelledby="recipe-photo-title" aria-modal="true">
+  <div class="modal-dialog" role="document" style="max-width:min(90vw, 720px);">
+    <div class="modal-header">
+      <h2 id="recipe-photo-title" class="modal-title">Foto</h2>
+      <button type="button" class="btn-ghost btn-icon" id="recipe-photo-close" aria-label="Cerrar">
+        <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+      </button>
+    </div>
+    <div class="modal-body text-center" >
+      <img id="recipe-photo-img" src="" alt="" style="max-width:100%;height:auto;border-radius:var(--radius);">
+    </div>
+  </div>
+</dialog>
+
+<script>
+(function() {
+  var modal = document.getElementById('recipe-photo-modal');
+  if (!modal) return;
+  var img = document.getElementById('recipe-photo-img');
+  var title = document.getElementById('recipe-photo-title');
+  var closeBtn = document.getElementById('recipe-photo-close');
+
+  document.querySelectorAll('[data-recipe-photo]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var src = btn.getAttribute('data-src');
+      var name = btn.getAttribute('data-name') || '';
+      if (!src) return;
+      img.src = src;
+      img.alt = name;
+      title.textContent = name;
+      modal.showModal();
+    });
+  });
+
+  closeBtn.addEventListener('click', function() { modal.close(); });
+  modal.addEventListener('click', function(e) {
+    // Click outside the dialog content closes it (native <dialog> backdrop)
+    if (e.target === modal) modal.close();
+  });
+  modal.addEventListener('close', function() {
+    // Free memory + reset src so we don't briefly show stale image next open
+    img.src = '';
+  });
+})();
+</script>
+
+{% endblock %}

@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% import "_components/tags.html" as t %}
+{% import "_components/atoms.html" as ui %}
+
+{% block title %}Productos — {{ action }}{% endblock %}
+
+{% block content %}
+{{ ui.page_header(
+     title=action ~ ' producto',
+     desc='Datos básicos, receta vinculada, imagen y disponibilidad.',
+     crumbs=[('Productos', '/productos'), (action, None)]
+   ) }}
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
+{% if request.query_params.get('recipe_id') %}
+  <div id="prefill-banner" style="margin-bottom: var(--space-4);">
+    {{ ui.alert_row(
+         'warn',
+         'Pre-llenado desde receta — revisá que el nombre no exista ya en Productos.'
+       ) }}
+  </div>
+{% endif %}
+
+<form method="post" action="/productos{{ '/nuevo' if mode == 'new' else '/' ~ product.id ~ '/editar' }}"
+      enctype="multipart/form-data" id="product-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="form-row">
+    <label for="name">Nombre</label>
+    <input type="text" id="name" name="name" required maxlength="120"
+           value="{{ request.query_params.get('name', product.name if product else '') }}"
+           placeholder="Ej: Muffin de chocolate"
+           hx-post="/api/validate/product" hx-trigger="blur" hx-include="closest form"
+           onhtmx:after-request="handleProductValidation(this, event)">
+    <span class="field-error" id="name-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
+  </div>
+
+  <div class="form-row">
+    <label for="sku">SKU / Código de barras</label>
+    <div class="d-flex" style="display:flex;gap:var(--space-2);align-items:center;">
+      <input type="text" id="sku" name="sku" maxlength="32"
+             value="{{ product.sku if product and product.sku else '' }}"
+             placeholder="Se genera automáticamente al escribir el nombre"
+             style="flex:1;">
+      <button type="button" class="btn btn-sm btn-ghost" id="sku-regen" title="Regenerar SKU">
+        <svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>
+      </button>
+    </div>
+    <small class="muted">Formato: <code>PREFIX-NNN</code> basado en el nombre. Editable.</small>
+  </div>
+
+  {% set product_cats = t.render_category_options(product_categories) %}
+  {% set product_tags = t.render_tag_pills(dietary_tags) %}
+
+  {{ t.category_picker(
+       name='category',
+       current_value=request.query_params.get('category', product.category if product else ''),
+       options_markup=t.render_category_options(product_categories),
+       allow_custom=True,
+       label='Categoría',
+       help='Elegí una de las categorías predefinidas o escribí una nueva.'
+     ) }}
+
+  {{ t.tag_picker(
+       name='tags',
+       current_value=request.query_params.get('tags', product.tags if product else ''),
+       options_markup=t.render_tag_pills(dietary_tags),
+       allow_custom=True,
+       label='Etiquetas',
+       help='Tocá una etiqueta para activarla. Útil para búsquedas y filtros rápidos.'
+     ) }}
+
+  <div class="form-row">
+    <label for="portion_label">Etiqueta de porción</label>
+    <input type="text" id="portion_label" name="portion_label" maxlength="60" required
+           value="{{ request.query_params.get('portion_label', product.portion_label if product else '1 unidad') }}">
+    <small class="muted">Se rellena automáticamente si elegís una receta.</small>
+  </div>
+
+  <div class="form-row">
+    <label for="sale_price_gs">Precio de venta (Gs.)</label>
+    <div class="currency-input-wrap">
+      <input type="number" id="sale_price_gs" name="sale_price_gs" required step="1" min="0" inputmode="numeric" class="currency-input"
+             value="{{ request.query_params.get('sale_price_gs', product.sale_price_gs if product else '0') }}"
+             placeholder="8000"
+             hx-post="/api/validate/product" hx-trigger="blur" hx-include="closest form"
+             onhtmx:after-request="handleProductValidation(this, event)">
+    </div>
+    <span class="field-error" id="sale_price_gs-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
+    <small class="muted" id="price-suggestion"></small>
+  </div>
+
+  <div class="form-row">
+    <label for="mayorista_price_gs">Precio mayorista (Gs.)</label>
+    <div class="currency-input-wrap">
+      <input type="number" id="mayorista_price_gs" name="mayorista_price_gs" step="0.01" min="0" inputmode="numeric" class="currency-input"
+             value="{{ product.mayorista_price_gs if product and product.mayorista_price_gs is not none else '' }}"
+             placeholder="Mayorista (opcional)">
+    </div>
+    <small class="muted">Precio B2B para ventas por cantidad. Dejá en blanco si no aplica.</small>
+  </div>
+
+  <div class="form-row">
+    <label for="iva_rate">IVA%</label>
+    <select id="iva_rate" name="iva_rate" class="form-control" style="max-width:200px;">
+      <option value="10" {% if (product and product.iva_rate=='10') or (not product) %}selected{% endif %}>10%</option>
+      <option value="5" {% if product and product.iva_rate=='5' %}selected{% endif %}>5%</option>
+      <option value="0" {% if product and product.iva_rate=='0' %}selected{% endif %}>0%</option>
+      <option value="exento" {% if product and product.iva_rate=='exento' %}selected{% endif %}>Exento</option>
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label for="recipe_id_combo">Receta</label>
+    {{ ui.combo_field(
+      name='recipe_id',
+      value=request.query_params.get('recipe_id', ''),
+      placeholder='— Sin receta —',
+      endpoint='/recetas/api/search/',
+      value_field='id',
+      label_field='name'
+    ) }}
+    <small class="muted">Sin receta: las ventas se registran pero no bajan stock ni calculan margen. Al elegir una receta, se sugieren precio/porción/tags.</small>
+  </div>
+
+  {# --- Image upload + URL --- #}
+  <div class="form-row">
+    <label>Imagen del producto</label>
+
+    <div class="image-upload-area" id="image-upload-area">
+      <div class="image-preview" id="image-preview">
+        {% if product and product.image_url %}
+          <img src="{{ product.image_url }}" alt="Imagen del producto" id="image-preview-img">
+          <button type="button" class="btn btn-sm btn-danger-ghost" id="image-remove">Quitar imagen</button>
+        {% else %}
+          <div class="image-empty" id="image-empty">
+            <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-image"/></svg>
+            <span>Sin imagen</span>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="image-controls">
+        <label class="btn btn-secondary image-upload-btn">
+          <svg class="icon" aria-hidden="true"><use href="#icon-upload"/></svg>
+          Subir imagen
+          <input type="file" id="image-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+        </label>
+        <span class="muted">o pegá una URL:</span>
+        <input type="url" id="image_url" name="image_url"
+               value="{{ product.image_url if product and product.image_url else '' }}"
+               placeholder="https://..."
+               class="image-url-input">
+      </div>
+      <small class="muted">PNG, JPG, WebP o GIF. Máximo 5 MB.</small>
+    </div>
+  </div>
+
+  <div class="form-row form-row-toggle">
+    <label>
+      <input type="checkbox" id="is_available" name="is_available"
+             {% if (product and product.is_available) or (not product) %}checked{% endif %}>
+      Disponible para venta
+    </label>
+    <small class="muted">Desactivá esto para ocultar el producto del POS sin eliminarlo.</small>
+  </div>
+
+  <div class="form-row">
+    <label for="notes">Notas</label>
+    <textarea id="notes" name="notes" rows="2">{{ product.notes if product and product.notes else '' }}</textarea>
+  </div>
+
+  <details class="rspa-section mb-6" >
+    <summary style="cursor:pointer; font-weight:600; user-select:none;">
+      Certificación / RSPA
+    </summary>
+    <div style="padding: 0.75rem 0 0.25rem;">
+      <div class="form-row form-row-toggle">
+        <label>
+          <input type="checkbox" id="requires_rspa" name="requires_rspa"
+                 {% if product and product.requires_rspa %}checked{% endif %}
+                 onclick="document.getElementById('rspa-fields').style.display = this.checked ? 'block' : 'none'">
+          Requiere RSPA
+        </label>
+      </div>
+      <div id="rspa-fields" style="display:{% if product and product.requires_rspa %}block{% else %}none{% endif %};">
+        <div class="form-row">
+          <label for="rspa_number">Nº Registro RSPA</label>
+          <input type="text" id="rspa_number" name="rspa_number" maxlength="30"
+                 value="{{ product.rspa_number if product and product.rspa_number else '' }}">
+        </div>
+        <div class="form-row">
+          <label for="rspa_expiry">Vencimiento RSPA</label>
+          <!-- lint_tier1-disable-next-line — regulatory date (RSPA expiry) -->
+          <input type="date" id="rspa_expiry" name="rspa_expiry"
+                 value="{{ product.rspa_expiry if product and product.rspa_expiry else '' }}">
+        </div>
+      </div>
+    </div>
+  </details>
+
+  {# C2 — Tablet-menu visibility. Operators opt each product in/out
+     of the public /m/{slug} menu; the slug is the URL tail. #}
+  <details class="tablet-section mb-6" >
+    <summary style="cursor:pointer; font-weight:600; user-select:none;">
+      Menú tablet (C2)
+    </summary>
+    <div style="padding: 0.75rem 0 0.25rem;">
+      <div class="form-row form-row-toggle">
+        <label>
+          <input type="checkbox" id="tablet_visible" name="tablet_visible"
+                 {% if (product is none) or (product and product.tablet_visible) %}checked{% endif %}>
+          Visible en el menú público (tablet)
+        </label>
+      </div>
+      <div class="form-row">
+        <label for="tablet_slug">Slug URL <small style="color:var(--color-text-muted);">(opcional, se genera del nombre)</small></label>
+        <input type="text" id="tablet_slug" name="tablet_slug" maxlength="60"
+               pattern="[a-z0-9]+(-[a-z0-9]+)*"
+               placeholder="ej: chipa-guazu"
+               value="{{ product.tablet_slug if product and product.tablet_slug else '' }}">
+        <small style="color:var(--color-text-muted); font-size:var(--text-xs);">
+          URL del menú: <code>/m/<span id="tablet-slug-preview">{{ product.tablet_slug or '' }}</span></code>
+        </small>
+      </div>
+    </div>
+  </details>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="/productos" class="btn">Cancelar</a>
+  </div>
+</form>
+
+<script>
+// =====================================================================
+// SMART FORM LOGIC: SKU auto-gen, recipe → product pre-fill, image upload
+// =====================================================================
+(function() {
+  'use strict';
+
+  // ---------- SKU auto-generation ----------
+  // Format: PREFIX-NNN where PREFIX is first 3 chars of name slug,
+  // NNN is a sequential number per prefix.
+  // For now we use a hash-derived 3-digit suffix so re-generating is
+  // stable for the same name (won't change on every keystroke).
+  var skuCounter = {}; // prefix -> highest used number
+  var skuManuallyEdited = false;
+  var nameEl = document.getElementById('name');
+  var skuEl = document.getElementById('sku');
+  var skuRegenEl = document.getElementById('sku-regen');
+
+  function slugify(s) {
+    return (s || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+      .replace(/[^a-z0-9]+/g, '')
+      .slice(0, 3) || 'PRD';
+  }
+  function hashCode(s) {
+    var h = 0;
+    for (var i = 0; i < s.length; i++) {
+      h = ((h << 5) - h) + s.charCodeAt(i);
+      h |= 0;
+    }
+    return Math.abs(h);
+  }
+  function generateSku(name) {
+    var prefix = slugify(name);
+    var num = ((hashCode(name || prefix) % 900) + 100); // 100..999
+    // Avoid collisions: if we've seen this prefix before, increment
+    if (skuCounter[prefix] !== undefined) {
+      skuCounter[prefix] = (skuCounter[prefix] + 1) % 900 + 100;
+      num = skuCounter[prefix];
+    } else {
+      skuCounter[prefix] = num;
+    }
+    return prefix + '-' + num;
+  }
+
+  if (nameEl && skuEl) {
+    // Track if user has manually edited SKU
+    skuEl.addEventListener('input', function() {
+      skuManuallyEdited = skuEl.value !== '';
+    });
+    // Auto-generate SKU on name change (only if not manually edited)
+    nameEl.addEventListener('input', function() {
+      if (!skuManuallyEdited || !skuEl.value) {
+        skuEl.value = generateSku(nameEl.value);
+        skuEl.placeholder = 'Auto-generado';
+      }
+    });
+    // Trigger initial generation if name has a value (e.g. pre-filled from recipe)
+    if (nameEl.value && !skuEl.value) {
+      skuEl.value = generateSku(nameEl.value);
+    }
+    // Manual regen button
+    if (skuRegenEl) {
+      skuRegenEl.addEventListener('click', function() {
+        skuManuallyEdited = false;
+        skuEl.value = generateSku(nameEl.value);
+      });
+    }
+  }
+
+  // ---------- C2: tablet-slug auto-suggest ----------
+  // Mirrors the backend `app.rms.validation.slugify` so the URL preview
+  // updates live as the operator types the product name. Manual edits
+  // freeze the auto-suggest until the user clears the field.
+  var slugEl = document.getElementById('tablet_slug');
+  var slugPreviewEl = document.getElementById('tablet-slug-preview');
+  var slugManuallyEdited = false;
+
+  function tabletSlugify(s) {
+    return (s || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'item';
+  }
+
+  if (slugEl && nameEl) {
+    slugEl.addEventListener('input', function() {
+      slugManuallyEdited = slugEl.value !== '';
+      if (slugPreviewEl) slugPreviewEl.textContent = slugEl.value || tabletSlugify(nameEl.value);
+    });
+    nameEl.addEventListener('input', function() {
+      // Only auto-fill the slug preview if the operator hasn't typed one.
+      // We don't overwrite their input — we just refresh the preview.
+      if (!slugManuallyEdited && slugPreviewEl) {
+        slugPreviewEl.textContent = tabletSlugify(nameEl.value);
+      }
+    });
+    // On load, if the slug field is empty, set the preview to whatever
+    // the auto-slug would be so the URL hint isn't blank.
+    if (!slugEl.value && slugPreviewEl) {
+      slugPreviewEl.textContent = tabletSlugify(nameEl.value);
+    }
+  }
+
+  // ---------- Recipe → product pre-fill ----------
+  // When user picks a recipe, fetch its full data and pre-fill:
+  //   - category (from recipe.family)
+  //   - tags (from recipe.dietary_tags)
+  //   - portion_label (1 yield_unit)
+  //   - sale_price_gs (estimated cost × 3, rounded)
+  var recipeCombo = document.querySelector('.ui-combo[data-source="/recetas/api/search"]');
+  var recipeIdEl = document.getElementById('recipe_id');
+  if (recipeCombo && recipeIdEl) {
+    // The combo's hidden input is our recipe_id_el
+    recipeIdEl.addEventListener('change', function() {
+      onRecipeChange(recipeIdEl.value);
+    });
+  }
+
+  function onRecipeChange(recipeId) {
+    if (!recipeId) {
+      var banner = document.getElementById('prefill-banner');
+      if (banner) banner.style.display = 'none';
+      return;
+    }
+    // Fetch recipe full details to compute suggested price
+    fetch('/recetas/api/search?q=')  // get all
+      .then(function(r) { return r.json(); })
+      .then(function(j) {
+        var recipe = j.results.find(function(x) { return x.id === parseInt(recipeId, 10); });
+        if (!recipe) return;
+        // Auto-fill category from recipe.family (best-effort match)
+        if (recipe.family && !document.querySelector('input[name="category"]').value) {
+          document.querySelector('input[name="category_display"]').value = recipe.family;
+          document.querySelector('input[name="category"]').value = recipe.family;
+        }
+        // Auto-fill portion_label
+        if (recipe.yield_qty && recipe.yield_unit) {
+          document.getElementById('portion_label').value =
+            '1 ' + recipe.yield_unit;
+        }
+        // Fetch full recipe to get unit cost
+        return fetch('/recetas/' + recipeId);
+      })
+      .then(function(r) { return r && r.text ? r.text : ''; })
+      .then(function(html) {
+        // Extract unit cost from the recipe detail page
+        if (!html) return;
+        var m = html.match(/Costo \/ porción[\s\S]{0,200}?>([\d.,]+)/);
+        if (m) {
+          var cost = parseInt(m[1].replace(/\./g, '').replace(',', ''), 10);
+          if (cost > 0) {
+            // Fetch pricing markup config from API (configurable in /settings/pricing)
+            fetch('/api/settings/pricing-markup').then(function(r){return r.json()}).then(function(cfg){
+                var mult = cfg.multiplier || 3.0;
+                var rnd = cfg.round_to_gs || 1000;
+                var suggested = Math.ceil(cost * mult / rnd) * rnd;
+                salePriceInput.value = suggested;
+                salePriceInput.placeholder = '0 (sugerido: ' + suggested.toLocaleString('es-PY') + ')';
+            }).catch(function(){
+                // Fallback to 3x if API fails
+                var suggested = Math.ceil(cost * 3 / 1000) * 1000;
+                salePriceInput.value = suggested;
+            });
+            var priceEl = document.getElementById('sale_price_gs');
+            if (!priceEl.value || parseInt(priceEl.value, 10) === 0) {
+              priceEl.value = suggested;
+            }
+            var ps = document.getElementById('price-suggestion');
+            if (ps) {
+              ps.textContent = 'Sugerido: ' + suggested.toLocaleString() + ' Gs. (costo ' +
+                cost.toLocaleString() + ' × 3). Editable.';
+            }
+          }
+        }
+      })
+      .catch(function() { /* silent */ });
+  }
+
+  // If recipe_id was pre-filled in URL, run the auto-fill on page load
+  if (recipeIdEl && recipeIdEl.value) {
+    // Defer to let combo initialize first
+    setTimeout(function() { onRecipeChange(recipeIdEl.value); }, 200);
+  }
+
+  // ---------- Image upload + preview ----------
+  var fileInput = document.getElementById('image-file');
+  var urlInput = document.getElementById('image_url');
+  var preview = document.getElementById('image-preview');
+
+  function renderImage(url) {
+    if (!url) {
+      preview.innerHTML =
+        '<div class="image-empty" id="image-empty">' +
+        '<svg class="icon icon-lg" aria-hidden="true"><use href="#icon-image"/></svg>' +
+        '<span>Sin imagen</span></div>';
+      return;
+    }
+    preview.innerHTML =
+      '<img src="' + url + '" alt="Imagen del producto" id="image-preview-img">' +
+      '<button type="button" class="btn btn-sm btn-danger-ghost" id="image-remove">Quitar imagen</button>';
+    wireRemove();
+  }
+  function wireRemove() {
+    var btn = document.getElementById('image-remove');
+    if (btn) btn.addEventListener('click', function() {
+      urlInput.value = '';
+      renderImage('');
+    });
+  }
+  wireRemove();
+
+  if (fileInput && preview) {
+    fileInput.addEventListener('change', function() {
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Imagen muy grande. Máximo 5 MB.');
+        fileInput.value = '';
+        return;
+      }
+      var data = new FormData();
+      data.append('file', file);
+      var reader = new FileReader();
+      reader.onload = function(e) { renderImage(e.target.result); };
+      reader.readAsDataURL(file);
+
+      fetch('/productos/upload-image', {
+        method: 'POST',
+        body: data,
+        credentials: 'same-origin'
+      })
+      .then(function(r) {
+        if (!r.ok) {
+          return r.json().then(function(j) { throw new Error(j.detail || 'Upload failed'); });
+        }
+        return r.json();
+      })
+      .then(function(j) {
+        urlInput.value = j.url;
+        renderImage(j.url);
+      })
+      .catch(function(err) {
+        alert('Error subiendo imagen: ' + err.message);
+        renderImage(urlInput.value);
+      });
+    });
+
+    urlInput.addEventListener('input', function() {
+      var url = urlInput.value.trim();
+      if (url) renderImage(url);
+    });
+  }
+})();
+
+// ── Unsaved changes warning ──
+(function() {
+  var form = document.getElementById('product-form');
+  if (!form) return;
+  var formDirty = false;
+  form.querySelectorAll('input, select, textarea').forEach(function(el) {
+    el.addEventListener('input', function() { formDirty = true; });
+  });
+  window.addEventListener('beforeunload', function(e) {
+    if (formDirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+  form.addEventListener('submit', function() { formDirty = false; });
+})();
+
+// ── Inline validation handler ──
+function handleProductValidation(inputEl, event) {
+  var response = event.detail.xhr.responseText;
+  try {
+    var data = JSON.parse(response);
+  } catch(e) { return; }
+  var errors = data.errors || {};
+  var fieldName = inputEl.name;
+  var errorEl = document.getElementById(fieldName + '-error');
+  if (errorEl) {
+    errorEl.textContent = errors[fieldName] || '';
+    errorEl.style.display = errors[fieldName] ? '' : 'none';
+  }
+}
+</script>
+
+{% endblock %}

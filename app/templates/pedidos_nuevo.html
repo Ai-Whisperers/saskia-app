@@ -1,0 +1,670 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% import "_components/atoms.html" as ui %}
+
+{% block title %}Nuevo pedido{% endblock %}
+
+{% block content %}
+{{ ui.page_header(
+     title='Nuevo pedido',
+     desc='Creá un pedido nuevo. Empezá tipeando el nombre del cliente.',
+     crumbs=[('Pedidos', '/pedidos'), ('Nuevo', None)]
+   ) }}
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
+<form method="post" action="/pedidos/nuevo" id="pedido-form" novalidate>
+  {# T-2026-10-01: idempotency key generated client-side on first
+     submit, then locked in. Backend deduplicates POSTs that arrive
+     within 5s with the same key. UUID is generated lazily on the
+     first submit attempt so a stale tab doesn't leak. #}
+  <input type="hidden" name="idempotency_key" id="idempotency-key-input" value="">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {# ── Cliente (combobox) ─────────────────────────────────────────
+     Single field that:
+     - type-ahead filters existing customers (live API search)
+     - selecting a result sets the hidden customer_id AND autofills phone
+     - typing a free-form name creates a "new" customer at submit time
+     - works without JS (POSTs both customer_name + customer_id)
+  #}
+  <div class="form-row">
+    <label for="customer_picker_input">Cliente</label>
+    {{ ui.combo_field(
+      name='customer_id',
+      placeholder='Buscá por nombre o teléfono — escribí 2+ letras',
+      endpoint='/clientes/api/search/',
+      value_field='id',
+      label_field='name',
+      value=(preset_customer.id if preset_customer else none),
+      display=(preset_customer.name if preset_customer else none)
+    ) }}
+    <small class="hint">
+      Escribí 2+ letras para buscar clientes existentes.
+      Si no aparece, simplemente seguí escribiendo — se crea al guardar.
+    </small>
+
+    {# Tier 6.4 (2026-10-01): show customer's tier inline. Hidden by
+       default; pedido-prefill.js reveals it once a customer is
+       picked (the JS reads `customer_prefill.tier` from the JSON
+       script block at the bottom of the template). #}
+    <span class="d-none" id="customer-tier-badge" data-tier=""
+          style="display:none;margin-top:6px;padding:2px 8px;border-radius:4px;font-size:var(--text-xs);font-weight:600;">
+      <span class="tier-emoji"></span> <span class="tier-name"></span>
+    </span>
+
+    {# Tier 6.4 (2026-10-01): active suscripción quick-pick. Hidden by
+       default; revealed when prefill.active_subscriptions is non-empty.
+       Clicking "Aplicar" copies product_summary into the notes field. #}
+    <div class="d-none" id="customer-subscription-picker" data-suscripciones=""
+         style="display:none;margin-top:8px;padding:8px 10px;background:#f3e5f5;border:1px solid #ce93d8;border-radius:6px;font-size:var(--text-sm);">
+      <strong>📦 Suscripciones activas:</strong>
+      <ul class="sub-list" style="list-style:none;padding-left:0;margin:6px 0 0 0;"></ul>
+    </div>
+  </div>
+
+  {# ── Crear cliente nuevo (colapsado) ─────────────────────────
+     El combo de arriba ya soporta "tipear nombre libre → al guardar
+     crea el cliente", pero para pedidos donde el operador quiere guardar
+     teléfono / RUC / notas AHORA, este panel crea el cliente en
+     su lugar. Al éxito, selecciona el cliente nuevo en el combo.
+  #}
+  <div class="form-row">
+    <details id="pedido-new-customer-panel" class="customer-picker-new-panel">
+      <summary style="cursor:pointer;font-size:var(--text-sm);color:var(--color-accent);
+                       display:inline-flex;align-items:center;gap:var(--space-1);
+                       padding:var(--space-2) 0;">
+        <svg class="icon" aria-hidden="true" style="width:1em;height:1em">
+          <use href="#icon-plus"/>
+        </svg>
+        Crear cliente nuevo con teléfono / RUC / notas
+      </summary>
+      <div id="pedido-new-customer-error" class="customer-picker-error" hidden></div>
+      <div class="grid grid-2 mt-3" >
+        <div class="form-row mb-2" >
+          <label for="pedido-new-customer-name">Nombre *</label>
+          <input type="text" id="pedido-new-customer-name" name="_new_customer_name"
+                 autocomplete="off" placeholder="Ej: María González">
+        </div>
+        <div class="form-row mb-2" >
+          <label for="pedido-new-customer-phone">Teléfono</label>
+          <input type="tel" id="pedido-new-customer-phone" name="_new_customer_phone"
+                 autocomplete="off" placeholder="+595 9XX XXXXX">
+        </div>
+      </div>
+      <div class="grid grid-2">
+        <div class="form-row mb-2" >
+          <label for="pedido-new-customer-cedula">RUC / CI (para factura)</label>
+          <input type="text" id="pedido-new-customer-cedula" name="_new_customer_cedula"
+                 autocomplete="off" placeholder="80012345-6">
+        </div>
+        <div class="form-row mb-2" >
+          <label for="pedido-new-customer-email">Email</label>
+          <input type="email" id="pedido-new-customer-email" name="_new_customer_email"
+                 autocomplete="off" placeholder="cliente@correo.com">
+        </div>
+      </div>
+      <div class="form-row mb-2" >
+        <label for="pedido-new-customer-notes">Notas internas (alergias, preferencias…)</label>
+        <textarea id="pedido-new-customer-notes" name="_new_customer_notes" rows="2"
+                  placeholder="Sin TACC, retira siempre antes de las 17h, etc."></textarea>
+      </div>
+      <div class="form-actions mt-3" >
+        <button type="button" id="pedido-new-customer-cancel" class="btn">Cancelar</button>
+        <button type="button" id="pedido-new-customer-create" class="btn btn-primary">
+          <svg class="icon" aria-hidden="true" style="width:1em;height:1em">
+            <use href="#icon-check"/>
+          </svg>
+          Crear y seleccionar
+        </button>
+      </div>
+    </details>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+      var panel  = document.getElementById('pedido-new-customer-panel');
+      var btn    = document.getElementById('pedido-new-customer-create');
+      var cancel = document.getElementById('pedido-new-customer-cancel');
+      var errBox = document.getElementById('pedido-new-customer-error');
+      if (!panel || !btn) return;
+
+      function showError(msg) {
+        errBox.textContent = msg;
+        errBox.hidden = false;
+      }
+      function clearError() {
+        errBox.textContent = '';
+        errBox.hidden = true;
+      }
+      function escapeHtml(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+
+      cancel && cancel.addEventListener('click', function () { panel.open = false; clearError(); });
+
+      btn.addEventListener('click', function () {
+        clearError();
+        var nameEl  = document.getElementById('pedido-new-customer-name');
+        var phoneEl = document.getElementById('pedido-new-customer-phone');
+        var cedEl   = document.getElementById('pedido-new-customer-cedula');
+        var emailEl = document.getElementById('pedido-new-customer-email');
+        var notesEl = document.getElementById('pedido-new-customer-notes');
+        var name = (nameEl.value || '').trim();
+        if (!name) {
+          showError('El nombre es obligatorio.');
+          nameEl.focus();
+          return;
+        }
+        btn.disabled = true;
+        var oldLabel = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner"></span> Creando…';
+
+        var body = new URLSearchParams();
+        body.set('name', name);
+        if (phoneEl.value) body.set('phone', phoneEl.value.trim());
+        if (cedEl.value)   body.set('cedula', cedEl.value.trim());
+        if (emailEl.value) body.set('email', emailEl.value.trim());
+        if (notesEl.value) body.set('notes', notesEl.value.trim());
+
+        fetch('/clientes/api/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body.toString(),
+        })
+          .then(function (r) {
+            if (!r.ok) {
+              return r.json().then(function (j) {
+                throw new Error(j.detail || ('Error ' + r.status));
+              }).catch(function () { throw new Error('Error ' + r.status); });
+            }
+            return r.json();
+          })
+          .then(function (data) {
+            var cust = (data && data.customer) || {};
+            var cid  = cust.id || data.id;
+            if (!cid) throw new Error('Respuesta inesperada del servidor.');
+
+            // 1) Mismos handlers que usa el picker de búsqueda, así se
+            //    autorrellenan teléfono / RUC / factura igual que si
+            //    el operador lo hubiera elegido del dropdown.
+            //
+            // El global window.customerPickHandlers a veces no se inicializa
+            // en pedido-combos.js (pre-existing bug), así que siempre
+            // hacemos el autofill local como respaldo.
+            var pickedPhone = (cust.phone || phoneEl.value.trim());
+            var pickedCed   = (cust.cedula || cedEl.value.trim());
+            var pickedName  = (cust.name || name);
+            var phoneEl2 = document.getElementById('customer_phone');
+            if (phoneEl2 && pickedPhone && !phoneEl2.value) phoneEl2.value = pickedPhone;
+            var rucEl = document.getElementById('invoice_ruc');
+            if (rucEl && (cust.invoice_ruc || pickedCed) && !rucEl.value) rucEl.value = (cust.invoice_ruc || pickedCed);
+            var invNameEl = document.getElementById('invoice_name');
+            if (invNameEl && (cust.invoice_name || pickedName) && !invNameEl.value) invNameEl.value = (cust.invoice_name || pickedName);
+
+            if (window.customerPickHandlers && typeof window.customerPickHandlers.firePicked === 'function') {
+              window.customerPickHandlers.firePicked({
+                id:    cid,
+                name:  pickedName,
+                phone: pickedPhone,
+                cedula:        pickedCed,
+                invoice_ruc:   cust.invoice_ruc || pickedCed,
+                invoice_name:  cust.invoice_name || pickedName,
+              });
+            }
+
+            // 2) Actualizar el hint visible
+            var hint = document.getElementById('customer_picked_hint');
+            if (hint) {
+              hint.dataset.empty = 'false';
+              hint.innerHTML =
+                '<strong>' + escapeHtml(cust.name || name) + '</strong>' +
+                ' <small style="color:var(--color-text-muted);">#' + cid + '</small>' +
+                (cust.phone ? '<small style="color:var(--color-text-muted);">· ' +
+                  escapeHtml(cust.phone) + '</small>' : '') +
+                ' <small style="color:var(--color-success);font-weight:600;">· nuevo</small>';
+            }
+
+            // 3) Sincronizar el combo visible
+            var combo = document.querySelector('ui-combo[name="customer_id"]');
+            if (combo && typeof combo.setValue === 'function') {
+              combo.setValue(cid, cust.name || name);
+            }
+
+            // 4) Limpiar y cerrar el panel
+            nameEl.value = ''; phoneEl.value = ''; cedEl.value = '';
+            emailEl.value = ''; notesEl.value = '';
+            panel.open = false;
+          })
+          .catch(function (err) {
+            showError(err && err.message ? err.message : 'No se pudo crear el cliente.');
+          })
+          .finally(function () {
+            btn.disabled = false;
+            btn.innerHTML = oldLabel;
+          });
+      });
+    })();
+  </script>
+
+  <div class="grid grid-2">
+    <div class="form-row">
+      <label for="customer_phone">Teléfono (opcional)</label>
+      <input type="tel"
+             id="customer_phone"
+             name="customer_phone"
+             class="customer-combobox-phone"
+             placeholder="+595 9XX XXXXX"
+             autocomplete="off"
+             value="{{ preset_customer.phone or '' if preset_customer else '' }}">
+    </div>
+    <div class="form-row">
+      <label for="customer_picked_hint">Cliente seleccionado</label>
+      <div id="customer_picked_hint" class="customer-picked-hint" data-empty="{{ 'false' if preset_customer else 'true' }}">
+        {% if preset_customer %}
+          <strong>{{ preset_customer.name }}</strong>
+          <small style="color: var(--color-text-muted);">#{{ preset_customer.id }}</small>
+          {% if preset_customer.phone %}<small style="color: var(--color-text-muted);">· {{ preset_customer.phone }}</small>{% endif %}
+          {% if preset_customer.email %}<small style="color: var(--color-text-muted);">· {{ preset_customer.email }}</small>{% endif %}
+        {% else %}
+          <em class="muted">Ninguno — se crea al guardar</em>
+        {% endif %}
+      </div>
+
+      {# P3 dietary: red alert when the picked customer has restrictions #}
+      <div id="dietary-alert" role="alert" hidden
+           style="border:2px solid var(--color-danger,#d33);background:rgba(220,50,50,.08);
+                  border-radius:8px;padding:var(--space-3);margin:var(--space-2) 0;">
+        <strong style="color:var(--color-danger,#d33);">⚠ Restricción alimentaria</strong>
+        <div class="mt-1" id="dietary-alert-body" ></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="form-row">
+      <label for="promised_date">Fecha prometida</label>
+      <ui-date id="promised_date" name="promised_date" value="{{ default_promised_date }}"></ui-date>
+    </div>
+    <div class="form-row">
+      <label for="promised_time">Hora (opcional)</label>
+      <input type="time" id="promised_time" name="promised_time">
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="form-row">
+      <label for="channel">Canal</label>
+      {% set _channels_src = [] %}
+      {% for ch in channels %}
+        {% set _ = _channels_src.append({'label': ch|capitalize, 'value': ch}) %}
+      {% endfor %}
+      {{ ui.combo_field(
+        name='channel',
+        placeholder='Seleccioná canal...',
+        src=_channels_src
+      ) }}
+    </div>
+    <div class="form-row">
+      <label for="payment_intent">Forma de pago esperada</label>
+      {% set _pms_src = [] %}
+      {% for pm in payment_methods %}
+        {% set _ = _pms_src.append({'label': pm|capitalize, 'value': pm}) %}
+      {% endfor %}
+      {{ ui.combo_field(
+        name='payment_intent',
+        placeholder='Seleccioná forma de pago...',
+        src=_pms_src
+      ) }}
+    </div>
+  </div>
+
+  {% if delivery_zones %}
+  <div class="form-row mt-2">
+    <label for="delivery_zone_combo">Zona de delivery</label>
+    {{ ui.combo_field(
+      name='delivery_zone_id',
+      placeholder='Pickup (gratis) — seleccioná zona…',
+      endpoint='/delivery-zones/api/',
+      value_field='id',
+      label_field='display'
+    ) }}
+    <small class="muted">
+      Cada zona tiene un costo de delivery y un pedido mínimo. Si
+      elegís zona, el sistema valida automáticamente.
+    </small>
+    {# T-2026-10-01: inline preview of min_order_gs vs current cart total.
+       Rendered hidden; pedido-combos.js reveals + updates it on zone change. #}
+    <div class="d-none" id="delivery-min-preview" data-min-gs="0"
+         style="display:none;margin-top:6px;padding:6px 10px;border-radius:6px;
+                font-size:var(--text-sm);">
+      <span id="delivery-min-preview-text"></span>
+    </div>
+    {# Server-side zones data so JS can render the preview without an extra
+       fetch (the combo's endpoint isn't implemented yet — pre-existing). #}
+    <script id="delivery-zones-data" type="application/json">
+      [
+        {% for z in delivery_zones %}
+        {
+          "id": {{ z.id }},
+          "name": {{ z.name|tojson }},
+          "min_order_gs": {{ z.min_order_gs or 0 }},
+          "delivery_fee_gs": {{ z.delivery_cost_gs or 0 }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ]
+    </script>
+  </div>
+  {% endif %}
+
+  {# ── P3 + Phase 13 delivery: address picker + structured form + ventana
+         preferida + multi-profile facturación ─────────────────────────── #}
+    <div class="form-row">
+      <label for="address_text">Dirección de envío <span class="muted">(si es delivery)</span></label>
+      {# T-2026-10-01: native <datalist> turns the address input into a
+         writeable+selectable combobox — typing still works for new
+         addresses, picking from the dropdown autofills the input.
+         Phase 13 (2026-10-01): the dropdown now shows the ALIAS
+         ("Casa de Lucía") as the visible label + the structured address
+         summary on the value (MercadoLibre / MercLib pattern). #}
+      <input type="text" id="address_text" name="address_text"
+             list="customer-addresses"
+             placeholder="Calle, número, barrio, referencia…"
+             autocomplete="street-address">
+      {# Server-render datalist with the preset customer's saved addresses
+         (alias primary, composed address as value). When the user changes
+         the customer via the combo, the JS repopulates this datalist. #}
+      <datalist id="customer-addresses">
+        {% for a in customer_prefill.get("available_addresses", []) %}
+        {# Phase 13: alias first; if no alias, show the address snippet.
+           The input still fills with the full composed address_text, but
+           the visible dropdown text is human-readable. #}
+        <option value="{{ a.address_text|e }}">{{ (a.label ~ " — ") if a.label else "" }}{{ a.address_text|e }}</option>
+        {% endfor %}
+      </datalist>
+      <input type="hidden" id="customer_address_id" name="customer_address_id" value="">
+
+      {# ── Phase 13: collapsible "Cambiar dirección" disclosure for the
+         structured MercadoLibre-style fields. The cashier types free-text
+         into address_text for most pedidos; only opens this when they
+         need to fill piso / unidad / barrio / recipient_name etc. #}
+      <details class="address-struct" id="address-struct-details">
+        <summary>📐 Datos estructurados de la dirección (opcional)</summary>
+        <div class="form-grid-2col">
+          <div class="form-row">
+            <label for="address_calle_principal">Calle principal</label>
+            <input type="text" id="address_calle_principal" name="address_calle_principal"
+                   maxlength="160" autocomplete="address-line1">
+          </div>
+          <div class="form-row">
+            <label for="address_calle_secundaria">Calle secundaria / entrecalles</label>
+            <input type="text" id="address_calle_secundaria" name="address_calle_secundaria"
+                   maxlength="160">
+          </div>
+          <div class="form-row">
+            <label for="address_numero">Número</label>
+            <input type="text" id="address_numero" name="address_numero" maxlength="20">
+          </div>
+          <div class="form-row">
+            <label for="address_edificio">Edificio</label>
+            <input type="text" id="address_edificio" name="address_edificio" maxlength="120">
+          </div>
+          <div class="form-row">
+            <label for="address_piso">Piso</label>
+            <input type="text" id="address_piso" name="address_piso" maxlength="20">
+          </div>
+          <div class="form-row">
+            <label for="address_unidad">Unidad / Puerta</label>
+            <input type="text" id="address_unidad" name="address_unidad" maxlength="20">
+          </div>
+          <div class="form-row">
+            <label for="address_barrio">Barrio</label>
+            <input type="text" id="address_barrio" name="address_barrio" maxlength="120">
+          </div>
+          <div class="form-row">
+            <label for="address_ciudad">Ciudad</label>
+            <input type="text" id="address_ciudad" name="address_ciudad" maxlength="120"
+                   value="Asunción">
+          </div>
+          <div class="form-row">
+                    <label for="address_departamento_combo">Departamento</label>
+                    <ui-combo id="address_departamento_combo" name="address_departamento"
+                                  value="Central" display="Central" data-id="address_departamento_combo"
+                                  src='{{ paraguay_departments_src|tojson }}'></ui-combo>
+                  </div>
+          <div class="form-row">
+            <label for="address_codigo_postal">Código postal</label>
+            <input type="text" id="address_codigo_postal" name="address_codigo_postal" maxlength="16">
+          </div>
+          <div class="form-row">
+            <label for="address_recipient_name">Entregar a</label>
+            <input type="text" id="address_recipient_name" name="address_recipient_name"
+                   maxlength="120" placeholder="Lucía — mamá">
+          </div>
+          <div class="form-row">
+            <label for="address_kind_combo">Tipo de dirección</label>
+            <ui-combo id="address_kind_combo" name="address_kind"
+                          value="HOME" display="Casa" placeholder="Elegí tipo…"
+                          data-id="address_kind_combo"
+                          src='[{"value":"HOME","label":"🏠 Casa"},{"value":"WORK","label":"🏢 Trabajo"},{"value":"FAMILY","label":"👪 Familiar"},{"value":"OTHER","label":"📍 Otro"}]'></ui-combo>
+          </div>
+        </div>
+        <div class="form-row">
+          <label for="address_delivery_instructions">Instrucciones para el cadete</label>
+          <textarea id="address_delivery_instructions" name="address_delivery_instructions"
+                    rows="2" placeholder="Timbre roto, llamar antes, portero de 8 a 17…"></textarea>
+        </div>
+      </details>
+    </div>
+
+    {# ── Phase 13: ventana preferida de entrega (not a delivery promise) ── #}
+    <fieldset class="ventana-preferida">
+      <legend>Ventana de entrega</legend>
+      <label class="radio-row">
+        <input type="radio" name="delivery_preference" value="asap" checked>
+        <span>Lo antes posible</span>
+      </label>
+      <label class="radio-row">
+        <input type="radio" name="delivery_preference" value="window">
+        <span>En una franja horaria (preferida, no es garantía)</span>
+      </label>
+      <div class="ventana-window d-grid" id="ventana-window-fields" hidden
+           style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);" class="grid-2-col">
+        <div>
+          <label for="delivery_window_start">Desde</label>
+          <input type="time" id="delivery_window_start" name="delivery_window_start">
+        </div>
+        <div>
+          <label for="delivery_window_end">Hasta</label>
+          <input type="time" id="delivery_window_end" name="delivery_window_end">
+        </div>
+      </div>
+      <label class="radio-row">
+        <input type="radio" name="delivery_preference" value="scheduled">
+        <span>Programar para otro día</span>
+      </label>
+      <div class="ventana-scheduled" id="ventana-scheduled-fields" hidden>
+        <label for="delivery_scheduled_date">Fecha programada</label>
+        <input type="date" id="delivery_scheduled_date" name="delivery_scheduled_date">
+        <small class="muted">(la franja horaria se mantiene arriba si la elegiste)</small>
+      </div>
+    </fieldset>
+
+    {# ── Phase 13: multi-profile facturación (RUC + Razón Social paired) ── #}
+    <div class="form-row" id="invoice-profile-row">
+      <label for="customer_invoice_profile_select">Perfil de facturación</label>
+      {# Server-render the dropdown with the customer's saved profiles
+         (default first, then by alias). The hidden field below carries
+         the chosen id; the cashier sees alias + RUC + razón social in
+         the dropdown. #}
+      <select id="customer_invoice_profile_select" name="customer_invoice_profile_select">
+        <option value="">— usar RUC/CI manual (a continuación) —</option>
+        {% for p in customer_prefill.get("invoice_profiles", []) %}
+        <option value="{{ p.id }}" data-ruc="{{ p.ruc_ci|e }}"
+                data-razon="{{ p.razon_social|e }}" data-tipo="{{ p.tipo_documento|e }}">
+          {{ p.label }} — {{ p.ruc_ci|e }}
+        </option>
+        {% endfor %}
+      </select>
+      <input type="hidden" id="customer_invoice_profile_id" name="customer_invoice_profile_id" value="">
+      <small class="muted d-grid">
+        Cada cliente puede tener varios perfiles (Personal / Empresa / etc.).
+        Se facturará con el RUC y Razón Social que elijas.
+      </small>
+    </div>
+    <div class="form-row d-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);" class="grid-2-col">
+      <div>
+        <label for="invoice_ruc">RUC / CI <span class="muted">(para factura)</span></label>
+        <input type="text" id="invoice_ruc" name="invoice_ruc"
+               placeholder="80012345-6" inputmode="numeric"
+               value="{{ preset_customer.invoice_ruc or preset_customer.cedula or '' if preset_customer else '' }}">
+      </div>
+      <div>
+        <label for="invoice_name">Nombre / razón social</label>
+        <input type="text" id="invoice_name" name="invoice_name"
+               placeholder="Para la factura"
+               value="{{ preset_customer.invoice_name or '' if preset_customer else '' }}">
+      </div>
+    </div>
+    <div class="form-row" id="save-address-row" hidden>
+      <label class="switch-toggle" for="save_address">
+        <input type="checkbox" id="save_address" name="save_address" value="1">
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+        <span>Guardar dirección en la ficha del cliente</span>
+      </label>
+      <input type="text" id="address_label" name="address_label"
+             placeholder="Etiqueta: casa / oficina / mamá…"
+             style="margin-top: var(--space-2);" maxlength="32">
+    </div>
+
+  <div class="form-row">
+    <label for="notes">Notas</label>
+    <textarea id="notes" name="notes" rows="2"
+              placeholder="Sin TACC, retirar antes de las 17h, etc."></textarea>
+  </div>
+
+  <script>
+    // P3: reveal "guardar dirección" once an address is typed (JS-on only;
+    // the row starts hidden so no-JS forms are unaffected).
+    (function () {
+      var addr = document.getElementById("address_text");
+      var row = document.getElementById("save-address-row");
+      if (!addr || !row) return;
+      addr.addEventListener("input", function () {
+        if (addr.value.trim()) {
+          if (row.hidden && row.dataset.customerHasAddresses !== "1") row.hidden = false;
+        } else {
+          row.hidden = true;
+        }
+      });
+    })();
+  </script>
+
+  <h2 style="margin-top: var(--space-5);">
+    <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+    Ítems del pedido
+  </h2>
+  <p class="hint">Tocá «+ Agregar ítem» para sumar líneas. El precio queda guardado al crear el pedido.</p>
+
+  <table class="table" id="lines-table">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="num" style="width: 100px;">Cantidad</th>
+        <th class="num" style="width: 130px;">Precio unit. (Gs.)</th>
+        <th class="actions"></th>
+      </tr>
+    </thead>
+    <tbody id="lines-body">
+      <tr class="line-row">
+        <td>
+          {{ ui.combo_field(
+            name='line_product_id',
+            placeholder='Escribí para buscar (muffin, factura, pan…)',
+            endpoint='/productos/api/search/',
+            value_field='id',
+            label_field='name'
+          ) }}
+        </td>
+        <td class="num">
+          <input type="number" name="line_qty" min="0.01" step="0.01" value="1" required>
+        </td>
+        <td class="num">
+          <div class="currency-input-wrap">
+            <input type="number" name="line_unit_price_gs" min="0" step="100" value="0" inputmode="numeric" class="currency-input">
+          </div>
+        </td>
+        <td class="actions">
+          <button type="button" class="btn btn-sm btn-danger-ghost" onclick="removeLine(this)">Quitar</button>
+        </td>
+      </tr>
+      {# T-2026-10-01: per-line stock warning span. Hidden by default;
+         pedido-combos.js reveals + fills it after the forecast call. #}
+      <tr class="line-row-meta" hidden>
+        <td colspan="4" style="padding:4px 8px;">
+          <span class="line-stock-warning"
+                style="display:inline-block;padding:4px 10px;border-radius:4px;
+                       font-size:var(--text-sm);background:#fff7e6;border:1px solid #f0c674;
+                       color:#7a4f01;">
+          </span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <button type="button" class="btn" id="add-line-btn">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Agregar ítem
+  </button>
+
+  <div class="form-actions mt-4">
+    <button type="submit" class="btn btn-primary" id="submit-btn">
+      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+      Crear pedido
+    </button>
+    <a href="/pedidos" class="btn btn-ghost">Cancelar</a>
+  </div>
+</form>
+
+<template id="line-row-template">
+  <tr class="line-row">
+    <td>
+      {{ ui.combo_field(
+        name='line_product_id',
+        placeholder='Escribí para buscar…',
+        endpoint='/productos/api/search/',
+        value_field='id',
+        label_field='name'
+      ) }}
+    </td>
+    <td class="num">
+      <input type="number" name="line_qty" min="0.01" step="0.01" value="1" required>
+    </td>
+    <td class="num">
+      <div class="currency-input-wrap">
+        <input type="number" name="line_unit_price_gs" min="0" step="100" value="0" inputmode="numeric" class="currency-input">
+      </div>
+    </td>
+    <td class="actions">
+      <button type="button" class="btn btn-sm btn-danger-ghost" onclick="removeLine(this)">Quitar</button>
+    </td>
+  </tr>
+</template>
+
+<script src="/static/pedido-combos.js" defer></script>
+{# Phase 13 (2026-10-01): wires the ventana-preferida radios, the
+   invoice-profile dropdown, and the structured-address prefill. Loaded
+   after pedido-combos.js so the customer picker has set globals first. #}
+<script src="/static/pedido-window-and-invoice.js" defer></script>
+{# Phase 3: smart autofill. The prefill JSON is rendered by the server
+   when ?customer_id=N is on the URL; the JS patches form fields on load
+   and re-fetches defaults when the operator picks a different customer. #}
+{% if customer_prefill %}
+<script id="customer-prefill" type="application/json">{{ customer_prefill | tojson }}</script>
+{% endif %}
+<script src="/static/pedido-prefill.js" defer></script>
+{% endblock %}

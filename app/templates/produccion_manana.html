@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{# Culinary unit filter (same as produccion.html).
+   g/ml → integer; und → ceil; kg/l → 1 decimal; everything else → 1 decimal. #}
+{% macro fmt_qty(qty, unit) -%}
+  {%- if unit in ('g', 'ml') -%}
+    {{ qty|round|int }} {{ unit }}
+  {%- elif unit in ('und', 'unid') -%}
+    {{ (qty|round(0, 'ceil'))|int }} {{ unit }}
+  {%- else -%}
+    {{ qty|round(1) }} {{ unit }}
+  {%- endif -%}
+{%- endmacro %}
+
+{% block title %}Producción · Mañana{% endblock %}
+{% block content %}
+
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); flex-wrap: wrap; gap: var(--space-3);">
+  <div>
+    <h1 style="display: flex; align-items: center; gap: var(--space-2); margin: 0;">
+      <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
+      Producción de mañana
+    </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+    <p class="hint mt-1-only" >
+      Plan generado automáticamente para el <strong>{{ tomorrow }}</strong>{% if seasonal_note %}
+      · <span class="badge badge-seasonal">{{ seasonal_note }}</span>{% endif %}.
+    </p>
+    {# Bug 4 fix: 14d rolling consolidated here (not repeated per row). #}
+    <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0;">
+      Algoritmo: <strong>rolling 14d</strong> por defecto · plantilla semanal si existe · override si está definido.
+    </p>
+    {# PRODUCCION-V3 Phase 6: cross-page navigation. The manana view
+       had no quick way to hop to today's plan or yesterday's actual
+       execution. Now the cook can switch context in 1 click instead
+       of using the sidebar. Today = /produccion, Yesterday =
+       /produccion?for_date=<today> (the day-nav has the prev/next
+       links once there). #}
+    <div class="manana-page-nav d-flex" data-manana-page-nav
+         style="display:flex;gap:var(--space-2);margin-top:var(--space-2);flex-wrap:wrap;">
+      <a href="/produccion?for_date={{ today_iso }}" class="btn btn-ghost btn-sm"
+         title="Ir al plan de hoy">
+        ← Hoy
+      </a>
+      <a href="/produccion" class="btn btn-ghost btn-sm"
+         title="Ir a la planilla semanal de producción">
+        Ver semana
+      </a>
+    </div>
+  </div>
+
+  {# Bug 1 fix: single consolidated save button (no more per-row Guardar). #}
+  {% if rows %}
+  <button type="submit" form="tomorrow-plan-form" class="btn btn-primary"
+          aria-label="Guardar los ajustes de cantidad para mañana">
+    <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+    Guardar plan de mañana
+  </button>
+  {% endif %}
+</div>
+
+<div class="kpi-row mb-4">
+  <ui-kpi-card
+    label="Productos a producir"
+    value="{{ rows|length }}"
+    {% if rows %}delta="{{ rows|length }}" delta-direction="flat"{% endif %}
+    ></ui-kpi-card>
+  {% if not station_hides_prices %}
+  <ui-kpi-card
+    label="Ingreso estimado mañana"
+    value="{% if estimated_revenue_gs %}{{ m.gs_full(estimated_revenue_gs) }}{% else %}—{% endif %}"
+    sub="precio catálogo × cantidad"></ui-kpi-card>
+  {% endif %}
+  <ui-kpi-card
+    label="Confianza media"
+    value="{% if rows %}{{ (rows|sum(attribute='confidence_pct') / rows|length)|round(0, 'floor')|int }}%{% else %}—{% endif %}"
+    {% if low_confidence_count > 0 %}severity="warn"{% endif %}
+    sub="{{ low_confidence_count }} con confianza <70%"></ui-kpi-card>
+  <ui-kpi-card
+    label="Ingredientes necesarios"
+    value="{{ plan.lines|length }}"
+    href="/produccion"></ui-kpi-card>
+</div>
+
+{# PRO-PED: pedidos confirmados para mañana, en la misma pantalla del plan #}
+{% if pedidos_manana %}
+<div class="card" style="padding: var(--space-4) var(--space-6); margin-bottom: var(--space-4);">
+  {# 2026-10-07: each pedido expands to show its line items (what
+   the client is actually buying). Collapsed by default if there are
+   many pedidos; expanded for ≤3 so the cook sees what's coming at
+   a glance. #}
+{% set _n_pedidos = pedidos_manana|length %}
+<details class="pedidos-manana mb-4" {% if _n_pedidos <= 3 %}open{% endif %}>
+  <summary style="cursor:pointer; list-style:none; padding: var(--space-3) var(--space-4); background: var(--color-surface-subtle); border-radius: var(--radius); display: flex; align-items: center; gap: var(--space-2);">
+    <strong>🧾 Pedidos para mañana ({{ _n_pedidos }})</strong>
+    <small class="text-muted">clic para {{ 'ocultar' if _n_pedidos <= 3 else 'ver' }} el detalle por cliente</small>
+  </summary>
+  <div style="padding: var(--space-3) var(--space-4);">
+    {% for pe in pedidos_manana %}
+    <details class="pedido-card mb-2"
+             style="border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-2) var(--space-3);">
+      <summary style="cursor:pointer; list-style:none; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;">
+        <strong>{{ pe.customer_name }}</strong>
+        {% if pe.promised_time %}<small class="text-muted">· {{ pe.promised_time }}</small>{% endif %}
+        <span class="tag-pill tag-pill--muted">{{ pe.channel }}</span>
+        <small class="text-muted">{{ pe.lines|length }} ítem(s)</small>
+        <span style="margin-left:auto; font-weight:600;">{{ m.gs_full(pe.total_gs) }}</span>
+        <a href="/pedidos/{{ pe.id }}" class="btn btn-sm btn-ghost"
+           onclick="event.stopPropagation()">Ver pedido</a>
+      </summary>
+      <ul style="margin: var(--space-2) 0 0 var(--space-4); padding: 0;">
+        {% for ln in pe.lines %}
+          <li style="padding: 2px 0;">
+            <strong>{{ ln.qty|int }} ×</strong> {{ ln.product_name }}
+          </li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endfor %}
+    <p class="muted" style="margin: var(--space-2) 0 0 0; font-size: .85rem;">
+      Estos encargos ya están incluidos en la demanda — producí además
+      de esto solo si el plan lo indica. La columna <em>Pedidos</em> en
+      la tabla de abajo muestra la suma por producto.
+    </p>
+  </div>
+</details>
+{% endif %}
+
+{% if rows|length == 0 %}
+{# T-2026-10-06d: the old empty state only linked to /produccion, which
+   was ALSO empty. Now link to /produccion where the "+ Agregá
+   producto al plan" CTA opens the ad-hoc modal (T-2026-10-06d also
+   moved that modal out of the {% if plan_rows_view %} guard). #}
+<div class="card" style="padding: var(--space-6); text-align: center;">
+  <p style="margin: 0 0 var(--space-3) 0; color: var(--color-text);">
+    No hay productos con venta en los últimos 14 días. Esperá unos días
+    para que el sistema acumule datos, <strong>o agregá un producto
+    manualmente al plan de hoy</strong> — el sistema aprende de cada
+    horneado que registrás.
+  </p>
+  <div style="display: flex; gap: var(--space-2); justify-content: center; flex-wrap: wrap;">
+    <a href="/produccion" class="btn btn-primary">
+      + Agregá producto al plan de hoy
+    </a>
+    <a href="/recetas" class="btn btn-ghost">
+      Ver recetas
+    </a>
+  </div>
+</div>
+{% else %}
+
+{# ── Single unified form for all override edits (Bug 1 fix). ──
+   2026-10-07: added "Pedidos" column = how many of this product are
+   already committed via pedidos. Lets the operator see the demand
+   breakdown (forecast + pedidos committed). Also renamed "Override"
+   → "Plan" because that's what the operator thinks of it as —
+   "the number I plan to produce". The column still POSTs as qty[id]
+   to /produccion/override-bulk (no breaking change). #}
+<form method="post" action="/produccion/override-bulk" id="tomorrow-plan-form" class="js-confirm-form" data-confirm-title="¿Guardar plan de mañana?" data-confirm-body="Se sobrescribirán los overrides del día con los valores del plan.">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="for_date" value="{{ tomorrow }}">
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <h2 style="font-size: var(--text-md); margin: 0;">Qué producir mañana</h2>
+      <p class="text-muted" style="font-size: var(--text-sm); margin: var(--space-2) 0 0 0;">
+        Editá la columna <strong>Plan</strong> si querés cambiar la cantidad.
+        <strong>Pedidos</strong> = unidades ya comprometidas vía encargos.
+        <strong>Pronóstico</strong> = sugerencia del algoritmo.
+      </p>
+    </div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th class="text-right" title="Pronóstico del algoritmo (rolling 14d / plantilla / ajuste)">Pronóstico</th>
+          <th class="text-right" title="Unidades ya comprometidas vía pedidos">Pedidos</th>
+          <th class="text-right" title="Plan final (forecast + pedidos, editable)">Total</th>
+          <th>Fuente</th>
+          <th class="text-center" >Confianza</th>
+          <th class="text-right" title="Editá este número; es lo que vamos a producir">Plan ⇄</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        {% set _ped_qty = pedidos_by_product.get(row.product_id, 0) %}
+        {% set _total = (row.qty_to_produce + _ped_qty)|int %}
+        <tr>
+          <td>
+            <strong>{{ row.product_name }}</strong>
+            {% if row.recipe_id %}
+            <a href="/recetas/{{ row.recipe_id }}" class="text-muted" style="font-size: var(--text-xs); margin-left: var(--space-2);">ver receta</a>
+            {% endif %}
+          </td>
+          <td class="text-right" >
+            <span style="font-size: var(--text-lg); font-weight: 600;">{{ row.qty_to_produce|int }}</span>
+          </td>
+          <td class="text-right" style="color: {% if _ped_qty > 0 %}var(--color-accent){% else %}var(--color-text-muted){% endif %};">
+            {% if _ped_qty > 0 %}
+              <span class="tag-pill tag-pill--commit" title="{{ _ped_qty|int }} unidades comprometidas">{{ _ped_qty|int }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-right" >
+            <span style="font-weight:600;">{{ _total }}</span>
+            {% if _ped_qty > 0 %}
+              <small class="text-muted">(forecast + pedidos)</small>
+            {% endif %}
+          </td>
+          <td>
+            {# Semantic source badges — match produccion.html convention. #}
+            {% if row.forecast_source in ('manual', 'override') %}
+              <span class="badge badge-manual">Ajuste manual</span>
+            {% elif row.forecast_source == 'template' %}
+              <span class="badge badge-template">Plantilla semanal</span>
+            {% else %}
+              <span class="badge badge-rolling">Sugerido por ventas</span>
+            {% endif %}
+          </td>
+          <td class="text-center" >
+            {# Compact confidence indicator (no per-row '14d rolling' pill). #}
+            {% if row.confidence_pct >= 70 %}
+              <span class="confidence-pill conf-high" title="Alta confianza">{{ row.confidence_pct }}%</span>
+            {% elif row.confidence_pct >= 50 %}
+              <span class="confidence-pill conf-medium" title="Confianza media">{{ row.confidence_pct }}%</span>
+            {% elif row.confidence_pct > 0 %}
+              <span class="confidence-pill conf-low" title="Confianza baja">{{ row.confidence_pct }}%</span>
+            {% else %}
+              <span class="confidence-pill conf-none" title="Sin datos">—</span>
+            {% endif %}
+          </td>
+          <td class="text-right" >
+            <input type="number" name="qty[{{ row.product_id }}]" min="0" max="9999" step="1"
+                   value="{{ overrides_tomorrow.get(row.product_id, '') }}"
+                   placeholder="{{ _total }}"
+                   style="width: 80px; padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"
+                   aria-label="Plan de producción para {{ row.product_name }}">
+            {% if overrides_tomorrow.get(row.product_id) is not none and overrides_tomorrow.get(row.product_id) != '' %}
+              <small class="text-muted" title="Ya tenías un plan guardado" style="display:block;">📌 guardado</small>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</form>
+{% endif %}
+
+{# Bug 5 fix: procurement bridge in ingredients card header. #}
+<section class="card">
+  <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); gap: var(--space-3); flex-wrap: wrap;">
+    <div>
+      <h2 style="font-size: var(--text-md); margin: 0;">Ingredientes necesarios</h2>
+      <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0;">
+        Unidades redondeadas para la cocina: gramos y mililitros como enteros, huevos al entero superior.
+      </p>
+    </div>
+    <a href="/reorder" class="btn btn-secondary btn-sm">
+      <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
+      Ir a Reponer stock →
+    </a>
+  </div>
+  {% if plan.lines %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th class="text-right" >Cantidad</th>
+        <th class="text-right" >Stock</th>
+        <th class="text-right" >A comprar</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in plan.lines %}
+      <tr>
+        <td><strong>{{ line.ingredient_name }}</strong></td>
+        <td class="text-right" >{{ fmt_qty(line.qty_required, line.unit) }}</td>
+        <td class="text-right" >{{ fmt_qty(line.stock_on_hand, line.unit) }}</td>
+        <td class="text-right" >
+          {% if line.qty_to_buy > 0 %}
+            <span class="badge badge-danger" style="margin-right: var(--space-1);">¡Falta!</span>
+            <strong>{{ fmt_qty(line.qty_to_buy, line.unit) }}</strong>
+          {% else %}
+            <span class="text-muted">OK</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted" style="padding: var(--space-4);">No hay líneas de ingredientes (probablemente faltan recetas vinculadas a productos).</p>
+  {% endif %}
+</section>
+
+{% endblock %}

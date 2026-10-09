@@ -1,0 +1,240 @@
+# .github/workflows/security-zap.yml — OWASP ZAP API scan (M-INFRA-001)
+#
+# Ports the ZAP integration pattern from karanshukla/openresto (MIT)
+# but adapted for Sazon's deploy shape:
+#   - No Docker Compose (Sazon's AGENTS.md anti-rule #4 forbids Docker)
+#   - Postgres lives in Docker (test-only exception; matches smoke.yml)
+#   - App boots via the same `scripts/smoke_test_deploy_shape.py`
+#     used by .github/workflows/smoke.yml
+#   - ZAP runs against `/api/openapi.json` (FastAPI auto-generated)
+#
+# Trigger strategy:
+#   - on PR (advisory only — doesn't block merge until green for 7 days)
+#   - on push to main (advisory)
+#   - weekly Monday 03:00 UTC (forced scan even when nothing changes)
+#   - workflow_dispatch (manual trigger)
+#
+# Why advisory at first?
+#   Sazon already has strong defenses:
+#     - SecurityHeadersMiddleware (CSP, HSTS, X-Frame, etc.)
+#     - CSRF tokens on all mutating requests
+#     - SessionMiddleware with SameSite=Lax
+#     - rate limiting on public endpoints
+#   So ZAP findings are expected to be low. Once we have 2 consecutive
+#   weekly scans with zero HIGH/CRITICAL findings, this job can be
+#   promoted to required status in the Branch Protection Rules.
+#
+# Custom rules (.github/.zap-rules.tsv) suppress false positives that
+# are either intentional (CSP allows 'unsafe-inline' for legacy Jinja)
+# or outside scope (third-party /vendor paths).
+#
+# References:
+#   - OpenResto ZAP job: .github/workflows/ci.yml "Docker + ZAP"
+#   - https://www.zaproxy.org/docs/docker/api-scan/
+#   - https://owasp.org/www-project-secure-headers/
+
+name: Security (OWASP ZAP)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly Monday 03:00 UTC. Pin clock to UTC explicitly so CI cron
+    # isn't affected by repo owner's tz drift. Forces a scan even when
+    # no PR / push happened, so silent dependency vulnerabilities
+    # surface.
+    - cron: "0 3 * * 1"
+  workflow_dispatch:  # allow manual trigger from the Actions UI
+
+permissions:
+  contents: read
+
+jobs:
+  zap-api-scan:
+    name: OWASP ZAP API scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Advisory until proven stable (see comment block above). Promote
+    # to `required` in Branch Protection once weekly scan is green for
+    # 2 consecutive runs with zero HIGH/CRITICAL findings.
+    env:
+      DATABASE_URL: postgresql+psycopg://saskia:saskia@localhost:5432/saskia
+      AIW_SASKIA_RUN_MIGRATIONS: "0"
+      # HTTPS_ONLY must be "false" so HSTS isn't enforced in CI (ZAP
+      # reports HSTS over HTTP as a finding; that's correct for prod
+      # but false-positive over the plaintext http://127.0.0.1 loopback).
+      HTTPS_ONLY: "false"
+      # SessionMiddleware secret (CI-only; never reuse prod secret).
+      SESSION_SECRET: "ci-zap-only-do-not-use-in-prod"
+      PORT: "18998"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.5.x"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        # Full dev group: includes testcontainers (for ephemeral PG) and
+        # every test dep. Excludes Playwright browser binaries.
+        run: rm -rf .venv && uv sync --group dev
+
+      - name: Boot ephemeral Postgres
+        # Postgres 16 matches smoke.yml. Migrations are SQLite-first and
+        # cannot be re-run from scratch on Postgres — pre-provision the
+        # schema with create_all() like smoke.yml does, then set the
+        # schema_version row so init_db() no-ops.
+        run: |
+          docker run -d --rm \
+            --name sazon-zap-pg \
+            -e POSTGRES_USER=saskia \
+            -e POSTGRES_PASSWORD=saskia \
+            -e POSTGRES_DB=saskia \
+            -p 5432:5432 \
+            postgres:16-alpine
+          for i in $(seq 1 30); do
+            if docker exec sazon-zap-pg pg_isready -U saskia; then
+              echo "postgres ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Pre-provision Postgres schema
+        env:
+          DATABASE_URL: postgresql+psycopg://saskia:saskia@localhost:5432/saskia
+        run: |
+          uv run python -c "
+          from app.rms.models import Base
+          from sqlalchemy import create_engine, text
+          engine = create_engine('postgresql+psycopg://saskia:saskia@localhost:5432/saskia', future=True)
+          Base.metadata.create_all(engine)
+          import re
+          m = re.search(r'MIGRATIONS\\s*=\\s*\\{(.+?)\\}', open('app/rms/db.py').read(), re.DOTALL)
+          head_version = 0
+          if m:
+              head_version = max(
+                  (int(line.split(':')[0].strip())
+                   for line in m.group(1).splitlines()
+                   if line.strip() and line.strip().split(':')[0].strip().isdigit()),
+                  default=0,
+              )
+          with engine.connect() as conn:
+              conn.execute(text(\"INSERT INTO app_meta (key, value, updated_at) VALUES ('schema_version', :v, NOW()::text) ON CONFLICT (key) DO UPDATE SET value = :v, updated_at = NOW()::text\"), {'v': str(head_version)})
+              conn.commit()
+          print(f'pre-provision complete; schema_version at {head_version}')
+          "
+
+      - name: Boot Sazon (uvicorn) for ZAP target
+        env:
+          DATABASE_URL: postgresql+psycopg://saskia:saskia@localhost:5432/saskia
+          PORT: "18998"
+          SESSION_SECRET: "ci-zap-only-do-not-use-in-prod"
+          HTTPS_ONLY: "false"
+        run: |
+          nohup uv run uvicorn app.rms.main:app \
+            --host 127.0.0.1 --port 18998 \
+            > uvicorn-zap.log 2>&1 &
+          echo "uvicorn pid=$!"
+          # Wait for /healthz to come up
+          for i in $(seq 1 60); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:18998/healthz || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "uvicorn ready (HTTP $STATUS) on attempt $i"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "ERROR: uvicorn never became ready on :18998"
+          tail -50 uvicorn-zap.log || true
+          exit 1
+
+      - name: Verify security headers present
+        # Pre-flight: confirm Sazon's SecurityHeadersMiddleware is wired
+        # before letting ZAP run. Catches regressions where someone
+        # removes the middleware without noticing.
+        run: |
+          HEADERS=$(curl -sD - -o /dev/null http://127.0.0.1:18998/healthz)
+          echo "$HEADERS"
+          echo "$HEADERS" | grep -qi "x-content-type-options: nosniff" || { echo "missing X-Content-Type-Options"; exit 1; }
+          echo "$HEADERS" | grep -qi "x-frame-options: DENY"            || { echo "missing X-Frame-Options"; exit 1; }
+          echo "$HEADERS" | grep -qi "content-security-policy:"          || { echo "missing CSP"; exit 1; }
+
+      - name: Verify OpenAPI spec reachable
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:18998/api/openapi.json)
+          echo "GET /api/openapi.json -> $STATUS"
+          [ "$STATUS" = "200" ] || { echo "OpenAPI spec not reachable; aborting"; exit 1; }
+
+      - name: OWASP ZAP API scan
+        # Adapted from OpenResto. Pass OpenAPI spec to ZAP so it knows
+        # every documented route + parameter; the spider only follows
+        # links, which would miss body params / auth headers.
+        uses: zaproxy/action-api-scan@v0.10.0
+        with:
+          target: http://127.0.0.1:18998/api/openapi.json
+          rules_file_name: .github/.zap-rules.tsv
+          # `-a` (ajax spider for SPAs — disabled in our app; harmless)
+          # `-j` (use the openapi.json file)
+          # `-l WARN` show WARN+ alerts in output
+          # `-I` do NOT return failure on warnings — promoted 2026-10-08:
+          #   only FAIL-level (HIGH/CRITICAL) alerts fail the build now.
+          #   All remaining WARN alerts were triaged as false positives or
+          #   operational noise — see .github/.zap-rules.tsv for rationale.
+          # spider `maxDuration=2` (minutes) — keeps scan ≤ 6 min total
+          # scanner `maxScanDurationInMins=4`
+          cmd_options: >
+            -a
+            -j
+            -l WARN
+            -I
+            -z "-config api.disablekey=true
+            -config openapi.targetUrl=http://127.0.0.1:18998
+            -config spider.maxDuration=2
+            -config scanner.maxScanDurationInMins=4"
+          allow_issue_writing: false
+          fail_action: true
+
+      - name: Show ZAP findings on failure
+        if: failure()
+        run: |
+          if [ -f report_md.md ]; then
+            echo "=== ZAP report (markdown) ==="
+            cat report_md.md
+            echo "=== ZAP report (end) ==="
+          else
+            echo "No ZAP markdown report found (action may have failed earlier)."
+            tail -50 uvicorn-zap.log || true
+          fi
+
+      - name: Upload ZAP report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zap-report
+          path: |
+            report_html.html
+            report_md.md
+          if-no-files-found: ignore
+
+      - name: Upload uvicorn log on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zap-uvicorn-log
+          path: uvicorn-zap.log
+          if-no-files-found: ignore
+
+      - name: Teardown Postgres
+        if: always()
+        run: docker stop sazon-zap-pg || true

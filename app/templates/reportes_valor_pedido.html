@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Valor promedio del pedido — {{ ui.report_source_footer() }}{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Valor promedio del pedido
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="text-muted">Revenue total dividido por cantidad de ventas. Indicador clave para entender el ticket promedio.</p>
+
+<form method="get" action="/reportes/valor-pedido" class="form mb-4">
+  <div class="grid grid-2">
+    <div class="form-row">
+      <label for="start">Desde</label>
+      <ui-date id="start" name="start" value="{{ start_date }}"></ui-date>
+    </div>
+    <div class="form-row">
+      <label for="end">Hasta</label>
+      <ui-date id="end" name="end" value="{{ end_date }}"></ui-date>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Ver</button>
+  </div>
+</form>
+{# CSV export — route does not yet support ?format=csv #}
+{#
+{% set csv_q = dict(request.query_params.multi_items()) %}{% set _ = csv_q.update({'format': 'csv'}) %}
+<a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-secondary" download="valor_pedido.csv">
+  <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+  Exportar CSV
+</a>
+#}
+
+{% if aov > 0 %}
+{{ ui.skeleton_section(id="valor-pedido-aov", variant="card", count=1, label="Cargando AOV") }}
+<div class="metric-card mb-4" style="max-width: 400px;" data-loaded-section="valor-pedido-aov">
+  <div class="metric-label">Valor promedio del pedido (AOV)</div>
+  <div class="metric-value" style="font-size: 2rem;">{{ m.gs(aov | int) }}</div>
+  <div class="text-muted">Gs. por venta en el período</div>
+</div>
+</div>
+{% else %}
+{{ ui.empty_state(title="No hay ventas registradas", icon="icon-report", hint="Cuando registres ventas va a aparecer el promedio.") }}
+{% endif %}
+
+{% endblock %}

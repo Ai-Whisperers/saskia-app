@@ -1,0 +1,318 @@
+"""app/templates/_components/macros.html — reusable Jinja2 macros.
+
+Vos copy throughout. Money formatting via format_gs. Date formatting via
+Asunción local TZ.
+"""
+
+{# Money display — uses format_gs from money.py #}
+{% macro gs(amount) -%}
+{%- if amount is none or amount is not number -%}—{%- else -%}{{ "{:,.0f}".format(amount).replace(",", ".") }}{%- endif -%}
+{%- endmacro %}
+
+{# Money display with Gs. prefix #}
+{% macro gs_full(amount) -%}
+{%- if amount is none or amount is not number -%}—{%- else -%}Gs. {{ "{:,.0f}".format(amount).replace(",", ".") }}{%- endif -%}
+{%- endmacro %}
+
+{# Stock severity badge #}
+{% macro stock_badge(stock_qty, min_stock_qty, never_loaded=false) -%}
+{%- if stock_qty is none -%}
+  <span class="badge badge-muted">—</span>
+{%- elif stock_qty < 0 -%}
+  <span class="badge badge-danger">¡Negativo! {{ "%.2f"|format(stock_qty) }}</span>
+{%- elif never_loaded -%}
+  <span class="badge badge-neutral" title="Nunca se cargó stock inicial — no es que se agotó. Cargalo con Ajustá stock.">Sin carga inicial</span>
+{%- elif min_stock_qty > 0 and stock_qty < min_stock_qty -%}
+  <span class="badge badge-warn">Stock bajo: {{ "%.2f"|format(stock_qty) }}</span>
+{%- else -%}
+  <span class="badge badge-ok">OK</span>
+{%- endif -%}
+{%- endmacro %}
+
+{# Unit-aware display #}
+{% macro unit_display(value, unit) -%}
+{{ "%.2f"|format(value) }} {{ unit }}
+{%- endmacro %}
+
+{# Margin percentage badge #}
+{% macro margin_pct(margin_gs, sale_price_gs) -%}
+{%- if margin_gs is none or sale_price_gs is none or sale_price_gs == 0 -%}
+  <span class="badge badge-muted">—</span>
+{%- elif margin_gs < 0 -%}
+  <span class="badge badge-danger">{{ "%.0f"|format(margin_gs / sale_price_gs * 100) }}%</span>
+{%- elif margin_gs / sale_price_gs >= 0.6 -%}
+  <span class="badge badge-good">{{ "%.0f"|format(margin_gs / sale_price_gs * 100) }}%</span>
+{%- else -%}
+  <span class="badge badge-ok">{{ "%.0f"|format(margin_gs / sale_price_gs * 100) }}%</span>
+{%- endif -%}
+{%- endmacro %}
+
+{# Active-state nav link: highlights when request.path starts with the prefix.
+   Use `exact=True` for routes that should NOT match subpaths (default: prefix match).
+   Pass `icon="icon-home"` to prepend an SVG icon from the sprite. #}
+{% macro nav_link(path, label, exact=False, current_path="", icon="") -%}
+{%- set active = (current_path == path) if exact else current_path.startswith(path) -%}
+<a href="{{ path }}" class="nav-item{% if active %} active{% endif %}" role="menuitem"{% if active %} aria-current="page"{% endif%}>
+{%- if icon %}
+  <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+{%- endif %}
+{{ label }}</a>
+{%- endmacro %}
+
+{# Dashboard chart card — wraps an SVG chart in a styled card with a freshness line.
+   Pass `chart_html` as the already-rendered SVG string from app.rms.charts. #}
+{% macro chart_card(title, chart_html, freshness=None) -%}
+<section class="dashboard-chart-card" aria-label="{{ title }}">
+  <h3>{{ title }}</h3>
+  {{ chart_html | safe }}
+  {% if freshness %}<p class="data-freshness">Actualizado a las {{ freshness }}</p>{% endif %}
+</section>
+{%- endmacro %}
+
+{# Top-list card — for top products, top customers, etc.
+   `items` is a list of {name, value} dicts. #}
+{% macro top_list_card(title, items, unit_prefix="Gs. ", icon="icon-arrow-up") -%}
+<section class="dashboard-chart-card">
+  <h3>
+    <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+    {{ title }}
+  </h3>
+  {% if items %}
+  <ol class="top-list">
+    {% for it in items %}
+    <li>
+      <span class="name">{{ it.name }}</span>
+      <span class="value">{{ unit_prefix }}{{ "{:,.0f}".format(it.value).replace(",", ".") }}</span>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="text-muted">Sin datos todavía</p>
+  {% endif %}
+</section>
+{%- endmacro %}
+
+{# Delta indicator — small "12% arriba vs. semana pasada" pill on metric cards.
+   Pass the delta dict from the router ({"pct": float, "direction": "up"/"down"/..., "label": str}). #}
+{% macro delta_pill(delta, prior_label="período anterior") -%}
+{%- if delta and delta.label -%}
+<span class="metric-delta is-{{ delta.direction }}" title="vs. {{ prior_label }}">
+  {% if delta.direction == "up" %}↑{% elif delta.direction == "down" %}↓{% else %}→{% endif %}
+  {{ delta.label }}
+  <span class="delta-prior">vs. {{ prior_label }}</span>
+</span>
+{%- endif -%}
+{%- endmacro %}
+
+{# Insight card — Lightspeed-style actionable insight (icon + headline + 1-sentence copy).
+   `items` is a list of {title, body} dicts; severity is "ok"|"warn"|"danger".
+   Used for `insights.stars`, `insights.dogs`, `insights.rising`, etc. #}
+{% macro insight_card(title, items, severity="ok", icon="icon-arrow-up") -%}
+<section class="insight-card severity-{{ severity }}">
+  <h3>
+    <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+    {{ title }}
+  </h3>
+  {% if items %}
+  <ul class="insight-list">
+    {% for it in items %}
+    <li class="insight-item">
+      <strong>{{ it.title }}</strong>
+      {% if it.body %}<span class="insight-body"> — {{ it.body }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-muted">Sin datos todavía</p>
+  {% endif %}
+</section>
+{%- endmacro %}
+
+{# Alert-list card — for low-stock alerts, etc.
+   `items` is a list of {name, severity, detail} dicts; severity is "danger"|"warn"|"ok". #}
+{% macro alert_list_card(title, items, icon="icon-warn") -%}
+<section class="dashboard-chart-card">
+  <h3>
+    <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+    {{ title }}
+  </h3>
+  {% if items %}
+  <ul class="alert-list">
+    {% for it in items %}
+    <li class="severity-{{ it.severity }}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+      <span>{{ it.name }} — {{ it.detail }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-muted">Sin alertas</p>
+  {% endif %}
+</section>
+{%- endmacro %}
+\n
+
+{% macro sort_th(label, key, current_sort="", current_dir="asc") -%}
+{#- Sortable column-header LINK. Wrap in your own <th> (with class="num"
+    for right-aligned numeric columns). Reads `request` from the calling
+    template's context to preserve all active filter params.
+    Example: {{ sort_th("Lotes", "meta", current_sort, current_dir) }}
+    Note: Jinja has no list comprehensions; we build the qp_keepoutlist in a for-loop. -#}
+{%- set is_cur = current_sort == key -%}
+{%- set next_dir = 'desc' if (is_cur and current_dir == 'asc') else 'asc' -%}
+{%- set qp = request.query_params.multi_items() if request is defined else [] -%}
+{%- set qp_keep = [] -%}
+{%- for k, v in qp -%}
+  {%- if k not in ('sort', 'dir') -%}
+    {%- set _ = qp_keep.append((k, v)) -%}
+  {%- endif -%}
+{%- endfor -%}
+<a href="{{ request.url.path if request is defined else '' }}?sort={{ key }}&dir={{ next_dir }}{%- for k, v in qp_keep -%}&{{ k }}={{ v }}{%- endfor -%}"
+   aria-label="Ordenar por {{ label }}"
+   class="th-sort{% if is_cur %} th-sort--active{% endif %}">
+  {{ label }}
+  {%- if is_cur %}<small aria-hidden="true" class="th-sort__arrow">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</small>{%- else %}<small aria-hidden="true" class="th-sort__arrow th-sort__arrow--idle">↕</small>{% endif -%}
+</a>
+{%- endmacro %}
+
+{% macro filter_chip(group, value, label, current_values, icon="") -%}
+{#- Single filter chip (toggle). `group` is the URL key (e.g. "filter_allergen"),
+    `value` is the chip's value, `current_values` is the parsed set of active
+    values for this group. Active chips get class `is-on` and an aria-pressed.
+    The href toggles the value in the URL — Jinja + the route build the rest.
+    Note: Jinja doesn't support Python list comprehensions; we build the
+    next_qp list by appending in a for-loop. -#}
+{%- set is_on = value in current_values -%}
+{%- set qp = request.query_params.multi_items() if request is defined else [] -%}
+{%- set next_qp = [] -%}
+{%- for k, v in qp -%}
+  {%- if not is_on or not (k == group and v == value) -%}
+    {%- set _ = next_qp.append((k, v)) -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- if not is_on -%}
+  {%- set _ = next_qp.append((group, value)) -%}
+{%- endif -%}
+<a href="{{ request.url.path if request is defined else '' }}?{% for k, v in next_qp %}{{ k }}={{ v }}{% if not loop.last %}&{% endif %}{% endfor %}"
+   class="filter-chip{% if is_on %} filter-chip--on{% endif %}"
+   data-filter-group="{{ group }}"
+   data-filter-value="{{ value }}"
+   aria-pressed="{{ 'true' if is_on else 'false' }}"
+   title="{{ label }}">
+  {%- if icon %}<span aria-hidden="true">{{ icon }}</span> {% endif -%}{{ label }}
+</a>
+{%- endmacro %}
+
+
+{# url_with_filters(request, overrides_dict) — build a URL that preserves
+   the current request's query string EXCEPT for keys in `overrides_dict`.
+   Use from pagination/load-more controls so the operator's active filter
+   + sort state survives navigation. Pass an override as None to delete
+   that key (e.g. show_all=None when leaving show-all).
+   NOTE: Jinja macros cannot accept **kwargs, so callers pass a dict. #}
+{%- macro url_with_filters(request, overrides) -%}
+  {%- if request is defined -%}
+    {%- set qp = request.query_params.multi_items() -%}
+    {%- set out = [] -%}
+    {%- for k, v in qp -%}
+      {%- if k not in overrides -%}
+        {%- set _ = out.append((k, v)) -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {%- for k, v in overrides.items() -%}
+      {%- if v is not none -%}
+        {%- set _ = out.append((k, v | string)) -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {{- request.url.path }}?{% for k, v in out %}{{ k }}={{ v }}{% if not loop.last %}&{% endif %}{% endfor -%}
+  {%- else -%}
+    {{- '' -}}
+  {%- endif -%}
+{%- endmacro -%}
+
+{# Date-range filter chip row. Replaces native <select> for "Últimos N días" pickers.
+   Pass `options` as a list of integers (e.g. [7, 30, 90, 180]) and `current` as
+   the currently active value. Renders a GET form with hidden params for any
+   extra filters (preserves them in the URL). Each chip is a submit button. -#}
+{% macro days_filter(options, current, name="days", extra_params="", label="Período", id="days-filter", data_saskia_state=None, data_saskia_page=None) -%}
+{%- set qp = request.query_params.multi_items() if request is defined else [] -%}
+<form method="get" class="filter-bar days-filter" id="{{ id }}" aria-label="{{ label }}"
+      {% if data_saskia_page %}data-saskia-page="{{ data_saskia_page }}"{% endif %}>
+  <span class="days-filter__label">{{ label }}:</span>
+  <div class="days-filter__chips" role="group" aria-label="{{ label }}">
+    {%- for opt in options -%}
+    <button type="submit" name="{{ name }}" value="{{ opt }}"
+            class="chip{% if opt == current %} chip--active{% endif %}"
+            {% if opt == current %}aria-current="true"{% endif %}
+            {% if data_saskia_state %}data-saskia-state="{{ data_saskia_state }}"{% endif %}>
+      {{ opt }}d
+    </button>
+    {%- endfor -%}
+  </div>
+  {%- for k, v in qp if k != name -%}
+  <input type="hidden" name="{{ k }}" value="{{ v }}">
+  {%- endfor -%}
+  {% if extra_params %}{{ extra_params|safe }}{% endif %}
+</form>
+{%- endmacro %}
+
+{% macro insights_nav(current) -%}
+{%- set insights = [
+  ("demand",      "Demanda",      "/reportes/demanda"),
+  ("food_cost",   "Costo ↔ Real", "/reportes/food-cost"),
+  ("freshness",   "Frescura",     "/reportes/frescura"),
+  ("margenes",    "Márgenes",     "/reportes/margenes"),
+  ("price_impact","Impacto $",    "/reportes/impacto-precio"),
+  ("stock",       "Rotación",     "/reportes/stock"),
+  ("afinidades",  "Afinidades",   "/reportes/afinidades"),
+] -%}
+<nav class="insights-nav" aria-label="Insights">
+  {%- for key, label, href in insights %}
+  <a href="{{ href }}" class="insights-nav__link{% if key == current %} insights-nav__link--active{% endif %}"{% if key == current %} aria-current="page"{% endif %}>{{ label }}</a>
+  {%- endfor %}
+</nav>
+{%- endmacro %}
+
+{% macro static_combo(name, options, value=None, label=None, placeholder='Elegí…', id=None, required=False) -%}
+{%- set src = [] -%}
+{%- for opt in options -%}
+  {%- if opt is mapping -%}
+    {%- set _ = src.append({'value': opt.value, 'label': opt.label}) -%}
+  {%- else -%}
+    {%- set _ = src.append({'value': opt[0], 'label': opt[1]}) -%}
+  {%- endif -%}
+{%- endfor -%}
+<saskia-combo
+  {% if id %}id="{{ id }}"{% endif %}
+  name="{{ name }}"
+  {% if value is not none %}value="{{ value }}"{% endif %}
+  {% if label %}display="{{ label }}"{% endif %}
+  src='{{ src | tojson }}'
+  placeholder="{{ placeholder }}"
+  {% if required %}required{% endif %}
+  aria-label="{{ label or name }}">
+</saskia-combo>
+{%- endmacro %}
+
+{% macro form_help(text, kind="info", id=None, icon=None, inline=False) -%}
+<small class="form-help form-help--{{ kind }}{% if inline %} form-help--inline{% endif %}"
+       {% if id %}id="{{ id }}"{% endif %}>
+  {%- if icon %}
+  <svg class="form-help__icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+  {%- endif %}
+  {{ text }}
+</small>
+{%- endmacro %}
+
+{% macro field_label(text, required=False, optional=False) -%}
+<label class="form-label{% if required %} form-label--required{% elif optional %} form-label--optional{% endif %}">
+  {{ text }}
+</label>
+{%- endmacro %}
+
+{% macro char_counter(name, max, current=0) -%}
+<div class="form-counter" data-counter-for="{{ name }}" data-counter-max="{{ max }}">
+  <span class="form-counter__text">Máx. {{ max }} caracteres</span>
+  <span class="form-counter__count">{{ current }}/{{ max }}</span>
+</div>
+{%- endmacro %}

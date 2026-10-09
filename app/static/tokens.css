@@ -1,0 +1,200 @@
+/* app/static/tokens.css — FloCafe-inspired CSS custom properties for Sazon.
+ *
+ * Ported from FreeOpenSourcePOS/FloCafe: frontend/src/app/globals.css (MIT).
+ * Original used Tailwind + shadcn imports + oklch colors. Sazon is
+ * server-rendered Jinja2 with no Tailwind, so this file strips:
+ *   - @import "tailwindcss" + @import "tw-animate-css" + @import "shadcn/tailwind.css"
+ *   - @custom-variant dark (we don't have a dark mode yet)
+ *   - Electron-specific (.flo-title-bar etc.)
+ *   - oklch() color values (kept as fallback hex for older browsers)
+ *
+ * What is kept:
+ *   - All semantic CSS custom properties (--background, --foreground, --card,
+ *     --primary, --destructive, --border, etc.)
+ *   - The 5 chart palette slots (--chart-1 through --chart-5)
+ *   - --radius for consistent rounding
+ *   - Two Sazon-specific additions (--sazon-success, --sazon-warn) because
+ *     retail POS needs explicit success/warn colors and FloCafe's only have
+ *     destructive
+ *
+ * The tokens here are REFERENCED by app-shell.css, app-components.css, and
+ * utilities.css. New UI MUST use these tokens instead of raw #XXXXXX hex
+ * (per AGENTS.md §CSS). Existing raw hex usage migrates only when that page
+ * is already being touched — not as a standalone sweep.
+ *
+ * Dark mode: this file currently ships only the light theme. A future
+ * dark mode would add a `[data-theme="dark"]` selector here (the
+ * approach FloCafe uses with their @custom-variant).
+ */
+
+:root {
+  /* Typography */
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+               "Liberation Mono", monospace;
+
+  /* Geometry */
+  --radius: 0.5rem;
+  --radius-sm: 0.25rem;
+  --radius-lg: 0.75rem;
+
+  /* Surfaces (background → content) */
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+
+  /* Brand (primary) — Sazon uses a deep purple for accent, not FloCafe's black */
+  --primary: #3248FF;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #0a0a0a;
+
+  /* Muted (text-on-surface-secondary) */
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+
+  /* Accent (hover surfaces, selected-row tint) */
+  --accent: #f4f4f5;
+  --accent-foreground: #0a0a0a;
+
+  /* Destructive (delete, void, error states) */
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  /* Form primitives */
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #3248FF;
+
+  /* Semantic: success, warn — Sazon-specific additions */
+  --sazon-success: #16a34a;
+  --sazon-success-foreground: #ffffff;
+  --sazon-warn: #f59e0b;
+  --sazon-warn-foreground: #ffffff;
+
+  /* Semantic: surfaces (alias of card, but explicit name for readability) */
+  --panel: var(--card);
+
+  /* Selected-row highlight (FloCafe's light indigo) */
+  --selected-row: #e8ebff;
+
+  /* Chart palette — used by sales_intel charts */
+  --chart-1: #f59e0b;  /* warm orange */
+  --chart-2: #06b6d4;  /* cyan */
+  --chart-3: #6366f1;  /* indigo */
+  --chart-4: #eab308;  /* yellow */
+  --chart-5: #f43f5e;  /* rose */
+
+  /* Sidebar (admin UI uses these) */
+  --sidebar: #fafafa;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: #3248FF;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8ebff;
+  --sidebar-accent-foreground: #3248FF;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #3248FF;
+
+  /* Sazon-specific layout tokens (must match app-shell.css values) */
+  --topnav-height: 56px;
+  --btn-height: 44px;
+  --btn-height-sm: 36px;
+  --btn-height-lg: 52px;
+  --input-height: 44px;
+
+  /* Spacing scale (FloCafe uses Tailwind for spacing; we ship the values
+   * explicitly because there's no Tailwind in Sazon). */
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-6: 1.5rem;   /* 24px */
+  --space-8: 2rem;     /* 32px */
+  --space-12: 3rem;    /* 48px */
+
+  /* Touch target — for the laptop-first UI that also runs on tablets.
+   * 44px is the iOS HIG minimum and most accessible theme. */
+  --touch-target-min: 44px;
+}
+
+/* Body font (matches the original; cheap to inherit) */
+body {
+  font-family: var(--font-sans);
+}
+
+/* Touch target helper (FloCafe pattern, useful on Sazon's tablet mode) */
+.touch-target {
+  min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+
+/* Number-input spinner suppression — POS form pattern. The native spinner
+ * is redundant in our +/- control layout and its narrow hit target invites
+ * mis-taps. (FloCafe's `.touch-target` rule uses this; we port the
+ * browser-targeted rule too.) */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Focus ring (uses the brand color) */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Selected-row helper — used by sales/pedidos/produccion list pages */
+.row-selected {
+  background-color: var(--selected-row);
+}
+
+/* ---- M-FLO-001: Quick-sell stock badges (FloCafe port) --------------- */
+/*
+ * Low-stock and sold-out pills on the POS quick-sell grid. Uses tokens
+ * from the same file (--color-warning-500, --color-danger-500) so the
+ * palette stays consistent.
+ */
+.quick-sell-btn.is-low-stock {
+  border-color: var(--color-warning-500, #ca8a04);
+  background: var(--color-warning-50, #fef9c3);
+}
+.quick-sell-btn.is-low-stock:hover:not(:disabled) {
+  background: var(--color-warning-100, #fef08a);
+}
+.quick-sell-btn.is-sold-out,
+.quick-sell-btn[disabled][aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.qs-low-badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--color-warning-100, #fef08a);
+  color: var(--color-warning-700, #854d0e);
+  font-weight: 600;
+}
+.qs-sold-out-badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--color-danger-100, #fee2e2);
+  color: var(--color-danger-700, #b91c1c);
+  font-weight: 600;
+}

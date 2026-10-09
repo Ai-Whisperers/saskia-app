@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Frescura{% endblock %}
+{% block content %}
+<h1>Frescura de insumos</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="text-muted">Días hasta vencer según vida útil − fecha del último registro de precio (aprox. sin lotes).</p>
+
+{% if cook_today %}
+<div class="card" style="padding:var(--space-3);margin-bottom:var(--space-4);border-left:4px solid var(--color-danger);">
+  <h2 style="font-size:1rem;">🔥 Cociná HOY para rescatar</h2>
+  <ul style="padding-left:1.2rem;">
+    {% for c in cook_today %}
+    <li><strong>{{ fmt.entity_name(c) }}</strong> — usa: {{ c.rescues|join(", ") }} ({{ m.gs(c.value_gs) }} en riesgo)</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{{ ui.skeleton_section(id="insight-freshness-table", variant="line", count=6, label="Cargando frescura") }}
+<div data-loaded-section="insight-freshness-table">
+<table class="table">
+  <thead><tr><th>Insumo</th><th>Estado</th><th class="num">Días</th><th class="num">Valor en riesgo</th></tr></thead>
+  <tbody>
+    {% for f in flags %}
+    <tr>
+      <td>{{ fmt.entity_name(f) }}</td>
+      <td>
+        {% if f.urgency == 'expired' %}{{ ui.status_pill("VENCIDO", sev="error") }}
+        {% elif f.urgency == 'critical' %}{{ ui.status_pill("CRÍTICO", sev="warn") }}
+        {% elif f.urgency == 'soon' %}<span class="badge">PRONTO</span>
+        {% elif f.urgency == 'unknown' %}<span class="text-muted">sin datos</span>
+        {% else %}{{ ui.status_pill("OK", sev="ok") }}{% endif %}
+      </td>
+      <td class="num">{{ f.days_until_expiry if f.days_until_expiry is not none else '—' }}</td>
+      <td class="num">{{ m.gs(f.value_at_risk_gs) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</div>
+</table>
+{% endblock %}

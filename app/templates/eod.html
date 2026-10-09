@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}{% if is_range_mode %}Cierre del rango{% else %}Cierre diario{% endif %}{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
+  {% if is_range_mode %}Cierre del rango{% else %}Cierre diario{% endif %}
+  {% if not is_range_mode and today_is_closed %}
+  {{ ui.status_pill("Día cerrado", sev="ok") }}
+  {% elif not is_range_mode and open_days %}
+  {{ ui.status_pill("Hay " ~ open_days|length ~ " día(s) sin cerrar", sev="warn") }}
+  {% endif %}
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+{# P-39: inline anomaly summary at the top of /eod so the operator sees
+   anomalies before closing the day. The count is set by a follow-up
+   backend hook (anomaly detection runs at the start of /eod GET). #}
+{% if anomaly_count is defined %}
+  {% if anomaly_count > 0 %}
+  <div class="alert alert-warning mb-3" role="status" data-eod-anomalies
+       style="margin-bottom:var(--space-3);padding:var(--space-2) var(--space-3);border-left:4px solid var(--color-warn);background:rgba(217,119,6,.08);">
+    <strong>⚠ {{ anomaly_count }} anomalía{{ 's' if anomaly_count != 1 else '' }}</strong>
+    antes de cerrar el día.
+    <form class="d-inline" method="post" action="/eod/anomalies/run" style="display:inline;margin-left:var(--space-2);">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <button type="submit" class="btn btn-sm">Ver detalle</button>
+    </form>
+  </div>
+  {% else %}
+  <div class="alert alert-success mb-3" role="status" data-eod-anomalies
+       style="margin-bottom:var(--space-3);padding:var(--space-2) var(--space-3);border-left:4px solid var(--color-success);background:rgba(34,197,94,.08);">
+    ✓ Sin anomalías detectadas para hoy.
+  </div>
+  {% endif %}
+{% endif %}
+
+{# ── Weekend-batch range picker (prelaunch roadmap 2026-09-17) ─────── #}
+<form method="get" action="/eod" class="card mb-4 d-flex" style="padding:var(--space-3);">
+  <div class="d-flex" style="display:flex;gap:var(--space-3);align-items:flex-end;flex-wrap:wrap;">
+    <div>
+      <label for="range-start" style="font-size:var(--text-sm);display:block;">Desde</label>
+      <input type="date" id="range-start" name="start" value="{{ range_start_iso }}"
+             style="padding:var(--space-2);border:1px solid var(--color-border);border-radius:4px;">
+    </div>
+    <div>
+      <label for="range-end" style="font-size:var(--text-sm);display:block;">Hasta</label>
+      <input type="date" id="range-end" name="end" value="{{ range_end_iso }}"
+             style="padding:var(--space-2);border:1px solid var(--color-border);border-radius:4px;">
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Ver rango</button>
+    {% if is_range_mode %}
+    <a href="/eod" class="btn btn-sm">Volver a hoy</a>
+    <span class="text-muted" style="font-size:var(--text-sm);margin-left:auto;">
+      {{ range_days }} día{{ 's' if range_days != 1 else '' }} en el rango
+    </span>
+    {% else %}
+    {# Sazon-Improvement v2 (2026-10-06) Phase B: print-friendly 1-page
+       summary for the binder archive. Operators file this at the end
+       of the month for the close-out review. #}
+    <a href="/eod/print" class="btn btn-sm" target="_blank"
+       style="margin-left:auto;"
+       title="Imprimí el resumen de hoy en 1 página para archivar en la carpeta">
+      <svg class="icon" aria-hidden="true"><use href="#icon-print"/></svg>
+      Imprimir
+    </a>
+    {% endif %}
+  </div>
+</form>
+
+{% if is_range_mode %}
+{# ── Range summary card ────────────────────────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2 style="font-size:var(--text-md);margin:0;">Resumen del rango</h2>
+    <span class="text-muted text-sm" >{{ range_start_iso }} → {{ range_end_iso }}</span>
+  </div>
+  <div class="kpi-row d-flex" style="display:flex;gap:var(--space-4);flex-wrap:wrap;padding:var(--space-3) var(--space-4);">
+    {{ ui.metric_card(label="Ventas del rango", value=m.gs(range_total_ventas_gs) if range_total_ventas_gs else '—', compact=True) }}
+    {{ ui.metric_card(label="Operaciones", value=range_total_operaciones, compact=True) }}
+    {{ ui.metric_card(label="Merma", value=m.gs(range_total_merma_gs) if range_total_merma_gs else '—', compact=True) }}
+  </div>
+
+  {% if range_summary %}
+  <div class="table-sticky-wrap" style="max-height:min(70vh,520px);margin-top:var(--space-3);">
+  <table class="table is-striped">
+    <thead>
+      <tr>
+        <th>Día</th>
+        <th class="num">Plan (filas)</th>
+        <th class="num">Completado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for day in range_summary %}
+      <tr>
+        <td>{{ day.date_iso }}</td>
+        <td class="num">{{ day.plan_rows }}</td>
+        <td class="num">{{ '%.1f'|format(day.completed) if day.completed else '—' }}</td>
+        <td><a href="/eod" class="btn btn-sm">Ver cierre de hoy</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+  <p class="text-muted" style="padding:var(--space-3) var(--space-4);font-size:var(--text-sm);">
+    El cierre diario (checklist de 9 pasos) se hace por día — usá los enlaces
+    de la derecha para abrir el cierre de cada jornada.
+  </p>
+</div>
+{% endif %}
+
+<div class="card mb-4">
+  <div class="card-header">
+    <h2>Progreso del cierre</h2>
+    <div>
+      <strong>{{ progress.done }} / {{ progress.total }}</strong>
+      ({{ "%.0f"|format(progress.pct) }}%)
+      {% if progress.all_done %}
+      {{ ui.status_pill("Listo para cerrar", sev="ok") }}
+      {% endif %}
+    </div>
+  </div>
+  <div class="eod-progress-track" role="progressbar"
+       aria-valuenow="{{ "%.0f"|format(progress.pct) }}" aria-valuemin="0" aria-valuemax="100"
+       aria-label="Progreso del cierre"
+       style="height:8px;border-radius:99px;background:var(--color-surface);overflow:hidden;margin:0 var(--space-4) var(--space-4);">
+    <div style="height:100%;width:{{ progress.pct }}%;border-radius:99px;background:var(--color-accent);transition:width .3s;"></div>
+  </div>
+</div>
+
+{% if station != 'cocina' %}
+<form method="post" action="/eod/check">
+  {# BACKLOG #9 (2026-10-01): per-render idempotency token injected by
+     the server. Browser double-click on "Guardar cierre" will re-POST
+     with the SAME key, which the router reserves as an AppMeta row
+     before doing work — so the 2nd click returns 303 + flash=cierre_duplicado
+     instead of writing a duplicate audit row + firing a duplicate backup.
+     Mirrors pedidos.py idempotency_key pattern (F3 race). #}
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="idempotency_key" value="{{ csrf_token }}">
+
+  {# PRODUCCION-V3 Phase 5: EOD checklist progress bar (X of Y done).
+     Audit (H3, M3) found the operator had to scroll through the
+     whole checklist to know how much was left. Now the count is
+     surfaced at the top of the form, with a CSS progress bar that
+     visually communicates "you're 60% there". #}
+  {% if eod_items_total and eod_items_total > 0 %}
+  <div class="eod-progress mb-3 d-flex" data-eod-progress
+       style="margin-bottom:var(--space-3);padding:var(--space-3);
+              background:var(--color-surface-subtle);border-radius:6px;">
+    <div class="d-flex" style="display:flex;justify-content:space-between;align-items:baseline;
+                margin-bottom:var(--space-1);font-size:var(--text-sm);">
+      <strong>Checklist</strong>
+      <span data-eod-progress-text>
+        <strong>{{ eod_items_done }}</strong> de {{ eod_items_total }}
+        ({{ eod_items_pct }}%)
+      </span>
+    </div>
+    <div role="progressbar" aria-valuenow="{{ eod_items_pct }}"
+         aria-valuemin="0" aria-valuemax="100"
+         aria-label="Progreso del checklist de cierre"
+         style="height:8px;background:var(--color-muted);border-radius:4px;overflow:hidden;">
+      <div data-eod-progress-bar
+           style="height:100%;width:{{ eod_items_pct }}%;
+                  background:var(--color-success);
+                  transition:width 0.3s ease;"></div>
+    </div>
+    {% if eod_items_pct == 100 %}
+    <p class="text-muted" style="font-size:var(--text-xs);margin:var(--space-1) 0 0 0;">
+      ✓ Todo listo. Podés guardar el cierre.
+    </p>
+    {% elif eod_items_pct >= 50 %}
+    <p class="text-muted" style="font-size:var(--text-xs);margin:var(--space-1) 0 0 0;">
+      {{ eod_items_total - eod_items_done }} pendiente(s) antes de guardar.
+    </p>
+    {% else %}
+    <p class="text-muted" style="font-size:var(--text-xs);margin:var(--space-1) 0 0 0;">
+      Faltan {{ eod_items_total - eod_items_done }} para completar el cierre.
+    </p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {{ ui.skeleton_section(id="eod-table", variant="line", count=8, label="Cargando cierre diario") }}
+  <div data-loaded-section="eod-table">
+  <div class="table-sticky-wrap" style="max-height:min(70vh,520px);">
+  <table class="table is-hoverable">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Item</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td><input type="checkbox" name="{{ item.key }}" {% if item.status.value == 'done' %}checked{% endif %} aria-label="{{ item.label }}"></td>
+        <td>
+          {{ item.label }}
+          {% if item.help %}<br><small class="text-muted">{{ item.help }}</small>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="text-muted">El cierre se guarda cuando hacés click en "Marcar cierre del día".</p>
+  <div class="form-row">
+    <label for="notes_for_next">Notas para el turno siguiente</label>
+    <textarea id="notes_for_next" name="notes_for_next" rows="2" maxlength="2000"
+              placeholder="Ej: mañana llega pedido de harina; cliente X retira a las 10">{{ saved_notes or '' }}</textarea>
+  </div>
+  <button type="submit" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+    Guardar cierre
+  </button>
+</form>
+{% endif %}
+
+{% if station == 'cocina' %}
+<section class="card mt-4" data-cocina-stock>
+  <div class="card-header">
+    <h2>Stock bajo</h2>
+  </div>
+  <p class="text-muted">
+    Nombre, cantidad, unidad y mínimo. El precio de la compra se anota en Inventario.
+  </p>
+  <table class="table is-striped">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th class="num">Cantidad</th>
+        <th>Unidad</th>
+        <th class="num">Mínimo</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in reorder_items %}
+      <tr>
+        <td>{{ it.name }}</td>
+        <td class="num">{{ "%.2f"|format(it.current_stock) }}</td>
+        <td>{{ it.unit }}</td>
+        <td class="num">{{ "%.2f"|format(it.min_stock) }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="4" class="empty">No hay ingredientes bajo mínimo.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% elif station not in ('escritorio', 'gerencia') %}
+{# CIE-02: Restock step — list of ingredients under minimum + link to /reorder #}
+<section class="card mt-4">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
+      Reposición
+    </h2>
+    <small class="text-muted">
+      {% if reorder_count %}
+        {{ reorder_count }} ingrediente{{ "s" if reorder_count != 1 else "" }} bajo mínimo
+      {% else %}
+        Todo bajo mínimo, no hace falta reponer
+      {% endif %}
+    </small>
+  </div>
+
+  {% if reorder_items %}
+  <p class="text-muted mb-3" >
+    Estos son los ingredientes que están por debajo del mínimo. La lista completa y el ingreso de compras está en
+    <a href="/reorder">Reponer</a>.
+  </p>
+  <div class="table-sticky-wrap" style="max-height:min(70vh,520px);">
+  <table class="table is-striped">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th class="num">Sugerido</th>
+        <th class="num">Costo est.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in reorder_items %}
+      <tr>
+        <td>{{ fmt.entity_name(it) }}</td>
+        <td class="num">{{ "%.2f"|format(it.suggested_qty) }} {{ it.unit }}</td>
+        <td class="num">
+          {% if it.has_price %}{{ m.gs(it.estimated_cost_gs) }}{% else %}<span class="text-muted">sin precio</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    {% if reorder_total_gs %}
+    <tfoot>
+      <tr>
+        <th colspan="2" class="num">Total estimado</th>
+        <th class="num">{{ m.gs(reorder_total_gs) }}</th>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+  </div>
+  <a href="/reorder" class="btn">
+    <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
+    Abrir Reponer
+  </a>
+  <p class="text-muted" style="font-size:var(--text-xs);margin-top:var(--space-2);">
+    Cerrar el día <strong>no cambia el stock</strong>. Comprá primero en Reponer, después guardá el cierre.
+  </p>
+  {% else %}
+  <p class="empty">No hay ingredientes bajo mínimo hoy. ¡Todo en orden!</p>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="card mt-4">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
+      Producción del día
+    </h2>
+    <small class="text-muted">{{ today_iso }}</small>
+  </div>
+  {% if station in ('escritorio', 'gerencia') %}
+  <p class="text-muted">Las piezas las anota Cocina. Acá solo se leen.</p>
+  {% endif %}
+  {% if today_plan.rows %}
+  {% if station not in ('escritorio', 'gerencia') %}
+  <p class="text-muted">
+    Confróntalo con lo que produzcas hoy. Si algo no se terminó,
+    registrá la diferencia en <a href="/merma">merma</a>.
+  </p>
+  {% endif %}
+  <div class="table-sticky-wrap" style="max-height:min(70vh,520px);">
+  <table class="table is-hoverable is-striped">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="num">Plan</th>
+        <th class="num">Hecho</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in today_plan.rows %}
+      {% set hecho = completions.get(r.product_id) %}
+      <tr>
+        <td><strong>{{ r.product_name }}</strong></td>
+        <td class="num">{{ "%.1f"|format(r.qty_to_produce) }}</td>
+        <td class="num d-inline-flex">
+          {% if station in ('escritorio', 'gerencia') %}
+            {% if hecho is not none %}{{ "%.1f"|format(hecho) }}{% else %}—{% endif %}
+          {% else %}
+          <form class="d-inline-flex" method="post" action="/eod/completar" style="display:inline-flex;gap:var(--space-1);align-items:center;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="product_id" value="{{ r.product_id }}">
+            <input type="hidden" name="for_date" value="{{ today_iso }}">
+            <input type="number" name="completed_qty" step="0.5" min="0" size="4"
+                   value="{{ '%.1f'|format(hecho) if hecho is not none else '' }}"
+                   aria-label="Hecho: {{ r.product_name }}">
+            <button type="submit" class="btn btn-sm" aria-label="Guardar {{ r.product_name }}">✓</button>
+          </form>
+          {% endif %}
+          {% if hecho is not none %}
+          {% set delta = hecho - r.qty_to_produce %}
+            {% if delta > 0.05 %}
+            <small class="text-success">+{{ "%.1f"|format(delta) }}</small>
+            {% elif delta < -0.05 %}
+            <small class="text-danger">{{ "%.1f"|format(delta) }}</small>
+            {% else %}
+            <small class="text-muted">en plan</small>
+            {% endif %}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="text-muted" style="font-size:var(--text-xs);margin-top:var(--space-2);">
+    Plan = pronóstico · Hecho = lo que realmente produciste
+  </p>
+  {% else %}
+  <p class="empty">No hay plan de producción para hoy. Revisá las ventas de los últimos 14 días.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

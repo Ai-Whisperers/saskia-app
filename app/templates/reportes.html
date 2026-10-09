@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Reportes — {{ ui.report_source_footer() }}{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Reportes
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="text-muted">Reportes financieros y operativos. Cada reporte tiene un botón de exporte PDF y filtros por fecha.</p>
+
+{{ ui.skeleton_section(id="reportes-index", variant="card", count=8, label="Cargando índice de reportes") }}
+<div class="grid grid-3" data-loaded-section="reportes-index">
+  {% for r in reports %}
+  <a href="{{ r.url }}" class="card is-interactive">
+    <svg class="icon icon-lg" aria-hidden="true"><use href="{{ r.icon }}"/></svg>
+    <h3>{{ fmt.entity_name(r) }}</h3>
+    <p class="text-muted">{{ r.desc }}</p>
+    {% if r.help %}
+    <p class="text-muted" style="font-size: 12px; margin-top: 4px;">
+      <svg class="icon" style="width:12px;height:12px" aria-hidden="true"><use href="#icon-help"/></svg>
+      {{ r.help }}
+    </p>
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+</div>
+
+{% endblock %}

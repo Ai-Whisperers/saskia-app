@@ -1,0 +1,116 @@
+{# app/templates/_components/_customer_picker.html
+   Customer picker widget for the /ventas form.
+
+   SALES-UX-001: replaced the previous `<dialog>` modal with an inline
+   `<ui-combo>` + adjacent "Nuevo cliente" disclosure. The cashier
+   now sees the search results inline (no screen-dimming overlay) and the
+   underlying sales form stays visible and clickable throughout the flow.
+
+   Tier 4.2 (2026-10-01): split into 3 partials + 1 static JS bundle so
+   no single file is over ~120 lines. This file is now a thin shell
+   wiring the combo widget, the inline new-customer form, the Tier 2.5
+   nudge, the Phase A customer card, and the cacheable JS bundle.
+
+     _customer_picker.html  ← this file (combo + new-customer form + glue)
+     _customer_nudge.html    Tier 2.5 "Cliente sin asociar" prompt
+     _customer_card.html     Phase A customer info card (stats / tier /
+                             allergen chip / loyalty redeem / suggestions)
+     static/js/customer_picker.js  all vanilla JS (was 714-line inline)
+
+   Backed by:
+     - GET /clientes/api/search  (returns {id, name, hint, ...})
+     - GET /clientes/api/{id}     (returns full payload incl. notes + stats + top_products + suggestions)
+     - POST /clientes/api/create (creates customer from inline form; returns full payload)
+     - POST /clientes/api/{id}/suggestion-applied (Tier 3.2 fire-and-forget analytics)
+     - <ui-combo> web component (app/static/ui-combo.js)
+#}
+<div class="customer-picker" id="customer-picker">
+  <span id="inline-new-client" aria-hidden="true"></span>
+  <label for="customer_id_combo">Cliente (opcional)</label>
+
+  {# Hidden field that the form posts. Picker.js writes here on selection. #}
+  <input type="hidden" id="customer_id" name="customer_id" value="">
+  {# Phase 4 loyalty POS redeem (2026-10-01): the value of this hidden
+     field is set by the live preview JS below. 0 = no redeem. #}
+  <input type="hidden" id="points_to_redeem" name="points_to_redeem" value="0">
+
+  {# Inline ui-combo — search dropdown opens below the input,
+      not as an overlay. Keyboard navigation, scrollable, no backdrop.
+
+      T-2026-10-01: passes row_label="customerRowLabel" so the combo
+      uses the 3-line renderer from combo-rows.js (name / phone+CI /
+      email+tier+lifetime). Previously the cashier saw "kyrian weiss
+      0982515138" jammed into one cramped line. #}
+  {{ ui.combo_field(
+       name='customer_id_combo',
+       placeholder='Buscá por nombre, teléfono o CI/RUC…',
+       endpoint='/clientes/api/search/',
+       value_field='id',
+       label_field='name',
+       row_label='customerRowLabel'
+     ) }}
+
+  <small id="customer_picker_hint" class="customer-picker-hint" hidden></small>
+
+  <details id="customer_picker_new_panel" class="customer-picker-new-panel">
+    <summary class="customer-picker-new-toggle">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      Crear nuevo cliente
+    </summary>
+    <form id="customer_picker_new_form" autocomplete="off" class="customer-picker-new-form">
+      <div class="form-grid-2col">
+        <div class="form-row">
+          <label for="cp_new_name">Nombre *</label>
+          {# `required` removed 2026-09-29: the input lives inside a
+              collapsed <details> panel. When the parent form submits,
+              the browser tries to focus the required input to validate
+              but the panel is closed → "invalid form control is not
+              focusable" error. The submit handler (customer-picker.js
+              + inline script below) already validates name manually. #}
+          <input type="text" id="cp_new_name" name="name" maxlength="120">
+        </div>
+        <div class="form-row">
+          <label for="cp_new_phone">Teléfono</label>
+          <input type="tel" id="cp_new_phone" name="phone" maxlength="32">
+        </div>
+        <div class="form-row">
+          <label for="cp_new_cedula">CI / RUC</label>
+          <input type="text" id="cp_new_cedula" name="cedula" maxlength="32">
+        </div>
+        <div class="form-row">
+          <label for="cp_new_email">Email</label>
+          <input type="email" id="cp_new_email" name="email" maxlength="120">
+        </div>
+      </div>
+      <div class="form-row">
+        <label for="cp_new_notes">Notas (alérgenos, preferencias)</label>
+        <textarea id="cp_new_notes" name="notes" rows="2"></textarea>
+      </div>
+      <div id="cp_new_error" class="customer-picker-error" hidden></div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+          <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+          Crear y seleccionar
+        </button>
+      </div>
+    </form>
+  </details>
+</div>
+
+
+{# ── Tier 2.5 (2026-10-01): "Cliente sin asociar" nudge.
+     Rendered inline; JS toggles its hidden state via window.CURRENT_CUSTOMER_ID.
+     Non-blocking — cashier can still submit a sale without picking a customer. #}
+{% include "_components/_customer_nudge.html" %}
+
+{# ── Phase A customer info card (2026-09 ventas-redesign).
+     Inline <section>, hidden by default. Populated by app/static/js/customer_picker.js
+     when a customer is picked from the combo (or after inline-create).
+     NOT a <dialog> modal — see SALES-UX-001. #}
+{% include "_components/_customer_card.html" %}
+
+{# Tier 4.2 (2026-10-01): the picker JS used to live as a 714-line
+   inline <script> block here. Now loaded from the cacheable bundle.
+   `defer` so it doesn't block first paint; the IIFE in the bundle
+   runs on DOMContentLoaded. #}
+<script src="/static/js/customer_picker.js?v={{ asset_version() }}" defer></script>

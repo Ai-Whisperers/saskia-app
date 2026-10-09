@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Error interno{% endblock %}
+{% block content %}
+<section class="error-page">
+  <div class="error-card card text-center">
+    <div class="error-code error-code-danger">500</div>
+    <h1>Algo salió mal</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+    <p class="text-muted">
+      Tuvimos un problema procesando tu pedido. El equipo técnico ya tiene
+      el reporte.
+    </p>
+    {% if request_id %}
+    <div class="error-rid">
+      <small class="text-muted">Código de referencia</small>
+      <code
+        class="rid-code"
+        id="rid"
+        title="Click para copiar"
+        style="cursor:pointer;user-select:all;"
+        onclick="navigator.clipboard.writeText('{{ request_id }}').then(()=>this.style.background='#d1fae5')"
+      >{{ request_id }}</code>
+      <p class="text-muted small">
+        Pasale este código al operador si necesitás ayuda.
+        <br>Hacé click para copiarlo al portapapeles.
+      </p>
+    </div>
+    {% endif %}
+    {% if error_class and error_class != 'Exception' %}
+    <p class="text-muted small" style="margin-top:0.5rem;">
+      Tipo: <code>{{ error_class }}</code>
+    </p>
+    {% endif %}
+    <div class="error-actions">
+      <a href="/" class="btn btn-primary btn-pill">
+        <svg class="icon" aria-hidden="true"><use href="#icon-home"/></svg>
+        Volver al inicio
+      </a>
+      <button type="button" class="btn btn-ghost" onclick="location.reload()">
+        <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+        Reintentar
+      </button>
+    </div>
+    <details style="margin-top:1rem;text-align:left;">
+      <summary class="text-muted small">¿Qué pasó?</summary>
+      <div style="padding:1rem;font-size:0.9rem;">
+        <ol>
+          <li>El reporte quedó registrado en <code>/auditoria</code> con código <code>{{ request_id }}</code>.</li>
+          <li>El operador puede buscar este código y ver exactamente qué pasó.</li>
+          <li>Si tenés permiso de admin, también podés verlo entrando a <a href="/auditoria">Auditoría</a>.</li>
+          <li>Si el error se repite, anotá qué estabas haciendo y avisale al operador.</li>
+        </ol>
+      </div>
+    </details>
+  </div>
+</section>
+{% endblock %}

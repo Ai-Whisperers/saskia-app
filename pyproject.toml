@@ -1,0 +1,326 @@
+# pyproject.toml — Sazón fase 1
+# Per tech-stack-review recommendations (#1, #2, #5, #10):
+# - Use uv for install (10-100× faster than pip; reproducible lockfile)
+# - Pin openpyxl >=3.1,<4 (3.x stable, 4.x may break)
+# - Use uvicorn[standard] (gets httptools, uvloop, websockets, watchfiles)
+# - Hand-rolled schema-versioned migrations in db.py (NOT Alembic)
+# - SQLAlchemy sync mode (NOT async)
+# - Phase 1: pure server-rendered HTML (NOT HTMX)
+
+[project]
+name = "sazon-rms"
+version = "0.1.0"
+description = "Sistema de gestión de restaurante — multi-tenant"
+requires-python = ">=3.13,<3.14"
+authors = [
+    {name = "AI Whisperers", email = "ivan@ai-whisperers.dev"},
+]
+license = {text = "MIT"}
+
+# Runtime dependencies
+dependencies = [
+    "fastapi>=0.115,<0.143",         # Pinned to a known-good major.minor
+    "uvicorn[standard]>=0.32,<0.55",  # [standard] = httptools + uvloop + websockets + watchfiles
+    "sqlalchemy>=2.0,<2.2",          # Sync mode (NOT async; documented in app/rms/db.py)
+    "openpyxl>=3.1,<4",              # 3.x stable; 4.x may have breaking changes
+    "jinja2>=3.1,<4",                # Templating for server-rendered HTML
+    "python-multipart>=0.0.20",      # FastAPI form parsing (for HTML forms)
+    "pydantic>=2.9,<3",               # Data validation; FastAPI uses it natively
+    "loguru>=0.7,<0.8",               # App logging per tech-stack-review #13
+    "cryptography>=50.0.1",
+    "boto3>=1.43.85",
+    "bcrypt>=5.0.0",
+    "itsdangerous>=2.2.0",
+    "psycopg[binary]>=3.3.5",
+    "supabase>=2.31.0",
+    "sentry-sdk[fastapi]>=2.10,<3",   # Error tracking (optional via SENTRY_DSN env var; free tier)
+    "pyyaml>=6.0.3",
+    "reportlab>=4.0,<6",           # PDF generation for /reportes/iva/pdf + /reportes/diario/pdf
+]
+
+# Development dependencies are in [dependency-groups] below (PEP 735).
+# dev-base: minimum for CI (no Playwright).
+# dev: full setup including Playwright + httpx + hypothesis + testcontainers.
+# This block is intentionally empty for backward compatibility with
+# older `uv sync --extra dev` invocations; the real deps are in
+# [dependency-groups] which uv reads by default.
+
+# Entry point for uvicorn (run from project root: uvicorn app.rms.main:app --reload)
+[project.scripts]
+sazon = "app.rms.main:run"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+# Pytest config
+# Coverage floor 35% matches .github/workflows/ci.yml. Both must agree.
+# Strategy: docs/plans/2026-10-01-phase14-coverage-strategy.md
+# Grows 35% → 80% via Tier 5/6/7 work (per the plan's growth table).
+[tool.pytest.ini_options]
+# Default run skips the slow/flaky tiers. To include them:
+#   pytest -m browser              # add browser tests
+#   pytest -m browser or e2e       # add multiple
+#   pytest -m "not manual"         # just exclude manual
+# CI gates (ci.yml) override this via --strict-markers + targeted selection.
+addopts = "-v --tb=short -p no:randomly --cov=app --cov-report=term-missing --cov-fail-under=35 -m 'not (browser or e2e or pg or manual)'"
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "browser: runs in a real headless browser via Playwright",
+    "pg: real Postgres tests (testcontainers); skipped locally without Docker, run in CI",
+    "smoke: end-to-end smoke tests (run on every commit)",
+    "smoke_generated: auto-generated route smoke tests (run on every commit)",
+    "crud: CRUD roundtrip tests (run on every commit)",
+    "analytics: analytics correctness (run before deploy)",
+    "perf: performance budget tests (run nightly)",
+    "security: security tests (run on every commit)",
+    "auth: auth tests (run on every commit)",
+    "manual: tests requiring human verification or long setup; skipped in default CI",
+    "e2e: end-to-end scenario tests driving real routes (tests/e2e/)",
+    "migration: schema-migration replay/archaeology tests",
+    "slow: tests that take >1s; useful for `--ignore-glob`",
+    "network: tests that hit external sites (skipped in CI without network)",
+]
+filterwarnings = [
+    # starlette.testclient's BlockingPortal alias is deprecated upstream.
+    # Not our code; wait for starlette bump to remove.
+    "ignore::DeprecationWarning:starlette.testclient",
+    # SQLAlchemy 2.0.36+ internally calls datetime.utcnow() at
+    # sqlalchemy/sql/schema.py:3627. Their deprecation; will be fixed
+    # when we bump SQLAlchemy.
+    "ignore::DeprecationWarning:sqlalchemy.sql.schema",
+    # starlette.testclient warns about httpx vs httpx2 (not our code).
+    # StarletteDeprecationWarning inherits from UserWarning, not
+    # DeprecationWarning, so it needs its own filter.
+    # 2026-10-01: starlette dropped StarletteDeprecationWarning — filter
+    # breaks pytest locally. Commented; re-enable when upstream restores.
+    # "ignore::starlette.exceptions.StarletteDeprecationWarning",
+]
+
+# Ruff config
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = [
+    ".github",  # GitHub Actions YAML files - ruff doesn't parse YAML
+    "app/_archive",  # legacy cleanup archive — not part of the live codebase
+    ".hermes/plans",  # session-scoped workflow plans, not source code
+]
+
+[tool.ruff.lint]
+# Rule families enabled:
+# E/F/W/I    — pycodestyle errors/warnings, pyflakes, isort (baseline)
+# BLE        — blind-except (BACKLOG #53 silent-fail guard)
+# PERF       — perf lint family (PERF401 list-comp, PERF102 dict-iterator)
+# ANN        — flake8-annotations (P0 #1 — push type hints)
+# S          — flake8-bandit (P0 #2 — SQL injection S608, secrets S105/S106)
+# DTZ        — flake8-datetimez (P0 #3 — datetime.utcnow ban, TZ enforcement)
+# B          — flake8-bugbear (default-arg, duplicate-except, etc.)
+# PIE        — flake8-pie (misc correctness: unused-noqa, redundant-# noqa)
+# RUF        — ruff-specific (mutable class attrs, implicit Optional)
+# ASYNC      — async-correctness (async-def returning non-awaitable, blocking IO)
+select = [
+    "E", "F", "W", "I",
+    "BLE", "PERF",
+    "ANN", "S", "DTZ",
+    "B", "PIE", "RUF", "ASYNC",
+    # Explicit codes for RUF100 to recognize noqa as used:
+    "BLE001", "F401", "F821", "ANN401",
+]
+ignore = [
+    "E501",     # line-too-long (we use 100, ruff default is 88)
+    "ANN401",   # dynamically typed expressions (Any) — too noisy
+    "S101",     # assert statements (we use pytest assertions everywhere; runtime cost OK)
+    "S104",     # hardcoded-bind-all-interfaces (we do bind 0.0.0.0 intentionally)
+    "S311",     # pseudo-random generators (we use random for non-crypto seeding)
+    "B008",     # default-arg function calls (FastAPI Depends() in defaults is correct)
+    "RUF012",   # mutable class attrs (legacy SQLAlchemy model pattern)
+    "E402",     # module-level import not at top (we have many intentional late imports)
+]
+
+# Allow these Unicode confusables everywhere — Spanish-language app uses
+# − (U+2212 MINUS SIGN), × (U+00D7 MULTIPLICATION SIGN), – (U+2013 EN DASH),
+# ∪ (U+222A UNION), ℹ (U+2139 INFO SYMBOL). Cyrillic а (U+0430) appears
+# in one Cyrillic test fixture comment. These are intentional and the
+# RUF001/002/003 family warnings are false positives for this codebase.
+allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а", "‹", "›", "σ"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "E402",    # test files may have non-top imports
+    "ANN",     # test ergonomics — don't annotate every helper
+    "S",       # bandit relaxed for tests
+    "DTZ",     # tests use naive datetime for fixture math (legacy contract)
+    "B011",    # tests assert on raises(NotImplementedError) sometimes
+    "PERF401", # tests: build-then-iterate is fine, no need for list comp
+    "BLE001",  # tests: defensive excepts are fine in fixture setup / teardown
+]
+"app/rms/models/**/*.py" = [
+    "F821",    # SQLAlchemy 2.0 Mapped["ClassName"] forward references to other model modules
+    "RUF012",  # legacy SQLAlchemy mutable class attrs
+]
+"app/rms/models/__init__.py" = [
+    "F401",    # re-exports from models_legacy for the public API
+]
+"app/routers/produccion/__init__.py" = [
+    "F401",    # explicit re-exports for the produccion router package
+]
+"app/rms/migrations/__init__.py" = [
+    "F401",    # re-exports migration modules for the loader
+]
+"app/rms/sales/pre_sale_check.py" = [
+    "F821",    # local imports + tz pattern; ASUNCION_TZ resolved at function entry
+]
+"app/rms/sales/pre_sale_check_cart.py" = [
+    "F821",    # local imports + tz pattern; ASUNCION_TZ resolved at function entry
+]
+"app/rms/seed/sazon.py" = [
+    "F821",    # forward references to local helper functions resolved lazily
+]
+"app/routers/produccion/operations.py" = [
+    "F821",    # local ASUNCION_TZ + ProductionClosedDay usage
+]
+"app/routers/health.py" = [
+    "F821",    # BackupResult forward reference for endpoint return type
+]
+"app/rms/seed/packs.py" = [
+    "DTZ",     # generated seed packs mirror seed/sazon.py naive-UTC contract
+]
+"app/migrations/**/*.py" = [
+    "E402", "ANN", "S608",   # migration SQL is hand-rolled
+    "BLE001",                # migrations swallow known schema errors
+    "S110",                  # migrations use try/except pass for idempotent ALTER TABLE
+]
+"app/rms/migrations/**/*.py" = [
+    "E402", "ANN", "S608",   # migration SQL is hand-rolled
+    "BLE001",                # migrations swallow known schema errors
+    "S110",                  # migrations use try/except pass for idempotent ALTER TABLE
+]
+"app/routers/dev.py" = [
+    "S105", "S106",    # dev-only mock data
+    "ANN",             # dev routes are throwaway
+]
+"_smoke/*.py" = [
+    "ANN",     # smoke scripts — ad-hoc utilities, no need for annotations
+    "S",       # bandit relaxed — ad-hoc curl/subprocess patterns
+    "DTZ",     # smoke scripts use naive datetime for ad-hoc timing
+    "E501",    # long console lines are fine in smoke output
+    "BLE001",  # smoke scripts intentionally swallow broad excepts
+]
+"scripts/*.py" = [
+    "ANN",     # scripts are ad-hoc utilities, no need for annotations
+    "S",       # bandit relaxed — scripts intentionally shell out / curl
+    "BLE001",  # scripts may swallow errors with broad except
+    "DTZ",     # scripts use naive datetime for ad-hoc timing
+]
+"docs/**/*.py" = [
+    "BLE001",  # docs helper scripts: same rationale as scripts/
+    "S",       # docs scripts: ad-hoc Playwright patterns
+    "E501",    # long console output lines are fine
+]
+"run_migration.py" = [
+    "BLE001",  # ad-hoc top-level migration runner, errors are diagnostic
+]
+"app/rms/**/*.py" = [
+    "BLE001",  # defensive broad excepts are intentional across RMS layer (legacy pattern)
+]
+"app/routers/**/*.py" = [
+    "BLE001",  # defensive broad excepts in route handlers (legacy pattern, logging follows)
+]
+"app/services/**/*.py" = [
+    "BLE001",  # defensive broad excepts in service layer
+    "ANN",     # service helper signatures: explicit Any is fine for public surface
+]
+"app/integrations/*.py" = [
+    "BLE001",  # integrations swallow external-service errors intentionally
+]
+"app/auth_supabase.py" = [
+    "BLE001",  # auth path: broad except returns 401/500 contract
+]
+"app/observability/*.py" = [
+    "BLE001",  # observability layer: never raise out of observability paths
+    "S310",    # urlopen for SMTP/IMAP/SMS endpoints (not arbitrary URLs)
+]
+"app/rms/db.py" = [
+    "S608",            # SQL builder helpers (text() calls are intentional)
+    "BLE001",          # migrations use try/except ALTER TABLE
+    "S110",            # migrations: try/except pass is the idempotent-ALTER pattern
+]
+
+# Backlog #53: ban silent except: pass in routers. Use BadRequest /
+# logger.warning / explicit re-raise. Migration scripts (app/rms/migrations/)
+# are exempt — they need to swallow known schema errors.
+# ruff rule BLE001 fires on every bare `except Exception:` that re-raises
+# nothing. Combined with our `tests/test_no_silent_excepts.py` test, this
+# closes the door on silent failures.
+
+[tool.ruff.lint.flake8-annotations]
+suppress-dummy-args = true
+suppress-none-returning = true
+
+[tool.ruff.lint.flake8-bandit]
+hardcoded-tmp-directory = ["/tmp", "/var/tmp"]
+
+# Hypothesis profile
+[tool.hypothesis]
+max_examples = 1000
+deadline = 1000  # ms per example
+
+# Mypy config (we use ruff for linting but mypy is the type checker; not strict yet)
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+[dependency-groups]
+# dev-base: minimum needed to run the test suite in CI. No Playwright
+# (134 MB wheel + 656 MB browser binaries), no pytest-randomly (disabled
+# via -p no:randomly in addopts). Run by every CI job.
+dev-base = [
+    "pytest>=8.3,<10",        # Test framework
+    "pytest-cov>=6,<8",       # Coverage reporting + --cov-fail-under gate
+    "pytest-xdist>=3.8.0",    # Parallel test runner
+    "ruff>=0.7,<1",           # Linting (ruff check + format)
+]
+# dev: full developer setup, including the browser stack. Local devs do
+# `uv sync --group dev`; CI runs `uv sync --group dev-base` instead.
+dev = [
+    {include-group = "dev-base"},
+    "httpx>=0.27,<1",         # TestClient (FastAPI)
+    "hypothesis>=6.115,<7",   # Property-based testing
+    "playwright>=1.62.0",     # 9 browser tests; 134 MB wheel
+    "pytest-randomly>=5.0.0", # currently disabled via -p no:randomly
+    "testcontainers[postgresql]>=4.8,<5",  # 2 PG tests
+]
+
+# Coverage config — see docs/plans/2026-10-01-phase14-coverage-strategy.md
+# AGENTS.md §Testing says 80% is the goal; the gate is set to the
+# current measured floor (35%) so the CI fails when coverage drops,
+# not when the goal isn't met. See the strategy doc for the
+# 35% → 80% growth plan.
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "app/rms/migrations/*",  # noqa: historical, not importable
+    "app/__main__.py",
+]
+# CI runners and hermes's sandbox sometimes can't write to CWD.
+# Use /tmp explicitly so the coverage data file is always writable.
+data_file = "/tmp/.coverage-sazon"
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "\\.\\.\\.",
+    "pass",
+]

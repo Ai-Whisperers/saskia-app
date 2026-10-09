@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Delivery Zones · Sazón{% endblock %}
+{% block content %}
+{{ ui.page_header("📍 Delivery Zones — HEREBUS", desc="Cobertura Asunción/San Lorenzo (fuente: ZONAS_DELIVERY)")
+}}
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
+<table class="table is-striped">
+  <thead>
+    <tr>
+      <th>Zona</th>
+      <th>Cobertura</th>
+      <th>Radio</th>
+      <th class="num">Costo Gs.</th>
+      <th class="num">Pedido mín Gs.</th>
+      <th>Tiempo</th>
+      <th>Notas</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for z in zones %}
+    <tr>
+      <td><strong>{{ fmt.entity_name(z) }}</strong> <code>{{ z.code }}</code></td>
+      <td>{{ z.coverage_text or '—' }}</td>
+      <td>{{ z.radius_km or '—' }} km</td>
+      <td class="num">{% if z.delivery_cost_gs > 0 %}{{ m.gs(z.delivery_cost_gs) }}{% else %}<span class="muted">gratis</span>{% endif %}</td>
+      <td class="num">{% if z.min_order_gs > 0 %}{{ m.gs(z.min_order_gs) }}{% else %}—{% endif %}</td>
+      <td>{{ z.delivery_minutes or '—' }} min</td>
+      <td><small class="muted">{{ z.notes or '' }}</small></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="muted">
+  💡 Source: HEREBUS ZONAS_DELIVERY (5 zonas operacionales + 1 "Fuera" como escalado manual).
+</p>
+{% endblock %}

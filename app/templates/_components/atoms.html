@@ -1,0 +1,549 @@
+{# app/templates/_components/atoms.html — A-track atoms (02-REUSE-ABSTRACTION.md §3).
+   Composition layer for ALL redesigned pages. Pages render data + call these.
+
+   DEPENDENCY RULE: atoms may use fmt.* globals + CSS classes only.
+   No inline styles, no page-specific logic here. #}
+
+{# ── A-6 page_header: H1 + desc + crumbs + right actions ───────────── #}
+{% macro page_header(title, desc=None, crumbs=None, actions=None) -%}
+<header class="page-header">
+  {% if crumbs %}
+  <nav class="breadcrumb" aria-label="Ruta">
+    {% for label, href in crumbs %}
+      {% if href and not loop.last %}<a href="{{ href }}">{{ label }}</a><span class="crumb-sep">›</span>
+      {% elif not loop.last %}<span>{{ label }}</span><span class="crumb-sep">›</span>
+      {% else %}<span aria-current="page">{{ label }}</span>{% endif %}
+    {% endfor %}
+  </nav>
+  {% endif %}
+  <div class="page-header-row">
+    <div>
+      <h1 class="page-title">{{ title }}</h1>
+      {% if desc %}<p class="page-desc">{{ desc }}</p>{% endif %}
+    </div>
+    {% if actions %}<div class="page-actions">{{ actions }}</div>{% endif %}
+  </div>
+</header>
+{%- endmacro %}
+
+{# ── A-1 metric_card: one KPI card ─────────────────────────────────── #}
+{% macro metric_card(label, value, sub=None, delta=None, delta_prior=None, target=None, target_label=None, target_direction='high', compact=False, tooltip=None) -%}
+{# target: ratio (NOT percentage). 1.0 means "at target". 0 means "zero data".
+   target_direction: 'high' (higher actual is better — e.g. margin %, recurrence %),
+     or 'low' (lower actual is better — e.g. food cost %, waste %).
+   Color rules for direction='high':
+     ratio >= 1.0 → is-ok (at or above target)
+     ratio >= 0.5 → is-warn (between half and target)
+     ratio < 0.5  → is-danger (well below target)
+   Color rules for direction='low':
+     ratio <= 1.0 → is-ok (at or below target)
+     ratio <= 1.5 → is-warn (up to 50% over target)
+     ratio > 1.5  → is-danger (well over target) #}
+<div class="metric-card{% if compact %} metric-card--compact{% endif %}"{% if tooltip %} title="{{ tooltip }}"{% endif %}>
+  <div class="metric-card__label">{{ label }}</div>
+  <div class="metric-card__value">{{ value }}</div>
+  {% if target is not none %}
+    {% set target_pct = ([(target or 0) * 100, 100]|min)|int %}
+    {% if target_direction == 'high' %}
+      {% set sev = 'is-ok' if target >= 1.0 else 'is-warn' if target >= 0.5 else 'is-danger' %}
+    {% else %}
+      {% set sev = 'is-ok' if target <= 1.0 else 'is-warn' if target <= 1.5 else 'is-danger' %}
+    {% endif %}
+  <div class="metric-card__target" aria-hidden="true">
+    <div class="metric-card__target-fill {{ sev }}" style="width: {{ target_pct }}%"></div>
+  </div>
+  {% if target_label %}<div class="metric-card__target-label">{{ target_label }}</div>{% endif %}
+  {% elif delta is not none %}
+  {{ delta }}
+  {% endif %}
+  {% if sub %}<div class="metric-card__sub">{{ sub }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+{# ── A-2 kpi_strip: responsive row of metric_cards ─────────────────── #}
+{% macro kpi_strip(cards) -%}
+<div class="kpi-strip">
+  {% for c in cards %}{{ metric_card(**c) }}{% endfor %}
+</div>
+{%- endmacro %}
+
+{# ── A-3 status_pill: unified severity pill ────────────────────────── #}
+{% macro status_pill(text, sev='neutral') -%}
+<span class="status-pill status-pill--{{ sev }}">{{ text }}</span>
+{%- endmacro %}
+
+{# ── A-3b status_pill_for: enum → pill via SS-3 ────────────────────── #}
+{% macro status_pill_for(value) -%}
+{% set s = fmt.status_es(value) %}{{ status_pill(s[0], s[1]) }}
+{%- endmacro %}
+
+{# ── A-4 empty_state ───────────────────────────────────────────────── #}
+{% macro empty_state(title, icon='icon-search', hint=None, cta_href=None, cta_label=None, compact=False, count_of=None, total_label=None, action=None) -%}
+<div class="empty-state{% if compact %} empty-state--compact{% endif %}">
+  <svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>
+  <p class="empty-state__title">{{ title }}</p>
+  {% if count_of is not none and count_of > 0 %}
+  <p class="empty-state__count muted">{{ count_of }} de {{ total_label or '0' }} cargados.</p>
+  {% endif %}
+  {% if hint %}<p class="empty-state__hint">{{ hint }}</p>{% endif %}
+  {% if action %}{{ action|safe }}{% endif %}
+  {% if cta_href %}<a class="btn btn-primary" href="{{ cta_href }}">{{ cta_label or 'Empezar' }}</a>{% endif %}
+</div>
+{%- endmacro %}
+
+{# ── A-16 report_source_footer: small footer with generation time + source tag ── #}
+{# Closes P1-4. Drops a consistent cite-footer on every report so the operator
+   can audit back to the data source. #}
+{% macro report_source_footer(source='Sazón', period=None, note=None) -%}
+<footer class="report-source-footer muted mt-8" style="margin-top:2rem;padding-top:1rem;border-top:1px solid var(--color-border);font-size:var(--text-xs);">
+  <span>Generado <span title="{{ now_str() if now_str is defined else '' }}">por {{ source }}</span>.</span>
+  {% if period %}<span> · Período: {{ period }}</span>{% endif %}
+  {% if note %}<span> · {{ note }}</span>{% endif %}
+  <span style="float:right;">{{ now_str()[:16] if now_str is defined else '' }}</span>
+</footer>
+{%- endmacro %}
+
+{# ── A-17 loading_state: shimmer placeholder for slow data sections ──────── #}
+{# Closes P0-D2 (loading skeletons). Wraps a data-bound region that loads
+   asynchronously. The ui-skeleton.js auto-hides all [data-loading-state]
+   wrappers 120ms after DOMContentLoaded (longer if data-loading-delay="X").
+
+   Pattern:
+     {{ ui.loading_state(id="kpi-strip-dashboard", variant="kpi", count=8) }}
+     <div data-loaded-section="kpi-strip-dashboard">
+       ... actual content ...
+     </div>
+
+   Variants match the ui-skeleton Web Component:
+     - "line"  : single shimmer bar (use for table rows)
+     - "card"  : card-sized box (~180px tall)
+     - "kpi"   : KPI tile size (88px tall, for metric strips)
+#}
+{% macro loading_state(id, variant='line', count=5, label='Cargando datos', delay=120) -%}
+<div id="loading-{{ id }}" class="loading-state" role="presentation" aria-hidden="true" data-loading-state data-loading-delay="{{ delay }}">
+  <ui-skeleton-stack count="{{ count }}" variant="{{ variant }}" gap="1rem"></ui-skeleton-stack>
+  <p class="loading-state__label muted" style="margin-top:.5rem;font-size:var(--text-sm);">
+    {{ label }}…
+  </p>
+</div>
+{%- endmacro %}
+
+{# Convenience macro: skeleton + matching data wrapper, side-by-side.
+   Usage:
+     {{ ui.skeleton_section(id="dashboard-kpis", variant="kpi", count=4) }}
+     ... <div data-loaded-section="dashboard-kpis"> actual data </div> ...
+   The skeleton auto-hides. The data section just needs `data-loaded-section="X"`. #}
+{% macro skeleton_section(id, variant='line', count=5, label='Cargando datos', delay=120) -%}
+{{ loading_state(id=id, variant=variant, count=count, label=label, delay=delay) }}
+{%- endmacro %}
+
+{# ── A-5 entity_link: hash-guarded linked name ─────────────────────── #}
+{% macro entity_link(obj, href=None, attr='name') -%}
+{%- set _name = fmt.entity_name(obj if obj is string else (obj[attr] if obj is mapping and attr in obj else (obj.name if obj is not string and obj is not none else obj))) -%}
+{%- if href -%}<a href="{{ href }}">{{ _name }}</a>{%- else -%}<span>{{ _name }}</span>{%- endif -%}
+{%- endmacro %}
+
+{# ── A-8 filter_toolbar ────────────────────────────────────────────── #}
+{# items: list of dicts {type: 'search'|'select'|'date'|'combo', name, label, value,
+   options: [(value, label, selected?)] OR
+   endpoint: server-mode combo URL — renders a <ui-combo>} — renders a GET form row.
+   Use 'combo' for searchable dropdowns; 'select' for short static lists. #}
+{% macro filter_toolbar(items, action=None, applied=None) -%}
+<form method="get" {% if action %}action="{{ action }}"{% endif %} class="filter-toolbar" role="search">
+  {% for f in items %}
+    {% if f.type == 'search' %}
+    <input type="search" class="filter-toolbar__search" name="{{ f.name }}" value="{{ f.value or '' }}"
+           placeholder="{{ f.placeholder or f.label or 'Buscar…' }}" aria-label="{{ f.label or 'Buscar' }}">
+    {% elif f.type == 'select' %}
+    <select name="{{ f.name }}" class="filter-toolbar__select" data-ui-combo aria-label="{{ f.label }}">
+      {% for v, l in f.options %}
+      <option value="{{ v }}" {% if v == (f.value or '') %}selected{% endif %}>{{ l }}</option>
+      {% endfor %}
+    </select>
+    {% elif f.type == 'date' %}
+    <input type="date" class="filter-toolbar__date" name="{{ f.name }}" value="{{ f.value or '' }}" aria-label="{{ f.label }}">
+    {% elif f.type == 'combo' %}
+    {# Wires A-1 combo_field into the toolbar. Pass src=[{value,label}] directly,
+       or endpoint='/api/x?q=' for server-mode. (See ui-combo contract.) #}
+    <ui-combo name="{{ f.name }}"
+                  {% if f.value is not none %}value="{{ f.value }}"{% endif %}
+                  {% if f.display %}display="{{ f.display }}"{% endif %}
+                  {% if f.src %}src='{{ f.src | tojson }}'{% endif %}
+                  {% if f.endpoint %}endpoint="{{ f.endpoint }}"{% endif %}
+                  placeholder="{{ f.placeholder or f.label or 'Buscar…' }}"
+                  aria-label="{{ f.label }}">
+    </ui-combo>
+    {% endif %}
+  {% endfor %}
+  <button type="submit" class="btn btn-primary">Filtrar</button>
+  {% if applied %}<a class="filter-toolbar__clear" href="{{ action or request.url.path }}">Limpiar</a>{% endif %}
+</form>
+{%- endmacro %}
+
+{# ── A-9 data_table wrapper: sticky head + density + numeric contract ─ #}
+{% macro data_table(caption=None, density='comfortable', sticky=True) -%}
+<div class="data-table{% if sticky %} is-sticky{% endif %} data-table--{{ density }}">
+{% if caption %}<div class="data-table__caption">{{ caption }}</div>{% endif %}
+<table class="table is-hoverable is-striped">
+{{ caller() }}
+</table>
+</div>
+{%- endmacro %}
+
+{# ── A-10 row_actions: ≤2 visible + overflow menu ──────────────────── #}
+{# actions: [{label, href|onclick, icon?, sev?, confirm?}] #}
+{% macro row_actions(actions) -%}
+<div class="row-actions">
+  {% for a in actions[:2] %}
+    <a class="btn btn-sm {% if a.sev == 'danger' %}btn-danger-ghost{% else %}btn-ghost{% endif %}"
+       {% if a.href %}href="{{ a.href }}"{% elif a.onclick %}onclick="{{ a.onclick }}"{% endif %}
+       {% if a.confirm %}data-confirm="{{ a.confirm }}"{% endif %}>
+      {% if a.icon %}<svg class="icon" aria-hidden="true"><use href="#{{ a.icon }}"/></svg>{% endif %}{{ a.label }}
+    </a>
+  {% endfor %}
+  {% if actions|length > 2 %}
+  <details class="row-actions__more">
+    <summary aria-label="Más acciones">⋮</summary>
+    <div class="row-actions__menu">
+      {% for a in actions[2:] %}
+      <a {% if a.href %}href="{{ a.href }}"{% elif a.onclick %}onclick="{{ a.onclick }}"{% endif %}>{{ a.label }}</a>
+      {% endfor %}
+    </div>
+  </details>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{# ── A-14 alert_row: one severity row inside alert_rail ────────────── #}
+{% macro alert_row(sev, text, action_href=None, action_label=None) -%}
+<div class="alert-row">
+  <span class="status-pill status-pill--{{ sev }}">{{ {'danger':'Crítico','warn':'Aviso','info':'Info','ok':'OK','neutral':'—'}[sev] }}</span>
+  <span class="alert-row__text">{{ text }}</span>
+  {% if action_href %}<a class="alert-row__link" href="{{ action_href }}">{{ action_label or 'Ver' }} →</a>{% endif %}
+</div>
+{%- endmacro %}
+
+{# ── A-13 stepper ──────────────────────────────────────────────────── #}
+{% macro stepper(steps, current=0) -%}
+<ol class="stepper">
+  {% for s in steps %}
+  <li class="stepper__step {{ 'is-done' if loop.index0 < current else 'is-current' if loop.index0 == current else '' }}">
+    <span class="stepper__num">{{ loop.index }}</span><span>{{ s }}</span>
+  </li>
+  {% endfor %}
+</ol>
+{%- endmacro %}
+
+{# ── A-12 tooltip helper attr ──────────────────────────────────────── #}
+{% macro tooltip(text) -%}title="{{ text }}" data-tip="{{ text }}"{%- endmacro %}
+
+{# ── A-15 flash_toast: render flash messages as auto-dismissing toasts ── #}
+{# Reads the named query param (default 'flash') and renders a toast on page load.
+   Imported macros can't see request from ctx, so caller passes it in.
+   Usage: {{ ui.flash_toast(request) }} #}
+{% macro flash_toast(req, query_name='flash') -%}
+{% set flash = req.query_params.get(query_name) if req else None %}
+{% if flash %}
+    {% set messages = {
+      'sale_created': ('success', 'Venta registrada correctamente.'),
+      'sale_void_ok': ('success', 'Venta anulada y stock recuperado.'),
+      'pedido_created': ('success', 'Pedido creado.'),
+      'pedido_fulfilled': ('success', 'Pedido cumplido.'),
+      'pedido_cancelled': ('warn', 'Pedido cancelado.'),
+      'product_created': ('success', 'Producto creado.'),
+      'product_updated': ('success', 'Producto actualizado.'),
+      'product_deleted': ('success', 'Producto eliminado.'),
+      'recipe_created': ('success', 'Receta creada.'),
+      'recipe_updated': ('success', 'Receta actualizada.'),
+      'recipe_deleted': ('success', 'Receta eliminada.'),
+      'ingredient_created': ('success', 'Ingrediente creado.'),
+      'ingredient_updated': ('success', 'Ingrediente actualizado.'),
+      'customer_created': ('success', 'Cliente creado.'),
+      'customer_updated': ('success', 'Cliente actualizado.'),
+      'supplier_created': ('success', 'Proveedor creado.'),
+      'supplier_updated': ('success', 'Proveedor actualizado.'),
+      'waste_logged': ('success', 'Merma registrada.'),
+      'stock_adjusted': ('success', 'Stock ajustado correctamente.'),
+      'audit_pruned': ('success', 'Entradas antiguas eliminadas.'),
+      'settings_saved': ('success', 'Configuración guardada.'),
+      'saved': ('success', 'Guardado.'),
+      'created': ('success', 'Creado.'),
+      'updated': ('success', 'Actualizado.'),
+      'deleted': ('success', 'Eliminado.'),
+      'error': ('error', 'Hubo un error. Probá de nuevo.'),
+      'unauthorized': ('error', 'No tenés permiso para esta acción.'),
+      'invalid': ('error', 'Datos inválidos. Revisá el formulario.'),
+      'not_found': ('error', 'No se encontró el recurso.'),
+      'points_invalid': ('error', 'Cantidad de puntos inválida.'),
+      'points_insufficient': ('error', 'El cliente no tiene suficientes puntos.'),
+      'points_redeemed': ('success', 'Canje registrado.'),
+      'refund_ok': ('success', 'Reembolso registrado.'),
+      'refund_err_voided': ('error', 'La venta ya fue anulada.'),
+      'refund_err_not_found': ('error', 'Venta o pedido no encontrado.'),
+      'refund_err_invalid_target_type': ('error', 'Tipo de reembolso inválido.'),
+      'refund_err_amount_invalid': ('error', 'El monto debe ser mayor a 0.'),
+      'refund_err_cap_exceeded': ('error', 'El reembolso excede el saldo pendiente.'),
+      'refund_err_eod_closed': ('error', 'No se puede reembolsar: el día ya fue cerrado.'),
+      'refund_err_payment_method_mismatch': ('error', 'El método de reembolso debe coincidir con el de la venta.'),
+      'user_created': ('success', 'Usuario creado.'),
+      'user_updated': ('success', 'Usuario actualizado.'),
+      'user_deleted': ('success', 'Usuario eliminado.'),
+      'user_not_found': ('error', 'Usuario no encontrado.'),
+      'user_duplicate': ('error', 'El nombre de usuario ya existe.'),
+      'user_password_too_short': ('error', 'La contraseña debe tener al menos 6 caracteres.'),
+      'user_cannot_delete_self': ('error', 'No podés eliminarte a vos mismo.'),
+      'eod_saved': ('success', 'Cierre guardado.'),
+      'eod_duplicate': ('warn', 'Ya hiciste el cierre de hoy.'),
+      'caja_open': ('success', 'Caja abierta.'),
+      'caja_closed': ('success', 'Caja cerrada.'),
+      'caja_error': ('error', 'Error en la caja.'),
+      'fiado_charge': ('success', 'Cargo registrado en el fiado.'),
+      'fiado_payment': ('success', 'Pago de fiado registrado.'),
+      'fiado_status': ('success', 'Estado de fiado actualizado.'),
+      'fiado_duplicate': ('warn', 'Este cargo ya estaba registrado.'),
+      'fiado_error': ('error', 'Error al registrar el movimiento de fiado.'),
+      'ocr_ok': ('success', 'Menú importado por OCR.'),
+      'ocr_empty': ('warn', 'No se detectó texto en la imagen.'),
+      'empty': ('warn', 'No hay datos para mostrar.'),
+      'sin_plantilla': ('warn', 'No hay plantilla semanal cargada.'),
+      'rate_limited': ('error', 'Demasiados intentos. Esperá un momento y probá de nuevo.'),
+      'sale_duplicate': ('warn', 'Ya existe una venta con esos datos.'),
+      'pedido_fulfill_duplicate': ('warn', 'Este pedido ya fue marcado como cumplido.'),
+      'customer_deleted': ('success', 'Clientes eliminados.'),
+      'customers_merged': ('success', 'Clientes fusionados.'),
+      'customer_invalid_ids': ('error', 'IDs inválidos.'),
+      'customer_no_duplicates_selected': ('warn', 'No se seleccionaron duplicados.'),
+      'settings_info_saved': ('success', 'Información guardada.'),
+      'settings_fiscal_saved': ('success', 'Configuración fiscal guardada.'),
+      'settings_theme_saved': ('success', 'Tema guardado.'),
+      'settings_demo_error': ('error', 'Error al cargar ejemplo.'),
+      'settings_seed_error': ('error', 'Error al cargar sazón.'),
+      'settings_catalog_error': ('error', 'Error al guardar el catálogo.'),
+      'inventory_filled_already': ('info', 'Todos los ingredientes ya están al menos a 2× el mínimo.'),
+      'eod_wrong_station_gerencia': ('warn', 'Esas casillas se guardan en Gerencia.'),
+      'eod_wrong_station_cocina': ('warn', 'Las piezas se anotan en Cocina.'),
+      'plantilla_cargada': ('success', 'Plantilla semanal cargada.'),
+      'ya_existia': ('info', 'La plantilla ya existía para esa fecha.'),
+    } %}
+    {% set m = messages.get(flash) %}
+    {# Parameterized templates: flash like "key:value1:value2" where the
+       key is the lookup into the templates dict, and the values are
+       inserted via str.format(**). Mirrors points_redeemed:N:D pattern. #}
+    {% if not m and flash and ':' in flash and not flash.startswith('points_redeemed:') %}
+      {% set _prefix = flash.split(':', 1)[0] %}
+      {% set _rest = flash[(_prefix|length) + 1:] %}
+      {% set _vals = _rest.split(':') %}
+      {% set _templates = {
+        'users_bulk_deleted': ('success', '{deleted} cliente(s) eliminado(s){skipped}'),
+        'pedidos_bulk_fulfilled': ('success', '{count} pedido(s) marcado(s) como completado(s)'),
+        'pedidos_bulk_cancelled': ('success', '{cancelled} pedido(s) cancelado(s)'),
+        'pedido_stock_insufficient': ('error', 'Stock insuficiente para {count} ingredientes'),
+        'caja_seed_count': ('success', 'Ejemplo cargado: {products} productos, {pedidos} pedidos'),
+        'settings_theme_saved_p': ('success', 'Tema {theme} guardado'),
+        'settings_demo_error_detail': ('error', 'Error al cargar ejemplo: {detail}'),
+        'settings_seed_error_detail': ('error', 'Error al cargar sazón: {detail}'),
+        'settings_catalog_saved': ('success', '{products} productos guardados en el catálogo'),
+        'settings_seed_demo_count': ('success', 'Ejemplo cargado: {ingredients} ingredientes, {recipes} recetas, {products} productos'),
+        'settings_seed_sazon_count': ('success', 'Sazón cargado: {ingredients} ingredientes, {recipes} recetas, {products} productos, {customers} clientes, {sales} ventas, {pedidos} pedidos'),
+        'products_bulk_deleted': ('success', '{deleted} producto(s) eliminado(s){skipped}'),
+        'inventory_filled': ('success', 'Llenado a 2× min: {filled} ingrediente(s) actualizado(s), +{delta} unidades.{skipped}'),
+        'inventory_filled_already': ('info', 'Todos los ingredientes ya están al menos a 2× el mínimo.'),
+      } %}
+      {% if _prefix in _templates %}
+        {% set _tpl = _templates[_prefix] %}
+        {% set _msg = _tpl[1] %}
+        {% if _prefix == 'users_bulk_deleted' %}
+          {% set _msg = _tpl[1].format(deleted=_vals[0] if _vals|length > 0 else '?', skipped=(', ' + _vals[1] + ' omitido(s) por tener ventas') if _vals|length > 1 and _vals[1] != '0' else '') %}
+        {% elif _prefix == 'pedidos_bulk_fulfilled' %}
+          {% set _msg = _tpl[1].format(count=_vals[0] if _vals|length > 0 else '?') %}
+        {% elif _prefix == 'pedido_stock_insufficient' %}
+          {% set _msg = _tpl[1].format(count=_vals[0] if _vals|length > 0 else '?') %}
+        {% elif _prefix == 'caja_seed_count' %}
+          {% set _msg = _tpl[1].format(products=_vals[0] if _vals|length > 0 else '?', pedidos=_vals[1] if _vals|length > 1 else '?') %}
+        {% elif _prefix == 'settings_theme_saved_p' %}
+          {% set _msg = _tpl[1].format(theme=_vals[0] if _vals|length > 0 else '?') %}
+        {% elif _prefix in ('settings_demo_error_detail', 'settings_seed_error_detail') %}
+          {% set _msg = _tpl[1].format(detail=_vals[0] if _vals|length > 0 else '?') %}
+        {% elif _prefix == 'settings_catalog_saved' %}
+          {% set _msg = _tpl[1].format(products=_vals[0] if _vals|length > 0 else '?') %}
+        {% elif _prefix == 'settings_seed_demo_count' %}
+          {% set _msg = _tpl[1].format(
+            ingredients=_vals[0] if _vals|length > 0 else '?',
+            recipes=_vals[1] if _vals|length > 1 else '?',
+            products=_vals[2] if _vals|length > 2 else '?',
+          ) %}
+        {% elif _prefix == 'settings_seed_sazon_count' %}
+          {% set _msg = _tpl[1].format(
+            ingredients=_vals[0] if _vals|length > 0 else '?',
+            recipes=_vals[1] if _vals|length > 1 else '?',
+            products=_vals[2] if _vals|length > 2 else '?',
+            customers=_vals[3] if _vals|length > 3 else '?',
+            sales=_vals[4] if _vals|length > 4 else '?',
+            pedidos=_vals[5] if _vals|length > 5 else '?',
+          ) %}
+        {% elif _prefix == 'products_bulk_deleted' %}
+          {% set _msg = _tpl[1].format(
+            deleted=_vals[0] if _vals|length > 0 else '?',
+            skipped=(', ' + _vals[1] + ' omitido(s) por tener ventas') if _vals|length > 1 and _vals[1] != '0' else ''
+          ) %}
+        {% elif _prefix == 'inventory_filled' %}
+          {% set _msg = _tpl[1].format(
+            filled=_vals[0] if _vals|length > 0 else '?',
+            delta=_vals[1] if _vals|length > 1 else '?',
+            skipped=(' (' + _vals[2] + ' sin mínimo definido — no tocados.)') if _vals|length > 2 and _vals[2] != '0' else ''
+          ) %}
+        {% elif _prefix == 'inventory_filled_already' %}
+          {% set _msg = _tpl[1] %}
+        {% elif _prefix == 'pedidos_bulk_cancelled' %}
+          {% set _msg = _tpl[1].format(cancelled=_vals[0] if _vals|length > 0 else '?') %}
+        {% endif %}
+        <script>
+(function () {
+  function fire() {
+    if (window.UIToast) {
+      UIToast.show({ severity: '{{ _tpl[0] }}', message: {{ _msg|tojson }}, duration: 5000 });
+    }
+  }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', fire); }
+  else { fire(); }
+})();
+</script>
+      {% endif %}
+    {% endif %}
+    {# Loyalty redeem: flash like "points_redeemed:10:10000" — show the discount #}
+    {% if not m and flash and flash.startswith('points_redeemed:') %}
+      {% set parts = flash.split(':') %}
+      {% if parts|length >= 3 %}
+        {% set _pts = parts[1] %}
+        {% set _gs = "{:,}".format(parts[2]|int) %}
+        <script>
+(function () {
+  function fire() {
+    if (window.UIToast) {
+      UIToast.show({
+        severity: 'success',
+        message: 'Canje registrado: {{ _pts }} puntos → {{ _gs }} Gs. de descuento.',
+        duration: 4000
+      });
+    }
+  }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', fire); }
+  else { fire(); }
+})();
+</script>
+      {% endif %}
+    {% endif %}
+    {# POS redeem (2026-10-01): points_flash= query param holds N:D format
+       after a /ventas/nueva sale that included a points redemption. #}
+    {% set points_flash = req.query_params.get('points_flash') if req else None %}
+    {% if points_flash and ':' in points_flash %}
+      {% set _parts = points_flash.split(':') %}
+      {% if _parts|length >= 2 %}
+        {% set _pts_pos = _parts[0] %}
+        {% set _gs_pos = "{:,}".format(_parts[1]|int) %}
+        <script>
+(function () {
+  function fire() {
+    if (window.UIToast) {
+      UIToast.show({
+        severity: 'success',
+        message: 'Canje POS: {{ _pts_pos }} puntos → {{ _gs_pos }} Gs. de descuento aplicados a esta venta.',
+        duration: 5000
+      });
+    }
+  }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', fire); }
+  else { fire(); }
+})();
+</script>
+      {% endif %}
+    {% endif %}
+    {% if m %}
+<script>
+(function () {
+  function fire() {
+    if (window.UIToast) {
+      UIToast.show({ severity: '{{ m[0] }}', message: {{ m[1]|tojson }}, duration: 4000 });
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fire);
+  } else {
+    fire();
+  }
+})();
+</script>
+    {% endif %}
+  {% endif %}
+{%- endmacro %}
+
+{# ── A-18 combo_field: ui-combo wrapped for forms ─────────────────── #}
+{# Closes P0-D17. Replaces a native <select> with a search-as-you-type
+   <ui-combo> Web Component. Two modes:
+     - client-side: pass `src` as a list of {value, label} dicts
+     - server-side: pass `endpoint` URL (returns JSON {results: [...]})
+
+   Args:
+     name        — form field name (required)
+     value       — currently selected value
+     display     — currently selected display label
+     placeholder — placeholder text shown in the trigger
+     src         — list of {value, label} dicts (client mode)
+     endpoint    — URL like "/api/lookup/products?q=" (server mode)
+     required    — boolean
+     label       — associated <label> text (optional)
+     label_for   — id for the <label for="...">
+
+   allow_create — show "+ crear" affordance inside the dropdown
+     autosubmit   — auto-submit the closest <form> on selection
+     row_label    — optional standalone label rendered to the left
+     data_attrs    — dict of extra `data-*` attributes on the web component
+
+   See: docs/plans/2026-10-01-phase14-todo-inventory.md (D15 — currency
+   formatter for price combos still pending). #}
+{% macro combo_field(name, value=None, display=None, placeholder=None,
+                     src=None, endpoint=None, required=False,
+                     label=None, label_for=None,
+                     value_field='value', label_field='label',
+                     allow_create=False, autosubmit=False,
+                     row_label=None, data_attrs=None) -%}
+  {% set _vf = value_field %}
+  {% set _lf = label_field %}
+  {% if label -%}
+    <label for="{{ label_for or name }}">{{ label }}{% if required %} *{% endif %}</label>
+  {%- endif %}
+  {% if src -%}
+    <ui-combo name="{{ name }}"
+                  {% if value is not none %}value="{{ value }}"{% endif %}
+                  {% if display %}display="{{ display }}"{% endif %}
+                  {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+                  {% if required %}required{% endif %}
+                  {% if allow_create %}allow-create data-allow-create="true"{% endif %}
+                  {% if autosubmit %}autosubmit{% endif %}
+                  {% if row_label %}row-label="{{ row_label }}"{% endif %}
+                  {% if data_attrs %}{% for k, v in data_attrs.items() %}{{ k }}="{{ v }}" {% endfor %}{% endif %}
+                  src='{{ src | tojson }}'></ui-combo>
+    <span class="combo-input" hidden></span>
+  {%- elif endpoint -%}
+    <ui-combo name="{{ name }}"
+                  {% if value is not none %}value="{{ value }}"{% endif %}
+                  {% if display %}display="{{ display }}"{% endif %}
+                  {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+                  {% if required %}required{% endif %}
+                  {% if allow_create %}allow-create data-allow-create="true"{% endif %}
+                  {% if autosubmit %}autosubmit{% endif %}
+                  {% if row_label %}row-label="{{ row_label }}"{% endif %}
+                  {% if data_attrs %}{% for k, v in data_attrs.items() %}{{ k }}="{{ v }}" {% endfor %}{% endif %}
+                  endpoint="{{ endpoint }}"
+                  data-source="{{ endpoint.split('?')[0] }}"
+                  {% if _vf != 'value' %}value-field="{{ _vf }}"{% endif %}
+                  {% if _lf != 'label' %}label-field="{{ _lf }}"{% endif %}></ui-combo>
+    <span class="combo-input" hidden></span>
+  {%- else -%}
+    {# Fallback to native text input so the form still works without data #}
+    <input type="text" name="{{ name }}" id="{{ name }}"
+            {% if required %}required{% endif %}
+            {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+            {% if value is not none %}value="{{ value }}"{% endif %}>
+  {%- endif %}
+{%- endmacro %}

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+
+{% block title %}Inventario — {{ action }}{% endblock %}
+
+{% block content %}
+{{ ui.page_header(
+     title=action ~ ' ingrediente',
+     desc='Datos básicos, stock, operación y clasificación.',
+     crumbs=[('Inventario', '/inventario'), (action, None)]
+   ) }}
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
+<form method="post" action="/inventario{{ '/nuevo' if mode == 'new' else '/' ~ ingredient.id ~ '/editar' }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<div class="form-grid-2col inv-form-wrap">
+  <div class="form-col">
+    <h2 style="font-size:var(--text-md);margin:0;">Datos básicos</h2>
+  <div class="form-row">
+    <label for="name">Nombre</label>
+    <input type="text" id="name" name="name" required maxlength="120" value="{{ ingredient.name if ingredient else '' }}" placeholder="Ej: Harina de trigo">
+  </div>
+  <div class="form-row">
+    <label for="category_combo">Categoría</label>
+    {# Combo supports creating new categories. Endpoint lists existing
+       distinct categories; allow-create lets users type a brand-new one. #}
+    {{ ui.combo_field(
+      name='category',
+      value=(ingredient.category if ingredient and ingredient.category else ''),
+      display=(ingredient.category if ingredient and ingredient.category else ''),
+      placeholder='Ej: Harinas, Lácteos, Aceites',
+      allow_create=True,
+      row_label='categoryRowLabel',
+      endpoint='/inventario/api/categories?q='
+    ) }}
+    <small class="muted">Opcional. Para agrupar ingredientes en el inventario.</small>
+  </div>
+  <div class="form-row">
+    <label for="unit">Unidad</label>
+    {# D17 migration: legacy ui-combo div → <ui-combo> Web Component via macro. #}
+    {{ ui.combo_field(
+      name='unit',
+      value=ingredient.unit_display if ingredient else '',
+      placeholder='Seleccioná unidad',
+      endpoint='/recetas/api/units?q=',
+      value_field='value',
+      label_field='display'
+    ) }}
+    <small class="muted">g, kg, ml, l, und…</small>
+  </div>
+  <div class="form-row">
+    <label for="stock_qty">Stock actual</label>
+    <input type="number" id="stock_qty" name="stock_qty" required step="0.01" min="0" value="{{ "%.2f"|format(ingredient.stock_qty) if ingredient else '0' }}">
+  </div>
+  <div class="form-row">
+    <label for="opening_stock_qty">Stock de apertura</label>
+    <input type="number" id="opening_stock_qty" name="opening_stock_qty" step="0.01" min="0"
+           value="{{ "%.2f"|format(ingredient.opening_stock_qty) if ingredient and ingredient.opening_stock_qty is not none else '' }}"
+           placeholder="Stock inicial cuando se empezó a usar el sistema">
+    <small>El stock inicial cuando se cargó este ingrediente por primera vez.</small>
+  </div>
+  <div class="form-row">
+    <label for="opening_stock_date">Fecha de apertura</label>
+    <ui-date id="opening_stock_date" name="opening_stock_date" value="{{ ingredient.opening_stock_date if ingredient and ingredient.opening_stock_date else '' }}"></ui-date>
+    <small>Fecha en que se registró el stock de apertura.</small>
+  </div>
+  <div class="form-row">
+    <label for="notes">Notas</label>
+    <textarea id="notes" name="notes" rows="2">{{ ingredient.notes if ingredient and ingredient.notes else '' }}</textarea>
+  </div>  </div>
+  <div class="form-col">
+    <h2 style="font-size:var(--text-md);margin:0;">Operación y cumplimiento</h2>
+  <div class="form-row">
+    <label for="min_stock_qty">Stock mínimo (para alertas)</label>
+    <input type="number" id="min_stock_qty" name="min_stock_qty" required step="0.01" min="0" value="{{ "%.2f"|format(ingredient.min_stock_qty) if ingredient else '0' }}">
+  </div>
+  <div class="form-row">
+    <label for="reorder_point">Punto de reorden (override)</label>
+    <input type="number" id="reorder_point" name="reorder_point" step="0.01" min="0"
+           value="{{ "%.2f"|format(ingredient.reorder_point) if ingredient and ingredient.reorder_point is not none else '' }}"
+           placeholder="Si dejás vacío, se usa el stock mínimo">
+    <small>Si lo configurás, el sistema usa este valor en lugar del stock mínimo para las sugerencias de reorden.</small>
+  </div>
+  <div class="form-row">
+    <label for="purchase_price_gs">Precio de compra (Gs., por unidad)</label>
+    <div class="currency-input-wrap">
+      <input type="number" id="purchase_price_gs" name="purchase_price_gs" step="1" min="0" value="{{ ingredient.purchase_price_gs if ingredient and ingredient.purchase_price_gs is not none else '' }}" placeholder="Dejalo vacío si no sabés todavía" inputmode="numeric" class="currency-input">
+    </div>
+    <small>Entero Gs. Sin decimales. Si no sabés el precio todavía, dejalo vacío: el sistema te avisa en Inicio.</small>
+  </div>
+<fieldset style="border:1px solid var(--color-border);border-radius:8px;padding:var(--space-3);margin:var(--space-3) 0;">
+    <legend style="padding:0 6px;font-weight:600;">Clasificación y conservación</legend>
+    <p class="muted" style="font-size:0.85rem;">Se recalculan automáticamente al cambiar el nombre, pero podés corregirlas acá.</p>
+
+    <div class="form-row">
+      <label for="shelf_life_days">Vida útil (días)</label>
+      <input type="number" id="shelf_life_days" name="shelf_life_days" min="0" max="3650"
+             value="{{ ingredient.shelf_life_days if ingredient and ingredient.shelf_life_days else '' }}">
+    </div>
+
+    <div class="form-row">
+      <span class="form-label-like">Alérgenos (tocá para marcar)</span>
+      <div class="chip-toggle-group" role="group" aria-label="Alérgenos">
+        {# Batch C (2026-10-08): allergens now come from the catalog table, #}
+        {# not a hardcoded list — operators can edit labels / add codes   #}
+        {# from /settings/catalog without a code deploy.                  #}
+        {%- set _cur = (ingredient.allergens if ingredient and ingredient.allergens else '')|lower -%}
+        {%- set _allergens = allergens or [] -%}
+        {%- for a in _allergens -%}
+        <label class="chip-toggle"><input type="checkbox" data-allergen="{{ a.code }}" {% if a.code in _cur %}checked{% endif %}> {{ a.label }}</label>
+        {%- endfor -%}
+      </div>
+      <input type="hidden" name="allergens" id="allergens" value="{{ ingredient.allergens if ingredient and ingredient.allergens else '' }}">
+      <small>Si no marcás ninguno queda sin declarar.</small>
+    </div>
+
+    <div class="form-row">
+      <span class="form-label-like">Etiquetas dietéticas</span>
+      <div class="chip-toggle-group" role="group" aria-label="Etiquetas dietéticas">
+        {# Same catalog-driven pattern as allergens (see comment above). #}
+        {%- set _curd = (ingredient.dietary_tags if ingredient and ingredient.dietary_tags else '')|lower -%}
+        {%- set _dietary_tags = dietary_tags or [] -%}
+        {%- for d in _dietary_tags -%}
+        <label class="chip-toggle"><input type="checkbox" data-dietary="{{ d.code }}" {% if d.code in _curd %}checked{% endif %}> {{ d.label }}</label>
+        {%- endfor -%}
+      </div>
+      <input type="hidden" name="dietary_tags" id="dietary_tags" value="{{ ingredient.dietary_tags if ingredient and ingredient.dietary_tags else '' }}">
+    </div>
+
+    <div class="form-row">
+      <label class="checkbox d-flex" style="display:flex;gap:8px;align-items:center;font-weight:400;">
+        <input type="checkbox" name="may_contain_gluten" value="1"
+               {% if ingredient and ingredient.may_contain_gluten %}checked{% endif %}>
+        Posible contaminación cruzada con trigo (bloquea "sin TACC")
+      </label>
+    </div>
+
+    {# ── Validation banner (2026-09-29 tagging/ refactor) ── #}
+    {% if ingredient and ingredient.tag_validation_issues %}
+    <div class="alert alert-warn mt-3" role="alert" >
+      <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+      <div>
+        <strong>Contradicciones detectadas en este ingrediente:</strong>
+        <ul style="margin:var(--space-1) 0 0;padding-left:1.2rem;">
+          {% for issue in ingredient.tag_validation_issues.split('\n') if issue.strip() %}
+          <li>{{ issue }}</li>
+          {% endfor %}
+        </ul>
+        <p class="text-muted" style="font-size:var(--text-xs);margin:var(--space-2) 0 0;">
+          El sistema <strong>no</strong> corrige esto automáticamente. Verificá
+          que los alérgenos y las etiquetas sean correctos antes de guardar.
+          {% if 'sin gluten' in ingredient.tag_validation_issues or 'vegano' in ingredient.tag_validation_issues %}
+            <a href="/inventario/auditoria-etiquetas">Ver auditoría completa →</a>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="form-row">
+      <label for="lead_time_days">Tiempo de reposición del proveedor (días)</label>
+      <input type="number" id="lead_time_days" name="lead_time_days" min="0" max="90"
+             value="{{ ingredient.lead_time_days if ingredient and ingredient.lead_time_days else '' }}">
+    </div>
+  </fieldset>  </div>
+</div>
+
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="/inventario" class="btn">Cancelar</a>
+  </div>
+</form>
+
+{% endblock %}

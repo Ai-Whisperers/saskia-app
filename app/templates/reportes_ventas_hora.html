@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Ventas por hora{{ ui.report_source_footer() }}
+{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Ventas por hora
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="text-muted">Cantidad de ventas por cada hora (0–23). Útil para planificar personal y producción.</p>
+
+{% if peak_hour >= 0 %}
+<p class="text-muted mb-4">Hora pico: <strong>{{ "%02d:00"|format(peak_hour) }}</strong></p>
+{% endif %}
+
+{% if by_hour %}
+
+{# P-42: heatmap renders FIRST so the operator's eye lands on the
+   day-of-week × hour pattern. The by-hour table is secondary detail. #}
+<h2 class="mt-5">
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Mapa de calor — Día de semana × Hora
+</h2>
+<p class="text-muted">Últimos {{ heatmap_range_days }} días. Cada celda es una franja horaria; el color indica cuántas.</p>
+
+<div class="heatmap-grid" role="table" aria-label="Mapa de calor ventas por día y hora">
+  <div class="heatmap-axis"></div>
+  {% for hour in range(24) %}
+  <div class="heatmap-axis">{{ "%02d"|format(hour) }}</div>
+  {% endfor %}
+  {% for dow in range(7) %}
+  <div class="heatmap-axis">{{ weekday_labels[dow] }}</div>
+  {% for hour in range(24) %}
+  {% set count = heatmap[dow][hour] %}
+  {% set intensity = (count / heatmap_max) if heatmap_max else 0 %}
+  <div class="heatmap-cell"
+       title="{{ weekday_labels[dow] }} {{ "%02d:00"|format(hour) }} — {{ count }} venta(s)"
+       style="background: hsl(217, 80%, {{ (95 - intensity * 60) | int }}%);">
+    {% if count > 0 %}{{ count }}{% endif %}
+  </div>
+  {% endfor %}
+  {% endfor %}
+</div>
+
+<h2 class="mt-5">Detalle por hora</h2>
+{{ ui.skeleton_section(id="ventas-hora-table", variant="line", count=24, label="Cargando ventas por hora") }}
+<div data-loaded-section="ventas-hora-table">
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>Hora</th>
+      <th class="num">Ventas</th>
+      <th>Barra</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for hour in range(24) %}
+    {% set count = by_hour.get(hour, 0) %}
+    <tr>
+      <td><strong>{{ "%02d:00"|format(hour) }}</strong></td>
+      <td class="num">{{ count }}</td>
+      <td>
+        {% if count > 0 %}
+        {% set max_count = by_hour.values() | max %}
+        <div style="background:#3b82f6; height: 16px; width: {{ (count / max_count * 100) | int }}%; border-radius: 2px;"></div>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% else %}
+{{ ui.empty_state(title="No hay ventas registradas", icon="icon-report") }}
+{% endif %}
+
+{% endblock %}

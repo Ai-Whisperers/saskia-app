@@ -1,0 +1,33 @@
+{# app/templates/_components/_customer_nudge.html
+   Tier 4.2 (2026-10-01): extracted from _customer_picker.html.
+   Tier 2.5 (2026-10-01): "Cliente sin asociar" nudge.
+
+   Soft prompt that shows ONLY when the picker has no customer
+   selected AND there are products in the cart. Hidden on initial
+   load; JS toggles it via the #nudge-no-customer element below.
+
+   Non-blocking — cashier can still submit a sale without picking
+   a customer (the loyalty stack is opt-in by design).
+
+   Wires:
+     - id="nudge-no-customer"            — wrapper div; JS toggles .hidden
+     - id="nudge-points-estimate"        — JS writes ~X points preview here
+     - id="nudge-no-customer-focus"      — JS focuses the combo input on click
+   Owner script: app/static/js/customer_picker.js
+#}
+<div id="nudge-no-customer" hidden
+     role="status" aria-live="polite"
+     style="margin-top:8px; padding:8px 10px; border-radius:6px;
+            background:rgba(245,158,11,.10); border:1px solid #f59e0b;
+            color:#92400e; font-size:0.85rem; display:flex;
+            justify-content:space-between; align-items:center; gap:8px;">
+  <span>
+    <strong>💡 Acumulá puntos</strong> — asociá un cliente para esta venta
+    y ganá <span id="nudge-points-estimate">~X</span> puntos.
+  </span>
+  <button type="button" id="nudge-no-customer-focus"
+          class="btn btn-ghost btn-sm"
+          style="font-size:0.78rem; padding:3px 8px;">
+    Buscar cliente
+  </button>
+</div>

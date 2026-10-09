@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Importar carta (OCR){% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-inventory"></use></svg>
+  Importar carta por foto
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+{% if not ocr_available %}
+<div class="callout callout-warning">
+  OCR no configurado: falta la variable de entorno <code>ZAI_API_KEY</code>.
+  Pedila al administrador del servidor. Mientras tanto podés usar la
+  importación por CSV.
+</div>
+{% endif %}
+
+{% if error %}<div class="callout callout-danger">{{ error }}</div>{% endif %}
+{% if request.query_params.get('flash') == 'ocr_nada' %}
+<div class="callout callout-warning">No marcaste ninguna fila para importar.</div>
+{% endif %}
+{% if request.query_params.get('flash') == 'ocr_ok' %}
+<div class="callout callout-success">
+  Carta importada: {{ request.query_params.get('creados', '0') }} productos nuevos,
+  {{ request.query_params.get('actualizados', '0') }} precios actualizados.
+</div>
+{% endif %}
+
+<form method="post" action="/menu-import/ocr" enctype="multipart/form-data" class="stack">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label class="field">
+    <span>Foto de la carta (JPG/PNG/WebP, máx 8MB)</span>
+    <input type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf" required>
+  </label>
+  <button type="submit" class="btn btn-primary" {% if not ocr_available %}disabled{% endif %}>
+    Leer carta con IA
+  </button>
+</form>
+
+{% if preview %}
+<h2>Revisá antes de confirmar</h2>
+<form method="post" action="/menu-import/ocr/confirm" id="ocr-confirm-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="rows" id="ocr-rows" value="">
+  <table class="table">
+    <thead><tr><th></th><th>Nombre</th><th>Precio (Gs.)</th><th>Categoría</th><th>Estado</th></tr></thead>
+    <tbody>
+    {% for item in preview.matched + preview.nuevos + preview.dudosos %}
+      <tr>
+        <td><input type="checkbox" class="ocr-row" checked
+                   data-name="{{ item.name }}" data-price="{{ item.price_gs or '' }}" data-category="{{ item.category or '' }}"></td>
+        <td><input name="n_{{ loop.index }}" value="{{ item.name }}" class="ocr-edit-name"></td>
+        <td><input name="p_{{ loop.index }}" value="{{ item.price_gs or '' }}" inputmode="numeric" class="ocr-edit-price"></td>
+        <td><input name="c_{{ loop.index }}" value="{{ item.category or '' }}" class="ocr-edit-cat"></td>
+        <td>
+          {% if item.product_id %}<span class="badge badge-ok">existe (actualiza precio)</span>
+          {% elif loop.revindex0 >= (preview.matched|length + preview.nuevos|length) %}<span class="badge badge-warn">dudoso</span>
+          {% else %}<span class="badge">nuevo</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <button type="submit" class="btn btn-primary" onclick="return ocrCollect()">Importar seleccionadas</button>
+</form>
+<script>
+function ocrCollect() {
+  const rows = [];
+  document.querySelectorAll('tr').forEach(tr => {
+    const cb = tr.querySelector('.ocr-row');
+    if (!cb || !cb.checked) return;
+    const name = tr.querySelector('.ocr-edit-name').value.trim();
+    if (!name) return;
+    const priceRaw = tr.querySelector('.ocr-edit-price').value.replace(/[^0-9]/g, '');
+    rows.push({name, price_gs: priceRaw ? parseInt(priceRaw, 10) : null,
+               category: tr.querySelector('.ocr-edit-cat').value.trim() || null});
+  });
+  document.getElementById('ocr-rows').value = JSON.stringify(rows);
+  return rows.length > 0 || alert('Marcá al menos una fila');
+}
+</script>
+<p class="muted">Preview generado por IA — revisá precios y nombres antes de confirmar.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Cierre mensual — {{ close.period_label }}{{ ui.report_source_footer() }}
+{% endblock %}
+
+{% block content %}
+<h1>Cierre mensual — {{ close.period_label }}</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="text-muted">
+  Período: {{ close.start.strftime("%d/%m/%Y") }} al {{ close.end.strftime("%d/%m/%Y") }} ·
+  {{ close.total_sales }} ventas registradas
+</p>
+
+{# Month navigation + jump-to-month picker #}
+<form method="get" action="/reportes/cierre-mensual" class="pagination mb-4" aria-label="Navegación de mes">
+  <a href="?year={{ prev_year }}&month={{ prev_month }}" class="btn btn-sm btn-ghost">← Mes anterior</a>
+  <ui-month name="year-month" value="{{ year }}-{{ '%02d'|format(month) }}"
+                min="2024-01" max="2030-12"
+                style="margin: 0 var(--space-2);"></ui-month>
+  <noscript><button type="submit" class="btn btn-sm btn-primary">Ir</button></noscript>
+  <span style="padding: 0 var(--space-3); font-weight: 600;">{{ close.period_label }}</span>
+  <a href="?year={{ next_year }}&month={{ next_month }}" class="btn btn-sm btn-ghost">Mes siguiente →</a>
+</form>
+<script>
+  // Wire the ui-month picker so it auto-submits the form on change.
+  document.querySelectorAll('ui-month[name="year-month"]').forEach(function (el) {
+    el.addEventListener('change', function () {
+      var form = el.closest('form');
+      if (!form) return;
+      // On submit, the hidden input handler rewrites the name to "year-month";
+      // we need to split it into year=YYYY and month=MM.
+      var v = el.getValue().split('-');
+      var yearInput = form.querySelector('input[name="year"]');
+      var monthInput = form.querySelector('input[name="month"]');
+      if (!yearInput) {
+        yearInput = document.createElement('input');
+        yearInput.type = 'hidden'; yearInput.name = 'year';
+        form.appendChild(yearInput);
+      }
+      if (!monthInput) {
+        monthInput = document.createElement('input');
+        monthInput.type = 'hidden'; monthInput.name = 'month';
+        form.appendChild(monthInput);
+      }
+      yearInput.value = v[0];
+      monthInput.value = v[1];
+      form.submit();
+    });
+  });
+</script>
+
+{# KPI cards #}
+{{ ui.skeleton_section(id="cierre-kpis", variant="kpi", count=4, label="Cargando cierre mensual") }}
+<div class="grid grid-4 mb-4" data-loaded-section="cierre-kpis">
+  <div class="metric-card">
+    <div class="metric-label">Ventas totales</div>
+    <div class="metric-value">{{ m.gs(close.total_ventas_gs) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">IVA ventas</div>
+    <div class="metric-value">{{ m.gs(close.total_iva_ventas_gs) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Prime Cost</div>
+    <div class="metric-value">{{ m.gs(close.total_prime_cost_gs) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Margen neto</div>
+    <div class="metric-value">
+      {{ m.gs(close.total_margen_neto_gs) }}
+      {% if close.total_margen_pct %}
+      <small style="font-size: var(--text-sm); color: {% if close.total_margen_pct > 30 %}var(--color-success-fg){% elif close.total_margen_pct > 15 %}var(--color-warn-fg){% else %}var(--color-danger-fg){% endif %};">
+        ({{ "%.1f"|format(close.total_margen_pct) }}%)
+      </small>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if close.top_product %}
+<div class="alert alert-success mb-4" role="status">
+  <strong>Producto estrella:</strong> {{ close.top_product }}
+</div>
+{% endif %}
+
+{# Detail table #}
+<h2>Detalle por línea</h2>
+{{ ui.skeleton_section(id="cierre-detail", variant="line", count=8, label="Cargando detalle") }}
+<div data-loaded-section="cierre-detail">
+<table class="table is-striped is-hoverable sortable">
+  <thead>
+    <tr>
+      <th>Línea</th>
+      <th class="num">Cantidad</th>
+      <th class="num">Ventas (Gs.)</th>
+      <th class="num">IVA (Gs.)</th>
+      <th class="num">Materiales</th>
+      <th class="num">Mano de obra</th>
+      <th class="num">Overhead</th>
+      <th class="num">Prime Cost</th>
+      <th class="num">Margen</th>
+      <th class="num">Margen %</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in close.rows %}
+    <tr {% if r.category and not r.sku %}style="background: var(--color-surface-subtle); font-weight: 600;"{% endif %}>
+      <td>
+        {{ r.label }}
+        {% if r.sku %}<br><small class="muted">{{ r.sku }}</small>{% endif %}
+      </td>
+      <td class="num">{{ "%.1f"|format(r.qty_sold) }}</td>
+      <td class="num">{{ m.gs(r.ventas_gs) }}</td>
+      <td class="num">{{ m.gs(r.iva_ventas_gs) }}</td>
+      <td class="num">{{ m.gs(r.costo_materiales_gs) }}</td>
+      <td class="num">{{ m.gs(r.mano_de_obra_gs) }}</td>
+      <td class="num">{{ m.gs(r.overhead_gs) }}</td>
+      <td class="num"><strong>{{ m.gs(r.prime_cost_gs) }}</strong></td>
+      <td class="num">{{ m.gs(r.margen_neto_gs) }}</td>
+      <td class="num">
+        {% if r.margen_pct %}
+        <span class="{% if r.margen_pct > 30 %}badge badge-ok{% elif r.margen_pct > 15 %}badge-warn{% else %}badge-danger{% endif %}">
+          {{ "%.1f"|format(r.margen_pct) }}%
+        </span>
+        {% else %}—{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr style="font-weight: 700; border-top: 2px solid var(--color-border-strong);">
+      <td>TOTAL</td>
+      <td class="num">{{ "%.1f"|format(close.product_rows | sum(attribute='qty_sold')) }}</td>
+      <td class="num">{{ m.gs(close.total_ventas_gs) }}</td>
+      <td class="num">{{ m.gs(close.total_iva_ventas_gs) }}</td>
+      <td class="num">{{ m.gs(close.product_rows | sum(attribute='costo_materiales_gs')) }}</td>
+      <td class="num">{{ m.gs(close.product_rows | sum(attribute='mano_de_obra_gs')) }}</td>
+      <td class="num">{{ m.gs(close.product_rows | sum(attribute='overhead_gs')) }}</td>
+      <td class="num"><strong>{{ m.gs(close.total_prime_cost_gs) }}</strong></td>
+      <td class="num">{{ m.gs(close.total_margen_neto_gs) }}</td>
+      <td class="num">{% if close.total_margen_pct %}{{ "%.1f"|format(close.total_margen_pct) }}%{% endif %}</td>
+    </tr>
+  </tfoot>
+</table>
+</div>
+
+{% set csv_q = dict(request.query_params.multi_items()) %}{% set _ = csv_q.update({'format': 'csv'}) %}
+<a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-secondary" download="cierre_mensual.csv" style="margin-top:var(--space-4);">
+  <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+  Exportar CSV
+</a>
+
+<details class="text-muted" style="margin-top: var(--space-6); padding: var(--space-3); background: var(--color-surface-subtle); border-radius: var(--radius); font-size: var(--text-sm)">
+  <summary style="cursor:pointer;font-weight:600;">📋 Notas del cierre</summary>
+  <ul style="margin: var(--space-2) 0 0 var(--space-4); padding: 0;">
+    <li><em>Mano de obra</em> es 0 para recetas sin tiempo declarado (la mayoría). Configurá en cada receta cuando lo sepas.</li>
+    <li><em>Overhead</em> es {{ (close.rows[0].overhead_gs if close.rows else 0) }} % del costo de materiales (config en Configuración).</li>
+    <li>IVA incluye solo Facturas (no Boletas Resimple). Para el IVA débito fiscal completo, usá <a href="/reportes/iva">/reportes/iva</a>.</li>
+    <li>Margen saludable: > 30% del precio de venta. Por debajo de 15%, el producto no cubre sus costos reales.</li>
+  </ul>
+</details>
+{% endblock %}

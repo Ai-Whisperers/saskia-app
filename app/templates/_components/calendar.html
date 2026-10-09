@@ -1,0 +1,94 @@
+{# Reusable calendar grid components for the production calendar (Phase D).
+
+   week_grid(weekdays, days, prev_week_iso, next_week_iso)
+     - weekdays: list of 7 weekday header strings (e.g. ["Lun", "Mar", ...])
+     - days: list of 7 day dicts {date_iso, label, item_count, is_today, is_selected}
+     - prev_week_iso / next_week_iso: ISO date strings used in nav hrefs
+
+   month_grid(year, month, days, first_day_pad, prev_month_iso, next_month_iso)
+     - year/month: ints
+     - days: list of day dicts (1..N where N = days in that month)
+     - first_day_pad: number of empty padding cells before day 1 (0 Mon-first)
+     - prev_month_iso / next_month_iso: ISO YYYY-MM strings
+
+   Phase B delivers the visual shell only. Phase D wires the per-day
+   production-plan payload + per-product override editor.
+
+   Refs: operator review round 1 (Thu 18-sep) — Q2 (c) calendar dashboard.
+#}
+
+{% macro week_grid(weekdays, days, prev_week_iso, next_week_iso) -%}
+<nav class="calendar-nav" aria-label="Navegación semanal">
+  <a href="?view=week&week={{ prev_week_iso }}" class="btn btn-sm btn-ghost">‹ Semana anterior</a>
+  <span class="calendar-nav-current" aria-live="polite">Semana actual</span>
+  <a href="?view=week&week={{ next_week_iso }}" class="btn btn-sm btn-ghost">Semana siguiente ›</a>
+</nav>
+{% if days %}
+<div class="calendar-week-grid">
+  <div class="calendar-weekday-row" role="row">
+    {% for wd in weekdays -%}
+    <div class="calendar-weekday" role="columnheader">{{ wd }}</div>
+    {%- endfor %}
+  </div>
+  <div class="calendar-day-row" role="row">
+    {% for day in days -%}
+    <a href="/produccion?view=day&for_date={{ day.date_iso }}"
+       class="calendar-day-cell{% if day.is_today %} is-today{% endif %}{% if day.is_selected %} is-selected{% endif %}"
+       role="gridcell"
+       aria-label="{{ day.label }} ({{ day.item_count }} productos)">
+      <span class="calendar-day-label">{{ day.label }}</span>
+      <span class="calendar-day-count">{{ day.item_count }}</span>
+    </a>
+    {%- endfor %}
+  </div>
+</div>
+{% else %}
+<p class="calendar-empty">Sin días para esta semana.</p>
+{% endif %}
+{%- endmacro %}
+
+{% macro month_grid(year, month, days, first_day_pad, prev_month_iso, next_month_iso) -%}
+<nav class="calendar-nav" aria-label="Navegación mensual">
+  <a href="?view=month&month={{ prev_month_iso }}" class="btn btn-sm btn-ghost">‹ Mes anterior</a>
+  <span class="calendar-nav-current" aria-live="polite">{{ "%04d-%02d"|format(year, month) }}</span>
+  <a href="?view=month&month={{ next_month_iso }}" class="btn btn-sm btn-ghost">Mes siguiente ›</a>
+</nav>
+<div class="calendar-month-grid">
+  <div class="calendar-weekday-row" role="row">
+    {% for wd in ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"] -%}
+    <div class="calendar-weekday" role="columnheader">{{ wd }}</div>
+    {%- endfor %}
+  </div>
+  {% if days %}
+  {% set cols_per_row = 7 %}
+  {% set first_day_pad = first_day_pad|int %}
+  {% set total_days = first_day_pad + days|length %}
+  {% set num_rows = ((total_days + cols_per_row - 1) / cols_per_row)|round(0, 'ceil')|int %}
+  {% for row in range(num_rows) %}
+  <div class="calendar-day-row" role="row">
+    {% for col in range(cols_per_row) %}
+    {% set cell_index = row * cols_per_row + col %}
+    {% set day_index = cell_index - first_day_pad %}
+    {% if cell_index < first_day_pad %}
+    <div class="calendar-day-cell calendar-day-cell--pad" role="gridcell" aria-hidden="true"></div>
+    {% elif day_index < days|length %}
+    {% set day = days[day_index] %}
+    <a href="/produccion?view=day&for_date={{ day.date_iso }}"
+       class="calendar-day-cell{% if day.is_today %} is-today{% endif %}{% if day.is_selected %} is-selected{% endif %}"
+       role="gridcell"
+       aria-label="{{ day.label }} de {{ "%04d-%02d"|format(year, month) }} ({{ day.item_count }} productos){% if day.is_today %} — Hoy{% endif %}">
+      <span class="calendar-day-label">{{ day.label }}</span>
+      <span class="calendar-day-count">{{ day.item_count }}</span>
+    </a>
+    {% else %}
+    <div></div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="calendar-empty">Sin planificar para este mes.</p>
+  {% endif %}
+</div>
+<p class="sr-only">Hoy: indicador de día actual.</p>
+{%- endmacro %}

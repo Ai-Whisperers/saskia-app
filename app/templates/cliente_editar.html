@@ -1,0 +1,704 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Editar {{ fmt.entity_name(customer) }} — Cliente{% endblock %}
+{# P3.1: defaults so the template renders cleanly on GET (no form_values). #}
+{% set form_values = form_values or {} %}
+{% set form_error = form_error or '' %}
+{% block content %}
+<nav class="breadcrumbs">
+  <a href="/clientes">Clientes</a> &rsaquo;
+  <a href="/clientes/{{ customer.id }}">{{ customer.name or customer.phone or customer.id }}</a> &rsaquo;
+  Editar
+</nav>
+
+<h1>{% if customer.name %}Editar {{ customer.name }}{% else %}Editar cliente{% endif %}</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+{% if form_error %}
+<div class="alert alert-error mb-3" role="alert" data-form-error
+     style="margin-bottom:var(--space-3);padding:var(--space-2) var(--space-3);border-left:4px solid var(--color-danger, #dc2626);background:rgba(220,38,38,.08);">
+  <strong>No se pudo guardar:</strong> {{ form_error }}
+</div>
+{% endif %}
+
+<form method="post" action="/clientes/{{ customer.id }}/editar" class="card" style="max-width:560px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="form-row is-required">
+    <label for="name">Nombre <span class="required" aria-label="obligatorio">*</span></label>
+    <input type="text" id="name" name="name" value="{{ form_values.name if form_values else (customer.name or '') }}" required maxlength="120" aria-required="true" autofocus>
+  </div>
+
+  <div class="form-row">
+    <label for="phone">Teléfono</label>
+    <input type="tel" id="phone" name="phone" value="{{ form_values.phone if form_values else (customer.phone or '') }}" maxlength="32" placeholder="+595 9XX XXXXX">
+  </div>
+
+  <div class="form-row">
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" value="{{ form_values.email if form_values else (customer.email or '') }}" maxlength="120">
+  </div>
+
+  <div class="form-row">
+    <label for="cedula">CI / RUC</label>
+    <input type="text" id="cedula" name="cedula" value="{{ form_values.cedula if form_values else (customer.cedula or '') }}" maxlength="32">
+  </div>
+
+  <div class="form-row">
+    <label for="notes">Notas</label>
+    <textarea id="notes" name="notes" rows="3" maxlength="2000">{{ form_values.notes if form_values else (customer.notes or '') }}</textarea>
+
+    {# ── P3: Perfil dietético — restricciones + preferencias ordenadas ── #}
+    <fieldset class="form-section">
+      <legend>Perfil</legend>
+      <div class="form-section-grid-2">
+        <div>
+          <label for="birthday">Cumpleaños</label>
+          <input type="text" id="birthday" name="birthday" value="{{ form_values.birthday if form_values else (customer.birthday or '') }}"
+                 placeholder="DD-MM o DD-MM-AAAA" maxlength="10" style="margin-top:4px;">
+          <small class="muted">Para promos de cumpleaños.</small>
+        </div>
+        <div>
+          <label for="how_found">¿Cómo nos encontró?</label>
+          <select class="mt-4" id="how_found" name="how_found" >
+            <option value="">—</option>
+            {% for opt in how_found_options %}
+            <option value="{{ opt }}" {% if (form_values.how_found if form_values else customer.how_found) == opt %}selected{% endif %}>{{ opt|title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="preferred_channel">Canal preferido</label>
+          <select class="mt-4" id="preferred_channel" name="preferred_channel" >
+            <option value="">—</option>
+            {% for opt in channel_options %}
+            <option value="{{ opt }}" {% if (form_values.preferred_channel if form_values else customer.preferred_channel) == opt %}selected{% endif %}>{{ opt|title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="d-flex" style="display:flex;align-items:end;">
+          <label class="d-flex" style="display:flex;align-items:center;gap:var(--space-2);padding-bottom:22px;">
+            <input type="checkbox" id="marketing_consent" name="marketing_consent" value="1"
+                   {% if form_values.marketing_consent %}{% if form_values.marketing_consent == '1' %}checked{% endif %}{% else %}{% if customer.marketing_consent %}checked{% endif %}{% endif %}>
+            <span>Acepta recibir promos <span class="muted">(WhatsApp)</span></span>
+          </label>
+        </div>
+      </div>
+      <div class="form-section-grid-2cols">
+        <div>
+          <label for="invoice_name">Facturación — razón social</label>
+          <input type="text" id="invoice_name" name="invoice_name" value="{{ form_values.invoice_name if form_values else (customer.invoice_name or '') }}"
+                 maxlength="120" placeholder="Para pedidos con factura" style="margin-top:4px;">
+        </div>
+        <div>
+          <label for="invoice_ruc">Facturación — RUC / CI</label>
+          <input type="text" id="invoice_ruc" name="invoice_ruc" value="{{ form_values.invoice_ruc if form_values else (customer.invoice_ruc or '') }}"
+                 maxlength="20" placeholder="Se precarga en pedidos" style="margin-top:4px;">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="form-section">
+      <legend>Direcciones de delivery</legend>
+      {% if addresses %}
+      <table class="table mb-2"  data-addr-table>
+        <thead><tr><th>Etiqueta</th><th>Dirección</th><th>Zona</th><th></th></tr></thead>
+        <tbody data-addr-tbody>
+        {% for a in addresses %}
+          <tr>
+            <td>{{ a.label }}{% if a.is_default %} <span class="badge badge-neutral">predet.</span>{% endif %}</td>
+            <td>{{ a.address_text }}</td>
+            <td class="muted">{{ zone_names.get(a.zone_id, "—") if a.zone_id else "—" }}</td>
+            <td>
+              <button type="button" class="btn btn-sm addr-default" data-addr-id="{{ a.id }}"
+                      aria-label="Marcar {{ a.label }} como predeterminada">★</button>
+              <button type="button" class="btn btn-sm btn-danger-ghost addr-del" data-addr-id="{{ a.id }}"
+                      aria-label="Eliminar dirección {{ a.label }}">✕</button>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted" data-addr-empty
+         style="margin:0 0 var(--space-2);font-size:var(--text-sm);">Sin direcciones guardadas.</p>
+      <table class="table mb-2" style="margin-bottom:var(--space-2);display:none;" data-addr-table>
+        <thead><tr><th>Etiqueta</th><th>Dirección</th><th>Zona</th><th></th></tr></thead>
+        <tbody data-addr-tbody></tbody>
+      </table>
+      {% endif %}
+      <div class="form-section-grid-3">
+        <div>
+          <label for="addr-label">Etiqueta</label>
+          <input type="text" id="addr-label" placeholder="casa" maxlength="32" style="margin-top:4px;">
+        </div>
+        <div>
+          <label for="addr-text">Dirección</label>
+          <input type="text" id="addr-text" placeholder="Calle, número, barrio…" style="margin-top:4px;">
+        </div>
+        <div>
+          <label for="addr-zone">Zona</label>
+          <select class="mt-4" id="addr-zone" >
+            <option value="">—</option>
+            {% for z in zones %}<option value="{{ z.id }}">{{ z.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <button type="button" id="addr-add" class="btn btn-sm btn-secondary">+ Agregar</button>
+      </div>
+    </fieldset>
+
+    {# Phase 14 (2026-10-01): Perfiles de facturación (RUC + razón social).
+       Each customer can have many (Personal / Empresa / etc.) with exactly
+       one marked default. The cashier adds / sets-default / deletes rows
+       from here. POSTs to /clientes/api/{id}/invoice-profiles endpoints. #}
+    <fieldset class="form-section">
+      <legend>Perfiles de facturación</legend>
+      {% if invoice_profiles %}
+      <table class="table mb-2"  data-inv-table>
+        <thead><tr><th>Alias</th><th>RUC / CI</th><th>Razón social</th><th>Tipo</th><th></th></tr></thead>
+        <tbody data-inv-tbody>
+        {% for p in invoice_profiles %}
+          <tr data-inv-id="{{ p.id }}">
+            <td><span data-inv-alias>{{ p.alias }}</span>{% if p.is_default %} <span class="badge badge-neutral" data-inv-default-badge>predet.</span>{% endif %}</td>
+            <td>{{ p.ruc_ci }}</td>
+            <td>{{ p.razon_social }}</td>
+            <td class="muted">{{ p.tipo_documento }} · {{ p.tipo_operacion }}</td>
+            <td>
+              {% if not p.is_default %}
+              <button type="button" class="btn btn-sm inv-default" data-inv-id="{{ p.id }}"
+                      aria-label="Marcar {{ p.alias }} como predeterminado">★</button>
+              <button type="button" class="btn btn-sm btn-danger-ghost inv-del" data-inv-id="{{ p.id }}"
+                      aria-label="Eliminar perfil {{ p.alias }}">✕</button>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted" data-inv-empty
+         style="margin:0 0 var(--space-2);font-size:var(--text-sm);">Sin perfiles de facturación. El cliente se factura siempre con RUC/CI manual.</p>
+      <table class="table mb-2" style="margin-bottom:var(--space-2);display:none;" data-inv-table>
+        <thead><tr><th>Alias</th><th>RUC / CI</th><th>Razón social</th><th>Tipo</th><th></th></tr></thead>
+        <tbody data-inv-tbody></tbody>
+      </table>
+      {% endif %}
+      <div class="form-section-grid-4">
+        <div>
+          <label for="inv-alias">Alias</label>
+          <input type="text" id="inv-alias" placeholder="Personal" maxlength="32" style="margin-top:4px;">
+        </div>
+        <div>
+          <label for="inv-ruc">RUC / CI</label>
+          <input type="text" id="inv-ruc" placeholder="80012345-6" maxlength="20" style="margin-top:4px;">
+        </div>
+        <div>
+          <label for="inv-razon">Razón social / Nombre</label>
+          <input type="text" id="inv-razon" placeholder="Kyrian Weiss o Empresa S.A." maxlength="120" style="margin-top:4px;">
+        </div>
+        <button type="button" id="inv-add" class="btn btn-sm btn-secondary">+ Agregar perfil</button>
+      </div>
+      {# P3.5: tipo_documento + tipo_operacion as <select class="d-grid">s so B2B / RUC /
+         Pasaporte / Extranjero customers can be represented. Hardcoded
+         CI_PARAGUAYA + B2C were wrong for non-Personal customers. #}
+      <div class="d-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-top:var(--space-2);">
+        <div>
+          <label for="inv-tipo-doc">Tipo de documento</label>
+          <select class="mt-4" id="inv-tipo-doc" >
+            <option value="CI_PARAGUAYA">CI paraguaya</option>
+            <option value="PASAPORTE">Pasaporte</option>
+            <option value="CI_EXTRANJERA">CI extranjera</option>
+            <option value="CARNET_RESIDENCIA">Carnet de residencia</option>
+            <option value="INNOMINADO">Innominado</option>
+            <option value="TARJETA_DIPLOMATICA">Tarjeta diplomática (exoneración)</option>
+            <option value="OTRO">Otro</option>
+          </select>
+        </div>
+        <div>
+          <label for="inv-tipo-operacion">Tipo de operación</label>
+          <select class="mt-4" id="inv-tipo-operacion" >
+            <option value="B2C">B2C (consumidor final)</option>
+            <option value="B2B">B2B (entre empresas)</option>
+            <option value="B2G">B2G (gobierno)</option>
+            <option value="B2F">B2F (extranjero)</option>
+          </select>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="form-section">
+      <legend>Perfil dietético</legend>
+      <p class="hint mt-0" >
+        Restricciones = NUNCA violar (aparece como alerta rojo en pedidos y ventas).
+        Preferencias = qué aprueba y en qué orden (rank 1 = ofrecer primero).
+      </p>
+      <label class="d-flex" style="font-weight:600;display:block;margin:var(--space-2) 0 var(--space-1);">
+        Restricciones ({{ dietary_profile.restrictions|length }})
+      </label>
+      <div class="d-inline-flex d-flex" style="display:flex;flex-wrap:wrap;gap:var(--space-2);">
+        {% for tag in dietary_tag_options %}
+        <label class="d-inline-flex" style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:4px 12px;cursor:pointer;">
+          <input type="checkbox" name="dietary_restriction" value="{{ tag }}"
+                 {% if tag in dietary_profile.restrictions %}checked{% endif %}>
+          <span>{{ tag }}</span>
+        </label>
+        {% endfor %}
+      </div>
+
+      <label style="font-weight:600;display:block;margin:var(--space-3) 0 var(--space-1);">
+        Preferencias (orden de aprobación) ({{ dietary_profile.preferences|length }})
+      </label>
+      <div id="dietary-prefs-rows">
+        {% for pref in dietary_profile.preferences %}
+        <div class="dietary-pref-row d-grid" style="display:grid;grid-template-columns:60px 1fr 2fr auto;gap:var(--space-2);margin-bottom:var(--space-2);align-items:center;">
+          <input type="number" class="input dp-rank" value="{{ pref.rank }}" min="1" max="99" aria-label="Orden">
+          <input type="text" class="input dp-tag" value="{{ pref.tag }}" placeholder="sin lactosa…" list="dietary-tag-list">
+          <input type="text" class="input dp-note" value="{{ pref.note }}" placeholder="ej: leche de almendra, marca…">
+          <button type="button" class="btn btn-sm btn-secondary dp-remove" aria-label="Quitar">✕</button>
+        </div>
+        {% endfor %}
+      </div>
+      <datalist id="dietary-tag-list">
+        {% for tag in dietary_tag_options %}<option value="{{ tag }}">{% endfor %}
+      </datalist>
+      <button type="button" id="dietary-pref-add" class="btn btn-sm btn-secondary d-flex">+ Agregar preferencia</button>
+
+      <label class="d-flex" style="display:flex;align-items:center;gap:var(--space-2);margin-top:var(--space-3);">
+        <input type="checkbox" id="dietary_confirm_always" name="dietary_confirm_always" value="1"
+               {% if dietary_profile.confirm_always %}checked{% endif %}>
+        <span><strong>Preguntar siempre</strong> — confirmar la preferencia con el cliente en cada pedido</span>
+      </label>
+    </fieldset>
+
+    <script>
+    (function () {
+      var rows = document.getElementById("dietary-prefs-rows");
+      var addBtn = document.getElementById("dietary-pref-add");
+      if (!rows || !addBtn) return;
+      function addRow() {
+        var div = document.createElement("div");
+        div.className = "dietary-pref-row";
+        div.style.cssText = "display:grid;grid-template-columns:60px 1fr 2fr auto;gap:var(--space-2);margin-bottom:var(--space-2);align-items:center;";
+        div.innerHTML =
+          '<input type="number" class="input dp-rank" value="' + (rows.children.length + 1) + '" min="1" max="99" aria-label="Orden">' +
+          '<input type="text" class="input dp-tag" placeholder="sin lactosa…" list="dietary-tag-list">' +
+          '<input type="text" class="input dp-note" placeholder="ej: leche de almendra, marca…">' +
+          '<button type="button" class="btn btn-sm btn-secondary dp-remove" aria-label="Quitar">✕</button>';
+        rows.appendChild(div);
+      }
+      addBtn.addEventListener("click", addRow);
+      rows.addEventListener("click", function (e) {
+        if (e.target.classList.contains("dp-remove")) {
+          e.target.closest(".dietary-pref-row").remove();
+        }
+      });
+      // Serialize rows into the hidden JSON payload on submit
+      var form = rows.closest("form");
+      if (!form) return;
+      var payload = document.createElement("input");
+      payload.type = "hidden";
+      payload.name = "dietary_prefs_payload";
+      form.appendChild(payload);
+      form.addEventListener("submit", function () {
+        var out = [];
+        rows.querySelectorAll(".dietary-pref-row").forEach(function (row) {
+          var tag = row.querySelector(".dp-tag").value.trim();
+          if (!tag) return;
+          out.push({
+            tag: tag,
+            rank: parseInt(row.querySelector(".dp-rank").value, 10) || 99,
+            note: row.querySelector(".dp-note").value.trim(),
+          });
+        });
+        payload.value = JSON.stringify(out);
+      });
+    })();
+    </script>
+    <span class="form-help">Notas internas — no son visibles para el cliente.</span>
+  </div>
+
+  <div class="form-actions flex-1">
+    <div class="flex-1" id="js-error-banner" hidden role="alert"
+         data-js-error-banner
+         style="flex:1;padding:var(--space-2) var(--space-3);border-left:4px solid var(--color-danger, #dc2626);background:var(--color-danger-soft, rgba(220,38,38,.08));color:var(--color-danger-fg, #991b1b);border-radius:var(--radius, 6px);font-size:var(--text-sm);"></div>
+    <a href="/clientes/{{ customer.id }}" class="btn btn-ghost"
+       data-confirm-title="¿Descartar cambios no guardados?"
+       data-confirm-body="Los cambios sin guardar se perderán."
+       data-confirm-ok="Descartar"
+       data-confirm-danger="false">Descartar cambios</a>
+    {# P3.7: split save into 'back to detail' (default) and 'keep editing'.
+       A <input type='hidden' name='redirect_to'> is filled in by the button
+       the operator clicks; the server reads it after a successful save. #}
+    <input type="hidden" name="redirect_to" id="redirect-to" value="/clientes/{{ customer.id }}">
+    <button type="submit" name="intent" value="back"
+            class="btn btn-primary" data-save-back
+            onclick="document.getElementById('redirect-to').value='/clientes/{{ customer.id }}';">
+      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+      Guardar y volver al detalle
+    </button>
+    <button type="submit" name="intent" value="stay"
+            class="btn btn-secondary" data-save-stay
+            onclick="document.getElementById('redirect-to').value='/clientes/{{ customer.id }}/editar';">
+      <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+      Guardar y seguir editando
+    </button>
+  </div>
+</form>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+(function () {
+  // P3.4: inline error banner replaces native alert(). The banner sits
+  // inside .form-actions and is shared across address/invoice/dietary ops.
+  var banner = document.getElementById("js-error-banner");
+  function showInlineError(msg) {
+    if (!banner) return;
+    banner.textContent = msg;
+    banner.hidden = false;
+    // Auto-dismiss after 5s so transient errors don't linger.
+    setTimeout(function () { banner.hidden = true; }, 5000);
+  }
+
+  var custMatch = window.location.pathname.match(/\/clientes\/(\d+)\/editar/);
+  if (!custMatch) return;
+  var cid = custMatch[1];
+
+  var addBtn = document.getElementById("addr-add");
+  if (addBtn) {
+    addBtn.addEventListener("click", function () {
+      var label = document.getElementById("addr-label").value.trim();
+      var text = document.getElementById("addr-text").value.trim();
+      if (!text) { showInlineError("Escribí la dirección."); return; }
+      var zone = document.getElementById("addr-zone").value;
+      fetch("/clientes/api/" + cid + "/addresses", {
+        method: "POST",
+        headers: {"Content-Type": "application/json",
+                  "X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value},
+        body: JSON.stringify({label: label || "casa", address_text: text, zone_id: zone ? parseInt(zone, 10) : null})
+      }).then(function (r) {
+        if (!r.ok) throw new Error("fallo");
+        return r.json();
+      }).then(function (data) {
+        // P3.10: insert the new <tr> in-place instead of reloading.
+        var tbody = document.querySelector("[data-addr-tbody]");
+        if (!tbody) { window.location.reload(); return; }
+        var emptyEl = document.querySelector("[data-addr-empty]");
+        if (emptyEl) emptyEl.style.display = "none";
+        var tableEl = document.querySelector("[data-addr-table]");
+        if (tableEl) tableEl.style.display = "";
+        var tr = document.createElement("tr");
+        var safeText = function (s) {
+          var d = document.createElement("div");
+          d.textContent = s == null ? "" : String(s);
+          return d.innerHTML;
+        };
+        tr.innerHTML =
+          "<td>" + safeText(data.label || "casa") + "</td>" +
+          "<td>" + safeText(data.address_text) + "</td>" +
+          "<td class=\"muted\">" + safeText(data.zone_id || "—") + "</td>" +
+          "<td>" +
+            "<button type=\"button\" class=\"btn btn-sm addr-default\" data-addr-id=\"" + data.id + "\">★</button> " +
+            "<button type=\"button\" class=\"btn btn-sm btn-danger-ghost addr-del\" data-addr-id=\"" + data.id + "\">✕</button>" +
+          "</td>";
+        tbody.appendChild(tr);
+        // Bind the new row's delete button to the existing handler.
+        var newDel = tr.querySelector(".addr-del");
+        if (newDel) {
+          newDel.addEventListener("click", function () {
+            var rowEl = newDel.closest("tr");
+            fetch("/clientes/api/" + cid + "/addresses/" + data.id, {
+              method: "DELETE",
+              headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+            }).then(function (rr) {
+              if (!rr.ok) throw new Error("fallo");
+              if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
+            }).catch(function () { showInlineError("No se pudo eliminar."); });
+          });
+        }
+        // Clear the form fields.
+        document.getElementById("addr-label").value = "";
+        document.getElementById("addr-text").value = "";
+        document.getElementById("addr-zone").value = "";
+      }).catch(function () { showInlineError("No se pudo guardar la dirección."); });
+    });
+  }
+
+  document.querySelectorAll(".addr-del").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      // P3.6: capture the row now so we can remove it after the fetch.
+      var rowEl = btn.closest("tr");
+      var doDelete = function () {
+        fetch("/clientes/api/" + cid + "/addresses/" + btn.dataset.addrId, {
+          method: "DELETE",
+          headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+        }).then(function (r) {
+          if (!r.ok) throw new Error("fallo");
+          // In-DOM removal: drop the row without reloading.
+          if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
+        }).catch(function () { showInlineError("No se pudo eliminar."); });
+      };
+      if (window.UIConfirmModal) {
+        UIConfirmModal.show({
+          title: "¿Eliminar esta dirección?",
+          body: "La dirección se borrará del perfil del cliente.",
+          confirmLabel: "Eliminar",
+          danger: true
+        }).then(function (ok) { if (ok) doDelete(); });
+      } else {
+        // UIConfirmModal unavailable (app-components.js failed to load):
+        // proceed directly — the delete is reversible by re-adding the address.
+        doDelete();
+      }
+    });
+  });
+
+  // Phase 14 (2026-10-01): set-default address (★ button)
+  document.querySelectorAll(".addr-default").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      fetch("/clientes/api/" + cid + "/addresses/" + btn.dataset.addrId + "/default", {
+        method: "POST",
+        headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+      }).then(function (r) {
+        if (!r.ok) throw new Error("fallo");
+        window.location.reload();
+      }).catch(function () { showInlineError("No se pudo marcar como predeterminada."); });
+    });
+  });
+
+  // Phase 14 (2026-10-01): invoice-profile CRUD
+  var invAdd = document.getElementById("inv-add");
+  if (invAdd) {
+    invAdd.addEventListener("click", function () {
+      var alias = document.getElementById("inv-alias").value.trim();
+      var ruc = document.getElementById("inv-ruc").value.trim();
+      var razon = document.getElementById("inv-razon").value.trim();
+      if (!ruc || !razon) {
+        showInlineError("RUC/CI y razón social son obligatorios.");
+        return;
+      }
+      var tipoDoc = document.getElementById("inv-tipo-doc").value;
+      var tipoOp = document.getElementById("inv-tipo-operacion").value;
+      fetch("/clientes/api/" + cid + "/invoice-profiles", {
+        method: "POST",
+        headers: {"Content-Type": "application/json",
+                  "X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value},
+        body: JSON.stringify({
+          alias: alias || razon.substring(0, 32),
+          ruc_ci: ruc,
+          razon_social: razon,
+          tipo_documento: tipoDoc,
+          tipo_operacion: tipoOp,
+        })
+      }).then(function (r) {
+        if (!r.ok) {
+          return r.json().then(function (j) { throw new Error(j.error || "fallo"); });
+        }
+        return r.json();
+      }).then(function (data) {
+        // P3.11: insert the new <tr> in-place.
+        var tbody = document.querySelector("[data-inv-tbody]");
+        if (!tbody) { window.location.reload(); return; }
+        var emptyEl = document.querySelector("[data-inv-empty]");
+        if (emptyEl) emptyEl.style.display = "none";
+        var tableEl = document.querySelector("[data-inv-table]");
+        if (tableEl) tableEl.style.display = "";
+        var safeText = function (s) {
+          var d = document.createElement("div");
+          d.textContent = s == null ? "" : String(s);
+          return d.innerHTML;
+        };
+        var tr = document.createElement("tr");
+        tr.setAttribute("data-inv-id", data.id);
+        tr.innerHTML =
+          "<td><span data-inv-alias>" + safeText(data.alias) + "</span></td>" +
+          "<td>" + safeText(data.ruc_ci) + "</td>" +
+          "<td>" + safeText(data.razon_social) + "</td>" +
+          "<td class=\"muted\">" + safeText((data.tipo_documento || "") + " · " + (data.tipo_operacion || "")) + "</td>" +
+          "<td>" +
+            "<button type=\"button\" class=\"btn btn-sm inv-default\" data-inv-id=\"" + data.id + "\">★</button> " +
+            "<button type=\"button\" class=\"btn btn-sm btn-danger-ghost inv-del\" data-inv-id=\"" + data.id + "\">✕</button>" +
+          "</td>";
+        tbody.appendChild(tr);
+        // Wire the new row's del/default buttons.
+        var newDel = tr.querySelector(".inv-del");
+        if (newDel) {
+          newDel.addEventListener("click", function () {
+            var rowEl = newDel.closest("tr");
+            fetch("/clientes/api/" + cid + "/invoice-profiles/" + data.id, {
+              method: "DELETE",
+              headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+            }).then(function (rr) {
+              if (!rr.ok) {
+                return rr.json().then(function (j) {
+                  if (j.error === "cannot_delete_default") {
+                    throw new Error("Marque otro perfil como predeterminado primero.");
+                  }
+                  throw new Error(j.error || "fallo");
+                });
+              }
+              if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
+            }).catch(function (e) { showInlineError("No se pudo eliminar: " + e.message); });
+          });
+        }
+        var newDef = tr.querySelector(".inv-default");
+        if (newDef) {
+          newDef.addEventListener("click", function () {
+            fetch("/clientes/api/" + cid + "/invoice-profiles/" + data.id + "/default", {
+              method: "POST",
+              headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+            }).then(function (rr) {
+              if (!rr.ok) throw new Error("fallo");
+              // Move the badge to this row + drop the buttons from the
+              // previous default row.
+              document.querySelectorAll("[data-inv-default-badge]").forEach(function (b) { b.remove(); });
+              document.querySelectorAll("[data-inv-tbody] tr").forEach(function (r) {
+                if (r === tr) return;
+                var alias = r.querySelector("[data-inv-alias]");
+                if (alias) {
+                  var newBadge = document.createElement("span");
+                  newBadge.setAttribute("data-inv-default-badge", "");
+                  newBadge.className = "badge badge-neutral";
+                  newBadge.textContent = " predet.";
+                  alias.parentNode.insertBefore(document.createTextNode(" "), alias.nextSibling);
+                }
+              });
+              // Add badge to this row.
+              var aliasEl = tr.querySelector("[data-inv-alias]");
+              if (aliasEl) {
+                var badge = document.createElement("span");
+                badge.setAttribute("data-inv-default-badge", "");
+                badge.className = "badge badge-neutral";
+                badge.textContent = " predet.";
+                aliasEl.insertAdjacentText("afterend", " ");
+                aliasEl.parentNode.appendChild(badge);
+              }
+              // Remove the ★/✕ from the new default row (matches template).
+              if (newDef.parentNode) newDef.parentNode.removeChild(newDef);
+              if (newDel.parentNode) newDel.parentNode.removeChild(newDel);
+            }).catch(function () { showInlineError("No se pudo marcar como predeterminado."); });
+          });
+        }
+        // Clear form fields.
+        document.getElementById("inv-alias").value = "";
+        document.getElementById("inv-ruc").value = "";
+        document.getElementById("inv-razon").value = "";
+      }).catch(function (e) {
+        showInlineError("No se pudo guardar el perfil: " + e.message);
+      });
+    });
+  }
+  document.querySelectorAll(".inv-default").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      fetch("/clientes/api/" + cid + "/invoice-profiles/" + btn.dataset.invId + "/default", {
+        method: "POST",
+        headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+      }).then(function (r) {
+        if (!r.ok) throw new Error("fallo");
+        // P3.11: swap the default badge in the DOM instead of reloading.
+        // 1. Remove existing badge(s) on any row.
+        document.querySelectorAll("[data-inv-default-badge]").forEach(function (b) {
+          if (b.parentNode) b.parentNode.removeChild(b);
+        });
+        // 2. Add badge to this row.
+        var tr = btn.closest("tr");
+        var aliasEl = tr ? tr.querySelector("[data-inv-alias]") : null;
+        if (aliasEl) {
+          var badge = document.createElement("span");
+          badge.setAttribute("data-inv-default-badge", "");
+          badge.className = "badge badge-neutral";
+          badge.textContent = " predet.";
+          aliasEl.insertAdjacentText("afterend", " ");
+          aliasEl.parentNode.appendChild(badge);
+        }
+        // 3. Hide this row's ★/✕ (it's now default).
+        if (tr) {
+          tr.querySelectorAll(".inv-default, .inv-del").forEach(function (b) {
+            if (b.parentNode) b.parentNode.removeChild(b);
+          });
+        }
+        // 4. Restore ★/✕ on whichever row lost the default badge.
+        document.querySelectorAll("[data-inv-tbody] tr").forEach(function (r) {
+          if (r === tr) return;
+          if (r.querySelector("[data-inv-default-badge]")) return;
+          if (r.querySelector(".inv-default")) return; // already wired
+          var invId = r.getAttribute("data-inv-id");
+          if (!invId) return;
+          var tds = r.querySelectorAll("td");
+          var lastTd = tds[tds.length - 1];
+          if (!lastTd) return;
+          var star = document.createElement("button");
+          star.type = "button";
+          star.className = "btn btn-sm inv-default";
+          star.setAttribute("data-inv-id", invId);
+          star.textContent = "★";
+          var xBtn = document.createElement("button");
+          xBtn.type = "button";
+          xBtn.className = "btn btn-sm btn-danger-ghost inv-del";
+          xBtn.setAttribute("data-inv-id", invId);
+          xBtn.textContent = "✕";
+          lastTd.appendChild(star);
+          lastTd.appendChild(xBtn);
+          // Re-bind handlers.
+          star.addEventListener("click", arguments.callee);
+          xBtn.addEventListener("click", function () {
+            var rowEl = xBtn.closest("tr");
+            fetch("/clientes/api/" + cid + "/invoice-profiles/" + invId, {
+              method: "DELETE",
+              headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+            }).then(function (rr) {
+              if (!rr.ok) {
+                return rr.json().then(function (j) {
+                  if (j.error === "cannot_delete_default") {
+                    throw new Error("Marque otro perfil como predeterminado primero.");
+                  }
+                  throw new Error(j.error || "fallo");
+                });
+              }
+              if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
+            }).catch(function (e) { showInlineError("No se pudo eliminar: " + e.message); });
+          });
+        });
+      }).catch(function () { showInlineError("No se pudo marcar como predeterminado."); });
+    });
+  });
+  document.querySelectorAll(".inv-del").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      // P3.6: capture the row for in-DOM removal.
+      var rowEl = btn.closest("tr");
+      var doDel = function () {
+        fetch("/clientes/api/" + cid + "/invoice-profiles/" + btn.dataset.invId, {
+          method: "DELETE",
+          headers: {"X-CSRF-Token": document.querySelector('input[name="csrf_token"]').value}
+        }).then(function (r) {
+          if (!r.ok) {
+            return r.json().then(function (j) {
+              if (j.error === "cannot_delete_default") {
+                throw new Error("Marque otro perfil como predeterminado primero.");
+              }
+              throw new Error(j.error || "fallo");
+            });
+          }
+          // In-DOM removal.
+          if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
+        }).catch(function (e) {
+          showInlineError("No se pudo eliminar: " + e.message);
+        });
+      };
+      if (window.UIConfirmModal) {
+        UIConfirmModal.show({
+          title: "¿Eliminar este perfil de facturación?",
+          body: "El perfil queda inactivo (soft-delete); se puede reactivar desde la base de datos.",
+          confirmLabel: "Eliminar",
+          danger: true
+        }).then(function (ok) { if (ok) doDel(); });
+      } else {
+        doDel();
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Demanda prevista{% endblock %}
+{% block content %}
+<h1>Demanda prevista (mañana)</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="text-muted">Promedio 56d × factor del día × tendencia 14d. Batches = unidades ÷ rinde de receta.</p>
+
+{% if forecasts %}
+{{ ui.skeleton_section(id="insight-demand-table", variant="line", count=6, label="Cargando demanda") }}
+<div data-loaded-section="insight-demand-table">
+<table class="table">
+  <thead><tr><th>Producto</th><th class="num">Prom/día</th><th class="num">Factor día</th><th class="num">Tendencia</th><th class="num">Previsto</th><th class="num">Tandas</th></tr></thead>
+  <tbody>
+    {% for f in forecasts %}
+    <tr>
+      <td>{{ fmt.entity_name(f) }}</td>
+      <td class="num">{{ f.avg_per_day }}</td>
+      <td class="num">{{ f.weekday_factor }}×</td>
+      <td class="num">{{ f.trend }}×</td>
+      <td class="num"><strong>{{ f.predicted_qty }}</strong></td>
+      <td class="num">{{ f.suggested_batches }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</div>
+</table>
+{% else %}
+<p>Sin historial suficiente (mínimo 3 ventas por producto en 56 días).</p>
+{% endif %}
+
+<h2 style="margin-top:var(--space-5);">Lista de compras sugerida</h2>
+{% if shopping %}
+<table class="table">
+  <thead><tr><th>Insumo</th><th class="num">Necesario</th><th class="num">Stock</th><th class="num">Comprar</th><th class="num">Costo est.</th></tr></thead>
+  <tbody>
+    {% for s in shopping %}
+    <tr><td>{{ fmt.entity_name(s) }}</td><td class="num">{{ s.needed_qty }} {{ s.unit }}</td><td class="num">{{ s.stock_qty }}</td><td class="num"><strong>{{ s.buy_qty }}</strong></td><td class="num">{{ m.gs(s.est_cost_gs) }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>Stock cubre la producción prevista. 🎉</p>
+{% endif %}
+{% endblock %}

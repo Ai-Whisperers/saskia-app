@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Production Planner · Sazón{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1><svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>  Plan manual de producción</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+  <p class="muted">Elegí receta + cantidad de tandas y calculamos cuánto necesitás cocinar — y qué ingredientes faltan</p>
+  <p><a href="/produccion">← Volver a Producción</a></p>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="post" action="/produccion-planner/compute">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="d-flex" style="display:flex;gap:1rem;align-items:end;">
+        <div class="form-group flex-1" >
+          <label for="recipe_id_combo">Receta</label>
+          {{ ui.combo_field(
+            name='recipe_id',
+            placeholder='Buscar receta…',
+            endpoint='/recetas/api/search?q=',
+            value_field='id',
+            label_field='name',
+          ) }}
+        </div>
+        <div class="form-group" style="width:120px;">
+          <label for="batches">Tandas</label>
+          <input type="number" name="batches" id="batches" min="1" value="{{ batches if batches else 1 }}" required class="form-control" style="width:100%;padding:0.5rem;">
+        </div>
+        <button type="submit" class="btn btn-primary" style="padding:0.75rem 1.5rem;">Calcular necesidad</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if results is not none and recipe %}
+<div class="card">
+  <div class="card-header">
+    <h2>{{ batches }}× {{ fmt.entity_name(recipe) }}</h2>
+    {% if total_shortage_gs > 0 %}
+      <span class="badge badge-error">Faltan Gs. {{ m.gs(total_shortage_gs) }} en ingredientes</span>
+    {% else %}
+      <span class="badge badge-success">✓ Stock suficiente</span>
+    {% endif %}
+  </div>
+  {{ ui.skeleton_section(id="planner-table", variant="line", count=6, label="Cargando plan") }}
+  <div data-loaded-section="planner-table">
+  <table class="table is-hoverable">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th class="num">Necesario</th>
+        <th class="num">En stock</th>
+        <th class="num">Faltante</th>
+        <th class="num">Unitario (Gs.)</th>
+        <th class="num">Costo faltante</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in results %}
+      <tr {% if not r.sufficient %}style="background: rgba(220, 38, 38, 0.08);"{% endif %}>
+        <td>{{ r.ingredient_name }}</td>
+        <td class="num">{{ "%.1f"|format(r.qty_needed) }} {{ r.unit }}</td>
+        <td class="num">
+          {%- if r.qty_available < 0 %}
+            <span title="Stock negativo — revisar ventas sin reposición">0 {{ r.unit }}</span>
+            <span class="badge badge-danger" style="font-size:0.65rem;">⚠ negativo</span>
+          {%- else %}
+            {{ "%.1f"|format(r.qty_available) }} {{ r.unit }}
+          {%- endif %}
+        </td>
+        <td class="num">
+          {% if r.shortage > 0 %}
+            <strong class="is-down">⚠ {{ "%.1f"|format(r.shortage) }} {{ r.unit }}</strong>
+          {% else %}
+            — ✓
+          {% endif %}
+        </td>
+        <td class="num">{{ m.gs(r.unit_price_gs) }}</td>
+        <td class="num">{% if r.line_shortage_gs > 0 %}{{ m.gs(r.line_shortage_gs) }}{% else %}—{% endif %}</td>
+        <td>
+          {% if r.sufficient %}
+            {{ ui.status_pill("OK", sev="ok") }}
+          {% else %}
+            {{ ui.status_pill("Falta", sev="error") }}
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </div>
+  </table>
+
+  {% if plan_id %}
+  <div class="card-footer" style="padding:1rem;background: rgba(16, 185, 129, 0.08);">
+    <strong>✓ Plan #{{ plan_id }} guardado</strong> — los ingredientes faltantes están en la
+    <a href="/shopping-list" class="btn btn-primary">Lista de Compras</a>
+    {% set open_count = 0 %}
+    {% for r in results %}
+      {% if r.sufficient == false %}{% set open_count = open_count + 1 %}{% endif %}
+    {% endfor %}
+    ({{ results|length }} ítems · Gs. {{ m.gs(total_shortage_gs) }} total).
+    <a href="/produccion-planner" class="btn btn-ghost">Otro plan</a>
+  </div>
+  {% elif total_shortage_gs > 0 %}
+  <div class="card-footer" style="padding:1rem;">
+    <form class="d-inline" method="post" action="/produccion-planner/compute" >
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="recipe_id" value="{{ recipe.id }}">
+      <input type="hidden" name="batches" value="{{ batches }}">
+      <button type="submit" class="btn btn-warning">Generar lista de compras con faltantes</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<div class="card"><div class="card-body muted">
+  <strong>Elegí una receta + cantidad de tandas</strong> para ver qué ingredientes necesitás
+  y dónde falta stock. Probá con tu receta más vendida y 10 tandas.
+</div></div>
+{% endif %}
+{% endblock %}

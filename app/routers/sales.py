@@ -1,0 +1,2655 @@
+"""app/routers/sales.py — Sale entry, history, void.
+
+Per dev plan §9 Task 5.
+"""
+
+from __future__ import annotations
+
+import uuid
+from collections.abc import Iterator
+from datetime import datetime, timedelta, timezone
+from decimal import ROUND_HALF_UP, Decimal
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
+from sqlalchemy import Select, func, or_, select, update
+from sqlalchemy.orm import Session, selectinload
+
+from app.auth import current_operator
+from app.auth import require_login_or_disabled as require_login
+from app.rms.audit import record as audit_record
+from app.rms.catalogs import (
+    default_channel_code,
+    default_payment_method_code,
+    list_channels,
+    list_payment_methods,
+)
+from app.rms.config import ASUNCION_TZ
+from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
+from app.rms.db import safe_commit
+from app.rms.dependencies import get_session
+from app.rms.errors import BadRequest, Conflict, NotFound, ValidationError
+from app.rms.loyalty import discount_gs_for_points
+from app.rms.messages import (
+    SALE_BODY_INVALID,
+    SALE_CUSTOMER_NOT_FOUND,
+    SALE_DISCOUNT_TOO_HIGH,
+    SALE_INVALID_CHANNEL,
+    SALE_INVALID_DATE,
+    SALE_INVALID_PAYMENT_METHOD,
+    SALE_PRODUCT_OR_SKU_REQUIRED,
+    SALE_QTY_TOO_HIGH,
+    SALE_RATE_LIMITED,
+    SALE_SKU_NOT_FOUND,
+    SALE_SKU_REQUIRED,
+    SALE_TOO_MANY_ITEMS,
+)
+from app.rms.models import Customer, Product, Sale, StockMovement
+from app.rms.models.channels import Channel
+from app.rms.money import to_int_gs
+from app.rms.production_demand import invalidate_demand_for_sale_today
+from app.rms.public_tokens import (
+    enforce_rate_limit as public_token_enforce_rate_limit,
+)
+from app.rms.public_tokens import (
+    is_token_valid,
+)
+from app.rms.schemas import (
+    ALLOWED_CHANNELS,
+    CHANNEL_DEFAULT,
+    CHANNELS_DISPLAY,
+    PAYMENT_METHOD_DEFAULT,
+    PAYMENT_METHODS_DISPLAY,
+)
+from app.rms.settings_runtime import get_branding
+from app.services.template_render import render
+
+router = APIRouter(prefix="/ventas", dependencies=[Depends(require_login)])
+
+# BACKLOG #17: public_router for /r/{token} — no auth, no CSRF.
+# Lives at root (mounted via app.include_router in main.py) so the URL
+# is short enough for WhatsApp messages. Mirrors pedidos.public_router.
+# Token generation, expiry validation, client-IP extraction, and
+# rate-limiting all delegate to app.rms.public_tokens so the two
+# public routes can never drift apart.
+public_router = APIRouter()
+
+
+def _decorated(s: Sale) -> dict:
+    return {
+        "id": s.id,
+        "sold_at": s.sold_at,
+        "sold_at_str": s.sold_at.strftime("%d/%m/%Y %H:%M"),
+        "product_id": s.product_id,
+        "product_name": s.product.name if s.product else "(deleted)",
+        "qty": s.qty,
+        "unit_price_gs": s.unit_price_gs,
+        "total_gs": to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))),
+        "notes": s.notes,
+        "voided_at": s.voided_at,
+        "voided_at_str": s.voided_at.strftime("%d/%m/%Y %H:%M") if s.voided_at else None,
+        # CIE-01: void metadata exposed to templates for audit display.
+        "void_reason": getattr(s, "void_reason", None),
+        "voided_by": getattr(s, "voided_by", None),
+        "customer_id": s.customer_id,
+        "customer_phone": s.customer.phone if s.customer else None,
+        "customer_name": s.customer.name if s.customer else None,
+        "payment_method": s.payment_method,
+        "channel": s.channel or "mostrador",
+        "discount_gs": s.discount_gs,
+        # WP-4.1 propina: sale row that carries it shows the line; others 0.
+        "tip_gs": getattr(s, "tip_gs", 0) or 0,
+    }
+
+
+def _generate_idem_key() -> str:
+    """Generate a per-render idempotency key for the sale form.
+
+    Server-side UUID so the template doesn't have to call Jinja2's
+    `|random` filter (which doesn't exist in stock Jinja2 — only with
+    the django-jinja extra). UUIDs are 12 hex chars, same shape the
+    template was building with `range(1000000)|random|string`.
+    """
+    return uuid.uuid4().hex[:12]
+
+
+PAGE_SIZE = 20
+
+
+def _get_tax_regime(session: Session) -> str:
+    """Return the configured tax_regime from ComplianceInfo. Defaults to DEFAULT_TAX_REGIME."""
+    from app.rms.constants import DEFAULT_TAX_REGIME
+    from app.rms.models import ComplianceInfo
+
+    ci = session.get(ComplianceInfo, 1)
+    return ci.tax_regime if ci else DEFAULT_TAX_REGIME
+
+
+def _build_sales_context(
+    request: Request,
+    q: str | None,
+    product_id: int | None,
+    days: int | None,
+    offset: int | None,
+    session: Session,
+    fav: bool = False,
+    # SASKIA-204 (2026-10-07): channel filter for /ventas/historial.
+    # Accepts any Channel enum value or None (no filter). Mismatches
+    # fall back to None to keep the page loading.
+    channel: str | None = None,
+) -> dict:
+    """Build the render context shared by /ventas and /ventas/historial.
+
+    Computes products, filtered sales page, summary totals, and Quick-Sell
+    top-5 in one pass. Both routes call this then render a different
+    template (ventas.html for the POS, ventas_historial.html for history)
+    so the filter logic stays in sync — US 4.3 split.
+    """
+    products_q = select(Product).order_by(Product.name)
+    if fav:
+        products_q = products_q.where(Product.is_favorite.is_(True))
+    products = session.scalars(products_q).all()
+    sales_q = (
+        select(Sale)
+        .options(selectinload(Sale.product), selectinload(Sale.customer))
+        .order_by(Sale.sold_at.desc())
+    )
+    if product_id is not None:
+        sales_q = sales_q.where(Sale.product_id == product_id)
+    if days is not None and days > 0:
+        cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
+        sales_q = sales_q.where(Sale.sold_at >= cutoff)
+    if q:
+        # Search across product name, notes, customer phone.
+        like = f"%{q.lower()}%"
+        sales_q = (
+            sales_q.outerjoin(Product, Sale.product_id == Product.id)
+            .outerjoin(Customer, Sale.customer_id == Customer.id)
+            .where(
+                or_(
+                    func.lower(Product.name).like(like),
+                    func.lower(Sale.notes).like(like),
+                    func.lower(Customer.phone).like(like),
+                )
+            )
+        )
+    # SASKIA-204 (2026-10-07): channel filter. Validates against
+    # Channel.allowed_values() — typos fall back to None so the
+    # page still loads (better than 500).
+    if channel and channel in Channel.allowed_values():
+        sales_q = sales_q.where(Sale.channel == channel)
+
+    # Count total matching (for pagination has_more)
+    count_q = select(func.count(Sale.id))
+    if product_id is not None:
+        count_q = count_q.where(Sale.product_id == product_id)
+    if channel and channel in Channel.allowed_values():
+        count_q = count_q.where(Sale.channel == channel)
+    if days is not None and days > 0:
+        cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
+        count_q = count_q.where(Sale.sold_at >= cutoff)
+    if q:
+        like = f"%{q.lower()}%"
+        count_q = (
+            count_q.outerjoin(Product, Sale.product_id == Product.id)
+            .outerjoin(Customer, Sale.customer_id == Customer.id)
+            .where(
+                or_(
+                    func.lower(Product.name).like(like),
+                    func.lower(Sale.notes).like(like),
+                    func.lower(Customer.phone).like(like),
+                )
+            )
+        )
+    total_count = session.scalar(count_q) or 0
+
+    # Apply offset pagination (default PAGE_SIZE rows)
+    start_offset = offset or 0
+    sales = session.scalars(sales_q.offset(start_offset).limit(PAGE_SIZE + 1)).all()
+    has_more = len(sales) > PAGE_SIZE
+    sales_page = sales[:PAGE_SIZE]
+
+    # Aggregate totals (excluding voided) for the filtered set — used by
+    # both the HTML summary card and the CSV export. We apply the same
+    # filters onto a count/sum aggregate (no 50-row limit).
+    totals_q = select(
+        func.count(Sale.id),
+        func.coalesce(func.sum(Sale.qty * Sale.unit_price_gs), 0),
+    ).where(Sale.voided_at.is_(None))
+    if product_id is not None:
+        totals_q = totals_q.where(Sale.product_id == product_id)
+    if channel and channel in Channel.allowed_values():
+        totals_q = totals_q.where(Sale.channel == channel)
+    if days is not None and days > 0:
+        cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
+        totals_q = totals_q.where(Sale.sold_at >= cutoff)
+    if q:
+        like = f"%{q.lower()}%"
+        totals_q = (
+            totals_q.outerjoin(Product, Sale.product_id == Product.id)
+            .outerjoin(Customer, Sale.customer_id == Customer.id)
+            .where(
+                or_(
+                    func.lower(Product.name).like(like),
+                    func.lower(Sale.notes).like(like),
+                    func.lower(Customer.phone).like(like),
+                )
+            )
+        )
+    row = session.execute(totals_q).one()
+    total_count = int(row[0] or 0)
+    total_gs = int(row[1] or 0)
+
+    # Quick-sell: top 5 products by revenue in last 14 days
+    since = datetime.now(ASUNCION_TZ) - timedelta(days=14)
+    quick_sell_q = (
+        select(
+            Sale.product_id,
+            func.sum(Sale.qty).label("units"),
+            func.sum(Sale.qty * Sale.unit_price_gs).label("rev"),
+        )
+        .where(Sale.sold_at >= since, Sale.voided_at.is_(None))
+        .group_by(Sale.product_id)
+        .order_by(func.sum(Sale.qty * Sale.unit_price_gs).desc())
+        .limit(5)
+    )
+    quick_rows = session.execute(quick_sell_q).all()
+    product_by_id = {p.id: p for p in products}
+    quick_sell = []
+    seen_qs: set[int] = set()
+    for pid, units, rev in quick_rows:
+        p = product_by_id.get(pid)
+        if p is not None:
+            quick_sell.append(
+                {
+                    "product_id": pid,
+                    "name": p.name,
+                    "sale_price_gs": p.sale_price_gs,
+                    "units": float(units),
+                    "revenue_gs": int(rev or 0),
+                    "is_available": p.is_available,
+                    "stock_qty": getattr(p, "stock_qty", None),
+                    "image_url": getattr(p, "image_url", None) or "",
+                    "is_favorite": bool(p.is_favorite),
+                }
+            )
+            seen_qs.add(pid)
+
+    # P3 UX (2026-09-30): favorites always visible on the POS grid, even
+    # with no recent sales (fresh boot / quiet week). The cashier's
+    # "initial options are the most relevant": favorites first, then the
+    # top sellers. New favorites appear immediately when toggled.
+    for p in products:
+        if p.is_favorite and p.id not in seen_qs:
+            quick_sell.append(
+                {
+                    "product_id": p.id,
+                    "name": p.name,
+                    "sale_price_gs": p.sale_price_gs,
+                    "units": 0.0,
+                    "revenue_gs": 0,
+                    "is_available": p.is_available,
+                    "stock_qty": getattr(p, "stock_qty", None),
+                    "image_url": getattr(p, "image_url", None) or "",
+                    "is_favorite": True,
+                }
+            )
+            seen_qs.add(p.id)
+    # favorites first within the merged list (stable for the rest)
+    quick_sell.sort(key=lambda item: not item.get("is_favorite", False))
+
+    # E13.S2 — Venta libre: pass the cashier-custom-price product id so
+    # the ventas template can render a "+ Venta libre" tile that opens
+    # a price prompt. NULL when the row hasn't been seeded yet (e.g.
+    # brand-new DB before the operator runs seed); the button is
+    # hidden in that case.
+    venta_libre = session.execute(
+        select(Product).where(Product.sku == "VAR-001")
+    ).scalar_one_or_none()
+    venta_libre_id = venta_libre.id if venta_libre is not None else None
+
+    # M-FLO-001 (FloCafe addon-inventory port): per-product stock
+    # ceilings so the POS qty input can cap at "how many units we can
+    # actually make with current ingredient stock". Built as a dict
+    # (id -> ceiling) for O(1) template lookup.
+    from app.rms.menu_inventory import (
+        product_is_sold_out,
+        product_low_stock_threshold,
+        product_stock_ceiling,
+    )
+
+    stock_ceilings: dict[int, float | None] = {}
+    stock_sold_out: dict[int, bool] = {}
+    stock_low: dict[int, float | None] = {}
+    for _p in products:
+        stock_ceilings[_p.id] = product_stock_ceiling(session, _p.id)
+        stock_sold_out[_p.id] = product_is_sold_out(session, _p.id)
+        stock_low[_p.id] = product_low_stock_threshold(session, _p.id)
+
+    # WP-4.2 menús ejecutivos — active menus for the POS "Menús" strip
+    from app.rms.menu_ejecutivo import menus_with_items
+
+    menus_pos = [
+        {
+            "id": m["id"],
+            "name": m["name"],
+            "price_gs": m["price_gs"],
+            "items_summary": ", ".join(m["incluye"][:4]) + ("…" if len(m["incluye"]) > 4 else ""),
+        }
+        for m in menus_with_items(session)
+    ]
+
+    return {
+        "products": products,
+        "sales": [_decorated(s) for s in sales_page],
+        "menus_activos": menus_pos,
+        "quick_sell": quick_sell,
+        # M-FLO-001: per-product stock info for the POS qty input max.
+        "stock_ceilings": stock_ceilings,
+        "stock_sold_out": stock_sold_out,
+        "stock_low": stock_low,
+        "q": q or "",
+        "product_id": product_id or "",
+        "days": days,
+        "products_filtered": products,  # alias used by historial.html
+        # DB-driven catalogs (Phase 4 of static-content audit). Falls back
+        # to schema constants if the DB tables haven't been seeded yet.
+        "channels": [c.code for c in list_channels(session)] or list(CHANNELS_DISPLAY),
+        "channel_default": default_channel_code(session) or CHANNEL_DEFAULT,
+        "payment_methods": [pm.code for pm in list_payment_methods(session)]
+        or list(PAYMENT_METHODS_DISPLAY),
+        "payment_method_default": default_payment_method_code(session) or PAYMENT_METHOD_DEFAULT,
+        "now_local": datetime.now(ASUNCION_TZ).strftime("%Y-%m-%dT%H:%M"),
+        "idem_key": _generate_idem_key(),
+        # Phase 1.B — pass tax regime so the form defaults the invoice type
+        "tax_regime": _get_tax_regime(session),
+        "totals": {
+            "count": total_count,
+            "total_gs": total_gs,
+            "avg_ticket_gs": int(total_gs / total_count) if total_count else 0,
+            "filters": _filter_summary(q=q, product_id=product_id, days=days, products=products),
+        },
+        # SASKIA-204 (2026-10-07): channel filter state for the
+        # template. `channel` is the raw selected value (or empty
+        # string), `channel_label` is what the combo displays when
+        # collapsed, `all_channels` is the display-ordered tuple of
+        # channel values from Channel.display_order() — the template
+        # maps them via a hardcoded label dict.
+        "channel": channel or "",
+        "channel_label": channel or "",
+        "all_channels": Channel.display_order(),
+        "has_more": has_more,
+        "current_offset": start_offset,
+        "current_page_size": PAGE_SIZE,
+        "page_start": start_offset + 1,
+        "page_end": min(start_offset + PAGE_SIZE, total_count),
+        "total_count": total_count,
+        # E13.S2 — venta libre (cashier-typed price) plumbing
+        "venta_libre_id": venta_libre_id,
+    }
+
+
+@router.get("", response_class=HTMLResponse)
+async def sales_list(
+    request: Request,
+    q: str | None = None,
+    product_id: int | None = None,
+    days: int | None = None,
+    offset: int | None = None,
+    fav: int | None = None,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """POS landing page — Nueva venta (new sale form + Quick-Sell).
+
+    US 4.3 (S5): History view moved to /ventas/historial so the
+    counter screen isn't cluttered with 50+ past rows.
+    """
+    ctx = _build_sales_context(
+        request=request,
+        session=session,
+        q=q,
+        product_id=product_id,
+        days=days,
+        offset=offset,
+        fav=bool(fav),
+    )
+    # SASKIA-MIG-2: surface the open-caja state to the template so it
+    # can render a soft banner (visible affordance) when the cashier
+    # lands on /ventas without an arqueo de caja X/Z open. The hard
+    # gate is enforced on POST /ventas/nueva (see below) — this banner
+    # is the friendly nudge, not a redirect.
+    from app.rms.cash import get_open_session
+
+    open_sess = get_open_session(session)
+    ctx["cash_session_open"] = open_sess is not None
+    ctx["cash_session_id"] = open_sess.id if open_sess is not None else None
+    return render(request, "ventas.html", ctx)
+
+
+# --- B.1 Venta Express (2026-10-07, polish/saskia-p0) ---
+@router.get("/express")
+def ventas_express(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Venta Express: 8 botones gigantes + cantidad numerica + Enter.
+
+    Para venta de mostrador de un solo item (-45s vs POS completo).
+    Reusa POST /ventas/nueva (product_id + qty + payment_method) - cero
+    logica de venta nueva. Top 8 = top venta 14d primero + favoritos.
+    """
+    from app.rms.models import Product, Sale
+
+    since = datetime.now(ASUNCION_TZ) - timedelta(days=14)
+    rows = session.execute(
+        select(
+            Sale.product_id,
+            func.sum(Sale.qty).label("units"),
+        )
+        .where(Sale.sold_at >= since, Sale.voided_at.is_(None))
+        .group_by(Sale.product_id)
+        .order_by(func.sum(Sale.qty * Sale.unit_price_gs).desc())
+        .limit(8)
+    ).all()
+
+    ids = [pid for pid, _ in rows]
+    prod_map = {}
+    if ids:
+        prods = session.scalars(select(Product).where(Product.id.in_(ids))).all()
+        prod_map = {p.id: p for p in prods}
+    if len(prod_map) < 8:
+        favs = session.scalars(
+            select(Product)
+            .where(Product.is_favorite.is_(True), Product.is_available.is_(True))
+            .order_by(Product.name)
+            .limit(8)
+        ).all()
+        for p in favs:
+            prod_map.setdefault(p.id, p)
+
+    items = []
+    seen = set()
+    for pid, units in rows:
+        p = prod_map.get(pid)
+        if p is None or p.id in seen or not p.is_available:
+            continue
+        seen.add(p.id)
+        items.append(
+            {
+                "product_id": p.id,
+                "name": p.name,
+                "sale_price_gs": p.sale_price_gs,
+                "units": float(units or 0),
+            }
+        )
+    for p in prod_map.values():
+        if p.id in seen or not p.is_available:
+            continue
+        seen.add(p.id)
+        items.append(
+            {
+                "product_id": p.id,
+                "name": p.name,
+                "sale_price_gs": p.sale_price_gs,
+                "units": 0.0,
+            }
+        )
+    items = items[:8]
+
+    from app.rms.schemas import ALLOWED_PAYMENT_METHODS
+
+    ctx = {
+        "items": items,
+        "idem_key": _generate_idem_key(),
+        "payment_methods": sorted(ALLOWED_PAYMENT_METHODS),
+    }
+    return render(request, "ventas_express.html", ctx)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# QA / Smoke tests (2026-09-29)
+# ─────────────────────────────────────────────────────────────────────
+# Page at /ventas/qa runs 6 automated end-to-end checks against the live
+# API surface. Each test is a separate fetch() against an internal route
+# (login is via cookie). Output is a green/red table the operator can
+# read before declaring a deploy safe.
+#
+# Tests cover the full cashier flow:
+#   1. login + session healthz
+#   2. create customer via /clientes/api/create
+#   3. list products (catalog reachable)
+#   4. create sale without customer (cash-only)
+#   5. create sale with customer (debt tracked)
+#   6. void the sale (must restore customer stats + product stock)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@router.get("/qa", response_class=HTMLResponse)
+def ventas_qa(request: Request) -> HTMLResponse:
+    """Smoke-test page. Each test fires a fetch() against the live API
+    and shows pass/fail. No DB writes happen until the operator clicks
+    'Run all tests' — the page itself just describes what each test
+    does so the operator knows what they're approving.
+    """
+    return render(request, "ventas_qa.html", {})
+
+
+@router.get("/historial", response_class=HTMLResponse)
+async def sales_history(
+    request: Request,
+    q: str | None = None,
+    product_id: int | None = None,
+    days: int | None = None,
+    page: int | None = Query(None),
+    offset: int | None = None,
+    # SASKIA-204 (2026-10-07): filter sales by channel. Accepts any
+    # Channel enum value; mismatches (typos, retired values) get the
+    # None fallback so the page still loads.
+    channel: str | None = None,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Sales history (US 4.3 split).
+
+    Shares query logic with sales_list via _build_sales_context so the
+    filter semantics stay in sync. Renders ventas_historial.html which
+    shows the summary card, filter form, table of past sales, and the
+    per-row Anular button.
+    """
+    # Accept page=1-based OR offset=0-based; page takes priority
+    computed_offset: int | None
+    if page is not None and page > 0:
+        computed_offset = (page - 1) * PAGE_SIZE
+    else:
+        computed_offset = offset
+
+    ctx = _build_sales_context(
+        request=request,
+        session=session,
+        q=q,
+        product_id=product_id,
+        days=days,
+        offset=computed_offset,
+        channel=channel,
+    )
+    # Derive pagination metadata and add to existing ctx (do NOT reassign ctx)
+    total = ctx.get("total_count", 0)
+    page_sz = PAGE_SIZE
+    current_offset = computed_offset or 0
+    current_page = (current_offset // page_sz) + 1 if page_sz > 0 else 1
+    total_pages = (total + page_sz - 1) // page_sz if page_sz > 0 else 1
+    ctx["pagination"] = {
+        "page": current_page,
+        "total_pages": total_pages,
+        "total_count": total,
+    }
+    # Clean filter values for pagination links: drop None/empty string
+    ctx["_q_val"] = q if q else None
+    ctx["_product_id_val"] = product_id if product_id else None
+    ctx["_days_val"] = days if days else None
+    return render(request, "ventas_historial.html", ctx)
+
+
+def _filter_summary(
+    q: str | None,
+    product_id: int | None,
+    days: int | None,
+    products: list[Product],
+) -> str:
+    """Human-readable description of the active filter (shown in the summary card)."""
+    parts = []
+    if days is not None and days > 0:
+        parts.append(f"últimos {days} días")
+    if product_id is not None:
+        prod = next((p for p in products if p.id == product_id), None)
+        if prod is not None:
+            parts.append(f"producto: {prod.name}")
+    if q:
+        parts.append(f"«{q}»")
+    if not parts:
+        return "todos los registros activos"
+    return ", ".join(parts)
+
+
+def _build_filtered_sales_query(
+    q: str | None,
+    product_id: int | None,
+    days: int | None,
+    # SASKIA-204 (2026-10-07): channel filter for the export.
+    channel: str | None = None,
+) -> Select:
+    """Build a Sale query applying the same filters as sales_list.
+
+    Used by both the HTML view and the CSV export so they stay
+    consistent. Eager-loads product + customer to avoid N+1 in _decorated.
+    """
+    sales_q = (
+        select(Sale)
+        .options(selectinload(Sale.product), selectinload(Sale.customer))
+        .order_by(Sale.sold_at.desc())
+    )
+    if product_id is not None:
+        sales_q = sales_q.where(Sale.product_id == product_id)
+    if days is not None and days > 0:
+        cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
+        sales_q = sales_q.where(Sale.sold_at >= cutoff)
+    if q:
+        like = f"%{q.lower()}%"
+        sales_q = (
+            sales_q.outerjoin(Product, Sale.product_id == Product.id)
+            .outerjoin(Customer, Sale.customer_id == Customer.id)
+            .where(
+                or_(
+                    func.lower(Product.name).like(like),
+                    func.lower(Sale.notes).like(like),
+                    func.lower(Customer.phone).like(like),
+                )
+            )
+        )
+    # SASKIA-204 (2026-10-07): channel filter. Same validation as
+    # _build_sales_context — typos fall back to None.
+    if channel and channel in Channel.allowed_values():
+        sales_q = sales_q.where(Sale.channel == channel)
+    return sales_q
+
+
+@router.get("/export.csv")
+async def sales_export_csv(
+    q: str | None = None,
+    product_id: int | None = None,
+    days: int | None = None,
+    # SASKIA-204 (2026-10-07): channel filter — operators exporting
+    # for IVA/accounting want to filter to one channel at a time.
+    channel: str | None = None,
+    session: Session = Depends(get_session),
+) -> Response:
+    """CSV export of the sales history (matches the filters on /ventas).
+
+    No row limit — operators want full records for accounting / IVA.
+    Content-disposition: attachment so browsers download instead of
+    rendering. UTF-8 BOM-prefixed so Excel opens it correctly in PY.
+    """
+    sales_q = _build_filtered_sales_query(q=q, product_id=product_id, days=days, channel=channel)
+    sales = session.scalars(sales_q).all()
+
+    def _row_stream() -> Iterator[str]:
+        from app.rms.streaming_csv import stream_csv_rows
+
+        header = [
+            "fecha",
+            "producto",
+            "cantidad",
+            "precio_unitario_gs",
+            "total_gs",
+            "telefono_cliente",
+            "forma_pago",
+            "anulada",
+            "notas",
+            "canal",
+        ]
+
+        def _iter():
+            for s in sales:
+                yield [
+                    s.sold_at.strftime("%Y-%m-%d %H:%M"),
+                    s.product.name if s.product else "(deleted)",
+                    f"{s.qty:.2f}",
+                    s.unit_price_gs,
+                    to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))),
+                    s.customer.phone if s.customer else "",
+                    s.payment_method or "",
+                    "sí" if s.voided_at else "no",
+                    s.notes or "",
+                    s.channel or "mostrador",
+                ]
+
+        # BOM=True: Excel-PY requires it (CSV without BOM shows accents wrong).
+        return stream_csv_rows(header, _iter(), bom=True)
+
+    return StreamingResponse(
+        _row_stream(),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="ventas.csv"',
+        },
+    )
+
+
+@router.get("/buscar", response_model=None)
+def sale_lookup_by_sku(
+    request: Request,
+    sku: str | None = None,
+    session: Session = Depends(get_session),
+) -> JSONResponse | dict:
+    """Lookup product by SKU for cashier scan flow.
+
+    Returns JSON: {found, product_id, name, sale_price_gs, sku}.
+    Used by the scan-to-sell JavaScript handler on /ventas.
+    """
+    from app.integrations.barcode import get_product_by_sku
+
+    if not sku:
+        raise ValidationError(SALE_SKU_REQUIRED, context={"field": "sku"})
+    result = get_product_by_sku(session, sku)
+    if not result.ok or result.product is None:
+        return JSONResponse({"found": False, "sku": sku})
+    p = result.product
+    return JSONResponse(
+        {
+            "found": True,
+            "product_id": p.id,
+            "name": p.name,
+            "sale_price_gs": p.sale_price_gs,
+            "sku": p.sku,
+        }
+    )
+
+
+@router.post("/nueva")
+async def sale_create(
+    request: Request,
+    product_id: int | None = Form(None, gt=0),
+    sku: str = Form(""),
+    qty: float = Form(..., gt=0),
+    payment_method: str = Form(""),
+    discount_gs: int = Form(0, ge=0),
+    customer_id: int | None = Form(None, gt=0),
+    notes: str = Form(""),
+    sold_at: str = Form(""),
+    channel: str = Form(""),
+    idempotency_key: str = Form(""),
+    # Phase 1.B — fiscal invoice fields
+    invoice_type: str = Form("boleta_resimple"),
+    invoice_customer_ruc: str = Form(""),
+    invoice_customer_name: str = Form(""),
+    # US 4.1 — per-sale packaging (audio: "the box for the cake"). The same
+    # product sold to-go vs. eat-in vs. event may need different packaging.
+    # Both fields must be set together (or both empty).
+    packaging_item_id: int | None = Form(None, gt=0),
+    packaging_qty: float | None = Form(None, gt=0),
+    # Phase 4 loyalty (2026-10-01): POS redeem flow. When > 0, converts
+    # to Gs. discount at 1pt = 1.000 Gs., writes a ledger row tied to
+    # the resulting Sale.id, and ADDS the discount to discount_gs below.
+    # 0 means "don't redeem"; never negative.
+    points_to_redeem: int = Form(0, ge=0),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Create a sale with stock drop.
+
+    Validation: FastAPI's Form(...) enforces types + bounds before this
+    handler runs. Bad input → 422.
+
+    Either product_id (manual selection) or sku (barcode scan) is
+    required. If sku is given, we look up the product first.
+    """
+    from app.integrations.barcode import get_product_by_sku
+    from app.rms.schemas import ALLOWED_PAYMENT_METHODS, MAX_DISCOUNT_GS, MAX_QTY
+
+    # SKU path: if sku is provided and product_id is not, look up.
+    if (not product_id or product_id == 0) and sku:
+        result = get_product_by_sku(session, sku)
+        if not result.ok or result.product is None:
+            raise NotFound(
+                "sku",
+                context={"sku": sku},
+                message=SALE_SKU_NOT_FOUND,
+            )
+        product_id = result.product.id
+    if not product_id:
+        raise BadRequest(SALE_PRODUCT_OR_SKU_REQUIRED)
+
+    # Allergen guard (derived-intel engine 3): block sales that put a
+    # declared customer allergen in their hands. Hard stop, Spanish detail.
+    from app.rms.derived_intel import check_customer_risk
+
+    risk = check_customer_risk(session, customer_id, product_id)
+    if not risk.safe:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"⚠️ ALÉRGENO: {risk.matched}. El cliente es alérgico. "
+                "Confirmá con el cliente antes de vender (quitá la nota de "
+                "alergia en /clientes si es un error)."
+            ),
+        )
+    # Form(...) didn't enforce upper bounds here because Form() with `le=`
+    # requires a literal value, not a constant. So we re-check explicitly.
+    # The 422 path is hit when gt/le/... mismatch happens (handled by
+    # FastAPI). For " > MAX_QTY specifically, raise 422 in the route via
+    # the same alias — but that's overcomplicated. Keep 400 for these.
+    if qty > MAX_QTY:
+        raise HTTPException(
+            status_code=400,
+            detail=SALE_QTY_TOO_HIGH,
+            headers={"X-Max-Qty": str(MAX_QTY)},
+        )
+    if discount_gs > MAX_DISCOUNT_GS:
+        raise HTTPException(
+            status_code=400,
+            detail=SALE_DISCOUNT_TOO_HIGH,
+            headers={"X-Max-Discount-Gs": str(MAX_DISCOUNT_GS)},
+        )
+
+    # Parse sold_at (defaults to now in Asunción TZ)
+    sold_at_raw = sold_at.strip()
+    if sold_at_raw:
+        try:
+            # Form sends "YYYY-MM-DDTHH:MM" (no TZ). Treat as Asunción local.
+            naive = datetime.fromisoformat(sold_at_raw)
+            sold_at_dt = naive.replace(tzinfo=ASUNCION_TZ).astimezone(ASUNCION_TZ)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=SALE_INVALID_DATE) from e
+    else:
+        sold_at_dt = datetime.now(ASUNCION_TZ)
+
+    # BACKLOG #15 part 2 (2026-10-02): block writes against a closed day.
+    # sold_at_dt is Asunción-local; EOD uses the same TZ, so .date()
+    # gives us the local day the operator is billing to.
+    from app.rms.eod_closed import assert_day_open_or_raise
+
+    try:
+        assert_day_open_or_raise(session, sold_at_dt.date(), action="sale_insert")
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=f"EOD_CLOSED:{e}") from None
+
+    # payment_method: optional, must be in ALLOWED_PAYMENT_METHODS if set
+    payment_method_clean = payment_method.strip() or None
+    if payment_method_clean is not None and payment_method_clean not in ALLOWED_PAYMENT_METHODS:
+        raise HTTPException(
+            status_code=400,
+            detail=SALE_INVALID_PAYMENT_METHOD,
+        )
+
+    # SASKIA-MIG-2: pre-shift session gate. Cash sales need an open
+    # arqueo de caja so the cierre-Z can compute expected = opening
+    # + efectivo del período. Non-cash methods (QR, transferencia,
+    # fiado, etc.) pass through — the cash drawer doesn't open.
+    # 422 (Unprocessable Entity) signals "the data is valid but the
+    # server is in a state that can't process it" which fits.
+    # SASKIA-MIG-5: ?bypass=true emergency escape hatch (audit-logged).
+    from app.rms.audit import record as _audit_record
+    from app.rms.cash import get_open_session as _get_open_session
+    from app.rms.messages import SALE_CASH_SESSION_REQUIRED
+
+    effective_method = payment_method_clean or default_payment_method_code(session)
+    if effective_method == "efectivo" and _get_open_session(session) is None:
+        bypass = request.query_params.get("bypass", "").lower() == "true"
+        if bypass:
+            _audit_record(
+                session,
+                request=request,
+                user_id=current_operator(request, fallback="operador"),
+                action="sale_cash_session_bypass",
+                target_type="sale",
+                target_id="0",
+                detail={"reason": "operator-bypass", "payment_method": effective_method},
+            )
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail=SALE_CASH_SESSION_REQUIRED,
+            )
+
+    # channel: optional, must be in ALLOWED_CHANNELS if set.
+    # Empty string defaults to CHANNEL_DEFAULT ('mostrador'). Unknown
+    # values are rejected so we don't end up with 'bitcoin' rows.
+    channel_clean = (channel or "").strip().lower() or CHANNEL_DEFAULT
+    if channel_clean not in ALLOWED_CHANNELS:
+        raise HTTPException(
+            status_code=400,
+            detail=SALE_INVALID_CHANNEL,
+        )
+
+    notes_clean = notes.strip() or None
+    # Verify the customer exists if one was picked. We no longer
+    # auto-create-by-phone; the picker modal is the only path to a new
+    # customer. A bogus customer_id from a stale form is a 422.
+    if customer_id is not None:
+        from app.rms.customers import get_customer
+
+        if get_customer(session, customer_id) is None:
+            raise HTTPException(status_code=400, detail=SALE_CUSTOMER_NOT_FOUND)
+
+    # Phase 1.B — Compute fiscal invoice fields BEFORE apply_sale so we can
+    # pass them as part of the Sale row creation.
+    from app.rms.constants import DEFAULT_INVOICE_TYPE, INVOICE_TYPES
+    from app.rms.invoicing import compute_invoice_snapshot
+    from app.rms.models import Product as _Product
+
+    invoice_type_clean = (invoice_type or DEFAULT_INVOICE_TYPE).strip()
+    if invoice_type_clean not in INVOICE_TYPES:
+        invoice_type_clean = DEFAULT_INVOICE_TYPE
+    invoice_customer_ruc_clean = (invoice_customer_ruc or "").strip() or None
+    invoice_customer_name_clean = (invoice_customer_name or "").strip() or None
+
+    # When invoice_type='factura' and customer_ruc not provided, take from
+    # the selected customer (if any).
+    if invoice_type_clean == "factura" and not invoice_customer_ruc_clean and customer_id:
+        from app.rms.customers import get_customer as _gc
+
+        cust = _gc(session, customer_id)
+        if cust:
+            invoice_customer_ruc_clean = cust.cedula_ruc or None
+            invoice_customer_name_clean = cust.name or None
+
+    # Fetch product to get the real unit price (re-fetched by apply_sale too,
+    # but we need it here for the IVA snapshot).
+    product = session.get(_Product, product_id)
+    unit_price_gs = product.sale_price_gs if product else 0
+
+    snapshot = compute_invoice_snapshot(
+        session,
+        product_id=product_id,
+        qty=qty,
+        unit_price_gs=unit_price_gs,
+        discount_gs=discount_gs,
+        invoice_type=invoice_type_clean,
+    )
+
+    # Idempotency: reserve the AppMeta row BEFORE apply_sale runs, so a
+    # duplicate POST aborts before creating a second Sale. AppMeta.key is
+    # the primary key — duplicate INSERT raises IntegrityError.
+    if idempotency_key:
+        from sqlalchemy.exc import IntegrityError
+
+        from app.rms.models import AppMeta as _AppMeta
+
+        try:
+            session.add(
+                _AppMeta(
+                    key=f"sale_idem:{idempotency_key}",
+                    value="pending",  # updated below to str(sale.sale_id)
+                    updated_at=datetime.now(timezone.utc).isoformat(),
+                )
+            )
+            session.flush()  # surface IntegrityError without committing
+        except IntegrityError:
+            session.rollback()
+            # Re-fetch on a fresh transaction; the row from the winning
+            # request is now visible.
+            existing_sale_id = session.scalar(
+                select(_AppMeta).where(_AppMeta.key == f"sale_idem:{idempotency_key}")
+            )
+            return RedirectResponse(
+                url=f"/ventas?flash=sale_duplicate&sale_id={existing_sale_id.value}",
+                status_code=303,
+            )
+
+    # Phase 4 loyalty POS redeem (2026-10-01): when points_to_redeem > 0,
+    # convert to Gs. discount (1pt = 1.000 Gs.) and ADD it to discount_gs
+    # so it flows through the existing apply_sale path. The ledger row is
+    # written AFTER apply_sale returns (we need the real sale_id to FK
+    # into). If the customer doesn't have enough points, we raise 400 —
+    # we DO NOT silently round down because the cashier typed a number
+    # and expects that exact amount to be honored.
+    if points_to_redeem > 0:
+        if customer_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Para canjear puntos necesitás seleccionar un cliente. "
+                    "Tocá el buscador de clientes y elegí uno."
+                ),
+            )
+        from app.rms.customers import get_customer as _gc_redeem
+
+        cust_redeem = _gc_redeem(session, customer_id)
+        if cust_redeem is None:
+            raise HTTPException(status_code=400, detail=SALE_CUSTOMER_NOT_FOUND)
+        if (cust_redeem.loyalty_points or 0) < points_to_redeem:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Puntos insuficientes: el cliente tiene "
+                    f"{cust_redeem.loyalty_points or 0}, intentás canjear "
+                    f"{points_to_redeem}."
+                ),
+            )
+        points_discount_gs = points_to_redeem * 1000
+        discount_gs = (discount_gs or 0) + points_discount_gs
+        # Re-check the upper bound after adding the points discount.
+        if discount_gs > MAX_DISCOUNT_GS:
+            raise HTTPException(
+                status_code=400,
+                detail=SALE_DISCOUNT_TOO_HIGH,
+                headers={"X-Max-Discount-Gs": str(MAX_DISCOUNT_GS)},
+            )
+
+    try:
+        sale = apply_sale(
+            session,
+            product_id,
+            qty,
+            sold_at_dt,
+            notes_clean,
+            customer_id=customer_id,
+            payment_method=payment_method_clean,
+            discount_gs=discount_gs,
+            channel=channel_clean,
+            packaging_item_id=packaging_item_id,
+            packaging_qty=packaging_qty,
+        )
+    except RecipeWithoutYield as e:
+        raise Conflict(
+            "La receta no tiene rendimiento definido; no se puede vender.",
+            context={"original_error": str(e)},
+        ) from e
+    except ValueError as e:
+        raise BadRequest(
+            "Datos inválidos para registrar la venta.",
+            context={"original_error": str(e)},
+        ) from e
+
+    # Apply Phase 1.B invoice fields to the just-created Sale
+    from app.rms.invoicing import allocate_invoice_number
+
+    invoice_number = None
+    if invoice_type_clean != "none":
+        invoice_number = allocate_invoice_number(session, invoice_type_clean)
+    sale.invoice_type = invoice_type_clean
+    sale.invoice_number = invoice_number
+    sale.invoice_customer_ruc = invoice_customer_ruc_clean
+    sale.invoice_customer_name = invoice_customer_name_clean
+    sale.iva_rate = snapshot["iva_rate"]
+    sale.iva_base_gs = snapshot["iva_base_gs"]
+    sale.iva_amount_gs = snapshot["iva_amount_gs"]
+
+    # Update the idempotency record's value with the real sale_id now that
+    # apply_sale returned. The AppMeta row was reserved BEFORE apply_sale
+    # (see block above); this UPDATE brings it up to date.
+    if idempotency_key:
+        from app.rms.models import AppMeta as _AppMeta
+
+        session.execute(
+            update(_AppMeta)
+            .where(_AppMeta.key == f"sale_idem:{idempotency_key}")
+            .values(value=str(sale.sale_id))
+        )
+
+    # Loyalty (Phase 4, 2026-10-01): credit points to the customer if one
+    # was attached to this sale. Awarded on the POST-discount total
+    # (what the customer actually paid = total_price_gs - discount_gs)
+    # per industry norm — you earn on what you spent, not sticker price.
+    # Void/return reversal is handled by ``reverse_points_for_void``
+    # (called from /ventas/{id}/anular).
+    if customer_id is not None:
+        from app.rms.customers import get_customer as _get_cust
+        from app.rms.loyalty import award_points as _award_points
+        from app.rms.models import Sale as _Sale
+
+        cust = _get_cust(session, customer_id)
+        if cust is not None:
+            # apply_sale() returns an ApplySaleResult dataclass with
+            # total_price_gs but NOT discount_gs. The Sale ORM row
+            # carries discount_gs (just persisted). Query through the
+            # session to get the real discount for this sale.
+            sale_row = session.get(_Sale, sale.sale_id)
+            discount_for_award = int(sale_row.discount_gs or 0) if sale_row else 0
+            net_paid_gs = max(0, int(sale.total_price_gs) - discount_for_award)
+            _award_points(
+                session,
+                cust,
+                net_paid_gs,
+                sale_id=sale.sale_id,
+                actor=str(current_operator(request)),
+            )
+
+    # Phase 4 loyalty POS redeem (2026-10-01): if the cashier redeemed
+    # points via the inline "Usar puntos" form, write the ledger row NOW
+    # (sale.sale_id is now known — redeem_points takes it as a FK). The
+    # balance check + discount math already happened above; redeem_points
+    # itself is a no-op when points_to_redeem == 0.
+    if points_to_redeem > 0 and customer_id is not None:
+        from app.rms.customers import get_customer as _get_cust_redeem
+        from app.rms.loyalty import redeem_points as _redeem_points
+
+        cust_redeem = _get_cust_redeem(session, customer_id)
+        if cust_redeem is not None:
+            _redeem_points(
+                session,
+                cust_redeem,
+                points_to_redeem,
+                sale_id=sale.sale_id,
+                actor=str(current_operator(request)),
+                notes=f"POS redeem en sale #{sale.sale_id}",
+            )
+
+    # Fase 2 fiado (venta simple): cargo automático al ledger del cliente.
+    if payment_method_clean == "fiado":
+        from app.rms.fiado import FiadoConflict as _FiadoConflict
+        from app.rms.fiado import registrar_cargo as _registrar_cargo
+
+        if customer_id is None:
+            raise HTTPException(status_code=400, detail="FIADO_REQUIERE_CLIENTE")
+        from app.rms.models import Sale as _SaleF
+
+        _sale_row = session.get(_SaleF, sale.sale_id)
+        try:
+            _registrar_cargo(
+                session,
+                customer_id,
+                max(
+                    0,
+                    int(_sale_row.qty * _sale_row.unit_price_gs) - int(_sale_row.discount_gs or 0),
+                )
+                if _sale_row is not None
+                else 0,
+                sale_id=sale.sale_id,
+                note=f"Venta a fiado #{sale.sale_id}",
+                created_by=str(current_operator(request)),
+            )
+        except _FiadoConflict as _e:
+            raise HTTPException(status_code=409, detail=str(_e)) from None
+
+    safe_commit(session)
+    # PRODUCCION-V2 Fase 4: a new sale shifts the 14d rolling forecast
+    # used by demand calculation. Invalidate today + the next 3 days
+    # so the operator sees the updated demand immediately. Other dates
+    # will age out via the 5-min TTL.
+    # Best-effort: do this AFTER the safe_commit above (no further
+    # commit is needed — session.commit() inside the helper persists
+    # the DELETE before the request returns).
+    try:
+        invalidate_demand_for_sale_today(session)
+    except Exception:  # noqa: S110
+        pass
+
+    # Audit + rate-limit (writes only — read paths not counted).
+    from app.rms.audit import record as audit_record
+    from app.rms.rate_limit import is_write_rate_limited
+
+    if is_write_rate_limited(session, request):
+        raise HTTPException(status_code=429, detail=SALE_RATE_LIMITED)
+
+    audit_record(
+        session,
+        user_id=current_operator(request),
+        action="write.sale.create",
+        request=request,
+        detail={
+            "product_id": product_id,
+            "qty": qty,
+            "discount_gs": discount_gs,
+            "channel": channel_clean,
+        },
+    )
+
+    # Update the idempotency record's value with the real sale_id AND
+    # request_id, so duplicate-POST forensics can correlate the two
+    # requests via the access log. Value is JSON-encoded for forward
+    # compatibility (we may add more fields later).
+    #
+    # This is a SECOND commit, but the AppMeta row was already persisted
+    # in the first commit (along with the Sale), so a retry immediately
+    # sees the idem record and aborts via IntegrityError.
+    if idempotency_key:
+        import json
+
+        from app.rms.models import AppMeta as _AppMeta
+
+        request_id = getattr(request.state, "request_id", None) or ""
+        payload = json.dumps(
+            {
+                "sale_id": str(sale.sale_id),
+                "request_id": request_id,
+            }
+        )
+        session.execute(
+            update(_AppMeta)
+            .where(_AppMeta.key == f"sale_idem:{idempotency_key}")
+            .values(value=payload)
+        )
+
+    safe_commit(session)
+
+    # Best-effort: fire the printer with the new receipt.
+    # Failures are logged but never block the sale.
+    _fire_printer_for_sale(
+        session, request, product_id, qty, discount_gs, payment_method_clean, notes_clean
+    )
+
+    # If points were redeemed at the till, append a flash token so the
+    # operator sees the confirmation toast. ``points_redeemed_pos:N:D``
+    # tells the JS renderer "N puntos canjeados por D Gs. de descuento".
+    # Reusing the existing points_redeemed prefix means the
+    # flash_toast macro in _components/atoms.html handles it (with
+    # the new _pos suffix to distinguish it from /clientes/{id} redeem).
+    if points_to_redeem > 0:
+        return RedirectResponse(
+            url=f"/ventas?flash=sale_created&points_flash={points_to_redeem}:{points_to_redeem * 1000}",
+            status_code=303,
+        )
+    return RedirectResponse(url="/ventas?flash=sale_created", status_code=303)
+
+
+# ── Multi-item cart endpoint ────────────────────────────────────────────────
+
+
+@router.post("/nueva/multi")
+async def sale_create_multi(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Create a sale with multiple line items from the POS cart.
+
+    Accepts a JSON body::
+        {
+          "items": [{"product_id": int, "qty": float}, ...],
+          "customer_id": int | null,
+          "payment_method": str,
+          "channel": str,
+          "discount_gs": int,
+          "notes": str,
+          "sold_at": str,
+          "invoice_type": str,
+          "invoice_customer_ruc": str,
+          "invoice_customer_name": str,
+          "idempotency_key": str,
+        }
+
+    All metadata (customer, payment, invoice, etc.) applies to the
+    parent sale only. Each item gets its own stock_movement rows via
+    repeated apply_sale() calls within one transaction.
+    """
+    from pydantic import BaseModel, Field
+
+    from app.rms.schemas import ALLOWED_PAYMENT_METHODS, MAX_DISCOUNT_GS, MAX_QTY
+
+    class _Item(BaseModel):
+        # WP-4.2: product_id XOR menu_id (menú ejecutivo se expande a
+        # sus productos antes de aplicar la venta).
+        product_id: int | None = Field(None, gt=0)
+        menu_id: int | None = Field(None, gt=0)
+        qty: float = Field(..., gt=0)
+        discount_pct: float = Field(0, ge=0, le=100)  # per-item % discount
+        unit_price_gs: int | None = Field(None, ge=0, le=999_999_999)  # E13.S2 cashier override
+
+    class _Payment(BaseModel):
+        method: str = Field(...)
+        amount_gs: int = Field(..., ge=1, le=999_999_999)
+
+    class _Body(BaseModel):
+        items: list[_Item] = Field(..., min_length=1)
+        customer_id: int | None = Field(None, gt=0)
+        payment_method: str = Field("")
+        # WP-1.2 pagos mixtos: optional split payments. Empty/absent →
+        # uniform single row mirroring payment_method (never a special case).
+        payments: list[_Payment] = Field(default_factory=list, max_length=5)
+        # WP-4.1 propina: Gs enteros, va en la PRIMERA fila de la venta.
+        tip_gs: int = Field(0, ge=0, le=5_000_000)
+        discount_gs: int = Field(0, ge=0)
+        # Phase 4 loyalty (2026-10-01): POS redeem on multi-sale. Same
+        # semantics as /ventas/nueva — converts to Gs. discount (1pt =
+        # 1.000 Gs.), ADDS to discount_gs, writes a ledger row tied
+        # to the first sale_id after apply_sale runs. 0 = no redeem.
+        points_to_redeem: int = Field(0, ge=0)
+        notes: str = Field("")
+        sold_at: str = Field("")
+        channel: str = Field("")
+        idempotency_key: str = Field("")
+        invoice_type: str = Field("boleta_resimple")
+        invoice_customer_ruc: str = Field("")
+        invoice_customer_name: str = Field("")
+
+    try:
+        body = _Body.model_validate(await request.json())
+    except Exception:
+        raise HTTPException(status_code=400, detail=SALE_BODY_INVALID) from None
+
+    items = body.items
+    # WP-4.2 menú ejecutivo: items=[{menu_id, qty}] → expande a sus
+    # productos (stock/receta por producto) con el precio del menú en
+    # la primera línea expandida. Validación: exactamente uno de los dos.
+    _expanded: list = []
+    for _it in items:
+        if (_it.product_id is None) == (_it.menu_id is None):
+            raise HTTPException(
+                status_code=400,
+                detail="Cada ítem necesita product_id o menu_id (no ambos).",
+            )
+        if _it.menu_id is not None:
+            from app.rms.menu_ejecutivo import MenuNotFound, expand_menu_items
+
+            try:
+                _lines = expand_menu_items(session, _it.menu_id, _it.qty)
+            except MenuNotFound as e:
+                raise HTTPException(status_code=400, detail=str(e)) from e
+            for _pi, (_pid, _qty, _price) in enumerate(_lines):
+                _expanded.append(
+                    _Item(
+                        product_id=_pid,
+                        qty=_qty,
+                        unit_price_gs=_price,
+                        discount_pct=0,
+                    )
+                )
+        else:
+            _expanded.append(_it)
+    items = _expanded
+    if len(items) > 50:
+        raise HTTPException(status_code=400, detail=SALE_TOO_MANY_ITEMS)
+
+    # WP-1.1 (2026-10-07) — venta por peso: fractional qty is allowed ONLY
+    # when every product in the cart is sold_by_weight. Discrete goods keep
+    # the SALES-VAL-003 integer rule server-side (1.0 == 1 passes, 1.5 fails).
+    _weight_products: dict[int, bool] = {}
+    for item in items:
+        if item.qty != int(item.qty):
+            if item.product_id not in _weight_products:
+                _p = session.get(Product, item.product_id)
+                _weight_products[item.product_id] = bool(_p is not None and _p.sold_by_weight)
+            if not _weight_products[item.product_id]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Cantidad debe ser un número entero (sin decimales), "
+                        "salvo productos vendidos por peso (kg)."
+                    ),
+                )
+        if item.qty > MAX_QTY:
+            raise HTTPException(
+                status_code=400,
+                detail=SALE_QTY_TOO_HIGH,
+                headers={"X-Max-Qty": str(MAX_QTY)},
+            )
+
+    # ── Sold-at ──────────────────────────────────────────────────────────
+    sold_at_raw = body.sold_at.strip()
+    if sold_at_raw:
+        try:
+            naive = datetime.fromisoformat(sold_at_raw)
+            sold_at_dt = naive.replace(tzinfo=ASUNCION_TZ).astimezone(ASUNCION_TZ)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=SALE_INVALID_DATE) from e
+    else:
+        sold_at_dt = datetime.now(ASUNCION_TZ)
+
+    # BACKLOG #15 part 2 (2026-10-02): block writes against a closed day.
+    from app.rms.eod_closed import assert_day_open_or_raise
+
+    try:
+        assert_day_open_or_raise(session, sold_at_dt.date(), action="sale_insert_multi")
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=f"EOD_CLOSED:{e}") from None
+
+    # ── Customer ──────────────────────────────────────────────────────────
+    customer_id = body.customer_id
+    if customer_id is not None:
+        from app.rms.customers import get_customer
+
+        if get_customer(session, customer_id) is None:
+            raise HTTPException(status_code=400, detail=SALE_CUSTOMER_NOT_FOUND)
+
+    # ── Payment ───────────────────────────────────────────────────────────
+    # PRO-POS (2026-09-30): silent-None payment_method flooded the ledger
+    # with NULLs (699/708 sales unattributed). Fall back to the default
+    # method (is_default → 'efectivo') so every sale carries a method.
+    payment_method_clean = body.payment_method.strip() or default_payment_method_code(session)
+    if payment_method_clean not in ALLOWED_PAYMENT_METHODS:
+        raise HTTPException(
+            status_code=400,
+            detail=SALE_INVALID_PAYMENT_METHOD,
+        )
+
+    # SASKIA-MIG-2: pre-shift session gate. Mirrors the gate in
+    # sale_create — only efectivo is gated, non-cash passes through.
+    # SASKIA-MIG-5: ?bypass=true emergency escape hatch (audit-logged).
+    from app.rms.audit import record as _audit_record
+    from app.rms.cash import get_open_session as _get_open_session
+    from app.rms.messages import SALE_CASH_SESSION_REQUIRED
+
+    if payment_method_clean == "efectivo" and _get_open_session(session) is None:
+        bypass = request.query_params.get("bypass", "").lower() == "true"
+        if bypass:
+            _audit_record(
+                session,
+                request=request,
+                user_id=current_operator(request, fallback="operador"),
+                action="sale_cash_session_bypass",
+                target_type="sale",
+                target_id="0",
+                detail={"reason": "operator-bypass", "payment_method": payment_method_clean},
+            )
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail=SALE_CASH_SESSION_REQUIRED,
+            )
+
+    # WP-1.2 pagos mixtos: validate the split BEFORE touching the DB.
+    # Each method must be known; the sum must equal the cart total
+    # (sum of line totals after per-line discount). Computed pre-loop
+    # because validation must fail before any Sale row is written.
+    payments_plan: list[tuple[str, int]] = []
+    if body.payments:
+        for _pay in body.payments:
+            if _pay.method not in ALLOWED_PAYMENT_METHODS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Método de pago inválido: {_pay.method}",
+                )
+            payments_plan.append((_pay.method, _pay.amount_gs))
+
+    channel_clean = (body.channel or "").strip().lower() or CHANNEL_DEFAULT
+    if channel_clean not in ALLOWED_CHANNELS:
+        raise HTTPException(
+            status_code=400,
+            detail=SALE_INVALID_CHANNEL,
+        )
+
+    notes_clean = body.notes.strip() or None
+    discount_gs = body.discount_gs
+    tip_gs = body.tip_gs
+    points_to_redeem = body.points_to_redeem
+
+    # Phase 4 loyalty POS redeem (2026-10-01, multi-sale variant):
+    # Same validation as /ventas/nueva. Customer required, balance
+    # sufficient, combined discount ≤ MAX_DISCOUNT_GS. 400 on each
+    # failure with a Spanish message. Then add points × 1000 to
+    # discount_gs so the existing path picks it up.
+    if points_to_redeem > 0:
+        if customer_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Para canjear puntos necesitás seleccionar un cliente. "
+                    "Tocá el buscador de clientes y elegí uno."
+                ),
+            )
+        from app.rms.customers import get_customer as _gc_redeem
+
+        cust_redeem = _gc_redeem(session, customer_id)
+        if cust_redeem is None:
+            raise HTTPException(status_code=400, detail=SALE_CUSTOMER_NOT_FOUND)
+        if (cust_redeem.loyalty_points or 0) < points_to_redeem:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Puntos insuficientes: el cliente tiene "
+                    f"{cust_redeem.loyalty_points or 0}, intentás canjear "
+                    f"{points_to_redeem}."
+                ),
+            )
+        discount_gs = discount_gs + (points_to_redeem * 1000)
+
+    if discount_gs > MAX_DISCOUNT_GS:
+        raise HTTPException(
+            status_code=400,
+            detail=SALE_DISCOUNT_TOO_HIGH,
+            headers={"X-Max-Discount-Gs": str(MAX_DISCOUNT_GS)},
+        )
+
+    # ── Invoice ───────────────────────────────────────────────────────────
+    from app.rms.constants import DEFAULT_INVOICE_TYPE, INVOICE_TYPES
+
+    invoice_type_clean = (body.invoice_type or DEFAULT_INVOICE_TYPE).strip()
+    if invoice_type_clean not in INVOICE_TYPES:
+        invoice_type_clean = DEFAULT_INVOICE_TYPE
+    invoice_customer_ruc_clean = (body.invoice_customer_ruc or "").strip() or None
+    invoice_customer_name_clean = (body.invoice_customer_name or "").strip() or None
+
+    if invoice_type_clean == "factura" and not invoice_customer_ruc_clean and customer_id:
+        from app.rms.customers import get_customer as _gc
+
+        cust = _gc(session, customer_id)
+        if cust:
+            invoice_customer_ruc_clean = cust.cedula_ruc or None
+            invoice_customer_name_clean = cust.name or None
+
+    # ── Idempotency ───────────────────────────────────────────────────────
+    idempotency_key = body.idempotency_key
+    if idempotency_key:
+        from sqlalchemy.exc import IntegrityError
+
+        from app.rms.models import AppMeta as _AppMeta
+
+        try:
+            session.add(
+                _AppMeta(
+                    key=f"sale_multi_idem:{idempotency_key}",
+                    value="pending",
+                    updated_at=datetime.now(timezone.utc).isoformat(),
+                )
+            )
+            session.flush()
+        except IntegrityError:
+            session.rollback()
+            return RedirectResponse(
+                url="/ventas?flash=sale_duplicate",
+                status_code=303,
+            )
+
+    # ── Apply each item (one transaction) ─────────────────────────────────
+    sale_ids: list[int] = []
+    first_product_id: int | None = None
+
+    try:
+        for idx, item in enumerate(items):
+            # Allergen guard
+            from app.rms.derived_intel import check_customer_risk
+
+            risk = check_customer_risk(session, customer_id, item.product_id)
+            if not risk.safe:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"⚠️ ALÉRGENO: {risk.matched}. "
+                        "El cliente es alérgico a un producto de esta venta."
+                    ),
+                )
+
+            # Fetch product price for discount calculation
+            product = session.get(Product, item.product_id)
+            catalog_price = product.sale_price_gs if product else 0
+            # E13.S2 — accept cashier price override for venta libre / misc
+            # sales. Falls back to the catalog price when the client doesn't
+            # send one. Sale.unit_price_gs is already a snapshot column so
+            # the override is safe to persist.
+            # WP-4.2: 0 explícito se honra (línea expandida de menú
+            # ejecutivo sin precio propio). None → precio de catálogo.
+            unit_price = item.unit_price_gs if item.unit_price_gs is not None else catalog_price
+
+            # All items in the cart share the same metadata (customer, payment, channel)
+            # Phase 14 #20: discount math uses Decimal (NOT float) so a huge
+            # qty or unit_price can't trigger float overflow. discount_pct
+            # is already Pydantic-bounded to [0, 100] at line 1028, so
+            # the discount can never exceed the line subtotal.
+            from app.rms.money import to_decimal
+
+            int(
+                (to_decimal(item.qty) * to_decimal(unit_price)).quantize(
+                    Decimal("1"), rounding=ROUND_HALF_UP
+                )
+            )
+            line_discount_gs = int(
+                (
+                    to_decimal(item.qty)
+                    * to_decimal(unit_price)
+                    * to_decimal(item.discount_pct or 0)
+                    / to_decimal(100)
+                ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+            )
+            result = apply_sale(
+                session,
+                item.product_id,
+                item.qty,
+                sold_at_dt,
+                notes_clean,
+                customer_id=customer_id,
+                payment_method=payment_method_clean,
+                discount_gs=line_discount_gs,
+                channel=channel_clean,
+                unit_price_gs_override=unit_price,  # WP-4.2: 0 honrado
+            )
+            sale_ids.append(result.sale_id)
+            if first_product_id is None:
+                first_product_id = item.product_id
+
+            # Attach invoice fields to the first sale only
+            if idx == 0:
+                from app.rms.invoicing import allocate_invoice_number, compute_invoice_snapshot
+
+                product = session.get(Product, item.product_id)
+                # E13.S2 — invoice snapshot must reflect the cashier-typed
+                # price (when present) so the IVA base matches what the
+                # cashier sold at.
+                snapshot = compute_invoice_snapshot(
+                    session,
+                    product_id=item.product_id,
+                    qty=item.qty,
+                    unit_price_gs=unit_price,
+                    discount_gs=discount_gs,
+                    invoice_type=invoice_type_clean,
+                )
+                first_sale = session.get(Sale, result.sale_id)
+                if first_sale:
+                    if invoice_type_clean != "none":
+                        first_sale.invoice_number = allocate_invoice_number(
+                            session, invoice_type_clean
+                        )
+                    first_sale.invoice_type = invoice_type_clean
+                    first_sale.invoice_customer_ruc = invoice_customer_ruc_clean
+                    first_sale.invoice_customer_name = invoice_customer_name_clean
+                    first_sale.iva_rate = snapshot["iva_rate"]
+                    first_sale.iva_base_gs = snapshot["iva_base_gs"]
+                    first_sale.iva_amount_gs = snapshot["iva_amount_gs"]
+
+    except RecipeWithoutYield as e:
+        raise Conflict(
+            "La receta no tiene rendimiento definido; no se puede vender.",
+            context={"original_error": str(e)},
+        ) from e
+    except ValueError as e:
+        raise BadRequest(
+            "Datos inválidos para registrar la venta.",
+            context={"original_error": str(e)},
+        ) from e
+
+    # Update idempotency record
+    if idempotency_key:
+        import json
+
+        from app.rms.models import AppMeta as _AppMeta
+
+        request_id = getattr(request.state, "request_id", None) or ""
+        session.execute(
+            update(_AppMeta)
+            .where(_AppMeta.key == f"sale_multi_idem:{idempotency_key}")
+            .values(value=json.dumps({"sale_ids": sale_ids, "request_id": request_id}))
+        )
+
+    # Loyalty (Phase 4, 2026-10-01): credit points on the sum of all
+    # POST-DISCOUNT totals across the multi-line cart. One ledger row
+    # (earn_sale) per invoice — fk'd to the first sale.id. Then write
+    # the redeem row (if any) so the ledger stays consistent.
+    if customer_id is not None and sale_ids:
+        from app.rms.customers import (
+            award_points as _award_points,
+        )
+        from app.rms.customers import (
+            get_customer as _get_cust,
+        )
+        from app.rms.customers import (
+            redeem_points as _redeem_points,
+        )
+        from app.rms.models import Sale as _Sale
+
+        cust = _get_cust(session, customer_id)
+        if cust is not None:
+            # Sum per-line GROSS, then subtract the per-line discount
+            # (the discount_pct × qty × unit_price that apply_sale
+            # stored on each Sale row). The remaining is what the
+            # customer actually paid — what we earn on.
+            rows = session.execute(select(_Sale).where(_Sale.id.in_(sale_ids))).scalars().all()
+            net_paid_gs = sum(
+                max(0, int(r.qty * r.unit_price_gs) - int(r.discount_gs or 0)) for r in rows
+            )
+            _award_points(
+                session,
+                cust,
+                net_paid_gs,
+                sale_id=sale_ids[0],
+                actor=str(current_operator(request)),
+            )
+            if points_to_redeem > 0:
+                _redeem_points(
+                    session,
+                    cust,
+                    points_to_redeem,
+                    sale_id=sale_ids[0],
+                    actor=str(current_operator(request)),
+                    notes=f"POS redeem en sale multi #{sale_ids[0]}",
+                )
+
+    # WP-1.2 pagos mixtos: write the payment ledger. Validation of the
+    # sum happens here against REAL persisted totals (apply_sale rounded
+    # each line). Single-method carts still get exactly one row so the
+    # ledger is uniform (reports never special-case mixed sales).
+    if sale_ids:
+        from sqlalchemy import select as _select
+
+        from app.rms.models import Sale as _Sale
+        from app.rms.models import SalePayment as _SalePayment
+
+        _rows = session.execute(_select(_Sale).where(_Sale.id.in_(sale_ids))).scalars().all()
+        _cart_total = sum(
+            max(0, int(r.qty * r.unit_price_gs) - int(r.discount_gs or 0)) for r in _rows
+        )
+        # WP-4.1 propina: tip lands on the FIRST row; the client pays
+        # cart total + tip, so the ledger must cover both.
+        if tip_gs > 0 and _rows:
+            _rows[0].tip_gs = tip_gs
+            _cart_total += tip_gs
+        if payments_plan:
+            _sum = sum(amount for _, amount in payments_plan)
+            if _sum != _cart_total:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"La suma de los pagos (Gs. {_sum:,}) debe ser igual "
+                        f"al total de la venta (Gs. {_cart_total:,}).".replace(",", ".")
+                    ),
+                )
+            _now = datetime.now(ASUNCION_TZ)
+            # Split proportionally across the cart's sale rows: each Sale
+            # gets its own payment rows so void cascade cleans up cleanly.
+            _remaining = dict(payments_plan)
+            for _ri, _row in enumerate(_rows):
+                _row_total = max(0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0))
+                if _ri == 0:
+                    _row_total += tip_gs  # propina viaja en la primera fila
+                _left = _row_total
+                _plans = list(_remaining.items())
+                for _mi, (_method, _amount) in enumerate(_plans):
+                    if _mi == len(_plans) - 1:
+                        _take = _left  # last payment absorbs rounding
+                    else:
+                        _take = min(_amount, _left)
+                        _remaining[_method] = _amount - _take
+                    if _take <= 0:
+                        continue
+                    session.add(
+                        _SalePayment(
+                            sale_id=_row.id,
+                            method=_method,
+                            amount_gs=_take,
+                            created_at=_now,
+                        )
+                    )
+                    _left -= _take
+                if _left > 0 and _plans:
+                    # payments exhausted but row has remainder → put it on
+                    # the last method (defensive; sum-check above prevents).
+                    _m_last = _plans[-1][0]
+                    session.add(
+                        _SalePayment(
+                            sale_id=_row.id,
+                            method=_m_last,
+                            amount_gs=_left,
+                            created_at=_now,
+                        )
+                    )
+                    _left = 0
+        else:
+            # Uniform single row mirroring payment_method.
+            _now = datetime.now(ASUNCION_TZ)
+            for _ri, _row in enumerate(_rows):
+                _row_total = max(0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0))
+                if _ri == 0:
+                    _row_total += tip_gs
+                if _row_total <= 0:
+                    continue
+                session.add(
+                    _SalePayment(
+                        sale_id=_row.id,
+                        method=payment_method_clean,
+                        amount_gs=_row_total,
+                        created_at=_now,
+                    )
+                )
+
+    # Fase 2 fiado: venta a fiado → cargo automático en el ledger del
+    # cliente (saldo positivo). La cuenta se crea al vuelo; el límite
+    # se valida en registrar_cargo (FiadoConflict → 409).
+    if payment_method_clean == "fiado" and sale_ids:
+        from app.rms.fiado import FiadoConflict, registrar_cargo
+
+        _actor = str(current_operator(request))
+        for _sid in sale_ids:
+            _sale_row = session.get(_Sale, _sid)
+            if _sale_row is None or _sale_row.customer_id is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="FIADO_REQUIERE_CLIENTE",
+                )
+            try:
+                registrar_cargo(
+                    session,
+                    _sale_row.customer_id,
+                    max(
+                        0,
+                        int(_sale_row.qty * _sale_row.unit_price_gs)
+                        - int(_sale_row.discount_gs or 0),
+                    ),
+                    sale_id=_sid,
+                    note=f"Venta a fiado #{_sid}",
+                    created_by=_actor,
+                )
+            except FiadoConflict as _e:
+                raise HTTPException(status_code=409, detail=str(_e)) from None
+
+    safe_commit(session)
+
+    # Rate-limit + audit
+    from app.rms.audit import record as audit_record
+    from app.rms.rate_limit import is_write_rate_limited
+
+    if is_write_rate_limited(session, request):
+        raise HTTPException(status_code=429, detail=SALE_RATE_LIMITED)
+
+    audit_record(
+        session,
+        user_id=current_operator(request),
+        action="write.sale.create_multi",
+        request=request,
+        detail={"item_count": len(items), "sale_ids": sale_ids},
+    )
+
+    return _redirect_with_loyalty_flash(
+        "/ventas?flash=sale_created",
+        points_to_redeem=points_to_redeem,
+    )
+
+
+def _redirect_with_loyalty_flash(
+    base_url: str,
+    points_to_redeem: int,
+) -> RedirectResponse:
+    """Append the points_flash=N:D query param if points were redeemed.
+
+    Phase 4 loyalty (2026-10-01): lets the flash_toast macro in
+    _components/atoms.html render the same success toast as the
+    Quick-Sell path. Returns the base URL unchanged when no redeem
+    happened, so the existing ``flash=sale_created`` UX is intact.
+    """
+    if points_to_redeem <= 0:
+        return RedirectResponse(url=base_url, status_code=303)
+    sep = "&" if "?" in base_url else "?"
+    return RedirectResponse(
+        url=f"{base_url}{sep}points_flash={points_to_redeem}:{points_to_redeem * 1000}",
+        status_code=303,
+    )
+
+
+def _fire_printer_for_sale(
+    session: Session,
+    request: Request,
+    product_id: int,
+    qty: float,
+    discount_gs: int,
+    payment_method: str | None,
+    notes: str | None,
+) -> None:
+    """Send a receipt to the configured printer. Best-effort.
+
+    Module-level imports so tests can monkeypatch the printer.
+    """
+    from app.integrations.printer import (
+        config_from_env,
+        format_receipt_text,
+        send_to_printer,
+    )
+    from app.rms.models import Product, Sale
+
+    try:
+        sale_product = session.get(Product, product_id)
+        if sale_product is None:
+            return
+        last_sale = (
+            session.query(Sale)
+            .filter(Sale.product_id == product_id)
+            .order_by(Sale.id.desc())
+            .first()
+        )
+        sale_id = last_sale.id if last_sale else 0
+        receipt = format_receipt_text(
+            business_name="Sazón",
+            sale_id=sale_id,
+            product_name=sale_product.name,
+            qty=qty,
+            unit_price_gs=sale_product.sale_price_gs,
+            total_gs=int(qty * sale_product.sale_price_gs - discount_gs),
+        )
+        try:
+            cfg = config_from_env()
+            send_to_printer(receipt.encode("utf-8"), cfg)
+        except Exception:
+            from loguru import logger
+
+            logger.warning("printer send failed (non-fatal)")
+    except Exception as exc:
+        from loguru import logger
+
+        logger.warning(f"printer trigger skipped: {exc!r}")
+
+
+@router.post("/{sale_id}/anular")
+async def sale_void(
+    sale_id: int,
+    request: Request,
+    reason: str = Form(""),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Void a sale and reverse stock.
+
+    CIE-01: accepts an optional ``reason`` form field (free text) and the
+    authenticated user id, both persisted on Sale.void_reason /
+    Sale.voided_by for audit. The modal that triggers this POST lives on
+    /ventas/historial; legacy callers that POST without a reason still
+    work — the void just records no reason.
+    """
+    from app.auth import current_user_id
+
+    # Loyalty (Phase 4, 2026-10-01): if this sale earned points, reverse
+    # them BEFORE void_sale runs so the ledger stays consistent with the
+    # cached balance. ``reverse_points_for_void`` is a no-op if no earn
+    # rows exist for this sale_id (defensive: only the original earn is
+    # reversed, not subsequent unrelated redemptions).
+    try:
+        from app.rms.customers import get_customer as _get_cust_void
+        from app.rms.loyalty import reverse_points_for_void
+        from app.rms.models import Sale as _Sale
+
+        _sale_row = session.get(_Sale, sale_id)
+        if _sale_row and _sale_row.customer_id:
+            _cust_void = _get_cust_void(session, _sale_row.customer_id)
+            if _cust_void is not None:
+                reverse_points_for_void(
+                    session,
+                    _cust_void,
+                    sale_id=sale_id,
+                    actor=str(current_operator(request)),
+                )
+                session.flush()
+    except Exception as _loyalty_void_exc:
+        from loguru import logger as _logger
+
+        _logger.warning("loyalty void-reversal failed for sale {}: {}", sale_id, _loyalty_void_exc)
+
+    try:
+        uid = current_user_id(request)
+        user_id = str(uid) if uid is not None else "operator"
+        reason_clean = (reason or "").strip() or None
+        void_sale(session, sale_id, reason=reason_clean, voided_by=user_id)
+    except ValueError as e:
+        # P0 cerrar-puertas: dedicated message for void-after-EOD-close.
+        # The domain layer raises `void_after_eod_close:<iso_date>` when the
+        # sale belongs to a day whose EOD has been completed. Operators see
+        # the clean Spanish message; the audit log retains the original.
+        err = str(e)
+        if err.startswith("void_after_eod_close:"):
+            sale_date_iso = err.split(":", 1)[1]
+            raise Conflict(
+                f"No se puede anular esta venta: el día {sale_date_iso} ya fue cerrado.",
+                context={
+                    "sale_id": str(sale_id),
+                    "sale_date": sale_date_iso,
+                    "eod_status": "closed",
+                },
+            ) from e
+        raise Conflict(
+            "No se puede anular la venta.",
+            context={"sale_id": str(sale_id), "original_error": err},
+        ) from e
+    # Forensic completeness: the void must leave an audit-log row, not just
+    # the sale's own void_* columns (found by the tests/e2e audit-sweep —
+    # every other mutation writes one, voids silently didn't).
+    try:
+        from app.rms.observability import record_audit
+
+        record_audit(
+            request,
+            session=session,
+            action="write.sale.void",
+            target_type="sale",
+            target_id=sale_id,
+            detail={"reason": reason_clean, "voided_by": user_id},
+        )
+        session.commit()  # void_sale already committed; the audit row needs its own
+    except Exception as exc:  # best-effort: never block the void
+        from loguru import logger as _logger
+
+        _logger.warning("audit for void sale {} failed: {}", sale_id, exc)
+    return RedirectResponse(url="/ventas/historial?flash=sale_void_ok", status_code=303)
+
+
+__all__ = ["public_router", "router"]
+
+
+# --- BACKLOG #17: /ventas/{id}/share (auth) + /r/{token} (public) ------------
+# Operator-only POST that issues a fresh public_token (and 30-day expiry),
+# then redirects to the detail page with the URL surfaced in the flash
+# banner. The token is regenerated on every call — operators can rotate by
+# clicking "Compartir" again, which immediately invalidates the prior URL.
+
+
+@router.post("/{sale_id}/share")
+def share_sale_recibo(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Generate (or rotate) a public digital-recibo link for this sale.
+
+    On success, redirect back to the detail page with the URL in the
+    query string so the template can show a copy-paste box. We use a
+    redirect-after-POST pattern so refresh doesn't re-issue the token.
+    """
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+
+    from app.rms.public_tokens import issue_token
+
+    token, expires_at = issue_token()
+    sale.public_token = token
+    sale.public_token_expires_at = expires_at
+    sale.public_token_shared_at = datetime.now(timezone.utc)
+    safe_commit(session)
+
+    # Audit the share issuance for forensics.
+    try:
+        audit_record(
+            session,
+            user_id=None,
+            action="write.sale.share",
+            request=request,
+            target_type="sale",
+            target_id=str(sale_id),
+            detail={"public_token_suffix": token[-4:], "expires_at": expires_at.isoformat()},
+        )
+        session.commit()
+    except Exception:
+        session.rollback()
+
+    public_url = f"/r/{token}"
+    return RedirectResponse(
+        url=f"/ventas/{sale_id}?shared=1&url={public_url}",
+        status_code=303,
+    )
+
+
+@public_router.get("/r/{token}", response_class=HTMLResponse)
+def public_recibo(request: Request, token: str) -> HTMLResponse:
+    """Public, no-auth digital-recibo page rendered for the customer.
+
+    Used as a WhatsApp-shareable link so the customer can re-open their
+    receipt at home ("mi número de venta / cliente / tems"). Mirrors
+    public_pedido exactly: same token shape, same 30-day expiry, same
+    rate-limit and audit hooks.
+    """
+    with request.app.state.session_factory() as session:
+        # Cheap first — rate-limit before the DB hit. Shared helper
+        # delegates to AuditLog.action == "public.recibo.view" counting
+        # so /r/{token} and /p/{token} use the same enforcement shape.
+        public_token_enforce_rate_limit(request, session, action_label="public.recibo.view")
+
+        # Sale.id is int PK; look up by public_token so /r/{token} resolves
+        # to the sale that owns it. Same shape as public_pedido.
+        sale = session.execute(
+            select(Sale)
+            .where(Sale.public_token == token)
+            .options(selectinload(Sale.product), selectinload(Sale.customer))
+        ).scalar_one_or_none()
+        if sale is None:
+            raise HTTPException(status_code=404, detail="Recibo no encontrado")
+
+        # 410 Gone (not 404) for expired tokens — the customer should
+        # understand the link aged out, not that the sale never existed.
+        if not is_token_valid(sale.public_token_expires_at):
+            raise HTTPException(
+                status_code=410,
+                detail=("Este link venció. Pedile a la panadería que te mande uno nuevo."),
+            )
+
+        # Audit the view for forensics + rate-limit counting.
+        audit_record(
+            session,
+            user_id=None,
+            action="public.recibo.view",
+            request=request,
+            target_type="sale",
+            target_id=str(sale.id),
+            detail={"public_token_suffix": token[-4:]},
+        )
+        try:
+            session.commit()
+        except Exception:
+            session.rollback()
+
+        # Reuse the same recibo.html template the cashier sees. The
+        # public_mode flag hides nav chrome and the "back to history"
+        # button so the customer sees a clean receipt, but keeps the
+        # print stylesheet so they can save as PDF.
+        loyalty_snapshot = None
+        if sale.customer_id:
+            from app.rms.models import Customer as _Cust
+            from app.rms.models import LoyaltyTransaction as _LT
+
+            cust = session.get(_Cust, sale.customer_id)
+            if cust is not None:
+                earn_row = session.execute(
+                    select(_LT)
+                    .where(_LT.sale_id == sale.id)
+                    .where(_LT.reason == "earn_sale")
+                    .limit(1)
+                ).scalar_one_or_none()
+                redeemed_row = session.execute(
+                    select(_LT).where(_LT.sale_id == sale.id).where(_LT.reason == "redeem").limit(1)
+                ).scalar_one_or_none()
+                earn_abs = int(earn_row.delta) if earn_row else 0
+                redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
+                loyalty_snapshot = {
+                    "customer_name": cust.name or cust.phone or "Cliente",
+                    "earn_points": earn_abs,
+                    "redeemed_points": redeem_abs,
+                    "current_balance": int(cust.loyalty_points or 0),
+                    "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
+                }
+
+        return render(
+            request,
+            "recibo.html",
+            {
+                "sale": _decorated(sale),
+                "loyalty_snapshot": loyalty_snapshot,
+                "public_mode": True,
+            },
+        )
+
+
+# ---- Pre-sale validation (pre-billing checklist) --------------------
+#
+# Ported from ury-erp/ury (MIT) posClosing.js. The /ventas/nueva form
+# calls this on every form change (debounced) to surface all warnings
+# and blockers before the operator clicks "Confirmar".
+#
+# Returns a JSON checklist with two lists: warnings and blockers.
+# Blockers must be resolved before sale; warnings can be overridden.
+@router.post("/nueva/preflight")
+async def preflight_sale(
+    request: Request,
+    product_id: int | None = Form(None, gt=0),
+    sku: str = Form(""),
+    qty: float = Form(1.0, gt=0),
+    payment_method: str = Form(""),
+    discount_gs: int = Form(0, ge=0),
+    customer_id: int | None = Form(None, gt=0),
+    sold_at: str = Form(""),
+    channel: str = Form(""),
+    unit_price_gs_override: int | None = Form(None, gt=0),
+    packaging_item_id: int | None = Form(None, gt=0),
+    packaging_qty: float | None = Form(None, gt=0),
+    points_to_redeem: int = Form(0, ge=0),
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Run the pre-billing checklist on a sale intent.
+
+    Returns JSON: {warnings: [...], blockers: [...], is_ready: bool}.
+    The /ventas/nueva form shows a yellow banner for warnings and a
+    red banner for blockers.
+    """
+    from datetime import date, datetime
+
+    from app.rms.sales.pre_sale_check import (
+        PreSaleIntent,
+        validate_sale_intent,
+    )
+
+    sold_at_date: date | None = None
+    if sold_at:
+        try:
+            sold_at_date = datetime.fromisoformat(sold_at).date()
+        except ValueError:
+            sold_at_date = None
+
+    intent = PreSaleIntent(
+        product_id=product_id,
+        sku=sku,
+        qty=qty,
+        discount_gs=discount_gs,
+        customer_id=customer_id,
+        payment_method=payment_method,
+        channel=channel or Channel.MOSTRADOR.value,
+        sold_at=sold_at_date,
+        unit_price_gs_override=unit_price_gs_override,
+        packaging_item_id=packaging_item_id,
+        packaging_qty=packaging_qty,
+        points_to_redeem=points_to_redeem,
+    )
+
+    today = datetime.now(ASUNCION_TZ).date()
+    checklist = validate_sale_intent(session, intent, today=today)
+
+    def _serialize(w) -> dict:  # noqa: ANN001
+        return {"code": w.code, "severity": w.severity, "message": w.message}
+
+    return JSONResponse(
+        {
+            "warnings": [_serialize(w) for w in checklist.warnings],
+            "blockers": [_serialize(w) for w in checklist.blockers],
+            "is_ready": checklist.is_ready,
+            "is_clean": checklist.is_clean,
+        }
+    )
+
+
+# ---- Multi-line pre-billing checklist (cart) --------------------------
+#
+# The /ventas/nueva form sends a JSON cart (not a single product).
+# This route accepts the cart and runs validate_cart_intent() across
+# all lines, returning an aggregated checklist.
+#
+# Called by ventas.html's JS on cart change (debounced) and on form
+# submit (final check). Each warning/blocker has a code suffixed with
+# @line_index for per-row UI mapping.
+@router.post("/nueva/preflight/multi")
+async def preflight_sale_multi(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> JSONResponse:
+    """Run the pre-billing checklist on a multi-line cart.
+
+    Request body (JSON):
+        {
+          "items": [
+            {"product_id": int, "qty": float, "discount_gs"?: int, ...},
+            ...
+          ],
+          "customer_id"?: int,
+          "payment_method"?: str,
+          "channel"?: str,
+          "sold_at"?: str (ISO date),
+        }
+
+    Returns: {warnings, blockers, is_ready, is_clean, line_count}
+    """
+    from datetime import date as _date
+    from datetime import datetime
+
+    from app.rms.sales.pre_sale_check_cart import (
+        CartIntent,
+        CartLine,
+        validate_cart_intent,
+    )
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(
+            {
+                "error": "Invalid JSON body",
+                "warnings": [],
+                "blockers": [],
+                "is_ready": False,
+                "is_clean": False,
+                "line_count": 0,
+            },
+            status_code=400,
+        )
+
+    items = body.get("items", [])
+    if not isinstance(items, list):
+        items = []
+
+    sold_at_date: _date | None = None
+    sold_at_str = body.get("sold_at")
+    if sold_at_str:
+        try:
+            sold_at_date = datetime.fromisoformat(sold_at_str).date()
+        except (ValueError, TypeError):
+            sold_at_date = None
+
+    lines = []
+    for idx, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        try:
+            lines.append(
+                CartLine(
+                    line_index=idx,
+                    product_id=int(item.get("product_id", 0)),
+                    qty=float(item.get("qty", 0)),
+                    discount_gs=int(item.get("discount_gs", 0)),
+                    unit_price_gs_override=item.get("unit_price_gs_override"),
+                    packaging_item_id=item.get("packaging_item_id"),
+                    packaging_qty=item.get("packaging_qty"),
+                )
+            )
+        except (TypeError, ValueError):
+            # Skip malformed lines — they'll surface as PRODUCT_NOT_FOUND
+            continue
+
+    cart = CartIntent(
+        lines=tuple(lines),
+        customer_id=body.get("customer_id"),
+        payment_method=body.get("payment_method") or "",
+        channel=body.get("channel") or Channel.MOSTRADOR.value,
+        sold_at=sold_at_date,
+        points_to_redeem=int(body.get("points_to_redeem", 0)),
+    )
+
+    today = datetime.now(ASUNCION_TZ).date()
+    checklist = validate_cart_intent(session, cart, today=today)
+
+    def _serialize(w) -> dict:  # noqa: ANN001
+        return {"code": w.code, "severity": w.severity, "message": w.message}
+
+    return JSONResponse(
+        {
+            "warnings": [_serialize(w) for w in checklist.warnings],
+            "blockers": [_serialize(w) for w in checklist.blockers],
+            "is_ready": checklist.is_ready,
+            "is_clean": checklist.is_clean,
+            "line_count": len(lines),
+        }
+    )
+
+
+# B-7 (2026-10-07): held-sale routes — ported from Hao0321/pos-pro
+# (MIT, src/components/CartPanel.jsx "hold" / 掛單 pattern). Cashier
+# pauses a multi-line cart when the customer steps away mid-order.
+@router.post("/hold")
+async def ventas_hold_cart(
+    request: Request,
+    db: Session = Depends(get_session),
+) -> JSONResponse:
+    """Persist the in-progress cart as a held sale."""
+    from app.auth import current_user_id
+    from app.rms.held_sales import hold_cart as _hold_cart
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")  # noqa: B904
+
+    cart = body.get("cart") or {}
+    label = (body.get("label") or "").strip()[:120]
+    uid = current_user_id(request)
+    held_by = str(uid) if uid is not None else "operator"
+
+    try:
+        held = _hold_cart(db, cart, held_by=held_by, label=label or "sin etiqueta")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))  # noqa: B904
+
+    return JSONResponse(
+        {
+            "id": held.id,
+            "label": held.label,
+            "held_at": held.held_at.isoformat()
+            if hasattr(held.held_at, "isoformat")
+            else str(held.held_at),
+            "item_count": len((cart or {}).get("items", [])),
+        }
+    )
+
+
+@router.get("/{sale_id}", response_class=HTMLResponse)
+async def sale_detail(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Operator-facing single-sale detail page (BACKLOG #16).
+
+    Distinct from /recibo (the printable customer receipt):
+    - Full nav + breadcrumbs
+    - Action buttons: view recibo, void, refund
+    - Wider layout — fits channel, payment method, customer link
+    - Stock-move ledger so the operator can trace what got consumed
+    - Refund history table (M1, 2026-10-02)
+
+    Placed before /recibo so the {sale_id} path matches first; FastAPI
+    routing prefers more-specific literals, so /{sale_id}/recibo still
+    wins for the printable receipt.
+    """
+    from app.rms.errors import NotFound
+    from app.rms.models import Ingredient, StockMovement
+    from app.rms.refunds import list_refunds_for, sum_refunds_for
+
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+
+    # Stock-move ledger for this sale (BACKLOG #16 traceability).
+    # After BACKLOG #1 (this session), the ledger lives in stock_movement
+    # keyed by (reference_id=sale_id, reference_type='sale'). Voids
+    # create a NEW positive-qty row, so both rows show up in the list.
+    moves = (
+        session.execute(
+            select(StockMovement)
+            .where(StockMovement.reference_id == sale_id)
+            .where(StockMovement.reference_type == "sale")
+            .order_by(StockMovement.id.asc())
+        )
+        .scalars()
+        .all()
+    )
+
+    stock_moves = []
+    for sm in moves:
+        ing = session.get(Ingredient, sm.ingredient_id) if sm.ingredient_id else None
+        stock_moves.append(
+            {
+                "id": sm.id,
+                "ingredient_id": sm.ingredient_id,
+                "ingredient_name": ing.name if ing else f"#{sm.ingredient_id}",
+                "qty": abs(float(sm.qty)),
+                "unit": ing.unit if ing else "",
+                "affected_recipe_id": sm.affected_recipe_id,
+                "recorded_at_str": sm.recorded_at.isoformat() if sm.recorded_at else "—",
+            }
+        )
+
+    # M1: refund history (newest first for the operator table).
+    refund_rows = list_refunds_for(session, "sale", sale_id)
+    refunds_total_gs = sum_refunds_for(session, "sale", sale_id)
+    sale_total = int(sale.unit_price_gs or 0)
+    refunds_remaining_gs = sale_total - refunds_total_gs
+
+    refunds = [
+        {
+            "id": r.id,
+            "amount_gs": int(r.amount_gs),
+            "payment_method": r.payment_method,
+            "restock_qty": bool(r.restock_qty),
+            "restocked_qty": float(r.restocked_qty or 0),
+            "reason": r.reason,
+            "recorded_by": r.recorded_by,
+            "recorded_at_str": r.recorded_at.strftime("%Y-%m-%d %H:%M") if r.recorded_at else "—",
+        }
+        for r in sorted(refund_rows, key=lambda x: x.recorded_at, reverse=True)
+    ]
+
+    return render(
+        request,
+        "ventas_detalle.html",
+        {
+            "sale": _decorated(sale),
+            "stock_moves": stock_moves,
+            "refunds": refunds,
+            "refunds_total_gs": refunds_total_gs,
+            "refunds_count": len(refunds),
+            "refunds_remaining_gs": refunds_remaining_gs,
+        },
+    )
+
+
+@router.get("/{sale_id}/recibo", response_class=HTMLResponse)
+async def sale_receipt(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Printable single-sale receipt for handing to the customer.
+
+    Renders a minimal A6-friendly page with title, date, line, total,
+    payment method, and a "thank you" footer. Print stylesheet hides
+    the nav. Operator can press ⌘P / Ctrl+P to print or save as PDF.
+    """
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+    # Phase 4 tier 2.2 (2026-10-01): if this sale has a customer AND
+    # a ledger row, surface "+X puntos" + "Nuevo saldo: Y" on the
+    # receipt. Two queries max; both are FK-indexed so they cost <1ms.
+    loyalty_snapshot = None
+    if sale.customer_id:
+        from app.rms.models import Customer as _Cust
+        from app.rms.models import LoyaltyTransaction as _LT
+
+        cust = session.get(_Cust, sale.customer_id)
+        if cust is not None:
+            earn_row = session.execute(
+                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "earn_sale").limit(1)
+            ).scalar_one_or_none()
+            redeemed_row = session.execute(
+                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "redeem").limit(1)
+            ).scalar_one_or_none()
+            # Ledger rows are signed: earn_sale → positive delta,
+            # redeem → negative delta. Surface them to the cashier
+            # as absolute point counts so the receipt reads naturally
+            # ("canjeaste 5 puntos") instead of (-5).
+            earn_abs = int(earn_row.delta) if earn_row else 0
+            redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
+            loyalty_snapshot = {
+                "customer_name": cust.name or cust.phone or "Cliente",
+                "earn_points": earn_abs,
+                "redeemed_points": redeem_abs,
+                "current_balance": int(cust.loyalty_points or 0),
+                # T-2026-10-01: pre-format the discount Gs at the source
+                # instead of having the template multiply by a hardcoded
+                # 1000. The POINTS_VALUE_GS rate (1 pt = 100 Gs) lives
+                # in app/rms/loyalty/ledger.py — change there, not here.
+                "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
+            }
+    return render(
+        request,
+        "recibo.html",
+        {
+            "sale": _decorated(sale),
+            "loyalty_snapshot": loyalty_snapshot,
+            "branding": get_branding(session),
+        },
+    )
+
+
+@router.get("/{sale_id:int}", response_class=HTMLResponse)
+async def sale_detail_int(
+    request: Request,
+    sale_id: int,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Operator-facing full-width detail view for a single sale.
+
+    BACKLOG #16 (2026-10-02): complements the printable A6 receipt
+    (/ventas/{sale_id}/recibo) with a normal-width operator page that
+    shows product, customer, payment method, channel, void metadata,
+    and any loyalty ledger entries tied to the sale. Linkable by URL
+    so /ventas/helpdesk tickets can deep-link to a specific sale.
+    """
+    sale = session.get(Sale, sale_id)
+    if sale is None:
+        raise NotFound("venta", id=sale_id)
+
+    # Loyalty snapshot (same data shape as the receipt route)
+    loyalty_snapshot = None
+    if sale.customer_id:
+        from app.rms.models import Customer as _Cust
+        from app.rms.models import LoyaltyTransaction as _LT
+
+        cust = session.get(_Cust, sale.customer_id)
+        if cust is not None:
+            earn_row = session.execute(
+                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "earn_sale").limit(1)
+            ).scalar_one_or_none()
+            redeemed_row = session.execute(
+                select(_LT).where(_LT.sale_id == sale_id).where(_LT.reason == "redeem").limit(1)
+            ).scalar_one_or_none()
+            earn_abs = int(earn_row.delta) if earn_row else 0
+            redeem_abs = -int(redeemed_row.delta) if redeemed_row else 0
+            loyalty_snapshot = {
+                "customer_name": cust.name or cust.phone or "Cliente",
+                "customer_phone": cust.phone,
+                "customer_id": cust.id,
+                "earn_points": earn_abs,
+                "redeemed_points": redeem_abs,
+                "current_balance": int(cust.loyalty_points or 0),
+                "redeemed_discount_gs": discount_gs_for_points(redeem_abs),
+            }
+
+    # Stock-move audit trail (which ingredients this sale consumed).
+    # Two queries max; both FK-indexed.
+    stock_moves = (
+        session.execute(
+            select(StockMovement)
+            .where(StockMovement.reference_id == sale_id)
+            .where(StockMovement.reference_type == "sale")
+        )
+        .scalars()
+        .all()
+    )
+
+    # Related pedido (if sale came from a pedido fulfillment)
+    related_pedido = None
+    if sale.linked_pedido_id:
+        from app.rms.models import Pedido
+
+        related_pedido = session.get(Pedido, sale.linked_pedido_id)
+
+    return render(
+        request,
+        "ventas_detalle.html",
+        {
+            "sale": _decorated(sale),
+            "loyalty_snapshot": loyalty_snapshot,
+            "stock_moves": stock_moves,
+            "related_pedido": related_pedido,
+        },
+    )
+
+
+@router.get("/held", response_class=HTMLResponse)
+def ventas_held_list(
+    request: Request,
+    db: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Render the active held sales panel (HTML fragment)."""
+    from app.rms.held_sales import list_active_held
+
+    rows = list_active_held(db)
+    return render(
+        request,
+        "ventas_held_panel.html",
+        {"held": rows, "active_count": len(rows)},
+    )
+
+
+@router.get("/held/list.json")
+def ventas_held_list_json(
+    db: Session = Depends(get_session),
+) -> JSONResponse:
+    """JSON snapshot for client-side polling/refresh."""
+    from app.rms.held_sales import list_active_held
+
+    rows = list_active_held(db)
+    payload = []
+    for r in rows:
+        cart = r.parse_cart()
+        payload.append(
+            {
+                "id": r.id,
+                "label": r.label,
+                "held_by": r.held_by,
+                "held_at": r.held_at.isoformat()
+                if hasattr(r.held_at, "isoformat")
+                else str(r.held_at),
+                "item_count": len(cart.get("items", [])),
+            }
+        )
+    return JSONResponse({"held": payload, "count": len(payload)})
+
+
+@router.post("/held/{held_id}/resume")
+def ventas_held_resume(
+    held_id: int,
+    db: Session = Depends(get_session),
+) -> JSONResponse:
+    """Return the paused cart payload so the client can reload the cart UI."""
+    from app.rms.held_sales import resume_held as _resume_held
+
+    try:
+        cart = _resume_held(db, held_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))  # noqa: B904
+    return JSONResponse({"cart": cart})
+
+
+@router.post("/held/{held_id}/discard")
+def ventas_held_discard(
+    held_id: int,
+    db: Session = Depends(get_session),
+) -> JSONResponse:
+    """Discard a paused cart."""
+    from app.rms.held_sales import discard_held as _discard_held
+
+    changed = _discard_held(db, held_id)
+    if not changed:
+        raise HTTPException(status_code=404, detail="Held sale not active")
+    return JSONResponse({"ok": True})

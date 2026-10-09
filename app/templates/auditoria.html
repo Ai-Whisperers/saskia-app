@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Auditoría{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-audit"/></svg>
+  Auditoría
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+{% if request.query_params.get('pruned') %}
+<div class="alert alert-info" role="status">
+  Se eliminaron {{ request.query_params.get('pruned') }} entradas antiguas.
+</div>
+{% endif %}
+
+<section class="card mb-4">
+  <div class="card-header">
+    <h2>Filtros</h2>
+  </div>
+  <form method="get" action="/auditoria" class="form">
+    <div class="grid grid-3">
+      <div class="form-row">
+        <label for="action_filter">Acción</label>
+        <input type="text" id="action_filter" name="action_filter"
+               value="{{ action_filter or '' }}" placeholder="login.success, sale.create, ...">
+      </div>
+      <div class="form-row">
+        <label for="start_date">Desde</label>
+        <ui-date id="start_date" name="start_date" value="{{ start_date or '' }}"></ui-date>
+      </div>
+      <div class="form-row">
+        <label for="end_date">Hasta</label>
+        <ui-date id="end_date" name="end_date" value="{{ end_date or '' }}"></ui-date>
+      </div>
+      <div class="form-row">
+        <label for="ip_filter">IP</label>
+        <input type="text" id="ip_filter" name="ip_filter"
+               value="{{ ip_filter or '' }}" placeholder="192.168.1.1">
+      </div>
+      <div class="form-row">
+        <label for="user_filter">Usuario</label>
+        <input type="text" id="user_filter" name="user_filter"
+               value="{{ user_filter or '' }}" placeholder="usuario">
+      </div>
+      <div class="form-row">
+        <label for="source">Origen (merma)</label>
+        <ui-combo id="source" name="source"
+                      value="{{ source or '' }}"
+                      placeholder="Todos"
+                      endpoint="/auditoria/api/sources?q="
+                      data-source="/auditoria/api/sources"
+                      label-field="display"
+                      value-field="value"></ui-combo>
+      </div>
+      <div class="form-row">
+        <label for="target_type">Tipo de registro</label>
+        <input type="text" id="target_type" name="target_type"
+               value="{{ target_type or '' }}" placeholder="product, sale, customer ...">
+      </div>
+      <div class="form-row">
+        <label for="target_id">ID del registro</label>
+        <input type="text" id="target_id" name="target_id"
+               value="{{ target_id or '' }}" placeholder="42">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <span class="text-muted text-xs" >Accesos rápidos:</span>
+      {% for label, (ps, pe) in presets.items() %}
+      <a href="?start_date={{ ps }}&end_date={{ pe }}" class="btn btn-ghost btn-sm">{{ label }}</a>
+      {% endfor %}
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+        Filtrar
+      </button>
+      <a href="/auditoria/export.csv?start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}&source={{ source }}" class="btn btn-ghost" download>
+        <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+        Exportar CSV
+      </a>
+      <a href="/auditoria" class="btn btn-ghost">Limpiar</a>
+      <a href="/auditoria/analytics" class="btn"
+         title="Ver analítica agregada del audit log">
+        <svg class="icon" aria-hidden="true"><use href="#icon-chart"/></svg>
+        Analítica
+        <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg>
+      </a>
+    </div>
+  </form>
+</section>
+
+<section class="card mb-4">
+  <div class="card-header">
+    <h2>Retención de datos</h2>
+  </div>
+  <p class="text-muted mb-3">Las entradas de auditoría se eliminan automáticamente después de 1 año.
+     Podés eliminar las entradas más antiguas manualmente.</p>
+  <form class="d-none" method="post" action="/auditoria/prune" id="prune-form" >
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="idempotency_key" value="prune-{{ now|string|replace(' ', 'T')|replace(':', '') }}">
+  </form>
+  <button type="button" class="btn btn-danger"
+          onclick="UIConfirmModal.show({title:'¿Eliminar entradas de hace más de 1 año?',body:'Las entradas de auditoría más antiguas a 1 año se eliminarán permanentemente. Esta acción no se puede deshacer.',action:'/auditoria/prune',confirmLabel:'Sí, eliminar',danger:true})">
+    <svg class="icon" aria-hidden="true"><use href="#icon-trash"/></svg>
+    Eliminar entradas de más de 1 año
+  </button>
+</section>
+
+{% if formatted_rows %}
+<p class="text-muted mb-3 table-info">Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total_count }}</strong> entradas</p>
+
+<nav class="pagination mb-3" aria-label="paginación de auditoría">
+  {% if page > 1 %}
+  <a href="?page={{ page - 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}&source={{ source }}" class="btn btn-ghost">← Anterior</a>
+  {% endif %}
+  <span class="pagination-info">Página {{ page }} de {{ total_pages }}</span>
+  {% if page < total_pages %}
+  <a href="?page={{ page + 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}&source={{ source }}" class="btn btn-ghost">Siguiente →</a>
+  {% endif %}
+</nav>
+
+<div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);">
+{{ ui.skeleton_section(id="auditoria-table", variant="line", count=15, label="Cargando auditoría") }}
+<div data-loaded-section="auditoria-table">
+<table class="table is-striped mb-0" >
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Usuario</th>
+      <th>Acción</th>
+      <th>Target</th>
+      <th>IP</th>
+      <th>User Agent</th>
+      <th>Detalle</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in formatted_rows %}
+    {% set r = item.row %}
+    <tr>
+      <td><small>{{ r.occurred_at.strftime("%d/%m/%Y %H:%M") if r.occurred_at else "" }}</small></td>
+      <td>{{ r.user_id or "—" }}</td>
+      <td><code>{{ r.action }}</code>
+        {% if item.source_chip %}<br><span class="badge {{ item.source_chip[1] }}" title="Origen del registro">{{ item.source_chip[0] }}</span>{% endif %}
+      </td>
+      <td data-copy="{{ r.target_id }}">{{ r.target_type or "" }}{% if r.target_id %} #{{ r.target_id }}{% endif %}</td>
+      <td><small>{{ r.ip or "" }}</small></td>
+      <td><small class="text-muted" title="{{ r.user_agent or '' }}">{{ item.user_agent_short or "—" }}</small></td>
+      <td>
+        {% if item.detail_pairs %}
+        <details>
+          <summary class="text-muted" style="cursor:pointer">Ver detalle</summary>
+          <dl style="font-size: 12px; margin-top: 4px;">
+            {% for k, v in item.detail_pairs %}
+            <dt><strong>{{ k }}:</strong></dt>
+            <dd style="margin-left: 1rem;">{{ v }}</dd>
+            {% endfor %}
+          </dl>
+        </details>
+        {% else %}
+        <span class="text-muted">—</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+</div>
+
+<nav class="pagination mt-3" aria-label="paginación de auditoría">
+  {% if page > 1 %}
+  <a href="?page={{ page - 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}&source={{ source }}" class="btn btn-ghost">← Anterior</a>
+  {% endif %}
+  <span class="pagination-info">Página {{ page }} de {{ total_pages }}</span>
+  {% if page < total_pages %}
+  <a href="?page={{ page + 1 }}&start_date={{ start_date }}&end_date={{ end_date }}&action_filter={{ action_filter }}&user_filter={{ user_filter }}&ip_filter={{ ip_filter }}&target_type={{ target_type }}&target_id={{ target_id }}&source={{ source }}" class="btn btn-ghost">Siguiente →</a>
+  {% endif %}
+</nav>
+{% else %}
+{{ ui.empty_state(title="No hay entradas de auditoría", icon="icon-audit", hint="Cuando haya eventos registrados van a aparecer acá.", cta_href="/", cta_label="Ir al inicio") }}
+{% endif %}
+
+{% endblock %}

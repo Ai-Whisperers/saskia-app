@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Fiado{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-customer"/></svg>
+  Fiado · Cuentas por cobrar
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+{% if flash == 'fiado_error' %}<div class="alert alert-warning" role="alert">{{ msg }}</div>{% endif %}
+
+{% if aging %}
+<div class="d-flex" style="display:flex;gap:var(--space-3);margin:var(--space-3) 0;flex-wrap:wrap;">
+  <div class="card" style="padding:var(--space-2) var(--space-3);border:1px solid var(--border);border-radius:8px;">
+    <small class="text-muted">Por vencer (0-30 d)</small>
+    <strong style="display:block;">{{ m.gs_full(aging.b0_30) }}</strong>
+  </div>
+  <div class="card" style="padding:var(--space-2) var(--space-3);border:1px solid var(--border);border-radius:8px;">
+    <small class="text-muted">31-60 días</small>
+    <strong style="display:block;color:var(--color-warn,#b45309);">{{ m.gs_full(aging.b31_60) }}</strong>
+  </div>
+  <div class="card" style="padding:var(--space-2) var(--space-3);border:1px solid var(--border);border-radius:8px;">
+    <small class="text-muted">61+ días</small>
+    <strong style="display:block;color:var(--destructive,#b91c1c);">{{ m.gs_full(aging.b61_mas) }}</strong>
+  </div>
+</div>
+{% endif %}
+
+<table style="border-collapse:collapse;max-width:760px;">
+  <thead>
+    <tr>
+      <th class="text-left" style="padding:4px 10px;border-bottom:1px solid var(--border);">Cliente</th>
+      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Saldo</th>
+      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Límite</th>
+      <th style="text-align:center;padding:4px 10px;border-bottom:1px solid var(--border);">Estado</th>
+      <th style="padding:4px 10px;border-bottom:1px solid var(--border);"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td style="padding:4px 10px;">{{ r.nombre }}</td>
+      <td style="padding:4px 10px;color:{% if r.saldo > 0 %}var(--destructive,#b91c1c){% else %}var(--success,#15803d){% endif %};">
+        {{ m.gs_full(r.saldo) }}
+      </td>
+      <td style="padding:4px 10px;">{% if r.limit_gs %}{{ m.gs_full(r.limit_gs) }}{% else %}—{% endif %}</td>
+      <td style="padding:4px 10px;text-align:center;">{% if r.active %}activa{% else %}<strong>suspendida</strong>{% endif %}</td>
+      <td style="padding:4px 10px;text-align:center;"><a href="/fiado/{{ r.customer_id }}">Ver</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" style="padding:10px;" class="text-muted">Sin cuentas de fiado todavía.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

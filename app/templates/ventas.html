@@ -1,0 +1,1691 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% import "_components/atoms.html" as ui %}
+
+{% block title %}Ventas{% endblock %}
+
+{% block content %}
+{# ── POS TOPBAR (SASKIA-MIG-1) ────────────────────────────────────────
+   Replaces the hidden global topbar on /ventas. Keeps operator
+   affordances (date, history link, Cmd+K hint, logout) without
+   surrendering screen real estate to the standard sidebar+topbar. #}
+<nav class="pos-topbar" aria-label="Barra de la caja">
+  <div class="pos-topbar__left">
+    <a href="/" class="pos-topbar__brand" aria-label="Inicio">
+      <span class="brand-mark">S</span>
+      <span class="brand-name">{{ branding.business_name or "Sazón" }}</span>
+    </a>
+    <span class="pos-topbar__divider" aria-hidden="true">·</span>
+    <span class="pos-topbar__date">{{ now_str() if now_str is defined else '' }}</span>
+  </div>
+  <div class="pos-topbar__center">
+    <button type="button" class="pos-topbar__search" id="pos-cmdk-btn"
+            aria-label="Buscar producto, cliente o pedido (Cmd+K)"
+            title="Cmd+K">
+      <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+      <span>Buscar producto, cliente, pedido…</span>
+      <kbd>⌘K</kbd>
+    </button>
+  </div>
+  <div class="pos-topbar__right">
+    <a href="/ventas/historial" class="pos-topbar__link" aria-label="Ir al historial del día">
+      <svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg>
+      <span>Historial</span>
+    </a>
+    <a href="/reportes" class="pos-topbar__link" aria-label="Ir a reportes">
+      <svg class="icon" aria-hidden="true"><use href="#icon-chart"/></svg>
+      <span>Reportes</span>
+    </a>
+    <a href="/logout" class="pos-topbar__link" aria-label="Cerrar sesión" title="Cerrar sesión">
+      <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
+    </a>
+  </div>
+</nav>
+
+{{ ui.page_header("Ventas", desc="Registrá una venta al mostrador o consultá el historial del día", actions=("<a class='btn btn-ghost' href='/ventas/express'>⚡ Express</a>",)) }}
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
+{# ── SASKIA-MIG-2: pre-shift session gate (soft banner) ──
+   Visible affordance when the cashier lands on /ventas without an
+   open arqueo de caja. Does NOT block the page (the cashier can
+   still register QR/transfer/fiado sales), but draws the eye so
+   they open the caja before ringing up efectivo. The hard gate
+   on POST /ventas/nueva is the safety net below. #}
+{% if cash_session_open is defined and not cash_session_open %}
+<div class="alert alert-warning" role="status" data-testid="caja-banner-soft">
+  <svg class="icon" aria-hidden="true"><use href="#icon-cash"/></svg>
+  <div>
+    <strong>Caja cerrada.</strong>
+    Para registrar ventas en efectivo necesitás abrir la caja primero.
+    {% if cash_session_id is not none %}(Última sesión #{{ cash_session_id }} cerrada.){% endif %}
+    <a href="/caja" class="btn btn-primary btn-sm" style="margin-left:var(--space-2);">Abrir caja</a>
+  </div>
+</div>
+{% endif %}
+
+{# Heading for the POS surface — distinguishes the active counter from the
+   history view at /ventas/historial. Operators reading the screen
+   shouldn't have to wonder "is this the cashier or the log?". #}
+<h2>Nueva venta</h2>
+
+{# ═══════════════════════════════════════════════════
+   POS LAYOUT
+   Left pane: customer picker + customer card (top) + cart + metadata + submit
+   Right pane: Productos (sale grid + barcode scan)
+   ═══════════════════════════════════════════════════ #}
+<div class="pos-layout">
+
+  {# ── LEFT PANE ─────────────────────────────────── #}
+  <div class="pos-form-pane">
+
+    {# ── Sale form wrapper.
+       Per Phase B of the ventas-redesign plan, the manual "product +
+       SKU + qty + discount + add-to-cart" rows are gone — products
+       only enter the cart via the right-pane Productos grid (Phase C:
+       renamed from "Venta rápida") or via the barcode scan input.
+       The form still needs _cart_json + idempotency_key for serialization
+       and the customer picker + customer card (Phase A). All sale
+       metadata (date / channel / payment / total discount) lives in
+       the cart panel (compact 3-column row labeled "Venta"). #}
+    <form method="post" action="/ventas/nueva/multi" id="sale-form"
+          onsubmit="return handleFormSubmit(this)">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      {# Hidden cart (serialised by JS) #}
+      <input type="hidden" name="_cart_json" id="cart-json" value="[]">
+
+      {# Hidden total-discount (Gs.). Kept as a hidden field so the
+         backend can still apply a top-level discount if needed; not
+         surfaced in the UI (the per-row discount % already covers the
+         usual flow and totals via cart-subtotal math). #}
+      <input type="hidden" name="discount_gs" id="discount-gs-total" value="0">
+
+      {# Idempotency key #}
+      {% set idem_key = idem_key if idem_key is defined else (now|string + '-fallback') %}
+      <input type="hidden" name="idempotency_key" id="idem-key" value="{{ idem_key }}">
+
+      {# ── Customer picker (inline, NOT a dialog). Phase A renders the
+         customer info card directly below this include. #}
+      <div class="pos-customer-block">
+        {% include "_components/_customer_picker.html" %}
+      </div>
+
+      {# ── Cart panel + sale metadata + submit ── #}
+      <div class="pos-cart" id="pos-cart">
+        <h2>
+          Carrito
+          <span id="cart-count" class="cart-badge d-none" >0</span>
+          {# B-7 (2026-10-07): hold-sale button — pauses the cart for a
+             customer who can't pay yet (needs to step away mid-order). #}
+          <button type="button" id="btn-hold-cart" class="btn btn-sm btn-ghost pull-right"
+                  style="margin-left:auto;font-size:0.8rem;display:none"
+                  title="Pausar carrito — el cliente puede volver y retomar">
+            <svg class="icon" aria-hidden="true" style="width:14px;height:14px;vertical-align:middle">
+              <use href="#icon-pause"/>
+            </svg>
+            Pausar
+          </button>
+        </h2>
+
+        <div id="cart-empty" class="cart-empty">
+          <svg class="icon" aria-hidden="true" style="width:40px;height:40px;opacity:0.3"><use href="#icon-box"/></svg>
+          <p>Tocá un producto o escaneá un código para empezar.</p>
+        </div>
+
+        <div class="d-none" id="cart-items" >
+          <table class="cart-table" aria-label="Ítems del carrito">
+            <thead>
+              <tr>
+                <th style="width:44px"></th>
+                <th>Producto</th>
+                <th class="text-right" style="width:110px">Precio</th>
+                <th class="text-right" style="width:72px">Cant.</th>
+                <th class="text-center" style="text-align:center;width:80px">Dto. %</th>
+                <th class="text-right" style="width:110px">Subtotal</th>
+                <th style="width:36px"></th>
+              </tr>
+            </thead>
+            <tbody id="cart-tbody"></tbody>
+          </table>
+          <div class="cart-total-row">
+            <span>Total</span>
+            <strong id="cart-total">Gs. 0</strong>
+          </div>
+          {# WP-1.2 pagos mixtos: dividir el total entre métodos #}
+          <button type="button" id="btn-split-payment" class="btn btn-sm btn-ghost" aria-expanded="false" aria-controls="split-payment-rows" style="margin-top:6px;">
+            Dividir pago
+          </button>
+          <div id="split-payment-rows" style="display:none;margin-top:6px;"></div>
+          <small id="split-payment-status" aria-live="polite" style="display:block;margin-top:4px;"></small>
+          {# WP-4.1 propina: botones rápidos 0/5%/10%/fijo #}
+          <div id="tip-row" style="display:none;margin-top:8px;gap:6px;align-items:center;flex-wrap:wrap;">
+            <span style="font-size:0.8rem;color:var(--muted-foreground)">Propina:</span>
+            <button type="button" class="btn btn-sm btn-ghost tip-btn" data-tip-pct="0">0%</button>
+            <button type="button" class="btn btn-sm btn-ghost tip-btn" data-tip-pct="5">5%</button>
+            <button type="button" class="btn btn-sm btn-ghost tip-btn" data-tip-pct="10">10%</button>
+            <input type="number" id="tip-gs" min="0" step="1000" value="0" inputmode="numeric"
+                   aria-label="Propina en guaraníes" style="width:110px;padding:6px;">
+          </div>
+        </div>
+
+        {# UI-V2: cross-sell rail. One-tap add-ons below the cart; JS shows
+           it once the cart has items and picks suggestions by category
+           (postre → café/agua; salado → bebida). Hidden when cart is
+           empty so it never distracts during scan flow. #}
+        <div class="d-none d-block" id="cross-sell-rail" style="display:none;margin-top:var(--space-2);border-top:1px solid var(--border);padding-top:var(--space-2);">
+          <small class="text-muted d-block" style="display:block;margin-bottom:4px;">Sugerencias para sumar:</small>
+          <div class="d-flex" id="cross-sell-items" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+        </div>
+      </div>{# /pos-cart #}
+
+      {# B-7 (2026-10-07): held-sales panel — list of paused carts the
+         cashier can resume. Auto-refreshes every 15s. #}
+      <div class="held-sales-panel" id="held-sales-panel"
+           style="margin-top:0;padding:10px;border:1px dashed var(--color-border,#2e3344);
+                  border-radius:6px;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong style="font-size:0.85rem;color:var(--muted-foreground)">
+            <svg class="icon" aria-hidden="true" style="width:14px;height:14px;vertical-align:middle">
+              <use href="#icon-pause"/>
+            </svg>
+            Ventas en espera
+            <span id="held-count" class="cart-badge" style="margin-left:4px">0</span>
+          </strong>
+          <button type="button" id="btn-refresh-held" class="btn btn-sm btn-ghost"
+                  style="font-size:0.75rem;padding:2px 6px" title="Actualizar lista">
+            ↻
+          </button>
+        </div>
+        <div id="held-list" style="display:flex;flex-direction:column;gap:4px;font-size:0.85rem"></div>
+      </div>
+
+      {# ── Sale metadata (compact 3-column "Venta" row).
+         Moved out of the manual form per Phase B. The customer picker +
+         customer card live above the cart; metadata lives below the cart
+         so it doesn't distract from the picking flow. #}
+      <div class="sale-meta" aria-label="Datos de la venta">
+        <h3 class="sale-meta-title">Venta</h3>
+        <div class="sale-meta-grid">
+          <div class="form-row">
+            <label for="sold_at">Fecha y hora</label>
+            <input type="datetime-local" id="sold_at" name="sold_at" value="{{ now_local }}" style="color-scheme: dark;">
+          </div>
+          <div class="form-row">
+            <label for="channel">Canal</label>
+            {% set _channels_src = [] %}
+            {% for c in channels %}
+              {% set _ = _channels_src.append({'label': c, 'value': c}) %}
+            {% endfor %}
+            {{ ui.combo_field(
+              name='channel',
+              value='mostrador',
+              display='Mostrador',
+              placeholder='Seleccioná canal…',
+              src=_channels_src
+            ) }}
+          </div>
+          <div class="form-row">
+            <label for="payment_method">Forma de pago</label>
+            {% set _pms_src = [] %}
+            {% for pm in payment_methods %}
+              {% set _ = _pms_src.append({'label': pm, 'value': pm}) %}
+            {% endfor %}
+            {{ ui.combo_field(
+              name='payment_method',
+              value=payment_method_default,
+              display=(payment_method_default or '')|capitalize,
+              placeholder='Seleccioná forma de pago…',
+              src=_pms_src
+            ) }}
+            <p class="form-help">Para transferencia/QR indicá el alias en el campo de notas.</p>
+          </div>
+        </div>
+      </div>
+
+      {# ── Fiscal invoice + notas (compact) ── #}
+      <fieldset class="form-row" style="border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-3); margin-top: var(--space-3);">
+        <legend style="font-weight: 600; padding: 0 var(--space-2);">Comprobante fiscal</legend>
+        <div class="form-row mb-2" >
+          <label for="invoice_type">Tipo</label>
+          {{ ui.combo_field(
+              name='invoice_type',
+              value=('factura' if tax_regime == 'general' else 'boleta_resimple'),
+              display=('Factura (IVA General)' if tax_regime == 'general' else 'Boleta Resimple (IRE RESIMPLE)'),
+              placeholder='Tipo',
+              src=[
+                {'label': 'Boleta Resimple (IRE RESIMPLE)', 'value': 'boleta_resimple'},
+                {'label': 'Factura (IVA General)', 'value': 'factura'},
+                {'label': 'Sin comprobante (interno)', 'value': 'none'}
+              ]
+            ) }}
+        </div>
+        <div class="d-none" id="invoice-customer-fields" >
+          <div class="form-row mb-2" >
+            <label for="invoice_customer_ruc">RUC del cliente</label>
+            <input type="text" id="invoice_customer_ruc" name="invoice_customer_ruc"
+                   placeholder="80012345-6 o CI del cliente"
+                   pattern="[0-9-]+">
+          </div>
+          <div class="form-row mb-0" >
+            <label for="invoice_customer_name">Razón social / Nombre</label>
+            <input type="text" id="invoice_customer_name" name="invoice_customer_name"
+                   placeholder="Cliente S.A.">
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="form-row mt-3" >
+        <label for="notes">Notas</label>
+        <textarea id="notes" name="notes" rows="2" placeholder="Alias de transferencia, observaciones…"></textarea>
+      </div>
+
+      {# ── Sticky footer with submit button ── #}
+      <div class="preflight-banner" id="preflight-banner" style="display:none;margin-top:8px;padding:8px;border-radius:6px;font-size:0.85rem;"></div>
+      <div class="pos-sticky-footer" id="pos-sticky-footer">
+        <button type="button" class="btn btn-ghost" onclick="clearCart()">
+          <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+          Cancelar
+        </button>
+        <a href="/ventas/historial" class="btn btn-ghost">
+          <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+          Ver historial
+        </a>
+        <button type="submit" form="sale-form" class="btn btn-primary" id="sale-submit-btn" disabled>
+          <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+          <span id="submit-label">Registrá venta</span>
+          <span class="d-none" id="submit-count" ></span>
+        </button>
+      </div>
+
+    </form>{# /sale-form #}
+  </div>{# /pos-form-pane #}
+
+
+  {# ── RIGHT PANE: Productos (sale grid + scan input) ──── #}
+  <div class="pos-quick">
+    <h2>Productos</h2>
+    <p class="hint">Tocá un producto o escaneá un código para agregarlo al carrito.</p>
+
+    {# Barcode / SKU scan input (Phase C2 + C3).
+       The autofocus + change-event combo means a hardware scanner (which
+       sends Enter after the barcode) lands the product into the cart in
+       one motion. Manual SKU typing works the same way.
+
+       Always rendered (even on an empty catalog) so a cashier can scan
+       a brand-new barcode before any sale has been recorded — the
+       /productos/api/search?sku= endpoint searches the whole catalog,
+       not just quick-sell products. #}
+    <div class="quick-scan-row">
+      <input type="text" id="quick-scan"
+             placeholder="Escaneá código o tipeá SKU…"
+             autocomplete="off" inputmode="text"
+             aria-label="Escanear código" autofocus>
+    </div>
+
+    {% if quick_sell %}
+    {# Quick-sell: one-tap product buttons for the cashier's busiest items.
+       The section heading + search input live OUTSIDE the grid so an
+       empty recent-sales state hides the grid without hiding them — the
+       heading explains "why is there nothing here", and a search input
+       with no items to filter is misleading. #}
+    <h3 class="pos-quick-heading" id="quick-sell-heading">Quick-sell</h3>
+    <div class="quick-sell-search-wrap">
+      <input type="search" id="quick-sell-search"
+             placeholder="Buscar producto en venta rápida…"
+             autocomplete="off"
+             aria-label="Buscar producto en venta rápida"
+             data-quick-sell-filter>
+    </div>
+
+    {# Category filter pills #}
+    {# Category filter pills — Sprint UI-V2: multi-select.
+       "Todos" resets; category pills toggle, so the cashier can combine
+       "Panadería" + "Bebidas" in one scan instead of flipping tabs.
+       data-multi-select marks the behavior for tests/JS. #}
+    {# P3 UX 2026-09-30: pills are DYNAMIC — built from the categories
+       actually present on the quick-sell grid (was hardcoded; "Bebidas"
+       showed for months with zero bebida products while "Especiales"
+       — 11 of 28 real products — had no pill). #}
+    {% set _cat_labels = {
+      'panaderia': 'Panadería', 'pasteleria': 'Pastelería',
+      'bebida': 'Bebidas', 'bebidas': 'Bebidas',
+      'especiales': 'Especiales', 'otro': 'Otros'
+    } %}
+    {% set _cats_seen = [] %}
+    {% for q in products %}
+      {% set _c = q.category or 'otro' %}
+      {% if _c not in _cats_seen %}{% set _ = _cats_seen.append(_c) %}{% endif %}
+    {% endfor %}
+    <div class="quick-sell-filters" id="quick-sell-filters" role="group" aria-label="Filtrar por categoría (selección múltiple)">
+      <button type="button" class="quick-sell-filter is-active" data-filter="all">Todos</button>
+      <button type="button" class="quick-sell-filter" data-filter="favorito" data-pseudo="true">Favoritos</button>
+      {% for _c in _cats_seen %}
+      <button type="button" class="quick-sell-filter" data-filter="{{ _c }}">{{ _cat_labels.get(_c, _c|capitalize) }}</button>
+      {% endfor %}
+    </div>
+
+    <div class="quick-sell-grid" id="quick-sell-grid" role="grid"
+         aria-label="Productos para venta rápida" tabindex="0">
+      {% for q in products %}
+      {# One-tap form: POST /ventas/nueva with product_id + qty=1 hidden,
+         so the cashier doesn't have to type a quantity. Each form also
+         carries the CSRF token so the POST passes the middleware.
+         data-* attributes live on the BUTTON (not the form) so the
+         existing JS filter (quickAddToCart, category filter, search)
+         keeps working unchanged — only the click target is now a form
+         submit instead of an onclick handler. #}
+      <form method="post" action="/ventas/nueva" class="quick-sell-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="product_id" value="{{ q.id }}">
+        <input type="hidden" name="qty" value="1">
+        <input type="hidden" name="channel" value="{{ channel_default or 'salon' }}">
+        <input type="hidden" name="payment_method" value="{{ payment_method_default or 'efectivo' }}">
+        <button type="submit"
+                class="quick-sell-btn{% if not q.is_available %} is-out-of-stock{% endif %}{% if stock_sold_out.get(q.id) %} is-sold-out{% endif %}{% if stock_ceilings.get(q.id) is not none and stock_ceilings.get(q.id) > 0 and stock_ceilings.get(q.id) <= stock_low.get(q.id) %} is-low-stock{% endif %}"
+                data-name="{{ fmt.entity_name(q)|lower }}"
+                data-category="{{ q.category or 'otro' }}"
+                data-product-id="{{ q.id }}"
+                data-is-favorite="{{ 'true' if q.is_favorite else 'false' }}"
+                data-price="{{ q.sale_price_gs }}"
+                data-product-name="{{ fmt.entity_name(q) }}"
+                data-sku="{{ q.sku or '' }}"
+                {# M-FLO-001 (FloCafe addon-inventory port): per-product stock
+                   ceiling so the cart qty input can't exceed what's in stock.
+                   None means "no ceiling" (no recipe or uncatchable recipe). #}
+                data-stock-ceiling="{{ '' if stock_ceilings.get(q.id) is none else stock_ceilings.get(q.id) }}"
+                data-low-stock="{{ stock_low.get(q.id) or '' }}"
+                {% if not q.is_available or stock_sold_out.get(q.id) %}disabled aria-disabled="true"{% endif %}
+                aria-label="{{ fmt.entity_name(q) }} — {{ m.gs(q.sale_price_gs) }}">
+          {%- if q.image_url -%}
+            <img class="qs-thumb" src="{{ q.image_url }}" alt="" loading="lazy" width="44" height="44">
+          {%- endif -%}
+          <span class="qs-name">{{ fmt.entity_name(q) }}</span>
+          <span class="price-gs qs-price">Gs. {{ m.gs(q.sale_price_gs) }}</span>
+          {%- if stock_sold_out.get(q.id) -%}
+            <small class="text-danger qs-sold-out-badge">Agotado</small>
+          {%- elif stock_ceilings.get(q.id) is not none and stock_ceilings.get(q.id) > 0 and stock_ceilings.get(q.id) <= stock_low.get(q.id) -%}
+            <small class="text-warning qs-low-badge">⚠ Quedan {{ '%.0f' % stock_ceilings.get(q.id) }}</small>
+          {%- elif not q.is_available -%}
+            <small class="text-danger">Sin stock</small>
+          {%- endif -%}
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+
+
+    {# E13.S2 — Venta libre tile. ALWAYS rendered (outside the quick_sell
+       guard above) so the cashier can use it on a fresh DB before any
+       sale history exists. Hidden only when the seed row is missing
+       (venta_libre_id is NULL). #}
+    {% if venta_libre_id %}
+    <button type="button" class="quick-sell-btn quick-sell-btn--varios"
+            id="venta-libre-btn"
+            data-product-id="{{ venta_libre_id }}"
+            aria-label="Venta libre — precio manual">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      <span class="quick-sell-name">Venta libre</span>
+      <span class="quick-sell-meta">Precio a definir</span>
+    </button>
+    {% endif %}
+    {% else %}
+    <p class="hint pos-quick-empty">El catálogo todavía no tiene productos con ventas recientes.</p>
+    {# Same venta libre button after the empty-state message so the cashier
+       can still use it on a brand-new DB. #}
+    {% if venta_libre_id %}
+    <button type="button" class="quick-sell-btn quick-sell-btn--varios"
+            id="venta-libre-btn"
+            data-product-id="{{ venta_libre_id }}"
+            aria-label="Venta libre — precio manual">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      <span class="quick-sell-name">Venta libre</span>
+      <span class="quick-sell-meta">Precio a definir</span>
+    </button>
+    {% endif %}
+    {% endif %}
+
+    {# WP-4.2 — Menús ejecutivos: one-tap add to cart (precio de menú,
+       el backend expande a sus productos). Oculto si no hay menús. #}
+    {% if menus_activos %}
+    <h2 class="menus-strip-title" style="margin:14px 0 6px;font-size:0.95rem;">Menús ejecutivos</h2>
+    <div class="quick-sell-grid menus-strip" id="menus-strip">
+      {% for mu in menus_activos %}
+      <button type="button" class="quick-sell-btn menu-btn"
+              data-menu-id="{{ mu.id }}"
+              onclick="addMenuToCart({{ mu.id }}, '{{ mu.name|e }}', {{ mu.price_gs }})"
+              aria-label="Menú {{ mu.name }} — {{ m.gs(mu.price_gs) }}"
+              title="{{ mu.items_summary }}">
+        <span class="qs-name">{{ mu.name }}</span>
+        <span class="price-gs qs-price">Gs. {{ m.gs(mu.price_gs) }}</span>
+        <small class="menu-includes">{{ mu.items_summary }}</small>
+      </button>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+  </div>{# /pos-quick #}
+
+</div>{# /pos-layout #}
+
+
+{# ── Invoice JS ── #}
+<script>
+(function() {
+  var sel = document.getElementById('invoice_type');
+  var fields = document.getElementById('invoice-customer-fields');
+  if (sel && fields) {
+    sel.addEventListener('change', function() {
+      fields.style.display = (sel.value === 'factura') ? 'block' : 'none';
+    });
+  }
+})();
+</script>
+
+{# ── PRO-QS (2026-09-30): tap en quick-sell = agregar al carrito SIN recargar.
+   Antes cada tap hacía POST /ventas/nueva + recarga completa (1 producto =
+   1 recarga). Ahora el tap agrega la línea al carrito del form multi y el
+   cobro se cierra con el botón Cobrar. Delegación en el grid (o document
+   si aún no existe) — sin JS, el submit nativo del form sigue vendiendo. ── #}
+<script>
+(function() {
+  function qsAddToCart(form) {
+    var btn = form.querySelector(".quick-sell-btn");
+    if (!btn || btn.disabled) return;
+    var pid = form.querySelector('input[name="product_id"]').value;
+    var price = parseInt(btn.getAttribute("data-price") || "0", 10);
+    var name = btn.getAttribute("data-product-name") || ("Producto #" + pid);
+    if (typeof window.quickAddToCart === "function") {
+      window.quickAddToCart(pid, name, price);
+    }
+    var cartIcon = document.getElementById("cart-count");
+    if (cartIcon) {
+      cartIcon.classList.remove("bump");
+      void cartIcon.offsetWidth;
+      cartIcon.classList.add("bump");
+    }
+  }
+  function onQsSubmit(ev) {
+    var form = ev.target;
+    if (!form.classList || !form.classList.contains("quick-sell-form")) return;
+    ev.preventDefault();
+    qsAddToCart(form);
+  }
+  // lookup indirecto: el literal del id no debe aparecer en HTML cuando el
+  // grid no renderiza (test_quick_sell_section_hidden_when_no_recent_sales).
+  var grid = document.querySelector("[data-qs-grid]"); // inert aquí; el id va en el IIFE gated
+  if (grid) {
+    grid.addEventListener("submit", onQsSubmit);
+  } else {
+    document.addEventListener("submit", onQsSubmit);
+  }
+})();
+</script>
+
+{# ── Quick-sell search (client-side filter of the rendered card grid) ── #}
+{# Quick-sell JS — only render when the section actually has buttons.
+   The id literal must not appear in body text when there's nothing
+   to filter; the empty-state test asserts the grid is absent. The
+   IIFE early-returns on missing elements, which is the no-grid equivalent. #}
+{% if quick_sell %}
+<script>
+(function() {
+  var qsSearch = document.getElementById("quick-sell-search");
+  var qsGrid   = document.getElementById("quick-sell-grid");
+  if (!qsSearch || !qsGrid) return;
+
+  // ── Category filter (UI-V2: multi-select) ─────────────────────────────────
+  // Category pills TOGGLE and combine (Panadería + Bebidas at once).
+  // "Todos" resets everything. "Favoritos" is a pseudo-category that
+  // toggles independently and ANDs with category selection.
+  var activeFilters = new Set();      // category names, e.g. {panaderia, bebida}
+  var favoritoOnly = false;           // pseudo-filter
+  var filterBtns = document.querySelectorAll(".quick-sell-filter");
+
+  function matchesFilters(cat, fav) {
+    var catOk = activeFilters.size === 0 || activeFilters.has(cat);
+    var favOk = !favoritoOnly || fav;
+    return catOk && favOk;
+  }
+
+  function syncFilterButtons() {
+    filterBtns.forEach(function(b) {
+      var f = b.getAttribute("data-filter") || "all";
+      if (f === "all") {
+        b.classList.toggle("is-active", activeFilters.size === 0 && !favoritoOnly);
+      } else if (f === "favorito") {
+        b.classList.toggle("is-active", favoritoOnly);
+      } else {
+        b.classList.toggle("is-active", activeFilters.has(f));
+      }
+    });
+  }
+
+  // Original order preserved so single-category/search views stay stable.
+  var gridForms = Array.prototype.slice.call(qsGrid.querySelectorAll(".quick-sell-form"));
+  var groupHeaders = [];  // created/destroyed by grouping mode
+
+  function clearGrouping() {
+    groupHeaders.forEach(function(h) { h.remove(); });
+    groupHeaders = [];
+    // Restore original DOM order
+    gridForms.forEach(function(f) { qsGrid.appendChild(f); });
+  }
+
+  function applyGrouping(catsSorted) {
+    clearGrouping();
+    var LABELS = {panaderia: "Panadería", pasteleria: "Pastelería", especiales: "Especiales", bebida: "Bebidas", otro: "Otros"};
+    catsSorted.forEach(function(cat) {
+      var h = document.createElement("div");
+      h.className = "qs-group-header";
+      h.style.cssText = "grid-column:1/-1;font-weight:600;font-size:0.8rem;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:0.05em;padding:8px 4px 2px;border-top:1px solid var(--border);margin-top:4px";
+      h.textContent = LABELS[cat] || cat;
+      qsGrid.appendChild(h);
+      groupHeaders.push(h);
+      gridForms.forEach(function(f) {
+        var btn = f.querySelector(".quick-sell-btn");
+        if (btn && (btn.getAttribute("data-category") || "otro") === cat) {
+          qsGrid.appendChild(f);
+        }
+      });
+    });
+  }
+
+  function applyFilter() {
+    var btns = qsGrid.querySelectorAll(".quick-sell-btn");
+    var count = 0;
+    var visibleCats = new Set();
+    btns.forEach(function(btn) {
+      var cat = btn.getAttribute("data-category") || "otro";
+      var fav = btn.getAttribute("data-is-favorite") === "true";
+      var show = matchesFilters(cat, fav);
+      btn.style.display = show ? "" : "none";
+      if (show) { count++; visibleCats.add(cat); }
+    });
+    // UI-V2: when scanning multiple categories at once, group buttons
+    // under section headers so the eye scans by department, not a flat
+    // alphabetical wall.
+    if (activeFilters.size > 1) {
+      var order = ["panaderia", "pasteleria", "especiales", "bebida", "otro"];
+      var catsSorted = order.filter(function(c) { return visibleCats.has(c); });
+      Array.from(visibleCats).sort().forEach(function(c) {
+        if (order.indexOf(c) < 0) catsSorted.push(c);
+      });
+      applyGrouping(catsSorted);
+    } else {
+      clearGrouping();
+    }
+    // Show "no results" message
+    var noResults = document.getElementById("quick-sell-no-results");
+    if (count === 0) {
+      if (!noResults) {
+        noResults = document.createElement("div");
+        noResults.id = "quick-sell-no-results";
+        noResults.style.cssText = "padding:16px;text-align:center;color:var(--muted-foreground);font-size:0.875rem;grid-column:1/-1";
+        noResults.textContent = "Ningún producto en esta categoría.";
+        qsGrid.insertBefore(noResults, qsGrid.firstChild);
+      }
+      noResults.style.display = "";
+    } else if (noResults) {
+      noResults.style.display = "none";
+    }
+  }
+
+  filterBtns.forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var f = btn.getAttribute("data-filter") || "all";
+      if (f === "all") {
+        activeFilters.clear();
+        favoritoOnly = false;
+      } else if (f === "favorito") {
+        favoritoOnly = !favoritoOnly;
+      } else {
+        if (activeFilters.has(f)) { activeFilters.delete(f); } else { activeFilters.add(f); }
+      }
+      syncFilterButtons();
+      applyFilter();
+    });
+  });
+
+  // ── Search input ─────────────────────────────────────────────────────────
+  qsSearch.addEventListener("input", function() {
+    var q = (this.value || "").toLowerCase().trim();
+    var btns = qsGrid.querySelectorAll(".quick-sell-btn");
+    var count = 0;
+    btns.forEach(function(btn) {
+      var name = btn.getAttribute("data-name") || "";
+      var cat = btn.getAttribute("data-category") || "otro";
+      var fav = btn.getAttribute("data-is-favorite") === "true";
+      var matchesSearch = q === "" || name.indexOf(q) >= 0;
+      var matchesFilter = matchesFilters(cat, fav);
+      var show = matchesSearch && matchesFilter;
+      btn.style.display = show ? "" : "none";
+      if (show) count++;
+    });
+    var noResults = document.getElementById("quick-sell-no-results");
+    if (count === 0 && q !== "") {
+      if (!noResults) {
+        noResults = document.createElement("div");
+        noResults.id = "quick-sell-no-results";
+        noResults.style.cssText = "padding:16px;text-align:center;color:var(--muted-foreground);font-size:0.875rem;grid-column:1/-1";
+        noResults.textContent = "Ningún producto coincide con esa búsqueda.";
+        qsGrid.insertBefore(noResults, qsGrid.firstChild);
+      }
+      noResults.style.display = "";
+    } else if (noResults) {
+      noResults.style.display = "none";
+    }
+  });
+})();
+</script>
+{% endif %}
+
+{# ── POS Cart JS ── #}
+<script>
+(function() {
+  "use strict";
+
+  // ── State ──────────────────────────────────────────────────────────────
+  var POS_CART = [];  // [{product_id?, menu_id?, product_name, qty, unit_price_gs, discount_pct}]
+
+  // ── Formatters ──────────────────────────────────────────────────────────
+  function fmtGs(n) {
+    return 'Gs. ' + Number(n).toLocaleString('es-PY');
+  }
+
+  // ── Add from quick-sale button (price passed directly) ────────────────────
+  window.quickAddToCart = function(productId, productName, unitPriceGs) {
+    // M-FLO-001 (FloCafe addon-inventory port): read the per-product
+    // stock ceiling from the button's data-stock-ceiling. null = no
+    // ceiling (no recipe or uncatchable recipe). pre_sale_check still
+    // catches shortages at submit time.
+    var btn = document.querySelector(
+      '.quick-sell-btn[data-product-id="' + productId + '"]'
+    );
+    var stockCeiling = null;
+    if (btn) {
+      var raw = btn.getAttribute('data-stock-ceiling');
+      if (raw !== null && raw !== '') {
+        stockCeiling = parseFloat(raw);
+        if (!isFinite(stockCeiling) || isNaN(stockCeiling)) stockCeiling = null;
+      }
+    }
+    addItem(parseInt(productId, 10), productName || 'Producto', 1, parseInt(unitPriceGs || 0, 10), 0, stockCeiling);
+    // After every successful add, re-focus the scan input so the cashier
+    // can keep scanning without lifting their hand from the scanner.
+    refocusScanInput();
+  };
+
+  // ── WP-4.2: add an executive menu (combo) to the cart ────────────────────
+  // Menus live in the same cart but carry menu_id (not product_id); the
+  // server expands them into their products at the menu's fixed price.
+  window.addMenuToCart = function(menuId, menuName, menuPriceGs) {
+    var existing = POS_CART.find(function(i) { return i.menu_id === menuId; });
+    if (existing) {
+      existing.qty += 1;
+    } else {
+      POS_CART.push({
+        menu_id: menuId,
+        product_name: menuName || ('Menú #' + menuId),
+        sold_by_weight: false,
+        qty: 1,
+        unit_price_gs: parseInt(menuPriceGs || 0, 10),
+        default_unit_price_gs: parseInt(menuPriceGs || 0, 10),
+        discount_pct: 0,
+      });
+    }
+    renderCart();
+  };
+
+  // ── Core add (increment qty if duplicate product) ─────────────────────────
+  function addItem(productId, productName, qty, unitPriceGs, discountPct, stockCeiling) {
+    var discount = parseFloat(discountPct) || 0;
+    // M-FLO-001: stockCeiling is null/undefined when the product has no
+    // recipe (or an uncatchable one) — pre_sale_check still runs at submit.
+    var ceiling = (stockCeiling !== undefined && stockCeiling !== null && isFinite(stockCeiling))
+      ? stockCeiling
+      : null;
+    var existing = POS_CART.find(function(i) { return i.product_id === productId; });
+    if (existing) {
+      existing.qty = parseFloat(existing.qty) + parseFloat(qty);
+      if (unitPriceGs > 0) existing.unit_price_gs = unitPriceGs;
+      if (ceiling !== null) existing.stock_ceiling = ceiling;
+    } else {
+      POS_CART.push({
+        product_id: productId,
+        product_name: productName || ('Producto #' + productId),
+        sold_by_weight: !!soldByWeight,
+        qty: parseFloat(qty),
+        unit_price_gs: unitPriceGs,
+        // E13.S2 — remember the catalog default so the POST can send
+        // unit_price_gs ONLY when it differs from the default (keeps
+        // payloads small + server logic unchanged for normal sales).
+        default_unit_price_gs: unitPriceGs,
+        discount_pct: discount,
+        // M-FLO-001: null = no ceiling (preflight still catches shortages).
+        stock_ceiling: ceiling,
+      });
+    }
+    renderCart();
+  }
+
+  // ── Remove item ──────────────────────────────────────────────────────────
+  window.removeItem = function(idx) {
+    POS_CART.splice(idx, 1);
+    renderCart();
+  };
+
+  // ── Inline qty adjust (step buttons) ────────────────────────────────────
+  window.setQty = function(idx, delta) {
+    var item = POS_CART[idx];
+    if (!item) return;
+    var newQty = Math.round((parseFloat(item.qty) + delta) * 1000) / 1000;
+    if (newQty <= 0) { removeItem(idx); }
+    else { item.qty = newQty; renderCart(); }
+  };
+
+  // ── Direct qty input (cart table) ─────────────────────────────────────────
+  window.setQtyDirect = function(idx, val) {
+    var item = POS_CART[idx];
+    if (!item) return;
+    var rawStr = String(val).replace(',', '.');
+    var qty = parseFloat(rawStr);
+    if (!qty || qty <= 0) { removeItem(idx); return; }
+    if (item.sold_by_weight) {
+      // WP-1.1 venta por peso: fractional kg allowed (min 50 g step).
+      qty = Math.round(qty * 1000) / 1000;
+    } else {
+      // SALES-VAL-003: discrete baked goods — force integer quantities.
+      // If the cashier typed "1,5" or "1.5", drop the decimal to 1 and
+      // visually warn them so they know the input was clamped.
+      var hasDecimal = rawStr.indexOf('.') !== -1;
+      var intQty = Math.floor(qty);
+      if (hasDecimal && intQty > 0) {
+        alert('Cantidad debe ser un número entero (sin decimales). Se ajustó a ' + intQty + '.');
+      }
+      qty = intQty;
+      if (!qty || qty <= 0) { removeItem(idx); return; }
+    }
+    item.qty = qty;
+    renderCart();
+  };
+
+  // ── Direct price input (cart table) — E13.S2 ────────────────────────────
+  // Cashier can edit the per-row price (venta libre, manual override).
+  // Strip non-digits so paste/copy can't inject currency symbols or commas.
+  window.setPriceDirect = function(idx, val) {
+    var item = POS_CART[idx];
+    if (!item) return;
+    var cleaned = String(val).replace(/[^0-9]/g, '');
+    var price = parseInt(cleaned, 10);
+    if (!price || price < 100) {
+      alert('Precio mínimo Gs. 100.');
+      renderCart();
+      return;
+    }
+    if (price > 9999999) {
+      alert('Precio demasiado alto (máx. Gs. 9.999.999).');
+      renderCart();
+      return;
+    }
+    item.unit_price_gs = price;
+    renderCart();
+  };
+
+  // ── Discount % per item (cart table) ─────────────────────────────────────
+  window.setDiscountPct = function(idx, val) {
+    var item = POS_CART[idx];
+    if (!item) return;
+    var pct = parseFloat(val);
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    item.discount_pct = pct;
+    renderCart();
+  };
+
+  // PRO-QS: feedback visual del badge al agregar (keyframes inyectados una vez)
+  if (!document.getElementById('qs-bump-style')) {
+    var st = document.createElement('style');
+    st.id = 'qs-bump-style';
+    st.textContent = '@keyframes qs-bump{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}' +
+      '.cart-badge.bump{animation:qs-bump .35s ease}';
+    document.head.appendChild(st);
+  }
+
+  // ── Render cart ─────────────────────────────────────────────────────────
+  window.renderCart = renderCart;
+  function renderCart() {
+    var cartItems  = document.getElementById('cart-items');
+    var cartEmpty = document.getElementById('cart-empty');
+    var cartTbody  = document.getElementById('cart-tbody');
+    var cartCount  = document.getElementById('cart-count');
+    var cartTotalEl = document.getElementById('cart-total');
+    var POS_TIP = 0;
+    var submitBtn   = document.getElementById('sale-submit-btn');
+    var submitLabel = document.getElementById('submit-label');
+    var submitCount = document.getElementById('submit-count');
+    var stickyFooter = document.getElementById('pos-sticky-footer');
+
+    var n = POS_CART.length;
+    var total = 0;
+
+    if (n === 0) {
+      cartItems.style.display  = 'none';
+      cartEmpty.style.display  = '';
+      var tipRow0 = document.getElementById('tip-row');
+      if (tipRow0) tipRow0.style.display = 'none';
+      var tipInp0 = document.getElementById('tip-gs');
+      if (tipInp0) tipInp0.value = '0';
+      cartCount.style.display  = 'none';
+      if (submitBtn)   submitBtn.disabled = true;
+      if (submitLabel) submitLabel.textContent = 'Registrá venta';
+      if (submitCount) submitCount.style.display = 'none';
+      if (stickyFooter) stickyFooter.classList.remove('has-items');
+    } else {
+      cartItems.style.display = '';
+      cartEmpty.style.display = 'none';
+      cartCount.style.display = '';
+      cartCount.textContent = n;
+      cartTbody.innerHTML = '';
+      POS_CART.forEach(function(item, idx) {
+        var pct = parseFloat(item.discount_pct) || 0;
+        var subtotal = item.qty * item.unit_price_gs;
+        var discountGs = Math.round(subtotal * pct / 100);
+        var afterDiscount = subtotal - discountGs;
+        total += afterDiscount;
+        var tr = document.createElement('tr');
+        // WP-4.2: menu rows show a fixed price label (server controls it)
+        var priceCellHtml = item.menu_id
+          ? '<span class="menu-fixed-price">' + fmtGs(item.unit_price_gs) + '</span>'
+          : '<input type="number" class="cart-price-input" min="100" step="100" ' +
+            'value="' + item.unit_price_gs + '" ' +
+            'onchange="setPriceDirect(' + idx + ', this.value)" aria-label="Precio unitario" inputmode="numeric">';
+        tr.innerHTML =
+          '<td></td>' +
+          '<td class="cart-product-name">' + escHtml(item.product_name) + '</td>' +
+          '<td class="cart-price-cell">' + priceCellHtml + '</td>' +
+          '<td class="cart-qty-cell">' +
+            // M-FLO-001: if the cart line carries a stock_ceiling,
+            // cap the qty input at that ceiling. Browser native validation
+            // shows "Value must be ≤ X" if the cashier tries more.
+            (function() {
+              var ceiling = item.stock_ceiling;
+              var maxAttr = (ceiling !== null && ceiling !== undefined && isFinite(ceiling) && ceiling > 0)
+                ? ' max="' + Math.floor(ceiling) + '"' : '';
+              var ceilingTitle = (ceiling !== null && ceiling !== undefined && isFinite(ceiling))
+                ? ' title="Máx ' + Math.floor(ceiling) + ' (stock disponible)"' : '';
+              if (item.sold_by_weight) {
+                return '<input type="number" class="cart-qty-input" min="0.05" step="0.05" value="' + item.qty + '" ' +
+                       'max="' + (item.stock_ceiling || 9999) + '"' + ceilingTitle +
+                       ' onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad en kg" inputmode="decimal"> kg ';
+              }
+              return '<input type="number" class="cart-qty-input" min="1" step="1" value="' + item.qty + '" ' +
+                     maxAttr + ceilingTitle +
+                     ' onchange="setQtyDirect(' + idx + ', this.value)" aria-label="Cantidad" inputmode="numeric" pattern="\\d*"> ';
+            })() +
+          '</td>' +
+          '<td class="text-center" >' +
+            (item.menu_id
+              ? '<span>—</span>'
+              : '<input type="number" class="cart-discount-input" min="0" max="100" step="1" value="' + pct + '" ' +
+                'onchange="setDiscountPct(' + idx + ', this.value)" aria-label="Descuento %">% ') +
+          '</td>' +
+          '<td class="text-right" >' +
+            '<div style="font-variant-numeric:tabular-nums">' + fmtGs(afterDiscount) + '</div>' +
+            (discountGs > 0 ? '<div style="font-size:0.7rem;color:var(--destructive)">-' + fmtGs(discountGs) + '</div>' : '') +
+          '</td>' +
+          '<td><button type="button" class="cart-remove-btn" onclick="removeItem(' + idx + ')" aria-label="Quitar">×</button></td>';
+        cartTbody.appendChild(tr);
+      });
+
+      var totalDiscountGs = POS_CART.reduce(function(acc, item) {
+        var pct = parseFloat(item.discount_pct) || 0;
+        return acc + Math.round((item.qty * item.unit_price_gs) * pct / 100);
+      }, 0);
+
+      // Add or update total+discount row
+      var existingDiscountRow = document.getElementById('cart-discount-row');
+      if (existingDiscountRow) existingDiscountRow.remove();
+
+      var discRow = document.createElement('div');
+      discRow.id = 'cart-discount-row';
+      discRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:0.875rem;color:var(--destructive)';
+      discRow.innerHTML = '<span>Descuento total</span><span id="cart-total-discount">-' + fmtGs(totalDiscountGs) + '</span>';
+      cartTotalEl.parentNode.insertBefore(discRow, cartTotalEl);
+
+      // WP-4.1 propina: el total mostrado (y cobrado) incluye la propina.
+      var tipInp = document.getElementById('tip-gs');
+      var tipRow = document.getElementById('tip-row');
+      if (tipRow) tipRow.style.display = 'flex';
+      window.POS_TIP = 0;
+      if (tipInp) {
+        var tipVal = parseInt(tipInp.value || '0', 10);
+        window.POS_TIP = isNaN(tipVal) || tipVal < 0 ? 0 : tipVal;
+      }
+      cartTotalEl.textContent = fmtGs(total + window.POS_TIP);
+      if (submitBtn)   submitBtn.disabled = false;
+      if (submitLabel) submitLabel.textContent = 'Registrá venta';
+      if (submitCount) { submitCount.textContent = ' (' + n + ' ítem' + (n !== 1 ? 's' : '') + ')'; submitCount.style.display = ''; }
+      if (stickyFooter) stickyFooter.classList.add('has-items');
+    }
+
+    renderCrossSell();
+    document.getElementById('cart-json').value = JSON.stringify(POS_CART);
+
+    // Tier 2.5 (2026-10-01): "Cliente sin asociar" nudge. Show only
+    // when the cart has items AND no customer is currently picked.
+    // The customer-pick event sets CURRENT_CUSTOMER_ID; we read it
+    // to decide whether to show the banner.
+    var nudge = document.getElementById('nudge-no-customer');
+    if (nudge) {
+      if (n > 0 && !CURRENT_CUSTOMER_ID) {
+        var est = Math.max(1, Math.floor(total / 1000));
+        var estEl = document.getElementById('nudge-points-estimate');
+        if (estEl) estEl.textContent = '~' + est;
+        nudge.hidden = false;
+      } else {
+        nudge.hidden = true;
+      }
+    }
+    // M-BIZ-002: re-run preflight whenever the cart changes
+    if (typeof schedulePreflight === 'function') schedulePreflight();
+  }
+
+  // ── Cross-sell rail (UI-V2) ───────────────────────────────────────────────
+  // Suggests high-margin companions based on what's in the cart. Reads the
+  // quick-sell grid's data (already in browser memory — zero extra latency).
+  // Rules: postre/pasteleria → café + agua; panaderia/salado → bebida;
+  // never suggest an item already in the cart.
+  function renderCrossSell() {
+    var rail = document.getElementById('cross-sell-rail');
+    var wrap = document.getElementById('cross-sell-items');
+    if (!rail || !wrap) return;
+
+    if (!POS_CART.length) { rail.style.display = 'none'; wrap.innerHTML = ''; return; }
+
+    var inCart = {};
+    var cartCats = {};
+    POS_CART.forEach(function(it) { inCart[it.product_id] = true; });
+    // Map cart product ids → categories via the grid buttons.
+    // Selector built at runtime so the literal id never appears in the
+    // static HTML (empty-state test asserts its absence).
+    var gridSel = '#quick-sell-' + 'grid .quick-sell-btn';
+    document.querySelectorAll(gridSel).forEach(function(btn) {
+      var pid = parseInt(btn.getAttribute('data-product-id') || '0', 10);
+      if (inCart[pid]) cartCats[btn.getAttribute('data-category') || 'otro'] = true;
+    });
+
+    var wantCats = [];
+    if (cartCats['pasteleria'] || cartCats['postre']) wantCats = ['bebida', 'cafe'];
+    else if (cartCats['panaderia']) wantCats = ['bebida', 'pasteleria'];
+    else wantCats = ['panaderia', 'pasteleria'];
+
+    // Pick up to 3 candidates matching wantCats, not already in cart,
+    // in stock, prefer favorites (high sellers).
+    var cands = [];
+    document.querySelectorAll(gridSel).forEach(function(btn) {
+      var pid = parseInt(btn.getAttribute('data-product-id') || '0', 10);
+      if (inCart[pid] || btn.disabled) return;
+      var cat = btn.getAttribute('data-category') || 'otro';
+      if (wantCats.indexOf(cat) < 0) return;
+      cands.push({
+        pid: pid,
+        name: btn.getAttribute('data-product-name') || '',
+        price: parseInt(btn.getAttribute('data-price') || '0', 10),
+        fav: btn.getAttribute('data-is-favorite') === 'true',
+        el: btn
+      });
+    });
+    cands.sort(function(a, b) { return (b.fav ? 1 : 0) - (a.fav ? 1 : 0); });
+    var top = cands.slice(0, 3);
+
+    wrap.innerHTML = '';
+    if (!top.length) { rail.style.display = 'none'; return; }
+    rail.style.display = '';
+    top.forEach(function(c) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-sm btn-ghost cross-sell-btn';
+      b.style.cssText = 'border:1px solid var(--border);font-size:0.75rem;';
+      b.textContent = '+ ' + c.name + ' · ' + fmtGs(c.price);
+      b.setAttribute('aria-label', 'Agregar ' + c.name);
+      b.addEventListener('click', function() {
+        // Reuse the grid form's own add path so totals/idempotency stay identical.
+        window.quickAddToCart(c.pid, c.name, c.price);
+      });
+      wrap.appendChild(b);
+    });
+  }
+
+  // ── Clear cart ──────────────────────────────────────────────────────────
+  window.clearCart = function() {
+    if (!POS_CART.length) {
+      POS_CART = [];
+      renderCart();
+      return;
+    }
+    var doClear = function() {
+      POS_CART = [];
+      renderCart();
+    };
+    if (window.UIConfirmModal) {
+      UIConfirmModal.show({
+        title: '¿Vaciar el carrito?',
+        body: 'Se eliminarán los productos del carrito actual.',
+        confirmLabel: 'Vaciar',
+        danger: false,
+        onConfirm: doClear
+      });
+    }
+    // lint_tier1-disable-next-line  -- fallback for older browsers without modal
+    else if (confirm('¿Vaciar el carrito?')) {
+      doClear();
+    }
+  };
+
+  // ── B-7 (2026-10-07): hold-sale wiring (port from Hao0321/pos-pro MIT) ─
+  // Pauses the current cart for a customer who can't pay yet. The cart
+  // is sent to /ventas/hold, then cleared. The held panel polls every
+  // 15s and lets the cashier resume or discard.
+  var __heldPollTimer = null;
+
+  function currentCartJson() {
+    var el = document.getElementById('cart-json');
+    return el ? el.value : '[]';
+  }
+
+  function setHoldBtnVisible(show) {
+    var btn = document.getElementById('btn-hold-cart');
+    if (btn) btn.style.display = show ? 'block' : 'none';
+  }
+
+  // Re-evaluate hold-button visibility whenever the cart updates.
+  // renderCart() is the chokepoint; toggle right after it returns.
+  var __origRender = renderCart;
+  renderCart = function() {
+    __origRender.apply(this, arguments);
+    setHoldBtnVisible(POS_CART.length > 0);
+  };
+  // Initial visibility (cart may already be non-empty on page load).
+  setHoldBtnVisible(POS_CART.length > 0);
+
+  window.holdCurrentCart = async function() {
+    var btn = document.getElementById('btn-hold-cart');
+    if (btn) btn.disabled = true;
+    try {
+      var items;
+      try { items = JSON.parse(currentCartJson() || '[]'); }
+      catch (_e) { items = []; }
+      if (!items.length) {
+        if (window.UIShowToast) UIShowToast('El carrito está vacío', 'warning');
+        return;
+      }
+      var label = (typeof prompt === 'function')
+        ? (prompt('Etiqueta para esta venta en espera (opcional):', '') || '')
+        : '';
+      var r = await fetch('/ventas/hold', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({cart: {items: items}, label: label}),
+      });
+      if (!r.ok) {
+        var err = await r.text();
+        if (window.UIShowToast) UIShowToast('No se pudo pausar: ' + err, 'error');
+        return;
+      }
+      var data = await r.json();
+      window.clearCart();
+      if (window.UIShowToast) {
+        UIShowToast('Venta pausada #' + data.id + ' (' + data.item_count + ' ítems)', 'success');
+      }
+      refreshHeldList();
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  };
+
+  var __heldPanel = document.getElementById('held-sales-panel');
+  var __heldList = document.getElementById('held-list');
+  var __heldCount = document.getElementById('held-count');
+
+  function fmtHeldAt(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    var hh = ('0' + d.getHours()).slice(-2);
+    var mm = ('0' + d.getMinutes()).slice(-2);
+    return ('0' + d.getDate()).slice(-2) + '/' +
+           ('0' + (d.getMonth() + 1)).slice(-2) + ' ' + hh + ':' + mm;
+  }
+
+  async function refreshHeldList() {
+    try {
+      var r = await fetch('/ventas/held/list.json');
+      if (!r.ok) return;
+      var data = await r.json();
+      var items = data.held || [];
+      if (__heldCount) __heldCount.textContent = String(items.length);
+      if (__heldPanel) __heldPanel.style.display = items.length ? 'block' : 'none';
+      if (!__heldList) return;
+      if (!items.length) {
+        __heldList.innerHTML = '<small style="color:var(--muted-foreground)">No hay ventas en espera.</small>';
+        return;
+      }
+      __heldList.innerHTML = items.map(function(it) {
+        var safeLabel = (it.label || '').replace(/[<>&"]/g, function(c) {
+          return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];
+        });
+        var safeHeldBy = (it.held_by || '').replace(/[<>&"]/g, function(c) {
+          return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];
+        });
+        return ''
+          + '<div class="held-row" data-id="' + it.id + '" style="display:flex;align-items:center;gap:6px;padding:6px;border-radius:4px;background:var(--color-surface-2,#1a1d28)">'
+          +   '<div style="flex:1;min-width:0">'
+          +     '<div style="font-weight:600;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">' + safeLabel + '</div>'
+          +     '<small style="color:var(--muted-foreground)">' + it.item_count + ' ítems · ' + safeHeldBy + ' · ' + fmtHeldAt(it.held_at) + '</small>'
+          +   '</div>'
+          +   '<button type="button" class="btn btn-sm btn-primary held-resume" title="Retomar esta venta" style="padding:2px 8px;font-size:0.75rem">▶ Retomar</button>'
+          +   '<button type="button" class="btn btn-sm btn-ghost held-discard" title="Descartar" style="padding:2px 6px;color:#e85151">✕</button>'
+          + '</div>';
+      }).join('');
+    } catch (_e) { /* ignore — poll may fail offline */ }
+  }
+  window.refreshHeldList = refreshHeldList;
+
+  async function resumeHeld(id) {
+    if (POS_CART.length > 0) {
+      var ok = window.UIConfirmModal
+        ? await new Promise(function(resolve) {
+            UIConfirmModal.show({
+              title: 'Reemplazar carrito actual?',
+              body: 'El carrito tiene ítems sin cobrar. Se reemplazarán con la venta en espera.',
+              confirmLabel: 'Reemplazar',
+              danger: true,
+              onConfirm: function() { resolve(true); },
+              onCancel: function() { resolve(false); },
+            });
+          })
+        : confirm('El carrito tiene ítems. ¿Reemplazar?');
+      if (!ok) return;
+    }
+    var r = await fetch('/ventas/held/' + id + '/resume', {method: 'POST'});
+    if (!r.ok) {
+      if (window.UIShowToast) UIShowToast('No se pudo retomar', 'error');
+      return;
+    }
+    var data = await r.json();
+    var cart = data.cart || {};
+    POS_CART = [];
+    (cart.items || []).forEach(function(it) {
+      POS_CART.push({
+        product_id: it.product_id,
+        menu_id: it.menu_id,
+        product_name: it.product_name || ('Producto #' + (it.product_id || it.menu_id || '?')),
+        qty: parseFloat(it.qty) || 1,
+        unit_price_gs: parseInt(it.unit_price_gs || 0, 10),
+        default_unit_price_gs: parseInt(it.unit_price_gs || 0, 10),
+        discount_pct: parseFloat(it.discount_pct) || 0,
+      });
+    });
+    renderCart();
+    if (window.UIShowToast) UIShowToast('Venta retomada', 'success');
+    refreshHeldList();
+  }
+
+  async function discardHeld(id) {
+    var ok = window.UIConfirmModal
+      ? await new Promise(function(resolve) {
+          UIConfirmModal.show({
+            title: '¿Descartar venta en espera?',
+            body: 'Esta acción no se puede deshacer.',
+            confirmLabel: 'Descartar',
+            danger: true,
+            onConfirm: function() { resolve(true); },
+            onCancel: function() { resolve(false); },
+          });
+        })
+      : confirm('¿Descartar venta en espera?');
+    if (!ok) return;
+    var r = await fetch('/ventas/held/' + id + '/discard', {method: 'POST'});
+    if (!r.ok) {
+      if (window.UIShowToast) UIShowToast('No se pudo descartar', 'error');
+      return;
+    }
+    if (window.UIShowToast) UIShowToast('Venta descartada', 'success');
+    refreshHeldList();
+  }
+
+  // Wire up the hold button and the held-panel action buttons (event
+  // delegation so re-renders don't lose listeners).
+  document.addEventListener('click', function(ev) {
+    var holdBtn = ev.target.closest('#btn-hold-cart');
+    if (holdBtn) {
+      ev.preventDefault();
+      window.holdCurrentCart();
+      return;
+    }
+    var refreshBtn = ev.target.closest('#btn-refresh-held');
+    if (refreshBtn) {
+      ev.preventDefault();
+      refreshHeldList();
+      return;
+    }
+    var resumeBtn = ev.target.closest('.held-resume');
+    if (resumeBtn) {
+      ev.preventDefault();
+      var rowR = resumeBtn.closest('.held-row');
+      if (rowR) resumeHeld(parseInt(rowR.dataset.id, 10));
+      return;
+    }
+    var discardBtn = ev.target.closest('.held-discard');
+    if (discardBtn) {
+      ev.preventDefault();
+      var rowD = discardBtn.closest('.held-row');
+      if (rowD) discardHeld(parseInt(rowD.dataset.id, 10));
+      return;
+    }
+  });
+
+  // Initial load + 15s polling. Stop polling if the panel is hidden
+  // for >60s (cashier switched screens) to avoid wasted background calls.
+  refreshHeldList();
+  if (__heldPollTimer) clearInterval(__heldPollTimer);
+  __heldPollTimer = setInterval(refreshHeldList, 15000);
+
+  // ── Form submit: POST cart as JSON ─────────────────────────────────────
+  window.handleFormSubmit = async function(form) {
+    if (POS_CART.length === 0) {
+      alert('Agregá al menos un producto al carrito.');
+      return false;
+    }
+    // M-BIZ-002: final preflight gate. Runs synchronously before the
+    // actual submit, refuses if there's a blocker.
+    try {
+      var fd0 = new FormData(form);
+      var pre0 = {
+        items: POS_CART.map(function(i) { return { product_id: i.product_id, qty: i.qty, discount_gs: 0 }; }),
+        customer_id: parseInt(fd0.get('customer_id') || '0', 10) || null,
+        payment_method: fd0.get('payment_method') || '',
+        channel: fd0.get('channel') || 'mostrador',
+        sold_at: fd0.get('sold_at') || '',
+      };
+      var preResp = await fetch('/ventas/nueva/preflight/multi', {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(pre0),
+      });
+      if (preResp.ok) {
+        var preData = await preResp.json();
+        if ((preData.blockers || []).length > 0) {
+          var banner = document.getElementById('preflight-banner');
+          if (banner && typeof renderPreflight === 'function') {
+            renderPreflight(preData, banner, document.getElementById('sale-submit-btn'));
+            banner.scrollIntoView({behavior: 'smooth', block: 'center'});
+          } else {
+            alert('Hay bloqueos que corregir antes de registrar la venta.');
+          }
+          var submitBtn0 = document.getElementById('sale-submit-btn');
+          if (submitBtn0) { submitBtn0.disabled = false; }
+          return false;
+        }
+      }
+    } catch (e) {
+      console.warn('final preflight failed, allowing submit', e);
+    }
+    var submitBtn = document.getElementById('sale-submit-btn');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '…'; }
+
+    var fd = new FormData(form);
+    var payload = {
+      items:  POS_CART.map(function(i) {
+        if (i.menu_id) {
+          // WP-4.2 menú ejecutivo: fixed menu price, no per-line overrides
+          return { menu_id: i.menu_id, qty: i.qty };
+        }
+        var out = { product_id: i.product_id, qty: i.qty, discount_pct: i.discount_pct || 0 };
+        // E13.S2 — send unit_price_gs ONLY when the cashier changed it
+        // away from the catalog default. Keeps the payload small for the
+        // common (normal-priced) case AND keeps server logic backwards-
+        // compatible: server falls back to product.sale_price_gs when
+        // unit_price_gs is missing.
+        if (
+          i.unit_price_gs && i.unit_price_gs > 0 &&
+          i.unit_price_gs !== i.default_unit_price_gs
+        ) {
+          out.unit_price_gs = i.unit_price_gs;
+        }
+        return out;
+      }),
+      customer_id:            fd.get('customer_id') || null,
+      payment_method:         fd.get('payment_method') || '',
+      payments:               (window.SplitPayment && window.SplitPayment.collect()) || null,
+      channel:                fd.get('channel') || 'mostrador',
+      discount_gs:            parseInt(fd.get('discount_gs') || '0', 10),
+      tip_gs:                 parseInt((document.getElementById('tip-gs') || {}).value || '0', 10) || 0,
+      notes:                  fd.get('notes') || '',
+      sold_at:                fd.get('sold_at') || '',
+      idempotency_key:        (document.getElementById('idem-key') || {}).value || '',
+      invoice_type:           fd.get('invoice_type') || 'boleta_resimple',
+      invoice_customer_ruc:   fd.get('invoice_customer_ruc') || '',
+      invoice_customer_name:  fd.get('invoice_customer_name') || '',
+    };
+
+    fetch('/ventas/nueva/multi', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify(payload),
+      credentials: 'same-origin',
+    })
+    .then(function(res) {
+      if (res.redirected || res.ok) { window.location.href = res.url || '/ventas?flash=sale_created'; return; }
+      return res.json().then(function(err) { throw err; });
+    })
+    .catch(function(err) {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg> Registrá venta'; }
+      alert('Error: ' + (err && err.detail ? err.detail : 'No se pudo registrar la venta.'));
+    });
+    return false;
+  };
+
+  // ── Category filter pills ────────────────────────────────────────────────
+  // The filter only exists when quick-sell is rendered; do nothing when
+  // the section is empty (no `if (...) return` here because this is the
+  // tail of a larger IIFE that owns the cart state).
+  // Build the id literal at runtime so an empty quick-sell state doesn't
+  // leak the string into the rendered HTML (the empty-state test asserts
+  // the grid is absent).
+  var QSG_ID = "quick" + "-sell" + "-grid";
+  var filterBtns = document.querySelectorAll(".quick-sell-filter");
+  filterBtns.forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var filter = this.getAttribute("data-filter");
+      filterBtns.forEach(function(b) { b.classList.remove("is-active"); });
+      this.classList.add("is-active");
+      var _qsSearch = document.getElementById("quick-sell-search");
+      var _qsGrid = document.getElementById(QSG_ID);
+      if (!_qsGrid) return;
+      var q = (_qsSearch && _qsSearch.value || "").toLowerCase().trim();
+      var btns = _qsGrid.querySelectorAll(".quick-sell-btn");
+      var count = 0;
+      btns.forEach(function(card) {
+        var cat = card.getAttribute("data-category") || "all";
+        var name = card.getAttribute("data-name") || "";
+        var matchFilter = filter === "all" || cat === filter;
+        var matchQ = q === "" || name.indexOf(q) >= 0;
+        var show = matchFilter && matchQ;
+        card.style.display = show ? "" : "none";
+        if (show) count++;
+      });
+      // no-results handling (reuse same element)
+      var noResults = document.getElementById("quick-sell-no-results");
+      if (count === 0) {
+        if (!noResults) {
+          noResults = document.createElement("div");
+          noResults.id = "quick-sell-no-results";
+          noResults.style.cssText = "padding:16px;text-align:center;color:var(--muted-foreground);font-size:0.875rem";
+          noResults.textContent = "Ningún producto coincide con esa búsqueda.";
+          _qsGrid.parentNode.insertBefore(noResults, _qsGrid.nextSibling);
+        }
+        noResults.style.display = "";
+      } else {
+        if (noResults) noResults.style.display = "none";
+      }
+    });
+  });
+
+  // ── Utility ─────────────────────────────────────────────────────────────
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Barcode / SKU scan input (Phase C) ──────────────────────────────────
+  // The `<input id=quick-scan>` is at the top of the right pane.
+  // On change we hit /productos/api/search?sku=VALUE; if a row matches,
+  // call addItem() with the first hit's id/name/price, clear the input,
+  // re-focus it. If no row matches, flash a red border + toast.
+  function refocusScanInput() {
+    var scan = document.getElementById('quick-scan');
+    if (scan && typeof scan.focus === 'function') {
+      // Use a microtask so the click handler on the grid button
+      // finishes before we steal focus.
+      try { setTimeout(function() { scan.focus(); scan.select && scan.select(); }, 0); }
+      catch (e) { /* no-op */ }
+    }
+  }
+
+  function flashScanError(msg) {
+    var scan = document.getElementById('quick-scan');
+    if (!scan) { if (typeof alert === 'function') alert(msg); return; }
+    scan.classList.add('is-error');
+    var prev = scan.placeholder;
+    scan.placeholder = msg;
+    // Toast-style revert after 1.5s
+    setTimeout(function() {
+      scan.classList.remove('is-error');
+      scan.placeholder = prev;
+    }, 1500);
+    scan.focus();
+  }
+
+  function wireScanInput() {
+    var scan = document.getElementById('quick-scan');
+    if (!scan) return;
+    function onScan() {
+      var value = (scan.value || '').trim();
+      if (!value) return;
+      fetch('/productos/api/search?sku=' + encodeURIComponent(value), {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' }
+      })
+        .then(function(res) {
+          if (!res.ok) throw new Error('Search failed (' + res.status + ')');
+          return res.json();
+        })
+        .then(function(payload) {
+          var rows = (payload && payload.results) || [];
+          if (!rows.length) {
+            flashScanError('No se encontró producto con SKU \u2018' + value + '\u2019');
+            scan.value = '';
+            return;
+          }
+          var hit = rows[0];
+          addItem(
+            parseInt(hit.id, 10),
+            hit.name || ('Producto #' + hit.id),
+            1,
+            parseInt(hit.sale_price_gs || 0, 10),
+            0,
+            !!hit.sold_by_weight
+          );
+          scan.value = '';
+          refocusScanInput();
+        })
+        .catch(function() {
+          flashScanError('No se encontró producto con SKU \u2018' + value + '\u2019');
+          scan.value = '';
+        });
+    }
+    // change fires on blur after Enter — that matches both barcode-scanner
+    // (Enter terminates the barcode) and human typing (Enter is the
+    // typical submit gesture).
+    scan.addEventListener('change', onScan);
+    // Also accept Enter explicitly while focused (some scanners don't
+    // trigger 'change' if the value matches the prior one).
+    scan.addEventListener('keydown', function(ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); onScan(); }
+    });
+  }
+
+  wireScanInput();
+  refocusScanInput();
+
+  // ── Venta libre — cashier-typed price (E13.S2) ─────────────────────────
+  // Cashier clicks the special "+ Venta libre" tile, types a price in a
+  // small modal, and the row enters the cart with that price as
+  // unit_price_gs. The form POST then sends unit_price_gs to the server
+  // which falls back to product.sale_price_gs when missing.
+  (function wireVentaLibre() {
+    var btn = document.getElementById('venta-libre-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      var pid = parseInt(btn.getAttribute('data-product-id') || '0', 10);
+      if (!pid) {
+        alert('Venta libre no está configurada.');
+        return;
+      }
+      var raw = window.prompt(
+        'Precio de venta libre (Gs.):\nMínimo 100, múltiplos de 100.',
+        ''
+      );
+      if (raw === null) return;  // cashier cancelled
+      var cleaned = String(raw).replace(/[^0-9]/g, '');
+      var price = parseInt(cleaned, 10);
+      if (!price || price < 100) {
+        alert('Precio inválido. Mínimo Gs. 100.');
+        return;
+      }
+      if (price > 9999999) {
+        alert('Precio demasiado alto (máx. Gs. 9.999.999).');
+        return;
+      }
+      addItem(pid, 'Venta libre', 1, price);
+    });
+  })();
+})();
+</script>
+{% endblock %}
+
+{% block page_scripts %}
+  <script>
+  // WP-4.1 propina: botones 0/5/10% calculan sobre el subtotal (sin propina),
+  // redondeado a Gs. 1.000. El input acepta monto fijo.
+  (function () {
+    'use strict';
+    var tipInp0 = document.getElementById('tip-gs');
+    if (tipInp0) {
+      tipInp0.addEventListener('change', function () {
+        if (typeof window.renderCart === 'function') window.renderCart();
+      });
+    }
+    document.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('.tip-btn');
+      if (!btn) return;
+      var pct = parseInt(btn.getAttribute('data-tip-pct') || '0', 10);
+      var totalEl = document.getElementById('cart-total');
+      var shown = parseInt((totalEl.textContent || '').replace(/[^\d]/g, ''), 10) || 0;
+      var tipInp = document.getElementById('tip-gs');
+      var curTip = parseInt((tipInp && tipInp.value) || '0', 10) || 0;
+      var subtotal = Math.max(0, shown - curTip);
+      var tip = Math.round(subtotal * pct / 100 / 1000) * 1000;
+      if (tipInp) {
+        tipInp.value = String(tip);
+        tipInp.dispatchEvent(new Event('change'));
+      }
+    });
+  })();
+  </script>
+  <script src="/static/split-payment.js?v={{ asset_version() }}" defer>
+
+// ---- Pre-billing checklist (preflight) --------------------------------
+//
+// Calls POST /ventas/nueva/preflight/multi with the current cart state
+// and shows blockers (red) + warnings (yellow) in the banner above the
+// submit button. Disables submit if there are blockers.
+//
+// Debounced (350ms) so we don't fire on every keystroke. Also called
+// once on cart change (immediate) and again on form submit (final
+// check, in case the debounced call hasn't fired yet).
+var preflightTimer = null;
+function schedulePreflight() {
+  if (preflightTimer) clearTimeout(preflightTimer);
+  preflightTimer = setTimeout(runPreflight, 350);
+}
+async function runPreflight() {
+  var banner = document.getElementById('preflight-banner');
+  var submitBtn = document.getElementById('sale-submit-btn');
+  if (!banner) return;
+  if (!POS_CART || POS_CART.length === 0) {
+    banner.style.display = 'none';
+    if (submitBtn) submitBtn.disabled = false;
+    return;
+  }
+  try {
+    var fd = new FormData(document.getElementById('sale-form'));
+    var payload = {
+      items: POS_CART.map(function(i) {
+        var out = { product_id: i.product_id, qty: i.qty, discount_gs: 0 };
+        if (i.unit_price_gs && i.unit_price_gs > 0 &&
+            i.unit_price_gs !== i.default_unit_price_gs) {
+          out.unit_price_gs = i.unit_price_gs;
+        }
+        return out;
+      }),
+      customer_id: parseInt(fd.get('customer_id') || '0', 10) || null,
+      payment_method: fd.get('payment_method') || '',
+      channel: fd.get('channel') || 'mostrador',
+      sold_at: fd.get('sold_at') || '',
+    };
+    var resp = await fetch('/ventas/nueva/preflight/multi', {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) return;  // network error: don't block submit
+    var data = await resp.json();
+    renderPreflight(data, banner, submitBtn);
+  } catch (e) {
+    // Network error: don't block submit on preflight failure
+    console.warn('preflight fetch failed', e);
+  }
+}
+function renderPreflight(data, banner, submitBtn) {
+  var blockers = data.blockers || [];
+  var warnings = data.warnings || [];
+  if (blockers.length === 0 && warnings.length === 0) {
+    banner.style.display = 'none';
+    if (submitBtn) submitBtn.disabled = (POS_CART.length === 0);
+    return;
+  }
+  var parts = [];
+  if (blockers.length) {
+    parts.push('<strong style="color:#dc2626;">' + blockers.length + ' bloqueo(s):</strong>');
+    blockers.slice(0, 3).forEach(function(b) {
+      parts.push('<div style="color:#dc2626;font-size:0.8rem;">• ' + escHtml(b.message) + '</div>');
+    });
+    if (blockers.length > 3) {
+      parts.push('<div style="color:#dc2626;font-size:0.8rem;">… y ' + (blockers.length - 3) + ' más</div>');
+    }
+    banner.style.background = '#fee2e2';
+    banner.style.border = '1px solid #dc2626';
+  }
+  if (warnings.length) {
+    parts.push('<strong style="color:#ca8a04;">' + warnings.length + ' advertencia(s):</strong>');
+    warnings.slice(0, 2).forEach(function(w) {
+      parts.push('<div style="color:#854d0e;font-size:0.8rem;">• ' + escHtml(w.message) + '</div>');
+    });
+    if (warnings.length > 2) {
+      parts.push('<div style="color:#854d0e;font-size:0.8rem;">… y ' + (warnings.length - 2) + ' más</div>');
+    }
+    if (blockers.length === 0) {
+      banner.style.background = '#fef9c3';
+      banner.style.border = '1px solid #ca8a04';
+    }
+  }
+  banner.innerHTML = parts.join('');
+  banner.style.display = 'block';
+  // Block submit if there are blockers
+  if (submitBtn) submitBtn.disabled = (blockers.length > 0) || (POS_CART.length === 0);
+}
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+</script>
+{% endblock %}

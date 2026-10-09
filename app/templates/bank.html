@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Bank · Sazón{% endblock %}
+{% block content %}
+{{ ui.page_header("🏦 Movimientos bancarios", desc="Dutch EUR (JGHM VAN DER POL) + PY Guaraní (SASKIA WEISS VANDER)")
+}}
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
+<div class="kpi-strip">
+  <ui-kpi-card label="EUR income" value="€{{ '{:,.2f}'.format(eur_income) }}" compact></ui-kpi-card>
+  <ui-kpi-card label="EUR spent" value="€{{ '{:,.2f}'.format(eur_spent) }}" compact></ui-kpi-card>
+  <ui-kpi-card label="EUR net" value="€{{ '{:,.2f}'.format(eur_net) }}" compact severity="{% if eur_net >= 0 %}success{% else %}danger{% endif %}"></ui-kpi-card>
+  <ui-kpi-card label="PYG balance" value="{{ m.gs(pyg_balance_gs) }}" compact severity="success"></ui-kpi-card>
+</div>
+
+{% if active_category %}
+  <p class="text-muted">Filter: <code>{{ active_category }}</code> · <a href="/bank">clear</a></p>
+{% endif %}
+
+<!-- Reconciliation Stats -->
+<div class="row mb-3">
+  <div class="col-md-4">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title text-success">{{ reconciled_count }}</h5>
+        <p class="card-text text-muted">Conciliados</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title text-warning">{{ unreconciled_count }}</h5>
+        <p class="card-text text-muted">Pendientes</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card text-center">
+      <div class="card-body">
+        <h5 class="card-title text-info">{{ reconciled_count + unreconciled_count }}</h5>
+        <p class="card-text text-muted">Total</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reconciliation Filter -->
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="btn-group" role="group" aria-label="Reconciliation filter">
+      <a href="/bank?{% for key, value in request.query_params.items() %}{% if key != 'reconciled' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" 
+         class="btn {% if not active_reconciled %}btn-primary{% else %}btn-outline-primary{% endif %}">
+        Todos
+      </a>
+      <a href="/bank?reconciled=yes&{% for key, value in request.query_params.items() %}{% if key != 'reconciled' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" 
+         class="btn {% if active_reconciled == 'yes' %}btn-success{% else %}btn-outline-success{% endif %}">
+        ✓ Conciliados
+      </a>
+      <a href="/bank?reconciled=no&{% for key, value in request.query_params.items() %}{% if key != 'reconciled' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" 
+         class="btn {% if active_reconciled == 'no' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+        ⏳ Pendientes
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Currency Toggle -->
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="btn-group" role="group" aria-label="Currency filter">
+      <a href="/bank?{% for key, value in request.query_params.items() %}{% if key != 'currency' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" 
+         class="btn {% if not active_currency %}btn-primary{% else %}btn-outline-primary{% endif %}">
+        Todas
+      </a>
+      <a href="/bank?currency=EUR&{% for key, value in request.query_params.items() %}{% if key != 'currency' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" 
+         class="btn {% if active_currency == 'EUR' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+        EUR
+      </a>
+      <a href="/bank?currency=PYG&{% for key, value in request.query_params.items() %}{% if key != 'currency' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" 
+         class="btn {% if active_currency == 'PYG' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+        PYG
+      </a>
+    </div>
+    {% if total_count > 0 %}
+    <span class="text-muted ms-3">
+      Mostrando {{ ((page - 1) * per_page) + 1 }}-{{ [page * per_page, total_count] | min }} de {{ total_count }} movimientos
+    </span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Date Range Filter -->
+<div class="card mb-3">
+  <div class="card-header">
+    <strong>Fechas</strong>
+    <button onclick="document.getElementById('date-range').classList.toggle('hidden')" class="btn btn-sm">Filtros</button>
+  </div>
+  <div id="date-range" class="card-body hidden">
+    <form method="get" action="/bank" class="row g-3">
+      <div class="col">
+        <label for="start_date">Desde</label>
+        <!-- lint_tier1-disable-next-line — date filter in GET form, native is simpler -->
+        <input type="date" id="start_date" name="start_date" value="{{ request.query_params.get('start_date', '') }}" class="form-control">
+      </div>
+      <div class="col">
+        <label for="end_date">Hasta</label>
+        <!-- lint_tier1-disable-next-line — date filter in GET form, native is simpler -->
+        <input type="date" id="end_date" name="end_date" value="{{ request.query_params.get('end_date', '') }}" class="form-control">
+      </div>
+      <div class="col d-flex align-items-end">
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        {% if request.query_params.get('start_date') or request.query_params.get('end_date') or active_currency %}
+        <a href="/bank" class="btn btn-secondary ms-2">Limpiar</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Category Filter (original) -->
+
+<details class="card mb-3">
+  <summary style="padding:1rem;cursor:pointer;"><strong>+ Agregar movimiento manualmente</strong> (PY savings, etc.)</summary>
+  <div style="padding:1rem;">
+    <form class="d-grid" method="post" action="/bank/add" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="form-group">
+        <label for="posted_at">Fecha</label>
+        <ui-date id="posted_at" name="posted_at"></ui-date>
+      </div>
+      <div class="form-group">
+        <label for="currency_combo">Currency</label>
+                {{ ui.combo_field(
+          name='currency',
+          value='EUR',
+          display='EUR',
+          placeholder='Currency',
+          src=[{"value": "EUR", "label": "EUR"}, {"value": "PYG", "label": "PYG"}, {"value": "USD", "label": "USD"}]
+        ) }}
+      </div>
+      <div class="form-group">
+        <label for="amount">Importe (+/-)</label>
+        <div class="currency-input-wrap">
+          <input type="number" id="amount" name="amount" step="0.01" required class="form-control currency-input" inputmode="numeric">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="counterparty_name">Contraparte</label>
+        <input type="text" id="counterparty_name" name="counterparty_name" class="form-control">
+      </div>
+      <div class="form-group">
+        <label for="category_combo">Categoría</label>
+                {{ ui.combo_field(
+          name='category',
+          value='manual',
+          display='manual',
+          placeholder='manual',
+          src=[{"value": "manual", "label": "manual"}, {"value": "groceries", "label": "groceries"}, {"value": "transport", "label": "transport"}, {"value": "incoming_transfer", "label": "incoming_transfer"}, {"value": "supplier_purchase", "label": "supplier_purchase"}, {"value": "utilities", "label": "utilities"}, {"value": "other", "label": "other"}]
+        ) }}
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label for="description">Descripción</label>
+        <input type="text" id="description" name="description" class="form-control">
+      </div>
+      <div style="grid-column:1/-1;text-align:right;">
+        <button type="submit" class="btn btn-primary">+ Add</button>
+      </div>
+    </form>
+  </div>
+</details>
+
+{{ ui.skeleton_section(id="bank-transactions", variant="line", count=10, label="Cargando transacciones") }}
+<div data-loaded-section="bank-transactions">
+<div class="table-sticky-wrap" style="max-height:min(70vh,520px);">
+<table class="table is-hoverable is-striped">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Cuenta</th>
+      <th class="num">Importe</th>
+      <th>Categoría</th>
+      <th>Contraparte</th>
+      <th>Descripción</th>
+      <th>Conciliación</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for tx in transactions %}
+    <tr>
+      <td>{{ tx.posted_at.strftime('%Y-%m-%d') }}</td>
+      <td><strong>{{ tx.currency }}</strong></td>
+      <td class="num tx-positive {% if tx.amount <= 0 %}tx-negative{% endif %}">
+        {{ '+' if tx.amount > 0 else '' }}{{ "%.2f"|format(tx.amount) }}
+      </td>
+      <td><small class="text-muted">{{ tx.category or '—' }}</small></td>
+      <td>{{ tx.counterparty_name or '—' }}</td>
+      <td><small>{{ (tx.description or '')[:80] }}{% if (tx.description or '')|length > 80 %}…{% endif %}</small></td>
+      <td>
+        {% if tx.reconciled %}
+          <span class="badge bg-success" title="Conciliado con {{ tx.reconciled_with_type }} #{{ tx.reconciled_with_id }}">
+            ✓ {{ tx.reconciled_with_type }}#{{ tx.reconciled_with_id }}
+          </span>
+          <form class="d-inline js-confirm-form" method="post" action="/bank/{{ tx.id }}/unreconcile" data-confirm-title="¿Descuadrar transacción?" data-confirm-body="La transacción volverá a estado pendiente de conciliar.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-sm btn-link" title="Desconciliar">×</button>
+          </form>
+        {% else %}
+          <form method="post" action="/bank/{{ tx.id }}/reconcile" class="d-inline-flex">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <select name="with_type" class="form-select form-select-sm me-1" style="width:auto;">
+              <option value="pedido">Pedido</option>
+              <option value="gasto">Gasto</option>
+              <option value="ingreso">Ingreso</option>
+            </select>
+            <input type="number" name="with_id" placeholder="ID" class="form-control form-control-sm me-1" style="width:80px;" min="1">
+            <button type="submit" class="btn btn-sm btn-primary">✓</button>
+          </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" style="padding:0;">
+      {{ ui.empty_state(
+        title="Sin movimientos bancarios cargados",
+        icon="icon-bank",
+        hint="Usá el formulario de arriba para registrar un movimiento manual, o importá un archivo del banco.",
+        count_of=0,
+        total_label="movimientos"
+      ) }}}
+    </td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+</div>
+
+<!-- Pagination Controls -->
+{% if total_pages > 1 %}
+<nav aria-label="Paginación de movimientos bancarios">
+  <ul class="pagination justify-content-center">
+    <li class="page-item {% if not has_prev %}disabled{% endif %}">
+      <a class="page-link" href="/bank?page={{ page - 1 }}&{% for key, value in request.query_params.items() %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}">
+        Anterior
+      </a>
+    </li>
+    
+    {% set start_page = [page - 2, 1] | max %}
+    {% set end_page = [start_page + 4, total_pages] | min %}
+    {% set start_page = [end_page - 4, 1] | max %}
+    
+    {% for p in range(start_page, end_page + 1) %}
+    <li class="page-item {% if p == page %}active{% endif %}">
+      <a class="page-link" href="/bank?page={{ p }}&{% for key, value in request.query_params.items() %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}">
+        {{ p }}
+      </a>
+    </li>
+    {% endfor %}
+    
+    <li class="page-item {% if not has_next %}disabled{% endif %}">
+      <a class="page-link" href="/bank?page={{ page + 1 }}&{% for key, value in request.query_params.items() %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}">
+        Siguiente
+      </a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
+
+<!-- CSV Export Button -->
+<div class="text-end mb-3">
+  <a href="/bank/export.csv?{% for key, value in request.query_params.items() %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" class="btn btn-secondary">
+    📥 Exportar CSV
+  </a>
+</div>
+
+<p class="text-muted">
+  💡 Source: TXT260711013722.TAB (Dutch EUR bank, Sep'25→Jun'26, 307 txns).
+  Categorización manual desde la propia transacción.
+</p>
+{% endblock %}

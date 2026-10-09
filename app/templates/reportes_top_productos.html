@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Top productos{{ ui.report_source_footer() }}
+{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Top productos
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="text-muted">Ranking de productos por ingresos en el período seleccionado.</p>
+
+<form method="get" action="/reportes/top-productos" class="form mb-4">
+  <div class="grid grid-3">
+    <div class="form-row">
+      <label for="start">Desde</label>
+      <ui-date id="start" name="start" value="{{ start_date }}"></ui-date>
+    </div>
+    <div class="form-row">
+      <label for="end">Hasta</label>
+      <ui-date id="end" name="end" value="{{ end_date }}"></ui-date>
+    </div>
+    <div class="form-row">
+      <label for="limit">Cantidad</label>
+      <input type="number" id="limit" name="limit" value="{{ limit }}" min="5" max="100">
+    </div>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Ver</button>
+  </div>
+</form>
+
+{% if rows %}
+{{ ui.skeleton_section(id="top-productos-table", variant="line", count=8, label="Cargando top productos") }}
+<div data-loaded-section="top-productos-table">
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Producto</th>
+      <th class="num">Unidades vendidas</th>
+      <th class="num">Ingresos (Gs.)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td><strong>{{ r.product_name }}</strong></td>
+      <td class="num">{{ r.n_sold }}</td>
+      <td class="num"><strong>{{ m.gs(r.revenue_gs) }}</strong></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+{{ ui.empty_state(title="No hay ventas registradas", icon="icon-report", hint="Cuando registres ventas van a aparecer acá.") }}
+{% endif %}
+
+{% endblock %}

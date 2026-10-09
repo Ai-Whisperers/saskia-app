@@ -1,0 +1,95 @@
+﻿.DS_Store
+Thumbs.db
+*.tmp
+commitmsg.txt
+.env
+.env.*
+credentials.json
+**/node_modules/
+.cursor/
+.specstory/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# uv
+uv.lock
+
+# Build artifacts
+build/
+dist/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local data (NEVER commit the database file or her actual data)
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+
+# Local backups (NEVER commit her backups)
+backups/
+*.xlsx.bak
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Logs (NEVER commit logs — they may contain PII)
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Generated dashboard files (run refresh.sh to regenerate)
+docs/operations/dashboard/STATUS.html
+docs/operations/dashboard/STATUS.md
+
+# Local-only test artifacts (created during manual runs)
+notifications_spool/
+receipts/
+/tmp/aiw-saskia-backups/
+# Local uploads dir (real uploads are not committed — too many PNGs)
+app/static/uploads/
+
+# Test/dev artifacts (debug scripts written into the worktree)
+test_import*.py
+test_main_simulation*.py
+test_router*.py
+.scratch/
+
+# Branding admin runtime uploads (tests drop 1x1 placeholders here)
+app/static/branding/
+!app/static/branding/.gitkeep
+
+# Receipt oracle debug output (test artifact; recreated on demand via
+# UPDATE_RECIBO_GOLDEN=1 or by running tests/test_recibo_oracle.py)
+tests/fixtures/recibo/_actual.html
+
+# Git bundle archives (290 MB+ for full repo history; kept on local disk only)
+# The ABANDONED.md note in .hermes/archives/ documents what they contain.
+.hermes/archives/*.bundle

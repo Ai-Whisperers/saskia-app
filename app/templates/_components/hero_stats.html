@@ -1,0 +1,38 @@
+{# PRODUCCION-V3 Phase 3: hero stats (4 cards).
+   Shows the cook the day at a glance before they read the table.
+   Context vars (computed in produccion_worksheet):
+     - day_productos_count:  int, products in the plan (incl. ad-hoc)
+     - day_lote_final_total: float, sum of (meta + pedidos) across all rows
+     - day_pedidos_total:   float, sum of pending_pedido_qty across all rows
+     - day_confidence_pct:  int, 0-100 weighted average (or 0 if no data)
+   Renders 4 metric-card style tiles. The Confianza card links to the
+   confidence modal so the cook can see WHY the number is what it is. #}
+{# T-2026-10-06 (UX polish): show '—' instead of literal '0' for empty days
+   so the cook doesn't think the calculator is broken. The cards become
+   informative placeholders, not zero-stares. #}
+<div class="hero-stats kitchen-overview d-grid" data-hero-stats
+     style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+            gap:var(--space-3); margin-bottom:var(--space-4);">
+  <div class="metric-card" data-stat="productos">
+    <span class="metric-label">Productos</span>
+    <span class="metric-value">{% if day_productos_count > 0 %}{{ day_productos_count }}{% else %}—{% endif %}</span>
+    <span class="metric-delta is-neutral">{% if day_productos_count > 0 %}productos en el plan{% else %}sin plan todavía{% endif %}</span>
+  </div>
+  <div class="metric-card" data-stat="lote">
+    <span class="metric-label">Lote</span>
+    <span class="metric-value">{% if day_lote_final_total > 0 %}{{ "%.0f"|format(day_lote_final_total) }}{% else %}—{% endif %}</span>
+    <span class="metric-delta is-neutral">{% if day_lote_final_total > 0 %}unidades a hornear{% else %}sin lote{% endif %}</span>
+  </div>
+  <div class="metric-card" data-stat="pedidos">
+    <span class="metric-label">Pedidos</span>
+    <span class="metric-value">{% if day_pedidos_total > 0 %}{{ "%.0f"|format(day_pedidos_total) }}{% else %}—{% endif %}</span>
+    <span class="metric-delta is-neutral">{% if day_pedidos_total > 0 %}ya comprometido{% else %}sin pedidos hoy{% endif %}</span>
+  </div>
+  <a href="#confidence-modal" class="metric-card" data-stat="confianza"
+     style="text-decoration:none; cursor:help;"
+     title="Click para ver cómo se calcula">
+    <span class="metric-label">Confianza</span>
+    <span class="metric-value">{% if day_productos_count > 0 %}{{ day_confidence_pct }}%{% else %}—{% endif %}</span>
+    <span class="metric-delta is-neutral">{% if day_productos_count > 0 %}promedio del plan{% else %}sin datos{% endif %}</span>
+  </a>
+</div>

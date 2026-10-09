@@ -1,0 +1,530 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Inicio{% endblock %}
+
+{% block alerts %}
+{% if alerts %}
+<div class="alerts-bar">
+  {% for alert in alerts %}
+  <div class="alert alert-{{ alert.severity }}" role="status">
+    <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+    {{ alert.text }}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{# ══ HERO: greeting + quick actions ════════════════════════════════ #}
+<div class="hero-row">
+  <div>
+    <h1>{{ greeting() }}</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+    <p class="hero-meta">{{ now_str() }} · Asunción</p>
+  </div>
+  <div class="hero-actions">
+    <a href="/ventas" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+      Registrar venta
+    </a>
+    <a href="/ventas/historial" class="btn">Ver historial</a>
+    <a href="/produccion/manana" class="btn">
+      <svg class="icon" aria-hidden="true"><use href="#icon-spark"/></svg>
+      Producción de mañana
+    </a>
+  </div>
+</div>
+
+{# ══ HOY band: 4 KPI cards ═════════════════════════════════════════ #}
+<div class="band-label">Hoy</div>
+<div class="kpi-row mb-4">
+  <ui-kpi-card
+    label="Ventas de hoy"
+    value="{% if ventas_gs %}{{ m.gs_full(ventas_gs) }}{% else %}aún no hay ventas hoy{% endif %}"
+    {% if delta_ventas and delta_ventas.pct is not none %}
+    delta="{{ delta_ventas.pct | abs | round(0, 'floor') | int }}%"
+    delta-direction="{{ delta_ventas.direction if delta_ventas.direction != 'new' else 'up' }}"
+    {% if prior_label %}delta-prior="vs {{ prior_label }}"{% endif %}
+    {% endif %}
+    href="/reportes/diario"></ui-kpi-card>
+  <ui-kpi-card
+    label="Ventas"
+    value="{% if ops_today %}{{ ops_today }}{% else %}—{% endif %}"
+    {% if ops_today and ops_delta_label %}
+    delta="{{ ops_delta_label.split(' ')[1] }}"
+    delta-direction="{{ 'up' if '▲' in ops_delta_label else 'down' if '▼' in ops_delta_label else 'flat' }}"
+    delta-prior="vs semana pasada"
+    {% endif %}></ui-kpi-card>
+  <ui-kpi-card
+    label="Ticket promedio"
+    value="{% if ticket_promedio_gs %}{{ m.gs_full(ticket_promedio_gs) }}{% else %}—{% endif %}"
+    {% if ticket_delta_label %}
+    delta="{{ ticket_delta_label.split(' ')[1] }}"
+    delta-direction="{{ 'up' if '▲' in ticket_delta_label else 'down' if '▼' in ticket_delta_label else 'flat' }}"
+    delta-prior="vs semana pasada"
+    {% endif %}></ui-kpi-card>
+  <ui-kpi-card
+    label="Margen estimado"
+    value="{% if margen_pct_fmt and margen_pct_fmt != '—' %}{{ margen_pct_fmt }}{% else %}—{% endif %}"
+    {% if costs_incomplete %}sub="{{ costs_incomplete }} cargado"{% endif %}></ui-kpi-card>
+  <ui-kpi-card
+    label="Stock"
+    value="{{ stock_health_label }}"
+    severity="{{ stock_health_severity }}"
+    {% if stock_health_severity == 'success' %}icon="icon-check"
+    {% elif stock_health_severity == 'warn' %}icon="icon-warn"
+    {% else %}icon="icon-warn"{% endif %}
+    href="/reorder"></ui-kpi-card>
+</div>
+
+{# ══ Tier 3.1 (2026-10-01): Loyalty band — enrollment KPI ══════════════════
+   The single most important number for the loyalty program: what % of
+   sales TODAY had a customer attached (so they earned points and got
+   suggestions)? Industry norm is 40-60% for a healthy program; below
+   30% means the cashier isn't being prompted enough or there's friction.
+   Delta is percentage-points vs prior period (not relative %). #}
+<div class="band-label">Fidelización</div>
+<div class="kpi-row mb-4">
+  <ui-kpi-card
+    label="Clientes asociados"
+    value="{% if enrollment_pct_today is not none %}{{ enrollment_pct_today }}%{% else %}—{% endif %}"
+    {% if enrollment_delta_pp is not none %}
+    delta="{{ enrollment_delta_pp | abs }}pp"
+    delta-direction="{{ 'up' if enrollment_delta_pp > 0 else 'down' if enrollment_delta_pp < 0 else 'flat' }}"
+    delta-prior="vs período anterior"
+    {% endif %}
+    sub="{% if enrollment_total_today %}{{ enrollment_total_today }} ventas · {{ enrollment_with_today }} con cliente{% else %}sin ventas{% endif %}"
+    href="/clientes"></ui-kpi-card>
+</div>
+
+{# ══ T-1: analytics teasers — the 5 orphan metrics as glanceable cards ══ #}
+<div class="band-label">Análisis rápido</div>
+<div class="kpi-row mb-4" style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+  <a class="teaser-card" href="/analisis#top-margin" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ top_margin|length }}</span>
+    <span class="teaser-label">Top por margen</span>
+    <span class="teaser-sub">Productos más rentables →</span>
+  </a>
+  <a class="teaser-card" href="/analisis#concentration" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ concentration|length }}</span>
+    <span class="teaser-label">Concentración de costo</span>
+    <span class="teaser-sub">Insumos dominantes →</span>
+  </a>
+  <a class="teaser-card" href="/analisis#turnover" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ turnover|length }}</span>
+    <span class="teaser-label">Rotación de stock</span>
+    <span class="teaser-sub">Qué se mueve →</span>
+  </a>
+  <a class="teaser-card" href="/analisis#dow-heatmap" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ dow_buckets|length }}</span>
+    <span class="teaser-label">Heatmap día × hora</span>
+    <span class="teaser-sub">Tus horas fuertes →</span>
+  </a>
+  <a class="teaser-card" href="/analisis#complexity" style="flex:1 1 170px;border:1px solid var(--color-border,#e5e7eb);border-radius:8px;padding:0.6rem 0.8rem;text-decoration:none;color:inherit;">
+    <span class="teaser-num">{{ complexity|length }}</span>
+    <span class="teaser-label">Recetas más complejas</span>
+    <span class="teaser-sub">Prep más largo →</span>
+  </a>
+</div>
+
+{# ══ P1-B7: 3 actionable insights ═════════════════════════════════════ #}
+<div class="insights-band mb-4">
+  {% for insight in actionable_insights %}
+  <ui-insight
+    id="{{ insight.id }}"
+    title="{{ insight.title }}"
+    detail="{{ insight.detail }}"
+    action-text="{{ insight.action_text }}"
+    action-href="{{ insight.action_href }}"
+    severity="{{ insight.severity }}"
+    icon="{{ insight.icon }}">
+  </ui-insight>
+  {% endfor %}
+</div>
+
+{# ══ Middle band: Acciones · Plan de mañana · Alertas ════════════════ #}
+<div class="home-band-4 mb-4">
+
+  {# ── Acciones del día ──────────────────────────────────────────── #}
+  <section class="card" aria-label="Acciones del día">
+    <div class="card-header">
+      <h2 class="text-md" >Acciones del día</h2>
+    </div>
+
+    {% if pedido_hoy or pedido_manana %}
+    <a class="accion-row" href="/pedidos">
+      <span class="accion-chip sev-warn"><svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg></span>
+      <span class="accion-main">
+        <span class="accion-title">Pedidos por confirmar</span>
+        <span class="accion-sub">{% if pedido_hoy %}{{ pedido_hoy }} para hoy{% endif %}{% if pedido_hoy and pedido_manana %} · {% endif %}{% if pedido_manana %}{{ pedido_manana }} para mañana{% endif %}</span>
+      </span>
+      <span class="accion-arrow">→</span>
+    </a>
+    {% endif %}
+
+    {% if stock_low %}
+    <a class="accion-row" href="/reorder">
+      <span class="accion-chip sev-danger"><svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg></span>
+      <span class="accion-main">
+        <span class="accion-title">Reposiciones urgentes</span>
+        <span class="accion-sub">{{ stock_low[0].name }} bajo mínimo{% if stock_low|length > 1 %} +{{ stock_low|length - 1 }} más{% endif %}</span>
+      </span>
+      <span class="accion-count">{{ stock_low|length }}</span>
+    </a>
+    {% endif %}
+
+    {% if vencer_48h_count %}
+    <a class="accion-row" href="/reportes/freshness">
+      <span class="accion-chip sev-warn"><svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg></span>
+      <span class="accion-main">
+        <span class="accion-title">Insumos por vencer (48 h)</span>
+        <span class="accion-sub">{{ m.gs(vencer_48h_gs) }} en riesgo</span>
+      </span>
+      <span class="accion-count">{{ vencer_48h_count }}</span>
+    </a>
+    {% endif %}
+
+    {% if birthdays %}
+    <a class="accion-row" href="/clientes">
+      <span class="accion-chip sev-ok"><svg class="icon" aria-hidden="true"><use href="#icon-user"/></svg></span>
+      <span class="accion-main">
+        <span class="accion-title">🎂 Cumpleaños de la semana</span>
+        <span class="accion-sub">{{ birthdays[0].name }} — {{ birthdays[0].when }}{% if not birthdays[0].consent %} (sin consent. promo){% endif %}{% if birthdays|length > 1 %} +{{ birthdays|length - 1 }} más{% endif %}</span>
+      </span>
+      <span class="accion-count">{{ birthdays|length }}</span>
+    </a>
+    {% endif %}
+
+    {% if cierre_ayer_pendiente %}
+    <a class="accion-row" href="/eod">
+      <span class="accion-chip sev-warn"><svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg></span>
+      <span class="accion-main">
+        <span class="accion-title">Cierre de ayer</span>
+        <span class="accion-sub">pendiente</span>
+      </span>
+      <span class="accion-arrow">→</span>
+    </a>
+    {% endif %}
+
+    {% if merma_hoy %}
+    {# Close Acciones del día here so Hecho hoy can be a separate card. #}
+    </section>
+    {% endif %}
+
+    {# ── Hecho hoy (informational, not actionable) ─────────────────────── #}
+    {% if merma_hoy %}
+    <section class="card hecho-hoy mt-3" aria-label="Hecho hoy">
+      <div class="card-header">
+        <h2 class="text-md" >Hecho hoy</h2>
+      </div>
+      <div class="accion-row is-done">
+        <span class="accion-chip sev-ok"><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg></span>
+        <span class="accion-main">
+          <span class="accion-title">Merma del día</span>
+          <span class="accion-sub">registrada ✓</span>
+        </span>
+      </div>
+    </section>
+    {% elif not (pedido_hoy or pedido_manana or stock_low or vencer_48h_count or cierre_ayer_pendiente or birthdays) %}
+    <div class="alert alert-success" role="status">
+      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+      Todo en orden por hoy.
+    </div>
+    {% endif %}
+  </section>
+
+  {# ── Plan de mañana ────────────────────────────────────────────── #}
+  <section class="card" aria-label="Plan de mañana">
+    <div class="card-header">
+      <h2 class="text-md" >Plan de mañana</h2>
+      <small class="text-muted">sugerido por ventas</small>
+    </div>
+    {% if insights.production_tomorrow %}
+      {% for p in insights.production_tomorrow[:5] %}
+      {# seed data leaves hash names like "Producto 99b78b3b" — humanize #}
+      {% set _raw = p.product_name or "" %}
+      {% set _is_hash = _raw.startswith("Producto ") and (_raw.split(" ")|length == 2) and (_raw.split(" ")[1]|length) == 8 %}
+      <div class="plan-row">
+        <span><strong>{% if _is_hash %}Producto sin nombre{% else %}{{ _raw or "Producto sin nombre" }}{% endif %}</strong></span>
+        <span class="text-muted">{{ p.batch_count }} tanda{{ 's' if p.batch_count > 1 }} · {{ p.target_qty }} u.</span>
+      </div>
+      {% endfor %}
+      <div class="plan-footer">
+        <span>Detalles y ajustes en <a href="/produccion">Producción →</a></span>
+      </div>
+    {% else %}
+      {{ ui.empty_state(title="Sin plan todavía", icon="icon-plan", hint="Se calcula con tus ventas.", cta_href="/produccion", cta_label="Ver Producción") }}
+    {% endif %}
+  </section>
+
+  {# ── Pronóstico DOW-aware (Phase 4 B2, 2026-10-01) ───────────────── #}
+  <section class="card" aria-label="Pronóstico mañana">
+    <div class="card-header">
+      <h2 class="text-md" >Pronóstico — {{ forecast_tomorrow_label }} {{ forecast_tomorrow_date }}</h2>
+      <small class="text-muted">12 semanas · día de la semana · confianza
+        {% if forecast_confidence == 'high' %}<span class="sev-pill ok">alta</span>
+        {% elif forecast_confidence == 'medium' %}<span class="sev-pill aviso">media</span>
+        {% else %}<span class="sev-pill critico">baja</span>{% endif %}
+      </small>
+    </div>
+    {% if forecast_products_count > 0 %}
+    <div class="d-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+      <div>
+        <div class="text-muted text-label-upper" >Unidades estimadas</div>
+        <div style="font-size:var(--text-xl);font-weight:700;">{{ "{:,}".format(forecast_units) }}</div>
+      </div>
+      <div>
+        <div class="text-muted text-label-upper" >Ingreso estimado</div>
+        <div style="font-size:var(--text-xl);font-weight:700;">{{ m.gs(forecast_revenue_gs) }}</div>
+      </div>
+    </div>
+    <table class="table is-narrow is-striped text-sm" >
+      <thead>
+        <tr><th>Producto</th><th class="num">Cant. estimada</th><th class="num">Ingreso</th></tr>
+      </thead>
+      <tbody>
+        {% for fp in forecast_top %}
+        <tr>
+          <td>{{ fp.name }}</td>
+          <td class="num">{{ "%.1f"|format(fp.qty) }}</td>
+          <td class="num">{{ m.gs(fp.revenue_gs) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="mt-2" style="margin-top:var(--space-2);font-size:var(--text-xs);">
+      <a href="/produccion/manana">Ver plan completo de mañana →</a>
+    </div>
+    {% else %}
+      {{ ui.empty_state(title="Sin datos suficientes", icon="icon-forecast", hint="Necesitamos ~4 semanas de ventas en este día para pronosticar.", cta_href="/produccion/manana", cta_label="Ver producción") }}
+    {% endif %}
+  </section>
+
+  {# ── Coffee regulars (prelaunch roadmap 2026-09-17) ─────────────── #}
+  <section class="card" aria-label="Clientes habituales">
+    <div class="card-header">
+      <h2 class="text-md" >Clientes habituales</h2>
+      <small class="text-muted">últimos 30 días · 2+ visitas</small>
+    </div>
+    {% if regulars %}
+      {% for r in regulars %}
+      <div class="regular-row d-flex" style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);padding:var(--space-2) 0;border-bottom:1px solid var(--color-border, #eee);">
+        <a class="flex-1" href="/clientes/{{ r.id }}" style="flex:1;color:inherit;text-decoration:none;">
+          <span class="regular-name"><strong>{{ r.name or '(sin nombre)' }}</strong></span><br>
+          <span class="regular-visits" style="font-size:var(--text-sm);color:var(--color-text-muted);">{{ r.n_visits }} visita{{ 's' if r.n_visits != 1 }} · {{ m.gs(r.lifetime_spend_gs) }}</span>
+        </a>
+        {# Phase 10: one-click "Pedir de nuevo" shortcut — sends the
+           operator to /pedidos/nuevo with the customer preselected AND
+           the most-recent pedido's lines cloned (the same auto-fill
+           pipeline phase 4 already supports). #}
+        <a href="/pedidos/nuevo?customer_id={{ r.id }}"
+           class="btn btn-sm"
+           title="Crear pedido nuevo para {{ r.name }}">
+          + Pedido
+        </a>
+      </div>
+      {% endfor %}
+      {% if regulars_count_total > regulars|length %}
+      <div class="mt-2" style="margin-top:var(--space-2);font-size:var(--text-xs);">
+        <a href="/clientes">Ver los {{ regulars_count_total }} habituales →</a>
+      </div>
+      {% endif %}
+    {% else %}
+      {{ ui.empty_state(title="Sin habituales aún", icon="icon-customer", hint="Aparecen acá cuando un cliente vuelve 2+ veces en 30 días.", cta_href="/clientes", cta_label="Ver clientes") }}
+    {% endif %}
+  </section>
+
+  {# ── Alertas (severity pills, capped) ──────────────────────────── #}
+  <section class="card" aria-label="Alertas">
+    <div class="card-header">
+      <h2 class="text-md" >Alertas</h2>
+    </div>
+
+    {% set avisos_total = (stock_low|length) + (recipes_no_cost|length) + (sales_no_recipe|length) + (compliance_alerts|length) %}
+    {% if avisos_total == 0 %}
+    <div class="alert alert-success" role="status">
+      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+      Todo en orden. No hay avisos por ahora.
+    </div>
+    {% else %}
+      {% for s in stock_low[:3] %}
+      <div class="alerta-row">
+        <span class="sev-pill critico">Crítico</span>
+        <span class="alerta-text">{{ fmt.entity_name(s) }}: quedan {{ "%.2f"|format(s.stock_qty) }} {{ s.unit }} (mín. {{ "%.2f"|format(s.min_stock_qty) }})</span>
+        <a class="alerta-link" href="/reorder">Reponer →</a>
+      </div>
+      {% endfor %}
+      {% for a in compliance_alerts[:2] %}
+      <div class="alerta-row">
+        <span class="sev-pill aviso">Aviso</span>
+        <span class="alerta-text">{{ a.message }}</span>
+        <a class="alerta-link" href="/settings">Renovar →</a>
+      </div>
+      {% endfor %}
+      {% for r in recipes_no_cost[:1] %}
+      <div class="alerta-row">
+        <span class="sev-pill aviso">Aviso</span>
+        <span class="alerta-text">Receta sin precio: {{ fmt.entity_name(r) }}</span>
+        <a class="alerta-link" href="/recetas/{{ r.id }}/editar">Completar →</a>
+      </div>
+      {% endfor %}
+      {% if avisos_total > 6 %}
+      <p class="text-muted" style="font-size:var(--text-xs);margin-top:var(--space-2);">
+        <a href="#avisos-todos">Ver todos los avisos ({{ avisos_total }}) →</a>
+      </p>
+      {% endif %}
+    {% endif %}
+  </section>
+</div>
+
+{# ══ Charts row — collapsed when no sales (empty-state paralysis fix) ══ #}
+{% if ventas_gs %}
+<div class="dashboard-grid mb-4">
+  {{ m.chart_card("Ventas por hora del día", chart_hourly, data_freshness) }}
+  {{ m.chart_card("Tendencia — " ~ chart_30day.preset_label, chart_30day.html, data_freshness) }}
+  <div class="chart-preset-switcher" data-component="preset-switcher" data-target-url="/?period={{ period }}">
+    <span class="muted">Período:</span>
+    {% for p, label in [
+      ("7d", "7d"),
+      ("30d", "30d"),
+      ("90d", "90d"),
+      ("current_month", "Este mes"),
+      ("last_month", "Mes anterior"),
+    ] %}
+    <a href="?period={{ period }}&chart_preset={{ p }}"
+       class="chip {% if chart_30day.preset == p %}chip--active{% endif %}">
+      {{ label }}
+    </a>
+    {% endfor %}
+  </div>
+  {{ m.chart_card("Distribución de pagos", chart_payment_methods | safe, None) }}
+  {{ m.top_list_card("Top productos por ventas", top_products_revenue, "Gs. ", "icon-arrow-up") }}
+</div>
+{% else %}
+{{ ui.empty_state(title="Los gráficos aparecen con tu primera venta", icon="icon-sale", hint="Ventas por hora, tendencia de 30 días y formas de pago se dibujan solos.", cta_href="/ventas", cta_label="Registrar venta") }}
+{% endif %}
+
+{# ══ ANÁLISIS teaser band ══════════════════════════════════════════ #}
+<div class="band-label">Análisis · últimos 30 días</div>
+<div class="analisis-teaser mb-4">
+  <a class="teaser-card" href="/analisis">
+    <span class="teaser-num">{% if insights.stars or insights.dogs %}{{ (insights.stars|length) + (insights.dogs|length) }}{% else %}—{% endif %}</span>
+    <span class="teaser-label">Clasificación de productos</span>
+    <span class="teaser-sub">Stars y Dogs por margen y volumen →</span>
+  </a>
+  <a class="teaser-card" href="/analisis">
+    <span class="teaser-num">{% if erosion_alerts %}{{ erosion_alerts|length }}{% else %}0{% endif %}</span>
+    <span class="teaser-label">Márgenes a la baja</span>
+    <span class="teaser-sub">Productos perdiendo margen por costos →</span>
+  </a>
+  <a class="teaser-card" href="/reportes">
+    <span class="teaser-num">→</span>
+    <span class="teaser-label">Reportes completos</span>
+    <span class="teaser-sub">Fiscales, ventas, costos e inventario →</span>
+  </a>
+</div>
+
+{# ══ Ranking del período ═══════════════════════════════════════════ #}
+<h2>Ranking de productos <small class="text-muted">· período seleccionado</small></h2>
+{% if ranking %}
+<table class="table is-hoverable is-striped">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th class="num">Ventas (Gs.)</th>
+      <th class="num">Margen (Gs.)</th>
+      <th class="num">Margen %</th>
+      <th class="num">Cantidad vendida</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in ranking %}
+    <tr>
+      <td><strong>{{ fmt.entity_name(r) }}</strong></td>
+      <td class="num">{{ m.gs(r.ventas_gs) }}</td>
+      <td class="num">{{ m.gs(r.margen_gs) }}</td>
+      <td class="num">{{ m.margin_pct(r.margen_gs, r.ventas_gs) }}</td>
+      <td class="num">{{ "%.1f"|format(r.qty) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+{{ ui.empty_state(title="Sin ventas todavía — registrá tu primera venta", icon="icon-sale", hint="Cuando registres ventas van a aparecer acá.", cta_href="/ventas", cta_label="Registrar venta") }}
+{% endif %}
+
+{# ══ Operación (cola de tareas) ════════════════════════════════════ #}
+<section class="card mt-4">
+  <div class="card-header">
+    <h2><svg class="icon" aria-hidden="true"><use href="#icon-ops"/></svg> Operación (cola de tareas)</h2>
+    <small class="text-muted">Lo que necesita tu atención</small>
+  </div>
+  <div class="card-body">
+    <div class="grid grid-3 mb-4">
+      <div class="metric-card">
+        <div class="metric-label">Lista de compras abierta</div>
+        <div class="metric-value">{{ sl_open_count or 0 }} ítems</div>
+        <small class="text-muted">
+          {% if (sl_total_gs or 0) > 0 %}{{ m.gs(sl_total_gs) }} est.{% else %}—{% endif %}
+          · <a href="/shopping-list">Ver lista</a>
+        </small>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Equipamiento pendiente</div>
+        <div class="metric-value">{{ wishlist_count or 0 }} ítems</div>
+        <small class="text-muted">
+          {% if (wishlist_total_gs or 0) > 0 %}{{ m.gs(wishlist_total_gs) }} est.{% else %}—{% endif %}
+          · <a href="/wishlist">Ver lista</a>
+        </small>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Riesgos activos</div>
+        <div class="metric-value">{{ risk_count or 0 }} ítems</div>
+        <small class="text-muted">
+          {% if (risk_severity_gs or 0) > 0 %}{{ m.gs(risk_severity_gs) }} est.{% else %}—{% endif %}
+          · <a href="/riesgos">Ver riesgos</a>
+        </small>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ══ Avisos completos (anchor target for "ver todos") ═══════════════ #}
+<section id="avisos-todos" aria-label="Todos los avisos">
+<h2>Avisos</h2>
+{# 2026-09-26 dedup: stock-bajo ya vive en la tarjeta Alertas (arriba, con acciones);
+   acá solo lo que NO está cubierto arriba. #}
+{% set avisos_todos = (recipes_no_cost|length) + (sales_no_recipe|length) %}
+{% if avisos_todos == 0 %}
+<div class="alert alert-success" role="status">
+  <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+  Todo en orden. No hay avisos por ahora.
+</div>
+{% else %}
+<ul class="avisos">
+
+  {% for r in recipes_no_cost[:5] %}
+  <li class="aviso-recipe">
+    Receta sin precio de ingrediente: <strong>{{ fmt.entity_name(r) }}</strong>. Cargá los precios para ver el costo — <a href="/recetas/{{ r.id }}/editar">editar receta →</a>
+  </li>
+  {% endfor %}
+  {% if recipes_no_cost|length > 5 %}
+  <li class="text-muted">… y {{ recipes_no_cost|length - 5 }} recetas más sin costo — <a href="/recetas">ver recetas</a></li>
+  {% endif %}
+  {% for s in sales_no_recipe[:5] %}
+  <li class="aviso-sale">
+    Venta sin receta: <strong>{{ s.product_name }}</strong> ({{ s.sold_at_str }}). Asignale una receta para ver el margen — <a href="/productos">ver productos →</a>
+  </li>
+  {% endfor %}
+  {% if sales_no_recipe|length > 5 %}
+  <li class="text-muted">… y {{ sales_no_recipe|length - 5 }} ventas más sin receta.</li>
+  {% endif %}
+</ul>
+{% endif %}
+</section>
+
+{% endblock %}

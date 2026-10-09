@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Comparación de períodos{{ ui.report_source_footer() }}
+{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Comparación de períodos
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="text-muted">Compara ventas, cantidad de operaciones y margen entre dos períodos.</p>
+
+<form method="get" action="/reportes/comparacion" class="form mb-4">
+  <div class="grid grid-2">
+    <fieldset>
+      <legend>Período 1 (más reciente)</legend>
+      <div class="form-row">
+        <label for="start1">Desde</label>
+        <ui-date id="start1" name="start1" value="{{ start1 }}"></ui-date>
+      </div>
+      <div class="form-row">
+        <label for="end1">Hasta</label>
+        <ui-date id="end1" name="end1" value="{{ end1 }}"></ui-date>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Período 2 (anterior)</legend>
+      <div class="form-row">
+        <label for="start2">Desde</label>
+        <ui-date id="start2" name="start2" value="{{ start2 }}"></ui-date>
+      </div>
+      <div class="form-row">
+        <label for="end2">Hasta</label>
+        <ui-date id="end2" name="end2" value="{{ end2 }}"></ui-date>
+      </div>
+    </fieldset>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Comparar</button>
+  </div>
+</form>
+
+{% if comparison %}
+{{ ui.skeleton_section(id="comparacion-kpis", variant="kpi", count=4, label="Cargando comparación") }}
+<div class="grid grid-2 mb-4" data-loaded-section="comparacion-kpis">
+  <div class="metric-card">
+    <div class="metric-label">Período 1 — Ingresos</div>
+    <div class="metric-value">{{ m.gs(comparison.period1.revenue_gs) }}</div>
+    <div class="metric-label">Ventas: {{ comparison.period1.n_sales }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Período 2 — Ingresos</div>
+    <div class="metric-value">{{ m.gs(comparison.period2.revenue_gs) }}</div>
+    <div class="metric-label">Ventas: {{ comparison.period2.n_sales }}</div>
+  </div>
+</div>
+
+{% if comparison.revenue_change_pct is not none %}
+<h3>Cambios</h3>
+{{ ui.skeleton_section(id="comparacion-changes", variant="line", count=6, label="Cargando cambios") }}
+<div data-loaded-section="comparacion-changes">
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>Métrica</th>
+      <th class="num">Período 1</th>
+      <th class="num">Período 2</th>
+      <th class="num">Cambio %</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Ingresos</td>
+      <td class="num">{{ m.gs(comparison.period1.revenue_gs) }}</td>
+      <td class="num">{{ m.gs(comparison.period2.revenue_gs) }}</td>
+      <td class="num {% if comparison.revenue_change_pct and comparison.revenue_change_pct > 0 %}is-up{% elif comparison.revenue_change_pct and comparison.revenue_change_pct < 0 %}is-down{% endif %}">
+        {% if comparison.revenue_change_pct is not none %}{{ "%.1f"|format(comparison.revenue_change_pct) }}%{% else %}—{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td>Cantidad de ventas</td>
+      <td class="num">{{ comparison.period1.n_sales }}</td>
+      <td class="num">{{ comparison.period2.n_sales }}</td>
+      <td class="num {% if comparison.sales_count_change_pct and comparison.sales_count_change_pct > 0 %}is-up{% elif comparison.sales_count_change_pct and comparison.sales_count_change_pct < 0 %}is-down{% endif %}">
+        {% if comparison.sales_count_change_pct is not none %}{{ "%.1f"|format(comparison.sales_count_change_pct) }}%{% else %}—{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td>Margen bruto</td>
+      <td class="num">{{ m.gs(comparison.period1.margin_gs) }}</td>
+      <td class="num">{{ m.gs(comparison.period2.margin_gs) }}</td>
+      <td class="num {% if comparison.margin_change_pct and comparison.margin_change_pct > 0 %}is-up{% elif comparison.margin_change_pct and comparison.margin_change_pct < 0 %}is-down{% endif %}">
+        {% if comparison.margin_change_pct is not none %}{{ "%.1f"|format(comparison.margin_change_pct) }}%{% else %}—{% endif %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+</div>
+{# CSV export — route does not yet support ?format=csv #}
+{#{% set csv_q = dict(request.query_params.multi_items()) %}{% set _ = csv_q.update({'format': 'csv'}) %}
+<a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-secondary mt-3" download="comparacion.csv" >
+  <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+  Exportar CSV
+</a>#}
+{% endif %}
+{% endif %}
+
+{% endblock %}

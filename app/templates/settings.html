@@ -1,0 +1,555 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Configuración{% endblock %}
+
+{% block head %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Configuración del sistema Sazón">
+{% endblock %}
+
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg>
+  Configuración
+</h1>
+
+{{ ui.flash_toast(request) }}
+
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+  <input type="search" id="settings-search" class="form-control form-control-sm me-2" placeholder="Buscar configuración..." style="max-width:300px" aria-label="Buscar en configuración" aria-describedby="settings-search-count">
+  <span class="text-muted text-sm" id="settings-search-count" ></span>
+</div>
+
+<div class="settings-tabs d-flex flex-wrap border-bottom mb-3 gap-0">
+  <button type="button" class="tab-btn btn btn-sm btn-outline-primary active" data-tab="business">Información de negocio</button>
+  <button type="button" class="tab-btn btn btn-sm" data-tab="payments">Pagos y delivery</button>
+  <button type="button" class="tab-btn" data-tab="notifications">Notificaciones</button>
+  <button type="button" class="tab-btn" data-tab="fiscal">Fiscal</button>
+  <button type="button" class="tab-btn" data-tab="theme">Tema</button>
+  <button type="button" class="tab-btn" data-tab="demo">Datos demo</button>
+</div>
+
+<!-- Business Info Tab -->
+<div id="business-tab" class="tab-content">
+  <form method="post" action="/settings/business" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" aria-hidden="true" aria-label="Token de seguridad CSRF (no visible)">
+    <h2>Información de Negocio</h2>
+    <p class="text-muted">Estos datos aparecen en recibos y documentos comerciales.</p>
+    
+    <div class="form-group">
+      <label for="business_name">Nombre legal del negocio</label>
+      <input type="text" id="business_name" name="business_name" 
+             value="{{ business_name }}" placeholder="Ejemplo: Mi Negocio S.A." required aria-label="Nombre legal del negocio">
+    </div>
+    
+    <div class="form-group">
+      <label for="business_ruc">RUC</label>
+      <input type="text" id="business_ruc" name="business_ruc" 
+             value="{{ business_ruc }}" placeholder="Ejemplo: 123-456789-1" pattern="[0-9-]+" aria-label="RUC del negocio">
+    </div>
+    
+    <div class="form-group">
+      <label for="business_address">Dirección</label>
+      <textarea id="business_address" name="business_address" rows="3"
+                placeholder="Ejemplo: Calle Principal 123, Asunción, Paraguay">{{ business_address }}</textarea>
+    </div>
+    
+    <div class="form-group">
+      <label for="business_phone">Teléfono</label>
+      <input type="tel" id="business_phone" name="business_phone" value="{{ business_phone }}" placeholder="Ejemplo: +595 981 234 567" aria-label="Teléfono del negocio">
+    </div>
+
+    <div class="form-group">
+      <label for="business_email">Email</label>
+      <input type="email" id="business_email" name="business_email"
+             value="{{ compliance.establecimiento_email or '' }}" placeholder="facturacion@panaderia.com.py">
+    </div>
+
+    <div class="form-group">
+      <label for="razon_social">Razón social</label>
+      <input type="text" id="razon_social" name="razon_social" value="{{ compliance.razon_social or business_name }}" placeholder="Ej: Mi Negocio S.A." aria-label="Razón social">
+    </div>
+
+    <div class="form-group">
+      <label for="nombre_fantasia">Nombre de fantasía</label>
+      <input type="text" id="nombre_fantasia" name="nombre_fantasia" value="{{ compliance.nombre_fantasia or business_name }}" placeholder="Ej: Mi Panadería" aria-label="Nombre de fantasía">
+    </div>
+
+    <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">Régimen tributario (DNIT / SET)</h3>
+    <p class="text-muted">Determina qué tipo de comprobantes podés emitir y cómo se liquida el IVA.</p>
+
+    <div class="form-group">
+      <label for="tax_regime">Régimen</label>
+            {{ ui.combo_field(
+        name='tax_regime',
+        value="{% if compliance.tax_regime == 'resimple' %}IRE RESIMPLE — Empresa unipersonal{% elif compliance.tax_regime == 'general' %}IVA General + IRE General{% elif compliance.tax_regime == 'no_libreta' %}Sin libreta — Informal{% else %}IRE RESIMPLE{% endif %}",
+        display="{% if compliance.tax_regime == 'resimple' %}IRE RESIMPLE — Empresa unipersonal{% elif compliance.tax_regime == 'general' %}IVA General + IRE General{% elif compliance.tax_regime == 'no_libreta' %}Sin libreta — Informal{% else %}IRE RESIMPLE{% endif %}",
+        placeholder='Elegí un régimen…',
+        src=[{"value": "resimple", "label": "IRE RESIMPLE — Empresa unipersonal, ingresos ≤ G. 80M/año"}, {"value": "general", "label": "IVA General + IRE General — Persona jurídica"}, {"value": "no_libreta", "label": "Sin libreta — Informal"}]
+      ) }}
+    </div>
+
+    <div class="form-group">
+      <label for="iva_default_rate">IVA por defecto para productos nuevos</label>
+            {{ ui.combo_field(
+        name='iva_default_rate',
+        value="{% if compliance.iva_default_rate == '5' %}5% (agro en estado natural){% elif compliance.iva_default_rate == 'exento' %}Exento (institucional / exportación){% else %}10% (general — panadería){% endif %}",
+        display="{% if compliance.iva_default_rate == '5' %}5% (agro en estado natural){% elif compliance.iva_default_rate == 'exento' %}Exento (institucional / exportación){% else %}10% (general — panadería){% endif %}",
+        placeholder='Elegí…',
+        src=[{"value": "10", "label": "10% (general — panadería procesada, pastelería)"}, {"value": "5", "label": "5% (productos agrícolas en estado natural)"}, {"value": "exento", "label": "Exento (institucional / docencia / exportación)"}]
+      ) }}
+    </div>
+
+    <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">Timbrado (RESIMPLE)</h3>
+
+    <div class="form-group">
+      <label for="timbrado_number">Número de timbrado</label>
+      <input type="text" id="timbrado_number" name="timbrado_number"
+             value="{{ compliance.timbrado_number or timbrado or '' }}" placeholder="Ej: 12345678">
+      <small>Otorgado por SET/DNIT. Aparece en cada Boleta Resimple.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="timbrado_expiry">Vencimiento del timbrado</label>
+      <ui-date id="timbrado_expiry" name="timbrado_expiry" value="{{ compliance.timbrado_expiry or '' }}"></ui-date>
+    </div>
+
+    <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">INAN — Registro de Establecimiento (R.E.)</h3>
+    <p class="text-muted">Resolución S.G. N° 213/2019 — obligatorio para todo establecimiento elaborador de alimentos.</p>
+
+    <div class="form-group">
+      <label for="inan_re_number">R.E. N°</label>
+      <input type="text" id="inan_re_number" name="inan_re_number"
+             value="{{ compliance.inan_re_number or '' }}" placeholder="Ej: 8000/2024">
+    </div>
+
+    <div class="form-group">
+      <label for="inan_re_expiry">Vencimiento R.E.</label>
+      <ui-date id="inan_re_expiry" name="inan_re_expiry" value="{{ compliance.inan_re_expiry or '' }}"></ui-date>
+      <small>Vigencia 5 años. Te avisamos 30 días antes.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="director_tecnico">Director Técnico (Regente)</label>
+      <input type="text" id="director_tecnico" name="director_tecnico"
+             value="{{ compliance.director_tecnico or '' }}" placeholder="Nombre completo">
+      <small>Profesional responsable (Decreto 7634/2017). Obligatorio para obtener R.E.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="director_tecnico_registro">Registro del Director Técnico</label>
+      <input type="text" id="director_tecnico_registro" name="director_tecnico_registro"
+             value="{{ compliance.director_tecnico_registro or '' }}" placeholder="N° de registro profesional">
+    </div>
+
+    <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">Habilitación Municipal</h3>
+
+    <div class="form-group">
+      <label for="municipal_habilitacion">N° habilitación comercial</label>
+      <input type="text" id="municipal_habilitacion" name="municipal_habilitacion"
+             value="{{ compliance.municipal_habilitacion or '' }}" placeholder="Ej: HAB-2024-001234">
+    </div>
+
+    <div class="form-group">
+      <label for="municipal_habilitacion_expiry">Vencimiento habilitación</label>
+      <ui-date id="municipal_habilitacion_expiry" name="municipal_habilitacion_expiry" value="{{ compliance.municipal_habilitacion_expiry or '' }}"></ui-date>
+    </div>
+
+    <h3 style="margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-4);">Costeo (Fase 1.D)</h3>
+    <p class="text-muted">Para calcular el Prime Cost: costo materiales + mano de obra + overhead.</p>
+
+    <div class="form-group">
+      <label for="labor_cost_per_hour_gs">Costo mano de obra (Gs./hora)</label>
+      <div class="currency-input-wrap">
+        <input type="number" id="labor_cost_per_hour_gs" name="labor_cost_per_hour_gs" step="1000" min="0" inputmode="numeric" class="currency-input">
+      </div>
+             value="{{ compliance.labor_cost_per_hour_gs }}">
+      <small>Salario mensual / 30 / 8. Default G. 25.000/h.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="overhead_multiplier_pct">Overhead (% sobre materiales)</label>
+      <input type="number" id="overhead_multiplier_pct" name="overhead_multiplier_pct" step="1" min="0" max="100"
+             value="{{ compliance.overhead_multiplier_pct }}">
+      <small>Luz, gas, alquiler, mantenimiento. Default 15%.</small>
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-save"/></svg>
+      Guardar información de negocio
+    </button>
+  </form>
+</div>
+
+<!-- Payments & Delivery Tab -->
+<div id="payments-tab" class="tab-content d-none" >
+  <h2>Pagos y Delivery</h2>
+  <p class="text-muted">Formas de pago y zonas de envío configuradas.</p>
+
+  <h3 style="margin-top: var(--space-4); border-top: 1px solid var(--color-border); padding-top: var(--space-3);">Formas de pago</h3>
+  <p class="text-muted text-sm" >Editá las formas de pago en <a href="/settings/catalog#payments">Catálogos → Formas de pago</a>.</p>
+
+  <h3 style="margin-top: var(--space-4); border-top: 1px solid var(--color-border); padding-top: var(--space-3);">Zonas de delivery</h3>
+  {% if delivery_zones %}
+<<<<<<< HEAD
+  <table class="table is-striped is-hoverable mb-6" >
+=======
+  <table class="table is-striped is-hoverable sortable" style="margin-bottom:1rem;">
+>>>>>>> 4eb6b721 (Phase 23: form help text + perf monitor (sortable 69/75))
+    <thead>
+      <tr>
+        <th>Orden</th><th>Código</th><th>Nombre</th><th>Cobertura</th>
+        <th class="num">Costo envío</th><th class="num">Pedido mínimo</th><th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for z in delivery_zones %}
+      <tr>
+        <td>{{ z.position }}</td>
+        <td>{{ z.code or '—' }}</td>
+        <td><strong>{{ fmt.entity_name(z) }}</strong></td>
+        <td>{{ z.coverage_text or '—' }}</td>
+        <td class="num">{% if z.delivery_cost_gs %}{{ m.gs(z.delivery_cost_gs) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if z.min_order_gs %}{{ m.gs(z.min_order_gs) }}{% else %}—{% endif %}</td>
+        <td>
+          {% if z.is_active %}
+          {{ ui.status_pill("Activa", sev="ok") }}
+          {% else %}
+          {{ ui.status_pill("Inactiva", sev="warn") }}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted">No hay zonas de delivery configuradas.</p>
+  {% endif %}
+  <p class="text-muted text-xs" >Para crear o editar zonas, usá la tabla <code>delivery_zone</code> directamente. UI CRUD pendiente.</p>
+</div>
+
+<!-- Notifications Tab -->
+<div id="notifications-tab" class="tab-content d-none" >
+  <h2>Notificaciones</h2>
+  <p class="text-muted">Configurá cómo y cuándo recibir alertas del sistema.</p>
+  <div class="alert alert-info">
+    <svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg>
+    La configuración de notificaciones está en desarrollo. Estas opciones se habilitarán pronto.
+  </div>
+</div>
+
+<!-- Fiscal Config Tab -->
+<div id="fiscal-tab" class="tab-content d-none" >
+  <form method="post" action="/settings/fiscal" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" aria-hidden="true" aria-label="Token de seguridad CSRF (no visible)">
+    <h2>Configuración Fiscal</h2>
+    <p class="text-muted">Datos para facturación electrónica de Paraguay (SET).</p>
+    
+    <div class="form-group">
+      <label for="timbrado">Número de timbrado</label>
+      <input type="text" id="timbrado" name="timbrado" value="{{ timbrado }}" placeholder="Ejemplo: 001-123456789-001" required aria-label="Número de timbrado">
+    </div>
+    
+    <div class="form-group">
+      <label for="punto_expedicion">Punto de expedición</label>
+      <input type="text" id="punto_expedicion" name="punto_expedicion" value="{{ punto_expedicion }}" placeholder="Ejemplo: 0001" required aria-label="Punto de expedición">
+    </div>
+    
+    <div class="form-group">
+      <label for="invoice_sequence">Secuencia de facturas</label>
+      <input type="number" id="invoice_sequence" name="invoice_sequence" 
+             value="{{ invoice_sequence or '1' }}" min="1" required>
+      <small>Próximo número de factura para facturación electrónica</small>
+    </div>
+    
+    <div class="alert alert-info">
+      <svg class="icon" aria-hidden="true"><use href="#icon-info"/></svg>
+      <strong>Importante:</strong> La configuración fiscal requerida por la SET de Paraguay 
+      para facturación electrónica. Contacte a su contador antes de modificar estos valores.
+    </div>
+    
+    <button type="submit" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-save"/></svg>
+      Guardar configuración fiscal
+    </button>
+  </form>
+</div>
+
+<!-- Theme Tab -->
+<div id="theme-tab" class="tab-content d-none" >
+  <form method="post" action="/settings/theme" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" aria-hidden="true" aria-label="Token de seguridad CSRF (no visible)">
+    <h2>Tema y apariencia</h2>
+    <p class="text-muted">Personalice la apariencia de la aplicación.</p>
+    
+    <div class="form-group">
+      <label>Tema preferido</label>
+      <div class="radio-group">
+        <label class="radio-option">
+          <input type="radio" name="theme" value="light" {% if theme == 'light' %}checked{% endif %}>
+          <div class="radio-content">
+            <svg class="icon" aria-hidden="true"><use href="#icon-sun"/></svg>
+            <span>Claro</span>
+          </div>
+        </label>
+        
+        <label class="radio-option">
+          <input type="radio" name="theme" value="dark" {% if theme == 'dark' %}checked{% endif %}>
+          <div class="radio-content">
+            <svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg>
+            <span>Oscuro</span>
+          </div>
+        </label>
+        
+        <label class="radio-option">
+          <input type="radio" name="theme" value="system" {% if theme == 'system' %}checked{% endif %}>
+          <div class="radio-content">
+            <svg class="icon" aria-hidden="true"><use href="#icon-desktop"/></svg>
+            <span>Del sistema</span>
+            <small>Usa la configuración de su sistema operativo</small>
+          </div>
+        </label>
+      </div>
+    </div>
+    
+    <div class="preview-box">
+      <h3>Vista previa</h3>
+      <div class="theme-preview light">
+        <div class="preview-header">
+          <h4>Vista clara</h4>
+        </div>
+        <div class="preview-content">
+          <p style="color: #333;">Texto oscuro sobre fondo claro</p>
+          <p style="color: #666;">Texto secundario</p>
+        </div>
+      </div>
+      <div class="theme-preview dark d-none" >
+        <div class="preview-header">
+          <h4 style="color: #fff;">Vista oscura</h4>
+        </div>
+        <div class="preview-content">
+          <p style="color: #fff;">Texto claro sobre fondo oscuro</p>
+          <p style="color: #ccc;">Texto secundario</p>
+        </div>
+      </div>
+    </div>
+    
+    <button type="submit" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-save"/></svg>
+      Guardar preferencias de tema
+    </button>
+  </form>
+</div>
+
+<!-- System Info -->
+<div class="system-info">
+  <h3>Información del sistema</h3>
+  <div class="info-grid">
+    <div>
+      <strong>Versión</strong>
+      <div>Sazón v1.0.0</div>
+    </div>
+    <div>
+      <strong>Sistema</strong>
+      <div>{{ current_user.username if current_user else '—' }}</div>
+    </div>
+    <div>
+      <strong>Rol</strong>
+      <div>{{ (current_user.role | capitalize) if current_user else '—' }}</div>
+    </div>
+    <div>
+      <strong>Último acceso</strong>
+      <div>{{ current_user.last_login_at if current_user else 'Nunca' }}</div>
+    </div>
+  </div>
+</div>
+
+{# Demo data tab — one-click seed realistic bakery data #}
+<div id="demo-tab" class="tab-content d-none" >
+  <h2>Datos de ejemplo</h2>
+  <p class="text-muted">
+    Cargá datos realistas de una panadería típica para ver cómo funciona el sistema.
+    Útil para probar, demos a terceros, o para entender los reportes con datos reales.
+  </p>
+
+  <div class="info-grid" style="margin-bottom: 1.5rem;">
+    <div>
+      <strong>Qué incluye</strong>
+      <div class="text-muted text-sm" >
+        29 ingredientes paraguayos · 12 recetas · 12 productos · 6 clientes ·
+        90 días de ventas (con sesgo lunes/fin de semana) · merma típica ·
+        movimientos de stock · pedidos pendientes
+      </div>
+    </div>
+    <div>
+      <strong>Modo</strong>
+      <div class="text-muted text-sm" >
+        <strong>Adicionar</strong>: agrega datos sin tocar lo existente (idempotente).
+        <br>
+        <strong>Resetear y recargar</strong>: borra primero los datos cargados y vuelve a sembrar.
+        Si ya tenés ventas reales, exportalas antes (Excel) y luego hacé reset.
+      </div>
+    </div>
+  </div>
+
+  <form method="post" action="/settings/seed-demo" style="display: inline-block; margin-right: 0.5rem;"
+        class="js-confirm-form"
+        data-confirm-title="¿Cargar datos de ejemplo?"
+        data-confirm-body="Esto agregará 29 ingredientes, 12 recetas, 12 productos y 90 días de ventas. No sobrescribirá lo que ya tenés.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" aria-hidden="true" aria-label="Token de seguridad CSRF (no visible)">
+    <input type="hidden" name="overwrite" value="0">
+    <button type="submit" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      Adicionar datos de ejemplo
+    </button>
+  </form>
+
+  <form method="post" action="/settings/seed-demo" style="display: inline-block;"
+        class="js-confirm-form" data-confirm-danger="true"
+        data-confirm-title="⚠️ ATENCIÓN — Resetear y recargar"
+        data-confirm-body="Esto BORRARÁ todas las ventas, productos, ingredientes, recetas y pedidos existentes, y volverá a sembrar. Si tenés datos reales, exportalos a Excel primero. ¿Continuar?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" aria-hidden="true" aria-label="Token de seguridad CSRF (no visible)">
+    <input type="hidden" name="overwrite" value="1">
+    <button type="submit" class="btn btn-ghost">
+      <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+      Resetear y recargar
+    </button>
+  </form>
+
+  <p class="text-muted" style="font-size: var(--text-xs); margin-top: 1rem;">
+    Tip: para ver el sistema con datos pero sin afectar lo tuyo, cargá y luego exportá a Excel.
+    Así tenés una "vista previa" sin compromiso.
+  </p>
+</div>
+
+{# Wave 4: Zonas de Delivery — moved here from /delivery-zones #}
+<section class="card mt-4" id="zonas-delivery">
+  <div class="card-header">
+    <h2>
+      <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+      Zonas de Delivery
+    </h2>
+    <small class="text-muted">Cobertura y costos de envío para pedidos</small>
+  </div>
+  <div class="card-body">
+    {% if delivery_zones %}
+    <table class="table is-striped is-hoverable sortable">
+      <thead>
+        <tr>
+          <th>Orden</th>
+          <th>Código</th>
+          <th>Nombre</th>
+          <th>Cobertura</th>
+          <th class="num">Costo envío</th>
+          <th class="num">Pedido mínimo</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for z in delivery_zones %}
+        <tr>
+          <td>{{ z.position }}</td>
+          <td>{{ z.code or '—' }}</td>
+          <td><strong>{{ fmt.entity_name(z) }}</strong></td>
+          <td>{{ z.coverage_text or '—' }}</td>
+          <td class="num">{% if z.delivery_cost_gs %}{{ m.gs(z.delivery_cost_gs) }}{% else %}—{% endif %}</td>
+          <td class="num">{% if z.min_order_gs %}{{ m.gs(z.min_order_gs) }}{% else %}—{% endif %}</td>
+          <td>
+            {% if z.is_active %}
+            {{ ui.status_pill("Activa", sev="ok") }}
+            {% else %}
+            {{ ui.status_pill("Inactiva", sev="warn") }}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="text-muted mt-3" style="margin-top:var(--space-3);font-size:var(--text-xs);">
+      Para crear, editar o eliminar zonas, editá la base de datos directamente
+      (<code>delivery_zone</code> table). UI CRUD está pendiente.
+    </p>
+    {% else %}
+    <p class="text-muted">No hay zonas de delivery configuradas todavía.</p>
+    {% endif %}
+  </div>
+</section>
+
+<script>
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const tabName = this.dataset.tab;
+    
+    // Update buttons
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    
+    // Update content
+    document.querySelectorAll('.tab-content').forEach(content => {
+      content.style.display = content.id === tabName + '-tab' ? 'block' : 'none';
+    });
+  });
+});
+
+// Theme preview updates
+document.querySelectorAll('input[name="theme"]').forEach(radio => {
+  radio.addEventListener('change', function() {
+    const lightPreview = document.querySelector('.theme-preview.light');
+    const darkPreview = document.querySelector('.theme-preview.dark');
+    
+    if (this.value === 'light') {
+      lightPreview.style.display = 'block';
+      darkPreview.style.display = 'none';
+    } else if (this.value === 'dark') {
+      lightPreview.style.display = 'none';
+      darkPreview.style.display = 'block';
+    } else {
+      // System mode - show system preference (light for demo)
+      lightPreview.style.display = 'block';
+      darkPreview.style.display = 'none';
+    }
+  });
+});
+</script>
+<script>
+// Settings search — filters form groups by label keyword
+(function() {
+  var searchInput = document.getElementById('settings-search');
+  var countLabel = document.getElementById('settings-search-count');
+  var allTabContents = document.querySelectorAll('.tab-content');
+
+  searchInput.addEventListener('input', function() {
+    var q = this.value.trim().toLowerCase();
+    var visible = 0;
+    var total = 0;
+    allTabContents.forEach(function(tab) {
+      var groups = tab.querySelectorAll('.form-group');
+      groups.forEach(function(g) {
+        var label = g.querySelector('label');
+        var text = label ? label.textContent.toLowerCase() : '';
+        var id = label ? (label.getAttribute('for') || '') : '';
+        var match = q === '' || text.includes(q) || id.includes(q);
+        g.style.display = match ? '' : 'none';
+        if (match) { visible++; }
+        total++;
+      });
+      // Also filter h3 section headers
+      var headings = tab.querySelectorAll('h3');
+      headings.forEach(function(h) {
+        var match = q === '' || h.textContent.toLowerCase().includes(q);
+        h.style.display = match ? '' : 'none';
+      });
+    });
+    if (q) {
+      countLabel.textContent = 'Mostrando ' + visible + ' de ' + total + ' campos';
+    } else {
+      countLabel.textContent = '';
+    }
+  });
+})();
+</script>
+
+{% endblock %}

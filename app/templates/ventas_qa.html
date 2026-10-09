@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+
+{% block title %}QA · Ventas{% endblock %}
+
+{% block content %}
+{{ ui.page_header(
+  "QA — Smoke tests",
+  desc="Corre 6 tests end-to-end contra la API en vivo. Útil antes de declarar un deploy seguro."
+) }}
+{{ ui.flash_toast(request) }}
+
+<div class="container" style="max-width:960px;">
+
+  <div class="card" style="padding:var(--space-4);margin-bottom:var(--space-3);">
+    <h2 style="margin:0 0 var(--space-2);">¿Qué hace esta página?</h2>
+    <p>
+      Cada test hace un <code>fetch()</code> contra un endpoint real de la app
+      y verifica el resultado. Algunos tests <strong>crean datos de prueba</strong>
+      (clientes <code>QA-NNN</code>, ventas <code>QA-NNN</code>) que quedan en la DB
+      para inspección. Todos los tests están marcados con su ID de modo que es
+      fácil identificarlos y borrarlos después.
+    </p>
+    <p class="text-muted text-xs" >
+      Tiempo total estimado: 4–8 segundos. Si algún test queda en amarillo más
+      de 10s, probablemente hay un timeout — recargá la página.
+    </p>
+    <div class="mt-3" style="margin-top:var(--space-3);display:flex;gap:var(--space-2);align-items:center;">
+      <button type="button" id="btn-run" class="btn btn-primary">
+        ▶ Correr los 6 tests
+      </button>
+      <span id="summary" class="text-muted ml-2" >
+        Pendiente
+      </span>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0;">
+<<<<<<< HEAD
+    <table class="data-table m-0"  aria-label="Resultados">
+=======
+    <table class="data-table sortable" style="margin:0;" aria-label="Resultados">
+>>>>>>> 4eb6b721 (Phase 23: form help text + perf monitor (sortable 69/75))
+      <thead>
+        <tr>
+          <th style="width:40px;">#</th>
+          <th style="width:28%;">Test</th>
+          <th>Descripción</th>
+          <th style="width:140px;">Estado</th>
+          <th style="width:80px;">Detalle</th>
+        </tr>
+      </thead>
+      <tbody id="results-tbody">
+        {# Rows are rendered by JS below. We don't pre-render from
+           Python because the test list lives in JS (which is what the
+           user actually sees and trusts). #}
+        <tr class="js-placeholder">
+          <td class="text-center" colspan="5" style="text-align:center;padding:var(--space-3);color:var(--muted-foreground);">
+            Hacé click en "Correr los 6 tests" para empezar.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+/* app/templates/ventas_qa.html — smoke test runner.
+ *
+ * Each test is a Promise-returning async function. The runner awaits
+ * them in order and updates the table.
+ *
+ * Convention for IDs created by tests:
+ *   customer:  name = "QA-CLIENTE-{{ now_ms }}" (unique per run)
+ *   sale:      idempotency_key = "qa-{{ now_ms }}-{{ test_id }}"
+ *
+ * Why this is on /ventas (not /admin or /qa):
+ *   The cashier flow is the most fragile part of the app — every
+ *   deploy can break it in subtle ways (CSRF, JSON serialization,
+ *   form fields). Having it one click away from the POS screen
+ *   means the cashier can self-verify after each deploy.
+ */
+(function() {
+  'use strict';
+
+  const tests = [
+    {
+      id: 1,
+      name: "Health check (login OK)",
+      desc: "GET /healthz — confirma que el servidor responde y la sesión está activa.",
+      run: async () => {
+        const r = await fetch('/healthz', { credentials: 'same-origin' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return 'servidor OK';
+      }
+    },
+    {
+      id: 2,
+      name: "Crear cliente de prueba",
+      desc: "POST /clientes/api/create con nombre único. Verifica que el endpoint devuelve id válido.",
+      run: async () => {
+        const name = 'QA-CLIENTE-' + Date.now();
+        const r = await fetch('/clientes/api/create', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ name, phone: '0999000000' })
+        });
+        if (!r.ok) {
+          const t = await r.text();
+          throw new Error('HTTP ' + r.status + ': ' + t.substring(0, 100));
+        }
+        const data = await r.json();
+        if (!data.id) throw new Error('response missing id');
+        return 'id=' + data.id + ' (' + name + ')';
+      }
+    },
+    {
+      id: 3,
+      name: "Catálogo de productos",
+      desc: "GET /productos — confirma que la lista de productos cargó. Necesario para ventas.",
+      run: async () => {
+        const r = await fetch('/productos', { credentials: 'same-origin' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const html = await r.text();
+        // Cheap check: página de productos tiene al menos una fila <tr>
+        // o al menos un botón de "Vender".
+        const rows = (html.match(/<tr/g) || []).length;
+        if (rows < 3) throw new Error('página sin filas de producto (rows=' + rows + ')');
+        return rows + ' filas';
+      }
+    },
+    {
+      id: 4,
+      name: "Crear venta sin cliente",
+      desc: "POST /ventas/nueva/multi con un item de catálogo y cliente vacío. Smoke test del happy path.",
+      run: async () => {
+        // Get first product from /productos (search API)
+        const sr = await fetch('/productos/api/search?q=', {
+          credentials: 'same-origin',
+          headers: { 'Accept': 'application/json' }
+        });
+        if (!sr.ok) throw new Error('search failed: ' + sr.status);
+        const sdata = await sr.json();
+        const items = sdata.results || sdata;
+        if (!items || items.length === 0) throw new Error('no products in catalog');
+        const prod = items[0];
+        const idem = 'qa-' + Date.now() + '-sale-noclient';
+        const fd = new FormData();
+        fd.append('csrf_token', window.__csrf || '');
+        fd.append('idempotency_key', idem);
+        fd.append('customer_id', '');
+        fd.append('sold_at', new Date().toISOString().slice(0, 16));
+        fd.append('channel', 'mostrador');
+        fd.append('payment_method', 'efectivo');
+        fd.append('discount_gs', '0');
+        fd.append('_cart_json', JSON.stringify([{
+          product_id: prod.id,
+          qty: 1,
+          unit_price: prod.sale_price_gs || 0,
+          discount_pct: 0
+        }]));
+        const r = await fetch('/ventas/nueva/multi', {
+          method: 'POST',
+          credentials: 'same-origin',
+          body: fd,
+          redirect: 'manual'
+        });
+        // 303 redirect to /ventas/{id}/recibo is success.
+        if (r.status === 303 || r.status === 302) {
+          return 'redirect a recibo';
+        }
+        if (r.status >= 200 && r.status < 300) return 'HTTP ' + r.status;
+        throw new Error('HTTP ' + r.status);
+      }
+    },
+    {
+      id: 5,
+      name: "Crear cliente + venta asociada",
+      desc: "Crea un cliente nuevo y le hace una venta. Verifica que el cliente queda asociado a la venta.",
+      run: async () => {
+        const name = 'QA-CLIENTE-' + Date.now();
+        // (a) create customer
+        const cr = await fetch('/clientes/api/create', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ name, phone: '0999111111' })
+        });
+        if (!cr.ok) throw new Error('cliente create failed: ' + cr.status);
+        const cdata = await cr.json();
+        // (b) get a product
+        const sr = await fetch('/productos/api/search?q=', {
+          credentials: 'same-origin',
+          headers: { 'Accept': 'application/json' }
+        });
+        const sdata = await sr.json();
+        const prod = (sdata.results || sdata)[0];
+        // (c) sale
+        const fd = new FormData();
+        fd.append('csrf_token', window.__csrf || '');
+        fd.append('idempotency_key', 'qa-' + Date.now() + '-sale-withclient');
+        fd.append('customer_id', cdata.id);
+        fd.append('sold_at', new Date().toISOString().slice(0, 16));
+        fd.append('channel', 'mostrador');
+        fd.append('payment_method', 'efectivo');
+        fd.append('discount_gs', '0');
+        fd.append('_cart_json', JSON.stringify([{
+          product_id: prod.id,
+          qty: 1,
+          unit_price: prod.sale_price_gs || 0,
+          discount_pct: 0
+        }]));
+        const r = await fetch('/ventas/nueva/multi', {
+          method: 'POST',
+          credentials: 'same-origin',
+          body: fd,
+          redirect: 'manual'
+        });
+        if (r.status === 303 || r.status === 302) return 'cliente#' + cdata.id + ' + venta OK';
+        if (r.status >= 200 && r.status < 300) return 'cliente#' + cdata.id + ' HTTP ' + r.status;
+        throw new Error('HTTP ' + r.status);
+      }
+    },
+    {
+      id: 6,
+      name: "Anular una venta (revierte stock + customer stats)",
+      desc: "POST /ventas/{id}/anular sobre la venta recién creada. Debe quedar sin errores.",
+      run: async () => {
+        // The previous test created a sale; we don't have its ID directly.
+        // We re-query the latest sale and void it.
+        const sr = await fetch('/ventas/historial?days=1', {
+          credentials: 'same-origin'
+        });
+        if (!sr.ok) throw new Error('historial failed: ' + sr.status);
+        const html = await sr.text();
+        // Find first sale id from "Anular" link
+        const m = html.match(/\/ventas\/(\d+)\/anular/);
+        if (!m) throw new Error('no sale to void (historial vacío)');
+        const saleId = m[1];
+        const fd = new FormData();
+        fd.append('csrf_token', window.__csrf || '');
+        fd.append('reason', 'QA test — auto-void');
+        const r = await fetch('/ventas/' + saleId + '/anular', {
+          method: 'POST',
+          credentials: 'same-origin',
+          body: fd,
+          redirect: 'manual'
+        });
+        if (r.status === 303 || r.status === 302) return 'sale#' + saleId + ' anulada';
+        if (r.status >= 200 && r.status < 300) return 'sale#' + saleId + ' HTTP ' + r.status;
+        throw new Error('HTTP ' + r.status);
+      }
+    },
+  ];
+
+  // Render the static test rows on first load.
+  const tbody = document.getElementById('results-tbody');
+  tbody.innerHTML = tests.map(t => `
+    <tr data-test-id="${t.id}">
+      <td><strong>${t.id}</strong></td>
+      <td>${t.name}</td>
+      <td><small class="text-muted">${t.desc}</small></td>
+      <td><span class="badge status-pending">⏳ pendiente</span></td>
+      <td><small class="text-muted">—</small></td>
+    </tr>
+  `).join('');
+
+  function setRow(id, status, detail) {
+    const row = tbody.querySelector(`tr[data-test-id="${id}"]`);
+    if (!row) return;
+    const statusCell = row.children[3].querySelector('.badge');
+    const detailCell = row.children[4];
+    statusCell.className = 'badge status-' + status;
+    const icon = status === 'pass' ? '✓' : status === 'fail' ? '✗' : status === 'running' ? '⏳' : '·';
+    const text = status === 'pass' ? 'PASÓ' : status === 'fail' ? 'FALLÓ' : status === 'running' ? 'corriendo…' : 'pendiente';
+    statusCell.textContent = icon + ' ' + text;
+    detailCell.innerHTML = '<small class="text-muted">' + (detail || '—') + '</small>';
+  }
+
+  async function runOne(t) {
+    setRow(t.id, 'running', '');
+    try {
+      const detail = await t.run();
+      setRow(t.id, 'pass', detail);
+      return true;
+    } catch (err) {
+      setRow(t.id, 'fail', (err && err.message) || String(err));
+      return false;
+    }
+  }
+
+  async function runAll() {
+    const btn = document.getElementById('btn-run');
+    btn.disabled = true;
+    btn.textContent = '⏳ Corriendo…';
+    let pass = 0, fail = 0;
+    for (const t of tests) {
+      const ok = await runOne(t);
+      if (ok) pass++; else fail++;
+    }
+    const summary = document.getElementById('summary');
+    summary.innerHTML = fail === 0
+      ? `<strong style="color:var(--ok);">✓ Los 6 tests pasaron</strong>`
+      : `<strong style="color:var(--error);">✗ ${fail} fallaron</strong> de 6`;
+    btn.disabled = false;
+    btn.textContent = '↻ Re-correr';
+  }
+
+  document.getElementById('btn-run').addEventListener('click', runAll);
+})();
+</script>
+
+{% endblock %}

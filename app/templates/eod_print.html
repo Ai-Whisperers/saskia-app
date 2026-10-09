@@ -1,0 +1,111 @@
+{# Sazon-Improvement v2 (2026-10-06) Phase B: /eod/print — 1-page printable
+   EOD summary for the binder archive. Hides sidebar / bottom nav / form
+   controls. Uses @media print to lay out on A4/Letter. #}
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+
+{% block title %}Cierre del día · Imprimible · {{ today.isoformat() }}{% endblock %}
+
+{% block body_class %}eod-print{% endblock %}
+
+{% block extra_css %}
+
+{% endblock %}
+
+{% block content %}
+<header class="print-only" style="border-bottom: 2px solid #000; padding-bottom: 0.5rem; margin-bottom: 1rem;">
+  <h1 class="m-0" >Cierre del día — {{ today.strftime("%A %d de %B de %Y") }}</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+  <p style="margin: 0.25rem 0 0;">Sazón · Asunción, Paraguay
+    {% if today_is_closed %} — <strong>Día cerrado</strong>{% endif %}
+  </p>
+  {% if anomaly_count > 0 %}
+  <p style="margin: 0.25rem 0 0; color: #b00;">⚠ {{ anomaly_count }} anomalía{{ 's' if anomaly_count != 1 else '' }} detectada{{ 's' if anomaly_count != 1 else '' }} hoy</p>
+  {% else %}
+  <p style="margin: 0.25rem 0 0; color: #080;">✓ Sin anomalías</p>
+  {% endif %}
+</header>
+
+<section>
+  <h2>1. Checklist de cierre</h2>
+  <div class="progress-bar" role="progressbar" aria-valuenow="{{ items_pct }}" aria-valuemin="0" aria-valuemax="100" aria-label="Progreso del checklist">
+    <div style="width: {{ items_pct }}%;"></div>
+  </div>
+  <p><strong>{{ items_done }} de {{ items_total }} hechos</strong> — {{ items_pct }}%</p>
+  <div>
+    {% for item in items %}
+    <div class="checklist-row">
+      <span class="mark {% if item.status.value == 'done' %}done{% endif %}">{% if item.status.value == 'done' %}✓{% endif %}</span>
+      <span>{{ item.label or item.key }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section>
+  <h2>2. Plan de producción del día</h2>
+  {% if today_plan and today_plan.rows %}
+  <table>
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th class="text-right" >Cantidad</th>
+        <th>Origen</th>
+        <th class="text-right" >Confianza</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in today_plan.rows %}
+      <tr>
+        <td>{{ r.product_name }}</td>
+        <td style="text-align: right; font-family: var(--font-mono);">{{ r.qty_to_produce }}</td>
+        <td>{{ r.forecast_source }}</td>
+        <td class="text-right" >{{ r.confidence_pct }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>Sin plan para hoy.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>3. Reposición necesaria</h2>
+  {% if reorder_count > 0 %}
+  <p><strong>{{ reorder_count }} ingredientes por debajo del mínimo</strong> — estimado {{ m.gs_full(reorder_total_gs) }}</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th class="text-right" >Stock</th>
+        <th class="text-right" >Mínimo</th>
+        <th class="text-right" >Costo est.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in reorder_items[:15] %}
+      <tr>
+        <td>{{ item.ingredient_name }}</td>
+        <td class="text-right" >{{ "%.2f"|format(item.stock_qty) }} {{ item.unit }}</td>
+        <td class="text-right" >{{ "%.2f"|format(item.min_qty) }} {{ item.unit }}</td>
+        <td class="text-right" >{% if item.has_price %}{{ m.gs_full(item.estimated_cost_gs) }}{% else %}-{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if reorder_count > 15 %}
+  <p style="font-size: 0.875rem; color: #666;">+ {{ reorder_count - 15 }} más. Ver /compras/lista para el detalle completo.</p>
+  {% endif %}
+  {% else %}
+  <p>No hay ingredientes bajo mínimo. Stock suficiente.</p>
+  {% endif %}
+</section>
+
+<footer class="print-only" style="border-top: 1px solid #ccc; padding-top: 0.5rem; margin-top: 1rem; font-size: 0.75rem; color: #666;">
+  <p>Firma del responsable: ____________________ &nbsp;&nbsp; Fecha: ____________</p>
+  <p>Impreso de Sazón v1.0 · {{ today.isoformat() }}</p>
+</footer>
+{% endblock %}

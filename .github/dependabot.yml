@@ -1,0 +1,46 @@
+# Dependabot config
+# Auto-PRs for dependency updates. Pinning strategy:
+# - Runtime deps: minor version range (e.g., >=0.115,<0.116)
+# - Dev deps: more flexible (>=,<next-major)
+# Update PRs are reviewed via CODEOWNERS.
+
+version: 2
+
+updates:
+  # Python deps from pyproject.toml (uv-managed)
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    # Don't open PRs for major bumps — review manually.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    # Group patch + minor updates into one weekly PR.
+    groups:
+      runtime-patch:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      dev-patch:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+
+  # GitHub Actions versions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "ci"

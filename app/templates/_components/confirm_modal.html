@@ -1,0 +1,242 @@
+{#
+|# _components/confirm_modal.html
+|# Reusable confirm/cancel modal backed by <dialog>.
+|# Include once per page that needs it.
+|#
+|# How to use:
+|#   UIConfirmModal…show({ title: '¿Anular?', body: 'Se devuelve stock.',
+|#     confirmLabel: 'Sí, anular', action: '/ventas/' + id + '/anular',
+|#     method: 'POST', danger: true, reasonField: true })
+|#     .then(function(result) { if (result.confirmed) { ... } });
+|#
+|# CSS is in app.css under .modal, .modal-dialog.
+#}
+<dialog id="confirm-modal" class="modal" aria-modal="true" aria-labelledby="confirm-modal-title">
+  <div class="modal-dialog" role="document">
+    <div class="modal-header">
+      <h2 id="confirm-modal-title" class="modal-title"></h2>
+      <button type="button" class="btn-ghost btn-icon" id="confirm-modal-cancel-btn" aria-label="Cerrar">
+        <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-modal-body"></p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" id="confirm-modal-cancel">Cancelar</button>
+      <button type="button" class="btn" id="confirm-modal-confirm"></button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(function() {
+  "use strict";
+
+  var modal = document.getElementById("confirm-modal");
+  if (!modal) return;
+
+  var titleEl   = document.getElementById("confirm-modal-title");
+  var bodyEl    = document.getElementById("confirm-modal-body");
+  var confirmBtn= document.getElementById("confirm-modal-confirm");
+  var cancelBtn = document.getElementById("confirm-modal-cancel");
+  var closeBtn  = document.getElementById("confirm-modal-cancel-btn");
+
+  // Pending action for when confirm is clicked
+  var pendingAction = null; // { action, method, extraInputs }
+  var pendingFormId = null; // string
+
+  // Pending reason text from textarea (reasonField mode)
+  var pendingReasonValue = "";
+
+  // Settle the promise returned by show()
+  var _resolveShow = null;
+
+  // Internal helper: clean up after modal closes
+  function cleanup() {
+    pendingAction = null;
+    pendingFormId = null;
+    pendingReasonValue = "";
+    bodyEl.textContent = "";
+    // Remove any reason textarea we added
+    var existingReason = document.getElementById("confirm-modal-reason-wrap");
+    if (existingReason) existingReason.remove();
+    _resolveShow = null;
+  }
+
+  // Close the native dialog
+  function doClose() {
+    modal.close();
+  }
+
+  // Public API: UIConfirmModal…show({ title, body, confirmLabel, danger,
+  //               action, method, extraInputs, formId, reasonField })
+  // Returns a Promise that resolves to { confirmed: bool, reason: string }
+  window.UIConfirmModal = {
+    show: function(opts) {
+      opts = opts || {};
+
+      // Set up promise
+      var settle = null;
+      var promise = new Promise(function(resolve) { settle = resolve; });
+      _resolveShow = settle;
+
+      // Title
+      titleEl.textContent = opts.title || "";
+
+      // Confirm button label + danger style
+      confirmBtn.textContent = opts.confirmLabel || "Confirmar";
+      confirmBtn.className = "btn " + (opts.danger ? "btn-danger" : "btn-primary");
+
+      // Body text (may be replaced by reasonField below)
+      bodyEl.textContent = "";
+
+      // Reason textarea (CIE-01) OR hidden input in external form
+      pendingReasonValue = "";
+      var existingReason = document.getElementById("confirm-modal-reason-wrap");
+      if (existingReason) existingReason.remove(); // clean up from prior use
+
+      if (opts.reasonInputId) {
+        // Pre-fill the external hidden input's value on confirm
+        // (no textarea needed; the form already has a hidden input)
+        if (opts.body) {
+          bodyEl.textContent = opts.body;
+        }
+      } else if (opts.reasonField) {
+        // Paragraph body above the textarea
+        if (opts.body) {
+          var p = document.createElement("p");
+          p.textContent = opts.body;
+          p.style.marginBottom = "var(--space-2)";
+          bodyEl.appendChild(p);
+        }
+        // Textarea wrapper
+        var wrap = document.createElement("div");
+        wrap.id = "confirm-modal-reason-wrap";
+        wrap.style.marginTop = "var(--space-3)";
+        var lbl = document.createElement("label");
+        lbl.htmlFor = "confirm-modal-reason";
+        lbl.textContent = opts.reasonLabel || "Motivo (opcional):";
+        lbl.style.display = "block";
+        lbl.style.fontSize = "var(--text-sm)";
+        lbl.style.marginBottom = "var(--space-1)";
+        wrap.appendChild(lbl);
+        var ta = document.createElement("textarea");
+        ta.id = "confirm-modal-reason";
+        ta.name = "confirm-modal-reason";
+        ta.rows = 2;
+        ta.style.width = "100%";
+        ta.style.padding = "var(--space-2)";
+        ta.style.border = "1px solid var(--color-border)";
+        ta.style.borderRadius = "var(--radius)";
+        ta.style.fontFamily = "inherit";
+        ta.placeholder = opts.reasonPlaceholder || "Ej: cliente devolvió producto";
+        ta.addEventListener("input", function() { pendingReasonValue = ta.value; });
+        wrap.appendChild(ta);
+        bodyEl.appendChild(wrap);
+      } else if (opts.body) {
+        bodyEl.textContent = opts.body;
+      }
+
+      // Store what to do on confirm
+      pendingAction = null;
+      pendingFormId = null;
+      if (opts.formId) {
+        pendingFormId = opts.formId;
+      } else if (opts.action) {
+        pendingAction = {
+          action: opts.action,
+          method: opts.method || "POST",
+          extraInputs: opts.extraInputs || "",
+        };
+      }
+
+      // Store opts on the modal for use in confirm handler
+      modal.__opts = opts;
+
+      // Danger styling on dialog
+      modal.querySelector(".modal-dialog").classList.toggle("is-danger", !!opts.danger);
+
+      // Open the native <dialog>
+      modal.showModal();
+
+      return promise;
+    },
+  };
+
+  // Confirm button: submit form or resolve promise
+  confirmBtn.addEventListener("click", function() {
+    var reason = pendingReasonValue;
+
+    // If reasonInputId was given, write reason into that hidden input before submit
+    var opts = modal.__opts || {};
+    if (opts.reasonInputId) {
+      var targetInput = document.getElementById(opts.reasonInputId);
+      if (targetInput) targetInput.value = reason;
+    }
+
+    if (opts.formId) {
+      // reasonInputId was used to write reason into a hidden input inside this form
+      document.getElementById(opts.formId).submit();
+    } else if (pendingAction) {
+      var f = document.createElement("form");
+      f.method = pendingAction.method || "POST";
+      f.action = pendingAction.action;
+
+      // CSRF token
+      var csrf = document.querySelector("input[name=\"_csrf_token\"]");
+      if (csrf) {
+        var inp = document.createElement("input");
+        inp.type = "hidden";
+        inp.name = "_csrf_token";
+        inp.value = csrf.value;
+        f.appendChild(inp);
+      }
+
+      // Extra inputs
+      if (pendingAction.extraInputs) {
+        var d = document.createElement("div");
+        d.innerHTML = pendingAction.extraInputs;
+        while (d.firstChild) f.appendChild(d.firstChild);
+      }
+
+      // Reason field (from textarea)
+      if (reason) {
+        var rIn = document.createElement("input");
+        rIn.type = "hidden";
+        rIn.name = "reason";
+        rIn.value = reason;
+        f.appendChild(rIn);
+      }
+
+      document.body.appendChild(f);
+      f.submit();
+    }
+
+    if (_resolveShow) {
+      _resolveShow({ confirmed: true, reason: reason });
+    }
+    cleanup();
+    doClose();
+  });
+
+  // Cancel / X / backdrop click / cancel event → resolve with false
+  function handleCancel() {
+    if (_resolveShow) {
+      _resolveShow({ confirmed: false, reason: "" });
+    }
+    cleanup();
+    // modal already closed via native cancel — no need to call doClose()
+  }
+
+  cancelBtn.addEventListener("click", handleCancel);
+  closeBtn.addEventListener("click", handleCancel);
+  modal.addEventListener("click", function(e) {
+    if (e.target === modal) handleCancel();
+  });
+  modal.addEventListener("cancel", function(e) {
+    e.preventDefault();
+    handleCancel();
+  });
+})();
+</script>

@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+
+{% import "_components/macros.html" as m %}
+
+{% include "_components/icons.svg" %}
+
+<html lang="es" data-sazon-theme="{{ theme_setting | default('system') }}">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>{% block title %}Sistema de gestión{% endblock %} — Sazón</title>
+
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+
+  <link rel="alternate icon" type="image/png" href="/static/favicon.ico">
+  <meta name="description" content="Sazón — Sistema de gestión para panadería y cafetería. Asunción, Paraguay.">
+  <meta property="og:title" content="Sazón">
+  <meta property="og:description" content="Sistema de gestión para panadería y cafetería">
+  <meta property="og:image" content="/static/og-image.svg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Sazón">
+  <meta name="twitter:description" content="Sistema de gestión para panadería y cafetería">
+  <meta name="twitter:image" content="/static/og-image.svg">
+  <link rel="apple-touch-icon" href="/static/favicon.svg">
+  <link rel="manifest" href="/static/manifest.json">
+
+
+  <link rel="stylesheet" href="/static/tokens.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/app.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/app-improvements.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/utilities.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/app-shell.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/app-components.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/combobox.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/theme.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/sortable-table.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/search-highlight.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/stepper.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/clipboard.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/form-help.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/print.css?v={{ asset_version() }}" media="print">
+  <link rel="stylesheet" href="/static/touch-targets.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/form-validator.css?v={{ asset_version() }}">
+  <link rel="stylesheet" href="/static/saskia-tooltip.css?v={{ asset_version() }}">
+  {% block head_extra %}{% endblock %}
+
+  <script>
+
+    // ─── Theme bootstrap (sync, runs before paint to avoid flash) ─────
+    // Order of precedence:
+    //   1. data-sazon-theme on <html> (set server-side by branding or persisted choice)
+    //   2. localStorage 'sazon-theme' (persisted toggle)
+    //   3. prefers-color-scheme media query (OS preference)
+    // Resolve to light/dark and reflect it on data-theme so CSS rules
+    // keyed on :root[data-theme="dark"] can fire.
+    (function() {
+
+      try {
+
+        var stored = localStorage.getItem('sazon-theme');
+
+        var attr  = document.documentElement.getAttribute('data-sazon-theme') || 'system';
+
+        var wantsDark = attr === 'dark' || (attr === 'system' && (stored === 'dark' || (stored !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)));
+
+        if (wantsDark) {
+
+          document.documentElement.setAttribute('data-theme', 'dark');
+
+        } else {
+
+          document.documentElement.setAttribute('data-theme', 'light');
+
+        }
+
+      } catch (e) {}
+
+    })();
+
+  </script>
+
+</head>
+
+<body class="{% if is_logged_in %}has-app-shell{% if request.url.path == '/ventas' %} body--pos-fullbleed{% endif %}{% endif %}">
+
+  <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+
+{% if is_logged_in %}
+  {# ══ New professional shell: sidebar + topbar (2026-09-25 mockup plan) ══
+     2026-10-07: wrap sidebar + topbar + main + footer in a single
+     <div id="app-shell"> so the mobile hamburger toggle (which uses
+     #app-shell) actually works, and so the grid layout doesn't break
+     when other things (skip-link, etc.) are siblings of body. #}
+  <div id="app-shell" class="app-shell{% if on_chooser %} on-chooser{% endif %}">
+  <aside class="sidebar" aria-label="Navegación principal">
+      <a class="brand" href="{{ station_home or '/' }}">
+        <span class="brand-mark">S</span>
+        <span class="brand-name">{{ branding.business_name or "Sazón" }}</span>
+      </a>
+      {% for group, items in nav_groups %}
+      <div class="sidebar-section">{{ group }}</div>
+      {% for item in items %}
+        {% if item.sub %}
+        <a href="{{ item.route }}" class="nav-item nav-item--sub{% if item.route == request.url.path or (not item.exact and request.url.path.startswith(item.route)) %} active{% endif %}" {% if item.route == request.url.path or (not item.exact and request.url.path.startswith(item.route)) %}aria-current="page"{% endif %}>
+          <svg class="icon" aria-hidden="true"><use href="#{{ item.icon }}"/></svg>{{ item.label }}</a>
+        {% else %}
+        {{ m.nav_link(item.route, item.label, exact=item.exact or false, current_path=request.url.path, icon=item.icon) }}
+        {% endif %}
+      {% endfor %}
+      {% endfor %}
+    </aside>
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+    <nav class="topbar" aria-label="Barra superior">
+      <button type="button" class="btn btn-ghost btn-icon sidebar-toggle" id="sidebar-toggle"
+              aria-label="Abrir menú" aria-controls="app-shell">
+        <svg class="icon" aria-hidden="true"><use href="#icon-menu"/></svg>
+      </button>
+
+      <span class="topbar-date">{{ now_str() if now_str is defined else '' }}</span>
+
+      <div class="topbar-search" style="position:relative;">
+        <button type="button" class="btn w-100" id="global-search-btn" aria-label="Buscar (Cmd+K)" style="width:100%;justify-content:flex-start;padding-right:110px;">
+          <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+          <span class="search-label">Buscar producto, cliente, pedido…</span>
+        </button>
+        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:.25rem;">
+          <span id="open-shortcuts" class="btn btn-ghost" role="button" tabindex="0" aria-label="Atajos de teclado" title="Atajos de teclado" style="padding:0 .4rem;height:22px;font-size:var(--text-xs);">?</span>
+          <kbd>⌘K</kbd>
+        </span>
+      </div>
+
+      <div class="topbar-actions">
+        {% if not on_chooser and (create_actions or not station) %}
+        <div class="nuevo-wrap" id="nuevo-wrap">
+          <button type="button" class="btn btn-primary" id="nuevo-btn" aria-haspopup="true" aria-expanded="false" aria-controls="nuevo-menu" title="Crear nuevo">
+            <svg class="icon" aria-hidden="true"><use href="#icon-menu"/></svg>
+            <span aria-hidden="true">+</span> Nuevo
+          </button>
+          <div class="nuevo-menu" id="nuevo-menu" role="menu" aria-label="Crear nuevo">
+            {% if create_actions %}
+            {% for item in create_actions %}
+            <a href="{{ item.route }}" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#{{ item.icon }}"/></svg> {{ item.label }}</a>
+            {% endfor %}
+            {% else %}
+            <a href="/ventas" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg> Venta</a>
+            <a href="/pedidos/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg> Pedido</a>
+            <a href="/productos/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg> Producto</a>
+            <a href="/inventario/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg> Ingrediente</a>
+            <a href="/recetas/nueva" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg> Receta</a>
+            <a href="/clientes/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-customer"/></svg> Cliente</a>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="notif-center" id="notif-center">
+          <button type="button" class="notif-btn btn-ghost btn-icon" id="notif-btn"
+                  aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false">
+            <svg class="icon" aria-hidden="true"><use href="#icon-bell"/></svg>
+            <span class="notif-badge d-none" id="notif-badge" >0</span>
+          </button>
+          <div class="notif-dropdown" id="notif-dropdown" role="menu" aria-label="Notificaciones">
+            <div class="notif-header">
+              <span>Notificaciones</span>
+              <button type="button" class="btn-ghost btn-sm text-xs" id="notif-clear" >Limpiar</button>
+            </div>
+            <div class="notif-list" id="notif-list">
+              <p class="notif-empty">Sin notificaciones</p>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="theme-toggle btn-ghost btn-icon" id="theme-toggle"
+                aria-label="Cambiar tema claro/oscuro" title="Cambiar tema">
+          <svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg>
+        </button>
+        {% if show_station_switch %}
+        <a href="/puesto/cambiar" class="btn btn-ghost" title="Elegir otro puesto">Cambiar puesto</a>
+        {% endif %}
+        <a href="/logout" class="btn-ghost btn-icon d-inline-flex" aria-label="Cerrar sesión" title="Cerrar sesión" style="display:inline-flex;align-items:center;justify-content:center;">
+          <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
+        </a>
+      </div>
+    </nav>
+
+    <main class="app-main container" id="main-content" tabindex="-1">
+
+      {% block breadcrumb %}
+      {% set _crumbs = fmt.crumbs_for(request.url.path) %}
+      {% if _crumbs|length > 1 %}
+      <nav class="breadcrumb" aria-label="Ruta" style="margin-bottom:.5rem;">
+        {% for label, href in _crumbs %}
+          {% if href and not loop.last %}<a href="{{ href }}">{{ label }}</a><span class="crumb-sep">›</span>
+          {% elif not loop.last %}<span>{{ label }}</span><span class="crumb-sep">›</span>
+          {% else %}<span aria-current="page">{{ label }}</span>{% endif %}
+        {% endfor %}
+      </nav>
+      {% endif %}
+      {% endblock %}
+
+    {% block content %}{% endblock %}
+
+  </main>
+
+  <footer class="app-footer">
+    <span class="status-pill"><span class="dot"></span> {{ branding.business_name }} v1.0</span>
+    <span class="status-pill">{{ branding.footer }}</span>
+    <span style="margin-left:auto;display:flex;gap:var(--space-3);align-items:center;">
+          <a href="/healthz" aria-label="Estado del servidor" class="text-muted" style="text-decoration:none;">· estado</a>
+          <a href="/guia" aria-label="Guía de uso" class="text-muted" style="text-decoration:none;">guía</a>
+          <span>© {{ now_year() }} {{ branding.business_name or "Sazón" }}</span>
+        </span>
+  </footer>
+  </div><!-- /.app-shell -->
+
+  <script>
+    // Sidebar toggle (mobile) + Nuevo dropdown + close-on-outside-click.
+    (function() {
+      var shell = document.getElementById('app-shell');
+      var stoggle = document.getElementById('sidebar-toggle');
+      var backdrop = document.getElementById('sidebar-backdrop');
+      function closeSidebar() { shell.classList.remove('sidebar-open'); }
+      if (stoggle) stoggle.addEventListener('click', function(e) {
+        e.stopPropagation(); shell.classList.toggle('sidebar-open');
+      });
+      if (backdrop) backdrop.addEventListener('click', closeSidebar);
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') { closeSidebar(); closeNuevo(); }
+      });
+
+      var nwrap = document.getElementById('nuevo-wrap');
+      var nbtn = document.getElementById('nuevo-btn');
+      function closeNuevo() {
+        if (!nwrap) return;
+        nwrap.classList.remove('is-open');
+        if (nbtn) nbtn.setAttribute('aria-expanded', 'false');
+      }
+      if (nbtn) nbtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var open = nwrap.classList.toggle('is-open');
+        nbtn.setAttribute('aria-expanded', String(open));
+      });
+      document.addEventListener('click', function(e) {
+        if (nwrap && !nwrap.contains(e.target)) closeNuevo();
+      });
+    })();
+  </script>
+{% else %}
+  {# ══ Logged out: minimal chrome (login + public pages) ══ #}
+  <nav class="topnav" aria-label="Navegación">
+    <a href="/" class="brand">
+      <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
+      <span>Sazón</span>
+    </a>
+  </nav>
+
+  <main class="container" id="main-content" tabindex="-1">
+    {{ self.content() }}
+  </main>
+
+  <footer class="footer">
+    <small>{{ branding.business_name }} v1.0 · {{ branding.footer }} · {{ now_year() }}</small>
+  </footer>
+{% endif %}
+
+  <div class="alerts-region" aria-live="polite" aria-atomic="true">
+    {% block alerts %}{% endblock %}
+  </div>
+
+  <script>
+    // Dark mode toggle (cycles light → dark → system).
+    (function() {
+      var btn = document.getElementById('theme-toggle');
+      if (!btn) return;
+      function paint(isDark) {
+        var useEl = btn.querySelector('use');
+        if (useEl) useEl.setAttribute('href', isDark ? '#icon-sun' : '#icon-moon');
+        btn.setAttribute('aria-pressed', String(isDark));
+      }
+      function resolve() {
+        var attr = document.documentElement.getAttribute('data-sazon-theme') || 'system';
+        var stored = null;
+        try { stored = localStorage.getItem('sazon-theme'); } catch (e) {}
+        if (attr === 'dark')  return true;
+        if (attr === 'light') return false;
+        return stored === 'dark';
+      }
+      paint(resolve());
+      btn.addEventListener('click', function() {
+        var attr = document.documentElement.getAttribute('data-sazon-theme') || 'system';
+        var stored = null;
+        try { stored = localStorage.getItem('sazon-theme'); } catch (e) {}
+        if (attr === 'light') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.setAttribute('data-sazon-theme', 'dark');
+          try { localStorage.setItem('sazon-theme', 'dark'); } catch (e) {}
+          paint(true);
+        } else if (attr === 'dark') {
+          document.documentElement.removeAttribute('data-theme');
+          document.documentElement.setAttribute('data-sazon-theme', 'system');
+          try { localStorage.setItem('sazon-theme', stored || 'dark'); } catch (e) {}
+          paint(stored === 'dark');
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          document.documentElement.setAttribute('data-sazon-theme', 'light');
+          try { localStorage.setItem('sazon-theme', 'light'); } catch (e) {}
+          paint(false);
+        }
+      });
+    })();
+  </script>
+
+  {# ── Global Search Modal ── #}
+  <div class="search-modal d-none" id="search-modal" role="dialog" aria-modal="true" aria-label="Búsqueda global" >
+    <div class="search-backdrop" id="search-backdrop"></div>
+    <div class="search-dialog">
+      <div class="search-header">
+        <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+        <input type="search" id="global-search-input" placeholder="Buscar clientes, productos, pedidos, recetas…"
+               autocomplete="off" aria-label="Búsqueda global">
+        <kbd>Esc</kbd>
+      </div>
+      <div class="search-results" id="search-results">
+        <p class="search-hint">Escribí para buscar en clientes, productos, pedidos y recetas.</p>
+      </div>
+    </div>
+  </div>
+
+  {% include "_components/confirm_modal.html" %}
+  <ui-toast-stack></ui-toast-stack>
+
+  {# Back-to-top button (Phase 22 polish — shows after scroll > 400px) #}
+  <button class="back-to-top" type="button" aria-label="Volver arriba" hidden>
+    <svg class="icon icon-arrow-up" aria-hidden="true"><use href="#icon-arrow-up"/></svg>
+  </button>
+
+  {# ── Global JS: search modal, notification center, Cmd+K, cross-page state ── #}
+  <script src="/static/shortcuts.js" defer></script>
+  <script src="/static/form-dirty.js" defer></script>
+  <script src="/static/state-preservation.js" defer></script>
+  <script src="/static/app.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/app-components.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/ui-date.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/ui-month.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/ui-skeleton.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/ui-combo.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/combo-rows.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/ui-toast.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/ui-kpi-card.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/ui-insight.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/back-to-top.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/money-format.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/date-format.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/live-time.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/cache.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/autosave.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/undo.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/form-dirty.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/sortable-table.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/search-highlight.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/stepper.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/lazy-load.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/perf-monitor.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/clipboard.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/print-area.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/form-validator.js?v={{ asset_version() }}" defer></script>
+  <script src="/static/saskia-tooltip.js?v={{ asset_version() }}" defer></script>
+  {% block page_scripts %}{% endblock %}
+
+  {# Sticky bottom-nav for mobile (≤768px). Hidden on desktop via mobile.css. #}
+  <nav class="bottom-nav" aria-label="Navegación rápida">
+    {% if station %}
+    {% for group, items in nav_groups %}
+    {% for item in items %}
+    <a href="{{ item.route }}" class="{% if request.url.path == item.route or (item.route != '/' and request.url.path.startswith(item.route)) %}active{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#{{ item.icon }}"/></svg>
+      <span>{{ item.label }}</span>
+    </a>
+    {% endfor %}
+    {% endfor %}
+    {% else %}
+    <a href="/inicio" class="{% if request.url.path in ('/inicio', '/') %}active{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-home"/></svg>
+      <span>Inicio</span>
+    </a>
+    <a href="/ventas/nueva" class="{% if 'ventas/nueva' in request.url.path %}active{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
+      <span>Vender</span>
+    </a>
+    <a href="/inventario" class="{% if request.url.path.startswith('/inventario') %}active{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
+      <span>Stock</span>
+    </a>
+    <a href="/reorder" class="{% if request.url.path.startswith('/reorder') %}active{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
+      <span>Reponer</span>
+    </a>
+    <a href="/menu" class="{% if request.url.path == '/menu' %}active{% endif %}">
+      <svg class="icon" aria-hidden="true"><use href="#icon-menu"/></svg>
+      <span>Más</span>
+    </a>
+    {% endif %}
+  </nav>
+</body>
+
+</html>

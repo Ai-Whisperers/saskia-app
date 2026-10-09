@@ -1,0 +1,106 @@
+{# Reusable form controls.
+   Includes category/family/tag macros driven by the `category` table
+   (migration 039) and the `tag` table.
+
+   Routes that use these macros should pass `product_categories`,
+   `recipe_families`, and `dietary_tags` from the request handler.
+
+   Backwards compat: when no lists are passed, the macros still work
+   (they just produce empty option lists). This makes the migration
+   safe — existing routes don't break, they just get empty dropdowns
+   until the route is updated. #}
+{% import "_components/atoms.html" as ui %}
+
+{# ─── Catalog option renderers (loops over DB rows) ─────────────────── #}
+
+{% macro render_category_options(categories) %}
+  {# Return a list of {label, value} dicts for <ui-combo> src= JSON. #}
+  {% set _options = [] %}
+  {% for cat in categories %}
+    {% set _ = _options.append({'label': cat.name, 'value': cat.name}) %}
+  {% endfor %}
+  {{ _options }}
+{% endmacro %}
+
+{% macro render_tag_pills(tags) %}
+  {% for tag in tags %}
+    <button type="button"
+            class="tag-pill"
+            data-value="{{ tag.name }}"
+            aria-pressed="false"
+            {% if tag.color %}style="--tag-color: {{ tag.color }}"{% endif %}>{{ tag.name }}</button>
+  {% endfor %}
+{% endmacro %}
+
+{# ─── Unit options (driven by app/rms/units.py:Unit enum) ──────────── #}
+{# Pass `units=[u.value for u in Unit]` from the route to render options. #}
+
+{% macro render_unit_options(units, selected='') %}
+  {% for u in units %}
+    <option value="{{ u }}" {% if u == selected %}selected{% endif %}>{{ u }}</option>
+  {% endfor %}
+{% endmacro %}
+
+{# Combo box variant (used by reorder.html, etc.) #}
+{% macro render_unit_combo_options(units) %}
+  {% for u in units %}
+    <div class="combo-static-option" data-value="{{ u }}" data-display="{{ u }}"></div>
+  {% endfor %}
+{% endmacro %}
+
+{# ─── Single-select category picker (uses ui-combo) ────────────── #}
+
+{% macro category_picker(name, current_value, options_markup, allow_custom=True, label='', help='') %}
+  {# options_markup: list of {label, value} dicts (from render_category_options). #}
+  {% set _src = options_markup if options_markup is iterable and options_markup is not string else [] %}
+  {% if not current_value and _src %}
+    {% set _ = _src.insert(0, {'label': '— Sin categoría —', 'value': ''}) %}
+  {% endif %}
+  <div class="form-row">
+    {% if label %}<label for="{{ name }}_combo">{{ label }}</label>{% endif %}
+    {{ ui.combo_field(
+      name=name,
+      value=(current_value or ''),
+      display=(current_value or ''),
+      placeholder='Elegí o escribí una categoría…',
+      src=_src,
+      allow_create=allow_custom
+    ) }}
+    {% if help %}<small class="muted">{{ help }}</small>{% endif %}
+  </div>
+{% endmacro %}
+
+{# ─── Tag picker (pill toggles + custom add) ─────────────────────────── #}
+
+{% macro tag_picker(name, current_value, options_markup, allow_custom=True, label='', help='') %}
+  {% set current_list = (current_value or '').split(',') | map('trim') | reject('equalto', '') | list %}
+  <div class="form-row tag-picker"
+       data-name="{{ name }}"
+       data-current='{{ current_list | tojson }}'>
+    {% if label %}<label>{{ label }}</label>{% endif %}
+
+    <div class="tag-pills" role="group" aria-label="{{ label or name }}">
+      {{ options_markup }}
+    </div>
+
+    {% if allow_custom %}
+      <div class="tag-custom-row">
+        <input type="text"
+               class="tag-custom-input"
+               placeholder="Agregar etiqueta personalizada…"
+               maxlength="40">
+        <button type="button" class="btn btn-sm tag-custom-add">+ Agregar</button>
+      </div>
+    {% endif %}
+
+    <input type="hidden" name="{{ name }}" value="{{ current_value or '' }}">
+
+    {% if help %}<small class="muted">{{ help }}</small>{% endif %}
+  </div>
+{% endmacro %}
+
+{# ─── Inline styles for tag pills ────────────────────────────────────── #}
+
+{% macro tag_picker_styles() %}
+
+{% endmacro %}

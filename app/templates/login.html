@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Iniciar sesión{% endblock %}
+{% block content %}
+<main class="container" style="max-width: 440px;">
+
+  {# Branding header #}
+  <div style="text-align: center; margin-bottom: 1.5rem;">
+    <img src="/static/logo.svg" alt="Sazón" width="64" height="64" style="margin: 0 auto 12px; display: block;">
+    <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 4px;">{{ branding.business_name }}</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+    <p class="text-muted text-sm" >{{ branding.tagline }}</p>
+  </div>
+
+  {# Hero illustration #}
+  <div style="margin-bottom: 1.5rem;">
+    <img src="/static/login-hero.svg" alt="" width="400" height="200" style="max-width:100%;height:auto;display:block;margin:0 auto;border-radius:12px;">
+  </div>
+
+  {% if error %}
+  <div class="alert alert-error" role="alert" aria-live="assertive" id="login-error">
+    <div>
+      <strong>No pudimos entrar.</strong><br>
+      {{ error }}
+      {% if retry_after %}
+        <br>
+        <span id="retry-countdown" data-seconds="{{ retry_after }}">Podés reintentar en <strong id="retry-seconds">{{ retry_after }}</strong>s.</span>
+      {% endif %}
+    </div>
+    {% if retry_after %}
+    <button type="button" class="btn btn-secondary btn-pill" id="retry-btn" disabled
+            style="margin-top: 12px; align-self: flex-start;">
+      Reintentar ahora (<span id="retry-btn-seconds">{{ retry_after }}</span>s)
+    </button>
+    <form method="post" action="/login/clear-rate-limit" style="margin-top: 8px;">
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="btn-link" id="reset-rate-link"
+              style="background: none; border: 0; padding: 0; color: var(--color-accent); text-decoration: underline; cursor: pointer; font-size: 0.875rem;">
+        Limpiar bloqueo y volver al login
+      </button>
+      <span style="color: var(--color-muted); font-size: 0.8125rem; margin-left: 6px;">
+        (si esperaste o creés que es un error)
+      </span>
+    </form>
+    <script>
+      (function() {
+        var span = document.getElementById('retry-seconds');
+        var btnSpan = document.getElementById('retry-btn-seconds');
+        var btn = document.getElementById('retry-btn');
+        var remaining = parseInt(document.getElementById('retry-countdown').dataset.seconds, 10);
+        function tick() {
+          if (remaining <= 0) {
+            span.textContent = '0';
+            btnSpan.textContent = '0';
+            btn.disabled = false;
+            btn.textContent = 'Reintentar ahora';
+            return;
+          }
+          span.textContent = remaining;
+          btnSpan.textContent = remaining;
+          remaining -= 1;
+          setTimeout(tick, 1000);
+        }
+        tick();
+        btn.addEventListener('click', function() {
+          // Re-submit the form. The server is the source of truth — if the
+          // rate-limit window is still open, the user gets redirected back
+          // here with a new retry_after.
+          document.querySelector('form[action="/login"]').submit();
+        });
+      })();
+    </script>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if message %}
+  <div class="alert alert-info" role="status" aria-live="polite">
+    {{ message }}
+  </div>
+  {% endif %}
+
+  {# Show last user for returning users #}
+  <div style="background: var(--color-surface-subtle); border: 1px solid var(--color-border); border-radius: 8px; padding: 10px 14px; margin-bottom: 1rem; font-size: 14px; color: var(--color-text);">
+    <svg class="icon" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;" aria-hidden="true"><use href="#icon-user"/></svg>
+    {% if last_username %}
+    Sesión anterior como <strong>{{ last_username }}</strong>
+    {% else %}
+    Ingresá tu usuario para continuar
+    {% endif %}
+  </div>
+
+  <form method="post" action="/login" class="form" novalidate>
+    <input type="hidden" name="next" value="{{ next }}">
+
+    <div class="form-row">
+      <label for="username">
+        {% if using_supabase %}Correo electrónico{% else %}Usuario{% endif %}
+      </label>
+      <input
+        type="{% if using_supabase %}email{% else %}text{% endif %}"
+        id="username"
+        name="username"
+        value="{{ last_username or '' }}"
+        autocomplete="{% if using_supabase %}email{% else %}username{% endif %}"
+        required
+        {% if not error %}autofocus{% endif %}
+        {% if error %}aria-invalid="true" aria-describedby="login-error"{% endif %}
+      >
+    </div>
+
+    <div class="form-row">
+      <label for="password">Contraseña</label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        autocomplete="current-password"
+        required
+        {% if error %}autofocus aria-invalid="true" aria-describedby="login-error"{% endif %}
+      >
+    </div>
+
+    <div class="form-actions">
+     <label class="d-flex" style="display:flex;align-items:center;gap:.5rem;font-size:var(--text-sm);margin-bottom:var(--space-4);">
+       <input type="checkbox" name="remember" value="1"> Recordar este dispositivo
+     </label>
+       <button type="submit" class="btn btn-primary btn-pill w-100" >
+        <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+        Ingresar
+      </button>
+    </div>
+  </form>
+
+  <div style="margin-top: 1.5rem; border-top: 1px solid #e5e7eb; padding-top: 1rem;">
+    <p class="text-muted text-xs" >
+      Al usar este sistema aceptás los
+      <a href="/guia">términos de accesibilidad</a>.
+    </p>
+
+    {# Accessibility statement #}
+    <details style="margin-top: 8px;">
+      <summary class="text-muted" style="cursor: pointer; font-size: 12px;">
+        Declaración de accesibilidad
+      </summary>
+      <div class="text-muted" style="font-size: 12px; margin-top: 6px; line-height: 1.5;">
+        <p> Sazón apunta a cumplir con WCAG 2.1 Nivel AA.</p>
+        <p>Si tenés dificultades para usar la interfaz (navegación por teclado,
+        lector de pantalla, contraste, etc.), contactá a
+        <a href="mailto:ivan@ai-whisperers.dev">ivan@ai-whisperers.dev</a>
+        para recibir asistencia.</p>
+      </div>
+    </details>
+  </div>
+
+  {% if using_supabase %}
+  <p class="hint" style="margin-top: 1.5rem;">
+    ¿Problemas para entrar?
+    <a href="/login" id="forgot-link">Recuperar contraseña</a>
+    ·
+    <a href="mailto:ivan@ai-whisperers.dev">Contactar al administrador</a>
+  </p>
+  <p class="hint hint-muted text-xs" >
+    Te enviamos un link al correo para crear una contraseña nueva.
+    Si no te llega en 5 minutos, revisá spam o pedile a Iván que te lo resetee.
+  </p>
+  <script>
+    document.getElementById('forgot-link').addEventListener('click', function(e) {
+      e.preventDefault();
+      var emailEl = document.getElementById('username');
+      var email = emailEl.value;
+      if (!email || email.indexOf('@') === -1) {
+        emailEl.focus();
+        // Inline styled error — not native alert()
+        var existing = document.getElementById('forgot-inline-err');
+        if (existing) existing.remove();
+        var div = document.createElement('div');
+        div.id = 'forgot-inline-err';
+        div.className = 'alert alert-error';
+        div.setAttribute('role', 'alert');
+        div.setAttribute('aria-live', 'assertive');
+        div.innerHTML = '<div><strong>Falta el correo.</strong> Escribilo arriba primero para poder enviarte el link de recuperación.</div>';
+        emailEl.parentNode.insertBefore(div, emailEl.parentNode.nextSibling);
+        return;
+      }
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/forgot-password';
+      var input = document.createElement('input');
+      input.type = 'hidden'; input.name = 'email'; input.value = email;
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+    });
+  </script>
+  {% else %}
+  <p class="hint" style="margin-top: 1.5rem;">
+    ¿Olvidaste tu contraseña? Contactá al administrador del local.
+  </p>
+  {% endif %}
+</main>
+{% endblock %}

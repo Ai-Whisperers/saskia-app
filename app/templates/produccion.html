@@ -1,0 +1,2370 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{# Culinary unit filter — used in both the products table and the
+   ingredients table. Rules from the 2026-09 Gemini audit:
+     g/ml       → integer (no fractional gram of salt)
+     kg/l       → max 1 decimal (commercially meaningful)
+     und/unid   → ceil (you can't buy 0.7 of an egg)
+     everything else → 1 decimal. #}
+{% macro fmt_qty(qty, unit) -%}
+  {%- if unit in ('g', 'ml') -%}
+    {{ qty|round|int }} {{ unit }}
+  {%- elif unit in ('und', 'unid') -%}
+    {{ (qty|round(0, 'ceil'))|int }} {{ unit }}
+  {%- else -%}
+    {{ qty|round(1) }} {{ unit }}
+  {%- endif -%}
+{%- endmacro %}
+
+{% block title %}Producción · {{ for_date }}{% endblock %}
+{% block content %}
+{% if template_nudge %}
+<div class="alert alert-warning mb-6" style="display:flex;flex-direction:column;gap:var(--space-2);">
+  <div>
+    📋 {% if has_weekly_template %}Tu plantilla semanal está guardada. Cargala en el plan de hoy con un click — así
+    se ignoran los promedios 14d para los productos que tengan override.
+    {% else %}Todavía no guardaste un plan semanal para este día — el plan se arma con
+    el promedio de ventas. Después de una semana de ventas, andá a
+    <a href="/produccion?view=week">vista semana → Guardar como plan semanal</a>
+    y el sistema usará TU plan en vez del promedio.{% endif %}
+  </div>
+  {% if has_weekly_template %}
+  <form method="post" action="/produccion/template/load-day" class="js-confirm-form"
+        data-confirm-title="¿Cargar plan desde plantilla?"
+        data-confirm-body="Se creará un override por cada producto de la plantilla semanal que aún no esté cargado para hoy."
+        style="display:inline-block;">
+    <input type="hidden" name="for_date" value="{{ for_date.isoformat() }}">
+    <button type="submit" class="btn btn-sm btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+      Cargar plan desde plantilla semanal
+    </button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+{# ════════════════════════════════════════════════════════════════════
+   PAGE ROOF — title + view tabs side-by-side (Bug 3 fix).
+   The Día / Semana / Mes switcher is part of the header so bakers
+   can flip between views without scrolling down to a buried drawer.
+   ════════════════════════════════════════════════════════════════════ #}
+<div class="page-header d-flex" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-4); flex-wrap: wrap; gap: var(--space-3);">
+  <div>
+    <h1 style="display: flex; align-items: center; gap: var(--space-2); margin: 0;">
+      <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
+      Producción
+    </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+    {% if view == 'day' %}
+    <p class="hint" style="margin: var(--space-1) 0 0 0; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;">
+      Plan diario para el <strong>{{ for_date }}</strong>
+      {# T-2026-10-04 (D.2): shift-context deep-link. When Ivan/Sebas
+         hand a cook a URL like /produccion?for_date=2026-10-05&shift=PM
+         over WhatsApp, this badge makes the shift context unmissable
+         so they don't mark the AM row by mistake. #}
+      {% if shift %}
+        <span class="shift-badge shift-{{ shift|lower }}"
+              data-shift="{{ shift }}"
+              style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: var(--text-xs); font-weight: 600; {% if shift == 'AM' %}background: #fef3c7; color: #92400e; border: 1px solid #fbbf24;{% else %}background: #e0e7ff; color: #3730a3; border: 1px solid #818cf8;{% endif %}">
+          🕐 Turno {{ shift }}
+        </span>
+      {% endif %}
+    </p>
+    {% elif view == 'week' %}
+    <p class="hint mt-1-only" >
+      Semana del <strong>{{ week_start }}</strong>
+    </p>
+    {% elif view == 'month' %}
+    <p class="hint mt-1-only" >
+      <strong>{{ month_name }} {{ year }}</strong>
+    </p>
+    {% endif %}
+
+    {# PRODUCCION-V3 Phase 1: day navigation (prev / picker / today / next).
+       The audit (H2, M2, M7, M18, M20) flagged that /produccion had no
+       intuitive way to jump between days. Keyboard shortcuts (J/K/O/C)
+       are handled separately in app/static/shortcuts.js. #}
+    {% if view == 'day' %}
+    <div class="mt-2" >
+      {% include "_components/day_nav.html" %}
+    </div>
+    {% endif %}
+  </div>
+
+  <nav class="view-tabs d-inline-flex" aria-label="Cambiar vista" role="tablist"
+       style="display:inline-flex; gap: var(--space-1); padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius);">
+    <a href="/produccion?view=day" class="btn btn-sm {% if view == 'day' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'day' else 'false' }}">Día</a>
+    <a href="/produccion?view=week{% if view == 'week' and prev_week_iso %}&week={{ prev_week_iso }}{% endif %}" class="btn btn-sm {% if view == 'week' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'week' else 'false' }}">Semana</a>
+    <a href="/produccion?view=month" class="btn btn-sm {% if view == 'month' %}btn-primary{% else %}btn-ghost{% endif %}" role="tab" aria-selected="{{ 'true' if view == 'month' else 'false' }}">Mes</a>
+  </nav>
+  {# PRODUCCION-V2 Fase 2: UI version toggle (v1 ⇄ v2). Default v1 keeps
+     the existing 8-col grilla; v2 adds the DEMANDA column (decomposed
+     into forecast + pedidos pending/confirmed). The choice is sticky
+     via ?ui= query param and persists across form submits because the
+     redirect handlers echo it back. Cutover 2026-10-05: v1 removed,
+     the tab bar now only shows the active v2. #}
+  {# T-2026-10-06 (UX polish): hide the 'v2 ✨' indicator from operators.
+     It was confusing — operators don't care if it's v1 or v2. The v1 vs v2
+     choice is still reachable via ?ui=v1 query for engineers debugging.
+     Keeping a hidden span for tests + accessibility tools. #}
+  <span class="ui-toggle sr-only d-none"
+        
+        aria-label="Versión del UI"
+        title="UI v2 (DEMANDA, META, REAL, Pedidos)">
+    v2
+  </span>
+
+  <a href="/produccion/manana" class="btn inline-flex-center-gap-2"
+     >
+    <svg class="icon" aria-hidden="true"><use href="#icon-spark"/></svg>
+    Producción de mañana
+    <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg>
+  </a>
+  <a href="/produccion/accuracy" class="btn inline-flex-center-gap-2"
+     
+     title="Precisión del plan vs. producción real">
+    <svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>
+    Precisión histórica
+    <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg>
+  </a>
+  {# T-2026-10-04 (P0): printable worksheet for the kitchen shift #}
+  <a href="/produccion/print?for_date={{ for_date }}"
+     class="btn inline-flex-center-gap-2"
+     
+     title="Imprimí el plan de hoy para el turno">
+    <svg class="icon" aria-hidden="true"><use href="#icon-print"/></svg>
+    Imprimir
+  </a>
+  {# Sazon-Improvement v2 (2026-10-06) Phase C: copy last week's plan into
+     this date. Saves ~20min on menu planning. Default source = 7d before. #}
+  <form class="d-inline-flex" method="post" action="/produccion/copy-last-week"
+        style="display:inline-flex; align-items:center; gap: var(--space-1);"
+        onsubmit="if(!this.source_date.value) { event.preventDefault(); this.source_date.value = new Date(new Date(this.for_date.value).getTime() - 7*86400000).toISOString().split('T')[0]; this.submit(); }">
+    <input type="hidden" name="for_date" value="{{ for_date }}">
+    <input type="date" name="source_date" class="btn btn-sm"
+           style="padding: 0.25rem; font-size: 0.75rem; max-width: 9rem;"
+           title="Fecha fuente (default: 7 días antes)"
+           placeholder="hace 7d">
+    <button type="submit" class="btn btn-sm"
+            title="Copiá el plan de la fecha fuente como override para esta fecha">
+      <svg class="icon" aria-hidden="true"><use href="#icon-arrow-up"/></svg>
+      Copiar plan
+    </button>
+  </form>
+  {# Sazon-Improvement v2 (2026-10-06) Phase A: CSV export. Operators paste
+     the daily plan into WhatsApp for the team or import into Excel.
+     Downloadable from the page-header toolbar next to Imprimir. #}
+  <a href="/produccion/export.csv?for_date={{ for_date }}"
+     class="btn btn-sm inline-flex-center-gap-2"
+     
+     download
+     title="Descargá el plan de hoy en CSV (producto, cantidad, fuente, confianza)">
+    <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+    CSV
+  </a>
+  {# T-2026-10-04 (Tier 4-D): worksheet-mode print = blank sheet to fill by hand.
+     T-2026-10-06 (UX): rename to "Hoja en blanco para imprimir" so the cook
+     knows it produces a printable worksheet (not an empty PDF). #}
+  <a href="/produccion/print?for_date={{ for_date }}&mode=worksheet"
+     class="btn btn-sm inline-flex-center-gap-2"
+     
+     title="Imprimí una hoja en blanco para anotar las cantidades a mano">
+    <svg class="icon" aria-hidden="true"><use href="#icon-print"/></svg>
+    Hoja en blanco para imprimir
+  </a>
+  {# T-2026-10-04 (P2): link to the weekly ingredient prep sheet. #}
+  <a href="/produccion/prep"
+     class="btn inline-flex-center-gap-2"
+     
+     title="Plan de preparación semanal (ingredientes agregados)">
+    <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+    Prep semanal
+  </a>
+</div>
+
+{# PRODUCCION-V3 Phase 3 (post-screenshot fix): hero stats (4 cards:
+   Productos / Lote / Pedidos / Confianza). Rendered OUTSIDE the
+   page-header flex container so the grid can span the full
+   content width — when the stats were inside the flex column
+   with the day-nav above them, the toolbar (Día/Semana/Mes + 5
+   buttons) on the right took most of the space and squished the
+   stats to a 4-card vertical column on the left. Now they're
+   their own row, full width, with the grid auto-fitting 4 cards. #}
+{% if view == 'day' %}
+  {% include "_components/hero_stats.html" %}
+{% endif %}
+
+{# ════════════════════════════════════════════════════════════════════
+   DAY VIEW
+   ════════════════════════════════════════════════════════════════════ #}
+{% if view == 'day' %}
+
+{# ── Was: Plan manual (elegí receta + tandas) ── removed 2026-10 (X-5):
+   the form posted to /produccion-planner/compute which is currently broken
+   in app/routers/herebus.py:planner_compute (Decimal/float bug). Point
+   users to /recetas for recipe math and /produccion/manana for day-plan
+   adjustments. Re-enable here once the planner endpoint is fixed. ── #}
+{# T-2026-10-06 (UX polish): the previous empty-state card used
+   --color-surface-subtle which is near-invisible on the dark theme
+   (the operator reported it as unreadable). Replaced with
+   --color-info-soft (a soft blue tint) + --color-info border on
+   the left so the operator's eyes land on it. Also gated on
+   not plan_rows_view so it disappears as soon as the operator
+   has any rows (even ad-hoc).
+
+   T-2026-10-06c: the body color was `var(--color-text, #111827)`.
+   That CSS fallback is IGNORED when --color-text is defined (which
+   in dark theme = #f3f4f6 = white-on-white). Fix: hard #111827 so
+   it works in both themes. Soft backgrounds are always light, so
+   dark text is the right choice universally. #}
+{% if not plan_rows_view %}
+<div class="card mb-4" style="background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6);">
+  <div class="card-body" style="font-size: var(--text-sm); color: #111827;">
+    <strong>📭 Sin producción planificada.</strong>
+    ¿Necesitás calcular producción para una receta específica (catering, pedido grande)?
+    Usá la <a href="/recetas">vista de recetas</a> para ver rendimientos, o andá a
+    <a href="/produccion/manana">producción de mañana</a> para ajustar cantidades del plan diario.
+  </div>
+</div>
+{% endif %}
+
+{# ── US 4.4 — urgent pending orders + kitchen-ticket panel ──
+    The count banner keeps the at-a-glance alert; the per-pedido list below
+    it is the actual US 4.4 contract (cook sees WHAT to make per pedido,
+    with links to /pedidos/{id}). Restored after the da0abe8 redesign
+    dropped it — route still computes the full pending_pedidos payload. #}
+{% if pending_pedidos %}
+<div class="alert alert-warning mb-4" role="alert"
+     style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; background: rgba(245, 158, 11, 0.08); border-left: 4px solid var(--color-warning, #f59e0b); padding: var(--space-3) var(--space-4); border-radius: var(--radius);">
+  <div style="display: flex; align-items: center; gap: var(--space-3);">
+    <svg class="icon" aria-hidden="true" style="color: var(--color-warning, #f59e0b); flex-shrink: 0;"><use href="#icon-warn"/></svg>
+    <div>
+      <strong>🚨 Pedidos pendientes para hoy:</strong>
+      Tenés {{ pending_pedidos|length }} pedido{{ 's' if pending_pedidos|length != 1 else '' }} confirmado{{ 's' if pending_pedidos|length != 1 else '' }} que retirar o entregar hoy.
+    </div>
+  </div>
+  <a href="/pedidos?status_filter=pendientes&search=" class="btn btn-secondary btn-sm">
+    Ver pedidos prioritarios →
+  </a>
+</div>
+{% endif %}
+
+{# 2026-10-07d: bundle all 8 notifications into ONE outer details.
+   Operator click expands the bundle; click again collapses all.
+   Each inner card keeps its own details so the operator can drill
+   into one without opening all 8. Left-border severity stripe preserved
+   per inner card so the at-a-glance "4 warning / 2 info" read stays.
+   Severity counts come from the global `notification_counts()` helper
+   in app/services/template_render.py — tolerates missing context vars. #}
+{% set ns_counts = notification_counts(
+     pending_pedidos=pending_pedidos,
+     haccp_missing_count=haccp_missing_count,
+     haccp_alert=haccp_alert,
+     daily_target=daily_target,
+     daily_actual=daily_actual,
+     low_confidence_count=low_confidence_count,
+     yesterday_total_qty=yesterday_total_qty,
+   ) %}
+{% set ns_total_critical = ns_counts.critical %}
+{% set ns_total_warning = ns_counts.warning %}
+{% set ns_total_info = ns_counts.info %}
+<details class="notifications-bundle mb-4"
+         data-notification-bundle="produccion-notifications"
+         data-critical-count="{{ ns_total_critical }}"
+         data-warning-count="{{ ns_total_warning }}"
+         data-info-count="{{ ns_total_info }}">
+  <summary class="notifications-bundle__summary"
+           aria-label="Notificaciones del día">
+    <span class="notifications-bundle__icon" aria-hidden="true">
+      {% if ns_total_critical == 0 and ns_total_warning == 0 %}✓{% else %}🔔{% endif %}
+    </span>
+    <span class="notifications-bundle__title">
+      {% if ns_total_critical == 0 and ns_total_warning == 0 %}
+        Sin alertas críticas · puedes seguir
+      {% else %}
+        Notificaciones del día
+      {% endif %}
+    </span>
+    <span class="notifications-bundle__chips">
+      {% if ns_total_critical > 0 %}
+        <span class="notif-chip notif-chip--critical"
+              title="Alertas críticas que requieren acción">
+          {{ ns_total_critical }} crítica{{ '' if ns_total_critical == 1 else 's' }}
+        </span>
+      {% endif %}
+      {% if ns_total_warning > 0 %}
+        <span class="notif-chip notif-chip--warning"
+              title="Avisos a revisar">
+          {{ ns_total_warning }} aviso{{ '' if ns_total_warning == 1 else 's' }}
+        </span>
+      {% endif %}
+      {% if ns_total_info > 0 %}
+        <span class="notif-chip notif-chip--info"
+              title="Información general">
+          {{ ns_total_info }} info
+        </span>
+      {% endif %}
+    </span>
+    <span class="notifications-bundle__toggle" aria-hidden="true">Ver todo</span>
+  </summary>
+
+  <div class="notifications-bundle__body">
+
+{# ── 1/8 Pedidos pendientes ── #}
+<details class="notification-collapse notification-collapse--warning"
+         data-notification-section="data-pending-pedidos-section">
+  <summary style="cursor: pointer; list-style: none; padding: var(--space-3) var(--space-4);">
+    <strong>📦 Pedidos pendientes para hoy ({{ pending_pedidos|length }})</strong>
+    <small class="text-muted" style="margin-left: var(--space-2);">clic para ver el detalle</small>
+  </summary>
+  <div class="card" style="border-left: 4px solid var(--color-warning, #f59e0b);">
+    <div class="card-body">
+      <small class="text-muted">US 4.4 — El cocinero ve estos pedidos antes que el plan automático.</small>
+      <ul style="list-style:none;padding:0;margin:var(--space-3) 0 0 0;display:flex;flex-direction:column;gap:var(--space-3);">
+        {% for p in pending_pedidos %}
+        <li class="d-flex" style="padding:var(--space-3);background:var(--color-surface-subtle, #f8fafc);border-radius:var(--radius);border:1px solid var(--color-border);">
+          <div class="d-flex" style="display:flex;justify-content:space-between;align-items:start;gap:var(--space-3);flex-wrap:wrap;">
+            <div>
+              <strong><a href="/pedidos/{{ p.id }}" class="text-link">Pedido #{{ p.id }} — {{ p.customer_name }}</a></strong>
+              {% if p.customer_phone %}<small class="text-muted"> · {{ p.customer_phone }}</small>{% endif %}
+              {% if p.promised_time %}<span class="badge ml-2" >⏰ {{ p.promised_time }}</span>{% endif %}
+              <span class="badge badge-info ml-2" >{{ p.channel }}</span>
+              <span class="badge badge-{{ 'warning' if p.status == 'pending' else 'success' if p.status == 'ready' else 'info' }} ml-2 mt-2" >{{ p.status }}</span>
+            </div>
+          </div>
+          <ul class="mt-2" style="margin-top:var(--space-2);padding-left:var(--space-5);">
+            {% for it in p.line_items %}
+            <li>{{ it.qty }} × {{ it.product_name }} ({{ m.gs_full(it.unit_price_gs) }})</li>
+            {% endfor %}
+          </ul>
+          {% if p.notes %}<small class="text-muted">📝 {{ p.notes }}</small>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</details>
+
+{# ── Low-stock ingredients warning (pre-existing) ──
+   2026-10-07c: collapsed by default — operator opens only on demand. #}
+{% if low_stock_ingredients or short_plan_lines %}
+<details class="notification-collapse notification-collapse--danger"
+         data-notification-section="data-low-stock-section"
+         {% if short_plan_lines %}open{% endif %}>
+  <summary style="cursor: pointer; list-style: none; padding: var(--space-3) var(--space-4); display: flex; align-items: center; gap: var(--space-2);">
+    <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+    <strong>
+      {% set _n_low = low_stock_ingredients|length if low_stock_ingredients else 0 %}
+      {% set _n_short_lines = short_plan_lines|length if short_plan_lines else 0 %}
+      {{ _n_low }} ingrediente{{ '' if _n_low == 1 else 's' }} bajo{{ '' if _n_low == 1 else 's' }} en /reorder{% if _n_short_lines %} · {{ _n_short_lines }} sin stock para el plan de hoy{% endif %}
+    </strong>
+    <small class="text-muted" style="margin-left: auto;">clic para abrir</small>
+  </summary>
+  <div class="alert alert-danger" role="alert" style="border-left: 4px solid var(--color-danger, #dc2626); padding: var(--space-3); border-radius: var(--radius); background: rgba(220, 38, 38, 0.06); margin: 0;">
+  {% if low_stock_ingredients %}
+  <ul style="margin: 0 0 var(--space-2) 0; padding-left: var(--space-5); columns: 2; column-gap: var(--space-4);">
+    {% for ing in low_stock_ingredients %}
+    <li>
+      <strong>{{ fmt.entity_name(ing) }}</strong>:
+      {{ fmt_qty(ing.stock_qty, ing.unit) }}
+      (mín: {{ fmt_qty(ing.min_stock_qty, ing.unit) }})
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {# P38 (2026-10-07, Ivan): substitution suggestions removed entirely.
+     The catalog is too narrow (58 products, mostly 7-9-ingredient
+     variations of each other) for auto-substitution to be honest —
+     Stroopwafel is not a substitute for Pan lactal. Operator's only
+     real options are: (1) buy more, (2) cut a recipe, or (3) call
+     the customer. We show only the count and the /reorder CTA. #}
+  {% if short_plan_lines %}
+  <div class="mt-2" style="padding: var(--space-3); border-radius: var(--radius); background: rgba(220, 38, 38, 0.04); border: 1px solid var(--color-danger, #dc2626);">
+    <div style="font-weight: 600;">
+      Plan de hoy necesita {{ short_plan_lines|length }} ingrediente{{ '' if short_plan_lines|length == 1 else 's' }} que no hay en stock.
+    </div>
+    <div style="font-size: 13px; color: var(--color-muted-foreground); margin-top: var(--space-1);">
+      Opciones: comprá lo que falta en <a href="/reorder">/reorder</a>,
+      o recortá las recetas afectadas del plan y avisá a los clientes.
+      No mostramos "sustitutos" automáticos: en este catálogo Stroopwafel
+      no reemplaza Pan lactal.
+    </div>
+  </div>
+  {% endif %}
+ %}
+  <a href="/reorder" class="btn btn-sm btn-secondary mt-2" >Reponer ahora →</a>
+  </div>
+</details>
+{% endif %}
+
+{# ── Daily target vs actual (pre-existing) ──
+   2026-10-07c: collapsed by default — operator opens to edit meta. #}
+{% if daily_target %}
+<details class="notification-collapse notification-collapse--success"
+         data-notification-section="data-meta-diaria-section">
+  <summary style="cursor: pointer; list-style: none; padding: var(--space-2) var(--space-3); display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+    <span><strong>Meta diaria:</strong> {{ daily_target }} unidades · <strong>Real:</strong> {{ daily_actual | default(0) }}</span>
+    {% if daily_target > 0 %}
+      {% set pct = (daily_actual | default(0)) / daily_target * 100 %}
+      <span class="badge badge-{{ 'success' if pct >= 100 else 'warning' if pct >= 60 else 'danger' }}">{{ "%.0f"|format(pct) }}%</span>
+    {% endif %}
+    <small class="text-muted" style="margin-left: auto;">clic para abrir</small>
+  </summary>
+  <div class="card" style="border-left: 4px solid var(--color-success, #16a34a); margin: 0;">
+    <div class="card-body" style="display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+      <span><strong>Meta diaria:</strong> {{ daily_target }} unidades</span>
+      <span>·</span>
+      <span><strong>Real:</strong> {{ daily_actual | default(0) }} unidades</span>
+      {% if daily_target > 0 %}
+        {% set pct = (daily_actual | default(0)) / daily_target * 100 %}
+        <div style="flex: 1; min-width: 120px; height: 8px; background: var(--color-surface-subtle); border-radius: 4px; overflow: hidden;">
+          <div style="height: 100%; width: {{ [pct, 100] | min }}%; background: var(--color-success); border-radius: 4px;"></div>
+        </div>
+        <span class="badge badge-{{ 'success' if pct >= 100 else 'warning' if pct >= 60 else 'danger' }}">{{ "%.0f"|format(pct) }}%</span>
+      {% endif %}
+      <a href="/config#produccion-meta" class="btn btn-sm btn-ghost" style="margin-left: auto;">Editar meta</a>
+    </div>
+  </div>
+</details>
+{% endif %}
+
+{# T-2026-10-04 (B.6): HACCP freezer-temperature banner on /produccion day view.
+   Shows the most recent reading with a colored dot (green = OK, red = out
+   of range) so the cook doesn't forget to log the day's AM/PM readings.
+   2026-10-07c: collapsed by default — operator opens to verify readings. #}
+{% if haccp_latest %}
+<details class="notification-collapse notification-collapse--{% if haccp_alert == 'warning' %}danger{% else %}success{% endif %}"
+         data-notification-section="data-haccp-latest-section">
+  <summary style="cursor: pointer; list-style: none; padding: var(--space-2) var(--space-3); display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+    <strong>🌡️ HACCP:</strong>
+    <span>{{ haccp_latest.location }} · {{ haccp_latest.shift }} · <strong>{{ "%.1f"|format(haccp_latest.temperature_c) }} °C</strong></span>
+    <small class="text-muted">({{ haccp_latest.recorded_at.strftime("%H:%M") }})</small>
+    {% if haccp_alert == "warning" %}
+    <span class="badge" style="background: var(--color-danger, #dc2626); color: white;">FUERA DE RANGO</span>
+    {% endif %}
+    <small class="text-muted" style="margin-left: auto;">clic para abrir</small>
+  </summary>
+  <div class="card" data-haccp-banner style="border-left: 4px solid {% if haccp_alert == 'warning' %}var(--color-danger, #dc2626){% else %}var(--color-success, #16a34a){% endif %}; margin: 0;">
+    <div class="card-body" style="display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+      <span>
+        <strong>🌡️ HACCP:</strong>
+        {{ haccp_latest.location }} · {{ haccp_latest.shift }} ·
+        <strong style="color: {% if haccp_alert == 'warning' %}var(--color-danger, #dc2626){% else %}var(--color-success, #16a34a){% endif %};">
+          {{ "%.1f"|format(haccp_latest.temperature_c) }} °C
+        </strong>
+        <small class="text-muted">({{ haccp_latest.recorded_at.strftime("%H:%M") }})</small>
+      </span>
+      {% if haccp_alert == "warning" %}
+      <span class="badge" style="background: var(--color-danger, #dc2626); color: white;">FUERA DE RANGO</span>
+      {% endif %}
+      <a href="/produccion/haccp?for_date={{ for_date }}" class="btn btn-sm btn-ghost" style="margin-left: auto;">
+        Ver registro completo →
+      </a>
+    </div>
+  </div>
+</details>
+{% endif %}
+
+{# If the user has zero HACCP entries today, show a soft nudge.
+   2026-10-07c: collapsed by default — operator opens to register. #}
+{% if haccp_missing_count and haccp_missing_count > 0 %}
+<details class="notification-collapse notification-collapse--warning"
+         data-notification-section="data-haccp-missing-section">
+  <summary style="cursor: pointer; list-style: none; padding: var(--space-2) var(--space-3); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;">
+    <strong>⚠️ {{ haccp_missing_count }} lectura{{ 's' if haccp_missing_count != 1 else '' }} HACCP pendiente{{ 's' if haccp_missing_count != 1 else '' }} para hoy</strong>
+    <small class="text-muted" style="margin-left: auto;">clic para abrir</small>
+  </summary>
+  <div class="card" data-haccp-missing style="background: var(--color-surface-muted); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-warning, #f59e0b); margin: 0;">
+    <small>
+      {% if haccp_missing_items %}
+    {# T-2026-10-06 (B.6+): inline chip-list drill-down. BOTH chips
+       are bold because the freezer has zero full days of HACCP.
+       V6: flex-wrap so the third chip (heladera-masas, etc.) doesn't
+       get cut off on narrow viewports. #}
+    <span style="margin-left: var(--space-1); display: inline-flex; flex-wrap: wrap; gap: var(--space-1);">
+      {% for item in haccp_missing_items %}
+      <span class="status-pill
+                   {% if item.weight == 'BOTH' %}status-pill--danger
+                   {% else %}status-pill--warn{% endif %}"
+            title="{{ item.location }} — {{ item.weight }}">
+        {{ item.location }} · {{ item.weight }}
+      </span>{% if not loop.last %}   {% endif %}
+      {% endfor %}
+    </span>
+    {% endif %}
+    <a class="ml-2" href="/produccion/haccp?for_date={{ for_date }}" >Registr&aacute; ahora →</a>
+  </small>
+  </div>
+</details>
+{% endif %}
+
+{# ────────────────────────────────────────────────────────────────
+   SHIFT EXECUTION LAYER — "Ya salió del horno" tracker
+   Sprint 1: persist via /produccion/shift-execute (writes
+   ProductionCompletion, the actual production row, not the plan).
+   Sprint 3: demand fusion — surface "+N por pedidos" inline so the
+   cook knows the plan number is a baseline, not the final bake count.
+   Sprint 4: ad-hoc entry — "+ Horneado extra" button below the table.
+   ──────────────────────────────────────────────────────────────── #}
+{# T-2026-10-06 (UX polish): the previous --color-surface-muted background
+   was too low-contrast on the dark theme. Use info-soft + info border-left
+   to match the empty-state card style so it stands out as a hint callout.
+
+   T-2026-10-06c: hard #111827 (not var(--color-text, #111827)) because
+   CSS fallbacks are ignored when the var is defined. Soft bg + dark text.
+
+   M9: wrap in <details> so the hint is collapsed by default. Operators
+   only open it when they want to understand the math. Saves ~80px of
+   vertical space on every page load. #}
+<details class="cal-box" style="margin-bottom: var(--space-3); background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6); border-radius: 4px;">
+  <summary style="cursor: pointer; padding: var(--space-2) var(--space-3); color: #111827; font-size: var(--text-sm); user-select: none;">
+    <strong>Cómo se calcula</strong>
+    <span class="text-muted" style="font-size: var(--text-xs); margin-left: var(--space-2);">(clic para ver)</span>
+  </summary>
+  <small style="display: block; color: #111827; padding: 0 var(--space-3) var(--space-2) var(--space-3);">
+    "Sugerido por ventas" = promedio rolling 14d · "Plantilla semanal" = override recurrente por día de la semana · "Ajuste del día" = lo que vos decidiste hoy.
+  </small>
+</details>
+{% if shift_saved %}
+<div class="card mb-4" style="background: var(--color-success-soft); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-success); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;"
+     {% if shift_saved == 1 %}data-shift-saved="1"{% else %}data-shift-saved="{{ shift_saved }}"{% endif %}>
+  <small><strong>✓ Turno guardado:</strong> {{ shift_saved }} producto{{ '' if shift_saved == 1 else 's' }} registrado{{ '' if shift_saved == 1 else 's' }} en producción real.</small>
+  {# T-2026-10-04 (Tier 4-E): end-of-shift nudge to /ventas/nueva.
+     After saving, offer the cook a quick path to log the day's
+     sales — they're already at the laptop with the screen open. #}
+  <div class="flex-gap-2-wrap d-inline-flex" >
+    <a href="/ventas/nueva" class="btn btn-sm d-inline-flex"
+       style="display:inline-flex; align-items:center; gap: var(--space-1);"
+       title="Registrá una venta ahora que ya cerraste el turno">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      Registrá una venta
+    </a>
+    {# T-2026-10-04 (Tier 5-J): link to audit log filtered by production_shift. #}
+    <a href="/auditoria?target_type=production_shift"
+       class="btn btn-sm btn-ghost d-inline-flex"
+       style="display:inline-flex; align-items:center; gap: var(--space-1);"
+       title="Ver cambios recientes de producción en la auditoría">
+      <svg class="icon" aria-hidden="true"><use href="#icon-audit"/></svg>
+      Ver auditoría
+    </a>
+  </div>
+</div>
+{% endif %}
+{# T-2026-10-04 (Tier 5-K): warn the cook when their save stomped a
+   concurrent edit. Last-write-wins is still the rule (we don't
+   reject the save), but a soft warning nudges them to verify. #}
+{% if concurrent_modify %}
+<div class="card mb-4"
+     data-concurrent-modify="1"
+     data-concurrent-warn
+     style="background: var(--color-warning-soft, #fef3c7); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-warning, #f59e0b); display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+  <svg class="icon" aria-hidden="true"><use href="#icon-warning"/></svg>
+  <small>
+    <strong>Otro turno se actualizó mientras escribías.</strong>
+    Tus valores reemplazaron a los anteriores. Verificá que las cantidades
+    reales (columna <em>Real</em>) coincidan con lo que se hornó.
+  </small>
+  <a href="/produccion?for_date={{ for_date }}&view=day"
+     class="btn btn-sm btn-ghost d-inline-flex"
+     style="display:inline-flex; align-items:center; gap: var(--space-1);"
+     title="Recargá la página para ver los valores más recientes">
+    <svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>
+    Recargar
+  </a>
+</div>
+{% endif %}
+{# T-2026-10-04 (Tier 5-K): warn the cook when their save stomped a
+   concurrent edit. Last-write-wins is still the rule (we don't
+   reject the save), but a soft warning nudges them to verify. #}
+{% if concurrent_modify %}
+<div class="card mb-4"
+     data-concurrent-modify="1"
+     data-concurrent-warn
+     style="background: var(--color-warning-soft, #fef3c7); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-warning, #f59e0b); display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+  <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+  <small>
+    <strong>Otro turno se actualizó mientras escribías.</strong>
+    Tus valores reemplazaron a los anteriores. Verificá que las cantidades
+    reales (columna <em>Real</em>) coincidan con lo que se hornó.
+  </small>
+  <a href="/produccion?for_date={{ for_date }}&view=day"
+     class="btn btn-sm btn-ghost d-inline-flex"
+     style="display:inline-flex; align-items:center; gap: var(--space-1);"
+     title="Recargá la página para ver los valores más recientes">
+    <svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>
+    Recargar
+  </a>
+</div>
+{% endif %}
+{% if adhoc_added %}
+<div class="card mb-4" style="background: var(--color-info-soft); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-info);">
+  <small><strong>✓ Horneado extra agregado.</strong> Aparece abajo con badge naranja.</small>
+</div>
+{% endif %}
+{# PROD-MERMA-1: merma flash banner after a quick-merma POST from this page. #}
+{% if request.query_params.get('merma') == 'ok' %}
+{% set merma_lines = request.query_params.get('lines', '1')|int %}
+<div class="card mb-4" data-merma-flash style="background: var(--color-warning-soft, #fef3c7); padding: var(--space-2) var(--space-3); border-left: 4px solid var(--color-warning, #f59e0b);">
+  <small>
+    <strong>✓ Merma registrada:</strong>
+    {{ merma_lines }} línea{{ '' if merma_lines == 1 else 's' }} descontada{{ '' if merma_lines == 1 else 's' }} de stock.
+    <a href="/merma">Ver historial →</a>
+  </small>
+</div>
+
+{# T-2026-10-04 (P0:B.5): shift-save audio chime (from feat/phase-3-ci-cleanup;
+   the branch's duplicate second banner was dropped — the banner above already
+   shows the save confirmation). Muteable via localStorage `sazon.audio.muted=1`. #}
+{% if shift_saved and shift_saved > 0 %}
+<script>
+(function() {
+  // T-2026-10-04 (P0:B.5) — short audio chime on successful shift save.
+  // 880 Hz beep, 120 ms — audible over kitchen noise but not annoying.
+  // Skip if user has muted the app or prefers reduced motion.
+  try {
+    if (localStorage.getItem('sazon.audio.muted') === '1') return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    var ctx = new Ctx();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(1320, ctx.currentTime + 0.06);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.14);
+  } catch (e) {
+    // Audio chime is non-critical; silent on failure (iOS Safari, etc).
+  }
+})();
+</script>
+{% endif %}
+{% endif %}
+
+{% if plan_rows_view %}
+{# T-2026-10-04 (P2): confidence summary banner — show the cook how many
+   auto-suggestions need manual review. Click "Revisar" to filter the
+   table client-side (the implementation lives in the page header scripts).
+   The bands mirror the per-row pill colors so the eye maps them quickly.
+   2026-10-07c: collapsed by default — count is in the summary, no need to
+   see the full banner every time. #}
+{% if low_confidence_count > 0 %}
+<details class="notification-collapse notification-collapse--warning"
+         data-notification-section="data-confidence-summary-section">
+  <summary style="cursor: pointer; list-style: none; padding: var(--space-3) var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+    <span>
+      <strong>⚠️ {{ low_confidence_count }} producto{{ 's' if low_confidence_count != 1 else '' }} con baja confianza</strong>
+    </span>
+    <span style="display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap;">
+      <span class="confidence-pill conf-high" title="Alta confianza">{{ confidence_bands.high }} alta</span>
+      <span class="confidence-pill conf-medium">{{ confidence_bands.medium }} media</span>
+      <span class="confidence-pill conf-low">{{ confidence_bands.low }} baja</span>
+      {% if confidence_bands.no_data > 0 %}
+      <span class="confidence-pill conf-zero">{{ confidence_bands.no_data }} sin datos</span>
+      {% endif %}
+    </span>
+    <small class="text-muted">clic para detalles</small>
+  </summary>
+  <div class="card confidence-summary-banner"
+       style="background: var(--color-warn-soft); border-left: 4px solid var(--color-warning, #f59e0b); padding: var(--space-3) var(--space-4); margin: 0;"
+       data-confidence-summary
+       data-low="{{ low_confidence_count }}">
+    <p class="text-muted" style="margin: 0; font-size: var(--text-sm);">
+      Las cantidades son estimaciones. Revisá antes de hornear.
+    </p>
+  </div>
+</details>
+{% endif %}
+
+{# M4: visually separate the "X productos con baja confianza" warning
+   (yellow background) from the "Ayer hiciste" snapshot below it
+   (blue background). Without spacing, operators read both as one
+   sentence and get "8 productos con baja confianza en 7 productos"
+   — which makes no sense. The two banners are independent. #}
+<div class="conf-banner-divider" style="height: 1px; background: var(--color-border, #e5e7eb); margin: var(--space-4) 0;"></div>
+{# T-2026-10-04 (Tier 3-C): Yesterday snapshot.
+   Shows yesterday's actual production total so the cook has a
+   "ground truth" reference next to today's suggested quantities.
+   Hidden when yesterday had no data (cook hasn't run end-of-shift).
+   2026-10-07c: collapsed by default — count + reference on summary line. #}
+{% if yesterday_count > 0 %}
+<details class="notification-collapse notification-collapse--info"
+         data-notification-section="data-yesterday-snapshot-section">
+  <summary style="cursor: pointer; list-style: none; padding: var(--space-3) var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+    <span>
+      <strong>📅 Ayer hiciste: {{ "%.0f"|format(yesterday_total_qty) }} unidades</strong>
+      <span class="text-muted text-sm">en {{ yesterday_count }} producto{{ 's' if yesterday_count != 1 else '' }}</span>
+    </span>
+    <small class="text-muted">clic para abrir</small>
+  </summary>
+  <div class="card yesterday-snapshot"
+       style="background: var(--color-info-soft); border-left: 4px solid var(--color-info, #3b82f6); padding: var(--space-3) var(--space-4); margin: 0;"
+       data-yesterday-total="{{ yesterday_total_qty }}"
+       data-yesterday-count="{{ yesterday_count }}">
+    <p class="text-muted" style="margin: 0; font-size: var(--text-sm);">
+      Referencia para comparar con la sugerencia de hoy.
+    </p>
+  </div>
+</details>
+{% endif %}
+
+  </div>{# /.notifications-bundle__body #}
+</details>{# /.notifications-bundle #}
+
+<form method="post" action="/produccion/shift-execute" id="shift-form">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="for_date" value="{{ for_date }}">
+  {# T-2026-10-04 (D.2): preserve the shift context (AM|PM) across
+     the form submit so the cook lands back on the same shift after
+     saving. The shift-execute handler echoes it on the redirect. #}
+  {% if shift %}<input type="hidden" name="shift" value="{{ shift }}">{% endif %}
+  {# T-2026-10-04 (Tier 5-K): track form-open time so we can detect
+     concurrent edits (another cook saved while you were filling). #}
+  <input type="hidden" name="form_opened_at" id="form-opened-at" value="">
+  {# T-2026-10-04 (Tier 3-A): bulk "mark all done" action — visible
+     only when there are rows to mark. One click syncs every qty to its
+     target and checks the rows. #}
+  {% if plan_rows_view and not closed_day_active %}
+  {# V3: Marcar todos is a "set everything" power-tool, not the
+   primary action. Make it btn-ghost so the per-row +/- buttons
+   (the more common path) feel more prominent visually. #}
+  <div class="bulk-actions no-print"
+       style="display: flex; gap: var(--space-2); align-items: center; margin-bottom: var(--space-2); padding: var(--space-2); background: var(--color-surface-subtle, #f3f4f6); border-radius: var(--radius, 6px);">
+    <button type="button"
+            id="mark-all-btn"
+            class="btn btn-ghost btn-sm"
+            onclick="markAllDone()"
+            title="Marcá todas las cantidades como objetivo y tildá 'hecho'">
+      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+      Marcar todos como hecho
+    </button>
+    <strong class="bulk-action-primary">O usá los botones +/- por fila para ajustar de a 1.</strong>
+  </div>
+  {% endif %}
+
+  <section class="card mb-4">
+    <div class="card-header" style="display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-3);">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+        <div>
+          {# PRODUCCION-V2 Fase 2: the closure summary card above this block
+             already shows the "Ejecución del turno" title. The form below
+             continues that card's body — no duplicate h2. The plan_rows
+             view (grilla) renders in this card. #}
+          {# T-2026-10-04 (B.10): live count of visible products after the
+             difficulty filter. Updated by the JS at the bottom of this
+             file. The cook sees "8 / 12 productos" so they know how
+             many tasks are hidden by the current filter. #}
+          <small class="text-muted" data-difficulty-count
+                 style="display: block; margin-top: var(--space-1); font-size: var(--text-xs);">
+            {{ visible_rows | length }}{% if hidden_count %} +{{ hidden_count }} ocultos{% endif %} · {{ primary_rows | length }} / {{ plan_rows_view | length }} productos
+          </small>
+          {# T-2026-10-04 (D.5): keyboard shortcut hint. Shown only on
+             non-touch viewports (≥768px) via CSS, since mobile users
+             have no keyboard. The hint is small and tucked into the
+             section header so it doesn't compete with the day view. #}
+          <small class="text-muted kbd-hint no-print" data-kbd-hint
+                 style="display: inline-block; margin-top: var(--space-1); font-size: var(--text-xs); color: var(--color-text-muted);">
+            <kbd style="font-size:0.7rem;padding:1px 4px;">J</kbd>/<kbd style="font-size:0.7rem;padding:1px 4px;">K</kbd> navegar ·
+            <kbd style="font-size:0.7rem;padding:1px 4px;">O</kbd> override ·
+            <kbd style="font-size:0.7rem;padding:1px 4px;">C</kbd> cerrar día ·
+            <kbd style="font-size:0.7rem;padding:1px 4px;">?</kbd> ayuda
+          </small>
+        </div>
+        {# M7: client-side product name filter. Operators scanning 45+
+           products can type to narrow down. Pairs with the difficulty
+           filter (both apply). Defaults to empty (show all). #}
+        <input type="search" data-row-filter="products"
+               placeholder="Filtrar por nombre…"
+               aria-label="Filtrar productos por nombre"
+               style="margin: var(--space-2) 0; padding: 4px 8px; border-radius: var(--radius); border: 1px solid var(--color-border, #d1d5db); font-size: var(--text-sm); width: 12rem;">
+      </div>
+
+      {# 2026-10-07 table overhaul: filter chip groups above the table.
+         All state lives in URL params so the view is deep-linkable.
+         Each chip is a toggle (data-filter-group + data-filter-value). #}
+      <div class="filter-toolbar" style="display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center;">
+        {# Difficulty pills (existing — kept as the project's standard
+           filter row pattern). Persists via ?difficulty=<1-5|all>. #}
+        {% set diff = request.query_params.get('difficulty', 'all') %}
+        <div class="difficulty-filter" role="tablist" aria-label="Filtrar por dificultad"
+             style="display: inline-flex; gap: var(--space-1); padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius);">
+          {% for opt in [('all', 'Todas'), ('1', '⭐'), ('2', '⭐⭐'), ('3', '⭐⭐⭐'), ('4', '⭐⭐⭐⭐'), ('5', '⭐⭐⭐⭐⭐')] %}
+          <a href="?for_date={{ for_date }}&view=day&difficulty={{ opt[0] }}{% if shift %}&shift={{ shift }}{% endif %}"
+             class="btn btn-sm {% if diff == opt[0] %}btn-primary{% else %}btn-ghost{% endif %}"
+             role="tab" aria-selected="{{ 'true' if diff == opt[0] else 'false' }}"
+             data-difficulty-filter="{{ opt[0] }}">{{ opt[1] }}</a>
+          {% endfor %}
+          <span class="difficulty-legend-hint" aria-label="Leyenda"
+                title="Las estrellas indican la dificultad de la receta (1 = muy fácil, 5 = muy difícil). Útil para elegir qué hornear cuando estás cansado/a."
+                style="margin-left: var(--space-2); font-size: var(--text-xs); color: var(--color-muted); cursor: help; user-select: none;">
+            ⭐ = dificultad de la receta (1 fácil → 5 difícil)
+          </span>
+        </div>
+
+        {# Allergen chips — multi-select. operator picks 1+ allergens;
+           rows must contain at least one (union semantics). #}
+        <div class="filter-group" data-filter-allergen
+             style="display: inline-flex; gap: var(--space-1); align-items: center;">
+          <small class="text-muted" style="font-size: var(--text-xs); margin-right: 2px;">Alérgenos:</small>
+          {{ m.filter_chip("filter_allergen", "gluten", "🌾 Gluten", active_filters.allergen) }}
+          {{ m.filter_chip("filter_allergen", "dairy",  "🥛 Lácteos", active_filters.allergen) }}
+          {{ m.filter_chip("filter_allergen", "eggs",   "🥚 Huevo", active_filters.allergen) }}
+          {{ m.filter_chip("filter_allergen", "nuts",   "🥜 Frutos secos", active_filters.allergen) }}
+        </div>
+
+        {# Source bucket chips — 4 sources. Toggle to scope the view to
+           "solo lo que viene del historial" or similar. #}
+        <div class="filter-group" data-filter-source
+             style="display: inline-flex; gap: var(--space-1); align-items: center;">
+          <small class="text-muted" style="font-size: var(--text-xs); margin-right: 2px;">Origen:</small>
+          {{ m.filter_chip("filter_source", "historial",      "📊 Historial", active_filters.source) }}
+          {{ m.filter_chip("filter_source", "receta",         "📋 Receta", active_filters.source) }}
+          {{ m.filter_chip("filter_source", "override",       "✋ Manual", active_filters.source) }}
+          {{ m.filter_chip("filter_source", "horneado-extra", "➕ Extra", active_filters.source) }}
+        </div>
+
+        {# Inline scope toggles (single-select semantically — clicking
+           again clears). Compute the active-state set so Jinja doesn't
+           have to parse the `X and Y or Z` ternary (it confuses the lexer). #}
+        {% set _ped_set = ["1"] if active_filters.with_pedidos == "1" else [] %}
+        {% set _hecho_set = ["1"] if active_filters.with_hecho == "1" else [] %}
+        {% set _surplus_set = ["1"] if active_filters.with_surplus == "1" else [] %}
+        <div class="filter-group" style="display: inline-flex; gap: var(--space-1); align-items: center;">
+          <small class="text-muted" style="font-size: var(--text-xs); margin-right: 2px;">Sólo:</small>
+          {{ m.filter_chip("filter_with_pedidos", "1", "con pedidos", _ped_set) }}
+          {{ m.filter_chip("filter_with_hecho",   "1", "hecho > 0",   _hecho_set) }}
+          {{ m.filter_chip("filter_with_surplus", "1", "sobrante alto", _surplus_set) }}
+        </div>
+
+        {# Page-size + clear-all. #}
+        <div class="filter-group" style="display: inline-flex; gap: var(--space-1); align-items: center; margin-left: auto;">
+          <small class="text-muted" style="font-size: var(--text-xs);">Filas:</small>
+          {% for n in [10, 15, 20, 30, 50, 100] %}
+          <a href="?for_date={{ for_date }}&view=day&rows={{ n }}{% if shift %}&shift={{ shift }}{% endif %}"
+             class="filter-chip {% if rows_per_page == n %}filter-chip--on{% endif %}"
+             data-rows="{{ n }}"
+             title="Mostrar {{ n }} filas">{{ n }}</a>
+          {% endfor %}
+          {% if active_filters.allergen or active_filters.source or active_filters.with_pedidos or active_filters.with_hecho or active_filters.with_surplus %}
+          <a href="?for_date={{ for_date }}&view=day{% if shift %}&shift={{ shift }}{% endif %}"
+             class="filter-clear" data-filter-clear
+             style="margin-left: var(--space-2); font-size: var(--text-xs); color: var(--color-danger); text-decoration: underline;">
+            Limpiar filtros
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  {# C1: Right-edge overflow fix. The products table has 9 columns
+   (Listo, Producto, Demanda, Meta, Pedidos, Lote final, Hecho,
+   Origen, Receta, Sobrante, Cierre). On viewports <1100px the
+   rightmost columns (Sobrante, Cierre) get clipped. Wrap in
+   `overflow-x: auto` so the user can scroll horizontally inside
+   the table card without losing the page header context.
+   2026-10-07: also cap max-height + sticky thead so 43 rows fit
+   without scrolling the whole page (operator feedback). #}
+  <div class="production-table-scroll" data-production-table-scroll>
+    <table class="table is-hoverable align-middle production-table" data-difficulty-active="{{ diff }}">
+      <thead>
+        <tr>
+          <th style="width: 2.5rem;"><span class="th-sort th-sort--readonly" aria-label="Marcar hecho">Listo</span></th>
+          <th>{{ m.sort_th("Producto", "product", current_sort, current_dir) }}</th>
+          {# 2026-10-07: Dificultad is its own sortable column (was inline
+             in the Producto cell). #}
+          <th class="num" style="width: 5rem;">{{ m.sort_th("Dificultad", "difficulty", current_sort, current_dir) }}</th>
+          <th class="num" style="width: 5.5rem;">{{ m.sort_th("Demanda", "demand", current_sort, current_dir) }}</th>
+          <th class="num" style="width: 4.5rem;">{{ m.sort_th("Lotes", "meta", current_sort, current_dir) }}</th>
+          <th class="num" style="width: 3.5rem;">{{ m.sort_th("Pedidos", "pedidos", current_sort, current_dir) }}</th>
+          <th class="num" style="width: 4.5rem;">{{ m.sort_th("Lote final", "lote", current_sort, current_dir) }}</th>
+          <th class="num" style="width: 7rem;">{{ m.sort_th("Hecho", "hecho", current_sort, current_dir) }}</th>
+          {# Origen — short label, single tooltip link explains all bands. The
+             cell now shows the numeric score (e.g. "67%") not a "?". #}
+          <th style="width: 3.5rem;">
+            <span class="th-sort th-sort--readonly" title="Origen (mouseover para detalle)" aria-label="Origen">Origen</span>
+            <a href="#confidence-modal" data-confidence-help class="confidence-help" title="¿Qué significa el porcentaje?">?</a>
+          </th>
+          <th style="width: 6rem;">Receta</th>
+          <th class="num" style="width: 4.5rem;">{{ m.sort_th("Sobrante", "sobrante", current_sort, current_dir) }}</th>
+          {# Cierre — hidden on print. #}
+          <th class="no-print" style="width: 8rem;">{{ m.sort_th("Cierre", "closure", current_sort, current_dir) }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {# 2026-10-07: iterate over visible_rows (sorted + filtered + capped).
+           Zero-demand rows still surface in the <details> below. #}
+      {% for r in visible_rows %}
+        <tr class="production-row {% if r.is_ad_hoc %}production-row--adhoc{% endif %} {% if r.pending_pedido_qty > 0 %}production-row--has-pedido{% endif %}"
+            data-product-id="{{ r.product_id }}"
+            data-product-name="{{ r.product_name|e }}"
+            data-difficulty="{{ r.recipe_difficulty or 0 }}"
+            {% if r.is_ad_hoc %}data-ad-hoc="1"{% endif %}>
+          <td data-label="Listo">
+            <input type="checkbox" name="done_{{ r.product_id }}" value="1"
+                   class="shift-checkbox"
+                   {% if r.completed_qty > 0 %}checked{% endif %}
+                   onchange="toggleRowComplete(this)"
+                   aria-label="Marcar {{ r.product_name }} como hecho">
+          </td>
+          <td class="font-bold product-name" data-label="Producto">
+            {{ r.product_name }}
+            {% if r.is_ad_hoc %}<span class="badge badge-warning" title="Horneado no planeado">Extra</span>{% endif %}
+            {# T-2026-10-05 (B.3): fermentation reminder. Actionable
+               timing info, kept here intentionally. #}
+            {% if r.fermentation_reminder %}
+              {% set fr = r.fermentation_reminder %}
+              <span class="badge fermentation-pill"
+                    data-fermentation-minutes="{{ fr.fermentation_minutes }}"
+                    data-fermentation-start="{{ fr.start_at }}"
+                    title="Fermentar {{ fr.fermentation_hours }}h: empezar {{ fr.start_label }} ({{ 'ayer ' if fr.days_before > 0 else '' }}{{ fr.start_label }}) para que esté lista a las {{ fr.ready_label }} (inicio del turno).">
+                🍞 Fermentar {{ fr.fermentation_hours }}h — empezar {{ 'ayer ' if fr.days_before > 0 else '' }}{{ fr.start_label }}
+              </span>
+            {% endif %}
+          </td>
+          {# 2026-10-07 NEW column — Dificultad (stars 1-5). #}
+          <td class="num" data-label="Dificultad">
+            {% if r.is_ad_hoc %}
+              <span class="text-muted">—</span>
+            {% elif r.recipe_difficulty %}
+              <span class="difficulty-stars difficulty-{{ r.recipe_difficulty }}"
+                    title="Dificultad {{ r.recipe_difficulty }}/5"
+                    aria-label="Dificultad {{ r.recipe_difficulty }} de 5">
+                {% for i in range(r.recipe_difficulty) %}★{% endfor %}{% for i in range(5 - r.recipe_difficulty) %}<span class="difficulty-star--off">★</span>{% endfor %}
+              </span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="num" data-label="Demanda">
+            {% set d_total = r.qty_demand_total | default(0) %}
+            {% if d_total > 0 %}
+              <strong>{{ "%.0f"|format(d_total) }}</strong>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="num" data-label="Lotes">
+            {% if r.is_ad_hoc %}
+              <span class="text-muted">—</span>
+            {% else %}
+              {# C3: META visual hierarchy — big number = BATCH COUNT.
+                 Yield info moved to tooltip (cell stays scannable). #}
+              <div class="meta-cell"
+                   {% if r.batch_qty and r.batch_qty != 1 %}title="{{ r.qty_to_produce | int }} lote{{ '' if r.qty_to_produce | int == 1 else 's' }} × {{ r.batch_qty | int }}{{ r.batch_unit or 'und' }} = {{ (r.qty_to_produce * r.batch_qty) | int }} und"{% endif %}>
+                <span class="meta-cell__count">{{ "%.0f"|format(r.qty_to_produce) }}</span>
+                <span class="meta-cell__unit text-muted">lote{{ r.qty_to_produce | int != 1 and 's' or '' }}</span>
+              </div>
+            {% endif %}
+          </td>
+          <td class="num" data-label="Pedidos">
+            {% if r.pending_pedido_qty > 0 %}
+              <span class="badge badge-info pedido-qty" title="{{ "%.0f"|format(r.pending_pedido_qty) }} und comprometidas por pedidos para hoy">+{{ "%.0f"|format(r.pending_pedido_qty) }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="num" data-label="Lote final">
+            {% set total_bake = (r.qty_to_produce or 0) + (r.pending_pedido_qty or 0) %}
+            {% if total_bake > 0 %}
+              <strong>{{ "%.0f"|format(total_bake) }}</strong>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="num" data-label="Hecho">
+            {# T-2026-10-04 (P2, Tier-3-A): stepper buttons +/− around qty input.
+                 The cook can tap instead of typing. Client-side only;
+                 data-target-qty holds the row's planned qty for "mark all". #}
+            <div class="qty-stepper" data-target-qty="{{ r.qty_to_produce or 0 }}" data-product-id="{{ r.product_id }}">
+              <button type="button" class="step-btn step-down"
+                      data-step="down"
+                      aria-label="Restar 1 a {{ r.product_name }}"
+                      onclick="stepRow(this, -1)">
+                <svg class="icon" aria-hidden="true"><use href="#icon-minus"/></svg>
+              </button>
+              <input type="number" name="completed_{{ r.product_id }}"
+                     class="progress-input"
+                     value="{{ "%.1f"|format(r.completed_qty or 0) }}"
+                     min="0" step="0.5"
+                     style="width: 70px; padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"
+                     aria-label="Cantidad hecha de {{ r.product_name }}">
+              <button type="button" class="step-btn step-up"
+                      data-step="up"
+                      aria-label="Sumar 1 a {{ r.product_name }}"
+                      onclick="stepRow(this, +1)">
+                <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+              </button>
+            </div>
+          </td>
+          {# 2026-10-07: compact origen — colored dot + title (no long text). #}
+          <td data-label="Origen">
+            {% set bucket = r.source_bucket | default('historial') %}
+            <span class="source-dot source-dot--{{ bucket }}"
+                  title="{{ source_buckets[bucket] }}"
+                  aria-label="{{ source_buckets[bucket] }}"></span>
+            {% if not r.is_ad_hoc %}
+              <span class="confidence-band__score confidence-band__score--{{ r.confidence_band }}"
+                    title="Confianza del cálculo: {{ r.confidence_pct }}%. Bajo = se queda cerca de la meta; Medio = puede variar ±10%; Alto = conviene revisar">{{ r.confidence_pct }}%</span>
+            {% else %}
+              <span class="confidence-band__score confidence-band__score--manual"
+                    title="Producto manual: no hay cálculo automático. Marcá la cantidad a hornear a ojo.">a ojo</span>
+            {% endif %}
+          </td>
+          <td data-label="Receta">
+            {% if r.recipe_id %}
+            <a href="/recetas/{{ r.recipe_id }}" class="btn btn-sm">Ver</a>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+            {# PROD-MERMA-1: per-row 🔥 Merma trigger (kept icon-only to
+               save column width). #}
+            <button type="button" class="btn btn-sm btn-ghost"
+                    data-quick-merma
+                    data-recipe-id="{{ r.recipe_id or '' }}"
+                    data-product-name="{{ r.product_name }}"
+                    onclick="openQuickMerma(this)"
+                    title="Registrar merma para {{ r.product_name }}"
+                    style="margin-left: var(--space-1);">
+              🔥
+            </button>
+          </td>
+          {# T-2026-10-05 (B.9): batch-surplus cell.
+             Tiers (2026-10-07 round-2): gray for tolerable (≤20%),
+             amber for moderate (20-100%), orange for excessive (>100%).
+             Red is reserved for system errors. Adds a stacked-box icon
+             for at-a-glance density scan. #}
+          <td class="num" data-label="Sobrante">
+            {% if r.batch_surplus_qty is not none %}
+              {% if r.batch_surplus_qty == 0 %}
+                <span class="text-muted" title="Lote exacto (sin sobrante)">✓</span>
+              {% else %}
+                {% set tier = "tier-high" if r.batch_surplus_pct > 100 else ("tier-med" if r.batch_surplus_pct > 20 else "tier-low") %}
+                {% set boxes = "▪▪▪▪" if r.batch_surplus_pct > 100 else ("▪▪▪" if r.batch_surplus_pct > 50 else ("▪▪" if r.batch_surplus_pct > 20 else "▪")) %}
+                <span class="surplus-pill surplus-{{ tier }}"
+                      title="{{ r.batch_surplus_qty | int }} und extra ({{ r.batch_surplus_pct }}% sobre la demanda)">
+                  <span class="surplus-pill__boxes" aria-hidden="true">{{ boxes }}</span>
+                  <span class="surplus-pill__num">+{{ r.batch_surplus_qty | int }}</span>
+                </span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          {# PRODUCCION-V2 Fase 2: per-row "Cerrar turno" button. Hidden on print. #}
+          <td class="num no-print closure-cell" data-label="Cierre">
+            {% set cs = r.closure_status | default('open') %}
+            {% if cs == 'done' %}
+              <span class="closure-pill closure-done" title="Cerrado como hecho. {{ r.closure_notes or '' }}">✅</span>
+              <button type="button" class="btn btn-ghost btn-sm closure-btn"
+                      data-action="reopen-day"
+                      data-product-id="{{ r.product_id }}"
+                      data-product-name="{{ r.product_name }}"
+                      title="Reabrir este producto (corrección de cierre)">
+                Reabrir
+              </button>
+            {% elif cs == 'cancelled' %}
+              <span class="closure-pill closure-cancelled" title="Cerrado como no-horneado. {{ r.closure_notes or '' }}">⊘</span>
+              <button type="button" class="btn btn-ghost btn-sm closure-btn"
+                      data-action="reopen-day"
+                      data-product-id="{{ r.product_id }}"
+                      data-product-name="{{ r.product_name }}">
+                Reabrir
+              </button>
+            {% else %}
+              <button type="button" class="btn btn-primary btn-sm closure-btn"
+                      data-action="close-day"
+                      data-product-id="{{ r.product_id }}"
+                      data-product-name="{{ r.product_name }}"
+                      data-completed-qty="{{ r.completed_qty or 0 }}"
+                      title="Marcar este producto como cerrado para el turno">
+                Cerrar turno
+              </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {# 2026-10-07 round 2: pagination footer — never cap total products.
+       Operator feedback: 'I don't want to limit the total — only per page.'
+       Three controls: (a) "Mostrar N más" appends to current page size,
+       (b) "Mostrar todas" flips show_all=1 to disable pagination entirely,
+       (c) page-number links (when N > rows*2). All preserve the active
+       sort + filter state via m.url_with_filters(). #}
+    {% if primary_rows %}
+    <div class="production-table-footer">
+      {% set page_rows = visible_rows | length %}
+      <span class="production-table-footer__summary">
+        {% if show_all %}
+          Mostrando <strong>{{ primary_rows | length }}</strong> filas (sin paginar).
+        {% else %}
+          Mostrando <strong>{{ page_rows }}</strong> de <strong>{{ primary_rows | length }}</strong> filas
+          · página <strong>{{ current_page }}</strong> / <strong>{{ total_pages }}</strong>.
+        {% endif %}
+      </span>
+      <span class="production-table-footer__actions">
+        {# (a) Next page link — only when there's a real next page. #}
+        {% if not show_all and current_page < total_pages %}
+          <a class="filter-chip" href="{{ m.url_with_filters(request, {'page': current_page + 1}) }}">
+            Siguiente {{ rows_per_page }} →
+          </a>
+        {% endif %}
+        {# (b) Show all (escape hatch). #}
+        {% if not show_all and primary_rows | length > rows_per_page %}
+          <a class="filter-chip filter-chip--accent" data-show-all
+             href="{{ m.url_with_filters(request, {'show_all': 1}) }}">
+            Mostrar todas ({{ primary_rows | length }})
+          </a>
+        {% elif show_all %}
+          <a class="filter-chip" href="{{ m.url_with_filters(request, {'page': 1, 'show_all': None}) }}">
+            Volver a paginar
+          </a>
+        {% endif %}
+      </span>
+    </div>
+    {% endif %}
+  </div>{# /.production-table-scroll — C1 right-edge overflow fix #}
+
+  {# M2: zero-demand rows (template/manual/override with no recent
+     rolling-avg demand and no pending pedidos). Hidden behind a
+     <details> toggle so the operator can review them when needed
+     but they're not in the main scroll path. #}
+  {% if zero_demand_rows %}
+  <details class="zero-demand-block mt-3" >
+    <summary style="cursor: pointer; padding: var(--space-2) var(--space-3); background: var(--color-surface-subtle, #f3f4f6); border-radius: var(--radius); font-weight: 600; color: var(--color-text);">
+      📋 Sin demanda reciente — {{ zero_demand_rows|length }} producto{{ '' if zero_demand_rows|length == 1 else 's' }}
+      <small class="text-muted" style="font-weight: 400; margin-left: var(--space-2);">
+        (de la plantilla semanal — abrí para revisar)
+      </small>
+    </summary>
+    <div style="margin-top: var(--space-2); overflow-x: auto;">
+      <table class="table is-hoverable is-striped text-sm" >
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th class="num">Meta</th>
+            <th class="num">Pedidos</th>
+            <th>Origen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in zero_demand_rows %}
+          <tr data-product-id="{{ r.product_id }}">
+            <td><strong>{{ r.product_name }}</strong></td>
+            <td class="num">{{ "%.0f"|format(r.qty_to_produce) }} {{ r.batch_unit or 'und' }}</td>
+            <td class="num">{{ "%.0f"|format(r.pending_pedido_qty or 0) }}</td>
+            <td><small class="text-muted">{{ source_labels.get(r.forecast_source, r.forecast_source) }}</small></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% endif %}
+
+    {# PRODUCCION-V3 Phase 2: source legend. Shows what each of the 4
+         bucket colors means. Cooks don't have to hover or guess.
+         Rendered INSIDE the {% if plan_rows_view %} guard (which
+         closes at line 1068) so it only shows when there's a plan
+         to read. Cooks see the legend once they add rows. #}
+    <div class="source-legend" aria-label="Leyenda de origen de la sugerencia">
+      {% for key, label in source_buckets.items() %}
+      <span class="source-legend__item">
+        <span class="source-bucket source-bucket--{{ key }}">{{ label }}</span>
+      </span>
+      {% endfor %}
+      <span class="source-legend__item">
+        <a href="#confidence-modal" class="confidence-help" data-band="conf-high"
+           title="¿Qué es el porcentaje de confianza?">? = confianza</a>
+      </span>
+    </div>
+
+    <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; padding-top: var(--space-3); border-top: 1px solid var(--color-border); margin-top: var(--space-3); gap: var(--space-3); flex-wrap: wrap;">
+      <small class="text-muted">
+        Se guarda como <strong>producción real</strong> (no override del plan). Aparece en
+        <a href="/eod">/eod</a> y en el reporte de cierre.
+      </small>
+      <button type="submit" class="btn btn-primary">
+        <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+        Guardar ejecución del turno
+      </button>
+    </div>
+  </section>
+</form>
+
+{# ── Ad-hoc bake entry (Sprint 4) ── #}
+{# PRODUCCION-V3 Phase 4: prominent ad-hoc card. The audit (H4, M6)
+   found the "Horneado extra" button was easy to miss — same visual
+   weight as the CSV paste. Now the primary button is accent-colored,
+   the ad-hoc count from the day is shown inline, and the card is
+   positioned right after the source legend so the cook sees it
+   after reading the table. #}
+<section class="card mb-4 no-print" data-adhoc-card>
+  <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); gap: var(--space-3); flex-wrap: wrap;">
+    <div>
+      <h2 class="card-title" style="margin: 0; font-size: var(--text-lg);">
+        🟧 Horneado extra
+        {% if day_adhoc_count and day_adhoc_count > 0 %}
+        <span class="badge badge-warn" style="margin-left: var(--space-2); font-size: var(--text-xs);"
+              title="{{ day_adhoc_count }} horneado(s) extra ya agregado(s) hoy"
+              data-adhoc-count>
+          {{ day_adhoc_count }} hoy
+        </span>
+        {% endif %}
+      </h2>
+      {# V7: flex-wrap so long description doesn't overflow on narrow
+         viewports. #}
+      <p class="text-muted" style="font-size: var(--text-xs); margin: var(--space-1) 0 0 0; max-width: 60ch;">
+        Para cuando horneás algo no planeado: un walk-in, una decisión de último momento,
+        sobras que decidiste usar. Aparece abajo en la tabla con badge naranja.
+      </p>
+    </div>
+    <div class="flex-gap-2-wrap" >
+      <button type="button" class="btn btn-primary"
+              data-action="open-adhoc-modal">
+        + Agregá horneado extra
+      </button>
+      {# T-2026-10-05 (B.7): Bulk-CSV upload. Opens a paste-many modal
+         so the operator can paste 8-12 walk-in rows in one go instead
+         of clicking through the single-row form 12 times. Saves ~35s
+         per busy Saturday. The button keeps no-print (B.7 invariant
+         enforced by tests/test_produccion_bulk_adhoc_csv.py) even
+         though the parent section is also no-print — defense in depth
+         so the button never appears on a paper plan. #}
+      <button type="button" class="btn btn-ghost no-print" data-action="open-adhoc-bulk">
+        📋 Pegá varios (CSV)
+      </button>
+    </div>
+  </div>
+</section>
+
+<dialog id="adhoc-bulk-modal" style="border: none; border-radius: 8px; padding: 0; max-width: 640px; box-shadow: var(--shadow-lg);">
+  <form method="post" action="/produccion/ad-hoc/bulk" style="padding: var(--space-4);">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="for_date" value="{{ for_date }}">
+    <h3 style="margin: 0 0 var(--space-3) 0;">📋 Pegá varios horneados extra (CSV)</h3>
+    <p class="text-muted" style="font-size: var(--text-xs); margin-bottom: var(--space-3);">
+      Una línea por horneado: <code>product_id,cantidad,nota</code>.
+      La cabecera es opcional. <strong>Max 200 filas</strong> por lote.
+      Líneas inválidas se omiten con aviso — no rompen el lote entero.
+    </p>
+    <details class="mb-3" >
+      <summary style="cursor: pointer; font-weight: 600;">🔍 ¿Cómo encuentro el product_id?</summary>
+      <div style="margin-top: var(--space-2); font-size: var(--text-xs);">
+        <p>Ejemplo (sin cabecera, con notas):</p>
+        <pre style="background: var(--color-muted); padding: 8px; border-radius: 4px;">42,1.5,Cliente cumpleañero
+16,2.0,
+12,3.0,Sobrante de masa</pre>
+      </div>
+    </details>
+    <label class="block-bold" for="adhoc-bulk-csv" >CSV</label>
+    <textarea name="csv" id="adhoc-bulk-csv" required rows="10"
+              style="width: 100%; font-family: monospace; font-size: 13px;"
+              placeholder="42,1.5,Cliente VIP&#10;16,2.0,&#10;12,3.0,Sobrante"></textarea>
+    <div class="form-row" style="display: flex; gap: var(--space-2); margin-top: var(--space-3); justify-content: flex-end;">
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('adhoc-bulk-modal').close()">Cancelar</button>
+      <button type="submit" class="btn btn-secondary">Importar {{ for_date }}</button>
+    </div>
+  </form>
+</dialog>
+
+{# T-2026-10-06d: ad-hoc modal MOVED to AFTER the day-view {% endif %}
+   so the empty-state CTA can open it even when plan_rows_view is empty.
+   Was inside the {% if plan_rows_view %} guard — didn't render on
+   quiet days, so the "+ Agregá producto al plan" button did nothing. #}
+
+{% else %}
+<div class="card empty-state-cold-start" data-cold-start="{{ cold_start_kind or 'unknown' }}"
+     style="background: var(--color-warn-soft); border-left: 4px solid var(--color-warning, #f59e0b); padding: var(--space-4); margin-bottom: var(--space-4);">
+  {# T-2026-10-06d: when the operator has zero rows, give them a direct
+   way to add their FIRST product via the existing ad-hoc modal
+   (POST /produccion/ad-hoc). Previously the only path was waiting
+   for sales history or URL-hacking /produccion/ad-hoc.
+   T-2026-10-06c white-on-white fix: hard #111827 not var() because
+   CSS fallbacks are ignored when --color-text is defined. #}
+{% if cold_start_kind == "no_sales" %}
+    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem; color: #111827;">Aún no hay ventas registradas</h3>
+    <p style="margin: 0 0 var(--space-3) 0; color: #111827;">
+      El plan automático se basa en tus ventas pasadas. Mientras tanto, podés
+      definir un plan recurrente para cada día de la semana, registrar tu
+      primera venta, o <strong>agregar un producto manualmente al plan de hoy</strong>.
+    </p>
+    <div class="flex-gap-2-wrap" >
+      <button type="button" class="btn btn-primary" data-action="open-adhoc-modal"
+              title="Elegí un producto y la cantidad a producir hoy">
+        + Agregá producto al plan
+      </button>
+      <a href="/produccion/manana" class="btn btn-secondary">
+        Crear plan para mañana
+      </a>
+      <a href="/ventas/nueva" class="btn btn-ghost">
+        Registrar primera venta
+      </a>
+    </div>
+    {# T-2026-10-04 (Tier 4-G): quick-seed list.
+       Top-N products with one-click "venta de 1 unidad" CTA.
+       Reduces friction vs going into /ventas/nueva and searching. #}
+    {% if seed_products %}
+    <div class="quick-seed d-block" data-quick-seed
+         style="margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--color-border);">
+      <small class="text-muted d-block" style="display:block; margin-bottom: var(--space-2);">
+        O registrá 1 venta rápida de un producto:
+      </small>
+      <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+        {% for sp in seed_products %}
+        <a href="/ventas/nueva?product_id={{ sp.product_id }}&qty=1"
+           class="btn btn-sm btn-ghost quick-seed-btn"
+           data-product-id="{{ sp.product_id }}"
+           title="Registrar 1 venta de {{ sp.product_name }}">
+          +1 {{ sp.product_name }}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  {% elif cold_start_kind == "no_template" %}
+    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem; color: #111827;">Sin plantilla semanal</h3>
+    <p style="margin: 0 0 var(--space-3) 0; color: #111827;">
+      Hay ventas registradas pero todavía no guardaste una plantilla recurrente
+      por día de la semana. El plan se calcula solo con promedio de 14 días.
+      <strong>Mientras tanto, podés agregar un producto al plan de hoy.</strong>
+    </p>
+    <div class="flex-gap-2-wrap" >
+      <button type="button" class="btn btn-primary" data-action="open-adhoc-modal"
+              title="Elegí un producto y la cantidad a producir hoy">
+        + Agregá producto al plan
+      </button>
+      <a href="/produccion/manana" class="btn btn-secondary">
+        Crear plantilla ahora
+      </a>
+    </div>
+  {% elif cold_start_kind == "cold_plan" %}
+    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem; color: #111827;">Plan frío (datos insuficientes)</h3>
+    <p style="margin: 0 0 var(--space-3) 0; color: #111827;">
+      Todos los productos aparecen con cantidad 1 porque hay menos de 14 días
+      de historial. Ajustá manualmente o esperá más ventas para que el promedio
+      se estabilice.
+    </p>
+    <div class="flex-gap-2-wrap" >
+      <button type="button" class="btn btn-primary" data-action="open-adhoc-modal"
+              title="Elegí un producto y la cantidad a producir hoy">
+        + Agregá producto al plan
+      </button>
+      <a href="/produccion/manana" class="btn btn-secondary">
+        Ajustar plan para hoy
+      </a>
+    </div>
+  {% elif cold_start_kind == "no_rows" %}
+    <h3 style="margin: 0 0 var(--space-2) 0; font-size: 1rem; color: #111827;">Plan vacío (cantidades en cero)</h3>
+    <p style="margin: 0 0 var(--space-3) 0; color: #111827;">
+      Hay productos en el plan pero con cantidad 0. Ajustá las cantidades
+      para activar la producción de hoy.
+    </p>
+    <div class="flex-gap-2-wrap" >
+      <button type="button" class="btn btn-primary" data-action="open-adhoc-modal"
+              title="Elegí un producto y la cantidad a producir hoy">
+        + Agregá producto al plan
+      </button>
+      <a href="/produccion/manana" class="btn btn-secondary">
+        Ajustar cantidades
+      </a>
+    </div>
+  {% else %}
+    {# T-2026-10-06 (UX polish): the bare `<p class="empty">` was muted
+       and hard to see on dark theme. Promote to a visible card with
+       info-soft background matching the top empty-state.
+
+       T-2026-10-06c: hard #111827 (not var(--color-text, #111827))
+       because CSS fallbacks are ignored when the var is defined.
+
+       T-2026-10-06d: added CTA to open ad-hoc modal so the operator
+       can add their first row even when cold_start_kind is unknown. #}
+    <div style="margin: 0; padding: var(--space-3); background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6); border-radius: 4px;">
+      <strong style="color: #111827;">📭 No hay producción planificada.</strong>
+      <p style="margin: var(--space-2) 0; color: #111827;">
+        Verificá que haya ventas registradas en los últimos 14 días, copiá un plan
+        anterior, o agregá un producto manualmente para arrancar.
+      </p>
+      <div style="display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2);">
+        <button type="button" class="btn btn-primary" data-action="open-adhoc-modal"
+                title="Elegí un producto y la cantidad a producir hoy">
+          + Agregá producto al plan
+        </button>
+        <a href="/produccion/copy-last-week" class="btn btn-secondary">
+          📋 Copiar plan
+        </a>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endif %}
+{# /PROD-MERMA-1: end of plan-rows block #}
+
+{# ── Quick Merma Modal (PROD-MERMA-1) ──
+   Rendered OUTSIDE the {% if plan_rows_view %} guard so it's available
+   even on quiet days — the trigger buttons live inside the table above
+   and the deficit-prompt below can also open it.
+   PROD-MERMA-2: added role="dialog" + aria-modal="true" + aria-labelledby
+   for screen-reader semantics. Browser-native <dialog> handles Esc-to-close
+   and focus trap, but we still emit the ARIA roles for older AT. #}
+<dialog id="quick-merma-modal" role="dialog" aria-modal="true" aria-labelledby="qm-title" style="border: none; border-radius: 8px; padding: 0; max-width: min(540px, 95vw); box-shadow: var(--shadow-lg);">
+  <form method="post" id="quick-merma-form" style="padding: var(--space-4);">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="source" value="production">
+    <input type="hidden" name="recipe_id" id="qm-recipe-id" value="">
+    <input type="hidden" name="product_label" id="qm-product-label" value="">
+
+    <h3 id="qm-title" style="margin: 0 0 var(--space-2) 0;">🔥 Merma — <span id="qm-product-name">producto</span></h3>
+    <p class="text-muted d-inline-flex" style="margin: 0 0 var(--space-3) 0; font-size: var(--text-sm);">
+      Anotá lo que se perdió. Para un lote entero usá la pestaña <em>Lote entero</em>.
+    </p>
+
+    {# Tab switcher (vanilla, no JS framework) #}
+    <div class="d-inline-flex" role="tablist" style="display:inline-flex; gap: 2px; padding: 2px; background: var(--color-surface-subtle); border-radius: var(--radius); margin-bottom: var(--space-3);">
+      <button type="button" role="tab" aria-selected="true" id="qm-tab-ingredient"
+              onclick="qmSwitchTab('ingredient')"
+              class="btn btn-sm btn-primary">Ingrediente suelto</button>
+      <button type="button" role="tab" aria-selected="false" id="qm-tab-recipe"
+              onclick="qmSwitchTab('recipe')"
+              class="btn btn-sm btn-ghost" disabled id="qm-tab-recipe-btn">Lote entero</button>
+    </div>
+
+    {# ── Ingrediente suelto (default tab) ── #}
+    <div id="qm-panel-ingredient" data-qm-panel="ingredient">
+      <div class="form-row mb-3" >
+        <label class="block-bold" for="qm-ingredient" >Ingrediente</label>
+        {{ ui.combo_field(
+          name='ingredient_id',
+          placeholder='Escribí el ingrediente (harina, aceite…)',
+          endpoint='/inventario/api/search?q=',
+          value_field='id',
+          label_field='name',
+        ) }}
+      </div>
+      <div class="form-row" style="margin-bottom: var(--space-3); display:flex; gap: var(--space-2);">
+        <div style="flex:2;">
+          <label class="block-bold w-100" for="qm-qty" >Cantidad</label>
+          <input type="number" name="qty" id="qm-qty" required step="0.01" min="0.01" max="9999"
+                 style="width:100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;">
+        </div>
+        <div class="flex-1" >
+          <label class="block-bold" for="qm-qty-unit" >Unidad</label>
+          {{ ui.combo_field(
+            name='qty_unit',
+            placeholder='Unidad',
+            endpoint='/recetas/api/units?q=',
+            value_field='value',
+            label_field='display',
+          ) }}
+        </div>
+      </div>
+      <div class="form-row mb-3" >
+        <label class="block-bold" for="qm-reason-ing" >Motivo</label>
+        {{ ui.combo_field(
+          name='reason',
+          placeholder='Seleccioná motivo',
+          endpoint='/merma/api/reasons?q=',
+          value_field='value',
+          label_field='value',
+        ) }}
+      </div>
+      <div class="form-row mb-3" >
+        <label class="block-bold w-100" for="qm-notes-ing" >Notas</label>
+        <textarea class="w-100" name="notes" id="qm-notes-ing" rows="2"
+                  style="width:100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"></textarea>
+      </div>
+      <input type="hidden" name="form_action" value="ingredient">
+    </div>
+
+    {# ── Lote entero (only enabled when row has a recipe_id) ── #}
+    <div id="qm-panel-recipe" data-qm-panel="recipe" hidden>
+      <p class="text-muted" style="font-size: var(--text-sm); margin-bottom: var(--space-3);">
+        Se descontarán los ingredientes de la receta <strong id="qm-recipe-label">—</strong>
+        proporcionalmente a la cantidad de lotes.
+      </p>
+      <div class="form-row mb-3" >
+        <label class="block-bold" for="qm-batch-qty" >Lotes perdidos</label>
+        <input type="number" name="batch_qty" id="qm-batch-qty" required step="0.01" min="0.01" max="999" value="1"
+               style="width:100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;">
+        <small class="text-muted">1 = un lote entero; 0.5 = media tanda.</small>
+      </div>
+      <div class="form-row mb-3" >
+        <label class="block-bold" for="qm-reason-rec" >Motivo</label>
+        {{ ui.combo_field(
+          name='reason',
+          placeholder='Seleccioná motivo',
+          endpoint='/merma/api/reasons?q=',
+          value_field='value',
+          label_field='value',
+        ) }}
+      </div>
+      <div class="form-row mb-3 w-100" >
+        <label class="block-bold" for="qm-notes-rec" >Notas</label>
+        <textarea class="w-100" name="notes" id="qm-notes-rec" rows="2"
+                  style="width:100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"></textarea>
+      </div>
+      <input type="hidden" name="form_action" value="recipe">
+    </div>
+
+    <div style="display: flex; gap: var(--space-2); justify-content: flex-end; margin-top: var(--space-3);">
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('quick-merma-modal').close()">Cancelar</button>
+      <button type="submit" class="btn btn-primary" id="qm-submit">
+        <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+        Registrar merma
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<section class="card mb-4" id="shift-deficit-prompt" hidden
+         style="background: var(--color-warning-soft, #fef3c7); border-left: 4px solid var(--color-warning, #f59e0b);">
+  <div class="card-body">
+    <strong>Unidades sin registrar</strong>
+    <p class="text-muted" style="font-size: var(--text-sm); margin: var(--space-1) 0 var(--space-2) 0;">
+      Estas cantidades quedaron pendientes después del turno. ¿Querés registrarlas como merma?
+    </p>
+    <ul style="margin: 0; padding-left: var(--space-5);"></ul>
+  </div>
+</section>
+
+<script>
+  // PROD-MERMA-1: open + tab-switch logic for the quick-merma dialog.
+  // The form action switches between /merma/registrar (ingredient tab) and
+  // /merma/receta (recipe tab) at submit time based on which panel is active.
+  function openQuickMerma(btn) {
+    var recipeId = btn.getAttribute('data-recipe-id') || '';
+    var productName = btn.getAttribute('data-product-name') || 'producto';
+    var batchQty = btn.getAttribute('data-batch-qty') || '';
+    var modal = document.getElementById('quick-merma-modal');
+    document.getElementById('qm-recipe-id').value = recipeId;
+    document.getElementById('qm-product-label').value = productName;
+    document.getElementById('qm-product-name').textContent = productName;
+    document.getElementById('qm-recipe-label').textContent = productName + ' (receta #' + recipeId + ')';
+    // Pre-fill the batch-qty input when a deficit was passed.
+    if (batchQty) {
+      var bq = document.getElementById('qm-batch-qty');
+      if (bq) bq.value = batchQty;
+    }
+    // Enable / disable recipe tab based on whether the row has a recipe.
+    var recipeBtn = document.getElementById('qm-tab-recipe-btn');
+    if (recipeId) {
+      recipeBtn.disabled = false;
+      recipeBtn.title = '';
+    } else {
+      recipeBtn.disabled = true;
+      recipeBtn.title = 'Esta fila no tiene receta cargada. Usá Ingrediente suelto.';
+    }
+    // When the trigger button had data-recipe-id AND a batch qty, default to
+    // the "Lote entero" tab so the operator registers the whole missing batch.
+    // Otherwise default to "Ingrediente suelto" (single-ingredient loss).
+    if (recipeId && batchQty) {
+      qmSwitchTab('recipe');
+    } else {
+      qmSwitchTab('ingredient');
+    }
+    modal.showModal();
+  }
+  function qmSwitchTab(tab) {
+    var ingPanel = document.getElementById('qm-panel-ingredient');
+    var recPanel = document.getElementById('qm-panel-recipe');
+    var ingTab = document.getElementById('qm-tab-ingredient');
+    var recTab = document.getElementById('qm-tab-recipe');
+    var form = document.getElementById('quick-merma-form');
+    if (tab === 'ingredient') {
+      ingPanel.hidden = false; recPanel.hidden = true;
+      // PROD-MERMA-2: disable inputs in the hidden tab so its empty values
+      // don't double-submit `reason`/`notes` and confuse the backend.
+      togglePanelInputs(ingPanel, true);
+      togglePanelInputs(recPanel, false);
+      ingTab.classList.add('btn-primary'); ingTab.classList.remove('btn-ghost');
+      recTab.classList.add('btn-ghost'); recTab.classList.remove('btn-primary');
+      ingTab.setAttribute('aria-selected', 'true'); recTab.setAttribute('aria-selected', 'false');
+      form.action = '/merma/registrar';
+    } else {
+      ingPanel.hidden = true; recPanel.hidden = false;
+      togglePanelInputs(ingPanel, false);
+      togglePanelInputs(recPanel, true);
+      recTab.classList.add('btn-primary'); recTab.classList.remove('btn-ghost');
+      ingTab.classList.add('btn-ghost'); ingTab.classList.remove('btn-primary');
+      recTab.setAttribute('aria-selected', 'true'); ingTab.setAttribute('aria-selected', 'false');
+      form.action = '/merma/receta';
+    }
+  }
+  // PROD-MERMA-2: walk a panel and disable/enable every input so the hidden
+  // tab doesn't submit empty `reason`/`notes` (or anything else named) when
+  // the form posts. The hidden attribute alone doesn't prevent submission.
+  function togglePanelInputs(panel, enable) {
+    panel.querySelectorAll('input, select, textarea, ui-combo').forEach(function(el) {
+      if (enable) {
+        el.removeAttribute('disabled');
+      } else {
+        el.setAttribute('disabled', 'disabled');
+      }
+    });
+  }
+  // PROD-MERMA-2 (T4 wired): after a shift-save, when completed < target on
+  // any row, show the inline "Unidades sin registrar" prompt with one-click
+  // buttons that open the quick-merma modal pre-populated with the deficit.
+  (function() {
+    var saved = document.querySelector('[data-shift-saved]');
+    if (!saved) return;
+    var rows = document.querySelectorAll('.production-row');
+    var deficits = [];
+    rows.forEach(function(row) {
+      var targetEl = row.querySelector('.qty-target');
+      var completedEl = row.querySelector('.progress-input');
+      if (!targetEl || !completedEl) return;
+      var target = parseFloat(targetEl.textContent || '0');
+      var completed = parseFloat(completedEl.value || '0');
+      if (target > 0 && completed < target) {
+        var mermaBtn = row.querySelector('[data-quick-merma]');
+        deficits.push({
+          product_name: (row.querySelector('.product-name') || {}).textContent || '',
+          missing: target - completed,
+          recipe_id: mermaBtn ? (mermaBtn.getAttribute('data-recipe-id') || '') : '',
+        });
+      }
+    });
+    if (deficits.length === 0) return;
+    var container = document.getElementById('shift-deficit-prompt');
+    if (!container) return;
+    container.hidden = false;
+    var ul = container.querySelector('ul');
+    deficits.forEach(function(d) {
+      var li = document.createElement('li');
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-sm btn-warning';
+      btn.setAttribute('data-quick-merma', '');
+      btn.setAttribute('data-recipe-id', d.recipe_id);
+      btn.setAttribute('data-product-name', d.product_name);
+      // PROD-MERMA-2: pass the deficit qty so openQuickMerma() pre-fills the
+      // batch_qty input AND auto-switches to the "Lote entero" tab.
+      btn.setAttribute('data-batch-qty', String(d.missing));
+      btn.textContent = '🔥 Registrar ' + d.missing + ' como merma';
+      btn.addEventListener('click', function() { openQuickMerma(btn); });
+      li.innerHTML = '<strong>' + d.product_name + '</strong>: faltan ' + d.missing + ' unidades ';
+      li.appendChild(btn);
+      ul.appendChild(li);
+    });
+  })();
+</script>
+
+{# 2026-10-07e: replaced the on-page "Ingredientes necesarios" section with
+   two compact cards pointing to the dedicated pages. The on-page table
+   was eating ~30% of the viewport and not the right surface for the
+   operator's actual workflows:
+     - Aggregated ingredient list (with severity, sort, filter) →
+       /shopping-list  (the "missing to buy" view)
+     - Per-recipe ingredient breakdown (scale this recipe's batches) →
+       /produccion/prep-recipes  (the recipe-portions view)
+
+   The /shopping-list page already has the full ingredients-needed table
+   with sort + filter, plus the "send to shopping list" button works
+   from there too. So nothing is lost; just moved to its proper home. #}
+{% if plan.lines %}
+<section class="card mb-4"
+         data-section="ingredients-link-card"
+         style="display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; padding: var(--space-3);">
+  <div style="flex: 1; min-width: 240px;">
+    <h3 class="m-0" style="font-size: 1rem;">
+      <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+      Ingredientes necesarios
+    </h3>
+    <p class="text-muted m-0" style="font-size: var(--text-xs);">
+      {{ plan.lines | length }} ingrediente{{ '' if plan.lines | length == 1 else 's' }}
+      en el plan — abrí una vista dedicada para trabajarlos.
+    </p>
+  </div>
+  <div class="flex-gap-2-wrap">
+    <a href="/produccion/prep-recipes"
+       class="btn btn-primary btn-sm"
+       title="Recetas con sus porciones/ingredientes (para pesar)">
+      🍰 Por receta (pesar)
+    </a>
+    <form method="post" action="/shopping-list/from-production-plan"
+          class="d-inline"
+          data-testid="send-to-shopping-list-form">
+      <input type="hidden" name="for_date" value="{{ plan.for_date.isoformat() }}"/>
+      <button type="submit" class="btn btn-secondary btn-sm"
+              title="Materializa los faltantes de hoy en la lista de compras">
+        📤 Enviar faltantes a lista de compras
+      </button>
+    </form>
+    <a href="/shopping-list"
+       class="btn btn-ghost btn-sm"
+       title="Lista de compras (lo que falta por comprar)">
+      🛒 Lista de compras
+    </a>
+    <a href="/reorder"
+       class="btn btn-ghost btn-sm"
+       title="Reponer stock de ingredientes bajo mínimo">
+      <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
+      Reponer
+    </a>
+  </div>
+</section>
+{% endif %}
+
+{# ── Quick Merma Modal — scheduled for a future sprint ── #}
+{# NOTE: this <dialog> requires the /merma/quick-log endpoint, which
+   is part of a future spec (US 5.x). Re-enable here once that
+   endpoint lands in app/routers/merma.py. #}
+
+<script>
+  // Strike-through on row-complete toggle
+  function toggleRowComplete(cb) {
+    var row = cb.closest('tr');
+    if (cb.checked) {
+      row.classList.add('is-done');
+    } else {
+      row.classList.remove('is-done');
+    }
+  }
+
+  // T-2026-10-04 (Tier 3-A): +/- stepper handlers.
+  // Click step-btn → adjust the qty input by `delta`. Clamped to ≥0.
+  function stepRow(btn, delta) {
+    var wrap = btn.closest('.qty-stepper');
+    var input = wrap.querySelector('.progress-input');
+    var current = parseFloat(input.value) || 0;
+    var next = current + delta;
+    if (next < 0) next = 0;
+    input.value = next;
+    // Mirror the row's checkbox state: if qty ≥ target → check done
+    var target = parseFloat(wrap.getAttribute('data-target-qty')) || 0;
+    if (target > 0 && next >= target) {
+      var row = wrap.closest('tr');
+      var cb = row.querySelector('.shift-checkbox');
+      if (cb && !cb.checked) {
+        cb.checked = true;
+        cb.dispatchEvent(new Event('change'));
+      }
+    }
+  }
+
+  // T-2026-10-04 (Tier 3-A): bulk "Marcar todos como hecho" handler.
+  // Sets every row's qty input to its data-target-qty. Server-side,
+  // /produccion/shift-execute accepts the same form payload, so we
+  // just sync the DOM and let the existing submit handle persistence.
+  function markAllDone() {
+    var rows = document.querySelectorAll('#shift-form .qty-stepper');
+    rows.forEach(function(wrap) {
+        var target = parseFloat(wrap.getAttribute('data-target-qty')) || 0;
+        var input = wrap.querySelector('.progress-input');
+        if (input && target > 0) {
+          input.value = target;
+        }
+        var row = wrap.closest('tr');
+        var cb = row.querySelector('.shift-checkbox');
+        if (cb && !cb.checked) {
+          cb.checked = true;
+          cb.dispatchEvent(new Event('change'));
+        }
+      });
+    // Highlight the action so the cook sees the change took.
+    var btn = document.getElementById('mark-all-btn');
+    if (btn) {
+      btn.textContent = '✓ Listo — guardá abajo';
+      btn.classList.add('btn-success');
+      btn.disabled = false;
+    }
+  }
+
+  // T-2026-10-04 (Tier 5-K): stamp form-opened-at when DOMContentLoaded.
+  // The server uses this to detect concurrent edits.
+  (function() {
+    var f = document.getElementById('form-opened-at');
+    if (f && !f.value) {
+      f.value = new Date().toISOString();
+    }
+  })();
+
+  // T-2026-10-04 (B.10): client-side difficulty filter. The server
+  // already pre-filters via the URL param (?difficulty=2), but the
+  // anchor-pill navigation does a full reload. We also support
+  // instant filtering via JS so the cook can sweep through the levels
+  // without losing scroll position. Ad-hoc rows (extra hornos) are
+  // always shown regardless of filter — they don't have a recipe
+  // difficulty and the cook needs to see them.
+  (function() {
+    var table = document.querySelector('#shift-form table');
+    if (!table) return;
+    var activeFilter = table.getAttribute('data-difficulty-active') || 'all';
+    var pills = document.querySelectorAll('[data-difficulty-filter]');
+    function applyFilter(level) {
+      var rows = document.querySelectorAll('#shift-form .production-row');
+      var visible = 0;
+      rows.forEach(function(row) {
+        var rowDiff = parseInt(row.getAttribute('data-difficulty') || '0', 10);
+        var isAdHoc = row.getAttribute('data-ad-hoc') === '1';
+        var show = (level === 'all') || isAdHoc || rowDiff === parseInt(level, 10);
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      // Soft count in the section header (if present) so the cook sees
+      // "X of Y visible" — prevents the "did the filter break?" panic.
+      var countEl = document.querySelector('[data-difficulty-count]');
+      if (countEl) {
+        countEl.textContent = visible + ' / ' + rows.length + ' productos';
+      }
+    }
+    // Initial apply (in case the URL has ?difficulty=X)
+    applyFilter(activeFilter);
+    // Wire up the pills for instant client-side switching.
+    pills.forEach(function(pill) {
+      pill.addEventListener('click', function(e) {
+        var level = pill.getAttribute('data-difficulty-filter');
+        // Update active state visually.
+        pills.forEach(function(p) {
+          p.classList.remove('btn-primary');
+          p.classList.add('btn-ghost');
+        });
+        pill.classList.remove('btn-ghost');
+        pill.classList.add('btn-primary');
+        applyFilter(level);
+        // Still navigate so the URL persists (deep-link, refresh safety).
+        // We do this after a microtask so the user sees the filter apply first.
+        setTimeout(function() { window.location.href = pill.href; }, 50);
+        e.preventDefault();
+      });
+    });
+    // M7: client-side name filter. Pairs with difficulty filter — both
+    // must pass for a row to be visible. Updates the visible count.
+    var nameInput = document.querySelector('[data-row-filter="products"]');
+    if (nameInput) {
+      var rows = document.querySelectorAll('#shift-form .production-row');
+      function applyNameFilter() {
+        var q = (nameInput.value || '').toLowerCase().trim();
+        var visible = 0;
+        rows.forEach(function(row) {
+          var name = (row.getAttribute('data-product-name') || '').toLowerCase();
+          var rowDiff = parseInt(row.getAttribute('data-difficulty') || '0', 10);
+          var isAdHoc = row.getAttribute('data-ad-hoc') === '1';
+          var level = activeFilter;
+          var showDiff = (level === 'all') || isAdHoc || rowDiff === parseInt(level, 10);
+          var showName = !q || name.indexOf(q) >= 0;
+          var show = showDiff && showName;
+          row.style.display = show ? '' : 'none';
+          if (show) visible++;
+        });
+        var countEl = document.querySelector('[data-difficulty-count]');
+        if (countEl) {
+          countEl.textContent = visible + ' / ' + rows.length + ' productos';
+        }
+      }
+      nameInput.addEventListener('input', applyNameFilter);
+    }
+  })();
+</script>
+
+{% endif %}{# end day view #}
+
+{# T-2026-10-06f: ad-hoc modal product picker now uses <ui-combo> (a
+   search-as-you-type combobox web component) instead of native <select>.
+
+   Why:
+   1. The user wants a filterable dropdown — "we have no products in the
+      dropdown, should be a drop down where we write and it filters the
+      products etc."
+   2. Native <select> is unusable when the catalog has 30+ products — no
+      type-to-search, no keyboard nav, no way to skim.
+   3. The project already has <ui-combo> in app/static/ui-combo.js with
+      WCAG AA support, keyboard nav (↑/↓/Enter/Esc), ARIA combobox
+      roles, and the <change> event dispatches {value, display}.
+
+   Why client-side (not server-side endpoint):
+   1. /api/lookup/products is gated by DEV_COMBO_SMOKE and returns 404
+      in prod.
+   2. The product list is small (≤200 products in this catalog) so
+      shipping it inline avoids a roundtrip and a 404.
+   3. If the catalog grows >200, swap to endpoint= once we ungate the
+      lookup API. #}
+<dialog id="adhoc-modal"
+        style="border: none;
+        border-radius: 8px;
+        padding: 0;
+        max-width: 480px;
+        box-shadow: var(--shadow-lg);
+        background: #1f2937;
+        color: #f3f4f6;">
+  <form method="post" action="/produccion/ad-hoc" style="padding: var(--space-4);">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="for_date" value="{{ for_date }}">
+    <h3 style="margin: 0 0 var(--space-3) 0; color: #f3f4f6;">Horneado extra</h3>
+    <p style="margin: 0 0 var(--space-3) 0; color: #d1d5db; font-size: var(--text-sm);">
+      {# T-2026-10-06e (UX): help text explaining the default qty so the operator
+         understands what the pre-filled number means. #}
+      Cantidad pre-cargada = <strong>rolling ventas 14d + pedidos pendientes para hoy</strong>.
+      Ajustá según tu criterio o dejá el valor si coincide con tu plan.
+    </p>
+    <div class="form-row mb-3" >
+      <label for="adhoc-product" style="display: block; margin-bottom: var(--space-1); font-weight: bold; color: #f3f4f6;">Producto</label>
+      {# T-2026-10-06f: <ui-combo> ships the product list inline as src=
+         (a JSON-encoded list of {value, label, forecast_qty, pending_pedidos}
+         objects). The JS listener reads getSelectedData() to pre-fill the
+         qty input with forecast + pending_pedidos. #}
+      <ui-combo id="adhoc-product"
+                name="product_id"
+                placeholder="Buscar producto…"
+                src='[{% for p in products_for_adhoc %}{"value": {{ p.id|tojson }}, "label": {{ p.name|tojson }}, "forecast_qty": {{ (p.forecast_qty or 0)|tojson }}, "pending_pedidos": {{ (p.pending_pedidos or 0)|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]'
+                required>
+      </ui-combo>
+      {# T-2026-10-06f: empty-state hint when no products are in the catalog.
+         The combo always shows "Sin productos en el catálogo" when src=[]
+         (we wire that below). But on a fresh tenant with 0 products, this
+         hint below the combo explains what to do. #}
+      <small id="adhoc-no-products-hint"
+             style="color: #9ca3af; font-size: var(--text-xs); display: none; margin-top: var(--space-1);">
+        No hay productos cargados. Pedile al administrador que cargue productos en
+        <a href="/products" style="color: #93c5fd;">Productos</a> antes de continuar.
+      </small>
+    </div>
+    <div class="form-row mb-3" >
+      <label for="adhoc-qty" style="display: block; margin-bottom: var(--space-1); font-weight: bold; color: #f3f4f6;">Cantidad horneada</label>
+      <input type="number" name="qty" id="adhoc-qty" required min="0.5" step="0.5"
+             style="width: 100%; padding: var(--space-2); border: 1px solid #4b5563; border-radius: 4px; background: #111827; color: #f3f4f6;">
+      <small id="adhoc-qty-hint" style="color: #9ca3af; font-size: var(--text-xs); display: block; margin-top: var(--space-1);">
+        Sugerido: <span data-suggested>—</span> (rolling + pedidos). Ajustá si querés.
+      </small>
+    </div>
+    <div class="form-row mb-3" >
+      <label for="adhoc-notes" style="display: block; margin-bottom: var(--space-1); font-weight: bold; color: #f3f4f6;">Nota (opcional)</label>
+      <input type="text" name="notes" id="adhoc-notes" maxlength="200"
+             placeholder="ej: walk-in cumpleañero, sobrantes de masa"
+             style="width: 100%; padding: var(--space-2); border: 1px solid #4b5563; border-radius: 4px; background: #111827; color: #f3f4f6;">
+    </div>
+    <div style="display: flex; gap: var(--space-2); justify-content: flex-end;">
+      <button type="button" class="btn btn-ghost" style="color: #f3f4f6;" onclick="document.getElementById('adhoc-modal').close()">Cancelar</button>
+      <button type="submit" class="btn btn-primary">Guardar horneado</button>
+    </div>
+  </form>
+</dialog>
+{# T-2026-10-06f: hook the <ui-combo> change event to pre-fill qty, and
+   toggle the "no products" hint based on whether the catalog is empty. #}
+<script>
+(function() {
+  const combo = document.getElementById('adhoc-product');
+  const qty = document.getElementById('adhoc-qty');
+  const hint = document.querySelector('#adhoc-qty-hint [data-suggested]');
+  const noProductsHint = document.getElementById('adhoc-no-products-hint');
+  if (!combo || !qty || !hint) return;
+  // On every change/clear, recompute the suggested qty from the
+  // selected product's forecast + pending_pedidos.
+  function recompute() {
+    const data = combo.getSelectedData ? combo.getSelectedData() : null;
+    if (!data || !data.value) {
+      qty.value = '';
+      hint.textContent = '—';
+      return;
+    }
+    const fcst = parseFloat(data.forecast_qty || '0') || 0;
+    const ped = parseFloat(data.pending_pedidos || '0') || 0;
+    const total = fcst + ped;
+    qty.value = total > 0 ? total.toString() : '';
+    hint.textContent = total > 0
+      ? total.toFixed(1) + ' (rolling ' + fcst.toFixed(1) + ' + pedidos ' + ped.toFixed(1) + ')'
+      : 'sin demanda registrada (elegí qty manualmente)';
+  }
+  combo.addEventListener('change', recompute);
+  // T-2026-10-06g: show "no products" hint if src is empty OR malformed.
+  // The combo's src attribute is a JSON-encoded array; we count its items.
+  // If JSON.parse fails, surface a different warning so the operator
+  // doesn't see a silent "Sin resultados" with no explanation.
+  if (noProductsHint) {
+    try {
+      const srcRaw = combo.getAttribute('src') || '[]';
+      const items = JSON.parse(srcRaw);
+      if (!items.length) {
+        noProductsHint.textContent =
+          'No hay productos cargados. Pedile al administrador que cargue productos en Productos antes de continuar.';
+        noProductsHint.style.display = 'block';
+      }
+    } catch (e) {
+      // Malformed src — usually means the page is stale or the template
+      // generated a string that isn't valid JSON. Tell the operator
+      // what to do.
+      noProductsHint.innerHTML =
+        '⚠️ El catálogo no se cargó bien. Hacé un <strong>recargar página</strong> ' +
+        '(Ctrl+Shift+R o Cmd+Shift+R) para actualizar.';
+      noProductsHint.style.display = 'block';
+    }
+  }
+})();
+</script>
+
+{# ════════════════════════════════════════════════════════════════════
+   WEEK VIEW
+   ════════════════════════════════════════════════════════════════════ #}
+{% if view == 'week' %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4);">
+  <a href="/produccion?view=week&week={{ prev_week_iso }}" class="btn btn-sm">← Semana anterior</a>
+  <strong>Semana del {{ week_start }}</strong>
+  <a href="/produccion?view=week&week={{ next_week_iso }}" class="btn btn-sm">Semana siguiente →</a>
+</div>
+
+{# S7 Decision C2 — fork current week's overrides into the weekly template #}
+<div style="margin-bottom: var(--space-4); padding: var(--space-3); background: var(--color-surface-raised); border: 1px solid var(--color-border); border-radius: var(--card-radius);">
+  <strong>Fork plantilla:</strong>
+  <form method="post" action="/produccion/template/fork-week" style="display: inline-block; margin-left: var(--space-2);"
+        class="js-confirm-form" data-confirm-title="¿Clonar overrides?" data-confirm-body="Se copiarán los overrides de esta semana al template semanal.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="from_date" value="{{ week_start }}">
+    <button type="submit" class="btn btn-sm btn-ghost">Duplicar overrides → template semanal</button>
+  </form>
+  {% if request.query_params.get('fork') == 'ok' %}
+    <span class="badge badge-success ml-2" >
+      {{ request.query_params.get('rows', '?') }} filas copiadas
+    </span>
+  {% elif request.query_params.get('fork') == 'empty' %}
+    <span class="badge" style="background: var(--color-text-muted); color: #111827; margin-left: var(--space-2);">
+      Esta semana no tiene overrides para clonar
+    </span>
+  {% endif %}
+</div>
+
+{% if week_plan and week_plan.rows %}
+<h3>Producción por día</h3>
+<table class="table is-hoverable is-striped">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      {% for d in weekdays %}<th class="num">{{ d }}</th>{% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in week_plan.rows %}
+    <tr>
+      <td><strong>{{ r.product_name }}</strong></td>
+      {% for day_qty in r.daily_qtys %}
+      <td class="num">{{ "%.1f"|format(day_qty) if day_qty else '—' }}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No hay producción planificada para esta semana.</p>
+{% endif %}
+
+{# Sales summary for the week — moved to /reportes. #}
+
+{% if week_ingredients %}
+<section class="card mb-4">
+  <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
+    <h3 class="m-0" >Ingredientes de la semana</h3>
+    <a href="/reorder" class="btn btn-secondary btn-sm">
+      <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
+      Ir a Reponer stock →
+    </a>
+  </div>
+  <table class="table is-hoverable">
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th class="num">Requerido</th>
+        <th class="num">Stock actual</th>
+        <th class="num">A comprar</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in week_ingredients %}
+      {% set _delta = l.stock_on_hand - l.qty_required %}
+      <tr {% if _delta < 0 %}title="Stock insuficiente"{% endif %}>
+        <td>
+          <strong>{{ l.ingredient_name }}</strong>
+          {% if _delta < 0 %}{{ ui.status_pill("Falta", sev="danger") }}
+          {% elif _delta < l.qty_required * 0.2 %}{{ ui.status_pill("Justo", sev="warn") }}
+          {% else %}{{ ui.status_pill("Suficiente", sev="ok") }}
+          {% endif %}
+        </td>
+        <td class="num">{{ fmt_qty(l.qty_required, l.unit) }}</td>
+        <td class="num">{{ fmt_qty(l.stock_on_hand, l.unit) }}</td>
+        <td class="num">
+          {% if l.stock_on_hand < l.qty_required %}
+            <span class="badge badge-danger" style="margin-right: var(--space-1);">¡Falta!</span>
+            <strong>{{ fmt_qty(l.qty_required - l.stock_on_hand, l.unit) }}</strong>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endif %}{# end week view #}
+
+{# ════════════════════════════════════════════════════════════════════
+   MONTH VIEW — vista panorámica (heatmap). Las secciones de
+   ventas/ingresos/ingredientes del mes viven en /reportes.
+   ════════════════════════════════════════════════════════════════════ #}
+{% if view == 'month' %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); gap: var(--space-3); flex-wrap: wrap;">
+  <a href="/produccion?view=month&month={{ prev_month_iso }}" class="btn btn-sm">← Mes anterior</a>
+  <strong style="font-size: var(--text-lg);">{{ month_name }} {{ year }}</strong>
+  <a href="/produccion?view=month&month={{ next_month_iso }}" class="btn btn-sm">Mes siguiente →</a>
+</div>
+
+<div class="card mb-4" style="background: var(--color-surface-muted); padding: var(--space-2) var(--space-3);">
+  <small class="text-muted">
+    Vista panorámica. Las celdas vacías indican días sin plan; los números muestran la
+    cantidad planificada (override del día, plantilla semanal, o sugerencia del forecast).
+    Los datos de <strong>ventas</strong>, <strong>ingresos</strong> e
+    <strong>ingredientes del mes</strong> viven en
+    <a href="/reportes">/reportes</a>.
+  </small>
+</div>
+
+{# Sprint 2: month grid (always render header so day-count renders even with empty rows) #}
+<div style="overflow-x: auto;">
+<table class="table is-hoverable is-striped production-month-grid">
+  <thead>
+    <tr>
+      <th class="num">Producto</th>
+      {% for d in month_days %}<th class="num">{{ d }}</th>{% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% if month_plan and month_plan.rows %}
+    {% for r in month_plan.rows %}
+    <tr>
+      <td><strong>{{ r.product_name }}</strong></td>
+      {% for day_qty in r.daily_qtys %}
+        {% set q = day_qty or 0 %}
+        {% if q == 0 %}
+          <td class="num month-cell month-cell--empty" title="Sin plan">—</td>
+        {% elif q < 1 %}
+          <td class="num month-cell month-cell--light" title="{{ '%.1f'|format(q) }}">{{ '%.0f'|format(q) }}</td>
+        {% elif q < 3 %}
+          <td class="num month-cell month-cell--mid" title="{{ '%.1f'|format(q) }}">{{ '%.0f'|format(q) }}</td>
+        {% else %}
+          <td class="num month-cell month-cell--full" title="{{ '%.1f'|format(q) }}">{{ '%.0f'|format(q) }}</td>
+        {% endif %}
+      {% endfor %}
+    </tr>
+    {% endfor %}
+    {% else %}
+    <tr><td colspan="{{ month_days|length + 1 }}" style="text-align: center; color: var(--color-fg-muted); padding: var(--space-4);">
+      No hay producción planificada para este mes. Los días sin plan se ven como celdas vacías (—).
+      Para planear, usá <a href="/produccion?view=day">la vista del día</a> o
+      <a href="/produccion?view=week">la vista semanal</a>.
+    </td></tr>
+    {% endif %}
+  </tbody>
+</table>
+</div>
+{% endif %}{# end view == month #}
+
+{# ------------------------------------------------------------------
+   PRODUCCION-V2 Fase 2: closure modal + JS wiring.
+   The "Cerrar turno" button (per row) opens this modal so the cook
+   can pick:
+     - "Horneado" (status=done) — default if completed_qty > 0
+     - "No horneado" (status=cancelled) — for "0 baked, here's why"
+   and optionally type a closure_notes (the user said "justificación
+   opcional" so the modal is a single text field, not required).
+   Reopen is a one-click button (no modal needed — they just want to
+   undo a click).
+------------------------------------------------------------------ #}
+{% if view == 'day' %}
+<div id="close-day-modal" class="modal-overlay"
+     data-modal="close-day"
+     style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="close-day-title"
+       style="background: var(--color-bg, #fff); border-radius: 8px; padding: var(--space-5); max-width: 480px; width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+    <h3 id="close-day-title" style="margin: 0 0 var(--space-3) 0;">Cerrar turno: <span data-modal-product-name>—</span></h3>
+    <p class="text-muted" style="font-size: var(--text-sm); margin: 0 0 var(--space-4) 0;">
+      Esto marca la fila como revisada. Si te equivocás, podés reabrirla.
+    </p>
+    <form method="post" action="/produccion/close-day" data-close-day-form>
+      <input type="hidden" name="for_date" value="{{ for_date }}">
+      <input type="hidden" name="product_id" data-modal-product-id>
+      <input type="hidden" name="ui" value="{{ ui_version }}">
+      <div class="mb-3" >
+        <label style="display: block; font-size: var(--text-sm); margin-bottom: var(--space-1); font-weight: 600;">
+          Resultado
+        </label>
+        <div style="display: flex; gap: var(--space-3);">
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 6px; flex: 1;">
+            <input type="radio" name="status" value="done" checked
+                   data-modal-radio-done>
+            <span><strong>✅ Horneado</strong><br><small class="text-muted">Hicimos lo planeado (o más)</small></span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 6px; flex: 1;">
+            <input type="radio" name="status" value="cancelled"
+                   data-modal-radio-cancelled>
+            <span><strong>⊘ No horneado</strong><br><small class="text-muted">Cero unidades. Indicá por qué abajo.</small></span>
+          </label>
+        </div>
+      </div>
+      <div style="margin-bottom: var(--space-4);">
+        <label for="close-day-notes" style="display: block; font-size: var(--text-sm); margin-bottom: var(--space-1); font-weight: 600;">
+          Justificación <small class="text-muted" style="font-weight: 400;">(opcional — útil para "no se vendió" o "cerrado por feriado")</small>
+        </label>
+        <textarea name="closure_notes" id="close-day-notes" rows="2" maxlength="500"
+                  placeholder="ej: no se vendió, cerrado por feriado, error de carga…"
+                  style="width: 100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit; font-size: var(--text-sm);"></textarea>
+      </div>
+      <div style="display: flex; gap: var(--space-2); justify-content: flex-end;">
+        <button type="button" class="btn btn-ghost" data-modal-cancel>Cancelar</button>
+        <button type="submit" class="btn btn-primary">Cerrar turno</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  // PRODUCCION-V2 Fase 2: closure modal + per-row "Cerrar turno" / "Reabrir"
+  // wiring. Click handlers attach to .closure-btn (added in the row
+  // template above). Uses progressive enhancement — the form submits
+  // normally if JS is disabled (the modal is just a nicer UX).
+  var modal = document.getElementById('close-day-modal');
+  if (!modal) return;
+
+  function openModal(productId, productName, completedQty) {
+    modal.querySelector('[data-modal-product-name]').textContent = productName;
+    modal.querySelector('[data-modal-product-id]').value = productId;
+    // Default: status=done IF completedQty > 0, else cancelled. The cook
+    // can always override by clicking the other radio.
+    var doneRadio = modal.querySelector('[data-modal-radio-done]');
+    var cancRadio = modal.querySelector('[data-modal-radio-cancelled]');
+    if (completedQty > 0) {
+      doneRadio.checked = true;
+    } else {
+      cancRadio.checked = true;
+    }
+    modal.querySelector('#close-day-notes').value = '';
+    modal.style.display = 'flex';
+    modal.querySelector('#close-day-notes').focus();
+  }
+
+  function closeModal() {
+    modal.style.display = 'none';
+  }
+
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.closure-btn');
+    if (!btn) {
+      if (ev.target === modal) closeModal();
+      return;
+    }
+    ev.preventDefault();
+    var action = btn.getAttribute('data-action');
+    var productId = btn.getAttribute('data-product-id');
+    var productName = btn.getAttribute('data-product-name') || '';
+    if (action === 'close-day') {
+      var completedQty = parseFloat(btn.getAttribute('data-completed-qty') || '0');
+      openModal(productId, productName, completedQty);
+    } else if (action === 'reopen-day') {
+      // Reopen is a one-click POST with no form. Build a transient form
+      // and submit it so we hit the /close-day/reopen endpoint with
+      // the same CSRF/session as a normal form post.
+      var f = document.createElement('form');
+      f.method = 'post';
+      f.action = '/produccion/close-day/reopen';
+      var uiVal = (new URLSearchParams(window.location.search)).get('ui') || '';
+      var append = function (name, value) {
+        var i = document.createElement('input');
+        i.type = 'hidden';
+        i.name = name;
+        i.value = value;
+        f.appendChild(i);
+      };
+      append('for_date', '{{ for_date }}');
+      append('product_id', productId);
+      if (uiVal === 'v2') append('ui', 'v2');
+      document.body.appendChild(f);
+      f.submit();
+    }
+  });
+
+  var cancelBtn = modal.querySelector('[data-modal-cancel]');
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && modal.style.display === 'flex') closeModal();
+  });
+})();
+</script>
+{% endif %}
+
+{# PRODUCCION-V3 Phase 2: confidence modal. A single <dialog> that
+     explains the 5 confidence bands. Click any `?` help link in a
+     row to open it. The dialog is closed by clicking the backdrop
+     or pressing Esc. Rendered once for the whole page. #}
+<dialog id="confidence-modal" class="confidence-modal" aria-labelledby="confidence-modal-title">
+  <div class="confidence-modal__dialog">
+    <div class="confidence-modal__header">
+      <h2 id="confidence-modal-title">¿Qué significa el porcentaje de confianza?</h2>
+      <button type="button" class="btn-ghost btn-icon" data-confidence-close
+              aria-label="Cerrar">
+        <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+      </button>
+    </div>
+    <div class="confidence-modal__body">
+      <p class="text-muted" style="margin: 0 0 var(--space-2) 0;">
+        La app calcula cuánto hornear mirando las <strong>ventas pasadas</strong>
+        y los <strong>ajustes manuales</strong> que ya hiciste. Este número te
+        dice cuánta confianza tiene esa sugerencia.
+      </p>
+      {% for name, copy, css_class in confidence_bands_def %}
+      <div class="confidence-band">
+        <span class="confidence-band__name">
+          <span class="confidence-band__swatch confidence-band__swatch--{{ css_class | replace('conf-', '') }}"></span>
+          {{ name }}
+        </span>
+        <span class="text-muted" style="font-family: var(--font-mono); font-size: 11px;">
+          {% if loop.index0 == 0 %}0–24%
+          {% elif loop.index0 == 1 %}25–49%
+          {% elif loop.index0 == 2 %}50–69%
+          {% elif loop.index0 == 3 %}70–84%
+          {% else %}85–100%
+          {% endif %}
+        </span>
+        <span class="confidence-band__copy">{{ copy }}</span>
+      </div>
+      {% endfor %}
+      <p class="text-muted" style="margin: var(--space-3) 0 0 0; font-size: var(--text-xs);">
+        <strong>Tip:</strong> si ves "Muy baja", la app te está diciendo
+        "no sé — definilo vos". Ajustá la cantidad manualmente y la
+        próxima vez será más precisa.
+      </p>
+    </div>
+  </div>
+</dialog>
+<script>
+(function() {
+  'use strict';
+  var modal = document.getElementById('confidence-modal');
+  if (!modal) return;
+  // Open: any anchor with href="#confidence-modal" inside the page
+  document.querySelectorAll('a[href="#confidence-modal"]').forEach(function(a) {
+    a.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      if (typeof modal.showModal === 'function') {
+        modal.showModal();
+      } else {
+        modal.setAttribute('open', '');
+      }
+    });
+  });
+  // Close: X button + click on backdrop + Esc (native <dialog> behavior)
+  modal.querySelectorAll('[data-confidence-close]').forEach(function(b) {
+    b.addEventListener('click', function() { modal.close(); });
+  });
+})();
+</script>
+
+{% endblock %}

@@ -1,0 +1,89 @@
+version: "3.9"
+
+# ── Sazón — ServaRica VPS Swarm stack ──
+# Parallel run alongside Render. Uses a NEW hostname so Render keeps
+# serving sazon-rms.paragu-ai.com while we verify VPS works at
+# sazon-vps.paragu-ai.com.
+#
+# Traefik routes:
+#   - sazon-vps.paragu-ai.com → this stack (port 8000)
+#
+# DNS: sazon-vps.paragu-ai.com needs to point to 38.9.96.179.
+# Cloudflare already manages paragu-ai.com so we add a CNAME there.
+
+services:
+  web:
+    image: sazon-rms:prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+      labels:
+        - "traefik.enable=true"
+        - "traefik.swarm.network=traefik-public"
+        # Headers
+        - "traefik.http.middlewares.ui-headers.headers.contentSecurityPolicy=default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'self';"
+        - "traefik.http.middlewares.ui-headers.headers.contentTypeNosniff=true"
+        - "traefik.http.middlewares.ui-headers.headers.frameDeny=true"
+        - "traefik.http.middlewares.ui-headers.headers.referrerPolicy=strict-origin-when-cross-origin"
+        - "traefik.http.middlewares.ui-headers.headers.stsIncludeSubdomains=true"
+        - "traefik.http.middlewares.ui-headers.headers.stsSeconds=31536000"
+        # Router — VPS hostname (parallel run)
+        - "traefik.http.routers.sazon-vps.entrypoints=websecure"
+        - "traefik.http.routers.sazon-vps.rule=Host(`sazon-vps.paragu-ai.com`)"
+        - "traefik.http.routers.sazon-vps.tls=true"
+        - "traefik.http.routers.sazon-vps.tls.certresolver=le"
+        - "traefik.http.routers.sazon-vps.middlewares=ui-headers@swarm"
+        - "traefik.http.routers.sazon-vps.service=sazon-web"
+        # Service
+        - "traefik.http.services.sazon-web.loadbalancer.server.port=8000"
+        - "traefik.http.services.sazon-web.loadbalancer.healthcheck.path=/healthz"
+        - "traefik.http.services.sazon-web.loadbalancer.healthcheck.interval=30s"
+    environment:
+      - AIW_RMS_DB_PATH=/data/rms.sqlite
+      - BIND_HOST=0.0.0.0
+      - PORT=8000
+      - PYTHONUNBUFFERED=1
+      - AIW_RMS_LOG_DIR=/var/log/sazon
+      # Auth: bypass mode for dev. PRO-SEC boot guard (commit 90c131f,
+      # 2026-09-30) refuses to start if this is set OUTSIDE a pytest run.
+      # Prod uses bcrypt login via app/auth.py. Keep commented for safety.
+      # - SASKIA_TEST_AUTH_DISABLED=1
+      - AIW_SASKIA_INTERNAL_ROUTES=1
+      # Auth: keep same as Render so logins work
+      - SUPABASE_URL=https://aiwhisperers.supabase.co
+      - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpd2hpc3BlcmVycyIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzAxMDAwMDAwLCJleHAiOjE3MDAwMDAwMDB9.placeholder
+      - SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpd2hpc3BlcmVycyIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE3MDEwMDAwMDAsImV4cCI6MTcwMDAwMDAwMH0.placeholder
+      - SESSION_SECRET=change-me-in-prod-sazon-vps-deploy-2026
+      - FERNET_KEY=placeholder-fernet-key-replace-me-32bytes-base64==
+    volumes:
+      - sazon-data:/data
+      - sazon-logs:/var/log/sazon
+    networks:
+      - traefik-public
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  sazon-data:
+  sazon-logs:
+
+networks:
+  traefik-public:
+    external: true

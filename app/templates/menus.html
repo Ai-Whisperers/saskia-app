@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Menús ejecutivos{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-box"></use></svg>
+  Menús ejecutivos
+</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="muted">Combo con precio propio: se vende como una unidad y descuenta el stock de cada producto incluido.</p>
+
+<div class="card" style="margin-top:12px;">
+  <h2>Nuevo menú</h2>
+  <form method="post" action="/menus/nuevo" class="stack" style="gap:10px;">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <label style="flex:2;min-width:220px;">Nombre
+        <input name="name" required maxlength="120" placeholder="Menú ejecutivo lunes">
+      </label>
+      <label style="flex:1;min-width:140px;">Precio (Gs.)
+        <input type="number" name="price_gs" required min="1000" step="1000" placeholder="25.000">
+      </label>
+    </div>
+    <fieldset style="border:1px solid var(--border);border-radius:8px;padding:10px;">
+      <legend>Productos incluidos</legend>
+      {% for p in products %}
+      <div style="display:flex;gap:8px;align-items:center;margin:4px 0;">
+        <label style="flex:1;">
+          <input type="checkbox" name="prod_{{ p.id }}" value="on">
+          {{ p.name }}
+        </label>
+        <input type="number" name="qty_{{ p.id }}" min="0.1" step="0.1" value="1"
+               aria-label="Cantidad de {{ p.name }}" style="width:80px;padding:4px;">
+      </div>
+      {% endfor %}
+    </fieldset>
+    <button type="submit" class="btn btn-primary">Crear menú</button>
+  </form>
+</div>
+
+<div class="card" style="margin-top:12px;">
+  <h2>Activos ({{ menus|length }})</h2>
+  {% if not menus %}
+  <p class="muted">Todavía no hay menús. Creá el primero arriba.</p>
+  {% else %}
+  <table>
+    <thead><tr><th>Menú</th><th>Precio</th><th>Incluye</th><th></th></tr></thead>
+    <tbody>
+      {% for m in menus %}
+      <tr>
+        <td><strong>{{ m.name }}</strong></td>
+        <td>{{ money(m.price_gs) }}</td>
+        <td>{{ m.incluye|join(', ') if m.incluye else '—' }}</td>
+        <td>
+          <form method="post" action="/menus/{{ m.id }}/off" style="display:inline;" class="js-confirm-form d-inline" data-confirm-title="¿Desactivar menú?" data-confirm-body="El menú dejará de mostrarse como activo.">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-sm btn-ghost">Desactivar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

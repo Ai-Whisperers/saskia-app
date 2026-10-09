@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Gerencia{% endblock %}
+{% block content %}
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<section class="gerencia">
+  <h1>Hoy</h1>
+  <div class="gerencia-kpis">
+    {{ ui.metric_card(label="Ventas de hoy", value=m.gs_full(sales_gs), compact=True) }}
+    {{ ui.metric_card(label="Pedidos pendientes", value=open_orders, compact=True) }}
+    {{ ui.metric_card(label="Cocina", value=(kitchen_done ~ " de " ~ kitchen_planned) if kitchen_planned else "Sin plan", compact=True) }}
+    {{ ui.metric_card(label="Stock bajo", value=low_stock, compact=True) }}
+    {{ ui.metric_card(label="Cierre", value="Cerrado" if day_closed else (close_done ~ " de " ~ close_total), compact=True) }}
+  </div>
+  <section class="gerencia-notes">
+    <h2>Avisos</h2>
+    <ul>
+      {% for note in notices %}
+      <li>
+        {% if note.href %}<a href="{{ note.href }}">{{ note.text }}</a>{% else %}{{ note.text }}{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+</section>
+<style>
+  .gerencia { max-width: 52rem; }
+  .gerencia h1 { font-size: 1.35rem; margin-bottom: .75rem; }
+  .gerencia-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+    gap: .6rem;
+  }
+  .gerencia-notes { margin-top: 24px; }
+  .gerencia-notes h2 { font-size: 1rem; margin: 0 0 .4rem; }
+  .gerencia-notes ul { list-style: none; margin: 0; padding: 0; }
+  .gerencia-notes li {
+    padding: .4rem 0;
+    border-bottom: 1px solid var(--color-border, #d7d3cc);
+    font-size: .95rem;
+  }
+</style>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+
+{% block title %}Movimientos — {{ fmt.entity_name(ingredient) }}{% endblock %}
+
+{% block content %}
+<p>
+  <a href="/inventario" class="btn btn-sm btn-ghost">
+    <svg class="icon" aria-hidden="true"><use href="#icon-arrow-left"/></svg>
+    Volver al inventario
+  </a>
+</p>
+
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+  Movimientos de stock
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p>
+  <strong>{{ fmt.entity_name(ingredient) }}</strong> —
+  Stock actual: <span class="badge badge-ok">{{ "%.2f"|format(current_stock) }} {{ ingredient.unit }}</span>
+</p>
+
+{% if movements %}
+<table class="table is-striped">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Tipo</th>
+      <th class="num">Cantidad</th>
+      <th class="num">Balance antes</th>
+      <th class="num">Balance después</th>
+      <th>Motivo</th>
+      <th>Referencia</th>
+      <th>Operador</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in movements %}
+    <tr>
+      <td><small>{{ m.recorded_at.strftime("%d/%m/%Y %H:%M") if m.recorded_at else "—" }}</small></td>
+      <td>
+        {% if m.movement_type == 'sale' %}
+          {{ ui.status_pill("venta", sev="neutral") }}
+        {% elif m.movement_type == 'adjustment' %}
+          {{ ui.status_pill("ajuste", sev="warn") }}
+        {% elif m.movement_type == 'merma' %}
+          {{ ui.status_pill("merma", sev="error") }}
+        {% elif m.movement_type == 'reorder' %}
+          {{ ui.status_pill("reorden", sev="ok") }}
+        {% elif m.movement_type == 'initial' %}
+          {{ ui.status_pill("stock inicial", sev="neutral") }}
+        {% else %}
+          <span class="badge badge-neutral">{{ m.movement_type }}</span>
+        {% endif %}
+      </td>
+      <td class="num {{ 'text-danger' if m.qty < 0 else 'text-success' }}">
+        {{ "%+.2f"|format(m.qty) }}
+      </td>
+      <td class="num">{{ "%.2f"|format(m.balance_before) }}</td>
+      <td class="num">{{ "%.2f"|format(m.balance_after) }}</td>
+      <td><small>{{ m.reason or "—" }}</small></td>
+      <td>
+        {% if m.reference_type == 'sale' and m.reference_id %}
+          <a href="/ventas/{{ m.reference_id }}/recibo"><small>Venta #{{ m.reference_id }}</small></a>
+        {% elif m.reference_type == 'waste_log' and m.reference_id %}
+          <small>Merma #{{ m.reference_id }}</small>
+        {% else %}
+          <small>—</small>
+        {% endif %}
+      </td>
+      <td><small>{{ m.created_by or "sistema" }}</small></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+{{ ui.empty_state(title="Sin movimientos registrados", icon="icon-inventory", hint="Cada entrada, salida, merma y ajuste queda asentado acá.", cta_href="/inventario", cta_label="Registrá el primer ajuste") }}
+{% endif %}
+
+{% endblock %}

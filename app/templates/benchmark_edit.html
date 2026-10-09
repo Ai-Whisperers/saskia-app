@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Benchmark {{ b.product_label }} · Sazón{% endblock %}
+{% block content %}
+{{ ui.page_header("📊 Benchmark — " ~ (b.product_label or ""), desc="Compará tu pricing vs competencia") }}
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
+{% if saved %}
+<div class="card mb-3" style="background:#d1fae5;border-color:#10b981;">
+  <div class="card-body">
+    ✅ <strong>Guardado.</strong> Ve a <a href="/vs-mercado">benchmarks</a>.
+    {% if b.updated_at %}<span style="margin-left:var(--space-3);font-size:var(--text-sm);opacity:0.8;">Actualizado el {{ b.updated_at.strftime("%d/%m/%Y %H:%M") }}</span>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+<form method="post" action="/vs-mercado/{{ b.id }}/save" class="card mb-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="card-body">
+    <div class="d-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+      <div>
+        <h3 class="mt-0" >💰 Nuestro precio</h3>
+        <div class="form-group">
+          <label for="our_wholesale_gs">Wholesale Gs.</label>
+          <div class="currency-input-wrap">
+            <input type="number" id="our_wholesale_gs" name="our_wholesale_gs" inputmode="numeric" class="currency-input">
+          </div>
+                 value="{{ b.our_wholesale_gs or '' }}" min="0" step="1"
+                 class="form-control">
+        </div>
+        <div class="form-group">
+          <label for="our_retail_gs">Retail Gs.</label>
+          <div class="currency-input-wrap">
+            <input type="number" id="our_retail_gs" name="our_retail_gs" inputmode="numeric" class="currency-input">
+          </div>
+                 value="{{ b.our_retail_gs or '' }}" min="0" step="1"
+                 class="form-control">
+        </div>
+      </div>
+      <div>
+        <h3 class="mt-0" >🏪 Mercado</h3>
+        <div class="form-group">
+          <label for="comp_min_gs">Competidor A (mín) Gs.</label>
+          <div class="currency-input-wrap">
+            <input type="number" id="comp_min_gs" name="comp_min_gs" inputmode="numeric" class="currency-input">
+          </div>
+                 value="{{ b.comp_min_gs or '' }}" min="0" step="1"
+                 class="form-control">
+        </div>
+        <div class="form-group">
+          <label for="comp_avg_gs">Competidor B (prom) Gs.</label>
+          <div class="currency-input-wrap">
+            <input type="number" id="comp_avg_gs" name="comp_avg_gs" inputmode="numeric" class="currency-input">
+          </div>
+                 value="{{ b.comp_avg_gs or '' }}" min="0" step="1"
+                 class="form-control">
+        </div>
+        <div class="form-group">
+          <label for="market_avg_gs">Mercado promedio Gs.</label>
+          <div class="currency-input-wrap">
+            <input type="number" id="market_avg_gs" name="market_avg_gs" inputmode="numeric" class="currency-input">
+          </div>
+                 value="{{ b.market_avg_gs or '' }}" min="0" step="1"
+                 class="form-control">
+        </div>
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:1rem;">
+      <label for="source">Notas / fuente</label>
+      <input type="text" id="source" name="source"
+             value="{{ b.source or '' }}"
+             placeholder="MercadoPy, redes, llamadas…">
+    </div>
+  </div>
+  <div class="card-footer" style="padding:1rem;">
+    <button type="submit" class="btn btn-primary">💾 Guardar</button>
+    <a href="/vs-mercado" class="btn btn-ghost">Cancelar</a>
+  </div>
+</form>
+
+{% if b.recipe %}
+<div class="card">
+  <div class="card-header">
+    <h2>📦 Receta vinculada: {{ b.recipe.name }}</h2>
+  </div>
+  <div class="card-body">
+    <p>
+      <a href="/recetas/{{ b.recipe.id }}" class="btn btn-ghost">Ver receta</a>
+    </p>
+  </div>
+</div>
+{% endif %}
+
+<p class="muted mt-8" >
+  💡 "Posición" se calcula automáticamente al comparar tu retail vs el
+  promedio del mercado. -10% = "más barato que la competencia".
+</p>
+{% endblock %}

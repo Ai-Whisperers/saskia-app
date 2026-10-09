@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Benchmarks · Sazón{% endblock %}
+{% block extra_head %}
+
+{% endblock %}
+{% block content %}
+{{ ui.page_header("📊 Comparativa vs mercado", desc="Posicionamiento vs competencia (Asunción/San Lorenzo)")
+}}
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
+<div class="mb-3" style="margin-bottom:var(--space-3);display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;">
+  <span class="text-muted text-sm" >Ordenar por:</span>
+  <button type="button" class="btn btn-sm" onclick="sortBenchmarks('gap')">Mayor diferencia Gs. ↓</button>
+  {% set csv_q = dict(request.query_params.multi_items()) %}
+  {% set _ = csv_q.update({'format':'csv'}) %}
+  <a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-sm" download="benchmarks-{{ now_local[:10] }}.csv">
+    📥 CSV
+  </a>
+  <a href="/vs-mercado/evidencia" class="btn btn-sm">🔍 Evidencia de mercado</a>
+</div>
+
+<table class="table is-hoverable" id="bench-table">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th class="num">Nuestro wholesale Gs.</th>
+      <th class="num">Nuestro retail Gs.</th>
+      <th class="num">Mercado avg Gs.</th>
+      <th class="num">Mercado real (evidencia)</th>
+      <th class="num">Cambio (Gs.)</th>
+      <th class="num">Posición</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if benchmarks %}
+    {% for b in benchmarks %}
+    {% set delta_gs = (b.our_retail_gs - b.market_avg_gs)|int if (b.our_retail_gs and b.market_avg_gs) else none %}
+    {% set is_mispriced = b.pct is not none and b.pct|abs > 20 %}
+    <tr class="{{ 'mispriced-row' if is_mispriced else '' }}"
+        data-delta-gs="{{ delta_gs if delta_gs is not none else 0 }}">
+      <td>
+        <strong>{{ b.product_label }}</strong>
+        {% if b.product_id %}
+          · <a class="text-xs" href="/recetas/{{ b.product_id }}" >📋 Ver receta</a>
+        {% endif %}
+      </td>
+      <td class="num">{{ m.gs(b.our_wholesale_gs) if b.our_wholesale_gs else '—' }}</td>
+      <td class="num">{{ m.gs(b.our_retail_gs) if b.our_retail_gs else '—' }}</td>
+      <td class="num">{{ m.gs(b.market_avg_gs) if b.market_avg_gs else '—' }}</td>
+      <td class="num">
+        {% if b.intel_median_gs %}
+          <strong>{{ m.gs(b.intel_median_gs) }}</strong>
+          <span class="text-muted text-xs" >· n={{ b.intel_n }}</span>
+        {% else %}—{% endif %}
+      </td>
+      <td class="num" style="color:{% if delta_gs is not none and delta_gs > 0 %}var(--color-danger){% elif delta_gs is not none and delta_gs < 0 %}var(--color-success){% endif %};">
+        {% if delta_gs is not none %}
+          {% if delta_gs > 0 %}+{% endif %}{{ m.gs(delta_gs) }}
+        {% else %}—{% endif %}
+      </td>
+      <td class="num">
+        {% if b.position_label == '—' %}<span class="muted">—</span>
+        {% elif b.pct > 0 %}
+          <span class="is-up">↑ {{ b.position_label }}</span>
+        {% elif b.pct < 0 %}
+          <span class="is-down">↓ {{ b.position_label }}</span>
+        {% else %}
+          <span>{{ b.position_label }}</span>
+        {% endif %}
+      </td>
+      <td>
+        <a href="/vs-mercado/{{ b.id }}/edit" class="btn btn-sm btn-ghost">✏️ Editar</a>
+      </td>
+    </tr>
+    {% endfor %}
+    {% else %}
+    <tr><td colspan="8">
+      {{ ui.empty_state(
+           title="Sin datos de mercado cargados",
+           icon="icon-trend",
+           hint="Importá el archivo Benchmarks_Market o agregá el primer benchmark para comparar tus precios.",
+           cta_href="/vs-mercado/nuevo",
+           cta_label="+ Agregar primer benchmark"
+         ) }}
+    </td></tr>
+    {% endif %}
+  </tbody>
+</table>
+
+{% if benchmarks %}
+<p class="muted">
+  💡 Source: HEREBUS_Benchmarks_Market (17 productos a comparar vs Competidor A/B/Avg).
+  Editá cada fila con el botón correspondiente.
+</p>
+{% endif %}
+
+<script>
+function sortBenchmarks(mode) {
+  var tbl = document.getElementById('bench-table');
+  if (!tbl) return;
+  var tbody = tbl.querySelector('tbody');
+  var rows = Array.from(tbody.querySelectorAll('tr'));
+  if (mode === 'gap') {
+    rows.sort(function(a, b) {
+      var aVal = parseInt(a.dataset.deltaGs || '0', 10);
+      var bVal = parseInt(b.dataset.deltaGs || '0', 10);
+      return Math.abs(bVal) - Math.abs(aVal); // largest absolute gap first
+    });
+  }
+  rows.forEach(function(r) { tbody.appendChild(r); });
+}
+// Default sort on load
+sortBenchmarks('gap');
+</script>
+{% endblock %}

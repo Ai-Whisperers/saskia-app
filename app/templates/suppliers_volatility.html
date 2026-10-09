@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Volatilidad de precios por proveedor{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Volatilidad de precios por proveedor
+</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="hint">
+  Ranking de proveedores por variabilidad de precio en los últimos
+  <strong>{{ days }}</strong> días. Útil para detectar proveedores
+  con precios erráticos que conviene renegociar.
+</p>
+
+<form method="get" action="/suppliers/volatility" class="filter-bar">
+  <label>
+    Período:
+    <select name="days" onchange="this.form.submit()">
+      {% for opt in [30, 60, 90, 180, 365] %}
+      <option value="{{ opt }}" {% if opt == days %}selected{% endif %}>
+        Últimos {{ opt }} días
+      </option>
+      {% endfor %}
+    </select>
+  </label>
+</form>
+
+{% if rows %}
+{{ ui.skeleton_section(id="supplier-volatility-table", variant="line", count=5, label="Cargando volatilidad") }}
+<div data-loaded-section="supplier-volatility-table">
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>Proveedor</th>
+      <th class="num">Ingredientes</th>
+      <th class="num">Eventos</th>
+      <th class="num">Mín (Gs.)</th>
+      <th class="num">Máx (Gs.)</th>
+      <th class="num">Promedio (Gs.)</th>
+      <th class="num">Volatilidad</th>
+      <th>Tendencia</th>
+      <th class="num">Último hace</th>
+      <th>Acción</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>
+        <a href="/suppliers/{{ r.supplier_id }}/precios">{{ r.supplier_name }}</a>
+      </td>
+      <td class="num">{{ r.ingredient_count }}</td>
+      <td class="num">{{ r.event_count }}</td>
+      <td class="num">{{ "{:,}".format(r.min_price_gs) }}</td>
+      <td class="num">{{ "{:,}".format(r.max_price_gs) }}</td>
+      <td class="num">{{ "{:,}".format(r.avg_price_gs | int) }}</td>
+      <td class="num">
+        {% set score_pct = (r.volatility_score * 100) | round(1) %}
+        <strong style="color: {% if r.volatility_score > 0.5 %}#dc2626{% elif r.volatility_score > 0.2 %}#d97706{% else %}#059669{% endif %};">
+          {{ score_pct }}%
+        </strong>
+      </td>
+      <td>
+        {% if r.trend_direction == "up" %}
+        <span style="color: #dc2626;">↑ Subiendo</span>
+        {% elif r.trend_direction == "down" %}
+        <span style="color: #059669;">↓ Bajando</span>
+        {% else %}
+        <span style="color: #6b7280;">→ Estable</span>
+        {% endif %}
+      </td>
+      <td class="num">
+        {{ r.days_since_last_event }} d
+        {% if r.days_since_last_event > 30 %}
+        <span class="hint">⚠</span>
+        {% endif %}
+      </td>
+      <td>
+        <a class="btn btn-sm btn-ghost"
+           href="/suppliers/{{ r.supplier_id }}/precios">
+          <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+          Ver
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+{{ ui.empty_state(title="Sin datos de precios por proveedor", icon="icon-report") }}
+<p class="hint">
+  Los eventos de precio de ingredientes deben tener un
+  <code>supplier_id</code> asignado. Si los precios se cargaron vía
+  Excel import sin proveedor, asignalos desde
+  <a href="/inventario">/inventario</a>.
+</p>
+{% endif %}
+
+{% endblock %}

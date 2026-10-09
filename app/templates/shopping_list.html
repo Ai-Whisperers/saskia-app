@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Lista de Compras · Sazón{% endblock %}
+{% block content %}
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+{{ ui.page_header("🛒 Lista de Compras", desc="Lo que necesito comprar para la operación")
+}}
+
+{% if request.query_params.get('from_plan') %}
+<div class="card mb-3" style="background: #d1fae5; border-color: #10b981;">
+  <div class="card-body">
+    ✅ <strong>Plan de producción</strong> ({{ request.query_params.get('for_date', '') }}):
+    {{ request.query_params.get('from_plan') }} ítems añadidos/agregados a la lista.
+  </div>
+</div>
+{% elif request.query_params.get('from_wishlist') %}
+<div class="card mb-3" style="background: #fef3c7; border-color: #f59e0b;">
+  <div class="card-body">
+    🛒 <strong>Wishlist #{{ request.query_params.get('from_wishlist') }}</strong> añadido a la lista
+    como equipment.
+  </div>
+</div>
+{% elif request.query_params.get('from_sync') %}
+<div class="card mb-3" style="background: #d1fae5; border-color: #10b981;">
+  <div class="card-body">
+    🔄 <strong>Sincronizar faltantes</strong> ejecutado: {{ request.query_params.get('from_sync', 0) }} items añadidos.
+  </div>
+</div>
+{% endif %}
+
+<div class="kpi-strip">
+  {{ ui.metric_card(label="Items abiertos", value=open_count, compact=True) }}
+  {{ ui.metric_card(label="Comprados", value=purchased_count, compact=True) }}
+  {{ ui.metric_card(label="Total estimado", value=m.gs(total_gs), compact=True) }}
+  {{ ui.metric_card(label="Ingredientes únicos", value=by_ingredient|length, compact=True) }}
+</div>
+
+<div style="margin:1rem 0;">
+  <a href="/shopping-list" class="btn {% if not show_purchased %}btn-primary{% else %}btn-ghost{% endif %}">
+    Solo abiertos ({{ open_count }})
+  </a>
+  <a href="/shopping-list?show_purchased=true" class="btn {% if show_purchased %}btn-primary{% else %}btn-ghost{% endif %}">
+    Todos (incl. comprados)
+  </a>
+  <a href="/produccion-planner" class="btn">📐 Crear plan</a>
+  <form method="post" action="/shopping-list/sync-low-stock" 
+        class="js-confirm-form d-inline" data-confirm-title="¿Sincronizar faltantes?"
+        data-confirm-body="Se importarán todos los ingredientes con stock por debajo del mínimo a la lista de compras.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="btn btn-warning" title="Importar todos los ingredientes con stock &lt; mínimo">
+      🔄 Sincronizar faltantes
+    </button>
+  </form>
+</div>
+
+{% if items %}
+{# Sprint shopping-list: supplier-grouped sections. Named suppliers first
+   (one call each), "Sin proveedor" last. Each group shows its subtotal
+   and, when the supplier has a phone, a WhatsApp prefilled order link. #}
+{% for group in supplier_groups %}
+{% set g_open = group.rows | selectattr('purchased', 'equalto', false) | list %}
+<section class="card mb-3" style="overflow:hidden;">
+  <div class="card-header d-flex" style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-3); flex-wrap:wrap; padding:var(--space-3); border-bottom:1px solid var(--border);">
+    <div class="m-0">
+      <h2 class="m-0" style="margin:0; font-size:1.05rem;">
+        🏪 {% if group.supplier %}{{ group.supplier.name }}{% else %}Sin proveedor asignado{% endif %}
+        <span class="badge {% if g_open %}badge-warn{% else %}badge-success{% endif %} ml-2" >
+          {{ g_open | length }} pendiente{{ 's' if g_open|length != 1 else '' }}
+        </span>
+      </h2>
+      {% if group.supplier and (group.supplier.contact_name or group.supplier.phone) %}
+      <small class="muted">
+        {% if group.supplier.contact_name %}{{ group.supplier.contact_name }}{% endif %}
+        {% if group.supplier.phone %}· {{ group.supplier.phone }}{% endif %}
+      </small>
+      {% endif %}
+    </div>
+    <div class="d-flex" style="display:flex; gap:var(--space-2); align-items:center; flex-wrap:wrap;">
+      <strong>{{ m.gs(group.open_total_gs|int) }}</strong>
+      {% if group.wa_href %}
+      <a class="btn btn-sm btn-success" target="_blank" rel="noopener"
+         href="{{ group.wa_href }}">
+        💬 Pedir por WhatsApp
+      </a>
+      {% elif group.supplier %}
+      <a class="text-muted" style="font-size:0.8rem;" href="/proveedores">Agregar teléfono →</a>
+      {% endif %}
+    </div>
+  </div>
+  <table class="table is-hoverable m-0" >
+    <thead>
+      <tr>
+        <th>Ingrediente</th>
+        <th class="num">Cant a comprar</th>
+        <th>Unidad</th>
+        <th>Para qué</th>
+        <th class="num">Subtotal Gs.</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for item in group.rows %}
+    <tr {% if item.purchased %}style="opacity:0.45;"{% endif %}>
+      <td>
+        <span class="item-name">{{ fmt.entity_name(item.ingredient) if item.ingredient else '(sin nombre)' }}</span>
+        {% if item.production_plan_id %}
+          <br><small class="muted">📋 Plan #{{ item.production_plan_id }}</small>
+        {% endif %}
+      </td>
+      <td class="num">{{ item.qty_to_buy|round(2) }}</td>
+      <td>{{ item.unit }}</td>
+      <td><small>{{ item.purpose_text or '' }}</small></td>
+      <td class="num"><strong>
+        {# SASKIA-206: prefer the price frozen when the row was created;
+           fall back to the live ingredient price for pre-113 rows. #}
+        {% set _unit_price = item.unit_price_snapshot_gs if item.unit_price_snapshot_gs is not none else (item.ingredient.purchase_price_gs if item.ingredient else none) %}
+        {% if _unit_price %}
+          {{ m.gs((_unit_price or 0) * (item.qty_to_buy or 0))|int }}
+        {% else %}—{% endif %}
+      </strong></td>
+      <td>
+        {% if not item.purchased %}
+          <form class="d-inline" method="post" action="/shopping-list/{{ item.id }}/mark-purchased" >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="btn btn-sm btn-ghost" title="Marcar como comprado">☐ Comprar</button>
+          </form>
+        {% else %}
+          <span class="badge badge-success" style="margin-right:var(--space-1);">✓</span>
+          <form class="d-inline" method="post" action="/shopping-list/{{ item.id }}/unmark" >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="btn btn-sm btn-ghost">↺</button>
+          </form>
+        {% endif %}
+        <form method="post" action="/shopping-list/{{ item.id }}/delete" 
+                      class="js-confirm-form d-inline" data-confirm-title="¿Eliminar ítem?" data-confirm-body="Eliminar {{ fmt.entity_name(item.ingredient) if item.ingredient else 'este ítem' }} de la lista?" data-confirm-danger="true">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-sm btn-danger">×</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endfor %}
+{% else %}
+<div class="card"><div class="card-body muted text-center">
+  <p style="font-size:1.5rem;">📭</p>
+  <p><strong>Lista vacía.</strong></p>
+  <p>Ve a <a href="/produccion">Plan Producción</a> y tocá "Enviar a lista de compras"; los faltantes aparecerán acá agrupados por proveedor.</p>
+</div></div>
+{% endif %}
+
+<p class="muted mt-8" >
+  💡 Tip: Marcar "Comprado" no toca el inventario todavía. Cuando llegué el pedido, ajustás el stock desde la ficha del ingrediente.
+</p>
+{% endblock %}

@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Análisis{% endblock %}
+
+{% block content %}
+<h1>Análisis <small class="text-muted" style="font-size:var(--text-sm);font-weight:400;">· los últimos 30–90 días</small></h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+{# ── Food Cost Semáforo (C4) ───────────────────────────────────── #}
+{% set actual_pct = insights.food_cost.actual_food_cost_pct %}
+{% set theoretical_pct = insights.food_cost.theoretical_food_cost_pct %}
+{% set semaforo_color = "gray" %}
+{% set semaforo_title = "Sin datos" %}
+{% if actual_pct is not none and theoretical_pct is not none %}
+  {% if actual_pct > theoretical_pct * 1.20 %}
+    {% set semaforo_color = "danger" %}
+    {% set semaforo_title = "¡Alerta! costo real > 120% teórico" %}
+  {% elif actual_pct > theoretical_pct * 1.10 %}
+    {% set semaforo_color = "warning" %}
+    {% set semaforo_title = "Atención: costo real > 110% teórico" %}
+  {% elif actual_pct <= theoretical_pct * 1.10 %}
+    {% set semaforo_color = "ok" %}
+    {% set semaforo_title = "Costo normal" %}
+  {% endif %}
+{% endif %}
+<div class="band-label">Costo de materia prima (Semáforo)</div>
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="d-flex align-items-center">
+      <div style="width:2.5rem; height:2.5rem; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-right:1rem; background-color:var(--{{ semaforo_color }});">
+        {% if semaforo_color == "ok" %}<svg class="icon" style="color:white;" aria-hidden="true"><use href="#icon-check"/></svg>{% endif %}
+        {% if semaforo_color == "warning" %}<svg class="icon" style="color:white;" aria-hidden="true"><use href="#icon-warning"/></svg>{% endif %}
+        {% if semaforo_color == "danger" %}<svg class="icon" style="color:white;" aria-hidden="true"><use href="#icon-close"/></svg>{% endif %}
+        {% if semaforo_color == "gray" %}<svg class="icon" style="color:white;" aria-hidden="true"><use href="#icon-help"/></svg>{% endif %}
+      </div>
+      <div>
+        <h5 class="card-title mb-1">{{ semaforo_title }}</h5>
+        {% if actual_pct is not none and theoretical_pct is not none %}
+          <p class="mb-0">
+            Real: {{ '%.1f'|format(actual_pct) }}% &nbsp;·&nbsp; 
+            Teórico: {{ '%.1f'|format(theoretical_pct) }}% &nbsp;·&nbsp; 
+            Ratio: {{ '%.2fx'|format(insights.food_cost.ratio) }}
+          </p>
+        {% else %}
+          <p class="text-muted mb-0">No hay suficientes ventas en el período</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Inteligencia KPIs ─────────────────────────────────────────── #}
+<div class="band-label">Panorama</div>
+{{ ui.skeleton_section(id="analisis-panorama", variant="kpi", count=4, label="Cargando panorama") }}
+<div class="grid grid-4 mb-4" data-loaded-section="analisis-panorama">
+  <ui-kpi-card label="Capital en inventario" value="{{ m.gs_full(insights.inventory_capital_gs) }}"></ui-kpi-card>
+  <ui-kpi-card label="Hora pico de ventas" value="{% if insights.sales_peak_hour is not none and insights.sales_peak_hour >= 0 %}{{ '%02d'|format(insights.sales_peak_hour|int) }}:00 hs{% else %}—{% endif %}"></ui-kpi-card>
+  <ui-kpi-card label="Día pico de ventas" value="{% set dow_names = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'] %}{% if insights.sales_peak_dow is not none and insights.sales_peak_dow >= 0 %}{{ dow_names[insights.sales_peak_dow|int] }}{% else %}—{% endif %}"></ui-kpi-card>
+  <ui-kpi-card
+    label="Costo de materia prima % (30d)"
+    value="{% set mp_pct = insights.food_cost.theoretical_food_cost_pct %}{% if mp_pct is none or insights.food_cost.sales_revenue_gs <= 0 %}sin ventas para comparar{% elif mp_pct > 100 %}revisar datos de costo{% else %}{{ '%.1f'|format(mp_pct) }}%{% endif %}"
+    {% set mp_pct_check = insights.food_cost.theoretical_food_cost_pct %}{% if mp_pct_check is not none and mp_pct_check > 50 and mp_pct_check <= 100 %}severity="warn"{% endif %}></ui-kpi-card>
+</div>
+</div>
+
+{# ── Stars / Dogs / Rising / Churning / Price fluctuation ──────── #}
+{% if insights.stars %}
+  {% set stars_items = [] %}
+  {% for s in insights.stars %}{% set _ = stars_items.append({"title": s.product_name, "body": "margen " ~ m.gs(s.margin_gs) ~ ", volumen " ~ s.volume}) %}{% endfor %}
+  {{ m.insight_card("Estrellas (alto margen + alto volumen)", stars_items, severity="ok", icon="icon-arrow-up") }}
+{% endif %}
+
+{% if insights.dogs %}
+  {% set dogs_items = [] %}
+  {% for d in insights.dogs %}{% set _ = dogs_items.append({"title": d.product_name, "body": "margen " ~ m.gs(d.margin_gs) ~ ", volumen " ~ d.volume}) %}{% endfor %}
+  {{ m.insight_card("Para revisar (bajo margen + bajo volumen)", dogs_items, severity="warn", icon="icon-arrow-down") }}
+{% endif %}
+
+{% if insights.rising_products %}
+  {% set rising_items = [] %}
+  {% for r in insights.rising_products %}{% set _ = rising_items.append({"title": r.product_name, "body": "reciente " ~ r.recent_sales ~ ", previo " ~ r.prior_sales ~ " (" ~ ("%.0f"|format((r.change_pct or 0)*100)) ~ "%)"}) %}{% endfor %}
+  {{ m.insight_card("En alza", rising_items, severity="ok", icon="icon-arrow-up") }}
+{% endif %}
+
+{% if insights.churning_products %}
+  {% set churning_items = [] %}
+  {% for c in insights.churning_products %}{% set _ = churning_items.append({"title": c.product_name, "body": "reciente " ~ c.recent_sales ~ ", previo " ~ c.prior_sales ~ " (" ~ ("%.0f"|format((c.change_pct or 0)*100)) ~ "%)"}) %}{% endfor %}
+  {{ m.insight_card("En baja", churning_items, severity="danger", icon="icon-arrow-down") }}
+{% endif %}
+
+{% if insights.price_fluctuation %}
+  {% set price_items = [] %}
+  {% for p_ in insights.price_fluctuation %}{% set _ = price_items.append({"title": p_.name, "body": "+" ~ ("%.0f"|format(p_.pct_above_avg)) ~ "% vs. 30d promedio"}) %}{% endfor %}
+  {{ m.insight_card("Precios en alza", price_items, severity="warn", icon="icon-arrow-up") }}
+{% endif %}
+
+{# ── Margin erosion ──────────────────────────────────────────────── #}
+{% if erosion_alerts %}
+<section class="card mt-4">
+  <div class="card-header">
+    <h2><svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg> Alerta: margen cayendo</h2>
+    <small class="text-muted">Productos cuyo margen cayó por suba de precio de ingredientes</small>
+  </div>
+  {{ ui.skeleton_section(id="analisis-erosion", variant="line", count=4, label="Cargando alertas de margen") }}
+  <div data-loaded-section="analisis-erosion">
+  <table class="table is-hoverable">
+    <thead><tr><th>Producto</th><th>Ingrediente</th><th class="num">Precio viejo</th><th class="num">Precio nuevo</th><th class="num">Cambio (margen)</th></tr></thead>
+    <tbody>
+      {% for a in erosion_alerts %}
+      <tr>
+        <td><a href="/productos/{{ a.product_id }}/editar">{{ a.product_name }}</a></td>
+        <td>{{ a.ingredient_name }}</td>
+        <td class="num">{% if a.old_price_gs %}{{ m.gs(a.old_price_gs) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if a.new_price_gs %}{{ m.gs(a.new_price_gs) }}{% else %}—{% endif %}</td>
+        <td class="num">
+          {% if a.margin_delta_pct %}<span class="badge badge-danger">↓ {{ "%.0f"|format(a.margin_delta_pct) }}%</span>{% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+{# ── Top margin products ─────────────────────────────────────────── #}
+{% if top_margin %}
+<section class="card mt-4">
+  <div class="card-header">
+    <span id="top-margin"></span>
+  <h2><svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg> Productos más rentables (últimos 30 días)</h2>
+    <small class="text-muted">Ordenados por ganancia absoluta</small>
+  </div>
+  {{ ui.skeleton_section(id="analisis-top-margin", variant="line", count=5, label="Cargando top rentables") }}
+  <div data-loaded-section="analisis-top-margin">
+  <table class="table is-hoverable is-striped">
+    <thead><tr><th>Producto</th><th class="num">Cantidad vendida</th><th class="num">Ventas (Gs.)</th><th class="num">Margen (Gs.)</th><th class="num">Margen %</th></tr></thead>
+    <tbody>
+      {% for p in top_margin %}
+      <tr>
+        <td><a href="/productos/{{ p.product_id }}/editar">{{ p.product_name }}</a></td>
+        <td class="num">{{ "%.1f"|format(p.qty) }}</td>
+        <td class="num">{{ m.gs(p.ventas_gs) }}</td>
+        <td class="num"><strong>{{ m.gs(p.margin_gs) }}</strong></td>
+        <td class="num">
+          {% set pct = p.margin_pct * 100 %}
+          <span class="badge {% if pct >= 50 %}badge-ok{% elif pct >= 25 %}badge-warn{% else %}badge-danger{% endif %}">{{ "%.0f"|format(pct) }}%</span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+{# ── Concentration ───────────────────────────────────────────────── #}
+{% if concentration %}
+<section class="card mt-4">
+  <div class="card-header">
+    <span id="concentration"></span>
+  <h2><svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg> Costo concentrado en pocos ingredientes</h2>
+    <small class="text-muted">Últimos 90 días · donde se va tu plata</small>
+  </div>
+  {{ ui.skeleton_section(id="analisis-concentration", variant="line", count=3, label="Cargando concentración de costo") }}
+  <div data-loaded-section="analisis-concentration">
+  <div class="card-body">
+    {% set top_share = concentration[0].share_pct if concentration else 0 %}
+    <p>Los <strong>5 ingredientes más usados</strong> representan <strong>{{ "%.0f"|format(top_share * 100) }}%</strong> del costo total (90 días).</p>
+    <table class="table is-striped">
+      <thead><tr><th>Ingrediente</th><th class="num">Costo anualizado (Gs.)</th><th class="num">% del total</th></tr></thead>
+      <tbody>
+        {% for c in concentration %}
+        <tr>
+          <td>{{ c.ingredient_name }}</td>
+          <td class="num">{{ m.gs(c.annual_cost_gs) }}</td>
+          <td class="num">{{ "%.1f"|format(c.share_pct * 100) }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{# ── Day-of-week averages ────────────────────────────────────────── #}
+{% if dow_buckets %}
+<section class="card mt-4">
+  <div class="card-header">
+    <span id="dow-heatmap"></span>
+  <h2><svg class="icon" aria-hidden="true"><use href="#icon-chart"/></svg> Promedio de ventas por día de la semana</h2>
+    <small class="text-muted">Últimos 90 días · para planificar producción</small>
+  </div>
+  {{ ui.skeleton_section(id="analisis-dow", variant="line", count=4, label="Cargando ventas por día") }}
+  <div data-loaded-section="analisis-dow">
+  <table class="table">
+    <thead><tr><th>Día</th><th class="num">Ventas promedio (Gs.)</th><th class="num">Pedidos</th></tr></thead>
+    <tbody>
+      {% for d in dow_buckets %}
+      <tr>
+        <td>
+          {% if d.weekday == 0 %}Lunes{% elif d.weekday == 1 %}Martes{% elif d.weekday == 2 %}Miércoles{% elif d.weekday == 3 %}Jueves{% elif d.weekday == 4 %}Viernes{% elif d.weekday == 5 %}Sábado{% else %}Domingo{% endif %}
+        </td>
+        <td class="num">{{ m.gs(d.avg_sales_gs|int) }}</td>
+        <td class="num">{{ d.sale_count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    </table>
+    </div>
+    </section>
+    {% endif %}
+
+{# ── Turnover ────────────────────────────────────────────────────── #}
+{% if turnover %}
+<section class="card mt-4">
+  <div class="card-header">
+    <span id="turnover"></span>
+  <h2><svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg> Rotación de stock (últimos 30 días)</h2>
+    <small class="text-muted">Cuántas veces se renovó el stock de los ingredientes más activos</small>
+  </div>
+  {{ ui.skeleton_section(id="analisis-turnover", variant="line", count=5, label="Cargando rotación de stock") }}
+  <div data-loaded-section="analisis-turnover">
+  <table class="table is-striped">
+    <thead><tr><th>Ingrediente</th><th class="num">Consumido</th><th class="num">Rotación</th><th class="num">Días de stock</th></tr></thead>
+    <tbody>
+      {% for t in turnover %}
+      <tr>
+        <td>
+          {% if t.ingredient_name %}<a href="/inventario/{{ t.ingredient_id }}/editar">{{ t.ingredient_name }}</a>
+          {% else %}Ing #{{ t.ingredient_id }}{% endif %}
+        </td>
+        <td class="num">{{ "%.1f"|format(t.consumed_qty) }} {{ t.unit }}</td>
+        <td class="num">{{ "%.1f"|format(t.turnover_ratio) }}×</td>
+        <td class="num">
+          {% if t.days_of_stock is not none %}
+            {% if t.days_of_stock <= 3 %}<span class="badge badge-danger">{{ "%.0f"|format(t.days_of_stock) }} días</span>
+            {% elif t.days_of_stock <= 7 %}<span class="badge badge-warn">{{ "%.0f"|format(t.days_of_stock) }} días</span>
+            {% else %}{{ "%.0f"|format(t.days_of_stock) }} días{% endif %}
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    </table>
+    </div>
+    </section>
+    {% endif %}
+
+{# ── Recipe complexity ───────────────────────────────────────────── #}
+{% if complexity %}
+<section class="card mt-4">
+  <div class="card-header">
+    <span id="complexity"></span>
+  <h2><svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg> Recetas más complejas</h2>
+    <small class="text-muted">Más ingredientes y más tiempo de preparación</small>
+  </div>
+  {{ ui.skeleton_section(id="analisis-complex", variant="line", count=4, label="Cargando recetas complejas") }}
+  <div data-loaded-section="analisis-complex">
+  <table class="table">
+    <thead><tr><th>Receta</th><th class="num">Ingredientes</th><th class="num">Costo/porción (Gs.)</th><th class="num">Prep (min)</th></tr></thead>
+    <tbody>
+      {% for r in complexity[:5] %}
+      <tr>
+        <td><a href="/recetas/{{ r.recipe_id }}/editar">{{ r.recipe_name }}</a></td>
+        <td class="num">{{ r.line_count }}</td>
+        <td class="num">{{ m.gs(r.cost_per_portion_gs) }}</td>
+        <td class="num">{{ r.prep_minutes if r.prep_minutes else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    </table>
+    </div>
+    </section>
+    {% endif %}
+
+{% endblock %}

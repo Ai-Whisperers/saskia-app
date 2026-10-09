@@ -1,0 +1,897 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% import "_components/tags.html" as t %}
+{% import "_components/atoms.html" as ui %}
+
+{% block title %}Receta — {{ action }}{% endblock %}
+<script>
+  // P3: live "ingredientes efectivos" panel — explodes sub-recipes so the
+  // editor shows the complete raw-ingredient list. Gray = contributed by
+  // a sub-recipe; "N× sumadas" badge = duplicates merged into one row.
+  (function () {
+    var panel = document.getElementById("effective-ingredients-panel");
+    var tbody = document.getElementById("effective-ingredients-body");
+    if (!panel || !tbody) return;
+    var recId = {{ recipe.id if recipe else 'null' }};
+
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+        return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+      });
+    }
+
+    function loadEffective() {
+      if (!recId) { panel.hidden = true; return; }
+      fetch("/recetas/api/" + recId + "/effective-ingredients")
+        .then(function (r) { return r.ok ? r.json() : {lines: []}; })
+        .then(function (data) {
+          var lines = data.lines || [];
+          if (!lines.length) { panel.hidden = true; return; }
+          panel.hidden = false;
+          tbody.innerHTML = lines.map(function (ln) {
+            var fromSub = (ln.sources || []).length > 0;
+            var rowStyle = fromSub
+              ? ' style="color:var(--muted-foreground);background:var(--card);font-style:italic;"'
+              : "";
+            var badge = ln.merged_count > 1
+              ? ' <span class="badge badge-neutral" title="' + ln.merged_count + ' líneas sumadas">' + ln.merged_count + '× sumadas</span>'
+              : "";
+            var err = ln.error ? ' <small style="color:var(--color-warning);">⚠ ' + esc(ln.error) + '</small>' : "";
+            return '<tr' + rowStyle + '>' +
+              '<td>' + esc(ln.name) + badge + err + '</td>' +
+              '<td class="num">' + ln.qty + ' ' + esc(ln.unit) + '</td>' +
+              '<td class="muted">' + (fromSub ? 'via ' + esc(ln.sources.join(", ")) : 'base') + '</td>' +
+              '</tr>';
+          }).join("");
+        })
+        .catch(function () { panel.hidden = true; });
+    }
+
+    // Reload whenever a sub-recipe line combo changes (target picked/cleared)
+    document.addEventListener("change", function (e) {
+      var t = e.target;
+      if (t && t.closest && t.closest('.line-row[data-kind="sub_recipe"]')) {
+        loadEffective();
+      }
+    }, true);
+
+    loadEffective();
+  })();
+</script>
+
+{% block content %}
+{{ ui.page_header(
+     title=action ~ ' receta',
+     desc='Identificación, ingredientes, rinde, tiempos, costo y etiquetas.',
+     crumbs=[('Recetas', '/recetas'), (action, None)]
+   ) }}
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+
+{% if mode == 'edit' and recipe %}
+{# ── Recipe photo zone ── #}
+<div style="margin-bottom:var(--space-4);display:flex;align-items:center;gap:var(--space-3);">
+  <div style="position:relative;display:inline-block;" id="recipe-photo-zone">
+    {% if recipe.image_url %}
+      <img src="{{ recipe.image_url }}" alt="{{ recipe.name }}" style="max-height:120px;border-radius:var(--radius);object-fit:cover;">
+    {% else %}
+      <div style="width:120px;height:120px;background:var(--color-surface-subtle);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:var(--color-text-muted);font-size:var(--text-sm);text-align:center;padding:1rem;">Sin foto</div>
+    {% endif %}
+    <button type="button" onclick="document.getElementById('recipe-photo-modal').showModal()"
+            style="position:absolute;inset:0;width:100%;height:100%;background:rgba(0,0,0,0.4);color:white;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:var(--text-sm);opacity:0;transition:opacity .2s;cursor:pointer;border:none;"
+            onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'"
+            aria-label="Cambiar foto">
+      <svg class="icon" style="width:24px;height:24px"><use href="#icon-camera"/></svg>
+      <span style="margin-left:.25rem">Cambiar foto</span>
+    </button>
+  </div>
+</div>
+{% endif %}
+
+<form method="post" action="/recetas{{ '/nueva' if mode == 'new' else '/' ~ recipe.id ~ '/editar' }}"
+      id="recipe-form"
+      class="recipe-form-layout recipe-form-page">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+  {# ═══════════════════════════════════════════════════════════════ #}
+  {# LEFT COLUMN (70%) — identification + ingredients + notes     #}
+  {# ═══════════════════════════════════════════════════════════════ #}
+  <div class="recipe-main">
+
+    {# ── Section 1: Identification ──────────────────────────── #}
+    <section class="form-section">
+      <header class="form-section-header">
+        <h2 class="form-section-title">Identificación</h2>
+        <p class="form-section-hint">Nombre y categoría de la receta</p>
+      </header>
+
+      <div class="form-row-grid">
+        <div class="form-row">
+          <label for="name">Nombre <span class="required-mark">*</span></label>
+          <input type="text" id="name" name="name" required maxlength="120"
+                 value="{{ recipe.name if recipe else '' }}"
+                 placeholder="Ej: Muffin de chocolate"
+                 hx-post="/api/validate/recipe" hx-trigger="blur" hx-include="closest form"
+                 onhtmx:after-request="handleValidation(this, event)">
+          <span class="field-error" id="name-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
+        </div>
+
+        {# Familia (single) retired 2026-09-30: menu_tags (below, multi-select)
+           is the categorization field now. Legacy `family` values still
+           display read-only on the detail page and seed menu_tags via
+           migration 068 backfill. #}
+      </div>
+    </section>
+
+    {# ── Section 2: Ingredients (interactive table) ──────────── #}
+    <section class="form-section">
+      <header class="form-section-header">
+        <h2 class="form-section-title">Ingredientes y sub-recetas</h2>
+        <p class="form-section-hint">
+          Cada línea es un ingrediente o sub-receta. Para sub-recetas (masa choux usada en pastel), usá el tipo "Sub-receta".
+        </p>
+      </header>
+
+      <table class="recipe-lines-table">
+        <colgroup>
+          <col class="line-col-type">
+          <col class="line-col-item">
+          <col class="line-col-qty">
+          <col class="line-col-unit">
+          <col class="line-col-cost">
+          <col class="line-col-note">
+          <col class="line-col-action">
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="line-col-type">Tipo</th>
+            <th class="line-col-item">Insumo / Sub-receta</th>
+            <th class="line-col-qty">Cantidad</th>
+            <th class="line-col-unit">Unidad</th>
+            <th class="line-col-cost">Costo</th>
+            <th class="line-col-note">Nota</th>
+            <th class="line-col-action"></th>
+          </tr>
+        </thead>
+        <tbody id="lines">
+          {% for line in lines %}
+          <tr class="line-row" data-kind="{{ line.line_kind }}"
+              data-line-id="{{ line.id if line.id else '' }}">
+            <td class="line-col-type">
+              {{ ui.combo_field(
+                name='line_kind',
+                value=line.line_kind,
+                display=('Sub-receta' if line.line_kind == 'sub_recipe' else 'Insumo'),
+                placeholder='Tipo',
+                src=[{'label': 'Insumo', 'value': 'ingredient'}, {'label': 'Sub-receta', 'value': 'sub_recipe'}]
+              ) }}
+            </td>
+            <td class="line-col-item">
+              {% if line.line_kind == 'sub_recipe' %}
+                {{ ui.combo_field(
+                  name='line_target_id',
+                  value=line.line_ref_id,
+                  display=line.target_name,
+                  placeholder='Buscar sub-receta…',
+                  endpoint='/recetas/api/search?q=',
+                  value_field='id',
+                  label_field='name',
+                  data_attrs={'data-cost-per-unit': line.price_per_kg_gs or 0}
+                ) }}
+              {% else %}
+                {{ ui.combo_field(
+                  name='line_target_id',
+                  value=line.line_ref_id,
+                  display=line.target_name,
+                  placeholder='Buscar ingrediente…',
+                  endpoint='/inventario/api/search?q=',
+                  value_field='id',
+                  label_field='name',
+                  data_attrs={'data-cost-per-unit': line.price_per_kg_gs or 0}
+                ) }}
+              {% endif %}
+            </td>
+            <td class="line-col-qty">
+              <input type="number" step="0.001" min="0" name="line_qty"
+                     class="line-qty-input"
+                     value="{{ "%.3f"|format(line.qty or 0) }}" placeholder="0.000">
+            </td>
+            <td class="line-col-unit">
+              {% set _unit_src = [] %}
+              {% for u in ['g', 'kg', 'ml', 'l', 'und'] %}
+                {% set _ = _unit_src.append({'label': u, 'value': u}) %}
+              {% endfor %}
+              {{ ui.combo_field(
+                name='line_unit',
+                value=(line.line_unit or 'und'),
+                display=(line.target_unit if line.target_unit in ('g','kg','ml','l','und') else 'und'),
+                placeholder='g',
+                src=_unit_src
+              ) }}
+            </td>
+            <td class="line-col-cost">
+              <span class="line-cost-display"
+                    data-line-cost="{{ line.unit_cost_gs or 0 }}"
+              >{{ "Gs. %s"|format("{:,}".format(line.unit_cost_gs).replace(",", ".")) if line.unit_cost_gs else 'Gs. 0' }}</span>
+            </td>
+            <td class="line-col-note">
+              <input type="text" name="line_notes" maxlength="200" value="{{ line.note or '' }}"
+                     class="line-note-input" placeholder="opcional">
+            </td>
+            <td class="line-col-action">
+              <button type="button" class="btn-icon-danger line-remove"
+                      aria-label="Eliminar línea" title="Eliminar línea">
+                <svg class="icon" aria-hidden="true"><use href="#icon-trash"/></svg>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+  {# ── P3: Vista "ingredientes efectivos" (sub-recetas explotadas) ── #}
+  <div id="effective-ingredients-panel" class="card mt-3"  hidden>
+    <div class="d-flex" style="display:flex;align-items:baseline;gap:var(--space-2);padding:var(--space-3) var(--space-3) 0;">
+      <h2 class="m-0" >Ingredientes efectivos</h2>
+      <small class="text-muted">calculado desde las sub-recetas — solo lectura</small>
+    </div>
+    <p class="text-muted" style="padding:0 var(--space-3) var(--space-2);margin:0;">
+      Lista completa de crudos: los ingredientes de cada sub-receta se explotan
+      y los duplicados se suman. Filas grises = aportadas por una sub-receta.
+    </p>
+    <table class="table">
+      <thead>
+        <tr><th>Ingrediente</th><th class="num">Cantidad total</th><th>Origen</th></tr>
+      </thead>
+      <tbody id="effective-ingredients-body"></tbody>
+    </table>
+  </div>
+      <div id="tag-preview" class="card" hidden
+           style="padding: var(--space-3); margin: var(--space-2) 0; font-size: 0.9rem;">
+      </div>
+
+      <button type="button" class="btn btn-secondary mt-4" id="add-line">
+        <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+        Agregar línea
+      </button>
+    </section>
+
+    {# ── Section 3: Notes / free-form observations ────────────────── #}
+    <section class="form-section">
+      <header class="form-section-header">
+        <h2 class="form-section-title">Notas de receta</h2>
+        <p class="form-section-hint">Notas, tips, observaciones — se muestra en la receta como "Notas". Para pasos de preparación estructurados, editá la secuencia en la vista de detalle.</p>
+      </header>
+
+      <div class="form-row">
+        <textarea id="notes" name="notes" rows="6"
+                  class="recipe-instructions"
+                  data-autoexpand="true"
+                  placeholder="Notas u observaciones sobre esta receta&#10;&#10;Ej:&#10;- Sacar del horno cuando esté dorada por debajo&#10;- Si no hay mantequilla, reemplazar por margarine"
+        >{{ recipe.notes if recipe and recipe.notes else '' }}</textarea>
+      </div>
+    </section>
+
+  </div>
+
+  {# ═══════════════════════════════════════════════════════════════ #}
+  {# RIGHT COLUMN (30%) — yield + times + costs + tags + actions    #}
+  {# ═══════════════════════════════════════════════════════════════ #}
+  <aside class="recipe-side">
+
+    {# ── Yield & timing (compact metrics) ──────────────────── #}
+    <section class="form-section form-section-side">
+      <header class="form-section-header">
+        <h2 class="form-section-title">Producción</h2>
+      </header>
+
+      <div class="form-row">
+        <label>Rinde</label>
+        <div class="yield-group">
+          <input type="number" id="yield_qty" name="yield_qty" step="0.01" min="0"
+                 class="yield-qty-input"
+                 value="{{ "%.2f"|format(recipe.yield_qty) if recipe and recipe.yield_qty is not none else '12' }}"
+                 hx-post="/api/validate/recipe" hx-trigger="blur" hx-include="closest form"
+                 onhtmx:after-request="handleValidation(this, event)">
+          <span class="field-error" id="yield_qty-error" style="color:var(--color-danger);font-size:var(--text-xs);display:block;margin-top:.25rem;"></span>
+          {{ ui.combo_field(
+            name='yield_unit',
+            value=(recipe.yield_unit if recipe else 'und'),
+            display=(recipe.yield_unit if recipe else 'und'),
+            placeholder='und',
+            endpoint='/recetas/api/units?q=',
+            value_field='value',
+            label_field='display',
+          ) }}
+        </div>
+      </div>
+
+      {% if mode == 'edit' and recipe and recipe.yield_qty %}
+      <div class="form-row">
+        <label for="scale_combo">Escalar rendimiento</label>
+        <ui-combo name="scale"
+                      value="{{ scale_factor }}"
+                      display="{{ scale_factor }}x"
+                      placeholder="1x"
+                      autosubmit
+                      {% set _scale_src = [] %}
+                      {% for m in [0.25, 0.5, 1, 1.5, 2, 3, 4, 5] %}
+                        {% set _ = _scale_src.append({'label': m|string + 'x', 'value': m|string}) %}
+                      {% endfor %}
+                      src='{{ _scale_src | tojson }}'
+                      data-id="scale_combo"></ui-combo>
+        <small class="muted">Rinde escalado: {{ "%.2f"|format(recipe.yield_qty * scale_factor) }} {{ recipe.yield_unit }}</small>
+      </div>
+      {% endif %}
+
+      <div class="form-row">
+        <label>Tiempos</label>
+        <div class="time-group">
+          <div class="time-field">
+            <label for="prep_minutes" class="time-field-label">Prep.</label>
+            <div class="time-input-group">
+              <input type="number" id="prep_minutes" name="prep_minutes" min="0" max="1440"
+                     class="time-input" value="{{ recipe.prep_minutes if recipe and recipe.prep_minutes is not none else '' }}"
+                     placeholder="15">
+              <span class="time-suffix">min</span>
+            </div>
+          </div>
+          <div class="time-field">
+            <label for="cook_minutes" class="time-field-label">Cocción</label>
+            <div class="time-input-group">
+              <input type="number" id="cook_minutes" name="cook_minutes" min="0" max="1440"
+                     class="time-input" value="{{ recipe.cook_minutes if recipe and recipe.cook_minutes is not none else '' }}"
+                     placeholder="30">
+              <span class="time-suffix">min</span>
+            </div>
+          </div>
+          <div class="time-field">
+            <label for="difficulty" class="time-field-label">Dificultad</label>
+            <div class="time-input-group">
+              {# Star-rating difficulty selector #}
+              <div class="difficulty-stars d-flex" id="difficulty-stars" style="display:flex;gap:4px;cursor:pointer;" role="group" aria-label="Dificultad">
+                {% for s in range(1, 6) %}
+                  <span class="star-btn" data-val="{{ s }}" aria-label="{{ s }}"
+                        style="font-size:1.1rem;line-height:1;color:var(--color-text-muted);user-select:none;">&#9733;</span>
+                {% endfor %}
+              </div>
+              <input type="hidden" id="difficulty" name="difficulty"
+                     value="{{ recipe.difficulty if recipe and recipe.difficulty is not none else '' }}"
+                     hx-post="/api/validate/recipe" hx-trigger="blur" hx-include="closest form"
+                     onhtmx:after-request="handleValidation(this, event)">
+              <span class="field-error" id="difficulty-error" style="color:var(--color-danger);font-size:var(--text-xs);"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {# Cocina works in quantities. Sale price is set in Gerencia. #}
+    {% if not station_hides_prices %}
+    {# ── Live cost summary (escandallo) ─────────────────────────── #}
+    <section class="form-section form-section-side cost-summary" id="cost-summary">
+      <header class="form-section-header">
+        <h2 class="form-section-title">Escandallo</h2>
+        <p class="form-section-hint">Costo estimado basado en precios de compra</p>
+      </header>
+
+      <div class="cost-metric">
+        <span class="cost-label">Costo del lote</span>
+        <span class="cost-value" id="batch-cost">{% if batch_cost_gs %}Gs. {{ "{:,}".format(batch_cost_gs).replace(",", ".") }}{% else %}Gs. 0{% endif %}</span>
+      </div>
+
+      <div class="cost-metric">
+        <span class="cost-label">Costo por unidad</span>
+        <span class="cost-value" id="unit-cost">{% if unit_cost_gs %}Gs. {{ "{:,}".format(unit_cost_gs).replace(",", ".") }}{% else %}Gs. 0{% endif %}</span>
+      </div>
+
+      <div class="cost-metric cost-metric-margin">
+        <span class="cost-label">Precio sugerido (×3)</span>
+        <span class="cost-value" id="suggested-price">{% if suggested_price_gs %}Gs. {{ "{:,}".format(suggested_price_gs).replace(",", ".") }}{% else %}Gs. 0{% endif %}</span>
+      </div>
+
+      <div class="cost-warnings" id="cost-warnings" hidden>
+        <strong>Precios faltantes:</strong>
+        <ul id="cost-warnings-list"></ul>
+      </div>
+
+      <small class="muted cost-disclaimer">Actualizado en tiempo real al cambiar ingredientes o rinde</small>
+    </section>
+    {% endif %}
+
+    {# ── Dietary tags (vertical compact) ──────────────────────── #}
+    <section class="form-section form-section-side">
+      <header class="form-section-header">
+        <h2 class="form-section-title">Etiquetas dietarias</h2>
+        <p class="form-section-hint">Restricciones alimentarias</p>
+      </header>
+      {{ t.tag_picker(
+           name='dietary_tags',
+           current_value=recipe.dietary_tags if recipe else '',
+           options_markup=t.render_tag_pills(dietary_tags),
+           allow_custom=True,
+           label='',
+           help=''
+         ) }}
+    </section>
+
+    {# ── Etiquetas de Menú (UI-V2 multi-select) ───────────────── #}
+    <section class="form-section form-section-side">
+      <header class="form-section-header">
+        <h2 class="form-section-title">Etiquetas de Menú</h2>
+        <p class="form-section-hint">Contextos comerciales: una receta puede tener varias (ej. Pastelería + Especial de Temporada)</p>
+      </header>
+      {{ t.tag_picker(
+           name='menu_tags',
+           current_value=recipe.menu_tags if recipe else '',
+           options_markup=t.render_tag_pills(menu_tag_options),
+           allow_custom=True,
+           label='',
+           help='Separadas por coma; usalas para filtrar el recetario.'
+         ) }}
+    </section>
+
+    {# ── Action: auto-create product toggle + buttons ──────── #}
+    <section class="form-section form-section-side action-section">
+      {% if not station_hides_prices %}
+      <label class="switch-toggle" for="also_create_product">
+        <input type="checkbox" id="also_create_product" name="also_create_product" value="1" {% if mode == 'new' %}checked{% endif %}>
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+        <span class="switch-label">
+          <strong>Después de guardar, crear producto</strong>
+          <small>Genera un Producto vinculado a esta receta, con precio sugerido (costo × 3).</small>
+        </span>
+      </label>
+      {% endif %}
+
+      <div class="form-actions form-actions-bottom">
+        <a href="/recetas" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary btn-save">
+          <svg class="icon" aria-hidden="true"><use href="#icon-save"/></svg>
+          Guardar receta
+        </button>
+      </div>
+    </section>
+
+  </aside>
+</form>
+
+<script>
+// =====================================================================
+// LIVE COST CALCULATION + ROW MANAGEMENT + IMAGE UPLOAD
+// =====================================================================
+(function() {
+  'use strict';
+
+  // ---------- Ingredient cost data (loaded from server context) ----------
+  // The template provides ingredient prices as JSON so we can compute
+  // batch/unit cost live as the user edits lines.
+  // purchase_price_gs uses the variant-aware price (preferred variant
+  // if any, else the parent ingredient) so the JS live cost matches
+  // what recipe_batch_cost_gs() shows on the server.
+  var ingredientPrices = {
+    {%- for ing in (ingredients or []) -%}
+      "{{ ing.id }}": {
+        name: {{ fmt.entity_name(ing) | tojson  }},
+        unit: {{ ing.unit | tojson }},
+        purchase_price_gs: {{ (ing.preferred_price_gs if ing.preferred_price_gs is defined else ing.purchase_price_gs) or 0 }},
+        stock_qty: {{ ing.stock_qty or 0 }},
+        allergens: {{ (ing.allergens or '') | tojson }},
+        dietary: {{ (ing.dietary_tags or '') | tojson }}
+      }{% if not loop.last %},{% endif %}
+    {%- endfor -%}
+  };
+
+  function formatGs(n) {
+    if (!n || n === 0) return 'Gs. 0';
+    // es-PY uses dots as thousands separator (e.g. 1.924.500)
+    return 'Gs. ' + Math.round(n).toLocaleString('es-PY').replace(/,/g, '.');
+  }
+
+  function computeCosts() {
+    // Live Escandallo update: sum pre-computed data-line-cost attributes.
+    // Runs on qty/unit/kind change events. Server already renders
+    // correct batch/unit totals on page load — no initial call needed.
+    var batchTotal = 0;
+    var lines = document.querySelectorAll('#lines .line-row');
+    lines.forEach(function(row) {
+      var costCell = row.querySelector('.line-cost-display');
+      var preCost = costCell ? (parseFloat(costCell.getAttribute('data-line-cost')) || 0) : 0;
+      batchTotal += preCost;
+    });
+
+    var yieldQty = parseFloat((document.getElementById('yield_qty') || {}).value) || 1;
+    var unitCost = yieldQty > 0 ? batchTotal / yieldQty : 0;
+    var batchEl = document.getElementById('batch-cost');
+    var unitEl = document.getElementById('unit-cost');
+    var sugEl = document.getElementById('suggested-price');
+    if (batchEl) batchEl.textContent = formatGs(batchTotal);
+    if (unitEl) unitEl.textContent = formatGs(unitCost);
+    if (sugEl) sugEl.textContent = formatGs(Math.ceil(unitCost * 3 / 1000) * 1000);
+  }
+
+  // Wire computeCosts to user interactions (qty/unit/kind changes)
+  document.querySelectorAll('#lines').forEach(function(tbody) {
+    tbody.addEventListener('input', function(e) {
+      if (e.target.matches('input[name="line_qty"], ui-combo')) computeCosts();
+    });
+    tbody.addEventListener('change', function(e) {
+      if (e.target.matches('ui-combo')) computeCosts();
+    });
+  });
+  var yieldQtyEl = document.getElementById('yield_qty');
+  if (yieldQtyEl) yieldQtyEl.addEventListener('input', computeCosts);
+
+  // ---------- Add line button ----------
+  var addBtn = document.getElementById('add-line');
+  if (addBtn) {
+    addBtn.addEventListener('click', function() {
+      var tbody = document.getElementById('lines');
+      var row = document.createElement('tr');
+      row.className = 'line-row';
+      row.dataset.kind = 'ingredient';
+      row.innerHTML = `
+        <td class="line-col-type">
+          <ui-combo name="line_kind" value="ingredient" display="Insumo" placeholder="Tipo"
+            src='[{"label":"Insumo","value":"ingredient"},{"label":"Sub-receta","value":"sub_recipe"}]'></ui-combo>
+        </td>
+        <td class="line-col-item">
+          <ui-combo name="line_target_id" placeholder="Buscar ingrediente…"
+            endpoint="/inventario/api/search?q="
+            data-source="/inventario/api/search"
+            value-field="id" label-field="name"></ui-combo>
+        </td>
+        <td class="line-col-qty">
+          <input type="number" step="0.001" min="0" name="line_qty"
+                 class="line-qty-input" value="" placeholder="0.000">
+        </td>
+        <td class="line-col-unit">
+          <ui-combo name="line_unit" value="g" display="g" placeholder="g"
+            src='[{"label":"g","value":"g"},{"label":"kg","value":"kg"},{"label":"ml","value":"ml"},{"label":"l","value":"l"},{"label":"und","value":"und"}]'></ui-combo>
+        </td>
+        <td class="line-col-cost">
+          <span class="line-cost-display" data-cost-per-unit="0">Gs. 0</span>
+        </td>
+        <td class="line-col-note">
+          <input type="text" name="line_notes" maxlength="200" value=""
+                 class="line-note-input" placeholder="opcional">
+        </td>
+        <td class="line-col-action">
+          <button type="button" class="btn-icon-danger line-remove"
+                  aria-label="Eliminar línea" title="Eliminar línea">
+            <svg class="icon" aria-hidden="true"><use href="#icon-trash"/></svg>
+          </button>
+        </td>
+      `;
+      tbody.appendChild(row);
+      // Web Components register themselves on connectedCallback. Force-
+      // upgrade any combos already in the DOM (e.g. from innerHTML) by
+      // re-creating them with `new UICombo()` so each gets its
+      // attributes parsed and event handlers attached.
+      // Force-upgrade combos in the freshly-appended row by re-creating them
+      // with `new UICombo()` so each gets its attributes parsed and
+      // event handlers attached on the new instance.
+      // (See /static/ui-combo.js for the class definition.)
+      var newCombos = row.querySelectorAll('ui-combo');
+      newCombos.forEach(function(oldCombo) {
+        var newUICombo = document.createElement('ui-combo');
+        for (var i = 0; i < oldCombo.attributes.length; i++) {
+          var a = oldCombo.attributes[i];
+          newUICombo.setAttribute(a.name, a.value);
+        }
+        oldCombo.replaceWith(newUICombo);
+      });
+      initLineRow && initLineRow(row);
+      // Web Components auto-init on connectedCallback; wire change handlers for cost calc
+      var combos = row.querySelectorAll('ui-combo');
+      combos.forEach(function(c) {
+        c.addEventListener('change', function() { computeCosts(); });
+      });
+    });
+  }
+
+  // ---------- Yield changes affect unit cost ----------
+  var yieldQtyEl = document.getElementById('yield_qty');
+  if (yieldQtyEl) yieldQtyEl.addEventListener('input', computeCosts);
+
+  // ---------- Compute costs on page load for pre-filled existing lines ----------
+  // computeCosts reads data-line-cost (pierces shadow DOM) and also uses
+  // ingredientPrices[targetId] for live interactive updates.
+  computeCosts();
+
+  // ---------- Auto-expand textareas ----------
+  document.querySelectorAll('textarea[data-autoexpand="true"]').forEach(function(ta) {
+    function autoSize() {
+      ta.style.height = 'auto';
+      ta.style.height = (ta.scrollHeight + 4) + 'px';
+    }
+    autoSize();
+    ta.addEventListener('input', autoSize);
+    ta.form && ta.form.addEventListener('reset', function() { setTimeout(autoSize, 0); });
+  });
+  // ---------- Live tag derivation preview (tag algebra, client-side) ----------
+  // Mirrors app/rms/tag_algebra.py: allergens union, dietary intersection.
+  // Neutral ingredients never block; sub-recipes not previewed (server-side only).
+  var NEUTRAL = ['agua', 'sal', 'sal fina', 'sal gruesa', 'hielo'];
+  var CANONICAL = ['sin gluten', 'sin tacc', 'sin lactosa', 'sin huevo',
+                   'sin frutos secos', 'vegano', 'vegetariano', 'sin azúcar'];
+
+  function splitTags(raw) {
+    return (raw || '').split(',').map(function(t) { return t.trim().toLowerCase(); })
+      .filter(function(t) { return t.length > 0; });
+  }
+
+  function updateTagPreview() {
+    var box = document.getElementById('tag-preview');
+    if (!box) return;
+    var allergens = {};
+    var blockers = {};  // tag -> [names]
+    var rows = document.querySelectorAll('#lines .line-row');
+    var anyLine = false;
+    rows.forEach(function(row) {
+      var idInput = row.querySelector('input[name="line_target_id"]');
+      var kindInput = row.querySelector('input[name="line_kind"]');
+      if (!idInput || !kindInput || kindInput.value !== 'ingredient') return;
+      var id = idInput.value;
+      if (!id || !ingredientPrices[id]) return;
+      var ing = ingredientPrices[id];
+      anyLine = true;
+      splitTags(ing.allergens).forEach(function(a) { allergens[a] = true; });
+      var isNeutral = NEUTRAL.some(function(n) {
+        return ing.name.toLowerCase() === n || ing.name.toLowerCase().startsWith(n + ' ');
+      });
+      if (isNeutral) return;
+      var declared = splitTags(ing.dietary);
+      CANONICAL.forEach(function(tag) {
+        if (declared.indexOf(tag) === -1) {
+          (blockers[tag] = blockers[tag] || []).push(ing.name);
+        }
+      });
+    });
+    if (!anyLine) { box.hidden = true; return; }
+    box.hidden = false;
+    var kept = CANONICAL.filter(function(t) { return !blockers[t]; });
+    var html = '<div style="margin-bottom:4px;">';
+    html += kept.length
+      ? '✅ ' + kept.map(function(t) { return '<span class="tag-pill">' + t + '</span>'; }).join(' ')
+      : '<span class="text-muted">Ninguna etiqueta dietética se cumple en todas las líneas.</span>';
+    html += '</div>';
+    var allg = Object.keys(allergens);
+    if (allg.length) {
+      html += '<div>⚠️ Contiene: ' + allg.join(', ') + '</div>';
+    }
+    var blockedTags = Object.keys(blockers);
+    if (blockedTags.length) {
+      html += '<details class="mt-4" ><summary style="cursor:pointer;">❌ Canceladas (' + blockedTags.length + ')</summary><ul style="padding-left:1.2rem;margin:4px 0;">';
+      blockedTags.forEach(function(t) {
+        html += '<li><strong>' + t + '</strong> — ' + blockers[t].join(', ') + '</li>';
+      });
+      html += '</ul></details>';
+    }
+    box.innerHTML = html;
+  }
+
+  // Re-derive whenever a line changes (delegated: covers add/remove/edit)
+  document.getElementById('lines').addEventListener('change', updateTagPreview);
+  document.getElementById('lines').addEventListener('change', function(e) {
+    // Recompute costs on any combo or input change inside a line row
+    if (e.target.matches('ui-combo, input, select, textarea')) {
+      computeCosts();
+    }
+  });
+  document.getElementById('add-line').addEventListener('click', function() {
+    setTimeout(updateTagPreview, 50);
+  });
+  updateTagPreview();
+
+  // ---------- Post-migration shim: ui-combo Web Component bridge ----------
+  // After migrating from legacy .ui-combo divs to <ui-combo> elements,
+  // the Web Component dispatches 'change' on selection. Wire line-kind combos
+  // to swap target endpoint (sub_recipe ↔ ingrediente) via attribute.
+
+  // kindHidden — the hidden input that the combo writes its value into.
+  // Tests and JS query it via [name="line_kind"] to read the current kind.
+  function kindHidden(row) {
+    return row.querySelector('input[name="line_kind"]');
+  }
+
+  // updateLineSource — recompute the line_target_id endpoint + placeholder
+  // depending on the row's current line_kind. Called by wireLineKindHandlers
+  // on every kind change, and by row initialization.
+  function updateLineSource(row, kind) {
+    var targetCombo = row.querySelector('ui-combo[name="line_target_id"]');
+    if (!targetCombo) return;
+    if (kind === 'sub_recipe') {
+      targetCombo.setAttribute('endpoint', '/recetas/api/search?q=');
+      targetCombo.setAttribute('placeholder', 'Buscar sub-receta…');
+    } else {
+      targetCombo.setAttribute('endpoint', '/inventario/api/search?q=');
+      targetCombo.setAttribute('placeholder', 'Buscar ingrediente…');
+    }
+    targetCombo.clear();
+  }
+
+  function wireLineKindHandlers() {
+    var rows = document.querySelectorAll('#lines .line-row');
+    rows.forEach(function(row) {
+      var kindCombo = row.querySelector('ui-combo[name="line_kind"]');
+      var targetCombo = row.querySelector('ui-combo[name="line_target_id"]');
+      if (!kindCombo || !targetCombo) return;
+      if (kindCombo._saskiaBridged) return;
+      kindCombo._saskiaBridged = true;
+      kindCombo.addEventListener('change', function() {
+        var kind = kindCombo.getValue();
+        updateLineSource(row, kind);
+      });
+    });
+  }
+  wireLineKindHandlers();
+  // Also bridge when new rows are added
+  document.getElementById('add-line').addEventListener('click', function() {
+    setTimeout(wireLineKindHandlers, 10);
+  });
+
+  // ---------- Initial compute on page load ----------
+  computeCosts();
+})();
+
+// ── Unsaved changes warning ──
+(function() {
+  var form = document.getElementById('recipe-form');
+  if (!form) return;
+  var formDirty = false;
+  form.querySelectorAll('input, select, textarea').forEach(function(el) {
+    el.addEventListener('input', function() { formDirty = true; });
+  });
+  window.addEventListener('beforeunload', function(e) {
+    if (formDirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+  form.addEventListener('submit', function() { formDirty = false; });
+})();
+
+// ── HTMX inline validation handler ──
+function handleValidation(inputEl, event) {
+  var response = event.detail.xhr.responseText;
+  try {
+    var data = JSON.parse(response);
+  } catch(e) { return; }
+  var errors = data.errors || {};
+  var fieldName = inputEl.name;
+  var errorEl = document.getElementById(fieldName + '-error');
+  if (errorEl) {
+    errorEl.textContent = errors[fieldName] || '';
+    errorEl.style.display = errors[fieldName] ? '' : 'none';
+  }
+}
+
+// ── Difficulty star rating ──
+(function() {
+  var container = document.getElementById('difficulty-stars');
+  if (!container) return;
+  var input = document.getElementById('difficulty');
+  var stars = container.querySelectorAll('.star-btn');
+
+  function setStars(val) {
+    stars.forEach(function(s) {
+      var sv = parseInt(s.getAttribute('data-val'), 10);
+      s.style.color = sv <= val ? '#f59e0b' : 'var(--color-text-muted)';
+    });
+  }
+
+  // Init from current value
+  var initial = parseInt(input && input.value, 10);
+  if (initial) setStars(initial);
+
+  stars.forEach(function(star) {
+    star.addEventListener('click', function() {
+      var val = parseInt(star.getAttribute('data-val'), 10);
+      input.value = val;
+      setStars(val);
+      // Trigger HTMX validation
+      input.dispatchEvent(new Event('blur'));
+    });
+    star.addEventListener('mouseover', function() {
+      setStars(parseInt(star.getAttribute('data-val'), 10));
+    });
+  });
+
+  container.addEventListener('mouseleave', function() {
+    var current = parseInt(input.value, 10) || 0;
+    setStars(current);
+  });
+})();
+
+// ── Recipe photo picker ──
+(function() {
+  var modal = document.getElementById('recipe-photo-modal');
+  if (!modal) return;
+
+  // Populate photos from /recetas/{id}/set-photo via fetch
+  var recipeId = {{ recipe.id if mode == 'edit' and recipe else 'null' }};
+  if (recipeId) {
+    fetch('/recetas/' + recipeId + '/set-photo')
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        // Inject just the photo grid into the modal body
+        var tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        var grid = tmp.querySelector('.photo-grid');
+        var body = modal.querySelector('.modal-body');
+        if (grid && body) {
+          // Replace existing content
+          var existing = body.querySelector('.photo-grid');
+          if (existing) existing.remove();
+          body.appendChild(grid);
+        }
+      })
+      .catch(function() {});
+  }
+
+  var img = document.getElementById('recipe-photo-img');
+  var title = document.getElementById('recipe-photo-title');
+  var closeBtn = document.getElementById('recipe-photo-close');
+
+  document.querySelectorAll('[data-recipe-photo]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var src = btn.getAttribute('data-src');
+      var name = btn.getAttribute('data-name') || '';
+      if (!src) return;
+      if (img) img.src = src;
+      if (title) title.textContent = name;
+      modal.showModal();
+    });
+  });
+
+  if (closeBtn) closeBtn.addEventListener('click', function() { modal.close(); });
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) modal.close();
+  });
+})();
+</script>
+
+{# ── Recipe photo picker modal (re-used from /recetas/{id}/set-photo) ── #}
+<dialog id="recipe-photo-modal" class="modal" aria-labelledby="recipe-photo-title" aria-modal="true">
+  <div class="modal-dialog" role="document" style="max-width:min(90vw, 720px);">
+    <div class="modal-header">
+      <h2 id="recipe-photo-title" class="modal-title">Elegir foto</h2>
+      <button type="button" class="btn-ghost btn-icon" onclick="document.getElementById('recipe-photo-modal').close()" aria-label="Cerrar">
+        <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+      </button>
+    </div>
+    <div class="modal-body text-center" >
+      {# Photos injected via JS from /recetas/{id}/set-photo #}
+      <div id="photo-picker-loading" class="muted" style="padding:2rem;">Cargando fotos…</div>
+    </div>
+  </div>
+</dialog>
+
+<script>
+// D17 bridge: when a line's Tipo changes (Insumo ↔ Sub-receta), swap the
+// item combo's search endpoint to match (inventario vs recetas).
+function bridgeLineKindCombos(root) {
+  (root || document).querySelectorAll('.line-row').forEach(function(row) {
+    var kind = row.querySelector('ui-combo[name="line_kind"]');
+    var item = row.querySelector('ui-combo[name="line_target_id"]');
+    if (!kind || !item) return;
+    var apply = function() {
+      var v = kind.getAttribute('value') || kind.value || 'ingredient';
+      if (v === 'sub_recipe') {
+        item.setAttribute('endpoint', '/recetas/api/search?q=');
+        item.setAttribute('data-source', '/recetas/api/search/');
+        item.setAttribute('placeholder', 'Buscar sub-receta…');
+      } else {
+        item.setAttribute('endpoint', '/inventario/api/search?q=');
+        item.setAttribute('data-source', '/inventario/api/search/');
+        item.setAttribute('placeholder', 'Buscar ingrediente…');
+      }
+    };
+    kind.addEventListener('change', apply);
+    apply();
+  });
+}
+document.addEventListener('DOMContentLoaded', function() { bridgeLineKindCombos(); });
+</script>
+
+{% endblock %}

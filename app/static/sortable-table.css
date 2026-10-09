@@ -1,0 +1,116 @@
+/* Phase 22: Sortable table styles */
+
+table.sortable thead th,
+table[data-sortable] thead th {
+    position: relative;
+    user-select: none;
+}
+
+.sortable-header {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.sortable-header:hover {
+    background-color: var(--color-bg-elevated, #f5f5f5);
+}
+
+.sortable-header:focus {
+    outline: 2px solid var(--color-primary, #4a90e2);
+    outline-offset: -2px;
+}
+
+.sort-indicator {
+    display: inline-block;
+    margin-left: 4px;
+    opacity: 0.3;
+    font-size: 0.9em;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.sortable-header:hover .sort-indicator {
+    opacity: 0.7;
+}
+
+.sort-asc .sort-indicator {
+    opacity: 1;
+    content: '↑';
+}
+
+.sort-asc .sort-indicator::before {
+    content: '↑';
+}
+
+.sort-desc .sort-indicator {
+    opacity: 1;
+}
+
+.sort-desc .sort-indicator::before {
+    content: '↓';
+}
+
+/* Default indicator using font */
+.sortable-header .sort-indicator {
+    font-family: monospace;
+    letter-spacing: -1px;
+}
+
+/* Visual feedback for sort */
+.sort-asc {
+    background-color: var(--color-primary-bg, rgba(74, 144, 226, 0.1));
+    color: var(--color-primary, #4a90e2);
+}
+
+.sort-desc {
+    background-color: var(--color-primary-bg, rgba(74, 144, 226, 0.1));
+    color: var(--color-primary, #4a90e2);
+}
+
+/* No-sort columns */
+th.no-sort,
+th[data-no-sort] {
+    cursor: default;
+    user-select: text;
+}
+
+th.no-sort:hover,
+th[data-no-sort]:hover {
+    background-color: inherit;
+}
+
+/* Make sure the indicator is right-aligned for number columns */
+th.num .sort-indicator,
+th.text-right .sort-indicator {
+    margin-left: 4px;
+    margin-right: 0;
+}
+
+/* Print: hide sort indicators */
+@media print {
+    .sort-indicator {
+        display: none;
+    }
+    .sortable-header {
+        cursor: default;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .sortable-header,
+    .sort-indicator {
+        transition: none;
+    }
+}
+
+/* Dark mode support */
+[data-theme="dark"] .sortable-header:hover,
+[data-theme="dark"] .sort-asc,
+[data-theme="dark"] .sort-desc {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .sort-asc,
+[data-theme="dark"] .sort-desc {
+    color: var(--color-primary, #6ab7ff);
+}

@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% import "_components/macros.html" as m %}
+{% import "_components/atoms.html" as ui %}
+
+{% block title %}Historial de ventas{% endblock %}
+
+{% block content %}
+<h1>Historial de ventas</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p>
+  <a href="/ventas" class="btn btn-ghost">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Ir a Nueva venta
+  </a>
+</p>
+
+{% import "_components/atoms.html" as a %}
+<div class="kpi-row mb-4 d-grid" aria-label="Resumen del historial" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--space-4);">
+  {{ a.metric_card("Ventas activas", totals.count, sub="en el período filtrado") }}
+  {{ a.metric_card("Total recaudado", m.gs_full(totals.total_gs)) }}
+  {{ a.metric_card("Ticket promedio", m.gs_full(totals.avg_ticket_gs)) }}
+</div>
+<div class="card mb-4" aria-label="Filtros del historial">
+  <div class="grid grid-3">
+  <p class="text-muted mt-2 text-xs" >
+    Filtro actual: {{ totals.filters }}
+    <span class="badge badge-info" style="margin-left:var(--space-3);">
+      Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total_count }}</strong> ventas
+    </span>
+    {% set csv_query = dict(request.query_params.multi_items()) %}
+    {% set _ = csv_query.update({'format': 'csv'}) %}
+    <a href="{{ request.url.path }}?{{ csv_query|urlencode }}" class="btn btn-sm"
+       style="margin-left:var(--space-3);"
+       download="ventas-{{ now_local[:10] }}.csv">
+      <svg class="icon" aria-hidden="true"><use href="#icon-excel"/></svg>
+      Exportar CSV
+    </a>
+  </p>
+  </div>
+</div>
+
+<div class="form-row">
+  <label for="sales-search">Buscar:</label>
+  <input type="search" id="sales-search" name="q" value="{{ request.query_params.get('q','') }}" placeholder="Producto, nota o teléfono" aria-label="Buscar producto, nota o teléfono">
+  {% set _products_src = [{'label': 'Todos los productos', 'value': ''}] %}
+  {% for p in products %}
+    {% set _ = _products_src.append({'label': fmt.entity_name(p), 'value': p.id|string}) %}
+  {% endfor %}
+  {{ ui.combo_field(
+    name='product_id',
+    value=(request.query_params.get('product_id') or ''),
+    placeholder='Filtrar por producto...',
+    src=_products_src
+  ) }}
+
+  <label for="days-filter" class="sr-only">Rango de días</label>
+  {{ ui.combo_field(
+    name='days',
+    value=(days or ''),
+    display=({7: 'Últimos 7 días', 30: 'Últimos 30 días', 90: 'Últimos 90 días'}.get(days, 'Todos los días')),
+    placeholder='Rango',
+    src=[{'label': 'Todos los días', 'value': ''}, {'label': 'Últimos 7 días', 'value': '7'}, {'label': 'Últimos 30 días', 'value': '30'}, {'label': 'Últimos 90 días', 'value': '90'}],
+    autosubmit=True
+  ) }}
+
+  {# SASKIA-204 (2026-10-07): channel filter for the new
+     retail/wholesale/distributor/eventual channels. Auto-submits so
+     the table refreshes immediately. `all_channels` is built in
+     _build_sales_context from Channel.display_order() — keeps the
+     operator's mental model of "front-of-house first, HEREBUS
+     channels later". #}
+  {% set _channel_labels = {'mostrador': 'Mostrador', 'mostrador-encargo': 'Mostrador (encargo)', 'whatsapp': 'WhatsApp', 'pedidosya': 'PedidosYa', 'monchis': 'Monchis', 'retail': 'Retail', 'wholesale': 'Wholesale', 'distributor': 'Distributor', 'eventual': 'Eventual', 'other': 'Otro'} %}
+  {% set _channels_src = [{'label': 'Todos los canales', 'value': ''}] %}
+  {% for c in all_channels %}
+    {% set _ = _channels_src.append({'label': _channel_labels[c] or c, 'value': c}) %}
+  {% endfor %}
+  {{ ui.combo_field(
+    name='channel',
+    value=(channel or ''),
+    display=(channel_label if channel else 'Todos los canales'),
+    placeholder='Canal',
+    src=_channels_src,
+    autosubmit=True
+  ) }}
+
+  <button type="submit" class="btn btn-primary">Filtrar</button>
+  {% if q or product_id or days or channel %}
+  <a href="/ventas/historial" class="btn btn-ghost">Limpiar</a>
+  {% endif %}
+  <label class="text-muted d-inline-flex" style="display:inline-flex;align-items:center;gap:.3em;font-size:var(--text-sm);">
+    <input type="checkbox" id="include-voided" name="include_voided" value="1"
+           {{ 'checked' if include_voided else '' }}
+           onchange="this.form.submit()">
+    Ver anuladas
+  </label>
+  <button type="button" class="btn btn-sm no-print" onclick="window.print()">🖨 Imprimir reporte</button>
+</div>
+
+{% if sales %}
+{{ ui.skeleton_section(id="sales-history-table", variant="line", count=15, label="Cargando historial de ventas") }}
+<div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);" data-loaded-section="sales-history-table">
+<table class="table is-hoverable is-striped mb-0" >
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Producto</th>
+      <th class="num">Cant.</th>
+      <th class="num">Unit. (Gs.)</th>
+      <th class="num">Total (Gs.)</th>
+      <th>Cliente</th>
+      <th>Pago</th>
+      <th>Canal</th>
+      <th>Atendido por</th>
+      <th>Notas</th>
+      <th class="actions">Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in sales %}
+    <tr class="{{ 'is-voided' if s.voided_at else '' }}">
+      <td>{{ s.sold_at_str }}</td>
+      <td>
+        {{ s.product_name }}
+        {% if s.voided_at %}
+        <div class="voided-banner">
+          <strong>ANULADA</strong>
+          <span>{{ s.voided_at_str }}</span>
+          {% if s.voided_by %}<span> · por {{ s.voided_by }}</span>{% endif %}
+          {% if s.void_reason %}<div class="voided-reason">{{ s.void_reason }}</div>{% endif %}
+        </div>
+        {% endif %}
+      </td>
+      <td class="num">{{ s.qty }}</td>
+      <td class="num">{{ m.gs(s.unit_price_gs) }}</td>
+      <td class="num">{{ m.gs(s.total_gs) }}</td>
+      <td>
+        {% if s.customer_name %}
+          {{ s.customer_name }}
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+        {% if s.customer_phone %}<br><small class="text-muted">{{ s.customer_phone }}</small>{% endif %}
+      </td>
+      <td>{{ s.payment_method or "—" }}</td>
+      <td>{{ s.channel or '—' }}</td>
+      <td>{{ s.fulfilled_by or '—' }}</td>
+      <td>{{ s.notes or '' }}</td>
+      <td class="actions" style="white-space:nowrap;">
+        <a href="/ventas/{{ s.id }}/recibo" class="btn btn-sm btn-ghost">
+          <svg class="icon" aria-hidden="true"><use href="#icon-print"/></svg>
+          Recibo
+        </a>
+        {# Tier 7.1 (2026-10-01): convert a confirmed sale (with a
+           customer) into a pedido. Pre-fills /pedidos/nuevo with the
+           customer_id + a note describing what was sold so the operator
+           can re-create the same basket as a pending pedido. Only shown
+           when the sale is not voided AND has a customer attached (a
+           cash sale with no customer can't become a pedido). #}
+        {% if s.customer_id and not s.voided_at %}
+        <a href="/pedidos/nuevo?customer_id={{ s.customer_id }}&from_sale={{ s.id }}"
+           class="btn btn-sm"
+           title="Crear pedido para {{ s.customer_name }} basado en esta venta">
+          <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
+          Pedido
+        </a>
+        {% endif %}
+        {% if not s.voided_at %}
+        <form method="post" action="/ventas/{{ s.id }}/anular" id="void-form-{{ s.id }}" 
+              class="js-confirm-form d-inline" data-confirm-title="¿Anular venta #{{ s.id }}?" data-confirm-body="Esta acción devuelve el stock y queda registrada en auditoría." data-confirm-danger="true">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="reason" id="anular-reason-{{ s.id }}">
+          <button type="button" class="btn btn-sm btn-danger-ghost"
+                  onclick="UIConfirmModal.show({title:'¿Anular venta #{{ s.id }}?',body:'Esta acción devuelve el stock y queda registrada en auditoría.',confirmLabel:'Sí, anular',danger:true,formId:'void-form-{{ s.id }}',reasonInputId:'anular-reason-{{ s.id }}',reasonField:true})">Anular</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr style="background:var(--color-surface-subtle);font-weight:700;">
+      <td>Total ({{ sales|length }} ventas)</td>
+      <td></td>
+      <td class="num">{{ sales|sum(attribute='qty') }}</td>
+      <td></td>
+      <td class="num">{{ m.gs(sales|sum(attribute='total_gs')|int) }}</td>
+      <td colspan="5"></td>
+    </tr>
+  </tfoot>
+</table>
+</div>
+</div>
+
+{% if pagination and pagination.total_count > 0 %}
+<div class="table-info">
+  Mostrando <strong>{{ page_start }}–{{ page_end }}</strong>
+  de <strong>{{ pagination.total_count }}</strong> ventas
+  (página {{ pagination.page }} de {{ pagination.total_pages }})
+</div>
+{% if pagination.total_pages > 1 %}
+<nav class="pagination" aria-label="Paginación de ventas">
+  {% if pagination.page > 1 %}
+  <a href="?page={{ pagination.page - 1 }}{% if _q_val %}&amp;q={{ _q_val }}{% endif %}{% if _product_id_val %}&amp;product_id={{ _product_id_val }}{% endif %}{% if _days_val %}&amp;days={{ _days_val }}{% endif %}{% if channel %}&amp;channel={{ channel }}{% endif %}" class="btn btn-ghost">← Anterior</a>
+  {% endif %}
+  {% if pagination.page < pagination.total_pages %}
+  <a href="?page={{ pagination.page + 1 }}{% if _q_val %}&amp;q={{ _q_val }}{% endif %}{% if _product_id_val %}&amp;product_id={{ _product_id_val }}{% endif %}{% if _days_val %}&amp;days={{ _days_val }}{% endif %}{% if channel %}&amp;channel={{ channel }}{% endif %}" class="btn btn-ghost">Siguiente →</a>
+  {% endif %}
+</nav>
+{% endif %}
+{% endif %}
+
+{% else %}
+{{ ui.empty_state(title="Todavía no hay ventas en el historial", icon="icon-sale", hint="Las ventas que registres aparecerán acá.") }}
+{% endif %}
+{% endblock %}

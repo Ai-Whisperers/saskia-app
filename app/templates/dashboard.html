@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Dashboard · Sazón RMS{% endblock %}
+{% block content %}
+
+{# Sazon onboarding banner — only renders when seed_sazon has populated
+   this DB. Dismissible via localStorage so it only flashes on first run. #}
+{% if sazon_seeded %}
+<aside class="sazon-welcome-banner" role="status" data-sazon-welcome
+     style="background:#fff7ed;border:1px solid #fdba74;border-radius:.5rem;padding:.75rem 1rem;margin-bottom:1rem;display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+  <span style="font-size:1.5rem;" aria-hidden="true">🐄</span>
+  <div class="flex-1" style="flex:1;min-width:240px;">
+    <strong>{{ sazon_tenant_name }}</strong> está lista.
+    <span class="muted" style="color:#6b7280;">
+      Sembrado el {{ sazon_seeded_at[:10] if sazon_seeded_at else '—' }} ·
+      acceso admin: <code>{{ sazon_admin_user }}</code>
+    </span>
+  </div>
+  <a class="btn" href="/admin/branding" style="text-decoration:none;background:#7b3f00;color:#fff;padding:.35rem .75rem;border-radius:.25rem;font-size:.9rem;">
+    Personalizar marca
+  </a>
+  <button type="button" aria-label="Cerrar" data-sazon-dismiss
+          style="background:transparent;border:0;font-size:1.2rem;cursor:pointer;color:#6b7280;line-height:1;">×</button>
+</aside>
+<script>
+(function() {
+  var key = 'sazon-welcome-dismissed-at';
+  var banner = document.querySelector('[data-sazon-welcome]');
+  if (!banner) return;
+  if (localStorage.getItem(key)) { banner.remove(); return; }
+  var btn = banner.querySelector('[data-sazon-dismiss]');
+  if (btn) btn.addEventListener('click', function() {
+    localStorage.setItem(key, new Date().toISOString());
+    banner.remove();
+  });
+})();
+</script>
+{% endif %}
+
+<div class="page-header">
+  <h1><svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>  Dashboard — {{ month_label }}</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+  <p class="muted">Indicadores en vivo · datos del local</p>
+</div>
+
+{# ── Empty state for fresh DB ────────────────────────────────────────── #}
+{% if revenue_gs == 0 and unique_customers == 0 %}
+<section class="empty-state" role="status" aria-live="polite">
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  <h2>Sin datos este mes todavía</h2>
+  <p>Registrá tu primera venta o cargá el catálogo para ver los indicadores en vivo.</p>
+  <div class="empty-state__actions">
+    <a href="/ventas" class="btn btn-primary">Registrar venta</a>
+    <a href="/productos" class="btn">Ver catálogo</a>
+  </div>
+</section>
+{# P-35.1: even in empty state, show the group structure so a first-run
+   admin sees where the KPIs will land once data is loaded. #}
+{# P-22: KPI tiles render even at zero data — target bars at 0 (danger)
+   beat silent hiding; 'sin escandallo' fallbacks keep objetivos visible. #}
+{% include "_dashboard_kpi_row.html" %}
+{% else %}
+
+{# ── Alertas de margen ──────────────────────────────────────────────── #}
+{% if erosion_alerts %}
+<div class="alert alert-warning" style="margin:1rem 0;padding:0.75rem 1rem;border-left:4px solid #d97706;">
+  <strong>⚠️ Márgenes en riesgo</strong> — {{ erosion_alerts|length }} producto{{ 's' if erosion_alerts|length > 1 }} perdió margen por suba de insumos:
+  <ul style="margin:0.5rem 0 0 1.2rem;">
+    {% for a in erosion_alerts[:5] %}
+    <li>
+      <a href="/reportes/margenes/{{ a.product_id }}">{{ a.product_name }}</a>
+      — {{ a.ingredient_name }} subió
+      {% if a.price_delta_pct is not none %}{{ "%.0f"|format(a.price_delta_pct) }}%{% else %}de precio{% endif %}
+      {% if a.margin_delta_pct is not none %}(margen {{ "%+.0f"|format(a.margin_delta_pct) }}%){% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <a href="/reportes/margenes">Ver deriva completa →</a>
+</div>
+{% endif %}
+
+{% include "_dashboard_kpi_row.html" %}
+
+{% if erosion_alerts %}
+<div class="alert alert-warning" style="margin:1rem 0;padding:0.75rem 1rem;border-left:4px solid #d97706;">
+  <strong>⚠️ Márgenes en riesgo</strong> — {{ erosion_alerts|length }} producto{{ 's' if erosion_alerts|length > 1 }} perdió margen por suba de insumos:
+  <ul style="margin:0.5rem 0 0 1.2rem;">
+    {% for a in erosion_alerts[:5] %}
+    <li>
+      <a href="/reportes/margenes/{{ a.product_id }}">{{ a.product_name }}</a>
+      — {{ a.ingredient_name }} subió
+      {% if a.price_delta_pct is not none %}{{ "%.0f"|format(a.price_delta_pct) }}%{% else %}de precio{% endif %}
+      {% if a.margin_delta_pct is not none %}(margen {{ "%+.0f"|format(a.margin_delta_pct) }}%){% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <a href="/reportes/margenes">Ver deriva completa →</a>
+</div>
+{% endif %}
+
+<h2>Recetas</h2>
+{{ ui.skeleton_section(id="dashboard-recipes", variant="kpi", count=2, label="Cargando recetas") }}
+<div class="kpi-strip" data-loaded-section="dashboard-recipes">
+  {{ ui.metric_card(label="Recetas en el sistema", value=recipe_count, compact=True) }}
+  {{ ui.metric_card(label="Recetas cocinadas este mes", value=recipes_cooked, compact=True) }}
+</div>
+
+<h2><svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg>  Receta más vendida</h2>
+{% if top_recipe_name != '—' %}
+<div style="display:inline-block; padding:1rem; min-width:300px;">
+  <div class="muted">Receta más vendida</div>
+  <div style="font-size:1.5rem; font-weight:600;">{{ top_recipe_name }}</div>
+  <div class="muted">Ingresos: {{ m.gs(top_recipe_revenue_gs) }}</div>
+</div>
+{% endif %}
+
+<h2><svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>  Por canal de venta</h2>
+{{ ui.skeleton_section(id="dashboard-channels", variant="line", count=4, label="Cargando ventas por canal") }}
+<div data-loaded-section="dashboard-channels">
+{% if by_channel %}
+<table class="table is-striped">
+  <thead><tr><th>Canal</th><th class="num">Ingresos Gs.</th></tr></thead>
+  <tbody>
+    {% for ch, rev in by_channel.items() %}
+    <tr>
+      <td><strong>{{ ch }}</strong></td>
+      <td class="num">{{ m.gs(rev) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">Sin ventas este mes aún.</p>
+{% endif %}
+</div>
+
+<h2 class="mt-8" ><svg class="icon" aria-hidden="true"><use href="#icon-ops"/></svg>  Operación</h2>
+{{ ui.skeleton_section(id="dashboard-ops", variant="kpi", count=4, label="Cargando operación") }}
+<div class="kpi-strip" style="flex-wrap:wrap;" data-loaded-section="dashboard-ops">
+  <a href="/shopping-list" style="text-decoration:none;color:inherit;" class="metric-card metric-card--compact">
+    <div class="metric-card__label">Lista de Compras abiertas</div>
+    <div class="metric-card__value">{{ sl_open_count }}</div>
+    <div class="metric-card__sub text-danger">{{ m.gs(sl_total_gs) }} estimados</div>
+  </a>
+  <a href="/wishlist" style="text-decoration:none;color:inherit;" class="metric-card metric-card--compact">
+    <div class="metric-card__label">Equipamiento pendiente</div>
+    <div class="metric-card__value">{{ wishlist_count }}</div>
+    <div class="metric-card__sub text-warn">{{ m.gs(wishlist_total_gs) }} equipo</div>
+  </a>
+  <a href="/riesgos" style="text-decoration:none;color:inherit;" class="metric-card metric-card--compact">
+    <div class="metric-card__label">Riesgos activos</div>
+    <div class="metric-card__value">{{ risk_count }}</div>
+    <div class="metric-card__sub text-danger">{{ m.gs(risk_severity_gs) }} severidad</div>
+  </a>
+  <a href="/vs-mercado" style="text-decoration:none;color:inherit;" class="metric-card metric-card--compact">
+    <div class="metric-card__label">Comparativas de mercado</div>
+    <div class="metric-card__value">17</div>
+    <div class="metric-card__sub">vs competencia</div>
+  </a>
+</div>
+
+<p class="muted mt-8" >
+  Datos locales. Objetivos preconfigurados.
+  {{ tx_count_this_month }} transacciones este mes.
+</p>
+{% endif %}
+{% endblock %}

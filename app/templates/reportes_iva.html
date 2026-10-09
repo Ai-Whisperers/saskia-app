@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Libro IVA{{ ui.report_source_footer() }}
+{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Libro IVA — últimos 12 meses
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="text-muted">IVA 10% (Paraguay) — todos los precios son IVA incluido.</p>
+
+<div class="form-actions mb-4">
+  <a href="/reportes/iva/pdf" class="btn btn-secondary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+    Exportar PDF
+  </a>
+</div>
+
+{% if ytd %}
+{{ ui.skeleton_section(id="iva-ytd", variant="card", count=1, label="Cargando acumulado") }}
+<div class="metric-card mb-4" style="max-width: 400px; background: #f0f4ff; border-left: 4px solid #3b82f6;" data-loaded-section="iva-ytd">
+  <div class="metric-label">Acumulado del año (YTD)</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+    <div><span class="text-muted">Ventas:</span> {{ ytd.n_sales }}</div>
+    <div><span class="text-muted">Base imponible:</span> {{ m.gs(ytd.total_base_gs) }}</div>
+    <div><span class="text-muted">IVA 10%:</span> {{ m.gs(ytd.total_iva_gs) }}</div>
+    <div><span class="text-muted">Total:</span> <strong>{{ m.gs(ytd.total_gross_gs) }}</strong></div>
+  </div>
+</div>
+</div>
+{% endif %}
+
+{% if rows %}
+{{ ui.skeleton_section(id="iva-table", variant="line", count=12, label="Cargando libro IVA") }}
+<div data-loaded-section="iva-table">
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>Mes</th>
+      <th class="num">Ventas</th>
+      <th class="num">Gravado (Gs.)</th>
+      <th class="num">IVA 10% (Gs.)</th>
+      <th class="num">Total (Gs.)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td><strong>{{ "%04d-%02d"|format(r.year, r.month) }}</strong></td>
+      <td class="num">{{ r.n_sales }}</td>
+      <td class="num">{{ m.gs(r.total_base_gs) }}</td>
+      <td class="num">{{ m.gs(r.total_iva_gs) }}</td>
+      <td class="num"><strong>{{ m.gs(r.total_gross_gs) }}</strong></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+{{ ui.empty_state(title="No hay ventas registradas", icon="icon-report", hint="Cuando registres ventas van a aparecer acá mes por mes.") }}
+{% endif %}
+
+{% endblock %}

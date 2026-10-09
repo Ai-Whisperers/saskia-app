@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% import "_components/ingredient_tags.html" as t %}
+
+{% block title %}{{ fmt.entity_name(ingredient) }}{% endblock %}
+
+{% block content %}
+<div class="d-flex" style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap;margin-bottom:var(--space-4);">
+  <div>
+    <p style="margin:0 0 var(--space-2);">
+      <a href="/inventario" class="btn btn-sm btn-ghost">
+        <svg class="icon" aria-hidden="true"><use href="#icon-arrow-left"/></svg>
+        Volver al inventario
+      </a>
+    </p>
+    <h1 class="m-0" >
+      <svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg>
+      {{ fmt.entity_name(ingredient) }}
+    </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+  </div>
+  <div class="flex-gap-2-wrap" >
+    <button type="button" class="btn btn-secondary" onclick="openAdjustModal('{{ ingredient.id }}', '{{ fmt.entity_name(ingredient) }}', {{ ingredient.stock_qty }}, '{{ ingredient.unit }}', {{ ingredient.min_stock_qty or 0 }})">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      Ajustá stock
+    </button>
+    <a href="/inventario/{{ ingredient.id }}/editar" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+      Editá ingrediente
+    </a>
+  </div>
+</div>
+
+<div class="detail-grid">
+  <section class="detail-card">
+    <div class="detail-card-header">
+      <h2>Stock actual</h2>
+      <a href="/inventario/{{ ingredient.id }}/movimientos" class="btn btn-ghost btn-sm">
+        <svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg>
+        Ver movimientos
+      </a>
+    </div>
+    <dl>
+      <dt>Stock</dt>
+      <dd>
+        {% if ingredient.stock_qty < 0 %}
+          <span class="badge badge-danger">{{ "%.2f"|format(ingredient.stock_qty) }} {{ ingredient.unit }}</span>
+        {% else %}
+          {{ "%.2f"|format(ingredient.stock_qty) }} {{ ingredient.unit }}
+        {% endif %}
+      </dd>
+
+      <dt>Stock mínimo</dt>
+      <dd>{{ "%.2f"|format(ingredient.min_stock_qty) }} {{ ingredient.unit }}</dd>
+
+      {% if ingredient.reorder_point %}
+      <dt>Punto de reorden</dt>
+      <dd>{{ "%.2f"|format(ingredient.reorder_point) }} {{ ingredient.unit }}</dd>
+      {% endif %}
+
+      <dt>Unidad</dt>
+      <dd>{{ ingredient.unit }}</dd>
+
+      {% if ingredient.category %}
+      <dt>Categoría</dt>
+      <dd><span class="badge badge-neutral">{{ ingredient.category }}</span></dd>
+      {% endif %}
+    </dl>
+  </section>
+
+  <section class="detail-card">
+    <h2>Clasificación y etiquetas</h2>
+    <dl>
+      {% if ingredient.subcategory %}<dt>Subcategoría</dt><dd>{{ ingredient.subcategory }}</dd>{% endif %}
+      {% if ingredient.role %}<dt>Rol</dt><dd>{{ {"raw": "Materia prima", "semi": "Semi-elaborado", "packaging": "Envase", "other": "Otro"}.get(ingredient.role, ingredient.role) }}</dd>{% endif %}
+      <dt>Alérgenos</dt>
+      <dd>
+        {% if ingredient.allergens %}{{ t.tag_pills(ingredient.allergens, variant="allergen") }}
+        {% elif ingredient.allergens is none %}<span class="text-muted">sin declarar</span>
+        {% else %}—{% endif %}
+      </dd>
+      <dt>Dietéticas</dt>
+      <dd>{% if ingredient.dietary_tags %}{{ t.tag_pills(ingredient.dietary_tags) }}{% else %}—{% endif %}</dd>
+      {% if ingredient.may_contain_gluten %}
+      <dt>Cruz gluten</dt><dd>{{ ui.status_pill("posible contaminación (bloquea sin TACC)", sev="warn") }}</dd>
+      {% endif %}
+    </dl>
+  </section>
+
+  <section class="detail-card">
+    <h2>Conservación (HACCP)</h2>
+    <dl>
+      <dt>Almacenamiento</dt><dd>{{ {"ambient": "Ambiente", "refrigerated": "Refrigerado", "frozen": "Congelado"}.get(ingredient.storage, ingredient.storage) or '—' }}</dd>
+      <dt>Vida útil</dt>
+      <dd>{% if ingredient.shelf_life_days %}{{ ingredient.shelf_life_days }} días{% else %}—{% endif %}</dd>
+      {% if ingredient.temp_min_c is not none or ingredient.temp_max_c is not none %}
+      <dt>Temperatura</dt>
+      <dd>{{ ingredient.temp_min_c if ingredient.temp_min_c is not none else '—' }} a
+          {{ ingredient.temp_max_c if ingredient.temp_max_c is not none else '—' }} °C</dd>
+      {% endif %}
+      {% if ingredient.humidity_max_pct is not none %}
+      <dt>Humedad máx</dt><dd>{{ ingredient.humidity_max_pct }}%</dd>
+      {% endif %}
+      {% if ingredient.lead_time_days %}
+      <dt>Tiempo de reposición</dt><dd>{{ ingredient.lead_time_days }} días</dd>
+      {% endif %}
+      <dt>Lote obligatorio</dt>
+      <dd>{{ 'Sí' if ingredient.lot_required else 'No' }}</dd>
+    </dl>
+  </section>
+
+  <section class="detail-card" data-ingredient-margins>
+    <h2>Margen en los productos</h2>
+    <p class="text-muted">El precio de venta se cambia en Gerencia.</p>
+    {% if product_margins %}
+    <table class="table is-striped">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th class="num">Precio de venta</th>
+          <th class="num">Margen, último costo</th>
+          <th class="num">Margen, costo más alto</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in product_margins %}
+        <tr>
+          <td>{{ row.product_name }}</td>
+          <td class="num">{{ m.gs_full(row.sale_price_gs) }}</td>
+          <td class="num">{% if row.margin_last_gs is none %}—{% else %}{{ m.gs_full(row.margin_last_gs) }}{% endif %}</td>
+          <td class="num">{% if row.margin_high_gs is none %}—{% else %}{{ m.gs_full(row.margin_high_gs) }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">Ningún producto usa este ingrediente.</p>
+    {% endif %}
+  </section>
+
+  {% if price_stats and price_stats.count > 1 %}
+  <section class="detail-card">
+    <h2>Historial de precios ({{ price_stats.count }} registros)</h2>
+    <dl>
+      <dt>Mín / Actual / Máx</dt>
+      <dd>{{ m.gs_full(price_stats.min) }} / {{ m.gs_full(price_stats.current) }} / {{ m.gs_full(price_stats.max) }}</dd>
+      <dt>Promedio</dt><dd>{{ m.gs_full(price_stats.avg) }}</dd>
+    </dl>
+  </section>
+  {% endif %}
+
+  <section class="detail-card">
+    <h2>Precio</h2>
+    <dl>
+      <dt>Precio de compra</dt>
+      <dd>
+        {% if ingredient.purchase_price_gs is none %}
+          <em class="muted">sin precio</em>
+        {% else %}
+          {{ m.gs_full(ingredient.purchase_price_gs) }}
+        {% endif %}
+      </dd>
+
+      {% if ingredient.opening_stock_qty is not none %}
+      <dt>Stock de apertura</dt>
+      <dd>{{ "%.2f"|format(ingredient.opening_stock_qty) }} {{ ingredient.unit }}</dd>
+      {% endif %}
+
+      {% if ingredient.opening_stock_date %}
+      <dt>Fecha de apertura</dt>
+      <dd>{{ ingredient.opening_stock_date }}</dd>
+      {% endif %}
+    </dl>
+  </section>
+
+  {% if recipes %}
+  <section class="detail-card">
+    <h2>Usado en recetas</h2>
+    <table class="table is-striped">
+      <thead>
+        <tr>
+          <th>Receta</th>
+          <th class="num">Cantidad por batch</th>
+          <th class="actions"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recipes %}
+        <tr>
+          <td><strong>{{ fmt.entity_name(r) }}</strong></td>
+          <td class="num">{{ "%.2f"|format(r.qty) }} {{ r.line_unit or ingredient.unit }}</td>
+          <td class="actions">
+            <a href="/recetas/{{ r.id }}/editar" class="btn btn-sm btn-ghost">Ver receta</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% else %}
+  <section class="detail-card">
+    <h2>Usado en recetas</h2>
+    <p class="muted">Este ingrediente no está usado en ninguna receta.</p>
+  </section>
+  {% endif %}
+
+  {% if ingredient.notes %}
+  <section class="detail-card">
+    <h2>Notas</h2>
+    <p>{{ ingredient.notes }}</p>
+  </section>
+  {% endif %}
+</div>
+
+{# ============================================================ #}
+{# S7 — Variants panel (Decision A1)                              #}
+{# ============================================================ #}
+<section id="variants" class="detail-card" style="margin-top:1.5rem;">
+  <h2>Variantes</h2>
+  {% if variants_rollup and variants_rollup.variants %}
+  <p class="muted">
+    Stock total (en <code>{{ variants_rollup.base_unit }}</code>):
+    <strong>{{ "%.2f"|format(variants_rollup.base_qty) }} {{ variants_rollup.base_unit }}</strong>
+    en {{ variants_rollup.variant_count }} variante{{ '' if variants_rollup.variant_count == 1 else 's' }}.
+  </p>
+  <div class="mb-2 d-flex" >
+    <label class="d-flex" style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:var(--text-sm);">
+      <input type="checkbox" id="toggle-exhausted" checked onchange="toggleExhaustedVariants(this.checked)">
+      Mostrar agotados
+    </label>
+  </div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Paquete</th>
+        <th>Stock</th>
+        <th>En unidad base</th>
+        <th>Precio (Gs.)</th>
+        <th>Proveedor</th>
+        <th>Notas</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for v in variants_rollup.variants %}
+      <tr class="variant-row{% if v.stock_qty <= 0 %} variant-exhausted{% endif %}"{% if v.preferred %} style="background: var(--color-success-bg, #e6f4ea);"{% endif %}>
+        <td>
+          {{ v.package_size }} {{ v.package_unit }}
+          {% if v.preferred %}<strong>(preferida)</strong>{% endif %}
+        </td>
+        <td>{{ "%.2f"|format(v.stock_qty) }} {{ v.package_unit }}</td>
+        <td>{{ "%.2f"|format(v.stock_in_base) }} {{ variants_rollup.base_unit }}</td>
+        <td>{{ '{:,}'.format(v.purchase_price_gs) if v.purchase_price_gs else '—' }}</td>
+        <td>
+          {% if v.supplier_id %}<a href="/proveedores/{{ v.supplier_id }}">Proveedor #{{ v.supplier_id }}</a>{% else %}—{% endif %}
+        </td>
+        <td>{{ v.notes or '' }}</td>
+        <td>
+          {% if not v.preferred %}
+          <form class="d-inline" method="post" action="/inventario/{{ ingredient.id }}/variantes/{{ v.variant_id }}/preferir" >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-sm btn-ghost">Marcar preferida</button>
+          </form>
+          {% endif %}
+          <form method="post" action="/inventario/{{ ingredient.id }}/variantes/{{ v.variant_id }}/eliminar"  class="js-confirm-form d-inline" data-confirm-title="¿Eliminar variante?" data-confirm-body="Esta acción no se puede deshacer.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">Sin variantes registradas. Podés agregar variantes (marcas o tamaños) y marcar una como preferida.</p>
+  {% endif %}
+
+  <details style="margin-top:1rem;">
+    <summary><strong>Agregar variante</strong></summary>
+    <form method="post" action="/inventario/{{ ingredient.id }}/variantes/nuevo" class="form-grid form-grid-3col">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>
+        Tamaño del paquete
+        <input type="number" step="0.01" name="package_size" required>
+      </label>
+      <label>
+        Unidad del paquete
+                {{ ui.combo_field(
+          name='package_unit',
+          value='und',
+          display='und',
+          placeholder='und',
+          src=[{"value": "und", "label": "und"}, {"value": "kg", "label": "kg"}, {"value": "g", "label": "g"}, {"value": "l", "label": "l"}, {"value": "ml", "label": "ml"}]
+        ) }}
+      </label>
+      <label>
+        Precio (Gs.)
+        <div class="currency-input-wrap">
+          <input type="number" name="purchase_price_gs" min="0" step="100" inputmode="numeric" class="currency-input">
+        </div>
+      </label>
+      <label>
+        Stock inicial (en und. del paquete)
+        <input type="number" step="0.01" name="stock_qty" value="0" min="0">
+      </label>
+      <label style="grid-column: 1 / -1;">
+        Notas
+        <input type="text" name="notes" placeholder="Proveedor, marca, etc.">
+      </label>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Creá variante</button>
+      </div>
+    </form>
+  </details>
+</section>
+
+{# ============================================================ #}
+{# S7 — Forecast horizon (Decision B)                            #}
+{# ============================================================ #}
+<section id="forecast" class="detail-card" style="margin-top:1.5rem;">
+  <h2>Pronóstico — ¿cuándo me quedo corto?</h2>
+  {% if forecast %}
+  <dl>
+    <dt>Stock actual</dt>
+    <dd>{{ "%.2f"|format(forecast.current_stock_base) }} {{ forecast.base_unit }}</dd>
+    <dt>Consumo promedio diario</dt>
+    <dd>
+      {% if forecast.avg_daily_consumption > 0 %}
+        {{ "%.2f"|format(forecast.avg_daily_consumption) }} {{ forecast.base_unit }}/día
+      {% else %}
+        —
+      {% endif %}
+    </dd>
+    <dt>Días restantes</dt>
+    <dd>
+      {% if forecast.days_remaining is none %}—{% else %}
+        <strong>{{ "%.0f"|format(forecast.days_remaining) }} días</strong>
+      {% endif %}
+    </dd>
+    <dt>Horizonte de pronóstico</dt>
+    <dd>{{ forecast.horizon_days }} días</dd>
+    <dt>Estado</dt>
+    <dd>
+      {% if forecast.status == 'short' %}
+        {{ ui.status_pill("CORTO — reordená ya", sev="error") }}
+      {% elif forecast.status == 'watch' %}
+        {{ ui.status_pill("ATENCIÓN", sev="warn") }}
+      {% elif forecast.status == 'dead' %}
+        <span class="badge" style="background:var(--color-text-muted);color:#fff;">SIN CONSUMO</span>
+      {% else %}
+        {{ ui.status_pill("OK", sev="ok") }}
+      {% endif %}
+    </dd>
+  </dl>
+
+  <details style="margin-top:1rem;">
+    <summary><strong>Ajustar horizonte de pronóstico</strong></summary>
+    <p class="muted">
+      Por defecto {{ 14 }} días. Ajustá por proveedor (dulce de leche = 21, harina = 7, etc).
+      Vacío = usar el valor global.
+    </p>
+    <form method="post" action="/inventario/{{ ingredient.id }}/forecast-horizon" class="form-grid">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>
+        Horizonte (días)
+        <input type="number" name="forecast_horizon_days"
+               value="{{ ingredient.forecast_horizon_days or '' }}"
+               min="1" max="365">
+      </label>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </details>
+  {% else %}
+  <p class="muted">Sin datos para pronosticar.</p>
+  {% endif %}
+</section>
+
+<script>
+function toggleExhaustedVariants(show) {
+  document.querySelectorAll('.variant-exhausted').forEach(function(row) {
+    row.style.display = show ? '' : 'none';
+  });
+}
+</script>
+
+{% include "_components/adjust_modal.html" %}
+{% endblock %}

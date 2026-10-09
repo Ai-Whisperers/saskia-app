@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+
+{% block title %}Créditos de imágenes — Sazón{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h1><svg class="icon" aria-hidden="true"><use href="#icon-image"></use></svg>
+    Créditos de imágenes</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+  <p class="text-muted">Las fotografías de productos y recetas de este sistema provienen de
+    <a href="https://openverse.org" rel="noopener">Openverse</a> bajo licencias Creative Commons.
+    Son imágenes de referencia: cada una puede reemplazarse por una foto propia del producto real
+    desde la ficha correspondiente.</p>
+
+  {% if entries %}
+  <p>{{ total }} imágenes con atribución (licencia CC-BY). Las imágenes CC0 no requieren mención.</p>
+  <div class="table-sticky-wrap" style="max-height:min(70vh,520px);">
+  <table class="table is-striped">
+    <thead>
+      <tr><th>Imagen</th><th>Autoría y licencia</th><th>Fuente</th></tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+      <tr>
+        <td>{{ e.entity }}</td>
+        <td>{{ e.credit }}</td>
+        <td><a href="{{ e.source }}" rel="noopener" target="_blank">ver original</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  {{ ui.empty_state(title="Sin imágenes registradas", icon="icon-image", hint="Todavía no hay imágenes con atribución registradas.") }}
+  {% endif %}
+</div>
+{% endblock %}

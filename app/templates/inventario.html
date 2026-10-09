@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% import "_components/ingredient_tags.html" as t %}
+
+{% block title %}Inventario{% endblock %}
+
+{% block head %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Gestión de inventario de ingredientes y productos de Sazón">
+{% endblock %}
+
+{% block content %}
+<div class="hero-row">
+  <div>
+    <h1>Inventario de ingredientes</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+    <p class="hero-meta">Gestión de stock, costos unitarios y control de alérgenos</p>
+  </div>
+  <div class="hero-actions">
+    <a href="/merma" class="btn btn-ghost">
+      <svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg>
+      Ver mermas/ajustes
+    </a>
+    <a href="/inventario/nuevo" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      Nuevo ingrediente
+    </a>
+    <a href="/inventario/export.csv" class="btn">
+      <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+      Exportá CSV
+    </a>
+    {# P34 (2026-10-07, Ivan) — bulk fill to 2× minimum stock.
+       One-click top-up: hits POST /inventario/bulk-fill-to-2x-min
+       and writes one StockMovement per ingredient touched (reason
+       column on /merma explains the jump). The form below is a tiny
+       JS-free confirm via a modal — keeping it as a real <form> so
+       it works without JS. #}
+    <button type="button" class="btn btn-secondary"
+            onclick="document.getElementById('bulk-fill-modal').showModal()">
+      <svg class="icon" aria-hidden="true"><use href="#icon-arrow-up"/></svg>
+      Llenar a 2× mínimo
+    </button>
+  </div>
+</div>
+
+<dialog id="bulk-fill-modal" class="modal" aria-labelledby="bulk-fill-title">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h2 id="bulk-fill-title">¿Llenar todos los ingredientes a 2× el mínimo?</h2>
+    </div>
+    <div class="modal-body">
+      <p>
+        Esta acción sube el stock de cada ingrediente que esté por debajo de
+        <strong>2 × su stock mínimo</strong> (o hasta su <em>stock máximo</em>
+        si lo configuraste). Se escribe un movimiento de stock por ingrediente,
+        así que la auditoría de <code>/merma</code> muestra exactamente qué se
+        modificó y por qué.
+      </p>
+      <p class="text-muted text-sm">
+        Ingredientes sin mínimo definido (min = 0) se omiten. Para incluirlos,
+        primero definiles un mínimo en
+        <a href="/inventario">/inventario</a> y volvé a correrlo.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('bulk-fill-modal').close()">Cancelar</button>
+      <form method="post" action="/inventario/bulk-fill-to-2x-min" style="display:inline;">
+        <button type="submit" class="btn btn-primary">Sí, llenar ahora</button>
+      </form>
+    </div>
+  </div>
+</dialog>
+
+{# ── KPI strip (redesign 2026-09-25) ──────────────────────────────── #}
+{{ ui.skeleton_section(id="inventario-kpis", variant="kpi", count=4, label="Cargando inventario") }}
+<div class="kpi-row mb-4" data-loaded-section="inventario-kpis">
+  <div class="metric-card">
+    <div class="metric-label">Total ingredientes</div>
+    <div class="metric-value">{{ kpi_total }}</div>
+    <div class="metric-sub">activos</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Stock crítico</div>
+    <div class="metric-value">{% if kpi_critical %}<span class="badge badge-danger">{{ kpi_critical }}</span>{% else %}0{% endif %}</div>
+    <div class="metric-sub">{% if kpi_critical %}<a href="?estado=bajo">requieren compra →</a>{% else %}todo cubierto{% endif %}
+      {% if kpi_never_loaded %} · <a href="?estado=sincargar">{{ kpi_never_loaded }} sin carga inicial</a>{% endif %}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Valor de inventario</div>
+    <div class="metric-value">{{ m.gs_full(kpi_value_gs) }}</div>
+    <div class="metric-sub">a precio de compra</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Sin costo cargado</div>
+    <div class="metric-value">{{ kpi_no_cost }}</div>
+    <div class="metric-sub">{% if kpi_no_cost %}sin precio no hay margen{% else %}todo con precio ✓{% endif %}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Por vencer (7 días)</div>
+    <div class="metric-value">{% if expiring_soon %}<span class="badge badge-warn">{{ expiring_soon }}</span>{% else %}0{% endif %}</div>
+    <div class="metric-sub">{% if expiring_soon %}<a href="?expiry=7days">ver ingredientes →</a>{% else %}ninguno{% endif %}</div>
+  </div>
+</div>
+</div>
+
+{# ── Filter toolbar ───────────────────────────────────────────────── #}
+<form method="get" class="inv-toolbar d-flex" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
+  <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre…"
+         style="flex:1;min-width:180px;height:36px;" aria-label="Buscar por nombre">
+  {# ── Categorías: multi-select popover (checkboxes, no native select) ── #}
+  <div class="mf-pop" data-mf="categoria">
+    <button type="button" class="mf-btn" aria-expanded="false">Categoría{% if categorias %} <span class="mf-count">{{ categorias|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      {% for c in categories %}
+      <label class="mf-option"><input type="checkbox" name="categoria" value="{{ c }}" {% if c in categorias %}checked{% endif %}> {{ c }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {# ── Estado: single-select popover ── #}
+  <div class="mf-pop" data-mf="estado">
+    <button type="button" class="mf-btn" aria-expanded="false">Estado{% if estados_sel %} <span class="mf-count">{{ estados_sel|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      {% for val, lbl in [('bajo', 'Stock bajo'), ('critico', 'Crítico'), ('negativo', 'Negativo'), ('sobre_stock', 'Sobre-stock'), ('sincargar', 'Sin carga inicial'), ('sinprecio', 'Sin precio'), ('ok', 'Stock OK')] %}
+      <label class="mf-option"><input type="checkbox" name="estado" value="{{ val }}" {% if val in estados_sel %}checked{% endif %}> {{ lbl }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {# ── Alérgenos: multi-select popover (food-safety query) ── #}
+  <div class="mf-pop" data-mf="alergeno">
+    <button type="button" class="mf-btn" aria-expanded="false">Alérgenos{% if alergenos_sel %} <span class="mf-count">{{ alergenos_sel|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      <p class="mf-hint">Mostrar los que contienen TODOS los marcados:</p>
+      {% for code, lbl in allergen_codes %}
+      <label class="mf-option"><input type="checkbox" name="alergeno" value="{{ code }}" {% if code in alergenos_sel %}checked{% endif %}> {{ lbl }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {# ── Dietético: multi-select over CANONICAL_DIETARY_TAGS (P3 UX batch) ── #}
+  <div class="mf-pop" data-mf="diet">
+    <button type="button" class="mf-btn" aria-expanded="false">Dietéticas{% if diet_sel %} <span class="mf-count">{{ diet_sel|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      <p class="mf-hint">Ingredientes aptos para TODAS las etiquetas marcadas:</p>
+      {% for code in diet_options %}
+      <label class="mf-option"><input type="checkbox" name="diet" value="{{ code }}" {% if code in diet_sel %}checked{% endif %}> {{ code }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {# ── Almacenamiento ── #}
+  {% if storages %}
+  <div class="mf-pop" data-mf="almacen">
+    <button type="button" class="mf-btn" aria-expanded="false">Almacenamiento{% if almacenes_sel %} <span class="mf-count">{{ almacenes_sel|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      {% for st in storages %}
+      <label class="mf-option"><input type="checkbox" name="almacen" value="{{ st }}" {% if st in almacenes_sel %}checked{% endif %}> {{ {"ambient": "Ambiente", "refrigerated": "Refrigerado", "frozen": "Congelado"}.get(st, st) }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {# ── Vencimiento: single-select ── #}
+  <div class="mf-pop" data-mf="expiry">
+    <button type="button" class="mf-btn" aria-expanded="false">Vencimiento{% if expiries_sel %} <span class="mf-count">{{ expiries_sel|length }}</span>{% endif %} ▾</button>
+    <div class="mf-panel" hidden>
+      {% for val, lbl in [('expired', 'Vencidos'), ('7days', 'Próximos 7 días'), ('30days', 'Próximos 30 días')] %}
+      <label class="mf-option"><input type="checkbox" name="expiry" value="{{ val }}" {% if val in expiries_sel %}checked{% endif %}> {{ lbl }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary h-control" >Filtrar</button>
+  {% if q or estado or categorias or alergenos_sel or almacen %}
+  <a href="{{ request.url.path }}" class="btn h-control" >Limpiar todo</a>
+  {% endif %}
+</form>
+{% if suspicious_prices %}
+<div class="alert alert-danger mb-3" role="alert" >
+  <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+  <div>
+    <strong>Precios sospechosos ({{ suspicious_prices|length }}):</strong>
+    {% for sp in suspicious_prices[:4] %}
+    “{{ fmt.entity_name(sp) }}” cuesta {{ m.gs(sp.price) }} <em>por {{ sp.unit }}</em> — ¿no debería ser por kg/l?{{ ", " if not loop.last }}
+    {% endfor %}
+    {% if suspicious_prices|length > 4 %} y {{ suspicious_prices|length - 4 }} más{% endif %}.
+    Precios por gramo/ml altos distorsionan todos los escandallos.
+  </div>
+</div>
+{% endif %}
+{% if duplicates %}
+<div class="alert alert-warn mb-3" role="alert" >
+  <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+  <div>
+    <strong>Ingredientes duplicados ({{ duplicates|length }}):</strong>
+    {% for d in duplicates[:4] %}
+    “{{ fmt.entity_name(d) }}” ×{{ d.count }} ({{ d.units|join(" / ") }}){{ ", " if not loop.last }}
+    {% endfor %}
+    {% if duplicates|length > 4 %} y {{ duplicates|length - 4 }} más{% endif %}.
+    <a href="/inventario?q={{ duplicates[0].name }}">Ver el primero →</a>
+  </div>
+</div>
+{% endif %}
+{% if tag_audit_count %}
+<div class="alert alert-warn mb-3" role="alert" >
+  <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+  <div>
+    <strong>Etiquetas con contradicciones ({{ tag_audit_count }}):</strong>
+    {{ tag_audit_count }} ingredientes declaran etiquetas incompatibles con sus
+    alérgenos o nombre. <a href="/inventario/auditoria-etiquetas">Ver auditoría completa →</a>
+  </div>
+</div>
+{% endif %}
+<div  class="inv-result-count text-muted" style="font-size:var(--text-xs); margin-bottom:var(--space-3)">
+  {{ total_filtered }} de {{ total_all }} ingredientes{% if q %} · búsqueda “{{ q }}”{% endif %}
+</div>
+
+{% set flash = request.query_params.get('flash', '') %}
+{% if flash == 'stock_adjusted' %}
+{{ ui.alert_row(sev="success", text="Stock ajustado correctamente.") }}
+{% elif flash.startswith('no_confirm:') %}
+<div class="alert alert-danger" role="alert" aria-live="assertive">
+  <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+  {{ flash | replace('no_confirm:', '') }}
+  <em>Hacé click en Ajustar de nuevo para confirmar.</em>
+</div>
+{% endif %}
+
+{% if ingredients %}
+<div class="table-sticky-wrap" data-loaded-section="inventario-table" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);">
+<div class="table-wrap">
+<table class="table is-hoverable is-striped mb-0" >
+  <thead>
+    <tr>
+      <th>{{ m.sort_th("Nombre", "name", sort, dir) }}</th>
+      <th>Proveedor</th>
+      <th>{{ m.sort_th("Unidad", "unit", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Stock actual", "stock_qty", sort, dir) }}</th>
+      <th>Recibir</th>
+      <th>Variantes</th>
+      <th class="num">{{ m.sort_th("Valor", "valor_gs", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Stock mínimo", "min_stock_qty", sort, dir) }}</th>
+      <th class="num">{{ m.sort_th("Precio compra (Gs.)", "purchase_price_gs", sort, dir) }}</th>
+      <th>Estado</th>
+      <th class="actions"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for i in ingredients %}
+    <tr class="">
+      <td>
+        <strong data-copy="{{ i.id }}"><a href="/inventario/{{ i.id }}">{{ fmt.entity_name(i) }}</a></strong>
+        {% if i.category %}<span class="d-inline-flex" style="display:inline-flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-accent);flex-shrink:0;" aria-hidden="true"></span>{{ t.category_pill(i.category) }}</span>{% endif %}
+        {% if i.allergens %}
+          <div class="tag-pill-row tag-pill-row--compact" aria-label="Alérgenos (INAN)">
+            <span class="tag-pill-row__label">Contiene:</span>
+            {{ t.tag_pills(i.allergens, variant="allergen") }}
+          </div>
+        {% endif %}
+        {% if i.subcategory or i.role or i.dietary_tags or i.storage %}
+        <details class="row-meta-details">
+          <summary>Más info</summary>
+          <div class="row-meta-pop">
+            {% if i.subcategory %}<span class="tag-pill tag-pill--muted">{{ i.subcategory }}</span>{% endif %}
+            {% if i.role %}{{ t.role_pill(i.role) }}{% endif %}
+            {% if i.dietary_tags %}{{ t.tag_pills(i.dietary_tags) }}{% endif %}
+            {% if i.storage %}{{ t.storage_pill(i.storage) }}{% endif %}
+          </div>
+        </details>
+        {% endif %}
+      </td>
+      <td>{{ i.supplier.name if i.supplier else '—' }}</td>
+      <td>{{ i.unit }}</td>
+      <td class="num">
+        {% set _stock = effective_stock_qty.get(i.id, i.stock_qty or 0) %}
+        {% if _stock < 0 %}
+          <span class="badge badge-danger" title="¡Stock negativo!">{{ _stock|round(2) }} {{ i.unit }}</span>
+        {% else %}
+          {{ _stock|round(2) }} {{ i.unit }}
+        {% endif %}
+      </td>
+      <td>
+        {# Inline quick-receipt form (prelaunch roadmap 2026-09-17):
+           POSTs to /inventario/{id}/ajustar. Variant-aware: if this
+           ingredient has variants, show a picker (preferred preselected).
+           Otherwise, post directly to legacy stock_qty. #}
+        {% set _variants = variants_by_ing_id.get(i.id, []) %}
+        <form class="d-inline-flex" method="post" action="/inventario/{{ i.id }}/ajustar"
+              style="display:inline-flex;gap:var(--space-1);align-items:center;"
+              data-testid="quick-receipt-{{ i.id }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          {% if _variants %}
+            <select name="variant_id"
+                    data-ui-combo="variant-picker"
+                    aria-label="Variante recibida de {{ fmt.entity_name(i) }}"
+                    style="padding:var(--space-1) var(--space-2);border:1px solid var(--color-border);border-radius:4px;font-size:var(--text-xs);max-width:140px;">
+              {% for v in _variants %}
+                <option value="{{ v.id }}"{% if v.preferred %} selected{% endif %}
+                        title="{{ v.supplier_name or 'Sin proveedor' }} · {{ '{:,}'.format(v.purchase_price_gs|int) if v.purchase_price_gs else '—' }}">
+                  {{ v.package_size }}{{ v.package_unit }}{% if v.preferred %} ★{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+          {% endif %}
+          <input type="number" name="adjustment" min="0" max="99999" step="0.01"
+                 required
+                 aria-label="Cantidad recibida de {{ fmt.entity_name(i) }}"
+                 placeholder="0"
+                 style="width:64px;padding:var(--space-1) var(--space-2);border:1px solid var(--color-border);border-radius:4px;">
+          <span class="text-muted text-xs" >
+            {% if _variants %}paq{% else %}{{ i.unit }}{% endif %}
+          </span>
+          <button type="submit" class="btn btn-sm" aria-label="Registrar recepción de {{ fmt.entity_name(i) }}">
+            <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+          </button>
+        </form>
+      </td>
+      <td>
+        {# Variantes (prelaunch roadmap 2026-09-17, B1 schema decision):
+           show how many variants exist, the preferred one, and link
+           to detail page so the operator can manage multi-package / multi-
+           supplier relationships. #}
+        {% set _variants = variants_by_ing_id.get(i.id, []) %}
+        {% if _variants %}
+          <small>
+            <strong>{{ _variants|length }}</strong>
+            {% if _variants|length == 1 %}variante{% else %}variantes{% endif %}
+            {% for v in _variants if v.preferred %}
+              <span class="text-muted">·
+                {{ v.package_size }}{{ v.package_unit }}
+                {% if v.supplier_name %} · {{ v.supplier_name }}{% endif %}
+                {% if v.purchase_price_gs %} · {{ '{:,}'.format(v.purchase_price_gs) }} Gs{% endif %}
+              </span>
+            {% endfor %}
+            ·
+            <a href="/inventario/{{ i.id }}#variants">gestionar</a>
+          </small>
+        {% else %}
+          <small class="text-muted">
+            —
+            <a href="/inventario/{{ i.id }}#variants">+ variante</a>
+          </small>
+        {% endif %}
+      </td>
+      <td class="num">{% if i.purchase_price_gs is not none %}{{ m.gs((effective_stock_qty.get(i.id, i.stock_qty or 0)) * (i.purchase_price_gs or 0) | int) }}{% else %}<em class="muted">—</em>{% endif %}</td>
+      <td class="num">{{ i.min_stock_qty|round(2) }}</td>
+      <td class="num">{% if i.purchase_price_gs is none %}<em class="muted">sin precio</em>{% else %}{{ m.gs_full(i.purchase_price_gs) }}{% endif %}{% if price_info.get(i.id) %}<div class="price-strip">90d: min {{ m.gs(price_info[i.id].stats.min) }} · max {{ m.gs(price_info[i.id].stats.max) }}{% if price_info[i.id].sparkline_svg %} {{ price_info[i.id].sparkline_svg | safe }}{% endif %}</div>{% endif %}{% if market_refs.get(i.id) %}<div class="price-strip" title="vs. mercado: {{ m.gs_full(market_refs[i.id].market_price_gs) }} Gs/{{ market_refs[i.id].market_unit }} — {{ market_refs[i.id].market_notes }}">{% set delta = market_refs[i.id].delta_pct %}<span class="badge {% if delta > 10 %}badge-danger{% elif delta < -10 %}badge-good{% else %}badge-neutral{% endif %}" style="margin-left:4px">vs mercado {% if delta >= 0 %}+{% endif %}{{ "%.0f"|format(delta) }}%</span></div>{% endif %}</td>
+      <td>
+        {{ m.stock_badge(i.stock_qty, i.min_stock_qty, never_loaded=(i.id in never_loaded_ids)) }}
+      </td>
+      <td class="actions">
+        <button type="button" class="btn btn-sm btn-ghost" aria-label="Registrar merma de {{ fmt.entity_name(i) }}"
+                onclick="openMermaModal('{{ i.id }}', '{{ fmt.entity_name(i) }}', '{{ i.unit }}')">
+          <svg class="icon" aria-hidden="true"><use href="#icon-warn"/></svg>
+        </button>
+        <a href="/inventario/{{ i.id }}" class="btn btn-sm btn-ghost" aria-label="Ver detalle de {{ fmt.entity_name(i) }}">
+          <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+        </a>
+        <button type="button" class="btn btn-sm btn-ghost" aria-label="Ajustar stock de {{ fmt.entity_name(i) }}"
+                onclick="openAdjustModal('{{ i.id }}', '{{ fmt.entity_name(i) }}', {{ i.stock_qty }}, '{{ i.unit }}', {{ i.min_stock_qty or 0 }})">
+          <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+        </button>
+        <a href="/inventario/{{ i.id }}/editar" class="btn btn-sm btn-ghost" aria-label="Editá {{ fmt.entity_name(i) }}">
+          <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+        </a>
+        <a href="/inventario/{{ i.id }}/movimientos" class="btn btn-sm btn-ghost" aria-label="Movimientos de {{ fmt.entity_name(i) }}">
+          <svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg>
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+</div>
+
+{# Pagination #}
+{% if total_pages > 1 %}
+<nav class="pagination" aria-label="Navegación de inventario">
+  <span class="pagination-info table-info">
+    Mostrando <strong>{{ ((page - 1) * per_page) + 1 }}–{{ [page * per_page, total] | min }}</strong> de <strong>{{ total }}</strong> ingredientes
+  </span>
+  <div class="pagination-links">
+    {% if page > 1 %}
+      <a href="?page=1&sort={{ sort }}&dir={{ dir }}" class="btn btn-sm btn-ghost">«</a>
+      <a href="?page={{ page - 1 }}&sort={{ sort }}&dir={{ dir }}" class="btn btn-sm btn-ghost">‹</a>
+    {% endif %}
+    {% for p in range([1, page - 2] | max, [page + 3, total_pages + 1] | min) %}
+      {% if p == page %}
+        <span class="btn btn-sm btn-primary" aria-current="page">{{ p }}</span>
+      {% else %}
+        <a href="?page={{ p }}&sort={{ sort }}&dir={{ dir }}" class="btn btn-sm btn-ghost">{{ p }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if page < total_pages %}
+      <a href="?page={{ page + 1 }}&sort={{ sort }}&dir={{ dir }}" class="btn btn-sm btn-ghost">›</a>
+      <a href="?page={{ total_pages }}&sort={{ sort }}&dir={{ dir }}" class="btn btn-sm btn-ghost">»</a>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}
+
+{% else %}
+{{ ui.empty_state(title="Empezá cargando tus ingredientes", icon="icon-inventory", hint="Harina, azúcar, aceite, queso — los básicos para producir.", cta_href="/inventario/nuevo", cta_label="Agregá el primero") }}
+{% endif %}
+
+{# ── Stock adjustment modal ── #}
+{% include "_components/adjust_modal.html" %}
+{% include "_components/merma_modal.html" %}
+
+{% endblock %}

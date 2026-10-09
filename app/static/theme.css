@@ -1,0 +1,451 @@
+/* Calm operational theme.
+   Loaded last so it wins over the near-black gray-900 dark palette.
+   Inter is used when the machine has it; otherwise Segoe UI / system-ui.
+   No extra font download. */
+
+:root {
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-base: 0.875rem;
+  --text-md: 0.875rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.5rem;
+  --leading-normal: 1.55;
+  --tracking-tight: -0.011em;
+  --tracking-wide: 0;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 32px;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 12px;
+  --btn-radius: 8px;
+  --input-radius: 8px;
+  --card-radius: 12px;
+  --card-shadow: none;
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-md: none;
+  --shadow-card: none;
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.18);
+  --duration-fast: 150ms;
+  --duration-base: 160ms;
+  --btn-height: 36px;
+  --input-height: 36px;
+  --color-sidebar: #f3f1ee;
+  --color-accent: #a85a22;
+  --color-accent-hover: #8c4a1b;
+  --color-accent-soft: rgba(233, 154, 82, 0.16);
+  --color-accent-fg: #1a140e;
+  --color-border-focus: #e99a52;
+  --color-focus-ring: #e99a52;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #171b21;
+  --color-sidebar: #1d232b;
+  --color-surface: #242b35;
+  --color-surface-raised: #2b3440;
+  --color-surface-subtle: #1d232b;
+  --color-text: #f0f2f5;
+  --color-text-muted: #b0bac8;
+  --color-text-subtle: #929dab;
+  --color-text-inverse: #171b21;
+  --color-text-link: #f2ac6e;
+  --color-border: #343e4b;
+  --color-border-strong: #3e4a59;
+  --color-border-focus: #e99a52;
+  --color-accent: #e99a52;
+  --color-accent-hover: #f2ac6e;
+  --color-accent-active: #f2ac6e;
+  --color-accent-soft: rgba(233, 154, 82, 0.14);
+  --color-accent-fg: #1a140e;
+  --color-success: #65b88a;
+  --color-success-soft: rgba(101, 184, 138, 0.16);
+  --color-success-fg: #d7f3e4;
+  --color-warn: #d8aa64;
+  --color-warn-soft: rgba(216, 170, 100, 0.16);
+  --color-warn-fg: #f6e7c8;
+  --color-danger: #d77878;
+  --color-danger-hover: #e08a8a;
+  --color-danger-soft: rgba(215, 120, 120, 0.16);
+  --color-danger-fg: #f8d4d4;
+  --color-info: #8eadd4;
+  --color-info-soft: rgba(142, 173, 212, 0.14);
+  --color-info-fg: #d7e4f4;
+  --color-focus-ring: #e99a52;
+  --topnav-bg: #171b21;
+  --card-bg: #242b35;
+  --input-bg: #1d232b;
+  --shadow-elevated: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-bg: #171b21;
+    --color-sidebar: #1d232b;
+    --color-surface: #242b35;
+    --color-surface-raised: #2b3440;
+    --color-surface-subtle: #1d232b;
+    --color-text: #f0f2f5;
+    --color-text-muted: #b0bac8;
+    --color-text-subtle: #929dab;
+    --color-text-inverse: #171b21;
+    --color-text-link: #f2ac6e;
+    --color-border: #343e4b;
+    --color-border-strong: #3e4a59;
+    --color-border-focus: #e99a52;
+    --color-accent: #e99a52;
+    --color-accent-hover: #f2ac6e;
+    --color-accent-active: #f2ac6e;
+    --color-accent-soft: rgba(233, 154, 82, 0.14);
+    --color-accent-fg: #1a140e;
+    --color-success: #65b88a;
+    --color-success-soft: rgba(101, 184, 138, 0.16);
+    --color-success-fg: #d7f3e4;
+    --color-warn: #d8aa64;
+    --color-warn-soft: rgba(216, 170, 100, 0.16);
+    --color-warn-fg: #f6e7c8;
+    --color-danger: #d77878;
+    --color-danger-hover: #e08a8a;
+    --color-danger-soft: rgba(215, 120, 120, 0.16);
+    --color-danger-fg: #f8d4d4;
+    --color-info: #8eadd4;
+    --color-info-soft: rgba(142, 173, 212, 0.14);
+    --color-info-fg: #d7e4f4;
+    --color-focus-ring: #e99a52;
+    --topnav-bg: #171b21;
+    --card-bg: #242b35;
+    --input-bg: #1d232b;
+  }
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.011em;
+}
+
+h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.sidebar {
+  background: var(--color-sidebar);
+  border-right: 1px solid var(--color-border);
+  padding: 16px 12px;
+}
+
+.sidebar-brand {
+  color: var(--color-text);
+  font-weight: 600;
+  padding: 8px 12px 16px;
+}
+
+.sidebar-section {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-text-subtle);
+  padding: 16px 12px 4px;
+}
+
+.sidebar a.nav-item {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.sidebar a.nav-item.active {
+  background: var(--color-surface);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.topbar {
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  padding: 12px 24px;
+}
+
+.topbar .topbar-search button {
+  border-radius: 8px;
+  background: var(--color-surface);
+  border-color: transparent;
+  height: 36px;
+}
+
+.app-main {
+  padding: 24px 32px 32px;
+}
+
+.card,
+.metric-card,
+.dashboard-chart-card,
+.insight-card {
+  box-shadow: none;
+  border-radius: 12px;
+}
+
+.metric-card,
+.metric-card--kpi {
+  padding: 12px 14px;
+  gap: 4px;
+}
+
+.metric-card--kpi:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.metric-label,
+.metric-card__label,
+.teaser-card .teaser-label {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.metric-value,
+.metric-card__value,
+.kpi-row .metric-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.btn {
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.btn:active {
+  transform: none;
+}
+
+.btn-primary,
+.btn-primary:hover {
+  background: #e99a52;
+  border-color: #e99a52;
+  color: #1a140e;
+  box-shadow: none;
+}
+
+.btn-primary:hover {
+  background: #f2ac6e;
+  border-color: #f2ac6e;
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.btn-secondary:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+
+.table thead th,
+.band-label,
+.sev-pill,
+.menu-section,
+.search-section-label {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.table thead th {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background: transparent;
+}
+
+.table tbody tr {
+  transition: background-color 150ms ease;
+}
+
+.empty-state {
+  padding: 24px 16px;
+}
+
+.empty-state > .icon {
+  width: 24px;
+  height: 24px;
+}
+
+.station-card {
+  border-radius: 12px;
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+
+.station-card:hover {
+  border-color: var(--color-accent);
+}
+
+/* Kitchen workspace: one header, compact overview, quiet notices. */
+.kitchen-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.kitchen-head h1 { margin: 0; }
+.kitchen-head__tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.kitchen-views {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--color-surface);
+  border-radius: 8px;
+}
+.kitchen-view {
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.kitchen-view:hover { text-decoration: none; color: var(--color-text); }
+.kitchen-view.is-on {
+  background: var(--color-surface-raised, var(--color-surface));
+  color: var(--color-accent);
+}
+.kitchen-more { position: relative; }
+.kitchen-more > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.kitchen-more > summary::-webkit-details-marker { display: none; }
+.kitchen-more__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  min-width: 220px;
+  padding: 6px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kitchen-more__menu a,
+.kitchen-more__menu button {
+  text-align: left;
+  text-decoration: none;
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.875rem;
+}
+.kitchen-more__menu a:hover,
+.kitchen-more__menu button:hover {
+  background: var(--color-surface);
+  text-decoration: none;
+}
+.kitchen-more__menu form { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; }
+.kitchen-nudge {
+  margin-bottom: 16px;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+.kitchen-nudge summary { cursor: pointer; color: var(--color-text); }
+.kitchen-page:has(.empty-state-cold-start) .kitchen-dup-empty { display: none; }
+.kitchen-overview {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  margin-bottom: 16px !important;
+}
+.kitchen-overview .metric-card {
+  padding: 10px 12px;
+  border: 0;
+  background: var(--color-surface);
+}
+.kitchen-page .empty-state-cold-start {
+  border: 0;
+  border-left: 0;
+  background: var(--color-surface);
+  box-shadow: none;
+  padding: 8px 0 16px;
+}
+.kitchen-page .notifications-bundle {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.kitchen-page .notifications-bundle__summary {
+  background: var(--color-surface);
+  border-radius: 10px;
+}
+.kitchen-page .notifications-bundle[open] { box-shadow: none; }
+.kitchen-page .notification-collapse--success,
+.kitchen-page .notification-collapse--info {
+  border-left-width: 0;
+  background: transparent;
+}
+.kitchen-page .notification-collapse--danger,
+.kitchen-page .notification-collapse--warning {
+  border-left-width: 3px;
+}
+.kitchen-page .table tbody td { padding-top: 12px; padding-bottom: 12px; }
+@media (max-width: 800px) {
+  .kitchen-overview { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .kitchen-more__menu { position: static; margin-top: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-card--kpi:hover {
+    transform: none;
+  }
+}

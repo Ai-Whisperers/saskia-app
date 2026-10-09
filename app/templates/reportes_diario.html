@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Resumen diario — {{ for_date }}{{ ui.report_source_footer() }}{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Resumen diario — {{ for_date }}
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+{{ ui.skeleton_section(id="diario-kpis", variant="kpi", count=6, label="Cargando resumen diario") }}
+<div class="grid grid-3 mb-4" data-loaded-section="diario-kpis">
+  <div class="metric-card">
+    <div class="metric-label">Ingresos netos (Gs.)</div>
+    <div class="metric-value">{{ m.gs(summary.revenue_gross_gs) }}</div>
+    {% if summary.refunds_total_gs > 0 %}
+      <div class="metric-delta is-neutral text-xs" >
+        −{{ m.gs(summary.refunds_total_gs) }} en {{ summary.refunds_count }} reembolso{{ '' if summary.refunds_count == 1 else 's' }}
+      </div>
+    {% endif %}
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">IVA</div>
+    <div class="metric-value">{{ m.gs(summary.iva_gs) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Costo de Mercadería Vendida</div>
+    <div class="metric-value">{{ m.gs(summary.cogs_gs) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Gastos</div>
+    <div class="metric-value">{{ m.gs(summary.expenses_placeholder_gs) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Ventas</div>
+    <div class="metric-value">{{ summary.n_sales }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Margen bruto</div>
+    <div class="metric-value">{{ m.gs(summary.margin_gs) }}</div>
+    {% if summary.revenue_gross_gs > 0 %}
+      {% set margin_pct = (summary.margin_gs * 100.0) / summary.revenue_gross_gs %}
+    {% else %}
+      {% set margin_pct = 0.0 %}
+    {% endif %}
+    <div class="metric-delta {{ 'is-up' if margin_pct >= 40 else 'is-neutral' }}">{{ "%.1f"|format(margin_pct) }}%</div>
+  </div>
+</div>
+</div>
+
+<div class="form-actions mb-4">
+  <a href="/reportes/diario/pdf?for_date={{ for_date }}" class="btn btn-secondary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+    Exportar PDF
+  </a>
+</div>
+
+<form method="get" action="/reportes/diario" class="form form-row-inline">
+  <label for="for_date">Fecha</label>
+  <ui-date id="for_date" name="for_date" value="{{ for_date }}"></ui-date>
+  <button type="submit" class="btn btn-primary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+    Ver
+  </button>
+</form>
+{% set csv_q = dict(request.query_params.multi_items()) %}{% set _ = csv_q.update({'format': 'csv'}) %}
+<a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-secondary" download="diario-{{ for_date }}.csv">
+  <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+  Exportar CSV
+</a>
+
+{% endblock %}

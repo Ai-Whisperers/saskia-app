@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Riesgos · Sazón{% endblock %}
+{% block content %}
+{% import "_components/atoms.html" as ui %}
+<div class="page-header d-flex" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
+  <div>
+    <h1>⚠️ Registro de riesgos</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+    <p class="muted">Riesgos operacionales, externos, comerciales, legales y personales</p>
+  </div>
+  <div class="d-flex" style="display:flex;gap:.5rem;flex-shrink:0;">
+    <button type="button" class="btn btn-primary" id="add-risk-btn"
+            aria-expanded="false" aria-controls="add-risk-form"
+            onclick="document.getElementById('add-risk-form').hidden = !document.getElementById('add-risk-form').hidden; this.setAttribute('aria-expanded', String(!document.getElementById('add-risk-form').hidden));">
+      + Agregar riesgo
+    </button>
+    <a href="/settings#riesgos" class="btn btn-ghost">Configurar categorías</a>
+  </div>
+</div>
+
+{% if flash %}
+<div class="alert alert--{{ flash.severity }} mb-6" role="status" style="margin-bottom:1rem;padding:.6rem .8rem;border-radius:6px;
+            {% if flash.severity == 'error' %}background:rgba(220,50,50,.10);border:1px solid #d33;color:#a00;
+            {% else %}background:rgba(34,197,94,.10);border:1px solid #16a34a;color:#15803d;
+            {% endif %}">
+  {{ flash.message }}
+</div>
+{% endif %}
+
+<form id="add-risk-form" method="post" action="/riesgos/new" hidden class="card mb-6" style="margin-bottom:1rem;max-width:780px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="d-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:.75rem;">
+    <div class="form-row is-required">
+      <label for="risk-description">Descripción</label>
+      <input type="text" id="risk-description" name="description" required maxlength="255" placeholder="Ej: Corte de luz durante turno mañana">
+    </div>
+    <div class="form-row">
+      <label for="risk-category">Categoría</label>
+      <select id="risk-category" name="category">
+        <option value="">—</option>
+        <option value="operacional">Operacional</option>
+        <option value="externo">Externo</option>
+        <option value="comercial">Comercial</option>
+        <option value="legal">Legal</option>
+        <option value="personal">Personal</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="risk-probability">Probabilidad (1-5)</label>
+      <input type="number" id="risk-probability" name="probability" value="2" min="1" max="5" step="1">
+    </div>
+    <div class="form-row">
+      <label for="risk-impact">Impacto Gs.</label>
+      <input type="number" id="risk-impact" name="impact_gs" value="0" min="0" step="1000">
+    </div>
+  </div>
+  <div class="form-row">
+    <label for="risk-mitigation">Mitigación propuesta</label>
+    <textarea id="risk-mitigation" name="mitigation" rows="2" maxlength="2000" placeholder="¿Cómo se mitiga o se reduce el impacto?"></textarea>
+  </div>
+  <div class="d-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+    <div class="form-row">
+      <label for="risk-owner">Responsable</label>
+      <input type="text" id="risk-owner" name="owner" maxlength="64" placeholder="Ej: Nombre del responsable">
+    </div>
+    <div class="form-row">
+      <label for="risk-notes">Notas</label>
+      <input type="text" id="risk-notes" name="notes" maxlength="2000">
+    </div>
+  </div>
+  <div class="d-flex" style="display:flex;gap:.5rem;margin-top:.5rem;">
+    <button type="submit" class="btn btn-primary">Guardar riesgo</button>
+    <button type="button" class="btn btn-ghost" onclick="document.getElementById('add-risk-form').hidden = true; document.getElementById('add-risk-btn').setAttribute('aria-expanded','false');">Cancelar</button>
+  </div>
+</form>
+
+<div class="kpi-row d-flex" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap;">
+  {{ ui.metric_card(label="Activos", value=active_count) }}
+  {{ ui.metric_card(label="Mitigados", value=mitigated_count) }}
+  {{ ui.metric_card(label="Cerrados", value=closed_count) }}
+  {{ ui.metric_card(label="Severidad total Gs.", value=m.gs(severity_total_gs), compact=True) }}
+</div>
+
+{% if not by_category %}
+  {{ ui.empty_state(
+       title="Sin riesgos registrados",
+       icon="icon-warn",
+       hint="Arrancá cargando los riesgos más importantes de tu operación (ej: 'corte de luz', 'suba de harina', 'baja de demanda').",
+       cta_href="/settings#riesgos",
+       cta_label="Configurar riesgos"
+     ) }}
+{% endif %}
+
+{% for cat, items in by_category.items() %}
+<h2 style="margin-top:1.5rem;">{{ cat }}</h2>
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>ID</th><th>Riesgo</th><th class="num">Probabilidad</th><th class="num">Impacto (Gs.)</th>
+      <th class="num">Severidad (Gs.)</th><th>Mitigación</th><th>Estado</th><th>Responsable</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in items %}
+    <tr>
+      <td><code>{{ r.code }}</code></td>
+      <td>{{ r.description }}</td>
+      <td class="num">{{ r.probability }}/5</td>
+      <td class="num">{{ m.gs(r.impact_gs) }}</td>
+      <td class="num"><strong>{{ m.gs(r.severity) }}</strong></td>
+      <td><small>{{ r.mitigation or '' }}</small></td>
+      <td>
+        {% if r.status == 'activo' %}<span class="badge badge-error">🔴 Activo</span>
+        {% elif r.status == 'mitigated' %}<span class="badge badge-warning">🟡 Mitigado</span>
+        {% else %}<span class="badge badge-success">✓ Cerrado</span>{% endif %}
+      </td>
+      <td>{{ r.owner or '' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Consumo por ingrediente{{ ui.report_source_footer() }}
+{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Consumo por ingrediente
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="text-muted mb-3">
+  Top {{ limit }} ingredientes por consumo neto en los últimos {{ days }} días
+  (ventas reales, sin anuladas). Útil para detectar qué insumos rotan más
+  rápido y validar el cálculo de reposición.
+</p>
+
+<div class="period-toggle flex gap-2 mb-4">
+  {% for d in [7, 30, 90, 365] %}
+  <a href="?days={{ d }}" class="btn {% if days == d %}btn-primary{% endif %}">{{ d }}d</a>
+  {% endfor %}
+  <a href="/reportes/consumo/csv?days={{ days }}" class="btn">Exportar CSV</a>
+</div>
+
+{% if rows %}
+<div class="card">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Ingrediente</th>
+        <th class="text-right">Cantidad neta</th>
+        <th class="text-right">Ventas</th>
+        <th class="text-right">Movimientos</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>
+          <a href="/inventario/{{ r.ingredient_id }}">{{ r.name }}</a>
+          <small class="text-muted">({{ r.unit }})</small>
+        </td>
+        <td class="text-right">
+          <strong>{{ "%.2f"|format(r.total_qty) }}</strong>
+          <small class="text-muted">{{ r.unit }}</small>
+        </td>
+        <td class="text-right">{{ r.n_sales }}</td>
+        <td class="text-right">{{ r.n_moves }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card text-center">
+  <p>No hay datos de consumo en los últimos {{ days }} días.</p>
+  <p class="text-muted">
+    Esto puede pasar porque el local abrió hace poco, o porque no se
+    registraron ventas con venta de productos (la materia prima solo
+    se mueve cuando se hace una venta).
+  </p>
+</div>
+{% endif %}
+{% endblock %}

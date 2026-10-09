@@ -1,0 +1,245 @@
+{# produccion_prep_recipes.html — 2026-10-07e
+   Recipe-organized ingredient prep view for ONE day's plan. The cook
+   weighs out each recipe's ingredients, in order, then closes the card.
+
+   Differs from /produccion/prep:
+     - /produccion/prep  → aggregated weekly totals (how much flour
+                            do I need across the week)
+     - /produccion/prep-recipes → per-recipe breakdown for today (for
+                            6 batches of Sopa Paraguaya, weigh out
+                            4.5kg flour, 1.2L milk, 18 eggs)
+
+   Reuses fmt_qty macro from produccion_prep.html sibling template. #}
+{% macro fmt_qty(qty, unit) -%}
+  {%- if unit in ('g', 'ml') -%}
+    {# Linear measurements — round to int, no decimals (0.5kg looks
+       weird in a printout, "500g" is what the cook needs to weigh). #}
+    {{ qty|round|int }} {{ unit }}
+  {%- elif unit in ('und', 'unid') -%}
+    {# COUNT units — show the actual scaled value to 1 decimal
+       (e.g. 0.3 und, 1.5 und) so the cross-check "Totales cruzados"
+       matches the linear sum.  Ivan 2026-10-07: ceil() hid the
+       0.5 × 3 = 1.5 batches math and made the per-card sum drift
+       from the cumulative table. #}
+    {%- set rounded = (qty * 10)|round|int / 10 -%}
+    {{ rounded }} {{ unit }}
+  {%- else -%}
+    {{ qty|round(1) }} {{ unit }}
+  {%- endif -%}
+{%-endmacro %}
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Recetas del día — {{ for_date_display }}{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-4); flex-wrap: wrap; gap: var(--space-3);">
+  <div>
+    <h1 style="display: flex; align-items: center; gap: var(--space-2); margin: 0;">
+      <svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg>
+      Recetas para preparar hoy
+    </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+    <p class="hint mt-1-only" >
+      {{ for_date_display }}
+      — para que cada receta pese sus ingredientes en orden.
+    </p>
+  </div>
+  <nav class="d-inline-flex" aria-label="Cambiar día" style="display:inline-flex; gap: var(--space-1); flex-wrap: wrap;">
+    <a href="/produccion/prep-recipes?for_date={{ prev_for_date }}" class="btn btn-ghost btn-sm">← Día anterior</a>
+    <a href="/produccion/prep-recipes?for_date={{ today_for_date }}" class="btn btn-ghost btn-sm">Hoy</a>
+    <a href="/produccion/prep-recipes?for_date={{ next_for_date }}" class="btn btn-ghost btn-sm">Día siguiente →</a>
+  </nav>
+  <div class="d-inline-flex" style="display:inline-flex; gap: var(--space-1); flex-wrap: wrap;">
+    <a href="/produccion" class="btn btn-ghost btn-sm"
+       title="Volver al plan del día">
+      ← Producción
+    </a>
+    <a href="/produccion/prep" class="btn btn-ghost btn-sm"
+       title="Ver totales agregados de la semana">
+      📊 Totales semanales
+    </a>
+    <a href="/shopping-list" class="btn btn-ghost btn-sm"
+       title="Lista de compras (lo que falta por comprar)">
+      🛒 Lista de compras
+    </a>
+  </div>
+</div>
+
+{# Severity summary — same vocabulary as /produccion/prep. #}
+<div class="card mb-4"
+     style="background: var(--color-surface-subtle); padding: var(--space-3);">
+  <div style="display: flex; gap: var(--space-4); flex-wrap: wrap; align-items: center;">
+    <strong>Resumen:</strong>
+    <span class="badge badge-danger" data-testid="recipe-count-falta">
+      {{ severity_counts.falta }} Falta
+    </span>
+    <span class="badge badge-warning" data-testid="recipe-count-justo">
+      {{ severity_counts.justo }} Justo
+    </span>
+    <span class="badge badge-success" data-testid="recipe-count-suficiente">
+      {{ severity_counts.suficiente }} Suficiente
+    </span>
+    <small class="text-muted" style="margin-left: auto;">
+      {{ total_recipes }} receta(s) · {{ total_lines }} ingrediente(s)
+      para el plan del día.
+    </small>
+  </div>
+</div>
+
+{# Empty-state #}
+{% if not cards %}
+<div class="card text-center" style="padding: var(--space-5);">
+  <p class="m-0">No hay recetas en el plan para este día.</p>
+  <p class="text-muted m-0 mt-2">
+    <a href="/produccion?for_date={{ for_date }}">Ir al plan del día</a>
+    para cargar qué se va a producir.
+  </p>
+</div>
+{% else %}
+
+{# Per-recipe cards — Falta first, then Justo, then Suficiente. #}
+{% for card in cards %}
+<article class="card mb-4"
+         data-recipe-id="{{ card.recipe_id }}"
+         data-product-id="{{ card.product_id }}"
+         data-severity="{{ card.severity }}">
+  <header style="display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; border-left: 4px solid; border-left-color:
+                  {%- if card.severity == 'falta' %}var(--color-danger){% elif card.severity == 'justo' %}var(--color-warning){% else %}var(--color-success){% endif -%};
+                  padding-left: var(--space-3);">
+    <h2 style="margin: 0; font-size: 1.1rem;">
+      <a href="/recetas/{{ card.recipe_id }}" class="link-reset">{{ card.recipe_name }}</a>
+    </h2>
+    <span class="text-muted" style="font-size: 0.9rem;">
+      ({{ card.product_name }})
+    </span>
+    <span class="badge
+                  {%- if card.severity == 'falta' %} badge-danger
+                  {%- elif card.severity == 'justo' %} badge-warning
+                  {%- else %} badge-success
+                  {%- endif %}">
+      {%- if card.severity == 'falta' %}Falta
+      {%- elif card.severity == 'justo' %}Justo
+      {%- else %}Suficiente
+      {%- endif %}
+    </span>
+    <span class="text-muted" style="font-size: 0.9rem; margin-left: auto;">
+      <strong>{{ card.batches|round(1) }}</strong> lotes ·
+      ({{ card.qty_to_produce|round(1) }} {{ card.unit }})
+      · {{ card.shortage_count }} línea(s) con faltante
+    </span>
+  </header>
+
+  {% if card.shortage_count > 0 %}
+  <p class="text-danger" style="margin: var(--space-2) 0; font-size: 0.95rem;">
+    ⛔ Faltan ingredientes para esta receta. Verificá con
+    <a href="/shopping-list">la lista de compras</a>.
+  </p>
+  {% endif %}
+
+  {% if card.lines %}
+  <table class="prep-recipes-table" style="width: 100%; margin-top: var(--space-2); border-collapse: collapse;">
+    <thead>
+      <tr style="background: var(--color-surface-subtle);">
+        <th style="text-align: left; padding: var(--space-2);">Ingrediente</th>
+        <th style="text-align: right; padding: var(--space-2);">Cantidad</th>
+        <th style="text-align: right; padding: var(--space-2);">En stock</th>
+        <th style="text-align: center; padding: var(--space-2);">Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for ln in card.lines %}
+      <tr {% if ln.shortage > 0 %}style="background: rgba(220, 38, 38, 0.05);"{% endif %}>
+        <td style="padding: var(--space-2);">
+          <strong>{{ ln.name }}</strong>
+          {%- if ln.sources %}
+            <small class="text-muted">(de {{ ln.sources|join(', ') }})</small>
+          {%- endif %}
+          {%- if ln.error %}
+            <br><small class="text-danger">⚠ {{ ln.error }}</small>
+          {%- endif %}
+        </td>
+        <td style="text-align: right; padding: var(--space-2);">
+          <strong>{{ fmt_qty(ln.qty, ln.unit) }}</strong>
+        </td>
+        <td style="text-align: right; padding: var(--space-2);" class="text-muted">
+          {%- if ln.stock_on_hand is not none %}
+            {{ fmt_qty(ln.stock_on_hand, ln.unit) }}
+          {%- else -%}
+            —
+          {%- endif %}
+        </td>
+        <td style="text-align: center; padding: var(--space-2);">
+          {%- if ln.shortage > 0 -%}
+            <span class="badge badge-danger" title="Faltante">
+              Falta {{ fmt_qty(ln.shortage, ln.unit) }}
+            </span>
+          {%- elif ln.stock_on_hand is none -%}
+            <span class="badge" title="Sin stock registrado">?</span>
+          {%- elif ln.stock_on_hand >= ln.qty -%}
+            <span class="badge badge-success" title="Stock suficiente">✓</span>
+          {%- else -%}
+            <span class="badge badge-warning" title="Stock bajo">!</span>
+          {%- endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted m-0">Esta receta no tiene ingredientes en su explosión.</p>
+  {% endif %}
+</article>
+{% endfor %}
+
+{# Cumulative totals — operator can verify against /shopping-list. #}
+{% if cumulative %}
+<aside class="card mb-4"
+        style="background: var(--color-surface-subtle);">
+  <h2 style="margin-top: 0;">
+    📋 Totales cruzados
+    <small class="text-muted" style="font-weight: normal; font-size: 0.85rem;">
+      (suma de todas las recetas — debería coincidir con /shopping-list)
+    </small>
+  </h2>
+  <table class="cumulative-totals" style="width: 100%; border-collapse: collapse;">
+    <thead>
+      <tr style="border-bottom: 2px solid var(--color-border);">
+        <th style="text-align: left; padding: var(--space-2);">Ingrediente</th>
+        <th style="text-align: right; padding: var(--space-2);">Necesario</th>
+        <th style="text-align: right; padding: var(--space-2);">Stock</th>
+        <th style="text-align: center; padding: var(--space-2);">Aparece en</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in cumulative %}
+      <tr {% if row.shortage > 0 %}style="background: rgba(220, 38, 38, 0.05);"{% endif %}>
+        <td style="padding: var(--space-2);">
+          <strong>{{ row.name }}</strong>
+        </td>
+        <td style="text-align: right; padding: var(--space-2);">
+          {{ fmt_qty(row.qty, row.unit) }}
+        </td>
+        <td style="text-align: right; padding: var(--space-2);" class="text-muted">
+          {{ fmt_qty(row.stock_on_hand, row.unit) }}
+        </td>
+        <td style="text-align: center; padding: var(--space-2);">
+          {{ row.in_recipes }} receta(s)
+          {%- if row.shortage > 0 %}
+            <br><span class="badge badge-danger">
+              Falta {{ fmt_qty(row.shortage, row.unit) }}
+            </span>
+          {%- endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</aside>
+{% endif %}
+
+{% endif %}
+{# /.cards or empty-state #}
+
+{% endblock %}

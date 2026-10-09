@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}No encontrado{% endblock %}
+{% block content %}
+<section class="error-page">
+  <div class="error-card card text-center">
+    <div class="error-code">404</div>
+    <h1>Página no encontrada</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+    <p class="text-muted">
+      La ruta <code>{{ path }}</code> no existe o se movió.
+    </p>
+    {% if reason %}
+    <p class="text-muted small">
+      Motivo: <code>{{ reason }}</code>
+    </p>
+    {% endif %}
+
+    {% set common_links = [
+      ('/dashboard', 'Dashboard'),
+      ('/pedidos', 'Pedidos'),
+      ('/recetas', 'Recetas'),
+      ('/inventario', 'Inventario'),
+      ('/ventas', 'Ventas'),
+    ] %}
+
+    <div class="mt-3">
+      <p class="text-muted small">Quizás buscabas una de estas:</p>
+      <div class="quick-links d-flex" style="display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap;margin-top:0.5rem;">
+        {% for href, label in common_links %}
+          <a href="{{ href }}" class="btn btn-ghost btn-sm">{{ label }}</a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="error-actions mt-3">
+      <a href="/" class="btn btn-primary btn-pill">
+        <svg class="icon" aria-hidden="true"><use href="#icon-home"/></svg>
+        Volver al inicio
+      </a>
+      <a href="javascript:history.back()" class="btn btn-ghost">
+        <svg class="icon" aria-hidden="true"><use href="#icon-arrow-up"/></svg>
+        Página anterior
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}

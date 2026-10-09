@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Estado operativo{% endblock %}
+{% block content %}
+<h1>Estado operativo</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="hint">Vista rápida para identificar problemas. Si algo
+  parece roto abajo, abrir <code>/healthz/errors</code> + filtrar
+  <code>action_filter=http.500</code> en <a href="/auditoria">/auditoria</a>.
+  Plan completo en
+  <code>docs/operations/2026-09-08-incident-response.md</code>.</p>
+
+{{ ui.skeleton_section(id="ops-status-table", variant="line", count=6, label="Cargando estado de operaciones") }}
+<div data-loaded-section="ops-status-table">
+<table class="table is-hoverable">
+  <thead>
+    <tr><th>Ruta</th><th>Propósito</th><th class="actions">Acción</th></tr>
+  </thead>
+  <tbody>
+    {% for path, purpose in endpoints %}
+    <tr>
+      <td><code><a href="{{ path }}">{{ path }}</a></code></td>
+      <td>{{ purpose }}</td>
+      <td class="actions">
+        <a class="btn btn-sm btn-ghost" href="{{ path }}">
+          <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+          Abrir
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</div>
+</table>
+
+<h2>Operaciones comunes</h2>
+<ul>
+  <li><strong>Forzar redeploy</strong> — desde local:
+    <code>git commit --allow-empty -m "trigger redeploy" &&amp;&amp; git push origin main</code>
+    (Render auto-redeploya).</li>
+  <li><strong>Prune audit log</strong> — desde local:
+    <code>python scripts/audit_prune.py --days 30</code></li>
+  <li><strong>Verificar env vars</strong> — Render dashboard →
+    sazon-rms → Environment, o el catálogo en
+    <code>docs/operations/2026-09-08-render-env-vars.md</code>.</li>
+</ul>
+
+{# BACKLOG #35 (2026-10-02): per-customer reorder stats. Loyalty signal:
+   if reorder_rate drops below 20%, look for product quality / pricing issues.
+   The avg_days_between_orders is the operator's planning cadence — if it
+   creeps up, customers are churning slowly. #}
+<h2>Tasa de reposición (últimos 90 días)</h2>
+{% set rate_pct = (reorder_stats.reorder_rate * 100) | round(1) %}
+<p>
+  <strong>{{ rate_pct }}%</strong>
+  ({{ reorder_stats.customers_with_2plus_orders }} de {{ reorder_stats.total_customers }} clientes)
+  hicieron más de una compra.
+  Brecha promedio entre compras: <strong>{{ reorder_stats.avg_days_between_orders }} días</strong>
+  (mediana {{ reorder_stats.median_days_between_orders }} d).
+</p>
+{% if reorder_stats.top_repeaters %}
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>Cliente</th>
+      <th class="num">Pedidos</th>
+      <th class="num">Total (Gs.)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in reorder_stats.top_repeaters %}
+    <tr>
+      <td>
+        <a href="/clientes/{{ r.customer_id }}">{{ r.customer_name }}</a>
+      </td>
+      <td class="num">{{ r.total_orders }}</td>
+      <td class="num">{{ "{:,}".format(r.total_gs) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="hint">Aún no hay clientes con pedidos repetidos en este período.</p>
+{% endif %}
+
+{% endblock %}

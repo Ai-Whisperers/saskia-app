@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Libro de Ventas{{ ui.report_source_footer() }}
+{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Libro de Ventas
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="text-muted">Libro registro cronológico de ventas conforme al formato SET (Paraguay).</p>
+
+<div class="form-actions mb-3">
+  <a href="/reportes/libro-ventas/set-pdf?start={{ start_date }}&end={{ end_date }}" class="btn btn-secondary">
+    <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+    Exportar PDF (formato SET)
+  </a>
+</div>
+
+<form method="get" action="/reportes/libro-ventas" class="form">
+  <div class="grid grid-3">
+    <div class="form-row">
+      <label for="start">Desde</label>
+      <ui-date id="start" name="start" value="{{ start_date }}"></ui-date>
+    </div>
+    <div class="form-row">
+      <label for="end">Hasta</label>
+      <ui-date id="end" name="end" value="{{ end_date }}"></ui-date>
+    </div>
+    <div class="form-row" style="justify-content: flex-end;">
+      <label>&nbsp;</label>
+      <button type="submit" class="btn btn-primary">
+        <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+        Filtrar
+      </button>
+    </div>
+  </div>
+  <div class="form-row" style="margin-top: 8px;">
+    <span class="text-muted text-xs" >Accesos rápidos:</span>
+    <a href="?preset=today" class="btn btn-ghost btn-sm">Hoy</a>
+    <a href="?preset=week" class="btn btn-ghost btn-sm">Esta semana</a>
+    <a href="?preset=month" class="btn btn-ghost btn-sm">Este mes</a>
+    <a href="?preset=last_month" class="btn btn-ghost btn-sm">Mes pasado</a>
+  </div>
+</form>
+
+{% if rows %}
+<p class="text-muted mb-3">Total: {{ rows|length }} líneas</p>
+{{ ui.skeleton_section(id="libro-ventas-table", variant="line", count=10, label="Cargando libro de ventas") }}
+<div data-loaded-section="libro-ventas-table">
+<div class="table-wrap">
+<table class="table is-hoverable is-striped">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Cliente</th>
+      <th>Producto</th>
+      <th class="num">Cant.</th>
+      <th class="num">Gravado (Gs.)</th>
+      <th class="num">IVA (Gs.)</th>
+      <th class="num">Total (Gs.)</th>
+      {# Phase 1.B — fiscal invoice metadata #}
+      <th>Comprobante</th>
+      <th>RUC</th>
+      {# M1 (2026-10-02): refund + net columns for DNIT compliance. #}
+      <th class="num">Reembolso (Gs.)</th>
+      <th class="num">Neto (Gs.)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td><small>{{ r.sold_at.strftime("%d/%m/%Y") if r.sold_at else "" }}</small></td>
+      <td>{{ r.customer_name or "—" }}</td>
+      <td>{{ r.product_name }}</td>
+      <td class="num">{{ "%.2f"|format(r.qty) }}</td>
+      <td class="num">{{ m.gs(r.base_gs) }}</td>
+      <td class="num">{{ m.gs(r.iva_gs) }}</td>
+      <td class="num"><strong>{{ m.gs(r.total_gross_gs) }}</strong></td>
+      <td>
+        {% if r.invoice_number %}
+          <span class="badge badge-info">{{ r.invoice_type }}</span>
+          <small>#{{ r.invoice_number }}</small>
+        {% else %}
+          {{ ui.status_pill("sin comprobante", sev="neutral") }}
+        {% endif %}
+      </td>
+      <td><small>{{ r.invoice_customer_ruc or "—" }}</small></td>
+      <td class="num">
+        {% if r.refunds_gs > 0 %}
+          <span class="text-warning" title="{{ r.refunds_count }} reembolso(s)">{{ m.gs(r.refunds_gs) }}</span>
+        {% else %}
+          <small class="text-muted">—</small>
+        {% endif %}
+      </td>
+      <td class="num"><strong>{{ m.gs(r.net_gross_gs) }}</strong></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    {% set total_gross = rows | sum(attribute='total_gross_gs') %}
+    {% set total_refunds = rows | sum(attribute='refunds_gs') %}
+    {% set total_net = rows | sum(attribute='net_gross_gs') %}
+    <tr class="table-summary">
+      <td colspan="6"><strong>Total periodo</strong></td>
+      <td class="num"><strong>{{ m.gs(total_gross) }}</strong></td>
+      <td colspan="2"></td>
+      <td class="num"><strong>{{ m.gs(total_refunds) }}</strong></td>
+      <td class="num"><strong>{{ m.gs(total_net) }}</strong></td>
+    </tr>
+  </tfoot>
+</table>
+</div>
+</div>
+{% else %}
+{{ ui.empty_state(title="No hay ventas en este período", icon="icon-report", hint="Probá con un rango de fechas más amplio.") }}
+{% endif %}
+
+{% endblock %}

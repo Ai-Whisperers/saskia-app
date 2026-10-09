@@ -1,0 +1,890 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+
+{% block title %}Configuración — Catálogos{% endblock %}
+
+{% block content %}
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+{{ ui.page_header("Catálogos y configuración", desc="Gestioná categorías, canales de venta, formas de pago, plantillas de mensajes y más.
+    Todos los cambios se aplican de inmediato — se aplica al instante.")
+}}
+
+<nav class="catalog-tabs" aria-label="Secciones de configuración">
+  <button type="button" class="tab is-active" data-tab="categories-product">Categorías producto</button>
+  <button type="button" class="tab" data-tab="categories-recipe">Familias de receta</button>
+  <button type="button" class="tab" data-tab="channels">Canales de venta</button>
+  <button type="button" class="tab" data-tab="payments">Formas de pago</button>
+  <button type="button" class="tab" data-tab="margin-tiers">Tiers de margen</button>
+  <button type="button" class="tab" data-tab="stock-status">Umbrales de stock</button>
+  <button type="button" class="tab" data-tab="storage-types">Almacenamiento HACCP</button>
+  <button type="button" class="tab" data-tab="date-presets">Períodos</button>
+  <button type="button" class="tab" data-tab="templates">Plantillas</button>
+  <button type="button" class="tab" data-tab="tax-config">Impuestos</button>
+  <button type="button" class="tab" data-tab="branding">Branding</button>
+  <button type="button" class="tab" data-tab="suppliers">Proveedores</button>
+</nav>
+
+<div id="toast" class="toast"></div>
+
+<!-- ── Categorías de producto ──────────────────────────────────── -->
+<section class="tab-panel is-active" data-panel="categories-product">
+  <button class="btn btn-secondary" data-toggle-form="add-cat-product">+ Agregar categoría</button>
+  <div class="add-form" id="add-cat-product">
+    <h3>Nueva categoría de producto</h3>
+    <div class="add-form-row">
+      <div><label>Nombre</label><input type="text" id="add-cat-product-name" maxlength="64" placeholder="Ej: Tartas"></div>
+      <div><label>Orden</label><input type="number" id="add-cat-product-sort" min="0" value="1000"></div>
+    </div>
+    <div class="add-form-actions">
+      <button class="btn btn-primary" id="save-cat-product">Guardar</button>
+      <button class="btn" data-toggle-form="add-cat-product">Cancelar</button>
+    </div>
+  </div>
+  {{ ui.skeleton_section(id="settings-catalog", variant="line", count=12, label="Cargando catálogo") }}
+  <div data-loaded-section="settings-catalog">
+  <table class="data-table" id="table-cat-product">
+    <thead><tr><th>Nombre</th><th>Orden</th><th>Activo</th><th></th></tr></thead>
+    <tbody></tbody>
+  </div>
+  </table>
+</section>
+
+<!-- ── Familias de receta ───────────────────────────────────────── -->
+<section class="tab-panel" data-panel="categories-recipe">
+  <button class="btn btn-secondary" data-toggle-form="add-cat-recipe">+ Agregar familia</button>
+  <div class="add-form" id="add-cat-recipe">
+    <h3>Nueva familia de receta</h3>
+    <div class="add-form-row">
+      <div><label>Nombre</label><input type="text" id="add-cat-recipe-name" maxlength="64" placeholder="Ej: Tartas"></div>
+      <div><label>Orden</label><input type="number" id="add-cat-recipe-sort" min="0" value="1000"></div>
+    </div>
+    <div class="add-form-actions">
+      <button class="btn btn-primary" id="save-cat-recipe">Guardar</button>
+      <button class="btn" data-toggle-form="add-cat-recipe">Cancelar</button>
+    </div>
+  </div>
+  <table class="data-table" id="table-cat-recipe">
+    <thead><tr><th>Nombre</th><th>Orden</th><th>Activo</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Channels ─────────────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="channels">
+  <button class="btn btn-secondary" data-toggle-form="add-channel">+ Agregar canal</button>
+  <div class="add-form" id="add-channel">
+    <h3>Nuevo canal de venta</h3>
+    <div class="add-form-row">
+      <div><label>Código</label><input type="text" id="add-channel-code" maxlength="32" placeholder="Ej: instagram_dm"></div>
+      <div><label>Etiqueta</label><input type="text" id="add-channel-label" maxlength="64" placeholder="Ej: Instagram DM"></div>
+      <div><label>Orden</label><input type="number" id="add-channel-sort" min="0" value="1000"></div>
+      <div><label>Predeterminado</label>{{ ui.combo_field(
+        name='add-channel-default',
+        value='0',
+        display='No',
+        placeholder='No',
+        src=[{'label': 'No', 'value': '0'}, {'label': 'Sí', 'value': '1'}]
+      ) }}</div>
+    </div>
+    <div class="add-form-actions">
+      <button class="btn btn-primary" id="save-channel">Guardar</button>
+      <button class="btn" data-toggle-form="add-channel">Cancelar</button>
+    </div>
+  </div>
+  <table class="data-table" id="table-channel">
+    <thead><tr><th>Código</th><th>Etiqueta</th><th>Orden</th><th>Predeterminado</th><th>Activo</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Payment methods ──────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="payments">
+  <button class="btn btn-secondary" data-toggle-form="add-payment">+ Agregar forma de pago</button>
+  <div class="add-form" id="add-payment">
+    <h3>Nueva forma de pago</h3>
+    <div class="add-form-row">
+      <div><label>Código</label><input type="text" id="add-payment-code" maxlength="32" placeholder="Ej: billeteras"></div>
+      <div><label>Etiqueta</label><input type="text" id="add-payment-label" maxlength="64" placeholder="Ej: Billeteras móviles"></div>
+      <div><label>% Comisión</label><input type="number" id="add-payment-fee" min="0" max="100" step="0.01" value="0"></div>
+      <div><label>Requiere referencia</label>{{ ui.combo_field(
+        name='add-payment-ref',
+        value='0',
+        display='No',
+        placeholder='No',
+        src=[{'label': 'No', 'value': '0'}, {'label': 'Sí', 'value': '1'}]
+      ) }}</div>
+      <div><label>Orden</label><input type="number" id="add-payment-sort" min="0" value="1000"></div>
+      <div><label>Predeterminado</label>{{ ui.combo_field(
+        name='add-payment-default',
+        value='0',
+        display='No',
+        placeholder='No',
+        src=[{'label': 'No', 'value': '0'}, {'label': 'Sí', 'value': '1'}]
+      ) }}</div>
+    </div>
+    <div class="add-form-actions">
+      <button class="btn btn-primary" id="save-payment">Guardar</button>
+      <button class="btn" data-toggle-form="add-payment">Cancelar</button>
+    </div>
+  </div>
+  <table class="data-table" id="table-payment">
+    <thead>
+      <tr>
+        <th>Código</th><th>Etiqueta</th><th>% Com.</th><th>Ref.</th>
+        <th>Orden</th><th>Predet.</th><th>Activo</th><th></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Margin tiers ─────────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="margin-tiers">
+  <p class="muted">Editá el rango de costos para clasificar recetas en tiers.</p>
+  <table class="data-table" id="table-margin-tier">
+    <thead>
+      <tr><th>Código</th><th>Etiqueta</th><th>Min Gs.</th><th>Max Gs.</th><th>Orden</th><th>Activo</th><th></th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Stock status thresholds ──────────────────────────────────── -->
+<section class="tab-panel" data-panel="stock-status">
+  <p class="muted">Cuándo un ingrediente se considera Bajo/Crítico/Sobrestock/Muerto.</p>
+  <table class="data-table" id="table-stock-status">
+    <thead>
+      <tr>
+        <th>Código</th><th>Etiqueta</th><th>Ratio</th>
+        <th>Días sin consumo</th><th>Orden</th><th>Activo</th><th></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Storage types ────────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="storage-types">
+  <button class="btn btn-secondary" data-toggle-form="add-storage">+ Agregar tipo de almacenamiento</button>
+  <div class="add-form" id="add-storage">
+    <h3>Nuevo código de almacenamiento HACCP</h3>
+    <div class="add-form-row">
+      <div><label>Código</label><input type="text" id="add-storage-code" maxlength="32" placeholder="Ej: vacuum_sealed"></div>
+      <div><label>Etiqueta</label><input type="text" id="add-storage-label" maxlength="64" placeholder="Ej: Envasado al vacío"></div>
+      <div><label>Orden</label><input type="number" id="add-storage-sort" min="0" value="1000"></div>
+      <div><label>Temp mín requerida</label>{{ ui.combo_field(
+        name='add-storage-tmin',
+        value='0',
+        display='No',
+        placeholder='No',
+        src=[{'label': 'No', 'value': '0'}, {'label': 'Sí', 'value': '1'}]
+      ) }}</div>
+      <div><label>Temp máx requerida</label>{{ ui.combo_field(
+        name='add-storage-tmax',
+        value='0',
+        display='No',
+        placeholder='No',
+        src=[{'label': 'No', 'value': '0'}, {'label': 'Sí', 'value': '1'}]
+      ) }}</div>
+      <div><label>Humedad máx requerida</label>{{ ui.combo_field(
+        name='add-storage-hum',
+        value='0',
+        display='No',
+        placeholder='No',
+        src=[{'label': 'No', 'value': '0'}, {'label': 'Sí', 'value': '1'}]
+      ) }}</div>
+    </div>
+    <div class="add-form-actions">
+      <button class="btn btn-primary" id="save-storage">Guardar</button>
+      <button class="btn" data-toggle-form="add-storage">Cancelar</button>
+    </div>
+  </div>
+  <table class="data-table" id="table-storage">
+    <thead>
+      <tr>
+        <th>Código</th><th>Etiqueta</th><th>Temp mín</th><th>Temp máx</th>
+        <th>Humedad máx</th><th>Activo</th><th></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Date presets ─────────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="date-presets">
+  <button class="btn btn-secondary" data-toggle-form="add-preset">+ Agregar período</button>
+  <div class="add-form" id="add-preset">
+    <h3>Nuevo período de fecha</h3>
+    <div class="add-form-row">
+      <div><label>Código</label><input type="text" id="add-preset-code" maxlength="32" placeholder="Ej: biweekly"></div>
+      <div><label>Etiqueta</label><input type="text" id="add-preset-label" maxlength="64" placeholder="Ej: Quincena"></div>
+      <div><label>Días</label><input type="number" id="add-preset-days" min="1" max="3650" value="14"></div>
+      <div><label>Orden</label><input type="number" id="add-preset-sort" min="0" value="1000"></div>
+      <div><label>Predeterminado</label>{{ ui.combo_field(
+        name='add-preset-default',
+        value='0',
+        display='No',
+        placeholder='No',
+        src=[{'label': 'No', 'value': '0'}, {'label': 'Sí', 'value': '1'}]
+      ) }}</div>
+    </div>
+    <div class="add-form-actions">
+      <button class="btn btn-primary" id="save-preset">Guardar</button>
+      <button class="btn" data-toggle-form="add-preset">Cancelar</button>
+    </div>
+  </div>
+  <table class="data-table" id="table-preset">
+    <thead>
+      <tr><th>Código</th><th>Etiqueta</th><th>Días</th><th>Predeterminado</th><th>Activo</th><th></th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Templates ───────────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="templates">
+  <p class="muted">Editá el cuerpo del mensaje. Usá <code>{nombre}</code>, <code>{total_gs}</code>, etc. como placeholders.</p>
+  <table class="data-table" id="table-template">
+    <thead>
+      <tr><th>Canal</th><th>Clave</th><th>Asunto</th><th>Cuerpo</th><th>Versión</th><th>Activo</th><th></th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Tax config ───────────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="tax-config">
+  <h2>Configuración de impuestos (IVA, régimen)</h2>
+  <p class="muted">Vista de solo lectura — editá en <a href="/settings">/settings</a>.</p>
+  <table class="data-table" id="table-tax">
+    <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- ── Branding ─────────────────────────────────────────────────── -->
+<section class="tab-panel" data-panel="branding">
+  <h2>Branding</h2>
+  <form id="branding-form">
+    <div class="form-row">
+      <label for="business_name">Nombre del negocio</label>
+      <input type="text" id="business_name" name="business_name" maxlength="200" required>
+    </div>
+    <div class="form-row">
+      <label for="tagline">Lema</label>
+      <input type="text" id="tagline" name="tagline" maxlength="200">
+    </div>
+    <div class="form-row">
+      <label for="footer">Pie de página</label>
+      <input type="text" id="footer" name="footer" maxlength="200">
+    </div>
+    <div class="form-row">
+      <label for="accent_color">Color de acento (hex)</label>
+      <input type="text" id="accent_color" name="accent_color" maxlength="20"
+             pattern="^#[0-9A-Fa-f]{3,8}$">
+      <small class="muted">Ej: <code>#f97316</code></small>
+    </div>
+    <div class="form-row">
+      <label for="logo_path">Ruta del logo (opcional)</label>
+      <input type="text" id="logo_path" name="logo_path" maxlength="500">
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Guardar cambios</button>
+    </div>
+  </form>
+</section>
+
+<!-- ── Proveedores ──────────────────────────────────────────────── -->
+<!-- Links to the full /suppliers page which has CRUD + the new
+     soft-delete/reactivate flow. This tab is the discoverability
+     hook so /settings/catalog is the canonical "configure" page. -->
+<section class="tab-panel" data-panel="suppliers">
+  <h2>Proveedores</h2>
+  <p class="muted">
+    Agregá, editá y desactivá los proveedores donde comprás ingredientes.
+    Los proveedores desactivados siguen contando para el historial pero
+    no aparecen en /reorder ni en el dropdown de Proveedor.
+  </p>
+  <p>
+    <a href="/suppliers" class="btn btn-primary">
+      <svg class="icon" aria-hidden="true"><use href="#icon-supplier"/></svg>
+      Administrar proveedores
+    </a>
+    <a href="/suppliers/nuevo" class="btn">
+      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+      Nuevo proveedor
+    </a>
+  </p>
+  <div data-loaded-section="suppliers-summary">
+    {{ ui.skeleton_section(id="suppliers-summary", variant="line", count=8, label="Cargando proveedores") }}
+    <p class="muted small">Resumen de proveedores activos</p>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+(function() {
+  // ── Tab switching ──────────────────────────────────────────────
+  document.querySelectorAll('.catalog-tabs .tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.catalog-tabs .tab').forEach(function(t) { t.classList.remove('is-active'); });
+      document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('is-active'); });
+      tab.classList.add('is-active');
+      var panel = document.querySelector('.tab-panel[data-panel="' + tab.dataset.tab + '"]');
+      if (panel) panel.classList.add('is-active');
+    });
+  });
+
+  // ── Toggle add-forms ───────────────────────────────────────────
+  document.querySelectorAll('[data-toggle-form]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      var id = btn.dataset.toggleForm;
+      var f = document.getElementById(id);
+      if (f) f.classList.toggle('is-open');
+    });
+  });
+
+  // ── Toast ─────────────────────────────────────────────────────
+  var toastEl = document.getElementById('toast');
+  function toast(msg, isError) {
+    toastEl.textContent = msg;
+    toastEl.className = 'toast is-visible' + (isError ? ' is-error' : '');
+    setTimeout(function() { toastEl.className = 'toast'; }, 3000);
+  }
+
+  // ── API helper ────────────────────────────────────────────────
+  function api(method, path, body) {
+    var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+    if (body !== undefined) opts.body = JSON.stringify(body);
+    return fetch(path, opts).then(function(r) {
+      if (!r.ok) {
+        return r.json().then(function(e) { throw new Error(e.detail || r.statusText); });
+      }
+      return r.json();
+    });
+  }
+  function err(e) { toast('Error: ' + e.message, true); console.error(e); }
+
+  // ── Categories (product + recipe) ────────────────────────────
+  function loadCategories(scope, tableId) {
+    api('GET', '/api/categories?scope=' + scope).then(function(rows) {
+      var tbody = document.querySelector('#' + tableId + ' tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(c) {
+        var tr = document.createElement('tr');
+        if (!c.is_active) tr.classList.add('is-inactive');
+        tr.innerHTML =
+          '<td>' + escapeHtml(c.name) + '</td>' +
+          '<td>' + c.sort_order + '</td>' +
+          '<td>' + (c.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn" data-action="delete-cat" data-id="' + c.id + '">Eliminar</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('[data-action="delete-cat"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var _rowName = b.closest('tr').cells[0].textContent;
+          UIConfirmModal.show({title: '¿Eliminar "' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+            if (!ok) return;
+            api('POST', '/api/categories/' + b.dataset.id + '/delete').then(function() {
+            toast('Eliminado');
+            loadCategories(scope, tableId);
+          }).catch(err);
+        });
+      });
+    }).catch(err);
+  }
+  loadCategories('product', 'table-cat-product');
+  loadCategories('recipe_family', 'table-cat-recipe');
+
+  document.getElementById('save-cat-product').addEventListener('click', function() {
+    var name = document.getElementById('add-cat-product-name').value.trim();
+    var sort = parseInt(document.getElementById('add-cat-product-sort').value || '1000');
+    if (!name) { toast('Nombre requerido', true); return; }
+    api('POST', '/api/categories', { name: name, scope: 'product', sort_order: sort })
+      .then(function() {
+        toast('Categoría creada');
+        document.getElementById('add-cat-product').classList.remove('is-open');
+        document.getElementById('add-cat-product-name').value = '';
+        loadCategories('product', 'table-cat-product');
+      }).catch(err);
+  });
+  document.getElementById('save-cat-recipe').addEventListener('click', function() {
+    var name = document.getElementById('add-cat-recipe-name').value.trim();
+    var sort = parseInt(document.getElementById('add-cat-recipe-sort').value || '1000');
+    if (!name) { toast('Nombre requerido', true); return; }
+    api('POST', '/api/categories', { name: name, scope: 'recipe_family', sort_order: sort })
+      .then(function() {
+        toast('Familia creada');
+        document.getElementById('add-cat-recipe').classList.remove('is-open');
+        document.getElementById('add-cat-recipe-name').value = '';
+        loadCategories('recipe_family', 'table-cat-recipe');
+      }).catch(err);
+  });
+
+  // ── Channels ──────────────────────────────────────────────────
+  function loadChannels() {
+    api('GET', '/api/channels').then(function(rows) {
+      var tbody = document.querySelector('#table-channel tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(c) {
+        var tr = document.createElement('tr');
+        if (!c.is_active) tr.classList.add('is-inactive');
+        tr.innerHTML =
+          '<td><code>' + escapeHtml(c.code) + '</code></td>' +
+          '<td>' + escapeHtml(c.label) + '</td>' +
+          '<td>' + c.sort_order + '</td>' +
+          '<td>' + (c.is_default ? '✓' : '') + '</td>' +
+          '<td>' + (c.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn" data-action="set-default-channel" data-id="' + c.id + '">Predeterminar</button>' +
+            '<button class="row-btn danger" data-action="delete-channel" data-id="' + c.id + '">Eliminar</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('[data-action="delete-channel"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var _rowName = b.closest('tr').cells[0].textContent;
+          UIConfirmModal.show({title: '¿Eliminar canal ""' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+            if (!ok) return;
+            api('POST', '/api/channels/' + b.dataset.id + '/delete').then(function() {
+            toast('Canal eliminado');
+            loadChannels();
+          }).catch(err);
+        });
+      });
+      tbody.querySelectorAll('[data-action="set-default-channel"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          api('POST', '/api/channels/' + b.dataset.id + '/update', { is_default: true }).then(function() {
+            toast('Canal predeterminado actualizado');
+            loadChannels();
+          }).catch(err);
+        });
+      });
+    }).catch(err);
+  }
+  loadChannels();
+
+  document.getElementById('save-channel').addEventListener('click', function() {
+    var code = document.getElementById('add-channel-code').value.trim();
+    var label = document.getElementById('add-channel-label').value.trim();
+    var sort = parseInt(document.getElementById('add-channel-sort').value || '1000');
+    var isDefault = document.getElementById('add-channel-default').value === '1';
+    if (!code || !label) { toast('Código y etiqueta requeridos', true); return; }
+    api('POST', '/api/channels', { code: code, label: label, sort_order: sort, is_default: isDefault })
+      .then(function() {
+        toast('Canal creado');
+        document.getElementById('add-channel').classList.remove('is-open');
+        document.getElementById('add-channel-code').value = '';
+        document.getElementById('add-channel-label').value = '';
+        loadChannels();
+      }).catch(err);
+  });
+
+  // ── Payment methods ───────────────────────────────────────────
+  function loadPayments() {
+    api('GET', '/api/payment-methods').then(function(rows) {
+      var tbody = document.querySelector('#table-payment tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(p) {
+        var tr = document.createElement('tr');
+        if (!p.is_active) tr.classList.add('is-inactive');
+        tr.innerHTML =
+          '<td><code>' + escapeHtml(p.code) + '</code></td>' +
+          '<td>' + escapeHtml(p.label) + '</td>' +
+          '<td>' + p.fee_pct + '%</td>' +
+          '<td>' + (p.requires_reference ? 'Sí' : 'No') + '</td>' +
+          '<td>' + p.sort_order + '</td>' +
+          '<td>' + (p.is_default ? '✓' : '') + '</td>' +
+          '<td>' + (p.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn" data-action="edit-payment-fee" data-id="' + p.id + '" data-fee="' + p.fee_pct + '">Editar %</button>' +
+            '<button class="row-btn danger" data-action="delete-payment" data-id="' + p.id + '">Eliminar</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('[data-action="delete-payment"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var _rowName = b.closest('tr').cells[0].textContent;
+          UIConfirmModal.show({title: '¿Eliminar "' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+            if (!ok) return;
+            api('POST', '/api/payment-methods/' + b.dataset.id + '/delete').then(function() {
+            toast('Forma de pago eliminada');
+            loadPayments();
+          }).catch(err);
+        });
+      });
+      tbody.querySelectorAll('[data-action="edit-payment-fee"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var newFee = prompt('Nueva comisión %:', b.dataset.fee);
+          if (newFee === null) return;
+          var f = parseFloat(newFee);
+          if (isNaN(f) || f < 0 || f > 100) { toast('Comisión inválida', true); return; }
+          api('POST', '/api/payment-methods/' + b.dataset.id + '/update', { fee_pct: f }).then(function() {
+            toast('Comisión actualizada');
+            loadPayments();
+          }).catch(err);
+        });
+      });
+    }).catch(err);
+  }
+  loadPayments();
+
+  document.getElementById('save-payment').addEventListener('click', function() {
+    var code = document.getElementById('add-payment-code').value.trim();
+    var label = document.getElementById('add-payment-label').value.trim();
+    var fee = parseFloat(document.getElementById('add-payment-fee').value || '0');
+    var reqRef = document.getElementById('add-payment-ref').value === '1';
+    var sort = parseInt(document.getElementById('add-payment-sort').value || '1000');
+    var isDefault = document.getElementById('add-payment-default').value === '1';
+    if (!code || !label) { toast('Código y etiqueta requeridos', true); return; }
+    api('POST', '/api/payment-methods', {
+      code: code, label: label, fee_pct: fee,
+      requires_reference: reqRef, sort_order: sort, is_default: isDefault
+    }).then(function() {
+      toast('Forma de pago creada');
+      document.getElementById('add-payment').classList.remove('is-open');
+      document.getElementById('add-payment-code').value = '';
+      document.getElementById('add-payment-label').value = '';
+      loadPayments();
+    }).catch(err);
+  });
+
+  // ── Margin tiers ──────────────────────────────────────────────
+  function loadMarginTiers() {
+    api('GET', '/api/margin-tiers').then(function(rows) {
+      var tbody = document.querySelector('#table-margin-tier tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(t) {
+        var tr = document.createElement('tr');
+        if (!t.is_active) tr.classList.add('is-inactive');
+        tr.innerHTML =
+          '<td><code>' + escapeHtml(t.code) + '</code></td>' +
+          '<td>' + escapeHtml(t.label) + '</td>' +
+          '<td>' + (t.min_cost_gs != null ? t.min_cost_gs.toLocaleString('es-PY') : '—') + '</td>' +
+          '<td>' + (t.max_cost_gs != null ? t.max_cost_gs.toLocaleString('es-PY') : '—') + '</td>' +
+          '<td>' + t.sort_order + '</td>' +
+          '<td>' + (t.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn" data-action="edit-tier" data-id="' + t.id + '" data-label="' + escapeAttr(t.label) + '" data-max="' + (t.max_cost_gs || '') + '" data-min="' + (t.min_cost_gs || '') + '">Editar</button>' +
+            '<button class="row-btn danger" data-action="delete-tier" data-id="' + t.id + '">Eliminar</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('[data-action="delete-tier"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var _rowName = b.closest('tr').cells[0].textContent;
+          UIConfirmModal.show({title: '¿Eliminar tier ""' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+            if (!ok) return;
+            api('POST', '/api/margin-tiers/' + b.dataset.id + '/delete').then(function() {
+            toast('Tier eliminado');
+            loadMarginTiers();
+          }).catch(err);
+        });
+      });
+      tbody.querySelectorAll('[data-action="edit-tier"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var label = prompt('Etiqueta:', b.dataset.label);
+          if (label === null) return;
+          var max = prompt('Max Gs (vacío para sin tope):', b.dataset.max);
+          if (max === null) return;
+          var min = prompt('Min Gs (vacío para sin piso):', b.dataset.min);
+          if (min === null) return;
+          var body = { label: label };
+          if (max !== '') body.max_cost_gs = parseInt(max);
+          else body.max_cost_gs = null;
+          if (min !== '') body.min_cost_gs = parseInt(min);
+          else body.min_cost_gs = null;
+          api('POST', '/api/margin-tiers/' + b.dataset.id + '/update', body).then(function() {
+            toast('Tier actualizado');
+            loadMarginTiers();
+          }).catch(err);
+        });
+      });
+    }).catch(err);
+  }
+  loadMarginTiers();
+
+  // ── Stock status ──────────────────────────────────────────────
+  function loadStockStatus() {
+    api('GET', '/api/stock-status-config').then(function(rows) {
+      var tbody = document.querySelector('#table-stock-status tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(c) {
+        var tr = document.createElement('tr');
+        if (!c.is_active) tr.classList.add('is-inactive');
+        tr.innerHTML =
+          '<td><code>' + escapeHtml(c.code) + '</code></td>' +
+          '<td>' + escapeHtml(c.label) + '</td>' +
+          '<td>' + (c.threshold_ratio != null ? c.threshold_ratio.toFixed(2) : '—') + '</td>' +
+          '<td>' + (c.threshold_days != null ? c.threshold_days : '—') + '</td>' +
+          '<td>' + c.sort_order + '</td>' +
+          '<td>' + (c.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn" data-action="edit-stock" data-id="' + c.id + '" data-label="' + escapeAttr(c.label) + '" data-ratio="' + (c.threshold_ratio != null ? c.threshold_ratio : '') + '" data-days="' + (c.threshold_days != null ? c.threshold_days : '') + '">Editar</button>' +
+            '<button class="row-btn danger" data-action="delete-stock" data-id="' + c.id + '">Eliminar</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('[data-action="delete-stock"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var _rowName = b.closest('tr').cells[0].textContent;
+          UIConfirmModal.show({title: '¿Eliminar umbral ""' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+            if (!ok) return;
+            api('POST', '/api/stock-status-config/' + b.dataset.id + '/delete').then(function() {
+            toast('Umbral eliminado');
+            loadStockStatus();
+          }).catch(err);
+        });
+      });
+      tbody.querySelectorAll('[data-action="edit-stock"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var label = prompt('Etiqueta:', b.dataset.label);
+          if (label === null) return;
+          var ratio = prompt('Ratio umbral (vacío para sin umbral):', b.dataset.ratio);
+          if (ratio === null) return;
+          var days = prompt('Días sin consumo (vacío para sin umbral):', b.dataset.days);
+          if (days === null) return;
+          var body = { label: label };
+          if (ratio !== '') body.threshold_ratio = parseFloat(ratio);
+          else body.threshold_ratio = null;
+          if (days !== '') body.threshold_days = parseInt(days);
+          else body.threshold_days = null;
+          api('POST', '/api/stock-status-config/' + b.dataset.id + '/update', body).then(function() {
+            toast('Umbral actualizado');
+            loadStockStatus();
+          }).catch(err);
+        });
+      });
+    }).catch(err);
+  }
+  loadStockStatus();
+
+  // ── Storage types ─────────────────────────────────────────────
+  function loadStorageTypes() {
+    api('GET', '/api/storage-types').then(function(rows) {
+      var tbody = document.querySelector('#table-storage tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(c) {
+        var tr = document.createElement('tr');
+        if (!c.is_active) tr.classList.add('is-inactive');
+        tr.innerHTML =
+          '<td><code>' + escapeHtml(c.code) + '</code></td>' +
+          '<td>' + escapeHtml(c.label) + '</td>' +
+          '<td>' + (c.requires_temp_min ? 'Sí' : '—') + '</td>' +
+          '<td>' + (c.requires_temp_max ? 'Sí' : '—') + '</td>' +
+          '<td>' + (c.requires_humidity_max ? 'Sí' : '—') + '</td>' +
+          '<td>' + (c.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn danger" data-action="delete-storage" data-id="' + c.id + '">Eliminar</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('[data-action="delete-storage"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var _rowName = b.closest('tr').cells[0].textContent;
+          UIConfirmModal.show({title: '¿Eliminar "' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+            if (!ok) return;
+            api('POST', '/api/storage-types/' + b.dataset.id + '/delete').then(function() {
+            toast('Tipo de almacenamiento eliminado');
+            loadStorageTypes();
+          }).catch(err);
+        });
+      });
+    }).catch(err);
+  }
+  loadStorageTypes();
+
+  document.getElementById('save-storage').addEventListener('click', function() {
+    var code = document.getElementById('add-storage-code').value.trim();
+    var label = document.getElementById('add-storage-label').value.trim();
+    var sort = parseInt(document.getElementById('add-storage-sort').value || '1000');
+    var tmin = document.getElementById('add-storage-tmin').value === '1';
+    var tmax = document.getElementById('add-storage-tmax').value === '1';
+    var hum = document.getElementById('add-storage-hum').value === '1';
+    if (!code || !label) { toast('Código y etiqueta requeridos', true); return; }
+    api('POST', '/api/storage-types', {
+      code: code, label: label, sort_order: sort,
+      requires_temp_min: tmin, requires_temp_max: tmax, requires_humidity_max: hum
+    }).then(function() {
+      toast('Tipo de almacenamiento creado');
+      document.getElementById('add-storage').classList.remove('is-open');
+      document.getElementById('add-storage-code').value = '';
+      document.getElementById('add-storage-label').value = '';
+      loadStorageTypes();
+    }).catch(err);
+  });
+
+  // ── Date presets ──────────────────────────────────────────────
+  function loadPresets() {
+    api('GET', '/api/date-presets').then(function(rows) {
+      var tbody = document.querySelector('#table-preset tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(p) {
+        var tr = document.createElement('tr');
+        if (!p.is_active) tr.classList.add('is-inactive');
+        tr.innerHTML =
+          '<td><code>' + escapeHtml(p.code) + '</code></td>' +
+          '<td>' + escapeHtml(p.label) + '</td>' +
+          '<td>' + p.days + '</td>' +
+          '<td>' + (p.is_default ? '✓' : '') + '</td>' +
+          '<td>' + (p.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn" data-action="set-default-preset" data-id="' + p.id + '">Predeterminar</button>' +
+            '<button class="row-btn danger" data-action="delete-preset" data-id="' + p.id + '">Eliminar</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('[data-action="delete-preset"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var _rowName = b.closest('tr').cells[0].textContent;
+          UIConfirmModal.show({title: '¿Eliminar "' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+            if (!ok) return;
+            api('POST', '/api/date-presets/' + b.dataset.id + '/delete').then(function() {
+            toast('Período eliminado');
+            loadPresets();
+          }).catch(err);
+        });
+      });
+      tbody.querySelectorAll('[data-action="set-default-preset"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          api('POST', '/api/date-presets/' + b.dataset.id + '/update', { is_default: true }).then(function() {
+            toast('Período predeterminado actualizado');
+            loadPresets();
+          }).catch(err);
+        });
+      });
+    }).catch(err);
+  }
+  loadPresets();
+
+  document.getElementById('save-preset').addEventListener('click', function() {
+    var code = document.getElementById('add-preset-code').value.trim();
+    var label = document.getElementById('add-preset-label').value.trim();
+    var days = parseInt(document.getElementById('add-preset-days').value || '14');
+    var sort = parseInt(document.getElementById('add-preset-sort').value || '1000');
+    var isDefault = document.getElementById('add-preset-default').value === '1';
+    if (!code || !label) { toast('Código y etiqueta requeridos', true); return; }
+    api('POST', '/api/date-presets', {
+      code: code, label: label, days: days,
+      sort_order: sort, is_default: isDefault
+    }).then(function() {
+      toast('Período creado');
+      document.getElementById('add-preset').classList.remove('is-open');
+      document.getElementById('add-preset-code').value = '';
+      document.getElementById('add-preset-label').value = '';
+      loadPresets();
+    }).catch(err);
+  });
+
+  // ── Templates ─────────────────────────────────────────────────
+  function loadTemplates() {
+    api('GET', '/api/templates').then(function(rows) {
+      var tbody = document.querySelector('#table-template tbody');
+      tbody.innerHTML = '';
+      rows.forEach(function(t) {
+        var tr = document.createElement('tr');
+        if (!t.is_active) tr.classList.add('is-inactive');
+        tr.innerHTML =
+          '<td><code>' + escapeHtml(t.channel) + '</code></td>' +
+          '<td><code>' + escapeHtml(t.key) + '</code></td>' +
+          '<td>' + escapeHtml(t.subject || '—') + '</td>' +
+          '<td><pre class="tmpl-body">' + escapeHtml(t.body.substring(0, 200) + (t.body.length > 200 ? '…' : '')) + '</pre></td>' +
+          '<td>v' + t.version + '</td>' +
+          '<td>' + (t.is_active ? '✓' : '✗') + '</td>' +
+          '<td class="row-actions">' +
+            '<button class="row-btn" data-action="edit-template" data-id="' + t.id + '">Editar</button>' +
+            '<button class="row-btn danger" data-action="delete-template" data-id="' + t.id + '">Eliminar</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('[data-action="delete-template"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          var _rowName = b.closest('tr').cells[1].textContent;
+          UIConfirmModal.show({title: '¿Eliminar plantilla ""' + _rowName + '"?', body: 'Esta acción no se puede deshacer.', danger: true}).then(function(ok) {
+            if (!ok) return;
+            api('POST', '/api/templates/' + b.dataset.id + '/delete').then(function() {
+            toast('Plantilla eliminada');
+            loadTemplates();
+          }).catch(err);
+        });
+      });
+      tbody.querySelectorAll('[data-action="edit-template"]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          api('GET', '/api/templates').then(function(rows) {
+            var tpl = rows.find(function(r) { return r.id == b.dataset.id; });
+            if (!tpl) return;
+            var newBody = prompt('Cuerpo del mensaje:', tpl.body);
+            if (newBody === null || newBody === tpl.body) return;
+            api('POST', '/api/templates/' + b.dataset.id + '/update', { body: newBody }).then(function() {
+              toast('Plantilla actualizada');
+              loadTemplates();
+            }).catch(err);
+          });
+        });
+      });
+    }).catch(err);
+  }
+  loadTemplates();
+
+  // ── Tax config (read-only) ────────────────────────────────────
+  api('GET', '/api/tax-config').then(function(c) {
+    var tbody = document.querySelector('#table-tax tbody');
+    tbody.innerHTML = '';
+    var rows = [
+      ['IVA por defecto', c.iva_rate === 'exento' ? 'Exento' : c.iva_rate + '%'],
+      ['Régimen tributario', c.tax_regime],
+      ['Tipos de factura', c.invoice_types.join(', ')],
+      ['Tipo de factura por defecto', c.default_invoice_type],
+      ['Costo mano de obra (Gs./h)', c.labor_cost_per_hour_gs != null ? c.labor_cost_per_hour_gs.toLocaleString('es-PY') : '—'],
+      ['Overhead (%)', c.overhead_multiplier_pct != null ? c.overhead_multiplier_pct + '%' : '—'],
+    ];
+    rows.forEach(function(r) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + r[0] + '</td><td><code>' + r[1] + '</code></td>';
+      tbody.appendChild(tr);
+    });
+  });
+
+  // ── Branding ──────────────────────────────────────────────────
+  api('GET', '/api/settings/branding').then(function(b) {
+    document.getElementById('business_name').value = b.business_name || '';
+    document.getElementById('tagline').value = b.tagline || '';
+    document.getElementById('footer').value = b.footer || '';
+    document.getElementById('accent_color').value = b.accent_color || '';
+    document.getElementById('logo_path').value = b.logo_path || '';
+  });
+
+  document.getElementById('branding-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var body = {
+      business_name: document.getElementById('business_name').value,
+      tagline: document.getElementById('tagline').value,
+      footer: document.getElementById('footer').value,
+      accent_color: document.getElementById('accent_color').value,
+      logo_path: document.getElementById('logo_path').value,
+    };
+    api('POST', '/api/settings/branding', body).then(function() {
+      toast('Branding guardado. Recargá para ver los cambios en toda la app.');
+    }).catch(err);
+  });
+
+  // ── Utilities ──────────────────────────────────────────────────
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, '&quot;');
+  }
+})();
+</script>
+{% endblock %}

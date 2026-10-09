@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Lista de deseos · Sazón{% endblock %}
+{% block content %}
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+{{ ui.page_header("🏪 Lista de deseos — equipamiento", desc="Lista priorizada para arrancar y escalar la panadería")
+}}
+
+<div class="kpi-strip">
+  {{ ui.metric_card(label="Artículos totales", value=pending_count + purchased_count, compact=True) }}
+  {{ ui.metric_card(label="Pendientes", value=pending_count, compact=True) }}
+  {{ ui.metric_card(label="Comprados", value=purchased_count, compact=True) }}
+  {{ ui.metric_card(label="Inversión total", value=m.gs(total_all_gs), compact=True) }}
+  {{ ui.metric_card(label="Pendiente", value=m.gs(total_pending_gs), compact=True) }}
+</div>
+
+{% for prio in ['must_have', 'nice_to_have', 'optional'] %}
+  {% if by_priority.get(prio) %}
+    <h2 style="margin-top:1.5rem;">
+      {% if prio == 'must_have' %}🟢 Must-have
+      {% elif prio == 'nice_to_have' %}🟡 Nice-to-have
+      {% else %}⚪ Opcional{% endif %}
+      <small class="muted">({{ by_priority[prio]|length }})</small>
+    </h2>
+    {{ ui.skeleton_section(id="wishlist-table", variant="line", count=6, label="Cargando lista de deseos") }}
+    <div data-loaded-section="wishlist-table">
+    <table class="table is-hoverable">
+      <thead>
+        <tr>
+          <th>ID</th><th>Item</th><th>Cant.</th><th class="num">Unitario (Gs.)</th><th class="num">Total (Gs.)</th>
+          <th>Categoría</th><th>Dónde comprar</th><th>Estado</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in by_priority[prio] %}
+        <tr {% if item.purchased %}class="is-purchased"{% endif %}>
+          <td><code>{{ item.code or '' }}</code></td>
+          <td><strong>{{ fmt.entity_name(item) }}</strong><br><small class="muted">{{ item.notes or '' }}</small></td>
+          <td>{{ item.quantity }}</td>
+          <td class="num">{{ m.gs(item.unit_price_gs) }}</td>
+          <td class="num"><strong>{{ m.gs(item.unit_price_gs * item.quantity) }}</strong></td>
+          <td>{{ item.category or '' }}</td>
+          <td><small>{{ item.buy_location or '' }}</small></td>
+          <td>
+            {% if item.purchased %}
+              <span class="badge badge-success">✓ Comprado</span>
+            {% else %}
+              {{ ui.status_pill("Pendiente", sev="warn") }}
+            {% endif %}
+          </td>
+          <td>
+            {% if not item.purchased %}
+              <form class="d-inline" method="post" action="/wishlist/{{ item.id }}/mark-purchased" >
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-primary">Marcar comprado</button>
+              </form>
+              <form class="d-inline" method="post" action="/wishlist/{{ item.id }}/send-to-shopping-list" >
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-secondary" title="Enviar a la lista de compras">🛒</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </div>
+    </table>
+  {% endif %}
+{% endfor %}
+
+<p class="muted mt-8" >
+  💡 Cargá o sincronizá artículos para planificar inversiones de equipamiento.
+</p>
+{% endblock %}

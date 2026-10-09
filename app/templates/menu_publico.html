@@ -1,0 +1,192 @@
+{# Public no-login menu catalog at /menu.
+
+   UI-V2 (Gemini UX review, 2026-09-30) rebuild:
+   - Bug 2: responsive 2-3 column card grid on desktop (single column
+     on mobile) — kills the vertical scroll wall.
+   - Bug 3: sticky category pill-nav (jump links, scroll-margin on
+     sections so anchors don't hide under the sticky bar).
+   - Bug 4: 80x80 rounded thumbnails + colored dietary pills
+     (vegan/vegetarian → good, gluten → warn, else neutral).
+   - Bug 1 (category blackhole) is a DATA fix: products need
+     Categoría set in /productos; the template already groups by it.
+
+   Visibility gates unchanged: is_available AND tablet_visible.
+   No auth: base.html renders logged-out chrome because is_logged_in
+   is False — no sidebar, no search.#}
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Menú — {{ shop_name }}{% endblock %}
+
+{% block content %}
+<div class="menu-publico"
+      {%- if brand_color %} style="--color-accent: {{ brand_color }}; --color-accent-hover: {{ brand_color }}; --color-accent-soft: color-mix(in srgb, {{ brand_color }} 12%, transparent);"{% endif -%}
+>
+
+  {# Header — shop brand + tagline #}
+  <header class="menu-publico__header">
+    <h1 class="menu-publico__shop"{%- if brand_color %} style="color: {{ brand_color }};"{% endif -%}>{{ shop_name }}</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+    <p class="menu-publico__subtitle">
+      Menú digital — {{ total_items }} producto{{ '' if total_items == 1 else 's' }}
+    </p>
+  </header>
+
+  {# Bug 3: sticky category jump-nav. Sticks under the viewport top so
+     it's always reachable on this long page. Horizontally scrollable
+     on narrow screens. #}
+  {% if menu_groups %}
+  <nav class="menu-publico__catnav" aria-label="Categorías">
+    <div class="menu-publico__catnav-inner">
+      {% for g in menu_groups %}
+      <a href="#cat-{{ g.key }}" class="menu-publico__catlink">{{ g.label }}</a>
+      {% endfor %}
+    </div>
+  </nav>
+  {% endif %}
+
+  {% if menu_groups %}
+  <main>
+    {% for g in menu_groups %}
+    <section class="menu-publico__section" aria-labelledby="cat-{{ g.key }}-h">
+      <h2 id="cat-{{ g.key }}" class="menu-publico__cat-title">{{ g.label }}</h2>
+
+      {# Bug 2: responsive card grid — 1 col mobile, 2 cols tablet, 3 desktop #}
+      <div class="menu-publico__grid">
+        {% for item in g.products %}
+        <article class="menu-publico__card">
+          {% if item.image_url %}
+          <img class="menu-publico__thumb" src="{{ item.image_url }}" alt="{{ item.name }}"
+               loading="lazy" width="80" height="80">
+          {% else %}
+          <span class="menu-publico__thumb menu-publico__thumb--fallback" aria-hidden="true">
+            <svg class="icon" style="width:32px;height:32px;color:var(--color-text-muted);">
+              <use href="#icon-box"/>
+            </svg>
+          </span>
+          {% endif %}
+
+          <div class="menu-publico__item-body">
+            <div class="menu-publico__item-top">
+              <span class="menu-publico__item-name">
+                {% if item.tablet_slug %}
+                <a href="/m/{{ item.tablet_slug }}">{{ item.name }}</a>
+                {% else %}
+                {{ item.name }}
+                {% endif %}
+              </span>
+              <span class="menu-publico__item-price">{{ currency_label }} {{ m.gs(item.sale_price_gs) }}</span>
+            </div>
+            {% if item.portion_label %}
+            <div class="menu-publico__item-portion">{{ item.portion_label }}</div>
+            {% endif %}
+            {% if item.notes %}
+            <div class="menu-publico__item-notes">{{ item.notes }}</div>
+            {% endif %}
+            {% if item.tags %}
+            <div class="menu-publico__item-tags">
+              {% for t in item.tags %}
+              {# Bug 4: colored dietary pills — semantic, recognizable at a glance #}
+              {% set tl = t|lower %}
+              <span class="menu-publico__tag {% if 'vegan' in tl or 'vegetarian' in tl %}menu-publico__tag--good{% elif 'gluten' in tl or 'tacc' in tl %}menu-publico__tag--warn{% endif %}">{{ t }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+          {# WhatsApp order: client-side cart. Button hidden until a shop
+             number is configured (shop_whatsapp non-empty). #}
+          {% if shop_whatsapp %}
+          <button type="button" class="menu-publico__add" data-add="{{ item.id }}"
+                  data-name="{{ item.name }}" data-price="{{ item.sale_price_gs }}">
+            + Agregar
+          </button>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </main>
+  {% else %}
+  <main>
+    <div class="menu-publico__empty">
+      <p>El menú todavía no tiene productos publicados.</p>
+      <p class="text-muted">Consultá disponibilidad por WhatsApp.</p>
+    </div>
+  </main>
+  {% endif %}
+
+  <footer class="menu-publico__footer">
+    <small class="text-muted">
+      Precios en guaraníes · Consultá disponibilidad y encargos por WhatsApp.
+    </small>
+  </footer>
+
+  {% if shop_whatsapp %}
+  {# Floating order bar: hidden until ≥1 item added. Sends a prefilled
+     WhatsApp message — no accounts, no checkout, exactly how the shop
+     already takes orders. #}
+  <div class="menu-publico__cartbar" id="mp-cartbar" hidden>
+    <div class="menu-publico__cartinfo">
+      <strong id="mp-cart-count">0</strong> ítems · <strong id="mp-cart-total"></strong>
+    </div>
+    <div class="menu-publico__cartactions">
+      <button type="button" class="menu-publico__cartbtn menu-publico__cartbtn--ghost" id="mp-cart-clear">Vaciar</button>
+      <a class="menu-publico__cartbtn menu-publico__cartbtn--wa" id="mp-cart-send" target="_blank" rel="noopener" href="#">
+        💬 Pedir por WhatsApp
+      </a>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var WA = "{{ shop_whatsapp }}";
+    var cart = {};  // id -> {name, price, qty}
+    var bar = document.getElementById("mp-cartbar");
+    if (!bar) return;
+
+    function fmt(n) { return n.toLocaleString("es-PY"); }
+
+    function render() {
+      var ids = Object.keys(cart);
+      var count = 0, total = 0;
+      ids.forEach(function (id) { count += cart[id].qty; total += cart[id].qty * cart[id].price; });
+      bar.hidden = count === 0;
+      document.getElementById("mp-cart-count").textContent = count;
+      document.getElementById("mp-cart-total").textContent = "Gs. " + fmt(total);
+      if (count > 0) {
+        var lines = ids.map(function (id) {
+          var it = cart[id];
+          return "• " + it.qty + "× " + it.name + " — Gs. " + fmt(it.qty * it.price);
+        });
+        var text = "Hola! Quiero hacer un pedido:\n" + lines.join("\n") +
+                   "\nTotal: Gs. " + fmt(total) + "\nGracias!";
+        document.getElementById("mp-cart-send").href =
+          "https://wa.me/" + WA + "?text=" + encodeURIComponent(text);
+      }
+    }
+
+    document.querySelectorAll("[data-add]").forEach(function (btnEl) {
+      btnEl.addEventListener("click", function () {
+        var id = btnEl.getAttribute("data-add");
+        if (!cart[id]) cart[id] = { name: btnEl.getAttribute("data-name"), price: parseInt(btnEl.getAttribute("data-price"), 10) || 0, qty: 0 };
+        cart[id].qty += 1;
+        btnEl.textContent = "Agregado (" + cart[id].qty + ")";
+        render();
+      });
+    });
+
+    document.getElementById("mp-cart-clear").addEventListener("click", function () {
+      cart = {};
+      document.querySelectorAll("[data-add]").forEach(function (b) { b.textContent = "+ Agregar"; });
+      render();
+    });
+  })();
+  </script>
+  {% endif %}
+
+</div>
+
+{% endblock %}

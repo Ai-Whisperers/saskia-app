@@ -1,0 +1,204 @@
+{# Public pickup-share page — NO AUTH, renderable by the customer from WhatsApp.
+
+   URL: /p/{public_token}
+   Renders just the pedido info: what they ordered, when to come, the
+   customer's name, items. Minimal styling; no nav (operator would never
+   see this). Print-friendly (the print stylesheet in app.css hides nav).
+#}
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% import "_components/macros.html" as m %}
+{% block title %}Tu pedido{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 480px;">
+  <div class="card text-center" >
+    <h1 style="font-size: var(--text-xl); margin-bottom: var(--space-2);">
+      <svg class="icon" aria-hidden="true"><use href="#icon-heart"/></svg>
+      {{ shop_name }}
+    </h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+    <p class="text-muted" style="font-size: var(--text-sm); margin: 0;">
+      Confirmación de pedido
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="metric-label">Pedido #{{ pedido.id }}</div>
+    <div class="flex-between-mb-2" >
+      <span>Cliente</span>
+      <strong>{{ pedido.customer_name }}</strong>
+    </div>
+    {% if pedido.customer_phone %}
+    <div class="flex-between-mb-2" >
+      <span>Teléfono</span>
+      <span>{{ pedido.customer_phone }}</span>
+    </div>
+    {% endif %}
+    <div class="flex-between-mb-2" >
+      <span>Retirar</span>
+      <strong>
+        {{ pedido.promised_date.strftime("%d/%m/%Y") if pedido.promised_date else "—" }}
+        {% if pedido.promised_time %} a las {{ pedido.promised_time }}{% endif %}
+      </strong>
+    </div>
+    {# Phase 14 (2026-10-01): ventana preferida de entrega — visible to
+       the customer via the WhatsApp link so they know what to expect.
+       Wording is operator-neutral ("preferida") but it carries the
+       "(no es garantía)" suffix so the customer doesn't read this as
+       a hard SLA. #}
+    {% if pedido.ventana_text %}
+    <div class="flex-between-mb-2" >
+      <span>Ventana preferida</span>
+      <span>{{ pedido.ventana_text }}</span>
+    </div>
+    {% endif %}
+    {# Phase 14 (2026-10-01): show the delivery address on the public
+       view too — useful for delivery pedidos. For pickup, the line is
+       blank and we skip rendering. #}
+    {% if pedido.address_text %}
+    <div class="flex-between-mb-2" >
+      <span>Dirección de entrega</span>
+      <span class="text-right" style="text-align:right;max-width:60%;">{{ pedido.address_text }}</span>
+    </div>
+    {% endif %}
+    <hr>
+    <p style="font-weight: 600; margin-bottom: var(--space-2);">Tu pedido:</p>
+    <ul style="list-style: none; padding: 0; margin: 0;">
+      {% for ln in pedido.lines %}
+      <li style="display: flex; justify-content: space-between; padding: var(--space-1) 0;">
+        <span>
+          {{ "%.0f"|format(ln.qty) }} × {{ ln.product_name }}
+        </span>
+        <span>{{ currency_label }} {{ m.gs(ln.line_total_gs) }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <hr>
+    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+      <strong>Total estimado</strong>
+      <strong style="font-size: var(--text-lg);">{{ currency_label }} {{ m.gs(pedido.total_gs) }}</strong>
+    </div>
+    {% if pedido.payment_intent %}
+    <p class="text-muted" style="font-size: var(--text-xs); margin-top: var(--space-2);">
+      Forma de pago esperada: <strong>{{ pedido.payment_intent }}</strong>
+    </p>
+    {% endif %}
+  </div>
+
+  {% if pedido.notes %}
+  <div class="card">
+    <div class="metric-label">Notas</div>
+    <p style="font-size: var(--text-sm); margin: 0;">{{ pedido.notes }}</p>
+  </div>
+  {% endif %}
+
+  {% if pedido.status == "fulfilled" %}
+  <div class="alert alert-success" role="status">
+    <strong>¡Entregado!</strong> Gracias por tu compra.
+  </div>
+  {% elif pedido.status == "cancelled" %}
+  <div class="alert alert-danger" role="alert">
+    <strong>Cancelado</strong> — este pedido fue anulado. Contactanos si tenés dudas.
+  </div>
+  {% elif pedido.status == "ready" %}
+  <div class="alert alert-success" role="status">
+    <strong>¡Listo para retirar!</strong> Pasá a buscarlo cuando puedas.
+  </div>
+  {% endif %}
+
+  {#
+    Order status progression stepper — shown for active (non-fulfilled/cancelled) pedidos.
+    Steps: Pendiente → Confirmado → Listo → Retirado
+  #}
+  {% if pedido.status not in ("fulfilled", "cancelled") %}
+  <div class="card d-flex" style="padding: 1.5rem;">
+    <div class="d-flex" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;position:relative;">
+      {# Connecting line #}
+      <div style="position:absolute;top:18px;left:24px;right:24px;height:2px;background:#e5e7eb;z-index:0;"></div>
+      {% set steps = [
+        ("pending", "Pendiente", "pending"),
+        ("confirmed", "Confirmado", "confirmed"),
+        ("ready", "Listo", "ready"),
+        ("fulfilled", "Retirado", "fulfilled")
+      ] %}
+      {% set status_order = ["pending", "confirmed", "ready", "fulfilled"] %}
+      {% set current_idx = status_order.index(pedido.status) if pedido.status in status_order else 0 %}
+      {% for step_id, step_label, step_icon in steps %}
+        {% set step_idx = loop.index0 %}
+        {% set is_done = step_idx < current_idx %}
+        {% set is_current = step_idx == current_idx %}
+        <div class="d-flex" style="display:flex;flex-direction:column;align-items:center;gap:.3rem;z-index:1;flex:1;">
+          <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+            {% if is_done %}background:#22c55e;color:#fff;{% elif is_current %}background:#3b82f6;color:#fff;{% else %}background:#e5e7eb;color:#9ca3af;{% endif %}
+            font-size:1.1rem;font-weight:700;">
+            {% if is_done %}✓{% elif is_current %}●{% else %}○{% endif %}
+          </div>
+          <span style="font-size:.7rem;text-align:center;{% if is_done or is_current %}font-weight:600;color:#374151;{% else %}color:#9ca3af;{% endif %}">{{ step_label }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="text-center text-muted" style="font-size: var(--text-xs); padding: var(--space-4) 0;">
+    <p>Guardá este link o esta página para revisar tu pedido.</p>
+    <p>Si necesitás cambiar algo, respondé por WhatsApp.</p>
+  </div>
+
+  {# P1-B3: comprobante upload. Visible only when payment_intent != efectivo. #}
+  {% if pedido.payment_intent in ("transferencia", "qr", "tarjeta") %}
+  <div class="card" style="margin-top: var(--space-4);">
+    <div class="metric-label">Comprobante de pago</div>
+    {% if pedido.payment_receipt_path %}
+    <p class="text-muted" style="font-size: var(--text-sm); margin: var(--space-2) 0;">
+      Recibido el {{ pedido.payment_receipt_uploaded_at.replace('T', ' ')[:16] if pedido.payment_receipt_uploaded_at else "—" }}.
+    </p>
+    <details>
+      <summary style="cursor:pointer;color:var(--color-link);font-size:var(--text-sm);">
+        ¿Querés reemplazar el comprobante?
+      </summary>
+      <form method="post" action="/p/{{ pedido.public_token }}/comprobante"
+            enctype="multipart/form-data"
+            style="margin-top: var(--space-3); display:flex; flex-direction:column; gap:var(--space-2);">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required
+               style="font-size:var(--text-sm);">
+        <button type="submit" class="btn">Subir nuevo comprobante</button>
+        <p class="text-muted" style="font-size:var(--text-xs);margin:0;">
+          Formatos: JPG, PNG, WEBP, PDF. Máx 8 MB.
+        </p>
+      </form>
+    </details>
+    {% else %}
+    <p style="font-size:var(--text-sm); margin: var(--space-2) 0;">
+      Pagaste por <strong>{{ pedido.payment_intent }}</strong>? Subí tu comprobante
+      así confirmamos el pedido sin esperarte.
+    </p>
+    <form class="d-flex" method="post" action="/p/{{ pedido.public_token }}/comprobante"
+          enctype="multipart/form-data"
+          style="display:flex; flex-direction:column; gap:var(--space-2);">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required
+             style="font-size:var(--text-sm);">
+      <button type="submit" class="btn">Subir comprobante</button>
+      <p class="text-muted" style="font-size:var(--text-xs);margin:0;">
+        Formatos: JPG, PNG, WEBP, PDF. Máx 8 MB.
+      </p>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# Flash banner — shown when the page re-renders after an upload. #}
+  {% if flash_kind %}
+  <div class="alert alert-{{ 'success' if flash_kind == 'ok' else 'danger' }} mt-3"
+       role="alert"
+       >
+    {{ flash_msg }}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

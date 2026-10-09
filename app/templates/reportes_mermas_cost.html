@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Costo de mermas por ingrediente{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+  Costo de mermas por ingrediente
+</h1>
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+<p class="hint">
+  Ranking de ingredientes por costo total de mermas en los últimos
+  <strong>{{ days }}</strong> días. Útil para detectar fugas de dinero
+  (rotación de stock, calidad del producto, calibración de porciones).
+</p>
+
+<form method="get" action="/reportes/mermas-cost" class="filter-bar">
+  <label>
+    Período:
+    <select name="days" onchange="this.form.submit()">
+      {% for opt in [30, 60, 90, 180, 365] %}
+      <option value="{{ opt }}" {% if opt == days %}selected{% endif %}>
+        Últimos {{ opt }} días
+      </option>
+      {% endfor %}
+    </select>
+  </label>
+</form>
+
+{% if rows %}
+{{ ui.skeleton_section(id="mermas-cost-table", variant="line", count=5, label="Cargando mermas") }}
+<div data-loaded-section="mermas-cost-table">
+<p class="hint">
+  Total desperdiciado: <strong>Gs.{{ "{:,}".format(total_waste_gs) }}</strong>
+  en <strong>{{ rows | length }}</strong> ingredientes.
+</p>
+<table class="table is-hoverable">
+  <thead>
+    <tr>
+      <th>Ingrediente</th>
+      <th>Unidad</th>
+      <th class="num">Eventos</th>
+      <th class="num">Costo total (Gs.)</th>
+      <th class="num">Costo promedio / evento (Gs.)</th>
+      <th class="num">% del total</th>
+      <th>Acción</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.ingredient_name }}</td>
+      <td>{{ r.unit }}</td>
+      <td class="num">{{ r.event_count }}</td>
+      <td class="num"><strong>{{ "{:,}".format(r.total_waste_gs) }}</strong></td>
+      <td class="num">{{ "{:,}".format(r.avg_waste_per_event_gs | int) }}</td>
+      <td class="num">
+        {% if total_waste_gs %}
+        {{ ((r.total_waste_gs / total_waste_gs) * 100) | round(1) }}%
+        {% else %}0%{% endif %}
+      </td>
+      <td>
+        <a class="btn btn-sm btn-ghost"
+           href="/inventario/ingrediente/{{ r.ingredient_id }}">
+          <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+          Ver
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+{{ ui.empty_state(title="No hay mermas en este período", icon="icon-report") }}
+{% endif %}
+
+{% endblock %}

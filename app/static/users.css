@@ -1,0 +1,179 @@
+/* Users page — role badges, modal form styling, action button variants.
+   Loaded by users.html via <link rel="stylesheet" href="/static/users.css?v={{ asset_version() }}">. */
+
+/* Role badge colors — use semantic vars so dark mode inverts correctly */
+.badge-role-admin {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-fg);
+}
+
+.badge-role-manager {
+  background: var(--color-warn-soft);
+  color: var(--color-warn-fg);
+}
+
+.badge-role-cashier {
+  background: var(--color-info-soft);
+  color: var(--color-info-fg);
+}
+
+.badge-info {
+  background: var(--color-info-soft);
+  color: var(--color-info-fg);
+}
+
+.badge-muted {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-muted);
+}
+
+/* Form styling in modal dialogs */
+#nuevo-usuario-modal form,
+#editar-usuario-modal form,
+#eliminar-usuario-modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--color-text);
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+  background: var(--input-bg);
+  color: var(--color-text);
+  font-family: inherit;
+  height: var(--input-height);
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.form-group small {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+/* Modal dialog (used by /users/:new, /users/:edit, /users/:delete) */
+dialog.modal {
+  border: none;
+  border-radius: var(--card-radius, 12px);
+  padding: 2rem;
+  width: 400px;
+  max-width: 90vw;
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+dialog.modal::backdrop { background: rgba(0, 0, 0, 0.45); }
+.dialog-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1.5rem;
+}
+.dialog-header h2 { margin: 0; }
+.dialog-close {
+  background: none; border: none; cursor: pointer; padding: 0.5rem;
+  color: inherit;
+}
+.dialog-close .icon { width: 24px; height: 24px; }
+.dialog-actions {
+  display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;
+}
+
+/* Page-level toolbar (filter chips + admin hint + primary action) */
+.users-toolbar {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;
+  gap: 1rem; flex-wrap: wrap;
+}
+.users-toolbar__filters { display: flex; gap: 0.5rem; }
+.users-toolbar__hint    { margin: 0; font-size: var(--text-sm); flex: 1; text-align: right; }
+
+/* User avatar circle (inline initial + accent color) */
+.user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  margin-right: 8px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Avatar accent palette — the same 6 hardcoded hues used to live inline on the
+   <span> tag. Keep the BEM-safe names so changing the palette later is one
+   place. The dark theme can override bg-1..6 below. */
+.user-avatar.is-palette-1 { background: var(--color-accent); }
+.user-avatar.is-palette-2 { background: var(--color-success); }
+.user-avatar.is-palette-3 { background: var(--color-warn); }
+.user-avatar.is-palette-4 { background: var(--color-danger); }
+.user-avatar.is-palette-5 { background: #8b5cf6; } /* purple — close to brand-tone */
+.user-avatar.is-palette-6 { background: #ec4899; } /* pink   — close to brand-tone */
+
+/* Action buttons — use design-system vars */
+.btn-danger {
+  background: var(--color-danger);
+  color: var(--color-text-inverse);
+  border: 1px solid var(--color-danger);
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.btn-danger:hover {
+  background: var(--color-danger-hover);
+  border-color: var(--color-danger-hover);
+  text-decoration: none;
+}
+
+.btn-danger-ghost {
+  background: transparent;
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all var(--duration-fast);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.btn-danger-ghost:hover {
+  background: var(--color-danger-soft);
+  text-decoration: none;
+}

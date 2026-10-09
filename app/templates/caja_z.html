@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% import "_components/atoms.html" as ui %}
+{% block title %}Caja{% endblock %}
+{% block content %}
+<h1>
+  <svg class="icon" aria-hidden="true"><use href="#icon-cash"/></svg>
+  Caja
+  {% if open_sess %}{{ ui_status_open }}{% endif %}
+</h1>
+
+
+{# ── Flash messages ── #}
+{{ ui.flash_toast(request) }}
+{% if flash == 'caja_abierta' %}<div class="alert alert-success" role="status">Caja abierta.</div>{% endif %}
+{% if flash == 'caja_cerrada' %}<div class="alert alert-success" role="status">Caja cerrada. <a href="/caja/z/{{ zid }}">Ver ticket Z</a></div>{% endif %}
+{% if flash == 'caja_error' %}<div class="alert alert-warning" role="alert">{{ msg }}</div>{% endif %}
+
+{% if open_sess %}
+<div class="card" style="padding:var(--space-3);border:1px solid var(--border);border-radius:8px;max-width:560px;">
+  <h2>Caja abierta</h2>
+  <p>Abierta {{ open_sess.opened_at.strftime('%d/%m %H:%M') }} · {{ open_sess.opened_by }}
+     {% if open_sess.channel %}· {{ open_sess.channel }}{% endif %}</p>
+  <p><strong>Apertura:</strong> {{ money(open_sess.opening_gs) }}</p>
+  <p><strong>Esperado ahora (X):</strong> {{ money(expected) }}</p>
+
+  <form method="post" action="/caja/cerrar" style="margin-top:var(--space-3);" class="js-confirm-form" data-confirm-title="¿Cerrar caja?" data-confirm-body="Se registra el cierre del turno con el efectivo declarado." data-confirm-danger="true">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <label for="counted_gs">Conteo físico al cerrar (Gs.)</label>
+    <input id="counted_gs" name="counted_gs" type="number" min="0" step="1" required
+           style="padding:8px;width:200px;display:block;margin-bottom:var(--space-2);">
+    <button type="submit" class="btn btn-primary">Cerrar caja (Z)</button>
+  </form>
+</div>
+{% else %}
+<div class="card" style="padding:var(--space-3);border:1px solid var(--border);border-radius:8px;max-width:560px;">
+  <h2>Abrir caja</h2>
+  <form method="post" action="/caja/abrir">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <label for="opening_gs">Monto inicial (Gs.)</label>
+    <input id="opening_gs" name="opening_gs" type="number" min="0" step="1" value="0"
+           style="padding:8px;width:200px;display:block;margin-bottom:var(--space-2);">
+    <label for="channel">Canal (opcional)</label>
+    <input id="channel" name="channel" type="text" placeholder="salón / delivery"
+           style="padding:8px;width:200px;display:block;margin-bottom:var(--space-2);">
+    <button type="submit" class="btn btn-primary">Abrir caja</button>
+  </form>
+</div>
+{% endif %}
+
+<h2 style="margin-top:var(--space-4);">Sesiones recientes</h2>
+<table style="border-collapse:collapse;max-width:720px;">
+  <thead>
+    <tr>
+      <th class="text-left" style="padding:4px 10px;border-bottom:1px solid var(--border);">Apertura</th>
+      <th class="text-left" style="padding:4px 10px;border-bottom:1px solid var(--border);">Cierre</th>
+      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Apertura</th>
+      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Esperado</th>
+      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Contado</th>
+      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Diferencia</th>
+      <th style="padding:4px 10px;border-bottom:1px solid var(--border);"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in recent %}
+    <tr>
+      <td style="padding:4px 10px;">{{ s.opened_at.strftime('%d/%m %H:%M') }} · {{ s.opened_by }}</td>
+      <td style="padding:4px 10px;">{% if s.closed_at %}{{ s.closed_at.strftime('%d/%m %H:%M') }}{% else %}<strong>abierta</strong>{% endif %}</td>
+      <td style="padding:4px 10px;">{{ money(s.opening_gs) }}</td>
+      <td style="padding:4px 10px;">{{ money(s.expected_gs) }}</td>
+      <td style="padding:4px 10px;">{{ money(s.counted_gs) }}</td>
+      <td style="padding:4px 10px;color:{% if s.diff_gs and s.diff_gs != 0 %}var(--destructive, #b91c1c){% else %}var(--success, #15803d){% endif %};">
+        {{ money(s.diff_gs) }}
+      </td>
+      <td style="padding:4px 10px;text-align:center;">
+        {% if s.status == 'closed' %}<a href="/caja/z/{{ s.id }}">Z</a>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
