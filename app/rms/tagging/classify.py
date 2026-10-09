@@ -27,7 +27,6 @@ from app.rms.tagging.vocabulary import (
     TAG_ALLERGEN_BLOCKERS,
 )
 
-
 # -----------------------------------------------------------------------------
 # Category inference (moved from app/rms/ingredient_intel.py on 2026-10-09
 # to break the bidirectional lazy-import cycle). The data + helper functions

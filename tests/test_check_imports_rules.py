@@ -164,7 +164,7 @@ class TestKnownCyclesBackedByNoqa(unittest.TestCase):
             assert isinstance(a_ast, ast.Constant) and isinstance(b_ast, ast.Constant)
             a: str = a_ast.value  # type: ignore[assignment]
             b: str = b_ast.value  # type: ignore[assignment]
-            for module, other in [(a, b), (b, a)]:
+            for module, _other in [(a, b), (b, a)]:
                 candidate = REPO_ROOT / (module.replace(".", "/") + ".py")
                 if not candidate.exists():
                     candidate = REPO_ROOT / module.replace(".", "/") / "__init__.py"

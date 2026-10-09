@@ -84,7 +84,6 @@ def test_module_level_app_still_exists() -> None:
     must still work after the refactor.
     """
     from app.rms import main
-    from app.rms.main import create_app
 
     assert isinstance(main.app, FastAPI)
     # And it should be one of the create_app() instances (or at least

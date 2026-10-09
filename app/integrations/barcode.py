@@ -31,7 +31,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 # noqa: arch-rule — barcode lookup needs Product model; tracked for follow-up
-
 from app.rms.models import Product
 
 # SKU normalization: uppercase, strip whitespace, replace OCR mistakes.

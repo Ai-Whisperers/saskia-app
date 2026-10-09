@@ -14,8 +14,6 @@ to operators.
 
 from __future__ import annotations
 
-from typing import Any
-
 from sqlalchemy.orm import Session
 
 from app.rms.models import SettingsKV  # noqa: F401  (kept for back-compat; the SettingsKV model)
@@ -24,7 +22,7 @@ from app.rms.models import SettingsKV  # noqa: F401  (kept for back-compat; the 
 # (the SettingsKV layer). Re-import here so legacy callers of
 # `from app.rms.settings_runtime import settings_get, settings_set`
 # still work, and the historical bidirectional cycle is broken.
-from app.rms.settings_registry import settings_get, settings_set  # noqa: F401
+from app.rms.settings_registry import settings_get, settings_set
 
 # Pricing defaults (legacy hardcoded values)
 DEFAULT_PRICING_MARKUP = {"multiplier": 3.0, "round_to_gs": 1000}

@@ -40,7 +40,6 @@ from app.rms.models import (
 from app.rms.money import to_int_gs
 from app.rms.tagging.model import TagKind
 
-
 # --- Filter dataclasses (pure data, no SQL) ---
 
 

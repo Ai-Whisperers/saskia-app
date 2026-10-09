@@ -14,7 +14,6 @@ Dietary tags: vegan, vegetarian, keto_friendly, gluten_free.
 
 from __future__ import annotations
 
-import re
 from typing import Final
 
 from sqlalchemy.orm import Session
@@ -22,9 +21,7 @@ from sqlalchemy.orm import Session
 # ---------------------------------------------------------------------------
 # Keyword tables
 # ---------------------------------------------------------------------------
-
 # Categories — first match wins. Order matters: more specific before general.
-
 # ── Backward-compat re-exports ──────────────────────────────────────────
 # The category-keyword data + the infer_category function were moved to
 # app/rms/tagging/classify.py on 2026-10-09 to break the bidirectional
@@ -32,14 +29,12 @@ from sqlalchemy.orm import Session
 # used to define them inline; the rest of the inventory pipeline
 # (`infer_subcategory`, `infer_role`, `classify_ingredient`, etc.) still
 # uses the same keyword data, which now lives in `tagging.classify`.
-
 from app.rms.tagging.classify import (  # noqa: F401  (re-exports for back-compat)
     _CATEGORY_KEYWORDS,
-    _normalize,
     _keyword_in,
+    _normalize,
     infer_category,
 )
-
 
 # Subcategory — finer split within a category. Order: MOST SPECIFIC FIRST
 # so "azúcar impalpable" doesn't match "azúcar" first.
