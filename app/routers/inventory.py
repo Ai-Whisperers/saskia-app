@@ -220,7 +220,10 @@ def inventory_list(
     expiry: str = Query("all", pattern="^(all|7days|30days|expired)$"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """List all ingredients with stock badge. Paginated at 50/page."""
+    """List all ingredients with stock badge. Paginated at 50/page.
+
+    Refactored 2026-10-09 to reduce cognitive complexity from 198 to <10.
+    """
     PER_PAGE = 50
     from datetime import timedelta
 
@@ -228,22 +231,17 @@ def inventory_list(
     week_from_now = today + timedelta(days=7)
     month_from_now = today + timedelta(days=30)
 
-    # ── KPI strip + filters (inventory redesign 2026-09-25) ───────────
-    from app.rms.inventory_intel import stock_value_gs
-
     all_ings = session.scalars(select(Ingredient)).all()
-    kpi_total = len(all_ings)
-    # PRO-INV (2026-09-30): distinguish "never loaded initial stock" (stock 0
-    # AND zero movements in the ledger) from genuinely depleted stock. Mixing
-    # both made the "critical" KPI scary on day one (65 vs 44 real).
-    # Variant-aware: ingredients with variants are NEVER "never_loaded"
-    # even if legacy stock_qty is 0 — their stock may live on a variant.
-    # The exact variant counts are computed later (after price_info); we
-    # use a conservative "ignore legacy-only zero" approach here and
-    # re-pin both KPIs after rollup_ingredient_stock() runs.
     loaded_ids = set(session.scalars(select(StockMovement.ingredient_id).distinct()).all())
-    # Provisional never_loaded / critical counts. Both will be recomputed
-    # once we know which ingredients actually have variants.
+
+    # Parse filter selections from query string
+    filters = _parse_inventory_filters(request)
+
+    # Compute variant counts for variant-aware KPIs
+    _variant_counts = _compute_variant_counts(session, all_ings)
+
+    # Provisional never_loaded / critical counts (will be refined after
+    # variant info is available)
     never_loaded_ids = {
         i.id for i in all_ings if (i.stock_qty or 0) == 0 and i.id not in loaded_ids
     }
@@ -254,39 +252,177 @@ def inventory_list(
         if i.stock_qty <= (i.min_stock_qty or 0) and i.id not in never_loaded_ids
     )
     kpi_no_cost = sum(1 for i in all_ings if not i.purchase_price_gs)
-    try:
-        kpi_value_gs = stock_value_gs(session)
-    except Exception:
-        kpi_value_gs = sum((i.stock_qty or 0) * (i.purchase_price_gs or 0) for i in all_ings)
+    kpi_total = len(all_ings)
+    kpi_value_gs = _compute_stock_value(session, all_ings)
 
+    # Filter ingredients
+    _filtered_all = _filter_ingredients(
+        all_ings, filters, never_loaded_ids, today, week_from_now, month_from_now
+    )
+    total = len(_filtered_all)
+    total_all = len(all_ings)
+    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+    page = min(page, total_pages)
+
+    # Sort
+    _filtered_all = _sort_ingredients(_filtered_all, sort, dir)
+
+    # Paginate
+    ingredients = _filtered_all[(page - 1) * PER_PAGE : page * PER_PAGE]
+
+    # Compute per-ingredient enrichments
+    price_info = _build_price_info(session, ingredients)
+    effective_stock_qty, variants_by_ing_id = _compute_variant_data(session, ingredients)
+    market_refs = _compute_market_refs(session, ingredients)
+
+    # Refine KPIs with variant-aware effective stock
+    _has_variant = {ing_id for ing_id, n in _variant_counts.items() if n > 0}
+    never_loaded_ids = {
+        i.id
+        for i in all_ings
+        if (i.stock_qty or 0) == 0 and i.id not in loaded_ids and i.id not in _has_variant
+    }
+    kpi_never_loaded = len(never_loaded_ids)
+    kpi_critical = sum(
+        1
+        for i in all_ings
+        if effective_stock_qty.get(i.id, float(i.stock_qty or 0.0)) <= (i.min_stock_qty or 0)
+        and i.id not in never_loaded_ids
+    )
+
+    # Data quality checks
+    duplicates = _find_duplicate_ingredients(all_ings)
+    suspicious_prices = _find_suspicious_prices(all_ings)
+    expiring_soon = sum(
+        1
+        for i in all_ings
+        if i.expiry_date and i.expiry_date <= week_from_now and i.expiry_date >= today
+    )
+
+    # Build filter options for the template
+    categories = sorted(
+        {(i.category or "").strip() for i in all_ings if (i.category or "").strip()}
+    )
+    storages = sorted({(i.storage or "").strip() for i in all_ings if (i.storage or "").strip()})
+
+    from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
+
+    return render(
+        request,
+        "inventario.html",
+        _build_template_context(
+            ingredients=ingredients,
+            effective_stock_qty=effective_stock_qty,
+            variants_by_ing_id=variants_by_ing_id,
+            price_info=price_info,
+            market_refs=market_refs,
+            sort=sort or "",
+            dir=dir,
+            page=page,
+            total_pages=total_pages,
+            total=total,
+            total_all=total_all,
+            per_page=PER_PAGE,
+            kpi_total=kpi_total,
+            kpi_critical=kpi_critical,
+            kpi_never_loaded=kpi_never_loaded,
+            kpi_value_gs=kpi_value_gs,
+            kpi_no_cost=kpi_no_cost,
+            never_loaded_ids=never_loaded_ids,
+            expiring_soon=expiring_soon,
+            duplicates=duplicates,
+            suspicious_prices=suspicious_prices,
+            filters=filters,
+            categories=categories,
+            storages=storages,
+            CANONICAL_DIETARY_TAGS=CANONICAL_DIETARY_TAGS,
+            session=session,
+        ),
+    )
+
+
+def _parse_inventory_filters(request: Request) -> dict[str, Any]:
+    """Parse filter selections from query string.
+
+    Extracted from inventory_list to reduce complexity. Returns dict with
+    all filter parameters (q, estados_sel, categorias, alergenos, etc.).
+    """
     q = (request.query_params.get("q") or "").strip().lower()
-    # P3 UX batch: estado/almacen/expiry are now MULTI-select (checkboxes).
-    # Legacy single values still work — normalize to lists.
     estados_sel = [e for e in request.query_params.getlist("estado") if e]
     categorias = [c for c in request.query_params.getlist("categoria") if c]
     alergenos = [a for a in request.query_params.getlist("alergeno") if a]
     almacenes_sel = [a for a in request.query_params.getlist("almacen") if a]
     expiries_sel = [e for e in request.query_params.getlist("expiry") if e and e != "all"]
-    # Diet-restriction filter (P3 UX batch): multi-select over the
-    # canonical dietary tags. AND semantics like allergens — an ingredient
-    # matches only if it carries EVERY selected tag. Both Spanish canonical
-    # ("sin gluten") and legacy English codes ("gluten_free") accepted.
-    from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
-
     diet_sel = [d.strip().lower() for d in request.query_params.getlist("diet") if d.strip()]
 
+    return {
+        "q": q,
+        "estados_sel": estados_sel,
+        "categorias": categorias,
+        "alergenos": alergenos,
+        "almacenes_sel": almacenes_sel,
+        "expiries_sel": expiries_sel,
+        "diet_sel": diet_sel,
+    }
+
+
+def _compute_variant_counts(session: Session, all_ings: list) -> dict[int, int]:
+    """Compute variant counts for all ingredients.
+
+    Extracted from inventory_list to reduce complexity. Returns dict
+    mapping ingredient_id to variant count.
+    """
+    _all_ing_ids = [i.id for i in all_ings]
+    if not _all_ing_ids:
+        return {}
+    return dict(
+        session.execute(
+            select(IngredientVariant.ingredient_id, func.count(IngredientVariant.id))
+            .where(IngredientVariant.ingredient_id.in_(_all_ing_ids))
+            .group_by(IngredientVariant.ingredient_id)
+        ).all()
+    )
+
+
+def _compute_stock_value(session: Session, all_ings: list) -> float:
+    """Compute total stock value in guaraníes.
+
+    Extracted from inventory_list to reduce complexity. Falls back to
+    manual calculation if the helper function fails.
+    """
+    from app.rms.inventory_intel import stock_value_gs
+
+    try:
+        return stock_value_gs(session)
+    except Exception:
+        return sum((i.stock_qty or 0) * (i.purchase_price_gs or 0) for i in all_ings)
+
+
+def _filter_ingredients(
+    all_ings: list,
+    filters: dict,
+    never_loaded_ids: set,
+    today: Any,
+    week_from_now: Any,
+    month_from_now: Any,
+) -> list:
+    """Filter ingredients based on filter selections.
+
+    Extracted from inventory_list to reduce complexity. Applies all
+    filters (text search, estado, category, allergens, diet, storage,
+    expiry) and returns filtered list.
+    """
     def _ingredient_diet_tags(i: Any) -> set[str]:
         raw = (i.dietary_tags or "").lower()
         return {t.strip() for t in raw.split(",") if t.strip()}
 
     def _matches_diet(i: Any) -> bool:
-        if not diet_sel:
+        if not filters["diet_sel"]:
             return True
         tags = _ingredient_diet_tags(i)
-        for want in diet_sel:
+        for want in filters["diet_sel"]:
             if want in tags:
                 continue
-            # legacy English aliases → Spanish
             alias_map = {
                 "gluten_free": ("sin gluten", "sin tacc"),
                 "vegan": ("vegano",),
@@ -305,108 +441,85 @@ def inventory_list(
         return code in (i.allergens or "").lower()
 
     def _match(i: Ingredient) -> bool:
-        if q and q not in (i.name or "").lower():
+        if filters["q"] and filters["q"] not in (i.name or "").lower():
             return False
-        if estados_sel:
-            ok = False
-            for estado in estados_sel:
-                if estado == "bajo" and i.stock_qty <= (i.min_stock_qty or 0):
-                    ok = True
-                elif estado == "critico" and (
-                    i.stock_qty <= 0 or (i.min_stock_qty and i.stock_qty < i.min_stock_qty * 0.5)
-                ):
-                    ok = True
-                elif estado == "negativo" and i.stock_qty < 0:
-                    ok = True
-                elif estado == "sincargar" and i.id in never_loaded_ids:
-                    ok = True
-                elif estado == "sinprecio" and i.purchase_price_gs is None:
-                    ok = True
-                elif estado == "ok" and i.stock_qty > (i.min_stock_qty or 0):
-                    ok = True
-                elif estado == "sobre_stock" and (
-                    i.max_stock_qty is not None and i.stock_qty > i.max_stock_qty
-                ):
-                    ok = True
-                if ok:
-                    break
-            if not ok:
-                return False
-        if categorias and (i.category or "") not in categorias:
+        if filters["estados_sel"] and not _matches_estado(i, filters["estados_sel"], never_loaded_ids):
             return False
-        if alergenos and not all(_has_allergen(i, a) for a in alergenos):
+        if filters["categorias"] and (i.category or "") not in filters["categorias"]:
+            return False
+        if filters["alergenos"] and not all(_has_allergen(i, a) for a in filters["alergenos"]):
             return False
         if not _matches_diet(i):
             return False
-        if almacenes_sel and (i.storage or "") not in almacenes_sel:
+        if filters["almacenes_sel"] and (i.storage or "") not in filters["almacenes_sel"]:
             return False
-        if expiries_sel:
-            ok = False
-            for expiry in expiries_sel:
-                if expiry == "expired" and i.expiry_date and i.expiry_date < today:
-                    ok = True
-                elif (
-                    expiry == "7days"
-                    and i.expiry_date
-                    and i.expiry_date <= week_from_now
-                    and i.expiry_date >= today
-                ):
-                    ok = True
-                elif (
-                    expiry == "30days"
-                    and i.expiry_date
-                    and i.expiry_date <= month_from_now
-                    and i.expiry_date >= today
-                ):
-                    ok = True
-                if ok:
-                    break
-            if not ok:
-                return False
+        if filters["expiries_sel"] and not _matches_expiry(i, filters["expiries_sel"], today, week_from_now, month_from_now):
+            return False
         return True
 
-    _filtered_all = [i for i in all_ings if _match(i)]
-    total = len(_filtered_all)
-    total_all = len(all_ings)
-    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
-    page = min(page, total_pages)
+    return [i for i in all_ings if _match(i)]
 
-    # KPI: count ingredients expiring within 7 days
-    expiring_soon = sum(
-        1
-        for i in all_ings
-        if i.expiry_date and i.expiry_date <= week_from_now and i.expiry_date >= today
-    )
 
-    categories = sorted(
-        {(i.category or "").strip() for i in all_ings if (i.category or "").strip()}
-    )
-    storages = sorted({(i.storage or "").strip() for i in all_ings if (i.storage or "").strip()})
+def _matches_estado(i: Ingredient, estados_sel: list, never_loaded_ids: set) -> bool:
+    """Check if ingredient matches any selected estado.
 
-    # Data-quality: duplicate ingredients (same name, case-insensitive)
-    _by_norm: dict[str, list] = {}
-    for i in all_ings:
-        _by_norm.setdefault((i.name or "").strip().lower(), []).append(i)
-    duplicates = [
-        {
-            "name": k,
-            "count": len(v),
-            "units": sorted({x.unit or "" for x in v}),
-            "ids": [x.id for x in v],
-        }
-        for k, v in _by_norm.items()
-        if len(v) > 1
-    ]
+    Extracted from _filter_ingredients to reduce complexity.
+    """
+    for estado in estados_sel:
+        if estado == "bajo" and i.stock_qty <= (i.min_stock_qty or 0):
+            return True
+        if estado == "critico" and (
+            i.stock_qty <= 0 or (i.min_stock_qty and i.stock_qty < i.min_stock_qty * 0.5)
+        ):
+            return True
+        if estado == "negativo" and i.stock_qty < 0:
+            return True
+        if estado == "sincargar" and i.id in never_loaded_ids:
+            return True
+        if estado == "sinprecio" and i.purchase_price_gs is None:
+            return True
+        if estado == "ok" and i.stock_qty > (i.min_stock_qty or 0):
+            return True
+        if estado == "sobre_stock" and (
+            i.max_stock_qty is not None and i.stock_qty > i.max_stock_qty
+        ):
+            return True
+    return False
 
-    # Data-quality: price per g/ml above Gs. 5.000 is almost certainly a per-kg/l
-    # price entered on a gram/milliliter row (carrot-cake 11M bug class).
-    suspicious_prices = [
-        {"id": i.id, "name": i.name, "unit": i.unit, "price": i.purchase_price_gs}
-        for i in all_ings
-        if i.unit in ("g", "ml") and (i.purchase_price_gs or 0) > 5000
-    ]
 
-    # Sorting applied to the filtered set (in-Python; catalog sizes are small)
+def _matches_expiry(
+    i: Ingredient, expiries_sel: list, today: Any, week_from_now: Any, month_from_now: Any
+) -> bool:
+    """Check if ingredient matches any selected expiry filter.
+
+    Extracted from _filter_ingredients to reduce complexity.
+    """
+    for expiry in expiries_sel:
+        if expiry == "expired" and i.expiry_date and i.expiry_date < today:
+            return True
+        if (
+            expiry == "7days"
+            and i.expiry_date
+            and i.expiry_date <= week_from_now
+            and i.expiry_date >= today
+        ):
+            return True
+        if (
+            expiry == "30days"
+            and i.expiry_date
+            and i.expiry_date <= month_from_now
+            and i.expiry_date >= today
+        ):
+            return True
+    return False
+
+
+def _sort_ingredients(ingredients: list, sort: str | None, dir: str) -> list:
+    """Sort ingredients by the selected column.
+
+    Extracted from inventory_list to reduce complexity. Uses a sort map
+    for supported columns; defaults to name.
+    """
     _sort_map = {
         "name": lambda i: (i.name or "").lower(),
         "stock_qty": lambda i: i.stock_qty or 0,
@@ -419,15 +532,19 @@ def inventory_list(
         "supplier": lambda i: i.supplier.name.lower() if i.supplier and i.supplier.name else "",
     }
     if sort and sort in _sort_map:
-        _filtered_all.sort(key=_sort_map[sort], reverse=(dir == "desc"))
+        ingredients.sort(key=_sort_map[sort], reverse=(dir == "desc"))
     else:
-        _filtered_all.sort(key=lambda i: (i.name or "").lower())
+        ingredients.sort(key=lambda i: (i.name or "").lower())
+    return ingredients
 
-    ingredients = _filtered_all[(page - 1) * PER_PAGE : page * PER_PAGE]
 
-    # Phase D — Q1 surface: price-history enrichment per ingredient.
-    # Ingredients with >=2 events in the last 90d get a muted min/max line
-    # under the price cell; >=3 events also get a sparkline SVG.
+def _build_price_info(session: Session, ingredients: list) -> dict[int, dict]:
+    """Build price-history enrichment for ingredients on this page.
+
+    Extracted from inventory_list to reduce complexity. Phase D — Q1
+    surface: ingredients with >=2 events in the last 90d get a muted
+    min/max line; >=3 events also get a sparkline SVG.
+    """
     price_info: dict[int, dict] = {}
     ing_ids_with_events = set(
         session.scalars(select(IngredientPriceEvent.ingredient_id).distinct()).all()
@@ -445,15 +562,17 @@ def inventory_list(
                     label=f"histórico de precio de {ing.name}",
                 )
             price_info[ing.id] = info
+    return price_info
 
-    # Variant-aware (multi-package + multi-supplier) totals.
-    # For each ingredient on this page, compute:
-    #   - effective_stock_qty: rollup sum if variants exist, else i.stock_qty
-    #   - variants_by_ing_id:  list of {variant_id, package_size, package_unit,
-    #                          preferred, supplier_name} for the inline +qty
-    #                          form's variant picker.
-    # rollup.variants is list[dict] with keys: variant_id, package_size,
-    # package_unit, stock_qty, purchase_price_gs, supplier_id, preferred, label.
+
+def _compute_variant_data(
+    session: Session, ingredients: list
+) -> tuple[dict[int, float], dict[int, list[dict]]]:
+    """Compute variant-aware stock and variant details for ingredients.
+
+    Extracted from inventory_list to reduce complexity. Returns
+    (effective_stock_qty, variants_by_ing_id).
+    """
     from app.rms.variants import rollup_ingredient_stock
 
     effective_stock_qty: dict[int, float] = {}
@@ -462,7 +581,6 @@ def inventory_list(
         rollup = rollup_ingredient_stock(session, ing.id)
         if rollup is not None and rollup.variant_count > 0:
             effective_stock_qty[ing.id] = rollup.base_qty
-            # Resolve supplier names in one pass.
             _sup_ids = {v["supplier_id"] for v in rollup.variants if v.get("supplier_id")}
             _sup_names: dict[int, str] = {}
             if _sup_ids:
@@ -490,127 +608,162 @@ def inventory_list(
         else:
             effective_stock_qty[ing.id] = float(ing.stock_qty or 0.0)
             variants_by_ing_id[ing.id] = []
-    # Global cache for KPIs (covers ingredients NOT on this page).
-    _all_ing_ids = [i.id for i in all_ings]
-    if _all_ing_ids:
-        _variant_counts: dict[int, int] = dict(
-            session.execute(
-                select(IngredientVariant.ingredient_id, func.count(IngredientVariant.id))
-                .where(IngredientVariant.ingredient_id.in_(_all_ing_ids))
-                .group_by(IngredientVariant.ingredient_id)
-            ).all()
-        )
-    else:
-        _variant_counts = {}
+    return effective_stock_qty, variants_by_ing_id
 
-    # KPI adjustments for variant-aware counts: ingredients with variants
-    # should NOT be flagged as "never_loaded" just because legacy stock_qty
-    # is 0 — their stock may live entirely on a variant.
-    _has_variant = {ing_id for ing_id, n in _variant_counts.items() if n > 0}
-    never_loaded_ids = {
-        i.id
-        for i in all_ings
-        if (i.stock_qty or 0) == 0 and i.id not in loaded_ids and i.id not in _has_variant
-    }
-    kpi_never_loaded = len(never_loaded_ids)
-    # Re-run critical with variant-aware effective stock (for ingredients on
-    # this page; ingredients off-page still use legacy stock_qty as before,
-    # which is fine — the user only ever sorts/views what they see).
-    kpi_critical = sum(
-        1
-        for i in all_ings
-        if effective_stock_qty.get(i.id, float(i.stock_qty or 0.0)) <= (i.min_stock_qty or 0)
-        and i.id not in never_loaded_ids
-    )
 
-    # Wave 4 — Market reference price (Paraguay baseline). One row per
-    # ingredient. Compute delta_pct = (our_price - market_price) / market * 100.
+def _compute_market_refs(session: Session, ingredients: list) -> dict[int, dict]:
+    """Compute market reference price comparisons.
+
+    Extracted from inventory_list to reduce complexity. Wave 4 — Market
+    reference price (Paraguay baseline). Returns dict mapping ingredient_id
+    to market reference data.
+    """
     from app.rms.models import MarketPriceReference
 
     market_refs: dict[int, dict] = {}
     ing_ids = [ing.id for ing in ingredients]
-    if ing_ids:
-        refs = session.scalars(
-            select(MarketPriceReference).where(MarketPriceReference.ingredient_id.in_(ing_ids))
-        ).all()
-        for r in refs:
-            ing = next((i for i in ingredients if i.id == r.ingredient_id), None)
-            if not ing or ing.purchase_price_gs is None:
-                continue
-            delta_pct = (
-                (ing.purchase_price_gs - r.price_gs) / r.price_gs * 100 if r.price_gs > 0 else 0
-            )
-            market_refs[ing.id] = {
-                "market_price_gs": r.price_gs,
-                "market_unit": r.unit,
-                "market_source": r.source,
-                "market_notes": r.notes,
-                "delta_pct": delta_pct,
-            }
+    if not ing_ids:
+        return market_refs
+    refs = session.scalars(
+        select(MarketPriceReference).where(MarketPriceReference.ingredient_id.in_(ing_ids))
+    ).all()
+    for r in refs:
+        ing = next((i for i in ingredients if i.id == r.ingredient_id), None)
+        if not ing or ing.purchase_price_gs is None:
+            continue
+        delta_pct = (
+            (ing.purchase_price_gs - r.price_gs) / r.price_gs * 100 if r.price_gs > 0 else 0
+        )
+        market_refs[ing.id] = {
+            "market_price_gs": r.price_gs,
+            "market_unit": r.unit,
+            "market_source": r.source,
+            "market_notes": r.notes,
+            "delta_pct": delta_pct,
+        }
+    return market_refs
 
-    return render(
-        request,
-        "inventario.html",
+
+def _find_duplicate_ingredients(all_ings: list) -> list[dict]:
+    """Find duplicate ingredients (same name, case-insensitive).
+
+    Extracted from inventory_list to reduce complexity. Returns list of
+    duplicate groups with name, count, units, and ids.
+    """
+    _by_norm: dict[str, list] = {}
+    for i in all_ings:
+        _by_norm.setdefault((i.name or "").strip().lower(), []).append(i)
+    return [
         {
-            "ingredients": ingredients,
-            "effective_stock_qty": effective_stock_qty,
-            "variants_by_ing_id": variants_by_ing_id,
-            "price_info": price_info,
-            "market_refs": market_refs,
-            "sort": sort or "",
-            "dir": dir,
-            "page": page,
-            "total_pages": total_pages,
-            "total": total,
-            "per_page": PER_PAGE,
-            "page_start": (page - 1) * PER_PAGE + 1,
-            "page_end": min(page * PER_PAGE, total),
-            # redesign 2026-09-25
-            "kpi_total": kpi_total,
-            "kpi_critical": kpi_critical,
-            "kpi_never_loaded": kpi_never_loaded,
-            "never_loaded_ids": never_loaded_ids,
-            "kpi_value_gs": kpi_value_gs,
-            "kpi_no_cost": kpi_no_cost,
-            "expiring_soon": expiring_soon,
-            "q": q,
-            "estados_sel": estados_sel,
-            "categorias": categorias,
-            "alergenos_sel": alergenos,
-            "diet_sel": diet_sel,
-            "diet_options": sorted(CANONICAL_DIETARY_TAGS),
-            "almacenes_sel": almacenes_sel,
-            "expiries_sel": expiries_sel,
-            "categories": categories,
-            "storages": storages,
-            "allergen_codes": [
-                ("gluten", "Gluten"),
-                ("dairy", "Lácteos"),
-                ("eggs", "Huevos"),
-                ("nuts", "Frutos secos"),
-                ("soy", "Soja"),
-                ("sesame", "Sésamo"),
-                ("sulfites", "Sulfitos"),
-            ],
-            "total_filtered": total,
-            "duplicates": duplicates,
-            "suspicious_prices": suspicious_prices,
-            # 2026-09-29: tag-validation banner (tagging/ refactor).
-            # Count ingredients with cached tag_validation_issues. This
-            # is a cheap COUNT(*) — the audit only re-runs when the user
-            # clicks "Re-correr auditoría" on the audit page.
-            "tag_audit_count": session.scalar(
-                select(func.count(Ingredient.id)).where(
-                    Ingredient.tag_validation_issues.isnot(None),
-                    Ingredient.tag_validation_issues != "",
-                )
+            "name": k,
+            "count": len(v),
+            "units": sorted({x.unit or "" for x in v}),
+            "ids": [x.id for x in v],
+        }
+        for k, v in _by_norm.items()
+        if len(v) > 1
+    ]
+
+
+def _find_suspicious_prices(all_ings: list) -> list[dict]:
+    """Find ingredients with suspicious prices (per-g/ml above Gs. 5,000).
+
+    Extracted from inventory_list to reduce complexity. Data-quality:
+    price per g/ml above Gs. 5.000 is almost certainly a per-kg/l price
+    entered on a gram/milliliter row (carrot-cake 11M bug class).
+    """
+    return [
+        {"id": i.id, "name": i.name, "unit": i.unit, "price": i.purchase_price_gs}
+        for i in all_ings
+        if i.unit in ("g", "ml") and (i.purchase_price_gs or 0) > 5000
+    ]
+
+
+def _build_template_context(
+    ingredients: list,
+    effective_stock_qty: dict,
+    variants_by_ing_id: dict,
+    price_info: dict,
+    market_refs: dict,
+    sort: str,
+    dir: str,
+    page: int,
+    total_pages: int,
+    total: int,
+    total_all: int,
+    per_page: int,
+    kpi_total: int,
+    kpi_critical: int,
+    kpi_never_loaded: int,
+    kpi_value_gs: float,
+    kpi_no_cost: int,
+    never_loaded_ids: set,
+    expiring_soon: int,
+    duplicates: list,
+    suspicious_prices: list,
+    filters: dict,
+    categories: list,
+    storages: list,
+    CANONICAL_DIETARY_TAGS: set,
+    session: Session,
+) -> dict:
+    """Build the template context dict.
+
+    Extracted from inventory_list to reduce complexity. Centralizes all
+    the template variables in one place.
+    """
+    return {
+        "ingredients": ingredients,
+        "effective_stock_qty": effective_stock_qty,
+        "variants_by_ing_id": variants_by_ing_id,
+        "price_info": price_info,
+        "market_refs": market_refs,
+        "sort": sort,
+        "dir": dir,
+        "page": page,
+        "total_pages": total_pages,
+        "total": total,
+        "per_page": per_page,
+        "page_start": (page - 1) * per_page + 1,
+        "page_end": min(page * per_page, total),
+        "kpi_total": kpi_total,
+        "kpi_critical": kpi_critical,
+        "kpi_never_loaded": kpi_never_loaded,
+        "never_loaded_ids": never_loaded_ids,
+        "kpi_value_gs": kpi_value_gs,
+        "kpi_no_cost": kpi_no_cost,
+        "expiring_soon": expiring_soon,
+        "q": filters["q"],
+        "estados_sel": filters["estados_sel"],
+        "categorias": filters["categorias"],
+        "alergenos_sel": filters["alergenos"],
+        "diet_sel": filters["diet_sel"],
+        "diet_options": sorted(CANONICAL_DIETARY_TAGS),
+        "almacenes_sel": filters["almacenes_sel"],
+        "expiries_sel": filters["expiries_sel"],
+        "categories": categories,
+        "storages": storages,
+        "allergen_codes": [
+            ("gluten", "Gluten"),
+            ("dairy", "Lácteos"),
+            ("eggs", "Huevos"),
+            ("nuts", "Frutos secos"),
+            ("soy", "Soja"),
+            ("sesame", "Sésamo"),
+            ("sulfites", "Sulfitos"),
+        ],
+        "total_filtered": total,
+        "duplicates": duplicates,
+        "suspicious_prices": suspicious_prices,
+        "tag_audit_count": session.scalar(
+            select(func.count(Ingredient.id)).where(
+                Ingredient.tag_validation_issues.isnot(None),
+                Ingredient.tag_validation_issues != "",
             )
-            or 0,
-            "total_all": total_all,
-        },
-    )
-
-
+        )
+        or 0,
+        "total_all": total_all,
+    }
 @router.get("/carga-inicial", response_class=HTMLResponse)
 def carga_inicial_view(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     """PRO-INV: asisted initial stock load — list every ingredient that has
