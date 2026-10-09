@@ -5669,10 +5669,15 @@ def _seed_appmeta_pins_idempotency__onboarding_gu(ctx: SeedContext):
 
 
 
-def _seed_bank_transactions_a_few_recent_ones(ctx: SeedContext):
+def _seed_bank_transactions_a_few_recent_ones(ctx: SeedContext) -> SazonReport:
     """Section 30: Bank transactions (a few recent ones).
 
     Extracted from seed_sazon (refactored 2026-10-09).
+
+    Returns SazonReport to satisfy type-checker; the orchestrator
+    (seed_sazon at L4253) ignores this return value and re-returns
+    ctx.report itself. The trailing commit + logger + return are
+    defensive duplicates.
     """
 
     # Idempotency: the dedup query uses (posted_at, description) as the

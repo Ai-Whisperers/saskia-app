@@ -4411,8 +4411,6 @@ def seed_pack(session: Session, pack: str, *, tenant_name: str | None = None) ->
 
     Refactored 2026-10-09 to reduce cognitive complexity from 52 to <10.
     """
-    from datetime import datetime, timedelta
-
     if pack not in PACKS:
         raise KeyError(f"pack inexistente: {pack!r}. Disponibles: {sorted(PACKS)}")
     data = PACKS[pack]
@@ -4425,7 +4423,7 @@ def seed_pack(session: Session, pack: str, *, tenant_name: str | None = None) ->
     ing_objs = _seed_ingredients(session, data, supplier_objs, pack, report)
     rec_objs = _seed_recipes(session, data, report)
     _seed_recipe_lines(session, data, rec_objs, ing_objs, report)
-    cat_objs = _seed_categories(session, data, report)
+    _seed_categories(session, data, report)
     _seed_payment_methods_and_channels(session, report)
     _seed_delivery_zones(session, report)
     prod_objs = _seed_products(session, data, rec_objs, report)
@@ -4496,8 +4494,6 @@ def _seed_ingredients(
     preferred variant and price events for each ingredient.
     Returns dict mapping ingredient name to Ingredient object.
     """
-    from datetime import datetime, timedelta
-
     ing_objs: dict[str, Ingredient] = {}
     for iname, icat, cost, sidx, pkg_unit in data.ingredients:
         ing = session.query(Ingredient).filter(Ingredient.name == iname).one_or_none()

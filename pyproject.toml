@@ -169,6 +169,11 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а", "‹", "›", "σ
     "B011",    # tests assert on raises(NotImplementedError) sometimes
     "PERF401", # tests: build-then-iterate is fine, no need for list comp
     "BLE001",  # tests: defensive excepts are fine in fixture setup / teardown
+    "B007",    # tests: loop control var not used in body is fine (for k in dict: ...)
+    "PERF102", # tests: dict iteration order doesn't matter, .keys() vs direct iter is fine
+    "RUF015",  # tests: single-element slice `xs[0]` is clearer than `next(iter(xs))`
+    "E741",    # tests: short variable names (`l`, `env`, `row`) OK in test scope
+    "F541",    # tests: f-strings without placeholders are fine for plain messages
 ]
 "app/rms/models/**/*.py" = [
     "F821",    # SQLAlchemy 2.0 Mapped["ClassName"] forward references to other model modules
@@ -235,6 +240,11 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а", "‹", "›", "σ
 ]
 "run_migration.py" = [
     "BLE001",  # ad-hoc top-level migration runner, errors are diagnostic
+]
+"deploy/*.py" = [
+    "S",       # deploy scripts intentionally shell out / call subprocess
+    "F",       # unused imports OK in one-off deploy tooling
+    "E501",    # long lines OK in deploy scripts
 ]
 "app/rms/**/*.py" = [
     "BLE001",  # defensive broad excepts are intentional across RMS layer (legacy pattern)

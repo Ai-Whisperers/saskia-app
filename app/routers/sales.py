@@ -9,6 +9,7 @@ import uuid
 from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
+from typing import Any
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import (
@@ -51,7 +52,7 @@ from app.rms.messages import (
     SALE_SKU_REQUIRED,
     SALE_TOO_MANY_ITEMS,
 )
-from app.rms.models import Customer, Product, Sale, StockMovement
+from app.rms.models import Customer, Product, Sale, SalePayment, StockMovement
 from app.rms.models.channels import Channel
 from app.rms.money import to_int_gs
 from app.rms.production_demand import invalidate_demand_for_sale_today
@@ -1308,8 +1309,6 @@ def _parse_sale_multi_body(json_data: dict) -> dict:
     """
     from pydantic import BaseModel, Field
 
-    from app.rms.schemas import ALLOWED_PAYMENT_METHODS, MAX_DISCOUNT_GS, MAX_QTY
-
     class _Item(BaseModel):
         product_id: int | None = Field(None, gt=0)
         menu_id: int | None = Field(None, gt=0)
@@ -1652,7 +1651,6 @@ def _process_sale_items(
         unit_price = item["unit_price_gs"] if item["unit_price_gs"] is not None else catalog_price
         # Calculate line discount
         from app.rms.money import to_decimal
-        from decimal import ROUND_HALF_UP, Decimal
 
         line_discount_gs = int(
             (
@@ -1737,7 +1735,7 @@ def _process_split_payments(
             status_code=400,
             detail=(
                 f"La suma de los pagos (Gs. {_sum:,}) debe ser igual "
-                f"al total de la venta (Gs. {_cart_total:,}).".replace(",", ".")
+                f"al total de la venta (Gs. {cart_total:,}).".replace(",", ".")
             ),
         )
     _remaining = dict(payments_plan)
