@@ -4662,129 +4662,156 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
     Base.metadata.create_all(engine)
 
     # 2. Read the current schema_version ONCE
-    current = 0
+    current = _read_current_schema_version(engine)
     target = CURRENT_SCHEMA_VERSION
-    with engine.connect() as probe_conn:
-        probe_conn.commit()
-        from app.rms.db import schema_version
-
-        current = schema_version(probe_conn)
 
     # 2a. Fail-closed on newer-schema DB (AGENTS.md Hard Rule 19b).
-    # If the DB has a higher schema_version than this build supports,
-    # we MUST refuse to start. Auto-downgrade is not safe (DDL is
-    # forward-only; rolling back schema-version doesn't roll back
-    # schema state).
     fail_closed_on_newer_schema(current, target)
 
-    # 2b. Pre-migration backup (AGENTS.md Hard Rule 17). If there
-    # are pending migrations, write a backup file before applying
-    # the first one. The backup is named with the from→to versions
-    # so a failed migration can be reverted by restoring it.
+    # 2b. Pre-migration backup (AGENTS.md Hard Rule 17).
     if current < target:
-        try:
-            backup_path = sync_backup_before_migration(
-                engine,
-                from_version=current,
-                to_version=current + 1,
-            )
-            if backup_path is not None:
-                logger.info(f"Pre-migration backup written: {backup_path}")
-        except Exception as backup_exc:
-            # Fail-closed: a bad backup should stop the migration
-            # unless the operator has explicitly opted into degraded
-            # mode via AIW_RMS_PROCEED_WITHOUT_BACKUP=1.
-            if os.environ.get("AIW_RMS_PROCEED_WITHOUT_BACKUP") == "1":
-                logger.warning(
-                    f"Pre-migration backup FAILED ({backup_exc!r}), "
-                    f"but AIW_RMS_PROCEED_WITHOUT_BACKUP=1; proceeding anyway. "
-                    f"Daily 03:15 cron is the only protection."
-                )
-            else:
-                raise RuntimeError(
-                    f"Pre-migration backup failed: {backup_exc!r}. "
-                    f"Refusing to apply migrations. Set "
-                    f"AIW_RMS_PROCEED_WITHOUT_BACKUP=1 to proceed without backup "
-                    f"(only safe if you have a recent daily backup)."
-                ) from backup_exc
+        _safe_pre_migration_backup(engine, current)
 
     # 3. Run each pending migration on its OWN connection (auto-committed).
-    # This is more robust than SAVEPOINTs because each migration's
-    # transaction state is isolated from the others.
     for v in range(current + 1, target + 1):
-        if v not in MIGRATIONS:
-            raise RuntimeError(
-                f"No migration registered for schema version {v}; "
-                f"current={current}, target={target}. "
-                "Add the migration in app/rms/db.py."
-            )
-        try:
-            with engine.connect() as mig_conn:
-                # Run the migration in its own transaction.
-                MIGRATIONS[v](mig_conn)
-                # The migration calls _bump_schema_version which uses
-                # the same connection. We then commit the whole tx.
-                mig_conn.commit()
-        except Exception as exc:
-            # FAIL-CLOSED: a migration chain is a chain — each step may
-            # depend on the previous one (e.g. 112 DROPs 111's triggers
-            # before CREATEing its own). Skipping a failed step and
-            # continuing let v113/v114 apply on top of a broken v112,
-            # permanently hiding the gap (real incident 2026-10-08: the
-            # channel CHECK triggers were lost this way in prod). Fail
-            # loudly instead; the rule-17 pre-migration backup plus
-            # `sazon rollback` make recovery safe.
-            logger.error(f"migration v{v} failed: {exc!r}; aborting init_db")
-            # Print to stderr so container/Render logs capture it
-            print(f"MIGRATION v{v} FAILED: {exc!r}", file=sys.stderr)
-            # Validation hook (Phase 14 #4): probe schema_version on a
-            # FRESH connection. If it advanced despite the failure, the
-            # DDL partially applied — surface as a loud warning so the
-            # operator investigates before the next migration assumes a
-            # clean baseline.
-            after = None
-            probe_err = None
-            try:
-                with engine.connect() as probe:
-                    after = schema_version(probe)
-            except Exception as probe_exc:
-                probe_err = probe_exc
-            if after is not None and after >= v:
-                msg = (
-                    f"DDL PARTIAL APPLY: migration v{v} raised {exc!r} "
-                    f"but schema_version is {after} (>= {v}). "
-                    "Postgres-only — SQLite cannot reach this state. "
-                    "Manual intervention required before next deploy."
-                )
-                logger.error(msg)
-                print(msg, file=sys.stderr)
-                raise RuntimeError(msg) from exc
-            elif probe_err is not None:
-                logger.debug(f"schema probe after v{v} failure: {probe_err!r}")
-            raise RuntimeError(
-                f"migration v{v} failed: {exc!r}. init_db aborted — "
-                "fix the cause (see MIGRATION FAILED line above), restore "
-                "the pre-migration backup, or run `sazon rollback`."
-            ) from exc
-
-        # 3. Apply recommended Postgres indexes (idempotent).
-        # Wrapped in its own connection so failure here doesn't undo migrations.
-        try:
-            from sqlalchemy.orm import sessionmaker
-
-            from app.rms.perf import apply_postgres_indexes
-
-            Session = sessionmaker(bind=engine)()
-            _ = apply_postgres_indexes(Session)
-            Session.close()
-        except Exception as exc:
-            # Indexes are an optimization, not a correctness fix.
-            # Don't crash startup if the applier hiccups.
-            logger.warning(f"apply_postgres_indexes failed (non-fatal): {exc!r}")
+        _run_single_migration(engine, v)
 
     # Sprint 3.2: register before_insert / before_update listeners for
     # the AuditColumns mixin. Auto-fills created_at / updated_at on
     # every insert/update of an owned table.
+    _register_audit_listeners()
+
+
+def _read_current_schema_version(engine: Any) -> int:
+    """Read the current schema version from the database.
+    
+    Extracted from _init_db_inner to reduce complexity.
+    """
+    from app.rms.db import schema_version
+
+    with engine.connect() as probe_conn:
+        probe_conn.commit()
+        return schema_version(probe_conn)
+
+
+def _safe_pre_migration_backup(engine: Any, current: int) -> None:
+    """Run the pre-migration backup with fail-closed safety check.
+    
+    Extracted from _init_db_inner to reduce complexity.
+    """
+    try:
+        backup_path = sync_backup_before_migration(
+            engine,
+            from_version=current,
+            to_version=current + 1,
+        )
+        if backup_path is not None:
+            logger.info(f"Pre-migration backup written: {backup_path}")
+    except Exception as backup_exc:
+        if os.environ.get("AIW_RMS_PROCEED_WITHOUT_BACKUP") == "1":
+            logger.warning(
+                f"Pre-migration backup FAILED ({backup_exc!r}), "
+                f"but AIW_RMS_PROCEED_WITHOUT_BACKUP=1; proceeding anyway. "
+                f"Daily 03:15 cron is the only protection."
+            )
+        else:
+            raise RuntimeError(
+                f"Pre-migration backup failed: {backup_exc!r}. "
+                f"Refusing to apply migrations. Set "
+                f"AIW_RMS_PROCEED_WITHOUT_BACKUP=1 to proceed without backup "
+                f"(only safe if you have a recent daily backup)."
+            ) from backup_exc
+
+
+def _run_single_migration(engine: Any, v: int) -> None:
+    """Run a single migration with proper error handling.
+    
+    Extracted from _init_db_inner to reduce complexity.
+    FAIL-CLOSED: a migration chain is a chain — each step may
+    depend on the previous one. Skipping a failed step and
+    continuing lets later versions apply on top of a broken earlier version,
+    permanently hiding the gap. Fail loudly instead.
+    """
+    if v not in MIGRATIONS:
+        raise RuntimeError(
+            f"No migration registered for schema version {v}; "
+            f"Add the migration in app/rms/db.py."
+        )
+    try:
+        with engine.connect() as mig_conn:
+            MIGRATIONS[v](mig_conn)
+            mig_conn.commit()
+    except Exception as exc:
+        logger.error(f"migration v{v} failed: {exc!r}; aborting init_db")
+        print(f"MIGRATION v{v} FAILED: {exc!r}", file=sys.stderr)
+        _check_partial_apply(engine, v, exc)
+        raise RuntimeError(
+            f"migration v{v} failed: {exc!r}. init_db aborted — "
+            "fix the cause (see MIGRATION FAILED line above), restore "
+            "the pre-migration backup, or run `sazon rollback`."
+        ) from exc
+
+    # 3. Apply recommended Postgres indexes (idempotent).
+    _apply_postgres_indexes_safely(engine)
+
+
+def _check_partial_apply(engine: Any, v: int, exc: Exception) -> None:
+    """Check if a migration partially applied by probing schema_version.
+    
+    Phase 14 #4: probe schema_version on a FRESH connection. If it
+    advanced despite the failure, the DDL partially applied — surface
+    as a loud warning so the operator investigates before the next
+    migration assumes a clean baseline.
+    Extracted from _run_single_migration to reduce complexity.
+    """
+    from app.rms.db import schema_version
+
+    after = None
+    probe_err = None
+    try:
+        with engine.connect() as probe:
+            after = schema_version(probe)
+    except Exception as probe_exc:
+        probe_err = probe_exc
+    if after is not None and after >= v:
+        msg = (
+            f"DDL PARTIAL APPLY: migration v{v} raised {exc!r} "
+            f"but schema_version is {after} (>= {v}). "
+            "Postgres-only — SQLite cannot reach this state. "
+            "Manual intervention required before next deploy."
+        )
+        logger.error(msg)
+        print(msg, file=sys.stderr)
+        raise RuntimeError(msg) from exc
+    if probe_err is not None:
+        logger.debug(f"schema probe after v{v} failure: {probe_err!r}")
+
+
+def _apply_postgres_indexes_safely(engine: Any) -> None:
+    """Apply Postgres indexes in a separate connection.
+    
+    Wrapped in its own connection so failure here doesn't undo migrations.
+    Indexes are an optimization, not a correctness fix, so we log but
+    don't crash on failure.
+    Extracted from _run_single_migration to reduce complexity.
+    """
+    try:
+        from sqlalchemy.orm import sessionmaker
+
+        from app.rms.perf import apply_postgres_indexes
+
+        Session = sessionmaker(bind=engine)()
+        _ = apply_postgres_indexes(Session)
+        Session.close()
+    except Exception as exc:
+        logger.warning(f"apply_postgres_indexes failed (non-fatal): {exc!r}")
+
+
+def _register_audit_listeners() -> None:
+    """Register audit event listeners for the AuditColumns mixin.
+    
+    Extracted from _init_db_inner to reduce complexity.
+    """
     try:
         from app.rms.models.common import register_audit_event_listeners
 
