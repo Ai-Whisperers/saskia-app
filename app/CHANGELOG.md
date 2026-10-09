@@ -1,3 +1,39 @@
+## 2026-10-09 — ruff clean: zero errors across the repo
+
+The ruff sweep is now complete: **0 errors / 0 warnings** across all
+5,100+ Python files in the repo. Down from 117 at the start of the
+hardening sprint and 10 in the `lint: clear remaining 10 ruff errors`
+commit on this same day.
+
+**Final cleanup (commit 5a078266)**
+- `app/rms/main.py` — parenthesize the two arch-rule imports (I001)
+- `app/rms/workflow.py` — drop trailing whitespace on a docstring blank line
+- `scripts/check_imports.py` — use `list.extend()` for the import collector
+  (3× PERF401), drop the dead `imp_parts_no_fn` local (F841), rename unused
+  loop variables to `_kind` / `_lineno` (B007)
+- `scripts/check_complexity.py` — `[*a, *b]` instead of `[a + b]` (RUF005)
+- `scripts/check_duplicate_files.py` — `startswith((a, b))` instead of
+  `or` chain (PIE810)
+
+**Earlier in the day**
+- `5a11f9f2` — removed duplicate `data/*` key in
+  `[tool.ruff.lint.per-file-ignores]` (TOML parse error blocking the build)
+- PR #83 — fixed all 56 ruff errors in `data/` (workbook→seed pipeline
+  scripts): type annotations on 15 functions, narrow except clauses,
+  S110 → explicit skip + log, S310 → noqa'd outbound HTTPS, BLE001 →
+  specific exception types, S603 → noqa'd operator-supplied path.
+- PR #84 — host-path test isolation (`repo-hermeticity-migration`).
+
+**Verification**
+- `uv run ruff check .` → `All checks passed!` (rc=0)
+- `uv run pyright app/rms/main.py app/rms/workflow.py` → 0 errors
+- `scripts/check_imports.py` → `OK: no import cycles, no architecture rule violations.`
+- `scripts/check_duplicate_files.py` → `OK: no duplicate-stem files, no forbidden legacy.`
+- 21/21 ZAP workflow regression tests pass.
+- Deployed to `saskia-vps.paragu-ai.com` (container
+  `deploy-20261009-031821:latest`); `/healthz` returns
+  `{"status":"ok","service":"sazon-rms"}`.
+
 ## 2026-10-09 — tooling hardening sweep (post-2026-10-08)
 
 Companion to docs/operations/2026-10-08-tooling-hardening.md.
