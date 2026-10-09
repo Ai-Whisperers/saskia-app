@@ -219,83 +219,10 @@ def produccion_prep(
     week_start = _week_monday(week or today)
     days = [week_start + timedelta(days=i) for i in range(7)]
 
-    # Aggregate across the week (mirrors the week view's logic).
-    ing_required: dict[int, dict] = {}
-    for d in days:
-        plan = plan_production(session, for_date=d)
-        for ln in plan.lines:
-            if ln.ingredient_id not in ing_required:
-                ing_required[ln.ingredient_id] = {
-                    "ingredient_name": ln.ingredient_name,
-                    "unit": ln.unit,
-                    "qty_required": 0.0,
-                    "stock_on_hand": ln.stock_on_hand,
-                    "ingredient_id": ln.ingredient_id,
-                }
-            ing_required[ln.ingredient_id]["qty_required"] += ln.qty_required
-
-    # Compute severity (mirrors produccion.html's logic).
-    prep_rows = []
-    for v in ing_required.values():
-        delta = v["stock_on_hand"] - v["qty_required"]
-        if delta < 0:
-            severity = "falta"
-            to_buy = v["qty_required"] - v["stock_on_hand"]
-        elif delta < v["qty_required"] * 0.2:
-            severity = "justo"
-            to_buy = 0.0
-        else:
-            severity = "suficiente"
-            to_buy = 0.0
-        prep_rows.append(
-            {
-                **v,
-                "severity": severity,
-                "to_buy": to_buy,
-                "delta": delta,
-            }
-        )
-
-    # Sort: severity (Falta first) then ingredient_name. The user can
-    # override via ?sort= but unknown keys fall back to severity.
-    severity_order = {"falta": 0, "justo": 1, "suficiente": 2}
-    sort_key = (
-        sort if sort in ("severity", "ingredient", "required", "stock", "to_buy") else "severity"
-    )
-    sort_dir = -1 if dir == "desc" else 1
-    if sort_key == "severity":
-        prep_rows.sort(
-            key=lambda x: (
-                severity_order.get(x["severity"], 9) * sort_dir,
-                x["ingredient_name"],
-            )
-        )
-    elif sort_key == "ingredient":
-        prep_rows.sort(
-            key=lambda x: x["ingredient_name"],
-            reverse=(dir == "desc"),
-        )
-    elif sort_key == "required":
-        prep_rows.sort(
-            key=lambda x: x["qty_required"],
-            reverse=(dir == "desc"),
-        )
-    elif sort_key == "stock":
-        prep_rows.sort(
-            key=lambda x: x["stock_on_hand"],
-            reverse=(dir == "desc"),
-        )
-    elif sort_key == "to_buy":
-        prep_rows.sort(
-            key=lambda x: x["to_buy"],
-            reverse=(dir == "desc"),
-        )
-
-    counts = {
-        "falta": sum(1 for r in prep_rows if r["severity"] == "falta"),
-        "justo": sum(1 for r in prep_rows if r["severity"] == "justo"),
-        "suficiente": sum(1 for r in prep_rows if r["severity"] == "suficiente"),
-    }
+    ing_required = _aggregate_ingredient_requirements(session, days)
+    prep_rows = _build_prep_rows(ing_required)
+    _apply_sort(prep_rows, sort, dir)
+    counts = _compute_severity_counts(prep_rows)
 
     return render(
         request,
@@ -311,3 +238,113 @@ def produccion_prep(
             "current_dir": dir,
         },
     )
+
+
+def _aggregate_ingredient_requirements(session, days: list) -> dict[int, dict]:
+    """Aggregate ingredient requirements across the week.
+    
+    Extracted from produccion_prep to reduce complexity.
+    """
+    ing_required: dict[int, dict] = {}
+    for d in days:
+        plan = plan_production(session, for_date=d)
+        for ln in plan.lines:
+            if ln.ingredient_id not in ing_required:
+                ing_required[ln.ingredient_id] = _new_ingredient_entry(ln)
+            ing_required[ln.ingredient_id]["qty_required"] += ln.qty_required
+    return ing_required
+
+
+def _new_ingredient_entry(ln) -> dict:
+    """Create a new ingredient aggregation entry from a plan line.
+    
+    Extracted from _aggregate_ingredient_requirements to reduce complexity.
+    """
+    return {
+        "ingredient_name": ln.ingredient_name,
+        "unit": ln.unit,
+        "qty_required": 0.0,
+        "stock_on_hand": ln.stock_on_hand,
+        "ingredient_id": ln.ingredient_id,
+    }
+
+
+def _build_prep_rows(ing_required: dict) -> list[dict]:
+    """Build prep rows with severity and to_buy computed.
+    
+    Extracted from produccion_prep to reduce complexity.
+    """
+    prep_rows = []
+    for v in ing_required.values():
+        severity, to_buy = _compute_severity(v)
+        prep_rows.append(
+            {
+                **v,
+                "severity": severity,
+                "to_buy": to_buy,
+                "delta": v["stock_on_hand"] - v["qty_required"],
+            }
+        )
+    return prep_rows
+
+
+def _compute_severity(v: dict) -> tuple[str, float]:
+    """Compute severity and to_buy amount for an ingredient.
+    
+    Extracted from _build_prep_rows to reduce complexity.
+    """
+    delta = v["stock_on_hand"] - v["qty_required"]
+    if delta < 0:
+        return "falta", v["qty_required"] - v["stock_on_hand"]
+    if delta < v["qty_required"] * 0.2:
+        return "justo", 0.0
+    return "suficiente", 0.0
+
+
+def _apply_sort(prep_rows: list, sort: str, dir: str) -> None:
+    """Sort prep rows by the specified key and direction.
+    
+    Extracted from produccion_prep to reduce complexity.
+    Unknown sort keys fall back to severity.
+    """
+    valid_keys = ("severity", "ingredient", "required", "stock", "to_buy")
+    sort_key = sort if sort in valid_keys else "severity"
+    sort_dir = -1 if dir == "desc" else 1
+    if sort_key == "severity":
+        _sort_by_severity(prep_rows, sort_dir)
+    elif sort_key == "ingredient":
+        prep_rows.sort(key=lambda x: x["ingredient_name"], reverse=(dir == "desc"))
+    elif sort_key == "required":
+        prep_rows.sort(key=lambda x: x["qty_required"], reverse=(dir == "desc"))
+    elif sort_key == "stock":
+        prep_rows.sort(key=lambda x: x["stock_on_hand"], reverse=(dir == "desc"))
+    elif sort_key == "to_buy":
+        prep_rows.sort(key=lambda x: x["to_buy"], reverse=(dir == "desc"))
+
+
+def _sort_by_severity(prep_rows: list, sort_dir: int) -> None:
+    """Sort by severity (Falta first) then ingredient_name.
+    
+    Extracted from _apply_sort to reduce complexity.
+    """
+    severity_order = {"falta": 0, "justo": 1, "suficiente": 2}
+    prep_rows.sort(
+        key=lambda x: (
+            severity_order.get(x["severity"], 9) * sort_dir,
+            x["ingredient_name"],
+        )
+    )
+
+
+def _compute_severity_counts(prep_rows: list) -> dict[str, int]:
+    """Compute counts of each severity level.
+    
+    Extracted from produccion_prep to reduce complexity.
+    """
+    return {
+        "falta": sum(1 for r in prep_rows if r["severity"] == "falta"),
+        "justo": sum(1 for r in prep_rows if r["severity"] == "justo"),
+        "suficiente": sum(1 for r in prep_rows if r["severity"] == "suficiente"),
+    }
+
+
