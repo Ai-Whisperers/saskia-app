@@ -176,76 +176,14 @@ def forecast_restock(
     stock = ing.stock_qty or 0.0
     today = now.date()
 
-    # Walk the two paths forward (on a LOCAL copy — the reported
-    # current_stock_qty must stay the pre-walk value).
-    remaining = stock
-    p50_date: date | None = None
-    p95_date: date | None = None
-    cumulative_p95 = 0.0
-    for i in range(horizon_days):
-        wd = (today + timedelta(days=i)).weekday()
-        lam = rates.rate(wd)
-        se = rates.se(wd)
-        # Expected path
-        if p50_date is None and remaining > 0 and lam > 0:
-            # partial-day remainder is ignored (conservative by <1 day)
-            remaining -= lam
-            if remaining <= 0:
-                p50_date = today + timedelta(days=i)
-        # P95 path (per-day upper bound)
-        day_p95 = lam + Z_95_ONE_SIDED * se
-        cumulative_p95 += day_p95
-        if p95_date is None and stock > 0 and cumulative_p95 >= stock:
-            p95_date = today + timedelta(days=i)
-
+    p50_date, p95_date = _compute_stockout_dates(rates, stock, today, horizon_days)
     days_to_p95 = (p95_date - today).days if p95_date is not None else None
-
-    # Recommended qty: cover `cover_days` ahead on the P95 path, keep the
-    # 2x-min floor from forecast.py (operators already understand it).
-    p95_week_total = sum(rates.rate(wd) + Z_95_ONE_SIDED * rates.se(wd) for wd in range(7))
-    p95_daily_avg = p95_week_total / 7.0
-    target = max(
-        (ing.min_stock_qty or 0) * 2,
-        p95_daily_avg * cover_days,
+    recommended, p95_daily_avg = _compute_recommended_restock(
+        rates, ing, stock, cover_days
     )
-    recommended = (
-        max(0.0, target - stock)
-        if p95_week_total > 0
-        else max(0.0, (ing.min_stock_qty or 0) * 2 - stock)
-    )
-
-    # Cost estimate at the ingredient's catalog price (per-unit, Gs)
-    unit_price = ing.purchase_price_gs
-    cost_estimate = round(recommended * unit_price) if unit_price else None
-
-    # Weekend uplift signal (Sat/Sun vs Mon-Thu)
-    weekday_avg = sum(rates.rate(wd) for wd in range(4)) / 4.0 if rates.exposures[0] else 0.0
-    weekend_avg = (rates.rate(5) + rates.rate(6)) / 2.0
-    uplift = (weekend_avg / weekday_avg - 1.0) * 100.0 if weekday_avg > 0 else 0.0
-
-    # Confidence keys on OBSERVED movement days (days with sale rows in
-    # the window), not raw exposure — a 56-day window with 3 sale days is
-    # sparse data, not high confidence.
-    obs_cutoff = datetime.combine(
-        (now - timedelta(days=window_days)).date(),
-        datetime.min.time(),
-        tzinfo=now.tzinfo,
-    )
-    observed_days = (
-        session.scalar(
-            select(func.count(func.distinct(func.date(StockMovement.recorded_at))))
-            .where(StockMovement.ingredient_id == ingredient_id)
-            .where(StockMovement.movement_type == "sale")
-            .where(StockMovement.recorded_at >= obs_cutoff)
-        )
-        or 0
-    )
-    if observed_days >= 28:
-        confidence = "high"
-    elif observed_days >= 10:
-        confidence = "medium"
-    else:
-        confidence = "low"
+    cost_estimate = _compute_cost_estimate(ing, recommended)
+    uplift = _compute_weekend_uplift(rates)
+    confidence = _compute_confidence(session, ingredient_id, window_days, now)
 
     return RestockForecast(
         ingredient_id=ing.id,
@@ -262,6 +200,112 @@ def forecast_restock(
         weekend_uplift_pct=uplift,
         confidence=confidence,
     )
+
+
+def _compute_stockout_dates(
+    rates, stock: float, today, horizon_days: int
+) -> tuple:
+    """Walk both P50 and P95 paths forward to find stockout dates.
+    
+    Walk the two paths forward (on a LOCAL copy — the reported
+    current_stock_qty must stay the pre-walk value).
+    Extracted from forecast_restock to reduce complexity.
+    """
+    remaining = stock
+    p50_date: date | None = None
+    p95_date: date | None = None
+    cumulative_p95 = 0.0
+    for i in range(horizon_days):
+        wd = (today + timedelta(days=i)).weekday()
+        lam = rates.rate(wd)
+        se = rates.se(wd)
+        # Expected path
+        if p50_date is None and remaining > 0 and lam > 0:
+            remaining -= lam
+            if remaining <= 0:
+                p50_date = today + timedelta(days=i)
+        # P95 path (per-day upper bound)
+        day_p95 = lam + Z_95_ONE_SIDED * se
+        cumulative_p95 += day_p95
+        if p95_date is None and stock > 0 and cumulative_p95 >= stock:
+            p95_date = today + timedelta(days=i)
+    return p50_date, p95_date
+
+
+def _compute_recommended_restock(
+    rates, ing, stock: float, cover_days: int
+) -> tuple:
+    """Compute recommended restock quantity based on P95 path.
+    
+    Recommended qty: cover `cover_days` ahead on the P95 path, keep the
+    2x-min floor from forecast.py (operators already understand it).
+    Extracted from forecast_restock to reduce complexity.
+    """
+    p95_week_total = sum(rates.rate(wd) + Z_95_ONE_SIDED * rates.se(wd) for wd in range(7))
+    p95_daily_avg = p95_week_total / 7.0
+    target = max(
+        (ing.min_stock_qty or 0) * 2,
+        p95_daily_avg * cover_days,
+    )
+    if p95_week_total > 0:
+        recommended = max(0.0, target - stock)
+    else:
+        recommended = max(0.0, (ing.min_stock_qty or 0) * 2 - stock)
+    return recommended, p95_daily_avg
+
+
+def _compute_cost_estimate(ing, recommended: float) -> int | None:
+    """Compute cost estimate at the ingredient's catalog price (per-unit, Gs).
+    
+    Extracted from forecast_restock to reduce complexity.
+    """
+    unit_price = ing.purchase_price_gs
+    if not unit_price:
+        return None
+    return round(recommended * unit_price)
+
+
+def _compute_weekend_uplift(rates) -> float:
+    """Compute weekend uplift signal (Sat/Sun vs Mon-Thu).
+    
+    Extracted from forecast_restock to reduce complexity.
+    """
+    weekday_avg = sum(rates.rate(wd) for wd in range(4)) / 4.0 if rates.exposures[0] else 0.0
+    weekend_avg = (rates.rate(5) + rates.rate(6)) / 2.0
+    if weekday_avg <= 0:
+        return 0.0
+    return (weekend_avg / weekday_avg - 1.0) * 100.0
+
+
+def _compute_confidence(
+    session, ingredient_id: int, window_days: int, now
+) -> str:
+    """Compute confidence based on observed movement days.
+    
+    Confidence keys on OBSERVED movement days (days with sale rows in
+    the window), not raw exposure — a 56-day window with 3 sale days is
+    sparse data, not high confidence.
+    Extracted from forecast_restock to reduce complexity.
+    """
+    obs_cutoff = datetime.combine(
+        (now - timedelta(days=window_days)).date(),
+        datetime.min.time(),
+        tzinfo=now.tzinfo,
+    )
+    observed_days = (
+        session.scalar(
+            select(func.count(func.distinct(func.date(StockMovement.recorded_at))))
+            .where(StockMovement.ingredient_id == ingredient_id)
+            .where(StockMovement.movement_type == "sale")
+            .where(StockMovement.recorded_at >= obs_cutoff)
+        )
+        or 0
+    )
+    if observed_days >= 28:
+        return "high"
+    if observed_days >= 10:
+        return "medium"
+    return "low"
 
 
 def forecast_restock_batch(
