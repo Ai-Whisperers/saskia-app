@@ -35,170 +35,278 @@ def _md_to_html(md_text: str) -> str:
     If we ever need full CommonMark, request adding `markdown` to
     pyproject.toml and replace this function.
     """
-    import re
-
     lines = md_text.split("\n")
-    out: list[str] = []
-    in_list = False
-    in_table = False
-    in_code = False
-    code_buf: list[str] = []
-    table_buf: list[str] = []
-
-    def flush_table() -> str:
-        if not table_buf:
-            return ""
-        rows = [r for r in table_buf if r.strip() and not re.match(r"^\s*\|[\s\-:|]+\|\s*$", r)]
-        if len(rows) < 2:
-            return "<pre>" + "\n".join(table_buf) + "</pre>"
-        # First row = headers.
-        header = [c.strip() for c in rows[0].strip("|").split("|")]
-        body_rows = [[c.strip() for c in r.strip("|").split("|")] for r in rows[1:]]
-        html = ['<table class="data"><thead><tr>']
-        html.extend(f"<th>{_inline(h)}</th>" for h in header)
-        html.append("</tr></thead><tbody>")
-        for row in body_rows:
-            html.append("<tr>")
-            html.extend(f"<td>{_inline(cell)}</td>" for cell in row)
-            html.append("</tr>")
-        html.append("</tbody></table>")
-        return "".join(html)
-
-    def _inline(text: str) -> str:
-        # Escape HTML first so markdown syntax chars are inert.
-        text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        # Bold: **text**
-        text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
-        # Italic: *text* (but not mid-word)
-        text = re.sub(r"(?<![*\w])\*([^*\n]+)\*(?![*\w])", r"<em>\1</em>", text)
-        # Inline code: `text`
-        text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
-        # Links: [text](url) — href sanitized to safe schemes only.
-        text = re.sub(
-            r"\[([^\]]+)\]\(([^)]+)\)",
-            lambda m: f'<a href="{_safe_url(m.group(2))}">{m.group(1)}</a>',
-            text,
-        )
-        return text
-
-    def _safe_url(url: str) -> str:
-        """Allow only http/https/relative paths; block javascript: and data:."""
-        url = url.strip()
-        if re.match(r"https?://", url) or url.startswith("/"):
-            return url
-        return "#"
+    ctx = _MdContext()
 
     i = 0
     while i < len(lines):
-        line = lines[i]
-        stripped = line.strip()
+        i = _process_md_line(lines, i, ctx)
 
-        # Code block (```...```)
-        if stripped.startswith("```"):
-            if not in_code:
-                in_code = True
-                code_buf = []
-                i += 1
-                continue
-            else:
-                # End of code block.
-                out.append(f"<pre><code>{chr(10).join(code_buf)}</code></pre>")
-                in_code = False
-                code_buf = []
-                i += 1
-                continue
-        if in_code:
-            code_buf.append(line)
-            i += 1
-            continue
+    # Flush any remaining state.
+    _flush_table(ctx)
+    if ctx.in_list:
+        ctx.out.append("</ul>" if ctx.list_type == "ul" else "</ol>")
+        ctx.in_list = False
+    if ctx.in_code:
+        ctx.out.append(f"<pre><code>{chr(10).join(ctx.code_buf)}</code></pre>")
+        ctx.in_code = False
 
-        # Tables (lines starting with |)
-        if stripped.startswith("|") and stripped.endswith("|"):
-            table_buf.append(line)
-            in_table = True
-            i += 1
-            continue
-        else:
-            if in_table:
-                out.append(flush_table())
-                table_buf = []
-                in_table = False
+    return "\n".join(ctx.out)
 
-        # Headings
-        m = re.match(r"^(#{1,6})\s+(.*)", line)
-        if m:
-            if in_list:
-                out.append("</ul>")
-                in_list = False
-            level = len(m.group(1))
-            out.append(f"<h{level}>{_inline(m.group(2))}</h{level}>")
-            i += 1
-            continue
 
-        # Horizontal rule
-        if stripped == "---":
-            out.append("<hr>")
-            i += 1
-            continue
+class _MdContext:
+    """Mutable state carried through a markdown-to-html pass.
 
-        # Blockquote
-        if stripped.startswith("> "):
-            if in_list:
-                out.append("</ul>")
-                in_list = False
-            out.append(f"<blockquote>{_inline(stripped[2:])}</blockquote>")
-            i += 1
-            continue
+    Holds the output buffer, current mode (code block, list, table),
+    and any buffered content awaiting a flush.
+    """
+    out: list[str]
+    in_list: bool
+    in_table: bool
+    in_code: bool
+    list_type: str
+    code_buf: list[str]
+    table_buf: list[str]
 
-        # Lists (unordered)
-        if re.match(r"^\s*[-*]\s+", line):
-            content = re.sub(r"^\s*[-*]\s+", "", line)
-            if not in_list:
-                out.append("<ul>")
-                in_list = True
-            out.append(f"  <li>{_inline(content)}</li>")
-            i += 1
-            continue
+    def __init__(self):
+        self.out = []
+        self.in_list = False
+        self.in_table = False
+        self.in_code = False
+        self.list_type = "ul"
+        self.code_buf = []
+        self.table_buf = []
 
-        # Lists (ordered)
-        if re.match(r"^\s*\d+\.\s+", line):
-            content = re.sub(r"^\s*\d+\.\s+", "", line)
-            if not in_list:
-                out.append("<ol>")
-                in_list = True
-            out.append(f"  <li>{_inline(content)}</li>")
-            i += 1
-            continue
 
-        # Empty line = paragraph break
-        if not stripped:
-            if in_list:
-                out.append("</ul>" if out[-1].startswith("  <li") else "</ol>")
-                in_list = False
-            out.append("")
-            i += 1
-            continue
+def _process_md_line(lines: list[str], i: int, ctx) -> int:
+    """Process a single markdown line and return the next index to process.
 
-        # Default: paragraph text (accumulate until blank line).
-        para: list[str] = [_inline(stripped)]
-        i += 1
-        while (
-            i < len(lines)
-            and lines[i].strip()
-            and not re.match(r"^(#{1,6}\s|>|\s*[-*]\s|\s*\d+\.\s)", lines[i])
-        ):
-            para.append(_inline(lines[i].strip()))
-            i += 1
-        out.append(f"<p>{' '.join(para)}</p>")
+    Extracted from _md_to_html to reduce complexity.
+    """
+    import re
 
-    if in_table:
-        out.append(flush_table())
-    if in_list:
-        out.append("</ul>")
-    if in_code:
-        out.append(f"<pre><code>{chr(10).join(code_buf)}</code></pre>")
+    line = lines[i]
+    stripped = line.strip()
 
-    return "\n".join(out)
+    if ctx.in_code:
+        return _process_code_line(line, i, ctx, stripped)
+
+    if stripped.startswith("```"):
+        return _toggle_code_block(i, ctx)
+
+    if stripped.startswith("|") and stripped.endswith("|"):
+        ctx.table_buf.append(line)
+        ctx.in_table = True
+        return i + 1
+
+    if ctx.in_table:
+        _flush_table(ctx)
+        ctx.in_table = False
+
+    return _process_block_element(line, stripped, i, ctx)
+
+
+def _process_code_line(line: str, i: int, ctx, stripped: str) -> int:
+    """Process a line while inside a code block.
+
+    Extracted from _process_md_line to reduce complexity.
+    """
+    if stripped.startswith("```"):
+        ctx.out.append(f"<pre><code>{chr(10).join(ctx.code_buf)}</code></pre>")
+        ctx.in_code = False
+        ctx.code_buf = []
+    else:
+        ctx.code_buf.append(line)
+    return i + 1
+
+
+def _toggle_code_block(i: int, ctx) -> int:
+    """Toggle the code-block state (enter or exit).
+
+    Extracted from _process_md_line to reduce complexity.
+    """
+    if ctx.in_code:
+        ctx.out.append(f"<pre><code>{chr(10).join(ctx.code_buf)}</code></pre>")
+        ctx.in_code = False
+        ctx.code_buf = []
+    else:
+        ctx.in_code = True
+        ctx.code_buf = []
+    return i + 1
+
+
+def _process_block_element(line: str, stripped: str, i: int, ctx) -> int:
+    """Process a block-level element (heading, list, blockquote, paragraph).
+
+    Extracted from _process_md_line to reduce complexity.
+    """
+    import re
+
+    # Headings
+    m = re.match(r"^(#{1,6})\s+(.*)", line)
+    if m:
+        return _emit_heading(m, i, ctx)
+
+    # Horizontal rule
+    if stripped == "---":
+        ctx.out.append("<hr>")
+        return i + 1
+
+    # Blockquote
+    if stripped.startswith("> "):
+        return _emit_blockquote(stripped, i, ctx)
+
+    # Lists (unordered)
+    if re.match(r"^\s*[-*]\s+", line):
+        return _emit_list_item(line, "ul", i, ctx)
+
+    # Lists (ordered)
+    if re.match(r"^\s*\d+\.\s+", line):
+        return _emit_list_item(line, "ol", i, ctx)
+
+    # Empty line = paragraph break
+    if not stripped:
+        return _handle_blank_line(ctx, i)
+
+    # Default paragraph
+    ctx.out.append(f"<p>{_inline(stripped)}</p>")
+    return i + 1
+
+
+def _emit_heading(m, i: int, ctx) -> int:
+    """Emit a heading element, closing any open list first.
+
+    Extracted from _process_block_element to reduce complexity.
+    """
+    if ctx.in_list:
+        ctx.out.append("</ul>" if ctx.list_type == "ul" else "</ol>")
+        ctx.in_list = False
+    level = len(m.group(1))
+    ctx.out.append(f"<h{level}>{_inline(m.group(2))}</h{level}>")
+    return i + 1
+
+
+def _emit_blockquote(stripped: str, i: int, ctx) -> int:
+    """Emit a blockquote element, closing any open list first.
+
+    Extracted from _process_block_element to reduce complexity.
+    """
+    if ctx.in_list:
+        ctx.out.append("</ul>" if ctx.list_type == "ul" else "</ol>")
+        ctx.in_list = False
+    ctx.out.append(f"<blockquote>{_inline(stripped[2:])}</blockquote>")
+    return i + 1
+
+
+def _emit_list_item(line: str, list_type: str, i: int, ctx) -> int:
+    """Emit a list item, opening the list if not already.
+
+    Extracted from _process_block_element to reduce complexity.
+    """
+    import re
+
+    content = re.sub(r"^\s*(?:[-*]|\d+\.)\s+", "", line)
+    if not ctx.in_list or ctx.list_type != list_type:
+        if ctx.in_list:
+            ctx.out.append("</ul>" if ctx.list_type == "ul" else "</ol>")
+        ctx.out.append(f"<{list_type}>")
+        ctx.in_list = True
+        ctx.list_type = list_type
+    ctx.out.append(f"  <li>{_inline(content)}</li>")
+    return i + 1
+
+
+def _handle_blank_line(ctx, i: int) -> int:
+    """Handle a blank line, closing any open list.
+
+    Extracted from _process_block_element to reduce complexity.
+    """
+    if ctx.in_list:
+        ctx.out.append("</ul>" if ctx.list_type == "ul" else "</ol>")
+        ctx.in_list = False
+    return i + 1
+
+
+def _flush_table(ctx) -> str:
+    """Flush the buffered table content as HTML, if any.
+
+    Extracted from _md_to_html to reduce complexity.
+    """
+    if not ctx.table_buf:
+        return ""
+    rows = _filter_table_rows(ctx.table_buf)
+    if len(rows) < 2:
+        return "<pre>" + "\n".join(ctx.table_buf) + "</pre>"
+    html = _render_table_html(rows)
+    ctx.table_buf = []
+    return html
+
+
+def _filter_table_rows(buf: list[str]) -> list[str]:
+    """Filter out empty lines and the markdown separator row (|---|---|).
+
+    Extracted from _flush_table to reduce complexity.
+    """
+    import re
+    return [
+        r for r in buf
+        if r.strip() and not re.match(r"^\s*\|[\s\-:|]+\|\s*$", r)
+    ]
+
+
+def _render_table_html(rows: list[str]) -> str:
+    """Build the HTML string for a markdown table given its rows.
+
+    Extracted from _flush_table to reduce complexity.
+    """
+    header = [c.strip() for c in rows[0].strip("|").split("|")]
+    body_rows = [[c.strip() for c in r.strip("|").split("|")] for r in rows[1:]]
+    parts = ['<table class="data"><thead><tr>']
+    parts.extend(f"<th>{_inline(h)}</th>" for h in header)
+    parts.append("</tr></thead><tbody>")
+    for row in body_rows:
+        parts.append("<tr>")
+        parts.extend(f"<td>{_inline(cell)}</td>" for cell in row)
+        parts.append("</tr>")
+    parts.append("</tbody></table>")
+    return "".join(parts)
+
+
+def _inline(text: str) -> str:
+    """Apply inline markdown transformations: bold, italic, code, links.
+
+    Extracted from _md_to_html to reduce complexity.
+    """
+    import re
+
+    # Escape HTML first so markdown syntax chars are inert.
+    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    # Bold: **text**
+    text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
+    # Italic: *text* (but not mid-word)
+    text = re.sub(r"(?<![*\w])\*([^*\n]+)\*(?![*\w])", r"<em>\1</em>", text)
+    # Inline code: `text`
+    text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
+    # Links: [text](url) — href sanitized to safe schemes only.
+    text = re.sub(
+        r"\[([^\]]+)\]\(([^)]+)\)",
+        lambda m: f'<a href="{_safe_url(m.group(2))}">{m.group(1)}</a>',
+        text,
+    )
+    return text
+
+
+def _safe_url(url: str) -> str:
+    """Allow only http/https/relative paths; block javascript: and data:.
+
+    Extracted from _md_to_html to reduce complexity.
+    """
+    import re
+
+    url = url.strip()
+    if re.match(r"https?://", url) or url.startswith("/"):
+        return url
+    return "#"
 
 
 def _read_section(slug: str) -> tuple[str, str]:
