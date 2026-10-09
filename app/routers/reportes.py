@@ -909,9 +909,9 @@ def _precio_rows(session: Session, days: int) -> list[dict]:
     ingredient_ids = [
         row[0]
         for row in session.execute(
-            select(IngredientPriceEvent.ingredient_id.distinct()).where(
-                IngredientPriceEvent.recorded_at >= cutoff
-            )
+            select(IngredientPriceEvent.ingredient_id)
+            .distinct()
+            .where(IngredientPriceEvent.recorded_at >= cutoff)
         ).all()
     ]
     stats_map = batch_price_stats(session, ingredient_ids, days=days)

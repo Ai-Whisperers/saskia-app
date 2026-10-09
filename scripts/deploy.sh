@@ -30,8 +30,8 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-KEY="${SAZKIA_DEPLOY_KEY:-/opt/data/.ssh/id_ed25519}"
-VPS="${SAZKIA_VPS:-root@38.9.96.179}"
+KEY="${SASKIA_VPS_SSH_KEY:-/opt/data/.ssh/id_ed25519}"
+VPS="${SASKIA_VPS_HOST:-root@38.9.96.179}"
 REMOTE_DIR="/opt/build-apps/sazon-rms"
 DRY_RUN=0
 ENV=""

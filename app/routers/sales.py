@@ -1173,7 +1173,13 @@ async def sale_create_multi(
 
     Refactored 2026-10-09 to reduce cognitive complexity from 168 to <10.
     """
-    body = _parse_sale_multi_body(await request.json())
+    # Empty body is a common client mistake (e.g. fetch() with no payload).
+    # 2026-10-09: this was returning 500 with JSONDecodeError. Treat as 400.
+    try:
+        raw_body = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=SALE_BODY_INVALID) from exc
+    body = _parse_sale_multi_body(raw_body)
 
     items = _expand_menu_items(session, body["items"])
     _validate_items_count(items)

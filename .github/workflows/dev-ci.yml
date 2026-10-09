@@ -1,0 +1,102 @@
+# .github/workflows/dev-ci.yml — Gate before deploy-dev
+#
+# 2026-10-09 problem: deploy-dev.yml was triggering on every push to non-main
+# branches with NO quality gate. Broken code landed on saskia-dev 9/9 times.
+#
+# This workflow runs:
+#   1. ruff check + format (catches the W293 whitespace failures)
+#   2. pytest on a FAST subset (the route smoke files + unit tests; ~2 min)
+#   3. anti-rule grep (the same checks ci.yml runs)
+#
+# On failure: blocks deploy-dev. The push still goes through, but the deploy
+# will show as failed and the dev env keeps running the previous successful
+# deploy (per the sibling-session-coordination doc).
+#
+# This is intentionally NOT a required check — it's a deploy gate, not a
+# merge gate. Branch protection rules (see Ivan's checklist) handle the
+# merge gate.
+
+name: Dev CI (gate before deploy-dev)
+
+on:
+  push:
+    branches-ignore:
+      - main
+  workflow_dispatch:
+
+# Same concurrency pattern as the other workflows.
+concurrency:
+  group: dev-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fast-lint-and-test:
+    name: Fast lint + test (pre-deploy-dev gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install dependencies
+        # dev-base only: no Playwright (134 MB wheel + 656 MB browser
+        # binaries), no testcontainers. The deploy-dev gate should be
+        # fast (under 2 min for the lint + fast-test subset).
+        # 2026-10-09: rm -rf .venv was needed because sibling workflows
+        # leave .venv behind.
+        run: rm -rf .venv && uv sync --only-group dev-base --no-default-groups
+
+      - name: Lint (ruff check + format)
+        # Catches the W293 whitespace failures that previously broke
+        # the CI workflow 10/10 times in 6 minutes.
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Test (fast subset, route smoke only)
+        # Just the 3 fast smoke files. The full suite runs in ci.yml on
+        # PR to main. We don't run the 6103-test suite here because
+        # that's 6+ min — the dev gate should be < 2 min.
+        env:
+          SASKIA_TEST_AUTH_DISABLED: "1"
+          PORT: "18997"
+        run: |
+          uv run pytest \
+            tests/test_route_smoke_phase14_tier1.py \
+            tests/test_route_post_smoke_phase14_tier3.py \
+            tests/test_route_smoke_generated.py \
+            -q --no-cov --no-header -p no:randomly --tb=line -n 2 --dist=loadscope
+
+      - name: CHANGELOG discipline
+        # Same as ci.yml: any push to a feature branch that touches
+        # app/ must also touch app/CHANGELOG.md. Cheap to check, prevents
+        # the [Unreleased] section from drifting.
+        run: |
+          changed=$(git diff --name-only HEAD~1)
+          hits=false
+          for f in $changed; do
+            case "$f" in
+              app/*|scripts/*|tests/*|.github/*) hits=true ;;
+            esac
+          done
+          if [ "$hits" = "true" ]; then
+            if echo "$changed" | grep -q "^app/CHANGELOG.md$"; then
+              echo "OK: app/CHANGELOG.md updated"
+            else
+              echo "ERROR: code changed but app/CHANGELOG.md was not updated."
+              echo "Changed files:"
+              echo "$changed" | sed 's/^/  /'
+              exit 1
+            fi
+          fi

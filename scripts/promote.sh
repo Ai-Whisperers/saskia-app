@@ -23,8 +23,8 @@
 
 set -euo pipefail
 
-KEY="${SAZKIA_DEPLOY_KEY:-/opt/data/.ssh/id_ed25519}"
-VPS="${SAZKIA_VPS:-root@38.9.96.179}"
+KEY="${SASKIA_VPS_SSH_KEY:-/opt/data/.ssh/id_ed25519}"
+VPS="${SASKIA_VPS_HOST:-root@38.9.96.179}"
 
 FROM=""
 TO=""

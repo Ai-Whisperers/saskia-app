@@ -246,3 +246,57 @@ The token in `/etc/sazon/bws-token` is expired or revoked. Get a new one from BW
 | **Removed** `deploy-to-vps.sh` | Old single-env script (replaced) |
 | **Removed** `docker-stack.yml` (root) | Old single-env stack with hardcoded secrets |
 | **Removed** `tests/test_deploy_script.py` | Old dry-run tests (superseded) |
+
+---
+
+## 2026-10-09 Post-deployment lessons (what we learned shipping this)
+
+The 3-env deploy went live 2026-10-09. 4 of 11 tracked GitHub Actions workflows
+went from broken-on-every-push to green-on-every-push. The fixes are recorded
+here so the next deploy doesn't repeat them.
+
+### What broke in the first deploy
+
+1. **Deploy test + Deploy dev SSH key error**: `Load key ~/.ssh/id_ed25519: error in libcrypto`. The GH Secret was a multi-line key. `echo "$SECRET" > file` preserves the newlines, which OpenSSH can't parse. Fix: `printf '%s' "$SECRET" | tr -d '\r' > file`.
+2. **Tooling workflow `.venv: File exists`**: a sibling workflow left `.venv` behind. `uv sync` refuses to overwrite. Fix: `rm -rf .venv && uv sync --all-extras --group dev`.
+3. **Route Smoke tests caught two real bugs** (uncovered only when the deploy test workflow started running the smoke):
+   - `POST /ventas/nueva/multi` returned 500 with `JSONDecodeError` on empty body. Fix: wrap `await request.json()` in try/except → 400.
+   - `GET /reportes/precios` triggered a SQLAlchemy 2.0 deprecation: `column.distinct().where(...)` should be `select(column).distinct().where(...)`. Fix: refactor the query.
+4. **No gate on dev deploys**: broken code landed on dev 9/9 times because `deploy-dev.yml` had no quality gate. Fix: added `.github/workflows/dev-ci.yml` that runs lint + fast test + CHANGELOG discipline before `deploy-dev`.
+
+### What works now (verified live)
+
+- `saskia-vps.paragu-ai.com` (prod) — `saskia-vps_web` 1/1
+- `saskia-test.paragu-ai.com` (test) — `saskia-test_web` 1/1, seeded with La Vaquita data
+- `saskia-dev.paragu-ai.com` (dev) — `saskia-dev_web` 1/1, seeded with La Vaquita data
+- Login: `saskia` / `saskia1234` works on all 3 (prod uses Supabase; test/dev use local-bcrypt)
+- Healthz: 200 on all 3
+
+### Next steps (operator checklist)
+
+- [ ] **Click branch protection on main** (Settings → Branches → main):
+  - Require: Currency Drift Lint, Smoke (deploy-shape), Browser (Playwright), Route Smoke
+  - Require linear history
+  - Include administrators
+- [ ] **Standardize GH secret name** to `SASKIA_VPS_SSH_KEY` (currently aliased from `VPS_KEY`)
+- [ ] **Promote `security-zap.yml` to required** after 2 consecutive clean weekly runs
+- [ ] **Add `release.yml`** to auto-deploy on CalVer tag push (currently manual via `release.sh`)
+- [ ] **Resolve CI budget** (A: public repo, B: GH Pro, C: move CI off GH Actions)
+
+### The full audit
+
+The complete analysis of every workflow + their real failure patterns is in
+the 2026-10-09 conversation history. Key numbers:
+
+| Workflow | Before 2026-10-09 | After |
+|---|---|---|
+| Tooling | 0/10 success | ✅ (`.venv` fix + concurrency block) |
+| Security ZAP | 0/10 success | ⚠️ (TSV needs regenerate; deferred) |
+| Deploy test | 0/10 success | ✅ (SSH key fix) |
+| Deploy dev | 0/9 success | ✅ (SSH key fix) |
+| Route Smoke | 0/10 success | ✅ (real bugs fixed) |
+| CI | 0/10 success | ✅ (lint + format clean) |
+| qa-gates | 0/10 success | ⚠️ (external service; deferred) |
+| Browser | 9/10 success | ✅ (unchanged) |
+| Currency Drift | 10/10 success | ✅ (unchanged) |
+| Smoke | 10/10 success | ✅ (unchanged) |
