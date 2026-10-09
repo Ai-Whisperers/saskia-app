@@ -100,7 +100,9 @@ def main() -> int:
         print("OK: all SHA pins match their version tags.")
         return 0
     verb = "Re-pinned" if fix else "Drift detected"
-    print(f"{verb} in {changed_files if fix else len(set(d.split(':')[0] for d in drift))} file(s), {len(drift)} pin(s):")
+    print(
+        f"{verb} in {changed_files if fix else len(set(d.split(':')[0] for d in drift))} file(s), {len(drift)} pin(s):"
+    )
     for d in drift:
         print(f"  - {d}")
     return 1 if not fix else 0
