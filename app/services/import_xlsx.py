@@ -590,44 +590,113 @@ def _import_patch_productos(session: Session, wb: object, result: ImportResult) 
         return
 
     for idx, row in enumerate(_rows(sheet), start=2):  # header is row 1
-        name_raw = _opt_str(row.get("name"))
-        sku_raw = _opt_str(row.get("sku"))
-        if not name_raw and not sku_raw:
-            warnings.append(f"Productos: fila {idx} sin name ni sku, saltada: {row}")
+        name_raw, sku_raw = _extract_producto_keys(row)
+        if not _validate_producto_row(row, idx, name_raw, sku_raw, warnings):
             continue
-        name_lc = name_raw.strip().lower() if name_raw else ""
-
-        product: Product | None = None
-        if sku_raw and sku_raw in by_sku:
-            product = by_sku[sku_raw]
-        elif name_lc and name_lc in by_name:
-            product = by_name[name_lc]
-        else:
-            warnings.append(
-                f"Productos: {name_raw or sku_raw!r} no encontrado en DB "
-                f"(sin auto-create); editá un producto existente"
-            )
+        product = _find_product_by_keys(name_raw, sku_raw, by_name, by_sku, warnings, idx)
+        if product is None:
             continue
-
-        # Update only fields present in the row.
-        if row.get("sale_price_gs") not in (None, ""):
-            new_price = _money_int_gs(
-                row.get("sale_price_gs"),
-                field_name=f"Productos[{name_raw or sku_raw}].sale_price_gs",
-                warnings=warnings,
-            )
-            if new_price is not None:
-                product.sale_price_gs = new_price
-
-        notes_in = _opt_str(row.get("notes"))
-        if notes_in is not None:
-            product.notes = notes_in
-
-        portion_label = _opt_str(row.get("portion_label"))
-        if portion_label is not None:
-            product.portion_label = portion_label or "1 unidad"
-
+        _update_producto_fields(row, product, name_raw, sku_raw, warnings)
         result.products += 1
+
+
+def _extract_producto_keys(row) -> tuple:
+    """Extract name and sku from a producto row.
+    
+    Extracted from _import_patch_productos to reduce complexity.
+    """
+    name_raw = _opt_str(row.get("name"))
+    sku_raw = _opt_str(row.get("sku"))
+    return name_raw, sku_raw
+
+
+def _validate_producto_row(
+    row, idx: int, name_raw: str | None, sku_raw: str | None, warnings: list
+) -> bool:
+    """Validate a producto row has at least one key.
+    
+    Extracted from _import_patch_productos to reduce complexity.
+    Returns False if the row should be skipped.
+    """
+    if not name_raw and not sku_raw:
+        warnings.append(f"Productos: fila {idx} sin name ni sku, saltada: {row}")
+        return False
+    return True
+
+
+def _find_product_by_keys(
+    name_raw: str | None,
+    sku_raw: str | None,
+    by_name: dict,
+    by_sku: dict,
+    warnings: list,
+    idx: int,
+) -> Product | None:
+    """Find a product by sku or name (case-insensitive).
+    
+    Extracted from _import_patch_productos to reduce complexity.
+    Returns None if not found (and adds a warning).
+    """
+    name_lc = name_raw.strip().lower() if name_raw else ""
+    if sku_raw and sku_raw in by_sku:
+        return by_sku[sku_raw]
+    if name_lc and name_lc in by_name:
+        return by_name[name_lc]
+    warnings.append(
+        f"Productos: {name_raw or sku_raw!r} no encontrado en DB "
+        f"(sin auto-create); editá un producto existente"
+    )
+    return None
+
+
+def _update_producto_fields(
+    row: dict, product: Product, name_raw: str | None, sku_raw: str | None, warnings: list
+) -> None:
+    """Update product fields from a row (only fields present in the row).
+    
+    Extracted from _import_patch_productos to reduce complexity.
+    """
+    _update_sale_price(row, product, name_raw, sku_raw, warnings)
+    _update_optional_text_field(row, product, "notes", "notes")
+    _update_portion_label(row, product)
+
+
+def _update_sale_price(
+    row: dict, product: Product, name_raw: str | None, sku_raw: str | None, warnings: list
+) -> None:
+    """Update the sale price if present in the row.
+    
+    Extracted from _update_producto_fields to reduce complexity.
+    """
+    if row.get("sale_price_gs") in (None, ""):
+        return
+    new_price = _money_int_gs(
+        row.get("sale_price_gs"),
+        field_name=f"Productos[{name_raw or sku_raw}].sale_price_gs",
+        warnings=warnings,
+    )
+    if new_price is not None:
+        product.sale_price_gs = new_price
+
+
+def _update_optional_text_field(row: dict, product: Product, row_key: str, model_attr: str) -> None:
+    """Update an optional text field if present in the row.
+    
+    Extracted from _update_producto_fields to reduce complexity.
+    """
+    val = _opt_str(row.get(row_key))
+    if val is not None:
+        setattr(product, model_attr, val)
+
+
+def _update_portion_label(row: dict, product: Product) -> None:
+    """Update the portion label if present in the row.
+    
+    Extracted from _update_producto_fields to reduce complexity.
+    """
+    portion_label = _opt_str(row.get("portion_label"))
+    if portion_label is not None:
+        product.portion_label = portion_label or "1 unidad"
 
 
 def _import_patch_clientes(session: Session, wb: object, result: ImportResult) -> None:
