@@ -68,99 +68,9 @@ def _build_recipe_breakdown(
     """
     cards: list[dict[str, Any]] = []
     for row in plan_rows:
-        recipe_id = row.get("recipe_id")
-        if not recipe_id:
-            # Products without a recipe can't be broken down; skip.
-            continue
-        recipe = session.get(Recipe, recipe_id)
-        if recipe is None:
-            continue
-        qty = float(row.get("qty_to_produce", 0.0))
-        yield_qty = float(recipe.yield_qty or 1.0)
-        batches = qty / yield_qty if yield_qty > 0 else 1.0
-
-        exploded = explode_recipe(session, recipe_id, scale=batches)
-        ing_lines: list[dict[str, Any]] = []
-        total_shortage = 0.0
-        shortage_count = 0
-        for cl in exploded:
-            if cl.error:
-                ing_lines.append(
-                    {
-                        "ingredient_id": cl.ingredient_id,
-                        "name": cl.name,
-                        "unit": cl.unit,
-                        "qty": cl.qty,
-                        "stock_on_hand": None,
-                        "shortage": 0.0,
-                        "error": cl.error,
-                        "sources": cl.sources,
-                    }
-                )
-                continue
-            if cl.ingredient_id is None:
-                continue
-            ing = session.get(Ingredient, cl.ingredient_id)
-            # P39 (2026-10-07, Ivan): variants-aware stock. Before this fix the page
-            # read ing.stock_qty (the legacy parent column) which is 0 for 27
-            # of 103 ingredients that only have variants. /inventario and
-            # /produccion daily use rollup_ingredient_stock() — /prep-recipes
-            # now does too so the Faltante badges match reality.
-            if ing is None:
-                stock = 0.0
-            else:
-                rollup = rollup_ingredient_stock(session, ing.id)
-                stock = float(rollup.base_qty) if rollup else float(ing.stock_qty or 0.0)
-            shortage = max(0.0, cl.qty - stock)
-            if shortage > 0:
-                shortage_count += 1
-                total_shortage += shortage
-            ing_lines.append(
-                {
-                    "ingredient_id": cl.ingredient_id,
-                    "name": cl.name,
-                    "unit": cl.unit,
-                    "qty": cl.qty,
-                    "stock_on_hand": stock,
-                    "shortage": shortage,
-                    "error": "",
-                    "sources": cl.sources,
-                }
-            )
-
-        # Severity: any line short → "falta". All lines >= 80% → "suficiente". Else "justo".
-        if shortage_count > 0:
-            severity = "falta"
-        else:
-            pct_ok = 0
-            pct_total = 0
-            for ln in ing_lines:
-                if ln["error"]:
-                    continue
-                pct_total += 1
-                if ln["stock_on_hand"] >= ln["qty"]:
-                    pct_ok += 1
-            if pct_total == 0 or pct_ok / pct_total >= 0.8:
-                severity = "suficiente"
-            else:
-                severity = "justo"
-
-        cards.append(
-            {
-                "recipe_id": recipe_id,
-                "recipe_name": recipe.name or f"Receta #{recipe_id}",
-                "product_id": row.get("product_id"),
-                "product_name": row.get("product_name", ""),
-                "batches": batches,
-                "yield_qty": yield_qty,
-                "qty_to_produce": qty,
-                "unit": "lotes",
-                "lines": ing_lines,
-                "shortage_count": shortage_count,
-                "total_shortage": total_shortage,
-                "severity": severity,
-            }
-        )
+        card = _build_single_recipe_card(session, row)
+        if card is not None:
+            cards.append(card)
 
     # Sort by severity (falta first, justo, suficiente), then by total
     # shortage desc.
@@ -175,6 +85,143 @@ def _build_recipe_breakdown(
     return cards
 
 
+def _build_single_recipe_card(
+    session: Session,
+    row: dict,
+) -> dict[str, Any] | None:
+    """Build a single recipe card from a plan row.
+
+    Returns None if the row has no recipe or recipe is missing.
+    Extracted from _build_recipe_breakdown to reduce complexity.
+    """
+    recipe_id = row.get("recipe_id")
+    if not recipe_id:
+        # Products without a recipe can't be broken down; skip.
+        return None
+    recipe = session.get(Recipe, recipe_id)
+    if recipe is None:
+        return None
+
+    qty = float(row.get("qty_to_produce", 0.0))
+    yield_qty = float(recipe.yield_qty or 1.0)
+    batches = qty / yield_qty if yield_qty > 0 else 1.0
+
+    ing_lines, total_shortage, shortage_count = _explode_recipe_lines(session, recipe_id, batches)
+    severity = _compute_recipe_severity(ing_lines, shortage_count)
+
+    return {
+        "recipe_id": recipe_id,
+        "recipe_name": recipe.name or f"Receta #{recipe_id}",
+        "product_id": row.get("product_id"),
+        "product_name": row.get("product_name", ""),
+        "batches": batches,
+        "yield_qty": yield_qty,
+        "qty_to_produce": qty,
+        "unit": "lotes",
+        "lines": ing_lines,
+        "shortage_count": shortage_count,
+        "total_shortage": total_shortage,
+        "severity": severity,
+    }
+
+
+def _explode_recipe_lines(
+    session: Session,
+    recipe_id: int,
+    batches: float,
+) -> tuple[list[dict[str, Any]], float, int]:
+    """Explode recipe and build ingredient lines with shortage tracking.
+
+    Returns (ingredient_lines, total_shortage, shortage_count).
+    Extracted from _build_recipe_breakdown to reduce complexity.
+    """
+    exploded = explode_recipe(session, recipe_id, scale=batches)
+    ing_lines: list[dict[str, Any]] = []
+    total_shortage = 0.0
+    shortage_count = 0
+    for cl in exploded:
+        line = _build_ingredient_line(session, cl)
+        if line is None:
+            continue
+        ing_lines.append(line)
+        if line.get("shortage", 0.0) > 0:
+            shortage_count += 1
+            total_shortage += line["shortage"]
+    return ing_lines, total_shortage, shortage_count
+
+
+def _build_ingredient_line(
+    session: Session,
+    cl: Any,
+) -> dict[str, Any] | None:
+    """Build a single ingredient line from an exploded component.
+
+    Returns None if the component has no ingredient_id and no error.
+    Extracted from _explode_recipe_lines to reduce complexity.
+    """
+    if cl.error:
+        return {
+            "ingredient_id": cl.ingredient_id,
+            "name": cl.name,
+            "unit": cl.unit,
+            "qty": cl.qty,
+            "stock_on_hand": None,
+            "shortage": 0.0,
+            "error": cl.error,
+            "sources": cl.sources,
+        }
+    if cl.ingredient_id is None:
+        return None
+    ing = session.get(Ingredient, cl.ingredient_id)
+    # P39 (2026-10-07, Ivan): variants-aware stock. Before this fix the page
+    # read ing.stock_qty (the legacy parent column) which is 0 for 27
+    # of 103 ingredients that only have variants. /inventario and
+    # /produccion daily use rollup_ingredient_stock() — /prep-recipes
+    # now does too so the Faltante badges match reality.
+    if ing is None:
+        stock = 0.0
+    else:
+        rollup = rollup_ingredient_stock(session, ing.id)
+        stock = float(rollup.base_qty) if rollup else float(ing.stock_qty or 0.0)
+    shortage = max(0.0, cl.qty - stock)
+    return {
+        "ingredient_id": cl.ingredient_id,
+        "name": cl.name,
+        "unit": cl.unit,
+        "qty": cl.qty,
+        "stock_on_hand": stock,
+        "shortage": shortage,
+        "error": "",
+        "sources": cl.sources,
+    }
+
+
+def _compute_recipe_severity(
+    ing_lines: list[dict[str, Any]],
+    shortage_count: int,
+) -> str:
+    """Compute recipe severity based on ingredient lines.
+
+    Rules:
+    - Any line short → "falta"
+    - All lines >= 80% stocked → "suficiente"
+    - Otherwise → "justo"
+
+    Extracted from _build_recipe_breakdown to reduce complexity.
+    """
+    if shortage_count > 0:
+        return "falta"
+    pct_ok = 0
+    pct_total = 0
+    for ln in ing_lines:
+        if ln["error"]:
+            continue
+        pct_total += 1
+        if ln["stock_on_hand"] >= ln["qty"]:
+            pct_ok += 1
+    if pct_total == 0 or pct_ok / pct_total >= 0.8:
+        return "suficiente"
+    return "justo"
 def _build_cumulative_totals(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Sum each ingredient across all recipe cards. Operator uses this
     as a cross-check against /shopping-list.
