@@ -2547,7 +2547,7 @@ INGREDIENTS: list[tuple] = [
 
 
 # 20+ recipes
-# Tuple: (name, yield_qty, yield_unit, prep_minutes, cook_minutes, difficulty 1-5, family, menu_tags, dietary_tags, notes)
+# Tuple: (name, yield_qty, yield_unit, prep_minutes, cook_minutes, difficulty 1-5, family, menu_tags, dietary_tags, notes, image_url)
 RECIPES: list[tuple] = [
     (
         "babka__rec_017",
@@ -2560,6 +2560,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-017). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-babka.jpg",
     ),
     (
         "bizcocho_basico_25_cm_basiscake__rec_011",
@@ -2572,6 +2573,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-011). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-bizcocho_basico_25_cm.jpg",
     ),
     (
         "bizcocho_basico_30_cm_basiscake__rec_012",
@@ -2584,6 +2586,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-012). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-bizcocho_basico_30_cm.jpg",
     ),
     (
         "bombones_de_chocolate__rec_018",
@@ -2596,6 +2599,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-018). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-bombones_de_chocolate.jpg",
     ),
     (
         "torta_de_zanahoria_43x33x1_5_cm__rec_005",
@@ -2608,6 +2612,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-005). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-torta_de_zanahoria.jpg",
     ),
     (
         "cheesecake_30x50__rec_002",
@@ -2620,6 +2625,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-002). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-cheesecake.jpg",
     ),
     (
         "muffin_de_chocolate_20x20_cm__rec_001",
@@ -2632,6 +2638,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-001). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-muffin_de_chocolate.jpg",
     ),
     (
         "frikandel_100_unidades__rec_022",
@@ -2644,6 +2651,7 @@ RECIPES: list[tuple] = [
         "",
         None,
         "Heredado del workbook (id REC-006). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-frikandel.jpg",
     ),
     (
         "galletas_de_especuloos_speculaasjes__rec_010",
@@ -2656,6 +2664,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-010). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-galletas_de_especuloos.jpg",
     ),
     (
         "goulash_crockettes__rec_019",
@@ -2668,6 +2677,7 @@ RECIPES: list[tuple] = [
         "",
         None,
         "Heredado del workbook (id REC-019). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-goulash_crockettes.jpg",
     ),
     (
         "hojaldre_bladerdeeg__rec_008",
@@ -2680,6 +2690,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-008). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-hojaldre.jpg",
     ),
     (
         "ketjap_manis_version_rapida__rec_007",
@@ -2692,6 +2703,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-007). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-ketjap_manis.jpg",
     ),
     (
         "oliebollen_bunuelos_tradicionales_holandeses__rec_016",
@@ -2704,6 +2716,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-016). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-oliebollen.jpg",
     ),
     (
         "ontbijtkoek_700g_de_harina__rec_004",
@@ -2716,6 +2729,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-004). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-ontbijtkoek.jpg",
     ),
     (
         "pastelitos_rosados_roze_koeken__rec_009",
@@ -2728,6 +2742,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-009). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-pastelitos_rosados.jpg",
     ),
     (
         "petisus_de_hojaldre_y_crema_tompoezen__rec_015",
@@ -2740,6 +2755,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-015). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-petisus_de_hojaldre_y_crema.jpg",
     ),
     (
         "proficteroles_de_den_bosch_bossche_bollen__rec_014",
@@ -2752,6 +2768,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-014). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-proficteroles_de_den_bosch.jpg",
     ),
     (
         "stroop_wafel__rec_003",
@@ -2764,6 +2781,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-003). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-stroop_wafel.jpg",
     ),
     (
         "suppli_cacio_e_pepe__rec_021",
@@ -2776,6 +2794,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-021). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-suppli_cacio_e_pepe.jpg",
     ),
     (
         "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013",
@@ -2788,6 +2807,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-013). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-tarta_de_manzana_de_mi_madre.jpg",
     ),
     (
         "bitterballen_vegetariano__rec_020",
@@ -2800,6 +2820,7 @@ RECIPES: list[tuple] = [
         "",
         None,
         "Heredado del workbook (id REC-020). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-bitterballen_vegetariano.jpg",
     ),
     (
         "bitterballen__rec_006",
@@ -2812,6 +2833,7 @@ RECIPES: list[tuple] = [
         "",
         None,
         "Heredado del workbook (id REC-006). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-bitterballen.jpg",
     ),
 ]
 
@@ -3068,7 +3090,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/babka.jpg",
     ),
     (
         "Bizcocho básico 25 cm (Basiscake)",
@@ -3082,7 +3104,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/bizcocho_basico_25_cm.jpg",
     ),
     (
         "Bizcocho básico 30 cm (Basiscake)",
@@ -3096,7 +3118,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/bizcocho_basico_30_cm.jpg",
     ),
     (
         "Bombones de chocolate",
@@ -3110,7 +3132,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/bombones_de_chocolate.jpg",
     ),
     (
         "Torta de zanahoria (43x33x1.5 cm)",
@@ -3124,7 +3146,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/torta_de_zanahoria.jpg",
     ),
     (
         "Cheesecake (30x50)",
@@ -3138,7 +3160,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/cheesecake.jpg",
     ),
     (
         "Muffin de chocolate (20x20 cm)",
@@ -3152,7 +3174,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/muffin_de_chocolate.jpg",
     ),
     (
         "Frikandel (100 unidades)",
@@ -3166,7 +3188,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/frikandel.jpg",
     ),
     (
         "Galletas de especuloos (Speculaasjes)",
@@ -3180,7 +3202,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/galletas_de_especuloos.jpg",
     ),
     (
         "goulash crockettes",
@@ -3194,7 +3216,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/goulash_crockettes.jpg",
     ),
     (
         "Hojaldre (Bladerdeeg)",
@@ -3208,7 +3230,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/hojaldre.jpg",
     ),
     (
         "Ketjap manis (versión rápida)",
@@ -3222,7 +3244,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/ketjap_manis.jpg",
     ),
     (
         "Oliebollen (Buñuelos tradicionales holandeses)",
@@ -3236,7 +3258,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/oliebollen.jpg",
     ),
     (
         "Ontbijtkoek (700g de harina)",
@@ -3250,7 +3272,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/ontbijtkoek.jpg",
     ),
     (
         "Pastelitos rosados (Roze koeken)",
@@ -3264,7 +3286,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/pastelitos_rosados.jpg",
     ),
     (
         "Petisús de hojaldre y crema (Tompoezen)",
@@ -3278,7 +3300,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/petisus_de_hojaldre_y_crema.jpg",
     ),
     (
         "Proficteroles de Den Bosch (Bossche bollen)",
@@ -3292,7 +3314,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/proficteroles_de_den_bosch.jpg",
     ),
     (
         "Stroop wafel",
@@ -3306,7 +3328,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/stroop_wafel.jpg",
     ),
     (
         "suppli cacio e pepe",
@@ -3320,7 +3342,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/suppli_cacio_e_pepe.jpg",
     ),
     (
         "Tarta de manzana de mi madre (Mijn moeders appeltaart)",
@@ -3334,7 +3356,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/tarta_de_manzana_de_mi_madre.jpg",
     ),
     (
         "bitterballen vegetariano",
@@ -3348,7 +3370,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/bitterballen_vegetariano.jpg",
     ),
     (
         "bitterballen",
@@ -3362,7 +3384,7 @@ PRODUCTS: list[tuple] = [
         True,
         None,
         None,
-        None,
+        "/static/products/bitterballen.jpg",
     ),
     (
         "Babka entera",
@@ -3376,7 +3398,7 @@ PRODUCTS: list[tuple] = [
         False,
         None,
         None,
-        None,
+        "/static/products/babka_entera.jpg",
     ),
     (
         "Cheesecake entera",
@@ -3390,7 +3412,7 @@ PRODUCTS: list[tuple] = [
         False,
         None,
         None,
-        None,
+        "/static/products/cheesecake_entera.jpg",
     ),
     (
         "Docena gofres de sirope",
@@ -3404,7 +3426,7 @@ PRODUCTS: list[tuple] = [
         False,
         None,
         None,
-        None,
+        "/static/products/docena_gofres_de_sirope.jpg",
     ),
     (
         "Docena petisús",
@@ -3418,7 +3440,7 @@ PRODUCTS: list[tuple] = [
         False,
         None,
         None,
-        None,
+        "/static/products/docena_petisus.jpg",
     ),
     (
         "Docena buñuelos",
@@ -3432,7 +3454,7 @@ PRODUCTS: list[tuple] = [
         False,
         None,
         None,
-        None,
+        "/static/products/docena_bunuelos.jpg",
     ),
     (
         "Bizcocho 25 cm entero",
@@ -3446,7 +3468,7 @@ PRODUCTS: list[tuple] = [
         False,
         None,
         None,
-        None,
+        "/static/products/bizcocho_25_cm_entero.jpg",
     ),
     (
         "Bizcocho 30 cm entero",
@@ -3460,7 +3482,7 @@ PRODUCTS: list[tuple] = [
         False,
         None,
         None,
-        None,
+        "/static/products/bizcocho_30_cm_entero.jpg",
     ),
     (
         "Caja bombones",
@@ -3474,7 +3496,7 @@ PRODUCTS: list[tuple] = [
         False,
         None,
         None,
-        None,
+        "/static/products/caja_bombones.jpg",
     ),
     (
         "Docena muffins chocolate",
@@ -3488,7 +3510,7 @@ PRODUCTS: list[tuple] = [
         False,
         None,
         None,
-        None,
+        "/static/products/docena_muffins_chocolate.jpg",
     ),
     (
         "Venta libre",
@@ -4445,7 +4467,7 @@ def seed_sazon(
     # === 16. Recipes + RecipeLines ===
     recipe_objs_by_name: dict[str, Recipe] = {}
     for recipe_tuple in RECIPES:
-        name, yield_qty, yield_unit, prep, cook, diff, family, menu_tags, dietary, notes = (
+        name, yield_qty, yield_unit, prep, cook, diff, family, menu_tags, dietary, notes, image_url = (
             recipe_tuple
         )
         existing = session.execute(select(Recipe).where(Recipe.name == name)).scalar_one_or_none()
@@ -4461,6 +4483,7 @@ def seed_sazon(
                 menu_tags=menu_tags,
                 dietary_tags=dietary,
                 notes=notes,
+                image_url=image_url,
                 yield_percentage=0.95,
                 direct_labor_minutes=prep,
             )
