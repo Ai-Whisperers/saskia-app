@@ -30,6 +30,7 @@ machine; in CI the GH_TOKEN env var is used instead via `gh auth`.
 Per docs/operations/dora-2026-Q4.md (the Q4 dashboard). Run weekly on
 Monday 09:00 UTC from .github/workflows/dora-snapshot.yml.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -47,8 +48,7 @@ SNAPSHOTS_DIR = ROOT / "docs" / "operations" / "dora-snapshots"
 def gh_api(endpoint: str) -> dict | list:
     """Run `gh api <endpoint>` and return the parsed JSON. Stdlib-only."""
     result = subprocess.run(
-        ["gh", "api", endpoint],
-        capture_output=True, text=True, check=True, timeout=30
+        ["gh", "api", endpoint], capture_output=True, text=True, check=True, timeout=30
     )
     return json.loads(result.stdout)
 
@@ -70,9 +70,18 @@ def fetch_deployments(since: dt.date, until: dt.date) -> list[dict]:
     """Count CalVer tag pushes in [since, until] as proxy for prod deploys."""
     # List all tags with a date prefix, filter to the range
     r = subprocess.run(
-        ["git", "tag", "--list", "v[0-9]*", "--sort=-creatordate",
-         "--format=%(creatordate:iso-strict) %(refname:short)"],
-        capture_output=True, text=True, check=True, cwd=ROOT,
+        [
+            "git",
+            "tag",
+            "--list",
+            "v[0-9]*",
+            "--sort=-creatordate",
+            "--format=%(creatordate:iso-strict) %(refname:short)",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=ROOT,
     )
     out = []
     for line in r.stdout.splitlines():
@@ -115,9 +124,7 @@ def fetch_lead_times(since: dt.date, until: dt.date) -> list[float]:
             # (since the search index merges PR + issue views). Older
             # responses had it nested under `pull_request.merged_at`;
             # accept both for forward compat.
-            merged_at = pr.get("merged_at") or (
-                (pr.get("pull_request") or {}).get("merged_at")
-            )
+            merged_at = pr.get("merged_at") or ((pr.get("pull_request") or {}).get("merged_at"))
             if not merged_at:
                 continue
             created = dt.datetime.fromisoformat(pr["created_at"].rstrip("Z"))
@@ -151,13 +158,22 @@ def fetch_change_failures(since: dt.date, until: dt.date) -> tuple[int, int]:
     # lower bound on rollback count. We compare against prod tag pushes
     # in the same window.
     r = subprocess.run(
-        ["git", "log", "--oneline",
-         f"--since={since.isoformat()}",
-         f"--until={(until + dt.timedelta(days=1)).isoformat()}",
-         "--grep=^revert:", "--grep=^Revert", "--regexp-ignore-case"],
-        capture_output=True, text=True, check=True, cwd=ROOT,
+        [
+            "git",
+            "log",
+            "--oneline",
+            f"--since={since.isoformat()}",
+            f"--until={(until + dt.timedelta(days=1)).isoformat()}",
+            "--grep=^revert:",
+            "--grep=^Revert",
+            "--regexp-ignore-case",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=ROOT,
     )
-    revert_count = len([l for l in r.stdout.splitlines() if l.strip()])
+    revert_count = sum(1 for line in r.stdout.splitlines() if line.strip())
     deploys = fetch_deployments(since, until)
     return revert_count, len(deploys)
 
@@ -173,11 +189,20 @@ def fetch_mttr(since: dt.date, until: dt.date) -> float:
     # commit and the revert commit. We approximate by using the
     # `Revert "..."` pattern in the revert commit message.
     r = subprocess.run(
-        ["git", "log", "--oneline", "--format=%H %s",
-         f"--since={since.isoformat()}",
-         f"--until={(until + dt.timedelta(days=1)).isoformat()}",
-         "--grep=^Revert", "--grep=^revert:"],
-        capture_output=True, text=True, check=True, cwd=ROOT,
+        [
+            "git",
+            "log",
+            "--oneline",
+            "--format=%H %s",
+            f"--since={since.isoformat()}",
+            f"--until={(until + dt.timedelta(days=1)).isoformat()}",
+            "--grep=^Revert",
+            "--grep=^revert:",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=ROOT,
     )
     deltas_min = []
     for line in r.stdout.splitlines():
@@ -186,28 +211,24 @@ def fetch_mttr(since: dt.date, until: dt.date) -> float:
         if not m:
             continue
         sha = m.group(1)
-        # The original commit's timestamp
-        r2 = subprocess.run(
-            ["git", "show", "-s", "--format=%ct", "HEAD@{1}"],
-            capture_output=True, text=True, cwd=ROOT, check=False
-        )
-        # Simpler: just use the commit's own timestamp
-        r3 = subprocess.run(
-            ["git", "show", "-s", "--format=%ct", sha],
-            capture_output=True, text=True, check=True, cwd=ROOT
-        )
+        # Revert commit timestamp; the parent (sha^) is the bad deploy.
+        # Both can fail silently on missing refs.
         try:
-            revert_ts = int(r3.stdout.strip())
-        except (ValueError, AttributeError):
-            continue
-        # Look at the prior commit on main
-        r4 = subprocess.run(
-            ["git", "log", "-1", "--format=%ct", f"{sha}^"],
-            capture_output=True, text=True, check=True, cwd=ROOT
-        )
-        try:
-            bad_ts = int(r4.stdout.strip())
-        except (ValueError, AttributeError):
+            revert_ts = int(subprocess.run(
+                ["git", "show", "-s", "--format=%ct", sha],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=ROOT,
+            ).stdout.strip())
+            bad_ts = int(subprocess.run(
+                ["git", "log", "-1", "--format=%ct", f"{sha}^"],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=ROOT,
+            ).stdout.strip())
+        except (ValueError, subprocess.CalledProcessError):
             continue
         if revert_ts > bad_ts:
             deltas_min.append((revert_ts - bad_ts) / 60)
@@ -216,8 +237,9 @@ def fetch_mttr(since: dt.date, until: dt.date) -> float:
     return sum(deltas_min) / len(deltas_min)  # mean in minutes
 
 
-def fmt_metric(value: float, unit: str, target: float, target_unit: str = "",
-               lower_is_better: bool = True) -> str:
+def fmt_metric(
+    value: float, unit: str, target: float, target_unit: str = "", lower_is_better: bool = True
+) -> str:
     """Format a metric value with a target and a status emoji."""
     if lower_is_better:
         status = "✅ on target" if value <= target else "⚠️ above target"
@@ -228,16 +250,11 @@ def fmt_metric(value: float, unit: str, target: float, target_unit: str = "",
     return f"{value:.1f}{unit} (target: {target}{target_unit}) {status}"
 
 
-def write_snapshot(iso_week: str, monday: dt.date, sunday: dt.date,
-                   dry_run: bool) -> Path:
+def write_snapshot(iso_week: str, monday: dt.date, sunday: dt.date, dry_run: bool) -> Path:
     deploys = fetch_deployments(monday, sunday)
     leads = fetch_lead_times(monday, sunday)
     cfr_failed, cfr_total = fetch_change_failures(monday, sunday)
-    cfr_display = (
-        f"{cfr_failed} of {cfr_total}"
-        if cfr_total
-        else "no deploys"
-    )
+    cfr_display = f"{cfr_failed} of {cfr_total}" if cfr_total else "no deploys"
     mttr_min = fetch_mttr(monday, sunday)
 
     deploy_count = len(deploys)
@@ -262,24 +279,23 @@ def write_snapshot(iso_week: str, monday: dt.date, sunday: dt.date,
         f"{'✅ on target' if lead_median_h <= 24 else '⚠️ above target'} |",
         f"| Change Failure Rate | {cfr_pct:.0f}% ({cfr_display}) | "
         f"≤15% | {'✅ on target' if cfr_pct <= 15 else '⚠️ above target'} |",
-        f"| MTTR | {mttr_h:.1f}h | ≤1h | "
-        f"{'✅ on target' if 0 < mttr_h <= 1 else '— n/a'} |",
+        f"| MTTR | {mttr_h:.1f}h | ≤1h | {'✅ on target' if 0 < mttr_h <= 1 else '— n/a'} |",
         "",
         "## Prod deploys",
         "",
     ]
     if deploys:
-        for d in deploys:
-            lines.append(f"- **{d['date']}** — `{d['tag']}`")
+        lines.extend(f"- **{d['date']}** — `{d['tag']}`" for d in deploys)
     else:
         lines.append("_(none)_")
     lines.append("")
-    lines.append(f"## Merged PRs in window")
+    lines.append("## Merged PRs in window")
     lines.append("")
     lines.append(f"Count: {len(leads)}")
     if leads:
-        lines.append(f"Hours: min {min(leads):.1f} / median {lead_median_h:.1f} / "
-                     f"max {max(leads):.1f}")
+        lines.append(
+            f"Hours: min {min(leads):.1f} / median {lead_median_h:.1f} / max {max(leads):.1f}"
+        )
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -306,8 +322,7 @@ def main() -> int:
     p.add_argument("--iso-week", help="e.g. 2026-W41 (default: current week)")
     p.add_argument("--since", help="YYYY-MM-DD (overrides --iso-week)")
     p.add_argument("--until", help="YYYY-MM-DD (overrides --iso-week)")
-    p.add_argument("--dry-run", action="store_true",
-                   help="print the snapshot, don't write it")
+    p.add_argument("--dry-run", action="store_true", help="print the snapshot, don't write it")
     args = p.parse_args()
 
     if args.since and args.until:
