@@ -226,8 +226,23 @@ def cheapest_supplier(
     Used by /reorder to surface the cheapest supplier hint next to the
     picker dropdown (Q4 multi-supplier).
     """
+    rows = _fetch_supplier_price_rows(session, ingredient_id, days)
+    if not rows:
+        return None
+    buckets = _bucket_prices_by_supplier(rows)
+    winner = _pick_lowest_avg(buckets)
+    if winner is None:
+        return None
+    return _build_supplier_result(session, winner)
+
+
+def _fetch_supplier_price_rows(session: Session, ingredient_id: int, days: int) -> list:
+    """Fetch the supplier price rows for an ingredient in the window.
+
+    Extracted from cheapest_supplier to reduce complexity.
+    """
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    rows = session.execute(
+    return session.execute(
         select(
             IngredientPriceEvent.supplier_id,
             IngredientPriceEvent.price_gs,
@@ -236,40 +251,58 @@ def cheapest_supplier(
         .where(IngredientPriceEvent.recorded_at >= cutoff)
     ).all()
 
-    if not rows:
-        return None
 
-    # Bucket by supplier_id; compute mean per bucket.
+def _bucket_prices_by_supplier(rows) -> dict[int | None, list[int]]:
+    """Group price events by supplier_id, converting to int.
+
+    Extracted from cheapest_supplier to reduce complexity.
+    """
     buckets: dict[int | None, list[int]] = {}
     for supplier_id, price in rows:
         buckets.setdefault(supplier_id, []).append(int(price))
+    return buckets
 
-    # Pick the bucket with the lowest mean price.
+
+def _pick_lowest_avg(buckets: dict) -> tuple | None:
+    """Return (supplier_id, avg_price, event_count) for the cheapest bucket.
+
+    Tie-breaks on event_count (more events = more confidence).
+    Extracted from cheapest_supplier to reduce complexity.
+    """
     # ``best_set`` distinguishes "no winner yet" from "winner is None
     # (legacy NULL-supplier bucket)" — using ``best_supplier_id is None``
     # as the uninitialized check is ambiguous after the first iteration.
     best_set = False
-    best_supplier_id: int | None = None
-    best_avg: int = 0
-    best_count: int = 0
+    best_sid = None
+    best_avg = 0
+    best_count = 0
     for sid, prices in buckets.items():
         avg = sum(prices) // len(prices)
         if not best_set or avg < best_avg or (avg == best_avg and len(prices) > best_count):
-            best_supplier_id = sid
+            best_sid = sid
             best_avg = avg
             best_count = len(prices)
             best_set = True
+    if not best_set:
+        return None
+    return best_sid, best_avg, best_count
 
+
+def _build_supplier_result(session: Session, winner: tuple) -> dict:
+    """Build the cheapest_supplier result dict from a winner tuple.
+
+    Extracted from cheapest_supplier to reduce complexity.
+    """
+    from app.rms.models import Supplier
+
+    best_sid, best_avg, best_count = winner
     supplier_name: str | None = None
-    if best_supplier_id is not None:
-        from app.rms.models import Supplier
-
-        sup = session.get(Supplier, best_supplier_id)
+    if best_sid is not None:
+        sup = session.get(Supplier, best_sid)
         if sup is not None:
             supplier_name = sup.name
-
     return {
-        "supplier_id": best_supplier_id,
+        "supplier_id": best_sid,
         "supplier_name": supplier_name,
         "avg_price_gs": int(best_avg),
         "event_count": best_count,
