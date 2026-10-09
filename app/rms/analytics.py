@@ -957,15 +957,11 @@ def day_hour_heatmap(session: Session, days: int = 7) -> DayHourHeatmap:
     Every (weekday, hour) cell is materialized — even empty ones — so
     templates can iterate without sparse-key logic.
     """
-    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import text as _text
     from zoneinfo import ZoneInfo
 
-    from sqlalchemy import text as _text
-
     days = max(1, min(int(days), 365))
-    tz = ZoneInfo("America/Asuncion")
-    window_start = datetime.now(timezone.utc) - timedelta(days=days)
-
+    window_start = _compute_window_start(days)
     rows = session.execute(
         _text(
             """
@@ -977,25 +973,14 @@ def day_hour_heatmap(session: Session, days: int = 7) -> DayHourHeatmap:
         {"start": window_start},
     ).all()
 
-    cells = [DayHourCell(weekday=wd, hour=h) for wd in range(7) for h in range(24)]
+    cells = _init_heatmap_cells()
+    tz = ZoneInfo("America/Asuncion")
     total_gs = 0.0
     total_n = 0
     for sold_at, unit_price, qty, discount in rows:
-        if sold_at is None:
+        cell, net = _accumulate_sale(sold_at, unit_price, qty, discount, cells, tz)
+        if cell is None:
             continue
-        if isinstance(sold_at, str):
-            try:
-                sold_at = datetime.fromisoformat(sold_at.replace("Z", "+00:00"))
-            except ValueError:
-                continue
-        # SQLite may hand back naive datetimes (mixed-type guard).
-        if sold_at.tzinfo is None:
-            sold_at = sold_at.replace(tzinfo=timezone.utc)
-        local = sold_at.astimezone(tz)
-        net = (unit_price or 0) * (qty or 0) - (discount or 0)
-        cell = cells[local.weekday() * 24 + local.hour]
-        cell.sales_gs += net
-        cell.n_sales += 1
         total_gs += net
         total_n += 1
 
@@ -1006,3 +991,49 @@ def day_hour_heatmap(session: Session, days: int = 7) -> DayHourHeatmap:
         total_sales_gs=total_gs,
         total_n_sales=total_n,
     )
+
+
+def _compute_window_start(days: int):
+    """Compute the UTC start of the rolling window.
+
+    Extracted from day_hour_heatmap to reduce complexity.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    return datetime.now(timezone.utc) - timedelta(days=days)
+
+
+def _init_heatmap_cells() -> list:
+    """Initialize 7×24 = 168 empty heatmap cells.
+
+    Extracted from day_hour_heatmap to reduce complexity.
+    """
+    return [DayHourCell(weekday=wd, hour=h) for wd in range(7) for h in range(24)]
+
+
+def _accumulate_sale(sold_at, unit_price, qty, discount, cells, tz):
+    """Accumulate one sale into the appropriate heatmap cell.
+
+    Returns (cell, net_revenue). cell is None if the row is unprocessable.
+    Extracted from day_hour_heatmap to reduce complexity.
+    """
+    from datetime import datetime, timezone
+
+    if sold_at is None:
+        return None, 0
+    if isinstance(sold_at, str):
+        try:
+            sold_at = datetime.fromisoformat(sold_at.replace("Z", "+00:00"))
+        except ValueError:
+            return None, 0
+    # SQLite may hand back naive datetimes (mixed-type guard).
+    if sold_at.tzinfo is None:
+        sold_at = sold_at.replace(tzinfo=timezone.utc)
+    local = sold_at.astimezone(tz)
+    net = (unit_price or 0) * (qty or 0) - (discount or 0)
+    cell = cells[local.weekday() * 24 + local.hour]
+    cell.sales_gs += net
+    cell.n_sales += 1
+    return cell, net
+
+
