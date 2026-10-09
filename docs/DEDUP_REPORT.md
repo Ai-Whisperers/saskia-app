@@ -128,10 +128,10 @@ both `/inicio` and `/analisis.html`. Centralize to `kpi_grid` partial.
 
 ### 🥈 MEDIUM ROI (1-2 hrs/week saved)
 
-4. **Production View Navigation Unification** — `proday_nav` partial
+1. **Production View Navigation Unification** — `proday_nav` partial
    across `/produccion` + `/manana` + `/prep` + `/prep-recipes`.
    *Cost:* Medium.
-5. **Stock Status Indicators** — `stock_status_indicator` macro across
+2. **Stock Status Indicators** — `stock_status_indicator` macro across
    17 templates. *Cost:* Low (mostly formatting).
 
 ## Bottom line

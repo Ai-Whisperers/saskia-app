@@ -2,7 +2,7 @@
 
 > **Last updated:** 2026-10-05
 > **Source:** `docs/wishlist/` (append-only bucket for ideas; see
-> [`docs/wishlist/README.md`](../../wishlist/README.md) for the contract).
+> [`docs/wishlist/README.md`](../wishlist/README.md) for the contract).
 
 ## Totals
 

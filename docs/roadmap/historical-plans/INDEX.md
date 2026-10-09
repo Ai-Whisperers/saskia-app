@@ -38,13 +38,13 @@ notice. They are NOT deleted because git history is the source of truth.
 | `/FRONTEND_AUDIT_2026-09-22.md` | [`../audits/FRONTEND_AUDIT_2026-09-22.md`](../audits/FRONTEND_AUDIT_2026-09-22.md) | superseded |
 | `/FULL_AUDIT_300.md` | [`../audits/FULL_AUDIT_300.md`](../audits/FULL_AUDIT_300.md) | superseded |
 | `/COMPLETE_APP_MAP.md` | [`../audits/SASKIA_COMPLETE_APP_MAP_2026-09-22.md`](../audits/SASKIA_COMPLETE_APP_MAP_2026-09-22.md) | app map, not plan |
-| `/DEPLOY_URGENT.md` | [`../audits/DEPLOY_URGENT_2026-09.md`](../audits/DEPLOY_URGENT_2026-09.md) | incident note |
+| `/DEPLOY_URGENT.md` | [`../audits/DEPLOY_URGENT_2026-09.md`](../audits/DEPLOY_URGENT.md) | incident note |
 | `/DIAGNOSIS_VENTAS_500.md` | [`../audits/DIAGNOSIS_VENTAS_500.md`](../audits/DIAGNOSIS_VENTAS_500.md) | incident note |
-| `/PRODUCTION_500_RUNBOOK.md` | [`../operations/PRODUCTION_500_RUNBOOK.md`](../operations/PRODUCTION_500_RUNBOOK.md) | runbook |
+| `/PRODUCTION_500_RUNBOOK.md` | [`../operations/PRODUCTION_500_RUNBOOK.md`](../../operations/PRODUCTION_500_RUNBOOK.md) | runbook |
 | `/SASKIA_TEST_PLAN.md` | [`../audits/SASKIA_TEST_PLAN.md`](../audits/SASKIA_TEST_PLAN.md) | superseded |
 | `/SPRINT_SUMMARY.md` | [`../sessions/herebus-sprint/2026-09-23-herebus-sprint.md`](../sessions/herebus-sprint/2026-09-23-herebus-sprint.md) | shipped |
-| `/LOGGING_ERRORS_AUDIT_2026-09-29.md` | [`../audits/2026-09-29/LOGGING_ERRORS_AUDIT_2026-09-29.md`](../audits/2026-09-29/LOGGING_ERRORS_AUDIT_2026-09-29.md) | superseded |
-| `/LOGGING_STATUS_2026-09-29.md` | [`../audits/2026-09-29/LOGGING_STATUS_2026-09-29.md`](../audits/2026-09-29/LOGGING_STATUS_2026-09-29.md) | superseded |
+| `/LOGGING_ERRORS_AUDIT_2026-09-29.md` | [`../audits/2026-09-29/LOGGING_ERRORS_AUDIT_2026-09-29.md`](../audits/LOGGING_ERRORS_AUDIT_2026-09-29.md) | superseded |
+| `/LOGGING_STATUS_2026-09-29.md` | [`../audits/2026-09-29/LOGGING_STATUS_2026-09-29.md`](../audits/LOGGING_STATUS_2026-09-29.md) | superseded |
 | `/CSS_AUDIT.md`, `/FORMS_INPUT_AUDIT.md`, `/UI_ANALYSIS_REPORT.md`, `/UI_PERF_AUDIT_REPORT.md`, `/PERFORMANCE_ANALYSIS_REPORT.md`, `/OBSERVABILITY_AUDIT.md` | [`../audits/`](../audits/) | superseded |
 | `/SASKIA_BACKEND_AUDIT_2026-09-22.md` | [`../audits/SASKIA_BACKEND_AUDIT_2026-09-22.md`](../audits/SASKIA_BACKEND_AUDIT_2026-09-22.md) | superseded |
 

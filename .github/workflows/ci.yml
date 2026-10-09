@@ -51,7 +51,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7
         with:
           version: "0.5.x"
           # Cache the uv-managed environment and downloaded wheels.
@@ -75,6 +75,15 @@ jobs:
         run: |
           uv run ruff check .
           uv run ruff format --check .
+
+      - name: fastapi-safeguard security gate
+        # Runs the startup security audit (63 routes, ~50 ms) against
+        # create_app() and fails on any finding NOT in the accepted
+        # baseline (docs/security/safeguard-baseline.json). Regenerate
+        # the baseline after triage with:
+        #   uv run --group tooling-tier2 python scripts/generate_safeguard_baseline.py
+        run: |
+          uv run --group tooling-tier2 --no-default-groups python scripts/generate_safeguard_baseline.py --check
 
       - name: Test (pytest)
         # -n 2 (not -n auto): 2 parallel workers to balance disk usage on

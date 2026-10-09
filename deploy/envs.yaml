@@ -116,3 +116,10 @@ dev:
     - FERNET_KEY
     - SESSION_SECRET
     - SASKIA_DEV_USER_PASSWORD
+  # Extra container env vars injected into the stack environment block
+  # (beyond the template's static defaults). Dev activates the opt-in
+  # observability/security tooling so new findings surface where the
+  # fast iteration happens (2026-10-09, WHAT_NEXT #2).
+  extra_env:
+    - "SAFEGUARD_ENABLED=true"
+    - "OTEL_ENABLED=true"

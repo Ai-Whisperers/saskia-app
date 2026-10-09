@@ -21,6 +21,140 @@
 
 **Drive-by**: Makefile duplicate targets (jscpd, deadcode-code, docs-lint,
 docs-lint-strict, tool-matrix each defined twice since #94) deduplicated.
+## 2026-10-09 — Docs PR 4: fix all broken internal links
+
+**Scope**: docs-quality followup PR 4 from the audit. A repo-wide
+code-span-aware scan found 26 broken md links (audit estimated 57 —
+the delta was directory-level links + renamed files caught by the
+deeper scanner config).
+
+**What changed** (13 files):
+- `app/README.md`: 5 root-relative links rewritten as `../`-relative
+- `docs/roadmap/audits/INDEX.md` + `historical-plans/INDEX.md`: 9 links
+  to moved/renamed audit files (LOGGING_* now in audits/ itself,
+  DEPLOY_URGENT renamed, PRODUCTION_500_RUNBOOK in operations/)
+- `docs/user-guide/`: 4 renumber-ref fixes after the PR-3 dedupe
+  (09-produccion, 11-auditoria, 20-kpis, 14-reponer)
+- archive/intake/epics/wishlist/operations: 7 path-depth fixes
+- `docs/roadmap/audits/SASKIA_BACKEND_AUDIT_2026-09-22.md` `](conn)`
+  is inline CODE, not a link — scanner false positive, no change needed
+
+**Test status**: re-scan reports **0 broken** (excluding code spans).
+
+## 2026-10-09 — Fix refresh_action_pins --fix line-splice bug
+
+**Scope**: The first run of `refresh_action_pins.py --fix` (PR #106)
+replaced entire `uses:` lines, losing leading indentation — 13 workflow
+files became invalid YAML and CI ran zero jobs. Caught before merge.
+
+**What changed**:
+- `scripts/refresh_action_pins.py`: `--fix` now splices only the matched
+  `uses:` span (indent + trailing content preserved)
+- Workflows restored from main and re-pinned with the fixed script
+- ruff format pass on the script
+
+**Test status**: YAML validates on all 13 files; scanner re-run clean.
+
+## 2026-10-09 — Apply action SHA-pin drift fix (first scanner run)
+
+**Scope**: scripts/refresh_action_pins.py detected 15 drifted pins on
+its first run; the monthly cron wouldn't fire until Nov 1, so applying
+now.
+
+**What changed**:
+- `astral-sh/setup-uv@v7`: 94527f2e -> 37802adc (13 workflows). The old
+  pin was the ANNOTATED TAG OBJECT sha; the new one is the commit the
+  tag points at — matching what GH runners actually execute
+  (CI logs already show SHA:37802adc).
+- `zaproxy/action-api-scan@v0.10.0`: bd24b11e -> 5158fe4d (same
+  tag-object vs commit distinction).
+
+**Test status**: tag peel verified via git/tags API; zizmor clean.
+
+## 2026-10-09 — Untrack .venv from git
+
+**Scope**: housekeeping that broke the CHANGELOG gate's diff view. A
+`.venv` path was committed in a station-shell merge (matches the
+2026-10-07 note about `.venv` briefly tracked in 23ac7a86) — it made
+`git diff HEAD~1` list `.venv` and confused the discipline gate.
+
+**What changed**: `git rm -r --cached .venv` (local files untouched).
+Also ruff-formatted `deploy/render_stack.py` +
+`scripts/refresh_action_pins.py` (2 files the style pass missed).
+
+## 2026-10-09 — Monthly action SHA-pin refresh automation
+
+**Scope**: WHAT_NEXT #4 — PR #96 pinned 37 actions but nothing re-checked
+them. Tag drift would go unnoticed.
+
+**What changed**:
+- `scripts/refresh_action_pins.py` (new): resolves each pinned version
+  tag live via the GitHub API (peels annotated tags), reports drift,
+  `--fix` rewrites. First run already found real drift:
+  `astral-sh/setup-uv@v7` 94527f2e -> 37802adc across workflows.
+- `.github/workflows/refresh-pins.yml` (new): monthly cron + manual
+  dispatch; on drift, re-pins on a dated branch and opens a PR for
+  review. zizmor-clean (SHA-pinned, persist-credentials: false,
+  minimal permissions).
+
+**Test status**: ruff clean; zizmor rc=0; scanner verified live against
+the repo (drift found + reported correctly).
+
+## 2026-10-09 — Activate safeguard (dev env + CI gate) + OTel on dev
+
+**Scope**: WHAT_NEXT #2 — fastapi-safeguard was wired and baseline-triaged
+(#96) but dormant everywhere. This turns it on where iteration happens
+and makes new findings block CI.
+
+**What changed**:
+- `deploy/envs.yaml`: new optional per-env `extra_env` key; dev row sets
+  `SAFEGUARD_ENABLED=true` + `OTEL_ENABLED=true` (prod/test unchanged).
+- `deploy/docker-stack.template.yml`: `{{EXTRA_ENV}}` placeholder in the
+  environment block.
+- `deploy/render_stack.py`: renders `extra_env` list (empty → blank line,
+  valid YAML).
+- `tests/test_deploy_infra.py`: EXTRA_ENV in the known-placeholder set.
+- `.github/workflows/ci.yml`: new `fastapi-safeguard security gate` step
+  running `generate_safeguard_baseline.py --check` (fails on any finding
+  not in `docs/security/safeguard-baseline.json`).
+
+**Test status**: deploy-infra 28 passed + 1 skipped; safeguard --check
+OK (0 new, 5 accepted); render YAML-valid for all 3 envs.
+
+## 2026-10-09 — CI determinism: track uv.lock
+
+**Scope**: one-line fix with outsized effect: CI was resolving the
+dependency set fresh on every run (no lockfile), so toolchain drift
+(local ruff 0.16.10 vs whatever CI resolved) caused local-passes/
+CI-fails divergence on PR #93. Also every run warned "No file matched
+to uv.lock. The cache will never get invalidated."
+
+**What changed**:
+- `uv.lock` tracked (146 packages, ruff pinned to 0.16.10).
+- CI `cache-dependency-glob: uv.lock` now actually hits.
+
+**Test status**: `uv lock --check` clean; ruff check + format pass.
+
+## 2026-10-09 — Docs quality: pymarkdownlnt auto-fix + duplicate deletions
+
+**Scope**: docs-quality followup PRs 2+3 from the audit
+(`docs/operations/2026-10-09-docs-quality-audit.md`).
+
+**What changed**:
+- `pymarkdownlnt fix` across `docs/` + root files:
+  **11,510 → 20 findings** (99.8% reduction). Remaining 20 are
+  MD030/MD032/MD022 micro-formatting on AGENTS.md (15) and CHANGELOG.md
+  (5) — the auto-fixer refuses to touch those (nested-list ambiguity on
+  the contract files); hand-fixing was attempted and reverted as
+  riskier than the noise. Documented remainder.
+- Deleted 3 byte-identical duplicate pairs (md5-verified):
+  - `docs/user-guide/17-lista-compras.md` (18-lista-compras renamed to 17)
+  - `docs/user-guide/18-suscripciones.md` (19-suscripciones renamed to 18)
+  - `docs/reports/designer-page-report-2026-09-27.md`
+    (`docs/reports/redesign-2026-09-27/REPORT.md` is canonical)
+- `docs/user-guide/README.md` links verified post-rename (0 broken).
+
+**Test status**: user-guide link check clean; ruff clean.
 
 ## 2026-10-09 — CI recovery: ruff mass-fix + CHANGELOG-path bug fix
 
