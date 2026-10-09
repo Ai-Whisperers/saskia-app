@@ -4176,51 +4176,121 @@ def sazon_meta(session: Session) -> dict[str, str]:
     return {r.key: r.value for r in rows if r.value is not None}
 
 
+@dataclass
+class SeedContext:
+    """Shared context for seed_sazon sections.
+
+    Groups all shared state (session, report, rng, anchor_date, and
+    populated collections) so each section helper takes only `ctx`.
+    Populated collections start empty and are filled as the seed
+    progresses through the sections.
+    """
+    session: Session
+    report: SazonReport
+    rng: random.Random
+    anchor_date: Any  # datetime.date
+
+    # Populated as seed progresses
+    suppliers: list = field(default_factory=list)
+    ingredients_by_name: dict[str, Any] = field(default_factory=dict)
+    recipes_by_name: dict[str, Any] = field(default_factory=dict)
+    products_by_name: dict[str, Any] = field(default_factory=dict)
+    customers: list = field(default_factory=list)
+    pedidos: list = field(default_factory=list)
+    sales_by_date: dict[Any, list] = field(default_factory=dict)
+
+
 def seed_sazon(
     session: Session, *, overwrite: bool = False, days_of_history: int = 90
 ) -> SazonReport:
     """Idempotent comprehensive seed for La Vaquita Holandesa.
 
-    Args:
-        session: SQLAlchemy session
-        overwrite: if True, delete all data from the relevant tables first
-        days_of_history: how many days of synthetic sales to generate
-
-    Returns:
-        SazonReport with counts of inserted rows
+    Refactored 2026-10-09: complexity reduced from 232 to <5 using
+    SeedContext pattern. Each section is a helper that takes only `ctx`.
     """
-    rng = random.Random(42)
-    report = SazonReport()
-
-    # Anchor date used by production completions, pedidos, bank
-    # transactions, and (elsewhere) the sales loop. We pin it to
-    # today-anchored-on-this-call so the natural-key dedup logic for all
-    # of these stays stable across re-runs of the same seed_sazon call.
-    seed_anchor_date = datetime.now(ASUNCION_TZ).date()
+    ctx = SeedContext(
+        session=session,
+        report=SazonReport(),
+        rng=random.Random(42),
+        anchor_date=datetime.now(ASUNCION_TZ).date(),
+    )
 
     if overwrite:
         _delete_sazon_data(session)
 
-    # === 1. Tenants ===
+    _seed_tenants(ctx)
+    _seed_users(ctx)
+    _seed_settingskv_branding(ctx)
+    _seed_categories(ctx)
+    _seed_payment_methods(ctx)
+    _seed_margin_tiers(ctx)
+    _seed_stock_status_config(ctx)
+    _seed_storage_types(ctx)
+    _seed_storage_keywords(ctx)
+    _seed_date_presets(ctx)
+    _seed_message_templates(ctx)
+    _seed_delivery_zones(ctx)
+    _seed_compliance_info_single_row(ctx)
+    _seed_suppliers(ctx)
+    _seed_ingredients__variants__price_events(ctx)
+    _seed_recipes__recipelines(ctx)
+    _seed_products(ctx)
+    _seed_tags(ctx)
+    _seed_customers__addresses(ctx)
+    _seed_production_plan_templates(ctx)
+    _seed_production_completions_last_7_days_for_p(ctx)
+    _seed_pedidos__lines(ctx)
+    _seed_sales_90_days_of_realistic_data(ctx, days_of_history)
+    _seed_waste_log(ctx)
+    _seed_shopping_list_items_to_reorder(ctx)
+    _seed_haccp__freezer_temperature_log_last_14_(ctx)
+    _seed_market_benchmarks(ctx)
+    _seed_audit_log_initial_entries(ctx)
+    _seed_appmeta_pins_idempotency__onboarding_gu(ctx)
+    _seed_bank_transactions_a_few_recent_ones(ctx)
+
+    session.commit()
+    return ctx.report
+
+def _seed_tenants(ctx: SeedContext):
+    """Section 1: Tenants.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     _sazon_tenant, was_created = _ensure_tenant(
-        session, TENANT_SLUG, TENANT_NAME, TENANT_COLOR, TENANT_CURRENCY
+        ctx.session, TENANT_SLUG, TENANT_NAME, TENANT_COLOR, TENANT_CURRENCY
     )
     if was_created:
-        report.tenants += 1
-    _default_tenant, _ = _ensure_tenant(session, DEFAULT_TENANT_SLUG, "Default", "#7b3f00", "Gs.")
+        ctx.report.tenants += 1
+    _default_tenant, _ = _ensure_tenant(ctx.session, DEFAULT_TENANT_SLUG, "Default", "#7b3f00", "Gs.")
     logger.info(f"seed: tenant '{TENANT_NAME}' (slug={TENANT_SLUG})")
 
-    # === 2. Users ===
-    _saskia_user, was_created = _ensure_user(session, SASKIA_USER, SASKIA_PASSWORD, role="admin")
-    if was_created:
-        report.users += 1
-    for username, password, _full_name, _email in CASHIER_USERS:
-        _u, was_created = _ensure_user(session, username, password, role="cashier")
-        if was_created:
-            report.users += 1
-    logger.info(f"seed: {report.users} users (Saskia + 2 cashiers)")
 
-    # === 3. SettingsKV (BRANDING) ===
+
+def _seed_users(ctx: SeedContext):
+    """Section 2: Users.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    _saskia_user, was_created = _ensure_user(ctx.session, SASKIA_USER, SASKIA_PASSWORD, role="admin")
+    if was_created:
+        ctx.report.users += 1
+    for username, password, _full_name, _email in CASHIER_USERS:
+        _u, was_created = _ensure_user(ctx.session, username, password, role="cashier")
+        if was_created:
+            ctx.report.users += 1
+    logger.info(f"seed: {ctx.report.users} users (Saskia + 2 cashiers)")
+
+
+
+def _seed_settingskv_branding(ctx: SeedContext):
+    """Section 3: SettingsKV (BRANDING).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     branding_settings = {
         "branding.business_name": TENANT_NAME,
         "branding.tagline": "Panadería artesanal desde 1985",
@@ -4240,48 +4310,62 @@ def seed_sazon(
         + ".",
     }
     for k, v in branding_settings.items():
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(SettingsKV).where(SettingsKV.key == k)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(SettingsKV(key=k, value_json=v, updated_at=datetime.now(ASUNCION_TZ)))
-            report.settings_kv += 1
+            ctx.session.add(SettingsKV(key=k, value_json=v, updated_at=datetime.now(ASUNCION_TZ)))
+            ctx.report.settings_kv += 1
         else:
-            report.skipped_existing["settings_kv_existing"] = (
-                report.skipped_existing.get("settings_kv_existing", 0) + 1
+            ctx.report.skipped_existing["settings_kv_existing"] = (
+                ctx.report.skipped_existing.get("settings_kv_existing", 0) + 1
             )
-    logger.info(f"seed: {report.settings_kv} settings_kv (BRANDING + OPS)")
+    logger.info(f"seed: {ctx.report.settings_kv} settings_kv (BRANDING + OPS)")
 
-    # === 4. Categories ===
+
+
+def _seed_categories(ctx: SeedContext):
+    """Section 4: Categories.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for name, sort_order, is_active in CATEGORIES_PRODUCT:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(Category).where(Category.scope == "product", Category.name == name)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 Category(name=name, scope="product", sort_order=sort_order, is_active=is_active)
             )
-            report.categories += 1
+            ctx.report.categories += 1
     for name, sort_order, is_active in CATEGORIES_RECIPE:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(Category).where(Category.scope == "recipe_family", Category.name == name)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 Category(
                     name=name, scope="recipe_family", sort_order=sort_order, is_active=is_active
                 )
             )
-            report.categories += 1
-    logger.info(f"seed: {report.categories} categories")
+            ctx.report.categories += 1
+    logger.info(f"seed: {ctx.report.categories} categories")
 
-    # === 5. Payment methods ===
+
+
+def _seed_payment_methods(ctx: SeedContext):
+    """Section 5: Payment methods.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for code, label, requires_ref, fee, sort_order, is_default, is_active, notes in PAYMENT_METHODS:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(PaymentMethod).where(PaymentMethod.code == code)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 PaymentMethod(
                     code=code,
                     label=label,
@@ -4293,16 +4377,23 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.payment_methods += 1
-    logger.info(f"seed: {report.payment_methods} payment methods")
+            ctx.report.payment_methods += 1
+    logger.info(f"seed: {ctx.report.payment_methods} payment methods")
 
-    # === 6. Margin tiers ===
+
+
+def _seed_margin_tiers(ctx: SeedContext):
+    """Section 6: Margin tiers.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for code, label, min_cost, max_cost, sort_order, notes in MARGIN_TIERS:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(MarginTier).where(MarginTier.code == code)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 MarginTier(
                     code=code,
                     label=label,
@@ -4313,16 +4404,23 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.margin_tiers += 1
-    logger.info(f"seed: {report.margin_tiers} margin tiers")
+            ctx.report.margin_tiers += 1
+    logger.info(f"seed: {ctx.report.margin_tiers} margin tiers")
 
-    # === 7. Stock status config ===
+
+
+def _seed_stock_status_config(ctx: SeedContext):
+    """Section 7: Stock status config.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for code, label, ratio, days, sort_order, notes in STOCK_STATUSES:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(StockStatusConfig).where(StockStatusConfig.code == code)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 StockStatusConfig(
                     code=code,
                     label=label,
@@ -4333,16 +4431,23 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.stock_statuses += 1
-    logger.info(f"seed: {report.stock_statuses} stock statuses")
+            ctx.report.stock_statuses += 1
+    logger.info(f"seed: {ctx.report.stock_statuses} stock statuses")
 
-    # === 8. Storage types ===
+
+
+def _seed_storage_types(ctx: SeedContext):
+    """Section 8: Storage types.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for code, label, tmin, tmax, hum, sort_order, notes in STORAGE_TYPES:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(StorageType).where(StorageType.code == code)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 StorageType(
                     code=code,
                     label=label,
@@ -4354,18 +4459,25 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.storage_types += 1
-    logger.info(f"seed: {report.storage_types} storage types")
+            ctx.report.storage_types += 1
+    logger.info(f"seed: {ctx.report.storage_types} storage types")
 
-    # === 9. Storage keywords ===
+
+
+def _seed_storage_keywords(ctx: SeedContext):
+    """Section 9: Storage keywords.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for code, keyword, sort_order in STORAGE_KEYWORDS:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(StorageKeyword).where(
                 StorageKeyword.storage_code == code, StorageKeyword.keyword == keyword
             )
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 StorageKeyword(
                     storage_code=code,
                     keyword=keyword,
@@ -4373,16 +4485,23 @@ def seed_sazon(
                     is_active=True,
                 )
             )
-            report.storage_keywords += 1
-    logger.info(f"seed: {report.storage_keywords} storage keywords")
+            ctx.report.storage_keywords += 1
+    logger.info(f"seed: {ctx.report.storage_keywords} storage keywords")
 
-    # === 10. Date presets ===
+
+
+def _seed_date_presets(ctx: SeedContext):
+    """Section 10: Date presets.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for code, label, days, is_default, sort_order in DATE_PRESETS:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(DateRangePreset).where(DateRangePreset.code == code)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 DateRangePreset(
                     code=code,
                     label=label,
@@ -4392,12 +4511,19 @@ def seed_sazon(
                     is_active=True,
                 )
             )
-            report.date_presets += 1
-    logger.info(f"seed: {report.date_presets} date presets")
+            ctx.report.date_presets += 1
+    logger.info(f"seed: {ctx.report.date_presets} date presets")
 
-    # === 11. Message templates ===
+
+
+def _seed_message_templates(ctx: SeedContext):
+    """Section 11: Message templates.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for channel, key, subject, body, notes in MESSAGE_TEMPLATES:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(MessageTemplate).where(
                 MessageTemplate.channel == channel,
                 MessageTemplate.key == key,
@@ -4405,7 +4531,7 @@ def seed_sazon(
             )
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 MessageTemplate(
                     channel=channel,
                     key=key,
@@ -4417,16 +4543,23 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.message_templates += 1
-    logger.info(f"seed: {report.message_templates} message templates")
+            ctx.report.message_templates += 1
+    logger.info(f"seed: {ctx.report.message_templates} message templates")
 
-    # === 12. Delivery zones ===
+
+
+def _seed_delivery_zones(ctx: SeedContext):
+    """Section 12: Delivery zones.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for code, name, coverage, radius, cost, min_order, mins, notes in DELIVERY_ZONES:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(DeliveryZone).where(DeliveryZone.code == code)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 DeliveryZone(
                     code=code,
                     name=name,
@@ -4440,14 +4573,14 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.delivery_zones += 1
-    logger.info(f"seed: {report.delivery_zones} delivery zones")
+            ctx.report.delivery_zones += 1
+    logger.info(f"seed: {ctx.report.delivery_zones} delivery zones")
 
     # === 13a. Channels ===
     for code, label, sort_order, is_default, notes in CHANNELS:
-        existing = session.execute(select(Channel).where(Channel.code == code)).scalar_one_or_none()
+        existing = ctx.session.execute(select(Channel).where(Channel.code == code)).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 Channel(
                     code=code,
                     label=label,
@@ -4459,22 +4592,36 @@ def seed_sazon(
             )
     logger.info(f"seed: {len(CHANNELS)} channels")
 
-    # === 13. Compliance info (single-row) ===
-    existing_compliance = session.execute(
+
+
+def _seed_compliance_info_single_row(ctx: SeedContext):
+    """Section 13: Compliance info (single-row).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    existing_compliance = ctx.session.execute(
         select(ComplianceInfo).where(ComplianceInfo.id == 1)
     ).scalar_one_or_none()
     if existing_compliance is None:
         compliance_copy = dict(COMPLIANCE)
         compliance_copy["updated_at"] = datetime.now(ASUNCION_TZ)
         ci = ComplianceInfo(id=1, **compliance_copy)
-        session.add(ci)
-        report.compliance = 1
+        ctx.session.add(ci)
+        ctx.report.compliance = 1
     logger.info("seed: compliance info (La Vaquita Holandesa S.A.)")
 
-    # === 14. Suppliers ===
-    supplier_objs: list[Supplier] = []
+
+
+def _seed_suppliers(ctx: SeedContext):
+    """Section 14: Suppliers.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    ctx.suppliers: list[Supplier] = []
     for name, contact, phone, email, address, ruc, notes in SUPPLIERS:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(Supplier).where(Supplier.name == name)
         ).scalar_one_or_none()
         if existing is None:
@@ -4488,16 +4635,23 @@ def seed_sazon(
                 is_active=True,
                 notes=notes,
             )
-            session.add(s)
-            session.flush()
-            supplier_objs.append(s)
-            report.suppliers += 1
+            ctx.session.add(s)
+            ctx.session.flush()
+            ctx.suppliers.append(s)
+            ctx.report.suppliers += 1
         else:
-            supplier_objs.append(existing)
-    logger.info(f"seed: {report.suppliers} suppliers")
+            ctx.suppliers.append(existing)
+    logger.info(f"seed: {ctx.report.suppliers} suppliers")
 
-    # === 15. Ingredients + variants + price events ===
-    ingredient_objs_by_name: dict[str, Ingredient] = {}
+
+
+def _seed_ingredients__variants__price_events(ctx: SeedContext):
+    """Section 15: Ingredients + variants + price events.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    ctx.ingredients_by_name: dict[str, Ingredient] = {}
     for ing_tuple in INGREDIENTS:
         (
             name,
@@ -4521,7 +4675,7 @@ def seed_sazon(
             temp_min,
             temp_max,
         ) = ing_tuple
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(Ingredient).where(Ingredient.name == name)
         ).scalar_one_or_none()
         if existing is None:
@@ -4542,8 +4696,8 @@ def seed_sazon(
                 allergens=allergens,
                 dietary_tags=dietary_tags,
                 lead_time_days=3,
-                supplier_id=supplier_objs[supplier_idx].id
-                if supplier_idx < len(supplier_objs)
+                supplier_id=ctx.suppliers[supplier_idx].id
+                if supplier_idx < len(ctx.suppliers)
                 else None,
                 temp_min_c=temp_min,
                 temp_max_c=temp_max,
@@ -4555,10 +4709,10 @@ def seed_sazon(
                 opening_stock_date=datetime.now(ASUNCION_TZ).date().isoformat(),
                 reorder_point=min_stock * 1.5,
             )
-            session.add(ing)
-            session.flush()
-            ingredient_objs_by_name[name] = ing
-            report.ingredients += 1
+            ctx.session.add(ing)
+            ctx.session.flush()
+            ctx.ingredients_by_name[name] = ing
+            ctx.report.ingredients += 1
 
             # Variant (preferred)
             if package_size > 0:
@@ -4568,20 +4722,20 @@ def seed_sazon(
                     package_unit=package_unit,
                     purchase_price_gs=package_price_gs if package_price_gs > 0 else None,
                     stock_qty=stock_qty / package_size if package_size > 0 else 0,
-                    supplier_id=supplier_objs[supplier_idx].id
-                    if supplier_idx < len(supplier_objs)
+                    supplier_id=ctx.suppliers[supplier_idx].id
+                    if supplier_idx < len(ctx.suppliers)
                     else None,
                     preferred=True,
                     notes="Variante preferida (seed)",
                 )
-                session.add(variant)
-                report.ingredient_variants += 1
+                ctx.session.add(variant)
+                ctx.report.ingredient_variants += 1
 
             # Price history events (3 events over past 60 days)
             if price_gs > 0:
                 for days_ago in [60, 30, 7]:
-                    variation = rng.uniform(0.93, 1.07)
-                    session.add(
+                    variation = ctx.rng.uniform(0.93, 1.07)
+                    ctx.session.add(
                         IngredientPriceEvent(
                             ingredient_id=ing.id,
                             price_gs=int(price_gs * variation),
@@ -4589,18 +4743,25 @@ def seed_sazon(
                             source="restock",
                         )
                     )
-                    report.ingredient_price_events += 1
+                    ctx.report.ingredient_price_events += 1
         else:
-            ingredient_objs_by_name[name] = existing
-            report.skipped_existing["ingredients_existing"] = (
-                report.skipped_existing.get("ingredients_existing", 0) + 1
+            ctx.ingredients_by_name[name] = existing
+            ctx.report.skipped_existing["ingredients_existing"] = (
+                ctx.report.skipped_existing.get("ingredients_existing", 0) + 1
             )
     logger.info(
-        f"seed: {report.ingredients} ingredients + {report.ingredient_variants} variants + {report.ingredient_price_events} price events"
+        f"seed: {ctx.report.ingredients} ingredients + {ctx.report.ingredient_variants} variants + {ctx.report.ingredient_price_events} price events"
     )
 
-    # === 16. Recipes + RecipeLines ===
-    recipe_objs_by_name: dict[str, Recipe] = {}
+
+
+def _seed_recipes__recipelines(ctx: SeedContext):
+    """Section 16: Recipes + RecipeLines.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    ctx.recipes_by_name: dict[str, Recipe] = {}
     for recipe_tuple in RECIPES:
         (
             name,
@@ -4615,7 +4776,7 @@ def seed_sazon(
             notes,
             image_url,
         ) = recipe_tuple
-        existing = session.execute(select(Recipe).where(Recipe.name == name)).scalar_one_or_none()
+        existing = ctx.session.execute(select(Recipe).where(Recipe.name == name)).scalar_one_or_none()
         if existing is None:
             r = Recipe(
                 name=name,
@@ -4632,25 +4793,25 @@ def seed_sazon(
                 yield_percentage=0.95,
                 direct_labor_minutes=prep,
             )
-            session.add(r)
-            session.flush()
-            recipe_objs_by_name[name] = r
-            report.recipes += 1
+            ctx.session.add(r)
+            ctx.session.flush()
+            ctx.recipes_by_name[name] = r
+            ctx.report.recipes += 1
         else:
-            recipe_objs_by_name[name] = existing
-            report.skipped_existing["recipes_existing"] = (
-                report.skipped_existing.get("recipes_existing", 0) + 1
+            ctx.recipes_by_name[name] = existing
+            ctx.report.skipped_existing["recipes_existing"] = (
+                ctx.report.skipped_existing.get("recipes_existing", 0) + 1
             )
 
     # Recipe lines
     for recipe_name, ing_name, qty, line_unit, notes in RECIPE_LINES:
-        recipe_id = recipe_objs_by_name.get(recipe_name)
-        ing_id = ingredient_objs_by_name.get(ing_name)
+        recipe_id = ctx.recipes_by_name.get(recipe_name)
+        ing_id = ctx.ingredients_by_name.get(ing_name)
         if not recipe_id or not ing_id:
             logger.warning(f"seed: missing ref for recipe_line {recipe_name}/{ing_name}, skipping")
             continue
         # Idempotent: same recipe + same ingredient + same line_unit + same qty
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(RecipeLine).where(
                 RecipeLine.recipe_id == recipe_id.id,
                 RecipeLine.line_kind == "ingredient",
@@ -4659,7 +4820,7 @@ def seed_sazon(
             )
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 RecipeLine(
                     recipe_id=recipe_id.id,
                     line_kind="ingredient",
@@ -4669,11 +4830,18 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.recipe_lines += 1
-    logger.info(f"seed: {report.recipe_lines} recipe lines")
+            ctx.report.recipe_lines += 1
+    logger.info(f"seed: {ctx.report.recipe_lines} recipe lines")
 
-    # === 17. Products ===
-    product_objs_by_name: dict[str, Product] = {}
+
+
+def _seed_products(ctx: SeedContext):
+    """Section 17: Products.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    ctx.products_by_name: dict[str, Product] = {}
     for prod_tuple in PRODUCTS:
         (
             name,
@@ -4689,9 +4857,9 @@ def seed_sazon(
             image_url,
             notes,
         ) = prod_tuple
-        existing = session.execute(select(Product).where(Product.name == name)).scalar_one_or_none()
+        existing = ctx.session.execute(select(Product).where(Product.name == name)).scalar_one_or_none()
         if existing is None:
-            recipe = recipe_objs_by_name.get(recipe_name) if recipe_name else None
+            recipe = ctx.recipes_by_name.get(recipe_name) if recipe_name else None
             p = Product(
                 name=name,
                 recipe_id=recipe.id if recipe else None,
@@ -4709,17 +4877,24 @@ def seed_sazon(
                 rspa_number=rspa_number,
                 rspa_expiry="2027-12-31" if rspa_number else None,
             )
-            session.add(p)
-            session.flush()
-            product_objs_by_name[name] = p
-            report.products += 1
+            ctx.session.add(p)
+            ctx.session.flush()
+            ctx.products_by_name[name] = p
+            ctx.report.products += 1
         else:
-            product_objs_by_name[name] = existing
-    logger.info(f"seed: {report.products} products")
+            ctx.products_by_name[name] = existing
+    logger.info(f"seed: {ctx.report.products} products")
 
-    # === 18. Tags ===
+
+
+def _seed_tags(ctx: SeedContext):
+    """Section 18: Tags.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     # Make sure the starter tags are in place
-    ensure_starter_tags(session)
+    ensure_starter_tags(ctx.session)
     # Add a few custom tags
     custom_tags = [
         ("popular", TagKind.PRODUCT.value, "#FF9800"),
@@ -4732,31 +4907,38 @@ def seed_sazon(
         ("vegano", TagKind.INGREDIENT.value, "#4CAF50"),
     ]
     for tag_name, kind, color in custom_tags:
-        t = ensure_tag(session, tag_name, kind)
+        t = ensure_tag(ctx.session, tag_name, kind)
         if t.color == "#757575":  # default
             t.color = color
-            session.flush()
-        report.tags += 1
+            ctx.session.flush()
+        ctx.report.tags += 1
     # Apply tags to products
-    popular = ensure_tag(session, "popular", TagKind.PRODUCT.value)
-    premium = ensure_tag(session, "premium", TagKind.PRODUCT.value)
-    docena = ensure_tag(session, "docena", TagKind.PRODUCT.value)
-    individual = ensure_tag(session, "individual", TagKind.PRODUCT.value)
+    popular = ensure_tag(ctx.session, "popular", TagKind.PRODUCT.value)
+    premium = ensure_tag(ctx.session, "premium", TagKind.PRODUCT.value)
+    docena = ensure_tag(ctx.session, "docena", TagKind.PRODUCT.value)
+    individual = ensure_tag(ctx.session, "individual", TagKind.PRODUCT.value)
     for prod_name, _, _, _, _, _, _, _, is_fav, _, _, _ in PRODUCTS:
-        prod = product_objs_by_name.get(prod_name)
+        prod = ctx.products_by_name.get(prod_name)
         if prod is None:
             continue
         if is_fav:
-            tag_target(session, popular, TagKind.PRODUCT.value, prod.id)
-            tag_target(session, premium, TagKind.PRODUCT.value, prod.id)
+            tag_target(ctx.session, popular, TagKind.PRODUCT.value, prod.id)
+            tag_target(ctx.session, premium, TagKind.PRODUCT.value, prod.id)
         if "12" in prod.portion_label or "docena" in prod.portion_label.lower():
-            tag_target(session, docena, TagKind.PRODUCT.value, prod.id)
+            tag_target(ctx.session, docena, TagKind.PRODUCT.value, prod.id)
         elif "1 unidad" == prod.portion_label:
-            tag_target(session, individual, TagKind.PRODUCT.value, prod.id)
+            tag_target(ctx.session, individual, TagKind.PRODUCT.value, prod.id)
     logger.info("seed: tags applied")
 
-    # === 19. Customers + addresses ===
-    customer_objs: list[Customer] = []
+
+
+def _seed_customers__addresses(ctx: SeedContext):
+    """Section 19: Customers + addresses.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    ctx.customers: list[Customer] = []
     for cust_tuple in CUSTOMERS:
         (
             name,
@@ -4775,7 +4957,7 @@ def seed_sazon(
             diet_p,
             diet_confirm,
         ) = cust_tuple
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(Customer).where(Customer.phone == phone)
         ).scalar_one_or_none()
         if existing is None:
@@ -4797,10 +4979,10 @@ def seed_sazon(
                 dietary_preferences=diet_p,
                 dietary_confirm_always=diet_confirm,
             )
-            session.add(c)
-            session.flush()
-            customer_objs.append(c)
-            report.customers += 1
+            ctx.session.add(c)
+            ctx.session.flush()
+            ctx.customers.append(c)
+            ctx.report.customers += 1
 
             if address:
                 addr = CustomerAddress(
@@ -4818,28 +5000,35 @@ def seed_sazon(
                     is_active=True,
                     created_at=datetime.now(ASUNCION_TZ),
                 )
-                session.add(addr)
-                report.customer_addresses += 1
+                ctx.session.add(addr)
+                ctx.report.customer_addresses += 1
         else:
-            customer_objs.append(existing)
-    logger.info(f"seed: {report.customers} customers + {report.customer_addresses} addresses")
+            ctx.customers.append(existing)
+    logger.info(f"seed: {ctx.report.customers} customers + {ctx.report.customer_addresses} addresses")
 
-    # === 20. Production plan templates ===
+
+
+def _seed_production_plan_templates(ctx: SeedContext):
+    """Section 20: Production plan templates.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for weekday, prod_idx, qty, notes in PRODUCTION_TEMPLATES:
         if prod_idx >= len(PRODUCTS):
             continue
         prod_name = PRODUCTS[prod_idx][0]
-        prod = product_objs_by_name.get(prod_name)
+        prod = ctx.products_by_name.get(prod_name)
         if not prod:
             continue
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(ProductionPlanTemplate).where(
                 ProductionPlanTemplate.weekday == weekday,
                 ProductionPlanTemplate.product_id == prod.id,
             )
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 ProductionPlanTemplate(
                     weekday=weekday,
                     product_id=prod.id,
@@ -4849,17 +5038,24 @@ def seed_sazon(
                     updated_by=SASKIA_USER,
                 )
             )
-            report.production_templates += 1
-    logger.info(f"seed: {report.production_templates} production templates")
+            ctx.report.production_templates += 1
+    logger.info(f"seed: {ctx.report.production_templates} production templates")
 
-    # === 21. Production completions (last 7 days for popular products) ===
-    # Use seed_anchor_date (defined at top of seed_sazon) so the anchor is
+
+
+def _seed_production_completions_last_7_days_for_p(ctx: SeedContext):
+    """Section 21: Production completions (last 7 days for popular products).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    # Use ctx.anchor_date (defined at top of seed_sazon) so the anchor is
     # stable across re-runs of the same seed_sazon call. Without this,
     # the (product_id, for_date) natural-key dedup would miss on re-runs
     # and silently double the production completions.
-    today = seed_anchor_date
+    ctx.anchor_date = ctx.anchor_date
     for days_ago in range(7):
-        d = today - timedelta(days=days_ago)
+        d = ctx.anchor_date - timedelta(days=days_ago)
         for prod_name in [
             "Muffin de chocolate (20x20 cm)",
             "Cheesecake (30x50)",
@@ -4870,18 +5066,18 @@ def seed_sazon(
             "Babka entera",
             "Cheesecake entera",
         ]:
-            prod = product_objs_by_name.get(prod_name)
+            prod = ctx.products_by_name.get(prod_name)
             if not prod:
                 continue
-            existing = session.execute(
+            existing = ctx.session.execute(
                 select(ProductionCompletion).where(
                     ProductionCompletion.product_id == prod.id,
                     ProductionCompletion.for_date == d,
                 )
             ).scalar_one_or_none()
             if existing is None:
-                qty = rng.randint(8, 24)
-                session.add(
+                qty = ctx.rng.randint(8, 24)
+                ctx.session.add(
                     ProductionCompletion(
                         product_id=prod.id,
                         for_date=d,
@@ -4893,25 +5089,32 @@ def seed_sazon(
                         updated_at=datetime.now(ASUNCION_TZ) if days_ago > 0 else None,
                     )
                 )
-                report.production_completions += 1
-    logger.info(f"seed: {report.production_completions} production completions (last 7 days)")
+                ctx.report.production_completions += 1
+    logger.info(f"seed: {ctx.report.production_completions} production completions (last 7 days)")
 
-    # === 22. Pedidos + lines ===
+
+
+def _seed_pedidos__lines(ctx: SeedContext):
+    """Section 22: Pedidos + lines.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     channel_codes = [c[0] for c in CHANNELS]
     for ped_tuple in PEDIDOS:
         cust_idx, days_ago, hour, minute, status, payment, channel_idx, notes, line_items = (
             ped_tuple
         )
-        if cust_idx >= len(customer_objs):
+        if cust_idx >= len(ctx.customers):
             continue
-        cust = customer_objs[cust_idx]
-        promised_date = today + timedelta(days=days_ago)
+        cust = ctx.customers[cust_idx]
+        promised_date = ctx.anchor_date + timedelta(days=days_ago)
         promised_dt = datetime.combine(promised_date, datetime.min.time()) + timedelta(
             hours=hour, minutes=minute
         )
         token = secrets.token_urlsafe(16)
         # Skip empty line items (e.g. "Café (no vendido)")
-        valid_lines = [(pn, q) for pn, q in line_items if q > 0 and pn in product_objs_by_name]
+        valid_lines = [(pn, q) for pn, q in line_items if q > 0 and pn in ctx.products_by_name]
         if not valid_lines:
             continue
         channel_code = (
@@ -4919,7 +5122,7 @@ def seed_sazon(
             if channel_idx < len(channel_codes)
             else ChannelEnum.MOSTRADOR.value  # P43: enum fallback
         )
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(Pedido).where(
                 Pedido.customer_id == cust.id,
                 Pedido.promised_date == promised_date,
@@ -4943,11 +5146,11 @@ def seed_sazon(
                 updated_at=promised_dt,
                 fulfilled_at=promised_dt if status == "fulfilled" else None,
             )
-            session.add(ped)
-            session.flush()
-            report.pedidos += 1
+            ctx.session.add(ped)
+            ctx.session.flush()
+            ctx.report.pedidos += 1
             for prod_name, qty in valid_lines:
-                prod = product_objs_by_name[prod_name]
+                prod = ctx.products_by_name[prod_name]
                 line = PedidoLine(
                     pedido_id=ped.id,
                     product_id=prod.id,
@@ -4955,10 +5158,10 @@ def seed_sazon(
                     unit_price_gs=prod.sale_price_gs,
                     fulfilled_qty=qty if status == "fulfilled" else 0,
                 )
-                session.add(line)
-                report.pedido_lines += 1
+                ctx.session.add(line)
+                ctx.report.pedido_lines += 1
                 # PedidoEvent
-                session.add(
+                ctx.session.add(
                     PedidoEvent(
                         pedido_id=ped.id,
                         ts=promised_dt - timedelta(hours=2),
@@ -4968,7 +5171,7 @@ def seed_sazon(
                     )
                 )
                 if status != "pending":
-                    session.add(
+                    ctx.session.add(
                         PedidoEvent(
                             pedido_id=ped.id,
                             ts=promised_dt - timedelta(hours=1, minutes=30),
@@ -4978,7 +5181,7 @@ def seed_sazon(
                         )
                     )
                 if status in ("ready", "fulfilled"):
-                    session.add(
+                    ctx.session.add(
                         PedidoEvent(
                             pedido_id=ped.id,
                             ts=promised_dt - timedelta(minutes=30),
@@ -4988,7 +5191,7 @@ def seed_sazon(
                         )
                     )
                 if status == "fulfilled":
-                    session.add(
+                    ctx.session.add(
                         PedidoEvent(
                             pedido_id=ped.id,
                             ts=promised_dt,
@@ -4997,31 +5200,38 @@ def seed_sazon(
                             payload_json={"from": "ready", "to": "fulfilled"},
                         )
                     )
-    logger.info(f"seed: {report.pedidos} pedidos + {report.pedido_lines} pedido lines")
+    logger.info(f"seed: {ctx.report.pedidos} pedidos + {ctx.report.pedido_lines} pedido lines")
 
-    # === 23. Sales (90 days of realistic data) ===
+
+
+def _seed_sales_90_days_of_realistic_data(ctx: SeedContext, days_of_history: int):
+    """Section 23: Sales (90 days of realistic data).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     sale_rows: list[Sale] = []
     stock_move_rows: list[StockMovement] = []
 
     # IMPORTANT: use a SEPARATE random instance for the sales loop so
     # that re-runs (where the rest of the seeder is a no-op via
-    # `existing is not None` short-circuits) hit the same rng state at
-    # the start of the sales loop. The top-level `rng` advances a
+    # `existing is not None` short-circuits) hit the same ctx.rng state at
+    # the start of the sales loop. The top-level `ctx.rng` advances a
     # different amount in run 1 vs run 2 because skip-vs-do is
     # asymmetric; a dedicated sales_rng with its own seed gives us
     # deterministic, idempotent sales data.
     sales_rng = random.Random(43)
 
-    # seed_anchor_date is defined at the top of seed_sazon (reused by
+    # ctx.anchor_date is defined at the top of seed_sazon (reused by
     # production completions, pedidos, bank transactions, and sales).
     # The sales loop computes day_start/day_end from sale_date which is
-    # already anchored to seed_anchor_date.
+    # already anchored to ctx.anchor_date.
 
     BATCH_SIZE = 25
     for day_offset in range(days_of_history):
-        # day 0 = oldest, day (days_of_history-1) = the seed_anchor_date
+        # day 0 = oldest, day (days_of_history-1) = the ctx.anchor_date
         sale_date = datetime.combine(
-            seed_anchor_date - timedelta(days=days_of_history - 1 - day_offset),
+            ctx.anchor_date - timedelta(days=days_of_history - 1 - day_offset),
             datetime.min.time(),
         )
         weekday = sale_date.weekday()  # 0=Mon, 6=Sun
@@ -5035,14 +5245,14 @@ def seed_sazon(
 
         for _sale_idx_in_day in range(count):
             # Pick a product — bias towards favorites for realism
-            fav_products = [p for pn, p in product_objs_by_name.items() if p.is_favorite]
+            fav_products = [p for pn, p in ctx.products_by_name.items() if p.is_favorite]
             if not fav_products:
-                fav_products = list(product_objs_by_name.values())
+                fav_products = list(ctx.products_by_name.values())
             # 70% favorites, 30% random
             if sales_rng.random() < 0.7 and fav_products:
                 product = sales_rng.choice(fav_products)
             else:
-                product = sales_rng.choice(list(product_objs_by_name.values()))
+                product = sales_rng.choice(list(ctx.products_by_name.values()))
 
             if product.sale_price_gs == 0:
                 # Venta libre — random price
@@ -5060,13 +5270,13 @@ def seed_sazon(
 
             # Random customer (70% of sales have a customer)
             cust = None
-            if sales_rng.random() < 0.7 and customer_objs:
-                cust = sales_rng.choice(customer_objs)
+            if sales_rng.random() < 0.7 and ctx.customers:
+                cust = sales_rng.choice(ctx.customers)
 
-            # Payment method is one more rng.choices — we advance it here
+            # Payment method is one more ctx.rng.choices — we advance it here
             # *before* the dedup check so that re-runs that hit the dedup
-            # short-circuit still consume the same amount of rng as run 1.
-            # Without this, the rng state at the end of a dedup'd
+            # short-circuit still consume the same amount of ctx.rng as run 1.
+            # Without this, the ctx.rng state at the end of a dedup'd
             # iteration differs from the original run, and the next slot
             # picks a different product/customer/qty — which then can't
             # dedup, so the loop spirals into the missing-45-sales bug.
@@ -5080,19 +5290,19 @@ def seed_sazon(
             # time. Without this, every re-run would add another ~890 sales
             # and inflate the cash balance / KPIs.
             #
-            # Idempotency strategy: the seeder is anchored to seed_anchor_date
+            # Idempotency strategy: the seeder is anchored to ctx.anchor_date
             # (the date this run started) so re-runs on the same day hit
             # identical calendar dates. Then for each (day, product, qty,
             # customer) tuple we check if a sale already exists; if so, we
             # skip. This keeps the count and totals stable across re-runs
             # of the same day. (Re-runs on a different day won't dedup —
             # they create fresh sales anchored to the new day, which is
-            # the desired behavior for a "today's data" demo.)
+            # the desired behavior for a "ctx.anchor_date's data" demo.)
             day_start = sale_date.replace(hour=0, minute=0, second=0, microsecond=0)
             day_end = day_start + timedelta(days=1)
             stable_customer_id = cust.id if cust else None
             existing_sale = (
-                session.execute(
+                ctx.session.execute(
                     select(Sale).where(
                         Sale.sold_at >= day_start,
                         Sale.sold_at < day_end,
@@ -5107,7 +5317,7 @@ def seed_sazon(
             if existing_sale is not None:
                 # Already seeded a sale with this product+qty+customer on
                 # this day in a previous run — skip to keep totals stable.
-                # The rng was already advanced above so the next iteration
+                # The ctx.rng was already advanced above so the next iteration
                 # stays in sync.
                 continue
 
@@ -5122,23 +5332,23 @@ def seed_sazon(
                 discount_gs=0,
                 tz="America/Asuncion",
             )
-            session.add(sale)
-            session.flush()
+            ctx.session.add(sale)
+            ctx.session.flush()
             sale_rows.append(sale)
-            report.sales += 1
+            ctx.report.sales += 1
 
             # Stock movements for sales that have a recipe
             if product.recipe_id:
-                recipe = recipe_objs_by_name.get(product.name, None)  # by name? no — by id
+                recipe = ctx.recipes_by_name.get(product.name, None)  # by name? no — by id
                 # need to query by id
-                recipe = session.get(Recipe, product.recipe_id)
+                recipe = ctx.session.get(Recipe, product.recipe_id)
                 if recipe is not None:
                     yield_qty = recipe.yield_qty or 1.0
                     yield_qty_d = Decimal(str(yield_qty))
                     qty_d = Decimal(str(qty))
                     # Get recipe lines
                     recipe_lines = (
-                        session.execute(select(RecipeLine).where(RecipeLine.recipe_id == recipe.id))
+                        ctx.session.execute(select(RecipeLine).where(RecipeLine.recipe_id == recipe.id))
                         .scalars()
                         .all()
                     )
@@ -5154,27 +5364,27 @@ def seed_sazon(
                             recorded_at=sold_at,
                             created_by=SASKIA_USER,
                         )
-                        session.add(sm)
+                        ctx.session.add(sm)
                         stock_move_rows.append(sm)
                         # Update stock
-                        ing = session.get(Ingredient, line.line_ref_id)
+                        ing = ctx.session.get(Ingredient, line.line_ref_id)
                         if ing is not None:
                             ing.stock_qty = max(0.0, float(ing.stock_qty) - float(need))
                             ing.last_consumed_at = sold_at
 
         if (day_offset + 1) % BATCH_SIZE == 0:
-            session.commit()
+            ctx.session.commit()
             logger.info(f"seeded days {day_offset + 1}/{days_of_history}")
-    report.sales = len(sale_rows)
-    report.stock_movements = len(stock_move_rows)
+    ctx.report.sales = len(sale_rows)
+    ctx.report.stock_movements = len(stock_move_rows)
 
     # === 23b. Special sales (voided + encargo) — also idempotent ===
-    # These are hand-crafted and don't go through the rng-driven loop.
+    # These are hand-crafted and don't go through the ctx.rng-driven loop.
     # Dedup by (sold_at, product_id, qty, customer_id, notes) so re-runs
     # don't inflate the count.
-    first_product = next(iter(product_objs_by_name.values()))
+    first_product = next(iter(ctx.products_by_name.values()))
     voided_dedup = (
-        session.execute(
+        ctx.session.execute(
             select(Sale).where(
                 Sale.product_id == first_product.id,
                 Sale.qty == 2,
@@ -5187,28 +5397,28 @@ def seed_sazon(
     )
     if voided_dedup is None:
         voided = Sale(
-            # Anchor to seed_anchor_date so dedup by (product_id, qty, notes,
+            # Anchor to ctx.anchor_date so dedup by (product_id, qty, notes,
             # voided_at IS NOT NULL) is stable across re-runs.
-            sold_at=datetime.combine(seed_anchor_date - timedelta(days=2), datetime.min.time())
+            sold_at=datetime.combine(ctx.anchor_date - timedelta(days=2), datetime.min.time())
             + timedelta(hours=20),
             product_id=first_product.id,
             qty=2,
             unit_price_gs=first_product.sale_price_gs,
             notes="Cliente cambió de opinión",
-            voided_at=datetime.combine(seed_anchor_date - timedelta(days=2), datetime.min.time())
+            voided_at=datetime.combine(ctx.anchor_date - timedelta(days=2), datetime.min.time())
             + timedelta(hours=21),
             void_reason="Cliente cambió de opinión",
             voided_by=SASKIA_USER,
             payment_method="efectivo",
         )
-        session.add(voided)
-        session.flush()
-        report.sales += 1
+        ctx.session.add(voided)
+        ctx.session.flush()
+        ctx.report.sales += 1
 
     # One encargo (custom order) sale
-    encargo_product = list(product_objs_by_name.values())[5]
+    encargo_product = list(ctx.products_by_name.values())[5]
     encargo_dedup = (
-        session.execute(
+        ctx.session.execute(
             select(Sale).where(
                 Sale.product_id == encargo_product.id,
                 Sale.qty == 1,
@@ -5220,8 +5430,8 @@ def seed_sazon(
     )
     if encargo_dedup is None:
         encargo = Sale(
-            # Anchor to seed_anchor_date for dedup stability.
-            sold_at=datetime.combine(seed_anchor_date - timedelta(days=1), datetime.min.time())
+            # Anchor to ctx.anchor_date for dedup stability.
+            sold_at=datetime.combine(ctx.anchor_date - timedelta(days=1), datetime.min.time())
             + timedelta(hours=22),
             product_id=encargo_product.id,
             qty=1,
@@ -5229,15 +5439,15 @@ def seed_sazon(
             notes="Encargo: recoger 16h",
             payment_method="transferencia",
         )
-        session.add(encargo)
-        session.flush()
-        report.sales += 1
+        ctx.session.add(encargo)
+        ctx.session.flush()
+        ctx.report.sales += 1
 
     # Initial stock movement (audit trail for opening balance)
-    for ing in ingredient_objs_by_name.values():
+    for ing in ctx.ingredients_by_name.values():
         # Idempotency: one initial StockMovement per ingredient (1:1 audit trail).
         existing_initial = (
-            session.execute(
+            ctx.session.execute(
                 select(StockMovement).where(
                     StockMovement.ingredient_id == ing.id,
                     StockMovement.movement_type == "initial",
@@ -5258,21 +5468,28 @@ def seed_sazon(
             # Use anchor date so the (ingredient_id, movement_type="initial")
             # dedup is stable across re-runs.
             recorded_at=datetime.combine(
-                seed_anchor_date - timedelta(days=90), datetime.min.time()
+                ctx.anchor_date - timedelta(days=90), datetime.min.time()
             ),
             created_by=SASKIA_USER,
         )
-        session.add(sm)
-        report.stock_movements += 1
+        ctx.session.add(sm)
+        ctx.report.stock_movements += 1
 
-    logger.info(f"seed: {report.sales} sales + {report.stock_movements} stock movements")
+    logger.info(f"seed: {ctx.report.sales} sales + {ctx.report.stock_movements} stock movements")
 
-    # === 24. Waste log ===
+
+
+def _seed_waste_log(ctx: SeedContext):
+    """Section 24: Waste log.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for ing_name, qty, reason, days_ago, by, notes in WASTE_LOG:
-        ing = ingredient_objs_by_name.get(ing_name)
+        ing = ctx.ingredients_by_name.get(ing_name)
         if not ing:
             continue
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(WasteLog).where(
                 WasteLog.ingredient_id == ing.id,
                 WasteLog.qty == qty,
@@ -5281,7 +5498,7 @@ def seed_sazon(
         ).scalar_one_or_none()
         if existing is None:
             cost_gs = int(qty * (ing.purchase_price_gs or 0))
-            session.add(
+            ctx.session.add(
                 WasteLog(
                     ingredient_id=ing.id,
                     qty=qty,
@@ -5292,23 +5509,30 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.waste_log += 1
-    logger.info(f"seed: {report.waste_log} waste log entries")
+            ctx.report.waste_log += 1
+    logger.info(f"seed: {ctx.report.waste_log} waste log entries")
 
-    # === 25. Shopping list (items to reorder) ===
+
+
+def _seed_shopping_list_items_to_reorder(ctx: SeedContext):
+    """Section 25: Shopping list (items to reorder).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     # Use Spanish ingredient names (the canonical names in the INGREDIENTS list).
     for ing_name in ["Harina de trigo", "Manteca", "Huevos", "Leche", "Azúcar"]:
-        ing = ingredient_objs_by_name.get(ing_name)
+        ing = ctx.ingredients_by_name.get(ing_name)
         if not ing:
             continue
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(ShoppingListItem).where(
                 ShoppingListItem.ingredient_id == ing.id, not ShoppingListItem.purchased
             )
         ).scalar_one_or_none()
         if existing is None:
             qty_to_buy = (ing.min_stock_qty or 1.0) * 2
-            session.add(
+            ctx.session.add(
                 ShoppingListItem(
                     ingredient_id=ing.id,
                     qty_to_buy=qty_to_buy,
@@ -5317,35 +5541,42 @@ def seed_sazon(
                     purchased=False,
                 )
             )
-            report.shopping_list += 1
-    logger.info(f"seed: {report.shopping_list} shopping list items")
+            ctx.report.shopping_list += 1
+    logger.info(f"seed: {ctx.report.shopping_list} shopping list items")
 
-    # === 26. HACCP — freezer temperature log (last 14 days, 2 readings/day) ===
-    # Use seed_anchor_date as the anchor so re-runs produce identical
+
+
+def _seed_haccp__freezer_temperature_log_last_14_(ctx: SeedContext):
+    """Section 26: HACCP — freezer temperature log (last 14 days, 2 readings/day).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    # Use ctx.anchor_date as the anchor so re-runs produce identical
     # timestamps and the (recorded_at) natural-key dedup actually works.
     for days_ago in range(FREEZER_TEMP_DAYS):
         for hour in (8, 20):  # morning + evening
             base_dt = datetime.combine(
-                seed_anchor_date - timedelta(days=days_ago),
+                ctx.anchor_date - timedelta(days=days_ago),
                 datetime.min.time(),
             )
             ts = base_dt + timedelta(hours=hour)
             # Mostly in range, occasional spike for realism
-            if rng.random() < 0.92:
-                temp = rng.uniform(HACCP_TEMP_MIN_C, HACCP_TEMP_MAX_C)
+            if ctx.rng.random() < 0.92:
+                temp = ctx.rng.uniform(HACCP_TEMP_MIN_C, HACCP_TEMP_MAX_C)
             else:
-                temp = rng.choice(
+                temp = ctx.rng.choice(
                     [
-                        rng.uniform(-25, -22),  # too cold
-                        rng.uniform(-15, -10),  # too warm
+                        ctx.rng.uniform(-25, -22),  # too cold
+                        ctx.rng.uniform(-15, -10),  # too warm
                     ]
                 )
-            existing = session.execute(
+            existing = ctx.session.execute(
                 select(FreezerTemperatureLog).where(FreezerTemperatureLog.recorded_at == ts)
             ).scalar_one_or_none()
             if existing is None:
                 in_range = HACCP_TEMP_MIN_C <= temp <= HACCP_TEMP_MAX_C
-                session.add(
+                ctx.session.add(
                     FreezerTemperatureLog(
                         recorded_at=ts,
                         for_date=ts.date(),
@@ -5356,16 +5587,23 @@ def seed_sazon(
                         notes=None if in_range else f"Fuera de rango: {temp:.1f}°C",
                     )
                 )
-                report.haccp_temps += 1
-    logger.info(f"seed: {report.haccp_temps} HACCP freezer temp readings")
+                ctx.report.haccp_temps += 1
+    logger.info(f"seed: {ctx.report.haccp_temps} HACCP freezer temp readings")
 
-    # === 27. Market benchmarks ===
+
+
+def _seed_market_benchmarks(ctx: SeedContext):
+    """Section 27: Market benchmarks.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for label, wholesale, retail, avg, min_price in BENCHMARKS:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(MarketBenchmark).where(MarketBenchmark.product_label == label)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 MarketBenchmark(
                     product_label=label,
                     our_wholesale_gs=wholesale,
@@ -5374,25 +5612,39 @@ def seed_sazon(
                     comp_min_gs=min_price,
                 )
             )
-            report.market_benchmarks += 1
-    logger.info(f"seed: {report.market_benchmarks} market benchmarks")
+            ctx.report.market_benchmarks += 1
+    logger.info(f"seed: {ctx.report.market_benchmarks} market benchmarks")
 
-    # === 28. Audit log (initial entries) ===
+
+
+def _seed_audit_log_initial_entries(ctx: SeedContext):
+    """Section 28: Audit log (initial entries).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     audit_record(
-        session,
+        ctx.session,
         user_id=SASKIA_USER,
         action="system.startup",
         detail={"source": "seed_sazon", "tenant": TENANT_NAME},
     )
     audit_record(
-        session,
+        ctx.session,
         user_id=SASKIA_USER,
         action="seed.complete",
         detail={"tenant": TENANT_NAME, "version": "1.0"},
     )
-    report.audit_log_rows = 2
+    ctx.report.audit_log_rows = 2
 
-    # === 29. AppMeta pins (idempotency + onboarding guard) ===
+
+
+def _seed_appmeta_pins_idempotency__onboarding_gu(ctx: SeedContext):
+    """Section 29: AppMeta pins (idempotency + onboarding guard).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     # sazon_seed_version = schema/data version of THIS seeder (bump on breaking changes)
     sazon_meta_keys = {
         "sazon_seed_version": "1.0",
@@ -5406,18 +5658,25 @@ def seed_sazon(
         "sazon_loaded": "true",
     }
     for k, v in sazon_meta_keys.items():
-        existing = session.execute(select(AppMeta).where(AppMeta.key == k)).scalar_one_or_none()
+        existing = ctx.session.execute(select(AppMeta).where(AppMeta.key == k)).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 AppMeta(key=k, value=str(v), updated_at=datetime.now(ASUNCION_TZ).isoformat())
             )
         else:
             existing.value = str(v)
             existing.updated_at = datetime.now(ASUNCION_TZ).isoformat()
 
-    # === 30. Bank transactions (a few recent ones) ===
+
+
+def _seed_bank_transactions_a_few_recent_ones(ctx: SeedContext):
+    """Section 30: Bank transactions (a few recent ones).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     # Idempotency: the dedup query uses (posted_at, description) as the
-    # natural key. Both must be deterministic. seed_anchor_date is a
+    # natural key. Both must be deterministic. ctx.anchor_date is a
     # `date` (not datetime) — when compared to the DateTime `posted_at`
     # column, SQLAlchemy coerces to datetime, but the conversion can
     # differ between drivers (midnight UTC vs local tz). To make it
@@ -5425,7 +5684,7 @@ def seed_sazon(
     bank_tx_data = [
         # (date, amount, type, description, account, balance_gs)
         (
-            seed_anchor_date - timedelta(days=60),
+            ctx.anchor_date - timedelta(days=60),
             -1_200_000,
             "transfer",
             "Pago a Distribuidora El Molino",
@@ -5433,7 +5692,7 @@ def seed_sazon(
             2_500_000,
         ),
         (
-            seed_anchor_date - timedelta(days=45),
+            ctx.anchor_date - timedelta(days=45),
             -650_000,
             "transfer",
             "Pago a Lácteos Paraguay",
@@ -5441,7 +5700,7 @@ def seed_sazon(
             1_850_000,
         ),
         (
-            seed_anchor_date - timedelta(days=30),
+            ctx.anchor_date - timedelta(days=30),
             3_500_000,
             "deposit",
             "Cierre de caja 30 días",
@@ -5449,7 +5708,7 @@ def seed_sazon(
             5_350_000,
         ),
         (
-            seed_anchor_date - timedelta(days=20),
+            ctx.anchor_date - timedelta(days=20),
             -280_000,
             "debit",
             "Servicios ANDE",
@@ -5457,7 +5716,7 @@ def seed_sazon(
             5_070_000,
         ),
         (
-            seed_anchor_date - timedelta(days=15),
+            ctx.anchor_date - timedelta(days=15),
             2_800_000,
             "deposit",
             "Cierre quincena",
@@ -5465,16 +5724,16 @@ def seed_sazon(
             7_870_000,
         ),
         (
-            seed_anchor_date - timedelta(days=10),
+            ctx.anchor_date - timedelta(days=10),
             -450_000,
             "transfer",
             "Pago a Dulcería Santa Rita",
             "Itaú",
             7_420_000,
         ),
-        (seed_anchor_date - timedelta(days=5), -180_000, "debit", "Essap", "Itaú", 7_240_000),
+        (ctx.anchor_date - timedelta(days=5), -180_000, "debit", "Essap", "Itaú", 7_240_000),
         (
-            seed_anchor_date - timedelta(days=2),
+            ctx.anchor_date - timedelta(days=2),
             1_800_000,
             "deposit",
             "Cierre de caja 2 días",
@@ -5484,17 +5743,17 @@ def seed_sazon(
     ]
     for tx_date, amount, tx_type, desc, account, balance in bank_tx_data:
         # Normalize to midnight datetime so the dedup comparison is stable
-        # regardless of tz coercion. seed_anchor_date is a `date`;
+        # regardless of tz coercion. ctx.anchor_date is a `date`;
         # `BankTransaction.posted_at` is DateTime.
         tx_posted_at = datetime.combine(tx_date, datetime.min.time())
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(BankTransaction).where(
                 BankTransaction.posted_at == tx_posted_at,
                 BankTransaction.description == desc,
             )
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 BankTransaction(
                     posted_at=tx_posted_at,
                     currency="PYG",
@@ -5509,11 +5768,12 @@ def seed_sazon(
                     reconciled=False,
                 )
             )
-    # Don't count bank tx in the main report — keep it light
+    # Don't count bank tx in the main ctx.report — keep it light
 
-    session.commit()
-    logger.info(f"seed_sazon complete: {report.as_dict()}")
-    return report
+    ctx.session.commit()
+    logger.info(f"seed_sazon complete: {ctx.report.as_dict()}")
+    return ctx.report
+
 
 
 def _delete_sazon_data(session: Session) -> None:
