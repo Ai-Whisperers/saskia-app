@@ -94,7 +94,7 @@ descuenta todos los ingredientes del lote de una sola vez.
 | `/produccion` | **🔥 Merma** (botón rojo por cada producto) | Tandas enteras quemadas, cortes de luz, falla de horno |
 | `/merma` | **Registrar merma** | Ingredientes sueltos (vencidos, caídos, pequeños sobrantes) |
 
-Para mermas de lote, andá a [Producción](08-produccion.md) y tocá el
+Para mermas de lote, andá a [Producción](09-produccion.md) y tocá el
 botón 🔥 Merma en la fila del producto perdido.
 
 ## ¿Cómo saber cuándo usar cada uno?
@@ -111,7 +111,7 @@ registrado manualmente desde `/merma` (`✍️ Manual`) o desde la vista de
 producción (`📍 Producción`). Esto ayuda a entender si hubo falla de proceso
 (el segundo caso) o desperdicio suelto (el primero).
 
-Además, en la pantalla de [Auditoría](10-auditoria.md), podrás ver los
+Además, en la pantalla de [Auditoría](11-auditoria.md), podrás ver los
 detalles técnicos de cada registro incluyendo la fuente del registro.
 
 ## Siguiente paso

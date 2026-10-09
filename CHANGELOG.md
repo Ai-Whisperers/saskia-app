@@ -1,3 +1,23 @@
+## 2026-10-09 — Docs PR 4: fix all broken internal links
+
+**Scope**: docs-quality followup PR 4 from the audit. A repo-wide
+code-span-aware scan found 26 broken md links (audit estimated 57 —
+the delta was directory-level links + renamed files caught by the
+deeper scanner config).
+
+**What changed** (13 files):
+- `app/README.md`: 5 root-relative links rewritten as `../`-relative
+- `docs/roadmap/audits/INDEX.md` + `historical-plans/INDEX.md`: 9 links
+  to moved/renamed audit files (LOGGING_* now in audits/ itself,
+  DEPLOY_URGENT renamed, PRODUCTION_500_RUNBOOK in operations/)
+- `docs/user-guide/`: 4 renumber-ref fixes after the PR-3 dedupe
+  (09-produccion, 11-auditoria, 20-kpis, 14-reponer)
+- archive/intake/epics/wishlist/operations: 7 path-depth fixes
+- `docs/roadmap/audits/SASKIA_BACKEND_AUDIT_2026-09-22.md` `](conn)`
+  is inline CODE, not a link — scanner false positive, no change needed
+
+**Test status**: re-scan reports **0 broken** (excluding code spans).
+
 ## 2026-10-09 — Fix refresh_action_pins --fix line-splice bug
 
 **Scope**: The first run of `refresh_action_pins.py --fix` (PR #106)

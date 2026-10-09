@@ -100,4 +100,4 @@ de mantener.
 
 ## Siguiente paso
 
-→ [26-kpis-mensuales.md](26-kpis-mensuales.md) — vista resumida del mes.
+→ [26-kpis-mensuales.md](20-kpis-mensuales.md) — vista resumida del mes.

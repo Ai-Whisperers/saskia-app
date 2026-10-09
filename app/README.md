@@ -158,11 +158,11 @@ See `docs/operations/2026-09-24-deployment.md` for full topology.
 ## Cross-references
 
 - **Main README**: Project overview, architecture, deployment
-- **[app/rms/AGENTS.md](app/rms/AGENTS.md)** — Engineering hard rules and patterns
-- **[CHANGELOG.md](CHANGELOG.md)** — App-level changelog (separate from repo)
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** — Development workflow and conventions
-- **[docs/operations/](docs/operations/)** — Architecture, deployment, operations docs
-- **[docs/user-guide/](docs/user-guide/)** — User manual with screenshots
+- **[app/rms/AGENTS.md](rms/AGENTS.md)** — Engineering hard rules and patterns
+- **[CHANGELOG.md](../CHANGELOG.md)** — App-level changelog (separate from repo)
+- **[CONTRIBUTING.md](../CONTRIBUTING.md)** — Development workflow and conventions
+- **[docs/operations/](../docs/operations/)** — Architecture, deployment, operations docs
+- **[docs/user-guide/](../docs/user-guide/)** — User manual with screenshots
 
 ---
 

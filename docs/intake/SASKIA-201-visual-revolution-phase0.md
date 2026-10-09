@@ -7,7 +7,7 @@
 
 Intake ticket (archived).
 
-See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+See [`docs/roadmap/README.md`](../roadmap/README.md) for the full index.
 
 ---
 
