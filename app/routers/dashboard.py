@@ -179,26 +179,52 @@ def _compliance_alerts(session: Session) -> list[dict]:
     Returns a list of dicts with 'severity', 'icon', 'message', 'days_remaining'.
     Empty list means everything is in order.
     """
-    from datetime import date, datetime
-
-    from app.rms.models import ComplianceInfo
-
-    today = datetime.now(ASUNCION_TZ).date()
-    alerts: list[dict] = []
+    from app.rms.models import ComplianceInfo, Product
 
     ci = session.get(ComplianceInfo, 1)
     if ci is None:
-        return alerts
+        return []
 
-    def _parse_iso(s: str | None) -> datetime | date | None:
-        if not s:
-            return None
-        try:
-            dt = datetime.strptime(s, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ)
-            return dt.date()
-        except (ValueError, TypeError):
-            return None
+    today = _today_date()
+    alerts: list[dict] = []
+    _check_business_compliance(ci, today, alerts)
+    _check_product_rspa_compliance(session, today, alerts)
+    _add_missing_info_alert(ci, alerts)
+    return alerts
 
+
+def _today_date():
+    """Get today's date in Asuncion timezone.
+    
+    Extracted from _compliance_alerts to reduce complexity.
+    """
+    from datetime import datetime
+
+    return datetime.now(ASUNCION_TZ).date()
+
+
+def _parse_iso(s: str | None):
+    """Parse an ISO date string to a date object.
+    
+    Extracted from _compliance_alerts to reduce complexity.
+    Returns None on invalid input.
+    """
+    from datetime import datetime
+
+    if not s:
+        return None
+    try:
+        dt = datetime.strptime(s, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ)
+        return dt.date()
+    except (ValueError, TypeError):
+        return None
+
+
+def _check_business_compliance(ci, today, alerts: list) -> None:
+    """Check business-level compliance (INAN, municipal, timbrado).
+    
+    Extracted from _compliance_alerts to reduce complexity.
+    """
     checks = [
         ("inan_re_expiry", "INAN R.E. (Registro de Establecimiento)"),
         ("municipal_habilitacion_expiry", "Habilitación Municipal"),
@@ -208,72 +234,88 @@ def _compliance_alerts(session: Session) -> list[dict]:
         expiry = _parse_iso(getattr(ci, field))
         if expiry is None:
             continue
-        days_left = (expiry - today).days
-        if days_left < 0:
-            alerts.append(
-                {
-                    "severity": "danger",
-                    "icon": "⚠",
-                    "message": f"{label} VENCIDO hace {abs(days_left)} días ({expiry.isoformat()}). Renová ya.",
-                    "days_remaining": days_left,
-                }
-            )
-        elif days_left <= 30:
-            alerts.append(
-                {
-                    "severity": "warn",
-                    "icon": "⏰",
-                    "message": f"{label} vence en {days_left} días ({expiry.isoformat()}). Programá renovación.",
-                    "days_remaining": days_left,
-                }
-            )
+        _add_expiry_alert(alerts, label, expiry, today)
 
-    # R.S.P.A. expiry check on products (only when requires_rspa=True)
+
+def _add_expiry_alert(alerts: list, label: str, expiry, today) -> None:
+    """Add an expiry alert for a compliance item.
+    
+    Extracted from _check_business_compliance to reduce complexity.
+    """
+    days_left = (expiry - today).days
+    if days_left < 0:
+        alerts.append(
+            {
+                "severity": "danger",
+                "icon": "⚠",
+                "message": f"{label} VENCIDO hace {abs(days_left)} días ({expiry.isoformat()}). Renová ya.",
+                "days_remaining": days_left,
+            }
+        )
+    elif days_left <= 30:
+        alerts.append(
+            {
+                "severity": "warn",
+                "icon": "⏰",
+                "message": f"{label} vence en {days_left} días ({expiry.isoformat()}). Programá renovación.",
+                "days_remaining": days_left,
+            }
+        )
+
+
+def _check_product_rspa_compliance(session, today, alerts: list) -> None:
+    """Check R.S.P.A. expiry on products that require it.
+    
+    Extracted from _compliance_alerts to reduce complexity.
+    """
     from app.rms.models import Product
 
-    for p in (
-        session.execute(
-            select(Product).where(
-                Product.requires_rspa.is_(True),
-                Product.rspa_expiry.is_not(None),
-            )
+    products = session.execute(
+        select(Product).where(
+            Product.requires_rspa.is_(True),
+            Product.rspa_expiry.is_not(None),
         )
-        .scalars()
-        .all()
-    ):
+    ).scalars().all()
+
+    for p in products:
         expiry = _parse_iso(p.rspa_expiry)
         if expiry is None:
             continue
-        days_left = (expiry - today).days
-        if days_left < 0:
-            alerts.append(
-                {
-                    "severity": "danger",
-                    "icon": "⚠",
-                    "message": f"R.S.P.A. de '{p.name}' VENCIDA hace {abs(days_left)} días ({expiry.isoformat()}).",
-                    "days_remaining": days_left,
-                }
-            )
-        elif days_left <= 30:
-            alerts.append(
-                {
-                    "severity": "warn",
-                    "icon": "⏰",
-                    "message": f"R.S.P.A. de '{p.name}' vence en {days_left} días.",
-                    "days_remaining": days_left,
-                }
-            )
+        _add_rspa_expiry_alert(alerts, p, expiry, today)
 
-    # Missing critical IDs (info-level)
-    missing = []
-    if not ci.ruc:
-        missing.append("RUC")
-    if not ci.inan_re_number:
-        missing.append("INAN R.E. N°")
-    if not ci.director_tecnico:
-        missing.append("Director Técnico")
-    if ci.tax_regime == DEFAULT_TAX_REGIME and not ci.timbrado_number:
-        missing.append("Timbrado (RESIMPLE)")
+
+def _add_rspa_expiry_alert(alerts: list, p, expiry, today) -> None:
+    """Add an R.S.P.A. expiry alert for a product.
+    
+    Extracted from _check_product_rspa_compliance to reduce complexity.
+    """
+    days_left = (expiry - today).days
+    if days_left < 0:
+        alerts.append(
+            {
+                "severity": "danger",
+                "icon": "⚠",
+                "message": f"R.S.P.A. de '{p.name}' VENCIDA hace {abs(days_left)} días ({expiry.isoformat()}).",
+                "days_remaining": days_left,
+            }
+        )
+    elif days_left <= 30:
+        alerts.append(
+            {
+                "severity": "warn",
+                "icon": "⏰",
+                "message": f"R.S.P.A. de '{p.name}' vence en {days_left} días.",
+                "days_remaining": days_left,
+            }
+        )
+
+
+def _add_missing_info_alert(ci, alerts: list) -> None:
+    """Add a missing critical ID alert if any are missing.
+    
+    Extracted from _compliance_alerts to reduce complexity.
+    """
+    missing = _collect_missing_ids(ci)
     if missing and not alerts:
         alerts.append(
             {
@@ -284,7 +326,22 @@ def _compliance_alerts(session: Session) -> list[dict]:
             }
         )
 
-    return alerts
+
+def _collect_missing_ids(ci) -> list[str]:
+    """Collect list of missing critical business IDs.
+    
+    Extracted from _add_missing_info_alert to reduce complexity.
+    """
+    missing = []
+    if not ci.ruc:
+        missing.append("RUC")
+    if not ci.inan_re_number:
+        missing.append("INAN R.E. N°")
+    if not ci.director_tecnico:
+        missing.append("Director Técnico")
+    if ci.tax_regime == DEFAULT_TAX_REGIME and not ci.timbrado_number:
+        missing.append("Timbrado (RESIMPLE)")
+    return missing
 
 
 @router.get("/", response_class=HTMLResponse)
