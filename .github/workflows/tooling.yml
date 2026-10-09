@@ -44,6 +44,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Cancel superseded runs on the same PR/branch (same pattern as ci.yml).
+# Without this, tooling runs serially behind every push and wastes minutes.
+concurrency:
+  group: tooling-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -65,7 +71,10 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Sync dependencies (dev)
-        run: uv sync --all-extras --group dev
+        # rm -rf .venv first: parallel runs from sibling sessions can leave
+        # a .venv behind that blocks `uv sync` with "File exists" (os error 17).
+        # 2026-10-09: 10/10 tooling runs were failing on this exact error.
+        run: rm -rf .venv && uv sync --all-extras --group dev
 
       - name: make check (duplicates + arch)
         run: make check

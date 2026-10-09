@@ -72,10 +72,13 @@ jobs:
       - name: SSH into VPS, run deploy.sh --env=test
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-          SAZKIA_DEPLOY_KEY: ${{ secrets.VPS_KEY }}
+          SASKIA_VPS_SSH_KEY: ${{ secrets.VPS_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "$SAZKIA_DEPLOY_KEY" > ~/.ssh/id_ed25519
+          # printf + tr to strip newlines (multi-line secrets break OpenSSH
+          # with "error in libcrypto"). 2026-10-09: 9/10 deploy-test runs
+          # were failing on this exact key-loading error.
+          printf '%s' "$SASKIA_VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
           chmod 0600 ~/.ssh/id_ed25519
           echo "StrictHostKeyChecking=no" > ~/.ssh/config
 
@@ -89,7 +92,7 @@ jobs:
             bws --version
           '
 
-          SAZKIA_DEPLOY_KEY=~/.ssh/id_ed25519 \
+          SASKIA_VPS_SSH_KEY=~/.ssh/id_ed25519 \
           BWS_ACCESS_TOKEN="$BWS_ACCESS_TOKEN" \
             bash scripts/deploy.sh --env=test
 

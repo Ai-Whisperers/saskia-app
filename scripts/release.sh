@@ -26,7 +26,7 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-KEY="${SAZKIA_DEPLOY_KEY:-/opt/data/.ssh/id_ed25519}"
+KEY="${SASKIA_VPS_SSH_KEY:-/opt/data/.ssh/id_ed25519}"
 DRY_RUN=0
 SKIP_DEPLOY=0
 MESSAGE=""
