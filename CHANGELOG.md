@@ -84,6 +84,8 @@ to uv.lock. The cache will never get invalidated."
 **Test status**: user-guide link check clean; ruff clean.
 ## 2026-10-09 — Login-path monitor
 
+(Lint follow-ups: ruff format + drop unused noqa on the same script.)
+
 **Scope**: post-incident tooling for the 2026-10-09 Supabase NXDOMAIN outage
 (/healthz stayed green while every login returned 500 ConnectError).
 
