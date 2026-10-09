@@ -43,14 +43,12 @@ prod:
     - SUPABASE_SERVICE_ROLE_KEY
     - SUPABASE_PUBLISHABLE_KEY       # 2025+ format (kept for forward-compat)
     - SUPABASE_SECRET_KEY
-    - SENTRY_DSN
     - RESEND_API_KEY
     - CF_R2_ACCESS_KEY_ID
     - CF_R2_SECRET_ACCESS_KEY
     - CF_R2_ENDPOINT
     - CF_R2_ACCOUNT_ID
     - R2_BUCKET
-    - NEON_DATABASE_URL
     - SASKIA_USER_PASSWORD
     - SASKIA_ADMIN_PASSWORD
   # Optional BWS secrets — write to env file only if present in BWS.
