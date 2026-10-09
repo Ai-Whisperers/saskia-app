@@ -334,6 +334,19 @@ tooling = [
     "jscpd>=4.0",             # copy-paste detector (line-level)
     "sensez>=0.4",            # structural clone + code smell detector (Riley Barnett 2025)
 ]
+# tooling-tier2: adoption candidates from the 2026-10-09 tooling research
+# (docs/operations/2026-10-09-tooling-research.md). Not yet wired into
+# app/rms/main.py — install is opt-in via `uv sync --group tooling-tier2`.
+# Once each is integrated and baselined, it migrates to `tooling` and
+# the operator-side install is no longer a separate step.
+tooling-tier2 = [
+    "fastapi-safeguard>=0.2",         # startup-time FastAPI security (missing auth, CORS, debug)
+    "opentelemetry-api>=1.30",        # OTel traces (no runtime exporter)
+    "opentelemetry-sdk>=1.30",        # OTel SDK
+    "opentelemetry-instrumentation-fastapi>=0.51b0",  # auto-instrument FastAPI
+    "opentelemetry-instrumentation-sqlalchemy>=0.51b0", # auto-instrument SQLAlchemy
+    "prometheus-fastapi-instrumentator>=7.0",  # /metrics endpoint
+]
 # dev: full developer setup, including the browser stack. Local devs do
 # `uv sync --group dev`; CI runs `uv sync --group dev-base` instead.
 dev = [
