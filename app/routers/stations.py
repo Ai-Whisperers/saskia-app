@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse, Response
 
+from app.auth import require_login_or_disabled as require_login
 from app.rms.stations import (
     SESSION_LOCKED,
     SESSION_STATION,
@@ -14,7 +15,7 @@ from app.rms.stations import (
 )
 from app.services.template_render import render
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_login)])
 
 
 def _redirect_if_locked(request: Request) -> RedirectResponse | None:

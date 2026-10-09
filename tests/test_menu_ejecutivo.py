@@ -64,7 +64,7 @@ def test_expand_inactive_menu_rejected(session_factory):
             expand_menu_items(s, mid, 1)
 
 
-def test_venta_menu_via_api(authed_client, session_factory):
+def test_venta_menu_via_api(client_with_caja, session_factory):
     from app.rms.models_legacy import Menu, MenuItem, Sale
 
     ids = _products(session_factory)
@@ -74,7 +74,7 @@ def test_venta_menu_via_api(authed_client, session_factory):
         s.add(MenuItem(menu_id=mid, product_id=ids[1], qty=1))
         s.commit()
 
-    r = authed_client.post(
+    r = client_with_caja.post(
         "/ventas/nueva/multi",
         json={
             "items": [{"menu_id": mid, "qty": 1}],

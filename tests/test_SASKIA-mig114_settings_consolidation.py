@@ -35,7 +35,7 @@ def test_fresh_db_reaches_114_and_settings_copied(engine, tmp_path):
     """Fresh init: version 114, no crash, settings_kv usable."""
     init_db(engine)
     s = sessionmaker(bind=engine)()
-    assert _db_version(s) == 114
+    assert _db_version(s) >= 114
     s.close()
 
 

@@ -26,7 +26,7 @@ def test_quick_sell_grid_tiene_listener_ajax(authed_client, session_factory):
     assert "window.quickAddToCart = function" in r.text
 
 
-def test_quick_sell_endpoint_sigue_creando_venta(authed_client, session_factory):
+def test_quick_sell_endpoint_sigue_creando_venta(client_with_caja, session_factory):
     """El submit nativo (sin JS) debe seguir vendiendo en 1 tap."""
     from sqlalchemy.orm import sessionmaker
 
@@ -39,7 +39,7 @@ def test_quick_sell_endpoint_sigue_creando_venta(authed_client, session_factory)
         pid = p.id
     finally:
         s.close()
-    r = authed_client.post(
+    r = client_with_caja.post(
         "/ventas/nueva",
         data={"product_id": pid, "qty": "1", "channel": "mostrador", "payment_method": "efectivo"},
         follow_redirects=False,

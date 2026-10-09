@@ -302,6 +302,16 @@ Recibo #<ID>
   <link rel="stylesheet" href="/static/app-shell.css?v=<VER>">
   <link rel="stylesheet" href="/static/app-components.css?v=<VER>">
   <link rel="stylesheet" href="/static/combobox.css?v=<VER>">
+  <link rel="stylesheet" href="/static/theme.css?v=<VER>">
+  <link rel="stylesheet" href="/static/sortable-table.css?v=<VER>">
+  <link rel="stylesheet" href="/static/search-highlight.css?v=<VER>">
+  <link rel="stylesheet" href="/static/stepper.css?v=<VER>">
+  <link rel="stylesheet" href="/static/clipboard.css?v=<VER>">
+  <link rel="stylesheet" href="/static/form-help.css?v=<VER>">
+  <link rel="stylesheet" href="/static/print.css?v=<VER>" media="print">
+  <link rel="stylesheet" href="/static/touch-targets.css?v=<VER>">
+  <link rel="stylesheet" href="/static/form-validator.css?v=<VER>">
+  <link rel="stylesheet" href="/static/saskia-tooltip.css?v=<VER>">
 
   <script>
 
@@ -361,6 +371,10 @@ Inicio</a>
   <svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg>
 Ventas</a>
 
+        <a href="/caja" class="nav-item" role="menuitem">
+  <svg class="icon" aria-hidden="true"><use href="#icon-cash"/></svg>
+Caja</a>
+
         <a href="/pedidos" class="nav-item" role="menuitem">
   <svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg>
 Pedidos</a>
@@ -419,7 +433,7 @@ Clientes</a>
   <svg class="icon" aria-hidden="true"><use href="#icon-customer"/></svg>
 Suscripciones</a>
 
-      <div class="sidebar-section">Finanzas</div>
+      <div class="sidebar-section">Análisis y Reportes</div>
 
         <a href="/reportes" class="nav-item" role="menuitem">
   <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
@@ -429,14 +443,17 @@ Reportes</a>
   <svg class="icon" aria-hidden="true"><use href="#icon-chart"/></svg>
 Análisis</a>
 
-        <a href="/dashboard" class="nav-item nav-item--sub" >
-          <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>KPIs mensuales</a>
+        <a href="/dashboard" class="nav-item" role="menuitem">
+  <svg class="icon" aria-hidden="true"><use href="#icon-report"/></svg>
+KPIs mensuales</a>
 
         <a href="/pricing" class="nav-item nav-item--sub" >
           <svg class="icon" aria-hidden="true"><use href="#icon-tag"/></svg>Precios por canal</a>
 
         <a href="/vs-mercado" class="nav-item nav-item--sub" >
           <svg class="icon" aria-hidden="true"><use href="#icon-tag"/></svg>Precios vs mercado</a>
+
+      <div class="sidebar-section">Finanzas</div>
 
         <a href="/bank" class="nav-item" role="menuitem">
   <svg class="icon" aria-hidden="true"><use href="#icon-bank"/></svg>
@@ -491,18 +508,21 @@ Guía</a>
       </div>
 
       <div class="topbar-actions">
+
         <div class="nuevo-wrap" id="nuevo-wrap">
-          <button type="button" class="btn btn-primary" id="nuevo-btn" aria-haspopup="true" aria-expanded="false" aria-controls="nuevo-menu" title="Crear nuevo — elegí: Venta, Pedido, Producto, Ingrediente, Receta o Cliente">
+          <button type="button" class="btn btn-primary" id="nuevo-btn" aria-haspopup="true" aria-expanded="false" aria-controls="nuevo-menu" title="Crear nuevo">
             <svg class="icon" aria-hidden="true"><use href="#icon-menu"/></svg>
             <span aria-hidden="true">+</span> Nuevo
           </button>
           <div class="nuevo-menu" id="nuevo-menu" role="menu" aria-label="Crear nuevo">
+
             <a href="/ventas" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-sale"/></svg> Venta</a>
             <a href="/pedidos/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg> Pedido</a>
             <a href="/productos/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-box"/></svg> Producto</a>
             <a href="/inventario/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-inventory"/></svg> Ingrediente</a>
             <a href="/recetas/nueva" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-recipe"/></svg> Receta</a>
             <a href="/clientes/nuevo" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#icon-customer"/></svg> Cliente</a>
+
           </div>
         </div>
 
@@ -527,6 +547,7 @@ Guía</a>
                 aria-label="Cambiar tema claro/oscuro" title="Cambiar tema">
           <svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg>
         </button>
+
         <a href="/logout" class="btn-ghost btn-icon d-inline-flex" aria-label="Cerrar sesión" title="Cerrar sesión" style="display:inline-flex;align-items:center;justify-content:center;">
           <svg class="icon" aria-hidden="true"><use href="#icon-close"/></svg>
         </a>
@@ -945,7 +966,13 @@ Guía</a>
 </script>
   <ui-toast-stack></ui-toast-stack>
 
+  <button class="back-to-top" type="button" aria-label="Volver arriba" hidden>
+    <svg class="icon icon-arrow-up" aria-hidden="true"><use href="#icon-arrow-up"/></svg>
+  </button>
+
   <script src="/static/shortcuts.js" defer></script>
+  <script src="/static/form-dirty.js" defer></script>
+  <script src="/static/state-preservation.js" defer></script>
   <script src="/static/app.js?v=<VER>" defer></script>
   <script src="/static/app-components.js?v=<VER>" defer></script>
   <script src="/static/ui-date.js?v=<VER>" defer></script>
@@ -956,8 +983,26 @@ Guía</a>
   <script src="/static/ui-toast.js?v=<VER>" defer></script>
   <script src="/static/ui-kpi-card.js?v=<VER>" defer></script>
   <script src="/static/ui-insight.js?v=<VER>" defer></script>
+  <script src="/static/back-to-top.js?v=<VER>" defer></script>
+  <script src="/static/money-format.js?v=<VER>" defer></script>
+  <script src="/static/date-format.js?v=<VER>" defer></script>
+  <script src="/static/live-time.js?v=<VER>" defer></script>
+  <script src="/static/cache.js?v=<VER>" defer></script>
+  <script src="/static/autosave.js?v=<VER>" defer></script>
+  <script src="/static/undo.js?v=<VER>" defer></script>
+  <script src="/static/form-dirty.js?v=<VER>" defer></script>
+  <script src="/static/sortable-table.js?v=<VER>" defer></script>
+  <script src="/static/search-highlight.js?v=<VER>" defer></script>
+  <script src="/static/stepper.js?v=<VER>" defer></script>
+  <script src="/static/lazy-load.js?v=<VER>" defer></script>
+  <script src="/static/perf-monitor.js?v=<VER>" defer></script>
+  <script src="/static/clipboard.js?v=<VER>" defer></script>
+  <script src="/static/print-area.js?v=<VER>" defer></script>
+  <script src="/static/form-validator.js?v=<VER>" defer></script>
+  <script src="/static/saskia-tooltip.js?v=<VER>" defer></script>
 
   <nav class="bottom-nav" aria-label="Navegación rápida">
+
     <a href="/inicio" class="">
       <svg class="icon" aria-hidden="true"><use href="#icon-home"/></svg>
       <span>Inicio</span>
@@ -978,6 +1023,7 @@ Guía</a>
       <svg class="icon" aria-hidden="true"><use href="#icon-menu"/></svg>
       <span>Más</span>
     </a>
+
   </nav>
 </body>
 

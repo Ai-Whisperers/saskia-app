@@ -124,5 +124,7 @@ def test_seed_demo_returns_spanish_error_on_failure(client, authed_client, monke
     monkeypatch.setattr(seed_module, "seed_demo_data", _raise)
     r = authed_client.post("/settings/seed-demo", data={"overwrite": "0"}, follow_redirects=False)
     assert r.status_code == 303
-    # flash message should be error
-    assert "Error+al+cargar" in r.headers["location"]
+    # flash message should be the error (router emits the detail-carrying
+    # settings_demo_error_detail key; atoms.html maps it to
+    # 'Error al cargar ejemplo: {detail}')
+    assert "settings_demo_error_detail" in r.headers["location"]
