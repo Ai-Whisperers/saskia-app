@@ -14,7 +14,13 @@ on:
 
 jobs:
   qa-gates:
-    uses: Ai-Whisperers/aiw-org/.github/workflows/qa-gates.yml@docs/qa-dept-wiring-2026-09-25
+    # Pinned to SHA, NOT a branch ref. GH Actions rejects branch refs
+    # in `uses:` for security (mutable refs can swap in malicious code
+    # between the workflow_dispatch and the actual run). The branch
+    # `docs/qa-dept-wiring-2026-09-25` in aiw-org was the 2026-09-25
+    # wiring; if the caller needs to update, bump the SHA after a
+    # review of the new aiw-org content.
+    uses: Ai-Whisperers/aiw-org/.github/workflows/qa-gates.yml@fe210c0d2bee2fd80b24e23b6a5a517c95ede705
     with:
       coverage_floor: 80
       perf_budget_seconds: 600
