@@ -208,4 +208,4 @@ For incident response, see
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) — how to make changes
 - [docs/operations/2026-10-04-phase3-ci-cleanup-postmortem.md](2026-10-04-phase3-ci-cleanup-postmortem.md) — what the CI cleanup did
 - [docs/operations/2026-10-04-sibling-session-coordination.md](2026-10-04-sibling-session-coordination.md) — how to avoid stepping on yourself
-- [docs/user-guide/README.md](../../user-guide/README.md) — the user-facing manual
+- [docs/user-guide/README.md](../user-guide/README.md) — the user-facing manual

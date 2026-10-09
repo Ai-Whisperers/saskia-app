@@ -44,7 +44,7 @@ The repo follows a **pin-minor-bump-major** policy:
 2. Update `uv python install 3.14` in all `.github/workflows/*.yml`.
 3. Update `Dockerfile` `FROM python:3.14-slim` (if it exists).
 4. Run `uv lock` to regenerate `uv.lock`.
-5. `uv run python -c "import sys; assert sys.version_info[:2] == (3, 14)"` — sanity check.
+5. `uv run python -c "import sys; assert sys.version_info[:2] == (3, 14)"` — quick check.
 6. Run `uv run pytest -n 2 --dist=loadscope` locally — full suite.
 7. Push; let CI cycle for 1 week before bumping anything else.
 

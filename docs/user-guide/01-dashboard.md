@@ -47,7 +47,7 @@ necesita tu atención:
 
 | Aviso | Qué significa | Qué hacer |
 |---|---|---|
-| **"Stock bajo: esencia de vainilla (0 ml, mínimo 50 ml)"** | Te quedás sin un ingrediente | Ir a [Reponer](reorder-route.md) y comprar |
+| **"Stock bajo: esencia de vainilla (0 ml, mínimo 50 ml)"** | Te quedás sin un ingrediente | Ir a [Reponer](14-reponer.md) y comprar |
 | **"Sin precio"** | Tenés un ingrediente sin precio de compra cargado | Ir a Inventario y ponerle precio |
 | **"Merma alta esta semana (8%)"** | Estás tirando mucho producto | Ver [Merma](08-merma.md) y revisar qué se descarta |
 | **"Producto sin receta: torta de chocolate"** | Vendés algo que no tiene ingredientes cargados | Ir a Recetas y crear la receta |

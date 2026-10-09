@@ -4,7 +4,7 @@
 > **Extracted:** 2026-10-05
 > **Scope:** 25 epics across 6 phases. This is a structured extract of the
 > plan; the original is preserved at
-> [`../historical-plans/2026-09-07-saskia-complete-epic-plan-v3.md`](../historical-plans/2026-09-07-saskia-complete-epic-plan-v3.md)
+> [`../historical-plans/2026-09-07-saskia-complete-epic-plan-v3.md`](../../archive/2026-09/plans/2026-09-07-saskia-complete-epic-plan-v3.md)
 > for git-blame fidelity.
 > **Status key:** ✅ = marked done in source · 🟡 = partially done / stories shipped
 > · ⏳ = open · ➖ = out of scope (Saskia single-user). Status as of 2026-10-05.
