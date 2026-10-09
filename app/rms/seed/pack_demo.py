@@ -137,6 +137,9 @@ def seed_pack_demo(
     Idempotency: if the DB already has ANY sale, this is a no-op (returns
     ``{"skipped": True}``) — demo life is seeded once onto a fresh pack.
     Deterministic for a given ``seed``.
+
+    Refactored 2026-10-09 to reduce cognitive complexity from 40 to <10
+    by extracting logical sections into helper functions.
     """
     rng = random.Random(seed)
 
@@ -157,7 +160,36 @@ def seed_pack_demo(
     now = datetime.now(timezone.utc).replace(hour=12, minute=0, second=0, microsecond=0)
     report = {"customers": 0, "sales": 0, "stock_moves": 0, "pedidos": 0, "pedido_lines": 0}
 
-    # --- customers -------------------------------------------------------
+    customers = _seed_customers(session, rng, now, customers_total)
+    report["customers"] = len(customers)
+    session.flush()
+
+    _seed_sales_history(
+        session, rng, now, days_of_history, sales_per_day,
+        products, recipes_by_id, lines_by_recipe, report
+    )
+
+    _seed_pedidos(
+        session, rng, now, days_of_history, pedidos_total,
+        customers, products, zones, report
+    )
+
+    session.flush()
+    return report
+
+
+def _seed_customers(
+    session: Session,
+    rng: random.Random,
+    now: datetime,
+    customers_total: int,
+) -> list[Customer]:
+    """Generate demo customers with unique names.
+
+    Extracted from seed_pack_demo to reduce complexity. Creates
+    customers_total unique customers with random Paraguayan names,
+    phone numbers, zones, and marketing consent.
+    """
     used_names: set[str] = set()
     customers: list[Customer] = []
     for _i in range(customers_total):
@@ -170,73 +202,134 @@ def seed_pack_demo(
             name=name,
             phone=f"+5959{rng.randint(71000000, 99999999)}",
             zone=rng.choice(["Centro", "Villa Aurelia", "Sajonia", "Manorá", "Lambaré"]),
-            preferred_channel=rng.choices(["whatsapp", "phone", "instagram"], weights=[70, 20, 10])[
-                0
-            ],
+            preferred_channel=rng.choices(
+                ["whatsapp", "phone", "instagram"], weights=[70, 20, 10]
+            )[0],
             marketing_consent=rng.random() < 0.6,
             created_at=now - timedelta(days=rng.randint(30, 200)),
         )
         session.add(cust)
         customers.append(cust)
-    session.flush()
-    report["customers"] = len(customers)
+    return customers
 
-    # --- sales history (weekday/payday skew, hour weights) ---------------
+
+def _seed_sales_history(
+    session: Session,
+    rng: random.Random,
+    now: datetime,
+    days_of_history: int,
+    sales_per_day: int,
+    products: list[Product],
+    recipes_by_id: dict[int, Recipe],
+    lines_by_recipe: dict[int, list[RecipeLine]],
+    report: dict,
+) -> None:
+    """Generate sales history with weekday/payday skew.
+
+    Extracted from seed_pack_demo to reduce complexity. Creates sales
+    over the past days_of_history days, with more sales on weekends
+    and payday (1st and 15th of month). Each sale generates the
+    corresponding stock movements.
+    """
     sale_dates = [now - timedelta(days=d) for d in range(days_of_history, 0, -1)]
     for sale_date in sale_dates:
-        weekday = sale_date.weekday()
-        base = sales_per_day
-        if weekday >= 5:
-            base = math.ceil(base * 1.4)
-        if sale_date.day in (1, 15):
-            base = math.ceil(base * 1.6)
-        count = max(1, int(base + rng.randint(-2, 2)))
-
+        count = _calculate_sales_count(rng, sale_date, sales_per_day)
         for _ in range(count):
-            product = rng.choice(products)
-            hour = rng.choices(
-                [8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20],
-                weights=[2, 3, 3, 3, 4, 3, 3, 3, 3, 3, 2, 1],
-            )[0]
-            sold_at = sale_date.replace(hour=hour, minute=rng.randint(0, 59))
-            qty = rng.choices([1, 2, 3, 6, 12], weights=[65, 15, 8, 7, 5])[0]
-            sale = Sale(
-                sold_at=sold_at,
-                product_id=product.id,
-                qty=qty,
-                unit_price_gs=product.sale_price_gs,
-                notes=rng.choice(_NOTES) if rng.random() < 0.12 else None,
+            _create_sale_with_stock_moves(
+                session, rng, sale_date, products,
+                recipes_by_id, lines_by_recipe, report
             )
-            session.add(sale)
-            session.flush()
 
-            recipe_id = product.recipe_id
-            if recipe_id and recipe_id in lines_by_recipe:
-                recipe = recipes_by_id[recipe_id]
-                yield_d = _D(str(recipe.yield_qty or 1.0))
-                qty_d = _D(str(qty))
-                for line in lines_by_recipe[recipe_id]:
-                    need = (line.qty / yield_d) * qty_d
-                    session.add(
-                        StockMovement(
-                            movement_type="sale",
-                            ingredient_id=line.line_ref_id,
-                            qty=need,
-                            reference_id=sale.id,
-                            reference_type="sale",
-                            affected_recipe_id=recipe_id,
-                            recorded_at=sold_at,
-                        )
-                    )
-                    report["stock_moves"] += 1
-            report["sales"] += 1
 
-    # --- pedidos (pre-orders via WhatsApp etc.) --------------------------
-    # P43 (2026-10-07): use Channel enum values. "phone" was a legacy
-    # alias not in the canonical enum, so the migration 111 DB CHECK
-    # would reject any pedido.channel="phone" write. Map the legacy
-    # "phone" traffic to Channel.OTHER.value so the demo seed still
-    # exercises the same volume but with valid enum values.
+def _calculate_sales_count(
+    rng: random.Random,
+    sale_date: datetime,
+    sales_per_day: int,
+) -> int:
+    """Calculate the number of sales for a given date.
+
+    Extracted from _seed_sales_history to reduce complexity. Applies
+    weekend (+40%) and payday (+60%) multipliers with random jitter.
+    """
+    base = sales_per_day
+    if sale_date.weekday() >= 5:
+        base = math.ceil(base * 1.4)
+    if sale_date.day in (1, 15):
+        base = math.ceil(base * 1.6)
+    return max(1, int(base + rng.randint(-2, 2)))
+
+
+def _create_sale_with_stock_moves(
+    session: Session,
+    rng: random.Random,
+    sale_date: datetime,
+    products: list[Product],
+    recipes_by_id: dict[int, Recipe],
+    lines_by_recipe: dict[int, list[RecipeLine]],
+    report: dict,
+) -> None:
+    """Create a single sale and its stock movements.
+
+    Extracted from _seed_sales_history to reduce complexity. Picks a
+    random product, creates a sale, and generates stock movements for
+    each recipe line.
+    """
+    product = rng.choice(products)
+    hour = rng.choices(
+        [8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20],
+        weights=[2, 3, 3, 3, 4, 3, 3, 3, 3, 3, 2, 1],
+    )[0]
+    sold_at = sale_date.replace(hour=hour, minute=rng.randint(0, 59))
+    qty = rng.choices([1, 2, 3, 6, 12], weights=[65, 15, 8, 7, 5])[0]
+    sale = Sale(
+        sold_at=sold_at,
+        product_id=product.id,
+        qty=qty,
+        unit_price_gs=product.sale_price_gs,
+        notes=rng.choice(_NOTES) if rng.random() < 0.12 else None,
+    )
+    session.add(sale)
+    session.flush()
+
+    recipe_id = product.recipe_id
+    if recipe_id and recipe_id in lines_by_recipe:
+        recipe = recipes_by_id[recipe_id]
+        yield_d = _D(str(recipe.yield_qty or 1.0))
+        qty_d = _D(str(qty))
+        for line in lines_by_recipe[recipe_id]:
+            need = (line.qty / yield_d) * qty_d
+            session.add(
+                StockMovement(
+                    movement_type="sale",
+                    ingredient_id=line.line_ref_id,
+                    qty=need,
+                    reference_id=sale.id,
+                    reference_type="sale",
+                    affected_recipe_id=recipe_id,
+                    recorded_at=sold_at,
+                )
+            )
+            report["stock_moves"] += 1
+    report["sales"] += 1
+
+
+def _seed_pedidos(
+    session: Session,
+    rng: random.Random,
+    now: datetime,
+    days_of_history: int,
+    pedidos_total: int,
+    customers: list[Customer],
+    products: list[Product],
+    zones: list[DeliveryZone],
+    report: dict,
+) -> None:
+    """Generate pre-orders (pedidos) for demo customers.
+
+    Extracted from seed_pack_demo to reduce complexity. Creates
+    pedidos_total pre-orders with realistic age distribution and
+    status progression. Each pedido gets 1-4 pedido_lines.
+    """
     channels = [
         Channel.WHATSAPP.value,
         Channel.WHATSAPP.value,
@@ -247,73 +340,98 @@ def seed_pack_demo(
     ]
     payments = ["efectivo", "efectivo", "qr", "transferencia", "tarjeta"]
     for _i in range(pedidos_total):
-        age_days = rng.randint(1, days_of_history - 1)
-        promised = (
-            (now - timedelta(days=age_days)).date()
-            if age_days > 2
-            else (now + timedelta(days=rng.randint(1, 3))).date()
+        _create_pedido_with_lines(
+            session, rng, now, days_of_history,
+            customers, products, zones, channels, payments, report
         )
-        cust = rng.choice(customers)
-        if age_days <= 2:
-            status = rng.choices(["pending", "confirmed", "ready"], weights=[30, 50, 20])[0]
-        elif age_days <= 7:
-            status = rng.choices(["confirmed", "fulfilled"], weights=[25, 75])[0]
-        else:
-            status = rng.choices(["fulfilled", "cancelled"], weights=[90, 10])[0]
 
+
+def _create_pedido_with_lines(
+    session: Session,
+    rng: random.Random,
+    now: datetime,
+    days_of_history: int,
+    customers: list[Customer],
+    products: list[Product],
+    zones: list[DeliveryZone],
+    channels: list[str],
+    payments: list[str],
+    report: dict,
+) -> None:
+    """Create a single pedido with its lines.
+
+    Extracted from _seed_pedidos to reduce complexity. Determines
+    age-based status, generates unique public token, creates the
+    pedido, and adds 1-4 pedido_lines.
+    """
+    age_days = rng.randint(1, days_of_history - 1)
+    promised = (
+        (now - timedelta(days=age_days)).date()
+        if age_days > 2
+        else (now + timedelta(days=rng.randint(1, 3))).date()
+    )
+    cust = rng.choice(customers)
+    status = _determine_pedido_status(rng, age_days)
+
+    token = _public_token(rng)
+    while (
+        session.execute(
+            select(Pedido.id).where(Pedido.public_token == token).limit(1)
+        ).scalar_one_or_none()
+        is not None
+    ):
         token = _public_token(rng)
-        while (
-            session.execute(
-                select(Pedido.id).where(Pedido.public_token == token).limit(1)
-            ).scalar_one_or_none()
-            is not None
-        ):
-            token = _public_token(rng)
 
-        pedido = Pedido(
-            customer_id=cust.id,
-            customer_name=cust.name,
-            customer_phone=cust.phone,
-            promised_date=promised,
-            promised_time=rng.choice(["09:00", "11:00", "14:00", "16:00", "18:00"]),
-            channel=rng.choice(channels),
-            status=status,
-            payment_intent=rng.choice(payments),
-            notes=rng.choice(_NOTES),
-            public_token=token,
-            public_token_expires_at=now + timedelta(days=30),
-            created_at=now - timedelta(days=age_days, hours=rng.randint(2, 20)),
-            updated_at=now - timedelta(days=age_days),
-            delivery_zone_id=rng.choice(zones).id if zones and rng.random() < 0.35 else None,
-            address_text=f"{rng.choice(_STREETS)} {rng.choice(['casa', 'e/ calles', 'edif.'])} {rng.randint(100, 999)}"
-            if rng.random() < 0.4
-            else None,
-        )
-        if status == "fulfilled":
-            pedido.fulfilled_at = pedido.created_at + timedelta(hours=rng.randint(2, 30))
-        session.add(pedido)
-        session.flush()
-
-        for _ in range(rng.randint(1, 4)):
-            product = rng.choice(products)
-            session.add(
-                PedidoLine(
-                    pedido_id=pedido.id,
-                    product_id=product.id,
-                    qty=float(rng.choices([1, 2, 3, 6, 12], weights=[60, 18, 10, 7, 5])[0]),
-                    unit_price_gs=int(product.sale_price_gs),
-                )
-            )
-            report["pedido_lines"] += 1
-        report["pedidos"] += 1
-
+    pedido = Pedido(
+        customer_id=cust.id,
+        customer_name=cust.name,
+        customer_phone=cust.phone,
+        promised_date=promised,
+        promised_time=rng.choice(["09:00", "11:00", "14:00", "16:00", "18:00"]),
+        channel=rng.choice(channels),
+        status=status,
+        payment_intent=rng.choice(payments),
+        notes=rng.choice(_NOTES),
+        public_token=token,
+        public_token_expires_at=now + timedelta(days=30),
+        created_at=now - timedelta(days=age_days, hours=rng.randint(2, 20)),
+        updated_at=now - timedelta(days=age_days),
+        delivery_zone_id=rng.choice(zones).id if zones and rng.random() < 0.35 else None,
+        address_text=f"{rng.choice(_STREETS)} {rng.choice(['casa', 'e/ calles', 'edif.'])} {rng.randint(100, 999)}"
+        if rng.random() < 0.4
+        else None,
+    )
+    if status == "fulfilled":
+        pedido.fulfilled_at = pedido.created_at + timedelta(hours=rng.randint(2, 30))
+    session.add(pedido)
     session.flush()
-    return report
+
+    for _ in range(rng.randint(1, 4)):
+        product = rng.choice(products)
+        session.add(
+            PedidoLine(
+                pedido_id=pedido.id,
+                product_id=product.id,
+                qty=float(rng.choices([1, 2, 3, 6, 12], weights=[60, 18, 10, 7, 5])[0]),
+                unit_price_gs=int(product.sale_price_gs),
+            )
+        )
+        report["pedido_lines"] += 1
+    report["pedidos"] += 1
 
 
-# --------------------------------------------------------------------------
-# reseed: wipe tenant data and re-seed with a chosen pack (CLI / demo switch)
-# --------------------------------------------------------------------------
+def _determine_pedido_status(rng: random.Random, age_days: int) -> str:
+    """Determine pedido status based on age.
+
+    Extracted from _create_pedido_with_lines to reduce complexity.
+    Recent pedidos are pending/confirmed/ready, older ones are
+    fulfilled or cancelled.
+    """
+    if age_days <= 2:
+        return rng.choices(["pending", "confirmed", "ready"], weights=[30, 50, 20])[0]
+    if age_days <= 7:
+        return rng.choices(["confirmed", "fulfilled"], weights=[25, 75])[0]
+    return rng.choices(["fulfilled", "cancelled"], weights=[90, 10])[0]
 
 
 def reseed_pack(session: Session, pack: str, *, days_of_history: int = 90) -> dict:
