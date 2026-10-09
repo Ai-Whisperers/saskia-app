@@ -2,7 +2,7 @@
 #
 # Why this exists:
 #   scripts/release.sh is the only way to deploy to prod. It does 3 things:
-#     1. Prepend a [version] section to app/CHANGELOG.md
+#     1. Prepend a [version] section to CHANGELOG.md
 #     2. git tag -a vYYYY.MM.patch -m "..."
 #     3. git push origin $HEAD:refs/heads/main $TAG
 #     4. (optional) bash scripts/deploy.sh --env=prod

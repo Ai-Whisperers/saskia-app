@@ -47,6 +47,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           persist-credentials: false
+          # Full history: CHANGELOG discipline diffs origin/main...HEAD.
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
@@ -350,11 +352,11 @@ jobs:
             esac
           done
           if [ "$hits" = "true" ]; then
-            if echo "$changed" | grep -q "^app/CHANGELOG.md$"; then
-              echo "OK: app/CHANGELOG.md updated"
+            if echo "$changed" | grep -qx "CHANGELOG.md"; then
+              echo "OK: CHANGELOG.md updated"
             else
-              echo "ERROR: code changed but app/CHANGELOG.md was not updated."
-              echo "Per E5.S3, every PR touching code must also touch app/CHANGELOG.md."
+              echo "ERROR: code changed but CHANGELOG.md was not updated."
+              echo "Per E5.S3, every PR touching code must also touch CHANGELOG.md (repo root)."
               echo "Changed files:"
               echo "$changed" | sed 's/^/  /'
               exit 1
