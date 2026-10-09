@@ -1,3 +1,55 @@
+## 2026-10-09 — live site: new AI product images, 31/32 wired to seed
+
+The /productos and /recetas pages on https://saskia-vps.paragu-ai.com now show
+the 22 AI-generated Hollandse Bakery product images + 22 recipe images that were
+in the `feat/workbook-seed-reconciliation` branch but never landed in the
+canonical seed tuples.
+
+**Shipped** (5 commits on `main`, `0ceceb4e` → `f596ca24`)
+- Cherry-picked `7d18b05a` `d6d5045b` `930018aa` `17de91f7` from
+  `feat/workbook-seed-reconciliation` — 31 product images + 22 recipe images +
+  9 ingredient-variant images + research-backed descriptions + thumbnail
+  prompts. 87 files in `app/static/`, 1 doc, 2 `data/` scripts.
+- `0ceceb4e` feat(seed): `image_url` field wired into the PRODUCTS tuple (line
+  10 per the tuple docstring) and appended to the RECIPES tuple (was 10 fields,
+  now 11). 31/32 products and 22/22 recipes mapped to new slugs
+  (`babka.jpg`, `receta-babka.jpg`, etc.). "Venta libre" left NULL — it's the
+  generic placeholder with no image.
+- `f596ca24` fix(seed): swap image_url to the correct tuple position. The first
+  attempt put the URL at position 11 (notes) instead of 10 (image_url), so all
+  products were seeded with `image_url=None` and the URL string landed in
+  `notes` where it was invisible. Verified by direct read of the seed file:
+  Babka is now `image_url="/static/products/babka.jpg"`, `notes=None`. Recipes
+  were already correct (the change set their image_url by inserting after the
+  existing 10 lines, not replacing line 10).
+
+**Operative impact**
+- Live `/productos` page references 31 unique `/static/products/<slug>.jpg`
+  URLs, all HTTP 200, sizes 66-358 KB each. Old filenames
+  (`babka-chocolate.jpg`, `cheesecake-clasico.jpg`, etc.) are no longer
+  referenced anywhere on the site.
+- Live `/recetas` page references 22 unique `/static/recipes/receta-<slug>.jpg`
+  URLs, all HTTP 200.
+- Prod DB wiped + re-seeded via `seed_sazon(overwrite=True)`; current state
+  (schema 116): 1 tenant, 3 users, 94 ingredients, 22 recipes, 32 products,
+  15 customers, 858 sales, 5 suppliers, 8 tags, 14 settings_kv, 11 categories.
+
+**Known caveats**
+- Only 32 of the 75+ products in the canonical workbook are in the seed; the
+  remaining 43 will need to be added later or by Saskia.
+- `app/rms/seed/sazon.py` `_delete_sazon_data()` has a latent bug — on FK
+  error it calls `session.rollback()` which rolls back ALL prior deletes in
+  the same transaction, making the wipe effectively a no-op. This session
+  used a direct-sqlite bypass for the wipe. Documented in the
+  `saskia-rms-development` skill; fix is a per-table transaction split.
+- No migration is needed: `Product.image_url` exists (from migration 090)
+  and `Recipe.image_url` exists (from the HEREBUS integration). The 31 product
+  images and 22 recipe images now in `app/static/` are referenced by the
+  seed and rendered on the live site. `Ingredient.image_url` does not exist
+  and no ingredient images have been generated yet (`app/static/ingredients/`
+  is empty), so adding the column would be premature. Land it in a follow-up
+  alongside the first batch of ingredient images.
+
 ## 2026-10-08h — compact create and edit forms
 
 Order, product, ingredient, customer, supplier, subscription, recipe, and waste
