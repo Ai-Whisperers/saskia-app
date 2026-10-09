@@ -236,9 +236,9 @@ def test_manana_route_renders_seasonal_note_when_event_matches(client) -> None:
         )
 
 
-def test_nav_includes_manana_link(client) -> None:
+def test_nav_includes_manana_link(client_with_caja) -> None:
     """The sidebar shows the 'Producción de mañana' link."""
-    r = client.get("/")
+    r = client_with_caja.get("/inicio")
     assert r.status_code == 200
     body = r.text
     assert "/produccion/manana" in body

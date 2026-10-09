@@ -121,6 +121,8 @@ def test_router_endpoints_preserved_after_phase_e_step4():
 
     actual = {(_methods(r), _path(r)) for r in router.routes}
     missing = expected_paths - actual
-    extra = actual - expected_paths
     assert not missing, f"Missing routes after Phase E step 4: {missing}"
-    assert not extra, f"Unexpected extra routes: {extra}"
+    # Extra routes are ALLOWED: the router kept growing after step 4
+    # (POST /template/load-day, GET /prep-recipes, ...). The regression
+    # this test locks is route LOSS during the package split, not
+    # additions. Every expected route must still be registered.

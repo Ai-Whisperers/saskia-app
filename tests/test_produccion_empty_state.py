@@ -74,8 +74,8 @@ def test_produccion_template_has_shift_saved_flash_banner():
 
 def test_produccion_template_has_audio_chime_script():
     """A WebAudio oscillator chime plays on shift_saved > 0."""
-    m_start = SRC.find("{% if shift_saved")
-    assert m_start > 0
+    m_start = SRC.find("{% if shift_saved and shift_saved > 0 %}")
+    assert m_start > 0, "chime block missing"
     # Whole block until the matching {% endif %}
     block = SRC[m_start : m_start + 5000]
     assert "AudioContext" in block, "P0:B.5 — chime must use WebAudio AudioContext"
@@ -90,16 +90,24 @@ def test_produccion_template_has_audio_chime_script():
 
 # ---------------------------------------------------------------- P0:B.8
 def test_produccion_template_has_confidence_pill_tooltip_breakdown():
-    """Each confidence pill's `title=` includes forecast source + heuristic."""
-    m = SRC.find("{% set source_label = {")
-    assert m > 0, "P0:B.8 — source_label map must be defined in template"
-    window = SRC[m : m + 2500]
-    for tier in ("conf-high", "conf-medium", "conf-low", "conf-zero"):
-        assert tier in window, f"P0:B.8 — pill tier {tier} missing"
-    assert window.count("{{ source_label }}") >= 3, (
-        f"P0:B.8 — source_label must appear in most pill tooltips "
-        f"(found {window.count('{{ source_label }}')})"
+    """Confidence help must break down the 5 confidence bands.
+
+    Evolved contract (M4/M17 audit): the inline per-pill tooltip became a
+    `#confidence-modal` dialog listing every band (conf-high → conf-zero)
+    so the cook can compare ALL bands at once instead of hovering.
+    """
+    m = SRC.find('id="confidence-modal"')
+    assert m > 0, "P0:B.8 — confidence modal must exist"
+    window = SRC[m : m + 4000]
+    # The modal breaks down every band (via confidence_bands_def loop)
+    assert "confidence_bands_def" in window, (
+        "P0:B.8 — modal must iterate the full confidence_bands_def breakdown"
     )
+    # And the summary pills surface the band tiers (conf-high etc.)
+    for tier in ("conf-high", "conf-medium", "conf-low", "conf-zero"):
+        assert tier in SRC, f"P0:B.8 — band {tier} missing from pills/summary"
+    # The per-row help link opens the modal
+    assert "confidence-help" in SRC, "P0:B.8 — rows must link to the confidence modal"
 
 
 # ---------------------------------------------------------------- C.5

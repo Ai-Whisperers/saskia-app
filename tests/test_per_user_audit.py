@@ -8,7 +8,7 @@ requirement: "who voided that sale" must be answerable from /auditoria.
 from __future__ import annotations
 
 
-def test_sale_create_records_operator(client, session_factory):
+def test_sale_create_records_operator(client_with_caja, session_factory):
     """POST /ventas/nueva records the operator in audit_log."""
     from app.rms.models import AuditLog, Ingredient, Product, Recipe, RecipeLine
 
@@ -25,7 +25,7 @@ def test_sale_create_records_operator(client, session_factory):
         s.commit()
         pid = p.id
 
-    resp = client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva",
         data={"product_id": str(pid), "qty": "1", "discount_gs": "0"},
         follow_redirects=False,

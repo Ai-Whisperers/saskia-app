@@ -1,175 +1,118 @@
-"""tests/test_waste_roi_per_ingredient.py — BACKLOG #34 waste ROI per ingredient test."""
+"""tests/test_waste_roi_per_ingredient.py — BACKLOG #34 waste ROI per ingredient.
+
+Ported to the shipped API: `waste_roi_by_ingredient` (sales_intel.py)
+aggregates WasteLog.cost_gs per ingredient over the window. The old
+drafts targeted a never-shipped `waste_roi_per_ingredient` signature
+(batch_id/qty_gs StockMovement fields that no longer exist) and a
+`testdb` fixture that was never defined — both caused permanent
+collection errors. These tests exercise the real contract.
+"""
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+from app.rms.models import Ingredient, WasteLog
+from app.rms.sales_intel import waste_roi_by_ingredient
 
 
-def test_waste_roi_per_ingredient_no_data(testdb):
+def _seed_waste(s, ing: Ingredient, cost_gs: float, days_ago: int = 0) -> None:
+    s.add(
+        WasteLog(
+            ingredient_id=ing.id,
+            qty=1.0,
+            cost_gs=cost_gs,
+            reason="vencida",
+            recorded_at=datetime.now(timezone.utc) - timedelta(days=days_ago),
+        )
+    )
+
+
+def test_waste_roi_no_data(session_factory):
     """When no waste data, return empty list."""
-    from app.rms.analytics import waste_roi_per_ingredient
-
-    result = waste_roi_per_ingredient(testdb)
-    assert result == []
-
-
-def test_waste_roi_per_ingredient_with_merma(testdb):
-    """When some waste, calculate cost/batch."""
-    from app.rms.analytics import waste_roi_per_ingredient
-    from app.rms.models import Ingredient, Recipe, RecipeLine, StockMovement
-
-    ing = Ingredient(name="Azúcar", cost_per_kg_gs=5000)
-    testdb.add(ing)
-    recipe = Recipe(name="Torta", yield_qty=4.0)
-    testdb.add(recipe)
-    RecipeLine(ingredient=ing, recipe=recipe, qty_kg=0.5)
-    testdb.flush()
-
-    # Create batch with waste
-    batch_id = 1
-    testdb.add(
-        StockMovement(
-            batch_id=batch_id,
-            recipe_id=recipe.id,
-            movement_type="merma",
-            created_at=datetime.now(),
-            qty_gs=1000,  # wasted 1000 Gs worth
-        )
-    )
-    testdb.commit()
-
-    result = waste_roi_per_ingredient(testdb, since_days=1)
-    assert len(result) == 1
-    r = result[0]
-    assert r["ingredient_name"] == "Azúcar"
-    assert r["waste_gs"] == 1000.0
-    assert r["total_batches"] == 1
-    assert r["waste_per_batch"] == 1000.0
-    assert r["recipe_usage"] == 1
-    assert r["waste_pct"] == 0.0  # no sales, so waste_pct undefined
+    s = session_factory()
+    try:
+        assert waste_roi_by_ingredient(s) == []
+    finally:
+        s.close()
 
 
-def test_waste_roi_per_ingredient_with_usage(testdb):
-    """With both waste and usage, calculate % waste."""
-    from app.rms.analytics import waste_roi_per_ingredient
-    from app.rms.models import Ingredient, Recipe, RecipeLine, StockMovement
+def test_waste_roi_with_merma(session_factory):
+    """Waste events aggregate into total_waste_gs with name + count."""
+    s = session_factory()
+    try:
+        ing = Ingredient(name="Azúcar", unit="kg", stock_qty=10.0, purchase_price_gs=5000)
+        s.add(ing)
+        s.flush()
+        _seed_waste(s, ing, 1000.0)
+        s.commit()
 
-    ing = Ingredient(name="Harina", cost_per_kg_gs=3000)
-    testdb.add(ing)
-    recipe = Recipe(name="Pan", yield_qty=10.0)
-    testdb.add(recipe)
-    RecipeLine(ingredient=ing, recipe=recipe, qty_kg=1.0)
-    testdb.flush()
-
-    batch_id = 1
-    # First sale: 5000 Gs used
-    testdb.add(
-        StockMovement(
-            batch_id=batch_id,
-            recipe_id=recipe.id,
-            movement_type="sale",
-            created_at=datetime.now(),
-            qty_gs=5000,
-        )
-    )
-    # Then waste: 1000 Gs wasted
-    testdb.add(
-        StockMovement(
-            batch_id=batch_id,
-            recipe_id=recipe.id,
-            movement_type="merma",
-            created_at=datetime.now(),
-            qty_gs=1000,
-        )
-    )
-    testdb.commit()
-
-    result = waste_roi_per_ingredient(testdb, since_days=1)
-    r = result[0]
-    assert r["waste_gs"] == 1000.0
-    assert r["total_batches"] == 1
-    assert r["waste_per_batch"] == 1000.0
-    assert r["waste_pct"] == 20.0  # 1000 waste / 5000 used * 100
+        result = waste_roi_by_ingredient(s, since_days=1)
+        assert len(result) == 1
+        r = result[0]
+        assert r["ingredient_name"] == "Azúcar"
+        assert r["total_waste_gs"] == 1000
+        assert r["event_count"] == 1
+        assert r["avg_waste_per_event_gs"] == 1000.0
+        assert r["waste_pct"] == 0.0  # v1: consumed left to the operator dashboard
+    finally:
+        s.close()
 
 
-def test_waste_roi_per_ingredient_multiple_batches(testdb):
-    """Sum waste across multiple batches."""
-    from app.rms.analytics import waste_roi_per_ingredient
-    from app.rms.models import Ingredient, Recipe, RecipeLine, StockMovement
+def test_waste_roi_multiple_events(session_factory):
+    """Sum waste + average across multiple events on one ingredient."""
+    s = session_factory()
+    try:
+        ing = Ingredient(name="Harina", unit="kg", stock_qty=20.0, purchase_price_gs=3000)
+        s.add(ing)
+        s.flush()
+        _seed_waste(s, ing, 500.0)
+        _seed_waste(s, ing, 1500.0)
+        s.commit()
 
-    ing = Ingredient(name="Leche", cost_per_kg_gs=2000)
-    testdb.add(ing)
-    recipe = Recipe(name="Flan", yield_qty=6.0)
-    testdb.add(recipe)
-    RecipeLine(ingredient=ing, recipe=recipe, qty_kg=0.5)
-    testdb.flush()
-
-    # Batch 1: 500 waste
-    testdb.add(
-        StockMovement(
-            batch_id=1,
-            recipe_id=recipe.id,
-            movement_type="merma",
-            created_at=datetime.now(),
-            qty_gs=500,
-        )
-    )
-    # Batch 2: 1500 waste
-    testdb.add(
-        StockMovement(
-            batch_id=2,
-            recipe_id=recipe.id,
-            movement_type="merma",
-            created_at=datetime.now(),
-            qty_gs=1500,
-        )
-    )
-    testdb.commit()
-
-    result = waste_roi_per_ingredient(testdb, since_days=1)
-    r = result[0]
-    assert r["waste_gs"] == 2000.0
-    assert r["total_batches"] == 2
-    assert r["waste_per_batch"] == 1000.0  # (500+1500)/2
+        result = waste_roi_by_ingredient(s, since_days=1)
+        assert len(result) == 1
+        r = result[0]
+        assert r["total_waste_gs"] == 2000
+        assert r["event_count"] == 2
+        assert r["avg_waste_per_event_gs"] == 1000.0
+    finally:
+        s.close()
 
 
-def test_waste_roi_per_ingredient_filter_ingredient(testdb):
-    """Filter to a single ingredient by ID."""
-    from app.rms.analytics import waste_roi_per_ingredient
-    from app.rms.models import Ingredient, Recipe, RecipeLine, StockMovement
+def test_waste_roi_window_excludes_old_events(session_factory):
+    """Events outside the since_days window are excluded."""
+    s = session_factory()
+    try:
+        ing = Ingredient(name="Leche", unit="l", stock_qty=12.0, purchase_price_gs=2000)
+        s.add(ing)
+        s.flush()
+        _seed_waste(s, ing, 500.0, days_ago=30)  # outside a 7-day window
+        s.commit()
 
-    ing1 = Ingredient(name="Chocolate", cost_per_kg_gs=10000)
-    ing2 = Ingredient(name="Vainilla", cost_per_kg_gs=4000)
-    testdb.add_all([ing1, ing2])
-    recipe1 = Recipe(name="Torta Chocolate", yield_qty=4.0)
-    recipe2 = Recipe(name="Torta Vainilla", yield_qty=4.0)
-    testdb.add_all([recipe1, recipe2])
-    RecipeLine(ingredient=ing1, recipe=recipe1, qty_kg=0.2)
-    RecipeLine(ingredient=ing2, recipe=recipe2, qty_kg=0.5)
-    testdb.flush()
+        assert waste_roi_by_ingredient(s, since_days=7) == []
+        # And inside a wide window it shows up
+        result = waste_roi_by_ingredient(s, since_days=90)
+        assert len(result) == 1
+        assert result[0]["total_waste_gs"] == 500
+    finally:
+        s.close()
 
-    # Only chocolate wasted
-    testdb.add(
-        StockMovement(
-            batch_id=1,
-            recipe_id=recipe1.id,
-            movement_type="merma",
-            created_at=datetime.now(),
-            qty_gs=2000,
-        )
-    )
-    testdb.commit()
 
-    # All ingredients
-    result_all = waste_roi_per_ingredient(testdb)
-    assert len(result_all) == 1  # only chocolate has waste
-    assert result_all[0]["ingredient_name"] == "Chocolate"
+def test_waste_roi_sorted_by_waste_desc(session_factory):
+    """Biggest money leak first."""
+    s = session_factory()
+    try:
+        cheap = Ingredient(name="Vainilla", unit="kg", stock_qty=5.0, purchase_price_gs=4000)
+        pricey = Ingredient(name="Chocolate", unit="kg", stock_qty=5.0, purchase_price_gs=10000)
+        s.add_all([cheap, pricey])
+        s.flush()
+        _seed_waste(s, cheap, 100.0)
+        _seed_waste(s, pricey, 2000.0)
+        s.commit()
 
-    # Filter to chocolate (same result)
-    result_choc = waste_roi_per_ingredient(testdb, ingredient_id=ing1.id)
-    assert len(result_choc) == 1
-    assert result_choc[0]["ingredient_name"] == "Chocolate"
-
-    # Filter to vainilla (empty)
-    result_vain = waste_roi_per_ingredient(testdb, ingredient_id=ing2.id)
-    assert result_vain == []
+        result = waste_roi_by_ingredient(s)
+        assert [r["ingredient_name"] for r in result] == ["Chocolate", "Vainilla"]
+        assert result[0]["total_waste_gs"] == 2000
+    finally:
+        s.close()

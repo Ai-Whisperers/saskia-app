@@ -186,17 +186,23 @@ jobs:
           rules_file_name: .github/.zap-rules.tsv
           # `-a` (ajax spider for SPAs — disabled in our app; harmless)
           # `-j` (use the openapi.json file)
-          # `-l WARN` show WARN+ alerts in output
-          # `-I` do NOT return failure on warnings — promoted 2026-10-08:
-          #   only FAIL-level (HIGH/CRITICAL) alerts fail the build now.
-          #   All remaining WARN alerts were triaged as false positives or
-          #   operational noise — see .github/.zap-rules.tsv for rationale.
+          # `-l HIGH` show only HIGH+CRITICAL alerts in output (display
+          #   level). Previously `-l WARN` produced noisy reports listing
+          #   every INFO/LOW finding, hiding what actually matters. The
+          #   underlying FAIL threshold is `fail_action: true` + the
+          #   `zaproxy/action-api-scan` default, which only fails the
+          #   build on HIGH/CRITICAL anyway. See .github/.zap-rules.tsv
+          #   for the rules triaged out of build failure (CSP unsafe-inline,
+          #   CSRF /login exempt, version disclosure, etc.).
+          # `-I` do NOT return failure on warnings — historically needed
+          #   when the display level was WARN; kept for defense in depth
+          #   so the only path to fail the build is HIGH/CRITICAL.
           # spider `maxDuration=2` (minutes) — keeps scan ≤ 6 min total
           # scanner `maxScanDurationInMins=4`
           cmd_options: >
             -a
             -j
-            -l WARN
+            -l HIGH
             -I
             -z "-config api.disablekey=true
             -config openapi.targetUrl=http://127.0.0.1:18998

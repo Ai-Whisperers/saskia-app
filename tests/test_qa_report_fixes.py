@@ -141,7 +141,7 @@ def test_sale_rejects_fractional_qty_server_side(client, session_factory):
     assert "entero" in resp.text.lower() or "decimal" in resp.text.lower()
 
 
-def test_sale_accepts_integer_qty(client, session_factory):
+def test_sale_accepts_integer_qty(client_with_caja, session_factory):
     """SALES-VAL-003 regression control: integer qty must still work."""
     from app.rms.models import Product
 
@@ -157,7 +157,7 @@ def test_sale_accepts_integer_qty(client, session_factory):
         session.refresh(p)
         pid = p.id
 
-    resp = client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva/multi",
         json={
             "items": [{"product_id": pid, "qty": 1, "discount_pct": 0}],
@@ -248,14 +248,16 @@ def test_ventas_sku_search_empty_for_unknown(client):
 
 
 def test_ventas_cart_qty_input_step_is_one(client):
-    """SALES-VAL-003: the per-row `<input class=cart-qty-input>` inside
-    the cart table must also have step=1 (it was the source of the QA
-    tester's 1,5 decimal).
+    """SALES-VAL-003 follow-up: the cart input is now weight-aware
+    (sold-by-weight: min/step 0.05, aria-label in kg). The discrete-goods
+    guard moved server-side (the integer-qty validator pinned above); the
+    cart no longer hardcodes step=1 because kg products need decimals.
     """
     resp = client.get("/ventas")
     body = resp.text
     m = re.search(r'<input[^>]*class="cart-qty-input"[^>]*>', body)
     assert m, "cart-qty-input not found in ventas template"
     attrs = m.group(0)
-    assert 'step="1"' in attrs, f"SALES-VAL-003 regression: cart step must be '1', got: {attrs}"
-    assert 'min="1"' in attrs, f"SALES-VAL-003 regression: cart min must be '1', got: {attrs}"
+    assert 'step="0.05"' in attrs, f"cart step must be 0.05 (weight-aware), got: {attrs}"
+    assert 'min="0.05"' in attrs, f"cart min must be 0.05, got: {attrs}"
+    assert 'aria-label="Cantidad en kg"' in attrs

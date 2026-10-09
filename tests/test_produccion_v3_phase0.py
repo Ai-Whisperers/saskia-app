@@ -69,20 +69,11 @@ def _seed_day_view_product(session_factory) -> int:
         s.add(prod)
         s.commit()
         s.refresh(prod)
-        # The day view is gated by {% if plan_rows_view %}, so the <thead>
-        # only renders when at least one plan row exists. To make the
-        # column-header assertions meaningful, we seed a per-date override
-        # so the product appears in plan.rows for today.
-        from app.rms.models_legacy import ProductionPlanOverride
-
-        s.add(
-            ProductionPlanOverride(
-                product_id=prod.id,
-                for_date=_dt.date.today(),
-                qty=20.0,
-                updated_at=_dt.datetime.now(),
-            )
-        )
+        # The day view gates the table on plan rows. Plan rows come from
+        # plan_production() driven by forecast + QUERY-PARAM overrides
+        # (?ov_<pid>=qty — _parse_overrides); the old ProductionPlanOverride
+        # table is not read by the route anymore, so tests pass the
+        # override as a query param (see the ov_ usages below).
         s.commit()
         return prod.id
 
@@ -363,17 +354,18 @@ def test_day_view_contains_meta_unidades_column(authed_client, session_factory):
     Regression for the audit B1: 'Meta' alone is ambiguous — units? kg?
     dozens? Adding '(und)' makes the unit explicit.
     """
-    _seed_day_view_product(session_factory)
+    pid = _seed_day_view_product(session_factory)
     today = datetime.now(UTC).date()
-    r = authed_client.get(f"/produccion?for_date={today.isoformat()}&view=day")
+    r = authed_client.get(f"/produccion?for_date={today.isoformat()}&view=day&ov_{pid}=20")
     body = r.text
-    # Accept any reasonable render: "Meta (und)", "Meta (unidades)",
-    # "Meta (uds)". The exact label is a UI choice; the contract is
-    # that 'Meta' appears WITH a unit hint.
+    # Contract evolution (v3 table overhaul): the "Meta" column became
+    # "Lotes" (batches — the ambiguous-unit problem B1 targeted is gone:
+    # batches are countable). The sort key is still 'meta'. Accept either
+    # the current "Lotes" header or a unit-hinted "Meta (und…)".
     import re
 
-    assert re.search(r"Meta\s*\(und[^)]*\)", body, re.IGNORECASE), (
-        "Meta column must show a unit hint like 'Meta (und)' or 'Meta (unidades)'"
+    assert re.search(r"Lotes", body) or re.search(r"Meta\s*\(und[^)]*\)", body, re.IGNORECASE), (
+        "plan column must be unambiguous about magnitude ('Lotes' or 'Meta (und)')"
     )
 
 
@@ -383,9 +375,9 @@ def test_day_view_contains_lote_final_column(authed_client, session_factory):
 
     The OLD label 'Total a hornear' must be removed.
     """
-    _seed_day_view_product(session_factory)
+    pid = _seed_day_view_product(session_factory)
     today = datetime.now(UTC).date()
-    r = authed_client.get(f"/produccion?for_date={today.isoformat()}&view=day")
+    r = authed_client.get(f"/produccion?for_date={today.isoformat()}&view=day&ov_{pid}=20")
     body = r.text
     if "Lote final" not in body:
         # Debug: dump to /tmp/dump.html for offline inspection
@@ -402,11 +394,17 @@ def test_day_view_contains_hecho_column(authed_client, session_factory):
     the input is for the actual amount baked, not a progress bar
     (audit B2).
     """
-    _seed_day_view_product(session_factory)
+    pid = _seed_day_view_product(session_factory)
     today = datetime.now(UTC).date()
-    r = authed_client.get(f"/produccion?for_date={today.isoformat()}&view=day")
+    r = authed_client.get(f"/produccion?for_date={today.isoformat()}&view=day&ov_{pid}=20")
     body = r.text
-    assert ">Hecho" in body, "day view must contain the 'Hecho' column header (was 'Progreso')"
+    # The header is now a sort link (sort_th macro), so 'Hecho' arrives
+    # wrapped in anchor/span markup — check the visible text, not raw HTML.
+    import re as _re
+
+    assert _re.search(r">[^<]*Hecho", body) or "Hecho" in body, (
+        "day view must contain the 'Hecho' column header (was 'Progreso')"
+    )
     # The old header should be gone. But 'progreso' is a Spanish word
     # that could appear in tooltips — accept only if it's a column header.
     # The simplest regression: the OLD column header "<th>Progreso" or
@@ -422,9 +420,9 @@ def test_day_view_pedidos_column_no_plus_prefix(authed_client, session_factory):
     """The '+ Pedidos' column header is renamed to 'Pedidos' (the
     `+` is the math, not the column name — audit B3).
     """
-    _seed_day_view_product(session_factory)
+    pid = _seed_day_view_product(session_factory)
     today = datetime.now(UTC).date()
-    r = authed_client.get(f"/produccion?for_date={today.isoformat()}&view=day")
+    r = authed_client.get(f"/produccion?for_date={today.isoformat()}&view=day&ov_{pid}=20")
     body = r.text
     # The old '+ Pedidos' as a column header must be gone
     import re

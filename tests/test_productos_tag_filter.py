@@ -7,9 +7,11 @@ def test_productos_tag_filter_chip_group_exists(client):
     assert response.status_code == 200
     body = response.text
 
-    assert "tag-filter-options" in body, "Missing tag filter chip group container"
-    assert "tag-chip-group" in body, "Missing tag chip group class"
-    assert "Filtrar por etiqueta" in body, "Missing Spanish label for tag filter"
+    # The tag filter evolved into a popover (mf-pop) with a "Tag ▾" trigger
+    # and a radio panel whose options render into #tag-filter-options.
+    assert "tag-filter-options" in body, "Missing tag filter options container"
+    assert 'data-mf="tag"' in body, "Missing tag popover trigger"
+    assert "tag-filter-panel" in body, "Missing tag filter panel"
 
 
 def test_productos_api_returns_tags(client):

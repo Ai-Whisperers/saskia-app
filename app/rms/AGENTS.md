@@ -87,3 +87,35 @@ reference example — it batches 6 ADD COLUMNs into one
 - ❌ Don't add HTTP calls to third parties (other than R2 encrypted backup).
 - ❌ Don't change `BIND_HOST` from `127.0.0.1`.
 - ❌ Don't write log lines containing customer notes, supplier phone numbers, etc.
+
+
+## Tooling rules (added 2026-10-08, Sazon tooling hardening sweep)
+
+27. **No new `*_original.py` / `*_legacy.py` / `*_v2.py` files.** The pre-commit
+    hook `forbid-legacy-modules` blocks these at commit time. If you really need
+    to keep a fallback path, use a `__deprecated__` attribute on the existing
+    function, with a removal deadline in the docstring.
+28. **No `from app.routers import X` from inside `app/rms/`.** Routers import
+    rms; rms must never import routers. The `scripts/check_imports.py` CI
+    gate enforces this. Violations are circular-import at startup.
+29. **Cyclomatic complexity ceiling: B grade (CC ≤ 10).** If your function
+    exceeds this, `make complexity` will fail the commit. Extract helpers,
+    replace if/elif with table lookup, or split by concern. The check
+    `make complexity` shows the top 30 worst offenders.
+30. **No silent except blocks in `app/routers/`.** The pre-commit hook
+    `no-silent-excepts` runs an AST scan. Always log + re-raise. Existing
+    known violations are tracked in IMPROVEMENT_BACKLOG.md Tier 9.
+
+## Tooling cheat sheet
+
+- `make check` — the lightweight gate (ruff + warnings + duplicates + arch)
+- `make ci` — full test suite (what CI runs)
+- `make ci-extra` — slow static analysis (vulture, radon, bandit, arch)
+- `make dead-code` — vulture only
+- `make complexity` — radon ceiling check
+- `make duplicates` — duplicate-stem files + forbidden legacy + unused modules
+- `make duplicates-code` — near-duplicate function bodies
+- `make arch` — architecture linter (cycles + layered-import rules)
+- `make security` — bandit
+- `make audit-cve` — pip-audit
+- `make licenses` — reuse

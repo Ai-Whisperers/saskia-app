@@ -183,9 +183,9 @@ def test_produccion_day_sorts_by_promised_time_asc(client, session_factory):
     assert pid_early and pid_late
 
 
-def test_produccion_day_no_pedidos_means_no_panel(client, session_factory):
+def test_produccion_day_no_pedidos_means_no_panel(client_with_caja, session_factory):
     """US 4.4 — when no pedidos for today, the panel is not rendered."""
-    resp = client.get("/produccion")
+    resp = client_with_caja.get("/produccion")
     assert resp.status_code == 200
     assert "Pedidos pendientes para hoy" not in resp.text
 
@@ -383,6 +383,9 @@ def test_void_sale_restores_stock_with_reason(session_factory):
         )
         s.add(sale)
         s.flush()
+        # Simulate the sale path faithfully: apply_sale decrements the
+        # ingredient AND writes the matching negative StockMovement row.
+        ing.stock_qty = (ing.stock_qty or 0) - 100.0
         s.add(
             StockMovement(
                 ingredient_id=ing.id,

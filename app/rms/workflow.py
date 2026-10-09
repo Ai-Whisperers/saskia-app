@@ -119,27 +119,28 @@ class DailySummaryFull:
     warnings: list[str]
 
 
-def daily_summary_full(
-    session: Session,
-    day: datetime,
-) -> DailySummaryFull:
-    """Generate a comprehensive daily summary."""
-    start = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
-    end = start + timedelta(days=1)
-
+def _get_daily_sales(session: Session, start: datetime, end: datetime) -> tuple[list, list, list]:
+    """Fetch sales for a day, split into valid and voided."""
     sales = list(
         session.execute(select(Sale).where(Sale.sold_at >= start, Sale.sold_at < end)).scalars()
     )
     valid = [s for s in sales if s.voided_at is None]
     voided = [s for s in sales if s.voided_at is not None]
+    return sales, valid, voided
 
-    revenue = sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in valid)
 
-    # COGS
-    # T-2026-10-04: BACKLOG #1 (migration 092) dropped the sale_stock_move
-    # table. Use StockMovement with movement_type='sale' as the
-    # authoritative source. The cost is approximated via the
-    # per-ingredient purchase_price_gs at sale time.
+def _compute_daily_revenue(valid: list) -> int:
+    """Compute total revenue from valid sales."""
+    return sum(to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in valid)
+
+
+def _compute_daily_cogs(session: Session, start: datetime, end: datetime) -> int:
+    """Compute COGS for a day using StockMovement + Ingredient.purchase_price_gs.
+    
+    T-2026-10-04: BACKLOG #1 (migration 092) dropped the sale_stock_move
+    table. Use StockMovement with movement_type='sale' as the
+    authoritative source.
+    """
     from app.rms.models import StockMovement
 
     cogs = (
@@ -163,11 +164,11 @@ def daily_summary_full(
         ).scalar()
         or 0
     )
+    return int(cogs)
 
-    margin = revenue - int(cogs)
-    margin_pct = (margin / revenue * 100) if revenue > 0 else 0.0
 
-    # Top products (per revenue)
+def _get_top_products(session: Session, valid: list) -> list:
+    """Get top 10 products by revenue."""
     buckets: dict[int, dict] = {}
     for s in valid:
         b = buckets.setdefault(s.product_id, {"qty": 0.0, "rev": 0})
@@ -180,7 +181,7 @@ def daily_summary_full(
             p.id: p
             for p in session.execute(select(Product).where(Product.id.in_(prod_ids))).scalars()
         }
-    top_products = sorted(
+    return sorted(
         [
             DailyProductRow(
                 product_id=pid,
@@ -193,8 +194,10 @@ def daily_summary_full(
         key=lambda r: -r.revenue_gs,
     )[:10]
 
-    # Low-stock ingredients
-    low_stock = list(
+
+def _get_low_stock_ingredients(session: Session) -> list:
+    """Get ingredients below minimum stock."""
+    return list(
         session.execute(
             select(Ingredient).where(
                 Ingredient.min_stock_qty > 0,
@@ -203,7 +206,11 @@ def daily_summary_full(
         ).scalars()
     )
 
-    # Warnings
+
+def _generate_warnings(
+    sales: list, valid: list, voided: list, revenue: int, margin_pct: float, low_stock: list
+) -> list[str]:
+    """Generate warning messages for the daily summary."""
     warnings: list[str] = []
     if len(voided) > len(valid) * 0.1 and len(valid) > 0:
         warnings.append(
@@ -215,6 +222,27 @@ def daily_summary_full(
         warnings.append(f"{len(low_stock)} ingredientes bajo mínimo")
     if revenue == 0:
         warnings.append("Sin ventas registradas hoy")
+    return warnings
+
+
+def daily_summary_full(
+    session: Session,
+    day: datetime,
+) -> DailySummaryFull:
+    """Generate a comprehensive daily summary."""
+    start = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
+    end = start + timedelta(days=1)
+
+    sales, valid, voided = _get_daily_sales(session, start, end)
+    revenue = _compute_daily_revenue(valid)
+    cogs = _compute_daily_cogs(session, start, end)
+
+    margin = revenue - cogs
+    margin_pct = (margin / revenue * 100) if revenue > 0 else 0.0
+
+    top_products = _get_top_products(session, valid)
+    low_stock = _get_low_stock_ingredients(session)
+    warnings = _generate_warnings(sales, valid, voided, revenue, margin_pct, low_stock)
 
     return DailySummaryFull(
         date=start,

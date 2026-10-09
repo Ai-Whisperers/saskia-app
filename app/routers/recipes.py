@@ -305,7 +305,9 @@ async def recipes_list(
     # Ingredient list for filter dropdown
     all_ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
 
-    from app.rms.tagging.filters import list_tags_for_kind
+    from app.rms.tagging.ensure import (
+        list_tags_for_kind,  # canonical home (post-sense-dedup, 2026-10-09)
+    )
 
     all_families = sorted(
         {
@@ -1256,9 +1258,9 @@ def recipe_search_api(
             {"ids": recipe_ids, "today": today_start},
         ).fetchall()
         batches_today_map = {rid: float(total or 0) for rid, total in rows}
-    except Exception:  # noqa: S110
-        # Table may not exist in some test DBs; default to empty
-        pass
+    except Exception as exc:  # Table may not exist in some test DBs; default to empty
+        logger.warning("batches_today lookup failed, defaulting to empty: {!r}", exc)
+        batches_today_map = {}
 
     # Format results for combo
     payload = [

@@ -215,7 +215,15 @@ def test_template_pill_handles_cross_midnight_ferments():
 
 
 def test_template_fermentation_pill_print_styles():
-    """B.3 — Fermentation pill must remain visible (with adjusted colors) on print."""
-    assert ".fermentation-pill" in TEMPLATE_SRC, "B.3 — CSS rules for .fermentation-pill must exist"
+    """B.3 — Fermentation pill must remain visible (with adjusted colors) on print.
+
+    CSS-deep-audit (f65ce313) moved pill styles from the inline <style> block
+    to app/static/app-improvements.css; the contract is that the rules exist
+    in a stylesheet the template loads.
+    """
+    css_src = (Path(__file__).parent.parent / "app" / "static" / "app-improvements.css").read_text(
+        encoding="utf-8"
+    )
+    assert ".fermentation-pill" in css_src, "B.3 — CSS rules for .fermentation-pill must exist"
     # Check there's a print-media rule
-    assert "@media print" in TEMPLATE_SRC
+    assert "@media print" in css_src

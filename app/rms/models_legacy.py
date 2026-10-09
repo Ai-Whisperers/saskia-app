@@ -154,6 +154,12 @@ class Ingredient(Base):
         Integer, ForeignKey("supplier.id"), nullable=True
     )
 
+    # Migration 117 (2026-10-09): image_url for the live ingredient list page.
+    # Nullable so the 94 seeded ingredients are not affected; the seed will
+    # populate this once ingredient images are generated (see
+    # data/ingredient_visuals.py for the prompt generator).
+    image_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
     # Relationships
     # NOTE: `recipe_lines` (the reverse of RecipeLine.ingredient) is NOT defined here
     # because RecipeLine.line_ref_id is polymorphic (FK to ingredient OR recipe).

@@ -537,12 +537,12 @@ def test_sale_create_form_renders(client, session_factory):
     assert r_post.status_code == 400  # BUG-00: empty product_id fails with Spanish 400
 
 
-def test_sale_create_success(client, session_factory):
+def test_sale_create_success(client_with_caja, session_factory):
     """POST /ventas/nueva with valid data → 303 + sale exists."""
     from app.rms.models import Sale
 
     _, _, _, product_id, _ = _seed_min_catalog(session_factory)
-    r = client.post(
+    r = client_with_caja.post(
         "/ventas/nueva",
         data={
             "product_id": str(product_id),
@@ -592,10 +592,10 @@ def test_sale_create_negative_qty_returns_400(client, session_factory):
     assert r.status_code == 400
 
 
-def test_sale_create_unknown_product_returns_400_or_422(client, session_factory):
+def test_sale_create_unknown_product_returns_400_or_422(client_with_caja, session_factory):
     """Unknown product_id → 400."""
     _seed_min_catalog(session_factory)
-    r = client.post(
+    r = client_with_caja.post(
         "/ventas/nueva",
         data={
             "product_id": "99999",

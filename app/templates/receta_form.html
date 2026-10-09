@@ -62,8 +62,7 @@
 {% block content %}
 {{ ui.page_header(
      title=action ~ ' receta',
-     desc='Identificación, ingredientes, rinde, tiempos, costo y etiquetas.',
-     crumbs=[('Recetas', '/recetas'), (action, None)]
+     desc='Nombre, ingredientes y rinde.'
    ) }}
 
 
@@ -450,7 +449,7 @@
         <a href="/recetas" class="btn btn-secondary">Cancelar</a>
         <button type="submit" class="btn btn-primary btn-save">
           <svg class="icon" aria-hidden="true"><use href="#icon-save"/></svg>
-          Guardar receta
+          Guardá receta
         </button>
       </div>
     </section>

@@ -128,7 +128,9 @@ def test_data_shift_saved_marker_present(authed_client):
     # template directly.
     import pathlib
 
-    tpl = pathlib.Path("/opt/data/work/saskia-app/app/templates/produccion.html").read_text()
+    tpl = (
+        pathlib.Path(__file__).resolve().parents[1] / "app" / "templates" / "produccion.html"
+    ).read_text()
     assert 'data-shift-saved="1"' in tpl, (
         "data-shift-saved marker missing from produccion.html — deficit-prompt JS won't fire"
     )

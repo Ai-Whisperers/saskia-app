@@ -19,6 +19,10 @@
       </button>
     </form>
     {% endfor %}
+    <a href="/dashboard" class="station-card station-card-link">
+      <span class="station-card-title">Dashboard</span>
+      <span class="station-card-blurb">KPIs del mes: ventas, márgenes, producción.</span>
+    </a>
   </div>
 </section>
 <style>
@@ -54,5 +58,10 @@
   .station-card:hover { border-color: var(--color-accent, #8a5a2a); }
   .station-card-title { font-size: 1.15rem; font-weight: 650; }
   .station-card-blurb { color: var(--color-muted, #5c574e); font-size: .95rem; line-height: 1.35; }
+  .station-card-link {
+    text-decoration: none;
+    color: inherit;
+    font: inherit;
+  }
 </style>
 {% endblock %}
