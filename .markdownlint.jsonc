@@ -1,0 +1,26 @@
+{
+  "config": {
+    "default": true
+  },
+  "plugins": {
+    "markdownlint": {
+      "MD013": false,
+      "MD033": false,
+      "MD041": false,
+      "MD024": {
+        "siblings_only": true
+      }
+    }
+  },
+  "globs": [
+    "docs/**/*.md",
+    "*.md"
+  ],
+  "ignores": [
+    "**/_archive/**",
+    "**/node_modules/**",
+    "**/receipts/**",
+    "**/.venv/**",
+    "**/__pycache__/**"
+  ]
+}
