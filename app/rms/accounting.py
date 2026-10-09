@@ -458,16 +458,31 @@ def product_margin_summary(
     cost at the time). For products with no stock moves, cost=0.
     """
     sales = sales_in_window(session, start=start_date, end=end_date)
+    buckets = _bucket_sales_by_product(sales)
+    cost_by_prod = _fetch_costs_by_product(session, start_date, end_date)
+    prods = _fetch_products(session, list(buckets.keys()))
 
-    # Aggregate per product
-    buckets: dict[int, list[Sale]] = {}
+    return _build_margin_rows(buckets, cost_by_prod, prods)
+
+
+def _bucket_sales_by_product(sales) -> dict[int, list]:
+    """Group sales by their product_id.
+
+    Extracted from product_margin_summary to reduce complexity.
+    """
+    buckets: dict[int, list] = {}
     for s in sales:
         buckets.setdefault(s.product_id, []).append(s)
+    return buckets
 
-    # Aggregate per product via StockMovement (BACKLOG #1, 2026-10-02:
-    # sale_stock_move dropped by migration 092; consumption rows live in
-    # stock_movement keyed by reference_type='sale'). For each
-    # (product_id, ingredient_id), cost = abs(qty) * ingredient.purchase_price_gs.
+
+def _fetch_costs_by_product(
+    session: Session, start_date: datetime, end_date: datetime
+) -> dict[int, int]:
+    """Fetch aggregated cost per product from stock movements.
+
+    Extracted from product_margin_summary to reduce complexity.
+    """
     cost_rows = session.execute(
         select(
             Sale.product_id,
@@ -489,22 +504,36 @@ def product_margin_summary(
         )
         .group_by(Sale.product_id)
     ).all()
-    cost_by_prod: dict[int, int] = {int(r[0]): int(r[1] or 0) for r in cost_rows}
+    return {int(r[0]): int(r[1] or 0) for r in cost_rows}
 
-    # Lookup product names for the result rows
-    prod_ids = list(buckets.keys())
-    prods = {
+
+def _fetch_products(session: Session, prod_ids: list[int]) -> dict[int, object]:
+    """Fetch products by id and return as a dict.
+
+    Extracted from product_margin_summary to reduce complexity.
+    """
+    if not prod_ids:
+        return {}
+    return {
         p.id: p for p in session.execute(select(Product).where(Product.id.in_(prod_ids))).scalars()
     }
 
+
+def _build_margin_rows(
+    buckets: dict[int, list],
+    cost_by_prod: dict[int, int],
+    prods: dict[int, object],
+) -> list[ProductMarginRow]:
+    """Build the per-product margin result rows.
+
+    Extracted from product_margin_summary to reduce complexity.
+    """
     out: list[ProductMarginRow] = []
     for prod_id, sales_list in buckets.items():
         prod = prods.get(prod_id)
         if prod is None:
             continue
-        revenue = sum(
-            to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales_list
-        )
+        revenue = _compute_revenue(sales_list)
         cost = cost_by_prod.get(prod_id, 0)
         margin = revenue - cost
         margin_pct = (margin / revenue * 100) if revenue > 0 else 0.0
@@ -520,6 +549,16 @@ def product_margin_summary(
             )
         )
     return out
+
+
+def _compute_revenue(sales_list) -> int:
+    """Compute total revenue (in Gs) for a list of sales.
+
+    Extracted from _build_margin_rows to reduce complexity.
+    """
+    return sum(
+        to_int_gs(Decimal(str(s.qty)) * Decimal(str(s.unit_price_gs))) for s in sales_list
+    )
 
 
 def cross_period_comparison(
