@@ -110,10 +110,19 @@ def write_env_file(env: str) -> int:
         f"# DO NOT EDIT BY HAND — re-run deploy.sh to refresh.",
         "",
     ]
-    for key in row["bws_keys"]:
+    for entry in row["bws_keys"]:
+        # bws_keys entries may be either a bare string ('FERNET_KEY') or
+        # a string with a trailing '# if present' / '# optional' comment
+        # meaning: skip silently if the secret is not in BWS. Used for
+        # SENTRY_DSN, NEON_DATABASE_URL, etc. — features that are off by
+        # default but ready to flip on once a secret is added.
+        key, optional = _parse_bws_key_entry(entry)
         try:
             val = bws_get(key)
         except KeyError:
+            if optional:
+                print(f"SKIP: optional BWS secret '{key}' not in BWS for env={env}", file=sys.stderr)
+                continue
             print(f"ERROR: BWS secret '{key}' not found for env={env}", file=sys.stderr)
             return 2
         # No surrounding quotes: Docker's env_file parser does NOT strip
@@ -138,6 +147,24 @@ def write_env_file(env: str) -> int:
     target.chmod(0o600)
     print(f"{target}: written ({len(new_content)} bytes, sha256={new_hash[:12]})", file=sys.stderr)
     return 0
+
+
+def _parse_bws_key_entry(entry: str) -> tuple[str, bool]:
+    """Parse a bws_keys entry: 'FERNET_KEY' or 'SENTRY_DSN  # if present'.
+
+    Returns (key, optional). An entry is optional if it has a trailing
+    '# if present' or '# optional' inline comment (case-insensitive,
+    whitespace-tolerant).
+    """
+    s = entry.strip()
+    if "#" in s:
+        key_part, _, comment = s.partition("#")
+        key = key_part.strip()
+        # Accept 'if present', 'optional', 'if set', or any 'if <feature>' phrasing.
+        c = comment.strip().lower()
+        optional = c == "optional" or c.startswith("if ")
+        return key, optional
+    return s, False
 
 
 def main() -> int:
