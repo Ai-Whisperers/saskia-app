@@ -7,7 +7,7 @@
 
 HEREBUS plan shipped; see sprint summary at `docs/roadmap/sessions/herebus-sprint/2026-09-23-herebus-sprint.md`.
 
-See [`docs/roadmap/README.md`](docs/roadmap/README.md) for the full index.
+See [`docs/roadmap/README.md`](../../roadmap/README.md) for the full index.
 
 ---
 
