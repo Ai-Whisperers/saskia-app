@@ -4510,8 +4510,6 @@ def sync_backup_before_migration(
     # import — important for tests that import db.py without a DB).
     from sqlalchemy.orm import sessionmaker
 
-    # noqa: cycle-known — part of a known lazy-import cycle with backup (see scripts/check_imports.py KNOWN_CYCLES)
-
     from app.rms.backup import backup_database
 
     ts = _dt.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")

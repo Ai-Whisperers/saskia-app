@@ -200,7 +200,6 @@ def get_loyalty_config(session: Session) -> dict[str, int]:
     Returns a fresh dict every call (callers may mutate freely). Keys
     missing from the DB fall back to DEFAULT_LOYALTY_CONFIG values.
     """
-    # noqa: cycle-known — part of a known lazy-import cycle with settings_registry (see scripts/check_imports.py KNOWN_CYCLES)
     from app.rms.settings_registry import get_setting_value
 
     out = dict(DEFAULT_LOYALTY_CONFIG)

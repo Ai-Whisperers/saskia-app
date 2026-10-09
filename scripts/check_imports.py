@@ -117,13 +117,18 @@ ALLOW_LIST: dict[tuple[str, str], str] = {
 # The Sazon pattern for these is "shim" modules: one file is a thin
 # wrapper around the other for legacy import compatibility. The fix
 # (deprecate the shim, update all callers) is a separate refactor.
-KNOWN_CYCLES: list[tuple[str, str, str]] = [
-    (
-        "app.rms.ingredient_intel",
-        "app.rms.tagging.classify",
-        "ingredient_intel is a legacy shim that re-exports infer_allergens/infer_dietary_tags from tagging.classify. The bidirectional imports are inside function bodies. Fix: deprecate ingredient_intel, update callers. Tracked as SASKIA-XXX.",
-    ),
-]
+# As of 2026-10-09 sweep, all 3 known cycles have been fixed:
+# - settings_runtime <-> settings_registry: moved settings_get/settings_set
+#   into settings_registry (commit c27b1a5d).
+# - db <-> backup: extracted _get_db_url_safe into new app/rms/db_url.py
+#   (commit 5f89c3c7).
+# - ingredient_intel <-> tagging.classify: moved _CATEGORY_KEYWORDS +
+#   infer_category into tagging/classify.py, ingredient_intel now
+#   re-exports (this commit).
+# If a new cycle appears, this test fails and forces the contributor
+# to either fix the cycle or add a SASKIA-XXX ticket + KNOWN_CYCLES
+# entry.
+KNOWN_CYCLES: list[tuple[str, str, str]] = []
 
 
 RULES: list[tuple[str, str, str]] = [
