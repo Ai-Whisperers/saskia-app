@@ -134,7 +134,7 @@
 </div>
 
 {% if station != 'cocina' %}
-<form method="post" action="/eod/check">
+<form method="post" action="/eod/check" class="sheet-form">
   {# BACKLOG #9 (2026-10-01): per-render idempotency token injected by
      the server. Browser double-click on "Guardar cierre" will re-POST
      with the SAME key, which the router reserves as an AppMeta row
@@ -150,9 +150,9 @@
      surfaced at the top of the form, with a CSS progress bar that
      visually communicates "you're 60% there". #}
   {% if eod_items_total and eod_items_total > 0 %}
-  <div class="eod-progress mb-3 d-flex" data-eod-progress
-       style="margin-bottom:var(--space-3);padding:var(--space-3);
-              background:var(--color-surface-subtle);border-radius:6px;">
+  <div class="eod-progress mb-3" data-eod-progress
+       style="display:flex;flex-direction:column;gap:8px;margin-bottom:var(--space-3);padding:var(--space-3);
+              background:var(--color-surface);border:1px solid var(--color-border);border-radius:8px;">
     <div class="d-flex" style="display:flex;justify-content:space-between;align-items:baseline;
                 margin-bottom:var(--space-1);font-size:var(--text-sm);">
       <strong>Checklist</strong>
@@ -209,16 +209,17 @@
     </tbody>
   </table>
   </div>
-  <p class="text-muted">El cierre se guarda cuando hacés click en "Marcar cierre del día".</p>
-  <div class="form-row">
-    <label for="notes_for_next">Notas para el turno siguiente</label>
-    <textarea id="notes_for_next" name="notes_for_next" rows="2" maxlength="2000"
-              placeholder="Ej: mañana llega pedido de harina; cliente X retira a las 10">{{ saved_notes or '' }}</textarea>
+  <details>
+    <summary>Notas para el turno siguiente</summary>
+    <div class="form-row">
+      <label for="notes_for_next" class="sr-only">Notas para el turno siguiente</label>
+      <textarea id="notes_for_next" name="notes_for_next" rows="2" maxlength="2000"
+                placeholder="Ej: mañana llega pedido de harina; cliente X retira a las 10">{{ saved_notes or '' }}</textarea>
+    </div>
+  </details>
+  <div class="sheet-footer">
+    <button type="submit" class="btn btn-primary">Guardar cierre</button>
   </div>
-  <button type="submit" class="btn btn-primary">
-    <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-    Guardar cierre
-  </button>
 </form>
 {% endif %}
 

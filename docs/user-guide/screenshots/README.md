@@ -44,7 +44,7 @@ For each section of the user guide, capture the corresponding page:
 5. Update the user-guide markdown to reference each image:
 
 ```markdown
-![Dashboard principal](../screenshots/dashboard.png)
+![Dashboard principal](00-dashboard.png)
 ```
 
 ## Alternative (no headless browser)

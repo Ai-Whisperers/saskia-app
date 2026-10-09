@@ -16,6 +16,78 @@ workbook export (`data/herebus_seed_canonical.json`).
 **Verification**: full canonical-vs-seed recipe-line diff = 0 mismatches
 (unit-aware g/kg, ml/l, duplicate-aware REC-006 renumbering);
 `tests/test_sazon_seed.py` 25/25 green.
+## 2026-10-09c — tooling(tier2-followups): Vale prose lint + tool evaluations
+
+**Scope**: closes the remaining deferred items from the Tier 2 research (PR #94/#95).
+
+**Adopted — Vale prose lint** (`make docs-prose`, in `ci-extra`):
+- Vendored styles (Microsoft + write-good) — CI runs offline; PROVENANCE.txt pins sources.
+- Curated `.vale.ini`: full Microsoft style produced 8,470 findings on this
+  bilingual ops-log repo; curation landed on rules that catch objectively-wrong
+  prose only. 7 real typos fixed ("the the" ×2, "sanity check" ×3, "in in", "hangs").
+- `scripts/docs_prose.sh`: find-based deterministic corpus (Vale multi---glob
+  exclusion proved leaky for archive/ + binary files).
+- Corpus: 0 findings, rc=0.
+
+**Evaluated, rejected (documented in docs/operations/2026-10-09-tier2-followups.md)**:
+- ast-grep: HTML rules can't see inside <script> blocks → cannot replace
+  lint_tier1.py (misses 3 real violations). Python rules work; 3 structural
+  rules shipped as .ast-grep/rules.yml (manual, not gated).
+- Semgrep CE: coverage overlap + registry network dep + 2-4min CI cost.
+- umbra-scan: no shadow-API surface exists (single process, no independent spec).
+- factory_boy: not a dep, zero usage — N/A.
+
+**Drive-by**: Makefile duplicate targets (jscpd, deadcode-code, docs-lint,
+docs-lint-strict, tool-matrix each defined twice since #94) deduplicated.
+## 2026-10-09 — Docs PR 4: fix all broken internal links
+
+**Scope**: docs-quality followup PR 4 from the audit. A repo-wide
+code-span-aware scan found 26 broken md links (audit estimated 57 —
+the delta was directory-level links + renamed files caught by the
+deeper scanner config).
+
+**What changed** (13 files):
+- `app/README.md`: 5 root-relative links rewritten as `../`-relative
+- `docs/roadmap/audits/INDEX.md` + `historical-plans/INDEX.md`: 9 links
+  to moved/renamed audit files (LOGGING_* now in audits/ itself,
+  DEPLOY_URGENT renamed, PRODUCTION_500_RUNBOOK in operations/)
+- `docs/user-guide/`: 4 renumber-ref fixes after the PR-3 dedupe
+  (09-produccion, 11-auditoria, 20-kpis, 14-reponer)
+- archive/intake/epics/wishlist/operations: 7 path-depth fixes
+- `docs/roadmap/audits/SASKIA_BACKEND_AUDIT_2026-09-22.md` `](conn)`
+  is inline CODE, not a link — scanner false positive, no change needed
+
+**Test status**: re-scan reports **0 broken** (excluding code spans).
+
+## 2026-10-09 — Fix refresh_action_pins --fix line-splice bug
+
+**Scope**: The first run of `refresh_action_pins.py --fix` (PR #106)
+replaced entire `uses:` lines, losing leading indentation — 13 workflow
+files became invalid YAML and CI ran zero jobs. Caught before merge.
+
+**What changed**:
+- `scripts/refresh_action_pins.py`: `--fix` now splices only the matched
+  `uses:` span (indent + trailing content preserved)
+- Workflows restored from main and re-pinned with the fixed script
+- ruff format pass on the script
+
+**Test status**: YAML validates on all 13 files; scanner re-run clean.
+
+## 2026-10-09 — Apply action SHA-pin drift fix (first scanner run)
+
+**Scope**: scripts/refresh_action_pins.py detected 15 drifted pins on
+its first run; the monthly cron wouldn't fire until Nov 1, so applying
+now.
+
+**What changed**:
+- `astral-sh/setup-uv@v7`: 94527f2e -> 37802adc (13 workflows). The old
+  pin was the ANNOTATED TAG OBJECT sha; the new one is the commit the
+  tag points at — matching what GH runners actually execute
+  (CI logs already show SHA:37802adc).
+- `zaproxy/action-api-scan@v0.10.0`: bd24b11e -> 5158fe4d (same
+  tag-object vs commit distinction).
+
+**Test status**: tag peel verified via git/tags API; zizmor clean.
 
 ## 2026-10-09 — Untrack .venv from git
 

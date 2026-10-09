@@ -1124,7 +1124,7 @@ When you're done reading this, see `docs/reports/redesign-2026-09-26/01-ux-audit
 # ============================================================
 # PAGE 15: `/login` (login.png) — Login
 # ============================================================
-**Goal:** Counter staff can sign in in <10 seconds; the page never blocks them.
+**Goal:** Counter staff can sign in <10 seconds; the page never blocks them.
 
 ## 5-Hat Analysis
 
@@ -2620,7 +2620,7 @@ This section gives a one-line bottom line for 14 pages I analyzed via vision thi
 | # | Defect | Pages affected | Effort | Why critical |
 |---|---|---|---|---|
 | **D1** | Native `<input type="date">` with `mm/dd/yyyy` placeholder | 4+ (reportes/cierre-mensual, reportes/iva, reportes/freshness, reportes/diario, etc.) | 1d | Violates AGENTS.md "no native pickers". English locale looks broken. |
-| **D2** | Page hangs on slow API with no skeleton/spinner | 39 of 46 (only 7 pages have loaders) | 1w | User thinks app is dead. Common on reports. |
+| **D2** | Page stalls on slow API with no skeleton/spinner | 39 of 46 (only 7 pages have loaders) | 1w | User thinks app is dead. Common on reports. |
 | **D3** | Currency drift: `Gs. 75` / `75` / `Gs. 75,00` / `75.000 Gs.` / `Gs. 75.000` | All reports + most lists + `/ventas/{id}/recibo` | 2d | System prompt §2 Prime Directive #5 violation. Recurring finance error. |
 | **D4** | Slug-as-display-name ("Producto cfaf4b47", "Receta 0da4ca66", "Ingrediente 415de24c") | 9 (analisis, reportes/top-productos, reportes/food-cost-variance, reportes/margenes, inventario/{id}, producto/{id}/editar, etc.) | 1h | Every demo screenshot looks unprofessional. |
 | **D5** | Status pills mix ES + EN ("pending", "confirmed", "cancelled" alongside "pendiente", "confirmado", "cancelado") | 5 (pedido-detalle, pedidos, pedidos/board, supplier-nuevo, bank) | 4h | Bilingual UI confuses users. |

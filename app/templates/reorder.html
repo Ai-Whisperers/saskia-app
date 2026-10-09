@@ -3,12 +3,12 @@
 {% import "_components/macros.html" as m %}
 {% block title %}Reponer stock{% endblock %}
 {% block content %}
-<h1>Reponer stock</h1>
+<section class="reorder-page">
+<h1>Reponer</h1>
+<p class="page-desc">Productos por debajo del stock mínimo.</p>
 
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}
-<p class="hint">Ingredientes con stock por debajo del mínimo. Total estimado:
-  <strong>{{ m.gs_full(total_cost_gs) }}</strong>.</p>
 
 {# Live cost + supplier-change toast banner. The banner only renders when
    she changes a supplier on one row and the auto-apply is going to
@@ -17,51 +17,58 @@
 <div id="supplier-cascade-banner" class="cascade-banner" hidden></div>
 
 {% if items %}
-{# Bulk actions bar #}
-<form method="post" action="/reorder/generate-po" id="bulk-form">
+<div class="reorder-summary">
+  <span><strong>{{ count }}</strong> producto{{ 's' if count != 1 else '' }} por reponer</span>
+  <span>Est. Gs. <strong id="reorder-total">{{ m.gs(total_cost_gs) }}</strong></span>
+</div>
+
+<div class="reorder-tools">
+  <div class="reorder-filters" role="group" aria-label="Filtrar por stock">
+    <button type="button" class="reorder-chip is-on" data-urgency="todos">Todos</button>
+    <button type="button" class="reorder-chip" data-urgency="sin stock">Sin stock</button>
+    <button type="button" class="reorder-chip" data-urgency="bajo mínimo">Stock bajo</button>
+  </div>
+  <label class="reorder-search">
+    <span class="sr-only">Buscar ingrediente</span>
+    <input type="search" id="reorder-search" placeholder="Buscar ingrediente..." autocomplete="off">
+  </label>
+  <details class="reorder-menu">
+    <summary>Filtros</summary>
+    <div class="reorder-menu__panel">
+      <label class="reorder-menu__opt"><input type="checkbox" id="filter-with-supplier" checked> Con proveedor</label>
+      <label class="reorder-menu__opt"><input type="checkbox" id="filter-without-supplier" checked> Sin proveedor</label>
+      <p class="reorder-lock-note">Después de {{ lock_threshold }} compras al mismo proveedor se fija automáticamente.</p>
+    </div>
+  </details>
+</div>
+
+<p class="reorder-flow">Revisá el faltante, ajustá la cantidad y el proveedor, marcá lo que vas a comprar y generá el pedido. Después registrá cada compra con Reponer.</p>
+<div class="reorder-board" id="reorder-board">
+<div class="reorder-line reorder-line--head">
+  <span><input type="checkbox" id="select-all" aria-label="Seleccionar todos"></span>
+  <span>Ingrediente</span>
+  <span>Stock</span>
+  <span>Comprar</span>
+  <span>Proveedor</span>
+  <span class="num">Costo</span>
+  <span>Confirmar</span>
+</div>
+<form method="post" action="/reorder/generate-po" id="bulk-form" class="reorder-offscreen">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="selected" id="bulk-selected" value="">
-  <div class="filters-form d-flex" style="display:flex;gap:var(--space-2);align-items:center;margin-bottom:var(--space-3);flex-wrap:wrap;">
-    <label class="d-flex" style="display:flex;align-items:center;gap:var(--space-1);cursor:pointer;">
-      <input type="checkbox" id="select-all" aria-label="Seleccionar todos">
-      <span>Seleccionar todos</span>
-    </label>
-    <button type="submit" class="btn btn-primary" id="generate-po-btn" disabled
-            data-consolidate="by-supplier"
-            data-undo-window="5"
-            title="Marcá ingredientes arriba para generar el pedido">
-      <svg class="icon" aria-hidden="true"><use href="#icon-whatsapp"/></svg>
-      Generar pedido por WhatsApp
-    </button>
-    <form method="post" action="/reorder/bulk-quick-restock" id="bulk-restock-form"
-          style="display:inline-flex;gap:var(--space-1);align-items:center;">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <input type="hidden" name="ingredient_ids" id="bulk-restock-ids" value="">
-      <button type="submit" class="btn btn-success" id="bulk-restock-btn" disabled
-              data-confirm="Llenar a 2x min TODOS los ingredientes marcados? Esto registra una compra para cada uno."
-              title="Marca ingredientes arriba para marcarlos como comprados en 1 click">
-        <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-        Marcar comprados (2x min)
-      </button>
-    </form>
-    <small class="text-muted" style="margin-left:auto;">
-      Después de {{ lock_threshold }} compras al mismo proveedor se fija automáticamente.
-    </small>
-  </div>
+</form>
+<form method="post" action="/reorder/bulk-quick-restock" id="bulk-restock-form" class="reorder-offscreen">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="ingredient_ids" id="bulk-restock-ids" value="">
 </form>
 
 <script>
-document.getElementById('select-all').addEventListener('change', function() {
-  var checkboxes = document.querySelectorAll('.item-checkbox');
-  checkboxes.forEach(function(cb) { cb.checked = this.checked; }.bind(this));
-  updateBulkBtn();
-});
-document.querySelectorAll('.item-checkbox').forEach(function(cb) {
-  cb.addEventListener('change', updateBulkBtn);
-});
 function updateBulkBtn() {
-  var checked = document.querySelectorAll('.item-checkbox:checked');
-  var ids = Array.from(checked).map(function(c){ return c.value; });
+  var checked = Array.from(document.querySelectorAll('.item-checkbox:checked')).filter(function(cb) {
+    var row = cb.closest('.reorder-row');
+    return !row || !row.hidden;
+  });
+  var ids = checked.map(function(c){ return c.value; });
   var csv = ids.join(',');
 
   var genBtn = document.getElementById('generate-po-btn');
@@ -73,10 +80,86 @@ function updateBulkBtn() {
   var restockHidden = document.getElementById('bulk-restock-ids');
   if (restockBtn) { restockBtn.disabled = ids.length === 0; }
   if (restockHidden) { restockHidden.value = csv; }
+
+  var countEl = document.getElementById('reorder-selected-count');
+  var sumEl = document.getElementById('reorder-selected-sum');
+  var hint = document.getElementById('reorder-bar-hint');
+  if (countEl) {
+    countEl.textContent = ids.length + (ids.length === 1 ? ' seleccionado' : ' seleccionados');
+  }
+  var sum = 0;
+  checked.forEach(function(cb) {
+    var row = cb.closest('.reorder-row');
+    var cost = row && row.querySelector('.live-cost');
+    if (cost) sum += parseInt(cost.getAttribute('data-base-cost') || '0', 10) || 0;
+  });
+  if (sumEl) sumEl.textContent = sum.toLocaleString('es-PY').replace(/,/g, '.');
+  if (hint) hint.hidden = ids.length > 0;
+  if (genBtn) {
+    genBtn.title = ids.length === 0
+      ? 'Marcá ingredientes para generar el pedido'
+      : 'Generar el pedido de los ingredientes marcados';
+  }
+  if (restockBtn) {
+    restockBtn.title = ids.length === 0
+      ? 'Marcá ingredientes para marcarlos como comprados'
+      : 'Registrar la compra de los ingredientes marcados, llenando a 2× el mínimo';
+  }
 }
 
-// P40: confirm before bulk quick-restock
+// P40: confirm before bulk quick-restock. Bind after the rows exist.
 document.addEventListener('DOMContentLoaded', function() {
+  var selectAll = document.getElementById('select-all');
+  if (selectAll) {
+    selectAll.addEventListener('change', function() {
+      document.querySelectorAll('.reorder-row').forEach(function(row) {
+        if (row.hidden) return;
+        var cb = row.querySelector('.item-checkbox');
+        if (cb) cb.checked = selectAll.checked;
+      });
+      updateBulkBtn();
+    });
+  }
+  document.querySelectorAll('.item-checkbox').forEach(function(cb) {
+    cb.addEventListener('change', updateBulkBtn);
+  });
+
+  function applyReorderFilters() {
+    var chip = document.querySelector('.reorder-chip.is-on');
+    var mode = chip ? chip.getAttribute('data-urgency') : 'todos';
+    var search = document.getElementById('reorder-search');
+    var q = (search && search.value ? search.value : '').trim().toLowerCase();
+    var withSup = document.getElementById('filter-with-supplier');
+    var withoutSup = document.getElementById('filter-without-supplier');
+    var allowWith = !withSup || withSup.checked;
+    var allowWithout = !withoutSup || withoutSup.checked;
+    document.querySelectorAll('.reorder-row').forEach(function(row) {
+      var urg = row.getAttribute('data-urgency') || '';
+      var name = (row.getAttribute('data-name') || '').toLowerCase();
+      var has = row.getAttribute('data-has-supplier') === '1';
+      var okUrg = mode === 'todos' || urg === mode;
+      var okName = !q || name.indexOf(q) !== -1;
+      var okSup = (has && allowWith) || (!has && allowWithout);
+      row.hidden = !(okUrg && okName && okSup);
+    });
+    if (selectAll) selectAll.checked = false;
+    updateBulkBtn();
+  }
+  document.querySelectorAll('.reorder-chip').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.reorder-chip').forEach(function(other) {
+        other.classList.toggle('is-on', other === btn);
+      });
+      applyReorderFilters();
+    });
+  });
+  var searchInput = document.getElementById('reorder-search');
+  if (searchInput) searchInput.addEventListener('input', applyReorderFilters);
+  ['filter-with-supplier', 'filter-without-supplier'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', applyReorderFilters);
+  });
+
   var form = document.getElementById('bulk-restock-form');
   if (form) {
     form.addEventListener('submit', function(e) {
@@ -105,24 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {{ ui.skeleton_section(id="reorder-table", variant="line", count=10, label="Cargando reposiciones") }}
 <div data-loaded-section="reorder-table">
-<div class="table-scroll" style="max-height:75vh;">
-<table class="table is-hoverable is-striped">
-  <thead>
-    <tr>
-      <th style="width:2rem;"></th>
-      <th>Ingrediente</th>
-      <th class="num">Actual</th>
-      {# P-32.1: urgency + cost are always visible; snapshot cols collapse. #}
-      <th class="num">Urgencia</th>
-      <th class="num">Costo est.</th>
-      <th colspan="2" class="reorder-row__snapshot-head">Stock</th>
-      <th>Proveedor</th>
-      <th class="num" style="min-width:6rem;">Cantidad</th>
-      <th>Unidad</th>
-      <th class="num" style="min-width:7rem;">Precio</th>
-      <th>Confirmar</th>
-    </tr>
-  </thead>
+<table class="reorder-table">
   <tbody>
   {% for item in items %}
     {% set supplier_info = supplier_map.get(item.ingredient_id, (None, '')) %}
@@ -135,33 +201,97 @@ document.addEventListener('DOMContentLoaded', function() {
         data-ingredient-id="{{ item.ingredient_id }}"
         data-original-supplier-id="{{ eff_id or '' }}"
         data-original-supplier-name="{{ supplier_info[0] or '' }}"
+        data-urgency="{{ item.urgency_label }}"
+        data-has-supplier="{% if supplier_info[0] %}1{% else %}0{% endif %}"
+        data-name="{{ fmt.entity_name(item) }}"
         {% if is_locked %}data-locked-supplier-id="{{ locked_id }}"{% endif %}>
       <td>
-        <input type="checkbox" class="item-checkbox" value="{{ item.ingredient_id }}" aria-label="Seleccionar {{ fmt.entity_name(item) }}">
-      </td>
-      <td><strong data-copy="{{ item.ingredient_id }}">{{ fmt.entity_name(item) }}</strong></td>
-      <td class="num">{{ item.current_stock|round(2) }} {{ item.unit }}</td>
-      {# Urgency + live cost are decision-critical → always visible. #}
-      <td class="num">
-        {% if item.urgency_label == 'sin stock' %}
-          {{ ui.status_pill("Sin stock", sev="error") }}
-        {% elif item.urgency_label == 'bajo mínimo' %}
-          {{ ui.status_pill("Bajo mínimo", sev="warn") }}
-        {% else %}
-          {{ ui.status_pill("OK", sev="ok") }}
-        {% endif %}
-      </td>
-      <td class="num live-cost"
-          data-ingredient-id="{{ item.ingredient_id }}"
-          data-base-cost="{{ item.estimated_cost_gs }}">
-        {% if item.has_price %}{{ m.gs(item.estimated_cost_gs) }}{% else %}<span class="text-muted">sin precio</span>{% endif %}
-      </td>
-      {# P-32.1: collapse non-action snapshot data (min/max/sugerido/tendencia/días)
-         behind a <details> so the action row (qty, unit, price, submit) stays
-         visible without horizontal scroll on 1366px laptops. Closed by default. #}
-      <td colspan="2" class="reorder-row__snapshot-cell">
+      <form method="post" action="/reorder/registrar" class="restock-form"
+            data-ingredient-id="{{ item.ingredient_id }}"
+            data-original-supplier-id="{{ eff_id or '' }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="ingredient_id" value="{{ item.ingredient_id }}">
+        <input type="hidden" name="notes" value="">
+        <div class="reorder-line">
+          <span>
+            <input type="checkbox" class="item-checkbox" value="{{ item.ingredient_id }}" aria-label="Seleccionar {{ fmt.entity_name(item) }}">
+          </span>
+          <span class="reorder-name">
+            <strong data-copy="{{ item.ingredient_id }}">{{ fmt.entity_name(item) }}</strong>
+            {% if item.urgency_label == 'sin stock' %}
+              {{ ui.status_pill("Sin stock", sev="error") }}
+            {% elif item.urgency_label == 'bajo mínimo' %}
+              {{ ui.status_pill("Bajo mínimo", sev="warn") }}
+            {% else %}
+              {{ ui.status_pill("OK", sev="ok") }}
+            {% endif %}
+          </span>
+          <span class="reorder-stock">{{ item.current_stock|round(2) }} {{ item.unit }}</span>
+          <span class="reorder-buy">
+            <label class="reorder-field" for="rq-{{ item.ingredient_id }}">
+              <span class="reorder-field__label sr-only">Cantidad</span>
+              <input type="number" id="rq-{{ item.ingredient_id }}" name="qty" step="0.5" min="0"
+                     class="qty-input"
+                     value="{{ item.suggested_qty|round(2) }}"
+                     aria-label="Cantidad a reponer: {{ fmt.entity_name(item) }}">
+            </label>
+            <span class="reorder-field reorder-field--unit" data-source="static">
+              <span class="reorder-field__label sr-only">Unidad</span>
+              {% if item.unit in ('g', 'kg') %}
+                {{ ui.combo_field(
+                    name='qty_unit',
+                    value=item.unit,
+                    display=item.unit,
+                    src=[{"value": "g", "label": "g"}, {"value": "kg", "label": "kg"}]
+                ) }}
+              {% elif item.unit in ('ml', 'l') %}
+                {{ ui.combo_field(
+                    name='qty_unit',
+                    value=item.unit,
+                    display=item.unit,
+                    src=[{"value": "ml", "label": "ml"}, {"value": "l", "label": "l"}]
+                ) }}
+              {% else %}
+                {{ ui.combo_field(
+                    name='qty_unit',
+                    value=item.unit,
+                    display=item.unit,
+                    src=[{"value": "und", "label": "und"}] + ([{"value": item.unit, "label": item.unit}] if item.unit not in ("g", "kg", "ml", "l", "und") else [])
+                ) }}
+              {% endif %}
+            </span>
+            <label class="reorder-field" for="rp-{{ item.ingredient_id }}">
+              <span class="reorder-field__label sr-only">Precio</span>
+              <input type="number" id="rp-{{ item.ingredient_id }}" name="price_gs" step="100" min="0" inputmode="numeric"
+                     class="currency-input price-input"
+                     value="{{ item.purchase_price_gs if item.purchase_price_gs is not none else '' }}"
+                     data-cheapest-price="{{ cheapest.avg_price_gs if cheapest and cheapest.avg_price_gs is not none else '' }}"
+                     data-cheapest-supplier-id="{{ cheapest.supplier_id if cheapest and cheapest.supplier_id is not none else '' }}"
+                     aria-label="Precio pagado por {{ item.unit }} de {{ fmt.entity_name(item) }}">
+            </label>
+          </span>
+          <span class="reorder-supplier">
+            {% if supplier_info[0] %}
+              <span class="reorder-supplier__name" title="{{ supplier_info[0] }}">{{ supplier_info[0] }}</span>
+              {% if is_locked %}<span class="badge badge-info" title="Proveedor fijo. Abrí los detalles para liberarlo.">fijo</span>{% endif %}
+            {% else %}
+              <em class="muted">sin proveedor</em>
+              <span class="reorder-blocked">Asigná un proveedor antes de reponer.</span>
+            {% endif %}
+          </span>
+          <span class="num live-cost"
+                data-ingredient-id="{{ item.ingredient_id }}"
+                data-base-cost="{{ item.estimated_cost_gs }}">
+            {% if item.has_price %}{{ m.gs(item.estimated_cost_gs) }}{% else %}<span class="text-muted">sin precio</span>{% endif %}
+          </span>
+          <span>
+            <button type="submit" class="btn btn-sm btn-primary confirm-btn"
+                    {% if not supplier_info[0] %}disabled data-blocked="no-supplier" title="Asigná un proveedor antes de reponer"{% else %}title="Registrar esta compra"{% endif %}
+                    aria-label="Confirmar reponer {{ fmt.entity_name(item) }}">Reponer</button>
+          </span>
+        </div>
         <details class="reorder-row__snapshot">
-          <summary>Ver stock (mín / máx / sugerido / tendencia / días)</summary>
+          <summary>Ver detalles</summary>
           <div class="reorder-row__snapshot-grid">
             <div><span class="muted">Mínimo</span> {{ item.min_stock|round(2) }} {{ item.unit }}</div>
             <div><span class="muted">Máximo</span> {{ item.max_stock|round(2) }} {{ item.unit }}</div>
@@ -196,10 +326,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 {% else %}
                   <span class="badge badge-muted">{{ '%.0d'|format(fc.days_of_stock) }}d</span>
                 {% endif %}
-                {# SASKIA-208: P95 (conservative) stockout from the Poisson
-                   weekday model. Shown when it lands ≥2 days sooner than
-                   the flat average — that gap is the weekend-uplift risk
-                   the operator should order against. #}
                 {% set rf = restock_map.get(item.ingredient_id) if restock_map else None %}
                 {% if rf and rf.days_to_p95 is not none and fc.days_of_stock < 1000000 and rf.days_to_p95 <= fc.days_of_stock - 2 %}
                   <span class="badge badge-warn" title="P95 (escenario conservador, fin de semana incluido): se acaban las existencias el {{ rf.p95_stockout_date.strftime('%d/%m/%Y') }} — pedí para el {{ rf.days_to_p95 }}d">P95 {{ rf.days_to_p95 }}d</span>
@@ -209,92 +335,7 @@ document.addEventListener('DOMContentLoaded', function() {
               {% endif %}
             </div>
           </div>
-        </details>
-      </td>
-      <td class="d-flex">
-        {% if supplier_info[0] %}
-          <div class="d-flex" style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;">
-            <span>{{ supplier_info[0] }}</span>
-            {% if is_locked %}
-              <span class="badge badge-info" title="Proveedor fijo (manual). Hacé click en 🔓 para liberar.">fijo</span>
-              <button type="button"
-                      class="btn btn-sm btn-lock-toggle"
-                      data-action="unlock"
-                      data-ingredient-id="{{ item.ingredient_id }}"
-                      data-supplier-id="{{ locked_id }}"
-                      title="Desbloquear — liberar el dropdown"
-                      aria-label="Desbloquear proveedor de {{ fmt.entity_name(item) }}">
-                🔓
-              </button>
-            {% else %}
-              <button type="button"
-                      class="btn btn-sm btn-lock-toggle"
-                      data-action="lock"
-                      data-ingredient-id="{{ item.ingredient_id }}"
-                      data-supplier-id="{{ eff_id }}"
-                      {% if not eff_id %}disabled title="Necesita un proveedor seleccionado antes de fijar"{% else %}title="Fijar este proveedor — el dropdown siempre elegirá este"{% endif %}
-                      aria-label="Fijar proveedor de {{ fmt.entity_name(item) }}">
-                🔒
-              </button>
-            {% endif %}
-            {% if supplier_info[1] %}
-              <a href="https://wa.me/{{ supplier_info[1]|replace('+','')|replace(' ','') }}?text=Hola%2C%20necesito%20hacer%20un%20pedido" target="_blank" rel="noopener" class="btn btn-sm" aria-label="WhatsApp a {{ supplier_info[0] }}">
-                <svg class="icon" aria-hidden="true" style="color:var(--color-whatsapp);"><use href="#icon-whatsapp"/></svg>
-              </a>
-            {% endif %}
-          </div>
-        {% else %}
-          <em class="muted">sin proveedor</em>
-        {% endif %}
-      </td>
-      {# === 4-cell Reponer block (Q3a) ============================ #}
-      <form method="post" action="/reorder/registrar" class="restock-form"
-            data-ingredient-id="{{ item.ingredient_id }}"
-            data-original-supplier-id="{{ eff_id or '' }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="ingredient_id" value="{{ item.ingredient_id }}">
-        <input type="hidden" name="notes" value="">
-        <td class="num">
-          <label class="sr-only" for="rq-{{ item.ingredient_id }}">Cantidad {{ fmt.entity_name(item) }}</label>
-          <input type="number" id="rq-{{ item.ingredient_id }}" name="qty" step="0.5" min="0" size="4"
-                 class="qty-input"
-                 value="{{ item.suggested_qty|round(2) }}"
-                 aria-label="Cantidad a reponer: {{ fmt.entity_name(item) }}">
-        </td>
-        <td>
-          {{ ui.combo_field(
-              name='qty_unit',
-              value=item.unit,
-              display=item.unit,
-              src=(
-                ([{"value": "g", "label": "g"}, {"value": "kg", "label": "kg"}]
-                 if item.unit in ("g", "kg") else
-                 [{"value": "ml", "label": "ml"}, {"value": "l", "label": "l"}]
-                 if item.unit in ("ml", "l") else
-                 [{"value": "und", "label": "und"}])
-                + ([{"value": item.unit, "label": item.unit}] if item.unit not in ("g", "kg", "ml", "l", "und") else [])
-              )
-          ) }}
-        </td>
-        <td class="num">
-          <label class="sr-only" for="rp-{{ item.ingredient_id }}">Precio {{ fmt.entity_name(item) }}</label>
-          <div class="currency-input-wrap">
-            <input type="number" id="rp-{{ item.ingredient_id }}" name="price_gs" step="100" min="0" size="6" inputmode="numeric" class="currency-input price-input"
-                   value="{{ item.purchase_price_gs if item.purchase_price_gs is not none else '' }}"
-                   {# P-32.2: cheapest-price hint for JS auto-fill on supplier change.
-                      Empty string when no history → JS no-ops. #}
-                   data-cheapest-price="{{ cheapest.avg_price_gs if cheapest and cheapest.avg_price_gs is not none else '' }}"
-                   data-cheapest-supplier-id="{{ cheapest.supplier_id if cheapest and cheapest.supplier_id is not none else '' }}"
-                   aria-label="Precio pagado por {{ item.unit }} de {{ fmt.entity_name(item) }}">
-          </div>
-        </td>
-        <td class="d-flex">
-          {# Supplier picker + submit. The supplier combo sits in the same
-             Confirmar cell so the row still has 4 visual columns even when
-             the supplier dropdown is wide. The picker uses an inline
-             ui-combo (form-safe) so it submits with the rest of the form. #}
-          <div class="d-flex" style="display:flex;flex-direction:column;gap:.35rem;min-width:11rem;">
-            <label class="sr-only" for="rsup-{{ item.ingredient_id }}">Proveedor {{ fmt.entity_name(item) }}</label>
+          <div class="reorder-detail-supplier">
             {%- if cheapest and cheapest.supplier_id is not none and cheapest.supplier_id != eff_id -%}
               <div class="cheapest-hint" data-cheapest-for="{{ item.ingredient_id }}"
                    title="Basado en {{ cheapest.event_count }} compra(s) en los últimos 90 días">
@@ -307,65 +348,97 @@ document.addEventListener('DOMContentLoaded', function() {
                         aria-label="Aplicar {{ cheapest.supplier_name }} a esta fila">aplicar</button>
               </div>
             {%- endif -%}
-            <button type="button" class="btn btn-sm btn-ghost scrape-trigger" data-ingredient-id="{{ item.ingredient_id }}" data-ingredient-name="{{ fmt.entity_name(item) }}" aria-label="Buscar precios en la web para {{ fmt.entity_name(item) }}"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg> Ver precios</button>
-              <ui-combo id="rsup-{{ item.ingredient_id }}"
-                           name="supplier_id"
-                           class="supplier-picker"
-                           {% if is_locked %}data-locked="1"{% endif %}
-                           {% if is_locked %}data-prev-id="{{ locked_id }}"{% endif %}
-                           placeholder="Elegir proveedor"
-                           src='[
-                             {%- for s in supplier_options -%}
-                               {"value": "{{ s.id }}", "label": "{{ s.name }}{% if price_options.get(s.id) is not none %} — {{ "{:,}".format(price_options[s.id]).replace(",", ".") }}{% else %} — sin registro{% endif %}"}{% if not loop.last %},{% endif %}
-                             {%- endfor -%}
-                             {%- if not supplier_options -%}
-                               {"value": "", "label": "No hay proveedores activos"}
-                             {%- endif -%}
-                           ]'></ui-combo>
+            <div class="reorder-detail-actions">
+              {% if is_locked %}
+                <button type="button"
+                        class="btn btn-sm btn-lock-toggle"
+                        data-action="unlock"
+                        data-ingredient-id="{{ item.ingredient_id }}"
+                        data-supplier-id="{{ locked_id }}"
+                        title="Desbloquear — liberar el proveedor"
+                        aria-label="Desbloquear proveedor de {{ fmt.entity_name(item) }}">Liberar</button>
+              {% else %}
+                <button type="button"
+                        class="btn btn-sm btn-lock-toggle"
+                        data-action="lock"
+                        data-ingredient-id="{{ item.ingredient_id }}"
+                        data-supplier-id="{{ eff_id }}"
+                        {% if not eff_id %}disabled title="Necesita un proveedor seleccionado antes de fijar"{% else %}title="Fijar este proveedor"{% endif %}
+                        aria-label="Fijar proveedor de {{ fmt.entity_name(item) }}">Fijar proveedor</button>
+              {% endif %}
+              {% if supplier_info[1] %}
+                <a href="https://wa.me/{{ supplier_info[1]|replace('+','')|replace(' ','') }}?text=Hola%2C%20necesito%20hacer%20un%20pedido" target="_blank" rel="noopener" class="btn btn-sm" aria-label="WhatsApp a {{ supplier_info[0] }}">
+                  <svg class="icon" aria-hidden="true" style="color:var(--color-whatsapp);"><use href="#icon-whatsapp"/></svg>
+                  WhatsApp
+                </a>
+              {% endif %}
+              <button type="button" class="btn btn-sm btn-ghost scrape-trigger" data-ingredient-id="{{ item.ingredient_id }}" data-ingredient-name="{{ fmt.entity_name(item) }}" aria-label="Buscar precios en la web para {{ fmt.entity_name(item) }}">Ver precios</button>
+            </div>
+            <label class="sr-only" for="rsup-{{ item.ingredient_id }}">Proveedor {{ fmt.entity_name(item) }}</label>
+            <ui-combo id="rsup-{{ item.ingredient_id }}"
+                         name="supplier_id"
+                         class="supplier-picker"
+                         {% if is_locked %}data-locked="1"{% endif %}
+                         {% if is_locked %}data-prev-id="{{ locked_id }}"{% endif %}
+                         placeholder="Elegir proveedor"
+                         src='[
+                           {%- for s in supplier_options -%}
+                             {"value": "{{ s.id }}", "label": "{{ s.name }}{% if price_options.get(s.id) is not none %} — {{ "{:,}".format(price_options[s.id]).replace(",", ".") }}{% else %} — sin registro{% endif %}"}{% if not loop.last %},{% endif %}
+                           {%- endfor -%}
+                           {%- if not supplier_options -%}
+                             {"value": "", "label": "No hay proveedores activos"}
+                           {%- endif -%}
+                         ]'></ui-combo>
             <div id="scrape-results-{{ item.ingredient_id }}" class="scrape-results" hidden></div>
-            <button type="submit" class="btn btn-sm btn-primary confirm-btn"
-                    {# P-32.3: block submit on rows with no supplier attached. #}
-                    {% if not supplier_info[0] %}disabled data-blocked="no-supplier" title="Asigná un proveedor antes de reponer"{% endif %}
-                    aria-label="Confirmar reponer {{ fmt.entity_name(item) }}">
-              <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-              Reponer
-            </button>
           </div>
-        </td>
+        </details>
       </form>
       <form method="post" action="/reorder/quick-restock" class="quick-restock-form"
-            data-ingredient-name="{{ fmt.entity_name(item) }}"
-            style="display:inline-flex;margin-left:.25rem;">
+            data-ingredient-name="{{ fmt.entity_name(item) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="ingredient_id" value="{{ item.ingredient_id }}">
         <button type="submit" class="btn btn-sm btn-outline-success quick-restock-btn"
                 title="Llena a 2x min con un click (usa el proveedor fijado y el ultimo precio)"
                 aria-label="Marcar comprado rapido: {{ fmt.entity_name(item) }}"
-                data-confirm="Llenar {{ fmt.entity_name(item) }} a 2x minimo?">
-          <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-        </button>
+                data-confirm="Llenar {{ fmt.entity_name(item) }} a 2x minimo?">Marcar comprado</button>
       </form>
+      </td>
     </tr>
   {% endfor %}
   </tbody>
-  <tfoot>
-    <tr>
-      <td colspan="9" class="num">Total estimado</td>
-      <td class="num"><span id="reorder-total">{{ m.gs(total_cost_gs) }}</span></td>
-      <td colspan="4"></td>
-    </tr>
-  </tfoot>
 </table>
 </div>
 
 <div class="table-info">
   <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ count }}</strong> ingredientes</span>
 </div>
+</div>
 
-<p><a href="/suppliers" class="btn">Administrar proveedores</a></p>
+<div class="reorder-bar" role="region" aria-label="Acciones de compra">
+  <span id="reorder-selected-count">0 seleccionados</span>
+  <span>Gs. <strong id="reorder-selected-sum">0</strong></span>
+  <details class="reorder-menu">
+    <summary>Más acciones</summary>
+    <div class="reorder-menu__panel">
+      <button type="submit" form="bulk-restock-form" class="btn btn-success" id="bulk-restock-btn" disabled
+              data-confirm="Llenar a 2x min TODOS los ingredientes marcados? Esto registra una compra para cada uno."
+              aria-describedby="reorder-bar-hint"
+              title="Marcá ingredientes para marcarlos como comprados">Marcar comprados (2× mín)</button>
+      <a href="/suppliers" class="btn">Administrar proveedores</a>
+    </div>
+  </details>
+  <p class="reorder-bar__hint" id="reorder-bar-hint">Marcá ingredientes para generar el pedido.</p>
+  <button type="submit" form="bulk-form" class="btn btn-primary" id="generate-po-btn" disabled
+          data-consolidate="by-supplier"
+          data-undo-window="5"
+          aria-describedby="reorder-bar-hint"
+          title="Marcá ingredientes para generar el pedido">Generar pedido por WhatsApp</button>
+</div>
 {% else %}
 <p class="empty">No hay ingredientes por debajo del mínimo. ¡Todo en orden!</p>
 {% endif %}
+</section>
+
 
 <script>
 (function() {
@@ -393,6 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (totalEl) {
       totalEl.textContent = total.toLocaleString('es-PY').replace(/,/g, '.');
     }
+    if (typeof updateBulkBtn === 'function') updateBulkBtn();
   }
   document.querySelectorAll('.reorder-row').forEach(function(row) {
     var form = row.querySelector('form.restock-form');

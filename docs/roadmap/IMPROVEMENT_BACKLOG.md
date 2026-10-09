@@ -9,7 +9,7 @@ the code, and operator-ranked. Status is the latest known state.
 > Backlog mostly shipped. Two open items remain: **#37** (Supabase
 > Storage for product images, M effort) and **#38** (Supabase RLS for
 > multi-tenant, L effort). Both deferred per SASKIA-210 until Sazón
-> has a second client. See [`WHAT_NEXT.md`](WHAT_NEXT.md) for the
+> has a second client. See [`WHAT_NEXT.md`](../../WHAT_NEXT.md) for the
 > current operator-facing priorities. Keep this file as the historical
 > audit-driven reference.
 

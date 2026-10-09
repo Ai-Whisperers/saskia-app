@@ -42,7 +42,7 @@
   </div>
 </nav>
 
-{{ ui.page_header("Ventas", desc="Registrá una venta al mostrador o consultá el historial del día", actions=("<a class='btn btn-ghost' href='/ventas/express'>⚡ Express</a>",)) }}
+{{ ui.page_header("Ventas", desc="Registrá una venta al mostrador o consultá el historial del día", actions="<a class='btn btn-ghost' href='/ventas/express'>Express</a>"|safe) }}
 
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}
@@ -72,8 +72,8 @@
 
 {# ═══════════════════════════════════════════════════
    POS LAYOUT
-   Left pane: customer picker + customer card (top) + cart + metadata + submit
-   Right pane: Productos (sale grid + barcode scan)
+   Visual order (theme.css): catalog ~65% left, cart ~35% right.
+   DOM order stays form-then-catalog so existing scripts keep their targets.
    ═══════════════════════════════════════════════════ #}
 <div class="pos-layout">
 
@@ -114,7 +114,7 @@
       {# ── Cart panel + sale metadata + submit ── #}
       <div class="pos-cart" id="pos-cart">
         <h2>
-          Carrito
+          Venta actual
           <span id="cart-count" class="cart-badge d-none" >0</span>
           {# B-7 (2026-10-07): hold-sale button — pauses the cart for a
              customer who can't pay yet (needs to step away mid-order). #}
@@ -205,12 +205,7 @@
          customer card live above the cart; metadata lives below the cart
          so it doesn't distract from the picking flow. #}
       <div class="sale-meta" aria-label="Datos de la venta">
-        <h3 class="sale-meta-title">Venta</h3>
         <div class="sale-meta-grid">
-          <div class="form-row">
-            <label for="sold_at">Fecha y hora</label>
-            <input type="datetime-local" id="sold_at" name="sold_at" value="{{ now_local }}" style="color-scheme: dark;">
-          </div>
           <div class="form-row">
             <label for="channel">Canal</label>
             {% set _channels_src = [] %}
@@ -243,9 +238,10 @@
         </div>
       </div>
 
-      {# ── Fiscal invoice + notas (compact) ── #}
-      <fieldset class="form-row" style="border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-3); margin-top: var(--space-3);">
-        <legend style="font-weight: 600; padding: 0 var(--space-2);">Comprobante fiscal</legend>
+      <details class="pos-more">
+        <summary>Comprobante</summary>
+      <fieldset class="form-row">
+        <legend class="sr-only">Comprobante fiscal</legend>
         <div class="form-row mb-2" >
           <label for="invoice_type">Tipo</label>
           {{ ui.combo_field(
@@ -274,11 +270,19 @@
           </div>
         </div>
       </fieldset>
+      </details>
 
-      <div class="form-row mt-3" >
-        <label for="notes">Notas</label>
-        <textarea id="notes" name="notes" rows="2" placeholder="Alias de transferencia, observaciones…"></textarea>
-      </div>
+      <details class="pos-more">
+        <summary>Fecha y notas</summary>
+        <div class="form-row">
+          <label for="sold_at">Fecha y hora</label>
+          <input type="datetime-local" id="sold_at" name="sold_at" value="{{ now_local }}">
+        </div>
+        <div class="form-row">
+          <label for="notes">Notas</label>
+          <textarea id="notes" name="notes" rows="2" placeholder="Alias de transferencia, observaciones…"></textarea>
+        </div>
+      </details>
 
       {# ── Sticky footer with submit button ── #}
       <div class="preflight-banner" id="preflight-banner" style="display:none;margin-top:8px;padding:8px;border-radius:6px;font-size:0.85rem;"></div>
@@ -302,7 +306,7 @@
   </div>{# /pos-form-pane #}
 
 
-  {# ── RIGHT PANE: Productos (sale grid + scan input) ──── #}
+  {# ── Product catalog (visual left via CSS order) ──── #}
   <div class="pos-quick">
     <h2>Productos</h2>
     <p class="hint">Tocá un producto o escaneá un código para agregarlo al carrito.</p>
@@ -329,10 +333,10 @@
        empty recent-sales state hides the grid without hiding them — the
        heading explains "why is there nothing here", and a search input
        with no items to filter is misleading. #}
-    <h3 class="pos-quick-heading" id="quick-sell-heading">Quick-sell</h3>
+    <h3 class="pos-quick-heading sr-only" id="quick-sell-heading">Quick-sell</h3>
     <div class="quick-sell-search-wrap">
       <input type="search" id="quick-sell-search"
-             placeholder="Buscar producto en venta rápida…"
+             placeholder="Buscar productos…"
              autocomplete="off"
              aria-label="Buscar producto en venta rápida"
              data-quick-sell-filter>
@@ -359,6 +363,7 @@
     {% endfor %}
     <div class="quick-sell-filters" id="quick-sell-filters" role="group" aria-label="Filtrar por categoría (selección múltiple)">
       <button type="button" class="quick-sell-filter is-active" data-filter="all">Todos</button>
+      <button type="button" class="quick-sell-filter" data-filter="stock" data-pseudo="true">Con stock</button>
       <button type="button" class="quick-sell-filter" data-filter="favorito" data-pseudo="true">Favoritos</button>
       {% for _c in _cats_seen %}
       <button type="button" class="quick-sell-filter" data-filter="{{ _c }}">{{ _cat_labels.get(_c, _c|capitalize) }}</button>
@@ -540,6 +545,7 @@
   // toggles independently and ANDs with category selection.
   var activeFilters = new Set();      // category names, e.g. {panaderia, bebida}
   var favoritoOnly = false;           // pseudo-filter
+  var stockOnly = false;              // hide Agotado / sin stock
   var filterBtns = document.querySelectorAll(".quick-sell-filter");
 
   function matchesFilters(cat, fav) {
@@ -552,9 +558,11 @@
     filterBtns.forEach(function(b) {
       var f = b.getAttribute("data-filter") || "all";
       if (f === "all") {
-        b.classList.toggle("is-active", activeFilters.size === 0 && !favoritoOnly);
+        b.classList.toggle("is-active", activeFilters.size === 0 && !favoritoOnly && !stockOnly);
       } else if (f === "favorito") {
         b.classList.toggle("is-active", favoritoOnly);
+      } else if (f === "stock") {
+        b.classList.toggle("is-active", stockOnly);
       } else {
         b.classList.toggle("is-active", activeFilters.has(f));
       }
@@ -598,8 +606,11 @@
     btns.forEach(function(btn) {
       var cat = btn.getAttribute("data-category") || "otro";
       var fav = btn.getAttribute("data-is-favorite") === "true";
-      var show = matchesFilters(cat, fav);
+      var available = !btn.classList.contains("is-sold-out") && !btn.classList.contains("is-out-of-stock");
+      var show = matchesFilters(cat, fav) && (!stockOnly || available);
       btn.style.display = show ? "" : "none";
+      var form = btn.closest(".quick-sell-form");
+      if (form) form.style.display = show ? "" : "none";
       if (show) { count++; visibleCats.add(cat); }
     });
     // UI-V2: when scanning multiple categories at once, group buttons
@@ -637,8 +648,11 @@
       if (f === "all") {
         activeFilters.clear();
         favoritoOnly = false;
+        stockOnly = false;
       } else if (f === "favorito") {
         favoritoOnly = !favoritoOnly;
+      } else if (f === "stock") {
+        stockOnly = !stockOnly;
       } else {
         if (activeFilters.has(f)) { activeFilters.delete(f); } else { activeFilters.add(f); }
       }
@@ -658,8 +672,11 @@
       var fav = btn.getAttribute("data-is-favorite") === "true";
       var matchesSearch = q === "" || name.indexOf(q) >= 0;
       var matchesFilter = matchesFilters(cat, fav);
-      var show = matchesSearch && matchesFilter;
+      var available = !btn.classList.contains("is-sold-out") && !btn.classList.contains("is-out-of-stock");
+      var show = matchesSearch && matchesFilter && (!stockOnly || available);
       btn.style.display = show ? "" : "none";
+      var form = btn.closest(".quick-sell-form");
+      if (form) form.style.display = show ? "" : "none";
       if (show) count++;
     });
     var noResults = document.getElementById("quick-sell-no-results");
@@ -1401,6 +1418,7 @@
   var filterBtns = document.querySelectorAll(".quick-sell-filter");
   filterBtns.forEach(function(btn) {
     btn.addEventListener("click", function() {
+      if (this.getAttribute("data-pseudo") === "true") return;
       var filter = this.getAttribute("data-filter");
       filterBtns.forEach(function(b) { b.classList.remove("is-active"); });
       this.classList.add("is-active");

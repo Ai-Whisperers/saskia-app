@@ -5,25 +5,24 @@
 
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}
-{{ ui.page_header("🛒 Lista de Compras", desc="Lo que necesito comprar para la operación")
-}}
+{{ ui.page_header("Lista de compras", desc="Lo que falta comprar, agrupado por proveedor.") }}
 
 {% if request.query_params.get('from_plan') %}
-<div class="card mb-3" style="background: #d1fae5; border-color: #10b981;">
+<div class="card mb-3 alert alert-success">
   <div class="card-body">
     ✅ <strong>Plan de producción</strong> ({{ request.query_params.get('for_date', '') }}):
     {{ request.query_params.get('from_plan') }} ítems añadidos/agregados a la lista.
   </div>
 </div>
 {% elif request.query_params.get('from_wishlist') %}
-<div class="card mb-3" style="background: #fef3c7; border-color: #f59e0b;">
+<div class="card mb-3 alert alert-warning">
   <div class="card-body">
     🛒 <strong>Wishlist #{{ request.query_params.get('from_wishlist') }}</strong> añadido a la lista
     como equipment.
   </div>
 </div>
 {% elif request.query_params.get('from_sync') %}
-<div class="card mb-3" style="background: #d1fae5; border-color: #10b981;">
+<div class="card mb-3 alert alert-success">
   <div class="card-body">
     🔄 <strong>Sincronizar faltantes</strong> ejecutado: {{ request.query_params.get('from_sync', 0) }} items añadidos.
   </div>
@@ -37,22 +36,25 @@
   {{ ui.metric_card(label="Ingredientes únicos", value=by_ingredient|length, compact=True) }}
 </div>
 
-<div style="margin:1rem 0;">
+<div class="page-actions" style="margin:1rem 0;">
   <a href="/shopping-list" class="btn {% if not show_purchased %}btn-primary{% else %}btn-ghost{% endif %}">
     Solo abiertos ({{ open_count }})
   </a>
   <a href="/shopping-list?show_purchased=true" class="btn {% if show_purchased %}btn-primary{% else %}btn-ghost{% endif %}">
-    Todos (incl. comprados)
+    Todos
   </a>
-  <a href="/produccion-planner" class="btn">📐 Crear plan</a>
-  <form method="post" action="/shopping-list/sync-low-stock" 
-        class="js-confirm-form d-inline" data-confirm-title="¿Sincronizar faltantes?"
-        data-confirm-body="Se importarán todos los ingredientes con stock por debajo del mínimo a la lista de compras.">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <button type="submit" class="btn btn-warning" title="Importar todos los ingredientes con stock &lt; mínimo">
-      🔄 Sincronizar faltantes
-    </button>
-  </form>
+  <details class="more-menu">
+    <summary>Más</summary>
+    <div class="more-menu__panel">
+      <a href="/produccion-planner">Crear plan</a>
+      <form method="post" action="/shopping-list/sync-low-stock"
+            class="js-confirm-form" data-confirm-title="¿Sincronizar faltantes?"
+            data-confirm-body="Se importarán todos los ingredientes con stock por debajo del mínimo a la lista de compras.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit">Sincronizar faltantes</button>
+      </form>
+    </div>
+  </details>
 </div>
 
 {% if items %}
