@@ -1,0 +1,45 @@
+# .github/zizmor.yml — zizmor configuration for the Sazon RMS repo
+#
+# zizmor is a static analyzer for GitHub Actions workflows.
+# https://docs.zizmor.sh/configuration/
+#
+# Why we have this config:
+#   - Default flags 64 findings in our 14 workflows. Most are
+#     unpinned-uses (35) + artipacked (14). Both are accepted as
+#     tech debt; the SHA-pinning PR is separate work.
+#   - Dangerous findings (template-injection, cache-poisoning,
+#     excessive-permissions, secrets-inherit, known-vulnerable-actions,
+#     forbidden-uses) are promoted to HIGH severity.
+#   - "unpinned-uses" and "artipacked" are downgraded to INFORMATIONAL
+#     until the SHA-pinning PR lands.
+#
+# Run: uvx --from zizmor zizmor --config .github/zizmor.yml .github/workflows/
+
+rules:
+  # Critical (escalate to HIGH severity = blocks PR via CI gate)
+  template-injection:
+    remap:
+      severity: high
+  cache-poisoning:
+    remap:
+      severity: high
+  excessive-permissions:
+    remap:
+      severity: high
+  secrets-inherit:
+    remap:
+      severity: high
+  known-vulnerable-actions:
+    remap:
+      severity: high
+  forbidden-uses:
+    remap:
+      severity: high
+
+  # Warnings (downgrade to INFORMATIONAL = visible but doesn't block)
+  unpinned-uses:
+    remap:
+      severity: informational  # TODO: promote after SHA-pinning PR
+  artipacked:
+    remap:
+      severity: informational  # TODO: add persist-credentials: false everywhere

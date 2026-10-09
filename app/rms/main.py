@@ -248,6 +248,16 @@ async def lifespan(app: FastAPI):
         except Exception as exc:
             print(f"WARNING: Sentry init failed: {exc}", file=sys.stderr)
 
+    # OpenTelemetry + Prometheus — gated by env var. Off by default.
+    # Set OTEL_ENABLED=true + OTEL_EXPORTER_OTLP_ENDPOINT to enable tracing.
+    # Set PROMETHEUS_ENABLED=true to expose /metrics.
+    # See app/rms/otel.py for the activation matrix.
+    try:
+        from app.rms.otel import init_observability
+        init_observability(app)
+    except Exception as exc:
+        print(f"WARNING: observability init failed: {exc}", file=sys.stderr)
+
     ensure_dirs()
     url = get_database_url()
     engine = make_engine_dialect(url)

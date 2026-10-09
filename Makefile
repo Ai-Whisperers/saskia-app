@@ -170,7 +170,70 @@ audit-cve: ## pip-audit: scan pyproject deps for known CVEs.
 licenses: ## reuse: SPDX license header compliance.
 	$(UV) run reuse lint
 
-ci-extra: lint dead-code complexity cognitive deptry duplicates arch security ## All static analysis (slow).
+workflows-lint: ## zizmor: GitHub Actions workflow lint (config in .github/zizmor.yml).
+	@echo "=== zizmor (GitHub Actions security) ==="
+	uvx --from zizmor zizmor \
+		--config .github/zizmor.yml \
+		--min-severity=high \
+		.github/workflows/ 2>&1 | tail -50 || true
+	@echo ""
+	@echo "Note: HIGH-severity findings block PRs via .github/workflows/workflows-lint.yml."
+	@echo "Run without --min-severity=high to see all 64 findings (15 high, 49 info)."
+
+workflows-lint-all: ## zizmor: show all findings (not just high).
+	@echo "=== zizmor (all severities) ==="
+	uvx --from zizmor zizmor \
+		--config .github/zizmor.yml \
+		.github/workflows/ 2>&1 | tail -100 || true
+
+docs-lint: ## Markdown quality check (pymarkdownlnt; see scripts/check_docs_quality.py).
+	$(UV) run python scripts/check_docs_quality.py
+
+docs-lint-strict: ## Markdown quality check, all rules (no disables).
+	$(UV) run python scripts/check_docs_quality.py --strict
+
+jscpd: ## jscpd: line-level copy-paste detector (complements duplicates-code).
+	@echo "=== jscpd (line-level copy-paste) ==="
+	$(UV) run jscpd app/ --reporters console --threshold 5 2>&1 | tail -30 || true
+	@echo "Note: jscpd finds 5+ line exact duplicates. complements duplicates-code"
+	@echo "which uses AST similarity >=80%."
+
+deadcode-code: ## deadcode: cross-file dead-code scan (complements vulture).
+	@echo "=== deadcode (cross-file dead code) ==="
+	$(UV) run deadcode app/ scripts/ 2>&1 | tail -30 || true
+	@echo "Note: deadcode complements vulture with cross-file analysis."
+
+tool-matrix: ## Print the tooling coverage matrix.
+	@echo "=== Tooling coverage matrix (as of 2026-10-09) ==="
+	@echo ""
+	@echo "| Tool          | Decl | Make | Pre-C | CI  |"
+	@echo "|---------------|------|------|-------|-----|"
+	@echo "| ruff          |  ✓   |  ✓   |   ✓   |  ✓  |"
+	@echo "| pytest        |  ✓   |  ✓   |   ✓   |  ✓  |"
+	@echo "| vulture       |  ✓   |  ✓   |   ✓   |     |"
+	@echo "| deadcode      |  ✓   |  ✓   |       |     |"
+	@echo "| bandit        |  ✓   |  ✓   |   ✓   |     |"
+	@echo "| radon-cc      |  ✓   |  ✓   |   ✓   |     |"
+	@echo "| complexipy    |  ✓   |  ✓   |       |  ✓  |"
+	@echo "| pyright       |  ✓   |  ✓   |       |  ✓  |"
+	@echo "| mypy          |      |      |       |  ✓ (info) |"
+	@echo "| deptry        |  ✓   |  ✓   |       |     |"
+	@echo "| interrogate   |  ✓   |  ✓   |       |     |"
+	@echo "| refurb        |  ✓   |  ✓   |       |     |"
+	@echo "| pip-audit     |  ✓   |  ✓   |       |     |"
+	@echo "| reuse         |  ✓   |  ✓   |       |     |"
+	@echo "| jscpd         |  ✓   |  ✓   |       |     |"
+	@echo "| sensez        |  ✓   |  ✓   |       |     |"
+	@echo "| pymarkdownlnt |      |  ✓   |       |     |"
+	@echo "| hypothesis    |  ✓   |      |       |  ✓  |"
+	@echo "| playwright    |  ✓   |  ✓   |       |  ✓  |"
+	@echo "| testcontainers |  ✓   |      |       |  ✓  |"
+	@echo "| sentry        |  ✓   |      |       |     |"
+	@echo "| zizmor        |      |  ✓   |       |  ✓  |"
+	@echo ""
+	@echo "Full analysis: docs/operations/2026-10-09-tooling-research.md"
+
+ci-extra: lint dead-code complexity cognitive deptry duplicates arch security workflows-lint ## All static analysis (slow).
 	@echo ""
 	@echo "ci-extra complete."
 

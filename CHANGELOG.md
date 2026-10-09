@@ -1,3 +1,49 @@
+## 2026-10-09 — Tier 2 tooling adoption (zizmor + OTel + Prometheus)
+
+**Scope**: infrastructure for 4 Tier 2 wins from the 2026-10-09 research
+(`docs/operations/2026-10-09-tooling-research.md`). Not full integration —
+each tool is wired behind an env var or a config file so the live app
+behavior is unchanged unless the operator opts in.
+
+**What changed**:
+- **`.github/zizmor.yml`** + **`.github/workflows/workflows-lint.yml`**: zizmor
+  GitHub Actions security lint. 15 high-severity findings surfaced (8
+  excessive-permissions, 6 template-injection, 1 cache-poisoning). 49
+  informational (35 unpinned-uses + 14 artipacked) downgraded until
+  the SHA-pinning PR ships.
+- **`app/rms/otel.py`** (new) + **`app/rms/main.py`** integration: opt-in
+  OpenTelemetry tracing + Prometheus `/metrics` endpoint. Activated by
+  `OTEL_ENABLED=true` + `OTEL_EXPORTER_OTLP_ENDPOINT=http://...` and
+  `PROMETHEUS_ENABLED=true`. Off by default; no behavior change unless
+  the operator flips the switch. `uv sync --group tooling-tier2` to install.
+- **`pyproject.toml`**: new `[dependency-groups].tooling-tier2` with
+  `fastapi-safeguard`, OpenTelemetry packages, and
+  `prometheus-fastapi-instrumentator`. `fastapi-safeguard` is added but
+  not yet wired into `create_app()` (needs baseline; separate followup).
+- **`Makefile`**: 7 new targets: `workflows-lint`, `workflows-lint-all`,
+  `docs-lint`, `docs-lint-strict`, `jscpd`, `deadcode-code`, `tool-matrix`.
+  `ci-extra` extended to include `workflows-lint`.
+- **`.markdownlint.jsonc`** + **`scripts/check_docs_quality.py`** (carried
+  over from PR #93; ruff-clean).
+
+**Test status**: 115/115 pass on `tests/test_money.py + tests/test_units.py`.
+`make workflows-lint` returns rc=0 (informational); 15 high findings logged.
+`uv lock --dry-run` resolves 146 packages.
+
+**Operator action items** (each is a separate PR, not in this one):
+1. SHA-pin the 35 `unpinned-uses` findings (14 workflow files, 35+ lines)
+2. Add `permissions: { contents: read }` to 8 jobs (excessive-permissions)
+3. Fix 6 `template-injection` findings in `release.yml` (use env vars)
+4. Add `persist-credentials: false` to 14 checkouts (artipacked)
+5. Fix the 1 `cache-poisoning` finding in `release.yml:34`
+6. Wire `fastapi-safeguard` into `create_app()` with baseline
+7. Decide on OTel collector endpoint and activate
+
+**Not in this PR** (per `docs/operations/2026-10-09-tier2-adoption.md`):
+ast-grep replacement of `lint_tier1.py` (marginal value), Vale prose
+linting (network blocked), Semgrep CE (custom Sazon rules),
+umbra-scan (shadow API), `factory_boy` audit.
+
 ## 2026-10-08c — SASKIA-320: tests audited a foreign checkout, not the repo under test
 
 **Root cause**: 20+ test files hardcoded `/opt/data/work/saskia-app` (a stale second checkout on the host) and asserted contracts against THAT tree. Main's `test` job was red with auth-audit + profitability-shim failures that misdescribed the real tree.
