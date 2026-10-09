@@ -123,11 +123,6 @@ KNOWN_CYCLES: list[tuple[str, str, str]] = [
         "app.rms.tagging.classify",
         "ingredient_intel is a legacy shim that re-exports infer_allergens/infer_dietary_tags from tagging.classify. The bidirectional imports are inside function bodies. Fix: deprecate ingredient_intel, update callers. Tracked as SASKIA-XXX.",
     ),
-    (
-        "app.rms.db",
-        "app.rms.backup",
-        "db.py defines _get_db_url_safe (a runtime helper) that backup.py needs; backup.py defines backup_database that db.py needs. Both are inside function bodies. Fix: extract _get_db_url_safe to a third module (e.g. app/rms/db_url.py). Tracked as SASKIA-XXX.",
-    ),
 ]
 
 

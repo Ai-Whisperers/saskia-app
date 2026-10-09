@@ -4869,18 +4869,11 @@ def _get_db_url_safe() -> str:
 
     Used in backup manifests so the file does not leak the password.
     Returns something like "postgresql+psycopg2://***@host/db".
-    """
-    import os
-    from urllib.parse import urlsplit, urlunsplit
 
-    url = os.environ.get("AIW_RMS_DB_URL", "sqlite:///./sazon.db")
-    if url.startswith("sqlite"):
-        return "sqlite:///<local>"
-    try:
-        parts = urlsplit(url)
-        if parts.username or parts.password:
-            netloc = "***@" + parts.netloc.split("@", 1)[-1]
-            return urlunsplit((parts.scheme, netloc, parts.path, parts.query, ""))
-        return url
-    except Exception:
-        return "<unknown>"
+    Moved to app.rms.db_url in 2026-10-09; this re-export shim is
+    kept so any historical import (none in repo, but for third-party
+    extensions) continues to work. The new public name is `db_url_safe`.
+    """
+    from app.rms.db_url import db_url_safe
+
+    return db_url_safe()
