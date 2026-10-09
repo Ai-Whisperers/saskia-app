@@ -707,7 +707,7 @@ async def recipe_detail(
 
 def _load_resolved_lines(session, r_id: int) -> list:
     """Load recipe lines with resolved target info.
-    
+
     Extracted from recipe_detail to reduce complexity.
     """
     from app.rms.costing import resolve_line_target
@@ -731,7 +731,7 @@ def _load_resolved_lines(session, r_id: int) -> list:
 
 def _load_costs(session, r_id: int) -> tuple:
     """Load batch and unit costs for a recipe.
-    
+
     Extracted from recipe_detail to reduce complexity.
     """
     from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
@@ -741,7 +741,7 @@ def _load_costs(session, r_id: int) -> tuple:
 
 def _load_products_using(session, r_id: int) -> list:
     """Load products that use this recipe.
-    
+
     Extracted from recipe_detail to reduce complexity.
     """
     return list(session.scalars(select(Product).where(Product.recipe_id == r_id)).all())
@@ -749,7 +749,7 @@ def _load_products_using(session, r_id: int) -> list:
 
 def _load_recipe_tags(session, r_id: int) -> list:
     """Load tags associated with this recipe.
-    
+
     Extracted from recipe_detail to reduce complexity.
     """
     from app.rms.models import Tag, TagLink
@@ -768,11 +768,11 @@ def _load_recipe_tags(session, r_id: int) -> list:
 
 def _aggregate_allergens(session, r: Recipe) -> list:
     """Aggregate allergens from all ingredient lines.
-    
+
     Wave 3 — aggregate allergens from all ingredient lines so the recipe
     detail page can show a "CONTIENE: gluten, dairy, eggs" summary required
     by INAN Resolución S.G. N° 614/2023 for any retail food product.
-    
+
     Extracted from recipe_detail to reduce complexity.
     """
     if not r.lines:
@@ -783,7 +783,7 @@ def _aggregate_allergens(session, r: Recipe) -> list:
 
 def _load_ingredient_refs(session, lines) -> dict:
     """Load ingredient references for recipe lines.
-    
+
     Extracted from _aggregate_allergens to reduce complexity.
     """
     from app.rms.models import Ingredient as _Ingredient
@@ -801,7 +801,7 @@ def _load_ingredient_refs(session, lines) -> dict:
 
 def _collect_aggregated_allergens(lines, ingredient_refs: dict) -> list:
     """Collect aggregated allergens from ingredient lines.
-    
+
     Extracted from _aggregate_allergens to reduce complexity.
     """
     aggregated: list[str] = []
@@ -816,7 +816,7 @@ def _collect_aggregated_allergens(lines, ingredient_refs: dict) -> list:
 
 def _extract_line_allergens(line, ingredient_refs: dict) -> list:
     """Extract allergens from a single recipe line.
-    
+
     Extracted from _collect_aggregated_allergens to reduce complexity.
     """
     if line.line_kind != "ingredient":
@@ -829,7 +829,7 @@ def _extract_line_allergens(line, ingredient_refs: dict) -> list:
 
 def _resolve_vista(session, request: Request, r_id: int) -> tuple:
     """Resolve the vista (estructural/consolidada) and load consolidated lines.
-    
+
     UI-V2 dual view: ?vista=estructural (default, assembly) vs
     ?vista=consolidada (exploded purchase list). Both computed here;
     the template toggles which table renders.
@@ -846,7 +846,7 @@ def _resolve_vista(session, request: Request, r_id: int) -> tuple:
 
 def _parse_recipe_phases(r: Recipe):
     """Parse instructions JSON for template.
-    
+
     Extracted from recipe_detail to reduce complexity.
     """
     if not r.instructions:
@@ -860,7 +860,7 @@ def _parse_recipe_phases(r: Recipe):
 
 def _derive_recipe_tags(session, r_id: int):
     """Derive tags for a recipe.
-    
+
     Extracted from recipe_detail to reduce complexity.
     """
     from app.rms.tag_algebra import derive_recipe_tags as _derive_tags

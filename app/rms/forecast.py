@@ -194,7 +194,7 @@ def batch_forecast_ingredients(
 
     return {
         ing_id: _build_forecast(
-            ing, recent_rows.get(ing_id, 0.0), prior_rows.get(ing_id, 0.0),
+            ingredients[ing_id], recent_rows.get(ing_id, 0.0), prior_rows.get(ing_id, 0.0),
             last_price_evts.get(ing_id), days_back, now,
         )
         for ing_id in ingredient_ids
@@ -204,7 +204,7 @@ def batch_forecast_ingredients(
 
 def _compute_cutoffs(now, days_back: int) -> tuple:
     """Compute recent and prior cutoffs for consumption windows.
-    
+
     Extracted from batch_forecast_ingredients to reduce complexity.
     """
     return now - timedelta(days=days_back), now - timedelta(days=days_back * 2)
@@ -212,7 +212,7 @@ def _compute_cutoffs(now, days_back: int) -> tuple:
 
 def _query_recent_consumption(session, ingredient_ids: list[int], recent_cutoff) -> dict:
     """Query recent consumption per ingredient.
-    
+
     Extracted from batch_forecast_ingredients to reduce complexity.
     """
     return dict(
@@ -228,7 +228,7 @@ def _query_recent_consumption(session, ingredient_ids: list[int], recent_cutoff)
 
 def _query_prior_consumption(session, ingredient_ids: list[int], recent_cutoff, prior_cutoff) -> dict:
     """Query prior consumption per ingredient.
-    
+
     Extracted from batch_forecast_ingredients to reduce complexity.
     """
     return dict(
@@ -245,7 +245,7 @@ def _query_prior_consumption(session, ingredient_ids: list[int], recent_cutoff, 
 
 def _load_last_price_events(session, ingredient_ids: list[int]) -> dict:
     """Load the last restock price event per ingredient.
-    
+
     Extracted from batch_forecast_ingredients to reduce complexity.
     """
     last_price_rows = dict(
@@ -273,7 +273,7 @@ def _load_last_price_events(session, ingredient_ids: list[int]) -> dict:
 
 def _load_ingredients(session, ingredient_ids: list[int]) -> dict[int, Ingredient]:
     """Load ingredients by ID.
-    
+
     Extracted from batch_forecast_ingredients to reduce complexity.
     """
     return {
@@ -286,7 +286,7 @@ def _build_forecast(
     ing, recent_q: float, prior_q: float, last_price_evt, days_back: int, now,
 ) -> ConsumptionForecast:
     """Build a ConsumptionForecast for a single ingredient.
-    
+
     Extracted from batch_forecast_ingredients to reduce complexity.
     """
     avg_daily_recent = recent_q / days_back
@@ -312,7 +312,7 @@ def _build_forecast(
 
 def _compute_trend_pct(avg_daily_recent: float, avg_daily_prior: float) -> float:
     """Compute trend percentage.
-    
+
     Extracted from _build_forecast to reduce complexity.
     """
     if avg_daily_prior > 0:
@@ -322,7 +322,7 @@ def _compute_trend_pct(avg_daily_recent: float, avg_daily_prior: float) -> float
 
 def _compute_days_of_stock(ing, avg_daily_recent: float, now) -> tuple:
     """Compute days of stock and projected stockout date.
-    
+
     Extracted from _build_forecast to reduce complexity.
     """
     if avg_daily_recent <= 0:
@@ -335,7 +335,7 @@ def _compute_days_of_stock(ing, avg_daily_recent: float, now) -> tuple:
 
 def _compute_restock_qty(ing, avg_daily_recent: float) -> float:
     """Compute recommended restock quantity.
-    
+
     Extracted from _build_forecast to reduce complexity.
     """
     if avg_daily_recent > 0:
@@ -349,7 +349,7 @@ def _compute_restock_qty(ing, avg_daily_recent: float) -> float:
 
 def _get_last_price(ing, last_price_evt) -> int:
     """Get the last restock price, preferring the event over the ingredient's stored price.
-    
+
     Extracted from _build_forecast to reduce complexity.
     """
     if last_price_evt is not None:

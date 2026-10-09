@@ -19,7 +19,6 @@ from fastapi.responses import (
     Response,
     StreamingResponse,
 )
-from loguru import logger
 from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
@@ -47,7 +46,6 @@ from app.rms.messages import (
     SALE_INVALID_PAYMENT_METHOD,
     SALE_PRODUCT_OR_SKU_REQUIRED,
     SALE_QTY_TOO_HIGH,
-    SALE_RATE_LIMITED,
     SALE_SKU_NOT_FOUND,
     SALE_SKU_REQUIRED,
     SALE_TOO_MANY_ITEMS,
@@ -55,7 +53,6 @@ from app.rms.messages import (
 from app.rms.models import Customer, Product, Sale, SalePayment, StockMovement
 from app.rms.models.channels import Channel
 from app.rms.money import to_int_gs
-from app.rms.production_demand import invalidate_demand_for_sale_today
 from app.rms.public_tokens import (
     enforce_rate_limit as public_token_enforce_rate_limit,
 )
@@ -781,8 +778,7 @@ async def sale_create(
     Either product_id (manual selection) or sku (barcode scan) is
     required. If sku is given, we look up the product first.
     """
-    from app.integrations.barcode import get_product_by_sku
-    from app.rms.schemas import ALLOWED_PAYMENT_METHODS, MAX_DISCOUNT_GS, MAX_QTY
+    from app.rms.schemas import MAX_DISCOUNT_GS, MAX_QTY
 
     product_id = _resolve_product_from_sku(session, product_id, sku)
     _validate_sale_bounds(qty, discount_gs, MAX_QTY, MAX_DISCOUNT_GS)
@@ -830,10 +826,9 @@ async def sale_create(
 
 def _resolve_product_from_sku(session, product_id, sku):
     """Resolve product_id from SKU if provided.
-    
+
     Extracted from sale_create to reduce complexity.
     """
-    from app.rms.messages import SALE_PRODUCT_OR_SKU_REQUIRED, SALE_SKU_NOT_FOUND
 
     if (not product_id or product_id == 0) and sku:
         from app.integrations.barcode import get_product_by_sku
@@ -848,7 +843,7 @@ def _resolve_product_from_sku(session, product_id, sku):
 
 def _validate_sale_bounds(qty, discount_gs, max_qty, max_discount_gs):
     """Validate qty and discount are within bounds.
-    
+
     Extracted from sale_create to reduce complexity.
     """
     from app.rms.messages import SALE_DISCOUNT_TOO_HIGH, SALE_QTY_TOO_HIGH
@@ -866,7 +861,7 @@ def _validate_sale_bounds(qty, discount_gs, max_qty, max_discount_gs):
 
 def _check_customer_allergen(session, customer_id, product_id):
     """Check customer allergen risk.
-    
+
     Extracted from sale_create to reduce complexity.
     """
     from app.rms.derived_intel import check_customer_risk
@@ -884,7 +879,7 @@ def _check_customer_allergen(session, customer_id, product_id):
 
 def _parse_sold_at(sold_at):
     """Parse sold_at string to datetime.
-    
+
     Extracted from sale_create to reduce complexity.
     """
     from app.rms.messages import SALE_INVALID_DATE
@@ -900,7 +895,7 @@ def _parse_sold_at(sold_at):
 
 def _assert_day_open(session, sold_at_dt):
     """Assert the day is open for sales.
-    
+
     Extracted from sale_create to reduce complexity.
     """
     from app.rms.eod_closed import assert_day_open_or_raise
@@ -912,11 +907,11 @@ def _assert_day_open(session, sold_at_dt):
 
 def _validate_payment_method(session, payment_method):
     """Validate and clean payment method.
-    
+
     Extracted from sale_create to reduce complexity.
     """
-    from app.rms.schemas import ALLOWED_PAYMENT_METHODS
     from app.rms.messages import SALE_INVALID_PAYMENT_METHOD
+    from app.rms.schemas import ALLOWED_PAYMENT_METHODS
     payment_method_clean = (payment_method or "").strip() or None
     if payment_method_clean is not None and payment_method_clean not in ALLOWED_PAYMENT_METHODS:
         raise HTTPException(status_code=400, detail=SALE_INVALID_PAYMENT_METHOD)
@@ -925,7 +920,7 @@ def _validate_payment_method(session, payment_method):
 
 def _check_cash_session_required(request, session, payment_method_clean):
     """Check if cash session is required and open.
-    
+
     Extracted from sale_create to reduce complexity.
     """
     from app.rms.audit import record as _audit_record
@@ -949,10 +944,9 @@ def _check_cash_session_required(request, session, payment_method_clean):
 
 def _validate_channel(channel):
     """Validate and clean channel.
-    
+
     Extracted from sale_create to reduce complexity.
     """
-    from app.rms.messages import SALE_INVALID_CHANNEL
     channel_clean = (channel or "").strip().lower() or CHANNEL_DEFAULT
     if channel_clean not in ALLOWED_CHANNELS:
         raise HTTPException(status_code=400, detail=SALE_INVALID_CHANNEL)
@@ -961,7 +955,7 @@ def _validate_channel(channel):
 
 def _validate_customer_exists(session, customer_id):
     """Validate customer exists if provided.
-    
+
     Extracted from sale_create to reduce complexity.
     """
     from app.rms.customers import get_customer
@@ -972,7 +966,7 @@ def _validate_customer_exists(session, customer_id):
 
 def _prepare_invoice_fields(session, invoice_type, invoice_customer_ruc, invoice_customer_name, customer_id, product_id):
     """Prepare fiscal invoice fields.
-    
+
     Extracted from sale_create to reduce complexity.
     """
     from app.rms.constants import DEFAULT_INVOICE_TYPE, INVOICE_TYPES
@@ -1000,11 +994,12 @@ def _prepare_invoice_fields(session, invoice_type, invoice_customer_ruc, invoice
 
 def _check_idempotency(session, idempotency_key):
     """Check idempotency key for duplicate sale.
-    
+
     Returns RedirectResponse if duplicate, None otherwise.
     Extracted from sale_create to reduce complexity.
     """
     from sqlalchemy.exc import IntegrityError
+
     from app.rms.models import AppMeta as _AppMeta
 
     try:
@@ -1030,7 +1025,7 @@ def _check_idempotency(session, idempotency_key):
 
 def _apply_points_redemption(session, customer_id, points_to_redeem, discount_gs, max_discount_gs):
     """Apply loyalty points redemption to discount.
-    
+
     Extracted from sale_create to reduce complexity.
     """
     if points_to_redeem <= 0:
@@ -1070,7 +1065,7 @@ def _apply_points_redemption(session, customer_id, points_to_redeem, discount_gs
 
 def _create_sale(session, product_id, qty, sold_at_dt, notes_clean, customer_id, payment_method_clean, discount_gs, channel_clean, packaging_item_id, packaging_qty):
     """Create the sale record.
-    
+
     Extracted from sale_create to reduce complexity.
     """
     try:
@@ -1097,10 +1092,10 @@ def _create_sale(session, product_id, qty, sold_at_dt, notes_clean, customer_id,
 
 def _apply_invoice_to_sale(session, sale, invoice_fields, product_id, qty, discount_gs):
     """Apply fiscal invoice fields to the sale.
-    
+
     Extracted from sale_create to reduce complexity.
     """
-    from app.rms.invoicing import compute_invoice_snapshot, allocate_invoice_number
+    from app.rms.invoicing import allocate_invoice_number, compute_invoice_snapshot
     from app.rms.models import Product as _Product
 
     invoice_type_clean = invoice_fields["type"]
@@ -1127,7 +1122,7 @@ def _apply_invoice_to_sale(session, sale, invoice_fields, product_id, qty, disco
 
 def _update_idempotency_record(session, idempotency_key, sale_id):
     """Update idempotency record with real sale_id.
-    
+
     Extracted from sale_create to reduce complexity.
     """
     from app.rms.models import AppMeta as _AppMeta
@@ -1140,7 +1135,7 @@ def _update_idempotency_record(session, idempotency_key, sale_id):
 
 def _award_loyalty_points(session, customer_id, sale):
     """Award loyalty points to customer.
-    
+
     Extracted from sale_create to reduce complexity.
     """
     from app.rms.customers import get_customer as _get_cust
@@ -1158,7 +1153,7 @@ def _award_loyalty_points(session, customer_id, sale):
 
 def _sale_create_redirect(sale):
     """Build the redirect response after sale creation.
-    
+
     Extracted from sale_create to reduce complexity.
     """
     return RedirectResponse(url=f"/recibo/{sale.sale_id}", status_code=303)
@@ -2153,7 +2148,7 @@ async def preflight_sale(
     today = datetime.now(ASUNCION_TZ).date()
     checklist = validate_sale_intent(session, intent, today=today)
 
-    def _serialize(w) -> dict:  # noqa: ANN001
+    def _serialize(w) -> dict:
         return {"code": w.code, "severity": w.severity, "message": w.message}
 
     return JSONResponse(
@@ -2264,7 +2259,7 @@ async def preflight_sale_multi(
     today = datetime.now(ASUNCION_TZ).date()
     checklist = validate_cart_intent(session, cart, today=today)
 
-    def _serialize(w) -> dict:  # noqa: ANN001
+    def _serialize(w) -> dict:
         return {"code": w.code, "severity": w.severity, "message": w.message}
 
     return JSONResponse(

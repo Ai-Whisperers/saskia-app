@@ -620,7 +620,7 @@ def validate_ingredient(ing: object) -> list[str]:
 
 def _extract_ingredient_fields(ing: object) -> tuple[set, set, str]:
     """Extract and normalize declared tags, allergens, and name.
-    
+
     Extracted from validate_ingredient to reduce complexity.
     """
     declared = normalize_all(getattr(ing, "dietary_tags", None))
@@ -646,7 +646,7 @@ _ALLERGEN_CONTRADICTIONS = [
 
 def _check_allergen_contradictions(declared: set, allergens: set, issues: list) -> None:
     """Check for tag/allergen contradictions.
-    
+
     Extracted from validate_ingredient to reduce complexity.
     """
     for tag, required_allergens, message in _ALLERGEN_CONTRADICTIONS:
@@ -656,7 +656,7 @@ def _check_allergen_contradictions(declared: set, allergens: set, issues: list) 
 
 def _check_vegetarian_contradiction(declared: set, name_lower: str, issues: list) -> None:
     """Check for vegetarian + meat/fish name contradiction.
-    
+
     Extracted from validate_ingredient to reduce complexity.
     """
     if "vegetariano" not in declared:
@@ -667,7 +667,7 @@ def _check_vegetarian_contradiction(declared: set, name_lower: str, issues: list
 
 def _check_may_contain_gluten(ing: object, declared: set, issues: list) -> None:
     """Check for may_contain_gluten + sin tacc contradiction.
-    
+
     Extracted from validate_ingredient to reduce complexity.
     """
     if getattr(ing, "may_contain_gluten", False) and "sin tacc" in declared:
@@ -676,7 +676,7 @@ def _check_may_contain_gluten(ing: object, declared: set, issues: list) -> None:
 
 def _check_category_mismatch(ing: object, issues: list) -> None:
     """Check for category mismatch between stored and inferred.
-    
+
     Extracted from validate_ingredient to reduce complexity.
     """
     stored_category = (getattr(ing, "category", None) or "").strip().lower()

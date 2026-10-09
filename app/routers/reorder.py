@@ -7,6 +7,8 @@ POST /reorder/generate-po   — bulk generate purchase order as WhatsApp text
 
 from __future__ import annotations
 
+import csv
+import io
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
@@ -677,7 +679,7 @@ async def reorder_upload_prices(
 
 async def _read_csv_text(file: UploadFile) -> str:
     """Read and decode CSV file content. Raises HTTPException on decode failure.
-    
+
     Extracted from reorder_upload_prices to reduce complexity.
     """
     from app.rms.upload_limits import CSV_LIMIT_2MB, CSV_MIME_TYPES, validate_upload
@@ -698,18 +700,15 @@ async def _read_csv_text(file: UploadFile) -> str:
 
 def _parse_csv_reader(text: str) -> csv.DictReader:
     """Parse CSV text into a DictReader.
-    
+
     Extracted from reorder_upload_prices to reduce complexity.
     """
-    import csv
-    import io
-
     return csv.DictReader(io.StringIO(text))
 
 
 def _validate_csv_columns(reader: csv.DictReader) -> None:
     """Validate that required columns are present in the CSV header.
-    
+
     Extracted from reorder_upload_prices to reduce complexity.
     Raises HTTPException if required columns are missing.
     """
@@ -727,7 +726,7 @@ def _validate_csv_columns(reader: csv.DictReader) -> None:
 
 def _load_lookups(session) -> tuple[dict[str, Ingredient], dict[str, Supplier]]:
     """Pre-load ingredient and supplier lookup maps.
-    
+
     Extracted from reorder_upload_prices to reduce complexity.
     """
     ingredients_by_name: dict[str, Ingredient] = {
@@ -742,7 +741,7 @@ def _load_lookups(session) -> tuple[dict[str, Ingredient], dict[str, Supplier]]:
 
 def _today_utc():
     """Get today's date in UTC.
-    
+
     Extracted from reorder_upload_prices to reduce complexity.
     """
     from datetime import datetime as _datetime
@@ -755,7 +754,7 @@ async def _process_csv_rows(
     session, reader, ingredients_by_name, suppliers_by_name, today,
 ) -> tuple[int, int, list, list]:
     """Process all CSV rows. Returns (imported, skipped, errors, preview).
-    
+
     Extracted from reorder_upload_prices to reduce complexity.
     """
     imported = 0
@@ -782,7 +781,7 @@ async def _process_single_row(
     session, row, row_idx, ingredients_by_name, suppliers_by_name, today,
 ) -> dict:
     """Process a single CSV row. Returns {status, data, preview}.
-    
+
     Extracted from _process_csv_rows to reduce complexity.
     """
     ing_name = (row.get("ingredient_name") or "").strip()
@@ -843,7 +842,7 @@ async def _process_single_row(
 
 def _parse_price(price_raw: str, ing_name: str, sup_name: str, row_idx: int) -> dict:
     """Parse price string. Returns {price, error}.
-    
+
     Extracted from _process_single_row to reduce complexity.
     """
     try:
@@ -871,7 +870,7 @@ def _parse_price(price_raw: str, ing_name: str, sup_name: str, row_idx: int) -> 
 
 def _parse_date_field(date_raw: str, today):
     """Parse date string, defaulting to today if empty.
-    
+
     Extracted from _process_single_row to reduce complexity.
     """
     from datetime import date as _date
@@ -886,10 +885,9 @@ def _parse_date_field(date_raw: str, today):
 
 def _is_duplicate_price_event(session, ingredient_id: int, supplier_id: int, when) -> bool:
     """Check if a price event already exists for (ingredient, supplier, date).
-    
+
     Extracted from _process_single_row to reduce complexity.
     """
-    from app.rms.models import IngredientPriceEvent
 
     existing = session.execute(
         select(IngredientPriceEvent).where(
@@ -904,7 +902,7 @@ def _is_duplicate_price_event(session, ingredient_id: int, supplier_id: int, whe
 
 def _record_price_event(session, ingredient_id: int, supplier_id: int, price_int: int, when) -> None:
     """Record a price event for an ingredient.
-    
+
     Extracted from _process_single_row to reduce complexity.
     """
     from datetime import datetime as _datetime
@@ -921,7 +919,7 @@ def _record_price_event(session, ingredient_id: int, supplier_id: int, price_int
 
 def _record_upload_audit(session, request, file, imported: int, skipped: int, errors: list) -> None:
     """Record audit log for the upload.
-    
+
     Extracted from reorder_upload_prices to reduce complexity.
     """
     audit_record(

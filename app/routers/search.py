@@ -43,7 +43,7 @@ def global_search(
 
 def _search_customers(session, pattern: str) -> list:
     """Search customers by name, phone, email, or cedula.
-    
+
     Extracted from global_search to reduce complexity.
     """
     try:
@@ -68,7 +68,7 @@ def _search_customers(session, pattern: str) -> list:
 
 def _format_customer_result(c) -> dict:
     """Format a customer search result.
-    
+
     Extracted from _search_customers to reduce complexity.
     """
     tier_label = _loyalty_tier_label(c.loyalty_points)
@@ -84,7 +84,7 @@ def _format_customer_result(c) -> dict:
 
 def _loyalty_tier_label(loyalty_points: int) -> str:
     """Get loyalty tier label from points.
-    
+
     Extracted from _format_customer_result to reduce complexity.
     """
     if loyalty_points < 5000:
@@ -98,7 +98,7 @@ def _loyalty_tier_label(loyalty_points: int) -> str:
 
 def _search_products(session, pattern: str) -> list:
     """Search products by name.
-    
+
     Extracted from global_search to reduce complexity.
     """
     try:
@@ -116,7 +116,7 @@ def _search_products(session, pattern: str) -> list:
 
 def _format_product_result(p) -> dict:
     """Format a product search result.
-    
+
     Extracted from _search_products to reduce complexity.
     """
     price_str = f"Gs. {p.sale_price_gs:,.0f}".replace(",", ".") if p.sale_price_gs else "—"
@@ -132,7 +132,7 @@ def _format_product_result(p) -> dict:
 
 def _search_pedidos(session, pattern: str) -> list:
     """Search pedidos by customer name or phone.
-    
+
     Extracted from global_search to reduce complexity.
     """
     try:
@@ -155,7 +155,7 @@ def _search_pedidos(session, pattern: str) -> list:
 
 def _format_pedido_result(ped) -> dict:
     """Format a pedido search result.
-    
+
     Extracted from _search_pedidos to reduce complexity.
     """
     status_map = {
@@ -179,7 +179,7 @@ def _format_pedido_result(ped) -> dict:
 
 def _search_recipes(session, pattern: str) -> list:
     """Search recipes by name.
-    
+
     Extracted from global_search to reduce complexity.
     """
     try:
@@ -194,7 +194,7 @@ def _search_recipes(session, pattern: str) -> list:
 
 def _format_recipe_result(r) -> dict:
     """Format a recipe search result.
-    
+
     Extracted from _search_recipes to reduce complexity.
     """
     cost_str = f"Gs. {r.unit_cost_gs:,.0f}".replace(",", ".") if r.unit_cost_gs else "—"

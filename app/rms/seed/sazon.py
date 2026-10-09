@@ -5101,7 +5101,7 @@ def _seed_pedidos__lines(ctx: SeedContext):
 
 def _process_single_pedido(ctx: SeedContext, ped_tuple, channel_codes: list[str]) -> bool:
     """Process a single pedido tuple. Returns True if created.
-    
+
     Extracted from _seed_pedidos__lines to reduce complexity.
     """
     cust_idx, days_ago, hour, minute, status, payment, channel_idx, notes, line_items = ped_tuple
@@ -5134,7 +5134,7 @@ def _process_single_pedido(ctx: SeedContext, ped_tuple, channel_codes: list[str]
 
 def _resolve_channel_code(channel_codes: list[str], channel_idx: int) -> str:
     """Resolve channel code from index, with fallback.
-    
+
     Extracted from _seed_pedidos__lines to reduce complexity.
     """
     if channel_idx < len(channel_codes):
@@ -5144,7 +5144,7 @@ def _resolve_channel_code(channel_codes: list[str], channel_idx: int) -> str:
 
 def _find_existing_pedido(ctx: SeedContext, customer_id: int, promised_date, status: str):
     """Find existing pedido matching (customer, date, status).
-    
+
     Extracted from _seed_pedidos__lines to reduce complexity.
     """
     return ctx.session.execute(
@@ -5162,7 +5162,7 @@ def _create_pedido(
     payment: str, notes: str,
 ) -> Pedido:
     """Create a Pedido ORM row.
-    
+
     Extracted from _seed_pedidos__lines to reduce complexity.
     """
     token = secrets.token_urlsafe(16)
@@ -5189,7 +5189,7 @@ def _create_pedido_lines_and_events(
     status: str, channel_code: str,
 ) -> None:
     """Create pedido lines and their associated events.
-    
+
     Extracted from _seed_pedidos__lines to reduce complexity.
     """
     for prod_name, qty in valid_lines:
@@ -5201,7 +5201,7 @@ def _create_pedido_lines_and_events(
 
 def _add_pedido_line(ctx: SeedContext, ped: Pedido, prod, qty: float, status: str) -> None:
     """Add a PedidoLine and update report counter.
-    
+
     Extracted from _create_pedido_lines_and_events to reduce complexity.
     """
     line = PedidoLine(
@@ -5217,7 +5217,7 @@ def _add_pedido_line(ctx: SeedContext, ped: Pedido, prod, qty: float, status: st
 
 def _add_pedido_event_created(ctx: SeedContext, ped: Pedido, promised_dt, channel_code: str) -> None:
     """Add a 'created' PedidoEvent.
-    
+
     Extracted from _create_pedido_lines_and_events to reduce complexity.
     """
     ctx.session.add(
@@ -5233,7 +5233,7 @@ def _add_pedido_event_created(ctx: SeedContext, ped: Pedido, promised_dt, channe
 
 def _add_status_change_events(ctx: SeedContext, ped: Pedido, promised_dt, status: str) -> None:
     """Add status change events based on pedido status.
-    
+
     Extracted from _create_pedido_lines_and_events to reduce complexity.
     """
     if status != "pending":
@@ -5249,7 +5249,7 @@ def _add_status_change_events(ctx: SeedContext, ped: Pedido, promised_dt, status
 
 def _add_event(ctx: SeedContext, ped: Pedido, ts, event_type: str, payload: dict) -> None:
     """Add a PedidoEvent with the given type and payload.
-    
+
     Extracted from _add_status_change_events to reduce complexity.
     """
     ctx.session.add(

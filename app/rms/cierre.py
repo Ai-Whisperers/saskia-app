@@ -82,7 +82,6 @@ def compute_monthly_close(session: Session, year: int, month: int) -> MonthlyClo
 
     Asunción timezone for period boundaries per AGENTS.md rule §4.
     """
-    from app.rms.config import ASUNCION_TZ
 
     start_dt, end_dt = _get_month_range_dt(year, month)
     sales = _fetch_sales_in_period(session, start_dt, end_dt)
@@ -94,7 +93,7 @@ def compute_monthly_close(session: Session, year: int, month: int) -> MonthlyClo
 
 def _get_month_range_dt(year: int, month: int) -> tuple:
     """Get the datetime range for a month in Asunción timezone.
-    
+
     Extracted from compute_monthly_close to reduce complexity.
     """
     from app.rms.config import ASUNCION_TZ
@@ -107,7 +106,7 @@ def _get_month_range_dt(year: int, month: int) -> tuple:
 
 def _fetch_sales_in_period(session, start_dt, end_dt) -> list:
     """Fetch all non-voided sales in the period.
-    
+
     Extracted from compute_monthly_close to reduce complexity.
     """
     return list(
@@ -123,7 +122,7 @@ def _fetch_sales_in_period(session, start_dt, end_dt) -> list:
 
 def _aggregate_sales_by_product(sales: list) -> dict[int, dict]:
     """Aggregate sales by product, computing gross and IVA totals.
-    
+
     Extracted from compute_monthly_close to reduce complexity.
     """
     by_product: dict[int, dict] = {}
@@ -141,7 +140,7 @@ def _aggregate_sales_by_product(sales: list) -> dict[int, dict]:
 
 def _new_product_aggregation() -> dict:
     """Create a new product aggregation dict.
-    
+
     Extracted from _aggregate_sales_by_product to reduce complexity.
     """
     return {
@@ -156,7 +155,7 @@ def _new_product_aggregation() -> dict:
 
 def _build_product_rows(session, by_product: dict) -> list[MonthlyCloseRow]:
     """Build MonthlyCloseRow for each product.
-    
+
     Extracted from compute_monthly_close to reduce complexity.
     """
     from app.rms.prime_cost import compute_prime_cost
@@ -174,7 +173,7 @@ def _build_product_rows(session, by_product: dict) -> list[MonthlyCloseRow]:
 
 def _build_single_product_row(p, agg: dict, pc) -> MonthlyCloseRow:
     """Build a single MonthlyCloseRow for a product.
-    
+
     Extracted from _build_product_rows to reduce complexity.
     """
     mat_total, lab_total, ovh_total, prime_total = _compute_product_costs(agg["qty"], pc)
@@ -200,7 +199,7 @@ def _build_single_product_row(p, agg: dict, pc) -> MonthlyCloseRow:
 
 def _compute_product_costs(qty: float, pc) -> tuple:
     """Compute materials, labor, overhead, and prime cost totals.
-    
+
     Extracted from _build_single_product_row to reduce complexity.
     """
     if pc.materials_cost_gs is None:
@@ -220,7 +219,7 @@ def _compute_product_costs(qty: float, pc) -> tuple:
 
 def _aggregate_by_family(rows: list[MonthlyCloseRow]) -> list[MonthlyCloseRow]:
     """Aggregate MonthlyCloseRows by family/category.
-    
+
     Extracted from compute_monthly_close to reduce complexity.
     """
     by_family: dict[str, dict] = {}
@@ -238,7 +237,7 @@ def _aggregate_by_family(rows: list[MonthlyCloseRow]) -> list[MonthlyCloseRow]:
 
 def _new_family_aggregation() -> dict:
     """Create a new family aggregation dict.
-    
+
     Extracted from _aggregate_by_family to reduce complexity.
     """
     return {
@@ -255,7 +254,7 @@ def _new_family_aggregation() -> dict:
 
 def _accumulate_family_aggregation(agg: dict, r: MonthlyCloseRow) -> None:
     """Accumulate a row into a family aggregation.
-    
+
     Extracted from _aggregate_by_family to reduce complexity.
     """
     agg["ventas_gs"] += r.ventas_gs
@@ -270,7 +269,7 @@ def _accumulate_family_aggregation(agg: dict, r: MonthlyCloseRow) -> None:
 
 def _build_family_row(family: str, agg: dict) -> MonthlyCloseRow:
     """Build a MonthlyCloseRow for a family.
-    
+
     Extracted from _aggregate_by_family to reduce complexity.
     """
     margen_pct = (
@@ -295,7 +294,7 @@ def _build_family_row(family: str, agg: dict) -> MonthlyCloseRow:
 
 def _build_monthly_close_result(rows, family_rows, year: int, month: int) -> MonthlyClose:
     """Build the final MonthlyClose result.
-    
+
     Extracted from compute_monthly_close to reduce complexity.
     """
     return MonthlyClose(year=year, month=month, rows=rows, family_rows=family_rows)

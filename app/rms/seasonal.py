@@ -150,7 +150,7 @@ def product_hints_for_event(
 
 def _collect_matching_hints(event: SeasonalEvent, keywords: str, product_names: list[str]) -> list[ProductHint]:
     """Collect product hints matching the event keywords.
-    
+
     Extracted from product_hints_for_event to reduce complexity.
     """
     hints: list[ProductHint] = []

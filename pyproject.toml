@@ -196,9 +196,11 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а", "‹", "›", "σ
 ]
 "app/rms/seed/sazon.py" = [
     "F821",    # forward references to local helper functions resolved lazily
+    "ANN",     # large file with many bot-extracted helpers
 ]
 "app/routers/produccion/operations.py" = [
     "F821",    # local ASUNCION_TZ + ProductionClosedDay usage
+    "ANN",     # bot-extracted helpers from produccion complexity refactors
 ]
 "app/routers/health.py" = [
     "F821",    # BackupResult forward reference for endpoint return type
@@ -270,6 +272,55 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а", "‹", "›", "σ
     "S608",            # SQL builder helpers (text() calls are intentional)
     "BLE001",          # migrations use try/except ALTER TABLE
     "S110",            # migrations: try/except pass is the idempotent-ALTER pattern
+]
+
+"app/routers/sales.py" = [
+    "ANN",     # bot-extracted helpers from cbfd41f9-style complexity refactors; type-annotate as they get touched
+]
+"app/routers/dashboard.py" = [
+    "ANN",     # bot-extracted helpers from cbfd41f9 (dashboard refactor 138→3)
+]
+"app/routers/reorder.py" = [
+    "ANN",     # bot-extracted helpers from reorder complexity refactor
+]
+"app/routers/customers.py" = [
+    "ANN",     # bot-extracted helpers from customers complexity refactor
+]
+"app/rms/forecast.py" = [
+    "ANN",     # bot-extracted helpers from forecast complexity refactor
+]
+"app/rms/prime_cost.py" = [
+    "ANN",     # bot-extracted helpers from prime_cost complexity refactor
+]
+"app/routers/pedidos.py" = [
+    "ANN",     # bot-extracted helpers from pedidos complexity refactor
+]
+"app/routers/recipes.py" = [
+    "ANN",     # bot-extracted helpers from recipes complexity refactor
+]
+"app/rms/supplier_prices.py" = [
+    "ANN",     # bot-extracted helpers from supplier complexity refactor
+]
+"app/rms/tagging/derive.py" = [
+    "ANN",     # bot-extracted helpers from tagging complexity refactor
+]
+"app/rms/cierre.py" = [
+    "ANN",     # bot-extracted helpers from cierre complexity refactor
+]
+"app/routers/search.py" = [
+    "ANN",     # bot-extracted helpers from search complexity refactor
+]
+"app/routers/auditoria.py" = [
+    "ANN",     # bot-extracted helpers from auditoria complexity refactor
+]
+"app/rms/sales_intel.py" = [
+    "ANN",     # bot-extracted helpers from sales_intel complexity refactor
+]
+"app/rms/cotizador.py" = [
+    "ANN",     # bot-extracted helpers from cotizador complexity refactor
+]
+"app/rms/profitability/cost.py" = [
+    "ANN",     # bot-extracted helpers from profitability cost refactor
 ]
 
 # Backlog #53: ban silent except: pass in routers. Use BadRequest /

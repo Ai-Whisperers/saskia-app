@@ -1,184 +1,125 @@
-# the operator · What Next? (refresh 2026-10-08)
+# the operator · What Next? (refresh 2026-10-09)
 
-> **Supersedes** `WHAT_NEXT_2026-10-07b-archived.md`. Older
+> **Supersedes** `WHAT_NEXT_2026-10-08-archived.md`. Older
 > `IMPROVEMENT_BACKLOG.md`, `COMPLETE_*.md`, `PHASE2_*.md` are stale — use
-> `git log` as ground truth: `git log --oneline --since="2026-10-01"`.
+> `git log` as ground truth: `git log --oneline --since="2026-10-08"`.
 
-## 📊 Current State (2026-10-08)
+## 📊 Current State (2026-10-09)
 
 | Knob | Value | Source |
 |------|-------|--------|
-| Schema | v112 | `app/rms/config.py:87` |
-| Migrations on disk | 37 | `app/rms/migrations/_*.py` |
-| Tests collected | 7,328 (129 deselected) | `pytest --collect-only` |
-| SASKIA-3XX tests | 18/18 ✅ | `test_terminology_consistency` (4) + `test_SASKIA-309_*` (14) |
-| Closed SASKIA items | 310/310 | SASKIA-301..310 (Phases 0-9) shipped; copy/UX program complete |
-| Open ruff findings | 0 | `ruff check` |
+| Schema | v117 | `app/rms/config.py:92` (CURRENT_SCHEMA_VERSION=117) |
+| Prod image | `sazon-rms:prod-20261009-161420` | last prod deploy |
+| Test image | `sazon-rms:test-20261009-160431` | last test deploy |
+| Prod site | https://sazon-vps.paragu-ai.com | env-real (post 2026-10-09 fix) |
+| Test site | https://saskia-test.paragu-ai.com | env-real |
+| Ruff | tracked in-memory (subagent fixing now) | `uv run ruff check .` |
+| Backup cron | `/etc/cron.d/sazon-backup-prod` installed 2026-10-09 | VPS |
 
-## ✅ Closed in the last week (since 2026-10-01, top items only)
+## ✅ Closed in the last 24h (since 2026-10-08)
 
-- **SASKIA-309: Phase 8 regression locks** — `b9ad6c58` (#65). 14 new
-  tests across 3 files: `test_SASKIA-309_500_no_secrets.py`
-  (errors/500.html — no stack traces, secrets, env-var prefixes, API
-  tokens), `test_SASKIA-309_dev_pages_not_in_nav.py`
-  (/dev/* URLs not in operator nav), `test_SASKIA-309_guia_intro.py`
-  (README has operator-facing intro + all TOC links resolve).
-  Also: 1-line ruff format fix on `app/rms/main.py:1242`.
-- **SASKIA-310: terminology glossary + CI gate (Phase 9)** — `880aa710`
-  (#64). Concept-level glossary at `app/docs/glossary.md` (50+ rows,
-  complements string-level `copy-vos.md`). CI gate
-  `tests/test_terminology_consistency.py` scans every
-  `app/templates/**/*.html` for 16 English loan-word patterns.
-  Last 4 loan-word fixes: `Diff`→`Diferencia` (caja, caja_z),
-  `Accuracy`→`Precisión` (produccion_accuracy: KPI label + 2 headers
-  + explanation). Copy/UX program (SASKIA-301..310) is now closed.
-- **SASKIA-209: one-command migration rollback** — `dc26df1f`. Implements
-  BACKLOG #12. `app/rms/rollback.py` + CLI `sazon rollback --to N
-  --dry-run`; 9 contract tests; sweep 102 pass.
-- **Production Planner → Shopping List** — `eaaf6a12` + `bc9a76ff`
-  + `8edaefd6` + `ff0ed55e`. Operator one-click: pick tomorrow's plan
-  on `/produccion`, "Enviar faltantes a lista de compras" button
-  posts to `/shopping-list/from-production-plan`, deduped by
-  `(ingredient_id, unit)`, supplier-grouped, `wa.me` deep-link.
-  14/14 tests pass.
-- **C.6 sticky table headers on 5 long-table templates** — `6280c951`.
-- **Perf: dashboard forecast N+1 → batched (SASKIA-202)** — `caf1cf19`.
-  Per-product `forecast_sales()` calls collapsed to single batched
-  SELECT. 21/21 dashboard tests pass.
-- **Held-sale (B-7 port from Hao0321/pos-pro, MIT)** — `9aa32bef`.
-- **P40: One-tap "Marcar comprado" on /reorder** — `f6f9aa72`.
-- **P40: "Cargar plan desde plantilla semanal"** — `a64e64c9`.
-- **P40: EOD view warms demand snapshot** — `0b46620e`.
-- **C.1 Sentry→Telegram activation** — `aa0eb6cf` (operator needs to
-  set `TG_BOT_TOKEN` + `TG_CHAT_ID` on VPS).
-- **P41 CHECK constraint on sale.channel + pedido.channel** — `e64ad50f`.
-- **P42 use Channel.X.value in all write paths** — `e586f47c`.
-- **Per-client branding on /menu + /m/{slug}** — `d6bead2e`.
-- **SASKIA-204: Sale channel mismatch cleanup** — `444d9953`. Channel enum extended to 10 values (HEREBUS retail/wholesale/distributor/eventual added); `/ventas/historial` filter; `scripts/reclassify_sale_channels.py` idempotent backfill; `scripts/import_herebus_data.py` now uses `_normalize_channel()` (no more silent skew). 97 tests pass.
-- **Pre-billing checklist (URY pattern)** — `4384423b`.
-- **FloCafe stock ceiling + low-stock badge** — `36021585`.
-- **FloCafe design tokens (CSS custom properties)** — `815f12f5`.
-- **FloCafe receipt oracle (golden fixture)** — `15cf78a5`.
-- **Date-boundary CI workflow + 60 tests** — `f26c191b` (port from
-  OpenResto).
-- **OWASP ZAP API scan (M-INFRA-001)** — `4683b025` (port from OpenResto).
-- **Pre-migration backup + fail-closed on newer schema** — `3970bfda`.
-- **Atomic DDL via SAVEPOINT for Postgres** — `18668813` + `50c35082`.
-- **Systemic CI failures — round 1** — `9242edc5`. Smoke test hardcoded
-  `postgresql+psycopg://sazon:sazon@...` while the workflow started a
-  `saskia/saskia/saskia` Postgres (connection failed with "password
-  authentication failed for user sazon"). Now reads
-  `os.environ.get("DATABASE_URL", ...)`. ZAP rule 90004 fixed by setting
-  `Cross-Origin-Resource-Policy: same-origin` in
-  `app/rms/security_headers.py`. 2 new regression tests.
-- **Systemic CI failures — round 2** — `2c2ae774`. ZAP rule 90004 had 2
-  more instances (COEP, COOP) — fixed COOP. ZAP rule 110009 (Full Path
-  Disclosure): `/demo/seed` was leaking `repr(exc)` in the 500 detail
-  — fixed to a generic message; real exception logged server-side.
-  2 more regression tests. `rule 100000` will still fire on legitimate
-  500s; pending: promote ZAP to `fail_action: high-only` once
-  HIGH/CRITICAL scan stays green for 1 week.
-- **Menúes ejecutivos, venta por peso, pagos mixtos, propinas, arqueo
-  X/Z, fiado ledger, LLM copiloto (fase 0)** — bulk of WP-1.x / Fase 2-4.
+- **Sales payment-row bug fix** — `56f2b77e`. Bot's complexity refactor
+  of `sale_create_multi` lost 3 critical things: (1) single-method sales
+  wrote **zero** `SalePayment` rows (entire else branch was missing),
+  (2) split payments missing `created_at` → 500 NOT NULL errors,
+  (3) `_process_split_payments` missing `_left -= _take` decrement +
+  defensive remainder handling. All restored. 18/19 sale tests pass
+  (1 pre-existing void test failure documented separately).
+- **Ruff cleanup after bot's complexity wave** — `5c140b1f`. ~50
+  whitespace/import violations fixed. (The 323 type-annotation errors
+  fixed in a follow-up commit; subagent working as of this writing.)
+- **CI workflow unblocking** — `5e3f53e2`, `fffe7c7f`, `640c21e5`.
+  Pre-existing CI bugs fixed: (1) `uv pip install --system pyyaml`
+  → throwaway venv, (2) `SAZKIA_DEPLOY_KEY` secret missing → switched
+  to `VPS_KEY`, (3) `BWS_ACCESS_TOKEN` still missing from GH secrets
+  (auto-deploy chain remains manual — see Open #1).
+- **Prod deploy chain restored** — `d0bf56da`, `5fb3b2ed`, `b9456540`.
+  `write_env_file.py` was failing on `SENTRY_DSN` (not in BWS) and
+  silently using placeholder env values (`FERNET_KEY=***-replace-me-***`,
+  `SUPABASE_***_KEY=***lder`). Three commits: (1) optional_bws_keys
+  field, (2) YAML inline comment parsing, (3) actually wire it through
+  (first attempt's comment-stripping was masked by YAML). **Prod now
+  has real env** — 21 lines, 1659 bytes, real FERNET_KEY, all 4 Supabase
+  keys, all CF R2 keys, real NEON_DATABASE_URL, real SASKIA passwords.
+  Backup cron installed for the first time.
+- **5 critical refactor regressions caught in ruff** — manually fixed
+  in this session: `_build_hourly_sales_chart` + `_build_30day_sales_chart`
+  were deleted (would 500 every /dashboard request), `forecast.py:ing`
+  undefined in comprehension, `reorder.py:csv` import inside function
+  with `csv.DictReader` in type hint (F821), 4 `PLANTILLA_*_COLS`
+  constants deleted but still referenced (export-xlsx would 500).
 
 ## 🎯 What's next? (3 picks, ranked)
 
-### #1 — **Deploy the batch to VPS** — 30 min, real impact
+### #1 — **Type-annotation subagent + ruff CI gate** — ongoing, ~30 min
 
-SASKIA-301..310 (24 templates + 129 tests + glossary + CI gate) +
-held_sale + public-menu branding + SASKIA-202 N+1 fix + SASKIA-203
-shopping-list button + SASKIA-209 migration rollback are all sitting
-on `main`. None are live. The 30-day "0 demand_snapshot rows" gap
-will only start healing after VPS deployment, because /eod runs there.
+The subagent is in the middle of fixing 323 ANN001/ANN202 errors. Once
+it lands, CI will pass again. Then the **next** commit should be a
+ruff-CI-required check: branch protection rule that fails the merge
+when ruff fails. (Currently `ci.yml` already runs `ruff check .` but
+the repo is private + budget-gated, so CI isn't actually executing.
+Fix: add `dev-ci.yml` to branch protection as a required check, or
+flip repo to public.)
 
-```
-ssh paragu-ai 'cd /opt/saskia && docker compose pull && docker compose up -d'
-ssh paragu-ai 'curl https://sazon-vps.paragu-ai.com/healthz'
-```
+### #2 — **Fix the `test_void_removes_payment_rows` pre-existing failure** — 30 min
 
-Risk: medium. Pre-migration backup runs first (AGENTS.md rule 17) and
-`fail_closed_on_newer_schema()` aborts if anything is off. The new
-`sazon rollback --to N` is the safety net (SASKIA-209).
+The `void_sale` function in `app/rms/sales/lifecycle.py` marks
+`sale.voided_at` and reverses stock moves, but does NOT delete
+`SalePayment` rows. The test expects deletion. Two options:
+- (a) Make `void_sale` also soft-delete `SalePayment` rows (mark
+  `voided_at` instead of hard delete) — preserves audit trail.
+- (b) Make `void_sale` hard-delete `SalePayment` rows.
+- (c) Update the test to match current behavior.
 
-### #2 — **Promote OWASP ZAP to `fail_action: high-only`** — 30 min, agent-decided
+Per AGENTS.md, no money mutation without a test. (a) is safest.
 
-Round 1 (`9242edc5`) and round 2 (`2c2ae774`) fixed the 5 still-possible
-findings:
-- Smoke test Postgres auth (sazon vs saskia mismatch)
-- ZAP rule 90004 CORP, COOP (now set via SecurityHeadersMiddleware)
-- ZAP rule 110009 Full Path Disclosure on `/demo/seed`
+### #3 — **Hard Rule 18 conflict resolution** — 30 min, agent-decided
 
-What's still firing:
-- ZAP rule `100000 (A Server Error response code was returned by the
-  server)` — fires on `/vs-mercado/evidencia/seed-demo` and other
-  seed/state endpoints that legitimately fail when CI env has no
-  state. This is operational noise, not a security finding.
+`AGENTS.md` Hard Rule 18 says "`app_meta` table is source of truth
+(P1)" but `docs/operations/2026-10-09-schema-version-source.md` (on
+main) decided against it with 4 reasons. Per AGENTS.md: hard-rule
+conflicts = ESCALATE. Either:
+- Implement Tier 3 (P1 work — add `app_meta(schema_version)` as
+  runtime source of truth, keep `SCHEMA_VERSION` constant as build-intent)
+- Or amend Hard Rule 18 to reflect the new world (drop P1 designation,
+  note the doc as the resolution)
 
-Per the workflow's own promotion policy
-(`security-zap.yml:50-60`): "Once we have 2 consecutive weekly scans
-with zero HIGH/CRITICAL findings, this job can be promoted to required
-status." Same logic applies to fail_action threshold — promote
-from `-l WARN` to `-l HIGH` (only HIGH+ triggers fail_action). 1-line
-change in `cmd_options` + remove the `rule 100000` from "KEPT" comment
-in `.zap-rules.tsv`. Agent-decided per AGENTS.md.
+## ❌ Deferred — Sentry→Telegram activation
 
-### #3 — **Tackle Supabase RLS + Storage (BACKLOG #37, #38)** — L effort, security-sensitive
-
-Two genuinely-open items from IMPROVEMENT_BACKLOG Tier 7 (P3 Supabase/infra):
-- **#37**: Supabase Storage for product images (today URLs to external CDN)
-- **#38**: Supabase RLS for multi-tenant readiness (Tenant table exists)
-
-Both are security/data-architecture items — need Iván's explicit OK per
-AGENTS.md Decision framework before implementation. Not agent-decided.
-Surfaces when Sazón gets a second client; deferred until then per
-SPEC SASKIA-210 ("per-client instances, not shared-DB tenancy;
-deferred until Saskia is happy", `2206111b`).
-
-## ❌ Deferred — C.1 Sentry→Telegram activation
-
-**Out of scope until Sazon has ≥30 customers asking for Telegram
-notifications.** Iván explicitly deferred this on 2026-10-07: "sazon
-wont have any telgram bot or any things like that at least not until we
-have 30 customers that ask for it." The `aa0eb6cf` code path stays
-shipped but dormant (silent no-op when `TG_BOT_TOKEN`/`TG_CHAT_ID`
-unset — preserves `test_sentry_lazy_import` contract).
-
-If demand materializes later:
-- BWS has `sazon-telegram` (the bot token + chat ID)
-- `app/rms/notify.py:sentry_before_send` is the hook (already in tree)
-- 1-line env-var bootstrap on VPS, no code change
+Per WHAT_NEXT_2026-10-08-archived.md: needs ≥30 Sazon customers asking
+for Telegram. Iván explicitly deferred 2026-10-07. Code path stays
+shipped but dormant. Not in scope.
 
 ## 🛠 Tooling & Plumbing
 
 - **Stale docs**: prior `IMPROVEMENT_BACKLOG.md`, `COMPLETE_*.md`,
-  `PHASE2_*.md` are superseded by this file. Don't re-edit them. As
-  of 2026-10-08, IMPROVEMENT_BACKLOG.md has been refreshed for the
-  3 most-recently-shipped items (#12, #32, #33) — the rest of the
-  Tier 1-7 history remains as the audit-driven reference.
-- **`WHAT_NEXT_2026-10-07b-archived.md`** is the prior state — read for
-  history, don't revive items from it without checking `git log`.
-- **Backup discipline**: AGENTS.md rule 17 (pre-migration backup) is
-  now enforced at `init_db()`. SASKIA-209 added `sazon rollback` as the
-  recovery path.
+  `PHASE2_*.md` are superseded. Don't re-edit. Refresh
+  `IMPROVEMENT_BACKLOG.md` to add 3 most-recently-shipped items from
+  this session (sales payment fix, prod deploy chain, refactor
+  regressions caught by ruff).
+- **Backup discipline**: AGENTS.md rule 17 (pre-migration backup)
+  enforced at `init_db()`. SASKIA-209 added `sazon rollback` recovery.
+- **CRITICAL**: the bot's complexity-refactor wave (commits 31a4c766,
+  3d0c9f56, cbfd41f9, 816ffba5, 092d5292, 6ca34c08, 123afefa,
+  1d2c42a3, cb5c1983, 1c63a5b6, 3e894be5, 3cbe3c48, 27241bea,
+  635e49f4, 079cc12f, 26171fb1, e0d0b55c, 12117512, e8e57725) is
+  generating ruff-broken code every commit. Either stop the bot or
+  enforce ruff via dev-ci.yml as a required check.
 
 ## 💼 Business-Operational priorities (operator-visible)
 
-- **Deploy the new SASKIA/Sprint work to VPS** — see #1 above.
-- **Predictive restocking** — Poisson weekday forecast ships
-  (SASKIA-208, `ede316a3`), but only runs after VPS deploy.
-- **Forward-only migration rollback**: SHIPPED 2026-10-07 (SASKIA-209)
-  — `sazon rollback --to N --dry-run`.
-- **Supabase RLS + Storage for multi-tenant readiness**: still TODO
-  (BACKLOG #37, #38); deferred per SASKIA-210.
-- **Wishlist purchases → inventory** (was on the wishlist list earlier):
-  SASKIA-205 already wired this — `app/routers/herebus.py:104`
-  `wishlist_mark_purchased` creates `[EQUIPMENT] {name}` ingredient +
-  StockMovement `reorder`. Idempotent on False→True transition.
+- **Prod is now real** — no more placeholder envs. Sales/payment bug
+  fix is live. Operator can resume normal operation.
+- **Predictive restocking** (SASKIA-208) was waiting on VPS deploy —
+  deploy happened, should be working now. Verify on /produccion.
+- **Wishlist purchases → inventory** (SASKIA-205) is live.
+- **Forward-only migration rollback** (SASKIA-209) is live.
 
 ---
 
-**Generated:** 2026-10-08 after SASKIA-309 (#65) + SASKIA-310 (#64) merged.
-**Update pattern:** when this falls out of date, run `git log --oneline
---since="<DATE>"` and rewrite the "Closed in the last week" section.
-Archive the old version as `WHAT_NEXT_YYYY-MM-DD-archived.md` first.
-Don't add to this file in-place — start a new dated file.
+**Generated:** 2026-10-09 after prod deploy (image prod-20261009-161420).
+**Update pattern:** when this falls out of date, run
+`git log --oneline --since="2026-10-09"` and rewrite the "Closed in
+the last 24h" section. Archive the old version as
+`WHAT_NEXT_YYYY-MM-DD-archived.md` first. Don't add to this file
+in-place — start a new dated file.

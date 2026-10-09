@@ -215,7 +215,7 @@ def _apply_produccion_filters(
 
 def _filter_by_allergen(rows: list[dict], allergen: list[str]) -> list[dict]:
     """Filter rows by allergen match.
-    
+
     Extracted from _apply_produccion_filters to reduce complexity.
     """
     if not allergen:
@@ -226,7 +226,7 @@ def _filter_by_allergen(rows: list[dict], allergen: list[str]) -> list[dict]:
 
 def _filter_by_source(rows: list[dict], source: list[str]) -> list[dict]:
     """Filter rows by source match.
-    
+
     Extracted from _apply_produccion_filters to reduce complexity.
     """
     if not source:
@@ -237,7 +237,7 @@ def _filter_by_source(rows: list[dict], source: list[str]) -> list[dict]:
 
 def _filter_by_pedidos(rows: list[dict], with_pedidos: str) -> list[dict]:
     """Filter rows by pending pedido qty.
-    
+
     Extracted from _apply_produccion_filters to reduce complexity.
     """
     if with_pedidos == "1":
@@ -249,7 +249,7 @@ def _filter_by_pedidos(rows: list[dict], with_pedidos: str) -> list[dict]:
 
 def _filter_by_hecho(rows: list[dict], with_hecho: str) -> list[dict]:
     """Filter rows by completed qty.
-    
+
     Extracted from _apply_produccion_filters to reduce complexity.
     """
     if with_hecho == "1":
@@ -261,7 +261,7 @@ def _filter_by_hecho(rows: list[dict], with_hecho: str) -> list[dict]:
 
 def _filter_by_surplus(rows: list[dict], with_surplus: str) -> list[dict]:
     """Filter rows by batch surplus percentage.
-    
+
     Extracted from _apply_produccion_filters to reduce complexity.
     """
     if with_surplus == "1":

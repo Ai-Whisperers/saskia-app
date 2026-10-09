@@ -348,6 +348,23 @@ def void_sale(
     if voided_by:
         sale.voided_by = voided_by
 
+    # Pagos mixtos: the sale ledger (`sale_payment`) must reflect the void,
+    # otherwise cash-reconciliation reports show phantom payments. We DELETE
+    # rather than soft-mark because (a) the sale itself stays in the table
+    # for audit (`voided_at` + `void_reason` + `voided_by` are the audit
+    # trail), and (b) reports aggregate by non-voided sales only. A
+    # soft-mark here would require a `voided_at` migration and report
+    # filtering, which is more code than the current approach.
+    from app.rms.models_legacy import SalePayment
+
+    payment_rows = (
+        session.execute(select(SalePayment).where(SalePayment.sale_id == sale.id))
+        .scalars()
+        .all()
+    )
+    for p in payment_rows:
+        session.delete(p)
+
     # US 4.1 — restore packaging ingredient stock + audit row.
     if sale.packaging_item_id is not None and sale.packaging_qty:
         pkg = session.get(Ingredient, sale.packaging_item_id)

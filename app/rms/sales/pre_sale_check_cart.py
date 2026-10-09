@@ -193,7 +193,7 @@ def _run_aggregated_stock_check(
     """
     from app.rms.models import Ingredient
 
-    ingredient_demand, ingredient_names = _compute_cart_ingredient_demand(session, cart)
+    ingredient_demand, _ingredient_names = _compute_cart_ingredient_demand(session, cart)
     shortages: list[tuple[str, float, float]] = []
     for ing_id, demand in ingredient_demand.items():
         ing = session.get(Ingredient, ing_id)
