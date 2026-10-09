@@ -33,14 +33,13 @@ prod:
   frame_deny: "true"
   backup_retention_days: 14       # keep prod backups 14 days (existing)
   backup_schedule: "0 3 * * *"    # 03:00 UTC daily
-  # BWS secret set for prod. The keys must already exist in the Bitwarden
-  # Secrets project. The values are written to /etc/sazon/.env.prod on
-  # deploy, mode 0600.
+  # BWS secret set for prod. Prod uses Supabase Auth (live users live in
+  # the aiwhisperers.supabase.co project).
   bws_keys:
     - FERNET_KEY
-    - SESSION_SECRET                 # injected from BWS (was hardcoded in stack yml before)
+    - SESSION_SECRET
     - SUPABASE_URL
-    - SUPABASE_ANON_KEY              # legacy JWT format (preferred by auth_supabase.py)
+    - SUPABASE_ANON_KEY
     - SUPABASE_SERVICE_ROLE_KEY
     - SUPABASE_PUBLISHABLE_KEY       # 2025+ format (kept for forward-compat)
     - SUPABASE_SECRET_KEY
@@ -75,17 +74,13 @@ test:
   frame_deny: "true"
   backup_retention_days: 7
   backup_schedule: "0 4 * * *"     # offset from prod to avoid resource contention
+  # test uses local-bcrypt auth (no Supabase). The seed script
+  # (scripts/seed_vaquita_holandesa_for_saskia.py) creates saskia/lucia/diego
+  # in the local DB, and login is verified against that local user table.
+  # We deliberately omit SUPABASE_URL so is_supabase_auth_enabled() returns False.
   bws_keys:
     - FERNET_KEY
     - SESSION_SECRET
-    - SUPABASE_URL                   # OK to reuse prod (test DB is on its own VPS volume)
-    # auth_supabase.py prefers SUPABASE_ANON_KEY (legacy JWT) over
-    # SUPABASE_PUBLISHABLE_KEY (2025+ format). The JWT keys are what
-    # the bundled supabase python lib validates, so emit both.
-    - SUPABASE_ANON_KEY
-    - SUPABASE_SERVICE_ROLE_KEY
-    - SUPABASE_PUBLISHABLE_KEY
-    - SUPABASE_SECRET_KEY
     - CF_R2_ACCESS_KEY_ID
     - CF_R2_SECRET_ACCESS_KEY
     - CF_R2_ENDPOINT
@@ -113,13 +108,8 @@ dev:
   frame_deny: "false"               # dev sometimes embeds external previews
   backup_retention_days: 3
   backup_schedule: ""                # dev doesn't auto-backup
+  # dev also uses local-bcrypt auth (same as test). No Supabase.
   bws_keys:
     - FERNET_KEY
     - SESSION_SECRET
-    - SUPABASE_URL
-    # Same JWT-vs-publishable reasoning as test env.
-    - SUPABASE_ANON_KEY
-    - SUPABASE_SERVICE_ROLE_KEY
-    - SUPABASE_PUBLISHABLE_KEY
-    - SUPABASE_SECRET_KEY
     - SASKIA_DEV_USER_PASSWORD
