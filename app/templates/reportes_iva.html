@@ -23,7 +23,7 @@
 
 {% if ytd %}
 {{ ui.skeleton_section(id="iva-ytd", variant="card", count=1, label="Cargando acumulado") }}
-<div class="metric-card mb-4" style="max-width: 400px; background: #f0f4ff; border-left: 4px solid #3b82f6;" data-loaded-section="iva-ytd">
+<div class="metric-card mb-4" style="max-width: 400px; background: var(--color-surface); border-left: 4px solid var(--color-accent);" data-loaded-section="iva-ytd">
   <div class="metric-label">Acumulado del año (YTD)</div>
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
     <div><span class="text-muted">Ventas:</span> {{ ytd.n_sales }}</div>

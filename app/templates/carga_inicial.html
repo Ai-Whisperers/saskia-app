@@ -4,21 +4,17 @@
 {% block title %}Carga inicial de inventario — Sazón{% endblock %}
 
 {% block content %}
-<h1 style="margin-bottom:.5rem">Carga inicial de inventario</h1>
+<h1>Carga inicial</h1>
 
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}
-<p class="muted mb-6" >
-  {{ pendientes|length }} ingredientes nunca tuvieron stock cargado. Poné la
-  cantidad real que hay hoy en la cocina (podés dejar vacío lo que quieras
-  cargar después). Cada carga queda registrada en el libro de movimientos.
-</p>
+<p class="page-desc">{{ pendientes|length }} ingredientes sin stock cargado. Cada carga queda en el libro de movimientos.</p>
 
 {% if not pendientes %}
 <div class="alert alert-success">¡Todo el inventario tiene su carga inicial! 🎉</div>
 <a class="btn btn-primary" href="/inventario">Volver al inventario</a>
 {% else %}
-<form method="post" action="/inventario/carga-inicial" id="carga-inicial-form">
+<form method="post" action="/inventario/carga-inicial" id="carga-inicial-form" class="sheet-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <table class="table">
     <thead>
@@ -37,9 +33,9 @@
       {% endfor %}
     </tbody>
   </table>
-  <div class="d-flex" style="display:flex; gap:.75rem; margin-top:1rem">
+  <div class="sheet-footer">
+    <a class="btn" href="/inventario">Cancelar</a>
     <button type="submit" class="btn btn-primary">Guardar carga inicial</button>
-    <a class="btn btn-secondary" href="/inventario">Cancelar</a>
   </div>
 </form>
 {% endif %}
