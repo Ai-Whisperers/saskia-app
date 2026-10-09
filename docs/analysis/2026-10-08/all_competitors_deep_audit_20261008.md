@@ -76,6 +76,7 @@ POST /api/print/kot/:id           print/              (auto-print on KOT)
 **Architecture** (from prior audit): Clean architecture, JWT in HttpOnly cookies. NOT a POS — it's a booking platform. The relevant patterns are resource allocation, time-bucketed planning.
 
 **Routing surface** (production-relevant):
+
 ```
 POST /api/bookings              (turn-times computed from party size)
 GET  /api/bookings/{id}         (assigns table via TableAutoAssigner)
@@ -105,6 +106,7 @@ GET  /api/turntimes             (per-seats duration rules)
 **Top-level**: `ury/` (Frappe app — 45 doctypes in `ury/ury/doctype/`), `mosaic/` (Vue KDS), `pos/` (`ury_pos/` — restaurant POS), `self-order/`, `frontend/`, `packages/`, `scripts/`.
 
 **Production-relevant doctypes** (already inventoried):
+
 ```
 ury_production_item_groups       (child of ury_production_unit, links to Item Group)
 ury_production_unit              (KDS display config: printer, branch, warehouse, 
@@ -139,12 +141,14 @@ ury_ordering_session             (kiosk session)
 **The big surprise from the URY model**: production here means "kitchen display configuration", NOT "bake plan". They have no recipe/BOM doctype, no ingredient deduction model, no daily-batch forecast.
 
 URY's "pre-billing checklist" model is the standout:
+
 ```
 ury_pos_checklist_log        (one row per shift/day, completed_at)
 ury_checklist_item           (item def: name, required, order, type)
 ury_checklist_log_item       (run entry: id, log_id, item_id, completed_at,
                               completed_by, value)
 ```
+
 This is exactly what Sazon's HACCP/well-formed-close lacks. The pattern translates 1:1 to Sazon's operator UX.
 
 **Pages** (Frappe listview/formview auto-generated per doctype, plus custom `ury/ury/page/`):
@@ -167,6 +171,7 @@ This is exactly what Sazon's HACCP/well-formed-close lacks. The pattern translat
 **Top-level**: `app/` (Laravel 11.x), `routes/` (117 tenant routes), `database/migrations/`, `docker-compose.yml`, `azure-pipelines.yml`, `nginx.conf`. KOT + recipe consumption + multi-payment + multi-location.
 
 **Models (40+)** include:
+
 ```
 Account, Consumption_item, Customer, CustomerGroup, Discount, Employee,
 EmployeeAttendance, EmployeeCategory, EmployeeSalary, Expense,
@@ -243,6 +248,7 @@ POST /purchase/product/add
 **Top-level**: `lib/ui/` (15+ screens) + `lib/models/` + `lib/services/` + `lib/routes.dart`. **Offline-first** (Hive box per type), no remote backend at all.
 
 **UI screens** (the model architecture is the punchline — clean offline-first pubsub):
+
 ```
 ui/
 ├── menu/                 (product + ingredients UI)
@@ -301,6 +307,7 @@ ui/
 **Top-level**: `app/src/main/java/com/dineout/code/{billing,kitchen,hall,order,admin,reporting}`. Standard Android + Firebase.
 
 **Activities** (the user-RBAC split is the only thing to learn):
+
 ```
 billing/         DishPrice, OrderBill, Feedback, BillAdapter, ConfirmPayment,
                  PendingPayments, DishOrder, OrdersAdapter

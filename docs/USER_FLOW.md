@@ -179,6 +179,7 @@ The pre-redesign layout had 8 separate notification cards stacked at the top of
 collapsible with a title header etc") to bundle them.
 
 **Old**:
+
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ 🚨 Pedidos pendientes para hoy: Tenés 2 pedidos…              │
@@ -198,6 +199,7 @@ collapsible with a title header etc") to bundle them.
 ```
 
 **New** (this commit):
+
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ 🔔 Notificaciones del día (8)             [▼] Ver todo       │
@@ -230,6 +232,7 @@ milk, 18 eggs").
 with a "by recipe" tab.
 
 Layout:
+
 ```
 ┌────────────────────────────────────────────────────────────┐
 │ Sopa paraguaya ───────── 6 batches × Tamaño unit: 1.0 kg   │
