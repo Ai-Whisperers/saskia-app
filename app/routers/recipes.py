@@ -403,36 +403,36 @@ async def recipe_create(
 ) -> RedirectResponse:
     """Create recipe + lines from form data."""
     form = await request.form()
-    
+
     # Parse and validate form fields
     fields = _parse_recipe_form(form)
-    
+
     # Validate required fields
     if not fields["name"]:
         raise BadRequest(RECIPE_NAME_REQUIRED)
-    
+
     # Auto-fill family if blank
     if not fields["family"]:
         fields["family"] = infer_recipe_family_from_name(fields["name"])
-    
+
     # Create the recipe
     recipe = _create_recipe_record(session, fields)
-    
+
     # Apply lines from form
     skipped = _apply_lines_from_form(session, recipe.id, form)
-    
+
     # Validate lines
     _validate_recipe_lines(session, form, skipped, recipe)
-    
+
     # Check for sub-recipe cycles
     _check_recipe_cycles(session, recipe.id)
-    
+
     # Auto-fill inference (dietary tags, difficulty, prep/cook minutes)
     _apply_recipe_inference(session, recipe, fields)
-    
+
     # Refresh tag algebra cache
     _refresh_recipe_tag_cache(session, recipe.id)
-    
+
     # Redirect logic
     also_create = str(form.get("also_create_product", "")).strip() == "1"
     if also_create:
@@ -452,13 +452,13 @@ def _parse_recipe_form(form) -> dict:
     prep_minutes_raw = str(form.get("prep_minutes", "")).strip()
     cook_minutes_raw = str(form.get("cook_minutes", "")).strip()
     difficulty_raw = str(form.get("difficulty", "")).strip()
-    
+
     # Validate yield unit
     try:
         y_unit = Unit.coerce(yield_unit_raw)
     except ValueError as e:
         raise BadRequest(RECIPE_INVALID_UNIT, context={"original_error": str(e)}) from e
-    
+
     # Parse difficulty (1-5)
     difficulty_val: int | None = None
     if difficulty_raw:
@@ -466,13 +466,13 @@ def _parse_recipe_form(form) -> dict:
             difficulty_val = max(1, min(5, int(difficulty_raw)))
         except ValueError:
             difficulty_val = None
-    
+
     # Parse menu tags (multi-select)
     menu_tags_vals = list(form.getlist("menu_tag")) + [
         t.strip() for t in str(form.get("menu_tags", "")).split(",") if t.strip()
     ]
     menu_tags = ",".join(dict.fromkeys(menu_tags_vals)) or None
-    
+
     return {
         "name": name,
         "yield_qty": float(yield_qty_raw) if yield_qty_raw else None,
@@ -522,20 +522,20 @@ def _validate_recipe_lines(session: Session, form, skipped: list, recipe: Recipe
     Extracted from recipe_create to reduce complexity.
     """
     valid_line_count = _count_valid_lines(form)
-    
+
     if valid_line_count == 0:
         session.rollback()
         raise HTTPException(
             status_code=400,
             detail=RECIPE_LINES_REQUIRED,
         )
-    
+
     if skipped:
         # BUG-00: surface WHY a line was rejected instead of silently dropping it.
         # Roll back so the operator can fix and retry without orphans.
         session.rollback()
         from fastapi import HTTPException as _HTTPExc
-        
+
         detail = "Algunas líneas no se pudieron guardar. " + "; ".join(skipped[:5])
         if len(skipped) > 5:
             detail += f" (y {len(skipped) - 5} más)"
@@ -610,7 +610,7 @@ def _refresh_recipe_tag_cache(session: Session, recipe_id: int) -> None:
     """
     try:
         from app.rms.tag_algebra import _product_inherit_sync, cascade_refresh
-        
+
         cascade_refresh(session, recipe_id=recipe_id)
         _product_inherit_sync(session, recipe_id)
         session.commit()
@@ -957,109 +957,83 @@ async def recipe_update(
         raise NotFound("receta")
 
     form = await request.form()
-    name = str(form.get("name", "")).strip()
-    yield_qty_raw = str(form.get("yield_qty", "")).strip()
-    yield_unit_raw = str(form.get("yield_unit", "und")).strip()
-    notes = str(form.get("notes", "")).strip()
-    prep_minutes_raw = str(form.get("prep_minutes", "")).strip()
-    cook_minutes_raw = str(form.get("cook_minutes", "")).strip()
-    difficulty_raw = str(form.get("difficulty", "")).strip()
-    family = str(form.get("family", "")).strip() or None
-    # UI-V2: multi-select Etiquetas de Menú. Checkboxes post as repeated
-    # fields; also accept one comma-separated hidden field.
-    menu_tags_vals = list(form.getlist("menu_tag")) + [
-        t.strip() for t in str(form.get("menu_tags", "")).split(",") if t.strip()
-    ]
-    menu_tags = ",".join(dict.fromkeys(menu_tags_vals)) or None
-    dietary_tags = str(form.get("dietary_tags", "")).strip() or None
 
-    if not name:
+    # Parse and validate form fields
+    fields = _parse_recipe_form(form)
+
+    if not fields["name"]:
         raise BadRequest(RECIPE_NAME_REQUIRED)
-    try:
-        y_unit = Unit.coerce(yield_unit_raw)
-    except ValueError as e:
-        raise BadRequest(RECIPE_INVALID_UNIT, context={"original_error": str(e)}) from e
-    difficulty_val: int | None = None
-    if difficulty_raw:
-        try:
-            difficulty_val = max(1, min(5, int(difficulty_raw)))
-        except ValueError:
-            difficulty_val = None
 
-    r.name = name
-    r.yield_qty = float(yield_qty_raw) if yield_qty_raw else None
-    r.yield_unit = y_unit.value
-    r.notes = notes or None
-    r.prep_minutes = int(prep_minutes_raw) if prep_minutes_raw else None
-    r.cook_minutes = int(cook_minutes_raw) if cook_minutes_raw else None
-    r.difficulty = difficulty_val
-    r.family = family
-    r.menu_tags = menu_tags
-    r.dietary_tags = dietary_tags
+    # Update recipe fields
+    _update_recipe_fields(r, fields)
 
     # Replace lines
     for old in list(r.lines):
         session.delete(old)
     session.flush()
+
+    # Apply new lines from form
     skipped = _apply_lines_from_form(session, r.id, form)
-    # Validate: at least one valid line must exist
-    valid_line_count = 0
-    for i, kind in enumerate(form.getlist("line_kind")):
-        target = (
-            form.getlist("line_target_id")[i] if i < len(form.getlist("line_target_id")) else ""
-        )
-        qty_raw = form.getlist("line_qty")[i] if i < len(form.getlist("line_qty")) else ""
-        try:
-            if str(kind).strip() and str(target).strip() and float(str(qty_raw).strip()) > 0:
-                valid_line_count += 1
-        except (ValueError, IndexError):
-            continue
-    if valid_line_count == 0:
-        session.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail=RECIPE_LINES_REQUIRED,
-        )
-    if skipped and valid_line_count == 0:
-        session.rollback()
-        from fastapi import HTTPException as _HTTPExc
 
-        detail = "Algunas líneas no se pudieron guardar. " + "; ".join(skipped[:5])
-        if len(skipped) > 5:
-            detail += f" (y {len(skipped) - 5} más)"
-        raise _HTTPExc(status_code=400, detail=detail)
-    if skipped:
-        session.rollback()
-        from fastapi import HTTPException as _HTTPExc
+    # Validate lines
+    _validate_recipe_lines(session, form, skipped, r)
 
-        detail = "Algunas líneas no se pudieron guardar. " + "; ".join(skipped[:5])
-        if len(skipped) > 5:
-            detail += f" (y {len(skipped) - 5} más)"
-        raise _HTTPExc(status_code=400, detail=detail)
+    # Check for sub-recipe cycles
+    _check_recipe_cycles(session, r.id)
 
-    # Cycle detection: check sub_recipe references don't create a cycle
-    cycle = _detect_sub_recipe_cycle(session, r.id)
-    if cycle:
-        session.rollback()
-        session.execute(select(Recipe.name).where(Recipe.id.in_(cycle))).scalars().all()
-        raise HTTPException(
-            status_code=400,
-            detail=RECIPE_CYCLE_DETECTED,
-        )
+    # Refresh tag algebra cache
+    _refresh_recipe_tag_cache_update(session, r.id)
 
-    # Tag algebra (054): re-derive after line changes; cascade to parents
-    # and sync linked products' inherited tags.
+    # Record audit log
+    _record_recipe_update_audit(request, session, r, fields["name"])
+
+    return RedirectResponse(url="/recetas", status_code=303)
+
+
+def _update_recipe_fields(r: Recipe, fields: dict) -> None:
+    """Update recipe fields from parsed form data.
+    
+    Extracted from recipe_update to reduce complexity.
+    """
+    r.name = fields["name"]
+    r.yield_qty = fields["yield_qty"]
+    r.yield_unit = fields["yield_unit"]
+    r.notes = fields["notes"]
+    r.prep_minutes = fields["prep_minutes"]
+    r.cook_minutes = fields["cook_minutes"]
+    r.difficulty = fields["difficulty_val"]
+    r.family = fields["family"]
+    r.menu_tags = fields["menu_tags"]
+    r.dietary_tags = fields["dietary_tags"]
+
+
+def _refresh_recipe_tag_cache_update(session: Session, recipe_id: int) -> None:
+    """Refresh tag algebra cache for the recipe and cascade to parents.
+    
+    Extracted from recipe_update to reduce complexity.
+    """
     try:
         from app.rms.tag_algebra import _product_inherit_sync, cascade_refresh
 
-        refreshed = cascade_refresh(session, recipe_id=r.id)
+        refreshed = cascade_refresh(session, recipe_id=recipe_id)
         for rid in refreshed:
             _product_inherit_sync(session, rid)
         session.commit()
     except Exception as exc:
-        logger.warning("tag cascade failed for recipe %s: %s", r.id, exc)
+        logger.warning("tag cascade failed for recipe %s: %s", recipe_id, exc)
         session.rollback()
 
+
+def _record_recipe_update_audit(
+    request: Request,
+    session: Session,
+    r: Recipe,
+    name: str,
+) -> None:
+    """Record audit log entry for recipe update.
+    
+    Extracted from recipe_update to reduce complexity.
+    """
     line_count = (
         session.scalar(select(func.count(RecipeLine.id)).where(RecipeLine.recipe_id == r.id)) or 0
     )
@@ -1072,7 +1046,6 @@ async def recipe_update(
         detail={"name": name, "lines_count": int(line_count)},
     )
     session.commit()
-    return RedirectResponse(url="/recetas", status_code=303)
 
 
 @router.get("/{r_id}/crear-producto")
