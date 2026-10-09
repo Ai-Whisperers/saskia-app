@@ -26,7 +26,7 @@ INGREDIENTS = ROOT / "data" / "herebus_seed_canonical.json"
 OUT_PATH = ROOT / "data" / "images" / "items.json"
 
 
-def parse_products():
+def parse_products() -> list[dict]:
     """Parse the PRODUCTS tuple list from the seed.
 
     Rules:
@@ -78,7 +78,7 @@ def parse_products():
     return products
 
 
-def parse_ingredients():
+def parse_ingredients() -> list[dict]:
     """Get the canonical 94 ingredients from the workbook's inventory."""
     if not INGREDIENTS.exists():
         sys.exit(f"missing {INGREDIENTS}")

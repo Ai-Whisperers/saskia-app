@@ -4,8 +4,6 @@ Outputs data/herebus_seed_canonical.json.
 """
 
 import json
-import re
-import sys
 from datetime import date, datetime
 
 from openpyxl import load_workbook
@@ -14,7 +12,7 @@ WB_PATH = "/opt/data/profiles/ivan/cache/scratch/saskia-workbook-reconcile/data/
 OUT_PATH = "/opt/data/profiles/ivan/cache/scratch/saskia-workbook-reconcile/data/herebus_seed_canonical.json"
 
 
-def _s(v):
+def _s(v: object) -> str:
     if v is None:
         return ""
     if isinstance(v, (int, float)):
@@ -111,7 +109,7 @@ print(f"Packaging rows: {len(pkg)}")
 
 
 # ───── Each Recipe_* ─────
-def parse_recipe(sh, sheet_name):
+def parse_recipe(sh: object, sheet_name: str) -> dict:
     """Two layouts:
     Sweet recipes (rows 1-7):
       R1: title  R3: Receta ID | REC-XXX | Receta: | <name>

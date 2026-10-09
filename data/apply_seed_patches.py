@@ -27,7 +27,7 @@ with open(PATH) as f:
 lines = src.split("\n")
 
 
-def get_piece(name):
+def get_piece(name: str) -> str:
     """Read a generated piece file (skips the leading # comment lines)."""
     with open(f"data/seed_pieces/{name}.py") as f:
         content = f.read()
@@ -43,11 +43,11 @@ def get_piece(name):
         else:
             out_lines.append(line)
     # Find the assignment start (the first line containing " = [")
-    body_lines = [l for l in content.split("\n")]
+    body_lines = [line_v for line_v in content.split("\n")]
     # Skip the leading comments, find the assignment start
     start = 0
-    for i, l in enumerate(body_lines):
-        if " = [" in l and not l.strip().startswith("#"):
+    for i, line_v in enumerate(body_lines):
+        if " = [" in line_v and not line_v.strip().startswith("#"):
             start = i
             break
     return "\n".join(body_lines[start:])
@@ -55,7 +55,7 @@ def get_piece(name):
 
 # Define section boundaries (1-indexed line numbers of the assignment line)
 # through the matching closing ] line.
-def section_bounds(name):
+def section_bounds(name: str) -> tuple[int, int]:
     """Find line range (1-indexed inclusive) for `name: list[...] = [ ... ]`.
 
     Strategy: walk forward from the opener and track bracket balance only
@@ -65,8 +65,8 @@ def section_bounds(name):
     """
     pattern = name + ":"
     start_idx = None
-    for i, l in enumerate(lines):
-        if l.strip().startswith(pattern) and "=" in l and "[" in l:
+    for i, line_v in enumerate(lines):
+        if line_v.strip().startswith(pattern) and "=" in line_v and "[" in line_v:
             start_idx = i
             break
     if start_idx is None:
@@ -104,7 +104,7 @@ for name, (s, e) in SECTIONS.items():
 # ────────────────────────────────────────────────────────────────────
 # Replace sections IN REVERSE ORDER (bottom-up) to keep offsets stable.
 # ────────────────────────────────────────────────────────────────────
-def replace_section(name, new_body):
+def replace_section(name: str, new_body: list[str]) -> None:
     """Replace the section for `name` with new_body lines.
 
     new_body: list of strings (each line WITHOUT trailing newline).
@@ -145,41 +145,41 @@ PROD_TEMPLATES_PIECE = get_piece("production_templates")
 PROD_COMPLETION_PIECE = open("data/seed_pieces/prod_completion_products.py").read()
 
 
-def split_body(content):
+def split_body(content: str) -> list[str]:
     """Return list of lines from a generated piece body (no leading comments)."""
     body = content.split("\n")
     out = []
     started = False
-    for l in body:
+    for line_v in body:
         if not started:
-            if " = [" in l and not l.strip().startswith("#"):
+            if " = [" in line_v and not line_v.strip().startswith("#"):
                 started = True
                 # skip — we add the section's own opener later if needed
-                out.append(l)
-            elif l.strip().startswith("#"):
+                out.append(line_v)
+            elif line_v.strip().startswith("#"):
                 # comment — skip; the next iteration starts content
                 continue
             else:
-                out.append(l)
+                out.append(line_v)
         else:
-            out.append(l)
+            out.append(line_v)
     return out
 
 
 # Each piece starts with a `NAME = [...` line. We want to keep the existing
 # opener `NAME: list[tuple] = [` line. Strategy: strip the leading
 # `NAME = [` from each piece's body and replace the section with the rest.
-def strip_opener(body):
+def strip_opener(body: list[str]) -> list[str]:
     """Strip leading opener line `NAME = [` from body, keeping the rest."""
     out = []
     skipped = False
-    for l in body:
-        if not skipped and "= [" in l and not l.strip().startswith("#"):
+    for line_v in body:
+        if not skipped and "= [" in line_v and not line_v.strip().startswith("#"):
             skipped = True
             # Keep the LHS but transform it
             # If it has no type annotation, add one when replacing an existing one
             continue
-        out.append(l)
+        out.append(line_v)
     return out
 
 
@@ -223,7 +223,7 @@ PATCHES = [
 
 # Build offset-aware patch. For each patch, compute line count delta and
 # adjust later bounds.
-def apply_patch(name, new_body_lines):
+def apply_patch(name: str, new_body_lines: list[str]) -> None:
     """Replace a section while preserving the opener line `NAME: list[tuple] = [`.
 
     Strategy:
@@ -288,8 +288,8 @@ PROD_COMP_NAMES = PROD_COMPLETION_PIECE.replace("PROD_COMPLETION_PRODUCTS = ", "
 # We replace ONLY the 6 product-name lines (skip opener + closer, keep them).
 target_start = None
 target_end = None
-for i, l in enumerate(lines):
-    if '"Muffin de vainilla",' in l:
+for i, line_v in enumerate(lines):
+    if '"Muffin de vainilla",' in line_v:
         target_start = i
         # walk forward to the closing "]:"
         for j in range(i + 1, min(i + 12, len(lines))):

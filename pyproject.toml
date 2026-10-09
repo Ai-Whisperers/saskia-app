@@ -170,6 +170,21 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а", "‹", "›", "σ
     "PERF401", # tests: build-then-iterate is fine, no need for list comp
     "BLE001",  # tests: defensive excepts are fine in fixture setup / teardown
 ]
+"data/*" = [
+    "ANN",     # one-off offline generator/patch scripts, not app code
+    "E741",    # short loop vars in throwaway scripts
+    "S110",    # best-effort parsing of workbook cells
+    "BLE001",  # defensive excepts around external workbook/API quirks
+    "S310",    # urllib to fixed, operator-controlled endpoints
+    "S307",    # eval of repo-local generated literals (no user input)
+    "S603",    # subprocess calls to repo-local venv python
+    "F841",    # keep named intermediates for readability in patch scripts
+    "F601",    # tolerant unit-alias maps may repeat keys deliberately
+    "B007",    # tuple-unpacking loop vars kept for shape clarity
+    "B905",    # zip strictness irrelevant for paired generated lists
+    "RUF005",  # concatenation kept for readability
+    "PERF401", # build-then-iterate is fine in one-shot scripts
+]
 "app/rms/models/**/*.py" = [
     "F821",    # SQLAlchemy 2.0 Mapped["ClassName"] forward references to other model modules
     "RUF012",  # legacy SQLAlchemy mutable class attrs
