@@ -1,0 +1,36 @@
+# ast-grep rules — Sazón (EXPERIMENTAL, not a CI gate)
+#
+# EVALUATION 2026-10-09 (Tier 2 followup #3):
+# - Python rules: WORK well (structural patterns like datetime.now() == $X
+#   match reliably; planted-violation test passes).
+# - HTML/Jinja rules: DO NOT see inside <script> blocks or handle attribute
+#   reordering — scripts/lint_tier1.py (substring linter) catches 3 real
+#   violations ast-grep misses. lint_tier1.py STAYS the template gate.
+# - Future use: structural Python rules that ruff can't express
+#   (e.g. forbidden call shapes, ORM misuse patterns).
+#
+# Run manually: uvx --from=ast-grep-cli ast-grep scan --rule .ast-grep/ app/
+rules:
+  - id: no-datetime-now-equality
+    language: python
+    rule:
+      pattern: datetime.now($TZ) == $X
+    message: "Direct datetime equality — columns may hold date OR datetime; use epoch compare"
+    severity: warning
+
+  - id: no-datetime-now-inequality
+    language: python
+    rule:
+      pattern: datetime.now($TZ) != $X
+    message: "Direct datetime inequality — columns may hold date OR datetime; use epoch compare"
+    severity: warning
+
+  - id: no-int-on-decimal
+    language: python
+    rule:
+      pattern: int($D)
+    constraints:
+      D:
+        regex: "Decimal"
+    message: "Raw int(Decimal) — use to_int_gs() (AGENTS.md money rule 2)"
+    severity: error

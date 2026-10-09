@@ -123,12 +123,6 @@ dead-code: ## vulture + sensez: scan for unused code + structural smells.
 	$(UV) run sensez app/ 2>&1 | head -40 || true
 	@echo "Note: sensez is advisory. See docs/operations/2026-10-09-sensez-ty-evaluation.md."
 
-deadcode-code: ## deadcode: cross-file dead-code scan (complements vulture).
-	@echo "=== deadcode (cross-file dead code) ==="
-	$(UV) run deadcode app/ scripts/ 2>&1 | tail -30 || true
-	@echo "Note: deadcode complements vulture with cross-file analysis."
-	@echo "First run may have noise; review the output and git rm in same commit."
-
 complexity: ## radon: cyclomatic complexity ceiling (B = CC<=10).
 	$(UV) run python scripts/check_complexity.py
 
@@ -164,12 +158,6 @@ duplicates: ## Detect duplicate-stem files + forbidden legacy + unused modules.
 duplicates-code: ## Detect near-duplicate function bodies (>=80% similarity).
 	$(UV) run python scripts/check_duplicate_code.py
 
-jscpd: ## jscpd: line-level copy-paste detector (complements duplicates-code).
-	@echo "=== jscpd (line-level copy-paste) ==="
-	$(UV) run jscpd app/ --reporters console --threshold 5 --reporters console 2>&1 | tail -30 || true
-	@echo "Note: jscpd finds 5+ line exact duplicates. complements duplicates-code"
-	@echo "which uses AST similarity >=80%."
-
 arch: ## Architecture linter: no cycles, no rule violations.
 	$(UV) run python scripts/check_imports.py
 
@@ -197,6 +185,10 @@ workflows-lint-all: ## zizmor: show all findings (not just high).
 	uvx --from zizmor zizmor \
 		--config .github/zizmor.yml \
 		.github/workflows/ 2>&1 | tail -100 || true
+
+docs-prose: ## Vale prose lint on docs (vendored styles, offline).
+	@echo "=== Vale (prose quality) ==="
+	bash scripts/docs_prose.sh
 
 safeguard: ## fastapi-safeguard: FastAPI route security audit vs baseline.
 	@echo "=== fastapi-safeguard (route security) ==="
@@ -253,46 +245,11 @@ tool-matrix: ## Print the tooling coverage matrix.
 	@echo ""
 	@echo "Full analysis: docs/operations/2026-10-09-tooling-research.md"
 
-ci-extra: lint dead-code complexity cognitive deptry duplicates arch security workflows-lint safeguard ## All static analysis (slow).
+ci-extra: lint dead-code complexity cognitive deptry duplicates arch security workflows-lint safeguard docs-prose ## All static analysis (slow).
 	@echo ""
 	@echo "ci-extra complete."
 
 ci: lint test ## Run everything CI runs.
-
-docs-lint: ## Markdown quality check (pymarkdownlnt; see scripts/check_docs_quality.py).
-	$(UV) run python scripts/check_docs_quality.py
-
-docs-lint-strict: ## Markdown quality check, all rules (no disables).
-	$(UV) run python scripts/check_docs_quality.py --strict
-
-tool-matrix: ## Print the tooling coverage matrix.
-	@echo "=== Tooling coverage matrix ==="
-	@echo ""
-	@echo "| Tool          | Declared | Makefile | Pre-commit | CI |"
-	@echo "|---------------|----------|----------|------------|----|"
-	@echo "| ruff          |     ✓    |    ✓     |     ✓      | ✓  |"
-	@echo "| pytest        |     ✓    |    ✓     |     ✓      | ✓  |"
-	@echo "| vulture       |     ✓    |    ✓     |     ✓      |    |"
-	@echo "| deadcode      |     ✓    |    ✓ (this PR) |   |    |"
-	@echo "| bandit        |     ✓    |    ✓     |     ✓      |    |"
-	@echo "| radon-cc      |     ✓    |    ✓     |     ✓      |    |"
-	@echo "| complexipy    |     ✓    |    ✓     |            | ✓  |"
-	@echo "| pyright       |     ✓    |    ✓     |            | ✓  |"
-	@echo "| mypy          |          |          |            | ✓ (informational) |"
-	@echo "| deptry        |     ✓    |    ✓     |            |    |"
-	@echo "| interrogate   |     ✓    |    ✓     |            |    |"
-	@echo "| refurb        |     ✓    |    ✓     |            |    |"
-	@echo "| pip-audit     |     ✓    |    ✓     |            |    |"
-	@echo "| reuse         |     ✓    |    ✓     |            |    |"
-	@echo "| jscpd         |     ✓    |    ✓ (this PR) |   |    |"
-	@echo "| sensez        |     ✓    |    ✓     |            |    |"
-	@echo "| pymarkdownlnt |          |    ✓ (this PR) |   |    |"
-	@echo "| hypothesis    |     ✓    |          |            | ✓  |"
-	@echo "| playwright    |     ✓    |    ✓     |            | ✓  |"
-	@echo "| testcontainers |    ✓    |          |            | ✓  |"
-	@echo "| sentry        |     ✓    |          |            |    |"
-	@echo ""
-	@echo "Full analysis: docs/operations/2026-10-09-tooling-research.md"
 
 clean: ## Remove build artifacts.
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

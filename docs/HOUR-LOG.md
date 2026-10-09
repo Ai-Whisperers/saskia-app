@@ -2,7 +2,7 @@
 
 Tracks planned vs actual hours across the engagement. Reconciles against
 `docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md` and the
-the operator PDF's 97h budget (70h original scope + 27h contingency).
+operator PDF's 97h budget (70h original scope + 27h contingency).
 
 **Bucket codes:** `scope` = original quote, `contingency` = PDF-built-in extras,
 `overflow` = exceeds contingency, flagged for §7 conversation.

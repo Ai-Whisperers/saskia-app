@@ -129,7 +129,7 @@
 - ❌ `subcategory`, `role`, `allergens`, `dietary_tags`, `shelf_life_days`, `max_stock_qty`, `lead_time_days` all in model, **none editable from UI**.
 - ❌ `opening_stock_date` stored as `Text` in DB (not Date) — sortability depends on ISO format being preserved; no enforcement.
 - ❌ Stock-adjust modal `adjustment` input has no `max` cap — operator can type 999999.
-- ❌ No upper bound on `purchase_price_gs` (could overflow nothing today but no sanity check).
+- ❌ No upper bound on `purchase_price_gs` (could overflow nothing today but no quick check).
 - ❌ `purchase_price_gs` form has `step="1"` but `parse_gs` accepts decimals — inconsistent UX (browser will reject 8000.50 but server would accept it if pasted).
 - ❌ Negative stock allowed via `confirm_negative=yes`; warning is shown, no audit log entry (silent in audit log — only StockMovement row is created).
 - ❌ `category` is free-text — typos create phantom categories (`"Lacteos"` vs `"Lácteos"` vs `"Lácteos,"`).

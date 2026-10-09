@@ -2,7 +2,7 @@
 
 **Detectado:** 2026-10-07 · **Cerrado:** 2026-10-07 (commit `b1f3e2c4` post-sibling)
 **Severidad:** baja — bloqueante, sin bloquear
-**Detectado por:** post-P40 sanity check de la sesión de Iván
+**Detectado por:** post-P40 quick check de la sesión de Iván
 
 ## Estado actual
 

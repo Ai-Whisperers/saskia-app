@@ -1,3 +1,27 @@
+## 2026-10-09c — tooling(tier2-followups): Vale prose lint + tool evaluations
+
+**Scope**: closes the remaining deferred items from the Tier 2 research (PR #94/#95).
+
+**Adopted — Vale prose lint** (`make docs-prose`, in `ci-extra`):
+- Vendored styles (Microsoft + write-good) — CI runs offline; PROVENANCE.txt pins sources.
+- Curated `.vale.ini`: full Microsoft style produced 8,470 findings on this
+  bilingual ops-log repo; curation landed on rules that catch objectively-wrong
+  prose only. 7 real typos fixed ("the the" ×2, "sanity check" ×3, "in in", "hangs").
+- `scripts/docs_prose.sh`: find-based deterministic corpus (Vale multi---glob
+  exclusion proved leaky for archive/ + binary files).
+- Corpus: 0 findings, rc=0.
+
+**Evaluated, rejected (documented in docs/operations/2026-10-09-tier2-followups.md)**:
+- ast-grep: HTML rules can't see inside <script> blocks → cannot replace
+  lint_tier1.py (misses 3 real violations). Python rules work; 3 structural
+  rules shipped as .ast-grep/rules.yml (manual, not gated).
+- Semgrep CE: coverage overlap + registry network dep + 2-4min CI cost.
+- umbra-scan: no shadow-API surface exists (single process, no independent spec).
+- factory_boy: not a dep, zero usage — N/A.
+
+**Drive-by**: Makefile duplicate targets (jscpd, deadcode-code, docs-lint,
+docs-lint-strict, tool-matrix each defined twice since #94) deduplicated.
+
 ## 2026-10-09 — CI recovery: ruff mass-fix + CHANGELOG-path bug fix
 
 **Scope**: unblock PRs #93/#94/#96 by fixing the 594-error ruff baseline
