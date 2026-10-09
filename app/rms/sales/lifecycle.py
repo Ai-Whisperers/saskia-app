@@ -219,38 +219,83 @@ def _compute_stock_moves(
 
     Internal helper for apply_sale(). Cycle detection raises CycleInRecipeTree.
     """
-    if recipe.id in visited:
-        raise CycleInRecipeTree(f"Cycle at recipe {recipe.id} {recipe.name!r}")
+    _check_recipe_cycle(recipe, visited)
+    _check_recipe_yield(recipe)
     visited = visited | {recipe.id}
 
+    lines = session.scalars(select(RecipeLine).where(RecipeLine.recipe_id == recipe.id)).all()
+    yield_qty = Decimal(str(recipe.yield_qty))
+    sale_qty_d = Decimal(str(sale_qty))
+
+    moves: list[tuple[int, int, float]] = []
+    for line in lines:
+        line_moves = _process_recipe_line(session, line, recipe, sale_qty_d, yield_qty, visited)
+        moves.extend(line_moves)
+    return moves
+
+
+def _check_recipe_cycle(recipe: Recipe, visited: set[int]) -> None:
+    """Raise CycleInRecipeTree if recipe is already in the visited set.
+
+    Extracted from _compute_stock_moves to reduce complexity.
+    """
+    if recipe.id in visited:
+        raise CycleInRecipeTree(f"Cycle at recipe {recipe.id} {recipe.name!r}")
+
+
+def _check_recipe_yield(recipe: Recipe) -> None:
+    """Raise RecipeWithoutYield if recipe has no usable yield_qty.
+
+    Extracted from _compute_stock_moves to reduce complexity.
+    """
     if recipe.yield_qty is None or recipe.yield_qty <= 0:
         raise RecipeWithoutYield(
             f"Receta '{recipe.name}' sin rendimiento. Cargá el rendimiento antes de vender."
         )
 
-    moves: list[tuple[int, int, float]] = []
-    yield_qty = Decimal(str(recipe.yield_qty))
-    sale_qty_d = Decimal(str(sale_qty))
 
-    lines = session.scalars(select(RecipeLine).where(RecipeLine.recipe_id == recipe.id)).all()
+def _process_recipe_line(
+    session: Session,
+    line,
+    recipe: Recipe,
+    sale_qty_d: Decimal,
+    yield_qty: Decimal,
+    visited: set[int],
+) -> list[tuple[int, int, float]]:
+    """Process one RecipeLine and return the resulting stock moves.
 
-    for line in lines:
-        line_qty = Decimal(str(line.qty))
-        if line.line_kind == "ingredient":
-            # Per-sale qty of this ingredient = (line.qty / recipe.yield_qty) × sale.qty
-            per_sale = (line_qty / yield_qty) * sale_qty_d
-            moves.append((recipe.id, line.line_ref_id, float(per_sale)))
-        elif line.line_kind == "sub_recipe":
-            sub_recipe = resolve_line_target(session, line)
-            if sub_recipe is None:
-                continue
-            # Per-sale qty of sub-recipe = (line.qty / recipe.yield_qty) × sale.qty
-            sub_sale_qty = (line_qty / yield_qty) * sale_qty_d
-            # Recurse into sub_recipe; its moves are tagged with sub_recipe.id
-            sub_moves = _compute_stock_moves(session, sub_recipe, float(sub_sale_qty), visited)
-            moves.extend(sub_moves)
+    Handles both ingredient and sub_recipe line kinds.
+    Extracted from _compute_stock_moves to reduce complexity.
+    """
+    if line.line_kind == "ingredient":
+        return [_ingredient_move(recipe, line, sale_qty_d, yield_qty)]
+    if line.line_kind == "sub_recipe":
+        return _sub_recipe_moves(session, line, sale_qty_d, yield_qty, visited)
+    return []
 
-    return moves
+
+def _ingredient_move(recipe, line, sale_qty_d: Decimal, yield_qty: Decimal) -> tuple:
+    """Compute the (recipe_id, ingredient_id, qty) move for an ingredient line.
+
+    Extracted from _process_recipe_line to reduce complexity.
+    """
+    per_sale = (Decimal(str(line.qty)) / yield_qty) * sale_qty_d
+    return (recipe.id, line.line_ref_id, float(per_sale))
+
+
+def _sub_recipe_moves(
+    session: Session, line, sale_qty_d: Decimal, yield_qty: Decimal, visited: set[int]
+) -> list[tuple[int, int, float]]:
+    """Recurse into a sub-recipe line and return its stock moves.
+
+    Tagged with the sub-recipe's id (not the parent's).
+    Extracted from _process_recipe_line to reduce complexity.
+    """
+    sub_recipe = resolve_line_target(session, line)
+    if sub_recipe is None:
+        return []
+    sub_sale_qty = (Decimal(str(line.qty)) / yield_qty) * sale_qty_d
+    return _compute_stock_moves(session, sub_recipe, float(sub_sale_qty), visited)
 
 
 # --- Void ---
