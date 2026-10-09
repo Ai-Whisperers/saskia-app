@@ -24,6 +24,8 @@
 /docs/operations/        @Ai-Whisperers/operator
 /docs/wishlist/          @Ai-Whisperers/operator
 /docs/user-guide/        @Ai-Whisperers/operator
+# CI/CD docs added 2026-10-09; share ownership with operations.
+/docs/ci/                @Ai-Whisperers/core-dev
 AGENTS.md                @Ai-Whisperers/core-dev
 /README.md               @Ai-Whisperers/core-dev
 /CONTRIBUTING.md         @Ai-Whisperers/core-dev
