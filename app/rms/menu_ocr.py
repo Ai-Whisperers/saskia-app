@@ -94,23 +94,61 @@ def match_to_catalog(lines: list[MenuLine], session: Session) -> MatchResult:
     from app.rms.models_legacy import Product
 
     res = MatchResult()
-    existing = list(session.scalars(select(Product)).all())
-    by_norm: dict[str, Product] = {_norm(p.name): p for p in existing}
+    by_norm = _build_norm_index(session)
 
     for line in lines:
-        key = _norm(line.name)
-        product = by_norm.get(key)
-        if product is None:
-            close = difflib.get_close_matches(key, list(by_norm), n=2, cutoff=_MATCH_CUTOFF)
-            if len(close) == 1:
-                product = by_norm[close[0]]
-            elif len(close) > 1:
-                res.dudosos.append(line)  # ambiguo: 2 candidatos
-                continue
-        if product is not None:
-            line.product_id = product.id
-            res.matched.append(line)
-            res.product_ids[id(line)] = product.id
-        else:
-            res.nuevos.append(line)
+        _match_line(line, by_norm, res)
     return res
+
+
+def _build_norm_index(session: Session) -> dict[str, object]:
+    """Build a normalized-name → Product index for fuzzy matching.
+
+    Extracted from match_to_catalog to reduce complexity.
+    """
+    from app.rms.models_legacy import Product
+
+    existing = list(session.scalars(select(Product)).all())
+    return {_norm(p.name): p for p in existing}
+
+
+def _match_line(line, by_norm: dict[str, object], res) -> None:
+    """Match a single line against the catalog index, updating `res`.
+
+    Extracted from match_to_catalog to reduce complexity.
+    """
+    key = _norm(line.name)
+    product = by_norm.get(key)
+    if product is None:
+        product = _fuzzy_match(key, by_norm, line, res)
+    if product is not None:
+        _attach_match(line, product, res)
+    else:
+        res.nuevos.append(line)
+
+
+def _fuzzy_match(key: str, by_norm: dict, line, res):
+    """Try a difflib-based fuzzy match for an unmatched key.
+
+    Returns the matched Product or None. Adds the line to dudosos
+    if multiple close candidates exist.
+    Extracted from _match_line to reduce complexity.
+    """
+    close = difflib.get_close_matches(key, list(by_norm), n=2, cutoff=_MATCH_CUTOFF)
+    if len(close) == 1:
+        return by_norm[close[0]]
+    if len(close) > 1:
+        res.dudosos.append(line)  # ambiguo: 2 candidatos
+    return None
+
+
+def _attach_match(line, product, res) -> None:
+    """Attach a matched product to a line, recording the match in `res`.
+
+    Extracted from _match_line to reduce complexity.
+    """
+    line.product_id = product.id
+    res.matched.append(line)
+    res.product_ids[id(line)] = product.id
+
+

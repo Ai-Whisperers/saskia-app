@@ -233,35 +233,61 @@ def _maybe_birthday(
     """
     if not birthday_str:
         return None
+    bday = _parse_birthday(birthday_str, today)
+    if bday is None:
+        return None
+    return _build_birthday_suggestion(bday, today, cfg)
+
+
+def _parse_birthday(birthday_str: str, today: _dt.date) -> Optional[_dt.date]:
+    """Parse a birthday string in either MM-DD or YYYY-MM-DD format.
+
+    Returns None if the format is unrecognized or invalid.
+    Extracted from _maybe_birthday to reduce complexity.
+    """
     try:
         if len(birthday_str) == 10 and birthday_str[4] == "-":
-            bday = _dt.date.fromisoformat(birthday_str)
-        elif len(birthday_str) == 5 and birthday_str[2] == "-":
+            return _dt.date.fromisoformat(birthday_str)
+        if len(birthday_str) == 5 and birthday_str[2] == "-":
             month, day = birthday_str.split("-")
-            bday = _candidate_recurring_birthday(int(month), int(day), today)
-        else:
-            return None
+            return _candidate_recurring_birthday(int(month), int(day), today)
     except ValueError:
         return None
+    return None
 
+
+def _build_birthday_suggestion(
+    bday: _dt.date, today: _dt.date, cfg: dict[str, int]
+) -> Optional[Suggestion]:
+    """Build the birthday suggestion if within the configured window.
+
+    Extracted from _maybe_birthday to reduce complexity.
+    """
     days_until = (bday - today).days
     if days_until < 0 or days_until > cfg["birthday_window_days"]:
         return None
-
     pct = cfg["birthday_discount_pct"]
-    if days_until == 0:
-        body = f"¡Es su cumpleaños hoy! Ofrecerle un {pct}% de descuento."
-    else:
-        body = (
-            f"Cumple en {days_until} día{'s' if days_until != 1 else ''}. "
-            f"Ofrecerle un {pct}% de descuento en su próxima compra."
-        )
+    body = _format_birthday_body(days_until, pct)
     return Suggestion(
         kind=KIND_CUMPLE_CERCA,
         title="🎂 Cumple cerca",
         body=body,
         priority=10,  # highest
         discount_pct=pct,
+    )
+
+
+def _format_birthday_body(days_until: int, pct: int) -> str:
+    """Format the body text for a birthday suggestion.
+
+    Extracted from _build_birthday_suggestion to reduce complexity.
+    """
+    if days_until == 0:
+        return f"¡Es su cumpleaños hoy! Ofrecerle un {pct}% de descuento."
+    plural = "s" if days_until != 1 else ""
+    return (
+        f"Cumple en {days_until} día{plural}. "
+        f"Ofrecerle un {pct}% de descuento en su próxima compra."
     )
 
 
