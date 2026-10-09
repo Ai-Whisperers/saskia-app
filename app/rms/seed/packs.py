@@ -18,6 +18,7 @@ key are reused, never duplicated.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -4406,7 +4407,10 @@ PACKS: dict[str, PackData] = {
 
 
 def seed_pack(session: Session, pack: str, *, tenant_name: str | None = None) -> PackReport:
-    """Seed one market segment into the DB. Idempotent, mirrors seed/sazon.py."""
+    """Seed one market segment into the DB. Idempotent, mirrors seed/sazon.py.
+
+    Refactored 2026-10-09 to reduce cognitive complexity from 52 to <10.
+    """
     from datetime import datetime, timedelta
 
     if pack not in PACKS:
@@ -4415,7 +4419,29 @@ def seed_pack(session: Session, pack: str, *, tenant_name: str | None = None) ->
     report = PackReport(pack=pack)
     name = tenant_name or pack
 
-    # --- tenant + operator (get-or-create) ---
+    _ensure_tenant_and_admin(session, name, report)
+
+    supplier_objs = _seed_suppliers(session, data, report)
+    ing_objs = _seed_ingredients(session, data, supplier_objs, pack, report)
+    rec_objs = _seed_recipes(session, data, report)
+    _seed_recipe_lines(session, data, rec_objs, ing_objs, report)
+    cat_objs = _seed_categories(session, data, report)
+    _seed_payment_methods_and_channels(session, report)
+    _seed_delivery_zones(session, report)
+    prod_objs = _seed_products(session, data, rec_objs, report)
+    _seed_tags_and_templates(session, data, prod_objs, pack, report)
+
+    session.commit()
+    return report
+
+
+def _ensure_tenant_and_admin(session: Session, name: str, report: PackReport) -> None:
+    """Get-or-create tenant and admin user.
+
+    Extracted from seed_pack to reduce complexity.
+    """
+    from datetime import datetime
+
     tenant = session.query(Tenant).filter(Tenant.slug == _slug(name)).one_or_none()
     if tenant is None:
         tenant = Tenant(
@@ -4442,7 +4468,13 @@ def seed_pack(session: Session, pack: str, *, tenant_name: str | None = None) ->
         session.flush()
         report.users = 1
 
-    # --- suppliers ---
+
+def _seed_suppliers(session: Session, data: Any, report: PackReport) -> list:
+    """Get-or-create suppliers for the pack.
+
+    Extracted from seed_pack to reduce complexity. Returns list of
+    Supplier objects indexed in the same order as data.suppliers.
+    """
     supplier_objs = []
     for sname in data.suppliers:
         s = session.query(Supplier).filter(Supplier.name == sname).one_or_none()
@@ -4452,83 +4484,161 @@ def seed_pack(session: Session, pack: str, *, tenant_name: str | None = None) ->
             session.flush()
             report.suppliers += 1
         supplier_objs.append(s)
+    return supplier_objs
 
-    # --- ingredients (+variant +price events), full Vaquita-grade fields ---
+
+def _seed_ingredients(
+    session: Session, data: Any, supplier_objs: list, pack: str, report: PackReport
+) -> dict[str, Ingredient]:
+    """Get-or-create ingredients with full Vaquita-grade fields.
+
+    Extracted from seed_pack to reduce complexity. Also seeds the
+    preferred variant and price events for each ingredient.
+    Returns dict mapping ingredient name to Ingredient object.
+    """
+    from datetime import datetime, timedelta
+
     ing_objs: dict[str, Ingredient] = {}
     for iname, icat, cost, sidx, pkg_unit in data.ingredients:
         ing = session.query(Ingredient).filter(Ingredient.name == iname).one_or_none()
         if ing is None:
-            min_stock = max(1.0, (cost or 1000) / 5000.0)
-            ing = Ingredient(
-                name=iname,
-                unit=pkg_unit,
-                stock_qty=0.0,
-                purchase_price_gs=cost or None,
-                purchase_price_updated_at=datetime.utcnow(),
-                min_stock_qty=min_stock,
-                max_stock_qty=min_stock * 3,
-                shelf_life_days=None,
-                storage="refrigerated"
-                if any(
-                    k in iname.lower()
-                    for k in (
-                        "queso",
-                        "leche",
-                        "manteca",
-                        "crema",
-                        "huevo",
-                        "carne",
-                        "pollo",
-                        "jam",
-                    )
-                )
-                else "ambient",
-                notes=f"costo ref pack {pack}",
-                category=icat,
-                lead_time_days=3,
-                supplier_id=supplier_objs[sidx].id if sidx < len(supplier_objs) else None,
-                lot_required=False,
-                may_contain_gluten=False,
-                opening_stock_qty=0.0,
-                opening_stock_date=datetime.utcnow().date().isoformat(),
-                reorder_point=min_stock * 1.5,
+            ing = _create_pack_ingredient(
+                session, iname, icat, cost, sidx, pkg_unit, supplier_objs, pack
             )
             session.add(ing)
-            session.flush()
+            session.flush()  # ensure ing.id is populated before price events
             report.ingredients += 1
-            if cost > 0:
-                for days_ago in (60, 30, 7):
-                    session.add(
-                        IngredientPriceEvent(
-                            ingredient_id=ing.id,
-                            price_gs=int(cost),
-                            recorded_at=datetime.utcnow() - timedelta(days=days_ago),
-                            source="seed-pack",
-                        )
-                    )
-                    report.ingredient_price_events += 1
+            if cost and cost > 0:
+                _seed_ingredient_price_events(session, ing.id, cost, report)
+        _ensure_preferred_variant(session, ing, pkg_unit, cost, sidx, supplier_objs, report)
         ing_objs[iname] = ing
-        if (
-            ing.id
-            and not session.query(IngredientVariant)
-            .filter(IngredientVariant.ingredient_id == ing.id)
-            .one_or_none()
-        ):
-            session.add(
-                IngredientVariant(
-                    ingredient_id=ing.id,
-                    package_size=1.0,
-                    package_unit=pkg_unit,
-                    purchase_price_gs=cost or None,
-                    stock_qty=0.0,
-                    supplier_id=supplier_objs[sidx].id if sidx < len(supplier_objs) else None,
-                    preferred=True,
-                    notes="Variante preferida (seed pack)",
-                )
-            )
-            report.ingredient_variants += 1
+    return ing_objs
 
-    # --- recipes + lines ---
+
+def _create_pack_ingredient(
+    session: Session,
+    iname: str,
+    icat: str,
+    cost: float | None,
+    sidx: int,
+    pkg_unit: str,
+    supplier_objs: list,
+    pack: str,
+) -> Ingredient:
+    """Create a new ingredient with full Vaquita-grade fields.
+
+    Extracted from _seed_ingredients to reduce complexity.
+    """
+    from datetime import datetime
+
+    min_stock = max(1.0, (cost or 1000) / 5000.0)
+    return Ingredient(
+        name=iname,
+        unit=pkg_unit,
+        stock_qty=0.0,
+        purchase_price_gs=cost or None,
+        purchase_price_updated_at=datetime.utcnow(),
+        min_stock_qty=min_stock,
+        max_stock_qty=min_stock * 3,
+        shelf_life_days=None,
+        storage="refrigerated" if _is_refrigerated(iname) else "ambient",
+        notes=f"costo ref pack {pack}",
+        category=icat,
+        lead_time_days=3,
+        supplier_id=supplier_objs[sidx].id if sidx < len(supplier_objs) else None,
+        lot_required=False,
+        may_contain_gluten=False,
+        opening_stock_qty=0.0,
+        opening_stock_date=datetime.utcnow().date().isoformat(),
+        reorder_point=min_stock * 1.5,
+    )
+
+
+def _is_refrigerated(name: str) -> bool:
+    """Check if an ingredient name suggests refrigerated storage.
+
+    Extracted from _create_pack_ingredient to reduce complexity.
+    """
+    return any(
+        k in name.lower()
+        for k in (
+            "queso",
+            "leche",
+            "manteca",
+            "crema",
+            "huevo",
+            "carne",
+            "pollo",
+            "jam",
+        )
+    )
+
+
+def _seed_ingredient_price_events(
+    session: Session, ing_id: int, cost: float, report: PackReport
+) -> None:
+    """Seed price events at 60/30/7 days ago for the ingredient.
+
+    Extracted from _seed_ingredients to reduce complexity.
+    """
+    from datetime import datetime, timedelta
+
+    for days_ago in (60, 30, 7):
+        session.add(
+            IngredientPriceEvent(
+                ingredient_id=ing_id,
+                price_gs=int(cost),
+                recorded_at=datetime.utcnow() - timedelta(days=days_ago),
+                source="seed-pack",
+            )
+        )
+        report.ingredient_price_events += 1
+
+
+def _ensure_preferred_variant(
+    session: Session,
+    ing: Ingredient,
+    pkg_unit: str,
+    cost: float | None,
+    sidx: int,
+    supplier_objs: list,
+    report: PackReport,
+) -> None:
+    """Ensure the ingredient has a preferred variant.
+
+    Extracted from _seed_ingredients to reduce complexity. Skips if the
+    ingredient already has any variant.
+    """
+    if not ing.id:
+        return
+    has_variant = (
+        session.query(IngredientVariant)
+        .filter(IngredientVariant.ingredient_id == ing.id)
+        .one_or_none()
+    )
+    if has_variant:
+        return
+    session.add(
+        IngredientVariant(
+            ingredient_id=ing.id,
+            package_size=1.0,
+            package_unit=pkg_unit,
+            purchase_price_gs=cost or None,
+            stock_qty=0.0,
+            supplier_id=supplier_objs[sidx].id if sidx < len(supplier_objs) else None,
+            preferred=True,
+            notes="Variante preferida (seed pack)",
+        )
+    )
+    report.ingredient_variants += 1
+
+
+def _seed_recipes(session: Session, data: Any, report: PackReport) -> dict[str, Recipe]:
+    """Get-or-create recipes for the pack.
+
+    Extracted from seed_pack to reduce complexity. Returns dict mapping
+    recipe slug to Recipe object.
+    """
     rec_objs: dict[str, Recipe] = {}
     for slug, yq, yu, prep, cook, diff, family, diet, notes in data.recipes:
         rec = session.query(Recipe).filter(Recipe.name == slug).one_or_none()
@@ -4550,7 +4660,21 @@ def seed_pack(session: Session, pack: str, *, tenant_name: str | None = None) ->
             session.flush()
             report.recipes += 1
         rec_objs[slug] = rec
+    return rec_objs
 
+
+def _seed_recipe_lines(
+    session: Session,
+    data: Any,
+    rec_objs: dict[str, Recipe],
+    ing_objs: dict[str, Ingredient],
+    report: PackReport,
+) -> None:
+    """Get-or-create recipe lines (ingredient refs).
+
+    Extracted from seed_pack to reduce complexity. Skips lines where
+    the recipe or ingredient is missing.
+    """
     for slug, iname, qty, unit in data.recipe_lines:
         rec = rec_objs.get(slug)
         ing = ing_objs.get(iname)
@@ -4578,7 +4702,13 @@ def seed_pack(session: Session, pack: str, *, tenant_name: str | None = None) ->
             )
             report.recipe_lines += 1
 
-    # --- categories (scope=product, like sazon.py) ---
+
+def _seed_categories(session: Session, data: Any, report: PackReport) -> dict[str, Category]:
+    """Get-or-create product categories.
+
+    Extracted from seed_pack to reduce complexity. Returns dict mapping
+    category name to Category object.
+    """
     cat_objs = {}
     for cname in data.categories:
         c = (
@@ -4588,14 +4718,24 @@ def seed_pack(session: Session, pack: str, *, tenant_name: str | None = None) ->
         )
         if c is None:
             c = Category(
-                name=cname, scope="product", sort_order=(len(cat_objs) + 1) * 10, is_active=True
+                name=cname,
+                scope="product",
+                sort_order=(len(cat_objs) + 1) * 10,
+                is_active=True,
             )
             session.add(c)
             session.flush()
             report.categories += 1
         cat_objs[cname] = c
+    return cat_objs
 
-    # --- payment methods + channels ---
+
+def _seed_payment_methods_and_channels(session: Session, report: PackReport) -> None:
+    """Get-or-create payment methods and channels.
+
+    Extracted from seed_pack to reduce complexity. Uses the standard
+    Vaquita starter set.
+    """
     for sort, (code, label) in enumerate(
         (
             ("efectivo", "Efectivo"),
@@ -4631,7 +4771,13 @@ def seed_pack(session: Session, pack: str, *, tenant_name: str | None = None) ->
             )
             report.channels += 1
 
-    # --- delivery zones (code/name/radius_km/delivery_cost_gs) ---
+
+def _seed_delivery_zones(session: Session, report: PackReport) -> None:
+    """Get-or-create delivery zones.
+
+    Extracted from seed_pack to reduce complexity. Uses the standard
+    Vaquita starter set (centro, gran-asuncion).
+    """
     for code, zname, km, cost, min_order, mins, pos in (
         ("centro", "Zona centro", 8, 15000, 50000, 40, 10),
         ("gran-asuncion", "Gran Asunción", 15, 25000, 80000, 60, 20),
@@ -4651,7 +4797,15 @@ def seed_pack(session: Session, pack: str, *, tenant_name: str | None = None) ->
             )
             report.delivery_zones += 1
 
-    # --- products ---
+
+def _seed_products(
+    session: Session, data: Any, rec_objs: dict[str, Recipe], report: PackReport
+) -> list:
+    """Get-or-create products for the pack.
+
+    Extracted from seed_pack to reduce complexity. Returns list of
+    Product objects in the same order as data.products.
+    """
     prod_objs = []
     for pname, rslug, pcat, price, source in data.products:
         p = session.query(Product).filter(Product.name == pname).one_or_none()
@@ -4671,8 +4825,20 @@ def seed_pack(session: Session, pack: str, *, tenant_name: str | None = None) ->
             session.flush()
             report.products += 1
         prod_objs.append(p)
+    return prod_objs
 
-    # --- tags ( Vaquita-style starter + pack tag) ---
+
+def _seed_tags_and_templates(
+    session: Session, data: Any, prod_objs: list, pack: str, report: PackReport
+) -> None:
+    """Seed tags and production plan templates.
+
+    Extracted from seed_pack to reduce complexity. Ensures starter
+    tags exist, adds pack-specific tags, and creates production plan
+    templates.
+    """
+    from datetime import datetime
+
     ensure_starter_tags(session)
     for tag_name, color in ((pack.lower(), "#1976D2"), ("precio-ref", "#FF9800")):
         t = (
@@ -4683,8 +4849,6 @@ def seed_pack(session: Session, pack: str, *, tenant_name: str | None = None) ->
         if t is None:
             session.add(Tag(name=tag_name, kind=TagKind.PRODUCT.value, color=color))
             report.tags += 1
-
-    # --- production plan templates ---
     for wd, pidx, qty, note in data.production_templates:
         if pidx >= len(prod_objs):
             continue
@@ -4706,9 +4870,6 @@ def seed_pack(session: Session, pack: str, *, tenant_name: str | None = None) ->
                 )
             )
             report.production_templates += 1
-
-    session.commit()
-    return report
 
 
 def seed_pack_report(pack: str) -> str:
