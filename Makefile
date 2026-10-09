@@ -126,6 +126,32 @@ dead-code: ## vulture + sensez: scan for unused code + structural smells.
 complexity: ## radon: cyclomatic complexity ceiling (B = CC<=10).
 	$(UV) run python scripts/check_complexity.py
 
+cognitive: ## complexipy: cognitive complexity (>15 = FAIL; >25 = must fix).
+	@echo "=== complexipy (cognitive complexity, SonarSource spec) ==="
+	$(UV) run complexipy --max-complexity-allowed 15 app/rms/ 2>&1 | tail -20 || true
+	@echo "(>15 = warning, >25 = must fix; threshold is per Sazon conventions)"
+
+deptry: ## deptry: find unused/missing/transitive deps.
+	@echo "=== deptry (dependency hygiene) ==="
+	$(UV) run deptry . 2>&1 | tail -10 || true
+	@echo "Note: many DEP003 'starlette' are false positives — starlette is a"
+	@echo "FastAPI transitive, but we import symbols directly. See pyproject.toml."
+
+interrogate: ## interrogate: docstring coverage (gate: 80%).
+	@echo "=== interrogate (docstring coverage) ==="
+	$(UV) run interrogate -f 80 app/rms/ app/observability/ 2>&1 | tail -3
+
+pyright: ## pyright: static type checker (catches real bugs).
+	@echo "=== pyright (Microsoft type checker) ==="
+	$(UV) run pyright --pythonpath .venv/bin/python app/rms/main.py app/rms/db.py 2>&1 | tail -10 || true
+	@echo "Note: pyright is advisory. Run on main.py + db.py first; full sweep later."
+
+refurb: ## refurb: modernization hints (FURB rules; FYI only).
+	@echo "=== refurb (modernization hints) ==="
+	-$(UV) run refurb app/rms/ 2>&1 | tail -5
+	@echo "Note: refurb is FYI. Most findings are FURB123 redundant casts."
+	@echo "Pre-Pydantic code is noisy. Do not auto-fix."
+
 duplicates: ## Detect duplicate-stem files + forbidden legacy + unused modules.
 	$(UV) run python scripts/check_duplicate_files.py
 
@@ -144,7 +170,7 @@ audit-cve: ## pip-audit: scan pyproject deps for known CVEs.
 licenses: ## reuse: SPDX license header compliance.
 	$(UV) run reuse lint
 
-ci-extra: lint dead-code complexity duplicates arch security ## All static analysis (slow).
+ci-extra: lint dead-code complexity cognitive deptry duplicates arch security ## All static analysis (slow).
 	@echo ""
 	@echo "ci-extra complete."
 

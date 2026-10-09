@@ -25,6 +25,7 @@ import os
 import sys
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -34,18 +35,24 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-try:
-    from starlette.middleware.sessions import Session
-except ImportError:
-    # Newer starlette versions removed Session; provide a minimal stub.
-    class Session(dict):
-        pass
+# Imported here only for type-checking; the runtime use of Session is in
+# the SessionMiddleware subclass below. Newer starlette versions removed
+# the export; provide a minimal stub for backward compat.
+if TYPE_CHECKING:
+    from starlette.middleware.sessions import Session as _StarletteSession
+else:
+    try:
+        from starlette.middleware.sessions import Session as _StarletteSession
+    except ImportError:
+        class _StarletteSession(dict):  # type: ignore[no-redef]
+            pass
 
 
 import json
 from base64 import b64decode
 
 from itsdangerous.exc import BadSignature
+from starlette.middleware.base import RequestResponseEndpoint
 from starlette.requests import HTTPConnection
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -235,7 +242,7 @@ async def lifespan(app: FastAPI):
                 send_default_pii=False,
                 environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
                 release=app.version,
-                before_send=sentry_before_send,
+                before_send=sentry_before_send,  # type: ignore[arg-type]
             )
         except Exception as exc:
             print(f"WARNING: Sentry init failed: {exc}", file=sys.stderr)
@@ -318,9 +325,8 @@ async def lifespan(app: FastAPI):
     # hash on boot. No-op when env vars are unset (local dev).
     try:
         from app.rms.bootstrap import run_password_sync
-        from app.rms.db import make_session_factory as _make_session
 
-        with _make_session(engine)() as _bs:
+        with make_session_factory(engine)() as _bs:
             run_password_sync(_bs)
     except Exception:
         logger.exception("password bootstrap failed (non-fatal)")
@@ -331,7 +337,7 @@ async def lifespan(app: FastAPI):
     try:
         from app.rms.haccp_seed import apply_haccp_defaults
 
-        with _make_session(engine)() as _bs:
+        with make_session_factory(engine)() as _bs:
             n = apply_haccp_defaults(_bs)
             if n:
                 logger.info("haccp: applied defaults to %d ingredients", n)
@@ -540,7 +546,7 @@ def create_app() -> FastAPI:
         + performance-research.md section 5 (Cloudflare caching).
         """
 
-        async def dispatch(self, request: Request, call_next: object) -> Response:
+        async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
             response = await call_next(request)
             if request.url.path.startswith("/healthz"):
                 # s-maxage is for shared caches (Cloudflare); max-age is for browsers.
@@ -556,7 +562,7 @@ def create_app() -> FastAPI:
     class MetricsMiddleware(BaseHTTPMiddleware):
         """Increment request counters and the latency histogram on every response."""
 
-        async def dispatch(self, request: Request, call_next: object) -> Response:
+        async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
             from time import perf_counter
 
             from app.rms.metrics import record_request
@@ -672,11 +678,11 @@ def create_app() -> FastAPI:
                     try:
                         data = connection.cookies[self.session_cookie].encode("utf-8")
                         data = self.signer.unsign(data, max_age=self.max_age)
-                        scope["session"] = Session(json.loads(b64decode(data)))
+                        scope["session"] = _StarletteSession(json.loads(b64decode(data)))
                     except BadSignature:
-                        scope["session"] = Session()
+                        scope["session"] = _StarletteSession()
                 else:
-                    scope["session"] = Session()
+                    scope["session"] = _StarletteSession()
                 await self.app(scope, receive, send)
                 return
 
@@ -1396,12 +1402,18 @@ def _seed() -> None:
             # noqa: arch-rule — main.py is the CLI entry point; seed/ is runtime-loaded package
             from app.rms.seed import SazonReport, seed_sazon
 
-            report: SazonReport = seed_sazon(session, overwrite=overwrite)
+            sazon_report: SazonReport = seed_sazon(session, overwrite=overwrite)
+            print(f"seed complete: {sazon_report.as_dict()}")
         else:
-            from app.rms.seed import SeedReport, seed_demo_data
+            # SeedReport is intentionally not re-exported from app.rms.seed
+            # (sazon's public API surface is sazon-only). Import the demo
+            # module directly when callers need the report class.
+            # noqa: arch-rule — main.py is the CLI entry point; imports demo module (includes seed.demo)
+            from app.rms.seed import seed_demo_data  # noqa: arch-rule — main.py is the CLI entry point
+            from app.rms.seed.demo import SeedReport  # noqa: arch-rule — main.py is the CLI entry point
 
-            report: SeedReport = seed_demo_data(session, overwrite=overwrite)
-        print(f"seed complete: {report.as_dict()}")
+            demo_report: SeedReport = seed_demo_data(session, overwrite=overwrite)
+            print(f"seed complete: {demo_report.as_dict()}")
     finally:
         session.close()
 

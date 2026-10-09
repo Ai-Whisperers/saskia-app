@@ -299,11 +299,18 @@ dev-base = [
 # `uv sync --group tooling`.
 tooling = [
     "vulture>=2.14",          # dead-code (replaces ad-hoc greps)
+    "deadcode>=2.4",          # cross-file dead code (replaces vulture in some cases)
     "bandit>=1.7",            # security scan (broader than ruff S)
     "radon>=6.0",             # cyclomatic complexity
+    "complexipy>=8",          # cognitive complexity (SonarSource spec, replaces radon-cc for human review)
+    "pyright>=1.1",           # static type checker (catches real bugs that mypy misses)
+    "deptry>=0.20",           # find unused/missing/transitive deps
+    "interrogate>=1.7",       # docstring coverage (enforces 80% gate)
+    "refurb>=2",              # modernization hints (FURB123 redundant casts etc.)
     "pip-audit>=2.7",         # CVE scan against pyproject.lock
     "reuse>=5.0",             # SPDX license header compliance
     "jscpd>=4.0",             # copy-paste detector (line-level)
+    "sensez>=0.4",            # structural clone + code smell detector (Riley Barnett 2025)
 ]
 # dev: full developer setup, including the browser stack. Local devs do
 # `uv sync --group dev`; CI runs `uv sync --group dev-base` instead.

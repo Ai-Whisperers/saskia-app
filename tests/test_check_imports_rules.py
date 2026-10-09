@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import ast
 import pathlib
+import re
 import subprocess
 import sys
 import unittest
@@ -75,7 +76,7 @@ class TestAllowListSize(unittest.TestCase):
         # the source file. See check_imports.py docstring.
         self.assertEqual(
             len(allow_list.keys),
-            8,
+            9,
             "Allow-list size changed. Either fix the underlying smell, "
             "or update this test AND add a noqa comment in the offending "
             "source file.",
@@ -132,7 +133,27 @@ class TestAllowListBackedByNoqa(unittest.TestCase):
                 )
                 continue
             # Verify the noqa is near an import of the imported module
-            noqa_pos = text.index("noqa: arch-rule")
+            # Find the noqa comment that's closest to the actual import statement
+            # (not just the first noqa in the file)
+            import_pattern = f"from {imported}"
+            if import_pattern not in text:
+                missing.append(
+                    f"  ALLOW_LIST [{importer} -> {imported}]: no `from {imported}` import in "
+                    f"{candidate.relative_to(REPO_ROOT)}"
+                )
+                continue
+            # Find the import position
+            import_pos = text.index(import_pattern)
+            # Find the nearest noqa comment to this import
+            noqa_positions = [m.start() for m in re.finditer(r'# noqa: arch-rule', text)]
+            if not noqa_positions:
+                missing.append(
+                    f"  ALLOW_LIST [{importer} -> {imported}]: no `# noqa: arch-rule` in "
+                    f"{candidate.relative_to(REPO_ROOT)}"
+                )
+                continue
+            # Find the noqa position closest to the import
+            noqa_pos = min(noqa_positions, key=lambda p: abs(p - import_pos))
             window = text[max(0, noqa_pos - 200): noqa_pos + 500]
             imported_short: str = imported.split(".")[-1]  # type: ignore[assignment]
             if imported_short not in window:
@@ -151,6 +172,7 @@ class TestKnownCyclesBackedByNoqa(unittest.TestCase):
     """Each KNOWN_CYCLES pair must have `# noqa: cycle-known` in BOTH
     directions of the cycle (both files). Stricter than the allow-list
     test because cycles are bidirectional."""
+
 
     def test_every_known_cycle_has_noqa_in_both_files(self) -> None:
         consts = _load_constants()

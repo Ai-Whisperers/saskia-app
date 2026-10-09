@@ -79,6 +79,10 @@ ALLOW_LIST: dict[tuple[str, str], str] = {
         "app.routers.stations",
     ): "dashboard uses `puesto` (current station) helper from stations; legitimate cross-router utility use",
     (
+        "app.rms.main",
+        "app.rms.seed.demo",
+    ): "main.py is the CLI entry point; seed/ is runtime-loaded package",
+    (
         "app.routers.herebus",
         "app.routers.shopping",
     ): "herebus wishlist purchases delegate to shopping.consolidate_open_items; legitimate cross-router utility use",

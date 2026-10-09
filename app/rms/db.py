@@ -2750,13 +2750,13 @@ def _migration_060_tag_normalization(conn: Any) -> None:
     #     produce when they save an ingredient.  infer_dietary_tags
     #     correctly handles meat/dairy/gluten/sugar logic so e.g. chicken
     #     no longer claims vegetariano.
+    infer_dietary_tags = None
     try:
-        from app.rms.ingredient_intel import infer_dietary_tags
-
-        have_intel = True
+        from app.rms.ingredient_intel import infer_dietary_tags as _infer_dietary_tags
+        infer_dietary_tags = _infer_dietary_tags
     except Exception:
-        have_intel = False
-    if have_intel:
+        pass
+    if infer_dietary_tags is not None:
         rows = conn.execute(text("SELECT id, name FROM ingredient")).all()
         for r in rows:
             iid, name = r
