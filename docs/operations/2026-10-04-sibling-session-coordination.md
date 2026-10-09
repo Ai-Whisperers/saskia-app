@@ -1,6 +1,6 @@
 # Sibling-session coordination — how to avoid stepping on yourself
 
-> **Audience:** anyone who runs the the operator worktree from a separate
+> **Audience:** anyone who runs the operator worktree from a separate
 > shell (sibling Hermes session, parallel Claude Code, etc.) on the
 > same git repo.
 > **Date:** 2026-10-04 (after a real loss-and-restore cycle that cost

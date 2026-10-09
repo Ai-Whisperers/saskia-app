@@ -1,0 +1,6 @@
+Vendored Vale style packages — do not edit by hand.
+Source URLs (latest release zips, fetched 2026-10-09):
+  - https://github.com/vale-cli/Microsoft/releases/latest/download/Microsoft.zip
+  - https://github.com/vale-cli/write-good/releases/latest/download/write-good.zip
+Catalog ref: errata-ai/styles @ 35e3980ab7f6781416a678bee0dd9fd03ed1c426
+Refresh: edit scripts/vendor_vale_styles.sh then run it, review diff.
