@@ -179,31 +179,40 @@ def compute_month_totals(db: Session, period_yyyymm: str) -> dict:
     Raises:
         ClosureValidationError: For invalid period format
     """
-    # Convert period to date range
+    start_date, end_date = _parse_period_range(period_yyyymm)
+    expenses = _fetch_expenses_in_range(db, start_date, end_date)
+    return _build_expense_totals(expenses)
+
+
+def _parse_period_range(period_yyyymm: str) -> tuple[date, date]:
+    """Parse a YYYY-MM period string and return the (start, end) date range.
+
+    Extracted from compute_month_totals to reduce complexity.
+    """
     try:
         year, month = map(int, period_yyyymm.split("-"))
-
-        # Validate month
         if month < 1 or month > 12:
             raise ClosureValidationError(f"Invalid month: {period_yyyymm}")
         if year < 1900 or year > 3000:
             raise ClosureValidationError(f"Invalid year: {period_yyyymm}")
-        month_date = date(year, month, 1)
-
+        start = date(year, month, 1)
+        if month == 12:
+            end = date(year + 1, 1, 1)
+        else:
+            end = date(year, month + 1, 1)
+        return start, end
     except (ValueError, AttributeError):
         raise ClosureValidationError(
             f"Period must be YYYY-MM format, got: {period_yyyymm}"
         ) from None
 
-    # Calculate date range
-    start_date = month_date
-    if month == 12:
-        end_date = date(year + 1, 1, 1)
-    else:
-        end_date = date(year, month + 1, 1)
 
-    # Query expenses for the month
-    expenses = (
+def _fetch_expenses_in_range(db: Session, start_date: date, end_date: date) -> list:
+    """Fetch non-voided expenses in the [start_date, end_date) range.
+
+    Extracted from compute_month_totals to reduce complexity.
+    """
+    return (
         db.query(Expense)
         .filter(
             Expense.occurred_at >= start_date,
@@ -213,14 +222,17 @@ def compute_month_totals(db: Session, period_yyyymm: str) -> dict:
         .all()
     )
 
-    # Calculate totals
-    total_gs = sum(exp.amount_gs for exp in expenses)
-    by_category = {}
-    for exp in expenses:
-        if exp.category not in by_category:
-            by_category[exp.category] = 0
-        by_category[exp.category] += exp.amount_gs
 
+def _build_expense_totals(expenses: list) -> dict:
+    """Build the totals dict from a list of expenses.
+
+    Extracted from compute_month_totals to reduce complexity.
+    """
+    total_gs = sum(exp.amount_gs for exp in expenses)
+    by_category: dict = {}
+    for exp in expenses:
+        by_category.setdefault(exp.category, 0)
+        by_category[exp.category] += exp.amount_gs
     return {
         "total_expenses_gs": total_gs,
         "expense_row_count": len(expenses),
