@@ -44,9 +44,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # whitespace) followed by TODO/FIXME/XXX and a word boundary. The
 # 'i' flag is intentionally OFF: 'todo' lowercase is Spanish prose
 # ("todo de", "todo el"). Only the ALL-CAPS marker is a code comment.
-COMMENT_LINE = re.compile(
-    r"^\s*(?:#|//|<!--)\s*(TODO|FIXME|XXX)\b\s*:?\s*(?P<text>.*)$"
-)
+COMMENT_LINE = re.compile(r"^\s*(?:#|//|<!--)\s*(TODO|FIXME|XXX)\b\s*:?\s*(?P<text>.*)$")
 
 # Files to skip (generated, vendored, or known-noisy)
 SKIP_DIRS = {".venv", ".git", "node_modules", "__pycache__", ".mypy_cache", ".ruff_cache"}
@@ -69,7 +67,19 @@ def scan() -> list[dict]:
             continue
         if rel in SKIP_FILES:
             continue
-        if path.suffix not in {".py", ".md", ".yml", ".yaml", ".sh", ".toml", ".cfg", ".ini", ".html", ".js", ".ts"}:
+        if path.suffix not in {
+            ".py",
+            ".md",
+            ".yml",
+            ".yaml",
+            ".sh",
+            ".toml",
+            ".cfg",
+            ".ini",
+            ".html",
+            ".js",
+            ".ts",
+        }:
             continue
         try:
             text = path.read_text(errors="replace")
