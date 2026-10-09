@@ -105,11 +105,6 @@ def validate_cart_intent(
 
     _ASUNCION = ZoneInfo("America/Asuncion")
 
-    from app.rms.derived_intel import check_customer_risk
-    from app.rms.eod_closed import eod_is_day_closed
-    from app.rms.models import Ingredient, Product, Recipe
-    from app.rms.sales.lifecycle import _compute_stock_moves
-
     if today is None:
         today = _datetime.now(_ASUNCION).date()
 
@@ -117,19 +112,45 @@ def validate_cart_intent(
 
     # ---- Cart-empty: blocker -----------------------------------------
     if cart.is_empty:
-        checklist.blockers.append(
-            PreSaleWarning(
-                code="CART_EMPTY",
-                severity="blocker",
-                message="El carrito está vacío. Agregá al menos un producto.",
-            )
-        )
+        _add_cart_empty_blocker(checklist)
         return checklist
 
     # ---- Per-line checks ---------------------------------------------
-    # We run validate_sale_intent per line so the rules stay in one place.
-    # Per-line warnings get the line_index suffixed to the code so the
-    # UI can map them back to cart rows.
+    _run_per_line_checks(session, cart, checklist, today)
+
+    # ---- Aggregated stock check --------------------------------------
+    _run_aggregated_stock_check(session, cart, checklist)
+
+    # ---- Cart-level checks (run once) --------------------------------
+    _run_cart_level_checks(session, cart, checklist)
+
+    return checklist
+
+
+def _add_cart_empty_blocker(checklist: PreSaleChecklist) -> None:
+    """Add a CART_EMPTY blocker.
+
+    Extracted from validate_cart_intent to reduce complexity.
+    """
+    checklist.blockers.append(
+        PreSaleWarning(
+            code="CART_EMPTY",
+            severity="blocker",
+            message="El carrito está vacío. Agregá al menos un producto.",
+        )
+    )
+
+
+def _run_per_line_checks(
+    session: "Session",
+    cart: CartIntent,
+    checklist: PreSaleChecklist,
+    today: date,
+) -> None:
+    """Run per-line validation checks and append warnings/blockers.
+
+    Extracted from validate_cart_intent to reduce complexity.
+    """
     for line in cart.lines:
         intent = PreSaleIntent(
             product_id=line.product_id,
@@ -160,9 +181,43 @@ def validate_cart_intent(
             else:
                 checklist.warnings.append(suffixed)
 
-    # ---- Aggregated stock check ---------------------------------------
-    # Walk every line's recipe, sum demand per ingredient, compare to
-    # current stock. One warning per ingredient with the total delta.
+
+def _run_aggregated_stock_check(
+    session: "Session",
+    cart: CartIntent,
+    checklist: PreSaleChecklist,
+) -> None:
+    """Walk all lines, sum demand per ingredient, compare to stock.
+
+    Extracted from validate_cart_intent to reduce complexity.
+    """
+    from app.rms.models import Ingredient
+
+    ingredient_demand, _ingredient_names = _compute_cart_ingredient_demand(session, cart)
+    shortages: list[tuple[str, float, float]] = []
+    for ing_id, demand in ingredient_demand.items():
+        ing = session.get(Ingredient, ing_id)
+        if ing is None:
+            continue
+        projected = (ing.stock_qty or 0) - demand
+        if projected < 0:
+            shortages.append((ing.name, ing.stock_qty or 0, demand))
+    if shortages:
+        _add_stock_shortage_warning(checklist, shortages)
+
+
+def _compute_cart_ingredient_demand(
+    session: "Session",
+    cart: CartIntent,
+) -> tuple[dict[int, float], dict[int, str]]:
+    """Compute total ingredient demand across all cart lines.
+
+    Extracted from validate_cart_intent to reduce complexity.
+    Returns (demand_by_ingredient, name_by_ingredient).
+    """
+    from app.rms.models import Ingredient, Product, Recipe
+    from app.rms.sales.lifecycle import _compute_stock_moves
+
     ingredient_demand: dict[int, float] = defaultdict(float)
     ingredient_names: dict[int, str] = {}
     for line in cart.lines:
@@ -181,54 +236,91 @@ def validate_cart_intent(
             ing = session.get(Ingredient, ing_id)
             if ing is not None:
                 ingredient_names[ing_id] = ing.name
+    return ingredient_demand, ingredient_names
 
-    shortages: list[tuple[str, float, float]] = []
-    for ing_id, demand in ingredient_demand.items():
-        ing = session.get(Ingredient, ing_id)
-        if ing is None:
-            continue
-        projected = (ing.stock_qty or 0) - demand
-        if projected < 0:
-            shortages.append((ing.name, ing.stock_qty or 0, demand))
-    if shortages:
-        severity = "blocker" if len(shortages) > 1 else "warning"
-        names = ", ".join(s[0] for s in shortages[:3])
-        more = f" (+{len(shortages) - 3} más)" if len(shortages) > 3 else ""
-        checklist.warnings.append(
-            PreSaleWarning(
-                code="CART_STOCK_SHORTAGE",
-                severity=severity,
-                message=(
-                    f"Carrito: stock insuficiente para: {names}{more}. "
-                    f"Demanda total excede stock actual."
-                ),
-            )
+
+def _add_stock_shortage_warning(
+    checklist: PreSaleChecklist,
+    shortages: list[tuple[str, float, float]],
+) -> None:
+    """Add a CART_STOCK_SHORTAGE warning based on shortage list.
+
+    Extracted from validate_cart_intent to reduce complexity.
+    """
+    severity = "blocker" if len(shortages) > 1 else "warning"
+    names = ", ".join(s[0] for s in shortages[:3])
+    more = f" (+{len(shortages) - 3} más)" if len(shortages) > 3 else ""
+    checklist.warnings.append(
+        PreSaleWarning(
+            code="CART_STOCK_SHORTAGE",
+            severity=severity,
+            message=(
+                f"Carrito: stock insuficiente para: {names}{more}. "
+                f"Demanda total excede stock actual."
+            ),
         )
+    )
 
-    # ---- Cart-level checks (run once) --------------------------------
-    # Customer allergen — check the customer's restriction against
-    # EACH product in the cart (different products can have different
-    # allergens). A single hit blocks the whole cart.
-    if cart.customer_id is not None:
-        for line in cart.lines:
-            risk = check_customer_risk(session, cart.customer_id, line.product_id)
-            if not risk.safe:
-                checklist.blockers.append(
-                    PreSaleWarning(
-                        code=f"CART_CUSTOMER_ALLERGEN@{line.line_index}",
-                        severity="blocker",
-                        message=(
-                            f"Línea {line.line_index + 1}: ⚠️ ALÉRGENO: "
-                            f"{risk.matched}. El cliente es alérgico."
-                        ),
-                    )
+
+def _run_cart_level_checks(
+    session: "Session",
+    cart: CartIntent,
+    checklist: PreSaleChecklist,
+) -> None:
+    """Run cart-level checks (allergen, day-closed, payment).
+
+    Extracted from validate_cart_intent to reduce complexity.
+    """
+    _check_cart_customer_allergen(session, cart, checklist)
+    _check_cart_day_closed(session, cart, checklist)
+    _check_cart_payment_method(cart, checklist)
+
+
+def _check_cart_customer_allergen(
+    session: "Session",
+    cart: CartIntent,
+    checklist: PreSaleChecklist,
+) -> None:
+    """Check customer allergen against each product in the cart.
+
+    Extracted from validate_cart_intent to reduce complexity.
+    """
+    from app.rms.derived_intel import check_customer_risk
+
+    if cart.customer_id is None:
+        return
+    for line in cart.lines:
+        risk = check_customer_risk(session, cart.customer_id, line.product_id)
+        if not risk.safe:
+            checklist.blockers.append(
+                PreSaleWarning(
+                    code=f"CART_CUSTOMER_ALLERGEN@{line.line_index}",
+                    severity="blocker",
+                    message=(
+                        f"Línea {line.line_index + 1}: ⚠️ ALÉRGENO: "
+                        f"{risk.matched}. El cliente es alérgico."
+                    ),
                 )
-                # One hit is enough to block the cart; no need to
-                # check the other products.
-                break
+            )
+            # One hit is enough to block the cart; no need to
+            # check the other products.
+            break
 
-    # Closed day — applies to the whole cart, not per-line.
-    if cart.sold_at is not None and eod_is_day_closed(session, cart.sold_at):
+
+def _check_cart_day_closed(
+    session: "Session",
+    cart: CartIntent,
+    checklist: PreSaleChecklist,
+) -> None:
+    """Check if the sold_at day is closed.
+
+    Extracted from validate_cart_intent to reduce complexity.
+    """
+    from app.rms.eod_closed import eod_is_day_closed
+
+    if cart.sold_at is None:
+        return
+    if eod_is_day_closed(session, cart.sold_at):
         checklist.blockers.append(
             PreSaleWarning(
                 code="CART_DAY_CLOSED",
@@ -240,7 +332,15 @@ def validate_cart_intent(
             )
         )
 
-    # Payment method — info, cart-level.
+
+def _check_cart_payment_method(
+    cart: CartIntent,
+    checklist: PreSaleChecklist,
+) -> None:
+    """Check if payment method is set; emit info warning if not.
+
+    Extracted from validate_cart_intent to reduce complexity.
+    """
     if not cart.payment_method:
         checklist.warnings.append(
             PreSaleWarning(
@@ -249,5 +349,3 @@ def validate_cart_intent(
                 message="Sin forma de pago: la venta quedará como pendiente.",
             )
         )
-
-    return checklist

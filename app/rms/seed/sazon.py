@@ -2545,9 +2545,8 @@ INGREDIENTS: list[tuple] = [
 ]
 
 
-
 # 20+ recipes
-# Tuple: (name, yield_qty, yield_unit, prep_minutes, cook_minutes, difficulty 1-5, family, menu_tags, dietary_tags, notes)
+# Tuple: (name, yield_qty, yield_unit, prep_minutes, cook_minutes, difficulty 1-5, family, menu_tags, dietary_tags, notes, image_url)
 RECIPES: list[tuple] = [
     (
         "babka__rec_017",
@@ -2560,6 +2559,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-017). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-babka.jpg",
     ),
     (
         "bizcocho_basico_25_cm_basiscake__rec_011",
@@ -2572,6 +2572,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-011). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-bizcocho_basico_25_cm.jpg",
     ),
     (
         "bizcocho_basico_30_cm_basiscake__rec_012",
@@ -2584,6 +2585,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-012). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-bizcocho_basico_30_cm.jpg",
     ),
     (
         "bombones_de_chocolate__rec_018",
@@ -2596,6 +2598,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-018). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-bombones_de_chocolate.jpg",
     ),
     (
         "torta_de_zanahoria_43x33x1_5_cm__rec_005",
@@ -2608,6 +2611,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-005). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-torta_de_zanahoria.jpg",
     ),
     (
         "cheesecake_30x50__rec_002",
@@ -2620,6 +2624,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-002). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-cheesecake.jpg",
     ),
     (
         "muffin_de_chocolate_20x20_cm__rec_001",
@@ -2632,6 +2637,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-001). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-muffin_de_chocolate.jpg",
     ),
     (
         "frikandel_100_unidades__rec_022",
@@ -2644,6 +2650,7 @@ RECIPES: list[tuple] = [
         "",
         None,
         "Heredado del workbook (id REC-006). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-frikandel.jpg",
     ),
     (
         "galletas_de_especuloos_speculaasjes__rec_010",
@@ -2656,6 +2663,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-010). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-galletas_de_especuloos.jpg",
     ),
     (
         "goulash_crockettes__rec_019",
@@ -2668,6 +2676,7 @@ RECIPES: list[tuple] = [
         "",
         None,
         "Heredado del workbook (id REC-019). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-goulash_crockettes.jpg",
     ),
     (
         "hojaldre_bladerdeeg__rec_008",
@@ -2680,6 +2689,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-008). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-hojaldre.jpg",
     ),
     (
         "ketjap_manis_version_rapida__rec_007",
@@ -2692,6 +2702,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-007). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-ketjap_manis.jpg",
     ),
     (
         "oliebollen_bunuelos_tradicionales_holandeses__rec_016",
@@ -2704,6 +2715,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-016). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-oliebollen.jpg",
     ),
     (
         "ontbijtkoek_700g_de_harina__rec_004",
@@ -2716,6 +2728,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-004). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-ontbijtkoek.jpg",
     ),
     (
         "pastelitos_rosados_roze_koeken__rec_009",
@@ -2728,6 +2741,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-009). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-pastelitos_rosados.jpg",
     ),
     (
         "petisus_de_hojaldre_y_crema_tompoezen__rec_015",
@@ -2740,6 +2754,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-015). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-petisus_de_hojaldre_y_crema.jpg",
     ),
     (
         "proficteroles_de_den_bosch_bossche_bollen__rec_014",
@@ -2752,6 +2767,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-014). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-proficteroles_de_den_bosch.jpg",
     ),
     (
         "stroop_wafel__rec_003",
@@ -2764,6 +2780,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-003). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-stroop_wafel.jpg",
     ),
     (
         "suppli_cacio_e_pepe__rec_021",
@@ -2776,6 +2793,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-021). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-suppli_cacio_e_pepe.jpg",
     ),
     (
         "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013",
@@ -2788,6 +2806,7 @@ RECIPES: list[tuple] = [
         "",
         "vegetariano",
         "Heredado del workbook (id REC-013). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-tarta_de_manzana_de_mi_madre.jpg",
     ),
     (
         "bitterballen_vegetariano__rec_020",
@@ -2800,6 +2819,7 @@ RECIPES: list[tuple] = [
         "",
         None,
         "Heredado del workbook (id REC-020). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-bitterballen_vegetariano.jpg",
     ),
     (
         "bitterballen__rec_006",
@@ -2812,9 +2832,9 @@ RECIPES: list[tuple] = [
         "",
         None,
         "Heredado del workbook (id REC-006). Rinde estimada — el operador ajusta B4 después de hornear.",
+        "/static/recipes/receta-bitterballen.jpg",
     ),
 ]
-
 
 
 # Recipe lines: (recipe_name, ingredient_name, qty, line_unit, notes)
@@ -2901,9 +2921,21 @@ RECIPE_LINES: list[tuple[str, str, float, str, str | None]] = [
     # === galletas_de_especuloos_speculaasjes__rec_010 ===
     ("galletas_de_especuloos_speculaasjes__rec_010", "Manteca", 0.19, "kg", None),
     ("galletas_de_especuloos_speculaasjes__rec_010", "Azúcar morena", 0.205, "kg", None),
-    ("galletas_de_especuloos_speculaasjes__rec_010", "Suero de leche (buttermilk)", 0.045, "l", None),
+    (
+        "galletas_de_especuloos_speculaasjes__rec_010",
+        "Suero de leche (buttermilk)",
+        0.045,
+        "l",
+        None,
+    ),
     ("galletas_de_especuloos_speculaasjes__rec_010", "Harina de trigo", 0.4, "kg", None),
-    ("galletas_de_especuloos_speculaasjes__rec_010", "Mezcla de especias para Speculaas", 0.004, "kg", None),
+    (
+        "galletas_de_especuloos_speculaasjes__rec_010",
+        "Mezcla de especias para Speculaas",
+        0.004,
+        "kg",
+        None,
+    ),
     ("galletas_de_especuloos_speculaasjes__rec_010", "Bicarbonato de sodio", 0.002, "kg", None),
     # === goulash_crockettes__rec_019 ===
     ("goulash_crockettes__rec_019", "Aceite", 0.04, "l", None),
@@ -2944,7 +2976,13 @@ RECIPE_LINES: list[tuple[str, str, float, str, str | None]] = [
     ("oliebollen_bunuelos_tradicionales_holandeses__rec_016", "Leche", 1.0, "l", None),
     ("oliebollen_bunuelos_tradicionales_holandeses__rec_016", "Harina de trigo", 1.0, "kg", None),
     ("oliebollen_bunuelos_tradicionales_holandeses__rec_016", "Azúcar", 0.045, "kg", None),
-    ("oliebollen_bunuelos_tradicionales_holandeses__rec_016", "Ralladura de limón", 1.0, "und", None),
+    (
+        "oliebollen_bunuelos_tradicionales_holandeses__rec_016",
+        "Ralladura de limón",
+        1.0,
+        "und",
+        None,
+    ),
     ("oliebollen_bunuelos_tradicionales_holandeses__rec_016", "Sal", 0.02, "kg", None),
     # === ontbijtkoek_700g_de_harina__rec_004 ===
     ("ontbijtkoek_700g_de_harina__rec_004", "Harina de centeno", 0.7, "kg", None),
@@ -2968,7 +3006,13 @@ RECIPE_LINES: list[tuple[str, str, float, str, str | None]] = [
     ("petisus_de_hojaldre_y_crema_tompoezen__rec_015", "Crema pastelera", 0.001, "l", None),
     ("petisus_de_hojaldre_y_crema_tompoezen__rec_015", "Crema de leche", 0.4, "l", None),
     ("petisus_de_hojaldre_y_crema_tompoezen__rec_015", "Azúcar", 0.045, "kg", None),
-    ("petisus_de_hojaldre_y_crema_tompoezen__rec_015", "Estabilizante para nata", 0.001, "kg", None),
+    (
+        "petisus_de_hojaldre_y_crema_tompoezen__rec_015",
+        "Estabilizante para nata",
+        0.001,
+        "kg",
+        None,
+    ),
     ("petisus_de_hojaldre_y_crema_tompoezen__rec_015", "Azúcar glas", 0.125, "kg", None),
     ("petisus_de_hojaldre_y_crema_tompoezen__rec_015", "Agua", 0.002, "l", None),
     # === proficteroles_de_den_bosch_bossche_bollen__rec_014 ===
@@ -3000,16 +3044,46 @@ RECIPE_LINES: list[tuple[str, str, float, str, str | None]] = [
     ("suppli_cacio_e_pepe__rec_021", "Sal", 0.005, "kg", None),
     ("suppli_cacio_e_pepe__rec_021", "Pan rallado", 0.06, "kg", None),
     # === tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013 ===
-    ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Harina de trigo", 0.35, "kg", None),
-    ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Polvo de hornear", 0.002, "kg", None),
+    (
+        "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013",
+        "Harina de trigo",
+        0.35,
+        "kg",
+        None,
+    ),
+    (
+        "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013",
+        "Polvo de hornear",
+        0.002,
+        "kg",
+        None,
+    ),
     ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Sal", 0.001, "kg", None),
-    ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Vainilla", 0.001, "kg", None),
+    (
+        "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013",
+        "Vainilla",
+        0.001,
+        "kg",
+        None,
+    ),
     ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Azúcar", 0.175, "kg", None),
     ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Manteca", 0.25, "kg", None),
     ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Manzana", 6.0, "und", None),
     ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Canela", 0.002, "kg", None),
-    ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Polvo para natillas", 0.003, "kg", None),
-    ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Azúcar morena", 0.003, "kg", None),
+    (
+        "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013",
+        "Polvo para natillas",
+        0.003,
+        "kg",
+        None,
+    ),
+    (
+        "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013",
+        "Azúcar morena",
+        0.003,
+        "kg",
+        None,
+    ),
     ("tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013", "Pasas", 0.06, "kg", None),
     # === bitterballen_vegetariano__rec_020 ===
     ("bitterballen_vegetariano__rec_020", "Manteca", 0.085, "kg", None),
@@ -3052,7 +3126,6 @@ RECIPE_LINES: list[tuple[str, str, float, str, str | None]] = [
 ]
 
 
-
 # Products (40+).
 # Tuple: (name, recipe_name, portion_label, sale_price_gs, category, sku, iva_rate, rspa_number, is_favorite, dietary_tags, image_url, notes)
 PRODUCTS: list[tuple] = [
@@ -3067,7 +3140,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/babka.jpg",
         None,
     ),
     (
@@ -3081,7 +3154,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/bizcocho_basico_25_cm.jpg",
         None,
     ),
     (
@@ -3095,7 +3168,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/bizcocho_basico_30_cm.jpg",
         None,
     ),
     (
@@ -3109,7 +3182,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/bombones_de_chocolate.jpg",
         None,
     ),
     (
@@ -3123,7 +3196,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/torta_de_zanahoria.jpg",
         None,
     ),
     (
@@ -3137,7 +3210,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/cheesecake.jpg",
         None,
     ),
     (
@@ -3151,7 +3224,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/muffin_de_chocolate.jpg",
         None,
     ),
     (
@@ -3165,7 +3238,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/frikandel.jpg",
         None,
     ),
     (
@@ -3179,7 +3252,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/galletas_de_especuloos.jpg",
         None,
     ),
     (
@@ -3193,7 +3266,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/goulash_crockettes.jpg",
         None,
     ),
     (
@@ -3207,7 +3280,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/hojaldre.jpg",
         None,
     ),
     (
@@ -3221,7 +3294,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/ketjap_manis.jpg",
         None,
     ),
     (
@@ -3235,7 +3308,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/oliebollen.jpg",
         None,
     ),
     (
@@ -3249,7 +3322,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/ontbijtkoek.jpg",
         None,
     ),
     (
@@ -3263,7 +3336,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/pastelitos_rosados.jpg",
         None,
     ),
     (
@@ -3277,7 +3350,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/petisus_de_hojaldre_y_crema.jpg",
         None,
     ),
     (
@@ -3291,7 +3364,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/proficteroles_de_den_bosch.jpg",
         None,
     ),
     (
@@ -3305,7 +3378,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/stroop_wafel.jpg",
         None,
     ),
     (
@@ -3319,7 +3392,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/suppli_cacio_e_pepe.jpg",
         None,
     ),
     (
@@ -3333,7 +3406,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/tarta_de_manzana_de_mi_madre.jpg",
         None,
     ),
     (
@@ -3347,7 +3420,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/bitterballen_vegetariano.jpg",
         None,
     ),
     (
@@ -3361,7 +3434,7 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
+        "/static/products/bitterballen.jpg",
         None,
     ),
     (
@@ -3375,7 +3448,7 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
+        "/static/products/babka_entera.jpg",
         None,
     ),
     (
@@ -3389,7 +3462,7 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
+        "/static/products/cheesecake_entera.jpg",
         None,
     ),
     (
@@ -3403,7 +3476,7 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
+        "/static/products/docena_gofres_de_sirope.jpg",
         None,
     ),
     (
@@ -3417,7 +3490,7 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
+        "/static/products/docena_petisus.jpg",
         None,
     ),
     (
@@ -3431,7 +3504,7 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
+        "/static/products/docena_bunuelos.jpg",
         None,
     ),
     (
@@ -3445,7 +3518,7 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
+        "/static/products/bizcocho_25_cm_entero.jpg",
         None,
     ),
     (
@@ -3459,7 +3532,7 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
+        "/static/products/bizcocho_30_cm_entero.jpg",
         None,
     ),
     (
@@ -3473,7 +3546,7 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
+        "/static/products/caja_bombones.jpg",
         None,
     ),
     (
@@ -3487,7 +3560,7 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
+        "/static/products/docena_muffins_chocolate.jpg",
         None,
     ),
     (
@@ -3505,7 +3578,6 @@ PRODUCTS: list[tuple] = [
         "Venta libre — definí el precio en el carrito.",
     ),
 ]
-
 
 
 # 15 customers with realistic Paraguayan data
@@ -3775,21 +3847,110 @@ CUSTOMERS: list[tuple] = [
 #         channel_idx (Channel enum), notes, line_items: list[(product_name, qty)])
 # Channel: 0=MOSTRADOR, 1=WHATSAPP, 2=PEDIDOSYA, 3=PHONE
 PEDIDOS: list[tuple] = [
-    (0, -30, 10, 0, 'fulfilled', 'efectivo', 0, 'Cliente habitual, viernes', [('Muffin de chocolate (20x20 cm)', 6), ('Docena gofres de sirope', 1)]),
-    (1, -28, 14, 30, 'fulfilled', 'transferencia', 1, 'Pedido con factura', [('Cheesecake entera', 1)]),
-    (2, -21, 9, 0, 'fulfilled', 'efectivo', 0, None, [('Cheesecake (30x50)', 6)]),
-    (5, -14, 16, 0, 'fulfilled', 'efectivo', 0, 'Cliente celíaca', [('Cheesecake entera', 1)]),
-    (6, -7, 11, 0, 'fulfilled', 'tarjeta', 0, 'Factura con RUC', [('Babka', 2)]),
-    (8, -5, 8, 30, 'fulfilled', 'efectivo', 0, 'Para la oficina', [('Hojaldre (Bladerdeeg)', 4)]),
-    (2, -2, 10, 30, 'fulfilled', 'tarjeta', 0, 'Ya retirado', [('Petisús de hojaldre y crema (Tompoezen)', 2)]),
-    (4, -1, 15, 0, 'ready', 'efectivo', 1, 'Llamó por WhatsApp. Listo para retirar.', [('Muffin de chocolate (20x20 cm)', 6)]),
-    (9, 0, 11, 0, 'ready', 'transferencia', 1, 'Opciones vegetarianas', [('Tarta de manzana de mi madre (Mijn moeders appeltaart)', 1)]),
-    (12, 0, 18, 0, 'confirmed', 'transferencia', 1, 'Para evento mañana a las 20h', [('Cheesecake entera', 1)]),
-    (11, 1, 9, 0, 'confirmed', 'efectivo', 0, 'Pedido diario', [('Muffin de chocolate (20x20 cm)', 12)]),
-    (13, 2, 16, 0, 'pending', 'efectivo', 3, 'Llamó por teléfono. Para lunes 16h.', [('Docena gofres de sirope', 1)]),
-    (7, 1, 11, 0, 'confirmed', 'transferencia', 1, 'Decorada con flores', [('Cheesecake entera', 1)]),
+    (
+        0,
+        -30,
+        10,
+        0,
+        "fulfilled",
+        "efectivo",
+        0,
+        "Cliente habitual, viernes",
+        [("Muffin de chocolate (20x20 cm)", 6), ("Docena gofres de sirope", 1)],
+    ),
+    (
+        1,
+        -28,
+        14,
+        30,
+        "fulfilled",
+        "transferencia",
+        1,
+        "Pedido con factura",
+        [("Cheesecake entera", 1)],
+    ),
+    (2, -21, 9, 0, "fulfilled", "efectivo", 0, None, [("Cheesecake (30x50)", 6)]),
+    (5, -14, 16, 0, "fulfilled", "efectivo", 0, "Cliente celíaca", [("Cheesecake entera", 1)]),
+    (6, -7, 11, 0, "fulfilled", "tarjeta", 0, "Factura con RUC", [("Babka", 2)]),
+    (8, -5, 8, 30, "fulfilled", "efectivo", 0, "Para la oficina", [("Hojaldre (Bladerdeeg)", 4)]),
+    (
+        2,
+        -2,
+        10,
+        30,
+        "fulfilled",
+        "tarjeta",
+        0,
+        "Ya retirado",
+        [("Petisús de hojaldre y crema (Tompoezen)", 2)],
+    ),
+    (
+        4,
+        -1,
+        15,
+        0,
+        "ready",
+        "efectivo",
+        1,
+        "Llamó por WhatsApp. Listo para retirar.",
+        [("Muffin de chocolate (20x20 cm)", 6)],
+    ),
+    (
+        9,
+        0,
+        11,
+        0,
+        "ready",
+        "transferencia",
+        1,
+        "Opciones vegetarianas",
+        [("Tarta de manzana de mi madre (Mijn moeders appeltaart)", 1)],
+    ),
+    (
+        12,
+        0,
+        18,
+        0,
+        "confirmed",
+        "transferencia",
+        1,
+        "Para evento mañana a las 20h",
+        [("Cheesecake entera", 1)],
+    ),
+    (
+        11,
+        1,
+        9,
+        0,
+        "confirmed",
+        "efectivo",
+        0,
+        "Pedido diario",
+        [("Muffin de chocolate (20x20 cm)", 12)],
+    ),
+    (
+        13,
+        2,
+        16,
+        0,
+        "pending",
+        "efectivo",
+        3,
+        "Llamó por teléfono. Para lunes 16h.",
+        [("Docena gofres de sirope", 1)],
+    ),
+    (
+        7,
+        1,
+        11,
+        0,
+        "confirmed",
+        "transferencia",
+        1,
+        "Decorada con flores",
+        [("Cheesecake entera", 1)],
+    ),
 ]
-
 
 
 # Freezer temperature log (last 14 days, 2 readings per day)
@@ -3802,38 +3963,36 @@ HACCP_TEMP_MAX_C = -16.0
 # Market benchmarks
 # Tuple: (label, our_wholesale_gs, our_retail_gs, market_avg_gs, market_min_gs)
 BENCHMARKS: list[tuple[str, int, int, int, int]] = [
-    ('Muffin de chocolate (20x20 cm)', 5500, 8500, 9500, 7500),
-    ('Docena muffins chocolate', 55000, 85000, 88000, 75000),
-    ('Cheesecake (30x50)', 14000, 25000, 26000, 20000),
-    ('Cheesecake entera', 130000, 220000, 210000, 170000),
-    ('Stroop wafel', 4500, 7000, 8000, 5500),
-    ('Docena gofres de sirope', 55000, 85000, 88000, 75000),
-    ('Hojaldre (Bladerdeeg)', 6000, 8500, 9000, 7000),
-    ('Tarta de manzana de mi madre (Mijn moeders appeltaart)', 14000, 22000, 23000, 18000),
-    ('Petisús de hojaldre y crema (Tompoezen)', 5000, 7500, 8000, 6000),
-    ('Docena petisús', 50000, 75000, 80000, 60000),
-    ('Oliebollen (Buñuelos tradicionales holandeses)', 3500, 5500, 5500, 4000),
-    ('Docena buñuelos', 35000, 55000, 55000, 40000),
-    ('Babka', 12000, 18000, 17000, 14000),
-    ('Babka entera', 100000, 150000, 140000, 110000),
-    ('Bizcocho 25 cm entero', 120000, 180000, 170000, 140000),
-    ('Bizcocho 30 cm entero', 150000, 220000, 210000, 170000),
+    ("Muffin de chocolate (20x20 cm)", 5500, 8500, 9500, 7500),
+    ("Docena muffins chocolate", 55000, 85000, 88000, 75000),
+    ("Cheesecake (30x50)", 14000, 25000, 26000, 20000),
+    ("Cheesecake entera", 130000, 220000, 210000, 170000),
+    ("Stroop wafel", 4500, 7000, 8000, 5500),
+    ("Docena gofres de sirope", 55000, 85000, 88000, 75000),
+    ("Hojaldre (Bladerdeeg)", 6000, 8500, 9000, 7000),
+    ("Tarta de manzana de mi madre (Mijn moeders appeltaart)", 14000, 22000, 23000, 18000),
+    ("Petisús de hojaldre y crema (Tompoezen)", 5000, 7500, 8000, 6000),
+    ("Docena petisús", 50000, 75000, 80000, 60000),
+    ("Oliebollen (Buñuelos tradicionales holandeses)", 3500, 5500, 5500, 4000),
+    ("Docena buñuelos", 35000, 55000, 55000, 40000),
+    ("Babka", 12000, 18000, 17000, 14000),
+    ("Babka entera", 100000, 150000, 140000, 110000),
+    ("Bizcocho 25 cm entero", 120000, 180000, 170000, 140000),
+    ("Bizcocho 30 cm entero", 150000, 220000, 210000, 170000),
 ]
-
 
 
 # Waste log entries
 # Tuple: (ingredient_name, qty, reason, days_ago, recorded_by, notes)
 WASTE_LOG: list[tuple[str, float, str, int, str, str | None]] = [
-    ('Leche', 0.5, 'vencimiento', 12, 'lucia', 'Caja próxima a vencer'),
-    ('Manteca', 0.2, 'mal_estado', 5, 'lucia', 'Rancio'),
-    ('Huevos', 6, 'rotura', 4, 'saskia', 'Caja rota al recibir del proveedor'),
-    ('Harina de trigo', 0.5, 'derrame', 2, 'diego', 'Bolsa rota'),
-    ('Queso crema', 0.3, 'vencimiento', 1, 'saskia', 'Una vez abierto dura poco'),
-    ('Chocolate', 0.2, 'mal_estado', 15, 'lucia', 'Bolsa mal cerrada'),
-    ('Leche condensada', 0.4, 'mal_estado', 20, 'saskia', 'Lata hinchada'),
+    ("Leche", 0.5, "vencimiento", 12, "lucia", "Caja próxima a vencer"),
+    ("Manteca", 0.2, "mal_estado", 5, "lucia", "Rancio"),
+    ("Huevos", 6, "rotura", 4, "saskia", "Caja rota al recibir del proveedor"),
+    ("Harina de trigo", 0.5, "derrame", 2, "diego", "Bolsa rota"),
+    ("Queso crema", 0.3, "vencimiento", 1, "saskia", "Una vez abierto dura poco"),
+    ("Chocolate", 0.2, "mal_estado", 15, "lucia", "Bolsa mal cerrada"),
+    ("Leche condensada", 0.4, "mal_estado", 20, "saskia", "Lata hinchada"),
 ]
-
 
 
 # Initial stock movement records (one per ingredient: positive entry)
@@ -3842,30 +4001,28 @@ WASTE_LOG: list[tuple[str, float, str, int, str, str | None]] = [
 # Production plan template (weekly, every weekday gets a basic plan)
 # Tuple: (weekday 0-6, product_idx_in_PRODUCTS, qty, notes)
 PRODUCTION_TEMPLATES: list[tuple[int, int, float, str | None]] = [
-    (0, 6, 24, 'Lunes base'),
+    (0, 6, 24, "Lunes base"),
     (0, 15, 12, None),
-    (0, 0, 6, 'Lunes base'),
-    (1, 6, 18, 'Martes'),
+    (0, 0, 6, "Lunes base"),
+    (1, 6, 18, "Martes"),
     (1, 17, 12, None),
     (1, 0, 8, None),
-    (2, 6, 24, 'Miércoles'),
+    (2, 6, 24, "Miércoles"),
     (2, 17, 12, None),
     (2, 0, 8, None),
-    (3, 6, 30, 'Jueves popular'),
+    (3, 6, 30, "Jueves popular"),
     (3, 5, 18, None),
     (3, 19, 10, None),
-    (4, 6, 36, 'Viernes — día pico'),
-    (4, 5, 24, 'Viernes — día pico'),
+    (4, 6, 36, "Viernes — día pico"),
+    (4, 5, 24, "Viernes — día pico"),
     (4, 17, 12, None),
-    (4, 15, 12, 'Petisú fin de semana'),
-    (5, 6, 24, 'Sábado'),
+    (4, 15, 12, "Petisú fin de semana"),
+    (5, 6, 24, "Sábado"),
     (5, 5, 18, None),
     (5, 12, 12, None),
-    (6, 6, 18, 'Domingo'),
+    (6, 6, 18, "Domingo"),
     (6, 0, 4, None),
 ]
-
-
 
 
 @dataclass
@@ -4019,51 +4176,125 @@ def sazon_meta(session: Session) -> dict[str, str]:
     return {r.key: r.value for r in rows if r.value is not None}
 
 
+@dataclass
+class SeedContext:
+    """Shared context for seed_sazon sections.
+
+    Groups all shared state (session, report, rng, anchor_date, and
+    populated collections) so each section helper takes only `ctx`.
+    Populated collections start empty and are filled as the seed
+    progresses through the sections.
+    """
+
+    session: Session
+    report: SazonReport
+    rng: random.Random
+    anchor_date: Any  # datetime.date
+
+    # Populated as seed progresses
+    suppliers: list = field(default_factory=list)
+    ingredients_by_name: dict[str, Any] = field(default_factory=dict)
+    recipes_by_name: dict[str, Any] = field(default_factory=dict)
+    products_by_name: dict[str, Any] = field(default_factory=dict)
+    customers: list = field(default_factory=list)
+    pedidos: list = field(default_factory=list)
+    sales_by_date: dict[Any, list] = field(default_factory=dict)
+
+
 def seed_sazon(
     session: Session, *, overwrite: bool = False, days_of_history: int = 90
 ) -> SazonReport:
     """Idempotent comprehensive seed for La Vaquita Holandesa.
 
-    Args:
-        session: SQLAlchemy session
-        overwrite: if True, delete all data from the relevant tables first
-        days_of_history: how many days of synthetic sales to generate
-
-    Returns:
-        SazonReport with counts of inserted rows
+    Refactored 2026-10-09: complexity reduced from 232 to <5 using
+    SeedContext pattern. Each section is a helper that takes only `ctx`.
     """
-    rng = random.Random(42)
-    report = SazonReport()
-
-    # Anchor date used by production completions, pedidos, bank
-    # transactions, and (elsewhere) the sales loop. We pin it to
-    # today-anchored-on-this-call so the natural-key dedup logic for all
-    # of these stays stable across re-runs of the same seed_sazon call.
-    seed_anchor_date = datetime.now(ASUNCION_TZ).date()
+    ctx = SeedContext(
+        session=session,
+        report=SazonReport(),
+        rng=random.Random(42),
+        anchor_date=datetime.now(ASUNCION_TZ).date(),
+    )
 
     if overwrite:
         _delete_sazon_data(session)
 
-    # === 1. Tenants ===
+    _seed_tenants(ctx)
+    _seed_users(ctx)
+    _seed_settingskv_branding(ctx)
+    _seed_categories(ctx)
+    _seed_payment_methods(ctx)
+    _seed_margin_tiers(ctx)
+    _seed_stock_status_config(ctx)
+    _seed_storage_types(ctx)
+    _seed_storage_keywords(ctx)
+    _seed_date_presets(ctx)
+    _seed_message_templates(ctx)
+    _seed_delivery_zones(ctx)
+    _seed_compliance_info_single_row(ctx)
+    _seed_suppliers(ctx)
+    _seed_ingredients__variants__price_events(ctx)
+    _seed_recipes__recipelines(ctx)
+    _seed_products(ctx)
+    _seed_tags(ctx)
+    _seed_customers__addresses(ctx)
+    _seed_production_plan_templates(ctx)
+    _seed_production_completions_last_7_days_for_p(ctx)
+    _seed_pedidos__lines(ctx)
+    _seed_sales_90_days_of_realistic_data(ctx, days_of_history)
+    _seed_waste_log(ctx)
+    _seed_shopping_list_items_to_reorder(ctx)
+    _seed_haccp__freezer_temperature_log_last_14_(ctx)
+    _seed_market_benchmarks(ctx)
+    _seed_audit_log_initial_entries(ctx)
+    _seed_appmeta_pins_idempotency__onboarding_gu(ctx)
+    _seed_bank_transactions_a_few_recent_ones(ctx)
+
+    session.commit()
+    return ctx.report
+
+
+def _seed_tenants(ctx: SeedContext):
+    """Section 1: Tenants.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     _sazon_tenant, was_created = _ensure_tenant(
-        session, TENANT_SLUG, TENANT_NAME, TENANT_COLOR, TENANT_CURRENCY
+        ctx.session, TENANT_SLUG, TENANT_NAME, TENANT_COLOR, TENANT_CURRENCY
     )
     if was_created:
-        report.tenants += 1
-    _default_tenant, _ = _ensure_tenant(session, DEFAULT_TENANT_SLUG, "Default", "#7b3f00", "Gs.")
+        ctx.report.tenants += 1
+    _default_tenant, _ = _ensure_tenant(
+        ctx.session, DEFAULT_TENANT_SLUG, "Default", "#7b3f00", "Gs."
+    )
     logger.info(f"seed: tenant '{TENANT_NAME}' (slug={TENANT_SLUG})")
 
-    # === 2. Users ===
-    _saskia_user, was_created = _ensure_user(session, SASKIA_USER, SASKIA_PASSWORD, role="admin")
-    if was_created:
-        report.users += 1
-    for username, password, _full_name, _email in CASHIER_USERS:
-        _u, was_created = _ensure_user(session, username, password, role="cashier")
-        if was_created:
-            report.users += 1
-    logger.info(f"seed: {report.users} users (Saskia + 2 cashiers)")
 
-    # === 3. SettingsKV (BRANDING) ===
+def _seed_users(ctx: SeedContext):
+    """Section 2: Users.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    _saskia_user, was_created = _ensure_user(
+        ctx.session, SASKIA_USER, SASKIA_PASSWORD, role="admin"
+    )
+    if was_created:
+        ctx.report.users += 1
+    for username, password, _full_name, _email in CASHIER_USERS:
+        _u, was_created = _ensure_user(ctx.session, username, password, role="cashier")
+        if was_created:
+            ctx.report.users += 1
+    logger.info(f"seed: {ctx.report.users} users (Saskia + 2 cashiers)")
+
+
+def _seed_settingskv_branding(ctx: SeedContext):
+    """Section 3: SettingsKV (BRANDING).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     branding_settings = {
         "branding.business_name": TENANT_NAME,
         "branding.tagline": "Panadería artesanal desde 1985",
@@ -4083,48 +4314,60 @@ def seed_sazon(
         + ".",
     }
     for k, v in branding_settings.items():
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(SettingsKV).where(SettingsKV.key == k)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(SettingsKV(key=k, value_json=v, updated_at=datetime.now(ASUNCION_TZ)))
-            report.settings_kv += 1
+            ctx.session.add(SettingsKV(key=k, value_json=v, updated_at=datetime.now(ASUNCION_TZ)))
+            ctx.report.settings_kv += 1
         else:
-            report.skipped_existing["settings_kv_existing"] = (
-                report.skipped_existing.get("settings_kv_existing", 0) + 1
+            ctx.report.skipped_existing["settings_kv_existing"] = (
+                ctx.report.skipped_existing.get("settings_kv_existing", 0) + 1
             )
-    logger.info(f"seed: {report.settings_kv} settings_kv (BRANDING + OPS)")
+    logger.info(f"seed: {ctx.report.settings_kv} settings_kv (BRANDING + OPS)")
 
-    # === 4. Categories ===
+
+def _seed_categories(ctx: SeedContext):
+    """Section 4: Categories.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for name, sort_order, is_active in CATEGORIES_PRODUCT:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(Category).where(Category.scope == "product", Category.name == name)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 Category(name=name, scope="product", sort_order=sort_order, is_active=is_active)
             )
-            report.categories += 1
+            ctx.report.categories += 1
     for name, sort_order, is_active in CATEGORIES_RECIPE:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(Category).where(Category.scope == "recipe_family", Category.name == name)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 Category(
                     name=name, scope="recipe_family", sort_order=sort_order, is_active=is_active
                 )
             )
-            report.categories += 1
-    logger.info(f"seed: {report.categories} categories")
+            ctx.report.categories += 1
+    logger.info(f"seed: {ctx.report.categories} categories")
 
-    # === 5. Payment methods ===
+
+def _seed_payment_methods(ctx: SeedContext):
+    """Section 5: Payment methods.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for code, label, requires_ref, fee, sort_order, is_default, is_active, notes in PAYMENT_METHODS:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(PaymentMethod).where(PaymentMethod.code == code)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 PaymentMethod(
                     code=code,
                     label=label,
@@ -4136,16 +4379,22 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.payment_methods += 1
-    logger.info(f"seed: {report.payment_methods} payment methods")
+            ctx.report.payment_methods += 1
+    logger.info(f"seed: {ctx.report.payment_methods} payment methods")
 
-    # === 6. Margin tiers ===
+
+def _seed_margin_tiers(ctx: SeedContext):
+    """Section 6: Margin tiers.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for code, label, min_cost, max_cost, sort_order, notes in MARGIN_TIERS:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(MarginTier).where(MarginTier.code == code)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 MarginTier(
                     code=code,
                     label=label,
@@ -4156,16 +4405,22 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.margin_tiers += 1
-    logger.info(f"seed: {report.margin_tiers} margin tiers")
+            ctx.report.margin_tiers += 1
+    logger.info(f"seed: {ctx.report.margin_tiers} margin tiers")
 
-    # === 7. Stock status config ===
+
+def _seed_stock_status_config(ctx: SeedContext):
+    """Section 7: Stock status config.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for code, label, ratio, days, sort_order, notes in STOCK_STATUSES:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(StockStatusConfig).where(StockStatusConfig.code == code)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 StockStatusConfig(
                     code=code,
                     label=label,
@@ -4176,16 +4431,22 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.stock_statuses += 1
-    logger.info(f"seed: {report.stock_statuses} stock statuses")
+            ctx.report.stock_statuses += 1
+    logger.info(f"seed: {ctx.report.stock_statuses} stock statuses")
 
-    # === 8. Storage types ===
+
+def _seed_storage_types(ctx: SeedContext):
+    """Section 8: Storage types.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for code, label, tmin, tmax, hum, sort_order, notes in STORAGE_TYPES:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(StorageType).where(StorageType.code == code)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 StorageType(
                     code=code,
                     label=label,
@@ -4197,18 +4458,24 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.storage_types += 1
-    logger.info(f"seed: {report.storage_types} storage types")
+            ctx.report.storage_types += 1
+    logger.info(f"seed: {ctx.report.storage_types} storage types")
 
-    # === 9. Storage keywords ===
+
+def _seed_storage_keywords(ctx: SeedContext):
+    """Section 9: Storage keywords.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for code, keyword, sort_order in STORAGE_KEYWORDS:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(StorageKeyword).where(
                 StorageKeyword.storage_code == code, StorageKeyword.keyword == keyword
             )
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 StorageKeyword(
                     storage_code=code,
                     keyword=keyword,
@@ -4216,16 +4483,22 @@ def seed_sazon(
                     is_active=True,
                 )
             )
-            report.storage_keywords += 1
-    logger.info(f"seed: {report.storage_keywords} storage keywords")
+            ctx.report.storage_keywords += 1
+    logger.info(f"seed: {ctx.report.storage_keywords} storage keywords")
 
-    # === 10. Date presets ===
+
+def _seed_date_presets(ctx: SeedContext):
+    """Section 10: Date presets.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for code, label, days, is_default, sort_order in DATE_PRESETS:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(DateRangePreset).where(DateRangePreset.code == code)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 DateRangePreset(
                     code=code,
                     label=label,
@@ -4235,12 +4508,18 @@ def seed_sazon(
                     is_active=True,
                 )
             )
-            report.date_presets += 1
-    logger.info(f"seed: {report.date_presets} date presets")
+            ctx.report.date_presets += 1
+    logger.info(f"seed: {ctx.report.date_presets} date presets")
 
-    # === 11. Message templates ===
+
+def _seed_message_templates(ctx: SeedContext):
+    """Section 11: Message templates.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for channel, key, subject, body, notes in MESSAGE_TEMPLATES:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(MessageTemplate).where(
                 MessageTemplate.channel == channel,
                 MessageTemplate.key == key,
@@ -4248,7 +4527,7 @@ def seed_sazon(
             )
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 MessageTemplate(
                     channel=channel,
                     key=key,
@@ -4260,16 +4539,22 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.message_templates += 1
-    logger.info(f"seed: {report.message_templates} message templates")
+            ctx.report.message_templates += 1
+    logger.info(f"seed: {ctx.report.message_templates} message templates")
 
-    # === 12. Delivery zones ===
+
+def _seed_delivery_zones(ctx: SeedContext):
+    """Section 12: Delivery zones.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for code, name, coverage, radius, cost, min_order, mins, notes in DELIVERY_ZONES:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(DeliveryZone).where(DeliveryZone.code == code)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 DeliveryZone(
                     code=code,
                     name=name,
@@ -4283,14 +4568,16 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.delivery_zones += 1
-    logger.info(f"seed: {report.delivery_zones} delivery zones")
+            ctx.report.delivery_zones += 1
+    logger.info(f"seed: {ctx.report.delivery_zones} delivery zones")
 
     # === 13a. Channels ===
     for code, label, sort_order, is_default, notes in CHANNELS:
-        existing = session.execute(select(Channel).where(Channel.code == code)).scalar_one_or_none()
+        existing = ctx.session.execute(
+            select(Channel).where(Channel.code == code)
+        ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 Channel(
                     code=code,
                     label=label,
@@ -4302,22 +4589,34 @@ def seed_sazon(
             )
     logger.info(f"seed: {len(CHANNELS)} channels")
 
-    # === 13. Compliance info (single-row) ===
-    existing_compliance = session.execute(
+
+def _seed_compliance_info_single_row(ctx: SeedContext):
+    """Section 13: Compliance info (single-row).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    existing_compliance = ctx.session.execute(
         select(ComplianceInfo).where(ComplianceInfo.id == 1)
     ).scalar_one_or_none()
     if existing_compliance is None:
         compliance_copy = dict(COMPLIANCE)
         compliance_copy["updated_at"] = datetime.now(ASUNCION_TZ)
         ci = ComplianceInfo(id=1, **compliance_copy)
-        session.add(ci)
-        report.compliance = 1
+        ctx.session.add(ci)
+        ctx.report.compliance = 1
     logger.info("seed: compliance info (La Vaquita Holandesa S.A.)")
 
-    # === 14. Suppliers ===
-    supplier_objs: list[Supplier] = []
+
+def _seed_suppliers(ctx: SeedContext):
+    """Section 14: Suppliers.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    ctx.suppliers: list[Supplier] = []
     for name, contact, phone, email, address, ruc, notes in SUPPLIERS:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(Supplier).where(Supplier.name == name)
         ).scalar_one_or_none()
         if existing is None:
@@ -4331,16 +4630,22 @@ def seed_sazon(
                 is_active=True,
                 notes=notes,
             )
-            session.add(s)
-            session.flush()
-            supplier_objs.append(s)
-            report.suppliers += 1
+            ctx.session.add(s)
+            ctx.session.flush()
+            ctx.suppliers.append(s)
+            ctx.report.suppliers += 1
         else:
-            supplier_objs.append(existing)
-    logger.info(f"seed: {report.suppliers} suppliers")
+            ctx.suppliers.append(existing)
+    logger.info(f"seed: {ctx.report.suppliers} suppliers")
 
-    # === 15. Ingredients + variants + price events ===
-    ingredient_objs_by_name: dict[str, Ingredient] = {}
+
+def _seed_ingredients__variants__price_events(ctx: SeedContext):
+    """Section 15: Ingredients + variants + price events.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    ctx.ingredients_by_name: dict[str, Ingredient] = {}
     for ing_tuple in INGREDIENTS:
         (
             name,
@@ -4364,7 +4669,7 @@ def seed_sazon(
             temp_min,
             temp_max,
         ) = ing_tuple
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(Ingredient).where(Ingredient.name == name)
         ).scalar_one_or_none()
         if existing is None:
@@ -4385,8 +4690,8 @@ def seed_sazon(
                 allergens=allergens,
                 dietary_tags=dietary_tags,
                 lead_time_days=3,
-                supplier_id=supplier_objs[supplier_idx].id
-                if supplier_idx < len(supplier_objs)
+                supplier_id=ctx.suppliers[supplier_idx].id
+                if supplier_idx < len(ctx.suppliers)
                 else None,
                 temp_min_c=temp_min,
                 temp_max_c=temp_max,
@@ -4398,10 +4703,10 @@ def seed_sazon(
                 opening_stock_date=datetime.now(ASUNCION_TZ).date().isoformat(),
                 reorder_point=min_stock * 1.5,
             )
-            session.add(ing)
-            session.flush()
-            ingredient_objs_by_name[name] = ing
-            report.ingredients += 1
+            ctx.session.add(ing)
+            ctx.session.flush()
+            ctx.ingredients_by_name[name] = ing
+            ctx.report.ingredients += 1
 
             # Variant (preferred)
             if package_size > 0:
@@ -4411,20 +4716,20 @@ def seed_sazon(
                     package_unit=package_unit,
                     purchase_price_gs=package_price_gs if package_price_gs > 0 else None,
                     stock_qty=stock_qty / package_size if package_size > 0 else 0,
-                    supplier_id=supplier_objs[supplier_idx].id
-                    if supplier_idx < len(supplier_objs)
+                    supplier_id=ctx.suppliers[supplier_idx].id
+                    if supplier_idx < len(ctx.suppliers)
                     else None,
                     preferred=True,
                     notes="Variante preferida (seed)",
                 )
-                session.add(variant)
-                report.ingredient_variants += 1
+                ctx.session.add(variant)
+                ctx.report.ingredient_variants += 1
 
             # Price history events (3 events over past 60 days)
             if price_gs > 0:
                 for days_ago in [60, 30, 7]:
-                    variation = rng.uniform(0.93, 1.07)
-                    session.add(
+                    variation = ctx.rng.uniform(0.93, 1.07)
+                    ctx.session.add(
                         IngredientPriceEvent(
                             ingredient_id=ing.id,
                             price_gs=int(price_gs * variation),
@@ -4432,23 +4737,41 @@ def seed_sazon(
                             source="restock",
                         )
                     )
-                    report.ingredient_price_events += 1
+                    ctx.report.ingredient_price_events += 1
         else:
-            ingredient_objs_by_name[name] = existing
-            report.skipped_existing["ingredients_existing"] = (
-                report.skipped_existing.get("ingredients_existing", 0) + 1
+            ctx.ingredients_by_name[name] = existing
+            ctx.report.skipped_existing["ingredients_existing"] = (
+                ctx.report.skipped_existing.get("ingredients_existing", 0) + 1
             )
     logger.info(
-        f"seed: {report.ingredients} ingredients + {report.ingredient_variants} variants + {report.ingredient_price_events} price events"
+        f"seed: {ctx.report.ingredients} ingredients + {ctx.report.ingredient_variants} variants + {ctx.report.ingredient_price_events} price events"
     )
 
-    # === 16. Recipes + RecipeLines ===
-    recipe_objs_by_name: dict[str, Recipe] = {}
+
+def _seed_recipes__recipelines(ctx: SeedContext):
+    """Section 16: Recipes + RecipeLines.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    ctx.recipes_by_name: dict[str, Recipe] = {}
     for recipe_tuple in RECIPES:
-        name, yield_qty, yield_unit, prep, cook, diff, family, menu_tags, dietary, notes = (
-            recipe_tuple
-        )
-        existing = session.execute(select(Recipe).where(Recipe.name == name)).scalar_one_or_none()
+        (
+            name,
+            yield_qty,
+            yield_unit,
+            prep,
+            cook,
+            diff,
+            family,
+            menu_tags,
+            dietary,
+            notes,
+            image_url,
+        ) = recipe_tuple
+        existing = ctx.session.execute(
+            select(Recipe).where(Recipe.name == name)
+        ).scalar_one_or_none()
         if existing is None:
             r = Recipe(
                 name=name,
@@ -4461,28 +4784,29 @@ def seed_sazon(
                 menu_tags=menu_tags,
                 dietary_tags=dietary,
                 notes=notes,
+                image_url=image_url,
                 yield_percentage=0.95,
                 direct_labor_minutes=prep,
             )
-            session.add(r)
-            session.flush()
-            recipe_objs_by_name[name] = r
-            report.recipes += 1
+            ctx.session.add(r)
+            ctx.session.flush()
+            ctx.recipes_by_name[name] = r
+            ctx.report.recipes += 1
         else:
-            recipe_objs_by_name[name] = existing
-            report.skipped_existing["recipes_existing"] = (
-                report.skipped_existing.get("recipes_existing", 0) + 1
+            ctx.recipes_by_name[name] = existing
+            ctx.report.skipped_existing["recipes_existing"] = (
+                ctx.report.skipped_existing.get("recipes_existing", 0) + 1
             )
 
     # Recipe lines
     for recipe_name, ing_name, qty, line_unit, notes in RECIPE_LINES:
-        recipe_id = recipe_objs_by_name.get(recipe_name)
-        ing_id = ingredient_objs_by_name.get(ing_name)
+        recipe_id = ctx.recipes_by_name.get(recipe_name)
+        ing_id = ctx.ingredients_by_name.get(ing_name)
         if not recipe_id or not ing_id:
             logger.warning(f"seed: missing ref for recipe_line {recipe_name}/{ing_name}, skipping")
             continue
         # Idempotent: same recipe + same ingredient + same line_unit + same qty
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(RecipeLine).where(
                 RecipeLine.recipe_id == recipe_id.id,
                 RecipeLine.line_kind == "ingredient",
@@ -4491,7 +4815,7 @@ def seed_sazon(
             )
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 RecipeLine(
                     recipe_id=recipe_id.id,
                     line_kind="ingredient",
@@ -4501,11 +4825,17 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.recipe_lines += 1
-    logger.info(f"seed: {report.recipe_lines} recipe lines")
+            ctx.report.recipe_lines += 1
+    logger.info(f"seed: {ctx.report.recipe_lines} recipe lines")
 
-    # === 17. Products ===
-    product_objs_by_name: dict[str, Product] = {}
+
+def _seed_products(ctx: SeedContext):
+    """Section 17: Products.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    ctx.products_by_name: dict[str, Product] = {}
     for prod_tuple in PRODUCTS:
         (
             name,
@@ -4521,9 +4851,11 @@ def seed_sazon(
             image_url,
             notes,
         ) = prod_tuple
-        existing = session.execute(select(Product).where(Product.name == name)).scalar_one_or_none()
+        existing = ctx.session.execute(
+            select(Product).where(Product.name == name)
+        ).scalar_one_or_none()
         if existing is None:
-            recipe = recipe_objs_by_name.get(recipe_name) if recipe_name else None
+            recipe = ctx.recipes_by_name.get(recipe_name) if recipe_name else None
             p = Product(
                 name=name,
                 recipe_id=recipe.id if recipe else None,
@@ -4541,17 +4873,23 @@ def seed_sazon(
                 rspa_number=rspa_number,
                 rspa_expiry="2027-12-31" if rspa_number else None,
             )
-            session.add(p)
-            session.flush()
-            product_objs_by_name[name] = p
-            report.products += 1
+            ctx.session.add(p)
+            ctx.session.flush()
+            ctx.products_by_name[name] = p
+            ctx.report.products += 1
         else:
-            product_objs_by_name[name] = existing
-    logger.info(f"seed: {report.products} products")
+            ctx.products_by_name[name] = existing
+    logger.info(f"seed: {ctx.report.products} products")
 
-    # === 18. Tags ===
+
+def _seed_tags(ctx: SeedContext):
+    """Section 18: Tags.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     # Make sure the starter tags are in place
-    ensure_starter_tags(session)
+    ensure_starter_tags(ctx.session)
     # Add a few custom tags
     custom_tags = [
         ("popular", TagKind.PRODUCT.value, "#FF9800"),
@@ -4564,31 +4902,37 @@ def seed_sazon(
         ("vegano", TagKind.INGREDIENT.value, "#4CAF50"),
     ]
     for tag_name, kind, color in custom_tags:
-        t = ensure_tag(session, tag_name, kind)
+        t = ensure_tag(ctx.session, tag_name, kind)
         if t.color == "#757575":  # default
             t.color = color
-            session.flush()
-        report.tags += 1
+            ctx.session.flush()
+        ctx.report.tags += 1
     # Apply tags to products
-    popular = ensure_tag(session, "popular", TagKind.PRODUCT.value)
-    premium = ensure_tag(session, "premium", TagKind.PRODUCT.value)
-    docena = ensure_tag(session, "docena", TagKind.PRODUCT.value)
-    individual = ensure_tag(session, "individual", TagKind.PRODUCT.value)
+    popular = ensure_tag(ctx.session, "popular", TagKind.PRODUCT.value)
+    premium = ensure_tag(ctx.session, "premium", TagKind.PRODUCT.value)
+    docena = ensure_tag(ctx.session, "docena", TagKind.PRODUCT.value)
+    individual = ensure_tag(ctx.session, "individual", TagKind.PRODUCT.value)
     for prod_name, _, _, _, _, _, _, _, is_fav, _, _, _ in PRODUCTS:
-        prod = product_objs_by_name.get(prod_name)
+        prod = ctx.products_by_name.get(prod_name)
         if prod is None:
             continue
         if is_fav:
-            tag_target(session, popular, TagKind.PRODUCT.value, prod.id)
-            tag_target(session, premium, TagKind.PRODUCT.value, prod.id)
+            tag_target(ctx.session, popular, TagKind.PRODUCT.value, prod.id)
+            tag_target(ctx.session, premium, TagKind.PRODUCT.value, prod.id)
         if "12" in prod.portion_label or "docena" in prod.portion_label.lower():
-            tag_target(session, docena, TagKind.PRODUCT.value, prod.id)
+            tag_target(ctx.session, docena, TagKind.PRODUCT.value, prod.id)
         elif "1 unidad" == prod.portion_label:
-            tag_target(session, individual, TagKind.PRODUCT.value, prod.id)
+            tag_target(ctx.session, individual, TagKind.PRODUCT.value, prod.id)
     logger.info("seed: tags applied")
 
-    # === 19. Customers + addresses ===
-    customer_objs: list[Customer] = []
+
+def _seed_customers__addresses(ctx: SeedContext):
+    """Section 19: Customers + addresses.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    ctx.customers: list[Customer] = []
     for cust_tuple in CUSTOMERS:
         (
             name,
@@ -4607,7 +4951,7 @@ def seed_sazon(
             diet_p,
             diet_confirm,
         ) = cust_tuple
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(Customer).where(Customer.phone == phone)
         ).scalar_one_or_none()
         if existing is None:
@@ -4629,10 +4973,10 @@ def seed_sazon(
                 dietary_preferences=diet_p,
                 dietary_confirm_always=diet_confirm,
             )
-            session.add(c)
-            session.flush()
-            customer_objs.append(c)
-            report.customers += 1
+            ctx.session.add(c)
+            ctx.session.flush()
+            ctx.customers.append(c)
+            ctx.report.customers += 1
 
             if address:
                 addr = CustomerAddress(
@@ -4650,28 +4994,36 @@ def seed_sazon(
                     is_active=True,
                     created_at=datetime.now(ASUNCION_TZ),
                 )
-                session.add(addr)
-                report.customer_addresses += 1
+                ctx.session.add(addr)
+                ctx.report.customer_addresses += 1
         else:
-            customer_objs.append(existing)
-    logger.info(f"seed: {report.customers} customers + {report.customer_addresses} addresses")
+            ctx.customers.append(existing)
+    logger.info(
+        f"seed: {ctx.report.customers} customers + {ctx.report.customer_addresses} addresses"
+    )
 
-    # === 20. Production plan templates ===
+
+def _seed_production_plan_templates(ctx: SeedContext):
+    """Section 20: Production plan templates.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for weekday, prod_idx, qty, notes in PRODUCTION_TEMPLATES:
         if prod_idx >= len(PRODUCTS):
             continue
         prod_name = PRODUCTS[prod_idx][0]
-        prod = product_objs_by_name.get(prod_name)
+        prod = ctx.products_by_name.get(prod_name)
         if not prod:
             continue
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(ProductionPlanTemplate).where(
                 ProductionPlanTemplate.weekday == weekday,
                 ProductionPlanTemplate.product_id == prod.id,
             )
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 ProductionPlanTemplate(
                     weekday=weekday,
                     product_id=prod.id,
@@ -4681,39 +5033,45 @@ def seed_sazon(
                     updated_by=SASKIA_USER,
                 )
             )
-            report.production_templates += 1
-    logger.info(f"seed: {report.production_templates} production templates")
+            ctx.report.production_templates += 1
+    logger.info(f"seed: {ctx.report.production_templates} production templates")
 
-    # === 21. Production completions (last 7 days for popular products) ===
-    # Use seed_anchor_date (defined at top of seed_sazon) so the anchor is
+
+def _seed_production_completions_last_7_days_for_p(ctx: SeedContext):
+    """Section 21: Production completions (last 7 days for popular products).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    # Use ctx.anchor_date (defined at top of seed_sazon) so the anchor is
     # stable across re-runs of the same seed_sazon call. Without this,
     # the (product_id, for_date) natural-key dedup would miss on re-runs
     # and silently double the production completions.
-    today = seed_anchor_date
+    ctx.anchor_date = ctx.anchor_date
     for days_ago in range(7):
-        d = today - timedelta(days=days_ago)
+        d = ctx.anchor_date - timedelta(days=days_ago)
         for prod_name in [
-            'Muffin de chocolate (20x20 cm)',
-            'Cheesecake (30x50)',
-            'Petisús de hojaldre y crema (Tompoezen)',
-            'Babka',
-            'Stroop wafel',
-            'Tarta de manzana de mi madre (Mijn moeders appeltaart)',
-            'Babka entera',
-            'Cheesecake entera',
+            "Muffin de chocolate (20x20 cm)",
+            "Cheesecake (30x50)",
+            "Petisús de hojaldre y crema (Tompoezen)",
+            "Babka",
+            "Stroop wafel",
+            "Tarta de manzana de mi madre (Mijn moeders appeltaart)",
+            "Babka entera",
+            "Cheesecake entera",
         ]:
-            prod = product_objs_by_name.get(prod_name)
+            prod = ctx.products_by_name.get(prod_name)
             if not prod:
                 continue
-            existing = session.execute(
+            existing = ctx.session.execute(
                 select(ProductionCompletion).where(
                     ProductionCompletion.product_id == prod.id,
                     ProductionCompletion.for_date == d,
                 )
             ).scalar_one_or_none()
             if existing is None:
-                qty = rng.randint(8, 24)
-                session.add(
+                qty = ctx.rng.randint(8, 24)
+                ctx.session.add(
                     ProductionCompletion(
                         product_id=prod.id,
                         for_date=d,
@@ -4725,135 +5083,237 @@ def seed_sazon(
                         updated_at=datetime.now(ASUNCION_TZ) if days_ago > 0 else None,
                     )
                 )
-                report.production_completions += 1
-    logger.info(f"seed: {report.production_completions} production completions (last 7 days)")
+                ctx.report.production_completions += 1
+    logger.info(f"seed: {ctx.report.production_completions} production completions (last 7 days)")
 
-    # === 22. Pedidos + lines ===
+
+def _seed_pedidos__lines(ctx: SeedContext):
+    """Section 22: Pedidos + lines.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
     channel_codes = [c[0] for c in CHANNELS]
     for ped_tuple in PEDIDOS:
-        cust_idx, days_ago, hour, minute, status, payment, channel_idx, notes, line_items = (
-            ped_tuple
-        )
-        if cust_idx >= len(customer_objs):
+        if not _process_single_pedido(ctx, ped_tuple, channel_codes):
             continue
-        cust = customer_objs[cust_idx]
-        promised_date = today + timedelta(days=days_ago)
-        promised_dt = datetime.combine(promised_date, datetime.min.time()) + timedelta(
-            hours=hour, minutes=minute
-        )
-        token = secrets.token_urlsafe(16)
-        # Skip empty line items (e.g. "Café (no vendido)")
-        valid_lines = [(pn, q) for pn, q in line_items if q > 0 and pn in product_objs_by_name]
-        if not valid_lines:
-            continue
-        channel_code = (
-            channel_codes[channel_idx]
-            if channel_idx < len(channel_codes)
-            else ChannelEnum.MOSTRADOR.value  # P43: enum fallback
-        )
-        existing = session.execute(
-            select(Pedido).where(
-                Pedido.customer_id == cust.id,
-                Pedido.promised_date == promised_date,
-                Pedido.status == status,
-            )
-        ).scalar_one_or_none()
-        if existing is None:
-            ped = Pedido(
-                customer_id=cust.id,
-                customer_name=cust.name,
-                customer_phone=cust.phone,
-                promised_date=promised_date,
-                promised_time=f"{hour:02d}:{minute:02d}",
-                channel=channel_code,  # free-text VARCHAR
-                status=status,
-                payment_intent=payment,
-                notes=notes,
-                public_token=token,
-                public_token_expires_at=datetime.now(ASUNCION_TZ) + timedelta(days=30),
-                created_at=promised_dt - timedelta(hours=2),
-                updated_at=promised_dt,
-                fulfilled_at=promised_dt if status == "fulfilled" else None,
-            )
-            session.add(ped)
-            session.flush()
-            report.pedidos += 1
-            for prod_name, qty in valid_lines:
-                prod = product_objs_by_name[prod_name]
-                line = PedidoLine(
-                    pedido_id=ped.id,
-                    product_id=prod.id,
-                    qty=qty,
-                    unit_price_gs=prod.sale_price_gs,
-                    fulfilled_qty=qty if status == "fulfilled" else 0,
-                )
-                session.add(line)
-                report.pedido_lines += 1
-                # PedidoEvent
-                session.add(
-                    PedidoEvent(
-                        pedido_id=ped.id,
-                        ts=promised_dt - timedelta(hours=2),
-                        actor=SASKIA_USER,
-                        event_type="created",
-                        payload_json={"channel": channel_code},
-                    )
-                )
-                if status != "pending":
-                    session.add(
-                        PedidoEvent(
-                            pedido_id=ped.id,
-                            ts=promised_dt - timedelta(hours=1, minutes=30),
-                            actor=SASKIA_USER,
-                            event_type="status_change",
-                            payload_json={"from": "pending", "to": "confirmed"},
-                        )
-                    )
-                if status in ("ready", "fulfilled"):
-                    session.add(
-                        PedidoEvent(
-                            pedido_id=ped.id,
-                            ts=promised_dt - timedelta(minutes=30),
-                            actor=SASKIA_USER,
-                            event_type="status_change",
-                            payload_json={"from": "confirmed", "to": "ready"},
-                        )
-                    )
-                if status == "fulfilled":
-                    session.add(
-                        PedidoEvent(
-                            pedido_id=ped.id,
-                            ts=promised_dt,
-                            actor=SASKIA_USER,
-                            event_type="status_change",
-                            payload_json={"from": "ready", "to": "fulfilled"},
-                        )
-                    )
-    logger.info(f"seed: {report.pedidos} pedidos + {report.pedido_lines} pedido lines")
+    logger.info(f"seed: {ctx.report.pedidos} pedidos + {ctx.report.pedido_lines} pedido lines")
 
-    # === 23. Sales (90 days of realistic data) ===
+
+def _process_single_pedido(ctx: SeedContext, ped_tuple, channel_codes: list[str]) -> bool:
+    """Process a single pedido tuple. Returns True if created.
+
+    Extracted from _seed_pedidos__lines to reduce complexity.
+    """
+    cust_idx, days_ago, hour, minute, status, payment, channel_idx, notes, line_items = ped_tuple
+    if cust_idx >= len(ctx.customers):
+        return False
+    cust = ctx.customers[cust_idx]
+    promised_date = ctx.anchor_date + timedelta(days=days_ago)
+    promised_dt = datetime.combine(promised_date, datetime.min.time()) + timedelta(
+        hours=hour, minutes=minute
+    )
+    valid_lines = [(pn, q) for pn, q in line_items if q > 0 and pn in ctx.products_by_name]
+    if not valid_lines:
+        return False
+
+    channel_code = _resolve_channel_code(channel_codes, channel_idx)
+
+    existing = _find_existing_pedido(ctx, cust.id, promised_date, status)
+    if existing is not None:
+        return False
+
+    ped = _create_pedido(
+        ctx, cust, promised_date, promised_dt, hour, minute, channel_code, status, payment, notes
+    )
+    ctx.session.add(ped)
+    ctx.session.flush()
+    ctx.report.pedidos += 1
+
+    _create_pedido_lines_and_events(ctx, ped, valid_lines, promised_dt, status, channel_code)
+    return True
+
+
+def _resolve_channel_code(channel_codes: list[str], channel_idx: int) -> str:
+    """Resolve channel code from index, with fallback.
+
+    Extracted from _seed_pedidos__lines to reduce complexity.
+    """
+    if channel_idx < len(channel_codes):
+        return channel_codes[channel_idx]
+    return ChannelEnum.MOSTRADOR.value  # P43: enum fallback
+
+
+def _find_existing_pedido(ctx: SeedContext, customer_id: int, promised_date, status: str):
+    """Find existing pedido matching (customer, date, status).
+
+    Extracted from _seed_pedidos__lines to reduce complexity.
+    """
+    return ctx.session.execute(
+        select(Pedido).where(
+            Pedido.customer_id == customer_id,
+            Pedido.promised_date == promised_date,
+            Pedido.status == status,
+        )
+    ).scalar_one_or_none()
+
+
+def _create_pedido(
+    ctx: SeedContext,
+    cust,
+    promised_date,
+    promised_dt,
+    hour: int,
+    minute: int,
+    channel_code: str,
+    status: str,
+    payment: str,
+    notes: str,
+) -> Pedido:
+    """Create a Pedido ORM row.
+
+    Extracted from _seed_pedidos__lines to reduce complexity.
+    """
+    token = secrets.token_urlsafe(16)
+    return Pedido(
+        customer_id=cust.id,
+        customer_name=cust.name,
+        customer_phone=cust.phone,
+        promised_date=promised_date,
+        promised_time=f"{hour:02d}:{minute:02d}",
+        channel=channel_code,
+        status=status,
+        payment_intent=payment,
+        notes=notes,
+        public_token=token,
+        public_token_expires_at=datetime.now(ASUNCION_TZ) + timedelta(days=30),
+        created_at=promised_dt - timedelta(hours=2),
+        updated_at=promised_dt,
+        fulfilled_at=promised_dt if status == "fulfilled" else None,
+    )
+
+
+def _create_pedido_lines_and_events(
+    ctx: SeedContext,
+    ped: Pedido,
+    valid_lines: list,
+    promised_dt,
+    status: str,
+    channel_code: str,
+) -> None:
+    """Create pedido lines and their associated events.
+
+    Extracted from _seed_pedidos__lines to reduce complexity.
+    """
+    for prod_name, qty in valid_lines:
+        prod = ctx.products_by_name[prod_name]
+        _add_pedido_line(ctx, ped, prod, qty, status)
+        _add_pedido_event_created(ctx, ped, promised_dt, channel_code)
+        _add_status_change_events(ctx, ped, promised_dt, status)
+
+
+def _add_pedido_line(ctx: SeedContext, ped: Pedido, prod, qty: float, status: str) -> None:
+    """Add a PedidoLine and update report counter.
+
+    Extracted from _create_pedido_lines_and_events to reduce complexity.
+    """
+    line = PedidoLine(
+        pedido_id=ped.id,
+        product_id=prod.id,
+        qty=qty,
+        unit_price_gs=prod.sale_price_gs,
+        fulfilled_qty=qty if status == "fulfilled" else 0,
+    )
+    ctx.session.add(line)
+    ctx.report.pedido_lines += 1
+
+
+def _add_pedido_event_created(
+    ctx: SeedContext, ped: Pedido, promised_dt, channel_code: str
+) -> None:
+    """Add a 'created' PedidoEvent.
+
+    Extracted from _create_pedido_lines_and_events to reduce complexity.
+    """
+    ctx.session.add(
+        PedidoEvent(
+            pedido_id=ped.id,
+            ts=promised_dt - timedelta(hours=2),
+            actor=SASKIA_USER,
+            event_type="created",
+            payload_json={"channel": channel_code},
+        )
+    )
+
+
+def _add_status_change_events(ctx: SeedContext, ped: Pedido, promised_dt, status: str) -> None:
+    """Add status change events based on pedido status.
+
+    Extracted from _create_pedido_lines_and_events to reduce complexity.
+    """
+    if status != "pending":
+        _add_event(
+            ctx,
+            ped,
+            promised_dt - timedelta(hours=1, minutes=30),
+            "status_change",
+            {"from": "pending", "to": "confirmed"},
+        )
+    if status in ("ready", "fulfilled"):
+        _add_event(
+            ctx,
+            ped,
+            promised_dt - timedelta(minutes=30),
+            "status_change",
+            {"from": "confirmed", "to": "ready"},
+        )
+    if status == "fulfilled":
+        _add_event(ctx, ped, promised_dt, "status_change", {"from": "ready", "to": "fulfilled"})
+
+
+def _add_event(ctx: SeedContext, ped: Pedido, ts, event_type: str, payload: dict) -> None:
+    """Add a PedidoEvent with the given type and payload.
+
+    Extracted from _add_status_change_events to reduce complexity.
+    """
+    ctx.session.add(
+        PedidoEvent(
+            pedido_id=ped.id,
+            ts=ts,
+            actor=SASKIA_USER,
+            event_type=event_type,
+            payload_json=payload,
+        )
+    )
+
+
+def _seed_sales_90_days_of_realistic_data(ctx: SeedContext, days_of_history: int):
+    """Section 23: Sales (90 days of realistic data).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     sale_rows: list[Sale] = []
     stock_move_rows: list[StockMovement] = []
 
     # IMPORTANT: use a SEPARATE random instance for the sales loop so
     # that re-runs (where the rest of the seeder is a no-op via
-    # `existing is not None` short-circuits) hit the same rng state at
-    # the start of the sales loop. The top-level `rng` advances a
+    # `existing is not None` short-circuits) hit the same ctx.rng state at
+    # the start of the sales loop. The top-level `ctx.rng` advances a
     # different amount in run 1 vs run 2 because skip-vs-do is
     # asymmetric; a dedicated sales_rng with its own seed gives us
     # deterministic, idempotent sales data.
     sales_rng = random.Random(43)
 
-    # seed_anchor_date is defined at the top of seed_sazon (reused by
+    # ctx.anchor_date is defined at the top of seed_sazon (reused by
     # production completions, pedidos, bank transactions, and sales).
     # The sales loop computes day_start/day_end from sale_date which is
-    # already anchored to seed_anchor_date.
+    # already anchored to ctx.anchor_date.
 
     BATCH_SIZE = 25
     for day_offset in range(days_of_history):
-        # day 0 = oldest, day (days_of_history-1) = the seed_anchor_date
+        # day 0 = oldest, day (days_of_history-1) = the ctx.anchor_date
         sale_date = datetime.combine(
-            seed_anchor_date - timedelta(days=days_of_history - 1 - day_offset),
+            ctx.anchor_date - timedelta(days=days_of_history - 1 - day_offset),
             datetime.min.time(),
         )
         weekday = sale_date.weekday()  # 0=Mon, 6=Sun
@@ -4867,14 +5327,14 @@ def seed_sazon(
 
         for _sale_idx_in_day in range(count):
             # Pick a product — bias towards favorites for realism
-            fav_products = [p for pn, p in product_objs_by_name.items() if p.is_favorite]
+            fav_products = [p for pn, p in ctx.products_by_name.items() if p.is_favorite]
             if not fav_products:
-                fav_products = list(product_objs_by_name.values())
+                fav_products = list(ctx.products_by_name.values())
             # 70% favorites, 30% random
             if sales_rng.random() < 0.7 and fav_products:
                 product = sales_rng.choice(fav_products)
             else:
-                product = sales_rng.choice(list(product_objs_by_name.values()))
+                product = sales_rng.choice(list(ctx.products_by_name.values()))
 
             if product.sale_price_gs == 0:
                 # Venta libre — random price
@@ -4892,13 +5352,13 @@ def seed_sazon(
 
             # Random customer (70% of sales have a customer)
             cust = None
-            if sales_rng.random() < 0.7 and customer_objs:
-                cust = sales_rng.choice(customer_objs)
+            if sales_rng.random() < 0.7 and ctx.customers:
+                cust = sales_rng.choice(ctx.customers)
 
-            # Payment method is one more rng.choices — we advance it here
+            # Payment method is one more ctx.rng.choices — we advance it here
             # *before* the dedup check so that re-runs that hit the dedup
-            # short-circuit still consume the same amount of rng as run 1.
-            # Without this, the rng state at the end of a dedup'd
+            # short-circuit still consume the same amount of ctx.rng as run 1.
+            # Without this, the ctx.rng state at the end of a dedup'd
             # iteration differs from the original run, and the next slot
             # picks a different product/customer/qty — which then can't
             # dedup, so the loop spirals into the missing-45-sales bug.
@@ -4912,19 +5372,19 @@ def seed_sazon(
             # time. Without this, every re-run would add another ~890 sales
             # and inflate the cash balance / KPIs.
             #
-            # Idempotency strategy: the seeder is anchored to seed_anchor_date
+            # Idempotency strategy: the seeder is anchored to ctx.anchor_date
             # (the date this run started) so re-runs on the same day hit
             # identical calendar dates. Then for each (day, product, qty,
             # customer) tuple we check if a sale already exists; if so, we
             # skip. This keeps the count and totals stable across re-runs
             # of the same day. (Re-runs on a different day won't dedup —
             # they create fresh sales anchored to the new day, which is
-            # the desired behavior for a "today's data" demo.)
+            # the desired behavior for a "ctx.anchor_date's data" demo.)
             day_start = sale_date.replace(hour=0, minute=0, second=0, microsecond=0)
             day_end = day_start + timedelta(days=1)
             stable_customer_id = cust.id if cust else None
             existing_sale = (
-                session.execute(
+                ctx.session.execute(
                     select(Sale).where(
                         Sale.sold_at >= day_start,
                         Sale.sold_at < day_end,
@@ -4939,7 +5399,7 @@ def seed_sazon(
             if existing_sale is not None:
                 # Already seeded a sale with this product+qty+customer on
                 # this day in a previous run — skip to keep totals stable.
-                # The rng was already advanced above so the next iteration
+                # The ctx.rng was already advanced above so the next iteration
                 # stays in sync.
                 continue
 
@@ -4954,23 +5414,25 @@ def seed_sazon(
                 discount_gs=0,
                 tz="America/Asuncion",
             )
-            session.add(sale)
-            session.flush()
+            ctx.session.add(sale)
+            ctx.session.flush()
             sale_rows.append(sale)
-            report.sales += 1
+            ctx.report.sales += 1
 
             # Stock movements for sales that have a recipe
             if product.recipe_id:
-                recipe = recipe_objs_by_name.get(product.name, None)  # by name? no — by id
+                recipe = ctx.recipes_by_name.get(product.name, None)  # by name? no — by id
                 # need to query by id
-                recipe = session.get(Recipe, product.recipe_id)
+                recipe = ctx.session.get(Recipe, product.recipe_id)
                 if recipe is not None:
                     yield_qty = recipe.yield_qty or 1.0
                     yield_qty_d = Decimal(str(yield_qty))
                     qty_d = Decimal(str(qty))
                     # Get recipe lines
                     recipe_lines = (
-                        session.execute(select(RecipeLine).where(RecipeLine.recipe_id == recipe.id))
+                        ctx.session.execute(
+                            select(RecipeLine).where(RecipeLine.recipe_id == recipe.id)
+                        )
                         .scalars()
                         .all()
                     )
@@ -4986,27 +5448,27 @@ def seed_sazon(
                             recorded_at=sold_at,
                             created_by=SASKIA_USER,
                         )
-                        session.add(sm)
+                        ctx.session.add(sm)
                         stock_move_rows.append(sm)
                         # Update stock
-                        ing = session.get(Ingredient, line.line_ref_id)
+                        ing = ctx.session.get(Ingredient, line.line_ref_id)
                         if ing is not None:
                             ing.stock_qty = max(0.0, float(ing.stock_qty) - float(need))
                             ing.last_consumed_at = sold_at
 
         if (day_offset + 1) % BATCH_SIZE == 0:
-            session.commit()
+            ctx.session.commit()
             logger.info(f"seeded days {day_offset + 1}/{days_of_history}")
-    report.sales = len(sale_rows)
-    report.stock_movements = len(stock_move_rows)
+    ctx.report.sales = len(sale_rows)
+    ctx.report.stock_movements = len(stock_move_rows)
 
     # === 23b. Special sales (voided + encargo) — also idempotent ===
-    # These are hand-crafted and don't go through the rng-driven loop.
+    # These are hand-crafted and don't go through the ctx.rng-driven loop.
     # Dedup by (sold_at, product_id, qty, customer_id, notes) so re-runs
     # don't inflate the count.
-    first_product = next(iter(product_objs_by_name.values()))
+    first_product = next(iter(ctx.products_by_name.values()))
     voided_dedup = (
-        session.execute(
+        ctx.session.execute(
             select(Sale).where(
                 Sale.product_id == first_product.id,
                 Sale.qty == 2,
@@ -5019,28 +5481,28 @@ def seed_sazon(
     )
     if voided_dedup is None:
         voided = Sale(
-            # Anchor to seed_anchor_date so dedup by (product_id, qty, notes,
+            # Anchor to ctx.anchor_date so dedup by (product_id, qty, notes,
             # voided_at IS NOT NULL) is stable across re-runs.
-            sold_at=datetime.combine(seed_anchor_date - timedelta(days=2), datetime.min.time())
+            sold_at=datetime.combine(ctx.anchor_date - timedelta(days=2), datetime.min.time())
             + timedelta(hours=20),
             product_id=first_product.id,
             qty=2,
             unit_price_gs=first_product.sale_price_gs,
             notes="Cliente cambió de opinión",
-            voided_at=datetime.combine(seed_anchor_date - timedelta(days=2), datetime.min.time())
+            voided_at=datetime.combine(ctx.anchor_date - timedelta(days=2), datetime.min.time())
             + timedelta(hours=21),
             void_reason="Cliente cambió de opinión",
             voided_by=SASKIA_USER,
             payment_method="efectivo",
         )
-        session.add(voided)
-        session.flush()
-        report.sales += 1
+        ctx.session.add(voided)
+        ctx.session.flush()
+        ctx.report.sales += 1
 
     # One encargo (custom order) sale
-    encargo_product = list(product_objs_by_name.values())[5]
+    encargo_product = list(ctx.products_by_name.values())[5]
     encargo_dedup = (
-        session.execute(
+        ctx.session.execute(
             select(Sale).where(
                 Sale.product_id == encargo_product.id,
                 Sale.qty == 1,
@@ -5052,8 +5514,8 @@ def seed_sazon(
     )
     if encargo_dedup is None:
         encargo = Sale(
-            # Anchor to seed_anchor_date for dedup stability.
-            sold_at=datetime.combine(seed_anchor_date - timedelta(days=1), datetime.min.time())
+            # Anchor to ctx.anchor_date for dedup stability.
+            sold_at=datetime.combine(ctx.anchor_date - timedelta(days=1), datetime.min.time())
             + timedelta(hours=22),
             product_id=encargo_product.id,
             qty=1,
@@ -5061,15 +5523,15 @@ def seed_sazon(
             notes="Encargo: recoger 16h",
             payment_method="transferencia",
         )
-        session.add(encargo)
-        session.flush()
-        report.sales += 1
+        ctx.session.add(encargo)
+        ctx.session.flush()
+        ctx.report.sales += 1
 
     # Initial stock movement (audit trail for opening balance)
-    for ing in ingredient_objs_by_name.values():
+    for ing in ctx.ingredients_by_name.values():
         # Idempotency: one initial StockMovement per ingredient (1:1 audit trail).
         existing_initial = (
-            session.execute(
+            ctx.session.execute(
                 select(StockMovement).where(
                     StockMovement.ingredient_id == ing.id,
                     StockMovement.movement_type == "initial",
@@ -5089,22 +5551,26 @@ def seed_sazon(
             reference_type=None,
             # Use anchor date so the (ingredient_id, movement_type="initial")
             # dedup is stable across re-runs.
-            recorded_at=datetime.combine(
-                seed_anchor_date - timedelta(days=90), datetime.min.time()
-            ),
+            recorded_at=datetime.combine(ctx.anchor_date - timedelta(days=90), datetime.min.time()),
             created_by=SASKIA_USER,
         )
-        session.add(sm)
-        report.stock_movements += 1
+        ctx.session.add(sm)
+        ctx.report.stock_movements += 1
 
-    logger.info(f"seed: {report.sales} sales + {report.stock_movements} stock movements")
+    logger.info(f"seed: {ctx.report.sales} sales + {ctx.report.stock_movements} stock movements")
 
-    # === 24. Waste log ===
+
+def _seed_waste_log(ctx: SeedContext):
+    """Section 24: Waste log.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for ing_name, qty, reason, days_ago, by, notes in WASTE_LOG:
-        ing = ingredient_objs_by_name.get(ing_name)
+        ing = ctx.ingredients_by_name.get(ing_name)
         if not ing:
             continue
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(WasteLog).where(
                 WasteLog.ingredient_id == ing.id,
                 WasteLog.qty == qty,
@@ -5113,7 +5579,7 @@ def seed_sazon(
         ).scalar_one_or_none()
         if existing is None:
             cost_gs = int(qty * (ing.purchase_price_gs or 0))
-            session.add(
+            ctx.session.add(
                 WasteLog(
                     ingredient_id=ing.id,
                     qty=qty,
@@ -5124,23 +5590,29 @@ def seed_sazon(
                     notes=notes,
                 )
             )
-            report.waste_log += 1
-    logger.info(f"seed: {report.waste_log} waste log entries")
+            ctx.report.waste_log += 1
+    logger.info(f"seed: {ctx.report.waste_log} waste log entries")
 
-    # === 25. Shopping list (items to reorder) ===
+
+def _seed_shopping_list_items_to_reorder(ctx: SeedContext):
+    """Section 25: Shopping list (items to reorder).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     # Use Spanish ingredient names (the canonical names in the INGREDIENTS list).
     for ing_name in ["Harina de trigo", "Manteca", "Huevos", "Leche", "Azúcar"]:
-        ing = ingredient_objs_by_name.get(ing_name)
+        ing = ctx.ingredients_by_name.get(ing_name)
         if not ing:
             continue
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(ShoppingListItem).where(
                 ShoppingListItem.ingredient_id == ing.id, not ShoppingListItem.purchased
             )
         ).scalar_one_or_none()
         if existing is None:
             qty_to_buy = (ing.min_stock_qty or 1.0) * 2
-            session.add(
+            ctx.session.add(
                 ShoppingListItem(
                     ingredient_id=ing.id,
                     qty_to_buy=qty_to_buy,
@@ -5149,35 +5621,41 @@ def seed_sazon(
                     purchased=False,
                 )
             )
-            report.shopping_list += 1
-    logger.info(f"seed: {report.shopping_list} shopping list items")
+            ctx.report.shopping_list += 1
+    logger.info(f"seed: {ctx.report.shopping_list} shopping list items")
 
-    # === 26. HACCP — freezer temperature log (last 14 days, 2 readings/day) ===
-    # Use seed_anchor_date as the anchor so re-runs produce identical
+
+def _seed_haccp__freezer_temperature_log_last_14_(ctx: SeedContext):
+    """Section 26: HACCP — freezer temperature log (last 14 days, 2 readings/day).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
+    # Use ctx.anchor_date as the anchor so re-runs produce identical
     # timestamps and the (recorded_at) natural-key dedup actually works.
     for days_ago in range(FREEZER_TEMP_DAYS):
         for hour in (8, 20):  # morning + evening
             base_dt = datetime.combine(
-                seed_anchor_date - timedelta(days=days_ago),
+                ctx.anchor_date - timedelta(days=days_ago),
                 datetime.min.time(),
             )
             ts = base_dt + timedelta(hours=hour)
             # Mostly in range, occasional spike for realism
-            if rng.random() < 0.92:
-                temp = rng.uniform(HACCP_TEMP_MIN_C, HACCP_TEMP_MAX_C)
+            if ctx.rng.random() < 0.92:
+                temp = ctx.rng.uniform(HACCP_TEMP_MIN_C, HACCP_TEMP_MAX_C)
             else:
-                temp = rng.choice(
+                temp = ctx.rng.choice(
                     [
-                        rng.uniform(-25, -22),  # too cold
-                        rng.uniform(-15, -10),  # too warm
+                        ctx.rng.uniform(-25, -22),  # too cold
+                        ctx.rng.uniform(-15, -10),  # too warm
                     ]
                 )
-            existing = session.execute(
+            existing = ctx.session.execute(
                 select(FreezerTemperatureLog).where(FreezerTemperatureLog.recorded_at == ts)
             ).scalar_one_or_none()
             if existing is None:
                 in_range = HACCP_TEMP_MIN_C <= temp <= HACCP_TEMP_MAX_C
-                session.add(
+                ctx.session.add(
                     FreezerTemperatureLog(
                         recorded_at=ts,
                         for_date=ts.date(),
@@ -5188,16 +5666,22 @@ def seed_sazon(
                         notes=None if in_range else f"Fuera de rango: {temp:.1f}°C",
                     )
                 )
-                report.haccp_temps += 1
-    logger.info(f"seed: {report.haccp_temps} HACCP freezer temp readings")
+                ctx.report.haccp_temps += 1
+    logger.info(f"seed: {ctx.report.haccp_temps} HACCP freezer temp readings")
 
-    # === 27. Market benchmarks ===
+
+def _seed_market_benchmarks(ctx: SeedContext):
+    """Section 27: Market benchmarks.
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     for label, wholesale, retail, avg, min_price in BENCHMARKS:
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(MarketBenchmark).where(MarketBenchmark.product_label == label)
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 MarketBenchmark(
                     product_label=label,
                     our_wholesale_gs=wholesale,
@@ -5206,25 +5690,37 @@ def seed_sazon(
                     comp_min_gs=min_price,
                 )
             )
-            report.market_benchmarks += 1
-    logger.info(f"seed: {report.market_benchmarks} market benchmarks")
+            ctx.report.market_benchmarks += 1
+    logger.info(f"seed: {ctx.report.market_benchmarks} market benchmarks")
 
-    # === 28. Audit log (initial entries) ===
+
+def _seed_audit_log_initial_entries(ctx: SeedContext):
+    """Section 28: Audit log (initial entries).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     audit_record(
-        session,
+        ctx.session,
         user_id=SASKIA_USER,
         action="system.startup",
         detail={"source": "seed_sazon", "tenant": TENANT_NAME},
     )
     audit_record(
-        session,
+        ctx.session,
         user_id=SASKIA_USER,
         action="seed.complete",
         detail={"tenant": TENANT_NAME, "version": "1.0"},
     )
-    report.audit_log_rows = 2
+    ctx.report.audit_log_rows = 2
 
-    # === 29. AppMeta pins (idempotency + onboarding guard) ===
+
+def _seed_appmeta_pins_idempotency__onboarding_gu(ctx: SeedContext):
+    """Section 29: AppMeta pins (idempotency + onboarding guard).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+    """
+
     # sazon_seed_version = schema/data version of THIS seeder (bump on breaking changes)
     sazon_meta_keys = {
         "sazon_seed_version": "1.0",
@@ -5238,18 +5734,29 @@ def seed_sazon(
         "sazon_loaded": "true",
     }
     for k, v in sazon_meta_keys.items():
-        existing = session.execute(select(AppMeta).where(AppMeta.key == k)).scalar_one_or_none()
+        existing = ctx.session.execute(select(AppMeta).where(AppMeta.key == k)).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 AppMeta(key=k, value=str(v), updated_at=datetime.now(ASUNCION_TZ).isoformat())
             )
         else:
             existing.value = str(v)
             existing.updated_at = datetime.now(ASUNCION_TZ).isoformat()
 
-    # === 30. Bank transactions (a few recent ones) ===
+
+def _seed_bank_transactions_a_few_recent_ones(ctx: SeedContext) -> SazonReport:
+    """Section 30: Bank transactions (a few recent ones).
+
+    Extracted from seed_sazon (refactored 2026-10-09).
+
+    Returns SazonReport to satisfy type-checker; the orchestrator
+    (seed_sazon at L4253) ignores this return value and re-returns
+    ctx.report itself. The trailing commit + logger + return are
+    defensive duplicates.
+    """
+
     # Idempotency: the dedup query uses (posted_at, description) as the
-    # natural key. Both must be deterministic. seed_anchor_date is a
+    # natural key. Both must be deterministic. ctx.anchor_date is a
     # `date` (not datetime) — when compared to the DateTime `posted_at`
     # column, SQLAlchemy coerces to datetime, but the conversion can
     # differ between drivers (midnight UTC vs local tz). To make it
@@ -5257,7 +5764,7 @@ def seed_sazon(
     bank_tx_data = [
         # (date, amount, type, description, account, balance_gs)
         (
-            seed_anchor_date - timedelta(days=60),
+            ctx.anchor_date - timedelta(days=60),
             -1_200_000,
             "transfer",
             "Pago a Distribuidora El Molino",
@@ -5265,7 +5772,7 @@ def seed_sazon(
             2_500_000,
         ),
         (
-            seed_anchor_date - timedelta(days=45),
+            ctx.anchor_date - timedelta(days=45),
             -650_000,
             "transfer",
             "Pago a Lácteos Paraguay",
@@ -5273,7 +5780,7 @@ def seed_sazon(
             1_850_000,
         ),
         (
-            seed_anchor_date - timedelta(days=30),
+            ctx.anchor_date - timedelta(days=30),
             3_500_000,
             "deposit",
             "Cierre de caja 30 días",
@@ -5281,7 +5788,7 @@ def seed_sazon(
             5_350_000,
         ),
         (
-            seed_anchor_date - timedelta(days=20),
+            ctx.anchor_date - timedelta(days=20),
             -280_000,
             "debit",
             "Servicios ANDE",
@@ -5289,7 +5796,7 @@ def seed_sazon(
             5_070_000,
         ),
         (
-            seed_anchor_date - timedelta(days=15),
+            ctx.anchor_date - timedelta(days=15),
             2_800_000,
             "deposit",
             "Cierre quincena",
@@ -5297,16 +5804,16 @@ def seed_sazon(
             7_870_000,
         ),
         (
-            seed_anchor_date - timedelta(days=10),
+            ctx.anchor_date - timedelta(days=10),
             -450_000,
             "transfer",
             "Pago a Dulcería Santa Rita",
             "Itaú",
             7_420_000,
         ),
-        (seed_anchor_date - timedelta(days=5), -180_000, "debit", "Essap", "Itaú", 7_240_000),
+        (ctx.anchor_date - timedelta(days=5), -180_000, "debit", "Essap", "Itaú", 7_240_000),
         (
-            seed_anchor_date - timedelta(days=2),
+            ctx.anchor_date - timedelta(days=2),
             1_800_000,
             "deposit",
             "Cierre de caja 2 días",
@@ -5316,17 +5823,17 @@ def seed_sazon(
     ]
     for tx_date, amount, tx_type, desc, account, balance in bank_tx_data:
         # Normalize to midnight datetime so the dedup comparison is stable
-        # regardless of tz coercion. seed_anchor_date is a `date`;
+        # regardless of tz coercion. ctx.anchor_date is a `date`;
         # `BankTransaction.posted_at` is DateTime.
         tx_posted_at = datetime.combine(tx_date, datetime.min.time())
-        existing = session.execute(
+        existing = ctx.session.execute(
             select(BankTransaction).where(
                 BankTransaction.posted_at == tx_posted_at,
                 BankTransaction.description == desc,
             )
         ).scalar_one_or_none()
         if existing is None:
-            session.add(
+            ctx.session.add(
                 BankTransaction(
                     posted_at=tx_posted_at,
                     currency="PYG",
@@ -5341,11 +5848,11 @@ def seed_sazon(
                     reconciled=False,
                 )
             )
-    # Don't count bank tx in the main report — keep it light
+    # Don't count bank tx in the main ctx.report — keep it light
 
-    session.commit()
-    logger.info(f"seed_sazon complete: {report.as_dict()}")
-    return report
+    ctx.session.commit()
+    logger.info(f"seed_sazon complete: {ctx.report.as_dict()}")
+    return ctx.report
 
 
 def _delete_sazon_data(session: Session) -> None:

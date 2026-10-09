@@ -899,7 +899,35 @@ async def produccion_ad_hoc_bulk(
     if not csv:
         raise HTTPException(status_code=400, detail="CSV vacío")
 
-    MAX_ROWS = 200
+    header, has_notes, data_lines = _detect_csv_header(csv)
+    _enforce_max_rows(data_lines)
+
+    valid_product_ids = _load_valid_product_ids(session)
+    bulk_user_id = str(current_operator(request))
+
+    created, skipped = _process_csv_rows(
+        session,
+        data_lines,
+        header,
+        has_notes,
+        valid_product_ids,
+        for_date,
+        bulk_user_id,
+    )
+
+    if created:
+        _record_bulk_audit(request, session, for_date, created, skipped)
+        session.commit()
+
+    prod_id_to_name = _load_product_id_to_name(session)
+    return HTMLResponse(_render_bulk_summary_html(for_date, created, skipped, prod_id_to_name))
+
+
+def _detect_csv_header(csv: str) -> tuple[list[str], bool, list[str]]:
+    """Detect optional CSV header and return (header, has_notes, data_lines).
+
+    Extracted from produccion_ad_hoc_bulk to reduce complexity.
+    """
     lines = [ln for ln in csv.splitlines() if ln.strip()]
     # Detect optional header
     if lines and lines[0].lower().startswith("product_id"):
@@ -910,136 +938,265 @@ async def produccion_ad_hoc_bulk(
         header = ["product_id", "qty", "notes"]
         has_notes = True
         data_lines = lines
+    return header, has_notes, data_lines
 
+
+def _enforce_max_rows(data_lines: list[str]) -> None:
+    """Enforce MAX_ROWS = 200 cap. Raises HTTPException if exceeded.
+
+    Extracted from produccion_ad_hoc_bulk to reduce complexity.
+    """
+    MAX_ROWS = 200
     if len(data_lines) > MAX_ROWS:
         raise HTTPException(
             status_code=400,
             detail=f"Demasiadas filas (max {MAX_ROWS}). Subí en lotes.",
         )
 
-    # Cache product lookups
-    valid_product_ids: set[int] = set(session.execute(select(Product.id)).scalars().all())
 
-    # PRODUCCION-V2 Fase 1: get the cook's user id for the audit log.
+def _load_valid_product_ids(session) -> set[int]:
+    """Load set of valid product IDs for validation.
 
-    bulk_user_id = str(current_operator(request))
-    from app.rms.models import ProductionCompletion
+    Extracted from produccion_ad_hoc_bulk to reduce complexity.
+    """
+    return set(session.execute(select(Product.id)).scalars().all())
 
+
+def _process_csv_rows(
+    session,
+    data_lines,
+    header,
+    has_notes,
+    valid_product_ids,
+    for_date,
+    bulk_user_id,
+) -> tuple[list[dict], list[dict]]:
+    """Process each CSV row, creating or skipping as appropriate.
+
+    Returns (created, skipped).
+    Extracted from produccion_ad_hoc_bulk to reduce complexity.
+    """
     created: list[dict] = []
     skipped: list[dict] = []
-    for row_num, raw in enumerate(data_lines, start=2 if len(lines) != len(data_lines) else 1):
-        cells = [c.strip() for c in raw.split(",")]
-        if len(cells) < 2:
-            skipped.append(
-                {"line": row_num, "raw": raw, "reason": "Faltan columnas (minimo product_id, qty)"}
-            )
-            continue
-        try:
-            pid = int(cells[0])
-            qty = float(cells[1])
-        except ValueError:
-            skipped.append(
-                {"line": row_num, "raw": raw, "reason": "product_id o qty no son números"}
-            )
-            continue
-        notes = cells[2] if has_notes and len(cells) > 2 else ""
-        if pid not in valid_product_ids:
-            skipped.append({"line": row_num, "raw": raw, "reason": f"Producto {pid} no existe"})
-            continue
-        if qty <= 0:
-            skipped.append({"line": row_num, "raw": raw, "reason": "qty debe ser > 0"})
-            continue
-
-        tag = "ad_hoc"
-        if notes.strip():
-            tag = f"ad_hoc: {notes.strip()[:200]}"
-        # PRODUCCION-V2 Fase 1: capture old_qty for the audit log.
-        prior_bulk_completion = (
-            session.query(ProductionCompletion)
-            .filter(
-                ProductionCompletion.product_id == pid,
-                ProductionCompletion.for_date == for_date,
-            )
-            .one_or_none()
-        )
-        old_qty = (
-            float(prior_bulk_completion.completed_qty)
-            if prior_bulk_completion is not None
-            else None
-        )
-        _upsert_completion(
+    for row_num, raw in enumerate(data_lines, 1):
+        result = _process_single_row(
+            raw,
+            row_num,
+            has_notes,
+            valid_product_ids,
+            for_date,
+            bulk_user_id,
             session,
-            product_id=pid,
-            for_date=for_date,
-            completed_qty=qty,
-            notes=tag,
         )
-        persist_plan_audit(
-            session,
-            for_date=for_date,
-            product_id=pid,
-            old_qty=old_qty,
-            new_qty=qty,
-            change_source="adhoc_bulk",
-            changed_by=bulk_user_id,
-            notes=tag,
-        )
-        created.append({"line": row_num, "product_id": pid, "qty": qty, "notes": notes})
+        if result["status"] == "created":
+            created.append(result["data"])
+        else:
+            skipped.append(result["data"])
+    return created, skipped
 
-    if created:
-        record_audit(
-            request,
-            session=session,
-            action="write.production.ad_hoc_bulk",
-            target_type="production_ad_hoc",
-            target_id=for_date.isoformat(),
-            detail={
-                "for_date": for_date.isoformat(),
-                "created_count": len(created),
-                "skipped_count": len(skipped),
-                "product_ids": [c["product_id"] for c in created],
+
+def _process_single_row(
+    raw,
+    row_num,
+    has_notes,
+    valid_product_ids,
+    for_date,
+    bulk_user_id,
+    session,
+) -> dict:
+    """Process a single CSV row. Returns {status, data}.
+
+    Extracted from _process_csv_rows to reduce complexity.
+    """
+    cells = [c.strip() for c in raw.split(",")]
+    if len(cells) < 2:
+        return {
+            "status": "skipped",
+            "data": {
+                "line": row_num,
+                "raw": raw,
+                "reason": "Faltan columnas (minimo product_id, qty)",
             },
-        )
-        session.commit()
+        }
 
-    # Render the summary as a tiny HTML page so the operator sees what
-    # worked. Redirect to /produccion would lose the per-line detail.
-    summary_html = [
+    parsed = _parse_csv_cells(cells, has_notes)
+    if parsed is None:
+        return {
+            "status": "skipped",
+            "data": {"line": row_num, "raw": raw, "reason": "product_id o qty no son números"},
+        }
+
+    pid, qty, notes = parsed
+    if pid not in valid_product_ids:
+        return {
+            "status": "skipped",
+            "data": {"line": row_num, "raw": raw, "reason": f"Producto {pid} no existe"},
+        }
+    if qty <= 0:
+        return {
+            "status": "skipped",
+            "data": {"line": row_num, "raw": raw, "reason": "qty debe ser > 0"},
+        }
+
+    # Use _upsert_completion directly so single-row tests continue to cover it
+    tag = _build_adhoc_tag(notes)
+    old_qty = _get_prior_completion_qty(session, pid, for_date)
+    _upsert_completion(
+        session,
+        product_id=pid,
+        for_date=for_date,
+        completed_qty=qty,
+        notes=tag,
+    )
+    persist_plan_audit(
+        session,
+        for_date=for_date,
+        product_id=pid,
+        old_qty=old_qty,
+        new_qty=qty,
+        change_source="adhoc_bulk",
+        changed_by=bulk_user_id,
+        notes=tag,
+    )
+    return {
+        "status": "created",
+        "data": {"line": row_num, "product_id": pid, "qty": qty, "notes": notes},
+    }
+
+
+def _parse_csv_cells(cells, has_notes) -> tuple[int, float, str] | None:
+    """Parse cells into (pid, qty, notes) or None if invalid.
+
+    Extracted from produccion_ad_hoc_bulk to reduce complexity.
+    """
+    try:
+        pid = int(cells[0])
+        qty = float(cells[1])
+    except ValueError:
+        return None
+    notes = cells[2] if has_notes and len(cells) > 2 else ""
+    return pid, qty, notes
+
+
+def _build_adhoc_tag(notes: str) -> str:
+    """Build the ad-hoc tag from notes.
+
+    Extracted from produccion_ad_hoc_bulk to reduce complexity.
+    """
+    if not notes.strip():
+        return "ad_hoc"
+    return f"ad_hoc: {notes.strip()[:200]}"
+
+
+def _get_prior_completion_qty(session, pid, for_date) -> float | None:
+    """Get the prior completion qty for audit.
+
+    Extracted from produccion_ad_hoc_bulk to reduce complexity.
+    """
+    from app.rms.models import ProductionCompletion
+
+    prior = (
+        session.query(ProductionCompletion)
+        .filter(
+            ProductionCompletion.product_id == pid,
+            ProductionCompletion.for_date == for_date,
+        )
+        .one_or_none()
+    )
+    return float(prior.completed_qty) if prior is not None else None
+
+
+def _record_bulk_audit(request, session, for_date, created, skipped) -> None:
+    """Record audit log entry for bulk import.
+
+    Extracted from produccion_ad_hoc_bulk to reduce complexity.
+    """
+    record_audit(
+        request,
+        session=session,
+        action="write.production.ad_hoc_bulk",
+        target_type="production_ad_hoc",
+        target_id=for_date.isoformat(),
+        detail={
+            "for_date": for_date.isoformat(),
+            "created_count": len(created),
+            "skipped_count": len(skipped),
+            "product_ids": [c["product_id"] for c in created],
+        },
+    )
+
+
+def _load_product_id_to_name(session) -> dict[int, str]:
+    """Load mapping of product_id to product name.
+
+    Extracted from produccion_ad_hoc_bulk to reduce complexity.
+    """
+    return {p.id: p.name for p in session.execute(select(Product.id, Product.name)).all()}
+
+
+def _render_bulk_summary_html(for_date, created, skipped, prod_id_to_name) -> str:
+    """Render the bulk import summary HTML.
+
+    Extracted from produccion_ad_hoc_bulk to reduce complexity.
+    """
+    summary_html = _build_bulk_summary_header(for_date, len(created), len(skipped))
+    summary_html.extend(_build_created_rows(created, prod_id_to_name))
+    if skipped:
+        summary_html.extend(_build_skipped_rows(skipped))
+    summary_html.append(_build_back_link(for_date))
+    return "".join(summary_html)
+
+
+def _build_bulk_summary_header(for_date, created_count, skipped_count) -> list[str]:
+    """Build the HTML header for the bulk summary.
+
+    Extracted from _render_bulk_summary_html to reduce complexity.
+    """
+    return [
         "<!doctype html><html><head><meta charset='utf-8'>",
         "<title>Importación bulk — /produccion</title>",
         "<link rel='stylesheet' href='/static/app.css'>",
         "</head><body><main class='container'>",
         f"<h1>📥 Importación bulk ({for_date.isoformat()})</h1>",
-        f"<p class='alert alert-success' role='alert'>✅ {len(created)} horneadas registradas, "
-        f"{len(skipped)} omitidas.</p>",
+        f"<p class='alert alert-success' role='alert'>✅ {created_count} horneadas registradas, "
+        f"{skipped_count} omitidas.</p>",
         "<h2>Registradas</h2>",
         "<table class='table'><thead><tr><th>Línea</th><th>Producto</th><th>Cantidad</th><th>Notas</th></tr></thead><tbody>",
     ]
-    prod_id_to_name: dict[int, str] = {
-        p.id: p.name for p in session.execute(select(Product.id, Product.name)).all()
-    }
-    summary_html.extend(
+
+
+def _build_created_rows(created, prod_id_to_name) -> list[str]:
+    """Build HTML rows for created items.
+
+    Extracted from _render_bulk_summary_html to reduce complexity.
+    """
+    return [
         f"<tr><td>{c['line']}</td><td>{prod_id_to_name.get(c['product_id'], c['product_id'])}</td>"
         f"<td>{c['qty']}</td><td>{c['notes']}</td></tr>"
         for c in created
+    ] + ["</tbody></table>"]
+
+
+def _build_skipped_rows(skipped) -> list[str]:
+    """Build HTML rows for skipped items.
+
+    Extracted from _render_bulk_summary_html to reduce complexity.
+    """
+    rows = [
+        "<h2>⚠️ Omitidas</h2>",
+        "<table class='table'><thead><tr><th>Línea</th><th>Texto</th><th>Motivo</th></tr></thead><tbody>",
+    ]
+    rows.extend(
+        f"<tr><td>{s['line']}</td><td><code>{s['raw']}</code></td><td>{s['reason']}</td></tr>"
+        for s in skipped
     )
-    summary_html.append("</tbody></table>")
-    if skipped:
-        summary_html.append(
-            "<h2>⚠️ Omitidas</h2><table class='table'><thead><tr><th>Línea</th><th>Texto</th><th>Motivo</th></tr></thead><tbody>"
-        )
-        summary_html.extend(
-            f"<tr><td>{s['line']}</td><td><code>{s['raw']}</code></td><td>{s['reason']}</td></tr>"
-            for s in skipped
-        )
-        summary_html.append("</tbody></table>")
-    summary_html.append(
-        f"<p><a class='btn' href='/produccion?for_date={for_date.isoformat()}&adhoc_added=1'>Volver al plan</a></p>"
-        "</main></body></html>"
-    )
-    from fastapi.responses import HTMLResponse
-
-    return HTMLResponse(content="".join(summary_html))
+    rows.append("</tbody></table>")
+    return rows
 
 
-# --- PRO-01: weekly template ---
+def _build_back_link(for_date) -> str:
+    """Build the back-to-plan link.
+
+    Extracted from _render_bulk_summary_html to reduce complexity.
+    """
+    return f'<p><a class="btn" href="/produccion?for_date={for_date.isoformat()}">Volver al plan</a></p>'

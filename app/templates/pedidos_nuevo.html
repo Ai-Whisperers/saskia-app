@@ -649,6 +649,9 @@
   <aside class="order-summary" aria-labelledby="order-summary-heading">
     <h2 id="order-summary-heading">Resumen</h2>
     <p id="order-summary-count">0 productos</p>
+    <p class="order-summary__empty-hint" id="order-summary-empty-hint">
+      Tocá <strong>+ Agregar ítem</strong> para empezar el pedido.
+    </p>
     <ul id="order-summary-lines"></ul>
     <p class="order-summary__total"><span>Total</span> <strong id="order-summary-total">Gs. 0</strong></p>
     <div class="order-summary__actions">
@@ -779,6 +782,7 @@
     var countEl = document.getElementById("order-summary-count");
     var linesEl = document.getElementById("order-summary-lines");
     var totalEl = document.getElementById("order-summary-total");
+    var emptyHint = document.getElementById("order-summary-empty-hint");
     var body = document.getElementById("lines-body");
 
     function formatGs(amount) {
@@ -820,6 +824,7 @@
       });
       var shown = Math.round(qtySum) === qtySum ? String(qtySum) : String(Math.round(qtySum * 100) / 100);
       countEl.textContent = shown + (qtySum === 1 ? " producto" : " productos");
+      if (emptyHint) emptyHint.hidden = items.length > 0;
       linesEl.textContent = "";
       items.slice(0, 8).forEach(function (text) {
         var li = document.createElement("li");

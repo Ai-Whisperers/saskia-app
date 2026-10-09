@@ -27,7 +27,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import MetaData, create_engine, event
 from sqlalchemy.engine import Engine
 
 from app.rms.config import DB_PATH
@@ -129,7 +129,7 @@ def make_engine(url: str | None = None, *, for_tests: bool = False) -> Engine:
 
 
 @lru_cache(maxsize=1)
-def get_metadata() -> object:
+def get_metadata() -> MetaData:
     """Return the right Base.metadata for the configured DATABASE_URL.
 
     Production Postgres → app.rms.schema_postgres.Base.metadata

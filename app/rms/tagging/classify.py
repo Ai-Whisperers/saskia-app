@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from typing import Final
 
 from app.rms.tagging.vocabulary import (
     ALLERGEN_KEYWORDS,
@@ -25,6 +26,226 @@ from app.rms.tagging.vocabulary import (
     TAG_ALIASES,
     TAG_ALLERGEN_BLOCKERS,
 )
+
+# -----------------------------------------------------------------------------
+# Category inference (moved from app/rms/ingredient_intel.py on 2026-10-09
+# to break the bidirectional lazy-import cycle). The data + helper functions
+# + infer_category() now live here, where the validate_ingredient() cross-
+# validation can use it directly (no lazy import needed). The
+# ingredient_intel.py module re-exports these names for backward compat.
+# -----------------------------------------------------------------------------
+
+# Category keywords: first match wins. Order matters: more specific
+# before general (e.g. "aceite de oliva" must beat "aceite").
+_CATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
+    "grasas": (
+        # Specific first so "manteca vegetal" beats generic "manteca"
+        "aceite de oliva",
+        "aceite de coco",
+        "manteca vegetal",
+        "manteca de cerdo",
+        "manteca clarificada",
+        "aceite",
+        "margarina",
+        "grasa",
+    ),
+    "lácteos": (
+        "leche",
+        "crema",
+        "manteca",
+        "mantequilla",
+        "yogur",
+        "queso",
+        "queso crema",
+        "ricota",
+        "requesón",
+        "dulce de leche",
+        "leche condensada",
+        "leche en polvo",
+        "crema agria",
+    ),
+    "harinas": (
+        "harina",
+        "maicena",
+        "fécula",
+        "almidón",
+        "polenta",
+        "mandioca",  # chipa, empanadas
+    ),
+    "endulzantes": (
+        "azúcar impalpable",
+        "azúcar glass",
+        "azúcar mascabo",
+        "azúcar",
+        "miel",
+        "stevia",
+        "dextrosa",
+        "glucosa",
+        "jarabe",
+        "melaza",
+        "panela",
+        "rapadura",
+        "eritritol",
+    ),
+    "leudantes": (
+        "levadura",
+        "polvo de hornear",
+        "bicarbonato",
+        "royal",
+        "polvo para hornear",
+        "cremor tártaro",
+    ),
+    "huevos": (
+        "huevo",
+        "huevos",
+        "clara",
+        "yema",
+    ),
+    "carnes": (
+        # 2026-09-29: word-boundary issues with substring match — 'res'
+        # matched 'fresco' (Jengibre fresco → carnes!). Use word-boundary
+        # via the _KEYWORD_BOUNDARY pattern in infer_category instead.
+        "carne",
+        "pollo",
+        "cerdo",
+        "pavo",
+        "pescado",
+        "atún",
+        "marisco",
+        "pechuga",
+        "panceta",
+        "chorizo",
+        "jamón",
+        "res",
+    ),
+    "decoración": (
+        "esencia",
+        "ralladura",
+        "colorante",
+        "glaseado",
+        "chocolate cobertura",
+        "fondant",
+        "sprinkles",
+        "cacao",
+        "perla",
+        "confite",
+    ),
+    "especias": (
+        "canela",
+        "pimienta",
+        "comino",
+        "orégano",
+        "pimentón",
+        "nuez moscada",
+        "clavo",
+        "anís",
+        "anís estrella",
+        "vainilla",
+        "vainilla en vaina",
+        "extracto de vainilla",
+        "jengibre",
+        "curry",
+        "azafrán",
+    ),
+    "frutos-secos": (
+        "almendra",
+        "nuez",
+        "nueces",
+        "avellana",
+        "pistacho",
+        "maní",
+        "castaña",
+        "coco",
+    ),
+    "frutas": (
+        "fruta",
+        "frutas",
+        "limón",
+        "limones",
+        "naranja",
+        "naranjas",
+        "manzana",
+        "manzanas",
+        "banana",
+        "bananas",
+        "frutilla",
+        "frutillas",
+        "arándano",
+        "arándanos",
+        "ciruela",
+        "ciruelas",
+        "pera",
+        "peras",
+        "uva",
+        "uvas",
+        "frambuesa",
+        "frambuesas",
+        "cereza",
+        "cerezas",
+        "ananá",
+        "ananás",
+        "piña",
+        "mango",
+        "durazno",
+        "duraznos",
+        "damasco",
+        "damascos",
+        "kiwi",
+        "melón",
+        "sandía",
+        "paltas",
+        "palta",
+    ),
+    "líquidos": (
+        "agua",
+        "jugo",
+        "caldo",
+        "café",
+        "espresso",
+        "té",
+        "mate",
+    ),
+    "semillas": (
+        "semilla de chía",
+        "semilla de lino",
+        "semilla de girasol",
+    ),
+    "otros": (),  # sentinel — anything not matched
+}
+
+
+def _normalize(name: str) -> str:
+    """Lowercase + strip + collapse whitespace."""
+    return re.sub(r"\s+", " ", name.strip().lower())
+
+
+def _keyword_in(keyword: str, normalized: str) -> bool:
+    """Word-boundary containment for category keywords (2026-09-29).
+
+    The old substring match caused `'res' in 'jengibre fresco'` to be
+    True — classifying every ingredient containing 'fresco' as 'carnes'.
+    Now keywords need a real token boundary on both sides.
+
+    Multi-word keywords like 'aceite de oliva' still match if the phrase
+    appears in the normalized name (the spaces in the keyword already
+    act as boundaries for single-keyword sub-checks).
+    """
+    # Whole-token match: keyword must be at start, end, or surrounded by
+    # whitespace, hyphen, slash, or punctuation. Use a small set of
+    # word separators so 'café-' doesn't false-match inside 'café-con-leche'.
+    pattern = r"(?:^|[\s\-/,.;:])" + re.escape(keyword) + r"(?:$|[\s\-/,.;:])"
+    return re.search(pattern, normalized) is not None
+
+
+def infer_category(name: str) -> str:
+    """Return one of the closed category set, or 'otros' if no match."""
+    norm = _normalize(name)
+    for cat, keywords in _CATEGORY_KEYWORDS.items():
+        for kw in keywords:
+            if _keyword_in(kw, norm):
+                return cat
+    return "otros"
+
 
 # ─────────────────────────────────────────────────────────────────────────
 # Normalization
@@ -387,72 +608,80 @@ def validate_ingredient(ing: object) -> list[str]:
     The Ingredient table has a tag_validation_issues column where these
     are persisted (migration v61).
     """
+    declared, allergens, name_lower = _extract_ingredient_fields(ing)
     issues: list[str] = []
 
+    _check_allergen_contradictions(declared, allergens, issues)
+    _check_vegetarian_contradiction(declared, name_lower, issues)
+    _check_may_contain_gluten(ing, declared, issues)
+    _check_category_mismatch(ing, issues)
+    return issues
+
+
+def _extract_ingredient_fields(ing: object) -> tuple[set, set, str]:
+    """Extract and normalize declared tags, allergens, and name.
+
+    Extracted from validate_ingredient to reduce complexity.
+    """
     declared = normalize_all(getattr(ing, "dietary_tags", None))
     allergens_raw = getattr(ing, "allergens", None)
     allergens: set[str] = set()
     if allergens_raw:
         allergens = {a.strip().lower() for a in allergens_raw.split(",") if a.strip()}
-
     name_lower = (getattr(ing, "name", "") or "").lower()
+    return declared, allergens, name_lower
 
-    # vegan + dairy/eggs allergens
-    if "vegano" in declared and (allergens & {"dairy", "eggs"}):
-        issues.append("declares 'vegano' but allergens include dairy/eggs")
 
-    # vegetarian + meat/fish in name
-    if "vegetariano" in declared:
-        # Use word-boundary matching to avoid false positives like
-        # 'maní' (peanut) being mistaken for a meat.
-        if any(_keyword_matches(kw, name_lower) for kw in _MEAT_FISH_KEYWORDS):
-            issues.append("declares 'vegetariano' but name suggests meat/fish")
+# Tag/allergen contradiction rules
+_ALLERGEN_CONTRADICTIONS = [
+    # (declared_tag, required_allergens, message)
+    ("vegano", {"dairy", "eggs"}, "declares 'vegano' but allergens include dairy/eggs"),
+    ("sin gluten", {"gluten"}, "declares 'sin gluten' but allergens include gluten"),
+    ("sin lactosa", {"dairy"}, "declares 'sin lactosa' but allergens include dairy"),
+    ("sin huevo", {"eggs"}, "declares 'sin huevo' but allergens include eggs"),
+    ("sin frutos secos", {"nuts"}, "declares 'sin frutos secos' but allergens include nuts"),
+    ("sin tacc", {"gluten"}, "declares 'sin tacc' but allergens include gluten"),
+]
 
-    # sin gluten + gluten allergen
-    if "sin gluten" in declared and "gluten" in allergens:
-        issues.append("declares 'sin gluten' but allergens include gluten")
 
-    # sin lactosa + dairy allergen
-    if "sin lactosa" in declared and "dairy" in allergens:
-        issues.append("declares 'sin lactosa' but allergens include dairy")
+def _check_allergen_contradictions(declared: set, allergens: set, issues: list) -> None:
+    """Check for tag/allergen contradictions.
 
-    # sin huevo + eggs allergen
-    if "sin huevo" in declared and "eggs" in allergens:
-        issues.append("declares 'sin huevo' but allergens include eggs")
+    Extracted from validate_ingredient to reduce complexity.
+    """
+    for tag, required_allergens, message in _ALLERGEN_CONTRADICTIONS:
+        if tag in declared and (allergens & required_allergens):
+            issues.append(message)
 
-    # sin frutos secos + nuts allergen
-    if "sin frutos secos" in declared and "nuts" in allergens:
-        issues.append("declares 'sin frutos secos' but allergens include nuts")
 
-    # sin tacc + gluten allergen (should never happen if sin tacc == sin gluten)
-    if "sin tacc" in declared and "gluten" in allergens:
-        issues.append("declares 'sin tacc' but allergens include gluten")
+def _check_vegetarian_contradiction(declared: set, name_lower: str, issues: list) -> None:
+    """Check for vegetarian + meat/fish name contradiction.
 
-    # may_contain_gluten without sin tacc declared — operator forgot to
-    # mark this as cross-contaminated; we don't auto-add the tag but warn.
+    Extracted from validate_ingredient to reduce complexity.
+    """
+    if "vegetariano" not in declared:
+        return
+    if any(_keyword_matches(kw, name_lower) for kw in _MEAT_FISH_KEYWORDS):
+        issues.append("declares 'vegetariano' but name suggests meat/fish")
+
+
+def _check_may_contain_gluten(ing: object, declared: set, issues: list) -> None:
+    """Check for may_contain_gluten + sin tacc contradiction.
+
+    Extracted from validate_ingredient to reduce complexity.
+    """
     if getattr(ing, "may_contain_gluten", False) and "sin tacc" in declared:
         issues.append("sin tacc cannot be true when may_contain_gluten is set")
 
-    # Category mismatch (2026-09-29): if the inferred category from the
-    # name disagrees with the stored category, surface a warning. The
-    # operator may have intentionally miscategorized (e.g. an unusual
-    # import), but most often this is a typo (Jengibre fresco → carnes).
+
+def _check_category_mismatch(ing: object, issues: list) -> None:
+    """Check for category mismatch between stored and inferred.
+
+    Extracted from validate_ingredient to reduce complexity.
+    """
     stored_category = (getattr(ing, "category", None) or "").strip().lower()
-    if stored_category and stored_category != "otros":
-        from app.rms.ingredient_intel import infer_category
-
-        inferred = infer_category(getattr(ing, "name", "") or "")
-        if inferred and inferred != stored_category:
-            issues.append(f"category '{stored_category}' may be wrong; name suggests '{inferred}'")
-
-    return issues
-
-
-__all__ = [
-    "infer_allergens",
-    "infer_dietary_tags",
-    "ingredient_blocks",
-    "normalize",
-    "normalize_all",
-    "validate_ingredient",
-]
+    if not stored_category or stored_category == "otros":
+        return
+    inferred = infer_category(getattr(ing, "name", "") or "")
+    if inferred and inferred != stored_category:
+        issues.append(f"category '{stored_category}' may be wrong; name suggests '{inferred}'")

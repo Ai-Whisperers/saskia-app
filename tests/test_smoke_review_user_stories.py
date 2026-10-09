@@ -88,14 +88,14 @@ def test_smoke_2_monday_plan_opens_correct_day(client, session_factory):
     assert ">12<" in r.text or 'value="12"' in r.text or '"%.0f"' % 12 in r.text
 
 
-def test_smoke_3_record_counter_sale(client, session_factory):
+def test_smoke_3_record_counter_sale(client_with_caja, session_factory):
     """3. Record a counter venta (VEN-01).
 
     Note: a successful sale requires the recipe to be costable. With our
     seed (1 ingredient + 1 recipe line + 1 sale history), this succeeds.
     """
     _, _, prod_id, _ = _seed_min_catalog(session_factory)
-    r = client.post(
+    r = client_with_caja.post(
         "/ventas/nueva",
         data={
             "product_id": str(prod_id),

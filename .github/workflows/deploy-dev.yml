@@ -1,0 +1,147 @@
+# .github/workflows/deploy-dev.yml
+#
+# Auto-deploys every push to a non-main branch to the saskia-dev VPS stack.
+# This is the "AI agents do all the dev work" path — every commit to a
+# feature branch lands on https://saskia-dev.paragu-ai.com/ within ~2 min.
+#
+# Triggers:
+#   - push to any branch EXCEPT main (main goes to prod via release.sh)
+#   - workflow_dispatch (manual trigger)
+#
+# What it does:
+#   1. SSH into the VPS as root
+#   2. Pull the latest main + the pushed branch's tip into a per-branch
+#      worktree on the VPS
+#   3. Run scripts/deploy.sh --env=dev (which renders the dev stack, writes
+#      the BWS env file, builds the dev image, swaps the dev service)
+#
+# The actual secrets (BWS token, SSH key) come from GH Secrets. The dev
+# env uses BWS keys SASKIA_DEV_USER_PASSWORD, the rest is read-only access
+# to the same Supabase/CF/R2 as prod (so dev can't pollute prod data
+# because it's on a separate SQLite volume + separate R2 prefix).
+#
+# Sibling-session coordination: if two agents push to different branches
+# within minutes, the dev service will swap to whichever pushed last. This
+# is documented in docs/operations/2026-10-04-sibling-session-coordination.md
+# — the agent that loses the race can re-push their tip to redeploy.
+#
+# Failure mode: if the workflow fails on a push, the dev env keeps
+# running the previous successful deploy. Operators only see failures via
+# GH Actions UI; no Slack/Resend alert (dev is non-critical).
+
+name: Deploy dev
+
+on:
+  push:
+    branches-ignore:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  # One deploy at a time. The 'group' key includes the branch so two
+  # different feature branches can deploy in parallel; only the same
+  # branch's previous in-flight run is cancelled.
+  group: deploy-dev-${{ github.ref }}
+  cancel-in-progress: true
+
+# Minimum GitHub token permissions: read-only.
+# zizmor recommends this default; jobs that need more must override.
+permissions:
+  contents: read
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          fetch-depth: 0   # full history so deploy.sh can compute the SHA
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
+        with:
+          version: "0.5.x"
+
+      - name: Render dev stack file (sanity check)
+        env:
+          # BWS token from GH Secrets. The action does NOT write to BWS;
+          # it only reads via the local bws CLI we install in the next step.
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: |
+          # The GH runner's /usr python is externally managed AND we're
+          # not root, so --system install fails on permissions. Use a
+          # throwaway venv on the runner's HOME, then invoke python
+          # directly. pyyaml is the only dep render_stack.py needs.
+          python3 -m venv /tmp/render-venv
+          /tmp/render-venv/bin/pip install pyyaml
+          /tmp/render-venv/bin/python3 deploy/render_stack.py --env=dev --output=/tmp/docker-stack.dev.yml
+          echo "render OK ($(wc -c < /tmp/docker-stack.dev.yml) bytes)"
+
+      - name: Install bws CLI on the runner
+        # bws 2.1.0 is a single static binary; we download it from the
+        # Bitwarden releases page. This is a build-time tool, not a runtime
+        # dep of the app.
+        run: |
+          BWS_VERSION="2.1.0"
+          curl -fsSL "https://github.com/bitwarden/sdk/releases/download/bws-v${BWS_VERSION}/bws-x86_64-unknown-linux-gnu-${BWS_VERSION}.zip" \
+            -o /tmp/bws.zip
+          unzip -o /tmp/bws.zip -d /usr/local/bin/
+          chmod +x /usr/local/bin/bws
+          bws --version
+
+      - name: SSH into VPS, run deploy.sh --env=dev
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+          SASKIA_VPS_SSH_KEY: ${{ secrets.VPS_KEY }}
+        run: |
+          # Write the SSH key to a known path with 0600 perms.
+          # printf + tr to strip newlines (multi-line secrets break OpenSSH
+          # with "error in libcrypto"). 2026-10-09: 9/9 deploy-dev runs
+          # were failing on this exact key-loading error.
+          mkdir -p ~/.ssh
+          printf '%s' "$SASKIA_VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 0600 ~/.ssh/id_ed25519
+          echo "StrictHostKeyChecking=no" > ~/.ssh/config
+
+          # The deploy.sh script on the VPS expects:
+          #   - the repo at /opt/build-apps/sazon-rms (tar-synced from local)
+          #   - bws CLI installed at /usr/local/bin/bws
+          #   - the BWS token in /etc/sazon/bws-token (mode 0400)
+          #
+          # We set up the BWS token first (idempotent — only writes if missing).
+          ssh -i ~/.ssh/id_ed25519 root@38.9.96.179 '
+            set -e
+            mkdir -p /etc/sazon
+            chmod 0700 /etc/sazon
+            # Only install the token if not already present. The VPS-side
+            # token rotates separately (the GH Actions runner never sees
+            # the long-lived value).
+            if [ ! -f /etc/sazon/bws-token ]; then
+              echo "WARN: /etc/sazon/bws-token missing on the VPS. Run scripts/install_bws_token.sh manually."
+            fi
+            # bws binary on the VPS — must be present
+            if ! command -v bws >/dev/null; then
+              echo "Installing bws on the VPS..."
+              curl -fsSL "https://github.com/bitwarden/sdk/releases/download/bws-v2.1.0/bws-x86_64-unknown-linux-gnu-2.1.0.zip" | \
+                (cd /tmp && unzip -o bws-x86_64-unknown-linux-gnu-2.1.0.zip && mv bws /usr/local/bin/ && chmod +x /usr/local/bin/bws)
+            fi
+            bws --version
+          '
+
+          # Run deploy.sh. The script reads BWS_ACCESS_TOKEN from the env
+          # we forward; the VPS-side write_env_file.py will use it.
+          SASKIA_VPS_SSH_KEY=~/.ssh/id_ed25519 \
+          BWS_ACCESS_TOKEN="$BWS_ACCESS_TOKEN" \
+            bash scripts/deploy.sh --env=dev
+
+      - name: Verify dev healthz
+        run: |
+          sleep 5
+          HEALTH=$(curl -s --max-time 15 https://saskia-dev.paragu-ai.com/healthz || true)
+          echo "==> dev healthz: $HEALTH"
+          case "$HEALTH" in
+            *'"ok"*) echo "DEPLOY OK" ;;
+            *) echo "WARNING: dev healthz did not return ok"; exit 1 ;;
+          esac

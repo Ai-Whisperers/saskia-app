@@ -16,6 +16,8 @@ This test pins the public API contract:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 
 def test_packages_exist():
     """The new packages are importable."""
@@ -101,7 +103,7 @@ def test_only_one_costing_module():
 
 def test_shim_is_thin():
     """The costing.py shim should be small (under ~80 lines)."""
-    with open("/opt/data/work/saskia-app/app/rms/costing.py") as f:
+    with open(Path(__file__).resolve().parents[1] / "app" / "rms" / "costing.py") as f:
         content = f.read()
     line_count = len(content.split("\n"))
     assert line_count < 80, f"costing.py shim is {line_count} lines — should be a thin re-export"
@@ -136,7 +138,7 @@ def test_costing_shim_no_logic():
     """
     import re
 
-    with open("/opt/data/work/saskia-app/app/rms/costing.py") as f:
+    with open(Path(__file__).resolve().parents[1] / "app" / "rms" / "costing.py") as f:
         content = f.read()
 
     # Strip the top-level module docstring

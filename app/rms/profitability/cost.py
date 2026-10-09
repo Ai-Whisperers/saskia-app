@@ -107,70 +107,95 @@ def _walk_recipe_cost(
         missing.append(f"recipe:{recipe.name} (sin rendimiento)")
         return None
 
+    lines = session.scalars(select(RecipeLine).where(RecipeLine.recipe_id == recipe.id)).all()
     total = Decimal("0")
 
-    # Refresh lines (caller may have passed a stale Recipe)
-    lines = session.scalars(select(RecipeLine).where(RecipeLine.recipe_id == recipe.id)).all()
-
     for line in lines:
-        # Phase B — T1: line_unit is the unit Saskia typed the qty in.
-        # Default to the linked ingredient's unit (backward compat for
-        # legacy rows with line_unit=''). normalize_recipe_line_qty raises
-        # ValueError on cross-family conversion (g→l, etc.) — the costing
-        # walk surfaces this via missing[] so the UI can show "unidades
-        # incompatibles" instead of crashing.
-        line_qty_raw = Decimal(str(line.qty))
-        target = resolve_line_target(session, line)
-        if line.line_kind == "ingredient":
-            ingredient = target  # type: ignore[assignment]
-            if ingredient is None:
-                missing.append(f"line:{line.id} (ingrediente no existe)")
-                return None
-            # variants.current_variant_price: preferred variant price if
-            # any, else the parent Ingredient price (backward compatible).
-            from app.rms.variants import current_variant_price
-
-            effective_price = current_variant_price(session, ingredient.id)
-            if effective_price is None:
-                missing.append(f"ingredient:{ingredient.name} (sin precio)")
-                return None
-            # Resolve which unit to normalize qty INTO: prefer line_unit when
-            # set, else fall back to ingredient.unit (legacy/back-compat).
-            line_unit = line.line_unit if line.line_unit else ingredient.unit
-            try:
-                line_qty_in_ingredient_unit = normalize_recipe_line_qty(
-                    line_qty_raw, line_unit, ingredient.unit
-                )
-            except ValueError as exc:
-                missing.append(
-                    f"line:{line.id} ({line_unit!r}→{ingredient.unit!r} requiere densidad: {exc})"
-                )
-                return None
-            # Multiply the normalized qty against the ingredient's per-unit price.
-            line_cost = line_qty_in_ingredient_unit * Decimal(str(effective_price))
-            total += line_cost
-
-        elif line.line_kind == "sub_recipe":
-            sub_recipe = target  # type: ignore[assignment]
-            if sub_recipe is None:
-                missing.append(f"line:{line.id} (sub-receta no existe)")
-                return None
-            sub_cost = _walk_recipe_cost(session, sub_recipe, visited, missing)
-            if sub_cost is None:
-                return None
-            # sub_cost is per sub_recipe.yield_qty. We need sub_qty in same units.
-            if sub_recipe.yield_qty is None or sub_recipe.yield_qty <= 0:
-                missing.append(f"sub-recipe:{sub_recipe.name} (sin rendimiento)")
-                return None
-            # Scale: line_qty is in (sub_recipe's yield unit). Convert:
-            # line_cost = line_qty × (sub_cost / sub_recipe.yield_qty)
-            ratio = line_qty_raw / Decimal(str(sub_recipe.yield_qty))
-            total += ratio * sub_cost
-
-        else:
-            raise ValueError(f"Unknown line_kind: {line.line_kind!r}")
+        line_cost = _compute_line_cost(session, line, visited, missing)
+        if line_cost is None:
+            return None
+        total += line_cost
 
     return total
+
+
+def _compute_line_cost(
+    session: Session,
+    line: RecipeLine,
+    visited: set[int],
+    missing: list[str],
+) -> Decimal | None:
+    """Compute the cost for a single recipe line.
+
+    Extracted from _walk_recipe_cost to reduce complexity.
+    """
+    target = resolve_line_target(session, line)
+    if line.line_kind == "ingredient":
+        return _compute_ingredient_line_cost(session, line, target, missing)
+    if line.line_kind == "sub_recipe":
+        return _compute_sub_recipe_line_cost(session, line, target, visited, missing)
+    raise ValueError(f"Unknown line_kind: {line.line_kind!r}")
+
+
+def _compute_ingredient_line_cost(
+    session: Session,
+    line: RecipeLine,
+    ingredient,
+    missing: list[str],
+) -> Decimal | None:
+    """Compute cost for an ingredient line.
+
+    Extracted from _walk_recipe_cost to reduce complexity.
+    """
+    if ingredient is None:
+        missing.append(f"line:{line.id} (ingrediente no existe)")
+        return None
+
+    from app.rms.variants import current_variant_price
+
+    effective_price = current_variant_price(session, ingredient.id)
+    if effective_price is None:
+        missing.append(f"ingredient:{ingredient.name} (sin precio)")
+        return None
+
+    line_qty_raw = Decimal(str(line.qty))
+    line_unit = line.line_unit if line.line_unit else ingredient.unit
+    try:
+        line_qty_in_ingredient_unit = normalize_recipe_line_qty(
+            line_qty_raw, line_unit, ingredient.unit
+        )
+    except ValueError as exc:
+        missing.append(
+            f"line:{line.id} ({line_unit!r}→{ingredient.unit!r} requiere densidad: {exc})"
+        )
+        return None
+
+    return line_qty_in_ingredient_unit * Decimal(str(effective_price))
+
+
+def _compute_sub_recipe_line_cost(
+    session: Session,
+    line: RecipeLine,
+    sub_recipe,
+    visited: set[int],
+    missing: list[str],
+) -> Decimal | None:
+    """Compute cost for a sub-recipe line.
+
+    Extracted from _walk_recipe_cost to reduce complexity.
+    """
+    if sub_recipe is None:
+        missing.append(f"line:{line.id} (sub-receta no existe)")
+        return None
+    sub_cost = _walk_recipe_cost(session, sub_recipe, visited, missing)
+    if sub_cost is None:
+        return None
+    if sub_recipe.yield_qty is None or sub_recipe.yield_qty <= 0:
+        missing.append(f"sub-recipe:{sub_recipe.name} (sin rendimiento)")
+        return None
+    line_qty_raw = Decimal(str(line.qty))
+    ratio = line_qty_raw / Decimal(str(sub_recipe.yield_qty))
+    return ratio * sub_cost
 
 
 def batch_products_cost_margin(

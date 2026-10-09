@@ -67,6 +67,35 @@ def forecast_demand(
     target = target_date or (now + timedelta(days=1))
     cutoff = now.replace(tzinfo=None) - timedelta(days=history_days)
 
+    # Load sales rows once
+    rows = _load_sales_rows(session, cutoff, product_ids)
+
+    # Group by product
+    by_product = _group_sales_rows(rows)
+
+    # Build forecasts
+    forecasts: list[DemandForecast] = []
+    recent_cutoff = now.replace(tzinfo=None) - timedelta(days=14)
+    for pid, d in by_product.items():
+        forecast = _build_product_forecast(
+            session, pid, d, now, target, history_days, recent_cutoff
+        )
+        if forecast is not None:
+            forecasts.append(forecast)
+
+    forecasts.sort(key=lambda f: f.predicted_qty, reverse=True)
+    return forecasts
+
+
+def _load_sales_rows(
+    session: Session,
+    cutoff: datetime,
+    product_ids: list[int] | None,
+) -> list:
+    """Load sales rows within the cutoff window, optionally filtered by product.
+
+    Extracted from forecast_demand to reduce complexity.
+    """
     q = (
         select(Sale.product_id, Sale.sold_at, Sale.qty, Product.name)
         .join(Product, Sale.product_id == Product.id)
@@ -74,7 +103,14 @@ def forecast_demand(
     )
     if product_ids:
         q = q.where(Sale.product_id.in_(product_ids))
-    rows = session.execute(q).all()
+    return session.execute(q).all()
+
+
+def _group_sales_rows(rows: list) -> dict[int, dict]:
+    """Group sales rows by product, normalizing datetimes to naive local.
+
+    Extracted from forecast_demand to reduce complexity.
+    """
 
     def _naive(t: datetime) -> datetime:
         # DB may return naive datetimes; normalize everything to naive local
@@ -86,55 +122,104 @@ def forecast_demand(
     for pid, sold_at, qty, name in rows:
         d = by_product.setdefault(pid, {"name": name, "sales": []})
         d["sales"].append((_naive(sold_at), float(qty)))
+    return by_product
 
-    forecasts: list[DemandForecast] = []
-    recent_cutoff = now.replace(tzinfo=None) - timedelta(days=14)
-    for pid, d in by_product.items():
-        sales = d["sales"]
-        if len(sales) < 3:
-            continue  # not enough history
-        # Rate over the OBSERVED span (capped at history_days): a product
-        # first sold 10 days ago shouldn't be diluted by 46 zero-days.
-        span_days = min(
-            history_days,
-            max(1.0, (now.replace(tzinfo=None) - min(t for t, _ in sales)).days + 1),
-        )
-        avg = sum(q for _, q in sales) / span_days
-        same_weekday = [q for t, q in sales if t.weekday() == target.weekday()]
-        overall_per_day = avg
-        weekday_avg = (sum(same_weekday) / (history_days / 7)) if same_weekday else overall_per_day
-        factor = (weekday_avg / overall_per_day) if overall_per_day > 0 else 1.0
-        factor = max(0.3, min(2.5, factor))
-        recent = sum(q for t, q in sales if t >= recent_cutoff)
-        prior = sum(q for t, q in sales if t < recent_cutoff)
-        trend = (recent / prior) if prior > 0 else 1.0
-        trend = max(0.6, min(1.6, trend))
 
-        p = session.get(Product, pid)
-        recipe_id = p.recipe_id if p else None
-        yq = None
-        batches = 0.0
-        if recipe_id:
-            r = session.get(Recipe, recipe_id)
-            if r and r.yield_qty:
-                yq = float(r.yield_qty)
-                predicted = avg * factor * trend
-                batches = predicted / yq if yq else 0.0
-        forecasts.append(
-            DemandForecast(
-                product_id=pid,
-                name=d["name"],
-                avg_per_day=round(avg, 2),
-                weekday_factor=round(factor, 2),
-                predicted_qty=round(avg * factor * trend, 1),
-                trend=round(trend, 2),
-                recipe_id=recipe_id,
-                yield_qty=yq,
-                suggested_batches=round(batches, 1),
-            )
-        )
-    forecasts.sort(key=lambda f: f.predicted_qty, reverse=True)
-    return forecasts
+def _build_product_forecast(
+    session: Session,
+    pid: int,
+    product_data: dict,
+    now: datetime,
+    target: datetime,
+    history_days: int,
+    recent_cutoff: datetime,
+) -> DemandForecast | None:
+    """Build a single product's demand forecast.
+
+    Returns None if product has insufficient history (< 3 sales).
+    Extracted from forecast_demand to reduce complexity.
+    """
+    sales = product_data["sales"]
+    if len(sales) < 3:
+        return None  # not enough history
+
+    # Rate over the OBSERVED span (capped at history_days): a product
+    # first sold 10 days ago shouldn't be diluted by 46 zero-days.
+    span_days = min(
+        history_days,
+        max(1.0, (now.replace(tzinfo=None) - min(t for t, _ in sales)).days + 1),
+    )
+    avg = sum(q for _, q in sales) / span_days
+    factor = _compute_weekday_factor(sales, target, avg, history_days)
+    trend = _compute_trend(sales, recent_cutoff)
+
+    recipe_id, yq, batches = _compute_batches(session, pid, avg, factor, trend)
+
+    return DemandForecast(
+        product_id=pid,
+        name=product_data["name"],
+        avg_per_day=round(avg, 2),
+        weekday_factor=round(factor, 2),
+        predicted_qty=round(avg * factor * trend, 1),
+        trend=round(trend, 2),
+        recipe_id=recipe_id,
+        yield_qty=yq,
+        suggested_batches=round(batches, 1),
+    )
+
+
+def _compute_weekday_factor(
+    sales: list,
+    target: datetime,
+    overall_per_day: float,
+    history_days: int,
+) -> float:
+    """Compute weekday factor (clamped to [0.3, 2.5]).
+
+    Extracted from forecast_demand to reduce complexity.
+    """
+    same_weekday = [q for t, q in sales if t.weekday() == target.weekday()]
+    weekday_avg = (sum(same_weekday) / (history_days / 7)) if same_weekday else overall_per_day
+    factor = (weekday_avg / overall_per_day) if overall_per_day > 0 else 1.0
+    return max(0.3, min(2.5, factor))
+
+
+def _compute_trend(sales: list, recent_cutoff: datetime) -> float:
+    """Compute trend factor: recent(14d) / prior(14d) (clamped to [0.6, 1.6]).
+
+    Extracted from forecast_demand to reduce complexity.
+    """
+    recent = sum(q for t, q in sales if t >= recent_cutoff)
+    prior = sum(q for t, q in sales if t < recent_cutoff)
+    trend = (recent / prior) if prior > 0 else 1.0
+    return max(0.6, min(1.6, trend))
+
+
+def _compute_batches(
+    session: Session,
+    pid: int,
+    avg: float,
+    factor: float,
+    trend: float,
+) -> tuple[int | None, float | None, float]:
+    """Compute suggested batches from product's recipe yield.
+
+    Returns (recipe_id, yield_qty, batches).
+    Extracted from forecast_demand to reduce complexity.
+    """
+    p = session.get(Product, pid)
+    recipe_id = p.recipe_id if p else None
+    if not recipe_id:
+        return recipe_id, None, 0.0
+
+    r = session.get(Recipe, recipe_id)
+    if not r or not r.yield_qty:
+        return recipe_id, None, 0.0
+
+    yq = float(r.yield_qty)
+    predicted = avg * factor * trend
+    batches = predicted / yq if yq else 0.0
+    return recipe_id, yq, batches
 
 
 def shopping_list_from_forecast(

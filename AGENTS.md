@@ -50,13 +50,13 @@ Supports **two deployment modes**:
 
 ### Migrations (8 sub-rules)
 
-12. **No Alembic.** Hand-rolled versioned migrations in `app/rms/db.py` (109 migrations, no gaps).
+12. **No Alembic.** Hand-rolled versioned migrations in `app/rms/db.py` (117 migrations, no gaps).
 13. **Every migration is forward-only.** No `downgrade` functions.
 14. **Never edit a shipped migration.** Create a new one. The old one is the persisted contract.
 15. **Never renumber or reorder.** Version number is the contract.
 16. **Migrations are atomic** (one transaction per migration).
 17. **Pre-migration auto-backup is mandatory** to `/tmp/sazon_backups/<db>-pre-v<A>-to-v<B>.json.gz` (or equivalent). Implemented in `app/rms/db.py` `sync_backup_before_migration()` — runs before the first pending migration in `init_db()`. Uses `app/rms/backup.py::backup_database()` for the gzipped JSON+manifest. **Fail-closed by default**: if the backup fails, `init_db` raises unless `AIW_RMS_PROCEED_WITHOUT_BACKUP=1` is set. Locked by 3 tests in `tests/test_migration_safety.py` (`test_sync_backup_before_migration_writes_file`, `test_sync_backup_before_migration_can_be_restored`, `test_init_db_writes_pre_migration_backup_before_applying`).
-18. **`PRAGMA user_version` is the source of truth** for the current schema state. **This is currently NOT implemented (P1 to add).** Until added, the in-app `SCHEMA_VERSION` constant is used.
+18. **`app_meta` table is the source of truth** for the current schema state. The schema version is read from `app_meta(key='schema_version')` (set by `app/rms/db.py` during `init_db()`). `PRAGMA user_version` is NOT used (deliberate decision 2026-10-09 — see `docs/operations/2026-10-09-schema-version-source.md`). The in-app `SCHEMA_VERSION` constant in `app/rms/config.py` is the build's intended version; the `app_meta` row is the runtime's current version.
 19. **Two fail-closed rules** (FloCafe pattern):
     - Missing DB on a previously-initialized install → throw, don't recreate.
     - DB schema newer than build → throw, don't auto-downgrade. **ENFORCED** via `fail_closed_on_newer_schema()` in `app/rms/db.py`. Locked by `tests/test_migration_safety.py::test_fail_closed_on_newer_schema_db_raises`.
@@ -104,7 +104,7 @@ These are ideas that look good on paper but are wrong for Sazon at its current s
 
 1. **Don't migrate to React/Vue/Tailwind/SPA.** Server-rendered Jinja2 + HTMX is correct. (HTMX IS already in use in `receta_form.html` and `produccion*.html`.) The fix for UX is design system + components, not a framework. **Enforce in CI: fail if templates/ add a React import.**
 
-2. **Don't migrate to microservices.** The monolith is right for this scale. Sazon has 527 app files, 49 tables, 109 migrations — well within monolith territory. The right answer is "extract a function" or "extract a module", not "extract a service".
+2. **Don't migrate to microservices.** The monolith is right for this scale. Sazon has 251 app/ python files, 45 tables, 117 migrations — well within monolith territory. The right answer is "extract a function" or "extract a module", not "extract a service".
 
 3. **Don't add GraphQL.** REST + OpenAPI is sufficient until 3+ external consumers. No graphene, strawberry, ariadne, hasura, stepzen, etc.
 

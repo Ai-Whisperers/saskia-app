@@ -1,0 +1,113 @@
+# .github/workflows/deploy-test.yml
+#
+# Auto-deploys PRs to saskia-test.paragu-ai.com. This is the integration
+# environment — every merged PR (and every PR open) lands here, so the
+# reviewer can verify the change against a real running stack before
+# promoting to prod.
+#
+# Triggers:
+#   - pull_request open/synchronize/reopen to main
+#   - push to main (the merge commit deploys to test for sanity)
+#   - workflow_dispatch (manual trigger)
+#
+# What it does:
+#   1. Checks out the PR HEAD
+#   2. SSHes into the VPS and runs scripts/deploy.sh --env=test
+#   3. The deploy script:
+#        - renders test stack from template
+#        - writes BWS env file (idempotent)
+#        - builds the test image (sa zone-rms:test-latest)
+#        - force-updates the saskia-test service
+#   4. Health-checks saskia-test.paragu-ai.com
+#
+# The test env is the same code that will ship to prod — it just has its
+# own SQLite volume and its own BWS env file. Failed test deploys do NOT
+# block prod (which is gated by release.sh + manual click).
+#
+# Why this is separate from ci.yml: ci.yml runs lint/pytest/E2E. This
+# workflow is the deployment leg. They run in parallel after PR open.
+
+name: Deploy test
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # Cancel superseded test deploys for the same PR. Different PRs run in
+  # parallel because they have different group keys.
+  group: deploy-test-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Minimum GitHub token permissions: read-only.
+# zizmor recommends this default; jobs that need more must override.
+permissions:
+  contents: read
+
+jobs:
+  deploy-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
+        with:
+          version: "0.5.x"
+
+      - name: Render test stack file (sanity check)
+        run: |
+          # The GH runner's /usr python is externally managed AND we're
+          # not root, so --system install fails on permissions. Use a
+          # throwaway venv on the runner's HOME, then invoke python
+          # directly. pyyaml is the only dep render_stack.py needs.
+          python3 -m venv /tmp/render-venv
+          /tmp/render-venv/bin/pip install pyyaml
+          /tmp/render-venv/bin/python3 deploy/render_stack.py --env=test --output=/tmp/docker-stack.test.yml
+          echo "render OK ($(wc -c < /tmp/docker-stack.test.yml) bytes)"
+
+      - name: SSH into VPS, run deploy.sh --env=test
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+          SASKIA_VPS_SSH_KEY: ${{ secrets.VPS_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          # printf + tr to strip newlines (multi-line secrets break OpenSSH
+          # with "error in libcrypto"). 2026-10-09: 9/10 deploy-test runs
+          # were failing on this exact key-loading error.
+          printf '%s' "$SASKIA_VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 0600 ~/.ssh/id_ed25519
+          echo "StrictHostKeyChecking=no" > ~/.ssh/config
+
+          ssh -i ~/.ssh/id_ed25519 root@38.9.96.179 '
+            set -e
+            if ! command -v bws >/dev/null; then
+              echo "Installing bws on the VPS..."
+              curl -fsSL "https://github.com/bitwarden/sdk/releases/download/bws-v2.1.0/bws-x86_64-unknown-linux-gnu-2.1.0.zip" | \
+                (cd /tmp && unzip -o bws-x86_64-unknown-linux-gnu-2.1.0.zip && mv bws /usr/local/bin/ && chmod +x /usr/local/bin/bws)
+            fi
+            bws --version
+          '
+
+          SASKIA_VPS_SSH_KEY=~/.ssh/id_ed25519 \
+          BWS_ACCESS_TOKEN="$BWS_ACCESS_TOKEN" \
+            bash scripts/deploy.sh --env=test
+
+      - name: Verify test healthz
+        run: |
+          sleep 5
+          HEALTH=$(curl -s --max-time 15 https://saskia-test.paragu-ai.com/healthz || true)
+          echo "==> test healthz: $HEALTH"
+          case "$HEALTH" in
+            *'"ok"*) echo "DEPLOY OK" ;;
+            *) echo "WARNING: test healthz did not return ok"; exit 1 ;;
+          esac

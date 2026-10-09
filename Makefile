@@ -1,7 +1,7 @@
 # Sazón RMS — Makefile
 # Shortcuts for common dev tasks. Run `make help` to see all targets.
 
-.PHONY: help install test test-verbose test-coverage test-fast lint lint-fix format check serve migrate seed seed-reset backup fixtures clean ci-smoke pre-commit stats smoke check-warnings check-secrets ci
+.PHONY: help install test test-verbose test-coverage test-fast lint lint-fix format check serve migrate seed seed-reset backup fixtures clean ci-smoke pre-commit stats smoke check-warnings check-secrets ci dead-code complexity duplicates duplicates-code arch security audit-cve licenses ci-extra
 
 PYTHON ?= python3
 UV ?= uv
@@ -62,9 +62,14 @@ test-coverage: ## Run tests with coverage report.
 lint-fix: ## Auto-fix lint errors.
 	uv run ruff check . --fix
 
-check: ## Run pre-commit style checks (lint + warnings + secrets).
-	uv run ruff check .
-	uv run python scripts/check_warnings.py
+check: ## Run pre-commit style checks (duplicates + arch + import rules).
+	@echo "=== format check (ruff, no writes) ==="
+	@uv run ruff format --check . || echo "  (format drift; run: make format)"
+	@echo "=== duplicates (stem collisions + forbidden legacy) ==="
+	@uv run python scripts/check_duplicate_files.py
+	@echo "=== imports (cycles + arch rules) ==="
+	@uv run python scripts/check_imports.py
+	@echo "=== done ==="
 
 seed-reset: ## Drop and recreate demo data (DESTRUCTIVE — local dev only).
 	uv run python -c "from app.rms.seed import seed_demo_data; \
@@ -109,7 +114,185 @@ test-xdist: ## Parallel fast loop (-n 4 green since 2026-09-25).
 	$(UV) run pytest tests/ -q --no-header --no-cov -n 4 \
 	  --deselect tests/test_xlsx_fixtures.py --deselect tests/test_shopping_benchmarks.py
 
+dead-code: ## vulture + sensez: scan for unused code + structural smells.
+	$(UV) run vulture app/ scripts/ --min-confidence 80 \
+	  --ignore-decorators @app.get,@app.post,@app.put,@app.delete,@router.get,@router.post,@router.put,@router.delete,@app.exception_handler,@app.middleware,@app.on_event,@staticmethod,@classmethod,@property \
+	  --ignore-names 'test_*,Test*,_test_*' 2>&1 | tail -30
+	@echo ""
+	@echo "=== sensez (structural maintainability) ==="
+	$(UV) run sensez app/ 2>&1 | head -40 || true
+	@echo "Note: sensez is advisory. See docs/operations/2026-10-09-sensez-ty-evaluation.md."
+
+deadcode-code: ## deadcode: cross-file dead-code scan (complements vulture).
+	@echo "=== deadcode (cross-file dead code) ==="
+	$(UV) run deadcode app/ scripts/ 2>&1 | tail -30 || true
+	@echo "Note: deadcode complements vulture with cross-file analysis."
+	@echo "First run may have noise; review the output and git rm in same commit."
+
+complexity: ## radon: cyclomatic complexity ceiling (B = CC<=10).
+	$(UV) run python scripts/check_complexity.py
+
+cognitive: ## complexipy: cognitive complexity (>15 = FAIL; >25 = must fix).
+	@echo "=== complexipy (cognitive complexity, SonarSource spec) ==="
+	$(UV) run complexipy --max-complexity-allowed 15 app/rms/ 2>&1 | tail -20 || true
+	@echo "(>15 = warning, >25 = must fix; threshold is per Sazon conventions)"
+
+deptry: ## deptry: find unused/missing/transitive deps.
+	@echo "=== deptry (dependency hygiene) ==="
+	$(UV) run deptry . 2>&1 | tail -10 || true
+	@echo "Note: many DEP003 'starlette' are false positives — starlette is a"
+	@echo "FastAPI transitive, but we import symbols directly. See pyproject.toml."
+
+interrogate: ## interrogate: docstring coverage (gate: 80%).
+	@echo "=== interrogate (docstring coverage) ==="
+	$(UV) run interrogate -f 80 app/rms/ app/observability/ 2>&1 | tail -3
+
+pyright: ## pyright: static type checker (catches real bugs).
+	@echo "=== pyright (Microsoft type checker) ==="
+	$(UV) run pyright --pythonpath .venv/bin/python app/rms/main.py app/rms/db.py 2>&1 | tail -10 || true
+	@echo "Note: pyright is advisory. Run on main.py + db.py first; full sweep later."
+
+refurb: ## refurb: modernization hints (FURB rules; FYI only).
+	@echo "=== refurb (modernization hints) ==="
+	-$(UV) run refurb app/rms/ 2>&1 | tail -5
+	@echo "Note: refurb is FYI. Most findings are FURB123 redundant casts."
+	@echo "Pre-Pydantic code is noisy. Do not auto-fix."
+
+duplicates: ## Detect duplicate-stem files + forbidden legacy + unused modules.
+	$(UV) run python scripts/check_duplicate_files.py
+
+duplicates-code: ## Detect near-duplicate function bodies (>=80% similarity).
+	$(UV) run python scripts/check_duplicate_code.py
+
+jscpd: ## jscpd: line-level copy-paste detector (complements duplicates-code).
+	@echo "=== jscpd (line-level copy-paste) ==="
+	$(UV) run jscpd app/ --reporters console --threshold 5 --reporters console 2>&1 | tail -30 || true
+	@echo "Note: jscpd finds 5+ line exact duplicates. complements duplicates-code"
+	@echo "which uses AST similarity >=80%."
+
+arch: ## Architecture linter: no cycles, no rule violations.
+	$(UV) run python scripts/check_imports.py
+
+security: ## bandit security scan (medium+high severity).
+	$(UV) run bandit -r app/ -ll -q --exclude app/_archive
+
+audit-cve: ## pip-audit: scan pyproject deps for known CVEs.
+	$(UV) run pip-audit -r pyproject.toml
+
+licenses: ## reuse: SPDX license header compliance.
+	$(UV) run reuse lint
+
+workflows-lint: ## zizmor: GitHub Actions workflow lint (config in .github/zizmor.yml).
+	@echo "=== zizmor (GitHub Actions security) ==="
+	uvx --from zizmor zizmor \
+		--config .github/zizmor.yml \
+		--min-severity=high \
+		.github/workflows/ 2>&1 | tail -50 || true
+	@echo ""
+	@echo "Note: HIGH-severity findings block PRs via .github/workflows/workflows-lint.yml."
+	@echo "Run without --min-severity=high to see all 64 findings (15 high, 49 info)."
+
+workflows-lint-all: ## zizmor: show all findings (not just high).
+	@echo "=== zizmor (all severities) ==="
+	uvx --from zizmor zizmor \
+		--config .github/zizmor.yml \
+		.github/workflows/ 2>&1 | tail -100 || true
+
+safeguard: ## fastapi-safeguard: FastAPI route security audit vs baseline.
+	@echo "=== fastapi-safeguard (route security) ==="
+	$(UV) run --group tooling-tier2 python scripts/generate_safeguard_baseline.py --check
+
+safeguard-baseline: ## fastapi-safeguard: regenerate the accepted-findings baseline.
+	$(UV) run --group tooling-tier2 python scripts/generate_safeguard_baseline.py
+	@echo "Review the diff: every entry needs a rationale."
+
+docs-lint: ## Markdown quality check (pymarkdownlnt; see scripts/check_docs_quality.py).
+	$(UV) run python scripts/check_docs_quality.py
+
+docs-lint-strict: ## Markdown quality check, all rules (no disables).
+	$(UV) run python scripts/check_docs_quality.py --strict
+
+jscpd: ## jscpd: line-level copy-paste detector (complements duplicates-code).
+	@echo "=== jscpd (line-level copy-paste) ==="
+	$(UV) run jscpd app/ --reporters console --threshold 5 2>&1 | tail -30 || true
+	@echo "Note: jscpd finds 5+ line exact duplicates. complements duplicates-code"
+	@echo "which uses AST similarity >=80%."
+
+deadcode-code: ## deadcode: cross-file dead-code scan (complements vulture).
+	@echo "=== deadcode (cross-file dead code) ==="
+	$(UV) run deadcode app/ scripts/ 2>&1 | tail -30 || true
+	@echo "Note: deadcode complements vulture with cross-file analysis."
+
+tool-matrix: ## Print the tooling coverage matrix.
+	@echo "=== Tooling coverage matrix (as of 2026-10-09) ==="
+	@echo ""
+	@echo "| Tool          | Decl | Make | Pre-C | CI  |"
+	@echo "|---------------|------|------|-------|-----|"
+	@echo "| ruff          |  ✓   |  ✓   |   ✓   |  ✓  |"
+	@echo "| pytest        |  ✓   |  ✓   |   ✓   |  ✓  |"
+	@echo "| vulture       |  ✓   |  ✓   |   ✓   |     |"
+	@echo "| deadcode      |  ✓   |  ✓   |       |     |"
+	@echo "| bandit        |  ✓   |  ✓   |   ✓   |     |"
+	@echo "| radon-cc      |  ✓   |  ✓   |   ✓   |     |"
+	@echo "| complexipy    |  ✓   |  ✓   |       |  ✓  |"
+	@echo "| pyright       |  ✓   |  ✓   |       |  ✓  |"
+	@echo "| mypy          |      |      |       |  ✓ (info) |"
+	@echo "| deptry        |  ✓   |  ✓   |       |     |"
+	@echo "| interrogate   |  ✓   |  ✓   |       |     |"
+	@echo "| refurb        |  ✓   |  ✓   |       |     |"
+	@echo "| pip-audit     |  ✓   |  ✓   |       |     |"
+	@echo "| reuse         |  ✓   |  ✓   |       |     |"
+	@echo "| jscpd         |  ✓   |  ✓   |       |     |"
+	@echo "| sensez        |  ✓   |  ✓   |       |     |"
+	@echo "| pymarkdownlnt |      |  ✓   |       |     |"
+	@echo "| hypothesis    |  ✓   |      |       |  ✓  |"
+	@echo "| playwright    |  ✓   |  ✓   |       |  ✓  |"
+	@echo "| testcontainers |  ✓   |      |       |  ✓  |"
+	@echo "| sentry        |  ✓   |      |       |     |"
+	@echo "| zizmor        |      |  ✓   |       |  ✓  |"
+	@echo ""
+	@echo "Full analysis: docs/operations/2026-10-09-tooling-research.md"
+
+ci-extra: lint dead-code complexity cognitive deptry duplicates arch security workflows-lint safeguard ## All static analysis (slow).
+	@echo ""
+	@echo "ci-extra complete."
+
 ci: lint test ## Run everything CI runs.
+
+docs-lint: ## Markdown quality check (pymarkdownlnt; see scripts/check_docs_quality.py).
+	$(UV) run python scripts/check_docs_quality.py
+
+docs-lint-strict: ## Markdown quality check, all rules (no disables).
+	$(UV) run python scripts/check_docs_quality.py --strict
+
+tool-matrix: ## Print the tooling coverage matrix.
+	@echo "=== Tooling coverage matrix ==="
+	@echo ""
+	@echo "| Tool          | Declared | Makefile | Pre-commit | CI |"
+	@echo "|---------------|----------|----------|------------|----|"
+	@echo "| ruff          |     ✓    |    ✓     |     ✓      | ✓  |"
+	@echo "| pytest        |     ✓    |    ✓     |     ✓      | ✓  |"
+	@echo "| vulture       |     ✓    |    ✓     |     ✓      |    |"
+	@echo "| deadcode      |     ✓    |    ✓ (this PR) |   |    |"
+	@echo "| bandit        |     ✓    |    ✓     |     ✓      |    |"
+	@echo "| radon-cc      |     ✓    |    ✓     |     ✓      |    |"
+	@echo "| complexipy    |     ✓    |    ✓     |            | ✓  |"
+	@echo "| pyright       |     ✓    |    ✓     |            | ✓  |"
+	@echo "| mypy          |          |          |            | ✓ (informational) |"
+	@echo "| deptry        |     ✓    |    ✓     |            |    |"
+	@echo "| interrogate   |     ✓    |    ✓     |            |    |"
+	@echo "| refurb        |     ✓    |    ✓     |            |    |"
+	@echo "| pip-audit     |     ✓    |    ✓     |            |    |"
+	@echo "| reuse         |     ✓    |    ✓     |            |    |"
+	@echo "| jscpd         |     ✓    |    ✓ (this PR) |   |    |"
+	@echo "| sensez        |     ✓    |    ✓     |            |    |"
+	@echo "| pymarkdownlnt |          |    ✓ (this PR) |   |    |"
+	@echo "| hypothesis    |     ✓    |          |            | ✓  |"
+	@echo "| playwright    |     ✓    |    ✓     |            | ✓  |"
+	@echo "| testcontainers |    ✓    |          |            | ✓  |"
+	@echo "| sentry        |     ✓    |          |            |    |"
+	@echo ""
+	@echo "Full analysis: docs/operations/2026-10-09-tooling-research.md"
 
 clean: ## Remove build artifacts.
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

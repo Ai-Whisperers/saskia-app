@@ -183,6 +183,37 @@ def compute_customer_defaults(
 
     out = CustomerPrefill()
 
+    # --- Contact & Delivery ---
+    _populate_contact_and_delivery(session, customer, customer_id, out)
+
+    # --- When (promised date, time, delivery window) ---
+    _populate_when_fields(session, customer, customer_id, today, out)
+
+    # --- Free-form (notes, dietary) ---
+    _populate_freeform_fields(session, customer, out)
+
+    # --- Clone lines (Pedir de nuevo) ---
+    _populate_clone_lines(session, customer_id, from_pedido_id, out)
+
+    # --- Loyalty banner & tier ---
+    _populate_loyalty_and_tier(session, customer, out)
+
+    # --- Active subscriptions ---
+    _populate_active_subscriptions(session, customer_id, out)
+
+    return out
+
+
+def _populate_contact_and_delivery(
+    session: Session,
+    customer: Customer,
+    customer_id: int,
+    out: CustomerPrefill,
+) -> None:
+    """Populate contact info, delivery addresses, and invoice profiles.
+
+    Extracted from compute_customer_defaults to reduce complexity.
+    """
     # --- Contact ---
     out.phone = customer.phone
     out.invoice_ruc = customer.invoice_ruc or customer.cedula
@@ -261,7 +292,18 @@ def compute_customer_defaults(
         # If the customer has 0 or 1 addresses total, "save" by default
         out.save_address = len(all_addresses) <= 1
 
-    # --- When ---
+
+def _populate_when_fields(
+    session: Session,
+    customer: Customer,
+    customer_id: int,
+    today: date,
+    out: CustomerPrefill,
+) -> None:
+    """Populate when fields (promised date, time, delivery window, channel).
+
+    Extracted from compute_customer_defaults to reduce complexity.
+    """
     # Promised date: customer's average lead time (today → pedido.promised_date)
     # defaults to today if we have no history.
     pedidos = (
@@ -288,8 +330,17 @@ def compute_customer_defaults(
     # Channel: customer preference OR most common history
     out.channel = customer.preferred_channel or _most_common([p.channel for p in pedidos])
 
-    # --- Free-form ---
-    recent = _recent_pedido_for(session, customer_id)
+
+def _populate_freeform_fields(
+    session: Session,
+    customer: Customer,
+    out: CustomerPrefill,
+) -> None:
+    """Populate free-form fields (notes, dietary banner).
+
+    Extracted from compute_customer_defaults to reduce complexity.
+    """
+    recent = _recent_pedido_for(session, customer.id)
     if recent:
         out.notes = recent.notes
         out.last_pedido_id = recent.id
@@ -305,16 +356,38 @@ def compute_customer_defaults(
     if customer.dietary_restrictions:
         out.dietary_banner = f"⚠ Restricciones: {customer.dietary_restrictions}"
 
-    # --- Clone lines (Pedir de nuevo) ---
+
+def _populate_clone_lines(
+    session: Session,
+    customer_id: int,
+    from_pedido_id: int | None,
+    out: CustomerPrefill,
+) -> None:
+    """Populate clone_lines from from_pedido_id or most recent pedido.
+
+    Extracted from compute_customer_defaults to reduce complexity.
+    """
     if from_pedido_id:
         source = session.get(Pedido, from_pedido_id)
         if source and source.customer_id == customer_id:
             out.clone_lines = _pedido_lines_as_dicts(source.id, session)
             out.last_pedido_id = source.id
-    elif recent and recent.lines:
-        # Default: copy most-recent pedido's lines (cheap "Pedir de nuevo")
-        out.clone_lines = _pedido_lines_as_dicts(recent.id, session)
+    else:
+        recent = _recent_pedido_for(session, customer_id)
+        if recent and recent.lines:
+            # Default: copy most-recent pedido's lines (cheap "Pedir de nuevo")
+            out.clone_lines = _pedido_lines_as_dicts(recent.id, session)
 
+
+def _populate_loyalty_and_tier(
+    session: Session,
+    customer: Customer,
+    out: CustomerPrefill,
+) -> None:
+    """Populate loyalty points, projected points, and tier.
+
+    Extracted from compute_customer_defaults to reduce complexity.
+    """
     # Phase 8 — Loyalty banner.
     # Show the customer's current points balance + a projection of what
     # they'll earn on this pedido if it's fulfilled today. Operators use
@@ -334,6 +407,16 @@ def compute_customer_defaults(
     stats = customer_stats(session, customer)
     out.tier = tier_for_spend(int(stats.lifetime_spend_gs or 0)).value
 
+
+def _populate_active_subscriptions(
+    session: Session,
+    customer_id: int,
+    out: CustomerPrefill,
+) -> None:
+    """Populate active subscriptions for quick-pick in the form.
+
+    Extracted from compute_customer_defaults to reduce complexity.
+    """
     # Tier 6.4 (2026-10-01): active suscripción prefill.
     # Query the customer's active suscripciones so the /pedidos/nuevo
     # template can offer an "Aplicar suscripción" quick-pick that fills
@@ -357,8 +440,6 @@ def compute_customer_defaults(
         }
         for s in subs
     ]
-
-    return out
 
 
 def customer_defaults_as_json(session: Session, customer_id: int) -> dict:

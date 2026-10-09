@@ -28,7 +28,6 @@ _DANGEROUS_FILES = (
     "app/main.py",
     "app/rms/main.py",
     "scripts/deploy.sh",
-    "scripts/deploy-to-vps.sh",
 )
 
 

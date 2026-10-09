@@ -185,12 +185,41 @@ def batch_forecast_ingredients(
         return {}
 
     now = datetime.now(timezone.utc)
-    recent_cutoff = now - timedelta(days=days_back)
-    prior_cutoff = now - timedelta(days=days_back * 2)
+    recent_cutoff, prior_cutoff = _compute_cutoffs(now, days_back)
 
-    # Recent consumption per ingredient (single GROUP BY query).
-    # stock_movement has its own recorded_at column (no Sale join needed).
-    recent_rows = dict(
+    recent_rows = _query_recent_consumption(session, ingredient_ids, recent_cutoff)
+    prior_rows = _query_prior_consumption(session, ingredient_ids, recent_cutoff, prior_cutoff)
+    last_price_evts = _load_last_price_events(session, ingredient_ids)
+    ingredients = _load_ingredients(session, ingredient_ids)
+
+    return {
+        ing_id: _build_forecast(
+            ingredients[ing_id],
+            recent_rows.get(ing_id, 0.0),
+            prior_rows.get(ing_id, 0.0),
+            last_price_evts.get(ing_id),
+            days_back,
+            now,
+        )
+        for ing_id in ingredient_ids
+        if ing_id in ingredients
+    }
+
+
+def _compute_cutoffs(now, days_back: int) -> tuple:
+    """Compute recent and prior cutoffs for consumption windows.
+
+    Extracted from batch_forecast_ingredients to reduce complexity.
+    """
+    return now - timedelta(days=days_back), now - timedelta(days=days_back * 2)
+
+
+def _query_recent_consumption(session, ingredient_ids: list[int], recent_cutoff) -> dict:
+    """Query recent consumption per ingredient.
+
+    Extracted from batch_forecast_ingredients to reduce complexity.
+    """
+    return dict(
         session.execute(
             select(StockMovement.ingredient_id, func.coalesce(func.sum(-StockMovement.qty), 0.0))
             .where(StockMovement.ingredient_id.in_(ingredient_ids))
@@ -200,7 +229,15 @@ def batch_forecast_ingredients(
         ).all()
     )
 
-    prior_rows = dict(
+
+def _query_prior_consumption(
+    session, ingredient_ids: list[int], recent_cutoff, prior_cutoff
+) -> dict:
+    """Query prior consumption per ingredient.
+
+    Extracted from batch_forecast_ingredients to reduce complexity.
+    """
+    return dict(
         session.execute(
             select(StockMovement.ingredient_id, func.coalesce(func.sum(-StockMovement.qty), 0.0))
             .where(StockMovement.ingredient_id.in_(ingredient_ids))
@@ -211,7 +248,12 @@ def batch_forecast_ingredients(
         ).all()
     )
 
-    # Last restock price per ingredient (single query)
+
+def _load_last_price_events(session, ingredient_ids: list[int]) -> dict:
+    """Load the last restock price event per ingredient.
+
+    Extracted from batch_forecast_ingredients to reduce complexity.
+    """
     last_price_rows = dict(
         session.execute(
             select(IngredientPriceEvent.ingredient_id, func.max(IngredientPriceEvent.recorded_at))
@@ -221,7 +263,7 @@ def batch_forecast_ingredients(
         ).all()
     )
 
-    last_price_evts = {}
+    last_price_evts: dict = {}
     if last_price_rows:
         evts = session.scalars(
             select(IngredientPriceEvent).where(
@@ -232,62 +274,95 @@ def batch_forecast_ingredients(
             cur = last_price_evts.get(e.ingredient_id)
             if cur is None or e.recorded_at > cur.recorded_at:
                 last_price_evts[e.ingredient_id] = e
+    return last_price_evts
 
-    # Now build forecast per ingredient
-    ingredients = {
+
+def _load_ingredients(session, ingredient_ids: list[int]) -> dict[int, Ingredient]:
+    """Load ingredients by ID.
+
+    Extracted from batch_forecast_ingredients to reduce complexity.
+    """
+    return {
         ing.id: ing
         for ing in session.scalars(select(Ingredient).where(Ingredient.id.in_(ingredient_ids)))
     }
 
-    out: dict[int, ConsumptionForecast] = {}
-    for ing_id in ingredient_ids:
-        ing = ingredients.get(ing_id)
-        if ing is None:
-            continue
 
-        recent_q = recent_rows.get(ing_id, 0.0)
-        prior_q = prior_rows.get(ing_id, 0.0)
-        avg_daily_recent = recent_q / days_back
-        avg_daily_prior = prior_q / days_back
+def _build_forecast(
+    ing,
+    recent_q: float,
+    prior_q: float,
+    last_price_evt,
+    days_back: int,
+    now,
+) -> ConsumptionForecast:
+    """Build a ConsumptionForecast for a single ingredient.
 
-        if avg_daily_prior > 0:
-            trend_pct = (avg_daily_recent - avg_daily_prior) / avg_daily_prior * 100.0
-        else:
-            trend_pct = 0.0
+    Extracted from batch_forecast_ingredients to reduce complexity.
+    """
+    avg_daily_recent = recent_q / days_back
+    avg_daily_prior = prior_q / days_back
+    trend_pct = _compute_trend_pct(avg_daily_recent, avg_daily_prior)
+    days_of_stock, projected_stockout = _compute_days_of_stock(ing, avg_daily_recent, now)
+    restock_qty = _compute_restock_qty(ing, avg_daily_recent)
+    last_price = _get_last_price(ing, last_price_evt)
 
-        if avg_daily_recent > 0:
-            days = (ing.stock_qty or 0.0) / avg_daily_recent
-            days_of_stock = days if days < 1_000_000 else float("inf")
-            projected_stockout = now + timedelta(days=int(days)) if days < 1_000_000 else None
-        else:
-            days_of_stock = float("inf")
-            projected_stockout = None
+    return ConsumptionForecast(
+        ingredient_id=ing.id,
+        name=ing.name,
+        current_stock_qty=ing.stock_qty or 0.0,
+        min_stock_qty=ing.min_stock_qty or 0.0,
+        avg_daily_consumption=avg_daily_recent,
+        trend_pct=trend_pct,
+        days_of_stock=days_of_stock,
+        projected_stockout_at=projected_stockout,
+        recommended_restock_qty=restock_qty,
+        last_restock_price_gs=last_price,
+    )
 
-        if avg_daily_recent > 0:
-            target_stock = max(
-                (ing.min_stock_qty or 0) * 2,
-                avg_daily_recent * 14,
-            )
-            restock_qty = max(0.0, target_stock - (ing.stock_qty or 0))
-        else:
-            restock_qty = max(0.0, (ing.min_stock_qty or 0) * 2 - (ing.stock_qty or 0))
 
-        last_price = ing.purchase_price_gs
-        evt = last_price_evts.get(ing_id)
-        if evt is not None:
-            last_price = evt.price_gs
+def _compute_trend_pct(avg_daily_recent: float, avg_daily_prior: float) -> float:
+    """Compute trend percentage.
 
-        out[ing_id] = ConsumptionForecast(
-            ingredient_id=ing.id,
-            name=ing.name,
-            current_stock_qty=ing.stock_qty or 0.0,
-            min_stock_qty=ing.min_stock_qty or 0.0,
-            avg_daily_consumption=avg_daily_recent,
-            trend_pct=trend_pct,
-            days_of_stock=days_of_stock,
-            projected_stockout_at=projected_stockout,
-            recommended_restock_qty=restock_qty,
-            last_restock_price_gs=last_price,
+    Extracted from _build_forecast to reduce complexity.
+    """
+    if avg_daily_prior > 0:
+        return (avg_daily_recent - avg_daily_prior) / avg_daily_prior * 100.0
+    return 0.0
+
+
+def _compute_days_of_stock(ing, avg_daily_recent: float, now) -> tuple:
+    """Compute days of stock and projected stockout date.
+
+    Extracted from _build_forecast to reduce complexity.
+    """
+    if avg_daily_recent <= 0:
+        return float("inf"), None
+    days = (ing.stock_qty or 0.0) / avg_daily_recent
+    if days >= 1_000_000:
+        return float("inf"), None
+    return days, now + timedelta(days=int(days))
+
+
+def _compute_restock_qty(ing, avg_daily_recent: float) -> float:
+    """Compute recommended restock quantity.
+
+    Extracted from _build_forecast to reduce complexity.
+    """
+    if avg_daily_recent > 0:
+        target_stock = max(
+            (ing.min_stock_qty or 0) * 2,
+            avg_daily_recent * 14,
         )
+        return max(0.0, target_stock - (ing.stock_qty or 0))
+    return max(0.0, (ing.min_stock_qty or 0) * 2 - (ing.stock_qty or 0))
 
-    return out
+
+def _get_last_price(ing, last_price_evt) -> int:
+    """Get the last restock price, preferring the event over the ingredient's stored price.
+
+    Extracted from _build_forecast to reduce complexity.
+    """
+    if last_price_evt is not None:
+        return last_price_evt.price_gs
+    return ing.purchase_price_gs

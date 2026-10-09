@@ -1,0 +1,99 @@
+# .github/workflows/workflows-lint.yml — GitHub Actions security lint
+#
+# Runs zizmor against all workflows. zizmor is a static analyzer for
+# GitHub Actions that catches:
+#   - unpinned-uses (action references not pinned to commit hash)
+#   - artipacked (credentials persisting through artifacts)
+#   - excessive-permissions (missing permissions: block)
+#   - template-injection (unsafe ${{ ... }} expansions)
+#   - cache-poisoning (unsafe action caching patterns)
+#   - secrets-inherit, known-vulnerable-actions, forbidden-uses
+#
+# Config: .github/zizmor.yml
+#   - HIGH severity = blocks this workflow
+#   - INFORMATIONAL = visible in PR but doesn't block
+#
+# Trigger strategy:
+#   - on PR (required check for main, see Branch Protection Rules)
+#   - on push to main (advisory)
+#   - workflow_dispatch (manual)
+#
+# First-run baseline: 15 high-severity findings (all in existing
+# workflows). This is expected — most are excessive-permissions and
+# template-injection. The PR that introduces this workflow also adds
+# a baseline comment listing each finding; the operator is expected
+# to fix them in followup PRs.
+#
+# Why a separate workflow, not part of tooling.yml?
+#   - zizmor is a Rust binary installed via uvx; tooling.yml uses uv sync
+#   - zizmor's 15 baseline findings would block the existing tooling gate
+#   - This workflow is intentionally permissive at first (allows the
+#     baseline), tightening as findings get fixed
+
+name: Workflows lint (zizmor)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same PR/branch (same pattern as tooling.yml).
+concurrency:
+  group: workflows-lint-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  zizmor:
+    name: zizmor (GitHub Actions security)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
+        with:
+          version: "latest"
+
+      # zizmor 1.30+ is a Rust binary distributed via PyPI. We install
+      # it via uvx (no uv sync needed since it's a dev tool, not a
+      # runtime dep). --min-severity=high filters to blocking findings.
+      # --no-progress quiets the JSON progress lines that would clutter
+      # the PR comment.
+      - name: zizmor (HIGH severity only)
+        run: |
+          uvx --from zizmor zizmor \
+            --config .github/zizmor.yml \
+            --min-severity=high \
+            --no-progress \
+            .github/workflows/ 2>&1 | tee /tmp/zizmor.txt
+          # Print summary even if check passed
+          echo ""
+          echo "=== Summary ==="
+          grep -E '^[0-9]+ findings' /tmp/zizmor.txt || echo "(no findings summary)"
+
+      - name: zizmor (all severities, advisory)
+        if: always()
+        # Always run the full scan as a separate advisory step so we see
+        # informational findings (unpinned-uses, artipacked) without
+        # blocking. Output is informational only.
+        run: |
+          echo "=== Advisory: all-severity findings ==="
+          uvx --from zizmor zizmor \
+            --config .github/zizmor.yml \
+            --no-progress \
+            .github/workflows/ 2>&1 | tail -20 || true

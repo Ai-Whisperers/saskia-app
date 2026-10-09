@@ -88,7 +88,7 @@ def test_led_success_when_all_above_min(client, session_factory):
         _make_ing(s, "harina-led-ok1", 5000, 1000)
         _make_ing(s, "azúcar-led-ok1", 3000, 500)
         s.commit()
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     assert 'severity="success"' in r.text
     assert "todo OK" in r.text
@@ -100,7 +100,7 @@ def test_led_warn_when_one_below_min(client, session_factory):
         _make_ing(s, "harina-led-warn1", 500, 1000)  # below
         _make_ing(s, "azúcar-led-warn1", 3000, 500)
         s.commit()
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     assert 'severity="warn"' in r.text
     assert "1 bajo mínimo" in r.text
@@ -117,7 +117,7 @@ def test_led_danger_when_negative_stock(client, session_factory):
         _make_ing_bypass_check(s, "harina-led-neg1", -100, 1000)
         _make_ing(s, "azúcar-led-neg1", 3000, 500)
         s.commit()
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     assert "en negativo" in r.text
 
@@ -127,7 +127,7 @@ def test_led_success_when_no_min_tracked(client, session_factory):
     with session_factory() as s:
         _make_ing(s, "harina-led-nomin1", 100, 0)  # min=0 means not tracked
         s.commit()
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     assert 'severity="success"' in r.text
 
@@ -142,6 +142,6 @@ def test_led_card_links_to_reorder(client, session_factory):
     with session_factory() as s:
         _make_ing_bypass_check(s, "harina-led-link1", -50, 1000)
         s.commit()
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     assert 'href="/reorder"' in r.text

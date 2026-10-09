@@ -92,27 +92,66 @@ def consolidate_open_items(session: Session) -> int:
     deleted = 0
     for rows in buckets.values():
         if len(rows) < 2:
-            # Still clean float garbage in single rows.
-            for it in rows:
-                clean = _clean_purpose(it.purpose_text)
-                if clean != it.purpose_text:
-                    it.purpose_text = clean
+            _clean_single_row_purposes(rows)
             continue
-        keep = rows[0]  # newest (ordered by created_at desc)
-        keep.qty_to_buy = sum(float(r.qty_to_buy or 0) for r in rows)
-        keys: list[str] = []
-        for r in rows:
-            p = r.purpose_text or ""
-            m = _re.match(r"(Plan #\d+[^+]*)", p)
-            key = m.group(1).strip() if m else ("Auto" if p.startswith("Auto") else p[:40])
-            if key and key not in keys:
-                keys.append(key)
-        keep.purpose_text = " + ".join(keys) if keys else None
-        for r in rows[1:]:
-            session.delete(r)
-            deleted += 1
+        deleted += _merge_duplicate_rows(session, rows, _re)
     session.commit()
     return deleted
+
+
+def _clean_single_row_purposes(rows: list) -> None:
+    """Clean float garbage in single-row buckets.
+
+    Extracted from consolidate_open_items to reduce complexity.
+    """
+    for it in rows:
+        clean = _clean_purpose(it.purpose_text)
+        if clean != it.purpose_text:
+            it.purpose_text = clean
+
+
+def _merge_duplicate_rows(session: Session, rows: list, _re) -> int:
+    """Merge duplicate rows into one, returning count of rows deleted.
+
+    Keeps the first row (newest), sums quantities, merges purpose texts,
+    and deletes the rest.
+    Extracted from consolidate_open_items to reduce complexity.
+    """
+    keep = rows[0]  # newest (ordered by created_at desc)
+    keep.qty_to_buy = sum(float(r.qty_to_buy or 0) for r in rows)
+    keep.purpose_text = _merge_purpose_texts(rows, _re)
+
+    deleted = 0
+    for r in rows[1:]:
+        session.delete(r)
+        deleted += 1
+    return deleted
+
+
+def _merge_purpose_texts(rows: list, _re) -> str | None:
+    """Extract short purpose keys from rows and join them.
+
+    Rules:
+    - 'Plan #1 (1× Carrot Cake...)' → 'Plan #1'
+    - 'Auto: stock ...' → 'Auto'
+    - Other text → first 40 chars
+    - Joined with ' + '
+
+    Extracted from consolidate_open_items to reduce complexity.
+    """
+    keys: list[str] = []
+    for r in rows:
+        p = r.purpose_text or ""
+        m = _re.match(r"(Plan #\d+[^+]*)", p)
+        if m:
+            key = m.group(1).strip()
+        elif p.startswith("Auto"):
+            key = "Auto"
+        else:
+            key = p[:40]
+        if key and key not in keys:
+            keys.append(key)
+    return " + ".join(keys) if keys else None
 
 
 def _whatsapp_href(supplier: Any, rows: Any) -> str | None:

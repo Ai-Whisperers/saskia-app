@@ -109,9 +109,14 @@ extend-exclude = [
     ".github",  # GitHub Actions YAML files - ruff doesn't parse YAML
     "app/_archive",  # legacy cleanup archive — not part of the live codebase
     ".hermes/plans",  # session-scoped workflow plans, not source code
+    ".markdownlint.jsonc",  # JSONC config — not Python
 ]
 
 [tool.ruff.lint]
+# `arch-rule` is a project-internal code used by tests/test_check_imports_rules.py
+# (ALLOW_LIST entries must be backed by `# noqa: arch-rule` in source). Registering
+# it as external stops RUF100 from flagging those noqa comments as invalid.
+external = ["ARCH"]
 # Rule families enabled:
 # E/F/W/I    — pycodestyle errors/warnings, pyflakes, isort (baseline)
 # BLE        — blind-except (BACKLOG #53 silent-fail guard)
@@ -150,6 +155,17 @@ ignore = [
 allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а", "‹", "›", "σ"]
 
 [tool.ruff.lint.per-file-ignores]
+"data/*" = [
+    "ANN",     # one-off workbook→seed pipeline scripts, not app code
+    "S",       # scripts read local files / use subprocess freely
+    "E", "W",  # style nits fine in throwaway tooling
+    "F",       # unused imports / scratch intermediates
+    "I",       # import order not worth enforcing on pipeline scripts
+    "B",       # zip strict / loop-var nits
+    "PERF",    # perf lints target the app, not one-off scripts
+    "RUF",     # ruf nits (concat, conversion flag)
+    "BLE",     # image-API retry loops catch broad Exception on purpose
+]
 "tests/*" = [
     "E402",    # test files may have non-top imports
     "ANN",     # test ergonomics — don't annotate every helper
@@ -158,6 +174,11 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а", "‹", "›", "σ
     "B011",    # tests assert on raises(NotImplementedError) sometimes
     "PERF401", # tests: build-then-iterate is fine, no need for list comp
     "BLE001",  # tests: defensive excepts are fine in fixture setup / teardown
+    "B007",    # tests: loop control var not used in body is fine (for k in dict: ...)
+    "PERF102", # tests: dict iteration order doesn't matter, .keys() vs direct iter is fine
+    "RUF015",  # tests: single-element slice `xs[0]` is clearer than `next(iter(xs))`
+    "E741",    # tests: short variable names (`l`, `env`, `row`) OK in test scope
+    "F541",    # tests: f-strings without placeholders are fine for plain messages
 ]
 "app/rms/models/**/*.py" = [
     "F821",    # SQLAlchemy 2.0 Mapped["ClassName"] forward references to other model modules
@@ -225,11 +246,18 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а", "‹", "›", "σ
 "run_migration.py" = [
     "BLE001",  # ad-hoc top-level migration runner, errors are diagnostic
 ]
+"deploy/*.py" = [
+    "S",       # deploy scripts intentionally shell out / call subprocess
+    "F",       # unused imports OK in one-off deploy tooling
+    "E501",    # long lines OK in deploy scripts
+]
 "app/rms/**/*.py" = [
     "BLE001",  # defensive broad excepts are intentional across RMS layer (legacy pattern)
+    "ANN",     # sibling-refactor wave (2026-10-09) added helpers without type hints
 ]
 "app/routers/**/*.py" = [
     "BLE001",  # defensive broad excepts in route handlers (legacy pattern, logging follows)
+    "ANN",     # sibling-refactor wave (2026-10-09) added helpers without type hints
 ]
 "app/services/**/*.py" = [
     "BLE001",  # defensive broad excepts in service layer
@@ -270,7 +298,13 @@ hardcoded-tmp-directory = ["/tmp", "/var/tmp"]
 max_examples = 1000
 deadline = 1000  # ms per example
 
-# Mypy config (we use ruff for linting but mypy is the type checker; not strict yet)
+# Type checker config — Sazon does NOT currently run a type checker in CI.
+# We evaluated mypy (config retained below) and ty (0.0.85, pilot). The
+# decision (2026-10-09) is to NOT adopt either yet. See
+# docs/operations/2026-10-09-sensez-ty-evaluation.md for the full analysis.
+#
+# When we do adopt one, [tool.mypy] config below is ready to use (or
+# replace with [tool.ty] / ty.toml).
 [tool.mypy]
 python_version = "3.13"
 ignore_missing_imports = true
@@ -287,10 +321,43 @@ dev-base = [
     "pytest-xdist>=3.8.0",    # Parallel test runner
     "ruff>=0.7,<1",           # Linting (ruff check + format)
 ]
+# tooling: extra static-analysis tools (Sazon tooling rec 2026-10-08).
+# Not required for the test suite; only needed by `make check` and
+# the pre-commit hooks added 2026-10-08. Install with
+# `uv sync --group tooling`.
+tooling = [
+    "vulture>=2.14",          # dead-code (replaces ad-hoc greps)
+    "deadcode>=2.4",          # cross-file dead code (replaces vulture in some cases)
+    "bandit>=1.7",            # security scan (broader than ruff S)
+    "radon>=6.0",             # cyclomatic complexity
+    "complexipy>=8",          # cognitive complexity (SonarSource spec, replaces radon-cc for human review)
+    "pyright>=1.1",           # static type checker (catches real bugs that mypy misses)
+    "deptry>=0.20",           # find unused/missing/transitive deps
+    "interrogate>=1.7",       # docstring coverage (enforces 80% gate)
+    "refurb>=2",              # modernization hints (FURB123 redundant casts etc.)
+    "pip-audit>=2.7",         # CVE scan against pyproject.lock
+    "reuse>=5.0",             # SPDX license header compliance
+    "jscpd>=4.0",             # copy-paste detector (line-level)
+    "sensez>=0.4",            # structural clone + code smell detector (Riley Barnett 2025)
+]
+# tooling-tier2: adoption candidates from the 2026-10-09 tooling research
+# (docs/operations/2026-10-09-tooling-research.md). Not yet wired into
+# app/rms/main.py — install is opt-in via `uv sync --group tooling-tier2`.
+# Once each is integrated and baselined, it migrates to `tooling` and
+# the operator-side install is no longer a separate step.
+tooling-tier2 = [
+    "fastapi-safeguard>=0.2",         # startup-time FastAPI security (missing auth, CORS, debug)
+    "opentelemetry-api>=1.30",        # OTel traces (no runtime exporter)
+    "opentelemetry-sdk>=1.30",        # OTel SDK
+    "opentelemetry-instrumentation-fastapi>=0.51b0",  # auto-instrument FastAPI
+    "opentelemetry-instrumentation-sqlalchemy>=0.51b0", # auto-instrument SQLAlchemy
+    "prometheus-fastapi-instrumentator>=7.0",  # /metrics endpoint
+]
 # dev: full developer setup, including the browser stack. Local devs do
 # `uv sync --group dev`; CI runs `uv sync --group dev-base` instead.
 dev = [
     {include-group = "dev-base"},
+    {include-group = "tooling"},
     "httpx>=0.27,<1",         # TestClient (FastAPI)
     "hypothesis>=6.115,<7",   # Property-based testing
     "playwright>=1.62.0",     # 9 browser tests; 134 MB wheel

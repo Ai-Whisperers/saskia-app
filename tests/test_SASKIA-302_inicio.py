@@ -13,13 +13,13 @@ even though it's listed in Phase 4 — it's too important to delay.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 pytestmark = [pytest.mark.smoke]
 
-TEMPLATES = Path("/opt/data/work/saskia-app/app/templates")
+from tests.conftest import REPO_ROOT
+
+TEMPLATES = REPO_ROOT / "app" / "templates"
 
 
 def test_inicio_kpi_card_is_ventas_not_operaciones(authed_client):

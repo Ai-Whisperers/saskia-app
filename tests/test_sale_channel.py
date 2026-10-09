@@ -127,7 +127,7 @@ def test_all_five_channels_accepted_by_apply_sale(session_factory):
     assert channels == sorted(expected)
 
 
-def test_post_sale_rejects_unknown_channel_at_route(client, session_factory):
+def test_post_sale_rejects_unknown_channel_at_route(client_with_caja, session_factory):
     """POST /ventas/nueva with channel='bitcoin' returns 400."""
     from app.rms.models import Product
 
@@ -137,7 +137,7 @@ def test_post_sale_rejects_unknown_channel_at_route(client, session_factory):
         s.commit()
         pid = p.id
 
-    resp = client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva",
         data={"product_id": str(pid), "qty": "1", "channel": "bitcoin"},
         follow_redirects=False,
@@ -146,7 +146,7 @@ def test_post_sale_rejects_unknown_channel_at_route(client, session_factory):
     assert "Canal" in resp.text or "canal" in resp.text.lower()
 
 
-def test_post_sale_accepts_all_five_channels(client, session_factory):
+def test_post_sale_accepts_all_five_channels(client_with_caja, session_factory):
     """POST /ventas/nueva with each of the 5 channels persists it."""
     from app.rms.models import Product, Sale
 
@@ -158,7 +158,7 @@ def test_post_sale_accepts_all_five_channels(client, session_factory):
 
     expected = ["mostrador", "mostrador-encargo", "whatsapp", "pedidosya", "monchis"]
     for ch in expected:
-        resp = client.post(
+        resp = client_with_caja.post(
             "/ventas/nueva",
             data={"product_id": str(pid), "qty": "1", "channel": ch},
             follow_redirects=False,
@@ -170,7 +170,7 @@ def test_post_sale_accepts_all_five_channels(client, session_factory):
     assert channels == sorted(expected)
 
 
-def test_post_sale_defaults_channel_to_mostrador(client, session_factory):
+def test_post_sale_defaults_channel_to_mostrador(client_with_caja, session_factory):
     """POST without channel field defaults to 'mostrador'."""
     from app.rms.models import Product, Sale
 
@@ -180,7 +180,7 @@ def test_post_sale_defaults_channel_to_mostrador(client, session_factory):
         s.commit()
         pid = p.id
 
-    resp = client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva",
         data={"product_id": str(pid), "qty": "1"},
         follow_redirects=False,

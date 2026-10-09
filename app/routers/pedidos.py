@@ -600,6 +600,31 @@ def pedidos_board(
     today = today_local().date()
     horizon = today + timedelta(days=3)
 
+    pedidos = _fetch_pedidos_for_board(session, horizon)
+    hoy, manana, semana = _split_pedidos_by_date(pedidos, today)
+    kanban_cols = _build_kanban_columns(pedidos)
+
+    return render(
+        request,
+        "pedido_board.html",
+        {
+            "pedidos_hoy": hoy,
+            "pedidos_manana": manana,
+            "pedidos_semana": semana,
+            "kanban_pending": kanban_cols["pending"],
+            "kanban_confirmed": kanban_cols["confirmed"],
+            "kanban_ready": kanban_cols["ready"],
+            "today": today,
+            "now": datetime.now(ASUNCION_TZ),
+        },
+    )
+
+
+def _fetch_pedidos_for_board(session, horizon) -> list[Pedido]:
+    """Fetch active pedidos for the kitchen board.
+
+    Extracted from pedidos_board to reduce complexity.
+    """
     stmt = (
         select(Pedido)
         .options(selectinload(Pedido.lines), selectinload(Pedido.customer))
@@ -609,74 +634,99 @@ def pedidos_board(
         )
         .order_by(Pedido.promised_date.asc(), Pedido.promised_time.asc())
     )
-    pedidos = list(session.scalars(stmt))
+    return list(session.scalars(stmt))
 
-    # Separate into time buckets
+
+def _split_pedidos_by_date(pedidos: list[Pedido], today) -> tuple[list, list, list]:
+    """Split pedidos into today, tomorrow, and rest of week buckets.
+
+    Extracted from pedidos_board to reduce complexity.
+    """
     hoy = [p for p in pedidos if p.promised_date == today]
     manana = [p for p in pedidos if p.promised_date == today + timedelta(days=1)]
     semana = [p for p in pedidos if p.promised_date > today + timedelta(days=1)]
+    return hoy, manana, semana
 
-    # Kanban columns (redesign F5): group active pedidos by status
-    def _kanban(col: object) -> list[dict]:
-        from app.services.customer_address import ventana_text
 
-        rows = []
-        for p in pedidos:
-            if p.status != col:
-                continue
-            # Phase 14 (2026-10-01): ventana + structured address hint on
-            # the kitchen card so prep staff can see at a glance whether
-            # it's ASAP vs scheduled (affects pacing).
-            start = (
-                p.delivery_window_start.strftime("%H:%M")
-                if hasattr(p.delivery_window_start, "strftime")
-                else p.delivery_window_start
-            )
-            end = (
-                p.delivery_window_end.strftime("%H:%M")
-                if hasattr(p.delivery_window_end, "strftime")
-                else p.delivery_window_end
-            )
-            scheduled = (
-                p.delivery_scheduled_date.isoformat()
-                if hasattr(p.delivery_scheduled_date, "isoformat")
-                else p.delivery_scheduled_date
-            )
-            rows.append(
-                {
-                    "id": p.id,
-                    "label": f"#{p.id}",
-                    "status": p.status,
-                    "customer": p.customer.name if p.customer else None,
-                    "promised": f"{p.promised_date} {p.promised_time or ''}".strip(),
-                    "lines": [
-                        f"{ln.qty:g} × {(ln.product.name if ln.product else '#' + str(ln.product_id))}"
-                        for ln in (p.lines or [])
-                    ][:6],
-                    "created_at": p.created_at,
-                    # Phase 14: ventana + invoice + address summary on the card
-                    "ventana_text": ventana_text(p.delivery_preference, start, end, scheduled),
-                    "address_text": p.address_text or "",
-                    "invoice_ruc": p.invoice_ruc or "",
-                    "invoice_name": p.invoice_name or "",
-                }
-            )
-        return rows
+def _build_kanban_columns(pedidos: list[Pedido]) -> dict[str, list[dict]]:
+    """Build the three kanban columns (pending, confirmed, ready).
 
-    return render(
-        request,
-        "pedido_board.html",
-        {
-            "pedidos_hoy": hoy,
-            "pedidos_manana": manana,
-            "pedidos_semana": semana,
-            "kanban_pending": _kanban("pending"),
-            "kanban_confirmed": _kanban("confirmed"),
-            "kanban_ready": _kanban("ready"),
-            "today": today,
-            "now": datetime.now(ASUNCION_TZ),
-        },
-    )
+    Extracted from pedidos_board to reduce complexity.
+    """
+    return {
+        "pending": _build_kanban_column(pedidos, "pending"),
+        "confirmed": _build_kanban_column(pedidos, "confirmed"),
+        "ready": _build_kanban_column(pedidos, "ready"),
+    }
+
+
+def _build_kanban_column(pedidos: list[Pedido], status: str) -> list[dict]:
+    """Build a single kanban column with all matching pedidos.
+
+    Extracted from _build_kanban_columns to reduce complexity.
+    """
+    return [_build_kanban_card(p) for p in pedidos if p.status == status]
+
+
+def _build_kanban_card(p: Pedido) -> dict:
+    """Build a single kanban card with all display fields.
+
+    Phase 14 (2026-10-01): ventana + structured address hint on
+    the kitchen card so prep staff can see at a glance whether
+    it's ASAP vs scheduled (affects pacing).
+    Extracted from _build_kanban_column to reduce complexity.
+    """
+    from app.services.customer_address import ventana_text
+
+    start = _format_time(p.delivery_window_start)
+    end = _format_time(p.delivery_window_end)
+    scheduled = _format_date(p.delivery_scheduled_date)
+
+    return {
+        "id": p.id,
+        "label": f"#{p.id}",
+        "status": p.status,
+        "customer": p.customer.name if p.customer else None,
+        "promised": f"{p.promised_date} {p.promised_time or ''}".strip(),
+        "lines": _format_pedido_lines(p.lines),
+        "created_at": p.created_at,
+        # Phase 14: ventana + invoice + address summary on the card
+        "ventana_text": ventana_text(p.delivery_preference, start, end, scheduled),
+        "address_text": p.address_text or "",
+        "invoice_ruc": p.invoice_ruc or "",
+        "invoice_name": p.invoice_name or "",
+    }
+
+
+def _format_time(value) -> str:
+    """Format a time value to HH:MM string, or return as-is.
+
+    Extracted from _build_kanban_card to reduce complexity.
+    """
+    if hasattr(value, "strftime"):
+        return value.strftime("%H:%M")
+    return value
+
+
+def _format_date(value) -> str:
+    """Format a date value to ISO string, or return as-is.
+
+    Extracted from _build_kanban_card to reduce complexity.
+    """
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return value
+
+
+def _format_pedido_lines(lines) -> list[str]:
+    """Format pedido lines for display (max 6 items).
+
+    Extracted from _build_kanban_card to reduce complexity.
+    """
+    return [
+        f"{ln.qty:g} × {(ln.product.name if ln.product else '#' + str(ln.product_id))}"
+        for ln in (lines or [])
+    ][:6]
 
 
 @router.get("/nuevo", response_class=HTMLResponse)
@@ -1568,9 +1618,43 @@ def pedidos_detail(
     )
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    # Build decorated pedido with lines, timeline, recent pedidos
+    decorated = _build_pedido_detail_decorated(session, pedido)
+
+    # Add linked sales and loyalty impact
+    decorated["linked_sales"] = _load_linked_sales(session, pedido)
+    decorated["loyalty_impact"] = _compute_loyalty_impact(
+        session, pedido, decorated["linked_sales"]
+    )
+
+    return render(
+        request,
+        "pedido_detalle.html",
+        _build_pedido_detail_context(decorated),
+    )
+
+
+def _build_pedido_detail_decorated(session: Session, pedido: Pedido) -> dict:
+    """Build the decorated pedido dict with lines, timeline, and recent pedidos.
+
+    Extracted from pedidos_detail to reduce complexity.
+    """
     spend_30d = _customer_30d_spend_gs(session, pedido.customer_id)
     decorated = _decorate_pedido(pedido, session)
-    decorated["lines"] = [
+    decorated["lines"] = _build_pedido_lines(pedido)
+    decorated["spend_30d_gs"] = spend_30d
+    decorated["timeline"] = _build_pedido_timeline(session, pedido)
+    decorated["recent_pedidos"] = _build_recent_pedidos(session, pedido)
+    return decorated
+
+
+def _build_pedido_lines(pedido: Pedido) -> list[dict]:
+    """Build the pedido lines list with computed totals.
+
+    Extracted from pedidos_detail to reduce complexity.
+    """
+    return [
         {
             "id": ln.id,
             "product_id": ln.product_id,
@@ -1582,109 +1666,128 @@ def pedidos_detail(
         }
         for ln in pedido.lines
     ]
-    decorated["spend_30d_gs"] = spend_30d
 
-    # Phase 4: build the timeline + customer pedido history
+
+def _build_pedido_timeline(session: Session, pedido: Pedido) -> list[dict]:
+    """Build the pedido timeline events.
+
+    Extracted from pedidos_detail to reduce complexity.
+    """
     timeline = build_pedido_timeline(session, pedido)
-    decorated["timeline"] = [ev.to_dict() for ev in timeline]
-    if pedido.customer_id:
-        recent = customer_recent_pedidos(
-            session, pedido.customer_id, limit=8, exclude_pedido_id=pedido.id
-        )
-        decorated["recent_pedidos"] = [s.to_dict() for s in recent]
-    else:
-        decorated["recent_pedidos"] = []
+    return [ev.to_dict() for ev in timeline]
 
-    # Tier 6.3 (2026-10-01): linked sales (migration 076) + loyalty impact.
-    # Pedido.sales relationship returns every Sale whose
-    # linked_pedido_id == this pedido.id (vs. the legacy single
-    # fulfilled_sale_id which only pointed at the FIRST sale). The
-    # detail page now shows the full set so the operator can verify
-    # each line was fulfilled.
-    from app.rms.models import LoyaltyTransaction
+
+def _build_recent_pedidos(session: Session, pedido: Pedido) -> list[dict]:
+    """Build the customer's recent pedidos (excluding current).
+
+    Extracted from pedidos_detail to reduce complexity.
+    """
+    if not pedido.customer_id:
+        return []
+    recent = customer_recent_pedidos(
+        session, pedido.customer_id, limit=8, exclude_pedido_id=pedido.id
+    )
+    return [s.to_dict() for s in recent]
+
+
+def _load_linked_sales(session: Session, pedido: Pedido) -> list[dict]:
+    """Load sales linked to this pedido via linked_pedido_id.
+
+    Tier 6.3 (2026-10-01): Pedido.sales relationship returns every Sale
+    whose linked_pedido_id == this pedido.id.
+    Extracted from pedidos_detail to reduce complexity.
+    """
     from app.rms.models import Sale as SaleModel
 
-    linked_sales: list[dict] = []
-    if pedido.customer_id:
-        sales = session.scalars(
-            select(SaleModel)
-            .where(SaleModel.linked_pedido_id == pedido.id)
-            .order_by(SaleModel.id.asc())
-        ).all()
-        linked_sales = [
-            {
-                "id": s.id,
-                "product_name": (s.product.name if s.product else f"#{s.product_id}"),
-                "qty": float(s.qty),
-                "unit_price_gs": int(s.unit_price_gs or 0),
-                "sold_at": s.sold_at,
-            }
-            for s in sales
-        ]
-    decorated["linked_sales"] = linked_sales
+    if not pedido.customer_id:
+        return []
 
-    # Loyalty impact: sum up the points earned / redeemed on the
-    # LoyaltyTransaction rows whose sale_id points at a sale generated
-    # by this pedido. Operators use this to confirm "this pedido le
-    # sumó X puntos al cliente".
+    sales = session.scalars(
+        select(SaleModel)
+        .where(SaleModel.linked_pedido_id == pedido.id)
+        .order_by(SaleModel.id.asc())
+    ).all()
+    return [
+        {
+            "id": s.id,
+            "product_name": (s.product.name if s.product else f"#{s.product_id}"),
+            "qty": float(s.qty),
+            "unit_price_gs": int(s.unit_price_gs or 0),
+            "sold_at": s.sold_at,
+        }
+        for s in sales
+    ]
+
+
+def _compute_loyalty_impact(session: Session, pedido: Pedido, linked_sales: list[dict]) -> dict:
+    """Compute loyalty points earned/redeemed for this pedido.
+
+    Extracted from pedidos_detail to reduce complexity.
+    """
     loyalty_impact: dict = {
         "earned_points": 0,
         "redeemed_points": 0,
         "net_points": 0,
         "transactions": [],
     }
-    if pedido.customer_id and linked_sales:
-        sale_ids = [s["id"] for s in linked_sales]
-        txs = session.scalars(
-            select(LoyaltyTransaction)
-            .where(LoyaltyTransaction.customer_id == pedido.customer_id)
-            .where(LoyaltyTransaction.sale_id.in_(sale_ids))
-            .order_by(LoyaltyTransaction.recorded_at.desc())
-            .limit(20)
-        ).all()
-        for tx in txs:
-            loyalty_impact["transactions"].append(
-                {
-                    "delta": int(tx.delta or 0),
-                    "reason": tx.reason or "",
-                    "recorded_at": tx.recorded_at,
-                    "sale_id": tx.sale_id,
-                }
-            )
-            if (tx.reason or "") == "earn_sale":
-                loyalty_impact["earned_points"] += int(tx.delta or 0)
-            elif (tx.reason or "") == "redeem":
-                # `delta` for a redeem row is NEGATIVE (e.g. -50). We
-                # store the absolute amount in `redeemed_points` so the
-                # display "pts canjeados" shows "50" not "-50". The
-                # net_points math then becomes earned + redeemed (where
-                # redeemed is already positive) only when subtracting.
-                loyalty_impact["redeemed_points"] += abs(int(tx.delta or 0))
-        loyalty_impact["net_points"] = (
-            loyalty_impact["earned_points"] - loyalty_impact["redeemed_points"]
-        )
-    decorated["loyalty_impact"] = loyalty_impact
 
-    return render(
-        request,
-        "pedido_detalle.html",
-        {
-            "pedido": decorated,
-            "transitions": PedidoStateMachine.allowed_next(pedido.status),
-            "can_fulfill": PedidoStateMachine.is_fulfillable(pedido.status),
-            "channels": CHANNELS,
-            "payment_methods": sorted(
-                set(ALLOWED_PAYMENT_METHODS)
-                | {"efectivo", "transferencia", "qr", "tarjeta", "otro"}
-            ),
-            # Phase 13 (2026-10-01): the rendered ventana text for the
-            # template's badge (uses "ventana preferida" wording + the
-            # "(no es garantía)" suffix that the cashier should always
-            # see). Scheduled_date comes from the pedido; preference
-            # defaults to "asap" for legacy rows that predate migration 081.
-            "ventana_text": _ventana_text_for(decorated),
-        },
+    if not pedido.customer_id or not linked_sales:
+        return loyalty_impact
+
+    from app.rms.models import LoyaltyTransaction
+
+    sale_ids = [s["id"] for s in linked_sales]
+    txs = session.scalars(
+        select(LoyaltyTransaction)
+        .where(LoyaltyTransaction.customer_id == pedido.customer_id)
+        .where(LoyaltyTransaction.sale_id.in_(sale_ids))
+        .order_by(LoyaltyTransaction.recorded_at.desc())
+        .limit(20)
+    ).all()
+
+    for tx in txs:
+        loyalty_impact["transactions"].append(
+            {
+                "delta": int(tx.delta or 0),
+                "reason": tx.reason or "",
+                "recorded_at": tx.recorded_at,
+                "sale_id": tx.sale_id,
+            }
+        )
+        if (tx.reason or "") == "earn_sale":
+            loyalty_impact["earned_points"] += int(tx.delta or 0)
+        elif (tx.reason or "") == "redeem":
+            # `delta` for a redeem row is NEGATIVE (e.g. -50). We
+            # store the absolute amount in `redeemed_points` so the
+            # display "pts canjeados" shows "50" not "-50".
+            loyalty_impact["redeemed_points"] += abs(int(tx.delta or 0))
+
+    loyalty_impact["net_points"] = (
+        loyalty_impact["earned_points"] - loyalty_impact["redeemed_points"]
     )
+    return loyalty_impact
+
+
+def _build_pedido_detail_context(decorated: dict) -> dict:
+    """Build the template context for the pedido detail page.
+
+    Extracted from pedidos_detail to reduce complexity.
+    """
+    return {
+        "pedido": decorated,
+        "transitions": PedidoStateMachine.allowed_next(decorated.get("status", "")),
+        "can_fulfill": PedidoStateMachine.is_fulfillable(decorated.get("status", "")),
+        "channels": CHANNELS,
+        "payment_methods": sorted(
+            set(ALLOWED_PAYMENT_METHODS) | {"efectivo", "transferencia", "qr", "tarjeta", "otro"}
+        ),
+        # Phase 13 (2026-10-01): the rendered ventana text for the
+        # template's badge (uses "ventana preferida" wording + the
+        # "(no es garantía)" suffix that the cashier should always
+        # see). Scheduled_date comes from the pedido; preference
+        # defaults to "asap" for legacy rows that predate migration 081.
+        "ventana_text": _ventana_text_for(decorated),
+    }
 
 
 @router.post("/{pedido_id}/status")
@@ -2100,6 +2203,7 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
             )
         ).scalar_one_or_none()
         if row is not None:
+            # noqa: arch-rule — uses render_template helper from settings_runtime
             from app.routers.settings_runtime import render_template
 
             msg = render_template(
@@ -2177,16 +2281,43 @@ def pedidos_stock_preview(
     Used as a confirmation step before calling /fulfill — lets the operator
     see stock warnings before committing to the sale.
     """
-    from app.rms.costing import _compute_stock_moves
-
-    pedido = session.get(
-        Pedido, pedido_id, options=[selectinload(Pedido.lines).selectinload(PedidoLine.product)]
-    )
+    pedido = _load_pedido_with_lines(session, pedido_id)
     if pedido is None:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
 
-    warnings: list[dict] = []
+    consumed, warnings = _compute_stock_preview(session, pedido)
+
+    return render(
+        request,
+        "pedido_stock_preview.html",
+        {
+            "pedido_id": pedido_id,
+            "consumed": consumed,
+            "warnings": warnings,
+            "idempotency_key": secrets.token_urlsafe(16),
+        },
+    )
+
+
+def _load_pedido_with_lines(session, pedido_id: int):
+    """Load a pedido with its lines and products eagerly loaded.
+
+    Extracted from pedidos_stock_preview to reduce complexity.
+    """
+    return session.get(
+        Pedido, pedido_id, options=[selectinload(Pedido.lines).selectinload(PedidoLine.product)]
+    )
+
+
+def _compute_stock_preview(session, pedido) -> tuple[list, list]:
+    """Compute stock consumption and warnings for a pedido.
+
+    Extracted from pedidos_stock_preview to reduce complexity.
+    """
+    from app.rms.costing import _compute_stock_moves
+
     consumed: list[dict] = []
+    warnings: list[dict] = []
 
     for ln in pedido.lines:
         if ln.qty <= 0:
@@ -2204,43 +2335,63 @@ def pedidos_stock_preview(
                 f"pedidos.stock_preview: _compute_stock_moves failed for product {product.id}: {exc!r}"
             )
             continue
-        for _affected_recipe_id, ingredient_id, qty_delta in moves:
-            ing = session.get(Ingredient, ingredient_id) if Ingredient else None
-            ing_name = ing.name if ing else f"# {ingredient_id}"
-            current = ing.stock_qty if ing else 0
-            after = current - abs(qty_delta)
-            consumed.append(
-                {
-                    "ingredient": ing_name,
-                    "product": product.name,
-                    "qty_needed": round(abs(qty_delta), 3),
-                    "current_stock": round(current, 3) if current else 0,
-                    "after_stock": round(after, 3),
-                    "warning": after < 0,
-                }
-            )
-            if after < 0:
-                warnings.append(
-                    {
-                        "ingredient": ing_name,
-                        "shortfall": round(abs(after), 3),
-                        "product": product.name,
-                    }
-                )
+        _process_stock_moves(session, moves, product, consumed, warnings)
 
-    return render(
-        request,
-        "pedido_stock_preview.html",
-        {
-            "pedido_id": pedido_id,
-            "consumed": consumed,
-            "warnings": warnings,
-            "idempotency_key": secrets.token_urlsafe(16),
-        },
-    )
+    return consumed, warnings
 
 
-# --- Duplicate pedido ----------------------------------------------------------
+def _process_stock_moves(session, moves, product, consumed: list, warnings: list) -> None:
+    """Process stock moves and update consumed/warnings lists.
+
+    Extracted from _compute_stock_preview to reduce complexity.
+    """
+    for _affected_recipe_id, ingredient_id, qty_delta in moves:
+        ing_info = _get_ingredient_info(session, ingredient_id)
+        ing_name = ing_info["name"]
+        current = ing_info["stock_qty"]
+        after = current - abs(qty_delta)
+        consumed.append(_build_consumed_entry(ing_name, product, qty_delta, current, after))
+        if after < 0:
+            warnings.append(_build_warning_entry(ing_name, product, after))
+
+
+def _get_ingredient_info(session, ingredient_id: int) -> dict:
+    """Get ingredient name and current stock.
+
+    Extracted from _process_stock_moves to reduce complexity.
+    """
+    ing = session.get(Ingredient, ingredient_id) if Ingredient else None
+    return {
+        "name": ing.name if ing else f"# {ingredient_id}",
+        "stock_qty": ing.stock_qty if ing else 0,
+    }
+
+
+def _build_consumed_entry(ing_name: str, product, qty_delta, current, after) -> dict:
+    """Build a consumed entry dict.
+
+    Extracted from _process_stock_moves to reduce complexity.
+    """
+    return {
+        "ingredient": ing_name,
+        "product": product.name,
+        "qty_needed": round(abs(qty_delta), 3),
+        "current_stock": round(current, 3) if current else 0,
+        "after_stock": round(after, 3),
+        "warning": after < 0,
+    }
+
+
+def _build_warning_entry(ing_name: str, product, after) -> dict:
+    """Build a warning entry dict.
+
+    Extracted from _process_stock_moves to reduce complexity.
+    """
+    return {
+        "ingredient": ing_name,
+        "shortfall": round(abs(after), 3),
+        "product": product.name,
+    }
 
 
 @router.post("/{pedido_id}/duplicate")

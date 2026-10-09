@@ -32,9 +32,9 @@ repos:
               case "$f" in
                 *.env|*.env.*|*/credentials|*/secrets.yaml|*/id_rsa|*/secrets.yml)
                   echo "ERROR: attempted to commit a secret-like file: $f. Aborting.";
-                  exit 1;
+                  exit 1
                   ;;
-              esac;
+              esac
             done
             '
         language: system
@@ -50,10 +50,10 @@ repos:
                 size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f");
                 if [ "$size" -gt 1048576 ]; then
                   echo "WARN: $f is large (size $size bytes); verify this is intended.";
-                  exit 1;
-                fi;
-              fi;
-            done;
+                  exit 1
+                fi
+              fi
+            done
             exit 0
             '
         language: system
@@ -118,6 +118,69 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+
+      # ── Tooling-hardening hooks (Sazon tooling rec 2026-10-08) ──────────
+      # Cheap → expensive. Skipped in --no-verify. All local; no external
+      # repo. Requires `uv sync --all-extras` (installs vulture, bandit,
+      # radon via [dependency-groups].dev).
+
+      - id: vulture
+        name: dead-code scan (vulture, --min-confidence 80)
+        # Sazon tooling rec 2026-10-08: catch unused functions/classes
+        # like the old settings_original.py that crept back via copy.
+        # First run may have noise; triage + git rm in same commit.
+        # Ignores FastAPI decorators + lifespan + common Python decorators.
+        entry: >-
+            uv run vulture app/ scripts/ --min-confidence 80
+            --ignore-decorators @app.get,@app.post,@app.put,@app.delete,@router.get,@router.post,@router.put,@router.delete,@app.exception_handler,@app.middleware,@app.on_event,@staticmethod,@classmethod,@property
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: bandit
+        name: security scan (bandit, medium+high severity)
+        # Ruff S rules are partial. bandit catches SQL-injection /
+        # weak-crypto / hardcoded-temp-file that ruff misses.
+        # -ll = medium+high severity only.
+        entry: uv run bandit -r app/ -ll -q --exclude app/_archive
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: radon-cc
+        name: cyclomatic-complexity ceiling (C grade or worse blocks)
+        # Sazon tooling rec 2026-10-08: enforce CC <= B grade. Functions
+        # at C (CC 11-20) or worse fail. Wrapper script
+        # (scripts/check_complexity.py) parses radon output, exits 1 on
+        # violations, prints the refactor list.
+        entry: uv run python scripts/check_complexity.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: forbid-legacy-modules
+        name: forbid settings_original.py + production_scheduler.py
+        # Sazon tooling rec 2026-10-08: both deleted on 2026-10-08. This
+        # hook prevents accidental re-add. If you really need them back,
+        # comment the hook for that commit.
+        entry: >-
+            bash -c '
+            for f in $(git diff --cached --name-only); do
+              case "$f" in
+                */settings_original.py|*/production_scheduler.py)
+                  echo "ERROR: $f was deleted on 2026-10-08; do not re-add. See docs/operations/2026-10-08-tooling-hardening.md.";
+                  exit 1
+                  ;;
+              esac
+            done
+            '
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
 
 # Install:
 #   uv tool install pre-commit

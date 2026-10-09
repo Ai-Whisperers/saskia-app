@@ -12,6 +12,7 @@ data/images/items.json with 3 types of items:
 Each product::base item carries its `recipe_slug` so the prompt builder
 can look up its real description from ITEM_DESCRIPTIONS.
 """
+
 from __future__ import annotations
 
 import json
@@ -25,7 +26,7 @@ INGREDIENTS = ROOT / "data" / "herebus_seed_canonical.json"
 OUT_PATH = ROOT / "data" / "images" / "items.json"
 
 
-def parse_products():
+def parse_products() -> list[dict]:
     """Parse the PRODUCTS tuple list from the seed.
 
     Rules:
@@ -59,11 +60,7 @@ def parse_products():
                     category = strs[4]
                     # Skip rows where the "name" looks like a number/quantity
                     # or the recipe_slug doesn't look like a real slug
-                    if (
-                        not name
-                        or name[0].isdigit()
-                        or "libre" in name.lower()
-                    ):
+                    if not name or name[0].isdigit() or "libre" in name.lower():
                         continue
                     is_variant = recipe_slug in seen_recipes
                     seen_recipes.add(recipe_slug)
@@ -81,7 +78,7 @@ def parse_products():
     return products
 
 
-def parse_ingredients():
+def parse_ingredients() -> list[dict]:
     """Get the canonical 94 ingredients from the workbook's inventory."""
     if not INGREDIENTS.exists():
         sys.exit(f"missing {INGREDIENTS}")
@@ -105,6 +102,7 @@ def parse_ingredients():
 def slug_from_name(name: str) -> str:
     """'Babka' -> 'babka', 'Bizcocho b\u00e1sico 25 cm' -> 'bizcocho_basico_25_cm'."""
     import unicodedata
+
     clean = re.sub(r"\s*\([^)]*\)", "", name).strip()
     clean = unicodedata.normalize("NFKD", clean)
     clean = "".join(c for c in clean if not unicodedata.combining(c))
@@ -145,20 +143,20 @@ def main():
         items.append(item)
 
     # 2. Ingredients
-    for ing in ingredients:
-        items.append(
-            {
-                "id": f"ingredient::{ing['slug']}",
-                "slug": ing["slug"],
-                "name": ing["name"],
-                "type": "ingredient",
-                "category": ing.get("grupo"),
-                "ing_id": ing.get("ing_id"),
-                "aspect_ratio": "1:1",
-                "size_px": "1024x1024",
-                "outputs": [{"path": f"app/static/ingredients/{ing['slug']}.jpg"}],
-            }
-        )
+    items.extend(
+        {
+            "id": f"ingredient::{ing['slug']}",
+            "slug": ing["slug"],
+            "name": ing["name"],
+            "type": "ingredient",
+            "category": ing.get("grupo"),
+            "ing_id": ing.get("ing_id"),
+            "aspect_ratio": "1:1",
+            "size_px": "1024x1024",
+            "outputs": [{"path": f"app/static/ingredients/{ing['slug']}.jpg"}],
+        }
+        for ing in ingredients
+    )
 
     # Write
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)

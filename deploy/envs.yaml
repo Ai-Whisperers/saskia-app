@@ -1,0 +1,119 @@
+# Per-environment config consumed by scripts/render_stack.py and
+# scripts/write_env_file.sh. One row per env; keep this file small and
+# declarative — all logic lives in the scripts.
+#
+# Adding a new env: copy a row, change the host/volume/middleware names,
+# add a BWS secret set, add a Cloudflare A record. The scripts and CI read
+# this file as the single source of truth.
+
+prod:
+  hostname: saskia-vps.paragu-ai.com
+  stack_name: saskia-vps         # Docker stack namespace (matches live 'docker stack ls')
+  service_name: saskia-vps_web
+  image_tag_base: prod           # image: sazon-rms:prod-YYYYMMDD-HHMMSS
+  data_volume: saskia-prod-data
+  logs_volume: saskia-prod-logs
+  # NOTE: router_name + middleware_name + service_lb_name MUST match the
+  # LIVE service labels. The live saskia-vps was deployed with the legacy
+  # pattern (no env-prefix on router/middleware/service), so changing them
+  # here would create new Traefik objects while the old ones still route
+  # — a deploy would briefly route to nothing. Keep these stable until
+  # we deliberately migrate.
+  router_name: saskia-vps        # MATCHES live saskia-vps labels
+  middleware_name: saskia-headers  # MATCHES live saskia-vps labels
+  service_lb_name: saskia-web      # MATCHES live saskia-vps labels
+  env_file: /etc/sazon/.env.prod
+  # Resource limits per env. prod = full size; test/dev are smaller so
+  # 3 stacks can coexist on a 23GB VPS (langfuse_clickhouse is at 200% CPU).
+  cpu_limit: '1.0'
+  memory_limit: 1024M
+  cpu_reservation: '0.25'
+  memory_reservation: 256M
+  csp: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'self';"
+  frame_deny: "true"
+  backup_retention_days: 14       # keep prod backups 14 days (existing)
+  backup_schedule: "0 3 * * *"    # 03:00 UTC daily
+  # BWS secret set for prod. Prod uses Supabase Auth (live users live in
+  # the aiwhisperers.supabase.co project).
+  bws_keys:
+    - FERNET_KEY
+    - SESSION_SECRET
+    - SUPABASE_URL
+    - SUPABASE_ANON_KEY
+    - SUPABASE_SERVICE_ROLE_KEY
+    - SUPABASE_PUBLISHABLE_KEY       # 2025+ format (kept for forward-compat)
+    - SUPABASE_SECRET_KEY
+    - RESEND_API_KEY
+    - CF_R2_ACCESS_KEY_ID
+    - CF_R2_SECRET_ACCESS_KEY
+    - CF_R2_ENDPOINT
+    - CF_R2_ACCOUNT_ID
+    - R2_BUCKET
+    - SASKIA_USER_PASSWORD
+    - SASKIA_ADMIN_PASSWORD
+  # Optional BWS secrets — write to env file only if present in BWS.
+  # Used for features that are off by default (Sentry observability,
+  # Postgres mode) but ready to flip on once a secret is added.
+  optional_bws_keys:
+    - SENTRY_DSN
+    - NEON_DATABASE_URL
+
+test:
+  hostname: saskia-test.paragu-ai.com
+  stack_name: saskia-test
+  service_name: saskia-test_web
+  image_tag_base: test
+  data_volume: saskia-test-data
+  logs_volume: saskia-test-logs
+  router_name: saskia-test
+  middleware_name: saskia-test-headers
+  service_lb_name: saskia-test-web
+  env_file: /etc/sazon/.env.test
+  # test runs alongside prod on the same VPS; half the resource budget.
+  cpu_limit: '0.5'
+  memory_limit: 512M
+  cpu_reservation: '0.1'
+  memory_reservation: 128M
+  csp: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'self';"
+  frame_deny: "true"
+  backup_retention_days: 7
+  backup_schedule: "0 4 * * *"     # offset from prod to avoid resource contention
+  # test uses local-bcrypt auth (no Supabase). The seed script
+  # (scripts/seed_vaquita_holandesa_for_saskia.py) creates saskia/lucia/diego
+  # in the local DB, and login is verified against that local user table.
+  # We deliberately omit SUPABASE_URL so is_supabase_auth_enabled() returns False.
+  bws_keys:
+    - FERNET_KEY
+    - SESSION_SECRET
+    - CF_R2_ACCESS_KEY_ID
+    - CF_R2_SECRET_ACCESS_KEY
+    - CF_R2_ENDPOINT
+    - CF_R2_ACCOUNT_ID
+    - R2_BUCKET
+    - SASKIA_TEST_USER_PASSWORD      # different user; BWS entry below
+
+dev:
+  hostname: saskia-dev.paragu-ai.com
+  stack_name: saskia-dev
+  service_name: saskia-dev_web
+  image_tag_base: dev
+  data_volume: saskia-dev-data
+  logs_volume: saskia-dev-logs
+  router_name: saskia-dev
+  middleware_name: saskia-dev-headers
+  service_lb_name: saskia-dev-web
+  env_file: /etc/sazon/.env.dev
+  # Dev is meant for fast iteration; smallest resource budget.
+  cpu_limit: '0.3'
+  memory_limit: 384M
+  cpu_reservation: '0.1'
+  memory_reservation: 96M
+  csp: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; font-src 'self' data:; connect-src 'self' https: ws: wss:; frame-ancestors 'self';"
+  frame_deny: "false"               # dev sometimes embeds external previews
+  backup_retention_days: 3
+  backup_schedule: ""                # dev doesn't auto-backup
+  # dev also uses local-bcrypt auth (same as test). No Supabase.
+  bws_keys:
+    - FERNET_KEY
+    - SESSION_SECRET
+    - SASKIA_DEV_USER_PASSWORD

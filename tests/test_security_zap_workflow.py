@@ -137,6 +137,33 @@ def test_zap_workflow_uses_unique_port():
     assert "18999" not in content, "PORT must NOT match smoke.yml"
 
 
+def test_zap_workflow_alert_level_is_high_only():
+    """Display level must be HIGH so INFO/LOW/MEDIUM findings don't
+    pollute the action output. The actual build-failure threshold is
+    `fail_action: true` + the action's default, which is HIGH-only —
+    so the change here is cosmetic-but-valuable: a clean report shows
+    only actionable findings. Locked 2026-10-09 to prevent a
+    regression that re-introduces WARN-level noise.
+
+    Scoped to the cmd_options: block (not the entire file) because the
+    comment block above cmd_options intentionally mentions `-l WARN`
+    as historical context ("Previously `-l WARN` produced...")."""
+    content = WORKFLOW.read_text()
+    # Extract the cmd_options: block (YAML scalar after that key) so
+    # comments about history don't trigger the assertion.
+    m = re.search(r"cmd_options:\s*>\s*\n((?:\s+.+\n)+)", content)
+    assert m is not None, "Could not locate cmd_options: block in workflow"
+    cmd_options = m.group(1)
+    assert "-l HIGH" in cmd_options, (
+        f"ZAP cmd_options should set display level to HIGH. Got: {cmd_options!r}"
+    )
+    assert "-l WARN" not in cmd_options, (
+        f"ZAP cmd_options still has -l WARN. Display level should be "
+        f"HIGH-only; fail threshold is controlled by fail_action. "
+        f"Got: {cmd_options!r}"
+    )
+
+
 def test_zap_workflow_uses_ephemeral_postgres():
     """PG must be in a container (test-only exception per AGENTS.md).
     Use Postgres 16-alpine to match smoke.yml."""

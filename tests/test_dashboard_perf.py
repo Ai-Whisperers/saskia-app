@@ -37,7 +37,7 @@ def test_dashboard_renders_under_60_queries(client, session_factory):
 
     tc = TestClient(app, raise_server_exceptions=False)
     try:
-        tc.get("/?period=month")
+        tc.get("/inicio?period=month")
     finally:
         event.remove(engine, "before_cursor_execute", _count)
 
@@ -76,7 +76,7 @@ def test_dashboard_no_n_plus_1_in_cost_loop(client, session_factory):
 
     try:
         with client:
-            resp = client.get("/?period=month")
+            resp = client.get("/inicio?period=month")
         assert resp.status_code == 200
     finally:
         event.remove(engine, "before_cursor_execute", _count)
@@ -121,7 +121,7 @@ def test_dashboard_forecast_no_n_plus_1(client, session_factory, qseed) -> None:
 
     tc = TestClient(app, raise_server_exceptions=False)
     try:
-        resp = tc.get("/?period=month")
+        resp = tc.get("/inicio?period=month")
     finally:
         event.remove(engine, "before_cursor_execute", _count)
 

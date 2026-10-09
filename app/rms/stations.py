@@ -310,11 +310,17 @@ def apply_login(session: dict, role: str | None) -> str:
 
 
 def decide(path: str, session: dict, *, auth_disabled: bool, user_present: bool) -> str | None:
-    """Gate result: None allows the request. Otherwise 'deny' or 'redirect:<path>'."""
+    """Gate result: None allows the request. Otherwise 'deny' or 'redirect:<path>'.
+    Owner (admin role) is never denied cross-station access — they can move
+    between any of their chosen stations. Staff (pinned role) is locked to one
+    station; another station's screen is refused with the "otro puesto" page.
+    """
     station = canonical_station(session.get(SESSION_STATION))
     if session.get(SESSION_STATION) not in (None, station) and station:
         session[SESSION_STATION] = station
     locked = bool(session.get(SESSION_LOCKED))
+    role = session.get(SESSION_ROLE)
+    is_admin = is_owner(role)
 
     if auth_disabled and not station:
         return None
@@ -327,12 +333,16 @@ def decide(path: str, session: dict, *, auth_disabled: bool, user_present: bool)
     if station:
         if path_allowed(station, path):
             return None
+        # Owner / admin can move freely between stations. The gate does
+        # not enforce station-specific data boundaries (those live in the
+        # page), so a cross-station nav from the owner is fine.
+        if is_admin:
+            return None
         return "deny"
 
     if auth_disabled or not user_present:
         return None
 
-    role = session.get(SESSION_ROLE) or "admin"
     pinned = station_for_role(role)
     if pinned is None:
         return "redirect:/puesto"

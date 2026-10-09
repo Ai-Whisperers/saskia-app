@@ -134,7 +134,7 @@ def test_inicio_renders_delta_pills(client):
     """When prior period differs from current, /inicio should render metric-delta is-*."""
     # Empty DB → both current and prior = 0 → no pills (label is None).
     with client:
-        resp = client.get("/?period=today")
+        resp = client.get("/inicio?period=today")
     assert resp.status_code == 200
     # With empty DB, delta_pill macro produces no span (because label is None).
     # We verify no error and HTML still renders.
@@ -145,7 +145,7 @@ def test_inicio_renders_delta_pills(client):
 def test_inicio_renders_period_label_in_dashboard(client):
     """prior_label appears in template for delta pills."""
     with client:
-        resp = client.get("/?period=week")
+        resp = client.get("/inicio?period=week")
     assert resp.status_code == 200
     # period=week → prior_label = 'semana pasada'
     # With empty DB there are no pills, so we don't assert the string is rendered.
@@ -225,7 +225,7 @@ def test_dashboard_renders_delta_up_pill(client):
         _seed_sales_for_delta(s, today_qty=5, yesterday_qty=1)
 
     with client:
-        resp = client.get("/?period=today")
+        resp = client.get("/inicio?period=today")
     assert resp.status_code == 200
     body = resp.text
     # d820a23 replaced metric-delta pills with the ui-kpi-card component.
@@ -244,7 +244,7 @@ def test_dashboard_renders_delta_down_pill(client):
         _seed_sales_for_delta(s, today_qty=1, yesterday_qty=5)
 
     with client:
-        resp = client.get("/?period=today")
+        resp = client.get("/inicio?period=today")
     assert resp.status_code == 200
     body = resp.text
     # d820a23 replaced metric-delta pills with the ui-kpi-card component.
@@ -256,7 +256,7 @@ def test_dashboard_renders_delta_down_pill(client):
 def test_dashboard_no_delta_when_both_zero(client):
     """Empty DB → no delta pills rendered (label is None)."""
     with client:
-        resp = client.get("/?period=today")
+        resp = client.get("/inicio?period=today")
     assert resp.status_code == 200
     body = resp.text
     # With no sales today and no sales yesterday, all deltas are neutral w/ no label.

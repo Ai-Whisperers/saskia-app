@@ -93,14 +93,14 @@ def _post_fulfill(client, pedido_id: int, *, force: str = "", idempotency_key: s
 # --- Test 1: no force → blocked, redirect 303, no fulfill --------------------
 
 
-def test_fulfill_without_force_blocks_on_negative_stock(client, session_factory):
+def test_fulfill_without_force_blocks_on_negative_stock(client_with_caja, session_factory):
     """POST without ``force=true`` on a pedido whose fulfill would push an
     ingredient below zero MUST redirect 303 back to the stock-preview
     page WITHOUT marking the pedido fulfilled or changing stock.
     """
     pedido_id, ing_id, _ = _seed_pedido_insufficient(session_factory)
 
-    r = _post_fulfill(client, pedido_id)
+    r = _post_fulfill(client_with_caja, pedido_id)
     assert r.status_code == 303, f"expected 303 redirect, got {r.status_code}: {r.text[:200]}"
     # Redirects to the preview page (not to the pedido detail page).
     location = r.headers.get("location", "")
@@ -109,7 +109,9 @@ def test_fulfill_without_force_blocks_on_negative_stock(client, session_factory)
     )
     # And carries a flash query param so the UI can announce the block.
     assert "flash=" in location, f"expected flash= in redirect, got {location!r}"
-    assert "Stock+insuficiente" in location or "Stock insuficiente" in location, (
+    # (Router emits the pedido_stock_insufficient:N key; atoms.html maps it
+    # to the 'Stock insuficiente' message.)
+    assert "pedido_stock_insufficient" in location, (
         f"expected insufficient-stock flash; got {location!r}"
     )
 
@@ -128,7 +130,7 @@ def test_fulfill_without_force_blocks_on_negative_stock(client, session_factory)
 
     # Idempotency key is NOT consumed: a retry without force still blocks,
     # with force it succeeds — proving the rollback cleared the reservation.
-    r_retry = _post_fulfill(client, pedido_id)
+    r_retry = _post_fulfill(client_with_caja, pedido_id)
     assert r_retry.status_code == 303, "retry should also redirect 303"
     assert f"/pedidos/{pedido_id}/stock-preview" in r_retry.headers.get("location", "")
 

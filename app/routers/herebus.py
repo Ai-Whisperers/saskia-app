@@ -1062,16 +1062,85 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
     Computes the 12 KPIs from the ANALISIS sheet live from the database.
     No data entry required — the dashboard is purely a query view.
     """
-    # Revenue this month
     from datetime import datetime
 
     now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    sales_this_month = (
-        session.execute(select(Sale).where(Sale.sold_at >= month_start)).scalars().all()
+    # Load sales for the month
+    sales_this_month = _load_month_sales(session, month_start)
+
+    # Compute revenue metrics
+    revenue_gs, portions, unique_customers, repeat = _compute_revenue_metrics(sales_this_month)
+
+    # Compute food cost and margins
+    food_cost_pct, gross_margin_pct = _compute_food_cost_and_margin(
+        session, sales_this_month, revenue_gs
     )
 
+    # Compute waste metrics
+    waste_total_gs, waste_pct = _compute_waste_metrics(session, month_start, revenue_gs)
+
+    # Compute recipe metrics
+    recipe_count, recipes_cooked, avg_order = _compute_recipe_metrics(
+        session, sales_this_month, revenue_gs
+    )
+
+    # Compute channel and top recipe
+    by_channel, top_recipe = _compute_channel_and_top_recipe(sales_this_month)
+
+    # Compute shopping/wishlist/risk KPIs
+    sl_count, sl_total, wishlist_count, wishlist_total, risk_count, risk_severity = (
+        _compute_aggregate_kpis(session)
+    )
+
+    # Sazon onboarding guard
+    sazon_seeded, sazon_info = _get_sazon_status(session)
+
+    return render(
+        request,
+        "dashboard.html",
+        _build_dashboard_context(
+            revenue_gs,
+            portions,
+            unique_customers,
+            repeat,
+            food_cost_pct,
+            gross_margin_pct,
+            waste_total_gs,
+            waste_pct,
+            recipe_count,
+            recipes_cooked,
+            avg_order,
+            by_channel,
+            top_recipe,
+            sl_count,
+            sl_total,
+            wishlist_count,
+            wishlist_total,
+            risk_count,
+            risk_severity,
+            sazon_seeded,
+            sazon_info,
+            month_start,
+            sales_this_month,
+        ),
+    )
+
+
+def _load_month_sales(session: Session, month_start: datetime) -> list[Sale]:
+    """Load all sales from the start of the month.
+
+    Extracted from dashboard_index to reduce complexity.
+    """
+    return session.execute(select(Sale).where(Sale.sold_at >= month_start)).scalars().all()
+
+
+def _compute_revenue_metrics(sales_this_month: list[Sale]) -> tuple[int, float, int, int]:
+    """Compute revenue, portions, unique customers, and repeat customers.
+
+    Extracted from dashboard_index to reduce complexity.
+    """
     revenue_gs = sum(int(s.qty * s.unit_price_gs) for s in sales_this_month)
     portions = sum(s.qty for s in sales_this_month)
     unique_customers = len({s.customer_id for s in sales_this_month if s.customer_id})
@@ -1081,8 +1150,33 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
         if s.customer_id
         and sum(1 for s2 in sales_this_month if s2.customer_id == s.customer_id) > 1
     )
+    return revenue_gs, portions, unique_customers, repeat
 
-    # Cost of ingredients sold (approximate via recipe pricing)
+
+def _compute_food_cost_and_margin(
+    session: Session, sales_this_month: list[Sale], revenue_gs: int
+) -> tuple[float | None, float | None]:
+    """Compute food cost percentage and gross margin.
+
+    Returns None for both if no recipe costing data (would be fiction).
+    Extracted from dashboard_index to reduce complexity.
+    """
+    total_food_cost_gs = _compute_total_food_cost(session, sales_this_month)
+
+    if revenue_gs > 0 and total_food_cost_gs > 0:
+        food_cost_pct = total_food_cost_gs / revenue_gs * 100
+        gross_margin_pct = 100 - food_cost_pct
+        return food_cost_pct, gross_margin_pct
+
+    # No recipe costing data → reporting a margin would be fiction (e.g. 100%)
+    return None, None
+
+
+def _compute_total_food_cost(session: Session, sales_this_month: list[Sale]) -> int:
+    """Compute total food cost across all sales using RecipePricing.
+
+    Extracted from dashboard_index to reduce complexity.
+    """
     total_food_cost_gs = 0
     for s in sales_this_month:
         pricing = (
@@ -1096,16 +1190,16 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
         )
         if pricing:
             total_food_cost_gs += int(pricing.cost_per_unit_gs * s.qty)
+    return total_food_cost_gs
 
-    if revenue_gs > 0 and total_food_cost_gs > 0:
-        food_cost_pct = total_food_cost_gs / revenue_gs * 100
-        gross_margin_pct = 100 - food_cost_pct
-    else:
-        # No recipe costing data → reporting a margin would be fiction (e.g. 100%)
-        food_cost_pct = None
-        gross_margin_pct = None
 
-    # Waste this month
+def _compute_waste_metrics(
+    session: Session, month_start: datetime, revenue_gs: int
+) -> tuple[int, float]:
+    """Compute waste total and percentage of revenue.
+
+    Extracted from dashboard_index to reduce complexity.
+    """
     waste_gs = (
         session.execute(select(WasteLog.cost_gs).where(WasteLog.recorded_at >= month_start))
         .scalars()
@@ -1113,39 +1207,60 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
     )
     waste_total_gs = sum(waste_gs)
     waste_pct = (waste_total_gs / revenue_gs * 100) if revenue_gs > 0 else 0
+    return waste_total_gs, waste_pct
 
-    # Recipe count
+
+def _compute_recipe_metrics(
+    session: Session, sales_this_month: list[Sale], revenue_gs: int
+) -> tuple[int, int, float]:
+    """Compute recipe count, recipes cooked, and average order value.
+
+    Extracted from dashboard_index to reduce complexity.
+    """
     recipe_count = session.execute(select(Recipe)).scalars().all()
     recipes_cooked = len({s.product.recipe_id for s in sales_this_month if s.product})
-
-    # Avg order value
     avg_order = revenue_gs / len(sales_this_month) if sales_this_month else 0
+    return len(recipe_count), recipes_cooked, avg_order
 
+
+def _compute_channel_and_top_recipe(
+    sales_this_month: list[Sale],
+) -> tuple[dict, tuple[str, int]]:
+    """Compute revenue by channel and top recipe by revenue.
+
+    Extracted from dashboard_index to reduce complexity.
+    """
     # Channels breakdown
     by_channel = defaultdict(int)
     for s in sales_this_month:
         ch = s.channel or Channel.MOSTRADOR.value  # P43: Channel enum fallback
         by_channel[ch] += int(s.qty * s.unit_price_gs)
 
-    # Top recipe by revenue (approximate)
+    # Top recipe by revenue
     by_recipe = defaultdict(int)
     for s in sales_this_month:
         if s.product:
             by_recipe[s.product.name] += int(s.qty * s.unit_price_gs)
     top_recipe = max(by_recipe.items(), key=lambda kv: kv[1], default=("—", 0))
 
-    # Shopping list + wishlist + risks KPIs (batched: one query per entity).
-    # Total ~6 queries — see test_dashboard_perf.py budget.
-    # Shopping list: count + total estimated ₲ in one query
+    return dict(by_channel), top_recipe
+
+
+def _compute_aggregate_kpis(
+    session: Session,
+) -> tuple[int, int, int, int, int, int]:
+    """Compute shopping list, wishlist, and risk KPIs in batched queries.
+
+    Total ~3 queries — see test_dashboard_perf.py budget.
+    Returns: (sl_count, sl_total_gs, wishlist_count, wishlist_total_gs,
+              risk_count, risk_severity_gs).
+    Extracted from dashboard_index to reduce complexity.
+    """
     from sqlalchemy import func as sa_func
 
-    from app.rms.models import (
-        Ingredient,
-        RiskItem,
-        ShoppingListItem,
-        WishlistItem,
-    )
+    from app.rms.models import Ingredient, RiskItem, ShoppingListItem, WishlistItem
 
+    # Shopping list: count + total estimated ₲ in one query
     sl_agg = session.execute(
         select(
             sa_func.count(ShoppingListItem.id),
@@ -1183,49 +1298,84 @@ def dashboard_index(request: Request, session: Session = Depends(get_session)) -
     ).one()
     risk_count, risk_severity_gs = int(risk_agg[0] or 0), int(risk_agg[1] or 0)
 
-    # Sazon onboarding guard — show a small welcome banner if seed_sazon
-    # has been run (multi-tenant demo data loaded). The AppMeta row is
-    # written by app/rms/seed/sazon.py; see is_sazon_seeded() / sazon_meta().
+    return (
+        sl_open_count,
+        sl_total_gs,
+        wishlist_count,
+        wishlist_total_gs,
+        risk_count,
+        risk_severity_gs,
+    )
+
+
+def _get_sazon_status(session: Session) -> tuple[bool, dict]:
+    """Check if Sazon demo data has been seeded.
+
+    Extracted from dashboard_index to reduce complexity.
+    """
     from app.rms.seed.sazon import is_sazon_seeded, sazon_meta
 
     sazon_seeded = is_sazon_seeded(session)
     sazon_info = sazon_meta(session) if sazon_seeded else {}
+    return sazon_seeded, sazon_info
 
-    return render(
-        request,
-        "dashboard.html",
-        {
-            "revenue_gs": revenue_gs,
-            "portions": portions,
-            "unique_customers": unique_customers,
-            "repeat_customers": repeat,
-            "repeat_pct": (int(repeat / unique_customers * 100) if unique_customers > 0 else 0),
-            "food_cost_pct": round(food_cost_pct, 1) if food_cost_pct is not None else None,
-            "gross_margin_pct": round(gross_margin_pct, 1)
-            if gross_margin_pct is not None
-            else None,
-            "waste_gs": waste_total_gs,
-            "waste_pct": round(waste_pct, 1),
-            "recipe_count": len(recipe_count),
-            "recipes_cooked": recipes_cooked,
-            "avg_order_gs": int(avg_order),
-            "by_channel": dict(by_channel),
-            "top_recipe_name": top_recipe[0],
-            "top_recipe_revenue_gs": top_recipe[1],
-            "month_label": month_start.strftime("%B %Y"),
-            "tx_count_this_month": len(sales_this_month),
-            "sl_open_count": sl_open_count,
-            "sl_total_gs": sl_total_gs,
-            "wishlist_count": wishlist_count,
-            "wishlist_total_gs": wishlist_total_gs,
-            "risk_count": risk_count,
-            "risk_severity_gs": risk_severity_gs,
-            "sazon_seeded": sazon_seeded,
-            "sazon_tenant_name": sazon_info.get("sazon_tenant_name", ""),
-            "sazon_admin_user": sazon_info.get("sazon_admin_user", ""),
-            "sazon_seeded_at": sazon_info.get("sazon_seeded_at", ""),
-        },
-    )
+
+def _build_dashboard_context(
+    revenue_gs: int,
+    portions: float,
+    unique_customers: int,
+    repeat: int,
+    food_cost_pct: float | None,
+    gross_margin_pct: float | None,
+    waste_total_gs: int,
+    waste_pct: float,
+    recipe_count: int,
+    recipes_cooked: int,
+    avg_order: float,
+    by_channel: dict,
+    top_recipe: tuple,
+    sl_count: int,
+    sl_total: int,
+    wishlist_count: int,
+    wishlist_total: int,
+    risk_count: int,
+    risk_severity: int,
+    sazon_seeded: bool,
+    sazon_info: dict,
+    month_start: datetime,
+    sales_this_month: list[Sale],
+) -> dict:
+    """Build the template context dict for the dashboard.
+
+    Extracted from dashboard_index to reduce complexity.
+    """
+    return {
+        "revenue_gs": revenue_gs,
+        "portions": portions,
+        "unique_customers": unique_customers,
+        "repeat_customers": repeat,
+        "repeat_pct": (int(repeat / unique_customers * 100) if unique_customers > 0 else 0),
+        "food_cost_pct": round(food_cost_pct, 1) if food_cost_pct is not None else None,
+        "gross_margin_pct": round(gross_margin_pct, 1) if gross_margin_pct is not None else None,
+        "waste_gs": waste_total_gs,
+        "waste_pct": round(waste_pct, 1),
+        "recipe_count": recipe_count,
+        "recipes_cooked": recipes_cooked,
+        "avg_order_gs": int(avg_order),
+        "by_channel": by_channel,
+        "top_recipe_name": top_recipe[0],
+        "top_recipe_revenue_gs": top_recipe[1],
+        "month_label": month_start.strftime("%B %Y"),
+        "tx_count_this_month": len(sales_this_month),
+        "sl_open_count": sl_count,
+        "sl_open_total_gs": sl_total,
+        "wishlist_count": wishlist_count,
+        "wishlist_total_gs": wishlist_total,
+        "risk_count": risk_count,
+        "risk_severity_gs": risk_severity,
+        "sazon_seeded": sazon_seeded,
+        "sazon_info": sazon_info,
+    }
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -1343,6 +1493,8 @@ def planner_compute(
         session.commit()
         # Converge with the other flows (plan→list, auto-sync): merge
         # duplicate open items so the list shows one row per ingredient.
+
+        # noqa: arch-rule — wishlist purchases delegate to shopping.consolidate_open_items
         from app.routers.shopping import consolidate_open_items
 
         consolidate_open_items(session)

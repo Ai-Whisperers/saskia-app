@@ -1,0 +1,56 @@
+# .github/workflows/dora-snapshot.yml — weekly DORA metrics snapshot
+#
+# Runs every Monday 09:00 UTC. Pulls the 4 DORA metrics via
+# scripts/dora_snapshot.py, writes docs/operations/dora-snapshots/<iso-week>.md,
+# and auto-commits the result to main.
+#
+# Per docs/operations/dora-2026-Q4.md §"Measurement instrumentation".
+#
+# Last updated: 2026-10-09 (added as part of the CI/CD best-practices pass)
+
+name: DORA snapshot (weekly)
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dora-snapshot-${{ github.workflow }}
+  cancel-in-progress: false  # we want the weekly run to complete
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.13"
+
+      - name: Run dora_snapshot.py
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/dora_snapshot.py
+
+      - name: Commit the snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/operations/dora-snapshots/
+          # Use refspec bypass per saskia-rms-deploy-flow skill
+          git commit -m "docs(dora): weekly snapshot $(date -u +%Y-W%V)" \
+            || echo "No snapshot changes to commit"
+          git push origin HEAD:refs/heads/main \
+            || echo "Push failed (likely no changes); continuing"

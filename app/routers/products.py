@@ -168,6 +168,84 @@ def products_list(
     Optional filter (?q=substring, ?has_recipe=yes/no).
     """
     PER_PAGE = 50
+
+    # Build base query with filters
+    stmt, count_stmt = _build_products_query(q, has_recipe, disponibles, tag, category)
+
+    # Apply filters that affect pagination
+    margen_sel = (margen or "").strip()
+    disp_sel = (disponibles or "").strip()
+    tag_sel = (tag or "").strip()
+    category_sel = (category or "").strip()
+
+    # Count total
+    total = session.scalar(count_stmt) or 0
+    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+    page = min(page, total_pages)
+
+    # Load supporting data
+    sold_product_ids = _load_sold_product_ids(session)
+    produced_by_pid = _load_production_stats(session)
+
+    # Apply pagination and eager-load
+    offset = (page - 1) * PER_PAGE
+    stmt = stmt.offset(offset).limit(PER_PAGE)
+    stmt = stmt.options(selectinload(Product.recipe))
+    products = session.scalars(stmt).all()
+
+    # Decorate products with cost, margin, prime cost
+    decorated = _decorate_products_with_costs(session, list(products))
+
+    # Add production stats
+    _add_production_stats_to_products(decorated, produced_by_pid, sold_product_ids)
+
+    # Add cost freshness
+    _add_cost_freshness(session, decorated, list(products))
+
+    # Apply margin filter (post-costing, in-memory)
+    if margen_sel:
+        decorated = _filter_by_margin(decorated, margen_sel)
+        total = len(decorated)
+
+    # Apply in-memory sort
+    if sort and sort in ("name", "sale_price_gs", "cost_gs", "margin_gs"):
+        reverse = dir == "desc"
+        decorated.sort(key=lambda r: r.get(sort) or 0, reverse=reverse)
+
+    return render(
+        request,
+        "productos.html",
+        _build_template_context(
+            decorated,
+            q,
+            has_recipe,
+            margen_sel,
+            disp_sel,
+            tag_sel,
+            category_sel,
+            sort,
+            dir,
+            page,
+            total_pages,
+            total,
+            PER_PAGE,
+            session,
+        ),
+    )
+
+
+def _build_products_query(
+    q: str | None,
+    has_recipe: str | None,
+    disponibles: str | None,
+    tag: str | None,
+    category: str | None,
+) -> tuple:
+    """Build the base products query with filters applied.
+
+    Returns (stmt, count_stmt).
+    Extracted from products_list to reduce complexity.
+    """
     stmt = select(Product)
     count_stmt = select(func.count()).select_from(Product)
 
@@ -181,12 +259,7 @@ def products_list(
         stmt = stmt.where(Product.recipe_id.is_(None))
         count_stmt = count_stmt.where(Product.recipe_id.is_(None))
 
-    # Margin/availability filters are post-costing (need unit costs first) —
-    # count after decoration below. Track them here.
-    margen_sel = (margen or "").strip()
     disp_sel = (disponibles or "").strip()
-    tag_sel = (tag or "").strip()
-    category_sel = (category or "").strip()
     if disp_sel == "si":
         stmt = stmt.where(Product.is_available.is_(True))
         count_stmt = count_stmt.where(Product.is_available.is_(True))
@@ -194,24 +267,33 @@ def products_list(
         stmt = stmt.where(Product.is_available.is_(False))
         count_stmt = count_stmt.where(Product.is_available.is_(False))
 
+    tag_sel = (tag or "").strip()
     if tag_sel:
         stmt = stmt.where(Product.tags.ilike(f"%{tag_sel}%"))
         count_stmt = count_stmt.where(Product.tags.ilike(f"%{tag_sel}%"))
+
+    category_sel = (category or "").strip()
     if category_sel:
         stmt = stmt.where(Product.category == category_sel)
         count_stmt = count_stmt.where(Product.category == category_sel)
 
-    # Count total
-    total = session.scalar(count_stmt) or 0
-    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
-    page = min(page, total_pages)
+    return stmt, count_stmt
 
-    # Fetch product IDs with sales (for dead product detection)
-    sold_product_ids = set(session.scalars(select(Sale.product_id).distinct()).all())
 
-    # T-2026-10-05: lifetime + last-30d PRODUCED totals per product, from
-    # production_completion (what the cook actually baked, recorded on
-    # /produccion close). One grouped query — no N+1.
+def _load_sold_product_ids(session: Session) -> set:
+    """Load set of product IDs that have at least one sale.
+
+    Extracted from products_list to reduce complexity.
+    """
+    return set(session.scalars(select(Sale.product_id).distinct()).all())
+
+
+def _load_production_stats(session: Session) -> dict[int, dict]:
+    """Load production completion stats per product.
+
+    Returns dict mapping product_id to {total, last_date, last_30d}.
+    Extracted from products_list to reduce complexity.
+    """
     from app.rms.models import ProductionCompletion
 
     produced_rows = session.execute(
@@ -230,31 +312,29 @@ def products_list(
             ),
         ).group_by(ProductionCompletion.product_id)
     ).all()
-    produced_by_pid = {
+    return {
         r[0]: {"total": float(r[1] or 0.0), "last_date": r[2], "last_30d": float(r[3] or 0.0)}
         for r in produced_rows
     }
 
-    # Apply pagination
-    offset = (page - 1) * PER_PAGE
-    stmt = stmt.offset(offset).limit(PER_PAGE)
 
-    # Phase 1.D — prime cost for each product (batch-safe; new function).
+def _decorate_products_with_costs(session: Session, products: list) -> list[dict]:
+    """Decorate products with cost, margin, and prime cost data.
+
+    Extracted from products_list to reduce complexity.
+    """
     from app.rms.prime_cost import batch_compute_prime_cost, compute_prime_cost
 
-    # Eager-load Product.recipe so batch_compute_prime_cost can read
-    # .recipe without an N+1 session.get per row.
-    stmt = stmt.options(selectinload(Product.recipe))
-    products = session.scalars(stmt).all()
     # One batch call replaces N+1 cost/margin queries (Neon round-trips).
-    batch_results = batch_products_cost_margin(session, list(products))
+    batch_results = batch_products_cost_margin(session, products)
     # Batched prime cost (compliance-info singleton + product.recipe
     # eager-loaded) — avoids the per-product N+1 that this route had
     # before. Falls back to the per-product path only on cache misses.
     try:
-        prime_batch = batch_compute_prime_cost(session, list(products))
+        prime_batch = batch_compute_prime_cost(session, products)
     except Exception:
         prime_batch = {}
+
     decorated = []
     for p in products:
         cost, margin = batch_results.get(
@@ -265,91 +345,132 @@ def products_list(
             ),
         )
         pc = prime_batch.get(p.id) or compute_prime_cost(session, p.id)
-        decorated.append(
-            {
-                "id": p.id,
-                "name": p.name,
-                "sku": p.sku,
-                "image_url": p.image_url,
-                "is_available": p.is_available,
-                "is_favorite": bool(p.is_favorite),
-                "portion_label": p.portion_label,
-                "sale_price_gs": p.sale_price_gs,
-                "recipe_id": p.recipe_id,
-                "recipe_name": p.recipe.name if p.recipe else None,
-                "cost_gs": cost.batch_cost_gs,
-                "margin_gs": margin[0],
-                "margin_ratio": margin[1],
-                # Phase 1.D — prime cost
-                "prime_cost_gs": pc.prime_cost_gs,
-                "prime_cost_pct": pc.prime_cost_pct_of_sale,
-                "labor_cost_gs": pc.labor_cost_gs,
-                "overhead_cost_gs": pc.overhead_cost_gs,
-                "notes": p.notes,
-                "mayorista_price_gs": p.mayorista_price_gs,
-                "is_dead": p.id not in sold_product_ids,
-                # T-2026-10-05: actual production totals (from close-day
-                # records). lifetime total, last-30d, and last produced date.
-                "produced_total": produced_by_pid.get(p.id, {}).get("total", 0.0),
-                "produced_last_30d": produced_by_pid.get(p.id, {}).get("last_30d", 0.0),
-                "produced_last_date": produced_by_pid.get(p.id, {}).get("last_date"),
-            }
-        )
+        decorated.append(_build_product_dict(p, cost, margin, pc))
+    return decorated
 
-    # UI-V2: cost freshness — when did any ingredient price last change?
+
+def _build_product_dict(p: Product, cost: object, margin: tuple, pc: object) -> dict:
+    """Build a decorated product dict with all cost/margin fields.
+
+    Extracted from products_list to reduce complexity.
+    """
+    return {
+        "id": p.id,
+        "name": p.name,
+        "sku": p.sku,
+        "image_url": p.image_url,
+        "is_available": p.is_available,
+        "is_favorite": bool(p.is_favorite),
+        "portion_label": p.portion_label,
+        "sale_price_gs": p.sale_price_gs,
+        "recipe_id": p.recipe_id,
+        "recipe_name": p.recipe.name if p.recipe else None,
+        "cost_gs": cost.batch_cost_gs,
+        "margin_gs": margin[0],
+        "margin_ratio": margin[1],
+        # Phase 1.D — prime cost
+        "prime_cost_gs": pc.prime_cost_gs,
+        "prime_cost_pct": pc.prime_cost_pct_of_sale,
+        "labor_cost_gs": pc.labor_cost_gs,
+        "overhead_cost_gs": pc.overhead_cost_gs,
+        "notes": p.notes,
+        "mayorista_price_gs": p.mayorista_price_gs,
+    }
+
+
+def _add_production_stats_to_products(
+    decorated: list[dict],
+    produced_by_pid: dict[int, dict],
+    sold_product_ids: set,
+) -> None:
+    """Add production stats and dead-product flag to decorated products.
+
+    Extracted from products_list to reduce complexity.
+    """
+    for r in decorated:
+        r["is_dead"] = r["id"] not in sold_product_ids
+        # T-2026-10-05: actual production totals (from close-day
+        # records). lifetime total, last-30d, and last produced date.
+        stats = produced_by_pid.get(r["id"], {})
+        r["produced_total"] = stats.get("total", 0.0)
+        r["produced_last_30d"] = stats.get("last_30d", 0.0)
+        r["produced_last_date"] = stats.get("last_date")
+
+
+def _add_cost_freshness(session: Session, decorated: list[dict], products: list) -> None:
+    """Add cost freshness timestamp to each product.
+
+    Extracted from products_list to reduce complexity.
+    """
     from app.rms.cost_freshness import product_cost_freshness
 
-    freshness = product_cost_freshness(session, list(products))
+    freshness = product_cost_freshness(session, products)
     for r in decorated:
         r["cost_updated_at"] = freshness.get(r["id"])
 
-    # Margin state filter (post-costing, in-memory): negativo <0, bajo <30%, ok 30-70%, alto >70%
-    if margen_sel:
 
-        def _mstate(r: object) -> str:
-            if r["margin_ratio"] is None:
-                return "sin-datos"
-            pct = r["margin_ratio"] * 100
-            if pct < 0:
-                return "negativo"
-            if pct < 30:
-                return "bajo"
-            if pct <= 70:
-                return "ok"
-            return "alto"
+def _filter_by_margin(decorated: list[dict], margen_sel: str) -> list[dict]:
+    """Filter products by margin state.
 
-        decorated = [r for r in decorated if _mstate(r) == margen_sel]
-        total = len(decorated)
+    States: negativo (<0), bajo (<30%), ok (30-70%), alto (>70%).
+    Extracted from products_list to reduce complexity.
+    """
 
-    # Apply in-memory sort
-    if sort and sort in ("name", "sale_price_gs", "cost_gs", "margin_gs"):
-        reverse = dir == "desc"
-        decorated.sort(key=lambda r: r.get(sort) or 0, reverse=reverse)
+    def _mstate(r: dict) -> str:
+        if r["margin_ratio"] is None:
+            return "sin-datos"
+        pct = r["margin_ratio"] * 100
+        if pct < 0:
+            return "negativo"
+        if pct < 30:
+            return "bajo"
+        if pct <= 70:
+            return "ok"
+        return "alto"
 
-    return render(
-        request,
-        "productos.html",
-        {
-            "products": decorated,
-            "q": q or "",
-            "has_recipe": has_recipe or "",
-            "margen_sel": margen_sel,
-            "disp_sel": disp_sel,
-            "tag_sel": tag_sel,
-            "category_sel": category_sel,
-            # UI-V2: reference 'now' for the cost-freshness column.
-            "now_utc": datetime.now(timezone.utc).replace(tzinfo=None),
-            "total_all": session.scalar(select(func.count()).select_from(Product)) or 0,
-            "sort": sort or "",
-            "dir": dir,
-            "page": page,
-            "total_pages": total_pages,
-            "total": total,
-            "per_page": PER_PAGE,
-            "page_start": (page - 1) * PER_PAGE + 1,
-            "page_end": min(page * PER_PAGE, total),
-        },
-    )
+    return [r for r in decorated if _mstate(r) == margen_sel]
+
+
+def _build_template_context(
+    decorated: list[dict],
+    q: str | None,
+    has_recipe: str | None,
+    margen_sel: str,
+    disp_sel: str,
+    tag_sel: str,
+    category_sel: str,
+    sort: str | None,
+    dir: str,
+    page: int,
+    total_pages: int,
+    total: int,
+    PER_PAGE: int,
+    session: Session,
+) -> dict:
+    """Build the template context dict for the products page.
+
+    Extracted from products_list to reduce complexity.
+    """
+    return {
+        "products": decorated,
+        "q": q or "",
+        "has_recipe": has_recipe or "",
+        "margen_sel": margen_sel,
+        "disp_sel": disp_sel,
+        "tag_sel": tag_sel,
+        "category_sel": category_sel,
+        # UI-V2: reference 'now' for the cost-freshness column.
+        "now_utc": datetime.now(timezone.utc).replace(tzinfo=None),
+        "total_all": session.scalar(select(func.count()).select_from(Product)) or 0,
+        "sort": sort or "",
+        "dir": dir,
+        "page": page,
+        "total_pages": total_pages,
+        "total": total,
+        "per_page": PER_PAGE,
+        "page_start": (page - 1) * PER_PAGE + 1,
+        "page_end": min(page * PER_PAGE, total),
+    }
 
 
 @router.get("/export.csv")

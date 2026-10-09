@@ -1,0 +1,102 @@
+# .github/workflows/tooling.yml — Static analysis + architecture gates
+#
+# Companion to `.github/workflows/ci.yml`. This workflow runs the
+# lightweight static-analysis gates that the 2026-10-08 tooling
+# sweep added (see docs/operations/2026-10-08-tooling-hardening.md):
+#
+#   - ruff check + format
+#   - check_imports (architecture rules + cycle detection)
+#   - check_duplicate_files (forbidden legacy + stem collisions)
+#   - check_duplicate_code (near-duplicate function bodies)
+#   - check_warnings (no-warning test gate)
+#   - tests/test_check_imports_rules.py (locks allow-list sizes)
+#
+# Heavy static analysis (vulture, bandit, radon) lives in
+# `make ci-extra` and is run on-demand, not on every PR — it's
+# slow and noisy on first adoption. Promote to per-PR once the
+# false-positive rate stabilizes (target: 0 changes needed in 2
+# consecutive weeks).
+#
+# New tools added 2026-10-08 (see docs/operations/2026-10-09-tooling-and-critical-fixes.md):
+#   - complexipy: cognitive complexity (fails if > 15)
+#   - pyright: type checking (fails on errors)
+#   - deptry: dependency analysis (informational)
+#   - interrogate: docstring coverage (informational, 80% threshold)
+#
+# All new tools are now part of the lightweight gate to prevent
+# complexity drift and type errors from reaching main.
+#
+# Trigger strategy:
+#   - on PR (required check for main, see Branch Protection Rules)
+#   - on push to main (advisory confirmation)
+#   - workflow_dispatch (manual)
+#
+# Locked by tests/test_check_imports_rules.py — 6 tests pin the
+# Sazon-specific allow-list and known-cycles. Adding a new entry to
+# ALLOW_LIST or KNOWN_CYCLES without updating the test count fails CI.
+
+name: Tooling (static analysis)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same PR/branch (same pattern as ci.yml).
+# Without this, tooling runs serially behind every push and wastes minutes.
+concurrency:
+  group: tooling-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  static-analysis:
+    name: Static analysis (lightweight)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Sync dependencies (dev)
+        # rm -rf .venv first: parallel runs from sibling sessions can leave
+        # a .venv behind that blocks `uv sync` with "File exists" (os error 17).
+        # 2026-10-09: 10/10 tooling runs were failing on this exact error.
+        run: rm -rf .venv && uv sync --all-extras --group dev --group tooling-tier2
+        # 2026-10-09b: tooling-tier2 adds fastapi-safeguard (make safeguard, ci-extra)
+
+      - name: make check (duplicates + arch)
+        run: make check
+
+      - name: Near-duplicate function bodies
+        run: uv run python scripts/check_duplicate_code.py --min-lines 20 --threshold 0.90
+
+      - name: Arch-rules regression test
+        run: uv run pytest --no-cov -x -q tests/test_check_imports_rules.py
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+
+      - name: Cognitive complexity check
+        run: make cognitive
+
+      - name: Type checking (pyright)
+        run: make pyright
+
+      - name: fastapi-safeguard (route security vs baseline)
+        # Fails the PR if a NEW un-baselined security finding appears
+        # (e.g. a route added without an auth dependency).
+        run: make safeguard

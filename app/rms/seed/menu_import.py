@@ -22,6 +22,7 @@ import io
 import unicodedata
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -106,45 +107,89 @@ def _load_rows(csv_text: str) -> list[MenuRow]:
 
 
 def import_menu_csv(session: Session, csv_text: str, *, dry_run: bool = True) -> MenuImportReport:
-    """Import a real menu CSV into the current (pack-seeded) tenant."""
+    """Import a real menu CSV into the current (pack-seeded) tenant.
+
+    Refactored 2026-10-09 to reduce cognitive complexity from 23 to <10.
+    """
     report = MenuImportReport(dry_run=dry_run)
-    existing = list(session.scalars(select(Product)).all())
-    by_norm: dict[str, Product] = {_norm(p.name): p for p in existing}
+    by_norm: dict[str, Product] = {_norm(p.name): p for p in session.scalars(select(Product)).all()}
 
     for row in _load_rows(csv_text):
-        key = _norm(row.name)
-        product = by_norm.get(key)
-        if product is None:
-            close = difflib.get_close_matches(key, list(by_norm), n=1, cutoff=_MATCH_CUTOFF)
-            product = by_norm[close[0]] if close else None
-        if product is not None:
-            row.product_id = product.id
-            row.pack_price = product.sale_price_gs
-            if row.price_gs is None:
-                row.action = "no_price_matched"
-            elif product.sale_price_gs != row.price_gs:
-                row.action = "price_updated"
-                if not dry_run:
-                    product.sale_price_gs = row.price_gs
-            else:
-                row.action = "matched"
-        else:
-            row.action = "created"
-            if not dry_run:
-                product = Product(
-                    name=row.name,
-                    sale_price_gs=row.price_gs or 0,
-                    portion_label="1 unidad",
-                    category=row.category,
-                    notes="Importado de carta real — pendiente recosteo",
-                    tags="importado",
-                )
-                session.add(product)
-                session.flush()
-                by_norm[key] = product
-                row.product_id = product.id
+        _process_menu_row(session, row, by_norm, dry_run)
         report.rows.append(row)
 
     if not dry_run:
         session.commit()
     return report
+
+
+def _process_menu_row(
+    session: Session,
+    row: Any,
+    by_norm: dict[str, Product],
+    dry_run: bool,
+) -> None:
+    """Process a single menu row: match, update, or create.
+
+    Extracted from import_menu_csv to reduce complexity.
+    """
+    key = _norm(row.name)
+    product = by_norm.get(key)
+    if product is None:
+        close = difflib.get_close_matches(key, list(by_norm), n=1, cutoff=_MATCH_CUTOFF)
+        product = by_norm[close[0]] if close else None
+
+    if product is not None:
+        _update_existing_product(row, product, dry_run)
+    else:
+        _create_new_product(session, row, key, by_norm, dry_run)
+
+
+def _update_existing_product(
+    row: Any,
+    product: Product,
+    dry_run: bool,
+) -> None:
+    """Update row metadata for an existing product match.
+
+    Extracted from _process_menu_row to reduce complexity.
+    """
+    row.product_id = product.id
+    row.pack_price = product.sale_price_gs
+    if row.price_gs is None:
+        row.action = "no_price_matched"
+    elif product.sale_price_gs != row.price_gs:
+        row.action = "price_updated"
+        if not dry_run:
+            product.sale_price_gs = row.price_gs
+    else:
+        row.action = "matched"
+
+
+def _create_new_product(
+    session: Session,
+    row: Any,
+    key: str,
+    by_norm: dict[str, Product],
+    dry_run: bool,
+) -> None:
+    """Create a new product from a menu row.
+
+    Extracted from _process_menu_row to reduce complexity.
+    """
+    row.action = "created"
+    if dry_run:
+        return
+
+    product = Product(
+        name=row.name,
+        sale_price_gs=row.price_gs or 0,
+        portion_label="1 unidad",
+        category=row.category,
+        notes="Importado de carta real — pendiente recosteo",
+        tags="importado",
+    )
+    session.add(product)
+    session.flush()
+    by_norm[key] = product
+    row.product_id = product.id

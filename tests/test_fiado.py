@@ -220,7 +220,7 @@ def test_venta_fiado_sin_cliente_rechazada(authed_client, session_factory):
     assert "FIADO_REQUIERE_CLIENTE" in r.text
 
 
-def test_pagos_cobranza_endpoint(authed_client, session_factory):
+def test_pagos_cobranza_endpoint(client_with_caja, session_factory):
     s = _sess(session_factory)
     try:
         c = _mk_customer(s, name="Fiado HTTP 2")
@@ -228,19 +228,19 @@ def test_pagos_cobranza_endpoint(authed_client, session_factory):
         cid = c.id
     finally:
         s.close()
-    r1 = authed_client.post(
+    r1 = client_with_caja.post(
         f"/fiado/{cid}/cobrar",
         data={"amount_gs": "15000", "idempotency_key": "cobro-9"},
         follow_redirects=False,
     )
     assert r1.status_code == 303
-    r2 = authed_client.post(
+    r2 = client_with_caja.post(
         f"/fiado/{cid}/cobrar",
         data={"amount_gs": "15000", "idempotency_key": "cobro-9"},
         follow_redirects=False,
     )
     assert r2.status_code == 303
-    assert "fiado_duplicado" in r2.headers["location"]
+    assert "fiado_duplicate" in r2.headers["location"]
     from app.rms.models_legacy import CreditTransaction
 
     s = _sess(session_factory)

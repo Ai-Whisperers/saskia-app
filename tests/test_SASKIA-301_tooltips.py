@@ -12,13 +12,14 @@ this rationale and prevent a future agent from "fixing" the wrong thing.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
 
 pytestmark = [pytest.mark.smoke]
 
-TEMPLATES = Path("/opt/data/work/saskia-app/app/templates")
+from tests.conftest import REPO_ROOT
+
+TEMPLATES = REPO_ROOT / "app" / "templates"
 
 
 def test_no_redundant_aria_label_cerrar_in_templates():

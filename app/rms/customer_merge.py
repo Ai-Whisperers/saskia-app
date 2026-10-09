@@ -90,7 +90,52 @@ def customer_merge(
     if not source_id_list:
         raise ValueError("source_ids must not be empty")
 
-    # 1. Validate target.
+    # 1. Validate target and sources.
+    target = _validate_merge_inputs(session, target_id, source_id_list)
+    sources = _load_source_customers(session, source_id_list)
+
+    result = MergeResult(target_id=target.id)
+    original_notes = target.notes
+
+    # 2. Reassign Sales + Pedidos per source.
+    _reassign_customer_records(session, target, sources, result)
+
+    # 3. Fall back missing target contact fields from sources.
+    _fill_missing_contact_fields(target, sources, result)
+
+    # 4. Append merge trail to notes.
+    _append_merge_trail(target, sources, original_notes, result)
+
+    # 5. Flush so FK references + unique constraints validate BEFORE
+    # we delete the source rows. If something would violate (e.g. a
+    # per-customer uniqueness on Sale), IntegrityError surfaces here
+    # and the caller rolls back — sources stay alive.
+    try:
+        session.flush()
+    except IntegrityError:
+        # Bubble up — caller decides rollback strategy.
+        raise
+
+    # 6. Delete sources. Do this LAST so a FK violation aborts cleanly.
+    for src in sources:
+        session.delete(src)
+
+    # 7. One more flush so deletes are staged; the caller commits.
+    session.flush()
+
+    return result
+
+
+def _validate_merge_inputs(session: Session, target_id: int, source_id_list: list[int]) -> Customer:
+    """Validate merge inputs and return the target customer.
+
+    Extracted from customer_merge to reduce complexity. Validates:
+    - target_id exists in DB
+    - target_id not in source_ids (no self-merge)
+    - all source_ids exist in DB
+
+    Raises ValueError on any validation failure.
+    """
     target = session.get(Customer, int(target_id))
     if target is None:
         raise ValueError(f"target customer id={target_id} not found")
@@ -100,18 +145,35 @@ def customer_merge(
             f"target_id={target_id} is in source_ids; cannot merge a customer into itself"
         )
 
-    # 2. Load sources in one query.
+    return target
+
+
+def _load_source_customers(session: Session, source_id_list: list[int]) -> list[Customer]:
+    """Load all source customers in a single query and validate they exist.
+
+    Extracted from customer_merge to reduce complexity. Raises ValueError
+    if any source id is missing.
+    """
     sources = session.scalars(select(Customer).where(Customer.id.in_(source_id_list))).all()
     found_ids = {c.id for c in sources}
     missing = [sid for sid in source_id_list if sid not in found_ids]
     if missing:
         raise ValueError(f"source customer(s) not found: {missing}")
+    return sources
 
-    result = MergeResult(target_id=target.id)
 
-    original_notes = target.notes
+def _reassign_customer_records(
+    session: Session,
+    target: Customer,
+    sources: list[Customer],
+    result: MergeResult,
+) -> None:
+    """Reassign Sales and Pedidos from sources to target.
 
-    # 3. Reassign Sales + Pedidos per source.
+    Extracted from customer_merge to reduce complexity. For each source,
+    counts the related records, reassigns them to the target, and updates
+    the result with per-source stats.
+    """
     for src in sources:
         sales_count = (
             session.scalar(select(func.count(Sale.id)).where(Sale.customer_id == src.id)) or 0
@@ -138,47 +200,58 @@ def customer_merge(
             )
         )
 
-    # 4. Fall back missing target contact fields from sources.
-    # Pick the first source that has the field populated.
-    if not (target.phone and target.phone.strip()):
-        for src in sources:
-            if src.phone and src.phone.strip():
-                target.phone = src.phone.strip()
-                result.phone_filled_from_source = True
-                break
-    if not (target.email and target.email.strip()):
-        for src in sources:
-            if src.email and src.email.strip():
-                target.email = src.email.strip()
-                result.email_filled_from_source = True
-                break
 
-    # 5. Append merge trail to notes.
+def _fill_missing_contact_fields(
+    target: Customer, sources: list[Customer], result: MergeResult
+) -> None:
+    """Fill missing target phone/email from sources.
+
+    Extracted from customer_merge to reduce complexity. Picks the first
+    source that has the field populated.
+    """
+    _copy_field_if_missing(target, sources, "phone", result)
+    _copy_field_if_missing(target, sources, "email", result)
+
+
+def _copy_field_if_missing(
+    target: Customer, sources: list[Customer], field_name: str, result: MergeResult
+) -> None:
+    """Copy a field from the first source that has it populated.
+
+    Extracted from _fill_missing_contact_fields to reduce complexity.
+    Only copies if the target field is empty.
+    """
+    current = getattr(target, field_name)
+    if current and current.strip():
+        return
+    for src in sources:
+        source_value = getattr(src, field_name)
+        if source_value and source_value.strip():
+            setattr(target, field_name, source_value.strip())
+            if field_name == "phone":
+                result.phone_filled_from_source = True
+            else:
+                result.email_filled_from_source = True
+            break
+
+
+def _append_merge_trail(
+    target: Customer,
+    sources: list[Customer],
+    original_notes: str | None,
+    result: MergeResult,
+) -> None:
+    """Append merge trail to target notes.
+
+    Extracted from customer_merge to reduce complexity. Adds a separator
+    and per-source merge entries to the target's notes field.
+    """
     new_entries: list = [f"--- Fusionado desde {src.name} (id={src.id}) ---" for src in sources]
     if new_entries:
         sep = "\n" if (original_notes and original_notes.strip()) else ""
         trail = sep + "\n".join(new_entries)
         target.notes = (original_notes or "") + trail
         result.notes_appended = True
-
-    # 6. Flush so FK references + unique constraints validate BEFORE
-    # we delete the source rows. If something would violate (e.g. a
-    # per-customer uniqueness on Sale), IntegrityError surfaces here
-    # and the caller rolls back — sources stay alive.
-    try:
-        session.flush()
-    except IntegrityError:
-        # Bubble up — caller decides rollback strategy.
-        raise
-
-    # 7. Delete sources. Do this LAST so a FK violation aborts cleanly.
-    for src in sources:
-        session.delete(src)
-
-    # 8. One more flush so deletes are staged; the caller commits.
-    session.flush()
-
-    return result
 
 
 __all__ = [

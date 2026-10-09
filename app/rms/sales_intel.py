@@ -129,7 +129,18 @@ def product_affinity(session: Session, min_cooccurrence: int = 2) -> dict[tuple[
     Returns dict with (smaller_id, larger_id) → count, only pairs with
     count >= min_cooccurrence.
     """
-    sales = list(
+    sales = _fetch_all_sales(session)
+    baskets = _group_sales_into_baskets(sales)
+    pair_counts = _count_pair_cooccurrences(baskets)
+    return _filter_by_min_cooccurrence(pair_counts, min_cooccurrence)
+
+
+def _fetch_all_sales(session) -> list:
+    """Fetch all non-voided sales ordered by time.
+
+    Extracted from product_affinity to reduce complexity.
+    """
+    return list(
         session.execute(
             select(Sale.sold_at, Sale.product_id, Sale.customer_id)
             .where(Sale.voided_at.is_(None))
@@ -137,29 +148,62 @@ def product_affinity(session: Session, min_cooccurrence: int = 2) -> dict[tuple[
         ).all()
     )
 
-    # Group sales into baskets.
+
+def _group_sales_into_baskets(sales: list) -> list[set[int]]:
+    """Group sales into baskets based on time window.
+
+    Extracted from product_affinity to reduce complexity.
+    """
     baskets: list[set[int]] = []
     current_basket: list[tuple[datetime, int]] = []
     for sold_at, product_id, _customer_id in sales:
-        if current_basket:
-            prev_time, _ = current_basket[-1]
-            if (sold_at - prev_time) > timedelta(hours=_BASKET_WINDOW_HOURS):
-                # New basket.
-                if current_basket:
-                    baskets.append({pid for _, pid in current_basket})
-                current_basket = []
+        if _should_start_new_basket(current_basket, sold_at):
+            baskets.append(_flush_basket(current_basket))
+            current_basket = []
         current_basket.append((sold_at, product_id))
     if current_basket:
-        baskets.append({pid for _, pid in current_basket})
+        baskets.append(_flush_basket(current_basket))
+    return baskets
 
-    # Count co-occurrences.
+
+def _should_start_new_basket(current_basket: list, sold_at: datetime) -> bool:
+    """Determine if a new basket should be started based on time window.
+
+    Extracted from _group_sales_into_baskets to reduce complexity.
+    """
+    if not current_basket:
+        return False
+    prev_time, _ = current_basket[-1]
+    return (sold_at - prev_time) > timedelta(hours=_BASKET_WINDOW_HOURS)
+
+
+def _flush_basket(basket: list[tuple[datetime, int]]) -> set[int]:
+    """Convert a basket list to a set of product IDs.
+
+    Extracted from _group_sales_into_baskets to reduce complexity.
+    """
+    return {pid for _, pid in basket}
+
+
+def _count_pair_cooccurrences(baskets: list[set[int]]) -> Counter:
+    """Count co-occurrences of product pairs in each basket.
+
+    Extracted from product_affinity to reduce complexity.
+    """
     pair_counts: Counter[tuple[int, int]] = Counter()
     for basket in baskets:
         products = sorted(basket)
         for i in range(len(products)):
             for j in range(i + 1, len(products)):
                 pair_counts[(products[i], products[j])] += 1
+    return pair_counts
 
+
+def _filter_by_min_cooccurrence(pair_counts: Counter, min_cooccurrence: int) -> dict:
+    """Filter pair counts to only include those meeting minimum threshold.
+
+    Extracted from product_affinity to reduce complexity.
+    """
     return {pair: count for pair, count in pair_counts.items() if count >= min_cooccurrence}
 
 
@@ -404,19 +448,39 @@ def customer_reorder_rates(
     No-data case: returns zeros + empty top_repeaters (so templates
     can render an empty state without special-casing).
     """
-    from statistics import median
-
-    from sqlalchemy import select
 
     from app.rms.config import ASUNCION_TZ
-    from app.rms.models import Customer
 
     cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=since_days)
+    sales_rows = _fetch_sales_in_window(session, cutoff)
+    by_customer = _group_sales_by_customer(sales_rows)
 
-    # Fetch all valid sales in window: customer_id, sold_at (local), qty,
-    # unit_price_gs, discount_gs. We compute line_total + gaps locally
-    # rather than in SQL — the gap needs the customer's per-row timeline.
-    sales_rows = session.execute(
+    total_customers = len(by_customer)
+    repeaters = {cid: orders for cid, orders in by_customer.items() if len(orders) >= 2}
+    customers_with_2plus = len(repeaters)
+
+    reorder_rate = (customers_with_2plus / total_customers) if total_customers else 0.0
+    all_gaps_days = _compute_order_gaps(repeaters)
+    avg_gap, median_gap = _compute_gap_stats(all_gaps_days)
+    repeater_stats = _build_repeater_stats(repeaters, top_n)
+    _enrich_with_customer_names(session, repeater_stats)
+
+    return {
+        "total_customers": total_customers,
+        "customers_with_2plus_orders": customers_with_2plus,
+        "reorder_rate": round(reorder_rate, 4),
+        "avg_days_between_orders": round(avg_gap, 1),
+        "median_days_between_orders": round(median_gap, 1),
+        "top_repeaters": repeater_stats,
+    }
+
+
+def _fetch_sales_in_window(session, cutoff):
+    """Fetch all valid sales in the time window.
+
+    Extracted from customer_reorder_rates to reduce complexity.
+    """
+    return session.execute(
         select(
             Sale.customer_id,
             Sale.sold_at,
@@ -432,6 +496,14 @@ def customer_reorder_rates(
         .order_by(Sale.customer_id, Sale.sold_at)
     ).all()
 
+
+def _group_sales_by_customer(sales_rows) -> dict[int, list[tuple]]:
+    """Group sales by customer, computing line totals and local times.
+
+    Extracted from customer_reorder_rates to reduce complexity.
+    """
+    from app.rms.config import ASUNCION_TZ
+
     by_customer: dict[int, list[tuple[datetime, int]]] = {}
     for cid, sold_at, qty_v, unit_price_v, discount_v in sales_rows:
         if sold_at is None:
@@ -439,25 +511,44 @@ def customer_reorder_rates(
         local_dt = sold_at.astimezone(ASUNCION_TZ) if sold_at.tzinfo else sold_at
         line_total = round(float(unit_price_v or 0) * float(qty_v or 0)) - int(discount_v or 0)
         by_customer.setdefault(int(cid), []).append((local_dt, line_total))
+    return by_customer
 
-    total_customers = len(by_customer)
-    repeaters = {cid: orders for cid, orders in by_customer.items() if len(orders) >= 2}
-    customers_with_2plus = len(repeaters)
 
-    reorder_rate = (customers_with_2plus / total_customers) if total_customers else 0.0
+def _compute_order_gaps(repeaters: dict) -> list[float]:
+    """Compute gaps in days between consecutive orders for each repeater.
 
-    all_gaps_days: list[float] = []
+    Extracted from customer_reorder_rates to reduce complexity.
+    """
+    all_gaps: list[float] = []
     for orders in repeaters.values():
         timestamps = sorted(ts for ts, _ in orders)
         for prev, curr in itertools.pairwise(timestamps):
             gap = (curr - prev).total_seconds() / 86400.0
             if gap >= 0:
-                all_gaps_days.append(gap)
+                all_gaps.append(gap)
+    return all_gaps
 
-    avg_gap = sum(all_gaps_days) / len(all_gaps_days) if all_gaps_days else 0.0
-    median_gap = float(median(all_gaps_days)) if all_gaps_days else 0.0
 
-    repeater_stats = [
+def _compute_gap_stats(all_gaps_days: list[float]) -> tuple[float, float]:
+    """Compute avg and median gap in days.
+
+    Extracted from customer_reorder_rates to reduce complexity.
+    """
+    from statistics import median
+
+    if not all_gaps_days:
+        return 0.0, 0.0
+    avg = sum(all_gaps_days) / len(all_gaps_days)
+    med = float(median(all_gaps_days))
+    return avg, med
+
+
+def _build_repeater_stats(repeaters: dict, top_n: int) -> list[dict]:
+    """Build sorted repeater stats list, truncated to top_n.
+
+    Extracted from customer_reorder_rates to reduce complexity.
+    """
+    stats = [
         {
             "customer_id": cid,
             "customer_name": "",
@@ -466,26 +557,27 @@ def customer_reorder_rates(
         }
         for cid, orders in repeaters.items()
     ]
-    repeater_stats.sort(key=lambda r: (r["total_orders"], r["total_gs"]), reverse=True)
-    repeater_stats = repeater_stats[:top_n]
+    stats.sort(key=lambda r: (r["total_orders"], r["total_gs"]), reverse=True)
+    return stats[:top_n]
 
-    if repeater_stats:
-        ids = [r["customer_id"] for r in repeater_stats]
-        names_by_id = {
-            c.id: c.name
-            for c in session.scalars(select(Customer).where(Customer.id.in_(ids))).all()
-        }
-        for r in repeater_stats:
-            r["customer_name"] = names_by_id.get(r["customer_id"], "?")
 
-    return {
-        "total_customers": total_customers,
-        "customers_with_2plus_orders": customers_with_2plus,
-        "reorder_rate": round(reorder_rate, 4),
-        "avg_days_between_orders": round(avg_gap, 1),
-        "median_days_between_orders": round(median_gap, 1),
-        "top_repeaters": repeater_stats,
+def _enrich_with_customer_names(session, repeater_stats: list[dict]) -> None:
+    """Enrich repeater stats with customer names.
+
+    Extracted from customer_reorder_rates to reduce complexity.
+    """
+    from sqlalchemy import select
+
+    from app.rms.models import Customer
+
+    if not repeater_stats:
+        return
+    ids = [r["customer_id"] for r in repeater_stats]
+    names_by_id = {
+        c.id: c.name for c in session.scalars(select(Customer).where(Customer.id.in_(ids))).all()
     }
+    for r in repeater_stats:
+        r["customer_name"] = names_by_id.get(r["customer_id"], "?")
 
 
 def customer_retention(

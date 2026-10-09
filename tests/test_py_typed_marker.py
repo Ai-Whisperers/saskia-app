@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from tests.conftest import REPO_ROOT
+
 
 def test_py_typed_marker_exists():
     """The py.typed marker file is present and non-empty."""
-    from pathlib import Path
 
-    p = Path("/opt/data/work/saskia-app/app/py.typed")
+    p = REPO_ROOT / "app/py.typed"
     assert p.exists(), "app/py.typed is missing"
     # PEP 561: even an empty file is valid. We use a docstring for clarity.
     assert p.stat().st_size > 0

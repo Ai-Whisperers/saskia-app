@@ -74,94 +74,21 @@ def compute_prime_cost(session: Session, product_id: int) -> PrimeCostBreakdown:
     notes: list[str] = []
     product = session.get(Product, product_id)
     if product is None:
-        return PrimeCostBreakdown(
-            product_id=product_id,
-            materials_cost_gs=None,
-            yield_corrected_cost_gs=None,
-            labor_cost_gs=None,
-            overhead_cost_gs=None,
-            prime_cost_gs=None,
-            sale_price_gs=None,
-            gross_margin_gs=None,
-            gross_margin_pct=None,
-            prime_cost_pct_of_sale=None,
-            notes=["producto no existe"],
-        )
+        return _empty_breakdown(product_id, notes=["producto no existe"])
 
-    sale_price = product.sale_price_gs  # Raw value; downstream treats 0 as 'no price'
-
-    # Materials cost (from existing costing module — walks sub-recipes)
-    materials: int | None = None
-    if product.recipe_id is not None:
-        batch = recipe_batch_cost_gs(session, product.recipe_id)
-        if batch.batch_cost_gs is not None:
-            materials = batch.batch_cost_gs
-        elif batch.missing_ingredient_names:
-            notes.append("Faltan precios en: " + ", ".join(batch.missing_ingredient_names))
-        elif batch.cycle_detected:
-            notes.append("Ciclo detectado en receta")
-    else:
-        notes.append("Producto sin receta")
-
-    # Yield correction. If recipe.yield_percentage is set, the real per-portion
-    # cost is materials / yield_percentage. If NULL, default 1.0 (no correction).
-    yield_pct = None
-    if product.recipe_id is not None:
-        recipe = session.get(Recipe, product.recipe_id)
-        if recipe and recipe.yield_percentage is not None:
-            yield_pct = recipe.yield_percentage
-            if yield_pct <= 0 or yield_pct > 1.0:
-                notes.append(f"yield_percentage inválido: {yield_pct} (debe estar entre 0 y 1)")
-                yield_pct = None
-
-    yield_corrected = None
-    if materials is not None and yield_pct is not None and yield_pct > 0:
-        # Cost scales by 1/yield (e.g. 0.85 yield → multiply cost by 1.176)
-        yield_corrected = _round_half_up(Decimal(str(materials)) / Decimal(str(yield_pct)))
-
-    # Labor cost: direct_labor_minutes × (labor_rate / 60)
+    sale_price = product.sale_price_gs
+    recipe = _load_recipe(session, product)
     ci = session.get(ComplianceInfo, 1)
-    labor_rate_gs_per_h = ci.labor_cost_per_hour_gs if ci else DEFAULT_LABOR_COST_PER_HOUR_GS
+    labor_rate = ci.labor_cost_per_hour_gs if ci else DEFAULT_LABOR_COST_PER_HOUR_GS
     overhead_pct = ci.overhead_multiplier_pct if ci else DEFAULT_OVERHEAD_MULTIPLIER_PCT
 
-    labor = None
-    if product.recipe_id is not None:
-        recipe = session.get(Recipe, product.recipe_id)
-        if recipe and recipe.direct_labor_minutes is not None and recipe.direct_labor_minutes > 0:
-            labor = _round_half_up(
-                Decimal(str(recipe.direct_labor_minutes))
-                * Decimal(str(labor_rate_gs_per_h))
-                / Decimal("60")
-            )
-        else:
-            notes.append("sin tiempo de mano de obra (informal — no bloquea)")
-
-    # Overhead: pct of materials (not yield-corrected — overhead is fixed cost)
-    overhead = None
-    if materials is not None:
-        overhead = _round_half_up(
-            Decimal(str(materials)) * Decimal(str(overhead_pct)) / Decimal("100")
-        )
-
-    # Prime cost = yield_corrected + labor + overhead
-    prime = None
-    if yield_corrected is not None:
-        total = Decimal(str(yield_corrected))
-        if labor is not None:
-            total += Decimal(str(labor))
-        if overhead is not None:
-            total += Decimal(str(overhead))
-        prime = _round_half_up(total)
-
-    # Profitability — None when prime is None. Sale=0 → pct undefined.
-    gross_margin = None
-    gross_margin_pct = None
-    prime_cost_pct = None
-    if prime is not None and sale_price is not None:
-        gross_margin = sale_price - prime
-        if sale_price > 0:
-            gross_margin_pct = round(gross_margin / sale_price * 100, 1)
-            prime_cost_pct = round(prime / sale_price * 100, 1)
+    materials = _compute_materials_cost(session, product, recipe, notes)
+    yield_pct = _compute_yield_percentage(recipe, notes)
+    yield_corrected = _apply_yield_correction(materials, yield_pct)
+    labor = _compute_labor_cost(recipe, labor_rate, notes)
+    overhead = _compute_overhead(materials, overhead_pct)
+    prime = _compute_prime_cost(yield_corrected, labor, overhead)
+    gross_margin, gross_margin_pct, prime_cost_pct = _compute_profitability(prime, sale_price)
 
     return PrimeCostBreakdown(
         product_id=product_id,
@@ -176,6 +103,137 @@ def compute_prime_cost(session: Session, product_id: int) -> PrimeCostBreakdown:
         prime_cost_pct_of_sale=prime_cost_pct,
         notes=notes,
     )
+
+
+def _empty_breakdown(product_id: int, notes: list) -> PrimeCostBreakdown:
+    """Build an empty breakdown for a missing product.
+
+    Extracted from compute_prime_cost to reduce complexity.
+    """
+    return PrimeCostBreakdown(
+        product_id=product_id,
+        materials_cost_gs=None,
+        yield_corrected_cost_gs=None,
+        labor_cost_gs=None,
+        overhead_cost_gs=None,
+        prime_cost_gs=None,
+        sale_price_gs=None,
+        gross_margin_gs=None,
+        gross_margin_pct=None,
+        prime_cost_pct_of_sale=None,
+        notes=notes,
+    )
+
+
+def _load_recipe(session, product):
+    """Load the recipe for a product if it exists.
+
+    Extracted from compute_prime_cost to reduce complexity.
+    """
+    if product.recipe_id is None:
+        return None
+    return session.get(Recipe, product.recipe_id)
+
+
+def _compute_materials_cost(session, product, recipe, notes: list) -> int | None:
+    """Compute the materials cost from the recipe.
+
+    Extracted from compute_prime_cost to reduce complexity.
+    """
+    if product.recipe_id is None:
+        notes.append("Producto sin receta")
+        return None
+    batch = recipe_batch_cost_gs(session, product.recipe_id)
+    if batch.batch_cost_gs is not None:
+        return batch.batch_cost_gs
+    if batch.missing_ingredient_names:
+        notes.append("Faltan precios en: " + ", ".join(batch.missing_ingredient_names))
+    elif batch.cycle_detected:
+        notes.append("Ciclo detectado en receta")
+    return None
+
+
+def _compute_yield_percentage(recipe, notes: list) -> float | None:
+    """Compute the yield percentage, validating it's in (0, 1].
+
+    Extracted from compute_prime_cost to reduce complexity.
+    """
+    if recipe is None or recipe.yield_percentage is None:
+        return None
+    yield_pct = recipe.yield_percentage
+    if yield_pct <= 0 or yield_pct > 1.0:
+        notes.append(f"yield_percentage inválido: {yield_pct} (debe estar entre 0 y 1)")
+        return None
+    return yield_pct
+
+
+def _apply_yield_correction(materials: int | None, yield_pct: float | None) -> int | None:
+    """Apply yield correction to materials cost.
+
+    Cost scales by 1/yield (e.g. 0.85 yield → multiply cost by 1.176).
+    Extracted from compute_prime_cost to reduce complexity.
+    """
+    if materials is None or yield_pct is None or yield_pct <= 0:
+        return None
+    return _round_half_up(Decimal(str(materials)) / Decimal(str(yield_pct)))
+
+
+def _compute_labor_cost(recipe, labor_rate_gs_per_h, notes: list) -> int | None:
+    """Compute the labor cost from direct_labor_minutes.
+
+    Extracted from compute_prime_cost to reduce complexity.
+    """
+    if recipe is None or recipe.direct_labor_minutes is None or recipe.direct_labor_minutes <= 0:
+        if recipe is not None:
+            notes.append("sin tiempo de mano de obra (informal — no bloquea)")
+        return None
+    return _round_half_up(
+        Decimal(str(recipe.direct_labor_minutes))
+        * Decimal(str(labor_rate_gs_per_h))
+        / Decimal("60")
+    )
+
+
+def _compute_overhead(materials: int | None, overhead_pct) -> int | None:
+    """Compute the overhead cost as a percentage of materials.
+
+    Extracted from compute_prime_cost to reduce complexity.
+    Overhead is fixed cost (not yield-corrected).
+    """
+    if materials is None:
+        return None
+    return _round_half_up(Decimal(str(materials)) * Decimal(str(overhead_pct)) / Decimal("100"))
+
+
+def _compute_prime_cost(yield_corrected, labor, overhead) -> int | None:
+    """Compute the total prime cost.
+
+    Extracted from compute_prime_cost to reduce complexity.
+    """
+    if yield_corrected is None:
+        return None
+    total = Decimal(str(yield_corrected))
+    if labor is not None:
+        total += Decimal(str(labor))
+    if overhead is not None:
+        total += Decimal(str(overhead))
+    return _round_half_up(total)
+
+
+def _compute_profitability(prime, sale_price) -> tuple:
+    """Compute gross margin and percentages.
+
+    Extracted from compute_prime_cost to reduce complexity.
+    Returns (gross_margin, gross_margin_pct, prime_cost_pct).
+    """
+    if prime is None or sale_price is None:
+        return None, None, None
+    gross_margin = sale_price - prime
+    if sale_price <= 0:
+        return gross_margin, None, None
+    gross_margin_pct = round(gross_margin / sale_price * 100, 1)
+    prime_cost_pct = round(prime / sale_price * 100, 1)
+    return gross_margin, gross_margin_pct, prime_cost_pct
 
 
 def batch_compute_prime_cost(

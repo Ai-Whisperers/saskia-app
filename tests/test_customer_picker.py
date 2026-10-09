@@ -230,7 +230,7 @@ def test_api_create_returns_hint_and_stats(client, session_factory):
 # --- /ventas POST + customer_id linking ---
 
 
-def test_ventas_post_links_customer_id(client, session_factory):
+def test_ventas_post_links_customer_id(client_with_caja, session_factory):
     """POST /ventas/nueva with customer_id links the picked customer to the Sale."""
     with session_factory() as s:
         prod = Product(name="Croissant", sale_price_gs=12000, recipe_id=None)
@@ -242,7 +242,7 @@ def test_ventas_post_links_customer_id(client, session_factory):
         product_id = prod.id
         customer_id = cust.id
 
-    resp = client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva",
         data={
             "product_id": str(product_id),
@@ -258,7 +258,7 @@ def test_ventas_post_links_customer_id(client, session_factory):
         assert sale.customer_id == customer_id
 
 
-def test_ventas_post_without_customer_id_still_works(client, session_factory):
+def test_ventas_post_without_customer_id_still_works(client_with_caja, session_factory):
     """Picking a customer is optional — sales without a customer still work."""
     with session_factory() as s:
         prod = Product(name="Sin Cliente", sale_price_gs=5000, recipe_id=None)
@@ -266,7 +266,7 @@ def test_ventas_post_without_customer_id_still_works(client, session_factory):
         s.commit()
         product_id = prod.id
 
-    resp = client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva",
         data={"product_id": str(product_id), "qty": "1"},
         follow_redirects=False,
@@ -278,7 +278,7 @@ def test_ventas_post_without_customer_id_still_works(client, session_factory):
         assert sale.customer_id is None
 
 
-def test_ventas_post_with_bad_customer_id_returns_400(client, session_factory):
+def test_ventas_post_with_bad_customer_id_returns_400(client_with_caja, session_factory):
     """A stale / fake customer_id must NOT silently create a new customer."""
     with session_factory() as s:
         prod = Product(name="Test", sale_price_gs=5000, recipe_id=None)
@@ -286,7 +286,7 @@ def test_ventas_post_with_bad_customer_id_returns_400(client, session_factory):
         s.commit()
         product_id = prod.id
 
-    resp = client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva",
         data={"product_id": str(product_id), "qty": "1", "customer_id": "999999"},
         follow_redirects=False,

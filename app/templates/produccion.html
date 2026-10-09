@@ -857,7 +857,7 @@
              in the Producto cell). #}
           <th class="num" style="width: 5rem;">{{ m.sort_th("Dificultad", "difficulty", current_sort, current_dir) }}</th>
           <th class="num" style="width: 5.5rem;">{{ m.sort_th("Demanda", "demand", current_sort, current_dir) }}</th>
-          <th class="num" style="width: 4.5rem;">{{ m.sort_th("Lotes", "meta", current_sort, current_dir) }}</th>
+          <th class="num" style="width: 4.5rem;">{{ m.sort_th("Tandas", "meta", current_sort, current_dir) }}</th>
           <th class="num" style="width: 3.5rem;">{{ m.sort_th("Pedidos", "pedidos", current_sort, current_dir) }}</th>
           <th class="num" style="width: 4.5rem;">{{ m.sort_th("Lote final", "lote", current_sort, current_dir) }}</th>
           <th class="num" style="width: 7rem;">{{ m.sort_th("Hecho", "hecho", current_sort, current_dir) }}</th>
@@ -942,7 +942,7 @@
               <span class="text-muted">—</span>
             {% endif %}
           </td>
-          <td class="num" data-label="Lotes">
+          <td class="num" data-label="Tandas">
             {% if r.is_ad_hoc %}
               <span class="text-muted">—</span>
             {% else %}
@@ -1519,7 +1519,7 @@
         proporcionalmente a la cantidad de lotes.
       </p>
       <div class="form-row mb-3" >
-        <label class="block-bold" for="qm-batch-qty" >Lotes perdidos</label>
+        <label class="block-bold" for="qm-batch-qty" >Tandas perdidas</label>
         <input type="number" name="batch_qty" id="qm-batch-qty" required step="0.01" min="0.01" max="999" value="1"
                style="width:100%; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;">
         <small class="text-muted">1 = un lote entero; 0.5 = media tanda.</small>
@@ -1969,7 +1969,7 @@
     </div>
     <div style="display: flex; gap: var(--space-2); justify-content: flex-end;">
       <button type="button" class="btn btn-ghost" onclick="document.getElementById('adhoc-modal').close()">Cancelar</button>
-      <button type="submit" class="btn btn-primary">Guardá horneado</button>
+      <button type="submit" class="btn btn-primary">Guardar horneado</button>
     </div>
   </form>
 </dialog>

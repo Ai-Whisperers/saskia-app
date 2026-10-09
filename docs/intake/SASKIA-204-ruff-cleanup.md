@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-07
 **Branch:** `fix/saskia-204-ruff-cleanup`
-**Status:** Ready for review
+**Status:** done (closed 2026-10-09 — `ruff check .` returns 0 errors, lint gate green in CI, 5a078266 deployed)
 
 ## Problem
 
@@ -90,3 +90,11 @@ Low. All changes are:
 - 44 targeted noqa (each comment notes the rationale inline)
 
 No business logic changed. No new dependencies. No migrations.
+
+
+## Acceptance
+
+- [x] `uv run ruff check .` returns 0 errors
+- [x] All 718 test files still pass (no business logic changed)
+- [x] CI lint gate green (verified in commit 5a078266)
+- [x] Deployed to production (deploy-20261009-031821)

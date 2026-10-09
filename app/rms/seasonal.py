@@ -105,6 +105,33 @@ class ProductHint:
     multiplier: float
 
 
+DEFAULT_PRODUCT_NAMES = [
+    "Muffin",
+    "Torta",
+    "Tostado",
+    "Chipá",
+    "Sopa paraguaya",
+    "Galleta",
+    "Cupcake",
+    "Pan dulce",
+    "Rosca",
+    "Huevo de Pascua",
+]
+
+# Keyword rules: (keyword_in_hint, name_match_predicate, message_template)
+# message_template uses {event_name} and {multiplier}
+_HINT_RULES = [
+    ("torta", lambda n: n.lower() in ("torta", "cupcake"), "Demanda alta en {event_name}"),
+    ("cupcake", lambda n: n.lower() in ("torta", "cupcake"), "Demanda alta en {event_name}"),
+    ("pan dulce", lambda n: n == "Pan dulce", "Sube en {event_name}"),
+    ("rosca", lambda n: "rosca" in n.lower(), "Sube en {event_name}"),
+    ("huevo", lambda n: "huevo" in n.lower(), "Sube en {event_name}"),
+    ("chipa", lambda n: "chipa" in n.lower(), "Sube en {event_name}"),
+    ("galleta", lambda n: "galleta" in n.lower(), "Sube en {event_name}"),
+    ("muffin", lambda n: "muffin" in n.lower(), "Sube en {event_name}"),
+]
+
+
 def product_hints_for_event(
     event: SeasonalEvent,
     product_names: list[str] | None = None,
@@ -115,47 +142,29 @@ def product_hints_for_event(
     string and recommend matching product categories. Operator can
     override via tags (E9) — this is the simple default.
     """
-    hints: list[ProductHint] = []
-
     if product_names is None:
-        product_names = [
-            "Muffin",
-            "Torta",
-            "Tostado",
-            "Chipá",
-            "Sopa paraguaya",
-            "Galleta",
-            "Cupcake",
-            "Pan dulce",
-            "Rosca",
-            "Huevo de Pascua",
-        ]
-
+        product_names = DEFAULT_PRODUCT_NAMES
     keywords = event.hint.lower()
+    return _collect_matching_hints(event, keywords, product_names)
+
+
+def _collect_matching_hints(
+    event: SeasonalEvent, keywords: str, product_names: list[str]
+) -> list[ProductHint]:
+    """Collect product hints matching the event keywords.
+
+    Extracted from product_hints_for_event to reduce complexity.
+    """
+    hints: list[ProductHint] = []
     for name in product_names:
-        if any(k in keywords for k in ["torta", "cupcake"]):
-            if name.lower() in ("torta", "cupcake"):
-                hints.append(ProductHint(name, f"Demanda alta en {event.name}", event.multiplier))
-        if "pan dulce" in keywords and name == "Pan dulce":
-            hints.append(ProductHint(name, f"Sube en {event.name}", event.multiplier))
-        if "rosca" in keywords and "rosca" in name.lower():
-            hints.append(ProductHint(name, f"Sube en {event.name}", event.multiplier))
-        if "huevo" in keywords and "huevo" in name.lower():
-            hints.append(ProductHint(name, f"Sube en {event.name}", event.multiplier))
-        if "chipa" in keywords and "chipa" in name.lower():
-            hints.append(ProductHint(name, f"Sube en {event.name}", event.multiplier))
-        if "galleta" in keywords and "galleta" in name.lower():
-            hints.append(ProductHint(name, f"Sube en {event.name}", event.multiplier))
-        if "muffin" in keywords and "muffin" in name.lower():
-            hints.append(ProductHint(name, f"Sube en {event.name}", event.multiplier))
-
+        for keyword, predicate, msg_template in _HINT_RULES:
+            if keyword in keywords and predicate(name):
+                hints.append(
+                    ProductHint(
+                        name,
+                        msg_template.format(event_name=event.name),
+                        event.multiplier,
+                    )
+                )
+                break
     return hints
-
-
-__all__ = [
-    "ProductHint",
-    "calendar_for_year",
-    "product_hints_for_event",
-    "serialize_event",
-    "upcoming_calendar_json",
-]

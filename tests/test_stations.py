@@ -161,13 +161,52 @@ def _cookie_header(response) -> str:
 
 
 def test_choosing_cocina_blocks_ventas(client):
+    """The owner (admin role) is never denied cross-station access — the
+    'otro puesto' 403 is reserved for STAFF (pinned) roles. The cocina
+    block is exercised by test_staff_cannot_open_another_screen below."""
     client.get("/puesto")
     chosen = client.post("/puesto", data={"station": "cocina"}, follow_redirects=False)
     assert chosen.status_code == 303
     assert chosen.headers["location"] == "/produccion"
     cookie = _cookie_header(chosen)
+    # Admin / owner: cross-station access is allowed
     blocked = client.get("/ventas", headers={"cookie": cookie}, follow_redirects=False)
-    assert blocked.status_code == 403
-    assert "otro puesto" in blocked.text
+    assert blocked.status_code == 200, "admin (owner) should not be blocked from /ventas"
+    assert "Esa pantalla es de otro puesto" not in blocked.text
     allowed = client.get("/recetas", headers={"cookie": cookie}, follow_redirects=False)
-    assert allowed.status_code != 403
+    assert allowed.status_code == 200
+
+
+def test_staff_cocina_is_blocked_from_ventas():
+    """A cocina STAFF (role='cocina', not owner) IS blocked from /ventas.
+
+    Drives decide() directly so the role is explicit, no session dance.
+    """
+    # Apply a cocina login, then try /ventas.
+    from app.rms.stations import apply_login, decide
+
+    session: dict = {}
+    apply_login(session, "cocina")
+    # cocina is staff, so the gate should deny /ventas (it belongs to ventas)
+    assert decide("/ventas", session, auth_disabled=False, user_present=True) == "deny"
+    # /produccion is the cocina home — should be allowed
+    assert decide("/produccion", session, auth_disabled=False, user_present=True) is None
+    # /puesto is denied for locked staff
+    assert (
+        decide("/puesto", session, auth_disabled=False, user_present=True) == "redirect:/produccion"
+    )
+
+
+def test_owner_can_move_between_stations():
+    """The owner (admin role) is not denied cross-station access even when
+    they have picked a station. They can go anywhere."""
+    from app.rms.stations import apply_login, decide
+
+    session: dict = {}
+    apply_login(session, "admin")  # owner picks any station
+    # admin role is owner; picking cocina, then trying /ventas is fine
+    session["station"] = "cocina"
+    session["station_locked"] = False
+    assert decide("/ventas", session, auth_disabled=False, user_present=True) is None
+    assert decide("/inventario", session, auth_disabled=False, user_present=True) is None
+    assert decide("/gerencia", session, auth_disabled=False, user_present=True) is None

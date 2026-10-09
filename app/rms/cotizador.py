@@ -62,7 +62,7 @@ class Quote:
 
 def build_quote(session: Session, requested: list[tuple[int, int]]) -> Quote:
     """requested: lista de (product_id, qty). Ignora qty<=0 y faltantes."""
-    from app.rms.models_legacy import Product, Recipe
+    from app.rms.models_legacy import Product
 
     q = Quote()
     for product_id, qty in requested:
@@ -71,31 +71,71 @@ def build_quote(session: Session, requested: list[tuple[int, int]]) -> Quote:
         product = session.get(Product, product_id)
         if product is None:
             continue
-        it = QuoteItem(
-            product_id=product_id,
-            product_name=product.name,
-            qty=int(qty),
-            portion_label=product.portion_label,
-            sale_price_gs=int(product.sale_price_gs),
-        )
-        it.line_menu_gs = it.sale_price_gs * it.qty
-        if product.recipe_id:
-            recipe = session.get(Recipe, product.recipe_id)
-            if recipe is not None and recipe.yield_qty:
-                it.yield_qty = float(recipe.yield_qty)
-                it.batches = math.ceil(it.qty / it.yield_qty) if it.yield_qty > 0 else None
-        if it.batches is not None:
-            res = recipe_batch_cost_gs(session, product.recipe_id)
-            if res.batch_cost_gs is not None:
-                it.costable = True
-                it.line_cost_gs = round(res.batch_cost_gs * it.batches)
-                per_portion = res.batch_cost_gs / it.yield_qty if it.yield_qty else 0
-                it.unit_cost_gs = round(per_portion)
-            it.missing = list(res.missing_ingredient_names or [])
+        it = _build_quote_item(session, product, qty)
+        if it is None:
+            continue
         q.items.append(it)
-        q.total_menu_gs += it.line_menu_gs
-        if it.line_cost_gs is None:
-            q.total_cost_gs = None  # hay ítems no costeables
-        elif q.total_cost_gs is not None:
-            q.total_cost_gs += it.line_cost_gs
+        _accumulate_totals(q, it)
     return q
+
+
+def _build_quote_item(session, product, qty: int):
+    """Build a single QuoteItem for a product.
+
+    Extracted from build_quote to reduce complexity.
+    Returns the QuoteItem or None if product is invalid.
+    """
+
+    it = QuoteItem(
+        product_id=product.id,
+        product_name=product.name,
+        qty=int(qty),
+        portion_label=product.portion_label,
+        sale_price_gs=int(product.sale_price_gs),
+    )
+    it.line_menu_gs = it.sale_price_gs * it.qty
+    if product.recipe_id:
+        _populate_recipe_info(session, it, product.recipe_id)
+    return it
+
+
+def _populate_recipe_info(session, it: QuoteItem, recipe_id: int) -> None:
+    """Populate recipe-related fields on a QuoteItem.
+
+    Extracted from build_quote to reduce complexity.
+    """
+    from app.rms.models_legacy import Recipe
+
+    recipe = session.get(Recipe, recipe_id)
+    if recipe is None or not recipe.yield_qty:
+        return
+    it.yield_qty = float(recipe.yield_qty)
+    it.batches = math.ceil(it.qty / it.yield_qty) if it.yield_qty > 0 else None
+    if it.batches is not None:
+        _populate_cost_info(session, it, recipe_id)
+
+
+def _populate_cost_info(session, it: QuoteItem, recipe_id: int) -> None:
+    """Populate cost-related fields on a QuoteItem.
+
+    Extracted from build_quote to reduce complexity.
+    """
+    res = recipe_batch_cost_gs(session, recipe_id)
+    if res.batch_cost_gs is not None:
+        it.costable = True
+        it.line_cost_gs = round(res.batch_cost_gs * it.batches)
+        per_portion = res.batch_cost_gs / it.yield_qty if it.yield_qty else 0
+        it.unit_cost_gs = round(per_portion)
+    it.missing = list(res.missing_ingredient_names or [])
+
+
+def _accumulate_totals(q: Quote, it: QuoteItem) -> None:
+    """Accumulate totals from a QuoteItem into a Quote.
+
+    Extracted from build_quote to reduce complexity.
+    """
+    q.total_menu_gs += it.line_menu_gs
+    if it.line_cost_gs is None:
+        q.total_cost_gs = None  # hay ítems no costeables
+    elif q.total_cost_gs is not None:
+        q.total_cost_gs += it.line_cost_gs

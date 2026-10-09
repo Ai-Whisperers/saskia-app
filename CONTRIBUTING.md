@@ -1,6 +1,6 @@
 # Contributing to Sazón
 
-Per docs/plans/2026-09-07-sazon-complete-epic-plan-v3.md E24.S2.
+Per docs/roadmap/historical-plans/2026-09-07-sazon-complete-epic-plan-v3.md (archived; see `docs/roadmap/STATUS.md` for current).
 
 ## Quick start
 
@@ -55,17 +55,16 @@ Target: 80%+ coverage. New code must come with tests.
 
 ## Database
 
-- Schema is hand-rolled; **do not use Alembic**. Migrations live in `app/rms/db.py` as `_migration_NNN_*` functions.
+- Schema is hand-rolled; **do not use Alembic**. Migrations live in `app/rms/migrations/_NNN_*.py` files; the migration runner is `app/rms/db.py`.
 - Bump `CURRENT_SCHEMA_VERSION` in `app/rms/config.py` after adding a migration.
 - Always include `app/rms/models.py` updates for new tables/columns.
 - Run `make migrate` after pulling to apply pending migrations.
 
 ## Settings
 
-- 30 operator-facing settings live in `app/rms/settings.py`.
-- New settings go in the `SETTINGS` list with a default + validator + group.
-- Settings are stored in `app_meta` (key-value table).
-- The settings UI groups them by `SettingGroup`.
+- 42 operator-facing settings live in `app/rms/settings_registry.py` (settings + validators + groups).
+- Settings are stored in the `settings_kv` table (key-value, replaces legacy `app_meta`).
+- The settings UI groups them by `SettingGroup` (defined in `settings_runtime.py`).
 
 ## Tags
 

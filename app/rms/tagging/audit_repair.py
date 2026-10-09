@@ -87,62 +87,118 @@ def repair_ingredient(ing: Any) -> list[str]:
     if not issues:
         return []
 
-    declared_raw = getattr(ing, "dietary_tags", "") or ""
-    declared_list = [t.strip() for t in declared_raw.split(",") if t.strip()]
-    declared_set = set(declared_list)
-
     changes: list[str] = []
-    to_remove: set[str] = set()
+    changes = _repair_allergen_contradictions(ing, issues)
+    if not changes:
+        changes = _repair_category_mismatch(ing, issues)
+    return changes
 
+
+def _repair_allergen_contradictions(ing: Any, issues: list[str]) -> list[str]:
+    """Repair tag/allergen contradictions. Returns list of changes.
+
+    Extracted from repair_ingredient to reduce complexity.
+    """
+    declared_set = _get_declared_tags(ing)
+    to_remove = _collect_tags_to_remove(issues)
+    changes = _apply_tag_removals(ing, declared_set, to_remove)
+    if changes:
+        _persist_declared_tags(ing, declared_set)
+    return changes
+
+
+def _get_declared_tags(ing: Any) -> set[str]:
+    """Get the set of declared dietary tags.
+
+    Extracted from _repair_allergen_contradictions to reduce complexity.
+    """
+    declared_raw = getattr(ing, "dietary_tags", "") or ""
+    return {t.strip() for t in declared_raw.split(",") if t.strip()}
+
+
+def _collect_tags_to_remove(issues: list[str]) -> set[str]:
+    """Collect tags that should be removed based on issues.
+
+    Extracted from _repair_allergen_contradictions to reduce complexity.
+    """
+    to_remove: set[str] = set()
     for issue in issues:
         for substring, _allergen_trigger, tags_drop in _REPAIR_RULES:
             if substring in issue:
                 to_remove |= tags_drop
                 break
+    return to_remove
 
+
+def _apply_tag_removals(ing: Any, declared_set: set[str], to_remove: set[str]) -> list[str]:
+    """Remove tags from declared_set and return change messages.
+
+    Extracted from _repair_allergen_contradictions to reduce complexity.
+    """
+    changes: list[str] = []
     for tag in to_remove:
         if tag in declared_set:
             declared_set.remove(tag)
             changes.append(f"removed '{tag}' (allergens column is authoritative)")
-
-    if changes:
-        ing.dietary_tags = ",".join(declared_set) if declared_set else None
-
-    # (b) Category repair: skip if allergen contradictions triggered
-    # changes this round (the operator should review, not the auto-fix).
-    # Otherwise, if infer_category disagrees, swap.
-    if not changes:
-        for issue in issues:
-            if "may be wrong; name suggests" in issue:
-                # Parse: "category 'X' may be wrong; name suggests 'Y'"
-                try:
-                    head, tail = issue.split("name suggests ", 1)
-                    stored = head.split("'")[1]
-                    inferred = tail.strip().rstrip("'").lstrip("'").strip()
-                except (IndexError, ValueError):
-                    continue
-                if (ing.category or "").lower() == stored and inferred in {
-                    "grasas",
-                    "lácteos",
-                    "harinas",
-                    "endulzantes",
-                    "frutas",
-                    "carnes",
-                    "pescados",
-                    "especias",
-                    "otros",
-                    "leudantes",
-                    "huevos",
-                    "decoración",
-                    "frutos-secos",
-                    "líquidos",
-                    "semillas",
-                }:
-                    ing.category = inferred
-                    changes.append(f"category: '{stored}' → '{inferred}' (from name)")
-                break  # only one category per ingredient
-
     return changes
+
+
+def _persist_declared_tags(ing: Any, declared_set: set[str]) -> None:
+    """Persist the modified declared_set back to the ingredient.
+
+    Extracted from _repair_allergen_contradictions to reduce complexity.
+    """
+    ing.dietary_tags = ",".join(declared_set) if declared_set else None
+
+
+_VALID_CATEGORIES = {
+    "grasas",
+    "lácteos",
+    "harinas",
+    "endulzantes",
+    "frutas",
+    "carnes",
+    "pescados",
+    "especias",
+    "otros",
+    "leudantes",
+    "huevos",
+    "decoración",
+    "frutos-secos",
+    "líquidos",
+    "semillas",
+}
+
+
+def _repair_category_mismatch(ing: Any, issues: list[str]) -> list[str]:
+    """Repair category mismatches. Returns list of changes.
+
+    Extracted from repair_ingredient to reduce complexity.
+    """
+    for issue in issues:
+        if "may be wrong; name suggests" not in issue:
+            continue
+        stored, inferred = _parse_category_issue(issue)
+        if stored is None or inferred is None:
+            continue
+        if (ing.category or "").lower() == stored and inferred in _VALID_CATEGORIES:
+            ing.category = inferred
+            return [f"category: '{stored}' → '{inferred}' (from name)"]
+    return []
+
+
+def _parse_category_issue(issue: str) -> tuple[str | None, str | None]:
+    """Parse a category issue string into (stored, inferred).
+
+    Extracted from _repair_category_mismatch to reduce complexity.
+    """
+    try:
+        head, tail = issue.split("name suggests ", 1)
+        stored = head.split("'")[1]
+        inferred = tail.strip().rstrip("'").lstrip("'").strip()
+    except (IndexError, ValueError):
+        return None, None
+    return stored, inferred
 
 
 def repair_all_ingredients(session: Session) -> dict[int, list[str]]:

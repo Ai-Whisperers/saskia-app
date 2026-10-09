@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import pytest
 
+from tests.conftest import REPO_ROOT
+
 
 def test_favicon_svg_served(client):
     """/static/favicon.svg returns 200 with SVG content."""
@@ -77,14 +79,13 @@ def test_app_css_is_minified():
 def test_minify_css_script_works():
     """The minify_css.py script produces consistent output (idempotent)."""
     import subprocess
-    from pathlib import Path
 
     # Run the script in --check mode against the current app.css.
     result = subprocess.run(
         ["uv", "run", "python", "scripts/minify_css.py", "--check"],
         capture_output=True,
         text=True,
-        cwd=Path("/opt/data/work/saskia-app"),
+        cwd=REPO_ROOT,
     )
     # If app.css is already minified, --check returns 0. Otherwise it returns 1.
     # Either way, the script should run without crashing.

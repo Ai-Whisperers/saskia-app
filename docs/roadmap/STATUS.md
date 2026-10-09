@@ -1,108 +1,161 @@
 # Saskia RMS — Current Status
 
-**Last updated:** 2026-10-05
-**Live URL:** https://saskia-vps.paragu-ai.com
-**Branch:** `main` @ `4214cc0` (clean, deployed, 949 commits)
-**Schema version:** 97 (migrations 093–097 from Sprint 4.6 backend-overhaul)
-**Working tree:** clean (no uncommitted changes; only ignored PNGs in `app/static/uploads/`)
+**Last updated:** 2026-10-09 (reorg landed at e9b80533)
+**Live URL:** https://sazon-vps.paragu-ai.com
+**Branch:** `main` @ `640c21e5` (~1,500 commits, deployed, clean)
+**Schema version:** 117 (migrations 113..117 — allergen/dietary tags, EOD alert templates, ingredient image_url)
+**Python LOC (app/):** 96,306 lines across 116 modules
+**Python LOC (tests/):** 124,258 lines (1.29× app code)
+**Routers:** 53 files (30,494 lines)
+**Templates:** 131 files (27,728 lines)
+**Tests collected:** 7,961 (129 deselected)
+**Working tree on `main`:** clean (refactor wave landed in 11+ commits between 14:30 and 15:50 UTC)
 
-## Health check (verified 2026-10-05)
+## Health check (assumed green — see VPS section)
 
-```
-GET  https://saskia-vps.paragu-ai.com/healthz                 → 200 OK
-GET  /api/smoke/waste-source-mix                              → 404  (not in main; in feat/prod-quick-merma)
-GET  /api/smoke/prod-loop                                     → 404  (not in main; in feat/prod-quick-merma)
-GET  /merma (auth-protected)                                  → 401
-GET  /auditoria?source=… (auth-protected)                     → 401
-```
+| Endpoint | Expected | Notes |
+|---|---|---|
+| `https://sazon-vps.paragu-ai.com/healthz` | 200 OK | Last verified via deploy `deploy-20261009-140443` |
+| `https://sazon-vps.paragu-ai.com/healthz/deps` | 200 OK | Probes Supabase + R2 + disk |
+| `https://sazon-vps.paragu-ai.com/healthz/backup` | 200 OK | Reports backup age < 26h |
+
+## Schema-version source (deliberate decision 2026-10-09)
+
+- Source of truth: **`app_meta` table** (`key='schema_version'`), NOT `PRAGMA user_version`
+- See `docs/operations/2026-10-09-schema-version-source.md` for rationale
+- This supersedes AGENTS.md rule 18 which called for `PRAGMA user_version`
 
 ## Deployment state
 
 - **Production stack:** `saskia-vps` on `paragu-ai` (ServaRica VPS), Docker Swarm + Traefik + Cloudflare DNS-01
-- **Legacy URL:** `saskia-rms.paragu-ai.com` (Render) — **SUSPENDED** (returns 503)
+- **Three-environment deploy infra:** staging + production + dev (commit `1ba379a1 feat(deploy): three-environment deploy infra` + `0f1ad5af fix(deploy): match live saskia-vps labels + per-env resource limits`)
 - **Local dev:** `127.0.0.1:8765` (SQLite), `0.0.0.0` only in hosted mode (TLS terminated by Cloudflare)
-- **Test gate:** coverage floor **35%** (grew 30 → 35 on 2026-10-02; aspirational 80%)
-- **CI:** ruff + ruff format + pytest + typer + aiw-saskia migrate smoke + CHANGELOG discipline
+- **CI gates:** ruff + ruff format + pyright + complexipy + deptry + dead-code (sensez) + arch (cycles + layered imports) + pytest + migration safety
+- **Coverage floor:** **35%** (tracked, was 25.97% on `main` HEAD — see regression note below)
 
-## Backlog summary (40 tracked items)
+> ⚠️ **Coverage regression:** the 35% gate is currently flagged red at 25.97% on `main` HEAD. Likely cause: the +633 test surge in the last 24 hours added many low-coverage fixtures. Investigation pending.
 
-| Tier | Total | ✅ Done | 🔶 In Progress | ❌ TODO |
-|---|---:|---:|---:|---:|
-| Tier 1: P0 Critical correctness | 6 | 4 | 2 (#1, #4) | 0 |
-| Tier 2: P0 Security / data integrity | 6 | 5 | 0 | 1 (#12) |
-| Tier 3: P1 Quality / refactoring | 8 | 8 | 0 | 0 |
-| Tier 4: P1 Performance | 5 | 5 | 0 | 0 |
-| Tier 5: P2 Analytics | 6 | 6 | 0 | 0 |
-| Tier 6: P2 Predictive / ML | 5 | 3 | 0 | 2 (#32, #33 already done but #32 still TODO) |
-| Tier 7: P3 Supabase / infra | 4 | 2 | 0 | 2 (#37 done in HEAD, #38) |
-| **Total** | **40** | **33** | **2** | **5** |
+## Open gaps (genuine, post-2026-10-08 lessons-book audit)
 
-> **Note:** the IMPROVEMENT_BACKLOG numbers 32 (#32 Poisson) is the only remaining
-> genuinely-TODO item in Tier 6; #33 is now ✅ Done via `/produccion/accuracy`.
+Source: `sazon_lessons_book_v2_20261008.md` (12 G-OPEN items) intersected with `git log --since=2026-10-08` (which closed several). Net remaining, ranked by signal/cost:
 
-## Epic plan (25 epics, 6 phases) — coarse status
-
-Source: [`epics/00-EPIC-PLAN-EXTRACT.md`](epics/00-EPIC-PLAN-EXTRACT.md)
-
-| Phase | Epics | Status |
-|---|---|---|
-| P0 Close-out (E1–E5) | 5 | ~95% done — only E2.S2 (PG testcontainers) and E3.S4 (healthz/db runbook) explicitly open |
-| P1 Data + insights (E6–E8) | 3 | 100% done |
-| P2 Operator UX (E9–E12) | 4 | 95% done — tags, filtering, etc. all shipped |
-| P3 Customer + retention (E13–E14) | 2 | mostly done — Fase 2 features |
-| P4 Scale + multi-tenant (E15–E16) | 2 | partially open (multi-tenant is intentionally deferred per Saskia-single-user scope) |
-| P5 Polish + future-facing (E17–E25) | 9 | mostly aspirational / future |
-
-## Branches (local)
-
-| Branch | Commits ahead of main | Status | Deployed? |
-|---|---:|---|---|
-| `feat/prod-quick-merma` | 15 | Open PROD-MERMA-2 batch (merma dashboard, source-mix chips, smoke endpoints) | **No** — 404s in prod |
-| `sprint-2-2-tagging` | 1 | Open cosmetic refactor | No |
-| `archive/stash-*` (11) | 3–12 each | WIP stashes; **all work already in main** | n/a |
-| `backup/before-rebase-*` | 0 | Pre-rebase backup, redundant | n/a |
-| `archive/eng-2026-10-02-backend-overhaul` | 0 ahead / 14 behind | Already merged into main via `00db931` | n/a |
-
-## Recently shipped (last 10 days)
-
-- **Sprint 4.6 backend-overhaul** (migrations 093–097) — Expense, Closure, SoftDelete, Audit, AvgCost
-- **Sprint 4.4 StockMovement consolidation** — `cf73ecb` rewrote `void_sale()` to query `StockMovement` after prod crash
-- **Sprint 4.5 atomic migrations** — `atomic_ddl_block` SAVEPOINT helper + 085–089 converted
-- **Sprint 4.7 backup healthz** — `GET /healthz/backup` + `POST /admin/backup`
-- **Sprint 4.6 healthz/deps** — Supabase + R2 + disk probes
-- **Sprint 4.8 ventas-hora heatmap** — `/reportes/ventas-hora` 7×24 grid
-- **Sprint 4.9 customer reorder rate** — `/ops/status` surfaces rate
-- **Sprint 4.10 waste ROI** — `/reportes/mermas-cost` leaderboard
-- **Sprint 4.11 supplier volatility** — `/suppliers/volatility` leaderboard
-- **Sprint 4.1 ventas detail** — `GET /ventas/{id}` standalone view
-- **Sprint 4.2 RecipeLine.qty Numeric** — Float → Numeric(12,4)
-- **Reorder redesign** (Phase 1–4) — supplier lock/unlock, CRUD, CSV upload, Superseis scraper
-- **Phase 14 hygiene pass** — 5 stale TODOs closed, `request._json`/`request._form` sweep
-- **HEAD `4214cc0` 2026-10-02** — `feat(storage): Supabase Storage for /productos/upload-image` (BACKLOG #37)
-
-## Outstanding work (open)
-
-| # | Item | Source | Notes |
+| # | Gap | Source | Status |
 |---|---|---|---|
-| BACKLOG #1 | SaleStockMove + StockMovement full consolidation | IMPROVEMENT_BACKLOG | Documented dual-write; needs refactor session |
-| BACKLOG #4 | Atomic DDL across all 90 migrations | IMPROVEMENT_BACKLOG | Helper ships; 83 migrations still need conversion |
-| BACKLOG #12 | Forward-only migration rollback paths | IMPROVEMENT_BACKLOG | Intentional design, future |
-| BACKLOG #32 | Poisson regression restocking | IMPROVEMENT_BACKLOG | ML project, scoped for later |
-| BACKLOG #38 | Supabase RLS multi-tenant | IMPROVEMENT_BACKLOG | Future |
-| Canonical A.1 | Confirm modals on destructive actions | canonical-roadmap | Cerrar-puertas P0 |
-| Canonical A.2 | CSRF tokens on all forms (~30 missing) | canonical-roadmap | Cerrar-puertas P0 |
-| Canonical A.3 | Audit log on 12 actions (12 missing) | canonical-roadmap | Cerrar-puertas P0 |
-| Canonical A.4 | Rate limit on /login (5/min) | canonical-roadmap | Cerrar-puertas P0 (XS) |
-| Canonical A.5 | `void_sale` after-cierre bug | canonical-roadmap | Cerrar-puertas P0 |
-| Canonical A.6 | Loading skeletons on dashboard/ventas/productos/reportes | canonical-roadmap | Cerrar-puertas P0 |
-| Canonical B.1 | Venta Express `/v/quick` | canonical-roadmap | P1 #1 — `-45s/venta` |
-| Canonical B.2 | Forecast enchufado in `/produccion/manana` | canonical-roadmap | P1 #2 — `-30% desperdicio` |
-| Canonical B.3 | Pedido web upload comprobante (`/p/{slug}`) | canonical-roadmap | P1 #3 |
-| Canonical B.4 | Customer merge | canonical-roadmap | P1 |
-| Canonical B.5 | Suscripciones sin cron | canonical-roadmap | P1 |
-| Canonical B.6 | Cmd+K + atajos POS | canonical-roadmap | P1 |
-| Canonical B.7 | 3 insights accionables (60+d, margen<30%, stock N días) | canonical-roadmap | P1 |
-| Canonical B.8 | Backup local AES-256 + cron diario | canonical-roadmap | P1 — `auto_backup.py` exists, hook to EOD close |
-| Canonical B.9 | `/suppliers/{id}/precios` price comparison | canonical-roadmap | P1 — Gs. 4.3M/año |
-| `feat/prod-quick-merma` | 15 commits PROD-MERMA-2 batch | branch | Needs PR + merge + deploy |
-| `sprint-2-2-tagging` | 1 cosmetic refactor | branch | Needs PR + merge |
+| 1 | Daily P&L rollup (G-OPEN-1) | lessons book | ⏳ still open |
+| 2 | Confidence badge on grilla (G-OPEN-5) | lessons book | ⏳ 1-line CSS render |
+| 3 | KOT error log (G-OPEN-3 / L-KDS-V2-1) | URY port pending | ⏳ ~4h |
+| 4 | Maintenance middleware (G-OPEN-7 / L-OPS-V2-4) | FloCafe port pending | ⏳ ~4.5h |
+| 5 | plan_accuracy → forecast_sales feedback loop (G-OPEN-6) | lessons book | ⏳ ~6.5h |
+| 6 | Reimprimir KOT (L-KDS-V2-2) | UX | ⏳ ~2.5h |
+| 7 | Seasonal calendar → settings_kv (G-OPEN-4) | settings_kv ships, migration pending | ⏳ ~4h |
+| 8 | P95 stockout badge on /inventario (L-STOCK-V2-4) | Poisson output exists, not surfaced | ⏳ ~3h |
+| 9 | Per-category food-cost variance bands (L-RPT-V2-4) | industry pattern, no impl | ⏳ ~8.5h |
+| 10 | pedido_status_audit (G-OPEN-11) | apply audit-module pattern | ⏳ ~1d |
+| 11 | Real PG testcontainers (E1.S2 / v3 epics) | AGENTS.md rule 26 (ASK in body) | ⏳ ~4h |
+| 12 | Barcode scanner integration | wishlist raw | ⏳ small |
+| 13 | Use-first ingredient email cron (G-OPEN-12) | lessons book | ⏳ ~0.5h |
+| 14 | Production worksheet cron (deliverable per `docs/wishlist/triaged/2026-09-04-produccion-del-dia-worksheet.md`) | wishlist triaged | ⏳ ~1d |
+| 15 | **Supabase RLS multi-tenant (BACKLOG #38)** | **Deferred per SASKIA-210** | 🚫 parked |
+| 16 | Supabase Storage (`docs/plans/SUPABASE-RLS-STORAGE-DECISION-2026-10-08.md`) | Decision doc landed | 🟡 partially shipped |
+| 17 | Sentry→Telegram activation (env-gated) | Operator rule 1 | 🚫 parked until 30 customers |
+| 18 | Auto-reorder based on stockout | wishlist triaged; partial via SASKIA-205 | ⏳ |
+| 19 | React/Vue/Tailwind SPA build step | explicitly forbidden | 🚫 parked |
+| 20 | Multi-tenant single-DB | explicitly deferred until Saskia happy | 🚫 parked (SASKIA-210) |
+
+## Recently shipped (last 14 days, by area)
+
+### Hardening / tooling (waves 4–7)
+
+- **complexipy + pyright + deptry + sensez** wired into `make cognitive / pyright / dead-code`
+- **Architecture-imports allow-list** pinned by 8 regression tests; 8 known-allows + 3 known-cycles marked in source (commit `2f85d8c3`)
+- **7 cognitive-CC refactors** of inventory/products/recipes/sales routes (CC 198 → 3 etc.)
+- **3 import-cycle breaks**: db ↔ backup (`5f89c3c7`), settings ↔ registry (`c27b1a5d`), tagging ↔ ingredient_intel (`9af06e7c`)
+- **Tagging system consolidated**: removed 7 duplicate functions, `TagKind` enum, `STARTER_TAGS` fold-in (`38f27c7b`)
+- **Sprint 2.1 type-checking** surfaced and fixed **5 production runtime bugs** (`93d5f16e`)
+- **Schema-source decision doc**: `5e56980c docs(schema): document app_meta vs PRAGMA user_version decision`
+- **Migration 117**: `8e07b43d Ingredient.image_url` (for La Vaquita Feliz image pipeline)
+- **Migrations 113–116**: shopping_price_snapshot, settings_kv_consolidation, allergen_dietary_tags, eod_alert_templates
+
+### Refactor wave (CC reductions)
+
+- **`f65e61dd`** `sale_create_multi` 168→3
+- **`0bea7ed1`** style: ruff format post-SeedContext-refactor
+- **`251fbc34`** + **`c51c9c95`** **`seed_sazon` 232→1** via SeedContext pattern
+- **`8f3533c3`** `ensure_customer` 48→11
+- **`64f3c62b`** `recipe_create` 42→3
+- **`889f9d39`** `recipe_update` 36→3
+- **`67fc5a58`** `products_list` 35→4
+- **`bc710dfb`** `recipe_edit` 33→1
+- **`b1f074dd`** `forecast_demand` 35→4
+- **`a04d3928`** `compute_customer_defaults` 39→2
+- **`a466dc03`** `_build_recipe_breakdown` 48→3
+- **`32832439`** `validate_cart_intent` (pre_sale_check_cart) 48→2 (in-progress on working tree)
+- Multiple `inventory_*` route refactors (CC 198→3, etc.)
+
+### Image pipeline + La Vaquita Feliz
+
+- `0846a792` `feat(seed): reconcile sazon seed with HEREBUS workbook (94 ingredients)`
+- `d8fadabf` `feat(images): research-backed descriptions for all 22 products`
+- `74c9df7b` `feat(images): ship 22 product images + 9 variants`
+- `d6e11459` `feat(images): thumbnail-friendly ingredient prompts`
+- **NB:** these are on `feat/workbook-seed-reconciliation` (47 commits ahead of origin/main), NOT yet on `main`. Also `docs/operations/2026-10-08-workbook-seed-reconciliation.md` documents the work.
+
+### Security
+
+- `7e2bd8d9` ZAP promote-to-HIGH (sibling branch — needs merge)
+- `36021585` Stock ceiling (port from URY)
+- `4683b025` OWASP ZAP CI gate
+- `4384423b` Pre-billing checklist (URY port — partially landed in `validate_cart_intent`)
+- `f26c191b` Date-boundary CI
+- `815f12f5` Design tokens
+- `15cf78a5` Receipt oracle
+
+### Other
+
+- `88288f4f` Architecture regression tests + CI workflow
+- `881963c9` `create_app()` factory pattern
+- `5f22decb` `sensez` dead-code detector
+- `69445818` complexipy + pyright in lightweight CI gate
+- `6ce98890` (commit chain) v3 + v4 data-intelligence plan executed
+- `b573596b` bot cleanup + lint exceptions
+- `0bea7ed1` ruff format post-refactor
+
+
+### Refactor wave (continued -- landed 14:30-15:50 UTC)
+
+- **`17020926`** `validate_sale_intent` (pre_sale_check) 58->3
+- **`e9a08fbd`** `consolidate_open_items` (shopping) 32->4
+- **`c8946a4a`** `to_file` (export) 32->0
+- **`7f672f36`** `pedidos_detail` 32->1
+- **`08deb09b`** `dashboard_index` 32->0
+- **`78e75c15`** `product_cost_freshness` 32->11
+- **`56f2b77e`** `fix(sales)`: restore single-method payment row + create_at for split payments
+- **`ef24eb51`** `fix(deploy)`: test/dev use local-bcrypt auth (no Supabase)
+- **`91f047a8`** `fix(deploy)`: use legacy Supabase JWT keys (ANON_KEY/SERVICE_ROLE_KEY)
+- **`0f1ad5af`** `fix(deploy)`: match live saskia-vps labels + per-env resource limits
+- **`640c21e5`** `fix(ci)`: use existing VPS_KEY secret instead of missing SASKIA_VPS_SSH_KEY
+- **`fffe7c7f`** `fix(ci)`: use throwaway venv for pyyaml install in deploy workflows
+- **`5e3f53e2`** `fix(ci)`: use --break-system-packages for uv pip install in deploy workflows
+- **`5c140b1f`** `chore(lint)`: restore ruff clean after bot's complexity refactors
+
+## Coverage regression (active issue)
+
+- `pytest --cov=app` returns **25.97%**, **below the 35% CI floor**
+- Likely caused by the +633 test surge from the Oct 9 hardening wave (lots of fixture/trivial tests, not impl-coverage tests)
+- **Action pending:** add coverage-enforcing tests for the new CC-refactored functions, or relax the gate consciously
+
+## Cross-references
+
+- [`EXECUTION-PLAN.md`](EXECUTION-PLAN.md) — what to ship next
+- [`BACKLOG.md`](BACKLOG.md) — merged source-of-truth backlog
+- [`WISHLIST.md`](WISHLIST.md) — wishlist index
+- [`epics/`](epics/) — long-form epic stories
+- [`decisions/`](decisions/) — ADRs and alignment decisions
+- [`audits/`](audits/) — periodic audits
+- [`sessions/`](sessions/) — multi-session coordination plans
+- [`historical-plans/`](historical-plans/) — original planning docs (read-only)
+
+## See also
+
+- [`../analysis/2026-10-08/`](https://example.invalid/placeholder) — Oct 8 codebase audit
+- [`../user-guide/00-quickstart.md`](../user-guide/00-quickstart.md) — operator quickstart

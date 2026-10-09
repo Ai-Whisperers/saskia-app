@@ -16,7 +16,9 @@ import re
 import subprocess
 from pathlib import Path
 
-REPO = Path("/opt/data/work/saskia-app")
+from tests.conftest import REPO_ROOT
+
+REPO = REPO_ROOT
 
 
 def _extract_bash_block(ci_path: Path) -> str:
