@@ -749,36 +749,52 @@ def list_settings(session: Session) -> list[dict]:
     stored_map = fetch_all_settings_once(session)
     out: list[dict] = []
     for spec in SETTINGS:
-        stored = stored_map.get(spec.key)
-        # current value via the same path as get_setting_value
-        if spec.validator == "json":
-            current = settings_get(session, spec.key, _json_validator(spec.default))
-        elif stored is None:
-            current = VALIDATORS[spec.validator](spec.default)
-        else:
-            import json as _json
-
-            try:
-                unwrapped = _json.loads(stored)
-            except (TypeError, ValueError):
-                unwrapped = stored
-            current = (
-                unwrapped
-                if not isinstance(unwrapped, str)
-                else VALIDATORS[spec.validator](unwrapped)
-            )
-        out.append(
-            {
-                "key": spec.key,
-                "value": current,
-                "default": spec.default,
-                "stored_raw": stored,
-                "description": spec.description,
-                "group": spec.group.value,
-                "choices": spec.choices,
-            }
-        )
+        out.append(_build_setting_entry(session, spec, stored_map.get(spec.key)))
     return out
+
+
+def _build_setting_entry(session: Session, spec, stored) -> dict:
+    """Build one setting row from its spec and stored value.
+
+    Extracted from list_settings to reduce complexity.
+    """
+    return {
+        "key": spec.key,
+        "value": _resolve_setting_value(session, spec, stored),
+        "default": spec.default,
+        "stored_raw": stored,
+        "description": spec.description,
+        "group": spec.group.value,
+        "choices": spec.choices,
+    }
+
+
+def _resolve_setting_value(session: Session, spec, stored) -> object:
+    """Resolve the current value for a setting spec.
+
+    Extracted from _build_setting_entry to reduce complexity.
+    """
+    if spec.validator == "json":
+        return settings_get(session, spec.key, _json_validator(spec.default))
+    if stored is None:
+        return VALIDATORS[spec.validator](spec.default)
+    return _decode_stored_setting(spec, stored)
+
+
+def _decode_stored_setting(spec, stored: str) -> object:
+    """Decode a stored raw value into the validator-coerced current value.
+
+    Extracted from _resolve_setting_value to reduce complexity.
+    """
+    import json as _json
+
+    try:
+        unwrapped = _json.loads(stored)
+    except (TypeError, ValueError):
+        unwrapped = stored
+    if isinstance(unwrapped, str):
+        return VALIDATORS[spec.validator](unwrapped)
+    return unwrapped
 
 
 def settings_by_group(session: Session) -> dict[str, list[dict]]:
