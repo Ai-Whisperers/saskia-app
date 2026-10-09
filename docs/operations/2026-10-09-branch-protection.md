@@ -1,79 +1,138 @@
 # Branch protection for `main` — operator checklist
 
-**Last updated:** 2026-10-09
+**Last updated:** 2026-10-09 (ruleset live; UI flow below for when the
+"branch protection has been disabled on this repository" error needs
+to be resolved).
 **Owner:** Ivan (operator)
-**Goal:** end the fix-by-pushing-to-main loop by making 4 of the 11 always-green workflows **required** before any PR can merge.
+**Goal:** end the fix-by-pushing-to-main loop by making 5 of the
+always-green workflows **required** before any PR can merge.
+
+## Status: ACTIVE (ruleset 24802688)
+
+Branch protection for `main` is enforced via a **ruleset** (the
+modern GH API; the classic `PUT /branches/main/protection` returns
+404 for this repo — branch protection is **disabled at the legacy
+endpoint** but rulesets work). The ruleset was created on 2026-10-09
+and is live. Do not remove it.
+
+Verify:
+```bash
+gh api repos/Ai-Whisperers/saskia-app/rulesets/24802688 \
+  -q '{name, enforcement, rules: .rules[].type}'
+```
 
 ## Why now
 
-The 2026-10-09 CI recovery (PR #88) moved 5 of 11 GH Actions workflows from 0% pass rate to green-on-every-push. Until branch protection enforces the green ones, the "push to main" loop continues. **This is an operator action** — it requires a single click in the GitHub UI; the rest of this document is the exact checklist.
+The 2026-10-09 CI recovery (PR #88) moved 5 of 11 GH Actions workflows
+from 0% pass rate to green-on-every-push. Until branch protection
+enforces the green ones, the "push to main" loop continues.
 
-## What to click
+## What the ruleset enforces
 
-1. Go to https://github.com/Ai-Whisperers/saskia-app/settings/branches
-2. Click "Add rule" or edit the existing `main` rule
-3. Branch name pattern: `main`
-4. Configure:
+| Rule | Value | Effect |
+|---|---|---|
+| `deletion` | active | Cannot delete `main` |
+| `non_fast_forward` | active | No force-push |
+| `required_linear_history` | active | No merge commits |
+| `pull_request` | 0 required reviews, dismiss stale, resolve threads | PR must exist to merge to `main` |
+| `required_status_checks` | 5 checks (below), strict | All 5 must be green |
 
-### Required status checks (4)
+### Required status checks (5)
 
-These are the workflows that have been green for 7+ days and that are the minimum bar for "this change didn't break anything obvious":
+These are the workflows that have been green for 7+ days and that
+are the minimum bar for "this change didn't break anything obvious":
 
-- ✅ **Currency Drift Lint (D3)** — 47 lines of custom D3 checks that detect money/decimal drift in code. Fast (~10s). Catches the most common bug class.
-- ✅ **Smoke (deploy-shape)** — runs `scripts/smoke_test_deploy_shape.py` against ephemeral Postgres. Catches migration drift. ~30s.
-- ✅ **Browser (Playwright, advisory)** — 9 Playwright tests against a dev server. Catches the "looks fine in dev, broken in browser" class. ~2 min.
-- ✅ **Route Smoke (fast gate)** — 47 generated + 119 explicit route tests. Catches "endpoint returns 500" before deploy. ~2 min.
+- ✅ **smoke** (job in `smoke.yml`) — runs `scripts/smoke_test_deploy_shape.py` against ephemeral Postgres. Catches migration drift. ~40s.
+- ✅ **route-smoke** (job in `route-smoke.yml`) — 47 generated + 119 explicit route tests. ~2 min.
+- ✅ **currency-drift** (job in `currency-drift.yml`) — D3 custom checks; money/decimal drift. ~8s.
+- ✅ **browser** (job in `browser.yml`) — 9 Playwright tests. ~2 min. Daily cron also runs it.
+- ✅ **Static analysis (lightweight)** (job in `ci.yml`) — ruff + check_imports. ~32s.
 
-### DO NOT require yet (the 5 still-shaky)
+### NOT required (intentionally)
 
-These are the workflows that are still being stabilized. Marking them required will block every PR until they're 100% reliable:
+These are still being stabilized. Marking them required will block
+every PR until they're 100% reliable:
 
-- ⏸ **Tooling (static analysis)** — was 0/10, now green. But only 7 days of history; wait for 14.
-- ⏸ **Security (OWASP ZAP)** — the `-l HIGH` → `-l FAIL` fix is in commit `1d2c42a3`. Let it cycle 1 weekly run before promoting.
-- ⏸ **Deploy test** / **Deploy dev** — the SSH key + .venv fixes are in. But these are the actual deploy jobs; requiring them in branch protection means "every PR that lands breaks the deploy", which is what we want eventually, but not today.
-- ⏸ **Dev CI (gate before deploy-dev)** — added 2026-10-09; the lint + fast test gate. Useful but advisory for now.
-- ⏸ **AIW QA Gates (department)** — pinned to SHA in `1d2c42a3`; let it cycle 1 weekly run before promoting.
+- ⏸ **test** (job in `ci.yml`) — was failing on main at 2026-10-09
+  due to a sibling-session lint issue. Now the dev-ci gate catches
+  it on PR, so it's not required at merge time.
+- ⏸ **deploy-test** — was failing on main at 2026-10-09 because
+  the workflow references `VPS_KEY` (a name we don't have; only
+  `SASKIA_VPS_SSH_KEY`). The deploy still succeeds when manually
+  triggered via `workflow_dispatch`; required-on-merge would block
+  every PR.
+- ⏸ **deploy-dev** — runs on non-main branch pushes only. Cannot
+  be required on main (the check never runs).
+- ⏸ **dev-ci (gate before deploy-dev)** — currently the de-facto
+  blocker for landing broken code, but its name doesn't appear in
+  branch protection's required checks list (it's a push-to-non-main
+  workflow).
+- ⏸ **OWASP ZAP API scan** — the `-l HIGH` → `-l FAIL` fix is in
+  commit `1d2c42a3`. Let it cycle 1 weekly run before promoting.
+- ⏸ **AIW QA Gates (department)** — pinned to SHA in `1d2c42a3`;
+  let it cycle 1 weekly run before promoting.
 
-### Other rules to enable
+## Why a ruleset, not classic branch protection
 
-- ✅ **Require linear history** — no merge commits. Cleaner log, easier to bisect.
-- ✅ **Include administrators** — even Ivan's `git push origin main` (when bypassing the PR) is blocked. Catches the "oh I just needed to fix one thing" exception that breaks the audit trail.
-- ✅ **Allow force pushes** — ❌ NO. Never.
-- ✅ **Allow deletions** — ❌ NO. The `main` branch is sacred.
-- ⚠️ **Require signed commits** — Optional. Ivan pushes from one machine. Set this if you're worried about supply-chain attacks via credential theft.
+GH's classic `PUT /branches/main/protection` returns **404** for
+this repo with the message "Branch protection has been disabled
+on this repository." This is a **repo-level admin setting** that
+cannot be flipped by the ruleset API; it has to be done in the
+GH UI at `https://github.com/Ai-Whisperers/saskia-app/settings/branches`
+under "Allow branch protection rules" (or whatever the current
+label is). The ruleset is the modern replacement and it does the
+same thing.
 
-## After saving the rule
+If the classic branch protection is re-enabled later, the
+recommended approach is to **delete the ruleset** and re-create
+the same rules as classic branch protection. The two don't
+stack; the ruleset will take precedence.
 
-1. Open a test PR to verify the rule works. The PR should:
-   - Show 4 "Required" status checks below the merge button
-   - Block "Merge pull request" until all 4 are green
-2. Check the "Files changed" tab — review the rule visually.
-3. Notify the team (Ivan, in this case): "Branch protection is on. Pushes to main are blocked; use a PR."
+## After the ruleset is live (already done)
+
+Open a test PR to verify the ruleset works. The PR should:
+- Show 5 "Required" status checks below the merge button
+- Block "Merge pull request" until all 5 are green
+
+If the check-runs that exist on the latest main commit don't
+match the 5 names above, the ruleset's `strict` mode will fail
+with a message like "Required status check ... was not set by
+any commit". Verify the names by:
+```bash
+gh api repos/Ai-Whisperers/saskia-app/commits/main/check-runs \
+  -q '.check_runs[].name'
+```
 
 ## What to require on the other branches
 
 | Branch | Rule | Why |
 |---|---|---|
-| `main` | All 4 above | Production. Sacred. |
-| `infra/*`, `chore/*`, `docs/*` | All 4 above | Also merges to main; same bar. |
+| `main` | All 5 above | Production. Sacred. |
+| `infra/*`, `chore/*`, `docs/*` | All 5 above | Also merges to main; same bar. |
 | `feat/*` | None | Work-in-progress. |
-| `refactor/*` | All 4 above | Sibling refactor session lands here; needs to pass before merging. |
-| `fix/*` | All 4 above | Same. |
+| `refactor/*` | All 5 above | Sibling refactor session lands here; needs to pass before merging. |
+| `fix/*` | All 5 above | Same. |
 
 ## What the operator should NOT do
 
-- ❌ Don't add "require review" without a reviewer team set up. The repo has 1 developer. Setting "require 1 reviewer" + "no reviewers available" = every PR is unmergeable.
-- ❌ Don't enable "auto-merge" without the merge queue. Auto-merge + missing required checks = CI gets spammed.
-- ❌ Don't use "branch protection rulesets" (the newer feature) yet. The classic branch protection is what the existing tools (gh CLI, branch-archive scripts) work against.
+- ❌ Don't add "require review" without a reviewer team set up. The
+  repo has 1 developer. Setting "require 1 reviewer" + "no reviewers
+  available" = every PR is unmergeable. (The ruleset has 0 required
+  reviews, which is the right default for 1-dev repos.)
+- ❌ Don't enable "auto-merge" without the merge queue. Auto-merge
+  + missing required checks = CI gets spammed.
+- ❌ Don't add bypass actors. The ruleset's `current_user_can_bypass
+  = "never"` is intentional.
 
-## The 4 protected checks — what each one catches
+## The 5 protected checks — what each one catches
 
 | Check | Catches | Misses |
 |---|---|---|
-| Currency Drift Lint (D3) | `float` used for money; `int(Decimal(...))` instead of `to_int_gs()`; Gs vs ₲ spelling; bare `Gs` instead of `Gs. 729.167` | Real-world money bugs (e.g., wrong rounding edge case) |
-| Smoke (deploy-shape) | Migration drift (PG ↔ SQLite); missing alembic-style forward-only migration; env var shape change | E2E flow bugs; UI breakage |
-| Browser (Playwright, advisory) | Login flow broken; navigation dead-ends; form submission 500s | Cross-browser; slow-path bugs |
-| Route Smoke (fast gate) | Any route returns 500 on basic GET/POST; CSRF regression; auth bypass | Subtle business-logic bugs that return 200 with wrong data |
+| currency-drift | `float` used for money; `int(Decimal(...))` instead of `to_int_gs()`; Gs vs ₲ spelling; bare `Gs` instead of `Gs. 729.167` | Real-world money bugs (e.g., wrong rounding edge case) |
+| smoke | Migration drift (PG ↔ SQLite); missing alembic-style forward-only migration; env var shape change | E2E flow bugs; UI breakage |
+| route-smoke | Any route returns 500 on basic GET/POST; CSRF regression; auth bypass | Subtle business-logic bugs that return 200 with wrong data |
+| browser | Login flow broken; navigation dead-ends; form submission 500s | Cross-browser; slow-path bugs |
+| Static analysis (lightweight) | Ruff lint + import-order violations; W293 trailing whitespace; undefined names | Type errors (mypy is advisory only) |
 
 ## References
 
@@ -82,3 +141,4 @@ These are the workflows that are still being stabilized. Marking them required w
 - `docs/operations/dora-2026-Q4.md` (the metrics the gate will improve)
 - `docs/ci/toolchain-versions.md`
 - https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches
+- https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets
