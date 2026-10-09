@@ -374,6 +374,7 @@ def infer_allergens(name: str) -> list[str]:
     for backwards compatibility with the original public API. New code
     should import from app.rms.tagging.classify.
     """
+    # noqa: cycle-known — part of a known lazy-import cycle with tagging.classify (see scripts/check_imports.py KNOWN_CYCLES)
     from app.rms.tagging.classify import infer_allergens as _impl
 
     return _impl(name)

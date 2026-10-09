@@ -142,6 +142,7 @@ def backup_database(
 
     # Schema version + dialect
     from app.rms.config import CURRENT_SCHEMA_VERSION
+    # noqa: cycle-known — part of a known lazy-import cycle with db (see scripts/check_imports.py KNOWN_CYCLES)
     from app.rms.db import _get_db_url_safe
 
     dialect = _get_db_url_safe()

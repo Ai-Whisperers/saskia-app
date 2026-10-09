@@ -26,6 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.rms.models import SettingsKV
+# noqa: cycle-known — part of a known lazy-import cycle with settings_runtime (see scripts/check_imports.py KNOWN_CYCLES)
 from app.rms.settings_runtime import settings_get, settings_set
 
 

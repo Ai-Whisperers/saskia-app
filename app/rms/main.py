@@ -344,6 +344,7 @@ async def lifespan(app: FastAPI):
     # queda vacía pero la app arranca igual.
     try:
         from app.rms.db import make_session_factory as _mi_factory
+        # noqa: arch-rule — calls seed_competitor_prices at startup (lazy import in lifespan)
         from app.rms.seed.competitor_prices import seed_competitor_prices
 
         with _mi_factory(engine)() as _bs:
@@ -1379,6 +1380,7 @@ def _seed() -> None:
     session = SessionLocal()
     try:
         if is_sazon:
+            # noqa: arch-rule — main.py is the CLI entry point; seed/ is runtime-loaded package
             from app.rms.seed import SazonReport, seed_sazon
 
             report: SazonReport = seed_sazon(session, overwrite=overwrite)

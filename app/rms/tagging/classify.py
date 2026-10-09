@@ -439,6 +439,7 @@ def validate_ingredient(ing: object) -> list[str]:
     # import), but most often this is a typo (Jengibre fresco → carnes).
     stored_category = (getattr(ing, "category", None) or "").strip().lower()
     if stored_category and stored_category != "otros":
+        # noqa: cycle-known — part of a known lazy-import cycle with ingredient_intel (see scripts/check_imports.py KNOWN_CYCLES)
         from app.rms.ingredient_intel import infer_category
 
         inferred = infer_category(getattr(ing, "name", "") or "")
