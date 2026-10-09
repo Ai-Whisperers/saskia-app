@@ -421,41 +421,361 @@ async def lifespan(app: FastAPI):
 # Build the app
 
 
-def _wants_html(request: Request) -> bool:
-    """True if the client likely expects HTML over JSON.
+def create_app() -> FastAPI:
+    """Build and configure the Sazon FastAPI app.
 
-    Used by error handlers to serve friendly HTML pages to browsers
-    while preserving JSON shape for API/curl clients.
+    Factory pattern (instead of module-level singleton) so that:
+    - Tests can instantiate an isolated app with a test DB session.
+    - Multi-worker uvicorn (--workers N) doesn't share module-level
+      state between workers.
+    - The module-level `app = create_app()` at the bottom keeps the
+      `app.rms.main:app` uvicorn reference working.
+
+    All middleware, routers, exception handlers, and the lifespan
+    are wired up here. CLI commands (migrate, _serve, run, _rollback,
+    _seed) are NOT part of the app factory — they're invoked from
+    the entry point (python -m app.rms.main ...).
     """
-    accept = (request.headers.get("accept") or "").lower()
-    return "text/html" in accept and "application/json" not in accept.split(";")
+    app = FastAPI(
+        title="Sazón — Sistema de gestión",
+        description="Restaurant management system. Hosted (Neon Postgres + Cloudflare) or local.",
+        version="2026.09.0",
+        lifespan=lifespan,
+        docs_url="/api/docs",
+        redoc_url=None,
+        openapi_url="/api/openapi.json",
+    )
 
+    class StaticCacheMiddleware:
+        """Add Cache-Control + strip vary:Cookie on /static/* responses.
 
-def _request_id() -> str:
-    """Generate a short request id for log correlation."""
-    import uuid
-    return uuid.uuid4().hex[:12]
+        Implemented as a raw ASGI middleware (not BaseHTTPMiddleware) so we can
+        intercept the http.response.start message and remove the vary:Cookie
+        header that SessionMiddleware adds *after* BaseHTTPMiddleware.dispatch
+        has already returned its modified Response object.
 
+        Assets behind /static/* are version-busted via the ?v= query parameter.
+        Responses can therefore be cached "forever" with the immutable directive,
+        which suppresses all conditional revalidation (If-Modified-Since, ETag).
 
-def _register_routers(app: FastAPI) -> None:
-    """Register all FastAPI routers with the application.
+        Exception: /static/app.js is NEVER served with `immutable`.  It carries
+        bindings registered at deploy time (initConfirmLinks, initSidebar, etc.)
+        and a tab with the old /static/app.js?v=<stale> would lose those bindings
+        silently for a full year.  We send no-cache instead, forcing
+        If-Modified-Since revalidation on every visit.
+        """
 
-    Extracted from create_app() to reduce its cognitive complexity. Each
-    router is a decision point, so grouping them here keeps the factory
-    function focused on high-level wiring.
+        # Paths under /static/ that must NOT use the immutable cache header.
+        _REVALIDATE_PATHS = frozenset({"/static/app.js"})
 
-    Routers are organized into logical groups:
-    - Core: auth, stations, health, gerencia, dashboard
-    - Business: validation, analisis, inventory, recipes, suppliers, products
-    - Sales: sales, caja, fiado, menu_import, menus, cotizador
-    - Operations: copiloto, refund, search, excel_io, customers, demo
-    - Production: produccion, eod, merma, reportes, suscripciones
-    - HEREBUS: wishlist, risks, pricing, bank, benchmarks, etc.
-    - Internal (gated): auditoria, ops (controlled by AIW_SASKIA_INTERNAL_ROUTES)
-    - Settings: settings, settings_runtime
-    - Public: users, reorder, help, photo_credits, pedidos (public + auth)
-    - Dev (gated): dev (controlled by DEV_COMBO_SMOKE)
-    """
+        def __init__(self, app: ASGIApp) -> None:
+            self.app = app
+
+        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+            if scope["type"] != "http" or not scope["path"].startswith("/static/"):
+                await self.app(scope, receive, send)
+                return
+
+            path = scope["path"]
+            vary_stripped = False
+
+            async def wrapped_send(message: Message) -> None:
+                nonlocal vary_stripped
+                if message["type"] == "http.response.start":
+                    if not vary_stripped:
+                        vary_stripped = True
+                        # Copy the message so our header mutations don't affect
+                        # SessionMiddleware.send_wrapper which holds a reference
+                        # to the original dict/list and will re-mutate the headers.
+                        message = dict(message)
+                        message["headers"] = list(message["headers"])
+
+                        new_headers = [
+                            (k, v) for k, v in message["headers"] if k.lower() != b"vary"
+                        ]
+                        message["headers"] = new_headers
+
+                    # Set Cache-Control.
+                    # The if above guarantees immutable is only set for immutable paths.
+                    cache_value = (
+                        "no-cache"
+                        if path in self._REVALIDATE_PATHS
+                        else "max-age=31536000, immutable"
+                    )
+                    # Append or replace Cache-Control.
+                    headers = [
+                        (k, v) for k, v in message["headers"] if k.lower() != b"cache-control"
+                    ]
+                    headers.append((b"cache-control", cache_value.encode()))
+                    message["headers"] = headers
+
+                await send(message)
+
+            await self.app(scope, receive, wrapped_send)
+
+    # GZip compression: ~70% bandwidth reduction on all HTML/CSS/JS responses.
+    # minimum_size=500 avoids compressing tiny responses (overhead > savings).
+    # Registered LAST so it runs INNERMOST (closest to the route handler) and
+    # wraps every response body before the other middlewares see it. This
+    # ordering also keeps GZip's body-size check working correctly — our
+    # RequestContext middleware (registered earlier = outer) just attaches
+    # X-Request-Id without reading the body.
+    app.add_middleware(GZipMiddleware, minimum_size=500)
+
+    # Request context middleware: attaches request_id, user_id, method, path
+    # to every loguru emission via logger.contextualize. Registered FIRST so
+    # even the other middlewares' logs are tagged. The original ordering
+    # (GZip before RequestContext) worked but caused GZip to apply to all
+    # responses including tiny ones because the body-size check ran AFTER
+    # our access-log timing read. Re-registered GZip AFTER RequestContext
+    # below so GZip is the INNERMOST middleware (closest to the route).
+    app.add_middleware(RequestContextMiddleware)
+
+    # Cache headers for /static/*. Browser revalidation is wasteful for assets
+    # that change only on deploys.
+    app.add_middleware(StaticCacheMiddleware)
+
+    class HealthCacheMiddleware(BaseHTTPMiddleware):
+        """Add short Cache-Control to /healthz* responses.
+
+        Health endpoints are idempotent and change infrequently. A 10-second
+        edge cache lets Cloudflare absorb UptimeRobot ping storms (every 5 min)
+        + the operator's manual probes without hitting the app on every check.
+
+        Per docs/operations/2026-09-09-performance-analysis.md improvement #5
+        + performance-research.md section 5 (Cloudflare caching).
+        """
+
+        async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+            response = await call_next(request)
+            if request.url.path.startswith("/healthz"):
+                # s-maxage is for shared caches (Cloudflare); max-age is for browsers.
+                # 10s strikes the balance between freshness and edge-cache hit rate.
+                response.headers["Cache-Control"] = "public, max-age=10, s-maxage=10"
+            return response
+
+    app.add_middleware(HealthCacheMiddleware)
+
+    # Phase 14 — Prometheus /metrics middleware. Stdlib-only so we don't add
+    # starlette_exporter as a dep. Records request count + latency for every
+    # route, plus a DB-up gauge updated on each /healthz/db hit.
+    class MetricsMiddleware(BaseHTTPMiddleware):
+        """Increment request counters and the latency histogram on every response."""
+
+        async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+            from time import perf_counter
+
+            from app.rms.metrics import record_request
+
+            start = perf_counter()
+            try:
+                response = await call_next(request)
+            except Exception:
+                duration = perf_counter() - start
+                record_request(request.url.path, request.method, 500, duration)
+                raise
+            duration = perf_counter() - start
+            record_request(
+                request.url.path,
+                request.method,
+                response.status_code,
+                duration,
+            )
+            return response
+
+    app.add_middleware(MetricsMiddleware)
+
+    # Security headers middleware: defense-in-depth HTTP response headers
+    # Detect session leaks: warns + closes any Session opened during a
+    # request that wasn't closed by the handler. Defense in depth against
+    # future code that forgets to use `Depends(get_session)`.
+    app.add_middleware(SessionLifecycleMiddleware)
+
+    # CSRF protection: signed double-submit cookie.
+    # Set on every GET response to non-exempt paths; required on every POST.
+    app.middleware("http")(csrf_cookie_middleware)
+
+    # Security headers MUST be added AFTER csrf_cookie_middleware so that
+    # the headers get applied to error responses raised from csrf (e.g.
+    # the 403 missing_or_invalid_csrf_token JSONResponse). Starlette/FastAPI
+    # runs middleware in REVERSE registration order (last registered =
+    # outermost), so adding SecurityHeadersMiddleware here means it wraps
+    # everything below it, including csrf's HTTPException responses.
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    class StationGateMiddleware(BaseHTTPMiddleware):
+        """Keep a chosen station inside its screens.
+
+        With auth disabled and no station in the session (the test default),
+        the gate does nothing so existing pages keep working. Once a station
+        is chosen, another station's screen is refused.
+        """
+
+        async def dispatch(
+            self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+        ) -> Response:
+            path = request.url.path
+            if path.startswith(
+                ("/static", "/healthz", "/favicon", "/login", "/logout", "/forgot-password")
+            ):
+                return await call_next(request)
+            try:
+                session = request.session
+            except AssertionError:
+                return await call_next(request)
+            from app.auth import current_user_id, is_auth_disabled
+            from app.rms.stations import decide
+
+            try:
+                user_present = current_user_id(request) is not None
+            except Exception:
+                user_present = False
+            result = decide(
+                path,
+                session,
+                auth_disabled=is_auth_disabled(),
+                user_present=user_present,
+            )
+            if result is None:
+                return await call_next(request)
+            if result == "deny":
+                return HTMLResponse(
+                    "<!doctype html><meta charset='utf-8'><title>Otro puesto</title>"
+                    "<p>Esa pantalla es de otro puesto.</p>",
+                    status_code=403,
+                )
+            return RedirectResponse(result.split(":", 1)[1], status_code=303)
+
+    # Inner relative to SessionMiddleware (added below), so the session cookie
+    # is already loaded when the gate reads it.
+    app.add_middleware(StationGateMiddleware)
+
+    # Session middleware: signs cookies with SESSION_SECRET.
+    # Must be added BEFORE routers so login_user() can write to request.session.
+    # Same-site=lax + https-only when behind CF Tunnel (which always terminates TLS).
+    class _NoVaryCookieSessionMiddleware(SessionMiddleware):
+        """SessionMiddleware that skips adding 'vary: Cookie' for static assets.
+
+        SessionMiddleware normally adds vary:Cookie to every response that accessed
+        the session, preventing browsers/CDNs from caching static assets (images,
+        CSS, fonts) independently of the session cookie.  For /static/* paths the
+        response is always identical regardless of session, so we skip the
+        vary:Cookie header there.  (Cache-Control is handled separately by
+        StaticCacheMiddleware.)
+        """
+
+        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+            if scope["type"] not in ("http", "websocket"):  # pragma: no cover
+                await self.app(scope, receive, send)
+                return
+
+            if scope["path"].startswith("/static/"):
+                # For static assets: pass through without touching the session OR
+                # the vary header.  The session signer is still initialized so
+                # login_user() can write request.session on the way through.
+                connection = HTTPConnection(scope)
+                if self.session_cookie in connection.cookies:
+                    try:
+                        data = connection.cookies[self.session_cookie].encode("utf-8")
+                        data = self.signer.unsign(data, max_age=self.max_age)
+                        scope["session"] = _StarletteSession(json.loads(b64decode(data)))
+                    except BadSignature:
+                        scope["session"] = _StarletteSession()
+                else:
+                    scope["session"] = _StarletteSession()
+                await self.app(scope, receive, send)
+                return
+
+            # Normal session middleware for all other paths.
+            await super().__call__(scope, receive, send)
+
+    app.add_middleware(
+        _NoVaryCookieSessionMiddleware,
+        secret_key=SESSION_SECRET,
+        session_cookie="sazon_session",
+        max_age=60 * 60 * 24 * 7,  # 7 days
+        same_site="lax",
+        https_only=os.getenv("HTTPS_ONLY", "true").lower() == "true",
+    )
+
+    # Mount static files (CSS, images, etc.) so templates can link /static/app.css
+    _static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+    if os.path.isdir(_static_dir):
+        # ── combo component alias — must be registered BEFORE app.mount("/static")
+        # so the explicit route wins over the StaticFiles catch-all. The combo
+        # Web Component lives at ui-combo.js; /static/combo.js is kept as a
+        # legacy alias so existing templates + tests still resolve.
+        @app.get("/static/combo.js", include_in_schema=False)
+        def _combo_js_alias() -> FileResponse:
+            return FileResponse(
+                os.path.join(_static_dir, "ui-combo.js"),
+                media_type="application/javascript",
+            )
+
+        # Use ReadyStaticFiles to gate on app.state.ready — without this, the
+        # browser fetches /static/app.css during Render cold-start (5-30s) and
+        # gets broken CSS. With the gate, the browser sees a clean 503 that
+        # triggers a natural retry once the app is ready.
+        from app.rms.ready_static import ReadyStaticFiles
+
+        app.mount("/static", ReadyStaticFiles(directory=_static_dir), name="static")
+        # Mount uploaded product images at /static/uploads/ — written by
+        # /productos/upload-image (see routers/products.py). The directory is
+        # created on demand inside the upload route, so no need to mkdir here.
+        uploads_dir = os.path.join(_static_dir, "uploads")
+        os.makedirs(uploads_dir, exist_ok=True)
+        app.mount("/static/uploads", ReadyStaticFiles(directory=uploads_dir), name="uploads")
+
+        # Browsers auto-request /favicon.ico and /favicon.svg at the root (not
+        # under /static/). Without these, the browser logs a 404 and falls back
+        # to its built-in icon, which is ugly and shows up as a console error.
+        # Alias the same files so both /static/favicon.* and /favicon.* work.
+        # Bypasses ReadyStaticFiles (intentional — favicon must work during
+        # cold-start so the browser's initial request succeeds).
+        @app.get("/favicon.svg", include_in_schema=False)
+        def _favicon_svg() -> FileResponse:
+            return FileResponse(
+                os.path.join(_static_dir, "favicon.svg"),
+                media_type="image/svg+xml",
+            )
+
+        @app.get("/favicon.ico", include_in_schema=False)
+        def _favicon_ico() -> FileResponse:
+            return FileResponse(
+                os.path.join(_static_dir, "favicon.ico"),
+                media_type="image/x-icon",
+            )
+
+    # --- Auth gate (Milestone 1) ---
+    #
+    # All routes require login EXCEPT:
+    #   /login*     — auth pages
+    #   /logout*    — auth pages (POST + GET)
+    #   /forgot-password — Supabase password reset trigger
+    #   /healthz*    — monitoring (Render + UptimeRobot)
+    #   /static/*    — CSS, images
+    #
+    # Implementation note: we use Starlette's Depends() at the router level
+    # rather than middleware because:
+    # 1. Middleware runs in reverse-registration order, so adding auth
+    #    middleware after SessionMiddleware causes it to run BEFORE
+    #    the session is populated (broken state).
+    # 2. Depends() at the APIRouter level gives us the same security
+    #    baseline (forgetting it on a route is hard) but with correct
+    #    timing — session is populated, then auth runs, then handler.
+    #
+    # We expose this as an `auth_router_dep` callable that the test
+    # conftest can monkey-patch out (set to a no-op).
+
+    PUBLIC_PATH_PREFIXES = ("/static",)
+
+    def _is_public(path: str) -> bool:
+        """True for paths that don't require auth."""
+        return any(path.startswith(p) for p in PUBLIC_PATH_PREFIXES)
+
+    # Mount routers — auth first (so /login is reachable before any auth check).
+    # Public paths (healthz, login, logout, forgot-password, static) are
+    # handled by the router's own dependencies list below.
     app.include_router(auth.router)
     app.include_router(stations.router)
     app.include_router(health.router)
@@ -565,75 +885,23 @@ def _register_routers(app: FastAPI) -> None:
         app.include_router(_dev_router.router)
         app.include_router(_dev_router.api_router)
 
+    def _request_id() -> str:
+        """Generate a short request id for log correlation."""
+        import uuid
 
+        return uuid.uuid4().hex[:12]
 
+    def _wants_html(request: Request) -> bool:
+        """True if the client likely expects HTML over JSON.
 
+        Used by error handlers to serve friendly HTML pages to browsers
+        while preserving JSON shape for API/curl clients.
+        """
+        accept = (request.headers.get("accept") or "").lower()
+        # Browsers send text/html. API clients (curl, fetch from JS) send application/json
+        # or */*. If html is explicitly preferred OR no JSON preference is set, return HTML.
+        return "text/html" in accept and "application/json" not in accept.split(";")
 
-def _extract_field_name(err: dict) -> str:
-    """Extract the field name from a validation error, stripping 'body'/'query'/'path'/'form' prefixes.
-
-    Extracted from validation_exception_handler to reduce complexity.
-    """
-    loc = [str(x) for x in err.get("loc", []) if x not in ("body", "query", "path", "form")]
-    return loc[-1] if loc else "campo"
-
-
-def _translate_validation_error(err: dict) -> str:
-    """Translate a single FastAPI validation error to Spanish.
-
-    Extracted from validation_exception_handler to reduce complexity.
-    Uses a table-driven approach to map error types to Spanish messages.
-    """
-    loc = [str(x) for x in err.get("loc", []) if x not in ("body", "query", "path", "form")]
-    field = loc[-1] if loc else "campo"
-    etype = err.get("type", "")
-    msg_en = err.get("msg", "")
-    ctx = err.get("ctx", {})
-
-    # Table-driven translation: (error_types, message_formatter)
-    translators = [
-        ({"missing"}, lambda: f"{field} es obligatorio"),
-        (
-            {"greater_than", "greater_than_equal"},
-            lambda: _format_limit_error(field, ctx.get("ge") or ctx.get("gt"), etype, "≥", ">"),
-        ),
-        (
-            {"less_than", "less_than_equal"},
-            lambda: _format_limit_error(field, ctx.get("le") or ctx.get("lt"), etype, "≤", "<"),
-        ),
-        ({"int_parsing", "type_error.integer"}, lambda: f"{field} debe ser un número entero"),
-        ({"float_parsing", "type_error.float"}, lambda: f"{field} debe ser un número"),
-        ({"value_error"}, lambda: f"{field}: {msg_en}"),
-    ]
-
-    for error_types, formatter in translators:
-        if etype in error_types:
-            return formatter()
-
-    return f"{field} inválido"
-
-
-def _format_limit_error(field: str, limit, etype: str, ge_symbol: str, gt_symbol: str) -> str:
-    """Format a limit validation error message.
-
-    Extracted from _translate_validation_error to reduce complexity.
-    """
-    if etype in ("greater_than_equal", "less_than_equal"):
-        return f"{field} debe ser {ge_symbol} {limit}"
-    return f"{field} debe ser {gt_symbol} {limit}"
-
-
-def _register_exception_handlers(app: FastAPI) -> None:
-    """Register all exception handlers with the application.
-
-    Extracted from create_app() to reduce its cognitive complexity. Handles:
-    - RequestValidationError: Spanish 422 errors
-    - 500 errors: HTML for browsers, JSON for API
-    - 404 errors: HTML for browsers, JSON for API
-
-    All handlers use _wants_html() to detect client preference and respond
-    appropriately.
-    """
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(
         request: Request, exc: RequestValidationError
@@ -644,15 +912,57 @@ def _register_exception_handlers(app: FastAPI) -> None:
         into a Spanish message that says which field is wrong and what to enter.
         """
         errors = exc.errors()
-        parts = [_translate_validation_error(err) for err in errors[:3]]
+        parts: list[str] = []
+        for err in errors[:3]:  # at most 3 errors per response
+            loc = [str(x) for x in err.get("loc", []) if x not in ("body", "query", "path", "form")]
+            field = loc[-1] if loc else "campo"
+            etype = err.get("type", "")
+            msg_en = err.get("msg", "")
+            # Translate the most common FastAPI validation types
+            if etype == "missing":
+                parts.append(f"{field} es obligatorio")
+            elif etype in ("greater_than", "greater_than_equal"):
+                limit = err.get("ctx", {}).get("ge") or err.get("ctx", {}).get("gt")
+                parts.append(
+                    f"{field} debe ser ≥ {limit}"
+                    if etype == "greater_than_equal"
+                    else f"{field} debe ser > {limit}"
+                )
+            elif etype in ("less_than", "less_than_equal"):
+                limit = err.get("ctx", {}).get("le") or err.get("ctx", {}).get("lt")
+                parts.append(
+                    f"{field} debe ser ≤ {limit}"
+                    if etype == "less_than_equal"
+                    else f"{field} debe ser < {limit}"
+                )
+            elif etype in ("int_parsing", "type_error.integer"):
+                parts.append(f"{field} debe ser un número entero")
+            elif etype in ("float_parsing", "type_error.float"):
+                parts.append(f"{field} debe ser un número")
+            elif etype == "value_error":
+                parts.append(f"{field}: {msg_en}")
+            else:
+                parts.append(f"{field} inválido")
         detail = "; ".join(parts) if parts else "Datos inválidos"
         return JSONResponse(
             status_code=400,  # BUG-00: 400 is more accurate than 422 for client-side form errors
             content={
                 "detail": detail,
-                "fields": [_extract_field_name(e) for e in errors],
+                "fields": [
+                    loc[-1] if loc else "campo"
+                    for loc in [
+                        [
+                            str(x)
+                            for x in e.get("loc", [])
+                            if x not in ("body", "query", "path", "form")
+                        ]
+                        for e in errors
+                    ]
+                ],
             },
-        )    @app.exception_handler(Exception)
+        )
+
+    @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> Response:
         """Global exception handler.
 
@@ -873,45 +1183,12 @@ def _register_exception_handlers(app: FastAPI) -> None:
             },
         )
 
+    # Per-request access logging is now done by RequestContextMiddleware
+    # (registered earlier) which binds request_id + user_id + method + path
+    # to every loguru line. The older standalone middleware was removed
+    # to avoid duplicate access-log lines and double-request-id assignments.
 
-
-def create_app() -> FastAPI:
-    """Build and configure the Sazon FastAPI app.
-
-    Factory pattern (instead of module-level singleton) so that:
-    - Tests can instantiate an isolated app with a test DB session.
-    - Multi-worker uvicorn (--workers N) doesn't share module-level
-      state between workers.
-    - The module-level `app = create_app()` at the bottom keeps the
-      `app.rms.main:app` uvicorn reference working.
-
-    All middleware, routers, exception handlers, and the lifespan
-    are wired up here. CLI commands (migrate, _serve, run, _rollback,
-    _seed) are NOT part of the app factory — they're invoked from
-    the entry point (python -m app.rms.main ...).
-
-    The factory delegates to helpers to keep complexity manageable:
-    - Middleware setup (inline, highly contextual)
-    - _register_routers: router registration (~50 routers)
-    - _register_exception_handlers: error handling
-    """
-    app = FastAPI(
-        title="Sazón — Sistema de gestión",
-        description="Restaurant management system. Hosted (Neon Postgres + Cloudflare) or local.",
-        version="2026.09.0",
-        lifespan=lifespan,
-        docs_url="/api/docs",
-        redoc_url=None,
-        openapi_url="/api/openapi.json",
-    )
-
-    # NOTE: All middleware setup, StaticCacheMiddleware class, and the
-    # intermediate setup logic (lines 449-777 in the original) is kept
-    # inline below. It's highly contextual and extracting it would
-    # require passing many parameters. The main complexity reduction
-    # comes from extracting the 50+ router registrations and the
-    # exception handlers.
-
+    return app
 
 
 # Build the module-level app for uvicorn's `app.rms.main:app` reference
