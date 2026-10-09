@@ -198,6 +198,14 @@ workflows-lint-all: ## zizmor: show all findings (not just high).
 		--config .github/zizmor.yml \
 		.github/workflows/ 2>&1 | tail -100 || true
 
+safeguard: ## fastapi-safeguard: FastAPI route security audit vs baseline.
+	@echo "=== fastapi-safeguard (route security) ==="
+	$(UV) run --group tooling-tier2 python scripts/generate_safeguard_baseline.py --check
+
+safeguard-baseline: ## fastapi-safeguard: regenerate the accepted-findings baseline.
+	$(UV) run --group tooling-tier2 python scripts/generate_safeguard_baseline.py
+	@echo "Review the diff: every entry needs a rationale."
+
 docs-lint: ## Markdown quality check (pymarkdownlnt; see scripts/check_docs_quality.py).
 	$(UV) run python scripts/check_docs_quality.py
 
@@ -245,7 +253,7 @@ tool-matrix: ## Print the tooling coverage matrix.
 	@echo ""
 	@echo "Full analysis: docs/operations/2026-10-09-tooling-research.md"
 
-ci-extra: lint dead-code complexity cognitive deptry duplicates arch security workflows-lint ## All static analysis (slow).
+ci-extra: lint dead-code complexity cognitive deptry duplicates arch security workflows-lint safeguard ## All static analysis (slow).
 	@echo ""
 	@echo "ci-extra complete."
 

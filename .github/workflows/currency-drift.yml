@@ -16,11 +16,18 @@ on:
   push:
     branches: [main]
 
+# Minimum GitHub token permissions: read-only.
+# zizmor recommends this default; jobs that need more must override.
+permissions:
+  contents: read
+
 jobs:
   currency-drift:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
 
       - name: Run D3 currency drift check
         run: |

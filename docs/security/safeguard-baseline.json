@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-09",
+  "generator": "scripts/generate_safeguard_baseline.py",
+  "summary": "5 accepted findings. Every entry needs a rationale; regenerate after triage, review the diff in the PR.",
+  "accepted_findings": [
+    "GET /favicon.ico has no accepted security dependency",
+    "GET /favicon.svg has no accepted security dependency",
+    "GET /metrics has no accepted security dependency",
+    "GET /proveedores has no accepted security dependency",
+    "GET /static/combo.js has no accepted security dependency"
+  ],
+  "rationales": {
+    "GET /favicon.ico has no accepted security dependency": "Public static asset; no auth by design.",
+    "GET /favicon.svg has no accepted security dependency": "Public static asset; no auth by design.",
+    "GET /metrics has no accepted security dependency": "Prometheus endpoint; bound to 127.0.0.1 behind nginx, only mounted when PROMETHEUS_ENABLED=true.",
+    "GET /proveedores has no accepted security dependency": "Spanish alias: 303 redirect to /suppliers (which is authed); no data served.",
+    "GET /static/combo.js has no accepted security dependency": "Public static asset; no auth by design."
+  }
+}

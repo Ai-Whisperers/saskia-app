@@ -3,17 +3,19 @@
 # zizmor is a static analyzer for GitHub Actions workflows.
 # https://docs.zizmor.sh/configuration/
 #
-# Why we have this config:
-#   - Default flags 64 findings in our 14 workflows. Most are
-#     unpinned-uses (35) + artipacked (14). Both are accepted as
-#     tech debt; the SHA-pinning PR is separate work.
-#   - Dangerous findings (template-injection, cache-poisoning,
-#     excessive-permissions, secrets-inherit, known-vulnerable-actions,
-#     forbidden-uses) are promoted to HIGH severity.
-#   - "unpinned-uses" and "artipacked" are downgraded to INFORMATIONAL
-#     until the SHA-pinning PR lands.
+# Policy (updated 2026-10-09 after the SHA-pinning PR):
+#   - All 8 categories of "must fix" findings are promoted to HIGH severity
+#     and block PRs via the workflows-lint.yml CI gate.
+#   - The SHA-pinning PR (PR #96) paid the unpinned-uses + artipacked debt
+#     by replacing every `uses: action@vN` with `uses: action@<sha>  # vN`
+#     and adding `persist-credentials: false` to every checkout.
+#   - 8 excessive-permissions findings (missing `permissions:` blocks)
+#     are the only HIGH findings left; they get fixed in the next PR.
 #
 # Run: uvx --from zizmor zizmor --config .github/zizmor.yml .github/workflows/
+#
+# To regenerate the SHAs after a version bump, see:
+#   scripts/pin_workflow_actions.py
 
 rules:
   # Critical (escalate to HIGH severity = blocks PR via CI gate)
@@ -35,11 +37,9 @@ rules:
   forbidden-uses:
     remap:
       severity: high
-
-  # Warnings (downgrade to INFORMATIONAL = visible but doesn't block)
   unpinned-uses:
     remap:
-      severity: informational  # TODO: promote after SHA-pinning PR
+      severity: high
   artipacked:
     remap:
-      severity: informational  # TODO: add persist-credentials: false everywhere
+      severity: high
