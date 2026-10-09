@@ -8,17 +8,32 @@ Picks the right block based on the workflow's actual needs:
 Idempotent: if a workflow already has a top-level `permissions:` block, this
 script is a no-op for that file.
 """
+
 import re
 import sys
 from pathlib import Path
 
 # Workflows that already have a top-level permissions block (skip)
-SKIP = {"date-boundary.yml", "dev-ci.yml", "release.yml", "security-zap.yml",
-        "sharded-test.yml", "tooling.yml", "workflows-lint.yml"}
+SKIP = {
+    "date-boundary.yml",
+    "dev-ci.yml",
+    "release.yml",
+    "security-zap.yml",
+    "sharded-test.yml",
+    "tooling.yml",
+    "workflows-lint.yml",
+}
 
 # Workflows needing read-only permissions added
-NEEDS_READ = ["browser.yml", "ci.yml", "currency-drift.yml", "deploy-dev.yml",
-              "deploy-test.yml", "route-smoke.yml", "smoke.yml"]
+NEEDS_READ = [
+    "browser.yml",
+    "ci.yml",
+    "currency-drift.yml",
+    "deploy-dev.yml",
+    "deploy-test.yml",
+    "route-smoke.yml",
+    "smoke.yml",
+]
 
 
 def add_read_permissions(path: Path) -> bool:
@@ -44,7 +59,7 @@ def add_read_permissions(path: Path) -> bool:
         "  contents: read\n"
         "\n"
     )
-    new_content = content[:match.start()] + insertion + content[match.start():]
+    new_content = content[: match.start()] + insertion + content[match.start() :]
     path.write_text(new_content)
     return True
 
