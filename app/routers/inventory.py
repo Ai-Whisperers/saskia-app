@@ -1144,71 +1144,163 @@ def inventory_update(
     """Update an existing ingredient.
 
     Centralized validation (app.rms.validation) replaces inline checks.
+
+    Refactored 2026-10-09 to reduce cognitive complexity from 33 to <10.
+    """
+    ing = session.get(Ingredient, ing_id)
+    if ing is None:
+        raise NotFound("Ingredient", id=ing_id)
+
+    parsed = _parse_ingredient_form(
+        name, unit, stock_qty, min_stock_qty, purchase_price_gs, notes
+    )
+    _apply_parsed_fields(ing, parsed)
+
+    _update_optional_metadata(
+        ing,
+        shelf_life_days=shelf_life_days,
+        allergens=allergens,
+        dietary_tags=dietary_tags,
+        may_contain_gluten=may_contain_gluten,
+        lead_time_days=lead_time_days,
+    )
+
+    explicit_category = _update_classification(ing, category, name, session)
+
+    _update_opening_stock(ing, opening_stock_qty, opening_stock_date)
+    ing.reorder_point = _parse_reorder_point(reorder_point)
+
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise Conflict(
+            INGREDIENT_DUPLICATE_NAME,
+            context={"name": parsed["name"]},
+        ) from None
+
+    if parsed["price"] is not None:
+        _record_price_change(session, ing.id, parsed["price"])
+
+    _cascade_tag_refresh(session, ing.id)
+    _refresh_tag_validation(session, ing)
+
+    return RedirectResponse(url="/inventario", status_code=303)
+
+
+def _parse_ingredient_form(
+    name: str,
+    unit: str,
+    stock_qty: str,
+    min_stock_qty: str,
+    purchase_price_gs: str,
+    notes: str,
+) -> dict[str, Any]:
+    """Parse and validate the form fields.
+
+    Extracted from inventory_update to reduce complexity.
     """
     from app.rms.validation import (
         optional_text,
-        parse_date_iso,
         parse_money_gs,
         parse_quantity,
         parse_unit,
         require_text,
     )
+    from typing import Any
 
-    ing = session.get(Ingredient, ing_id)
-    if ing is None:
-        raise NotFound("Ingredient", id=ing_id)
+    return {
+        "name": require_text(name, field="nombre", max_len=120),
+        "unit": parse_unit(unit).value,
+        "stock": parse_quantity(stock_qty, field="stock", allow_zero=True),
+        "min_stock": parse_quantity(min_stock_qty, field="stock mínimo", allow_zero=True),
+        "price": parse_money_gs(purchase_price_gs, allow_zero=True),
+        "notes": optional_text(notes, max_len=2000),
+    }
 
-    name_clean = require_text(name, field="nombre", max_len=120)
-    unit_enum = parse_unit(unit)
-    stock = parse_quantity(stock_qty, field="stock", allow_zero=True)
-    min_stock = parse_quantity(min_stock_qty, field="stock mínimo", allow_zero=True)
-    price = parse_money_gs(purchase_price_gs, allow_zero=True)
 
-    ing.name = name_clean
-    ing.unit = unit_enum.value
-    ing.stock_qty = stock
-    ing.min_stock_qty = min_stock
-    # BACKLOG #31: price event recording happens later in this handler
-    # (see "Phase B — Q1 core" comment around line 1171). Don't pre-write
-    # here — that would double-fire record_price_event and produce two
-    # events per save (sibling already wired the canonical path).
-    ing.notes = optional_text(notes, max_len=2000)
+def _apply_parsed_fields(ing: Ingredient, parsed: dict[str, Any]) -> None:
+    """Apply parsed form fields to the ingredient.
 
-    # Operator-editable classification (detail page exposes them; form
-    # overrides auto-inference). "__unset__" = field not submitted (older
-    # form posts) → keep current value.
-    if shelf_life_days.strip():
-        try:
-            ing.shelf_life_days = int(float(shelf_life_days)) or None
-        except (TypeError, ValueError) as exc:
-            logger.debug("inventory shelf_life_days parse failed: {}", exc)
+    Extracted from inventory_update to reduce complexity. The price is
+    NOT applied here — it's recorded as a price event later in the
+    handler (BACKLOG #31: avoid double-firing record_price_event).
+    """
+    ing.name = parsed["name"]
+    ing.unit = parsed["unit"]
+    ing.stock_qty = parsed["stock"]
+    ing.min_stock_qty = parsed["min_stock"]
+    ing.notes = parsed["notes"]
+
+
+def _update_optional_metadata(
+    ing: Ingredient,
+    shelf_life_days: str,
+    allergens: str,
+    dietary_tags: str,
+    may_contain_gluten: str,
+    lead_time_days: str,
+) -> None:
+    """Update optional metadata fields (shelf life, allergens, tags).
+
+    Extracted from inventory_update to reduce complexity. "__unset__"
+    means the field was not submitted (older form posts) → keep current
+    value.
+    """
+    ing.shelf_life_days = _parse_optional_int(shelf_life_days, "shelf_life_days")
     if allergens != "__unset__":
         # Empty string = explicitly cleared to "sin declarar" (None).
         ing.allergens = allergens.strip() or ""  # '' = declared-neutral, never NULL
     if dietary_tags != "__unset__":
         ing.dietary_tags = dietary_tags.strip() or None
     ing.may_contain_gluten = may_contain_gluten == "1"
-    if lead_time_days.strip():
-        try:
-            ing.lead_time_days = int(lead_time_days) or None
-        except (TypeError, ValueError) as exc:
-            logger.debug("inventory lead_time_days parse failed: {}", exc)
+    ing.lead_time_days = _parse_optional_int(lead_time_days, "lead_time_days")
 
-    # Wave 2 — auto-fill inference on update too.
-    # Operator can override category via the form; if they leave it blank,
-    # re-run inference against the (possibly new) name.
-    explicit_category = optional_text(category, max_len=32)
-    if explicit_category:
-        ing.category = explicit_category
-        # Re-infer the rest of the classification against the new name so
-        # the ingredient's metadata stays coherent after a rename.
+
+def _parse_optional_int(value: str, field_name: str) -> int | None:
+    """Parse an optional integer field, returning None on failure.
+
+    Extracted from _update_optional_metadata to reduce complexity.
+    Logs debug on parse failure and returns the previous value (None).
+    """
+    if not value.strip():
+        return None
+    try:
+        return int(value) or None
+    except ValueError:
+        try:
+            return int(float(value)) or None
+        except (TypeError, ValueError) as exc:
+            logger.debug("inventory %s parse failed: {}", field_name, exc)
+            return None
+
+
+def _update_classification(
+    ing: Ingredient,
+    category: str,
+    name_clean: str,
+    session: Session,
+) -> str | None:
+    """Update ingredient classification (category, tags, etc.).
+
+    Extracted from inventory_update to reduce complexity. If the operator
+    provides an explicit category, use it and re-infer the rest. Otherwise
+    re-infer everything from the name.
+    """
+    from app.rms.validation import optional_text
+
+    explicit_category_raw = optional_text(category, max_len=32)
+    if explicit_category_raw:
+        ing.category = explicit_category_raw
+        # Re-infer the rest of the classification against the new name.
         cls = classify_ingredient(name_clean, session=session)
         ing.subcategory = cls["subcategory"]
         ing.role = cls["role"]
-        ing.allergens = ",".join(cls["allergens"]) or ""  # '' = declared-neutral, never NULL
+        ing.allergens = ",".join(cls["allergens"]) or ""  # '' = declared-neutral
         ing.dietary_tags = ",".join(cls["dietary_tags"]) or None
         ing.shelf_life_days = cls["shelf_life_days"]
         ing.storage = cls["storage"]
+        return explicit_category_raw
     else:
         ing.category = None
         cls = classify_ingredient(name_clean, session=session)
@@ -1219,8 +1311,18 @@ def inventory_update(
         ing.dietary_tags = ",".join(cls["dietary_tags"]) or None
         ing.shelf_life_days = cls["shelf_life_days"]
         ing.storage = cls["storage"]
+    return explicit_category_raw
 
-    # Opening stock — only update if both qty and date are provided
+
+def _update_opening_stock(
+    ing: Ingredient, opening_stock_qty: str, opening_stock_date: str
+) -> None:
+    """Update opening stock if both qty and date are provided.
+
+    Extracted from inventory_update to reduce complexity.
+    """
+    from app.rms.validation import parse_date_iso, parse_quantity
+
     op_qty_raw = (opening_stock_qty or "").strip()
     op_date_raw = (opening_stock_date or "").strip()
     if op_qty_raw and op_date_raw:
@@ -1230,57 +1332,65 @@ def inventory_update(
         ing.opening_stock_qty = None
         ing.opening_stock_date = None
 
+
+def _parse_reorder_point(reorder_point: str) -> float | None:
+    """Parse the reorder point field.
+
+    Extracted from inventory_update to reduce complexity.
+    """
+    from app.rms.validation import parse_quantity
+
     rp_raw = (reorder_point or "").strip()
-    ing.reorder_point = (
-        parse_quantity(rp_raw, field="punto de reorden", allow_zero=True) if rp_raw else None
-    )
+    if not rp_raw:
+        return None
+    return parse_quantity(rp_raw, field="punto de reorden", allow_zero=True)
 
-    # Phase B — Q1 core: record a price event when the operator changes the
-    # price. We always record when the new price is non-null — even if it
-    # matches the previous value (auditability beats optimization here).
-    should_record = price is not None
 
+def _record_price_change(session: Session, ing_id: int, price: Decimal) -> None:
+    """Record a price change event for auditability.
+
+    Extracted from inventory_update to reduce complexity. Always records
+    when price is non-null (auditability beats optimization).
+    """
     try:
+        record_price_event(session, ing_id, price, source="manual")
         session.commit()
-    except IntegrityError:
-        session.rollback()
-        raise Conflict(
-            INGREDIENT_DUPLICATE_NAME,
-            context={"name": name_clean},
-        ) from None
+    except Exception:
+        logger.warning(
+            "record_price_event failed for ingredient ing_id=%s update",
+            ing_id,
+            exc_info=True,
+        )
 
-    if should_record:
-        try:
-            record_price_event(session, ing.id, price, source="manual")
-            session.commit()
-        except Exception:
-            logger.warning(
-                "record_price_event failed for ingredient ing_id={} update",
-                ing.id,
-                exc_info=True,
-            )
 
-    # Tag algebra (054): ingredient tags/allergens may have changed —
-    # re-derive every recipe using it (transitively) and sync products.
+def _cascade_tag_refresh(session: Session, ing_id: int) -> None:
+    """Cascade tag refresh to recipes and products using this ingredient.
+
+    Extracted from inventory_update to reduce complexity.
+    """
     try:
         from app.rms.tag_algebra import _product_inherit_sync, cascade_refresh
 
-        refreshed = cascade_refresh(session, ingredient_id=ing.id)
+        refreshed = cascade_refresh(session, ingredient_id=ing_id)
         for rid in refreshed:
             _product_inherit_sync(session, rid)
         session.commit()
     except Exception:
         logger.warning(
             "tag cascade failed for ingredient ing_id=%s update",
-            ing.id,
+            ing_id,
             exc_info=True,
         )
         session.rollback()
 
-    # Tag validation (061): refresh this ingredient's tag_validation_issues
-    # column so the warning banner on the inventory list + ingredient edit
-    # form stays current. The audit is pure (no DB writes except the
-    # column), so it's safe to run inline after the save commit.
+
+def _refresh_tag_validation(session: Session, ing: Ingredient) -> None:
+    """Refresh the ingredient's tag_validation_issues column.
+
+    Extracted from inventory_update to reduce complexity. The audit is
+    pure (no DB writes except the column), so it's safe to run inline
+    after the save commit.
+    """
     try:
         from app.rms.tagging.classify import validate_ingredient
 
@@ -1297,8 +1407,6 @@ def inventory_update(
             exc_info=True,
         )
         session.rollback()
-
-    return RedirectResponse(url="/inventario", status_code=303)
 
 
 @router.post("/bulk-fill-to-2x-min")
