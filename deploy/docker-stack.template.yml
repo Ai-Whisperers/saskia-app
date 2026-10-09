@@ -1,0 +1,114 @@
+version: "3.9"
+
+# ── Sazón — per-env Swarm stack template ─────────────────────────────────────
+# Rendered by scripts/render_stack.py. Placeholders are {{...}}; do NOT edit
+# the rendered files under /tmp/docker-stack.<env>.yml — they are throwaway.
+#
+# Traefik routing topology (1 Traefik instance, 3 swarm stacks, 3 hostnames):
+#   saskia-vps.paragu-ai.com  →  stack=saskia       (prod)   sazon-rms:prod-...
+#   saskia-test.paragu-ai.com →  stack=saskia-test  (test)   sazon-rms:test-...
+#   saskia-dev.paragu-ai.com  →  stack=saskia-dev   (dev)    sazon-rms:dev-...
+#
+# Each stack gets:
+#   - Its own named volume (saskia-<env>-data) → /data/rms.sqlite (SQLite DB)
+#   - Its own Traefik router + middleware (env-prefixed to avoid swarm-scope clash)
+#   - Its own env_file mounted from /etc/sazon/.env.<env> (BWS-driven, never in git)
+#
+# Why one template, three rendered files: the per-env diffs are tiny (image tag,
+# hostname, volume name, middleware name, env_file path). A 3×-duplicated file
+# would drift on the next refactor. Single source of truth = single template.
+
+services:
+  web:
+    # Image is set at deploy time by deploy.sh. The IMAGE_TAG_BASE is the
+    # *base* tag (prod / test / dev); deploy.sh tags the built image with
+    # `sazon-rms:IMAGE_TAG_BASE-TIMESTAMP` and the stack deploy
+    # --resolve-image=never pins the latest matching digest.
+    image: "sazon-rms:{{IMAGE_TAG_BASE}}-latest"
+    build:
+      context: "."
+      dockerfile: "Dockerfile"
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+      labels:
+        # Traefik enable + network. The network `traefik-public` is a swarm
+        # external overlay; the Traefik container attaches to it.
+        - "traefik.enable=true"
+        - "traefik.swarm.network=traefik-public"
+
+        # ── Security headers (CSP varies by env) ──────────────────────────
+        - "traefik.http.middlewares.{{MIDDLEWARE_NAME}}.headers.contentSecurityPolicy={{CSP}}"
+        - "traefik.http.middlewares.{{MIDDLEWARE_NAME}}.headers.contentTypeNosniff=true"
+        - "traefik.http.middlewares.{{MIDDLEWARE_NAME}}.headers.frameDeny={{FRAME_DENY}}"
+        - "traefik.http.middlewares.{{MIDDLEWARE_NAME}}.headers.referrerPolicy=strict-origin-when-cross-origin"
+        - "traefik.http.middlewares.{{MIDDLEWARE_NAME}}.headers.stsIncludeSubdomains=true"
+        - "traefik.http.middlewares.{{MIDDLEWARE_NAME}}.headers.stsSeconds=31536000"
+
+        # ── Router: Host-based, env-specific ─────────────────────────────
+        - "traefik.http.routers.{{ROUTER_NAME}}.entrypoints=websecure"
+        - "traefik.http.routers.{{ROUTER_NAME}}.rule=Host(`{{HOSTNAME}}`)"
+        - "traefik.http.routers.{{ROUTER_NAME}}.tls=true"
+        - "traefik.http.routers.{{ROUTER_NAME}}.tls.certresolver=le"
+        - "traefik.http.routers.{{ROUTER_NAME}}.middlewares={{MIDDLEWARE_NAME}}@swarm"
+        - "traefik.http.routers.{{ROUTER_NAME}}.service={{SERVICE_LB_NAME}}"
+
+        # ── Load balancer: service name + health check ───────────────────
+        - "traefik.http.services.{{SERVICE_LB_NAME}}.loadbalancer.server.port=8000"
+        - "traefik.http.services.{{SERVICE_LB_NAME}}.loadbalancer.healthcheck.path=/healthz"
+        - "traefik.http.services.{{SERVICE_LB_NAME}}.loadbalancer.healthcheck.interval=30s"
+    env_file:
+      # BWS-driven env file. Written by deploy/write_env_file.py on the
+      # VPS (idempotent: only writes if the BWS value changed). Never in
+      # git; mode 0600, root-only. The ENV_FILE path is the literal
+      # value of deploy/envs.yaml[env].env_file.
+      - "{{ENV_FILE}}"
+    # Env vars hardcoded here are NON-SECRETS. Anything sensitive must go
+    # through env_file. The ones below are path defaults + Python runtime
+    # tweaks. Note: AIW_SASKIA_DB_PATH is the *legacy* alias read by the
+    # sazon-migrate CLI; AIW_RMS_DB_PATH is what the app's lifespan engine
+    # actually reads. Both must be set per the saskia-rms-development
+    # skill's "DRIFT-3 env var trap" section — setting only one causes
+    # the runtime to open an empty DB and login fails with "credenciales
+    # inválidas" even when the seeded DB has the right bcrypt hash.
+    environment:
+      - "AIW_RMS_DB_PATH=/data/rms.sqlite"
+      - "AIW_SASKIA_DB_PATH=/data/rms.sqlite"
+      - "BIND_HOST=0.0.0.0"
+      - "PORT=8000"
+      - "PYTHONUNBUFFERED=1"
+      - "AIW_RMS_LOG_DIR=/var/log/sazon"
+      - "AIW_SASKIA_LOG_DIR=/var/log/sazon"
+      - "SASKIA_ENV={{ENV}}"
+      # PRO-SEC boot guard: refuses to start outside pytest. Keep commented.
+      # - SASKIA_TEST_AUTH_DISABLED=1
+      - "AIW_SASKIA_INTERNAL_ROUTES=1"
+    volumes:
+      - "{{DATA_VOLUME}}:/data"
+      - "{{LOGS_VOLUME}}:/var/log/sazon"
+    networks:
+      - traefik-public
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  "{{DATA_VOLUME}}":
+  "{{LOGS_VOLUME}}":
+
+networks:
+  traefik-public:
+    external: true

@@ -10,6 +10,68 @@ Sazon becomes SQLite-only.
 
 ---
 
+## 2026-10-09 — three-environment deploy (saskia-prod / saskia-test / saskia-dev)
+
+Split the single prod deploy into three Swarm stacks sharing one Traefik
+instance + the `traefik-public` overlay. Same image, three hostnames,
+three SQLite volumes, three env files, three Traefik routers.
+
+**Topology:**
+- `saskia-vps.paragu-ai.com` → `saskia` stack (prod, image `sazon-rms:prod-...`)
+- `saskia-test.paragu-ai.com` → `saskia-test` stack (test, image `sazon-rms:test-...`)
+- `saskia-dev.paragu-ai.com` → `saskia-dev` stack (dev, image `sazon-rms:dev-...`)
+
+Each env has its own:
+- Named Docker volume: `saskia-<env>-data` → `/data/rms.sqlite`
+- Traefik middleware: `saskia-<env>-headers` (CSP varies; dev relaxes `frameDeny`, allows `ws:/wss:`/`http:` img-src)
+- Traefik router + load balancer: `saskia-<env>` / `saskia-<env>-web`
+- BWS-driven env file: `/etc/sazon/.env.<env>` (mode 0600, root-only, BWS-token-driven)
+- Backup cron schedule (prod 03:00, test 04:00, dev off)
+
+**New infra:**
+- `deploy/docker-stack.template.yml` — one template, three envs. {{...}} placeholders substituted by `deploy/render_stack.py` from `deploy/envs.yaml`. Single source of truth = single template, no 3× file drift.
+- `deploy/envs.yaml` — per-env config: hostname, stack/service/volume/middleware names, CSP, BWS key whitelist. Adding a 4th env = add a row + a CF CNAME + a BWS secret set.
+- `deploy/render_stack.py` — template → docker stack yml. Validates that every `{{...}}` in the template has a substitution (catches typos before the stack deploys).
+- `deploy/write_env_file.py` — fetches the BWS keys declared in `envs.yaml[env].bws_keys` and writes `/etc/sazon/.env.<env>` (mode 0600). Idempotent: only rewrites if the SHA-256 of the resolved secret set changed.
+- `scripts/install_bws_token.sh` — one-time VPS bootstrap. Writes the BWS access token to `/etc/sazon/bws-token` (mode 0400). Required before any deploy.
+
+**Deploy scripts:**
+- `scripts/deploy.sh --env=prod|test|dev [--dry-run] [--branch=X] [--repo=PATH]` — per-env deploy. Prod requires `branch=main` + clean tree + `HEAD==origin/main`; test/dev allow any branch. **All secrets come from BWS at deploy time** — never in the rendered stack file, never in git.
+- `scripts/promote.sh --from=<env> --to=<env>` — re-tag the source env's running image as the dest env's tag and force-update the dest service. No rebuild. Allowed directions: test→prod, dev→test, dev→prod.
+- `scripts/release.sh [--version=YYYY.MM.PATCH] [--message="..."] [--skip-deploy]` — bump CHANGELOG, tag the commit, push to origin, then run `deploy.sh --env=prod`. CalVer per the existing `## Versioning` section of this CHANGELOG.
+
+**CI:**
+- `.github/workflows/deploy-test.yml` — auto-deploys PRs to saskia-test.paragu-ai.com. Runs on `pull_request: opened/synchronize/reopened` to main and on `push: main`.
+- `.github/workflows/deploy-dev.yml` — auto-deploys every push to a non-main branch to saskia-dev.paragu-ai.com. The "AI agents do all the dev work" path: every commit to a feature branch lands on dev within ~2 min. Sibling-session coordination: the agent that pushed most recently wins; siblings can re-push to redeploy.
+
+**Removed (legacy):**
+- `deploy-to-vps.sh` — single-env script that referenced the wrong service name (the `sazon-vps` / `saskia-vps` rename) and the wrong hostname. Superseded by `scripts/deploy.sh --env=prod`.
+- `docker-stack.yml` (root) — single-env stack with hardcoded secrets. Superseded by `deploy/docker-stack.template.yml` + `deploy/render_stack.py` + `deploy/envs.yaml`.
+- `tests/test_deploy_script.py` — tested the old `deploy.sh` signature (no `--env`). Superseded by `tests/test_deploy_infra.py`.
+
+**Tests:** 28 new tests in `tests/test_deploy_infra.py` (env config schema, template consistency, render for each env, both AIW_RMS_DB_PATH + AIW_SASKIA_DB_PATH set per the saskia-rms-development skill's "DRIFT-3 env var trap", middleware names unique, dry-run contract for all 3 envs, promote/release script arg validation). All 28 pass + 1 skipped (idempotency covered by manual deploy verification per the saskia-rms-deploy-flow skill's verify-after-deploy ladder).
+
+**Operator runbook:** `docs/operations/2026-10-09-three-env-deploy.md` (one-time setup, daily usage, troubleshooting).
+
+**Why one image, three stacks:**
+- Per-env image tag (`sazon-rms:<env>-<timestamp>`) so a deploy only touches the env it targets. A failed test deploy can never roll back prod.
+- Per-env SQLite volume so dev/test seed data never touches prod's La Vaquita Feliz data.
+- Per-env Traefik middleware (env-prefixed names) to avoid the swarm-wide middleware collision that the saskia-rms-deploy-flow skill warns about.
+- Per-env env_file (not env in the stack yml) so secrets never appear in `docker service inspect` output and can be rotated independently per env.
+
+**Lock-ins:**
+- Both `AIW_RMS_DB_PATH` and `AIW_SASKIA_DB_PATH` are set in every env's stack (lifespan engine + sazon-migrate CLI both need to find the SQLite file).
+- The PRO-SEC boot guard (`SASKIA_TEST_AUTH_DISABLED` refusal) is preserved — the env var is commented out in every env.
+- The CSP middleware is per-stack but the prod+test CSP is identical to the previous single-stack CSP (no security regression on prod).
+
+**Caveat (operator must do once before first deploy):**
+- Add 2 Cloudflare CNAMEs: `saskia-test.paragu-ai.com` and `saskia-dev.paragu-ai.com` → `paragu-ai.com` (or directly to VPS IP `38.9.96.179`). Let's Encrypt will issue certs via the existing `le` resolver.
+- Run `scripts/install_bws_token.sh` on the VPS to install the BWS access token at `/etc/sazon/bws-token` (mode 0400).
+- The 4 new BWS keys (one per env's user password) need to be created in BWS: `SASKIA_USER_PASSWORD` (already exists), `SASKIA_TEST_USER_PASSWORD` (new), `SASKIA_DEV_USER_PASSWORD` (new). The rest of the BWS keys are reused from prod (Supabase, CF, R2, Sentry, Resend) — the rationale is documented in `deploy/envs.yaml`.
+
+---
+
+
 ## 2026-10-09 — Tier 4: `ruff format` 18 pre-existing drift files
 
 Per `docs/analysis/2026-10-08/deferred-work-plan.md` Tier 4.
