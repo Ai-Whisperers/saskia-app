@@ -34,7 +34,18 @@ def global_search(
     pattern = f"%{q}%"
     results = {"customers": [], "products": [], "pedidos": [], "recipes": []}
 
-    # ── Customers ─────────────────────────────────────────────────────────────
+    results["customers"] = _search_customers(session, pattern)
+    results["products"] = _search_products(session, pattern)
+    results["pedidos"] = _search_pedidos(session, pattern)
+    results["recipes"] = _search_recipes(session, pattern)
+    return JSONResponse(results)
+
+
+def _search_customers(session, pattern: str) -> list:
+    """Search customers by name, phone, email, or cedula.
+    
+    Extracted from global_search to reduce complexity.
+    """
     try:
         customers_q = (
             session.query(Customer)
@@ -49,30 +60,47 @@ def global_search(
             .order_by(Customer.name)
             .limit(8)
         )
-        for c in customers_q:
-            tier_label = ""
-            if c.loyalty_points < 5000:
-                tier_label = "Bronce"
-            elif c.loyalty_points < 20000:
-                tier_label = "Plata"
-            elif c.loyalty_points < 50000:
-                tier_label = "Oro"
-            else:
-                tier_label = "Platino"
-            results["customers"].append(
-                {
-                    "id": c.id,
-                    "name": c.name or "—",
-                    "sub": f"{c.phone or 'sin tel'} · {tier_label}",
-                    "badge": tier_label,
-                    "badge_class": f"tier-{tier_label.lower()}",
-                    "url": f"/clientes/{c.id}",
-                }
-            )
+        return [_format_customer_result(c) for c in customers_q]
     except Exception as exc:
         logger.warning(f"global_search: customers query failed: {exc!r}")
+        return []
 
-    # ── Products ─────────────────────────────────────────────────────────────
+
+def _format_customer_result(c) -> dict:
+    """Format a customer search result.
+    
+    Extracted from _search_customers to reduce complexity.
+    """
+    tier_label = _loyalty_tier_label(c.loyalty_points)
+    return {
+        "id": c.id,
+        "name": c.name or "—",
+        "sub": f"{c.phone or 'sin tel'} · {tier_label}",
+        "badge": tier_label,
+        "badge_class": f"tier-{tier_label.lower()}",
+        "url": f"/clientes/{c.id}",
+    }
+
+
+def _loyalty_tier_label(loyalty_points: int) -> str:
+    """Get loyalty tier label from points.
+    
+    Extracted from _format_customer_result to reduce complexity.
+    """
+    if loyalty_points < 5000:
+        return "Bronce"
+    if loyalty_points < 20000:
+        return "Plata"
+    if loyalty_points < 50000:
+        return "Oro"
+    return "Platino"
+
+
+def _search_products(session, pattern: str) -> list:
+    """Search products by name.
+    
+    Extracted from global_search to reduce complexity.
+    """
     try:
         products_q = (
             session.query(Product)
@@ -80,22 +108,33 @@ def global_search(
             .order_by(Product.name)
             .limit(8)
         )
-        for p in products_q:
-            price_str = f"Gs. {p.sale_price_gs:,.0f}".replace(",", ".") if p.sale_price_gs else "—"
-            results["products"].append(
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "sub": f"{p.portion_label or '—'} · {price_str}",
-                    "badge": "Con receta" if p.recipe_name else "Sin receta",
-                    "badge_class": "info" if p.recipe_name else "neutral",
-                    "url": f"/productos/{p.id}/editar",
-                }
-            )
+        return [_format_product_result(p) for p in products_q]
     except Exception as exc:
         logger.warning(f"global_search: products query failed: {exc!r}")
+        return []
 
-    # ── Pedidos ─────────────────────────────────────────────────────────────
+
+def _format_product_result(p) -> dict:
+    """Format a product search result.
+    
+    Extracted from _search_products to reduce complexity.
+    """
+    price_str = f"Gs. {p.sale_price_gs:,.0f}".replace(",", ".") if p.sale_price_gs else "—"
+    return {
+        "id": p.id,
+        "name": p.name,
+        "sub": f"{p.portion_label or '—'} · {price_str}",
+        "badge": "Con receta" if p.recipe_name else "Sin receta",
+        "badge_class": "info" if p.recipe_name else "neutral",
+        "url": f"/productos/{p.id}/editar",
+    }
+
+
+def _search_pedidos(session, pattern: str) -> list:
+    """Search pedidos by customer name or phone.
+    
+    Extracted from global_search to reduce complexity.
+    """
     try:
         pedidos_q = (
             session.query(Pedido)
@@ -108,47 +147,64 @@ def global_search(
             .order_by(Pedido.promised_date.desc())
             .limit(8)
         )
-        for ped in pedidos_q:
-            status_map = {
-                "pending": ("Pendiente", "warn"),
-                "confirmed": ("Confirmado", "info"),
-                "ready": ("Listo", "ok"),
-                "fulfilled": ("Entregado", "good"),
-                "cancelled": ("Cancelado", "neutral"),
-            }
-            label, cls = status_map.get(ped.status, (ped.status or "—", "neutral"))
-            date_str = ped.promised_date.strftime("%d/%m/%Y") if ped.promised_date else "—"
-            results["pedidos"].append(
-                {
-                    "id": ped.id,
-                    "name": ped.customer_name or "—",
-                    "sub": f"{date_str} · {ped.channel or '—'} · {label}",
-                    "badge": label,
-                    "badge_class": cls,
-                    "url": f"/pedidos/{ped.id}",
-                }
-            )
+        return [_format_pedido_result(ped) for ped in pedidos_q]
     except Exception as exc:
         logger.warning(f"global_search: pedidos query failed: {exc!r}")
+        return []
 
-    # ── Recipes ─────────────────────────────────────────────────────────────
+
+def _format_pedido_result(ped) -> dict:
+    """Format a pedido search result.
+    
+    Extracted from _search_pedidos to reduce complexity.
+    """
+    status_map = {
+        "pending": ("Pendiente", "warn"),
+        "confirmed": ("Confirmado", "info"),
+        "ready": ("Listo", "ok"),
+        "fulfilled": ("Entregado", "good"),
+        "cancelled": ("Cancelado", "neutral"),
+    }
+    label, cls = status_map.get(ped.status, (ped.status or "—", "neutral"))
+    date_str = ped.promised_date.strftime("%d/%m/%Y") if ped.promised_date else "—"
+    return {
+        "id": ped.id,
+        "name": ped.customer_name or "—",
+        "sub": f"{date_str} · {ped.channel or '—'} · {label}",
+        "badge": label,
+        "badge_class": cls,
+        "url": f"/pedidos/{ped.id}",
+    }
+
+
+def _search_recipes(session, pattern: str) -> list:
+    """Search recipes by name.
+    
+    Extracted from global_search to reduce complexity.
+    """
     try:
         recipes_q = (
             session.query(Recipe).filter(Recipe.name.ilike(pattern)).order_by(Recipe.name).limit(8)
         )
-        for r in recipes_q:
-            cost_str = f"Gs. {r.unit_cost_gs:,.0f}".replace(",", ".") if r.unit_cost_gs else "—"
-            results["recipes"].append(
-                {
-                    "id": r.id,
-                    "name": r.name,
-                    "sub": f"{r.yield_qty} {r.yield_unit or 'porción'} · {cost_str}/porción",
-                    "badge": "Receta",
-                    "badge_class": "info",
-                    "url": f"/recetas/{r.id}/editar",
-                }
-            )
+        return [_format_recipe_result(r) for r in recipes_q]
     except Exception as exc:
         logger.warning(f"global_search: recipes query failed: {exc!r}")
+        return []
 
-    return JSONResponse(results)
+
+def _format_recipe_result(r) -> dict:
+    """Format a recipe search result.
+    
+    Extracted from _search_recipes to reduce complexity.
+    """
+    cost_str = f"Gs. {r.unit_cost_gs:,.0f}".replace(",", ".") if r.unit_cost_gs else "—"
+    return {
+        "id": r.id,
+        "name": r.name,
+        "sub": f"{r.yield_qty} {r.yield_unit or 'porción'} · {cost_str}/porción",
+        "badge": "Receta",
+        "badge_class": "info",
+        "url": f"/recetas/{r.id}/editar",
+    }
+
+
