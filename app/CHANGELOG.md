@@ -1,3 +1,13 @@
+## 2026-10-09 — inventory.py lint cleanup (bot's 2 refactor commits)
+
+Bot pushed `aca1f44f refactor(inventory_adjust)` and
+`ec0beef6 refactor(inventory_update)` while I was closing SASKIA-30x.
+Both commits had the same import-organization bugs that SASKIA-204 had
+already cleaned up: function-local `from typing import Any` + `from decimal
+import Decimal` + missing module-level `Decimal` import + unused
+`explicit_category` local. Cleaned up so `ruff check .` is green again.
+All 4 `test_inventory_adjust_atomicity` tests still pass.
+
 ## 2026-10-09 — 3 SASKIA-30x template-placeholder fixes + recipes_consolidated lint cleanup
 
 **3 SASKIA-30x tests now green** (was the only remaining test failures after SASKIA-317):

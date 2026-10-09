@@ -6,6 +6,7 @@ Per dev plan §9 Task 3.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any
 from urllib.parse import urlencode
 
@@ -842,8 +843,6 @@ def _build_ingredient(
     Extracted from inventory_create to reduce complexity. Uses inferred
     classification as defaults; operator-provided category overrides.
     """
-    from decimal import Decimal
-
     inferred_category = classification["category"]
     inferred_subcategory = classification["subcategory"]
     inferred_role = classification["role"]
@@ -1280,7 +1279,7 @@ def inventory_update(
         lead_time_days=lead_time_days,
     )
 
-    explicit_category = _update_classification(ing, category, name, session)
+    _update_classification(ing, category, name, session)
 
     _update_opening_stock(ing, opening_stock_qty, opening_stock_date)
     ing.reorder_point = _parse_reorder_point(reorder_point)
@@ -1322,7 +1321,6 @@ def _parse_ingredient_form(
         parse_unit,
         require_text,
     )
-    from typing import Any
 
     return {
         "name": require_text(name, field="nombre", max_len=120),
@@ -1553,106 +1551,175 @@ def inventory_bulk_fill_to_2x_min(
     Optional `?force=1` query param: also fills ingredients where
     min_stock_qty==0 (sets to 10.0 default; matches reorder.py
     fallback). Off by default to avoid silently inventing targets.
-    """
 
+    Refactored 2026-10-09 to reduce cognitive complexity from 37 to <10.
+    """
     force = request.query_params.get("force") == "1"
     user_id = current_operator(request)
     now = datetime.now(timezone.utc)
-
     ingredients = list(session.scalars(select(Ingredient)).all())
-    filled = 0
-    total_delta = 0.0
-    skipped_no_min = 0
-    for ing in ingredients:
-        # No minimum set → cannot compute a target. Skip unless force.
-        if ing.min_stock_qty <= 0:
-            if not force:
-                skipped_no_min += 1
-                continue
-            target = 10.0  # mirror reorder.py fallback for the 0-min case
-        else:
-            # Use explicit max_stock_qty when set, else 2 × min.
-            target = ing.max_stock_qty if ing.max_stock_qty else ing.min_stock_qty * 2
-        # Read the current "as displayed" stock. For non-variant
-        # ingredients this is Ingredient.stock_qty directly. For
-        # variant ingredients, prefer the rollup (sum across packages
-        # in base unit) so the target — which is also in base unit —
-        # lines up with what the operator sees on /inventario.
-        from app.rms.variants import rollup_ingredient_stock
 
-        rollup = rollup_ingredient_stock(session, ing.id)
-        if rollup is not None and getattr(rollup, "variants", None):
-            current = rollup.base_qty
-        else:
-            current = ing.stock_qty or 0.0
-        delta = target - current
-        if delta <= 0:
+    stats = {"filled": 0, "total_delta": 0.0, "skipped_no_min": 0}
+    for ing in ingredients:
+        result = _process_bulk_fill_ingredient(session, ing, force, user_id, now)
+        if result is None:
             continue
-        # Variant-aware top-up (2026-10-07 audit, Ivan). The previous
-        # code wrote delta to the legacy parent.stock_qty column and
-        # left the variants untouched, which made parent.stock_qty
-        # diverge from the variant rollup and produced false "Faltante"
-        # badges on /produccion/prep-recipes (which reads parent
-        # directly). Match the /ajustar pattern: when variants exist,
-        # add the delta to the preferred variant's stock_qty in
-        # package units, then re-sync the parent from the new rollup.
-        if rollup is not None and getattr(rollup, "variants", None):
-            preferred = next(
-                (v for v in rollup.variants if v.get("preferred")),
-                rollup.variants[0],
-            )
-            size_in_base = float(preferred["size_in_base"])
-            if size_in_base > 0:
-                packages_to_add = delta / size_in_base
-            else:
-                packages_to_add = 0
-            preferred_variant = session.get(IngredientVariant, int(preferred["variant_id"]))
-            if preferred_variant is not None:
-                preferred_variant.stock_qty = max(
-                    0.0,
-                    (preferred_variant.stock_qty or 0.0) + packages_to_add,
-                )
-            # Re-sync the parent from the (now-updated) rollup so any
-            # consumer reading the legacy column sees the right number.
-            new_rollup = rollup_ingredient_stock(session, ing.id)
-            ing.stock_qty = new_rollup.base_qty if new_rollup else ing.stock_qty
-        else:
-            # Legacy path: no variants, parent.stock_qty is the only
-            # source of truth.
-            ing.stock_qty = max(0.0, (ing.stock_qty or 0.0) + delta)
-        # Audit-trail row. movement_type='reorder' is the closest fit
-        # in the existing taxonomy (sale|adjustment|merma|reorder|
-        # initial). The free-text reason names the target so /merma
-        # can explain why stock jumped by N units.
-        session.add(
-            StockMovement(
-                ingredient_id=ing.id,
-                movement_type="reorder",
-                qty=delta,
-                reason=(
-                    f"Llenado bulk a 2x min (target={target:g} "
-                    f"{ing.unit}, min={ing.min_stock_qty:g})"
-                ),
-                reference_id=None,
-                reference_type=None,
-                recorded_at=now,
-                created_by=user_id,
-            )
-        )
-        filled += 1
-        total_delta += delta
+        stats["filled"] += 1
+        stats["total_delta"] += result
 
     session.commit()
-    if filled == 0:
-        flash_key = "inventory_filled_already"
-    else:
-        # Param: filled, total_delta (formatted), skipped_no_min
-        delta_str = f"{total_delta:g}"
-        flash_key = f"inventory_filled:{filled}:{delta_str}:{skipped_no_min}"
+    flash_key = _build_bulk_fill_flash_key(stats["filled"], stats["total_delta"], stats["skipped_no_min"])
     return RedirectResponse(
         url=f"/inventario?flash={flash_key}",
         status_code=303,
     )
+
+
+def _process_bulk_fill_ingredient(
+    session: Session,
+    ing: Ingredient,
+    force: bool,
+    user_id: Any,
+    now: datetime,
+) -> float | None:
+    """Process a single ingredient for bulk fill.
+
+    Extracted from inventory_bulk_fill_to_2x_min to reduce complexity.
+    Returns the delta applied, or None if the ingredient was skipped
+    or already at target.
+    """
+    target = _compute_bulk_fill_target(ing, force)
+    if target is None:
+        return None
+
+    current = _get_current_stock(session, ing)
+    delta = target - current
+    if delta <= 0:
+        return None
+
+    _apply_bulk_fill_delta(session, ing, delta)
+    _record_bulk_fill_movement(session, ing, delta, target, user_id, now)
+    return delta
+
+
+def _compute_bulk_fill_target(ing: Ingredient, force: bool) -> float | None:
+    """Compute the target stock for bulk fill.
+
+    Extracted from _process_bulk_fill_ingredient to reduce complexity.
+    Returns None if the ingredient should be skipped (no min and not
+    forced).
+    """
+    if ing.min_stock_qty <= 0:
+        if not force:
+            return None
+        return 10.0  # mirror reorder.py fallback for the 0-min case
+    # Use explicit max_stock_qty when set, else 2 × min.
+    return ing.max_stock_qty if ing.max_stock_qty else ing.min_stock_qty * 2
+
+
+def _get_current_stock(session: Session, ing: Ingredient) -> float:
+    """Get the current stock for an ingredient.
+
+    Extracted from _process_bulk_fill_ingredient to reduce complexity.
+    For variant ingredients, uses the rollup (sum across packages in
+    base unit). For legacy ingredients, uses Ingredient.stock_qty.
+    """
+    from app.rms.variants import rollup_ingredient_stock
+
+    rollup = rollup_ingredient_stock(session, ing.id)
+    if rollup is not None and getattr(rollup, "variants", None):
+        return rollup.base_qty
+    return ing.stock_qty or 0.0
+
+
+def _apply_bulk_fill_delta(session: Session, ing: Ingredient, delta: float) -> None:
+    """Apply the bulk fill delta to the ingredient.
+
+    Extracted from _process_bulk_fill_ingredient to reduce complexity.
+    Variant-aware: when variants exist, add the delta to the preferred
+    variant's stock_qty in package units, then re-sync the parent.
+    """
+    from app.rms.variants import rollup_ingredient_stock
+
+    rollup = rollup_ingredient_stock(session, ing.id)
+    if rollup is not None and getattr(rollup, "variants", None):
+        _fill_preferred_variant(session, ing, rollup, delta)
+    else:
+        # Legacy path: no variants, parent.stock_qty is the only
+        # source of truth.
+        ing.stock_qty = max(0.0, (ing.stock_qty or 0.0) + delta)
+
+
+def _fill_preferred_variant(
+    session: Session,
+    ing: Ingredient,
+    rollup: Any,
+    delta: float,
+) -> None:
+    """Fill the preferred variant and sync the parent stock.
+
+    Extracted from _apply_bulk_fill_delta to reduce complexity.
+    """
+    from app.rms.variants import rollup_ingredient_stock
+
+    preferred = next(
+        (v for v in rollup.variants if v.get("preferred")),
+        rollup.variants[0],
+    )
+    size_in_base = float(preferred["size_in_base"])
+    packages_to_add = delta / size_in_base if size_in_base > 0 else 0
+    preferred_variant = session.get(IngredientVariant, int(preferred["variant_id"]))
+    if preferred_variant is not None:
+        preferred_variant.stock_qty = max(
+            0.0,
+            (preferred_variant.stock_qty or 0.0) + packages_to_add,
+        )
+    # Re-sync the parent from the (now-updated) rollup so any
+    # consumer reading the legacy column sees the right number.
+    new_rollup = rollup_ingredient_stock(session, ing.id)
+    ing.stock_qty = new_rollup.base_qty if new_rollup else ing.stock_qty
+
+
+def _record_bulk_fill_movement(
+    session: Session,
+    ing: Ingredient,
+    delta: float,
+    target: float,
+    user_id: Any,
+    now: datetime,
+) -> None:
+    """Record a StockMovement for the bulk fill.
+
+    Extracted from _process_bulk_fill_ingredient to reduce complexity.
+    Uses movement_type='reorder' (closest fit in the existing taxonomy)
+    and a free-text reason naming the target.
+    """
+    session.add(
+        StockMovement(
+            ingredient_id=ing.id,
+            movement_type="reorder",
+            qty=delta,
+            reason=(
+                f"Llenado bulk a 2x min (target={target:g} "
+                f"{ing.unit}, min={ing.min_stock_qty:g})"
+            ),
+            reference_id=None,
+            reference_type=None,
+            recorded_at=now,
+            created_by=user_id,
+        )
+    )
+
+
+def _build_bulk_fill_flash_key(filled: int, total_delta: float, skipped_no_min: int) -> str:
+    """Build the flash key for the bulk fill operation.
+
+    Extracted from inventory_bulk_fill_to_2x_min to reduce complexity.
+    """
+    if filled == 0:
+        return "inventory_filled_already"
+    delta_str = f"{total_delta:g}"
+    return f"inventory_filled:{filled}:{delta_str}:{skipped_no_min}"
 
 
 @router.post("/{ing_id}/eliminar")
