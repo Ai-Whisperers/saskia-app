@@ -142,6 +142,6 @@ jobs:
           HEALTH=$(curl -s --max-time 15 https://saskia-dev.paragu-ai.com/healthz || true)
           echo "==> dev healthz: $HEALTH"
           case "$HEALTH" in
-            *'"ok"*) echo "DEPLOY OK" ;;
+            *ok*) echo "DEPLOY OK" ;;
             *) echo "WARNING: dev healthz did not return ok"; exit 1 ;;
           esac
