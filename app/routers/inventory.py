@@ -412,46 +412,18 @@ def _filter_ingredients(
     filters (text search, estado, category, allergens, diet, storage,
     expiry) and returns filtered list.
     """
-    def _ingredient_diet_tags(i: Any) -> set[str]:
-        raw = (i.dietary_tags or "").lower()
-        return {t.strip() for t in raw.split(",") if t.strip()}
-
-    def _matches_diet(i: Any) -> bool:
-        if not filters["diet_sel"]:
-            return True
-        tags = _ingredient_diet_tags(i)
-        for want in filters["diet_sel"]:
-            if want in tags:
-                continue
-            alias_map = {
-                "gluten_free": ("sin gluten", "sin tacc"),
-                "vegan": ("vegano",),
-                "vegetarian": ("vegetariano",),
-                "dairy_free": ("sin lactosa",),
-                "egg_free": ("sin huevo",),
-                "keto_friendly": ("keto",),
-                "nut_free": ("sin frutos secos",),
-            }
-            if any(a in tags for a in alias_map.get(want, ())):
-                continue
-            return False
-        return True
-
-    def _has_allergen(i: Ingredient, code: str) -> bool:
-        return code in (i.allergens or "").lower()
-
     def _match(i: Ingredient) -> bool:
-        if filters["q"] and filters["q"] not in (i.name or "").lower():
+        if not _matches_text_search(i, filters["q"]):
             return False
         if filters["estados_sel"] and not _matches_estado(i, filters["estados_sel"], never_loaded_ids):
             return False
-        if filters["categorias"] and (i.category or "") not in filters["categorias"]:
+        if filters["categorias"] and not _matches_category(i, filters["categorias"]):
             return False
-        if filters["alergenos"] and not all(_has_allergen(i, a) for a in filters["alergenos"]):
+        if filters["alergenos"] and not _matches_allergens(i, filters["alergenos"]):
             return False
-        if not _matches_diet(i):
+        if not _matches_diet(i, filters["diet_sel"]):
             return False
-        if filters["almacenes_sel"] and (i.storage or "") not in filters["almacenes_sel"]:
+        if filters["almacenes_sel"] and not _matches_storage(i, filters["almacenes_sel"]):
             return False
         if filters["expiries_sel"] and not _matches_expiry(i, filters["expiries_sel"], today, week_from_now, month_from_now):
             return False
@@ -460,30 +432,107 @@ def _filter_ingredients(
     return [i for i in all_ings if _match(i)]
 
 
-def _matches_estado(i: Ingredient, estados_sel: list, never_loaded_ids: set) -> bool:
-    """Check if ingredient matches any selected estado.
+def _matches_text_search(i: Ingredient, q: str) -> bool:
+    """Check if ingredient matches text search.
 
     Extracted from _filter_ingredients to reduce complexity.
     """
+    if not q:
+        return True
+    return q in (i.name or "").lower()
+
+
+def _matches_category(i: Ingredient, categorias: list) -> bool:
+    """Check if ingredient matches selected categories.
+
+    Extracted from _filter_ingredients to reduce complexity.
+    """
+    return (i.category or "") in categorias
+
+
+def _matches_storage(i: Ingredient, almacenes_sel: list) -> bool:
+    """Check if ingredient matches selected storage.
+
+    Extracted from _filter_ingredients to reduce complexity.
+    """
+    return (i.storage or "") in almacenes_sel
+
+
+def _matches_allergens(i: Ingredient, alergenos: list) -> bool:
+    """Check if ingredient has all selected allergens.
+
+    Extracted from _filter_ingredients to reduce complexity.
+    """
+    return all(code in (i.allergens or "").lower() for code in alergenos)
+
+
+def _matches_diet(i: Any, diet_sel: list) -> bool:
+    """Check if ingredient matches selected diet restrictions.
+
+    Extracted from _filter_ingredients to reduce complexity. Supports
+    both Spanish canonical tags and legacy English codes.
+    """
+    if not diet_sel:
+        return True
+    tags = _ingredient_diet_tags(i)
+    alias_map = {
+        "gluten_free": ("sin gluten", "sin tacc"),
+        "vegan": ("vegano",),
+        "vegetarian": ("vegetariano",),
+        "dairy_free": ("sin lactosa",),
+        "egg_free": ("sin huevo",),
+        "keto_friendly": ("keto",),
+        "nut_free": ("sin frutos secos",),
+    }
+    for want in diet_sel:
+        if want in tags:
+            continue
+        if any(a in tags for a in alias_map.get(want, ())):
+            continue
+        return False
+    return True
+
+
+def _ingredient_diet_tags(i: Any) -> set[str]:
+    """Get the set of diet tags for an ingredient.
+
+    Extracted from _matches_diet to reduce complexity.
+    """
+    raw = (i.dietary_tags or "").lower()
+    return {t.strip() for t in raw.split(",") if t.strip()}
+
+
+def _matches_estado(i: Ingredient, estados_sel: list, never_loaded_ids: set) -> bool:
+    """Check if ingredient matches any selected estado.
+
+    Extracted from _filter_ingredients to reduce complexity. Uses a
+    table-driven approach for clarity.
+    """
     for estado in estados_sel:
-        if estado == "bajo" and i.stock_qty <= (i.min_stock_qty or 0):
+        if _check_single_estado(i, estado, never_loaded_ids):
             return True
-        if estado == "critico" and (
-            i.stock_qty <= 0 or (i.min_stock_qty and i.stock_qty < i.min_stock_qty * 0.5)
-        ):
-            return True
-        if estado == "negativo" and i.stock_qty < 0:
-            return True
-        if estado == "sincargar" and i.id in never_loaded_ids:
-            return True
-        if estado == "sinprecio" and i.purchase_price_gs is None:
-            return True
-        if estado == "ok" and i.stock_qty > (i.min_stock_qty or 0):
-            return True
-        if estado == "sobre_stock" and (
-            i.max_stock_qty is not None and i.stock_qty > i.max_stock_qty
-        ):
-            return True
+    return False
+
+
+def _check_single_estado(i: Ingredient, estado: str, never_loaded_ids: set) -> bool:
+    """Check if ingredient matches a single estado.
+
+    Extracted from _matches_estado to reduce complexity.
+    """
+    if estado == "bajo":
+        return i.stock_qty <= (i.min_stock_qty or 0)
+    if estado == "critico":
+        return i.stock_qty <= 0 or (i.min_stock_qty and i.stock_qty < i.min_stock_qty * 0.5)
+    if estado == "negativo":
+        return i.stock_qty < 0
+    if estado == "sincargar":
+        return i.id in never_loaded_ids
+    if estado == "sinprecio":
+        return i.purchase_price_gs is None
+    if estado == "ok":
+        return i.stock_qty > (i.min_stock_qty or 0)
+    if estado == "sobre_stock":
+        return i.max_stock_qty is not None and i.stock_qty > i.max_stock_qty
     return False
 
 
