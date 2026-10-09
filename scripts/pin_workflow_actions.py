@@ -6,6 +6,7 @@ Reads the workflows directory, replaces `uses: foo/bar@vN` with
 
 Reference: https://docs.zizmor.sh/audits/#unpinned-uses
 """
+
 import re
 import sys
 from pathlib import Path
@@ -24,9 +25,7 @@ SHAS = {
 
 # Match: uses: <action>@<version>
 # Skip if already pinned (40-char hex). Skip local paths.
-PATTERN = re.compile(
-    r"uses:\s+(?P<action>[\w\-]+/[\w\-]+)@(?P<version>[\w\.\-]+)"
-)
+PATTERN = re.compile(r"uses:\s+(?P<action>[\w\-]+/[\w\-]+)@(?P<version>[\w\.\-]+)")
 
 
 def pin(content: str) -> tuple[str, int, int, int]:
