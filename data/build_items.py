@@ -143,20 +143,20 @@ def main():
         items.append(item)
 
     # 2. Ingredients
-    for ing in ingredients:
-        items.append(
-            {
-                "id": f"ingredient::{ing['slug']}",
-                "slug": ing["slug"],
-                "name": ing["name"],
-                "type": "ingredient",
-                "category": ing.get("grupo"),
-                "ing_id": ing.get("ing_id"),
-                "aspect_ratio": "1:1",
-                "size_px": "1024x1024",
-                "outputs": [{"path": f"app/static/ingredients/{ing['slug']}.jpg"}],
-            }
-        )
+    items.extend(
+        {
+            "id": f"ingredient::{ing['slug']}",
+            "slug": ing["slug"],
+            "name": ing["name"],
+            "type": "ingredient",
+            "category": ing.get("grupo"),
+            "ing_id": ing.get("ing_id"),
+            "aspect_ratio": "1:1",
+            "size_px": "1024x1024",
+            "outputs": [{"path": f"app/static/ingredients/{ing['slug']}.jpg"}],
+        }
+        for ing in ingredients
+    )
 
     # Write
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)

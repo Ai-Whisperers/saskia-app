@@ -216,6 +216,14 @@ def _is_router_sibling(importer: str, imported: str) -> bool:
     # `app.routers.produccion._full` -> ["produccion", "_full"]
     # `app.routers.stations` -> ["stations"]
     imp_parts = importer.split(".")[2:]
+    (
+        imp_parts[:-1]
+        if imp_parts
+        and imp_parts[-1][0].islower()
+        and not imp_parts[-1].startswith("_")
+        and len(imp_parts) > 2
+        else imp_parts
+    )
     # Heuristic: if the first segment matches AND both have at least
     # 1 more segment, they're in the same sub-package
     if not imp_parts:
@@ -309,7 +317,7 @@ def main() -> int:
     violations: list[Violation] = []
     for full, imps in file_imports.items():
         mod = _module_path_from_file(full)
-        for imp, _kind, _lineno in imps:  # _kind/_lineno reserved for future diagnostics
+        for imp, _kind, _lineno in imps:
             if not imp.startswith("app."):
                 continue
             # Skip migration edges entirely

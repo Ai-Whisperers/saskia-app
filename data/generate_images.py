@@ -23,13 +23,10 @@ just generate all candidates.
 
 Resumable: skips items that already have a candidate file.
 """
-
 from __future__ import annotations
 
 import argparse
 import json
-import os
-import re
 import sys
 import time
 import urllib.error
@@ -91,7 +88,7 @@ def call_minimax_image(prompt: str, aspect: str, token: str, *, max_retries: int
                 },
                 method="POST",
             )
-            with urllib.request.urlopen(req, timeout=90) as r:
+            with urllib.request.urlopen(req, timeout=90) as r:  # noqa: S310 - outbound HTTPS to image-gen, URL is operator-supplied
                 data = json.loads(r.read())
                 base = data.get("base_resp", {})
                 if base.get("status_code", 0) != 0:
@@ -102,8 +99,8 @@ def call_minimax_image(prompt: str, aspect: str, token: str, *, max_retries: int
                 return urls[0]
         except (urllib.error.HTTPError, urllib.error.URLError) as e:
             last_err = e
-            wait = 2**attempt
-            print(f"  retry {attempt + 1}/{max_retries} after {wait}s: {e}", file=sys.stderr)
+            wait = 2 ** attempt
+            print(f"  retry {attempt+1}/{max_retries} after {wait}s: {e}", file=sys.stderr)
             time.sleep(wait)
     raise RuntimeError(f"minimax image gen failed: {last_err}")
 
@@ -113,34 +110,26 @@ def download(url: str, dest: Path, *, max_retries: int = 3):
     last_err = None
     for attempt in range(max_retries):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "sazon-image-gen/1.0"})
-            with urllib.request.urlopen(req, timeout=60) as r:
+            req = urllib.request.Request(url, headers={"User-Agent": "sazon-image-gen/1.0"})  # noqa: S310
+            with urllib.request.urlopen(req, timeout=60) as r:  # noqa: S310
                 dest.write_bytes(r.read())
             return
-        except Exception as e:
+        except (urllib.error.HTTPError, urllib.error.URLError, OSError) as e:
             last_err = e
-            wait = 2**attempt
-            print(f"  download retry {attempt + 1}/{max_retries}: {e}", file=sys.stderr)
+            wait = 2 ** attempt
+            print(f"  download retry {attempt+1}/{max_retries}: {e}", file=sys.stderr)
             time.sleep(wait)
     raise RuntimeError(f"download failed: {last_err}")
 
 
 def process_one(item: dict, token: str, *, candidates: int, out_dir: Path, sleep: float) -> dict:
     """Generate `candidates` images for one item, save them. Return summary."""
-    results = {
-        "id": item["id"],
-        "slug": item["slug"],
-        "name": item["name"],
-        "type": item["type"],
-        "candidates": [],
-    }
+    results = {"id": item["id"], "slug": item["slug"], "name": item["name"], "type": item["type"], "candidates": []}
 
     for c in range(1, candidates + 1):
         cand_path = out_dir / f"{item['slug']}__cand{c}.jpg"
         if cand_path.exists():
-            results["candidates"].append(
-                {"n": c, "path": str(cand_path), "status": "skipped (exists)"}
-            )
+            results["candidates"].append({"n": c, "path": str(cand_path), "status": "skipped (exists)"})
             continue
 
         t0 = time.time()
@@ -149,17 +138,12 @@ def process_one(item: dict, token: str, *, candidates: int, out_dir: Path, sleep
             download(url, cand_path)
             dt = round(time.time() - t0, 2)
             sz = cand_path.stat().st_size
-            results["candidates"].append(
-                {
-                    "n": c,
-                    "path": str(cand_path),
-                    "status": "ok",
-                    "size_bytes": sz,
-                    "elapsed_s": dt,
-                }
-            )
+            results["candidates"].append({
+                "n": c, "path": str(cand_path),
+                "status": "ok", "size_bytes": sz, "elapsed_s": dt,
+            })
             print(f"  ✓ cand {c}: {cand_path.name} ({sz:,}B, {dt}s)", file=sys.stderr)
-        except Exception as e:
+        except (urllib.error.HTTPError, urllib.error.URLError, OSError, RuntimeError) as e:
             dt = round(time.time() - t0, 2)
             results["candidates"].append({"n": c, "status": f"FAIL: {e}", "elapsed_s": dt})
             print(f"  ✗ cand {c}: {e} ({dt}s)", file=sys.stderr)
@@ -202,22 +186,17 @@ def main():
     if args.only_slug:
         items = [i for i in items if i["slug"] == args.only_slug]
     if args.start_from:
-        items = items[args.start_from :]
+        items = items[args.start_from:]
     if args.limit:
         items = items[: args.limit]
 
-    print(f"\n=== generate_images ===", file=sys.stderr)
-    print(
-        f"items: {len(items)}  candidates/item: {args.candidates}  sleep: {args.sleep}s  dry-run: {args.dry_run}",
-        file=sys.stderr,
-    )
+    print("\n=== generate_images ===", file=sys.stderr)
+    print(f"items: {len(items)}  candidates/item: {args.candidates}  sleep: {args.sleep}s  dry-run: {args.dry_run}", file=sys.stderr)
     print(f"out-dir: {out_dir}", file=sys.stderr)
 
     if args.dry_run:
         for i, item in enumerate(items):
-            print(
-                f"  [{i + 1}/{len(items)}] {item['type']:10s} {item['slug']:40s} -> {item['aspect_ratio']}"
-            )
+            print(f"  [{i+1}/{len(items)}] {item['type']:10s} {item['slug']:40s} -> {item['aspect_ratio']}")
         return
 
     token = load_token()
@@ -228,13 +207,8 @@ def main():
     with log_path.open("a") as logf:
         t0_total = time.time()
         for i, item in enumerate(items):
-            print(
-                f"\n[{i + 1}/{len(items)}] {item['type']}  {item['slug']}  ({item['name']})",
-                file=sys.stderr,
-            )
-            results = process_one(
-                item, token, candidates=args.candidates, out_dir=out_dir, sleep=args.sleep
-            )
+            print(f"\n[{i+1}/{len(items)}] {item['type']}  {item['slug']}  ({item['name']})", file=sys.stderr)
+            results = process_one(item, token, candidates=args.candidates, out_dir=out_dir, sleep=args.sleep)
             logf.write(json.dumps(results, ensure_ascii=False) + "\n")
             logf.flush()
         dt_total = round(time.time() - t0_total, 2)
