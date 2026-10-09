@@ -168,26 +168,66 @@ def validate_sale_intent(
         PreSaleChecklist with all warnings and blockers surfaced.
         Empty checklist = sale is safe to commit.
     """
-    cfg = dict(DEFAULT_PRE_SALE_CONFIG)
-    if pre_sale_cfg is not None:
-        cfg.update(pre_sale_cfg)
+    cfg = _resolve_config(pre_sale_cfg)
     max_qty = cfg["max_qty_per_sale"]
     max_discount_pct = cfg["max_discount_pct"]
 
-    from datetime import datetime as _datetime
-    from zoneinfo import ZoneInfo
-
-    _ASUNCION = ZoneInfo("America/Asuncion")
-
-    from app.rms.derived_intel import check_customer_risk
-    from app.rms.models import Product
-
     if today is None:
+        from datetime import datetime as _datetime
+        from zoneinfo import ZoneInfo
+        _ASUNCION = ZoneInfo("America/Asuncion")
         today = _datetime.now(_ASUNCION).date()
 
     checklist = PreSaleChecklist()
 
     # ---- Floor checks (blocker) ---------------------------------------
+    if not _check_quantity(intent, max_qty, checklist):
+        return checklist  # Nothing else makes sense without a qty
+
+    # ---- Product resolution (blocker if no product) -------------------
+    product = _resolve_product(session, intent)
+    if product is None:
+        _add_product_not_found_blocker(checklist, intent)
+        return checklist  # Everything else needs the product
+
+    # ---- Customer allergen check (blocker) -----------------------------
+    _check_customer_allergen(session, intent, product, checklist)
+
+    # ---- Discount check (warning) --------------------------------------
+    _check_discount(intent, product, max_discount_pct, checklist)
+
+    # ---- Recipe / stock check (warning or blocker) ---------------------
+    _check_recipe_stock(session, intent, product, checklist)
+
+    # ---- Packaging consistency (blocker) --------------------------------
+    _check_packaging(intent, checklist)
+
+    # ---- Closed-day check (blocker) ------------------------------------
+    _check_closed_day(session, intent, today, checklist)
+
+    # ---- Payment method (info only — sale can still be created) --------
+    _check_payment_method(intent, checklist)
+
+    return checklist
+
+
+def _resolve_config(pre_sale_cfg: dict[str, int] | None) -> dict[str, int]:
+    """Merge optional override config with defaults.
+    
+    Extracted from validate_sale_intent to reduce complexity.
+    """
+    cfg = dict(DEFAULT_PRE_SALE_CONFIG)
+    if pre_sale_cfg is not None:
+        cfg.update(pre_sale_cfg)
+    return cfg
+
+
+def _check_quantity(intent: PreSaleIntent, max_qty: int, checklist: PreSaleChecklist) -> bool:
+    """Check quantity is positive and not too large.
+    
+    Returns True if checks pass, False if early return needed.
+    Extracted from validate_sale_intent to reduce complexity.
+    """
     if intent.qty <= 0:
         checklist.blockers.append(
             PreSaleWarning(
@@ -196,7 +236,7 @@ def validate_sale_intent(
                 message=f"La cantidad debe ser mayor a 0 (recibido: {intent.qty}).",
             )
         )
-        return checklist  # Nothing else makes sense without a qty
+        return False
 
     if intent.qty > max_qty:
         checklist.blockers.append(
@@ -209,47 +249,80 @@ def validate_sale_intent(
                 ),
             )
         )
+    return True
 
-    # ---- Product resolution (blocker if no product) -------------------
+
+def _resolve_product(session: "Session", intent: PreSaleIntent) -> Product | None:
+    """Resolve product from intent (by id or SKU).
+    
+    Extracted from validate_sale_intent to reduce complexity.
+    """
+    from app.rms.models import Product
     product: Product | None = None
     if intent.product_id:
         product = session.get(Product, intent.product_id)
     elif intent.sku:
         from app.integrations.barcode import get_product_by_sku
-
         result = get_product_by_sku(session, intent.sku)
         if result.ok and result.product is not None:
             product = result.product
+    return product
 
-    if product is None:
+
+def _add_product_not_found_blocker(checklist: PreSaleChecklist, intent: PreSaleIntent) -> None:
+    """Add blocker for missing product.
+    
+    Extracted from validate_sale_intent to reduce complexity.
+    """
+    checklist.blockers.append(
+        PreSaleWarning(
+            code="PRODUCT_NOT_FOUND",
+            severity="blocker",
+            message=(
+                f"No se encontró el producto (id={intent.product_id}, "
+                f"sku='{intent.sku}'). Verificá el código o seleccioná de la lista."
+            ),
+        )
+    )
+
+
+def _check_customer_allergen(
+    session: "Session",
+    intent: PreSaleIntent,
+    product: Product,
+    checklist: PreSaleChecklist,
+) -> None:
+    """Check customer allergen risk.
+    
+    Extracted from validate_sale_intent to reduce complexity.
+    """
+    if intent.customer_id is None:
+        return
+    from app.rms.derived_intel import check_customer_risk
+    risk = check_customer_risk(session, intent.customer_id, product.id)
+    if not risk.safe:
         checklist.blockers.append(
             PreSaleWarning(
-                code="PRODUCT_NOT_FOUND",
+                code="CUSTOMER_ALLERGEN",
                 severity="blocker",
                 message=(
-                    f"No se encontró el producto (id={intent.product_id}, "
-                    f"sku='{intent.sku}'). Verificá el código o seleccioná de la lista."
+                    f"⚠️ ALÉRGENO: {risk.matched}. El cliente es alérgico. "
+                    f"Confirmá con el cliente antes de vender."
                 ),
             )
         )
-        return checklist  # Everything else needs the product
 
-    # ---- Customer allergen check (blocker) -----------------------------
-    if intent.customer_id is not None:
-        risk = check_customer_risk(session, intent.customer_id, product.id)
-        if not risk.safe:
-            checklist.blockers.append(
-                PreSaleWarning(
-                    code="CUSTOMER_ALLERGEN",
-                    severity="blocker",
-                    message=(
-                        f"⚠️ ALÉRGENO: {risk.matched}. El cliente es alérgico. "
-                        f"Confirmá con el cliente antes de vender."
-                    ),
-                )
-            )
 
-    # ---- Discount check (warning) --------------------------------------
+def _check_discount(
+    intent: PreSaleIntent,
+    product: Product,
+    max_discount_pct: int,
+    checklist: PreSaleChecklist,
+) -> None:
+    """Check discount percentage.
+    
+    Extracted from validate_sale_intent to reduce complexity.
+    """
     unit_price = intent.unit_price_gs_override or product.sale_price_gs
     line_total = Decimal(str(intent.qty)) * Decimal(str(unit_price))
     if line_total > 0 and intent.discount_gs > 0:
@@ -267,94 +340,170 @@ def validate_sale_intent(
                 )
             )
 
-    # ---- Recipe / stock check (warning or blocker) ---------------------
+
+def _check_recipe_stock(
+    session: "Session",
+    intent: PreSaleIntent,
+    product: Product,
+    checklist: PreSaleChecklist,
+) -> None:
+    """Check recipe and stock availability.
+    
+    Extracted from validate_sale_intent to reduce complexity.
+    """
     if product.recipe_id is None:
-        # No recipe = no stock tracking. Warning, not blocker.
-        checklist.warnings.append(
-            PreSaleWarning(
-                code="NO_RECIPE",
-                severity="warning",
-                message=(
-                    f"El producto '{product.name}' no tiene receta. "
-                    f"No se descontará stock automáticamente."
-                ),
-            )
-        )
+        _add_no_recipe_warning(checklist, product)
+        return
+
+    from app.rms.models import Recipe
+    recipe = session.get(Recipe, product.recipe_id)
+    if recipe is None:
+        _add_recipe_missing_warning(checklist, product)
+    elif recipe.yield_qty is None or recipe.yield_qty <= 0:
+        _add_recipe_no_yield_blocker(checklist, recipe)
     else:
-        # Walk recipe tree, check stock.
-        # We reuse _compute_stock_moves from sales/lifecycle.py to know
-        # the exact ingredient deltas this sale would create. If any
-        # ingredient goes below 0, it's a warning (operator can override
-        # for a hand-wave "use it anyway" — Sazon currently does allow
-        # negative stock).
-        from app.rms.models import Recipe
-        from app.rms.sales.lifecycle import _compute_stock_moves
+        _check_stock_shortages(session, intent, recipe, checklist)
 
-        recipe = session.get(Recipe, product.recipe_id)
-        if recipe is None:
-            checklist.warnings.append(
-                PreSaleWarning(
-                    code="RECIPE_MISSING",
-                    severity="warning",
-                    message=(
-                        f"La receta del producto '{product.name}' no se encontró. "
-                        f"Venta sin control de stock."
-                    ),
-                )
-            )
-        elif recipe.yield_qty is None or recipe.yield_qty <= 0:
-            checklist.blockers.append(
-                PreSaleWarning(
-                    code="RECIPE_NO_YIELD",
-                    severity="blocker",
-                    message=(
-                        f"La receta '{recipe.name}' no tiene rendimiento definido. "
-                        f"Cargá el rendimiento antes de vender."
-                    ),
-                )
-            )
-        else:
-            try:
-                moves = _compute_stock_moves(session, recipe, intent.qty, set())
-            except Exception as e:  # CycleInRecipeTree
-                checklist.warnings.append(
-                    PreSaleWarning(
-                        code="RECIPE_CYCLE",
-                        severity="warning",
-                        message=(
-                            f"La receta '{recipe.name}' tiene un ciclo. "
-                            f"Venta sin control de stock. ({e})"
-                        ),
-                    )
-                )
-                moves = []
 
-            from app.rms.models import Ingredient
+def _add_no_recipe_warning(checklist: PreSaleChecklist, product: Product) -> None:
+    """Add warning for product without recipe.
+    
+    Extracted from validate_sale_intent to reduce complexity.
+    """
+    checklist.warnings.append(
+        PreSaleWarning(
+            code="NO_RECIPE",
+            severity="warning",
+            message=(
+                f"El producto '{product.name}' no tiene receta. "
+                f"No se descontará stock automáticamente."
+            ),
+        )
+    )
 
-            shortages: list[tuple[str, float, float]] = []
-            for _affected_recipe_id, ingredient_id, qty_delta in moves:
-                ing = session.get(Ingredient, ingredient_id)
-                if ing is None:
-                    continue
-                projected_stock = (ing.stock_qty or 0) - abs(qty_delta)
-                if projected_stock < 0:
-                    shortages.append((ing.name, ing.stock_qty or 0, abs(qty_delta)))
-            if shortages:
-                # Multiple shortages = blocker (operator must fix stock first)
-                # Single = warning (may be acceptable for a known quick-sell)
-                severity = "blocker" if len(shortages) > 1 else "warning"
-                names = ", ".join(s[0] for s in shortages[:3])
-                checklist.warnings.append(
-                    PreSaleWarning(
-                        code="STOCK_SHORTAGE",
-                        severity=severity,
-                        message=(
-                            f"Stock insuficiente para: {names}. Venta dejaría stock negativo."
-                        ),
-                    )
-                )
 
-    # ---- Packaging consistency (blocker) --------------------------------
+def _add_recipe_missing_warning(checklist: PreSaleChecklist, product: Product) -> None:
+    """Add warning for missing recipe.
+    
+    Extracted from validate_sale_intent to reduce complexity.
+    """
+    checklist.warnings.append(
+        PreSaleWarning(
+            code="RECIPE_MISSING",
+            severity="warning",
+            message=(
+                f"La receta del producto '{product.name}' no se encontró. "
+                f"Venta sin control de stock."
+            ),
+        )
+    )
+
+
+def _add_recipe_no_yield_blocker(checklist: PreSaleChecklist, recipe: Recipe) -> None:
+    """Add blocker for recipe with no yield.
+    
+    Extracted from validate_sale_intent to reduce complexity.
+    """
+    checklist.blockers.append(
+        PreSaleWarning(
+            code="RECIPE_NO_YIELD",
+            severity="blocker",
+            message=(
+                f"La receta '{recipe.name}' no tiene rendimiento definido. "
+                f"Cargá el rendimiento antes de vender."
+            ),
+        )
+    )
+
+
+def _check_stock_shortages(
+    session: "Session",
+    intent: PreSaleIntent,
+    recipe: Recipe,
+    checklist: PreSaleChecklist,
+) -> None:
+    """Check stock shortages for recipe ingredients.
+    
+    Extracted from validate_sale_intent to reduce complexity.
+    """
+    from app.rms.sales.lifecycle import _compute_stock_moves
+    try:
+        moves = _compute_stock_moves(session, recipe, intent.qty, set())
+    except Exception as e:  # CycleInRecipeTree
+        _add_recipe_cycle_warning(checklist, recipe, e)
+        return
+
+    shortages = _compute_shortages(session, moves)
+    if shortages:
+        _add_stock_shortage_warning(checklist, shortages)
+
+
+def _add_recipe_cycle_warning(checklist: PreSaleChecklist, recipe: Recipe, error: Exception) -> None:
+    """Add warning for recipe cycle.
+    
+    Extracted from _check_stock_shortages to reduce complexity.
+    """
+    checklist.warnings.append(
+        PreSaleWarning(
+            code="RECIPE_CYCLE",
+            severity="warning",
+            message=(
+                f"La receta '{recipe.name}' tiene un ciclo. "
+                f"Venta sin control de stock. ({error})"
+            ),
+        )
+    )
+
+
+def _compute_shortages(
+    session: "Session",
+    moves: list[tuple[int, int, float]],
+) -> list[tuple[str, float, float]]:
+    """Compute ingredient shortages from stock moves.
+    
+    Returns list of (name, current_stock, needed_qty) tuples.
+    Extracted from _check_stock_shortages to reduce complexity.
+    """
+    from app.rms.models import Ingredient
+    shortages: list[tuple[str, float, float]] = []
+    for _affected_recipe_id, ingredient_id, qty_delta in moves:
+        ing = session.get(Ingredient, ingredient_id)
+        if ing is None:
+            continue
+        projected_stock = (ing.stock_qty or 0) - abs(qty_delta)
+        if projected_stock < 0:
+            shortages.append((ing.name, ing.stock_qty or 0, abs(qty_delta)))
+    return shortages
+
+
+def _add_stock_shortage_warning(
+    checklist: PreSaleChecklist,
+    shortages: list[tuple[str, float, float]],
+) -> None:
+    """Add warning for stock shortages.
+    
+    Multiple shortages = blocker, single = warning.
+    Extracted from _check_stock_shortages to reduce complexity.
+    """
+    severity = "blocker" if len(shortages) > 1 else "warning"
+    names = ", ".join(s[0] for s in shortages[:3])
+    checklist.warnings.append(
+        PreSaleWarning(
+            code="STOCK_SHORTAGE",
+            severity=severity,
+            message=(
+                f"Stock insuficiente para: {names}. Venta dejaría stock negativo."
+            ),
+        )
+    )
+
+
+
+def _check_packaging(intent: PreSaleIntent, checklist: PreSaleChecklist) -> None:
+    """Check packaging consistency.
+    
+    Extracted from validate_sale_intent to reduce complexity.
+    """
     if intent.packaging_item_id is not None and intent.packaging_qty is None:
         checklist.blockers.append(
             PreSaleWarning(
@@ -376,9 +525,18 @@ def validate_sale_intent(
             )
         )
 
-    # ---- Closed-day check (blocker) ------------------------------------
-    from app.rms.eod_closed import eod_is_day_closed
 
+def _check_closed_day(
+    session: "Session",
+    intent: PreSaleIntent,
+    today: date,
+    checklist: PreSaleChecklist,
+) -> None:
+    """Check if day is closed.
+    
+    Extracted from validate_sale_intent to reduce complexity.
+    """
+    from app.rms.eod_closed import eod_is_day_closed
     sold_at = intent.sold_at or today
     if eod_is_day_closed(session, sold_at):
         checklist.blockers.append(
@@ -392,7 +550,12 @@ def validate_sale_intent(
             )
         )
 
-    # ---- Payment method (info only — sale can still be created) --------
+
+def _check_payment_method(intent: PreSaleIntent, checklist: PreSaleChecklist) -> None:
+    """Add info warning for missing payment method.
+    
+    Extracted from validate_sale_intent to reduce complexity.
+    """
     if not intent.payment_method:
         checklist.warnings.append(
             PreSaleWarning(
@@ -401,5 +564,3 @@ def validate_sale_intent(
                 message="Sin forma de pago: la venta quedará como pendiente.",
             )
         )
-
-    return checklist
