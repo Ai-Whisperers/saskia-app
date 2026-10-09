@@ -207,88 +207,113 @@ def libro_ventas(
     Each row has gross + base + IVA extracted per sale.
     """
     rows = sales_in_window(session, start=start_date, end=end_date)[:limit]
+    custs = _fetch_customer_names(session, rows)
+    prods = _fetch_product_names(session, rows)
+    refunds_by_sale = _fetch_refunds_by_sale(session, rows)
 
-    # Resolve customer + product names (one query each)
+    out: list[LibroVentasRow] = []
+    for r in rows:
+        iva = extract_iva(
+            to_int_gs(Decimal(str(r.qty)) * Decimal(str(r.unit_price_gs))),
+            tax_mode=tax_mode,
+        )
+        base_out, iva_out = _resolve_iva_amounts(r, iva)
+        refunds_sum, refunds_n = refunds_by_sale.get(r.id, (0, 0))
+        out.append(
+            _build_libro_ventas_row(r, custs, prods, iva, base_out, iva_out, refunds_sum, refunds_n)
+        )
+    return out
+
+
+def _fetch_customer_names(session: Session, rows) -> dict:
+    """Fetch customer names for the sales in this window.
+
+    Extracted from libro_ventas to reduce complexity.
+    """
     cust_ids = {r.customer_id for r in rows if r.customer_id}
+    if not cust_ids:
+        return {}
+    return {
+        c.id: c.name
+        for c in session.execute(select(Customer).where(Customer.id.in_(cust_ids))).scalars()
+    }
+
+
+def _fetch_product_names(session: Session, rows) -> dict:
+    """Fetch product names for the sales in this window.
+
+    Extracted from libro_ventas to reduce complexity.
+    """
     prod_ids = {r.product_id for r in rows}
-    custs = (
-        {
-            c.id: c.name
-            for c in session.execute(select(Customer).where(Customer.id.in_(cust_ids))).scalars()
-            if cust_ids
-        }
-        if cust_ids
-        else {}
-    )
-    prods = {
+    return {
         p.id: p.name
         for p in session.execute(select(Product).where(Product.id.in_(prod_ids))).scalars()
     }
 
-    # M1 (2026-10-02): refunds per sale in this window. Single grouped
-    # query (target_type='sale') avoids N+1. Returns dict[sale_id,
-    # (sum_gs, count)]. Defer Refund import to top of call so we don't
-    # pay the cost on every ledger call.
+
+def _fetch_refunds_by_sale(session: Session, rows) -> dict[int, tuple[int, int]]:
+    """Fetch refunds grouped by sale_id (target_type='sale').
+
+    Extracted from libro_ventas to reduce complexity.
+    """
     from app.rms.models_legacy import Refund
 
-    refund_rows = (
-        session.execute(
-            select(
-                Refund.target_id,
-                func.coalesce(func.sum(Refund.amount_gs), 0).label("sum_gs"),
-                func.count(Refund.id).label("n"),
-            )
-            .where(
-                Refund.target_type == "sale",
-                Refund.target_id.in_({r.id for r in rows}) if rows else False,
-            )
-            .group_by(Refund.target_id)
-        ).all()
-        if rows
-        else []
-    )
-    refunds_by_sale = {rid: (int(s or 0), int(n or 0)) for rid, s, n in refund_rows}
-
-    out: list[LibroVentasRow] = []
-    for r in rows:
-        # AGENTS.md money rule: never use float precision for money.
-        gross = to_int_gs(Decimal(str(r.qty)) * Decimal(str(r.unit_price_gs)))
-        iva = extract_iva(gross, tax_mode=tax_mode)
-        # Phase 1.B — prefer the snapshotted IVA fields when present (Factura)
-        # over the computed-from-gross extraction (Boleta Resimple path).
-        snap_base = getattr(r, "iva_base_gs", None) or 0
-        snap_iva = getattr(r, "iva_amount_gs", None) or 0
-        if snap_base > 0 or snap_iva > 0:
-            base_out = snap_base
-            iva_out = snap_iva
-        else:
-            base_out = iva.base_gs
-            iva_out = iva.iva_gs
-
-        # M1 (2026-10-02): refunds for this sale (per target_type='sale').
-        refunds_sum, refunds_n = refunds_by_sale.get(r.id, (0, 0))
-        net = max(iva.gross_gs - refunds_sum, 0)
-        out.append(
-            LibroVentasRow(
-                sale_id=r.id,
-                sold_at=r.sold_at,
-                customer_name=custs.get(r.customer_id) if r.customer_id else None,
-                product_name=prods.get(r.product_id, f"#{r.product_id}"),
-                qty=r.qty,
-                unit_price_gs=r.unit_price_gs,
-                total_gross_gs=iva.gross_gs,
-                base_gs=base_out,
-                iva_gs=iva_out,
-                invoice_type=getattr(r, "invoice_type", "") or "",
-                invoice_number=getattr(r, "invoice_number", None),
-                invoice_customer_ruc=getattr(r, "invoice_customer_ruc", None),
-                invoice_customer_name=getattr(r, "invoice_customer_name", None),
-                refunds_gs=refunds_sum,
-                refunds_count=refunds_n,
-                net_gross_gs=net,
-            )
+    if not rows:
+        return {}
+    sale_ids = {r.id for r in rows}
+    refund_rows = session.execute(
+        select(
+            Refund.target_id,
+            func.coalesce(func.sum(Refund.amount_gs), 0).label("sum_gs"),
+            func.count(Refund.id).label("n"),
         )
-    return out
+        .where(
+            Refund.target_type == "sale",
+            Refund.target_id.in_(sale_ids),
+        )
+        .group_by(Refund.target_id)
+    ).all()
+    return {rid: (int(s or 0), int(n or 0)) for rid, s, n in refund_rows}
+
+
+def _resolve_iva_amounts(r, iva) -> tuple[int, int]:
+    """Resolve (base, iva) preferring snapshotted fields when present.
+
+    Extracted from libro_ventas to reduce complexity.
+    """
+    snap_base = getattr(r, "iva_base_gs", None) or 0
+    snap_iva = getattr(r, "iva_amount_gs", None) or 0
+    if snap_base > 0 or snap_iva > 0:
+        return snap_base, snap_iva
+    return iva.base_gs, iva.iva_gs
+
+
+def _build_libro_ventas_row(
+    r, custs: dict, prods: dict, iva, base_out: int, iva_out: int,
+    refunds_sum: int, refunds_n: int,
+) -> LibroVentasRow:
+    """Build a single LibroVentasRow from the prepared context.
+
+    Extracted from libro_ventas to reduce complexity.
+    """
+    return LibroVentasRow(
+        sale_id=r.id,
+        sold_at=r.sold_at,
+        customer_name=custs.get(r.customer_id) if r.customer_id else None,
+        product_name=prods.get(r.product_id, f"#{r.product_id}"),
+        qty=r.qty,
+        unit_price_gs=r.unit_price_gs,
+        total_gross_gs=iva.gross_gs,
+        base_gs=base_out,
+        iva_gs=iva_out,
+        invoice_type=getattr(r, "invoice_type", "") or "",
+        invoice_number=getattr(r, "invoice_number", None),
+        invoice_customer_ruc=getattr(r, "invoice_customer_ruc", None),
+        invoice_customer_name=getattr(r, "invoice_customer_name", None),
+        refunds_gs=refunds_sum,
+        refunds_count=refunds_n,
+        net_gross_gs=max(iva.gross_gs - refunds_sum, 0),
+    )
 
 
 @dataclass
