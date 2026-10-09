@@ -1,0 +1,144 @@
+# .github/workflows/release.yml — CalVer tag-triggered prod deploy
+#
+# Why this exists:
+#   scripts/release.sh is the only way to deploy to prod. It does 3 things:
+#     1. Prepend a [version] section to app/CHANGELOG.md
+#     2. git tag -a vYYYY.MM.patch -m "..."
+#     3. git push origin $HEAD:refs/heads/main $TAG
+#     4. (optional) bash scripts/deploy.sh --env=prod
+#
+#   The bottleneck was step 4: after `git push` of the tag, nothing
+#   triggered the prod deploy. This workflow subscribes to the new
+#   tag push, runs the same scripts/release.sh, and that handles
+#   everything end-to-end. The local operator flow (./scripts/release.sh
+#   by hand) still works — this just adds the missing CI trigger.
+#
+# Trigger: tag push matching vYYYY.MM.patch (CalVer).
+#   - `v2026.10.10` (patch 0)  → no-op
+#   - `v2026.10.10.1` (hotfix) → no-op
+#   - `v2026.10.10-rc.1`       → no-op (releases are not RCs)
+#
+# Permissions:
+#   - contents: write (to push the CHANGELOG bump commit)
+#   - the deploy uses the same VPS_KEY + BWS_ACCESS_TOKEN secrets as
+#     deploy-test.yml
+#
+# Refs:
+#   - scripts/release.sh (the script this wraps)
+#   - .github/workflows/deploy-test.yml (SSH + env pattern)
+#   - docs/operations/2026-10-09-three-env-deploy.md §"Promotion flow"
+#
+# Last updated: 2026-10-09 (added as part of the CI recovery + best-practices pass)
+
+name: Release (CalVer tag → prod)
+
+on:
+  push:
+    tags:
+      # CalVer: vYYYY.MM.patch (e.g. v2026.10.10)
+      - "v[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9]+"
+  workflow_dispatch:
+    # Allow manual trigger from the Actions UI (e.g. for the first release
+    # before the tag-push pattern is proven). Uses workflow_dispatch inputs
+    # so the operator can supply a version + message.
+    inputs:
+      version:
+        description: 'CalVer version (YYYY.MM.patch). Leave empty for auto.'
+        required: false
+        default: ''
+      message:
+        description: 'Release message. Leave empty for the latest CHANGELOG section title.'
+        required: false
+        default: ''
+      skip_deploy:
+        description: 'Tag + push only; do not deploy to prod.'
+        type: boolean
+        required: false
+        default: false
+
+# No concurrency block — tag pushes are infrequent and you want the run
+# to complete even if another release is in flight (caller deduplicates
+# via the script's "tag already exists" check).
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          # fetch-depth=0 is required so release.sh can read all the
+          # existing vYYYY.MM.* tags to compute the next patch number.
+          fetch-depth: 0
+          # Use the bot's token to push the CHANGELOG bump commit back
+          # to main. The release script does `git push origin $HEAD:refs/heads/main`.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.5.x"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        # dev-base only — we don't need playwright or testcontainers.
+        # release.sh just uses the env, git, and bash.
+        run: rm -rf .venv && uv sync --only-group dev-base --no-default-groups
+
+      - name: Configure git author for the release commit
+        # release.sh does `git commit -m "docs(changelog): release $TAG"`.
+        # That commit needs an author. Use the same bot identity that
+        # the auto-merge uses.
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run release.sh
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+          SASKIA_VPS_SSH_KEY: ${{ secrets.VPS_KEY }}
+        run: |
+          set -euo pipefail
+          # Re-construct the release.sh flags from the trigger.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            FLAGS=""
+            if [ -n "${{ github.event.inputs.version }}" ]; then
+              FLAGS="$FLAGS --version=${{ github.event.inputs.version }}"
+            fi
+            if [ -n "${{ github.event.inputs.message }}" ]; then
+              FLAGS="$FLAGS --message='${{ github.event.inputs.message }}'"
+            fi
+            if [ "${{ github.event.inputs.skip_deploy }}" = "true" ]; then
+              FLAGS="$FLAGS --skip-deploy"
+            fi
+            bash scripts/release.sh $FLAGS
+          else
+            # Tag push: the tag already exists (it triggered us). We
+            # only need to do step 3 (deploy). The CHANGELOG bump +
+            # tag were already done by whoever pushed the tag (either
+            # the operator running release.sh locally, or a previous
+            # workflow_dispatch invocation).
+            #
+            # Detect that by checking whether the tag commit has a
+            # release commit message (the script's commit subject).
+            TAG="${{ github.ref_name }}"
+            TAG_COMMIT_MSG=$(git log -1 --format=%s "$TAG")
+            case "$TAG_COMMIT_MSG" in
+              "docs(changelog): release $TAG")
+                echo "Tag $TAG already has a release commit; skipping CHANGELOG bump"
+                bash scripts/deploy.sh --env=prod
+                ;;
+              *)
+                echo "Tag $TAG was pushed without running release.sh; running it now"
+                bash scripts/release.sh --version="${TAG#v}"
+                ;;
+            esac
+          fi
