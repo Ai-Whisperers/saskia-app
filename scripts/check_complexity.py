@@ -122,7 +122,7 @@ def main() -> int:
     args = parser.parse_args()
 
     # Default exclude: legacy archives
-    excludes = list(set(["app/_archive", ".venv", "tests"] + args.exclude))
+    excludes = list(set(["app/_archive", ".venv", "tests", *args.exclude]))
 
     cmd = [
         "radon",

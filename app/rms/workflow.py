@@ -136,7 +136,7 @@ def _compute_daily_revenue(valid: list) -> int:
 
 def _compute_daily_cogs(session: Session, start: datetime, end: datetime) -> int:
     """Compute COGS for a day using StockMovement + Ingredient.purchase_price_gs.
-    
+
     T-2026-10-04: BACKLOG #1 (migration 092) dropped the sale_stock_move
     table. Use StockMovement with movement_type='sale' as the
     authoritative source.

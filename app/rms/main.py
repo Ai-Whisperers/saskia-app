@@ -1409,8 +1409,12 @@ def _seed() -> None:
             # (sazon's public API surface is sazon-only). Import the demo
             # module directly when callers need the report class.
             # noqa: arch-rule — main.py is the CLI entry point; imports demo module (includes seed.demo)
-            from app.rms.seed import seed_demo_data  # noqa: arch-rule — main.py is the CLI entry point
-            from app.rms.seed.demo import SeedReport  # noqa: arch-rule — main.py is the CLI entry point
+            from app.rms.seed import (
+                seed_demo_data,  # noqa: arch-rule — main.py is the CLI entry point
+            )
+            from app.rms.seed.demo import (
+                SeedReport,  # noqa: arch-rule — main.py is the CLI entry point
+            )
 
             demo_report: SeedReport = seed_demo_data(session, overwrite=overwrite)
             print(f"seed complete: {demo_report.as_dict()}")

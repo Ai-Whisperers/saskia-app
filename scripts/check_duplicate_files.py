@@ -225,7 +225,7 @@ def find_forbidden_legacy() -> list[str]:
 
 def _is_app_import(imp: str) -> bool:
     """True if this is an internal app import (not a stdlib/third-party)."""
-    return imp.startswith("app.") or imp.startswith(".")
+    return imp.startswith(("app.", "."))
 
 
 def _gather_imports(path: str) -> set[str]:

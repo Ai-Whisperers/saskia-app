@@ -170,8 +170,7 @@ def _gather_imports(path: str) -> list[tuple[str, str, int]]:
     out: list[tuple[str, str, int]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            for alias in node.names:
-                out.append((alias.name, "Import", node.lineno))
+            out.extend((alias.name, "Import", node.lineno) for alias in node.names)
         elif isinstance(node, ast.ImportFrom):
             mod = node.module or ""
             if node.level and node.level > 0:
@@ -181,11 +180,14 @@ def _gather_imports(path: str) -> list[tuple[str, str, int]]:
                 if base_parts:
                     resolved = ".".join(base_parts)
                     out.append((resolved, "ImportFrom", node.lineno))
-                    for alias in node.names:
-                        out.append((resolved + "." + alias.name, "ImportFrom", node.lineno))
+                    out.extend(
+                        (resolved + "." + alias.name, "ImportFrom", node.lineno)
+                        for alias in node.names
+                    )
                 else:
-                    for alias in node.names:
-                        out.append((alias.name, "ImportFrom", node.lineno))
+                    out.extend(
+                        (alias.name, "ImportFrom", node.lineno) for alias in node.names
+                    )
             else:
                 if mod:
                     out.append((mod, "ImportFrom", node.lineno))
@@ -214,14 +216,6 @@ def _is_router_sibling(importer: str, imported: str) -> bool:
     # `app.routers.produccion._full` -> ["produccion", "_full"]
     # `app.routers.stations` -> ["stations"]
     imp_parts = importer.split(".")[2:]
-    imp_parts_no_fn = (
-        imp_parts[:-1]
-        if imp_parts
-        and imp_parts[-1][0].islower()
-        and not imp_parts[-1].startswith("_")
-        and len(imp_parts) > 2
-        else imp_parts
-    )
     # Heuristic: if the first segment matches AND both have at least
     # 1 more segment, they're in the same sub-package
     if not imp_parts:
@@ -262,7 +256,7 @@ def detect_cycles(imports: dict[str, set[str]]) -> list[list[str]]:
             if color[nxt] == GRAY and nxt != node:
                 # Found cycle (skip self-loops; those are not real cycles)
                 idx = path.index(nxt) if nxt in path else 0
-                cycle = path[idx:] + [nxt]
+                cycle = [*path[idx:], nxt]
                 cycles.append(cycle)
             elif color[nxt] == WHITE:
                 dfs(nxt, path)
@@ -315,7 +309,7 @@ def main() -> int:
     violations: list[Violation] = []
     for full, imps in file_imports.items():
         mod = _module_path_from_file(full)
-        for imp, kind, lineno in imps:
+        for imp, _kind, _lineno in imps:  # _kind/_lineno reserved for future diagnostics
             if not imp.startswith("app."):
                 continue
             # Skip migration edges entirely
