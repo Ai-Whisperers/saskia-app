@@ -306,52 +306,108 @@ def reorder_bulk_quick_restock(
     if not ingredient_ids.strip():
         return RedirectResponse(url="/reorder", status_code=303)
 
+    updated, skipped = _process_ingredient_ids(session, ingredient_ids)
+    _record_bulk_audit(request, session, updated, skipped, ingredient_ids)
+    session.commit()
+    return RedirectResponse(url="/reorder", status_code=303)
+
+
+def _process_ingredient_ids(session: Session, ingredient_ids: str) -> tuple:
+    """Process a comma-separated list of ingredient IDs for bulk restock.
+    
+    Extracted from reorder_bulk_quick_restock to reduce complexity.
+    Returns (updated_count, skipped_count).
+    """
     updated = 0
     skipped = 0
     for raw_id in ingredient_ids.split(","):
         raw_id = raw_id.strip()
         if not raw_id:
             continue
-        try:
-            iid = int(raw_id)
-        except ValueError:
-            continue
-        ing = session.get(Ingredient, iid)
-        if ing is None:
-            continue
-        target = float(ing.max_stock_qty or ing.min_stock_qty * 2)
-        if target <= 0:
-            skipped += 1
-            continue
-        delta = max(0.0, target - float(ing.stock_qty or 0))
-        eff_supplier_id = get_effective_supplier_id(ing)
-        last_price_gs: int = 0
-        if eff_supplier_id is not None:
-            from app.rms.models import IngredientPriceEvent
-
-            last_evt = session.scalar(
-                select(IngredientPriceEvent)
-                .where(
-                    IngredientPriceEvent.ingredient_id == iid,
-                    IngredientPriceEvent.supplier_id == eff_supplier_id,
-                )
-                .order_by(IngredientPriceEvent.recorded_at.desc())
-                .limit(1)
-            )
-            if last_evt is not None:
-                last_price_gs = int(last_evt.price_gs or 0)
-        if delta > 0:
-            ing.stock_qty = target
-            record_price_event(
-                session,
-                iid,
-                last_price_gs,
-                source="restock",
-                supplier_id=eff_supplier_id,
-            )
+        result = _process_single_ingredient(session, raw_id)
+        if result == "updated":
             updated += 1
-        if eff_supplier_id is not None:
-            record_purchase_supplier(session, iid, eff_supplier_id)
+        elif result == "skipped":
+            skipped += 1
+    return updated, skipped
+
+
+def _process_single_ingredient(session: Session, raw_id: str) -> str:
+    """Process a single ingredient ID for bulk restock.
+    
+    Returns "updated", "skipped", or None to indicate no change.
+    Extracted from _process_ingredient_ids to reduce complexity.
+    """
+    try:
+        iid = int(raw_id)
+    except ValueError:
+        return None
+    ing = session.get(Ingredient, iid)
+    if ing is None:
+        return None
+
+    target = float(ing.max_stock_qty or ing.min_stock_qty * 2)
+    if target <= 0:
+        return "skipped"
+
+    eff_supplier_id = get_effective_supplier_id(ing)
+    last_price_gs = _get_last_price_for_supplier(session, iid, eff_supplier_id)
+    _apply_restock(ing, target, iid, eff_supplier_id, last_price_gs, session)
+    if eff_supplier_id is not None:
+        record_purchase_supplier(session, iid, eff_supplier_id)
+    return "updated"
+
+
+def _get_last_price_for_supplier(session: Session, ingredient_id: int, eff_supplier_id) -> int:
+    """Get the last price for an ingredient from its effective supplier.
+    
+    Extracted from _process_single_ingredient to reduce complexity.
+    """
+    if eff_supplier_id is None:
+        return 0
+    from app.rms.models import IngredientPriceEvent
+
+    last_evt = session.scalar(
+        select(IngredientPriceEvent)
+        .where(
+            IngredientPriceEvent.ingredient_id == ingredient_id,
+            IngredientPriceEvent.supplier_id == eff_supplier_id,
+        )
+        .order_by(IngredientPriceEvent.recorded_at.desc())
+        .limit(1)
+    )
+    if last_evt is None:
+        return 0
+    return int(last_evt.price_gs or 0)
+
+
+def _apply_restock(
+    ing, target: float, ingredient_id: int, eff_supplier_id, last_price_gs: int, session
+) -> None:
+    """Apply the restock: update stock_qty and record price event.
+    
+    Extracted from _process_single_ingredient to reduce complexity.
+    """
+    delta = max(0.0, target - float(ing.stock_qty or 0))
+    if delta <= 0:
+        return
+    ing.stock_qty = target
+    record_price_event(
+        session,
+        ingredient_id,
+        last_price_gs,
+        source="restock",
+        supplier_id=eff_supplier_id,
+    )
+
+
+def _record_bulk_audit(
+    request: Request, session, updated: int, skipped: int, ingredient_ids: str
+) -> None:
+    """Record the audit entry for the bulk restock action.
+    
+    Extracted from reorder_bulk_quick_restock to reduce complexity.
+    """
     audit_record(
         session,
         user_id=current_operator(request),
@@ -359,8 +415,6 @@ def reorder_bulk_quick_restock(
         request=request,
         detail={"updated": updated, "skipped": skipped, "ids": ingredient_ids[:500]},
     )
-    session.commit()
-    return RedirectResponse(url="/reorder", status_code=303)
 
 
 @router.post("/registrar")
