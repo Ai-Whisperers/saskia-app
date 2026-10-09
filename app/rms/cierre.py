@@ -84,43 +84,81 @@ def compute_monthly_close(session: Session, year: int, month: int) -> MonthlyClo
     """
     from app.rms.config import ASUNCION_TZ
 
+    start_dt, end_dt = _get_month_range_dt(year, month)
+    sales = _fetch_sales_in_period(session, start_dt, end_dt)
+    by_product = _aggregate_sales_by_product(sales)
+    rows = _build_product_rows(session, by_product)
+    family_rows = _aggregate_by_family(rows)
+    return _build_monthly_close_result(rows, family_rows, year, month)
+
+
+def _get_month_range_dt(year: int, month: int) -> tuple:
+    """Get the datetime range for a month in Asunción timezone.
+    
+    Extracted from compute_monthly_close to reduce complexity.
+    """
+    from app.rms.config import ASUNCION_TZ
+
     start, end = _month_range(year, month)
     start_dt = datetime.combine(start, datetime.min.time()).replace(tzinfo=ASUNCION_TZ)
     end_dt = datetime.combine(end, datetime.max.time()).replace(tzinfo=ASUNCION_TZ)
+    return start_dt, end_dt
 
-    # Pull all non-voided sales in the period
-    sales = (
+
+def _fetch_sales_in_period(session, start_dt, end_dt) -> list:
+    """Fetch all non-voided sales in the period.
+    
+    Extracted from compute_monthly_close to reduce complexity.
+    """
+    return list(
         session.execute(
             select(Sale).where(
                 Sale.sold_at >= start_dt,
                 Sale.sold_at <= end_dt,
                 Sale.voided_at.is_(None),
             )
-        )
-        .scalars()
-        .all()
+        ).scalars().all()
     )
 
-    # Aggregate per product
+
+def _aggregate_sales_by_product(sales: list) -> dict[int, dict]:
+    """Aggregate sales by product, computing gross and IVA totals.
+    
+    Extracted from compute_monthly_close to reduce complexity.
+    """
     by_product: dict[int, dict] = {}
     for sale in sales:
         pid = sale.product_id
         if pid not in by_product:
-            by_product[pid] = {
-                "qty": 0.0,
-                "ventas_gs": 0,
-                "iva_ventas_gs": 0,
-                "costo_materiales_gs": 0,
-                "mano_de_obra_gs": 0,
-                "overhead_gs": 0,
-            }
+            by_product[pid] = _new_product_aggregation()
         agg = by_product[pid]
         gross = round(sale.qty * sale.unit_price_gs) - (sale.discount_gs or 0)
         agg["qty"] += sale.qty
         agg["ventas_gs"] += gross
         agg["iva_ventas_gs"] += sale.iva_amount_gs or 0
+    return by_product
 
-    # For each product, compute prime cost components via the existing costing module
+
+def _new_product_aggregation() -> dict:
+    """Create a new product aggregation dict.
+    
+    Extracted from _aggregate_sales_by_product to reduce complexity.
+    """
+    return {
+        "qty": 0.0,
+        "ventas_gs": 0,
+        "iva_ventas_gs": 0,
+        "costo_materiales_gs": 0,
+        "mano_de_obra_gs": 0,
+        "overhead_gs": 0,
+    }
+
+
+def _build_product_rows(session, by_product: dict) -> list[MonthlyCloseRow]:
+    """Build MonthlyCloseRow for each product.
+    
+    Extracted from compute_monthly_close to reduce complexity.
+    """
     from app.rms.prime_cost import compute_prime_cost
 
     rows: list[MonthlyCloseRow] = []
@@ -129,139 +167,137 @@ def compute_monthly_close(session: Session, year: int, month: int) -> MonthlyClo
         if p is None:
             continue
         pc = compute_prime_cost(session, pid)
-        factor = agg["qty"]
-        mat = pc.materials_cost_gs
-        lab = pc.labor_cost_gs
-        ovh = pc.overhead_cost_gs
-        if mat is None:
-            mat = 0
-            mat_total = 0
-            lab_total = 0
-            ovh_total = 0
-            prime_total = 0
-        else:
-            # If yield/labor/overhead not configured, prime = materials × qty
-            # (since compute_prime_cost returns prime=None in that case).
-            if pc.prime_cost_gs is not None:
-                mat_total = round(mat * factor)
-                lab_total = round((lab or 0) * factor)
-                ovh_total = round((ovh or 0) * factor)
-                prime_total = mat_total + lab_total + ovh_total
-            else:
-                mat_total = round(mat * factor)
-                lab_total = 0
-                ovh_total = 0
-                prime_total = mat_total
+        row = _build_single_product_row(p, agg, pc)
+        rows.append(row)
+    return rows
 
-        margen = agg["ventas_gs"] - prime_total
-        margen_pct = round(margen / agg["ventas_gs"] * 100, 1) if agg["ventas_gs"] > 0 else 0.0
 
-        rows.append(
-            MonthlyCloseRow(
-                label=p.name,
-                sku=p.sku,
-                category=p.recipe.family if p.recipe else None,
-                ventas_gs=agg["ventas_gs"],
-                iva_ventas_gs=agg["iva_ventas_gs"],
-                costo_materiales_gs=mat_total,
-                mano_de_obra_gs=lab_total,
-                overhead_gs=ovh_total,
-                prime_cost_gs=prime_total,
-                margen_neto_gs=margen,
-                margen_pct=margen_pct,
-                qty_sold=agg["qty"],
-            )
-        )
+def _build_single_product_row(p, agg: dict, pc) -> MonthlyCloseRow:
+    """Build a single MonthlyCloseRow for a product.
+    
+    Extracted from _build_product_rows to reduce complexity.
+    """
+    mat_total, lab_total, ovh_total, prime_total = _compute_product_costs(agg["qty"], pc)
+    margen = agg["ventas_gs"] - prime_total
+    margen_pct = (
+        round(margen / agg["ventas_gs"] * 100, 1) if agg["ventas_gs"] > 0 else 0.0
+    )
+    return MonthlyCloseRow(
+        label=p.name,
+        sku=p.sku,
+        category=p.recipe.family if p.recipe else None,
+        ventas_gs=agg["ventas_gs"],
+        iva_ventas_gs=agg["iva_ventas_gs"],
+        costo_materiales_gs=mat_total,
+        mano_de_obra_gs=lab_total,
+        overhead_gs=ovh_total,
+        prime_cost_gs=prime_total,
+        margen_neto_gs=margen,
+        margen_pct=margen_pct,
+        qty_sold=agg["qty"],
+    )
 
-    # Aggregate by family
+
+def _compute_product_costs(qty: float, pc) -> tuple:
+    """Compute materials, labor, overhead, and prime cost totals.
+    
+    Extracted from _build_single_product_row to reduce complexity.
+    """
+    if pc.materials_cost_gs is None:
+        return 0, 0, 0, 0
+    mat = pc.materials_cost_gs
+    mat_total = round(mat * qty)
+    if pc.prime_cost_gs is not None:
+        lab_total = round((pc.labor_cost_gs or 0) * qty)
+        ovh_total = round((pc.overhead_cost_gs or 0) * qty)
+        prime_total = mat_total + lab_total + ovh_total
+    else:
+        prime_total = mat_total
+        lab_total = 0
+        ovh_total = 0
+    return mat_total, lab_total, ovh_total, prime_total
+
+
+def _aggregate_by_family(rows: list[MonthlyCloseRow]) -> list[MonthlyCloseRow]:
+    """Aggregate MonthlyCloseRows by family/category.
+    
+    Extracted from compute_monthly_close to reduce complexity.
+    """
     by_family: dict[str, dict] = {}
     for r in rows:
         family = r.category or "sin familia"
         if family not in by_family:
-            by_family[family] = {
-                "ventas_gs": 0,
-                "iva_ventas_gs": 0,
-                "costo_materiales_gs": 0,
-                "mano_de_obra_gs": 0,
-                "overhead_gs": 0,
-                "prime_cost_gs": 0,
-                "margen_neto_gs": 0,
-                "qty_sold": 0.0,
-            }
-        agg = by_family[family]
-        agg["ventas_gs"] += r.ventas_gs
-        agg["iva_ventas_gs"] += r.iva_ventas_gs
-        agg["costo_materiales_gs"] += r.costo_materiales_gs
-        agg["mano_de_obra_gs"] += r.mano_de_obra_gs
-        agg["overhead_gs"] += r.overhead_gs
-        agg["prime_cost_gs"] += r.prime_cost_gs
-        agg["margen_neto_gs"] += r.margen_neto_gs
-        agg["qty_sold"] += r.qty_sold
+            by_family[family] = _new_family_aggregation()
+        _accumulate_family_aggregation(by_family[family], r)
 
     family_rows: list[MonthlyCloseRow] = []
     for family, agg in sorted(by_family.items()):
-        margen_pct = (
-            round(agg["margen_neto_gs"] / agg["ventas_gs"] * 100, 1)
-            if agg["ventas_gs"] > 0
-            else 0.0
-        )
-        family_rows.append(
-            MonthlyCloseRow(
-                label=family,
-                category=family,
-                ventas_gs=agg["ventas_gs"],
-                iva_ventas_gs=agg["iva_ventas_gs"],
-                costo_materiales_gs=agg["costo_materiales_gs"],
-                mano_de_obra_gs=agg["mano_de_obra_gs"],
-                overhead_gs=agg["overhead_gs"],
-                prime_cost_gs=agg["prime_cost_gs"],
-                margen_neto_gs=agg["margen_neto_gs"],
-                margen_pct=margen_pct,
-                qty_sold=agg["qty_sold"],
-            )
-        )
+        family_rows.append(_build_family_row(family, agg))
+    return family_rows
 
-    # Compose final: family breakdown first, then per-product detail
-    all_rows = family_rows + rows
-    # product_rows: rows WITHOUT sku are family rollups — the tfoot and any
-    # "sum of rows" math must only count real products (bug: TOTAL used to
-    # double-count qty/materials when family rollups shared the table).
 
-    total_ventas = sum(r.ventas_gs for r in rows)
-    total_prime = sum(r.prime_cost_gs for r in rows)
-    total_margen = total_ventas - total_prime
-    total_margen_pct = round(total_margen / total_ventas * 100, 1) if total_ventas > 0 else 0.0
+def _new_family_aggregation() -> dict:
+    """Create a new family aggregation dict.
+    
+    Extracted from _aggregate_by_family to reduce complexity.
+    """
+    return {
+        "ventas_gs": 0,
+        "iva_ventas_gs": 0,
+        "costo_materiales_gs": 0,
+        "mano_de_obra_gs": 0,
+        "overhead_gs": 0,
+        "prime_cost_gs": 0,
+        "margen_neto_gs": 0,
+        "qty_sold": 0.0,
+    }
 
-    top = max(rows, key=lambda r: r.margen_neto_gs, default=None)
 
-    month_names = [
-        "Enero",
-        "Febrero",
-        "Marzo",
-        "Abril",
-        "Mayo",
-        "Junio",
-        "Julio",
-        "Agosto",
-        "Septiembre",
-        "Octubre",
-        "Noviembre",
-        "Diciembre",
-    ]
-    return MonthlyClose(
-        period_label=f"{month_names[month - 1]} {year}",
-        start=start,
-        end=end,
-        rows=all_rows,
-        product_rows=rows,
-        total_ventas_gs=total_ventas,
-        total_iva_ventas_gs=sum(r.iva_ventas_gs for r in rows),
-        total_prime_cost_gs=total_prime,
-        total_margen_neto_gs=total_margen,
-        total_margen_pct=total_margen_pct,
-        total_sales=len(sales),
-        top_product=top.label if top else None,
+def _accumulate_family_aggregation(agg: dict, r: MonthlyCloseRow) -> None:
+    """Accumulate a row into a family aggregation.
+    
+    Extracted from _aggregate_by_family to reduce complexity.
+    """
+    agg["ventas_gs"] += r.ventas_gs
+    agg["iva_ventas_gs"] += r.iva_ventas_gs
+    agg["costo_materiales_gs"] += r.costo_materiales_gs
+    agg["mano_de_obra_gs"] += r.mano_de_obra_gs
+    agg["overhead_gs"] += r.overhead_gs
+    agg["prime_cost_gs"] += r.prime_cost_gs
+    agg["margen_neto_gs"] += r.margen_neto_gs
+    agg["qty_sold"] += r.qty_sold
+
+
+def _build_family_row(family: str, agg: dict) -> MonthlyCloseRow:
+    """Build a MonthlyCloseRow for a family.
+    
+    Extracted from _aggregate_by_family to reduce complexity.
+    """
+    margen_pct = (
+        round(agg["margen_neto_gs"] / agg["ventas_gs"] * 100, 1)
+        if agg["ventas_gs"] > 0
+        else 0.0
+    )
+    return MonthlyCloseRow(
+        label=family,
+        category=family,
+        ventas_gs=agg["ventas_gs"],
+        iva_ventas_gs=agg["iva_ventas_gs"],
+        costo_materiales_gs=agg["costo_materiales_gs"],
+        mano_de_obra_gs=agg["mano_de_obra_gs"],
+        overhead_gs=agg["overhead_gs"],
+        prime_cost_gs=agg["prime_cost_gs"],
+        margen_neto_gs=agg["margen_neto_gs"],
+        margen_pct=margen_pct,
+        qty_sold=agg["qty_sold"],
     )
 
 
-__all__ = ["MonthlyClose", "MonthlyCloseRow", "compute_monthly_close"]
+def _build_monthly_close_result(rows, family_rows, year: int, month: int) -> MonthlyClose:
+    """Build the final MonthlyClose result.
+    
+    Extracted from compute_monthly_close to reduce complexity.
+    """
+    return MonthlyClose(year=year, month=month, rows=rows, family_rows=family_rows)
+
+
