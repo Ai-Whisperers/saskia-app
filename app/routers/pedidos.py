@@ -2179,18 +2179,37 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
         return
 
     phone = pedido.customer_phone.strip()
-    # Phase 6 — pull message body from MessageTemplate table when available.
-    # Falls back to the legacy hardcoded copy if the template row is missing.
-    msg = None
+    msg = _build_notification_message(session, pedido)
+    _send_via_twilio_or_log(pedido, phone, msg)
+
+
+def _build_notification_message(session: Session, pedido: Pedido) -> str:
+    """Build the notification message body for the pedido.
+
+    Phase 6 — pull message body from MessageTemplate table when available.
+    Falls back to the legacy hardcoded copy if the template row is missing.
+    Extracted from _send_fulfill_notification to reduce complexity.
+    """
+    msg = _try_template_message(session, pedido)
+    if msg is not None:
+        return msg
+    return _fallback_message(pedido)
+
+
+def _try_template_message(session: Session, pedido: Pedido) -> str | None:
+    """Try to get a message from the MessageTemplate table.
+
+    P43 (2026-10-07): was comparing against "WhatsApp" (uppercase)
+    which never matches because channel values are lowercase
+    (Channel.WHATSAPP.value = "whatsapp"). This silently disabled
+    the pedido_listo / whatsapp template path.
+    Extracted from _build_notification_message to reduce complexity.
+    """
     try:
         from sqlalchemy import select as _select
 
         from app.rms.models import MessageTemplate as MT
 
-        # P43 (2026-10-07): was comparing against "WhatsApp" (uppercase)
-        # which never matches because channel values are lowercase
-        # (Channel.WHATSAPP.value = "whatsapp"). This silently disabled
-        # the pedido_listo / whatsapp template path.
         template_key = "pedido_listo" if pedido.channel == Channel.WHATSAPP.value else "generic"
         template_channel = (
             Channel.WHATSAPP.value if pedido.channel == Channel.WHATSAPP.value else "email"
@@ -2203,10 +2222,9 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
             )
         ).scalar_one_or_none()
         if row is not None:
-            # noqa: arch-rule — uses render_template helper from settings_runtime
             from app.routers.settings_runtime import render_template
 
-            msg = render_template(
+            return render_template(
                 row.body,
                 {
                     "customer_name": pedido.customer_name or "",
@@ -2219,14 +2237,25 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
         logger.warning(
             f"pedidos._send_fulfill_notification: render_template failed (fallback to legacy msg): {exc!r}"
         )
-    if msg is None:
-        msg = (
-            f"¡Tu pedido #{pedido.id} esta listo para retirar! Te esperamos 😊"
-            if pedido.channel
-            == Channel.WHATSAPP.value  # P43: lowercase comparison (was "WhatsApp")
-            else f"Tu pedido #{pedido.id} esta listo para retirar. Gracias!"
-        )
+    return None
 
+
+def _fallback_message(pedido: Pedido) -> str:
+    """Build the fallback message when no template is available.
+
+    Extracted from _build_notification_message to reduce complexity.
+    """
+    is_whatsapp = pedido.channel == Channel.WHATSAPP.value
+    if is_whatsapp:
+        return f"¡Tu pedido #{pedido.id} esta listo para retirar! Te esperamos 😊"
+    return f"Tu pedido #{pedido.id} esta listo para retirar. Gracias!"
+
+
+def _send_via_twilio_or_log(pedido: Pedido, phone: str, msg: str) -> None:
+    """Send the notification via Twilio (WhatsApp then SMS) or log if unavailable.
+
+    Extracted from _send_fulfill_notification to reduce complexity.
+    """
     import logging
     import os
 
@@ -2234,36 +2263,48 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
     twilio_token = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
     twilio_from_wa = os.getenv("TWILIO_WHATSAPP_FROM", "").strip()
     twilio_from_ph = os.getenv("TWILIO_PHONE_FROM", "").strip()
-
     log = logging.getLogger("rms.pedidos")
 
-    def _post_twilio(from_num: str, to_num: str) -> bool:
-        try:
-            import httpx
+    if not (twilio_sid and twilio_token):
+        log.info("[notify] Pedido #%s fulfilled — would send to %s: %s", pedido.id, phone, msg)
+        return
 
-            r = httpx.post(
-                f"https://api.twilio.com/2010-04-01/Accounts/{twilio_sid}/Messages.json",
-                auth=(twilio_sid, twilio_token),
-                data={"From": from_num, "To": to_num, "Body": msg},
-                timeout=15.0,
-            )
-            ok = r.status_code in (200, 201)
-            if not ok:
-                log.warning("Twilio error for pedido %s: %s %s", pedido.id, r.status_code, r.text)
-            return ok
-        except Exception as exc:
-            log.error("Twilio exception for pedido %s: %s", pedido.id, exc)
-            return False
-
-    if twilio_sid and twilio_token:
-        if twilio_from_wa:
-            if _post_twilio(f"whatsapp:{twilio_from_wa}", f"whatsapp:{phone}"):
-                return
-        if twilio_from_ph:
-            _post_twilio(twilio_from_ph, phone)
+    if twilio_from_wa:
+        if _post_twilio(pedido, twilio_sid, twilio_token, f"whatsapp:{twilio_from_wa}", f"whatsapp:{phone}", msg, log):
             return
-    # No Twilio configured
-    log.info("[notify] Pedido #%s fulfilled — would send to %s: %s", pedido.id, phone, msg)
+    if twilio_from_ph:
+        _post_twilio(pedido, twilio_sid, twilio_token, twilio_from_ph, phone, msg, log)
+
+
+def _post_twilio(
+    pedido: Pedido,
+    twilio_sid: str,
+    twilio_token: str,
+    from_num: str,
+    to_num: str,
+    msg: str,
+    log,
+) -> bool:
+    """Post a message via Twilio. Returns True on success.
+
+    Extracted from _send_via_twilio_or_log to reduce complexity.
+    """
+    try:
+        import httpx
+
+        r = httpx.post(
+            f"https://api.twilio.com/2010-04-01/Accounts/{twilio_sid}/Messages.json",
+            auth=(twilio_sid, twilio_token),
+            data={"From": from_num, "To": to_num, "Body": msg},
+            timeout=15.0,
+        )
+        ok = r.status_code in (200, 201)
+        if not ok:
+            log.warning("Twilio error for pedido %s: %s %s", pedido.id, r.status_code, r.text)
+        return ok
+    except Exception as exc:
+        log.error("Twilio exception for pedido %s: %s", pedido.id, exc)
+        return False
 
 
 # --- Stock preview (pre-fulfill) ---------------------------------------------
