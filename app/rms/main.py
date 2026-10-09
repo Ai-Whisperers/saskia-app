@@ -254,6 +254,7 @@ async def lifespan(app: FastAPI):
     # See app/rms/otel.py for the activation matrix.
     try:
         from app.rms.otel import init_observability
+
         init_observability(app)
     except Exception as exc:
         print(f"WARNING: observability init failed: {exc}", file=sys.stderr)
@@ -1408,7 +1409,6 @@ def _seed() -> None:
     session = SessionLocal()
     try:
         if is_sazon:
-
             from app.rms.seed import SazonReport, seed_sazon
 
             sazon_report: SazonReport = seed_sazon(session, overwrite=overwrite)

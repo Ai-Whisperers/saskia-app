@@ -823,8 +823,10 @@ def _compute_ops_today(session, period) -> int:
     today_start = datetime.now(ASUNCION_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
     if period != "today":
         return 0
+
     def is_naive(dt):
         return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
+
     today_start_cmp = (
         today_start
         if is_naive(today_start)
@@ -848,8 +850,10 @@ def _compute_ops_delta(session) -> str | None:
     today_start = datetime.now(ASUNCION_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
     prior_same_weekday = today_start - timedelta(days=7)
     prior_end = prior_same_weekday + timedelta(days=1)
+
     def is_naive(dt):
         return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
+
     prev_ops = 0
     for s in session.scalars(select(Sale).where(Sale.voided_at.is_(None))).all():
         sold = s.sold_at
@@ -879,8 +883,10 @@ def _compute_ticket_promedio(session, period) -> int:
     if period != "today":
         return 0
     today_start = datetime.now(ASUNCION_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+
     def is_naive(dt):
         return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
+
     today_start_cmp = (
         today_start
         if is_naive(today_start)
@@ -1083,9 +1089,7 @@ def _build_top_products_revenue(ranking: list[dict]) -> list[dict]:
     return [{"name": r["name"], "value": r["ventas_gs"]} for r in by_revenue]
 
 
-def _build_hourly_sales_chart(
-    sales: list[Sale], tz: ZoneInfo
-) -> str:
+def _build_hourly_sales_chart(sales: list[Sale], tz: ZoneInfo) -> str:
     """Return an HTML bar chart of sales by hour of day (Asunción local).
 
     The sibling refactor wave deleted this function. Re-implementing
@@ -1098,9 +1102,7 @@ def _build_hourly_sales_chart(
         if local is None:
             continue
         # Use discounted line total to match _build_payment_methods_donut.
-        line_total = (
-            int(s.qty) * int(s.unit_price_gs) - int(s.discount_gs or 0)
-        )
+        line_total = int(s.qty) * int(s.unit_price_gs) - int(s.discount_gs or 0)
         buckets[local.hour] += max(line_total, 0) / 1_000_000  # → M ₲
 
     if sum(buckets.values()) <= 0:
@@ -1124,9 +1126,9 @@ def _build_30day_sales_chart(session: Session, preset: str) -> dict:
     start = today - timedelta(days=days - 1)
 
     rows = session.execute(
-        select(Sale.recorded_at, Sale.qty, Sale.unit_price_gs, Sale.discount_gs)
-        .where(Sale.recorded_at >= datetime.combine(start, datetime.min.time(),
-                                                     tzinfo=ASUNCION_TZ))
+        select(Sale.recorded_at, Sale.qty, Sale.unit_price_gs, Sale.discount_gs).where(
+            Sale.recorded_at >= datetime.combine(start, datetime.min.time(), tzinfo=ASUNCION_TZ)
+        )
     ).all()
     daily: dict[str, float] = {}
     for r in rows:
@@ -1134,9 +1136,7 @@ def _build_30day_sales_chart(session: Session, preset: str) -> dict:
             continue
         local = r.recorded_at.astimezone(ASUNCION_TZ)
         key = local.date().isoformat()
-        line_total = (
-            int(r.qty) * int(r.unit_price_gs) - int(r.discount_gs or 0)
-        )
+        line_total = int(r.qty) * int(r.unit_price_gs) - int(r.discount_gs or 0)
         daily[key] = daily.get(key, 0.0) + max(line_total, 0) / 1_000_000  # M₲
 
     # Fill missing days with 0 so the chart x-axis is contiguous.
