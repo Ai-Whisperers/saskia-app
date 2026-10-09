@@ -63,28 +63,13 @@ def ensure_customer(
     duplicate.
     """
     if cedula and cedula.strip():
-        cedula_clean = cedula.strip()
-        existing = session.execute(
-            select(Customer).where(Customer.cedula == cedula_clean)
-        ).scalar_one_or_none()
+        existing = _find_customer_by_cedula(session, cedula.strip())
         if existing is not None:
-            if name and name != existing.name:
-                existing.name = name
-            if phone and phone != existing.phone:
-                existing.phone = phone
-            if email and email != existing.email:
-                existing.email = email
-            if notes and notes != existing.notes:
-                existing.notes = notes
-            if cedula_clean and cedula_clean != existing.cedula:
-                existing.cedula = cedula_clean
+            _update_customer_fields(existing, name, phone, email, notes, cedula.strip())
             return existing
     if phone:
-        existing = session.execute(
-            select(Customer).where(Customer.phone == phone)
-        ).scalar_one_or_none()
+        existing = _find_customer_by_phone(session, phone)
         if existing is not None:
-            # Warn if this is a duplicate-phone merge (two customers with same phone)
             if name and name != existing.name:
                 logger.warning(
                     "ensure_customer: duplicate phone merge — phone=%r existing_name=%r incoming_name=%r",
@@ -92,25 +77,74 @@ def ensure_customer(
                     existing.name,
                     name,
                 )
-            # Update name/email/notes/cedula if newly provided
-            if name and name != existing.name:
-                existing.name = name
-            if email and email != existing.email:
-                existing.email = email
-            if notes and notes != existing.notes:
-                existing.notes = notes
-            cedula_clean = (cedula or "").strip() or None
-            if cedula_clean and cedula_clean != existing.cedula:
-                existing.cedula = cedula_clean
+            _update_customer_fields(existing, name, phone, email, notes, cedula)
             return existing
+    return _create_new_customer(session, name, phone, email, notes, cedula)
+
+
+def _find_customer_by_cedula(session: Session, cedula_clean: str) -> Customer | None:
+    """Find customer by cedula.
+
+    Extracted from ensure_customer to reduce complexity.
+    """
+    return session.execute(
+        select(Customer).where(Customer.cedula == cedula_clean)
+    ).scalar_one_or_none()
+
+
+def _find_customer_by_phone(session: Session, phone: str) -> Customer | None:
+    """Find customer by phone.
+
+    Extracted from ensure_customer to reduce complexity.
+    """
+    return session.execute(
+        select(Customer).where(Customer.phone == phone)
+    ).scalar_one_or_none()
+
+
+def _update_customer_fields(
+    customer: Customer,
+    name: str | None,
+    phone: str | None,
+    email: str | None,
+    notes: str | None,
+    cedula: str | None,
+) -> None:
+    """Update customer fields if new values are provided.
+
+    Extracted from ensure_customer to reduce complexity.
+    """
+    if name and name != customer.name:
+        customer.name = name
+    if phone and phone != customer.phone:
+        customer.phone = phone
+    if email and email != customer.email:
+        customer.email = email
+    if notes and notes != customer.notes:
+        customer.notes = notes
+    cedula_clean = (cedula or "").strip() or None
+    if cedula_clean and cedula_clean != customer.cedula:
+        customer.cedula = cedula_clean
+
+
+def _create_new_customer(
+    session: Session,
+    name: str,
+    phone: str | None,
+    email: str | None,
+    notes: str | None,
+    cedula: str | None,
+) -> Customer:
+    """Create a new customer and flush to get the ID.
+
+    Extracted from ensure_customer to reduce complexity.
+    """
     cust = Customer(
         name=name, phone=phone, email=email, notes=notes, cedula=(cedula or "").strip() or None
     )
     session.add(cust)
     session.flush()
     return cust
-
-
 def search_customers(
     session: Session,
     query: str,
