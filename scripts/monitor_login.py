@@ -63,7 +63,7 @@ def main() -> None:
             final_url = r.url
     except urllib.error.HTTPError as e:
         die(f"POST /login HTTP {e.code} (5xx = auth backend down)")
-    except Exception as e:  # noqa: BLE001 — report any transport failure
+    except Exception as e:
         die(f"POST /login failed: {e}")
 
     if "error=" in final_url or final_url.rstrip("/").endswith("/login"):
