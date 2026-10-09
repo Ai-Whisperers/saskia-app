@@ -1,3 +1,36 @@
+## 2026-10-09 — Docs PR 5: CI docs-lint gate + baseline
+
+**Scope**: docs-quality followup PR 5. Wire the existing
+`scripts/check_docs_quality.py` (PR #93) into a CI gate that fails on
+ANY new finding, leaving the 11,327 existing triaged findings as a
+committed baseline.
+
+**What changed**:
+- `scripts/check_docs_quality.py`: added `--baseline FILE` (snapshot
+  current findings) and `--check FILE` (fail on findings not in
+  baseline). Baseline keys are `(relative_file, line, rule, message[:120])`
+  tuples — stable across re-runs.
+- `docs-quality-baseline.json` (1.9 MB, schema 1): the 11,327
+  pre-existing findings. Tracked in git as the gate's "source of truth".
+- `Makefile`: `docs-lint-check` (the gate), `docs-lint-baseline` (regen).
+  Removed an older duplicate `docs-lint` block at the bottom of the
+  file that was masking the real one.
+- `.github/workflows/ci.yml`: new "Docs quality (baseline gate)" step
+  before "CHANGELOG discipline check". Runs in ~2 min on the full
+  `docs/` tree.
+
+**CI cost**: ~2 min additional per PR. Within budget (private repo
+free tier; we already run 3-min ruff+test+smoke suite).
+
+**Operator workflow**:
+- New finding introduced in a PR → gate fails, PR must fix the doc
+- New finding that's accepted residue → run `make docs-lint-baseline`
+  (regen) and commit the JSON
+
+**Test status**: `make docs-lint-check` passes locally (baseline=11327
+current=11327 new=0). Negative test: creating a doc with new MD022/MD032
+fails the gate.
+
 ## 2026-10-09 — deploy workflows: fix SSH key "error in libcrypto"
 
 **Scope**: deploy-dev and deploy-test CI jobs failed 100% of runs since
@@ -9,7 +42,8 @@ which drops the final newline when the GitHub secret doesn't include
 it — ssh-keygen then fails with exactly this libcrypto error, ssh falls
 back to keyboard auth and gets Permission denied.
 
-**Fix**: `printf '%s\n'` in deploy-dev.yml and deploy-test.yml.
+**Fix**: `printf '%s
+'` in deploy-dev.yml and deploy-test.yml.
 
 ---
 

@@ -351,6 +351,13 @@ jobs:
       # Rejects any PR that touches app/, scripts/, tests/, or .github/ but
       # doesn't also touch app/CHANGELOG.md. Keeps the [Unreleased] section
       # honest.
+      - name: Docs quality (baseline gate)
+        # Fails on any pymarkdownlnt finding not in docs-quality-baseline.json.
+        # See scripts/check_docs_quality.py --check. Update the baseline ONLY
+        # for known, triaged residue (run make docs-lint-baseline).
+        run: |
+          python3 scripts/check_docs_quality.py docs/ --check docs-quality-baseline.json
+
       - name: CHANGELOG discipline check
         run: |
           changed=$(git diff --name-only origin/main...HEAD 2>/dev/null || git diff --name-only HEAD~1)
