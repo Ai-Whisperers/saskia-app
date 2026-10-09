@@ -56,7 +56,7 @@ exist for back-compat while a search/replace refactor is in progress.
 **Resolution path:** Grep for `from app.rms.models.channels import
 ALLOWED_CHANNELS, CHANNELS_DISPLAY, CHANNEL_DEFAULT` and replace each
 usage with the enum method. Estimate: 1-2h for a careful refactor +
-tests. SASKIA-2xx issue filed.
+tests. Issue #114 (SASKIA-212).
 
 ### TODO-2: `tests/test_dashboard_kpis_end_to_to_end.py:115`
 
@@ -76,7 +76,7 @@ documents the buggy behavior rather than enforcing the fix.
 **Resolution path:** Update `_period_window()` to treat missing
 `start`/`end` with `period=custom` as "today" (or 422 if the UX
 wants the user to be explicit). Add a regression test asserting 200.
-Estimate: 30 min. SASKIA-2xx issue filed.
+Estimate: 30 min. Issue #115 (SASKIA-213).
 
 ## The 251 false positives, by class
 

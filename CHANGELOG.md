@@ -1,3 +1,15 @@
+## 2026-10-09 — File issues for the 2 active TODOs (SASKIA-212, -213)
+
+**Scope**: docs-quality PR 6 followup. Each active TODO now has a
+ticket (the actionable home the triage policy requires):
+- Issue #114 (SASKIA-212): remove legacy `app/rms/models/channels.py:79`
+  constants (1-2h refactor).
+- Issue #115 (SASKIA-213): fix `?period=custom` 500 in
+  `tests/test_dashboard_kpis_end_to_end.py:115` (30 min).
+
+**Test status**: `make todos` still reports 2 active (will drop to 0
+when the linked issues ship).
+
 ## 2026-10-09 — Untrack .venv (re-tracked by sibling station-shell merge)
 
 **Scope**: housekeeping that broke the CHANGELOG gate's diff view.
