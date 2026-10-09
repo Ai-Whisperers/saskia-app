@@ -1,3 +1,18 @@
+## 2026-10-09 — deploy workflows: fix SSH key "error in libcrypto"
+
+**Scope**: deploy-dev and deploy-test CI jobs failed 100% of runs since
+2026-10-09 morning with `Load key "~/.ssh/id_ed25519": error in libcrypto`.
+
+**Root cause** (reproduced locally): OpenSSH private keys require a
+trailing newline. The workflows wrote the secret with `printf '%s'`,
+which drops the final newline when the GitHub secret doesn't include
+it — ssh-keygen then fails with exactly this libcrypto error, ssh falls
+back to keyboard auth and gets Permission denied.
+
+**Fix**: `printf '%s\n'` in deploy-dev.yml and deploy-test.yml.
+
+---
+
 ## 2026-10-09c — tooling(tier2-followups): Vale prose lint + tool evaluations
 
 **Scope**: closes the remaining deferred items from the Tier 2 research (PR #94/#95).

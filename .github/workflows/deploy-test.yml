@@ -84,7 +84,7 @@ jobs:
           # printf + tr to strip newlines (multi-line secrets break OpenSSH
           # with "error in libcrypto"). 2026-10-09: 9/10 deploy-test runs
           # were failing on this exact key-loading error.
-          printf '%s' "$SASKIA_VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          printf '%s\n' "$SASKIA_VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
           chmod 0600 ~/.ssh/id_ed25519
           echo "StrictHostKeyChecking=no" > ~/.ssh/config
 
