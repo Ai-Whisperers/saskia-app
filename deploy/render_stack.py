@@ -71,6 +71,9 @@ def render(env: str) -> str:
         "MEMORY_LIMIT": row["memory_limit"],
         "CPU_RESERVATION": row["cpu_reservation"],
         "MEMORY_RESERVATION": row["memory_reservation"],
+        # Per-env extra container env lines (optional). Rendered as
+        # indented list items; empty when the env row has no extra_env.
+        "EXTRA_ENV": "".join(f"      - {line}\n" for line in row.get("extra_env", [])).rstrip("\n"),
     }
 
     # Sanity: every {{...}} in the template must be in the substitution

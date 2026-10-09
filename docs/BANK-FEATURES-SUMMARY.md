@@ -54,6 +54,7 @@
 ## Database Schema Changes
 
 ### Migration 056: Bank Reconciliation
+
 ```sql
 ALTER TABLE bank_transaction ADD COLUMN reconciled BOOLEAN DEFAULT 0 NOT NULL;
 ALTER TABLE bank_transaction ADD COLUMN reconciled_with_type VARCHAR(20);

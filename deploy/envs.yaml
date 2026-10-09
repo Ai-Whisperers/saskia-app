@@ -33,16 +33,15 @@ prod:
   frame_deny: "true"
   backup_retention_days: 14       # keep prod backups 14 days (existing)
   backup_schedule: "0 3 * * *"    # 03:00 UTC daily
-  # BWS secret set for prod. Prod uses Supabase Auth (live users live in
-  # the aiwhisperers.supabase.co project).
+  # BWS secret set for prod. 2026-10-09: switched to local bcrypt (Supabase project NXDOMAIN).
   bws_keys:
     - FERNET_KEY
     - SESSION_SECRET
-    - SUPABASE_URL
-    - SUPABASE_ANON_KEY
-    - SUPABASE_SERVICE_ROLE_KEY
-    - SUPABASE_PUBLISHABLE_KEY       # 2025+ format (kept for forward-compat)
-    - SUPABASE_SECRET_KEY
+    # 2026-10-09: SUPABASE_* keys removed from prod bws_keys because
+    # rywzheykhdnaklmmsqey.supabase.co went NXDOMAIN (free-tier
+    # inactivity pause). Prod now uses local bcrypt auth (see
+    # app/rms/sales_intel.py users; SUPABASE_URL retained in BWS for
+    # future re-activation, but envs.yaml no longer writes it to prod).
     - RESEND_API_KEY
     - CF_R2_ACCESS_KEY_ID
     - CF_R2_SECRET_ACCESS_KEY
@@ -117,3 +116,10 @@ dev:
     - FERNET_KEY
     - SESSION_SECRET
     - SASKIA_DEV_USER_PASSWORD
+  # Extra container env vars injected into the stack environment block
+  # (beyond the template's static defaults). Dev activates the opt-in
+  # observability/security tooling so new findings surface where the
+  # fast iteration happens (2026-10-09, WHAT_NEXT #2).
+  extra_env:
+    - "SAFEGUARD_ENABLED=true"
+    - "OTEL_ENABLED=true"

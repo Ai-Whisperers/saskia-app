@@ -33,7 +33,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 #   - receta_form.html: 1149-LOC form, hat 7+28 said do NOT refactor without e2e tests.
 #     The "Gs." literals here are JS-updated placeholders (<span id="..."> + data-* attrs).
 #   - ventas.html line 192: <strong id="cart-total">Gs. 0</strong> — JS-updated cart total.
-ALLOWLIST_REGEX='^(app/CHANGELOG\.md|app/docs/copy-vos\.md|tests/|scripts/check_currency_drift\.sh|docs/|app/rms/money\.py|app/rms/display\.py|app/services/template_render\.py|app/services/import_xlsx\.py|app/services/export_xlsx\.py|app/rms/validation\.py|app/routers/recipes\.py|app/routers/inventory\.py|app/routers/customers\.py|app/templates/_components/macros\.html|app/templates/receta_form\.html|app/templates/ventas\.html)$'
+ALLOWLIST_REGEX='^(CHANGELOG\.md|app/docs/copy-vos\.md|tests/|scripts/check_currency_drift\.sh|docs/|app/rms/money\.py|app/rms/display\.py|app/services/template_render\.py|app/services/import_xlsx\.py|app/services/export_xlsx\.py|app/rms/validation\.py|app/routers/recipes\.py|app/routers/inventory\.py|app/routers/customers\.py|app/templates/_components/macros\.html|app/templates/receta_form\.html|app/templates/ventas\.html)$'
 
 # JS-placeholder heuristic: lines inside <script> blocks or with `data-*=` attributes
 # often contain "Gs. 0" as initial values for client-side updates.

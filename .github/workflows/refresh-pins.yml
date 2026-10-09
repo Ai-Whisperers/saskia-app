@@ -1,0 +1,77 @@
+# .github/workflows/refresh-pins.yml — monthly SHA-pin drift check
+#
+# Context (2026-10-09, WHAT_NEXT #4): PR #96 SHA-pinned 37 `uses:`
+# references, but nothing re-checked them. A moved tag (upstream
+# force-push / hotfix re-tag) would leave us silently running an old
+# commit — or worse, a cache would replay the stale pin forever.
+#
+# This workflow:
+#   1. Runs scripts/refresh_action_pins.py (check-only, rc=1 on drift)
+#   2. On drift: re-runs with --fix on a throwaway branch and opens a PR
+#
+# The PR review is the human/agent gate: a moved tag deserves a glance
+# at the upstream release notes before merging.
+
+name: Refresh action SHA pins
+
+on:
+  schedule:
+    # 1st of each month, 09:00 UTC (after the dora-snapshot Sunday cadence)
+    - cron: "0 9 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # push the refresh branch
+  pull-requests: write   # open the PR
+
+concurrency:
+  group: refresh-pins
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check SHA-pin drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+
+      - name: Check for drift
+        id: check
+        run: |
+          python3 scripts/refresh_action_pins.py > drift.txt 2>&1 || true
+          cat drift.txt
+          if grep -q "Drift detected" drift.txt; then
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Re-pin and open PR
+        if: steps.check.outputs.drift == 'true'
+        run: |
+          git config user.name "saskia-rms-bot"
+          git config user.email "saskia-rms-bot@nous.example"
+          BRANCH="chore/refresh-pins-$(date +%Y%m%d)"
+          git checkout -b "$BRANCH"
+          python3 scripts/refresh_action_pins.py --fix
+          git add .github/workflows/
+          git commit -m "chore(ci): refresh action SHA pins ($(date +%Y-%m-%d))
+
+          Automated by refresh-pins.yml. Tag drift detected:
+          $(grep '->' drift.txt | head -20 | sed 's/^/  - /')
+
+          Review upstream release notes before merging."
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "chore(ci): refresh action SHA pins ($(date +%Y-%m-%d))" \
+            --body "Automated monthly SHA-pin refresh. Drift:
+          $(grep '->' drift.txt | sed 's/^/  - /')
+
+          Check the upstream release notes for each moved tag before merging." \
+            --base main --head "$BRANCH"
+        env:
+          GH_TOKEN: ${{ github.token }}

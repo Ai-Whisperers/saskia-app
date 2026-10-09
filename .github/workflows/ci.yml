@@ -47,6 +47,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           persist-credentials: false
+          # Full history: CHANGELOG discipline diffs origin/main...HEAD.
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
@@ -73,6 +75,15 @@ jobs:
         run: |
           uv run ruff check .
           uv run ruff format --check .
+
+      - name: fastapi-safeguard security gate
+        # Runs the startup security audit (63 routes, ~50 ms) against
+        # create_app() and fails on any finding NOT in the accepted
+        # baseline (docs/security/safeguard-baseline.json). Regenerate
+        # the baseline after triage with:
+        #   uv run --group tooling-tier2 python scripts/generate_safeguard_baseline.py
+        run: |
+          uv run --group tooling-tier2 --no-default-groups python scripts/generate_safeguard_baseline.py --check
 
       - name: Test (pytest)
         # -n 2 (not -n auto): 2 parallel workers to balance disk usage on
@@ -350,11 +361,11 @@ jobs:
             esac
           done
           if [ "$hits" = "true" ]; then
-            if echo "$changed" | grep -q "^app/CHANGELOG.md$"; then
-              echo "OK: app/CHANGELOG.md updated"
+            if echo "$changed" | grep -qx "CHANGELOG.md"; then
+              echo "OK: CHANGELOG.md updated"
             else
-              echo "ERROR: code changed but app/CHANGELOG.md was not updated."
-              echo "Per E5.S3, every PR touching code must also touch app/CHANGELOG.md."
+              echo "ERROR: code changed but CHANGELOG.md was not updated."
+              echo "Per E5.S3, every PR touching code must also touch CHANGELOG.md (repo root)."
               echo "Changed files:"
               echo "$changed" | sed 's/^/  /'
               exit 1

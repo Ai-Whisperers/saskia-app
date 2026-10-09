@@ -786,42 +786,42 @@ Accepts JSON or form-encoded. Required: `name`. Optional: phone, email, cedula, 
 8. **Silent FK validation gaps** — `recipe_id` (in `producto_form`), `customer_id` (in `pedido`), etc. accept any int → IntegrityError → 500 instead of friendly 400.
 
 ### 🟠 High (data integrity)
-9. **Model ↔ form drift on `Product`**: `tags` column never editable.
-10. **Model ↔ form drift on `Ingredient`**: `supplier_id`, `subcategory`, `role`, `allergens`, `dietary_tags`, `shelf_life_days`, `max_stock_qty`, `lead_time_days` all in model, no UI.
-11. **Model ↔ form drift on `Supplier`**: `is_active` column never editable.
-12. **Model ↔ form drift on `Recipe`**: `difficulty` column never editable.
-13. **Sale form has no idempotency token** — double-click can create duplicate sales.
-14. **`sale/anular` accepts no reason** — no audit trail of why a sale was voided (only the void timestamp on Sale).
-15. **Server stores `pedido.channel` as raw string** ("wsp", "WhatsApp") — UI normalizes but CSV/DB see mixed casing.
-16. **Inventory adjust modal allows unbounded `adjustment`** — no `max` cap, only client-side warning.
+1. **Model ↔ form drift on `Product`**: `tags` column never editable.
+2. **Model ↔ form drift on `Ingredient`**: `supplier_id`, `subcategory`, `role`, `allergens`, `dietary_tags`, `shelf_life_days`, `max_stock_qty`, `lead_time_days` all in model, no UI.
+3. **Model ↔ form drift on `Supplier`**: `is_active` column never editable.
+4. **Model ↔ form drift on `Recipe`**: `difficulty` column never editable.
+5. **Sale form has no idempotency token** — double-click can create duplicate sales.
+6. **`sale/anular` accepts no reason** — no audit trail of why a sale was voided (only the void timestamp on Sale).
+7. **Server stores `pedido.channel` as raw string** ("wsp", "WhatsApp") — UI normalizes but CSV/DB see mixed casing.
+8. **Inventory adjust modal allows unbounded `adjustment`** — no `max` cap, only client-side warning.
 
 ### 🟡 Medium (validation/UX gaps)
-17. **No `maxlength` on `notes` textareas** across products, recipes, ingredients, sales, merma, customers.
-18. **No `max` on `qty` / `batch_qty` / `discount_gs` / `qty_to_produce`** — operator can type 1B.
-19. **`purchase_price_gs` form `step=1` but server accepts decimals** — UX mismatch.
-20. **No phone/email format validation server-side** for Customer, Supplier — only browser `type=email`/`type=tel` (bypassable via curl).
-21. **`timbrado` / `business_ruc` no server regex** — only browser `pattern`.
-22. **`invoice_sequence` no monotonic check** — could regress to duplicate invoice numbers.
-23. **`opening_stock_date` stored as Text** — DB column type doesn't match semantic (Date).
-24. **`pedido_line_unit_price_gs` accepts 0 silently** → server snapshots product price — UX would benefit from "0 = use current price" label.
-25. **Merma `qty_unit` server accepts any unit** regardless of ingredient's stock unit.
-26. **Recipe `line_unit` silently falls back to ""** on bad value — no Spanish error.
-27. **Recipe form on update replaces ALL lines** — silent line deletion; no "delete recipe" capability (no DELETE route).
-28. **Settings 422 error message in English** ("Invalid theme value").
-29. **`app_meta.updated_at` literal "now" string** in 3 places instead of ISO timestamp.
-30. **`Pedido.duplicate` is a GET** — state-mutating GET antipattern.
-31. **No file size limit on `/excel/importar` upload** — OOM risk.
+1. **No `maxlength` on `notes` textareas** across products, recipes, ingredients, sales, merma, customers.
+2. **No `max` on `qty` / `batch_qty` / `discount_gs` / `qty_to_produce`** — operator can type 1B.
+3. **`purchase_price_gs` form `step=1` but server accepts decimals** — UX mismatch.
+4. **No phone/email format validation server-side** for Customer, Supplier — only browser `type=email`/`type=tel` (bypassable via curl).
+5. **`timbrado` / `business_ruc` no server regex** — only browser `pattern`.
+6. **`invoice_sequence` no monotonic check** — could regress to duplicate invoice numbers.
+7. **`opening_stock_date` stored as Text** — DB column type doesn't match semantic (Date).
+8. **`pedido_line_unit_price_gs` accepts 0 silently** → server snapshots product price — UX would benefit from "0 = use current price" label.
+9. **Merma `qty_unit` server accepts any unit** regardless of ingredient's stock unit.
+10. **Recipe `line_unit` silently falls back to ""** on bad value — no Spanish error.
+11. **Recipe form on update replaces ALL lines** — silent line deletion; no "delete recipe" capability (no DELETE route).
+12. **Settings 422 error message in English** ("Invalid theme value").
+13. **`app_meta.updated_at` literal "now" string** in 3 places instead of ISO timestamp.
+14. **`Pedido.duplicate` is a GET** — state-mutating GET antipattern.
+15. **No file size limit on `/excel/importar` upload** — OOM risk.
 
 ### 🟢 Low (polish)
-32. **`/ventas/{id}` standalone HTML view missing** — only `/recibo` exists.
-33. **No `/auditoria/{id}` view** — acceptable since append-only.
-34. **No `/auditoria` CSV export** for compliance.
-35. **No undo / edit for waste, initial stock, or restock** — append-only by design but no corrective surface.
-36. **Sale's `discount_gs` browser has no `max`** — server enforces 100M but UX doesn't.
-37. **`/ventas/{id}/anular` POST is not idempotent** — double-click could double-void (server-side likely safe due to state machine, but UI doesn't prevent).
-38. **Merma page renders BOTH forms on GET** — `/merma` returns HTML with the create forms inline; not RESTful.
-39. **Supplier `name` no uniqueness** — duplicate supplier names allowed.
-40. **`customer.name` server substitutes `"(sin nombre)"` on empty** despite form `required` — inconsistent.
+1. **`/ventas/{id}` standalone HTML view missing** — only `/recibo` exists.
+2. **No `/auditoria/{id}` view** — acceptable since append-only.
+3. **No `/auditoria` CSV export** for compliance.
+4. **No undo / edit for waste, initial stock, or restock** — append-only by design but no corrective surface.
+5. **Sale's `discount_gs` browser has no `max`** — server enforces 100M but UX doesn't.
+6. **`/ventas/{id}/anular` POST is not idempotent** — double-click could double-void (server-side likely safe due to state machine, but UI doesn't prevent).
+7. **Merma page renders BOTH forms on GET** — `/merma` returns HTML with the create forms inline; not RESTful.
+8. **Supplier `name` no uniqueness** — duplicate supplier names allowed.
+9. **`customer.name` server substitutes `"(sin nombre)"` on empty** despite form `required` — inconsistent.
 
 ### Notable hidden-field inventory (form has no CSRF input anywhere)
 Every form relies on the cookie check. The middleware verifies cookie presence + signature only — same-origin defense via `SameSite=lax`. **No form in the codebase renders `<input name="csrf_token">`.** This is intentional per the design, but the confirm-modal code path (`_components/confirm_modal.html`) tries to find a non-existent field. Either:
