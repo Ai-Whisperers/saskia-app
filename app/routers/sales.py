@@ -1695,12 +1695,8 @@ def _finalize_sale_multi(
     if not sale_ids:
         return _redirect_after_sale(request, first_product_id, points_to_redeem, customer_id)
 
-    _rows = session.execute(
-        select(Sale).where(Sale.id.in_(sale_ids))
-    ).scalars().all()
-    _cart_total = sum(
-        max(0, int(r.qty * r.unit_price_gs) - int(r.discount_gs or 0)) for r in _rows
-    )
+    _rows = session.execute(select(Sale).where(Sale.id.in_(sale_ids))).scalars().all()
+    _cart_total = sum(max(0, int(r.qty * r.unit_price_gs) - int(r.discount_gs or 0)) for r in _rows)
     # WP-4.1 propina: tip lands on the FIRST row
     if tip_gs > 0 and _rows:
         _rows[0].tip_gs = tip_gs
@@ -1762,9 +1758,7 @@ def _process_split_payments(
             )
 
 
-def _redeem_loyalty_points(
-    session: Session, customer_id: int, points: int, sale_ids: list
-) -> None:
+def _redeem_loyalty_points(session: Session, customer_id: int, points: int, sale_ids: list) -> None:
     """Redeem loyalty points for the customer.
 
     Extracted from _finalize_sale_multi to reduce complexity.
@@ -1798,6 +1792,8 @@ def _redirect_after_sale(
     params = urlencode({"flash": "ok:Venta registrada"}) if flash_parts else {}
     url = f"/ventas?{params}" if params else "/ventas"
     return RedirectResponse(url=url, status_code=303)
+
+
 def _redirect_with_loyalty_flash(
     base_url: str,
     points_to_redeem: int,

@@ -4185,6 +4185,7 @@ class SeedContext:
     Populated collections start empty and are filled as the seed
     progresses through the sections.
     """
+
     session: Session
     report: SazonReport
     rng: random.Random
@@ -4252,6 +4253,7 @@ def seed_sazon(
     session.commit()
     return ctx.report
 
+
 def _seed_tenants(ctx: SeedContext):
     """Section 1: Tenants.
 
@@ -4263,9 +4265,10 @@ def _seed_tenants(ctx: SeedContext):
     )
     if was_created:
         ctx.report.tenants += 1
-    _default_tenant, _ = _ensure_tenant(ctx.session, DEFAULT_TENANT_SLUG, "Default", "#7b3f00", "Gs.")
+    _default_tenant, _ = _ensure_tenant(
+        ctx.session, DEFAULT_TENANT_SLUG, "Default", "#7b3f00", "Gs."
+    )
     logger.info(f"seed: tenant '{TENANT_NAME}' (slug={TENANT_SLUG})")
-
 
 
 def _seed_users(ctx: SeedContext):
@@ -4274,7 +4277,9 @@ def _seed_users(ctx: SeedContext):
     Extracted from seed_sazon (refactored 2026-10-09).
     """
 
-    _saskia_user, was_created = _ensure_user(ctx.session, SASKIA_USER, SASKIA_PASSWORD, role="admin")
+    _saskia_user, was_created = _ensure_user(
+        ctx.session, SASKIA_USER, SASKIA_PASSWORD, role="admin"
+    )
     if was_created:
         ctx.report.users += 1
     for username, password, _full_name, _email in CASHIER_USERS:
@@ -4282,7 +4287,6 @@ def _seed_users(ctx: SeedContext):
         if was_created:
             ctx.report.users += 1
     logger.info(f"seed: {ctx.report.users} users (Saskia + 2 cashiers)")
-
 
 
 def _seed_settingskv_branding(ctx: SeedContext):
@@ -4323,7 +4327,6 @@ def _seed_settingskv_branding(ctx: SeedContext):
     logger.info(f"seed: {ctx.report.settings_kv} settings_kv (BRANDING + OPS)")
 
 
-
 def _seed_categories(ctx: SeedContext):
     """Section 4: Categories.
 
@@ -4353,7 +4356,6 @@ def _seed_categories(ctx: SeedContext):
     logger.info(f"seed: {ctx.report.categories} categories")
 
 
-
 def _seed_payment_methods(ctx: SeedContext):
     """Section 5: Payment methods.
 
@@ -4379,7 +4381,6 @@ def _seed_payment_methods(ctx: SeedContext):
             )
             ctx.report.payment_methods += 1
     logger.info(f"seed: {ctx.report.payment_methods} payment methods")
-
 
 
 def _seed_margin_tiers(ctx: SeedContext):
@@ -4408,7 +4409,6 @@ def _seed_margin_tiers(ctx: SeedContext):
     logger.info(f"seed: {ctx.report.margin_tiers} margin tiers")
 
 
-
 def _seed_stock_status_config(ctx: SeedContext):
     """Section 7: Stock status config.
 
@@ -4433,7 +4433,6 @@ def _seed_stock_status_config(ctx: SeedContext):
             )
             ctx.report.stock_statuses += 1
     logger.info(f"seed: {ctx.report.stock_statuses} stock statuses")
-
 
 
 def _seed_storage_types(ctx: SeedContext):
@@ -4463,7 +4462,6 @@ def _seed_storage_types(ctx: SeedContext):
     logger.info(f"seed: {ctx.report.storage_types} storage types")
 
 
-
 def _seed_storage_keywords(ctx: SeedContext):
     """Section 9: Storage keywords.
 
@@ -4489,7 +4487,6 @@ def _seed_storage_keywords(ctx: SeedContext):
     logger.info(f"seed: {ctx.report.storage_keywords} storage keywords")
 
 
-
 def _seed_date_presets(ctx: SeedContext):
     """Section 10: Date presets.
 
@@ -4513,7 +4510,6 @@ def _seed_date_presets(ctx: SeedContext):
             )
             ctx.report.date_presets += 1
     logger.info(f"seed: {ctx.report.date_presets} date presets")
-
 
 
 def _seed_message_templates(ctx: SeedContext):
@@ -4547,7 +4543,6 @@ def _seed_message_templates(ctx: SeedContext):
     logger.info(f"seed: {ctx.report.message_templates} message templates")
 
 
-
 def _seed_delivery_zones(ctx: SeedContext):
     """Section 12: Delivery zones.
 
@@ -4578,7 +4573,9 @@ def _seed_delivery_zones(ctx: SeedContext):
 
     # === 13a. Channels ===
     for code, label, sort_order, is_default, notes in CHANNELS:
-        existing = ctx.session.execute(select(Channel).where(Channel.code == code)).scalar_one_or_none()
+        existing = ctx.session.execute(
+            select(Channel).where(Channel.code == code)
+        ).scalar_one_or_none()
         if existing is None:
             ctx.session.add(
                 Channel(
@@ -4591,7 +4588,6 @@ def _seed_delivery_zones(ctx: SeedContext):
                 )
             )
     logger.info(f"seed: {len(CHANNELS)} channels")
-
 
 
 def _seed_compliance_info_single_row(ctx: SeedContext):
@@ -4610,7 +4606,6 @@ def _seed_compliance_info_single_row(ctx: SeedContext):
         ctx.session.add(ci)
         ctx.report.compliance = 1
     logger.info("seed: compliance info (La Vaquita Holandesa S.A.)")
-
 
 
 def _seed_suppliers(ctx: SeedContext):
@@ -4642,7 +4637,6 @@ def _seed_suppliers(ctx: SeedContext):
         else:
             ctx.suppliers.append(existing)
     logger.info(f"seed: {ctx.report.suppliers} suppliers")
-
 
 
 def _seed_ingredients__variants__price_events(ctx: SeedContext):
@@ -4754,7 +4748,6 @@ def _seed_ingredients__variants__price_events(ctx: SeedContext):
     )
 
 
-
 def _seed_recipes__recipelines(ctx: SeedContext):
     """Section 16: Recipes + RecipeLines.
 
@@ -4776,7 +4769,9 @@ def _seed_recipes__recipelines(ctx: SeedContext):
             notes,
             image_url,
         ) = recipe_tuple
-        existing = ctx.session.execute(select(Recipe).where(Recipe.name == name)).scalar_one_or_none()
+        existing = ctx.session.execute(
+            select(Recipe).where(Recipe.name == name)
+        ).scalar_one_or_none()
         if existing is None:
             r = Recipe(
                 name=name,
@@ -4834,7 +4829,6 @@ def _seed_recipes__recipelines(ctx: SeedContext):
     logger.info(f"seed: {ctx.report.recipe_lines} recipe lines")
 
 
-
 def _seed_products(ctx: SeedContext):
     """Section 17: Products.
 
@@ -4857,7 +4851,9 @@ def _seed_products(ctx: SeedContext):
             image_url,
             notes,
         ) = prod_tuple
-        existing = ctx.session.execute(select(Product).where(Product.name == name)).scalar_one_or_none()
+        existing = ctx.session.execute(
+            select(Product).where(Product.name == name)
+        ).scalar_one_or_none()
         if existing is None:
             recipe = ctx.recipes_by_name.get(recipe_name) if recipe_name else None
             p = Product(
@@ -4884,7 +4880,6 @@ def _seed_products(ctx: SeedContext):
         else:
             ctx.products_by_name[name] = existing
     logger.info(f"seed: {ctx.report.products} products")
-
 
 
 def _seed_tags(ctx: SeedContext):
@@ -4929,7 +4924,6 @@ def _seed_tags(ctx: SeedContext):
         elif "1 unidad" == prod.portion_label:
             tag_target(ctx.session, individual, TagKind.PRODUCT.value, prod.id)
     logger.info("seed: tags applied")
-
 
 
 def _seed_customers__addresses(ctx: SeedContext):
@@ -5004,8 +4998,9 @@ def _seed_customers__addresses(ctx: SeedContext):
                 ctx.report.customer_addresses += 1
         else:
             ctx.customers.append(existing)
-    logger.info(f"seed: {ctx.report.customers} customers + {ctx.report.customer_addresses} addresses")
-
+    logger.info(
+        f"seed: {ctx.report.customers} customers + {ctx.report.customer_addresses} addresses"
+    )
 
 
 def _seed_production_plan_templates(ctx: SeedContext):
@@ -5040,7 +5035,6 @@ def _seed_production_plan_templates(ctx: SeedContext):
             )
             ctx.report.production_templates += 1
     logger.info(f"seed: {ctx.report.production_templates} production templates")
-
 
 
 def _seed_production_completions_last_7_days_for_p(ctx: SeedContext):
@@ -5091,7 +5085,6 @@ def _seed_production_completions_last_7_days_for_p(ctx: SeedContext):
                 )
                 ctx.report.production_completions += 1
     logger.info(f"seed: {ctx.report.production_completions} production completions (last 7 days)")
-
 
 
 def _seed_pedidos__lines(ctx: SeedContext):
@@ -5201,7 +5194,6 @@ def _seed_pedidos__lines(ctx: SeedContext):
                         )
                     )
     logger.info(f"seed: {ctx.report.pedidos} pedidos + {ctx.report.pedido_lines} pedido lines")
-
 
 
 def _seed_sales_90_days_of_realistic_data(ctx: SeedContext, days_of_history: int):
@@ -5348,7 +5340,9 @@ def _seed_sales_90_days_of_realistic_data(ctx: SeedContext, days_of_history: int
                     qty_d = Decimal(str(qty))
                     # Get recipe lines
                     recipe_lines = (
-                        ctx.session.execute(select(RecipeLine).where(RecipeLine.recipe_id == recipe.id))
+                        ctx.session.execute(
+                            select(RecipeLine).where(RecipeLine.recipe_id == recipe.id)
+                        )
                         .scalars()
                         .all()
                     )
@@ -5467,16 +5461,13 @@ def _seed_sales_90_days_of_realistic_data(ctx: SeedContext, days_of_history: int
             reference_type=None,
             # Use anchor date so the (ingredient_id, movement_type="initial")
             # dedup is stable across re-runs.
-            recorded_at=datetime.combine(
-                ctx.anchor_date - timedelta(days=90), datetime.min.time()
-            ),
+            recorded_at=datetime.combine(ctx.anchor_date - timedelta(days=90), datetime.min.time()),
             created_by=SASKIA_USER,
         )
         ctx.session.add(sm)
         ctx.report.stock_movements += 1
 
     logger.info(f"seed: {ctx.report.sales} sales + {ctx.report.stock_movements} stock movements")
-
 
 
 def _seed_waste_log(ctx: SeedContext):
@@ -5513,7 +5504,6 @@ def _seed_waste_log(ctx: SeedContext):
     logger.info(f"seed: {ctx.report.waste_log} waste log entries")
 
 
-
 def _seed_shopping_list_items_to_reorder(ctx: SeedContext):
     """Section 25: Shopping list (items to reorder).
 
@@ -5543,7 +5533,6 @@ def _seed_shopping_list_items_to_reorder(ctx: SeedContext):
             )
             ctx.report.shopping_list += 1
     logger.info(f"seed: {ctx.report.shopping_list} shopping list items")
-
 
 
 def _seed_haccp__freezer_temperature_log_last_14_(ctx: SeedContext):
@@ -5591,7 +5580,6 @@ def _seed_haccp__freezer_temperature_log_last_14_(ctx: SeedContext):
     logger.info(f"seed: {ctx.report.haccp_temps} HACCP freezer temp readings")
 
 
-
 def _seed_market_benchmarks(ctx: SeedContext):
     """Section 27: Market benchmarks.
 
@@ -5616,7 +5604,6 @@ def _seed_market_benchmarks(ctx: SeedContext):
     logger.info(f"seed: {ctx.report.market_benchmarks} market benchmarks")
 
 
-
 def _seed_audit_log_initial_entries(ctx: SeedContext):
     """Section 28: Audit log (initial entries).
 
@@ -5636,7 +5623,6 @@ def _seed_audit_log_initial_entries(ctx: SeedContext):
         detail={"tenant": TENANT_NAME, "version": "1.0"},
     )
     ctx.report.audit_log_rows = 2
-
 
 
 def _seed_appmeta_pins_idempotency__onboarding_gu(ctx: SeedContext):
@@ -5666,7 +5652,6 @@ def _seed_appmeta_pins_idempotency__onboarding_gu(ctx: SeedContext):
         else:
             existing.value = str(v)
             existing.updated_at = datetime.now(ASUNCION_TZ).isoformat()
-
 
 
 def _seed_bank_transactions_a_few_recent_ones(ctx: SeedContext) -> SazonReport:
@@ -5778,7 +5763,6 @@ def _seed_bank_transactions_a_few_recent_ones(ctx: SeedContext) -> SazonReport:
     ctx.session.commit()
     logger.info(f"seed_sazon complete: {ctx.report.as_dict()}")
     return ctx.report
-
 
 
 def _delete_sazon_data(session: Session) -> None:

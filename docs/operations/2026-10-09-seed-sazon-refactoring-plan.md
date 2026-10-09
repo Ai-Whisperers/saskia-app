@@ -104,7 +104,9 @@ def _seed_suppliers(ctx: SeedContext) -> None:
             select(Supplier).where(Supplier.name == name)
         ).scalar_one_or_none()
         if existing is None:
-            s = Supplier(name=name, contact=contact, phone=phone, email=email, notes=notes, is_active=True)
+            s = Supplier(
+                name=name, contact=contact, phone=phone, email=email, notes=notes, is_active=True
+            )
             ctx.session.add(s)
             ctx.session.flush()
             ctx.suppliers.append(s)

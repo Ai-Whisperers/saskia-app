@@ -412,10 +412,13 @@ def _filter_ingredients(
     filters (text search, estado, category, allergens, diet, storage,
     expiry) and returns filtered list.
     """
+
     def _match(i: Ingredient) -> bool:
         if not _matches_text_search(i, filters["q"]):
             return False
-        if filters["estados_sel"] and not _matches_estado(i, filters["estados_sel"], never_loaded_ids):
+        if filters["estados_sel"] and not _matches_estado(
+            i, filters["estados_sel"], never_loaded_ids
+        ):
             return False
         if filters["categorias"] and not _matches_category(i, filters["categorias"]):
             return False
@@ -425,7 +428,9 @@ def _filter_ingredients(
             return False
         if filters["almacenes_sel"] and not _matches_storage(i, filters["almacenes_sel"]):
             return False
-        if filters["expiries_sel"] and not _matches_expiry(i, filters["expiries_sel"], today, week_from_now, month_from_now):
+        if filters["expiries_sel"] and not _matches_expiry(
+            i, filters["expiries_sel"], today, week_from_now, month_from_now
+        ):
             return False
         return True
 
@@ -680,9 +685,7 @@ def _compute_market_refs(session: Session, ingredients: list) -> dict[int, dict]
         ing = next((i for i in ingredients if i.id == r.ingredient_id), None)
         if not ing or ing.purchase_price_gs is None:
             continue
-        delta_pct = (
-            (ing.purchase_price_gs - r.price_gs) / r.price_gs * 100 if r.price_gs > 0 else 0
-        )
+        delta_pct = (ing.purchase_price_gs - r.price_gs) / r.price_gs * 100 if r.price_gs > 0 else 0
         market_refs[ing.id] = {
             "market_price_gs": r.price_gs,
             "market_unit": r.unit,
@@ -813,6 +816,8 @@ def _build_template_context(
         or 0,
         "total_all": total_all,
     }
+
+
 @router.get("/carga-inicial", response_class=HTMLResponse)
 def carga_inicial_view(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
     """PRO-INV: asisted initial stock load — list every ingredient that has
