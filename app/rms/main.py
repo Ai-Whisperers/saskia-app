@@ -344,6 +344,7 @@ async def lifespan(app: FastAPI):
     # queda vacía pero la app arranca igual.
     try:
         from app.rms.db import make_session_factory as _mi_factory
+
         # noqa: arch-rule — calls seed_competitor_prices at startup (lazy import in lifespan)
         from app.rms.seed.competitor_prices import seed_competitor_prices
 
@@ -413,6 +414,7 @@ async def lifespan(app: FastAPI):
 
 # Build the app
 
+
 def create_app() -> FastAPI:
     """Build and configure the Sazon FastAPI app.
 
@@ -437,7 +439,6 @@ def create_app() -> FastAPI:
         redoc_url=None,
         openapi_url="/api/openapi.json",
     )
-
 
     class StaticCacheMiddleware:
         """Add Cache-Control + strip vary:Cookie on /static/* responses.
@@ -483,23 +484,28 @@ def create_app() -> FastAPI:
                         message = dict(message)
                         message["headers"] = list(message["headers"])
 
-                        new_headers = [(k, v) for k, v in message["headers"] if k.lower() != b"vary"]
+                        new_headers = [
+                            (k, v) for k, v in message["headers"] if k.lower() != b"vary"
+                        ]
                         message["headers"] = new_headers
 
                     # Set Cache-Control.
                     # The if above guarantees immutable is only set for immutable paths.
                     cache_value = (
-                        "no-cache" if path in self._REVALIDATE_PATHS else "max-age=31536000, immutable"
+                        "no-cache"
+                        if path in self._REVALIDATE_PATHS
+                        else "max-age=31536000, immutable"
                     )
                     # Append or replace Cache-Control.
-                    headers = [(k, v) for k, v in message["headers"] if k.lower() != b"cache-control"]
+                    headers = [
+                        (k, v) for k, v in message["headers"] if k.lower() != b"cache-control"
+                    ]
                     headers.append((b"cache-control", cache_value.encode()))
                     message["headers"] = headers
 
                 await send(message)
 
             await self.app(scope, receive, wrapped_send)
-
 
     # GZip compression: ~70% bandwidth reduction on all HTML/CSS/JS responses.
     # minimum_size=500 avoids compressing tiny responses (overhead > savings).
@@ -523,7 +529,6 @@ def create_app() -> FastAPI:
     # that change only on deploys.
     app.add_middleware(StaticCacheMiddleware)
 
-
     class HealthCacheMiddleware(BaseHTTPMiddleware):
         """Add short Cache-Control to /healthz* responses.
 
@@ -543,9 +548,7 @@ def create_app() -> FastAPI:
                 response.headers["Cache-Control"] = "public, max-age=10, s-maxage=10"
             return response
 
-
     app.add_middleware(HealthCacheMiddleware)
-
 
     # Phase 14 — Prometheus /metrics middleware. Stdlib-only so we don't add
     # starlette_exporter as a dep. Records request count + latency for every
@@ -574,7 +577,6 @@ def create_app() -> FastAPI:
             )
             return response
 
-
     app.add_middleware(MetricsMiddleware)
 
     # Security headers middleware: defense-in-depth HTTP response headers
@@ -594,7 +596,6 @@ def create_app() -> FastAPI:
     # outermost), so adding SecurityHeadersMiddleware here means it wraps
     # everything below it, including csrf's HTTPException responses.
     app.add_middleware(SecurityHeadersMiddleware)
-
 
     class StationGateMiddleware(BaseHTTPMiddleware):
         """Keep a chosen station inside its screens.
@@ -639,11 +640,9 @@ def create_app() -> FastAPI:
                 )
             return RedirectResponse(result.split(":", 1)[1], status_code=303)
 
-
     # Inner relative to SessionMiddleware (added below), so the session cookie
     # is already loaded when the gate reads it.
     app.add_middleware(StationGateMiddleware)
-
 
     # Session middleware: signs cookies with SESSION_SECRET.
     # Must be added BEFORE routers so login_user() can write to request.session.
@@ -683,7 +682,6 @@ def create_app() -> FastAPI:
 
             # Normal session middleware for all other paths.
             await super().__call__(scope, receive, send)
-
 
     app.add_middleware(
         _NoVaryCookieSessionMiddleware,
@@ -742,7 +740,6 @@ def create_app() -> FastAPI:
                 media_type="image/x-icon",
             )
 
-
     # --- Auth gate (Milestone 1) ---
     #
     # All routes require login EXCEPT:
@@ -766,11 +763,9 @@ def create_app() -> FastAPI:
 
     PUBLIC_PATH_PREFIXES = ("/static",)
 
-
     def _is_public(path: str) -> bool:
         """True for paths that don't require auth."""
         return any(path.startswith(p) for p in PUBLIC_PATH_PREFIXES)
-
 
     # Mount routers — auth first (so /login is reachable before any auth check).
     # Public paths (healthz, login, logout, forgot-password, static) are
@@ -836,7 +831,6 @@ def create_app() -> FastAPI:
     app.include_router(settings.router)
     app.include_router(settings_runtime.router)
 
-
     # Phase 14 — Prometheus /metrics endpoint. Stdlib-only, no auth (the
     # endpoint reveals paths + status codes but no PII. If you want it
     # locked down, put it behind the same CF Tunnel that already protects
@@ -854,7 +848,6 @@ def create_app() -> FastAPI:
             media_type="text/plain; version=0.0.4; charset=utf-8",
         )
 
-
     # Spanish-language alias: /proveedores → /suppliers
     # Operators see "proveedores" in UI copy. Accepting both URLs means
     # external links/bookmarks work regardless of which word was used.
@@ -863,7 +856,6 @@ def create_app() -> FastAPI:
         from fastapi.responses import RedirectResponse
 
         return RedirectResponse(url="/suppliers", status_code=303)
-
 
     app.include_router(users.router)
     app.include_router(reorder.router)
@@ -887,13 +879,11 @@ def create_app() -> FastAPI:
         app.include_router(_dev_router.router)
         app.include_router(_dev_router.api_router)
 
-
     def _request_id() -> str:
         """Generate a short request id for log correlation."""
         import uuid
 
         return uuid.uuid4().hex[:12]
-
 
     def _wants_html(request: Request) -> bool:
         """True if the client likely expects HTML over JSON.
@@ -905,7 +895,6 @@ def create_app() -> FastAPI:
         # Browsers send text/html. API clients (curl, fetch from JS) send application/json
         # or */*. If html is explicitly preferred OR no JSON preference is set, return HTML.
         return "text/html" in accept and "application/json" not in accept.split(";")
-
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(
@@ -956,13 +945,16 @@ def create_app() -> FastAPI:
                 "fields": [
                     loc[-1] if loc else "campo"
                     for loc in [
-                        [str(x) for x in e.get("loc", []) if x not in ("body", "query", "path", "form")]
+                        [
+                            str(x)
+                            for x in e.get("loc", [])
+                            if x not in ("body", "query", "path", "form")
+                        ]
                         for e in errors
                     ]
                 ],
             },
         )
-
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> Response:
@@ -1165,7 +1157,6 @@ def create_app() -> FastAPI:
             },
         )
 
-
     @app.exception_handler(404)
     async def not_found_handler(request: Request, exc: Exception) -> Response:
         """404 handler — HTML for browsers, JSON for API clients."""
@@ -1186,7 +1177,6 @@ def create_app() -> FastAPI:
             },
         )
 
-
     # Per-request access logging is now done by RequestContextMiddleware
     # (registered earlier) which binds request_id + user_id + method + path
     # to every loguru line. The older standalone middleware was removed
@@ -1194,9 +1184,11 @@ def create_app() -> FastAPI:
 
     return app
 
+
 # Build the module-level app for uvicorn's `app.rms.main:app` reference
 # and for any test that does `from app.rms.main import app`.
 app = create_app()
+
 
 def migrate() -> None:
     """Schema migration entry point. Idempotent.

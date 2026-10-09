@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.rms.llm import MAX_IMAGE_BYTES, LLMError, chat_json
+
 # noqa: arch-rule — reuses _norm + _MATCH_CUTOFF constants; should be moved to menu_normalize.py
 from app.rms.seed.menu_import import _MATCH_CUTOFF, _norm
 

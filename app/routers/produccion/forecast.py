@@ -136,6 +136,7 @@ def produccion_manana(
     # aggregated qty per product so the "Qué producir" table can show
     # a "Pedidos" column = how many of each product are already committed.
     from app.rms.models import Pedido
+
     # noqa: arch-rule — uses _pedido_total_gs helper from pedidos
     from app.routers.pedidos import _pedido_total_gs
 

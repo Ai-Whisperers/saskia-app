@@ -150,8 +150,6 @@ _STORAGE_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
 # ---------------------------------------------------------------------------
 
 
-
-
 def infer_subcategory(name: str, category: str | None = None) -> str | None:
     """Return finer-grained subtype. None if no subcategory matches."""
     norm = _normalize(name)
