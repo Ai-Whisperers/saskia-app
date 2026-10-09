@@ -270,7 +270,13 @@ hardcoded-tmp-directory = ["/tmp", "/var/tmp"]
 max_examples = 1000
 deadline = 1000  # ms per example
 
-# Mypy config (we use ruff for linting but mypy is the type checker; not strict yet)
+# Type checker config — Sazon does NOT currently run a type checker in CI.
+# We evaluated mypy (config retained below) and ty (0.0.85, pilot). The
+# decision (2026-10-09) is to NOT adopt either yet. See
+# docs/operations/2026-10-09-sensez-ty-evaluation.md for the full analysis.
+#
+# When we do adopt one, [tool.mypy] config below is ready to use (or
+# replace with [tool.ty] / ty.toml).
 [tool.mypy]
 python_version = "3.13"
 ignore_missing_imports = true

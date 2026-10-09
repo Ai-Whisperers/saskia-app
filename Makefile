@@ -114,9 +114,14 @@ test-xdist: ## Parallel fast loop (-n 4 green since 2026-09-25).
 	$(UV) run pytest tests/ -q --no-header --no-cov -n 4 \
 	  --deselect tests/test_xlsx_fixtures.py --deselect tests/test_shopping_benchmarks.py
 
-dead-code: ## vulture: scan for unused code (>=80% confidence).
+dead-code: ## vulture + sensez: scan for unused code + structural smells.
 	$(UV) run vulture app/ scripts/ --min-confidence 80 \
-	  --ignore-decorators @app.get,@app.post,@app.put,@app.delete,@router.get,@router.post,@router.put,@router.delete,@app.exception_handler,@app.middleware,@app.on_event,@staticmethod,@classmethod,@property
+	  --ignore-decorators @app.get,@app.post,@app.put,@app.delete,@router.get,@router.post,@router.put,@router.delete,@app.exception_handler,@app.middleware,@app.on_event,@staticmethod,@classmethod,@property \
+	  --ignore-names 'test_*,Test*,_test_*' 2>&1 | tail -30
+	@echo ""
+	@echo "=== sensez (structural maintainability) ==="
+	$(UV) run sensez app/ 2>&1 | head -40 || true
+	@echo "Note: sensez is advisory. See docs/operations/2026-10-09-sensez-ty-evaluation.md."
 
 complexity: ## radon: cyclomatic complexity ceiling (B = CC<=10).
 	$(UV) run python scripts/check_complexity.py
