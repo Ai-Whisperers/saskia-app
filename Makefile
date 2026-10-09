@@ -1,7 +1,7 @@
 # Sazón RMS — Makefile
 # Shortcuts for common dev tasks. Run `make help` to see all targets.
 
-.PHONY: help install test test-verbose test-coverage test-fast lint lint-fix format check serve migrate seed seed-reset backup fixtures clean ci-smoke pre-commit stats smoke check-warnings check-secrets ci dead-code complexity duplicates duplicates-code arch security audit-cve licenses ci-extra
+.PHONY: help install test test-verbose test-coverage test-fast lint lint-fix format check serve migrate seed seed-reset backup fixtures clean ci-smoke pre-commit stats smoke check-warnings check-secrets ci dead-code complexity duplicates duplicates-code arch security audit-cve licenses ci-extra docs-lint-check docs-lint-baseline todos todos-stats
 
 PYTHON ?= python3
 UV ?= uv
@@ -201,6 +201,19 @@ safeguard-baseline: ## fastapi-safeguard: regenerate the accepted-findings basel
 docs-lint: ## Markdown quality check (pymarkdownlnt; see scripts/check_docs_quality.py).
 	$(UV) run python scripts/check_docs_quality.py
 
+
+docs-lint-check: ## docs-lint CI gate: fail on findings not in the baseline.
+	$(UV) run python scripts/check_docs_quality.py docs/ --check docs-quality-baseline.json
+
+docs-lint-baseline: ## Regenerate docs-quality-baseline.json from current findings.
+	$(UV) run python scripts/check_docs_quality.py docs/ --baseline docs-quality-baseline.json
+	@echo "Review the diff: every entry needs a rationale."
+todos: ## Active TODO comments (code-only). See docs/operations/2026-10-09-todo-triage.md.
+	$(PYTHON) scripts/check_active_todos.py
+
+todos-stats: ## Stats-only view of the active TODO inventory.
+	$(PYTHON) scripts/check_active_todos.py --stats
+
 docs-lint-strict: ## Markdown quality check, all rules (no disables).
 	$(UV) run python scripts/check_docs_quality.py --strict
 
@@ -250,6 +263,35 @@ ci-extra: lint dead-code complexity cognitive deptry duplicates arch security wo
 	@echo "ci-extra complete."
 
 ci: lint test ## Run everything CI runs.
+
+tool-matrix: ## Print the tooling coverage matrix.
+	@echo "=== Tooling coverage matrix ==="
+	@echo ""
+	@echo "| Tool          | Declared | Makefile | Pre-commit | CI |"
+	@echo "|---------------|----------|----------|------------|----|"
+	@echo "| ruff          |     ✓    |    ✓     |     ✓      | ✓  |"
+	@echo "| pytest        |     ✓    |    ✓     |     ✓      | ✓  |"
+	@echo "| vulture       |     ✓    |    ✓     |     ✓      |    |"
+	@echo "| deadcode      |     ✓    |    ✓ (this PR) |   |    |"
+	@echo "| bandit        |     ✓    |    ✓     |     ✓      |    |"
+	@echo "| radon-cc      |     ✓    |    ✓     |     ✓      |    |"
+	@echo "| complexipy    |     ✓    |    ✓     |            | ✓  |"
+	@echo "| pyright       |     ✓    |    ✓     |            | ✓  |"
+	@echo "| mypy          |          |          |            | ✓ (informational) |"
+	@echo "| deptry        |     ✓    |    ✓     |            |    |"
+	@echo "| interrogate   |     ✓    |    ✓     |            |    |"
+	@echo "| refurb        |     ✓    |    ✓     |            |    |"
+	@echo "| pip-audit     |     ✓    |    ✓     |            |    |"
+	@echo "| reuse         |     ✓    |    ✓     |            |    |"
+	@echo "| jscpd         |     ✓    |    ✓ (this PR) |   |    |"
+	@echo "| sensez        |     ✓    |    ✓     |            |    |"
+	@echo "| pymarkdownlnt |          |    ✓ (this PR) |   |    |"
+	@echo "| hypothesis    |     ✓    |          |            | ✓  |"
+	@echo "| playwright    |     ✓    |    ✓     |            | ✓  |"
+	@echo "| testcontainers |    ✓    |          |            | ✓  |"
+	@echo "| sentry        |     ✓    |          |            |    |"
+	@echo ""
+	@echo "Full analysis: docs/operations/2026-10-09-tooling-research.md"
 
 clean: ## Remove build artifacts.
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

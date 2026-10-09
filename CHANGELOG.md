@@ -1,3 +1,67 @@
+## 2026-10-09 — Untrack .venv (re-tracked by sibling station-shell merge)
+
+**Scope**: housekeeping that broke the CHANGELOG gate's diff view.
+A station-shell merge (different SHAs than the 23ac7a86 incident) re-tracked
+`.venv`. `git rm -r --cached`; local files untouched. Also added
+`scripts/check_active_todos.py` + the docs-quality PR 6 deliverable.
+
+## 2026-10-09 — Docs PR 6: TODO triage + active-comment scanner
+
+**Scope**: docs-quality followup PR 6. The 235 TODO markers from the
+audit were 99% false positives (Spanish prose, audit quotes, archived
+sprint tables). Real code TODO comments: 2.
+
+**What changed**:
+- `scripts/check_active_todos.py` (new): scans for code-comment-style
+  TODO/FIXME/XXX (`#` / `//` / `<!-- -->` at line start). Excludes
+  prose, archived docs, and a hand-maintained skip list. Returns the
+  real 2.
+- `docs/operations/2026-10-09-todo-triage.md` (new): full audit
+  breakdown, triage policy, and the 2 real TODOs with resolution paths.
+- `Makefile`: `todos` (default), `todos-stats`. **NOT** wired as a CI
+  gate — the real count is too small and judgement-heavy.
+
+**The 2 real TODOs**:
+- `app/rms/models/channels.py:79` — legacy constants to remove (1-2h
+  refactor)
+- `tests/test_dashboard_kpis_end_to_to_end.py:115` — `?period=custom`
+  without dates returns 500 (30 min fix)
+
+**Test status**: scanner returns exactly 2 from main.
+
+## 2026-10-09 — Docs PR 5: CI docs-lint gate + baseline
+
+**Scope**: docs-quality followup PR 5. Wire the existing
+`scripts/check_docs_quality.py` (PR #93) into a CI gate that fails on
+ANY new finding, leaving the 11,327 existing triaged findings as a
+committed baseline.
+
+**What changed**:
+- `scripts/check_docs_quality.py`: added `--baseline FILE` (snapshot
+  current findings) and `--check FILE` (fail on findings not in
+  baseline). Baseline keys are `(relative_file, line, rule, message[:120])`
+  tuples — stable across re-runs.
+- `docs-quality-baseline.json` (1.9 MB, schema 1): the 11,327
+  pre-existing findings. Tracked in git as the gate's "source of truth".
+- `Makefile`: `docs-lint-check` (the gate), `docs-lint-baseline` (regen).
+  Removed an older duplicate `docs-lint` block at the bottom of the
+  file that was masking the real one.
+- `.github/workflows/ci.yml`: new "Docs quality (baseline gate)" step
+  before "CHANGELOG discipline check". Runs in ~2 min on the full
+  `docs/` tree.
+
+**CI cost**: ~2 min additional per PR. Within budget (private repo
+free tier; we already run 3-min ruff+test+smoke suite).
+
+**Operator workflow**:
+- New finding introduced in a PR → gate fails, PR must fix the doc
+- New finding that's accepted residue → run `make docs-lint-baseline`
+  (regen) and commit the JSON
+
+**Test status**: `make docs-lint-check` passes locally (baseline=11327
+current=11327 new=0). Negative test: creating a doc with new MD022/MD032
+fails the gate.
+
 ## 2026-10-09 — deploy workflows: fix SSH key "error in libcrypto"
 
 **Scope**: deploy-dev and deploy-test CI jobs failed 100% of runs since
@@ -9,7 +73,8 @@ which drops the final newline when the GitHub secret doesn't include
 it — ssh-keygen then fails with exactly this libcrypto error, ssh falls
 back to keyboard auth and gets Permission denied.
 
-**Fix**: `printf '%s\n'` in deploy-dev.yml and deploy-test.yml.
+**Fix**: `printf '%s
+'` in deploy-dev.yml and deploy-test.yml.
 
 ---
 

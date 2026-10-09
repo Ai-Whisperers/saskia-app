@@ -127,6 +127,20 @@ def main() -> int:
         default=None,
         help="Config file (default: .markdownlint.jsonc)",
     )
+    parser.add_argument(
+        "--baseline",
+        type=Path,
+        default=None,
+        metavar="FILE",
+        help="Snapshot current findings to FILE (use after manual triage).",
+    )
+    parser.add_argument(
+        "--check",
+        type=Path,
+        default=None,
+        metavar="FILE",
+        help="Fail if current findings are not a subset of FILE (CI gate).",
+    )
     args = parser.parse_args()
 
     # Default paths: docs/ + root .md files
@@ -159,6 +173,50 @@ def main() -> int:
     # Aggregate
     rule_counts = Counter(f["rule"] for f in findings)
     file_counts = Counter(f["file"] for f in findings)
+
+    def finding_key(f: dict) -> tuple:
+        rel = f["file"]
+        try:
+            rel = str(Path(rel).relative_to(REPO_ROOT))
+        except ValueError:
+            pass
+        return (rel, f["line"], f["rule"], f["message"][:120])
+
+    current_keys = {finding_key(f) for f in findings}
+
+    if args.baseline is not None:
+        args.baseline.write_text(
+            json.dumps(
+                {
+                    "schema": 1,
+                    "snapshot": len(current_keys),
+                    "by_rule": dict(rule_counts.most_common()),
+                    "keys": sorted(current_keys),
+                },
+                indent=2,
+            )
+            + "\n"
+        )
+        print(f"Baseline written: {args.baseline} ({len(current_keys)} findings)")
+        return 0
+
+    if args.check is not None:
+        baseline_data = json.loads(args.check.read_text())
+        baseline_keys = {tuple(k) for k in baseline_data["keys"]}
+        new_keys = current_keys - baseline_keys
+        removed_keys = baseline_keys - current_keys
+        print(
+            f"Baseline gate: baseline={len(baseline_keys)} current={len(current_keys)} "
+            f"new={len(new_keys)} removed={len(removed_keys)}"
+        )
+        if new_keys:
+            print("\nNEW findings (not in baseline — PR must fix or extend baseline):")
+            for k in sorted(new_keys)[:30]:
+                print(f"  {k[0]}:{k[1]}  {k[2]}  {k[3][:80]}")
+            if len(new_keys) > 30:
+                print(f"  ... ({len(new_keys) - 30} more)")
+            return 1
+        return 0
 
     if args.json:
         print(
