@@ -403,6 +403,48 @@ async def recipe_create(
 ) -> RedirectResponse:
     """Create recipe + lines from form data."""
     form = await request.form()
+    
+    # Parse and validate form fields
+    fields = _parse_recipe_form(form)
+    
+    # Validate required fields
+    if not fields["name"]:
+        raise BadRequest(RECIPE_NAME_REQUIRED)
+    
+    # Auto-fill family if blank
+    if not fields["family"]:
+        fields["family"] = infer_recipe_family_from_name(fields["name"])
+    
+    # Create the recipe
+    recipe = _create_recipe_record(session, fields)
+    
+    # Apply lines from form
+    skipped = _apply_lines_from_form(session, recipe.id, form)
+    
+    # Validate lines
+    _validate_recipe_lines(session, form, skipped, recipe)
+    
+    # Check for sub-recipe cycles
+    _check_recipe_cycles(session, recipe.id)
+    
+    # Auto-fill inference (dietary tags, difficulty, prep/cook minutes)
+    _apply_recipe_inference(session, recipe, fields)
+    
+    # Refresh tag algebra cache
+    _refresh_recipe_tag_cache(session, recipe.id)
+    
+    # Redirect logic
+    also_create = str(form.get("also_create_product", "")).strip() == "1"
+    if also_create:
+        return RedirectResponse(url=f"/productos/nuevo?recipe_id={recipe.id}", status_code=303)
+    return RedirectResponse(url="/recetas", status_code=303)
+
+
+def _parse_recipe_form(form) -> dict:
+    """Parse recipe form data into a structured dict.
+    
+    Extracted from recipe_create to reduce complexity.
+    """
     name = str(form.get("name", "")).strip()
     yield_qty_raw = str(form.get("yield_qty", "")).strip()
     yield_unit_raw = str(form.get("yield_unit", "und")).strip()
@@ -410,47 +452,56 @@ async def recipe_create(
     prep_minutes_raw = str(form.get("prep_minutes", "")).strip()
     cook_minutes_raw = str(form.get("cook_minutes", "")).strip()
     difficulty_raw = str(form.get("difficulty", "")).strip()
+    
+    # Validate yield unit
+    try:
+        y_unit = Unit.coerce(yield_unit_raw)
+    except ValueError as e:
+        raise BadRequest(RECIPE_INVALID_UNIT, context={"original_error": str(e)}) from e
+    
+    # Parse difficulty (1-5)
     difficulty_val: int | None = None
     if difficulty_raw:
         try:
             difficulty_val = max(1, min(5, int(difficulty_raw)))
         except ValueError:
             difficulty_val = None
-    family = str(form.get("family", "")).strip() or None
-    # UI-V2: multi-select Etiquetas de Menú (repeated checkbox fields or CSV).
+    
+    # Parse menu tags (multi-select)
     menu_tags_vals = list(form.getlist("menu_tag")) + [
         t.strip() for t in str(form.get("menu_tags", "")).split(",") if t.strip()
     ]
     menu_tags = ",".join(dict.fromkeys(menu_tags_vals)) or None
-    dietary_tags = str(form.get("dietary_tags", "")).strip() or None
+    
+    return {
+        "name": name,
+        "yield_qty": float(yield_qty_raw) if yield_qty_raw else None,
+        "yield_unit": y_unit.value,
+        "notes": notes or None,
+        "prep_minutes": int(prep_minutes_raw) if prep_minutes_raw else None,
+        "cook_minutes": int(cook_minutes_raw) if cook_minutes_raw else None,
+        "difficulty_val": difficulty_val,
+        "family": str(form.get("family", "")).strip() or None,
+        "menu_tags": menu_tags,
+        "dietary_tags": str(form.get("dietary_tags", "")).strip() or None,
+    }
 
-    if not name:
-        raise BadRequest(RECIPE_NAME_REQUIRED)
 
-    try:
-        y_unit = Unit.coerce(yield_unit_raw)
-    except ValueError as e:
-        raise BadRequest(RECIPE_INVALID_UNIT, context={"original_error": str(e)}) from e
-
-    y_qty = float(yield_qty_raw) if yield_qty_raw else None
-    prep_min = int(prep_minutes_raw) if prep_minutes_raw else None
-    cook_min = int(cook_minutes_raw) if cook_minutes_raw else None
-
-    # Wave 2 — auto-fill inference on recipe create.
-    # Auto-fill family if operator left it blank.
-    if not family:
-        family = infer_recipe_family_from_name(name)
-
+def _create_recipe_record(session: Session, fields: dict) -> Recipe:
+    """Create a Recipe record and commit it.
+    
+    Extracted from recipe_create to reduce complexity.
+    """
     recipe = Recipe(
-        name=name,
-        yield_qty=y_qty,
-        yield_unit=y_unit.value,
-        notes=notes or None,
-        prep_minutes=prep_min,
-        cook_minutes=cook_min,
-        family=family,
-        menu_tags=menu_tags,
-        dietary_tags=dietary_tags,
+        name=fields["name"],
+        yield_qty=fields["yield_qty"],
+        yield_unit=fields["yield_unit"],
+        notes=fields["notes"],
+        prep_minutes=fields["prep_minutes"],
+        cook_minutes=fields["cook_minutes"],
+        family=fields["family"],
+        menu_tags=fields["menu_tags"],
+        dietary_tags=fields["dietary_tags"],
     )
     session.add(recipe)
     try:
@@ -459,11 +510,43 @@ async def recipe_create(
         session.rollback()
         raise Conflict(
             RECIPE_DUPLICATE_NAME,
-            context={"name": name},
+            context={"name": fields["name"]},
         ) from None
+    return recipe
 
-    skipped = _apply_lines_from_form(session, recipe.id, form)
-    # Validate: at least one valid line must exist
+
+def _validate_recipe_lines(session: Session, form, skipped: list, recipe: Recipe) -> None:
+    """Validate that at least one valid line exists.
+    
+    Raises HTTPException if validation fails.
+    Extracted from recipe_create to reduce complexity.
+    """
+    valid_line_count = _count_valid_lines(form)
+    
+    if valid_line_count == 0:
+        session.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=RECIPE_LINES_REQUIRED,
+        )
+    
+    if skipped:
+        # BUG-00: surface WHY a line was rejected instead of silently dropping it.
+        # Roll back so the operator can fix and retry without orphans.
+        session.rollback()
+        from fastapi import HTTPException as _HTTPExc
+        
+        detail = "Algunas líneas no se pudieron guardar. " + "; ".join(skipped[:5])
+        if len(skipped) > 5:
+            detail += f" (y {len(skipped) - 5} más)"
+        raise _HTTPExc(status_code=400, detail=detail)
+
+
+def _count_valid_lines(form) -> int:
+    """Count valid recipe lines from form data.
+    
+    Extracted from recipe_create to reduce complexity.
+    """
     valid_line_count = 0
     for i, kind in enumerate(form.getlist("line_kind")):
         target = (
@@ -475,33 +558,15 @@ async def recipe_create(
                 valid_line_count += 1
         except (ValueError, IndexError):
             continue
-    if valid_line_count == 0:
-        session.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail=RECIPE_LINES_REQUIRED,
-        )
-    if skipped and valid_line_count == 0:
-        session.rollback()
-        from fastapi import HTTPException as _HTTPExc
+    return valid_line_count
 
-        detail = "Algunas líneas no se pudieron guardar. " + "; ".join(skipped[:5])
-        if len(skipped) > 5:
-            detail += f" (y {len(skipped) - 5} más)"
-        raise _HTTPExc(status_code=400, detail=detail)
-    if skipped:
-        # BUG-00: surface WHY a line was rejected instead of silently dropping it.
-        # Roll back so the operator can fix and retry without orphans.
-        session.rollback()
-        from fastapi import HTTPException as _HTTPExc
 
-        detail = "Algunas líneas no se pudieron guardar. " + "; ".join(skipped[:5])
-        if len(skipped) > 5:
-            detail += f" (y {len(skipped) - 5} más)"
-        raise _HTTPExc(status_code=400, detail=detail)
-
-    # Cycle detection: check sub_recipe references don't create a cycle
-    cycle = _detect_sub_recipe_cycle(session, recipe.id)
+def _check_recipe_cycles(session: Session, recipe_id: int) -> None:
+    """Check for sub-recipe cycles and raise if detected.
+    
+    Extracted from recipe_create to reduce complexity.
+    """
+    cycle = _detect_sub_recipe_cycle(session, recipe_id)
     if cycle:
         session.rollback()
         session.execute(select(Recipe.name).where(Recipe.id.in_(cycle))).scalars().all()
@@ -510,57 +575,48 @@ async def recipe_create(
             detail=RECIPE_CYCLE_DETECTED,
         )
 
-    # If the user checked "create product from this recipe", redirect
-    # to the crear-producto helper instead of /recetas.
-    also_create = str(form.get("also_create_product", "")).strip() == "1"
 
-    # Wave 2 — auto-fill dietary_tags from ingredient set + difficulty from
-    # line count / sub_recipe depth. Operator can override on subsequent edits.
+def _apply_recipe_inference(session: Session, recipe: Recipe, fields: dict) -> None:
+    """Apply auto-fill inference: dietary tags, difficulty, prep/cook minutes.
+    
+    Extracted from recipe_create to reduce complexity.
+    """
     try:
         session.refresh(recipe)
         inferred_tags = sorted(infer_recipe_dietary(session, recipe))
-        if not dietary_tags:
+        if not fields["dietary_tags"]:
             recipe.dietary_tags = ",".join(inferred_tags) if inferred_tags else None
         n_ing = recipe_ingredient_count(recipe)
         # Sub-recipe depth requires recursive walk; skip if deep.
-        if difficulty_val is None:
+        if fields["difficulty_val"] is None:
             # auto-infer only when the operator didn't type one (1-5)
             recipe.difficulty = infer_difficulty(recipe, n_ing, sub_recipe_depth=0)
         else:
-            recipe.difficulty = difficulty_val
-        if not prep_min:
+            recipe.difficulty = fields["difficulty_val"]
+        if not fields["prep_minutes"]:
             recipe.prep_minutes = estimate_prep_minutes(recipe, n_ing)
-        if not cook_min:
+        if not fields["cook_minutes"]:
             recipe.cook_minutes = estimate_cook_minutes(recipe)
         session.commit()
     except Exception as exc:
         logger.warning("auto-fill inference failed for recipe %s: %s", recipe.id, exc)
         session.rollback()
 
-    # Tag algebra (054): refresh this recipe's cached derived tags + allergens,
-    # cascade to parents, and update linked products' inherited tags.
+
+def _refresh_recipe_tag_cache(session: Session, recipe_id: int) -> None:
+    """Refresh tag algebra cache for the recipe and cascade to parents.
+    
+    Extracted from recipe_create to reduce complexity.
+    """
     try:
         from app.rms.tag_algebra import _product_inherit_sync, cascade_refresh
-
-        cascade_refresh(session, recipe_id=recipe.id)
-        _product_inherit_sync(session, recipe.id)
+        
+        cascade_refresh(session, recipe_id=recipe_id)
+        _product_inherit_sync(session, recipe_id)
         session.commit()
     except Exception as exc:
-        logger.warning("tag cascade failed for recipe %s: %s", recipe.id, exc)
+        logger.warning("tag algebra refresh failed for recipe %s: %s", recipe_id, exc)
         session.rollback()
-
-    record_audit(
-        request,
-        session=session,
-        action="write.recipe.create",
-        target_type="recipe",
-        target_id=recipe.id,
-        detail={"name": name},
-    )
-    session.commit()
-
-    if also_create:
-        return RedirectResponse(url=f"/recetas/{recipe.id}/crear-producto", status_code=303)
     return RedirectResponse(url="/recetas", status_code=303)
 
 
