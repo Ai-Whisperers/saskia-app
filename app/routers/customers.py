@@ -177,12 +177,8 @@ def clientes_list(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Customer directory with loyalty tiers + points + filters."""
-    import csv
-    import io
 
-    from starlette.responses import StreamingResponse
 
-    from app.rms.models import CustomerAddress
 
     q = q or ""
     ql = q.lower()
@@ -208,7 +204,7 @@ def clientes_list(
 
 def _filter_customers_by_query(session, ql: str) -> list:
     """Filter customers by search query.
-    
+
     Extracted from clientes_list to reduce complexity.
     """
     if not ql:
@@ -222,7 +218,7 @@ def _filter_customers_by_query(session, ql: str) -> list:
 
 def _batch_subscription_and_pedido_counts(session, cust_ids: list) -> tuple[dict, dict]:
     """Batch-fetch active subscription and open pedido counts.
-    
+
     Extracted from clientes_list to reduce complexity.
     Returns (active_sub_count, open_pedido_count) dicts.
     """
@@ -232,6 +228,7 @@ def _batch_subscription_and_pedido_counts(session, cust_ids: list) -> tuple[dict
         return active_sub_count, open_pedido_count
 
     from sqlalchemy import func
+
     from app.rms.models import Pedido, Suscripcion
 
     sub_rows = session.execute(
@@ -255,7 +252,7 @@ def _batch_subscription_and_pedido_counts(session, cust_ids: list) -> tuple[dict
 
 def _build_row(customer, stats, sub_counts, pedido_counts) -> dict:
     """Build a single customer row dict.
-    
+
     Extracted from clientes_list to reduce complexity.
     """
     return {
@@ -278,7 +275,7 @@ def _build_row(customer, stats, sub_counts, pedido_counts) -> dict:
 
 def _build_rows(customers, all_stats, sub_counts, pedido_counts) -> list:
     """Build rows for all customers.
-    
+
     Extracted from clientes_list to reduce complexity.
     """
     rows = []
@@ -292,7 +289,7 @@ def _build_rows(customers, all_stats, sub_counts, pedido_counts) -> list:
 
 def _build_rows_with_tier_filter(customers, all_stats, sub_counts, pedido_counts, tier: str) -> list:
     """Build rows filtered by tier.
-    
+
     Extracted from clientes_list to reduce complexity.
     """
     rows = []
@@ -307,7 +304,7 @@ def _build_rows_with_tier_filter(customers, all_stats, sub_counts, pedido_counts
 
 def _apply_sorting(rows: list, sort: str | None, dir: str | None) -> list:
     """Apply sorting to rows.
-    
+
     Extracted from clientes_list to reduce complexity.
     """
     sort_col = sort or "name"
@@ -332,11 +329,12 @@ def _apply_sorting(rows: list, sort: str | None, dir: str | None) -> list:
 
 def _export_csv(request, session, rows: list):
     """Export rows as CSV.
-    
+
     Extracted from clientes_list to reduce complexity.
     """
     import csv
     import io
+
     from starlette.responses import StreamingResponse
 
     all_customers = list_customers(session)
@@ -364,7 +362,7 @@ def _export_csv(request, session, rows: list):
 
 def _build_csv_export_rows(rows: list, cust_by_id: dict) -> list:
     """Build CSV export rows by delegating to _build_csv_row.
-    
+
     Extracted from _export_csv to reduce complexity.
     """
     return [_build_csv_row(r, cust_by_id.get(r["id"])) for r in rows]
@@ -372,7 +370,7 @@ def _build_csv_export_rows(rows: list, cust_by_id: dict) -> list:
 
 def _build_csv_row(row: dict, cust) -> dict:
     """Build a single CSV export row.
-    
+
     Extracted from _build_csv_export_rows to reduce complexity.
     """
     return {
@@ -396,10 +394,9 @@ def _build_csv_row(row: dict, cust) -> dict:
 
 def _render_directory(request, session, rows: list, page: int, q: str, tier: str | None, sort: str | None, dir: str | None):
     """Render the customer directory HTML page.
-    
+
     Extracted from clientes_list to reduce complexity.
     """
-    from app.rms.models import CustomerAddress
 
     total = len(rows)
     total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
@@ -433,7 +430,7 @@ def _render_directory(request, session, rows: list, page: int, q: str, tier: str
 
 def _compute_profile_nudges(session, all_customers: list) -> dict:
     """Compute data-completion nudge counts.
-    
+
     Extracted from _render_directory to reduce complexity.
     """
     from app.rms.models import CustomerAddress
@@ -686,13 +683,29 @@ def clientes_duplicados(
     route — otherwise Starlette matches the literal `duplicados` against
     `customer_id` and blows up trying to coerce "duplicados" to int.
     """
+    pairs = _fetch_duplicate_pairs(session)
+    if not pairs:
+        return render(
+            request,
+            "clientes_duplicados.html",
+            {"groups": [], "total_groups": 0, "total_dupes": 0},
+        )
+    members = _group_pairs_by_union_find(pairs)
+    return _render_duplicates_page(request, session, members)
+
+
+def _fetch_duplicate_pairs(session) -> list:
+    """Fetch customer pairs that look like duplicates (phone/name match).
+    
+    Self-join: c1.id < c2.id guarantees each pair appears once.
+    Phone prefix match is the strongest signal in this codebase —
+    phone is the de-facto unique identifier at the counter.
+    Exact name match on >3 chars catches spelling-duplicate typos.
+    Extracted from clientes_duplicados to reduce complexity.
+    """
     from sqlalchemy import and_, literal_column, or_
 
-    # Self-join: c1.id < c2.id guarantees each pair appears once.
-    # Phone prefix match is the strongest signal in this codebase —
-    # phone is the de-facto unique identifier at the counter.
-    # Exact name match on >3 chars catches spelling-duplicate typos.
-    pairs = session.execute(
+    return session.execute(
         select(
             Customer.id.label("id1"),
             Customer.name.label("name1"),
@@ -708,68 +721,125 @@ def clientes_duplicados(
         )
         .where(
             or_(
-                and_(
-                    Customer.phone.is_not(None),
-                    Customer.phone != "",
-                    literal_column("c2.phone").is_not(None),
-                    literal_column("c2.phone") != "",
-                    func.substr(Customer.phone, 1, 5)
-                    == func.substr(literal_column("c2.phone"), 1, 5),
-                ),
-                and_(
-                    func.length(Customer.name) > 3,
-                    Customer.name == literal_column("c2.name"),
-                ),
+                _phone_prefix_match_clause(),
+                _name_exact_match_clause(),
             )
         )
     ).all()
 
-    # Group pairs by canonical-id heuristic: smallest id wins within
-    # a connected component. Simpler: build adjacency, then union-find.
+
+def _phone_prefix_match_clause():
+    """Build the phone prefix match clause for duplicate detection.
+    
+    Extracted from _fetch_duplicate_pairs to reduce complexity.
+    """
+    from sqlalchemy import and_, literal_column
+
+    return and_(
+        Customer.phone.is_not(None),
+        Customer.phone != "",
+        literal_column("c2.phone").is_not(None),
+        literal_column("c2.phone") != "",
+        func.substr(Customer.phone, 1, 5)
+        == func.substr(literal_column("c2.phone"), 1, 5),
+    )
+
+
+def _name_exact_match_clause():
+    """Build the exact name match clause for duplicate detection.
+    
+    Extracted from _fetch_duplicate_pairs to reduce complexity.
+    """
+    from sqlalchemy import and_, literal_column
+
+    return and_(
+        func.length(Customer.name) > 3,
+        Customer.name == literal_column("c2.name"),
+    )
+
+
+def _group_pairs_by_union_find(pairs) -> dict[int, set[int]]:
+    """Group customer pairs into connected components via union-find.
+    
+    Canonical-id heuristic: smallest id wins within a connected component.
+    Extracted from clientes_duplicados to reduce complexity.
+    """
     parent: dict[int, int] = {}
-
-    def find(x: int) -> int:
-        while parent.get(x, x) != x:
-            parent[x] = parent.get(parent[x], parent[x])
-            x = parent[x]
-        return x
-
-    def union(a: int, b: int) -> None:
-        ra, rb = find(a), find(b)
-        if ra != rb:
-            if ra < rb:
-                parent[rb] = ra
-            else:
-                parent[ra] = rb
-
     for r in pairs:
-        union(int(r.id1), int(r.id2))
-
-    # Collect groups.
+        _union_pair(parent, int(r.id1), int(r.id2))
     members: dict[int, set[int]] = {}
     for r in pairs:
-        root = find(int(r.id1))
+        root = _find_root(parent, int(r.id1))
         members.setdefault(root, set()).update({int(r.id1), int(r.id2)})
+    return members
 
-    # Load full Customer rows for each group.
+
+def _find_root(parent: dict, x: int) -> int:
+    """Find root of x with path compression.
+    
+    Extracted from _group_pairs_by_union_find to reduce complexity.
+    """
+    while parent.get(x, x) != x:
+        parent[x] = parent.get(parent[x], parent[x])
+        x = parent[x]
+    return x
+
+
+def _union_pair(parent: dict, a: int, b: int) -> None:
+    """Union two elements in union-find (smaller id wins).
+    
+    Extracted from _group_pairs_by_union_find to reduce complexity.
+    """
+    ra, rb = _find_root(parent, a), _find_root(parent, b)
+    if ra != rb:
+        if ra < rb:
+            parent[rb] = ra
+        else:
+            parent[ra] = rb
+
+
+def _render_duplicates_page(request: Request, session, members: dict) -> HTMLResponse:
+    """Render the duplicates page with all groups.
+    
+    Extracted from clientes_duplicados to reduce complexity.
+    """
     all_ids = {i for ids in members.values() for i in ids}
-    if not all_ids:
-        return render(
-            request,
-            "clientes_duplicados.html",
-            {"groups": [], "total_groups": 0, "total_dupes": 0},
-        )
+    by_id = _load_customers_by_id(session, all_ids)
+    groups = _build_duplicate_groups(members, by_id)
+    return render(
+        request,
+        "clientes_duplicados.html",
+        {
+            "groups": groups,
+            "total_groups": len(groups),
+            "total_dupes": sum(len(g["duplicate_ids"]) for g in groups),
+        },
+    )
 
-    customers_rows = session.scalars(
-        select(Customer).where(Customer.id.in_(all_ids)).order_by(Customer.id)
+
+def _load_customers_by_id(session, ids: set) -> dict:
+    """Load Customer rows for the given IDs.
+    
+    Extracted from _render_duplicates_page to reduce complexity.
+    """
+    if not ids:
+        return {}
+    rows = session.scalars(
+        select(Customer).where(Customer.id.in_(ids)).order_by(Customer.id)
     ).all()
-    by_id = {c.id: c for c in customers_rows}
+    return {c.id: c for c in rows}
 
+
+def _build_duplicate_groups(members: dict, by_id: dict) -> list[dict]:
+    """Build the duplicate groups with canonical + duplicates.
+    
+    Canonical = smallest id (oldest row). The operator can change
+    the choice on the merge form anyway.
+    Extracted from _render_duplicates_page to reduce complexity.
+    """
     groups: list[dict] = []
     for root in sorted(members.keys()):
         ids = sorted(members[root])
-        # Canonical = smallest id (oldest row). The operator can change
-        # the choice on the merge form anyway.
         canonical_id = ids[0]
         canonical = by_id.get(canonical_id)
         if canonical is None:
@@ -784,16 +854,7 @@ def clientes_duplicados(
                 "duplicate_ids": [d.id for d in dupes],
             }
         )
-
-    return render(
-        request,
-        "clientes_duplicados.html",
-        {
-            "groups": groups,
-            "total_groups": len(groups),
-            "total_dupes": sum(len(g["duplicate_ids"]) for g in groups),
-        },
-    )
+    return groups
 
 
 @router.get(
@@ -1495,7 +1556,7 @@ def cliente_update(
 
     from fastapi import HTTPException as _HE
 
-    def _fail(msg: str):  # noqa: ANN202 — raises HTTPException; FastAPI infers
+    def _fail(msg: str):
         """Roll back, re-render the form with values + error."""
         session.rollback()
         return _render_cliente_edit(
