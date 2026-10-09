@@ -5,38 +5,36 @@
 {% block title %}Excel{% endblock %}
 
 {% block content %}
-<h1>Excel: importar / exportar</h1>
-
+<h1>Excel</h1>
+<p class="page-desc" title="El backup principal es el archivo exportado.">Importá un .xlsx o descargá la plantilla.</p>
 
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}
-<p class="muted">Tu sistema lee y escribe archivos .xlsx. El backup principal es el archivo exportado; podés guardarlo en Drive o donde quieras.</p>
 
 <div class="grid grid-2 mb-4">
   <section class="card">
     <h2>Importar desde Excel</h2>
-    <form method="post" action="/excel/importar" enctype="multipart/form-data" id="import-form" class="js-confirm-form" data-confirm-title="¿Importar Excel?" data-confirm-body="Se crearán/actualizarán productos e insumos según el archivo. Revisá que sea el archivo correcto.">
+    <form method="post" action="/excel/importar" enctype="multipart/form-data" id="import-form" class="sheet-form js-confirm-form" data-confirm-title="¿Importar Excel?" data-confirm-body="Se crearán/actualizarán productos e insumos según el archivo. Revisá que sea el archivo correcto.">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="form-row">
         <label for="file">Archivo .xlsx</label>
-        <input type="file" id="file" name="file" accept=".xlsx" required>
-        <small>Subí una copia de tu archivo de Drive (no lo modificamos, solo lo leemos).</small>
+        <input type="file" id="file" name="file" accept=".xlsx" required title="Solo se lee el archivo. No se modifica en Drive.">
       </div>
 
       <fieldset class="form-row">
         <legend>Modo de importación</legend>
         <div class="grid grid-3" style="gap: 8px;">
-          <label class="card is-interactive" style="cursor: pointer; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+          <label class="card is-interactive" style="cursor: pointer; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px;">
             <input type="radio" name="mode" value="PATCH" checked style="margin-right: 6px;">
             <strong>PATCH</strong><br>
             <small class="text-muted">Actualizar por nombre (recomendado)</small>
           </label>
-          <label class="card is-interactive" style="cursor: pointer; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+          <label class="card is-interactive" style="cursor: pointer; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px;">
             <input type="radio" name="mode" value="APPEND" style="margin-right: 6px;">
             <strong>APPEND</strong><br>
             <small class="text-muted">Solo añadir filas nuevas</small>
           </label>
-          <label class="card is-interactive" style="cursor: pointer; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+          <label class="card is-interactive" style="cursor: pointer; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px;">
             <input type="radio" name="mode" value="FULL" style="margin-right: 6px;">
             <strong>FULL</strong><br>
             <small class="text-muted">Reemplazar todo (avanzado)</small>
@@ -66,28 +64,22 @@
 
   <section class="card">
     <h2>Descargar plantilla</h2>
-    <p class="text-muted mb-3">
-      La plantilla viene pre-rellenada con tus productos, ingredientes y recetas actuales.
-      Las columnas están marcadas como <strong>[REQUIRED]</strong> o <strong>[OPTIONAL]</strong>.
-    </p>
-    <ul style="font-size: 13px; color: #6b7280; margin-bottom: 1rem; padding-left: 1.2rem;">
-      <li><strong>Ingredientes</strong> — [REQUIRED] name, unit; [OPTIONAL] stock_qty, purchase_price_gs, min_stock_qty</li>
-      <li><strong>Recetas</strong> — [REQUIRED] name; [OPTIONAL] yield_qty, yield_unit, notes</li>
-      <li><strong>Lineas</strong> — [REQUIRED] recipe_name, line_kind (ingredient/sub_recipe), target_name, qty; [OPTIONAL] notes</li>
-      <li><strong>Productos</strong> — [REQUIRED] name, sale_price_gs; [OPTIONAL] portion_label, recipe_id, notes</li>
-      <li><strong>Clientes</strong> — [REQUIRED] telefono, nombre; [OPTIONAL] email, cedula, notes</li>
-    </ul>
+    <details>
+      <summary>Qué columnas trae la plantilla</summary>
+      <ul>
+        <li><strong>Ingredientes</strong> — name, unit. Opcional: stock, precio, mínimo.</li>
+        <li><strong>Recetas</strong> — name. Opcional: rinde y notas.</li>
+        <li><strong>Lineas</strong> — receta, tipo, insumo y cantidad.</li>
+        <li><strong>Productos</strong> — name y precio. Opcional: porción y receta.</li>
+        <li><strong>Clientes</strong> — teléfono y nombre.</li>
+      </ul>
+    </details>
     <p>
-      <a href="/excel/plantilla" class="btn btn-secondary">
-        <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
-        Descargar plantilla editable
-      </a>
+      <a href="/excel/plantilla" class="btn">Descargar plantilla</a>
     </p>
 
-    <h2 class="mt-4">Exportar a Excel (backup)</h2>
-    <p class="text-muted mb-3">
-      El archivo tiene 6 hojas: Ingredientes, Recetas, Lineas, Productos, Ventas, Clientes, StockMoves.
-    </p>
+    <h2 class="form-section-title">Exportar</h2>
+    <p class="page-desc" title="Hojas: Ingredientes, Recetas, Lineas, Productos, Ventas, Clientes, StockMoves.">Backup de lo que está cargado hoy.</p>
     <p><a href="/excel/exportar" class="btn btn-primary">Descargar backup (.xlsx)</a></p>
   </section>
 </div>
