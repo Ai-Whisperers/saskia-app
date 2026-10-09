@@ -1,3 +1,69 @@
+## 2026-10-09 — tooling hardening sweep (post-2026-10-08)
+
+Companion to docs/operations/2026-10-08-tooling-hardening.md.
+Triggered by the 5-version settings sprawl + production_scheduler.py stub.
+
+**New tools (Sazon-specific)**
+- `scripts/check_imports.py` — pure-Python import-linter; cycle detection
+  + 5 layered-import rules. Surfaces the Sazon architecture smells
+  that ad-hoc grep would miss.
+- `scripts/check_duplicate_files.py` — stem-collision detector (catches
+  `settings.py` vs `settings_original.py` patterns); forbidden-legacy
+  file blocker; possibly-unused module heuristic.
+- `scripts/check_duplicate_code.py` — near-duplicate function bodies
+  via difflib on regex-normalized sources. ~3s for 5k functions.
+- `scripts/check_complexity.py` — radon CC ceiling gate (B grade,
+  CC ≤ 10). Fails with refactor list.
+
+**New pre-commit hooks (4)**
+- `vulture` — dead-code (--min-confidence 80)
+- `bandit` — security (medium+high)
+- `radon-cc` — complexity ceiling
+- `forbid-legacy-modules` — blocks re-adding settings_original.py or
+  production_scheduler.py
+
+**New Make targets (9)**
+- `make dead-code`, `complexity`, `duplicates`, `duplicates-code`,
+  `arch`, `security`, `audit-cve`, `licenses`, `ci-extra`
+- `make check` upgraded: ruff + warnings + duplicates + arch
+
+**New dev dep group**
+- `[dependency-groups].tooling`: vulture, bandit, radon, pip-audit,
+  reuse, jscpd. Install with `uv sync --group tooling`.
+
+**New AGENTS.md rules (27-30)** (app/rms/AGENTS.md)
+- 27: no `*_<legacy/original/v2>.py` files
+- 28: no `app.routers` imports from `app/rms/`
+- 29: complexity ceiling B (CC ≤ 10)
+- 30: no silent except blocks in routers
+
+**New CI workflow**
+- `.github/workflows/tooling.yml` — runs the lightweight static
+  analysis on every PR + push to main. Heavy (vulture, bandit, radon)
+  available via `make ci-extra` on-demand.
+
+**New regression test**
+- `tests/test_check_imports_rules.py` (6 tests) — pins the
+  ALLOW_LIST size (8) and KNOWN_CYCLES size (3) so the Sazon
+  architectural contract cannot be silently weakened.
+
+**Findings on current codebase**
+- 0 stem collisions, 0 forbidden legacy
+- 0 near-duplicate functions (≥80% similarity, 20+ lines)
+- 0 architecture rule violations (after refining rules + allow-list)
+- 0 import cycles (after documenting 3 as known-tolerate, each a
+  SASKIA-XXX refactor candidate)
+
+**Deleted**
+- `app/rms/production_scheduler.py` (21 lines, stub since 2026-10-05,
+  0 live imports; replaced by the 9-file `app/routers/produccion/`
+  sub-package).
+
+**Files changed:** 11 (8 new scripts/docs/hooks + 3 modified config files)
+**Effort:** ~1 day
+**Refs:** docs/operations/2026-10-08-tooling-hardening.md
+         docs/operations/2026-10-08-tooling-hardening-continuation.md
+
 ## 2026-10-08h — compact create and edit forms
 
 Order, product, ingredient, customer, supplier, subscription, recipe, and waste
