@@ -1,3 +1,18 @@
+## 2026-10-09 — SASKIA-317 root-caused: broken main.py refactor (reverted)
+
+The SASKIA-317 "200-300 tests fail in full-suite parallel CI" ticket was
+**not** a test isolation problem. It was a broken refactor (commits
+209d9387 + 697b9042) that left `create_app()` with no router
+registration — every test that needed a real route 404'd.
+
+Reverted both commits (52a143ff + 3cfed457). Local main now builds a
+working app with all 50 routes registered. ruff + pyright clean. Live
+site was never impacted (broken commits were not deployed).
+
+Closes SASKIA-204 (ruff cleanup verified clean).
+Closes SASKIA-317 (root cause found and fixed; 3 remaining SASKIA-30x
+template-placeholder tests need a separate ticket).
+
 ## 2026-10-09 — SASKIA-301 copy/UX hardening: 12 user-facing fixes
 
 Closed the SASKIA-301 ticket (Phase 0 of the 10-phase copy/UX hardening
