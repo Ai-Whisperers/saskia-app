@@ -125,19 +125,10 @@ else
   # Ship what the runtime needs. Exclude only the screenshot subdirs
   # (34MB of mostly-stale PNGs the app never loads at runtime). docs/
   # itself is needed — Dockerfile does COPY docs/ ./docs/.
-  git archive --format=tar.gz --output="$TAR_FILE" \
-      $(git ls-tree HEAD --name-only -- docs \
-        | grep -v "^docs/user-guide/screenshots/" \
-        | grep -v "^docs/reports/redesign-2026-09-27/" \
-        | head -c -1 | tr '\n' ' ') \
-      app deploy scripts pyproject.toml uv.lock Dockerfile .github/workflows 2>/dev/null
-  # Fallback: if the heredoc gymnastics above fail on an older bash, the
-  # next line is a plain "everything but screenshots" archive. Cheap.
-  if [ ! -s "$TAR_FILE" ] || [ "$(file -b "$TAR_FILE" 2>/dev/null | head -c 4)" != "gzip" ]; then
-    git archive --format=tar.gz --output="$TAR_FILE" HEAD \
+  git archive --format=tar.gz --output="$TAR_FILE" HEAD \
       -- $(git ls-tree -r HEAD --name-only \
             | grep -vE "^docs/(user-guide/screenshots|reports/redesign-2026-09-27)/")
-  fi
+  echo "==> archive size: $(wc -c < "$TAR_FILE") bytes"
 fi
 run scp -q -i "$KEY" -o StrictHostKeyChecking=no "$TAR_FILE" "$VPS:/tmp/"
 
