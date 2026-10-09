@@ -220,10 +220,7 @@ def inventory_list(
     expiry: str = Query("all", pattern="^(all|7days|30days|expired)$"),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """List all ingredients with stock badge. Paginated at 50/page.
-
-    Refactored 2026-10-09 to reduce cognitive complexity from 198 to <10.
-    """
+    """List all ingredients with stock badge. Paginated at 50/page."""
     PER_PAGE = 50
     from datetime import timedelta
 
@@ -238,37 +235,25 @@ def inventory_list(
     filters = _parse_inventory_filters(request)
 
     # Compute variant counts for variant-aware KPIs
-    _variant_counts = _compute_variant_counts(session, all_ings)
+    variant_counts = _compute_variant_counts(session, all_ings)
 
-    # Provisional never_loaded / critical counts (will be refined after
-    # variant info is available)
-    never_loaded_ids = {
-        i.id for i in all_ings if (i.stock_qty or 0) == 0 and i.id not in loaded_ids
-    }
-    kpi_never_loaded = len(never_loaded_ids)
-    kpi_critical = sum(
-        1
-        for i in all_ings
-        if i.stock_qty <= (i.min_stock_qty or 0) and i.id not in never_loaded_ids
-    )
-    kpi_no_cost = sum(1 for i in all_ings if not i.purchase_price_gs)
-    kpi_total = len(all_ings)
-    kpi_value_gs = _compute_stock_value(session, all_ings)
+    # Provisional KPIs (before variant info)
+    kpis = _compute_provisional_kpis(all_ings, loaded_ids, session, variant_counts)
 
     # Filter ingredients
-    _filtered_all = _filter_ingredients(
-        all_ings, filters, never_loaded_ids, today, week_from_now, month_from_now
+    filtered_all = _filter_ingredients(
+        all_ings, filters, kpis["never_loaded_ids"], today, week_from_now, month_from_now
     )
-    total = len(_filtered_all)
+    total = len(filtered_all)
     total_all = len(all_ings)
     total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
     page = min(page, total_pages)
 
     # Sort
-    _filtered_all = _sort_ingredients(_filtered_all, sort, dir)
+    filtered_all = _sort_ingredients(filtered_all, sort, dir)
 
     # Paginate
-    ingredients = _filtered_all[(page - 1) * PER_PAGE : page * PER_PAGE]
+    ingredients = filtered_all[(page - 1) * PER_PAGE : page * PER_PAGE]
 
     # Compute per-ingredient enrichments
     price_info = _build_price_info(session, ingredients)
@@ -276,36 +261,10 @@ def inventory_list(
     market_refs = _compute_market_refs(session, ingredients)
 
     # Refine KPIs with variant-aware effective stock
-    _has_variant = {ing_id for ing_id, n in _variant_counts.items() if n > 0}
-    never_loaded_ids = {
-        i.id
-        for i in all_ings
-        if (i.stock_qty or 0) == 0 and i.id not in loaded_ids and i.id not in _has_variant
-    }
-    kpi_never_loaded = len(never_loaded_ids)
-    kpi_critical = sum(
-        1
-        for i in all_ings
-        if effective_stock_qty.get(i.id, float(i.stock_qty or 0.0)) <= (i.min_stock_qty or 0)
-        and i.id not in never_loaded_ids
-    )
+    refined_kpis = _refine_kpis_with_variants(all_ings, variant_counts, effective_stock_qty)
 
     # Data quality checks
-    duplicates = _find_duplicate_ingredients(all_ings)
-    suspicious_prices = _find_suspicious_prices(all_ings)
-    expiring_soon = sum(
-        1
-        for i in all_ings
-        if i.expiry_date and i.expiry_date <= week_from_now and i.expiry_date >= today
-    )
-
-    # Build filter options for the template
-    categories = sorted(
-        {(i.category or "").strip() for i in all_ings if (i.category or "").strip()}
-    )
-    storages = sorted({(i.storage or "").strip() for i in all_ings if (i.storage or "").strip()})
-
-    from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
+    quality = _compute_data_quality(all_ings, today, week_from_now)
 
     return render(
         request,
@@ -323,22 +282,113 @@ def inventory_list(
             total=total,
             total_all=total_all,
             per_page=PER_PAGE,
-            kpi_total=kpi_total,
-            kpi_critical=kpi_critical,
-            kpi_never_loaded=kpi_never_loaded,
-            kpi_value_gs=kpi_value_gs,
-            kpi_no_cost=kpi_no_cost,
-            never_loaded_ids=never_loaded_ids,
-            expiring_soon=expiring_soon,
-            duplicates=duplicates,
-            suspicious_prices=suspicious_prices,
+            kpi_total=kpis["kpi_total"],
+            kpi_critical=refined_kpis["kpi_critical"],
+            kpi_never_loaded=refined_kpis["kpi_never_loaded"],
+            kpi_value_gs=kpis["kpi_value_gs"],
+            kpi_no_cost=kpis["kpi_no_cost"],
+            never_loaded_ids=refined_kpis["never_loaded_ids"],
+            expiring_soon=quality["expiring_soon"],
+            duplicates=quality["duplicates"],
+            suspicious_prices=quality["suspicious_prices"],
             filters=filters,
-            categories=categories,
-            storages=storages,
-            CANONICAL_DIETARY_TAGS=CANONICAL_DIETARY_TAGS,
+            categories=_collect_categories(all_ings),
+            storages=_collect_storages(all_ings),
+            CANONICAL_DIETARY_TAGS=_get_dietary_tags(),
             session=session,
         ),
     )
+
+
+def _compute_provisional_kpis(all_ings, loaded_ids, session, variant_counts) -> dict:
+    """Compute provisional KPIs before variant info is available.
+    
+    Extracted from inventory_list to reduce complexity.
+    """
+    never_loaded_ids = {
+        i.id for i in all_ings if (i.stock_qty or 0) == 0 and i.id not in loaded_ids
+    }
+    return {
+        "never_loaded_ids": never_loaded_ids,
+        "kpi_never_loaded": len(never_loaded_ids),
+        "kpi_critical": sum(
+            1
+            for i in all_ings
+            if i.stock_qty <= (i.min_stock_qty or 0) and i.id not in never_loaded_ids
+        ),
+        "kpi_no_cost": sum(1 for i in all_ings if not i.purchase_price_gs),
+        "kpi_total": len(all_ings),
+        "kpi_value_gs": _compute_stock_value(session, all_ings),
+    }
+
+
+def _refine_kpis_with_variants(all_ings, variant_counts, effective_stock_qty) -> dict:
+    """Refine KPIs with variant-aware effective stock.
+    
+    Extracted from inventory_list to reduce complexity.
+    """
+    has_variant = {ing_id for ing_id, n in variant_counts.items() if n > 0}
+    never_loaded_ids = {
+        i.id
+        for i in all_ings
+        if (i.stock_qty or 0) == 0 and i.id not in variant_counts and i.id not in has_variant
+    }
+    kpi_never_loaded = len(never_loaded_ids)
+    kpi_critical = sum(
+        1
+        for i in all_ings
+        if effective_stock_qty.get(i.id, float(i.stock_qty or 0.0)) <= (i.min_stock_qty or 0)
+        and i.id not in never_loaded_ids
+    )
+    return {
+        "never_loaded_ids": never_loaded_ids,
+        "kpi_never_loaded": kpi_never_loaded,
+        "kpi_critical": kpi_critical,
+    }
+
+
+def _compute_data_quality(all_ings, today, week_from_now) -> dict:
+    """Compute data quality checks (duplicates, suspicious prices, expiring).
+    
+    Extracted from inventory_list to reduce complexity.
+    """
+    return {
+        "duplicates": _find_duplicate_ingredients(all_ings),
+        "suspicious_prices": _find_suspicious_prices(all_ings),
+        "expiring_soon": sum(
+            1
+            for i in all_ings
+            if i.expiry_date and i.expiry_date <= week_from_now and i.expiry_date >= today
+        ),
+    }
+
+
+def _collect_categories(all_ings) -> list[str]:
+    """Collect unique categories from all ingredients.
+    
+    Extracted from inventory_list to reduce complexity.
+    """
+    return sorted(
+        {(i.category or "").strip() for i in all_ings if (i.category or "").strip()}
+    )
+
+
+def _collect_storages(all_ings) -> list[str]:
+    """Collect unique storage locations from all ingredients.
+    
+    Extracted from inventory_list to reduce complexity.
+    """
+    return sorted({(i.storage or "").strip() for i in all_ings if (i.storage or "").strip()})
+
+
+def _get_dietary_tags():
+    """Get canonical dietary tags vocabulary.
+    
+    Extracted from inventory_list to reduce complexity.
+    """
+    from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS
+
+    return CANONICAL_DIETARY_TAGS
 
 
 def _parse_inventory_filters(request: Request) -> dict[str, Any]:
