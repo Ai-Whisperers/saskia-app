@@ -208,14 +208,19 @@ def get_price_comparison(
         expensive supplier for that ingredient (0 when only one supplier).
     """
     rows = _rows_for(session)
+    groups = _group_rows_by_ingredient(rows)
+    result = [g for g in (_process_group(grp, supplier_id) for grp in groups.values()) if g is not None]
+    result.sort(key=lambda g: g.ingredient_name)
+    return result
 
-    # Group by ingredient.
+
+def _group_rows_by_ingredient(rows) -> dict[int, PriceComparisonGroup]:
+    """Group price comparison rows by ingredient.
+    
+    Extracted from get_price_comparison to reduce complexity.
+    """
     groups: dict[int, PriceComparisonGroup] = {}
     for r in rows:
-        if supplier_id is not None and r.supplier_id != supplier_id:
-            # We still need to know about other suppliers for the SAME ingredient
-            # (to compute delta). Don't drop the row — let the post-filter handle it.
-            pass
         if r.ingredient_id not in groups:
             groups[r.ingredient_id] = PriceComparisonGroup(
                 ingredient_id=r.ingredient_id,
@@ -229,52 +234,84 @@ def get_price_comparison(
                 price_gs=r.price_gs,
             )
         )
+    return groups
 
-    # Compute deltas + sort + filter to the requested supplier's ingredients.
-    result: list[PriceComparisonGroup] = []
-    for g in groups.values():
-        # De-dup by supplier — if the same supplier appears twice for one
-        # ingredient (multiple package variants), keep the cheapest entry.
-        by_supplier: dict[int, _SupplierPrice] = {}
-        for sp in g.suppliers:
-            if (
-                sp.supplier_id not in by_supplier
-                or sp.price_gs < by_supplier[sp.supplier_id].price_gs
-            ):
-                by_supplier[sp.supplier_id] = sp
-        unique_suppliers = list(by_supplier.values())
-        unique_suppliers.sort(key=lambda s: s.price_gs)
-        g.suppliers = unique_suppliers
 
-        if len(g.suppliers) > 1:
-            prices = [s.price_gs for s in g.suppliers]
-            cheapest = min(prices)
-            most_expensive = max(prices)
-            for s in g.suppliers:
-                s.delta_gs = s.price_gs - cheapest
-                s.delta_pct = (
-                    round((s.price_gs - cheapest) / cheapest * 100, 1) if cheapest > 0 else 0.0
-                )
-                s.is_cheapest = s.price_gs == cheapest
-            g.savings_gs_per_unit = most_expensive - cheapest
-            g.avg_price_gs = sum(prices) // len(prices)
-        elif g.suppliers:
-            g.suppliers[0].delta_gs = 0
-            g.suppliers[0].delta_pct = 0.0
-            g.suppliers[0].is_cheapest = True
-            g.savings_gs_per_unit = 0
-            g.avg_price_gs = g.suppliers[0].price_gs
+def _process_group(
+    g: PriceComparisonGroup, supplier_id: Optional[int],
+) -> PriceComparisonGroup | None:
+    """Process a single group: dedupe, compute deltas, filter by supplier.
+    
+    Returns the group, or None if filtered out by supplier_id.
+    Extracted from get_price_comparison to reduce complexity.
+    """
+    g.suppliers = _dedupe_and_sort_suppliers(g.suppliers)
+    if len(g.suppliers) > 1:
+        _compute_multi_supplier_deltas(g)
+    elif g.suppliers:
+        _compute_single_supplier_deltas(g)
+    return _filter_by_supplier(g, supplier_id)
 
-        # Supplier filter — keep only ingredients where the selected supplier
-        # actually appears.
-        if supplier_id is not None:
-            if not any(s.supplier_id == supplier_id for s in g.suppliers):
-                continue
 
-        result.append(g)
+def _dedupe_and_sort_suppliers(suppliers: list[_SupplierPrice]) -> list[_SupplierPrice]:
+    """Dedupe by supplier (keep cheapest) and sort by price ASC.
+    
+    Extracted from get_price_comparison to reduce complexity.
+    """
+    by_supplier: dict[int, _SupplierPrice] = {}
+    for sp in suppliers:
+        if (
+            sp.supplier_id not in by_supplier
+            or sp.price_gs < by_supplier[sp.supplier_id].price_gs
+        ):
+            by_supplier[sp.supplier_id] = sp
+    unique = list(by_supplier.values())
+    unique.sort(key=lambda s: s.price_gs)
+    return unique
 
-    result.sort(key=lambda g: g.ingredient_name)
-    return result
+
+def _compute_multi_supplier_deltas(g: PriceComparisonGroup) -> None:
+    """Compute deltas and savings for a multi-supplier group.
+    
+    Extracted from get_price_comparison to reduce complexity.
+    """
+    prices = [s.price_gs for s in g.suppliers]
+    cheapest = min(prices)
+    most_expensive = max(prices)
+    for s in g.suppliers:
+        s.delta_gs = s.price_gs - cheapest
+        s.delta_pct = (
+            round((s.price_gs - cheapest) / cheapest * 100, 1) if cheapest > 0 else 0.0
+        )
+        s.is_cheapest = s.price_gs == cheapest
+    g.savings_gs_per_unit = most_expensive - cheapest
+    g.avg_price_gs = sum(prices) // len(prices)
+
+
+def _compute_single_supplier_deltas(g: PriceComparisonGroup) -> None:
+    """Compute deltas for a single-supplier group (all zero, is_cheapest=True).
+    
+    Extracted from get_price_comparison to reduce complexity.
+    """
+    g.suppliers[0].delta_gs = 0
+    g.suppliers[0].delta_pct = 0.0
+    g.suppliers[0].is_cheapest = True
+    g.savings_gs_per_unit = 0
+    g.avg_price_gs = g.suppliers[0].price_gs
+
+
+def _filter_by_supplier(
+    g: PriceComparisonGroup, supplier_id: Optional[int],
+) -> PriceComparisonGroup | None:
+    """Filter group by supplier_id. Returns None if supplier not in group.
+    
+    Extracted from get_price_comparison to reduce complexity.
+    """
+    if supplier_id is None:
+        return g
+    if any(s.supplier_id == supplier_id for s in g.suppliers):
+        return g
+    return None
 
 
 def total_potential_savings(comparison: list[PriceComparisonGroup]) -> int:
