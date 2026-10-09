@@ -1,3 +1,24 @@
+## 2026-10-09 — Activate safeguard (dev env + CI gate) + OTel on dev
+
+**Scope**: WHAT_NEXT #2 — fastapi-safeguard was wired and baseline-triaged
+(#96) but dormant everywhere. This turns it on where iteration happens
+and makes new findings block CI.
+
+**What changed**:
+- `deploy/envs.yaml`: new optional per-env `extra_env` key; dev row sets
+  `SAFEGUARD_ENABLED=true` + `OTEL_ENABLED=true` (prod/test unchanged).
+- `deploy/docker-stack.template.yml`: `{{EXTRA_ENV}}` placeholder in the
+  environment block.
+- `deploy/render_stack.py`: renders `extra_env` list (empty → blank line,
+  valid YAML).
+- `tests/test_deploy_infra.py`: EXTRA_ENV in the known-placeholder set.
+- `.github/workflows/ci.yml`: new `fastapi-safeguard security gate` step
+  running `generate_safeguard_baseline.py --check` (fails on any finding
+  not in `docs/security/safeguard-baseline.json`).
+
+**Test status**: deploy-infra 28 passed + 1 skipped; safeguard --check
+OK (0 new, 5 accepted); render YAML-valid for all 3 envs.
+
 ## 2026-10-09 — CI determinism: track uv.lock
 
 **Scope**: one-line fix with outsized effect: CI was resolving the

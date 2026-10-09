@@ -76,6 +76,15 @@ jobs:
           uv run ruff check .
           uv run ruff format --check .
 
+      - name: fastapi-safeguard security gate
+        # Runs the startup security audit (63 routes, ~50 ms) against
+        # create_app() and fails on any finding NOT in the accepted
+        # baseline (docs/security/safeguard-baseline.json). Regenerate
+        # the baseline after triage with:
+        #   uv run --group tooling-tier2 python scripts/generate_safeguard_baseline.py
+        run: |
+          uv run --group tooling-tier2 --no-default-groups python scripts/generate_safeguard_baseline.py --check
+
       - name: Test (pytest)
         # -n 2 (not -n auto): 2 parallel workers to balance disk usage on
         # the shared GH runner (which is 30 GB total, with system + uv cache

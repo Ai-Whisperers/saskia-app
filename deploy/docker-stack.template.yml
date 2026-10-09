@@ -96,6 +96,7 @@ services:
       # PRO-SEC boot guard: refuses to start outside pytest. Keep commented.
       # - SASKIA_TEST_AUTH_DISABLED=1
       - "AIW_SASKIA_INTERNAL_ROUTES=1"
+{{EXTRA_ENV}}
     volumes:
       - "{{DATA_VOLUME}}:/data"
       - "{{LOGS_VOLUME}}:/var/log/sazon"
