@@ -17,7 +17,6 @@ Usage:
 The 3 envs are sourced from deploy/envs.yaml. We read the hostname +
 public_url fields; no secrets, no DB access, no auth.
 """
-
 from __future__ import annotations
 
 import argparse
@@ -71,8 +70,8 @@ def check_env(env_name: str, env_row: dict) -> dict:
         "hostname": env_row.get("hostname"),
         "public_url": base,
         "probes": {
-            "healthz": probe(f"{base}/healthz"),
-            "healthz_deps": probe(f"{base}/healthz/deps"),
+            "healthz":       probe(f"{base}/healthz"),
+            "healthz_deps":  probe(f"{base}/healthz/deps"),
             "healthz_backup": probe(f"{base}/healthz/backup"),
         },
     }
@@ -83,17 +82,15 @@ def render_table(results: list[dict]) -> str:
     if not results:
         return "_(no envs to check)_"
     headers = ["env", "hostname", "healthz", "deps", "backup"]
-    rows: list[list[str]] = [headers]
-    rows.extend(
-        [
+    rows = [headers]
+    for r in results:
+        rows.append([
             r["env"],
             r["hostname"],
             _short(r["probes"]["healthz"]),
             _short(r["probes"]["healthz_deps"]),
             _short(r["probes"]["healthz_backup"]),
-        ]
-        for r in results
-    )
+        ])
     widths = [max(len(r[i]) for r in rows) for i in range(len(headers))]
     out = []
     for i, row in enumerate(rows):
@@ -108,7 +105,7 @@ def _short(probe: dict) -> str:
         return f"OK {probe['code']}"
     if probe["status"] == "degraded":
         return f"⚠ {probe['code']}"
-    return "✗ down"
+    return f"✗ down"
 
 
 def main() -> int:
@@ -120,10 +117,8 @@ def main() -> int:
     envs = load_envs()
     if args.env:
         if args.env not in envs:
-            print(
-                f"ERROR: env '{args.env}' not in {ENVS_YAML} (known: {', '.join(envs.keys())})",
-                file=sys.stderr,
-            )
+            print(f"ERROR: env '{args.env}' not in {ENVS_YAML} "
+                  f"(known: {', '.join(envs.keys())})", file=sys.stderr)
             return 2
         envs = {args.env: envs[args.env]}
 
