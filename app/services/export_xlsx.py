@@ -445,12 +445,47 @@ def to_bytes(session: Session) -> bytes:
     from io import BytesIO
 
     path = BytesIO()
-    # We can save to BytesIO directly with openpyxl
+    wb = _create_workbook()
+    ingredients_by_id, recipes_by_id, products_by_id = _load_lookup_maps(session)
+
+    _write_ingredientes_sheet(wb, session)
+    _write_recetas_sheet(wb, session)
+    _write_lineas_sheet(wb, session, ingredients_by_id, recipes_by_id)
+    _write_productos_sheet(wb, session, recipes_by_id)
+    _write_ventas_sheet(wb, session, products_by_id)
+
+    wb.save(path)
+    return path.getvalue()
+
+
+def _create_workbook():
+    """Create a fresh workbook with the default sheet removed.
+    
+    Extracted from to_bytes to reduce complexity.
+    """
     wb = Workbook()
     default_sheet = wb.active
     if default_sheet is not None:
         wb.remove(default_sheet)
+    return wb
 
+
+def _load_lookup_maps(session) -> tuple:
+    """Pre-load lookup maps for ingredients, recipes, and products.
+    
+    Extracted from to_bytes to reduce complexity.
+    """
+    ingredients_by_id = {ing.id: ing for ing in session.scalars(select(Ingredient)).all()}
+    recipes_by_id = {rec.id: rec for rec in session.scalars(select(Recipe)).all()}
+    products_by_id = {prod.id: prod for prod in session.scalars(select(Product)).all()}
+    return ingredients_by_id, recipes_by_id, products_by_id
+
+
+def _write_ingredientes_sheet(wb, session) -> None:
+    """Write the Ingredientes sheet.
+    
+    Extracted from to_bytes to reduce complexity.
+    """
     ws = wb.create_sheet("Ingredientes")
     _write_header(ws, INGREDIENTES_COLS)
     for ing in session.scalars(select(Ingredient).order_by(Ingredient.id)).all():
@@ -466,25 +501,28 @@ def to_bytes(session: Session) -> bytes:
             ]
         )
 
+
+def _write_recetas_sheet(wb, session) -> None:
+    """Write the Recetas sheet.
+    
+    Extracted from to_bytes to reduce complexity.
+    """
     ws = wb.create_sheet("Recetas")
     _write_header(ws, RECETAS_COLS)
     for rec in session.scalars(select(Recipe).order_by(Recipe.id)).all():
         ws.append([rec.id, rec.name, rec.yield_qty, rec.yield_unit, rec.notes])
 
+
+def _write_lineas_sheet(wb, session, ingredients_by_id, recipes_by_id) -> None:
+    """Write the Lineas sheet.
+    
+    Extracted from to_bytes to reduce complexity.
+    """
     ws = wb.create_sheet("Lineas")
     _write_header(ws, LINEAS_COLS)
-    ingredients_by_id = {ing.id: ing for ing in session.scalars(select(Ingredient)).all()}
-    recipes_by_id = {rec.id: rec for rec in session.scalars(select(Recipe)).all()}
     for recipe in recipes_by_id.values():
         for line in recipe.lines:
-            if line.line_kind == "ingredient":
-                target_name = ingredients_by_id.get(line.line_ref_id)
-                target_name_str = target_name.name if target_name else None
-            elif line.line_kind == "sub_recipe":
-                target_name = recipes_by_id.get(line.line_ref_id)
-                target_name_str = target_name.name if target_name else None
-            else:
-                target_name_str = None
+            target_name_str = _resolve_line_target_name(line, ingredients_by_id, recipes_by_id)
             ws.append(
                 [
                     line.id,
@@ -498,6 +536,26 @@ def to_bytes(session: Session) -> bytes:
                 ]
             )
 
+
+def _resolve_line_target_name(line, ingredients_by_id, recipes_by_id) -> str | None:
+    """Resolve the target name for a recipe line.
+    
+    Extracted from _write_lineas_sheet to reduce complexity.
+    """
+    if line.line_kind == "ingredient":
+        target = ingredients_by_id.get(line.line_ref_id)
+    elif line.line_kind == "sub_recipe":
+        target = recipes_by_id.get(line.line_ref_id)
+    else:
+        return None
+    return target.name if target else None
+
+
+def _write_productos_sheet(wb, session, recipes_by_id) -> None:
+    """Write the Productos sheet.
+    
+    Extracted from to_bytes to reduce complexity.
+    """
     ws = wb.create_sheet("Productos")
     _write_header(ws, PRODUCTOS_COLS)
     for prod in session.scalars(select(Product).order_by(Product.id)).all():
@@ -514,9 +572,14 @@ def to_bytes(session: Session) -> bytes:
             ]
         )
 
+
+def _write_ventas_sheet(wb, session, products_by_id) -> None:
+    """Write the Ventas sheet.
+    
+    Extracted from to_bytes to reduce complexity.
+    """
     ws = wb.create_sheet("Ventas")
     _write_header(ws, VENTAS_COLS)
-    products_by_id = {prod.id: prod for prod in session.scalars(select(Product)).all()}
     for sale in session.scalars(select(Sale).order_by(Sale.id)).all():
         product = products_by_id.get(sale.product_id)
         ws.append(
@@ -531,36 +594,6 @@ def to_bytes(session: Session) -> bytes:
                 sale.voided_at,
             ]
         )
-
-    # NOTE: BACKLOG #1 (2026-10-02): SaleStockMove dropped (migration 092).
-    # See to_file() comment for context.
-
-    wb.save(path)
-    return path.getvalue()
-
-
-__all__ = ["patch_plantilla_bytes", "to_bytes", "to_file", "write_patch_plantilla"]
-
-
-# ---------------------------------------------------------------------------
-# PATCH plantilla — Stream C, prelaunch roadmap 2026-09-17
-# ---------------------------------------------------------------------------
-
-# Column shapes for the PATCH plantilla workbook. These are intentionally
-# narrower than the FULL export columns — the plantilla is a "what to edit"
-# sheet, not a "what the system tracks" sheet.
-PLANTILLA_PRODUCTOS_COLS = ["name", "sku", "sale_price_gs", "portion_label", "notes"]
-PLANTILLA_CLIENTES_COLS = ["phone", "name", "email", "cedula", "notes"]
-PLANTILLA_INGREDIENTES_COLS = [
-    "name",
-    "stock_qty",
-    "min_stock_qty",
-    "max_stock_qty",
-    "purchase_price_gs",
-    "lead_time_days",
-    "notes",
-]
-PLANTILLA_RECETAS_COLS = ["name", "yield_qty", "prep_minutes", "notes"]
 
 
 def _autosize_simple(ws: object, max_width: int = 40) -> None:

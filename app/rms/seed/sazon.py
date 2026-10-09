@@ -5092,108 +5092,175 @@ def _seed_pedidos__lines(ctx: SeedContext):
 
     Extracted from seed_sazon (refactored 2026-10-09).
     """
-
     channel_codes = [c[0] for c in CHANNELS]
     for ped_tuple in PEDIDOS:
-        cust_idx, days_ago, hour, minute, status, payment, channel_idx, notes, line_items = (
-            ped_tuple
-        )
-        if cust_idx >= len(ctx.customers):
+        if not _process_single_pedido(ctx, ped_tuple, channel_codes):
             continue
-        cust = ctx.customers[cust_idx]
-        promised_date = ctx.anchor_date + timedelta(days=days_ago)
-        promised_dt = datetime.combine(promised_date, datetime.min.time()) + timedelta(
-            hours=hour, minutes=minute
-        )
-        token = secrets.token_urlsafe(16)
-        # Skip empty line items (e.g. "Café (no vendido)")
-        valid_lines = [(pn, q) for pn, q in line_items if q > 0 and pn in ctx.products_by_name]
-        if not valid_lines:
-            continue
-        channel_code = (
-            channel_codes[channel_idx]
-            if channel_idx < len(channel_codes)
-            else ChannelEnum.MOSTRADOR.value  # P43: enum fallback
-        )
-        existing = ctx.session.execute(
-            select(Pedido).where(
-                Pedido.customer_id == cust.id,
-                Pedido.promised_date == promised_date,
-                Pedido.status == status,
-            )
-        ).scalar_one_or_none()
-        if existing is None:
-            ped = Pedido(
-                customer_id=cust.id,
-                customer_name=cust.name,
-                customer_phone=cust.phone,
-                promised_date=promised_date,
-                promised_time=f"{hour:02d}:{minute:02d}",
-                channel=channel_code,  # free-text VARCHAR
-                status=status,
-                payment_intent=payment,
-                notes=notes,
-                public_token=token,
-                public_token_expires_at=datetime.now(ASUNCION_TZ) + timedelta(days=30),
-                created_at=promised_dt - timedelta(hours=2),
-                updated_at=promised_dt,
-                fulfilled_at=promised_dt if status == "fulfilled" else None,
-            )
-            ctx.session.add(ped)
-            ctx.session.flush()
-            ctx.report.pedidos += 1
-            for prod_name, qty in valid_lines:
-                prod = ctx.products_by_name[prod_name]
-                line = PedidoLine(
-                    pedido_id=ped.id,
-                    product_id=prod.id,
-                    qty=qty,
-                    unit_price_gs=prod.sale_price_gs,
-                    fulfilled_qty=qty if status == "fulfilled" else 0,
-                )
-                ctx.session.add(line)
-                ctx.report.pedido_lines += 1
-                # PedidoEvent
-                ctx.session.add(
-                    PedidoEvent(
-                        pedido_id=ped.id,
-                        ts=promised_dt - timedelta(hours=2),
-                        actor=SASKIA_USER,
-                        event_type="created",
-                        payload_json={"channel": channel_code},
-                    )
-                )
-                if status != "pending":
-                    ctx.session.add(
-                        PedidoEvent(
-                            pedido_id=ped.id,
-                            ts=promised_dt - timedelta(hours=1, minutes=30),
-                            actor=SASKIA_USER,
-                            event_type="status_change",
-                            payload_json={"from": "pending", "to": "confirmed"},
-                        )
-                    )
-                if status in ("ready", "fulfilled"):
-                    ctx.session.add(
-                        PedidoEvent(
-                            pedido_id=ped.id,
-                            ts=promised_dt - timedelta(minutes=30),
-                            actor=SASKIA_USER,
-                            event_type="status_change",
-                            payload_json={"from": "confirmed", "to": "ready"},
-                        )
-                    )
-                if status == "fulfilled":
-                    ctx.session.add(
-                        PedidoEvent(
-                            pedido_id=ped.id,
-                            ts=promised_dt,
-                            actor=SASKIA_USER,
-                            event_type="status_change",
-                            payload_json={"from": "ready", "to": "fulfilled"},
-                        )
-                    )
     logger.info(f"seed: {ctx.report.pedidos} pedidos + {ctx.report.pedido_lines} pedido lines")
+
+
+def _process_single_pedido(ctx: SeedContext, ped_tuple, channel_codes: list[str]) -> bool:
+    """Process a single pedido tuple. Returns True if created.
+    
+    Extracted from _seed_pedidos__lines to reduce complexity.
+    """
+    cust_idx, days_ago, hour, minute, status, payment, channel_idx, notes, line_items = ped_tuple
+    if cust_idx >= len(ctx.customers):
+        return False
+    cust = ctx.customers[cust_idx]
+    promised_date = ctx.anchor_date + timedelta(days=days_ago)
+    promised_dt = datetime.combine(promised_date, datetime.min.time()) + timedelta(
+        hours=hour, minutes=minute
+    )
+    valid_lines = [(pn, q) for pn, q in line_items if q > 0 and pn in ctx.products_by_name]
+    if not valid_lines:
+        return False
+
+    channel_code = _resolve_channel_code(channel_codes, channel_idx)
+
+    existing = _find_existing_pedido(ctx, cust.id, promised_date, status)
+    if existing is not None:
+        return False
+
+    ped = _create_pedido(ctx, cust, promised_date, promised_dt, hour, minute,
+                         channel_code, status, payment, notes)
+    ctx.session.add(ped)
+    ctx.session.flush()
+    ctx.report.pedidos += 1
+
+    _create_pedido_lines_and_events(ctx, ped, valid_lines, promised_dt, status, channel_code)
+    return True
+
+
+def _resolve_channel_code(channel_codes: list[str], channel_idx: int) -> str:
+    """Resolve channel code from index, with fallback.
+    
+    Extracted from _seed_pedidos__lines to reduce complexity.
+    """
+    if channel_idx < len(channel_codes):
+        return channel_codes[channel_idx]
+    return ChannelEnum.MOSTRADOR.value  # P43: enum fallback
+
+
+def _find_existing_pedido(ctx: SeedContext, customer_id: int, promised_date, status: str):
+    """Find existing pedido matching (customer, date, status).
+    
+    Extracted from _seed_pedidos__lines to reduce complexity.
+    """
+    return ctx.session.execute(
+        select(Pedido).where(
+            Pedido.customer_id == customer_id,
+            Pedido.promised_date == promised_date,
+            Pedido.status == status,
+        )
+    ).scalar_one_or_none()
+
+
+def _create_pedido(
+    ctx: SeedContext, cust, promised_date, promised_dt,
+    hour: int, minute: int, channel_code: str, status: str,
+    payment: str, notes: str,
+) -> Pedido:
+    """Create a Pedido ORM row.
+    
+    Extracted from _seed_pedidos__lines to reduce complexity.
+    """
+    token = secrets.token_urlsafe(16)
+    return Pedido(
+        customer_id=cust.id,
+        customer_name=cust.name,
+        customer_phone=cust.phone,
+        promised_date=promised_date,
+        promised_time=f"{hour:02d}:{minute:02d}",
+        channel=channel_code,
+        status=status,
+        payment_intent=payment,
+        notes=notes,
+        public_token=token,
+        public_token_expires_at=datetime.now(ASUNCION_TZ) + timedelta(days=30),
+        created_at=promised_dt - timedelta(hours=2),
+        updated_at=promised_dt,
+        fulfilled_at=promised_dt if status == "fulfilled" else None,
+    )
+
+
+def _create_pedido_lines_and_events(
+    ctx: SeedContext, ped: Pedido, valid_lines: list, promised_dt,
+    status: str, channel_code: str,
+) -> None:
+    """Create pedido lines and their associated events.
+    
+    Extracted from _seed_pedidos__lines to reduce complexity.
+    """
+    for prod_name, qty in valid_lines:
+        prod = ctx.products_by_name[prod_name]
+        _add_pedido_line(ctx, ped, prod, qty, status)
+        _add_pedido_event_created(ctx, ped, promised_dt, channel_code)
+        _add_status_change_events(ctx, ped, promised_dt, status)
+
+
+def _add_pedido_line(ctx: SeedContext, ped: Pedido, prod, qty: float, status: str) -> None:
+    """Add a PedidoLine and update report counter.
+    
+    Extracted from _create_pedido_lines_and_events to reduce complexity.
+    """
+    line = PedidoLine(
+        pedido_id=ped.id,
+        product_id=prod.id,
+        qty=qty,
+        unit_price_gs=prod.sale_price_gs,
+        fulfilled_qty=qty if status == "fulfilled" else 0,
+    )
+    ctx.session.add(line)
+    ctx.report.pedido_lines += 1
+
+
+def _add_pedido_event_created(ctx: SeedContext, ped: Pedido, promised_dt, channel_code: str) -> None:
+    """Add a 'created' PedidoEvent.
+    
+    Extracted from _create_pedido_lines_and_events to reduce complexity.
+    """
+    ctx.session.add(
+        PedidoEvent(
+            pedido_id=ped.id,
+            ts=promised_dt - timedelta(hours=2),
+            actor=SASKIA_USER,
+            event_type="created",
+            payload_json={"channel": channel_code},
+        )
+    )
+
+
+def _add_status_change_events(ctx: SeedContext, ped: Pedido, promised_dt, status: str) -> None:
+    """Add status change events based on pedido status.
+    
+    Extracted from _create_pedido_lines_and_events to reduce complexity.
+    """
+    if status != "pending":
+        _add_event(ctx, ped, promised_dt - timedelta(hours=1, minutes=30),
+                   "status_change", {"from": "pending", "to": "confirmed"})
+    if status in ("ready", "fulfilled"):
+        _add_event(ctx, ped, promised_dt - timedelta(minutes=30),
+                   "status_change", {"from": "confirmed", "to": "ready"})
+    if status == "fulfilled":
+        _add_event(ctx, ped, promised_dt,
+                   "status_change", {"from": "ready", "to": "fulfilled"})
+
+
+def _add_event(ctx: SeedContext, ped: Pedido, ts, event_type: str, payload: dict) -> None:
+    """Add a PedidoEvent with the given type and payload.
+    
+    Extracted from _add_status_change_events to reduce complexity.
+    """
+    ctx.session.add(
+        PedidoEvent(
+            pedido_id=ped.id,
+            ts=ts,
+            actor=SASKIA_USER,
+            event_type=event_type,
+            payload_json=payload,
+        )
+    )
 
 
 def _seed_sales_90_days_of_realistic_data(ctx: SeedContext, days_of_history: int):

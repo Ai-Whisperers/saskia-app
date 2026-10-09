@@ -650,30 +650,69 @@ async def reorder_upload_prices(
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
         )
 
-    # Read file body. Reject anything bigger than 2MB — a CSV with
-    # thousands of rows is overkill for /reorder; this is meant for a
-    # one-time spreadsheet paste.
+    text = await _read_csv_text(file)
+    reader = _parse_csv_reader(text)
+    _validate_csv_columns(reader)
+
+    ingredients_by_name, suppliers_by_name = _load_lookups(session)
+    today = _today_utc()
+
+    imported, skipped, errors, preview = await _process_csv_rows(
+        session, reader, ingredients_by_name, suppliers_by_name, today,
+    )
+
+    _record_upload_audit(session, request, file, imported, skipped, errors)
+    session.commit()
+
+    return JSONResponse(
+        {
+            "ok": True,
+            "imported": imported,
+            "skipped": skipped,
+            "errors": errors[:50],  # cap error list
+            "preview": preview[:50],
+        }
+    )
+
+
+async def _read_csv_text(file: UploadFile) -> str:
+    """Read and decode CSV file content. Raises HTTPException on decode failure.
+    
+    Extracted from reorder_upload_prices to reduce complexity.
+    """
     from app.rms.upload_limits import CSV_LIMIT_2MB, CSV_MIME_TYPES, validate_upload
 
     validate_upload(file, allowed_types=CSV_MIME_TYPES, max_size=CSV_LIMIT_2MB)
     raw = await file.read()
     try:
-        text = raw.decode("utf-8-sig")  # tolerate BOM
+        return raw.decode("utf-8-sig")  # tolerate BOM
     except UnicodeDecodeError:
         try:
-            text = raw.decode("latin-1")
+            return raw.decode("latin-1")
         except UnicodeDecodeError:
             raise HTTPException(
                 status_code=400,
                 detail="No se pudo decodificar el CSV. Usá UTF-8.",
             ) from None
 
+
+def _parse_csv_reader(text: str) -> csv.DictReader:
+    """Parse CSV text into a DictReader.
+    
+    Extracted from reorder_upload_prices to reduce complexity.
+    """
     import csv
     import io
-    from datetime import datetime as _datetime
-    from datetime import timezone
 
-    reader = csv.DictReader(io.StringIO(text))
+    return csv.DictReader(io.StringIO(text))
+
+
+def _validate_csv_columns(reader: csv.DictReader) -> None:
+    """Validate that required columns are present in the CSV header.
+    
+    Extracted from reorder_upload_prices to reduce complexity.
+    Raises HTTPException if required columns are missing.
+    """
     required = {"ingredient_name", "supplier_name", "price_gs"}
     if reader.fieldnames is None or not required.issubset(set(reader.fieldnames)):
         raise HTTPException(
@@ -685,9 +724,12 @@ async def reorder_upload_prices(
             ),
         )
 
-    # Pre-load lookup maps so we issue one query per dimension instead
-    # of one per row (cheap, but the test seed has 76 ingredients × 8
-    # suppliers × 90 days = 54k possible rows; we'd be there all day).
+
+def _load_lookups(session) -> tuple[dict[str, Ingredient], dict[str, Supplier]]:
+    """Pre-load ingredient and supplier lookup maps.
+    
+    Extracted from reorder_upload_prices to reduce complexity.
+    """
     ingredients_by_name: dict[str, Ingredient] = {
         i.name.lower(): i for i in (session.execute(select(Ingredient)).scalars().all())
     }
@@ -695,138 +737,193 @@ async def reorder_upload_prices(
         s.name.lower(): s
         for s in (session.execute(select(Supplier).where(Supplier.is_active)).scalars().all())
     }
+    return ingredients_by_name, suppliers_by_name
 
-    today = _datetime.now(timezone.utc).date()
+
+def _today_utc():
+    """Get today's date in UTC.
+    
+    Extracted from reorder_upload_prices to reduce complexity.
+    """
+    from datetime import datetime as _datetime
+    from datetime import timezone
+
+    return _datetime.now(timezone.utc).date()
+
+
+async def _process_csv_rows(
+    session, reader, ingredients_by_name, suppliers_by_name, today,
+) -> tuple[int, int, list, list]:
+    """Process all CSV rows. Returns (imported, skipped, errors, preview).
+    
+    Extracted from reorder_upload_prices to reduce complexity.
+    """
     imported = 0
     skipped = 0
     errors: list[dict] = []
     preview: list[dict] = []
 
-    for row_idx, row in enumerate(reader, start=2):  # start=2 (header is row 1)
-        ing_name = (row.get("ingredient_name") or "").strip()
-        sup_name = (row.get("supplier_name") or "").strip()
-        price_raw = (row.get("price_gs") or "").strip()
-        date_raw = (row.get("date") or "").strip()
-
-        if not ing_name or not sup_name:
-            errors.append({"row": row_idx, "error": "ingredient_name o supplier_name vacío"})
-            continue
-        try:
-            price_int = int(price_raw)
-        except (ValueError, TypeError):
-            errors.append(
-                {
-                    "row": row_idx,
-                    "ingredient_name": ing_name,
-                    "supplier_name": sup_name,
-                    "error": f"price_gs inválido: {price_raw!r}",
-                }
-            )
-            continue
-        if price_int <= 0:
-            errors.append(
-                {
-                    "row": row_idx,
-                    "ingredient_name": ing_name,
-                    "supplier_name": sup_name,
-                    "error": "price_gs debe ser > 0",
-                }
-            )
-            continue
-
-        ing = ingredients_by_name.get(ing_name.lower())
-        if ing is None:
-            errors.append(
-                {"row": row_idx, "ingredient_name": ing_name, "error": "ingrediente no encontrado"}
-            )
-            continue
-        sup = suppliers_by_name.get(sup_name.lower())
-        if sup is None:
-            errors.append(
-                {
-                    "row": row_idx,
-                    "supplier_name": sup_name,
-                    "error": "proveedor no encontrado (o inactivo)",
-                }
-            )
-            continue
-
-        # Date parsing
-        if date_raw:
-            try:
-                when = _datetime.strptime(date_raw, "%Y-%m-%d").date()  # noqa: DTZ007
-            except ValueError:
-                errors.append(
-                    {
-                        "row": row_idx,
-                        "ingredient_name": ing_name,
-                        "error": f"date inválido: {date_raw!r} (usá YYYY-MM-DD)",
-                    }
-                )
-                continue
-        else:
-            when = today
-
-        # Skip future-dated rows but warn
-        if when > today:
-            skipped += 1
-            preview.append(
-                {
-                    "ingredient": ing.name,
-                    "supplier": sup.name,
-                    "price_gs": price_int,
-                    "date": when.isoformat(),
-                    "warning": "fecha futura — no se importó",
-                }
-            )
-            continue
-
-        # Dedup: one (ingredient, supplier, date) per restock makes sense
-        existing = (
-            session.execute(
-                select(IngredientPriceEvent).where(
-                    IngredientPriceEvent.ingredient_id == ing.id,
-                    IngredientPriceEvent.supplier_id == sup.id,
-                    IngredientPriceEvent.recorded_at
-                    >= _datetime.combine(when, _datetime.min.time()),
-                    IngredientPriceEvent.recorded_at
-                    < _datetime.combine(when, _datetime.max.time()),
-                )
-            )
-            .scalars()
-            .first()
+    for row_idx, row in enumerate(reader, start=2):
+        result = await _process_single_row(
+            session, row, row_idx, ingredients_by_name, suppliers_by_name, today,
         )
-        if existing is not None:
+        if result["status"] == "imported":
+            imported += 1
+        elif result["status"] == "skipped":
             skipped += 1
-            preview.append(
-                {
-                    "ingredient": ing.name,
-                    "supplier": sup.name,
-                    "price_gs": price_int,
-                    "date": when.isoformat(),
-                    "warning": "duplicado — ya hay un evento para esta fecha",
-                }
-            )
-            continue
+        elif result["status"] == "error":
+            errors.append(result["data"])
+        if result.get("preview"):
+            preview.append(result["preview"])
+    return imported, skipped, errors, preview
 
-        record_price_event(
-            session,
-            ingredient_id=ing.id,
-            price_gs=price_int,
-            source="csv_upload",
-            at=_datetime.combine(when, _datetime.min.time()).replace(tzinfo=None),
-            supplier_id=sup.id,
-        )
-        imported += 1
-        preview.append(
-            {
+
+async def _process_single_row(
+    session, row, row_idx, ingredients_by_name, suppliers_by_name, today,
+) -> dict:
+    """Process a single CSV row. Returns {status, data, preview}.
+    
+    Extracted from _process_csv_rows to reduce complexity.
+    """
+    ing_name = (row.get("ingredient_name") or "").strip()
+    sup_name = (row.get("supplier_name") or "").strip()
+    price_raw = (row.get("price_gs") or "").strip()
+    date_raw = (row.get("date") or "").strip()
+
+    if not ing_name or not sup_name:
+        return {
+            "status": "error",
+            "data": {"row": row_idx, "error": "ingredient_name o supplier_name vacío"},
+        }
+
+    price_result = _parse_price(price_raw, ing_name, sup_name, row_idx)
+    if price_result["error"]:
+        return {"status": "error", "data": price_result["error"]}
+    price_int = price_result["price"]
+
+    ing = ingredients_by_name.get(ing_name.lower())
+    if ing is None:
+        return {
+            "status": "error",
+            "data": {"row": row_idx, "ingredient_name": ing_name, "error": f"ingrediente '{ing_name}' no existe"},
+        }
+    sup = suppliers_by_name.get(sup_name.lower())
+    if sup is None:
+        return {
+            "status": "error",
+            "data": {"row": row_idx, "supplier_name": sup_name, "error": f"proveedor '{sup_name}' no existe o inactivo"},
+        }
+
+    when = _parse_date_field(date_raw, today)
+
+    if _is_duplicate_price_event(session, ing.id, sup.id, when):
+        return {
+            "status": "skipped",
+            "data": {"row": row_idx},
+            "preview": {
                 "ingredient": ing.name,
                 "supplier": sup.name,
                 "price_gs": price_int,
                 "date": when.isoformat(),
-            }
-        )
+                "warning": "duplicado — ya hay un evento para esta fecha",
+            },
+        }
 
+    _record_price_event(session, ing.id, sup.id, price_int, when)
+    return {
+        "status": "imported",
+        "preview": {
+            "ingredient": ing.name,
+            "supplier": sup.name,
+            "price_gs": price_int,
+            "date": when.isoformat(),
+        },
+    }
+
+
+def _parse_price(price_raw: str, ing_name: str, sup_name: str, row_idx: int) -> dict:
+    """Parse price string. Returns {price, error}.
+    
+    Extracted from _process_single_row to reduce complexity.
+    """
+    try:
+        price_int = int(price_raw)
+    except (ValueError, TypeError):
+        return {
+            "error": {
+                "row": row_idx,
+                "ingredient_name": ing_name,
+                "supplier_name": sup_name,
+                "error": f"price_gs inválido: {price_raw!r}",
+            }
+        }
+    if price_int <= 0:
+        return {
+            "error": {
+                "row": row_idx,
+                "ingredient_name": ing_name,
+                "supplier_name": sup_name,
+                "error": f"price_gs debe ser > 0: {price_int}",
+            }
+        }
+    return {"price": price_int}
+
+
+def _parse_date_field(date_raw: str, today):
+    """Parse date string, defaulting to today if empty.
+    
+    Extracted from _process_single_row to reduce complexity.
+    """
+    from datetime import date as _date
+
+    if not date_raw:
+        return today
+    try:
+        return _date.fromisoformat(date_raw)
+    except ValueError:
+        return today
+
+
+def _is_duplicate_price_event(session, ingredient_id: int, supplier_id: int, when) -> bool:
+    """Check if a price event already exists for (ingredient, supplier, date).
+    
+    Extracted from _process_single_row to reduce complexity.
+    """
+    from app.rms.models import IngredientPriceEvent
+
+    existing = session.execute(
+        select(IngredientPriceEvent).where(
+            IngredientPriceEvent.ingredient_id == ingredient_id,
+            IngredientPriceEvent.supplier_id == supplier_id,
+        )
+    ).scalars().first()
+    if existing is None:
+        return False
+    return existing.at.date() == when
+
+
+def _record_price_event(session, ingredient_id: int, supplier_id: int, price_int: int, when) -> None:
+    """Record a price event for an ingredient.
+    
+    Extracted from _process_single_row to reduce complexity.
+    """
+    from datetime import datetime as _datetime
+
+    record_price_event(
+        session,
+        ingredient_id=ingredient_id,
+        price_gs=price_int,
+        source="csv_upload",
+        at=_datetime.combine(when, _datetime.min.time()).replace(tzinfo=None),
+        supplier_id=supplier_id,
+    )
+
+
+def _record_upload_audit(session, request, file, imported: int, skipped: int, errors: list) -> None:
+    """Record audit log for the upload.
+    
+    Extracted from reorder_upload_prices to reduce complexity.
+    """
     audit_record(
         session,
         user_id=current_operator(request),
@@ -838,17 +935,6 @@ async def reorder_upload_prices(
             "errors": len(errors),
             "filename": getattr(file, "filename", None),
         },
-    )
-    session.commit()
-
-    return JSONResponse(
-        {
-            "ok": True,
-            "imported": imported,
-            "skipped": skipped,
-            "errors": errors[:50],  # cap error list
-            "preview": preview[:50],
-        }
     )
 
 

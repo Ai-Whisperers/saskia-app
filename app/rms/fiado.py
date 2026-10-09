@@ -179,44 +179,83 @@ def aging_report(db: Session) -> dict[str, int]:
     buckets = {"b0_30": 0, "b31_60": 0, "b61_mas": 0}
     now = datetime.now(ASUNCION_TZ)
 
-    def _aware(_dt: datetime) -> datetime:
-        return _dt if _dt.tzinfo is not None else _dt.replace(tzinfo=ASUNCION_TZ)
-
     for acc in accounts:
-        txs = (
-            db.execute(
-                select(CreditTransaction)
-                .where(CreditTransaction.account_id == acc.id)
-                .order_by(CreditTransaction.ts)
-            )
-            .scalars()
-            .all()
-        )
-        # FIFO: los pagos cubren los cargos más viejos; lo que queda debe
-        # es lo que envejece desde su ts original.
-        queue: list[tuple[datetime, int]] = []
-        for tx in txs:
-            amt = int(tx.amount_gs)
-            if amt > 0:
-                queue.append([tx.ts, amt])
-            else:
-                rest = -amt
-                while queue and rest > 0:
-                    oldest = queue[0]
-                    take = min(oldest[1], rest)
-                    oldest[1] -= take
-                    rest -= take
-                    if oldest[1] == 0:
-                        queue.pop(0)
-        for ts, amt in queue:
-            days = (now - _aware(ts)).days
-            if days <= 30:
-                buckets["b0_30"] += amt
-            elif days <= 60:
-                buckets["b31_60"] += amt
-            else:
-                buckets["b61_mas"] += amt
+        txs = _fetch_account_transactions(db, acc.id)
+        queue = _compute_fifo_queue(txs)
+        _accumulate_buckets(buckets, queue, now)
+
     return buckets
+
+
+def _fetch_account_transactions(db, account_id: int) -> list:
+    """Fetch all transactions for an account, ordered by timestamp.
+    
+    Extracted from aging_report to reduce complexity.
+    """
+    from app.rms.models_legacy import CreditTransaction
+
+    return list(
+        db.execute(
+            select(CreditTransaction)
+            .where(CreditTransaction.account_id == account_id)
+            .order_by(CreditTransaction.ts)
+        ).scalars().all()
+    )
+
+
+def _compute_fifo_queue(txs: list) -> list[tuple[datetime, int]]:
+    """Compute the FIFO queue of unpaid amounts with their original timestamps.
+    
+    FIFO: los pagos cubren los cargos más viejos; lo que queda debe
+    es lo que envejece desde su ts original.
+    Extracted from aging_report to reduce complexity.
+    """
+    queue: list[tuple[datetime, int]] = []
+    for tx in txs:
+        amt = int(tx.amount_gs)
+        if amt > 0:
+            queue.append([tx.ts, amt])
+        else:
+            _apply_payment(queue, -amt)
+    return queue
+
+
+def _apply_payment(queue: list, payment: int) -> None:
+    """Apply a payment to the oldest charges in the queue (FIFO).
+    
+    Extracted from _compute_fifo_queue to reduce complexity.
+    """
+    rest = payment
+    while queue and rest > 0:
+        oldest = queue[0]
+        take = min(oldest[1], rest)
+        oldest[1] -= take
+        rest -= take
+        if oldest[1] == 0:
+            queue.pop(0)
+
+
+def _accumulate_buckets(buckets: dict, queue: list[tuple[datetime, int]], now: datetime) -> None:
+    """Accumulate queue amounts into aging buckets based on days.
+    
+    Extracted from aging_report to reduce complexity.
+    """
+    for ts, amt in queue:
+        days = (now - _ensure_aware(ts)).days
+        if days <= 30:
+            buckets["b0_30"] += amt
+        elif days <= 60:
+            buckets["b31_60"] += amt
+        else:
+            buckets["b61_mas"] += amt
+
+
+def _ensure_aware(dt: datetime) -> datetime:
+    """Ensure a datetime is timezone-aware (Asuncion TZ if naive).
+    
+    Extracted from _accumulate_buckets to reduce complexity.
+    """
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=ASUNCION_TZ)
 
 
 def cartera(db: Session) -> list[dict[str, Any]]:

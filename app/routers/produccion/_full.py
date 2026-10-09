@@ -202,32 +202,73 @@ def _apply_produccion_filters(
     with_surplus: str,
 ) -> list[dict]:
     """Return only the rows that pass every active filter. Empty filter
-    values mean 'no filter for this group'. All filters combine as AND."""
+    values mean 'no filter for this group'. All filters combine as AND.
+    """
     out = rows
-    if allergen:
-        wanted = set(allergen)
-        out = [r for r in out if _row_allergens(r) & wanted]
-
-    if source:
-        wanted = set(source)
-        out = [r for r in out if _row_source(r) in wanted]
-
-    if with_pedidos == "1":
-        out = [r for r in out if (r.get("pending_pedido_qty") or 0) > 0]
-    elif with_pedidos == "0":
-        out = [r for r in out if (r.get("pending_pedido_qty") or 0) == 0]
-
-    if with_hecho == "1":
-        out = [r for r in out if (r.get("completed_qty") or 0) > 0]
-    elif with_hecho == "0":
-        out = [r for r in out if (r.get("completed_qty") or 0) == 0]
-
-    if with_surplus == "1":
-        out = [r for r in out if (r.get("batch_surplus_pct") or 0) >= 30]
-    elif with_surplus == "0":
-        out = [r for r in out if (r.get("batch_surplus_pct") or 0) < 30]
-
+    out = _filter_by_allergen(out, allergen)
+    out = _filter_by_source(out, source)
+    out = _filter_by_pedidos(out, with_pedidos)
+    out = _filter_by_hecho(out, with_hecho)
+    out = _filter_by_surplus(out, with_surplus)
     return out
+
+
+def _filter_by_allergen(rows: list[dict], allergen: list[str]) -> list[dict]:
+    """Filter rows by allergen match.
+    
+    Extracted from _apply_produccion_filters to reduce complexity.
+    """
+    if not allergen:
+        return rows
+    wanted = set(allergen)
+    return [r for r in rows if _row_allergens(r) & wanted]
+
+
+def _filter_by_source(rows: list[dict], source: list[str]) -> list[dict]:
+    """Filter rows by source match.
+    
+    Extracted from _apply_produccion_filters to reduce complexity.
+    """
+    if not source:
+        return rows
+    wanted = set(source)
+    return [r for r in rows if _row_source(r) in wanted]
+
+
+def _filter_by_pedidos(rows: list[dict], with_pedidos: str) -> list[dict]:
+    """Filter rows by pending pedido qty.
+    
+    Extracted from _apply_produccion_filters to reduce complexity.
+    """
+    if with_pedidos == "1":
+        return [r for r in rows if (r.get("pending_pedido_qty") or 0) > 0]
+    if with_pedidos == "0":
+        return [r for r in rows if (r.get("pending_pedido_qty") or 0) == 0]
+    return rows
+
+
+def _filter_by_hecho(rows: list[dict], with_hecho: str) -> list[dict]:
+    """Filter rows by completed qty.
+    
+    Extracted from _apply_produccion_filters to reduce complexity.
+    """
+    if with_hecho == "1":
+        return [r for r in rows if (r.get("completed_qty") or 0) > 0]
+    if with_hecho == "0":
+        return [r for r in rows if (r.get("completed_qty") or 0) == 0]
+    return rows
+
+
+def _filter_by_surplus(rows: list[dict], with_surplus: str) -> list[dict]:
+    """Filter rows by batch surplus percentage.
+    
+    Extracted from _apply_produccion_filters to reduce complexity.
+    """
+    if with_surplus == "1":
+        return [r for r in rows if (r.get("batch_surplus_pct") or 0) >= 30]
+    if with_surplus == "0":
+        return [r for r in rows if (r.get("batch_surplus_pct") or 0) < 30]
+    return rows
 
 
 @router.get("", response_class=HTMLResponse)

@@ -185,130 +185,131 @@ def clientes_list(
     from app.rms.models import CustomerAddress
 
     q = q or ""
-    f"%{q.lower()}%"
+    ql = q.lower()
+
+    customers = _filter_customers_by_query(session, ql)
+    cust_ids = [c.id for c in customers]
+    all_stats = batch_customer_stats(session, customers)
+    sub_counts, pedido_counts = _batch_subscription_and_pedido_counts(session, cust_ids)
 
     if tier:
-        # Tier filter requires post-hoc filtering (stats needed per customer).
-        customers = list_customers(session)
-        if q:
-            ql = q.lower()
-            customers = [
-                c
-                for c in customers
-                if (c.name and ql in c.name.lower()) or (c.phone and ql in c.phone)
-            ]
-        rows = []
-        all_stats = batch_customer_stats(session, customers)
-        # Tier 6.1 (2026-10-01): batch-fetch active subscriptions + open
-        # pedido counts for the directory list. One IN query each instead
-        # of N+1 per row.
-        from app.rms.models import Pedido, Suscripcion
-
-        cust_ids = [c.id for c in customers]
-        active_sub_count: dict[int, int] = {}
-        open_pedido_count: dict[int, int] = {}
-        if cust_ids:
-            from sqlalchemy import func
-
-            sub_rows = session.execute(
-                select(Suscripcion.customer_id, func.count(Suscripcion.id))
-                .where(Suscripcion.customer_id.in_(cust_ids))
-                .where(Suscripcion.status == "activa")
-                .group_by(Suscripcion.customer_id)
-            ).all()
-            active_sub_count = {cid: n for cid, n in sub_rows}
-            ped_rows = session.execute(
-                select(Pedido.customer_id, func.count(Pedido.id))
-                .where(Pedido.customer_id.in_(cust_ids))
-                .where(Pedido.status.in_(["pending", "promised", "in_production"]))
-                .group_by(Pedido.customer_id)
-            ).all()
-            open_pedido_count = {cid: n for cid, n in ped_rows}
-        for c in customers:
-            stats = all_stats.get(c.id)
-            if stats is None:
-                continue
-            if stats.tier.value == tier:
-                rows.append(
-                    {
-                        "id": c.id,
-                        "name": c.name or "(sin nombre)",
-                        "phone": c.phone,
-                        "lifetime_spend_gs": stats.lifetime_spend_gs,
-                        "n_sales": stats.n_sales,
-                        "last_sale_at": stats.last_sale_at,
-                        "tier": stats.tier.value,
-                        "tier_label": status_es(stats.tier.value)[0],
-                        "tier_sev": status_es(stats.tier.value)[1],
-                        "points": c.loyalty_points,
-                        "created_at": c.created_at,
-                        "has_active_sub": active_sub_count.get(c.id, 0) > 0,
-                        "active_sub_count": active_sub_count.get(c.id, 0),
-                        "open_pedido_count": open_pedido_count.get(c.id, 0),
-                    }
-                )
+        rows = _build_rows_with_tier_filter(customers, all_stats, sub_counts, pedido_counts, tier)
     else:
-        # No tier filter — search only.
-        if q:
-            ql = q.lower()
-            customers = [
-                c
-                for c in list_customers(session)
-                if (c.name and ql in c.name.lower()) or (c.phone and ql in c.phone)
-            ]
-        else:
-            customers = list_customers(session)
-        # Batch-fetch all stats in one query instead of N queries
-        all_stats = batch_customer_stats(session, customers)
-        # Tier 6.1 (2026-10-01): batch-fetch active subscriptions + open
-        # pedido counts. One IN query each instead of N+1 per row.
-        from app.rms.models import Pedido, Suscripcion
+        rows = _build_rows(customers, all_stats, sub_counts, pedido_counts)
 
-        cust_ids = [c.id for c in customers]
-        active_sub_count: dict[int, int] = {}
-        open_pedido_count: dict[int, int] = {}
-        if cust_ids:
-            from sqlalchemy import func
+    rows = _apply_sorting(rows, sort, dir)
 
-            sub_rows = session.execute(
-                select(Suscripcion.customer_id, func.count(Suscripcion.id))
-                .where(Suscripcion.customer_id.in_(cust_ids))
-                .where(Suscripcion.status == "activa")
-                .group_by(Suscripcion.customer_id)
-            ).all()
-            active_sub_count = {cid: n for cid, n in sub_rows}
-            ped_rows = session.execute(
-                select(Pedido.customer_id, func.count(Pedido.id))
-                .where(Pedido.customer_id.in_(cust_ids))
-                .where(Pedido.status.in_(["pending", "promised", "in_production"]))
-                .group_by(Pedido.customer_id)
-            ).all()
-            open_pedido_count = {cid: n for cid, n in ped_rows}
-        rows = []
-        for c in customers:
-            stats = all_stats.get(c.id)
-            if stats is None:
-                continue
-            rows.append(
-                {
-                    "id": c.id,
-                    "name": c.name or "(sin nombre)",
-                    "phone": c.phone,
-                    "lifetime_spend_gs": stats.lifetime_spend_gs,
-                    "n_sales": stats.n_sales,
-                    "last_sale_at": stats.last_sale_at,
-                    "tier": stats.tier.value,
-                    "tier_label": status_es(stats.tier.value)[0],
-                    "tier_sev": status_es(stats.tier.value)[1],
-                    "points": c.loyalty_points,
-                    "created_at": c.created_at,
-                    "has_active_sub": active_sub_count.get(c.id, 0) > 0,
-                    "active_sub_count": active_sub_count.get(c.id, 0),
-                    "open_pedido_count": open_pedido_count.get(c.id, 0),
-                }
-            )
+    # CSV export
+    if request.query_params.get("format") == "csv":
+        return _export_csv(request, session, rows)
 
-    # Apply sorting
+    return _render_directory(request, session, rows, page, q, tier, sort, dir)
+
+
+def _filter_customers_by_query(session, ql: str) -> list:
+    """Filter customers by search query.
+    
+    Extracted from clientes_list to reduce complexity.
+    """
+    if not ql:
+        return list_customers(session)
+    return [
+        c
+        for c in list_customers(session)
+        if (c.name and ql in c.name.lower()) or (c.phone and ql in c.phone)
+    ]
+
+
+def _batch_subscription_and_pedido_counts(session, cust_ids: list) -> tuple[dict, dict]:
+    """Batch-fetch active subscription and open pedido counts.
+    
+    Extracted from clientes_list to reduce complexity.
+    Returns (active_sub_count, open_pedido_count) dicts.
+    """
+    active_sub_count: dict[int, int] = {}
+    open_pedido_count: dict[int, int] = {}
+    if not cust_ids:
+        return active_sub_count, open_pedido_count
+
+    from sqlalchemy import func
+    from app.rms.models import Pedido, Suscripcion
+
+    sub_rows = session.execute(
+        select(Suscripcion.customer_id, func.count(Suscripcion.id))
+        .where(Suscripcion.customer_id.in_(cust_ids))
+        .where(Suscripcion.status == "activa")
+        .group_by(Suscripcion.customer_id)
+    ).all()
+    active_sub_count = {cid: n for cid, n in sub_rows}
+
+    ped_rows = session.execute(
+        select(Pedido.customer_id, func.count(Pedido.id))
+        .where(Pedido.customer_id.in_(cust_ids))
+        .where(Pedido.status.in_(["pending", "promised", "in_production"]))
+        .group_by(Pedido.customer_id)
+    ).all()
+    open_pedido_count = {cid: n for cid, n in ped_rows}
+
+    return active_sub_count, open_pedido_count
+
+
+def _build_row(customer, stats, sub_counts, pedido_counts) -> dict:
+    """Build a single customer row dict.
+    
+    Extracted from clientes_list to reduce complexity.
+    """
+    return {
+        "id": customer.id,
+        "name": customer.name or "(sin nombre)",
+        "phone": customer.phone,
+        "lifetime_spend_gs": stats.lifetime_spend_gs,
+        "n_sales": stats.n_sales,
+        "last_sale_at": stats.last_sale_at,
+        "tier": stats.tier.value,
+        "tier_label": status_es(stats.tier.value)[0],
+        "tier_sev": status_es(stats.tier.value)[1],
+        "points": customer.loyalty_points,
+        "created_at": customer.created_at,
+        "has_active_sub": sub_counts.get(customer.id, 0) > 0,
+        "active_sub_count": sub_counts.get(customer.id, 0),
+        "open_pedido_count": pedido_counts.get(customer.id, 0),
+    }
+
+
+def _build_rows(customers, all_stats, sub_counts, pedido_counts) -> list:
+    """Build rows for all customers.
+    
+    Extracted from clientes_list to reduce complexity.
+    """
+    rows = []
+    for c in customers:
+        stats = all_stats.get(c.id)
+        if stats is None:
+            continue
+        rows.append(_build_row(c, stats, sub_counts, pedido_counts))
+    return rows
+
+
+def _build_rows_with_tier_filter(customers, all_stats, sub_counts, pedido_counts, tier: str) -> list:
+    """Build rows filtered by tier.
+    
+    Extracted from clientes_list to reduce complexity.
+    """
+    rows = []
+    for c in customers:
+        stats = all_stats.get(c.id)
+        if stats is None:
+            continue
+        if stats.tier.value == tier:
+            rows.append(_build_row(c, stats, sub_counts, pedido_counts))
+    return rows
+
+
+def _apply_sorting(rows: list, sort: str | None, dir: str | None) -> list:
+    """Apply sorting to rows.
+    
+    Extracted from clientes_list to reduce complexity.
+    """
     sort_col = sort or "name"
     reverse = dir == "desc"
     col_map = {
@@ -318,9 +319,6 @@ def clientes_list(
         "lifetime_spend_gs": "lifetime_spend_gs",
         "points": "points",
         "tier": "tier",
-        # Tier 6.1 (2026-10-01): sort-by-last-purchase column.
-        # None sorts as oldest; useful for retention outreach — sort
-        # asc by last_sale_at to find lapsed customers first.
         "last_sale_at": "last_sale_at",
     }
     col = col_map.get(sort_col, "name")
@@ -329,8 +327,80 @@ def clientes_list(
             key=lambda r: r.get(col) or "" if isinstance(r.get(col), str) else r.get(col) or 0,
             reverse=reverse,
         )
+    return rows
 
-    # Pagination
+
+def _export_csv(request, session, rows: list):
+    """Export rows as CSV.
+    
+    Extracted from clientes_list to reduce complexity.
+    """
+    import csv
+    import io
+    from starlette.responses import StreamingResponse
+
+    all_customers = list_customers(session)
+    cust_by_id = {c.id: c for c in all_customers}
+    export_rows = _build_csv_export_rows(rows, cust_by_id)
+
+    buf = io.StringIO()
+    w = csv.DictWriter(
+        buf,
+        fieldnames=[
+            "id", "name", "phone", "email", "birthday", "how_found",
+            "preferred_channel", "marketing_consent", "dietary_restrictions",
+            "n_sales", "lifetime_spend_gs", "tier", "points",
+            "last_sale_at", "created_at",
+        ],
+    )
+    w.writeheader()
+    w.writerows(export_rows)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=clientes.csv"},
+    )
+
+
+def _build_csv_export_rows(rows: list, cust_by_id: dict) -> list:
+    """Build CSV export rows by delegating to _build_csv_row.
+    
+    Extracted from _export_csv to reduce complexity.
+    """
+    return [_build_csv_row(r, cust_by_id.get(r["id"])) for r in rows]
+
+
+def _build_csv_row(row: dict, cust) -> dict:
+    """Build a single CSV export row.
+    
+    Extracted from _build_csv_export_rows to reduce complexity.
+    """
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "phone": row["phone"] or "",
+        "email": (cust.email if cust else "") or "",
+        "birthday": (cust.birthday if cust else "") or "",
+        "how_found": (cust.how_found if cust else "") or "",
+        "preferred_channel": (cust.preferred_channel if cust else "") or "",
+        "marketing_consent": "si" if (cust and cust.marketing_consent) else "no",
+        "dietary_restrictions": (cust.dietary_restrictions if cust else "") or "",
+        "n_sales": row["n_sales"],
+        "lifetime_spend_gs": row["lifetime_spend_gs"],
+        "tier": row["tier"],
+        "points": row["points"],
+        "last_sale_at": row["last_sale_at"].isoformat() if row["last_sale_at"] else "",
+        "created_at": row["created_at"].isoformat() if row["created_at"] else "",
+    }
+
+
+def _render_directory(request, session, rows: list, page: int, q: str, tier: str | None, sort: str | None, dir: str | None):
+    """Render the customer directory HTML page.
+    
+    Extracted from clientes_list to reduce complexity.
+    """
+    from app.rms.models import CustomerAddress
+
     total = len(rows)
     total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
     page = min(page, total_pages)
@@ -338,85 +408,9 @@ def clientes_list(
     end = start + PAGE_SIZE
     page_rows = rows[start:end]
 
-    # P3 profile batch: full customer list for CSV enrichment + nudge.
     all_customers = list_customers(session)
+    nudge = _compute_profile_nudges(session, all_customers)
 
-    # --- CSV export (all rows, not just current page) ---
-    if request.query_params.get("format") == "csv":
-        # P3 profile batch: enrich with contact/profile fields for
-        # promo segmentation (consent!) — keyed lookup by id.
-        cust_by_id = {c.id: c for c in all_customers}
-        export_rows = [
-            {
-                "id": r["id"],
-                "name": r["name"],
-                "phone": r["phone"] or "",
-                "email": (cust_by_id[r["id"]].email if r["id"] in cust_by_id else "") or "",
-                "birthday": (cust_by_id[r["id"]].birthday if r["id"] in cust_by_id else "") or "",
-                "how_found": (cust_by_id[r["id"]].how_found if r["id"] in cust_by_id else "") or "",
-                "preferred_channel": (
-                    cust_by_id[r["id"]].preferred_channel if r["id"] in cust_by_id else ""
-                )
-                or "",
-                "marketing_consent": "si"
-                if (r["id"] in cust_by_id and cust_by_id[r["id"]].marketing_consent)
-                else "no",
-                "dietary_restrictions": (
-                    cust_by_id[r["id"]].dietary_restrictions if r["id"] in cust_by_id else ""
-                )
-                or "",
-                "n_sales": r["n_sales"],
-                "lifetime_spend_gs": r["lifetime_spend_gs"],
-                "tier": r["tier"],
-                "points": r["points"],
-                "last_sale_at": r["last_sale_at"].isoformat() if r["last_sale_at"] else "",
-                "created_at": r["created_at"].isoformat() if r["created_at"] else "",
-            }
-            for r in rows
-        ]
-        buf = io.StringIO()
-        w = csv.DictWriter(
-            buf,
-            fieldnames=[
-                "id",
-                "name",
-                "phone",
-                "email",
-                "birthday",
-                "how_found",
-                "preferred_channel",
-                "marketing_consent",
-                "dietary_restrictions",
-                "n_sales",
-                "lifetime_spend_gs",
-                "tier",
-                "points",
-                "last_sale_at",
-                "created_at",
-            ],
-        )
-        w.writeheader()
-        w.writerows(export_rows)
-        return StreamingResponse(
-            iter([buf.getvalue()]),
-            media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=clientes.csv"},
-        )
-
-    # P3 profile batch: data-completion nudge — counts of clients missing
-    # key contact data, so the operator knows whose profile to fill next.
-    nudge = {
-        "sin_telefono": sum(1 for c in all_customers if not (c.phone or "").strip()),
-        "sin_dietary": sum(1 for c in all_customers if not (c.dietary_restrictions or "").strip()),
-        "sin_direccion": sum(
-            1
-            for c in all_customers
-            if not session.scalar(
-                select(CustomerAddress.id).where(CustomerAddress.customer_id == c.id).limit(1)
-            )
-        ),
-        "sin_consent": sum(1 for c in all_customers if not c.marketing_consent),
-    }
     return render(
         request,
         "clientes.html",
@@ -435,6 +429,28 @@ def clientes_list(
             "page_end": min(page * 50, total),
         },
     )
+
+
+def _compute_profile_nudges(session, all_customers: list) -> dict:
+    """Compute data-completion nudge counts.
+    
+    Extracted from _render_directory to reduce complexity.
+    """
+    from app.rms.models import CustomerAddress
+
+    return {
+        "sin_telefono": sum(1 for c in all_customers if not (c.phone or "").strip()),
+        "sin_dietary": sum(1 for c in all_customers if not (c.dietary_restrictions or "").strip()),
+        "sin_direccion": sum(
+            1
+            for c in all_customers
+            if not session.scalar(
+                select(CustomerAddress.id).where(CustomerAddress.customer_id == c.id).limit(1)
+            )
+        ),
+        "sin_consent": sum(1 for c in all_customers if not c.marketing_consent),
+    }
+
 
 
 def customer_to_api_payload(c: Customer, session: Session) -> dict:

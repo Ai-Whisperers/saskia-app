@@ -90,10 +90,30 @@ def _rows_for(session: Session) -> list[_PriceRow]:
     but a parent-level supplier_id + purchase_price_gs counts as a single
     "implicit" variant.
     """
-    rows: list[_PriceRow] = []
+    rows = _collect_variant_rows(session)
+    fallback = _collect_fallback_rows(session, {r.ingredient_id for r in rows})
+    rows.extend(fallback)
+    return rows
 
-    # Variants — the rich source.
-    variant_rows = session.execute(
+
+def _collect_variant_rows(session) -> list[_PriceRow]:
+    """Collect rows from IngredientVariant (the rich source).
+
+    Extracted from _rows_for to reduce complexity.
+    """
+    variant_rows = _query_variant_rows(session)
+    if not variant_rows:
+        return []
+    suppliers_by_id = _load_supplier_names(session, {r[3] for r in variant_rows if r[3] is not None})
+    return _build_price_rows_from_variants(variant_rows, suppliers_by_id)
+
+
+def _query_variant_rows(session):
+    """Query variant rows with supplier and price.
+
+    Extracted from _collect_variant_rows to reduce complexity.
+    """
+    return session.execute(
         select(
             Ingredient.id,
             Ingredient.name,
@@ -107,22 +127,33 @@ def _rows_for(session: Session) -> list[_PriceRow]:
         .order_by(Ingredient.id, IngredientVariant.purchase_price_gs.asc())
     ).all()
 
-    supplier_ids = {r[3] for r in variant_rows if r[3] is not None}
-    suppliers_by_id: dict[int, str] = {}
-    if supplier_ids:
-        suppliers_by_id = {
-            sup_id: sup_name
-            for sup_id, sup_name in session.execute(
-                select(Supplier.id, Supplier.name).where(Supplier.id.in_(supplier_ids))
-            ).all()
-        }
 
+def _load_supplier_names(session, supplier_ids: set) -> dict[int, str]:
+    """Load supplier name lookup.
+
+    Extracted from _collect_variant_rows to reduce complexity.
+    """
+    if not supplier_ids:
+        return {}
+    return {
+        sup_id: sup_name
+        for sup_id, sup_name in session.execute(
+            select(Supplier.id, Supplier.name).where(Supplier.id.in_(supplier_ids))
+        ).all()
+    }
+
+
+def _build_price_rows_from_variants(variant_rows, suppliers_by_id: dict) -> list[_PriceRow]:
+    """Build _PriceRow objects from variant rows.
+
+    Extracted from _collect_variant_rows to reduce complexity.
+    """
+    rows = []
     for ing_id, ing_name, ing_unit, sup_id, price in variant_rows:
         if sup_id is None or price is None:
             continue
         sup_name = suppliers_by_id.get(sup_id)
         if sup_name is None:
-            # FK guarantees this, but defensive.
             continue
         rows.append(
             _PriceRow(
@@ -134,12 +165,27 @@ def _rows_for(session: Session) -> list[_PriceRow]:
                 price_gs=int(price),
             )
         )
+    return rows
 
-    # Fallback — ingredients with no variants but parent-level supplier_id +
-    # purchase_price_gs. We only include these when no variant exists for that
-    # ingredient, so we don't double-count.
-    variant_ingredient_ids = {r[0] for r in variant_rows}
-    fallback_rows = session.execute(
+
+def _collect_fallback_rows(session, variant_ingredient_ids: set) -> list[_PriceRow]:
+    """Collect fallback rows (ingredients with no variants but parent-level supplier).
+
+    Extracted from _rows_for to reduce complexity.
+    """
+    fallback_rows = _query_fallback_rows(session, variant_ingredient_ids)
+    if not fallback_rows:
+        return []
+    fallback_suppliers = _load_fallback_suppliers(session, fallback_rows)
+    return _build_price_rows_from_fallback(fallback_rows, fallback_suppliers)
+
+
+def _query_fallback_rows(session, variant_ingredient_ids: set):
+    """Query fallback rows (ingredients without variants).
+
+    Extracted from _collect_fallback_rows to reduce complexity.
+    """
+    return session.execute(
         select(
             Ingredient.id,
             Ingredient.name,
@@ -153,21 +199,32 @@ def _rows_for(session: Session) -> list[_PriceRow]:
         .order_by(Ingredient.id)
     ).all()
 
-    fallback_supplier_ids = {r[3] for r in fallback_rows if r[3] is not None}
-    fallback_suppliers: dict[int, str] = {}
-    if fallback_supplier_ids:
-        # Only fetch ones we don't already have.
-        new_ids = fallback_supplier_ids - set(suppliers_by_id.keys())
-        if new_ids:
-            fallback_suppliers = {
-                sup_id: sup_name
-                for sup_id, sup_name in session.execute(
-                    select(Supplier.id, Supplier.name).where(Supplier.id.in_(new_ids))
-                ).all()
-            }
-        for sid, sname in suppliers_by_id.items():
-            fallback_suppliers.setdefault(sid, sname)
 
+def _load_fallback_suppliers(session, fallback_rows) -> dict[int, str]:
+    """Load fallback supplier names.
+
+    Extracted from _collect_fallback_rows to reduce complexity.
+    """
+    fallback_supplier_ids = {r[3] for r in fallback_rows if r[3] is not None}
+    if not fallback_supplier_ids:
+        return {}
+    new_ids = fallback_supplier_ids - {r.supplier_id for r in []}
+    if not new_ids:
+        return {}
+    return {
+        sup_id: sup_name
+        for sup_id, sup_name in session.execute(
+            select(Supplier.id, Supplier.name).where(Supplier.id.in_(new_ids))
+        ).all()
+    }
+
+
+def _build_price_rows_from_fallback(fallback_rows, fallback_suppliers: dict) -> list[_PriceRow]:
+    """Build _PriceRow objects from fallback rows.
+
+    Extracted from _collect_fallback_rows to reduce complexity.
+    """
+    rows = []
     for ing_id, ing_name, ing_unit, sup_id, price in fallback_rows:
         if sup_id is None or price is None:
             continue
@@ -184,7 +241,6 @@ def _rows_for(session: Session) -> list[_PriceRow]:
                 price_gs=int(price),
             )
         )
-
     return rows
 
 
@@ -208,14 +264,19 @@ def get_price_comparison(
         expensive supplier for that ingredient (0 when only one supplier).
     """
     rows = _rows_for(session)
+    groups = _group_rows_by_ingredient(rows)
+    result = [g for g in (_process_group(grp, supplier_id) for grp in groups.values()) if g is not None]
+    result.sort(key=lambda g: g.ingredient_name)
+    return result
 
-    # Group by ingredient.
+
+def _group_rows_by_ingredient(rows) -> dict[int, PriceComparisonGroup]:
+    """Group price comparison rows by ingredient.
+
+    Extracted from get_price_comparison to reduce complexity.
+    """
     groups: dict[int, PriceComparisonGroup] = {}
     for r in rows:
-        if supplier_id is not None and r.supplier_id != supplier_id:
-            # We still need to know about other suppliers for the SAME ingredient
-            # (to compute delta). Don't drop the row — let the post-filter handle it.
-            pass
         if r.ingredient_id not in groups:
             groups[r.ingredient_id] = PriceComparisonGroup(
                 ingredient_id=r.ingredient_id,
@@ -229,52 +290,84 @@ def get_price_comparison(
                 price_gs=r.price_gs,
             )
         )
+    return groups
 
-    # Compute deltas + sort + filter to the requested supplier's ingredients.
-    result: list[PriceComparisonGroup] = []
-    for g in groups.values():
-        # De-dup by supplier — if the same supplier appears twice for one
-        # ingredient (multiple package variants), keep the cheapest entry.
-        by_supplier: dict[int, _SupplierPrice] = {}
-        for sp in g.suppliers:
-            if (
-                sp.supplier_id not in by_supplier
-                or sp.price_gs < by_supplier[sp.supplier_id].price_gs
-            ):
-                by_supplier[sp.supplier_id] = sp
-        unique_suppliers = list(by_supplier.values())
-        unique_suppliers.sort(key=lambda s: s.price_gs)
-        g.suppliers = unique_suppliers
 
-        if len(g.suppliers) > 1:
-            prices = [s.price_gs for s in g.suppliers]
-            cheapest = min(prices)
-            most_expensive = max(prices)
-            for s in g.suppliers:
-                s.delta_gs = s.price_gs - cheapest
-                s.delta_pct = (
-                    round((s.price_gs - cheapest) / cheapest * 100, 1) if cheapest > 0 else 0.0
-                )
-                s.is_cheapest = s.price_gs == cheapest
-            g.savings_gs_per_unit = most_expensive - cheapest
-            g.avg_price_gs = sum(prices) // len(prices)
-        elif g.suppliers:
-            g.suppliers[0].delta_gs = 0
-            g.suppliers[0].delta_pct = 0.0
-            g.suppliers[0].is_cheapest = True
-            g.savings_gs_per_unit = 0
-            g.avg_price_gs = g.suppliers[0].price_gs
+def _process_group(
+    g: PriceComparisonGroup, supplier_id: Optional[int],
+) -> PriceComparisonGroup | None:
+    """Process a single group: dedupe, compute deltas, filter by supplier.
 
-        # Supplier filter — keep only ingredients where the selected supplier
-        # actually appears.
-        if supplier_id is not None:
-            if not any(s.supplier_id == supplier_id for s in g.suppliers):
-                continue
+    Returns the group, or None if filtered out by supplier_id.
+    Extracted from get_price_comparison to reduce complexity.
+    """
+    g.suppliers = _dedupe_and_sort_suppliers(g.suppliers)
+    if len(g.suppliers) > 1:
+        _compute_multi_supplier_deltas(g)
+    elif g.suppliers:
+        _compute_single_supplier_deltas(g)
+    return _filter_by_supplier(g, supplier_id)
 
-        result.append(g)
 
-    result.sort(key=lambda g: g.ingredient_name)
-    return result
+def _dedupe_and_sort_suppliers(suppliers: list[_SupplierPrice]) -> list[_SupplierPrice]:
+    """Dedupe by supplier (keep cheapest) and sort by price ASC.
+
+    Extracted from get_price_comparison to reduce complexity.
+    """
+    by_supplier: dict[int, _SupplierPrice] = {}
+    for sp in suppliers:
+        if (
+            sp.supplier_id not in by_supplier
+            or sp.price_gs < by_supplier[sp.supplier_id].price_gs
+        ):
+            by_supplier[sp.supplier_id] = sp
+    unique = list(by_supplier.values())
+    unique.sort(key=lambda s: s.price_gs)
+    return unique
+
+
+def _compute_multi_supplier_deltas(g: PriceComparisonGroup) -> None:
+    """Compute deltas and savings for a multi-supplier group.
+
+    Extracted from get_price_comparison to reduce complexity.
+    """
+    prices = [s.price_gs for s in g.suppliers]
+    cheapest = min(prices)
+    most_expensive = max(prices)
+    for s in g.suppliers:
+        s.delta_gs = s.price_gs - cheapest
+        s.delta_pct = (
+            round((s.price_gs - cheapest) / cheapest * 100, 1) if cheapest > 0 else 0.0
+        )
+        s.is_cheapest = s.price_gs == cheapest
+    g.savings_gs_per_unit = most_expensive - cheapest
+    g.avg_price_gs = sum(prices) // len(prices)
+
+
+def _compute_single_supplier_deltas(g: PriceComparisonGroup) -> None:
+    """Compute deltas for a single-supplier group (all zero, is_cheapest=True).
+
+    Extracted from get_price_comparison to reduce complexity.
+    """
+    g.suppliers[0].delta_gs = 0
+    g.suppliers[0].delta_pct = 0.0
+    g.suppliers[0].is_cheapest = True
+    g.savings_gs_per_unit = 0
+    g.avg_price_gs = g.suppliers[0].price_gs
+
+
+def _filter_by_supplier(
+    g: PriceComparisonGroup, supplier_id: Optional[int],
+) -> PriceComparisonGroup | None:
+    """Filter group by supplier_id. Returns None if supplier not in group.
+
+    Extracted from get_price_comparison to reduce complexity.
+    """
+    if supplier_id is None:
+        return g
+    if any(s.supplier_id == supplier_id for s in g.suppliers):
+        return g
+    return None
 
 
 def total_potential_savings(comparison: list[PriceComparisonGroup]) -> int:

@@ -32,58 +32,101 @@ def compose_address_text(addr: Mapping[str, Any] | None) -> str:
         return ""
     parts: list[str] = []
 
-    cp = (addr.get("calle_principal") or "").strip()
-    cs = (addr.get("calle_secundaria") or "").strip()
-    n = (addr.get("numero") or "").strip()
-    if cp:
-        line = cp
-        if cs:
-            line = f"{line} e/ {cs}"
-        if n:
-            line = f"{line} {n}"
-        parts.append(line)
+    street_line = _build_street_line(addr)
+    if street_line:
+        parts.append(street_line)
 
+    building_line = _build_building_line(addr)
+    if building_line:
+        parts.append(building_line)
+
+    locality_line = _build_locality_line(addr)
+    if locality_line:
+        parts.append(locality_line)
+
+    return ", ".join(p for p in parts if p)
+
+
+def _build_street_line(addr) -> str:
+    """Build the street line (calle principal + secundaria + número).
+    
+    Extracted from compose_address_text to reduce complexity.
+    """
+    cp = (addr.get("calle_principal") or "").strip()
+    if not cp:
+        return ""
+    line = cp
+    cs = (addr.get("calle_secundaria") or "").strip()
+    if cs:
+        line = f"{line} e/ {cs}"
+    n = (addr.get("numero") or "").strip()
+    if n:
+        line = f"{line} {n}"
+    return line
+
+
+def _build_building_line(addr) -> str:
+    """Build the building line (edificio + piso + unidad).
+    
+    Extracted from compose_address_text to reduce complexity.
+    """
     edif = (addr.get("edificio") or "").strip()
     piso = (addr.get("piso") or "").strip()
     unidad = (addr.get("unidad") or "").strip()
     if edif:
-        extra_bits: list[str] = []
-        if piso:
-            extra_bits.append(f"piso {piso}")
-        if unidad:
-            extra_bits.append(f"unidad {unidad}")
+        extra_bits = _collect_floor_unit_bits(piso, unidad)
         if extra_bits:
-            parts.append(f"{edif} ({', '.join(extra_bits)})")
-        else:
-            parts.append(edif)
-    elif piso or unidad:
-        # piso/unidad without building — still useful on the receipt
-        bits = []
-        if piso:
-            bits.append(f"piso {piso}")
-        if unidad:
-            bits.append(f"unidad {unidad}")
-        parts.append(", ".join(bits))
+            return f"{edif} ({', '.join(extra_bits)})"
+        return edif
+    if piso or unidad:
+        bits = _collect_floor_unit_bits(piso, unidad)
+        return ", ".join(bits)
+    return ""
 
+
+def _collect_floor_unit_bits(piso: str, unidad: str) -> list[str]:
+    """Collect floor/unit bits into a list.
+    
+    Extracted from _build_building_line to reduce complexity.
+    """
+    bits = []
+    if piso:
+        bits.append(f"piso {piso}")
+    if unidad:
+        bits.append(f"unidad {unidad}")
+    return bits
+
+
+def _build_locality_line(addr) -> str:
+    """Build the locality line (barrio + ciudad + departamento).
+    
+    Extracted from compose_address_text to reduce complexity.
+    """
     barrio = (addr.get("barrio") or "").strip()
     ciudad = (addr.get("ciudad") or "").strip()
     departamento = (addr.get("departamento") or "").strip()
 
-    # Locality block: barrio is optional, ciudad is required-ish for
-    # delivery; if neither is set we fall through silently.
+    loc_parts = _collect_locality_parts(barrio, ciudad, departamento)
+    if loc_parts:
+        return ", ".join(loc_parts)
+    if departamento and ciudad:
+        return departamento
+    return ""
+
+
+def _collect_locality_parts(barrio: str, ciudad: str, departamento: str) -> list[str]:
+    """Collect locality parts into a list.
+    
+    Extracted from _build_locality_line to reduce complexity.
+    """
     loc_parts: list[str] = []
     if barrio:
         loc_parts.append(f"Barrio {barrio}")
     if ciudad:
         loc_parts.append(ciudad)
-    elif departamento:  # no city but we have a department → still useful
+    elif departamento:
         loc_parts.append(departamento)
-    if loc_parts:
-        parts.append(", ".join(loc_parts))
-    elif departamento and ciudad:
-        parts.append(departamento)
-
-    return ", ".join(p for p in parts if p)
+    return loc_parts
 
 
 def address_alias_label(addr: Mapping[str, Any] | None) -> str:

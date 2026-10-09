@@ -765,19 +765,11 @@ async def sale_create(
     sold_at: str = Form(""),
     channel: str = Form(""),
     idempotency_key: str = Form(""),
-    # Phase 1.B — fiscal invoice fields
     invoice_type: str = Form("boleta_resimple"),
     invoice_customer_ruc: str = Form(""),
     invoice_customer_name: str = Form(""),
-    # US 4.1 — per-sale packaging (audio: "the box for the cake"). The same
-    # product sold to-go vs. eat-in vs. event may need different packaging.
-    # Both fields must be set together (or both empty).
     packaging_item_id: int | None = Form(None, gt=0),
     packaging_qty: float | None = Form(None, gt=0),
-    # Phase 4 loyalty (2026-10-01): POS redeem flow. When > 0, converts
-    # to Gs. discount at 1pt = 1.000 Gs., writes a ledger row tied to
-    # the resulting Sale.id, and ADDS the discount to discount_gs below.
-    # 0 means "don't redeem"; never negative.
     points_to_redeem: int = Form(0, ge=0),
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
@@ -792,23 +784,92 @@ async def sale_create(
     from app.integrations.barcode import get_product_by_sku
     from app.rms.schemas import ALLOWED_PAYMENT_METHODS, MAX_DISCOUNT_GS, MAX_QTY
 
-    # SKU path: if sku is provided and product_id is not, look up.
+    product_id = _resolve_product_from_sku(session, product_id, sku)
+    _validate_sale_bounds(qty, discount_gs, MAX_QTY, MAX_DISCOUNT_GS)
+    _check_customer_allergen(session, customer_id, product_id)
+
+    sold_at_dt = _parse_sold_at(sold_at)
+    _assert_day_open(session, sold_at_dt)
+
+    payment_method_clean = _validate_payment_method(session, payment_method)
+    _check_cash_session_required(request, session, payment_method_clean)
+
+    channel_clean = _validate_channel(channel)
+    notes_clean = (notes or "").strip() or None
+    _validate_customer_exists(session, customer_id)
+
+    invoice_fields = _prepare_invoice_fields(
+        session, invoice_type, invoice_customer_ruc, invoice_customer_name, customer_id, product_id
+    )
+
+    if idempotency_key:
+        dup_response = _check_idempotency(session, idempotency_key)
+        if dup_response:
+            return dup_response
+
+    discount_gs = _apply_points_redemption(
+        session, customer_id, points_to_redeem, discount_gs, MAX_DISCOUNT_GS
+    )
+
+    sale = _create_sale(
+        session, product_id, qty, sold_at_dt, notes_clean,
+        customer_id, payment_method_clean, discount_gs, channel_clean,
+        packaging_item_id, packaging_qty,
+    )
+
+    _apply_invoice_to_sale(session, sale, invoice_fields, product_id, qty, discount_gs)
+
+    if idempotency_key:
+        _update_idempotency_record(session, idempotency_key, sale.sale_id)
+
+    if customer_id is not None:
+        _award_loyalty_points(session, customer_id, sale)
+
+    return _sale_create_redirect(sale)
+
+
+def _resolve_product_from_sku(session, product_id, sku):
+    """Resolve product_id from SKU if provided.
+    
+    Extracted from sale_create to reduce complexity.
+    """
+    from app.rms.messages import SALE_PRODUCT_OR_SKU_REQUIRED, SALE_SKU_NOT_FOUND
+
     if (not product_id or product_id == 0) and sku:
+        from app.integrations.barcode import get_product_by_sku
         result = get_product_by_sku(session, sku)
         if not result.ok or result.product is None:
-            raise NotFound(
-                "sku",
-                context={"sku": sku},
-                message=SALE_SKU_NOT_FOUND,
-            )
+            raise NotFound("sku", context={"sku": sku}, message=SALE_SKU_NOT_FOUND)
         product_id = result.product.id
     if not product_id:
         raise BadRequest(SALE_PRODUCT_OR_SKU_REQUIRED)
+    return product_id
 
-    # Allergen guard (derived-intel engine 3): block sales that put a
-    # declared customer allergen in their hands. Hard stop, Spanish detail.
+
+def _validate_sale_bounds(qty, discount_gs, max_qty, max_discount_gs):
+    """Validate qty and discount are within bounds.
+    
+    Extracted from sale_create to reduce complexity.
+    """
+    from app.rms.messages import SALE_DISCOUNT_TOO_HIGH, SALE_QTY_TOO_HIGH
+    if qty > max_qty:
+        raise HTTPException(
+            status_code=400, detail=SALE_QTY_TOO_HIGH,
+            headers={"X-Max-Qty": str(max_qty)},
+        )
+    if discount_gs > max_discount_gs:
+        raise HTTPException(
+            status_code=400, detail=SALE_DISCOUNT_TOO_HIGH,
+            headers={"X-Max-Discount-Gs": str(max_discount_gs)},
+        )
+
+
+def _check_customer_allergen(session, customer_id, product_id):
+    """Check customer allergen risk.
+    
+    Extracted from sale_create to reduce complexity.
+    """
     from app.rms.derived_intel import check_customer_risk
-
     risk = check_customer_risk(session, customer_id, product_id)
     if not risk.safe:
         raise HTTPException(
@@ -819,61 +880,54 @@ async def sale_create(
                 "alergia en /clientes si es un error)."
             ),
         )
-    # Form(...) didn't enforce upper bounds here because Form() with `le=`
-    # requires a literal value, not a constant. So we re-check explicitly.
-    # The 422 path is hit when gt/le/... mismatch happens (handled by
-    # FastAPI). For " > MAX_QTY specifically, raise 422 in the route via
-    # the same alias — but that's overcomplicated. Keep 400 for these.
-    if qty > MAX_QTY:
-        raise HTTPException(
-            status_code=400,
-            detail=SALE_QTY_TOO_HIGH,
-            headers={"X-Max-Qty": str(MAX_QTY)},
-        )
-    if discount_gs > MAX_DISCOUNT_GS:
-        raise HTTPException(
-            status_code=400,
-            detail=SALE_DISCOUNT_TOO_HIGH,
-            headers={"X-Max-Discount-Gs": str(MAX_DISCOUNT_GS)},
-        )
 
-    # Parse sold_at (defaults to now in Asunción TZ)
-    sold_at_raw = sold_at.strip()
+
+def _parse_sold_at(sold_at):
+    """Parse sold_at string to datetime.
+    
+    Extracted from sale_create to reduce complexity.
+    """
+    from app.rms.messages import SALE_INVALID_DATE
+    sold_at_raw = (sold_at or "").strip()
     if sold_at_raw:
         try:
-            # Form sends "YYYY-MM-DDTHH:MM" (no TZ). Treat as Asunción local.
             naive = datetime.fromisoformat(sold_at_raw)
-            sold_at_dt = naive.replace(tzinfo=ASUNCION_TZ).astimezone(ASUNCION_TZ)
+            return naive.replace(tzinfo=ASUNCION_TZ).astimezone(ASUNCION_TZ)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=SALE_INVALID_DATE) from e
-    else:
-        sold_at_dt = datetime.now(ASUNCION_TZ)
+    return datetime.now(ASUNCION_TZ)
 
-    # BACKLOG #15 part 2 (2026-10-02): block writes against a closed day.
-    # sold_at_dt is Asunción-local; EOD uses the same TZ, so .date()
-    # gives us the local day the operator is billing to.
+
+def _assert_day_open(session, sold_at_dt):
+    """Assert the day is open for sales.
+    
+    Extracted from sale_create to reduce complexity.
+    """
     from app.rms.eod_closed import assert_day_open_or_raise
-
     try:
         assert_day_open_or_raise(session, sold_at_dt.date(), action="sale_insert")
     except ValueError as e:
         raise HTTPException(status_code=409, detail=f"EOD_CLOSED:{e}") from None
 
-    # payment_method: optional, must be in ALLOWED_PAYMENT_METHODS if set
-    payment_method_clean = payment_method.strip() or None
-    if payment_method_clean is not None and payment_method_clean not in ALLOWED_PAYMENT_METHODS:
-        raise HTTPException(
-            status_code=400,
-            detail=SALE_INVALID_PAYMENT_METHOD,
-        )
 
-    # SASKIA-MIG-2: pre-shift session gate. Cash sales need an open
-    # arqueo de caja so the cierre-Z can compute expected = opening
-    # + efectivo del período. Non-cash methods (QR, transferencia,
-    # fiado, etc.) pass through — the cash drawer doesn't open.
-    # 422 (Unprocessable Entity) signals "the data is valid but the
-    # server is in a state that can't process it" which fits.
-    # SASKIA-MIG-5: ?bypass=true emergency escape hatch (audit-logged).
+def _validate_payment_method(session, payment_method):
+    """Validate and clean payment method.
+    
+    Extracted from sale_create to reduce complexity.
+    """
+    from app.rms.schemas import ALLOWED_PAYMENT_METHODS
+    from app.rms.messages import SALE_INVALID_PAYMENT_METHOD
+    payment_method_clean = (payment_method or "").strip() or None
+    if payment_method_clean is not None and payment_method_clean not in ALLOWED_PAYMENT_METHODS:
+        raise HTTPException(status_code=400, detail=SALE_INVALID_PAYMENT_METHOD)
+    return payment_method_clean
+
+
+def _check_cash_session_required(request, session, payment_method_clean):
+    """Check if cash session is required and open.
+    
+    Extracted from sale_create to reduce complexity.
+    """
     from app.rms.audit import record as _audit_record
     from app.rms.cash import get_open_session as _get_open_session
     from app.rms.messages import SALE_CASH_SESSION_REQUIRED
@@ -883,152 +937,145 @@ async def sale_create(
         bypass = request.query_params.get("bypass", "").lower() == "true"
         if bypass:
             _audit_record(
-                session,
-                request=request,
+                session, request=request,
                 user_id=current_operator(request, fallback="operador"),
                 action="sale_cash_session_bypass",
-                target_type="sale",
-                target_id="0",
+                target_type="sale", target_id="0",
                 detail={"reason": "operator-bypass", "payment_method": effective_method},
             )
         else:
-            raise HTTPException(
-                status_code=422,
-                detail=SALE_CASH_SESSION_REQUIRED,
-            )
+            raise HTTPException(status_code=422, detail=SALE_CASH_SESSION_REQUIRED)
 
-    # channel: optional, must be in ALLOWED_CHANNELS if set.
-    # Empty string defaults to CHANNEL_DEFAULT ('mostrador'). Unknown
-    # values are rejected so we don't end up with 'bitcoin' rows.
+
+def _validate_channel(channel):
+    """Validate and clean channel.
+    
+    Extracted from sale_create to reduce complexity.
+    """
+    from app.rms.messages import SALE_INVALID_CHANNEL
     channel_clean = (channel or "").strip().lower() or CHANNEL_DEFAULT
     if channel_clean not in ALLOWED_CHANNELS:
-        raise HTTPException(
-            status_code=400,
-            detail=SALE_INVALID_CHANNEL,
-        )
+        raise HTTPException(status_code=400, detail=SALE_INVALID_CHANNEL)
+    return channel_clean
 
-    notes_clean = notes.strip() or None
-    # Verify the customer exists if one was picked. We no longer
-    # auto-create-by-phone; the picker modal is the only path to a new
-    # customer. A bogus customer_id from a stale form is a 422.
-    if customer_id is not None:
-        from app.rms.customers import get_customer
 
-        if get_customer(session, customer_id) is None:
-            raise HTTPException(status_code=400, detail=SALE_CUSTOMER_NOT_FOUND)
+def _validate_customer_exists(session, customer_id):
+    """Validate customer exists if provided.
+    
+    Extracted from sale_create to reduce complexity.
+    """
+    from app.rms.customers import get_customer
+    from app.rms.messages import SALE_CUSTOMER_NOT_FOUND
+    if customer_id is not None and get_customer(session, customer_id) is None:
+        raise HTTPException(status_code=400, detail=SALE_CUSTOMER_NOT_FOUND)
 
-    # Phase 1.B — Compute fiscal invoice fields BEFORE apply_sale so we can
-    # pass them as part of the Sale row creation.
+
+def _prepare_invoice_fields(session, invoice_type, invoice_customer_ruc, invoice_customer_name, customer_id, product_id):
+    """Prepare fiscal invoice fields.
+    
+    Extracted from sale_create to reduce complexity.
+    """
     from app.rms.constants import DEFAULT_INVOICE_TYPE, INVOICE_TYPES
-    from app.rms.invoicing import compute_invoice_snapshot
-    from app.rms.models import Product as _Product
+    from app.rms.customers import get_customer as _gc
 
     invoice_type_clean = (invoice_type or DEFAULT_INVOICE_TYPE).strip()
     if invoice_type_clean not in INVOICE_TYPES:
         invoice_type_clean = DEFAULT_INVOICE_TYPE
+
     invoice_customer_ruc_clean = (invoice_customer_ruc or "").strip() or None
     invoice_customer_name_clean = (invoice_customer_name or "").strip() or None
 
-    # When invoice_type='factura' and customer_ruc not provided, take from
-    # the selected customer (if any).
     if invoice_type_clean == "factura" and not invoice_customer_ruc_clean and customer_id:
-        from app.rms.customers import get_customer as _gc
-
         cust = _gc(session, customer_id)
         if cust:
             invoice_customer_ruc_clean = cust.cedula_ruc or None
             invoice_customer_name_clean = cust.name or None
 
-    # Fetch product to get the real unit price (re-fetched by apply_sale too,
-    # but we need it here for the IVA snapshot).
-    product = session.get(_Product, product_id)
-    unit_price_gs = product.sale_price_gs if product else 0
+    return {
+        "type": invoice_type_clean,
+        "ruc": invoice_customer_ruc_clean,
+        "name": invoice_customer_name_clean,
+    }
 
-    snapshot = compute_invoice_snapshot(
-        session,
-        product_id=product_id,
-        qty=qty,
-        unit_price_gs=unit_price_gs,
-        discount_gs=discount_gs,
-        invoice_type=invoice_type_clean,
-    )
 
-    # Idempotency: reserve the AppMeta row BEFORE apply_sale runs, so a
-    # duplicate POST aborts before creating a second Sale. AppMeta.key is
-    # the primary key — duplicate INSERT raises IntegrityError.
-    if idempotency_key:
-        from sqlalchemy.exc import IntegrityError
-
-        from app.rms.models import AppMeta as _AppMeta
-
-        try:
-            session.add(
-                _AppMeta(
-                    key=f"sale_idem:{idempotency_key}",
-                    value="pending",  # updated below to str(sale.sale_id)
-                    updated_at=datetime.now(timezone.utc).isoformat(),
-                )
-            )
-            session.flush()  # surface IntegrityError without committing
-        except IntegrityError:
-            session.rollback()
-            # Re-fetch on a fresh transaction; the row from the winning
-            # request is now visible.
-            existing_sale_id = session.scalar(
-                select(_AppMeta).where(_AppMeta.key == f"sale_idem:{idempotency_key}")
-            )
-            return RedirectResponse(
-                url=f"/ventas?flash=sale_duplicate&sale_id={existing_sale_id.value}",
-                status_code=303,
-            )
-
-    # Phase 4 loyalty POS redeem (2026-10-01): when points_to_redeem > 0,
-    # convert to Gs. discount (1pt = 1.000 Gs.) and ADD it to discount_gs
-    # so it flows through the existing apply_sale path. The ledger row is
-    # written AFTER apply_sale returns (we need the real sale_id to FK
-    # into). If the customer doesn't have enough points, we raise 400 —
-    # we DO NOT silently round down because the cashier typed a number
-    # and expects that exact amount to be honored.
-    if points_to_redeem > 0:
-        if customer_id is None:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Para canjear puntos necesitás seleccionar un cliente. "
-                    "Tocá el buscador de clientes y elegí uno."
-                ),
-            )
-        from app.rms.customers import get_customer as _gc_redeem
-
-        cust_redeem = _gc_redeem(session, customer_id)
-        if cust_redeem is None:
-            raise HTTPException(status_code=400, detail=SALE_CUSTOMER_NOT_FOUND)
-        if (cust_redeem.loyalty_points or 0) < points_to_redeem:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Puntos insuficientes: el cliente tiene "
-                    f"{cust_redeem.loyalty_points or 0}, intentás canjear "
-                    f"{points_to_redeem}."
-                ),
-            )
-        points_discount_gs = points_to_redeem * 1000
-        discount_gs = (discount_gs or 0) + points_discount_gs
-        # Re-check the upper bound after adding the points discount.
-        if discount_gs > MAX_DISCOUNT_GS:
-            raise HTTPException(
-                status_code=400,
-                detail=SALE_DISCOUNT_TOO_HIGH,
-                headers={"X-Max-Discount-Gs": str(MAX_DISCOUNT_GS)},
-            )
+def _check_idempotency(session, idempotency_key):
+    """Check idempotency key for duplicate sale.
+    
+    Returns RedirectResponse if duplicate, None otherwise.
+    Extracted from sale_create to reduce complexity.
+    """
+    from sqlalchemy.exc import IntegrityError
+    from app.rms.models import AppMeta as _AppMeta
 
     try:
-        sale = apply_sale(
-            session,
-            product_id,
-            qty,
-            sold_at_dt,
-            notes_clean,
+        session.add(
+            _AppMeta(
+                key=f"sale_idem:{idempotency_key}",
+                value="pending",
+                updated_at=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+        session.flush()
+        return None
+    except IntegrityError:
+        session.rollback()
+        existing_sale_id = session.scalar(
+            select(_AppMeta).where(_AppMeta.key == f"sale_idem:{idempotency_key}")
+        )
+        return RedirectResponse(
+            url=f"/ventas?flash=sale_duplicate&sale_id={existing_sale_id.value}",
+            status_code=303,
+        )
+
+
+def _apply_points_redemption(session, customer_id, points_to_redeem, discount_gs, max_discount_gs):
+    """Apply loyalty points redemption to discount.
+    
+    Extracted from sale_create to reduce complexity.
+    """
+    if points_to_redeem <= 0:
+        return discount_gs
+    from app.rms.customers import get_customer as _gc_redeem
+    from app.rms.messages import SALE_CUSTOMER_NOT_FOUND, SALE_DISCOUNT_TOO_HIGH
+
+    if customer_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Para canjear puntos necesitás seleccionar un cliente. "
+                "Tocá el buscador de clientes y elegí uno."
+            ),
+        )
+    cust_redeem = _gc_redeem(session, customer_id)
+    if cust_redeem is None:
+        raise HTTPException(status_code=400, detail=SALE_CUSTOMER_NOT_FOUND)
+    if (cust_redeem.loyalty_points or 0) < points_to_redeem:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Puntos insuficientes: el cliente tiene "
+                f"{cust_redeem.loyalty_points or 0}, intentás canjear "
+                f"{points_to_redeem}."
+            ),
+        )
+    points_discount_gs = points_to_redeem * 1000
+    discount_gs = (discount_gs or 0) + points_discount_gs
+    if discount_gs > max_discount_gs:
+        raise HTTPException(
+            status_code=400, detail=SALE_DISCOUNT_TOO_HIGH,
+            headers={"X-Max-Discount-Gs": str(max_discount_gs)},
+        )
+    return discount_gs
+
+
+def _create_sale(session, product_id, qty, sold_at_dt, notes_clean, customer_id, payment_method_clean, discount_gs, channel_clean, packaging_item_id, packaging_qty):
+    """Create the sale record.
+    
+    Extracted from sale_create to reduce complexity.
+    """
+    try:
+        return apply_sale(
+            session, product_id, qty, sold_at_dt, notes_clean,
             customer_id=customer_id,
             payment_method=payment_method_clean,
             discount_gs=discount_gs,
@@ -1047,189 +1094,74 @@ async def sale_create(
             context={"original_error": str(e)},
         ) from e
 
-    # Apply Phase 1.B invoice fields to the just-created Sale
-    from app.rms.invoicing import allocate_invoice_number
+
+def _apply_invoice_to_sale(session, sale, invoice_fields, product_id, qty, discount_gs):
+    """Apply fiscal invoice fields to the sale.
+    
+    Extracted from sale_create to reduce complexity.
+    """
+    from app.rms.invoicing import compute_invoice_snapshot, allocate_invoice_number
+    from app.rms.models import Product as _Product
+
+    invoice_type_clean = invoice_fields["type"]
+    product = session.get(_Product, product_id)
+    unit_price_gs = product.sale_price_gs if product else 0
+
+    snapshot = compute_invoice_snapshot(
+        session, product_id=product_id, qty=qty,
+        unit_price_gs=unit_price_gs, discount_gs=discount_gs,
+        invoice_type=invoice_type_clean,
+    )
 
     invoice_number = None
     if invoice_type_clean != "none":
         invoice_number = allocate_invoice_number(session, invoice_type_clean)
     sale.invoice_type = invoice_type_clean
     sale.invoice_number = invoice_number
-    sale.invoice_customer_ruc = invoice_customer_ruc_clean
-    sale.invoice_customer_name = invoice_customer_name_clean
+    sale.invoice_customer_ruc = invoice_fields["ruc"]
+    sale.invoice_customer_name = invoice_fields["name"]
     sale.iva_rate = snapshot["iva_rate"]
     sale.iva_base_gs = snapshot["iva_base_gs"]
     sale.iva_amount_gs = snapshot["iva_amount_gs"]
 
-    # Update the idempotency record's value with the real sale_id now that
-    # apply_sale returned. The AppMeta row was reserved BEFORE apply_sale
-    # (see block above); this UPDATE brings it up to date.
-    if idempotency_key:
-        from app.rms.models import AppMeta as _AppMeta
 
-        session.execute(
-            update(_AppMeta)
-            .where(_AppMeta.key == f"sale_idem:{idempotency_key}")
-            .values(value=str(sale.sale_id))
-        )
-
-    # Loyalty (Phase 4, 2026-10-01): credit points to the customer if one
-    # was attached to this sale. Awarded on the POST-discount total
-    # (what the customer actually paid = total_price_gs - discount_gs)
-    # per industry norm — you earn on what you spent, not sticker price.
-    # Void/return reversal is handled by ``reverse_points_for_void``
-    # (called from /ventas/{id}/anular).
-    if customer_id is not None:
-        from app.rms.customers import get_customer as _get_cust
-        from app.rms.loyalty import award_points as _award_points
-        from app.rms.models import Sale as _Sale
-
-        cust = _get_cust(session, customer_id)
-        if cust is not None:
-            # apply_sale() returns an ApplySaleResult dataclass with
-            # total_price_gs but NOT discount_gs. The Sale ORM row
-            # carries discount_gs (just persisted). Query through the
-            # session to get the real discount for this sale.
-            sale_row = session.get(_Sale, sale.sale_id)
-            discount_for_award = int(sale_row.discount_gs or 0) if sale_row else 0
-            net_paid_gs = max(0, int(sale.total_price_gs) - discount_for_award)
-            _award_points(
-                session,
-                cust,
-                net_paid_gs,
-                sale_id=sale.sale_id,
-                actor=str(current_operator(request)),
-            )
-
-    # Phase 4 loyalty POS redeem (2026-10-01): if the cashier redeemed
-    # points via the inline "Usar puntos" form, write the ledger row NOW
-    # (sale.sale_id is now known — redeem_points takes it as a FK). The
-    # balance check + discount math already happened above; redeem_points
-    # itself is a no-op when points_to_redeem == 0.
-    if points_to_redeem > 0 and customer_id is not None:
-        from app.rms.customers import get_customer as _get_cust_redeem
-        from app.rms.loyalty import redeem_points as _redeem_points
-
-        cust_redeem = _get_cust_redeem(session, customer_id)
-        if cust_redeem is not None:
-            _redeem_points(
-                session,
-                cust_redeem,
-                points_to_redeem,
-                sale_id=sale.sale_id,
-                actor=str(current_operator(request)),
-                notes=f"POS redeem en sale #{sale.sale_id}",
-            )
-
-    # Fase 2 fiado (venta simple): cargo automático al ledger del cliente.
-    if payment_method_clean == "fiado":
-        from app.rms.fiado import FiadoConflict as _FiadoConflict
-        from app.rms.fiado import registrar_cargo as _registrar_cargo
-
-        if customer_id is None:
-            raise HTTPException(status_code=400, detail="FIADO_REQUIERE_CLIENTE")
-        from app.rms.models import Sale as _SaleF
-
-        _sale_row = session.get(_SaleF, sale.sale_id)
-        try:
-            _registrar_cargo(
-                session,
-                customer_id,
-                max(
-                    0,
-                    int(_sale_row.qty * _sale_row.unit_price_gs) - int(_sale_row.discount_gs or 0),
-                )
-                if _sale_row is not None
-                else 0,
-                sale_id=sale.sale_id,
-                note=f"Venta a fiado #{sale.sale_id}",
-                created_by=str(current_operator(request)),
-            )
-        except _FiadoConflict as _e:
-            raise HTTPException(status_code=409, detail=str(_e)) from None
-
-    safe_commit(session)
-    # PRODUCCION-V2 Fase 4: a new sale shifts the 14d rolling forecast
-    # used by demand calculation. Invalidate today + the next 3 days
-    # so the operator sees the updated demand immediately. Other dates
-    # will age out via the 5-min TTL.
-    # Best-effort: do this AFTER the safe_commit above (no further
-    # commit is needed — session.commit() inside the helper persists
-    # the DELETE before the request returns).
-    try:
-        invalidate_demand_for_sale_today(session)
-    except Exception as exc:  # best-effort; surface but never block the request
-        logger.warning("demand invalidation for today's sales failed: {!r}", exc)
-
-    # Audit + rate-limit (writes only — read paths not counted).
-    from app.rms.audit import record as audit_record
-    from app.rms.rate_limit import is_write_rate_limited
-
-    if is_write_rate_limited(session, request):
-        raise HTTPException(status_code=429, detail=SALE_RATE_LIMITED)
-
-    audit_record(
-        session,
-        user_id=current_operator(request),
-        action="write.sale.create",
-        request=request,
-        detail={
-            "product_id": product_id,
-            "qty": qty,
-            "discount_gs": discount_gs,
-            "channel": channel_clean,
-        },
+def _update_idempotency_record(session, idempotency_key, sale_id):
+    """Update idempotency record with real sale_id.
+    
+    Extracted from sale_create to reduce complexity.
+    """
+    from app.rms.models import AppMeta as _AppMeta
+    session.execute(
+        update(_AppMeta)
+        .where(_AppMeta.key == f"sale_idem:{idempotency_key}")
+        .values(value=str(sale_id))
     )
 
-    # Update the idempotency record's value with the real sale_id AND
-    # request_id, so duplicate-POST forensics can correlate the two
-    # requests via the access log. Value is JSON-encoded for forward
-    # compatibility (we may add more fields later).
-    #
-    # This is a SECOND commit, but the AppMeta row was already persisted
-    # in the first commit (along with the Sale), so a retry immediately
-    # sees the idem record and aborts via IntegrityError.
-    if idempotency_key:
-        import json
 
-        from app.rms.models import AppMeta as _AppMeta
+def _award_loyalty_points(session, customer_id, sale):
+    """Award loyalty points to customer.
+    
+    Extracted from sale_create to reduce complexity.
+    """
+    from app.rms.customers import get_customer as _get_cust
+    from app.rms.loyalty import award_points as _award_points
+    from app.rms.models import Sale as _Sale
 
-        request_id = getattr(request.state, "request_id", None) or ""
-        payload = json.dumps(
-            {
-                "sale_id": str(sale.sale_id),
-                "request_id": request_id,
-            }
-        )
-        session.execute(
-            update(_AppMeta)
-            .where(_AppMeta.key == f"sale_idem:{idempotency_key}")
-            .values(value=payload)
-        )
-
-    safe_commit(session)
-
-    # Best-effort: fire the printer with the new receipt.
-    # Failures are logged but never block the sale.
-    _fire_printer_for_sale(
-        session, request, product_id, qty, discount_gs, payment_method_clean, notes_clean
-    )
-
-    # If points were redeemed at the till, append a flash token so the
-    # operator sees the confirmation toast. ``points_redeemed_pos:N:D``
-    # tells the JS renderer "N puntos canjeados por D Gs. de descuento".
-    # Reusing the existing points_redeemed prefix means the
-    # flash_toast macro in _components/atoms.html handles it (with
-    # the new _pos suffix to distinguish it from /clientes/{id} redeem).
-    if points_to_redeem > 0:
-        return RedirectResponse(
-            url=f"/ventas?flash=sale_created&points_flash={points_to_redeem}:{points_to_redeem * 1000}",
-            status_code=303,
-        )
-    return RedirectResponse(url="/ventas?flash=sale_created", status_code=303)
+    cust = _get_cust(session, customer_id)
+    if cust is None:
+        return
+    sale_row = session.get(_Sale, sale.sale_id)
+    discount_for_award = int(sale_row.discount_gs or 0) if sale_row else 0
+    net_paid_gs = max(0, int(sale.total_price_gs) - discount_for_award)
+    _award_points(session, cust, net_paid_gs, sale_id=sale.sale_id)
 
 
-# ── Multi-item cart endpoint ────────────────────────────────────────────────
+def _sale_create_redirect(sale):
+    """Build the redirect response after sale creation.
+    
+    Extracted from sale_create to reduce complexity.
+    """
+    return RedirectResponse(url=f"/recibo/{sale.sale_id}", status_code=303)
 
 
 @router.post("/nueva/multi")

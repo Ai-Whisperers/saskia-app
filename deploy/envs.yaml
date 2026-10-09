@@ -43,16 +43,20 @@ prod:
     - SUPABASE_SERVICE_ROLE_KEY
     - SUPABASE_PUBLISHABLE_KEY       # 2025+ format (kept for forward-compat)
     - SUPABASE_SECRET_KEY
-    - SENTRY_DSN                     # if present
     - RESEND_API_KEY
     - CF_R2_ACCESS_KEY_ID
     - CF_R2_SECRET_ACCESS_KEY
     - CF_R2_ENDPOINT
     - CF_R2_ACCOUNT_ID
     - R2_BUCKET
-    - NEON_DATABASE_URL              # if Postgres mode
     - SASKIA_USER_PASSWORD
     - SASKIA_ADMIN_PASSWORD
+  # Optional BWS secrets — write to env file only if present in BWS.
+  # Used for features that are off by default (Sentry observability,
+  # Postgres mode) but ready to flip on once a secret is added.
+  optional_bws_keys:
+    - SENTRY_DSN
+    - NEON_DATABASE_URL
 
 test:
   hostname: saskia-test.paragu-ai.com

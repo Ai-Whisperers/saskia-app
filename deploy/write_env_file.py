@@ -110,6 +110,7 @@ def write_env_file(env: str) -> int:
         f"# DO NOT EDIT BY HAND — re-run deploy.sh to refresh.",
         "",
     ]
+    # Required BWS secrets — hard-fail if any are missing.
     for key in row["bws_keys"]:
         try:
             val = bws_get(key)
@@ -120,6 +121,20 @@ def write_env_file(env: str) -> int:
         # double quotes (unlike shell). If we emit KEY="value", the
         # container sees the literal `"value"` and the app breaks
         # (Supabase rejects `"https://..."` as an invalid URL, etc.).
+        val_escaped = val.replace("\n", "\\n")
+        lines.append(f"{key}={val_escaped}")
+
+    # Optional BWS secrets — silently skip if missing. Used for
+    # SENTRY_DSN (observability, off by default), NEON_DATABASE_URL
+    # (Postgres mode, off by default), etc. The envs.yaml file declares
+    # these under a separate `optional_bws_keys:` field because YAML
+    # # inline comments are stripped by the parser.
+    for key in row.get("optional_bws_keys", []):
+        try:
+            val = bws_get(key)
+        except KeyError:
+            print(f"SKIP: optional BWS secret '{key}' not in BWS for env={env}", file=sys.stderr)
+            continue
         val_escaped = val.replace("\n", "\\n")
         lines.append(f"{key}={val_escaped}")
 
