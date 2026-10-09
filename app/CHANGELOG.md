@@ -1,3 +1,31 @@
+## 2026-10-09 — SASKIA-301 copy/UX hardening: 12 user-facing fixes
+
+Closed the SASKIA-301 ticket (Phase 0 of the 10-phase copy/UX hardening
+sweep). All 8 categories verified by 33 passing regression tests in 6
+test files. This commit adds the final 12 user-facing text fixes that
+weren't covered by the existing tests:
+
+- `Revenue` → `Ingresos` (reportes_valor_pedido)
+- `Batches` → `Tandas` (insight_demand)
+- `Lotes` → `Tandas` in 4 locations:
+  - cotizador column header
+  - produccion sort_th column header + data-label
+  - produccion `Lotes perdidos` label
+  - macros.html example for sort_th
+- `Guardá` → `Guardar` in 6 buttons:
+  - supplier_form (submit)
+  - inventario_form (submit)
+  - receta_form (submit)
+  - produccion (Guardar ejecución del turno + Guardar horneado)
+  - producto_form (submit, both new and edit modes)
+
+The 6 SASKIA-301 test files (test_SASKIA-301_currency_gs,
+test_SASKIA-301_loan_words, test_SASKIA-301_register,
+test_SASKIA-301_tooltips, test_SASKIA-301_severity,
+test_SASKIA-301_columns) all pass — 33 tests in 13.26s.
+
+Ruff: 0 errors. Deploy: deploy-20261009-031821.
+
 ## 2026-10-09 — ruff clean: zero errors across the repo
 
 The ruff sweep is now complete: **0 errors / 0 warnings** across all
