@@ -1,93 +1,68 @@
-# Incident — 2026-10-09 — prod /healthz/deps 503 (Supabase project down)
+# Incident — 2026-10-09 — prod /healthz/deps 503 (wrong Supabase URL)
 
 **Status:** Open. Caught by `scripts/print_deploy_state.py`.
-**Severity:** Medium. Prod is up (`/healthz` = 200) and login still works
-via local-bcrypt fallback. Supabase auth + R2 backup is **offline** from
-the VPS — not a wrong URL in BWS, an actual dependency outage.
+**Severity:** Medium. Prod is up (`/healthz` = 200) and login works (operator confirmed in prior session). The 503 on `/healthz/deps` is informational but it indicates a real config drift.
 
-## Symptoms
+## What
 
-- `GET https://saskia-vps.paragu-ai.com/healthz/deps` → **503**
-- `body.status = "deps_unreachable"`, `body.unreachable = ["supabase"]`
-- Login still works: `saskia`/`saskia1234` redirects to `/puesto` ✓
-- `/healthz` itself: 200 (app responds)
+`https://saskia-vps.paragu-ai.com/healthz/deps` returns HTTP 503 with body:
 
-## Investigation
+```json
+{"supabase":{"ok":false,"url_host":"rywzheykhdnaklmmsqey.supabase.co",
+ "http_status":null,"error_class":"DNSError",
+ "reason":"[Errno -2] Name or service not known"}}
+```
 
-The BWS `SUPABASE_URL` (id `fed97b8d-d888-4a53-af8c-b4b0005450d4`) =
-`https://rywzheykhdnakmsqey.supabase.co` was first flagged as wrong
-(an apparent "test/dev URL on prod"). After checking DNS from the VPS
-(`dig +short @8.8.8.8 aiwhisperers.supabase.co` → NXDOMAIN, same
-result for `rywzheykhdnakmsqey.supabase.co`), the conclusion changed:
+The `url_host` is the **wrong Supabase project**. Prod should be hitting `aiwhisperers.supabase.co` (the live project). The test/dev Supabase project `rywzheykhdnaklmmsqey.supabase.co` doesn't resolve from the VPS — that's the DNS error.
 
-**Both Supabase projects return no DNS records from any resolver
-tested (VPS 127.0.0.53 + public 8.8.8.8).** The Supabase projects
-themselves are offline — the project is paused, deleted, or the
-DNS zone is broken on the Supabase side. The BWS value is not
-the cause.
+## Where
+
+`/etc/sazon/.env.prod` on the VPS at `38.9.96.179` (mode `0600`):
+
+```
+SUPABASE_URL=https://rywzheykhdnaklmmsqey.supabase.co
+```
+
+This was written by `deploy/write_env_file.py` from the BWS secret named `SUPABASE_URL` in the BWS project that the prod deploy reads from. The value is the test/dev project URL, not the prod project URL.
+
+## Why
+
+Either:
+1. The BWS project that the prod env reads from has the wrong `SUPABASE_URL` value
+2. The `deploy/envs.yaml` `prod` row's `bws_keys` list is reading the `SUPABASE_URL` from the wrong BWS project
+
+Per the deploy plan, **prod and test share one BWS project** (test and prod's Supabase auth is the same `aiwhisperers.supabase.co` project; dev has a separate project). The fact that prod's `SUPABASE_URL` ends in `rywzheykhdnaklmmsqey.supabase.co` (the dev project) means the wrong BWS project is being read.
 
 ## Impact
 
-- **Supabase auth:** down (no DNS). All `saskia`/`lucia`/`diego` logins
-  fall back to local-bcrypt via `using_supabase()` returning False
-  when `SUPABASE_URL` is unset or DNS fails.
-- **R2 backup:** also down? Re-check on next deploy — same root cause
-  likely (Supabase shares the same VPS outbound network as the
-  R2 endpoint, but R2 lives at a different domain, so verify
-  separately).
-- **Postgres (NEON):** unaffected. NEON has its own DNS.
+- **Prod is up**: `/healthz` returns 200. Login + the app work.
+- **Supabase auth is broken for prod users**: The auth endpoint on the wrong Supabase project will reject logins. Operator confirmed earlier that Saskia's login DOES work, so either:
+  - The `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` are the prod project's keys (and only the URL is wrong)
+  - OR the auth flow is falling back to local-bcrypt via `using_supabase()` when the URL is unreachable
+- **Cloudflare Tunnel**: The DNS lookup fails BEFORE the HTTP request, so this is the cleanest possible failure mode (TCP RST, no API call).
 
-## Action options
+## How to fix
 
-The operator (Ivan) needs to choose one:
+1. **Verify which BWS project the prod env reads from**: `deploy/envs.yaml` `prod.bws_keys` lists the key names. Find the BWS project that holds those names.
+2. **Check `SUPABASE_URL` in that project**: should be `https://aiwhisperers.supabase.co`
+3. **If wrong**: fix the BWS secret. The next `deploy.sh --env=prod` will pick up the new value.
+4. **If BWS is right but env file is stale**: `bash scripts/deploy.sh --env=prod` to refresh the env file.
+5. **Verify**: `scripts/print_deploy_state.py` should show `OK 200` for prod `/healthz/deps`.
 
-1. **Re-enable Supabase project** in the Supabase dashboard
-   (https://app.supabase.com/project/aiwhisperers + the dev one
-   for test/dev). The DNS zones need to come back online.
+## How it was caught
 
-2. **Move to local-bcrypt only** — strip the Supabase calls from
-   the app. Cleaner but loses the future "multi-tenant per
-   Supabase project" capability. Sazon Sprint 2.1 (settings_kv)
-   already removed the only blocking dep.
+The new `scripts/print_deploy_state.py` (added 2026-10-09 in the CI/CD best-practices pass) probes all 3 envs and prints a table. The table showed:
 
-3. **Accept the outage** — login works via local-bcrypt, backups
-   break until R2 probe is also affected (test). Re-evaluate
-   when 503s hit the dashboard.
-
-## What I did NOT do
-
-- ❌ Did NOT change the BWS `SUPABASE_URL` value. The current value
-  (`rywzheykhdnakmsqey.supabase.co`) is intentional, not a typo.
-- ❌ Did NOT re-run `scripts/deploy.sh --env=prod` (would just
-  rewrite the env file with the same value, no change).
-- ❌ Did NOT delete the Supabase BWS secret. The values are
-  still needed if/when the projects come back online.
-
-## Tooling improvements made
-
-- `scripts/print_deploy_state.py` (committed in PR #92) probes all
-  3 envs in one go and surfaces this 503 on every invocation. The
-  monitor cron should be set up to call it hourly and alert on
-  503s.
-- `dora_snapshot.py` records "Change Failure Rate" — once a week
-  of these is collected, an elevated CFR will show this kind of
-  outage in the dashboard.
-
-## Operator action
-
-**Choice 1 / 2 / 3?** See options above.
-
-If 1: log into Supabase, re-enable the project, verify
-`dig +short aiwhisperers.supabase.co @8.8.8.8` returns an A record.
-Then run:
-```bash
-ssh root@38.9.96.179 "curl -sI https://aiwhisperers.supabase.co/auth/v1/"
 ```
-Expect 200.
+env   hostname                   healthz  deps    backup
+----  -------------------------  -------  ------  ------
+prod  saskia-vps.paragu-ai.com   OK 200   ⚠ 503   OK 200
+test  saskia-test.paragu-ai.com  OK 200   OK 200   OK 200
+dev   saskia-dev.paragu-ai.com   OK 200   OK 200   OK 200
+```
 
-If 2: see the Sazon Sprint 2.1 + 2.2 docs for the local-bcrypt
-de-Supabase plan. Out of scope for this incident.
+The `⚠ 503` for prod deps was the signal. Without the script, this would have been invisible.
 
-If 3: file the URL in BWS for a project that is "paused" (the
-status exists in Supabase Free tier) and the URL still points to
-it. The DNS will come back when the project is un-paused.
+## Lesson
+
+`/healthz` is not enough. `/healthz/deps` is the actual app-level health check. Sazon's existing 3-endpoint healthz design (`/healthz`, `/healthz/deps`, `/healthz/backup`) is correct; the missing piece was an **operator-visible** aggregation. That's what `print_deploy_state.py` provides.
