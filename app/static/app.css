@@ -495,7 +495,7 @@ button.tab.is-active { color: var(--color-accent); border-bottom-color: var(--co
   min-width: 0;
   display: flex;
   flex-direction: column;
-  max-height: calc(100dvh - 6.5rem);
+  max-height: calc(100dvh - 8rem);
   overflow: hidden;
 }
 .reorder-summary {

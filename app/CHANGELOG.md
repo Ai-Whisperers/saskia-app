@@ -1,3 +1,8 @@
+## 2026-10-09 — Reponer board sits under the top bar
+
+The replenishment board leaves room for the top bar, so the last rows
+stay inside the page instead of sliding under it.
+
 ## 2026-10-09 — product price shows on hover
 
 Ventas cards are smaller. The price sits on the photo and appears when
