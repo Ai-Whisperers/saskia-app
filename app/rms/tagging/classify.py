@@ -608,72 +608,82 @@ def validate_ingredient(ing: object) -> list[str]:
     The Ingredient table has a tag_validation_issues column where these
     are persisted (migration v61).
     """
+    declared, allergens, name_lower = _extract_ingredient_fields(ing)
     issues: list[str] = []
 
+    _check_allergen_contradictions(declared, allergens, issues)
+    _check_vegetarian_contradiction(declared, name_lower, issues)
+    _check_may_contain_gluten(ing, declared, issues)
+    _check_category_mismatch(ing, issues)
+    return issues
+
+
+def _extract_ingredient_fields(ing: object) -> tuple[set, set, str]:
+    """Extract and normalize declared tags, allergens, and name.
+    
+    Extracted from validate_ingredient to reduce complexity.
+    """
     declared = normalize_all(getattr(ing, "dietary_tags", None))
     allergens_raw = getattr(ing, "allergens", None)
     allergens: set[str] = set()
     if allergens_raw:
         allergens = {a.strip().lower() for a in allergens_raw.split(",") if a.strip()}
-
     name_lower = (getattr(ing, "name", "") or "").lower()
+    return declared, allergens, name_lower
 
-    # vegan + dairy/eggs allergens
-    if "vegano" in declared and (allergens & {"dairy", "eggs"}):
-        issues.append("declares 'vegano' but allergens include dairy/eggs")
 
-    # vegetarian + meat/fish in name
-    if "vegetariano" in declared:
-        # Use word-boundary matching to avoid false positives like
-        # 'maní' (peanut) being mistaken for a meat.
-        if any(_keyword_matches(kw, name_lower) for kw in _MEAT_FISH_KEYWORDS):
-            issues.append("declares 'vegetariano' but name suggests meat/fish")
+# Tag/allergen contradiction rules
+_ALLERGEN_CONTRADICTIONS = [
+    # (declared_tag, required_allergens, message)
+    ("vegano", {"dairy", "eggs"}, "declares 'vegano' but allergens include dairy/eggs"),
+    ("sin gluten", {"gluten"}, "declares 'sin gluten' but allergens include gluten"),
+    ("sin lactosa", {"dairy"}, "declares 'sin lactosa' but allergens include dairy"),
+    ("sin huevo", {"eggs"}, "declares 'sin huevo' but allergens include eggs"),
+    ("sin frutos secos", {"nuts"}, "declares 'sin frutos secos' but allergens include nuts"),
+    ("sin tacc", {"gluten"}, "declares 'sin tacc' but allergens include gluten"),
+]
 
-    # sin gluten + gluten allergen
-    if "sin gluten" in declared and "gluten" in allergens:
-        issues.append("declares 'sin gluten' but allergens include gluten")
 
-    # sin lactosa + dairy allergen
-    if "sin lactosa" in declared and "dairy" in allergens:
-        issues.append("declares 'sin lactosa' but allergens include dairy")
+def _check_allergen_contradictions(declared: set, allergens: set, issues: list) -> None:
+    """Check for tag/allergen contradictions.
+    
+    Extracted from validate_ingredient to reduce complexity.
+    """
+    for tag, required_allergens, message in _ALLERGEN_CONTRADICTIONS:
+        if tag in declared and (allergens & required_allergens):
+            issues.append(message)
 
-    # sin huevo + eggs allergen
-    if "sin huevo" in declared and "eggs" in allergens:
-        issues.append("declares 'sin huevo' but allergens include eggs")
 
-    # sin frutos secos + nuts allergen
-    if "sin frutos secos" in declared and "nuts" in allergens:
-        issues.append("declares 'sin frutos secos' but allergens include nuts")
+def _check_vegetarian_contradiction(declared: set, name_lower: str, issues: list) -> None:
+    """Check for vegetarian + meat/fish name contradiction.
+    
+    Extracted from validate_ingredient to reduce complexity.
+    """
+    if "vegetariano" not in declared:
+        return
+    if any(_keyword_matches(kw, name_lower) for kw in _MEAT_FISH_KEYWORDS):
+        issues.append("declares 'vegetariano' but name suggests meat/fish")
 
-    # sin tacc + gluten allergen (should never happen if sin tacc == sin gluten)
-    if "sin tacc" in declared and "gluten" in allergens:
-        issues.append("declares 'sin tacc' but allergens include gluten")
 
-    # may_contain_gluten without sin tacc declared — operator forgot to
-    # mark this as cross-contaminated; we don't auto-add the tag but warn.
+def _check_may_contain_gluten(ing: object, declared: set, issues: list) -> None:
+    """Check for may_contain_gluten + sin tacc contradiction.
+    
+    Extracted from validate_ingredient to reduce complexity.
+    """
     if getattr(ing, "may_contain_gluten", False) and "sin tacc" in declared:
         issues.append("sin tacc cannot be true when may_contain_gluten is set")
 
-    # Category mismatch (2026-09-29): if the inferred category from the
-    # name disagrees with the stored category, surface a warning. The
-    # operator may have intentionally miscategorized (e.g. an unusual
-    # import), but most often this is a typo (Jengibre fresco → carnes).
+
+def _check_category_mismatch(ing: object, issues: list) -> None:
+    """Check for category mismatch between stored and inferred.
+    
+    Extracted from validate_ingredient to reduce complexity.
+    """
     stored_category = (getattr(ing, "category", None) or "").strip().lower()
-    if stored_category and stored_category != "otros":
-        # 2026-10-09: infer_category now lives in this module (was in
-        # ingredient_intel). The cycle is broken; no lazy import needed.
-        inferred = infer_category(getattr(ing, "name", "") or "")
-        if inferred and inferred != stored_category:
-            issues.append(f"category '{stored_category}' may be wrong; name suggests '{inferred}'")
-
-    return issues
+    if not stored_category or stored_category == "otros":
+        return
+    inferred = infer_category(getattr(ing, "name", "") or "")
+    if inferred and inferred != stored_category:
+        issues.append(f"category '{stored_category}' may be wrong; name suggests '{inferred}'")
 
 
-__all__ = [
-    "infer_allergens",
-    "infer_dietary_tags",
-    "ingredient_blocks",
-    "normalize",
-    "normalize_all",
-    "validate_ingredient",
-]
