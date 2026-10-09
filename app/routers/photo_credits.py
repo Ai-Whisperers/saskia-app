@@ -10,12 +10,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
+from app.auth import require_login_or_disabled as require_login
 from app.services.template_render import render
 
-router = APIRouter(tags=["credits"])
+router = APIRouter(tags=["credits"], dependencies=[Depends(require_login)])
 
 _CREDITS_FILE = Path(__file__).resolve().parents[1] / "static" / "credits.json"
 

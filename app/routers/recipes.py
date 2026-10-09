@@ -305,7 +305,9 @@ async def recipes_list(
     # Ingredient list for filter dropdown
     all_ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
 
-    from app.rms.tagging.filters import list_tags_for_kind
+    from app.rms.tagging.ensure import (
+        list_tags_for_kind,  # canonical home (post-sense-dedup, 2026-10-09)
+    )
 
     all_families = sorted(
         {

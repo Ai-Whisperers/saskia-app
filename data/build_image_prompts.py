@@ -11,7 +11,6 @@ Usage:
     .venv/bin/python data/build_image_prompts.py --out data/images/prompts.jsonl
     .venv/bin/python data/build_image_prompts.py --only-type product
 """
-
 from __future__ import annotations
 
 import argparse
@@ -19,6 +18,11 @@ import json
 import os
 import sys
 from pathlib import Path
+
+# Per-ingredient visual lookup (specific container/appearance for each
+# ingredient so the result is recognizable at 32x32 px thumbnail size).
+sys.path.insert(0, str(Path(__file__).parent))
+from ingredient_visuals import INGREDIENT_VISUALS
 
 ROOT = Path(__file__).resolve().parent.parent
 ITEMS_PATH = ROOT / "data" / "images" / "items.json"
@@ -75,11 +79,11 @@ CATEGORY_STYLES = {
         "texture": "see also the underlying cookie/cake/fried style",
     },
     "ingredient": {
-        "surface": "aged light-oak counter",
-        "props": "no extra props; a small handwritten paper label in a corner is OK",
-        "angle": "3/4 angle, slightly above",
-        "frame": "60% width, the container or raw item is the hero",
-        "texture": "natural, untouched, no styled flour burst, packaging unbrushed",
+        "surface": "plain light-oak counter, very clean, no clutter around the subject",
+        "props": "no other props; subject is the only thing in the frame",
+        "angle": "3/4 angle, slightly above, centered in the frame",
+        "frame": "80-90% of frame width, the ingredient fills most of the image so it's clearly recognizable at thumbnail size (32px and 80px), strong silhouette, no busy background",
+        "texture": "natural, untouched, clearly visible, simple and bold so it reads at small sizes",
     },
     "default": {
         "surface": "aged light-oak counter",
@@ -90,37 +94,97 @@ CATEGORY_STYLES = {
     },
 }
 
-# Per-item REAL descriptions — sourced from the sazon seed (app/rms/seed/sazon.py)
-# + Dutch heritage knowledge. Keyed on the recipe slug (which is shared between
-# the base product and its package variants). This is the source of truth for
-# "what is this thing" — the AI gets the description, not just the name.
+# Per-item REAL descriptions — RESEARCHED from authoritative sources
+# (Wikipedia, Dutch Cookbook, America's Test Kitchen, Serious Eats, and the
+# Dutch/Belgian national recipe sites). Keyed on the recipe slug. This is
+# the source of truth for "what does this actually look like" — the AI
+# gets the description, not just the name.
 ITEM_DESCRIPTIONS = {
-    # Tortas (cakes)
-    "babka__rec_017": "traditional Polish-Jewish sweet braided bread, ring-shaped (bundt form), dark chocolate and cinnamon filling visible in the spiral, golden-brown crust, dusted with coarse sugar",
-    "bizcocho_basico_25_cm_basiscake__rec_011": "plain Dutch basiscake (sponge cake), round 25 cm, golden crust, soft pale-yellow crumb visible from the side, simple and undecorated",
-    "bizcocho_basico_30_cm_basiscake__rec_012": "plain Dutch basiscake (sponge cake), round 30 cm, golden crust, soft pale-yellow crumb visible from the side, simple and undecorated",
-    "torta_de_zanahoria_43x33x1_5_cm__rec_005": "rectangular carrot cake 43x33 cm, thick cream cheese frosting on top, visible orange carrot flecks in the crumb, chopped walnuts on top",
-    "cheesecake_30x50__rec_002": "rectangular Dutch-style cheesecake 30x50 cm, tall (5+ cm), pale golden top with characteristic crack, graham-cracker-style crust on the bottom, no topping or fruit",
-    # Pastelería (pastries)
-    "muffin_de_chocolate_20x20_cm__rec_001": "single jumbo chocolate muffin in a crinkled brown paper liner, dark chocolate top with white chocolate chips visible, domed top rising above the liner, no frosting",
-    "galletas_de_especuloos_speculaasjes__rec_010": "Dutch speculaas cookies, thin crisp brown spice cookies (~6-8 cm), traditional windmill or farmer shape stamped into them, deeply caramelized, slight crackle pattern",
-    "hojaldre_bladerdeeg__rec_008": "Dutch puff pastry (bladerdeeg), golden flaky rectangular block cut into 4-5 visible squares, visible paper-thin lamination on the side, buttery crisp",
-    "pastelitos_rosados_roze_koeken__rec_009": "Dutch roze koeken, small round pink-glazed puff pastry, flat disc shape (~8 cm), bright pink fondant icing on top, one layer visible from the side, glaze dripping slightly over the edge",
-    "petisus_de_hojaldre_y_crema_tompoezen__rec_015": "Dutch tompoezen, two flat round discs of puff pastry with a tall THICK layer of pale yellow custard cream between them, dusted with powdered sugar on top",
-    "proficteroles_de_den_bosch_bossche_bollen__rec_014": "Bossche bollen from Den Bosch, large round profiterole (~8 cm), split in half horizontally with a thick layer of whipped cream and chocolate glaze dripping on top, no cherry",
-    "stroop_wafel__rec_003": "Dutch stroopwafel, two thin round flat waffle discs (~10 cm diameter) with a dark caramel syrup layer sandwiched between, classic deep waffle grid imprint on both faces, golden-brown edges",
-    "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013": "Dutch appeltaart (moeder's appeltaart), round 25 cm, lattice pastry strips on top revealing cooked apple filling beneath, golden crust, rustic homemade look, no powdered sugar",
-    "ontbijtkoek_700g_de_harina__rec_004": "Dutch ontbijtkoek (breakfast cake), dense rectangular loaf, dark brown almost mahogany color from rye and honey, sliced ~1 cm thick showing tight dark crumb, no frosting",
-    "bombones_de_chocolate__rec_018": "small hand-rolled dark chocolate truffles, 4-6 round balls (~3 cm), dusted with cocoa powder, irregular hand-shaped surface, on a small Delft plate",
-    # Salados (savory)
-    "frikandel_100_unidades__rec_022": "Dutch frikandel, 3-4 elongated skinless minced-meat sausages (~12 cm long, ~2 cm diameter), dark brown crispy outside from deep-frying, deep golden color, no bread roll",
-    "goulash_crockettes__rec_019": "Dutch kroketten, 3-4 cylindrical breaded croquettes (~6 cm long), crispy golden panko coating, oozing thick brown beef-ragout filling visible where one is bitten",
-    "oliebollen_bunuelos_tradicionales_holandeses__rec_016": "Dutch oliebollen, 3-4 round irregular deep-fried dough balls (~6-8 cm), dusted heavily with powdered sugar, dark golden-brown crispy surface, no filling",
-    "bitterballen_vegetariano__rec_020": "Dutch vegetarian bitterballen, 3-4 round breaded croquettes (~3-4 cm diameter), crispy golden panko coating, one bitten open showing thick brown vegetable ragout filling",
-    "bitterballen__rec_006": "Dutch bitterballen, 3-4 round breaded croquettes (~3-4 cm diameter), crispy golden panko coating, one bitten open showing thick brown beef-ragout filling",
-    "suppli_cacio_e_pepe__rec_021": "Italian suppli al telefono, 2-3 oval rice balls (~7 cm), crispy golden breadcrumb coating, one bitten showing stretchy mozzarella cheese pull inside, cacio e pepe flavor",
-    # Especialidades
-    "ketjap_manis_version_rapida__rec_007": "small glass jar of Indonesian ketjap manis (sweet soy sauce), thick dark brown syrupy liquid, no label facing camera, on aged wood",
+    # ----- Tortas (cakes) -----
+    # babka: NOT bundt-form (that's Polish babka). The Dutch/American Jewish
+    # version is a TWISTED LOAF baked in a 9x5 inch loaf pan. Chocolate
+    # filling visible as dark ribbons on the cut ends. Streusel top optional.
+    "babka__rec_017": "a single tall twisted loaf of Polish-Jewish sweet bread (babka), about 9x5 inches (23x13 cm), baked in a loaf pan, dough enriched with eggs and butter, dark chocolate filling visible as dark ribbons spiraling through the pale golden dough on the cut end, top golden-brown and slightly crackled, sometimes dusted with coarse sugar or streusel. NOT bundt-form. NOT a ring. Slice one end to reveal the chocolate swirl.",
+
+    # Basiscake: PLAIN Dutch sponge cake. Yellow crumb, no filling, no
+    # decoration, no frosting. Tall cylinder. The 25cm and 30cm are
+    # essentially identical except for pan diameter.
+    "bizcocho_basico_25_cm_basiscake__rec_011": "a plain Dutch basiscake (sponge cake), round 25 cm diameter, simple and completely undecorated, no frosting no glaze no filling, golden-brown thin crust on the outside, soft pale-yellow airy crumb visible from the cut side, made of flour-eggs-sugar only with no butter in the batter, rises 5-6 cm tall, this is the cake other cakes are built on top of",
+    "bizcocho_basico_30_cm_basiscake__rec_012": "a plain Dutch basiscake (sponge cake), round 30 cm diameter, identical to the 25cm version but wider, no frosting no glaze no filling, golden-brown thin crust, soft pale-yellow airy crumb visible on the cut side, simple homemade plain cake",
+
+    # Bombones: hand-rolled dark chocolate truffles, 3-4cm balls, dusted
+    # in cocoa powder, IRREGULAR hand-shaped surface (not perfectly round).
+    "bombones_de_chocolate__rec_018": "4-6 small hand-rolled dark chocolate truffles about 3 cm diameter, irregular hand-shaped surface (not perfectly round), each one dusted all over with unsweetened cocoa powder giving them a matte dusty dark-brown look, sitting on a small Delft-blue ceramic plate, on aged wood, a few cocoa fingerprints on the wood",
+
+    # Torta de zanahoria: 43x33cm rectangular sheet pan carrot cake.
+    # Cream cheese frosting on top, carrot flecks visible in crumb, walnuts
+    # on top.
+    "torta_de_zanahoria_43x33x1_5_cm__rec_005": "a rectangular carrot cake baked in a 43x33 cm sheet pan, about 5-6 cm thick, the top fully covered with a thick layer of cream cheese frosting (slightly off-white), a single slice pulled forward showing orange grated carrot flecks throughout the moist dark-brown crumb, chopped walnuts scattered on top of the frosting, a knife and a small bowl of extra frosting beside the cake",
+
+    # Cheesecake: tall NY-style. Pale golden top with characteristic crack,
+    # graham cracker base, NO topping or fruit.
+    "cheesecake_30x50__rec_002": "a tall rectangular Dutch-style cheesecake 30x50 cm, 5-6 cm thick, baked in a springform pan, the top is pale golden and slightly domed with the characteristic surface crack, no topping no fruit no glaze, sides smooth and creamy off-white, thin golden-brown graham-cracker-style crust visible on the bottom edge, a single slice already cut and pulled forward to show the dense creamy interior",
+
+    # ----- Pastelería (pastries) -----
+    # Muffin: JUMBO bakery style with TALL DOMED top rising above the liner.
+    # The 20x20cm is the PAN size, not the muffin size.
+    "muffin_de_chocolate_20x20_cm__rec_001": "a single jumbo bakery-style chocolate muffin, paper liner brown with crinkled sides, dark chocolate muffin with a TALL DOMED top rising well above the rim of the liner (about 8-9 cm total height), cracks and crinkles on the domed top, no frosting, dark chocolate chips visible on the surface, on a small white plate on aged wood",
+
+    # Speculaas: thin, crispy, caramelized spice cookies. Often windmill or
+    # person shape (speculaaspop). 4mm thick. Brown color, NOT chocolate.
+    "galletas_de_especuloos_speculaasjes__rec_010": "3-4 thin crispy Dutch speculaas spice cookies, about 8-10 cm wide, only 4mm thick (very thin and crispy), golden-brown caramelized color with a darker brown rim, stamped with a traditional windmill or figure impression on top, the surface crackled and dry, scattered on a Delft-blue plate, the impression detail clearly visible, no chocolate",
+
+    # Hojaldre / bladerdeeg: a stack of puff pastry squares showing the
+    # LAMINATION on the cut side.
+    "hojaldre_bladerdeeg__rec_008": "a square block of Dutch puff pastry (bladerdeeg), golden-brown with visible flaky LAMINATION layers on the side (thin paper-like sheets of butter and dough), cut into 4-5 visible small squares stacked loosely, crisp and dry surface, a few crumbs and flakes of pastry scattered on the wood, served simply on a wooden board",
+
+    # Roze koek: round, flat, dense cake with hot-pink fondant top.
+    # Similar to a black-and-white cookie but with pink icing.
+    "pastelitos_rosados_roze_koeken__rec_009": "a single Dutch roze koek (pink cake), round and FLAT disc about 9 cm diameter, dense pound-cake-like base, the top fully covered with a thick layer of bright NEON hot-pink fondant icing that drips slightly down one side, the icing has a smooth glossy surface, the cake itself is only about 2-3 cm thick (FLAT), one corner of the icing bitten or showing the pale yellow cake underneath",
+
+    # Tompoezen: RECTANGULAR 4.5x10cm. Two flat puff pastry sheets, thick
+    # pale yellow pastry cream between, glossy PINK fondant on top. NOT round.
+    "petisus_de_hojaldre_y_crema_tompoezen__rec_015": "a single Dutch tompouce (tompoes), RECTANGULAR shape 4.5x10 cm, two flat thin layers of golden puff pastry (no dome, no rise) with a TALL thick layer of pale yellow pastry cream sandwiched between them (the cream is as tall as the pastry is thin), the top covered with a smooth glossy layer of bright PINK fondant icing, on a small white plate, the cross-section visible from the side",
+
+    # Bossche bollen: ~12cm tennis-ball choux puff filled with whipped
+    # cream, coated ENTIRELY in dark chocolate.
+    "proficteroles_de_den_bosch_bossche_bollen__rec_014": "a single large Dutch Bossche bol from Den Bosch, about 12 cm diameter (tennis-ball size), a round choux pastry puff with a thick coat of DARK chocolate covering the ENTIRE top half (and dripping down the sides), the bottom showing the baked golden choux pastry, the puff is split or already bitten to reveal a thick layer of barely-sweet whipped cream inside, no cherry, on a small white plate",
+
+    # Stroop wafel: round, FLAT (NOT thick), waffle grid, syrup between.
+    "stroop_wafel__rec_003": "two thin Dutch stroopwafels, each one a ROUND FLAT disc about 10 cm diameter, less than 1 cm thick (very thin, NOT puffy), classic deep waffle grid imprint on both faces (the squares clearly visible), golden-brown with darker caramelized edges, the two discs sandwiched together with a dark almost-black caramel syrup layer between them, on a small Delft-blue plate, on aged wood",
+
+    # Appeltaart: TALL deep-dish, lattice top, SUGAR-COOKIE shortcrust (not
+    # flaky). Cinnamon apples + raisins.
+    "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013": "a Dutch appeltaart (moeder's apple pie), round 25-28 cm, very TALL deep-dish (8-10 cm high) baked in a springform pan, the crust is a thick CRUMBLY sugar-cookie-like shortcrust (not flaky, not puff), the top has a WOVEN LATTICE of pastry strips revealing the dark cinnamon-spiced apple filling underneath, golden-brown crust, the apples have shrunk during baking so the lattice is now slightly concave, served at room temperature, one slice cut and pulled forward showing the layers of soft apple and raisins inside",
+
+    # Ontbijtkoek: dense, moist, LIGHT-BROWN (not mahogany/black) rye-honey
+    # spice cake. Eaten at breakfast.
+    "ontbijtkoek_700g_de_harina__rec_004": "a Dutch ontbijtkoek (breakfast cake), dense rectangular loaf about 20x10x6 cm, color is LIGHT BROWN not dark mahogany (the inside is a warm tan color from rye and honey), close moist crumb visible on the cut end, no frosting no glaze, the surface is slightly sticky from the honey and the apple syrup used in the batter, this is a BREAKFAST bread not a dessert, on a wooden cutting board",
+
+    # ----- Salados (savory) -----
+    # Frikandel: cylindrical, skinless, 20cm long x 2cm diameter, deep-fried.
+    "frikandel_100_unidades__rec_022": "exactly 2 Dutch frikandellen (not a pile, not a pyramid, just 2 side by side), each one a long thin CYLINDRICAL skinless minced-meat sausage about 20 cm long and 2 cm diameter (like a fat finger), deep-fried to a dark reddish-brown crispy color on the outside, the surface is slightly irregular from deep-frying, no casing visible, served simply on a piece of butcher paper or small Delft plate, with a tiny bowl of curry ketchup or mayonnaise on the side",
+
+    # Goulash crockettes = KROKETTEN (oblong 8-10cm x 3cm) with goulash
+    # filling. Panko + double-breaded.
+    "goulash_crockettes__rec_019": "2-3 Dutch kroketten (goulash filling), each one an OBLONG CYLINDER about 8-10 cm long and 3 cm diameter, double-breaded in fine panko breadcrumbs, deep-fried to a deep golden-brown crispy shell, one bitten or cut in half lengthwise to reveal the thick dark brown goulash-style beef ragout filling that almost runs out, on butcher paper, a small ramekin of mustard on the side",
+
+    # Oliebollen: tennis-ball (6-7cm), IRREGULAR with tails, light golden
+    # brown, powdered sugar. NOT perfect round, NOT dark brown.
+    "oliebollen_bunuelos_tradicionales_holandeses__rec_016": "3-4 Dutch oliebollen, each one an IRREGULAR round deep-fried dough ball about 6-7 cm diameter (tennis-ball size) with characteristic wild uneven edges and small crispy TAILS sticking out (NOT perfectly round), light golden-brown color (not dark), the surface is slightly bumpy and dry, dusted heavily with powdered white sugar, served in a small paper bag or on a small white plate, a little powdered sugar spilled on the wood",
+
+    # Bitterballen (regular beef): 3-4cm ROUND balls, panko breaded.
+    "bitterballen_vegetariano__rec_020": "3-4 Dutch vegetarian bitterballen, each one a perfect ROUND ball about 3-4 cm diameter, double-breaded in fine panko breadcrumbs, deep-fried to a golden-brown crispy shell, one bitten open to reveal a thick dark brown vegetable ragout filling that almost runs out, on a small Delft-blue plate, a tiny ramekin of mustard on the side",
+
+    "bitterballen__rec_006": "3-4 Dutch beef bitterballen, each one a perfect ROUND ball about 3-4 cm diameter, double-breaded in fine panko breadcrumbs, deep-fried to a deep golden-brown crispy shell, one bitten open to reveal a thick dark brown beef-ragout filling that almost runs out (the gooey interior is the whole point), on a small Delft-blue plate, a tiny ramekin of mustard on the side",
+
+    # Supplì: ELONGATED OVAL (not round, not cone), 7cm long, breaded,
+    # one bitten showing mozzarella cheese pull.
+    "suppli_cacio_e_pepe__rec_021": "2-3 Italian Roman supplì al telefono, each one a small ELONGATED OVAL shape about 7 cm long and 3 cm thick (NOT round, NOT cone-shaped), breaded in fine breadcrumbs, deep-fried to a deep golden-brown color, one bitten or pulled apart in half to reveal the stretchy MOZZARELLA CHEESE PULL inside (the cheese should be stretching like telephone wires), on a small white plate, the cheese pull visible and dramatic",
+
+    # ----- Especialidades -----
+    # Ketjap manis: thick dark syrupy soy sauce, in jar.
+    "ketjap_manis_version_rapida__rec_007": "a small glass jar of Indonesian ketjap manis (sweet soy sauce), the sauce inside is very THICK and almost black-brown (much darker than regular soy sauce), syrupy molasses-like consistency visible through the glass, the jar is plain glass with no label or a faded paper label on the back (not facing camera), sitting on aged wood, a small spoon with a drop of the sauce on it beside the jar",
 }
 
 # Per-name overrides / recipes
@@ -190,6 +254,7 @@ def category_for(slug: str, type_: str) -> str:
     return "default"
 
 
+
 def build_subject(item: dict) -> str:
     """Build the SUBJECT line — what the AI should draw. Kept short.
 
@@ -204,7 +269,12 @@ def build_subject(item: dict) -> str:
     cat = category_for(slug, type_)
 
     if type_ == "ingredient":
-        return f'single "{name}" in home-pantry form (1kg bag, jar, or fresh). Container muted, brand not facing camera'
+        # Per-ingredient visual spec tells the AI the SPECIFIC container, color,
+        # and shape so the result is recognizable at 32x32 px (mini-thumbnail).
+        spec = INGREDIENT_VISUALS.get(slug)
+        if spec:
+            return spec
+        return f'single "{name}" in a recognizable container, simple background, fills most of frame'
 
     # Prefer the real description from the catalog
     recipe_slug = item.get("recipe_slug") or slug
@@ -229,33 +299,56 @@ def build_prompt(item: dict) -> dict:
 
     # Aspect-ratio guidance
     if aspect == "1:1":
-        aspect_line = "1:1 square aspect ratio, 1024×1024 px, image occupies 60% of frame width"
+        aspect_line = "1:1 square aspect ratio, 1024×1024 px, image occupies 80-90% of frame width (thumbnail-friendly, recognizable at 32px and 80px)"
     elif aspect == "3:2":
-        aspect_line = (
-            "3:2 landscape aspect ratio, 1500×1000 px, image occupies 55-70% of frame width"
-        )
+        aspect_line = "3:2 landscape aspect ratio, 1500×1000 px, image occupies 55-70% of frame width"
     else:  # 4:3 default
-        aspect_line = (
-            "4:3 landscape aspect ratio, 1200×900 px, image occupies 55-70% of frame width"
-        )
+        aspect_line = "4:3 landscape aspect ratio, 1200×900 px, image occupies 55-70% of frame width"
 
     # The big prompt — must stay under 1500 chars for MiniMax image-01.
     # Full template with all rules lives in
     # docs/operations/2026-10-08-vaquita-image-template.md.
-    full_prompt = f"""{item["type"].upper()} image for {BRAND}
+    # For ingredients, add a HERO line that names the specific container + identity.
+    # This goes FIRST so the model anchors on it before reading style rules.
+    hero_line = ""
+    if item["type"] == "ingredient":
+        hero_line = f"HERO ELEMENT: {subject}.\n\n"
 
-SUBJECT: {subject}.
+    full_prompt = f"""{item['type'].upper()} image for {BRAND}
+{hero_line}SUBJECT: {subject}.
 
-SURFACE: {style["surface"]}. BG: soft-bokeh home-kitchen hint, f/2.0-2.8 lived-in kitchen in blur. No studio sweep.
+SURFACE: {style['surface']}. BG: soft-bokeh home-kitchen hint, f/2.0-2.8 lived-in kitchen in blur. No studio sweep.
 LIGHT: single warm window ~4500K, camera-left at ~30°, warm cast shadow camera-right. No flash, no rig.
-PROPS: {style["props"]}. No people, hands, chef, or branding.
-TEXTURE: {style["texture"]}.
-ANGLE: {style["angle"]}. FRAME: {style["frame"]}.
+PROPS: {style['props']}. No people, hands, chef, or branding.
+TEXTURE: {style['texture']}.
+ANGLE: {style['angle']}. FRAME: {style['frame']}.
 ASPECT: {aspect_line}.
 COLOR: warm, slightly desaturated (-10%), wood/cream/brown + Delft-blue accent. No filter, no oversaturation.
 MOOD: homemade, lived-in, just-baked.
 STYLE: photoreal, f/2.5, mild film grain, no AI-gloss, no CGI, no miniature.
 NEGATIVE: {NEGATIVE}."""
+
+    # Truncate the subject (if needed) to fit the 1500-char limit.
+    # We trim from the end of the SUBJECT line first, preserving the
+    # rest of the template structure intact.
+    if len(full_prompt) > 1490:
+        # If we have a HERO line, the SUBJECT line is redundant — drop SUBJECT.
+        if item["type"] == "ingredient" and "HERO ELEMENT" in full_prompt:
+            # Remove the entire "SUBJECT: ...\n\n" block
+            import re
+            full_prompt = re.sub(r"SUBJECT:.*?\.\s*\n\n", "", full_prompt, count=1, flags=re.DOTALL)
+        else:
+            # Truncate the subject at the closest sentence boundary
+            target_len = 1450
+            excess = len(full_prompt) - target_len
+            shorter_subject = subject[: max(20, len(subject) - excess - 5)]
+            if "." in shorter_subject[:-10]:
+                shorter_subject = shorter_subject.rsplit(".", 1)[0] + "."
+            shorter_subject = shorter_subject.rstrip(",") + " (see template)"
+            full_prompt = full_prompt.replace(
+                f"SUBJECT: {subject}.",
+                f"SUBJECT: {shorter_subject}.",
+            )
 
     return {
         "id": item["id"],
