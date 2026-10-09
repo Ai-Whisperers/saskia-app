@@ -35,20 +35,45 @@ def get_pricing_markup(session: Session) -> dict:
     Defaults to {multiplier: 3.0, round_to_gs: 1000} when missing.
     """
     cfg = settings_get(session, "pricing.suggested_markup", DEFAULT_PRICING_MARKUP)
-    # Defensive: coerce types and fill missing keys with defaults.
+    return _coerce_pricing_markup(cfg)
+
+
+def _coerce_pricing_markup(cfg) -> dict:
+    """Coerce a settings payload to the pricing markup dict shape.
+
+    Defensive: fills missing keys with defaults and converts types.
+    Extracted from get_pricing_markup to reduce complexity.
+    """
     out = dict(DEFAULT_PRICING_MARKUP)
-    if isinstance(cfg, dict):
-        if "multiplier" in cfg:
-            try:
-                out["multiplier"] = float(cfg["multiplier"])
-            except (TypeError, ValueError):
-                pass
-        if "round_to_gs" in cfg:
-            try:
-                out["round_to_gs"] = int(cfg["round_to_gs"])
-            except (TypeError, ValueError):
-                pass
+    if not isinstance(cfg, dict):
+        return out
+    if "multiplier" in cfg:
+        out["multiplier"] = _safe_float(cfg["multiplier"], DEFAULT_PRICING_MARKUP["multiplier"])
+    if "round_to_gs" in cfg:
+        out["round_to_gs"] = _safe_int(cfg["round_to_gs"], DEFAULT_PRICING_MARKUP["round_to_gs"])
     return out
+
+
+def _safe_float(value, default: float) -> float:
+    """Coerce a value to float, falling back to default on failure.
+
+    Extracted from _coerce_pricing_markup to reduce complexity.
+    """
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_int(value, default: int) -> int:
+    """Coerce a value to int, falling back to default on failure.
+
+    Extracted from _coerce_pricing_markup to reduce complexity.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def set_pricing_markup(session: Session, multiplier: float, round_to_gs: int = 1000) -> dict:
