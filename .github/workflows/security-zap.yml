@@ -186,23 +186,24 @@ jobs:
           rules_file_name: .github/.zap-rules.tsv
           # `-a` (ajax spider for SPAs — disabled in our app; harmless)
           # `-j` (use the openapi.json file)
-          # `-l HIGH` show only HIGH+CRITICAL alerts in output (display
-          #   level). Previously `-l WARN` produced noisy reports listing
-          #   every INFO/LOW finding, hiding what actually matters. The
-          #   underlying FAIL threshold is `fail_action: true` + the
-          #   `zaproxy/action-api-scan` default, which only fails the
-          #   build on HIGH/CRITICAL anyway. See .github/.zap-rules.tsv
-          #   for the rules triaged out of build failure (CSP unsafe-inline,
-          #   CSRF /login exempt, version disclosure, etc.).
+          # `-l FAIL` show only FAIL-level alerts in output (display level).
+          #   Valid ZAP levels are: PASS, IGNORE, INFO, WARN, FAIL — there is
+          #   no HIGH. Previously `-l HIGH` was used, which ZAP rejects with
+          #   "Level must be one of [...]" before the scan even starts.
+          #   FAIL is the strictest; combined with `fail_action: true` the
+          #   build only fails when ZAP would fail anyway.
+          #   See .github/.zap-rules.tsv for the rules triaged out of build
+          #   failure (CSP unsafe-inline, CSRF /login exempt, version
+          #   disclosure, etc.).
           # `-I` do NOT return failure on warnings — historically needed
           #   when the display level was WARN; kept for defense in depth
-          #   so the only path to fail the build is HIGH/CRITICAL.
+          #   so the only path to fail the build is FAIL-level findings.
           # spider `maxDuration=2` (minutes) — keeps scan ≤ 6 min total
           # scanner `maxScanDurationInMins=4`
           cmd_options: >
             -a
             -j
-            -l HIGH
+            -l FAIL
             -I
             -z "-config api.disablekey=true
             -config openapi.targetUrl=http://127.0.0.1:18998
