@@ -16,10 +16,12 @@ _walk_recipe_cost. Cycle-guarded via a visited set.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.rms.models import Ingredient, Recipe, RecipeLine
 from app.rms.units import normalize_recipe_line_qty
 
 
@@ -58,7 +60,6 @@ def explode_recipe(
     Refactored 2026-10-09 to reduce cognitive complexity from 95 to <10
     by extracting logical branches into helper functions.
     """
-    from app.rms.models import Ingredient, Recipe, RecipeLine
 
     if _rid is None:
         _rid = recipe_id
@@ -103,8 +104,6 @@ def _process_ingredient_line(
     2. Unit conversion error (creates error row with original qty)
     3. Valid ingredient (accumulates into accumulator)
     """
-    from app.rms.models import Ingredient
-
     ing = session.get(Ingredient, ln.line_ref_id)
     if ing is None:
         _add_error_row(acc, f"missing:{ln.line_ref_id}",
@@ -168,7 +167,6 @@ def _get_validated_sub_recipe(
 
     Adds error rows to acc and returns None if any validation fails.
     """
-    from app.rms.models import Recipe
 
     sub = session.get(Recipe, ln.line_ref_id)
     if sub is None:

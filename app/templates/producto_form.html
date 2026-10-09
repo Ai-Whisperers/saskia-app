@@ -94,7 +94,7 @@
           <div class="currency-input-wrap">
             <input type="number" id="sale_price_gs" name="sale_price_gs" required step="1" min="0" inputmode="numeric" class="currency-input"
                    value="{{ request.query_params.get('sale_price_gs', product.sale_price_gs if product else '0') }}"
-                   placeholder="15000"
+                   placeholder="8.000"
                    hx-post="/api/validate/product" hx-trigger="blur" hx-include="closest form"
                    onhtmx:after-request="handleProductValidation(this, event)">
           </div>

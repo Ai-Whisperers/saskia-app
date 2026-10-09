@@ -793,6 +793,19 @@ dialog,
   font-size: 0.85rem;
 }
 #order-summary-lines li + li { margin-top: 4px; }
+.order-summary__empty-hint {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-surface-subtle, rgba(0,0,0,0.03));
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+.order-summary__empty-hint strong {
+  color: var(--color-accent);
+  font-weight: 600;
+}
 .order-summary__actions {
   display: flex;
   justify-content: flex-end;

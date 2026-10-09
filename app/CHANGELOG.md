@@ -1,3 +1,17 @@
+## 2026-10-09 — 3 SASKIA-30x template-placeholder fixes + recipes_consolidated lint cleanup
+
+**3 SASKIA-30x tests now green** (was the only remaining test failures after SASKIA-317):
+- `test_SASKIA-303::test_pedidos_nuevo_empty_cart_hint` → added "Tocá + Agregar ítem" hint to `pedidos_nuevo.html` order summary, with `hidden` toggle wired into the JS `refreshSummary()` so the hint only shows when the cart is empty
+- `test_SASKIA-304::test_producto_form_has_helpful_placeholders` → changed `placeholder="15000"` → `placeholder="8.000"` in `producto_form.html` (Muffin name placeholder was already correct)
+- `test_SASKIA-306::test_supplier_form_has_all_fields` → added `placeholder="+595 21 XXXXXX"` to `supplier_form.html` phone input
+
+**Lint cleanup in `app/rms/recipes_consolidated.py`** (was masked by the bot's 2026-10-09 refactor that left orphaned function-local imports + a missing `Any` import):
+- Added `from typing import Any` at module level
+- Consolidated the 3 function-local `from app.rms.models import …` lines into one module-level import
+- `ruff check .` clean across the repo
+
+Live: `saskia-vps.paragu-ai.com` will pick up on next deploy. SASKIA-317 acceptance criteria now fully met.
+
 ## 2026-10-09 — SASKIA-317 root-caused: broken main.py refactor (reverted)
 
 The SASKIA-317 "200-300 tests fail in full-suite parallel CI" ticket was
