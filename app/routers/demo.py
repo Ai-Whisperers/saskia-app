@@ -36,10 +36,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
+from app.auth import require_login_or_disabled as require_login
 from app.rms.dependencies import get_session
 from app.seed.kyrian import seed_kyrian
 
-router = APIRouter(prefix="/demo", tags=["demo"])
+router = APIRouter(prefix="/demo", tags=["demo"], dependencies=[Depends(require_login)])
 
 
 def _is_enabled() -> bool:

@@ -62,9 +62,9 @@ def test_default_is_false(session_factory):
 
 
 def test_multi_accepts_fractional_qty_for_weight_product(
-    authed_client, session_factory, _weight_seed
+    client_with_caja, session_factory, _weight_seed
 ):
-    r = authed_client.post(
+    r = client_with_caja.post(
         "/ventas/nueva/multi",
         json={"items": [{"product_id": _weight_seed["weight_id"], "qty": 0.5}]},
         follow_redirects=False,
@@ -95,9 +95,9 @@ def test_multi_rejects_fractional_qty_for_discrete_product(
 
 
 def test_mixed_cart_fractional_weight_plus_integer_discrete_ok(
-    authed_client, session_factory, _weight_seed
+    client_with_caja, session_factory, _weight_seed
 ):
-    r = authed_client.post(
+    r = client_with_caja.post(
         "/ventas/nueva/multi",
         json={
             "items": [
@@ -110,8 +110,8 @@ def test_mixed_cart_fractional_weight_plus_integer_discrete_ok(
     assert r.status_code == 303, r.text[:300]
 
 
-def test_discrete_still_accepts_integer_qty(authed_client, session_factory, _weight_seed):
-    r = authed_client.post(
+def test_discrete_still_accepts_integer_qty(client_with_caja, session_factory, _weight_seed):
+    r = client_with_caja.post(
         "/ventas/nueva/multi",
         json={"items": [{"product_id": _weight_seed["discrete_id"], "qty": 2}]},
         follow_redirects=False,

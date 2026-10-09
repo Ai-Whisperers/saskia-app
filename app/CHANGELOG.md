@@ -1,3 +1,49 @@
+## 2026-10-09 — suite triage: real sale-path fixes + test-contract modernization (51 files)
+
+Full-suite triage on post-#82 main. 104 failures → root-caused into: (a) REAL
+merge damage, (b) auth-gate gaps, (c) caja-gate fixture drift, (d) stale
+test contracts after the CSS audit / station-shell / nav rework.
+
+**Real production bugs fixed**
+- `app/rms/sales/lifecycle.py` — `void_sale` iterated the dead
+  `sale.stock_moves` relationship (SaleStockMove table dropped by migration
+  092) → every void 500'd. Now queries `StockMovement`
+  (movement_type/reference_type='sale') directly, skips non-negative rows,
+  restores stock once. Also removed the `SaleStockMove` dual-write in
+  `apply_sale` — instantiating the deprecated stub raised TypeError on every
+  recipe sale.
+- `app/rms/costing.py` — the `-X ours` merge had silently replaced the
+  Sprint-2.3 DEPRECATED shim with a full 776-line copy (parallel
+  implementation drift). Restored the thin re-export shim; identity with
+  `profitability.cost` / `sales.lifecycle` pinned by test.
+- `app/routers/demo.py`, `photo_credits.py`, `stations.py` — routes without
+  any auth gate (the require-auth test caught them). All three now
+  `dependencies=[Depends(require_login)]`.
+
+**Copy/UI fixes (real)**
+- `inventario_form.html` "Guardar" → "Guardá" and `produccion.html`
+  "Guardar ejecución del turno" → "Guardá …" (AGENTS.md rule 23/25 vos).
+- `nav.py`: folded the 8th "Dashboard" group back into "Análisis y
+  Reportes" to honor the ≤7 sidebar-group IA budget.
+
+**Test contracts updated to shipped behavior (43 test files)**
+- Dashboard tests target `/inicio` (the `/` chooser landed in PR #81).
+- Cash-sale tests use `client_with_caja` (SASKIA-MIG caja gate is real —
+  unauthed-efectivo sales are 422 by design).
+- `tests/fixtures/recibo/golden_recibo_v1.html` regenerated (new nav chrome
+  + stylesheets); manual version pin re-anchored to schema 116.
+- Removed pins to dead assets (`calendar.css`, `saskia-skeleton*`,
+  `SaleStockMove`), renamed flash keys (`eod_duplicate`,
+  `pedido_stock_insufficient`, `settings_demo_error_detail`,
+  `fiado_duplicate`), payment-method set + fiado, cart weight-aware step
+  (0.05 kg), pending-pedidos panel hidden-at-zero, table-sticky-wrap,
+  ui-kpi-card label rename, rate-limit test vs 409 dup-guard ordering.
+
+**Verification**: 472 tests across the 41 touched files green (serial),
++86 nav/landing/costing-suite green post-rebase onto `c5064803`.
+`ruff check` clean; `ruff format --check` clean on all touched files
+(8 pre-existing unformatted files on main untouched).
+
 ## 2026-10-09 — live site: new AI product images, 31/32 wired to seed
 
 The /productos and /recetas pages on https://saskia-vps.paragu-ai.com now show

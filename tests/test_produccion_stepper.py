@@ -11,6 +11,8 @@ The bulk button posts form actions "bulk=mark_all" with each row's
 target qty. We verify the markup + JS wiring.
 """
 
+from pathlib import Path
+
 
 def test_stepper_buttons_present(authed_client):
     """The stepper JS function + CSS are in the rendered template."""
@@ -22,9 +24,10 @@ def test_stepper_buttons_present(authed_client):
     assert "stepRow" in body
     # The CSS for .step-btn is in the <style> block.
     assert "step-btn" in body
-    # The .step-down class is referenced in the CSS even when no rows render
-    # (it's defined as part of the stepper CSS bundle). Verify either:
-    assert "step-down" in body or "step-up" in body
+    # step-down/step-up classes render per plan row (empty day → absent);
+    # the per-row markup is covered by the seeded-row tests in
+    # test_production_close_day.py. Here we pin the always-present surface:
+    assert "qty-stepper" in body or "stepRow" in body
 
 
 def test_stepper_buttons_have_aria(authed_client):
@@ -46,12 +49,17 @@ def test_mark_all_button_present(authed_client):
 
 
 def test_stepper_button_styling(authed_client):
-    """The stepper CSS class is wired."""
+    """The stepper CSS is wired (moved to the static stylesheets in the
+    CSS deep-audit; the rendered page carries the markup, the stylesheet
+    carries the rules)."""
+    css = (
+        Path(__file__).resolve().parents[1] / "app" / "static" / "app-improvements.css"
+    ).read_text()
+    assert ".step-btn" in css
+    assert ".step-btn.step-down" in css
     r = authed_client.get("/produccion?view=day")
     assert r.status_code == 200
-    body = r.text
-    assert ".qty-stepper" in body
-    assert ".step-btn" in body
+    assert "qty-stepper" in r.text
 
 
 def test_mark_all_action_wired(authed_client):

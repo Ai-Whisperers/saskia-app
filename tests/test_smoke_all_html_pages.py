@@ -89,9 +89,14 @@ def test_static_app_js_serves_correct_content_type(client):
 
 
 def test_static_calendar_css_serves(client):
-    """/static/calendar.css must serve."""
-    r = client.get("/static/calendar.css")
+    """A form-utility stylesheet must serve (calendar.css was consolidated
+    into app-components.css during the CSS deep-audit — its dark-mode
+    calendar-picker indicator rules live there now)."""
+    r = client.get("/static/form-help.css")
     assert r.status_code == 200
+    r2 = client.get("/static/app-components.css")
+    assert r2.status_code == 200
+    assert "calendar-picker-indicator" in r2.text
 
 
 def test_static_shortcuts_js_serves(client):
