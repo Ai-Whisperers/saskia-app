@@ -10,13 +10,13 @@ Also locks the placeholder `25000` → `25.000` per copy-vos.md period thousands
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 pytestmark = [pytest.mark.smoke]
 
-TEMPLATES = Path("/opt/data/work/saskia-app/app/templates")
+from tests.conftest import REPO_ROOT
+
+TEMPLATES = REPO_ROOT / "app" / "templates"
 
 
 def test_no_bare_gs_in_money_column_headers():

@@ -173,7 +173,9 @@ def test_staff_cocina_is_blocked_from_ventas():
     # /produccion is the cocina home — should be allowed
     assert decide("/produccion", session, auth_disabled=False, user_present=True) is None
     # /puesto is denied for locked staff
-    assert decide("/puesto", session, auth_disabled=False, user_present=True) == "redirect:/produccion"
+    assert (
+        decide("/puesto", session, auth_disabled=False, user_present=True) == "redirect:/produccion"
+    )
 
 
 def test_owner_can_move_between_stations():

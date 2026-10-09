@@ -14,9 +14,11 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import REPO_ROOT
+
 pytestmark = [pytest.mark.smoke]
 
-TEMPLATES = Path("/opt/data/work/saskia-app/app/templates")
+TEMPLATES = Path(REPO_ROOT / "app" / "templates")
 
 
 def test_suppliers_page_has_table_and_cta():

@@ -15,6 +15,7 @@ Usage:
     .venv/bin/python data/publish_images.py --pick 2               # use cand2
     .venv/bin/python data/publish_images.py --dry-run              # show what would happen
 """
+
 from __future__ import annotations
 
 import argparse
@@ -45,7 +46,9 @@ def main():
         items = [i for i in items if i["type"] == args.type]
 
     print(f"=== publish_images ===")
-    print(f"items: {len(items)}  pick: cand{args.pick}  force: {args.force}  dry-run: {args.dry_run}")
+    print(
+        f"items: {len(items)}  pick: cand{args.pick}  force: {args.force}  dry-run: {args.dry_run}"
+    )
 
     published = 0
     skipped = 0

@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import pytest
 
+from tests.conftest import REPO_ROOT
+
 pytestmark = [pytest.mark.smoke]
 
 
@@ -34,9 +36,7 @@ def test_eod_print_uses_gs_period(authed_client):
             break
     # If we can't get the page via HTTP, read the source directly
     if r is None or r.status_code != 200:
-        from pathlib import Path
-
-        src = Path("/opt/data/work/saskia-app/app/templates/eod_print.html").read_text()
+        src = (REPO_ROOT / "app/templates/eod_print.html").read_text()
         assert "₲" not in src, "eod_print.html still contains ₲"
         # The empty-state money formats should use Gs.
         return
@@ -66,9 +66,8 @@ def test_reportes_mermas_cost_uses_gs_period(authed_client):
     contain the money headers in test. We verify the source template
     instead. The HTTP-level check is for status code only.
     """
-    from pathlib import Path
 
-    src = Path("/opt/data/work/saskia-app/app/templates/reportes_mermas_cost.html").read_text()
+    src = (REPO_ROOT / "app/templates/reportes_mermas_cost.html").read_text()
     assert "₲" not in src, "₲ still in reportes_mermas_cost.html source"
     assert "Gs." in src, "Expected 'Gs.' in reportes_mermas_cost.html source"
     # HTTP-level: page returns 200 without error
@@ -89,7 +88,7 @@ def test_global_no_guarani_symbol_in_templates():
     from pathlib import Path
 
     offenders = []
-    for html in Path("/opt/data/work/saskia-app/app/templates").glob("*.html"):
+    for html in Path(REPO_ROOT / "app" / "templates").glob("*.html"):
         text = html.read_text()
         if "₲" in text:
             offenders.append(html.name)

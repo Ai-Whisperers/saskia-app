@@ -150,6 +150,17 @@ ignore = [
 allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а", "‹", "›", "σ"]
 
 [tool.ruff.lint.per-file-ignores]
+"data/*" = [
+    "ANN",     # one-off workbook→seed pipeline scripts, not app code
+    "S",       # scripts read local files / use subprocess freely
+    "E", "W",  # style nits fine in throwaway tooling
+    "F",       # unused imports / scratch intermediates
+    "I",       # import order not worth enforcing on pipeline scripts
+    "B",       # zip strict / loop-var nits
+    "PERF",    # perf lints target the app, not one-off scripts
+    "RUF",     # ruf nits (concat, conversion flag)
+    "BLE",     # image-API retry loops catch broad Exception on purpose
+]
 "tests/*" = [
     "E402",    # test files may have non-top imports
     "ANN",     # test ergonomics — don't annotate every helper
