@@ -119,11 +119,6 @@ ALLOW_LIST: dict[tuple[str, str], str] = {
 # (deprecate the shim, update all callers) is a separate refactor.
 KNOWN_CYCLES: list[tuple[str, str, str]] = [
     (
-        "app.rms.settings_runtime",
-        "app.rms.settings_registry",
-        "settings_runtime uses get_setting_value from settings_registry (lazy); settings_registry uses settings_get/settings_set from settings_runtime (top-level). Fix: move settings_get/settings_set to a shared helper or into settings_registry itself. Tracked as SASKIA-XXX. NOT a startup crash because both imports are inside function bodies.",
-    ),
-    (
         "app.rms.ingredient_intel",
         "app.rms.tagging.classify",
         "ingredient_intel is a legacy shim that re-exports infer_allergens/infer_dietary_tags from tagging.classify. The bidirectional imports are inside function bodies. Fix: deprecate ingredient_intel, update callers. Tracked as SASKIA-XXX.",

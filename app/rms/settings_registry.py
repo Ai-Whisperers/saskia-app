@@ -26,8 +26,37 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.rms.models import SettingsKV
-# noqa: cycle-known — part of a known lazy-import cycle with settings_runtime (see scripts/check_imports.py KNOWN_CYCLES)
-from app.rms.settings_runtime import settings_get, settings_set
+
+
+# ---------------------------------------------------------------------
+# Low-level KV accessors. These were historically in settings_runtime.py,
+# but they belong here because settings_registry is the SettingsKV layer.
+# settings_runtime now re-imports them from this module (one direction),
+# breaking the historical bidirectional cycle.
+# ---------------------------------------------------------------------
+def settings_get(session: Session, key: str, default: Any = None) -> Any:
+    """Read one key from settings_kv (parsed JSON). Returns default if missing."""
+    row = session.execute(select(SettingsKV).where(SettingsKV.key == key)).scalar_one_or_none()
+    if row is None:
+        return default
+    try:
+        return json.loads(row.value_json)
+    except (TypeError, ValueError):
+        return default
+
+
+def settings_set(session: Session, key: str, value: Any) -> None:
+    """Upsert one key into settings_kv (serialized as JSON)."""
+    import json as _json
+
+    payload = _json.dumps(value)
+    row = session.execute(select(SettingsKV).where(SettingsKV.key == key)).scalar_one_or_none()
+    if row is None:
+        row = SettingsKV(key=key, value_json=payload)
+        session.add(row)
+    else:
+        row.value_json = payload
+    session.flush()
 
 
 class SettingGroup(str, Enum):

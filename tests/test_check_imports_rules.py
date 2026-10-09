@@ -191,14 +191,15 @@ class TestKnownCyclesSize(unittest.TestCase):
         self.assertIn("KNOWN_CYCLES", consts, "KNOWN_CYCLES not found in check_imports.py")
         known = consts["KNOWN_CYCLES"]
         assert isinstance(known, ast.List)
-        # As of 2026-10-08 sweep. The 3 cycles are:
-        # 1. settings_runtime <-> settings_registry
-        # 2. ingredient_intel <-> tagging.classify
-        # 3. db <-> backup
-        # Each is a "shim module" pattern; the fix is a SASKIA ticket.
+        # As of 2026-10-09 sweep. The remaining 2 cycles are:
+        # 1. ingredient_intel <-> tagging.classify
+        # 2. db <-> backup
+        # (settings_runtime <-> settings_registry was fixed 2026-10-09
+        # by moving settings_get/settings_set into settings_registry.)
+        # Each remaining is a "shim module" pattern; the fix is a SASKIA ticket.
         self.assertEqual(
             len(known.elts),
-            3,
+            2,
             "Known-cycles list size changed. Either fix the cycle "
             "(extract a shared helper), or update this test AND add a "
             "SASKIA ticket to track the refactor.",

@@ -14,41 +14,20 @@ to operators.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.rms.models import SettingsKV
+from app.rms.models import SettingsKV  # noqa: F401  (kept for back-compat; the SettingsKV model)
+
+# settings_get / settings_set are now defined in app.rms.settings_registry
+# (the SettingsKV layer). Re-import here so legacy callers of
+# `from app.rms.settings_runtime import settings_get, settings_set`
+# still work, and the historical bidirectional cycle is broken.
+from app.rms.settings_registry import settings_get, settings_set  # noqa: F401
 
 # Pricing defaults (legacy hardcoded values)
 DEFAULT_PRICING_MARKUP = {"multiplier": 3.0, "round_to_gs": 1000}
-
-
-def settings_get(session: Session, key: str, default: Any = None) -> Any:
-    """Read one key from settings_kv (parsed JSON). Returns default if missing."""
-    row = session.execute(select(SettingsKV).where(SettingsKV.key == key)).scalar_one_or_none()
-    if row is None:
-        return default
-    try:
-        return json.loads(row.value_json)
-    except (TypeError, ValueError):
-        return default
-
-
-def settings_set(session: Session, key: str, value: Any) -> None:
-    """Upsert one key into settings_kv (serialized as JSON)."""
-    import json as _json
-
-    payload = _json.dumps(value)
-    row = session.execute(select(SettingsKV).where(SettingsKV.key == key)).scalar_one_or_none()
-    if row is None:
-        row = SettingsKV(key=key, value_json=payload)
-        session.add(row)
-    else:
-        row.value_json = payload
-    session.flush()
 
 
 def get_pricing_markup(session: Session) -> dict:
