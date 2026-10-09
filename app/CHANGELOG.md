@@ -1,3 +1,32 @@
+## 2026-10-09 — product price shows on hover
+
+Ventas cards are smaller. The price sits on the photo and appears when
+the pointer is over the product. On a narrow screen the price stays visible.
+
+## 2026-10-09 — Reponer fits the screen
+
+The replenishment page was laying forms across table cells, so the browser
+pulled the purchase buttons out of the rows and the columns overlapped.
+Each ingredient is now one line: stock, quantity, supplier, and cost, with
+the rest (mínimo, tendencia, proveedor, WhatsApp, precios) behind Ver
+detalles. A bar at the bottom shows the selection and generates the order.
+
+## 2026-10-09 — ventas catalog leads the counter
+
+The product grid takes about two thirds of Ventas. The cart, channel,
+payment, and Registrá venta stay in the side panel. Comprobante and
+fecha/notas sit in disclosures. Agotado still means the recipe has no stock.
+
+## 2026-10-09 — puesto cards share one height
+
+Every chooser card is the same size. The feature list on the back no
+longer stretches one row taller than the other.
+
+## 2026-10-09 — smaller puesto cards, larger type, bullets
+
+Chooser cards are shorter and narrower. Role names and the feature list
+use a larger size. The back of each card marks every feature with a bullet.
+
 ## 2026-10-09 — puesto cards in coffee, dark type
 
 Chooser cards use a coffee fill. The role name and the feature list are

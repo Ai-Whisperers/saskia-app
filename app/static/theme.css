@@ -1103,3 +1103,117 @@ form ui-date {
     transform: none;
   }
 }
+
+/* Ventas: catalog is the workspace, cart is the side panel. */
+.pos-layout {
+  grid-template-columns: minmax(0, 13fr) minmax(0, 7fr);
+  align-items: start;
+}
+.pos-layout > .pos-quick { order: 1; position: static; }
+.pos-layout > .pos-form-pane {
+  order: 2;
+  position: sticky;
+  top: calc(var(--topbar-height, 48px) + 12px);
+  max-height: calc(100vh - var(--topbar-height, 48px) - 24px);
+  overflow: auto;
+}
+.pos-layout .sale-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.pos-more {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  padding: 0 12px;
+}
+.pos-more summary {
+  cursor: pointer;
+  padding: 10px 0;
+  font-weight: 600;
+}
+.pos-more[open] { padding-bottom: 12px; }
+.quick-sell-grid {
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 8px;
+}
+.quick-sell-btn {
+  position: relative;
+  min-height: 0;
+  padding: 0 0 6px;
+  align-items: stretch;
+  gap: 2px;
+}
+.quick-sell-btn .qs-thumb {
+  width: 100%;
+  height: 64px;
+  border-radius: 8px 8px 0 0;
+}
+.quick-sell-btn .qs-name {
+  padding: 4px 6px 0;
+  height: auto;
+  min-height: 2.4em;
+  font-size: 0.75rem;
+}
+.quick-sell-btn .qs-price {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0 6px;
+  border-radius: 8px 8px 0 0;
+  background: rgba(42, 22, 12, 0.78);
+  color: #fffdf9;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.quick-sell-btn:hover .qs-price,
+.quick-sell-btn:focus-visible .qs-price {
+  opacity: 1;
+}
+.quick-sell-btn .qs-sold-out-badge,
+.quick-sell-btn.is-out-of-stock > .text-danger {
+  display: inline-block;
+  align-self: center;
+  margin: 0 8px 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #efe8dc;
+  color: #3a2e24;
+  font-weight: 700;
+  border: 1px dashed #6f4b2a;
+}
+.pos-sticky-footer {
+  position: sticky;
+  bottom: 0;
+}
+.pos-form-pane .cart-table {
+  width: 100%;
+  table-layout: fixed;
+  font-size: 0.8rem;
+}
+.pos-form-pane .cart-table th:first-child,
+.pos-form-pane .cart-table td:first-child { display: none; }
+.pos-form-pane .cart-price-input,
+.pos-form-pane .cart-qty-input,
+.pos-form-pane .cart-discount-input {
+  width: 100%;
+  max-width: 4.5rem;
+}
+@media (max-width: 900px) {
+  .pos-layout { grid-template-columns: 1fr; }
+  .pos-layout > .pos-form-pane {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+  .quick-sell-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+  .quick-sell-btn .qs-price { opacity: 1; position: static; height: auto; background: transparent; color: var(--color-accent); }
+}
