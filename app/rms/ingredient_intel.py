@@ -29,9 +29,7 @@ from sqlalchemy.orm import Session
 # used to define them inline; the rest of the inventory pipeline
 # (`infer_subcategory`, `infer_role`, `classify_ingredient`, etc.) still
 # uses the same keyword data, which now lives in `tagging.classify`.
-from app.rms.tagging.classify import (  # noqa: F401  (re-exports for back-compat)
-    _CATEGORY_KEYWORDS,
-    _keyword_in,
+from app.rms.tagging.classify import (
     _normalize,
     infer_category,
 )

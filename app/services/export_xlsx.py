@@ -460,7 +460,7 @@ def to_bytes(session: Session) -> bytes:
 
 def _create_workbook():
     """Create a fresh workbook with the default sheet removed.
-    
+
     Extracted from to_bytes to reduce complexity.
     """
     wb = Workbook()
@@ -472,7 +472,7 @@ def _create_workbook():
 
 def _load_lookup_maps(session) -> tuple:
     """Pre-load lookup maps for ingredients, recipes, and products.
-    
+
     Extracted from to_bytes to reduce complexity.
     """
     ingredients_by_id = {ing.id: ing for ing in session.scalars(select(Ingredient)).all()}
@@ -483,7 +483,7 @@ def _load_lookup_maps(session) -> tuple:
 
 def _write_ingredientes_sheet(wb, session) -> None:
     """Write the Ingredientes sheet.
-    
+
     Extracted from to_bytes to reduce complexity.
     """
     ws = wb.create_sheet("Ingredientes")
@@ -504,7 +504,7 @@ def _write_ingredientes_sheet(wb, session) -> None:
 
 def _write_recetas_sheet(wb, session) -> None:
     """Write the Recetas sheet.
-    
+
     Extracted from to_bytes to reduce complexity.
     """
     ws = wb.create_sheet("Recetas")
@@ -515,7 +515,7 @@ def _write_recetas_sheet(wb, session) -> None:
 
 def _write_lineas_sheet(wb, session, ingredients_by_id, recipes_by_id) -> None:
     """Write the Lineas sheet.
-    
+
     Extracted from to_bytes to reduce complexity.
     """
     ws = wb.create_sheet("Lineas")
@@ -539,7 +539,7 @@ def _write_lineas_sheet(wb, session, ingredients_by_id, recipes_by_id) -> None:
 
 def _resolve_line_target_name(line, ingredients_by_id, recipes_by_id) -> str | None:
     """Resolve the target name for a recipe line.
-    
+
     Extracted from _write_lineas_sheet to reduce complexity.
     """
     if line.line_kind == "ingredient":
@@ -553,7 +553,7 @@ def _resolve_line_target_name(line, ingredients_by_id, recipes_by_id) -> str | N
 
 def _write_productos_sheet(wb, session, recipes_by_id) -> None:
     """Write the Productos sheet.
-    
+
     Extracted from to_bytes to reduce complexity.
     """
     ws = wb.create_sheet("Productos")
@@ -575,7 +575,7 @@ def _write_productos_sheet(wb, session, recipes_by_id) -> None:
 
 def _write_ventas_sheet(wb, session, products_by_id) -> None:
     """Write the Ventas sheet.
-    
+
     Extracted from to_bytes to reduce complexity.
     """
     ws = wb.create_sheet("Ventas")
@@ -636,7 +636,7 @@ def _build_patch_plantilla_wb(session: Session) -> "Workbook":
 
     # --- Productos ---
     ws = wb.create_sheet("Productos")
-    ws.append(PLANTILLA_PRODUCTOS_COLS)
+    ws.append(PRODUCTOS_COLS)
     for prod in session.scalars(select(Product).order_by(Product.name)).all():
         ws.append(
             [
@@ -651,12 +651,12 @@ def _build_patch_plantilla_wb(session: Session) -> "Workbook":
 
     # --- Clientes (header only) ---
     ws = wb.create_sheet("Clientes")
-    ws.append(PLANTILLA_CLIENTES_COLS)
+    ws.append(CLIENTES_COLS)
     _autosize_simple(ws)
 
     # --- Ingredientes ---
     ws = wb.create_sheet("Ingredientes")
-    ws.append(PLANTILLA_INGREDIENTES_COLS)
+    ws.append(INGREDIENTES_COLS)
     for ing in session.scalars(select(Ingredient).order_by(Ingredient.name)).all():
         ws.append(
             [
@@ -673,7 +673,7 @@ def _build_patch_plantilla_wb(session: Session) -> "Workbook":
 
     # --- Recetas ---
     ws = wb.create_sheet("Recetas")
-    ws.append(PLANTILLA_RECETAS_COLS)
+    ws.append(RECETAS_COLS)
     for rec in session.scalars(select(Recipe).order_by(Recipe.name)).all():
         ws.append([rec.name, rec.yield_qty, rec.prep_minutes, rec.notes])
     _autosize_simple(ws)

@@ -254,6 +254,7 @@ async def lifespan(app: FastAPI):
     # See app/rms/otel.py for the activation matrix.
     try:
         from app.rms.otel import init_observability
+
         init_observability(app)
     except Exception as exc:
         print(f"WARNING: observability init failed: {exc}", file=sys.stderr)
@@ -1419,6 +1420,7 @@ def _seed() -> None:
             # SeedReport is intentionally not re-exported from app.rms.seed
             # (sazon's public API surface is sazon-only). Import the demo
             # module directly when callers need the report class.
+
             # noqa: arch-rule — main.py is the CLI entry point; imports demo module (includes seed.demo)
             from app.rms.seed import (
                 seed_demo_data,  # noqa: arch-rule — main.py is the CLI entry point

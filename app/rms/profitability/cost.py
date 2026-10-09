@@ -120,10 +120,13 @@ def _walk_recipe_cost(
 
 
 def _compute_line_cost(
-    session: Session, line: RecipeLine, visited: set[int], missing: list[str],
+    session: Session,
+    line: RecipeLine,
+    visited: set[int],
+    missing: list[str],
 ) -> Decimal | None:
     """Compute the cost for a single recipe line.
-    
+
     Extracted from _walk_recipe_cost to reduce complexity.
     """
     target = resolve_line_target(session, line)
@@ -135,10 +138,13 @@ def _compute_line_cost(
 
 
 def _compute_ingredient_line_cost(
-    session: Session, line: RecipeLine, ingredient, missing: list[str],
+    session: Session,
+    line: RecipeLine,
+    ingredient,
+    missing: list[str],
 ) -> Decimal | None:
     """Compute cost for an ingredient line.
-    
+
     Extracted from _walk_recipe_cost to reduce complexity.
     """
     if ingredient is None:
@@ -168,10 +174,14 @@ def _compute_ingredient_line_cost(
 
 
 def _compute_sub_recipe_line_cost(
-    session: Session, line: RecipeLine, sub_recipe, visited: set[int], missing: list[str],
+    session: Session,
+    line: RecipeLine,
+    sub_recipe,
+    visited: set[int],
+    missing: list[str],
 ) -> Decimal | None:
     """Compute cost for a sub-recipe line.
-    
+
     Extracted from _walk_recipe_cost to reduce complexity.
     """
     if sub_recipe is None:

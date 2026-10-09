@@ -23,6 +23,7 @@ Why pymarkdownlnt and not markdownlint-cli2?
 
 Config: .markdownlint.jsonc at repo root.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -73,9 +74,7 @@ def run_pymarkdownlnt(
     cmd.extend(["scan", "-r"])
     cmd.extend(str(f) for f in files)
     try:
-        r = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=600, cwd=REPO_ROOT
-        )
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=600, cwd=REPO_ROOT)
         return r.returncode, r.stdout, r.stderr
     except subprocess.TimeoutExpired:
         return 2, "", "pymarkdownlnt timed out after 600s"
@@ -105,9 +104,7 @@ def parse_findings(stdout: str) -> list[dict]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Markdown quality checker for saskia-app docs"
-    )
+    parser = argparse.ArgumentParser(description="Markdown quality checker for saskia-app docs")
     parser.add_argument(
         "paths",
         nargs="*",
@@ -171,9 +168,7 @@ def main() -> int:
                     "files_with_findings": len(file_counts),
                     "total_findings": len(findings),
                     "by_rule": dict(rule_counts.most_common()),
-                    "by_file": dict(
-                        (Path(f).name, c) for f, c in file_counts.most_common(20)
-                    ),
+                    "by_file": dict((Path(f).name, c) for f, c in file_counts.most_common(20)),
                     "findings": findings,
                 },
                 indent=2,

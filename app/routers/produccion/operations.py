@@ -906,8 +906,13 @@ async def produccion_ad_hoc_bulk(
     bulk_user_id = str(current_operator(request))
 
     created, skipped = _process_csv_rows(
-        session, data_lines, header, has_notes,
-        valid_product_ids, for_date, bulk_user_id,
+        session,
+        data_lines,
+        header,
+        has_notes,
+        valid_product_ids,
+        for_date,
+        bulk_user_id,
     )
 
     if created:
@@ -920,7 +925,7 @@ async def produccion_ad_hoc_bulk(
 
 def _detect_csv_header(csv: str) -> tuple[list[str], bool, list[str]]:
     """Detect optional CSV header and return (header, has_notes, data_lines).
-    
+
     Extracted from produccion_ad_hoc_bulk to reduce complexity.
     """
     lines = [ln for ln in csv.splitlines() if ln.strip()]
@@ -938,7 +943,7 @@ def _detect_csv_header(csv: str) -> tuple[list[str], bool, list[str]]:
 
 def _enforce_max_rows(data_lines: list[str]) -> None:
     """Enforce MAX_ROWS = 200 cap. Raises HTTPException if exceeded.
-    
+
     Extracted from produccion_ad_hoc_bulk to reduce complexity.
     """
     MAX_ROWS = 200
@@ -951,18 +956,23 @@ def _enforce_max_rows(data_lines: list[str]) -> None:
 
 def _load_valid_product_ids(session) -> set[int]:
     """Load set of valid product IDs for validation.
-    
+
     Extracted from produccion_ad_hoc_bulk to reduce complexity.
     """
     return set(session.execute(select(Product.id)).scalars().all())
 
 
 def _process_csv_rows(
-    session, data_lines, header, has_notes,
-    valid_product_ids, for_date, bulk_user_id,
+    session,
+    data_lines,
+    header,
+    has_notes,
+    valid_product_ids,
+    for_date,
+    bulk_user_id,
 ) -> tuple[list[dict], list[dict]]:
     """Process each CSV row, creating or skipping as appropriate.
-    
+
     Returns (created, skipped).
     Extracted from produccion_ad_hoc_bulk to reduce complexity.
     """
@@ -970,7 +980,13 @@ def _process_csv_rows(
     skipped: list[dict] = []
     for row_num, raw in enumerate(data_lines, 1):
         result = _process_single_row(
-            raw, row_num, has_notes, valid_product_ids, for_date, bulk_user_id, session,
+            raw,
+            row_num,
+            has_notes,
+            valid_product_ids,
+            for_date,
+            bulk_user_id,
+            session,
         )
         if result["status"] == "created":
             created.append(result["data"])
@@ -980,17 +996,27 @@ def _process_csv_rows(
 
 
 def _process_single_row(
-    raw, row_num, has_notes, valid_product_ids, for_date, bulk_user_id, session,
+    raw,
+    row_num,
+    has_notes,
+    valid_product_ids,
+    for_date,
+    bulk_user_id,
+    session,
 ) -> dict:
     """Process a single CSV row. Returns {status, data}.
-    
+
     Extracted from _process_csv_rows to reduce complexity.
     """
     cells = [c.strip() for c in raw.split(",")]
     if len(cells) < 2:
         return {
             "status": "skipped",
-            "data": {"line": row_num, "raw": raw, "reason": "Faltan columnas (minimo product_id, qty)"},
+            "data": {
+                "line": row_num,
+                "raw": raw,
+                "reason": "Faltan columnas (minimo product_id, qty)",
+            },
         }
 
     parsed = _parse_csv_cells(cells, has_notes)
@@ -1040,7 +1066,7 @@ def _process_single_row(
 
 def _parse_csv_cells(cells, has_notes) -> tuple[int, float, str] | None:
     """Parse cells into (pid, qty, notes) or None if invalid.
-    
+
     Extracted from produccion_ad_hoc_bulk to reduce complexity.
     """
     try:
@@ -1054,7 +1080,7 @@ def _parse_csv_cells(cells, has_notes) -> tuple[int, float, str] | None:
 
 def _build_adhoc_tag(notes: str) -> str:
     """Build the ad-hoc tag from notes.
-    
+
     Extracted from produccion_ad_hoc_bulk to reduce complexity.
     """
     if not notes.strip():
@@ -1064,7 +1090,7 @@ def _build_adhoc_tag(notes: str) -> str:
 
 def _get_prior_completion_qty(session, pid, for_date) -> float | None:
     """Get the prior completion qty for audit.
-    
+
     Extracted from produccion_ad_hoc_bulk to reduce complexity.
     """
     from app.rms.models import ProductionCompletion
@@ -1082,7 +1108,7 @@ def _get_prior_completion_qty(session, pid, for_date) -> float | None:
 
 def _record_bulk_audit(request, session, for_date, created, skipped) -> None:
     """Record audit log entry for bulk import.
-    
+
     Extracted from produccion_ad_hoc_bulk to reduce complexity.
     """
     record_audit(
@@ -1102,17 +1128,15 @@ def _record_bulk_audit(request, session, for_date, created, skipped) -> None:
 
 def _load_product_id_to_name(session) -> dict[int, str]:
     """Load mapping of product_id to product name.
-    
+
     Extracted from produccion_ad_hoc_bulk to reduce complexity.
     """
-    return {
-        p.id: p.name for p in session.execute(select(Product.id, Product.name)).all()
-    }
+    return {p.id: p.name for p in session.execute(select(Product.id, Product.name)).all()}
 
 
 def _render_bulk_summary_html(for_date, created, skipped, prod_id_to_name) -> str:
     """Render the bulk import summary HTML.
-    
+
     Extracted from produccion_ad_hoc_bulk to reduce complexity.
     """
     summary_html = _build_bulk_summary_header(for_date, len(created), len(skipped))
@@ -1125,7 +1149,7 @@ def _render_bulk_summary_html(for_date, created, skipped, prod_id_to_name) -> st
 
 def _build_bulk_summary_header(for_date, created_count, skipped_count) -> list[str]:
     """Build the HTML header for the bulk summary.
-    
+
     Extracted from _render_bulk_summary_html to reduce complexity.
     """
     return [
@@ -1143,7 +1167,7 @@ def _build_bulk_summary_header(for_date, created_count, skipped_count) -> list[s
 
 def _build_created_rows(created, prod_id_to_name) -> list[str]:
     """Build HTML rows for created items.
-    
+
     Extracted from _render_bulk_summary_html to reduce complexity.
     """
     return [
@@ -1155,7 +1179,7 @@ def _build_created_rows(created, prod_id_to_name) -> list[str]:
 
 def _build_skipped_rows(skipped) -> list[str]:
     """Build HTML rows for skipped items.
-    
+
     Extracted from _render_bulk_summary_html to reduce complexity.
     """
     rows = [
@@ -1172,9 +1196,7 @@ def _build_skipped_rows(skipped) -> list[str]:
 
 def _build_back_link(for_date) -> str:
     """Build the back-to-plan link.
-    
+
     Extracted from _render_bulk_summary_html to reduce complexity.
     """
-    return f'<p><a class="btn" href="/produccion?for_date={for_date.isoformat()}">Volver al plan</a></p>'  
-
-
+    return f'<p><a class="btn" href="/produccion?for_date={for_date.isoformat()}">Volver al plan</a></p>'

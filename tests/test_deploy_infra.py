@@ -152,7 +152,7 @@ class TestRenderStackScript(unittest.TestCase):
         # installed system-wide. The CI workflow installs it via
         # 'uv pip install pyyaml' in deploy-dev/test.
         try:
-            import yaml  # noqa
+            import yaml  # noqa: F401
         except ImportError:
             import pytest
 
@@ -260,7 +260,7 @@ class TestWriteEnvFileScript(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         try:
-            import yaml  # noqa
+            import yaml  # noqa: F401
         except ImportError:
             import pytest
 

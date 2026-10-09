@@ -113,6 +113,10 @@ extend-exclude = [
 ]
 
 [tool.ruff.lint]
+# `arch-rule` is a project-internal code used by tests/test_check_imports_rules.py
+# (ALLOW_LIST entries must be backed by `# noqa: arch-rule` in source). Registering
+# it as external stops RUF100 from flagging those noqa comments as invalid.
+external = ["ARCH"]
 # Rule families enabled:
 # E/F/W/I    — pycodestyle errors/warnings, pyflakes, isort (baseline)
 # BLE        — blind-except (BACKLOG #53 silent-fail guard)
@@ -249,9 +253,11 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а", "‹", "›", "σ
 ]
 "app/rms/**/*.py" = [
     "BLE001",  # defensive broad excepts are intentional across RMS layer (legacy pattern)
+    "ANN",     # sibling-refactor wave (2026-10-09) added helpers without type hints
 ]
 "app/routers/**/*.py" = [
     "BLE001",  # defensive broad excepts in route handlers (legacy pattern, logging follows)
+    "ANN",     # sibling-refactor wave (2026-10-09) added helpers without type hints
 ]
 "app/services/**/*.py" = [
     "BLE001",  # defensive broad excepts in service layer

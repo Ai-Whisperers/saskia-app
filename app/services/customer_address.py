@@ -49,7 +49,7 @@ def compose_address_text(addr: Mapping[str, Any] | None) -> str:
 
 def _build_street_line(addr) -> str:
     """Build the street line (calle principal + secundaria + número).
-    
+
     Extracted from compose_address_text to reduce complexity.
     """
     cp = (addr.get("calle_principal") or "").strip()
@@ -67,7 +67,7 @@ def _build_street_line(addr) -> str:
 
 def _build_building_line(addr) -> str:
     """Build the building line (edificio + piso + unidad).
-    
+
     Extracted from compose_address_text to reduce complexity.
     """
     edif = (addr.get("edificio") or "").strip()
@@ -86,7 +86,7 @@ def _build_building_line(addr) -> str:
 
 def _collect_floor_unit_bits(piso: str, unidad: str) -> list[str]:
     """Collect floor/unit bits into a list.
-    
+
     Extracted from _build_building_line to reduce complexity.
     """
     bits = []
@@ -99,7 +99,7 @@ def _collect_floor_unit_bits(piso: str, unidad: str) -> list[str]:
 
 def _build_locality_line(addr) -> str:
     """Build the locality line (barrio + ciudad + departamento).
-    
+
     Extracted from compose_address_text to reduce complexity.
     """
     barrio = (addr.get("barrio") or "").strip()
@@ -116,7 +116,7 @@ def _build_locality_line(addr) -> str:
 
 def _collect_locality_parts(barrio: str, ciudad: str, departamento: str) -> list[str]:
     """Collect locality parts into a list.
-    
+
     Extracted from _build_locality_line to reduce complexity.
     """
     loc_parts: list[str] = []

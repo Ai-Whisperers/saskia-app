@@ -62,7 +62,7 @@ class Quote:
 
 def build_quote(session: Session, requested: list[tuple[int, int]]) -> Quote:
     """requested: lista de (product_id, qty). Ignora qty<=0 y faltantes."""
-    from app.rms.models_legacy import Product, Recipe
+    from app.rms.models_legacy import Product
 
     q = Quote()
     for product_id, qty in requested:
@@ -81,11 +81,10 @@ def build_quote(session: Session, requested: list[tuple[int, int]]) -> Quote:
 
 def _build_quote_item(session, product, qty: int):
     """Build a single QuoteItem for a product.
-    
+
     Extracted from build_quote to reduce complexity.
     Returns the QuoteItem or None if product is invalid.
     """
-    from app.rms.models_legacy import Recipe
 
     it = QuoteItem(
         product_id=product.id,
@@ -102,7 +101,7 @@ def _build_quote_item(session, product, qty: int):
 
 def _populate_recipe_info(session, it: QuoteItem, recipe_id: int) -> None:
     """Populate recipe-related fields on a QuoteItem.
-    
+
     Extracted from build_quote to reduce complexity.
     """
     from app.rms.models_legacy import Recipe
@@ -118,7 +117,7 @@ def _populate_recipe_info(session, it: QuoteItem, recipe_id: int) -> None:
 
 def _populate_cost_info(session, it: QuoteItem, recipe_id: int) -> None:
     """Populate cost-related fields on a QuoteItem.
-    
+
     Extracted from build_quote to reduce complexity.
     """
     res = recipe_batch_cost_gs(session, recipe_id)
@@ -132,7 +131,7 @@ def _populate_cost_info(session, it: QuoteItem, recipe_id: int) -> None:
 
 def _accumulate_totals(q: Quote, it: QuoteItem) -> None:
     """Accumulate totals from a QuoteItem into a Quote.
-    
+
     Extracted from build_quote to reduce complexity.
     """
     q.total_menu_gs += it.line_menu_gs
@@ -140,5 +139,3 @@ def _accumulate_totals(q: Quote, it: QuoteItem) -> None:
         q.total_cost_gs = None  # hay ítems no costeables
     elif q.total_cost_gs is not None:
         q.total_cost_gs += it.line_cost_gs
-
-

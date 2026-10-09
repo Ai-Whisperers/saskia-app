@@ -297,6 +297,7 @@ async def home(request: Request) -> Response:
     owner picks what to do; staff are auto-redirected to their
     pinned station by the gate middleware (decide()).
     """
+
     # noqa: arch-rule — uses `puesto` (current station) helper from stations; legitimate cross-router utility use
     from app.routers.stations import puesto
 
@@ -379,12 +380,13 @@ async def dashboard(
 
 def _resolve_period_window(period: str, start: str | None, end: str | None) -> tuple:
     """Resolve the date range for the dashboard period.
-    
+
     Extracted from dashboard to reduce complexity.
     """
     if period == "custom" and start and end:
         try:
             from datetime import datetime as dt_cls
+
             start_dt = dt_cls.strptime(start, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ)
             end_dt = dt_cls.strptime(end, "%Y-%m-%d").replace(tzinfo=ASUNCION_TZ)
             return (
@@ -398,10 +400,10 @@ def _resolve_period_window(period: str, start: str | None, end: str | None) -> t
 
 def _build_kpi_cards(session, range_start, range_end, prior_start, prior_end):
     """Build KPI cards: ventas, cogs, margen with deltas.
-    
+
     Extracted from dashboard to reduce complexity.
     """
-    ventas_gs, cogs_gs, margen_gs, sales_no_recipe, sales, batch_costs = _compute_window_totals(
+    ventas_gs, cogs_gs, margen_gs, _sales_no_recipe, sales, _batch_costs = _compute_window_totals(
         session, range_start, range_end
     )
     prior_ventas_gs, prior_cogs_gs, prior_margen_gs, _, _, _ = _compute_window_totals(
@@ -423,7 +425,7 @@ def _build_kpi_cards(session, range_start, range_end, prior_start, prior_end):
 
 def _build_product_ranking(session, range_start, range_end):
     """Build product ranking by margin.
-    
+
     Extracted from dashboard to reduce complexity.
     """
     _, _, _, _, sales, batch_costs = _compute_window_totals(session, range_start, range_end)
@@ -437,7 +439,7 @@ def _build_product_ranking(session, range_start, range_end):
 
 def _aggregate_product_sales(sales, batch_costs) -> dict[int, dict]:
     """Aggregate sales by product with margin calculation.
-    
+
     Extracted from _build_product_ranking to reduce complexity.
     """
     ranking_dict: dict[int, dict] = {}
@@ -470,7 +472,7 @@ def _aggregate_product_sales(sales, batch_costs) -> dict[int, dict]:
 
 def _build_stock_health(session) -> dict:
     """Build stock health LED data.
-    
+
     Extracted from dashboard to reduce complexity.
     """
     stock_low = session.scalars(
@@ -527,10 +529,11 @@ def _build_stock_health(session) -> dict:
 
 def _build_regular_customers(session) -> dict:
     """Build coffee regulars data (customers with 2+ sales in 30 days).
-    
+
     Extracted from dashboard to reduce complexity.
     """
     from app.rms.models import Customer as _Customer
+
     thirty_days_ago = datetime.now(ASUNCION_TZ) - timedelta(days=30)
     regular_rows = session.execute(
         select(
@@ -591,11 +594,11 @@ def _build_regular_customers(session) -> dict:
 
 def _build_birthdays(session) -> list[dict]:
     """Build upcoming birthdays (next 7 days).
-    
+
     Extracted from dashboard to reduce complexity.
     """
-    from datetime import date as _date
     from app.rms.models import Customer
+
     today = datetime.now(ASUNCION_TZ).date()
     customers = session.scalars(select(Customer)).all()
     birthdays = []
@@ -612,11 +615,12 @@ def _build_birthdays(session) -> list[dict]:
 
 def _parse_customer_birthday(customer, today):
     """Parse customer birthday string and return next occurrence.
-    
+
     Extracted from _build_birthdays to reduce complexity.
     Returns dict with 'date' key, or None if invalid.
     """
     from datetime import date as _date
+
     raw = (customer.birthday or "").strip()
     if not raw:
         return None
@@ -643,7 +647,7 @@ def _parse_customer_birthday(customer, today):
 
 def _format_birthday(customer, bday_info, days_until) -> dict:
     """Format birthday for template.
-    
+
     Extracted from _build_birthdays to reduce complexity.
     """
     return {
@@ -659,11 +663,13 @@ def _format_birthday(customer, bday_info, days_until) -> dict:
 
 def _build_forecast_headline(session) -> dict:
     """Build day-of-week-aware forecast for tomorrow.
-    
+
     Extracted from dashboard to reduce complexity.
     """
     from datetime import datetime as _dt_b2
+
     from app.rms.config import ASUNCION_TZ as _tz_b2
+
     tomorrow_date = (_dt_b2.now(_tz_b2) + timedelta(days=1)).date()
     tomorrow_dow = tomorrow_date.weekday()
     tomorrow_label = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"][
@@ -712,7 +718,8 @@ def _build_forecast_headline(session) -> dict:
     forecast_top.sort(key=lambda x: -x["qty"])
     forecast_top = forecast_top[:5]
     forecast_confidence = (
-        "high" if forecast_products_count >= 5
+        "high"
+        if forecast_products_count >= 5
         else ("medium" if forecast_products_count >= 2 else "low")
     )
 
@@ -729,7 +736,7 @@ def _build_forecast_headline(session) -> dict:
 
 def _build_enrollment_kpis(session, range_start, range_end, prior_start, prior_end) -> dict:
     """Build enrollment KPI (% of sales with customer attached).
-    
+
     Extracted from dashboard to reduce complexity.
     """
     enrollment_today_q = session.execute(
@@ -777,10 +784,11 @@ def _build_enrollment_kpis(session, range_start, range_end, prior_start, prior_e
 
 def _build_ops_today_data(session, period) -> dict:
     """Build ops today data (operations count, ticket promedio, pedido counts).
-    
+
     Extracted from dashboard to reduce complexity.
     """
     from app.rms.models import Pedido
+
     today_d = datetime.now(ASUNCION_TZ).date()
     tomorrow_d = today_d + timedelta(days=1)
     yesterday_d = today_d - timedelta(days=1)
@@ -810,30 +818,43 @@ def _build_ops_today_data(session, period) -> dict:
 
 def _compute_ops_today(session, period) -> int:
     """Compute operations count for today.
-    
+
     Extracted from _build_ops_today_data to reduce complexity.
     """
     today_start = datetime.now(ASUNCION_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
     if period != "today":
         return 0
-    is_naive = lambda dt: dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
-    today_start_cmp = today_start if is_naive(today_start) else today_start.astimezone(timezone.utc).replace(tzinfo=None)
-    return session.scalar(
-        select(func.count(Sale.id)).where(
-            Sale.sold_at >= today_start_cmp, Sale.voided_at.is_(None)
+
+    def is_naive(dt):
+        return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
+
+    today_start_cmp = (
+        today_start
+        if is_naive(today_start)
+        else today_start.astimezone(timezone.utc).replace(tzinfo=None)
+    )
+    return (
+        session.scalar(
+            select(func.count(Sale.id)).where(
+                Sale.sold_at >= today_start_cmp, Sale.voided_at.is_(None)
+            )
         )
-    ) or 0
+        or 0
+    )
 
 
 def _compute_ops_delta(session) -> str | None:
     """Compute ops delta vs prior week.
-    
+
     Extracted from _build_ops_today_data to reduce complexity.
     """
     today_start = datetime.now(ASUNCION_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
     prior_same_weekday = today_start - timedelta(days=7)
     prior_end = prior_same_weekday + timedelta(days=1)
-    is_naive = lambda dt: dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
+
+    def is_naive(dt):
+        return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
+
     prev_ops = 0
     for s in session.scalars(select(Sale).where(Sale.voided_at.is_(None))).all():
         sold = s.sold_at
@@ -841,6 +862,7 @@ def _compute_ops_delta(session) -> str | None:
             continue
         if is_naive(sold) != is_naive(prior_same_weekday):
             from datetime import timezone as _tz
+
             if is_naive(sold):
                 sold = sold.replace(tzinfo=_tz.utc)
                 prior_cmp, prior_end_cmp = prior_same_weekday, prior_end
@@ -856,14 +878,21 @@ def _compute_ops_delta(session) -> str | None:
 
 def _compute_ticket_promedio(session, period) -> int:
     """Compute average ticket for today.
-    
+
     Extracted from _build_ops_today_data to reduce complexity.
     """
     if period != "today":
         return 0
     today_start = datetime.now(ASUNCION_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
-    is_naive = lambda dt: dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
-    today_start_cmp = today_start if is_naive(today_start) else today_start.astimezone(timezone.utc).replace(tzinfo=None)
+
+    def is_naive(dt):
+        return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
+
+    today_start_cmp = (
+        today_start
+        if is_naive(today_start)
+        else today_start.astimezone(timezone.utc).replace(tzinfo=None)
+    )
     sales = session.scalars(
         select(Sale).where(Sale.sold_at >= today_start_cmp, Sale.voided_at.is_(None))
     ).all()
@@ -875,10 +904,11 @@ def _compute_ticket_promedio(session, period) -> int:
 
 def _check_cierre_ayer(session, yesterday_d) -> bool:
     """Check if yesterday's EOD is pending.
-    
+
     Extracted from _build_ops_today_data to reduce complexity.
     """
     from app.rms.eod_completions import completions_for_date
+
     try:
         return not completions_for_date(session, yesterday_d)
     except Exception:
@@ -887,19 +917,21 @@ def _check_cierre_ayer(session, yesterday_d) -> bool:
 
 def _check_merma_hoy(session) -> bool:
     """Check if there's any waste log today.
-    
+
     Extracted from _build_ops_today_data to reduce complexity.
     """
     from app.rms.models import WasteLog
+
     return bool(session.execute(select(WasteLog.id).limit(1)).first())
 
 
 def _build_freshness_data(session) -> dict:
     """Build freshness/expiry data (48h expiry proxy).
-    
+
     Extracted from dashboard to reduce complexity.
     """
     from app.rms.demand_freshness import freshness_flags
+
     vencer_48h_count = 0
     vencer_48h_gs = 0
     try:
@@ -917,13 +949,14 @@ def _build_freshness_data(session) -> dict:
 
 def _build_recipes_status(session, range_start, range_end) -> dict:
     """Build recipes status (costs completeness, no-cost recipes).
-    
+
     Extracted from dashboard to reduce complexity.
     """
     all_recipes = list(session.scalars(select(Recipe)).all())
     batch_recipe_results = batch_recipes_cost(session, all_recipes)
     recipes_no_cost = [
-        r for r in all_recipes
+        r
+        for r in all_recipes
         if batch_recipe_results[r.id][0].batch_cost_gs is None and len(r.lines) > 0
     ]
 
@@ -951,7 +984,7 @@ def _build_recipes_status(session, range_start, range_end) -> dict:
 
 def _build_turnover(session) -> list:
     """Build stock turnover for top 8 ingredients.
-    
+
     Extracted from dashboard to reduce complexity.
     """
     return list(
@@ -970,12 +1003,14 @@ def _build_turnover(session) -> list:
 
 def _build_shopping_data(session) -> dict:
     """Build shopping list data.
-    
+
     Extracted from dashboard to reduce complexity.
     """
-    items = session.execute(
-        select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
-    ).scalars().all()
+    items = (
+        session.execute(select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False)))
+        .scalars()
+        .all()
+    )
     return {
         "sl_open_count": len(items),
         "sl_total_gs": sum(
@@ -986,33 +1021,29 @@ def _build_shopping_data(session) -> dict:
 
 def _build_wishlist_data(session) -> dict:
     """Build wishlist data.
-    
+
     Extracted from dashboard to reduce complexity.
     """
-    items = session.execute(
-        select(WishlistItem).where(WishlistItem.purchased.is_(False))
-    ).scalars().all()
+    items = (
+        session.execute(select(WishlistItem).where(WishlistItem.purchased.is_(False)))
+        .scalars()
+        .all()
+    )
     return {
         "wishlist_count": len(items),
-        "wishlist_total_gs": sum(
-            (i.unit_price_gs or 0) * (i.quantity or 0) for i in items
-        ),
+        "wishlist_total_gs": sum((i.unit_price_gs or 0) * (i.quantity or 0) for i in items),
     }
 
 
 def _build_risk_data(session) -> dict:
     """Build risk data.
-    
+
     Extracted from dashboard to reduce complexity.
     """
-    items = session.execute(
-        select(RiskItem).where(RiskItem.status == "activo")
-    ).scalars().all()
+    items = session.execute(select(RiskItem).where(RiskItem.status == "activo")).scalars().all()
     return {
         "risk_count": len(items),
-        "risk_severity_gs": sum(
-            (r.probability or 0) * (r.impact_gs or 0) for r in items
-        ),
+        "risk_severity_gs": sum((r.probability or 0) * (r.impact_gs or 0) for r in items),
     }
 
 
@@ -1057,3 +1088,71 @@ def _build_top_products_revenue(ranking: list[dict]) -> list[dict]:
     """
     by_revenue = sorted(ranking, key=lambda r: r["ventas_gs"], reverse=True)[:5]
     return [{"name": r["name"], "value": r["ventas_gs"]} for r in by_revenue]
+
+
+def _build_hourly_sales_chart(sales: list[Sale], tz: ZoneInfo) -> str:
+    """Return an HTML bar chart of sales by hour of day (Asunción local).
+
+    The sibling refactor wave deleted this function. Re-implementing
+    minimal: aggregates qty × unit_price by `hour` from each sale's
+    ASUNCION-local timestamp. Returns empty-state HTML if no sales.
+    """
+    buckets: dict[int, float] = {h: 0.0 for h in range(24)}
+    for s in sales:
+        local = s.recorded_at.astimezone(tz) if s.recorded_at else None
+        if local is None:
+            continue
+        # Use discounted line total to match _build_payment_methods_donut.
+        line_total = int(s.qty) * int(s.unit_price_gs) - int(s.discount_gs or 0)
+        buckets[local.hour] += max(line_total, 0) / 1_000_000  # → M ₲
+
+    if sum(buckets.values()) <= 0:
+        return '<p class="text-muted">Sin datos de ventas por hora</p>'
+
+    values = [(f"{h:02d}h", v) for h, v in sorted(buckets.items())]
+    return bar_chart(values, height=140, label="Ventas por hora (M₲)")
+
+
+def _build_30day_sales_chart(session: Session, preset: str) -> dict:
+    """Return a simple namespace with .preset, .preset_label, .html.
+
+    The sibling refactor wave deleted this function. Re-implementing
+    minimal: a sparkline-like line chart of daily sales totals for
+    the requested preset window. Returns 0-data state if no sales.
+    """
+    days = {"7d": 7, "30d": 30, "90d": 90}.get(preset)
+    if days is None:
+        days = 30  # current_month / last_month → default 30d
+    today = datetime.now(ASUNCION_TZ).date()
+    start = today - timedelta(days=days - 1)
+
+    rows = session.execute(
+        select(Sale.recorded_at, Sale.qty, Sale.unit_price_gs, Sale.discount_gs).where(
+            Sale.recorded_at >= datetime.combine(start, datetime.min.time(), tzinfo=ASUNCION_TZ)
+        )
+    ).all()
+    daily: dict[str, float] = {}
+    for r in rows:
+        if r.recorded_at is None:
+            continue
+        local = r.recorded_at.astimezone(ASUNCION_TZ)
+        key = local.date().isoformat()
+        line_total = int(r.qty) * int(r.unit_price_gs) - int(r.discount_gs or 0)
+        daily[key] = daily.get(key, 0.0) + max(line_total, 0) / 1_000_000  # M₲
+
+    # Fill missing days with 0 so the chart x-axis is contiguous.
+    series: list[tuple[str, float]] = []
+    for i in range(days):
+        d = (start + timedelta(days=i)).isoformat()
+        series.append((d[-5:], daily.get(d, 0.0)))  # MM-DD label
+
+    if sum(v for _, v in series) <= 0:
+        html = '<p class="text-muted">Sin datos en el período</p>'
+    else:
+        html = line_chart(series, height=140, label=f"Tendencia ({_preset_label(preset)})")
+
+    return {
+        "preset": preset,
+        "preset_label": _preset_label(preset),
+        "html": html,
+    }

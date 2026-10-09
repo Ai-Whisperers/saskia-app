@@ -80,7 +80,7 @@ VALID_SORT_KEYS = frozenset(
 )
 
 
-def _sort_value(row: dict, key: str):  # noqa: ANN202
+def _sort_value(row: dict, key: str):
     """Pull the comparison key out of a row dict. Returns a tuple so ties
     break on product_name (stable ordering)."""
     lote_final = (row.get("qty_to_produce") or 0) + (row.get("pending_pedido_qty") or 0)
@@ -142,7 +142,7 @@ def _sort_ingredient_lines(lines: list, sort: str, dir: str) -> list:
     reverse = safe_dir == "desc"
     severity_order = {"falta": 0, "justo": 1, "suficiente": 2}
 
-    def _line_sort_key(ln) -> tuple:  # noqa: ANN001
+    def _line_sort_key(ln) -> tuple:
         delta = ln.stock_on_hand - ln.qty_required
         pct = (ln.stock_on_hand / ln.qty_required * 100) if ln.qty_required > 0 else 100
         sev = severity_order.get(
@@ -215,7 +215,7 @@ def _apply_produccion_filters(
 
 def _filter_by_allergen(rows: list[dict], allergen: list[str]) -> list[dict]:
     """Filter rows by allergen match.
-    
+
     Extracted from _apply_produccion_filters to reduce complexity.
     """
     if not allergen:
@@ -226,7 +226,7 @@ def _filter_by_allergen(rows: list[dict], allergen: list[str]) -> list[dict]:
 
 def _filter_by_source(rows: list[dict], source: list[str]) -> list[dict]:
     """Filter rows by source match.
-    
+
     Extracted from _apply_produccion_filters to reduce complexity.
     """
     if not source:
@@ -237,7 +237,7 @@ def _filter_by_source(rows: list[dict], source: list[str]) -> list[dict]:
 
 def _filter_by_pedidos(rows: list[dict], with_pedidos: str) -> list[dict]:
     """Filter rows by pending pedido qty.
-    
+
     Extracted from _apply_produccion_filters to reduce complexity.
     """
     if with_pedidos == "1":
@@ -249,7 +249,7 @@ def _filter_by_pedidos(rows: list[dict], with_pedidos: str) -> list[dict]:
 
 def _filter_by_hecho(rows: list[dict], with_hecho: str) -> list[dict]:
     """Filter rows by completed qty.
-    
+
     Extracted from _apply_produccion_filters to reduce complexity.
     """
     if with_hecho == "1":
@@ -261,7 +261,7 @@ def _filter_by_hecho(rows: list[dict], with_hecho: str) -> list[dict]:
 
 def _filter_by_surplus(rows: list[dict], with_surplus: str) -> list[dict]:
     """Filter rows by batch surplus percentage.
-    
+
     Extracted from _apply_produccion_filters to reduce complexity.
     """
     if with_surplus == "1":

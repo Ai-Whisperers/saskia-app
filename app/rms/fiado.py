@@ -173,7 +173,7 @@ def void_reversal(db: Session, sale_id: int) -> int:
 
 def aging_report(db: Session) -> dict[str, int]:
     """Buckets 0-30 / 31-60 / 61+ días sobre saldos positivos por cliente."""
-    from app.rms.models_legacy import CreditAccount, CreditTransaction
+    from app.rms.models_legacy import CreditAccount
 
     accounts = db.execute(select(CreditAccount)).scalars().all()
     buckets = {"b0_30": 0, "b31_60": 0, "b61_mas": 0}
@@ -189,7 +189,7 @@ def aging_report(db: Session) -> dict[str, int]:
 
 def _fetch_account_transactions(db, account_id: int) -> list:
     """Fetch all transactions for an account, ordered by timestamp.
-    
+
     Extracted from aging_report to reduce complexity.
     """
     from app.rms.models_legacy import CreditTransaction
@@ -199,13 +199,15 @@ def _fetch_account_transactions(db, account_id: int) -> list:
             select(CreditTransaction)
             .where(CreditTransaction.account_id == account_id)
             .order_by(CreditTransaction.ts)
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
 
 
 def _compute_fifo_queue(txs: list) -> list[tuple[datetime, int]]:
     """Compute the FIFO queue of unpaid amounts with their original timestamps.
-    
+
     FIFO: los pagos cubren los cargos más viejos; lo que queda debe
     es lo que envejece desde su ts original.
     Extracted from aging_report to reduce complexity.
@@ -222,7 +224,7 @@ def _compute_fifo_queue(txs: list) -> list[tuple[datetime, int]]:
 
 def _apply_payment(queue: list, payment: int) -> None:
     """Apply a payment to the oldest charges in the queue (FIFO).
-    
+
     Extracted from _compute_fifo_queue to reduce complexity.
     """
     rest = payment
@@ -237,7 +239,7 @@ def _apply_payment(queue: list, payment: int) -> None:
 
 def _accumulate_buckets(buckets: dict, queue: list[tuple[datetime, int]], now: datetime) -> None:
     """Accumulate queue amounts into aging buckets based on days.
-    
+
     Extracted from aging_report to reduce complexity.
     """
     for ts, amt in queue:
@@ -252,7 +254,7 @@ def _accumulate_buckets(buckets: dict, queue: list[tuple[datetime, int]], now: d
 
 def _ensure_aware(dt: datetime) -> datetime:
     """Ensure a datetime is timezone-aware (Asuncion TZ if naive).
-    
+
     Extracted from _accumulate_buckets to reduce complexity.
     """
     return dt if dt.tzinfo is not None else dt.replace(tzinfo=ASUNCION_TZ)

@@ -16,7 +16,7 @@ sale-driven stock-out is now on stock_movement with movement_type='sale'
 and reference_type='sale'. Migration 092 dropped the table itself.
 """
 
-from app.rms.models_legacy import *  # noqa: F403 — re-export shim for the public API
+from app.rms.models_legacy import *  # noqa: F403
 
 # Also export names legacy __all__ may miss
 from app.rms.models_legacy import (

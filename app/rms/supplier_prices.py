@@ -104,7 +104,9 @@ def _collect_variant_rows(session) -> list[_PriceRow]:
     variant_rows = _query_variant_rows(session)
     if not variant_rows:
         return []
-    suppliers_by_id = _load_supplier_names(session, {r[3] for r in variant_rows if r[3] is not None})
+    suppliers_by_id = _load_supplier_names(
+        session, {r[3] for r in variant_rows if r[3] is not None}
+    )
     return _build_price_rows_from_variants(variant_rows, suppliers_by_id)
 
 
@@ -265,7 +267,9 @@ def get_price_comparison(
     """
     rows = _rows_for(session)
     groups = _group_rows_by_ingredient(rows)
-    result = [g for g in (_process_group(grp, supplier_id) for grp in groups.values()) if g is not None]
+    result = [
+        g for g in (_process_group(grp, supplier_id) for grp in groups.values()) if g is not None
+    ]
     result.sort(key=lambda g: g.ingredient_name)
     return result
 
@@ -294,7 +298,8 @@ def _group_rows_by_ingredient(rows) -> dict[int, PriceComparisonGroup]:
 
 
 def _process_group(
-    g: PriceComparisonGroup, supplier_id: Optional[int],
+    g: PriceComparisonGroup,
+    supplier_id: Optional[int],
 ) -> PriceComparisonGroup | None:
     """Process a single group: dedupe, compute deltas, filter by supplier.
 
@@ -316,10 +321,7 @@ def _dedupe_and_sort_suppliers(suppliers: list[_SupplierPrice]) -> list[_Supplie
     """
     by_supplier: dict[int, _SupplierPrice] = {}
     for sp in suppliers:
-        if (
-            sp.supplier_id not in by_supplier
-            or sp.price_gs < by_supplier[sp.supplier_id].price_gs
-        ):
+        if sp.supplier_id not in by_supplier or sp.price_gs < by_supplier[sp.supplier_id].price_gs:
             by_supplier[sp.supplier_id] = sp
     unique = list(by_supplier.values())
     unique.sort(key=lambda s: s.price_gs)
@@ -336,9 +338,7 @@ def _compute_multi_supplier_deltas(g: PriceComparisonGroup) -> None:
     most_expensive = max(prices)
     for s in g.suppliers:
         s.delta_gs = s.price_gs - cheapest
-        s.delta_pct = (
-            round((s.price_gs - cheapest) / cheapest * 100, 1) if cheapest > 0 else 0.0
-        )
+        s.delta_pct = round((s.price_gs - cheapest) / cheapest * 100, 1) if cheapest > 0 else 0.0
         s.is_cheapest = s.price_gs == cheapest
     g.savings_gs_per_unit = most_expensive - cheapest
     g.avg_price_gs = sum(prices) // len(prices)
@@ -357,7 +357,8 @@ def _compute_single_supplier_deltas(g: PriceComparisonGroup) -> None:
 
 
 def _filter_by_supplier(
-    g: PriceComparisonGroup, supplier_id: Optional[int],
+    g: PriceComparisonGroup,
+    supplier_id: Optional[int],
 ) -> PriceComparisonGroup | None:
     """Filter group by supplier_id. Returns None if supplier not in group.
 

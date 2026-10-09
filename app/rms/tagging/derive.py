@@ -104,8 +104,6 @@ def walk_recipe_tree(
     cycles: list[str] = []
     path: list[str] = []
 
-    from app.rms.models import Ingredient, RecipeLine
-
     def _walk(rid: int, depth: int) -> None:
         label = f"#{rid}"
         if label in path:
@@ -115,8 +113,9 @@ def walk_recipe_tree(
         try:
             lines = _load_recipe_lines(session, rid)
             for line in lines:
-                _process_line(session, line, depth, seen, targets, path,
-                              cycles, include_packaging, max_depth)
+                _process_line(
+                    session, line, depth, seen, targets, path, cycles, include_packaging, max_depth
+                )
         finally:
             path.pop()
 
@@ -126,7 +125,7 @@ def walk_recipe_tree(
 
 def _load_recipe_lines(session, rid: int) -> list:
     """Load recipe lines for a recipe, ordered by ID.
-    
+
     Extracted from walk_recipe_tree to reduce complexity.
     """
     from app.rms.models import RecipeLine
@@ -137,18 +136,25 @@ def _load_recipe_lines(session, rid: int) -> list:
 
 
 def _process_line(
-    session, line, depth: int, seen: set, targets: list,
-    path: list, cycles: list, include_packaging: bool, max_depth: int,
+    session,
+    line,
+    depth: int,
+    seen: set,
+    targets: list,
+    path: list,
+    cycles: list,
+    include_packaging: bool,
+    max_depth: int,
 ) -> None:
     """Process a single recipe line in the tree walk.
-    
+
     Extracted from walk_recipe_tree to reduce complexity.
     """
-    from app.rms.models import Ingredient
 
     if depth > 0 and line.line_kind == "sub_recipe":
-        _handle_nested_sub_recipe(session, line, depth, seen, targets, path, cycles,
-                                  include_packaging, max_depth)
+        _handle_nested_sub_recipe(
+            session, line, depth, seen, targets, path, cycles, include_packaging, max_depth
+        )
         return
 
     target = _resolve(session, line)
@@ -157,63 +163,100 @@ def _process_line(
     targets.append(LineTarget(line=line, target=target, depth=depth))
 
     if line.line_kind == "sub_recipe" and depth < max_depth:
-        _handle_direct_sub_recipe(session, line, depth, seen, targets, path, cycles,
-                                   include_packaging, max_depth)
+        _handle_direct_sub_recipe(
+            session, line, depth, seen, targets, path, cycles, include_packaging, max_depth
+        )
 
 
 def _handle_nested_sub_recipe(
-    session, line, depth: int, seen: set, targets: list,
-    path: list, cycles: list, include_packaging: bool, max_depth: int,
+    session,
+    line,
+    depth: int,
+    seen: set,
+    targets: list,
+    path: list,
+    cycles: list,
+    include_packaging: bool,
+    max_depth: int,
 ) -> None:
     """Handle a nested sub-recipe line (depth > 0).
-    
+
     Extracted from _process_line to reduce complexity.
     """
     if line.line_ref_id in seen or depth >= max_depth:
         return
     seen.add(line.line_ref_id)
     _walk_recurse(
-        session, line.line_ref_id, depth, seen, targets, path, cycles,
-        include_packaging, max_depth,
+        session,
+        line.line_ref_id,
+        depth,
+        seen,
+        targets,
+        path,
+        cycles,
+        include_packaging,
+        max_depth,
     )
 
 
 def _handle_direct_sub_recipe(
-    session, line, depth: int, seen: set, targets: list,
-    path: list, cycles: list, include_packaging: bool, max_depth: int,
+    session,
+    line,
+    depth: int,
+    seen: set,
+    targets: list,
+    path: list,
+    cycles: list,
+    include_packaging: bool,
+    max_depth: int,
 ) -> None:
     """Handle a direct sub-recipe line (depth == 0).
-    
+
     Extracted from _process_line to reduce complexity.
     """
     if line.line_ref_id in seen:
         return
     seen.add(line.line_ref_id)
     _walk_recurse(
-        session, line.line_ref_id, depth, seen, targets, path, cycles,
-        include_packaging, max_depth,
+        session,
+        line.line_ref_id,
+        depth,
+        seen,
+        targets,
+        path,
+        cycles,
+        include_packaging,
+        max_depth,
     )
 
 
 def _is_valid_target(target, include_packaging: bool) -> bool:
     """Check if a target is valid (not None, and not excluded packaging).
-    
+
     Extracted from _process_line to reduce complexity.
     """
     if target is None:
         return False
     from app.rms.models import Ingredient
+
     if isinstance(target, Ingredient) and target.is_packaging and not include_packaging:
         return False
     return True
 
 
 def _walk_recurse(
-    session, rid: int, parent_depth: int, seen: set, targets: list,
-    path: list, cycles: list, include_packaging: bool, max_depth: int,
+    session,
+    rid: int,
+    parent_depth: int,
+    seen: set,
+    targets: list,
+    path: list,
+    cycles: list,
+    include_packaging: bool,
+    max_depth: int,
 ) -> None:
     """Recurse into a sub-recipe, reusing the same state.
-    
+
     Extracted from walk_recipe_tree to reduce complexity.
     """
     label = f"#{rid}"
@@ -224,8 +267,17 @@ def _walk_recurse(
     try:
         lines = _load_recipe_lines(session, rid)
         for line in lines:
-            _process_line(session, line, parent_depth + 1, seen, targets, path,
-                          cycles, include_packaging, max_depth)
+            _process_line(
+                session,
+                line,
+                parent_depth + 1,
+                seen,
+                targets,
+                path,
+                cycles,
+                include_packaging,
+                max_depth,
+            )
     finally:
         path.pop()
 

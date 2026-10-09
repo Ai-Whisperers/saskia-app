@@ -28,6 +28,7 @@ References:
     https://fastapi.tiangolo.com/advanced/opentelemetry/
     docs/operations/2026-10-09-tooling-research.md
 """
+
 from __future__ import annotations
 
 import os
@@ -69,7 +70,9 @@ def init_observability(app: "FastAPI") -> None:
     if _truthy(os.getenv("PROMETHEUS_ENABLED")):
         _init_prometheus(app)
     else:
-        print("[otel] Prometheus not enabled (set PROMETHEUS_ENABLED=true to enable)", file=sys.stderr)
+        print(
+            "[otel] Prometheus not enabled (set PROMETHEUS_ENABLED=true to enable)", file=sys.stderr
+        )
 
 
 def _init_opentelemetry(app: "FastAPI") -> None:
@@ -103,6 +106,7 @@ def _init_opentelemetry(app: "FastAPI") -> None:
         FastAPIInstrumentor.instrument_app(app)
         try:
             from app.rms.db import engine
+
             SQLAlchemyInstrumentor().instrument(engine=engine)
         except Exception as exc:  # pragma: no cover — engine may not be ready
             print(f"WARNING: SQLAlchemy OTel instrumentation skipped: {exc}", file=sys.stderr)
