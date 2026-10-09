@@ -28,6 +28,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import sys
 import time
 import urllib.error
@@ -204,7 +206,7 @@ def main():
     if args.limit:
         items = items[: args.limit]
 
-    print("\n=== generate_images ===", file=sys.stderr)
+    print(f"\n=== generate_images ===", file=sys.stderr)
     print(
         f"items: {len(items)}  candidates/item: {args.candidates}  sleep: {args.sleep}s  dry-run: {args.dry_run}",
         file=sys.stderr,

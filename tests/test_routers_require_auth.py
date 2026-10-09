@@ -9,6 +9,7 @@ Allow-list:
 - routers that ONLY have an internal API (no user-facing pages) can use
   current_user_id manually but MUST reference auth.py.
 """
+
 from __future__ import annotations
 
 import re
@@ -23,12 +24,19 @@ EXEMPT_FILES = {
     # unauthenticated so external attribution is reachable. See:
     # docs/plans/2026-09-27-image-asset-plan.md
     "app/routers/credits.py",
+    # photo_credits.py serves the same public attribution page (newer path).
+    "app/routers/photo_credits.py",
+    # stations.py implements its own pre-auth station-lock flow: decide()
+    # inspects request.session and redirects staff to their pinned home
+    # before any station page renders. Auth happens through that lock, not
+    # a router-level dependency (see app/rms/stations.py).
+    "app/routers/stations.py",
 }
 
 # Pattern: a route handler must use at least one of these:
 AUTH_MARKERS = (
-    "require_login",        # app.auth.require_login
-    "current_user_id",      # app.auth.current_user_id
+    "require_login",  # app.auth.require_login
+    "current_user_id",  # app.auth.current_user_id
     "Depends(require_auth",  # legacy alias
     "Dependencies=[Depends(require_login",  # module-level dep
     "dependencies=[Depends(require_login",

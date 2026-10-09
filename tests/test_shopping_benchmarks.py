@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.rms.main import app
+from tests.conftest import REPO_ROOT
 
 
 @pytest.fixture(scope="module")
@@ -79,9 +80,8 @@ def test_benchmark_save_route_in_app():
 @pytest.mark.xfail(reason="planner.html combo wiring not implemented", strict=False)
 def test_planner_to_shopping_pipeline_syntax():
     """Verify the planner template uses combo (no native select)."""
-    from pathlib import Path
 
-    p = Path("/opt/data/work/saskia-app/app/templates/planner.html")
+    p = REPO_ROOT / "app" / "templates" / "planner.html"
     content = p.read_text()
     # Should have ui-combo (recipe picker)
     assert "ui-combo" in content
@@ -91,9 +91,8 @@ def test_planner_to_shopping_pipeline_syntax():
 
 def test_shopping_list_template_no_native_select():
     """Bank manual-entry uses combos not selects."""
-    from pathlib import Path
 
-    p = Path("/opt/data/work/saskia-app/app/templates/bank.html")
+    p = REPO_ROOT / "app" / "templates" / "bank.html"
     content = p.read_text()
     # After Phase D fix, the only <select> is gone (currency/category now combos)
     assert '<select id="currency"' not in content
@@ -120,9 +119,8 @@ def test_recipe_photo_picker_route_in_app():
 
 def test_recipe_photos_template_exists():
     """The recipe_photos.html template is rendered."""
-    from pathlib import Path
 
-    p = Path("/opt/data/work/saskia-app/app/templates/recipe_photos.html")
+    p = REPO_ROOT / "app" / "templates" / "recipe_photos.html"
     assert p.exists()
     content = p.read_text()
     assert "{% for p in photos %}" in content
@@ -173,9 +171,8 @@ def test_dashboard_kpis_present():
     paths = {r.path for r in app.routes if hasattr(r, "path")}
     assert "/dashboard" in paths
     # The new operational KPIs are present in dashboard.html
-    from pathlib import Path
 
-    p = Path("/opt/data/work/saskia-app/app/templates/dashboard.html")
+    p = REPO_ROOT / "app/templates/dashboard.html"
     content = p.read_text()
     assert "sl_open_count" in content
     assert "wishlist_count" in content

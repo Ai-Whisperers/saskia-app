@@ -21,9 +21,11 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import REPO_ROOT
+
 pytestmark = [pytest.mark.smoke]
 
-TEMPLATES = Path("/opt/data/work/saskia-app/app/templates")
+TEMPLATES = Path(REPO_ROOT / "app" / "templates")
 
 
 def test_analisis_food_cost_semaforo_exists():
@@ -52,8 +54,16 @@ def test_analisis_stars_dogs_rising_churning_sections():
 
 
 def test_dashboard_food_cost_kpi():
-    """`dashboard.html` must show the food cost % KPI with the ≤35% target."""
-    src = TEMPLATES.joinpath("dashboard.html").read_text()
+    """Dashboard (incl. its _dashboard_kpi_row.html partial) shows food-cost KPIs."""
+    # The KPI row was extracted into the _dashboard_kpi_row.html partial which
+    # dashboard.html includes — audit both so partial refactors don't hide the KPIs.
+    src = "\n".join(
+        p.read_text()
+        for p in (
+            TEMPLATES.joinpath("dashboard.html"),
+            TEMPLATES.joinpath("_dashboard_kpi_row.html"),
+        )
+    )
     assert "Costo de materia prima %" in src, "Missing food cost KPI on dashboard"
     assert "objetivo: 35%" in src or "objetivo: ≤35%" in src, "Missing 35% target reference"
     # And the waste %

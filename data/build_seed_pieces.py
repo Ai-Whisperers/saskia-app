@@ -4,12 +4,13 @@ import json
 import os
 import re
 import sys
+from collections import defaultdict
 
 WT = "/opt/data/profiles/ivan/cache/scratch/saskia-workbook-reconcile"
 os.chdir(WT)
 
 
-def to_float(x: object) -> float:
+def to_float(x):
     """Tolerant float: accepts numbers, '2kg', '5,5', '-', None."""
     if x in (None, "", 0):
         return 0.0
@@ -22,16 +23,16 @@ def to_float(x: object) -> float:
     return float(m.group(1).replace(",", ".")) if m else 0.0
 
 
-def to_grams(qty: object, unit: str) -> float:
+def to_grams(qty, unit):
     n = to_float(qty)
     if unit == "kg":
         return n, "kg"
     if unit == "g":
         return n / 1000.0, "kg"
-    if unit == "line_v":
-        return n, "line_v"
+    if unit == "l":
+        return n, "l"
     if unit == "ml":
-        return n / 1000.0, "line_v"
+        return n / 1000.0, "l"
     if unit == "und":
         return n, "und"
     return n if n > 0 else 1.0, unit or "kg"
@@ -45,7 +46,7 @@ inv = canon["inventory"]
 recipes = canon["recipes"]
 
 
-def infer_storage(name: str) -> str:
+def infer_storage(name):
     n = name.lower()
     if any(k in n for k in ("leche", "crema", "queso", "huevo", "manteca")):
         return "refrigerated"
@@ -117,7 +118,7 @@ _MEAT = [
 _DAIRY_EGG = ["leche", "crema", "huevo", "queso", "manteca", "yogur"]
 
 
-def infer_allergens(name: str) -> list[str]:
+def infer_allergens(name):
     n = name.lower()
     found = []
     for tag, kws in _ALLERGEN_MAP:
@@ -126,7 +127,7 @@ def infer_allergens(name: str) -> list[str]:
     return ",".join(found) if found else ""
 
 
-def infer_dietary(name: str) -> str | None:
+def infer_dietary(name):
     n = name.lower()
     if any(k in n for k in _MEAT):
         return None
@@ -137,7 +138,7 @@ def infer_dietary(name: str) -> str | None:
     return "vegetariano"
 
 
-def default_shelf_days(grupo: str, name: str) -> int:
+def default_shelf_days(grupo, name):
     if "Lácteos" in grupo or "huevos" in name.lower():
         return 14
     if "Carnes" in grupo:
@@ -147,7 +148,7 @@ def default_shelf_days(grupo: str, name: str) -> int:
     return 90
 
 
-def pick_supplier_idx(grupo: str, name: str) -> int:
+def pick_supplier_idx(grupo, name):
     g = grupo.lower()
     if "harina" in g:
         return 0
@@ -163,7 +164,7 @@ def pick_supplier_idx(grupo: str, name: str) -> int:
 # ────────────────────────────────────────────────────────────────────
 # Compile INGREDIENTS (94)
 # ────────────────────────────────────────────────────────────────────
-def build_ingredient_tuple(ing: dict) -> tuple:
+def build_ingredient_tuple(ing):
     ing_id = ing["ing_id"]
     name = ing["name"]
     grupo = ing["grupo"]
@@ -234,7 +235,7 @@ for ing in inv:
 # ────────────────────────────────────────────────────────────────────
 # Compile RECIPES (22)
 # ────────────────────────────────────────────────────────────────────
-def slugify(name: str) -> str:
+def slugify(name):
     s = name.lower()
     repl = {"á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ñ": "n", "ü": "u"}
     for k, v in repl.items():
@@ -272,7 +273,7 @@ YIELD_ESTIMATES = {
 }
 
 
-def remap_rec_id(rec_id: str, sheet: str) -> str:
+def remap_rec_id(rec_id, sheet):
     """Fix workbook's duplicate REC-006 (Frikandel gets bumped to REC-022)."""
     if rec_id == "REC-006" and sheet == "Recipe_Frikandel_100_pcs":
         return "REC-022"
@@ -315,7 +316,7 @@ _PREP_COOK = {
 }
 
 
-def guess_prep_cook(name: str) -> tuple[int, int]:
+def guess_prep_cook(name):
     n = name.lower()
     for kw, vals in _PREP_COOK.items():
         if kw in n:
@@ -346,7 +347,7 @@ for rec in recipes:
             yq, yu = 1, "und"
 
     yield_qty = float(yq)
-    # Map yield_unit variants to the 5 allowed values: g, kg, ml, line_v, und
+    # Map yield_unit variants to the 5 allowed values: g, kg, ml, l, und
     _UNIT_MAP = {
         "und": "und",
         "unidad": "und",
@@ -371,10 +372,10 @@ for rec in recipes:
         "ml": "ml",
         "mililitro": "ml",
         "mililitros": "ml",
-        "line_v": "line_v",
-        "lt": "line_v",
-        "litro": "line_v",
-        "litros": "line_v",
+        "l": "l",
+        "lt": "l",
+        "litro": "l",
+        "litros": "l",
     }
     yield_unit = _UNIT_MAP.get(yu.strip(), "und" if yield_qty else "g")
 
@@ -430,7 +431,7 @@ for rec in recipes:
         if unit == "g":
             qty_norm, unit_norm = qty / 1000.0, "kg"
         elif unit == "ml":
-            qty_norm, unit_norm = qty / 1000.0, "line_v"
+            qty_norm, unit_norm = qty / 1000.0, "l"
         else:
             qty_norm, unit_norm = qty, unit
         recipes_lines_out.append((slug, ing_name, qty_norm, unit_norm, None))
@@ -439,7 +440,7 @@ for rec in recipes:
 # ────────────────────────────────────────────────────────────────────
 # Compile PRODUCTS
 # ────────────────────────────────────────────────────────────────────
-def pick_category(name: str) -> str:
+def pick_category(name):
     n = name.lower()
     if any(k in n for k in ("bitterbal", "frikandel", "goulash", "suppli")):
         return "Salados"
@@ -456,7 +457,7 @@ def pick_category(name: str) -> str:
     return "Panadería"
 
 
-def sku_cat(cat: str) -> str:
+def sku_cat(cat):
     return {
         "Panadería": "PA",
         "Pastelería": "PS",
@@ -504,7 +505,7 @@ _PRICE = {
 }
 
 
-def price_for_recipe(name: str) -> int:
+def price_for_recipe(name):
     n = name.lower()
     for kw, base in _PRICE.items():
         if kw in n:
@@ -642,7 +643,7 @@ BENCHMARKS = [
 # ────────────────────────────────────────────────────────────────────
 # PRODUCTION_TEMPLATES (using product indexes)
 # ────────────────────────────────────────────────────────────────────
-def pidx(name: str) -> int | None:
+def pidx(name):
     if name in idx_of:
         return idx_of[name]
     return -1
@@ -837,9 +838,7 @@ print(f"PROD_COMPLETION_PRODUCTS: {len(PROD_COMPLETION_PRODUCTS)}")
 # ────────────────────────────────────────────────────────────────────
 # Render as Python code snippets
 # ────────────────────────────────────────────────────────────────────
-def render_tuple_lines(
-    name_decl: str, out_list: list, comment: str = "AUTO-GENERATED", per_tuple: bool = True
-) -> str:
+def render_tuple_lines(name_decl, out_list, comment="AUTO-GENERATED", per_tuple=True):
     """Render a list of tuples as a python snippet. Uses double quotes + trailing commas to match the existing sazon.py style."""
     lines = [f"# {comment}", name_decl + " = ["]
     if per_tuple:
@@ -852,7 +851,7 @@ def render_tuple_lines(
             lines.append("    ),")
     else:
         for t in out_list:
-            lines.append(f"    {t!r},")
+            lines.append(f"    {repr(t)},")
     lines.append("]")
     return "\n".join(lines)
 
@@ -913,7 +912,7 @@ with open("data/seed_pieces/benchmarks.py", "w", encoding="utf-8") as f:
     f.write("# AUTO-GENERATED — market benchmarks\n")
     body = ["BENCHMARKS: list[tuple[str, int, int, int, int]] = ["]
     for t in BENCHMARKS:
-        body.append(f"    {t!r},")
+        body.append(f"    {repr(t)},")
     body.append("]")
     f.write("\n".join(body))
 
@@ -921,7 +920,7 @@ with open("data/seed_pieces/pedidos.py", "w", encoding="utf-8") as f:
     f.write("# AUTO-GENERATED — pedidos with new product names\n")
     body = ["PEDIDOS: list[tuple] = ["]
     for t in PEDIDOS:
-        body.append(f"    {t!r},")
+        body.append(f"    {repr(t)},")
     body.append("]")
     f.write("\n".join(body))
 
@@ -929,7 +928,7 @@ with open("data/seed_pieces/production_templates.py", "w", encoding="utf-8") as 
     f.write("# AUTO-GENERATED — production templates using new product indexes\n")
     body = ["PRODUCTION_TEMPLATES: list[tuple[int, int, float, str | None]] = ["]
     for t in PRODUCTION_TEMPLATES:
-        body.append(f"    {t!r},")
+        body.append(f"    {repr(t)},")
     body.append("]")
     f.write("\n".join(body))
 
@@ -937,7 +936,7 @@ with open("data/seed_pieces/waste_log.py", "w", encoding="utf-8") as f:
     f.write("# AUTO-GENERATED — waste log filtered to workbook ingredients\n")
     body = ["WASTE_LOG: list[tuple[str, float, str, int, str, str | None]] = ["]
     for t in WASTE_LOG:
-        body.append(f"    {t!r},")
+        body.append(f"    {repr(t)},")
     body.append("]")
     f.write("\n".join(body))
 

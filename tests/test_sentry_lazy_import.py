@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from tests.conftest import REPO_ROOT
+
 
 def test_sentry_lazy_when_dsn_unset():
     """When SENTRY_DSN is unset, sentry_sdk is never imported.
@@ -52,7 +54,7 @@ def test_sentry_import_cost_is_real():
         ["uv", "run", "python", "-c", "import sentry_sdk"],
         capture_output=True,
         text=True,
-        cwd="/opt/data/work/saskia-app",
+        cwd=str(REPO_ROOT),
         timeout=30,
     )
     elapsed_ms = (time.perf_counter() - t0) * 1000

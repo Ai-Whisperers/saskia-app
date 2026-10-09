@@ -10,8 +10,15 @@ forces every test to use a temp directory.
 from __future__ import annotations
 
 import os as _os
+from pathlib import Path as _Path
 
 from sqlalchemy.orm import sessionmaker
+
+# SASKIA-320: repo-under-test root. Several audit tests used to hardcode
+# /opt/data/work/saskia-app — a foreign checkout — and so audited a stale tree
+# instead of the code under test (anti-rule #20: tests must not depend on the
+# host filesystem layout). Always derive it from this file's location.
+REPO_ROOT = _Path(__file__).resolve().parents[1]
 
 # Register browser helpers as a top-level plugin so the non-top-level
 # pytest_plugins declaration in tests/browser/conftest.py is no longer
