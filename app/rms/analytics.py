@@ -477,26 +477,51 @@ def _quick_cost_estimate(session: Session, product: Product) -> int | None:
     """
     from decimal import Decimal as _D
 
+    recipe = _load_recipe_for_cost(session, product)
+    if recipe is None:
+        return None
+
+    batch_cost = _D(0)
+    for line in recipe.lines:
+        line_cost = _compute_line_cost(session, line)
+        if line_cost is None:
+            return None
+        batch_cost += line_cost
+    return int(batch_cost / _D(recipe.yield_qty))
+
+
+def _load_recipe_for_cost(session: Session, product: Product):
+    """Load the recipe for a product, returning None if not resolvable.
+
+    Extracted from _quick_cost_estimate to reduce complexity.
+    """
     if product.recipe_id is None:
         return None
     recipe = session.get(Recipe, product.recipe_id)
     if recipe is None or recipe.yield_qty is None or recipe.yield_qty <= 0:
         return None
-    batch_cost = _D(0)
-    for line in recipe.lines:
-        if line.line_kind != "ingredient":
-            continue
-        ing = session.get(Ingredient, line.line_ref_id)
-        if ing is None or ing.purchase_price_gs is None:
-            return None
-        # BACKLOG #13 (2026-10-02): prefer the moving-average cost when
-        # available — it reflects supplier price drift over the batch's
-        # lifetime. Falls back to purchase_price_gs when avg is NULL
-        # (fresh installs, backfilled rows where the migration ran but
-        # no waste event has fired yet, or legacy data from before v89).
-        price_unit = ing.avg_cost_gs if ing.avg_cost_gs is not None else ing.purchase_price_gs
-        batch_cost += line.qty * _D(price_unit)
-    return int(batch_cost / _D(recipe.yield_qty))
+    return recipe
+
+
+def _compute_line_cost(session: Session, line):
+    """Compute the cost contribution of a single recipe line.
+
+    Extracted from _quick_cost_estimate to reduce complexity.
+    """
+    from decimal import Decimal as _D
+
+    if line.line_kind != "ingredient":
+        return _D(0)
+    ing = session.get(Ingredient, line.line_ref_id)
+    if ing is None or ing.purchase_price_gs is None:
+        return None
+    # BACKLOG #13 (2026-10-02): prefer the moving-average cost when
+    # available — it reflects supplier price drift over the batch's
+    # lifetime. Falls back to purchase_price_gs when avg is NULL
+    # (fresh installs, backfilled rows where the migration ran but
+    # no waste event has fired yet, or legacy data from before v89).
+    price_unit = ing.avg_cost_gs if ing.avg_cost_gs is not None else ing.purchase_price_gs
+    return line.qty * _D(price_unit)
 
 
 def ingredient_concentration(session: Session, days: int = 90) -> list[IngredientConcentration]:
