@@ -51,10 +51,12 @@ jobs:
       SASKIA_TEST_AUTH_DISABLED: "1"
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
         with:
           version: "0.5.x"
           enable-cache: true
@@ -78,7 +80,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
         with:
           name: coverage-${{ matrix.shard.name }}
           path: /tmp/coverage-${{ matrix.shard.name }}.xml
@@ -90,15 +92,17 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
       - name: Install uv + coverage
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
         with:
           version: "0.5.x"
       - name: Set up Python
         run: uv python install 3.13
       - name: Download all coverage artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7
         with:
           path: /tmp/coverage
       - name: Combine coverage
@@ -107,7 +111,7 @@ jobs:
           coverage combine /tmp/coverage/*.xml
           coverage report
       - name: Upload combined report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
         with:
           name: coverage-combined
           path: .coverage coverage.xml

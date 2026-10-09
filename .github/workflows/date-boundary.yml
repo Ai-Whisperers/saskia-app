@@ -55,14 +55,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
 
       # Everything that talks to a registry or to npm runs before the
       # clock moves. A skewed clock breaks TLS validation, so installs
       # happen on the real date and only the test run sees the pinned
       # one.
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
         with:
           version: "0.5.x"
 
@@ -118,7 +120,7 @@ jobs:
 
       - name: Upload pytest report on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: pytest-report-month-end
           path: |

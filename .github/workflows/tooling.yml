@@ -61,10 +61,12 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
         with:
           version: "latest"
           enable-cache: true
@@ -74,7 +76,8 @@ jobs:
         # rm -rf .venv first: parallel runs from sibling sessions can leave
         # a .venv behind that blocks `uv sync` with "File exists" (os error 17).
         # 2026-10-09: 10/10 tooling runs were failing on this exact error.
-        run: rm -rf .venv && uv sync --all-extras --group dev
+        run: rm -rf .venv && uv sync --all-extras --group dev --group tooling-tier2
+        # 2026-10-09b: tooling-tier2 adds fastapi-safeguard (make safeguard, ci-extra)
 
       - name: make check (duplicates + arch)
         run: make check
@@ -92,3 +95,8 @@ jobs:
 
       - name: Type checking (pyright)
         run: make pyright
+
+      - name: fastapi-safeguard (route security vs baseline)
+        # Fails the PR if a NEW un-baselined security finding appears
+        # (e.g. a route added without an auth dependency).
+        run: make safeguard

@@ -259,6 +259,19 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         print(f"WARNING: observability init failed: {exc}", file=sys.stderr)
 
+    # fastapi-safeguard security audit — gated by SAFEGUARD_ENABLED.
+    # Reports baseline-accepted findings as INFO, NEW findings as warnings;
+    # SAFEGUARD_FAIL_ON_FINDING=true aborts startup on new findings.
+    # See app/rms/safeguard.py for the activation matrix.
+    try:
+        from app.rms.safeguard import init_safeguard
+
+        init_safeguard(app)
+    except SystemExit:
+        raise
+    except Exception as exc:
+        print(f"WARNING: safeguard init failed: {exc}", file=sys.stderr)
+
     ensure_dirs()
     url = get_database_url()
     engine = make_engine_dialect(url)

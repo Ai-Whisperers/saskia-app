@@ -69,7 +69,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           # fetch-depth=0 is required so release.sh can read all the
           # existing vYYYY.MM.* tags to compute the next patch number.
@@ -77,12 +77,13 @@ jobs:
           # Use the bot's token to push the CHANGELOG bump commit back
           # to main. The release script does `git push origin $HEAD:refs/heads/main`.
           token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
         with:
           version: "0.5.x"
-          enable-cache: true
+          enable-cache: false
           cache-dependency-glob: "uv.lock"
 
       - name: Set up Python
@@ -105,18 +106,21 @@ jobs:
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
           SASKIA_VPS_SSH_KEY: ${{ secrets.VPS_KEY }}
+          GITHUB_EVENT_INPUTS_VERSION: ${{ github.event.inputs.version }}
+          GITHUB_EVENT_INPUTS_MESSAGE: ${{ github.event.inputs.message }}
+          GITHUB_EVENT_INPUTS_SKIP_DEPLOY: ${{ github.event.inputs.skip_deploy }}
         run: |
           set -euo pipefail
           # Re-construct the release.sh flags from the trigger.
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             FLAGS=""
-            if [ -n "${{ github.event.inputs.version }}" ]; then
-              FLAGS="$FLAGS --version=${{ github.event.inputs.version }}"
+            if [ -n "${GITHUB_EVENT_INPUTS_VERSION}" ]; then
+              FLAGS="$FLAGS --version=${GITHUB_EVENT_INPUTS_VERSION}"
             fi
-            if [ -n "${{ github.event.inputs.message }}" ]; then
-              FLAGS="$FLAGS --message='${{ github.event.inputs.message }}'"
+            if [ -n "${GITHUB_EVENT_INPUTS_MESSAGE}" ]; then
+              FLAGS="$FLAGS --message='${GITHUB_EVENT_INPUTS_MESSAGE}'"
             fi
-            if [ "${{ github.event.inputs.skip_deploy }}" = "true" ]; then
+            if [ "${GITHUB_EVENT_INPUTS_SKIP_DEPLOY}" = "true" ]; then
               FLAGS="$FLAGS --skip-deploy"
             fi
             bash scripts/release.sh $FLAGS
@@ -129,7 +133,7 @@ jobs:
             #
             # Detect that by checking whether the tag commit has a
             # release commit message (the script's commit subject).
-            TAG="${{ github.ref_name }}"
+            TAG="${GITHUB_REF_NAME}"
             TAG_COMMIT_MSG=$(git log -1 --format=%s "$TAG")
             case "$TAG_COMMIT_MSG" in
               "docs(changelog): release $TAG")
