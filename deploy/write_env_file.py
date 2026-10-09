@@ -116,9 +116,12 @@ def write_env_file(env: str) -> int:
         except KeyError:
             print(f"ERROR: BWS secret '{key}' not found for env={env}", file=sys.stderr)
             return 2
-        # Escape any double-quote / newline in the value
-        val_escaped = val.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
-        lines.append(f'{key}="{val_escaped}"')
+        # No surrounding quotes: Docker's env_file parser does NOT strip
+        # double quotes (unlike shell). If we emit KEY="value", the
+        # container sees the literal `"value"` and the app breaks
+        # (Supabase rejects `"https://..."` as an invalid URL, etc.).
+        val_escaped = val.replace("\n", "\\n")
+        lines.append(f'{key}={val_escaped}')
 
     new_content = "\n".join(lines) + "\n"
 

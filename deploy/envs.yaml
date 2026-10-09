@@ -40,7 +40,9 @@ prod:
     - FERNET_KEY
     - SESSION_SECRET                 # injected from BWS (was hardcoded in stack yml before)
     - SUPABASE_URL
-    - SUPABASE_PUBLISHABLE_KEY
+    - SUPABASE_ANON_KEY              # legacy JWT format (preferred by auth_supabase.py)
+    - SUPABASE_SERVICE_ROLE_KEY
+    - SUPABASE_PUBLISHABLE_KEY       # 2025+ format (kept for forward-compat)
     - SUPABASE_SECRET_KEY
     - SENTRY_DSN                     # if present
     - RESEND_API_KEY
@@ -77,6 +79,11 @@ test:
     - FERNET_KEY
     - SESSION_SECRET
     - SUPABASE_URL                   # OK to reuse prod (test DB is on its own VPS volume)
+    # auth_supabase.py prefers SUPABASE_ANON_KEY (legacy JWT) over
+    # SUPABASE_PUBLISHABLE_KEY (2025+ format). The JWT keys are what
+    # the bundled supabase python lib validates, so emit both.
+    - SUPABASE_ANON_KEY
+    - SUPABASE_SERVICE_ROLE_KEY
     - SUPABASE_PUBLISHABLE_KEY
     - SUPABASE_SECRET_KEY
     - CF_R2_ACCESS_KEY_ID
@@ -110,6 +117,9 @@ dev:
     - FERNET_KEY
     - SESSION_SECRET
     - SUPABASE_URL
+    # Same JWT-vs-publishable reasoning as test env.
+    - SUPABASE_ANON_KEY
+    - SUPABASE_SERVICE_ROLE_KEY
     - SUPABASE_PUBLISHABLE_KEY
     - SUPABASE_SECRET_KEY
     - SASKIA_DEV_USER_PASSWORD
