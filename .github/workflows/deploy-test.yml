@@ -60,11 +60,13 @@ jobs:
 
       - name: Render test stack file (sanity check)
         run: |
-          # Use --break-system-packages because the GH runner's /usr python
-          # is externally managed (PEP 668). pyyaml is the only dep
-          # render_stack.py needs.
-          uv pip install --system --break-system-packages pyyaml
-          python3 deploy/render_stack.py --env=test --output=/tmp/docker-stack.test.yml
+          # The GH runner's /usr python is externally managed AND we're
+          # not root, so --system install fails on permissions. Use a
+          # throwaway venv on the runner's HOME, then invoke python
+          # directly. pyyaml is the only dep render_stack.py needs.
+          python3 -m venv /tmp/render-venv
+          /tmp/render-venv/bin/pip install pyyaml
+          /tmp/render-venv/bin/python3 deploy/render_stack.py --env=test --output=/tmp/docker-stack.test.yml
           echo "render OK ($(wc -c < /tmp/docker-stack.test.yml) bytes)"
 
       - name: SSH into VPS, run deploy.sh --env=test
