@@ -1,3 +1,17 @@
+## 2026-10-09 — CI determinism: track uv.lock
+
+**Scope**: one-line fix with outsized effect: CI was resolving the
+dependency set fresh on every run (no lockfile), so toolchain drift
+(local ruff 0.16.10 vs whatever CI resolved) caused local-passes/
+CI-fails divergence on PR #93. Also every run warned "No file matched
+to uv.lock. The cache will never get invalidated."
+
+**What changed**:
+- `uv.lock` tracked (146 packages, ruff pinned to 0.16.10).
+- CI `cache-dependency-glob: uv.lock` now actually hits.
+
+**Test status**: `uv lock --check` clean; ruff check + format pass.
+
 ## 2026-10-09 — CI recovery: ruff mass-fix + CHANGELOG-path bug fix
 
 **Scope**: unblock PRs #93/#94/#96 by fixing the 594-error ruff baseline
