@@ -1,0 +1,70 @@
+# .github/workflows/tooling.yml — Static analysis + architecture gates
+#
+# Companion to `.github/workflows/ci.yml`. This workflow runs the
+# lightweight static-analysis gates that the 2026-10-08 tooling
+# sweep added (see docs/operations/2026-10-08-tooling-hardening.md):
+#
+#   - ruff check + format
+#   - check_imports (architecture rules + cycle detection)
+#   - check_duplicate_files (forbidden legacy + stem collisions)
+#   - check_duplicate_code (near-duplicate function bodies)
+#   - check_warnings (no-warning test gate)
+#   - tests/test_check_imports_rules.py (locks allow-list sizes)
+#
+# Heavy static analysis (vulture, bandit, radon) lives in
+# `make ci-extra` and is run on-demand, not on every PR — it's
+# slow and noisy on first adoption. Promote to per-PR once the
+# false-positive rate stabilizes (target: 0 changes needed in 2
+# consecutive weeks).
+#
+# Trigger strategy:
+#   - on PR (required check for main, see Branch Protection Rules)
+#   - on push to main (advisory confirmation)
+#   - workflow_dispatch (manual)
+#
+# Locked by tests/test_check_imports_rules.py — 6 tests pin the
+# Sazon-specific allow-list and known-cycles. Adding a new entry to
+# ALLOW_LIST or KNOWN_CYCLES without updating the test count fails CI.
+
+name: Tooling (static analysis)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-analysis:
+    name: Static analysis (lightweight)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Sync dependencies (dev)
+        run: uv sync --all-extras --group dev
+
+      - name: make check (duplicates + arch)
+        run: make check
+
+      - name: Near-duplicate function bodies
+        run: uv run python scripts/check_duplicate_code.py --min-lines 20 --threshold 0.90
+
+      - name: Arch-rules regression test
+        run: uv run pytest --no-cov -x -q tests/test_check_imports_rules.py
+        env:
+          DATABASE_URL: "sqlite:///:memory:"

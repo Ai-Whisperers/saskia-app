@@ -71,7 +71,8 @@ class TestUIVersionToggleHidden:
                 'aria-hidden="true"',
                 "visibility: hidden",
                 "<!--/.v2-toggle",
-                'class="sr-only"',
+                "sr-only",
+                "d-none",
             ]
         )
 

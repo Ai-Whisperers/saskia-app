@@ -50,7 +50,7 @@ def test_regulars_card_hidden_when_no_regulars(client, session_factory, qseed):
         c = _make_customer(s, "OneVisitOnly")
         _make_sale(s, c.id, product_id=product.id, when=datetime.now(timezone.utc))
         s.commit()
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     assert "Clientes habituales" in r.text
     assert "Sin habituales aún" in r.text
@@ -71,7 +71,7 @@ def test_regulars_lists_top_by_visit_count(client, session_factory, qseed):
         for _ in range(2):
             _make_sale(s, bob.id, product_id=product.id)
         s.commit()
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     # Both names appear
     assert "Alice-3visits" in r.text
@@ -95,7 +95,7 @@ def test_regulars_excludes_one_time_buyers(client, session_factory, qseed):
         # Occasional: 1 sale only
         _make_sale(s, occasional.id, product_id=product.id)
         s.commit()
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     assert "RegularPerson" in r.text
     assert "OccasionalPerson" not in r.text
@@ -117,7 +117,7 @@ def test_regulars_excludes_old_sales(client, session_factory, qseed):
                 when=datetime.now(timezone.utc) - timedelta(days=60),
             )
         s.commit()
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     assert "StaleCustomer" not in r.text
 
@@ -141,7 +141,7 @@ def test_regulars_excludes_voided_sales(client, session_factory, qseed):
             )
             s.add(sale)
         s.commit()
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     assert "CancelledCustomer" not in r.text
 
@@ -156,7 +156,7 @@ def test_regulars_links_to_customer_profile(client, session_factory, qseed):
         for _ in range(2):
             _make_sale(s, c.id, product_id=product.id)
         s.commit()
-    r = client.get("/")
+    r = client.get("/inicio")
     assert r.status_code == 200
     assert 'href="/clientes/' in r.text
     assert "ClickableCustomer" in r.text

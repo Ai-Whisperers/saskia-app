@@ -5,7 +5,7 @@
 
 **URL activa:** `https://sazon-vps.paragu-ai.com`  *(si ves "service suspended", contactá al equipo — esa URL no es la correcta)*
 **URL alternativa (suspendida):** `https://sazon-rms.paragu-ai.com` — Render, NO usar
-**Versión del manual:** 2026-10-05 · schema 102 · commit `487079f` · 21 secciones + Phase 3 CI cleanup, production v2 features
+**Versión del manual:** 2026-10-09 · schema 116 · commit `fd90cc5e` · 21 secciones + Phase 3 CI cleanup, production v2 features, station chooser + caja gate
 **Manual versión:** v1.5 (ver "Cómo verificar la versión" abajo)
 
 ## Índice rápido
@@ -117,7 +117,7 @@ Excel             → importar/exportar planilla
 
 ## Lo que podés hacer — y lo que todavía no
 
-| **Versión:** schema 102 · commit `487079f` · 2026-10-05 |
+| **Versión:** schema 116 · commit `fd90cc5e` · 2026-10-09 |
 
 ### ✅ Funcionalidades activas (lista cerrada)
 

@@ -16,10 +16,10 @@ def _mk_product(session_factory, name, price):
         return p.id
 
 
-def test_tip_lands_on_first_row(authed_client, session_factory):
+def test_tip_lands_on_first_row(client_with_caja, session_factory):
     pid1 = _mk_product(session_factory, "Tip A", 50_000)
     pid2 = _mk_product(session_factory, "Tip B", 30_000)
-    r = authed_client.post(
+    r = client_with_caja.post(
         "/ventas/nueva/multi",
         json={
             "items": [

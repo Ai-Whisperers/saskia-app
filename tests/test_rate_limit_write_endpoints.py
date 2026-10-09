@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 
-def test_ventas_nueva_rate_limited_after_burst(client, session_factory):
+def test_ventas_nueva_rate_limited_after_burst(client_with_caja, session_factory):
     """After 30 rapid POSTs, the next one must hit 429.
 
     Default cap is 10 writes/minute per IP; we exceed it deliberately.
@@ -37,7 +37,7 @@ def test_ventas_nueva_rate_limited_after_burst(client, session_factory):
     assert 429 in statuses, f"Expected 429 in statuses, got: {statuses}"
 
 
-def test_merma_registrar_rate_limited(client, session_factory):
+def test_merma_registrar_rate_limited(client_with_caja, session_factory):
     """Same cap on /merma/registrar."""
     from starlette.testclient import TestClient
 
@@ -55,12 +55,15 @@ def test_merma_registrar_rate_limited(client, session_factory):
     tc = TestClient(app, raise_server_exceptions=False, cookies={"csrf_token": csrf})
 
     statuses = []
-    for _ in range(20):
+    for i in range(20):
         resp = tc.post(
             "/merma/registrar",
             data={
                 "ingredient_id": str(ing_id),
-                "qty": "1",
+                # Vary qty so the 409 duplicate-guard (same ingredient+reason
+                # +qty within the dup window) doesn't mask the 429 limiter.
+                # (reason must stay a valid WasteReason enum value.)
+                "qty": str(1 + i),
                 "reason": "vencida",
             },
         )

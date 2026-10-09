@@ -11,7 +11,7 @@ With ``idempotency_key=<token>`` injected by the template:
   - 1st POST: reserves the ``eod_save_idem:<token>`` AppMeta row, runs
     the save + backup, commits.
   - 2nd POST (same token, < 5min later): IntegrityError on the same
-    key → redirect with ``flash=cierre_duplicado`` → no audit row, no
+    key → redirect with ``flash=eod_duplicate`` → no audit row, no
     backup attempt.
 
 Run: cd /opt/data/profiles/ivan/scratch/sazon-app-work && ./.venv/bin/python -m pytest tests/test_eod_check_idempotency.py -v
@@ -52,19 +52,19 @@ def test_eod_save_with_key_succeeds_first_time(client) -> None:
     assert r.status_code == 303, f"Expected 303, got {r.status_code}"
 
 
-def test_eod_save_double_click_returns_duplicate_redirect(client) -> None:
+def test_eod_save_double_click_returns_duplicate_redirect(client_with_caja) -> None:
     """Two POSTs with the SAME idempotency_key → 2nd one redirects with
-    flash=cierre_duplicado (and does NOT run a second save or backup).
+    flash=eod_duplicate (and does NOT run a second save or backup).
     """
     key = secrets.token_urlsafe(16)
 
-    r1 = _check_all_with_key(client, key)
+    r1 = _check_all_with_key(client_with_caja, key)
     assert r1.status_code == 303, f"1st: expected 303, got {r1.status_code}"
 
-    r2 = _check_all_with_key(client, key)
+    r2 = _check_all_with_key(client_with_caja, key)
     assert r2.status_code == 303, f"2nd: expected 303, got {r2.status_code}"
-    assert "cierre_duplicado" in (r2.headers.get("location") or ""), (
-        f"2nd POST must redirect with flash=cierre_duplicado; "
+    assert "eod_duplicate" in r2.headers["location"], (
+        f"2nd POST must redirect with flash=eod_duplicate; "
         f"got Location: {r2.headers.get('location')!r}"
     )
 
@@ -111,7 +111,7 @@ def test_eod_idempotency_key_isolates_distinct_submissions(client) -> None:
 
     r2 = _check_all_with_key(client, key_b)
     assert r2.status_code == 303, f"2nd (different key): {r2.status_code}"
-    assert "cierre_duplicado" not in (r2.headers.get("location") or ""), (
+    assert "eod_saved" in r2.headers["location"], (
         f"2nd POST with distinct key should NOT be marked duplicate; "
         f"got Location: {r2.headers.get('location')!r}"
     )

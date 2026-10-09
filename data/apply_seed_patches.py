@@ -314,6 +314,7 @@ print()
 
 # Sanity check: import the patched file
 import subprocess
+
 r = subprocess.run(
     [".venv/bin/python", "-c", f"import ast; ast.parse(open('{out_path}').read()); print('SYNTAX OK')"],
     capture_output=True, text=True,

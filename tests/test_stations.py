@@ -163,10 +163,8 @@ def test_staff_cocina_is_blocked_from_ventas():
 
     Drives decide() directly so the role is explicit, no session dance.
     """
-    from app.rms.stations import decide
-
     # Apply a cocina login, then try /ventas.
-    from app.rms.stations import apply_login
+    from app.rms.stations import apply_login, decide
 
     session: dict = {}
     apply_login(session, "cocina")

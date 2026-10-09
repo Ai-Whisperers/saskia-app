@@ -297,6 +297,7 @@ async def home(request: Request) -> Response:
     owner picks what to do; staff are auto-redirected to their
     pinned station by the gate middleware (decide()).
     """
+    # noqa: arch-rule — uses `puesto` (current station) helper from stations; legitimate cross-router utility use
     from app.routers.stations import puesto
 
     return puesto(request)

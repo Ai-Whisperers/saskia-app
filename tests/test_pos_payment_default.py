@@ -21,14 +21,14 @@ def _seed(s):
     return p
 
 
-def test_venta_sin_pago_usa_default_efectivo(authed_client, session_factory):
+def test_venta_sin_pago_usa_default_efectivo(client_with_caja, session_factory):
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:
         p = _seed(s)
         pid = p.id
     finally:
         s.close()
-    r = authed_client.post(
+    r = client_with_caja.post(
         "/ventas/nueva/multi",
         json={"items": [{"product_id": pid, "qty": 2}], "payment_method": ""},
         follow_redirects=False,

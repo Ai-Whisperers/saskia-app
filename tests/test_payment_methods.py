@@ -12,7 +12,7 @@ def test_payment_methods_includes_qr():
     """The set must include qr alongside the 4 legacy values."""
     from app.rms.schemas import ALLOWED_PAYMENT_METHODS
 
-    expected = {"efectivo", "transferencia", "qr", "tarjeta", "otro"}
+    expected = {"efectivo", "fiado", "transferencia", "qr", "tarjeta", "otro"}
     assert expected == set(ALLOWED_PAYMENT_METHODS)
 
 
@@ -53,7 +53,7 @@ def test_ventas_page_default_selected_is_efectivo(client):
     assert 'value=""' in body  # Hidden input for payment_method should be empty by default
 
 
-def test_post_sale_accepts_all_five_payment_methods(client, session_factory):
+def test_post_sale_accepts_all_five_payment_methods(client_with_caja, session_factory):
     """POST /ventas/nueva with each of the 5 values must persist it."""
     from app.rms.models import Product, Sale
 
@@ -65,7 +65,7 @@ def test_post_sale_accepts_all_five_payment_methods(client, session_factory):
         product_id = p.id
 
     for pm in ("efectivo", "transferencia", "qr", "tarjeta", "otro"):
-        resp = client.post(
+        resp = client_with_caja.post(
             "/ventas/nueva",
             data={"product_id": str(product_id), "qty": "1", "payment_method": pm},
             follow_redirects=False,

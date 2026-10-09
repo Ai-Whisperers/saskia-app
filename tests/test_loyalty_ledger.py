@@ -467,7 +467,7 @@ def test_customer_detail_shows_ledger_table(authed_client, qseed):
     assert "+15" in body or "+10" in body
 
 
-def test_sale_creation_credits_points_to_customer(authed_client, qseed):
+def test_sale_creation_credits_points_to_customer(client_with_caja, qseed):
     """End-to-end: POST a sale with a customer attached → ledger earn_sale row."""
     from app.rms.models import LoyaltyTransaction
 
@@ -477,7 +477,7 @@ def test_sale_creation_credits_points_to_customer(authed_client, qseed):
     cust = cust_data["customer"]
     sf = qseed.session_factory
 
-    resp = authed_client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva",
         data={
             "product_id": str(prod.id),

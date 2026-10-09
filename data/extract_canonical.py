@@ -6,6 +6,7 @@ import json
 import re
 import sys
 from datetime import date, datetime
+
 from openpyxl import load_workbook
 
 WB_PATH = "/opt/data/profiles/ivan/cache/scratch/saskia-workbook-reconcile/data/herebus.xlsx"

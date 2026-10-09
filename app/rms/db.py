@@ -91,6 +91,9 @@ from app.rms.migrations._115_allergen_dietary_tags import (
 from app.rms.migrations._116_eod_alert_templates import (
     _migration_116_eod_alert_templates,
 )
+from app.rms.migrations._117_ingredient_image_url import (
+    _migration_117_ingredient_image_url,
+)
 from app.rms.models.channels import Channel
 
 
@@ -2750,13 +2753,13 @@ def _migration_060_tag_normalization(conn: Any) -> None:
     #     produce when they save an ingredient.  infer_dietary_tags
     #     correctly handles meat/dairy/gluten/sugar logic so e.g. chicken
     #     no longer claims vegetariano.
+    infer_dietary_tags = None
     try:
-        from app.rms.ingredient_intel import infer_dietary_tags
-
-        have_intel = True
+        from app.rms.ingredient_intel import infer_dietary_tags as _infer_dietary_tags
+        infer_dietary_tags = _infer_dietary_tags
     except Exception:
-        have_intel = False
-    if have_intel:
+        pass
+    if infer_dietary_tags is not None:
         rows = conn.execute(text("SELECT id, name FROM ingredient")).all()
         for r in rows:
             iid, name = r
@@ -4301,6 +4304,7 @@ MIGRATIONS = {
     114: _migration_114_settings_kv_consolidation,
     115: _migration_115_allergen_dietary_tags,
     116: _migration_116_eod_alert_templates,
+    117: _migration_117_ingredient_image_url,
 }
 
 
@@ -4867,18 +4871,11 @@ def _get_db_url_safe() -> str:
 
     Used in backup manifests so the file does not leak the password.
     Returns something like "postgresql+psycopg2://***@host/db".
-    """
-    import os
-    from urllib.parse import urlsplit, urlunsplit
 
-    url = os.environ.get("AIW_RMS_DB_URL", "sqlite:///./sazon.db")
-    if url.startswith("sqlite"):
-        return "sqlite:///<local>"
-    try:
-        parts = urlsplit(url)
-        if parts.username or parts.password:
-            netloc = "***@" + parts.netloc.split("@", 1)[-1]
-            return urlunsplit((parts.scheme, netloc, parts.path, parts.query, ""))
-        return url
-    except Exception:
-        return "<unknown>"
+    Moved to app.rms.db_url in 2026-10-09; this re-export shim is
+    kept so any historical import (none in repo, but for third-party
+    extensions) continues to work. The new public name is `db_url_safe`.
+    """
+    from app.rms.db_url import db_url_safe
+
+    return db_url_safe()

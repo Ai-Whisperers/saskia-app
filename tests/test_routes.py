@@ -68,10 +68,10 @@ def test_dashboard_empty(client):
     assert "Ventas" in r.text
 
 
-def test_dashboard_with_sale(client, session_factory):
+def test_dashboard_with_sale(client_with_caja, session_factory):
     _seed(session_factory)
     # Record a sale
-    r = client.post(
+    r = client_with_caja.post(
         "/ventas/nueva",
         data={
             "product_id": "1",
@@ -83,19 +83,21 @@ def test_dashboard_with_sale(client, session_factory):
     )
     assert r.status_code == 303
     # Now dashboard should show data
-    r = client.get("/?period=today")
+    r = client_with_caja.get("/inicio?period=today")
     assert r.status_code == 200
     assert "Muffin" in r.text  # ranking includes product name
 
 
 @pytest.mark.parametrize("period", ["today", "week", "month"])
 def test_dashboard_periods(client, period):
-    r = client.get(f"/?period={period}")
+    r = client.get(f"/inicio?period={period}")
     assert r.status_code == 200
 
 
 def test_dashboard_invalid_period(client):
-    r = client.get("/?period=invalid")
+    # /inicio is the dashboard (period is a pattern-validated Query param);
+    # "/" is now the chooser and ignores period entirely (200).
+    r = client.get("/inicio?period=invalid")
     assert r.status_code in (400, 422)
 
 
@@ -265,9 +267,9 @@ def test_sales_list_empty(client):
     assert r.status_code == 200
 
 
-def test_sale_create_drops_stock(client, session_factory):
+def test_sale_create_drops_stock(client_with_caja, session_factory):
     product_id = _seed(session_factory)
-    r = client.post(
+    r = client_with_caja.post(
         "/ventas/nueva",
         data={
             "product_id": str(product_id),
@@ -287,8 +289,8 @@ def test_sale_create_drops_stock(client, session_factory):
         assert abs(flour.stock_qty - 1.95) < 0.001
 
 
-def test_sale_invalid_product(client):
-    r = client.post(
+def test_sale_invalid_product(client_with_caja):
+    r = client_with_caja.post(
         "/ventas/nueva",
         data={
             "product_id": "99999",
@@ -316,11 +318,11 @@ def test_sale_negative_qty_rejected(client, session_factory):
     assert r.status_code in (400, 422)  # FastAPI Form(...) rejects negative qty
 
 
-def test_sale_void_restores_stock(client, session_factory):
+def test_sale_void_restores_stock(client_with_caja, session_factory):
     from app.rms.models import Ingredient, Sale
 
     product_id = _seed(session_factory)
-    r = client.post(
+    r = client_with_caja.post(
         "/ventas/nueva",
         data={
             "product_id": str(product_id),
@@ -337,7 +339,7 @@ def test_sale_void_restores_stock(client, session_factory):
         assert abs(flour.stock_qty - 1.95) < 0.001  # dropped from 2.0
         sale_id = s.query(Sale).first().id
 
-    r = client.post(f"/ventas/{sale_id}/anular", follow_redirects=False)
+    r = client_with_caja.post(f"/ventas/{sale_id}/anular", follow_redirects=False)
     assert r.status_code == 303
 
     with session_factory() as s:
