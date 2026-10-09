@@ -23,7 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.rms.config import ASUNCION_TZ
-from app.rms.models import Customer, Ingredient, Product, Recipe, Sale
+from app.rms.models import Customer, Ingredient, Product, Recipe, RecipeLine, Sale
 from app.rms.money import format_gs
 
 # Sheet column definitions — single source of truth for import + export.
@@ -183,18 +183,72 @@ def to_file(
 
     Returns the absolute Path of the written file.
     """
-
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
     sale_start, sale_end = _resolve_export_range(period, today=today)
 
+    wb = _create_workbook()
+
+    # Load reference data
+    ingredients_by_id = _load_ingredients_map(session)
+    recipes_by_id = _load_recipes_map(session)
+    products_by_id = _load_products_map(session)
+
+    # Write each sheet
+    _write_ingredientes_sheet(wb, session)
+    _write_recetas_sheet(wb, session)
+    _write_lineas_sheet(wb, session, ingredients_by_id, recipes_by_id)
+    _write_productos_sheet(wb, session, recipes_by_id, products_by_id)
+    _write_clientes_sheet(wb, session)
+    _write_ventas_sheet(wb, session, sale_start, sale_end, products_by_id)
+    _write_stockmoves_sheet(wb, session)
+
+    wb.save(str(path))
+    return path.resolve()
+
+
+def _create_workbook() -> Workbook:
+    """Create a new empty Workbook (no default sheet).
+
+    Extracted from to_file to reduce complexity.
+    """
     wb = Workbook()
     default_sheet = wb.active
     if default_sheet is not None:
         wb.remove(default_sheet)
+    return wb
 
-    # --- Ingredientes ---
+
+def _load_ingredients_map(session: Session) -> dict[int, Ingredient]:
+    """Load all ingredients as a dict mapping id → Ingredient.
+
+    Extracted from to_file to reduce complexity.
+    """
+    return {ing.id: ing for ing in session.scalars(select(Ingredient)).all()}
+
+
+def _load_recipes_map(session: Session) -> dict[int, Recipe]:
+    """Load all recipes as a dict mapping id → Recipe.
+
+    Extracted from to_file to reduce complexity.
+    """
+    return {rec.id: rec for rec in session.scalars(select(Recipe)).all()}
+
+
+def _load_products_map(session: Session) -> dict[int, Product]:
+    """Load all products as a dict mapping id → Product.
+
+    Extracted from to_file to reduce complexity.
+    """
+    return {prod.id: prod for prod in session.scalars(select(Product)).all()}
+
+
+def _write_ingredientes_sheet(wb: Workbook, session: Session) -> None:
+    """Write the Ingredientes sheet with all ingredients.
+
+    Extracted from to_file to reduce complexity.
+    """
     ws = wb.create_sheet("Ingredientes")
     _write_header(ws, INGREDIENTES_COLS)
     for ing in session.scalars(select(Ingredient).order_by(Ingredient.id)).all():
@@ -211,28 +265,34 @@ def to_file(
         )
     _autosize(ws)
 
-    # --- Recetas ---
+
+def _write_recetas_sheet(wb: Workbook, session: Session) -> None:
+    """Write the Recetas sheet with all recipes.
+
+    Extracted from to_file to reduce complexity.
+    """
     ws = wb.create_sheet("Recetas")
     _write_header(ws, RECETAS_COLS)
     for rec in session.scalars(select(Recipe).order_by(Recipe.id)).all():
         ws.append([rec.id, rec.name, rec.yield_qty, rec.yield_unit, rec.notes])
     _autosize(ws)
 
-    # --- Lineas (with denormalized names for human readability + import) ---
+
+def _write_lineas_sheet(
+    wb: Workbook,
+    session: Session,
+    ingredients_by_id: dict[int, Ingredient],
+    recipes_by_id: dict[int, Recipe],
+) -> None:
+    """Write the Lineas sheet with denormalized names.
+
+    Extracted from to_file to reduce complexity.
+    """
     ws = wb.create_sheet("Lineas")
     _write_header(ws, LINEAS_COLS)
-    ingredients_by_id = {ing.id: ing for ing in session.scalars(select(Ingredient)).all()}
-    recipes_by_id = {rec.id: rec for rec in session.scalars(select(Recipe)).all()}
     for recipe in recipes_by_id.values():
         for line in recipe.lines:
-            if line.line_kind == "ingredient":
-                target_name = ingredients_by_id.get(line.line_ref_id)
-                target_name_str = target_name.name if target_name else None
-            elif line.line_kind == "sub_recipe":
-                target_name = recipes_by_id.get(line.line_ref_id)
-                target_name_str = target_name.name if target_name else None
-            else:
-                target_name_str = None
+            target_name_str = _resolve_line_target_name(line, ingredients_by_id, recipes_by_id)
             ws.append(
                 [
                     line.id,
@@ -247,7 +307,35 @@ def to_file(
             )
     _autosize(ws)
 
-    # --- Productos ---
+
+def _resolve_line_target_name(
+    line: RecipeLine,
+    ingredients_by_id: dict[int, Ingredient],
+    recipes_by_id: dict[int, Recipe],
+) -> str | None:
+    """Resolve the target name for a recipe line (ingredient or sub-recipe).
+
+    Extracted from to_file to reduce complexity.
+    """
+    if line.line_kind == "ingredient":
+        target = ingredients_by_id.get(line.line_ref_id)
+    elif line.line_kind == "sub_recipe":
+        target = recipes_by_id.get(line.line_ref_id)
+    else:
+        return None
+    return target.name if target else None
+
+
+def _write_productos_sheet(
+    wb: Workbook,
+    session: Session,
+    recipes_by_id: dict[int, Recipe],
+    products_by_id: dict[int, Product],
+) -> None:
+    """Write the Productos sheet.
+
+    Extracted from to_file to reduce complexity.
+    """
     ws = wb.create_sheet("Productos")
     _write_header(ws, PRODUCTOS_COLS)
     for prod in session.scalars(select(Product).order_by(Product.id)).all():
@@ -265,7 +353,12 @@ def to_file(
         )
     _autosize(ws)
 
-    # --- Clientes ---
+
+def _write_clientes_sheet(wb: Workbook, session: Session) -> None:
+    """Write the Clientes sheet.
+
+    Extracted from to_file to reduce complexity.
+    """
     ws = wb.create_sheet("Clientes")
     _write_header(ws, CLIENTES_COLS)
     for cust in session.scalars(select(Customer).order_by(Customer.id)).all():
@@ -281,10 +374,20 @@ def to_file(
         )
     _autosize(ws)
 
-    # --- Ventas ---
+
+def _write_ventas_sheet(
+    wb: Workbook,
+    session: Session,
+    sale_start: datetime | None,
+    sale_end: datetime | None,
+    products_by_id: dict[int, Product],
+) -> None:
+    """Write the Ventas sheet, optionally filtered by date range.
+
+    Extracted from to_file to reduce complexity.
+    """
     ws = wb.create_sheet("Ventas")
     _write_header(ws, VENTAS_COLS)
-    products_by_id = {prod.id: prod for prod in session.scalars(select(Product)).all()}
     sales_q = select(Sale).order_by(Sale.id)
     if sale_start is not None and sale_end is not None:
         sales_q = sales_q.where(Sale.sold_at >= sale_start, Sale.sold_at <= sale_end)
@@ -304,12 +407,14 @@ def to_file(
         )
     _autosize(ws)
 
-    # T-2026-10-04: StockMoves sheet was dropped from the export after
-    # migration 092 (BACKLOG #1) because the SaleStockMove table no
-    # longer exists. But the test suite (test_import_roundtrip) and
-    # external operators still expect a 7-sheet workbook. Re-add the
-    # sheet as a derived view of StockMovement with movement_type='sale'
-    # so a roundtrip (export → import) keeps the expected shape.
+
+def _write_stockmoves_sheet(wb: Workbook, session: Session) -> None:
+    """Write the StockMoves sheet (derived from StockMovement).
+
+    T-2026-10-04: Re-added after migration 092 dropped SaleStockMove.
+    Now uses StockMovement with movement_type='sale' for roundtrip compat.
+    Extracted from to_file to reduce complexity.
+    """
     from app.rms.models import StockMovement
 
     ws = wb.create_sheet("StockMoves")
@@ -330,9 +435,6 @@ def to_file(
             ]
         )
     _autosize(ws)
-
-    wb.save(str(path))
-    return path.resolve()
 
 
 def to_bytes(session: Session) -> bytes:
