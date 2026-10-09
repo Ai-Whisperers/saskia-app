@@ -17,6 +17,15 @@
 # false-positive rate stabilizes (target: 0 changes needed in 2
 # consecutive weeks).
 #
+# New tools added 2026-10-08 (see docs/operations/2026-10-09-tooling-and-critical-fixes.md):
+#   - complexipy: cognitive complexity (fails if > 15)
+#   - pyright: type checking (fails on errors)
+#   - deptry: dependency analysis (informational)
+#   - interrogate: docstring coverage (informational, 80% threshold)
+#
+# All new tools are now part of the lightweight gate to prevent
+# complexity drift and type errors from reaching main.
+#
 # Trigger strategy:
 #   - on PR (required check for main, see Branch Protection Rules)
 #   - on push to main (advisory confirmation)
@@ -68,3 +77,9 @@ jobs:
         run: uv run pytest --no-cov -x -q tests/test_check_imports_rules.py
         env:
           DATABASE_URL: "sqlite:///:memory:"
+
+      - name: Cognitive complexity check
+        run: make cognitive
+
+      - name: Type checking (pyright)
+        run: make pyright
