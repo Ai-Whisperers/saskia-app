@@ -1,3 +1,15 @@
+## 2026-10-09 — Tier 3 (PRAGMA user_version) decided-rejected, deferred-work-plan updated
+
+After branch analysis found `docs/operations/2026-10-09-schema-version-source.md`
+(commit `5e56980c` 2026-10-09 01:15 by saskia-rms-bot) explicitly
+**decided and rejected** Tier 3 in favor of `app_meta` (4 reasons:
+Postgres parity, operational observability, audit trail, backup
+determinism), updated `docs/analysis/2026-10-08/deferred-work-plan.md`
+to reflect this. No code change. Implementation re-opens only if
+Sazon becomes SQLite-only.
+
+---
+
 ## 2026-10-09 — Tier 4: `ruff format` 18 pre-existing drift files
 
 Per `docs/analysis/2026-10-08/deferred-work-plan.md` Tier 4.

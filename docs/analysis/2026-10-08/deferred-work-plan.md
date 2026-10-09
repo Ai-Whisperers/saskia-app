@@ -118,28 +118,36 @@ ordering is a multi-day debugging session.
 
 ---
 
-## Tier 3 — PRAGMA user_version as schema source of truth (~2 days)
+## Tier 3 — PRAGMA user_version as schema source of truth
 
-**Files:** `app/rms/migrations/` (all 114+ migration files),
-`app/rms/config.py:87` (current SCHEMA_VERSION constant)
-**Effort:** 1-2 days
-**Why now:** AGENTS.md rule 18 P1. Currently, the schema version is
-duplicated in 2 places: `app/rms/config.py:SCHEMA_VERSION` (Python
-constant) and the migration file naming
-(`migrations/0XX_*.py`). They drift occasionally.
+**Decision: NOT IMPLEMENTED (rejected on 2026-10-09).**
 
-**Plan:**
-1. Add a migration that runs `PRAGMA user_version = N` on upgrade
-2. Update `app/rms/db.py` to read `PRAGMA user_version` at session
-   start; fall back to the Python constant for fresh installs
-3. Add a CI gate: if `PRAGMA user_version` ≠ the constant in a
-   non-fresh DB, fail
-4. Document the new source of truth in `app/rms/AGENTS.md`
+Sazon dev decided to keep `app_meta.value='schema_version'` as the
+canonical schema version and NOT adopt `PRAGMA user_version`. The
+rationale is in `docs/operations/2026-10-09-schema-version-source.md`
+(commit `5e56980c`, 2026-10-09 01:15 by saskia-rms-bot). Four reasons:
 
-**Risk:** medium. Affects every DB session. Needs full upgrade +
-downgrade testing.
+1. **Postgres parity** — Sazon supports BOTH SQLite (VPS prod) AND
+   Postgres (Render preview). `app_meta` works on both; `PRAGMA
+   user_version` is SQLite-only. Two code paths to keep in sync.
+2. **Operational observability** — `app_meta` is a queryable table
+   that operators can read with normal SQL tools. `PRAGMA
+   user_version` is out-of-band.
+3. **Audit trail** — `app_meta` has `updated_at` timestamp; `PRAGMA
+   user_version` does not.
+4. **Backup determinism** — backup manifest reads `app_meta` for
+   the schema_version field. `PRAGMA user_version` is preserved by
+   SQLite backups but requires a separate query to read.
 
-**Tests:** all migration tests (likely 50+).
+**Re-open this tier if:** Sazon becomes SQLite-only (no Postgres
+support). Then `PRAGMA user_version` becomes more attractive.
+
+**Previous sketch (kept for context):**
+- Effort: 1-2 days. AGENTS.md rule 18 P1. Risk: medium.
+- Plan: 1) migration that runs `PRAGMA user_version = N` on upgrade;
+  2) read `PRAGMA user_version` at session start, fall back to
+  Python constant; 3) CI gate; 4) AGENTS.md update.
+- Tests: all migration tests (likely 50+).
 
 ---
 
