@@ -1,3 +1,22 @@
+## 2026-10-09 — Seed: sync herebus canonical (packaging + stock fixes)
+
+**Scope**: La Vaquita Holandesa seed data drifted from the canonical
+workbook export (`data/herebus_seed_canonical.json`).
+
+**What changed** (`app/rms/seed/sazon.py`):
+- Added the 7 packaging materials from sheet "Packaging" (MAT-01..07)
+  as ingredients: category `packaging`, supplier Embalajes Express,
+  per-unit prices derived from pack prices (e.g. bolsita 15x22:
+  24,918 Gs / 100 und = 249.18/und). Ingredient count 94 -> 101.
+- Fixed Azucar stock: 0.002 kg -> 2 kg (sheet says 2kg).
+- Fixed absurd min_stock: Harina de centeno 150 kg -> 1 kg,
+  Harina de trigo 500 kg -> 5 kg (canonical min_reorder 5000 g
+  was misparsed as 500 kg).
+
+**Verification**: full canonical-vs-seed recipe-line diff = 0 mismatches
+(unit-aware g/kg, ml/l, duplicate-aware REC-006 renumbering);
+`tests/test_sazon_seed.py` 25/25 green.
+
 ## 2026-10-09 — Untrack .venv from git
 
 **Scope**: housekeeping that broke the CHANGELOG gate's diff view. A
