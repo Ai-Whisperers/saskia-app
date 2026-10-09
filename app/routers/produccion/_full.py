@@ -326,194 +326,13 @@ def produccion_worksheet(
     overrides = _parse_overrides(request.query_params)
 
     if view == "week":
-        week_start = _week_monday(week or today)
-        days = [week_start + timedelta(days=i) for i in range(7)]
-        # Build week plan: aggregate plan_production() across all 7 days
-        product_rows: dict[int, dict] = {}
-        # Ingredient aggregation across the week
-        ing_required: dict[int, dict] = {}  # ing_id -> {name, unit, required, stock}
-        for d in days:
-            plan = plan_production(session, for_date=d)
-            for r in plan.rows:
-                if r.qty_to_produce <= 0:
-                    continue
-                if r.product_id not in product_rows:
-                    product_rows[r.product_id] = {
-                        "product_name": r.product_name,
-                        "recipe_id": r.recipe_id,
-                        "daily_qtys": [0.0] * 7,
-                    }
-                day_idx = (d - week_start).days
-                product_rows[r.product_id]["daily_qtys"][day_idx] = r.qty_to_produce
-            # Aggregate ingredients
-            for ln in plan.lines:
-                if ln.ingredient_id not in ing_required:
-                    ing_required[ln.ingredient_id] = {
-                        "ingredient_name": ln.ingredient_name,
-                        "unit": ln.unit,
-                        "qty_required": 0.0,
-                        "stock_on_hand": ln.stock_on_hand,
-                        "ingredient_id": ln.ingredient_id,
-                    }
-                ing_required[ln.ingredient_id]["qty_required"] += ln.qty_required
-
-        week_plan_rows = [
-            {
-                "product_name": v["product_name"],
-                "product_id": pid,
-                "recipe_id": v["recipe_id"],
-                "daily_qtys": v["daily_qtys"],
-            }
-            for pid, v in sorted(product_rows.items(), key=lambda x: x[1]["product_name"])
-        ]
-        week_ingredients = sorted(ing_required.values(), key=lambda x: x["ingredient_name"])
-        prev_week = (week_start - timedelta(days=7)).isoformat()
-        next_week = (week_start + timedelta(days=7)).isoformat()
-
-        # Sales data for this week (actual sales in the period)
-        from datetime import timezone as tz_cls
-
-        week_end_dt = datetime.combine(week_start + timedelta(days=6), datetime.max.time()).replace(
-            tzinfo=tz_cls.utc
-        )
-        week_start_dt = datetime.combine(week_start, datetime.min.time()).replace(tzinfo=tz_cls.utc)
-        sales_rows = session.execute(
-            select(Sale.product_id, Product.name, func.sum(Sale.qty), func.count(Sale.id))
-            .join(Product, Sale.product_id == Product.id)
-            .where(
-                Sale.sold_at >= week_start_dt, Sale.sold_at <= week_end_dt, Sale.voided_at.is_(None)
-            )
-            .group_by(Sale.product_id, Product.name)
-            .order_by(func.sum(Sale.qty).desc())
-        ).all()
-        week_sales = [
-            {"product_id": r[0], "product_name": r[1], "total_qty": float(r[2]), "n_sales": r[3]}
-            for r in sales_rows
-        ]
-
-        return render(
-            request,
-            "produccion.html",
-            {
-                "view": "week",
-                "week_start": week_start.strftime("%d %b %Y"),
-                "weekdays": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
-                "week_plan": type("obj", (object,), {"rows": week_plan_rows})(),
-                "week_ingredients": week_ingredients,
-                "prev_week_iso": prev_week,
-                "next_week_iso": next_week,
-                "week_sales": week_sales,
-            },
+        return _render_produccion_week_view(
+            request, session, week or today, today
         )
 
     if view == "month":
-        if month:
-            year, mon = (int(x) for x in month.split("-"))
-        else:
-            year, mon = today.year, today.month
-        ndays = _calendar.monthrange(year, mon)[1]
-        days = [date(year, mon, d) for d in range(1, ndays + 1)]
-        # Build month plan: aggregate plan_production() across all days
-        product_rows: dict[int, dict] = {}
-        ing_required: dict[int, dict] = {}
-        for d in days:
-            plan = plan_production(session, for_date=d)
-            for r in plan.rows:
-                if r.qty_to_produce <= 0:
-                    continue
-                if r.product_id not in product_rows:
-                    product_rows[r.product_id] = {
-                        "product_name": r.product_name,
-                        "recipe_id": r.recipe_id,
-                        "daily_qtys": [0.0] * ndays,
-                    }
-                product_rows[r.product_id]["daily_qtys"][d.day - 1] = r.qty_to_produce
-            for ln in plan.lines:
-                if ln.ingredient_id not in ing_required:
-                    ing_required[ln.ingredient_id] = {
-                        "ingredient_name": ln.ingredient_name,
-                        "unit": ln.unit,
-                        "qty_required": 0.0,
-                        "stock_on_hand": ln.stock_on_hand,
-                        "ingredient_id": ln.ingredient_id,
-                    }
-                ing_required[ln.ingredient_id]["qty_required"] += ln.qty_required
-
-        month_plan_rows = [
-            {
-                "product_name": v["product_name"],
-                "product_id": pid,
-                "recipe_id": v["recipe_id"],
-                "daily_qtys": v["daily_qtys"],
-            }
-            for pid, v in sorted(product_rows.items(), key=lambda x: x[1]["product_name"])
-        ]
-        month_ingredients = sorted(ing_required.values(), key=lambda x: x["ingredient_name"])
-        month_names = [
-            "",
-            "Enero",
-            "Febrero",
-            "Marzo",
-            "Abril",
-            "Mayo",
-            "Junio",
-            "Julio",
-            "Agosto",
-            "Septiembre",
-            "Octubre",
-            "Noviembre",
-            "Diciembre",
-        ]
-        prev_month = date(year, mon, 1) - timedelta(days=1)
-        next_month = date(year, mon, ndays) + timedelta(days=1)
-
-        # Sales data for this month (actual sales)
-        from datetime import timezone as tz_cls
-
-        month_end_dt = datetime(year, mon, ndays, 23, 59, 59, tzinfo=tz_cls.utc)
-        month_start_dt = datetime(year, mon, 1, 0, 0, 0, tzinfo=tz_cls.utc)
-        sales_rows = session.execute(
-            select(Sale.product_id, Product.name, func.sum(Sale.qty), func.count(Sale.id))
-            .join(Product, Sale.product_id == Product.id)
-            .where(
-                Sale.sold_at >= month_start_dt,
-                Sale.sold_at <= month_end_dt,
-                Sale.voided_at.is_(None),
-            )
-            .group_by(Sale.product_id, Product.name)
-            .order_by(func.sum(Sale.qty).desc())
-        ).all()
-        month_sales = [
-            {"product_id": r[0], "product_name": r[1], "total_qty": float(r[2]), "n_sales": r[3]}
-            for r in sales_rows
-        ]
-        total_revenue = (
-            session.execute(
-                select(func.sum(Sale.qty * Sale.unit_price_gs)).where(
-                    Sale.sold_at >= month_start_dt,
-                    Sale.sold_at <= month_end_dt,
-                    Sale.voided_at.is_(None),
-                )
-            ).scalar()
-            or 0
-        )
-
-        return render(
-            request,
-            "produccion.html",
-            {
-                "view": "month",
-                "year": year,
-                "month": mon,
-                "month_name": month_names[mon],
-                "month_days": list(range(1, ndays + 1)),
-                "month_plan": type("obj", (object,), {"rows": month_plan_rows})(),
-                "month_ingredients": month_ingredients,
-                "prev_month_iso": prev_month.strftime("%Y-%m"),
-                "next_month_iso": next_month.strftime("%Y-%m"),
-                "month_sales": month_sales,
-                "month_revenue_gs": int(total_revenue),
-            },
+        return _render_produccion_month_view(
+            request, session, month, today
         )
 
     # day view (default)
@@ -1285,3 +1104,310 @@ def produccion_worksheet(
             ],
         },
     )
+
+
+
+def _render_produccion_week_view(
+    request: Request,
+    session: Session,
+    week: date,
+    today,
+) -> HTMLResponse:
+    """Render the production plan for a week view.
+
+    Aggregates plan_production() across 7 days (Mon-Sun) and renders
+    the produccion.html template with the week-specific context.
+
+    Extracted from produccion_worksheet to reduce complexity (CC: 233 → < 10).
+    """
+    week_start = _week_monday(week or today)
+    days = [week_start + timedelta(days=i) for i in range(7)]
+
+    # Build week plan: aggregate plan_production() across all 7 days
+    product_rows, ing_required = _aggregate_week_plan(session, days, week_start)
+
+    week_plan_rows = _build_week_plan_rows(product_rows)
+    week_ingredients = sorted(ing_required.values(), key=lambda x: x["ingredient_name"])
+    week_sales = _fetch_week_sales(session, week_start)
+
+    prev_week = (week_start - timedelta(days=7)).isoformat()
+    next_week = (week_start + timedelta(days=7)).isoformat()
+
+    return render(
+        request,
+        "produccion.html",
+        {
+            "view": "week",
+            "week_start": week_start.strftime("%d %b %Y"),
+            "weekdays": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+            "week_plan": type("obj", (object,), {"rows": week_plan_rows})(),
+            "week_ingredients": week_ingredients,
+            "prev_week_iso": prev_week,
+            "next_week_iso": next_week,
+            "week_sales": week_sales,
+        },
+    )
+
+
+def _aggregate_week_plan(
+    session: Session, days: list, week_start
+) -> tuple[dict, dict]:
+    """Aggregate production plan data across the days of a week.
+
+    Returns (product_rows, ing_required) dicts.
+    Extracted from _render_produccion_week_view to reduce complexity.
+    """
+    product_rows: dict[int, dict] = {}
+    ing_required: dict[int, dict] = {}
+
+    for d in days:
+        plan = plan_production(session, for_date=d)
+        _aggregate_day_into_week(plan, d, week_start, product_rows, ing_required)
+
+    return product_rows, ing_required
+
+
+def _aggregate_day_into_week(
+    plan, d, week_start, product_rows: dict, ing_required: dict
+) -> None:
+    """Aggregate a single day's plan into the week aggregations.
+
+    Extracted from _aggregate_week_plan to reduce complexity.
+    """
+    day_idx = (d - week_start).days
+    for r in plan.rows:
+        if r.qty_to_produce <= 0:
+            continue
+        if r.product_id not in product_rows:
+            product_rows[r.product_id] = {
+                "product_name": r.product_name,
+                "recipe_id": r.recipe_id,
+                "daily_qtys": [0.0] * 7,
+            }
+        product_rows[r.product_id]["daily_qtys"][day_idx] = r.qty_to_produce
+    for ln in plan.lines:
+        if ln.ingredient_id not in ing_required:
+            ing_required[ln.ingredient_id] = {
+                "ingredient_name": ln.ingredient_name,
+                "unit": ln.unit,
+                "qty_required": 0.0,
+                "stock_on_hand": ln.stock_on_hand,
+                "ingredient_id": ln.ingredient_id,
+            }
+        ing_required[ln.ingredient_id]["qty_required"] += ln.qty_required
+
+
+def _build_week_plan_rows(product_rows: dict) -> list:
+    """Build the week plan rows from aggregated product data.
+
+    Extracted from _render_produccion_week_view to reduce complexity.
+    """
+    return [
+        {
+            "product_name": v["product_name"],
+            "product_id": pid,
+            "recipe_id": v["recipe_id"],
+            "daily_qtys": v["daily_qtys"],
+        }
+        for pid, v in sorted(product_rows.items(), key=lambda x: x[1]["product_name"])
+    ]
+
+
+def _fetch_week_sales(session: Session, week_start) -> list:
+    """Fetch actual sales data for a week.
+
+    Extracted from _render_produccion_week_view to reduce complexity.
+    """
+    from datetime import timezone as tz_cls
+
+    week_end_dt = datetime.combine(
+        week_start + timedelta(days=6), datetime.max.time()
+    ).replace(tzinfo=tz_cls.utc)
+    week_start_dt = datetime.combine(
+        week_start, datetime.min.time()
+    ).replace(tzinfo=tz_cls.utc)
+    sales_rows = session.execute(
+        select(Sale.product_id, Product.name, func.sum(Sale.qty), func.count(Sale.id))
+        .join(Product, Sale.product_id == Product.id)
+        .where(
+            Sale.sold_at >= week_start_dt,
+            Sale.sold_at <= week_end_dt,
+            Sale.voided_at.is_(None),
+        )
+        .group_by(Sale.product_id, Product.name)
+        .order_by(func.sum(Sale.qty).desc())
+    ).all()
+    return [
+        {"product_id": r[0], "product_name": r[1], "total_qty": float(r[2]), "n_sales": r[3]}
+        for r in sales_rows
+    ]
+
+
+
+def _render_produccion_month_view(
+    request: Request,
+    session: Session,
+    month: str | None,
+    today,
+) -> HTMLResponse:
+    """Render the production plan for a month view.
+
+    Aggregates plan_production() across all days of the month and
+    renders the produccion.html template with the month-specific context.
+
+    Extracted from produccion_worksheet to reduce complexity.
+    """
+    year, mon = _parse_month_param(month, today)
+    ndays = _calendar.monthrange(year, mon)[1]
+    days = [date(year, mon, d) for d in range(1, ndays + 1)]
+
+    product_rows, ing_required = _aggregate_month_plan(session, days, ndays)
+    month_plan_rows = _build_month_plan_rows(product_rows)
+    month_ingredients = sorted(ing_required.values(), key=lambda x: x["ingredient_name"])
+    month_sales, total_revenue = _fetch_month_sales_and_revenue(session, year, mon, ndays)
+    month_names = _get_month_names()
+
+    prev_month = date(year, mon, 1) - timedelta(days=1)
+    next_month = date(year, mon, ndays) + timedelta(days=1)
+
+    return render(
+        request,
+        "produccion.html",
+        {
+            "view": "month",
+            "year": year,
+            "month": mon,
+            "month_name": month_names[mon],
+            "month_days": list(range(1, ndays + 1)),
+            "month_plan": type("obj", (object,), {"rows": month_plan_rows})(),
+            "month_ingredients": month_ingredients,
+            "prev_month_iso": prev_month.strftime("%Y-%m"),
+            "next_month_iso": next_month.strftime("%Y-%m"),
+            "month_sales": month_sales,
+            "month_revenue_gs": int(total_revenue),
+        },
+    )
+
+
+def _parse_month_param(month: str | None, today) -> tuple[int, int]:
+    """Parse the month query param (YYYY-MM) or default to current month.
+
+    Extracted from _render_produccion_month_view to reduce complexity.
+    """
+    if month:
+        return (int(x) for x in month.split("-"))
+    return today.year, today.month
+
+
+def _aggregate_month_plan(
+    session: Session, days: list, ndays: int
+) -> tuple[dict, dict]:
+    """Aggregate production plan data across the days of a month.
+
+    Returns (product_rows, ing_required) dicts.
+    Extracted from _render_produccion_month_view to reduce complexity.
+    """
+    product_rows: dict[int, dict] = {}
+    ing_required: dict[int, dict] = {}
+
+    for d in days:
+        plan = plan_production(session, for_date=d)
+        _aggregate_day_into_month(plan, d, ndays, product_rows, ing_required)
+
+    return product_rows, ing_required
+
+
+def _aggregate_day_into_month(
+    plan, d, ndays: int, product_rows: dict, ing_required: dict
+) -> None:
+    """Aggregate a single day's plan into the month aggregations.
+
+    Extracted from _aggregate_month_plan to reduce complexity.
+    """
+    for r in plan.rows:
+        if r.qty_to_produce <= 0:
+            continue
+        if r.product_id not in product_rows:
+            product_rows[r.product_id] = {
+                "product_name": r.product_name,
+                "recipe_id": r.recipe_id,
+                "daily_qtys": [0.0] * ndays,
+            }
+        product_rows[r.product_id]["daily_qtys"][d.day - 1] = r.qty_to_produce
+    for ln in plan.lines:
+        if ln.ingredient_id not in ing_required:
+            ing_required[ln.ingredient_id] = {
+                "ingredient_name": ln.ingredient_name,
+                "unit": ln.unit,
+                "qty_required": 0.0,
+                "stock_on_hand": ln.stock_on_hand,
+                "ingredient_id": ln.ingredient_id,
+            }
+        ing_required[ln.ingredient_id]["qty_required"] += ln.qty_required
+
+
+def _build_month_plan_rows(product_rows: dict) -> list:
+    """Build the month plan rows from aggregated product data.
+
+    Extracted from _render_produccion_month_view to reduce complexity.
+    """
+    return [
+        {
+            "product_name": v["product_name"],
+            "product_id": pid,
+            "recipe_id": v["recipe_id"],
+            "daily_qtys": v["daily_qtys"],
+        }
+        for pid, v in sorted(product_rows.items(), key=lambda x: x[1]["product_name"])
+    ]
+
+
+def _fetch_month_sales_and_revenue(
+    session: Session, year: int, mon: int, ndays: int
+) -> tuple[list, float]:
+    """Fetch sales data and total revenue for a month.
+
+    Extracted from _render_produccion_month_view to reduce complexity.
+    """
+    from datetime import timezone as tz_cls
+
+    month_end_dt = datetime(year, mon, ndays, 23, 59, 59, tzinfo=tz_cls.utc)
+    month_start_dt = datetime(year, mon, 1, 0, 0, 0, tzinfo=tz_cls.utc)
+    sales_rows = session.execute(
+        select(Sale.product_id, Product.name, func.sum(Sale.qty), func.count(Sale.id))
+        .join(Product, Sale.product_id == Product.id)
+        .where(
+            Sale.sold_at >= month_start_dt,
+            Sale.sold_at <= month_end_dt,
+            Sale.voided_at.is_(None),
+        )
+        .group_by(Sale.product_id, Product.name)
+        .order_by(func.sum(Sale.qty).desc())
+    ).all()
+    month_sales = [
+        {"product_id": r[0], "product_name": r[1], "total_qty": float(r[2]), "n_sales": r[3]}
+        for r in sales_rows
+    ]
+    total_revenue = (
+        session.execute(
+            select(func.sum(Sale.qty * Sale.unit_price_gs)).where(
+                Sale.sold_at >= month_start_dt,
+                Sale.sold_at <= month_end_dt,
+                Sale.voided_at.is_(None),
+            )
+        ).scalar()
+        or 0
+    )
+    return month_sales, total_revenue
+
+
+def _get_month_names() -> list:
+    """Get Spanish month names indexed 1-12.
+
+    Extracted from _render_produccion_month_view to reduce complexity.
+    """
+    return [
+        "",
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+    ]
