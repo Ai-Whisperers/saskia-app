@@ -1,3 +1,14 @@
+## 2026-10-09 — Untrack .venv from git
+
+**Scope**: housekeeping that broke the CHANGELOG gate's diff view. A
+`.venv` path was committed in a station-shell merge (matches the
+2026-10-07 note about `.venv` briefly tracked in 23ac7a86) — it made
+`git diff HEAD~1` list `.venv` and confused the discipline gate.
+
+**What changed**: `git rm -r --cached .venv` (local files untouched).
+Also ruff-formatted `deploy/render_stack.py` +
+`scripts/refresh_action_pins.py` (2 files the style pass missed).
+
 ## 2026-10-09 — Monthly action SHA-pin refresh automation
 
 **Scope**: WHAT_NEXT #4 — PR #96 pinned 37 actions but nothing re-checked
