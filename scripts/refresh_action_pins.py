@@ -85,7 +85,11 @@ def scan(fix: bool) -> tuple[int, list[str]]:
                 if fix:
                     # Splice ONLY the matched `uses:` span; keep the line's
                     # leading indentation and any trailing content intact.
-                    line = line[: m.start()] + f"{m['prefix']}{action}@{current}  # {tag}" + line[m.end() :]
+                    line = (
+                        line[: m.start()]
+                        + f"{m['prefix']}{action}@{current}  # {tag}"
+                        + line[m.end() :]
+                    )
                     dirty = True
             out_lines.append(line)
         if dirty:

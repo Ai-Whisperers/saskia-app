@@ -1,3 +1,17 @@
+## 2026-10-09 — Fix refresh_action_pins --fix line-splice bug
+
+**Scope**: The first run of `refresh_action_pins.py --fix` (PR #106)
+replaced entire `uses:` lines, losing leading indentation — 13 workflow
+files became invalid YAML and CI ran zero jobs. Caught before merge.
+
+**What changed**:
+- `scripts/refresh_action_pins.py`: `--fix` now splices only the matched
+  `uses:` span (indent + trailing content preserved)
+- Workflows restored from main and re-pinned with the fixed script
+- ruff format pass on the script
+
+**Test status**: YAML validates on all 13 files; scanner re-run clean.
+
 ## 2026-10-09 — Apply action SHA-pin drift fix (first scanner run)
 
 **Scope**: scripts/refresh_action_pins.py detected 15 drifted pins on
