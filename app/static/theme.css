@@ -355,8 +355,9 @@ h3 {
 
 .station-card {
   border-radius: 12px;
-  background: var(--color-surface);
-  border-color: var(--color-border);
+  background: #c4a574;
+  border-color: #6f4b2a;
+  color: #2a160c;
   box-shadow: none;
 }
 
