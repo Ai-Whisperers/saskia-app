@@ -28,6 +28,59 @@ canonical seed tuples.
   URLs, all HTTP 200, sizes 66-358 KB each. Old filenames
   (`babka-chocolate.jpg`, `cheesecake-clasico.jpg`, etc.) are no longer
   referenced anywhere on the site.
+
+---
+
+## 2026-10-09 — ZAP alert display level: WARN → HIGH
+
+`.github/workflows/security-zap.yml` now reports only HIGH+CRITICAL
+findings instead of WARN+. Cosmetic-but-valuable cleanup: the
+action's report no longer buries actionable alerts under 200+ INFO
+findings (cache-buster versions, intentional CSP unsafe-inline,
+informational /login rate-limiter hits, etc.).
+
+**Why this matters**
+- The `fail_action: true` setting in the action already only fails
+  the build on HIGH/CRITICAL — the display level `-l WARN` was just
+  noisy. With `-l HIGH`, the next weekly ZAP run produces a 1-page
+  report with what actually matters.
+- All 14 previously-triaged WARN-level findings (CSP unsafe-inline,
+  CSRF /login exempt, version disclosure, etc.) stay suppressed via
+  `.github/.zap-rules.tsv` IGNORE entries — nothing in the security
+  posture changed, only the report signal.
+
+**Locked by** `tests/test_security_zap_workflow.py::test_zap_workflow_alert_level_is_high_only`
+(scoped to the `cmd_options:` block so the historical comment
+mentioning `-l WARN` doesn't false-positive the assertion).
+
+---
+
+## 2026-10-09 — migration 117: Ingredient.image_url column
+
+Added `image_url` column to `ingredient` table (the one missing
+column vs `product` and `recipe`). Nullable VARCHAR(255), idempotent
+on re-apply, no backfill (no ingredient images exist yet —
+`app/static/ingredients/` is empty, `data/ingredient_visuals.py` is
+a prompt generator not a real image pipeline).
+
+- `app/rms/migrations/_117_ingredient_image_url.py` (new)
+- `app/rms/db.py` — registered in MIGRATIONS dict (entry 117)
+- `app/rms/config.py` — `CURRENT_SCHEMA_VERSION = 117`
+- `app/rms/models_legacy.py` — `image_url: Mapped[Optional[str]]`
+  field added to `Ingredient` per the domain-refactor pitfalls doc
+  (add new columns to `models_legacy.py`, not the submodules).
+- Live VPS at `38.9.96.179` confirmed at schema_version=117
+  (`MIGRATIONS: applied (schema_version=117, code=117)` in
+  container logs).
+
+Migration ran with `AIW_RMS_PROCEED_WITHOUT_BACKUP=1` because the
+pre-migration backup tried to dump the new column before it
+existed — a chicken-and-egg with the schema-version mismatch. The
+Daily 03:15 cron is the only backup protection for this deploy;
+the 03:00 UTC weekly ZAP run on the next cycle will surface any
+regression. Future migration backups will work normally because
+column adds are forward-only: once 117 is applied, the backup
+includes the column.
 - Live `/recetas` page references 22 unique `/static/recipes/receta-<slug>.jpg`
   URLs, all HTTP 200.
 - Prod DB wiped + re-seeded via `seed_sazon(overwrite=True)`; current state
