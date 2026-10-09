@@ -43,6 +43,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           persist-credentials: false
+          # Full history: the CHANGELOG discipline step diffs HEAD~1 (and
+          # falls back to origin/main...HEAD). Shallow clones make those
+          # refs nonexistent and git exits 128.
+          fetch-depth: 0
 
       - name: Set up uv
         uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
@@ -81,11 +85,15 @@ jobs:
             -q --no-cov --no-header -p no:randomly --tb=line -n 2 --dist=loadscope
 
       - name: CHANGELOG discipline
-        # Same as ci.yml: any push to a feature branch that touches
-        # app/ must also touch app/CHANGELOG.md. Cheap to check, prevents
-        # the [Unreleased] section from drifting.
+        # Any push to a feature branch that touches code must also touch
+        # CHANGELOG.md (repo root). Cheap to check, prevents the
+        # [Unreleased] section from drifting.
+        # 2026-10-09 fix: was checking app/CHANGELOG.md, which does not
+        # exist in this repo — the check could never pass. Also made the
+        # diff base robust: HEAD~1 first, else origin/main...HEAD (both
+        # exist now that fetch-depth is 0).
         run: |
-          changed=$(git diff --name-only HEAD~1)
+          changed=$(git diff --name-only HEAD~1 2>/dev/null || git diff --name-only origin/main...HEAD)
           hits=false
           for f in $changed; do
             case "$f" in
@@ -93,10 +101,10 @@ jobs:
             esac
           done
           if [ "$hits" = "true" ]; then
-            if echo "$changed" | grep -q "^app/CHANGELOG.md$"; then
-              echo "OK: app/CHANGELOG.md updated"
+            if echo "$changed" | grep -qx "CHANGELOG.md"; then
+              echo "OK: CHANGELOG.md updated"
             else
-              echo "ERROR: code changed but app/CHANGELOG.md was not updated."
+              echo "ERROR: code changed but CHANGELOG.md was not updated."
               echo "Changed files:"
               echo "$changed" | sed 's/^/  /'
               exit 1

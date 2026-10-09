@@ -11,7 +11,7 @@
 # Why this exists:
 #   - The repo has 0 real git tags (only `backup/local-main-pre-deploy`).
 #   - The CHANGELOG is date-bucketed prose, not Keep-a-Changelog. The
-#     versioning section at the bottom of app/CHANGELOG.md says
+#     versioning section at the bottom of CHANGELOG.md says
 #     "We use CalVer: YYYY.MM.patch."
 #   - A release is: (a) stamp a new section at the top of CHANGELOG with
 #     today's date + version, (b) git tag the commit, (c) push the tag,
@@ -81,7 +81,7 @@ fi
 
 # Default release message: latest CHANGELOG section title
 if [ -z "$MESSAGE" ]; then
-  MESSAGE=$(awk '/^## / && !/Unreleased/ {sub(/^## /,""); print; exit}' app/CHANGELOG.md || echo "Release $VERSION")
+  MESSAGE=$(awk '/^## / && !/Unreleased/ {sub(/^## /,""); print; exit}' CHANGELOG.md || echo "Release $VERSION")
 fi
 DATE=$(date -u +%Y-%m-%d)
 
@@ -91,7 +91,7 @@ echo "    date:       $DATE"
 echo "    message:    $MESSAGE"
 echo "    skip-deploy: $SKIP_DEPLOY"
 
-# 1. Prepend a release section to app/CHANGELOG.md
+# 1. Prepend a release section to CHANGELOG.md
 NEW_SECTION="## [$VERSION] — $DATE — $MESSAGE
 
 Released as $TAG. Commit: \`$HEAD_SHORT\`.
@@ -110,11 +110,11 @@ run() {
 # blockquote, then the first ## section. We anchor on the first '## ' line
 # and insert above it.
 if [ "$DRY_RUN" = "1" ]; then
-  echo "DRY: would prepend section '## [$VERSION] — $DATE — $MESSAGE' to app/CHANGELOG.md"
+  echo "DRY: would prepend section '## [$VERSION] — $DATE — $MESSAGE' to CHANGELOG.md"
 else
   python3 -c "
 import pathlib
-p = pathlib.Path('app/CHANGELOG.md')
+p = pathlib.Path('CHANGELOG.md')
 text = p.read_text()
 new_section = '''## [$VERSION] — $DATE — $MESSAGE
 
@@ -139,11 +139,11 @@ fi
 
 # 2. Commit the CHANGELOG bump
 if [ "$DRY_RUN" = "1" ]; then
-  echo "DRY: would run: git add app/CHANGELOG.md && git commit -m 'docs(changelog): release $TAG'"
+  echo "DRY: would run: git add CHANGELOG.md && git commit -m 'docs(changelog): release $TAG'"
   echo "DRY: would run: git tag -a $TAG -m '$MESSAGE'"
   echo "DRY: would run: git push origin $HEAD_SHORT:refs/heads/main $TAG"
 else
-  git add app/CHANGELOG.md
+  git add CHANGELOG.md
   git commit -m "docs(changelog): release $TAG"
   git tag -a "$TAG" -m "$MESSAGE"
   # The deny pattern blocks literal 'git push origin main'; use the refspec
