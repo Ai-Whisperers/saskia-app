@@ -50,10 +50,10 @@ def test_healthz_nav_link_not_api(client):
 
 def test_home_is_chooser(client):
     """/ is the chooser (the navigation hub). It asks ¿Qué vas a hacer?
-    and shows the four station cards plus Dashboard."""
+    and shows the four station cards plus Menús and Dashboard."""
     resp = client.get("/")
     assert resp.status_code == 200
-    for label in ("Cocina", "Ventas", "Inventario", "Gerencia", "Dashboard"):
+    for label in ("Cocina", "Ventas", "Inventario", "Gerencia", "Menús", "Dashboard"):
         assert label in resp.text, f"{label} card missing from home chooser"
     assert "¿Qué vas a hacer?" in resp.text
 

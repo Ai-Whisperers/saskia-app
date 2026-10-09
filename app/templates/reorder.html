@@ -3,12 +3,11 @@
 {% import "_components/macros.html" as m %}
 {% block title %}Reponer stock{% endblock %}
 {% block content %}
-<h1>Reponer stock</h1>
+<h1>Reponer</h1>
+<p class="page-desc">Bajo el mínimo. Estimado: <strong>{{ m.gs_full(total_cost_gs) }}</strong>.</p>
 
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}
-<p class="hint">Ingredientes con stock por debajo del mínimo. Total estimado:
-  <strong>{{ m.gs_full(total_cost_gs) }}</strong>.</p>
 
 {# Live cost + supplier-change toast banner. The banner only renders when
    she changes a supplier on one row and the auto-apply is going to

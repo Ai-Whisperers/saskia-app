@@ -42,7 +42,7 @@
   </div>
 </nav>
 
-{{ ui.page_header("Ventas", desc="Registrá una venta al mostrador o consultá el historial del día", actions=("<a class='btn btn-ghost' href='/ventas/express'>⚡ Express</a>",)) }}
+{{ ui.page_header("Ventas", desc="Registrá una venta al mostrador o consultá el historial del día", actions="<a class='btn btn-ghost' href='/ventas/express'>Express</a>"|safe) }}
 
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}

@@ -1,3 +1,21 @@
+## 2026-10-09 — eggshell on every section
+
+Light and dark both use the eggshell surfaces, brown text, and warm
+borders. Orange stays on the primary actions.
+
+## 2026-10-09 — eggshell background and a 2×3 puesto
+
+The light background is a warm eggshell. The station chooser lays Cocina,
+Ventas, Inventario, Gerencia, Menús, and Dashboard in two rows of three
+equal cards.
+
+## 2026-10-09 — compact work screens
+
+Caja, menús, cotizador, Excel, carga inicial, cierre, fiado, usuarios,
+reponer, and the shopping list use the same sections, paired fields, and
+sticky actions as orders and products. Optional notes stay behind a
+disclosure. Saved fields are unchanged.
+
 ## 2026-10-08h — compact create and edit forms
 
 Order, product, ingredient, customer, supplier, subscription, recipe, and waste

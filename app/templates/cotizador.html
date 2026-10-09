@@ -2,10 +2,8 @@
 {% import "_components/atoms.html" as ui %}
 {% block title %}Cotizador{% endblock %}
 {% block content %}
-<h1>
-  <svg class="icon" aria-hidden="true"><use href="#icon-box"></use></svg>
-  Cotizador de pedidos grandes
-</h1>
+<h1>Cotizador</h1>
+<p class="page-desc">Cantidad por producto y un descuento. El resto se calcula.</p>
 
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}
@@ -13,29 +11,32 @@
 <div class="callout callout-warning">No cargaste ningún producto.</div>
 {% endif %}
 
-<form method="post" action="/cotizador">
+<form method="post" action="/cotizador" class="sheet-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <div class="table-sticky-wrap" style="max-height:min(70vh,520px)">
-  <table class="table">
-    <thead><tr><th>Producto</th><th>Precio carta</th><th>Cantidad</th></tr></thead>
-    <tbody>
-    {% for p in catalog %}
-      <tr>
-        <td>{{ p.name }}</td>
-        <td>Gs {{ "{:,}".format(p.price_gs) }}</td>
-        <td><input type="number" name="qty_{{ p.id }}" min="0" value="0" inputmode="numeric" class="qty-input" style="width:90px"></td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  <label class="field" style="max-width:220px">
-    <span>Descuento por volumen (%)</span>
-    <select name="descuento">
-      {% for d in descuentos %}<option value="{{ d }}" {% if quote is not none and descuento is defined and descuento == d %}selected{% endif %}>{{ d }}%</option>{% endfor %}
-    </select>
-  </label>
-  <div class="actions">
+  <section class="order-section">
+    <h2>Pedido</h2>
+    <div class="table-sticky-wrap" style="max-height:min(70vh,520px)">
+    <table class="table">
+      <thead><tr><th>Producto</th><th>Precio carta</th><th>Cantidad</th></tr></thead>
+      <tbody>
+      {% for p in catalog %}
+        <tr>
+          <td>{{ p.name }}</td>
+          <td>Gs {{ "{:,}".format(p.price_gs) }}</td>
+          <td><input type="number" name="qty_{{ p.id }}" min="0" value="0" inputmode="numeric" class="qty-input" style="width:90px" aria-label="Cantidad de {{ p.name }}"></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  <div class="sheet-footer">
+    <label class="field" style="max-width:220px;margin:0;">
+      <span>Descuento por volumen (%)</span>
+      <select name="descuento">
+        {% for d in descuentos %}<option value="{{ d }}" {% if quote is not none and descuento is defined and descuento == d %}selected{% endif %}>{{ d }}%</option>{% endfor %}
+      </select>
+    </label>
     <button type="submit" class="btn btn-primary">Cotizar</button>
   </div>
 </form>

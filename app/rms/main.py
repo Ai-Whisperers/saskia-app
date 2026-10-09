@@ -617,7 +617,10 @@ class StationGateMiddleware(BaseHTTPMiddleware):
         if result == "deny":
             return HTMLResponse(
                 "<!doctype html><meta charset='utf-8'><title>Otro puesto</title>"
-                "<p>Esa pantalla es de otro puesto.</p>",
+                "<body style='margin:0;min-height:100vh;display:grid;place-items:center;"
+                "background:#f4efe6;color:#3a2e24;font:16px Segoe UI,sans-serif'>"
+                "<p>Esa pantalla es de otro puesto. "
+                "<a href='/' style='color:#a85a22'>Elegí un puesto</a>.</p>",
                 status_code=403,
             )
         return RedirectResponse(result.split(":", 1)[1], status_code=303)
