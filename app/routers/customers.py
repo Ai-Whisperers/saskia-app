@@ -696,14 +696,14 @@ def clientes_duplicados(
 
 def _fetch_duplicate_pairs(session) -> list:
     """Fetch customer pairs that look like duplicates (phone/name match).
-    
+
     Self-join: c1.id < c2.id guarantees each pair appears once.
     Phone prefix match is the strongest signal in this codebase —
     phone is the de-facto unique identifier at the counter.
     Exact name match on >3 chars catches spelling-duplicate typos.
     Extracted from clientes_duplicados to reduce complexity.
     """
-    from sqlalchemy import and_, literal_column, or_
+    from sqlalchemy import literal_column, or_
 
     return session.execute(
         select(
@@ -730,7 +730,7 @@ def _fetch_duplicate_pairs(session) -> list:
 
 def _phone_prefix_match_clause():
     """Build the phone prefix match clause for duplicate detection.
-    
+
     Extracted from _fetch_duplicate_pairs to reduce complexity.
     """
     from sqlalchemy import and_, literal_column
@@ -747,7 +747,7 @@ def _phone_prefix_match_clause():
 
 def _name_exact_match_clause():
     """Build the exact name match clause for duplicate detection.
-    
+
     Extracted from _fetch_duplicate_pairs to reduce complexity.
     """
     from sqlalchemy import and_, literal_column
@@ -760,7 +760,7 @@ def _name_exact_match_clause():
 
 def _group_pairs_by_union_find(pairs) -> dict[int, set[int]]:
     """Group customer pairs into connected components via union-find.
-    
+
     Canonical-id heuristic: smallest id wins within a connected component.
     Extracted from clientes_duplicados to reduce complexity.
     """
@@ -776,7 +776,7 @@ def _group_pairs_by_union_find(pairs) -> dict[int, set[int]]:
 
 def _find_root(parent: dict, x: int) -> int:
     """Find root of x with path compression.
-    
+
     Extracted from _group_pairs_by_union_find to reduce complexity.
     """
     while parent.get(x, x) != x:
@@ -787,7 +787,7 @@ def _find_root(parent: dict, x: int) -> int:
 
 def _union_pair(parent: dict, a: int, b: int) -> None:
     """Union two elements in union-find (smaller id wins).
-    
+
     Extracted from _group_pairs_by_union_find to reduce complexity.
     """
     ra, rb = _find_root(parent, a), _find_root(parent, b)
@@ -800,7 +800,7 @@ def _union_pair(parent: dict, a: int, b: int) -> None:
 
 def _render_duplicates_page(request: Request, session, members: dict) -> HTMLResponse:
     """Render the duplicates page with all groups.
-    
+
     Extracted from clientes_duplicados to reduce complexity.
     """
     all_ids = {i for ids in members.values() for i in ids}
@@ -819,7 +819,7 @@ def _render_duplicates_page(request: Request, session, members: dict) -> HTMLRes
 
 def _load_customers_by_id(session, ids: set) -> dict:
     """Load Customer rows for the given IDs.
-    
+
     Extracted from _render_duplicates_page to reduce complexity.
     """
     if not ids:
@@ -832,7 +832,7 @@ def _load_customers_by_id(session, ids: set) -> dict:
 
 def _build_duplicate_groups(members: dict, by_id: dict) -> list[dict]:
     """Build the duplicate groups with canonical + duplicates.
-    
+
     Canonical = smallest id (oldest row). The operator can change
     the choice on the merge form anyway.
     Extracted from _render_duplicates_page to reduce complexity.

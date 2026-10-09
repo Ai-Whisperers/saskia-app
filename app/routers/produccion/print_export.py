@@ -242,7 +242,7 @@ def produccion_prep(
 
 def _aggregate_ingredient_requirements(session, days: list) -> dict[int, dict]:
     """Aggregate ingredient requirements across the week.
-    
+
     Extracted from produccion_prep to reduce complexity.
     """
     ing_required: dict[int, dict] = {}
@@ -257,7 +257,7 @@ def _aggregate_ingredient_requirements(session, days: list) -> dict[int, dict]:
 
 def _new_ingredient_entry(ln) -> dict:
     """Create a new ingredient aggregation entry from a plan line.
-    
+
     Extracted from _aggregate_ingredient_requirements to reduce complexity.
     """
     return {
@@ -271,7 +271,7 @@ def _new_ingredient_entry(ln) -> dict:
 
 def _build_prep_rows(ing_required: dict) -> list[dict]:
     """Build prep rows with severity and to_buy computed.
-    
+
     Extracted from produccion_prep to reduce complexity.
     """
     prep_rows = []
@@ -290,7 +290,7 @@ def _build_prep_rows(ing_required: dict) -> list[dict]:
 
 def _compute_severity(v: dict) -> tuple[str, float]:
     """Compute severity and to_buy amount for an ingredient.
-    
+
     Extracted from _build_prep_rows to reduce complexity.
     """
     delta = v["stock_on_hand"] - v["qty_required"]
@@ -303,7 +303,7 @@ def _compute_severity(v: dict) -> tuple[str, float]:
 
 def _apply_sort(prep_rows: list, sort: str, dir: str) -> None:
     """Sort prep rows by the specified key and direction.
-    
+
     Extracted from produccion_prep to reduce complexity.
     Unknown sort keys fall back to severity.
     """
@@ -324,7 +324,7 @@ def _apply_sort(prep_rows: list, sort: str, dir: str) -> None:
 
 def _sort_by_severity(prep_rows: list, sort_dir: int) -> None:
     """Sort by severity (Falta first) then ingredient_name.
-    
+
     Extracted from _apply_sort to reduce complexity.
     """
     severity_order = {"falta": 0, "justo": 1, "suficiente": 2}
@@ -338,7 +338,7 @@ def _sort_by_severity(prep_rows: list, sort_dir: int) -> None:
 
 def _compute_severity_counts(prep_rows: list) -> dict[str, int]:
     """Compute counts of each severity level.
-    
+
     Extracted from produccion_prep to reduce complexity.
     """
     return {

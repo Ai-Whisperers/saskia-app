@@ -314,14 +314,14 @@ def render(
     _inject_navigation(request, ctx)
     _inject_branding(request, ctx)
 
-    template = TEMPLATES.get_template(template_name)
+    template = templates.get_template(template_name)
     html = template.render(ctx)
     return HTMLResponse(html, status_code=status_code)
 
 
 def _init_template_context(request: Request, context: dict | None) -> dict:
     """Initialize the template context with request and standard fields.
-    
+
     Extracted from render to reduce complexity.
     """
     ctx = context or {}
@@ -334,7 +334,7 @@ def _init_template_context(request: Request, context: dict | None) -> dict:
 
 def _inject_loyalty_constants(ctx: dict) -> None:
     """Inject loyalty constants on every render.
-    
+
     T-2026-10-01: inject the loyalty constants on every render so
     any template (or downstream <script>) can show the real rate.
     Pre-this-fix: hardcoded `*1000` literals in 4+ places caused a
@@ -359,7 +359,7 @@ def _inject_loyalty_constants(ctx: dict) -> None:
 
 def _inject_auth_state(request: Request, ctx: dict) -> None:
     """Inject auth state for chrome (hide nav/search on login screen).
-    
+
     Fail CLOSED: if we can't determine auth state, hide the chrome
     rather than leak the entire app nav structure to anonymous users.
     Extracted from render to reduce complexity.
@@ -377,7 +377,7 @@ def _inject_auth_state(request: Request, ctx: dict) -> None:
 
 def _inject_navigation(request: Request, ctx: dict) -> None:
     """Inject navigation state (station, nav_groups, etc.).
-    
+
     SS-1: sidebar/nav renders from the nav table (app/rms/nav.py).
     A chosen station shows only that station's screens.
     Extracted from render to reduce complexity.
@@ -392,7 +392,7 @@ def _inject_navigation(request: Request, ctx: dict) -> None:
 
 def _get_station_state(request: Request) -> tuple:
     """Get the station ID and locked state from the session.
-    
+
     Extracted from _inject_navigation to reduce complexity.
     """
     try:
@@ -406,7 +406,7 @@ def _get_station_state(request: Request) -> tuple:
 
 def _set_navigation_groups(request: Request, ctx: dict, station_id, on_chooser: bool) -> None:
     """Set the navigation groups in the context.
-    
+
     Extracted from _inject_navigation to reduce complexity.
     """
     try:
@@ -440,7 +440,7 @@ def _set_navigation_groups(request: Request, ctx: dict, station_id, on_chooser: 
 
 def _inject_branding(request: Request, ctx: dict) -> None:
     """Inject branding into the context if not already present.
-    
+
     Phase 5 — load branding once per request. Failures fall back to
     DEFAULT_BRANDING so a missing/broken settings row never breaks
     the render path.
@@ -465,7 +465,7 @@ def _inject_branding(request: Request, ctx: dict) -> None:
 
 def _load_default_branding() -> dict:
     """Load the default branding dict.
-    
+
     Extracted from _inject_branding to reduce complexity.
     """
     from app.rms.settings_runtime import DEFAULT_BRANDING

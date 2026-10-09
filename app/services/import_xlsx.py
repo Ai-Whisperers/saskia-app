@@ -602,7 +602,7 @@ def _import_patch_productos(session: Session, wb: object, result: ImportResult) 
 
 def _extract_producto_keys(row) -> tuple:
     """Extract name and sku from a producto row.
-    
+
     Extracted from _import_patch_productos to reduce complexity.
     """
     name_raw = _opt_str(row.get("name"))
@@ -614,7 +614,7 @@ def _validate_producto_row(
     row, idx: int, name_raw: str | None, sku_raw: str | None, warnings: list
 ) -> bool:
     """Validate a producto row has at least one key.
-    
+
     Extracted from _import_patch_productos to reduce complexity.
     Returns False if the row should be skipped.
     """
@@ -633,7 +633,7 @@ def _find_product_by_keys(
     idx: int,
 ) -> Product | None:
     """Find a product by sku or name (case-insensitive).
-    
+
     Extracted from _import_patch_productos to reduce complexity.
     Returns None if not found (and adds a warning).
     """
@@ -653,7 +653,7 @@ def _update_producto_fields(
     row: dict, product: Product, name_raw: str | None, sku_raw: str | None, warnings: list
 ) -> None:
     """Update product fields from a row (only fields present in the row).
-    
+
     Extracted from _import_patch_productos to reduce complexity.
     """
     _update_sale_price(row, product, name_raw, sku_raw, warnings)
@@ -665,7 +665,7 @@ def _update_sale_price(
     row: dict, product: Product, name_raw: str | None, sku_raw: str | None, warnings: list
 ) -> None:
     """Update the sale price if present in the row.
-    
+
     Extracted from _update_producto_fields to reduce complexity.
     """
     if row.get("sale_price_gs") in (None, ""):
@@ -681,7 +681,7 @@ def _update_sale_price(
 
 def _update_optional_text_field(row: dict, product: Product, row_key: str, model_attr: str) -> None:
     """Update an optional text field if present in the row.
-    
+
     Extracted from _update_producto_fields to reduce complexity.
     """
     val = _opt_str(row.get(row_key))
@@ -691,7 +691,7 @@ def _update_optional_text_field(row: dict, product: Product, row_key: str, model
 
 def _update_portion_label(row: dict, product: Product) -> None:
     """Update the portion label if present in the row.
-    
+
     Extracted from _update_producto_fields to reduce complexity.
     """
     portion_label = _opt_str(row.get("portion_label"))
@@ -719,7 +719,7 @@ def _import_patch_clientes(session: Session, wb: object, result: ImportResult) -
 
 def _validate_cliente_row(row, idx: int, seen_phones: set, warnings: list) -> bool:
     """Validate a cliente row and return True if it should be processed.
-    
+
     Extracted from _import_patch_clientes to reduce complexity.
     Returns False if the row should be skipped.
     """
@@ -740,7 +740,7 @@ def _process_cliente_row(
     session: Session, row: dict, by_phone: dict, warnings: list, result: ImportResult
 ) -> None:
     """Process a single cliente row (update or create).
-    
+
     Extracted from _import_patch_clientes to reduce complexity.
     """
     phone = _opt_str(row.get("phone"))
@@ -761,7 +761,7 @@ def _update_existing_cliente(
     existing, name: str | None, email: str | None, cedula: str | None, notes: str | None
 ) -> None:
     """Update an existing cliente with new field values.
-    
+
     Extracted from _process_cliente_row to reduce complexity.
     """
     if name is not None:
@@ -787,7 +787,7 @@ def _create_new_cliente(
     notes: str | None,
 ) -> None:
     """Create a new cliente, skipping if name is missing.
-    
+
     Extracted from _process_cliente_row to reduce complexity.
     """
     if not name:

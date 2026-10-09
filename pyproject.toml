@@ -274,6 +274,27 @@ allowed-confusables = ["−", "×", "–", "∪", "ℹ", "а", "‹", "›", "σ
     "S110",            # migrations: try/except pass is the idempotent-ALTER pattern
 ]
 
+"app/routers/inventory.py" = [
+    "ANN",     # bot-extracted helpers from inventory complexity refactor
+]
+"app/rms/restock_forecast.py" = [
+    "ANN",     # bot-extracted helpers from restock complexity refactor
+]
+"app/routers/eod.py" = [
+    "ANN",     # bot-extracted helpers from eod complexity refactor
+]
+"app/routers/products.py" = [
+    "ANN",     # bot-extracted helpers from products complexity refactor
+]
+"app/routers/produccion/print_export.py" = [
+    "ANN",     # bot-extracted helpers from produccion print refactor
+]
+"app/rms/money.py" = [
+    "ANN",     # bot-extracted helpers from money complexity refactor (parse_gs)
+]
+"app/rms/fiado.py" = [
+    "ANN",     # bot-extracted helpers from fiado complexity refactor
+]
 "app/routers/sales.py" = [
     "ANN",     # bot-extracted helpers from cbfd41f9-style complexity refactors; type-annotate as they get touched
 ]

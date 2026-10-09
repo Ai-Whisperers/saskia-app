@@ -4684,7 +4684,7 @@ def _init_db_inner(engine: Any, dialect_name: str, Base: Any) -> None:
 
 def _read_current_schema_version(engine: Any) -> int:
     """Read the current schema version from the database.
-    
+
     Extracted from _init_db_inner to reduce complexity.
     """
     from app.rms.db import schema_version
@@ -4696,7 +4696,7 @@ def _read_current_schema_version(engine: Any) -> int:
 
 def _safe_pre_migration_backup(engine: Any, current: int) -> None:
     """Run the pre-migration backup with fail-closed safety check.
-    
+
     Extracted from _init_db_inner to reduce complexity.
     """
     try:
@@ -4725,7 +4725,7 @@ def _safe_pre_migration_backup(engine: Any, current: int) -> None:
 
 def _run_single_migration(engine: Any, v: int) -> None:
     """Run a single migration with proper error handling.
-    
+
     Extracted from _init_db_inner to reduce complexity.
     FAIL-CLOSED: a migration chain is a chain — each step may
     depend on the previous one. Skipping a failed step and
@@ -4757,7 +4757,7 @@ def _run_single_migration(engine: Any, v: int) -> None:
 
 def _check_partial_apply(engine: Any, v: int, exc: Exception) -> None:
     """Check if a migration partially applied by probing schema_version.
-    
+
     Phase 14 #4: probe schema_version on a FRESH connection. If it
     advanced despite the failure, the DDL partially applied — surface
     as a loud warning so the operator investigates before the next
@@ -4789,7 +4789,7 @@ def _check_partial_apply(engine: Any, v: int, exc: Exception) -> None:
 
 def _apply_postgres_indexes_safely(engine: Any) -> None:
     """Apply Postgres indexes in a separate connection.
-    
+
     Wrapped in its own connection so failure here doesn't undo migrations.
     Indexes are an optimization, not a correctness fix, so we log but
     don't crash on failure.
@@ -4809,7 +4809,7 @@ def _apply_postgres_indexes_safely(engine: Any) -> None:
 
 def _register_audit_listeners() -> None:
     """Register audit event listeners for the AuditColumns mixin.
-    
+
     Extracted from _init_db_inner to reduce complexity.
     """
     try:

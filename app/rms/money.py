@@ -151,7 +151,7 @@ def parse_gs(s: str) -> int:
 
 def _validate_input(s) -> None:
     """Validate the input is a non-empty string.
-    
+
     Extracted from parse_gs to reduce complexity.
     """
     if s is None or not isinstance(s, str):
@@ -164,7 +164,7 @@ def _validate_input(s) -> None:
 
 def _strip_prefix(cleaned: str) -> str:
     """Strip currency prefix (Gs., Gs, ₲, G$, $) from string.
-    
+
     Extracted from parse_gs to reduce complexity.
     """
     for prefix in ("Gs.", "Gs", "gs.", "gs"):
@@ -180,7 +180,7 @@ def _strip_prefix(cleaned: str) -> str:
 
 def _convert_cleaned_to_int(cleaned: str, original: str) -> int:
     """Convert a cleaned currency string to int with validation.
-    
+
     Extracted from parse_gs to reduce complexity.
     """
     # Normalize all separators to period for checking
@@ -195,7 +195,7 @@ def _convert_cleaned_to_int(cleaned: str, original: str) -> int:
 
 def _validate_no_separators(digits: str, original: str) -> None:
     """Validate that a no-separator string is all digits.
-    
+
     Extracted from _convert_cleaned_to_int to reduce complexity.
     """
     if not digits.isdigit() or not digits:
@@ -204,7 +204,7 @@ def _validate_no_separators(digits: str, original: str) -> None:
 
 def _validate_with_separators(parts: list, original: str) -> None:
     """Validate that a separated string has correct structure.
-    
+
     First part must be 1-3 digits, all subsequent must be exactly 3 digits.
     Extracted from _convert_cleaned_to_int to reduce complexity.
     """

@@ -628,7 +628,7 @@ def _extract_basic_fields(
     name: str, portion_label: str, sale_price_gs: str, recipe_id: str, is_available: str
 ) -> tuple[str, str, int, int | None, bool]:
     """Extract and validate basic product fields.
-    
+
     Extracted from product_create to reduce complexity.
     """
     from app.rms.validation import optional_text, parse_money_gs, require_text
@@ -645,7 +645,7 @@ def _extract_basic_fields(
 
 def _extract_meta_fields(notes: str, sku: str, image_url: str) -> tuple:
     """Extract and validate meta fields (notes, sku, image_url).
-    
+
     Extracted from product_create to reduce complexity.
     """
     from app.rms.validation import optional_text, validate_url
@@ -658,7 +658,7 @@ def _extract_meta_fields(notes: str, sku: str, image_url: str) -> tuple:
 
 def _extract_category_tags(category: str, tags: str) -> tuple:
     """Extract and validate category and tags fields.
-    
+
     Extracted from product_create to reduce complexity.
     """
     from app.rms.validation import optional_text
@@ -670,7 +670,7 @@ def _extract_category_tags(category: str, tags: str) -> tuple:
 
 def _parse_mayorista_price(mayorista_price_gs: str) -> int | None:
     """Parse the wholesale (mayorista) price.
-    
+
     Extracted from product_create to reduce complexity.
     """
     from app.rms.validation import parse_money_gs
@@ -682,7 +682,7 @@ def _parse_mayorista_price(mayorista_price_gs: str) -> int | None:
 
 def _validate_iva_rate(iva_rate: str) -> str:
     """Validate the IVA rate against allowed values.
-    
+
     Extracted from product_create to reduce complexity.
     """
     valid_values = ("10", "5", "0", "exento")
@@ -693,7 +693,7 @@ def _extract_rspa_fields(
     requires_rspa: str, rspa_number: str, rspa_expiry: str
 ) -> tuple[bool, str | None, str | None]:
     """Extract and validate RSPA fields.
-    
+
     Extracted from product_create to reduce complexity.
     """
     from app.rms.validation import optional_text, parse_date_iso
@@ -706,7 +706,7 @@ def _extract_rspa_fields(
 
 def _extract_tablet_fields(clean_name: str, tablet_slug: str, tablet_visible: str | None) -> tuple[bool, str]:
     """Extract and validate tablet visibility and slug fields.
-    
+
     C2 — tablet-menu visibility. Slug is auto-generated from the
     product name when the operator leaves it blank (so 95% of products
     are zero-effort to publish). Manual override wins on user input.
@@ -723,7 +723,7 @@ def _autofill_from_recipe(
     session, rid: int | None, category_clean: str | None, tags_clean: str | None
 ) -> tuple[str | None, str | None]:
     """Auto-fill category + tags from the linked recipe if operator left blank.
-    
+
     Wave 2 — Recipe's family → category, dietary_tags → tags.
     Extracted from product_create to reduce complexity.
     """
@@ -750,7 +750,7 @@ def _commit_product_with_audit(
     tablet_slug_clean: str,
 ) -> None:
     """Commit the new product and record audit entry.
-    
+
     Distinguishes name vs slug uniqueness conflicts so the operator
     gets a useful error. C2 — slug uniqueness is independent of name.
     Extracted from product_create to reduce complexity.
@@ -783,7 +783,7 @@ def _commit_product_with_audit(
 
 def _is_slug_taken(session, tablet_slug_clean: str) -> bool:
     """Check if a tablet slug is already taken.
-    
+
     Extracted from _commit_product_with_audit to reduce complexity.
     """
     if not tablet_slug_clean:

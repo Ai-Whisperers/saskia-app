@@ -1242,7 +1242,7 @@ def _apply_lines_from_form(session: Session, recipe_id: int, form: "object") -> 
 
 def _extract_line_form_fields(form) -> dict:
     """Extract repeated form fields for recipe lines.
-    
+
     Extracted from _apply_lines_from_form to reduce complexity.
     """
     return {
@@ -1256,7 +1256,7 @@ def _extract_line_form_fields(form) -> dict:
 
 def _max_line_count(form_fields: dict) -> int:
     """Get the maximum count of any form field.
-    
+
     Extracted from _apply_lines_from_form to reduce complexity.
     """
     return max(
@@ -1269,7 +1269,7 @@ def _max_line_count(form_fields: dict) -> int:
 
 def _extract_line_data(form_fields: dict, i: int) -> dict:
     """Extract data for a single line from the form fields.
-    
+
     Extracted from _apply_lines_from_form to reduce complexity.
     """
     return {
@@ -1283,7 +1283,7 @@ def _extract_line_data(form_fields: dict, i: int) -> dict:
 
 def _get_field(field_list: list, i: int) -> str:
     """Get a field value at index i, or empty string if not present.
-    
+
     Extracted from _extract_line_data to reduce complexity.
     """
     if i < len(field_list):
@@ -1293,7 +1293,7 @@ def _get_field(field_list: list, i: int) -> str:
 
 def _validate_line_data(line_data: dict, i: int) -> str | None:
     """Validate line data and return a skip reason if invalid.
-    
+
     Extracted from _apply_lines_from_form to reduce complexity.
     """
     kind = line_data["kind"]
@@ -1320,7 +1320,7 @@ def _validate_line_data(line_data: dict, i: int) -> str | None:
 
 def _add_recipe_line(session: Session, recipe_id: int, line_data: dict) -> None:
     """Add a RecipeLine to the session.
-    
+
     Extracted from _apply_lines_from_form to reduce complexity.
     """
     line_unit_value = _coerce_line_unit(line_data["ln_unit_raw"])
@@ -1338,7 +1338,7 @@ def _add_recipe_line(session: Session, recipe_id: int, line_data: dict) -> None:
 
 def _coerce_line_unit(ln_unit_raw: str) -> str:
     """Coerce a line unit string to its canonical enum value.
-    
+
     On invalid value, fall back to empty string — the costing walk will
     then default to the linked ingredient's unit (back-compat).
     Extracted from _add_recipe_line to reduce complexity.

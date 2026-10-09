@@ -137,7 +137,7 @@ def product_affinity(session: Session, min_cooccurrence: int = 2) -> dict[tuple[
 
 def _fetch_all_sales(session) -> list:
     """Fetch all non-voided sales ordered by time.
-    
+
     Extracted from product_affinity to reduce complexity.
     """
     return list(
@@ -151,7 +151,7 @@ def _fetch_all_sales(session) -> list:
 
 def _group_sales_into_baskets(sales: list) -> list[set[int]]:
     """Group sales into baskets based on time window.
-    
+
     Extracted from product_affinity to reduce complexity.
     """
     baskets: list[set[int]] = []
@@ -168,7 +168,7 @@ def _group_sales_into_baskets(sales: list) -> list[set[int]]:
 
 def _should_start_new_basket(current_basket: list, sold_at: datetime) -> bool:
     """Determine if a new basket should be started based on time window.
-    
+
     Extracted from _group_sales_into_baskets to reduce complexity.
     """
     if not current_basket:
@@ -179,7 +179,7 @@ def _should_start_new_basket(current_basket: list, sold_at: datetime) -> bool:
 
 def _flush_basket(basket: list[tuple[datetime, int]]) -> set[int]:
     """Convert a basket list to a set of product IDs.
-    
+
     Extracted from _group_sales_into_baskets to reduce complexity.
     """
     return {pid for _, pid in basket}
@@ -187,7 +187,7 @@ def _flush_basket(basket: list[tuple[datetime, int]]) -> set[int]:
 
 def _count_pair_cooccurrences(baskets: list[set[int]]) -> Counter:
     """Count co-occurrences of product pairs in each basket.
-    
+
     Extracted from product_affinity to reduce complexity.
     """
     pair_counts: Counter[tuple[int, int]] = Counter()
@@ -201,7 +201,7 @@ def _count_pair_cooccurrences(baskets: list[set[int]]) -> Counter:
 
 def _filter_by_min_cooccurrence(pair_counts: Counter, min_cooccurrence: int) -> dict:
     """Filter pair counts to only include those meeting minimum threshold.
-    
+
     Extracted from product_affinity to reduce complexity.
     """
     return {pair: count for pair, count in pair_counts.items() if count >= min_cooccurrence}

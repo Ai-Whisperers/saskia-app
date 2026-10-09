@@ -178,7 +178,7 @@ def forecast_restock(
 
     p50_date, p95_date = _compute_stockout_dates(rates, stock, today, horizon_days)
     days_to_p95 = (p95_date - today).days if p95_date is not None else None
-    recommended, p95_daily_avg = _compute_recommended_restock(
+    recommended, _p95_daily_avg = _compute_recommended_restock(
         rates, ing, stock, cover_days
     )
     cost_estimate = _compute_cost_estimate(ing, recommended)
@@ -206,7 +206,7 @@ def _compute_stockout_dates(
     rates, stock: float, today, horizon_days: int
 ) -> tuple:
     """Walk both P50 and P95 paths forward to find stockout dates.
-    
+
     Walk the two paths forward (on a LOCAL copy — the reported
     current_stock_qty must stay the pre-walk value).
     Extracted from forecast_restock to reduce complexity.
@@ -236,7 +236,7 @@ def _compute_recommended_restock(
     rates, ing, stock: float, cover_days: int
 ) -> tuple:
     """Compute recommended restock quantity based on P95 path.
-    
+
     Recommended qty: cover `cover_days` ahead on the P95 path, keep the
     2x-min floor from forecast.py (operators already understand it).
     Extracted from forecast_restock to reduce complexity.
@@ -256,7 +256,7 @@ def _compute_recommended_restock(
 
 def _compute_cost_estimate(ing, recommended: float) -> int | None:
     """Compute cost estimate at the ingredient's catalog price (per-unit, Gs).
-    
+
     Extracted from forecast_restock to reduce complexity.
     """
     unit_price = ing.purchase_price_gs
@@ -267,7 +267,7 @@ def _compute_cost_estimate(ing, recommended: float) -> int | None:
 
 def _compute_weekend_uplift(rates) -> float:
     """Compute weekend uplift signal (Sat/Sun vs Mon-Thu).
-    
+
     Extracted from forecast_restock to reduce complexity.
     """
     weekday_avg = sum(rates.rate(wd) for wd in range(4)) / 4.0 if rates.exposures[0] else 0.0
@@ -281,7 +281,7 @@ def _compute_confidence(
     session, ingredient_id: int, window_days: int, now
 ) -> str:
     """Compute confidence based on observed movement days.
-    
+
     Confidence keys on OBSERVED movement days (days with sale rows in
     the window), not raw exposure — a 56-day window with 3 sale days is
     sparse data, not high confidence.

@@ -179,7 +179,7 @@ def _compliance_alerts(session: Session) -> list[dict]:
     Returns a list of dicts with 'severity', 'icon', 'message', 'days_remaining'.
     Empty list means everything is in order.
     """
-    from app.rms.models import ComplianceInfo, Product
+    from app.rms.models import ComplianceInfo
 
     ci = session.get(ComplianceInfo, 1)
     if ci is None:
@@ -195,7 +195,7 @@ def _compliance_alerts(session: Session) -> list[dict]:
 
 def _today_date():
     """Get today's date in Asuncion timezone.
-    
+
     Extracted from _compliance_alerts to reduce complexity.
     """
     from datetime import datetime
@@ -205,7 +205,7 @@ def _today_date():
 
 def _parse_iso(s: str | None):
     """Parse an ISO date string to a date object.
-    
+
     Extracted from _compliance_alerts to reduce complexity.
     Returns None on invalid input.
     """
@@ -222,7 +222,7 @@ def _parse_iso(s: str | None):
 
 def _check_business_compliance(ci, today, alerts: list) -> None:
     """Check business-level compliance (INAN, municipal, timbrado).
-    
+
     Extracted from _compliance_alerts to reduce complexity.
     """
     checks = [
@@ -239,7 +239,7 @@ def _check_business_compliance(ci, today, alerts: list) -> None:
 
 def _add_expiry_alert(alerts: list, label: str, expiry, today) -> None:
     """Add an expiry alert for a compliance item.
-    
+
     Extracted from _check_business_compliance to reduce complexity.
     """
     days_left = (expiry - today).days
@@ -265,7 +265,7 @@ def _add_expiry_alert(alerts: list, label: str, expiry, today) -> None:
 
 def _check_product_rspa_compliance(session, today, alerts: list) -> None:
     """Check R.S.P.A. expiry on products that require it.
-    
+
     Extracted from _compliance_alerts to reduce complexity.
     """
     from app.rms.models import Product
@@ -286,7 +286,7 @@ def _check_product_rspa_compliance(session, today, alerts: list) -> None:
 
 def _add_rspa_expiry_alert(alerts: list, p, expiry, today) -> None:
     """Add an R.S.P.A. expiry alert for a product.
-    
+
     Extracted from _check_product_rspa_compliance to reduce complexity.
     """
     days_left = (expiry - today).days
@@ -312,7 +312,7 @@ def _add_rspa_expiry_alert(alerts: list, p, expiry, today) -> None:
 
 def _add_missing_info_alert(ci, alerts: list) -> None:
     """Add a missing critical ID alert if any are missing.
-    
+
     Extracted from _compliance_alerts to reduce complexity.
     """
     missing = _collect_missing_ids(ci)
@@ -329,7 +329,7 @@ def _add_missing_info_alert(ci, alerts: list) -> None:
 
 def _collect_missing_ids(ci) -> list[str]:
     """Collect list of missing critical business IDs.
-    
+
     Extracted from _add_missing_info_alert to reduce complexity.
     """
     missing = []

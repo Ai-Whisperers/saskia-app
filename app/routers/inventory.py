@@ -302,7 +302,7 @@ def inventory_list(
 
 def _compute_provisional_kpis(all_ings, loaded_ids, session, variant_counts) -> dict:
     """Compute provisional KPIs before variant info is available.
-    
+
     Extracted from inventory_list to reduce complexity.
     """
     never_loaded_ids = {
@@ -324,7 +324,7 @@ def _compute_provisional_kpis(all_ings, loaded_ids, session, variant_counts) -> 
 
 def _refine_kpis_with_variants(all_ings, variant_counts, effective_stock_qty) -> dict:
     """Refine KPIs with variant-aware effective stock.
-    
+
     Extracted from inventory_list to reduce complexity.
     """
     has_variant = {ing_id for ing_id, n in variant_counts.items() if n > 0}
@@ -349,7 +349,7 @@ def _refine_kpis_with_variants(all_ings, variant_counts, effective_stock_qty) ->
 
 def _compute_data_quality(all_ings, today, week_from_now) -> dict:
     """Compute data quality checks (duplicates, suspicious prices, expiring).
-    
+
     Extracted from inventory_list to reduce complexity.
     """
     return {
@@ -365,7 +365,7 @@ def _compute_data_quality(all_ings, today, week_from_now) -> dict:
 
 def _collect_categories(all_ings) -> list[str]:
     """Collect unique categories from all ingredients.
-    
+
     Extracted from inventory_list to reduce complexity.
     """
     return sorted(
@@ -375,7 +375,7 @@ def _collect_categories(all_ings) -> list[str]:
 
 def _collect_storages(all_ings) -> list[str]:
     """Collect unique storage locations from all ingredients.
-    
+
     Extracted from inventory_list to reduce complexity.
     """
     return sorted({(i.storage or "").strip() for i in all_ings if (i.storage or "").strip()})
@@ -383,7 +383,7 @@ def _collect_storages(all_ings) -> list[str]:
 
 def _get_dietary_tags():
     """Get canonical dietary tags vocabulary.
-    
+
     Extracted from inventory_list to reduce complexity.
     """
     from app.rms.tagging.vocabulary import CANONICAL_DIETARY_TAGS

@@ -325,7 +325,7 @@ def eod_check_save(
 
 def _is_correct_station(request: Request) -> bool:
     """Check if the request is from the correct station (escritorio/gerencia).
-    
+
     Extracted from eod_check_save to reduce complexity.
     """
     from app.rms.stations import escritorio_writes_desk
@@ -335,7 +335,7 @@ def _is_correct_station(request: Request) -> bool:
 
 def _reserve_idempotency(request: Request, session, idempotency_key: str) -> bool:
     """Reserve an idempotency key in AppMeta to prevent double-submit.
-    
+
     Returns True if reserved, False if already exists (duplicate).
     Extracted from eod_check_save to reduce complexity.
     """
@@ -368,7 +368,7 @@ def _reserve_idempotency(request: Request, session, idempotency_key: str) -> boo
 
 def _get_timestamps() -> tuple[str, str]:
     """Get today (Asuncion date) and now (UTC ISO) timestamps.
-    
+
     Extracted from eod_check_save to reduce complexity.
     """
     from datetime import datetime, timezone
@@ -380,7 +380,7 @@ def _get_timestamps() -> tuple[str, str]:
 
 def _collect_checkbox_values(*values: str) -> dict[str, str]:
     """Collect checkbox form values into a dict.
-    
+
     Extracted from eod_check_save to reduce complexity.
     """
     keys = [
@@ -388,12 +388,12 @@ def _collect_checkbox_values(*values: str) -> dict[str, str]:
         "ingredients_reordered", "waste_logged", "tomorrow_prep",
         "cash_deposit", "equipment_cleaned", "receipts_archived",
     ]
-    return {k: v for k, v in zip(keys, values)}
+    return {k: v for k, v in zip(keys, values, strict=False)}
 
 
 def _save_checkboxes(session, checkboxes: dict, today: str, now_iso: str) -> None:
     """Save checkbox states to AppMeta.
-    
+
     Extracted from eod_check_save to reduce complexity.
     """
     for key, value in checkboxes.items():
@@ -404,7 +404,7 @@ def _save_checkboxes(session, checkboxes: dict, today: str, now_iso: str) -> Non
 
 def _save_single_checkbox(session, meta_key: str, is_done: bool, now_iso: str) -> None:
     """Save a single checkbox state (insert/update/delete).
-    
+
     Extracted from _save_checkboxes to reduce complexity.
     """
     from app.rms.models import AppMeta
@@ -422,7 +422,7 @@ def _save_single_checkbox(session, meta_key: str, is_done: bool, now_iso: str) -
 
 def _save_notes(session, notes_for_next: str, today: str, now_iso: str) -> None:
     """Save notes for the next shift.
-    
+
     Extracted from eod_check_save to reduce complexity.
     """
     if not notes_for_next.strip():
@@ -447,7 +447,7 @@ def _save_notes(session, notes_for_next: str, today: str, now_iso: str) -> None:
 
 def _get_completed_items(checkboxes: dict) -> list[str]:
     """Get list of completed checkbox keys.
-    
+
     Extracted from eod_check_save to reduce complexity.
     """
     return [k for k, v in checkboxes.items() if v in ("on", "true", "1", "yes")]
@@ -455,7 +455,7 @@ def _get_completed_items(checkboxes: dict) -> list[str]:
 
 def _record_save_audit(request: Request, session, today: str, items_done: list, idem_reserved: bool) -> None:
     """Record the audit entry for the EOD save.
-    
+
     Extracted from eod_check_save to reduce complexity.
     """
     record_audit(
@@ -473,7 +473,7 @@ def _record_save_audit(request: Request, session, today: str, items_done: list, 
 
 def _trigger_backup_if_complete(session, items_done: list, checkboxes: dict) -> None:
     """Trigger a backup if all EOD checklist items are done.
-    
+
     P0 cerrar-puertas (B8 backup): when ALL EOD checklist items are done
     for the day, fire a backup. backup_scheduler.run_backup is idempotent.
     Extracted from eod_check_save to reduce complexity.
@@ -495,7 +495,7 @@ def _trigger_backup_if_complete(session, items_done: list, checkboxes: dict) -> 
 
 def _log_backup_result(backup_result) -> None:
     """Log the backup result.
-    
+
     Extracted from _trigger_backup_if_complete to reduce complexity.
     """
     logger.info(f"EOD backup triggered: {backup_result.path}")
