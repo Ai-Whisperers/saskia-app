@@ -116,10 +116,10 @@ TAR_FILE=/tmp/sazon-src.tar.gz
 if [ "$DRY_RUN" = "1" ]; then
   echo "DRY: tar ... -czf $TAR_FILE ."
 else
-  tar --exclude='./.git' --exclude='./.venv' --exclude='__pycache__' --exclude='*.pyc' \
-      --exclude='./.pytest_cache' --exclude='./.ruff_cache' --exclude='*.db' --exclude='*.sqlite*' \
-      --exclude='./tests' --exclude='./herbus_drive' --exclude='./tmp' --exclude='./.env' \
-      -czf "$TAR_FILE" .
+  # git archive: ships EXACTLY what's committed (no untracked caches, no
+  # receipts/, no .hypothesis — the worktree tar hit 57MB and corrupted in
+  # transit on CI runners). Deterministic content = deterministic deploy.
+  git archive --format=tar.gz --output="$TAR_FILE" HEAD
 fi
 run scp -q -i "$KEY" -o StrictHostKeyChecking=no "$TAR_FILE" "$VPS:/tmp/"
 
