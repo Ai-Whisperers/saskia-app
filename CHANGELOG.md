@@ -1,3 +1,10 @@
+## 2026-10-09 — Untrack .venv (re-tracked by sibling station-shell merge)
+
+**Scope**: housekeeping that broke the CHANGELOG gate's diff view.
+A station-shell merge (different SHAs than the 23ac7a86 incident) re-tracked
+`.venv`. `git rm -r --cached`; local files untouched. Also added
+`scripts/check_active_todos.py` + the docs-quality PR 6 deliverable.
+
 ## 2026-10-09 — Docs PR 6: TODO triage + active-comment scanner
 
 **Scope**: docs-quality followup PR 6. The 235 TODO markers from the

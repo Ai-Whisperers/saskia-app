@@ -92,3 +92,4 @@ tests/fixtures/recibo/_actual.html
 # Git bundle archives (290 MB+ for full repo history; kept on local disk only)
 # The ABANDONED.md note in .hermes/archives/ documents what they contain.
 .hermes/archives/*.bundle
+  .venv/
