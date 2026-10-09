@@ -1494,6 +1494,7 @@ def planner_compute(
         # Converge with the other flows (plan→list, auto-sync): merge
         # duplicate open items so the list shows one row per ingredient.
 
+        # noqa: arch-rule — wishlist purchases delegate to shopping.consolidate_open_items
         from app.routers.shopping import consolidate_open_items
 
         consolidate_open_items(session)

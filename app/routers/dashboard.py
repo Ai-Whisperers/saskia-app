@@ -298,6 +298,7 @@ async def home(request: Request) -> Response:
     pinned station by the gate middleware (decide()).
     """
 
+    # noqa: arch-rule — uses `puesto` (current station) helper from stations; legitimate cross-router utility use
     from app.routers.stations import puesto
 
     return puesto(request)
