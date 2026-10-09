@@ -96,7 +96,7 @@ def repair_ingredient(ing: Any) -> list[str]:
 
 def _repair_allergen_contradictions(ing: Any, issues: list[str]) -> list[str]:
     """Repair tag/allergen contradictions. Returns list of changes.
-    
+
     Extracted from repair_ingredient to reduce complexity.
     """
     declared_set = _get_declared_tags(ing)
@@ -109,7 +109,7 @@ def _repair_allergen_contradictions(ing: Any, issues: list[str]) -> list[str]:
 
 def _get_declared_tags(ing: Any) -> set[str]:
     """Get the set of declared dietary tags.
-    
+
     Extracted from _repair_allergen_contradictions to reduce complexity.
     """
     declared_raw = getattr(ing, "dietary_tags", "") or ""
@@ -118,7 +118,7 @@ def _get_declared_tags(ing: Any) -> set[str]:
 
 def _collect_tags_to_remove(issues: list[str]) -> set[str]:
     """Collect tags that should be removed based on issues.
-    
+
     Extracted from _repair_allergen_contradictions to reduce complexity.
     """
     to_remove: set[str] = set()
@@ -132,7 +132,7 @@ def _collect_tags_to_remove(issues: list[str]) -> set[str]:
 
 def _apply_tag_removals(ing: Any, declared_set: set[str], to_remove: set[str]) -> list[str]:
     """Remove tags from declared_set and return change messages.
-    
+
     Extracted from _repair_allergen_contradictions to reduce complexity.
     """
     changes: list[str] = []
@@ -145,22 +145,34 @@ def _apply_tag_removals(ing: Any, declared_set: set[str], to_remove: set[str]) -
 
 def _persist_declared_tags(ing: Any, declared_set: set[str]) -> None:
     """Persist the modified declared_set back to the ingredient.
-    
+
     Extracted from _repair_allergen_contradictions to reduce complexity.
     """
     ing.dietary_tags = ",".join(declared_set) if declared_set else None
 
 
 _VALID_CATEGORIES = {
-    "grasas", "lácteos", "harinas", "endulzantes", "frutas", "carnes",
-    "pescados", "especias", "otros", "leudantes", "huevos", "decoración",
-    "frutos-secos", "líquidos", "semillas",
+    "grasas",
+    "lácteos",
+    "harinas",
+    "endulzantes",
+    "frutas",
+    "carnes",
+    "pescados",
+    "especias",
+    "otros",
+    "leudantes",
+    "huevos",
+    "decoración",
+    "frutos-secos",
+    "líquidos",
+    "semillas",
 }
 
 
 def _repair_category_mismatch(ing: Any, issues: list[str]) -> list[str]:
     """Repair category mismatches. Returns list of changes.
-    
+
     Extracted from repair_ingredient to reduce complexity.
     """
     for issue in issues:
@@ -177,7 +189,7 @@ def _repair_category_mismatch(ing: Any, issues: list[str]) -> list[str]:
 
 def _parse_category_issue(issue: str) -> tuple[str | None, str | None]:
     """Parse a category issue string into (stored, inferred).
-    
+
     Extracted from _repair_category_mismatch to reduce complexity.
     """
     try:

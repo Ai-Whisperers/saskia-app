@@ -46,7 +46,7 @@ _MERMA_SOURCE_CHIPS = {
 }
 
 
-def _source_chip_for(row) -> tuple[str, str]:  # noqa: ANN001
+def _source_chip_for(row) -> tuple[str, str]:
     """Return (chip_text, badge_class) for a merma audit row, or ("", "")
     if the row is not a merma event or has no source tag."""
     if not row.action or not row.action.startswith("write.merma"):
@@ -270,11 +270,14 @@ def auditoria_export_csv(
 
 
 def _load_audit_rows(
-    session, target_type: str | None, target_id: str | None,
-    action_filter: str | None, user_filter: str | None,
+    session,
+    target_type: str | None,
+    target_id: str | None,
+    action_filter: str | None,
+    user_filter: str | None,
 ) -> list:
     """Load audit rows based on target_type/target_id or recent.
-    
+
     Extracted from auditoria_export_csv to reduce complexity.
     """
     if target_type and target_id:
@@ -285,11 +288,14 @@ def _load_audit_rows(
 
 
 def _apply_audit_filters(
-    rows: list, start_date: str | None, end_date: str | None,
-    ip_filter: str | None, source: str | None,
+    rows: list,
+    start_date: str | None,
+    end_date: str | None,
+    ip_filter: str | None,
+    source: str | None,
 ) -> list:
     """Apply date, IP, and source filters to audit rows.
-    
+
     Extracted from auditoria_export_csv to reduce complexity.
     """
     sd, ed = _parse_date_range(start_date, end_date)
@@ -298,7 +304,7 @@ def _apply_audit_filters(
 
 def _parse_date_range(start_date: str | None, end_date: str | None) -> tuple:
     """Parse start_date and end_date into a (sd, ed) tuple.
-    
+
     Extracted from _apply_audit_filters to reduce complexity.
     """
     sd = _parse_date(start_date)
@@ -309,10 +315,14 @@ def _parse_date_range(start_date: str | None, end_date: str | None) -> tuple:
 
 
 def _row_passes_filters(
-    r, sd, ed, ip_filter: str | None, source: str | None,
+    r,
+    sd,
+    ed,
+    ip_filter: str | None,
+    source: str | None,
 ) -> bool:
     """Check if a single row passes all filters.
-    
+
     Extracted from _apply_audit_filters to reduce complexity.
     """
     if sd is not None and r.timestamp < sd:
@@ -328,7 +338,7 @@ def _row_passes_filters(
 
 def _matches_source(r, source: str) -> bool:
     """Check if an audit row matches the source filter.
-    
+
     Extracted from _apply_audit_filters to reduce complexity.
     """
     d = r.detail if isinstance(r.detail, dict) else {}
@@ -337,7 +347,7 @@ def _matches_source(r, source: str) -> bool:
 
 def _build_csv_response(filtered: list) -> Response:
     """Build the CSV streaming response.
-    
+
     Extracted from auditoria_export_csv to reduce complexity.
     """
     filename = f"auditoria_{datetime.now(timezone.utc).date().isoformat()}.csv"

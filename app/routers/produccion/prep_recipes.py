@@ -222,6 +222,8 @@ def _compute_recipe_severity(
     if pct_total == 0 or pct_ok / pct_total >= 0.8:
         return "suficiente"
     return "justo"
+
+
 def _build_cumulative_totals(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Sum each ingredient across all recipe cards. Operator uses this
     as a cross-check against /shopping-list.

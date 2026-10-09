@@ -16,8 +16,6 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app.rms.models import SettingsKV  # noqa: F401  (kept for back-compat; the SettingsKV model)
-
 # settings_get / settings_set are now defined in app.rms.settings_registry
 # (the SettingsKV layer). Re-import here so legacy callers of
 # `from app.rms.settings_runtime import settings_get, settings_set`

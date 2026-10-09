@@ -1263,7 +1263,7 @@ async def upload_branding_asset(
     kind: str = Form(...),
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
-    user=Depends(require_login_or_disabled),  # noqa: ANN001
+    user=Depends(require_login_or_disabled),
 ) -> object:
     """Upload a branding asset (logo, favicon, or hero).
 
@@ -1324,7 +1324,7 @@ async def upload_branding_asset(
 def branding_admin_page(
     request: Request,
     session: Session = Depends(get_session),
-    user=Depends(require_login_or_disabled),  # noqa: ANN001
+    user=Depends(require_login_or_disabled),
 ) -> object:
     """Operator UI for branding (business identity, assets, accent color).
 

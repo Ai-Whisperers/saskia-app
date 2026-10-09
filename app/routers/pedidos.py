@@ -622,7 +622,7 @@ def pedidos_board(
 
 def _fetch_pedidos_for_board(session, horizon) -> list[Pedido]:
     """Fetch active pedidos for the kitchen board.
-    
+
     Extracted from pedidos_board to reduce complexity.
     """
     stmt = (
@@ -639,7 +639,7 @@ def _fetch_pedidos_for_board(session, horizon) -> list[Pedido]:
 
 def _split_pedidos_by_date(pedidos: list[Pedido], today) -> tuple[list, list, list]:
     """Split pedidos into today, tomorrow, and rest of week buckets.
-    
+
     Extracted from pedidos_board to reduce complexity.
     """
     hoy = [p for p in pedidos if p.promised_date == today]
@@ -650,7 +650,7 @@ def _split_pedidos_by_date(pedidos: list[Pedido], today) -> tuple[list, list, li
 
 def _build_kanban_columns(pedidos: list[Pedido]) -> dict[str, list[dict]]:
     """Build the three kanban columns (pending, confirmed, ready).
-    
+
     Extracted from pedidos_board to reduce complexity.
     """
     return {
@@ -662,7 +662,7 @@ def _build_kanban_columns(pedidos: list[Pedido]) -> dict[str, list[dict]]:
 
 def _build_kanban_column(pedidos: list[Pedido], status: str) -> list[dict]:
     """Build a single kanban column with all matching pedidos.
-    
+
     Extracted from _build_kanban_columns to reduce complexity.
     """
     return [_build_kanban_card(p) for p in pedidos if p.status == status]
@@ -670,7 +670,7 @@ def _build_kanban_column(pedidos: list[Pedido], status: str) -> list[dict]:
 
 def _build_kanban_card(p: Pedido) -> dict:
     """Build a single kanban card with all display fields.
-    
+
     Phase 14 (2026-10-01): ventana + structured address hint on
     the kitchen card so prep staff can see at a glance whether
     it's ASAP vs scheduled (affects pacing).
@@ -700,7 +700,7 @@ def _build_kanban_card(p: Pedido) -> dict:
 
 def _format_time(value) -> str:
     """Format a time value to HH:MM string, or return as-is.
-    
+
     Extracted from _build_kanban_card to reduce complexity.
     """
     if hasattr(value, "strftime"):
@@ -710,7 +710,7 @@ def _format_time(value) -> str:
 
 def _format_date(value) -> str:
     """Format a date value to ISO string, or return as-is.
-    
+
     Extracted from _build_kanban_card to reduce complexity.
     """
     if hasattr(value, "isoformat"):
@@ -720,7 +720,7 @@ def _format_date(value) -> str:
 
 def _format_pedido_lines(lines) -> list[str]:
     """Format pedido lines for display (max 6 items).
-    
+
     Extracted from _build_kanban_card to reduce complexity.
     """
     return [
@@ -2203,7 +2203,7 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
             )
         ).scalar_one_or_none()
         if row is not None:
-            # noqa: arch-rule — uses render_template helper from settings_runtime
+
             from app.routers.settings_runtime import render_template
 
             msg = render_template(

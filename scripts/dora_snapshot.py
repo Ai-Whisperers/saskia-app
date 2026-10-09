@@ -214,20 +214,24 @@ def fetch_mttr(since: dt.date, until: dt.date) -> float:
         # Revert commit timestamp; the parent (sha^) is the bad deploy.
         # Both can fail silently on missing refs.
         try:
-            revert_ts = int(subprocess.run(
-                ["git", "show", "-s", "--format=%ct", sha],
-                capture_output=True,
-                text=True,
-                check=True,
-                cwd=ROOT,
-            ).stdout.strip())
-            bad_ts = int(subprocess.run(
-                ["git", "log", "-1", "--format=%ct", f"{sha}^"],
-                capture_output=True,
-                text=True,
-                check=True,
-                cwd=ROOT,
-            ).stdout.strip())
+            revert_ts = int(
+                subprocess.run(
+                    ["git", "show", "-s", "--format=%ct", sha],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    cwd=ROOT,
+                ).stdout.strip()
+            )
+            bad_ts = int(
+                subprocess.run(
+                    ["git", "log", "-1", "--format=%ct", f"{sha}^"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    cwd=ROOT,
+                ).stdout.strip()
+            )
         except (ValueError, subprocess.CalledProcessError):
             continue
         if revert_ts > bad_ts:

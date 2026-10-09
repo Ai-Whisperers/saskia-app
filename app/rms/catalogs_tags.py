@@ -42,7 +42,7 @@ def list_allergens(session: Session, include_inactive: bool = False) -> list[Tag
     the migration runs.
     """
     try:
-        sql = (  # noqa: S608 — static template; only interpolation is a hardcoded WHERE constant
+        sql = (  # noqa: S608
             """
             SELECT id, code, label, sort_order, is_active
             FROM allergen
@@ -78,7 +78,7 @@ def list_allergens(session: Session, include_inactive: bool = False) -> list[Tag
 def list_dietary_tags(session: Session, include_inactive: bool = False) -> list[TagEntry]:
     """Return active dietary tags sorted by sort_order (then code)."""
     try:
-        sql = (  # noqa: S608 — static template; only interpolation is a hardcoded WHERE constant
+        sql = (  # noqa: S608
             """
             SELECT id, code, label, sort_order, is_active
             FROM dietary_tag

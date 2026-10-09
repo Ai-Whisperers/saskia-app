@@ -148,21 +148,23 @@ def product_hints_for_event(
     return _collect_matching_hints(event, keywords, product_names)
 
 
-def _collect_matching_hints(event: SeasonalEvent, keywords: str, product_names: list[str]) -> list[ProductHint]:
+def _collect_matching_hints(
+    event: SeasonalEvent, keywords: str, product_names: list[str]
+) -> list[ProductHint]:
     """Collect product hints matching the event keywords.
-    
+
     Extracted from product_hints_for_event to reduce complexity.
     """
     hints: list[ProductHint] = []
     for name in product_names:
         for keyword, predicate, msg_template in _HINT_RULES:
             if keyword in keywords and predicate(name):
-                hints.append(ProductHint(
-                    name,
-                    msg_template.format(event_name=event.name),
-                    event.multiplier,
-                ))
+                hints.append(
+                    ProductHint(
+                        name,
+                        msg_template.format(event_name=event.name),
+                        event.multiplier,
+                    )
+                )
                 break
     return hints
-
-

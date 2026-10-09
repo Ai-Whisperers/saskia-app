@@ -18,8 +18,6 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse as StarletteRedirectResponse
 
-logger = logging.getLogger(__name__)
-
 from app.auth import current_operator
 from app.auth import require_login_or_disabled as require_login
 from app.rms.customers import (
@@ -35,6 +33,8 @@ from app.rms.nav import status_es
 from app.rms.observability import record_audit
 from app.rms.rate_limit import read_rate_limit_dependency
 from app.services.template_render import render
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/clientes", dependencies=[Depends(require_login)])
 
@@ -177,12 +177,6 @@ def clientes_list(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Customer directory with loyalty tiers + points + filters."""
-    import csv
-    import io
-
-    from starlette.responses import StreamingResponse
-
-    from app.rms.models import CustomerAddress
 
     q = q or ""
     ql = q.lower()
@@ -208,7 +202,7 @@ def clientes_list(
 
 def _filter_customers_by_query(session, ql: str) -> list:
     """Filter customers by search query.
-    
+
     Extracted from clientes_list to reduce complexity.
     """
     if not ql:
@@ -222,7 +216,7 @@ def _filter_customers_by_query(session, ql: str) -> list:
 
 def _batch_subscription_and_pedido_counts(session, cust_ids: list) -> tuple[dict, dict]:
     """Batch-fetch active subscription and open pedido counts.
-    
+
     Extracted from clientes_list to reduce complexity.
     Returns (active_sub_count, open_pedido_count) dicts.
     """
@@ -232,6 +226,7 @@ def _batch_subscription_and_pedido_counts(session, cust_ids: list) -> tuple[dict
         return active_sub_count, open_pedido_count
 
     from sqlalchemy import func
+
     from app.rms.models import Pedido, Suscripcion
 
     sub_rows = session.execute(
@@ -255,7 +250,7 @@ def _batch_subscription_and_pedido_counts(session, cust_ids: list) -> tuple[dict
 
 def _build_row(customer, stats, sub_counts, pedido_counts) -> dict:
     """Build a single customer row dict.
-    
+
     Extracted from clientes_list to reduce complexity.
     """
     return {
@@ -278,7 +273,7 @@ def _build_row(customer, stats, sub_counts, pedido_counts) -> dict:
 
 def _build_rows(customers, all_stats, sub_counts, pedido_counts) -> list:
     """Build rows for all customers.
-    
+
     Extracted from clientes_list to reduce complexity.
     """
     rows = []
@@ -290,9 +285,11 @@ def _build_rows(customers, all_stats, sub_counts, pedido_counts) -> list:
     return rows
 
 
-def _build_rows_with_tier_filter(customers, all_stats, sub_counts, pedido_counts, tier: str) -> list:
+def _build_rows_with_tier_filter(
+    customers, all_stats, sub_counts, pedido_counts, tier: str
+) -> list:
     """Build rows filtered by tier.
-    
+
     Extracted from clientes_list to reduce complexity.
     """
     rows = []
@@ -307,7 +304,7 @@ def _build_rows_with_tier_filter(customers, all_stats, sub_counts, pedido_counts
 
 def _apply_sorting(rows: list, sort: str | None, dir: str | None) -> list:
     """Apply sorting to rows.
-    
+
     Extracted from clientes_list to reduce complexity.
     """
     sort_col = sort or "name"
@@ -332,11 +329,12 @@ def _apply_sorting(rows: list, sort: str | None, dir: str | None) -> list:
 
 def _export_csv(request, session, rows: list):
     """Export rows as CSV.
-    
+
     Extracted from clientes_list to reduce complexity.
     """
     import csv
     import io
+
     from starlette.responses import StreamingResponse
 
     all_customers = list_customers(session)
@@ -347,10 +345,21 @@ def _export_csv(request, session, rows: list):
     w = csv.DictWriter(
         buf,
         fieldnames=[
-            "id", "name", "phone", "email", "birthday", "how_found",
-            "preferred_channel", "marketing_consent", "dietary_restrictions",
-            "n_sales", "lifetime_spend_gs", "tier", "points",
-            "last_sale_at", "created_at",
+            "id",
+            "name",
+            "phone",
+            "email",
+            "birthday",
+            "how_found",
+            "preferred_channel",
+            "marketing_consent",
+            "dietary_restrictions",
+            "n_sales",
+            "lifetime_spend_gs",
+            "tier",
+            "points",
+            "last_sale_at",
+            "created_at",
         ],
     )
     w.writeheader()
@@ -364,7 +373,7 @@ def _export_csv(request, session, rows: list):
 
 def _build_csv_export_rows(rows: list, cust_by_id: dict) -> list:
     """Build CSV export rows by delegating to _build_csv_row.
-    
+
     Extracted from _export_csv to reduce complexity.
     """
     return [_build_csv_row(r, cust_by_id.get(r["id"])) for r in rows]
@@ -372,7 +381,7 @@ def _build_csv_export_rows(rows: list, cust_by_id: dict) -> list:
 
 def _build_csv_row(row: dict, cust) -> dict:
     """Build a single CSV export row.
-    
+
     Extracted from _build_csv_export_rows to reduce complexity.
     """
     return {
@@ -394,12 +403,20 @@ def _build_csv_row(row: dict, cust) -> dict:
     }
 
 
-def _render_directory(request, session, rows: list, page: int, q: str, tier: str | None, sort: str | None, dir: str | None):
+def _render_directory(
+    request,
+    session,
+    rows: list,
+    page: int,
+    q: str,
+    tier: str | None,
+    sort: str | None,
+    dir: str | None,
+):
     """Render the customer directory HTML page.
-    
+
     Extracted from clientes_list to reduce complexity.
     """
-    from app.rms.models import CustomerAddress
 
     total = len(rows)
     total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
@@ -433,7 +450,7 @@ def _render_directory(request, session, rows: list, page: int, q: str, tier: str
 
 def _compute_profile_nudges(session, all_customers: list) -> dict:
     """Compute data-completion nudge counts.
-    
+
     Extracted from _render_directory to reduce complexity.
     """
     from app.rms.models import CustomerAddress
@@ -450,7 +467,6 @@ def _compute_profile_nudges(session, all_customers: list) -> dict:
         ),
         "sin_consent": sum(1 for c in all_customers if not c.marketing_consent),
     }
-
 
 
 def customer_to_api_payload(c: Customer, session: Session) -> dict:
@@ -1495,7 +1511,7 @@ def cliente_update(
 
     from fastapi import HTTPException as _HE
 
-    def _fail(msg: str):  # noqa: ANN202 — raises HTTPException; FastAPI infers
+    def _fail(msg: str):
         """Roll back, re-render the form with values + error."""
         session.rollback()
         return _render_cliente_edit(
