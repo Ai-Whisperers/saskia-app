@@ -912,6 +912,10 @@ def create_app() -> FastAPI:
     # comes from extracting the 50+ router registrations and the
     # exception handlers.
 
+    return app
+
+
+    return app
 
 
 # Build the module-level app for uvicorn's `app.rms.main:app` reference
