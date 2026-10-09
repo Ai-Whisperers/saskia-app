@@ -134,6 +134,10 @@ class TestTemplateConsistency(unittest.TestCase):
                     "ENV_FILE",
                     "CSP",
                     "FRAME_DENY",
+                    "CPU_LIMIT",
+                    "MEMORY_LIMIT",
+                    "CPU_RESERVATION",
+                    "MEMORY_RESERVATION",
                 }
                 missing = placeholders - expected
                 self.assertEqual(missing, set(), f"template uses unknown placeholders: {missing}")
