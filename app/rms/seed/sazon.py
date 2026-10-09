@@ -3089,8 +3089,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/babka.jpg",
+        None,
     ),
     (
         "Bizcocho básico 25 cm (Basiscake)",
@@ -3103,8 +3103,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/bizcocho_basico_25_cm.jpg",
+        None,
     ),
     (
         "Bizcocho básico 30 cm (Basiscake)",
@@ -3117,8 +3117,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/bizcocho_basico_30_cm.jpg",
+        None,
     ),
     (
         "Bombones de chocolate",
@@ -3131,8 +3131,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/bombones_de_chocolate.jpg",
+        None,
     ),
     (
         "Torta de zanahoria (43x33x1.5 cm)",
@@ -3145,8 +3145,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/torta_de_zanahoria.jpg",
+        None,
     ),
     (
         "Cheesecake (30x50)",
@@ -3159,8 +3159,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/cheesecake.jpg",
+        None,
     ),
     (
         "Muffin de chocolate (20x20 cm)",
@@ -3173,8 +3173,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/muffin_de_chocolate.jpg",
+        None,
     ),
     (
         "Frikandel (100 unidades)",
@@ -3187,8 +3187,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/frikandel.jpg",
+        None,
     ),
     (
         "Galletas de especuloos (Speculaasjes)",
@@ -3201,8 +3201,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/galletas_de_especuloos.jpg",
+        None,
     ),
     (
         "goulash crockettes",
@@ -3215,8 +3215,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/goulash_crockettes.jpg",
+        None,
     ),
     (
         "Hojaldre (Bladerdeeg)",
@@ -3229,8 +3229,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/hojaldre.jpg",
+        None,
     ),
     (
         "Ketjap manis (versión rápida)",
@@ -3243,8 +3243,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/ketjap_manis.jpg",
+        None,
     ),
     (
         "Oliebollen (Buñuelos tradicionales holandeses)",
@@ -3257,8 +3257,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/oliebollen.jpg",
+        None,
     ),
     (
         "Ontbijtkoek (700g de harina)",
@@ -3271,8 +3271,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/ontbijtkoek.jpg",
+        None,
     ),
     (
         "Pastelitos rosados (Roze koeken)",
@@ -3285,8 +3285,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/pastelitos_rosados.jpg",
+        None,
     ),
     (
         "Petisús de hojaldre y crema (Tompoezen)",
@@ -3299,8 +3299,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/petisus_de_hojaldre_y_crema.jpg",
+        None,
     ),
     (
         "Proficteroles de Den Bosch (Bossche bollen)",
@@ -3313,8 +3313,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/proficteroles_de_den_bosch.jpg",
+        None,
     ),
     (
         "Stroop wafel",
@@ -3327,8 +3327,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/stroop_wafel.jpg",
+        None,
     ),
     (
         "suppli cacio e pepe",
@@ -3341,8 +3341,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/suppli_cacio_e_pepe.jpg",
+        None,
     ),
     (
         "Tarta de manzana de mi madre (Mijn moeders appeltaart)",
@@ -3355,8 +3355,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/tarta_de_manzana_de_mi_madre.jpg",
+        None,
     ),
     (
         "bitterballen vegetariano",
@@ -3369,8 +3369,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/bitterballen_vegetariano.jpg",
+        None,
     ),
     (
         "bitterballen",
@@ -3383,8 +3383,8 @@ PRODUCTS: list[tuple] = [
         None,
         True,
         None,
-        None,
         "/static/products/bitterballen.jpg",
+        None,
     ),
     (
         "Babka entera",
@@ -3397,8 +3397,8 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
         "/static/products/babka_entera.jpg",
+        None,
     ),
     (
         "Cheesecake entera",
@@ -3411,8 +3411,8 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
         "/static/products/cheesecake_entera.jpg",
+        None,
     ),
     (
         "Docena gofres de sirope",
@@ -3425,8 +3425,8 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
         "/static/products/docena_gofres_de_sirope.jpg",
+        None,
     ),
     (
         "Docena petisús",
@@ -3439,8 +3439,8 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
         "/static/products/docena_petisus.jpg",
+        None,
     ),
     (
         "Docena buñuelos",
@@ -3453,8 +3453,8 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
         "/static/products/docena_bunuelos.jpg",
+        None,
     ),
     (
         "Bizcocho 25 cm entero",
@@ -3467,8 +3467,8 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
         "/static/products/bizcocho_25_cm_entero.jpg",
+        None,
     ),
     (
         "Bizcocho 30 cm entero",
@@ -3481,8 +3481,8 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
         "/static/products/bizcocho_30_cm_entero.jpg",
+        None,
     ),
     (
         "Caja bombones",
@@ -3495,8 +3495,8 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
         "/static/products/caja_bombones.jpg",
+        None,
     ),
     (
         "Docena muffins chocolate",
@@ -3509,8 +3509,8 @@ PRODUCTS: list[tuple] = [
         None,
         False,
         None,
-        None,
         "/static/products/docena_muffins_chocolate.jpg",
+        None,
     ),
     (
         "Venta libre",
