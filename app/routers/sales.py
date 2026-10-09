@@ -1296,6 +1296,7 @@ async def sale_create_multi(
         sale_ids=sale_ids,
         first_product_id=first_product_id,
         tip_gs=body["tip_gs"],
+        payment_method=payment_method_clean,
         payments_plan=payments_plan,
         points_to_redeem=points_to_redeem,
         customer_id=customer_id,
@@ -1684,6 +1685,7 @@ def _finalize_sale_multi(
     sale_ids: list,
     first_product_id: int | None,
     tip_gs: int,
+    payment_method: str,
     payments_plan: list,
     points_to_redeem: int,
     customer_id: int | None,
@@ -1702,9 +1704,11 @@ def _finalize_sale_multi(
         _rows[0].tip_gs = tip_gs
         _cart_total += tip_gs
 
-    # Process split payments
+    # Process split payments (or write uniform single row for single-method)
     if payments_plan:
         _process_split_payments(session, _rows, payments_plan, _cart_total, tip_gs)
+    else:
+        _write_uniform_payment_row(session, _rows, payment_method, tip_gs)
 
     # Process loyalty points if redeemed
     if points_to_redeem > 0 and customer_id is not None:
@@ -1734,6 +1738,7 @@ def _process_split_payments(
                 f"al total de la venta (Gs. {cart_total:,}).".replace(",", ".")
             ),
         )
+    _now = datetime.now(ASUNCION_TZ)
     _remaining = dict(payments_plan)
     for _ri, _row in enumerate(rows):
         _row_total = max(0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0))
@@ -1754,8 +1759,54 @@ def _process_split_payments(
                     sale_id=_row.id,
                     method=_method,
                     amount_gs=_take,
+                    created_at=_now,
                 )
             )
+            _left -= _take
+        if _left > 0 and _plans:
+            # payments exhausted but row has remainder → put it on
+            # the last method (defensive; sum-check above prevents).
+            _m_last = _plans[-1][0]
+            session.add(
+                SalePayment(
+                    sale_id=_row.id,
+                    method=_m_last,
+                    amount_gs=_left,
+                    created_at=_now,
+                )
+            )
+
+
+def _write_uniform_payment_row(
+    session: Session,
+    rows: list,
+    payment_method: str,
+    tip_gs: int,
+) -> None:
+    """Write one uniform payment row per cart line, mirroring payment_method.
+
+    Single-method sales (no split payments) get exactly one SalePayment per
+    sale row so the ledger has a clean 1:1 mapping between cart items and
+    payments. The tip lands on the first row (mirrors _process_split_payments).
+
+    Restored 2026-10-09 to fix a regression where single-method sales wrote
+    no SalePayment rows at all (bot's 232→1 refactor lost this branch).
+    """
+    _now = datetime.now(ASUNCION_TZ)
+    for _ri, _row in enumerate(rows):
+        _row_total = max(0, int(_row.qty * _row.unit_price_gs) - int(_row.discount_gs or 0))
+        if _ri == 0:
+            _row_total += tip_gs
+        if _row_total <= 0:
+            continue
+        session.add(
+            SalePayment(
+                sale_id=_row.id,
+                method=payment_method,
+                amount_gs=_row_total,
+                created_at=_now,
+            )
+        )
 
 
 def _redeem_loyalty_points(session: Session, customer_id: int, points: int, sale_ids: list) -> None:
