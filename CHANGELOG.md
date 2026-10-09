@@ -1,3 +1,67 @@
+## 2026-10-09 — Untrack .venv from git
+
+**Scope**: housekeeping that broke the CHANGELOG gate's diff view. A
+`.venv` path was committed in a station-shell merge (matches the
+2026-10-07 note about `.venv` briefly tracked in 23ac7a86) — it made
+`git diff HEAD~1` list `.venv` and confused the discipline gate.
+
+**What changed**: `git rm -r --cached .venv` (local files untouched).
+Also ruff-formatted `deploy/render_stack.py` +
+`scripts/refresh_action_pins.py` (2 files the style pass missed).
+
+## 2026-10-09 — Monthly action SHA-pin refresh automation
+
+**Scope**: WHAT_NEXT #4 — PR #96 pinned 37 actions but nothing re-checked
+them. Tag drift would go unnoticed.
+
+**What changed**:
+- `scripts/refresh_action_pins.py` (new): resolves each pinned version
+  tag live via the GitHub API (peels annotated tags), reports drift,
+  `--fix` rewrites. First run already found real drift:
+  `astral-sh/setup-uv@v7` 94527f2e -> 37802adc across workflows.
+- `.github/workflows/refresh-pins.yml` (new): monthly cron + manual
+  dispatch; on drift, re-pins on a dated branch and opens a PR for
+  review. zizmor-clean (SHA-pinned, persist-credentials: false,
+  minimal permissions).
+
+**Test status**: ruff clean; zizmor rc=0; scanner verified live against
+the repo (drift found + reported correctly).
+
+## 2026-10-09 — Activate safeguard (dev env + CI gate) + OTel on dev
+
+**Scope**: WHAT_NEXT #2 — fastapi-safeguard was wired and baseline-triaged
+(#96) but dormant everywhere. This turns it on where iteration happens
+and makes new findings block CI.
+
+**What changed**:
+- `deploy/envs.yaml`: new optional per-env `extra_env` key; dev row sets
+  `SAFEGUARD_ENABLED=true` + `OTEL_ENABLED=true` (prod/test unchanged).
+- `deploy/docker-stack.template.yml`: `{{EXTRA_ENV}}` placeholder in the
+  environment block.
+- `deploy/render_stack.py`: renders `extra_env` list (empty → blank line,
+  valid YAML).
+- `tests/test_deploy_infra.py`: EXTRA_ENV in the known-placeholder set.
+- `.github/workflows/ci.yml`: new `fastapi-safeguard security gate` step
+  running `generate_safeguard_baseline.py --check` (fails on any finding
+  not in `docs/security/safeguard-baseline.json`).
+
+**Test status**: deploy-infra 28 passed + 1 skipped; safeguard --check
+OK (0 new, 5 accepted); render YAML-valid for all 3 envs.
+
+## 2026-10-09 — CI determinism: track uv.lock
+
+**Scope**: one-line fix with outsized effect: CI was resolving the
+dependency set fresh on every run (no lockfile), so toolchain drift
+(local ruff 0.16.10 vs whatever CI resolved) caused local-passes/
+CI-fails divergence on PR #93. Also every run warned "No file matched
+to uv.lock. The cache will never get invalidated."
+
+**What changed**:
+- `uv.lock` tracked (146 packages, ruff pinned to 0.16.10).
+- CI `cache-dependency-glob: uv.lock` now actually hits.
+
+**Test status**: `uv lock --check` clean; ruff check + format pass.
+
 ## 2026-10-09 — CI recovery: ruff mass-fix + CHANGELOG-path bug fix
 
 **Scope**: unblock PRs #93/#94/#96 by fixing the 594-error ruff baseline
