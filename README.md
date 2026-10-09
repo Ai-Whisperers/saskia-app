@@ -2,7 +2,7 @@
 
 > **the operator** · Restaurant Management System · Fase 1-3 Complete  
 > **Local-first** (runs on laptop) + **Hosted** (VPS via Docker Swarm)  
-> **Branch**: `feat/phase-3-ci-cleanup` · **Schema**: v102 · **Routes**: 287 · **Tests**: 475
+> **Branch**: `chore/root-cleanup-2026-10-09` · **Schema**: v117 · **Routes**: 341 · **Tests**: 7,961
 
 ## What this is
 
@@ -19,12 +19,12 @@ Both use the same codebase. Local is where you test "fresh DB" scenarios; hosted
 
 | Area | Count | Scale |
 |------|-------|-------|
-| **Routes** | 287 | Across 36 resource routers |
-| **Tests** | 475 | 80% coverage gate; Phase 3 cleanup complete |
+| **Routes** | 341 | Across 51 resource routers |
+| **Tests** | 7,961 | 80% coverage gate; refactor wave landed |
 | **Templates** | 99 + 11 components | Server-rendered Jinja2 |
-| **Models** | 15 | SQLAlchemy 2.x with hand-rolled migrations |
+| **Models** | 12 | SQLAlchemy 2.x with hand-rolled migrations |
 | **RMS modules** | 90 | Domain logic only (no HTTP, no templates) |
-| **Migrations** | 102 | Hand-rolled, no Alembic |
+| **Migrations** | 117 (36 files) | Hand-rolled, no Alembic |
 
 ## Architecture
 
