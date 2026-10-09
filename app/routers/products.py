@@ -582,61 +582,23 @@ def product_create(
     Centralized validation (app.rms.validation) returns Spanish 400s on
     bad input. Tags are stored as a comma-separated string per the model.
     """
-    from app.rms.validation import (
-        optional_text,
-        parse_date_iso,
-        parse_money_gs,
-        require_text,
-        slugify,
-        validate_slug,
-        validate_url,
+    clean_name, portion_label_clean, price, rid, available = _extract_basic_fields(
+        name, portion_label, sale_price_gs, recipe_id, is_available
     )
-
-    clean_name = require_text(name, field="nombre", max_len=120)
-    portion_label_clean = optional_text(portion_label, max_len=60) or "1 unidad"
-    price = parse_money_gs(sale_price_gs, allow_zero=True)
-    if price < 0:
-        raise HTTPException(status_code=400, detail="Precio no puede ser negativo")
-
-    rid = int(recipe_id) if recipe_id else None
-    available = is_available == "on"
-    notes_clean = optional_text(notes, max_len=2000)
-    sku_clean = optional_text(sku, max_len=32)
-    image_url_clean = validate_url(image_url)
-    category_clean = optional_text(category, max_len=32)
-    tags_clean = optional_text(tags, max_len=500)
-
-    # Wholesale price (mayorista) — optional B2B field.
-    mayorista_price = (
-        parse_money_gs(mayorista_price_gs, allow_zero=True) if mayorista_price_gs.strip() else None
+    notes_clean, sku_clean, image_url_clean = _extract_meta_fields(notes, sku, image_url)
+    category_clean, tags_clean = _extract_category_tags(category, tags)
+    mayorista_price = _parse_mayorista_price(mayorista_price_gs)
+    iva_clean = _validate_iva_rate(iva_rate)
+    requires_rspa_bool, rspa_number_clean, rspa_expiry_clean = _extract_rspa_fields(
+        requires_rspa, rspa_number, rspa_expiry
     )
-
-    # IVA rate — validated against allowed values.
-    iva_valid = iva_rate in ("10", "5", "0", "exento")
-    iva_clean = iva_rate if iva_valid else "10"
-
-    # RSPA fields.
-    requires_rspa_bool = requires_rspa == "on"
-    rspa_number_clean = optional_text(rspa_number, max_len=30)
-    rspa_expiry_clean = parse_date_iso(rspa_expiry) if rspa_expiry.strip() else None
-
-    # C2 — tablet-menu visibility. Slug is auto-generated from the
-    # product name when the operator leaves it blank (so 95% of products
-    # are zero-effort to publish). Manual override wins on user input.
-    tablet_visible_bool = tablet_visible == "on"
-    tablet_slug_clean = validate_slug(tablet_slug or slugify(clean_name), field="slug")
+    tablet_visible_bool, tablet_slug_clean = _extract_tablet_fields(clean_name, tablet_slug, tablet_visible)
 
     # Wave 2 — auto-fill category + tags from the linked recipe if operator
     # left either blank. Recipe's family → category, dietary_tags → tags.
-    if rid and (not category_clean or not tags_clean):
-        from app.rms.models import Recipe
-
-        linked_recipe = session.get(Recipe, rid)
-        if linked_recipe:
-            if not category_clean and linked_recipe.family:
-                category_clean = linked_recipe.family
-            if not tags_clean and linked_recipe.dietary_tags:
-                tags_clean = linked_recipe.dietary_tags
+    category_clean, tags_clean = _autofill_from_recipe(
+        session, rid, category_clean, tags_clean
+    )
 
     product = Product(
         name=clean_name,
@@ -658,17 +620,146 @@ def product_create(
         tablet_visible=tablet_visible_bool,
     )
     session.add(product)
+    _commit_product_with_audit(request, session, product, clean_name, price, tablet_slug_clean)
+    return RedirectResponse(url="/productos", status_code=303)
+
+
+def _extract_basic_fields(
+    name: str, portion_label: str, sale_price_gs: str, recipe_id: str, is_available: str
+) -> tuple[str, str, int, int | None, bool]:
+    """Extract and validate basic product fields.
+    
+    Extracted from product_create to reduce complexity.
+    """
+    from app.rms.validation import optional_text, parse_money_gs, require_text
+
+    clean_name = require_text(name, field="nombre", max_len=120)
+    portion_label_clean = optional_text(portion_label, max_len=60) or "1 unidad"
+    price = parse_money_gs(sale_price_gs, allow_zero=True)
+    if price < 0:
+        raise HTTPException(status_code=400, detail="Precio no puede ser negativo")
+    rid = int(recipe_id) if recipe_id else None
+    available = is_available == "on"
+    return clean_name, portion_label_clean, price, rid, available
+
+
+def _extract_meta_fields(notes: str, sku: str, image_url: str) -> tuple:
+    """Extract and validate meta fields (notes, sku, image_url).
+    
+    Extracted from product_create to reduce complexity.
+    """
+    from app.rms.validation import optional_text, validate_url
+
+    notes_clean = optional_text(notes, max_len=2000)
+    sku_clean = optional_text(sku, max_len=32)
+    image_url_clean = validate_url(image_url)
+    return notes_clean, sku_clean, image_url_clean
+
+
+def _extract_category_tags(category: str, tags: str) -> tuple:
+    """Extract and validate category and tags fields.
+    
+    Extracted from product_create to reduce complexity.
+    """
+    from app.rms.validation import optional_text
+
+    category_clean = optional_text(category, max_len=32)
+    tags_clean = optional_text(tags, max_len=500)
+    return category_clean, tags_clean
+
+
+def _parse_mayorista_price(mayorista_price_gs: str) -> int | None:
+    """Parse the wholesale (mayorista) price.
+    
+    Extracted from product_create to reduce complexity.
+    """
+    from app.rms.validation import parse_money_gs
+
+    if not mayorista_price_gs.strip():
+        return None
+    return parse_money_gs(mayorista_price_gs, allow_zero=True)
+
+
+def _validate_iva_rate(iva_rate: str) -> str:
+    """Validate the IVA rate against allowed values.
+    
+    Extracted from product_create to reduce complexity.
+    """
+    valid_values = ("10", "5", "0", "exento")
+    return iva_rate if iva_rate in valid_values else "10"
+
+
+def _extract_rspa_fields(
+    requires_rspa: str, rspa_number: str, rspa_expiry: str
+) -> tuple[bool, str | None, str | None]:
+    """Extract and validate RSPA fields.
+    
+    Extracted from product_create to reduce complexity.
+    """
+    from app.rms.validation import optional_text, parse_date_iso
+
+    requires_rspa_bool = requires_rspa == "on"
+    rspa_number_clean = optional_text(rspa_number, max_len=30)
+    rspa_expiry_clean = parse_date_iso(rspa_expiry) if rspa_expiry.strip() else None
+    return requires_rspa_bool, rspa_number_clean, rspa_expiry_clean
+
+
+def _extract_tablet_fields(clean_name: str, tablet_slug: str, tablet_visible: str | None) -> tuple[bool, str]:
+    """Extract and validate tablet visibility and slug fields.
+    
+    C2 — tablet-menu visibility. Slug is auto-generated from the
+    product name when the operator leaves it blank (so 95% of products
+    are zero-effort to publish). Manual override wins on user input.
+    Extracted from product_create to reduce complexity.
+    """
+    from app.rms.validation import slugify, validate_slug
+
+    tablet_visible_bool = tablet_visible == "on"
+    tablet_slug_clean = validate_slug(tablet_slug or slugify(clean_name), field="slug")
+    return tablet_visible_bool, tablet_slug_clean
+
+
+def _autofill_from_recipe(
+    session, rid: int | None, category_clean: str | None, tags_clean: str | None
+) -> tuple[str | None, str | None]:
+    """Auto-fill category + tags from the linked recipe if operator left blank.
+    
+    Wave 2 — Recipe's family → category, dietary_tags → tags.
+    Extracted from product_create to reduce complexity.
+    """
+    if not rid or (category_clean and tags_clean):
+        return category_clean, tags_clean
+    from app.rms.models import Recipe
+
+    linked_recipe = session.get(Recipe, rid)
+    if linked_recipe is None:
+        return category_clean, tags_clean
+    if not category_clean and linked_recipe.family:
+        category_clean = linked_recipe.family
+    if not tags_clean and linked_recipe.dietary_tags:
+        tags_clean = linked_recipe.dietary_tags
+    return category_clean, tags_clean
+
+
+def _commit_product_with_audit(
+    request: Request,
+    session,
+    product: Product,
+    clean_name: str,
+    price: int,
+    tablet_slug_clean: str,
+) -> None:
+    """Commit the new product and record audit entry.
+    
+    Distinguishes name vs slug uniqueness conflicts so the operator
+    gets a useful error. C2 — slug uniqueness is independent of name.
+    Extracted from product_create to reduce complexity.
+    """
     try:
         session.commit()
     except IntegrityError:
         session.rollback()
-        # Distinguish name vs slug uniqueness conflicts so the operator
-        # gets a useful error. C2 — slug uniqueness is independent of name.
-        slug_taken = (
-            tablet_slug_clean
-            and session.scalar(select(Product).where(Product.tablet_slug == tablet_slug_clean))
-            is not None
-        )
+        slug_taken = _is_slug_taken(session, tablet_slug_clean)
         if slug_taken:
             raise HTTPException(
                 status_code=409,
@@ -678,6 +769,7 @@ def product_create(
         raise HTTPException(
             status_code=409, detail=f"Ya existe un producto con nombre {clean_name!r}"
         ) from None
+
     record_audit(
         request,
         session=session,
@@ -687,7 +779,19 @@ def product_create(
         detail={"name": clean_name, "price_gs": price},
     )
     session.commit()
-    return RedirectResponse(url="/productos", status_code=303)
+
+
+def _is_slug_taken(session, tablet_slug_clean: str) -> bool:
+    """Check if a tablet slug is already taken.
+    
+    Extracted from _commit_product_with_audit to reduce complexity.
+    """
+    if not tablet_slug_clean:
+        return False
+    return (
+        session.scalar(select(Product).where(Product.tablet_slug == tablet_slug_clean))
+        is not None
+    )
 
 
 @router.get("/{p_id}/editar", response_class=HTMLResponse)
