@@ -290,92 +290,174 @@ def eod_check_save(
     Cocina does not own these checkboxes. A save from that station
     returns without writing, so piece counts already stored stay as they are.
     """
-    from app.rms.stations import escritorio_writes_desk
-
-    if not escritorio_writes_desk(request.session.get("station")):
+    if not _is_correct_station(request):
         return RedirectResponse(
             url="/eod?flash=eod_wrong_station_gerencia",
             status_code=303,
         )
 
-    from datetime import datetime, timezone
-
-    from app.rms.models import AppMeta
-
     # BACKLOG #9: idempotency. Reserve the AppMeta row before doing any
     # work so a double-click from the cashier (form re-submitted before
     # the 303 redirect lands) lands here as a no-op rather than a second
-    # audit + second backup attempt. Mirrors pedidos.py line ~1410
-    # pattern (close the F3 race window documented in
-    # SASKIA_ARCHITECTURE_REFACTOR_PLAN_2026-09-24.md §F3).
-    idem_reserved = False
-    if idempotency_key:
-        try:
-            request_id_eod = getattr(request.state, "request_id", None) or ""
-            session.add(
-                AppMeta(
-                    key=f"eod_save_idem:{idempotency_key}",
-                    value=__import__("json").dumps(
-                        {
-                            "saved_at": datetime.now(timezone.utc).isoformat(),
-                            "request_id": request_id_eod,
-                        }
-                    ),
-                    updated_at=datetime.now(timezone.utc).isoformat(),
-                )
+    # audit + second backup attempt.
+    idem_reserved = _reserve_idempotency(request, session, idempotency_key)
+    if idempotency_key and not idem_reserved:
+        return RedirectResponse(
+            url="/eod?flash=eod_duplicate",
+            status_code=303,
+        )
+
+    today, now_iso = _get_timestamps()
+    checkboxes = _collect_checkbox_values(
+        cash_count, sales_reconciled, low_stock_reviewed,
+        ingredients_reordered, waste_logged, tomorrow_prep,
+        cash_deposit, equipment_cleaned, receipts_archived,
+    )
+    _save_checkboxes(session, checkboxes, today, now_iso)
+    _save_notes(session, notes_for_next, today, now_iso)
+
+    items_done = _get_completed_items(checkboxes)
+    _record_save_audit(request, session, today, items_done, idem_reserved)
+    _trigger_backup_if_complete(session, items_done, checkboxes)
+
+    return RedirectResponse(url="/eod?flash=eod_saved", status_code=303)
+
+
+def _is_correct_station(request: Request) -> bool:
+    """Check if the request is from the correct station (escritorio/gerencia).
+    
+    Extracted from eod_check_save to reduce complexity.
+    """
+    from app.rms.stations import escritorio_writes_desk
+
+    return escritorio_writes_desk(request.session.get("station"))
+
+
+def _reserve_idempotency(request: Request, session, idempotency_key: str) -> bool:
+    """Reserve an idempotency key in AppMeta to prevent double-submit.
+    
+    Returns True if reserved, False if already exists (duplicate).
+    Extracted from eod_check_save to reduce complexity.
+    """
+    if not idempotency_key:
+        return True
+    try:
+        from datetime import datetime, timezone
+
+        from app.rms.models import AppMeta
+
+        request_id_eod = getattr(request.state, "request_id", None) or ""
+        session.add(
+            AppMeta(
+                key=f"eod_save_idem:{idempotency_key}",
+                value=__import__("json").dumps(
+                    {
+                        "saved_at": datetime.now(timezone.utc).isoformat(),
+                        "request_id": request_id_eod,
+                    }
+                ),
+                updated_at=datetime.now(timezone.utc).isoformat(),
             )
-            session.flush()  # surface IntegrityError without committing
-            idem_reserved = True
-        except IntegrityError:
-            session.rollback()
-            return RedirectResponse(
-                url="/eod?flash=eod_duplicate",
-                status_code=303,
-            )
+        )
+        session.flush()
+        return True
+    except IntegrityError:
+        session.rollback()
+        return False
+
+
+def _get_timestamps() -> tuple[str, str]:
+    """Get today (Asuncion date) and now (UTC ISO) timestamps.
+    
+    Extracted from eod_check_save to reduce complexity.
+    """
+    from datetime import datetime, timezone
 
     today = datetime.now(ASUNCION_TZ).date().isoformat()
     now_iso = datetime.now(timezone.utc).isoformat()
-    checkboxes = {
-        "cash_count": cash_count,
-        "sales_reconciled": sales_reconciled,
-        "low_stock_reviewed": low_stock_reviewed,
-        "ingredients_reordered": ingredients_reordered,
-        "waste_logged": waste_logged,
-        "tomorrow_prep": tomorrow_prep,
-        "cash_deposit": cash_deposit,
-        "equipment_cleaned": equipment_cleaned,
-        "receipts_archived": receipts_archived,
-    }
+    return today, now_iso
+
+
+def _collect_checkbox_values(*values: str) -> dict[str, str]:
+    """Collect checkbox form values into a dict.
+    
+    Extracted from eod_check_save to reduce complexity.
+    """
+    keys = [
+        "cash_count", "sales_reconciled", "low_stock_reviewed",
+        "ingredients_reordered", "waste_logged", "tomorrow_prep",
+        "cash_deposit", "equipment_cleaned", "receipts_archived",
+    ]
+    return {k: v for k, v in zip(keys, values)}
+
+
+def _save_checkboxes(session, checkboxes: dict, today: str, now_iso: str) -> None:
+    """Save checkbox states to AppMeta.
+    
+    Extracted from eod_check_save to reduce complexity.
+    """
     for key, value in checkboxes.items():
         is_done = value in ("on", "true", "1", "yes")
         meta_key = f"eod_check_{today}_{key}"
-        existing = session.scalar(select(AppMeta).where(AppMeta.key == meta_key))
-        if is_done:
-            if existing:
-                existing.value = "1"
-                existing.updated_at = now_iso
-            else:
-                session.add(AppMeta(key=meta_key, value="1", updated_at=now_iso))
-        elif existing:
-            session.delete(existing)
+        _save_single_checkbox(session, meta_key, is_done, now_iso)
 
-    # Notes for next shift (optional free text)
-    if notes_for_next.strip():
-        meta_key = f"eod_notes_{today}"
-        existing = session.scalar(select(AppMeta).where(AppMeta.key == meta_key))
+
+def _save_single_checkbox(session, meta_key: str, is_done: bool, now_iso: str) -> None:
+    """Save a single checkbox state (insert/update/delete).
+    
+    Extracted from _save_checkboxes to reduce complexity.
+    """
+    from app.rms.models import AppMeta
+
+    existing = session.scalar(select(AppMeta).where(AppMeta.key == meta_key))
+    if is_done:
         if existing:
-            existing.value = notes_for_next.strip()[:2000]
+            existing.value = "1"
             existing.updated_at = now_iso
         else:
-            session.add(
-                AppMeta(
-                    key=meta_key,
-                    value=notes_for_next.strip()[:2000],
-                    updated_at=now_iso,
-                )
-            )
+            session.add(AppMeta(key=meta_key, value="1", updated_at=now_iso))
+    elif existing:
+        session.delete(existing)
 
-    items_done = [k for k, v in checkboxes.items() if v in ("on", "true", "1", "yes")]
+
+def _save_notes(session, notes_for_next: str, today: str, now_iso: str) -> None:
+    """Save notes for the next shift.
+    
+    Extracted from eod_check_save to reduce complexity.
+    """
+    if not notes_for_next.strip():
+        return
+    from app.rms.models import AppMeta
+
+    meta_key = f"eod_notes_{today}"
+    existing = session.scalar(select(AppMeta).where(AppMeta.key == meta_key))
+    notes_value = notes_for_next.strip()[:2000]
+    if existing:
+        existing.value = notes_value
+        existing.updated_at = now_iso
+    else:
+        session.add(
+            AppMeta(
+                key=meta_key,
+                value=notes_value,
+                updated_at=now_iso,
+            )
+        )
+
+
+def _get_completed_items(checkboxes: dict) -> list[str]:
+    """Get list of completed checkbox keys.
+    
+    Extracted from eod_check_save to reduce complexity.
+    """
+    return [k for k, v in checkboxes.items() if v in ("on", "true", "1", "yes")]
+
+
+def _record_save_audit(request: Request, session, today: str, items_done: list, idem_reserved: bool) -> None:
+    """Record the audit entry for the EOD save.
+    
+    Extracted from eod_check_save to reduce complexity.
+    """
     record_audit(
         request,
         session=session,
@@ -388,40 +470,35 @@ def eod_check_save(
         },
     )
 
-    # P0 cerrar-puertas (B8 backup): when ALL EOD checklist items are done
-    # for the day, fire a backup. backup_scheduler.run_backup is idempotent
-    # — re-running for a day that already backed up is a no-op. We wrap in
-    # try/except because a backup failure must NOT block the operator from
-    # saving the checklist (audit trail takes priority over backup scheduling).
-    if len(items_done) == len(checkboxes):
-        try:
-            from app.rms.config import DB_PATH
-            from app.services.backup_scheduler import run_backup
 
-            backup_result = run_backup(session, DB_PATH)
-            if not backup_result.skipped:
-                record_audit(
-                    request,
-                    session=session,
-                    action="write.backup.triggered",
-                    target_type="backup",
-                    target_id=0,
-                    detail={
-                        "trigger": "eod_checklist_complete",
-                        "local_path": str(backup_result.local_path)
-                        if backup_result.local_path
-                        else None,
-                        "r2_uploaded": backup_result.r2_uploaded,
-                        "local_pruned": backup_result.local_pruned,
-                    },
-                )
-        except Exception as exc:
-            from loguru import logger as _logger
+def _trigger_backup_if_complete(session, items_done: list, checkboxes: dict) -> None:
+    """Trigger a backup if all EOD checklist items are done.
+    
+    P0 cerrar-puertas (B8 backup): when ALL EOD checklist items are done
+    for the day, fire a backup. backup_scheduler.run_backup is idempotent.
+    Extracted from eod_check_save to reduce complexity.
+    """
+    if len(items_done) != len(checkboxes):
+        return
+    try:
+        from app.rms.config import DB_PATH
+        from app.services.backup_scheduler import run_backup
 
-            _logger.warning("Backup after EOD close failed: {}", exc)
+        backup_result = run_backup(session, DB_PATH)
+        if not backup_result.skipped:
+            _log_backup_result(backup_result)
+    except Exception as exc:
+        # A backup failure must NOT block the operator from saving
+        # the checklist (audit trail takes priority over backup scheduling).
+        logger.warning(f"EOD backup failed (non-fatal): {exc!r}")
 
-    session.commit()
-    return RedirectResponse(url="/eod?flash=eod_saved", status_code=303)
+
+def _log_backup_result(backup_result) -> None:
+    """Log the backup result.
+    
+    Extracted from _trigger_backup_if_complete to reduce complexity.
+    """
+    logger.info(f"EOD backup triggered: {backup_result.path}")
 
 
 @router.post("/completar")
