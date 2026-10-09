@@ -1,4 +1,5 @@
 """Generate new seeder data for sazon.py from the HEREBUS canonical JSON."""
+
 import json
 import os
 import re
@@ -60,7 +61,19 @@ def infer_storage(name: str) -> str:
 
 
 _ALLERGEN_MAP = [
-    ("gluten", ["harina", "trigo", "centeno", "patentada", "pan rallado", "bizcocho", "galleta", "pastelitos"]),
+    (
+        "gluten",
+        [
+            "harina",
+            "trigo",
+            "centeno",
+            "patentada",
+            "pan rallado",
+            "bizcocho",
+            "galleta",
+            "pastelitos",
+        ],
+    ),
     ("leche", ["leche", "crema", "manteca", "queso", "yogur", "suero", "nata"]),
     ("huevo", ["huevo"]),
     ("nueces", ["nuez moscada", "almendra", "avellana"]),
@@ -68,11 +81,39 @@ _ALLERGEN_MAP = [
     ("mostaza", ["mostaza"]),
 ]
 
-_DIETARY_VEGAN = ["fruta", "verdura", "harina", "azúcar", "aceite", "sal", "vinagre",
-                  "levadura", "garbanzo", "mango", "pasas", "frutilla", "manzana",
-                  "frambuesa", "pimentón", "perejil", "tomillo", "jengibre", "anis"]
-_MEAT = ["pechuga", "panceta", "bola de lomo", "carnaza", "falda", "carne",
-         "pollo", "cerdo", "jamón", "mortadela"]
+_DIETARY_VEGAN = [
+    "fruta",
+    "verdura",
+    "harina",
+    "azúcar",
+    "aceite",
+    "sal",
+    "vinagre",
+    "levadura",
+    "garbanzo",
+    "mango",
+    "pasas",
+    "frutilla",
+    "manzana",
+    "frambuesa",
+    "pimentón",
+    "perejil",
+    "tomillo",
+    "jengibre",
+    "anis",
+]
+_MEAT = [
+    "pechuga",
+    "panceta",
+    "bola de lomo",
+    "carnaza",
+    "falda",
+    "carne",
+    "pollo",
+    "cerdo",
+    "jamón",
+    "mortadela",
+]
 _DAIRY_EGG = ["leche", "crema", "huevo", "queso", "manteca", "yogur"]
 
 
@@ -195,7 +236,7 @@ for ing in inv:
 # ────────────────────────────────────────────────────────────────────
 def slugify(name: str) -> str:
     s = name.lower()
-    repl = {"á":"a","é":"e","í":"i","ó":"o","ú":"u","ñ":"n","ü":"u"}
+    repl = {"á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ñ": "n", "ü": "u"}
     for k, v in repl.items():
         s = s.replace(k, v)
     s = re.sub(r"[^a-z0-9]+", "_", s)
@@ -206,28 +247,28 @@ def slugify(name: str) -> str:
 # the same name-level slug ("Petisus de hojaldre y crema Tompoezen" and
 # anything else); we keep rec_id-suffixed slugs to avoid mapping issues.
 YIELD_ESTIMATES = {
-    "REC-001": (12,  "und",  "Muffin de chocolate — 12 und estándar (molde 20x20 cm)"),
-    "REC-002": (170, "g",    "Cheesecake 30x50 → ~170 porciones de 27g"),
-    "REC-003": (12,  "und",  "Stroop wafel — 12 und"),
-    "REC-004": (12,  "und",  "Ontbijtkoek 700g harina → ~12 und"),
-    "REC-005": (24,  "und",  "Torta de zanahoria 43x33x1.5cm → 24 und"),
-    "REC-006": (100, "und",  "bitterballen — 100 und"),
-    "REC-007": (250, "ml",   "Ketjap manis — 250 ml rinde base"),
-    "REC-008": (8,   "und",  "Hojaldre (Bladerdeeg) — 8 und"),
-    "REC-009": (12,  "und",  "Pastelitos rosados (Roze koeken) — 12 und"),
-    "REC-010": (40,  "und",  "Galletas de especuloos — 40 und"),
-    "REC-011": (12,  "und",  "Bizcocho básico 25 cm — 12 porciones"),
-    "REC-012": (16,  "und",  "Bizcocho básico 30 cm — 16 porciones"),
-    "REC-013": (12,  "und",  "Tarta de manzana — 12 und"),
-    "REC-014": (12,  "und",  "Proficteroles Den Bosch — 12 und"),
-    "REC-015": (12,  "und",  "Petisús (Tompoezen) — 12 und"),
-    "REC-016": (24,  "und",  "Oliebollen — 24 und"),
-    "REC-017": (10,  "und",  "Babka — 10 und"),
-    "REC-018": (20,  "und",  "Bombones de chocolate — 20 und"),
-    "REC-019": (100, "und",  "goulash crockettes — 100 und"),
-    "REC-020": (100, "und",  "bitterballen vegetariano — 100 und"),
-    "REC-021": (12,  "und",  "suppli cacio e pepe — 12 und"),
-    "REC-022": (100, "und",  "Frikandel — 100 und"),
+    "REC-001": (12, "und", "Muffin de chocolate — 12 und estándar (molde 20x20 cm)"),
+    "REC-002": (170, "g", "Cheesecake 30x50 → ~170 porciones de 27g"),
+    "REC-003": (12, "und", "Stroop wafel — 12 und"),
+    "REC-004": (12, "und", "Ontbijtkoek 700g harina → ~12 und"),
+    "REC-005": (24, "und", "Torta de zanahoria 43x33x1.5cm → 24 und"),
+    "REC-006": (100, "und", "bitterballen — 100 und"),
+    "REC-007": (250, "ml", "Ketjap manis — 250 ml rinde base"),
+    "REC-008": (8, "und", "Hojaldre (Bladerdeeg) — 8 und"),
+    "REC-009": (12, "und", "Pastelitos rosados (Roze koeken) — 12 und"),
+    "REC-010": (40, "und", "Galletas de especuloos — 40 und"),
+    "REC-011": (12, "und", "Bizcocho básico 25 cm — 12 porciones"),
+    "REC-012": (16, "und", "Bizcocho básico 30 cm — 16 porciones"),
+    "REC-013": (12, "und", "Tarta de manzana — 12 und"),
+    "REC-014": (12, "und", "Proficteroles Den Bosch — 12 und"),
+    "REC-015": (12, "und", "Petisús (Tompoezen) — 12 und"),
+    "REC-016": (24, "und", "Oliebollen — 24 und"),
+    "REC-017": (10, "und", "Babka — 10 und"),
+    "REC-018": (20, "und", "Bombones de chocolate — 20 und"),
+    "REC-019": (100, "und", "goulash crockettes — 100 und"),
+    "REC-020": (100, "und", "bitterballen vegetariano — 100 und"),
+    "REC-021": (12, "und", "suppli cacio e pepe — 12 und"),
+    "REC-022": (100, "und", "Frikandel — 100 und"),
 }
 
 
@@ -239,38 +280,38 @@ def remap_rec_id(rec_id: str, sheet: str) -> str:
 
 
 _PREP_COOK = {
-    "muffin":      (15, 25, 1),
-    "cheesecake":  (20, 60, 3),
-    "babka":       (40, 40, 3),
-    "hojaldre":    (60, 25, 4),
-    "stroop":      (20, 12, 2),
-    "wafel":       (20, 12, 2),
-    "appeltaart":  (35, 50, 2),
-    "tompoezen":   (60, 25, 3),
-    "petisus":     (60, 25, 3),
-    "oliebollen":  (20, 6,  2),
-    "buñuelo":     (20, 6,  2),
-    "pastelitos":  (45, 22, 3),
-    "rosados":     (45, 22, 3),
-    "especuloos":  (30, 14, 2),
-    "speculaas":   (30, 14, 2),
+    "muffin": (15, 25, 1),
+    "cheesecake": (20, 60, 3),
+    "babka": (40, 40, 3),
+    "hojaldre": (60, 25, 4),
+    "stroop": (20, 12, 2),
+    "wafel": (20, 12, 2),
+    "appeltaart": (35, 50, 2),
+    "tompoezen": (60, 25, 3),
+    "petisus": (60, 25, 3),
+    "oliebollen": (20, 6, 2),
+    "buñuelo": (20, 6, 2),
+    "pastelitos": (45, 22, 3),
+    "rosados": (45, 22, 3),
+    "especuloos": (30, 14, 2),
+    "speculaas": (30, 14, 2),
     "ontbijtkoek": (15, 60, 1),
-    "bizcocho":    (15, 30, 1),
-    "torta":       (20, 40, 2),
-    "zanahoria":   (20, 40, 2),
-    "mazana":      (35, 50, 2),
-    "manzana":     (35, 50, 2),
-    "profic":      (60, 25, 4),
-    "bossche":     (60, 25, 4),
-    "bombones":    (30, 0,  3),
-    "chocolate":   (30, 0,  3),
-    "bitterbal":   (45, 0,  4),
-    "frikandel":   (45, 0,  4),
-    "goulash":     (45, 0,  4),
-    "crocket":     (45, 0,  4),
-    "suppli":      (30, 6,  3),
-    "ketjap":      (5,  45, 1),
-    "manis":       (5,  45, 1),
+    "bizcocho": (15, 30, 1),
+    "torta": (20, 40, 2),
+    "zanahoria": (20, 40, 2),
+    "mazana": (35, 50, 2),
+    "manzana": (35, 50, 2),
+    "profic": (60, 25, 4),
+    "bossche": (60, 25, 4),
+    "bombones": (30, 0, 3),
+    "chocolate": (30, 0, 3),
+    "bitterbal": (45, 0, 4),
+    "frikandel": (45, 0, 4),
+    "goulash": (45, 0, 4),
+    "crocket": (45, 0, 4),
+    "suppli": (30, 6, 3),
+    "ketjap": (5, 45, 1),
+    "manis": (5, 45, 1),
 }
 
 
@@ -307,14 +348,32 @@ for rec in recipes:
     yield_qty = float(yq)
     # Map yield_unit variants to the 5 allowed values: g, kg, ml, l, und
     _UNIT_MAP = {
-        "und": "und", "unidad": "und", "unidades": "und",
-        "u": "und", "un": "und", "unid": "und",
-        "porcion": "und", "porciones": "und",
-        "porción": "und", "porciones ": "und",
-        "g": "g", "gr": "g", "gramo": "g", "gramos": "g",
-        "kg": "kg", "kilo": "kg", "kilos": "kg", "kilogramo": "kg", "kilogramos": "kg",
-        "ml": "ml", "mililitro": "ml", "mililitros": "ml",
-        "l": "l", "lt": "l", "litro": "l", "litros": "l",
+        "und": "und",
+        "unidad": "und",
+        "unidades": "und",
+        "u": "und",
+        "un": "und",
+        "unid": "und",
+        "porcion": "und",
+        "porciones": "und",
+        "porción": "und",
+        "porciones ": "und",
+        "g": "g",
+        "gr": "g",
+        "gramo": "g",
+        "gramos": "g",
+        "kg": "kg",
+        "kilo": "kg",
+        "kilos": "kg",
+        "kilogramo": "kg",
+        "kilogramos": "kg",
+        "ml": "ml",
+        "mililitro": "ml",
+        "mililitros": "ml",
+        "l": "l",
+        "lt": "l",
+        "litro": "l",
+        "litros": "l",
     }
     yield_unit = _UNIT_MAP.get(yu.strip(), "und" if yield_qty else "g")
 
@@ -334,21 +393,25 @@ for rec in recipes:
             dietary = val
             break
 
-    notes_text = (f"Heredado del workbook (id {rec_id_orig}). "
-                  f"Rinde estimada — el operador ajusta B4 después de hornear.")
+    notes_text = (
+        f"Heredado del workbook (id {rec_id_orig}). "
+        f"Rinde estimada — el operador ajusta B4 después de hornear."
+    )
 
-    recipes_out.append((
-        slug,
-        yield_qty,
-        yield_unit,
-        prep,
-        cook,
-        diff,
-        "",       # family — auto-classified at seed time
-        "",       # menu_tags
-        dietary,
-        notes_text,
-    ))
+    recipes_out.append(
+        (
+            slug,
+            yield_qty,
+            yield_unit,
+            prep,
+            cook,
+            diff,
+            "",  # family — auto-classified at seed time
+            "",  # menu_tags
+            dietary,
+            notes_text,
+        )
+    )
 
     # Recipe lines
     for line in rec["ingredients"]:
@@ -394,46 +457,49 @@ def pick_category(name: str) -> str:
 
 def sku_cat(cat: str) -> str:
     return {
-        "Panadería": "PA", "Pastelería": "PS",
-        "Salados": "SA", "Bebidas": "BE",
-        "Especiales": "ES", "Tortas": "TO",
+        "Panadería": "PA",
+        "Pastelería": "PS",
+        "Salados": "SA",
+        "Bebidas": "BE",
+        "Especiales": "ES",
+        "Tortas": "TO",
     }[cat]
 
 
 # Price points (retail single-unit, Gs) - Sazon's seed uses round thousands
 _PRICE = {
-    "muffin":      8000,
+    "muffin": 8000,
     "cheesecake": 16000,
-    "babka":      12000,
-    "hojaldre":    7000,
-    "stroop":      6000,
-    "wafel":       6000,
+    "babka": 12000,
+    "hojaldre": 7000,
+    "stroop": 6000,
+    "wafel": 6000,
     "appeltaart": 22000,
-    "mazana":     22000,
-    "manzana":    22000,
-    "tompoezen":   6000,
-    "petisus":     6000,
-    "oliebollen":  4000,
-    "buñuelo":     4000,
-    "pastelitos":  5000,
-    "rosados":     5000,
-    "especuloos":  3000,
-    "speculaas":   3000,
+    "mazana": 22000,
+    "manzana": 22000,
+    "tompoezen": 6000,
+    "petisus": 6000,
+    "oliebollen": 4000,
+    "buñuelo": 4000,
+    "pastelitos": 5000,
+    "rosados": 5000,
+    "especuloos": 3000,
+    "speculaas": 3000,
     "ontbijtkoek": 8000,
-    "bizcocho":   14000,
-    "torta":      14000,
-    "zanahoria":  15000,
-    "profic":      9000,
-    "bossche":     9000,
-    "bombones":   15000,
-    "chocolate":  15000,
-    "bitterbal":   3000,
-    "frikandel":   3000,
-    "goulash":     3000,
-    "crocket":     3000,
-    "suppli":      4000,
-    "ketjap":     12000,
-    "manis":      12000,
+    "bizcocho": 14000,
+    "torta": 14000,
+    "zanahoria": 15000,
+    "profic": 9000,
+    "bossche": 9000,
+    "bombones": 15000,
+    "chocolate": 15000,
+    "bitterbal": 3000,
+    "frikandel": 3000,
+    "goulash": 3000,
+    "crocket": 3000,
+    "suppli": 4000,
+    "ketjap": 12000,
+    "manis": 12000,
 }
 
 
@@ -461,22 +527,24 @@ for i, recipe_tuple in enumerate(recipes_out):
     rec_name = slug_to_rec_name.get(slug, slug.replace("__", " - ").replace("_", " ").title())
     cat = pick_category(rec_name)
     base_price = price_for_recipe(rec_name)
-    sku = f"{sku_cat(cat)}{i+1:03d}-U"
+    sku = f"{sku_cat(cat)}{i + 1:03d}-U"
 
-    products_out.append((
-        rec_name,
-        slug,
-        "1 unidad",
-        base_price,
-        cat,
-        sku,
-        "10",
-        None,
-        True,        # default favorite
-        None,
-        None,
-        None,
-    ))
+    products_out.append(
+        (
+            rec_name,
+            slug,
+            "1 unidad",
+            base_price,
+            cat,
+            sku,
+            "10",
+            None,
+            True,  # default favorite
+            None,
+            None,
+            None,
+        )
+    )
     product_names_indexed.append(rec_name)
     seen_names.add(rec_name)
 
@@ -503,21 +571,43 @@ for rec_name, bulk_name, price in _BULK_VARIANTS:
         print(f"  BULK: recipe '{rec_name}' slug not found", file=sys.stderr)
         continue
     cat = pick_category(rec_name)
-    products_out.append((
-        bulk_name, slug, "Lote completo", price, cat,
-        f"{sku_cat(cat)}{len(products_out)+1:03d}-L",
-        "10", None, False, None, None, None,
-    ))
+    products_out.append(
+        (
+            bulk_name,
+            slug,
+            "Lote completo",
+            price,
+            cat,
+            f"{sku_cat(cat)}{len(products_out) + 1:03d}-L",
+            "10",
+            None,
+            False,
+            None,
+            None,
+            None,
+        )
+    )
     product_names_indexed.append(bulk_name)
     seen_names.add(bulk_name)
 
 
 # Venta libre
-products_out.append((
-    "Venta libre", None, "1 unidad", 0, "Especiales",
-    "VAR-001", "10", None, False, None, None,
-    "Venta libre — definí el precio en el carrito.",
-))
+products_out.append(
+    (
+        "Venta libre",
+        None,
+        "1 unidad",
+        0,
+        "Especiales",
+        "VAR-001",
+        "10",
+        None,
+        False,
+        None,
+        None,
+        "Venta libre — definí el precio en el carrito.",
+    )
+)
 product_names_indexed.append("Venta libre")
 
 
@@ -546,6 +636,7 @@ BENCHMARKS = [
     ("Bizcocho 25 cm entero", 120000, 180000, 170000, 140000),
     ("Bizcocho 30 cm entero", 150000, 220000, 210000, 170000),
 ]
+
 
 # ────────────────────────────────────────────────────────────────────
 # PRODUCTION_TEMPLATES (using product indexes)
@@ -586,48 +677,120 @@ print(f"PRODUCTION_TEMPLATES: {len(PRODUCTION_TEMPLATES)}")
 # PEDIDOS (using new product names)
 # ────────────────────────────────────────────────────────────────────
 PEDIDOS_RAW = [
-    (0, -30, 10, 0, "fulfilled", "efectivo", 0,
-     "Cliente habitual, viernes",
-     [("Muffin de chocolate (20x20 cm)", 6), ("Docena gofres de sirope", 1)]),
-    (1, -28, 14, 30, "fulfilled", "transferencia", 1,
-     "Pedido con factura",
-     [("Cheesecake entera", 1)]),
-    (2, -21, 9, 0, "fulfilled", "efectivo", 0,
-     None,
-     [("Cheesecake (30x50)", 6)]),
-    (5, -14, 16, 0, "fulfilled", "efectivo", 0,
-     "Cliente celíaca",
-     [("Cheesecake entera", 1)]),
-    (6, -7, 11, 0, "fulfilled", "tarjeta", 0,
-     "Factura con RUC",
-     [("Babka", 2)]),
-    (8, -5, 8, 30, "fulfilled", "efectivo", 0,
-     "Para la oficina",
-     [("Hojaldre (Bladerdeeg)", 4)]),
-    (2, -2, 10, 30, "fulfilled", "tarjeta", 0,
-     "Ya retirado",
-     [("Petisús de hojaldre y crema (Tompoezen)", 2)]),
-    (4, -1, 15, 0, "ready", "efectivo", 1,
-     "Llamó por WhatsApp. Listo para retirar.",
-     [("Muffin de chocolate (20x20 cm)", 6)]),
-    (9, 0, 11, 0, "ready", "transferencia", 1,
-     "Opciones vegetarianas",
-     [("Tarta de manzana de mi madre (Mijn moeders appeltaart)", 1)]),
-    (12, 0, 18, 0, "confirmed", "transferencia", 1,
-     "Para evento mañana a las 20h",
-     [("Cheesecake entera", 1)]),
-    (11, 1, 9, 0, "confirmed", "efectivo", 0,
-     "Pedido diario",
-     [("Muffin de chocolate (20x20 cm)", 12)]),
-    (13, 2, 16, 0, "pending", "efectivo", 3,
-     "Llamó por teléfono. Para lunes 16h.",
-     [("Docena gofres de sirope", 1)]),
-    (10, 1, 14, 0, "pending", "efectivo", 0,
-     "Vino a la tienda a preguntar",
-     [("Docena galletas de especias", 1)]),
-    (7, 1, 11, 0, "confirmed", "transferencia", 1,
-     "Decorada con flores",
-     [("Cheesecake entera", 1)]),
+    (
+        0,
+        -30,
+        10,
+        0,
+        "fulfilled",
+        "efectivo",
+        0,
+        "Cliente habitual, viernes",
+        [("Muffin de chocolate (20x20 cm)", 6), ("Docena gofres de sirope", 1)],
+    ),
+    (
+        1,
+        -28,
+        14,
+        30,
+        "fulfilled",
+        "transferencia",
+        1,
+        "Pedido con factura",
+        [("Cheesecake entera", 1)],
+    ),
+    (2, -21, 9, 0, "fulfilled", "efectivo", 0, None, [("Cheesecake (30x50)", 6)]),
+    (5, -14, 16, 0, "fulfilled", "efectivo", 0, "Cliente celíaca", [("Cheesecake entera", 1)]),
+    (6, -7, 11, 0, "fulfilled", "tarjeta", 0, "Factura con RUC", [("Babka", 2)]),
+    (8, -5, 8, 30, "fulfilled", "efectivo", 0, "Para la oficina", [("Hojaldre (Bladerdeeg)", 4)]),
+    (
+        2,
+        -2,
+        10,
+        30,
+        "fulfilled",
+        "tarjeta",
+        0,
+        "Ya retirado",
+        [("Petisús de hojaldre y crema (Tompoezen)", 2)],
+    ),
+    (
+        4,
+        -1,
+        15,
+        0,
+        "ready",
+        "efectivo",
+        1,
+        "Llamó por WhatsApp. Listo para retirar.",
+        [("Muffin de chocolate (20x20 cm)", 6)],
+    ),
+    (
+        9,
+        0,
+        11,
+        0,
+        "ready",
+        "transferencia",
+        1,
+        "Opciones vegetarianas",
+        [("Tarta de manzana de mi madre (Mijn moeders appeltaart)", 1)],
+    ),
+    (
+        12,
+        0,
+        18,
+        0,
+        "confirmed",
+        "transferencia",
+        1,
+        "Para evento mañana a las 20h",
+        [("Cheesecake entera", 1)],
+    ),
+    (
+        11,
+        1,
+        9,
+        0,
+        "confirmed",
+        "efectivo",
+        0,
+        "Pedido diario",
+        [("Muffin de chocolate (20x20 cm)", 12)],
+    ),
+    (
+        13,
+        2,
+        16,
+        0,
+        "pending",
+        "efectivo",
+        3,
+        "Llamó por teléfono. Para lunes 16h.",
+        [("Docena gofres de sirope", 1)],
+    ),
+    (
+        10,
+        1,
+        14,
+        0,
+        "pending",
+        "efectivo",
+        0,
+        "Vino a la tienda a preguntar",
+        [("Docena galletas de especias", 1)],
+    ),
+    (
+        7,
+        1,
+        11,
+        0,
+        "confirmed",
+        "transferencia",
+        1,
+        "Decorada con flores",
+        [("Cheesecake entera", 1)],
+    ),
 ]
 
 # Filter
@@ -673,14 +836,16 @@ print(f"PROD_COMPLETION_PRODUCTS: {len(PROD_COMPLETION_PRODUCTS)}")
 # ────────────────────────────────────────────────────────────────────
 # Render as Python code snippets
 # ────────────────────────────────────────────────────────────────────
-def render_tuple_lines(name_decl: str, out_list: list[tuple], comment: str = "AUTO-GENERATED", per_tuple: bool = True) -> list[str]:
+def render_tuple_lines(
+    name_decl: str, out_list: list[tuple], comment: str = "AUTO-GENERATED", per_tuple: bool = True
+) -> list[str]:
     """Render a list of tuples as a python snippet. Uses double quotes + trailing commas to match the existing sazon.py style."""
     lines = [f"# {comment}", name_decl + " = ["]
     if per_tuple:
         for t in out_list:
             lines.append("    (")
             for _j, v in enumerate(t):
-                v_repr = repr(v).replace("\'", chr(34))  # match existing double-quote style
+                v_repr = repr(v).replace("'", chr(34))  # match existing double-quote style
                 # Add trailing comma to every line including the last (existing style has `25,`)
                 lines.append(f"        {v_repr},")
             lines.append("    ),")
@@ -697,40 +862,51 @@ os.makedirs("data/seed_pieces", exist_ok=True)
 with open("data/seed_pieces/ingredients.py", "w", encoding="utf-8") as f:
     f.write("# AUTO-GENERATED from data/herebus.xlsx — 94 ingredients\n")
     f.write("# Patch target: app/rms/seed/sazon.py INGREDIENTS section (lines 476-1682)\n")
-    f.write(render_tuple_lines(
-        "INGREDIENTS",
-        ingredients_out,
-        comment=f"# {len(ingredients_out)} ingredients (one per workbook row)",
-        per_tuple=True,
-    ))
+    f.write(
+        render_tuple_lines(
+            "INGREDIENTS",
+            ingredients_out,
+            comment=f"# {len(ingredients_out)} ingredients (one per workbook row)",
+            per_tuple=True,
+        )
+    )
 
 with open("data/seed_pieces/recipes.py", "w", encoding="utf-8") as f:
     f.write("# AUTO-GENERATED — 22 recipes keyed by slug\n")
-    f.write(render_tuple_lines(
-        "RECIPES",
-        recipes_out,
-        comment=f"# {len(recipes_out)} recipes from workbook",
-    ))
+    f.write(
+        render_tuple_lines(
+            "RECIPES",
+            recipes_out,
+            comment=f"# {len(recipes_out)} recipes from workbook",
+        )
+    )
 
 with open("data/seed_pieces/recipe_lines.py", "w", encoding="utf-8") as f:
     f.write("# AUTO-GENERATED — recipe ingredient lines\n")
     cur_slug = None
-    body_lines = ["# AUTO-GENERATED", "RECIPE_LINES: list[tuple[str, str, float, str, str | None]] = ["]
+    body_lines = [
+        "# AUTO-GENERATED",
+        "RECIPE_LINES: list[tuple[str, str, float, str, str | None]] = [",
+    ]
     for slug, ing, qty, unit, notes in recipes_lines_out:
         if slug != cur_slug:
             cur_slug = slug
             body_lines.append(f"    # === {slug} ===")
-        body_lines.append(f'    ({repr(slug).replace(chr(39), chr(34))}, {repr(ing).replace(chr(39), chr(34))}, {qty}, {repr(unit).replace(chr(39), chr(34))}, None),')
+        body_lines.append(
+            f"    ({repr(slug).replace(chr(39), chr(34))}, {repr(ing).replace(chr(39), chr(34))}, {qty}, {repr(unit).replace(chr(39), chr(34))}, None),"
+        )
     body_lines.append("]")
     f.write("\n".join(body_lines))
 
 with open("data/seed_pieces/products.py", "w", encoding="utf-8") as f:
     f.write("# AUTO-GENERATED — products derived from kept recipes\n")
-    f.write(render_tuple_lines(
-        "PRODUCTS",
-        products_out,
-        comment=f"# {len(products_out)} products",
-    ))
+    f.write(
+        render_tuple_lines(
+            "PRODUCTS",
+            products_out,
+            comment=f"# {len(products_out)} products",
+        )
+    )
 
 with open("data/seed_pieces/benchmarks.py", "w", encoding="utf-8") as f:
     f.write("# AUTO-GENERATED — market benchmarks\n")

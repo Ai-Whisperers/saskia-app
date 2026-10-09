@@ -2,6 +2,7 @@
 
 Outputs data/herebus_seed_canonical.json.
 """
+
 import json
 from datetime import date, datetime
 
@@ -60,13 +61,21 @@ for r in range(5, sh.max_row + 1):
     else:
         last_update = _s(last_update)
     notes = _s(sh.cell(r, 11).value)
-    inv.append({
-        "ing_id": ing_id, "name": name, "grupo": grupo,
-        "pkg_qty": pkg_qty, "pkg_unit": pkg_unit,
-        "bulk_price": bulk_price, "unit_price": unit_price,
-        "stock_qty": stock_qty, "min_reorder": min_reorder,
-        "last_update": last_update, "notes": notes,
-    })
+    inv.append(
+        {
+            "ing_id": ing_id,
+            "name": name,
+            "grupo": grupo,
+            "pkg_qty": pkg_qty,
+            "pkg_unit": pkg_unit,
+            "bulk_price": bulk_price,
+            "unit_price": unit_price,
+            "stock_qty": stock_qty,
+            "min_reorder": min_reorder,
+            "last_update": last_update,
+            "notes": notes,
+        }
+    )
 
 result["inventory"] = inv
 print(f"Inventory rows: {len(inv)}")
@@ -85,12 +94,20 @@ for r in range(5, sh.max_row + 1):
     pkg_qty = sh.cell(r, 5).value
     pkg_unit = _s(sh.cell(r, 6).value)
     bulk_price = sh.cell(r, 7).value
-    pkg.append({
-        "pkg_id": pkg_id, "name": name, "desc": desc, "categoria": categoria,
-        "pkg_qty": pkg_qty, "pkg_unit": pkg_unit, "bulk_price": bulk_price,
-    })
+    pkg.append(
+        {
+            "pkg_id": pkg_id,
+            "name": name,
+            "desc": desc,
+            "categoria": categoria,
+            "pkg_qty": pkg_qty,
+            "pkg_unit": pkg_unit,
+            "bulk_price": bulk_price,
+        }
+    )
 result["packaging"] = pkg
 print(f"Packaging rows: {len(pkg)}")
+
 
 # ───── Each Recipe_* ─────
 def parse_recipe(sh: Worksheet, sheet_name: str) -> dict:
@@ -140,11 +157,15 @@ def parse_recipe(sh: Worksheet, sheet_name: str) -> dict:
         yield_notes = _s(sh.cell(5, 2).value)
         ing_header_row = 8
 
-    data.update({
-        "rec_id": rec_id, "rec_name": rec_name,
-        "yield_qty": yield_qty, "yield_unit": yield_unit,
-        "yield_notes": yield_notes,
-    })
+    data.update(
+        {
+            "rec_id": rec_id,
+            "rec_name": rec_name,
+            "yield_qty": yield_qty,
+            "yield_unit": yield_unit,
+            "yield_notes": yield_notes,
+        }
+    )
 
     ings = []
     for r in range(ing_header_row + 1, ing_header_row + 25):
@@ -156,10 +177,14 @@ def parse_recipe(sh: Worksheet, sheet_name: str) -> dict:
             continue
         qty = sh.cell(r, 4).value
         unit = _s(sh.cell(r, 5).value)
-        ings.append({
-            "ing_ref": ing_ref, "name": name,
-            "qty": qty, "unit": unit,
-        })
+        ings.append(
+            {
+                "ing_ref": ing_ref,
+                "name": name,
+                "qty": qty,
+                "unit": unit,
+            }
+        )
     data["ingredients"] = ings
 
     # Margins are at fixed rows: 32/33/34 sweet, 40/41/42 savory.

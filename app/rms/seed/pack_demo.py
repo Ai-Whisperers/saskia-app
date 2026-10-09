@@ -165,13 +165,19 @@ def seed_pack_demo(
     session.flush()
 
     _seed_sales_history(
-        session, rng, now, days_of_history, sales_per_day,
-        products, recipes_by_id, lines_by_recipe, report
+        session,
+        rng,
+        now,
+        days_of_history,
+        sales_per_day,
+        products,
+        recipes_by_id,
+        lines_by_recipe,
+        report,
     )
 
     _seed_pedidos(
-        session, rng, now, days_of_history, pedidos_total,
-        customers, products, zones, report
+        session, rng, now, days_of_history, pedidos_total, customers, products, zones, report
     )
 
     session.flush()
@@ -202,9 +208,9 @@ def _seed_customers(
             name=name,
             phone=f"+5959{rng.randint(71000000, 99999999)}",
             zone=rng.choice(["Centro", "Villa Aurelia", "Sajonia", "Manorá", "Lambaré"]),
-            preferred_channel=rng.choices(
-                ["whatsapp", "phone", "instagram"], weights=[70, 20, 10]
-            )[0],
+            preferred_channel=rng.choices(["whatsapp", "phone", "instagram"], weights=[70, 20, 10])[
+                0
+            ],
             marketing_consent=rng.random() < 0.6,
             created_at=now - timedelta(days=rng.randint(30, 200)),
         )
@@ -236,8 +242,7 @@ def _seed_sales_history(
         count = _calculate_sales_count(rng, sale_date, sales_per_day)
         for _ in range(count):
             _create_sale_with_stock_moves(
-                session, rng, sale_date, products,
-                recipes_by_id, lines_by_recipe, report
+                session, rng, sale_date, products, recipes_by_id, lines_by_recipe, report
             )
 
 
@@ -341,8 +346,16 @@ def _seed_pedidos(
     payments = ["efectivo", "efectivo", "qr", "transferencia", "tarjeta"]
     for _i in range(pedidos_total):
         _create_pedido_with_lines(
-            session, rng, now, days_of_history,
-            customers, products, zones, channels, payments, report
+            session,
+            rng,
+            now,
+            days_of_history,
+            customers,
+            products,
+            zones,
+            channels,
+            payments,
+            report,
         )
 
 

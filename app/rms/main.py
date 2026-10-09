@@ -44,6 +44,7 @@ else:
     try:
         from starlette.middleware.sessions import Session as _StarletteSession
     except ImportError:
+
         class _StarletteSession(dict):  # type: ignore[no-redef]
             pass
 

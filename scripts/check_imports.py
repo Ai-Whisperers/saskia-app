@@ -185,9 +185,7 @@ def _gather_imports(path: str) -> list[tuple[str, str, int]]:
                         for alias in node.names
                     )
                 else:
-                    out.extend(
-                        (alias.name, "ImportFrom", node.lineno) for alias in node.names
-                    )
+                    out.extend((alias.name, "ImportFrom", node.lineno) for alias in node.names)
             else:
                 if mod:
                     out.append((mod, "ImportFrom", node.lineno))

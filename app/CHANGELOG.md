@@ -1,3 +1,17 @@
+## 2026-10-09 — Tier 4: `ruff format` 18 pre-existing drift files
+
+Per `docs/analysis/2026-10-08/deferred-work-plan.md` Tier 4.
+All 18 files that ruff format --check flagged are now formatted.
+`ruff format --check .` reports "1432 files already formatted" (was
+"18 files would be reformatted, 1414 files already formatted").
+
+Notable: `app/rms/seed/sazon.py` only had 1 reformat (a 11-tuple
+unpacking style change at L4605). The curated compact tuple data is
+preserved (not reformatted). `app/rms/seed/pack_demo.py` had 4
+multi-line argument reformatings — no logic changes.
+
+All SASKIA-3xx tests (132), seed tests (37), and ruff check pass.
+
 ## 2026-10-09 — inventory.py lint cleanup (bot's 2 refactor commits)
 
 Bot pushed `aca1f44f refactor(inventory_adjust)` and

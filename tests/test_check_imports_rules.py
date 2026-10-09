@@ -145,7 +145,7 @@ class TestAllowListBackedByNoqa(unittest.TestCase):
             # Find the import position
             import_pos = text.index(import_pattern)
             # Find the nearest noqa comment to this import
-            noqa_positions = [m.start() for m in re.finditer(r'# noqa: arch-rule', text)]
+            noqa_positions = [m.start() for m in re.finditer(r"# noqa: arch-rule", text)]
             if not noqa_positions:
                 missing.append(
                     f"  ALLOW_LIST [{importer} -> {imported}]: no `# noqa: arch-rule` in "
@@ -154,7 +154,7 @@ class TestAllowListBackedByNoqa(unittest.TestCase):
                 continue
             # Find the noqa position closest to the import
             noqa_pos = min(noqa_positions, key=lambda p: abs(p - import_pos))
-            window = text[max(0, noqa_pos - 200): noqa_pos + 500]
+            window = text[max(0, noqa_pos - 200) : noqa_pos + 500]
             imported_short: str = imported.split(".")[-1]  # type: ignore[assignment]
             if imported_short not in window:
                 missing.append(
@@ -172,7 +172,6 @@ class TestKnownCyclesBackedByNoqa(unittest.TestCase):
     """Each KNOWN_CYCLES pair must have `# noqa: cycle-known` in BOTH
     directions of the cycle (both files). Stricter than the allow-list
     test because cycles are bidirectional."""
-
 
     def test_every_known_cycle_has_noqa_in_both_files(self) -> None:
         consts = _load_constants()

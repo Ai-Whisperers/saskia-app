@@ -2756,6 +2756,7 @@ def _migration_060_tag_normalization(conn: Any) -> None:
     infer_dietary_tags = None
     try:
         from app.rms.ingredient_intel import infer_dietary_tags as _infer_dietary_tags
+
         infer_dietary_tags = _infer_dietary_tags
     except Exception:
         pass

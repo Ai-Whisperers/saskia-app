@@ -106,23 +106,30 @@ def _process_ingredient_line(
     """
     ing = session.get(Ingredient, ln.line_ref_id)
     if ing is None:
-        _add_error_row(acc, f"missing:{ln.line_ref_id}",
-                       ingredient_id=None,
-                       name=f"#{ln.line_ref_id} (ingrediente no existe)",
-                       unit="", qty=0.0,
-                       error="ingrediente no existe")
+        _add_error_row(
+            acc,
+            f"missing:{ln.line_ref_id}",
+            ingredient_id=None,
+            name=f"#{ln.line_ref_id} (ingrediente no existe)",
+            unit="",
+            qty=0.0,
+            error="ingrediente no existe",
+        )
         return
 
     line_unit = ln.line_unit or ing.unit
     try:
         qty_in_ing_unit = float(normalize_recipe_line_qty(qty_scaled, line_unit, ing.unit))
     except ValueError as exc:
-        _add_error_row(acc, f"err:{ing.id}",
-                       ingredient_id=ing.id,
-                       name=ing.name,
-                       unit=ln.line_unit or ing.unit,
-                       qty=qty_scaled,
-                       error=f"conversión {line_unit!r}→{ing.unit!r} requiere densidad ({exc})")
+        _add_error_row(
+            acc,
+            f"err:{ing.id}",
+            ingredient_id=ing.id,
+            name=ing.name,
+            unit=ln.line_unit or ing.unit,
+            qty=qty_scaled,
+            error=f"conversión {line_unit!r}→{ing.unit!r} requiere densidad ({exc})",
+        )
         return
 
     _accumulate_ingredient(acc, ing, qty_in_ing_unit, _sources)
@@ -146,9 +153,7 @@ def _process_sub_recipe_line(
     if sub is None:
         return
 
-    child_rows = _explode_sub_recipe(
-        session, recipe_id, sub, qty_scaled, _scale_by_rid, _sources
-    )
+    child_rows = _explode_sub_recipe(session, recipe_id, sub, qty_scaled, _scale_by_rid, _sources)
     _merge_child_rows(acc, child_rows)
 
 
@@ -170,27 +175,39 @@ def _get_validated_sub_recipe(
 
     sub = session.get(Recipe, ln.line_ref_id)
     if sub is None:
-        _add_error_row(acc, f"missing_sub:{ln.line_ref_id}",
-                       ingredient_id=None,
-                       name=f"#{ln.line_ref_id} (sub-receta no existe)",
-                       unit="", qty=0.0,
-                       error="sub-receta no existe")
+        _add_error_row(
+            acc,
+            f"missing_sub:{ln.line_ref_id}",
+            ingredient_id=None,
+            name=f"#{ln.line_ref_id} (sub-receta no existe)",
+            unit="",
+            qty=0.0,
+            error="sub-receta no existe",
+        )
         return None
 
     if sub.yield_qty is None or sub.yield_qty <= 0:
-        _add_error_row(acc, f"noyield:{sub.id}",
-                       ingredient_id=None,
-                       name=sub.name,
-                       unit="", qty=0.0,
-                       error="sub-receta sin rendimiento")
+        _add_error_row(
+            acc,
+            f"noyield:{sub.id}",
+            ingredient_id=None,
+            name=sub.name,
+            unit="",
+            qty=0.0,
+            error="sub-receta sin rendimiento",
+        )
         return None
 
     if sub.id == recipe_id:
-        _add_error_row(acc, f"cycle:{sub.id}",
-                       ingredient_id=None,
-                       name=sub.name,
-                       unit="", qty=0.0,
-                       error="ciclo detectado")
+        _add_error_row(
+            acc,
+            f"cycle:{sub.id}",
+            ingredient_id=None,
+            name=sub.name,
+            unit="",
+            qty=0.0,
+            error="ciclo detectado",
+        )
         return None
 
     return sub

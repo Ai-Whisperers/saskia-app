@@ -148,13 +148,13 @@ need to be filled in before launch with the real data. Currently:
 ```python
 BUSINESS_INFO: dict[str, str] = {
     "business_hours": "Lunes a sábado 7:00-19:00, domingo 8:00-13:00",  # placeholder
-    "address": "Av. España 1234, casi Brasil, Asunción",                  # placeholder
-    "phone": "+595 21 555-1000",                                          # placeholder
-    "email": "hola@lavaquita.example",                                    # placeholder
+    "address": "Av. España 1234, casi Brasil, Asunción",  # placeholder
+    "phone": "+595 21 555-1000",  # placeholder
+    "email": "hola@lavaquita.example",  # placeholder
 }
 TENANT_NAME = "La Vaquita Feliz"  # could be "La Vaquita Holandesa" — ask
-TENANT_SLUG = "la_vaquita_feliz"   # could be "la_vaquita_holandesa" — ask
-TENANT_COLOR = "#7b3f00"           # warm brown — matches aesthetic, but could be Delft blue
+TENANT_SLUG = "la_vaquita_feliz"  # could be "la_vaquita_holandesa" — ask
+TENANT_COLOR = "#7b3f00"  # warm brown — matches aesthetic, but could be Delft blue
 ```
 
 **What we need from Saskia before launch:**

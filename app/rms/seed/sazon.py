@@ -4602,9 +4602,19 @@ def seed_sazon(
     # === 16. Recipes + RecipeLines ===
     recipe_objs_by_name: dict[str, Recipe] = {}
     for recipe_tuple in RECIPES:
-        name, yield_qty, yield_unit, prep, cook, diff, family, menu_tags, dietary, notes, image_url = (
-            recipe_tuple
-        )
+        (
+            name,
+            yield_qty,
+            yield_unit,
+            prep,
+            cook,
+            diff,
+            family,
+            menu_tags,
+            dietary,
+            notes,
+            image_url,
+        ) = recipe_tuple
         existing = session.execute(select(Recipe).where(Recipe.name == name)).scalar_one_or_none()
         if existing is None:
             r = Recipe(

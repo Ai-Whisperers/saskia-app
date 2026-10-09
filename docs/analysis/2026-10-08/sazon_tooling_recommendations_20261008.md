@@ -522,6 +522,7 @@ Each location:
 sale.channel = "mostrador"
 # After
 from app.rms.models.channels import Channel
+
 sale.channel = Channel.MOSTRADOR.value
 ```
 

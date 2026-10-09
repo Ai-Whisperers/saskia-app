@@ -784,9 +784,7 @@ def _validate_unit(unit: str) -> Unit:
     try:
         return Unit.coerce(unit)
     except ValueError as e:
-        raise BadRequest(
-            f"Unidad inválida: {e}", context={"unit": str(unit)}, cause=e
-        ) from e
+        raise BadRequest(f"Unidad inválida: {e}", context={"unit": str(unit)}, cause=e) from e
 
 
 def _validate_non_negative_stock(stock_qty: float, min_stock_qty: float) -> None:
@@ -795,9 +793,7 @@ def _validate_non_negative_stock(stock_qty: float, min_stock_qty: float) -> None
     Extracted from inventory_create to reduce complexity.
     """
     if stock_qty < 0:
-        raise BadRequest(
-            "El stock no puede ser negativo.", context={"stock_qty": stock_qty}
-        )
+        raise BadRequest("El stock no puede ser negativo.", context={"stock_qty": stock_qty})
     if min_stock_qty < 0:
         raise BadRequest(
             "El stock mínimo no puede ser negativo.",
@@ -896,9 +892,7 @@ def _populate_tag_validation(session: Session, ing: Ingredient) -> None:
         session.rollback()
 
 
-def _log_ingredient_creation(
-    request: Request, session: Session, ing: Ingredient
-) -> None:
+def _log_ingredient_creation(request: Request, session: Session, ing: Ingredient) -> None:
     """Log the ingredient creation for audit and info.
 
     Extracted from inventory_create to reduce complexity.
@@ -942,9 +936,7 @@ def _record_initial_stock_movement(
     session.commit()
 
 
-def _record_initial_price(
-    session: Session, ing_id: int, price: Any
-) -> None:
+def _record_initial_price(session: Session, ing_id: int, price: Any) -> None:
     """Record the initial price event if price was provided.
 
     Extracted from inventory_create to reduce complexity. Phase B — Q1
@@ -1265,9 +1257,7 @@ def inventory_update(
     if ing is None:
         raise NotFound("Ingredient", id=ing_id)
 
-    parsed = _parse_ingredient_form(
-        name, unit, stock_qty, min_stock_qty, purchase_price_gs, notes
-    )
+    parsed = _parse_ingredient_form(name, unit, stock_qty, min_stock_qty, purchase_price_gs, notes)
     _apply_parsed_fields(ing, parsed)
 
     _update_optional_metadata(
@@ -1427,9 +1417,7 @@ def _update_classification(
     return explicit_category_raw
 
 
-def _update_opening_stock(
-    ing: Ingredient, opening_stock_qty: str, opening_stock_date: str
-) -> None:
+def _update_opening_stock(ing: Ingredient, opening_stock_qty: str, opening_stock_date: str) -> None:
     """Update opening stock if both qty and date are provided.
 
     Extracted from inventory_update to reduce complexity.
@@ -1568,7 +1556,9 @@ def inventory_bulk_fill_to_2x_min(
         stats["total_delta"] += result
 
     session.commit()
-    flash_key = _build_bulk_fill_flash_key(stats["filled"], stats["total_delta"], stats["skipped_no_min"])
+    flash_key = _build_bulk_fill_flash_key(
+        stats["filled"], stats["total_delta"], stats["skipped_no_min"]
+    )
     return RedirectResponse(
         url=f"/inventario?flash={flash_key}",
         status_code=303,
@@ -1700,8 +1690,7 @@ def _record_bulk_fill_movement(
             movement_type="reorder",
             qty=delta,
             reason=(
-                f"Llenado bulk a 2x min (target={target:g} "
-                f"{ing.unit}, min={ing.min_stock_qty:g})"
+                f"Llenado bulk a 2x min (target={target:g} {ing.unit}, min={ing.min_stock_qty:g})"
             ),
             reference_id=None,
             reference_type=None,
@@ -1775,22 +1764,16 @@ def inventory_adjust(
         raise NotFound("Ingredient", id=ing_id)
 
     if adjustment == 0:
-        return _redirect_with_flash(
-            "no_op:El ajuste fue 0 — no se modificó el stock.", ing_id
-        )
+        return _redirect_with_flash("no_op:El ajuste fue 0 — no se modificó el stock.", ing_id)
 
     target_variant, auto_picked = _resolve_target_variant(session, ing_id, variant_id)
 
     pre = _get_pre_adjustment_stock(ing, target_variant)
     if pre + adjustment < 0 and confirm_negative != "yes":
-        return _redirect_with_negative_confirm(
-            ing, target_variant, pre, adjustment, ing_id
-        )
+        return _redirect_with_negative_confirm(ing, target_variant, pre, adjustment, ing_id)
 
     user_id = current_operator(request)
-    _record_stock_movement(
-        session, ing_id, target_variant, adjustment, reason, user_id
-    )
+    _record_stock_movement(session, ing_id, target_variant, adjustment, reason, user_id)
     _apply_stock_adjustment(session, ing, target_variant, adjustment)
 
     session.commit()
@@ -1824,9 +1807,7 @@ def _resolve_target_variant(
     return target, True
 
 
-def _find_specific_variant(
-    variants: list, variant_id: str, ing_id: int
-) -> IngredientVariant:
+def _find_specific_variant(variants: list, variant_id: str, ing_id: int) -> IngredientVariant:
     """Find a specific variant by ID, raising BadRequest if not found.
 
     Extracted from _resolve_target_variant to reduce complexity.
@@ -1844,9 +1825,7 @@ def _find_specific_variant(
     raise BadRequest(f"Variante {vid} no pertenece al ingrediente {ing_id}.")
 
 
-def _get_pre_adjustment_stock(
-    ing: Ingredient, target_variant: IngredientVariant | None
-) -> float:
+def _get_pre_adjustment_stock(ing: Ingredient, target_variant: IngredientVariant | None) -> float:
     """Get the stock quantity before adjustment.
 
     Extracted from inventory_adjust to reduce complexity. Uses variant
@@ -1931,12 +1910,11 @@ def _apply_stock_adjustment(
     rollup for variant-aware ingredients.
     """
     if target_variant is not None:
-        target_variant.stock_qty = max(
-            0.0, (target_variant.stock_qty or 0.0) + adjustment
-        )
+        target_variant.stock_qty = max(0.0, (target_variant.stock_qty or 0.0) + adjustment)
         # Sync the legacy Ingredient.stock_qty column with the rollup so
         # any consumer still reading the legacy field sees the correct total.
         from app.rms.variants import rollup_ingredient_stock
+
         rollup = rollup_ingredient_stock(session, ing.id)
         if rollup is not None:
             ing.stock_qty = rollup.base_qty

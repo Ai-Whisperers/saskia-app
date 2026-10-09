@@ -137,8 +137,6 @@ def test_zap_workflow_uses_unique_port():
     assert "18999" not in content, "PORT must NOT match smoke.yml"
 
 
-
-
 def test_zap_workflow_alert_level_is_high_only():
     """Display level must be HIGH so INFO/LOW/MEDIUM findings don't
     pollute the action output. The actual build-failure threshold is

@@ -126,9 +126,7 @@ def customer_merge(
     return result
 
 
-def _validate_merge_inputs(
-    session: Session, target_id: int, source_id_list: list[int]
-) -> Customer:
+def _validate_merge_inputs(session: Session, target_id: int, source_id_list: list[int]) -> Customer:
     """Validate merge inputs and return the target customer.
 
     Extracted from customer_merge to reduce complexity. Validates:
