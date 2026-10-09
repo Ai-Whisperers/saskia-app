@@ -278,39 +278,84 @@ RISK_CATEGORIES = [
 
 @risks_router.get("", response_class=HTMLResponse)
 def risk_list(request: Request, session: Session = Depends(get_session)) -> HTMLResponse:
-    items = (
-        session.execute(select(RiskItem).order_by(RiskItem.status, RiskItem.probability.desc()))
+    items = _fetch_risk_items(session)
+    _attach_severity(items)
+    return render(
+        request,
+        "riesgos.html",
+        _build_risk_context(request, items),
+    )
+
+
+def _fetch_risk_items(session: Session) -> list:
+    """Fetch all risk items, ordered by status and probability.
+
+    Extracted from risk_list to reduce complexity.
+    """
+    return list(
+        session.execute(
+            select(RiskItem).order_by(RiskItem.status, RiskItem.probability.desc())
+        )
         .scalars()
         .all()
     )
 
-    # Compute severity = probability × impact for risk heat
+
+def _attach_severity(items: list) -> None:
+    """Compute and attach severity = probability × impact_gs for each item.
+
+    Extracted from risk_list to reduce complexity.
+    """
     for item in items:
         item.severity = item.probability * item.impact_gs
 
-    severity_total = sum(
-        (item.probability * item.impact_gs) for item in items if item.status == "activo"
-    )
 
+def _build_risk_context(request: Request, items: list) -> dict:
+    """Build the template context for the risks view.
+
+    Extracted from risk_list to reduce complexity.
+    """
+    by_category = _group_by_category(items)
+    return {
+        "items": items,
+        "by_category": dict(by_category),
+        "severity_total_gs": _sum_active_severity(items),
+        "active_count": _count_by_status(items, "activo"),
+        "mitigated_count": _count_by_status(items, "mitigated"),
+        "closed_count": _count_by_status(items, "cerrado"),
+        "flash": request.session.pop("flash_risk", None)
+        if hasattr(request, "session")
+        else None,
+    }
+
+
+def _group_by_category(items: list) -> dict:
+    """Group items by category (defaulting to "Otros").
+
+    Extracted from _build_risk_context to reduce complexity.
+    """
     by_category = defaultdict(list)
     for item in items:
         by_category[item.category or "Otros"].append(item)
+    return by_category
 
-    return render(
-        request,
-        "riesgos.html",
-        {
-            "items": items,
-            "by_category": dict(by_category),
-            "severity_total_gs": severity_total,
-            "active_count": sum(1 for i in items if i.status == "activo"),
-            "mitigated_count": sum(1 for i in items if i.status == "mitigated"),
-            "closed_count": sum(1 for i in items if i.status == "cerrado"),
-            "flash": request.session.pop("flash_risk", None)
-            if hasattr(request, "session")
-            else None,
-        },
+
+def _sum_active_severity(items: list) -> int:
+    """Sum of (probability × impact_gs) across active items.
+
+    Extracted from _build_risk_context to reduce complexity.
+    """
+    return sum(
+        (item.probability * item.impact_gs) for item in items if item.status == "activo"
     )
+
+
+def _count_by_status(items: list, status: str) -> int:
+    """Count items with a given status.
+
+    Extracted from _build_risk_context to reduce complexity.
+    """
+    return sum(1 for i in items if i.status == status)
 
 
 @risks_router.post("/new")
