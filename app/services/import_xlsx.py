@@ -641,50 +641,99 @@ def _import_patch_clientes(session: Session, wb: object, result: ImportResult) -
     seen_phones: set[str] = set()
 
     for idx, row in enumerate(rows, start=2):
+        if not _validate_cliente_row(row, idx, seen_phones, warnings):
+            continue
         phone = _opt_str(row.get("phone"))
-        name = _opt_str(row.get("name"))
-        if not phone:
-            warnings.append(f"Clientes: fila {idx} sin phone, saltada: {row}")
-            continue
-        if phone in seen_phones:
-            warnings.append(
-                f"Clientes: phone={phone!r} aparece duplicado en el archivo, "
-                f"solo se procesa el primero"
-            )
-            continue
         seen_phones.add(phone)
+        _process_cliente_row(session, row, by_phone, warnings, result)
 
-        email = _opt_str(row.get("email"))
-        cedula = _opt_str(row.get("cedula"))
-        notes = _opt_str(row.get("notes"))
 
-        existing = by_phone.get(phone)
-        if existing is not None:
-            if name is not None:
-                existing.name = name
-            if email is not None:
-                existing.email = email
-            if cedula is not None:
-                existing.cedula = cedula
-            if notes is not None:
-                existing.notes = notes
-            existing.updated_at = datetime.now(timezone.utc)
-        else:
-            if not name:
-                warnings.append(f"Clientes: phone={phone!r} nuevo pero sin name, saltada: {row}")
-                continue
-            new = Customer(
-                name=name,
-                phone=phone,
-                email=email,
-                cedula=cedula,
-                notes=notes,
-            )
-            session.add(new)
-            session.flush()
-            by_phone[phone] = new
+def _validate_cliente_row(row, idx: int, seen_phones: set, warnings: list) -> bool:
+    """Validate a cliente row and return True if it should be processed.
+    
+    Extracted from _import_patch_clientes to reduce complexity.
+    Returns False if the row should be skipped.
+    """
+    phone = _opt_str(row.get("phone"))
+    if not phone:
+        warnings.append(f"Clientes: fila {idx} sin phone, saltada: {row}")
+        return False
+    if phone in seen_phones:
+        warnings.append(
+            f"Clientes: phone={phone!r} aparece duplicado en el archivo, "
+            f"solo se procesa el primero"
+        )
+        return False
+    return True
 
-        result.customers += 1
+
+def _process_cliente_row(
+    session: Session, row: dict, by_phone: dict, warnings: list, result: ImportResult
+) -> None:
+    """Process a single cliente row (update or create).
+    
+    Extracted from _import_patch_clientes to reduce complexity.
+    """
+    phone = _opt_str(row.get("phone"))
+    name = _opt_str(row.get("name"))
+    email = _opt_str(row.get("email"))
+    cedula = _opt_str(row.get("cedula"))
+    notes = _opt_str(row.get("notes"))
+
+    existing = by_phone.get(phone)
+    if existing is not None:
+        _update_existing_cliente(existing, name, email, cedula, notes)
+    else:
+        _create_new_cliente(session, row, by_phone, warnings, phone, name, email, cedula, notes)
+    result.customers += 1
+
+
+def _update_existing_cliente(
+    existing, name: str | None, email: str | None, cedula: str | None, notes: str | None
+) -> None:
+    """Update an existing cliente with new field values.
+    
+    Extracted from _process_cliente_row to reduce complexity.
+    """
+    if name is not None:
+        existing.name = name
+    if email is not None:
+        existing.email = email
+    if cedula is not None:
+        existing.cedula = cedula
+    if notes is not None:
+        existing.notes = notes
+    existing.updated_at = datetime.now(timezone.utc)
+
+
+def _create_new_cliente(
+    session: Session,
+    row: dict,
+    by_phone: dict,
+    warnings: list,
+    phone: str,
+    name: str | None,
+    email: str | None,
+    cedula: str | None,
+    notes: str | None,
+) -> None:
+    """Create a new cliente, skipping if name is missing.
+    
+    Extracted from _process_cliente_row to reduce complexity.
+    """
+    if not name:
+        warnings.append(f"Clientes: phone={phone!r} nuevo pero sin name, saltada: {row}")
+        return
+    new = Customer(
+        name=name,
+        phone=phone,
+        email=email,
+        cedula=cedula,
+        notes=notes,
+    )
+    session.add(new)
+    session.flush()
+    by_phone[phone] = new
 
 
 def _import_patch_ingredientes(session: Session, wb: object, result: ImportResult) -> None:
