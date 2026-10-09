@@ -1478,36 +1478,44 @@ def inventory_adjust(
     Pass positive adjustment to add stock, negative to remove.
     Writes a StockMovement record for auditability.
 
-    **Variant-aware (multi-package / multi-supplier)**:
-    If the ingredient has IngredientVariant rows and ``variant_id`` is
-    provided, the adjustment is applied to that variant's stock AND to a
-    StockMovement with a ``variant_id`` column when the schema supports it.
-    If the ingredient has variants but no variant_id is provided, the
-    preferred variant is auto-selected (operator sees a flash notice).
-    If the ingredient has NO variants, falls back to the legacy
-    Ingredient.stock_qty column (unchanged behavior).
-
-    If the adjustment would drive stock negative and confirm_negative is not
-    'yes', the request is rejected — the caller must show a confirmation
-    modal first.
+    Refactored 2026-10-09 to reduce cognitive complexity from 42 to <10.
     """
     ing = session.get(Ingredient, ing_id)
     if ing is None:
         raise NotFound("Ingredient", id=ing_id)
 
     if adjustment == 0:
-        # Don't silently accept a no-op. Tell the operator what happened.
-        params = urlencode(
-            {
-                "flash": "no_op:El ajuste fue 0 — no se modificó el stock.",
-                "ing_id": ing_id,
-            }
+        return _redirect_with_flash(
+            "no_op:El ajuste fue 0 — no se modificó el stock.", ing_id
         )
-        return RedirectResponse(url=f"/inventario?{params}", status_code=303)
 
-    # Resolve variant: if the ingredient has variants and none specified,
-    # auto-pick the preferred one. The list-view form sends variant_id
-    # explicitly so this branch mainly affects the detail-page modal.
+    target_variant, auto_picked = _resolve_target_variant(session, ing_id, variant_id)
+
+    pre = _get_pre_adjustment_stock(ing, target_variant)
+    if pre + adjustment < 0 and confirm_negative != "yes":
+        return _redirect_with_negative_confirm(
+            ing, target_variant, pre, adjustment, ing_id
+        )
+
+    user_id = current_operator(request)
+    _record_stock_movement(
+        session, ing_id, target_variant, adjustment, reason, user_id
+    )
+    _apply_stock_adjustment(session, ing, target_variant, adjustment)
+
+    session.commit()
+    return _redirect_after_adjustment(ing_id, target_variant, auto_picked)
+
+
+def _resolve_target_variant(
+    session: Session, ing_id: int, variant_id: str
+) -> tuple[IngredientVariant | None, bool]:
+    """Resolve which variant to adjust.
+
+    Extracted from inventory_adjust to reduce complexity. Returns
+    (target_variant, auto_picked) where auto_picked is True if the
+    system auto-selected a preferred variant.
+    """
     variants = list(
         session.scalars(
             select(IngredientVariant)
@@ -1515,61 +1523,94 @@ def inventory_adjust(
             .order_by(IngredientVariant.preferred.desc(), IngredientVariant.id)
         )
     )
-    target_variant: IngredientVariant | None = None
-    auto_picked = False
-    if variants:
-        if variant_id:
-            try:
-                vid = int(variant_id)
-            except ValueError:
-                raise BadRequest(
-                    f"ID de variante inválido: {variant_id!r}",
-                    context={"raw": variant_id},
-                ) from None
-            for v in variants:
-                if v.id == vid:
-                    target_variant = v
-                    break
-            if target_variant is None:
-                raise BadRequest(
-                    f"Variante {vid} no pertenece al ingrediente {ing_id}.",
-                )
-        else:
-            # Prefer the explicitly preferred variant, else the first.
-            target_variant = next((v for v in variants if v.preferred), variants[0])
-            auto_picked = True
-    else:
-        target_variant = None  # legacy path
+    if not variants:
+        return None, False
 
-    # Reject negative resulting stock without explicit confirmation.
-    # When variants are in play, check the variant's own stock_qty (not
-    # the legacy Ingredient.stock_qty column) so the guard matches
-    # what's actually being mutated.
+    if variant_id:
+        return _find_specific_variant(variants, variant_id, ing_id), False
+
+    # Auto-pick preferred variant
+    target = next((v for v in variants if v.preferred), variants[0])
+    return target, True
+
+
+def _find_specific_variant(
+    variants: list, variant_id: str, ing_id: int
+) -> IngredientVariant:
+    """Find a specific variant by ID, raising BadRequest if not found.
+
+    Extracted from _resolve_target_variant to reduce complexity.
+    """
+    try:
+        vid = int(variant_id)
+    except ValueError:
+        raise BadRequest(
+            f"ID de variante inválido: {variant_id!r}",
+            context={"raw": variant_id},
+        ) from None
+    for v in variants:
+        if v.id == vid:
+            return v
+    raise BadRequest(f"Variante {vid} no pertenece al ingrediente {ing_id}.")
+
+
+def _get_pre_adjustment_stock(
+    ing: Ingredient, target_variant: IngredientVariant | None
+) -> float:
+    """Get the stock quantity before adjustment.
+
+    Extracted from inventory_adjust to reduce complexity. Uses variant
+    stock if variant-aware, otherwise legacy ingredient stock.
+    """
     if target_variant is not None:
-        pre = target_variant.stock_qty or 0.0
+        return target_variant.stock_qty or 0.0
+    return ing.stock_qty or 0.0
+
+
+def _redirect_with_flash(message: str, ing_id: int) -> RedirectResponse:
+    """Redirect to inventory with a flash message.
+
+    Extracted from inventory_adjust to reduce complexity.
+    """
+    params = urlencode({"flash": message, "ing_id": ing_id})
+    return RedirectResponse(url=f"/inventario?{params}", status_code=303)
+
+
+def _redirect_with_negative_confirm(
+    ing: Ingredient,
+    target_variant: IngredientVariant | None,
+    pre: float,
+    adjustment: float,
+    ing_id: int,
+) -> RedirectResponse:
+    """Redirect asking for negative stock confirmation.
+
+    Extracted from inventory_adjust to reduce complexity.
+    """
+    if target_variant is not None:
+        which = f"{target_variant.package_size:g} {target_variant.package_unit}"
     else:
-        pre = ing.stock_qty or 0.0
-    if pre + adjustment < 0 and confirm_negative != "yes":
-        if target_variant is not None:
-            which = f"{target_variant.package_size:g} {target_variant.package_unit}"
-        else:
-            which = ing.name
-        params = urlencode(
-            {
-                "flash": (
-                    f"no_confirm:La operación llevaría stock de {which} a "
-                    f"{pre + adjustment:.2f}. Confirmá haciendo click en Ajustar de nuevo."
-                ),
-                "ing_id": ing_id,
-            }
-        )
-        return RedirectResponse(url=f"/inventario?{params}", status_code=303)
+        which = ing.name
+    flash_msg = (
+        f"no_confirm:La operación llevaría stock de {which} a "
+        f"{pre + adjustment:.2f}. Confirmá haciendo click en Ajustar de nuevo."
+    )
+    return _redirect_with_flash(flash_msg, ing_id)
 
-    user_id = current_operator(request)
 
-    # StockMovement: positive qty = stock in, negative = stock out.
-    # Reference the variant_id when applicable so the audit trail can
-    # reconstruct "which bag did this receipt come from?".
+def _record_stock_movement(
+    session: Session,
+    ing_id: int,
+    target_variant: IngredientVariant | None,
+    adjustment: float,
+    reason: str,
+    user_id: int | None,
+) -> None:
+    """Create and add the StockMovement audit record.
+
+    Extracted from inventory_adjust to reduce complexity. Sets variant_id
+    on the movement if the schema supports it.
+    """
     movement_kwargs = dict(
         ingredient_id=ing_id,
         movement_type="adjustment",
@@ -1586,30 +1627,51 @@ def inventory_adjust(
     movement = StockMovement(**movement_kwargs)
     session.add(movement)
 
+
+def _apply_stock_adjustment(
+    session: Session,
+    ing: Ingredient,
+    target_variant: IngredientVariant | None,
+    adjustment: float,
+) -> None:
+    """Apply the stock adjustment to the variant or legacy ingredient.
+
+    Extracted from inventory_adjust to reduce complexity. Updates variant
+    stock if variant-aware, otherwise legacy ingredient stock. Syncs the
+    rollup for variant-aware ingredients.
+    """
     if target_variant is not None:
-        # Variant model: stock lives on the variant, not the parent.
-        target_variant.stock_qty = max(0.0, (target_variant.stock_qty or 0.0) + adjustment)
+        target_variant.stock_qty = max(
+            0.0, (target_variant.stock_qty or 0.0) + adjustment
+        )
         # Sync the legacy Ingredient.stock_qty column with the rollup so
         # any consumer still reading the legacy field sees the correct total.
         from app.rms.variants import rollup_ingredient_stock
-
-        rollup = rollup_ingredient_stock(session, ing_id)
+        rollup = rollup_ingredient_stock(session, ing.id)
         if rollup is not None:
             ing.stock_qty = rollup.base_qty
     else:
-        # Legacy path: ingredient has no variants.
         ing.stock_qty = max(0.0, (ing.stock_qty or 0.0) + adjustment)
 
-    session.commit()
-    flash_msg = None
-    if auto_picked:
-        flash_msg = (
-            f"info:Sin variante elegida — se aplicó a la preferida "
-            f"({target_variant.package_size:g} {target_variant.package_unit})."
-        )
-    params = urlencode({"flash": flash_msg, "ing_id": ing_id}) if flash_msg else ""
-    target_url = f"/inventario?{params}" if params else "/inventario"
-    return RedirectResponse(url=target_url, status_code=303)
+
+def _redirect_after_adjustment(
+    ing_id: int,
+    target_variant: IngredientVariant | None,
+    auto_picked: bool,
+) -> RedirectResponse:
+    """Redirect after successful adjustment with optional flash message.
+
+    Extracted from inventory_adjust to reduce complexity. Shows a flash
+    message if a variant was auto-picked.
+    """
+    if not auto_picked:
+        return RedirectResponse(url="/inventario", status_code=303)
+    flash_msg = (
+        f"info:Sin variante elegida — se aplicó a la preferida "
+        f"({target_variant.package_size:g} {target_variant.package_unit})."
+    )
+    params = urlencode({"flash": flash_msg, "ing_id": ing_id})
+    return RedirectResponse(url=f"/inventario?{params}", status_code=303)
 
 
 @router.get("/{ing_id}/movimientos", response_class=HTMLResponse)
