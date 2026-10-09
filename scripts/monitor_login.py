@@ -50,9 +50,7 @@ def main() -> None:
     # sazon_session set; a failed one bounces back to /login?error=...
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
 
-    data = urllib.parse.urlencode(
-        {"username": args.user, "password": args.password}
-    ).encode()
+    data = urllib.parse.urlencode({"username": args.user, "password": args.password}).encode()
     req = urllib.request.Request(
         f"{base}/login",
         data=data,
