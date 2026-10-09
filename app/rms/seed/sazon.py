@@ -2543,7 +2543,7 @@ INGREDIENTS: list[tuple] = [
         4,
     ),
     # --- Packaging materials (sheet "Packaging", MAT-01..07) ---
-# supplier_idx 4 = Embalajes Express; category "packaging"; stock in und.
+    # supplier_idx 4 = Embalajes Express; category "packaging"; stock in und.
     (
         "bolsita de 15x22",
         "und",
