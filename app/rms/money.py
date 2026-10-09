@@ -144,58 +144,76 @@ def parse_gs(s: str) -> int:
         Traceback (most recent exception being shown): ...
         ValueError: not a valid Gs. amount: '1.5' (decimals not allowed)
     """
+    _validate_input(s)
+    cleaned = _strip_prefix(s.strip())
+    return _convert_cleaned_to_int(cleaned, s)
+
+
+def _validate_input(s) -> None:
+    """Validate the input is a non-empty string.
+    
+    Extracted from parse_gs to reduce complexity.
+    """
     if s is None or not isinstance(s, str):
         raise ValueError(f"not a valid Gs. amount: {s!r}")
     if not s.strip():
         raise ValueError("empty string")
     if s.strip().startswith("-"):
         raise ValueError(f"not a valid Gs. amount: {s!r} (negatives not allowed)")
-    # Strip prefix and whitespace
-    cleaned = s.strip()
+
+
+def _strip_prefix(cleaned: str) -> str:
+    """Strip currency prefix (Gs., Gs, ₲, G$, $) from string.
+    
+    Extracted from parse_gs to reduce complexity.
+    """
     for prefix in ("Gs.", "Gs", "gs.", "gs"):
         if cleaned.startswith(prefix):
-            cleaned = cleaned[len(prefix) :].strip()
+            cleaned = cleaned[len(prefix):].strip()
             break
-    # Also strip currency symbols: ₲ (Guarani unicode), G$ (rare), $
     for prefix in ("₲", "G$", "$"):
         if cleaned.startswith(prefix):
-            cleaned = cleaned[len(prefix) :].strip()
+            cleaned = cleaned[len(prefix):].strip()
             break
-    # A valid Gs. amount is digits with optional periods or commas as
-    # thousands separators (every 3 digits from the right). Patterns accepted:
-    #   "1234567"      no separators
-    #   "1.234.567"    period as thousands sep
-    #   "1,234,567"    comma as thousands sep
-    # Patterns rejected:
-    #   "1.5"          decimal (fractional)
-    #   "1.5.5"        malformed (5 is not a group of 3)
-    #   "1.234,567"    mixed separators
-    digits = cleaned
+    return cleaned
+
+
+def _convert_cleaned_to_int(cleaned: str, original: str) -> int:
+    """Convert a cleaned currency string to int with validation.
+    
+    Extracted from parse_gs to reduce complexity.
+    """
     # Normalize all separators to period for checking
-    normalized = digits.replace(",", ".")
-    # Count periods: each separator must be followed by exactly 3 digits until end
+    normalized = cleaned.replace(",", ".")
     parts = normalized.split(".")
     if len(parts) == 1:
-        # No separators, all digits
-        if not parts[0].isdigit() or not parts[0]:
-            raise ValueError(f"not a valid Gs. amount: {s!r}")
+        _validate_no_separators(parts[0], original)
     else:
-        # First part must be 1-3 digits, all subsequent must be exactly 3 digits
-        if not parts[0].isdigit() or not (1 <= len(parts[0]) <= 3):
-            raise ValueError(f"not a valid Gs. amount: {s!r} (decimal)")
-        for part in parts[1:]:
-            if not part.isdigit() or len(part) != 3:
-                raise ValueError(f"not a valid Gs. amount: {s!r} (decimal or malformed)")
-    digits_only = digits.replace(".", "").replace(",", "")
-    if not digits_only:
-        raise ValueError(f"not a valid Gs. amount: {s!r}")
-    return int(digits_only)
+        _validate_with_separators(parts, original)
+    return int("".join(parts))
 
 
-__all__ = [
-    "MISSING_MONEY",
-    "format_gs",
-    "parse_gs",
-    "to_decimal",
-    "to_int_gs",
-]
+def _validate_no_separators(digits: str, original: str) -> None:
+    """Validate that a no-separator string is all digits.
+    
+    Extracted from _convert_cleaned_to_int to reduce complexity.
+    """
+    if not digits.isdigit() or not digits:
+        raise ValueError(f"not a valid Gs. amount: {original!r}")
+
+
+def _validate_with_separators(parts: list, original: str) -> None:
+    """Validate that a separated string has correct structure.
+    
+    First part must be 1-3 digits, all subsequent must be exactly 3 digits.
+    Extracted from _convert_cleaned_to_int to reduce complexity.
+    """
+    if not parts[0].isdigit() or not (1 <= len(parts[0]) <= 3):
+        raise ValueError(f"not a valid Gs. amount: {original!r} (decimal)")
+    for part in parts[1:]:
+        if not part.isdigit() or len(part) != 3:
+            raise ValueError(
+                f"not a valid Gs. amount: {original!r} (multi-separator or decimal)"
+            )
+
+
