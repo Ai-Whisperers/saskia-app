@@ -1,3 +1,33 @@
+## 2026-10-09 — Fix refresh_action_pins --fix line-splice bug
+
+**Scope**: The first run of `refresh_action_pins.py --fix` (PR #106)
+replaced entire `uses:` lines, losing leading indentation — 13 workflow
+files became invalid YAML and CI ran zero jobs. Caught before merge.
+
+**What changed**:
+- `scripts/refresh_action_pins.py`: `--fix` now splices only the matched
+  `uses:` span (indent + trailing content preserved)
+- Workflows restored from main and re-pinned with the fixed script
+- ruff format pass on the script
+
+**Test status**: YAML validates on all 13 files; scanner re-run clean.
+
+## 2026-10-09 — Apply action SHA-pin drift fix (first scanner run)
+
+**Scope**: scripts/refresh_action_pins.py detected 15 drifted pins on
+its first run; the monthly cron wouldn't fire until Nov 1, so applying
+now.
+
+**What changed**:
+- `astral-sh/setup-uv@v7`: 94527f2e -> 37802adc (13 workflows). The old
+  pin was the ANNOTATED TAG OBJECT sha; the new one is the commit the
+  tag points at — matching what GH runners actually execute
+  (CI logs already show SHA:37802adc).
+- `zaproxy/action-api-scan@v0.10.0`: bd24b11e -> 5158fe4d (same
+  tag-object vs commit distinction).
+
+**Test status**: tag peel verified via git/tags API; zizmor clean.
+
 ## 2026-10-09 — Untrack .venv from git
 
 **Scope**: housekeeping that broke the CHANGELOG gate's diff view. A
