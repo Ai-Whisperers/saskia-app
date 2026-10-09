@@ -669,122 +669,190 @@ def bank_list(
     per_page: int = Query(50, ge=10, le=200),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
+    """List bank transactions with filters, pagination, and aggregates."""
+    query = _build_bank_query(category, start_date, end_date, currency, reconciled)
+
+    total_count = _count_query_results(session, query)
+    transactions = _fetch_paginated_transactions(session, query, page, per_page)
+    pagination = _compute_pagination(total_count, page, per_page)
+    stats = _compute_bank_stats(session)
+    aggregates = _compute_bank_aggregates(session, stats)
+    categories = _collect_categories(transactions)
+
+    return render(
+        request,
+        "bank.html",
+        _build_bank_context(
+            transactions, aggregates, categories, category, currency, reconciled,
+            pagination, total_count, stats,
+        ),
+    )
+
+
+def _build_bank_query(category, start_date, end_date, currency, reconciled):
+    """Build the base bank transaction query with filters applied.
+    
+    Extracted from bank_list to reduce complexity.
+    """
     query = select(BankTransaction).order_by(BankTransaction.posted_at.desc())
-
-    # Apply date range filter if provided
-    if start_date:
-        try:
-            start_dt = datetime.fromisoformat(start_date)
-            query = query.where(BankTransaction.posted_at >= start_dt)
-        except (ValueError, TypeError) as exc:
-            # User-supplied date filter; bad input → just skip the filter.
-            logger.debug("herebus start_dt filter dropped: {}", exc)
-
-    if end_date:
-        try:
-            end_dt = datetime.fromisoformat(end_date)
-            query = query.where(BankTransaction.posted_at <= end_dt)
-        except (ValueError, TypeError) as exc:
-            # User-supplied date filter; bad input → just skip the filter.
-            logger.debug("herebus start_dt filter dropped: {}", exc)
-
+    query = _apply_date_filter(query, start_date, "start")
+    query = _apply_date_filter(query, end_date, "end")
     if category:
         query = query.where(BankTransaction.category == category)
-
     if currency:
         query = query.where(BankTransaction.currency == currency)
+    return _apply_reconciliation_filter(query, reconciled)
 
-    # Apply reconciliation filter
+
+def _apply_date_filter(query, date_str: str | None, position: str):
+    """Apply a date filter to the query, gracefully dropping bad input.
+    
+    Extracted from _build_bank_query to reduce complexity.
+    """
+    if not date_str:
+        return query
+    try:
+        dt = datetime.fromisoformat(date_str)
+        col = BankTransaction.posted_at
+        if position == "start":
+            return query.where(col >= dt)
+        return query.where(col <= dt)
+    except (ValueError, TypeError) as exc:
+        # User-supplied date filter; bad input → just skip the filter.
+        logger.debug(f"herebus {position}_dt filter dropped: {exc}")
+        return query
+
+
+def _apply_reconciliation_filter(query, reconciled: str | None):
+    """Apply reconciliation filter (yes/no) to the query.
+    
+    Extracted from _build_bank_query to reduce complexity.
+    """
     if reconciled == "yes":
-        query = query.where(BankTransaction.reconciled)
-    elif reconciled == "no":
-        query = query.where(not BankTransaction.reconciled)
+        return query.where(BankTransaction.reconciled)
+    if reconciled == "no":
+        return query.where(not BankTransaction.reconciled)
+    return query
 
-    # Get total count for pagination
+
+def _count_query_results(session, query) -> int:
+    """Count total results for a query (for pagination).
+    
+    Extracted from bank_list to reduce complexity.
+    """
     from sqlalchemy import func
 
-    total_count = session.execute(select(func.count()).select_from(query.subquery())).scalar() or 0
+    return session.execute(select(func.count()).select_from(query.subquery())).scalar() or 0
 
-    # Apply pagination
+
+def _fetch_paginated_transactions(session, query, page: int, per_page: int):
+    """Fetch paginated bank transactions.
+    
+    Extracted from bank_list to reduce complexity.
+    """
     offset = (page - 1) * per_page
-    transactions = session.execute(query.limit(per_page).offset(offset)).scalars().all()
+    return session.execute(query.limit(per_page).offset(offset)).scalars().all()
 
-    # Calculate pagination info
+
+def _compute_pagination(total_count: int, page: int, per_page: int) -> dict:
+    """Compute pagination info.
+    
+    Extracted from bank_list to reduce complexity.
+    """
     total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
-    has_prev = page > 1
-    has_next = page < total_pages
+    return {
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages,
+        "has_prev": page > 1,
+        "has_next": page < total_pages,
+    }
 
-    # Get reconciliation stats
+
+def _compute_bank_stats(session) -> dict:
+    """Compute reconciliation stats (reconciled + unreconciled counts).
+    
+    Extracted from bank_list to reduce complexity.
+    """
+    from sqlalchemy import func
+
     reconciled_count = (
         session.execute(
             select(func.count()).select_from(BankTransaction).where(BankTransaction.reconciled)
         ).scalar()
         or 0
     )
-
     unreconciled_count = (
         session.execute(
             select(func.count()).select_from(BankTransaction).where(not BankTransaction.reconciled)
         ).scalar()
         or 0
     )
+    return {
+        "reconciled_count": reconciled_count,
+        "unreconciled_count": unreconciled_count,
+    }
 
-    # Compute aggregates
-    session.execute(
-        select(
-            BankTransaction.currency,
-            BankTransaction.count,
-        ).group_by(BankTransaction.currency)
-    ).all() if False else None  # Avoid complex aggregate for speed
 
-    # Simpler aggregates
-    eur_total = (
-        session.execute(select(BankTransaction.amount).where(BankTransaction.currency == "EUR"))
-        .scalars()
-        .all()
-    )
-
-    pyg_total = (
-        session.execute(select(BankTransaction.amount).where(BankTransaction.currency == "PYG"))
-        .scalars()
-        .all()
-    )
+def _compute_bank_aggregates(session, stats: dict) -> dict:
+    """Compute EUR and PYG aggregates (income, spent, net, balance).
+    
+    Extracted from bank_list to reduce complexity.
+    """
+    eur_total = session.execute(
+        select(BankTransaction.amount).where(BankTransaction.currency == "EUR")
+    ).scalars().all()
+    pyg_total = session.execute(
+        select(BankTransaction.amount).where(BankTransaction.currency == "PYG")
+    ).scalars().all()
 
     income = sum(a for a in eur_total if a > 0)
     spent = abs(sum(a for a in eur_total if a < 0))
     pyg_balance = sum(pyg_total) if pyg_total else 0
 
-    # Get all categories
-    categories = list({tx.category for tx in transactions if tx.category})
-
-    return render(
-        request,
-        "bank.html",
-        {
-            "transactions": transactions,
-            "eur_income": income,
-            "eur_spent": spent,
-            "eur_net": income - spent,
-            "pyg_balance_gs": pyg_balance,
-            "categories": sorted(categories),
-            "active_category": category,
-            "active_currency": currency,
-            "active_reconciled": reconciled,
-            "page": page,
-            "per_page": per_page,
-            "total_count": total_count,
-            "total_pages": total_pages,
-            "has_prev": has_prev,
-            "has_next": has_next,
-            "reconciled_count": reconciled_count,
-            "unreconciled_count": unreconciled_count,
-        },
-    )
+    return {
+        "eur_income": income,
+        "eur_spent": spent,
+        "eur_net": income - spent,
+        "pyg_balance_gs": pyg_balance,
+    }
 
 
-# ──────────────────────────────────────────────────────────────────
-# Market Benchmarks
-# ──────────────────────────────────────────────────────────────────
+def _collect_categories(transactions) -> list:
+    """Collect unique categories from transactions.
+    
+    Extracted from bank_list to reduce complexity.
+    """
+    return sorted({tx.category for tx in transactions if tx.category})
+
+
+def _build_bank_context(
+    transactions, aggregates, categories, category, currency, reconciled,
+    pagination, total_count, stats,
+) -> dict:
+    """Build the template context for bank.html.
+    
+    Extracted from bank_list to reduce complexity.
+    """
+    return {
+        "transactions": transactions,
+        "eur_income": aggregates["eur_income"],
+        "eur_spent": aggregates["eur_spent"],
+        "eur_net": aggregates["eur_net"],
+        "pyg_balance_gs": aggregates["pyg_balance_gs"],
+        "categories": categories,
+        "active_category": category,
+        "active_currency": currency,
+        "active_reconciled": reconciled,
+        "page": pagination["page"],
+        "per_page": pagination["per_page"],
+        "total_count": total_count,
+        "total_pages": pagination["total_pages"],
+        "has_prev": pagination["has_prev"],
+        "has_next": pagination["has_next"],
+        "reconciled_count": stats["reconciled_count"],
+        "unreconciled_count": stats["unreconciled_count"],
+    }
 
 
 @benchmarks_router.get("", response_class=HTMLResponse)
