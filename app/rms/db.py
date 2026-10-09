@@ -91,6 +91,9 @@ from app.rms.migrations._115_allergen_dietary_tags import (
 from app.rms.migrations._116_eod_alert_templates import (
     _migration_116_eod_alert_templates,
 )
+from app.rms.migrations._117_ingredient_image_url import (
+    _migration_117_ingredient_image_url,
+)
 from app.rms.models.channels import Channel
 
 
@@ -2750,13 +2753,13 @@ def _migration_060_tag_normalization(conn: Any) -> None:
     #     produce when they save an ingredient.  infer_dietary_tags
     #     correctly handles meat/dairy/gluten/sugar logic so e.g. chicken
     #     no longer claims vegetariano.
+    infer_dietary_tags = None
     try:
-        from app.rms.ingredient_intel import infer_dietary_tags
-
-        have_intel = True
+        from app.rms.ingredient_intel import infer_dietary_tags as _infer_dietary_tags
+        infer_dietary_tags = _infer_dietary_tags
     except Exception:
-        have_intel = False
-    if have_intel:
+        pass
+    if infer_dietary_tags is not None:
         rows = conn.execute(text("SELECT id, name FROM ingredient")).all()
         for r in rows:
             iid, name = r
@@ -2822,20 +2825,30 @@ def _migration_060_tag_normalization(conn: Any) -> None:
     # ingredient.tag_validation_issues cascade lives in 061 which
     # touches raw SQL only).
     try:
-        from app.rms.db import make_engine as _make_engine
-        from app.rms.db import make_session_factory
+        # SASKIA-317: bind the Session to THIS migration's connection instead of
+        # _make_engine(). make_engine() with no url resolves config.DB_PATH, a constant
+        # frozen at import time — under pytest that is the REAL production DB path (the
+        # tmp_db_path env override happens after import), so every init_db() call here
+        # opened a pooled connection to the real rms.sqlite and never disposed it,
+        # leaking ~2 FDs per call until the xdist worker hit its 4096 FD limit and every
+        # subsequent sqlite open failed ("unable to open database file" → INTERNALERROR →
+        # thousands of spurious errors). Session(bind=conn) keeps the ORM work on the
+        # same DB the migration is running against — which is also the semantically
+        # correct target for a migration-time backfill.
+        from sqlalchemy.orm import Session
+
         from app.rms.models import Recipe
 
-        eng = _make_engine()
-        SessionLocal = make_session_factory(eng)
-        with SessionLocal() as s:
+        s = Session(bind=conn)
+        try:
             ids = [r.id for r in s.query(Recipe.id).all()]
-        for rid in ids:
-            with SessionLocal() as s:
-                from app.rms.tag_algebra import cascade_refresh
+            from app.rms.tag_algebra import cascade_refresh
 
+            for rid in ids:
                 cascade_refresh(s, recipe_id=rid)
-                s.commit()  # without commit, with-exit rolls back the writes
+            s.commit()  # without commit, close rolls back the writes
+        finally:
+            s.close()
     except Exception as exc:
         import sys as _sys
 
@@ -2868,10 +2881,6 @@ def _migration_062_audit_repair(conn: Any) -> None:
 
     Idempotent: re-running does nothing once all tags are consistent.
     """
-    from app.rms.db import make_engine as _make_engine
-    from app.rms.db import make_session_factory
-    from app.rms.tagging.audit_repair import repair_all_ingredients
-
     # Wrapped: repair_all_ingredients reads Ingredient via ORM and may
     # reference columns added in later migrations (e.g.
     # `last_purchase_supplier_id` from migration 072). On a fresh DB
@@ -2880,9 +2889,15 @@ def _migration_062_audit_repair(conn: Any) -> None:
     # runs the audit tool, the columns will exist and the repair will
     # land. (See test_daily_sales_series.py for the regression case.)
     try:
-        eng = _make_engine()
-        SessionLocal = make_session_factory(eng)
-        with SessionLocal() as s:
+        # SASKIA-317: bind to the migration's own connection (see the v60 comment —
+        # _make_engine() resolves the import-time config.DB_PATH = the real production DB
+        # under pytest, leaking pooled FDs on every init_db() until the worker dies).
+        from sqlalchemy.orm import Session
+
+        from app.rms.tagging.audit_repair import repair_all_ingredients
+
+        s = Session(bind=conn)
+        try:
             repair_all_ingredients(s)
             # Re-backfill the validation_issues column so the audit page
             # reflects the new state immediately.
@@ -2890,6 +2905,8 @@ def _migration_062_audit_repair(conn: Any) -> None:
 
             backfill_validation_issues(s)
             s.commit()
+        finally:
+            s.close()
     except Exception as exc:
         import sys as _sys
 
@@ -3186,13 +3203,15 @@ def _migration_061_tag_validation(conn: Any) -> None:
     # the operator runs the audit tool. (See test_daily_sales_series.py
     # for the regression case.)
     try:
-        from app.rms.db import make_engine as _make_engine
-        from app.rms.db import make_session_factory
+        # SASKIA-317: bind to the migration's own connection (see the v60 comment —
+        # _make_engine() resolves the import-time config.DB_PATH = the real production DB
+        # under pytest, leaking pooled FDs on every init_db() until the worker dies).
+        from sqlalchemy.orm import Session
+
         from app.rms.tagging.audit import audit_all_ingredients
 
-        eng = _make_engine()
-        SessionLocal = make_session_factory(eng)
-        with SessionLocal() as s:
+        s = Session(bind=conn)
+        try:
             issues_by_id = audit_all_ingredients(s)
             for iid, issues in issues_by_id.items():
                 s.execute(
@@ -3200,6 +3219,8 @@ def _migration_061_tag_validation(conn: Any) -> None:
                     {"v": "\n".join(issues), "i": iid},
                 )
             s.commit()
+        finally:
+            s.close()
     except Exception as exc:
         import sys as _sys
 
@@ -4283,6 +4304,7 @@ MIGRATIONS = {
     114: _migration_114_settings_kv_consolidation,
     115: _migration_115_allergen_dietary_tags,
     116: _migration_116_eod_alert_templates,
+    117: _migration_117_ingredient_image_url,
 }
 
 
@@ -4849,18 +4871,11 @@ def _get_db_url_safe() -> str:
 
     Used in backup manifests so the file does not leak the password.
     Returns something like "postgresql+psycopg2://***@host/db".
-    """
-    import os
-    from urllib.parse import urlsplit, urlunsplit
 
-    url = os.environ.get("AIW_RMS_DB_URL", "sqlite:///./sazon.db")
-    if url.startswith("sqlite"):
-        return "sqlite:///<local>"
-    try:
-        parts = urlsplit(url)
-        if parts.username or parts.password:
-            netloc = "***@" + parts.netloc.split("@", 1)[-1]
-            return urlunsplit((parts.scheme, netloc, parts.path, parts.query, ""))
-        return url
-    except Exception:
-        return "<unknown>"
+    Moved to app.rms.db_url in 2026-10-09; this re-export shim is
+    kept so any historical import (none in repo, but for third-party
+    extensions) continues to work. The new public name is `db_url_safe`.
+    """
+    from app.rms.db_url import db_url_safe
+
+    return db_url_safe()

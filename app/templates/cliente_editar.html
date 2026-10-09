@@ -6,12 +6,6 @@
 {% set form_values = form_values or {} %}
 {% set form_error = form_error or '' %}
 {% block content %}
-<nav class="breadcrumbs">
-  <a href="/clientes">Clientes</a> &rsaquo;
-  <a href="/clientes/{{ customer.id }}">{{ customer.name or customer.phone or customer.id }}</a> &rsaquo;
-  Editar
-</nav>
-
 <h1>{% if customer.name %}Editar {{ customer.name }}{% else %}Editar cliente{% endif %}</h1>
 
 
@@ -24,8 +18,9 @@
 </div>
 {% endif %}
 
-<form method="post" action="/clientes/{{ customer.id }}/editar" class="card" style="max-width:560px;">
+<form method="post" action="/clientes/{{ customer.id }}/editar" class="sheet-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="sheet-pair">
   <div class="form-row is-required">
     <label for="name">Nombre <span class="required" aria-label="obligatorio">*</span></label>
     <input type="text" id="name" name="name" value="{{ form_values.name if form_values else (customer.name or '') }}" required maxlength="120" aria-required="true" autofocus>
@@ -44,6 +39,7 @@
   <div class="form-row">
     <label for="cedula">CI / RUC</label>
     <input type="text" id="cedula" name="cedula" value="{{ form_values.cedula if form_values else (customer.cedula or '') }}" maxlength="32">
+  </div>
   </div>
 
   <div class="form-row">

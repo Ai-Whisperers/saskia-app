@@ -383,7 +383,7 @@ def test_cart_price_input_rendered(client, session_factory):
     assert "cart-price-input" in body, "Cart render JS must include cart-price-input markup"
 
 
-def test_sale_with_price_override_creates_correct_unit_price(client, session_factory):
+def test_sale_with_price_override_creates_correct_unit_price(client_with_caja, session_factory):
     """E13.S2 AC: POST /ventas/nueva/multi with unit_price_gs=150000 persists that price.
 
     Without the override the server would read product.sale_price_gs (or
@@ -410,7 +410,7 @@ def test_sale_with_price_override_creates_correct_unit_price(client, session_fac
         "idempotency_key": "",
         "invoice_type": "none",
     }
-    r = client.post("/ventas/nueva/multi", json=payload)
+    r = client_with_caja.post("/ventas/nueva/multi", json=payload)
     assert r.status_code in (200, 303), f"expected 200/303, got {r.status_code}: {r.text[:300]}"
 
     with session_factory() as s:
@@ -421,7 +421,7 @@ def test_sale_with_price_override_creates_correct_unit_price(client, session_fac
         )
 
 
-def test_sale_without_price_override_uses_catalog_price(client, session_factory):
+def test_sale_without_price_override_uses_catalog_price(client_with_caja, session_factory):
     """Regression: normal-priced sales must still read product.sale_price_gs.
 
     E13.S2 added an optional unit_price_gs field. When the client does
@@ -468,7 +468,7 @@ def test_sale_without_price_override_uses_catalog_price(client, session_factory)
         "idempotency_key": "",
         "invoice_type": "none",
     }
-    r = client.post("/ventas/nueva/multi", json=payload)
+    r = client_with_caja.post("/ventas/nueva/multi", json=payload)
     assert r.status_code in (200, 303), f"expected 200/303, got {r.status_code}: {r.text[:300]}"
 
     with session_factory() as s:

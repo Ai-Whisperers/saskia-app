@@ -285,7 +285,13 @@ hardcoded-tmp-directory = ["/tmp", "/var/tmp"]
 max_examples = 1000
 deadline = 1000  # ms per example
 
-# Mypy config (we use ruff for linting but mypy is the type checker; not strict yet)
+# Type checker config — Sazon does NOT currently run a type checker in CI.
+# We evaluated mypy (config retained below) and ty (0.0.85, pilot). The
+# decision (2026-10-09) is to NOT adopt either yet. See
+# docs/operations/2026-10-09-sensez-ty-evaluation.md for the full analysis.
+#
+# When we do adopt one, [tool.mypy] config below is ready to use (or
+# replace with [tool.ty] / ty.toml).
 [tool.mypy]
 python_version = "3.13"
 ignore_missing_imports = true
@@ -302,10 +308,30 @@ dev-base = [
     "pytest-xdist>=3.8.0",    # Parallel test runner
     "ruff>=0.7,<1",           # Linting (ruff check + format)
 ]
+# tooling: extra static-analysis tools (Sazon tooling rec 2026-10-08).
+# Not required for the test suite; only needed by `make check` and
+# the pre-commit hooks added 2026-10-08. Install with
+# `uv sync --group tooling`.
+tooling = [
+    "vulture>=2.14",          # dead-code (replaces ad-hoc greps)
+    "deadcode>=2.4",          # cross-file dead code (replaces vulture in some cases)
+    "bandit>=1.7",            # security scan (broader than ruff S)
+    "radon>=6.0",             # cyclomatic complexity
+    "complexipy>=8",          # cognitive complexity (SonarSource spec, replaces radon-cc for human review)
+    "pyright>=1.1",           # static type checker (catches real bugs that mypy misses)
+    "deptry>=0.20",           # find unused/missing/transitive deps
+    "interrogate>=1.7",       # docstring coverage (enforces 80% gate)
+    "refurb>=2",              # modernization hints (FURB123 redundant casts etc.)
+    "pip-audit>=2.7",         # CVE scan against pyproject.lock
+    "reuse>=5.0",             # SPDX license header compliance
+    "jscpd>=4.0",             # copy-paste detector (line-level)
+    "sensez>=0.4",            # structural clone + code smell detector (Riley Barnett 2025)
+]
 # dev: full developer setup, including the browser stack. Local devs do
 # `uv sync --group dev`; CI runs `uv sync --group dev-base` instead.
 dev = [
     {include-group = "dev-base"},
+    {include-group = "tooling"},
     "httpx>=0.27,<1",         # TestClient (FastAPI)
     "hypothesis>=6.115,<7",   # Property-based testing
     "playwright>=1.62.0",     # 9 browser tests; 134 MB wheel

@@ -2100,6 +2100,7 @@ def _send_fulfill_notification(session: Session, pedido: Pedido) -> None:
             )
         ).scalar_one_or_none()
         if row is not None:
+            # noqa: arch-rule — uses render_template helper from settings_runtime
             from app.routers.settings_runtime import render_template
 
             msg = render_template(

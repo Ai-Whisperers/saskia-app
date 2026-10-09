@@ -20,29 +20,24 @@
     <p class="hero-meta">Gestión de stock, costos unitarios y control de alérgenos</p>
   </div>
   <div class="hero-actions">
-    <a href="/merma" class="btn btn-ghost">
-      <svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg>
-      Ver mermas/ajustes
-    </a>
-    <a href="/inventario/nuevo" class="btn btn-primary">
-      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-      Nuevo ingrediente
-    </a>
-    <a href="/inventario/export.csv" class="btn">
-      <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
-      Exportá CSV
-    </a>
+    <a href="/inventario/nuevo" class="btn btn-primary">Nuevo ingrediente</a>
+    <details class="more-menu">
+      <summary>Más</summary>
+      <div class="more-menu__panel">
+        <a href="/merma">Ver mermas/ajustes</a>
+        <a href="/inventario/export.csv">Exportá CSV</a>
     {# P34 (2026-10-07, Ivan) — bulk fill to 2× minimum stock.
        One-click top-up: hits POST /inventario/bulk-fill-to-2x-min
        and writes one StockMovement per ingredient touched (reason
        column on /merma explains the jump). The form below is a tiny
        JS-free confirm via a modal — keeping it as a real <form> so
        it works without JS. #}
-    <button type="button" class="btn btn-secondary"
+    <button type="button" class="more-menu__action"
             onclick="document.getElementById('bulk-fill-modal').showModal()">
-      <svg class="icon" aria-hidden="true"><use href="#icon-arrow-up"/></svg>
       Llenar a 2× mínimo
     </button>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -103,7 +98,6 @@
     <div class="metric-value">{% if expiring_soon %}<span class="badge badge-warn">{{ expiring_soon }}</span>{% else %}0{% endif %}</div>
     <div class="metric-sub">{% if expiring_soon %}<a href="?expiry=7days">ver ingredientes →</a>{% else %}ninguno{% endif %}</div>
   </div>
-</div>
 </div>
 
 {# ── Filter toolbar ───────────────────────────────────────────────── #}

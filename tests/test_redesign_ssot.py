@@ -200,7 +200,8 @@ class TestMananaSidebarAndButtons:
         )
 
     def test_manana_button_on_inicio(self, client):
-        r = client.get("/")
+        # "/" is now the station chooser; the inicio dashboard moved to /inicio
+        r = client.get("/inicio")
         assert r.status_code == 200
         assert 'href="/produccion/manana"' in r.text, (
             "inicio.html must link to /produccion/manana (button in hero)"

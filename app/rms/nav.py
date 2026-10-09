@@ -66,6 +66,7 @@ NAV_GROUPS: list[tuple[str, list[dict]]] = [
         [
             {"route": "/reportes", "label": "Reportes", "icon": "icon-report"},
             {"route": "/analisis", "label": "Análisis", "icon": "icon-chart"},
+            {"route": "/dashboard", "label": "KPIs mensuales", "icon": "icon-report"},
             {"route": "/pricing", "label": "Precios por canal", "icon": "icon-tag", "sub": True},
             {
                 "route": "/vs-mercado",
@@ -73,12 +74,6 @@ NAV_GROUPS: list[tuple[str, list[dict]]] = [
                 "icon": "icon-tag",
                 "sub": True,
             },
-        ],
-    ),
-    (
-        "Dashboard",
-        [
-            {"route": "/dashboard", "label": "KPIs mensuales", "icon": "icon-report"},
         ],
     ),
     (
@@ -134,6 +129,7 @@ CRUMBS: dict[str, list[tuple[str, str | None]]] = {
     "/proveedores": [("Inicio", "/"), ("Proveedores", None)],
     "/wishlist": [("Inicio", "/"), ("Equipamiento", None)],
     "/clientes": [("Inicio", "/"), ("Clientes", None)],
+    "/clientes/nuevo": [("Inicio", "/"), ("Clientes", "/clientes"), ("Nuevo", None)],
     "/suscripciones": [("Inicio", "/"), ("Suscripciones", None)],
     "/suscripciones/nuevo": [("Inicio", "/"), ("Suscripciones", "/suscripciones"), ("Nueva", None)],
     "/reportes": [("Inicio", "/"), ("Reportes", None)],

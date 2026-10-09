@@ -37,7 +37,7 @@ pytestmark = pytest.mark.crud
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_pos_redeem_deducts_points_and_writes_ledger_row(session_factory, client, qseed):
+def test_pos_redeem_deducts_points_and_writes_ledger_row(session_factory, client_with_caja, qseed):
     """Cashier redeems 10 points → 10.000 Gs. discount + ledger row."""
     from app.rms.customers import ensure_customer
     from app.rms.loyalty import award_points
@@ -57,7 +57,7 @@ def test_pos_redeem_deducts_points_and_writes_ledger_row(session_factory, client
         s.commit()
 
     # POST: redeem 10 points
-    resp = client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva",
         data={
             "sku": "POS-001",
@@ -100,7 +100,7 @@ def test_pos_redeem_deducts_points_and_writes_ledger_row(session_factory, client
         )
 
 
-def test_pos_redeem_zero_points_is_noop(session_factory, client, qseed):
+def test_pos_redeem_zero_points_is_noop(session_factory, client_with_caja, qseed):
     """0 points → no redeem row written, balance untouched."""
     from app.rms.customers import ensure_customer
     from app.rms.models import Customer, LoyaltyTransaction, Product, Sale
@@ -116,7 +116,7 @@ def test_pos_redeem_zero_points_is_noop(session_factory, client, qseed):
         s.add(p)
         s.commit()
 
-    resp = client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva",
         data={
             "sku": "POS-002",
@@ -139,7 +139,7 @@ def test_pos_redeem_zero_points_is_noop(session_factory, client, qseed):
         assert cust.loyalty_points == 30
 
 
-def test_pos_redeem_without_customer_returns_400(session_factory, client, qseed):
+def test_pos_redeem_without_customer_returns_400(session_factory, client_with_caja, qseed):
     """Cashier redeems points but didn't pick a customer → 400."""
     from app.rms.models import Product
 
@@ -148,7 +148,7 @@ def test_pos_redeem_without_customer_returns_400(session_factory, client, qseed)
         s.add(p)
         s.commit()
 
-    resp = client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva",
         data={
             "sku": "POS-003",
@@ -164,7 +164,7 @@ def test_pos_redeem_without_customer_returns_400(session_factory, client, qseed)
     assert "cliente" in resp.text.lower()
 
 
-def test_pos_redeem_insufficient_points_returns_400(session_factory, client, qseed):
+def test_pos_redeem_insufficient_points_returns_400(session_factory, client_with_caja, qseed):
     """Cashier tries to redeem more than available → 400, no sale written."""
     from app.rms.customers import ensure_customer
     from app.rms.loyalty import award_points
@@ -181,7 +181,7 @@ def test_pos_redeem_insufficient_points_returns_400(session_factory, client, qse
         s.add(p)
         s.commit()
 
-    resp = client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva",
         data={
             "sku": "POS-004",
@@ -200,7 +200,7 @@ def test_pos_redeem_insufficient_points_returns_400(session_factory, client, qse
         assert s.query(Sale).count() == 0, "No sale should be written when validation fails"
 
 
-def test_pos_redeem_combined_with_manual_discount(session_factory, client, qseed):
+def test_pos_redeem_combined_with_manual_discount(session_factory, client_with_caja, qseed):
     """Points discount + manual discount add together; both applied."""
     from app.rms.customers import ensure_customer
     from app.rms.loyalty import award_points
@@ -218,7 +218,7 @@ def test_pos_redeem_combined_with_manual_discount(session_factory, client, qseed
         s.commit()
 
     # 5 pts (5.000 Gs.) + 2.000 Gs. manual = 7.000 Gs. total discount
-    resp = client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva",
         data={
             "sku": "POS-005",
@@ -247,7 +247,7 @@ def test_pos_redeem_combined_with_manual_discount(session_factory, client, qseed
         )
 
 
-def test_pos_redeem_exceeds_max_discount_returns_400(session_factory, client, qseed):
+def test_pos_redeem_exceeds_max_discount_returns_400(session_factory, client_with_caja, qseed):
     """Massive redeem that pushes discount_gs past MAX_DISCOUNT_GS → 400."""
     from app.rms.customers import ensure_customer
     from app.rms.loyalty import award_points
@@ -268,7 +268,7 @@ def test_pos_redeem_exceeds_max_discount_returns_400(session_factory, client, qs
         s.commit()
 
     # Try 150k pts (150M Gs. discount) + 0 manual = over the 100M cap
-    resp = client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva",
         data={
             "sku": "POS-006",
@@ -289,7 +289,7 @@ def test_pos_redeem_exceeds_max_discount_returns_400(session_factory, client, qs
         assert s.query(Sale).count() == 0
 
 
-def test_pos_redeem_uses_post_discount_total_for_award(session_factory, client, qseed):
+def test_pos_redeem_uses_post_discount_total_for_award(session_factory, client_with_caja, qseed):
     """The points redeemed REDUCE the sale total, and points are earned
     on the POST-discount total (industry norm)."""
     from app.rms.customers import ensure_customer
@@ -325,7 +325,7 @@ def test_pos_redeem_uses_post_discount_total_for_award(session_factory, client, 
         s.commit()
 
     # Redeem 10 points (10.000 Gs.) on a 20.000 Gs. sale
-    resp = client.post(
+    resp = client_with_caja.post(
         "/ventas/nueva",
         data={
             "sku": "POS-007",

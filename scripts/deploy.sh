@@ -5,17 +5,18 @@
 # Flags:
 #   --dry-run     Print each step without making any network calls or
 #                 running remote commands. Exits 0 on success.
-#   --repo=PATH   Override the source repo (default: /opt/data/work/sazon-app).
+#   --repo=PATH   Override the source repo (default: /opt/data/work/saskia-app).
 #                 In --dry-run mode this MUST be set so tests can point
 #                 at a fixture repo.
 #
 # Requires: ssh access to root@38.9.96.179 via /opt/data/.ssh/id_ed25519
 set -euo pipefail
 
-REPO=/opt/data/work/sazon-app
+REPO=/opt/data/work/saskia-app
 KEY=/opt/data/.ssh/id_ed25519
 VPS=root@38.9.96.179
 REMOTE_DIR=/opt/build-apps/sazon-rms
+HEALTH_HOST="${HEALTH_HOST:-saskia-vps.paragu-ai.com}"
 DRY_RUN=0
 
 for arg in "$@"; do
@@ -99,12 +100,12 @@ run ssh -i "$KEY" -o StrictHostKeyChecking=no "$VPS" \
 
 # 4. verify
 if [ "$DRY_RUN" = "1" ]; then
-  echo "DRY: would curl https://sazon-vps.paragu-ai.com/healthz (skipping network)"
+  echo "DRY: would curl https://${HEALTH_HOST}/healthz (skipping network)"
   echo "DRY-RESULT: deploy would have been initiated successfully"
   exit 0
 fi
 sleep 8
-HEALTH=$(curl -s --max-time 15 https://sazon-vps.paragu-ai.com/healthz || true)
+HEALTH=$(curl -s --max-time 15 https://${HEALTH_HOST}/healthz || true)
 echo "==> healthz: $HEALTH"
 case "$HEALTH" in
   *'"ok"'*)

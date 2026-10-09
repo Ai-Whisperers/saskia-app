@@ -6,24 +6,23 @@
 {% block title %}Productos y precios{% endblock %}
 
 {% block content %}
-<h1>Productos y precios</h1>
+<header class="page-header">
+  <div class="page-header-row">
+    <h1>Productos y precios</h1>
+    <div class="page-actions">
+      <a href="/productos/nuevo" class="btn btn-primary">Nuevo producto</a>
+      <details class="more-menu">
+        <summary>Más</summary>
+        <div class="more-menu__panel">
+          <a href="/productos/importar">Importar CSV</a>
+          <a href="/productos/export.csv">Exportar CSV</a>
+        </div>
+      </details>
+    </div>
+  </div>
+</header>
 
 {{ ui.flash_toast(request) }}
-
-<p>
-  <a href="/productos/nuevo" class="btn btn-primary">
-    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-    Nuevo producto
-  </a>
-  <a href="/productos/export.csv" class="btn btn-ghost">
-    <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
-    Exportar CSV
-  </a>
-  <a href="/productos/importar" class="btn btn-ghost">
-    <svg class="icon" aria-hidden="true"><use href="#icon-upload"/></svg>
-    Importar CSV
-  </a>
-</p>
 
 {# ── Filter toolbar ── #}
 <form method="get" action="/productos" class="inv-toolbar d-flex" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">

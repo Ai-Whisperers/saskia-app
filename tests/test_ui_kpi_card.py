@@ -155,7 +155,7 @@ def test_inicio_uses_ui_kpi_card():
     # All KPIs present
     for label in (
         "Ventas de hoy",
-        "Operaciones",
+        "Ventas",
         "Ticket promedio",
         "Margen estimado",
         "Stock",
