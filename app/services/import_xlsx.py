@@ -200,37 +200,68 @@ def _validate_workbook(wb: object, mode: str) -> tuple[list[dict], list[dict]]:
     errors: list[dict] = []
     warnings: list[dict] = []
 
-    def _err(row_num: object, field: object, msg: object):
+    def _err(row_num, field, msg):
         errors.append({"row": row_num, "field": field, "message": msg})
 
-    def _warn(row_num: object, field: object, msg: object):
+    def _warn(row_num, field, msg):
         warnings.append({"row": row_num, "field": field, "message": msg})
 
-    # Ingredientes
+    _validate_ingredientes_sheet(wb, _err)
+    _validate_recetas_sheet(wb, _err)
+    _validate_lineas_sheet(wb, _err, _warn)
+    _validate_productos_sheet(wb, _err)
+    _validate_ventas_sheet(wb, _err, _warn)
+
+    return errors, warnings
+
+
+def _validate_ingredientes_sheet(wb, _err) -> None:
+    """Validate the Ingredientes sheet.
+    
+    Extracted from _validate_workbook to reduce complexity.
+    """
     for row_num, row in enumerate(_rows(_sheet(wb, "Ingredientes")), start=2):
         name = _opt_str(row.get("name"))
         if not name:
             _err(row_num, "name", "Nombre requerido")
-        stock = _opt_float(row.get("stock_qty"))
-        if stock is not None and stock < 0:
-            _err(row_num, "stock_qty", f"stock_qty no puede ser negativo: {stock}")
-        price = row.get("purchase_price_gs")
-        if price is not None:
-            try:
-                if isinstance(price, (int, float)):
-                    to_int_gs(price)
-                else:
-                    parse_gs(str(price))
-            except (ValueError, TypeError):
-                _err(row_num, "purchase_price_gs", f"No se pudo parsear precio: {price!r}")
+        _validate_stock_and_price(row, row_num, _err)
 
-    # Recetas
+
+def _validate_stock_and_price(row, row_num, _err) -> None:
+    """Validate stock_qty (non-negative) and purchase_price_gs (parseable).
+    
+    Extracted from _validate_ingredientes_sheet to reduce complexity.
+    """
+    stock = _opt_float(row.get("stock_qty"))
+    if stock is not None and stock < 0:
+        _err(row_num, "stock_qty", f"stock_qty no puede ser negativo: {stock}")
+    price = row.get("purchase_price_gs")
+    if price is not None:
+        try:
+            if isinstance(price, (int, float)):
+                to_int_gs(price)
+            else:
+                parse_gs(str(price))
+        except (ValueError, TypeError):
+            _err(row_num, "purchase_price_gs", f"No se pudo parsear precio: {price!r}")
+
+
+def _validate_recetas_sheet(wb, _err) -> None:
+    """Validate the Recetas sheet.
+    
+    Extracted from _validate_workbook to reduce complexity.
+    """
     for row_num, row in enumerate(_rows(_sheet(wb, "Recetas")), start=2):
         name = _opt_str(row.get("name"))
         if not name:
             _err(row_num, "name", "Nombre requerido")
 
-    # Lineas
+
+def _validate_lineas_sheet(wb, _err, _warn) -> None:
+    """Validate the Lineas sheet.
+    
+    Extracted from _validate_workbook to reduce complexity.
+    """
     for row_num, row in enumerate(_rows(_sheet(wb, "Lineas")), start=2):
         recipe_name = _opt_str(row.get("recipe_name"))
         if not recipe_name:
@@ -246,42 +277,70 @@ def _validate_workbook(wb: object, mode: str) -> tuple[list[dict], list[dict]]:
         if qty is not None and qty <= 0:
             _err(row_num, "qty", f"qty debe ser > 0, recibido: {qty}")
 
-    # Productos
+
+def _validate_productos_sheet(wb, _err) -> None:
+    """Validate the Productos sheet.
+    
+    Extracted from _validate_workbook to reduce complexity.
+    """
     for row_num, row in enumerate(_rows(_sheet(wb, "Productos")), start=2):
         name = _opt_str(row.get("name"))
         if not name:
             _err(row_num, "name", "Nombre requerido")
-        price = row.get("sale_price_gs")
-        if price is not None:
-            try:
-                if isinstance(price, (int, float)):
-                    to_int_gs(price)
-                else:
-                    parse_gs(str(price))
-            except (ValueError, TypeError):
-                _err(row_num, "sale_price_gs", f"No se pudo parsear precio: {price!r}")
+        _validate_sale_price(row, row_num, _err)
 
-    # Ventas
+
+def _validate_sale_price(row, row_num, _err) -> None:
+    """Validate sale_price_gs (parseable).
+    
+    Extracted from _validate_productos_sheet to reduce complexity.
+    """
+    price = row.get("sale_price_gs")
+    if price is None:
+        return
+    try:
+        if isinstance(price, (int, float)):
+            to_int_gs(price)
+        else:
+            parse_gs(str(price))
+    except (ValueError, TypeError):
+        _err(row_num, "sale_price_gs", f"No se pudo parsear precio: {price!r}")
+
+
+def _validate_ventas_sheet(wb, _err, _warn) -> None:
+    """Validate the Ventas sheet.
+    
+    Extracted from _validate_workbook to reduce complexity.
+    """
     for row_num, row in enumerate(_rows(_sheet(wb, "Ventas")), start=2):
-        sold_at = row.get("sold_at")
-        if sold_at is None:
-            _err(row_num, "sold_at", "sold_at requerido")
-        elif isinstance(sold_at, datetime):
-            if sold_at > datetime.now(ASUNCION_TZ):
-                _warn(row_num, "sold_at", f"Fecha en el futuro: {sold_at}")
-        product_id = _opt_int(row.get("product_id"))
-        if product_id is None:
-            _err(row_num, "product_id", "product_id requerido")
-        qty = _opt_float(row.get("qty"))
-        if qty is not None and qty <= 0:
-            _err(row_num, "qty", "qty debe ser > 0")
-
-    return errors, warnings
+        _validate_venta_row(row, row_num, _err, _warn)
 
 
-# --------------------------------------------------------------------------
-# APPEND mode — insert rows without updating existing
-# --------------------------------------------------------------------------
+def _validate_venta_row(row, row_num, _err, _warn) -> None:
+    """Validate a single venta row.
+    
+    Extracted from _validate_ventas_sheet to reduce complexity.
+    """
+    _validate_sold_at(row, row_num, _err, _warn)
+    product_id = _opt_int(row.get("product_id"))
+    if product_id is None:
+        _err(row_num, "product_id", "product_id requerido")
+    qty = _opt_float(row.get("qty"))
+    if qty is not None and qty <= 0:
+        _err(row_num, "qty", "qty debe ser > 0")
+
+
+def _validate_sold_at(row, row_num, _err, _warn) -> None:
+    """Validate the sold_at field.
+    
+    Extracted from _validate_venta_row to reduce complexity.
+    """
+    sold_at = row.get("sold_at")
+    if sold_at is None:
+        _err(row_num, "sold_at", "sold_at requerido")
+        return
+    if isinstance(sold_at, datetime) and sold_at > datetime.now(ASUNCION_TZ):
+        _warn(row_num, "sold_at", f"Fecha en el futuro: {sold_at}")
 
 
 def _import_append(session: Session, wb: object, result: ImportResult) -> None:
