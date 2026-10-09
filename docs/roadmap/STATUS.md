@@ -1,15 +1,15 @@
 # Saskia RMS — Current Status
 
-**Last updated:** 2026-10-09
+**Last updated:** 2026-10-09 (reorg landed at e9b80533)
 **Live URL:** https://sazon-vps.paragu-ai.com
-**Branch:** `main` @ `bc710dfb` (~1,470 commits, deployed, ahead of origin/main)
+**Branch:** `main` @ `640c21e5` (~1,500 commits, deployed, clean)
 **Schema version:** 117 (migrations 113..117 — allergen/dietary tags, EOD alert templates, ingredient image_url)
 **Python LOC (app/):** 96,306 lines across 116 modules
 **Python LOC (tests/):** 124,258 lines (1.29× app code)
 **Routers:** 53 files (30,494 lines)
 **Templates:** 131 files (27,728 lines)
 **Tests collected:** 7,961 (129 deselected)
-**Working tree on `main`:** ⚠️ 4 files modified (active refactor wave in progress — not from this branch)
+**Working tree on `main`:** clean (refactor wave landed in 11+ commits between 14:30 and 15:50 UTC)
 
 ## Health check (assumed green — see VPS section)
 
@@ -119,6 +119,24 @@ Source: `sazon_lessons_book_v2_20261008.md` (12 G-OPEN items) intersected with `
 - `6ce98890` (commit chain) v3 + v4 data-intelligence plan executed
 - `b573596b` bot cleanup + lint exceptions
 - `0bea7ed1` ruff format post-refactor
+
+
+### Refactor wave (continued -- landed 14:30-15:50 UTC)
+
+- **`17020926`** `validate_sale_intent` (pre_sale_check) 58->3
+- **`e9a08fbd`** `consolidate_open_items` (shopping) 32->4
+- **`c8946a4a`** `to_file` (export) 32->0
+- **`7f672f36`** `pedidos_detail` 32->1
+- **`08deb09b`** `dashboard_index` 32->0
+- **`78e75c15`** `product_cost_freshness` 32->11
+- **`56f2b77e`** `fix(sales)`: restore single-method payment row + create_at for split payments
+- **`ef24eb51`** `fix(deploy)`: test/dev use local-bcrypt auth (no Supabase)
+- **`91f047a8`** `fix(deploy)`: use legacy Supabase JWT keys (ANON_KEY/SERVICE_ROLE_KEY)
+- **`0f1ad5af`** `fix(deploy)`: match live saskia-vps labels + per-env resource limits
+- **`640c21e5`** `fix(ci)`: use existing VPS_KEY secret instead of missing SASKIA_VPS_SSH_KEY
+- **`fffe7c7f`** `fix(ci)`: use throwaway venv for pyyaml install in deploy workflows
+- **`5e3f53e2`** `fix(ci)`: use --break-system-packages for uv pip install in deploy workflows
+- **`5c140b1f`** `chore(lint)`: restore ruff clean after bot's complexity refactors
 
 ## Coverage regression (active issue)
 
