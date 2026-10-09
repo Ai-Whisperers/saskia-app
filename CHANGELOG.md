@@ -1,3 +1,19 @@
+## 2026-10-09 — Apply action SHA-pin drift fix (first scanner run)
+
+**Scope**: scripts/refresh_action_pins.py detected 15 drifted pins on
+its first run; the monthly cron wouldn't fire until Nov 1, so applying
+now.
+
+**What changed**:
+- `astral-sh/setup-uv@v7`: 94527f2e -> 37802adc (13 workflows). The old
+  pin was the ANNOTATED TAG OBJECT sha; the new one is the commit the
+  tag points at — matching what GH runners actually execute
+  (CI logs already show SHA:37802adc).
+- `zaproxy/action-api-scan@v0.10.0`: bd24b11e -> 5158fe4d (same
+  tag-object vs commit distinction).
+
+**Test status**: tag peel verified via git/tags API; zizmor clean.
+
 ## 2026-10-09 — Untrack .venv from git
 
 **Scope**: housekeeping that broke the CHANGELOG gate's diff view. A
