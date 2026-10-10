@@ -113,17 +113,23 @@ jobs:
           set -euo pipefail
           # Re-construct the release.sh flags from the trigger.
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            FLAGS=""
+            # Use a bash array so embedded whitespace/punctuation in
+            # --message survives the call to release.sh.
+            # (Previously FLAGS was a string with literal single quotes;
+            # the shell unquoted them at expansion time and `2.1` etc. were
+            # split into separate "unknown flag" args. v2026.10.1 re-trigger
+            # hit this; fix is to pass each arg as a discrete array element.)
+            ARGS=()
             if [ -n "${GITHUB_EVENT_INPUTS_VERSION}" ]; then
-              FLAGS="$FLAGS --version=${GITHUB_EVENT_INPUTS_VERSION}"
+              ARGS+=(--version="${GITHUB_EVENT_INPUTS_VERSION}")
             fi
             if [ -n "${GITHUB_EVENT_INPUTS_MESSAGE}" ]; then
-              FLAGS="$FLAGS --message='${GITHUB_EVENT_INPUTS_MESSAGE}'"
+              ARGS+=(--message="${GITHUB_EVENT_INPUTS_MESSAGE}")
             fi
             if [ "${GITHUB_EVENT_INPUTS_SKIP_DEPLOY}" = "true" ]; then
-              FLAGS="$FLAGS --skip-deploy"
+              ARGS+=(--skip-deploy)
             fi
-            bash scripts/release.sh $FLAGS
+            bash scripts/release.sh "${ARGS[@]}"
           else
             # Tag push: the tag already exists (it triggered us). We
             # only need to do step 3 (deploy). The CHANGELOG bump +
