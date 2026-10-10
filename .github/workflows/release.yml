@@ -138,6 +138,9 @@ jobs:
             case "$TAG_COMMIT_MSG" in
               "docs(changelog): release $TAG")
                 echo "Tag $TAG already has a release commit; skipping CHANGELOG bump"
+                # actions/checkout lands in detached HEAD; deploy.sh refuses
+                # to run --env=prod from anything but the `main` branch.
+                git checkout main
                 bash scripts/deploy.sh --env=prod
                 ;;
               *)

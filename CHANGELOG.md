@@ -1,3 +1,11 @@
+## 2026-10-10 — ci: release workflow needs `git checkout main` before deploy.sh
+
+**Scope**: `.github/workflows/release.yml`. The `Release (CalVer tag → prod)` workflow's tag-push branch tries to run `scripts/deploy.sh --env=prod`, but `actions/checkout` lands in detached HEAD and `deploy.sh` refuses to run from anything but the `main` branch. Fixed by adding `git checkout main` before the deploy step. (Caught by the v2026.10.1 release run — tag pushed, workflow tried to deploy, failed on the branch check, deploy was skipped.)
+
+**Verification**: re-run the v2026.10.1 release workflow after this lands; deploy should now reach the VPS.
+
+---
+
 ## [2026.10.1] — 2026-10-10 — PR #118 (void/xlsx), #111 (deploy CI), #126 (conftest hang) — sprint 2.1
 
 Released as v2026.10.1. Commit: `e54c4571`.
