@@ -1,13 +1,15 @@
 # the operator · What Next? (refresh 2026-10-10)
 
-> **Supersedes** `docs/operations/2026-10-10-late-WHAT_NEXT-archived.md` and
+> **Supersedes** `docs/operations/2026-10-10-evening-WHAT_NEXT-archived.md`
+> and `docs/operations/2026-10-10-late-WHAT_NEXT-archived.md` and
 > `docs/operations/2026-10-10-early-WHAT_NEXT-archived.md` and
 > `docs/operations/2026-10-10-midday-WHAT_NEXT-archived.md` (the
-> midday archive was lost when #125 force-pushed main; the previous
-> early version is the one from #121).
+> midday archive was lost when #125 force-pushed main; the
+> 2026-10-10-evening archive holds the 19:00 state — the last refresh
+> before this one).
 > Ground truth: `git log --oneline --since="2026-10-09"`.
 
-## 📊 Current State (2026-10-10 ~19:00 UTC)
+## 📊 Current State (2026-10-10 ~19:20 UTC)
 
 | Knob | Value | Source |
 |------|-------|--------|
@@ -17,62 +19,93 @@
 | Open ruff findings | 0 (lint passes; 11 informational "Invalid `# noqa` directive" warnings on `arch-rule` lines) | `ruff check` |
 | Active TODO comments | 5 (all in `scripts/check_active_todos.py` placeholder rows; the script itself) | `make todos` |
 | Open issues | 0 | `gh issue list --state open` |
-| Open PRs | 2 (Ivan's: #122, #124) | `gh pr list --state open` |
-| Environments | prod + dev + test all `/healthz` 200 | saskia-vps / saskia-dev / saskia-test .paragu-ai.com |
-| Branch protection | ruleset #24802688 active | 5 required checks |
+| Open PRs | 0 | `gh pr list --state open` |
+| Environments | prod + dev + test all `/healthz` 200 (per last verify 2026-10-10 ~18:00) | saskia-vps / saskia-dev / saskia-test .paragu-ai.com |
+| Branch protection | ruleset #24802688 active | 5 required checks (smoke, route-smoke, currency-drift, browser, Static analysis) |
 | Supabase | disabled on prod (NXDOMAIN) | `a5499c51` (#98) |
 
-## ✅ Closed since the last refresh (2026-10-10 ~07:30 → 19:00)
+## ✅ Closed since the last refresh (2026-10-10 ~19:00 → 19:20)
 
-- **#123 — restore cierre monthly-close aggregates (`1adca996`)**:
-  the 2026-10-09 complexity refactor (commit `eb1c28c9`) extracted
-  helpers from `compute_monthly_close` but left the final
-  `_build_monthly_close_result` returning
-  `MonthlyClose(year=year, month=month, ...)` — a call signature the
-  `MonthlyClose` dataclass does not accept. Result: 11 of 15 tests in
-  `tests/test_cierre.py` failed, plus collateral failures in
-  `tests/test_date_boundary.py` (60) and `tests/test_reports.py` +
-  `tests/test_analytics_properties_phase14_tier4.py` (43). Same
-  `test_total_ventas` failure Ivan flagged as out-of-scope in PR #120.
+- **#126 — fix conftest test hang (`e54c4571`)**: 7997-test CI suite was
+  timing out at 12min on the lint+test step. Root cause: every test
+  paid ~7s for `from app.rms.main import app` (autouse `reset_app_state`)
+  + ~8s for `init_db()` (autouse chain `_close_leaked_sessions →
+  session_factory → app_engine`), even pure-Python tests like
+  `test_daily_summary_dryrun` that shell out to a subprocess and
+  never touch the DB. Fix: `_fixture_tree_needs_app()` checks
+  `request.fixturenames` against the set of app-touching fixture
+  names. `reset_app_state` / `app_engine` / `session_factory`
+  short-circuit to a stub when the test's fixture tree doesn't
+  include any of them. Pure-Python / CLI tests pay ~0s setup;
+  app-touching tests behave unchanged. v2 uses `request.fixturenames`
+  (correct signal: the test's full fixture tree is known before any
+  fixture body runs) instead of v1's `sys.modules` check (which
+  broke 2 test files with `RuntimeError: session_factory stubbed;
+  requested attr 'kw'` because `session_factory` is built before
+  `client` is instantiated). CI wall-time: 12min → ~1.5min for the
+  7,997-test suite.
 
-  Fix: rewrote `_build_monthly_close_result` to compute the full set
-  of aggregate fields. Caller now passes `start`/`end`/`sales`. All
-  15 + 60 + 43 = 118 tests now pass.
+- **#129 — deploy healthz grep fix (`9f9cead4`)**: the deploy-dev /
+  deploy-test jobs were failing on a brittle `case` glob pattern in
+  the healthz status check. Replaced with `grep -q`. PR #128 was
+  closed in favor of this re-authoring (sibling process). Deploy-dev
+  now passes consistently; deploy-test occasionally hits a transient
+  bws 429 race when both jobs run in parallel (backoff/retry
+  recommended; not a code bug).
 
-- **#125 — Ivan's pre-existing-failures rebased (`f873651b`)**: the
+- **#122 — PATCH plantilla clean column names (`5e78e6a1`)**: the 3
+  remaining `test_excel_patch` failures (excluded from #125's scope).
+  `app/services/export_xlsx.py` was writing PATCH-plantilla headers
+  with ` [REQUIRED]` / ` [OPTIONAL]` UX markers, but
+  `app/services/import_xlsx.py` wasn't stripping them on read.
+  Fixed by writing clean column names in the export side; the
+  template-render helper still annotates required/optional visually
+  for the operator. **19/19 test_excel_patch tests pass.**
+
+- **#127 — WHAT_NEXT refresh after #123 + #125 (`3b1cf90f`)**: kept
+  the WHAT_NEXT cadence up to date after the cierre bug-fix and
+  the pre-existing-failures rebase. Now superseded by this file.
+
+- **#125 — pre-existing test failures rebased (`f873651b`)**: the
   same 13 pre-existing test failures from #120, but rebased onto
-  current main (which had #118 in the meantime). Removed legacy
-  "US 4.1 — restore packaging" block in `void_sale`, fixed
+  current main (which had #118 in the meantime). Removed the legacy
+  "US 4.1 — restore packaging" block in `void_sale`; fixed the
   `Sale.recorded_at` → `Sale.sold_at` rename in 2 dashboard chart
-  functions, deleted 7 duplicate `_write_*_sheet` functions in
-  `app/services/export_xlsx.py`. (The 3 `test_excel_patch` failures
-  remain — addressed in #122.)
+  functions (5 line edits); deleted 7 duplicate `_write_*_sheet`
+  functions in `app/services/export_xlsx.py` (142 lines net).
+  The 3 `test_excel_patch` failures remained out of scope and were
+  addressed in #122.
+
+- **#120 — closed in favor of #125**: PR title kept the rebased
+  wording but the actual content was the same as #125; the closed PR
+  is the audit trail.
 
 ## 🎯 What's next? (ranked)
 
-### #1 — PATCH-plantilla header parsing — 2-4h (Ivan's PR #122 in flight)
+### #1 — VPS secrets rotation — 30 min (deferred to Ivan)
 
-3 pre-existing test failures in `tests/test_excel_patch.py`:
+`deploy-dev` / `deploy-test` need a working `BWS_ACCESS_TOKEN` + VPS
+SSH key. Until then, deploys land via VPS-side pulls (Ivan does this
+manually). The transient `bws secret list 429` failures (#129's
+deploy-test) come from BWS rate-limiting when both jobs request
+secrets at the same time — proper fix is "BWS_ACCESS_TOKEN
+populated" so the GitHub App rotation path can take over. Once BWS
+is populated, both deploys should light up green and the `4095.0`
+bws call rate becomes moot.
 
-- **Root cause**: `app/services/export_xlsx.py` writes the
-  PATCH-plantilla headers with ` [REQUIRED]` / ` [OPTIONAL]` UX
-  markers (e.g. `"name [REQUIRED]"`). The import side
-  (`app/services/import_xlsx.py`) does not strip these markers when
-  reading back, so `row.get("name")` raises `KeyError: 'name'` for
-  every row.
-- **Affected sheets**: Productos, Clientes, Ingredientes, Recetas.
-- **Likely production impact**: PATCH-mode imports silently fail
-  with "fila sin nombre" warnings.
-- **Ivan's PR #122** is on it: 2 files, +103/-5. Branch
-  `fix/excel-patch-template-columns-2026-10-10`. No need for
-  duplicate work.
+### #2 — Coverage gap analysis — 2-3h (deferred until a Sprint 2.2)
 
-### #2 — VPS secrets rotation — 30 min (deferred to Ivan)
-
-`deploy-dev` / `deploy-test` need a working BWS_ACCESS_TOKEN + VPS
-SSH key. Until then, deploys land via VPS-side pulls (Ivan does
-this manually). When BWS is populated, both deploys should light
-up green.
+Test coverage is at 26.12% (gate is 35%, per `pyproject.toml`).
+Per AGENTS.md, the 35% gate is a Phase 1 milestone; the 4-phase
+plan in `docs/plans/2026-08-31-rms-fase-1-dev-plan.md` bumps it in
+stages. The biggest gap is `app/services/template_render.py` at 21%
+(an entire module that's not covered). Other modules under 25%:
+`app/services/export_xlsx.py` (remediated partially by #125), 
+`app/routers/dashboard.py` (remediated partially by #125),
+`app/rms/sales/lifecycle.py` (remediated partially by #125).
+The remaining gap is mostly in `app/services/import_xlsx.py`,
+`app/rms/reports/*`, and `app/rms/production/*`. The Sprint 2.2
+"ship Saskia a usable product" milestone is the next coverage push.
 
 ### #3 — Backlog items (no rush)
 
@@ -98,7 +131,8 @@ up green.
   is still valuable but needs re-authoring on the post-#117 base
   with annotations from the start. If anyone wants to do this,
   file a new SASKIA ticket.
-- **PRs #122, #124** — all Ivan's, in flight.
+- **`feat/station-shell` (feature branch)** — sibling session in
+  flight; awaits the CHANGELOG drop + rebase onto main.
 
 ## ❌ Explicitly deferred — do not pick up
 
@@ -111,12 +145,13 @@ up green.
 ## 🛠 Tooling & Plumbing notes
 
 - WHAT_NEXT pattern: regenerate dated, archive previous. Don't
-  in-place edit history. Four archived versions now exist in
+  in-place edit history. Five archived versions now exist in
   `docs/operations/`:
   - `2026-10-09-evening-WHAT_NEXT-archived.md`
   - `2026-10-10-early-WHAT_NEXT-archived.md` (from #121)
   - `2026-10-10-midday-WHAT_NEXT-archived.md` (lost in #125 force-push; kept as reference)
-  - `2026-10-10-late-WHAT_NEXT-archived.md` (from this refresh)
+  - `2026-10-10-late-WHAT_NEXT-archived.md` (the 07:30 refresh)
+  - `2026-10-10-evening-WHAT_NEXT-archived.md` (the 19:00 refresh, pre-this-one)
 - Backup discipline (AGENTS.md rule 17) enforced at `init_db()`;
   `sazon rollback --to N` is the recovery net (shipped in #209).
 - `app/CHANGELOG.md` was removed in the docs reorg (commit
@@ -127,7 +162,10 @@ up green.
   code; `tests/test_check_imports_rules.py` parses the string
   literally so we can't rename it without also updating the test.
   Left as-is (warnings don't fail checks).
+- **CI test wall-time** dropped from ~12min to ~1.5min after #126.
+  The full test suite now runs in the same time window that the
+  `sazon migrate` smoke test alone used to take.
 
 ---
 
-**Generated:** 2026-10-10 ~19:00 UTC after #125 merge.
+**Generated:** 2026-10-10 ~19:20 UTC after #126 merge.
