@@ -824,10 +824,59 @@ async def sale_create(
     _apply_invoice_to_sale(session, sale, invoice_fields, product_id, qty, discount_gs)
 
     if idempotency_key:
-        _update_idempotency_record(session, idempotency_key, sale.sale_id)
+        _update_idempotency_record(
+            session,
+            idempotency_key,
+            sale.sale_id,
+            request_id=getattr(request.state, "request_id", None),
+        )
 
     if customer_id is not None:
         _award_loyalty_points(session, customer_id, sale)
+
+    # Best-effort: send the receipt to the configured printer. The
+    # helper swallows its own errors so a printer outage never breaks
+    # the sale. Hook lives here (before commit) so the test harness's
+    # monkeypatched send_to_printer is called with the just-created
+    # sale visible in the same session.
+    _fire_printer_for_sale(
+        session,
+        request,
+        product_id=product_id,
+        qty=qty,
+        discount_gs=discount_gs,
+        payment_method=payment_method_clean,
+        notes=notes_clean,
+    )
+
+    # Audit the sale-create action for the operator (OPSEC: every state
+    # change must leave a log; the /auditoria UI must be able to
+    # answer "who created sale N"). Mirrors the write.sale.share
+    # pattern used in sale_share_token.
+    audit_record(
+        session,
+        request=request,
+        user_id=current_operator(request, fallback="operador"),
+        action="write.sale.create",
+        target_type="sale",
+        target_id=str(sale.sale_id),
+        detail={
+            "product_id": product_id,
+            "qty": qty,
+            "total_gs": sale.total_price_gs,
+            "customer_id": customer_id,
+            "payment_method": payment_method_clean,
+        },
+    )
+
+    # Commit the sale + downstream effects (loyalty ledger, audit log,
+    # stock moves, idempotency record). Without this, the writes are
+    # rolled back when get_session() closes the generator — silent loss
+    # that masks itself as a working redirect. Safe_commit wraps
+    # commit() in rollback-on-error so a single bad row doesn't poison
+    # the connection pool. The same handler family in
+    # sale_create_multi already calls safe_commit at line 2017.
+    safe_commit(session)
 
     return _sale_create_redirect(sale)
 
@@ -1161,17 +1210,27 @@ def _apply_invoice_to_sale(session, sale, invoice_fields, product_id, qty, disco
     sale.iva_amount_gs = snapshot["iva_amount_gs"]
 
 
-def _update_idempotency_record(session, idempotency_key, sale_id):
-    """Update idempotency record with real sale_id.
+def _update_idempotency_record(session, idempotency_key, sale_id, request_id=None):
+    """Update idempotency record with real sale_id + request_id.
 
-    Extracted from sale_create to reduce complexity.
+    Stores JSON ``{"sale_id": "<id>", "request_id": "<rid>"}`` so duplicate-POST
+    forensics can correlate the two requests via the access log. (Phase 1B
+    ticket #10 per the test audit.) Falls back to the legacy
+    plain-string format if request_id is None (e.g. legacy callers).
     """
+    import json as _json
+
     from app.rms.models import AppMeta as _AppMeta
+
+    if request_id:
+        payload = _json.dumps({"sale_id": str(sale_id), "request_id": request_id})
+    else:
+        payload = str(sale_id)
 
     session.execute(
         update(_AppMeta)
         .where(_AppMeta.key == f"sale_idem:{idempotency_key}")
-        .values(value=str(sale_id))
+        .values(value=payload)
     )
 
 

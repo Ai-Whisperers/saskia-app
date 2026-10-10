@@ -105,13 +105,13 @@ def test_hourly_chart_skips_sales_without_sold_at():
         payment_method="efectivo",
     )
     chart = _build_hourly_sales_chart([sale_no_time], ASUNCION)
-    assert "Sin ventas todavía" in chart
+    assert "Sin datos de ventas por hora" in chart
 
 
 def test_hourly_chart_empty_list():
     """Empty sales list returns the empty-state message."""
     chart = _build_hourly_sales_chart([], ASUNCION)
-    assert "Sin ventas todavía" in chart
+    assert "Sin datos de ventas por hora" in chart
 
 
 def test_hourly_chart_all_zero_buckets_returns_empty_state():
@@ -126,7 +126,7 @@ def test_hourly_chart_all_zero_buckets_returns_empty_state():
         payment_method="efectivo",
     )
     chart = _build_hourly_sales_chart([sale_no_time], ASUNCION)
-    assert "Sin ventas todavía" in chart
+    assert "Sin datos de ventas por hora" in chart
 
 
 def test_payment_methods_donut_respects_discount():
@@ -177,4 +177,4 @@ def test_hourly_chart_clamped_at_zero_for_oversold_discount():
     sale = _sale(qty=1, unit_price_gs=1000, discount_gs=2000)
     chart = _build_hourly_sales_chart([sale], ASUNCION)
     # After clamp, bucket is 0 → empty state
-    assert "Sin ventas todavía" in chart
+    assert "Sin datos de ventas por hora" in chart
