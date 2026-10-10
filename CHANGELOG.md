@@ -1,3 +1,29 @@
+## 2026-10-10 — Docs quality: link-check gate + baseline refresh + dup-delete
+
+**Scope**: companion to the docs-quality audit (#93, #103, #107, #110). Closes
+the link-check and dup-delete work; the baseline-aware docs-lint gate was
+already shipped in #110.
+
+- `scripts/check_md_links.py` (106 lines): strict zero-tolerance link checker.
+  Scans every `.md` file for relative links, image references, and citation
+  anchors. CI runs it before the docs-lint gate; PR fails on any broken ref.
+- `.github/workflows/ci.yml`: new "Docs link check" step right before the
+  existing "Docs quality (baseline gate)" step. Both are required CI.
+- `tests/test_docs_quality_gate.py` (101 lines, 4 tests): pins (a) link check
+  reports rc=0, (b) `docs-quality-baseline.json` exists, (c) baseline JSON
+  shape is valid, (d) docs-lint gate reports `new=0` against the baseline.
+  Without these, the baseline file silently rots (it did — see below).
+- `docs-quality-baseline.json` refresh: the checked-in baseline was 6
+  findings behind main (new docs landed but no one re-ran
+  `make docs-lint-baseline`). Regenerated to current state; gate now passes.
+- `docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md`:
+  deleted. Last real duplicate file pair from the audit; 5 in-repo references
+  all point to the canonical `docs/plans/2026-10-01-phase14-coverage-strategy.md`.
+  The sibling `phase14-todo-inventory.md` in the same dir is unique and kept.
+
+**Linked PRs**: #112 (this commit), #107, #110, #116.
+**Audit doc**: `docs/operations/2026-10-09-docs-quality-audit.md`.
+
 ## 2026-10-09d — Seed: Tier A+B+C UX gaps + design-empty tables + data quality fixes
 
 **Scope**: comprehensive data population across 25 new fields/tables for the

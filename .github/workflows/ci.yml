@@ -351,6 +351,12 @@ jobs:
       # Rejects any PR that touches app/, scripts/, tests/, or .github/ but
       # doesn't also touch app/CHANGELOG.md. Keeps the [Unreleased] section
       # honest.
+      - name: Docs link check (strict: 0 broken relative refs)
+        # Fails on any broken relative link or image reference in .md files.
+        # Companion to the docs-quality gate below. The link checker is strict
+        # (zero tolerance); the linter below is baseline-aware.
+        run: python3 scripts/check_md_links.py
+
       - name: Docs quality (baseline gate)
         # Fails on any pymarkdownlnt finding not in docs-quality-baseline.json.
         # See scripts/check_docs_quality.py --check. Update the baseline ONLY
