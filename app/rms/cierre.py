@@ -83,12 +83,13 @@ def compute_monthly_close(session: Session, year: int, month: int) -> MonthlyClo
     Asunción timezone for period boundaries per AGENTS.md rule §4.
     """
 
+    start, end = _month_range(year, month)
     start_dt, end_dt = _get_month_range_dt(year, month)
     sales = _fetch_sales_in_period(session, start_dt, end_dt)
     by_product = _aggregate_sales_by_product(sales)
     rows = _build_product_rows(session, by_product)
     family_rows = _aggregate_by_family(rows)
-    return _build_monthly_close_result(rows, family_rows, year, month)
+    return _build_monthly_close_result(rows, family_rows, sales, start, end, year, month)
 
 
 def _get_month_range_dt(year: int, month: int) -> tuple:
@@ -290,9 +291,62 @@ def _build_family_row(family: str, agg: dict) -> MonthlyCloseRow:
     )
 
 
-def _build_monthly_close_result(rows, family_rows, year: int, month: int) -> MonthlyClose:
-    """Build the final MonthlyClose result.
+def _build_monthly_close_result(
+    rows: list[MonthlyCloseRow],
+    family_rows: list[MonthlyCloseRow],
+    sales: list,
+    start: date,
+    end: date,
+    year: int,
+    month: int,
+) -> MonthlyClose:
+    """Build the final MonthlyClose result with aggregate totals.
 
     Extracted from compute_monthly_close to reduce complexity.
+    The 2026-10-10 refactor (commit eb1c28c9) only extracted the helper
+    structure but left the totals computation in this function — they
+    are required for the tfoot summary row. Without them, 11 tests in
+    tests/test_cierre.py fail with
+    ``TypeError: MonthlyClose.__init__() got an unexpected keyword
+    argument 'year'``.
     """
-    return MonthlyClose(year=year, month=month, rows=rows, family_rows=family_rows)
+    # Order: family rollups first, then per-product detail. The tfoot
+    # summary math uses product_rows (real products only) to avoid
+    # double-counting when family rollups are in the same table.
+    all_rows = family_rows + rows
+
+    total_ventas = sum(r.ventas_gs for r in rows)
+    total_prime = sum(r.prime_cost_gs for r in rows)
+    total_margen = total_ventas - total_prime
+    total_margen_pct = round(total_margen / total_ventas * 100, 1) if total_ventas > 0 else 0.0
+
+    top = max(rows, key=lambda r: r.margen_neto_gs, default=None)
+
+    month_names = [
+        "Enero",
+        "Febrero",
+        "Marzo",
+        "Abril",
+        "Mayo",
+        "Junio",
+        "Julio",
+        "Agosto",
+        "Septiembre",
+        "Octubre",
+        "Noviembre",
+        "Diciembre",
+    ]
+    return MonthlyClose(
+        period_label=f"{month_names[month - 1]} {year}",
+        start=start,
+        end=end,
+        rows=all_rows,
+        product_rows=rows,
+        total_ventas_gs=total_ventas,
+        total_iva_ventas_gs=sum(r.iva_ventas_gs for r in rows),
+        total_prime_cost_gs=total_prime,
+        total_margen_neto_gs=total_margen,
+        total_margen_pct=total_margen_pct,
+        total_sales=len(sales),
+        top_product=top.label if top else None,
+    )
