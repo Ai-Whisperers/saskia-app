@@ -1128,3 +1128,11 @@ passes missed. Replaced with the shared `m.gs` / `m.gs_full` macros
 
 Both now assert: bug formula gone, `m.gs` macro used, and NO raw
 `Gs. {{` pattern (D3 lint via inline regex).
+
+## 2026-10-10 — fix: remove legacy channel constants (SASKIA-212) + drop stale ?period=custom TODO (SASKIA-213)
+
+Closes #114 and #115.
+
+- **SASKIA-212**: `ALLOWED_CHANNELS`, `CHANNELS_DISPLAY`, `CHANNEL_DEFAULT` in `app/rms/models/channels.py` were the last TODO from the docs-quality audit. Only one importer remained: `tests/test_P42_channel_enum_integration.py`. Migrated that test to use `Channel.default()` / `Channel.allowed_values()` directly, then deleted the 3 legacy constants + the deprecation comment.
+- **SASKIA-213**: `tests/test_dashboard_kpis_end_to_end.py` had a `# TODO: Fix _period_window` comment dating from when `?period=custom` (no dates) returned 500. The fix was already in place: `app/routers/dashboard.py:_resolve_period_window` routes the no-dates case through `_period_window("custom")` which falls back to today's window. Tightened the test to assert exactly 200 and dropped the stale KNOWN BUG / TODO comments.
+- `make todos` now reports 0 active code TODOs.
