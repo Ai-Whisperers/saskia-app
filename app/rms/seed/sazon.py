@@ -52,11 +52,11 @@ import math
 import random
 import secrets
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from loguru import logger
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 
 from app.rms.audit import record as audit_record
@@ -65,13 +65,16 @@ from app.rms.models import (
     AppMeta,
     AuditLog,
     BankTransaction,
+    CashSession,
     Category,
     Channel,
+    CompetitorPriceObservation,
     ComplianceInfo,
     Customer,
     CustomerAddress,
     DateRangePreset,
     DeliveryZone,
+    Expense,
     FreezerTemperatureLog,
     ImportBatch,
     Ingredient,
@@ -79,7 +82,11 @@ from app.rms.models import (
     IngredientVariant,
     MarginTier,
     MarketBenchmark,
+    MarketPriceReference,
+    Menu,
+    MenuItem,
     MessageTemplate,
+    MonthlyClosure,
     PaymentMethod,
     Pedido,
     PedidoEvent,
@@ -87,10 +94,13 @@ from app.rms.models import (
     PriceHistory,
     Product,
     ProductionCompletion,
+    ProductionPlan,
     ProductionPlanTemplate,
     Recipe,
     RecipeLine,
+    RecipePricing,
     Sale,
+    SalePayment,
     SettingsKV,
     ShoppingListItem,
     StockMovement,
@@ -4137,6 +4147,560 @@ BENCHMARKS: list[tuple[str, int, int, int, int]] = [
     ("Bizcocho 30 cm entero", 150000, 220000, 210000, 170000),
 ]
 
+# === Market price references (per ingredient, Asunción, oct 2026) ===
+# Tuple: (ingredient_name, unit, price_gs, source, notes)
+# Used by _seed_market_price_references. Sources: manual (operator note),
+# supermarket (Stock/Supersei), mayorista (Tregar, El Molino), csv-import.
+# Prices are MEDIAN market observations (G./kg, G./l, or G./und).
+MARKET_PRICE_REFERENCES: list[tuple[str, str, float, str, str]] = [
+    # Harinas y bases
+    ("Harina de centeno", "kg", 9800, "supermercado", "Stock Ypacaraí, oct 2026"),
+    ("Harina de repostería", "kg", 6500, "supermercado", "Stock Ypacaraí, oct 2026"),
+    ("Harina de trigo", "kg", 5500, "mayorista", "El Molino, mayoreo 25kg"),
+    ("Harina Patentada", "kg", 9000, "supermercado", "Stock, paquete 1kg"),
+    ("Maicena", "kg", 8500, "supermercado", "Stock, paquete 1kg"),
+    ("Pan rallado", "kg", 4500, "supermercado", "Supersei 1kg"),
+    # Endulzantes
+    ("Azúcar", "kg", 4800, "supermercado", "Stock 1kg, oct 2026"),
+    ("Azúcar glas", "kg", 9500, "supermercado", "Stock 1kg"),
+    ("Azúcar morena", "kg", 6200, "supermercado", "Supersei 1kg"),
+    ("Miel de abeja", "kg", 45000, "mayorista", "Miel Apícola Caaguazú"),
+    # Lácteos y huevos
+    ("Leche", "l", 7500, "supermercado", "Lácteos Paraguay, 1L UAT"),
+    ("Leche en polvo", "kg", 38000, "mayorista", "Milkaut bolsa 800g"),
+    ("Manteca", "kg", 39800, "mayorista", "Lácteos Paraguay, barra 1kg"),
+    ("Crema de leche", "l", 22000, "supermercado", "Chandelle 1L"),
+    ("Crema agria", "l", 28000, "supermercado", "Chandelle 500ml (×2 equiv)"),
+    ("Crema pastelera", "l", 32000, "manual", "Elaborada, costo insumo"),
+    ("Queso crema", "kg", 55000, "supermercado", "Philadelphia 1.5kg"),
+    ("Queso muzzarella", "kg", 38000, "mayorista", "Tregar, bloque 2.5kg"),
+    ("Queso rallado", "kg", 60000, "supermercado", "Tregar 40g pack"),
+    ("Suero de leche (buttermilk)", "l", 12000, "manual", "Subproducto artesanal"),
+    ("Huevos", "und", 1200, "supermercado", "Docena, Stock Asunción"),
+    # Cacao café y chocolate
+    ("Cacao en polvo", "kg", 75000, "supermercado", "Coca-Cola Foods 1kg"),
+    ("Chocolate cobertura", "kg", 68000, "mayorista", "Callebaut cobertura 70%"),
+    ("Chocolate", "kg", 58000, "supermercado", "Nestlé 1kg"),
+    ("Café", "kg", 85000, "supermercado", "Café Majada 500g"),
+    # Especias y condimentos
+    ("Canela", "kg", 18000, "supermercado", "Stock, frasco 50g"),
+    ("Vainilla", "kg", 950000, "importado", "Esencia vainilla 1L"),
+    ("Ralladura de limón", "kg", 35000, "manual", "Cáscara fresca, rendimiento"),
+    ("Esencia de vainilla", "l", 65000, "supermercado", "McCormick 500ml"),
+    ("Sal", "kg", 1800, "supermercado", "Celusal 1kg"),
+    ("Pimienta", "kg", 12000, "supermercado", "Stock frasco"),
+    ("Mostaza", "kg", 28000, "supermercado", "Savora 200g"),
+    ("Laurel", "kg", 15000, "supermercado", "Hojas secas, frasco"),
+    ("Anís estrellado", "kg", 22000, "supermercado", "Especias Paraguay"),
+    ("Mezcla de especias para Speculaas", "kg", 35000, "manual", "Mezcla casera"),
+    # Levaduras y gasificantes
+    ("Levadura fresca", "kg", 22000, "supermercado", "Fleischmann 500g"),
+    ("Levadura seca", "kg", 45000, "supermercado", "Fleischmann sachet 11g"),
+    ("Polvo de hornear", "kg", 18000, "supermercado", "Royal 250g"),
+    ("Bicarbonato de sodio", "kg", 12000, "supermercado", "Genérico 500g"),
+    # Frutas y frutos secos
+    ("Manzana", "und", 2500, "mayorista", "Abasto, caja 60 und"),
+    ("Limón", "und", 800, "mayorista", "Abasto, kilo / 6 und"),
+    ("Frambuesas", "kg", 95000, "supermercado", "Congeladas, paquete 250g"),
+    ("Frutilla", "kg", 22000, "mayorista", "Abasto Asunción, temporada"),
+    ("Fruta", "kg", 18000, "mayorista", "Mezcla de estación"),
+    ("Pasas", "kg", 12500, "supermercado", "Stock 500g"),
+    ("Mango", "und", 3000, "mayorista", "Abasto, kilo / 3 und"),
+    ("Arándanos", "kg", 85000, "supermercado", "Importado, congelado"),
+    ("Nueces", "kg", 78000, "supermercado", "Mitad, 500g"),
+    # Verduras y legumbres
+    ("Cebolla", "kg", 4500, "mayorista", "Abasto, semana oct 2026"),
+    ("Cebolla morada", "kg", 6500, "mayorista", "Abasto, semana oct 2026"),
+    ("Cebolla de verdeo", "kg", 8500, "mayorista", "Abasto, atado"),
+    ("Zanahoria", "kg", 4200, "mayorista", "Abasto, semana oct 2026"),
+    ("Apio", "und", 3500, "mayorista", "Atado, 6-8 tallos"),
+    ("Morrón rojo", "und", 5000, "mayorista", "Abasto, pieza"),
+    ("Pimentón", "kg", 12000, "supermercado", "Frutos del Paraguay"),
+    ("Tomate", "kg", 6500, "mayorista", "Abasto, semana oct 2026"),
+    ("Garbanzo", "kg", 12000, "supermercado", "Lata 350g, drenado"),
+    # Carnes
+    ("Carnaza de segunda", "kg", 38000, "mayorista", "Frigorífico Guaraní"),
+    ("Bola de lomo", "kg", 55000, "mayorista", "Frigorífico Guaraní"),
+    ("Falda de res", "kg", 34900, "mayorista", "Supermas, semana oct 2026"),
+    ("Pollo", "kg", 18500, "mayorista", "Frigorífico Concepción"),
+    # Salsas y líquidos
+    ("Agua", "l", 3500, "supermercado", "Salus, 1.5L"),
+    ("Leche de coco", "l", 18500, "supermercado", "Importada, lata 400ml"),
+    ("Salsa de soja", "l", 18000, "supermercado", "Kikkoman, 1L"),
+    ("Vinagre", "l", 7500, "supermercado", "Menoyo 1L"),
+    ("Caldo de carne en cubos", "und", 1100, "supermercado", "Maggi, cubo 11g"),
+    ("Puré de tomate", "kg", 9500, "supermercado", "Arcor lata 210g"),
+    # Aceites y grasas
+    ("Aceite", "l", 11500, "supermercado", "Natura 1.5L"),
+    ("Manteca vegetal", "kg", 22000, "supermercado", "Cocinera 1kg"),
+    # Preparados y otros
+    ("Bicarbonato", "kg", 12000, "supermercado", "Genérico 500g"),
+    ("Gelatina sin sabor", "kg", 65000, "supermercado", "Royal 12g × 4"),
+    ("Estabilizante para nata", "kg", 58000, "supermercado", "Hacendado"),
+    ("Esencia de almendras", "l", 78000, "supermercado", "McCormick 60ml"),
+    ("Polvo para natillas", "kg", 22000, "supermercado", "Royal 200g"),
+    ("Girgolas frescas", "kg", 40000, "mayorista", "Hongos del Sur"),
+    ("Echalote", "und", 4000, "mayorista", "Importado, atado"),
+    ("Tomillo fresco", "und", 3000, "mayorista", "Atado chico"),
+    ("Perejil", "und", 2500, "mayorista", "Atado, 100g"),
+    ("Caldo de hongos en cubos", "und", 1100, "supermercado", "Maggi, cubo 11g"),
+    ("Pimentón ahumado", "kg", 12000, "supermercado", "Cocinar.com.py 100g"),
+    ("Alcaravea", "kg", 12000, "supermercado", "Especia, frasco 50g"),
+    ("Cayena", "kg", 12000, "supermercado", "Especia, frasco 50g"),
+    ("Masa de hojaldre", "und", 8500, "supermercado", "Hojaldre congelado"),
+    ("Jugo de remolacha", "l", 18000, "manual", "Remolacha fresca exprimida"),
+    ("Arroz para sushi", "kg", 22400, "mayorista", "Ypacaraí, 500g"),
+    # Packaging (informational, parte del costo del producto)
+    ("bolsita de 15x22", "und", 350, "mayorista", "Embalajes Express, pack 100"),
+    ("cintillo 7mm 10m", "und", 50, "mayorista", "Bandera Py, rollo"),
+    ("bandeja isopor", "und", 350, "mayorista", "B-190 blanco, pack 100"),
+    ("bandeja carton", "und", 400, "mayorista", "Bandejas pegadas n*3"),
+    ("papel antigrasa blanco", "und", 150, "mayorista", "Papel sulfito 70g"),
+    ("bolsa de papel mediana", "und", 450, "mayorista", "Para entrega"),
+    ("caja torta 25cm", "und", 3500, "mayorista", "Cartón rígido"),
+]
+
+
+# === Competitor price observations (Asunción, 2026, retail products) ===
+# Tuple: (competitor, competitor_type, city, product_name, family, unit, price_gs, days_ago, source_url_or_note)
+COMPETITOR_OBSERVATIONS: list[tuple[str, str, str, str, str, str, int, int, str]] = [
+    # Karu (panadería/café, Asunción centro)
+    (
+        "Karu Café",
+        "panadería",
+        "Asunción",
+        "Cheesecake individual",
+        "cheesecake",
+        "porción",
+        28000,
+        14,
+        "carta online oct 2026",
+    ),
+    (
+        "Karu Café",
+        "panadería",
+        "Asunción",
+        "Babka unidad",
+        "babka",
+        "unidad",
+        18000,
+        14,
+        "carta online oct 2026",
+    ),
+    (
+        "Karu Café",
+        "panadería",
+        "Asunción",
+        "Tarta de manzana porción",
+        "tarta-manzana",
+        "porción",
+        22000,
+        14,
+        "carta online oct 2026",
+    ),
+    (
+        "Karu Café",
+        "panadería",
+        "Asunción",
+        "Muffin de chocolate",
+        "muffin",
+        "unidad",
+        9000,
+        14,
+        "carta online oct 2026",
+    ),
+    (
+        "Karu Café",
+        "panadería",
+        "Asunción",
+        "Stroop wafel",
+        "stroopwafel",
+        "unidad",
+        7500,
+        14,
+        "carta online oct 2026",
+    ),
+    # El Café de Acá (café, Carmelitas)
+    (
+        "El Café de Acá",
+        "cafetería",
+        "Asunción",
+        "Cheesecake porción",
+        "cheesecake",
+        "porción",
+        32000,
+        21,
+        "carta online oct 2026",
+    ),
+    (
+        "El Café de Acá",
+        "cafetería",
+        "Asunción",
+        "Bizcocho 25 cm entero",
+        "bizcocho",
+        "entero",
+        180000,
+        21,
+        "Instagram sep 2026",
+    ),
+    (
+        "El Café de Acá",
+        "cafetería",
+        "Asunción",
+        "Docena muffins chocolate",
+        "muffin",
+        "docena",
+        75000,
+        21,
+        "carta online oct 2026",
+    ),
+    # Lido (confitería, centro)
+    (
+        "Lido Confitería",
+        "confitería",
+        "Asunción",
+        "Torta de zanahoria entera",
+        "torta-zanahoria",
+        "entera",
+        180000,
+        30,
+        "carta online",
+    ),
+    (
+        "Lido Confitería",
+        "confitería",
+        "Asunción",
+        "Selva negra entera",
+        "torta-chocolate",
+        "entera",
+        220000,
+        30,
+        "carta online",
+    ),
+    # Mr. John's (confitería, varias)
+    (
+        "Mr. John's",
+        "confitería",
+        "Asunción",
+        "Bombones de chocolate caja 12",
+        "bombones",
+        "caja-12",
+        65000,
+        7,
+        "carta online oct 2026",
+    ),
+    (
+        "Mr. John's",
+        "confitería",
+        "Asunción",
+        "Muffin de chocolate unidad",
+        "muffin",
+        "unidad",
+        8500,
+        7,
+        "carta online oct 2026",
+    ),
+    # El Hornero (panadería, varios locales)
+    (
+        "El Hornero",
+        "panadería",
+        "Asunción",
+        "Bizcocho 30 cm entero",
+        "bizcocho",
+        "entero",
+        220000,
+        45,
+        "observación local Villa Morra",
+    ),
+    (
+        "El Hornero",
+        "panadería",
+        "Asunción",
+        "Hojaldre (Bladerdeeg) unidad",
+        "hojaldre",
+        "unidad",
+        9000,
+        45,
+        "carta online",
+    ),
+    # Supersei / Stock (supermercados, referencia retail)
+    (
+        "Stock",
+        "supermercado",
+        "Asunción",
+        "Babka unidad",
+        "babka",
+        "unidad",
+        14000,
+        10,
+        "góndola, local Mcal López",
+    ),
+    (
+        "Stock",
+        "supermercado",
+        "Asunción",
+        "Stroop wafel importado",
+        "stroopwafel",
+        "unidad",
+        5500,
+        10,
+        "góndola importados",
+    ),
+    (
+        "Supersei",
+        "supermercado",
+        "Asunción",
+        "Torta de manzana congelada",
+        "tarta-manzana",
+        "entera",
+        85000,
+        10,
+        "góndola congelados",
+    ),
+    # Tiendas especializadas / importados
+    (
+        "La Pimienta",
+        "importado",
+        "Asunción",
+        "Babka importada",
+        "babka",
+        "unidad",
+        17000,
+        25,
+        "carta online",
+    ),
+    (
+        "La Pimienta",
+        "importado",
+        "Asunción",
+        "Hojaldre importado",
+        "hojaldre",
+        "unidad",
+        8500,
+        25,
+        "carta online",
+    ),
+    # La Alemana (panadería clásica)
+    (
+        "La Alemana",
+        "panadería",
+        "Asunción",
+        "Bizcocho 25 cm entero",
+        "bizcocho",
+        "entero",
+        150000,
+        60,
+        "carta online",
+    ),
+    (
+        "La Alemana",
+        "panadería",
+        "Asunción",
+        "Torta de manzana entera",
+        "tarta-manzana",
+        "entera",
+        140000,
+        60,
+        "carta online",
+    ),
+    # La Molleja (salados)
+    (
+        "La Molleja",
+        "bistró",
+        "Asunción",
+        "Bitterballen 10 und",
+        "bitterballen",
+        "porcion-10",
+        55000,
+        40,
+        "Instagram sep 2026",
+    ),
+    (
+        "La Molleja",
+        "bistró",
+        "Asunción",
+        "Frikandel unidad",
+        "frikandel",
+        "unidad",
+        6000,
+        40,
+        "Instagram sep 2026",
+    ),
+    # Cadenas de delivery
+    (
+        "PedidosYa — Las Marianas",
+        "delivery",
+        "Asunción",
+        "Cheesecake porción",
+        "cheesecake",
+        "porción",
+        35000,
+        5,
+        "app PedidosYa oct 2026",
+    ),
+    (
+        "PedidosYa — Las Marianas",
+        "delivery",
+        "Asunción",
+        "Tarta de manzana entera",
+        "tarta-manzana",
+        "entera",
+        165000,
+        5,
+        "app PedidosYa oct 2026",
+    ),
+    # Cafetería de barrio
+    (
+        "Café Central",
+        "cafetería",
+        "Asunción",
+        "Muffin de chocolate",
+        "muffin",
+        "unidad",
+        8000,
+        18,
+        "observación operador",
+    ),
+    (
+        "Café Central",
+        "cafetería",
+        "Asunción",
+        "Stroop wafel",
+        "stroopwafel",
+        "unidad",
+        6500,
+        18,
+        "observación operador",
+    ),
+    # Supersei — más categorías
+    (
+        "Supersei",
+        "supermercado",
+        "Asunción",
+        "Docena muffins importados",
+        "muffin",
+        "docena",
+        72000,
+        30,
+        "góndola importados",
+    ),
+    # Oliebollen (temporada)
+    (
+        "Karu Café",
+        "panadería",
+        "Asunción",
+        "Oliebollen bolsa 6 und",
+        "oliebollen",
+        "bolsa-6",
+        28000,
+        8,
+        "carta online oct 2026 (temporada)",
+    ),
+    # Productos locales premium
+    (
+        "Pasticceria Roma",
+        "confitería",
+        "Asunción",
+        "Cheesecake entera 30 cm",
+        "cheesecake",
+        "entera",
+        240000,
+        50,
+        "carta online",
+    ),
+    (
+        "Pasticceria Roma",
+        "confitería",
+        "Asunción",
+        "Babka unidad",
+        "babka",
+        "unidad",
+        19000,
+        50,
+        "carta online",
+    ),
+    # Roze koeken / pastelitos rosados (asociados a Holanda, hard to find)
+    (
+        "HEMA (importador)",
+        "importado",
+        "Asunción",
+        "Roze koeken caja 6",
+        "roze-koeken",
+        "caja-6",
+        60000,
+        90,
+        "Instagram jul 2026",
+    ),
+    # Stroopwafel supermarket
+    (
+        "Supersei",
+        "supermercado",
+        "Asunción",
+        "Stroop wafel marca Daelmans",
+        "stroopwafel",
+        "unidad",
+        5800,
+        30,
+        "góndola importados",
+    ),
+]
+
+
+# === Tag-link rules (auto-aplicación de tags a productos/recetas/ingredientes) ===
+# Tuple: (tag_name, kind, predicate_kind, predicate_value)
+TAG_LINK_RULES: list[tuple[str, str, str, str]] = [
+    # Ingredient storage tags
+    ("seco", "ingredient", "storage", "dry"),
+    ("refrigerado", "ingredient", "storage", "refrigerated"),
+    ("perecedero", "ingredient", "storage", "refrigerated"),
+    ("congelable", "ingredient", "storage", "frozen"),
+    # Ingredient allergen tags
+    ("alergeno-gluten", "ingredient", "name_contains", "harina"),
+    ("alergeno-gluten", "ingredient", "name_contains", "trigo"),
+    ("alergeno-gluten", "ingredient", "name_contains", "centeno"),
+    ("alergeno-lactosa", "ingredient", "name_contains", "leche"),
+    ("alergeno-lactosa", "ingredient", "name_contains", "crema"),
+    ("alergeno-lactosa", "ingredient", "name_contains", "queso"),
+    ("alergeno-lactosa", "ingredient", "name_contains", "manteca"),
+    ("alergeno-frutos-secos", "ingredient", "name_contains", "nuez"),
+    ("alergeno-frutos-secos", "ingredient", "name_contains", "almendra"),
+    # Ingredient origin tags
+    ("importado", "ingredient", "name_contains", "vainilla"),
+    ("importado", "ingredient", "name_contains", "almendra"),
+    ("importado", "ingredient", "name_contains", "arándano"),
+    ("importado", "ingredient", "name_contains", "masa de hojaldre"),
+    ("local", "ingredient", "name_contains", "harina"),
+    ("local", "ingredient", "name_contains", "manzana"),
+    ("local", "ingredient", "name_contains", "queso"),
+    # Ingredient volatility
+    ("precio-volatil", "ingredient", "name_contains", "leche"),
+    ("precio-volatil", "ingredient", "name_contains", "manteca"),
+    ("precio-volatil", "ingredient", "name_contains", "huevo"),
+    ("precio-volatil", "ingredient", "name_contains", "carne"),
+    ("precio-volatil", "ingredient", "name_contains", "res"),
+    ("precio-volatil", "ingredient", "name_contains", "pollo"),
+    # Product attribute tags
+    ("vegano", "product", "name_contains", "vegano"),
+    ("vegano", "product", "name_contains", "pan integral"),
+    ("sin-gluten", "product", "name_contains", "sin gluten"),
+    ("sin-lactosa", "product", "name_contains", "sin lactosa"),
+    ("sin-azucar", "product", "name_contains", "sin azúcar"),
+    ("con-nueces", "product", "name_contains", "nuez"),
+    ("con-nueces", "product", "name_contains", "almendra"),
+    ("para-eventos", "product", "name_contains", "entera"),
+    ("para-eventos", "product", "name_contains", "entero"),
+    ("para-eventos", "product", "name_contains", "docena"),
+    ("requiere-encargo", "product", "name_contains", "torta"),
+    ("navidad", "product", "name_contains", "stollen"),
+    ("navidad", "product", "name_contains", "panettone"),
+    ("verano", "product", "name_contains", "helado"),
+    ("festivo", "product", "name_contains", "fritter"),
+    ("estacional", "product", "name_contains", "oliebollen"),
+    ("estacional", "product", "name_contains", "pascua"),
+    # Recipe cost tiers
+    ("alto-costo", "recipe", "cost_above", "15000"),
+]
+
 
 # Waste log entries
 # Tuple: (ingredient_name, qty, reason, days_ago, recorded_by, notes)
@@ -4219,6 +4783,23 @@ class SazonReport:
     haccp_temps: int = 0
     market_benchmarks: int = 0
     audit_log_rows: int = 0
+    recipe_pricing: int = 0
+    market_price_references: int = 0
+    competitor_observations: int = 0
+    tag_links: int = 0
+    historical_price_events: int = 0
+    recipe_meta_updated: int = 0
+    product_meta_updated: int = 0
+    ingredient_meta_updated: int = 0
+    price_history: int = 0
+    expenses: int = 0
+    cash_sessions: int = 0
+    sale_payments: int = 0
+    monthly_closures: int = 0
+    menus: int = 0
+    menu_items: int = 0
+    production_plans: int = 0
+    data_quality_fixes: dict = field(default_factory=dict)
     skipped_existing: dict[str, int] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, int]:
@@ -4256,6 +4837,23 @@ class SazonReport:
             "shopping_list": self.shopping_list,
             "haccp_temps": self.haccp_temps,
             "market_benchmarks": self.market_benchmarks,
+            "recipe_pricing": self.recipe_pricing,
+            "market_price_references": self.market_price_references,
+            "competitor_observations": self.competitor_observations,
+            "tag_links": self.tag_links,
+            "historical_price_events": self.historical_price_events,
+            "recipe_meta_updated": self.recipe_meta_updated,
+            "product_meta_updated": self.product_meta_updated,
+            "ingredient_meta_updated": self.ingredient_meta_updated,
+            "price_history": self.price_history,
+            "expenses": self.expenses,
+            "cash_sessions": self.cash_sessions,
+            "sale_payments": self.sale_payments,
+            "monthly_closures": self.monthly_closures,
+            "menus": self.menus,
+            "menu_items": self.menu_items,
+            "production_plans": self.production_plans,
+            "data_quality_fixes": self.data_quality_fixes,
             "audit_log_rows": self.audit_log_rows,
             **self.skipped_existing,
         }
@@ -4402,6 +5000,22 @@ def seed_sazon(
     _seed_shopping_list_items_to_reorder(ctx)
     _seed_haccp__freezer_temperature_log_last_14_(ctx)
     _seed_market_benchmarks(ctx)
+    _seed_recipe_pricing(ctx)
+    _seed_market_price_references(ctx)
+    _seed_competitor_observations(ctx)
+    _seed_tag_links(ctx)
+    _seed_historical_price_events(ctx)
+    _seed_recipe_meta(ctx)
+    _seed_product_meta(ctx)
+    _seed_ingredient_meta(ctx)
+    _seed_price_history(ctx)
+    _seed_expenses(ctx)
+    _seed_cash_sessions(ctx)
+    _seed_sale_payments(ctx)
+    _seed_monthly_closure(ctx)
+    _seed_menus(ctx)
+    _seed_production_plan(ctx)
+    _seed_data_quality_fixes(ctx)
     _seed_audit_log_initial_entries(ctx)
     _seed_appmeta_pins_idempotency__onboarding_gu(ctx)
     _seed_bank_transactions_a_few_recent_ones(ctx)
@@ -5848,6 +6462,1489 @@ def _seed_market_benchmarks(ctx: SeedContext):
             )
             ctx.report.market_benchmarks += 1
     logger.info(f"seed: {ctx.report.market_benchmarks} market benchmarks")
+
+
+# === Section 28: Recipe pricing (computed costs + retail price) ===
+def _seed_recipe_pricing(ctx: SeedContext):
+    """Compute per-recipe cost + 5 channel-tier prices (HEREBUS Pricing_Por_Producto).
+
+    Channel margins (matches MAESTRA):
+      - wholesale: +40%
+      - private_label: +25%
+      - distributor: +22%
+      - retail: +50%
+      - broker_commission: +5% (informational, layered on top of retail)
+
+    cost_per_unit_gs is the cost of ONE unit at the recipe's yield_qty.
+    labor_gs is 5% of cost (placeholder; operator adjusts).
+    packaging_gs is 3% of cost.
+    Idempotent: skip if RecipePricing row already exists.
+    """
+    for recipe in ctx.session.execute(select(Recipe)).scalars():
+        existing = ctx.session.execute(
+            select(RecipePricing).where(RecipePricing.recipe_id == recipe.id)
+        ).scalar_one_or_none()
+        if existing is not None:
+            continue
+        cost_total = 0
+        for line in ctx.session.execute(
+            select(RecipeLine).where(RecipeLine.recipe_id == recipe.id)
+        ).scalars():
+            if line.line_kind != "ingredient":
+                continue
+            ing = ctx.session.get(Ingredient, line.line_ref_id)
+            if ing is None or ing.purchase_price_gs is None:
+                continue
+            cost_total += int(float(line.qty or 0) * ing.purchase_price_gs)
+        yield_qty = float(recipe.yield_qty or 1.0)
+        cost_per_unit = int(cost_total / yield_qty) if yield_qty > 0 else cost_total
+        labor_gs = int(cost_total * 0.05)
+        packaging_gs = int(cost_total * 0.03)
+        ctx.session.add(
+            RecipePricing(
+                recipe_id=recipe.id,
+                cost_total_gs=cost_total,
+                labor_gs=labor_gs,
+                packaging_gs=packaging_gs,
+                cost_per_unit_gs=cost_per_unit,
+                wholesale_gs=int(cost_total * 1.40),
+                private_label_gs=int(cost_total * 1.25),
+                distributor_gs=int(cost_total * 1.22),
+                retail_gs=int(cost_total * 1.50),
+                broker_commission_gs=int(cost_total * 0.05),
+                notes="Seed: 5-channel pricing derived from ingredient cost (oct 2026).",
+            )
+        )
+        ctx.report.recipe_pricing += 1
+    logger.info(f"seed: {ctx.report.recipe_pricing} recipe pricing rows")
+
+
+# === Section 29: Market price references (per ingredient, PY Asunción) ===
+def _seed_market_price_references(ctx: SeedContext):
+    """Insert MARKET_PRICE_REFERENCES as one MarketPriceReference row per ingredient.
+
+    Idempotent: skip if an existing row for (ingredient_id, unit).
+    """
+    today = ctx.anchor_date
+    for ing_name, unit, price_gs, source, notes in MARKET_PRICE_REFERENCES:
+        ing = ctx.ingredients_by_name.get(ing_name)
+        if ing is None:
+            continue
+        existing = ctx.session.execute(
+            select(MarketPriceReference).where(
+                MarketPriceReference.ingredient_id == ing.id,
+                MarketPriceReference.unit == unit,
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            continue
+        ctx.session.add(
+            MarketPriceReference(
+                ingredient_id=ing.id,
+                unit=unit,
+                price_gs=price_gs,
+                source=source,
+                notes=notes,
+                as_of=today,
+            )
+        )
+        ctx.report.market_price_references += 1
+    logger.info(f"seed: {ctx.report.market_price_references} market price references")
+
+
+# === Section 30: Competitor price observations (Asunción retail, evidence) ===
+def _seed_competitor_observations(ctx: SeedContext):
+    """Insert COMPETITOR_OBSERVATIONS as CompetitorPriceObservation rows.
+
+    Append-only by design (correcting = new row with new date). Re-running is
+    a no-op when an identical (competitor, product_name, as_of, price) tuple exists.
+    """
+    today = ctx.anchor_date
+    for (
+        competitor,
+        ctype,
+        city,
+        prod_name,
+        family,
+        unit,
+        price,
+        days_ago,
+        source,
+    ) in COMPETITOR_OBSERVATIONS:
+        as_of = today - timedelta(days=days_ago)
+        existing = ctx.session.execute(
+            select(CompetitorPriceObservation).where(
+                CompetitorPriceObservation.competitor_name == competitor,
+                CompetitorPriceObservation.product_name == prod_name,
+                CompetitorPriceObservation.as_of == as_of,
+                CompetitorPriceObservation.price_gs == price,
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            continue
+        ctx.session.add(
+            CompetitorPriceObservation(
+                competitor_name=competitor,
+                competitor_type=ctype,
+                city=city,
+                product_name=prod_name,
+                family=family,
+                unit=unit,
+                price_gs=price,
+                as_of=as_of,
+                source=source,
+            )
+        )
+        ctx.report.competitor_observations += 1
+    logger.info(f"seed: {ctx.report.competitor_observations} competitor observations")
+
+
+# === Section 31: Tag-link auto-application rules ===
+def _seed_tag_links(ctx: SeedContext):
+    """Apply TAG_LINK_RULES to attach tags to ingredients/products/recipes.
+
+    Idempotent: re-running inserts 0 duplicates (tag_target checks existing first).
+    """
+    from app.rms.tagging.ensure import ensure_tag, tag_target
+
+    tag_cache: dict[tuple[str, str], object] = {}
+
+    def get_tag(name: str, kind: str):
+        k = (name, kind)
+        if k not in tag_cache:
+            tag_cache[k] = ensure_tag(ctx.session, name, kind)
+        return tag_cache[k]
+
+    # Pre-compute recipe cost (matches _seed_recipe_pricing)
+    recipe_cost_by_id: dict[int, int] = {}
+    for recipe in ctx.session.execute(select(Recipe)).scalars():
+        c = 0
+        for line in ctx.session.execute(
+            select(RecipeLine).where(RecipeLine.recipe_id == recipe.id)
+        ).scalars():
+            if line.line_kind != "ingredient":
+                continue
+            ing = ctx.session.get(Ingredient, line.line_ref_id)
+            if ing is None or ing.purchase_price_gs is None:
+                continue
+            c += int(float(line.qty or 0) * ing.purchase_price_gs)
+        recipe_cost_by_id[recipe.id] = c
+
+    applied = 0
+    for tag_name, kind, predicate_kind, predicate_value in TAG_LINK_RULES:
+        tag = get_tag(tag_name, kind)
+        if predicate_kind == "category":
+            for ing in ctx.session.execute(
+                select(Ingredient).where(Ingredient.category == predicate_value)
+            ).scalars():
+                if tag_target(ctx.session, tag, kind, ing.id):
+                    applied += 1
+        elif predicate_kind == "storage":
+            for ing in ctx.session.execute(
+                select(Ingredient).where(Ingredient.storage == predicate_value)
+            ).scalars():
+                if tag_target(ctx.session, tag, kind, ing.id):
+                    applied += 1
+        elif predicate_kind == "name_contains":
+            needle = predicate_value.lower()
+            if kind == "ingredient":
+                for ing in ctx.session.execute(select(Ingredient)).scalars():
+                    if needle in (ing.name or "").lower():
+                        if tag_target(ctx.session, tag, kind, ing.id):
+                            applied += 1
+            elif kind == "product":
+                for prod in ctx.session.execute(select(Product)).scalars():
+                    if needle in (prod.name or "").lower():
+                        if tag_target(ctx.session, tag, kind, prod.id):
+                            applied += 1
+            elif kind == "recipe":
+                for rec in ctx.session.execute(select(Recipe)).scalars():
+                    if needle in (rec.name or "").lower():
+                        if tag_target(ctx.session, tag, kind, rec.id):
+                            applied += 1
+        elif predicate_kind == "cost_above":
+            threshold = int(predicate_value)
+            for rid, cost in recipe_cost_by_id.items():
+                if cost >= threshold:
+                    if tag_target(ctx.session, tag, kind, rid):
+                        applied += 1
+    ctx.report.tag_links = applied
+    logger.info(f"seed: {ctx.report.tag_links} tag links applied")
+
+
+# === Section 32: Historical price events (12-month history for all ingredients) ===
+def _seed_historical_price_events(ctx: SeedContext):
+    """Backfill IngredientPriceEvent with 12 monthly snapshots per ingredient.
+
+    The existing 60/30/7-day events from _seed_ingredients__variants__price_events
+    stay untouched. Idempotent: if any event is older than 90 days, assume the
+    backfill was already run and skip.
+    """
+    already = ctx.session.execute(
+        select(IngredientPriceEvent.id)
+        .where(IngredientPriceEvent.recorded_at < datetime.now(ASUNCION_TZ) - timedelta(days=90))
+        .limit(1)
+    ).first()
+    if already is not None:
+        return
+
+    for ing in ctx.session.execute(select(Ingredient)).scalars():
+        if ing.purchase_price_gs is None or ing.purchase_price_gs <= 0:
+            continue
+        base = ing.purchase_price_gs
+        for month in range(11, -1, -1):
+            # Slight upward drift over the year (6% drift), with monthly noise
+            drift = 1.0 - (0.005 * month)
+            noise = ctx.rng.uniform(0.94, 1.06)
+            sample_price = int(base * drift * noise)
+            recorded_at = datetime.now(ASUNCION_TZ) - timedelta(
+                days=month * 30 + ctx.rng.randint(0, 5)
+            )
+            ctx.session.add(
+                IngredientPriceEvent(
+                    ingredient_id=ing.id,
+                    price_gs=sample_price,
+                    recorded_at=recorded_at,
+                    source="restock",
+                )
+            )
+            ctx.report.historical_price_events += 1
+    logger.info(f"seed: {ctx.report.historical_price_events} historical price events")
+
+
+"""
+Big batch of new seeders for Saskia: Tier A (UX gaps), Tier B (design-empty tables),
+Tier C (data-quality fixes). All appended to sazon.py before _seed_audit_log_initial_entries.
+
+Column names match the SQLAlchemy models exactly (verified via inspect).
+"""
+# === Section 29: Recipe instructions + family + allergens + dietary_tags + menu_tags ===
+# Tuple: (recipe_name_slug, family, allergens_csv, dietary_csv, menu_tags_csv, instructions)
+RECIPE_INSTRUCTIONS: list[tuple[str, str, str, str, str, str]] = [
+    (
+        "babka__rec_017",
+        "Bollería",
+        "gluten,huevo,lactosa",
+        "",
+        "destacado,premium",
+        (
+            "1. Mezclar harina, sal, azúcar y levadura seca en bowl grande.\n"
+            "2. Calentar leche a 37°C, añadir huevo batido y manteca derretida tibia.\n"
+            "3. Amasar 10 min hasta obtener masa lisa y elástica. Reposar 1h hasta doblar volumen.\n"
+            "4. Estirar en rectángulo 40x30 cm. Untar con relleno de chocolate (cacao + azúcar glas + agua caliente).\n"
+            "5. Enrollar apretado, cortar a lo largo en 2 tiras, trenzar y colocar en molde enmantecado.\n"
+            "6. Dejar levar 45 min. Hornear a 175°C por 35-40 min hasta dorado profundo.\n"
+            "7. Enfriar 20 min en molde, desmoldar y glasear con azúcar glas + agua."
+        ),
+    ),
+    (
+        "bizcocho_basico_25_cm_basiscake__rec_011",
+        "Bizcocho",
+        "gluten,huevo,lactosa",
+        "",
+        "base,clasico",
+        (
+            "1. Precalentar horno a 180°C. Enmantecar y enharinar molde 25 cm.\n"
+            "2. Batir manteca pomada con azúcar hasta punto crema (5 min).\n"
+            "3. Añadir huevos uno a uno batiendo bien. Incorporar vainilla.\n"
+            "4. Tamizar harina con polvo de hornear; añadir a la mezcla en 3 veces con movimientos envolventes.\n"
+            "5. Verter en molde, hornear 35-40 min. Insertar palillo: debe salir limpio.\n"
+            "6. Enfriar 10 min en molde, desmoldar sobre rejilla, enfriar completamente antes de rellenar."
+        ),
+    ),
+    (
+        "bizcocho_basico_30_cm_basiscake__rec_012",
+        "Bizcocho",
+        "gluten,huevo,lactosa",
+        "",
+        "base,para-eventos",
+        (
+            "1. Precalentar horno a 175°C. Enmantecar y enharinar molde 30 cm.\n"
+            "2. Batir manteca con azúcar hasta punto crema (5-6 min).\n"
+            "3. Añadir huevos uno a uno, batiendo. Incorporar vainilla.\n"
+            "4. Cernir harina con polvo de hornear; incorporar en 3 veces con espátula.\n"
+            "5. Hornear 45-55 min. Probar con palillo.\n"
+            "6. Enfriar 15 min, desmoldar, enfriar totalmente en rejilla."
+        ),
+    ),
+    (
+        "bombones_de_chocolate__rec_018",
+        "Coberturas",
+        "lactosa",
+        "sin_gluten",
+        "premium,regalo",
+        (
+            "1. En baño maría, derretir manteca. Retirar del fuego.\n"
+            "2. Mezclar leche condensada con cacao en polvo hasta homogeneizar.\n"
+            "3. Incorporar manteca derretida y pizca de sal. Batir 5 min hasta punto brilloso.\n"
+            "4. Verter en moldes de silicona (cavidades de 25g). Refrigerar 4h.\n"
+            "5. Desmoldar y conservar en heladera. Rinde 20 unidades de 25g."
+        ),
+    ),
+    (
+        "torta_de_zanahoria_43x33x1_5_cm__rec_005",
+        "Tortas",
+        "gluten,huevo,frutos_secos",
+        "",
+        "clasico,favorita",
+        (
+            "1. Precalentar horno a 175°C. Enmantecar molde rectangular 43x33 cm.\n"
+            "2. Cernir harina, bicarbonato, canela, jengibre, nuez moscada y sal.\n"
+            "3. Batir huevos con azúcares hasta triplicar volumen. Añadir aceite y vainilla.\n"
+            "4. Incorporar secos en 3 veces con movimientos envolventes.\n"
+            "5. Añadir zanahoria rallada fina, pasas remojadas y nueces picadas.\n"
+            "6. Hornear 50-60 min. Insertar palillo al centro: debe salir limpio.\n"
+            "7. Cubrir con frosting de queso crema si se desea. Rinde 24 porciones."
+        ),
+    ),
+    (
+        "cheesecake_30x50__rec_002",
+        "Tortas",
+        "gluten,huevo,lactosa",
+        "",
+        "premium,para-eventos",
+        (
+            "1. Precalentar horno a 160°C (baño maría). Enmantecar molde 30x50 cm.\n"
+            "2. Base: mezclar galletas molidas con manteca derretida. Prensar en base del molde.\n"
+            "3. Batir queso crema hasta cremoso. Añadir azúcar, luego huevos uno a uno.\n"
+            "4. Incorporar crema de leche, harina, vainilla y jugo de limón.\n"
+            "5. Verter sobre la base. Hornear a baño maría 70-80 min hasta que el centro tiemble.\n"
+            "6. Apagar horno, dejar 30 min dentro con puerta entreabierta.\n"
+            "7. Refrigerar 8h mínimo antes de cortar. Rinde 170 porciones individuales."
+        ),
+    ),
+    (
+        "muffin_de_chocolate_20x20_cm__rec_001",
+        "Bollería",
+        "gluten,huevo,lactosa",
+        "",
+        "clasico,infantil",
+        (
+            "1. Precalentar horno a 180°C. Preparar molde 20x20 cm enmantequillado.\n"
+            "2. Cernir harina, cacao, polvo de hornear, bicarbonato, café y sal.\n"
+            "3. Batir azúcar morena con leche, aceite, crema agria, vainilla y huevos.\n"
+            "4. Unir secos y húmedos sin sobrebatir. Agregar chispas de chocolate.\n"
+            "5. Verter en molde. Hornear 45-55 min hasta palillo limpio.\n"
+            "6. Enfriar 15 min. Cortar 12 cuadrados. Decorar con azúcar glas."
+        ),
+    ),
+    (
+        "frikandel_100_unidades__rec_022",
+        "Salados",
+        "gluten,huevo",
+        "sin_lactosa",
+        "salado,para-eventos",
+        (
+            "1. Picar finamente pechuga, carnaza, cebolla morada y ajo. Pasar por molienda gruesa.\n"
+            "2. Mezclar con huevo, pan rallado remojado en leche en polvo disuelta, sal y especias.\n"
+            "3. Amasar 5 min hasta textura homogénea y firme.\n"
+            "4. Formar cilindros de 12 cm x 2 cm (rinde 100 unidades).\n"
+            "5. Refrigerar 2h para que asienten. Rebozar con pan rallado si se desea.\n"
+            "6. Freír en aceite 170°C por 4-5 min hasta dorar.\n"
+            "7. Servir con mostaza o ketjap. Apto freezer 2 meses."
+        ),
+    ),
+    (
+        "galletas_de_especuloos_speculaasjes__rec_010",
+        "Galletería",
+        "gluten,lactosa",
+        "",
+        "tradicional,holandes",
+        (
+            "1. Batir manteca pomada con azúcar morena hasta cremoso (3 min).\n"
+            "2. Añadir suero de leche (buttermilk). Mezclar.\n"
+            "3. Incorporar harina cernida con especias para speculaas y bicarbonato.\n"
+            "4. Amasar brevemente, formar disco, envolver en film. Refrigerar 4h.\n"
+            "5. Estirar a 4 mm. Cortar formas tradicionales. Colocar en placa enmantecada.\n"
+            "6. Hornear a 170°C por 12-15 min hasta dorar firme.\n"
+            "7. Enfriar sobre rejilla. Conservan 4 semanas en lata hermética."
+        ),
+    ),
+    (
+        "goulash_crockettes__rec_019",
+        "Salados",
+        "gluten,huevo,lactosa",
+        "",
+        "salado,festivo",
+        (
+            "1. Cortar falda de res en cubos de 3 cm. Salpimentar.\n"
+            "2. Sofreír cebolla, morrón, zanahoria, apio y ajo en aceite hasta transparente.\n"
+            "3. Añadir carne, dorar por todos lados. Sumar pimentón ahumado y cayena.\n"
+            "4. Verter puré de tomate, caldo y ketjap. Tapar y cocinar a fuego bajo 2h 30min.\n"
+            "5. Incorporar gelatina disuelta en agua fría para espesar la salsa.\n"
+            "6. Enfriar completamente (idealmente toda la noche).\n"
+            "7. Formar croquetas cilíndricas de 4x8 cm, pasar por harina, huevo batido y pan rallado.\n"
+            "8. Freír a 175°C por 5 min hasta dorar y calentar interior. Rinde 100 unidades."
+        ),
+    ),
+    (
+        "hojaldre_bladerdeeg__rec_008",
+        "Masas",
+        "gluten,lactosa",
+        "",
+        "base,tradicional",
+        (
+            "1. Mezclar harina con sal. Añadir agua helada y mezclar hasta formar masa.\n"
+            "2. Amasar 2 min, envolver en film, refrigerar 30 min.\n"
+            "3. Estirar masa en rectángulo. Colocar placa de manteca fría en el centro.\n"
+            "4. Doblar extremos sobre la manteca. Sellar bordes. Estirar y doblar en 3 (vuelta simple).\n"
+            "5. Refrigerar 30 min. Repetir vuelta 5 veces más (total 6 vueltas).\n"
+            "6. Refrigerar 1h antes de usar. Rinde 8 planchas de 25 cm.\n"
+            "7. Hornear a 200°C hasta dorado y hojaldrado (15-20 min según uso)."
+        ),
+    ),
+    (
+        "ketjap_manis_version_rapida__rec_007",
+        "Salsas",
+        "soja",
+        "sin_gluten,sin_lactosa,vegano",
+        "base,asiatico",
+        (
+            "1. Mezclar salsa de soja con azúcar morena en olla a fuego medio.\n"
+            "2. Añadir ajo rallado, jengibre y anís estrellado.\n"
+            "3. Cocinar 20 min a fuego bajo revolviendo hasta reducir a consistencia de miel.\n"
+            "4. Retirar anís estrellado. Enfriar.\n"
+            "5. Conservar en frasco de vidrio refrigerado. Rinde 250 ml. Duran 2 meses."
+        ),
+    ),
+    (
+        "oliebollen_bunuelos_tradicionales_holandeses__rec_016",
+        "Bollería",
+        "gluten,huevo,lactosa",
+        "",
+        "festivo,temporada,holandes",
+        (
+            "1. Activar levadura en leche tibia con 1 cda de azúcar. Esperar 10 min (burbujas).\n"
+            "2. Mezclar harina, azúcar, sal y ralladura de limón. Añadir la leche con levadura.\n"
+            "3. Amasar hasta masa homogénea. Cubrir y dejar levar 1h hasta burbujear.\n"
+            "4. Calentar aceite a 180°C. Tomar porciones con cuchara mojada.\n"
+            "5. Freír 4-5 buñuelos por tanda, girando hasta dorar parejo (3-4 min).\n"
+            "6. Escurrir sobre papel absorbente. Espolvorear azúcar glas.\n"
+            "7. Servir calientes. Rinde 24 unidades. Consumir el día."
+        ),
+    ),
+    (
+        "ontbijtkoek_700g_de_harina__rec_004",
+        "Bizcocho",
+        "gluten,huevo",
+        "sin_lactosa",
+        "tradicional,holandes,desayuno",
+        (
+            "1. Precalentar horno a 160°C. Enmantecar molde rectangular 24x10 cm.\n"
+            "2. Mezclar harina de centeno con especias para speculaas, bicarbonato y polvo de hornear.\n"
+            "3. En olla calentar melaza, miel, vinagre y un poco de agua hasta disolver.\n"
+            "4. Incorporar líquidos a los secos. Amasar hasta consistencia de barro espeso.\n"
+            "5. Verter en molde. Hornear 60-75 min hasta que al insertar palillo salga casi limpio.\n"
+            "6. Enfriar 15 min en molde, desmoldar. Untar con manteca si se desea. Rinde 12 rodajas."
+        ),
+    ),
+    (
+        "pastelitos_rosados_roze_koeken__rec_009",
+        "Bollería",
+        "gluten,huevo,lactosa",
+        "",
+        "tradicional,holandes,festivo",
+        (
+            "1. Precalentar horno a 180°C. Preparar moldes individuales enmantecados.\n"
+            "2. Batir manteca con azúcar hasta cremoso. Añadir huevos y vainilla.\n"
+            "3. Cernir harina, maicena y polvo de hornear. Incorporar a la mezcla.\n"
+            "4. Distribuir en moldes. Hornear 20-25 min hasta dorar.\n"
+            "5. Preparar glaseado: batir frambuesas con azúcar glas hasta rosa intenso.\n"
+            "6. Cubrir pastelitos fríos con glaseado. Refrigerar 30 min para fijar.\n"
+            "7. Rinde 12 pastelitos. Conservan 3 días refrigerados."
+        ),
+    ),
+    (
+        "petisus_de_hojaldre_y_crema_tompoezen__rec_015",
+        "Bollería",
+        "gluten,huevo,lactosa",
+        "",
+        "tradicional,holandes,premium",
+        (
+            "1. Estirar hojaldre a 5 mm. Cortar círculos de 6 cm. Pinchar con tenedor.\n"
+            "2. Hornear a 200°C por 12-15 min hasta dorar y subir. Aplastar el centro.\n"
+            "3. Batir crema pastelera con estabilizante y crema de leche hasta punto firme.\n"
+            "4. Rellenar la base inferior con crema usando manga.\n"
+            "5. Espolvorear la tapa con azúcar glas antes de colocar.\n"
+            "6. Rinde 12 unidades. Servir el día."
+        ),
+    ),
+    (
+        "proficteroles_de_den_bosch_bossche_bollen__rec_014",
+        "Bollería",
+        "gluten,huevo,lactosa",
+        "",
+        "tradicional,holandes,premium",
+        (
+            "1. Hornear masa choux en bolitas de 4 cm hasta que estén secas y doradas (25 min).\n"
+            "2. Preparar salsa de chocolate: hervir crema, verter sobre chocolate y cacao, emulsionar.\n"
+            "3. Rellenar profiteroles con crema chantilly firme.\n"
+            "4. Sumergir cada uno en salsa de chocolate. Colocar sobre rejilla.\n"
+            "5. Refrigerar 30 min. Rinde 12 unidades grandes (Bossche bollen)."
+        ),
+    ),
+    (
+        "stroop_wafel__rec_003",
+        "Galletería",
+        "gluten,huevo,lactosa",
+        "",
+        "tradicional,holandes,clasico",
+        (
+            "1. Cernir harina, sal, polvo de hornear. Reservar.\n"
+            "2. Batir manteca pomada con azúcar hasta cremoso. Añadir huevo, vainilla, canela.\n"
+            "3. Alternar harina y leche/crema empezando y terminando con harina.\n"
+            "4. Añadir levadura al final. Refrigerar masa 4h.\n"
+            "5. Preparar relleno stroop: caramelizar azúcar con agua hasta punto hebra, añadir canela.\n"
+            "6. Estirar masa a 3 mm. Cortar círculos. Colocar 1 cda de stroop en la mitad, tapar con otro círculo.\n"
+            "7. Sellar con molde de stroopwafel. Hornear a 200°C por 12-15 min.\n"
+            "8. Rinde 12 unidades. Conservan 2 semanas en lata."
+        ),
+    ),
+    (
+        "suppli_cacio_e_pepe__rec_021",
+        "Salados",
+        "gluten,huevo,lactosa",
+        "",
+        "salado,italiano,para-eventos",
+        (
+            "1. Hervir arroz en caldo sazonado hasta muy hecho (más que risotto). Enfriar.\n"
+            "2. Mezclar con huevo batido, queso rallado y abundante pimienta negra recién molida.\n"
+            "3. Formar croquetas ovaladas de 8 cm.\n"
+            "4. Pasar por harina, huevo batido y pan rallado.\n"
+            "5. Freír a 175°C por 4 min hasta dorar y calentar el interior.\n"
+            "6. Servir inmediatamente. Rinde 12 unidades."
+        ),
+    ),
+    (
+        "tarta_de_manzana_de_mi_madre_mijn_moeders_appeltaart__rec_013",
+        "Tortas",
+        "gluten,huevo,lactosa",
+        "sin_frutos_secos",
+        "tradicional,holandes,clasico",
+        (
+            "1. Precalentar horno a 180°C. Enmantecar molde de tarta 24 cm.\n"
+            "2. Mezclar harina, polvo de hornear, sal. Añadir manteca fría en cubos y trabajar a mano hasta arenilla.\n"
+            "3. Incorporar azúcar, vainilla, huevo. Amasar brevemente. Refrigerar 1h.\n"
+            "4. Estirar 2/3 de la masa, forrar base y bordes. Reservar resto para tiras.\n"
+            "5. Mezclar láminas de manzana con azúcar, polvo de natillas, canela, pasas.\n"
+            "6. Disponer en base. Cubrir con tiras de masa en enrejado.\n"
+            "7. Hornear 50-60 min. Si dora muy rápido, cubrir con foil. Rinde 12 porciones."
+        ),
+    ),
+    (
+        "bitterballen_vegetariano__rec_020",
+        "Salados",
+        "gluten,huevo,lactosa",
+        "",
+        "vegetariano,salado,para-eventos",
+        (
+            "1. Picar finamente échalote, ajo y girgolas. Sudar en manteca con tomillo.\n"
+            "2. Añadir harina, cocinar 2 min (roux). Verter caldo de hongos, revolver hasta espesar.\n"
+            "3. Incorporar crema, sal y pimienta. Enfriar completamente (mínimo 4h).\n"
+            "4. Formar bolitas de 3 cm de diámetro (rinde 100).\n"
+            "5. Pasar por harina, huevo batido, pan rallado. Refrigerar 30 min.\n"
+            "6. Freír a 175°C por 4 min hasta dorar. Servir con mostaza."
+        ),
+    ),
+    (
+        "bitterballen__rec_006",
+        "Salados",
+        "gluten,huevo,lactosa",
+        "",
+        "salado,tradicional,para-eventos",
+        (
+            "1. Picar finamente carnaza, bola de lomo, cebolla, ajo, zanahoria. Sudar en manteca.\n"
+            "2. Añadir laurel, nuez moscada, sal, pimienta. Cocinar 10 min.\n"
+            "3. Sumar harina, revolver 2 min. Verter caldo y agua, cocinar hasta obtener ragú espeso.\n"
+            "4. Añadir gelatina disuelta, perejil, crema. Enfriar completamente (mínimo 4h, ideal toda la noche).\n"
+            "5. Formar bolitas de 3 cm. Pasar por harina, huevo batido, pan rallado.\n"
+            "6. Refrigerar 30 min para que asienten.\n"
+            "7. Freír a 175°C por 4 min. Rinde 100 unidades. Apto freezer 1 mes."
+        ),
+    ),
+]
+
+
+def _seed_recipe_meta(ctx: SeedContext):
+    """Apply family, allergens, dietary_tags, menu_tags, instructions from RECIPE_INSTRUCTIONS."""
+    by_name = {r[0]: r for r in RECIPE_INSTRUCTIONS}
+    updated = 0
+    for recipe in ctx.session.execute(select(Recipe)).scalars():
+        info = by_name.get(recipe.name)
+        if info is None:
+            continue
+        _, family, allergens, dietary, menu_tags, instructions = info
+        recipe.family = family
+        recipe.allergens = allergens
+        recipe.derived_dietary_tags = dietary
+        recipe.menu_tags = menu_tags
+        recipe.instructions = instructions
+        updated += 1
+    ctx.report.recipe_meta_updated = updated
+    logger.info(f"seed: {updated} recipes with instructions/family/allergens/dietary/menu_tags")
+
+
+# === Section 30: Product tablet_slug + mayorista_price + rspa + tags denorm ===
+PRODUCT_META: list[tuple[str, str, int, str, str, str]] = [
+    (
+        "Stroop wafel",
+        "bolleria",
+        5500,
+        "RSP-001",
+        "2027-12-31",
+        "tradicional,holandes,destacado,para-regalo",
+    ),
+    ("Babka chocolate", "bolleria", 13000, "RSP-002", "2027-12-31", "premium,tradicional,holandes"),
+    ("Muffin chocolate (20x20 cm)", "bolleria", 6500, "RSP-003", "2027-12-31", "clasico,infantil"),
+    (
+        "Docena muffins chocolate",
+        "bolleria",
+        65000,
+        "RSP-003",
+        "2027-12-31",
+        "clasico,infantil,para-eventos",
+    ),
+    ("Bizcocho 25 cm", "tortas", 120000, "RSP-004", "2027-12-31", "base,para-eventos,sin-relleno"),
+    ("Bizcocho 30 cm", "tortas", 150000, "RSP-005", "2027-12-31", "base,para-eventos,sin-relleno"),
+    ("Bizcocho 30 cm entero", "tortas", 150000, "RSP-005", "2027-12-31", "base,para-eventos"),
+    ("Tarta de manzana", "tortas", 110000, "RSP-006", "2027-12-31", "tradicional,holandes,clasico"),
+    ("Tarta de zanahoria 43x33", "tortas", 130000, "RSP-007", "2027-12-31", "clasico,favorita"),
+    ("Cheesecake entera", "tortas", 140000, "RSP-008", "2027-12-31", "premium,para-eventos"),
+    ("Cheesecake (30x50)", "tortas", 140000, "RSP-008", "2027-12-31", "premium,para-eventos"),
+    ("Porción cheesecake", "tortas", 14000, "RSP-008", "2027-12-31", "premium,porcion"),
+    ("Babka unidad", "bolleria", 13000, "RSP-002", "2027-12-31", "premium,tradicional,holandes"),
+    (
+        "Bombones chocolate (caja 12)",
+        "dulces",
+        35000,
+        "RSP-009",
+        "2027-12-31",
+        "premium,regalo,destacado",
+    ),
+    (
+        "Pastelitos rosados (docena)",
+        "bolleria",
+        60000,
+        "RSP-010",
+        "2027-12-31",
+        "tradicional,holandes,festivo",
+    ),
+    (
+        "Petisus crema (docena)",
+        "bolleria",
+        80000,
+        "RSP-011",
+        "2027-12-31",
+        "tradicional,holandes,premium",
+    ),
+    (
+        "Bossche bollen (docena)",
+        "bolleria",
+        95000,
+        "RSP-012",
+        "2027-12-31",
+        "tradicional,holandes,premium",
+    ),
+    (
+        "Speculaasjes (bolsa 200g)",
+        "galleteria",
+        18000,
+        "RSP-013",
+        "2027-12-31",
+        "tradicional,holandes,clasico",
+    ),
+    ("Hojaldre (docena)", "bolleria", 55000, "RSP-014", "2027-12-31", "base,tradicional"),
+    (
+        "Oliebollen (docena)",
+        "bolleria",
+        32000,
+        "RSP-015",
+        "2027-12-31",
+        "festivo,temporada,holandes",
+    ),
+    ("Ontbijtkoek", "bizcocho", 14000, "RSP-016", "2027-12-31", "tradicional,holandes,desayuno"),
+    ("Stollen de navidad", "bizcocho", 85000, "RSP-017", "2027-12-31", "navidad,temporada,premium"),
+    ("Frikandel (unidad)", "salados", 5500, "RSP-018", "2027-12-31", "salado,tradicional,holandes"),
+    (
+        "Bitterballen vegetariano (6 und)",
+        "salados",
+        32000,
+        "RSP-019",
+        "2027-12-31",
+        "vegetariano,salado,para-eventos",
+    ),
+    (
+        "Bitterballen clásicos (6 und)",
+        "salados",
+        32000,
+        "RSP-020",
+        "2027-12-31",
+        "salado,tradicional,para-eventos",
+    ),
+    (
+        "Goulash croquettes (6 und)",
+        "salados",
+        35000,
+        "RSP-021",
+        "2027-12-31",
+        "salado,festivo,para-eventos",
+    ),
+    (
+        "Supplì cacio e pepe (docena)",
+        "salados",
+        65000,
+        "RSP-022",
+        "2027-12-31",
+        "salado,italiano,para-eventos",
+    ),
+    (
+        "Tompoezen (docena)",
+        "bolleria",
+        80000,
+        "RSP-011",
+        "2027-12-31",
+        "tradicional,holandes,premium",
+    ),
+    (
+        "Torta de chocolate entera",
+        "tortas",
+        130000,
+        "RSP-023",
+        "2027-12-31",
+        "clasico,infantil,para-eventos",
+    ),
+    ("Torta helada verano", "tortas", 145000, "RSP-024", "2027-12-31", "verano,festivo,premium"),
+    (
+        "Caja surtida 24 unidades",
+        "dulces",
+        95000,
+        "RSP-025",
+        "2027-12-31",
+        "regalo,premium,para-eventos",
+    ),
+    ("Docena alfajores", "galleteria", 48000, "RSP-026", "2027-12-31", "clasico,infantil"),
+]
+
+
+def _seed_product_meta(ctx: SeedContext):
+    """Apply tablet_slug, mayorista_price_gs, rspa_number, rspa_expiry, denorm tags.
+
+    tablet_slug is UNIQUE per product in this schema. We use a per-product slug
+    of the form `<group>-<id>` so multiple products can share a tablet section
+    (group) while still satisfying the unique constraint.
+    """
+    by_name = {p[0]: p for p in PRODUCT_META}
+    updated = 0
+    for prod in ctx.session.execute(select(Product)).scalars():
+        info = by_name.get(prod.name)
+        if info is None:
+            continue
+        _, tablet_slug, mayorista_price, rspa_number, rspa_expiry, tags_csv = info
+        prod.tablet_slug = f"{tablet_slug}-{prod.id}"
+        prod.mayorista_price_gs = mayorista_price
+        prod.rspa_number = rspa_number
+        prod.rspa_expiry = date.fromisoformat(rspa_expiry)
+        prod.tags = tags_csv
+        updated += 1
+    ctx.report.product_meta_updated = updated
+    logger.info(f"seed: {updated} products with tablet_slug/mayorista/rspa/tags")
+
+
+# === Section 31: Ingredient subcategory + role + notes + avg_cost ===
+INGREDIENT_SUBCATEGORY: dict[str, dict[str, str]] = {
+    "harinas y bases": {
+        "Harina de trigo": "trigo",
+        "Harina de centeno": "centeno",
+        "Harina de repostería": "reposteria",
+        "Harina Patentada": "trigo",
+        "Maicena": "espesante",
+        "Pan rallado": "rebozado",
+    },
+    "endulzantes": {
+        "Azúcar": "comun",
+        "Azúcar glas": "glas",
+        "Azúcar morena": "morena",
+        "Miel": "natural",
+        "Melaza": "tradicional",
+    },
+    "lácteos y huevos": {
+        "Leche": "fluida",
+        "Leche en polvo": "polvo",
+        "Manteca": "grasa",
+        "Crema de leche": "crema",
+        "Crema agria": "crema",
+        "Crema pastelera": "preparada",
+        "Queso crema": "cremoso",
+        "Queso muzzarella": "pasta",
+        "Queso rallado": "rallado",
+        "Suero de leche (buttermilk)": "subproducto",
+        "Huevos": "fresco",
+    },
+    "cacao café y chocolate": {
+        "Cacao en polvo": "polvo",
+        "Chocolate cobertura": "cobertura",
+        "Chocolate": "tableta",
+        "Café": "molido",
+        "Café instantaneo": "soluble",
+    },
+    "especias y condimentos": {
+        "Canela": "especia",
+        "Vainilla": "especia",
+        "Ralladura de limón": "fresco",
+        "Esencia de vainilla": "esencia",
+        "Sal": "sal",
+        "Pimienta": "especia",
+        "Mostaza": "condimento",
+        "Laurel": "hierba",
+        "Anís estrellado": "especia",
+        "Mezcla de especias para Speculaas": "mezcla",
+        "Ajo": "fresco",
+        "Jengibre": "fresco",
+        "Jengibre molido": "especia",
+        "Nuez moscada": "especia",
+        "Pimentón ahumado": "especia",
+        "Alcaravea": "especia",
+        "Cayena": "especia",
+        "Especias mixtas": "mezcla",
+        "Tomillo fresco": "hierba",
+        "Perejil": "hierba",
+        "Pimentón": "seco",
+    },
+    "levaduras y gasificantes": {
+        "Levadura fresca": "fresca",
+        "Levadura seca": "seca",
+        "Polvo de hornear": "gasificante",
+        "Bicarbonato de sodio": "gasificante",
+    },
+    "frutas y frutos secos": {
+        "Manzana": "fresca",
+        "Limón": "fresco",
+        "Frambuesas": "congelada",
+        "Frutilla": "fresca",
+        "Fruta": "mixta",
+        "Pasas": "seca",
+        "Mango": "fresco",
+        "Arándanos": "congelado",
+        "Nueces": "seco",
+    },
+    "verduras y legumbres": {
+        "Cebolla": "fresca",
+        "Cebolla morada": "fresca",
+        "Cebolla de verdeo": "fresca",
+        "Zanahoria": "fresca",
+        "Apio": "fresco",
+        "Morrón rojo": "fresco",
+        "Pimentón": "seco",
+        "Tomate": "fresco",
+        "Garbanzo": "legumbre",
+        "Echalote": "fresco",
+        "Girgolas frescas": "fresco",
+    },
+    "carnes": {
+        "Carnaza de segunda": "vacuna",
+        "Bola de lomo": "vacuna",
+        "Falda de res": "vacuna",
+        "Pollo": "ave",
+        "Pechuga de pollo": "ave",
+    },
+    "salsas y líquidos": {
+        "Agua": "neutro",
+        "Leche de coco": "vegetal",
+        "Salsa de soja": "fermentada",
+        "Vinagre": "fermentado",
+        "Caldo de carne en cubos": "preparado",
+        "Puré de tomate": "preparado",
+        "Jugo de remolacha": "natural",
+        "Jugo de limón": "natural",
+    },
+    "aceites y grasas": {"Aceite": "neutro", "Manteca vegetal": "grasa"},
+    "preparados y otros": {
+        "Masa de hojaldre": "preparada",
+        "Bicarbonato": "gasificante",
+        "Gelatina sin sabor": "gelificante",
+        "Estabilizante para nata": "estabilizante",
+        "Esencia de almendras": "esencia",
+        "Polvo para natillas": "preparado",
+        "Caldo de hongos en cubos": "preparado",
+        "Masa choux": "preparada",
+    },
+}
+
+INGREDIENT_ROLE: dict[str, str] = {
+    "Harina de trigo": "base",
+    "Harina de centeno": "base",
+    "Harina de repostería": "base",
+    "Harina Patentada": "base",
+    "Maicena": "base",
+    "Pan rallado": "operativo",
+    "Arroz para sushi": "base",
+    "Leche": "base",
+    "Leche en polvo": "base",
+    "Huevos": "base",
+    "Manteca": "base",
+    "Crema de leche": "base",
+    "Crema agria": "base",
+    "Queso crema": "base",
+    "Queso muzzarella": "base",
+    "Queso rallado": "base",
+    "Suero de leche (buttermilk)": "base",
+    "Crema pastelera": "base",
+    "Aceite": "operativo",
+    "Manteca vegetal": "operativo",
+    "Agua": "operativo",
+    "Vinagre": "operativo",
+    "Leche de coco": "base",
+    "Azúcar": "base",
+    "Azúcar glas": "decoración",
+    "Azúcar morena": "base",
+    "Miel": "base",
+    "Melaza": "base",
+    "Levadura fresca": "operativo",
+    "Levadura seca": "operativo",
+    "Polvo de hornear": "operativo",
+    "Bicarbonato de sodio": "operativo",
+    "Bicarbonato": "operativo",
+    "Gelatina sin sabor": "operativo",
+    "Estabilizante para nata": "operativo",
+    "Polvo para natillas": "operativo",
+    "Cacao en polvo": "saborizante",
+    "Chocolate cobertura": "saborizante",
+    "Chocolate": "saborizante",
+    "Café": "saborizante",
+    "Café instantaneo": "saborizante",
+    "Canela": "saborizante",
+    "Vainilla": "saborizante",
+    "Esencia de vainilla": "saborizante",
+    "Esencia de almendras": "saborizante",
+    "Ralladura de limón": "saborizante",
+    "Sal": "saborizante",
+    "Pimienta": "saborizante",
+    "Mostaza": "saborizante",
+    "Laurel": "saborizante",
+    "Anís estrellado": "saborizante",
+    "Mezcla de especias para Speculaas": "saborizante",
+    "Ajo": "saborizante",
+    "Jengibre": "saborizante",
+    "Jengibre molido": "saborizante",
+    "Nuez moscada": "saborizante",
+    "Pimentón ahumado": "saborizante",
+    "Alcaravea": "saborizante",
+    "Cayena": "saborizante",
+    "Especias mixtas": "saborizante",
+    "Tomillo fresco": "saborizante",
+    "Perejil": "saborizante",
+    "Pimentón": "saborizante",
+    "Salsa de soja": "saborizante",
+    "Caldo de carne en cubos": "saborizante",
+    "Caldo de hongos en cubos": "saborizante",
+    "Puré de tomate": "saborizante",
+    "Jugo de remolacha": "saborizante",
+    "Jugo de limón": "saborizante",
+    "Frambuesas": "saborizante",
+    "Frutilla": "saborizante",
+    "Fruta": "saborizante",
+    "Manzana": "saborizante",
+    "Limón": "saborizante",
+    "Mango": "saborizante",
+    "Arándanos": "saborizante",
+    "Pasas": "saborizante",
+    "Nueces": "decoración",
+    "Cebolla": "saborizante",
+    "Cebolla morada": "saborizante",
+    "Cebolla de verdeo": "saborizante",
+    "Zanahoria": "saborizante",
+    "Apio": "saborizante",
+    "Morrón rojo": "saborizante",
+    "Tomate": "saborizante",
+    "Garbanzo": "saborizante",
+    "Echalote": "saborizante",
+    "Girgolas frescas": "saborizante",
+    "Carnaza de segunda": "base",
+    "Bola de lomo": "base",
+    "Falda de res": "base",
+    "Pollo": "base",
+    "Pechuga de pollo": "base",
+    "Masa de hojaldre": "base",
+    "Masa choux": "base",
+    "bolsita de 15x22": "empaque",
+    "cintillo 7mm 10m": "empaque",
+    "bandeja isopor": "empaque",
+    "bandeja carton": "empaque",
+    "papel antigrasa blanco": "empaque",
+    "bolsa de papel mediana": "empaque",
+    "caja torta 25cm": "empaque",
+}
+
+
+def _seed_ingredient_meta(ctx: SeedContext):
+    """Apply subcategory, role, notes, avg_cost_gs to all 101 ingredients."""
+    updated = 0
+    for ing in ctx.session.execute(select(Ingredient)).scalars():
+        cat = ing.category or ""
+        subcat = INGREDIENT_SUBCATEGORY.get(cat, {}).get(ing.name, "")
+        role = INGREDIENT_ROLE.get(ing.name, "operativo")
+        ing.subcategory = subcat
+        ing.role = role
+        if ing.notes is None or ing.notes == "":
+            ing.notes = f"Categoría: {cat}. Almacén: {ing.storage or 'ambient'}."
+        if ing.avg_cost_gs is None and ing.purchase_price_gs is not None:
+            ing.avg_cost_gs = ing.purchase_price_gs
+        updated += 1
+    ctx.report.ingredient_meta_updated = updated
+    logger.info(f"seed: {updated} ingredients with subcategory/role/notes/avg_cost")
+
+
+# === Section 32: Price history (supplier receipts) ===
+def _seed_price_history(ctx: SeedContext):
+    """Generate 6 months of weekly supplier receipts for top 30 ingredients by usage.
+
+    price_history records ACTUAL purchase transactions (qty + total_gs + supplier + date),
+    distinct from ingredient_price_event which records observed market price changes.
+
+    Idempotent: skip entirely if PriceHistory already has any rows.
+    """
+    if ctx.session.execute(select(PriceHistory).limit(1)).first():
+        ctx.report.price_history = 0
+        logger.info("seed: price_history already populated, skipping")
+        return
+    top_ings = ctx.session.execute(
+        text("""
+        SELECT ingredient_id, SUM(qty) AS total_used
+        FROM stock_movement
+        WHERE movement_type = 'sale' AND ingredient_id IS NOT NULL
+        GROUP BY ingredient_id
+        ORDER BY total_used DESC LIMIT 30
+    """)
+    ).fetchall()
+    if not top_ings:
+        return
+    suppliers = ctx.session.execute(select(Supplier)).scalars().all()
+    if not suppliers:
+        return
+    today = ctx.anchor_date
+    n_inserted = 0
+    for ing_id, _ in top_ings:
+        ing = ctx.session.get(Ingredient, ing_id)
+        if ing is None or ing.purchase_price_gs is None:
+            continue
+        for w in range(26):
+            purchase_date = today - timedelta(days=7 * w + (w % 3))
+            if purchase_date > today:
+                continue
+            supplier = suppliers[w % len(suppliers)]
+            variation = 0.95 + (w * 0.013) % 0.10
+            unit_price = int(ing.purchase_price_gs * variation)
+            qty = float(ing.min_stock_qty or 1.0) * 1.5
+            ctx.session.add(
+                PriceHistory(
+                    supplier_id=supplier.id,
+                    ingredient_id=ing.id,
+                    qty_purchased=qty,
+                    unit=ing.unit,
+                    total_gs=int(qty * unit_price),
+                    unit_price_gs=unit_price,
+                    purchase_date=datetime.combine(purchase_date, datetime.min.time()),
+                    notes="Compra semanal automática",
+                    recorded_by="seeder",
+                )
+            )
+            n_inserted += 1
+    ctx.session.flush()
+    ctx.report.price_history = n_inserted
+    logger.info(f"seed: {n_inserted} price history rows (supplier receipts)")
+
+
+# === Section 33: Business expenses ===
+def _seed_expenses(ctx: SeedContext):
+    """Seed 7 months of business expenses (rent, electricity, salaries, supplies, IPS).
+
+    Idempotent: skip if any Expense rows already exist.
+    """
+    if ctx.session.execute(select(Expense).limit(1)).first():
+        ctx.report.expenses = 0
+        logger.info("seed: expenses already populated, skipping")
+        return
+    today = ctx.anchor_date
+    n = 0
+    monthly_fixed = [
+        ("Alquiler local", 2500000, 1),
+        ("Electricidad (ANDE)", 380000, 5),
+        ("Internet + Teléfono (Tigo)", 145000, 8),
+        ("Agua (Essap)", 65000, 12),
+        ("Gas (Chaco Gas)", 85000, 18),
+    ]
+    for label, amount, day in monthly_fixed:
+        for m in range(8):
+            month_ago = today.replace(day=1) - timedelta(days=30 * m)
+            occurred = month_ago.replace(day=min(day, 28))
+            if occurred > today:
+                continue
+            ctx.session.add(
+                Expense(
+                    occurred_at=datetime.combine(occurred, datetime.min.time()),
+                    category="RENT",
+                    description=label,
+                    amount_gs=amount,
+                    is_voided=False,
+                    created_at=datetime.combine(occurred, datetime.min.time()),
+                    recurring_period="monthly",
+                )
+            )
+            n += 1
+    for d in range(1, 220, 15):
+        occurred = today - timedelta(days=d)
+        if occurred.day not in (1, 15):
+            continue
+        ctx.session.add(
+            Expense(
+                occurred_at=datetime.combine(occurred, datetime.min.time()),
+                category="PAYROLL",
+                description="Sueldos quincenales (4 empleados)",
+                amount_gs=5600000,
+                is_voided=False,
+                created_at=datetime.combine(occurred, datetime.min.time()),
+                recurring_period="monthly",
+            )
+        )
+        n += 1
+    for w in range(30):
+        occurred = today - timedelta(days=7 * w + 2)
+        ctx.session.add(
+            Expense(
+                occurred_at=datetime.combine(occurred, datetime.min.time()),
+                category="PACKAGING",
+                description="Insumos de packaging y limpieza (semanal)",
+                amount_gs=120000 + (w * 4000) % 30000,
+                is_voided=False,
+                created_at=datetime.combine(occurred, datetime.min.time()),
+                recurring_period="once",
+            )
+        )
+        n += 1
+    for m in range(8):
+        month_ago = today.replace(day=1) - timedelta(days=30 * m)
+        occurred = month_ago.replace(day=20)
+        if occurred > today:
+            continue
+        ctx.session.add(
+            Expense(
+                occurred_at=datetime.combine(occurred, datetime.min.time()),
+                category="OTHER",
+                description="IPS aportes (mensual)",
+                amount_gs=950000,
+                is_voided=False,
+                created_at=datetime.combine(occurred, datetime.min.time()),
+                recurring_period="monthly",
+            )
+        )
+        ctx.session.add(
+            Expense(
+                occurred_at=datetime.combine(occurred, datetime.min.time()),
+                category="OTHER",
+                description="Honorarios contador",
+                amount_gs=450000,
+                is_voided=False,
+                created_at=datetime.combine(occurred, datetime.min.time()),
+                recurring_period="monthly",
+            )
+        )
+        n += 2
+    ctx.session.flush()
+    ctx.report.expenses = n
+    logger.info(f"seed: {n} expense rows (7mo fixed + salaries + supplies + tax)")
+
+
+# === Section 34: Cash sessions (last 30 working days) ===
+def _seed_cash_sessions(ctx: SeedContext):
+    """Daily cash register openings/closings (last 30 working days).
+
+    Idempotent: skip if any CashSession rows already exist.
+    """
+    if ctx.session.execute(select(CashSession).limit(1)).first():
+        ctx.report.cash_sessions = 0
+        logger.info("seed: cash_sessions already populated, skipping")
+        return
+    users = ctx.session.execute(select(User).limit(2)).scalars().all()
+    if not users:
+        return
+    today = ctx.anchor_date
+    n = 0
+    for d in range(30):
+        day = today - timedelta(days=d)
+        if day.weekday() == 6 and d > 7:  # skip most Sundays
+            continue
+        opened_by = users[d % len(users)]
+        closed_by = users[(d + 1) % len(users)]
+        opening_gs = 100000
+        daily_cash = 250000 + (d * 17000) % 180000
+        closing_gs = opening_gs + daily_cash
+        ctx.session.add(
+            CashSession(
+                opened_at=datetime.combine(day, datetime.min.time().replace(hour=7)),
+                closed_at=datetime.combine(day, datetime.min.time().replace(hour=20)),
+                opened_by=opened_by.username,
+                closed_by=closed_by.username,
+                opening_gs=opening_gs,
+                counted_gs=closing_gs,
+                expected_gs=closing_gs,
+                diff_gs=0,
+                status="closed",
+                channel="mostrador",
+            )
+        )
+        n += 1
+    ctx.session.flush()
+    ctx.report.cash_sessions = n
+    logger.info(f"seed: {n} cash sessions (last 30 working days)")
+
+
+# === Section 35: Sale payments (per-sale method split) ===
+def _seed_sale_payments(ctx: SeedContext):
+    """Generate SalePayment rows for each existing sale (60% efectivo, 25% tarjeta, 15% transferencia)."""
+    # skip sales that already have a payment
+    paid_sale_ids = {row[0] for row in ctx.session.execute(select(SalePayment.sale_id)).all()}
+    sales = (
+        ctx.session.execute(
+            select(Sale).where(Sale.id.notin_(paid_sale_ids) if paid_sale_ids else True)
+        )
+        .scalars()
+        .all()
+    )
+    n = 0
+    for sale in sales:
+        r = (sale.id * 7) % 100
+        if r < 60:
+            method = "efectivo"
+        elif r < 85:
+            method = "tarjeta"
+        else:
+            method = "transferencia"
+        # Sale has no `total_gs` column; reconstruct from iva_base + iva_amount.
+        amount_gs = int((sale.iva_base_gs or 0) + (sale.iva_amount_gs or 0))
+        ctx.session.add(
+            SalePayment(
+                sale_id=sale.id,
+                method=method,
+                amount_gs=amount_gs,
+                created_at=sale.sold_at,
+            )
+        )
+        n += 1
+    ctx.session.flush()
+    ctx.report.sale_payments = n
+    logger.info(f"seed: {n} sale payments (method split)")
+
+
+# === Section 36: Monthly closure (last 2 closed months) ===
+def _seed_monthly_closure(ctx: SeedContext):
+    """Generate MonthlyClosure rows for aug-2026 and sep-2026 (oct still open).
+
+    Idempotent: skip if a MonthlyClosure for the period already exists.
+    """
+    users = ctx.session.execute(select(User).limit(1)).scalars().first()
+    if users is None:
+        return
+    today = ctx.anchor_date
+    n = 0
+    for offset in (2, 1):
+        first_of_month = (today.replace(day=1) - timedelta(days=offset * 30)).replace(day=1)
+        period = first_of_month.strftime("%Y-%m")
+        # idempotency: skip if period already exists
+        from app.rms.models import MonthlyClosure as _MC
+
+        if ctx.session.execute(select(_MC.id).where(_MC.period_yyyymm == period)).first():
+            continue
+        next_month = (first_of_month + timedelta(days=32)).replace(day=1)
+        revenue, iva, cogs = ctx.session.execute(
+            text("""
+            SELECT COALESCE(SUM(iva_base_gs + iva_amount_gs), 0),
+                   COALESCE(SUM(iva_amount_gs), 0),
+                   COALESCE(SUM(iva_base_gs) * 0.4, 0)
+            FROM sale
+            WHERE sold_at >= :start AND sold_at < :end
+        """),
+            {"start": first_of_month, "end": next_month},
+        ).first()
+        ctx.session.add(
+            MonthlyClosure(
+                period_yyyymm=period,
+                closed_at=datetime.combine(next_month - timedelta(days=1), datetime.min.time()),
+                closed_by_user_id=users.username,
+                total_iva_gs=int(iva),
+                total_revenue_gs=int(revenue),
+                total_cogs_gs=int(cogs),
+                total_expenses_gs=int(revenue * 0.25),
+                net_gs=int(revenue - cogs - revenue * 0.25),
+                snapshot_json='{"seed":"sazon monthly closure 2026-10-09"}',
+            )
+        )
+        n += 1
+    ctx.session.flush()
+    ctx.report.monthly_closures = n
+    logger.info(f"seed: {n} monthly closures (aug+sep 2026)")
+
+
+# === Section 37: Menu + MenuItem (operator-editable menu boards) ===
+def _seed_menus(ctx: SeedContext):
+    """Two menus: Carta Regular (active) + Carta Navidad 2026 (preview, inactive)."""
+    today = ctx.anchor_date
+    tenant = ctx.session.execute(select(Tenant).limit(1)).scalar_one_or_none()
+    if tenant is None:
+        return
+    ctx.session.execute(text("DELETE FROM menu_item"))
+    ctx.session.execute(text("DELETE FROM menu"))
+    ctx.session.flush()
+    regular = Menu(
+        tenant_id=tenant.id,
+        name="Carta Regular",
+        price_gs=0,
+        active=True,
+        created_at=datetime.combine(today, datetime.min.time()),
+    )
+    ctx.session.add(regular)
+    ctx.session.flush()
+    bestsellers = ctx.session.execute(
+        text("""
+        SELECT id FROM product
+        WHERE id IN (SELECT product_id FROM sale
+                     WHERE product_id IS NOT NULL AND sold_at >= :since)
+        GROUP BY id
+        ORDER BY COUNT(*) DESC LIMIT 8
+    """),
+        {"since": today - timedelta(days=30)},
+    ).fetchall()
+    for (prod_id,) in bestsellers:
+        ctx.session.add(MenuItem(menu_id=regular.id, product_id=prod_id, qty=1))
+    navidad = Menu(
+        tenant_id=tenant.id,
+        name="Carta Navidad 2026",
+        price_gs=0,
+        active=False,
+        created_at=datetime.combine(today, datetime.min.time()),
+    )
+    ctx.session.add(navidad)
+    ctx.session.flush()
+    navidad_prods = ctx.session.execute(
+        text("""
+        SELECT id FROM product
+        WHERE LOWER(name) LIKE '%navidad%' OR LOWER(name) LIKE '%stollen%'
+            OR LOWER(name) LIKE '%oliebollen%' OR LOWER(name) LIKE '%panettone%'
+        LIMIT 6
+    """)
+    ).fetchall()
+    for (prod_id,) in navidad_prods:
+        ctx.session.add(MenuItem(menu_id=navidad.id, product_id=prod_id, qty=1))
+    ctx.session.flush()
+    ctx.report.menus = 2
+    ctx.report.menu_items = len(bestsellers) + len(navidad_prods)
+    logger.info(f"seed: 2 menus, {len(bestsellers) + len(navidad_prods)} menu items")
+
+
+# === Section 38: Production plan (next 14 days) ===
+def _seed_production_plan(ctx: SeedContext):
+    """Generate ProductionPlan for next 14 days, top 8 products × 14 days = 112 rows.
+
+    Idempotent: skip if any ProductionPlan rows already exist.
+    """
+    if ctx.session.execute(select(ProductionPlan).limit(1)).first():
+        ctx.report.production_plans = 0
+        logger.info("seed: production_plans already populated, skipping")
+        return
+    today = ctx.anchor_date
+    n = 0
+    recipes = ctx.session.execute(select(Recipe.id, Recipe.name)).all()
+    if not recipes:
+        return
+    top = ctx.session.execute(
+        text("""
+        SELECT p.id, p.name, COALESCE(AVG(s.qty), 1) AS avg_qty
+        FROM product p
+        LEFT JOIN sale s ON s.product_id = p.id
+        WHERE s.sold_at >= :since OR s.sold_at IS NULL
+        GROUP BY p.id
+        ORDER BY avg_qty DESC LIMIT 8
+    """),
+        {"since": today - timedelta(days=30)},
+    ).fetchall()
+    for d in range(14):
+        day = today + timedelta(days=d)
+        day_factor = 0.5 if day.weekday() == 6 else 1.0
+        for idx, (_prod_id, _name, avg_qty) in enumerate(top):
+            recipe_id, _ = recipes[idx % len(recipes)]
+            ctx.session.add(
+                ProductionPlan(
+                    recipe_id=recipe_id,
+                    batches_qty=int(float(avg_qty) * day_factor) + 1,
+                    planned_at=datetime.combine(day, datetime.min.time()),
+                    status="planned",
+                    created_by="seeder",
+                )
+            )
+            n += 1
+    ctx.session.flush()
+    ctx.report.production_plans = n
+    logger.info(f"seed: {n} production plan rows (next 14 days × top 8)")
+
+
+# === Section 39: Data-quality fixes (Tier C) ===
+def _seed_data_quality_fixes(ctx: SeedContext):
+    """Apply Tier C fixes: market_benchmark dedup, margin_tier ranges, date_range_preset dedup."""
+    fixed = {"benchmark_dedup": 0, "margin_tier": 0, "date_preset_dedup": 0}
+
+    # market_benchmark: keep one per product_label
+    rows = ctx.session.execute(
+        text("""
+        SELECT product_label, MAX(id) AS keep_id
+        FROM market_benchmark GROUP BY product_label
+    """)
+    ).fetchall()
+    keep_ids = {r[1] for r in rows}
+    if keep_ids:
+        # keep_ids is a set of ints fetched from the DB; safe to interpolate.
+        deleted = ctx.session.execute(
+            text(
+                f"""
+            DELETE FROM market_benchmark WHERE id NOT IN ({",".join(str(i) for i in keep_ids)})
+        """  # noqa: S608
+            )
+        )
+        fixed["benchmark_dedup"] = deleted.rowcount or 0
+
+    # margin_tier: clear and insert canonical tiers
+    ctx.session.execute(text("DELETE FROM margin_tier"))
+    canonical = [
+        ("muy_bajo", "Muy bajo / pérdida", 0, 499, 1),
+        ("bajo", "Bajo", 500, 999, 2),
+        ("medio", "Medio", 1000, 4999, 3),
+        ("tier2", "Top 25%", 5000, 9999, 4),
+        ("tier1", "Top 10% (premium)", 10000, None, 5),
+    ]
+    for code, label, mn, mx, order in canonical:
+        ctx.session.execute(
+            text("""
+            INSERT INTO margin_tier (code, label, min_cost_gs, max_cost_gs, sort_order, is_active, created_at)
+            VALUES (:code, :label, :mn, :mx, :order, 1, :now)
+        """),
+            {
+                "code": code,
+                "label": label,
+                "mn": mn,
+                "mx": mx,
+                "order": order,
+                "now": datetime.combine(ctx.anchor_date, datetime.min.time()),
+            },
+        )
+        fixed["margin_tier"] += 1
+
+    # date_range_preset: no dedup needed (codes are unique in the source DATE_PRESETS).
+    # Skipped: deduplicating by anything would either be a no-op (by code) or
+    # destructive (by days, which grouped 10 entries down to 6 and broke tests).
+    fixed["date_preset_dedup"] = 0
+
+    ctx.session.flush()
+    for k, v in fixed.items():
+        logger.info(f"data-quality {k}: {v}")
+    ctx.report.data_quality_fixes = fixed
 
 
 def _seed_audit_log_initial_entries(ctx: SeedContext):
