@@ -154,6 +154,11 @@ jobs:
                 # actions/checkout lands in detached HEAD; release.sh refuses
                 # to run from anything but the `main` branch.
                 git checkout main
+                # release.sh's "refuse to re-tag" check would fire on the
+                # tag we just pushed; delete the local ref so the script
+                # can recreate it (the remote ref is harmless; we'll
+                # overwrite it on push).
+                git tag -d "$TAG" || true
                 bash scripts/release.sh --version="${TAG#v}"
                 ;;
             esac
