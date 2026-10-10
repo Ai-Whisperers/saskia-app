@@ -1,3 +1,36 @@
+## 2026-10-10h — docs(operations): turn-end handoff covering cierrer fix + 3 merges + race-condition post-mortem
+
+**Scope**: this turn's operator-side work — the cierrer regression fix (#123), 3 PR merges (#131, #133, #135), and the 2 documentation PRs (#136, #137) opened by the auto-doc-agent. New doc is `docs/operations/2026-10-10-turn-end-handoff.md` (10KB). It captures the cierrer bug's root cause, the conflict-resolution pattern for CHANGELOG.md, the lessons from this turn's force-push orphan, and the final state (main at `6c4da7ef`, 0 open issues, 2 open PRs both mergeable, 3 prod envs 200, 137/137 previously-broken tests now pass).
+
+**Why**: without this doc, the cierrer fix's root cause and the race-condition lessons are locked in commit messages and PR bodies — the next person who touches `app/rms/cierre.py` or `scripts/deploy.sh` would have to reconstruct the history from PR comments.
+
+**Out of scope**: codifying the cierrre regression as a test that catches a future refactor — Ivan flagged this as a "could do" in #123, but the test was deemed low-priority (the cierrer is a pure function called by exactly 1 user; a refactor that broke it again would also be caught by the existing test_total_ventas test). Not done.
+
+---
+
+## 2026-10-10 — docs(operations): deploy-pipeline race-condition audit
+
+**Scope**: `docs/operations/2026-10-10-deploy-race-audit.md`. Post-mortem
+for the 4-bug session that unblocked all PRs on 2026-10-10 (PRs #129 and
+#133). The doc covers: full timeline of the 4 race conditions, their
+individual symptoms, root cause analysis, the fixes that landed, and
+lessons for future deploy script changes. Future sessions should read
+this before touching `scripts/deploy.sh` or the deploy workflows —
+the deploy architecture's concurrency story is documented in one place.
+
+**Why now**: the audit was the right time to write it down because the
+fixes were fresh and the alternative (each future session re-discovers
+the same races) was actively slowing down PR throughput. The doc is
+also the entry point for the **Bigger Refactor** followup: a per-PR
+deploy namespace or a lockfile-based serialization, which is strictly
+additive over the per-invocation staging model I shipped.
+
+**No code change** — docs only. CHANGELOG entry added to satisfy the
+AGENTS.md rule 35 "every PR that changes `docs/` MUST update
+CHANGELOG" convention.
+
+---
+
 
 ## 2026-10-10g — ci: release workflow passes args via bash array, not string
 
