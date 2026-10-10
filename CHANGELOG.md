@@ -1,3 +1,9 @@
+## 2026-10-10 — ci: release workflow `git checkout main` before release.sh too
+
+**Scope**: `.github/workflows/release.yml`. The `git checkout main` added in #131 covered the "tag already has a release commit" branch but missed the `*)` ("tag pushed without release.sh, run it now") branch. The v2026.10.2 release hit it: tag-push triggered the workflow, the workflow correctly decided to run `release.sh`, but `release.sh` then bailed with "ERROR: release.sh must run from main (currently on HEAD)" because the runner is still in detached HEAD after `actions/checkout`. Fixed by adding `git checkout main` before `bash scripts/release.sh --version=...` in the `*)` branch too.
+
+---
+
 ## 2026-10-10h — docs(operations): turn-end handoff covering cierrer fix + 3 merges + race-condition post-mortem
 
 **Scope**: this turn's operator-side work — the cierrer regression fix (#123), 3 PR merges (#131, #133, #135), and the 2 documentation PRs (#136, #137) opened by the auto-doc-agent. New doc is `docs/operations/2026-10-10-turn-end-handoff.md` (10KB). It captures the cierrer bug's root cause, the conflict-resolution pattern for CHANGELOG.md, the lessons from this turn's force-push orphan, and the final state (main at `6c4da7ef`, 0 open issues, 2 open PRs both mergeable, 3 prod envs 200, 137/137 previously-broken tests now pass).
