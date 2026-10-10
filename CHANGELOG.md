@@ -1,3 +1,40 @@
+## 2026-10-10d — fix(void/dashboard/export): column-rename + dead-code-block + duplicate-fn bugs
+
+**Scope**: completes the pre-existing test-failure fix from PR #120 by cherry-picking
+the substantive 3-fix bundle onto current main (rebased after #118's merge).
+
+- `app/rms/sales/lifecycle.py::void_sale`: removed the legacy "US 4.1 — restore packaging"
+  block. The canonical StockMovement reversal loop (queries by
+  `reference_id`+`reference_type`) already reversed the packaging move (a
+  `movement_type="sale"`, qty<0 row). The legacy block re-restored packaging
+  from `sale.packaging_qty` AND added a duplicate StockMovement row, ending
+  packaging stock at +1 vs the expected 0 (the bug in
+  `test_saskia_r2_sale_packaging::test_void_sale_restores_packaging_stock`).
+- `app/routers/dashboard.py`: `_build_hourly_sales_chart` + `_build_30day_sales_chart`
+  used `Sale.recorded_at` but the model has `Sale.sold_at` (rename during the
+  `models_legacy` refactor). Replaced with `sold_at`. Fixes
+  `test_dashboard_enrollment_kpi` + `test_dashboard_regulars` (the 3 failures
+  all rooted in the same chart functions).
+- `app/services/export_xlsx.py`: deleted 7 duplicate `_write_*_sheet` /
+  `_load_lookup_maps` / `_create_workbook` / `_autosize_simple` /
+  `_resolve_line_target_name` functions that shadowed the canonical
+  implementations with stale 3-arg signatures, breaking the `to_file` call
+  sites with `TypeError: takes 3 positional arguments but 4 were given`.
+  Updated the `to_bytes` call site to use the canonical (longer-signature)
+  versions (`_write_productos_sheet(wb, session, recipes_by_id, products_by_id)`
+  + `_write_ventas_sheet(wb, session, None, None, products_by_id)` where the
+  `None` filter preserves the original all-time behavior).
+
+**Tests**: 4/4 void tests + 11/11 export tests + 3/3 dashboard tests pass.
+The 3 `test_excel_patch.py` failures (separate PATCH-plantilla column-rename
+bug) and 2 SASKIA-301/306 placeholder-formatting tests are pre-existing on
+main and out of scope for this commit.
+
+**Related PRs**: #118 (landed the SalePayment-delete + xlsx rename that this 
+rebase stacks on), #120 (the original, abandoned branch — this commit is the
+rebase of its content onto current main, with the SalePayment-delete step
+already on main from #118).
+
 ## 2026-10-10b — fix(void/xlsx): void_sale deletes SalePayment rows + xlsx duplicate function
 
 **Scope**: cherry-pick of two real bug fixes from the
