@@ -1,3 +1,11 @@
+## 2026-10-10 — ci: release workflow checkout must persist credentials
+
+**Scope**: `.github/workflows/release.yml`. The `actions/checkout` step had `persist-credentials: false`, which means the GITHUB_TOKEN wasn't written to `.git/config` remote URL. The release script's later `git push origin $HEAD:refs/heads/main $TAG` then prompted for credentials and died with `fatal: could not read Username`. The v2026.10.2 release hit this AFTER the CHANGELOG bump and release commit were already created locally. Fixed by setting `persist-credentials: true`. (The token still comes from `secrets.GITHUB_TOKEN`; the workflow already has `contents: write` permission.)
+
+**Out of scope**: switching release.sh to use a GITHUB_TOKEN env var directly. The current `git push` via stored credentials is the standard pattern.
+
+---
+
 ## 2026-10-10 — ci: release workflow `git tag -d` before re-running release.sh
 
 **Scope**: `.github/workflows/release.yml`. The `*)` (tag-pushed-without-release.sh) branch now does `git tag -d "$TAG"` before calling `bash scripts/release.sh --version=...`. The release script's "refuse to re-tag" guard correctly fires on the tag we just pushed (it sees it locally after `git checkout main`); the cleanest fix is to delete the local tag first so the script can recreate it during its own `git tag -a` step. The remote tag is overwritten when the script pushes.
