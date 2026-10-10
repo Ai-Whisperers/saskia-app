@@ -1,4 +1,11 @@
 
+## 2026-10-10g — ci: release workflow passes args via bash array, not string
+
+**Scope**: `.github/workflows/release.yml`. The `workflow_dispatch` branch was building a `FLAGS="..."` string with embedded single quotes and then unquoted-expanding it: `bash scripts/release.sh $FLAGS`. The shell stripped the quotes at expansion time, so any whitespace or punctuation in `--message` (e.g. `2.1` in `Sprint 2.1`) was split into multiple args and the script errored with "unknown flag". Fixed by building a `ARGS=()` array and calling `bash scripts/release.sh "${ARGS[@]}"`. v2026.10.1 re-trigger hit this on the first try; without the fix every workflow_dispatch release of a `Sprint X.Y`-style message fails.
+
+**Out of scope**: deeper rework of the release plumbing (e.g. separate the version-and-message input handling from the run shell). The array fix is the smallest possible change.
+
+---
 
 ## 2026-10-10f — fix(ci/deploy): per-invocation REMOTE_DIR + atomic staging→final mv
 
@@ -632,7 +639,6 @@ All 7 jobs are read-only (just checkout + run tests). zizmor now reports
 - The qa-gates.yml dead-workflow scenario (decision pending: re-publish as a tagged reusable workflow, or drop entirely)
 - OTel collector endpoint decision (operator)
 - ast-grep replacement of lint_tier1.py (marginal value)
-=======
 ## 2026-10-09 — Tier 2 tooling adoption (zizmor + OTel + Prometheus)
 
 **Scope**: infrastructure for 4 Tier 2 wins from the 2026-10-09 research
