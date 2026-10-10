@@ -150,6 +150,9 @@ jobs:
                 # actions/checkout lands in detached HEAD; deploy.sh refuses
                 # to run --env=prod from anything but the `main` branch.
                 git checkout main
+                # release.sh may have just pushed the CHANGELOG bump commit
+                # to origin/main; sync local main so HEAD == origin/main.
+                git pull --ff-only origin main
                 bash scripts/deploy.sh --env=prod
                 ;;
               *)
@@ -165,6 +168,10 @@ jobs:
                 git tag -d "$TAG" || true
                 git push origin ":refs/tags/$TAG" || true
                 bash scripts/release.sh --version="${TAG#v}"
+                # release.sh just pushed the CHANGELOG bump commit to
+                # origin/main; sync local main so HEAD == origin/main for
+                # deploy.sh's pre-flight check.
+                git pull --ff-only origin main
                 ;;
             esac
           fi
