@@ -1,3 +1,11 @@
+## 2026-10-10 — ci: release workflow `git tag -d` before re-running release.sh
+
+**Scope**: `.github/workflows/release.yml`. The `*)` (tag-pushed-without-release.sh) branch now does `git tag -d "$TAG"` before calling `bash scripts/release.sh --version=...`. The release script's "refuse to re-tag" guard correctly fires on the tag we just pushed (it sees it locally after `git checkout main`); the cleanest fix is to delete the local tag first so the script can recreate it during its own `git tag -a` step. The remote tag is overwritten when the script pushes.
+
+**Out of scope**: removing the existence check from release.sh itself. The check protects local interactive runs (preventing double-tag if the operator runs `release.sh --version=X` twice with the same X); the workflow context is the exception.
+
+---
+
 ## 2026-10-10 — ci: release workflow `git checkout main` before release.sh too
 
 **Scope**: `.github/workflows/release.yml`. The `git checkout main` added in #131 covered the "tag already has a release commit" branch but missed the `*)` ("tag pushed without release.sh, run it now") branch. The v2026.10.2 release hit it: tag-push triggered the workflow, the workflow correctly decided to run `release.sh`, but `release.sh` then bailed with "ERROR: release.sh must run from main (currently on HEAD)" because the runner is still in detached HEAD after `actions/checkout`. Fixed by adding `git checkout main` before `bash scripts/release.sh --version=...` in the `*)` branch too.
