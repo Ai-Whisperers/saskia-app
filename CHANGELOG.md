@@ -1,39 +1,36 @@
-## 2026-10-10d — fix(void/dashboard/export): column-rename + dead-code-block + duplicate-fn bugs
+## 2026-10-10 — tests: stub conftest autouse chain for pure-Python tests (resolves CI test_daily_summary hang)
 
-**Scope**: completes the pre-existing test-failure fix from PR #120 by cherry-picking
-the substantive 3-fix bundle onto current main (rebased after #118's merge).
+**Scope**: `tests/conftest.py`. The 7997-test CI suite was timing out at 12min. Root cause: every test paid ~7s for `from app.rms.main import app` (autouse `reset_app_state`) + ~8s for `init_db()` (autouse chain `_close_leaked_sessions → session_factory → app_engine`), even tests like `test_daily_summary_dryrun` that shell out to a subprocess and never touch the DB.
 
-- `app/rms/sales/lifecycle.py::void_sale`: removed the legacy "US 4.1 — restore packaging"
-  block. The canonical StockMovement reversal loop (queries by
-  `reference_id`+`reference_type`) already reversed the packaging move (a
-  `movement_type="sale"`, qty<0 row). The legacy block re-restored packaging
-  from `sale.packaging_qty` AND added a duplicate StockMovement row, ending
-  packaging stock at +1 vs the expected 0 (the bug in
-  `test_saskia_r2_sale_packaging::test_void_sale_restores_packaging_stock`).
-- `app/routers/dashboard.py`: `_build_hourly_sales_chart` + `_build_30day_sales_chart`
-  used `Sale.recorded_at` but the model has `Sale.sold_at` (rename during the
-  `models_legacy` refactor). Replaced with `sold_at`. Fixes
-  `test_dashboard_enrollment_kpi` + `test_dashboard_regulars` (the 3 failures
-  all rooted in the same chart functions).
-- `app/services/export_xlsx.py`: deleted 7 duplicate `_write_*_sheet` /
-  `_load_lookup_maps` / `_create_workbook` / `_autosize_simple` /
-  `_resolve_line_target_name` functions that shadowed the canonical
-  implementations with stale 3-arg signatures, breaking the `to_file` call
-  sites with `TypeError: takes 3 positional arguments but 4 were given`.
-  Updated the `to_bytes` call site to use the canonical (longer-signature)
-  versions (`_write_productos_sheet(wb, session, recipes_by_id, products_by_id)`
-  + `_write_ventas_sheet(wb, session, None, None, products_by_id)` where the
-  `None` filter preserves the original all-time behavior).
+**Fix**: Added `_fixture_tree_needs_app()` helper that checks `request.fixturenames` against the set of app-touching fixture names. `reset_app_state`, `app_engine`, and `session_factory` short-circuit to a stub when the test's fixture tree doesn't include any of them. For pure-Python / CLI tests, the autouse chain collapses to ~0s setup. For app-touching tests, behavior is unchanged.
 
-**Tests**: 4/4 void tests + 11/11 export tests + 3/3 dashboard tests pass.
-The 3 `test_excel_patch.py` failures (separate PATCH-plantilla column-rename
-bug) and 2 SASKIA-301/306 placeholder-formatting tests are pre-existing on
-main and out of scope for this commit.
+**Verification (local)**:
+- test_daily_summary.py: setup 8.07s → 2.54s per test, 2/2 pass
+- test_route_smoke_phase14_tier1.py: 84/84 pass (was 84/86, the 2 errors are now fixed)
+- test_money.py: 35/35 pass
 
-**Related PRs**: #118 (landed the SalePayment-delete + xlsx rename that this 
-rebase stacks on), #120 (the original, abandoned branch — this commit is the
-rebase of its content onto current main, with the SalePayment-delete step
-already on main from #118).
+CI will confirm end-to-end wall-time drop.
+
+**Out of scope**: deeper refactor to make `client` fixture itself lazy, or session-scoped engine. The 8s `init_db()` cost remains for app-touching tests; that's where it belongs.
+
+---
+
+## 2026-10-10 — tests: stub conftest autouse chain for pure-Python tests (resolves CI test_daily_summary hang)
+
+**Scope**: `tests/conftest.py`. The 7997-test CI suite was timing out at 12min. Root cause: every test paid ~7s for `from app.rms.main import app` (autouse `reset_app_state`) + ~8s for `init_db()` (autouse chain `_close_leaked_sessions → session_factory → app_engine`), even tests like `test_daily_summary_dryrun` that shell out to a subprocess and never touch the DB.
+
+**Fix**: Added `_fixture_tree_needs_app()` helper that checks `request.fixturenames` against the set of app-touching fixture names. `reset_app_state`, `app_engine`, and `session_factory` short-circuit to a stub when the test's fixture tree doesn't include any of them. For pure-Python / CLI tests, the autouse chain collapses to ~0s setup. For app-touching tests, behavior is unchanged.
+
+**Verification (local)**:
+- test_daily_summary.py: setup 8.07s → 2.54s per test, 2/2 pass
+- test_route_smoke_phase14_tier1.py: 84/84 pass (was 84/86, the 2 errors are now fixed)
+- test_money.py: 35/35 pass
+
+CI will confirm end-to-end wall-time drop.
+
+**Out of scope**: deeper refactor to make `client` fixture itself lazy, or session-scoped engine. The 8s `init_db()` cost remains for app-touching tests; that's where it belongs.
+
+---
 
 ## 2026-10-10e — fix(ci/deploy): unblock all PRs from three concurrent-deploy races
 
@@ -128,44 +125,6 @@ careful audit before merging to prod.
 **Out of scope**: the 95 other commits in the restore branch
 (complexity refactor + ANN per-file ignores + 509 lint errors). If that
 work is wanted, it needs its own cleanup pass.
-
-## 2026-10-10d — fix(export): PATCH plantilla uses clean column names
-
-**Scope**: fix 3 pre-existing `test_excel_patch.py` failures on `main`.
-The PATCH plantilla (used by operators to download → edit → upload via
-the `?mode=PATCH` import endpoint) was using the EXPORT column sets
-(`PRODUCTOS_COLS`, `CLIENTES_COLS`, etc.) as headers, which are
-designed for the `/exports/xlsx?period=...` path, not PATCH.
-
-The PATCH handler in `app/services/import_xlsx.py` reads the header
-row verbatim and uses each cell as the dict key for `row.get("name")`
-lookups. The export columns have `[REQUIRED]` / `[OPTIONAL]`
-annotations baked into the header text (`"name [REQUIRED]"`), so the
-PATCH handler's `row.get("name")` returned `None` and silently
-matched no rows.
-
-- `app/services/export_xlsx.py`: added 4 new constants — `PATCH_PRODUCTOS_COLS`,
-  `PATCH_CLIENTES_COLS`, `PATCH_INGREDIENTES_COLS`, `PATCH_RECETAS_COLS` —
-  with clean column names matching what each `_import_patch_*` handler
-  reads (no annotations, English field names, no `id` column).
-- `_build_patch_plantilla_wb` now uses the PATCH_*_COLS constants
-  instead of the EXPORT ones.
-- Recetas data row extended from 4 to 5 cells: `[name, yield_qty, yield_unit,
-  prep_minutes, notes]` (the PATCH handler updates `prep_minutes`; the
-  export version didn't include it because Recetas export had `yield_unit`
-  in that position).
-
-**Tests**: 3 previously-failing tests now pass
-(`test_plantilla_prepopulates_products`, `test_plantilla_clientes_header_only`,
-`test_end_to_end_plantilla_edit_upload_updates_price`). Full
-`test_excel_patch.py` (19 tests) is green. The other 15 pre-existing
-export/import test failures are addressed by PR #120 (export_xlsx
-duplicate-function shadowing bug) and remain failing on this branch
-because #120 isn't merged yet.
-
-**Out of scope**: the 15 export/import failures (`test_excel_export_period`,
-`test_excel_import_full_flow`, `test_import_roundtrip`) — separate
-duplicate-function bug in `export_xlsx.py`, addressed by PR #120.
 
 ## 2026-10-10 — Docs quality: link-check gate + baseline refresh + dup-delete
 
@@ -1305,47 +1264,3 @@ Closes #114 and #115.
 - **SASKIA-212**: `ALLOWED_CHANNELS`, `CHANNELS_DISPLAY`, `CHANNEL_DEFAULT` in `app/rms/models/channels.py` were the last TODO from the docs-quality audit. Only one importer remained: `tests/test_P42_channel_enum_integration.py`. Migrated that test to use `Channel.default()` / `Channel.allowed_values()` directly, then deleted the 3 legacy constants + the deprecation comment.
 - **SASKIA-213**: `tests/test_dashboard_kpis_end_to_end.py` had a `# TODO: Fix _period_window` comment dating from when `?period=custom` (no dates) returned 500. The fix was already in place: `app/routers/dashboard.py:_resolve_period_window` routes the no-dates case through `_period_window("custom")` which falls back to today's window. Tightened the test to assert exactly 200 and dropped the stale KNOWN BUG / TODO comments.
 - `make todos` now reports 0 active code TODOs.
-
-## 2026-10-10 — docs(WHAT_NEXT): refresh after tier-3 close
-
-WHAT_NEXT.md was stale (claimed #112 open, #100 not started, 7 active
-TODOs). Refreshed to reflect the post-#119 state. Archived the prior
-version as `docs/operations/2026-10-10-early-WHAT_NEXT-archived.md` per
-the dated-archive convention. No code changes.
-
-## 2026-10-10 — fix(cierre): restore monthly-close aggregate totals broken by 2026-10-09 refactor
-
-The 2026-10-09 complexity refactor (commit `eb1c28c9`) extracted helper
-functions from `compute_monthly_close` but left the final
-`_build_monthly_close_result` returning
-`MonthlyClose(year=year, month=month, rows=rows, family_rows=family_rows)`,
-which the `MonthlyClose` dataclass does not accept. Result: 11 of 15
-tests in `tests/test_cierre.py` failed with
-`TypeError: MonthlyClose.__init__() got an unexpected keyword argument 'year'`,
-plus 60 tests in `tests/test_date_boundary.py` and 43 in `test_reports.py` +
-`test_analytics_properties_phase14_tier4.py` exercising the same code
-path indirectly.
-
-Fix: rewrote `_build_monthly_close_result` to compute the full set of
-aggregate fields the dataclass expects (`period_label`, `start`, `end`,
-`product_rows`, `total_ventas_gs`, `total_iva_ventas_gs`,
-`total_prime_cost_gs`, `total_margen_neto_gs`, `total_margen_pct`,
-`total_sales`, `top_product`). Caller now passes `start` (date),
-`end` (date), and `sales` (for `total_sales`).
-
-Verification:
-- `tests/test_cierre.py`: 15/15 pass (was 4/15)
-- `tests/test_date_boundary.py`: 60/60 pass
-- `tests/test_reports.py` + `tests/test_analytics_properties_phase14_tier4.py`: 43/43 pass
-- `ruff check` + `ruff format --check`: clean
-
-## 2026-10-10e — docs(WHAT_NEXT): refresh after #123 + #125
-
-WHAT_NEXT was stale again (claimed 2 open PRs, 0 active code TODOs,
-the test_cierre regression was still open). Refreshed to reflect
-the post-#123 + #125 state. Archived the prior version as
-`docs/operations/2026-10-10-late-WHAT_NEXT-archived.md`.
-
-Now reflects: 0 open issues, 2 open PRs (Ivan's #122, #124), the
-118 tests previously broken by the cierre refactor + the
-#125 rebased test fixes are now passing. No code changes.

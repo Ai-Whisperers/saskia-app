@@ -46,6 +46,34 @@ import sys as _sys
 
 import pytest
 
+# Fixtures whose presence means the test wants a real app + DB.
+# Used to skip the expensive `app_engine`/`init_db()` chain for tests
+# that don't touch the DB (e.g. test_daily_summary.py which shells out
+# to a subprocess). Optimization added 2026-10-10 after CI was timing
+# out at 12min on the 7997-test collection.
+_APP_FIXTURE_NAMES = frozenset(
+    {
+        "app_engine",
+        "session_factory",
+        "app",
+        "client",
+        "authed_client",
+        "client_with_caja",
+    }
+)
+
+
+def _fixture_tree_needs_app(fixturenames) -> bool:
+    """True if the test's fixture tree includes any app-touching fixture.
+
+    `fixturenames` is `request.fixturenames` from inside a fixture body.
+    We can't rely on `sys.modules` alone: pytest builds `session_factory`
+    BEFORE `client`, so when `client` is requested `app.*` isn't yet
+    imported. Checking the test's requested fixtures is the accurate
+    signal.
+    """
+    return any(name in _APP_FIXTURE_NAMES for name in fixturenames)
+
 
 class _SilenceUnraisable:
     """Context manager: replace sys.unraisablehook for the duration of a
@@ -160,7 +188,7 @@ def make_decimal():
 
 
 @pytest.fixture
-def app_engine(tmp_db_path):
+def app_engine(tmp_db_path, request):
     """Create a file-based SQLite engine in tmp_path with WAL pragmas.
 
     Use this fixture when you need a DB but not a full FastAPI app.
@@ -170,7 +198,29 @@ def app_engine(tmp_db_path):
     pin a StaticPool — but our WAL pragma listener then can't safely
     apply journal_mode to per-connection in-memory DBs. File-based
     solves both problems.
+
+    Optimization (2026-10-10): when the test hasn't imported anything
+    from the app package, return a stub engine. The autouse chain
+    (reset_app_state → _close_leaked_sessions → session_factory →
+    app_engine) was costing ~8s per test (init_db applies 117
+    migrations) on the 7997-test suite; skipping init_db() for
+    pure-Python tests like test_daily_summary.py lets CI finish.
     """
+    if not _fixture_tree_needs_app(request.fixturenames):
+
+        class _StubEngine:
+            def connect(self, *args, **kwargs):
+                raise RuntimeError(
+                    "app_engine stubbed; this test should not touch the DB. "
+                    "If it needs a real engine, import something from app.* first."
+                )
+
+            @property
+            def pool(self):
+                raise RuntimeError("app_engine stubbed")
+
+        return _StubEngine()
+
     from app.rms.db import init_db, make_engine
 
     engine = make_engine(f"sqlite:///{tmp_db_path}/test.sqlite")
@@ -195,7 +245,7 @@ def app_engine_session(tmp_path_factory):
 
 
 @pytest.fixture
-def session_factory(app_engine):
+def session_factory(app_engine, request):
     """sessionmaker bound to the app_engine fixture.
 
     Wraps the underlying sessionmaker so every Session opened through
@@ -203,7 +253,31 @@ def session_factory(app_engine):
     fixture closes any still-open sessions at end of test, suppressing
     the ~1,100 ``ResourceWarning: unclosed database`` warnings emitted
     by tests that don't use ``with session_factory() as s:`` (53 files).
+
+    Optimization (2026-10-10): when the test hasn't imported anything
+    from the app package, return a stub factory whose ``_tracked`` is
+    ``None`` — the autouse ``_close_leaked_sessions`` then becomes a
+    no-op. This avoids the ~8s init_db() cost on the 7997-test suite
+    for pure-Python tests like test_daily_summary.py.
     """
+    if not _fixture_tree_needs_app(request.fixturenames):
+
+        class _NullFactory:
+            """Stub for tests that don't touch the DB. Raises on use."""
+
+            _tracked = None  # _close_leaked_sessions bails when this is None
+
+            def __call__(self, *args, **kwargs):
+                raise RuntimeError(
+                    "session_factory stubbed; this test should not request a session. "
+                    "If it needs a real session, import something from app.* first."
+                )
+
+            def __getattr__(self, name):
+                raise RuntimeError(f"session_factory stubbed; requested attr '{name}'.")
+
+        return _NullFactory()
+
     import weakref
 
     from app.rms.db import make_session_factory
@@ -253,12 +327,24 @@ def _close_leaked_sessions(session_factory):
 
 
 @pytest.fixture(autouse=True)
-def reset_app_state():
+def reset_app_state(request):
     """Reset FastAPI app.state between tests so the lifespan override is clean.
 
     Without this, app.state.engine / app.state.session_factory from one test
     leak into the next, causing tests that should be isolated to share state.
+
+    Optimization (2026-10-10): skip the `from app.rms.main import app` cost
+    (7s cold) when the test's fixture tree doesn't include any app-touching
+    fixture (client, session_factory, etc.). For pure-Python / CLI tests
+    like test_daily_summary.py (which shells out to a subprocess), this is
+    a no-op and saves the per-test import that was making CI blow past
+    its 12-min job timeout on the 7997-test collection.
     """
+    if not _fixture_tree_needs_app(request.fixturenames):
+        # No app-touching fixture requested — nothing to reset, no import cost.
+        yield
+        return
+
     from app.rms.main import app
 
     # Clear any state set by previous tests; the `client` fixture repopulates.
