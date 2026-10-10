@@ -1,3 +1,18 @@
+## 2026-10-10 — tests: skip conftest app-imports for pure-Python / CLI tests (CI hang fix)
+
+**Scope**: `tests/conftest.py`. The 7997-test suite was timing out at 12min on CI. Root cause: every test paid ~7s for `from app.rms.main import app` (autouse `reset_app_state`) + ~8s for `init_db()` (autouse chain `_close_leaked_sessions → session_factory → app_engine`), even tests like `test_daily_summary_dryrun` that shell out to a subprocess and never touch the DB.
+
+**Fix**: Added `_test_uses_app()` helper that checks `sys.modules` for any `app.*` import. `reset_app_state`, `app_engine`, and `session_factory` now short-circuit to a stub when no app module has been imported. For pure-Python / CLI tests, the autouse chain collapses to ~0s setup. For app-touching tests, behavior is unchanged.
+
+**Verification**: 
+- `test_daily_summary.py` (2 tests, pure-Python): setup dropped from 8.07s → 0.01s per test
+- `test_money.py` (35 tests, app-touching): 35/35 still pass
+- Regression batch (32 tests, app-touching): 32 passed, 2 skipped, no failures
+
+**Out of scope**: deeper refactor to make the FastAPI `client` fixture itself lazy, or a session-scoped engine. The 8s init_db cost remains for app-touching tests; that's where it belongs. Full CI run after merge will confirm total wall-time drop.
+
+---
+
 ## 2026-10-09 — Reponer board sits under the top bar
 
 The replenishment board leaves room for the top bar, so the last rows
