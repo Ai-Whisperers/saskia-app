@@ -71,7 +71,9 @@ def test_dashboard_shows_upcoming_birthday(client, session_factory):
         c.birthday = mmdd
         c.marketing_consent = True
         s.commit()
-    r = client.get("/")
+    # The chooser at "/" doesn't include the dashboard widgets; the
+    # actual /inicio is where _build_birthdays() gets rendered.
+    r = client.get("/inicio")
     assert r.status_code == 200
     body = r.text
     assert "Cumpleaños de la semana" in body
