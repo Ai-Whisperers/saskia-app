@@ -9,6 +9,8 @@
 - `test_money.py` (35 tests, app-touching): 35/35 still pass
 - Regression batch (32 tests, app-touching): 32 passed, 2 skipped, no failures
 
+**Update (same PR, follow-up commit)**: First attempt used `sys.modules` to detect app-touching tests. That broke 2 route-smoke tests (`RuntimeError: session_factory stubbed; requested attr 'kw'`) because pytest builds `session_factory` BEFORE `client` is instantiated, so `app.*` modules aren't yet in `sys.modules`. Fixed by checking `request.fixturenames` against the set of app-touching fixture names (`client`, `authed_client`, `client_with_caja`, `app_engine`, `session_factory`, `app`) — the test's full fixture tree IS known before any fixture body runs. Verified: test_daily_summary.py 2/2 pass (setup 8.07s → 2.54s), test_route_smoke_phase14_tier1.py 84/84 pass.
+
 **Out of scope**: deeper refactor to make the FastAPI `client` fixture itself lazy, or a session-scoped engine. The 8s init_db cost remains for app-touching tests; that's where it belongs. Full CI run after merge will confirm total wall-time drop.
 
 ---
