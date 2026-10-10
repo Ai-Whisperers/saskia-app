@@ -10,10 +10,10 @@
 |---|---|---|
 | **Already fixed in PR #138** | 4 | ✅ Will be green on PR merge |
 | **Known pre-existing (out of scope)** | 6 | ❌ Tracked separately |
-| **NEW pre-existing failures (need investigation)** | 18 | ⚠️ **Most are real dormant bugs** |
-| **Total** | **28** | |
+| **NEW pre-existing failures (need investigation)** | 19 | ⚠️ **Most are real dormant bugs** |
+| **Total** | **29** | |
 
-1784 tests pass. 28 fail. The 22 NEW failures (18 unique bugs + 4 already-fixed) are the focus of this analysis.
+1784 tests pass. 29 fail. The 23 NEW failures (19 unique bugs + 4 already-fixed) are the focus of this analysis.
 
 ## Methodology
 
@@ -21,7 +21,7 @@
 2. Captured 1784 pass / 28 fail in 15 minutes.
 3. Investigated each failure: read the assertion, traced the route, categorized.
 
-## NEW Pre-Existing Failures (18 tests, all real bugs)
+## NEW Pre-Existing Failures (19 tests, all real bugs), all real bugs)
 
 ### Critical: Business logic broken silently
 
@@ -43,6 +43,7 @@ These are dormant bugs that would cause real harm in production but the test sui
 
 | Test | UI element | Real bug |
 |---|---|---|
+| `test_routes.py::test_inventory_vos_copy_present` | Inventory | Inventory form lost "Guardá" voseo copy. Same family as produccion UX regression. |
 | `test_demo_reset.py::test_dashboard_empty_state_after_reset` | Dashboard | After demo reset, dashboard should show "Sin ventas" but renders with SVG icons instead. |
 | `test_p3_connections.py::test_dashboard_shows_upcoming_birthday` | Dashboard | "Cumpleaños de la semana" widget missing from dashboard. |
 | `test_produccion_polish.py::TestTableOverhaulColumns::test_allergen_badges_removed_from_row_body` | Produccion | Production table still has `allergen-badge` class — the polish refactor didn't land. |
