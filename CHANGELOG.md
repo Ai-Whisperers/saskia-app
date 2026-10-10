@@ -1,3 +1,11 @@
+## 2026-10-10 — ci: release workflow passes args via bash array, not string
+
+**Scope**: `.github/workflows/release.yml`. The `workflow_dispatch` branch was building a `FLAGS="..."` string with embedded single quotes and then unquoted-expanding it: `bash scripts/release.sh $FLAGS`. The shell stripped the quotes at expansion time, so any whitespace or punctuation in `--message` (e.g. `2.1` in `Sprint 2.1`) was split into multiple args and the script errored with "unknown flag". Fixed by building a `ARGS=()` array and calling `bash scripts/release.sh "${ARGS[@]}"`. v2026.10.1 re-trigger hit this on the first try; without the fix every workflow_dispatch release of a `Sprint X.Y`-style message fails.
+
+**Out of scope**: deeper rework of the release plumbing (e.g. separate the version-and-message input handling from the run shell). The array fix is the smallest possible change.
+
+---
+
 ## 2026-10-10 — ci: release workflow needs `git checkout main` before deploy.sh
 
 **Scope**: `.github/workflows/release.yml`. The `Release (CalVer tag → prod)` workflow's tag-push branch tries to run `scripts/deploy.sh --env=prod`, but `actions/checkout` lands in detached HEAD and `deploy.sh` refuses to run from anything but the `main` branch. Fixed by adding `git checkout main` before the deploy step. (Caught by the v2026.10.1 release run — tag pushed, workflow tried to deploy, failed on the branch check, deploy was skipped.)
