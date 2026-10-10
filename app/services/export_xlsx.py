@@ -451,8 +451,10 @@ def to_bytes(session: Session) -> bytes:
     _write_ingredientes_sheet(wb, session)
     _write_recetas_sheet(wb, session)
     _write_lineas_sheet(wb, session, ingredients_by_id, recipes_by_id)
-    _write_productos_sheet(wb, session, recipes_by_id)
-    _write_ventas_sheet(wb, session, products_by_id)
+    _write_productos_sheet(wb, session, recipes_by_id, products_by_id)
+    # No period filter for to_bytes (all-time export). sale_start/sale_end
+    # = None tells _write_ventas_sheet to skip the date WHERE clause.
+    _write_ventas_sheet(wb, session, None, None, products_by_id)
 
     wb.save(path)
     return path.getvalue()
@@ -479,121 +481,6 @@ def _load_lookup_maps(session) -> tuple:
     recipes_by_id = {rec.id: rec for rec in session.scalars(select(Recipe)).all()}
     products_by_id = {prod.id: prod for prod in session.scalars(select(Product)).all()}
     return ingredients_by_id, recipes_by_id, products_by_id
-
-
-def _write_ingredientes_sheet(wb, session) -> None:
-    """Write the Ingredientes sheet.
-
-    Extracted from to_bytes to reduce complexity.
-    """
-    ws = wb.create_sheet("Ingredientes")
-    _write_header(ws, INGREDIENTES_COLS)
-    for ing in session.scalars(select(Ingredient).order_by(Ingredient.id)).all():
-        ws.append(
-            [
-                ing.id,
-                ing.name,
-                ing.unit,
-                ing.stock_qty,
-                _money_cell(ing.purchase_price_gs),
-                ing.min_stock_qty,
-                ing.notes,
-            ]
-        )
-
-
-def _write_recetas_sheet(wb, session) -> None:
-    """Write the Recetas sheet.
-
-    Extracted from to_bytes to reduce complexity.
-    """
-    ws = wb.create_sheet("Recetas")
-    _write_header(ws, RECETAS_COLS)
-    for rec in session.scalars(select(Recipe).order_by(Recipe.id)).all():
-        ws.append([rec.id, rec.name, rec.yield_qty, rec.yield_unit, rec.notes])
-
-
-def _write_lineas_sheet(wb, session, ingredients_by_id, recipes_by_id) -> None:
-    """Write the Lineas sheet.
-
-    Extracted from to_bytes to reduce complexity.
-    """
-    ws = wb.create_sheet("Lineas")
-    _write_header(ws, LINEAS_COLS)
-    for recipe in recipes_by_id.values():
-        for line in recipe.lines:
-            target_name_str = _resolve_line_target_name(line, ingredients_by_id, recipes_by_id)
-            ws.append(
-                [
-                    line.id,
-                    line.recipe_id,
-                    recipe.name,
-                    line.line_kind,
-                    line.line_ref_id,
-                    target_name_str,
-                    line.qty,
-                    line.notes,
-                ]
-            )
-
-
-def _resolve_line_target_name(line, ingredients_by_id, recipes_by_id) -> str | None:
-    """Resolve the target name for a recipe line.
-
-    Extracted from _write_lineas_sheet to reduce complexity.
-    """
-    if line.line_kind == "ingredient":
-        target = ingredients_by_id.get(line.line_ref_id)
-    elif line.line_kind == "sub_recipe":
-        target = recipes_by_id.get(line.line_ref_id)
-    else:
-        return None
-    return target.name if target else None
-
-
-def _write_productos_sheet(wb, session, recipes_by_id) -> None:
-    """Write the Productos sheet.
-
-    Extracted from to_bytes to reduce complexity.
-    """
-    ws = wb.create_sheet("Productos")
-    _write_header(ws, PRODUCTOS_COLS)
-    for prod in session.scalars(select(Product).order_by(Product.id)).all():
-        recipe_name = recipes_by_id.get(prod.recipe_id)
-        ws.append(
-            [
-                prod.id,
-                prod.name,
-                prod.portion_label,
-                _money_cell(prod.sale_price_gs),
-                prod.recipe_id,
-                recipe_name.name if recipe_name else None,
-                prod.notes,
-            ]
-        )
-
-
-def _write_ventas_sheet(wb, session, products_by_id) -> None:
-    """Write the Ventas sheet.
-
-    Extracted from to_bytes to reduce complexity.
-    """
-    ws = wb.create_sheet("Ventas")
-    _write_header(ws, VENTAS_COLS)
-    for sale in session.scalars(select(Sale).order_by(Sale.id)).all():
-        product = products_by_id.get(sale.product_id)
-        ws.append(
-            [
-                sale.id,
-                sale.sold_at,
-                sale.product_id,
-                product.name if product else None,
-                sale.qty,
-                _money_cell(sale.unit_price_gs),
-                sale.notes,
-                sale.voided_at,
-            ]
-        )
 
 
 def _autosize_simple(ws: object, max_width: int = 40) -> None:

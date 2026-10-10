@@ -348,25 +348,15 @@ def void_sale(
     if voided_by:
         sale.voided_by = voided_by
 
-    # US 4.1 — restore packaging ingredient stock + audit row.
-    if sale.packaging_item_id is not None and sale.packaging_qty:
-        pkg = session.get(Ingredient, sale.packaging_item_id)
-        if pkg is not None:
-            restored_qty = float(sale.packaging_qty)
-            pkg.stock_qty = (pkg.stock_qty or 0) + restored_qty
-            restored.append((pkg.id, restored_qty))
-            stock_movement = StockMovement(
-                ingredient_id=pkg.id,
-                movement_type="sale",
-                qty=restored_qty,
-                reason=f"Anulación venta #{sale.id} (packaging)"
-                + (f" — {reason}" if reason else ""),
-                reference_id=sale.id,
-                reference_type="sale",
-                recorded_at=now_utc,
-                created_by=voided_by,
-            )
-            session.add(stock_movement)
+    # US 4.1 packaging restore: the canonical StockMovement reversal
+    # loop above (which queries StockMovement by reference_id+reference_type)
+    # already reversed the packaging move written by apply_sale (it's
+    # a `movement_type="sale"`, qty<0 row). The previous legacy block
+    # here re-restored it from `sale.packaging_qty` AND added a duplicate
+    # StockMovement row, double-counting the packaging stock (the bug
+    # in test_saskia_r2_sale_packaging::test_void_sale_restores_packaging_stock).
+    # The single canonical path is the StockMovement loop; this block is
+    # intentionally not present.
 
     session.commit()
 
