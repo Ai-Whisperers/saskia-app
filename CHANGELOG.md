@@ -10,6 +10,21 @@
 
 Released as v2026.10.1. Commit: `e54c4571`.
 
+## 2026-10-10 — docs(WHAT_NEXT): refresh after #126 + #129 + #127 + #125 + #122
+
+**Scope**: `WHAT_NEXT.md` (regenerated, dated; previous archived to `docs/operations/2026-10-10-evening-WHAT_NEXT-archived.md`); `CHANGELOG.md` (added this entry, deduped the #126 entry that survived two rebase attempts).
+
+**What changed in WHAT_NEXT**:
+- 0 open PRs (was 2: #122, #124 — both closed/merged in this session)
+- 0 open issues (unchanged)
+- "What's next?" reranked: VPS secrets rotation is now #1 (deploy-dev green, deploy-test green-but-flaky from bws 429); coverage gap analysis #2 (still 26.12%, gate is 35%)
+- Closed list now covers #122, #125, #127, #129, #126
+- Tooling note: CI test wall-time dropped 12min → 1.5min after #126
+
+**Why**: WHAT_NEXT is the operator's punchlist. The 5 closed PRs since the last refresh materially changed the state; refreshing keeps the punchlist honest.
+
+---
+
 ## 2026-10-10 — tests: stub conftest autouse chain for pure-Python tests (resolves CI test_daily_summary hang)
 
 **Scope**: `tests/conftest.py`. The 7997-test CI suite was timing out at 12min. Root cause: every test paid ~7s for `from app.rms.main import app` (autouse `reset_app_state`) + ~8s for `init_db()` (autouse chain `_close_leaked_sessions → session_factory → app_engine`), even tests like `test_daily_summary_dryrun` that shell out to a subprocess and never touch the DB.
