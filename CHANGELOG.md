@@ -1,3 +1,22 @@
+## 2026-10-10j — docs(audit): land pre-existing test failures audit on main
+
+**Scope**: `docs/operations/2026-10-10-clean-main-test-audit.md`.
+
+The audit identifies **29 pre-existing test failures on clean `origin/main`** (1784 pass, 29 fail). Of those:
+
+- **4 already fixed** by PR #146 (dashboard `prior_label`, inventory `lead_time_days` NULL guard).
+- **6 test-copy mismatches** (15-min XS work — `'Sin ventas todavía'` vs `'Sin datos de ventas por hora'`).
+- **19 real dormant bugs** that no PR addresses today:
+  - P0: loyalty points silently missing on sale creation; audit log missing; idempotency JSON value empty; fiado sale doesn't create customer debt; `/ventas/nueva` returns 422 for normal sales (validation cascade); `/ventas/nueva` returns 404 under rate-limit burst.
+  - P1: dashboard empty-state SVG icons, "Cumpleaños de la semana" widget missing; produccion allergen-badges still in row body, save button missing "Guardá", plan column missing "Lotes"/"Meta (und)" labels, bulk CSV summary missing "Volver al plan" link; menus page missing "25.000" formatted price placeholder.
+  - Estimated total fix effort: **15-20h** across P0/P1 PRs.
+
+**Provenance**: cherry-picked the audit commits from `origin/audit/test-failures-2026-10-10` (originally created in the `/opt/data/work/saskia-refactor` worktree). The audit was the result of a strategic test subset (`-k "inventario or sale or eod or produccion or refund or venta or pedido or dashboard or price_history"`) run on 2026-10-10 22:14 UTC against `origin/main` at `6e0343c7`.
+
+**Recommended next action**: open P0 PRs for the 5 critical business-logic bugs (loyalty, audit, idempotency, fiado, sale validation) — each is 1-4h of work.
+
+---
+
 ## 2026-10-10i — fix(dashboard,inventory): prior_label context + lead_time_days NULL guard
 
 **Scope**: `app/routers/dashboard.py`, `app/routers/inventory.py`, `app/CHANGELOG.md`.
