@@ -1172,3 +1172,10 @@ Closes #114 and #115.
 - **SASKIA-212**: `ALLOWED_CHANNELS`, `CHANNELS_DISPLAY`, `CHANNEL_DEFAULT` in `app/rms/models/channels.py` were the last TODO from the docs-quality audit. Only one importer remained: `tests/test_P42_channel_enum_integration.py`. Migrated that test to use `Channel.default()` / `Channel.allowed_values()` directly, then deleted the 3 legacy constants + the deprecation comment.
 - **SASKIA-213**: `tests/test_dashboard_kpis_end_to_end.py` had a `# TODO: Fix _period_window` comment dating from when `?period=custom` (no dates) returned 500. The fix was already in place: `app/routers/dashboard.py:_resolve_period_window` routes the no-dates case through `_period_window("custom")` which falls back to today's window. Tightened the test to assert exactly 200 and dropped the stale KNOWN BUG / TODO comments.
 - `make todos` now reports 0 active code TODOs.
+
+## 2026-10-10 — docs(WHAT_NEXT): refresh after tier-3 close
+
+WHAT_NEXT.md was stale (claimed #112 open, #100 not started, 7 active
+TODOs). Refreshed to reflect the post-#119 state. Archived the prior
+version as `docs/operations/2026-10-10-early-WHAT_NEXT-archived.md` per
+the dated-archive convention. No code changes.
