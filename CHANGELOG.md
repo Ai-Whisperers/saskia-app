@@ -1,3 +1,11 @@
+## 2026-10-10 — ci: release workflow `git pull --ff-only` before deploy.sh
+
+**Scope**: `.github/workflows/release.yml`. After `release.sh` runs (which pushes a new CHANGELOG bump commit to origin/main), local `main` is now one commit behind origin/main. `deploy.sh --env=prod` then bails with "ERROR: --env=prod requires HEAD == origin/main". Fixed by adding `git pull --ff-only origin main` after release.sh in both the `*)` and the `*)` (oh wait, the same branch) ... actually added to BOTH code paths in the `case` statement.
+
+**Out of scope**: relaxing the deploy.sh check (it correctly enforces clean state, and a fast-forward pull is the right way to satisfy it in a CI context).
+
+---
+
 ## 2026-10-10 — ci: release workflow also deletes remote tag in fallback path
 
 **Scope**: `.github/workflows/release.yml`. Even with `git tag -d "$TAG"` locally, the remote tag still exists and `release.sh`'s final `git push origin $HEAD:refs/heads/main $TAG` fails on the tag with `! [rejected] ... (already exists)`. The v2026.10.2 release hit this AFTER auth, after the local CHANGELOG bump, after the release commit was created. Fixed by also `git push origin ":refs/tags/$TAG"` before calling release.sh, so both refs are clean for the script to recreate.
