@@ -1,3 +1,26 @@
+## 2026-10-10 — docs(operations): deploy-pipeline race-condition audit
+
+**Scope**: `docs/operations/2026-10-10-deploy-race-audit.md`. Post-mortem
+for the 4-bug session that unblocked all PRs on 2026-10-10 (PRs #129 and
+#133). The doc covers: full timeline of the 4 race conditions, their
+individual symptoms, root cause analysis, the fixes that landed, and
+lessons for future deploy script changes. Future sessions should read
+this before touching `scripts/deploy.sh` or the deploy workflows —
+the deploy architecture's concurrency story is documented in one place.
+
+**Why now**: the audit was the right time to write it down because the
+fixes were fresh and the alternative (each future session re-discovers
+the same races) was actively slowing down PR throughput. The doc is
+also the entry point for the **Bigger Refactor** followup: a per-PR
+deploy namespace or a lockfile-based serialization, which is strictly
+additive over the per-invocation staging model I shipped.
+
+**No code change** — docs only. CHANGELOG entry added to satisfy the
+AGENTS.md rule 35 "every PR that changes `docs/` MUST update
+CHANGELOG" convention.
+
+---
+
 
 ## 2026-10-10g — ci: release workflow passes args via bash array, not string
 
