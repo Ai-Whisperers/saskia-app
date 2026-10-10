@@ -117,6 +117,14 @@ echo "==> HEAD: $(git log --oneline -1)"
 #    no longer overwrites PR-B's mid-transfer, which was producing
 #    gzip CRC errors on the receiving end.
 TAR_FILE="/tmp/sazon-src-$$-$(date -u +%Y%m%d-%H%M%S).tar.gz"
+# Per-invocation REMOTE_DIR (staging) + per-env REMOTE_DIR_FINAL
+# (canonical) so concurrent deploys do not rm -rf each other's
+# trees mid-build. After the build succeeds, we mv staging -> final
+# (atomic on the same filesystem). The cron jobs and stack deploy
+# target the canonical per-env final dir, so a half-finished staging
+# dir is never picked up by the running services.
+REMOTE_DIR_FINAL="/opt/build-apps/sazon-rms-$ENV"
+REMOTE_DIR="/opt/build-apps/sazon-rms-$ENV-staging-$$-$(date -u +%Y%m%d-%H%M%S)"
 if [ "$DRY_RUN" = "1" ]; then
   echo "DRY: tar ... -czf $TAR_FILE ."
 else
@@ -129,7 +137,7 @@ run scp -q -i "$KEY" -o StrictHostKeyChecking=no "$TAR_FILE" "$VPS:/tmp/"
 
 # 2. extract + sanity: the tree must contain what we think we shipped
 run ssh -i "$KEY" -o StrictHostKeyChecking=no "$VPS" \
-    "rm -rf $REMOTE_DIR && mkdir -p $REMOTE_DIR && tar xzf $TAR_FILE -C $REMOTE_DIR/ && rm -f $TAR_FILE"
+    "mkdir -p $REMOTE_DIR && tar xzf $TAR_FILE -C $REMOTE_DIR/ && rm -f $TAR_FILE"
 
 # bash parameter expansion, not `cut`: the dry-run test sandboxes PATH to a
 # minimal coreutils set that deliberately lacks cut/awk.
@@ -209,6 +217,14 @@ run ssh -i "$KEY" -o StrictHostKeyChecking=no "$VPS" "
   # skill, Swarm's tag-reconciliation alone won't swap when the tag is the
   # same name with a new digest — --force is mandatory.
   docker service update --image sazon-rms:$DEPLOY_TAG $SERVICE_NAME --force 2>&1 | tail -1
+
+  # Atomic switch: replace the canonical per-env dir with our just-built
+  # staging dir. After this mv, /opt/build-apps/sazon-rms-$ENV points at
+  # the new tree. Old trees are cleaned up below.
+  rm -rf $REMOTE_DIR_FINAL && mv $REMOTE_DIR $REMOTE_DIR_FINAL
+  # Clean up any older staging dirs (more than 5 minutes old) so they
+  # don't accumulate on the VPS.
+  find /opt/build-apps -maxdepth 1 -type d -name "sazon-rms-$ENV-staging-*" -mmin +5 -exec rm -rf {} + 2>/dev/null || true
 "
 
 # 4. verify

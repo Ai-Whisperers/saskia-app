@@ -1,3 +1,38 @@
+
+
+## 2026-10-10f — fix(ci/deploy): per-invocation REMOTE_DIR + atomic staging→final mv
+
+**Scope**: Bug 4 from the deploy-pipeline race-condition investigation.
+The 3 bugs fixed in #129 made the scp+extract atomic per PR, but the
+`REMOTE_DIR` itself was still shared across all PRs. So PR-A's
+`rm -rf $REMOTE_DIR` could still wipe PR-B's freshly-extracted tree
+between PR-B's extract and PR-B's `docker build` — which manifested
+as intermittent `stat pyproject.toml: file does not exist` errors
+on the test/deploy job (caught by the docs-only PR #130 attempting
+to deploy).
+
+### Fix: per-invocation staging dir + per-env canonical dir
+
+```bash
+REMOTE_DIR_FINAL="/opt/build-apps/sazon-rms-$ENV"   # per-env, canonical
+REMOTE_DIR="/opt/build-apps/sazon-rms-$ENV-staging-$$-TIMESTAMP"  # per-invocation
+```
+
+Extract goes to `$REMOTE_DIR` (staging). `docker build` runs there.
+After the build succeeds, an atomic `mv $REMOTE_DIR $REMOTE_DIR_FINAL`
+swaps the canonical path to point at the new tree. Stack deploy,
+cron jobs, and any other script that uses the canonical per-env dir
+always see a complete, never-half-extracted tree.
+
+`rm -rf` was removed from the extract step (staging is per-invocation
+and starts empty). The `mv` step also cleans up any staging dirs
+older than 5 minutes so they don't accumulate on the VPS.
+
+**Tests**: 28/28 deploy-infra tests still pass. Dry-run verified
+the new `sazon-rms-test-staging-...` path. Will be live-verified
+by the first PR that lands through this branch.
+
+
 ## 2026-10-10 — ci: release workflow needs `git checkout main` before deploy.sh
 
 **Scope**: `.github/workflows/release.yml`. The `Release (CalVer tag → prod)` workflow's tag-push branch tries to run `scripts/deploy.sh --env=prod`, but `actions/checkout` lands in detached HEAD and `deploy.sh` refuses to run from anything but the `main` branch. Fixed by adding `git checkout main` before the deploy step. (Caught by the v2026.10.1 release run — tag pushed, workflow tried to deploy, failed on the branch check, deploy was skipped.)
