@@ -1,21 +1,21 @@
 {
   "schema": 1,
-  "snapshot": 11327,
+  "snapshot": 11333,
   "by_rule": {
-    "MD032": 3883,
+    "MD032": 3886,
     "MD022": 3594,
     "MD024": 2158,
     "MD031": 365,
     "MD036": 316,
     "MD025": 299,
-    "MD040": 292,
+    "MD040": 294,
     "MD012": 74,
     "MD047": 59,
     "MD034": 58,
     "MD004": 40,
     "MD029": 34,
     "MD051": 30,
-    "MD009": 26,
+    "MD009": 27,
     "MD026": 21,
     "MD038": 20,
     "MD005": 18,
@@ -15141,6 +15141,42 @@
       172,
       "MD034",
       "Bare URL used"
+    ],
+    [
+      "docs/operations/2026-10-09-tier2-followups.md",
+      26,
+      "MD009",
+      "Trailing spaces [Expected: 0 or 2; Actual: 1]"
+    ],
+    [
+      "docs/operations/2026-10-09-tier2-followups.md",
+      26,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/operations/2026-10-09-tier2-followups.md",
+      32,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/operations/2026-10-09-tier2-followups.md",
+      48,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/operations/2026-10-09-todo-triage.md",
+      44,
+      "MD040",
+      "Fenced code blocks should have a language specified"
+    ],
+    [
+      "docs/operations/2026-10-09-todo-triage.md",
+      107,
+      "MD040",
+      "Fenced code blocks should have a language specified"
     ],
     [
       "docs/operations/2026-10-09-tooling-and-critical-fixes.md",
