@@ -158,10 +158,12 @@ jobs:
                 # to run from anything but the `main` branch.
                 git checkout main
                 # release.sh's "refuse to re-tag" check would fire on the
-                # tag we just pushed; delete the local ref so the script
-                # can recreate it (the remote ref is harmless; we'll
-                # overwrite it on push).
+                # tag we just pushed. Delete both the local and remote ref
+                # so the script can recreate them. The release script's
+                # `git push origin $HEAD:refs/heads/main $TAG` will then
+                # succeed for the commit AND the tag.
                 git tag -d "$TAG" || true
+                git push origin ":refs/tags/$TAG" || true
                 bash scripts/release.sh --version="${TAG#v}"
                 ;;
             esac

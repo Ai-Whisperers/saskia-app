@@ -1,3 +1,11 @@
+## 2026-10-10 — ci: release workflow also deletes remote tag in fallback path
+
+**Scope**: `.github/workflows/release.yml`. Even with `git tag -d "$TAG"` locally, the remote tag still exists and `release.sh`'s final `git push origin $HEAD:refs/heads/main $TAG` fails on the tag with `! [rejected] ... (already exists)`. The v2026.10.2 release hit this AFTER auth, after the local CHANGELOG bump, after the release commit was created. Fixed by also `git push origin ":refs/tags/$TAG"` before calling release.sh, so both refs are clean for the script to recreate.
+
+**Out of scope**: rewriting release.sh to use `git push --force-with-lease` for the tag (cleaner but a bigger change). The delete-then-recreate pattern matches the local `git tag -d` we already do.
+
+---
+
 ## 2026-10-10 — ci: release workflow checkout must persist credentials
 
 **Scope**: `.github/workflows/release.yml`. The `actions/checkout` step had `persist-credentials: false`, which means the GITHUB_TOKEN wasn't written to `.git/config` remote URL. The release script's later `git push origin $HEAD:refs/heads/main $TAG` then prompted for credentials and died with `fatal: could not read Username`. The v2026.10.2 release hit this AFTER the CHANGELOG bump and release commit were already created locally. Fixed by setting `persist-credentials: true`. (The token still comes from `secrets.GITHUB_TOKEN`; the workflow already has `contents: write` permission.)
