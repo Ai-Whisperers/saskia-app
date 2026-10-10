@@ -74,9 +74,3 @@ class Channel(str, Enum):
 
 # SQLAlchemy enum type for migrations and model definitions
 CHANNEL_ENUM_TYPE = Annotated[Channel, "Channel enum ensuring only valid channels are accepted"]
-
-# Legacy constants for backward compatibility (deprecated)
-# TODO: Remove these once all code is updated to use Channel enum
-ALLOWED_CHANNELS = Channel.allowed_values()
-CHANNELS_DISPLAY = Channel.display_order()
-CHANNEL_DEFAULT = Channel.default()
