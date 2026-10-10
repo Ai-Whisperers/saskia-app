@@ -1179,3 +1179,29 @@ WHAT_NEXT.md was stale (claimed #112 open, #100 not started, 7 active
 TODOs). Refreshed to reflect the post-#119 state. Archived the prior
 version as `docs/operations/2026-10-10-early-WHAT_NEXT-archived.md` per
 the dated-archive convention. No code changes.
+
+## 2026-10-10 — fix(cierre): restore monthly-close aggregate totals broken by 2026-10-09 refactor
+
+The 2026-10-09 complexity refactor (commit `eb1c28c9`) extracted helper
+functions from `compute_monthly_close` but left the final
+`_build_monthly_close_result` returning
+`MonthlyClose(year=year, month=month, rows=rows, family_rows=family_rows)`,
+which the `MonthlyClose` dataclass does not accept. Result: 11 of 15
+tests in `tests/test_cierre.py` failed with
+`TypeError: MonthlyClose.__init__() got an unexpected keyword argument 'year'`,
+plus 60 tests in `tests/test_date_boundary.py` and 43 in `test_reports.py` +
+`test_analytics_properties_phase14_tier4.py` exercising the same code
+path indirectly.
+
+Fix: rewrote `_build_monthly_close_result` to compute the full set of
+aggregate fields the dataclass expects (`period_label`, `start`, `end`,
+`product_rows`, `total_ventas_gs`, `total_iva_ventas_gs`,
+`total_prime_cost_gs`, `total_margen_neto_gs`, `total_margen_pct`,
+`total_sales`, `top_product`). Caller now passes `start` (date),
+`end` (date), and `sales` (for `total_sales`).
+
+Verification:
+- `tests/test_cierre.py`: 15/15 pass (was 4/15)
+- `tests/test_date_boundary.py`: 60/60 pass
+- `tests/test_reports.py` + `tests/test_analytics_properties_phase14_tier4.py`: 43/43 pass
+- `ruff check` + `ruff format --check`: clean
