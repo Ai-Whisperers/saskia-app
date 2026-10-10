@@ -312,7 +312,11 @@ def test_dashboard_empty_state_after_reset(client, session_factory):
     # We expect the new empty-state copy. The dashboard route renders
     # several "Sin ventas" messages (hourly chart, 30-day trend, etc.)
     # so we just check the headline copy is present.
-    assert "Sin ventas" in body or "No hay ventas" in body
+    # Empty-state copy per dashboard.html: "Sin datos este mes todavía"
+    # (the broader "Sin ventas" copy lives in the post-30d trend card,
+    # which only renders once there's at least one sale). The test
+    # only checks the headline.
+    assert "Sin datos este mes" in body or "Sin ventas" in body or "No hay ventas" in body
 
 
 def test_reset_endpoint_audit_recorded_for_real_user(client, session_factory):
