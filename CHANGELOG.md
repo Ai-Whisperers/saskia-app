@@ -1,3 +1,7 @@
+## [2026.10.2] — 2026-10-10 — 2026-10-10 — ci: release workflow uses --skip-deploy + manual deploy
+
+Released as v2026.10.2. Commit: `0205f885`.
+
 ## 2026-10-10 — ci: release workflow uses --skip-deploy + manual deploy
 
 **Scope**: `.github/workflows/release.yml`. The previous attempt added `git pull --ff-only` AFTER `release.sh` in the `*)` branch, but the failure happens INSIDE `release.sh` (it calls `deploy.sh` itself, which fails the HEAD check). Fix: pass `--skip-deploy` to `release.sh` so the script just does the bump+tag+push, then `git pull --ff-only` syncs local main, then the workflow calls `deploy.sh` directly with the correct HEAD state.
