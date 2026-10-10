@@ -167,11 +167,14 @@ jobs:
                 # succeed for the commit AND the tag.
                 git tag -d "$TAG" || true
                 git push origin ":refs/tags/$TAG" || true
-                bash scripts/release.sh --version="${TAG#v}"
-                # release.sh just pushed the CHANGELOG bump commit to
-                # origin/main; sync local main so HEAD == origin/main for
-                # deploy.sh's pre-flight check.
+                # Use --skip-deploy: the script's internal deploy.sh call
+                # would fail the HEAD == origin/main pre-flight check (the
+                # script just pushed the CHANGELOG bump commit, so origin/main
+                # is now ahead). We do the deploy ourselves below after
+                # `git pull --ff-only`.
+                bash scripts/release.sh --version="${TAG#v}" --skip-deploy
                 git pull --ff-only origin main
+                bash scripts/deploy.sh --env=prod
                 ;;
             esac
           fi

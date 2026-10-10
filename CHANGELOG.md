@@ -1,3 +1,11 @@
+## 2026-10-10 — ci: release workflow uses --skip-deploy + manual deploy
+
+**Scope**: `.github/workflows/release.yml`. The previous attempt added `git pull --ff-only` AFTER `release.sh` in the `*)` branch, but the failure happens INSIDE `release.sh` (it calls `deploy.sh` itself, which fails the HEAD check). Fix: pass `--skip-deploy` to `release.sh` so the script just does the bump+tag+push, then `git pull --ff-only` syncs local main, then the workflow calls `deploy.sh` directly with the correct HEAD state.
+
+**Out of scope**: making `release.sh` itself do `git pull --ff-only` before its internal deploy. The script was designed to be run interactively from a clean checkout where the user already has HEAD == origin/main.
+
+---
+
 ## 2026-10-10 — ci: release workflow `git pull --ff-only` before deploy.sh
 
 **Scope**: `.github/workflows/release.yml`. After `release.sh` runs (which pushes a new CHANGELOG bump commit to origin/main), local `main` is now one commit behind origin/main. `deploy.sh --env=prod` then bails with "ERROR: --env=prod requires HEAD == origin/main". Fixed by adding `git pull --ff-only origin main` after release.sh in both the `*)` and the `*)` (oh wait, the same branch) ... actually added to BOTH code paths in the `case` statement.
