@@ -452,7 +452,7 @@ def to_bytes(session: Session) -> bytes:
     _write_recetas_sheet(wb, session)
     _write_lineas_sheet(wb, session, ingredients_by_id, recipes_by_id)
     _write_productos_sheet(wb, session, recipes_by_id)
-    _write_ventas_sheet(wb, session, products_by_id)
+    _write_ventas_sheet_unfiltered(wb, session, products_by_id)
 
     wb.save(path)
     return path.getvalue()
@@ -573,10 +573,15 @@ def _write_productos_sheet(wb, session, recipes_by_id) -> None:
         )
 
 
-def _write_ventas_sheet(wb, session, products_by_id) -> None:
-    """Write the Ventas sheet.
+def _write_ventas_sheet_unfiltered(wb, session, products_by_id) -> None:
+    """Write the Ventas sheet (unfiltered variant for to_bytes).
 
-    Extracted from to_bytes to reduce complexity.
+    Renamed from `_write_ventas_sheet` to disambiguate from the filtered
+    5-arg version: the duplicate caused late-binding to resolve to the
+    wrong signature, which broke the to_file date-range filter (the
+    to_file branch's `_write_ventas_sheet(wb, session, sale_start, sale_end,
+    products_by_id)` call would resolve to the 3-arg version and miss
+    the filter). This is the unfiltered to_bytes variant.
     """
     ws = wb.create_sheet("Ventas")
     _write_header(ws, VENTAS_COLS)

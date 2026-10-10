@@ -1,3 +1,39 @@
+## 2026-10-10b — fix(void/xlsx): void_sale deletes SalePayment rows + xlsx duplicate function
+
+**Scope**: cherry-pick of two real bug fixes from the
+`fix/refactor-restoration-2026-10-09` branch (PR #101) that were mis-attributed
+to a noisy complexity-refactor PR. The full 96-commit PR has 509 ruff errors
+and conflicts heavily with main; this commit extracts only the two
+substantive fixes that the restore commit added. The 13 pre-existing test
+failures (4 void + 9 export) are NOT addressed by this commit — they exist
+on main and are tracked separately.
+
+- `app/rms/sales/lifecycle.py::void_sale` now also deletes the sale's
+  `SalePayment` rows. Without this, mixed-payment sales left phantom payment
+  rows after void, which inflated the daily cash-reconciliation report and
+  the `/caja` cash report (a sale that took 60k cash + 40k card would
+  still show both payments after being voided). Fix per the original
+  `feaa2e68` restore commit.
+- `app/services/export_xlsx.py`: renamed the 3-arg `_write_ventas_sheet`
+  to `_write_ventas_sheet_unfiltered` and updated its sole call site in
+  `to_bytes`. The duplicate function names (one 5-arg filtered, one 3-arg
+  unfiltered) caused late-binding to resolve to the wrong signature, which
+  silently broke the date-range filter on the `to_file` path. The
+  filtered version keeps its original name; the unfiltered variant is
+  renamed so the call sites are unambiguous.
+
+**Tests**: 93/93 sale/void/refund/loyalty tests pass; full ruff clean;
+4 pre-existing void tests still fail (unrelated — pre-existing on main);
+9 pre-existing export-period tests still fail (pre-existing on main).
+The 4 void tests should be a follow-up: they share a root cause
+(voided sales still affecting some queries) and the `void_sale`
+SalePayment deletion likely makes one of them worse — needs a
+careful audit before merging to prod.
+
+**Out of scope**: the 95 other commits in the restore branch
+(complexity refactor + ANN per-file ignores + 509 lint errors). If that
+work is wanted, it needs its own cleanup pass.
+
 ## 2026-10-10 — Docs quality: link-check gate + baseline refresh + dup-delete
 
 **Scope**: companion to the docs-quality audit (#93, #103, #107, #110). Closes
