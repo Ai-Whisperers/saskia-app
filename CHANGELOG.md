@@ -1,3 +1,25 @@
+## [2026.10.2] — 2026-10-10 — Sprint 2.1 release: void/xlsx + deploy CI + conftest hang fix
+
+Released as v2026.10.2. Commit: `0205f88`.
+
+**Shipped in this release:**
+- PR #118: void_sale deletes SalePayment rows + xlsx duplicate function fix
+- PR #111: deploy CI recovery (5 layered bug fixes)
+- PR #126: CI test hang fix (stub conftest autouse chain for pure-Python tests)
+- PR #129: deploy healthz check uses grep instead of brittle case glob
+- PR #131: release workflow must `git checkout main` before deploy.sh
+- PR #135: release workflow passes args via bash array, not FLAGS string
+- PR #139: release workflow `git checkout main` in release.sh fallback path too
+- PR #140: release workflow `git tag -d` before re-running release.sh
+- PR #141: release workflow checkout must persist credentials
+- PR #142: release workflow also deletes remote tag in fallback path
+- PR #143: release workflow `git pull --ff-only` before deploy.sh
+- PR #144: release workflow uses --skip-deploy + manual deploy
+
+**Notes:** This release was deployed directly via `bash scripts/deploy.sh --env=prod` (bypassing the release workflow) after the workflow's tag-push path encountered repeated CI bugs. The release workflow has been hardened by PRs #131-#144 and should work for future releases.
+
+---
+
 ## 2026-10-10 — ci: release workflow uses --skip-deploy + manual deploy
 
 **Scope**: `.github/workflows/release.yml`. The previous attempt added `git pull --ff-only` AFTER `release.sh` in the `*)` branch, but the failure happens INSIDE `release.sh` (it calls `deploy.sh` itself, which fails the HEAD check). Fix: pass `--skip-deploy` to `release.sh` so the script just does the bump+tag+push, then `git pull --ff-only` syncs local main, then the workflow calls `deploy.sh` directly with the correct HEAD state.
