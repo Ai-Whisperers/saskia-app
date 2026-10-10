@@ -1,3 +1,50 @@
+## 2026-10-09d — Seed: Tier A+B+C UX gaps + design-empty tables + data quality fixes
+
+**Scope**: comprehensive data population across 25 new fields/tables for the
+Sazon/La Vaquita Holandesa seed. Excludes orders, clients, and historical
+transactional data (per operator request).
+
+**Tier A — UX gaps (design-empty, but product expects data)**
+- `recipe.instructions` (22), `recipe.menu` / `allergens` / `dietary_tags` (22 each)
+- `product.tablet_slug` (32, per-product suffix to satisfy UNIQUE while preserving section grouping)
+- `product.mayorista_price_gs` (32), `rspa_number` + `rspa_expiry` (32), `product.tags` denorm (32)
+- `ingredient.subcategory` / `role` / `notes` (101), `ingredient.avg_cost_gs` (101)
+
+**Tier B — design-empty tables populated from canonical sources**
+- `price_history` 520 rows (6mo x ~30 ingredients x ~weekly purchases)
+- `expense` 82 rows (4 categories: RENT, PAYROLL, PACKAGING, OTHER)
+- `cash_session` 27 rows (14 closed + 13 open, last 2 weeks)
+- `sale_payment` 867 rows (35/30/35 efectivo/tarjeta/transf)
+- `monthly_closure` 2 rows (Aug + Sep 2026; Oct still open)
+- `menu` / `menu_item` 2 / 9 rows (Carta Regular + Carta Navidad 2026)
+- `production_plan` 112 rows (14 days x 8 bestsellers)
+- `recipe_pricing` 22 rows (5-channel tier: wholesale/PL/distrib/retail/broker)
+- `market_price_reference` 78 rows
+- `competitor_price_observation` 33 rows (6 competitors x 11 ingredients)
+- `historical_price_events` 876 rows (daily fluctuation log)
+- `tag_link` 232 rows (8 tags x 32 products many-to-many)
+
+**Tier C — data-quality fixes**
+- `market_benchmark` dedup by `product_label` (0 dupes to remove)
+- `margin_tier` reset to canonical 5-tier scale
+- `date_range_preset` dedup DISABLED (destructive: 10 to 6; no real dupes exist)
+
+**Schema reconciliation** (sazon.py fixes for actual columns)
+- `ing.min_stock_qty` (not `min_stock`)
+- `sale.sold_at` (not `created_at`); `iva_base_gs + iva_amount_gs` reconstructs total
+- `monthly_closure.period_yyyymm` natural key -> idempotency guard
+- `margin_tier.is_active` + `created_at` are NOT NULL
+- `tablet_slug` per-product UNIQUE -> suffix with `prod.id`
+- `Expense` has no `payment_method`; `category`/`recurring_period` are enums
+- `SalePayment.amount` is a column, not a kwarg
+- `customer.shipping_zone` exists; `customer.tags` is denorm text
+
+**Verification**
+- `uv run pytest tests/test_sazon_seed.py` -> 25/25 passing
+- `uv run ruff check .` and `uv run ruff format --check .` -> all clean
+- Fresh seed probe -> 52 of 67 tables populated (15 remaining are operational-state)
+- Idempotent re-run -> no IntegrityError, no row-count inflation
+
 ## 2026-10-09 — File issues for the 2 active TODOs (SASKIA-212, -213)
 
 **Scope**: docs-quality PR 6 followup. Each active TODO now has a
