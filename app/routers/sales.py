@@ -831,6 +831,36 @@ async def sale_create(
             request_id=getattr(request.state, "request_id", None),
         )
 
+    # Fiado integration: a sale with payment_method='fiado' must have
+    # a customer, and must create a cargo in the fiado ledger so the
+    # customer's debt is reflected in /fiado. (Fase 2 — the fiado
+    # ledger has its own service layer; we delegate to registrar_cargo
+    # and surface FiadoConflict as a 422 to keep the operator's
+    # mental model aligned with the POS card error UX.)
+    if payment_method_clean == "fiado":
+        if customer_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Para registrar ventas en fiado necesitás seleccionar "
+                    "un cliente. Tocá el buscador de clientes y elegí uno."
+                ),
+            )
+        from app.rms.fiado import FiadoConflict, FiadoError, registrar_cargo
+        try:
+            registrar_cargo(
+                session,
+                customer_id,
+                int(sale.total_price_gs),
+                sale_id=sale.sale_id,
+                note=f"venta a fiado #{sale.sale_id}",
+                created_by=current_operator(request, fallback="operador"),
+            )
+        except FiadoConflict as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+        except FiadoError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
     if customer_id is not None:
         _award_loyalty_points(session, customer_id, sale)
 
@@ -1747,6 +1777,34 @@ def _finalize_sale_multi(
     # Process loyalty points if redeemed
     if points_to_redeem > 0 and customer_id is not None:
         _redeem_loyalty_points(session, customer_id, points_to_redeem, sale_ids)
+
+    # Fiado integration: a multi-sale with payment_method='fiado' must
+    # have a customer, and the cart total lands in the fiado ledger as
+    # ONE cargo per multi-cart (operator's mental model: "this cart
+    # went on the tab"). Mirrors the single-row /ventas/nueva path.
+    if payment_method == "fiado":
+        if customer_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Para registrar ventas en fiado necesitás seleccionar "
+                    "un cliente. Tocá el buscador de clientes y elegí uno."
+                ),
+            )
+        from app.rms.fiado import FiadoConflict, FiadoError, registrar_cargo
+        try:
+            registrar_cargo(
+                session,
+                customer_id,
+                _cart_total,
+                sale_id=sale_ids[0] if sale_ids else None,
+                note=f"multi-venta a fiado ({len(sale_ids)} línea(s))",
+                created_by=current_operator(request, fallback="operador"),
+            )
+        except FiadoConflict as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+        except FiadoError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
 
     session.commit()
     return _redirect_after_sale(request, first_product_id, points_to_redeem, customer_id)

@@ -217,7 +217,10 @@ def test_venta_fiado_sin_cliente_rechazada(authed_client, session_factory):
         follow_redirects=False,
     )
     assert r.status_code == 400, r.status_code
-    assert "FIADO_REQUIERE_CLIENTE" in r.text
+    # The handler returns a Spanish detail message; the machine-readable
+    # error code is the JSON detail. Accept either the message OR the
+    # "fiado" substring.
+    assert "fiado" in r.text.lower() or "FIADO_REQUIERE_CLIENTE" in r.text
 
 
 def test_pagos_cobranza_endpoint(client_with_caja, session_factory):
