@@ -80,6 +80,54 @@ VENTAS_COLS = [
     "notes [OPTIONAL]",
     "voided_at [OPTIONAL]",
 ]
+
+
+# -------------------------------------------------------------------
+# PATCH plantilla column sets — clean names (no annotations) so the
+# PATCH handler in app/services/import_xlsx.py can find rows by key.
+#
+# These differ from the EXPORT *_COLS constants above in two ways:
+#   1. No `[REQUIRED]` / `[OPTIONAL]` annotations in the header text —
+#      the PATCH handler reads the header verbatim and uses it as the
+#      dict key (`row.get("name")` would fail if the header is
+#      "name [REQUIRED]").
+#   2. Subset of columns — the PATCH plantilla is a minimal edit
+#      surface (name + the few fields operators typically change),
+#      not a full export of the table.
+#
+# Any new PATCH_*_COLS must stay in sync with the corresponding
+# `_import_patch_*` reader in import_xlsx.py.
+# -------------------------------------------------------------------
+PATCH_PRODUCTOS_COLS = [
+    "name",
+    "sku",
+    "sale_price_gs",
+    "portion_label",
+    "notes",
+]
+PATCH_CLIENTES_COLS = [
+    "phone",
+    "name",
+    "email",
+    "cedula",
+    "notes",
+]
+PATCH_INGREDIENTES_COLS = [
+    "name",
+    "stock_qty",
+    "min_stock_qty",
+    "max_stock_qty",
+    "purchase_price_gs",
+    "lead_time_days",
+    "notes",
+]
+PATCH_RECETAS_COLS = [
+    "name",
+    "yield_qty",
+    "yield_unit",
+    "prep_minutes",
+    "notes",
+]
 STOCKMOVES_COLS = [
     "id",
     "sale_id",
@@ -641,7 +689,12 @@ def _build_patch_plantilla_wb(session: Session) -> "Workbook":
 
     # --- Productos ---
     ws = wb.create_sheet("Productos")
-    ws.append(PRODUCTOS_COLS)
+    # Use PATCH_PRODUCTOS_COLS (clean names, no [REQUIRED] annotations) so
+    # the PATCH handler in import_xlsx.py can find rows via `row.get("name")`.
+    # The export PRODUCTOS_COLS (with id + annotations) was the wrong header
+    # here — it made the PATCH import silently match no rows because the
+    # dict key became "name [REQUIRED]" not "name".
+    ws.append(PATCH_PRODUCTOS_COLS)
     for prod in session.scalars(select(Product).order_by(Product.name)).all():
         ws.append(
             [
@@ -656,12 +709,16 @@ def _build_patch_plantilla_wb(session: Session) -> "Workbook":
 
     # --- Clientes (header only) ---
     ws = wb.create_sheet("Clientes")
-    ws.append(CLIENTES_COLS)
+    # PATCH_CLIENTES_COLS uses English field names (phone/name/email/cedula)
+    # matching the PATCH handler's _import_patch_clientes reader, NOT the
+    # export CLIENTES_COLS (which uses telefono/nombre and includes an `id`
+    # column that would offset every PATCH lookup).
+    ws.append(PATCH_CLIENTES_COLS)
     _autosize_simple(ws)
 
     # --- Ingredientes ---
     ws = wb.create_sheet("Ingredientes")
-    ws.append(INGREDIENTES_COLS)
+    ws.append(PATCH_INGREDIENTES_COLS)
     for ing in session.scalars(select(Ingredient).order_by(Ingredient.name)).all():
         ws.append(
             [
@@ -678,9 +735,12 @@ def _build_patch_plantilla_wb(session: Session) -> "Workbook":
 
     # --- Recetas ---
     ws = wb.create_sheet("Recetas")
-    ws.append(RECETAS_COLS)
+    ws.append(PATCH_RECETAS_COLS)
     for rec in session.scalars(select(Recipe).order_by(Recipe.name)).all():
-        ws.append([rec.name, rec.yield_qty, rec.prep_minutes, rec.notes])
+        # 5-cell row: name, yield_qty, yield_unit, prep_minutes, notes.
+        # yield_unit is preserved for reference; prep_minutes is the field
+        # the PATCH handler updates.
+        ws.append([rec.name, rec.yield_qty, rec.yield_unit, rec.prep_minutes, rec.notes])
     _autosize_simple(ws)
 
     return wb

@@ -34,6 +34,44 @@ careful audit before merging to prod.
 (complexity refactor + ANN per-file ignores + 509 lint errors). If that
 work is wanted, it needs its own cleanup pass.
 
+## 2026-10-10d — fix(export): PATCH plantilla uses clean column names
+
+**Scope**: fix 3 pre-existing `test_excel_patch.py` failures on `main`.
+The PATCH plantilla (used by operators to download → edit → upload via
+the `?mode=PATCH` import endpoint) was using the EXPORT column sets
+(`PRODUCTOS_COLS`, `CLIENTES_COLS`, etc.) as headers, which are
+designed for the `/exports/xlsx?period=...` path, not PATCH.
+
+The PATCH handler in `app/services/import_xlsx.py` reads the header
+row verbatim and uses each cell as the dict key for `row.get("name")`
+lookups. The export columns have `[REQUIRED]` / `[OPTIONAL]`
+annotations baked into the header text (`"name [REQUIRED]"`), so the
+PATCH handler's `row.get("name")` returned `None` and silently
+matched no rows.
+
+- `app/services/export_xlsx.py`: added 4 new constants — `PATCH_PRODUCTOS_COLS`,
+  `PATCH_CLIENTES_COLS`, `PATCH_INGREDIENTES_COLS`, `PATCH_RECETAS_COLS` —
+  with clean column names matching what each `_import_patch_*` handler
+  reads (no annotations, English field names, no `id` column).
+- `_build_patch_plantilla_wb` now uses the PATCH_*_COLS constants
+  instead of the EXPORT ones.
+- Recetas data row extended from 4 to 5 cells: `[name, yield_qty, yield_unit,
+  prep_minutes, notes]` (the PATCH handler updates `prep_minutes`; the
+  export version didn't include it because Recetas export had `yield_unit`
+  in that position).
+
+**Tests**: 3 previously-failing tests now pass
+(`test_plantilla_prepopulates_products`, `test_plantilla_clientes_header_only`,
+`test_end_to_end_plantilla_edit_upload_updates_price`). Full
+`test_excel_patch.py` (19 tests) is green. The other 15 pre-existing
+export/import test failures are addressed by PR #120 (export_xlsx
+duplicate-function shadowing bug) and remain failing on this branch
+because #120 isn't merged yet.
+
+**Out of scope**: the 15 export/import failures (`test_excel_export_period`,
+`test_excel_import_full_flow`, `test_import_roundtrip`) — separate
+duplicate-function bug in `export_xlsx.py`, addressed by PR #120.
+
 ## 2026-10-10 — Docs quality: link-check gate + baseline refresh + dup-delete
 
 **Scope**: companion to the docs-quality audit (#93, #103, #107, #110). Closes
