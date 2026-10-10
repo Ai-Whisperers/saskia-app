@@ -1099,7 +1099,7 @@ def _build_hourly_sales_chart(sales: list[Sale], tz: ZoneInfo) -> str:
     """
     buckets: dict[int, float] = {h: 0.0 for h in range(24)}
     for s in sales:
-        local = s.recorded_at.astimezone(tz) if s.recorded_at else None
+        local = s.sold_at.astimezone(tz) if s.sold_at else None
         if local is None:
             continue
         # Use discounted line total to match _build_payment_methods_donut.
@@ -1127,15 +1127,15 @@ def _build_30day_sales_chart(session: Session, preset: str) -> dict:
     start = today - timedelta(days=days - 1)
 
     rows = session.execute(
-        select(Sale.recorded_at, Sale.qty, Sale.unit_price_gs, Sale.discount_gs).where(
-            Sale.recorded_at >= datetime.combine(start, datetime.min.time(), tzinfo=ASUNCION_TZ)
+        select(Sale.sold_at, Sale.qty, Sale.unit_price_gs, Sale.discount_gs).where(
+            Sale.sold_at >= datetime.combine(start, datetime.min.time(), tzinfo=ASUNCION_TZ)
         )
     ).all()
     daily: dict[str, float] = {}
     for r in rows:
-        if r.recorded_at is None:
+        if r.sold_at is None:
             continue
-        local = r.recorded_at.astimezone(ASUNCION_TZ)
+        local = r.sold_at.astimezone(ASUNCION_TZ)
         key = local.date().isoformat()
         line_total = int(r.qty) * int(r.unit_price_gs) - int(r.discount_gs or 0)
         daily[key] = daily.get(key, 0.0) + max(line_total, 0) / 1_000_000  # M₲

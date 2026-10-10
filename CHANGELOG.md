@@ -1,3 +1,44 @@
+## 2026-10-10c — fix(void/dashboard/export): pre-existing test failures on main
+
+**Scope**: fix 13 pre-existing test failures that have been on `main` since
+PR #101 (the `fix/refactor-restoration-2026-10-09` complexity wave). All
+4 void tests + 9 export tests now pass; lint and format clean.
+
+The 3 remaining `test_excel_patch.py` failures are pre-existing on main
+AND out of scope for this commit (separate column-rename bug in
+`_build_patch_plantilla_wb` Productos sheet that needs its own audit).
+
+- `app/routers/dashboard.py::void_after_eod` (line 1093, 1116): the
+  chart functions used `Sale.recorded_at` but the model has `Sale.sold_at`
+  (rename during the models_legacy refactor). All 3 dashboard tests fail
+  with `AttributeError: type object 'Sale' has no attribute 'recorded_at'`
+  on `/dashboard` load. Replaced `recorded_at` with `sold_at` in
+  `_build_hourly_sales_chart` (line 1093) and `_build_30day_sales_chart`
+  (line 1117).
+- `app/rms/sales/lifecycle.py::void_sale`: the legacy "US 4.1 — restore
+  packaging" block (lines 368-385) double-restored packaging stock. The
+  canonical StockMovement reversal loop (line 321-343) already reversed
+  the packaging move (it's `movement_type="sale"`, qty<0); the legacy
+  block re-added it from `sale.packaging_qty` AND appended a duplicate
+  StockMovement row. Removed the legacy block. Single canonical path is
+  the StockMovement loop.
+- `app/services/export_xlsx.py`: deleted 7 duplicate `_write_*_sheet`
+  functions (the "simple" block at lines 484-576) that shadowed the
+  canonical to_file implementations with stale 3-arg signatures. The
+  to_file path's call site (line 202: `_write_productos_sheet(wb,
+  session, recipes_by_id, products_by_id)`) was failing with `TypeError:
+  takes 3 positional arguments but 4 were given` because Python resolved
+  the 4-arg call to the 3-arg "simple" version. Updated the to_bytes
+  call site to use the canonical (longer-signature) versions:
+  `_write_productos_sheet(wb, session, recipes_by_id, products_by_id)`
+  and `_write_ventas_sheet(wb, session, None, None, products_by_id)`
+  (None sale_start/sale_end = no period filter, the original to_bytes
+  behavior).
+
+**Tests**: 4/4 void + 11/11 export tests pass. Lint clean, format clean.
+3 pre-existing test_excel_patch failures are NOT addressed (separate
+PATCH-plantilla column-rename bug, pre-existing on main).
+
 ## 2026-10-10 — Docs quality: link-check gate + baseline refresh + dup-delete
 
 **Scope**: companion to the docs-quality audit (#93, #103, #107, #110). Closes
