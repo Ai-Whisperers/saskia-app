@@ -1,133 +1,104 @@
 # the operator · What Next? (refresh 2026-10-10)
 
-> **Supersedes** `docs/operations/2026-10-10-early-WHAT_NEXT-archived.md`.
+> **Supersedes** `docs/operations/2026-10-10-late-WHAT_NEXT-archived.md` and
+> `docs/operations/2026-10-10-early-WHAT_NEXT-archived.md` and
+> `docs/operations/2026-10-10-midday-WHAT_NEXT-archived.md` (the
+> midday archive was lost when #125 force-pushed main; the previous
+> early version is the one from #121).
 > Ground truth: `git log --oneline --since="2026-10-09"`.
 
-## 📊 Current State (2026-10-10 ~07:30 UTC)
+## 📊 Current State (2026-10-10 ~19:00 UTC)
 
 | Knob | Value | Source |
 |------|-------|--------|
 | Schema | v117 | `app/rms/config.py:92` |
 | Migrations on disk | 36 | `app/rms/migrations/_*.py` |
 | Tests collected | 7,997 (129 deselected) | `pytest --collect-only` |
-| Open ruff findings | 0 | `ruff check` (ruff pinned 0.16.10 via `uv.lock`) |
-| Active TODO comments | 5 (all in `scripts/check_active_todos.py` placeholder rows) | `make todos` |
+| Open ruff findings | 0 (lint passes; 11 informational "Invalid `# noqa` directive" warnings on `arch-rule` lines) | `ruff check` |
+| Active TODO comments | 5 (all in `scripts/check_active_todos.py` placeholder rows; the script itself) | `make todos` |
 | Open issues | 0 | `gh issue list --state open` |
-| Open PRs | 2 (Ivan's: #118, #120) | `gh pr list --state open` |
+| Open PRs | 2 (Ivan's: #122, #124) | `gh pr list --state open` |
 | Environments | prod + dev + test all `/healthz` 200 | saskia-vps / saskia-dev / saskia-test .paragu-ai.com |
 | Branch protection | ruleset #24802688 active | 5 required checks |
 | Supabase | disabled on prod (NXDOMAIN) | `a5499c51` (#98) |
 
-## ✅ Closed since the last refresh (the big rocks)
+## ✅ Closed since the last refresh (2026-10-10 ~07:30 → 19:00)
 
-### Tier 3 — backlog paid off
+- **#123 — restore cierre monthly-close aggregates (`1adca996`)**:
+  the 2026-10-09 complexity refactor (commit `eb1c28c9`) extracted
+  helpers from `compute_monthly_close` but left the final
+  `_build_monthly_close_result` returning
+  `MonthlyClose(year=year, month=month, ...)` — a call signature the
+  `MonthlyClose` dataclass does not accept. Result: 11 of 15 tests in
+  `tests/test_cierre.py` failed, plus collateral failures in
+  `tests/test_date_boundary.py` (60) and `tests/test_reports.py` +
+  `tests/test_analytics_properties_phase14_tier4.py` (43). Same
+  `test_total_ventas` failure Ivan flagged as out-of-scope in PR #120.
 
-- **SASKIA-100 (ANN debt) — #117 merged `a1db5495`**: removed
-  per-file-ignore `"ANN"` from `app/routers/**` and `app/rms/**`;
-  added `"ANN401"` (so `Any` annotations on dynamic args are allowed).
-  22 files annotated, 339 type hints applied. The helper
-  `scripts/add_type_hints.py` (260 lines, idempotent) is committed so
-  the next ANN sweep is mechanical. Issue #100 closed.
-- **SASKIA-212 — #119 merged `9a469af2`**: deleted the 3 legacy
-  channel constants (`ALLOWED_CHANNELS`, `CHANNELS_DISPLAY`,
-  `CHANNEL_DEFAULT`) from `app/rms/models/channels.py`. Only one
-  importer remained (`tests/test_P42_channel_enum_integration.py`),
-  migrated to call `Channel.default()` directly. Issue #114 closed.
-- **SASKIA-213 — same PR #119**: the `# TODO: Fix _period_window`
-  in `tests/test_dashboard_kpis_end_to_end.py` was already fixed in
-  code (via `_resolve_period_window` → `_period_window("custom")`
-  fallback). Test was tightened to assert exactly 200 (was
-  `in (200, 303, 422, 500)`) and renamed
-  `test_dashboard_filter_custom_no_dates_falls_back_to_today`.
-  Issue #115 closed.
-- **PR #101 (refactor restoration) — closed-not-merged**: the
-  48-file complexity refactor was working at cross purposes with #117
-  (would re-add the per-file-ignore that #117 removed). Closed with
-  explanation; the refactor is still valuable but needs to be
-  re-authored on the post-#117 base with annotations from the start.
-- **`make todos` now reports 0 actionable code TODOs** (the 2
-  SASKIA-21X tickets were the entire active set; 5 noise
-  "TODO/FIXME/XXX" strings remain in `scripts/check_active_todos.py`
-  itself, which is the script that finds them).
+  Fix: rewrote `_build_monthly_close_result` to compute the full set
+  of aggregate fields. Caller now passes `start`/`end`/`sales`. All
+  15 + 60 + 43 = 118 tests now pass.
 
-### Ivan's parallel work in flight (do not touch)
-
-- **PR #118 — `fix/void-sale-and-xlsx-duplicates`** (Ivan):
-  `void_sale` was leaving orphan `SalePayment` rows + xlsx had
-  duplicate sheet-writer functions. 3 files, +60/-4, all required
-  checks pass; deploy blocked on VPS secrets as usual.
-- **PR #120 — `fix/pre-existing-test-failures-2026-10-10`** (Ivan):
-  fixes 13 of 16 pre-existing test failures on main (4 void +
-  9 export). The 3 remaining `test_excel_patch` failures are
-  explicitly out of scope; see "Backlog" below.
+- **#125 — Ivan's pre-existing-failures rebased (`f873651b`)**: the
+  same 13 pre-existing test failures from #120, but rebased onto
+  current main (which had #118 in the meantime). Removed legacy
+  "US 4.1 — restore packaging" block in `void_sale`, fixed
+  `Sale.recorded_at` → `Sale.sold_at` rename in 2 dashboard chart
+  functions, deleted 7 duplicate `_write_*_sheet` functions in
+  `app/services/export_xlsx.py`. (The 3 `test_excel_patch` failures
+  remain — addressed in #122.)
 
 ## 🎯 What's next? (ranked)
 
-### #1 — PATCH-plantilla header parsing — 2-4h (BLOCKING production)
+### #1 — PATCH-plantilla header parsing — 2-4h (Ivan's PR #122 in flight)
 
-3 pre-existing test failures in `tests/test_excel_patch.py` (out of
-scope of PR #120) expose a real production bug:
+3 pre-existing test failures in `tests/test_excel_patch.py`:
 
 - **Root cause**: `app/services/export_xlsx.py` writes the
-  PATCH-plantilla headers with ` [REQUIRED]` / ` [OPTIONAL]`
-  UX markers (e.g. `"name [REQUIRED]"`). The import side
+  PATCH-plantilla headers with ` [REQUIRED]` / ` [OPTIONAL]` UX
+  markers (e.g. `"name [REQUIRED]"`). The import side
   (`app/services/import_xlsx.py`) does not strip these markers when
   reading back, so `row.get("name")` raises `KeyError: 'name'` for
   every row.
-- **Affected sheets**: Productos, Clientes, Ingredientes, Recetas
-  (every sheet using `*_COLS` with markers).
+- **Affected sheets**: Productos, Clientes, Ingredientes, Recetas.
 - **Likely production impact**: PATCH-mode imports silently fail
-  with "fila sin nombre" warnings. Operator would only notice if
-  they looked at the warnings list.
-- **Branch already started**: `fix/excel-patch-template-columns-2026-10-10`
-  (no PR yet — sibling session draft).
-- **Suggested fix**:
-  1. In `app/services/import_xlsx.py:_rows()`, strip the
-     ` [REQUIRED]` / ` [OPTIONAL]` suffix from header cells before
-     using them as dict keys.
-  2. Add a regression test in `tests/test_excel_patch.py` that
-     round-trips a PATCH plantilla (download → re-upload → all
-     rows processed with no `KeyError` / "fila sin nombre"
-     warnings).
-  3. Also fix the data-row alignment in
-     `_build_patch_plantilla_wb` Productos sheet (5 values
-     written, 7 columns in header — `id` and `recipe_name` columns
-     end up blank but `name [REQUIRED]` lands in column B
-     correctly only because the data array starts with `prod.name`).
-- **Recommend filing an issue** to track this; whoever picks it up
-  has a clear scope and a starting branch.
+  with "fila sin nombre" warnings.
+- **Ivan's PR #122** is on it: 2 files, +103/-5. Branch
+  `fix/excel-patch-template-columns-2026-10-10`. No need for
+  duplicate work.
 
-### #2 — VPS secrets rotation — 30 min (deferred, see `deploy-dev.yml` notes)
+### #2 — VPS secrets rotation — 30 min (deferred to Ivan)
 
-The deploy-dev / deploy-test workflows need a working BWS_ACCESS_TOKEN
-and a usable VPS SSH key. Until then, deploys land via VPS-side pulls
-(Ivan has been doing this manually). Once BWS is populated, both
-deploys should light up green. Ivan is the one to do this.
+`deploy-dev` / `deploy-test` need a working BWS_ACCESS_TOKEN + VPS
+SSH key. Until then, deploys land via VPS-side pulls (Ivan does
+this manually). When BWS is populated, both deploys should light
+up green.
 
 ### #3 — Backlog items (no rush)
 
 - **SASKIA-210** — Supabase RLS + Storage; explicitly deferred per
-  the per-client-instances decision (see
-  `docs/plans/SASKIA-210-supabase-rls-multitenant-onepager.md`).
+  the per-client-instances decision
+  (`docs/plans/SASKIA-210-supabase-rls-multitenant-onepager.md`).
 - **ZAP promotion to high-only** — needs 2 consecutive clean weekly
   scans (calendar check, not work).
-- **`feature/station-shell`** — sibling session (puesto cards UI) is
-  in flight; carries a stale `app/CHANGELOG.md` that will conflict on
-  merge — the sibling should drop it before merging.
-- **Ruff noqa warnings (noise)** — 11 "Invalid `# noqa` directive"
-  warnings on lines like `# noqa: arch-rule — <reason>`. The
-  `arch-rule` string isn't a real ruff code, so ruff warns. Two
-  options: (a) add `ARCH-RULE` to `[tool.ruff.lint] external = []`,
-  or (b) update the comments to `# noqa: ARCH, arch-rule — <reason>`
-  so ruff sees a real code. Low priority — warnings only, lint
-  passes. Tracked here, not filed.
+- **feature/station-shell** — sibling session (puesto cards UI) in
+  flight; carries a stale `app/CHANGELOG.md` that will conflict on
+  merge — sibling should drop it before merging.
+- **Ruff noqa warnings on `arch-rule` lines (noise)** — 11
+  informational warnings ("expected a comma-separated list of
+  codes") on `# noqa: arch-rule — <reason>` lines. The lint check
+  itself passes; the warnings are stderr noise. Two ways to silence
+  would both break the test contract in
+  `tests/test_check_imports_rules.py` (which parses the string
+  literally). **Left as-is.**
 
 ## ⏸️ Parked / waiting on a condition
 
-- **PR #101 refactor** — branch was
-  `fix/refactor-restoration-2026-10-09` (now closed). If anyone
-  wants the refactor, re-author on the post-#117 base with
-  annotations from the start.
+- **PR #101 refactor** (closed) — the 48-file complexity refactor
+  is still valuable but needs re-authoring on the post-#117 base
+  with annotations from the start. If anyone wants to do this,
+  file a new SASKIA ticket.
+- **PRs #122, #124** — all Ivan's, in flight.
 
 ## ❌ Explicitly deferred — do not pick up
 
@@ -140,18 +111,23 @@ deploys should light up green. Ivan is the one to do this.
 ## 🛠 Tooling & Plumbing notes
 
 - WHAT_NEXT pattern: regenerate dated, archive previous. Don't
-  in-place edit history. Previous versions at
-  `docs/operations/2026-10-09-evening-WHAT_NEXT-archived.md` and
-  `docs/operations/2026-10-10-early-WHAT_NEXT-archived.md`.
+  in-place edit history. Four archived versions now exist in
+  `docs/operations/`:
+  - `2026-10-09-evening-WHAT_NEXT-archived.md`
+  - `2026-10-10-early-WHAT_NEXT-archived.md` (from #121)
+  - `2026-10-10-midday-WHAT_NEXT-archived.md` (lost in #125 force-push; kept as reference)
+  - `2026-10-10-late-WHAT_NEXT-archived.md` (from this refresh)
 - Backup discipline (AGENTS.md rule 17) enforced at `init_db()`;
   `sazon rollback --to N` is the recovery net (shipped in #209).
 - `app/CHANGELOG.md` was removed in the docs reorg (commit
-  `e9b80533`); CI gates now on root `CHANGELOG.md` (commit `f7ab4b24`).
-- The "11 invalid noqa warnings" ruff emits are the cost of using
-  `arch-rule` as a project-internal code; `tests/test_check_imports_rules.py`
-  parses the string literally so we can't rename it without also
-  updating the test. Left as-is (warnings don't fail checks).
+  `e9b80533`); CI gates now on root `CHANGELOG.md` (commit
+  `f7ab4b24`).
+- The 11 informational "Invalid `# noqa` directive" warnings from
+  ruff are the cost of using `arch-rule` as a project-internal
+  code; `tests/test_check_imports_rules.py` parses the string
+  literally so we can't rename it without also updating the test.
+  Left as-is (warnings don't fail checks).
 
 ---
 
-**Generated:** 2026-10-10 ~07:30 UTC after #119 merge + tier-3 close.
+**Generated:** 2026-10-10 ~19:00 UTC after #125 merge.

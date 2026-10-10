@@ -1242,3 +1242,14 @@ Verification:
 - `tests/test_date_boundary.py`: 60/60 pass
 - `tests/test_reports.py` + `tests/test_analytics_properties_phase14_tier4.py`: 43/43 pass
 - `ruff check` + `ruff format --check`: clean
+
+## 2026-10-10e — docs(WHAT_NEXT): refresh after #123 + #125
+
+WHAT_NEXT was stale again (claimed 2 open PRs, 0 active code TODOs,
+the test_cierre regression was still open). Refreshed to reflect
+the post-#123 + #125 state. Archived the prior version as
+`docs/operations/2026-10-10-late-WHAT_NEXT-archived.md`.
+
+Now reflects: 0 open issues, 2 open PRs (Ivan's #122, #124), the
+118 tests previously broken by the cierre refactor + the
+#125 rebased test fixes are now passing. No code changes.
