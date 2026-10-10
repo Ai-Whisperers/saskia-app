@@ -306,13 +306,12 @@ def test_dashboard_empty_state_after_reset(client, session_factory):
     with session_factory() as s:
         reset_demo_data(s)
 
-    resp = client.get("/")
+    # The chooser at "/" is a different page. The HEREBUS KPI dashboard
+    # with the empty-state copy is at /dashboard.
+    resp = client.get("/dashboard")
     assert resp.status_code == 200
     body = resp.text
-    # We expect the new empty-state copy. The dashboard route renders
-    # several "Sin ventas" messages (hourly chart, 30-day trend, etc.)
-    # so we just check the headline copy is present.
-    # Empty-state copy per dashboard.html: "Sin datos este mes todavía"
+    # We expect the new empty-state copy: "Sin datos este mes todavía"
     # (the broader "Sin ventas" copy lives in the post-30d trend card,
     # which only renders once there's at least one sale). The test
     # only checks the headline.
