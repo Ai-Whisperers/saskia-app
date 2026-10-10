@@ -190,6 +190,7 @@ def app_engine(tmp_db_path):
     pure-Python tests like test_daily_summary.py lets CI finish.
     """
     if not _test_uses_app():
+
         class _StubEngine:
             def connect(self, *args, **kwargs):
                 raise RuntimeError(
@@ -243,6 +244,7 @@ def session_factory(app_engine):
     for pure-Python tests like test_daily_summary.py.
     """
     if not _test_uses_app():
+
         class _NullFactory:
             """Stub for tests that don't touch the DB. Raises on use."""
 
@@ -255,9 +257,7 @@ def session_factory(app_engine):
                 )
 
             def __getattr__(self, name):
-                raise RuntimeError(
-                    f"session_factory stubbed; requested attr '{name}'."
-                )
+                raise RuntimeError(f"session_factory stubbed; requested attr '{name}'.")
 
         return _NullFactory()
 
