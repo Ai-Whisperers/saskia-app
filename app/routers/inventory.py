@@ -1564,7 +1564,10 @@ def _update_optional_metadata(
     if dietary_tags != "__unset__":
         ing.dietary_tags = dietary_tags.strip() or None
     ing.may_contain_gluten = may_contain_gluten == "1"
-    ing.lead_time_days = _parse_optional_int(lead_time_days, "lead_time_days")
+    # lead_time_days is NOT NULL with default 3; keep current value if form leaves it empty.
+    new_lead_time = _parse_optional_int(lead_time_days, "lead_time_days")
+    if new_lead_time is not None:
+        ing.lead_time_days = new_lead_time
 
 
 def _parse_optional_int(value: str, field_name: str) -> int | None:

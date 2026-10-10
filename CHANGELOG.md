@@ -1,3 +1,19 @@
+## 2026-10-10i — fix(dashboard,inventory): prior_label context + lead_time_days NULL guard
+
+**Scope**: `app/routers/dashboard.py`, `app/routers/inventory.py`, `app/CHANGELOG.md`.
+
+Two dormant real bugs surfaced as failing tests on clean main (PR #138 → closed without merge):
+
+1. **dashboard `prior_label` missing from `/inicio` context** — the `<ui-kpi-card>` for "Ventas de hoy" silently dropped the `'vs ayer'` label. `inicio.html` already has `{% if prior_label %}delta-prior="vs {{ prior_label }}"{% endif %}` and tests in `test_dashboard_deltas` asserted `'vs ayer'`, but the `dashboard.py` `/inicio` handler never passed `prior_label` into the template context. Fix: add helper `_prior_label_for(period)` returning `"ayer"` / `"semana pasada"` / `"mes pasado"` / `"período anterior"`, and pass to the rendered context. `test_dashboard_renders_delta_up_pill` now passes.
+
+2. **inventory `lead_time_days` → `NULL` on edit** — `inventory_update` ran `ing.lead_time_days = _parse_optional_int(lead_time_days, "lead_time_days")`, which returned `None` when the form field was empty. The column is `NOT NULL DEFAULT 3`, so any partial edit crashed with `IntegrityError`. Three `test_price_history` tests failed with 500. Fix: when the form leaves the field empty, keep the current value.
+
+**Salvage provenance**: original PR #138 was based at `78828464` (pre-`#144`), so the branch diff showed the release-workflow chain `#139-#144` and changelog `#145` as phantom deletions. This PR is a path-checkout (per `branch-archaeology` skill §"The Salvage Recipe") onto current `origin/main`: 3 files, 67 insertions, 2 deletions. Closes #138.
+
+**Out of scope**: comprehensive template-side fallback (some `<ui-kpi-card>` instances hardcode `"vs semana pasada"` without a `{% if %}` guard — those still work because the `period` is `today` and the helper defaults to `"período anterior"`, but the wording is inconsistent with the new helper).
+
+---
+
 ## [2026.10.2] — 2026-10-10 — Sprint 2.1 release: void/xlsx + deploy CI + conftest hang fix
 
 Released as v2026.10.2. Commit: `0205f88`.
