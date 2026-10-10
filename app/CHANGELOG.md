@@ -13,8 +13,62 @@
 
 **Out of scope**: deeper refactor to make the FastAPI `client` fixture itself lazy, or a session-scoped engine. The 8s init_db cost remains for app-touching tests; that's where it belongs. Full CI run after merge will confirm total wall-time drop.
 
----
+## 2026-10-10 — fix(dashboard): show 'vs ayer' prior label on Ventas kpi-card; fix(inventory): keep lead_time_days on partial edit
 
+**Scope**: `app/routers/dashboard.py`, `app/routers/inventory.py`.
+
+Two dormant real bugs that surfaced as failing tests on clean `main`:
+
+1. **`prior_label` missing from `/inicio` context** — template at
+   `inicio.html:51` renders `delta-prior="vs {{ prior_label }}"` but the
+   context dict never included `prior_label`, so the Ventas kpi-card
+   silently dropped the prior period label. Test
+   `test_dashboard_renders_delta_up_pill` (today=5, yesterday=1) failed
+   with `assert "vs ayer" in body`.
+   *Fix*: added `prior_label` to the inicio render context and a new
+   `_prior_label_for(period)` helper that maps `today→ayer`,
+   `week→semana pasada`, `month→mes pasado`. All 17
+   `test_dashboard_deltas.py` tests pass; the 3 previously-failing
+   delta-pill tests now pass.
+
+2. **`lead_time_days` → NULL on inventory edit** — route
+   `inventory_update` at `app/routers/inventory.py:1436` parses
+   `lead_time_days` via `_parse_optional_int` which returns `None` for
+   empty form input, then assigns `ing.lead_time_days = None`. The
+   column is `NOT NULL DEFAULT 3` (migration 019, model
+   `app/rms/models/inventory.py:65`), so any edit of a row that didn't
+   include a `lead_time_days` value crashed with
+   `IntegrityError: NOT NULL constraint failed`. Three
+   `test_price_history.py` tests (`test_inventory_update_writes_price_event_on_price_change`,
+   `test_inventory_edit_route_writes_event_on_price_change`,
+   `test_inventory_edit_route_records_event_when_price_unchanged`) all
+   failed with 500 errors on clean main.
+   *Fix*: when the form leaves `lead_time_days` empty, keep the
+   current value instead of overwriting with NULL. Matches the column
+   contract; matches operator intent (editing notes shouldn't reset
+   lead time). All 19 `test_price_history.py` tests pass; all 39
+   `test_inventory_*` tests pass; no regressions in the broader
+   inventory/router test surface.
+
+**Pre-existing failures NOT addressed by this PR** (out of scope;
+verified to exist on clean `main` via `git stash`):
+- `test_dashboard_aggregation_discount_fix.py` — 6 tests fail because
+  the chart's empty-state message is `'Sin datos de ventas por hora'`
+  but tests expect `'Sin ventas todavía'`. Tracked separately.
+
+**Verification**:
+- `tests/test_dashboard_deltas.py` — 17/17 pass (was 14/17)
+- `tests/test_price_history.py` — 19/19 pass (was 16/19)
+- `tests/test_inventory_adjust_atomicity.py`,
+  `test_inventory_audit_page.py`, `test_inventory_combos.py`,
+  `test_inventory_intel.py`, `test_inventory_multifilter.py` — 39
+  pass, 2 xfailed, 2 xpassed (was 39 pass on clean main; no regression)
+- `tests/test_dashboard_regulars.py` — 6/6 pass (no regression)
+- `tests/test_settings_audit.py` — 4/4 pass (no regression)
+- `uv run ruff check app/routers/dashboard.py app/routers/inventory.py` — clean
+- `uv run ruff format --check ...` — clean
+
+---
 ## 2026-10-09 — Reponer board sits under the top bar
 
 The replenishment board leaves room for the top bar, so the last rows

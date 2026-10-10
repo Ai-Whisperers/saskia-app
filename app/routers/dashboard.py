@@ -104,6 +104,13 @@ def _prior_period_window(period: str) -> tuple[datetime, datetime]:
     return start, end
 
 
+def _prior_label_for(period: str) -> str:
+    """Human-readable label for the prior period (used as `vs <label>` in cards)."""
+    return {"today": "ayer", "week": "semana pasada", "month": "mes pasado"}.get(
+        period, "período anterior"
+    )
+
+
 def _compute_window_totals(
     session: Session, start: datetime, end: datetime
 ) -> tuple[int, int, int, list[Sale], list[Sale], dict]:
@@ -344,6 +351,7 @@ async def dashboard(
             "period": period,
             "start_date_val": range_start.strftime("%Y-%m-%d") if range_start else "",
             "end_date_val": range_end.strftime("%Y-%m-%d") if range_end else "",
+            "prior_label": _prior_label_for(period),
             **kpis,
             "ranking": ranking,
             "birthdays": birthdays,
