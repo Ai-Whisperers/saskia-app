@@ -105,14 +105,14 @@ def test_dashboard_filter_custom_with_dates(client):
     assert r.status_code == 200, f"/?period=custom with dates returned {r.status_code}"
 
 
-def test_dashboard_filter_custom_no_dates_skips_or_redirects(client):
-    """GET /?period=custom without dates must not crash the server."""
-    # KNOWN BUG: this endpoint raises ValueError("Unknown period: custom")
-    # when called without start/end. Currently returns 500.
-    # This test documents the behavior; should be fixed to fall back to "today".
+def test_dashboard_filter_custom_no_dates_falls_back_to_today(client):
+    """GET /?period=custom without start/end falls back to today's window.
+
+    Regression test for SASKIA-213. The bug was that _period_window raised
+    ValueError("Unknown period: custom") and the route returned 500. The fix
+    is in app/routers/dashboard.py:_resolve_period_window, which routes the
+    no-dates case through _period_window("custom") where the "custom" branch
+    returns today's window (see lines 71-74 of that file).
+    """
     r = client.get("/?period=custom")
-    # Acceptable: 200/303/422/500
-    # TODO: Fix _period_window to fall back to "today" when period="custom" but no dates.
-    assert r.status_code in (200, 303, 422, 500), (
-        f"Unexpected status for ?period=custom: {r.status_code}"
-    )
+    assert r.status_code == 200, f"Expected 200 fallback, got {r.status_code}"

@@ -19,7 +19,7 @@ P42 refactor behavior. P39 covered the lowercase normalization itself;
 P42 covers the enum-mapping behavior added on top.
 """
 
-from app.rms.models.channels import CHANNEL_DEFAULT, Channel
+from app.rms.models.channels import Channel
 from app.routers.pedidos import CHANNELS, normalize_channel
 
 
@@ -121,7 +121,7 @@ def test_channel_default_constant():
     """
     # CHANNEL_DEFAULT may be a string or an enum value depending on how
     # it's defined; either way it must be a valid enum value.
-    assert str(CHANNEL_DEFAULT) in Channel.allowed_values()
+    assert Channel.default() in Channel.allowed_values()
 
 
 def test_channel_enum_and_migration_have_same_allowed_set():
