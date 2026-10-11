@@ -922,16 +922,12 @@
               {% else %}
                 <span class="text-muted">—</span>
               {% endif %}
-              {# T-2026-10-04 (C.6): allergen micro-badge, capped at 3 + ellipsis.
-                 Restored from a2f29b8e (lost in the e5c9e288 table overhaul). #}
-              {% if r.recipe_allergens %}
-                {% set allergen_list = r.recipe_allergens.split(',') | map('trim') | list %}
-                <span class="badge allergen-badge"
-                      data-allergens="{{ r.recipe_allergens }}"
-                      title="Alérgenos: {{ r.recipe_allergens }}">
-                  ⚠️ {{ allergen_list[:3] | join(', ') }}{% if allergen_list|length > 3 %}…{% endif %}
-                </span>
-              {% endif %}
+              {# T-2026-10-10 (audit #147, P1): allergen badge removed from
+                 the row body. Per the audit, the badge added visual noise
+                 on the production table without helping the cook — the
+                 receta/receta-detail page already shows the full allergen
+                 list. Keep r.recipe_allergens on the data row so any
+                 downstream tooltips can still surface them. #}
             {% endif %}
           </td>
           <td class="num" data-label="Demanda">
@@ -1215,7 +1211,7 @@
       </small>
       <button type="submit" class="btn btn-primary">
         <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-        Guardar ejecución del turno
+        Guardá ejecución del turno
       </button>
     </div>
   </section>

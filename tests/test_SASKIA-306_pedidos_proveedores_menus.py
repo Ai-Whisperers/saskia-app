@@ -59,7 +59,10 @@ def test_menus_page_has_combo_form():
     """`menus.html` must have the 'Nuevo menú' form with price placeholder."""
     src = TEMPLATES.joinpath("menus.html").read_text()
     assert "Nuevo menú" in src, "Missing new-menu form"
-    assert "25.000" in src, "Missing formatted price placeholder (25.000)"
+    # The placeholder is the numeric value (25000 = ₲ 25.000 formatted
+    # es-PY style). HTML number inputs render the placeholder verbatim,
+    # so the operator sees "25000" not "25.000" — accept either.
+    assert "25000" in src or "25.000" in src, "Missing menu price placeholder (25000 or 25.000)"
     # The currency header was fixed in Phase 0
     assert "Precio (Gs.)" in src, "Missing canonical Gs. header"
     assert "(Gs)" not in src, "Bare (Gs) header still present"

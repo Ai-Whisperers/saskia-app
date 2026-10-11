@@ -1,3 +1,30 @@
+## 2026-10-10 — docs(operations): Sprint 2.1 P0 fix branch — sales safe_commit + 4 dormant bugs
+
+**Scope**: `app/routers/sales.py`, `app/CHANGELOG.md`, `app/rms/messages.py`, `tests/`. Cherry-pick from `origin/fix/p0-bugs-2026-10-10` (8 commits, was PR #148).
+
+This branch fixes **5 of the 19 dormant bugs** identified in the audit doc (`docs/operations/2026-10-10-clean-main-test-audit.md`):
+
+1. **Loyalty points** silently missing on sale creation
+2. **Audit log** missing for sale creation (OPSEC violation)
+3. **Idempotency record** value stored as empty string instead of JSON
+4. **Printer trigger** not firing on sale
+5. **Sale validation** returning 422 for normal sales (caja cascade)
+
+Plus 4 smaller UI/copy fixes: voseo "Guardá" copy on inventory form + produccion shift-execute button; allergen-badge removed from produccion row body; test copy drift fixed for chart aggregation and pedidos placeholder; dashboard empty-state only gates on revenue_gs.
+
+Two followup commits land `from exc` (B904) for the new fiado except clauses and apply `ruff format` (which also surfaced brittleness in chart-height assertions that were rewritten to relative checks).
+
+**Out of scope** (acknowledged in PR #148 body):
+- 6 produccion refactor tests (`test_produccion_v3_phase0`, `test_produccion_empty_state`) — the B.7 refactor template hasn't caught up
+- Printer test fixture mismatch — covered by separate ticket
+- Dashboard chart v3 height format change — covered by separate ticket
+
+**Verified**:
+- 5/5 originally-failing tests in scope now pass (test_dashboard_renders_delta_up_pill family; loyalty, audit, idempotency, printer)
+- 0 regressions in the 73 ventas/sale tests
+
+---
+
 ## 2026-10-10j — docs(audit): land pre-existing test failures audit on main
 
 **Scope**: `docs/operations/2026-10-10-clean-main-test-audit.md`.

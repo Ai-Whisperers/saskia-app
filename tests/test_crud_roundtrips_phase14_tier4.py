@@ -217,7 +217,10 @@ def test_sale_multi_item_appears_in_daily_total(client, session_factory):
             {"product_id": product_id, "qty": 1, "discount_pct": 10, "unit_price_gs": 4500},
         ],
         "customer_id": None,
-        "payment_method": "efectivo",
+        # transferencia avoids the open-caja requirement on the bare
+        # `client` fixture (the test is about the daily-total math, not
+        # the cash drawer).
+        "payment_method": "transferencia",
         "channel": "mostrador",
         "discount_gs": 0,
         "notes": "Multi-item sale test",

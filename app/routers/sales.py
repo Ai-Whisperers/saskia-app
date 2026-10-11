@@ -824,10 +824,99 @@ async def sale_create(
     _apply_invoice_to_sale(session, sale, invoice_fields, product_id, qty, discount_gs)
 
     if idempotency_key:
-        _update_idempotency_record(session, idempotency_key, sale.sale_id)
+        _update_idempotency_record(
+            session,
+            idempotency_key,
+            sale.sale_id,
+            request_id=getattr(request.state, "request_id", None),
+        )
+
+        # Rate-limit POSTs (BACKLOG #10 security: bots / accidents)
+    from app.rms.rate_limit import is_write_rate_limited
+
+    if is_write_rate_limited(session, request):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas ventas en 1 minuto. Esperá un momento y reintentá.",
+        )
+
+    # Fiado integration: a sale with payment_method='fiado' must have
+    # a customer, and must create a cargo in the fiado ledger so the
+    # customer's debt is reflected in /fiado. (Fase 2 — the fiado
+    # ledger has its own service layer; we delegate to registrar_cargo
+    # and surface FiadoConflict as a 422 to keep the operator's
+    # mental model aligned with the POS card error UX.)
+    if payment_method_clean == "fiado":
+        if customer_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Para registrar ventas en fiado necesitás seleccionar "
+                    "un cliente. Tocá el buscador de clientes y elegí uno."
+                ),
+            )
+        from app.rms.fiado import FiadoConflict, FiadoError, registrar_cargo
+
+        try:
+            registrar_cargo(
+                session,
+                customer_id,
+                int(sale.total_price_gs),
+                sale_id=sale.sale_id,
+                note=f"venta a fiado #{sale.sale_id}",
+                created_by=current_operator(request, fallback="operador"),
+            )
+        except FiadoConflict as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except FiadoError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if customer_id is not None:
         _award_loyalty_points(session, customer_id, sale)
+
+    # Best-effort: send the receipt to the configured printer. The
+    # helper swallows its own errors so a printer outage never breaks
+    # the sale. Hook lives here (before commit) so the test harness's
+    # monkeypatched send_to_printer is called with the just-created
+    # sale visible in the same session.
+    _fire_printer_for_sale(
+        session,
+        request,
+        product_id=product_id,
+        qty=qty,
+        discount_gs=discount_gs,
+        payment_method=payment_method_clean,
+        notes=notes_clean,
+    )
+
+    # Audit the sale-create action for the operator (OPSEC: every state
+    # change must leave a log; the /auditoria UI must be able to
+    # answer "who created sale N"). Mirrors the write.sale.share
+    # pattern used in sale_share_token.
+    audit_record(
+        session,
+        request=request,
+        user_id=current_operator(request, fallback="operador"),
+        action="write.sale.create",
+        target_type="sale",
+        target_id=str(sale.sale_id),
+        detail={
+            "product_id": product_id,
+            "qty": qty,
+            "total_gs": sale.total_price_gs,
+            "customer_id": customer_id,
+            "payment_method": payment_method_clean,
+        },
+    )
+
+    # Commit the sale + downstream effects (loyalty ledger, audit log,
+    # stock moves, idempotency record). Without this, the writes are
+    # rolled back when get_session() closes the generator — silent loss
+    # that masks itself as a working redirect. Safe_commit wraps
+    # commit() in rollback-on-error so a single bad row doesn't poison
+    # the connection pool. The same handler family in
+    # sale_create_multi already calls safe_commit at line 2017.
+    safe_commit(session)
 
     return _sale_create_redirect(sale)
 
@@ -1161,17 +1250,25 @@ def _apply_invoice_to_sale(session, sale, invoice_fields, product_id, qty, disco
     sale.iva_amount_gs = snapshot["iva_amount_gs"]
 
 
-def _update_idempotency_record(session, idempotency_key, sale_id):
-    """Update idempotency record with real sale_id.
+def _update_idempotency_record(session, idempotency_key, sale_id, request_id=None):
+    """Update idempotency record with real sale_id + request_id.
 
-    Extracted from sale_create to reduce complexity.
+    Stores JSON ``{"sale_id": "<id>", "request_id": "<rid>"}`` so duplicate-POST
+    forensics can correlate the two requests via the access log. (Phase 1B
+    ticket #10 per the test audit.) Falls back to the legacy
+    plain-string format if request_id is None (e.g. legacy callers).
     """
+    import json as _json
+
     from app.rms.models import AppMeta as _AppMeta
 
+    if request_id:
+        payload = _json.dumps({"sale_id": str(sale_id), "request_id": request_id})
+    else:
+        payload = str(sale_id)
+
     session.execute(
-        update(_AppMeta)
-        .where(_AppMeta.key == f"sale_idem:{idempotency_key}")
-        .values(value=str(sale_id))
+        update(_AppMeta).where(_AppMeta.key == f"sale_idem:{idempotency_key}").values(value=payload)
     )
 
 
@@ -1210,6 +1307,15 @@ async def sale_create_multi(
 
     Refactored 2026-10-09 to reduce cognitive complexity from 168 to <10.
     """
+    # Rate-limit POSTs (BACKLOG #10 security: bots / accidents).
+    from app.rms.rate_limit import is_write_rate_limited
+
+    if is_write_rate_limited(session, request):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas ventas en 1 minuto. Esperá un momento y reintentá.",
+        )
+
     # Empty body is a common client mistake (e.g. fetch() with no payload).
     # 2026-10-09: this was returning 500 with JSONDecodeError. Treat as 400.
     try:
@@ -1688,6 +1794,35 @@ def _finalize_sale_multi(
     # Process loyalty points if redeemed
     if points_to_redeem > 0 and customer_id is not None:
         _redeem_loyalty_points(session, customer_id, points_to_redeem, sale_ids)
+
+    # Fiado integration: a multi-sale with payment_method='fiado' must
+    # have a customer, and the cart total lands in the fiado ledger as
+    # ONE cargo per multi-cart (operator's mental model: "this cart
+    # went on the tab"). Mirrors the single-row /ventas/nueva path.
+    if payment_method == "fiado":
+        if customer_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Para registrar ventas en fiado necesitás seleccionar "
+                    "un cliente. Tocá el buscador de clientes y elegí uno."
+                ),
+            )
+        from app.rms.fiado import FiadoConflict, FiadoError, registrar_cargo
+
+        try:
+            registrar_cargo(
+                session,
+                customer_id,
+                _cart_total,
+                sale_id=sale_ids[0] if sale_ids else None,
+                note=f"multi-venta a fiado ({len(sale_ids)} línea(s))",
+                created_by=current_operator(request, fallback="operador"),
+            )
+        except FiadoConflict as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except FiadoError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     session.commit()
     return _redirect_after_sale(request, first_product_id, points_to_redeem, customer_id)

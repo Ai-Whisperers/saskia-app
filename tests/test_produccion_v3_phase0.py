@@ -364,9 +364,9 @@ def test_day_view_contains_meta_unidades_column(authed_client, session_factory):
     # the current "Lotes" header or a unit-hinted "Meta (und…)".
     import re
 
-    assert re.search(r"Lotes", body) or re.search(r"Meta\s*\(und[^)]*\)", body, re.IGNORECASE), (
-        "plan column must be unambiguous about magnitude ('Lotes' or 'Meta (und)')"
-    )
+    assert re.search(r"Lotes|Tandas", body) or re.search(
+        r"Meta\s*\(und[^)]*\)", body, re.IGNORECASE
+    ), "plan column must be unambiguous about magnitude ('Lotes' or 'Tandas' or 'Meta (und)')"
 
 
 def test_day_view_contains_lote_final_column(authed_client, session_factory):

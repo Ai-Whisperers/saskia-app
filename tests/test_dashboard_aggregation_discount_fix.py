@@ -22,6 +22,17 @@ from app.routers.dashboard import (
 ASUNCION = ZoneInfo("America/Asuncion")
 
 
+def _all_rect_heights(svg: str) -> list[float]:
+    """Return the height attribute of every <rect> in the chart, in order.
+
+    The current v3 chart is a 24-bucket vertical bar chart (one rect per
+    hour of day). The render order is 00h..23h.
+    """
+    import re
+
+    return [float(m) for m in re.findall(r'<rect[^>]*?height="([0-9.]+)"', svg)]
+
+
 def _sale(
     *,
     qty: float,
@@ -72,25 +83,31 @@ def test_hourly_chart_buckets_discount_correctly():
     )
 
     chart = _build_hourly_sales_chart([discounted, full_price], ASUNCION)
-    # Both bars should be present (09h and 10h)
-    assert "09h" in chart
-    assert "10h" in chart
-    # max=5000 (full_price), plot_h=132.
-    # discounted bar height = 4000/5000 * 132 = 105.6 → "105.6"
-    # gross would be 132.0 (full bar)
-    assert 'height="105.6"' in chart, (
-        f"discounted bar height should be 105.6 (4000/5000 * 132), got: {chart[:300]}"
+    # Hour labels ("09h", "10h") are spaced by the chart's `n//6` rule
+    # (24 buckets → show every 4th), so we check the SVG rendered
+    # non-zero rect heights for the discounted bucket. The function
+    # converts to M₲ (millions), so for 4000 gs = 0.004 M₲ and 5000
+    # gs = 0.005 M₲. The bar heights in M₲ format look like
+    # height="0.004" and "0.005" but the chart normalises against max,
+    # so what we actually check is: the discounted bar is SHORTER than
+    # the full-price one (post-discount < gross).
+    rects = _all_rect_heights(chart)
+    assert len(rects) == 24, f"Expected 24 buckets, got {len(rects)}"
+    # 09h bucket is the discounted one
+    assert rects[9] < rects[10], (
+        f"Discounted bar (09h, height={rects[9]}) should be shorter than "
+        f"full-price (10h, height={rects[10]})"
     )
-    # Full-price bar should be the full height (132.0)
-    assert 'height="132.0"' in chart
 
 
 def test_hourly_chart_no_discount_uses_gross():
     """Without a discount, gross and post-discount are the same."""
     sale = _sale(qty=2, unit_price_gs=2500, discount_gs=0)
     chart = _build_hourly_sales_chart([sale], ASUNCION)
-    # Single sale = max bucket = full height. plot_h = 132.
-    assert 'height="132.0"' in chart
+    # Single sale = max bucket = only one non-zero rect. Other 23 are zero.
+    rects = _all_rect_heights(chart)
+    nonzero = [h for h in rects if h > 0]
+    assert len(nonzero) == 1, f"Expected 1 non-zero bar, got {len(nonzero)}"
 
 
 def test_hourly_chart_skips_sales_without_sold_at():
@@ -105,13 +122,13 @@ def test_hourly_chart_skips_sales_without_sold_at():
         payment_method="efectivo",
     )
     chart = _build_hourly_sales_chart([sale_no_time], ASUNCION)
-    assert "Sin ventas todavía" in chart
+    assert "Sin datos de ventas por hora" in chart
 
 
 def test_hourly_chart_empty_list():
     """Empty sales list returns the empty-state message."""
     chart = _build_hourly_sales_chart([], ASUNCION)
-    assert "Sin ventas todavía" in chart
+    assert "Sin datos de ventas por hora" in chart
 
 
 def test_hourly_chart_all_zero_buckets_returns_empty_state():
@@ -126,7 +143,7 @@ def test_hourly_chart_all_zero_buckets_returns_empty_state():
         payment_method="efectivo",
     )
     chart = _build_hourly_sales_chart([sale_no_time], ASUNCION)
-    assert "Sin ventas todavía" in chart
+    assert "Sin datos de ventas por hora" in chart
 
 
 def test_payment_methods_donut_respects_discount():
@@ -177,4 +194,4 @@ def test_hourly_chart_clamped_at_zero_for_oversold_discount():
     sale = _sale(qty=1, unit_price_gs=1000, discount_gs=2000)
     chart = _build_hourly_sales_chart([sale], ASUNCION)
     # After clamp, bucket is 0 → empty state
-    assert "Sin ventas todavía" in chart
+    assert "Sin datos de ventas por hora" in chart

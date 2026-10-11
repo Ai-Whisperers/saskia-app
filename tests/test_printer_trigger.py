@@ -36,9 +36,17 @@ def test_sale_creation_triggers_printer(client, session_factory, monkeypatch):
     # _fire_printer_for_sale helper imports it from).
     monkeypatch.setattr("app.integrations.printer.send_to_printer", fake_send)
 
+    # Use `transferencia` so the test doesn't need a caja open — the
+    # printer behavior is independent of payment method, and caja state
+    # is unrelated to what this test is asserting.
     resp = client.post(
         "/ventas/nueva",
-        data={"product_id": str(pid), "qty": "1", "discount_gs": "0"},
+        data={
+            "product_id": str(pid),
+            "qty": "1",
+            "discount_gs": "0",
+            "payment_method": "transferencia",
+        },
         follow_redirects=False,
     )
     assert resp.status_code == 303
@@ -86,9 +94,16 @@ def test_printer_failure_does_not_break_sale(client, session_factory, monkeypatc
 
     monkeypatch.setattr("app.integrations.printer.send_to_printer", fake_fail)
 
+    # See note in test_sale_creation_triggers_printer — transferencia
+    # avoids the caja requirement that the `client` fixture doesn't open.
     resp = client.post(
         "/ventas/nueva",
-        data={"product_id": str(pid), "qty": "1", "discount_gs": "0"},
+        data={
+            "product_id": str(pid),
+            "qty": "1",
+            "discount_gs": "0",
+            "payment_method": "transferencia",
+        },
         follow_redirects=False,
     )
     # Sale should still succeed (printer error is best-effort)
