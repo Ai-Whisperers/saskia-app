@@ -3,7 +3,7 @@
 **Generated:** 2026-09-29 (rev 3 — full catalog sweep, ops triad blueprint integrated)
 **Author:** UX/UI Principal review (multi-hat analysis + Gemini QA on operational triad)
 **Repo:** `/opt/data/profiles/ivan/scratch/sazon-app-work`
-**Live:** `https://sazon-vps.paragu-ai.com` (Docker Swarm, image `sazon-rms:prod`, schema v60)
+**Live:** `https://sazon-vps.paragu-ai.com` (Docker Swarm, image `sazon-rms:prod`, schema v117)
 
 ---
 

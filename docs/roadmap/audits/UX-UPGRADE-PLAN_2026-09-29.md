@@ -3,7 +3,7 @@
 **Generated:** 2026-09-29 (rev 3 — full catalog sweep, ops triad blueprint integrated)
 **Author:** UX/UI Principal review (multi-hat analysis + Gemini QA on operational triad)
 **Repo:** `/opt/data/profiles/ivan/scratch/saskia-app-work`
-**Live:** `https://saskia-vps.paragu-ai.com` (Docker Swarm, image `saskia-rms:prod`, schema v60)
+**Live:** `https://saskia-vps.paragu-ai.com` (Docker Swarm, image `saskia-rms:prod`, schema v117)
 
 ---
 

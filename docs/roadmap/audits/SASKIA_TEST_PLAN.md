@@ -114,7 +114,7 @@ Per parent-session note, prior manual verification established:
 | Path | Status (parent session) | Action |
 |---|---|---|
 | `/login` | 200 (auth form) | OK |
-| `/` (dashboard) | 200 after schema v26 migrate | OK |
+| `/` (dashboard) | 200 after schema v117 migrate | OK |
 | `/productos`, `/inventario`, `/clientes`, `/auditoria` | 200 | OK |
 | `/ventas` | **TemplateRuntimeError** | BLOCKER |
 | `/reportes/*` | 200 (most), TBD for `/reportes/*/pdf` | OK |

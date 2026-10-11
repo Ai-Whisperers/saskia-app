@@ -19,7 +19,7 @@
 ## TL;DR
 
 ✅ **Sessions 1–4 fully integrated**: all uncommitted work committed, pushed, deployed, verified live.
-✅ **Live healthy**: 17/17 routes 200/307, 6/6 static assets serving, schema v66.
+✅ **Live healthy**: 17/17 routes 200/307, 6/6 static assets serving, schema v117.
 ⚠️ **3 real gaps** remain, all small and well-scoped.
 ⚠️ **1 critical bug** remains in code (CSRF gap in `pedido_publico.html`) — must fix before public use.
 ⚠️ **5 feature commits dropped** during rebase dedup (their tests still in origin/main, but the work was already shipped).

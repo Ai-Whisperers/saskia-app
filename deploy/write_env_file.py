@@ -8,6 +8,7 @@ since the last write (compared by SHA-256 of the resolved secret set).
 Why a per-env file:
     - docker stack deploy can read env_file from a host path. Mounting
       it into the container means secrets never appear in the image,
+import time
       never appear in the rendered stack yml, and never appear in
       `docker service inspect` output.
     - One file per env keeps the boundaries obvious: prod, test, and

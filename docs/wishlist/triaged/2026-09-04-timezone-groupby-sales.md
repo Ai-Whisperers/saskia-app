@@ -18,6 +18,6 @@ While we're touching Sale for the daily-trend chart. Single-column addition; no 
 ## Triage
 
 **Moved to triaged:** 2026-09-09
-**Status:** SHIPPED — `Sale.tz` column added (migration 012, schema v12).
+**Status:** SHIPPED — `Sale.tz` column added (migration 012, schema v117).
 Defaults to `America/Asuncion`. Reports can group by `tz` for multi-region
 rollouts (currently single-tenant).
