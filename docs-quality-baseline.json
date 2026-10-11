@@ -1,22 +1,22 @@
 {
   "schema": 1,
-  "snapshot": 11333,
+  "snapshot": 11510,
   "by_rule": {
-    "MD032": 3886,
-    "MD022": 3594,
-    "MD024": 2158,
-    "MD031": 365,
+    "MD032": 3928,
+    "MD022": 3699,
+    "MD024": 2192,
+    "MD031": 362,
     "MD036": 316,
     "MD025": 299,
-    "MD040": 294,
+    "MD040": 292,
     "MD012": 74,
-    "MD047": 59,
     "MD034": 58,
+    "MD047": 58,
     "MD004": 40,
     "MD029": 34,
     "MD051": 30,
     "MD009": 27,
-    "MD026": 21,
+    "MD026": 23,
     "MD038": 20,
     "MD005": 18,
     "MD007": 18,
@@ -18459,6 +18459,1164 @@
       618,
       "MD031",
       "Fenced code blocks should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      113,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      146,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      158,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      170,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      181,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      189,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      197,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      204,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      211,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      217,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      234,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      243,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      275,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      278,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-1-untested-routers.md",
+      281,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-2-test-pollution.md",
+      5,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-2-test-pollution.md",
+      37,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-2-test-pollution.md",
+      51,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-2-test-pollution.md",
+      52,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-2-test-pollution.md",
+      64,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-2-test-pollution.md",
+      67,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-3-coverage-gate.md",
+      5,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-3-coverage-gate.md",
+      111,
+      "MD026",
+      "Trailing punctuation present in heading text."
+    ],
+    [
+      "docs/plans/2026-10-11-plan-3-coverage-gate.md",
+      113,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-3-coverage-gate.md",
+      114,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-3-coverage-gate.md",
+      125,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-3-coverage-gate.md",
+      128,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      5,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      11,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      16,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      21,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      28,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      29,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      36,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      37,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      43,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      49,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      56,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      60,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      65,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      71,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      72,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      89,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-4-test-harden.md",
+      92,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-5-prod-harden.md",
+      5,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-5-prod-harden.md",
+      21,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-5-prod-harden.md",
+      51,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-5-prod-harden.md",
+      113,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-5-prod-harden.md",
+      114,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-5-prod-harden.md",
+      119,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-5-prod-harden.md",
+      122,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-6-test-gaps.md",
+      5,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-6-test-gaps.md",
+      53,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-6-test-gaps.md",
+      67,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-6-test-gaps.md",
+      76,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-6-test-gaps.md",
+      80,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-6-test-gaps.md",
+      81,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-6-test-gaps.md",
+      84,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-6-test-gaps.md",
+      87,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-7-docs.md",
+      5,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-7-docs.md",
+      14,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-7-docs.md",
+      56,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-7-docs.md",
+      135,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-7-docs.md",
+      136,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-7-docs.md",
+      140,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-7-docs.md",
+      143,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-8-coverage-growth.md",
+      5,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-8-coverage-growth.md",
+      49,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-8-coverage-growth.md",
+      63,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-8-coverage-growth.md",
+      76,
+      "MD026",
+      "Trailing punctuation present in heading text."
+    ],
+    [
+      "docs/plans/2026-10-11-plan-8-coverage-growth.md",
+      78,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-8-coverage-growth.md",
+      79,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-8-coverage-growth.md",
+      89,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-plan-8-coverage-growth.md",
+      92,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      82,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      87,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      90,
+      "MD040",
+      "Fenced code blocks should have a language specified"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      110,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      111,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      115,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      118,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      127,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      127,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      132,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      157,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      157,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      158,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      184,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      184,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      187,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      187,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      194,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      194,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      200,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      208,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      215,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      220,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      220,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      221,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      224,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      224,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      227,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      227,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      234,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      234,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      239,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      245,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      246,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      255,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      256,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      271,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      271,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      272,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      276,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      276,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      279,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      279,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      288,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      288,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      294,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      298,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      302,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      308,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      309,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      318,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      319,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      326,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      330,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      330,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      331,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      335,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      335,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      338,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      338,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      345,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      345,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      351,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      357,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      363,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      366,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      371,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      377,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      382,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      382,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      383,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      388,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      388,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      391,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      391,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      398,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      398,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      406,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      410,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      414,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      419,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      423,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      428,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      428,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      429,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      432,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      432,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      435,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      435,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      442,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      442,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      446,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      448,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      450,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      455,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      457,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      463,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      466,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      469,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      469,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      470,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      474,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      474,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      477,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      477,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      484,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      484,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      487,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      489,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      492,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      494,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      498,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      502,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      502,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      503,
+      "MD032",
+      "Lists should be surrounded by blank lines"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      506,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      506,
+      "MD024",
+      "Multiple headings cannot contain the same content."
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      509,
+      "MD022",
+      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
+    ],
+    [
+      "docs/plans/2026-10-11-round-5-6-master-plan.md",
+      509,
+      "MD024",
+      "Multiple headings cannot contain the same content."
     ],
     [
       "docs/plans/SASKIA-210-supabase-rls-multitenant-onepager.md",
@@ -54115,102 +55273,6 @@
     [
       "docs/roadmap/historical-plans/2026-09-rms-fase-1-dev-plan-v2.md",
       937,
-      "MD047",
-      "Each file should end with a single newline character."
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      18,
-      "MD032",
-      "Lists should be surrounded by blank lines"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      69,
-      "MD022",
-      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      70,
-      "MD032",
-      "Lists should be surrounded by blank lines"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      76,
-      "MD022",
-      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      77,
-      "MD032",
-      "Lists should be surrounded by blank lines"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      82,
-      "MD022",
-      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      83,
-      "MD032",
-      "Lists should be surrounded by blank lines"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      89,
-      "MD022",
-      "Headings should be surrounded by blank lines. [Expected: 1; Actual: 0; Below]"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      90,
-      "MD032",
-      "Lists should be surrounded by blank lines"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      97,
-      "MD031",
-      "Fenced code blocks should be surrounded by blank lines"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      97,
-      "MD040",
-      "Fenced code blocks should have a language specified"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      113,
-      "MD040",
-      "Fenced code blocks should have a language specified"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      115,
-      "MD031",
-      "Fenced code blocks should be surrounded by blank lines"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      117,
-      "MD031",
-      "Fenced code blocks should be surrounded by blank lines"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      117,
-      "MD040",
-      "Fenced code blocks should have a language specified"
-    ],
-    [
-      "docs/roadmap/historical-plans/2026-10-phase14/2026-10-01-phase14-coverage-strategy.md",
-      133,
       "MD047",
       "Each file should end with a single newline character."
     ],
