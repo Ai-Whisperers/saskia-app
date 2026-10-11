@@ -14,7 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO = Path("/opt/data/profiles/ivan/scratch/sazon-app-work")
+REPO = Path(__file__).resolve().parents[2]
 README = REPO / "docs" / "user-guide" / "README.md"
 CONFIG = REPO / "app" / "rms" / "config.py"
 

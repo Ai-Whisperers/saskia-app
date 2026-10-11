@@ -821,6 +821,23 @@ async def sale_create(
         packaging_qty,
     )
 
+    # Deduct redeemed points and write the loyalty ledger row. This MUST
+    # happen after _create_sale so the ledger row has the sale_id.
+    # Without this, customers could redeem points indefinitely (the
+    # discount was applied but the points balance was never updated).
+    if points_to_redeem > 0 and customer_id is not None:
+        from app.rms.customers import get_customer as _gc_for_redeem
+        from app.rms.loyalty import redeem_points as _redeem_points
+
+        _cust_for_redeem = _gc_for_redeem(session, customer_id)
+        if _cust_for_redeem is not None:
+            _redeem_points(
+                session,
+                _cust_for_redeem,
+                points_to_redeem,
+                sale_id=sale.sale_id,
+            )
+
     _apply_invoice_to_sale(session, sale, invoice_fields, product_id, qty, discount_gs)
 
     if idempotency_key:
@@ -1923,12 +1940,39 @@ def _redeem_loyalty_points(session: Session, customer_id: int, points: int, sale
     """Redeem loyalty points for the customer.
 
     Extracted from _finalize_sale_multi to reduce complexity.
+    Calls redeem_points() which both deducts the balance AND writes
+    the loyalty ledger row. Without the ledger row, balance math
+    silently drifts and the operator loses the audit trail.
     """
     from app.rms.customers import get_customer
+    from app.rms.loyalty import redeem_points
 
     cust = get_customer(session, customer_id)
-    if cust is not None:
-        cust.loyalty_points = (cust.loyalty_points or 0) - points
+    if cust is None:
+        return
+    # sale_ids is the list of sale rows for the multi-cart. The
+    # ledger row only needs a single sale_id; use the first one.
+    first_sale_id = sale_ids[0] if sale_ids else None
+    try:
+        redeem_points(
+            session,
+            cust,
+            points,
+            sale_id=first_sale_id,
+        )
+    except ValueError:
+        # Insufficient points at finalize time (race with another
+        # redemption, or manual balance edit). The discount was
+        # already applied to the sale — log and move on rather than
+        # 500 the entire multi-sale. Operator's mental model: the
+        # discount is honored, the customer gets the benefit of the
+        # doubt once.
+        import logging
+        logging.getLogger(__name__).warning(
+            "loyalty redeem failed for customer %s: insufficient points %s",
+            customer_id,
+            points,
+        )
 
 
 def _redirect_after_sale(

@@ -814,7 +814,9 @@ async def _process_single_row(
         }
 
     price_result = _parse_price(price_raw, ing_name, sup_name, row_idx)
-    if price_result["error"]:
+    # _parse_price returns either {"price": N} (success) or {"error": {...}} (failure).
+    # Use .get() so we don't KeyError on the success path.
+    if price_result.get("error"):
         return {"status": "error", "data": price_result["error"]}
     price_int = price_result["price"]
 
@@ -825,7 +827,7 @@ async def _process_single_row(
             "data": {
                 "row": row_idx,
                 "ingredient_name": ing_name,
-                "error": f"ingrediente '{ing_name}' no existe",
+                "error": f"ingrediente '{ing_name}' no encontrado",
             },
         }
     sup = suppliers_by_name.get(sup_name.lower())
@@ -835,11 +837,29 @@ async def _process_single_row(
             "data": {
                 "row": row_idx,
                 "supplier_name": sup_name,
-                "error": f"proveedor '{sup_name}' no existe o inactivo",
+                "error": f"proveedor '{sup_name}' no encontrado o inactivo",
             },
         }
 
     when = _parse_date_field(date_raw, today)
+
+    # Future-dated price events are not actionable for the operator
+    # (they're likely a typo or a planned-but-not-yet-effective raise).
+    # Skip with a Spanish warning so the operator sees the row in
+    # preview but no row is created. Both `when` and `today` are
+    # `datetime.date` so a direct comparison is safe.
+    if when > today:
+        return {
+            "status": "skipped",
+            "data": {"row": row_idx},
+            "preview": {
+                "ingredient": ing.name,
+                "supplier": sup.name,
+                "price_gs": price_int,
+                "date": when.isoformat(),
+                "warning": "fecha futura — no se importó",
+            },
+        }
 
     if _is_duplicate_price_event(session, ing.id, sup.id, when):
         return {
@@ -927,7 +947,8 @@ def _is_duplicate_price_event(session, ingredient_id: int, supplier_id: int, whe
     )
     if existing is None:
         return False
-    return existing.at.date() == when
+    # IngredientPriceEvent uses `recorded_at` (UTC datetime), not `at`.
+    return existing.recorded_at.date() == when
 
 
 def _record_price_event(

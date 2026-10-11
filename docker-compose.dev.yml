@@ -1,0 +1,39 @@
+# docker-compose.dev.yml — local development only (NOT for production).
+#
+# Per AGENTS.md rule 9 anti-rule "Don't migrate to Kubernetes" + the
+# existing `deploy/docker-stack.template.yml` (production Swarm), local
+# dev is plain `docker compose`. This file gives a single-command
+# Postgres 16 for `make test-pg` / `make run-pg` workflows documented
+# in the Makefile. Image + port mirror .github/workflows/smoke.yml so
+# the dev/CI parity test always works.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up -d
+#   AIW_RMS_DB_URL=postgresql+psycopg://saskia:saskia@127.0.0.1:5432/saskia \
+#     uv run pytest
+#   docker compose -f docker-compose.dev.yml down
+#
+# Note: this is intentionally minimal — no app service. The dev loop
+# runs the app directly on the host via `uv run sazon run`; the
+# compose file only provisions the DB dependency.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: saskia
+      POSTGRES_PASSWORD: saskia
+      POSTGRES_DB: saskia
+    ports:
+      - "5432:5432"
+    volumes:
+      - sazon_dev_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saskia"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  sazon_dev_pg:
+    name: sazon_dev_pg

@@ -25,19 +25,27 @@ pytestmark = [pytest.mark.smoke]
 TEMPLATES = Path(REPO_ROOT / "app" / "templates")
 
 
-def test_no_guarda_in_button_text():
-    """No `<button>` element should contain the Argentine voseo `Guardá` text."""
+def test_no_salva_in_button_text():
+    """No `<button>` element should contain the non-voseo `Salvá` text.
+
+    Per AGENTS.md rules 23 + 25 and `app/docs/copy-vos.md`, the Paraguayan
+    voseo for "save" is `Guardá` (NOT Argentine `Guardá` nor Castilian
+    `Salvá`/`Salva`). Castilian `Salvá` is the pre-2026 form that this
+    repo deprecated; if you see it in a button, that's a regression.
+
+    Note: a previous version of this test asserted `Guardá` was Argentine
+    and should be banned — that was wrong. `Guardá` IS the Paraguayan
+    form per the project's locked copy standard.
+    """
     offenders = []
     for html in TEMPLATES.glob("*.html"):
         text = html.read_text()
-        # Match <button ...>Guardá</button> patterns
-        if ">Guardá<" in text or 'aria-label="Guardá' in text:
-            # Allow `Guardá` only in CSS class names or non-user-facing contexts
-            for line in text.split("\n"):
-                if ">Guardá<" in line or 'aria-label="Guardá' in line:
-                    offenders.append((html.name, line.strip()))
-    assert not offenders, "Argentine voseo 'Guardá' still in button text:\n" + "\n".join(
-        f"  {f}: {line}" for f, line in offenders
+        for line in text.split("\n"):
+            if '>Salvá<' in line or 'aria-label="Salvá' in line:
+                offenders.append((html.name, line.strip()))
+    assert not offenders, (
+        "Castilian 'Salvá' still in button text (should be 'Guardá'):\n"
+        + "\n".join(f"  {f}: {line}" for f, line in offenders)
     )
 
 

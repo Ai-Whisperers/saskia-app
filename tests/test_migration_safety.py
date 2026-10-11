@@ -113,7 +113,7 @@ def test_init_db_creates_expected_tables_on_fresh_db(tmp_path):
     )
 
 
-def test_init_db_raises_on_missing_migration(tmp_path):
+def test_init_db_raises_on_missing_migration(tmp_path, monkeypatch):
     """Hard Rule 19c: init_db fail-closed when a migration is missing.
 
     If a developer renumbers or deletes a shipped migration,
@@ -128,24 +128,23 @@ def test_init_db_raises_on_missing_migration(tmp_path):
 
     db_path = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{db_path}")
-    # First init_db populates everything to schema 109
+    # First init_db populates everything to schema 117
     init_db(engine)
 
-    # Now simulate renumber/delete: remove v5 from the registry
-    original = dbmod.MIGRATIONS.copy()
-    try:
-        del dbmod.MIGRATIONS[5]
+    # Now simulate renumber/delete: remove v5 from the registry.
+    # Use monkeypatch so the original MIGRATIONS dict is restored
+    # automatically — this prevents test pollution (a prior failure
+    # in this test was leaking the deletion to subsequent tests).
+    monkeypatch.delitem(dbmod.MIGRATIONS, 5)
 
-        # On a FRESH DB (no schema_version row), the loop would try
-        # to run v5. The current implementation raises RuntimeError
-        # ("No migration registered for schema version 5") — that's
-        # the fail-closed behavior we want.
-        db_path2 = tmp_path / "test2.db"
-        engine2 = create_engine(f"sqlite:///{db_path2}")
-        with pytest.raises(RuntimeError, match="No migration registered"):
-            init_db(engine2)
-    finally:
-        dbmod.MIGRATIONS = original
+    # On a FRESH DB (no schema_version row), the loop would try
+    # to run v5. The current implementation raises RuntimeError
+    # ("No migration registered for schema version 5") — that's
+    # the fail-closed behavior we want.
+    db_path2 = tmp_path / "test2.db"
+    engine2 = create_engine(f"sqlite:///{db_path2}")
+    with pytest.raises(RuntimeError, match="No migration registered"):
+        init_db(engine2)
 
 
 def test_schema_version_bump_atomic(tmp_path):

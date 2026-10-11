@@ -12,7 +12,7 @@
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}
 
-<form method="post" action="/inventario{{ '/nuevo' if mode == 'new' else '/' ~ ingredient.id ~ '/editar' }}" class="sheet-form">
+<form method="post" action="/inventario{{ '/nuevo' if mode == 'new' else '/' ~ ingredient.id ~ '/editar' }}" class="grid sheet-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 <div class="sheet-grid">
   <section class="order-section">

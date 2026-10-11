@@ -182,7 +182,7 @@ jobs:
         # Adapted from OpenResto. Pass OpenAPI spec to ZAP so it knows
         # every documented route + parameter; the spider only follows
         # links, which would miss body params / auth headers.
-        uses: zaproxy/action-api-scan@5158fe4d9d8fcc75ea204db81317cce7f9e5453d  # v0.10.0
+        uses: zaproxy/action-api-scan@v0.10.0  # sha 5158fe4d9d8fcc75ea204db81317cce7f9e5453d
         with:
           target: http://127.0.0.1:18998/api/openapi.json
           rules_file_name: .github/.zap-rules.tsv

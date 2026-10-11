@@ -129,6 +129,9 @@
       Registrar merma de ingrediente
     </h2>
   </div>
+  <p class="text-muted" style="margin: 0 0 var(--space-3) 0; font-size: var(--text-sm); color: #111827;">
+    <strong>Ejemplo:</strong> se vencieron 200 g de crema, entonces anotá 200 g con motivo "vencieron" o "caducidad".
+  </p>
   <form method="post" action="/merma/registrar" class="form sheet-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="form-row">

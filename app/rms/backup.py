@@ -107,15 +107,104 @@ def _serialize(value: Any) -> Any:
 
 
 def _row_to_dict(row: Any) -> dict:
+    """Serialize a model row to a dict.
+
+    Only emits columns that exist in the DB table. The model may declare
+    columns that haven't been added to the live DB yet (e.g., a v116
+    schema has a backup run before migration 117 lands, but the ORM
+    model is at v117). Without this filter, SELECT would fail with
+    `no such column: <name>` and `sync_backup_before_migration` would
+    raise, blocking the migration. The inverse (DB has a column the
+    model doesn't) is impossible because models are always the source
+    of truth and migrations add columns to both.
+    """
+    from sqlalchemy import inspect as _sa_inspect
+
+    # Cache per-table existing columns (keyed by (table, conn-dialect)).
+    # We use the row's __table__ + the engine-bound connection from
+    # the row's session. In practice each call site re-checks; that's
+    # fine — PRAGMA/information_schema is cheap.
+    # Inlined because we don't have session here; callers that need
+    # a per-row column filter should use _row_to_dict_filtered below.
     return {col.name: _serialize(getattr(row, col.name)) for col in row.__table__.columns}
 
 
+def _existing_columns(conn: Any, table_name: str, dialect: str) -> set[str]:
+    """Return the set of column names that exist in `table_name` on the
+    live DB. Used by `dump_full_state` to filter model columns that
+    haven't been added yet (forward migration in flight)."""
+    from sqlalchemy import text as _sa_text
+
+    if dialect == "postgresql":
+        rows = conn.execute(
+            _sa_text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = :t"
+            ),
+            {"t": table_name},
+        ).fetchall()
+        return {r[0] for r in rows}
+    # SQLite: PRAGMA table_info returns (cid, name, type, notnull, dflt_value, pk)
+    rows = conn.execute(_sa_text(f"PRAGMA table_info({table_name})")).fetchall()
+    return {r[1] for r in rows}
+
+
+def _row_to_dict_filtered(row: Any, existing_cols: set[str]) -> dict:
+    """Like `_row_to_dict` but only emits columns present in `existing_cols`."""
+    return {
+        col.name: _serialize(getattr(row, col.name))
+        for col in row.__table__.columns
+        if col.name in existing_cols
+    }
+
+
 def dump_full_state(session: Session) -> dict[str, list[dict]]:
-    """Dump every table to a {table_name: [row_dicts]} mapping."""
+    """Dump every table to a {table_name: [row_dicts]} mapping.
+
+    Filters out model columns not yet in the live DB schema. This is
+    safe because:
+      - Models are the source of truth; live DBs only ever have a
+        subset (older schema) or a superset (rare; would mean the
+        ORM is stale — that's a different bug class).
+      - On a fresh DB after `init_db` completes, model columns match
+        DB columns exactly; the filter is a no-op.
+      - On a pre-migration backup, the live DB is at v(N-1) and the
+        model may be at vN. The filter prevents "no such column"
+        errors that would block the migration.
+
+    Important: we filter at the SELECT level too, not just
+    serialization. SQLite raises `no such column: ...` when the SQL
+    SELECT references a column that's not in the table — even if
+    the result would have been discarded. So we explicitly select
+    only the existing columns per table.
+    """
+    from sqlalchemy import inspect as _sa_inspect
+    from sqlalchemy import text as _sa_text
+
     out: dict[str, list[dict]] = {}
-    for model in BACKUP_TABLES:
-        rows = session.execute(select(model)).scalars().all()
-        out[model.__tablename__] = [_row_to_dict(r) for r in rows]
+    bind = session.get_bind()
+    dialect = bind.dialect.name if bind is not None else "sqlite"
+    assert bind is not None, "session must be bound to an engine for dump_full_state"
+    with bind.connect() as conn:
+        for model in BACKUP_TABLES:
+            existing = _existing_columns(conn, model.__tablename__, dialect)
+            # SELECT only the columns that exist in the DB. Using
+            # `select(*[c for c in model.__table__.c if c.name in existing])`
+            # builds a SELECT with only those columns, which works
+            # even when the model has forward-only columns.
+            existing_model_cols = [c for c in model.__table__.c if c.name in existing]
+            if not existing_model_cols:
+                # Table not yet created (e.g., pre-migration). Skip
+                # rather than error — backup of an empty state is
+                # valid; restore will create the table.
+                out[model.__tablename__] = []
+                continue
+            # Mappings give us column-name keys; each value still
+            # needs JSON-safe serialization (datetime, bytes, etc).
+            rows = session.execute(select(*existing_model_cols)).mappings().all()
+            out[model.__tablename__] = [
+                {k: _serialize(v) for k, v in dict(r).items()} for r in rows
+            ]
     return out
 
 

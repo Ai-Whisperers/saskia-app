@@ -433,6 +433,12 @@ async def recipe_create(
     # Refresh tag algebra cache
     _refresh_recipe_tag_cache(session, recipe.id)
 
+    # Record audit log (write.recipe.create). Without this, recipe
+    # creation is invisible to the audit log and the OPSEC trail
+    # has a gap. See _record_recipe_update_audit for the matching
+    # write.recipe.update action.
+    _record_recipe_create_audit(request, session, recipe)
+
     # Redirect logic
     also_create = str(form.get("also_create_product", "")).strip() == "1"
     if also_create:
@@ -904,6 +910,7 @@ async def recipe_edit(
         request,
         "receta_form.html",
         _build_recipe_edit_context(
+            session,
             r,
             lines,
             ingredients,
@@ -1036,6 +1043,7 @@ def _parse_scale_factor(request: Request) -> float:
 
 
 def _build_recipe_edit_context(
+    session: Session,
     r: Recipe,
     lines: list[dict],
     ingredients: list[Ingredient],
@@ -1063,8 +1071,8 @@ def _build_recipe_edit_context(
         "unit_cost": unit_cost,
         "products_using": products_using,
         "scale_factor": scale_factor,
-        "categories": list_cats(),
-        "all_tags": list_tags_for_kind("recipe"),
+        "categories": list_cats(session, "recipe_family"),
+        "all_tags": list_tags_for_kind(session, "recipe"),
     }
 
 
@@ -1144,6 +1152,35 @@ def _refresh_recipe_tag_cache_update(session: Session, recipe_id: int) -> None:
     except Exception as exc:
         logger.warning("tag cascade failed for recipe %s: %s", recipe_id, exc)
         session.rollback()
+
+
+def _record_recipe_create_audit(
+    request: Request,
+    session: Session,
+    r: Recipe,
+) -> None:
+    """Record audit log entry for recipe creation.
+
+    Sibling of _record_recipe_update_audit. Pairs the create and
+    update audit events so the OPSEC trail covers full recipe
+    lifecycle. Without this, creation was invisible to the audit log.
+    """
+    line_count = (
+        session.scalar(select(func.count(RecipeLine.id)).where(RecipeLine.recipe_id == r.id)) or 0
+    )
+    record_audit(
+        request,
+        session=session,
+        action="write.recipe.create",
+        target_type="recipe",
+        target_id=r.id,
+        detail={"name": r.name, "lines_count": int(line_count)},
+    )
+    # Commit so the row is visible to the test (and to the operator
+    # looking at the audit log). get_session() only closes the
+    # session in its finally block; without an explicit commit the
+    # audit row would be lost when the session closes.
+    session.commit()
 
 
 def _record_recipe_update_audit(

@@ -5,7 +5,7 @@
 
 **URL activa:** `https://sazon-vps.paragu-ai.com`  *(si ves "service suspended", contactá al equipo — esa URL no es la correcta)*
 **URL alternativa (suspendida):** `https://sazon-rms.paragu-ai.com` — Render, NO usar
-**Versión del manual:** 2026-10-09 · schema 116 · commit `fd90cc5e` · 21 secciones + Phase 3 CI cleanup, production v2 features, station chooser + caja gate
+**Versión del manual:** 2026-10-11 · schema 117 · commit `fcb995bc` · 21 secciones + Phase 3 CI cleanup, production v2 features, station chooser + caja gate, ingredient image column (SASKIA-followup)
 **Manual versión:** v1.5 (ver "Cómo verificar la versión" abajo)
 
 ## Índice rápido

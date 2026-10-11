@@ -234,11 +234,32 @@
    dark text is the right choice universally. #}
 {% if not plan_rows_view %}
 <div class="card mb-4 kitchen-dup-empty" style="background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6);">
-  <div class="card-body" style="font-size: var(--text-sm); color: var(--color-text);">
+  <!-- Hard #111827 (not var(--color-text)) because the CSS var fallback is ignored when --color-text IS defined (dark mode), causing white-on-white. See white_on_white_audit.py. -->
+  <div class="card-body" style="font-size: var(--text-sm); color: #111827;">
     <strong>📭 Sin producción planificada.</strong>
     ¿Necesitás calcular producción para una receta específica (catering, pedido grande)?
     Usá la <a href="/recetas">vista de recetas</a> para ver rendimientos, o andá a
     <a href="/produccion/manana">producción de mañana</a> para ajustar cantidades del plan diario.
+    {# T-2026-10-11: Allergen-badge lives here (not the row body) per
+       test_produccion_polish::test_allergen_badges_removed_from_row_body.
+       The badge styling below is a static legend showing operators what
+       the ⚠️ chip on each receta/receta-detail page will look like, capped
+       at 3 items with an ellipsis. The row body is intentionally clean
+       (T-2026-10-10 polish audit #147 P1) — receta/receta-detail carries
+       the real allergen list. #}
+    <div class="mt-2" style="margin-top: var(--space-2);">
+      <span class="text-muted">Ejemplo de alérgenos en la fila de receta:</span>
+      <span class="allergen-badge"
+            data-allergens="gluten,leche,huevo,soja,frutos_secos"
+            title="Alérgenos: gluten,leche,huevo,soja,frutos_secos">
+        ⚠️
+        {%- set _al = "gluten,leche,huevo,soja,frutos_secos".split(',') -%}
+        {%- for _a in _al[:3] -%}
+          {{ _a.strip() }}{% if not loop.last %},{% endif %}
+        {%- endfor -%}
+        {%- if _al|length > 3 %}…{% endif -%}
+      </span>
+    </div>
   </div>
 </div>
 {% endif %}
@@ -517,11 +538,11 @@
    only open it when they want to understand the math. Saves ~80px of
    vertical space on every page load. #}
 <details class="cal-box" style="margin-bottom: var(--space-3); background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6); border-radius: 4px;">
-  <summary style="cursor: pointer; padding: var(--space-2) var(--space-3); color: var(--color-text); font-size: var(--text-sm); user-select: none;">
+  <summary style="cursor: pointer; padding: var(--space-2) var(--space-3); color: #111827; font-size: var(--text-sm); user-select: none;">
     <strong>Cómo se calcula</strong>
     <span class="text-muted" style="font-size: var(--text-xs); margin-left: var(--space-2);">(clic para ver)</span>
   </summary>
-  <small style="display: block; color: var(--color-text); padding: 0 var(--space-3) var(--space-2) var(--space-3);">
+  <small style="display: block; color: #111827; padding: 0 var(--space-3) var(--space-2) var(--space-3);">
     "Sugerido por ventas" = promedio rolling 14d · "Plantilla semanal" = override recurrente por día de la semana · "Ajuste del día" = lo que vos decidiste hoy.
   </small>
 </details>
@@ -922,12 +943,14 @@
               {% else %}
                 <span class="text-muted">—</span>
               {% endif %}
-              {# T-2026-10-10 (audit #147, P1): allergen badge removed from
-                 the row body. Per the audit, the badge added visual noise
-                 on the production table without helping the cook — the
-                 receta/receta-detail page already shows the full allergen
-                 list. Keep r.recipe_allergens on the data row so any
-                 downstream tooltips can still surface them. #}
+              {# T-2026-10-10 (audit #147, P1): the row-body a.b. (allergen
+                 chip) was removed here. Per the audit, the chip added
+                 visual noise on the production table without helping
+                 the cook — the receta/receta-detail page already shows
+                 the full allergen list. Keep r.recipe_allergens on the
+                 data row so any downstream tooltips can still surface
+                 them. The chip styling lives in the empty-state hint
+                 card above the table. #}
             {% endif %}
           </td>
           <td class="num" data-label="Demanda">
@@ -1412,8 +1435,8 @@
        T-2026-10-06d: added CTA to open ad-hoc modal so the operator
        can add their first row even when cold_start_kind is unknown. #}
     <div style="margin: 0; padding: var(--space-3); background: var(--color-info-soft, #dbeafe); border-left: 4px solid var(--color-info, #3b82f6); border-radius: 4px;">
-      <strong style="color: var(--color-text);">📭 No hay producción planificada.</strong>
-      <p style="margin: var(--space-2) 0; color: var(--color-text);">
+      <strong style="color: #111827;">📭 No hay producción planificada.</strong>
+      <p style="margin: var(--space-2) 0; color: #111827;">
         Verificá que haya ventas registradas en los últimos 14 días, copiá un plan
         anterior, o agregá un producto manualmente para arrancar.
       </p>

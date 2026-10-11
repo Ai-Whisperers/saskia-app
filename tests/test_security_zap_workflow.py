@@ -137,13 +137,22 @@ def test_zap_workflow_uses_unique_port():
     assert "18999" not in content, "PORT must NOT match smoke.yml"
 
 
-def test_zap_workflow_alert_level_is_high_only():
-    """Display level must be HIGH so INFO/LOW/MEDIUM findings don't
-    pollute the action output. The actual build-failure threshold is
-    `fail_action: true` + the action's default, which is HIGH-only —
-    so the change here is cosmetic-but-valuable: a clean report shows
-    only actionable findings. Locked 2026-10-09 to prevent a
-    regression that re-introduces WARN-level noise.
+def test_zap_workflow_alert_level_is_strictest():
+    """Display level must be FAIL (the strictest ZAP output level) so
+    INFO/LOW/MEDIUM/WARN findings don't pollute the action output. The
+    actual build-failure threshold is `fail_action: true` which already
+    fails on FAIL-level findings (ZAP's actionable set) — so the change
+    here is cosmetic-but-valuable: a clean report shows only
+    actionable findings. Locked 2026-10-09 to prevent a regression
+    that re-introduces WARN-level noise.
+
+    Note: ZAP's `-l` flag is the *output display level*, not the alert
+    *risk level*. Valid values are PASS, IGNORE, INFO, WARN, FAIL.
+    There is no `-l HIGH` — ZAP rejects it. FAIL is the strictest
+    output level and shows only actionable findings. Alert risk
+    levels (HIGH/MEDIUM/LOW) are a separate concept; the
+    `fail_action: true` flag (ZAP default = HIGH+ fails the build)
+    is what gates the build.
 
     Scoped to the cmd_options: block (not the entire file) because the
     comment block above cmd_options intentionally mentions `-l WARN`
@@ -154,12 +163,13 @@ def test_zap_workflow_alert_level_is_high_only():
     m = re.search(r"cmd_options:\s*>\s*\n((?:\s+.+\n)+)", content)
     assert m is not None, "Could not locate cmd_options: block in workflow"
     cmd_options = m.group(1)
-    assert "-l HIGH" in cmd_options, (
-        f"ZAP cmd_options should set display level to HIGH. Got: {cmd_options!r}"
+    assert "-l FAIL" in cmd_options, (
+        f"ZAP cmd_options should set display level to FAIL (the strictest "
+        f"valid ZAP output level). Got: {cmd_options!r}"
     )
     assert "-l WARN" not in cmd_options, (
         f"ZAP cmd_options still has -l WARN. Display level should be "
-        f"HIGH-only; fail threshold is controlled by fail_action. "
+        f"FAIL (strictest) so only actionable findings show. "
         f"Got: {cmd_options!r}"
     )
 

@@ -158,7 +158,7 @@ def test_migration_094_creates_monthly_closure_table():
 # ─── Schema version ──────────────────────────────────────────────────────
 
 
-def test_current_schema_version_is_109():
+def test_current_schema_version_is_117():
     """Schema version sentinel — pin advances with every new migration.
     99 = migrations 090-099 (stock_movement.affected_recipe_id, drop
     sale_stock_move, production_closed_day, completion.updated_at).
@@ -167,10 +167,16 @@ def test_current_schema_version_is_109():
     completion.status (103, PRODUCCION-V2 Fase 1).
     104-109 = POS growth tier (venta por peso, pagos mixtos, arqueo
     de caja, fiado ledger, propina, menús ejecutivos) — 2026-10-07.
+    110-117 = post-merge round (SASKIA-205/206/207 stock_ledger +
+    shopping list / wishlist landed-stock, 2.1 sprint settings_kv
+    consolidation + AppMeta→SettingsKV migration 114, SASKIA-209
+    rollback command + migration_rollback_log column, SASKIA-207 stock
+    ledger refactor, ingredient.image_url column, SASKIA-followup
+    ingredient image column) — 2026-10-09/10/11.
     """
     from app.rms.config import CURRENT_SCHEMA_VERSION
 
-    assert CURRENT_SCHEMA_VERSION == 109, f"expected 109, got {CURRENT_SCHEMA_VERSION}"
+    assert CURRENT_SCHEMA_VERSION == 117, f"expected 117, got {CURRENT_SCHEMA_VERSION}"
 
 
 def test_monthly_closure_table_actually_created_on_init_db(session_factory, app_engine):
