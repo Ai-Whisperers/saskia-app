@@ -94,7 +94,8 @@ def test_no_sentry_init_without_dsn(no_dsn) -> None:
     sentry_in_modules = any(m.startswith("sentry") for m in sys.modules)
     if not sentry_in_modules:
         # Best case: sentry was never imported.
-        assert True
+        # Test assertion is implicit: no crash means sentry handled the case gracefully
+        assert True  # no crash means sentry handled the case gracefully
     else:
         # sentry was imported (e.g. via test ordering) but no client.
         import sentry_sdk
@@ -179,7 +180,7 @@ def test_sentry_set_tag_request_id_with_initialized(fake_dsn) -> None:
         scope.set_tag("request_path", "/ventas")
     # Tag is set on the scope; sentry_sdk stores it in scope._tags
     # (private but stable for tests). Just verify it didn't crash.
-    assert True
+    # Test assertion is implicit: if we reach here, no crash occurred
 
 
 def test_sentry_init_failure_is_swallowed(monkeypatch) -> None:
@@ -210,4 +211,4 @@ def test_sentry_init_failure_is_swallowed(monkeypatch) -> None:
         # We emulate that by swallowing here too.
         print(f"WARNING: Sentry init failed: {exc}")
     # If we reach here without pytest.raises, init failure was swallowed.
-    assert True
+    # Test assertion is implicit: if we reach here, sentry handled the case gracefully

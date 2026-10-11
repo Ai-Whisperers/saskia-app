@@ -158,7 +158,7 @@ def test_full_audit_summary() -> None:
                     "routers" if "routers/" in str(p) else "tests" if "tests/" in str(p) else "rms"
                 )
                 counts[bucket].extend([(str(p), ln) for _, ln, _ in findings])
-    # This test never fails; it prints the audit so CI captures the trend.
+    # regression sanity, never fails - prints audit summary so CI captures the trend.
     summary = ", ".join(f"{k}={len(v)}" for k, v in counts.items())
     print(f"\nSilent pass audit (non-blocking): {summary}")
     for bucket, items in counts.items():

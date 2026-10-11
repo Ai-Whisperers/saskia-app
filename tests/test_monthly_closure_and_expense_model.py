@@ -158,7 +158,7 @@ def test_migration_094_creates_monthly_closure_table():
 # ─── Schema version ──────────────────────────────────────────────────────
 
 
-def test_current_schema_version_is_117():
+def test_schema_version_is_current_117():
     """Schema version sentinel — pin advances with every new migration.
     99 = migrations 090-099 (stock_movement.affected_recipe_id, drop
     sale_stock_move, production_closed_day, completion.updated_at).

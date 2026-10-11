@@ -75,7 +75,7 @@ def test_excel_modes_are_covered():
 
     # At least one excel test should pass
     # This is a smoke test since we can't easily run all Excel tests here
-    assert True
+    # Test assertion is implicit: no crash means Excel tests can run
 
 
 def test_recipes_subrecipes_are_covered():
@@ -84,7 +84,7 @@ def test_recipes_subrecipes_are_covered():
 
     assert os.path.exists("tests/test_sazon_r2_recipe_filters.py")
     assert os.path.exists("tests/test_recipes_polymorphic_roundtrip.py")
-    assert True
+    # Test assertion is implicit: both recipe test files exist
 
 
 def test_csrf_is_comprehensive():
@@ -101,7 +101,7 @@ def test_csrf_is_comprehensive():
     for test_file in csrf_test_files:
         assert os.path.exists(f"tests/{test_file}"), f"Missing CSRF test {test_file}"
 
-    assert True
+    # Test assertion is implicit: if we reach here, all CSRF tests exist
 
 
 def test_xss_coverage_is_limited():

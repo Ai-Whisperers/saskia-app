@@ -246,4 +246,4 @@ def test_bank_reconcile_preserves_filters(client):
     body = r.text
     if 'action="/bank/' in body and '/reconcile"' in body:
         # Forms are present
-        assert True
+        assert "action="/bank/" in body and "/reconcile"" in body

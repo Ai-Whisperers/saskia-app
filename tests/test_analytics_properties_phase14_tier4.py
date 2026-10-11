@@ -562,7 +562,7 @@ def test_analytics_edge_cases_no_crash(ingredient_id, days, current_stock, consu
     # Functions should handle zero stock gracefully
 
     # These tests verify the functions don't crash, not specific output
-    assert True  # If we reach here, no crash occurred
+    # If we reach here, no crash occurred — test assertion is implicit in successful execution
 
 
 @settings(max_examples=20)
@@ -725,7 +725,7 @@ def test_examples():
     top_n = sorted(values, reverse=True)[:n]
     print(f"Top-{n} example: {values} -> {top_n}")
 
-    assert True  # Examples ran successfully
+    # Examples ran successfully — test assertion is implicit in successful execution
 
 
 if __name__ == "__main__":

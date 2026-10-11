@@ -440,6 +440,15 @@ class TestReleaseScript(unittest.TestCase):
     """release.sh version + branch validation."""
 
     def test_release_off_main_refuses(self):
+        # Test is meaningful only on a non-main branch (was originally
+        # written for feat/three-env-deploy). Skip on main.
+        branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True, timeout=5,
+        ).stdout.strip()
+        if branch == "main":
+            self.skipTest("Test is only meaningful on a non-main branch")
+
         r = subprocess.run(
             ["bash", str(SCRIPTS_DIR / "release.sh"), "--dry-run"],
             capture_output=True,
@@ -447,7 +456,7 @@ class TestReleaseScript(unittest.TestCase):
             timeout=10,
             cwd=REPO_ROOT,
         )
-        # We're on feat/three-env-deploy, so release.sh should refuse
+        # We're on a non-main branch, so release.sh should refuse
         # with a clear "must run from main" message.
         self.assertNotEqual(r.returncode, 0)
         out = r.stdout + r.stderr
