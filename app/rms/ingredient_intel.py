@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 # (`infer_subcategory`, `infer_role`, `classify_ingredient`, etc.) still
 # uses the same keyword data, which now lives in `tagging.classify`.
 from app.rms.tagging.classify import (
+    _CATEGORY_KEYWORDS,
     _keyword_in,
     _normalize,
     infer_category,

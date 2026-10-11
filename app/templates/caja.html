@@ -10,6 +10,7 @@
 {% if flash == 'caja_abierta' %}<div class="alert alert-success" role="status">Caja abierta.</div>{% endif %}
 {% if flash == 'caja_cerrada' %}<div class="alert alert-success" role="status">Caja cerrada. <a href="/caja/z/{{ zid }}">Ver ticket Z</a></div>{% endif %}
 {% if flash == 'caja_error' %}<div class="alert alert-warning" role="alert">{{ msg }}</div>{% endif %}
+{% if error %}<div class="alert alert-warning" role="alert">{{ error }}</div>{% endif %}
 
 {% if open_sess %}
 <form method="post" action="/caja/cerrar" class="sheet-form js-confirm-form" data-confirm-title="¿Cerrar caja?" data-confirm-body="Se registra el cierre del turno con el efectivo declarado." data-confirm-danger="true">
