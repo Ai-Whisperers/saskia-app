@@ -833,13 +833,14 @@ async def sale_create(
 
         # Rate-limit POSTs (BACKLOG #10 security: bots / accidents)
     from app.rms.rate_limit import is_write_rate_limited
+
     if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas ventas en 1 minuto. Esperá un momento y reintentá.",
         )
 
-# Fiado integration: a sale with payment_method='fiado' must have
+    # Fiado integration: a sale with payment_method='fiado' must have
     # a customer, and must create a cargo in the fiado ledger so the
     # customer's debt is reflected in /fiado. (Fase 2 — the fiado
     # ledger has its own service layer; we delegate to registrar_cargo
@@ -1308,6 +1309,7 @@ async def sale_create_multi(
     """
     # Rate-limit POSTs (BACKLOG #10 security: bots / accidents).
     from app.rms.rate_limit import is_write_rate_limited
+
     if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,

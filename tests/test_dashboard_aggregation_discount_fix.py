@@ -22,7 +22,6 @@ from app.routers.dashboard import (
 ASUNCION = ZoneInfo("America/Asuncion")
 
 
-
 def _all_rect_heights(svg: str) -> list[float]:
     """Return the height attribute of every <rect> in the chart, in order.
 
@@ -30,6 +29,7 @@ def _all_rect_heights(svg: str) -> list[float]:
     hour of day). The render order is 00h..23h.
     """
     import re
+
     return [float(m) for m in re.findall(r'<rect[^>]*?height="([0-9.]+)"', svg)]
 
 
