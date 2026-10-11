@@ -129,6 +129,7 @@ def with_id(msg: str, entity_id: int | str) -> str:
     """Append an entity id to a message."""
     return f"{msg} #{entity_id}."
 
+
 # ─── Fiado ──────────────────────────────────────────────────────
 # Sale-time fiado integration. Sale with payment_method="fiado" must
 # have a customer, otherwise the cargo can't land in the ledger.

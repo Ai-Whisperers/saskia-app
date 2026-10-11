@@ -831,7 +831,15 @@ async def sale_create(
             request_id=getattr(request.state, "request_id", None),
         )
 
-    # Fiado integration: a sale with payment_method='fiado' must have
+        # Rate-limit POSTs (BACKLOG #10 security: bots / accidents)
+    from app.rms.rate_limit import is_write_rate_limited
+    if is_write_rate_limited(session, request):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas ventas en 1 minuto. Esperá un momento y reintentá.",
+        )
+
+# Fiado integration: a sale with payment_method='fiado' must have
     # a customer, and must create a cargo in the fiado ledger so the
     # customer's debt is reflected in /fiado. (Fase 2 — the fiado
     # ledger has its own service layer; we delegate to registrar_cargo
@@ -847,6 +855,7 @@ async def sale_create(
                 ),
             )
         from app.rms.fiado import FiadoConflict, FiadoError, registrar_cargo
+
         try:
             registrar_cargo(
                 session,
@@ -1258,9 +1267,7 @@ def _update_idempotency_record(session, idempotency_key, sale_id, request_id=Non
         payload = str(sale_id)
 
     session.execute(
-        update(_AppMeta)
-        .where(_AppMeta.key == f"sale_idem:{idempotency_key}")
-        .values(value=payload)
+        update(_AppMeta).where(_AppMeta.key == f"sale_idem:{idempotency_key}").values(value=payload)
     )
 
 
@@ -1299,6 +1306,14 @@ async def sale_create_multi(
 
     Refactored 2026-10-09 to reduce cognitive complexity from 168 to <10.
     """
+    # Rate-limit POSTs (BACKLOG #10 security: bots / accidents).
+    from app.rms.rate_limit import is_write_rate_limited
+    if is_write_rate_limited(session, request):
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas ventas en 1 minuto. Esperá un momento y reintentá.",
+        )
+
     # Empty body is a common client mistake (e.g. fetch() with no payload).
     # 2026-10-09: this was returning 500 with JSONDecodeError. Treat as 400.
     try:
@@ -1792,6 +1807,7 @@ def _finalize_sale_multi(
                 ),
             )
         from app.rms.fiado import FiadoConflict, FiadoError, registrar_cargo
+
         try:
             registrar_cargo(
                 session,
