@@ -55,7 +55,7 @@
 3 pre-existing test failures in `tests/test_excel_patch.py`:
 
 - **Root cause**: `app/services/export_xlsx.py` writes the
-  PATCH-plantilla headers with ` [REQUIRED]` / ` [OPTIONAL]` UX
+  PATCH-plantilla headers with `[REQUIRED]` / `[OPTIONAL]` UX
   markers (e.g. `"name [REQUIRED]"`). The import side
   (`app/services/import_xlsx.py`) does not strip these markers when
   reading back, so `row.get("name")` raises `KeyError: 'name'` for

@@ -28,7 +28,7 @@
     gate wired into `ci.yml` (no-NEW-findings vs 11,327 triaged findings)
   - **#112** `scripts/check_md_links.py` (strict 0-broken-links gate) +
     `tests/test_docs_quality_gate.py` (4 pytest tests) + final dup-delete
-    + baseline refresh (the 6-finding drift the gate caught) — open
+    - baseline refresh (the 6-finding drift the gate caught) — open
   - **#116** `docs(todo): link active TODOs to SASKIA-212 and SASKIA-213 issues`
 - **WHAT_NEXT #2 (safeguard activation)**: SAFEGUARD_ENABLED env-var is
   an operator-side change (deferred to VPS .env edit). The CI side

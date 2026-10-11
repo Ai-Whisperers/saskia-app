@@ -6,6 +6,7 @@
 > concurrency story is documented in one place.
 >
 > **Bugs fixed**:
+>
 > - Bug 1 (PR #129) — brittle `case` glob in healthz check
 > - Bug 2 (PR #129) — md5 sync check race
 > - Bug 3 (PR #129) — scp race on `/tmp/sazon-src.tar.gz`
@@ -53,20 +54,22 @@ deploy error.
 ### Bug 1: brittle `case` glob in healthz check (`.github/workflows/deploy-{test,dev}.yml`)
 
 **Symptom**:
-```
+
+```text
 bash: line 5: unexpected EOF while looking for matching single-quote
-```
+```text
 
 **Reproduction rate**: 98/100 of the most recent deploy-test runs.
 
 **Root cause**:
 The `Verify {test,dev} healthz` step used:
+
 ```bash
 case "$HEALTH" in
   *'"ok"'*) echo "DEPLOY OK" ;;
   *) echo "WARNING..."; exit 1 ;;
 esac
-```
+```text
 
 The embedded single-quote escape (`'"ok"'`) works in interactive
 bash but the GHA runner's `/usr/bin/bash -e {0}` script context
@@ -74,13 +77,14 @@ mangles it. The error message pointed at line 5 but the actual
 line was 1, making it look like a transient.
 
 **Fix** (PR #129, commit `9f9cead4`):
+
 ```bash
 if printf '%s' "$HEALTH" | grep -q '"status":"ok"'; then
   echo "DEPLOY OK"
 else
   echo "WARNING: ... did not return ok"; exit 1
 fi
-```
+```text
 
 `grep -q` is bulletproof across all POSIX shells and the GHA
 runner.
@@ -88,26 +92,31 @@ runner.
 ### Bug 2: md5 sync check race in `scripts/deploy.sh`
 
 **Symptom**:
-```
+
+```text
 ERROR: sync mismatch (main.py md5 differs)
-```
+```text
+
 or
-```
+
+```text
 md5sum: /opt/build-apps/sazon-rms/app/rms/main.py: No such file or directory
-```
+```text
 
 **Root cause**:
 After the tar extract, the script does:
+
 ```bash
 REMOTE_MD5=$(ssh ... "md5sum $REMOTE_DIR/app/rms/main.py | cut -d' ' -f1")
 if [ "$LOCAL_MD5" != "$REMOTE_MD5" ]; then echo "ERROR: ..."; exit 1; fi
-```
+```text
 
 If PR-A's tar extract runs between PR-B's extract and PR-B's
 md5 check, PR-B's `main.py` is gone (or has been replaced by
 PR-A's). Hard `exit 1` then aborts the otherwise-healthy deploy.
 
 **Fix** (PR #129, commit `9f9cead4`):
+
 ```bash
 REMOTE_MD5=$(ssh ... "md5sum $REMOTE_DIR/app/rms/main.py 2>/dev/null | cut -d' ' -f1" 2>/dev/null || true)
 if [ -z "$REMOTE_MD5" ]; then
@@ -117,7 +126,7 @@ elif [ "$LOCAL_MD5" != "$REMOTE_MD5" ]; then
 else
   echo "==> sync verified (main.py md5 match)"
 fi
-```
+```text
 
 The next step (`cd $REMOTE_DIR && docker build ...`) will still
 fail loudly with a real error if the source tree is actually
@@ -127,12 +136,13 @@ not a hard gate.
 ### Bug 3: scp race on `/tmp/sazon-src.tar.gz`
 
 **Symptom**:
-```
+
+```text
 gzip: stdin: invalid compressed data--crc error
 gzip: stdin: invalid compressed data--length error
 tar: Unexpected EOF in archive
 tar: Error is not recoverable: exiting now
-```
+```text
 
 **Root cause**:
 All PRs were `scp`ing to the same `/tmp/sazon-src.tar.gz` on the
@@ -141,9 +151,10 @@ the remote file, producing a corrupt tar.gz. The remote `tar xzf`
 fails with the gzip CRC error.
 
 **Fix** (PR #129, commit `9f9cead4`):
+
 ```bash
 TAR_FILE="/tmp/sazon-src-$$-$(date -u +%Y%m%d-%H%M%S).tar.gz"
-```
+```text
 
 Per-invocation tarball name. PR-A's scp no longer overwrites
 PR-B's mid-transfer. The extract command uses the same unique
@@ -153,10 +164,11 @@ or failed.
 ### Bug 4: `REMOTE_DIR` shared across PRs (`rm -rf` race)
 
 **Symptom**:
-```
+
+```text
 COPY failed: file not found in build context or excluded by .dockerignore:
   stat pyproject.toml: file does not exist
-```
+```text
 
 This is the most insidious of the four. It was caught when
 PR #130 (docs-only change) failed its deploy-test with this
@@ -182,10 +194,11 @@ mid-build and PR-B starts a new deploy, PR-B's `rm -rf` wipes
 PR-A's tree.
 
 **Fix** (PR #133, commit `5c0b179a`):
+
 ```bash
 REMOTE_DIR_FINAL="/opt/build-apps/sazon-rms-$ENV"   # per-env canonical
 REMOTE_DIR="/opt/build-apps/sazon-rms-$ENV-staging-$$-TIMESTAMP"  # per-invocation
-```
+```text
 
 Extract goes to the staging dir. `docker build` runs there.
 After the build succeeds, an atomic
@@ -263,7 +276,7 @@ grep -E 'REMOTE_DIR_FINAL|REMOTE_DIR=' scripts/deploy.sh
 # Verify saskia-test is healthy
 curl -s --max-time 10 https://saskia-test.paragu-ai.com/healthz
 # expected: {"status":"ok","service":"sazon-rms"}
-```
+```text
 
 ## Files changed across the 4-bug fix series
 

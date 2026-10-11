@@ -69,7 +69,7 @@
 scope of PR #120) expose a real production bug:
 
 - **Root cause**: `app/services/export_xlsx.py` writes the
-  PATCH-plantilla headers with ` [REQUIRED]` / ` [OPTIONAL]`
+  PATCH-plantilla headers with `[REQUIRED]` / `[OPTIONAL]`
   UX markers (e.g. `"name [REQUIRED]"`). The import side
   (`app/services/import_xlsx.py`) does not strip these markers when
   reading back, so `row.get("name")` raises `KeyError: 'name'` for
@@ -83,7 +83,7 @@ scope of PR #120) expose a real production bug:
   (no PR yet — sibling session draft).
 - **Suggested fix**:
   1. In `app/services/import_xlsx.py:_rows()`, strip the
-     ` [REQUIRED]` / ` [OPTIONAL]` suffix from header cells before
+     `[REQUIRED]` / `[OPTIONAL]` suffix from header cells before
      using them as dict keys.
   2. Add a regression test in `tests/test_excel_patch.py` that
      round-trips a PATCH plantilla (download → re-upload → all

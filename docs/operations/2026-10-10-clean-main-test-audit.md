@@ -9,6 +9,7 @@
 | Bucket | Count | Status |
 |---|---|---|
 | **Already fixed in PR #138** | 4 | ✅ Will be green on PR merge |
+
 | **Known pre-existing (out of scope)** | 6 | ❌ Tracked separately |
 | **NEW pre-existing failures (need investigation)** | 19 | ⚠️ **Most are real dormant bugs** |
 | **Total** | **29** | |
@@ -18,7 +19,9 @@
 ## Methodology
 
 1. Ran a strategic test subset (`-k "inventario or sale or eod or produccion or refund or venta or pedido or dashboard or price_history"`) covering the most-likely-buggy business logic.
+
 2. Captured 1784 pass / 28 fail in 15 minutes.
+
 3. Investigated each failure: read the assertion, traced the route, categorized.
 
 ## NEW Pre-Existing Failures (19 tests, all real bugs), all real bugs)
@@ -67,9 +70,13 @@ These are dormant bugs that would cause real harm in production but the test sui
 ## Already fixed in PR #138
 
 4 tests:
+
 - `test_dashboard_deltas.py::test_dashboard_renders_delta_up_pill` — `prior_label` missing from context
+
 - `test_price_history.py::test_inventory_update_writes_price_event_on_price_change` — `lead_time_days` → NULL
+
 - `test_price_history.py::test_inventory_edit_route_writes_event_on_price_change` — same
+
 - `test_price_history.py::test_inventory_edit_route_records_event_when_price_unchanged` — same
 
 ## Recommended next actions
@@ -88,10 +95,15 @@ These are dormant bugs that would cause real harm in production but the test sui
 ## Test infrastructure insights
 
 From the strategic run:
+
 - 1784 tests pass in 15min on clean main
+
 - 28 fail in the same window
+
 - 4 of those 28 will be fixed by PR #138 (already merged locally)
+
 - 6 of those 28 are known (out-of-scope copy mismatch)
+
 - 18 of those 28 are real dormant bugs (worth their own PRs)
 
 Estimated total fix effort: **15-20h** spread across P0/P1 PRs. Each bug is small but high-impact for the operator.
