@@ -857,9 +857,9 @@ async def sale_create(
                 created_by=current_operator(request, fallback="operador"),
             )
         except FiadoConflict as exc:
-            raise HTTPException(status_code=422, detail=str(exc))
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         except FiadoError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if customer_id is not None:
         _award_loyalty_points(session, customer_id, sale)
@@ -1802,9 +1802,9 @@ def _finalize_sale_multi(
                 created_by=current_operator(request, fallback="operador"),
             )
         except FiadoConflict as exc:
-            raise HTTPException(status_code=422, detail=str(exc))
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         except FiadoError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     session.commit()
     return _redirect_after_sale(request, first_product_id, points_to_redeem, customer_id)

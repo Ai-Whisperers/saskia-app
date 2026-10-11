@@ -1,3 +1,9 @@
+## 2026-10-10k — style(sales): B904 `raise ... from err` in fiado except clauses
+
+**Scope**: `app/routers/sales.py`. 4 ruff B904 errors in the new fiado-integration code from PR #148. `except FiadoConflict` and `except FiadoError` clauses re-raised `HTTPException` without `from err`, which obscures whether a 4xx is the operator's bug or a handler-internal error. Fix: add `from exc` to both clauses in both `sale_create` and `_finalize_sale_multi` (4 spots total).
+
+**Why now**: PR #148's Fast lint + test gate failed on this; without the fix, the merge is blocked.
+
 ## 2026-10-10 — fix(sales): commit + audit + printer + idempotency-JSON + fiado integration on /ventas/nueva
 
 **Scope**: `app/routers/sales.py`, `app/rms/messages.py`, `app/templates/dashboard.html`, `app/templates/inventario_form.html`, `app/templates/produccion.html`. Plus 7 test files updated for copy drift / route fixes.
