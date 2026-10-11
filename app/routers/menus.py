@@ -66,7 +66,7 @@ async def menu_create(
     price_gs: int = Form(...),
 ) -> RedirectResponse:
     await verify_form_csrf(request)
-    if is_write_rate_limited(request):
+    if is_write_rate_limited(session, request):
         from fastapi import HTTPException
 
         raise HTTPException(status_code=429, detail="Demasiadas escritas; probá en un momento")
@@ -112,7 +112,7 @@ async def menu_deactivate(
     session: Session = Depends(get_session),
 ) -> RedirectResponse:
     await verify_form_csrf(request)
-    if is_write_rate_limited(request):
+    if is_write_rate_limited(session, request):
         from fastapi import HTTPException
 
         raise HTTPException(status_code=429, detail="Demasiadas escritas; probá en un momento")
