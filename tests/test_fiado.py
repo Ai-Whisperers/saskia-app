@@ -286,3 +286,176 @@ def test_venta_multi_fiado_crea_cargo(authed_client, session_factory):
         assert saldo(s, cid) == 3 * price
     finally:
         s.close()
+
+
+# ─── Route-level tests (SASKIA audit: /cargar and /estado had no route tests) ─
+# The existing tests cover service-layer logic and `/cobrar` via HTTP, but
+# `/cargar` (manual charge) and `/estado` (suspend/resume) have no direct
+# route tests. These add the missing coverage.
+
+
+def test_fiado_cargar_endpoint_creates_ledger_row(authed_client, session_factory):
+    """POST /fiado/{cid}/cargar → 303 + CreditTransaction(amount > 0)."""
+    s = _sess(session_factory)
+    try:
+        c = _mk_customer(s, name="Fiado Cargar Test")
+        s.commit()
+        cid = c.id
+    finally:
+        s.close()
+
+    r = authed_client.post(
+        f"/fiado/{cid}/cargar",
+        data={"amount_gs": "50000", "note": "ajuste manual test"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, r.text[:200]
+    assert "fiado_charge" in r.headers["location"]
+
+    from app.rms.models_legacy import CreditTransaction
+
+    s = _sess(session_factory)
+    try:
+        txs = (
+            s.execute(
+                select(CreditTransaction).where(
+                    CreditTransaction.account_id == _get_account_id(s, cid)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(txs) == 1
+        assert txs[0].amount_gs == 50_000
+        assert txs[0].note == "ajuste manual test"
+    finally:
+        s.close()
+
+
+def test_fiado_cargar_rejects_zero_amount(authed_client, session_factory):
+    """POST /fiado/{cid}/cargar with amount=0 → 303 with error flash (no ledger row)."""
+    s = _sess(session_factory)
+    try:
+        c = _mk_customer(s, name="Fiado Zero Cargar")
+        s.commit()
+        cid = c.id
+    finally:
+        s.close()
+
+    r = authed_client.post(
+        f"/fiado/{cid}/cargar",
+        data={"amount_gs": "0", "note": ""},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert "fiado_error" in r.headers["location"]
+
+    from app.rms.models_legacy import CreditTransaction
+
+    s = _sess(session_factory)
+    try:
+        txs = (
+            s.execute(
+                select(CreditTransaction).where(
+                    CreditTransaction.account_id == _get_account_id(s, cid)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(txs) == 0  # No ledger row was created
+    finally:
+        s.close()
+
+
+def test_fiado_estado_endpoint_toggles_active(authed_client, session_factory):
+    """POST /fiado/{cid}/estado with active=1 → 303 + account.active=True."""
+    from app.rms.fiado import get_or_create_account
+
+    s = _sess(session_factory)
+    try:
+        c = _mk_customer(s, name="Fiado Estado Test")
+        s.commit()
+        cid = c.id
+        # Ensure account starts as active (the default).
+        acc = get_or_create_account(s, cid)
+        s.commit()
+        assert acc.active is True
+    finally:
+        s.close()
+
+    # Suspend.
+    r = authed_client.post(
+        f"/fiado/{cid}/estado",
+        data={"active": "0"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert "fiado_status" in r.headers["location"]
+
+    s = _sess(session_factory)
+    try:
+        from app.rms.fiado import get_or_create_account
+
+        acc = get_or_create_account(s, cid)
+        assert acc.active is False
+    finally:
+        s.close()
+
+    # Re-activate.
+    r = authed_client.post(
+        f"/fiado/{cid}/estado",
+        data={"active": "1"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    s = _sess(session_factory)
+    try:
+        from app.rms.fiado import get_or_create_account
+
+        acc = get_or_create_account(s, cid)
+        assert acc.active is True
+    finally:
+        s.close()
+
+
+def test_fiado_cargar_writes_audit_row(authed_client, session_factory):
+    """POST /fiado/{cid}/cargar → 1 audit row tagged fiado_cargo."""
+    from app.rms.models import AuditLog
+
+    s = _sess(session_factory)
+    try:
+        c = _mk_customer(s, name="Fiado Audit Test")
+        s.commit()
+        cid = c.id
+    finally:
+        s.close()
+
+    r = authed_client.post(
+        f"/fiado/{cid}/cargar",
+        data={"amount_gs": "10000", "note": "audit check"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    s = _sess(session_factory)
+    try:
+        cargo_audits = (
+            s.query(AuditLog)
+            .filter(AuditLog.action == "fiado_cargo", AuditLog.target_id == cid)
+            .all()
+        )
+        assert len(cargo_audits) == 1, f"Expected 1 fiado_cargo audit, got {len(cargo_audits)}"
+        import json
+        detail = cargo_audits[0].detail if cargo_audits[0].detail else {}
+        assert detail.get("amount_gs") == 10_000
+    finally:
+        s.close()
+
+
+def _get_account_id(s, customer_id: int) -> int:
+    """Helper: return the CreditAccount.id for a customer."""
+    from app.rms.fiado import get_or_create_account
+
+    return get_or_create_account(s, customer_id).id

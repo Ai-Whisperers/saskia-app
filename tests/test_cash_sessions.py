@@ -7,7 +7,7 @@ sale_payment) → cierre con conteo → diff. Una sola sesión abierta.
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import inspect
+from sqlalchemy import inspect, select
 from sqlalchemy.orm import sessionmaker
 
 from tests.factories import make_ingredient, make_product, make_recipe
@@ -172,3 +172,150 @@ def test_caja_page_renders(authed_client):
     r = authed_client.get("/caja")
     assert r.status_code == 200
     assert "Caja" in r.text
+
+
+# ─── Route-level tests (SASKIA audit: caja router had 0 route tests) ─────
+# The caja router has 5 routes (open/close, home, z/{id}) but the
+# existing tests only covered the business logic + 1 page render.
+# These are the missing route-level assertions.
+
+
+def test_caja_abrir_route_redirects_on_success(authed_client, session_factory):
+    """POST /caja/abrir with valid opening amount → 303 redirect with success flash."""
+    # Make sure no open session exists first.
+    from app.rms import cash
+
+    db = _svc_session(session_factory)
+    try:
+        open_sess = cash.get_open_session(db)
+        if open_sess is not None:
+            cash.close_session(db, counted_gs=open_sess.opening_gs, closed_by="cleanup")
+            db.commit()
+    finally:
+        db.close()
+
+    r = authed_client.post(
+        "/caja/abrir",
+        data={"opening_gs": "50000", "channel": "efectivo", "note": "Apertura test"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, r.text[:200]
+    assert "caja_open" in r.headers["location"]
+
+
+def test_caja_abrir_rejects_double_open(authed_client, session_factory):
+    """POST /caja/abrir while one is open → 303 redirect with error flash."""
+    # Ensure a session is open first via the service.
+    from app.rms import cash
+
+    db = _svc_session(session_factory)
+    try:
+        open_sess = cash.get_open_session(db)
+        if open_sess is None:
+            cash.open_session(db, opening_gs=10000, opened_by="seed")
+            db.commit()
+    finally:
+        db.close()
+
+    r = authed_client.post(
+        "/caja/abrir",
+        data={"opening_gs": "20000", "channel": "", "note": ""},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert "caja_error" in r.headers["location"]
+
+
+def test_caja_cerrar_route_redirects_on_success(authed_client, session_factory):
+    """POST /caja/cerrar with counted > 0 → 303 redirect with success flash."""
+    from app.rms import cash
+
+    # Open a session first.
+    db = _svc_session(session_factory)
+    try:
+        open_sess = cash.get_open_session(db)
+        if open_sess is None:
+            cash.open_session(db, opening_gs=30000, opened_by="seed")
+            db.commit()
+    finally:
+        db.close()
+
+    r = authed_client.post(
+        "/caja/cerrar",
+        data={"counted_gs": "30000"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, r.text[:200]
+    # After closing, the URL should contain the zid of the new Z ticket.
+    assert "caja_closed" in r.headers["location"]
+    assert "zid=" in r.headers["location"]
+
+
+def test_caja_cerrar_without_open_returns_error(authed_client, session_factory):
+    """POST /caja/cerrar with no open session → 303 redirect with error flash."""
+    from app.rms import cash
+
+    db = _svc_session(session_factory)
+    try:
+        open_sess = cash.get_open_session(db)
+        if open_sess is not None:
+            cash.close_session(db, counted_gs=open_sess.opening_gs, closed_by="cleanup")
+            db.commit()
+    finally:
+        db.close()
+
+    r = authed_client.post(
+        "/caja/cerrar",
+        data={"counted_gs": "0"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert "caja_error" in r.headers["location"]
+
+
+def test_caja_z_renders_404_for_unknown_session(authed_client):
+    """GET /caja/z/{nonexistent} → 404 with error message."""
+    r = authed_client.get("/caja/z/9999999")
+    assert r.status_code == 404
+    assert "no encontrada" in r.text.lower() or "error" in r.text.lower()
+
+
+def test_caja_z_renders_ticket_for_closed_session(authed_client, session_factory):
+    """GET /caja/z/{id} → 200 with the closed session's data."""
+    # First ensure no open session, then open + close via the route itself
+    # (so the test client's session sees the row).
+    from app.rms import cash
+
+    db = _svc_session(session_factory)
+    try:
+        open_sess = cash.get_open_session(db)
+        if open_sess is not None:
+            cash.close_session(db, counted_gs=open_sess.opening_gs, closed_by="cleanup")
+            db.commit()
+    finally:
+        db.close()
+
+    # Use the actual route to open + close so the get_session() dep sees
+    # the data.
+    r1 = authed_client.post(
+        "/caja/abrir",
+        data={"opening_gs": "25000", "channel": "test-z", "note": "seed-z-test"},
+        follow_redirects=False,
+    )
+    assert r1.status_code == 303
+    r2 = authed_client.post(
+        "/caja/cerrar",
+        data={"counted_gs": "25000"},
+        follow_redirects=False,
+    )
+    assert r2.status_code == 303
+    # Extract zid from the redirect location: /caja?flash=caja_closed&zid=N
+    loc = r2.headers["location"]
+    sess_id = int(loc.split("zid=")[1])
+
+    r = authed_client.get(f"/caja/z/{sess_id}")
+    assert r.status_code == 200
+    # The Z ticket shows the recent sessions table with Apertura /
+    # Esperado / Contado / Diferencia columns.
+    assert "Apertura" in r.text
+    assert "Diferencia" in r.text
