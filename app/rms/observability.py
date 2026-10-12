@@ -151,7 +151,9 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 # ``bind_request_route`` inside the route handler) or
                 # fall back to the per-request contextvar.
                 route = (
-                    getattr(request.state, "route", None) or _current_route.get() or "<unmatched>"
+                    getattr(request.state, "route", None)
+                    or _current_route.get()
+                    or "<unmatched>"
                 )
                 # INFO for 2xx/3xx, WARNING for 4xx, ERROR for 5xx
                 log_fn = (
@@ -194,7 +196,9 @@ def bind_request_route(request: Request, route_name: str | None) -> None:
     if route_name is None and hasattr(request, "scope"):
         route = request.scope.get("route")
         if route is not None:
-            route_name = getattr(route, "path", None) or getattr(route, "name", None) or str(route)
+            route_name = getattr(route, "path", None) or getattr(
+                route, "name", None
+            ) or str(route)
     if route_name is None:
         route_name = "<unmatched>"
     request.state.route = route_name
