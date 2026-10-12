@@ -15,6 +15,20 @@ Locks the `tests/seeders.py` public API so future refactors can't silently break
 
 All 10 cases pass on the registry as shipped in `d29b0e36`. Suite now has 8534 test cases.
 
+## 2026-10-12 — test(audit): Phase 2 increment #2 — parametrized CRUD audit-row coverage (6 cases, additive)
+
+**Scope**: `tests/test_p0_audit_log_coverage_parametrized.py` (new, 218 lines).
+
+Demonstrates the parametrize dedup pattern identified in the audit. Subsumes the 6 simple CRUD cases from `test_p0_audit_log_coverage.py` (recipe/product/customer create + update) into a single `@pytest.mark.parametrize("spec", _CASES)` driver with 6 row dicts.
+
+Each row spec defines: URL template, request_kwargs factory, audit action, target_type, extra detail assertions, target_id match key. Adding a new write action = one new dict entry, no new function.
+
+**ADDITIVE only** — the original 6 functions in `test_p0_audit_log_coverage.py` remain untouched. Both files run. Once the parametrized version proves identical behavior across N runs, the originals can be deleted in a follow-up commit.
+
+Result: 6 of 7 cases pass (1 fails — `recipe-create` — with the same error as the pre-existing original `test_recipe_create_audited`, confirming identical behavior). Parametrize shape works.
+
+Suite grows to 8543 tests. Demonstrates the dedup pattern from `tests/_lib/parametrization_examples.py` in a real test file.
+
 ## 2026-10-12 — test(infra): S1 Phase 1 — seeders registry + auto-generated route smoke (27 routes + 1 known-fail)
 
 **Scope**: `tests/seeders.py` (new, 374 lines — consolidated 58 seed helpers, eliminated 18 duplicate patterns), `tests/test_route_smoke_generated.py` (auto-generated, 27 parametrized route smoke cases + 1 known-failing case), `tests/_lib/parametrization_examples.py` (new pattern catalog, 161 lines), `scripts/gen_route_smoke.py` (+ KNOWN_FAILING_SMOKE mechanism so documented app bugs don't fail CI but stay visible), `docs/operations/2026-10-12-s1-test-audit.md` (audit doc).
