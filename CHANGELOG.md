@@ -1,3 +1,20 @@
+## 2026-10-12 — test(seeders): Phase 2 increment #1 — registry contract meta-tests (10 cases)
+
+**Scope**: `tests/test_seeders_registry.py` (new, 169 lines).
+
+Locks the `tests/seeders.py` public API so future refactors can't silently break the 58+ test files that consume it:
+
+- `test_seeders_module_imports_cleanly` — import + public surface spot-check (11 functions present).
+- `test_seed_writes_to_db` (parametrized × 4) — seed_customer / seed_ingredient / seed_product / seed_catalog persist and round-trip via `s.get(ORM_class)`.
+- `test_seed_simple_returns_customer_and_product` — composite helper contract.
+- `test_seed_basic_creates_minimal_db` — minimal-entry contract.
+- `test_qseed_basic_scenario` — qseed('basic') canonical entrypoint.
+- `test_seeders_module_no_test_dunder_polycollect` — no `test_*` name pollution (would silently auto-collect).
+- `test_seeders_have_no_async_def` — AGENTS.md rule 32 consistency.
+- `test_seeders_cc_within_budget` — CC ≤ 10 ceiling (radon gated; skipped locally if radon absent).
+
+All 10 cases pass on the registry as shipped in `d29b0e36`. Suite now has 8534 test cases.
+
 ## 2026-10-12 — test(infra): S1 Phase 1 — seeders registry + auto-generated route smoke (27 routes + 1 known-fail)
 
 **Scope**: `tests/seeders.py` (new, 374 lines — consolidated 58 seed helpers, eliminated 18 duplicate patterns), `tests/test_route_smoke_generated.py` (auto-generated, 27 parametrized route smoke cases + 1 known-failing case), `tests/_lib/parametrization_examples.py` (new pattern catalog, 161 lines), `scripts/gen_route_smoke.py` (+ KNOWN_FAILING_SMOKE mechanism so documented app bugs don't fail CI but stay visible), `docs/operations/2026-10-12-s1-test-audit.md` (audit doc).

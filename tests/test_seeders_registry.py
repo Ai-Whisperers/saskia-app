@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import pytest
 
+
 # ─── import contract ──────────────────────────────────────────────────────────
 
 
@@ -63,8 +64,8 @@ def test_seeders_module_imports_cleanly():
 )
 def test_seed_writes_to_db(seed_fn, seed_kwargs, orm_model, id_key, session_factory):
     """Each seed_X function must persist the row to the DB and return the id."""
-    from app.rms.models import Customer, Ingredient, Product
     from tests import seeders
+    from app.rms.models import Customer, Ingredient, Product
 
     fn = getattr(seeders, seed_fn)
     result = fn(session_factory, **seed_kwargs)
@@ -128,16 +129,20 @@ def test_seeders_module_no_test_dunder_polycollect():
     import tests.seeders as s
 
     test_names = [n for n in dir(s) if n.startswith("test_")]
-    assert test_names == [], f"tests.seeders has test_* names that pollute collection: {test_names}"
+    assert test_names == [], (
+        f"tests.seeders has test_* names that pollute collection: {test_names}"
+    )
 
 
 def test_seeders_have_no_async_def():
     """AGENTS.md rule 32: no async def in app code. seeders aren't app, but be consistent."""
     import inspect
-
     import tests.seeders as s
 
-    bad = [name for name, obj in inspect.getmembers(s, inspect.iscoroutinefunction)]
+    bad = [
+        name
+        for name, obj in inspect.getmembers(s, inspect.iscoroutinefunction)
+    ]
     assert bad == [], f"tests.seeders has async functions: {bad}"
 
 
@@ -147,8 +152,8 @@ def test_seeders_have_no_async_def():
 def test_seeders_cc_within_budget():
     """AGENTS.md rule 40: CC ≤ 10. Spot-check seeders — they're trivial wrappers,
     so CC should be far below the ceiling. Failure here = a helper grew too complex."""
-    import shutil
     import subprocess
+    import shutil
 
     if not shutil.which("radon"):
         pytest.skip("radon not installed (optional dev tool)")
