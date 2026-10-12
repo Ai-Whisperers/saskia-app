@@ -21,9 +21,9 @@
 | **critique-batch-REPORTES.md** | 27 KB | 8 pages — diario, stock-intel, ventas-hora, precios, price-impact, freshness, demand, metodos-pago |
 | **critique-batch-ADMIN.md** | 13 KB | 8 pages — suppliers (4), users, delivery-zones, riesgos, wishlist |
 | **critique-batch-PEDIDOSYCOMERCIO.md** | 32 KB | 8 pages — pedidos/board, stock-preview, duplicate, vs-mercado (2), ventas/recibo, buscar, historial |
-| subagent-outputs/cross-page-wishlist-consolidation.md | 37 KB | Top 30 reusable UX patterns + Top 10 architectural macros |
-| subagent-outputs/qol-touches-catalog.md | 41 KB | Quality-of-life touches catalog (16 categories × 8+ items = 219 items) |
-| subagent-outputs/cross-cutting-consistency-audit.md | 38 KB | App-wide consistency audit (12 dimensions, 46 pages) |
+| cross-page-wishlist-consolidation.md | 37 KB | Top 30 reusable UX patterns + Top 10 architectural macros |
+| qol-touches-catalog.md | 41 KB | Quality-of-life touches catalog (16 categories × 8+ items = 219 items) |
+| cross-cutting-consistency-audit.md | 38 KB | App-wide consistency audit (12 dimensions, 46 pages) |
 
 ---
 
@@ -40,7 +40,7 @@
 ## 📚 Where to start reading
 
 - **5 minutes:** §1 of design-plans-2026-09-27.md "Bottom line" lines
-- **30 minutes:** subagent-outputs/cross-page-wishlist-consolidation.md
+- **30 minutes:** cross-page-wishlist-consolidation.md
 - **1 hour:** design-plans-2026-09-27.md end-to-end
 - **2 hours:** All 4 cross-cutting files
 

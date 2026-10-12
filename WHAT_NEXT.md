@@ -1,4 +1,24 @@
-# the operator · What Next? (refresh 2026-10-10)
+# the operator · What Next? (refresh 2026-10-12, docs pass)
+
+> **2026-10-12 correction layer.** A docs verification pass (AGENTS.md drift
+> audit) re-measured the knobs below against the live repo on 2026-10-12.
+> The 2026-10-10 narrative sections remain below unchanged. Corrected knobs:
+>
+> | Knob | 10-10 said | 10-12 measured |
+> |------|-----------|----------------|
+> | Schema | v117 | **v121** (`CURRENT_SCHEMA_VERSION = 121` at `app/rms/config.py:92` — SASKIA-216 seasonal_event; 118/119 = SASKIA-212 recipes, 120 = SASKIA-215 shop_whatsapp) |
+> | Migrations on disk | 36 | **40** (`app/rms/migrations/_*.py` files: ..._120, _121) |
+> | Coverage gate | (26.12% actual vs 35% gate) | unchanged — gate is **35%** (`--cov-fail-under=35` in pyproject.toml) |
+> | Test files | 7,997 tests | 733 test files (collection not re-run this pass; see `pytest --collect-only`) |
+> | CHANGELOG gate | root CHANGELOG.md | confirmed — gate greps `CHANGELOG.md` (root); the ci.yml comment saying `app/CHANGELOG.md` is stale (fixed in this pass) |
+>
+> Fixes landed in this pass: AGENTS.md rule 12 (migration count + layout),
+> rule 35 (CHANGELOG gate path), anti-rule 2 counts, coverage-gate numbers,
+> hosted URL sazon-vps, 3-environments note, troubleshooting PRAGMA rows,
+> research-repos absolute path; app/rms/AGENTS.md testing rule 4 (per-file
+> coverage figures were never-enforced aspirations, not gates).
+
+# (superseded header, kept for history) the operator · What Next? (refresh 2026-10-10)
 
 > **Supersedes** `docs/operations/2026-10-10-evening-WHAT_NEXT-archived.md`
 > and `docs/operations/2026-10-10-late-WHAT_NEXT-archived.md` and

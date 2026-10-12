@@ -61,6 +61,8 @@ The repo has **338 .md files** (5.35 MB). Quality is mixed: a few files are pris
 | `docs/reports/redesign-2026-09-27/audit-batch2-prod.md` | `.../subagent-outputs/audit-batch2-prod.md` | Same pattern |
 | `docs/reports/redesign-2026-09-27/qol-touches-catalog.md` | `.../subagent-outputs/qol-touches-catalog.md` | Same pattern |
 
+> **RESOLVED 2026-10-12** (docs dedupe PR): the 5 byte-identical `subagent-outputs/` mirrors were deleted (parent-dir copies kept); historical fan-out provenance stays documented in README.md. The other duplicate classes (roadmap mirrors, `app/CHANGELOG.md`) are resolved in the same PR.
+
 The `subagent-outputs/` mirrors are **intentional** (the docs/reports/redesign-2026-09-27/ folder documents a multi-agent fan-out, so the subagent outputs are first-class artifacts). The other 3 pairs are **real cleanup candidates**.
 
 ### 57 broken internal links (15 source files)
