@@ -1,3 +1,23 @@
+## 2026-10-12 — feat(recetas): SASKIA-213 recipe photo upload + free-form text parser
+
+**Scope**: `app/routers/recipes.py`, `app/templates/recipe_photos.html`, `tests/test_SASKIA_213_recipe_photo_upload.py`, `CHANGELOG.md`.
+
+Operators had to scp JPEGs onto the server to populate `/static/recipes/`. The picker (SASKIA-211+) at `/recetas/{id}/set-photo` worked, but the only way to add a NEW photo was filesystem access. Also, prod recipes seed instructions as **plain text** (newline-delimited steps) into `recipe.instructions` — the previous parser only handled JSON, so all 22 prod recipes showed the "Procedimiento pendiente" placeholder despite the seeded content.
+
+What changed:
+
+* **`POST /recetas/{r_id}/set-photo/upload`** — new multipart upload route. Accepts PNG/JPG/WebP/GIF up to 5 MB. Validates MIME before reading (415 on bad type, 413 on oversize, 400 on empty). File is renamed `<date>-<hex8>.<ext>` and stored in `app/static/recipes/` via `app.rms.static_paths.recipes_dir()` (portable, never absolute). Audit log row written via `record_audit(action="write.recipe.photo.upload")`. Returns 303 to the picker page with a flash toast. CSRF-protected via the existing double-submit cookie middleware.
+* **`GET /recetas/{r_id}/set-photo`** — picker now enumerates **all image file types** (not just `*.jpg`) and **filters non-image files** so the operator can drop a `test.sqlite` sidecar in there without polluting the picker UI.
+* **`_parse_recipe_phases(recipe)`** — now handles three storage shapes:
+  1. JSON list of `{phase, title, steps[]}` — preferred multi-phase.
+  2. JSON list of `{phase, steps[]}` — legacy sazon seed shape (no title key); title derived from `phase`.
+  3. Plain newline-delimited text — wrapped into a single "Procedimiento" phase so the seeded sazon content shows up on the detail page.
+* **`recipe_photos.html`** — new upload form above the photo grid (`enctype=multipart/form-data`, accepts `image/*`, CSRF hidden input, "PNG, JPG, WebP o GIF · máx 5 MB" hint). Flash banner for `?uploaded=1` to confirm the new file landed in the picker.
+
+Tests: new `tests/test_SASKIA_213_recipe_photo_upload.py` with 6 RED→GREEN tests (JPG accepted, non-image 415, oversize 413, empty 400, picker re-listing, picker non-image filter). 18/18 SASKIA-212+213 GREEN. Full cocina + receta + photo + migration suite: 166/166 GREEN. ruff check + ruff format both clean.
+
+---
+
 ## 2026-10-12 — feat(recetas): SASKIA-212 recipe instructions editor + backfill
 
 **Scope**: `app/routers/recipes.py`, `app/templates/receta_form.html`, `app/rms/migrations/_118_recipe_instructions_backfill.py`, `app/rms/{config,db}.py`, `tests/test_SASKIA_212_recipe_instructions_editor.py`, `app/CHANGELOG.md`.
