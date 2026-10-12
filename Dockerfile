@@ -38,6 +38,8 @@ RUN find /opt/venv/bin -type f -executable | xargs sed -i 's|#!/build/.venv/bin/
 COPY --from=builder /build/app /app/app
 COPY --from=builder /build/docs /app/docs
 COPY --from=builder /build/scripts /app/scripts
+# Copy data/ for HEREBUS seed canonical JSON (SASKIA-225)
+COPY --from=builder /build/data /app/data
 COPY --from=builder /build/README.md /app/README.md
 
 # Make venv the default python path
