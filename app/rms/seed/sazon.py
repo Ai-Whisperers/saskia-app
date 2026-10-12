@@ -489,6 +489,12 @@ BUSINESS_INFO: dict[str, str] = {
     "address": "Laguán Grande, Arquitectos, Calle 17, Asunción",
     "phone": "+595 991 683805",
     "email": "La.vaquitaholandesa@gmail.com",
+    # SASKIA-215 (2026-10-12) — additional fields answered in the
+    # 2026-10-08 onboarding questionnaire. These feed the new
+    # LOCATION / SEASONAL / SALES settings on the seeder.
+    "barrio": "San Lorenzo",  # §22.1
+    "zona": "residencial",  # §22.2
+    "shop_whatsapp": "+595 991 683805",  # §8.1 (same as phone, per Saskia)
 }
 
 # Realistic Paraguayan bakery ingredients (50+).
@@ -5127,19 +5133,7 @@ def _seed_settingskv_branding(ctx: SeedContext):
         "seasonal.notif_lead_days": 30,  # §16.6
         "sales.shop_whatsapp": BUSINESS_INFO.get("shop_whatsapp", ""),
     }
-    # SASKIA-221 (2026-10-12) -- 6 more settings from the remaining
-    # 16 sections of the 2026-10-08 onboarding questionnaire.
-    saskia221_settings = {
-        # CONTACT
-        "contact.phone": BUSINESS_INFO.get("phone", "+595 991 683805"),
-        "contact.email": BUSINESS_INFO.get("email", "La.vaquitaholandesa@gmail.com"),
-        "contact.whatsapp": BUSINESS_INFO.get("shop_whatsapp", "+595 991 683805"),
-        # LOCATION (3 new beyond the 2 from SASKIA-215)
-        "location.address_full": BUSINESS_INFO.get("address", ""),
-        "location.city": BUSINESS_INFO.get("city", "Asuncion"),
-        "location.department": BUSINESS_INFO.get("department", "Central"),
-    }
-    all_settings = {**branding_settings, **saskia215_settings, **saskia221_settings}
+    all_settings = {**branding_settings, **saskia215_settings}
     for k, v in all_settings.items():
         existing = ctx.session.execute(
             select(SettingsKV).where(SettingsKV.key == k)
@@ -5151,9 +5145,7 @@ def _seed_settingskv_branding(ctx: SeedContext):
             ctx.report.skipped_existing["settings_kv_existing"] = (
                 ctx.report.skipped_existing.get("settings_kv_existing", 0) + 1
             )
-    logger.info(
-        f"seed: {ctx.report.settings_kv} settings_kv (BRANDING + OPS + LOCATION + SEASONAL + SALES)"
-    )
+    logger.info(f"seed: {ctx.report.settings_kv} settings_kv (BRANDING + OPS + LOCATION + SEASONAL + SALES)")
 
 
 def _seed_categories(ctx: SeedContext):
