@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import pytest
 
-
 # ─── import contract ──────────────────────────────────────────────────────────
 
 
@@ -64,8 +63,8 @@ def test_seeders_module_imports_cleanly():
 )
 def test_seed_writes_to_db(seed_fn, seed_kwargs, orm_model, id_key, session_factory):
     """Each seed_X function must persist the row to the DB and return the id."""
-    from tests import seeders
     from app.rms.models import Customer, Ingredient, Product
+    from tests import seeders
 
     fn = getattr(seeders, seed_fn)
     result = fn(session_factory, **seed_kwargs)
@@ -137,6 +136,7 @@ def test_seeders_module_no_test_dunder_polycollect():
 def test_seeders_have_no_async_def():
     """AGENTS.md rule 32: no async def in app code. seeders aren't app, but be consistent."""
     import inspect
+
     import tests.seeders as s
 
     bad = [
@@ -152,8 +152,8 @@ def test_seeders_have_no_async_def():
 def test_seeders_cc_within_budget():
     """AGENTS.md rule 40: CC ≤ 10. Spot-check seeders — they're trivial wrappers,
     so CC should be far below the ceiling. Failure here = a helper grew too complex."""
-    import subprocess
     import shutil
+    import subprocess
 
     if not shutil.which("radon"):
         pytest.skip("radon not installed (optional dev tool)")
