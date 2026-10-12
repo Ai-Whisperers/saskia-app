@@ -191,6 +191,153 @@ class AppInternalError(AppError):
     reason_code = "internal_error"
 
 
+# ─── Domain-specific subclasses (semantic refinement) ─────────────
+#
+# Each subclass below narrows an existing category to a domain concept.
+# They exist for two reasons:
+#
+# 1. Routers / services can `except RecipeTreeError` instead of sniffing
+#    `reason_code`. This keeps call sites typed and IDE-friendly.
+#
+# 2. Tests can assert `pytest.raises(RecipeTreeError)` instead of
+#    matching on string messages.
+#
+# Rule 41 spirit: every new exception carries `message + reason_code +
+# context`, and callers always preserve `raise X from Y` so the
+# original traceback survives logging.
+#
+# Existing exception modules (`app.rms.fiado`, `app.rms.cash`,
+# `app.rms.services.closures`, etc.) defined their own error types
+# before this hierarchy existed. The subclasses below give each of those
+# a structured home under `AppError`. Migration is staged, not forced:
+# new code raises the subclasses; old call sites that still raise the
+# original name continue to work because the new classes subclass the
+# old bases (e.g. `FiadoError(Conflict)` is catchable as `Conflict`).
+
+
+class RecipeTreeError(DataIntegrityError):
+    """Recipe dependency graph has a cycle or invalid nesting.
+
+    Subclass of `DataIntegrityError` because a recipe tree cycle means
+    the BOM is unsolvable at compute time — not a user error.
+    """
+
+    status_code = 500
+    reason_code = "recipe_tree_error"
+
+
+class RecipeValidationError(ValidationError):
+    """Recipe validation failed (missing yield_qty, bad unit, etc.).
+
+    Subclass of `ValidationError` because it is typically a 422 from a
+    POSTed recipe that the operator can fix.
+    """
+
+    reason_code = "recipe_validation_error"
+
+
+class FiadoError(Conflict):
+    """Customer-credit (fiado) business rule violated."""
+
+    reason_code = "fiado_error"
+
+
+class CashSessionError(Conflict):
+    """Cash session business rule violated (already open / closed)."""
+
+    reason_code = "cash_session_error"
+
+
+class ClosureError(ValidationError):
+    """End-of-day / month / period closure validation failure.
+
+    Subclass of `ValidationError` so closure-specific catch sites can
+    be tighter than the general 422 path.
+    """
+
+    reason_code = "closure_error"
+
+
+class ExpenseError(ValidationError):
+    """Expense validation failed (amount, category, recurrence)."""
+
+    reason_code = "expense_error"
+
+
+class RefundError(Conflict):
+    """Refund business rule violated (already refunded, voided, etc.)."""
+
+    reason_code = "refund_error"
+
+
+class LLMError(DependencyError):
+    """LLM provider call failed (Copilot, embeddings, etc.)."""
+
+    status_code = 502
+    reason_code = "llm_unavailable"
+
+
+class StorageError(DependencyError):
+    """Object-storage call failed (R2 / S3 / Drive).
+
+    Subclass of `DependencyError` so storage-down is distinguishable
+    from generic upstream failures in alerts.
+    """
+
+    reason_code = "storage_unavailable"
+
+
+class EODClosedError(Conflict):
+    """End-of-day is closed; the operation requires an open session."""
+
+    reason_code = "eod_closed"
+
+
+class TenantError(AppError):
+    """Tenant resolution failed (unknown tenant, missing config).
+
+    Not a `NotFound` because tenant misconfig is a deploy-time problem,
+    not a row lookup. Status 503 — the service cannot route.
+    """
+
+    status_code = 503
+    reason_code = "tenant_error"
+
+
+class MenuNotFound(NotFound):
+    """Menu / menu_ejecutivo lookup failed."""
+
+    reason_code = "menu_not_found"
+
+    def __init__(
+        self,
+        entity: str = "Menú",
+        id: Any = None,
+        *,
+        context: dict[str, Any] | None = None,
+        message: str | None = None,
+    ):
+        # Skip `NotFound.__init__` (which would re-prefix `reason_code`
+        # with the entity name) and route straight through `AppError`.
+        if message is None:
+            message = f"{entity} #{id} no existe" if id is not None else f"{entity} no encontrado"
+        ctx = {"entity": entity, **(context or {})}
+        if id is not None:
+            ctx["id"] = str(id)
+        super(NotFound, self).__init__(
+            message, reason_code="menu_not_found", context=ctx
+        )
+        self.entity = entity
+        self.entity_id = id
+
+
+class RollbackError(DataIntegrityError):
+    """DB rollback failed mid-flight — caller's transaction is in an
+    undefined state. Catch only to log + re-raise; never to recover."""
+
+    status_code = 500
+    reason_code = "rollback_failed"
+
 # ─── Mapping helpers ──────────────────────────────────────────────
 
 
