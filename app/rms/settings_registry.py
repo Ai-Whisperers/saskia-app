@@ -671,6 +671,13 @@ SETTINGS: list[Setting] = [
         "Días de anticipación para avisar picos estacionales (Saskia §16.6: 30)",
         SettingGroup.SEASONAL,
     ),
+    Setting(
+        "seasonal.relevance_tags",
+        "",
+        "str",
+        "Tags de rubro para filtrar el calendario estacional (comma-separated; vacío = universal)",
+        SettingGroup.SEASONAL,
+    ),
     # RECIPE (2)
     Setting(
         "recipe.labor_cost_enabled",

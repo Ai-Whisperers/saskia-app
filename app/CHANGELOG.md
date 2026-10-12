@@ -16,6 +16,17 @@ Per SASKIA-210 decision (per-client INSTANCES, NOT shared-DB multi-tenant), the 
 
 **Idempotency**: Re-seeding the same pack on the same tenant is a complete no-op (all per-counter totals = 0). Verified by `test_seed_new_pack_idempotent`.
 
+## 2026-10-12 — feat(ui): SASKIA-217 seasonal calendar admin page
+
+**Scope**: `app/rms/seasonal.py` (DB-backed calendar helpers), `app/routers/settings_runtime.py` (GET /api/admin/seasonal-calendar), `app/templates/admin/seasonal_calendar.html` (new), `app/rms/nav.py` (Sistema nav + crumb), `app/rms/settings_registry.py` (new `seasonal.relevance_tags` setting), `tests/test_saskia217_seasonal_calendar.py` (new, 7 tests).
+
+Read-only operator page surfacing the seasonal_event catalog (SASKIA-216/220, 405 rows):
+
+- Events ordered by date, horizon 180 days, impact badges (crítico/alto/medio/bajo)
+- Lead-window callout: events within `seasonal.notif_lead_days` (default 30) highlighted with "en N d" pills
+- `seasonal.relevance_tags` setting (comma-separated pack tags) filters the calendar to the operator's vertical — universal events always visible
+- Empty state on unseeded DBs; no mutations (read-only)
+
 ## 2026-10-12 — feat(seed): SASKIA-223 HEREBUS data import + 4 new HEREBUS settings
 ## 2026-10-12 — feat(seed): SASKIA-223 HEREBUS data import + 4 new HEREBUS settings
 
