@@ -467,7 +467,9 @@ def _done_redirect(for_date: date, added: int) -> RedirectResponse:
 def _open_shopping_items(session: Session) -> list[Any]:
     """Return the unpurchased ShoppingListItem rows currently on the list."""
     return (
-        session.execute(select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False)))
+        session.execute(
+            select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
+        )
         .scalars()
         .all()
     )
@@ -502,7 +504,9 @@ def _existing_qty_by_ingredient(existing: list[Any]) -> dict[Any, float]:
     """Map ingredient_id → total qty_to_buy across open items."""
     totals: dict[Any, float] = {}
     for item in existing:
-        totals[item.ingredient_id] = totals.get(item.ingredient_id, 0.0) + float(item.qty_to_buy)
+        totals[item.ingredient_id] = totals.get(item.ingredient_id, 0.0) + float(
+            item.qty_to_buy
+        )
     return totals
 
 
