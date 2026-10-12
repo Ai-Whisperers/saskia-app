@@ -10,11 +10,11 @@ questionnaire (sections 8.1, 16.6, 22.1, 22.2). Update both this
 test AND seed/sazon.py's _seed_settingskv_branding (or a new
 _seed_settingskv_vaquita helper) when the questionnaire is updated.
 """
+
 from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 
 import pytest
 from sqlalchemy import select
@@ -46,8 +46,8 @@ def test_seed_sazon_populates_vaquita_answers(tmp_path):
     pytest.importorskip("app.rms.seed")
     _, SessionLocal = _make_empty_db(tmp_path)
 
-    from app.rms.seed import seed_sazon
     from app.rms.models_legacy import SettingsKV
+    from app.rms.seed import seed_sazon
 
     s = SessionLocal()
     try:
@@ -58,18 +58,22 @@ def test_seed_sazon_populates_vaquita_answers(tmp_path):
 
     s = SessionLocal()
     try:
-        rows = s.execute(
-            select(SettingsKV).where(
-                SettingsKV.key.in_(
-                    [
-                        "sales.shop_whatsapp",
-                        "location.barrio",
-                        "location.zona",
-                        "seasonal.notif_lead_days",
-                    ]
+        rows = (
+            s.execute(
+                select(SettingsKV).where(
+                    SettingsKV.key.in_(
+                        [
+                            "sales.shop_whatsapp",
+                            "location.barrio",
+                            "location.zona",
+                            "seasonal.notif_lead_days",
+                        ]
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         # The seeder stores settings as raw strings (not JSON-encoded);
         # that's the pre-existing convention from _seed_settingskv_branding.
         # Strip surrounding quotes only if the value happens to be a JSON

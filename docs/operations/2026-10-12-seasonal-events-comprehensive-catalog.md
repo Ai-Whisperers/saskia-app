@@ -245,6 +245,7 @@ class SeasonalEvent(Base):
     is applied at READ time, not stored, so a single setting can be
     changed without rewriting the events.
     """
+
     __tablename__ = "seasonal_event"
 
     id = Column(Integer, primary_key=True)
@@ -260,17 +261,27 @@ class SeasonalEvent(Base):
     end_date = Column(Date, nullable=True)
     # Classification
     country = Column(String(2), nullable=False, default="PY", index=True)  # ISO-3166-1 alpha-2
-    category = Column(String(20), nullable=False, index=True)  # "legal" / "commercial" / "religious" / "school" / "folk" / "sectoral" / "heritage"
+    category = Column(
+        String(20), nullable=False, index=True
+    )  # "legal" / "commercial" / "religious" / "school" / "folk" / "sectoral" / "heritage"
     # Demand impact (0.0 - 1.0, used for production scaling)
-    impact_score = Column(Float, nullable=False, default=0.5)  # 1.0 = critical (Semana Santa for panadería), 0.1 = informational
-    impact_tag = Column(String(20), nullable=False, default="medium")  # "critical" / "high" / "medium" / "low" / "info"
+    impact_score = Column(
+        Float, nullable=False, default=0.5
+    )  # 1.0 = critical (Semana Santa for panadería), 0.1 = informational
+    impact_tag = Column(
+        String(20), nullable=False, default="medium"
+    )  # "critical" / "high" / "medium" / "low" / "info"
     # Multi-tenant filter
-    relevance_tags = Column(String(200), nullable=False, default="")  # CSV: "panaderia,cafeteria,pizzeria" — empty = all
+    relevance_tags = Column(
+        String(200), nullable=False, default=""
+    )  # CSV: "panaderia,cafeteria,pizzeria" — empty = all
     # The lead-time for advance notification is a setting, not a column
     is_annual = Column(Boolean, nullable=False, default=False)  # True for fixed-date holidays
     # Computus anchor (for movable feasts): ISO 8601 recurrence rule or weekday-of-month
     # e.g. Easter Sunday = computus(year); "3rd Sunday of June" = nth-weekday
-    recurrence = Column(String(80), nullable=True)  # e.g. "easter", "easter-2", "third-sunday-june", "fixed", "movable-by-decree"
+    recurrence = Column(
+        String(80), nullable=True
+    )  # e.g. "easter", "easter-2", "third-sunday-june", "fixed", "movable-by-decree"
     # Audit
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

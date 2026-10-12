@@ -159,8 +159,6 @@ ING-099|Amapola (semillas)|Especias y condimentos|100|g|8000|80.0|0|0|2026-07-10
 ING-100|Sal escamada (Maldon)|Especias y condimentos|100|g|15000|150|0|0|2026-07-10|sal premium|0|0"""
 
 
-
-
 # Unit normalizer: maps any HEREBUS unit string to the Sazon constraint
 # `unit IN ('g', 'kg', 'ml', 'l', 'und')`
 def _normalize_unit(unit: str | None) -> str:
@@ -175,7 +173,35 @@ def _normalize_unit(unit: str | None) -> str:
         return "ml"
     if u in ("l", "lt", "liter", "liters", "litro", "litros"):
         return "l"
-    if u in ("und", "u", "unit", "units", "unidad", "unidades", "pcs", "pc", "piece", "pieces", "caja", "cajas", "box", "boxes", "pliego", "pliegos", "bolsa", "bolsas", "bolsita", "bolsitas", "bandeja", "bandejas", "cintillo", "cintillos", "papel", "pack", "packs"):
+    if u in (
+        "und",
+        "u",
+        "unit",
+        "units",
+        "unidad",
+        "unidades",
+        "pcs",
+        "pc",
+        "piece",
+        "pieces",
+        "caja",
+        "cajas",
+        "box",
+        "boxes",
+        "pliego",
+        "pliegos",
+        "bolsa",
+        "bolsas",
+        "bolsita",
+        "bolsitas",
+        "bandeja",
+        "bandejas",
+        "cintillo",
+        "cintillos",
+        "papel",
+        "pack",
+        "packs",
+    ):
         return "und"
     # Default fallback
     return "und"
@@ -203,7 +229,9 @@ def _parse_ingredient_line(line: str) -> dict[str, Any]:
 
 def _get_herbus_ingredients() -> list[dict[str, Any]]:
     """Return all 100 ingredients as parsed dicts."""
-    return [_parse_ingredient_line(line) for line in HEREBUS_INGREDIENTS_RAW.split("\n") if line.strip()]
+    return [
+        _parse_ingredient_line(line) for line in HEREBUS_INGREDIENTS_RAW.split("\n") if line.strip()
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -212,276 +240,418 @@ def _get_herbus_ingredients() -> list[dict[str, Any]]:
 
 HEREBUS_RECIPES_RAW = [
     {
-        "rec_id": "REC-001", "sheet": "Recipe_Chocolate_Muffin_20x20_c",
+        "rec_id": "REC-001",
+        "sheet": "Recipe_Chocolate_Muffin_20x20_c",
         "name": "Muffin de chocolate (20x20 cm)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": False, "category": "muffin",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": False,
+        "category": "muffin",
         "ingredients": [
-            ("ING-003", 333, "g"), ("ING-023", 117, "g"),
-            ("ING-047", 5, "g"), ("ING-044", 5, "g"),
-            ("ING-024", 3, "g"), ("ING-037", 17, "g"),
-            ("ING-009", 458, "g"), ("ING-013", 167, "ml"),
-            ("ING-072", 250, "ml"), ("ING-015", 167, "g"),
-            ("ING-017", 375, "ml"), ("ING-027", 25, "g"),
+            ("ING-003", 333, "g"),
+            ("ING-023", 117, "g"),
+            ("ING-047", 5, "g"),
+            ("ING-044", 5, "g"),
+            ("ING-024", 3, "g"),
+            ("ING-037", 17, "g"),
+            ("ING-009", 458, "g"),
+            ("ING-013", 167, "ml"),
+            ("ING-072", 250, "ml"),
+            ("ING-015", 167, "g"),
+            ("ING-017", 375, "ml"),
+            ("ING-027", 25, "g"),
             ("ING-025", 333, "g"),
         ],
     },
     {
-        "rec_id": "REC-002", "sheet": "Recipe_Stroop_Waffle",
+        "rec_id": "REC-002",
+        "sheet": "Recipe_Stroop_Waffle",
         "name": "Stroopwafel",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": True, "category": "galleta",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": True,
+        "category": "galleta",
         "ingredients": [
-            ("ING-001", 200, "g"), ("ING-003", 200, "g"),
-            ("ING-023", 200, "g"), ("ING-008", 200, "g"),
-            ("ING-015", 2, "und"), ("ING-027", 5, "ml"),
-            ("ING-037", 2, "g"), ("ING-045", 10, "g"),
-            ("ING-032", 15, "g"), ("ING-026", 5, "g"),
+            ("ING-001", 200, "g"),
+            ("ING-003", 200, "g"),
+            ("ING-023", 200, "g"),
+            ("ING-008", 200, "g"),
+            ("ING-015", 2, "und"),
+            ("ING-027", 5, "ml"),
+            ("ING-037", 2, "g"),
+            ("ING-045", 10, "g"),
+            ("ING-032", 15, "g"),
+            ("ING-026", 5, "g"),
         ],
     },
     {
-        "rec_id": "REC-003", "sheet": "Recipe_Cheesecake_20x20_cm",
+        "rec_id": "REC-003",
+        "sheet": "Recipe_Cheesecake_20x20_cm",
         "name": "Cheesecake (20x20 cm)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": False, "category": "tarta",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": False,
+        "category": "tarta",
         "ingredients": [
-            ("ING-020", 500, "g"), ("ING-008", 150, "g"),
-            ("ING-015", 3, "und"), ("ING-027", 10, "ml"),
-            ("ING-023", 100, "g"), ("ING-080", 300, "g"),
+            ("ING-020", 500, "g"),
+            ("ING-008", 150, "g"),
+            ("ING-015", 3, "und"),
+            ("ING-027", 10, "ml"),
+            ("ING-023", 100, "g"),
+            ("ING-080", 300, "g"),
         ],
     },
     {
-        "rec_id": "REC-004", "sheet": "Recipe_Ontbijtkoek_700g_flour",
+        "rec_id": "REC-004",
+        "sheet": "Recipe_Ontbijtkoek_700g_flour",
         "name": "Ontbijtkoek (Dutch breakfast cake, 700g flour)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": True, "category": "torta",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": True,
+        "category": "torta",
         "ingredients": [
-            ("ING-001", 700, "g"), ("ING-009", 500, "g"),
-            ("ING-012", 200, "g"), ("ING-015", 2, "und"),
-            ("ING-032", 30, "g"), ("ING-044", 15, "g"),
+            ("ING-001", 700, "g"),
+            ("ING-009", 500, "g"),
+            ("ING-012", 200, "g"),
+            ("ING-015", 2, "und"),
+            ("ING-032", 30, "g"),
+            ("ING-044", 15, "g"),
             ("ING-013", 250, "ml"),
         ],
     },
     {
-        "rec_id": "REC-005", "sheet": "Recipe_Carrot_Cake_43x33x15_cm",
+        "rec_id": "REC-005",
+        "sheet": "Recipe_Carrot_Cake_43x33x15_cm",
         "name": "Carrot Cake (43x33x15 cm)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": False, "category": "torta",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": False,
+        "category": "torta",
         "ingredients": [
-            ("ING-003", 400, "g"), ("ING-009", 350, "g"),
-            ("ING-032", 20, "g"), ("ING-044", 8, "g"),
-            ("ING-037", 5, "g"), ("ING-062", 350, "g"),
-            ("ING-015", 4, "und"), ("ING-072", 250, "ml"),
+            ("ING-003", 400, "g"),
+            ("ING-009", 350, "g"),
+            ("ING-032", 20, "g"),
+            ("ING-044", 8, "g"),
+            ("ING-037", 5, "g"),
+            ("ING-062", 350, "g"),
+            ("ING-015", 4, "und"),
+            ("ING-072", 250, "ml"),
             ("ING-056", 150, "g"),
         ],
     },
     {
-        "rec_id": "REC-006", "sheet": "Recipe_Frikandel_100_pcs",
+        "rec_id": "REC-006",
+        "sheet": "Recipe_Frikandel_100_pcs",
         "name": "Frikandel (Dutch minced meat sausage, 100 pcs)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": True, "category": "salchicha",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": True,
+        "category": "salchicha",
         "ingredients": [
-            ("ING-089", 5000, "g"), ("ING-093", 1000, "g"),
-            ("ING-030", 50, "g"), ("ING-037", 20, "g"),
+            ("ING-089", 5000, "g"),
+            ("ING-093", 1000, "g"),
+            ("ING-030", 50, "g"),
+            ("ING-037", 20, "g"),
             ("ING-042", 15, "g"),
         ],
     },
     {
-        "rec_id": "REC-007", "sheet": "Recipe_Ketjap_Manis_Quick_Versi",
+        "rec_id": "REC-007",
+        "sheet": "Recipe_Ketjap_Manis_Quick_Versi",
         "name": "Ketjap Manis (Quick Version, Indonesian-Dutch)",
-        "yield_qty": None, "yield_unit": "ml",
-        "dutch_heritage": True, "category": "salsa",
+        "yield_qty": None,
+        "yield_unit": "ml",
+        "dutch_heritage": True,
+        "category": "salsa",
         "ingredients": [
-            ("ING-087", 500, "ml"), ("ING-009", 400, "g"),
-            ("ING-033", 5, "g"), ("ING-036", 3, "g"),
+            ("ING-087", 500, "ml"),
+            ("ING-009", 400, "g"),
+            ("ING-033", 5, "g"),
+            ("ING-036", 3, "g"),
             ("ING-034", 2, "g"),
         ],
     },
     {
-        "rec_id": "REC-008", "sheet": "Recipe_Hojaldre_Bladerdeeg",
+        "rec_id": "REC-008",
+        "sheet": "Recipe_Hojaldre_Bladerdeeg",
         "name": "Hojaldre / Bladerdeeg (Dutch puff pastry)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": True, "category": "masa",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": True,
+        "category": "masa",
         "ingredients": [
-            ("ING-003", 500, "g"), ("ING-023", 400, "g"),
-            ("ING-030", 10, "g"), ("ING-013", 250, "ml"),
+            ("ING-003", 500, "g"),
+            ("ING-023", 400, "g"),
+            ("ING-030", 10, "g"),
+            ("ING-013", 250, "ml"),
         ],
     },
     {
-        "rec_id": "REC-009", "sheet": "Recipe_Pastelitos_rosados_Roze_",
+        "rec_id": "REC-009",
+        "sheet": "Recipe_Pastelitos_rosados_Roze_",
         "name": "Pastelitos Rosados / Roze (Dutch-PY fusion)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": True, "category": "pastelito",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": True,
+        "category": "pastelito",
         "ingredients": [
-            ("ING-003", 500, "g"), ("ING-008", 300, "g"),
-            ("ING-023", 250, "g"), ("ING-015", 2, "und"),
-            ("ING-027", 10, "ml"), ("ING-032", 5, "g"),
+            ("ING-003", 500, "g"),
+            ("ING-008", 300, "g"),
+            ("ING-023", 250, "g"),
+            ("ING-015", 2, "und"),
+            ("ING-027", 10, "ml"),
+            ("ING-032", 5, "g"),
             ("ING-049", 200, "g"),
         ],
     },
     {
-        "rec_id": "REC-010", "sheet": "Recipe_Galletas_de_especuloos_S",
+        "rec_id": "REC-010",
+        "sheet": "Recipe_Galletas_de_especuloos_S",
         "name": "Galletas de Especuloos (Speculaas)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": True, "category": "galleta",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": True,
+        "category": "galleta",
         "ingredients": [
-            ("ING-003", 350, "g"), ("ING-008", 250, "g"),
-            ("ING-023", 200, "g"), ("ING-015", 1, "und"),
-            ("ING-032", 25, "g"), ("ING-044", 5, "g"),
+            ("ING-003", 350, "g"),
+            ("ING-008", 250, "g"),
+            ("ING-023", 200, "g"),
+            ("ING-015", 1, "und"),
+            ("ING-032", 25, "g"),
+            ("ING-044", 5, "g"),
             ("ING-027", 5, "ml"),
         ],
     },
     {
-        "rec_id": "REC-011", "sheet": "Recipe_Bizcocho_básico_25_cm_Ba",
+        "rec_id": "REC-011",
+        "sheet": "Recipe_Bizcocho_básico_25_cm_Ba",
         "name": "Bizcocho básico (25 cm base)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": False, "category": "bizcocho",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": False,
+        "category": "bizcocho",
         "ingredients": [
-            ("ING-003", 250, "g"), ("ING-008", 200, "g"),
-            ("ING-015", 3, "und"), ("ING-023", 100, "g"),
-            ("ING-013", 200, "ml"), ("ING-047", 8, "g"),
+            ("ING-003", 250, "g"),
+            ("ING-008", 200, "g"),
+            ("ING-015", 3, "und"),
+            ("ING-023", 100, "g"),
+            ("ING-013", 200, "ml"),
+            ("ING-047", 8, "g"),
             ("ING-027", 5, "ml"),
         ],
     },
     {
-        "rec_id": "REC-012", "sheet": "Recipe_Bizcocho_básico_30_cm_Ba",
+        "rec_id": "REC-012",
+        "sheet": "Recipe_Bizcocho_básico_30_cm_Ba",
         "name": "Bizcocho básico (30 cm base)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": False, "category": "bizcocho",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": False,
+        "category": "bizcocho",
         "ingredients": [
-            ("ING-003", 350, "g"), ("ING-008", 280, "g"),
-            ("ING-015", 4, "und"), ("ING-023", 150, "g"),
-            ("ING-013", 280, "ml"), ("ING-047", 10, "g"),
+            ("ING-003", 350, "g"),
+            ("ING-008", 280, "g"),
+            ("ING-015", 4, "und"),
+            ("ING-023", 150, "g"),
+            ("ING-013", 280, "ml"),
+            ("ING-047", 10, "g"),
             ("ING-027", 8, "ml"),
         ],
     },
     {
-        "rec_id": "REC-013", "sheet": "Recipe_Tarta_de_manzana_de_mi_m",
+        "rec_id": "REC-013",
+        "sheet": "Recipe_Tarta_de_manzana_de_mi_m",
         "name": "Tarta de manzana de mi madre (Mijn moeders appeltaart)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": True, "category": "tarta",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": True,
+        "category": "tarta",
         "ingredients": [
-            ("ING-003", 300, "g"), ("ING-008", 150, "g"),
-            ("ING-023", 150, "g"), ("ING-015", 1, "und"),
-            ("ING-027", 5, "ml"), ("ING-032", 10, "g"),
-            ("ING-044", 3, "g"), ("ING-049", 600, "g"),
-            ("ING-010", 50, "g"), ("ING-033", 5, "g"),
+            ("ING-003", 300, "g"),
+            ("ING-008", 150, "g"),
+            ("ING-023", 150, "g"),
+            ("ING-015", 1, "und"),
+            ("ING-027", 5, "ml"),
+            ("ING-032", 10, "g"),
+            ("ING-044", 3, "g"),
+            ("ING-049", 600, "g"),
+            ("ING-010", 50, "g"),
+            ("ING-033", 5, "g"),
             ("ING-034", 2, "g"),
         ],
     },
     {
-        "rec_id": "REC-014", "sheet": "Recipe_Proficteroles_de_Den_Bos",
+        "rec_id": "REC-014",
+        "sheet": "Recipe_Proficteroles_de_Den_Bos",
         "name": "Profiteroles de Den Bosch (Bossche Bollen)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": True, "category": "bollen",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": True,
+        "category": "bollen",
         "ingredients": [
-            ("ING-003", 200, "g"), ("ING-023", 100, "g"),
-            ("ING-015", 4, "und"), ("ING-013", 250, "ml"),
-            ("ING-030", 3, "g"), ("ING-025", 200, "g"),
+            ("ING-003", 200, "g"),
+            ("ING-023", 100, "g"),
+            ("ING-015", 4, "und"),
+            ("ING-013", 250, "ml"),
+            ("ING-030", 3, "g"),
+            ("ING-025", 200, "g"),
             ("ING-018", 250, "ml"),
         ],
     },
     {
-        "rec_id": "REC-015", "sheet": "Recipe_Petisús_de_hojaldre_y_cr",
+        "rec_id": "REC-015",
+        "sheet": "Recipe_Petisús_de_hojaldre_y_cr",
         "name": "Petisús de hojaldre y crema (cream puffs)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": False, "category": "petisu",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": False,
+        "category": "petisu",
         "ingredients": [
-            ("ING-003", 250, "g"), ("ING-023", 100, "g"),
-            ("ING-015", 4, "und"), ("ING-013", 250, "ml"),
-            ("ING-030", 3, "g"), ("ING-078", 300, "g"),
+            ("ING-003", 250, "g"),
+            ("ING-023", 100, "g"),
+            ("ING-015", 4, "und"),
+            ("ING-013", 250, "ml"),
+            ("ING-030", 3, "g"),
+            ("ING-078", 300, "g"),
         ],
     },
     {
-        "rec_id": "REC-016", "sheet": "Recipe_Oliebollen_Buñuelos_trad",
+        "rec_id": "REC-016",
+        "sheet": "Recipe_Oliebollen_Buñuelos_trad",
         "name": "Oliebollen / Buñuelos tradicionales (Dutch New Year)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": True, "category": "buñuelo",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": True,
+        "category": "buñuelo",
         "ingredients": [
-            ("ING-003", 500, "g"), ("ING-015", 2, "und"),
-            ("ING-045", 20, "g"), ("ING-013", 300, "ml"),
-            ("ING-008", 100, "g"), ("ING-055", 100, "g"),
+            ("ING-003", 500, "g"),
+            ("ING-015", 2, "und"),
+            ("ING-045", 20, "g"),
+            ("ING-013", 300, "ml"),
+            ("ING-008", 100, "g"),
+            ("ING-055", 100, "g"),
             ("ING-099", 20, "g"),
         ],
     },
     {
-        "rec_id": "REC-017", "sheet": "Recipe_Babka",
+        "rec_id": "REC-017",
+        "sheet": "Recipe_Babka",
         "name": "Babka",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": False, "category": "torta",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": False,
+        "category": "torta",
         "ingredients": [
-            ("ING-003", 400, "g"), ("ING-008", 200, "g"),
-            ("ING-015", 3, "und"), ("ING-023", 150, "g"),
-            ("ING-013", 200, "ml"), ("ING-045", 15, "g"),
-            ("ING-025", 150, "g"), ("ING-027", 5, "ml"),
+            ("ING-003", 400, "g"),
+            ("ING-008", 200, "g"),
+            ("ING-015", 3, "und"),
+            ("ING-023", 150, "g"),
+            ("ING-013", 200, "ml"),
+            ("ING-045", 15, "g"),
+            ("ING-025", 150, "g"),
+            ("ING-027", 5, "ml"),
         ],
     },
     {
-        "rec_id": "REC-018", "sheet": "Recipe_Bombones_de_chocolate",
+        "rec_id": "REC-018",
+        "sheet": "Recipe_Bombones_de_chocolate",
         "name": "Bombones de chocolate",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": False, "category": "bombon",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": False,
+        "category": "bombon",
         "ingredients": [
-            ("ING-025", 500, "g"), ("ING-018", 100, "ml"),
-            ("ING-023", 50, "g"), ("ING-027", 5, "ml"),
+            ("ING-025", 500, "g"),
+            ("ING-018", 100, "ml"),
+            ("ING-023", 50, "g"),
+            ("ING-027", 5, "ml"),
         ],
     },
     {
-        "rec_id": "REC-019", "sheet": "Recipe_Goulash_Crockettes_100",
+        "rec_id": "REC-019",
+        "sheet": "Recipe_Goulash_Crockettes_100",
         "name": "Goulash Croquettes (Dutch, 100 pcs)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": True, "category": "croqueta",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": True,
+        "category": "croqueta",
         "ingredients": [
-            ("ING-089", 2000, "g"), ("ING-003", 200, "g"),
-            ("ING-013", 500, "ml"), ("ING-023", 100, "g"),
-            ("ING-093", 300, "g"), ("ING-015", 2, "und"),
+            ("ING-089", 2000, "g"),
+            ("ING-003", 200, "g"),
+            ("ING-013", 500, "ml"),
+            ("ING-023", 100, "g"),
+            ("ING-093", 300, "g"),
+            ("ING-015", 2, "und"),
             ("ING-037", 10, "g"),
         ],
     },
     {
-        "rec_id": "REC-020", "sheet": "Recipe_Veggie_Bitterballen_100",
+        "rec_id": "REC-020",
+        "sheet": "Recipe_Veggie_Bitterballen_100",
         "name": "Veggie Bitterballen (Dutch, 100 pcs)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": True, "category": "croqueta",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": True,
+        "category": "croqueta",
         "ingredients": [
-            ("ING-067", 1500, "g"), ("ING-068", 500, "g"),
-            ("ING-064", 500, "g"), ("ING-003", 300, "g"),
-            ("ING-013", 500, "ml"), ("ING-023", 100, "g"),
+            ("ING-067", 1500, "g"),
+            ("ING-068", 500, "g"),
+            ("ING-064", 500, "g"),
+            ("ING-003", 300, "g"),
+            ("ING-013", 500, "ml"),
+            ("ING-023", 100, "g"),
             ("ING-093", 300, "g"),
         ],
     },
     {
-        "rec_id": "REC-021", "sheet": "Recipe_Suppli_Caccio_e_Pepe",
+        "rec_id": "REC-021",
+        "sheet": "Recipe_Suppli_Caccio_e_Pepe",
         "name": "Supplì Cacio e Pepe (Italian, 20 pcs)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": False, "category": "croqueta",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": False,
+        "category": "croqueta",
         "ingredients": [
-            ("ING-066", 1000, "g"), ("ING-019", 200, "g"),
-            ("ING-037", 5, "g"), ("ING-015", 2, "und"),
+            ("ING-066", 1000, "g"),
+            ("ING-019", 200, "g"),
+            ("ING-037", 5, "g"),
+            ("ING-015", 2, "und"),
             ("ING-093", 200, "g"),
         ],
     },
     {
-        "rec_id": "REC-022", "sheet": "Recipe_Everything_Bagels_8",
+        "rec_id": "REC-022",
+        "sheet": "Recipe_Everything_Bagels_8",
         "name": "Everything Bagels (American-Jewish, 8 pcs)",
-        "yield_qty": None, "yield_unit": "und",
-        "dutch_heritage": False, "category": "bagel",
+        "yield_qty": None,
+        "yield_unit": "und",
+        "dutch_heritage": False,
+        "category": "bagel",
         "ingredients": [
-            ("ING-003", 500, "g"), ("ING-013", 250, "ml"),
-            ("ING-045", 10, "g"), ("ING-008", 30, "g"),
-            ("ING-030", 8, "g"), ("ING-097", 15, "g"),
-            ("ING-098", 15, "g"), ("ING-099", 10, "g"),
+            ("ING-003", 500, "g"),
+            ("ING-013", 250, "ml"),
+            ("ING-045", 10, "g"),
+            ("ING-008", 30, "g"),
+            ("ING-030", 8, "g"),
+            ("ING-097", 15, "g"),
+            ("ING-098", 15, "g"),
+            ("ING-099", 10, "g"),
             ("ING-096", 5, "g"),
         ],
     },
     {
-        "rec_id": "REC-023", "sheet": "Recipe_Everything_Bagel_Seasoni",
+        "rec_id": "REC-023",
+        "sheet": "Recipe_Everything_Bagel_Seasoni",
         "name": "Everything Bagel Seasoning (the mix)",
-        "yield_qty": None, "yield_unit": "g",
-        "dutch_heritage": False, "category": "seasoning",
+        "yield_qty": None,
+        "yield_unit": "g",
+        "dutch_heritage": False,
+        "category": "seasoning",
         "ingredients": [
-            ("ING-097", 100, "g"), ("ING-098", 50, "g"),
-            ("ING-099", 50, "g"), ("ING-096", 50, "g"),
+            ("ING-097", 100, "g"),
+            ("ING-098", 50, "g"),
+            ("ING-099", 50, "g"),
+            ("ING-096", 50, "g"),
             ("ING-100", 50, "g"),
         ],
     },
@@ -515,7 +685,9 @@ def _parse_packaging_line(line: str) -> dict[str, Any]:
 
 
 def _get_herbus_packaging() -> list[dict[str, Any]]:
-    return [_parse_packaging_line(line) for line in HEREBUS_PACKAGING_RAW.split("\n") if line.strip()]
+    return [
+        _parse_packaging_line(line) for line in HEREBUS_PACKAGING_RAW.split("\n") if line.strip()
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -543,34 +715,41 @@ def seed_herbus_ingredients(session: Session) -> int:
         # The Ingredient model has a `notes` field — we encode the
         # dutch_heritage + needs_confirm + precio_ref flags in there
         # plus a JSON blob.
-        notes = json.dumps({
-            "herbus_ing_id": ing["ing_id"],
-            "precio_ref": ing["precio_ref"],
-            "dutch_heritage": ing["dutch_heritage"],
-            "needs_confirm": ing["needs_confirm"],
-            "last_update": ing["last_update"],
-        }, ensure_ascii=False)
-        session.add(Ingredient(
-            name=ing["name"],
-            unit=_normalize_unit(ing["pkg_unit"]),
-            stock_qty=ing["stock_qty"],
-            purchase_price_gs=int(ing["unit_price_gs"]) if ing["unit_price_gs"] > 0 else None,
-            purchase_price_updated_at=now,
-            min_stock_qty=ing["min_reorder"] or 0,
-            max_stock_qty=(ing["min_reorder"] or 0) * 3,
-            shelf_life_days=30,
-            storage="dry",
-            notes=notes,
-            category=ing["category"],
-            lead_time_days=3,
-            lot_required=False,
-            may_contain_gluten="gluten" in ing["name"].lower() or "harina" in ing["name"].lower() or "centeno" in ing["name"].lower(),
-            purchase_streak_count=0,
-            locked_supplier_id=None,
-            opening_stock_qty=ing["stock_qty"],
-            opening_stock_date="2026-10-12",
-            reorder_point=(ing["min_reorder"] or 0) * 1.5,
-        ))
+        notes = json.dumps(
+            {
+                "herbus_ing_id": ing["ing_id"],
+                "precio_ref": ing["precio_ref"],
+                "dutch_heritage": ing["dutch_heritage"],
+                "needs_confirm": ing["needs_confirm"],
+                "last_update": ing["last_update"],
+            },
+            ensure_ascii=False,
+        )
+        session.add(
+            Ingredient(
+                name=ing["name"],
+                unit=_normalize_unit(ing["pkg_unit"]),
+                stock_qty=ing["stock_qty"],
+                purchase_price_gs=int(ing["unit_price_gs"]) if ing["unit_price_gs"] > 0 else None,
+                purchase_price_updated_at=now,
+                min_stock_qty=ing["min_reorder"] or 0,
+                max_stock_qty=(ing["min_reorder"] or 0) * 3,
+                shelf_life_days=30,
+                storage="dry",
+                notes=notes,
+                category=ing["category"],
+                lead_time_days=3,
+                lot_required=False,
+                may_contain_gluten="gluten" in ing["name"].lower()
+                or "harina" in ing["name"].lower()
+                or "centeno" in ing["name"].lower(),
+                purchase_streak_count=0,
+                locked_supplier_id=None,
+                opening_stock_qty=ing["stock_qty"],
+                opening_stock_date="2026-10-12",
+                reorder_point=(ing["min_reorder"] or 0) * 1.5,
+            )
+        )
         inserted += 1
     session.flush()
     logger.info(f"seed_herbus_ingredients: {inserted} new, {skipped} skipped (of 100 total).")
@@ -594,7 +773,8 @@ def seed_herbus_recipes(session: Session) -> int:
     all_yield_pending = True
 
     ingredients_by_name = {
-        ing.name: ing for ing in session.execute(
+        ing.name: ing
+        for ing in session.execute(
             select(__import__("app.rms.models", fromlist=["Ingredient"]).Ingredient)
         ).scalars()
     }
@@ -615,18 +795,23 @@ def seed_herbus_recipes(session: Session) -> int:
             yield_qty=yield_qty,
             yield_unit=rec["yield_unit"],
             family=rec["category"],
-            notes=json.dumps({
-                "herbus_rec_id": rec["rec_id"],
-                "herbus_sheet": rec["sheet"],
-                "dutch_heritage": rec["dutch_heritage"],
-                "yield_needs_backfill": not rec["yield_qty"],
-            }, ensure_ascii=False),
+            notes=json.dumps(
+                {
+                    "herbus_rec_id": rec["rec_id"],
+                    "herbus_sheet": rec["sheet"],
+                    "dutch_heritage": rec["dutch_heritage"],
+                    "yield_needs_backfill": not rec["yield_qty"],
+                },
+                ensure_ascii=False,
+            ),
         )
         session.add(recipe)
         session.flush()  # so recipe.id is set
         # Add recipe lines
         for _ord, (ing_id, qty, unit) in enumerate(rec["ingredients"], start=1):
-            ing_name = next((i["name"] for i in _get_herbus_ingredients() if i["ing_id"] == ing_id), None)
+            ing_name = next(
+                (i["name"] for i in _get_herbus_ingredients() if i["ing_id"] == ing_id), None
+            )
             ing_obj = ingredients_by_name.get(ing_name) if ing_name else None
             if ing_obj is None:
                 # Try to find the ingredient by name (case-insensitive)
@@ -644,13 +829,15 @@ def seed_herbus_recipes(session: Session) -> int:
                     f"'{rec['name']}'"
                 )
                 continue
-            session.add(RecipeLine(
-                recipe_id=recipe.id,
-                line_kind="ingredient",
-                line_ref_id=ing_obj.id,
-                qty=qty,
-                line_unit=unit,
-            ))
+            session.add(
+                RecipeLine(
+                    recipe_id=recipe.id,
+                    line_kind="ingredient",
+                    line_ref_id=ing_obj.id,
+                    qty=qty,
+                    line_unit=unit,
+                )
+            )
         inserted += 1
     session.flush()
 
@@ -660,14 +847,18 @@ def seed_herbus_recipes(session: Session) -> int:
             select(AppMeta).where(AppMeta.key == "recipe_yield_backfill_pending")
         ).scalar_one_or_none()
         if existing is None:
-            session.add(AppMeta(
-                key="recipe_yield_backfill_pending",
-                value="true",
-                updated_at="2026-10-12",
-            ))
+            session.add(
+                AppMeta(
+                    key="recipe_yield_backfill_pending",
+                    value="true",
+                    updated_at="2026-10-12",
+                )
+            )
 
-    logger.info(f"seed_herbus_recipes: {inserted} new, {skipped} skipped (of 23 total). "
-                f"Yield backfill pending: {all_yield_pending}.")
+    logger.info(
+        f"seed_herbus_recipes: {inserted} new, {skipped} skipped (of 23 total). "
+        f"Yield backfill pending: {all_yield_pending}."
+    )
     return inserted
 
 
@@ -689,28 +880,35 @@ def seed_herbus_packaging(session: Session) -> int:
         if existing is not None:
             skipped += 1
             continue
-        session.add(Ingredient(
-            name=pkg["name"],
-            unit=_normalize_unit(pkg["unit"]),
-            stock_qty=pkg["stock_qty"],
-            purchase_price_gs=int(pkg["default_price_gs"]) if pkg["default_price_gs"] > 0 else None,
-            min_stock_qty=0,
-            max_stock_qty=0,
-            shelf_life_days=365,
-            storage="ambient",
-            category="packaging",
-            is_packaging=True,
-            notes=json.dumps({
-                "herbus_pkg_id": pkg["pkg_id"],
-                "needs_confirm": pkg["needs_confirm"],
-                "last_update": pkg["last_update"],
-            }, ensure_ascii=False),
-            lead_time_days=3,
-            lot_required=False,
-            may_contain_gluten=False,
-            purchase_streak_count=0,
-            locked_supplier_id=None,
-        ))
+        session.add(
+            Ingredient(
+                name=pkg["name"],
+                unit=_normalize_unit(pkg["unit"]),
+                stock_qty=pkg["stock_qty"],
+                purchase_price_gs=int(pkg["default_price_gs"])
+                if pkg["default_price_gs"] > 0
+                else None,
+                min_stock_qty=0,
+                max_stock_qty=0,
+                shelf_life_days=365,
+                storage="ambient",
+                category="packaging",
+                is_packaging=True,
+                notes=json.dumps(
+                    {
+                        "herbus_pkg_id": pkg["pkg_id"],
+                        "needs_confirm": pkg["needs_confirm"],
+                        "last_update": pkg["last_update"],
+                    },
+                    ensure_ascii=False,
+                ),
+                lead_time_days=3,
+                lot_required=False,
+                may_contain_gluten=False,
+                purchase_streak_count=0,
+                locked_supplier_id=None,
+            )
+        )
         inserted += 1
     session.flush()
     logger.info(f"seed_herbus_packaging: {inserted} new, {skipped} skipped (of 7 total).")
@@ -723,5 +921,7 @@ def seed_herbus_data(session: Session) -> int:
     n2 = seed_herbus_recipes(session)
     n3 = seed_herbus_packaging(session)
     total = n1 + n2 + n3
-    logger.info(f"seed_herbus_data: total {total} new rows (100 ingredients + 23 recipes + 7 packaging).")
+    logger.info(
+        f"seed_herbus_data: total {total} new rows (100 ingredients + 23 recipes + 7 packaging)."
+    )
     return total

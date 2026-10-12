@@ -10,8 +10,8 @@ from app.rms.seed.seasonal_events import (
     seed_seasonal_events_full,
 )
 
-
 # ---- 1. Tier 1 has 126 events (132 - 6 dedup) ----
+
 
 def test_tier1_has_126_rows():
     """Tier 1: 132 raw events - 6 movable-feast dedup = 126 rows for 3 years."""
@@ -21,12 +21,14 @@ def test_tier1_has_126_rows():
 
 # ---- 2. Tier 2 has 90 rows (30 events \u00d7 3 years) ----
 
+
 def test_tier2_has_90_rows():
     events = _tier2_vertical_events()
     assert len(events) == 90
 
 
 # ---- 3. Tier 3 has 150 rows (50 events \u00d7 3 years) ----
+
 
 def test_tier3_has_150_rows():
     events = _tier3_gastronomy_events()
@@ -35,12 +37,14 @@ def test_tier3_has_150_rows():
 
 # ---- 4. Tier 4 has 39 rows (13 NL events \u00d7 3 years) ----
 
+
 def test_tier4_has_39_rows():
     events = _tier4_nl_heritage_events()
     assert len(events) == 39
 
 
 # ---- 5. Total >= 405 (target was 411) ----
+
 
 def test_total_seasonal_events_at_least_405():
     total = (
@@ -55,24 +59,26 @@ def test_total_seasonal_events_at_least_405():
 
 # ---- 6. Tier 2 verticals cover all 5 SASKIA-220 packs ----
 
+
 def test_tier2_covers_all_5_new_packs():
     """Tier 2 events must be filterable by the relevance_tags of all 5 SASKIA-220 packs."""
     events = _tier2_vertical_events()
     relevance_tags = {tag for e in events for tag in e["relevance_tags"].split(",") if tag}
     expected = {
         "food_truck",  # 5 events
-        "quiosco",     # 4 events
-        "chiperia",    # 5 events
+        "quiosco",  # 4 events
+        "chiperia",  # 5 events
         "pasteleria_industrial",  # 4 events
         "cerveceria",  # 6 events
-        "heladeria",   # 6 events (also new vertical)
-        "panaderia",   # 4 events (mentioned in vuelta_clases)
+        "heladeria",  # 6 events (also new vertical)
+        "panaderia",  # 4 events (mentioned in vuelta_clases)
     }
     for tag in expected:
         assert tag in relevance_tags, f"Tier 2 missing relevance_tag {tag!r}"
 
 
 # ---- 7. Tier 2 specific landmarks ----
+
 
 def test_tier2_includes_chiperia_san_juan():
     """SASKIA-220 specifically requires the Chiper\u00eda San Juan event."""
@@ -95,6 +101,7 @@ def test_tier2_includes_dia_cerveza():
 
 # ---- 8. Tier 3 gastronomy ----
 
+
 def test_tier3_includes_dia_pizza():
     events = _tier3_gastronomy_events()
     assert any("pizza" in e["slug"] for e in events)
@@ -111,6 +118,7 @@ def test_tier3_includes_dia_sushi():
 
 
 # ---- 9. Tier 4 NL heritage ----
+
 
 def test_tier4_includes_prinsjesdag():
     events = _tier4_nl_heritage_events()
@@ -129,10 +137,13 @@ def test_tier4_country_is_NL():
     """All tier 4 events must have country='NL' (Netherlands, not Paraguay)."""
     events = _tier4_nl_heritage_events()
     for e in events:
-        assert e["country"] == "NL", f"Tier 4 event {e['slug']!r} has country={e['country']!r}, expected 'NL'"
+        assert e["country"] == "NL", (
+            f"Tier 4 event {e['slug']!r} has country={e['country']!r}, expected 'NL'"
+        )
 
 
 # ---- 10. Idempotency: seed_seasonal_events_full is a no-op on second run ----
+
 
 def test_seed_seasonal_events_full_idempotent(session_factory):
     """Run seed_seasonal_events_full twice. Second run should insert 0 rows."""

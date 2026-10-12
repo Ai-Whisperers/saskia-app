@@ -38,7 +38,15 @@ def test_saskia221_registry_has_24_groups():
 
 def test_saskia221_new_groups_present():
     """The 7 new groups from SASKIA-221 are defined."""
-    expected = {"contact", "marketing", "targeting", "positioning", "operations", "compliance", "goals"}
+    expected = {
+        "contact",
+        "marketing",
+        "targeting",
+        "positioning",
+        "operations",
+        "compliance",
+        "goals",
+    }
     actual = {g.value for g in SettingGroup}
     assert expected.issubset(actual), f"missing: {expected - actual}"
 
@@ -146,6 +154,7 @@ def test_saskia221_marketing_primary_channel_choice():
 def test_saskia221_seeder_populates_6_answered_settings(session_factory):
     """After seed_sazon, the 6 answered SASKIA-221 settings are in DB."""
     from app.rms.seed.sazon import seed_sazon
+
     with session_factory() as s:
         seed_sazon(s)
         s.commit()
@@ -163,6 +172,7 @@ def test_saskia221_seeder_does_not_write_tbd_settings(session_factory):
     """The 20 unanswered SASKIA-221 settings are NOT in settings_kv
     (only registered with empty defaults). The seeder is conservative."""
     from app.rms.seed.sazon import seed_sazon
+
     with session_factory() as s:
         seed_sazon(s)
         s.commit()
@@ -180,6 +190,7 @@ def test_saskia221_seeder_does_not_write_tbd_settings(session_factory):
 def test_saskia221_seeder_sets_herbus_contact_settings(session_factory):
     """The seeder also writes the contact.* keys that match the BUSINESS_INFO."""
     from app.rms.seed.sazon import seed_sazon
+
     with session_factory() as s:
         seed_sazon(s)
         s.commit()

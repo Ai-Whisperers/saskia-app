@@ -140,9 +140,7 @@ def test_seed_herbus_packaging_creates_7(session_factory):
     assert n == 7
 
     with session_factory() as s:
-        n = s.execute(
-            text("SELECT COUNT(*) FROM ingredient WHERE category = 'packaging'")
-        ).scalar()
+        n = s.execute(text("SELECT COUNT(*) FROM ingredient WHERE category = 'packaging'")).scalar()
     assert n == 7
 
 

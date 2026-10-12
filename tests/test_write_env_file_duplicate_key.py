@@ -24,7 +24,7 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -64,7 +64,6 @@ _BWS_BIN_PATH.touch()
 wef.BWS_BIN = str(_BWS_BIN_PATH)
 
 
-
 def _fake_bws_proc(secrets: list[dict]) -> MagicMock:
     """Build a fake CompletedProcess with the given secrets as bws list output."""
     proc = MagicMock()
@@ -94,9 +93,13 @@ def test_bws_get_returns_value_for_unique_key():
 def test_bws_get_raises_keyerror_when_missing():
     """Missing key raises KeyError (caller converts to exit 2)."""
     secrets = [
-        {"id": "abc", "key": "OTHER", "value": "x",
-         "revisionDate": "2026-08-25T14:56:58Z",
-         "creationDate": "2026-08-25T14:56:58Z"}
+        {
+            "id": "abc",
+            "key": "OTHER",
+            "value": "x",
+            "revisionDate": "2026-08-25T14:56:58Z",
+            "creationDate": "2026-08-25T14:56:58Z",
+        }
     ]
 
     with patch.object(wef.subprocess, "run", return_value=_fake_bws_proc(secrets)):

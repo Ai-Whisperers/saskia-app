@@ -82,25 +82,17 @@ def _migration_121_seasonal_event(conn: Any) -> None:
     )
 
     # Idempotent indexes
-    conn.execute(
-        text(
-            "CREATE INDEX IF NOT EXISTS ix_seasonal_event_slug ON seasonal_event (slug)"
-        )
-    )
+    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_seasonal_event_slug ON seasonal_event (slug)"))
     conn.execute(
         text(
             "CREATE INDEX IF NOT EXISTS ix_seasonal_event_event_date ON seasonal_event (event_date)"
         )
     )
     conn.execute(
-        text(
-            "CREATE INDEX IF NOT EXISTS ix_seasonal_event_country ON seasonal_event (country)"
-        )
+        text("CREATE INDEX IF NOT EXISTS ix_seasonal_event_country ON seasonal_event (country)")
     )
     conn.execute(
-        text(
-            "CREATE INDEX IF NOT EXISTS ix_seasonal_event_category ON seasonal_event (category)"
-        )
+        text("CREATE INDEX IF NOT EXISTS ix_seasonal_event_category ON seasonal_event (category)")
     )
     conn.execute(
         text(

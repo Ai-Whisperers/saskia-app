@@ -54,10 +54,7 @@ def _migration_120_shop_whatsapp_rename(conn: Any) -> None:
         ).fetchone()
         if existing is None:
             conn.execute(
-                text(
-                    "INSERT INTO settings_kv (key, value_json, updated_at) "
-                    "VALUES (:k, :v, :ts)"
-                ),
+                text("INSERT INTO settings_kv (key, value_json, updated_at) VALUES (:k, :v, :ts)"),
                 {"k": NEW_KEY, "v": legacy[0], "ts": _now_iso()},
             )
         # Delete the legacy row regardless (the route no longer reads it)

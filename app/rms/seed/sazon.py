@@ -5157,7 +5157,9 @@ def _seed_settingskv_branding(ctx: SeedContext):
             ctx.report.skipped_existing["settings_kv_existing"] = (
                 ctx.report.skipped_existing.get("settings_kv_existing", 0) + 1
             )
-    logger.info(f"seed: {ctx.report.settings_kv} settings_kv (BRANDING + OPS + LOCATION + SEASONAL + SALES)")
+    logger.info(
+        f"seed: {ctx.report.settings_kv} settings_kv (BRANDING + OPS + LOCATION + SEASONAL + SALES)"
+    )
 
 
 def _seed_categories(ctx: SeedContext):

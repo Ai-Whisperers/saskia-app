@@ -128,9 +128,7 @@ def test_migration_120_noop_when_no_legacy_key(session_factory):
 
     with session_factory() as s:
         # No rows at all in settings_kv with these keys
-        legacy = s.execute(
-            text("SELECT 1 FROM settings_kv WHERE key = 'shop_whatsapp'")
-        ).fetchone()
+        legacy = s.execute(text("SELECT 1 FROM settings_kv WHERE key = 'shop_whatsapp'")).fetchone()
         new = s.execute(
             text("SELECT 1 FROM settings_kv WHERE key = 'sales.shop_whatsapp'")
         ).fetchone()

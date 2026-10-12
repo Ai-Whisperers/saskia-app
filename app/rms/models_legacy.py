@@ -2948,6 +2948,7 @@ SaleStockMove.affected_recipe_id = StockMovement.affected_recipe_id
 # codebase are dead code paths (never executed in current routes) and
 # should be rewritten to use StockMovement.reference_id joined to Sale.
 
+
 # ---------------------------------------------------------------------------
 # SASKIA-216 (2026-10-12): SeasonalEvent model.
 #
@@ -2990,13 +2991,20 @@ class SeasonalEvent(Base):
     is_annual: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     recurrence: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
     # Audit
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
     __table_args__ = (
-        UniqueConstraint("country", "slug", "event_date", name="uq_seasonal_event_country_slug_date"),
+        UniqueConstraint(
+            "country", "slug", "event_date", name="uq_seasonal_event_country_slug_date"
+        ),
         Index("ix_seasonal_event_country_date", "country", "event_date"),
         Index("ix_seasonal_event_category_date", "category", "event_date"),
     )

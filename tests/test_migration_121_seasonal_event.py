@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import pytest
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 
 def test_migration_121_bumps_schema_version(session_factory):
@@ -31,10 +32,23 @@ def test_migration_121_creates_seasonal_event_table(session_factory):
     columns = {row[1]: row[2] for row in rows}
     # All 17 expected columns
     expected = {
-        "id", "slug", "name_es", "name_nl", "name_en", "description",
-        "event_date", "end_date", "country", "category", "impact_score",
-        "impact_tag", "relevance_tags", "is_annual", "recurrence",
-        "created_at", "updated_at",
+        "id",
+        "slug",
+        "name_es",
+        "name_nl",
+        "name_en",
+        "description",
+        "event_date",
+        "end_date",
+        "country",
+        "category",
+        "impact_score",
+        "impact_tag",
+        "relevance_tags",
+        "is_annual",
+        "recurrence",
+        "created_at",
+        "updated_at",
     }
     assert expected.issubset(set(columns.keys())), f"missing: {expected - set(columns.keys())}"
 
@@ -68,7 +82,7 @@ def test_migration_121_enforces_unique_country_slug_date(session_factory):
             )
         )
         s.commit()
-        with pytest.raises(Exception):
+        with pytest.raises(IntegrityError):
             # Duplicate (country, slug, event_date) should fail
             s.execute(
                 text(
@@ -84,6 +98,7 @@ def test_migration_121_enforces_unique_country_slug_date(session_factory):
 def test_seed_seasonal_events_inserts_126_rows(session_factory):
     """The Tier 1 seeder inserts 126 rows for 2026-2028."""
     from app.rms.seed.seasonal_events import seed_seasonal_events
+
     with session_factory() as s:
         n = seed_seasonal_events(s)
         s.commit()
@@ -93,6 +108,7 @@ def test_seed_seasonal_events_inserts_126_rows(session_factory):
 def test_seed_seasonal_events_is_idempotent(session_factory):
     """Re-running the seeder is a no-op."""
     from app.rms.seed.seasonal_events import seed_seasonal_events
+
     with session_factory() as s:
         n1 = seed_seasonal_events(s)
         s.commit()
@@ -106,6 +122,7 @@ def test_seed_seasonal_events_is_idempotent(session_factory):
 def test_seed_seasonal_events_has_critical_py_holidays(session_factory):
     """The most important PY holidays are present with critical/high impact."""
     from app.rms.seed.seasonal_events import seed_seasonal_events
+
     with session_factory() as s:
         seed_seasonal_events(s)
         s.commit()
@@ -157,6 +174,7 @@ def test_seed_seasonal_events_has_critical_py_holidays(session_factory):
 def test_seed_seasonal_events_includes_nl_heritage(session_factory):
     """The 'Vaquita Holandesa' brand heritage NL events are included."""
     from app.rms.seed.seasonal_events import seed_seasonal_events
+
     with session_factory() as s:
         seed_seasonal_events(s)
         s.commit()
@@ -174,6 +192,7 @@ def test_seed_seasonal_events_includes_nl_heritage(session_factory):
 def test_seed_seasonal_events_relevance_tags_filter(session_factory):
     """The relevance_tags CSV column is queryable for per-vertical filtering."""
     from app.rms.seed.seasonal_events import seed_seasonal_events
+
     with session_factory() as s:
         seed_seasonal_events(s)
         s.commit()
@@ -191,6 +210,7 @@ def test_seed_seasonal_events_relevance_tags_filter(session_factory):
 def test_seed_sazon_includes_seasonal_events(session_factory):
     """seed_sazon() end-to-end also seeds 126 seasonal events."""
     from app.rms.seed.sazon import seed_sazon
+
     with session_factory() as s:
         report = seed_sazon(s)
         s.commit()

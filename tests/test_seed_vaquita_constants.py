@@ -29,10 +29,7 @@ sazon = pytest.importorskip("app.rms.seed.sazon")
 
 def test_business_info_address_matches_questionnaire_2_1():
     """§2.1: Laguán Grande, Arquitectos, Calle 17, Asunción."""
-    assert (
-        sazon.BUSINESS_INFO["address"]
-        == "Laguán Grande, Arquitectos, Calle 17, Asunción"
-    )
+    assert sazon.BUSINESS_INFO["address"] == "Laguán Grande, Arquitectos, Calle 17, Asunción"
 
 
 def test_business_info_phone_matches_questionnaire_2_3():

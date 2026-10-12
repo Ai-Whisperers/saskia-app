@@ -6,12 +6,14 @@ from app.rms.seed.packs import PACKS, PackData, seed_pack
 
 # ---- 1. Total pack count ----
 
+
 def test_packs_count_16():
     """11 + 5 = 16 packs in the registry."""
     assert len(PACKS) == 16
 
 
 # ---- 2. New packs present ----
+
 
 def test_packs_include_food_truck():
     assert "Food Truck" in PACKS
@@ -34,6 +36,7 @@ def test_packs_include_cerveceria():
 
 
 # ---- 3. Each new pack has the required PackData fields populated ----
+
 
 def test_food_truck_has_summer_relevance():
     """Food truck is a spring-summer vertical (open-air events)."""
@@ -85,6 +88,7 @@ def test_cerveceria_has_brew_malts():
 
 # ---- 4. Currency safety: all Gs as int, no float (AGENTS.md money rule) ----
 
+
 def test_pack_prices_are_integers_gs():
     """AGENTS.md hard rule 1: money is always integer Gs, never float."""
     for pack_name, pack in PACKS.items():
@@ -101,6 +105,7 @@ def test_pack_prices_are_integers_gs():
 
 
 # ---- 5. Idempotency: seeding a new pack twice is a no-op ----
+
 
 def test_seed_new_pack_idempotent(session_factory):
     """Run seed_pack() twice for Chiper\u00eda. The second run is a no-op."""
@@ -137,11 +142,15 @@ def test_seed_new_pack_idempotent(session_factory):
 
 # ---- 6. Schema sanity: every new pack has suppliers, ingredients, recipes, products ----
 
+
 def test_new_packs_are_fully_populated():
     """Each new pack must have all 5 lists non-empty."""
     for name in [
-        "Food Truck", "Quiosco/Minimarket", "Chiper\u00eda",
-        "Pasteler\u00eda Industrial", "Cervecer\u00eda",
+        "Food Truck",
+        "Quiosco/Minimarket",
+        "Chiper\u00eda",
+        "Pasteler\u00eda Industrial",
+        "Cervecer\u00eda",
     ]:
         pack = PACKS[name]
         assert pack.suppliers, f"{name} has no suppliers"
@@ -154,6 +163,7 @@ def test_new_packs_are_fully_populated():
 
 
 # ---- 7. Recipe lines reference real ingredients (no broken refs) ----
+
 
 def test_chiperia_recipe_lines_resolve_to_real_ingredients():
     """Every recipe_line in Chiper\u00eda points to an ingredient that exists in the same pack."""
