@@ -1331,10 +1331,50 @@ form ui-date {
 }
 @media (max-width: 640px) {
   #shift-form table.production-table tbody td { display: block; text-align: left; }
+  /* Thead is hidden here, and data-label lives on the inner divs, so the
+     old td::before captions no longer apply. Listo, Lote, and Hecho get
+     their own captions below. Producto stays unlabeled: the name is the row. */
   #shift-form table.production-table tbody td::before { content: none; }
   .prod-day__l1 { grid-template-columns: 1fr 1fr; }
+  /* Pin every L1 slot. A spanning product name lands on row 2, and the
+     open panel's desktop rule is also grid-row: 2, so without these rows
+     the detail fields paint on top of the product. */
+  .prod-day__l1 > [data-label="Listo"] { grid-column: 1; grid-row: 1; text-align: left; }
+  .prod-day__lote { grid-column: 2; grid-row: 1; text-align: left; }
   .prod-day__name,
-  .prod-day__l1 .product-name { grid-column: 1 / -1; }
-  .prod-day__details,
-  .prod-day__details[open] > summary { grid-column: 1 / -1; justify-self: start; }
+  .prod-day__l1 .product-name { grid-column: 1 / -1; grid-row: 2; }
+  .prod-day__hecho { grid-column: 1 / -1; grid-row: 3; text-align: left; }
+  .prod-day__details {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    justify-self: start;
+  }
+  /* display:contents only promotes <summary>. The panel then sits in
+     column 1, which is also the product name's row, so the fields cover
+     the name. Keep the open <details> as the grid item under the L1 row. */
+  .prod-day__details[open] {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 4;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .prod-day__details[open] > .prod-day__panel {
+    grid-column: auto;
+    grid-row: auto;
+    width: 100%;
+  }
+  .prod-day__l1 > [data-label="Listo"]::before,
+  .prod-day__lote::before,
+  .prod-day__hecho::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.15rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: left;
+    color: var(--color-text-muted, #6b7280);
+  }
 }

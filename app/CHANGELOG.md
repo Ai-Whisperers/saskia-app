@@ -1,4 +1,10 @@
 
+## 2026-10-12 — Producción Ver detalles stays below the row on a phone
+
+At 640px and below, an open Ver detalles panel sits under Listo, the
+product, Lote, and Hecho. Those three fields keep a caption once the
+table header is hidden.
+
 ## 2026-10-12 — Producción day plan shows product, qty, and status
 
 The day plan row shows Listo, the product, the lote to mix, and Hecho.
