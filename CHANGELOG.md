@@ -24,6 +24,12 @@ Read-only operator page surfacing the seasonal_event catalog (SASKIA-216/220, 40
 - `seasonal.relevance_tags` setting (comma-separated pack tags) filters the calendar to the operator's vertical — universal events always visible
 - Empty state on unseeded DBs; no mutations (read-only)
 
+## 2026-10-12 — docs(agents): drift-fix pass — every numeric claim re-verified against live repo
+
+**Scope**: `AGENTS.md`, `app/rms/AGENTS.md`, `WHAT_NEXT.md`, `.github/workflows/ci.yml` (comment only). +40 / -18.
+
+Verification pass measured every numeric/factual claim in the agent docs against the live repo before editing. Fixes: migration count 117→**119** (dual layout: `_migration_NNN` functions in db.py through 083, files in `app/rms/migrations/` after); anti-rule 2 counts 289/64/117 → **291 py files / 89 tables / 119 migrations**; coverage gate corrected to the enforced **35%** (`--cov-fail-under=35` in pyproject.toml + CI — the 80% figure is the target, not the gate, and the doc previously stated both); CHANGELOG-gate path corrected to the **root** `CHANGELOG.md` (the ci.yml script greps `CHANGELOG.md`; its own comment saying `app/CHANGELOG.md` was stale — comment fixed, no logic change); hosted URL → https://sazon-vps.paragu-ai.com + three-environments note; troubleshooting rows now point at `app_meta(key='schema_version')` instead of `PRAGMA user_version` (aligns with rule 18); `research-repos/saskia` cross-refs → absolute host path (it was never inside this repo); `app/rms/AGENTS.md` testing rule 4 rewritten — the per-file coverage figures (95% money/units, 90% costing) were aspirational, never configured gates; `WHAT_NEXT.md` got a dated correction layer (schema v119, 38 migration files) per its own archive-don't-edit pattern.
+
 
 ## 2026-10-12 — style(lint): post-merge-with-SASKIA-211d format fix
 
