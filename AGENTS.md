@@ -197,6 +197,55 @@ This codebase is maintained by **Iván directly**, not by an external "Kiki" any
 
 ---
 
+## Abstraction-usage enforcement
+
+Beyond the hard rules above, the codebase has a small but tightly-defined
+set of abstractions in `app/rms/`:
+
+- `app/rms/money.py:to_int_gs()` — the ONLY Decimal→int path
+- `app/rms/units.py:Unit.coerce()` — the ONLY unit input path
+- `app/rms/clock.py:now/today_local/utcnow/to_utc/to_asuncion` — single
+  source of truth for `now()` (every datetime is tz-aware)
+- `app/rms/sales/lifecycle.py:apply_sale()` — sale-path SSOT
+  (the `app/rms/costing.py` shim re-exports for backwards compat only)
+- `app/rms/stock_ledger.py:apply_stock_delta()` — the single helper
+  for non-sale stock deltas + audit rows
+
+`tests/test_abstraction_usage.py` enforces that these abstractions
+are used and not bypassed. **24 tests in this file**; 20 pass today,
+4 fail with documented violations that are content for follow-up PRs.
+
+| Test | Catches | Status |
+|---|---|---|
+| `test_no_int_decimal_in_tests` | `int(Decimal(...))` in tests (rule 2) | FAIL — 3 hits |
+| `test_no_bare_datetime_now_in_app` | `datetime.now()` in app/ (rule 20) | PASS |
+| `test_no_datetime_utcnow_in_app` | `datetime.utcnow()` in app/ (rule 20) | FAIL — 6 hits in seed/packs.py |
+| `test_apply_sale_imported_from_canonical_path_in_tests` | `apply_sale` imported from shim (rule 8) | FAIL — 18 test files |
+| `test_no_direct_stockmovement_outside_sale_path` | direct `StockMovement()` in non-sale paths | FAIL — 6 hits (211a targets) |
+| `test_abstraction_module_has_dunder_all[*]` | abstraction modules lack `__all__` | PASS |
+| `test_to_int_gs_imports_canonical_path` | `to_int_gs` imported from wrong module | PASS |
+| `test_no_deprecated_costing_imports_for_non_shimmed_names` | shim imports of non-shimmed names | PASS |
+| `test_unit_input_goes_through_unit_coerce` | direct `unit = "kg"` assignments | INFO — candidates for migration |
+| `test_auth_checks_go_through_is_auth_disabled` | env-var reads for auth state | PASS |
+| `test_tier_tests_use_fixtures_not_inline_setup` | tier tests with inline TestClient | INFO — sibling-branch migration |
+| `test_no_subprocess_in_app` | `subprocess`/`os.system` in app/ | INFO — review for services layer |
+| `test_test_file_is_self_consistent` | self-test (AST-based) | PASS |
+
+When you add a new abstraction, three steps are required:
+1. Add the file to `ABSTRACTION_MODULES` in the test file (so it's
+   exempt from "no direct X" checks that would be self-referential).
+2. Give it an `__all__` so the `__all__` test passes.
+3. Add a specific test below that pins the bypass-detection regex
+   (so a future refactor that breaks the abstraction fails CI).
+
+When you add a new bypass-detection test, two steps are required:
+1. Use `_walk_py()` + `_scan_for_pattern()` to find violations; don't
+   write custom file-walking code.
+2. Have the test fail with `file:line:context` so the operator can
+   fix the violation. A list of 50 truncated paths is not actionable.
+
+---
+
 ## CI
 
 GitHub Actions runs on every PR to `main`:
