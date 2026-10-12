@@ -97,13 +97,20 @@ jobs:
         # release.sh just uses the env, git, and bash.
         run: rm -rf .venv && uv sync --only-group dev-base --no-default-groups
 
-      # ---- CVE scan (s4-tooling pass 2026-10-12) ----
+      # ---- CVE scan (BLOCKING on release) ----
       # Runs pip-audit against the locked dependency graph and exits
       # non-zero on any known CVE. Fails the release if a vulnerable
       # transitive dep slipped in. Catches things like the well-known
       # `cryptography` CVEs that wouldn't otherwise surface until prod.
       # advisory-only output goes to the run log; blocking exit comes
       # from pip-audit itself.
+      #
+      # s4-tooling batch-2 (2026-10-12): ci.yml now ALSO runs pip-audit
+      # on every PR + push as an ADVISORY scan (--no-fail-on-error,
+      # surfaced via $GITHUB_STEP_SUMMARY). This release-time scan stays
+      # BLOCKING -- it's the hard gate for production-bound cuts. The
+      # two scans serve different audiences: ci = developer feedback,
+      # release = production safety.
       - name: pip-audit (CVE scan)
         run: |
           uv run --group tooling --no-default-groups pip-audit \
