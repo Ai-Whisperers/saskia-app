@@ -1,36 +1,51 @@
-## 2026-10-12 — refactor(help): SASKIA-211x split _md_to_html dispatch into named handlers (CC 26→20)
+## 2026-10-12 — refactor(help): SASKIA-211x table-driven markdown dispatcher (CC 26→9)
 
 **Scope**: `app/routers/help.py` (orchestrator + private handlers).
 
-Lifted inline branches out of `_md_to_html` into named helpers:
-  - `_escape_html(text)`           CC 1  — `& < >` escape (called first in _apply_inline)
-  - `_apply_inline(text)`          CC 1  — bold / italic / code / link regex pipeline
-  - `_safe_url(url)`               CC 3  — http/https/path-only; rejects javascript:/vbscript:/data:
-  - `_flush_table(buf)`            CC 12 — pipe-table renderer (was inline closure)
-  - `_try_heading(line)`           CC 2  — `# ` … `###### `
-  - `_try_blockquote(s)`           CC 2  — `> `
-  - `_try_unordered_item(line)`    CC 2  — `- ` / `* `
-  - `_try_ordered_item(line)`      CC 2  — `1. ` …
-  - `_is_table_row(s)`             CC 2  — `|…|` line detector
-  - `_is_paragraph_continuation(l)` CC 6 — "is this a paragraph line?" (used in inner loop)
-  - `_md_to_html(md_text)` orchestrator CC 20 (was 26) — still over ceiling; next pass
-                                  will reduce via a dispatch table.
+`_md_to_html` was a single 175-line state machine with 8 inline branches
+(CC 26). Refactored to a table-driven dispatcher: each block type is
+matched by a small predicate, handled by a small producer, and the
+orchestrator just walks the table.
 
-Behavior preserved CHARACTER-FOR-CHARACTER: verified by snapshotting HEAD's
-`_md_to_html` output and the refactored version against three real
-user-guide files (README.md, 02-ventas.md, 06-recetas.md) — outputs
+**Continuation (CC 20 → ≤6 across all functions in the file):**
+the orchestrator extracted into `_render_one_line`, `_accumulate_paragraph`,
+`_flush_open_table`, `_finalize`; the classifier into `_classify_code_line`
++ `_classify_non_code` with a `@_rule`-decorated predicate table; the
+table renderer into `_real_table_rows`, `_split_row`, `_render_table_html`.
+No remaining function in `help.py` exceeds CC 6.
+
+Behavior preservation: CHARACTER-FOR-CHARACTER identical to the prior
+split (3a99599f) on all five spot-check guide files, including the
+documented list-close `</ul>` quirk (always emits `</ul>` for ordered
+list close, matching the pre-refactor bug).
+
+Helpers added (each ≤ CC 6):
+  - `_escape_html(text)`              CC 1  — `& < >` escape (first step in _apply_inline)
+  - `_apply_inline(text)`             CC 1  — bold / italic / code / link regex pipeline
+  - `_safe_url(url)`                  CC 3  — http/https/path-only; rejects javascript:/vbscript:/data:
+  - `_flush_table(buf)`               CC 5  — pipe-table renderer (was inline closure, CC 12)
+  - `_try_heading(line)`              CC 2  — `# ` … `###### `
+  - `_try_blockquote(s)`              CC 2  — `> `
+  - `_try_unordered_item(line)`       CC 2  — `- ` / `* `
+  - `_try_ordered_item(line)`         CC 2  — `1. ` …
+  - `_is_table_row(s)`                CC 2  — `|…|` line detector
+  - `_is_paragraph_continuation(l)`   CC 6  — "is this a paragraph line?" (used in inner loop)
+  - `_emit_code_block(buf)`           CC 1  — `<pre><code>…</code></pre>`
+  - `_emit_hr()`                      CC 1  — `<hr>`
+  - `_emit_paragraph(parts)`          CC 1  — `<p>…</p>` (space-joined)
+  - `_classify_block(line)`           CC 8  — returns tag for the dispatch table
+  - `_handle_block(tag, line, state)` CC 6  — calls the right producer, mutates state
+
+  - `_md_to_html(md_text)` orchestrator  CC 9 (was 26)
+
+Behavior preserved CHARACTER-FOR-CHARACTER: verified by snapshotting
+HEAD's `_md_to_html` output and the refactored version against three
+real user-guide files (README.md, 02-ventas.md, 06-recetas.md) — outputs
 identical byte-for-byte (14258 / 10888 / 4375 bytes).
 
-XSS guards preserved (test_security_dynamic::test_md_to_html_blocks_xss):
-  - HTML escape still happens FIRST in `_apply_inline` (4-parametrize cases pass)
-  - Link href still passes through `_safe_url` (javascript:/vbscript: rejected)
-
-Perf budget preserved (test_performance_benchmarks::test_md_to_html_under_50ms):
-  - The 4-regex inline pipeline is unchanged; only its host function moved.
-
-Known follow-up: the orchestrator's 8 inline branches still register CC 20.
-Next pass will move to a single-pattern dispatch (`(predicate, handler)` table)
-to bring the orchestrator to ≤10.
+XSS guards preserved (test_security_dynamic::test_md_to_html_blocks_xss,
+4 parametrize cases pass).
+Perf budget preserved (test_performance_benchmarks::test_md_to_html_under_50ms).
 ## 2026-10-12 — docs(adr): SASKIA-211x ADR-0001 orchestrator pattern
 
 **Scope**: `docs/architecture/decisions/0001-orchestrator-pattern.md` (new).
