@@ -1,3 +1,24 @@
+## 2026-10-12 — feat(recetas): SASKIA-212 recipe instructions editor + backfill
+
+**Scope**: `app/routers/recipes.py`, `app/templates/receta_form.html`, `app/rms/migrations/_118_recipe_instructions_backfill.py`, `app/rms/{config,db}.py`, `tests/test_SASKIA_212_recipe_instructions_editor.py`, `app/CHANGELOG.md`.
+
+Recipe pages had the data model (`recipe.instructions` JSON column) and the detail-page renderer (receta_detalle.html iterates phases) but **no form editor** and **no seeded data** — every recipe showed the placeholder "Procedimiento pendiente" fallback. This closes the loop.
+
+What changed:
+
+* **`/recetas/{id}/editar`** now exposes a `Pasos / Procedimiento` textarea (one step per line, auto-expand). The route accepts:
+  - **JSON** (already-structured phases from the previous edit / API) — normalized to `{phase, title, steps[]}` and re-serialized.
+  - **Free-form text** (one step per line) — wrapped into a single "Procedimiento" phase so the detail page renders it as one block.
+  Both round-trip through `r.instructions` (no data loss for users who already had JSON).
+* **Migration 118** backfills `recipe.instructions` for the 19 known recipes (appeltaart, brownie, cheesecake, etc.) with 3-phase Spanish-voseo procedures sourced from `scripts/seed_full_recipe_data.py` (the existing but un-promoted script). Contaminated imported row (id=1.0 with 25+ junk lines) is skipped. Idempotent: re-runs overwrite with the same content.
+* **Edit form pre-population** — the textarea is pre-filled with the existing procedure as one-step-per-line (so editing a real recipe shows the real content, not blank).
+
+Tests: new `tests/test_SASKIA_212_recipe_instructions_editor.py` with 7 RED→GREEN tests (model field, JSON persistence, free-form persistence, detail rendering, form pre-population, null graceful, all-recipes 200). Migration integrity suite: 118/118 GREEN (1 contiguous, 1 docstring, 1 fresh-DB-apply, 1 count-match, etc.). Full cocina + receta-detalle + migration suite: 151/151 GREEN.
+
+Out of scope (deferred): photos + image upload for recipe pages (Saskia already has recipes/needing-photos.json from earlier work); export N+1 (B9); cov-gate 40→42 (sibling session owns coverage work).
+
+---
+
 ## 2026-10-12 — fix(cocina): SASKIA-211 cocina-pages-audit fixes
 
 **Scope**: `app/routers/recipes.py`, `app/routers/produccion/forecast.py`, `app/templates/{recetas,receta_detalle,merma}.html`, `app/CHANGELOG.md`, `AGENTS.md`, `tests/test_cocina_pages_audit.py`.

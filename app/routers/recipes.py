@@ -417,6 +417,7 @@ async def recipe_new(request: Request, session: Session = Depends(get_session)) 
                 }
                 | {r_row for r_row in session.scalars(select(Recipe.family)).all() if r_row}
             ),
+            "instructions_text": "",
         },
     )
 
@@ -497,6 +498,54 @@ def _parse_recipe_form(form: dict) -> dict:
     ]
     menu_tags = ",".join(dict.fromkeys(menu_tags_vals)) or None
 
+    # SASKIA-212: parse the structured `instructions` JSON. The form may
+    # submit either a textarea (free-form) or a hidden JSON field written
+    # by the steps editor JS. We accept both and pick the most-structured
+    # one available.
+    import json as _json
+
+    instructions_raw = str(form.get("instructions", "")).strip() or None
+    instructions_json: str | None = None
+    if instructions_raw:
+        # Attempt to parse as the structured format first.
+        parsed = None
+        if instructions_raw.startswith(("[", "{")):
+            try:
+                parsed = _json.loads(instructions_raw)
+            except Exception:
+                parsed = None
+
+        if isinstance(parsed, list) and all(
+            isinstance(p, dict) and "steps" in p and isinstance(p["steps"], list)
+            for p in parsed
+        ):
+            # Normalize: ensure phase/title keys exist for the template.
+            normalized = []
+            for p in parsed:
+                normalized.append(
+                    {
+                        "phase": p.get("phase") or "Procedimiento",
+                        "title": p.get("title") or p.get("phase") or "Pasos",
+                        "steps": [str(s) for s in p["steps"] if str(s).strip()],
+                    }
+                )
+            instructions_json = _json.dumps(normalized, ensure_ascii=False)
+        else:
+            # Free-form text (textarea). Wrap into a single phase so the
+            # detail page renders it as one block instead of dropping it.
+            steps = [line.strip() for line in instructions_raw.splitlines() if line.strip()]
+            if steps:
+                instructions_json = _json.dumps(
+                    [
+                        {
+                            "phase": "Procedimiento",
+                            "title": "Pasos",
+                            "steps": steps,
+                        }
+                    ],
+                    ensure_ascii=False,
+                )
+
     return {
         "name": name,
         "yield_qty": float(yield_qty_raw) if yield_qty_raw else None,
@@ -508,6 +557,7 @@ def _parse_recipe_form(form: dict) -> dict:
         "family": str(form.get("family", "")).strip() or None,
         "menu_tags": menu_tags,
         "dietary_tags": str(form.get("dietary_tags", "")).strip() or None,
+        "instructions": instructions_json,
     }
 
 
@@ -526,6 +576,8 @@ def _create_recipe_record(session: Session, fields: dict) -> Recipe:
         family=fields["family"],
         menu_tags=fields["menu_tags"],
         dietary_tags=fields["dietary_tags"],
+        # SASKIA-212: structured preparation steps (JSON, nullable).
+        instructions=fields.get("instructions"),
     )
     session.add(recipe)
     try:
@@ -1139,6 +1191,27 @@ def _build_recipe_edit_context(
     from app.rms.categories import list_categories as list_cats
     from app.rms.tagging import list_tags_for_kind
 
+    # SASKIA-212: pre-render the structured `instructions` JSON as
+    # free-form text (one step per line) so the textarea can preload
+    # the existing recipe procedure in the same format users edit it.
+    instructions_text = ""
+    if r.instructions:
+        import json as _json
+
+        try:
+            phases = _json.loads(r.instructions)
+        except Exception:
+            phases = None
+        if isinstance(phases, list):
+            step_lines: list[str] = [
+                step.strip()
+                for phase in phases
+                if isinstance(phase, dict)
+                for step in phase.get("steps", [])
+                if isinstance(step, str) and step.strip()
+            ]
+            instructions_text = "\n".join(step_lines)
+
     return {
         "mode": "edit",
         "recipe": r,
@@ -1152,6 +1225,7 @@ def _build_recipe_edit_context(
         "scale_factor": scale_factor,
         "categories": list_cats(session, "recipe_family"),
         "all_tags": list_tags_for_kind(session, "recipe"),
+        "instructions_text": instructions_text,
     }
 
 
@@ -1214,6 +1288,8 @@ def _update_recipe_fields(r: Recipe, fields: dict) -> None:
     r.family = fields["family"]
     r.menu_tags = fields["menu_tags"]
     r.dietary_tags = fields["dietary_tags"]
+    # SASKIA-212: structured preparation steps.
+    r.instructions = fields.get("instructions")
 
 
 def _refresh_recipe_tag_cache_update(session: Session, recipe_id: int) -> None:

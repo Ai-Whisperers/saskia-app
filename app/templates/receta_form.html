@@ -257,7 +257,31 @@
       </button>
     </section>
 
-    {# ── Section 3: Notes / free-form observations ────────────────── #}
+    {# ── Section 3: Pasos / Procedimiento (structured phases) ──── #}
+    {# SASKIA-212: form posts either free-form text (one step per #}
+    {# line) or a JSON list of {phase, title, steps} dicts. The #}
+    {# route handler _parse_recipe_form() normalizes both forms #}
+    {# into the structured JSON. The textarea preloads the #}
+    {# current r.instructions (if any) as free-form text. #}
+    <section class="form-section">
+      <header class="form-section-header">
+        <h2 class="form-section-title">Pasos / Procedimiento</h2>
+        <p class="form-section-hint">Escribí un paso por línea (en orden). Cada línea se muestra como un paso numerado en la receta. Si ya tenés la receta con instrucciones, podés refinarlos acá.</p>
+      </header>
+
+      <div class="form-row">
+        <textarea id="instructions" name="instructions" rows="10"
+                  class="recipe-instructions"
+                  data-autoexpand="true"
+                  placeholder="Ej:&#10;Precalentar el horno a 180°C&#10;Mezclar harina, azúcar y sal&#10;Agregar huevos y mantequilla&#10;Amasar hasta lograr una masa homogénea&#10;Formar bollos y dejar leudar 30 min&#10;Hornear 25 min o hasta dorar"
+        >{{ instructions_text|default('', true) }}</textarea>
+        <p class="text-muted" style="font-size:var(--text-xs);margin-top:var(--space-1);">
+          💡 Para instrucciones estructuradas por fases (Masa → Horneado → Decoración), usá el formato JSON: una lista de objetos {"phase":"...", "title":"...", "steps":["..."]}.
+        </p>
+      </div>
+    </section>
+
+    {# ── Section 4: Notes / free-form observations ────────────────── #}
     <section class="form-section">
       <header class="form-section-header">
         <h2 class="form-section-title">Notas de receta</h2>
