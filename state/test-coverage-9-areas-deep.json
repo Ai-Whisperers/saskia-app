@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-12",
+  "coverage": 37,
+  "missed": 16615,
+  "previous_combined": 43,
+  "key_wins": {
+    "rate_limit_62%": "Concurrency test hit RateLimiter",
+    "deep_migration_tests": "8 tests for app/rms/db.py",
+    "deep_network_tests": "12 tests for app/services, app/integrations",
+    "deep_e2e_tests": "12 tests for templates, health, auth",
+    "deep_concurrency_tests": "6 tests for app code threading"
+  },
+  "test_files_added": [
+    "tests/network/test_network_resilience_deep.py",
+    "tests/concurrency/test_concurrency_deep.py",
+    "tests/e2e/test_e2e_deep.py",
+    "tests/migrations/test_migration_deep.py"
+  ]
+}
