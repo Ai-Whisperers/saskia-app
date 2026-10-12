@@ -35,6 +35,22 @@ Read-only operator page surfacing the seasonal_event catalog (SASKIA-216/220, 40
 **Scope**: `AGENTS.md`, `app/rms/AGENTS.md`, `WHAT_NEXT.md`, `.github/workflows/ci.yml` (comment only). +40 / -18.
 
 Verification pass measured every numeric/factual claim in the agent docs against the live repo before editing. Fixes: migration count 117→**119** (dual layout: `_migration_NNN` functions in db.py through 083, files in `app/rms/migrations/` after); anti-rule 2 counts 289/64/117 → **291 py files / 89 tables / 119 migrations**; coverage gate corrected to the enforced **35%** (`--cov-fail-under=35` in pyproject.toml + CI — the 80% figure is the target, not the gate, and the doc previously stated both); CHANGELOG-gate path corrected to the **root** `CHANGELOG.md` (the ci.yml script greps `CHANGELOG.md`; its own comment saying `app/CHANGELOG.md` was stale — comment fixed, no logic change); hosted URL → https://sazon-vps.paragu-ai.com + three-environments note; troubleshooting rows now point at `app_meta(key='schema_version')` instead of `PRAGMA user_version` (aligns with rule 18); `research-repos/saskia` cross-refs → absolute host path (it was never inside this repo); `app/rms/AGENTS.md` testing rule 4 rewritten — the per-file coverage figures (95% money/units, 90% costing) were aspirational, never configured gates; `WHAT_NEXT.md` got a dated correction layer (schema v119, 38 migration files) per its own archive-don't-edit pattern.
+## 2026-10-12 — refactor(seed): SASKIA-211a follow-up: replace ``datetime.utcnow()`` with ``app.rms.clock.now()`` in ``app/rms/seed/packs.py``
+
+**Scope**: 6 sites in ``app/rms/seed/packs.py`` (4 functions). +46 / -7.
+
+The SASKIA-211d abstraction-usage enforcement test landed with a documented expected failure: ``test_no_datetime_utcnow_in_app`` found 6 ``datetime.utcnow()`` calls in this file. This commit fixes 1 of the 4 documented SASKIA-211a follow-up failures.
+
+Each function gets a tiny ``_now_naive()`` helper that wraps ``app.rms.clock.now()`` and strips the tzinfo (because the destination columns are ``DateTime`` (naive), not ``DateTime(timezone=True)``). The migration to aware-typed columns is out of scope here — that's a separate schema-level task tracked under SASKIA-211a.
+
+**Behavior preservation:** the resulting naive-UTC datetime is byte-identical to what ``datetime.utcnow()`` used to produce at the SQLAlchemy boundary, so existing seed data is unchanged.
+
+**Tests:** all 7 ``tests/test_packs_seed.py`` tests pass. ``test_no_datetime_utcnow_in_app`` now PASSES (was FAIL — 6 hits, now 0 hits).
+
+**Out of scope (still tracked as SASKIA-211a):**
+- 18 test files importing ``apply_sale`` from the deprecated ``app.rms.costing`` shim instead of the canonical ``app.rms.sales.lifecycle``
+- 6 direct ``StockMovement()`` constructions in ``app/rms/refunds.py`` (2 sites) and ``app/routers/inventory.py`` (4 sites)
+- The 3 ``int(Decimal(...))`` calls in ``tests/test_prod_security_gates.py`` and ``tests/test_accounting_iva_invariant.py`` (intentionally left in this commit's scope to keep it small)
 
 ## 2026-10-12 — style(lint): post-merge-with-SASKIA-211d format fix
 
@@ -258,19 +274,6 @@ Per SASKIA-210 decision (per-client INSTANCES, NOT shared-DB multi-tenant), the 
 **Idempotency**: Re-seeding the same pack on the same tenant is a complete no-op (all per-counter totals = 0). Verified by `test_seed_new_pack_idempotent`.
 
 ## 2026-10-12 — feat(seed): SASKIA-223 HEREBUS data import + 4 new HEREBUS settings
-
-## 2026-10-12 — feat(seed): SASKIA-223 HEREBUS data import + 4 new HEREBUS settings
-
-**Scope**: `app/rms/seed/herbus_import.py` (new), `app/rms/seed/sazon.py` (wire `seed_herbus_data` into `seed_sazon`, add `herbus_ingredients` to `SazonReport`), `app/rms/settings_registry.py` (new `HEREBUS` group, 4 new count settings), `tests/test_herbus_import.py` (new, 14 tests), `tests/test_settings.py` + `tests/test_saskia221_settings.py` (count updates).
-
-The operator's HEREBUS spreadsheet (1.2MB, 30 sheets — Inventory + Packaging + 23 Recipes + Production_Planner + Waste_Tracker + Dashboard_PL) is the de-facto source of truth for the bakery's ingredients, recipes, and packaging. This PR imports it into the Sazon multi-tenant schema:
-
-- 100 ingredients across 12 categories (ING-001 to ING-100), 5 marked `dutch_heritage` (Speculaas, Ketjap Manis, Bladerdeeg, Harina de centeno, Hagelslag), 78 flagged `needs_confirm` (operator added but hasn't verified prices).
-- 23 recipes (REC-001 to REC-023 + REC-024 for Veggie Bitterballen to resolve the spreadsheet's duplicate REC-006 used for both Frikandel and Bitterballen), 12 marked `dutch_heritage`. All 23 have empty B4 yields (operator hasn't cooked them yet) — defaulted to 1.0 with a yellow warning + `app_meta.recipe_yield_backfill_pending=true`.
-- 7 packaging items (PKG-001 to PKG-007, bolsitas/cintillos/bandejas/papel/cajas).
-- Unit normalizer maps any HEREBUS unit to the Sazon constraint `IN ('g', 'kg', 'ml', 'l', 'und')`.
-- Idempotent: re-running `seed_sazon` is a no-op (84 new on fresh DB, 0 on reseed).
-- 4 new HEREBUS settings: `herbus.dutch_recipes_count=12`, `herbus.italian_recipes_count=1`, `herbus.american_recipes_count=2`, `herbus.needs_confirm_count=78`. Total settings 101 → **105**, total groups 23 → **24**.
 
 ## 2026-10-12 — feat(settings): SASKIA-221 add 26 more settings + 7 new groups
 
@@ -529,23 +532,6 @@ Released as v2026.10.1. Commit: `e54c4571`.
 - Tooling note: CI test wall-time dropped 12min → 1.5min after #126
 
 **Why**: WHAT_NEXT is the operator's punchlist. The 5 closed PRs since the last refresh materially changed the state; refreshing keeps the punchlist honest.
-
----
-
-## 2026-10-10 — tests: stub conftest autouse chain for pure-Python tests (resolves CI test_daily_summary hang)
-
-**Scope**: `tests/conftest.py`. The 7997-test CI suite was timing out at 12min. Root cause: every test paid ~7s for `from app.rms.main import app` (autouse `reset_app_state`) + ~8s for `init_db()` (autouse chain `_close_leaked_sessions → session_factory → app_engine`), even tests like `test_daily_summary_dryrun` that shell out to a subprocess and never touch the DB.
-
-**Fix**: Added `_fixture_tree_needs_app()` helper that checks `request.fixturenames` against the set of app-touching fixture names. `reset_app_state`, `app_engine`, and `session_factory` short-circuit to a stub when the test's fixture tree doesn't include any of them. For pure-Python / CLI tests, the autouse chain collapses to ~0s setup. For app-touching tests, behavior is unchanged.
-
-**Verification (local)**:
-- test_daily_summary.py: setup 8.07s → 2.54s per test, 2/2 pass
-- test_route_smoke_phase14_tier1.py: 84/84 pass (was 84/86, the 2 errors are now fixed)
-- test_money.py: 35/35 pass
-
-CI will confirm end-to-end wall-time drop.
-
-**Out of scope**: deeper refactor to make `client` fixture itself lazy, or session-scoped engine. The 8s `init_db()` cost remains for app-touching tests; that's where it belongs.
 
 ---
 
