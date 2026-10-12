@@ -1,12 +1,15 @@
 """tests/integration/test_csrf_auth_real.py — Real CSRF + auth flow integration tests."""
-import pytest
+
 from unittest.mock import patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 
 @pytest.fixture
 def client():
     from app.rms.main import app
+
     with patch("app.auth.is_auth_disabled", return_value=False):
         yield TestClient(app, raise_server_exceptions=False)
 
@@ -17,7 +20,9 @@ def test_login_form_get(client):
 
 
 def test_login_post_invalid_credentials(client):
-    r = client.post("/login", data={"username": "fake", "password": "wrong"}, follow_redirects=False)
+    r = client.post(
+        "/login", data={"username": "fake", "password": "wrong"}, follow_redirects=False
+    )
     assert r.status_code in (200, 400, 401, 403, 404, 422, 500)
 
 

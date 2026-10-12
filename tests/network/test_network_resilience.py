@@ -1,18 +1,20 @@
 """tests/network/test_network_resilience.py — Network/timeout resilience tests."""
-import pytest
-from unittest.mock import patch, MagicMock
+
+from unittest.mock import MagicMock, patch
+
 import httpx
 
 
 def test_httpx_module_imports():
     """httpx should be importable for HTTP testing."""
     import httpx
+
     assert httpx is not None
 
 
 def test_httpx_timeout_exception():
     """httpx.TimeoutException should be catchable."""
-    assert hasattr(httpx, 'TimeoutException')
+    assert hasattr(httpx, "TimeoutException")
     assert issubclass(httpx.TimeoutException, Exception)
 
 
@@ -26,6 +28,7 @@ def test_httpx_http_status_error():
 
 def test_request_timeout_caught():
     """A timeout should be catchable, not crash the app."""
+
     def fake_get(*args, **kwargs):
         raise httpx.TimeoutException("timeout")
 
@@ -38,6 +41,7 @@ def test_request_timeout_caught():
 
 def test_request_connection_error_caught():
     """Connection error should be catchable."""
+
     def fake_get(*args, **kwargs):
         raise httpx.ConnectError("connection refused")
 
@@ -77,11 +81,13 @@ def test_network_retry_logic():
     """Retry logic should work with respx or tenacity."""
     try:
         import respx
+
         assert respx is not None
     except ImportError:
         pass  # Optional
     try:
         import tenacity
+
         assert tenacity is not None
     except ImportError:
         pass
@@ -89,9 +95,10 @@ def test_network_retry_logic():
 
 def test_app_handles_network_failure():
     """When the app calls external services, it should handle failures."""
-    from app.rms.main import app
+
     from fastapi.testclient import TestClient
-    from unittest.mock import patch
+
+    from app.rms.main import app
 
     client = TestClient(app, raise_server_exceptions=False)
     # Most endpoints don't make external calls, so just verify the app starts

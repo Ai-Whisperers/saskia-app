@@ -516,19 +516,17 @@ def _parse_recipe_form(form: dict) -> dict:
                 parsed = None
 
         if isinstance(parsed, list) and all(
-            isinstance(p, dict) and "steps" in p and isinstance(p["steps"], list)
-            for p in parsed
+            isinstance(p, dict) and "steps" in p and isinstance(p["steps"], list) for p in parsed
         ):
             # Normalize: ensure phase/title keys exist for the template.
-            normalized = []
-            for p in parsed:
-                normalized.append(
-                    {
-                        "phase": p.get("phase") or "Procedimiento",
-                        "title": p.get("title") or p.get("phase") or "Pasos",
-                        "steps": [str(s) for s in p["steps"] if str(s).strip()],
-                    }
-                )
+            normalized = [
+                {
+                    "phase": p.get("phase") or "Procedimiento",
+                    "title": p.get("title") or p.get("phase") or "Pasos",
+                    "steps": [str(s) for s in p["steps"] if str(s).strip()],
+                }
+                for p in parsed
+            ]
             instructions_json = _json.dumps(normalized, ensure_ascii=False)
         else:
             # Free-form text (textarea). Wrap into a single phase so the
@@ -1021,8 +1019,14 @@ def _parse_recipe_phases(r: Recipe):
                     }
                 )
             return normalized or None
-    except Exception:
-        pass
+    except Exception as exc:
+        # Free-form text fallback — non-JSON string. Log at debug because
+        # this is the expected path for sazon-seed recipes.
+        import logging
+
+        logging.getLogger(__name__).debug(
+            "recipe.instructions is not valid JSON, wrapping as single phase: %s", exc
+        )
     # Plain text — split on newlines, drop blanks, wrap as one phase.
     steps = [line.strip() for line in raw.splitlines() if line.strip()]
     if not steps:
