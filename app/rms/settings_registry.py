@@ -75,6 +75,9 @@ class SettingGroup(str, Enum):
     EOD = "eod"  # Batch B2 (2026-10-07) — end-of-day anomaly detector thresholds
     ALERTS = "alerts"  # Batch B3 (2026-10-07) — alert dispatch rate limit
     RATE_LIMIT = "rate_limit"  # Batch B5 (2026-10-07) — login + write + read throttles
+    LOCATION = "location"  # SASKIA-215 (2026-10-12) — barrio / zona del local
+    SEASONAL = "seasonal"  # SASKIA-215 (2026-10-12) — calendario PY + notificaciones
+    RECIPE = "recipe"  # SASKIA-215 (2026-10-12) — mano de obra en recetas
 
 
 @dataclass
@@ -632,6 +635,56 @@ SETTINGS: list[Setting] = [
         "int",
         "Ventana deslizante para reads pesados (segundos)",
         SettingGroup.RATE_LIMIT,
+    ),
+    # SASKIA-215 (2026-10-12) — La Vaquita onboarding gaps.
+    # These settings unblock the §8.1, §16, §22 questionnaire
+    # answers that the previous registry couldn't persist.
+    # LOCATION (2)
+    Setting(
+        "location.barrio",
+        "",
+        "str",
+        "Barrio del local (Saskia §22.1: 'San Lorenzo')",
+        SettingGroup.LOCATION,
+    ),
+    Setting(
+        "location.zona",
+        "residencial",
+        "str",
+        "Tipo de zona donde está el local (Saskia §22.2: 'residencial')",
+        SettingGroup.LOCATION,
+        choices=["residencial", "comercial", "mixta", "industrial"],
+    ),
+    # SEASONAL (1)
+    Setting(
+        "seasonal.notif_lead_days",
+        "30",
+        "int",
+        "Días de anticipación para avisar picos estacionales (Saskia §16.6: 30)",
+        SettingGroup.SEASONAL,
+    ),
+    # RECIPE (2)
+    Setting(
+        "recipe.labor_cost_enabled",
+        "0",
+        "bool",
+        "Calcular costo de mano de obra en recetas (Saskia §7.4: sí)",
+        SettingGroup.RECIPE,
+    ),
+    Setting(
+        "recipe.labor_cost_per_hour_gs",
+        "25000",
+        "int",
+        "Costo de mano de obra por hora (Gs./h, default 25.000)",
+        SettingGroup.RECIPE,
+    ),
+    # SALES (1 new) — shop WhatsApp for orders
+    Setting(
+        "sales.shop_whatsapp",
+        "",
+        "str",
+        "WhatsApp del local para tomar pedidos (formato 5959XXXXXXXX sin + ni espacios; Saskia §8.1: '+595 991 683805')",
+        SettingGroup.SALES,
     ),
 ]
 

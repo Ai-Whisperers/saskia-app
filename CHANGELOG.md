@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 ## 2026-10-12 — style(lint): post-merge-with-SASKIA-211d format fix
 
 **Scope**: `tests/test_models_smoke.py`, `tests/test_route_smoke_generated.py`. +101 / -25.
@@ -106,6 +107,45 @@ Out of scope (deferred): photos + image upload for recipe pages (Saskia already 
 
 ---
 =======
+=======
+## 2026-10-12 — feat(settings): SASKIA-215 La Vaquita onboarding gaps (LOCATION/SEASONAL/RECIPE)
+
+**Scope**: `app/rms/settings_registry.py` (3 new groups + 6 new settings) + `app/rms/seed/sazon.py` (`BUSINESS_INFO` extended; `_seed_settingskv_branding` writes 4 answered settings) + `tests/test_settings.py` (count tests updated) + `tests/test_seed_vaquita_answers.py` (new — 3 tests) + `docs/intake/SASKIA-215-add-location-seasonal-recipe-settings.md` (new ticket).
+
+Add the settings the 2026-10-08 questionnaire answered but the previous registry couldn't persist. After the 2026-10-12 OOB message ("the website of sazon should load all of the thigns"), these 6 keys unblock the §8.1, §16.6, §22.1, §22.2 answers.
+
+**New settings** (6):
+
+* `location.barrio` (LOCATION, str, default `""`) — questionnaire §22.1
+* `location.zona` (LOCATION, str, default `"residencial"`, choices: residencial / comercial / mixta / industrial) — questionnaire §22.2
+* `seasonal.notif_lead_days` (SEASONAL, int, default `"30"`) — questionnaire §16.6
+* `recipe.labor_cost_enabled` (RECIPE, bool, default `"0"`) — questionnaire §7.4
+* `recipe.labor_cost_per_hour_gs` (RECIPE, int, default `"25000"`) — default
+* `sales.shop_whatsapp` (SALES, str, default `""`) — questionnaire §8.1
+
+**New `SettingGroup` enum values** (3): `LOCATION`, `SEASONAL`, `RECIPE`. Total: 13 groups → 16, 68 settings → 74.
+
+**Seeder changes** (`app/rms/seed/sazon.py`):
+
+* `BUSINESS_INFO` dict extended with `barrio` (`"San Lorenzo"`), `zona` (`"residencial"`), `shop_whatsapp` (`"+595 991 683805"`).
+* `_seed_settingskv_branding` (renamed in spirit; still single fn) now writes the 4 answered settings into `settings_kv` on a fresh DB.
+
+**Test changes**:
+
+* `test_settings_count`: 68 → 74, 13 groups → 16.
+* `test_settings_per_group_counts`: LOCATION=2, SEASONAL=1, RECIPE=2, SALES=8 → 9 added.
+* `test_list_settings_returns_74` (renamed from `_65`).
+* `test_settings_by_group_groups_correctly`: 13 → 16 keys.
+* New `test_seed_vaquita_answers.py` (3 tests) — guards registry defaults, the seeder populating the answered values, and `list_settings` returning the 6 new keys.
+
+**Out of scope** (deferred):
+
+* `SeasonalEvent` model (rows for "Semana Santa 2027", "Navidad 2027", etc.) — needs a migration + new model. SASKIA-216.
+* Public-menu alérgenos icons — UI work, separate ticket.
+* Insurance / Employee / Payroll / GrowthPlan models — referenced by questionnaire but not needed for La Vaquita instance.
+* Per-tenant scope for SettingsKV (RLS) — separate, much larger.
+
+>>>>>>> 4e8fd6ab (feat(settings): SASKIA-215 LOCATION/SEASONAL/RECIPE settings + seeder wiring)
 ## 2026-10-12 — docs(seed): SASKIA-213 La Vaquita seed data update
 
 **Scope**: `app/rms/seed/sazon.py` (constants only: `SASKIA_EMAIL`, `SASKIA_FULL_NAME`, `BUSINESS_INFO`, `branding.footer` year) + `docs/intake/SASKIA-213-vaquita-seed-data-update.md` (new ticket) + `docs/operations/2026-10-09-la-vaquita-onboarding-analysis.md` (new analysis).

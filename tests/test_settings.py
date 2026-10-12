@@ -39,8 +39,11 @@ def test_settings_count():
     Updated 2026-10-07 (Batch B1+B2+B3+B4): added LOYALTY (11),
     EOD (3), ALERTS (1), and BACKUP (3 more). Total settings
     42 → 60, total groups 9 → 12.
+    Updated 2026-10-12 (SASKIA-215): added LOCATION (2),
+    SEASONAL (1), RECIPE (2), and SALES.shop_whatsapp (1). Total
+    settings 68 → 74, total groups 13 → 16.
     """
-    assert len(SETTINGS) == 68
+    assert len(SETTINGS) == 74
     groups = {s.group for s in SETTINGS}
     assert groups == {
         SettingGroup.GENERAL,
@@ -56,6 +59,9 @@ def test_settings_count():
         SettingGroup.EOD,  # Batch B2
         SettingGroup.ALERTS,  # Batch B3
         SettingGroup.RATE_LIMIT,  # Batch B5
+        SettingGroup.LOCATION,  # SASKIA-215
+        SettingGroup.SEASONAL,  # SASKIA-215
+        SettingGroup.RECIPE,  # SASKIA-215
     }
 
 
@@ -65,6 +71,8 @@ def test_settings_per_group_counts():
     Counts last updated 2026-10-05 after adding BRANDING group with 10
     business-identity settings (logo, favicon, hero, accent_color, etc.)
     and PRODUCTION group with 1 setting (demand cache TTL).
+    Updated 2026-10-12 (SASKIA-215): added LOCATION (2),
+    SEASONAL (1), RECIPE (2), SALES.shop_whatsapp (1).
     """
     by_group: dict[SettingGroup, int] = {}
     for s in SETTINGS:
@@ -72,7 +80,7 @@ def test_settings_per_group_counts():
     assert by_group[SettingGroup.GENERAL] == 7
     assert by_group[SettingGroup.BRANDING] == 10  # 10 branding fields
     assert by_group[SettingGroup.INVENTORY] == 6
-    assert by_group[SettingGroup.SALES] == 8  # 5 original + 3 PRE_SALE (B6)
+    assert by_group[SettingGroup.SALES] == 9  # 5 + 3 PRE_SALE + 1 shop_whatsapp (SASKIA-215)
     assert by_group[SettingGroup.DASHBOARD] == 5
     assert by_group[SettingGroup.BACKUP] == 6  # 3 original + 3 from Batch B4
     assert by_group[SettingGroup.SESSION] == 3
@@ -86,6 +94,10 @@ def test_settings_per_group_counts():
     assert by_group[SettingGroup.ALERTS] == 1
     # Batch B5: rate-limit throttles
     assert by_group[SettingGroup.RATE_LIMIT] == 5
+    # SASKIA-215: location / seasonal / recipe
+    assert by_group[SettingGroup.LOCATION] == 2
+    assert by_group[SettingGroup.SEASONAL] == 1
+    assert by_group[SettingGroup.RECIPE] == 2
     # Sanity: total matches len(SETTINGS)
     assert sum(by_group.values()) == len(SETTINGS)
 
@@ -208,18 +220,20 @@ def test_set_setting_overwrites_existing(session_factory):
         s.close()
 
 
-def test_list_settings_returns_65(session_factory):
-    """list_settings returns 65 entries with value/default/group/etc.
+def test_list_settings_returns_74(session_factory):
+    """list_settings returns 74 entries with value/default/group/etc.
 
 
 
     Updated 2026-10-07 (Batch B1+B2+B3+B4+B5+B6): was 42 entries. Now 68
     (added 11 LOYALTY + 3 EOD + 1 ALERTS + 3 BACKUP + 5 RATE_LIMIT + 3 PRE_SALE).
+    Updated 2026-10-12 (SASKIA-215): added 6 more (2 LOCATION + 1 SEASONAL
+    + 2 RECIPE + 1 SALES.shop_whatsapp). Now 74.
     """
     s = session_factory()
     try:
         all_settings = list_settings(s)
-        assert len(all_settings) == 68
+        assert len(all_settings) == 74
         entry = all_settings[0]
         for k in ("key", "value", "default", "description", "group", "choices"):
             assert k in entry
@@ -228,12 +242,13 @@ def test_list_settings_returns_65(session_factory):
 
 
 def test_settings_by_group_groups_correctly(session_factory):
-    """settings_by_group returns dict with 13 keys matching the group values.
+    """settings_by_group returns dict with 16 keys matching the group values.
 
 
 
     Updated 2026-10-07 (Batch B1+B2+B3+B4+B5+B6): was 42 entries. Now 68
     (added "loyalty", "eod", "alerts", "rate_limit").
+    Updated 2026-10-12 (SASKIA-215): added "location", "seasonal", "recipe".
     """
     s = session_factory()
     try:
@@ -252,16 +267,22 @@ def test_settings_by_group_groups_correctly(session_factory):
             "eod",  # Batch B2: 3 EOD anomaly thresholds
             "alerts",  # Batch B3: 1 alert rate limit
             "rate_limit",  # Batch B5: 5 rate-limit throttles
+            "location",  # SASKIA-215: 2 location fields
+            "seasonal",  # SASKIA-215: 1 seasonal field
+            "recipe",  # SASKIA-215: 2 recipe labor cost fields
         }
         assert len(grouped["general"]) == 7
         assert len(grouped["branding"]) == 10
         assert len(grouped["inventory"]) == 6
-        assert len(grouped["sales"]) == 8  # 5 original + 3 PRE_SALE (B6)
+        assert len(grouped["sales"]) == 9  # 5 + 3 PRE_SALE + 1 shop_whatsapp (SASKIA-215)
         assert len(grouped["backup"]) == 6  # 3 original + 3 Batch B4
         assert len(grouped["loyalty"]) == 11
         assert len(grouped["eod"]) == 3
         assert len(grouped["alerts"]) == 1
         assert len(grouped["rate_limit"]) == 5
+        assert len(grouped["location"]) == 2
+        assert len(grouped["seasonal"]) == 1
+        assert len(grouped["recipe"]) == 2
     finally:
         s.close()
 

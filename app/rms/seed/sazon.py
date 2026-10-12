@@ -487,6 +487,12 @@ BUSINESS_INFO: dict[str, str] = {
     "address": "Laguán Grande, Arquitectos, Calle 17, Asunción",
     "phone": "+595 991 683805",
     "email": "La.vaquitaholandesa@gmail.com",
+    # SASKIA-215 (2026-10-12) — additional fields answered in the
+    # 2026-10-08 onboarding questionnaire. These feed the new
+    # LOCATION / SEASONAL / SALES settings on the seeder.
+    "barrio": "San Lorenzo",  # §22.1
+    "zona": "residencial",  # §22.2
+    "shop_whatsapp": "+595 991 683805",  # §8.1 (same as phone, per Saskia)
 }
 
 # Realistic Paraguayan bakery ingredients (50+).
@@ -5072,9 +5078,12 @@ def _seed_users(ctx: SeedContext):
 
 
 def _seed_settingskv_branding(ctx: SeedContext):
-    """Section 3: SettingsKV (BRANDING).
+    """Section 3: SettingsKV (BRANDING + OPS + LOCATION + SEASONAL).
 
     Extracted from seed_sazon (refactored 2026-10-09).
+    Extended 2026-10-12 (SASKIA-215) to also write the LOCATION,
+    SEASONAL, and SALES.shop_whatsapp keys from BUSINESS_INFO +
+    the §16.6 lead-days default.
     """
 
     branding_settings = {
@@ -5095,7 +5104,16 @@ def _seed_settingskv_branding(ctx: SeedContext):
         + BUSINESS_INFO["phone"]
         + ".",
     }
-    for k, v in branding_settings.items():
+    # SASKIA-215 (2026-10-12) — additional settings filled from the
+    # 2026-10-08 onboarding questionnaire.
+    saskia215_settings = {
+        "location.barrio": BUSINESS_INFO.get("barrio", ""),
+        "location.zona": BUSINESS_INFO.get("zona", "residencial"),
+        "seasonal.notif_lead_days": 30,  # §16.6
+        "sales.shop_whatsapp": BUSINESS_INFO.get("shop_whatsapp", ""),
+    }
+    all_settings = {**branding_settings, **saskia215_settings}
+    for k, v in all_settings.items():
         existing = ctx.session.execute(
             select(SettingsKV).where(SettingsKV.key == k)
         ).scalar_one_or_none()
@@ -5106,7 +5124,7 @@ def _seed_settingskv_branding(ctx: SeedContext):
             ctx.report.skipped_existing["settings_kv_existing"] = (
                 ctx.report.skipped_existing.get("settings_kv_existing", 0) + 1
             )
-    logger.info(f"seed: {ctx.report.settings_kv} settings_kv (BRANDING + OPS)")
+    logger.info(f"seed: {ctx.report.settings_kv} settings_kv (BRANDING + OPS + LOCATION + SEASONAL + SALES)")
 
 
 def _seed_categories(ctx: SeedContext):
