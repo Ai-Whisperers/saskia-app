@@ -8,6 +8,19 @@
 
 **Verified**: 35 money tests pass with the new path; per-file `coverage report` resolves correctly; with `AIW_TEST_RUN_ID` set, data lands in the suffixed file only.
 
+## 2026-10-12 — test(render): cover template_render.py render() HTTP path — 88%
+
+**Scope**: `tests/test_render_http.py` (new, 10 tests). No app code touched.
+
+`render()` (template_render.py:311-424) — the single render path for every server-rendered page — was at 0% because existing tests only exercised the module-level helpers. The new tests split into:
+
+- **5 end-to-end tests** via `authed_client` real route hits: happy-path render (branding from DB through `request.app.state.engine`), csrf injection, now_str topbar, non-200 status path.
+- **5 direct unit tests** for the fail-soft branches a healthy app never takes: branding fallback when `app.state.engine` is missing, no-session → station=None, `/puesto` chooser path (nav_groups=[]), `ui_version` pass-through, and route-provided `now` winning over the injected one (`setdefault` semantics).
+
+Coverage: template_render.py 60% → **88%** (22 stmts left: deep except-branches of loyalty/nav imports). All 10 tests pass.
+
+Follow-up from the same investigation: the earlier "6 test-but-0% files" were a measurement artifact — sibling worktree `saskia-app-vaquita` clobbered the shared `/tmp/.coverage-sazon` data file. Fixed separately in aa89ad6e (per-worktree isolation via `AIW_TEST_RUN_ID`). With isolated data, all 12 suspected modules actually measure 84-100%.
+
 
 ## 2026-10-12 — test(abstractions): SASKIA-211d abstraction-usage enforcement tests
 
