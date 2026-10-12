@@ -1,0 +1,62 @@
+# Ruff configuration for ternary-vaes
+# Excludes research/experiment code from linting (prioritize readability over style)
+
+# Target Python 3.10+
+target-version = "py310"
+
+# Line length
+line-length = 120
+
+# Exclude paths from linting entirely
+exclude = [
+    # Research/experiment scripts (exploratory code, readability > style)
+    "DOCUMENTATION/01_PROJECT_KNOWLEDGE_BASE/03_EXPERIMENTS_AND_LABS",
+    "DOCUMENTATION/01_PROJECT_KNOWLEDGE_BASE/02_THEORY_AND_FOUNDATIONS",
+
+    # Archived training scripts (deprecated, kept for reference)
+    "scripts/train/archive",
+
+    # Generated/data files
+    "__pycache__",
+    ".git",
+    "*.egg-info",
+    "build",
+    "dist",
+
+    # Third-party
+    "venv",
+    ".venv",
+]
+
+[lint]
+# Standard rules
+select = ["E", "F", "W"]
+ignore = [
+    "E501",  # Line too long (handled by formatter)
+]
+
+# Auto-fixable rules
+fixable = ["ALL"]
+unfixable = []
+
+[lint.per-file-ignores]
+# Test files can have unused imports for fixtures
+"tests/*" = ["F401"]
+
+# Visualization scripts use bare-except for graceful degradation and sys.path manipulation
+"scripts/visualization/*" = ["E722", "E402"]
+
+# Analysis scripts use bare-except for fault tolerance and sys.path manipulation
+"scripts/analysis/*" = ["E722", "E402"]
+
+# __init__.py files often have imports after sys.path manipulation
+"src/__init__.py" = ["E402"]
+
+# Training scripts need sys.path before imports
+"scripts/train/*" = ["E402"]
+
+# Eval scripts need sys.path before imports
+"scripts/eval/*" = ["E402"]
+
+# TensorBoard availability check uses import-in-try pattern
+"src/training/environment.py" = ["F401"]

@@ -1,0 +1,42 @@
+# Environment & secrets — NEVER COMMIT
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.secret
+*.credential
+*.token
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.egg-info/
+*.egg
+dist/
+build/
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+.tox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Data
+data/
+*.csv
+*.sqlite
+*.db

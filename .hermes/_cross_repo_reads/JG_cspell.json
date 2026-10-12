@@ -1,0 +1,48 @@
+{
+    "words": [
+        "plotlyjs",
+        "Biochem",
+        "Telomere",
+        "Telomeres",
+        "Okazaki",
+        "Photosystem",
+        "Anthocyanins",
+        "Rubisco",
+        "GPCR",
+        "Mechanotransduction",
+        "Nitrogenase",
+        "Cofactor",
+        "Biosignature",
+        "Nanowires",
+        "nanowires",
+        "doraise",
+        "maxfail",
+        "Streamlit",
+        "synuclein",
+        "MOEA",
+        "Autoimmun",
+        "stoplist"
+    ],
+    "ignorePaths": [
+        ".git",
+        ".venv",
+        ".vscode",
+        "node_modules",
+        "__pycache__",
+        "*.lock",
+        "integrity_report.md"
+    ],
+    "dictionaryDefinitions": [
+        {
+            "name": "project-words",
+            "path": "./configs/project-words.txt",
+            "addWords": true
+        }
+    ],
+    "dictionaries": [
+        "project-words"
+    ],
+    "import": [
+        ".vscode/settings.json"
+    ]
+}

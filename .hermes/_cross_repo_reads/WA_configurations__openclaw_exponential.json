@@ -1,0 +1,520 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.2.18",
+    "lastTouchedAt": "2026-02-18T07:00:00.000Z",
+    "conjuredBy": "Aethelred the Star-Maker",
+    "wisdomSource": "Transcribed conversations synthesized into exponential magic",
+    "philosophy": "Star-Machine Architecture: Building systems that build systems"
+  },
+  "wizard": {
+    "lastRunAt": "2026-02-18T07:00:00.000Z",
+    "lastRunVersion": "2026.2.18",
+    "lastRunCommand": "exponential-configure",
+    "lastRunMode": "exponential",
+    "exponentialPrinciples": [
+      "Not making one star, making the machine of the star",
+      "It's not multiplication, it's exponential",
+      "Let it grow in the cold to diamonds",
+      "Every process you upgrade"
+    ]
+  },
+  "auth": {
+    "profiles": {
+      "openrouter:default": {
+        "provider": "openrouter",
+        "mode": "api_key"
+      },
+      "deepseek:default": {
+        "provider": "deepseek",
+        "mode": "api_key"
+      },
+      "anthropic:default": {
+        "provider": "anthropic",
+        "mode": "api_key"
+      }
+    },
+    "costOptimization": {
+      "strategy": "exponential-roi",
+      "dailyMaxUSD": 5.0,
+      "maxPerTaskUSD": 0.1,
+      "freeTierPreference": "high",
+      "autoDowngrade": true,
+      "investmentFocus": "capability-building"
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "deepseek/deepseek-chat",
+        "fallbacks": [
+          "anthropic/claude-3-5-haiku",
+          "anthropic/claude-3-5-sonnet"
+        ],
+        "strategy": "cost-effective-exponential"
+      },
+      "models": {
+        "openrouter/deepseek/deepseek-chat": {
+          "alias": "deepseek",
+          "costCategory": "free-tier",
+          "useCase": "general-reasoning"
+        },
+        "anthropic/claude-3-5-haiku": {
+          "alias": "haiku",
+          "costCategory": "budget",
+          "useCase": "teaching-operations"
+        },
+        "anthropic/claude-3-5-sonnet": {
+          "alias": "sonnet",
+          "costCategory": "strategic",
+          "useCase": "complex-reasoning"
+        },
+        "anthropic/claude-3-opus": {
+          "alias": "opus",
+          "costCategory": "emergency",
+          "useCase": "critical-decisions"
+        },
+        "elevenlabs/text-to-speech": {
+          "alias": "elevenlabs-tts",
+          "costCategory": "specialized",
+          "useCase": "audio-narratives"
+        },
+        "openrouter/auto": {
+          "alias": "OpenRouter",
+          "costCategory": "fallback",
+          "useCase": "provider-fallback"
+        }
+      },
+      "workspace": "/home/gestalt/.openclaw/workspace",
+      "contextPruning": {
+        "mode": "exponential-relevance",
+        "ttl": "24h",
+        "compoundingFactor": 1.1
+      },
+      "compaction": {
+        "mode": "wisdom-synthesis",
+        "preservePatterns": true,
+        "extractPrinciples": true
+      },
+      "heartbeat": {
+        "every": "15m",
+        "purpose": "exponential-progress-check",
+        "actions": [
+          "check-star-machine-progress",
+          "measure-compounding-rate",
+          "identify-linear-traps",
+          "plan-exponential-improvements",
+          "work-coordination-sync"
+        ]
+      },
+      "maxConcurrent": 3,
+      "subagents": {
+        "maxConcurrent": 6,
+        "strategy": "exponential-parallelization",
+        "specializations": [
+          "technical-implementation",
+          "wisdom-synthesis",
+          "teaching-transference",
+          "system-architecture"
+        ]
+      },
+      "feedbackLoops": {
+        "enabled": true,
+        "learningRate": 0.05,
+        "improvementCycles": "continuous",
+        "measurementDimensions": [
+          "exponential-growth-rate",
+          "system-autonomy-level",
+          "teaching-capacity-built",
+          "compounding-evidence"
+        ]
+      }
+    },
+    "cron": {
+      "enabled": true,
+      "jobs": [
+        {
+          "id": "nyx-worker",
+          "name": "Nyx Autonomous Worker",
+          "interval": "5m",
+          "agentId": "nyx",
+          "description": "Automatically claims and performs tasks from work-coordination",
+          "config": {
+            "workCoordinationPath": "/d1/AI WHISPERERS/work-coordination",
+            "vetePath": "/home/gestalt/d1/WEBSITEs/vete-and-websites/web",
+            "autoClaim": true,
+            "autoPush": true,
+            "maxTasksPerCycle": 1
+          }
+        },
+        {
+          "id": "group-poller",
+          "name": "WhatsApp Group Poller",
+          "interval": "1m",
+          "agentId": "merlin",
+          "description": "Polls WhatsApp groups for teaching opportunities"
+        },
+        {
+          "id": "server-health",
+          "name": "Server Health Monitor",
+          "interval": "30m",
+          "agentId": "nyx",
+          "description": "Monitors system resources and health"
+        }
+      ]
+    },
+    "ecosystem": {
+      "strategy": "star-machine-network",
+      "agents": [
+        {
+          "id": "aethelred",
+          "role": "System Architect & Wisdom Synthesizer",
+          "specialization": "Star-Machine Architecture",
+          "model": "anthropic/claude-3-5-sonnet",
+          "costCategory": "strategic",
+          "responsibilities": [
+            "Design exponential systems",
+            "Synthesize wisdom from conversations",
+            "Teach star-machine principles",
+            "Architect self-improving configurations"
+          ],
+          "autonomyLevel": 0.8
+        },
+        {
+          "id": "merlin",
+          "role": "Grand Master Teacher",
+          "specialization": "Exponential Magic Instruction",
+          "model": "anthropic/claude-3-5-haiku",
+          "costCategory": "budget",
+          "responsibilities": [
+            "Teach foundation curriculum",
+            "Mentor apprentices",
+            "Maintain grimoire",
+            "Cost-aware spellcasting"
+          ],
+          "autonomyLevel": 0.7
+        },
+        {
+          "id": "nyx",
+          "role": "Architect-Engineer",
+          "specialization": "Technical Implementation",
+          "model": "deepseek/deepseek-chat",
+          "costCategory": "free-tier",
+          "responsibilities": [
+            "Implement star-machine designs",
+            "Technical problem-solving",
+            "System optimization",
+            "Pattern recognition"
+          ],
+          "autonomyLevel": 0.9
+        },
+        {
+          "id": "apprentice-batch-1",
+          "role": "Learning Agents",
+          "specialization": "Exponential Skill Development",
+          "model": "deepseek/deepseek-chat",
+          "costCategory": "free-tier",
+          "responsibilities": [
+            "Learn exponential thinking",
+            "Practice star-machine design",
+            "Develop teaching capacity",
+            "Document learning journey"
+          ],
+          "autonomyLevel": 0.3,
+          "growthTarget": "journeyman-in-8-weeks"
+        }
+      ],
+      "interactionPatterns": {
+        "teachingTransference": "aethelred → merlin → apprentices",
+        "wisdomSynthesis": "nyx → aethelred → grimoire",
+        "implementationFlow": "aethelred-design → nyx-implement → merlin-teach",
+        "feedbackCycles": "all-agents → system-improvement"
+      },
+      "compoundingMechanisms": {
+        "knowledgeCompounding": "each-teacher-creates-3-more-teachers",
+        "systemImprovement": "each-cycle-5%-better",
+        "costOptimization": "each-month-10%-more-efficient",
+        "teachingCapacity": "each-quarter-2x-more-students"
+      }
+    }
+  },
+  "messages": {
+    "ackReactionScope": "exponential-engagement",
+    "responseStrategy": "teaching-focused",
+    "exponentialPrinciples": [
+      "Always respond to direct messages",
+      "Teach through answers",
+      "Identify linear traps in questions",
+      "Reveal compounding opportunities"
+    ]
+  },
+  "commands": {
+    "native": "exponential",
+    "nativeSkills": "teaching-enabled",
+    "exponentialCommands": [
+      "/star-machine-design",
+      "/exponential-assessment",
+      "/teach-principle",
+      "/identify-compounding",
+      "/measure-growth-rate"
+    ]
+  },
+  "session": {
+    "dmScope": "teaching-opportunities",
+    "memoryStrategy": "wisdom-synthesis",
+    "learningIntegration": "continuous"
+  },
+  "hooks": {
+    "internal": {
+      "enabled": true,
+      "entries": {
+        "boot-md": {
+          "enabled": true,
+          "purpose": "exponential-mindset-activation"
+        },
+        "command-logger": {
+          "enabled": true,
+          "purpose": "learning-pattern-analysis"
+        },
+        "session-memory": {
+          "enabled": true,
+          "purpose": "wisdom-synthesis"
+        },
+        "exponential-measurement": {
+          "enabled": true,
+          "purpose": "track-compounding-growth"
+        },
+        "teaching-transference": {
+          "enabled": true,
+          "purpose": "knowledge-compounding"
+        }
+      }
+    },
+    "exponential": {
+      "starMachineProgress": {
+        "enabled": true,
+        "measurementInterval": "daily"
+      },
+      "compoundingRate": {
+        "enabled": true,
+        "calculationPeriod": "weekly"
+      },
+      "linearTrapDetection": {
+        "enabled": true,
+        "alertThreshold": 0.3
+      },
+      "teachingCapacity": {
+        "enabled": true,
+        "growthTarget": "monthly-2x"
+      }
+    }
+  },
+  "channels": {
+    "whatsapp": {
+      "dmPolicy": "teaching-platform",
+      "selfChatMode": true,
+      "allowFrom": [
+        "+595981324569",
+        "+595992267992",
+        "+595986138387",
+        "+595971922708",
+        "+595985724135",
+        "+595972209763",
+        "+595991763400",
+        "+595983111686",
+        "+595981459382",
+        "+595982783951",
+        "+595984933862",
+        "+595991501444"
+      ],
+      "groupPolicy": "teaching-opportunities",
+      "mediaMaxMb": 50,
+      "debounceMs": 0,
+      "teachingStrategy": "exponential-principles-in-context"
+    },
+    "telegram": {
+      "dmPolicy": "pairing",
+      "allowFrom": [
+        "*"
+      ],
+      "groupPolicy": "allowlist",
+      "streamMode": "partial",
+      "teachingFocus": "technical-implementation"
+    },
+    "wizardAcademy": {
+      "enabled": true,
+      "purpose": "exponential-magic-instruction",
+      "curriculum": "foundation-to-mastery",
+      "teachingMethod": "star-machine-architecture"
+    }
+  },
+  "talk": {
+    "strategy": "teaching-narrative",
+    "style": "wizard-metaphors-practical-explanations",
+    "principles": [
+      "Explain 1+1=11 thinking",
+      "Teach star-machine design",
+      "Reveal compounding patterns",
+      "Practice strategic patience"
+    ]
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "exponential",
+    "bind": "loopback",
+    "auth": {
+      "mode": "password",
+      "token": "53f728d46f5cb7e961fd1d85d6ca0940",
+      "rateLimit": {
+        "maxAttempts": 10,
+        "windowMs": 60000,
+        "lockoutMs": 300000
+      }
+    },
+    "tailscale": {
+      "mode": "off",
+      "resetOnExit": false
+    },
+    "exponentialFeatures": {
+      "agentOrchestration": true,
+      "wisdomSynthesis": true,
+      "teachingTransference": true,
+      "compoundingMeasurement": true
+    }
+  },
+  "skills": {
+    "install": {
+      "nodeManager": "bun"
+    },
+    "entries": {
+      "memu": {
+        "enabled": true,
+        "purpose": "wisdom-synthesis-memory"
+      },
+      "github": {
+        "enabled": true,
+        "purpose": "knowledge-repository-management"
+      },
+      "exa-web-search-free": {
+        "enabled": true,
+        "purpose": "research-for-teaching"
+      },
+      "git-sync": {
+        "enabled": true,
+        "purpose": "wisdom-documentation"
+      },
+      "nano-banana-pro": {
+        "enabled": true,
+        "purpose": "technical-implementation"
+      },
+      "mcp-builder": {
+        "enabled": true,
+        "purpose": "system-architecture-tools"
+      },
+      "pr-reviewer": {
+        "enabled": true,
+        "purpose": "quality-teaching"
+      },
+      "conventional-commits": {
+        "enabled": true,
+        "purpose": "documentation-excellence"
+      },
+      "regex-patterns": {
+        "enabled": true,
+        "purpose": "pattern-recognition-teaching"
+      },
+      "backend-patterns": {
+        "enabled": true,
+        "purpose": "system-architecture-education"
+      },
+      "obsidian": {
+        "enabled": true,
+        "purpose": "knowledge-graph-teaching"
+      },
+      "ml-pipeline": {
+        "enabled": true,
+        "purpose": "ai-implementation-education"
+      },
+      "docker-workflows": {
+        "enabled": true,
+        "purpose": "system-deployment-teaching"
+      },
+      "api-testing": {
+        "enabled": true,
+        "purpose": "quality-assurance-education"
+      },
+      "sql-optimization": {
+        "enabled": true,
+        "purpose": "data-architecture-teaching"
+      },
+      "python-best-practices": {
+        "enabled": true,
+        "purpose": "technical-excellence-education"
+      },
+      "javascript-typescript": {
+        "enabled": true,
+        "purpose": "frontend-architecture-teaching"
+      },
+      "wizardAcademy": {
+        "enabled": true,
+        "purpose": "exponential-magic-curriculum",
+        "location": "/home/gestalt/.openclaw/workspace/wizard-academy-repo"
+      }
+    },
+    "exponentialIntegration": {
+      "teachingTransference": true,
+      "wisdomSynthesis": true,
+      "starMachineDesign": true,
+      "compoundingMeasurement": true
+    }
+  },
+  "plugins": {
+    "entries": {
+      "telegram": {
+        "enabled": true
+      },
+      "whatsapp": {
+        "enabled": true
+      },
+      "qwen-portal-auth": {
+        "enabled": true
+      },
+      "wizardAcademyChannel": {
+        "enabled": true,
+        "purpose": "exponential-teaching-platform"
+      }
+    }
+  },
+  "exponentialFramework": {
+    "principles": [
+      "Star-Machine Architecture",
+      "Exponential vs Linear Thinking",
+      "Diamond-Patience Alchemy",
+      "Narrative Transformation",
+      "Teaching Transference"
+    ],
+    "measurement": {
+      "compoundingRate": {
+        "target": "monthly-20%",
+        "measurement": "weekly"
+      },
+      "teachingCapacity": {
+        "target": "quarterly-2x",
+        "measurement": "monthly"
+      },
+      "systemAutonomy": {
+        "target": "annual-90%",
+        "measurement": "quarterly"
+      },
+      "costEfficiency": {
+        "target": "monthly-10%-improvement",
+        "measurement": "weekly"
+      }
+    },
+    "improvementCycles": {
+      "daily": "exponential-observation",
+      "weekly": "compounding-measurement",
+      "monthly": "teaching-capacity-review",
+      "quarterly": "system-autonomy-assessment"
+    }
+  }
+}
