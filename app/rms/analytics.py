@@ -442,7 +442,7 @@ def top_margin_products(
             continue
         # Cost per unit: walk recipe (if any). For v1 we use sale_price_gs * 0.4 as a
         # rough proxy if we can't resolve the recipe cost. Real costing lives in
-        # app/rms/costing.py; this is an analytics-level estimate.
+        # app/rms/profitability/cost.py; this is an analytics-level estimate.
         cost_per_unit = _quick_cost_estimate(session, product)
         if cost_per_unit is None:
             cost_per_unit = int(product.sale_price_gs * Decimal("0.4"))

@@ -221,10 +221,19 @@ run ssh -i "$KEY" -o StrictHostKeyChecking=no "$VPS" "
   # Atomic switch: replace the canonical per-env dir with our just-built
   # staging dir. After this mv, /opt/build-apps/sazon-rms-$ENV points at
   # the new tree. Old trees are cleaned up below.
-  rm -rf $REMOTE_DIR_FINAL && mv $REMOTE_DIR $REMOTE_DIR_FINAL
-  # Clean up any older staging dirs (more than 5 minutes old) so they
-  # don't accumulate on the VPS.
-  find /opt/build-apps -maxdepth 1 -type d -name "sazon-rms-$ENV-staging-*" -mmin +5 -exec rm -rf {} + 2>/dev/null || true
+  # Guard: a slow build (>30 min) can outlive the stale-staging sweep below,
+  # which would delete OUR staging dir between "service converged" and this
+  # mv — the deploy itself already succeeded at that point, so treat a
+  # missing staging dir as "someone else swept it", not a failure.
+  if [ -d $REMOTE_DIR ]; then
+    rm -rf $REMOTE_DIR_FINAL && mv $REMOTE_DIR $REMOTE_DIR_FINAL
+  else
+    echo 'NOTE: staging dir was already swept (slow build); deploy had converged - skipping dir swap.'
+  fi
+  # Clean up older staging dirs (more than 30 minutes old — high enough that
+  # no legitimate in-flight build outlives it) so they don't accumulate on
+  # the VPS.
+  find /opt/build-apps -maxdepth 1 -type d -name "sazon-rms-$ENV-staging-*" -mmin +30 -exec rm -rf {} + 2>/dev/null || true
 "
 
 # 4. verify

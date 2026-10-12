@@ -36,13 +36,13 @@ from app.auth import require_login_or_disabled as require_login
 from app.rms.audit import record as audit_record
 from app.rms.clock import today_local
 from app.rms.config import ASUNCION_TZ
-from app.rms.costing import apply_sale
 from app.rms.csrf import verify_form_csrf
 from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
 from app.rms.models import Customer, Pedido, PedidoLine, Product, Recipe, Sale
 from app.rms.models.channels import Channel
 from app.rms.production_demand import invalidate_demand_for_dates
+from app.rms.sales.lifecycle import apply_sale
 
 
 def _as_date(d: "date | datetime | None") -> date | None:
@@ -1939,7 +1939,7 @@ def pedidos_fulfill(
     # if you change the rules there, change them here too.
     shortfalls: list[dict] = []
     try:
-        from app.rms.costing import _compute_stock_moves
+        from app.rms.sales.lifecycle import _compute_stock_moves
 
         for ln in pedido.lines:
             if ln.qty <= 0:
@@ -2314,7 +2314,7 @@ def _compute_stock_preview(session, pedido) -> tuple[list, list]:
 
     Extracted from pedidos_stock_preview to reduce complexity.
     """
-    from app.rms.costing import _compute_stock_moves
+    from app.rms.sales.lifecycle import _compute_stock_moves
 
     consumed: list[dict] = []
     warnings: list[dict] = []

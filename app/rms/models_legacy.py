@@ -129,7 +129,7 @@ class Ingredient(Base):
     # S8 US 4.1 — flag ingredients that are packaging items (boxes, bags,
     # ribbons) rather than food ingredients. Packaging items live in the
     # same table for inventory simplicity but are sold, not consumed by
-    # recipes. See app/rms/costing.py:apply_sale for the per-sale wiring.
+    # recipes. See app/rms/sales/lifecycle.py:apply_sale for the per-sale wiring.
     is_packaging: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
@@ -165,7 +165,7 @@ class Ingredient(Base):
     # because RecipeLine.line_ref_id is polymorphic (FK to ingredient OR recipe).
     # Use RecipeLine.ingredient relationship (viewonly=True, primaryjoin with line_kind check)
     # or query RecipeLine directly: SELECT FROM recipe_line WHERE line_kind='ingredient'
-    # AND line_ref_id = :id. Helper functions live in costing.py.
+    # AND line_ref_id = :id. Helper functions live in profitability/cost.py.
     # BACKLOG #1: the legacy `stock_moves` relationship to SaleStockMove
     # is removed. Use `StockMovement` rows joined on `ingredient_id`
     # filtered by movement_type='sale' instead (see /reportes/consumo).
@@ -358,7 +358,7 @@ class RecipeLine(Base):
     recipe: Mapped["Recipe"] = relationship(back_populates="lines", foreign_keys=[recipe_id])
     # NOTE: ingredient and sub_recipe relationships are NOT defined here because
     # line_ref_id is polymorphic. Use `resolve_line_target(session, line)` in
-    # costing.py to get the right object.
+    # profitability/cost.py to get the right object.
 
     __table_args__ = (
         CheckConstraint("line_kind IN ('ingredient', 'sub_recipe')", name="ck_line_kind"),

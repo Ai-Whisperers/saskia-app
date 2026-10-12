@@ -12,10 +12,10 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.rms.costing import product_unit_cost_gs
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine
 from app.rms.money import to_int_gs
 from app.rms.price_history import price_stats
+from app.rms.profitability.cost import product_unit_cost_gs
 from app.rms.units import normalize_recipe_line_qty
 
 

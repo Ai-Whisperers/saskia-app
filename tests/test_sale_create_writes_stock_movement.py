@@ -10,7 +10,7 @@ This test locks the contract: when a sale is created via the HTTP route
 
 Background: 2026-10-07 review of `app/routers/sales.py` found that
 `sale_create` does NOT directly write `StockMovement` rows. It delegates
-to `apply_sale()` in `app/rms/costing.py`, which DOES write the rows.
+to `apply_sale()` in `app/rms/sales/lifecycle.py`, which DOES write the rows.
 
 A future refactor that moves the audit-row write responsibility back to
 the router (or skips it entirely) would silently break the stock
@@ -117,7 +117,7 @@ def test_sale_create_writes_stock_movement_row(client_with_caja, session_factory
             f"Expected at least 1 StockMovement row for sale.id={sale.id}, "
             f"got {len(moves)}. This is the AGENTS.md Hard Rule 8 contract: "
             f"every sale MUST write a StockMovement audit row. The router "
-            f"delegates to apply_sale() in app/rms/costing.py — verify the "
+            f"delegates to apply_sale() in app/rms/sales/lifecycle.py — verify the "
             f"delegation is intact."
         )
 

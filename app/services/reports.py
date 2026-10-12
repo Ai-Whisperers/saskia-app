@@ -35,9 +35,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.rms.config import ASUNCION_TZ
-from app.rms.costing import product_unit_cost_gs
 from app.rms.models import Ingredient, Sale
 from app.rms.money import to_int_gs
+from app.rms.profitability.cost import product_unit_cost_gs
 
 # --- Validation helpers ---
 

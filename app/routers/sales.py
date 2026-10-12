@@ -32,7 +32,6 @@ from app.rms.catalogs import (
     list_payment_methods,
 )
 from app.rms.config import ASUNCION_TZ
-from app.rms.costing import RecipeWithoutYield, apply_sale, void_sale
 from app.rms.db import safe_commit
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, Conflict, NotFound, ValidationError
@@ -53,12 +52,14 @@ from app.rms.messages import (
 from app.rms.models import Customer, Product, Sale, SalePayment, StockMovement
 from app.rms.models.channels import Channel
 from app.rms.money import to_int_gs
+from app.rms.profitability.cost import RecipeWithoutYield
 from app.rms.public_tokens import (
     enforce_rate_limit as public_token_enforce_rate_limit,
 )
 from app.rms.public_tokens import (
     is_token_valid,
 )
+from app.rms.sales.lifecycle import apply_sale, void_sale
 from app.rms.schemas import (
     ALLOWED_CHANNELS,
     CHANNEL_DEFAULT,

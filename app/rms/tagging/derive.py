@@ -283,7 +283,7 @@ def _walk_recurse(
 
 
 def _resolve(session: Session, line: object) -> object | None:
-    from app.rms.costing import resolve_line_target
+    from app.rms.profitability.cost import resolve_line_target
 
     try:
         return resolve_line_target(session, line)

@@ -25,12 +25,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
-from app.rms.costing import (
-    CostResult,
-    batch_recipes_cost,
-    recipe_batch_cost_gs,
-    recipe_unit_cost_gs,
-)
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, Conflict, NotFound
 from app.rms.messages import (
@@ -42,6 +36,12 @@ from app.rms.messages import (
 )
 from app.rms.models import Ingredient, Product, Recipe, RecipeLine
 from app.rms.observability import record_audit
+from app.rms.profitability.cost import (
+    CostResult,
+    batch_recipes_cost,
+    recipe_batch_cost_gs,
+    recipe_unit_cost_gs,
+)
 from app.rms.rate_limit import read_rate_limit_dependency
 from app.rms.recipe_intel import (
     estimate_cook_minutes,
@@ -947,7 +947,7 @@ def _load_resolved_lines(session, r_id: int) -> list:
 
     Extracted from recipe_detail to reduce complexity.
     """
-    from app.rms.costing import resolve_line_target
+    from app.rms.profitability.cost import resolve_line_target
 
     lines = session.scalars(
         select(RecipeLine).where(RecipeLine.recipe_id == r_id).order_by(RecipeLine.id)
@@ -971,7 +971,7 @@ def _load_costs(session, r_id: int) -> tuple:
 
     Extracted from recipe_detail to reduce complexity.
     """
-    from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
+    from app.rms.profitability.cost import recipe_batch_cost_gs, recipe_unit_cost_gs
 
     return recipe_batch_cost_gs(session, r_id), recipe_unit_cost_gs(session, r_id)
 
@@ -1166,7 +1166,7 @@ async def recipe_edit(
     other_recipes = _load_other_recipes(session, r_id)
 
     # Load cost breakdown
-    from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
+    from app.rms.profitability.cost import recipe_batch_cost_gs, recipe_unit_cost_gs
 
     batch_cost = recipe_batch_cost_gs(session, r_id)
     unit_cost = recipe_unit_cost_gs(session, r_id)
@@ -1203,7 +1203,7 @@ def _load_recipe_lines_with_costs(session: Session, r_id: int) -> list[dict]:
         select(RecipeLine).where(RecipeLine.recipe_id == r_id).order_by(RecipeLine.id)
     ).all()
 
-    from app.rms.costing import resolve_line_target
+    from app.rms.profitability.cost import resolve_line_target
     from app.rms.variants import current_variant_price
 
     # Unit conversion factors for same-family normalization
@@ -1224,7 +1224,7 @@ def _load_recipe_lines_with_costs(session: Session, r_id: int) -> list[dict]:
                 "target_unit": target.unit if target and hasattr(target, "unit") else ln.line_unit,
                 # cost_per_kg_gs: the ingredient's variant-aware purchase price per kg — what JS multiplies by qty_norm
                 # Use current_variant_price so it matches the line cost above AND the
-                # recipe_batch_cost_gs() walk in app/rms/costing.py.
+                # recipe_batch_cost_gs() walk in app/rms/profitability/cost.py.
                 "price_per_kg_gs": _variant_price_for_line(
                     session, target, ln, current_variant_price
                 ),
@@ -1491,7 +1491,7 @@ async def recipe_create_product_redirect(
         raise NotFound("receta")
 
     # Compute suggested price: cost × SettingsKV-configured markup (default 3.0)
-    from app.rms.costing import recipe_unit_cost_gs
+    from app.rms.profitability.cost import recipe_unit_cost_gs
     from app.rms.settings_runtime import compute_suggested_price, get_pricing_markup
 
     unit = recipe_unit_cost_gs(session, r_id)
