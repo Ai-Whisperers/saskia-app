@@ -150,8 +150,8 @@ def test_mixed_unit_recipe_costs_and_plans_consistently(session_factory):
     plan_production for 24 portions (2 batches) must require exactly
     1.0 kg harina and 0.5 line leche — same normalization, both engines.
     """
-    from app.rms.costing import recipe_batch_cost_gs
     from app.rms.models import Product, Recipe, RecipeLine
+    from app.rms.profitability.cost import recipe_batch_cost_gs
 
     s = session_factory()
     try:

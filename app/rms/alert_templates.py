@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from loguru import logger
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -65,6 +66,8 @@ def get_eod_alert_template(session: Session, key: str) -> AlertTemplate:
             {"key": key},
         ).fetchone()
     except Exception:
+        # Row missing is OK (template not yet seeded); log + fall through.
+        logger.debug("alert_templates fetchone failed", exc_info=True)
         row = None
 
     if row:

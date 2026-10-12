@@ -81,63 +81,102 @@ def _check_supabase_reachable(url: str, timeout: float = 2.0) -> dict[str, Any]:
     """
     if not url:
         return {"ok": "skipped", "reason": "SUPABASE_URL not set"}
-    parsed = urllib.parse.urlparse(url)
-    health = f"{parsed.scheme}://{parsed.netloc}/auth/v1/health"
+    health = _supabase_health_url(url)
     import time as _time
 
     t0 = _time.monotonic()
     try:
         req = urllib.request.Request(health, method="GET")  # noqa: S310
         with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
-            latency_ms = int((_time.monotonic() - t0) * 1000)
-            ok = 200 <= resp.status < 300
-            return {
-                "ok": ok,
-                "http_status": resp.status,
-                "latency_ms": latency_ms,
-                "reason": (None if ok else f"HTTP {resp.status} from auth health endpoint"),
-            }
+            return _build_success_result(t0, resp)
     except urllib.error.HTTPError as e:
         # HEAD returned 405 in production; GET can also hit 401/403 if
         # the API key is missing. Surface the actual status.
-        latency_ms = int((_time.monotonic() - t0) * 1000)
-        return {
-            "ok": False,
-            "http_status": e.code,
-            "latency_ms": latency_ms,
-            "error_class": "HTTPError",
-            "reason": f"HTTP {e.code} {e.reason}",
-        }
+        return _build_http_error_result(t0, e)
     except urllib.error.URLError as e:
-        latency_ms = int((_time.monotonic() - t0) * 1000)
-        reason_str = str(e.reason) if e.reason else "unknown"
-        # Distinguish DNS NXDOMAIN vs connect refused vs SSL error.
-        if "Name or service not known" in reason_str or "nodename" in reason_str:
-            error_class = "DNSError"
-        elif "Connection refused" in reason_str:
-            error_class = "ConnectRefused"
-        elif "timed out" in reason_str or "timeout" in reason_str.lower():
-            error_class = "Timeout"
-        elif "SSL" in reason_str or "certificate" in reason_str.lower():
-            error_class = "SSLError"
-        else:
-            error_class = "URLError"
-        return {
-            "ok": False,
-            "http_status": None,
-            "latency_ms": latency_ms,
-            "error_class": error_class,
-            "reason": reason_str[:200],
-        }
+        return _build_url_error_result(t0, e)
     except (TimeoutError, OSError) as e:
-        latency_ms = int((_time.monotonic() - t0) * 1000)
-        return {
-            "ok": False,
-            "http_status": None,
-            "latency_ms": latency_ms,
-            "error_class": type(e).__name__,
-            "reason": str(e)[:200],
-        }
+        return _build_os_error_result(t0, e)
+
+
+def _supabase_health_url(url: str) -> str:
+    """Build the Supabase GoTrue health endpoint URL from a project URL."""
+    parsed = urllib.parse.urlparse(url)
+    return f"{parsed.scheme}://{parsed.netloc}/auth/v1/health"
+
+
+def _elapsed_ms(t0: float) -> int:
+    """Round-trip time from `t0` (a `time.monotonic()` value) to now."""
+    import time as _time  # local import keeps the top of the file clean
+
+    return int((_time.monotonic() - t0) * 1000)
+
+
+def _build_success_result(t0: float, resp: object) -> dict[str, Any]:
+    """Build the diagnostic dict for a successful HTTP response."""
+    latency_ms = _elapsed_ms(t0)
+    ok = 200 <= resp.status < 300  # type: ignore[attr-defined]
+    return {
+        "ok": ok,
+        "http_status": resp.status,  # type: ignore[attr-defined]
+        "latency_ms": latency_ms,
+        "reason": (None if ok else f"HTTP {resp.status} from auth health endpoint"),  # type: ignore[attr-defined]
+    }
+
+
+def _build_http_error_result(t0: float, e: urllib.error.HTTPError) -> dict[str, Any]:
+    """Surface the actual HTTP status when the server rejects the GET."""
+    return {
+        "ok": False,
+        "http_status": e.code,
+        "latency_ms": _elapsed_ms(t0),
+        "error_class": "HTTPError",
+        "reason": f"HTTP {e.code} {e.reason}",
+    }
+
+
+# URLError sub-classification: distinguish DNS NXDOMAIN, connect refused,
+# timeout, and SSL errors so the operator dashboard can tell them apart.
+_URL_ERROR_PATTERNS: list[tuple[str, str]] = [
+    (r"(?i)(name or service not known|nodename)", "DNSError"),
+    (r"(?i)connection refused", "ConnectRefused"),
+    (r"(?i)(timed out|timeout)", "Timeout"),
+    (r"(?i)(ssl|certificate)", "SSLError"),
+]
+
+
+def _classify_url_reason(reason_str: str) -> str:
+    """Return the URLError sub-class (DNSError / ConnectRefused / ...) or
+    the generic 'URLError' fallback when no pattern matches."""
+    import re
+
+    for pattern, label in _URL_ERROR_PATTERNS:
+        if re.search(pattern, reason_str):
+            return label
+    return "URLError"
+
+
+def _build_url_error_result(t0: float, e: urllib.error.URLError) -> dict[str, Any]:
+    """Build the diagnostic dict for a URLError (DNS, connect, timeout, SSL)."""
+    reason_str = str(e.reason) if e.reason else "unknown"
+    return {
+        "ok": False,
+        "http_status": None,
+        "latency_ms": _elapsed_ms(t0),
+        "error_class": _classify_url_reason(reason_str),
+        "reason": reason_str[:200],
+    }
+
+
+def _build_os_error_result(t0: float, e: BaseException) -> dict[str, Any]:
+    """Build the diagnostic dict for a TimeoutError / OSError catch-all."""
+    return {
+        "ok": False,
+        "http_status": None,
+        "latency_ms": _elapsed_ms(t0),
+        "error_class": type(e).__name__,
+        "reason": str(e)[:200],
+    }
 
 
 def _check_r2_reachable(timeout: float = 2.0) -> bool:

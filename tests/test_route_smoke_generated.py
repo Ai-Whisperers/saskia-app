@@ -68,3 +68,25 @@ def test_post_route_does_not_500(client, path, label):
     """POST {path} ({label}) must not 5xx."""
     r = client.post(path)
     assert r.status_code < 500, f"POST {path} ({label}) returned {r.status_code}: {r.text[:200]}"
+
+
+# --- KNOWN FAILING (documented app bugs, not test bugs) ---
+
+# Each route below 5xx-es due to an app bug tracked by its ticket.
+# Once the bug is fixed, remove the entry from KNOWN_FAILING_SMOKE
+# in scripts/gen_route_smoke.py and regenerate this file.
+_KNOWN_FAILING_PARAMS = [
+    pytest.param("POST", "/caja/abrir", id="caja-abrir-known-fail-SASKIA-TBD-caja-fmt-shadow"),
+]
+
+
+@pytest.mark.parametrize("method,path", _KNOWN_FAILING_PARAMS)
+def test_known_failing_route(client, method, path):
+    """XFAIL: documented app bug. The route is expected to 5xx until fixed."""
+    fn = getattr(client, method.lower())
+    r = fn(path)
+    # This SHOULD 5xx — bug is still present. Pass means bug is still here.
+    assert r.status_code >= 500, (
+        f"{method} {path} now returns {r.status_code} — bug may be fixed! "
+        f"Remove from KNOWN_FAILING_SMOKE and regenerate. Body: {r.text[:200]}"
+    )

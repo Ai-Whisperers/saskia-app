@@ -342,6 +342,7 @@ tooling = [
     "reuse>=5.0",             # SPDX license header compliance
     "jscpd>=4.0",             # copy-paste detector (line-level)
     "sensez>=0.4",            # structural clone + code smell detector (Riley Barnett 2025)
+    "cyclonedx-bom>=4.5",     # CycloneDX SBOM generator (release workflow only)
 ]
 # tooling-tier2: adoption candidates from the 2026-10-09 tooling research
 # (docs/operations/2026-10-09-tooling-research.md). Not yet wired into

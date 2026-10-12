@@ -157,7 +157,8 @@ def _merge_purpose_texts(rows: list, _re) -> str | None:
 def _whatsapp_href(supplier: Any, rows: Any) -> str | None:
     """Prefilled wa.me link for a supplier's open items (Py py-side so no
     custom Jinja filter is needed). Normalizes PY phones: 9-digit local
-    numbers get 595 prefix; already-international (starts with +) keep."""
+    numbers get 595 prefix; already-international (starts with +) keep.
+    """
     from urllib.parse import quote
 
     if supplier is None or not supplier.phone:
@@ -165,18 +166,32 @@ def _whatsapp_href(supplier: Any, rows: Any) -> str | None:
     open_rows = [r for r in rows if not r.purchased]
     if not open_rows:
         return None
-    digits = "".join(c for c in supplier.phone if c.isdigit())
+    digits = _normalize_py_phone(supplier.phone)
+    text = _build_wa_message(open_rows)
+    return f"https://wa.me/{digits}?text={quote(text)}"
+
+
+def _normalize_py_phone(phone: str) -> str:
+    """Strip non-digits, then add the PY country code (595) for 9-digit
+    local mobile numbers. Already-international numbers starting with
+    '595' pass through unchanged.
+    """
+    digits = "".join(c for c in phone if c.isdigit())
     if digits.startswith("595"):
-        pass
-    elif len(digits) == 9:  # PY mobile without country code
-        digits = "595" + digits
-    names = "\n".join(
+        return digits
+    if len(digits) == 9:
+        return "595" + digits
+    return digits
+
+
+def _build_wa_message(open_rows: list[Any]) -> str:
+    """Render the prefilled WhatsApp text body for one supplier's open items."""
+    lines = "\n".join(
         f"• {r.ingredient.name} ({r.qty_to_buy:g} {r.unit})"
         for r in open_rows
         if r.ingredient is not None
     )
-    text = f"Hola! Quiero hacer un pedido:\n{names}\nGracias!"
-    return f"https://wa.me/{digits}?text={quote(text)}"
+    return f"Hola! Quiero hacer un pedido:\n{lines}\nGracias!"
 
 
 @router.get("", response_class=HTMLResponse)
@@ -424,52 +439,98 @@ def from_production_plan(
     plan = plan_production(session, for_date=for_date)
     shortages = [ln for ln in plan.lines if ln.qty_to_buy > 0]
     if not shortages:
-        return RedirectResponse(
-            url=f"/shopping-list?from_plan=0&for_date={for_date.isoformat()}",
-            status_code=303,
-        )
+        return _empty_redirect(for_date)
 
-    existing = (
+    existing = _open_shopping_items(session)
+    purpose = f"Plan producción {for_date.isoformat()}"
+    added = _apply_shortages(session, existing, shortages, purpose)
+    session.commit()
+    return _done_redirect(for_date, added)
+
+
+def _empty_redirect(for_date: date) -> RedirectResponse:
+    """Redirect when the production plan has no shortages to import."""
+    return RedirectResponse(
+        url=f"/shopping-list?from_plan=0&for_date={for_date.isoformat()}",
+        status_code=303,
+    )
+
+
+def _done_redirect(for_date: date, added: int) -> RedirectResponse:
+    """Redirect after a successful import with the count of items added."""
+    return RedirectResponse(
+        url=f"/shopping-list?from_plan={added}&for_date={for_date.isoformat()}",
+        status_code=303,
+    )
+
+
+def _open_shopping_items(session: Session) -> list[Any]:
+    """Return the unpurchased ShoppingListItem rows currently on the list."""
+    return (
         session.execute(select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False)))
         .scalars()
         .all()
     )
-    existing_by_ing = {}
-    for i in existing:
-        existing_by_ing[i.ingredient_id] = existing_by_ing.get(i.ingredient_id, 0) + float(
-            i.qty_to_buy
-        )
 
-    purpose = f"Plan producción {for_date.isoformat()}"
+
+def _apply_shortages(
+    session: Session,
+    existing: list[Any],
+    shortages: list[Any],
+    purpose: str,
+) -> int:
+    """Merge each shortage into the open list, top-up-or-insert semantics.
+
+    An ingredient already on the open list is topped up to the max of the
+    two quantities (never duplicated). Returns the count of items
+    touched (top-ups + new inserts).
+    """
+    existing_by_ing: dict[Any, float] = _existing_qty_by_ingredient(existing)
     added = 0
     for ln in shortages:
-        have = existing_by_ing.get(ln.ingredient_id, 0.0)
         need = float(ln.qty_to_buy)
         if ln.ingredient_id in existing_by_ing:
-            # Top up the open item if the plan needs more than already listed.
-            if need > have:
-                delta = need - have
-                for i in existing:
-                    if i.ingredient_id == ln.ingredient_id:
-                        i.qty_to_buy += delta
-                        break
-                added += 1
+            added += _topup_existing(existing, ln.ingredient_id, need)
             continue
-        session.add(
-            ShoppingListItem(
-                ingredient_id=ln.ingredient_id,
-                qty_to_buy=need,
-                unit=ln.unit,
-                purpose_text=purpose,
-                unit_price_snapshot_gs=_price_snapshot(session, ln.ingredient_id),
-            )
-        )
+        _add_new_shortage_item(session, ln, purpose)
         existing_by_ing[ln.ingredient_id] = need
         added += 1
-    session.commit()
-    return RedirectResponse(
-        url=f"/shopping-list?from_plan={added}&for_date={for_date.isoformat()}",
-        status_code=303,
+    return added
+
+
+def _existing_qty_by_ingredient(existing: list[Any]) -> dict[Any, float]:
+    """Map ingredient_id → total qty_to_buy across open items."""
+    totals: dict[Any, float] = {}
+    for item in existing:
+        totals[item.ingredient_id] = totals.get(item.ingredient_id, 0.0) + float(item.qty_to_buy)
+    return totals
+
+
+def _topup_existing(existing: list[Any], ingredient_id: Any, need: float) -> int:
+    """Top up the open item for `ingredient_id` to the max of (current,
+    need). Returns 1 if a top-up happened, 0 if `need` was already met.
+    """
+    have = sum(float(i.qty_to_buy) for i in existing if i.ingredient_id == ingredient_id)
+    if need <= have:
+        return 0
+    delta = need - have
+    for item in existing:
+        if item.ingredient_id == ingredient_id:
+            item.qty_to_buy += delta
+            return 1
+    return 0  # unreachable: ingredient_id was in the dict
+
+
+def _add_new_shortage_item(session: Session, ln: Any, purpose: str) -> None:
+    """Insert a brand-new ShoppingListItem for a shortage not yet listed."""
+    session.add(
+        ShoppingListItem(
+            ingredient_id=ln.ingredient_id,
+            qty_to_buy=float(ln.qty_to_buy),
+            unit=ln.unit,
+            purpose_text=purpose,
+            unit_price_snapshot_gs=_price_snapshot(session, ln.ingredient_id),
+        )
     )
 
 

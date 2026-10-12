@@ -24,8 +24,8 @@ from typing import Final
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.rms.costing import batch_products_cost_margin
 from app.rms.models import Product, Sale
+from app.rms.profitability.cost import batch_products_cost_margin
 
 
 class Quadrant(str, enum.Enum):
@@ -121,7 +121,7 @@ def _product_margin(session: Session, product: Product) -> tuple[int, int | None
     cost_gs is None when the product has no recipe or cost data; we still
     return margin based on sale price alone (margin_ratio undefined).
     """
-    from app.rms.costing import batch_products_cost_margin
+    from app.rms.profitability.cost import batch_products_cost_margin
 
     cost_map = batch_products_cost_margin(session, [product])
     cost_result, margin_pair = cost_map.get(product.id, (None, (None, None)))

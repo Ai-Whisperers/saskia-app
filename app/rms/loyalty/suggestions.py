@@ -45,6 +45,8 @@ import datetime as _dt
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Optional
 
+from loguru import logger
+
 # T-2026-10-01: use the live discount rate (POINTS_VALUE_GS) instead of
 # the old hardcoded 1000 Gs/point that gave a 100% return rate.
 from app.rms.loyalty.ledger import POINTS_VALUE_GS
@@ -427,6 +429,8 @@ def redeemed_on_last_visit(session: Any, customer_id: int) -> bool:
         ).scalar_one_or_none()
         return redeem is not None
     except Exception:
+        # Best-effort suggestion check — log + return False (no suggestion).
+        logger.debug("loyalty.suggestions has_redeemed check failed", exc_info=True)
         return False
 
 

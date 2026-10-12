@@ -1,3 +1,40 @@
+## 2026-10-12 — fix(ci): remove blank line breaking shell continuation in fast-pr-gate smoke step
+
+**Scope**: `.github/workflows/fast-pr-gate.yml` (1 line removed: blank line between two `\` continuations in the smoke-subset pytest block). The blank line caused GitHub Actions to write a malformed shell script where the file path was treated as a command name → "Permission denied" exit 126, even though pytest itself passed. Fix is local — workflow file only, no app/ or tests/ change.
+
+## 2026-10-12 — fix(test): add allow-hardcoded-dates marker for cost-history fixtures
+
+**Scope**: `tests/test_cost_freshness.py` (1 line: docstring marker). The new `test_no_hardcoded_dates.py` gate (added in PR #164) flagged 8 `datetime(2026, ...)` literals as pre-existing on main. The gate allows the `# allow-hardcoded-dates: <reason>` marker in test docstrings; the dates are intentional fixtures for the cost-history window tests in cost_freshness (e.g. "30d stale" → None) so the marker is correct, not a refactor. Unblocks the fast-pr-gate smoke subset for all current and future PRs.
+
+## 2026-10-12 — ci(tooling): fast PR gate + YAML self-check + SBOM + dependabot verification + PR template + `make audit`
+
+**Scope**: `.github/workflows/fast-pr-gate.yml` (new), `.github/workflows/release.yml` (+49 lines: pip-audit + CycloneDX SBOM + artifact upload), `.github/PULL_REQUEST_TEMPLATE.md` (new), `scripts/check_workflows_yaml.py` (new), `Makefile` (`+audit` target), `pyproject.toml` (`[dependency-groups].tooling +cyclonedx-bom`). No `app/**`, no `tests/**`, no ruff config changes — all additive tooling work.
+
+**Measured delta:**
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Workflow files | 16 | 17 (+ fast-pr-gate.yml) |
+| `make audit` target | absent | `audit-cve + workflows-lint + security + complexity + YAML self-check` |
+| PR-time feedback loop | ~6 min (full ci.yml) | <5 min (fast-pr-gate.yml in parallel) |
+| Release SBOM | absent | CycloneDX JSON via `cyclonedx-bom` |
+| Release CVE gate | absent | `pip-audit --strict` (blocking on known CVEs) |
+| Workflow YAML parse check | inline (silent skip risk per PR #159) | dedicated `scripts/check_workflows_yaml.py` invoked by `make audit` + `fast-pr-gate.yml` |
+| Dependabot config | already present | re-verified (uv weekly + github-actions weekly) |
+| Pre-commit security hooks | already present (vulture, bandit, radon-cc) | re-verified |
+| Ruff config + coverage gate | already aligned | re-verified (no changes) |
+
+**Why each item:**
+
+- **fast-pr-gate.yml**: every PR now runs the full ~6 min suite in `ci.yml`. Trivial diffs (typo, doc, format-only) shouldn't pay that latency. The new gate runs lint + format + YAML self-check + a 5-test smoke subset in parallel and gives fast red feedback. `ci.yml` stays the safety net.
+- **YAML self-check (PR #159 lesson)**: `ci.yml`'s `safe_load(...)` was broken since #112 and silently skipped the full suite. `scripts/check_workflows_yaml.py` parses every workflow with `yaml.safe_load` and is invoked by both `make audit` (local) and `fast-pr-gate.yml` (CI) — catches future regressions BEFORE ci.yml tries to run them.
+- **SBOM + pip-audit on release**: NTIA-aligned best practice. CycloneDX JSON SBOM is uploaded as a 90-day retention artifact; `pip-audit --strict` blocks the release on any known CVE in the dependency graph.
+- **PR template**: `Closes gap:` + `Measured delta:` lines (per 2026-10-12 level-up campaign decision). Checklist includes the cross-lane coordination reminders so reviewers can spot scope drift.
+- **`make audit`**: one-shot pre-PR audit target. Reuses existing `audit-cve`, `workflows-lint`, `security`, `complexity` targets + the new script.
+- **`cyclonedx-bom` in `[dependency-groups].tooling`**: pulls in the SBOM generator without touching `dev-base` (kept lean for `ci.yml`).
+
+**Rule 35 (CHANGELOG) + Rule 12 (no coverage gate raise)**: honored. Rule 38 (no `*_legacy.py`): honored. Rule 40 (CC ≤ 10): no app code touched.
+
 ## 2026-10-12 — feat(tenant): SASKIA-220 URL-based tenant routing (opt-in middleware)
 
 **Scope**: `app/rms/tenant.py` (new), `app/rms/main.py` (+6), `tenants/example.yaml` (new), `tests/test_tenant.py` (new, 19 tests), `app/CHANGELOG.md`.

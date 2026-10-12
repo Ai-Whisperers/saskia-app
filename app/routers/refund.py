@@ -77,9 +77,8 @@ async def refund_create(
             detail=f"target_type inválido. Permitidos: {sorted(VALID_TARGET_TYPES)}",
         )
 
-    uid = current_user_id(request)
-    user_id = str(uid) if uid is not None else "operator"
     reason_clean = (reason or "").strip() or None
+    user_id = _operator_user_id(request)
 
     try:
         result = create_refund(
@@ -94,24 +93,7 @@ async def refund_create(
         )
         session.commit()
     except RefundError as e:
-        msg = _ERROR_MESSAGES.get(e.code, "No se pudo procesar el reembolso.")
-        # Map RefundError to flash message + redirect back to the sale detail.
-        from urllib.parse import quote as _quote
-
-        flash_key = f"refund_err_{e.code}"
-        if target_type == "sale":
-            back_url = f"/ventas/{target_id}?flash={_quote(flash_key)}"
-        else:
-            back_url = f"/pedidos/{target_id}?flash={_quote(flash_key)}"
-        logger.warning(
-            "refund failed: type={} id={} amount={} code={} msg={}",
-            target_type,
-            target_id,
-            amount_gs,
-            e.code,
-            msg,
-        )
-        return RedirectResponse(url=back_url, status_code=303)
+        return _refund_error_redirect(e, target_type, target_id, amount_gs)
     except IntegrityError as e:
         # DB trigger caught a violation that slipped through (shouldn't happen
         # if create_refund is correct, but defensive).
@@ -122,10 +104,77 @@ async def refund_create(
             detail="Conflicto con regla de base de datos (cap de reembolso).",
         ) from e
 
-    # Audit row (mirror void-anonymous-void's pattern)
-    try:
-        from app.rms.observability import record_audit
+    _audit_refund_create(
+        request,
+        session,
+        target_type=target_type,
+        target_id=target_id,
+        amount_gs=amount_gs,
+        restock_qty=restock_qty,
+        restocked_qty=float(restocked_qty or 0.0),
+        reason_clean=reason_clean,
+        loyalty_reversed=result.loyalty_reversed,
+        refund_id=result.refund.id,
+    )
+    return _success_redirect(target_type, target_id)
 
+
+def _operator_user_id(request: Request) -> str:
+    """Return the current user id as a string, falling back to 'operator'."""
+    uid = current_user_id(request)
+    return str(uid) if uid is not None else "operator"
+
+
+def _refund_back_url(target_type: str, target_id: int, flash_key: str) -> str:
+    """Build the redirect-back URL for a sale (ventas) or pedido target."""
+    from urllib.parse import quote as _quote
+
+    base = "/ventas" if target_type == "sale" else "/pedidos"
+    return f"{base}/{target_id}?flash={_quote(flash_key)}"
+
+
+def _refund_error_redirect(
+    e: RefundError, target_type: str, target_id: int, amount_gs: int
+) -> RedirectResponse:
+    """Log + redirect on a RefundError; never raises."""
+    msg = _ERROR_MESSAGES.get(e.code, "No se pudo procesar el reembolso.")
+    flash_key = f"refund_err_{e.code}"
+    back_url = _refund_back_url(target_type, target_id, flash_key)
+    logger.warning(
+        "refund failed: type={} id={} amount={} code={} msg={}",
+        target_type,
+        target_id,
+        amount_gs,
+        e.code,
+        msg,
+    )
+    return RedirectResponse(url=back_url, status_code=303)
+
+
+def _success_redirect(target_type: str, target_id: int) -> RedirectResponse:
+    """Redirect back to the source page with a success flash message."""
+    return RedirectResponse(
+        url=_refund_back_url(target_type, target_id, "refund_ok"),
+        status_code=303,
+    )
+
+
+def _audit_refund_create(
+    request: Request,
+    session: Session,
+    target_type: str,
+    target_id: int,
+    amount_gs: int,
+    restock_qty: bool,
+    restocked_qty: float,
+    reason_clean: str | None,
+    loyalty_reversed: bool,
+    refund_id: int,
+) -> None:
+    """Best-effort audit log for the refund. Never raises."""
+    from app.rms.observability import record_audit
+
+    try:
         record_audit(
             request,
             session=session,
@@ -133,24 +182,17 @@ async def refund_create(
             target_type=target_type,
             target_id=target_id,
             detail={
-                "refund_id": result.refund.id,
+                "refund_id": refund_id,
                 "amount_gs": amount_gs,
                 "restock_qty": restock_qty,
-                "restocked_qty": float(restocked_qty or 0.0),
+                "restocked_qty": restocked_qty,
                 "reason": reason_clean,
-                "loyalty_reversed": result.loyalty_reversed,
+                "loyalty_reversed": loyalty_reversed,
             },
         )
         session.commit()
     except Exception as exc:  # best-effort audit; never block the refund
-        logger.warning("audit for refund {} failed: {}", result.refund.id, exc)
-
-    # Redirect back to the source page
-    if target_type == "sale":
-        back_url = f"/ventas/{target_id}?flash=refund_ok"
-    else:
-        back_url = f"/pedidos/{target_id}?flash=refund_ok"
-    return RedirectResponse(url=back_url, status_code=303)
+        logger.warning("audit for refund {} failed: {}", refund_id, exc)
 
 
 @router.get("/{refund_id}")

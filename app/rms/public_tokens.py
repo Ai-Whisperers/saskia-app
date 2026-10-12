@@ -27,6 +27,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import HTTPException, Request
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.rms.models import AuditLog
@@ -177,6 +178,8 @@ def enforce_rate_limit(
             .count()
         )
     except Exception:
+        # AuditLog query failed — fall through (no rate-limit applied) rather than 500.
+        logger.warning("public_tokens rate-limit check failed", exc_info=True)
         return
     if count >= _RATE_LIMIT_THRESHOLD:
         raise HTTPException(

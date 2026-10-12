@@ -388,19 +388,35 @@ def _build_csv_row(row: dict, cust) -> dict:
         "id": row["id"],
         "name": row["name"],
         "phone": row["phone"] or "",
-        "email": (cust.email if cust else "") or "",
-        "birthday": (cust.birthday if cust else "") or "",
-        "how_found": (cust.how_found if cust else "") or "",
-        "preferred_channel": (cust.preferred_channel if cust else "") or "",
+        "email": _cust_attr(cust, "email"),
+        "birthday": _cust_attr(cust, "birthday"),
+        "how_found": _cust_attr(cust, "how_found"),
+        "preferred_channel": _cust_attr(cust, "preferred_channel"),
         "marketing_consent": "si" if (cust and cust.marketing_consent) else "no",
-        "dietary_restrictions": (cust.dietary_restrictions if cust else "") or "",
+        "dietary_restrictions": _cust_attr(cust, "dietary_restrictions"),
         "n_sales": row["n_sales"],
         "lifetime_spend_gs": row["lifetime_spend_gs"],
         "tier": row["tier"],
         "points": row["points"],
-        "last_sale_at": row["last_sale_at"].isoformat() if row["last_sale_at"] else "",
-        "created_at": row["created_at"].isoformat() if row["created_at"] else "",
+        "last_sale_at": _iso_or_empty(row["last_sale_at"]),
+        "created_at": _iso_or_empty(row["created_at"]),
     }
+
+
+def _cust_attr(cust, attr: str) -> str:
+    """Return `getattr(cust, attr)` or '' when `cust` is None."""
+    if cust is None:
+        return ""
+    return getattr(cust, attr) or ""
+
+
+def _iso_or_empty(value) -> str:
+    """`value.isoformat()` if value is truthy, else ''. For datetime
+    columns that may be NULL (None) or a datetime.
+    """
+    if not value:
+        return ""
+    return value.isoformat()
 
 
 def _render_directory(
@@ -453,20 +469,41 @@ def _compute_profile_nudges(session, all_customers: list) -> dict:
 
     Extracted from _render_directory to reduce complexity.
     """
+    return {
+        "sin_telefono": _count_missing(all_customers, _missing_phone),
+        "sin_dietary": _count_missing(all_customers, _missing_dietary),
+        "sin_direccion": _count_missing(all_customers, lambda c: _missing_address(session, c)),
+        "sin_consent": _count_missing(all_customers, _missing_consent),
+    }
+
+
+def _count_missing(customers: list, predicate) -> int:
+    """Count how many customers satisfy `predicate(customer)`."""
+    return sum(1 for c in customers if predicate(c))
+
+
+def _missing_phone(c) -> bool:
+    """True when the customer has no usable phone number."""
+    return not (c.phone or "").strip()
+
+
+def _missing_dietary(c) -> bool:
+    """True when the customer has no dietary restrictions on file."""
+    return not (c.dietary_restrictions or "").strip()
+
+
+def _missing_address(session, c) -> bool:
+    """True when the customer has no CustomerAddress row on file."""
     from app.rms.models import CustomerAddress
 
-    return {
-        "sin_telefono": sum(1 for c in all_customers if not (c.phone or "").strip()),
-        "sin_dietary": sum(1 for c in all_customers if not (c.dietary_restrictions or "").strip()),
-        "sin_direccion": sum(
-            1
-            for c in all_customers
-            if not session.scalar(
-                select(CustomerAddress.id).where(CustomerAddress.customer_id == c.id).limit(1)
-            )
-        ),
-        "sin_consent": sum(1 for c in all_customers if not c.marketing_consent),
-    }
+    return not session.scalar(
+        select(CustomerAddress.id).where(CustomerAddress.customer_id == c.id).limit(1)
+    )
+
+
+def _missing_consent(c) -> bool:
+    """True when the customer has not opted in to marketing."""
+    return not c.marketing_consent
 
 
 def customer_to_api_payload(c: Customer, session: Session) -> dict:

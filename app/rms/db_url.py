@@ -14,7 +14,7 @@ Used by:
 - app/rms/db.py: not anymore (moved out, was previously defined here)
 - app/rms/backup.py: `_get_db_url_safe` for the manifest's
   db_url_safe field (no password leak in operator-stored backups)
-- app/rms/config.py: the canonical DB URL builder; we DO NOT
+- app.rms/config.py: the canonical DB URL builder; we DO NOT
   import from there to avoid a config -> db_url import (config is
   higher layer than this).
 """
@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import os
 from urllib.parse import urlsplit, urlunsplit
+
+from loguru import logger
 
 
 def db_url_safe() -> str:
@@ -47,6 +49,8 @@ def db_url_safe() -> str:
             return urlunsplit((parts.scheme, netloc, parts.path, parts.query, ""))
         return url
     except Exception:
+        # Defensive URL parse — log + return sentinel so caller can detect bad URL.
+        logger.debug("db_url_safe parse failed", exc_info=True)
         return "<unknown>"
 
 
