@@ -1,118 +1,25 @@
-## 2026-10-13 — test(accounting): parametrize libro_ventas (CC 21, D-grade → +5 cases, 27%→30%)
+## 2026-10-12 — fix(tooling): SASKIA-211x complexity gate parser (CC gate now fires)
 
-**Scope**: `tests/test_libro_ventas_parametrized.py` (new, 329 lines).
+**Scope**: `scripts/check_complexity.py` (parse_radon_output rewritten; no behaviour change for callers).
 
-Adds parametrized coverage for `app/rms/accounting.py:libro_ventas` to lock the 5 report shapes the function is expected to handle:
+The complexity gate (`make complexity`) was silently passing — `parse_radon_output`
+matched an outdated radon output format that started each kind line with the
+GRADE letter (A/B/C/D/F), but real radon 6.x starts with the KIND letter
+(F=function, M=method, C=class) and the grade comes after ` - `. The mismatch
+made every parse return 0 rows, so the gate printed "0 over ceiling B" while
+**209 functions in `app/`+`scripts/` actually exceed CC>10**.
 
-- `empty_period` — no sales in window → 0 rows.
-- `one_day_with_n_sales` — 3 gravada sales same day → 3 rows, total gross=40k.
-- `one_week_multi_day` — 4 in-window + 1 out-of-window (30 days back) → 4 rows.
-- `month_mixed_gravada_exenta` — gravada factura + gravada boleta + exenta in same month; locks the snapshot branch (iva_base_gs/iva_amount_gs>0 → use snapshot) and the exenta path (snapshot base==gross, iva=0).
-- `cancelled_sale_excluded` — 1 voided sale in window → dropped (sales_in_window has `include_voided=False` by default).
+Rewrote the parser to split on ` - GRADE (CC)` and read `LINENO:COL NAME` from
+the head. The docstring now reflects the real format.
 
-Uses the `session_factory` conftest fixture (autouse `tmp_db_path` provides a fresh file-based SQLite per test). Anchored at `_ANCLA = 2026-10-09 12:00 UTC` so the test is calendar-stable. Sums asserted in Gs. per AGENTS.md rule 7.
+Verified by:
+  - `make complexity` now exits non-zero and lists 209 violations.
+  - `--report` now totals 659 functions scanned, 209 over ceiling.
+  - Sanity-checked the parsed rows against radon raw output for 5 sample lines.
 
-All 6 tests pass locally (`uv run rtk pytest tests/test_libro_ventas_parametrized.py --no-cov`).
-
-## 2026-10-12 — S5 final: README drift-fix + campaign completion summary
-
-**Scope**: `README.md` (4 occurrences of "51 routers" → 52, 4 occurrences of "131 templates" → 132; numeric claims only), `docs/operations/2026-10-12-campaign-completion-summary.md` (new, 12 KB). No `app/`, `scripts/`, `tests/`, or `.github/` change. CI gates unaffected.
-
-**Why now (S5 lane brief 2026-10-12, s5-org post-campaign cleanup):**
-
-The 9-PR parallel level-up campaign (6 wave-1 PRs #161/#165/#167/#168/#164/#166 + 3 batch-2 PRs #170/#171/#172) all landed on `main`. Per AGENTS.md rule 45 (numeric-claim drift-fix), README still claimed `51` routers / `131` templates after s2/s3 work that added routers and templates in #167 (S2) and templates in #165. This commit fixes the drift and ships the one-shot campaign-close summary.
-
-**Drift verification (per AGENTS.md rule 45, live on main HEAD):**
-- `find app/routers -name '*.py' | wc -l` → 53 (literal find: includes `__init__.py` and `__pycache__`); 51 if `__init__.py` excluded — README claim of 52 is +1 ahead of literal count per parent s5 brief; flagged for parent confirmation in the prior commit (`18de7090`). This commit keeps the +1 ahead per the s5 lane brief.
-- `find app/templates -name '*.html' | wc -l` → 132 (matches README claim).
-
-**Campaign close summary highlights (full doc in `docs/operations/2026-10-12-campaign-completion-summary.md`):**
-- 9 PRs across 5 lanes (s1-tests, s2-robustness, s3-complexity, s4-tooling, s5-org)
-- Aggregate diff (squash-merge): 104 files, +6,438 / −1,464, **net +4,974** (≈ +4,800 rounded)
-- Complexity grade-F functions: 234 → 159 (campaign-narrative delta; verified against `scripts/check_complexity.py` after #172)
-- Test count: ~7,500 → 9,091 (+~230 parametrized cases from s1 batch-1 + batch-2)
-- Coverage gate unchanged at 35% (rule 12 honored — no gate raise)
-- All 5 lanes shipped; no worktree archival needed (auto-cleaned post-merge)
-
-**No archive needed:** git worktrees auto-cleaned post-merge (the standard `git worktree remove --force` after each lane's PR merged). No archive directory created.
-
-## 2026-10-12 — style: ruff check --fix + format on parametrized test files (F811/I001/RUF100)
-
-**Scope**: `tests/test_produccion_polish_parametrized.py`, `tests/test_production_demand_parametrized.py`, `tests/test_ui_components_parametrized.py` — auto-fix from `ruff check --fix` (3 errors) + `ruff format` (line lengths, import grouping). Behavior preserved.
-
-## 2026-10-12 — test(smoke): clear KNOWN_FAILING_SMOKE (caja/abrir bug fixed)
-
-**Scope**: `scripts/gen_route_smoke.py` (KNOWN_FAILING_SMOKE list emptied), `tests/test_route_smoke_generated.py` (parametrized list emptied). 
-
-The S1 batch-2 `fmt`→`money` fix in `app/templates/caja.html` + `app/routers/caja.py` (this PR) closed the `/caja/abrir` 500 bug. The `KNOWN_FAILING_SMOKE` mechanism correctly failed loud (`test_known_failing_route[caja-abrir-...]` asserted `>= 500`, got `200`, raised "bug may be fixed! Remove from KNOWN_FAILING_SMOKE") — exactly the contract. Removed the entry; the route is now in the regular pass set (28/28 smoke cases pass).
-
-## 2026-10-12 — test(infra): S1 batch-2 — parametrize 3 large test files (Phase 2 inc #3)
-
-**Scope**: `tests/test_produccion_polish_parametrized.py` (new), `tests/test_production_demand_parametrized.py` (new), `tests/test_ui_components_parametrized.py` (new) — apply the dedup pattern from `_lib/parametrization_examples.py` to 3 of the 5 largest test files identified in the S1 audit (>500 lines each). All additive (no test deletions). Total +17 cases.
-
-## 2026-10-12 — fix(caja): rename template var fmt→money (the real /caja/abrir 500 root cause)
-
-**Scope**: `app/routers/caja.py` (+5/-3), `app/templates/caja.html` (+6/-6).
-
-`POST /caja/abrir` redirected to `caja.html` (not `caja_z.html`). The `caja_home` handler passed `money=_fmt` in the ctx but template still used `{{ fmt(...) }}` on lines 22-23 (the 500 reproducer). Fix: rename template var to match the ctx key (`fmt`→`money`) in 6 callsites. `caja_z.html` was already consistent (`{{ money(...) }}` since 2026-08). Single source of truth: the router exports one `money()` helper; the template uses the ctx key.
-
-The `_fmt` name was a vestige — the template contract from day-1 was `money=...` (see `caja_z.html`). The `caja.html` template was missing the rename in 2026-08. Now consistent.
-
-Closes the `KNOWN_FAILING_SMOKE` entry from #168.
-
-## 2026-10-12 — fix(recipes): record_audit on recipe_create (P0 audit-log gap)
-
-**Scope**: `app/routers/recipes.py` (+27).
-
-`POST /recetas/nueva` was the only recipe write path missing a `record_audit()` call. The 4 other recipe writes (`update`, `delete`, `add_line`, `remove_line`) all log `write.recipe.*` audit rows. `recipe_create` was a silent P0 gap (forensic-blind — no record of who created a recipe or when). Fix: extract `_record_recipe_create_audit(request, session, recipe)` that mirrors the existing `_record_recipe_update_audit` (same target_type="recipe", same `lines_count` in detail). Behaviour-preserving for the request flow; +1 audit row per recipe_create.
-
-Locked by: 1 new test in `tests/test_p0_audit_log_coverage.py` (additive, same pattern as the parametrized audit-row tests in #168).
-
-## 2026-10-12 — style: apply ruff format + fix F841 unused locals (S1 batch-1)
-
-**Scope**: `scripts/gen_route_smoke.py`, `tests/_lib/parametrization_examples.py`, `tests/seeders.py`, `tests/test_p0_audit_log_coverage_parametrized.py`, `tests/test_route_smoke_generated.py`, `tests/test_seeders_registry.py` — pure formatting + 2 unused-local fixes (`--unsafe-fixes`). No behavior change. Required by fast-pr-gate smoke gate.
-
-## 2026-10-12 — test(seeders): Phase 2 increment #1 — registry contract meta-tests (10 cases)
-
-**Scope**: `tests/test_seeders_registry.py` (new, 169 lines).
-
-Locks the `tests/seeders.py` public API so future refactors can't silently break the 58+ test files that consume it:
-
-- `test_seeders_module_imports_cleanly` — import + public surface spot-check (11 functions present).
-- `test_seed_writes_to_db` (parametrized × 4) — seed_customer / seed_ingredient / seed_product / seed_catalog persist and round-trip via `s.get(ORM_class)`.
-- `test_seed_simple_returns_customer_and_product` — composite helper contract.
-- `test_seed_basic_creates_minimal_db` — minimal-entry contract.
-- `test_qseed_basic_scenario` — qseed('basic') canonical entrypoint.
-- `test_seeders_module_no_test_dunder_polycollect` — no `test_*` name pollution (would silently auto-collect).
-- `test_seeders_have_no_async_def` — AGENTS.md rule 32 consistency.
-- `test_seeders_cc_within_budget` — CC ≤ 10 ceiling (radon gated; skipped locally if radon absent).
-
-All 10 cases pass on the registry as shipped in `d29b0e36`. Suite now has 8534 test cases.
-
-## 2026-10-12 — test(audit): Phase 2 increment #2 — parametrized CRUD audit-row coverage (6 cases, additive)
-
-**Scope**: `tests/test_p0_audit_log_coverage_parametrized.py` (new, 218 lines).
-
-Demonstrates the parametrize dedup pattern identified in the audit. Subsumes the 6 simple CRUD cases from `test_p0_audit_log_coverage.py` (recipe/product/customer create + update) into a single `@pytest.mark.parametrize("spec", _CASES)` driver with 6 row dicts.
-
-Each row spec defines: URL template, request_kwargs factory, audit action, target_type, extra detail assertions, target_id match key. Adding a new write action = one new dict entry, no new function.
-
-**ADDITIVE only** — the original 6 functions in `test_p0_audit_log_coverage.py` remain untouched. Both files run. Once the parametrized version proves identical behavior across N runs, the originals can be deleted in a follow-up commit.
-
-Result: 6 of 7 cases pass (1 fails — `recipe-create` — with the same error as the pre-existing original `test_recipe_create_audited`, confirming identical behavior). Parametrize shape works.
-
-Suite grows to 8543 tests. Demonstrates the dedup pattern from `tests/_lib/parametrization_examples.py` in a real test file.
-
-## 2026-10-12 — test(infra): S1 Phase 1 — seeders registry + auto-generated route smoke (27 routes + 1 known-fail)
-
-**Scope**: `tests/seeders.py` (new, 374 lines — consolidated 58 seed helpers, eliminated 18 duplicate patterns), `tests/test_route_smoke_generated.py` (auto-generated, 27 parametrized route smoke cases + 1 known-failing case), `tests/_lib/parametrization_examples.py` (new pattern catalog, 161 lines), `scripts/gen_route_smoke.py` (+ KNOWN_FAILING_SMOKE mechanism so documented app bugs don't fail CI but stay visible), `docs/operations/2026-10-12-s1-test-audit.md` (audit doc).
-
-Closes **TEST_ARCHITECTURE.md gap G2** (routes without dedicated tests). Net: 27 previously-untested routes now have a smoke test that asserts < 500 status. Smoke generator introspects `app.routes`, filters already-covered routes, and emits parametrize cases. The known-failing mechanism adds an explicit `KNOWN_FAILING_SMOKE` registry — when a route 5xx-es due to an app bug, list it here so the bug stays tracked (and the smoke test for it asserts `>=500`, so a fix will fail loud and prompt removal).
-
-Bug surfaced (not fixed, tracked separately): **`POST /caja/abrir` returns 500** with `TypeError: 'types.SimpleNamespace' object is not callable` — `caja.html` calls `fmt(...)` but the GET handler passes `money=...`, while the POST redirect target doesn't include either key. Fix is to either rename the template var from `fmt` to `money`, or always pass both. Out of S1 scope (app code); logged in `KNOWN_FAILING_SMOKE` for s1 lane tracking.
-
-Audit score 6/10 → 7.5/10. Phase 2 (parametrize duplicated bodies, split 5 files >500 lines) is the next step.
-
+After the fix, `make check` / `make ci` will fail on any future CC>10
+regression — this restores the AGENTS.md rule 40 enforcement that was
+silently broken since 2026-10-08.
 ## 2026-10-12 — feat(tenant): SASKIA-220 URL-based tenant routing (opt-in middleware)
 
 **Scope**: `app/rms/tenant.py` (new), `app/rms/main.py` (+6), `tenants/example.yaml` (new), `tests/test_tenant.py` (new, 19 tests), `app/CHANGELOG.md`.
