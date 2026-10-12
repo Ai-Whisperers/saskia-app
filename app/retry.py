@@ -143,7 +143,13 @@ def default_is_transient(exc: BaseException) -> bool:
     # alias for the builtin `TimeoutError`, so the class name surfaces
     # as "TimeoutError" not "timeout". We accept BOTH so the classifier
     # stays valid on 3.10 (older runtime) and 3.13+ (current runtime).
-    if name in {"TimeoutError", "timeout", "gaierror", "ConnectionRefusedError", "ConnectionResetError"}:
+    if name in {
+        "TimeoutError",
+        "timeout",
+        "gaierror",
+        "ConnectionRefusedError",
+        "ConnectionResetError",
+    }:
         return True
 
     return False
