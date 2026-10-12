@@ -1,3 +1,20 @@
+## 2026-10-12 — refactor(customers): SASKIA-211x split _build_csv_row (CC 16→4)
+
+Extracted `_cust_attr(cust, attr)` (getattr-or-empty) and
+`_iso_or_empty(value)` (ISO format or '' for nullable timestamps).
+Main function is now a flat dict literal.
+
+CHARACTER-FOR-CHARACTER identical output verified across 3 cases
+(None cust, full cust, partial timestamps).
+
+## 2026-10-12 — refactor(customers): SASKIA-211x split _compute_profile_nudges (CC 11→1)
+
+Extracted `_count_missing` and four `_missing_*` predicates
+(phone / dietary / address / consent). Main function is now a dict
+literal of `_count_missing(...)` calls.
+
+11 SASKIA-304 customer tests pass.
+
 ## 2026-10-12 — refactor(refund): SASKIA-211x split refund_create (CC 12→8)
 
 Extracted 5 helpers:
