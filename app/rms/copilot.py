@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -71,6 +72,8 @@ def _context(session: Session, intent: str) -> dict[str, Any]:
             ctx["ventas_totales_gs"] = total_gs
             ctx["cantidad_ventas"] = n
     except Exception:
+        # Defensive context assembly — log + mark context as broken but return ctx.
+        logger.debug("copilot._context assembly failed", exc_info=True)
         ctx["error_contexto"] = "no_se_pudo_armar"
     return ctx
 
@@ -112,6 +115,8 @@ def answer(question: str, session: Session) -> dict[str, Any]:
         )
         return {"answer": text, "intent": intent, "llm_used": True, "context": ctx}
     except Exception:
+        # LLM call failed — log + return fallback so the operator still gets numbers.
+        logger.warning("copilot.answer LLM call failed; serving fallback", exc_info=True)
         return {
             "answer": _FALLBACK.format(**ctx),
             "intent": intent,

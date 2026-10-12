@@ -43,6 +43,8 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from loguru import logger
+
 from app.rms import config
 from app.rms.models.channels import Channel
 
@@ -436,6 +438,7 @@ def _check_stock_shortages(
     try:
         moves = _compute_stock_moves(session, recipe, intent.qty, set())
     except Exception as e:  # CycleInRecipeTree
+        logger.debug("pre_sale_check stock moves failed (cycle?): %s", e, exc_info=True)
         _add_recipe_cycle_warning(checklist, recipe, e)
         return
 

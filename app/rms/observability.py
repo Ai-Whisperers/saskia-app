@@ -18,6 +18,7 @@ Also exposes a `record_audit()` helper that:
 
 from __future__ import annotations
 
+import contextvars
 import time
 import uuid
 from typing import Any, Callable
@@ -44,6 +45,20 @@ _SESSION_USER_ID_KEYS = (
     "user",
 )
 
+# Per-request route binding. Set by ``bind_request_route`` after FastAPI
+# route matching resolves, and read by ``RequestContextMiddleware`` when
+# emitting the access log. ``contextvars`` survives ``await`` boundaries
+# without leaking across requests (unlike ``threading.local`` under
+# asyncio). See docs/operations/2026-10-12-s2-robustness-audit.md PR7.
+_current_route: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "rms_current_route", default=None
+)
+
+
+def get_current_route() -> str | None:
+    """Return the route name bound for the current request, or None."""
+    return _current_route.get()
+
 
 def generate_request_id() -> str:
     """Generate a short, URL-safe request id (12 hex chars)."""
@@ -64,6 +79,8 @@ def _safe_get_user_id(request: Request) -> str | None:
                 return str(u)
         return None
     except Exception:
+        # Defensive probe — log + fall through. URL parse failure is non-fatal.
+        logger.debug("url_for_request probe failed", exc_info=True)
         return None
 
 
@@ -130,6 +147,12 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                 raise
             if not skip_log:
                 elapsed_ms = (time.perf_counter() - start) * 1000  # type: ignore
+                # Pull the matched route from request.state (set by
+                # ``bind_request_route`` inside the route handler) or
+                # fall back to the per-request contextvar.
+                route = (
+                    getattr(request.state, "route", None) or _current_route.get() or "<unmatched>"
+                )
                 # INFO for 2xx/3xx, WARNING for 4xx, ERROR for 5xx
                 log_fn = (
                     logger.error
@@ -139,9 +162,10 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                     else logger.info
                 )
                 log_fn(
-                    "access method={} path={} status={} elapsed_ms={:.0f}",
+                    "access method={} path={} route={} status={} elapsed_ms={:.0f}",
                     request.method,
                     request.url.path,
+                    route,
                     response.status_code,
                     elapsed_ms,
                 )
@@ -154,12 +178,27 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             return response
 
 
-def bind_request_route(request: Request, route_name: str) -> None:
-    """Re-bind loguru context with the matched route name (call after routing)."""
-    # Loguru doesn't support incremental context updates cleanly, so
-    # we emit a marker line. The next logger.* call in the same request
-    # won't have it, but it's still useful for grep/grep-aware tooling.
-    logger.bind(route=route_name).debug("route matched")
+def bind_request_route(request: Request, route_name: str | None) -> None:
+    """Bind the matched route name to the current request's logging context.
+
+    Call this from inside a route handler (after FastAPI has resolved the
+    route) so the access log + downstream ``logger.*`` calls pick up the
+    route. Implementation uses ``contextvars.ContextVar`` (per-request,
+    survives ``await``), NOT loguru's ``logger.bind()`` which leaks
+    across requests and is no longer recommended.
+
+    Reads ``request.scope.get("route").path`` if ``route_name`` is not
+    provided (the common case — call from a middleware or a single
+    handler).
+    """
+    if route_name is None and hasattr(request, "scope"):
+        route = request.scope.get("route")
+        if route is not None:
+            route_name = getattr(route, "path", None) or getattr(route, "name", None) or str(route)
+    if route_name is None:
+        route_name = "<unmatched>"
+    request.state.route = route_name
+    _current_route.set(route_name)
 
 
 def record_audit(
