@@ -1,3 +1,28 @@
+## 2026-10-12 — docs(agents): SASKIA-211e AGENTS.md accuracy sync (post-SASKIA-212 refactor)
+
+**Scope**: `AGENTS.md`. 4 targeted doc fixes; no code changes. Follows the SASKIA-210 multi-tenant correction (2026-10-12 entry item 7) and the SASKIA-212 lifecycle refactor.
+
+Four stale facts that drifted from code reality between 2026-10-07 and 2026-10-12:
+
+1. **Hard rule 8 said `apply_sale()` lives in `app/rms/costing.py`.** That file is a 1.3 KB deprecated shim since the SASKIA-212 refactor; the real implementation is in `app/rms/sales/lifecycle.py` (~17 KB). Same for the `migration-090 single-table consolidation comment` reference. **Fix**: updated both to point at `app/rms/sales/lifecycle.py`, with an inline callout that `app/rms/costing.py` is a deprecated shim.
+
+2. **Anti-rule 2 said "251 app/ python files, 45 tables".** The repo grew to 289 Python files and 64 tables between 2026-10-07 and 2026-10-12. Verified by `os.walk('app/')` for `.py` extension and a regex sweep for `__tablename__` across `app/`. **Fix**: updated to 289 / 64. Migration count (117) is still correct on main; will need re-verification after 118+119 merge.
+
+3. **Testing section said "Current gate is 35%".** The 9-areas test scaffolding that landed 2026-10-12 brought coverage to 43% with a 40% gate (state file: `state/test-coverage-9-areas-43pct.json`). **Fix**: updated to "Current gate is 40% (43% actual coverage, 9-areas migration landed 2026-10-12)" and added the new state file to the references.
+
+4. **No addendum pointing readers to the per-package doc.** The `app/rms/AGENTS.md` has its own money/unit/time/recipe/stock/testing/migration rules and tooling cheat sheet. **Out of scope for this PR** — the per-package doc is already linked from the root troubleshooting table indirectly; a future PR can add a direct cross-link.
+
+**Why this matters**: AGENTS.md is the build brief that AI agents (Kiki, this assistant, future agents) read before opening any PR. Stale facts there cause new code to perpetuate the wrong reference (e.g., an agent reading "apply_sale() is in costing.py" might add a new caller to the deprecated shim instead of `sales/lifecycle.py`).
+
+**Out of scope (acknowledged, deferred)**:
+
+- `app/rms/AGENTS.md` may also have stale references after the SASKIA-212 lifecycle refactor; not verified in this PR.
+- The 4 `to_int_gs()` swap sites I identified earlier in this session (`prime_cost.py`, `analytics.py`, `sales.py`, `dashboard.py`) are AGENTS rule 2 violations but not doc fixes; they belong in a code PR (SASKIA-211a).
+- Anti-rule count (line 210: "13 of 20 anti-rules enforced") is approximately right; the actual `tests/test_ci_anti_rules.py` has 14 test functions, of which ~10-12 are real anti-rule assertions and the rest are CI-gate-infrastructure. Not re-counted in this PR.
+
+**Test coverage**: N/A (docs-only PR, no test changes).
+
+
 ## 2026-10-12 — fix(cocina): SASKIA-211 cocina-pages-audit fixes
 
 **Scope**: `app/routers/recipes.py`, `app/routers/produccion/forecast.py`, `app/templates/recetas.html`, `app/templates/receta_detalle.html`, `app/templates/merma.html`, `AGENTS.md`, `tests/test_cocina_pages_audit.py` (new).

@@ -43,7 +43,7 @@ Supports **two deployment modes**:
 ### Data integrity (5 sub-rules)
 
 7. **Integer Gs. in the DB.** Money columns are `int`, not `Decimal`.
-8. **Every sale decrements stock.** When a sale is recorded, the system MUST write `StockMovement` rows for every recipe line of every product in the sale. The router in `app/routers/sales.py` (`sale_create`, `sale_create_multi`) delegates to `apply_sale()` in `app/rms/costing.py`, which is the SINGLE place that writes the audit row. **The chain is locked by 3 tests in `tests/test_sale_create_writes_stock_movement.py`** (and 7 tests in `tests/test_stock_drop.py`). A 2026-10-07 review initially thought this rule was broken (router doesn't write `StockMovement` directly) — but it's correctly delegated to `apply_sale()`. The test file exists to prevent future refactors from breaking the delegation. **Do not move the StockMovement write into the router** — that creates two write paths and the migration-090 single-table consolidation comment in `costing.py` will warn against it.
+8. **Every sale decrements stock.** When a sale is recorded, the system MUST write `StockMovement` rows for every recipe line of every product in the sale. The router in `app/routers/sales.py` (`sale_create`, `sale_create_multi`) delegates to `apply_sale()` in `app/rms/sales/lifecycle.py` (NOT `app/rms/costing.py` — that file is a 1.3 KB deprecated shim since the SASKIA-212 refactor), which is the SINGLE place that writes the audit row. **The chain is locked by 3 tests in `tests/test_sale_create_writes_stock_movement.py`** (and 7 tests in `tests/test_stock_drop.py`). A 2026-10-07 review initially thought this rule was broken (router doesn't write `StockMovement` directly) — but it's correctly delegated to `apply_sale()`. The test file exists to prevent future refactors from breaking the delegation. **Do not move the StockMovement write into the router** — that creates two write paths and the migration-090 single-table consolidation comment in `sales/lifecycle.py` warns against it.
 9. **Negative stock is allowed** (kitchen reality > accounting purity) but red-flashes on dashboard.
 10. **Cross-recipe BOM cycles raise `CycleInRecipeTree`**; UI shows error, never silently truncates.
 11. **Auto-overwrite of recipes during re-import** requires confirmation modal showing diff; auto-backup before mutation.
@@ -106,7 +106,7 @@ These are ideas that look good on paper but are wrong for Sazon at its current s
 
 1. **Don't migrate to React/Vue/Tailwind/SPA.** Server-rendered Jinja2 + HTMX is correct. (HTMX IS already in use in `receta_form.html` and `produccion*.html`.) The fix for UX is design system + components, not a framework. **Enforce in CI: fail if templates/ add a React import.**
 
-2. **Don't migrate to microservices.** The monolith is right for this scale. Sazon has 251 app/ python files, 45 tables, 117 migrations — well within monolith territory. The right answer is "extract a function" or "extract a module", not "extract a service".
+2. **Don't migrate to microservices.** The monolith is right for this scale. Sazon has 289 app/ python files, 64 tables, 117 migrations — well within monolith territory. The right answer is "extract a function" or "extract a module", not "extract a service".
 
 3. **Don't add GraphQL.** REST + OpenAPI is sufficient until 3+ external consumers. No graphene, strawberry, ariadne, hasura, stepzen, etc.
 
@@ -179,8 +179,8 @@ This codebase is maintained by **Iván directly**, not by an external "Kiki" any
 ## Testing
 
 - Pytest with `uv run pytest`.
-- Coverage gate: 80% (CI fails below). Current gate is 35%; Phase 1-4
-  plan bumps it in 4 stages. See `state/test-coverage-2026-10-04.json`.
+- Coverage gate: 80% (CI fails below). Current gate is 40% (43% actual coverage, 9-areas migration landed 2026-10-12); Phase 1-4
+  plan bumps it in 4 stages. See `state/test-coverage-2026-10-04.json` and `state/test-coverage-9-areas-43pct.json`.
 - Property-based tests for money (`test_money.py`); unit tests for unit
   coercion (`test_units.py`); roundtrip tests for import.
 - **E2E tests with Playwright** (added 2026-10-07, in `pyproject.toml` `dev` extra). Lives in `tests/e2e/`.
