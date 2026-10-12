@@ -11,8 +11,8 @@ Math under test:
 
 from __future__ import annotations
 
-from app.rms.costing import recipe_unit_cost_gs
 from app.rms.models import ComplianceInfo, Ingredient, Recipe, RecipeLine
+from app.rms.profitability.cost import recipe_unit_cost_gs
 
 _SEQ = [0]
 
@@ -50,7 +50,7 @@ def test_null_yield_backward_compatible(session_factory):
         base = res.batch_cost_gs
         # Old formula: batch / yield_qty. New with defaults must equal it
         # (yield 1.0, labor 0).
-        from app.rms.costing import recipe_batch_cost_gs
+        from app.rms.profitability.cost import recipe_batch_cost_gs
 
         batch = recipe_batch_cost_gs(s, r.id).batch_cost_gs
         assert base == _old_formula(batch, 10)

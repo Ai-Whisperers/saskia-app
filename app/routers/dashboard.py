@@ -31,7 +31,6 @@ from app.rms.charts import (
 )
 from app.rms.config import ASUNCION_TZ
 from app.rms.constants import DEFAULT_TAX_REGIME
-from app.rms.costing import batch_products_cost_margin, batch_recipes_cost
 from app.rms.dependencies import get_session
 from app.rms.insights import build_actionable_insights, build_insights
 from app.rms.models import (
@@ -44,6 +43,7 @@ from app.rms.models import (
     WishlistItem,
 )
 from app.rms.money import to_int_gs
+from app.rms.profitability.cost import batch_products_cost_margin, batch_recipes_cost
 from app.services.template_render import render
 
 router = APIRouter(dependencies=[Depends(require_login)])

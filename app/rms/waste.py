@@ -313,7 +313,7 @@ def record_recipe_waste(
         )
 
     # Lazy import to avoid circular: costing imports waste transitively in some paths.
-    from app.rms.costing import _compute_stock_moves
+    from app.rms.sales.lifecycle import _compute_stock_moves
 
     # The recipe walker expects (sale_qty) in "output units" (e.g. muffins).
     # batch_qty is the multiplier on yield — e.g. 2.0 means "2 batches".

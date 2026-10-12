@@ -133,7 +133,7 @@ def theoretical_vs_actual(
     sale_stock_move.cost_gs which is out of scope here.
     """
     from app.rms.config import ASUNCION_TZ
-    from app.rms.costing import batch_products_cost_margin
+    from app.rms.profitability.cost import batch_products_cost_margin
 
     cutoff = datetime.now(ASUNCION_TZ) - timedelta(days=days)
 
@@ -232,7 +232,7 @@ def price_change_impact(
     new_price_gs: int,
 ) -> PriceImpact:
     """What happens to recipes/products when one ingredient's price moves."""
-    from app.rms.costing import recipe_unit_cost_gs
+    from app.rms.profitability.cost import recipe_unit_cost_gs
     from app.rms.tag_algebra import recipes_using_ingredient
 
     ing = session.get(Ingredient, ingredient_id)

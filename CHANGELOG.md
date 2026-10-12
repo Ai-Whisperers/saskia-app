@@ -1,3 +1,18 @@
+## 2026-10-12 — refactor(abstractions): SASKIA-211a endgame — remove the costing.py shim entirely
+
+**Scope**: 35 files. `app/rms/costing.py` (**deleted**), 17 app modules + 6 test files (import rewrites), `app/routers/herebus.py` (Unit bypass fix), `tests/test_abstraction_usage.py` (2 gates hardened), `tests/test_profitability_sales_split.py` (rewritten for the post-shim world).
+
+Completes the SASKIA-211a abstraction program. `app/rms/costing.py` was a deprecated 1.3 KB re-export shim since the Sprint 2.3 split (2026-10-02); every caller now imports from the canonical modules:
+
+1. **All 23 shim-importing files migrated** (17 app + 6 test). `from app.rms.costing import X` → `from app.rms.profitability.cost import X` (read-side: costs/margins) or `from app.rms.sales.lifecycle import X` (transactional: apply/void sale). Includes the 9 function-local imports in `derived_intel`, `menu_engineering`, `product_price_history`, `recipe_intel`, `tagging/*`, `waste`, `pedidos`, `products`, `recipes`. Supersedes the #160 plan ("the shim stays for app/ call sites") with full removal.
+2. **Shim deleted.** `app/rms/costing.py` is gone. Rationale: rule-38 spirit (no shim files kept "for backward compatibility" — migrate the callers and delete the file); per AGENTS.md rule 8 the write path is `sales/lifecycle.py` already.
+3. **Gates hardened**. `test_no_deprecated_costing_imports_anywhere` (was: only-names-not-in-`__all__`) now fails on ANY `app.rms.costing` import in app/ or tests/. `test_apply_sale_imported_from_canonical_path_in_tests` drops its "shim co-import is OK" carve-out — the module no longer exists, so a shim import is a guaranteed import-time crash.
+4. **`test_profitability_sales_split.py` rewritten** for the post-shim world: `test_costing_shim_removed` (importlib + filesystem check), `test_only_one_costing_module` now forbids `costing.py` itself; the thin-shim/no-logic tests are deleted with the shim.
+5. **3 `Unit.coerce()` bypasses fixed** in `app/routers/herebus.py` (the informational gate's only live candidates): `unit="und"` → `unit=Unit.UNIT.value` at the 2 ingredient-creation sites + 1 shopping-list site. Values are byte-identical (`Unit.UNIT.value == "und"`); the enum reference keeps the sites discoverable when units are refactored.
+6. **Stale doc references updated**: `analytics.py` + `models_legacy.py` + `recipes.py` comments, `profitability/cost.py` module docstring, `test_date_boundary` / `test_costing` / `test_sale_create_writes_stock_movement` / `factories.py` docstrings — all now point at `profitability/cost.py` / `sales/lifecycle.py`.
+
+**Verification**: 29/29 abstraction + profitability-split tests green; `make check` (ruff + format + duplicates + imports/arch) clean; full-suite at PR time: 1 pre-existing unrelated failure on clean main (`test_P43_channel_enum_central.py::test_seed_sazon_channels_excludes_phone`, verified via stash on unmodified main; refs no costing code).
+
 ## 2026-10-12 — feat(tenant): SASKIA-220 URL-based tenant routing (opt-in middleware)
 
 **Scope**: `app/rms/tenant.py` (new), `app/rms/main.py` (+6), `tenants/example.yaml` (new), `tests/test_tenant.py` (new, 19 tests), `app/CHANGELOG.md`.

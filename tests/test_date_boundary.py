@@ -38,7 +38,7 @@ needing to be pinned; the pinned-clock run is for the rest of the
 suite.
 
 Hard Rule reminder: NEVER use freezegun in app/ code. Only in tests/.
-Per AGENTS.md §CI and the docstring in app/rms/costing.py.
+Per AGENTS.md §CI and the module docstring in app/rms/sales/lifecycle.py.
 """
 
 from __future__ import annotations
