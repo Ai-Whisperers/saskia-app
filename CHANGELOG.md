@@ -1,3 +1,22 @@
+## 2026-10-12 — style(lint): repo-wide ruff auto-fix (23 issues, 9 files)
+
+**Scope**: `scripts/smoke_cocina_pages.py`, 8 test files in `tests/{concurrency,integration,migrations,network,perf,property,security}/`. +183 / -81.
+
+CI's pre-deploy-dev gate runs `ruff check .` and `ruff format --check .` on the whole repo, not just files in the PR. The 9-areas test files and the cocina smoke script (both pre-existing in this branch) had un-sorted imports, f-strings without placeholders, and chained and/or without parens. All auto-fixable via `ruff check --fix .` and `ruff format .`.
+
+No semantic changes; the lint pass produces byte-identical behavior.
+
+**Why this is in the same PR as SASKIA-211d**: the lint failure blocked the SASKIA-211d PR (the pre-deploy-dev gate is a required status check). Including the fix in the same PR keeps the diff focused and avoids a 2-PR round-trip.
+
+**Out of scope** (acknowledged, deferred):
+
+- 2 more pre-existing ruff issues in `app/integrations/barcode.py` and `app/rms/main.py` (invalid `# noqa` directive format). The ruff warnings don't fail the check; they're informational. Tracked separately.
+- Per-file lint suppressions (e.g., `# noqa: E501` for long lines). Not needed; the fix above clears the gate.
+
+**Test coverage**: N/A. No test changes; only the smoke script and the 8 test files were touched for the auto-fix.
+
+---
+
 ## 2026-10-12 — fix(cocina): SASKIA-211 cocina-pages-audit fixes
 
 **Scope**: `app/routers/recipes.py`, `app/routers/produccion/forecast.py`, `app/templates/{recetas,receta_detalle,merma}.html`, `app/CHANGELOG.md`, `AGENTS.md`, `tests/test_cocina_pages_audit.py`.
