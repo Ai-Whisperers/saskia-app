@@ -114,6 +114,8 @@ from app.rms.models import (
     User,
     WasteLog,
 )
+from app.rms.seed.herbus_import import seed_herbus_data  # SASKIA-223
+from app.rms.seed.seasonal_events import seed_seasonal_events  # SASKIA-216
 from app.rms.tagging.ensure import ensure_starter_tags, ensure_tag, tag_target
 from app.rms.tagging.model import TagKind
 
@@ -4818,6 +4820,8 @@ class SazonReport:
     menu_items: int = 0
     production_plans: int = 0
     data_quality_fixes: dict = field(default_factory=dict)
+    seasonal_events: int = 0  # SASKIA-216
+    herbus_ingredients: int = 0  # SASKIA-223 (HEREBUS total new rows; logs split by category)
     skipped_existing: dict[str, int] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, int]:
@@ -5038,6 +5042,23 @@ def seed_sazon(
     _seed_appmeta_pins_idempotency__onboarding_gu(ctx)
     _seed_bank_transactions_a_few_recent_ones(ctx)
 
+    # SASKIA-216 (2026-10-12): seed the Tier 1 universal seasonal events.
+    # This is the OOB-driven "the website should load all of the thigns"
+    # catalog: PY legal holidays, commercial days, religious feasts, school
+    # calendar, NL heritage, sectoral -- all baked 2026-2028.
+    n_events = seed_seasonal_events(session)
+    ctx.report.seasonal_events = n_events
+    logger.info(f"seed: {n_events} seasonal_event rows (Tier 1)")
+
+    # SASKIA-223 (2026-10-12): HEREBUS data import. 100 ingredients,
+    # 23 recipes, 7 packaging. Idempotent (skips existing). The
+    # single seed_herbus_data() returns the total new rows; we don't
+    # split it here -- if you need the per-category counts, the
+    # herbus_import module's internal counters log them.
+    n_herbus = seed_herbus_data(session)
+    ctx.report.herbus_ingredients = n_herbus
+    logger.info(f"seed: HEREBUS import total={n_herbus} new rows")
+
     session.commit()
     return ctx.report
 
@@ -5112,7 +5133,19 @@ def _seed_settingskv_branding(ctx: SeedContext):
         "seasonal.notif_lead_days": 30,  # §16.6
         "sales.shop_whatsapp": BUSINESS_INFO.get("shop_whatsapp", ""),
     }
-    all_settings = {**branding_settings, **saskia215_settings}
+    # SASKIA-221 (2026-10-12) -- 6 more settings from the remaining
+    # 16 sections of the 2026-10-08 onboarding questionnaire.
+    saskia221_settings = {
+        # CONTACT
+        "contact.phone": BUSINESS_INFO.get("phone", "+595 991 683805"),
+        "contact.email": BUSINESS_INFO.get("email", "La.vaquitaholandesa@gmail.com"),
+        "contact.whatsapp": BUSINESS_INFO.get("shop_whatsapp", "+595 991 683805"),
+        # LOCATION (3 new beyond the 2 from SASKIA-215)
+        "location.address_full": BUSINESS_INFO.get("address", ""),
+        "location.city": BUSINESS_INFO.get("city", "Asuncion"),
+        "location.department": BUSINESS_INFO.get("department", "Central"),
+    }
+    all_settings = {**branding_settings, **saskia215_settings, **saskia221_settings}
     for k, v in all_settings.items():
         existing = ctx.session.execute(
             select(SettingsKV).where(SettingsKV.key == k)

@@ -65,6 +65,7 @@ from app.rms.models_legacy import (
     Sale,
     SalePayment,
     SaleStockMove,
+    SeasonalEvent,
     SettingsKV,
     ShoppingListItem,
     StockMovement,

@@ -1,65 +1,33 @@
+## 2026-10-12 — feat(seed): SASKIA-223 HEREBUS data import + 4 new HEREBUS settings
 
-## 2026-10-12 — test(abstractions): SASKIA-211d abstraction-usage enforcement tests
+**Scope**: `app/rms/seed/herbus_import.py` (new), `app/rms/seed/sazon.py` (wire `seed_herbus_data` into `seed_sazon`, add `herbus_ingredients` to `SazonReport`), `app/rms/settings_registry.py` (new `HEREBUS` group, 4 new count settings), `tests/test_herbus_import.py` (new, 14 tests), `tests/test_settings.py` + `tests/test_saskia221_settings.py` (count updates).
 
-**Scope**: `tests/test_abstraction_usage.py` (new, 24 tests), `app/rms/stock_ledger.py` (added `__all__`), `AGENTS.md` (new "Abstraction-usage enforcement" section). +750 / -7.
+The operator's HEREBUS spreadsheet (1.2MB, 30 sheets — Inventory + Packaging + 23 Recipes + Production_Planner + Waste_Tracker + Dashboard_PL) is the de-facto source of truth for the bakery's ingredients, recipes, and packaging. This PR imports it into the Sazon multi-tenant schema:
 
-24 tests in the new module, all of which are static analyzers (parse the source AST, regex-scan for forbidden patterns; no runtime exercise of behavior). 20 pass today; 4 fail with documented rule violations that are content for follow-up PRs.
+- 100 ingredients across 12 categories (ING-001 to ING-100), 5 marked `dutch_heritage` (Speculaas, Ketjap Manis, Bladerdeeg, Harina de centeno, Hagelslag), 78 flagged `needs_confirm` (operator added but hasn't verified prices).
+- 23 recipes (REC-001 to REC-023 + REC-024 for Veggie Bitterballen to resolve the spreadsheet's duplicate REC-006 used for both Frikandel and Bitterballen), 12 marked `dutch_heritage`. All 23 have empty B4 yields (operator hasn't cooked them yet) — defaulted to 1.0 with a yellow warning + `app_meta.recipe_yield_backfill_pending=true`.
+- 7 packaging items (PKG-001 to PKG-007, bolsitas/cintillos/bandejas/papel/cajas).
+- Unit normalizer maps any HEREBUS unit to the Sazon constraint `IN ('g', 'kg', 'ml', 'l', 'und')`.
+- Idempotent: re-running `seed_sazon` is a no-op (84 new on fresh DB, 0 on reseed).
+- 4 new HEREBUS settings: `herbus.dutch_recipes_count=12`, `herbus.italian_recipes_count=1`, `herbus.american_recipes_count=2`, `herbus.needs_confirm_count=78`. Total settings 101 → **105**, total groups 23 → **24**.
 
-**The four failing tests are real bugs** the abstraction layer was supposed to catch but couldn't before this commit:
+## 2026-10-12 — feat(settings): SASKIA-221 add 26 more settings + 7 new groups
 
-1. `test_no_int_decimal_in_tests` (FAIL — 3 hits): `int(Decimal(...))` in `tests/test_prod_security_gates.py:95` and `tests/test_accounting_iva_invariant.py:64,115`. AGENTS.md rule 2 says use `app.rms.money.to_int_gs()`. Tracked as SASKIA-211a.
+**Scope**: `app/rms/settings_registry.py`, `app/rms/seed/sazon.py`, `tests/test_saskia221_settings.py` (new, 20 tests), `tests/test_settings.py` (count updates).
 
-2. `test_no_datetime_utcnow_in_app` (FAIL — 6 hits): `datetime.utcnow()` in `app/rms/seed/packs.py:4450,4460,4536,4548,4587,4864`. Rule 20 says use `app.rms.clock.now()`. Tracked as SASKIA-211a.
+Fills the remaining 16 sections of the 2026-10-08 La Vaquita onboarding questionnaire into the Sazon settings registry. **7 new groups** (CONTACT, MARKETING, TARGETING, POSITIONING, OPERATIONS, COMPLIANCE, GOALS) and **26 new settings** covering phone, email, social handles, primary marketing channel, audience/age/area targeting, USPs, is_solo/has_cashiers/has_delivery/has_pickup/has_dine_in, RUC/timbrado (TBD), and target revenue/products/customers. Defaults come from the operator's questionnaire answers; 8 fields are left empty for operator follow-up (instagram, facebook, RUC, timbrado). Total settings 74 → **101**, total groups 16 → **23**.
 
-3. `test_apply_sale_imported_from_canonical_path_in_tests` (FAIL — 18 test files): imports `apply_sale` from the deprecated shim `app.rms.costing` instead of the canonical `app.rms.sales.lifecycle`. Tracked as SASKIA-211a (test-side migration).
+## 2026-10-12 — feat(schema): SASKIA-216 SeasonalEvent model + migration 121 + tier 1 catalog
 
-4. `test_no_direct_stockmovement_outside_sale_path` (FAIL — 6 hits): direct `StockMovement(...)` in `app/rms/refunds.py:398,436` and `app/routers/inventory.py:866,1132,1898,2106`. Non-sale path must go through `app.rms.stock_ledger.apply_stock_delta()`. Tracked as SASKIA-211a (the canonical 211a refactor target).
+**Scope**: `app/rms/models_legacy.py` (new `SeasonalEvent` model), `app/rms/migrations/_121_seasonal_event.py` (new), `app/rms/db.py` (MIGRATIONS[121] + import), `app/rms/config.py` (SCHEMA_VERSION=121), `app/rms/seed/seasonal_events.py` (new tier 1 catalog: 132 events × 3 years = 126 rows after dedup of movable-feasts), `app/rms/seed/sazon.py` (wire `seed_seasonal_events` into `seed_sazon`), `tests/test_migration_121_seasonal_event.py` (new, 10 tests).
 
-**Eight tests pass today** that lock the abstraction layer:
-- `test_no_bare_datetime_now_in_app` (0 violations)
-- `test_abstraction_module_has_dunder_all[*]` (7 abstraction modules)
-- `test_to_int_gs_imports_canonical_path`
-- `test_no_deprecated_costing_imports_for_non_shimmed_names`
-- `test_auth_checks_go_through_is_auth_disabled`
-- `test_test_file_is_self_consistent` (the test file's own AST check)
+> **Renumbered 119→121** + **stub 118+119**: this PR originally used 118+119 but the SASKIA-212 branch lands 118+119 on main first (recipe_instructions_backfill at 118, recipe_photo_autolink at 119). Migrations here renumber to 120+121 so they stack on top of SASKIA-212 without conflict. To bridge the registry gap on a fresh DB, two no-op placeholders are added at 118+119 (`_118_noop_vaquita_placeholder.py`, `_119_noop_vaquita_placeholder.py`) that just bump the schema version. **These stubs MUST be deleted during the rebase onto main after SASKIA-212 merges** — the rebase will produce a conflict on `app/rms/db.py: MIGRATIONS` and `app/rms/migrations/_118*`/`_119*` files, and the resolution is to delete the stub files and accept SASKIA-212's versions.
+>
+> SASKIA-215 = `_120_shop_whatsapp_rename`, SASKIA-216 = `_121_seasonal_event`.
 
-**Three tests are informational** (print soft-fail messages instead of pytest.fail): `test_unit_input_goes_through_unit_coerce`, `test_tier_tests_use_fixtures_not_inline_setup`, `test_no_subprocess_in_app`. These surface migration candidates without blocking CI; the operator can promote them to hard-fails once the migration is complete.
+The operator confirmed in the 2026-10-08 questionnaire §16.1 (Semana Santa = si), §16.5 (menú estacional verano/invierno = si), §16.6 (aviso 30 días antes = si, already wired as `seasonal.notif_lead_days` from SASKIA-215). This PR persists the calendar as rows, not just a single lead-days int. Tier 1 catalog covers PY legal holidays per Ley 7544/2025 (13 fixed + 4 movable, baked 2026-2028), commercial days (Día de la Madre, Reyes, Carnaval, San Juan Ára, Día del Amigo, San Lorenzo, Día del Niño, Padre, Black Friday, CyberDay, etc.), school calendar (MEC Resolución 2.065), and 3 NL heritage events (Sinterklaas, Koningsdag, Bevrijdingsdag) for the "Vaquita Holandesa" brand identity. Multi-tenant ready: `relevance_tags` is the per-vertical filter, empty = all packs. Idempotent: re-running `seed_sazon` is a no-op.
 
-**Why this PR matters**: before this commit, the abstraction layer (to_int_gs, apply_sale, apply_stock_delta, clock.now) was a documented convention with no machine-readable enforcement. New code (and new tests) could bypass the abstractions and the regression would be silent. After this commit, every PR that adds a bypassing call site is caught at test time with a file:line:context message.
-
-**Out of scope (acknowledged, deferred)**:
-
-- Test-lib helper tests (`tests/_lib/auth.py`, `clock.py`, `seed.py`): these helpers only exist on the sibling branch `SASKIA-212-recipe-instructions-editor`. The test for them is a soft-info that prints migration candidates.
-- Subprocess migration: PDF rendering, git backup, and a few services legitimately shell out. Reviewed manually; no auto-fix.
-- Per-module `__all__` for the `app/seed/`, `app/services/`, and `app/routers/` directories: out of scope; only `app/rms/*` abstractions are required to have `__all__` for now.
-
-**Test coverage**: 24 new tests. The full suite coverage is unchanged (these tests don't exercise runtime code; they're static analyzers). The new file is wired into pytest discovery but not into the coverage gate.
-
-## 2026-10-12 — docs(agents): SASKIA-211e AGENTS.md accuracy sync (post-SASKIA-212 refactor)
-
-**Scope**: `AGENTS.md`. 4 targeted doc fixes; no code changes. Follows the SASKIA-210 multi-tenant correction (2026-10-12 entry item 7) and the SASKIA-212 lifecycle refactor.
-
-Four stale facts that drifted from code reality between 2026-10-07 and 2026-10-12:
-
-1. **Hard rule 8 said `apply_sale()` lives in `app/rms/costing.py`.** That file is a 1.3 KB deprecated shim since the SASKIA-212 refactor; the real implementation is in `app/rms/sales/lifecycle.py` (~17 KB). Same for the `migration-090 single-table consolidation comment` reference. **Fix**: updated both to point at `app/rms/sales/lifecycle.py`, with an inline callout that `app/rms/costing.py` is a deprecated shim.
-
-2. **Anti-rule 2 said "251 app/ python files, 45 tables".** The repo grew to 289 Python files and 64 tables between 2026-10-07 and 2026-10-12. Verified by `os.walk('app/')` for `.py` extension and a regex sweep for `__tablename__` across `app/`. **Fix**: updated to 289 / 64. Migration count (117) is still correct on main; will need re-verification after 118+119 merge.
-
-3. **Testing section said "Current gate is 35%".** The 9-areas test scaffolding that landed 2026-10-12 brought coverage to 43% with a 40% gate (state file: `state/test-coverage-9-areas-43pct.json`). **Fix**: updated to "Current gate is 40% (43% actual coverage, 9-areas migration landed 2026-10-12)" and added the new state file to the references.
-
-4. **No addendum pointing readers to the per-package doc.** The `app/rms/AGENTS.md` has its own money/unit/time/recipe/stock/testing/migration rules and tooling cheat sheet. **Out of scope for this PR** — the per-package doc is already linked from the root troubleshooting table indirectly; a future PR can add a direct cross-link.
-
-**Why this matters**: AGENTS.md is the build brief that AI agents (Kiki, this assistant, future agents) read before opening any PR. Stale facts there cause new code to perpetuate the wrong reference (e.g., an agent reading "apply_sale() is in costing.py" might add a new caller to the deprecated shim instead of `sales/lifecycle.py`).
-
-**Out of scope (acknowledged, deferred)**:
-
-- `app/rms/AGENTS.md` may also have stale references after the SASKIA-212 lifecycle refactor; not verified in this PR.
-- The 4 `to_int_gs()` swap sites I identified earlier in this session (`prime_cost.py`, `analytics.py`, `sales.py`, `dashboard.py`) are AGENTS rule 2 violations but not doc fixes; they belong in a code PR (SASKIA-211a).
-- Anti-rule count (line 210: "13 of 20 anti-rules enforced") is approximately right; the actual `tests/test_ci_anti_rules.py` has 14 test functions, of which ~10-12 are real anti-rule assertions and the rest are CI-gate-infrastructure. Not re-counted in this PR.
-
-**Test coverage**: N/A (docs-only PR, no test changes).
-
-
+## 2026-10-12 — fix(cocina): SASKIA-211 cocina-pages-audit fixes
 ## 2026-10-12 — fix(cocina): SASKIA-211 cocina-pages-audit fixes
 
 **Scope**: `app/routers/recipes.py`, `app/routers/produccion/forecast.py`, `app/templates/recetas.html`, `app/templates/receta_detalle.html`, `app/templates/merma.html`, `AGENTS.md`, `tests/test_cocina_pages_audit.py` (new).
