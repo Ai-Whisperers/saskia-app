@@ -15,9 +15,7 @@ A regression here would either:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-
-import pytest
+from datetime import datetime, timezone
 
 from app.rms.cost_freshness import product_cost_freshness
 from app.rms.models import (
@@ -53,7 +51,9 @@ def _make_product(session, name: str, recipe: Recipe | None = None, price: int =
     return p
 
 
-def _add_recipe_line(session, recipe: Recipe, ingredient: Ingredient, qty: float = 0.1) -> RecipeLine:
+def _add_recipe_line(
+    session, recipe: Recipe, ingredient: Ingredient, qty: float = 0.1
+) -> RecipeLine:
     line = RecipeLine(
         recipe_id=recipe.id,
         line_kind="ingredient",

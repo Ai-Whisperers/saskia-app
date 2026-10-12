@@ -27,11 +27,9 @@ A regression here would either:
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
-
-from sqlalchemy import select
 
 from app.rms.models import Ingredient, StockMovement
 from app.rms.restock_forecast import (
@@ -112,6 +110,7 @@ class TestWeekdayRates:
     def test_se_formula(self):
         # SE = sqrt(λ/n). For λ=0.5, n=4 → sqrt(0.125)
         import math
+
         wr = WeekdayRates(
             lambdas=[0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             exposures=[4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -165,13 +164,17 @@ class TestPoissonWeekdayRates:
             # Multiple sales on each day to make the rate visible
             for _ in range(3):
                 _add_sale_movement(
-                    s, ing, 2.0,
+                    s,
+                    ing,
+                    2.0,
                     datetime(2026, 10, 5, 10, 0, tzinfo=timezone.utc),  # Monday
                     reference_id=1,
                 )
             for _ in range(3):
                 _add_sale_movement(
-                    s, ing, 6.0,
+                    s,
+                    ing,
+                    6.0,
                     datetime(2026, 10, 4, 10, 0, tzinfo=timezone.utc),  # Sunday
                     reference_id=2,
                 )
@@ -191,7 +194,9 @@ class TestPoissonWeekdayRates:
             # 3 sale movements on Monday 2026-10-05
             for _ in range(3):
                 _add_sale_movement(
-                    s, ing, 1.0,
+                    s,
+                    ing,
+                    1.0,
                     datetime(2026, 10, 5, 10, 0, tzinfo=timezone.utc),
                     reference_id=1,
                 )
@@ -215,7 +220,9 @@ class TestPoissonWeekdayRates:
         with session_factory() as s:
             ing = _make_ingredient(s, "_smoke_pf_old")
             _add_sale_movement(
-                s, ing, 100.0,  # huge
+                s,
+                ing,
+                100.0,  # huge
                 datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc),  # way outside
                 reference_id=1,
             )
@@ -234,9 +241,7 @@ class TestForecastRestock:
     def test_no_data_returns_zero_recommendation(self, session_factory):
         # No sales history → 2x min floor only
         with session_factory() as s:
-            ing = _make_ingredient(
-                s, "_smoke_rf_no_data", stock_qty=2.0, min_stock_qty=5.0
-            )
+            ing = _make_ingredient(s, "_smoke_rf_no_data", stock_qty=2.0, min_stock_qty=5.0)
         with session_factory() as s:
             fc = forecast_restock(s, ing.id, now=FROZEN_NOW)
         assert fc.lambda_flat == 0.0
@@ -252,8 +257,7 @@ class TestForecastRestock:
         with session_factory() as s:
             ing = _make_ingredient(s, "_smoke_rf_low", stock_qty=1000.0, min_stock_qty=5.0)
             for d in range(5):
-                _add_sale_movement(s, ing, 1.0,
-                    FROZEN_NOW - timedelta(days=d), reference_id=d + 1)
+                _add_sale_movement(s, ing, 1.0, FROZEN_NOW - timedelta(days=d), reference_id=d + 1)
         with session_factory() as s:
             fc = forecast_restock(s, ing.id, now=FROZEN_NOW)
         assert fc.confidence == "low"
@@ -264,7 +268,9 @@ class TestForecastRestock:
             ing = _make_ingredient(s, "_smoke_rf_medium")
             for d in range(10):
                 _add_sale_movement(
-                    s, ing, 1.0,
+                    s,
+                    ing,
+                    1.0,
                     FROZEN_NOW - timedelta(days=d),
                     reference_id=d + 1,
                 )
@@ -277,7 +283,9 @@ class TestForecastRestock:
             ing = _make_ingredient(s, "_smoke_rf_high")
             for d in range(30):
                 _add_sale_movement(
-                    s, ing, 1.0,
+                    s,
+                    ing,
+                    1.0,
                     FROZEN_NOW - timedelta(days=d),
                     reference_id=d + 1,
                 )
@@ -291,7 +299,9 @@ class TestForecastRestock:
             ing = _make_ingredient(s, "_smoke_rf_p50", stock_qty=5.0, min_stock_qty=1.0)
             for d in range(56):
                 _add_sale_movement(
-                    s, ing, 3.0,
+                    s,
+                    ing,
+                    3.0,
                     FROZEN_NOW - timedelta(days=d),
                     reference_id=d + 1,
                 )
@@ -309,7 +319,9 @@ class TestForecastRestock:
             ing = _make_ingredient(s, "_smoke_rf_safe", stock_qty=1000.0, min_stock_qty=5.0)
             for d in range(56):
                 _add_sale_movement(
-                    s, ing, 0.1,
+                    s,
+                    ing,
+                    0.1,
                     FROZEN_NOW - timedelta(days=d),
                     reference_id=d + 1,
                 )
@@ -325,12 +337,12 @@ class TestForecastRestock:
     def test_recommend_restock_covers_14d(self, session_factory):
         # With significant consumption, recommended covers 14 days
         with session_factory() as s:
-            ing = _make_ingredient(
-                s, "_smoke_rf_14d", stock_qty=2.0, min_stock_qty=1.0
-            )
+            ing = _make_ingredient(s, "_smoke_rf_14d", stock_qty=2.0, min_stock_qty=1.0)
             for d in range(56):
                 _add_sale_movement(
-                    s, ing, 5.0,
+                    s,
+                    ing,
+                    5.0,
                     FROZEN_NOW - timedelta(days=d),
                     reference_id=d + 1,
                 )
@@ -343,12 +355,12 @@ class TestForecastRestock:
     def test_recommend_restock_respects_min_floor(self, session_factory):
         # Even with very low consumption, must hit 2x min
         with session_factory() as s:
-            ing = _make_ingredient(
-                s, "_smoke_rf_floor", stock_qty=2.0, min_stock_qty=10.0
-            )
+            ing = _make_ingredient(s, "_smoke_rf_floor", stock_qty=2.0, min_stock_qty=10.0)
             for d in range(56):
                 _add_sale_movement(
-                    s, ing, 0.001,
+                    s,
+                    ing,
+                    0.001,
                     FROZEN_NOW - timedelta(days=d),
                     reference_id=d + 1,
                 )
@@ -360,13 +372,17 @@ class TestForecastRestock:
     def test_restock_cost_estimate_uses_purchase_price(self, session_factory):
         with session_factory() as s:
             ing = _make_ingredient(
-                s, "_smoke_rf_cost",
-                stock_qty=0.0, min_stock_qty=5.0,
+                s,
+                "_smoke_rf_cost",
+                stock_qty=0.0,
+                min_stock_qty=5.0,
                 purchase_price_gs=10000,
             )
             for d in range(30):
                 _add_sale_movement(
-                    s, ing, 1.0,
+                    s,
+                    ing,
+                    1.0,
                     FROZEN_NOW - timedelta(days=d),
                     reference_id=d + 1,
                 )
@@ -374,9 +390,7 @@ class TestForecastRestock:
             fc = forecast_restock(s, ing.id, now=FROZEN_NOW)
         # Cost = recommended * 10000 Gs
         assert fc.restock_cost_gs_estimate is not None
-        assert fc.restock_cost_gs_estimate == round(
-            fc.recommended_restock_qty * 10000
-        )
+        assert fc.restock_cost_gs_estimate == round(fc.recommended_restock_qty * 10000)
 
     def test_weekday_peak_and_trough(self, session_factory):
         # Strong Saturday pattern
@@ -386,13 +400,21 @@ class TestForecastRestock:
             for d in range(56):
                 day = (FROZEN_NOW - timedelta(days=d)).date()
                 if day.weekday() == 5:  # Saturday
-                    _add_sale_movement(s, ing, 10.0,
+                    _add_sale_movement(
+                        s,
+                        ing,
+                        10.0,
                         datetime(day.year, day.month, day.day, 10, 0, tzinfo=timezone.utc),
-                        reference_id=day.day + 100)
+                        reference_id=day.day + 100,
+                    )
                 else:
-                    _add_sale_movement(s, ing, 0.5,
+                    _add_sale_movement(
+                        s,
+                        ing,
+                        0.5,
                         datetime(day.year, day.month, day.day, 10, 0, tzinfo=timezone.utc),
-                        reference_id=day.day + 200)
+                        reference_id=day.day + 200,
+                    )
         with session_factory() as s:
             fc = forecast_restock(s, ing.id, now=FROZEN_NOW)
         # Saturday should be peak, Mon or Tue should be trough
@@ -407,9 +429,13 @@ class TestForecastRestock:
                     qty = 5.0
                 else:
                     qty = 1.0
-                _add_sale_movement(s, ing, qty,
+                _add_sale_movement(
+                    s,
+                    ing,
+                    qty,
                     datetime(day.year, day.month, day.day, 10, 0, tzinfo=timezone.utc),
-                    reference_id=day.day + 300)
+                    reference_id=day.day + 300,
+                )
         with session_factory() as s:
             fc = forecast_restock(s, ing.id, now=FROZEN_NOW)
         # Weekend uplift should be positive
@@ -422,9 +448,13 @@ class TestForecastRestock:
             for d in range(56):
                 day = (FROZEN_NOW - timedelta(days=d)).date()
                 if day.weekday() in (5, 6):
-                    _add_sale_movement(s, ing, 1.0,
+                    _add_sale_movement(
+                        s,
+                        ing,
+                        1.0,
                         datetime(day.year, day.month, day.day, 10, 0, tzinfo=timezone.utc),
-                        reference_id=day.day + 400)
+                        reference_id=day.day + 400,
+                    )
         with session_factory() as s:
             fc = forecast_restock(s, ing.id, now=FROZEN_NOW)
         assert fc.weekend_uplift_pct == 0.0
@@ -432,8 +462,11 @@ class TestForecastRestock:
     def test_handles_null_stock_qty(self, session_factory):
         with session_factory() as s:
             ing = Ingredient(
-                name="_smoke_rf_null", unit="kg",
-                stock_qty=None, min_stock_qty=5.0, purchase_price_gs=5000,
+                name="_smoke_rf_null",
+                unit="kg",
+                stock_qty=None,
+                min_stock_qty=5.0,
+                purchase_price_gs=5000,
             )
             s.add(ing)
             s.commit()
@@ -445,16 +478,17 @@ class TestForecastRestock:
     def test_handles_null_purchase_price(self, session_factory):
         with session_factory() as s:
             ing = Ingredient(
-                name="_smoke_rf_no_price", unit="kg",
-                stock_qty=2.0, min_stock_qty=5.0, purchase_price_gs=None,
+                name="_smoke_rf_no_price",
+                unit="kg",
+                stock_qty=2.0,
+                min_stock_qty=5.0,
+                purchase_price_gs=None,
             )
             s.add(ing)
             s.commit()
             s.refresh(ing)
             for d in range(30):
-                _add_sale_movement(s, ing, 1.0,
-                    FROZEN_NOW - timedelta(days=d),
-                    reference_id=d + 1)
+                _add_sale_movement(s, ing, 1.0, FROZEN_NOW - timedelta(days=d), reference_id=d + 1)
         with session_factory() as s:
             fc = forecast_restock(s, ing.id, now=FROZEN_NOW)
         # cost estimate is None when purchase_price is None
@@ -469,21 +503,21 @@ class TestForecastRestockBatch:
     def test_only_at_risk_filters_by_p95_threshold(self, session_factory):
         # Two ingredients: one at risk, one safe
         with session_factory() as s:
-            at_risk = _make_ingredient(
-                s, "_smoke_rf_batch_risk", stock_qty=5.0, min_stock_qty=1.0
-            )
-            safe = _make_ingredient(
-                s, "_smoke_rf_batch_safe", stock_qty=10000.0, min_stock_qty=5.0
-            )
+            at_risk = _make_ingredient(s, "_smoke_rf_batch_risk", stock_qty=5.0, min_stock_qty=1.0)
+            safe = _make_ingredient(s, "_smoke_rf_batch_safe", stock_qty=10000.0, min_stock_qty=5.0)
             for d in range(56):
-                _add_sale_movement(s, at_risk, 3.0,
-                    FROZEN_NOW - timedelta(days=d), reference_id=d + 1)
-                _add_sale_movement(s, safe, 0.1,
-                    FROZEN_NOW - timedelta(days=d), reference_id=d + 100)
+                _add_sale_movement(
+                    s, at_risk, 3.0, FROZEN_NOW - timedelta(days=d), reference_id=d + 1
+                )
+                _add_sale_movement(
+                    s, safe, 0.1, FROZEN_NOW - timedelta(days=d), reference_id=d + 100
+                )
 
         with session_factory() as s:
             result = forecast_restock_batch(
-                s, [at_risk.id, safe.id], only_at_risk=True,
+                s,
+                [at_risk.id, safe.id],
+                only_at_risk=True,
                 p95_days_threshold=14,
             )
         assert at_risk.id in result
@@ -491,16 +525,15 @@ class TestForecastRestockBatch:
 
     def test_only_at_risk_false_includes_all(self, session_factory):
         with session_factory() as s:
-            safe = _make_ingredient(
-                s, "_smoke_rf_batch_all", stock_qty=10000.0, min_stock_qty=5.0
-            )
+            safe = _make_ingredient(s, "_smoke_rf_batch_all", stock_qty=10000.0, min_stock_qty=5.0)
             for d in range(56):
-                _add_sale_movement(s, safe, 0.1,
-                    FROZEN_NOW - timedelta(days=d), reference_id=d + 1)
+                _add_sale_movement(s, safe, 0.1, FROZEN_NOW - timedelta(days=d), reference_id=d + 1)
 
         with session_factory() as s:
             result = forecast_restock_batch(
-                s, [safe.id], only_at_risk=False,
+                s,
+                [safe.id],
+                only_at_risk=False,
             )
         assert safe.id in result
 
@@ -511,8 +544,7 @@ class TestForecastRestockBatch:
         with session_factory() as s:
             real = _make_ingredient(s, "_smoke_rf_batch_real")
             for d in range(28):
-                _add_sale_movement(s, real, 1.0,
-                    FROZEN_NOW - timedelta(days=d), reference_id=d + 1)
+                _add_sale_movement(s, real, 1.0, FROZEN_NOW - timedelta(days=d), reference_id=d + 1)
         with pytest.raises(ValueError, match="not found"):
             with session_factory() as s2:
                 forecast_restock_batch(s2, [real.id, 99999])

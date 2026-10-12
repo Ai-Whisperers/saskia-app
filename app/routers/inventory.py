@@ -43,6 +43,7 @@ from app.rms.models import (
 from app.rms.observability import record_audit
 from app.rms.price_history import price_history, price_stats, record_price_event
 from app.rms.rate_limit import read_rate_limit_dependency
+from app.rms.stock_ledger import record_stock_movement
 from app.rms.units import Unit
 from app.services.template_render import render
 
@@ -862,16 +863,12 @@ async def carga_inicial_save(
         if ing is None:
             continue
         ing.stock_qty = qty
-        session.add(
-            StockMovement(
-                ingredient_id=ing_id,
-                movement_type="initial",
-                qty=qty,
-                reason="carga inicial de inventario",
-                reference_id=None,
-                reference_type=None,
-                recorded_at=datetime.now(timezone.utc),
-            )
+        record_stock_movement(
+            session,
+            ing_id,
+            qty,
+            movement_type="initial",
+            reason="carga inicial de inventario",
         )
         saved += 1
     session.commit()
@@ -1129,17 +1126,14 @@ def _record_initial_stock_movement(
     Extracted from inventory_create to reduce complexity.
     """
     user_id = current_operator(request)
-    movement = StockMovement(
-        ingredient_id=ing.id,
+    record_stock_movement(
+        session,
+        ing.id,
+        opening_qty,
         movement_type="initial",
-        qty=opening_qty,
         reason="stock inicial",
-        reference_id=None,
-        reference_type=None,
-        recorded_at=datetime.now(timezone.utc),
         created_by=user_id,
     )
-    session.add(movement)
     session.commit()
 
 
@@ -1894,19 +1888,14 @@ def _record_bulk_fill_movement(
     Uses movement_type='reorder' (closest fit in the existing taxonomy)
     and a free-text reason naming the target.
     """
-    session.add(
-        StockMovement(
-            ingredient_id=ing.id,
-            movement_type="reorder",
-            qty=delta,
-            reason=(
-                f"Llenado bulk a 2x min (target={target:g} {ing.unit}, min={ing.min_stock_qty:g})"
-            ),
-            reference_id=None,
-            reference_type=None,
-            recorded_at=now,
-            created_by=user_id,
-        )
+    record_stock_movement(
+        session,
+        ing.id,
+        delta,
+        movement_type="reorder",
+        reason=(f"Llenado bulk a 2x min (target={target:g} {ing.unit}, min={ing.min_stock_qty:g})"),
+        created_by=user_id,
+        recorded_at=now,
     )
 
 
@@ -2090,21 +2079,15 @@ def _record_stock_movement(
     Extracted from inventory_adjust to reduce complexity. Sets variant_id
     on the movement if the schema supports it.
     """
-    movement_kwargs = dict(
-        ingredient_id=ing_id,
+    record_stock_movement(
+        session,
+        ing_id,
+        adjustment,
         movement_type="adjustment",
-        qty=adjustment,
         reason=reason.strip() or None,
-        reference_id=None,
-        reference_type=None,
-        recorded_at=datetime.now(timezone.utc),
         created_by=user_id,
+        variant_id=target_variant.id if target_variant is not None else None,
     )
-    if target_variant is not None and "variant_id" in StockMovement.__table__.columns:
-        movement_kwargs["variant_id"] = target_variant.id
-
-    movement = StockMovement(**movement_kwargs)
-    session.add(movement)
 
 
 def _apply_stock_adjustment(

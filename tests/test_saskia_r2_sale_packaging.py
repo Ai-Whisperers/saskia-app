@@ -124,7 +124,7 @@ class TestApplySaleWithPackaging:
         product,
         box,
     ):
-        from app.rms.costing import apply_sale
+        from app.rms.sales.lifecycle import apply_sale
 
         product_id = product.id
         box_id = box.id
@@ -167,7 +167,7 @@ class TestApplySaleWithPackaging:
         box,
     ):
         """Eat-in sale (no packaging) must NOT touch the box stock."""
-        from app.rms.costing import apply_sale
+        from app.rms.sales.lifecycle import apply_sale
 
         box_id = box.id
         with session_factory() as s:
@@ -188,7 +188,7 @@ class TestApplySaleWithPackaging:
         product,
     ):
         """Passing a regular food ingredient as packaging → ValueError."""
-        from app.rms.costing import apply_sale
+        from app.rms.sales.lifecycle import apply_sale
 
         # Create a regular ingredient (not packaging)
         n = _unique_name("harina-no-empaque")
@@ -218,7 +218,7 @@ class TestApplySaleWithPackaging:
         session_factory,
         product,
     ):
-        from app.rms.costing import apply_sale
+        from app.rms.sales.lifecycle import apply_sale
 
         with session_factory() as s:
             with pytest.raises(ValueError, match="without packaging_item_id"):
@@ -237,7 +237,7 @@ class TestApplySaleWithPackaging:
         product,
         box,
     ):
-        from app.rms.costing import apply_sale
+        from app.rms.sales.lifecycle import apply_sale
 
         with session_factory() as s:
             with pytest.raises(ValueError, match="packaging_qty must be > 0"):
@@ -256,7 +256,7 @@ class TestApplySaleWithPackaging:
         product,
         box,
     ):
-        from app.rms.costing import apply_sale
+        from app.rms.sales.lifecycle import apply_sale
 
         with session_factory() as s:
             with pytest.raises(ValueError, match="packaging_qty must be > 0"):
@@ -282,7 +282,7 @@ class TestVoidSaleWithPackaging:
         product,
         box,
     ):
-        from app.rms.costing import apply_sale, void_sale
+        from app.rms.sales.lifecycle import apply_sale, void_sale
 
         with session_factory() as s:
             r = apply_sale(
@@ -414,7 +414,7 @@ class TestSalePOSTPackaging:
         # is exercised by existing test_sales_overhaul suite.
         # This test confirms the helper accepts the kwargs (compile-time
         # check), so a routing/typing regression would surface here.
-        from app.rms.costing import apply_sale
+        from app.rms.sales.lifecycle import apply_sale
 
         with session_factory() as s:
             r = apply_sale(

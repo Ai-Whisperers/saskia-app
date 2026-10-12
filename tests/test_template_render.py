@@ -20,11 +20,8 @@ A regression here would either:
 
 from __future__ import annotations
 
-import os
 from datetime import datetime
 from unittest.mock import MagicMock
-
-import pytest
 
 from app.services.template_render import (
     _asset_version,
@@ -35,7 +32,6 @@ from app.services.template_render import (
     _now_local,
     _now_str,
     _now_year,
-    render,
     templates,
 )
 
@@ -352,9 +348,7 @@ class TestNotificationCounts:
             low_stock_ingredients=["a"],
             haccp_missing_count=3,
         )
-        assert result["total"] == (
-            result["critical"] + result["warning"] + result["info"]
-        )
+        assert result["total"] == (result["critical"] + result["warning"] + result["info"])
 
     def test_tolerates_none_args(self):
         # Pending is None, low_stock is None → still 0
@@ -381,7 +375,6 @@ class TestCsrfTokenForRequest:
         assert result == "my-test-token"
 
     def test_falls_back_to_generation_when_cookie_missing(self):
-        from app.rms.csrf import _CSRF_COOKIE
 
         fake_request = MagicMock()
         fake_request.cookies = {}  # no csrf cookie
