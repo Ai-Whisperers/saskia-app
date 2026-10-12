@@ -1,3 +1,17 @@
+## 2026-10-12 — refactor(refund): SASKIA-211x split refund_create (CC 12→8)
+
+Extracted 5 helpers:
+  - `_operator_user_id(request)` — current user id or "operator"
+  - `_refund_back_url(type, id, flash)` — `/ventas` or `/pedidos` redirect URL
+  - `_refund_error_redirect(e, ...)` — log + 303 on RefundError
+  - `_success_redirect(type, id)` — 303 with `refund_ok` flash
+  - `_audit_refund_create(...)` — best-effort audit (never raises)
+
+Same RefundError / IntegrityError handling; same audit detail dict;
+same flash keys.
+
+4 refund tests pass (test_refund_router).
+
 ## 2026-10-12 — refactor(shopping): SASKIA-211x split from_production_plan (CC 11→5)
 
 Extracted 6 helpers from the 76-line endpoint:
