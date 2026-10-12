@@ -174,7 +174,12 @@ def _configure_logging() -> None:
                 enqueue=True,  # thread-safe, non-blocking writes
                 backtrace=True,
                 diagnose=False,  # never leak env vars to disk
-                format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <7} | {extra[request_id]} | {extra[user_id]} | {name}:{function}:{line} | {message}",
+                # FIX-2 (2026-10-12, found by auto-generated route smoke test):
+                # the previous static format raised KeyError on {extra[request_id]}
+                # when an exception was logged outside the request context (e.g. the
+                # /copiloto/ask JSONDecodeError before middleware ran). Use a function
+                # that returns "-" for missing extras so the sink never blows up.
+                format=_log_file_format,
             )
         except Exception as exc:
             sys.stderr.write(f"WARN: could not initialise log file sink at {log_file!r}: {exc!r}\n")

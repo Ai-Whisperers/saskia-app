@@ -103,8 +103,10 @@ def test_login_with_invalid_credentials_redirects_with_error(client, supabase_au
     assert "error" in r.headers["location"]
 
 
-@pytest.mark.skip(
-    reason="Fixture patching chain is order-dependent — needs refactor of fake client lifecycle"
+@pytest.mark.xfail(
+    reason="Pre-existing: fake client lifecycle fixture is order-dependent. "
+    "See PR #147 audit for the full bug list.",
+    strict=False,  # pass on success = fix landed
 )
 def test_login_with_valid_credentials_sets_session(client, supabase_auth_env):
     """Good credentials → session has Supabase access_token, redirect to next."""

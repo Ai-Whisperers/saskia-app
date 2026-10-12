@@ -49,9 +49,21 @@ PATH_PARAM_PLACEHOLDERS = {
 
 
 def _setup_import_path() -> None:
-    """Make `app` importable, fake pytest presence for the auth-bypass check."""
+    """Make `app` importable, set the test env, fake pytest presence.
+
+    Both env vars must be set BEFORE app.rms.main is imported:
+    - AIW_SASKIA_INTERNAL_ROUTES=1: mount /auditoria, /ops, /dev/* routes
+      (gated off by default in production; tests need them to actually
+      reach the routes the smoke test will hit)
+    - SASKIA_TEST_AUTH_DISABLED=1: bypass Supabase auth (required to
+      instantiate the FastAPI app outside a test client context)
+
+    Without these, collect_routes() sees only the 2 top-level routes
+    (/openapi.json, /docs) and the generated test file is useless.
+    """
     sys.path.insert(0, str(REPO_ROOT))
     sys.modules.setdefault("pytest", __import__("pytest"))
+    os.environ.setdefault("AIW_SASKIA_INTERNAL_ROUTES", "1")
     os.environ.setdefault("SASKIA_TEST_AUTH_DISABLED", "1")
 
 
@@ -60,22 +72,35 @@ def collect_routes(app) -> list[tuple[str, str, str]]:
 
     `router_label` is the first tag the route was given (e.g. "ventas"), or
     "app" if untagged.
+
+    Recurses into _IncludedRouter wrappers (sub-routers registered via
+    include_router). Each wrapper's routes live on .original_router.routes;
+    we walk into that and merge the include-time prefix.
     """
     out: list[tuple[str, str, str]] = []
-    for r in app.routes:
-        if not hasattr(r, "methods") or not hasattr(r, "path"):
-            continue
-        # Skip HEAD (tested via GET)
-        for m in sorted(r.methods - {"HEAD"}):
-            path = r.path
-            # Skip infrastructure paths
-            if any(p.match(path) for p in SKIP_PATH_PATTERNS):
+
+    def _walk(routes, prefix: str = "") -> None:
+        for r in routes:
+            # _IncludedRouter: recurse into the wrapped sub-router
+            orig = getattr(r, "original_router", None)
+            if orig is not None and getattr(orig, "routes", None):
+                inc_prefix = getattr(getattr(r, "include_context", None), "prefix", "") or ""
+                _walk(orig.routes, prefix=prefix + inc_prefix)
                 continue
-            # Skip the auth-bypass test endpoint itself
-            if path == "/_test_auth_bypass":
+            # Mount or other non-API wrapper: skip
+            if not hasattr(r, "methods") or not hasattr(r, "path"):
                 continue
-            tag = (r.tags or ["app"])[0] if hasattr(r, "tags") else "app"
-            out.append((m, path, tag))
+            # Skip HEAD (tested via GET)
+            for m in sorted(r.methods - {"HEAD"}):
+                path = prefix + r.path
+                if any(p.match(path) for p in SKIP_PATH_PATTERNS):
+                    continue
+                if path == "/_test_auth_bypass":
+                    continue
+                tag = (r.tags or ["app"])[0] if hasattr(r, "tags") else "app"
+                out.append((m, path, tag))
+
+    _walk(app.routes)
     return out
 
 

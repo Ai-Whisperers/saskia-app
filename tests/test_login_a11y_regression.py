@@ -84,7 +84,11 @@ def test_login_title_not_duplicated(client):
     assert title.startswith("Iniciar sesión")
 
 
-@pytest.mark.skip(reason="Fixture patching chain is order-dependent — needs refactor")
+@pytest.mark.xfail(
+    reason="Pre-existing: fixture patching chain is order-dependent. "
+    "See PR #147 audit for the full bug list.",
+    strict=False,  # pass on success = fix landed
+)
 def test_login_forgot_link_present_when_supabase(client, supabase_auth_env, monkeypatch):
     """For Supabase-auth mode, forgot-link should be present and labeled clearly."""
     # Force Supabase mode for this test

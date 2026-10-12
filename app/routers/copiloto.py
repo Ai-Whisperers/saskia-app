@@ -6,6 +6,8 @@ POST /copiloto/ask  → JSON {question} → answer() (nunca muta)
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
@@ -40,7 +42,14 @@ def page(request: Request) -> HTMLResponse:
 
 @router.post("/ask")
 async def ask(request: Request, session: Session = Depends(get_session)) -> JSONResponse:
-    body = await request.json()
+    # FIX-1 (2026-10-12, found by auto-generated route smoke test):
+    # await request.json() raises JSONDecodeError on an empty body. The
+    # downstream question-extraction would correctly return 400 "pregunta_vacia"
+    # if we got that far, so handle the parse failure the same way.
+    try:
+        body = await request.json()
+    except (json.JSONDecodeError, ValueError):
+        return JSONResponse({"error": "json_invalido"}, status_code=400)
     question = str((body or {}).get("question") or "").strip()
     if not question:
         return JSONResponse({"error": "pregunta_vacia"}, status_code=400)
