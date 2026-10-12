@@ -352,6 +352,12 @@ jobs:
       # doesn't also touch the root CHANGELOG.md. Keeps the [Unreleased]
       # section honest. (Comment corrected 2026-10-12: the script below
       # greps for CHANGELOG.md at repo root, not app/CHANGELOG.md.)
+      - name: Single changelog guard
+        run: |
+          if [ -f app/CHANGELOG.md ]; then
+            echo "::error::app/CHANGELOG.md re-appeared. Root CHANGELOG.md is the ONLY changelog (docs/README.md decision 2026-09-29, re-enforced 2026-10-12). Merge your entry into the root file."
+            exit 1
+          fi
       - name: Docs link check (strict: 0 broken relative refs)
         # Fails on any broken relative link or image reference in .md files.
         # Companion to the docs-quality gate below. The link checker is strict

@@ -98,7 +98,7 @@ Supports **two deployment modes**:
 
 ### Coordination & org context (7 sub-rules, added 2026-10-12)
 
-42. **This file is the single rulebook.** All agent rules live here; per-directory AGENTS.md files were consolidated on 2026-10-12 (the `app/rms/` file became the "package conventions" section above). Don't create new AGENTS.md files in subdirectories — extend this one.
+42. **This file is the single rulebook.** All agent rules live here; per-directory AGENTS.md files were consolidated on 2026-10-12 (the `app/rms/` file became the "package conventions" section above). Don't create new AGENTS.md files in subdirectories — extend this one. Same principle repo-wide: ONE changelog (root `CHANGELOG.md` only — CI fails if `app/CHANGELOG.md` reappears) and ONE location per document (`docs/roadmap/` is the canonical home for plans/audits/sessions/decisions; other copies must be redirect stubs, not full copies).
 
 43. **Three environments, one VPS.** saskia-prod / saskia-test / saskia-dev run as separate Docker Swarm services behind one Traefik (see `docs/operations/worktree-policy.md` and `.github/workflows/deploy-*.yml`). Never deploy to prod without a green test-env run of the same build. A `docker service update` against the wrong env service name is a silent no-op — verify with `docker service ps saskia-<env>_web`.
 
