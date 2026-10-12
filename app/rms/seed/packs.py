@@ -5188,6 +5188,19 @@ def _ensure_tenant_and_admin(session: Session, name: str, report: PackReport) ->
     """
     from datetime import datetime
 
+    from app.rms.clock import now
+
+    def _now_naive() -> datetime:
+        """Naive-UTC ``datetime`` for the ``DateTime`` (naive) DB columns.
+
+        ``app.rms.clock.now()`` returns tz-aware UTC (AGENTS.md rule 20),
+        but the existing columns here are ``DateTime`` (naive). Strip the
+        tz so the value is byte-identical to what ``datetime.utcnow()``
+        used to produce — same UTC instant, same string, no migration
+        of column types required.
+        """
+        return now().replace(tzinfo=None)
+
     tenant = session.query(Tenant).filter(Tenant.slug == _slug(name)).one_or_none()
     if tenant is None:
         tenant = Tenant(
@@ -5195,7 +5208,7 @@ def _ensure_tenant_and_admin(session: Session, name: str, report: PackReport) ->
             business_name=name,
             primary_color="#1976D2",
             currency="PYG",
-            created_at=datetime.utcnow().isoformat(),
+            created_at=_now_naive().isoformat(),
         )
         session.add(tenant)
         session.flush()
@@ -5205,7 +5218,7 @@ def _ensure_tenant_and_admin(session: Session, name: str, report: PackReport) ->
         user = User(
             username="admin",
             is_active=True,
-            created_at=datetime.utcnow().isoformat(),
+            created_at=_now_naive().isoformat(),
             last_login_at=None,
             role="admin",
         )
@@ -5275,13 +5288,23 @@ def _create_pack_ingredient(
     """
     from datetime import datetime
 
+    from app.rms.clock import now
+
+    # DateTime (naive) columns: strip tz from now() to keep the same byte
+    # format the previous ``datetime.utcnow()`` produced. AGENTS.md rule 20
+    # says we should use ``app.rms.clock.now()`` for everything; the schema
+    # upgrade to ``DateTime(timezone=True)`` is out of scope for SASKIA-211a.
+    def _now_naive() -> datetime:
+        """See function _ensure_tenant_and_admin for the rationale."""
+        return now().replace(tzinfo=None)
+
     min_stock = max(1.0, (cost or 1000) / 5000.0)
     return Ingredient(
         name=iname,
         unit=pkg_unit,
         stock_qty=0.0,
         purchase_price_gs=cost or None,
-        purchase_price_updated_at=datetime.utcnow(),
+        purchase_price_updated_at=_now_naive(),
         min_stock_qty=min_stock,
         max_stock_qty=min_stock * 3,
         shelf_life_days=None,
@@ -5293,7 +5316,7 @@ def _create_pack_ingredient(
         lot_required=False,
         may_contain_gluten=False,
         opening_stock_qty=0.0,
-        opening_stock_date=datetime.utcnow().date().isoformat(),
+        opening_stock_date=_now_naive().date().isoformat(),
         reorder_point=min_stock * 1.5,
     )
 
@@ -5325,14 +5348,21 @@ def _seed_ingredient_price_events(
 
     Extracted from _seed_ingredients to reduce complexity.
     """
-    from datetime import datetime, timedelta
+    from datetime import timedelta
+
+    from app.rms.clock import now
 
     for days_ago in (60, 30, 7):
+        # ``recorded_at`` is a DateTime (naive) column. Compute the
+        # ``now() - timedelta`` first (tz-aware arithmetic is well-defined
+        # because ``now()`` is UTC), then strip tz to match the column
+        # type. AGENTS.md rule 20 / 211a: never ``datetime.utcnow()``.
+        recorded_at = (now() - timedelta(days=days_ago)).replace(tzinfo=None)
         session.add(
             IngredientPriceEvent(
                 ingredient_id=ing_id,
                 price_gs=int(cost),
-                recorded_at=datetime.utcnow() - timedelta(days=days_ago),
+                recorded_at=recorded_at,
                 source="seed-pack",
             )
         )
@@ -5583,6 +5613,15 @@ def _seed_tags_and_templates(
     """
     from datetime import datetime
 
+    from app.rms.clock import now
+
+    # ``updated_at`` is a DateTime (naive) column. AGENTS.md rule 20:
+    # use ``app.rms.clock.now()``, then strip tz to match the column
+    # type. SASKIA-211a follow-up: migrate to ``DateTime(timezone=True)``.
+    def _now_naive() -> datetime:
+        """See function _ensure_tenant_and_admin for the rationale."""
+        return now().replace(tzinfo=None)
+
     ensure_starter_tags(session)
     for tag_name, color in ((pack.lower(), "#1976D2"), ("precio-ref", "#FF9800")):
         t = (
@@ -5609,7 +5648,7 @@ def _seed_tags_and_templates(
                     product_id=pid,
                     qty=qty,
                     notes=note,
-                    updated_at=datetime.utcnow(),
+                    updated_at=_now_naive(),
                     updated_by="seed-pack",
                 )
             )

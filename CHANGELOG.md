@@ -36,6 +36,23 @@ Read-only operator page surfacing the seasonal_event catalog (SASKIA-216/220, 40
 
 Verification pass measured every numeric/factual claim in the agent docs against the live repo before editing. Fixes: migration count 117→**119** (dual layout: `_migration_NNN` functions in db.py through 083, files in `app/rms/migrations/` after); anti-rule 2 counts 289/64/117 → **291 py files / 89 tables / 119 migrations**; coverage gate corrected to the enforced **35%** (`--cov-fail-under=35` in pyproject.toml + CI — the 80% figure is the target, not the gate, and the doc previously stated both); CHANGELOG-gate path corrected to the **root** `CHANGELOG.md` (the ci.yml script greps `CHANGELOG.md`; its own comment saying `app/CHANGELOG.md` was stale — comment fixed, no logic change); hosted URL → https://sazon-vps.paragu-ai.com + three-environments note; troubleshooting rows now point at `app_meta(key='schema_version')` instead of `PRAGMA user_version` (aligns with rule 18); `research-repos/saskia` cross-refs → absolute host path (it was never inside this repo); `app/rms/AGENTS.md` testing rule 4 rewritten — the per-file coverage figures (95% money/units, 90% costing) were aspirational, never configured gates; `WHAT_NEXT.md` got a dated correction layer (schema v119, 38 migration files) per its own archive-don't-edit pattern.
 
+## 2026-10-12 — refactor(seed): SASKIA-211a follow-up: replace ``datetime.utcnow()`` with ``app.rms.clock.now()`` in ``app/rms/seed/packs.py``
+
+**Scope**: 6 sites in ``app/rms/seed/packs.py`` (4 functions). +46 / -7.
+
+The SASKIA-211d abstraction-usage enforcement test landed with a documented expected failure: ``test_no_datetime_utcnow_in_app`` found 6 ``datetime.utcnow()`` calls in this file. This commit fixes 1 of the 4 documented SASKIA-211a follow-up failures.
+
+Each function gets a tiny ``_now_naive()`` helper that wraps ``app.rms.clock.now()`` and strips the tzinfo (because the destination columns are ``DateTime`` (naive), not ``DateTime(timezone=True)``). The migration to aware-typed columns is out of scope here — that's a separate schema-level task tracked under SASKIA-211a.
+
+**Behavior preservation:** the resulting naive-UTC datetime is byte-identical to what ``datetime.utcnow()`` used to produce at the SQLAlchemy boundary, so existing seed data is unchanged.
+
+**Tests:** all 7 ``tests/test_packs_seed.py`` tests pass. ``test_no_datetime_utcnow_in_app`` now PASSES (was FAIL — 6 hits, now 0 hits).
+
+**Out of scope (still tracked as SASKIA-211a):**
+- 18 test files importing ``apply_sale`` from the deprecated ``app.rms.costing`` shim instead of the canonical ``app.rms.sales.lifecycle``
+- 6 direct ``StockMovement()`` constructions in ``app/rms/refunds.py`` (2 sites) and ``app/routers/inventory.py`` (4 sites)
+- The 3 ``int(Decimal(...))`` calls in ``tests/test_prod_security_gates.py`` and ``tests/test_accounting_iva_invariant.py`` (intentionally left in this commit's scope to keep it small)
+
 ## 2026-10-12 — style(lint): post-merge-with-SASKIA-211d format fix
 
 **Scope**: `tests/test_models_smoke.py`, `tests/test_route_smoke_generated.py`. +101 / -25.
