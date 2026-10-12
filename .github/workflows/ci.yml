@@ -349,8 +349,9 @@ jobs:
 
       # ---- E5.S3.T3: CHANGELOG must be updated on every PR ----
       # Rejects any PR that touches app/, scripts/, tests/, or .github/ but
-      # doesn't also touch app/CHANGELOG.md. Keeps the [Unreleased] section
-      # honest.
+      # doesn't also touch the root CHANGELOG.md. Keeps the [Unreleased]
+      # section honest. (Comment corrected 2026-10-12: the script below
+      # greps for CHANGELOG.md at repo root, not app/CHANGELOG.md.)
       - name: Docs link check (strict: 0 broken relative refs)
         # Fails on any broken relative link or image reference in .md files.
         # Companion to the docs-quality gate below. The link checker is strict

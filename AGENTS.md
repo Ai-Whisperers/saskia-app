@@ -25,7 +25,7 @@ Read this BEFORE writing code in this repo.
 Supports **two deployment modes**:
 
 - **Local-first** (legacy): single-user install on the operator's PC, binds to `127.0.0.1`, SQLite, no third-party SaaS.
-- **Hosted** (since 2026-09-24): VPS at paragu-ai (ServaRica), Docker Swarm + Traefik + Cloudflare DNS-01. Active URL: https://sazon-vps.paragu-ai.com. Render.com was the prior hosted target (2026-09-02 → 2026-09-23) but is now DEPRECATED — see `docs/operations/2026-09-24-deployment.md`. The `render.yaml` at the repo root is **historical only, do not deploy to Render.**
+- **Hosted** (since 2026-09-24): VPS at paragu-ai (ServaRica), Docker Swarm + Traefik + Cloudflare DNS-01. **Three environments** (saskia-prod / saskia-test / saskia-dev services on one Traefik) — see `.github/workflows/deploy-*.yml` and the `saskia-rms-deploy-flow` skill. Active URL: https://sazon-vps.paragu-ai.com. Render.com was the prior hosted target (2026-09-02 → 2026-09-23) but is now DEPRECATED — see `docs/operations/2026-09-24-deployment.md`. The `render.yaml` at the repo root is **historical only, do not deploy to Render.**
 
 ---
 
@@ -50,7 +50,7 @@ Supports **two deployment modes**:
 
 ### Migrations (8 sub-rules)
 
-12. **No Alembic.** Hand-rolled versioned migrations in `app/rms/db.py` (117 migrations, no gaps).
+12. **No Alembic.** Hand-rolled versioned migrations — **119 as of `_119_recipe_photo_autolink` (SASKIA-213, 2026-10-12)**, no gaps. Early migrations live as `_migration_NNN_*` functions in `app/rms/db.py` (through 083); newer ones as files in `app/rms/migrations/` imported into the db.py registry.
 13. **Every migration is forward-only.** No `downgrade` functions.
 14. **Never edit a shipped migration.** Create a new one. The old one is the persisted contract.
 15. **Never renumber or reorder.** Version number is the contract.
@@ -92,7 +92,7 @@ Supports **two deployment modes**:
 
 ### Process (3 sub-rules)
 
-35. **CHANGELOG discipline.** Every PR that changes `app/`, `scripts/`, `tests/`, or `.github/` MUST also update `app/CHANGELOG.md`. CI fails otherwise.
+35. **CHANGELOG discipline.** Every PR that changes `app/`, `scripts/`, `tests/`, or `.github/` MUST also update the **root `CHANGELOG.md`** — the CI gate script (`grep -qx "CHANGELOG.md"` in ci.yml's "CHANGELOG discipline check" step) matches the root path only. Note: the comment above that step says `app/CHANGELOG.md`, which is stale; and both files exist and are actively written (root 110 KB, app/ 299 KB as of 2026-10-12). The gated canonical is root `CHANGELOG.md`; `app/CHANGELOG.md` is a secondary detailed log. When in doubt, update both.
 36. **Single-developer bus factor.** All code is written and reviewed by one person. To mitigate: ADRs in `docs/architecture/decisions/` (when needed), every commit has a clear message, every PR has a ticket, every behavior change has a regression test, every fix has a runbook.
 37. **PRs reference a ticket.** Use the `SASKIA-NNN-<slug>.md` convention.
 
@@ -106,7 +106,7 @@ These are ideas that look good on paper but are wrong for Sazon at its current s
 
 1. **Don't migrate to React/Vue/Tailwind/SPA.** Server-rendered Jinja2 + HTMX is correct. (HTMX IS already in use in `receta_form.html` and `produccion*.html`.) The fix for UX is design system + components, not a framework. **Enforce in CI: fail if templates/ add a React import.**
 
-2. **Don't migrate to microservices.** The monolith is right for this scale. Sazon has 289 app/ python files, 64 tables, 117 migrations — well within monolith territory. The right answer is "extract a function" or "extract a module", not "extract a service".
+2. **Don't migrate to microservices.** The monolith is right for this scale. Sazon has 291 app/ python files, 89 tables, 119 migrations (counts verified 2026-10-12) — well within monolith territory. The right answer is "extract a function" or "extract a module", not "extract a service".
 
 3. **Don't add GraphQL.** REST + OpenAPI is sufficient until 3+ external consumers. No graphene, strawberry, ariadne, hasura, stepzen, etc.
 
@@ -179,8 +179,7 @@ This codebase is maintained by **Iván directly**, not by an external "Kiki" any
 ## Testing
 
 - Pytest with `uv run pytest`.
-- Coverage gate: 80% (CI fails below). Current gate is 40% (43% actual coverage, 9-areas migration landed 2026-10-12); Phase 1-4
-  plan bumps it in 4 stages. See `state/test-coverage-2026-10-04.json` and `state/test-coverage-9-areas-43pct.json`.
+- Coverage gate: **35% enforced today** (`--cov-fail-under=35` in `pyproject.toml` addopts + CI; verified 2026-10-12). The long-term target is 80%; the 9-areas test migration (2026-10-12) is stage 1 of the staged bumps. See `state/test-coverage-9-areas-43pct.json`.
 - Property-based tests for money (`test_money.py`); unit tests for unit
   coercion (`test_units.py`); roundtrip tests for import.
 - **E2E tests with Playwright** (added 2026-10-07, in `pyproject.toml` `dev` extra). Lives in `tests/e2e/`.
@@ -251,13 +250,15 @@ When you add a new bypass-detection test, two steps are required:
 GitHub Actions runs on every PR to `main`:
 - `ruff check .`
 - `ruff format --check .`
-- `pytest --cov=app` (80% coverage gate)
+- `pytest --cov=app` (35% coverage gate enforced; 80% is the target, not the gate)
 - Typer check (informational; not blocking yet)
+- **Coverage gate 35%** (`--cov-fail-under=35` — do not confuse with the 80% target)
 - `sazon migrate` smoke test (fresh SQLite)
 - CHANGELOG discipline check (fails PR if `app/`, `scripts/`, `tests/`, or
-  `.github/` changed but `app/CHANGELOG.md` did not)
-- **Anti-rule enforcement** (13 of 20 anti-rules enforced via grep in CI;
-  see `.github/workflows/ci.yml` and `tests/test_ci_anti_rules.py`)
+  `.github/` changed but the root `CHANGELOG.md` did not — the step's own
+  comment saying `app/CHANGELOG.md` is stale; the script greps `CHANGELOG.md`)
+- **Anti-rule enforcement** (14 of 20 anti-rules enforced via tests in
+  `tests/test_ci_anti_rules.py` + grep gates in `.github/workflows/ci.yml`)
 
 **Weekly scheduled workflow:**
 - `.github/workflows/date-boundary.yml` — runs the full pytest suite
@@ -362,7 +363,7 @@ Ticket template:
 
 For deeper context, read these in order:
 
-1. `research-repos/saskia/AGENTS.md` — Saskia's build context (OPSEC-clean)
+1. `/opt/data/work/research-repos/saskia/AGENTS.md` — Saskia's build context (OPSEC-clean; **separate checkout on the host, NOT inside this repo** — path verified 2026-10-12)
 2. `/opt/data/profiles/ivan/cache/scratch/sazon_migration/PLAN_INDEX.md` — entry point for migration plan
 3. `/opt/data/profiles/ivan/cache/scratch/sazon_migration/migration_plan/IDEATION_PLAN.md` — 183 items, 5 tracks
 4. `/opt/data/profiles/ivan/cache/scratch/sazon_migration/migration_plan/MASTER_PLAN.md` — 34 specific migration tasks
@@ -424,8 +425,8 @@ If the session is interrupted: commit the WIP, update the state file, log what w
 |---|---|
 | Lost the working directory | `cd /opt/data/work/saskia-app` |
 | Tests failing after migration | `uv run pytest -k <name>` to isolate; check `app/rms/db.py` `_migration_NNN_*` functions |
-| DB looks weird | `sqlite3 ~/Documents/aiw-restaurant/db.sqlite` then `.schema`, `PRAGMA user_version` |
-| Migration not applied | Check `app/rms/db.py` for `SCHEMA_VERSION` or `PRAGMA user_version`; check `/tmp/sazon_backups/` for pre-migration backup |
+| DB looks weird | `sqlite3 ~/Documents/aiw-restaurant/db.sqlite` then `.schema`; check schema version via `SELECT * FROM app_meta WHERE key='schema_version'` (NOT `PRAGMA user_version` — see rule 18) |
+| Migration not applied | Check `CURRENT_SCHEMA_VERSION` in `app/rms/config.py` vs `app_meta` row (see rule 18); check `/tmp/sazon_backups/` for pre-migration backup |
 | `/healthz` failing | Check `/healthz/deps` for env var issues; check `/healthz/backup` for backup age |
 | Stuck on a task | Check `state/test-coverage-2026-10-04.json`, `IMPROVEMENT_BACKLOG.md`, `WHAT_NEXT.md` |
 | Kernel died mid-session | Use `mcp__filesystem__read_file` instead of `terminal`; see `execute-code-ssh-mode` skill |
@@ -437,7 +438,7 @@ If the session is interrupted: commit the WIP, update the state file, log what w
 
 **Read these three docs first:**
 1. This file (AGENTS.md)
-2. `research-repos/saskia/AGENTS.md` (Saskia's context)
+2. `/opt/data/work/research-repos/saskia/AGENTS.md` (Saskia's context — separate host checkout)
 3. `/opt/data/profiles/ivan/cache/scratch/sazon_migration/PLAN_INDEX.md` (migration plan)
 
 **Then ask Iván** if it's still unclear. Don't guess on hard rules, security, or anything that touches Saskia's data.

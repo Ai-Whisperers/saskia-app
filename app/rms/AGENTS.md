@@ -45,7 +45,7 @@
 1. **Money tests are in `tests/test_money.py`.** Property-based via hypothesis.
 2. **Unit tests are in `tests/test_units.py`.** Property-based via hypothesis.
 3. **Costing tests are in `tests/test_costing.py`.** TDD-first: write the test before the implementation.
-4. **Coverage gate: 80% overall, 95% for money.py and units.py, 90% for costing.py.**
+4. **Coverage gate (enforced 2026-10-12): 35% overall** via `--cov-fail-under=35` in `pyproject.toml` + CI. There is NO per-file threshold configured — the historical "80% overall / 95% money+units / 90% costing" figures were aspirational targets from the original plan, never enforced gates. Do not cite them as gates.
 5. **No float in money test inputs.** Use `Decimal(str(value))`.
 
 ## Migration rules
