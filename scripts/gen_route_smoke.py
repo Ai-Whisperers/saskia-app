@@ -180,8 +180,12 @@ def render_test_file(
 
     # Routes tracked as known-failing (linked bug tickets). Skipped at
     # parametrize time so CI doesn't fail on them but the gap is documented.
-    {(m, p) for (m, p, _ticket) in KNOWN_FAILING_SMOKE}
-    {(m, p): ticket for (m, p, ticket) in KNOWN_FAILING_SMOKE}
+    known_failing_paths: set[tuple[str, str]] = {
+        (m, p) for (m, p, _ticket) in KNOWN_FAILING_SMOKE
+    }
+    known_failing_legend: dict[tuple[str, str], str] = {
+        (m, p): ticket for (m, p, ticket) in KNOWN_FAILING_SMOKE
+    }
 
     for method in ["GET", "POST", "PUT", "PATCH", "DELETE"]:
         items = by_method.get(method, [])
@@ -216,22 +220,20 @@ def render_test_file(
         for method, path, ticket in KNOWN_FAILING_SMOKE:
             safe_id = path.replace("/", "-").strip("-")
             full_id = f"{safe_id}-known-fail-{ticket}"
-            lines.append(f"    pytest.param({method!r}, {path!r}, id={full_id!r}),")
+            lines.append(
+                f"    pytest.param({method!r}, {path!r}, id={full_id!r}),"
+            )
         lines.append("]")
         lines.append("")
-        lines.append('@pytest.mark.parametrize("method,path", _KNOWN_FAILING_PARAMS)')
+        lines.append("@pytest.mark.parametrize(\"method,path\", _KNOWN_FAILING_PARAMS)")
         lines.append("def test_known_failing_route(client, method, path):")
-        lines.append(
-            '    """XFAIL: documented app bug. The route is expected to 5xx until fixed."""'
-        )
+        lines.append('    """XFAIL: documented app bug. The route is expected to 5xx until fixed."""')
         lines.append("    fn = getattr(client, method.lower())")
         lines.append("    r = fn(path)")
         lines.append("    # This SHOULD 5xx — bug is still present. Pass means bug is still here.")
         lines.append("    assert r.status_code >= 500, (")
-        lines.append('        f"{method} {path} now returns {r.status_code} — bug may be fixed! "')
-        lines.append(
-            '        f"Remove from KNOWN_FAILING_SMOKE and regenerate. Body: {r.text[:200]}"'
-        )
+        lines.append("        f\"{method} {path} now returns {r.status_code} — bug may be fixed! \"")
+        lines.append("        f\"Remove from KNOWN_FAILING_SMOKE and regenerate. Body: {r.text[:200]}\"")
         lines.append("    )")
         lines.append("")
 
