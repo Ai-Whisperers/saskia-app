@@ -1,3 +1,47 @@
+## 2026-10-12 — refactor(reorder): SASKIA-211x split compute_reorder_list into 5 helpers (CC 13→4)
+
+**Scope**: `app/rms/reorder.py` (orchestrator → thin coordinator + single-purpose helpers).
+
+`compute_reorder_list` was a single 60-line function with CC 13, mixing:
+  - effective_min lookup (reorder_point override vs min_stock_qty)
+  - INV-03 display stock clamp
+  - target max_q fallback (`raw_max or (effective_min*2 if effective_min>0 else 10.0)`)
+  - suggested qty calculation
+  - has_price / cost calculation
+  - urgency_ratio computation
+  - Spanish urgency label mapping ("sin stock" / "bajo mínimo" / "OK")
+
+Refactored into:
+  - `_effective_min(ing) -> float`         (CC 2)
+  - `_target_max_qty(eff_min, raw_max) -> float`  (CC 3)
+  - `_urgency_ratio(display, eff_min) -> float`   (CC 2)
+  - `_urgency_label(display, eff_min) -> str`     (CC 3)
+  - `_build_reorder_item(ing) -> ReorderItem | None`  (CC 6) — returns None to filter
+  - `compute_reorder_list(session)` orchestrator  (CC 4) — query → map → filter None → sort
+
+Behavior CHARACTER-FOR-CHARACTER identical:
+  - Query: `session.query(Ingredient).all()` — unchanged
+  - Filter: `display_stock >= effective_min → skip` — unchanged
+  - max_q fallback: `raw_max or (effective_min*2 if effective_min>0 else 10.0)` — unchanged
+  - suggested: `max(0.0, max_q - display_stock)` — unchanged
+  - cost: `int(suggested * price) if has_price else 0`, with
+    `has_price = purchase_price_gs is not None and > 0` — unchanged
+  - urgency_ratio: `display_stock / max(effective_min, 0.001)` if `effective_min > 0` else `0.0` — unchanged
+  - urgency_label thresholds (0 → "sin stock", `< eff_min` → "bajo mínimo", else "OK") — unchanged
+  - Sort: smallest urgency_ratio first — unchanged
+  - Field shapes (ReorderItem dataclass) — unchanged
+
+Verified: 43 tests pass across 5 test files (test_phase2_review_tickets,
+test_SASKIA-208_reorder_integration, test_reorder_supplier_prices,
+test_P32_reorder_auto_price, test_reorder_supplier_redesign).
+
+Radon CC delta:
+  app/rms/reorder.py:compute_reorder_list  13 → 4
+  app/rms/reorder.py:_build_reorder_item    new (CC 6)
+  app/rms/reorder.py:_urgency_label          new (CC 3)
+  app/rms/reorder.py:_target_max_qty         new (CC 3)
+  app/rms/reorder.py:_effective_min          new (CC 2)
+  app/rms/reorder.py:_urgency_ratio          new (CC 2)
 ## 2026-10-12 — fix(tooling): SASKIA-211x complexity gate parser (CC gate now fires)
 
 **Scope**: `scripts/check_complexity.py` (parse_radon_output rewritten; no behaviour change for callers).
