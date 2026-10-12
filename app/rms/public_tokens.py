@@ -22,12 +22,12 @@ Why a shared module:
 
 from __future__ import annotations
 
-from loguru import logger
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import HTTPException, Request
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.rms.models import AuditLog

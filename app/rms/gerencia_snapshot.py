@@ -5,10 +5,10 @@ Counts and one money total. The modules behind the menu keep the detail.
 
 from __future__ import annotations
 
-from loguru import logger
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 

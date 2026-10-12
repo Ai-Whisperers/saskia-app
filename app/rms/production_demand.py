@@ -52,6 +52,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 
+from loguru import logger
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 

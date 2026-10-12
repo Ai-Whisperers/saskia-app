@@ -10,10 +10,10 @@ prompt con anti-invención. La pregunta del usuario NUNCA se ejecuta.
 
 from __future__ import annotations
 
-from loguru import logger
 import re
 from typing import Any
 
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 

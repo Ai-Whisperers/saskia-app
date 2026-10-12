@@ -18,7 +18,6 @@ external creds. Operator can switch by setting env vars:
 
 from __future__ import annotations
 
-from loguru import logger
 import json
 import os
 import smtplib
@@ -28,6 +27,8 @@ from email.message import EmailMessage
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from loguru import logger
 
 if TYPE_CHECKING:
     from app.rms.workflow import DailySummaryFull
@@ -121,7 +122,6 @@ def _prune_spool(now: datetime | None = None) -> int:
         except OSError:
             # Spool prune — file vanished or perm denied. Best-effort cleanup.
             logger.debug("notifications spool prune failed for %s", f, exc_info=True)
-            pass
     return removed
 
 

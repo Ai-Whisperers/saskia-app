@@ -7,7 +7,6 @@ behavior even before the migration runs.
 
 Usage::
 
-from loguru import logger
     from app.rms.alert_templates import get_eod_alert_template
     tmpl = get_eod_alert_template(session, "eod.voided_rate")
     subject = tmpl["subject"]
@@ -21,6 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from loguru import logger
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 

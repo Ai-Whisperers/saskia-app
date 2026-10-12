@@ -12,10 +12,10 @@ The ratio between theoretical and actual food cost is the key metric:
 
 from __future__ import annotations
 
-from loguru import logger
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 

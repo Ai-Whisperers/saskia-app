@@ -41,10 +41,11 @@ customer detail payload (``/clientes/api/{id}``).
 
 from __future__ import annotations
 
-from loguru import logger
 import datetime as _dt
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Optional
+
+from loguru import logger
 
 # T-2026-10-01: use the live discount rate (POINTS_VALUE_GS) instead of
 # the old hardcoded 1000 Gs/point that gave a 100% return rate.

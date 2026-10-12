@@ -38,11 +38,12 @@ sweep, one confirmation, all info in one place.
 
 from __future__ import annotations
 
-from loguru import logger
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
+
+from loguru import logger
 
 from app.rms import config
 from app.rms.models.channels import Channel
