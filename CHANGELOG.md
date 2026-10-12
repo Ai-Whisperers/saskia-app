@@ -1,5 +1,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
+## 2026-10-12 — style: ruff format + PERF401/DTZ011 fixes for SASKIA-217 (test_settings count formatting; no behavior change)
+
 ## 2026-10-12 — feat(ui): SASKIA-217 seasonal calendar admin page
 
 **Scope**: `app/rms/seasonal.py` (DB-backed calendar helpers), `app/routers/settings_runtime.py` (GET /api/admin/seasonal-calendar), `app/templates/admin/seasonal_calendar.html` (new), `app/rms/nav.py` (Sistema nav + crumb), `app/rms/settings_registry.py` (new `seasonal.relevance_tags` setting), `tests/test_saskia217_seasonal_calendar.py` (new, 7 tests).
