@@ -1,7 +1,7 @@
 # Sazón RMS — Makefile
 # Shortcuts for common dev tasks. Run `make help` to see all targets.
 
-.PHONY: help install test test-verbose test-coverage test-fast lint lint-fix format check serve migrate seed seed-reset backup fixtures clean ci-smoke pre-commit stats smoke check-warnings check-secrets ci dead-code complexity duplicates duplicates-code arch security audit-cve licenses ci-extra docs-lint-check docs-lint-baseline todos todos-stats
+.PHONY: help install test test-verbose test-coverage test-fast lint lint-fix format check serve migrate seed seed-reset backup fixtures clean ci-smoke pre-commit stats smoke check-warnings check-secrets ci dead-code complexity duplicates duplicates-code arch security audit-cve licenses ci-extra docs-lint-check docs-lint-baseline todos todos-stats audit
 
 PYTHON ?= python3
 UV ?= uv
@@ -299,3 +299,18 @@ clean: ## Remove build artifacts.
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
+
+# s4-tooling pass 2026-10-12: one-shot audit = CVE scan + workflow YAML
+# self-check + ruff + bandit + cyclomatic complexity. Use this BEFORE
+# opening a PR that touches pyproject.toml, .github/, or security.
+#
+# `make audit` deliberately runs slower than `make ci-extra`. It also
+# includes the pip-audit CVE scan and the workflow YAML self-check (the
+# PR #159 lesson). Run locally; CI runs the same checks in release.yml
+# (pip-audit) and ci.yml (everything else).
+audit: audit-cve workflows-lint security complexity ## Full audit (slow; run before opening a PR).
+	@echo ""
+	@echo "=== Workflow YAML self-check (PR #159 lesson) ==="
+	@$(PYTHON) scripts/check_workflows_yaml.py
+	@echo ""
+	@echo "=== audit complete ==="
