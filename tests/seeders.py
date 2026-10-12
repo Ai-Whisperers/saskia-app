@@ -17,6 +17,7 @@ from typing import Any, Dict
 # Basic Seed Helpers (Previously scattered)
 # ==============================================================================
 
+
 def seed_basic(
     session_factory,
     *,
@@ -59,6 +60,7 @@ def seed_simple(
 # ==============================================================================
 # Entity-Specific Seed Helpers
 # ==============================================================================
+
 
 def seed_customer(
     session_factory,
@@ -214,6 +216,7 @@ def seed_sub_recipe(
 
                 if line_kind == "ingredient" and target_id:
                     from app.rms.models_legacy import IngredientLine
+
                     ing_line = IngredientLine(
                         recipe_id=recipe.id,
                         line_kind="ingredient",
@@ -224,6 +227,7 @@ def seed_sub_recipe(
                     recipe.ingredient_lines.append(ing_line)
                 elif line_kind == "sub_recipe" and target_id:
                     from app.rms.models import RecipeLine
+
                     recipe_line = RecipeLine(
                         recipe_id=recipe.id,
                         line_target_id=target_id,
@@ -241,6 +245,7 @@ def seed_sub_recipe(
 # ==============================================================================
 # Scenario-Specific Seed Helpers (Previously in flows.py)
 # ==============================================================================
+
 
 def seed_with_low_stock(
     session_factory,
@@ -272,7 +277,10 @@ def seed_with_low_stock(
         s.commit()
         return {
             "low_ingredient": {"id": low_ingredient.id, "stock_qty": low_ingredient.stock_qty},
-            "normal_ingredient": {"id": normal_ingredient.id, "stock_qty": normal_ingredient.stock_qty},
+            "normal_ingredient": {
+                "id": normal_ingredient.id,
+                "stock_qty": normal_ingredient.stock_qty,
+            },
         }
 
 
@@ -314,6 +322,7 @@ def seed_with_sales_history(
 # ==============================================================================
 # Quick Seed Alias (Backward Compatibility)
 # ==============================================================================
+
 
 def qseed(session_factory, scenario: str = "basic") -> dict:
     """Quick-seed helper for fast targeted test setup.

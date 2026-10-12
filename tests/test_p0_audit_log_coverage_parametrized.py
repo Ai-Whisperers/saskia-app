@@ -33,7 +33,6 @@ import pytest
 
 from tests.test_p0_audit_log_coverage import _audit_rows, _seed_basic
 
-
 # ─── Parametrize rows ─────────────────────────────────────────────────────────
 #
 # Each row is a complete spec for one audit-row smoke case. Adding a new
@@ -176,9 +175,7 @@ def test_write_action_emits_audit_row(authed_client, session_factory, spec):
 
     req = spec["request_kwargs"](data)
     r = authed_client.post(**req)
-    assert r.status_code < 500, (
-        f"{spec['url']} returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"{spec['url']} returned {r.status_code}: {r.text[:200]}"
 
     rows = _audit_rows(session_factory, spec["audit_action"], target_type=spec["target_type"])
     assert len(rows) >= 1, f"no {spec['audit_action']} audit row"
@@ -193,8 +190,7 @@ def test_write_action_emits_audit_row(authed_client, session_factory, spec):
     if spec.get("target_id_match"):
         seed_key = spec["target_id_match"]
         assert str(last.target_id) == str(data[seed_key]), (
-            f"{spec['audit_action']}: target_id={last.target_id}, "
-            f"expected {data[seed_key]}"
+            f"{spec['audit_action']}: target_id={last.target_id}, expected {data[seed_key]}"
         )
 
 
@@ -208,7 +204,15 @@ def test_parametrize_row_count():
 
 def test_every_case_has_required_keys():
     """Each parametrize row must have the keys the driver reads."""
-    required = {"url", "request_kwargs", "audit_action", "target_type", "extra_detail", "needs_seed", "needs_id"}
+    required = {
+        "url",
+        "request_kwargs",
+        "audit_action",
+        "target_type",
+        "extra_detail",
+        "needs_seed",
+        "needs_id",
+    }
     for case in _CASES:
         spec = case.values[0]
         missing = required - set(spec.keys())

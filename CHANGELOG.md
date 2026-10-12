@@ -1,3 +1,7 @@
+## 2026-10-12 — style: apply ruff format + fix F841 unused locals (S1 batch-1)
+
+**Scope**: `scripts/gen_route_smoke.py`, `tests/_lib/parametrization_examples.py`, `tests/seeders.py`, `tests/test_p0_audit_log_coverage_parametrized.py`, `tests/test_route_smoke_generated.py`, `tests/test_seeders_registry.py` — pure formatting + 2 unused-local fixes (`--unsafe-fixes`). No behavior change. Required by fast-pr-gate smoke gate.
+
 ## 2026-10-12 — test(seeders): Phase 2 increment #1 — registry contract meta-tests (10 cases)
 
 **Scope**: `tests/test_seeders_registry.py` (new, 169 lines).

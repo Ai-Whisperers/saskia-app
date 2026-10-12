@@ -23,13 +23,19 @@ __test__ = False
 # EXAMPLE 1: Component Testing Pattern
 # ============================================================================
 
-@pytest.mark.parametrize("component,expected_script,expected_element", [
-    ("ui-toast", "ui-toast.js", "ui-toast-stack"),
-    ("ui-skeleton", "ui-skeleton.js", "ui-skeleton"),
-    ("ui-month", "ui-month.js", "ui-month-navigation"),
-    ("ui-combo", "ui-combo.js", "ui-combo-select"),
-])
-def test_component_script_and_element_included(client, component, expected_script, expected_element):
+
+@pytest.mark.parametrize(
+    "component,expected_script,expected_element",
+    [
+        ("ui-toast", "ui-toast.js", "ui-toast-stack"),
+        ("ui-skeleton", "ui-skeleton.js", "ui-skeleton"),
+        ("ui-month", "ui-month.js", "ui-month-navigation"),
+        ("ui-combo", "ui-combo.js", "ui-combo-select"),
+    ],
+)
+def test_component_script_and_element_included(
+    client, component, expected_script, expected_element
+):
     """Test that each UI component script loads and element is included in base page.
 
     Original: 4 separate test functions
@@ -47,12 +53,16 @@ def test_component_script_and_element_included(client, component, expected_scrip
 # EXAMPLE 2: Flash Toast Pattern
 # ============================================================================
 
-@pytest.mark.parametrize("path,expected_element,expected_content", [
-    ("/ventas?flash=sale_created", "UIToast.show", "Venta registrada correctamente"),
-    ("/pedidos?flash=created", "UIToast.show", "Pedido registrado"),
-    ("/inventario?flash=updated", "UIToast.show", "Inventario actualizado"),
-    ("/clientes?flash=saved", "UIToast.show", "Cliente guardado"),
-])
+
+@pytest.mark.parametrize(
+    "path,expected_element,expected_content",
+    [
+        ("/ventas?flash=sale_created", "UIToast.show", "Venta registrada correctamente"),
+        ("/pedidos?flash=created", "UIToast.show", "Pedido registrado"),
+        ("/inventario?flash=updated", "UIToast.show", "Inventario actualizado"),
+        ("/clientes?flash=saved", "UIToast.show", "Cliente guardado"),
+    ],
+)
 def test_flash_toast_variants(client, path, expected_element, expected_content):
     """Test flash toast messages for different endpoints.
 
@@ -70,12 +80,16 @@ def test_flash_toast_variants(client, path, expected_element, expected_content):
 # EXAMPLE 3: Static Script Content Pattern
 # ============================================================================
 
-@pytest.mark.parametrize("script_path,expected_content", [
-    ("/static/ui-skeleton.js", "UISkeleton"),
-    ("/static/app.js", "initConfirmForms"),
-    ("/static/ui-month.js", "UIMonth"),
-    ("/static/ui-combo.js", "UICombo"),
-])
+
+@pytest.mark.parametrize(
+    "script_path,expected_content",
+    [
+        ("/static/ui-skeleton.js", "UISkeleton"),
+        ("/static/app.js", "initConfirmForms"),
+        ("/static/ui-month.js", "UIMonth"),
+        ("/static/ui-combo.js", "UICombo"),
+    ],
+)
 def test_static_script_content(client, script_path, expected_content):
     """Test that static scripts contain expected content.
 
@@ -93,10 +107,14 @@ def test_static_script_content(client, script_path, expected_content):
 # EXAMPLE 4: Production Status Pattern (from test_production_demand.py)
 # ============================================================================
 
-@pytest.mark.parametrize("test_data,status_assertion", [
-    # Original test_data would contain complex setup data
-    # status_assertion would be the expected assertion logic
-])
+
+@pytest.mark.parametrize(
+    "test_data,status_assertion",
+    [
+        # Original test_data would contain complex setup data
+        # status_assertion would be the expected assertion logic
+    ],
+)
 def test_production_status_variants(client, test_data, status_assertion):
     """Test production status variations.
 
@@ -112,11 +130,15 @@ def test_production_status_variants(client, test_data, status_assertion):
 # EXAMPLE 5: API Response Pattern (from test_saskia_r2_data_models.py)
 # ============================================================================
 
-@pytest.mark.parametrize("endpoint,expected_fields", [
-    ("/api/insights/", ["metrics", "trends"]),
-    ("/api/settings/pricing-markup/preview", ["markup", "suggested"]),
-    ("/api/templates/{template_key}", ["content", "metadata"]),
-])
+
+@pytest.mark.parametrize(
+    "endpoint,expected_fields",
+    [
+        ("/api/insights/", ["metrics", "trends"]),
+        ("/api/settings/pricing-markup/preview", ["markup", "suggested"]),
+        ("/api/templates/{template_key}", ["content", "metadata"]),
+    ],
+)
 def test_api_response_structure(client, endpoint, expected_fields):
     """Test API response structure consistency.
 
