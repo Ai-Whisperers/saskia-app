@@ -13,6 +13,7 @@ COPY pyproject.toml uv.lock* ./
 COPY app/ ./app/
 COPY docs/ ./docs/
 COPY scripts/ ./scripts/
+COPY data/ ./data/
 COPY README.md ./
 
 # Use uv sync which understands the project layout (hatchling backend).
