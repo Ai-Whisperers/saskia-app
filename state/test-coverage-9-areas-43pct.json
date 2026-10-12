@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-12",
+  "coverage": 43,
+  "missed": 14956,
+  "previous": 42,
+  "delta_pp": 1,
+  "key_wins": {
+    "9_new_areas_created": true,
+    "tests_added": "9 tier test directories",
+    "files": "tests/integration/, tests/migrations/, tests/concurrency/, tests/network/, tests/property/, tests/perf/, tests/security/, tests/e2e/"
+  },
+  "test_files": [
+    "tests/integration/test_http_routes_full.py",
+    "tests/integration/test_csrf_auth_real.py",
+    "tests/migrations/test_migration_roundtrips.py",
+    "tests/concurrency/test_concurrent_writes.py",
+    "tests/network/test_network_resilience.py",
+    "tests/property/test_property_based.py",
+    "tests/perf/test_performance_benchmarks.py",
+    "tests/security/test_security_dynamic.py",
+    "tests/e2e/test_playwright_ui_flows.py"
+  ],
+  "test_count": "~100+ new tests across 9 areas",
+  "gate": 40,
+  "gate_status": "PASSED +3pp"
+}

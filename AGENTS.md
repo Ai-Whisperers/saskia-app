@@ -43,7 +43,7 @@ Supports **two deployment modes**:
 ### Data integrity (5 sub-rules)
 
 7. **Integer Gs. in the DB.** Money columns are `int`, not `Decimal`.
-8. **Every sale decrements stock.** When a sale is recorded, the system MUST write `StockMovement` rows for every recipe line of every product in the sale. The router in `app/routers/sales.py` (`sale_create`, `sale_create_multi`) delegates to `apply_sale()` in `app/rms/costing.py`, which is the SINGLE place that writes the audit row. **The chain is locked by 3 tests in `tests/test_sale_create_writes_stock_movement.py`** (and 7 tests in `tests/test_stock_drop.py`). A 2026-10-07 review initially thought this rule was broken (router doesn't write `StockMovement` directly) — but it's correctly delegated to `apply_sale()`. The test file exists to prevent future refactors from breaking the delegation. **Do not move the StockMovement write into the router** — that creates two write paths and the migration-090 single-table consolidation comment in `costing.py` will warn against it.
+8. **Every sale decrements stock.** When a sale is recorded, the system MUST write `StockMovement` rows for every recipe line of every product in the sale. The router in `app/routers/sales.py` (`sale_create`, `sale_create_multi`) delegates to `apply_sale()` in `app/rms/sales/lifecycle.py` (NOT `app/rms/costing.py` — that file is a 1.3 KB deprecated shim since the SASKIA-212 refactor), which is the SINGLE place that writes the audit row. **The chain is locked by 3 tests in `tests/test_sale_create_writes_stock_movement.py`** (and 7 tests in `tests/test_stock_drop.py`). A 2026-10-07 review initially thought this rule was broken (router doesn't write `StockMovement` directly) — but it's correctly delegated to `apply_sale()`. The test file exists to prevent future refactors from breaking the delegation. **Do not move the StockMovement write into the router** — that creates two write paths and the migration-090 single-table consolidation comment in `sales/lifecycle.py` warns against it.
 9. **Negative stock is allowed** (kitchen reality > accounting purity) but red-flashes on dashboard.
 10. **Cross-recipe BOM cycles raise `CycleInRecipeTree`**; UI shows error, never silently truncates.
 11. **Auto-overwrite of recipes during re-import** requires confirmation modal showing diff; auto-backup before mutation.
@@ -106,7 +106,7 @@ These are ideas that look good on paper but are wrong for Sazon at its current s
 
 1. **Don't migrate to React/Vue/Tailwind/SPA.** Server-rendered Jinja2 + HTMX is correct. (HTMX IS already in use in `receta_form.html` and `produccion*.html`.) The fix for UX is design system + components, not a framework. **Enforce in CI: fail if templates/ add a React import.**
 
-2. **Don't migrate to microservices.** The monolith is right for this scale. Sazon has 251 app/ python files, 45 tables, 117 migrations — well within monolith territory. The right answer is "extract a function" or "extract a module", not "extract a service".
+2. **Don't migrate to microservices.** The monolith is right for this scale. Sazon has 289 app/ python files, 64 tables, 117 migrations — well within monolith territory. The right answer is "extract a function" or "extract a module", not "extract a service".
 
 3. **Don't add GraphQL.** REST + OpenAPI is sufficient until 3+ external consumers. No graphene, strawberry, ariadne, hasura, stepzen, etc.
 
@@ -179,8 +179,8 @@ This codebase is maintained by **Iván directly**, not by an external "Kiki" any
 ## Testing
 
 - Pytest with `uv run pytest`.
-- Coverage gate: 80% (CI fails below). Current gate is 35%; Phase 1-4
-  plan bumps it in 4 stages. See `state/test-coverage-2026-10-04.json`.
+- Coverage gate: 80% (CI fails below). Current gate is 40% (43% actual coverage, 9-areas migration landed 2026-10-12); Phase 1-4
+  plan bumps it in 4 stages. See `state/test-coverage-2026-10-04.json` and `state/test-coverage-9-areas-43pct.json`.
 - Property-based tests for money (`test_money.py`); unit tests for unit
   coercion (`test_units.py`); roundtrip tests for import.
 - **E2E tests with Playwright** (added 2026-10-07, in `pyproject.toml` `dev` extra). Lives in `tests/e2e/`.
@@ -194,6 +194,55 @@ This codebase is maintained by **Iván directly**, not by an external "Kiki" any
 - `docs/TEST_ARCHITECTURE.md` (5 levels × 8 domains)
 - `docs/operations/2026-10-04-qa-hats-playbook.md` (12 hats × wishlists)
 - `docs/operations/2026-10-04-test-infra-one-pager.md` (condensed)
+
+---
+
+## Abstraction-usage enforcement
+
+Beyond the hard rules above, the codebase has a small but tightly-defined
+set of abstractions in `app/rms/`:
+
+- `app/rms/money.py:to_int_gs()` — the ONLY Decimal→int path
+- `app/rms/units.py:Unit.coerce()` — the ONLY unit input path
+- `app/rms/clock.py:now/today_local/utcnow/to_utc/to_asuncion` — single
+  source of truth for `now()` (every datetime is tz-aware)
+- `app/rms/sales/lifecycle.py:apply_sale()` — sale-path SSOT
+  (the `app/rms/costing.py` shim re-exports for backwards compat only)
+- `app/rms/stock_ledger.py:apply_stock_delta()` — the single helper
+  for non-sale stock deltas + audit rows
+
+`tests/test_abstraction_usage.py` enforces that these abstractions
+are used and not bypassed. **24 tests in this file**; 20 pass today,
+4 fail with documented violations that are content for follow-up PRs.
+
+| Test | Catches | Status |
+|---|---|---|
+| `test_no_int_decimal_in_tests` | `int(Decimal(...))` in tests (rule 2) | FAIL — 3 hits |
+| `test_no_bare_datetime_now_in_app` | `datetime.now()` in app/ (rule 20) | PASS |
+| `test_no_datetime_utcnow_in_app` | `datetime.utcnow()` in app/ (rule 20) | FAIL — 6 hits in seed/packs.py |
+| `test_apply_sale_imported_from_canonical_path_in_tests` | `apply_sale` imported from shim (rule 8) | FAIL — 18 test files |
+| `test_no_direct_stockmovement_outside_sale_path` | direct `StockMovement()` in non-sale paths | FAIL — 6 hits (211a targets) |
+| `test_abstraction_module_has_dunder_all[*]` | abstraction modules lack `__all__` | PASS |
+| `test_to_int_gs_imports_canonical_path` | `to_int_gs` imported from wrong module | PASS |
+| `test_no_deprecated_costing_imports_for_non_shimmed_names` | shim imports of non-shimmed names | PASS |
+| `test_unit_input_goes_through_unit_coerce` | direct `unit = "kg"` assignments | INFO — candidates for migration |
+| `test_auth_checks_go_through_is_auth_disabled` | env-var reads for auth state | PASS |
+| `test_tier_tests_use_fixtures_not_inline_setup` | tier tests with inline TestClient | INFO — sibling-branch migration |
+| `test_no_subprocess_in_app` | `subprocess`/`os.system` in app/ | INFO — review for services layer |
+| `test_test_file_is_self_consistent` | self-test (AST-based) | PASS |
+
+When you add a new abstraction, three steps are required:
+1. Add the file to `ABSTRACTION_MODULES` in the test file (so it's
+   exempt from "no direct X" checks that would be self-referential).
+2. Give it an `__all__` so the `__all__` test passes.
+3. Add a specific test below that pins the bypass-detection regex
+   (so a future refactor that breaks the abstraction fails CI).
+
+When you add a new bypass-detection test, two steps are required:
+1. Use `_walk_py()` + `_scan_for_pattern()` to find violations; don't
+   write custom file-walking code.
+2. Have the test fail with `file:line:context` so the operator can
+   fix the violation. A list of 50 truncated paths is not actionable.
 
 ---
 
