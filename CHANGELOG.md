@@ -1,3 +1,7 @@
+## 2026-10-12 — style: apply ruff format to S3 batch-1 router files
+
+**Scope**: `app/routers/{customers,health,help,shopping}.py`, `scripts/check_complexity.py` — pure formatting (line lengths, import grouping). No behavior change. Required by fast-pr-gate smoke gate.
+
 ## 2026-10-12 — refactor(customers): SASKIA-211x split _build_csv_row (CC 16→4)
 
 Extracted `_cust_attr(cust, attr)` (getattr-or-empty) and
