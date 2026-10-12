@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
 from starlette.requests import Request
 
 from app.rms.observability import (
