@@ -1,3 +1,11 @@
+## 2026-10-12 — refactor(recipes): SASKIA-211x split recipes_list into 7 helpers (CC 65→8)
+
+**Scope**: `app/routers/recipes.py` (recipes_list function).
+
+Orchestrator pattern: thin coordinator (CC 8) + single-purpose helpers, all helpers ≤CC 10. No behavior change — filter parsing, filter application (count + data statements), sorting, decoration, and dropdown catalog builds preserved character-for-character. **39 tests** in 4 test files verify behavior preservation: `test_recetas_photo_modal.py` (6), `test_P04_recetas_combo_regression.py` (12), `test_p3_ux_sort_multifilter.py` (12), `test_receta_detalle_2026_09_29_regression.py` (9).
+
+Helpers extracted: `_safe_int`, `_append_unique_int`, `_parse_csv_int_list`, `_parse_legacy_ingredient_id`, `_parse_recipe_ingredient_ids` (orchestrator of 3 sources), `_parse_recipe_filter_lists`, `_apply_recipes_search_filters`, `_apply_recipes_sql_sort`, `_apply_recipes_in_memory_sort`, `_list_all_recipe_families`, `_list_all_recipe_tags`.
+
 ## 2026-10-12 — style: apply ruff format to S3 batch-1 router files
 
 **Scope**: `app/routers/{customers,health,help,shopping}.py`, `scripts/check_complexity.py` — pure formatting (line lengths, import grouping). No behavior change. Required by fast-pr-gate smoke gate.
