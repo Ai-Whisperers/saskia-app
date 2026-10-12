@@ -36,6 +36,14 @@ Read-only operator page surfacing the seasonal_event catalog (SASKIA-216/220, 40
 
 Verification pass measured every numeric/factual claim in the agent docs against the live repo before editing. Fixes: migration count 117→**119** (dual layout: `_migration_NNN` functions in db.py through 083, files in `app/rms/migrations/` after); anti-rule 2 counts 289/64/117 → **291 py files / 89 tables / 119 migrations**; coverage gate corrected to the enforced **35%** (`--cov-fail-under=35` in pyproject.toml + CI — the 80% figure is the target, not the gate, and the doc previously stated both); CHANGELOG-gate path corrected to the **root** `CHANGELOG.md` (the ci.yml script greps `CHANGELOG.md`; its own comment saying `app/CHANGELOG.md` was stale — comment fixed, no logic change); hosted URL → https://sazon-vps.paragu-ai.com + three-environments note; troubleshooting rows now point at `app_meta(key='schema_version')` instead of `PRAGMA user_version` (aligns with rule 18); `research-repos/saskia` cross-refs → absolute host path (it was never inside this repo); `app/rms/AGENTS.md` testing rule 4 rewritten — the per-file coverage figures (95% money/units, 90% costing) were aspirational, never configured gates; `WHAT_NEXT.md` got a dated correction layer (schema v119, 38 migration files) per its own archive-don't-edit pattern.
 
+## 2026-10-12 — fix(tests): pack test contract vs SASKIA-220 resale items (merge follow-up)
+
+**Scope**: `tests/test_packs_seed.py`.
+
+Merging origin/main (PR #154, SASKIA-220's 5 new vertical packs) surfaced 3 stale assertions that were hidden by the broken ci.yml workflow (invalid YAML since #112): `test_all_packs_present` expected 11 packs (16 shipped), and the integrity + fresh-db tests demanded a recipe for every product — but Food Truck (1 drink) and Quiosco/Minimarket (12 of 13 items) intentionally sell **resale** products with no recipe; `seed_pack()` stores `recipe_id=None` for them. Updated the two pack-level assertions to exempt resale-heavy packs while keeping the strict 1:1 recipe:product contract for every kitchen pack.
+
+**Tests**: 28/28 across `test_packs_seed.py` + `test_packs_saskia220.py` + `test_pack_demo.py`.
+
 ## 2026-10-12 — refactor(abstractions): SASKIA-211a — turn all 3 remaining abstraction gates green
 
 **Scope**: 26 files. ``app/rms/stock_ledger.py``, ``app/rms/refunds.py``, ``app/routers/inventory.py``, ``.github/workflows/ci.yml``, 20 test files. 
