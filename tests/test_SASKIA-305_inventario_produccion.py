@@ -75,6 +75,45 @@ def test_inventario_row_has_ver_detalles_disclosure():
     assert src.find("Nuevo ingrediente") < src.find("Llenar a 2× mínimo")
 
 
+def test_produccion_day_plan_l1_and_mas():
+    """Day plan L1 is Listo / Producto / Lote / Hecho. Depth sits under Ver detalles and Más."""
+    src = TEMPLATES.joinpath("produccion.html").read_text(encoding="utf-8")
+    assert "Ver detalles" in src
+    assert "Plantilla semanal" in src
+    assert 'class="more-menu"' in src
+    for href in (
+        "/produccion/print",
+        "/produccion/export.csv",
+        "/produccion/copy-last-week",
+        "/produccion/template/load-day",
+        "/produccion/haccp",
+        "/produccion/prep",
+        "/produccion/manana",
+        "/produccion/accuracy",
+        "/shopping-list",
+    ):
+        assert href in src, href
+    assert 'name="done_' in src
+    assert 'name="completed_' in src
+    table = src.find('class="table is-hoverable align-middle')
+    assert table > 0
+    thead = src[src.find("<thead", table) : src.find("</thead>", table)]
+    for label in ("Listo", "Producto", "Lote", "Hecho", "Ver detalles"):
+        assert label in thead, label
+    for parked in (
+        "Dificultad",
+        "Demanda",
+        "Pedidos",
+        "Receta",
+        "Costo / Margen",
+        "Sobrante",
+        "Cierre",
+    ):
+        assert parked not in thead, parked
+        assert parked in src
+    assert "haccp_alert == 'warning'" in src or 'haccp_alert == "warning"' in src
+
+
 def test_produccion_dia_view_tabs():
     """`produccion.html` must have Día / Semana / Mes view switcher in the header."""
     src = TEMPLATES.joinpath("produccion.html").read_text(encoding="utf-8")

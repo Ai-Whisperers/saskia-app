@@ -1,4 +1,12 @@
 
+## 2026-10-12 — Producción day plan shows product, qty, and status
+
+The day plan row shows Listo, the product, the lote to mix, and Hecho.
+Dificultad, demanda, pedidos, receta, costo/margen, sobrante, and cierre
+sit under Ver detalles. Más holds print, CSV, HACCP, the weekly template,
+and the shopping-list handoff. A HACCP out-of-range reading stays as one
+line on the day view.
+
 ## 2026-10-12 — Inventario list row is stock, cost, and alert
 
 The ingredient list shows the name, current stock with its unit, the purchase
