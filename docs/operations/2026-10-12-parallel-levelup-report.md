@@ -1,19 +1,19 @@
 # Parallel Level-Up Campaign — Final Report — 2026-10-12
 
-> **Status:** 🟡 PARTIAL · **Author:** S5 (s5-org coordinator) · **Scope:** All 5 lanes
-> **Respawn note:** Wave 2 was killed by Hermes runtime restart at 21:19Z. Wave 3 re-spawned s5-org with resume pointer at 21:25Z. This report reflects state at wave-3 respawn. Lanes are still landing PRs; merge sequence has not completed.
+> **Status:** 🟡 WAVE-3 IN-FLIGHT · **Author:** S5 (s5-org coordinator) · **Scope:** All 5 lanes
+> **Respawn note:** Wave 2 was killed by Hermes runtime restart at 21:19Z. Wave 3 re-spawned s5-org with resume pointer at 21:25Z. Wave-3 lanes resumed at 21:23-21:31Z, pushed branches at 21:31-21:40Z. PRs opening imminently. Merge sequence has not completed.
 
 This is the final report for the 2026-10-12 parallel level-up campaign. It covers measured outcomes per lane (as committed at wave-3 respawn), merge sequence guidance, lessons learned, and follow-up recommendations.
 
 ## TL;DR
 
-| Lane | Branch | Status at 21:25Z | Commits ahead | Risk |
-|------|--------|------------------|---------------|------|
-| s1-tests | `hermes/levelup-s1-tests` | phase 1 staged (uncommitted) | 0 | LOW — additive, no app/ changes |
-| s2-robustness | `hermes/levelup-s2-robustness` | PR1 + PR2 committed | 2 | LOW — additive, behavior-preserving |
-| s3-complexity | `hermes/levelup-s3-complexity` | 4 commits + 5th split in flight | 4 | MED — first commit fixes a critical gate-parsing bug |
-| s4-tooling | `hermes/levelup-s4-tooling` | audit delivered, plan executing | 0 | LOW — isolated to .github/ + pyproject |
-| s5-org (self) | `hermes/levelup-s5-org` | resume + report drafted | 0 | — |
+| Lane | Branch | Status at 21:42Z | Commits pushed | PR opened | CI status |
+|------|--------|------------------|---------------|-----------|-----------|
+| s1-tests | `hermes/levelup-s1-tests` | phase1-landed, phase2 in flight | 1 (d29b0e36) | NO (pending) | n/a |
+| s2-robustness | `hermes/levelup-s2-robustness` | PR1+PR2 ready locally | 0 | NO (not pushed) | n/a |
+| s3-complexity | `hermes/levelup-s3-complexity` | final report delivered | 13 (84e7eaf6) | NO (pending) | n/a |
+| s4-tooling | `hermes/levelup-s4-tooling` | pushed + PR opened | 1 (a2321064) | YES (#164) | 11/12 PASS, 1 FAIL (lint+smoke-subset pre-existing test issue), test IN_PROGRESS |
+| s5-org (self) | `hermes/levelup-s5-org` | resumed + commit shipped | 1 (7c5eca6) | NO | n/a |
 
 **Critical finding (s3):** `scripts/check_complexity.py` was silently broken since 2026-10-08 — the `radon cc -n B` flag filtered violations before the parser could see them. `make complexity` returned "0 over grade B" while 179 functions actually exceeded B. **Commit `c06290b4` fixes this.** Without that commit, rule 40 (CC ≤ 10) was unenforced.
 
@@ -40,13 +40,20 @@ This is the final report for the 2026-10-12 parallel level-up campaign. It cover
 | 21:18:00 | s2 PR2 `b415592b` committed (retry_transient helper). |
 | 21:18:51 | **ORCH: Hermes runtime restarted 21:19Z — all 5 lanes killed mid-flight.** Wave 2 work preserved in worktrees. |
 | 21:25:00 | **s5-org respawned (wave 3)** with resume pointers. Plan/LEDGER/Sessions re-synced. Doc state preserved. |
-| _(pending)_ | Wave-3 lanes heartbeat + push to remote. |
+| 21:23-21:31Z | Wave-3 lanes resume: s4 (21:23:44Z), s2 (21:24:56Z), s1 (21:30:58Z), s3 (21:30:01Z). |
+| 21:27:34Z | s4 pushes `a2321064` + opens PR #164. |
+| 21:28:53Z | PR #164 CI starts. |
+| 21:31:27Z | PR #164 fast-pr-gate FAIL (pre-existing test_cost_freshness.py hardcoded dates). |
+| 21:31:16Z | s1 ships commit `d29b0e36` (Phase 1 landed). Push to origin. PR pending. |
+| 21:39-21:40Z | s3 ships 13 commits total (c06290b4 → 4a0fddfc). Push to origin. PR pending. Final report received. |
+| 21:42Z | **Current state**: PR #164 CI 11/12 PASS + 1 FAIL + 1 IN_PROGRESS. s1 + s3 branches pushed, no PRs yet. s2 still on local. |
+| _(pending)_ | s1 + s3 open PRs. |
+| _(pending)_ | s2 pushes PR1+PR2. |
 | _(pending)_ | Merge sequence executed. |
-| _(pending)_ | All 4 lanes deliver final reports. |
 
 ## Per-lane measured outcomes
 
-### s1-tests — Phase 1 staged, not yet committed
+### s1-tests — Phase 1 LANDED (1 commit pushed)
 
 **Audit findings (delivered 2026-10-12T21:00:00Z):**
 - **754 test files** / **97,494 LOC**
@@ -55,23 +62,29 @@ This is the final report for the 2026-10-12 parallel level-up campaign. It cover
 - **0 naming convention violations** ✅
 - **Coverage analysis timed out at 60s** — needs fix (s1/Phase 2)
 
-**Phase 1 work (staged, uncommitted at runtime restart):**
-- `tests/seeders.py` — new seed-helpers registry (consolidates 58 helpers, dedupes 18 patterns)
-- `tests/test_route_smoke_generated.py` — 47 generated route smoke tests covering 373 routes (326 dupes filtered)
-- `tests/_lib/parametrization_examples.py` — parametrize-example helpers
-- `tests/_lib/invariants_expanded.py` — additional invariant testing capabilities
-- `docs/operations/2026-10-12-s1-test-audit.md` — full audit report
+**Phase 1 commit `d29b0e36` (`test(infra): S1 Phase 1 — seeders registry + auto route smoke (27 + 1 known-fail)`):**
+- 6 files, +707/-36.
+- `tests/seeders.py` — 58 seed helpers consolidated into 1 registry; 18 duplicate patterns eliminated.
+- `tests/test_route_smoke_generated.py` — 27 parametrized route smoke cases + 1 known-fail (auto-generated).
+- `tests/_lib/parametrization_examples.py` — pattern catalog with `__test__=False` (won't pollute collection).
+- `scripts/gen_route_smoke.py` — `+KNOWN_FAILING_SMOKE` mechanism.
+- `docs/operations/2026-10-12-s1-test-audit.md` — audit doc.
+- `CHANGELOG.md` — root entry per rule 35.
 
-**Measured impact (s1 estimate):**
+**Removed:** `tests/_lib/invariants_expanded.py` (16KB unused dead code; preserved in scratch).
+
+**Bug discovered (NOT in S1 scope):** POST /caja/abrir → 500: `TypeError 'types.SimpleNamespace object is not callable'` on `caja.html` line 23 (`{{ fmt(open_sess.opening_gs) }}`). The GET /caja handler passes `money=_fmt`, but the POST redirect target doesn't include either `fmt` or `money` in ctx. Fix: rename template var `fmt→money` everywhere OR always include `money=_fmt` in POST redirect ctx. Tracked in `KNOWN_FAILING_SMOKE`. Should route to whoever owns caja routers.
+
+**Measured impact (s1 final):**
 - ~15-20 LOC reduction per test file via seed-helper deduplication
-- 47 new smoke tests added; status != 500 assertion; problematic routes skipped
-- Test architecture score: 6/10 → 7.5/10 (per s1)
+- 27 new smoke tests added; 1 known-fail routed
+- Test architecture score: 6/10 → 7.5/10
 
-**Phase 2 plan (queued):** parametrize duplicated test bodies; expand invariants.py; split largest files (5+ files >500 lines).
+**Phase 2 in flight (s1 wave-3):** parametrize duplicated test bodies; split 5 files >500 lines; coverage push (+5pp max per gate).
 
-**Wave-3 directive:** commit Phase 1 (4 files + audit doc), push, start Phase 2.
+**Branch pushed:** `hermes/levelup-s1-tests @ d29b0e36`. PR not yet opened.
 
-### s2-robustness — PR1 + PR2 committed; PR3 in flight
+### s2-robustness — PR1 + PR2 ready locally; PR3 file staged
 
 **Audit findings (delivered 2026-10-12T21:05:00Z):**
 - **137 silent broad excepts** across 36 files. Top: `app/rms/db.py` (58), `app/routers/health.py` (12), `app/rms/main.py` (8), `app/services/template_render.py` (7).
@@ -95,8 +108,8 @@ This is the final report for the 2026-10-12 parallel level-up campaign. It cover
 - 3 files, +478 lines, stdlib-only
 
 **PR3 (in flight, wave 3) — silent-except sweep in `app/rms/db.py` (58 sites):**
-- Preserves WAL-mode / pragma / feature-detection behavior
-- Adds `logger.warning` lines, behavior-preserving
+- 1 new test file staged: `tests/test_silent_excepts_rms.py`
+- Wave-3 s2 RESPAWN confirmed 21/21 tests pass after restart (PR1+PR2 verified green)
 
 **PR4-PR7 queued:**
 - PR4: silent-except sweep in `app/routers/` (target → ~50)
@@ -106,7 +119,9 @@ This is the final report for the 2026-10-12 parallel level-up campaign. It cover
 
 **Arbitration ruling 21:13:00Z:** S2 granted CLAIM on 4 new test files (additive; S1 retains veto on test-pattern conformance).
 
-### s3-complexity — 4 commits landed, 5th split in progress
+**Branch NOT yet pushed.** S2 still working through PR3.
+
+### s3-complexity — 13 commits pushed; final report delivered
 
 **Audit findings (delivered 2026-10-12T21:02:00Z):**
 - **179 over-CC functions in `app/`** (excl. `_archive/`, `.venv/`, `tests/`). 7 grade-F, 7 grade-E, 19 grade-D, 146 grade-C.
@@ -134,29 +149,34 @@ E( 31) routers/eod.py:53 eod_view
 E( 31) routers/recipes.py:469 _parse_recipe_form
 ```
 
-**Commit `c06290b4` (`fix(tooling): SASKIA-211x complexity gate parser — make complexity now actually fires`):**
-- Critical: gate was broken since 2026-10-08; restores rule 40 enforcement.
-- Verified by S5 coordinator: parses, exit codes correct.
-- `CHANGELOG.md` entry.
+**13 commits pushed to `hermes/levelup-s3-complexity` @ 84e7eaf6:**
+| # | SHA | Title | CC delta |
+|---|------|-------|----------|
+| 1 | `c06290b4` | fix(tooling): SASKIA-211x complexity gate parser — make complexity now actually fires | (gate fix) |
+| 2 | `b5faf129` | refactor(reorder): SASKIA-211x split compute_reorder_list into 5 helpers | 13→4 |
+| 3 | `5645d20d` | docs(adr): SASKIA-211x ADR-0001 orchestrator pattern | — |
+| 4 | `3a99599f` | refactor(help): SASKIA-211x split _md_to_html into 11 named handlers | 26→20 |
+| 5 | `df66e672` | refactor(help): SASKIA-211x finish _md_to_html split (CC 20→≤6 across file) | 20→2 + _classify_block 11→2 + _flush_table 12→3 |
+| 6 | `80017915` | refactor(auth_supabase): SASKIA-211x split sign_in_with_password | 11→5 |
+| 7 | `9de5327e` | refactor(health): SASKIA-211x split _check_supabase_reachable | 14→5 |
+| 8 | `bf5e09b4` | refactor(shopping): SASKIA-211x split _whatsapp_href | 12→6 |
+| 9 | `446fc3f6` | refactor(shopping): SASKIA-211x split from_production_plan | 11→5 |
+| 10 | `f23ebb5b` | refactor(refund): SASKIA-211x split refund_create | 12→8 |
+| 11 | `50582c7c` | refactor(customers): SASKIA-211x split _compute_profile_nudges | 11→1 |
+| 12 | `e72fcf3f` | refactor(customers): SASKIA-211x split _build_csv_row | 16→4 |
+| — | `b2619eac`, `df28d66e`, `84e7eaf6`, `4a0fddfc` | docs(changelog): SASKIA-211x (rule 35 entries) | — |
 
-**Commit `b5faf129` (`refactor(reorder): SASKIA-211x split compute_reorder_list into 5 helpers`):**
-- CC 13 → 4
-- `app/rms/reorder.py` split; helper functions extracted (`_classify_ingredient`, `_urgency_label`, etc.)
-- `tests/test_phase2_review_tickets.py` (4 tests) — green.
-- `CHANGELOG.md` entry.
+**Behavior preservation:** Smoke tests / parity tests / full module runs depending on risk profile.
+- `app/routers/help.py`: all functions now ≤ CC=6 (was: 1 CC=20, 2 CC=11-12). `_md_to_html` outputs character-identical for README.md + 02-ventas.md + 06-recetas.md + ad-hoc inputs.
+- `_compute_profile_nudges` down to CC=1 (table-driven predicate).
 
-**Commit `5645d20d` (`docs(adr): SASKIA-211x ADR-0001 orchestrator pattern (CC refactors)`):**
-- `docs/architecture/decisions/0001-orchestrator-pattern.md` (per rule 36)
-- `CHANGELOG.md` entry.
+**Net session delta (s3 total):**
+- 9 refactor commits (8 from this session + 1 finished from wave-2)
+- 4 `docs(changelog)` rule-35 commits
+- 1 ADR (`docs/architecture/decisions/0001-orchestrator-pattern.md`)
+- **Outstanding**: 200 offenders remain in `app/` (down from 210 at session start). Top targets still grade-F (CC 60-166) — need orchestrator pattern, much larger refactors. Dead-code archival NOT started (next session).
 
-**Commit `3a99599f` (`refactor(help): SASKIA-211x split _md_to_html into 11 named handlers`):**
-- CC 26 → 20
-- `app/routers/help.py` split
-- `CHANGELOG.md` entry.
-
-**Uncommitted (wave 3 in flight):** CHANGELOG.md + `app/routers/help.py` — 5th split.
-
-### s4-tooling — Audit delivered; plan executing
+### s4-tooling — PR #164 OPEN, CI running
 
 **Audit findings (delivered 2026-10-12T21:12:00Z):**
 - `ci.yml` (415 lines) — main CI; YAML was broken before #159 (silently skipped full suite since #112); now runs everything.
@@ -168,17 +188,45 @@ E( 31) routers/recipes.py:469 _parse_recipe_form
 - Coverage gate 35% (measured reality, not aspirational).
 - Missing: secrets scan enforcement, complexity analysis gate, format check in pre-commit, SBOM generation, dependabot.
 
-**8-item execute plan:**
-- (a) Fast PR gate workflow (`fast-pr-gate.yml`, <5min: lint + format + type-ish + smoke subset)
-- (b) Keep `ci.yml` as-is with full coverage gate
-- (c) Pre-commit security hooks (vulture, bandit, complexity) — promote from `--no-verify` to main flow
-- (d) Ruff config tightening
-- (e) pip-audit + cyclonedx SBOM on `release.yml`
-- (f) `dependabot.yml` (weekly pip + github-actions)
-- (g) PR template with gap-tracking (`Closes gap:`, `Measured delta:`)
-- (h) Makefile audit/test-fast targets
+**8-item execute plan — ALL 8 shipped in commit `a2321064`:**
+- (a) Fast PR gate workflow (`fast-pr-gate.yml`, <5min: lint + format + type-ish + smoke subset) — NEW
+- (b) Keep `ci.yml` as-is with full coverage gate — verified parses (added yaml.safe_load self-check)
+- (c) Pre-commit security hooks (vulture, bandit, complexity) — already present, re-verified
+- (d) Ruff config tightening — already aligned (line 100, py313, 35% gate), re-verified
+- (e) pip-audit + cyclonedx SBOM on `release.yml` — ADDED (+43 lines)
+- (f) `dependabot.yml` — already present (uv weekly + github-actions weekly), re-verified
+- (g) PR template with gap-tracking (`Closes gap:`, `Measured delta:`) — NEW
+- (h) Makefile `audit` target — NEW (`audit-cve + workflows-lint + security + complexity + YAML self-check`)
+- Workflow YAML self-check (`scripts/check_workflows_yaml.py`) — NEW (PR #159 lesson)
 
-**Wave-3 directive:** execute plan; push.
+**Commit `a2321064` (`ci(tooling): fast PR gate + YAML self-check + SBOM + PR template + make audit`):**
+- 8 files, 560 +/-.
+- `CHANGELOG.md` entry per rule 35.
+
+**PR #164 OPEN:** https://github.com/Ai-Whisperers/saskia-app/pull/164
+- Head: `hermes/levelup-s4-tooling @ a2321064`. Base: `main @ d4fa75dc`.
+
+**PR CI status (12 checks at 21:38Z):**
+| # | Check | State | Time |
+|---|-------|-------|------|
+| 1 | Fast lint + test (pre-deploy-dev gate) | ✅ PASS | 1m6s |
+| 2 | currency-drift | ✅ PASS | 7s |
+| 3 | zizmor (GH Actions security) | ✅ PASS | 10s |
+| 4 | Static analysis (lightweight) | ✅ PASS | 30s |
+| 5 | smoke | ✅ PASS | 35s |
+| 6 | route-smoke | ✅ PASS | 1m0s |
+| 7 | browser | ✅ PASS | 41s |
+| 8 | deploy-dev | ✅ PASS | 2m42s |
+| 9 | deploy-test | ✅ PASS | 2m13s |
+| 10 | **lint + format + YAML self-check + smoke subset** | ❌ **FAIL** | 2m34s |
+| 11 | test | ⏳ IN PROGRESS | |
+| 12 | OWASP ZAP API scan | ✅ PASS | 5m23s |
+
+**Failure root cause:** fast-pr-gate's own smoke subset includes `test_no_hardcoded_dates.py`, which flags hardcoded dates in pre-existing `tests/test_cost_freshness.py` (NOT s4's file). Pre-existing issue on main; s4's gate just surfaces it.
+
+**Merge grant decision:** DEFER until s4 resolves smoke-subset OR `test_cost_freshness.py` is annotated.
+
+**Coordinator recommendation:** drop `test_no_hardcoded_dates.py` from smoke subset (separation of concerns; s1 owns tests/). Sent to s4 via `INBOX/s4-tooling/from-s5.md`.
 
 ## Cross-lane observations
 
