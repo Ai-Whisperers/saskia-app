@@ -138,7 +138,7 @@ def _is_auth_failure(exc: BaseException) -> bool:
     return "invalid" in msg or "credentials" in msg or "401" in msg
 
 
-def _session_to_dict(response) -> dict:
+def _session_to_dict(response: object) -> dict:
     """Project a Supabase auth response into the dict shape we persist."""
     session = response.session
     user = response.user
