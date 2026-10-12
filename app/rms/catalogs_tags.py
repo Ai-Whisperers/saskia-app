@@ -17,6 +17,7 @@ that an index lookup doesn't.
 
 from __future__ import annotations
 
+from loguru import logger
 from dataclasses import dataclass
 
 from loguru import logger

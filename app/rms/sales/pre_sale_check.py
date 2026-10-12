@@ -38,6 +38,7 @@ sweep, one confirmation, all info in one place.
 
 from __future__ import annotations
 
+from loguru import logger
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal

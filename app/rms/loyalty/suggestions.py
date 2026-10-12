@@ -41,6 +41,7 @@ customer detail payload (``/clientes/api/{id}``).
 
 from __future__ import annotations
 
+from loguru import logger
 import datetime as _dt
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Optional
