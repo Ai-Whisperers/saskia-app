@@ -229,3 +229,141 @@ def test_all_recipes_render_200(client, session_factory):
     for rid in ids:
         r = client.get(f"/recetas/{rid}")
         assert r.status_code == 200, f"recipe {rid} returned {r.status_code}"
+
+
+# ── 6. _parse_recipe_phases handles all 3 storage shapes ───────────
+
+
+def test_parse_recipe_phases_wraps_freeform_text(session_factory):
+    """The sazon seed stores instructions as plain text (not JSON).
+
+    _parse_recipe_phases must wrap it into a single phase so the
+    detail page shows the seeded content instead of the placeholder.
+    This is the actual prod-data fix.
+    """
+    from app.routers.recipes import _parse_recipe_phases
+
+    with session_factory() as s:
+        r = Recipe(
+            name="babka__rec_017_freeform",
+            yield_qty=Decimal("1"),
+            yield_unit="und",
+            instructions=(
+                "1. Mezclar harina, sal y azúcar en bowl grande.\n"
+                "2. Calentar leche y añadir huevo batido.\n"
+                "3. Amasar 10 min hasta obtener masa lisa."
+            ),
+        )
+        s.add(r)
+        s.commit()
+        rid = r.id
+        s.expire_all()
+        r2 = s.get(Recipe, rid)
+
+    phases = _parse_recipe_phases(r2)
+    assert phases is not None, "free-form text should wrap into a phase"
+    assert len(phases) == 1
+    assert len(phases[0]["steps"]) == 3, f"got {phases[0]['steps']}"
+    assert "Mezclar harina" in phases[0]["steps"][0]
+
+
+def test_parse_recipe_phases_json_multiphase(session_factory):
+    """JSON list of {phase, title, steps[]} renders all phases."""
+    from app.routers.recipes import _parse_recipe_phases
+
+    with session_factory() as s:
+        r = Recipe(
+            name="multi__rec_999",
+            yield_qty=Decimal("1"),
+            yield_unit="und",
+            instructions=json.dumps(
+                [
+                    {
+                        "phase": "Base",
+                        "title": "Masa",
+                        "steps": ["Paso 1", "Paso 2"],
+                    },
+                    {
+                        "phase": "Cocción",
+                        "title": "Horno",
+                        "steps": ["Paso A"],
+                    },
+                ]
+            ),
+        )
+        s.add(r)
+        s.commit()
+        rid = r.id
+        s.expire_all()
+        r2 = s.get(Recipe, rid)
+
+    phases = _parse_recipe_phases(r2)
+    assert phases is not None
+    assert len(phases) == 2
+    assert phases[0]["title"] == "Masa"
+    assert phases[1]["title"] == "Horno"
+
+
+def test_parse_recipe_phases_legacy_no_title(session_factory):
+    """JSON list of {phase, steps[]} (no title) — title derived from phase."""
+    from app.routers.recipes import _parse_recipe_phases
+
+    with session_factory() as s:
+        r = Recipe(
+            name="legacy__rec_998",
+            yield_qty=Decimal("1"),
+            yield_unit="und",
+            instructions=json.dumps([{"phase": "Decoración", "steps": ["x", "y"]}]),
+        )
+        s.add(r)
+        s.commit()
+        rid = r.id
+        s.expire_all()
+        r2 = s.get(Recipe, rid)
+
+    phases = _parse_recipe_phases(r2)
+    assert phases is not None
+    assert len(phases) == 1
+    assert phases[0]["title"] == "Decoración"
+    assert phases[0]["phase"] == "Decoración"
+    assert phases[0]["steps"] == ["x", "y"]
+
+
+def test_parse_recipe_phases_null_returns_none(session_factory):
+    """Empty / null instructions return None (template shows placeholder)."""
+    from app.routers.recipes import _parse_recipe_phases
+
+    with session_factory() as s:
+        r = Recipe(
+            name="null__rec_997",
+            yield_qty=Decimal("1"),
+            yield_unit="und",
+            instructions=None,
+        )
+        s.add(r)
+        s.commit()
+        rid = r.id
+        s.expire_all()
+        r2 = s.get(Recipe, rid)
+
+    assert _parse_recipe_phases(r2) is None
+
+
+def test_parse_recipe_phases_whitespace_only(session_factory):
+    """Whitespace-only instructions return None (don't render empty phase)."""
+    from app.routers.recipes import _parse_recipe_phases
+
+    with session_factory() as s:
+        r = Recipe(
+            name="ws__rec_996",
+            yield_qty=Decimal("1"),
+            yield_unit="und",
+            instructions="   \n\n  \n",
+        )
+        s.add(r)
+        s.commit()
+        rid = r.id
+        s.expire_all()
+        r2 = s.get(Recipe, rid)
+
+    assert _parse_recipe_phases(r2) is None

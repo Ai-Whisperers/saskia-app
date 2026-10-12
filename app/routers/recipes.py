@@ -982,18 +982,52 @@ def _resolve_vista(session, request: Request, r_id: int) -> tuple:
 
 
 def _parse_recipe_phases(r: Recipe):
-    """Parse instructions JSON for template.
+    """Parse instructions for template — return a list of phase dicts.
 
-    Extracted from recipe_detail to reduce complexity.
+    SASKIA-212: handles three storage shapes the codebase produces:
+      1. JSON list of {phase, title, steps[]} — preferred (multi-phase)
+      2. JSON list of {phase, steps[]} — legacy shape from seed (no title)
+      3. Plain free-form text (newline-delimited steps) — wrapped into a
+         single "Procedimiento" phase so users see the seeded content
+         instead of the "Procedimiento pendiente" placeholder.
+
+    Returns None only when instructions is missing or empty.
     """
     if not r.instructions:
         return None
     import json as _json
 
-    try:
-        return _json.loads(r.instructions)
-    except Exception:
+    raw = (r.instructions or "").strip()
+    if not raw:
         return None
+    # Try JSON first (multi-phase preferred)
+    try:
+        parsed = _json.loads(raw)
+        if isinstance(parsed, list) and parsed:
+            normalized = []
+            for p in parsed:
+                if not isinstance(p, dict):
+                    continue
+                steps = p.get("steps") or []
+                steps = [str(s).strip() for s in steps if str(s).strip()]
+                if not steps:
+                    continue
+                title = p.get("title") or p.get("phase") or "Pasos"
+                normalized.append(
+                    {
+                        "phase": p.get("phase") or title,
+                        "title": title,
+                        "steps": steps,
+                    }
+                )
+            return normalized or None
+    except Exception:
+        pass
+    # Plain text — split on newlines, drop blanks, wrap as one phase.
+    steps = [line.strip() for line in raw.splitlines() if line.strip()]
+    if not steps:
+        return None
+    return [{"phase": "Procedimiento", "title": "Procedimiento", "steps": steps}]
 
 
 def _derive_recipe_tags(session, r_id: int):
