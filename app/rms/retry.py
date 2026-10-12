@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 import random
 import time
-from typing import Callable, Iterable, TypeVar
+from typing import Callable, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +146,7 @@ def retry_transient(
     for attempt_index in range(1, attempts + 1):
         try:
             return fn()
-        except BaseException as exc:  # noqa: BLE001 — see classifier
+        except BaseException as exc:
             if not is_transient(exc):
                 # TERMINAL — don't swallow, don't retry.
                 raise
