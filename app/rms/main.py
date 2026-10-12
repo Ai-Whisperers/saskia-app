@@ -113,6 +113,25 @@ from app.routers import (
 )
 
 
+def _log_file_format(record) -> str:
+    """Format for the file sink that tolerates missing request_id/user_id extras.
+
+    Loguru's static format string raises KeyError when the extra dict doesn't
+    have a requested key. Outside the request context (e.g. a startup log, or
+    an unhandled exception before the middleware binds) the extras are absent.
+    This function substitutes "-" for missing keys so the sink never crashes.
+    """
+    extra = record.get("extra", {}) or {}
+    rid = extra.get("request_id") or "-"
+    uid = extra.get("user_id") or "-"
+    return (
+        "{time:YYYY-MM-DD HH:mm:ss.SSS} | "
+        "{level: <7} | "
+        f"{rid} | {uid} | "
+        "{name}:{function}:{line} | {message}\n"
+    ).format(**record)
+
+
 def _configure_logging() -> None:
     """Configure loguru at import time.
 
