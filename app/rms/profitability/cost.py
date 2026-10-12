@@ -1,4 +1,4 @@
-"""app/rms/costing.py — recipe cost, product margin, apply_sale, void_sale.
+"""app/rms/profitability/cost.py — recipe cost, product margin (read-side).
 
 Per dev plan §9 Task 2 + v2 §5 (data model + stock-drop logic).
 

@@ -9,11 +9,8 @@ import re
 
 from sqlalchemy import select
 
-from app.rms.costing import (
-    recipe_batch_cost_gs,
-    recipe_unit_cost_gs,
-)
 from app.rms.models import Ingredient, Recipe
+from app.rms.profitability.cost import recipe_batch_cost_gs, recipe_unit_cost_gs
 from app.rms.variants import current_variant_price
 
 # ─── RECIPES-BUG-002: ingredient search dropdown returning empty results ────

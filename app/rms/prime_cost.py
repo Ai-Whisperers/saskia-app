@@ -26,8 +26,8 @@ from app.rms.constants import (
     DEFAULT_LABOR_COST_PER_HOUR_GS,
     DEFAULT_OVERHEAD_MULTIPLIER_PCT,
 )
-from app.rms.costing import recipe_batch_cost_gs
 from app.rms.models import ComplianceInfo, Product, Recipe
+from app.rms.profitability.cost import recipe_batch_cost_gs
 
 
 @dataclass

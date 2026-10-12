@@ -81,7 +81,7 @@ def test_margenes_404_for_unknown_product(client):
 def test_preferred_variant_price_drives_costing(session_factory):
     """current_variant_price: preferred variant overrides parent price in
     recipe costing (the wiring change in costing.py)."""
-    from app.rms.costing import recipe_unit_cost_gs
+    from app.rms.profitability.cost import recipe_unit_cost_gs
 
     with session_factory() as s:
         ing = make_ingredient(s, name="Harina V", purchase_price_gs=5_000)

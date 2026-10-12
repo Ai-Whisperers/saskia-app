@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
-from app.rms.costing import recipe_batch_cost_gs
+from app.rms.profitability.cost import recipe_batch_cost_gs
 
 
 @dataclass

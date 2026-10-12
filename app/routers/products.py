@@ -28,10 +28,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import require_login_or_disabled as require_login
-from app.rms.costing import batch_products_cost_margin, product_margin, product_unit_cost_gs
 from app.rms.dependencies import get_session
 from app.rms.models import Customer, Product, Recipe, Sale
 from app.rms.observability import record_audit
+from app.rms.profitability.cost import (
+    batch_products_cost_margin,
+    product_margin,
+    product_unit_cost_gs,
+)
 from app.rms.rate_limit import read_rate_limit_dependency
 from app.services.template_render import render
 
@@ -1405,7 +1409,7 @@ def product_detail(
     # Compute metrics using existing service modules or direct SQL queries
     from sqlalchemy import text
 
-    from app.rms.costing import product_margin, product_unit_cost_gs
+    from app.rms.profitability.cost import product_margin, product_unit_cost_gs
 
     # Current stock - use direct SQL query since no service function exists
     stock_query = text("""
