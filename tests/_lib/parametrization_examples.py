@@ -31,12 +31,12 @@ __test__ = False
 ])
 def test_component_script_and_element_included(client, component, expected_script, expected_element):
     """Test that each UI component script loads and element is included in base page.
-    
+
     Original: 4 separate test functions
     After: 1 parametrized test
     Reduction: ~80% fewer function definitions
     """
-    status, body = _get(client, "/")
+    status, body = client.get("/")
     assert status == 200
     assert expected_script in body
     if expected_element:
@@ -44,7 +44,7 @@ def test_component_script_and_element_included(client, component, expected_scrip
 
 
 # ============================================================================
-# EXAMPLE 2: Flash Toast Pattern  
+# EXAMPLE 2: Flash Toast Pattern
 # ============================================================================
 
 @pytest.mark.parametrize("path,expected_element,expected_content", [
@@ -55,12 +55,12 @@ def test_component_script_and_element_included(client, component, expected_scrip
 ])
 def test_flash_toast_variants(client, path, expected_element, expected_content):
     """Test flash toast messages for different endpoints.
-    
+
     Original: 4 separate test functions
     After: 1 parametrized test
     Reduction: ~75% fewer function definitions
     """
-    status, body = _get(client, path)
+    status, body = client.get(path)
     assert status == 200
     assert expected_element in body
     assert expected_content in body
@@ -78,8 +78,8 @@ def test_flash_toast_variants(client, path, expected_element, expected_content):
 ])
 def test_static_script_content(client, script_path, expected_content):
     """Test that static scripts contain expected content.
-    
-    Original: 4 separate test functions  
+
+    Original: 4 separate test functions
     After: 1 parametrized test
     Reduction: ~75% fewer function definitions
     """
@@ -99,7 +99,7 @@ def test_static_script_content(client, script_path, expected_content):
 ])
 def test_production_status_variants(client, test_data, status_assertion):
     """Test production status variations.
-    
+
     Original: Multiple status test functions with similar patterns
     After: Single parametrized test
     Reduction: ~60-70% fewer function definitions
@@ -119,7 +119,7 @@ def test_production_status_variants(client, test_data, status_assertion):
 ])
 def test_api_response_structure(client, endpoint, expected_fields):
     """Test API response structure consistency.
-    
+
     Original: Multiple API response test functions
     After: Single parametrized test
     Reduction: ~65% fewer function definitions
@@ -155,13 +155,13 @@ MIGRATION STRATEGY FOR LARGE TEST FILES:
 
 4. EXPECTED RESULTS:
    - File size reduction: 60-80% for highly repetitive patterns
-   - Test function reduction: 70-90% 
+   - Test function reduction: 70-90%
    - Readability improvement: Clearer test structure
    - Maintainability: Single place to update common patterns
 
 5. TARGETED FILES:
    - test_ui_components.py: 51 tests → ~10 parametrized
-   - test_produccion_polish.py: 62 tests → ~15 parametrized  
+   - test_produccion_polish.py: 62 tests → ~15 parametrized
    - test_production_demand.py: 31 tests → ~8 parametrized
    - test_saskia_r2_data_models.py: 20 tests → ~5 parametrized
 

@@ -11,11 +11,7 @@ Each seeder returns a dict with created object IDs and metadata.
 
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import Any, Dict
-
-from sqlalchemy.orm import Session
-
 
 # ==============================================================================
 # Basic Seed Helpers (Previously scattered)
@@ -28,11 +24,11 @@ def seed_basic(
     **kwargs,
 ) -> Dict[str, Any]:
     """Basic seed helper for common test scenarios.
-    
+
     Previously duplicated in test_excel_patch.py, test_costing.py, test_p0_audit_log_coverage.py
     """
     from tests.factories import make_product
-    
+
     with session_factory() as s:
         # Create a basic product
         p = make_product(s, name=name, **kwargs)
@@ -47,11 +43,11 @@ def seed_simple(
     **kwargs,
 ) -> Dict[str, Any]:
     """Simple seed helper for straightforward test scenarios.
-    
+
     Previously duplicated in test_sale_create_writes_stock_movement.py, test_stock_drop.py
     """
-    from tests.factories import make_product, make_customer
-    
+    from tests.factories import make_customer, make_product
+
     with session_factory() as s:
         # Create customer and product
         c = make_customer(s, name="Test Customer")
@@ -72,11 +68,11 @@ def seed_customer(
     **kwargs,
 ) -> Dict[str, Any]:
     """Create a customer and return ID.
-    
+
     Previously duplicated in test_pedidos.py, test_p1_b5_suscripciones.py
     """
     from tests.factories import make_customer
-    
+
     with session_factory() as s:
         c = make_customer(s, name=name, phone=phone, **kwargs)
         s.commit()
@@ -91,11 +87,11 @@ def seed_product(
     **kwargs,
 ) -> Dict[str, Any]:
     """Create a product and return ID.
-    
+
     Previously duplicated in test_pedido_post_phase13_integration.py, test_pedidos.py
     """
     from tests.factories import make_product
-    
+
     with session_factory() as s:
         p = make_product(s, name=name, sale_price_gs=sale_price_gs, **kwargs)
         s.commit()
@@ -112,11 +108,11 @@ def seed_ingredient(
     **kwargs,
 ) -> Dict[str, Any]:
     """Create an ingredient and return ID.
-    
+
     Previously duplicated in test_ingredient_avg_cost.py, test_waste_trends.py
     """
     from tests.factories import make_ingredient
-    
+
     with session_factory() as s:
         ing = make_ingredient(
             s,
@@ -137,11 +133,11 @@ def seed_catalog(
     **kwargs,
 ) -> Dict[str, Any]:
     """Create multiple catalog items and return IDs.
-    
+
     Previously duplicated in test_reports.py, test_saskia217_seasonal_calendar.py
     """
     from tests.factories import make_product
-    
+
     with session_factory() as s:
         products = []
         for i in range(count):
@@ -161,17 +157,17 @@ def seed_sale(
     **kwargs,
 ) -> Dict[str, Any]:
     """Create a sale and return ID.
-    
+
     Previously duplicated across 5 files: test_day_hour_heatmap.py, test_sales_history_filter.py, etc.
     """
     from app.rms.models_legacy import Sale
     from tests.factories import make_customer
-    
+
     with session_factory() as s:
         if customer_id is None:
             c = make_customer(s, name="Test Customer")
             customer_id = c.id
-        
+
         sale = Sale(
             product_id=product_id,
             qty=qty,
@@ -195,12 +191,11 @@ def seed_sub_recipe(
     **kwargs,
 ) -> Dict[str, Any]:
     """Create a sub-recipe and return ID.
-    
+
     Previously duplicated in test_costing.py, test_stock_drop.py
     """
     from app.rms.models import Recipe
-    from tests.factories import make_product
-    
+
     with session_factory() as s:
         recipe = Recipe(
             name=name,
@@ -209,14 +204,14 @@ def seed_sub_recipe(
             is_sub_recipe=True,
             **kwargs,
         )
-        
+
         # Add ingredient lines if provided
         if lines:
             for line in lines:
                 # Convert line data to appropriate format
                 line_kind = line.get("kind", "ingredient")
                 target_id = line.get("target_id")
-                
+
                 if line_kind == "ingredient" and target_id:
                     from app.rms.models_legacy import IngredientLine
                     ing_line = IngredientLine(
@@ -236,7 +231,7 @@ def seed_sub_recipe(
                         line_unit=line.get("unit", "und"),
                     )
                     recipe.sub_recipe_lines.append(recipe_line)
-        
+
         s.add(recipe)
         s.commit()
         s.refresh(recipe)
@@ -254,11 +249,11 @@ def seed_with_low_stock(
     **kwargs,
 ) -> Dict[str, Any]:
     """Seed scenario: ingredients with low stock.
-    
+
     Usage: qseed("with_low_stock") → returns dict with low_ingredient key
     """
     from tests.factories import make_ingredient
-    
+
     with session_factory() as s:
         low_ingredient = make_ingredient(
             s,
@@ -266,14 +261,14 @@ def seed_with_low_stock(
             stock_qty=threshold * 0.9,  # Just below threshold
             **kwargs,
         )
-        
+
         normal_ingredient = make_ingredient(
             s,
-            name="Normal Stock Ingredient", 
+            name="Normal Stock Ingredient",
             stock_qty=threshold * 2.0,  # Well above threshold
             **kwargs,
         )
-        
+
         s.commit()
         return {
             "low_ingredient": {"id": low_ingredient.id, "stock_qty": low_ingredient.stock_qty},
@@ -289,16 +284,17 @@ def seed_with_sales_history(
     **kwargs,
 ) -> Dict[str, Any]:
     """Seed scenario: sales history for date-based tests.
-    
+
     Creates historical sales data for testing date filtering and analytics.
     """
     from datetime import datetime, timedelta
+
     from app.rms.models_legacy import Sale
-    
+
     with session_factory() as s:
         sales = []
         base_date = datetime.now() - timedelta(days=days)
-        
+
         for day in range(days):
             day_date = base_date + timedelta(days=day)
             for i in range(sales_per_day):
@@ -310,7 +306,7 @@ def seed_with_sales_history(
                 )
                 sales.append(sale)
                 s.add(sale)
-        
+
         s.commit()
         return {"sale_ids": [s.id for s in sales], "start_date": base_date}
 
@@ -321,9 +317,9 @@ def seed_with_sales_history(
 
 def qseed(session_factory, scenario: str = "basic") -> dict:
     """Quick-seed helper for fast targeted test setup.
-    
+
     This is the original qseed function from conftest.py - now delegates to seeders.
-    
+
     Usage:
         def test_x(qseed):
             data = qseed("with_low_stock")
@@ -357,7 +353,7 @@ MIGRATION GUIDE for existing test files:
 2. Replace qseed usage:
    OLD: data = qseed("basic")
    NEW: data = seed_basic(session_factory)
-   
+
 3. Replace duplicate seed functions:
    OLD: def _seed_product(s, name, price): ...
    NEW: from tests.seeders import seed_product
