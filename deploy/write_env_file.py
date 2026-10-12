@@ -85,10 +85,28 @@ def bws_get(key: str) -> str:
     import json
 
     secrets = json.loads(r.stdout)
-    for s in secrets:
-        if s["key"] == key:
-            return s["value"]
-    raise KeyError(key)
+    matches = [s for s in secrets if s["key"] == key]
+    if not matches:
+        raise KeyError(key)
+    if len(matches) > 1:
+        # BWS allows duplicate key names; pick the most-recently-revised
+        # entry. This avoids the silent "first match wins" bug where an
+        # old dead secret shadows a freshly-rotated replacement.
+        # (incident: 2026-10-12, CF_R2_SECRET_ACCESS_KEY had two entries;
+        # first match returned the dead 0b07e5cc... value while the
+        # rotated a68b285f... sat unused.)
+        matches.sort(
+            key=lambda s: s.get("revisionDate") or s.get("creationDate") or "",
+            reverse=True,
+        )
+        print(
+            f"WARN: BWS has {len(matches)} entries for key '{key}'; "
+            f"using most-recently-revised (id={matches[0]['id'][:8]}..., "
+            f"revised={matches[0].get('revisionDate', '?')}). "
+            f"Clean up duplicates in BWS to silence this warning.",
+            file=sys.stderr,
+        )
+    return matches[0]["value"]
 
 
 def write_env_file(env: str) -> int:

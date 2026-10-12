@@ -88,6 +88,20 @@ Dormant real bugs + UI regressions + accessibility gaps + documentation rot iden
 
 **Test coverage**: `tests/test_cocina_pages_audit.py` (9 tests, 9 GREEN). Tests follow RED-GREEN-REFACTOR; each test was derived from a live bug observed in production or in the audit.
 
+## 2026-10-12 — fix(deploy): SASKIA-212 write_env_file.py duplicate-key handling
+
+**Scope**: `deploy/write_env_file.py`.
+
+**Problem**: `bws_get()` did `for s in secrets: if s["key"] == key: return s["value"]` — first match wins. On 2026-10-12, BWS had two entries for `CF_R2_SECRET_ACCESS_KEY`: the old dead one (id `1fa51e13`, value `0b07e5cc...`, created Aug 25) and the freshly-rotated one (id `6e12fcbc`, value `a68b285f...`, revised Oct 12). The dead entry was alphabetically/creation-order first, so the VPS env file silently kept using the revoked secret and `saskia-rms-backups` R2 uploads continued to fail with 403.
+
+**Fix**: `bws_get()` now collects all matches, sorts by `revisionDate` (or `creationDate` fallback) descending, warns on stderr if duplicates exist, and returns the most-recently-revised value. This is defensive — the same incident pattern (rotate → add new → forget to delete old) will recur whenever you rotate any R2 / OAuth / service-account key.
+
+**Operational follow-up**: The dead `1fa51e13` entry was already removed from BWS during this incident; the deployed env file will be rewritten on the next `deploy.sh` run with the live `6e12fcbc` value. Idempotency check (SHA-256 of the resolved secret set) means the rewrite fires only when the BWS value actually changes.
+
+**Tests**: New test in `tests/test_write_env_file_duplicate_key.py` (added in this commit) asserts the duplicate-key resolution and warning behavior using a mock BWS CLI. Run with `uv run pytest tests/test_write_env_file_duplicate_key.py -v`.
+
+**No production code change.** Deployment tooling only.
+
 ## 2026-10-10l — style(format): apply ruff format + fix brittle test assertions
 
 **Scope**: `app/routers/sales.py`, `app/rms/messages.py`, `tests/test_produccion_v3_phase0.py`, `tests/test_printer_trigger.py`, `tests/test_dashboard_aggregation_discount_fix.py`, `tests/test_crud_roundtrips_phase14_tier4.py`. `ruff format` reformatted 3 files for the lint gate; in the process, 3 test files were improved to be less brittle (the formatter was also a hint that the tests were over-specified).
