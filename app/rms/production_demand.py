@@ -52,6 +52,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 
+from loguru import logger
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
@@ -372,6 +373,8 @@ def demand_snapshot_ttl_seconds(session: Session) -> int:
             return 300
         return int(str(raw))
     except Exception:
+        # Settings table missing on a fresh DB — log + return safe default 300s.
+        logger.debug("production_demand TTL lookup failed", exc_info=True)
         return 300
 
 

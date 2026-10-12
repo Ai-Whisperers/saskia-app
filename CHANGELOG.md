@@ -1,224 +1,88 @@
-## 2026-10-12 — style: apply ruff format to S3 batch-1 router files
+## 2026-10-12 — style: apply ruff format to S2 batch-1 files
 
-**Scope**: `app/routers/{customers,health,help,shopping}.py`, `scripts/check_complexity.py` — pure formatting (line lengths, import grouping). No behavior change. Required by fast-pr-gate smoke gate.
+**Scope**: `app/rms/errors.py`, `app/rms/observability.py`, `app/rms/retry.py`, `tests/test_silent_excepts_rms.py` — pure formatting (line lengths, import grouping). No behavior change. Required by fast-pr-gate smoke gate.
 
-## 2026-10-12 — refactor(customers): SASKIA-211x split _build_csv_row (CC 16→4)
+## 2026-10-12 — feat(observability): bind matched route name to per-request log context (S2 robustness PR7)
 
-Extracted `_cust_attr(cust, attr)` (getattr-or-empty) and
-`_iso_or_empty(value)` (ISO format or '' for nullable timestamps).
-Main function is now a flat dict literal.
+**Scope**: `app/rms/observability.py` (+~40), `tests/test_observability_extended.py` (new, 7 tests).
 
-CHARACTER-FOR-CHARACTER identical output verified across 3 cases
-(None cust, full cust, partial timestamps).
+Replaces the stub `bind_request_route()` (which used `logger.bind(route=...)` and didn't propagate to subsequent log lines) with a `contextvars.ContextVar`-backed binding. Per-request route survives `await` boundaries and is asyncio-safe — one request's route never leaks to a concurrent request.
 
-## 2026-10-12 — refactor(customers): SASKIA-211x split _compute_profile_nudges (CC 11→1)
+`RequestContextMiddleware.dispatch()` now resolves the matched route from `request.state.route` (set by `bind_request_route` inside the route handler) or `_current_route.get()` (set by `bind_request_route` from a middleware) and includes it in the access log line: `access method=POST path=/ventas route=/ventas/nueva status=201 elapsed_ms=42`. Falls back to `<unmatched>` for unmatched paths.
 
-Extracted `_count_missing` and four `_missing_*` predicates
-(phone / dietary / address / consent). Main function is now a dict
-literal of `_count_missing(...)` calls.
+Public API additions:
 
-11 SASKIA-304 customer tests pass.
+- `bind_request_route(request, route_name | None)` — sets both `request.state.route` and the module-level `_current_route` ContextVar. When `route_name` is `None`, extracts from `request.scope["route"].path` (FastAPI's standard convention).
+- `get_current_route()` — returns the route bound for the current request, or `None`.
 
-## 2026-10-12 — refactor(refund): SASKIA-211x split refund_create (CC 12→8)
+Tests: 7 new (sets request.state; sets ContextVar; extracts from scope; per-request isolation under `asyncio.gather`; default value of fresh ContextVar; generate_request_id uniqueness × 100; unmatched fallback). Adjudication per S5 ruling 2026-10-12T21:13:00Z — additive file, no existing tests modified.
 
-Extracted 5 helpers:
-  - `_operator_user_id(request)` — current user id or "operator"
-  - `_refund_back_url(type, id, flash)` — `/ventas` or `/pedidos` redirect URL
-  - `_refund_error_redirect(e, ...)` — log + 303 on RefundError
-  - `_success_redirect(type, id)` — 303 with `refund_ok` flash
-  - `_audit_refund_create(...)` — best-effort audit (never raises)
+No behaviour-preserving concerns — purely additive observability; previous access log format is replaced (no external log scraper depends on the exact field set per the log-format audit 2026-10-09).
 
-Same RefundError / IntegrityError handling; same audit detail dict;
-same flash keys.
+## 2026-10-12 — refactor(rms): silent-except sweep in app/rms/ + new gate (S2 robustness PR3)
 
-4 refund tests pass (test_refund_router).
+**Scope**: `tests/test_silent_excepts_rms.py` (new, 166 tests), `app/rms/{observability,alert_templates,db_url,copilot,food_cost,public_tokens,seasonal,loyalty/suggestions,gerencia_snapshot,production_demand,notifications,sales/pre_sale_check,catalogs_tags,main}.py` (54 small additive lines).
 
-## 2026-10-12 — refactor(shopping): SASKIA-211x split from_production_plan (CC 11→5)
+Adds the second half of the rule-41 silent-except ban: a parametrised AST scan over every `app/rms/**/*.py` file that fails CI when a broad-except block (`except Exception/BaseException/RuntimeError/OSError/IOError`) silently swallows without logging, re-raising, or an explicit justification comment. Scoped narrowly — narrow catches like `except BadSignature` or `except AssertionError` are *not* silent and are skipped. Idempotent migration paths (`app/rms/db.py` migrations 001–083 + `app/rms/migrations/` 084+) are exempted — adding `logger.warning` to 58 ALTER TABLE guards would spam every startup without signal.
 
-Extracted 6 helpers from the 76-line endpoint:
-  - `_empty_redirect(for_date)` — redirect when no shortages
-  - `_done_redirect(for_date, added)` — success redirect
-  - `_open_shopping_items(session)` — unpurchased items query
-  - `_apply_shortages(...)` — top-up-or-insert loop
-  - `_existing_qty_by_ingredient(items)` — aggregate qty_to_buy dict
-  - `_topup_existing(items, id, need)` — top-up single ingredient
-  - `_add_new_shortage_item(session, ln, purpose)` — new ShoppingListItem insert
+Logged 23 genuine silent fallbacks across 14 files with `logger.debug` (defensive probes, settings-table fallback, list-comprehension fallbacks) and `logger.warning` (network failures, rate-limit probe errors). All are behavior-preserving: same return value, same control flow — the only change is one log line per failure.
 
-Same top-up math (existing item updated when need > current qty); same
-session.add + commit sequence; same redirect URL shape.
+Affected files (one line per site):
 
-8 shopping tests pass (test_shopping_from_plan + test_P39_shopping_mark_purchased).
+- `app/rms/observability.py:67` — `RequestContextMiddleware` URL probe
+- `app/rms/alert_templates.py:68` — template lookup fallback
+- `app/rms/db_url.py:50` — `db_url_safe` URL parse fallback
+- `app/rms/copilot.py:73,115` — context assembly + LLM-call fallbacks
+- `app/rms/food_cost.py:164` — waste-cost sum fallback
+- `app/rms/public_tokens.py:179` — rate-limit count fallback
+- `app/rms/seasonal.py:258,269` — settings lookup fallback
+- `app/rms/loyalty/suggestions.py:429` — redeem-presence check fallback
+- `app/rms/gerencia_snapshot.py:75,90,99,119` — production / reorder / EOD notice fallbacks
+- `app/rms/production_demand.py:374` — TTL settings lookup fallback
+- `app/rms/notifications.py:120,194,245` — spool prune / whatsapp / email fallbacks
+- `app/rms/sales/pre_sale_check.py:438` — recipe-cycle fallback
+- `app/rms/catalogs_tags.py:90` — tag catalog fetch fallback
+- `app/rms/main.py:343,687,1291` — migration retry / station auth / schema-version probes
 
-## 2026-10-12 — refactor(shopping): SASKIA-211x split _whatsapp_href (CC 12→6)
+Tests: 166 new (1 parametrised × 154 files + 3 sanity). Combined with PR1 (`test_errors_extended.py` 36) + PR2 (`test_retry.py` 21) + this PR's 166 = 223 passing tests across the S2 robustness lane. Existing `tests/test_no_silent_excepts.py` (55, scanning `app/routers/`) untouched per the S1 arbitration.
 
-Extracted `_normalize_py_phone` (PY country code prefix) and
-`_build_wa_message` (prefilled text body). Same PY phone normalization
-(verified: `'981234567'` → `'595981234567'`, `'+595981234567'` →
-`'595981234567'`); same message format.
+Adjudication on test file claims: `tests/test_silent_excepts_rms.py` is **additive** per the S1/s5-org arbitration ruling 2026-10-12T21:13:00Z; no existing tests were modified.
 
-## 2026-10-12 — refactor(health): SASKIA-211x split _check_supabase_reachable (CC 14→5)
+## 2026-10-12 — feat(rms): retry_transient helper for HTTP/DB transient errors (S2 robustness PR2)
 
-Extracted 7 small helpers (each A-grade):
-  - `_supabase_health_url(url)`        — build `/auth/v1/health` URL
-  - `_elapsed_ms(t0)`                  — monotonic round-trip helper
-  - `_build_success_result` / `_build_http_error_result`
-  - `_build_url_error_result` / `_build_os_error_result`
-  - `_classify_url_reason(reason_str)` — table-driven regex: DNS /
-    ConnectRefused / Timeout / SSLError
+**Scope**: `app/rms/retry.py` (new, 184 lines), `tests/test_retry.py` (new, 21 tests).
 
-Main function reads as a 3-line skeleton: build URL, dispatch into the
-right result builder per exception type. Same diagnostic dict shape,
-same exception catch order, same URLError sub-classification
-(verified against 7 reason strings).
+New `retry_transient(fn, *, attempts=3, base_delay=0.2, max_delay=5.0, is_transient=..., sleep=time.sleep, op_name=...)` helper that wraps a zero-arg callable in a bounded retry loop with exponential backoff + ±25 % jitter.
+Classifier `default_is_transient` recognizes `requests.RequestException`, `urllib.error.URLError`, `sqlite3.OperationalError` with "locked"/"busy"/"deadlock" messages, `socket.timeout` (3.11+ alias for `TimeoutError`), `socket.gaierror`, and `ConnectionRefusedError`/`ConnectionResetError`. Custom predicate supported per call site. Terminal errors re-raise immediately without retry. Logs each transient attempt as WARNING; exhaustion as ERROR. Stdlib-only (rule 26: no new deps).
 
-38 health tests pass (test_healthz_deps_depth + test_healthz_summary +
-test_healthz_db_documented + test_readiness).
+No call-site wiring in this PR — adoption is opt-in per integration (planned for `app/integrations/scrapers.py`, `app/services/r2_backup.py`, `app/services/backup_crypto.py` in a follow-up).
 
-## 2026-10-12 — refactor(auth_supabase): SASKIA-211x split sign_in_with_password (CC 11→5)
+Tests cover happy path, transient-then-success, exhaustion, terminal-no-retry, classifier for `sqlite3.OperationalError`/`socket.timeout`/`ConnectionResetError`, backoff window per attempt (`base * 2**(i-1) * [0.75, 1.25]`), `max_delay` cap, `attempts`/`base_delay` validation, `caplog` for WARNING + ERROR, and custom predicate override.
 
-Extracted:
-  - `_is_auth_failure(exc)`   CC 4  — narrow exception type check first
-                                       (AuthApiError / AuthInvalidCredentialsError),
-                                       then message heuristics
-  - `_session_to_dict(response)` CC 3 — projects Supabase auth response
-                                         into the dict shape we persist
+## 2026-10-12 — refactor(errors): extend AppError taxonomy with 13 domain-specific subclasses (S2 robustness PR1)
 
-Behavior preservation: identical exception swallowing + identical dict
-shape on success. Smoke-tested `_is_auth_failure` against type-based
-detection (AuthApiError / AuthInvalidCredentialsError), message
-heuristics ('invalid', 'credentials', '401'), and confirmed config
-bugs propagate.
+**Scope**: `app/rms/errors.py` (+148), `tests/test_errors_extended.py` (new, 36 tests), `docs/operations/2026-10-12-s2-robustness-audit.md` (audit report).
 
-## 2026-10-12 — refactor(help): SASKIA-211x table-driven markdown dispatcher (CC 26→9)
+New subclasses under the existing `AppError` hierarchy, each carrying `status_code` + `reason_code` + `context` + optional `cause`:
 
-**Scope**: `app/routers/help.py` (orchestrator + private handlers).
+- `RecipeTreeError` (500 / recipe_tree_error) — recipe BOM cycles.
+- `RecipeValidationError` (422 / recipe_validation_error) — missing `yield_qty`, bad units.
+- `FiadoError` (409 / fiado_error) — customer-credit business rules.
+- `CashSessionError` (409 / cash_session_error) — open/closed session rules.
+- `ClosureError` (422 / closure_error) — EOD/month/period closure validation.
+- `ExpenseError` (422 / expense_error) — expense validation.
+- `RefundError` (409 / refund_error) — refund business rules.
+- `LLMError` (502 / llm_unavailable) — Copilot / embeddings provider failure.
+- `StorageError` (502 / storage_unavailable) — R2/S3/Drive failures (subtype of DependencyError so storage alerts are distinct).
+- `EODClosedError` (409 / eod_closed) — EOD already closed.
+- `TenantError` (503 / tenant_error) — tenant resolution failed.
+- `MenuNotFound` (404 / menu_not_found) — menus lookup (custom `__init__` to keep reason_code stable).
+- `RollbackError` (500 / rollback_failed) — DB rollback failed.
 
-`_md_to_html` was a single 175-line state machine with 8 inline branches
-(CC 26). Refactored to a table-driven dispatcher: each block type is
-matched by a small predicate, handled by a small producer, and the
-orchestrator just walks the table.
+Backwards-compatible: each new class subclasses an existing class (e.g. `FiadoError(Conflict)`), so call sites that `except Conflict` keep working. Old exception modules (`app.rms.fiado`, `app.rms.cash`, `app.rms.services.closures`, `app.rms.services.expenses`, `app.rms.refunds`, `app.rms.llm`, `app.services.r2_backup`, `app.rms.eod_closed`, `app.rms.tenant`, `app.rms.menu_ejecutivo`, `app.rms.rollback`) keep their classes; future PRs migrate them to the new subclasses.
 
-**Continuation (CC 20 → ≤6 across all functions in the file):**
-the orchestrator extracted into `_render_one_line`, `_accumulate_paragraph`,
-`_flush_open_table`, `_finalize`; the classifier into `_classify_code_line`
-+ `_classify_non_code` with a `@_rule`-decorated predicate table; the
-table renderer into `_real_table_rows`, `_split_row`, `_render_table_html`.
-No remaining function in `help.py` exceeds CC 6.
+Tests: 36 new (status + reason + context + cause + base-catch + `to_http_exception` + `raise from` + regression). Existing `tests/test_observability.py` (29), `test_observability_logs.py` (5), `test_logging_config.py` (3) — all green. Audit doc: 137 silent broad excepts catalogued (top: `app/rms/db.py` 58, `app/routers/health.py` 12).
 
-Behavior preservation: CHARACTER-FOR-CHARACTER identical to the prior
-split (3a99599f) on all five spot-check guide files, including the
-documented list-close `</ul>` quirk (always emits `</ul>` for ordered
-list close, matching the pre-refactor bug).
-
-Helpers added (each ≤ CC 6):
-  - `_escape_html(text)`              CC 1  — `& < >` escape (first step in _apply_inline)
-  - `_apply_inline(text)`             CC 1  — bold / italic / code / link regex pipeline
-  - `_safe_url(url)`                  CC 3  — http/https/path-only; rejects javascript:/vbscript:/data:
-  - `_flush_table(buf)`               CC 5  — pipe-table renderer (was inline closure, CC 12)
-  - `_try_heading(line)`              CC 2  — `# ` … `###### `
-  - `_try_blockquote(s)`              CC 2  — `> `
-  - `_try_unordered_item(line)`       CC 2  — `- ` / `* `
-  - `_try_ordered_item(line)`         CC 2  — `1. ` …
-  - `_is_table_row(s)`                CC 2  — `|…|` line detector
-  - `_is_paragraph_continuation(l)`   CC 6  — "is this a paragraph line?" (used in inner loop)
-  - `_emit_code_block(buf)`           CC 1  — `<pre><code>…</code></pre>`
-  - `_emit_hr()`                      CC 1  — `<hr>`
-  - `_emit_paragraph(parts)`          CC 1  — `<p>…</p>` (space-joined)
-  - `_classify_block(line)`           CC 8  — returns tag for the dispatch table
-  - `_handle_block(tag, line, state)` CC 6  — calls the right producer, mutates state
-
-  - `_md_to_html(md_text)` orchestrator  CC 9 (was 26)
-
-Behavior preserved CHARACTER-FOR-CHARACTER: verified by snapshotting
-HEAD's `_md_to_html` output and the refactored version against three
-real user-guide files (README.md, 02-ventas.md, 06-recetas.md) — outputs
-identical byte-for-byte (14258 / 10888 / 4375 bytes).
-
-XSS guards preserved (test_security_dynamic::test_md_to_html_blocks_xss,
-4 parametrize cases pass).
-Perf budget preserved (test_performance_benchmarks::test_md_to_html_under_50ms).
-## 2026-10-12 — docs(adr): SASKIA-211x ADR-0001 orchestrator pattern
-
-**Scope**: `docs/architecture/decisions/0001-orchestrator-pattern.md` (new).
-
-Captures the orchestrator convention now codified by 100+ prior `refactor(...)`
-commits so future sessions don't re-litigate: helpers are private (`_name`),
-same-file as orchestrator, behavior preserved character-for-character, tests
-stay green BEFORE commit, session passed explicitly to helpers when DB-touching,
-no `*_legacy.py` / `*_v2.py` files.
-
-Queues ADR-0002 (single-path refactor for the `effective_min*2` /
-`display_stock/min_stock_qty` pattern across `reorder.py`,
-`restock_forecast.py`, `stock_status.py`) and ADR-0003 (dead-code archival
-protocol) as future work.
-
-**Refs**: AGENTS.md rule 36 (ADRs), rule 38 (no legacy shims), rule 40 (CC ≤ 10).
-## 2026-10-12 — refactor(reorder): SASKIA-211x split compute_reorder_list into 5 helpers (CC 13→4)
-
-**Scope**: `app/rms/reorder.py` (orchestrator → thin coordinator + single-purpose helpers).
-
-`compute_reorder_list` was a single 60-line function with CC 13, mixing:
-  - effective_min lookup (reorder_point override vs min_stock_qty)
-  - INV-03 display stock clamp
-  - target max_q fallback (`raw_max or (effective_min*2 if effective_min>0 else 10.0)`)
-  - suggested qty calculation
-  - has_price / cost calculation
-  - urgency_ratio computation
-  - Spanish urgency label mapping ("sin stock" / "bajo mínimo" / "OK")
-
-Refactored into:
-  - `_effective_min(ing) -> float`         (CC 2)
-  - `_target_max_qty(eff_min, raw_max) -> float`  (CC 3)
-  - `_urgency_ratio(display, eff_min) -> float`   (CC 2)
-  - `_urgency_label(display, eff_min) -> str`     (CC 3)
-  - `_build_reorder_item(ing) -> ReorderItem | None`  (CC 6) — returns None to filter
-  - `compute_reorder_list(session)` orchestrator  (CC 4) — query → map → filter None → sort
-
-Behavior CHARACTER-FOR-CHARACTER identical:
-  - Query: `session.query(Ingredient).all()` — unchanged
-  - Filter: `display_stock >= effective_min → skip` — unchanged
-  - max_q fallback: `raw_max or (effective_min*2 if effective_min>0 else 10.0)` — unchanged
-  - suggested: `max(0.0, max_q - display_stock)` — unchanged
-  - cost: `int(suggested * price) if has_price else 0`, with
-    `has_price = purchase_price_gs is not None and > 0` — unchanged
-  - urgency_ratio: `display_stock / max(effective_min, 0.001)` if `effective_min > 0` else `0.0` — unchanged
-  - urgency_label thresholds (0 → "sin stock", `< eff_min` → "bajo mínimo", else "OK") — unchanged
-  - Sort: smallest urgency_ratio first — unchanged
-  - Field shapes (ReorderItem dataclass) — unchanged
-
-Verified: 43 tests pass across 5 test files (test_phase2_review_tickets,
-test_SASKIA-208_reorder_integration, test_reorder_supplier_prices,
-test_P32_reorder_auto_price, test_reorder_supplier_redesign).
-
-Radon CC delta:
-  app/rms/reorder.py:compute_reorder_list  13 → 4
-  app/rms/reorder.py:_build_reorder_item    new (CC 6)
-  app/rms/reorder.py:_urgency_label          new (CC 3)
-  app/rms/reorder.py:_target_max_qty         new (CC 3)
-  app/rms/reorder.py:_effective_min          new (CC 2)
-  app/rms/reorder.py:_urgency_ratio          new (CC 2)
-## 2026-10-12 — fix(tooling): SASKIA-211x complexity gate parser (CC gate now fires)
-
-**Scope**: `scripts/check_complexity.py` (parse_radon_output rewritten; no behaviour change for callers).
-
-The complexity gate (`make complexity`) was silently passing — `parse_radon_output`
-matched an outdated radon output format that started each kind line with the
-GRADE letter (A/B/C/D/F), but real radon 6.x starts with the KIND letter
-(F=function, M=method, C=class) and the grade comes after ` - `. The mismatch
-made every parse return 0 rows, so the gate printed "0 over ceiling B" while
-**209 functions in `app/`+`scripts/` actually exceed CC>10**.
-
-Rewrote the parser to split on ` - GRADE (CC)` and read `LINENO:COL NAME` from
-the head. The docstring now reflects the real format.
-
-Verified by:
-  - `make complexity` now exits non-zero and lists 209 violations.
-  - `--report` now totals 659 functions scanned, 209 over ceiling.
-  - Sanity-checked the parsed rows against radon raw output for 5 sample lines.
-
-After the fix, `make check` / `make ci` will fail on any future CC>10
-regression — this restores the AGENTS.md rule 40 enforcement that was
-silently broken since 2026-10-08.
 ## 2026-10-12 — feat(tenant): SASKIA-220 URL-based tenant routing (opt-in middleware)
 
 **Scope**: `app/rms/tenant.py` (new), `app/rms/main.py` (+6), `tenants/example.yaml` (new), `tests/test_tenant.py` (new, 19 tests), `app/CHANGELOG.md`.
