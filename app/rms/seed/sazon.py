@@ -128,12 +128,22 @@ TENANT_CURRENCY = "Gs."
 DEFAULT_TENANT_SLUG = "default"
 
 # Saskia (operator) credentials
+# Updated 2026-10-12 from onboarding questionnaire §4.1 + §4.3
+# (see docs/intake/SASKIA-213-vaquita-seed-data-update.md).
 SASKIA_USER = "saskia"
 SASKIA_PASSWORD = "saskia1234"  # noqa: S105
-SASKIA_EMAIL = "saskia@lavaquita.example"
-SASKIA_FULL_NAME = "Saskia Weiss"
+SASKIA_EMAIL = "La.vaquitaholandesa@gmail.com"
+SASKIA_FULL_NAME = "Saskia Weiss Vander"
 
 # Cashier accounts
+# NOTE (2026-10-12): The onboarding questionnaire §4.5 answered "no" —
+# Saskia runs the POS solo, no cajeros. The hard-coded CASHIER_USERS
+# below are placeholders carried over from the pre-questionnaire seed
+# and DO NOT match the La Vaquita Holandesa instance's actual user
+# roster. This is being addressed in a follow-up ticket (SASKIA-214)
+# that makes the cashier list configurable per instance. DO NOT seed
+# the La Vaquita Holandesa instance against this constant without
+# reviewing SASKIA-214 first.
 CASHIER_USERS = [
     ("lucia", "lucia1234", "Lucía Fernández", "lucia@lavaquita.example"),
     ("diego", "diego1234", "Diego Cabral", "diego@lavaquita.example"),
@@ -470,11 +480,13 @@ COMPLIANCE: dict[str, object] = {
 }
 
 # Business info (for branding / non-regulatory)
+# Updated 2026-10-12 from onboarding questionnaire §2.1 + §2.3 + §2.4 + §2.7
+# (see docs/intake/SASKIA-213-vaquita-seed-data-update.md).
 BUSINESS_INFO: dict[str, str] = {
-    "business_hours": "Lunes a sábado 7:00-19:00, domingo 8:00-13:00",
-    "address": "Av. España 1234, casi Brasil, Asunción",
-    "phone": "+595 21 555-1000",
-    "email": "hola@lavaquita.example",
+    "business_hours": "Martes a sábado de 9 am a 6 pm",
+    "address": "Laguán Grande, Arquitectos, Calle 17, Asunción",
+    "phone": "+595 991 683805",
+    "email": "La.vaquitaholandesa@gmail.com",
 }
 
 # Realistic Paraguayan bakery ingredients (50+).
@@ -5068,7 +5080,7 @@ def _seed_settingskv_branding(ctx: SeedContext):
     branding_settings = {
         "branding.business_name": TENANT_NAME,
         "branding.tagline": "Panadería artesanal desde 1985",
-        "branding.footer": "© 2025 La Vaquita Holandesa — Hecho con cariño en Asunción",
+        "branding.footer": "© 2026 La Vaquita Holandesa — Hecho con cariño en Asunción",
         "branding.business_type": "panaderia",
         "branding.accent_color": TENANT_COLOR,
         "branding.contact_email": BUSINESS_INFO["email"],

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ## 2026-10-12 — style(lint): post-merge-with-SASKIA-211d format fix
 
 **Scope**: `tests/test_models_smoke.py`, `tests/test_route_smoke_generated.py`. +101 / -25.
@@ -104,6 +105,42 @@ Tests: new `tests/test_SASKIA_212_recipe_instructions_editor.py` with 7 RED→GR
 Out of scope (deferred): photos + image upload for recipe pages (Saskia already has recipes/needing-photos.json from earlier work); export N+1 (B9); cov-gate 40→42 (sibling session owns coverage work).
 
 ---
+=======
+## 2026-10-12 — docs(seed): SASKIA-213 La Vaquita seed data update
+
+**Scope**: `app/rms/seed/sazon.py` (constants only: `SASKIA_EMAIL`, `SASKIA_FULL_NAME`, `BUSINESS_INFO`, `branding.footer` year) + `docs/intake/SASKIA-213-vaquita-seed-data-update.md` (new ticket) + `docs/operations/2026-10-09-la-vaquita-onboarding-analysis.md` (new analysis).
+
+Replace placeholder values in the La Vaquita Holandesa seeder with the **real** answers from the 2026-10-08 onboarding questionnaire. The seeder's hard-coded defaults (`hola@lavaquita.example`, `+595 21 555-1000`, `Av. España 1234`, `Lunes a sábado 7:00-19:00…`, copyright 2025, name "Saskia Weiss") never matched the real client; this PR aligns them to the questionnaire's `BUSINESS_INFO` block + the operator's full name.
+
+Updated fields:
+
+* `BUSINESS_INFO.address` → `"Laguán Grande, Arquitectos, Calle 17, Asunción"` (questionnaire §2.1)
+* `BUSINESS_INFO.phone` → `"+595 991 683805"` (questionnaire §2.3)
+* `BUSINESS_INFO.email` → `"La.vaquitaholandesa@gmail.com"` (questionnaire §2.4)
+* `BUSINESS_INFO.business_hours` → `"Martes a sábado de 9 am a 6 pm"` (questionnaire §2.7)
+* `SASKIA_FULL_NAME` → `"Saskia Weiss Vander"` (questionnaire §4.1)
+* `SASKIA_EMAIL` → `"La.vaquitaholandesa@gmail.com"` (questionnaire §4.3)
+* `branding.footer` year `2025` → `2026` (one-character fix; the seeded footer was a year stale)
+
+Comment added to `CASHIER_USERS` documenting the §4.5 = "no" data point: the current hard-coded `("lucia", "Lucía Fernández")` and `("diego", "Diego Cabral")` placeholders are **wrong for this tenant** (Saskia runs the POS solo) and DO NOT match the real client roster. This is being addressed in a follow-up ticket (SASKIA-214) that makes the cashier list configurable per instance — outside the scope of this PR.
+
+**Out of scope** (deferred to follow-up tickets):
+
+* `COMPLIANCE` dict — RUC, R.E. INAN, Timbrado, SIFEN, Director Técnico all TBD in the questionnaire; placeholders are better than nothing because they let the system operate (boleta resimple without legal invoice is allowed). Leave as-is.
+* `branding.business_type` — questionnaire §1.8 = `GASTRONOMICO`, but the registry's `branding.business_type` choices don't include that value yet. Schema gap, not config gap.
+* `TENANT_COLOR` — questionnaire §1.4 default `#6B4423` vs seeder's `#7b3f00` are different shades of brown. UI/design decision, not config update.
+* Logo / favicon / hero — all TBD (Saskia has the files but hasn't sent them).
+* Product catalog §5.1 — which 22 of 32 to enable day-1, all `❓` (undecided).
+* Recipes §7 — manual de obra, margen objetivo per category; §7.4 alone is answered, but the `Recipe` model has no `prep_minutes` / `cook_minutes` columns yet. Schema gap.
+* Suppliers §6.1, §6.2 — all `❓`.
+* SeasonalEvent / Insurance / GrowthPlan / Employee / Payroll / RecurringHoliday models — all referenced by the questionnaire but don't exist yet. Defer to SASKIA-215+.
+
+**Idempotency note**: `seed_sazon(overwrite=False)` does NOT update existing rows — it only inserts rows that don't exist. If the La Vaquita instance has already been seeded with placeholder values, this PR will not retroactively update them. A one-time backfill is needed before these values take effect on an already-seeded instance; this is documented in the ticket and out of scope here.
+
+**Tests**: new `tests/test_seed_vaquita_constants.py` asserts the new `BUSINESS_INFO` and `SASKIA_*` values. Regression guard against placeholder regression.
+
+**No code-path changes**: only string-constant updates. No schema, no API, no auth, no money, no units, no datetime, no recipe, no stock. AGENTS.md `app/rms/` rules (Decimal, Unit, ASUNCION_TZ, polymorphic recipe_line, atomic stock moves) are not affected.
+>>>>>>> 0184cb83 (docs(seed): SASKIA-213 La Vaquita seed data update from onboarding questionnaire)
 
 ## 2026-10-12 — fix(cocina): SASKIA-211 cocina-pages-audit fixes
 
