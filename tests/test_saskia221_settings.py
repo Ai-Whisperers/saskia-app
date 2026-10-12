@@ -27,8 +27,8 @@ from app.rms.settings_registry import (
 
 
 def test_saskia221_registry_has_105_settings():
-    """74 + 26 + 1 = 101 (SASKIA-221) + 4 (SASKIA-223 HEREBUS) = 105 settings."""
-    assert len(SETTINGS) == 105
+    """74 + 26 + 1 = 101 (SASKIA-221) + 4 (SASKIA-223 HEREBUS) = 105; +1 SASKIA-217 = 106."""
+    assert len(SETTINGS) == 106
 
 
 def test_saskia221_registry_has_24_groups():

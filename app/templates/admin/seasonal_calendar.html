@@ -1,0 +1,94 @@
+{# Seasonal calendar admin page — SASKIA-217 (read-only) #}
+{# File: app/templates/admin/seasonal_calendar.html #}
+{# Route: GET /admin/seasonal-calendar (app/routers/settings_runtime.py) #}
+
+{% extends "base.html" %}
+{% block title %}Calendario estacional — {{ branding.business_name }}{% endblock %}
+
+{% block content %}
+<h1 style="max-width:1200px; margin: 1.5rem auto 0; padding: 0 1.5rem;">
+  Calendario estacional
+</h1>
+<p style="max-width:1200px; margin: 0.5rem auto 0; padding: 0 1.5rem; color: var(--muted-foreground);">
+  Eventos que afectan tu demanda, ordenados por fecha. Ventana de anticipación:
+  <strong>{{ lead_days }} días</strong>.
+  {% if relevance_tags %}Filtrado por tu rubro: <strong>{{ relevance_tags }}</strong>.{% endif %}
+</p>
+
+{# ── Events inside the lead window (need attention now) ── #}
+{% if inside_window %}
+<section style="max-width:1200px; margin: 1rem auto 0; padding: 0 1.5rem;">
+  <div class="empty-state" style="background: var(--color-info-soft, #eef6ff); border-left: 3px solid var(--color-info, #2563eb); padding: 1rem 1.25rem; border-radius: var(--radius-md, 8px);">
+    <strong>{{ inside_window|length }} evento{{ "s" if inside_window|length != 1 }} dentro de la ventana de {{ lead_days }} días</strong>
+    <ul style="margin: 0.5rem 0 0; padding-left: 1.2rem;">
+      {% for r in inside_window %}
+      <li>
+        <strong>{{ r.name }}</strong> — {{ r.date.strftime("%d/%m/%Y") }}
+        (en {{ r.days_away }} día{{ "s" if r.days_away != 1 }})
+        {% if r.impact_tag in ("critical", "high") %}
+        <span class="status-pill status-{{ 'error' if r.impact_tag == 'critical' else 'warn' }}">{{ "crítico" if r.impact_tag == "critical" else "alto" }}</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+
+{# ── Full upcoming table ── #}
+<section style="max-width:1200px; margin: 1.5rem auto 2rem; padding: 0 1.5rem;">
+  {% if rows %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th scope="col">Fecha</th>
+          <th scope="col">Evento</th>
+          <th scope="col">Días</th>
+          <th scope="col">Impacto</th>
+          <th scope="col">Categoría</th>
+          <th scope="col">Detalle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="{{ 'row-inside' if r.status == 'inside' else '' }}">
+          <td data-label="Fecha">{{ r.date.strftime("%d/%m/%Y") }}</td>
+          <td data-label="Evento"><strong>{{ r.name }}</strong></td>
+          <td data-label="Días">
+            {% if r.status == "inside" %}
+            <span class="status-pill status-info">en {{ r.days_away }} d</span>
+            {% else %}
+            {{ r.days_away }}
+            {% endif %}
+          </td>
+          <td data-label="Impacto">
+            {% if r.impact_tag == "critical" %}<span class="status-pill status-error">crítico</span>
+            {% elif r.impact_tag == "high" %}<span class="status-pill status-warn">alto</span>
+            {% elif r.impact_tag == "medium" %}<span class="status-pill status-info">medio</span>
+            {% else %}<span class="status-pill">bajo</span>{% endif %}
+          </td>
+          <td data-label="Categoría">{{ r.category }}</td>
+          <td data-label="Detalle" class="muted">{{ r.description[:120] }}{% if r.description|length > 120 %}…{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state" style="background: var(--color-info-soft, #eef6ff); border-left: 3px solid var(--color-info, #2563eb); padding: 1rem 1.25rem; border-radius: var(--radius-md, 8px);">
+    No hay eventos cargados todavía. Cargá el catálogo con el seeder
+    <code>seed_seasonal_events_full</code> o desde Configuración.
+  </div>
+  {% endif %}
+</section>
+
+<style>
+  .row-inside { background: var(--color-info-soft, #eef6ff); }
+  .status-pill { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+  .status-error { background: #fee2e2; color: #991b1b; }
+  .status-warn { background: #fef3c7; color: #92400e; }
+  .status-info { background: #dbeafe; color: #1e40af; }
+  .muted { color: var(--muted-foreground, #6b7280); }
+</style>
+{% endblock %}
