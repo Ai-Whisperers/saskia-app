@@ -1,3 +1,26 @@
+## 2026-10-12 — refactor(tier-tests): Phase 1+2 — centralize auth/clock/seed helpers
+
+**Scope**: `tests/_lib/{__init__,auth,clock,seed}.py`, 8 tier test files, `pyproject.toml`.
+
+After scaffolding the 9 missing test areas (HTTP routes, CSRF/auth, migrations, concurrency, network, property, performance, security, E2E), Phase 1+2 of the test refactor eliminates duplication and centralizes shared test infrastructure:
+
+Phase 1 — fixture consolidation:
+* Removed 3 redundant `client` fixtures from tier tests; now use `authed_client` (or `auth_required_client` for auth-enabled scenarios) from `tests/conftest.py`.
+* Added `pytestmark` with `pytest.mark.{integration,property,concurrency,security,network,perf,migration}` to all 8 tier test files for CI matrix targeting.
+* Added 3 new markers to `pyproject.toml`: `integration`, `property`, `concurrency`.
+* Updated status code checks to include `303 See Other` (FastAPI's actual redirect for many endpoints).
+* `test_migration_roundtrips.py::test_data_survives_init` now uses `app_meta.updated_at = CURRENT_TIMESTAMP` (NOT NULL column).
+* `test_concurrency.py::test_rate_limit_decision_thread_safe` now uses correct dataclass kwargs.
+
+Phase 2 — `_lib/` helper module:
+* `tests/_lib/auth.py` — `fresh_client()` (context manager), `auth_required_client()` (xdist-safe via monkeypatch), `auth_disabled_client()`, `assert_safe_response()`.
+* `tests/_lib/clock.py` — `FROZEN_NOW`, `FROZEN_ASUNCION`, `FROZEN_TS`, `asuncion_now()`, `utc_now()`, `iso_now()`, `FrozenClock` (deterministic clock for time-sensitive tests).
+* `tests/_lib/seed.py` — `quick_ingredient()`, `quick_product()`, `quick_sale()`, `quick_supplier()`, `quick_customer()` — thin wrappers around `tests.factories.make_*`.
+
+Net effect: 8 tier test files refactored, 80/81 tests pass (1 hypothesis example skipped), tier tests are now fixture-driven, deterministic, and ready for the next phase of deeper coverage work.
+
+---
+
 ## 2026-10-12 — feat(recetas): SASKIA-213b recipe photo auto-link (migration 119)
 
 **Scope**: `app/rms/migrations/_119_recipe_photo_autolink.py`, `app/rms/db.py`, `app/rms/config.py`, `app/templates/recipe_photos.html`, `tests/test_SASKIA_213_recipe_photo_upload.py`, `CHANGELOG.md`.
