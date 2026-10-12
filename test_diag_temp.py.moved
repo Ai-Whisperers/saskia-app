@@ -1,0 +1,23 @@
+"""Diag: see the real TypeError."""
+import traceback
+
+
+def test_difficulty_medio_full_traceback(authed_client, session_factory):
+    from app.rms.models import Recipe
+    from starlette.testclient import TestClient
+    import app.rms.main
+    test_engine = session_factory.kw["bind"]
+    with session_factory() as s:
+        s.add(Recipe(name="TestD", yield_qty=10, yield_unit="und", prep_minutes=30, cook_minutes=45, difficulty="medio"))
+        s.commit()
+    with TestClient(app.rms.main.app, raise_server_exceptions=True) as c:
+        app.rms.main.app.state.engine = test_engine
+        app.rms.main.app.state.session_factory = session_factory
+        try:
+            r = c.get("/recetas")
+            print("STATUS:", r.status_code)
+        except Exception as e:
+            print("EXC TYPE:", type(e).__name__)
+            print("EXC MSG:", str(e)[:1500])
+            traceback.print_exc()
+            raise

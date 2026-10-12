@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-12",
+  "coverage": 42,
+  "statements_covered": 10960,
+  "statements_total": 26212,
+  "test_files": 22,
+  "tests_passing": 533,
+  "phase": "Phase 2 (50% target)",
+  "key_wins": {
+    "app/routers/help.py": "0% -> 72%",
+    "app/rms/upload_limits.py": "0% -> 100%",
+    "app/rms/maintenance.py": "0% -> 100%",
+    "app/rms/services/common.py": "0% -> 100%",
+    "app/rms/models/auth.py": "0% -> 100%",
+    "app/rms/models/audit.py": "0% -> 100%",
+    "app/rms/models/channels.py": "0% -> 100%",
+    "app/rms/models/delivery.py": "0% -> 100%",
+    "app/rms/models/inventory.py": "0% -> 100%",
+    "app/rms/models/orders.py": "0% -> 100%",
+    "app/rms/models/production.py": "0% -> 100%"
+  }
+}

@@ -54,7 +54,7 @@ def seed_min_recipes(session_factory):
                 yield_unit="und",
                 prep_minutes=30,
                 cook_minutes=45,
-                difficulty="medio",
+                difficulty=3,  # INTEGER 1-5 (per Recipe model); 3 = medio
                 menu_tags="Panadería,Chocolate",
                 family="Panadería",
             )
@@ -66,7 +66,7 @@ def seed_min_recipes(session_factory):
                 yield_unit="und",
                 prep_minutes=15,
                 cook_minutes=12,
-                difficulty="fácil",
+                difficulty=1,  # INTEGER 1-5 (per Recipe model); 1 = fácil
                 menu_tags="Panadería,Vainilla",
                 family="Panadería",
             )
