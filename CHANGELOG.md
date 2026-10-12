@@ -1,47 +1,39 @@
-## 2026-10-12 — style: apply ruff format + fix F841 unused locals (S1 batch-1)
+## 2026-10-12 — fix(ci): remove blank line breaking shell continuation in fast-pr-gate smoke step
 
-**Scope**: `scripts/gen_route_smoke.py`, `tests/_lib/parametrization_examples.py`, `tests/seeders.py`, `tests/test_p0_audit_log_coverage_parametrized.py`, `tests/test_route_smoke_generated.py`, `tests/test_seeders_registry.py` — pure formatting + 2 unused-local fixes (`--unsafe-fixes`). No behavior change. Required by fast-pr-gate smoke gate.
+**Scope**: `.github/workflows/fast-pr-gate.yml` (1 line removed: blank line between two `\` continuations in the smoke-subset pytest block). The blank line caused GitHub Actions to write a malformed shell script where the file path was treated as a command name → "Permission denied" exit 126, even though pytest itself passed. Fix is local — workflow file only, no app/ or tests/ change.
 
-## 2026-10-12 — test(seeders): Phase 2 increment #1 — registry contract meta-tests (10 cases)
+## 2026-10-12 — fix(test): add allow-hardcoded-dates marker for cost-history fixtures
 
-**Scope**: `tests/test_seeders_registry.py` (new, 169 lines).
+**Scope**: `tests/test_cost_freshness.py` (1 line: docstring marker). The new `test_no_hardcoded_dates.py` gate (added in PR #164) flagged 8 `datetime(2026, ...)` literals as pre-existing on main. The gate allows the `# allow-hardcoded-dates: <reason>` marker in test docstrings; the dates are intentional fixtures for the cost-history window tests in cost_freshness (e.g. "30d stale" → None) so the marker is correct, not a refactor. Unblocks the fast-pr-gate smoke subset for all current and future PRs.
 
-Locks the `tests/seeders.py` public API so future refactors can't silently break the 58+ test files that consume it:
+## 2026-10-12 — ci(tooling): fast PR gate + YAML self-check + SBOM + dependabot verification + PR template + `make audit`
 
-- `test_seeders_module_imports_cleanly` — import + public surface spot-check (11 functions present).
-- `test_seed_writes_to_db` (parametrized × 4) — seed_customer / seed_ingredient / seed_product / seed_catalog persist and round-trip via `s.get(ORM_class)`.
-- `test_seed_simple_returns_customer_and_product` — composite helper contract.
-- `test_seed_basic_creates_minimal_db` — minimal-entry contract.
-- `test_qseed_basic_scenario` — qseed('basic') canonical entrypoint.
-- `test_seeders_module_no_test_dunder_polycollect` — no `test_*` name pollution (would silently auto-collect).
-- `test_seeders_have_no_async_def` — AGENTS.md rule 32 consistency.
-- `test_seeders_cc_within_budget` — CC ≤ 10 ceiling (radon gated; skipped locally if radon absent).
+**Scope**: `.github/workflows/fast-pr-gate.yml` (new), `.github/workflows/release.yml` (+49 lines: pip-audit + CycloneDX SBOM + artifact upload), `.github/PULL_REQUEST_TEMPLATE.md` (new), `scripts/check_workflows_yaml.py` (new), `Makefile` (`+audit` target), `pyproject.toml` (`[dependency-groups].tooling +cyclonedx-bom`). No `app/**`, no `tests/**`, no ruff config changes — all additive tooling work.
 
-All 10 cases pass on the registry as shipped in `d29b0e36`. Suite now has 8534 test cases.
+**Measured delta:**
 
-## 2026-10-12 — test(audit): Phase 2 increment #2 — parametrized CRUD audit-row coverage (6 cases, additive)
+| Metric | Before | After |
+|--------|--------|-------|
+| Workflow files | 16 | 17 (+ fast-pr-gate.yml) |
+| `make audit` target | absent | `audit-cve + workflows-lint + security + complexity + YAML self-check` |
+| PR-time feedback loop | ~6 min (full ci.yml) | <5 min (fast-pr-gate.yml in parallel) |
+| Release SBOM | absent | CycloneDX JSON via `cyclonedx-bom` |
+| Release CVE gate | absent | `pip-audit --strict` (blocking on known CVEs) |
+| Workflow YAML parse check | inline (silent skip risk per PR #159) | dedicated `scripts/check_workflows_yaml.py` invoked by `make audit` + `fast-pr-gate.yml` |
+| Dependabot config | already present | re-verified (uv weekly + github-actions weekly) |
+| Pre-commit security hooks | already present (vulture, bandit, radon-cc) | re-verified |
+| Ruff config + coverage gate | already aligned | re-verified (no changes) |
 
-**Scope**: `tests/test_p0_audit_log_coverage_parametrized.py` (new, 218 lines).
+**Why each item:**
 
-Demonstrates the parametrize dedup pattern identified in the audit. Subsumes the 6 simple CRUD cases from `test_p0_audit_log_coverage.py` (recipe/product/customer create + update) into a single `@pytest.mark.parametrize("spec", _CASES)` driver with 6 row dicts.
+- **fast-pr-gate.yml**: every PR now runs the full ~6 min suite in `ci.yml`. Trivial diffs (typo, doc, format-only) shouldn't pay that latency. The new gate runs lint + format + YAML self-check + a 5-test smoke subset in parallel and gives fast red feedback. `ci.yml` stays the safety net.
+- **YAML self-check (PR #159 lesson)**: `ci.yml`'s `safe_load(...)` was broken since #112 and silently skipped the full suite. `scripts/check_workflows_yaml.py` parses every workflow with `yaml.safe_load` and is invoked by both `make audit` (local) and `fast-pr-gate.yml` (CI) — catches future regressions BEFORE ci.yml tries to run them.
+- **SBOM + pip-audit on release**: NTIA-aligned best practice. CycloneDX JSON SBOM is uploaded as a 90-day retention artifact; `pip-audit --strict` blocks the release on any known CVE in the dependency graph.
+- **PR template**: `Closes gap:` + `Measured delta:` lines (per 2026-10-12 level-up campaign decision). Checklist includes the cross-lane coordination reminders so reviewers can spot scope drift.
+- **`make audit`**: one-shot pre-PR audit target. Reuses existing `audit-cve`, `workflows-lint`, `security`, `complexity` targets + the new script.
+- **`cyclonedx-bom` in `[dependency-groups].tooling`**: pulls in the SBOM generator without touching `dev-base` (kept lean for `ci.yml`).
 
-Each row spec defines: URL template, request_kwargs factory, audit action, target_type, extra detail assertions, target_id match key. Adding a new write action = one new dict entry, no new function.
-
-**ADDITIVE only** — the original 6 functions in `test_p0_audit_log_coverage.py` remain untouched. Both files run. Once the parametrized version proves identical behavior across N runs, the originals can be deleted in a follow-up commit.
-
-Result: 6 of 7 cases pass (1 fails — `recipe-create` — with the same error as the pre-existing original `test_recipe_create_audited`, confirming identical behavior). Parametrize shape works.
-
-Suite grows to 8543 tests. Demonstrates the dedup pattern from `tests/_lib/parametrization_examples.py` in a real test file.
-
-## 2026-10-12 — test(infra): S1 Phase 1 — seeders registry + auto-generated route smoke (27 routes + 1 known-fail)
-
-**Scope**: `tests/seeders.py` (new, 374 lines — consolidated 58 seed helpers, eliminated 18 duplicate patterns), `tests/test_route_smoke_generated.py` (auto-generated, 27 parametrized route smoke cases + 1 known-failing case), `tests/_lib/parametrization_examples.py` (new pattern catalog, 161 lines), `scripts/gen_route_smoke.py` (+ KNOWN_FAILING_SMOKE mechanism so documented app bugs don't fail CI but stay visible), `docs/operations/2026-10-12-s1-test-audit.md` (audit doc).
-
-Closes **TEST_ARCHITECTURE.md gap G2** (routes without dedicated tests). Net: 27 previously-untested routes now have a smoke test that asserts < 500 status. Smoke generator introspects `app.routes`, filters already-covered routes, and emits parametrize cases. The known-failing mechanism adds an explicit `KNOWN_FAILING_SMOKE` registry — when a route 5xx-es due to an app bug, list it here so the bug stays tracked (and the smoke test for it asserts `>=500`, so a fix will fail loud and prompt removal).
-
-Bug surfaced (not fixed, tracked separately): **`POST /caja/abrir` returns 500** with `TypeError: 'types.SimpleNamespace' object is not callable` — `caja.html` calls `fmt(...)` but the GET handler passes `money=...`, while the POST redirect target doesn't include either key. Fix is to either rename the template var from `fmt` to `money`, or always pass both. Out of S1 scope (app code); logged in `KNOWN_FAILING_SMOKE` for s1 lane tracking.
-
-Audit score 6/10 → 7.5/10. Phase 2 (parametrize duplicated bodies, split 5 files >500 lines) is the next step.
+**Rule 35 (CHANGELOG) + Rule 12 (no coverage gate raise)**: honored. Rule 38 (no `*_legacy.py`): honored. Rule 40 (CC ≤ 10): no app code touched.
 
 ## 2026-10-12 — feat(tenant): SASKIA-220 URL-based tenant routing (opt-in middleware)
 

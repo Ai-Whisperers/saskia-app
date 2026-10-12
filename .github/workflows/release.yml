@@ -97,6 +97,49 @@ jobs:
         # release.sh just uses the env, git, and bash.
         run: rm -rf .venv && uv sync --only-group dev-base --no-default-groups
 
+      # ---- CVE scan (s4-tooling pass 2026-10-12) ----
+      # Runs pip-audit against the locked dependency graph and exits
+      # non-zero on any known CVE. Fails the release if a vulnerable
+      # transitive dep slipped in. Catches things like the well-known
+      # `cryptography` CVEs that wouldn't otherwise surface until prod.
+      # advisory-only output goes to the run log; blocking exit comes
+      # from pip-audit itself.
+      - name: pip-audit (CVE scan)
+        run: |
+          uv run --group tooling --no-default-groups pip-audit \
+            --strict --progress-spinner off \
+            || {
+              echo "::error::pip-audit found known CVEs in the dependency graph."
+              echo "  Run 'make audit-cve' locally to inspect."
+              exit 1
+            }
+
+      # ---- SBOM generation (CycloneDX, s4-tooling pass 2026-10-12) ----
+      # Produces a CycloneDX JSON SBOM from the project's runtime +
+      # tooling deps and uploads it as a workflow artifact. CycloneDX
+      # is the de facto standard SBOM format (NTIA-aligned, SPDX
+      # compatibility layer). Upload is bounded at 100 MB to keep the
+      # artifact budget sane; a real SBOM is ~200-500 KB.
+      #
+      # Why on release only (not every push): SBOM is a release artifact.
+      # Operators / auditors pull the SBOM from the release run. We do
+      # NOT emit SBOMs on every PR — the artifact budget would explode.
+      - name: Generate SBOM (CycloneDX, JSON)
+        run: |
+          uv run --group tooling --no-default-groups cyclonedx-py \
+            environment --runtime --output-format json \
+            --output-file /tmp/sbom.cdx.json \
+            --name sazon-rms \
+            --version "$(git describe --tags --abbrev=0 2>/dev/null || echo 'dev')"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@6c51a7c2e3b38c189d94f72eb10f8e9d3a93f9d3  # v4
+        with:
+          name: sbom-cyclonedx
+          path: /tmp/sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Configure git author for the release commit
         # release.sh does `git commit -m "docs(changelog): release $TAG"`.
         # That commit needs an author. Use the same bot identity that

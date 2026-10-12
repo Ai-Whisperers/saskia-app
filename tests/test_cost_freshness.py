@@ -1,4 +1,5 @@
 """tests/test_cost_freshness.py — Test app/rms/cost_freshness.py (Phase 4.5).
+# allow-hardcoded-dates: cost-history-fixtures
 
 The module answers "is this product's sale price computed on stale
 costs?" — the productos table shows a "Costo actualizado" column.

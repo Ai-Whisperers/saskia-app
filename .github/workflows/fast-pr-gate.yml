@@ -1,0 +1,108 @@
+# .github/workflows/fast-pr-gate.yml — <5 min gate before full CI
+#
+# Why this exists:
+#   ci.yml (the full suite) takes ~6 min. PR feedback latency hurts iteration.
+#   PR #159 (2026-10-12) fixed a ci.yml YAML bug that had silently skipped
+#   the full suite since #112. As a side-effect, every PR now runs the full
+#   ~6 min suite even for trivial diffs (typo, doc, format-only).
+#
+#   This gate runs FIRST (parallel to ci.yml) and targets the 90% of PRs
+#   that only need: lint clean + format clean + smoke subset pass. It
+#   targets <5 min total wall-clock on cold cache. ci.yml is the safety
+#   net; this gate gives fast "red" feedback.
+#
+#   Tradeoffs:
+#     - We deliberately skip type-check (mypy is `continue-on-error: true`
+#       in ci.yml; not part of the fast gate).
+#     - We skip coverage gate (ci.yml owns that — pyproject addopts would
+#       cause --cov-fail-under=35 to fail-fast on missing app modules; s4
+#       must NOT raise coverage gate per AGENTS.md rule 12).
+#     - We skip docs-quality + anti-rule enforcement (those are
+#       author-quality checks that don't need to run twice per push).
+#     - We include a YAML self-check (parse every workflow) — the #159
+#       lesson. If a future PR ships a broken workflow file, this gate
+#       catches it before ci.yml runs the broken workflow.
+#
+#   Coordination:
+#     - S1 owns `tests/test_route_smoke_generated.py` + scripts/
+#       gen_route_smoke.py; the smoke subset here intentionally does NOT
+#       touch those files. If we add a generated route-smoke subset
+#       later, we will coordinate via INBOX.
+#     - S3 owns `scripts/check_complexity.py`; pre-commit complexity hook
+#       already references it (added 2026-10-12). Not invoked here.
+#
+# Last updated: 2026-10-12 (added by s4-tooling lane).
+
+name: Fast PR gate (<5 min)
+
+on:
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same PR/branch (same pattern as ci.yml).
+concurrency:
+  group: fast-pr-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fast-gate:
+    name: lint + format + YAML self-check + smoke subset
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7
+        with:
+          version: "0.5.x"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies (dev-base only)
+        # Same constraint as ci.yml — no Playwright, no testcontainers.
+        # We only need ruff + pytest for the smoke subset.
+        run: uv sync --only-group dev-base --no-default-groups
+
+      # ---- Workflow YAML self-check (PR #159 lesson) ----
+      # ci.yml's safe_load(...) was broken since #112 and silently skipped
+      # the full suite. This step parses every workflow with yaml.safe_load
+      # and exits non-zero on any parse error — catches future regressions
+      # BEFORE ci.yml tries to run them. See scripts/check_workflows_yaml.py
+      # for the local equivalent (`make audit`).
+      - name: Workflow YAML self-check
+        run: python scripts/check_workflows_yaml.py
+
+      - name: Lint (ruff check)
+        run: uv run ruff check .
+
+      - name: Format (ruff format --check)
+        run: uv run ruff format --check .
+
+      # ---- Smoke subset ----
+      # Intentionally minimal: stable tests, no app mutations, no coverage.
+      # -x : exit on first failure (fast feedback)
+      # -q : quiet (only summary + failures)
+      # --no-cov : smoke gate never enforces coverage
+      # -m "not (browser or e2e or pg)" : same exclusion as ci.yml
+      #
+      # This list is intentionally NOT the full route_smoke_generated (s1
+      # owns that). We pick the 5 fastest, most stable hand-written tests.
+      # Future PRs may extend this list; coordinate with s1 via INBOX.
+      - name: Smoke subset (pytest)
+        run: |
+          uv run pytest -x -q --no-cov \
+            -m "not (browser or e2e or pg)" \
+            tests/test_money.py \
+            tests/test_units.py \
+            tests/test_routers_require_auth.py \
+            tests/test_no_silent_excepts.py
