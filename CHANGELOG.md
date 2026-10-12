@@ -1,3 +1,7 @@
+## 2026-10-12 — fix(ci): remove blank line breaking shell continuation in fast-pr-gate smoke step
+
+**Scope**: `.github/workflows/fast-pr-gate.yml` (1 line removed: blank line between two `\` continuations in the smoke-subset pytest block). The blank line caused GitHub Actions to write a malformed shell script where the file path was treated as a command name → "Permission denied" exit 126, even though pytest itself passed. Fix is local — workflow file only, no app/ or tests/ change.
+
 ## 2026-10-12 — fix(test): add allow-hardcoded-dates marker for cost-history fixtures
 
 **Scope**: `tests/test_cost_freshness.py` (1 line: docstring marker). The new `test_no_hardcoded_dates.py` gate (added in PR #164) flagged 8 `datetime(2026, ...)` literals as pre-existing on main. The gate allows the `# allow-hardcoded-dates: <reason>` marker in test docstrings; the dates are intentional fixtures for the cost-history window tests in cost_freshness (e.g. "30d stale" → None) so the marker is correct, not a refactor. Unblocks the fast-pr-gate smoke subset for all current and future PRs.
