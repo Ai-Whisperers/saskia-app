@@ -38,6 +38,7 @@ sweep, one confirmation, all info in one place.
 
 from __future__ import annotations
 
+from loguru import logger
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -436,6 +437,7 @@ def _check_stock_shortages(
     try:
         moves = _compute_stock_moves(session, recipe, intent.qty, set())
     except Exception as e:  # CycleInRecipeTree
+        logger.debug("pre_sale_check stock moves failed (cycle?): %s", e, exc_info=True)
         _add_recipe_cycle_warning(checklist, recipe, e)
         return
 

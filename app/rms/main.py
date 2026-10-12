@@ -340,6 +340,8 @@ async def lifespan(app: FastAPI):
                 with engine.connect() as conn:
                     pre = _sv(conn)
             except Exception:
+                # Migrations already failed above — log + leave pre as None.
+                logger.debug("main._schema_version retry probe failed", exc_info=True)
                 pre = None
             app.state.migration_status = "failed"
             app.state.migration_error = repr(exc)
@@ -684,6 +686,8 @@ def create_app() -> FastAPI:
             try:
                 user_present = current_user_id(request) is not None
             except Exception:
+                # Auth helper blew up — log + assume anonymous (conservative).
+                logger.debug("main.stations user_present probe failed", exc_info=True)
                 user_present = False
             result = decide(
                 path,
@@ -1289,6 +1293,8 @@ def migrate() -> None:
         with engine.connect() as conn:
             before = _current_schema_version(conn)
     except Exception:
+        # Fresh DB or engine misconfigured — log + assume no prior schema.
+        logger.debug("main._schema_version probe failed", exc_info=True)
         before = 0
 
     if before == CURRENT_SCHEMA_VERSION:

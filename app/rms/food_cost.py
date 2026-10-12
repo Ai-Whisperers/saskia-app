@@ -12,6 +12,7 @@ The ratio between theoretical and actual food cost is the key metric:
 
 from __future__ import annotations
 
+from loguru import logger
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -162,6 +163,8 @@ def waste_cost(session: Session, start: datetime, end: datetime) -> int:
             ).all()
         )
     except Exception:
+        # WasteLog query failed — return 0 so dashboard renders without crashing.
+        logger.debug("food_cost waste cost query failed", exc_info=True)
         return 0
 
     return sum(int(cost or 0) for (cost,) in rows)

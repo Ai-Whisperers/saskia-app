@@ -64,6 +64,8 @@ def _safe_get_user_id(request: Request) -> str | None:
                 return str(u)
         return None
     except Exception:
+        # Defensive probe — log + fall through. URL parse failure is non-fatal.
+        logger.debug("url_for_request probe failed", exc_info=True)
         return None
 
 

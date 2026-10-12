@@ -22,6 +22,7 @@ Why a shared module:
 
 from __future__ import annotations
 
+from loguru import logger
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -177,6 +178,8 @@ def enforce_rate_limit(
             .count()
         )
     except Exception:
+        # AuditLog query failed — fall through (no rate-limit applied) rather than 500.
+        logger.warning("public_tokens rate-limit check failed", exc_info=True)
         return
     if count >= _RATE_LIMIT_THRESHOLD:
         raise HTTPException(

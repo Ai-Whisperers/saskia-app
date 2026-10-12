@@ -17,6 +17,7 @@ we have them.
 
 from __future__ import annotations
 
+from loguru import logger
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
@@ -256,6 +257,8 @@ def operator_relevance_tags(session: Session) -> str:
         value = settings_get(session, "seasonal.relevance_tags", "")
         return str(value or "")
     except Exception:
+        # Settings missing or DB unreachable — log + return empty (tier 1 fallback).
+        logger.debug("seasonal.relevance_tags lookup failed", exc_info=True)
         return ""
 
 
@@ -267,4 +270,6 @@ def notif_lead_days(session: Session) -> int:
         raw = settings_get(session, "seasonal.notif_lead_days", "30")
         return int(raw) if raw not in (None, "") else 30
     except Exception:
+        # Settings missing or DB unreachable — log + return default 30.
+        logger.debug("seasonal.notif_lead_days lookup failed", exc_info=True)
         return 30

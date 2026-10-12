@@ -7,6 +7,7 @@ behavior even before the migration runs.
 
 Usage::
 
+from loguru import logger
     from app.rms.alert_templates import get_eod_alert_template
     tmpl = get_eod_alert_template(session, "eod.voided_rate")
     subject = tmpl["subject"]
@@ -65,6 +66,8 @@ def get_eod_alert_template(session: Session, key: str) -> AlertTemplate:
             {"key": key},
         ).fetchone()
     except Exception:
+        # Row missing is OK (template not yet seeded); log + fall through.
+        logger.debug("alert_templates fetchone failed", exc_info=True)
         row = None
 
     if row:

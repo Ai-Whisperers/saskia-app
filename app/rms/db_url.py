@@ -15,6 +15,7 @@ Used by:
 - app/rms/backup.py: `_get_db_url_safe` for the manifest's
   db_url_safe field (no password leak in operator-stored backups)
 - app/rms/config.py: the canonical DB URL builder; we DO NOT
+from loguru import logger
   import from there to avoid a config -> db_url import (config is
   higher layer than this).
 """
@@ -47,6 +48,8 @@ def db_url_safe() -> str:
             return urlunsplit((parts.scheme, netloc, parts.path, parts.query, ""))
         return url
     except Exception:
+        # Defensive URL parse — log + return sentinel so caller can detect bad URL.
+        logger.debug("db_url_safe parse failed", exc_info=True)
         return "<unknown>"
 
 

@@ -17,6 +17,7 @@ that an index lookup doesn't.
 
 from __future__ import annotations
 
+from loguru import logger
 from dataclasses import dataclass
 
 from sqlalchemy import text
@@ -88,6 +89,8 @@ def list_dietary_tags(session: Session, include_inactive: bool = False) -> list[
         ).format(where_clause="" if include_inactive else "WHERE is_active = 1")
         rows = session.execute(text(sql)).fetchall()
     except Exception:
+        # Tag catalog table missing — fall through to empty list (tier 1 fallback).
+        logger.debug("catalogs_tags fetch failed", exc_info=True)
         rows = []
 
     if rows:

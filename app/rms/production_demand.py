@@ -372,6 +372,8 @@ def demand_snapshot_ttl_seconds(session: Session) -> int:
             return 300
         return int(str(raw))
     except Exception:
+        # Settings table missing on a fresh DB — log + return safe default 300s.
+        logger.debug("production_demand TTL lookup failed", exc_info=True)
         return 300
 
 

@@ -41,6 +41,7 @@ customer detail payload (``/clientes/api/{id}``).
 
 from __future__ import annotations
 
+from loguru import logger
 import datetime as _dt
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Optional
@@ -427,6 +428,8 @@ def redeemed_on_last_visit(session: Any, customer_id: int) -> bool:
         ).scalar_one_or_none()
         return redeem is not None
     except Exception:
+        # Best-effort suggestion check — log + return False (no suggestion).
+        logger.debug("loyalty.suggestions has_redeemed check failed", exc_info=True)
         return False
 
 

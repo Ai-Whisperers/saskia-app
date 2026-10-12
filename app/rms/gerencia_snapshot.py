@@ -5,6 +5,7 @@ Counts and one money total. The modules behind the menu keep the detail.
 
 from __future__ import annotations
 
+from loguru import logger
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -73,6 +74,8 @@ def _kitchen(session: Session, today: date) -> tuple[int, int]:
         plan = plan_production(session, for_date=today)
         done_map = completions_for_date(session, today)
     except Exception:
+        # Production plan failed — log + return zeros so dashboard still renders.
+        logger.debug("gerencia_snapshot production counts failed", exc_info=True)
         return 0, 0
     rows = getattr(plan, "rows", None) or []
     planned = len(rows)
@@ -88,6 +91,8 @@ def _low_stock(session: Session) -> int:
     try:
         return len(compute_reorder_list(session))
     except Exception:
+        # Reorder list failed — log + return 0.
+        logger.debug("gerencia_snapshot low_stock failed", exc_info=True)
         return 0
 
 
@@ -97,6 +102,8 @@ def _closing(session: Session, today: date) -> tuple[int, int, bool]:
     try:
         closed = eod_is_day_closed(session, today)
     except Exception:
+        # EOD check failed — log + assume not closed so the operator sees the checklist.
+        logger.debug("gerencia_snapshot eod_is_day_closed failed", exc_info=True)
         closed = False
     if closed:
         return total, total, True
@@ -117,6 +124,8 @@ def _notices(
         try:
             names = [item.name for item in compute_reorder_list(session)[:3]]
         except Exception:
+            # Notice names query failed — log + render without names.
+            logger.debug("gerencia_snapshot reorder names failed", exc_info=True)
             names = []
         if names:
             notices.append(
