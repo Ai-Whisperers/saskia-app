@@ -1,3 +1,14 @@
+## 2026-10-12 — feat(rms): retry_transient helper for HTTP/DB transient errors (S2 robustness PR2)
+
+**Scope**: `app/rms/retry.py` (new, 184 lines), `tests/test_retry.py` (new, 21 tests).
+
+New `retry_transient(fn, *, attempts=3, base_delay=0.2, max_delay=5.0, is_transient=..., sleep=time.sleep, op_name=...)` helper that wraps a zero-arg callable in a bounded retry loop with exponential backoff + ±25 % jitter.
+Classifier `default_is_transient` recognizes `requests.RequestException`, `urllib.error.URLError`, `sqlite3.OperationalError` with "locked"/"busy"/"deadlock" messages, `socket.timeout` (3.11+ alias for `TimeoutError`), `socket.gaierror`, and `ConnectionRefusedError`/`ConnectionResetError`. Custom predicate supported per call site. Terminal errors re-raise immediately without retry. Logs each transient attempt as WARNING; exhaustion as ERROR. Stdlib-only (rule 26: no new deps).
+
+No call-site wiring in this PR — adoption is opt-in per integration (planned for `app/integrations/scrapers.py`, `app/services/r2_backup.py`, `app/services/backup_crypto.py` in a follow-up).
+
+Tests cover happy path, transient-then-success, exhaustion, terminal-no-retry, classifier for `sqlite3.OperationalError`/`socket.timeout`/`ConnectionResetError`, backoff window per attempt (`base * 2**(i-1) * [0.75, 1.25]`), `max_delay` cap, `attempts`/`base_delay` validation, `caplog` for WARNING + ERROR, and custom predicate override.
+
 ## 2026-10-12 — refactor(errors): extend AppError taxonomy with 13 domain-specific subclasses (S2 robustness PR1)
 
 **Scope**: `app/rms/errors.py` (+148), `tests/test_errors_extended.py` (new, 36 tests), `docs/operations/2026-10-12-s2-robustness-audit.md` (audit report).

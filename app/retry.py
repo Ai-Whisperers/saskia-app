@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 import random
 import time
-from typing import Callable, TypeVar
+from typing import Callable, Iterable, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +139,11 @@ def default_is_transient(exc: BaseException) -> bool:
     if full_name == "urllib.error.URLError":
         return True
 
-    if name in _SOCKET_NAMES:
+    # stdlib socket errors. NOTE: in Python 3.11+ `socket.timeout` is an
+    # alias for the builtin `TimeoutError`, so the class name surfaces
+    # as "TimeoutError" not "timeout". We accept BOTH so the classifier
+    # stays valid on 3.10 (older runtime) and 3.13+ (current runtime).
+    if name in {"TimeoutError", "timeout", "gaierror", "ConnectionRefusedError", "ConnectionResetError"}:
         return True
 
     return False
@@ -202,7 +206,7 @@ def retry_transient(
     for attempt_index in range(1, attempts + 1):
         try:
             return fn()
-        except BaseException as exc:
+        except BaseException as exc:  # noqa: BLE001 — see classifier
             if not is_transient(exc):
                 # TERMINAL — don't swallow, don't retry.
                 raise
