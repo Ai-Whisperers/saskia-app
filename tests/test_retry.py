@@ -17,10 +17,12 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from unittest.mock import MagicMock
 
 import pytest
 
 from app.rms.retry import default_is_transient, retry_transient
+
 
 # ─── Helpers ──────────────────────────────────────────────────────
 
