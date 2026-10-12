@@ -10,29 +10,14 @@
 > **Source**: `/opt/data/profiles/ivan/attachments/2026-10-08-la-vaquita-feliz-onboarding-questionnaire.md.docx`
 > (v2 questionnaire with her filled-in answers).
 >
-> **Direction update (2026-10-12 OOB)**: Iván reframed the product
-> direction with "la vaquita holnadesa iis a just the first client
-> later we will have many more". The earlier SASKIA-210
-> (2026-10-07) "per-client INSTANCES, not shared-DB multi-tenant"
-> decision is **superseded** for the onboarding layer: Sazon is
-> multi-tenant-ready via `app/rms/seed/onboard.py::onboard_tenant()`
-> + `app/rms/seed/packs.py::PACKS` (11 packs). The
-> shared-DB-with-tenant-id-foreign-key work (RLS / ORM-level
-> tenancy) is a separate, much larger refactor that does NOT
-> need to land for multi-client onboarding. The
-> `Tenant` table from migration 008 is now the **canonical target
-> for per-instance rows**, not legacy dormant infrastructure. This
-> doc's earlier "Tenant is legacy dormant" framing (2026-10-09
-> draft) is **wrong** post-OOB and is being corrected inline.
->
 > **Scope guardrails** (from `AGENTS.md`):
-> - This is **multi-tenant onboarding**, not single-tenant: each
->   new client runs `onboard_tenant(session, "Cliente 2",
->   pack="Pizzería")` to create a fully-seeded instance in one call.
-> - The `Tenant` table is now the **active multi-tenant target**,
->   not legacy infrastructure.
+> - This is **per-client instance** onboarding, not multi-tenant
+>   (per SASKIA-210, 2026-10-07: "product is per-client INSTANCES
+>   — each client gets own site + fully loaded data — NOT shared-DB
+>   multi-tenant"). The `tenant` table is **legacy dormant
+>   infrastructure**; it is NOT the target schema for this work.
 > - No code change ships without a `SASKIA-NNN-<slug>.md` ticket
->   (AGENTS.md rule 37) and a matching `CHANGELOG.md` entry
+>   (AGENTS.md rule 37) and a matching `app/CHANGELOG.md` entry
 >   (AGENTS.md rule 35).
 > - The decision framework (AGENTS.md "Decision framework") lists
 >   **things that must be escalated to Iván**: new dependencies,
@@ -312,41 +297,28 @@ as the **product** (not her business name).
 > a direct escalation. Recommend bringing it up with her on the
 > next WhatsApp call.
 
-### 4.2 Multi-tenant readiness (SUPERSEDED by 2026-10-12 OOB)
+### 4.2 Per-client instance vs shared multi-tenant
 
 The questionnaire's Apéndice A frames everything in multi-tenant
 language (e.g. "se carga en Tenant, SettingsKV (branding.*) y
 ComplianceInfo.razon_social / nombre_fantasia").
 
-**Earlier framing (wrong)**: SASKIA-210 (2026-10-07) decided
-Sazon is per-client INSTANCES, not shared-DB multi-tenant. The
-`Tenant` table was marked as legacy dormant infrastructure.
+**SASKIA-210 (2026-10-07) decided**: Sazon is **per-client
+INSTANCES**, not shared-DB multi-tenant. The `Tenant` table is
+legacy dormant infrastructure, not the target schema for
+multi-client work. Future: possibly 1 base Supabase as a
+template to clone per client + cross-client analytics layer.
 
-**Current framing (correct)**: The 2026-10-12 OOB message
-("la vaquita holnadesa iis a just the first client later we
-will have many more") reframes the product as multi-tenant
-from the start. The `Tenant` table is now the **active
-multi-tenant target**, and the multi-tenant seeding is already
-implemented via `app/rms/seed/onboard.py::onboard_tenant(session,
-tenant_name, pack, days_of_history, seed)` + the 11 packs in
-`app/rms/seed/packs.py::PACKS`.
-
-**What changes for this onboarding**: La Vaquita's instance is
-a row in the `Tenant` table created by `onboard_tenant()` or
-`seed_sazon()`. The legacy `Tenant` table is now the right
-target for per-instance rows, not legacy infrastructure.
-
-**What does NOT change yet**: RLS / ORM-level tenancy (every
-table gets a `tenant_id` foreign key, every query auto-filters
-by `tenant_id`). That's a separate, much larger refactor. The
-current "one client per VPS" deployment model still works
-because each client gets their own DB.
+**Implication for this onboarding**: La Vaquita's instance is a
+**fork or copy of the Sazon base image** with her branding +
+seeding. NOT a row in a shared `Tenant` table. The "Tenant"
+references in the questionnaire are pre-SASKIA-210 vocabulary
+and need to be reinterpreted as "per-instance configuration" not
+"row in the legacy Tenant table".
 
 **What to do with this doc**: when the actual onboarding work
-starts, use `onboard_tenant()` as the entry point, not
-`seed_sazon()` directly. `seed_sazon()` becomes a thin
-La-Vaquita-specific wrapper. See SASKIA-214 for the
-per-instance BUSINESS_INFO + user roster refactor.
+starts, this re-framing needs to be explicit. The legacy `Tenant`
+table is NOT the target.
 
 ### 4.3 Whether to add the new models / settings at all
 
@@ -421,22 +393,14 @@ To be unambiguous about scope:
   (`shop_whatsapp`, `location.*`, `seasonal.*`) are not needed
   for day-1. They can be added when a real second client
   needs them.
-- **Does not recommend a brand-new seeder file.** The
-  multi-tenant seeding pattern is **already implemented**:
-  `app/rms/seed/onboard.py::onboard_tenant(session, tenant_name,
-  pack, days_of_history, seed)` creates a fully-seeded instance
-  in one call. The 11 packs in `app/rms/seed/packs.py::PACKS`
-  cover the major restaurant segments (Pizzería, Panadería,
-  Café/Cafetería, etc.). For the second client (Café? Pizzería?
-  Catering?) you call `onboard_tenant(session, "Cliente 2",
-  pack="Pizzería")` and get a fully-loaded instance. **No new
-  seeder file is needed for the next client** — the Sazon
-  architecture is already multi-tenant-ready.
-- **The La Vaquita-specific seeder** (`app/rms/seed/sazon.py`)
-  is fine for La Vaquita (Sazon's first client) but should be
-  refactored (SASKIA-214) to call `onboard_tenant()` internally
-  with La Vaquita's `BUSINESS_INFO` + `CASHIER_USERS` as
-  parameters, so the same code path serves all clients.
+- **Does not recommend a seeder file.** The questionnaire's
+  Apéndice A and the seeder pattern in `app/rms/seed/sazon.py`
+  both imply a `vaquita.py` seeder. Per SASKIA-210's per-client
+  INSTANCES decision, the right pattern is **a per-instance
+  config bundle** (YAML or JSON in the per-client repo /
+  secrets), not a new seeder in the shared `app/rms/seed/`
+  directory. The Sazon seeder is a base-template, not a
+  per-client pattern.
 - **Does not recommend any code change that touches Saskia's
   data.** Per AGENTS.md "ESCALATE: Anything that involves
   Saskia directly".
@@ -451,9 +415,9 @@ Iván decides to build them.
 
 | Model | Location | Status |
 |-------|----------|--------|
-| `Tenant` | `app/rms/models_legacy.py:1988` | ✅ **active multi-tenant target** post-OOB-2026-10-12 (was legacy dormant pre-OOB per SASKIA-210) |
+| `Tenant` | `app/rms/models_legacy.py:1988` | exists but **legacy dormant** (SASKIA-210) |
 | `ComplianceInfo` | `app/rms/models_legacy.py:2066` | ✅ exists, has DNIT/INAN columns |
-| `SettingsKV` | `app/rms/models_legacy.py:1751` | ✅ exists, JSON-backed, multi-tenant friendly via `key` namespace |
+| `SettingsKV` | `app/rms/models_legacy.py:1751` | ✅ exists, JSON-backed |
 | `User` | `app/rms/models_legacy.py:761` | ✅ exists, bcrypt cost-12 |
 | `Product` | `app/rms/models_legacy.py:371` | ✅ exists, 32-product seed |
 | `Ingredient` | `app/rms/models_legacy.py:55` | ✅ exists, 102-row seed |
@@ -462,15 +426,6 @@ Iván decides to build them.
 | `Customer` | `app/rms/models_legacy.py:890` | ✅ exists, 10-row seed |
 | `BankTransaction` | `app/rms/models_legacy.py:1713` | ✅ exists, 8-row seed |
 | `Pedido` | `app/rms/models_legacy.py:1767` | ✅ exists, supports encargos |
-
-**Multi-tenant readiness**: The `Tenant` table is the row-level
-container. The `SettingsKV` table keys (e.g.
-`branding.business_name`, `sales.shop_whatsapp`) are global
-within a single DB, but each instance has its own DB in the
-"one client per VPS" deployment model. When the
-shared-DB-multi-tenant RLS refactor lands, the
-SettingsKV keys will need to scope by `tenant_id` (separate
-ticket).
 
 ### 6.2 Settings that exist (68 total in 13 groups)
 
@@ -541,101 +496,12 @@ should send to Saskia — **not a code change list**.
   settings, 13 groups — see `app/rms/settings.py` for the
   per-instance override layer via `Setting()` rows)
 - Existing models: `app/rms/models_legacy.py` (40+ models; `Tenant`
-  is the **active multi-tenant target** post-OOB-2026-10-12)
-- Multi-tenant seeder (THE entry point for new clients):
-  `app/rms/seed/onboard.py::onboard_tenant(session, tenant_name,
-  pack, days_of_history, seed)`
-- Pack catalog (11 market segments): `app/rms/seed/packs.py::PACKS`
-- La Vaquita-specific seeder (Sazon's first client):
-  `app/rms/seed/sazon.py` (refactor target: SASKIA-214)
+  is legacy dormant per SASKIA-210)
+- Multi-tenant seeder (for reference only — NOT recommended for
+  per-client instances): `app/rms/seed/sazon.py`
 - Brand name decision: see §4.1 of this doc; requires
   Iván → Saskia call.
-- SASKIA-213 (the placeholder-replacement PR already shipped):
-  `docs/intake/SASKIA-213-vaquita-seed-data-update.md`
-- SASKIA-214 (the per-instance config refactor, drafted):
-  `docs/intake/SASKIA-214-per-instance-business-info.md`
-
-## 9. "Load all the things" — what the OOB directive means in code
-
-The 2026-10-12 OOB message said **"the website of sazon should
-load all of the thigns"** (referring to the data La Vaquita
-provided in the questionnaire) and clarified the multi-tenant
-direction with **"la vaquita holnadesa iis a just the first
-client later we will have many more"**.
-
-**What "all the things" maps to in code** (already exists,
-verified by running `seed_sazon()` against a fresh DB on
-2026-10-12):
-
-| Thing | Where it loads | Status today |
-|-------|----------------|--------------|
-| Tenant name "La Vaquita Holandesa" | `Tenant` table + `branding.business_name` SettingsKV | ✅ seeded by SASKIA-213 |
-| Address / phone / email | `branding.address` / `contact_phone` / `contact_email` SettingsKV | ✅ seeded by SASKIA-213 |
-| Business hours | `ops.business_hours` SettingsKV | ✅ seeded by SASKIA-213 |
-| Operator name + email | `User.full_name` + `User.email` | ✅ seeded by SASKIA-213 |
-| Footer copyright year | `branding.footer` SettingsKV | ✅ seeded by SASKIA-213 (2025 → 2026) |
-| 32 products (Babka, Bizcocho, etc.) | `Product` table | ✅ seeded by `seed_sazon` (from `PRODUCTS` list) |
-| 22 recipes | `Recipe` + `RecipeLine` tables | ✅ seeded by `seed_sazon` |
-| 101 ingredients | `Ingredient` table | ✅ seeded by `seed_sazon` (from `INGREDIENTS` list) |
-| 5 suppliers | `Supplier` table | ✅ seeded by `seed_sazon` (from `SUPPLIERS` list) |
-| 15 customers | `Customer` table | ✅ seeded by `seed_sazon` (Saskia said §9.2 = no but the demo path includes some) |
-| 4 delivery zones | `DeliveryZone` table | ✅ seeded by `seed_sazon` |
-| 9 payment methods | `PaymentMethod` table | ✅ seeded by `seed_sazon` |
-| 10 channels (mostrador, whatsapp, etc.) | `Channel` table | ✅ seeded by `seed_sazon` |
-| 21 production plan templates | `ProductionPlanTemplate` table | ✅ seeded by `seed_sazon` |
-| 32 categories | `Category` table | ✅ seeded by `seed_sazon` |
-| 13 message templates | `MessageTemplate` table | ✅ seeded by `seed_sazon` |
-| Compliance info (RUC, INAN, Timbrado) | `ComplianceInfo` table | ⚠️ seeded with placeholders (RUC `80012345-6`, Timbrado `13456789`, etc.) because questionnaire §3 is all TBD |
-| Seasonal events (Semana Santa, Navidad) | `SeasonalEvent` table | ❌ model doesn't exist; §16 answered but the data can't be persisted yet |
-| Insurance policies | `Insurance` table | ❌ model doesn't exist; §18 all TBD anyway |
-| Employee + Payroll | `Employee` + `Payroll` tables | ❌ models don't exist; §17.1 = 1 (Saskia solo) so not needed for this tenant |
-| Growth plan (3-year, franchise) | `GrowthPlan` table | ❌ model doesn't exist; §21 answered but value is minimal |
-| Location barrio/zona | `location.barrio` + `location.zona` settings | ❌ settings don't exist; §22 answered |
-| WhatsApp for orders | `sales.shop_whatsapp` setting | ❌ setting doesn't exist; §8.1 answered (`+595 991 683805`) |
-| Recipe labor cost | `recipe.labor_cost_enabled` + `recipe.labor_cost_per_hour_gs` settings + `Recipe.prep_minutes` column | ⚠️ settings don't exist; column DOES exist (added in migration 116) but no UI to set it |
-| Alérgenos (iconos en menú público) | `Product.allergens` column | ⚠️ column exists; UI doesn't render icons yet |
-| Bank transactions | `BankTransaction` table | ✅ seeded by `seed_sazon` (8 rows) |
-| Pedidos (encargos) | `Pedido` + `PedidoLine` tables | ✅ seeded by `seed_sazon` (13+14 rows) |
-| Ventas (90 días sintéticos) | `Sale` + `SalePayment` tables | ✅ seeded by `seed_sazon` (869 sales) — but Saskia said §10.1 = no, so this is wrong for her instance |
-
-**Summary**: ~75% of what "all the things" means is already
-loaded by the seeder today (post-SASKIA-213). The remaining 25%
-breaks down into:
-
-- **Configuration with real values** (settings that exist but
-  the seeder doesn't populate): ComplianceInfo placeholders
-  (RUC, INAN, etc. — all TBD anyway), bank transactions (8
-  placeholder rows — should be 0 per §12), 90 days of synthetic
-  sales (Saskia said no — should be 0 per §10.1)
-- **Models that don't exist yet**: SeasonalEvent, Insurance,
-  Employee, Payroll, GrowthPlan
-- **Settings that don't exist yet**: sales.shop_whatsapp,
-  location.barrio, location.zona, seasonal.notif_lead_days,
-  recipe.labor_cost_*
-- **UI that doesn't render yet**: Public menu alérgenos icons
-  (§19.6 = sí)
-
-**Multi-tenant implications for the OOB directive**: the seeder
-is La-Vaquita-specific (`sazon.py` hard-codes the tenant name,
-address, etc.). The OOB's "many more clients" requires
-`seed_sazon()` to become `onboard_tenant()` + per-instance
-`BUSINESS_INFO` + per-instance `user_roster` parameters. That's
-the SASKIA-214 work.
-
-**What needs to happen for the live website to actually show
-all this** (not just the test env):
-
-1. **Re-seed the live VPS test/dev DBs** with the SASKIA-213
-   constants. The current state of `sazon-vps.paragu-ai.com`
-   is DOWN (RC=7) — needs to come up first. Then the
-   operator script `scripts/seed_vaquita_holandesa_for_saskia.py`
-   needs to run against the live DB (with `--force` to override
-   the populated-DB guard).
-2. **Decide the brand-name display** (§4.1) — does the
-   customer see "La Vaquita Holandesa" (her business) or
-   "Sazón" (the product) in the UI? This is a UX decision
-   for Iván with Saskia.
-3. **Add the missing models + settings** (SASKIA-215+) so the
-   unanswered-but-schema-needed questions can be persisted.
-4. **Implement SASKIA-214** so adding "Cliente 2" doesn't
-   require editing `sazon.py`.
+- SASKIA-210 decision (per-client instances, not multi-tenant):
+  see the memory note in Hermes system context; full rationale
+  in `docs/plans/SASKIA-210-supabase-rls-multitenant-onepager.md`
+  (decision section).

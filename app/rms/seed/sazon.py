@@ -489,12 +489,6 @@ BUSINESS_INFO: dict[str, str] = {
     "address": "Laguán Grande, Arquitectos, Calle 17, Asunción",
     "phone": "+595 991 683805",
     "email": "La.vaquitaholandesa@gmail.com",
-    # SASKIA-215 (2026-10-12) — additional fields answered in the
-    # 2026-10-08 onboarding questionnaire. These feed the new
-    # LOCATION / SEASONAL / SALES settings on the seeder.
-    "barrio": "San Lorenzo",  # §22.1
-    "zona": "residencial",  # §22.2
-    "shop_whatsapp": "+595 991 683805",  # §8.1 (same as phone, per Saskia)
 }
 
 # Realistic Paraguayan bakery ingredients (50+).
