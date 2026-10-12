@@ -1,5 +1,16 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
+## 2026-10-12 — feat(tenant): SASKIA-220 URL-based tenant routing (opt-in middleware)
+
+**Scope**: `app/rms/tenant.py` (new), `app/rms/main.py` (+6), `tenants/example.yaml` (new), `tests/test_tenant.py` (new, 19 tests), `app/CHANGELOG.md`.
+
+Host-header tenant resolution for the per-client-instance model (SASKIA-210 decision):
+
+- **Opt-in, no-op by default**: middleware does nothing until tenant YAML files exist in `/etc/sazon/tenants/` (or `TENANT_DIR`) — dev, tests, and current single-tenant deploys unaffected.
+- **Fail-closed**: enabled + unknown Host → 404; never falls through to another tenant's data.
+- `database_url: ${ENV_VAR}` refs resolve at load time; missing ref = load error (never a silent default DB).
+- Per-host SQLAlchemy engine cache.
+
+Also: root `CHANGELOG.md` repair — removes nested conflict markers (`<<<<<<<`/`=======`/`>>>>>>>`) that were committed in 42f39885 (#154 rebase); all entries from both sides kept.
+
 ## 2026-10-12 — style: ruff format + PERF401/DTZ011 fixes for SASKIA-217 (test_settings count formatting; no behavior change)
 
 ## 2026-10-12 — feat(ui): SASKIA-217 seasonal calendar admin page
@@ -13,6 +24,7 @@ Read-only operator page surfacing the seasonal_event catalog (SASKIA-216/220, 40
 - `seasonal.relevance_tags` setting (comma-separated pack tags) filters the calendar to the operator's vertical — universal events always visible
 - Empty state on unseeded DBs; no mutations (read-only)
 
+
 ## 2026-10-12 — style(lint): post-merge-with-SASKIA-211d format fix
 
 **Scope**: `tests/test_models_smoke.py`, `tests/test_route_smoke_generated.py`. +101 / -25.
@@ -20,6 +32,7 @@ Read-only operator page surfacing the seasonal_event catalog (SASKIA-216/220, 40
 Post-merge with origin/main (which now contains SASKIA-211d + the 9-areas test suite + `test_models_smoke.py` from the sibling session), these two files were the only ones still tripping the pre-deploy-dev gate's `ruff format --check` and `ruff check` (the lint-fix commit on origin/main didn't fully resolve them). Auto-fix via `ruff check --fix .` and `ruff format .`; no semantic changes.
 
 Locking the same lint-clean state that SASKIA-211d left the rest of the repo in.
+
 
 ## 2026-10-12 — style(lint): repo-wide ruff auto-fix (23 issues, 9 files)
 
@@ -39,6 +52,7 @@ No semantic changes; the lint pass produces byte-identical behavior.
 **Test coverage**: N/A. No test changes; only the smoke script and the 8 test files were touched for the auto-fix.
 
 ---
+
 
 ## 2026-10-12 — refactor(tier-tests): Phase 1+2 — centralize auth/clock/seed helpers
 
@@ -63,6 +77,7 @@ Net effect: 8 tier test files refactored, 80/81 tests pass (1 hypothesis example
 
 ---
 
+
 ## 2026-10-12 — feat(recetas): SASKIA-213b recipe photo auto-link (migration 119)
 
 **Scope**: `app/rms/migrations/_119_recipe_photo_autolink.py`, `app/rms/db.py`, `app/rms/config.py`, `app/templates/recipe_photos.html`, `tests/test_SASKIA_213_recipe_photo_upload.py`, `CHANGELOG.md`.
@@ -78,6 +93,7 @@ What changed:
 Test: `test_migration_119_autolinks_photos_by_name` (RED→GREEN): seeded 3 photos + 3 recipes (1 already linked, 1 matched, 1 unmatched), ran the migration, asserted `babka` got `receta-babka.jpg`, `cheesecake` kept its manual link, `otiebollen` stayed `None`. 7/7 SASKIA-213 GREEN, 170/170 full cocina+receta+photo+migration suite. ruff clean.
 
 ---
+
 
 ## 2026-10-12 — feat(recetas): SASKIA-213 recipe photo upload + free-form text parser
 
@@ -99,6 +115,7 @@ Tests: new `tests/test_SASKIA_213_recipe_photo_upload.py` with 6 RED→GREEN tes
 
 ---
 
+
 ## 2026-10-12 — feat(recetas): SASKIA-212 recipe instructions editor + backfill
 
 **Scope**: `app/routers/recipes.py`, `app/templates/receta_form.html`, `app/rms/migrations/_118_recipe_instructions_backfill.py`, `app/rms/{config,db}.py`, `tests/test_SASKIA_212_recipe_instructions_editor.py`, `app/CHANGELOG.md`.
@@ -119,8 +136,8 @@ Tests: new `tests/test_SASKIA_212_recipe_instructions_editor.py` with 7 RED→GR
 Out of scope (deferred): photos + image upload for recipe pages (Saskia already has recipes/needing-photos.json from earlier work); export N+1 (B9); cov-gate 40→42 (sibling session owns coverage work).
 
 ---
-=======
-=======
+
+
 ## 2026-10-12 — feat(settings): SASKIA-215 La Vaquita onboarding gaps (LOCATION/SEASONAL/RECIPE)
 
 **Scope**: `app/rms/settings_registry.py` (3 new groups + 6 new settings) + `app/rms/seed/sazon.py` (`BUSINESS_INFO` extended; `_seed_settingskv_branding` writes 4 answered settings) + `tests/test_settings.py` (count tests updated) + `tests/test_seed_vaquita_answers.py` (new — 3 tests) + `docs/intake/SASKIA-215-add-location-seasonal-recipe-settings.md` (new ticket).
@@ -158,7 +175,7 @@ Add the settings the 2026-10-08 questionnaire answered but the previous registry
 * Insurance / Employee / Payroll / GrowthPlan models — referenced by questionnaire but not needed for La Vaquita instance.
 * Per-tenant scope for SettingsKV (RLS) — separate, much larger.
 
->>>>>>> 4e8fd6ab (feat(settings): SASKIA-215 LOCATION/SEASONAL/RECIPE settings + seeder wiring)
+
 ## 2026-10-12 — docs(seed): SASKIA-213 La Vaquita seed data update
 
 **Scope**: `app/rms/seed/sazon.py` (constants only: `SASKIA_EMAIL`, `SASKIA_FULL_NAME`, `BUSINESS_INFO`, `branding.footer` year) + `docs/intake/SASKIA-213-vaquita-seed-data-update.md` (new ticket) + `docs/operations/2026-10-09-la-vaquita-onboarding-analysis.md` (new analysis).
@@ -193,7 +210,7 @@ Comment added to `CASHIER_USERS` documenting the §4.5 = "no" data point: the cu
 **Tests**: new `tests/test_seed_vaquita_constants.py` asserts the new `BUSINESS_INFO` and `SASKIA_*` values. Regression guard against placeholder regression.
 
 **No code-path changes**: only string-constant updates. No schema, no API, no auth, no money, no units, no datetime, no recipe, no stock. AGENTS.md `app/rms/` rules (Decimal, Unit, ASUNCION_TZ, polymorphic recipe_line, atomic stock moves) are not affected.
->>>>>>> 0184cb83 (docs(seed): SASKIA-213 La Vaquita seed data update from onboarding questionnaire)
+
 
 ## 2026-10-12 — fix(cocina): SASKIA-211 cocina-pages-audit fixes
 
@@ -218,6 +235,7 @@ Tests: new `tests/test_cocina_pages_audit.py` with 9 regression tests, RED-GREEN
 Out of scope (deferred): B9 export N+1, G1/G2/G3 feature gaps, cov-gate 40→42 (sibling session owns coverage work).
 
 ---
+
 
 ## 2026-10-10 — docs(operations): Sprint 2.1 P0 fix branch — sales safe_commit + 4 dormant bugs
 
@@ -246,6 +264,7 @@ Two followup commits land `from exc` (B904) for the new fiado except clauses and
 
 ---
 
+
 ## 2026-10-10j — docs(audit): land pre-existing test failures audit on main
 
 **Scope**: `docs/operations/2026-10-10-clean-main-test-audit.md`.
@@ -265,6 +284,7 @@ The audit identifies **29 pre-existing test failures on clean `origin/main`** (1
 
 ---
 
+
 ## 2026-10-10i — fix(dashboard,inventory): prior_label context + lead_time_days NULL guard
 
 **Scope**: `app/routers/dashboard.py`, `app/routers/inventory.py`, `app/CHANGELOG.md`.
@@ -280,6 +300,7 @@ Two dormant real bugs surfaced as failing tests on clean main (PR #138 → close
 **Out of scope**: comprehensive template-side fallback (some `<ui-kpi-card>` instances hardcode `"vs semana pasada"` without a `{% if %}` guard — those still work because the `period` is `today` and the helper defaults to `"período anterior"`, but the wording is inconsistent with the new helper).
 
 ---
+
 
 ## [2026.10.2] — 2026-10-10 — Sprint 2.1 release: void/xlsx + deploy CI + conftest hang fix
 
@@ -303,6 +324,7 @@ Released as v2026.10.2. Commit: `0205f88`.
 
 ---
 
+
 ## 2026-10-10 — ci: release workflow uses --skip-deploy + manual deploy
 
 **Scope**: `.github/workflows/release.yml`. The previous attempt added `git pull --ff-only` AFTER `release.sh` in the `*)` branch, but the failure happens INSIDE `release.sh` (it calls `deploy.sh` itself, which fails the HEAD check). Fix: pass `--skip-deploy` to `release.sh` so the script just does the bump+tag+push, then `git pull --ff-only` syncs local main, then the workflow calls `deploy.sh` directly with the correct HEAD state.
@@ -310,6 +332,7 @@ Released as v2026.10.2. Commit: `0205f88`.
 **Out of scope**: making `release.sh` itself do `git pull --ff-only` before its internal deploy. The script was designed to be run interactively from a clean checkout where the user already has HEAD == origin/main.
 
 ---
+
 
 ## 2026-10-10 — ci: release workflow `git pull --ff-only` before deploy.sh
 
@@ -319,6 +342,7 @@ Released as v2026.10.2. Commit: `0205f88`.
 
 ---
 
+
 ## 2026-10-10 — ci: release workflow also deletes remote tag in fallback path
 
 **Scope**: `.github/workflows/release.yml`. Even with `git tag -d "$TAG"` locally, the remote tag still exists and `release.sh`'s final `git push origin $HEAD:refs/heads/main $TAG` fails on the tag with `! [rejected] ... (already exists)`. The v2026.10.2 release hit this AFTER auth, after the local CHANGELOG bump, after the release commit was created. Fixed by also `git push origin ":refs/tags/$TAG"` before calling release.sh, so both refs are clean for the script to recreate.
@@ -326,6 +350,7 @@ Released as v2026.10.2. Commit: `0205f88`.
 **Out of scope**: rewriting release.sh to use `git push --force-with-lease` for the tag (cleaner but a bigger change). The delete-then-recreate pattern matches the local `git tag -d` we already do.
 
 ---
+
 
 ## 2026-10-10 — ci: release workflow checkout must persist credentials
 
@@ -335,6 +360,7 @@ Released as v2026.10.2. Commit: `0205f88`.
 
 ---
 
+
 ## 2026-10-10 — ci: release workflow `git tag -d` before re-running release.sh
 
 **Scope**: `.github/workflows/release.yml`. The `*)` (tag-pushed-without-release.sh) branch now does `git tag -d "$TAG"` before calling `bash scripts/release.sh --version=...`. The release script's "refuse to re-tag" guard correctly fires on the tag we just pushed (it sees it locally after `git checkout main`); the cleanest fix is to delete the local tag first so the script can recreate it during its own `git tag -a` step. The remote tag is overwritten when the script pushes.
@@ -343,11 +369,13 @@ Released as v2026.10.2. Commit: `0205f88`.
 
 ---
 
+
 ## 2026-10-10 — ci: release workflow `git checkout main` before release.sh too
 
 **Scope**: `.github/workflows/release.yml`. The `git checkout main` added in #131 covered the "tag already has a release commit" branch but missed the `*)` ("tag pushed without release.sh, run it now") branch. The v2026.10.2 release hit it: tag-push triggered the workflow, the workflow correctly decided to run `release.sh`, but `release.sh` then bailed with "ERROR: release.sh must run from main (currently on HEAD)" because the runner is still in detached HEAD after `actions/checkout`. Fixed by adding `git checkout main` before `bash scripts/release.sh --version=...` in the `*)` branch too.
 
 ---
+
 
 ## 2026-10-10h — docs(operations): turn-end handoff covering cierrer fix + 3 merges + race-condition post-mortem
 
@@ -358,6 +386,7 @@ Released as v2026.10.2. Commit: `0205f88`.
 **Out of scope**: codifying the cierrre regression as a test that catches a future refactor — Ivan flagged this as a "could do" in #123, but the test was deemed low-priority (the cierrer is a pure function called by exactly 1 user; a refactor that broke it again would also be caught by the existing test_total_ventas test). Not done.
 
 ---
+
 
 ## 2026-10-10 — docs(operations): deploy-pipeline race-condition audit
 
@@ -390,6 +419,7 @@ CHANGELOG" convention.
 **Out of scope**: deeper rework of the release plumbing (e.g. separate the version-and-message input handling from the run shell). The array fix is the smallest possible change.
 
 ---
+
 
 ## 2026-10-10f — fix(ci/deploy): per-invocation REMOTE_DIR + atomic staging→final mv
 
@@ -432,9 +462,11 @@ by the first PR that lands through this branch.
 
 ---
 
+
 ## [2026.10.1] — 2026-10-10 — PR #118 (void/xlsx), #111 (deploy CI), #126 (conftest hang) — sprint 2.1
 
 Released as v2026.10.1. Commit: `e54c4571`.
+
 
 ## 2026-10-10 — docs(WHAT_NEXT): refresh after #126 + #129 + #127 + #125 + #122
 
@@ -451,22 +483,6 @@ Released as v2026.10.1. Commit: `e54c4571`.
 
 ---
 
-## 2026-10-10 — tests: stub conftest autouse chain for pure-Python tests (resolves CI test_daily_summary hang)
-
-**Scope**: `tests/conftest.py`. The 7997-test CI suite was timing out at 12min. Root cause: every test paid ~7s for `from app.rms.main import app` (autouse `reset_app_state`) + ~8s for `init_db()` (autouse chain `_close_leaked_sessions → session_factory → app_engine`), even tests like `test_daily_summary_dryrun` that shell out to a subprocess and never touch the DB.
-
-**Fix**: Added `_fixture_tree_needs_app()` helper that checks `request.fixturenames` against the set of app-touching fixture names. `reset_app_state`, `app_engine`, and `session_factory` short-circuit to a stub when the test's fixture tree doesn't include any of them. For pure-Python / CLI tests, the autouse chain collapses to ~0s setup. For app-touching tests, behavior is unchanged.
-
-**Verification (local)**:
-- test_daily_summary.py: setup 8.07s → 2.54s per test, 2/2 pass
-- test_route_smoke_phase14_tier1.py: 84/84 pass (was 84/86, the 2 errors are now fixed)
-- test_money.py: 35/35 pass
-
-CI will confirm end-to-end wall-time drop.
-
-**Out of scope**: deeper refactor to make `client` fixture itself lazy, or session-scoped engine. The 8s `init_db()` cost remains for app-touching tests; that's where it belongs.
-
----
 
 ## 2026-10-10 — tests: stub conftest autouse chain for pure-Python tests (resolves CI test_daily_summary hang)
 
@@ -484,6 +500,25 @@ CI will confirm end-to-end wall-time drop.
 **Out of scope**: deeper refactor to make `client` fixture itself lazy, or session-scoped engine. The 8s `init_db()` cost remains for app-touching tests; that's where it belongs.
 
 ---
+
+
+## 2026-10-10 — tests: stub conftest autouse chain for pure-Python tests (resolves CI test_daily_summary hang)
+
+**Scope**: `tests/conftest.py`. The 7997-test CI suite was timing out at 12min. Root cause: every test paid ~7s for `from app.rms.main import app` (autouse `reset_app_state`) + ~8s for `init_db()` (autouse chain `_close_leaked_sessions → session_factory → app_engine`), even tests like `test_daily_summary_dryrun` that shell out to a subprocess and never touch the DB.
+
+**Fix**: Added `_fixture_tree_needs_app()` helper that checks `request.fixturenames` against the set of app-touching fixture names. `reset_app_state`, `app_engine`, and `session_factory` short-circuit to a stub when the test's fixture tree doesn't include any of them. For pure-Python / CLI tests, the autouse chain collapses to ~0s setup. For app-touching tests, behavior is unchanged.
+
+**Verification (local)**:
+- test_daily_summary.py: setup 8.07s → 2.54s per test, 2/2 pass
+- test_route_smoke_phase14_tier1.py: 84/84 pass (was 84/86, the 2 errors are now fixed)
+- test_money.py: 35/35 pass
+
+CI will confirm end-to-end wall-time drop.
+
+**Out of scope**: deeper refactor to make `client` fixture itself lazy, or session-scoped engine. The 8s `init_db()` cost remains for app-touching tests; that's where it belongs.
+
+---
+
 
 ## 2026-10-10e — fix(ci/deploy): unblock all PRs from three concurrent-deploy races
 
@@ -579,6 +614,7 @@ careful audit before merging to prod.
 (complexity refactor + ANN per-file ignores + 509 lint errors). If that
 work is wanted, it needs its own cleanup pass.
 
+
 ## 2026-10-10 — Docs quality: link-check gate + baseline refresh + dup-delete
 
 **Scope**: companion to the docs-quality audit (#93, #103, #107, #110). Closes
@@ -604,6 +640,7 @@ already shipped in #110.
 
 **Linked PRs**: #112 (this commit), #107, #110, #116.
 **Audit doc**: `docs/operations/2026-10-09-docs-quality-audit.md`.
+
 
 ## 2026-10-09d — Seed: Tier A+B+C UX gaps + design-empty tables + data quality fixes
 
@@ -652,6 +689,7 @@ transactional data (per operator request).
 - Fresh seed probe -> 52 of 67 tables populated (15 remaining are operational-state)
 - Idempotent re-run -> no IntegrityError, no row-count inflation
 
+
 ## 2026-10-09 — File issues for the 2 active TODOs (SASKIA-212, -213)
 
 **Scope**: docs-quality PR 6 followup. Each active TODO now has a
@@ -664,12 +702,14 @@ ticket (the actionable home the triage policy requires):
 **Test status**: `make todos` still reports 2 active (will drop to 0
 when the linked issues ship).
 
+
 ## 2026-10-09 — Untrack .venv (re-tracked by sibling station-shell merge)
 
 **Scope**: housekeeping that broke the CHANGELOG gate's diff view.
 A station-shell merge (different SHAs than the 23ac7a86 incident) re-tracked
 `.venv`. `git rm -r --cached`; local files untouched. Also added
 `scripts/check_active_todos.py` + the docs-quality PR 6 deliverable.
+
 
 ## 2026-10-09 — Docs PR 6: TODO triage + active-comment scanner
 
@@ -694,6 +734,7 @@ sprint tables). Real code TODO comments: 2.
   without dates returns 500 (30 min fix)
 
 **Test status**: scanner returns exactly 2 from main.
+
 
 ## 2026-10-09 — Docs PR 5: CI docs-lint gate + baseline
 
@@ -728,6 +769,7 @@ free tier; we already run 3-min ruff+test+smoke suite).
 current=11327 new=0). Negative test: creating a doc with new MD022/MD032
 fails the gate.
 
+
 ## 2026-10-09 — deploy workflows: fix SSH key "error in libcrypto"
 
 **Scope**: deploy-dev and deploy-test CI jobs failed 100% of runs since
@@ -743,6 +785,7 @@ back to keyboard auth and gets Permission denied.
 '` in deploy-dev.yml and deploy-test.yml.
 
 ---
+
 
 ## 2026-10-09 — Seed: sync herebus canonical (packaging + stock fixes)
 
@@ -762,6 +805,8 @@ workbook export (`data/herebus_seed_canonical.json`).
 **Verification**: full canonical-vs-seed recipe-line diff = 0 mismatches
 (unit-aware g/kg, ml/l, duplicate-aware REC-006 renumbering);
 `tests/test_sazon_seed.py` 25/25 green.
+
+
 ## 2026-10-09c — tooling(tier2-followups): Vale prose lint + tool evaluations
 
 **Scope**: closes the remaining deferred items from the Tier 2 research (PR #94/#95).
@@ -785,6 +830,8 @@ workbook export (`data/herebus_seed_canonical.json`).
 
 **Drive-by**: Makefile duplicate targets (jscpd, deadcode-code, docs-lint,
 docs-lint-strict, tool-matrix each defined twice since #94) deduplicated.
+
+
 ## 2026-10-09 — Docs PR 4: fix all broken internal links
 
 **Scope**: docs-quality followup PR 4 from the audit. A repo-wide
@@ -805,6 +852,7 @@ deeper scanner config).
 
 **Test status**: re-scan reports **0 broken** (excluding code spans).
 
+
 ## 2026-10-09 — Fix refresh_action_pins --fix line-splice bug
 
 **Scope**: The first run of `refresh_action_pins.py --fix` (PR #106)
@@ -818,6 +866,7 @@ files became invalid YAML and CI ran zero jobs. Caught before merge.
 - ruff format pass on the script
 
 **Test status**: YAML validates on all 13 files; scanner re-run clean.
+
 
 ## 2026-10-09 — Apply action SHA-pin drift fix (first scanner run)
 
@@ -835,6 +884,7 @@ now.
 
 **Test status**: tag peel verified via git/tags API; zizmor clean.
 
+
 ## 2026-10-09 — Untrack .venv from git
 
 **Scope**: housekeeping that broke the CHANGELOG gate's diff view. A
@@ -845,6 +895,7 @@ now.
 **What changed**: `git rm -r --cached .venv` (local files untouched).
 Also ruff-formatted `deploy/render_stack.py` +
 `scripts/refresh_action_pins.py` (2 files the style pass missed).
+
 
 ## 2026-10-09 — Monthly action SHA-pin refresh automation
 
@@ -863,6 +914,7 @@ them. Tag drift would go unnoticed.
 
 **Test status**: ruff clean; zizmor rc=0; scanner verified live against
 the repo (drift found + reported correctly).
+
 
 ## 2026-10-09 — Activate safeguard (dev env + CI gate) + OTel on dev
 
@@ -885,6 +937,7 @@ and makes new findings block CI.
 **Test status**: deploy-infra 28 passed + 1 skipped; safeguard --check
 OK (0 new, 5 accepted); render YAML-valid for all 3 envs.
 
+
 ## 2026-10-09 — CI determinism: track uv.lock
 
 **Scope**: one-line fix with outsized effect: CI was resolving the
@@ -898,6 +951,7 @@ to uv.lock. The cache will never get invalidated."
 - CI `cache-dependency-glob: uv.lock` now actually hits.
 
 **Test status**: `uv lock --check` clean; ruff check + format pass.
+
 
 ## 2026-10-09 — Docs quality: pymarkdownlnt auto-fix + duplicate deletions
 
@@ -919,6 +973,8 @@ to uv.lock. The cache will never get invalidated."
 - `docs/user-guide/README.md` links verified post-rename (0 broken).
 
 **Test status**: user-guide link check clean; ruff clean.
+
+
 ## 2026-10-09 — Login-path monitor
 
 (Lint follow-ups: ruff format + drop unused noqa on the same script.)
@@ -936,6 +992,7 @@ to uv.lock. The cache will never get invalidated."
 `LOGIN-MONITOR OK: demo -> .../puesto`.
 
 ---
+
 
 ## 2026-10-09 — CI recovery: ruff mass-fix + CHANGELOG-path bug fix
 
@@ -1023,6 +1080,8 @@ All 7 jobs are read-only (just checkout + run tests). zizmor now reports
 - The qa-gates.yml dead-workflow scenario (decision pending: re-publish as a tagged reusable workflow, or drop entirely)
 - OTel collector endpoint decision (operator)
 - ast-grep replacement of lint_tier1.py (marginal value)
+
+
 ## 2026-10-09 — Tier 2 tooling adoption (zizmor + OTel + Prometheus)
 
 **Scope**: infrastructure for 4 Tier 2 wins from the 2026-10-09 research
@@ -1068,6 +1127,7 @@ behavior is unchanged unless the operator opts in.
 ast-grep replacement of `lint_tier1.py` (marginal value), Vale prose
 linting (network blocked), Semgrep CE (custom Sazon rules),
 umbra-scan (shadow API), `factory_boy` audit.
+
 
 ## 2026-10-08c — SASKIA-320: tests audited a foreign checkout, not the repo under test
 
@@ -1122,6 +1182,7 @@ umbra-scan (shadow API), `factory_boy` audit.
 
 **Lesson**: an expression-capability DDL difference between dev/prod SQLite versions needs a CI guard — the full-chain replay test now covers it.
 
+
 ## 2026-10-07i — inventory valuation follows the variant-price SSOT (audit follow-up 2)
 
 **`stock_value_gs()`** (app/rms/inventory_intel.py) now prices ingredients via preferred-variant
@@ -1138,6 +1199,7 @@ Broader 89-read audit note: the remaining direct `purchase_price_gs` reads are m
 Flagged for per-site review only where a consumer *displays* an ingredient cost (the recipe-form
 3-consumer contract was already unified in a prior sprint).
 
+
 ## 2026-10-07h — `current_operator()`: one home for the user-id-or-default fallback (audit follow-up 1)
 
 **What**: `app/auth.py::current_operator(request, *, fallback="operator")` replaces the 53 hand-rolled `current_user_id(request) or "operator"` sites across 17 routers/modules.
@@ -1147,6 +1209,7 @@ Flagged for per-site review only where a consumer *displays* an ingredient cost 
 **Consistency fixed**: 47× "operator" + 4× "operador" + 1× "anonymous" + 1× "test-user" all collapse onto one helper with explicit `fallback=` kwargs for the non-default cases.
 
 **Sweep**: 130 passed across every touched router's tests (settings, cash, fiado, customers, merma, sales, SASKIA-205/207/208/209/308 locks). Import audit: all 12 consumer files verified.
+
 
 ## 2026-10-07g — SASKIA-209: one-command migration rollback (`sazon rollback`)
 
@@ -1159,6 +1222,7 @@ Flagged for per-site review only where a consumer *displays* an ingredient cost 
 
 **Sweep**: 102 passed (rollback 9 + migration-safety + settings + SASKIA-305/306/207/208 locks).
 
+
 ## 2026-10-07f — Sprint 2.1 COMPLETE: settings consolidation (AppMeta → settings_kv)
 
 **The dual-persistence trap is closed.** One settings store: `settings_kv` (JSON, via settings_runtime).
@@ -1170,6 +1234,7 @@ Flagged for per-site review only where a consumer *displays* an ingredient cost 
 - **Sibling coordination**: rebased onto 387d11ca + 51a880d2 (SASKIA-301..308 + ruff waves); sibling's new test_SASKIA-308_settings_eod_auditoria.py passes against the consolidation. My worktree's .venv symlink was transitively broken by a self-referencing loop in the shared checkout's .venv — rebuilt locally with uv sync --frozen.
 
 **Sweep**: 77 passed across settings + migration-safety + SASKIA-308 locks.
+
 
 ## 2026-10-07e — SASKIA-301: copy/UX hardening Phase 0 (globals)
 
@@ -1231,6 +1296,8 @@ new test files.
 
 Refs: `docs/ux/copy-fix-list.md`, `docs/ux/copy-ux-decisions.md`,
 `.hermes/plans/2026-10-07_202522-copy-ux-hardening.md`.
+
+
 ## 2026-10-07e — SASKIA-208: Poisson weekday restocking forecast (BACKLOG #5)
 
 **Model** (`app/rms/restock_forecast.py`, zero new deps per AGENTS.md rule 26):
@@ -1244,6 +1311,8 @@ Refs: `docs/ux/copy-fix-list.md`, `docs/ux/copy-ux-decisions.md`,
 **Wired**: /reorder gains `restock_map` (P95 date, days-to-P95, weekend uplift, confidence); template shows a `P95 Nd` badge only when the conservative path lands ≥2 days before the flat estimate (that gap IS the weekend risk).
 
 **Tests**: 13 new (10 model math + 3 batch/integration); reorder regression 31 passed.
+
+
 ## 2026-10-07d — SASKIA-207: stock_ledger helper + reuse/abstraction audit
 
 **Audit:** docs/operations/2026-10-07-saskia-reuse-abstraction-audit.md (8 findings, measured).
@@ -1256,6 +1325,7 @@ Refs: `docs/ux/copy-fix-list.md`, `docs/ux/copy-ux-decisions.md`,
 
 **Regression:** 62 passed across SASKIA-205/206/207, waste, herbus, P20, clock. 5 remaining failures verified pre-existing on main (stash baseline) — settings_kv_canonical x3 noted in audit.
 
+
 ## 2026-10-07c — SASKIA-205 + SASKIA-206: purchase→inventory + price snapshots
 
 **Goal:** close two shopping-flow gaps — purchases that never landed in inventory, and list rows that showed today's price instead of the quoted one.
@@ -1264,6 +1334,7 @@ Refs: `docs/ux/copy-fix-list.md`, `docs/ux/copy-ux-decisions.md`,
 - **SASKIA-206** (this commit): migration 113 adds `shopping_list_item.unit_price_snapshot_gs`. All 4 row-creation paths (from-plan, sync-low-stock, manual add, save-plan) freeze `purchase_price_gs` at creation via `_price_snapshot()`. Template + totals prefer the snapshot; pre-113 rows (NULL) fall back to live price.
 - Migration 113 bump is INSIDE the function (each migration owns its bump — see pitfalls skill).
 - Tests: 3 snapshot tests (freeze-despite-price-change, no-price→NULL, helper contract); 34+ passed across shopping/wishlist/herbus suites; fresh-DB init reaches v113.
+
 
 ## 2026-10-07 — SASKIA-204: Sale channel mismatch cleanup
 
@@ -1287,6 +1358,7 @@ Refs: `docs/ux/copy-fix-list.md`, `docs/ux/copy-ux-decisions.md`,
 
 # CHANGELOG
 
+
 ## 2026-10-06b — Demos vivos por industria + onboarding 1 comando + importador carta
 
 **Goal:** pasar de "te mando un PDF" a "entrá y mirá": 3 demos VPS (Pizzería/Café/Panadería) con vida demo pack-native, `onboard_tenant()` para altas en 1 llamada, e importador de carta real para el primer día de un cliente.
@@ -1296,6 +1368,7 @@ Refs: `docs/ux/copy-fix-list.md`, `docs/ux/copy-ux-decisions.md`,
 - `app/rms/seed/menu_import.py` (NEW): importador carta-real CSV → match difuso (≥0.82, sin acentos) contra pack; matched → precio real del cliente; faltantes → producto nuevo tag `importado (pendiente recosteo)` (no inventa recetas); `dry_run=True` por defecto.
 - Tests: `tests/test_pack_demo.py` + `tests/test_onboard.py` + `tests/test_menu_import.py` = 14 nuevos, 14/14.
 - Deploy demos VPS: `scratch/deploy_demos_v5.sh` — 3 stacks swarm (`sazon-demo-{pizzeria,cafe,panaderia}`), imagen tagueada por timestamp (rollout garantizado), volumen + DB por demo, `HTTPS_ONLY=false` (solo demos; prod intacto), reseed FK-safe post-boot. Puertos 8081/8082/8083; login admin/cambiar1234.
+
 
 ## 2026-10-06 — Seed packs per market segment (pre-carga onboarding)
 
@@ -1367,8 +1440,10 @@ Refs: `docs/ux/copy-fix-list.md`, `docs/ux/copy-ux-decisions.md`,
 
 ---
 
+
 ## 2026-10-01
 - **Schema 75** (`app/rms/config.py`): adds `suggestion_applied` to `loyalty_transaction.reason` ENUM (Tier 3.2).
+
 
 ## 2026-10-02 - Backend overhaul (Sprint 1.3)
 
@@ -1474,6 +1549,7 @@ Refs: `docs/ux/copy-fix-list.md`, `docs/ux/copy-ux-decisions.md`,
 - Manual lives in repo at `docs/user-guide/README.md`. No live deploy needed (markdown only).
 - When schema or routes change: re-run `python3 docs/user-guide/capture_saskia_screenshots.py` and update the version header in README.md. Run `python3 docs/user-guide/check_manual_version.py` to confirm no drift.
 
+
 ## 2026-09-30 - reorder supplier redesign + scraper completion
 
 ### New
@@ -1516,6 +1592,8 @@ Refs: `docs/ux/copy-fix-list.md`, `docs/ux/copy-ux-decisions.md`,
 - Live at https://sazon-vps.paragu-ai.com/reorder  
 - Auth: demo / demo1234  
 - Test with: `pytest tests/reorder/** -q` (all phases)
+
+
 ## 2026-10-07f — SASKIA-302: login + inicio + prod-manana (Phase 1)
 
 **Goal:** fix the 7 P0/P1 copy/UX bugs on login and home, plus the
@@ -1555,6 +1633,7 @@ Refs: `docs/ux/copy-fix-list.md` (G.1-G.8, LOGIN.1-4, INICIO.1-17,
 PROD.11), `docs/ux/copy-ux-decisions.md` (D9: prod-manana promoted to
 Phase 1 because the duplicate H2 is a screen-reader bug, not just visual).
 
+
 ## 2026-10-07g — SASKIA-303: POS regression locks (Phase 2)
 
 **Audit result:** the POS templates (`pedidos_nuevo.html`,
@@ -1574,6 +1653,7 @@ garantía` suffix, kanban redesign, etc.).
 **Lesson:** sometimes the highest-value deliverable is a regression
 test that says "this is already good, don't break it in a future
 refactor". Future POS work can now build on a tested foundation.
+
 
 ## 2026-10-07h — SASKIA-304: clientes + productos + recetas (Phase 3)
 
@@ -1610,6 +1690,7 @@ refactor". Future POS work can now build on a tested foundation.
 
 **Regression:** SASKIA-301/302/303 (52 tests) still pass; ruff clean.
 
+
 ## 2026-10-07i — SASKIA-305: inventario + producción (Phase 4)
 
 **Audit result:** the inventario + producción template family
@@ -1629,6 +1710,7 @@ to Phase 1 and shipped in d2164de8.
   shift badge, HACCP/accuracy/prep page existence, horneado-extra
   ad-hoc section, movimientos/auditoria page existence.
 
+
 ## 2026-10-07j — SASKIA-306: pedidos + proveedores + menus (Phase 5)
 
 **Audit result:** pedidos (already covered in SASKIA-303), proveedores,
@@ -1643,6 +1725,7 @@ and menus templates are well-built. No copy/UX fixes required.
   placeholder (25.000), pedido_detalle loyalty card + ventana_text
   rendering, page existence for supplier_precios / supplier_orders /
   menu_publico / menu_tablet.
+
 
 ## 2026-10-07k — SASKIA-307: reportes + insights + dashboard (Phase 6)
 
@@ -1670,6 +1753,7 @@ and the Phase 0/3 currency + label fixes.
   insight_price_impact per-product food_cost_pct, page existence for
   libro_ventas / retencion / iva.
 
+
 ## 2026-10-07l — SASKIA-308: settings + EOD + auditoria + ops (Phase 7)
 
 **Audit result:** all settings + EOD + auditoria + ops templates are
@@ -1690,6 +1774,7 @@ two pages: list (`/auditoria`) and analytics (`/auditoria/analytics`).
 
   settings_catalog 12 tabs.
 
+
 ## 2026-10-07m — SASKIA-301..308 follow-up: D3 currency drift fixes
 
 CI's `currency-drift` job caught 3 raw `Gs. {{` literals our Phase 0/3
@@ -1709,6 +1794,7 @@ passes missed. Replaced with the shared `m.gs` / `m.gs_full` macros
 Both now assert: bug formula gone, `m.gs` macro used, and NO raw
 `Gs. {{` pattern (D3 lint via inline regex).
 
+
 ## 2026-10-10 — fix: remove legacy channel constants (SASKIA-212) + drop stale ?period=custom TODO (SASKIA-213)
 
 Closes #114 and #115.
@@ -1716,3 +1802,4 @@ Closes #114 and #115.
 - **SASKIA-212**: `ALLOWED_CHANNELS`, `CHANNELS_DISPLAY`, `CHANNEL_DEFAULT` in `app/rms/models/channels.py` were the last TODO from the docs-quality audit. Only one importer remained: `tests/test_P42_channel_enum_integration.py`. Migrated that test to use `Channel.default()` / `Channel.allowed_values()` directly, then deleted the 3 legacy constants + the deprecation comment.
 - **SASKIA-213**: `tests/test_dashboard_kpis_end_to_end.py` had a `# TODO: Fix _period_window` comment dating from when `?period=custom` (no dates) returned 500. The fix was already in place: `app/routers/dashboard.py:_resolve_period_window` routes the no-dates case through `_period_window("custom")` which falls back to today's window. Tightened the test to assert exactly 200 and dropped the stale KNOWN BUG / TODO comments.
 - `make todos` now reports 0 active code TODOs.
+
