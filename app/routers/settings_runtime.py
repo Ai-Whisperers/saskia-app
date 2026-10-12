@@ -1348,8 +1348,7 @@ def seasonal_calendar_page(
     seasonal.notif_lead_days (lead window badging) and
     seasonal.relevance_tags (pack filter). Read-only — no mutations.
     """
-    from datetime import date as _date
-
+    from app.rms.clock import today_local
     from app.rms.seasonal import (
         get_calendar_events,
         lead_status,
@@ -1358,27 +1357,26 @@ def seasonal_calendar_page(
     )
     from app.services.template_render import render
 
-    today = _date.today()
+    today = today_local().date()
     lead = notif_lead_days(session)
     tags = operator_relevance_tags(session)
     events = get_calendar_events(session, relevance_tags=tags, lead_days=lead, today=today)
 
-    rows = []
-    for ev in events:
-        rows.append(
-            {
-                "name": ev.name_es or ev.name_en or ev.slug,
-                "slug": ev.slug,
-                "date": ev.event_date,
-                "days_away": (ev.event_date - today).days,
-                "status": lead_status(ev.event_date, lead, today),
-                "country": ev.country,
-                "category": ev.category or "",
-                "impact_tag": ev.impact_tag or "",
-                "impact_score": ev.impact_score,
-                "description": ev.description or "",
-            }
-        )
+    def _row(ev: object) -> dict:
+        return {
+            "name": ev.name_es or ev.name_en or ev.slug,
+            "slug": ev.slug,
+            "date": ev.event_date,
+            "days_away": (ev.event_date - today).days,
+            "status": lead_status(ev.event_date, lead, today),
+            "country": ev.country,
+            "category": ev.category or "",
+            "impact_tag": ev.impact_tag or "",
+            "impact_score": ev.impact_score,
+            "description": ev.description or "",
+        }
+
+    rows = [_row(ev) for ev in events]
 
     inside = [r for r in rows if r["status"] == "inside"]
     return render(
