@@ -462,3 +462,63 @@ def test_full_pipeline_reports_opening_stock_count(session_factory):
         counts = json.loads(meta.value)["counts"]
         assert "opening_stock_set" in counts
         assert counts["opening_stock_set"] >= 14
+
+
+
+def test_seed_herbus_recipes_matches_legacy_slugified_names(session_factory):
+    """If the live DB has a legacy slugified recipe (e.g. ``babka__rec_017``),
+    the new seeder must UPDATE the existing row, not create a duplicate.
+
+    Reproduces the SASKIA-225 hotfix that ran on saskia-vps: the previous
+    ``import_herebus_data`` importer slugified names, so the seeder needed
+    a normalized lookup to detect them as the same recipe.
+    """
+    from app.rms.models import Recipe
+
+    # Idempotent: seed the canonical data first
+    with session_factory() as s:
+        seed_herbus_data(s)
+        s.commit()
+    baseline = session_factory().execute(
+        __import__("sqlalchemy").text("SELECT COUNT(*) FROM recipe")
+    ).scalar()
+
+    # Now inject a legacy slugified duplicate of one recipe (simulates
+    # the live saskia-vps state where recipes were imported as slugs)
+    with session_factory() as s:
+        s.execute(__import__("sqlalchemy").text(
+            "UPDATE recipe SET name = 'babka__rec_017' WHERE name LIKE 'Babka%'"
+        ))
+        s.commit()
+
+    # Re-run the seeder — must NOT create a duplicate
+    with session_factory() as s:
+        _ = seed_herbus_data(s)
+        s.commit()
+
+    with session_factory() as s:
+        total = s.execute(__import__("sqlalchemy").text("SELECT COUNT(*) FROM recipe")).scalar()
+        babka_legacy = s.query(Recipe).filter(Recipe.name == "babka__rec_017").first()
+        babka_canonical = s.query(Recipe).filter(Recipe.name == "Babka").first()
+
+    # No duplicate was created (total recipes unchanged).
+    assert total == baseline, f"seeder created a duplicate (baseline={baseline}, now={total})"
+    # The legacy slugified row survived (we UPDATEd it via slug-match, not
+    # replaced it with the canonical name).
+    assert babka_legacy is not None, "legacy slugified recipe was lost"
+    # The seeder did NOT also insert a canonical-named 'Babka' alongside it.
+    assert babka_canonical is None, "seeder re-created a canonical-named duplicate"
+
+
+def test_slugify_recipe_name_strips_rec_suffix():
+    from app.rms.seed.herbus_import import _slugify_recipe_name
+    # Basic slug
+    assert _slugify_recipe_name("Babka") == "babka"
+    # With __rec_NNN suffix (legacy importer output)
+    assert _slugify_recipe_name("babka__rec_017") == "babka"
+    # Diacritics stripped
+    assert _slugify_recipe_name("Mburukuja fresca") == "mburukujafresca"
+    # Two match
+    assert _slugify_recipe_name("Babka") == _slugify_recipe_name("babka__rec_017")
+    # Different recipes don't match
+    assert _slugify_recipe_name("Babka") != _slugify_recipe_name("Stroop wafel__rec_003")

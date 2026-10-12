@@ -101,6 +101,22 @@ _UNIT_ALIASES = {
 }
 
 
+def _slugify_recipe_name(name: str) -> str:
+    """Return a canonical slug for recipe name comparison.
+
+    Strips the ``__rec_NNN`` suffix added by the legacy ``import_herebus_data``
+    importer, lowercases, removes diacritics, and collapses non-alphanumeric
+    runs. Used to match the canonical Spanish recipe name to the live's
+    legacy slugified name so the seeder UPDATES rather than duplicates.
+    """
+    import re
+    s = re.sub(r"__rec_\d+$", "", name)  # strip legacy suffix
+    s = re.sub(r"__rec_\d+__", "", s)  # also strip embedded
+    s = _normalize_for_lookup(s)  # NFKD + strip diacritics
+    s = re.sub(r"[^a-z0-9]+", "", s)  # collapse non-alphanumeric
+    return s
+
+
 def _normalize_unit(unit: str | None) -> str:
     """Map any HEREBUS unit string to the canonical Sazon unit enum."""
     if not unit:
@@ -501,6 +517,14 @@ def seed_herbus_recipes(session: Session, canonical: dict) -> dict[str, Any]:
         existing = session.execute(
             select(Recipe).where(Recipe.name == rec["rec_name"])
         ).scalar_one_or_none()
+        if existing is None:
+            # Legacy slugified name (e.g. ``babka__rec_017``) — match by
+            # normalized slug so we UPDATE instead of creating a duplicate.
+            target_slug = _slugify_recipe_name(rec["rec_name"])
+            for candidate in session.execute(select(Recipe)).scalars().all():
+                if _slugify_recipe_name(candidate.name) == target_slug:
+                    existing = candidate
+                    break
         if existing is not None:
             skipped += 1
             continue
