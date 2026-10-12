@@ -472,9 +472,7 @@ def _compute_profile_nudges(session, all_customers: list) -> dict:
     return {
         "sin_telefono": _count_missing(all_customers, _missing_phone),
         "sin_dietary": _count_missing(all_customers, _missing_dietary),
-        "sin_direccion": _count_missing(
-            all_customers, lambda c: _missing_address(session, c)
-        ),
+        "sin_direccion": _count_missing(all_customers, lambda c: _missing_address(session, c)),
         "sin_consent": _count_missing(all_customers, _missing_consent),
     }
 

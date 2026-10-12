@@ -83,6 +83,7 @@ def _check_supabase_reachable(url: str, timeout: float = 2.0) -> dict[str, Any]:
         return {"ok": "skipped", "reason": "SUPABASE_URL not set"}
     health = _supabase_health_url(url)
     import time as _time
+
     t0 = _time.monotonic()
     try:
         req = urllib.request.Request(health, method="GET")  # noqa: S310
@@ -107,6 +108,7 @@ def _supabase_health_url(url: str) -> str:
 def _elapsed_ms(t0: float) -> int:
     """Round-trip time from `t0` (a `time.monotonic()` value) to now."""
     import time as _time  # local import keeps the top of the file clean
+
     return int((_time.monotonic() - t0) * 1000)
 
 
@@ -147,6 +149,7 @@ def _classify_url_reason(reason_str: str) -> str:
     """Return the URLError sub-class (DNSError / ConnectRefused / ...) or
     the generic 'URLError' fallback when no pattern matches."""
     import re
+
     for pattern, label in _URL_ERROR_PATTERNS:
         if re.search(pattern, reason_str):
             return label
