@@ -706,6 +706,25 @@ summary:focus-visible {
   padding-right: 0 !important;
   position: static !important;
 }
+.pedidos-filter-bar .reorder-menu__panel {
+  right: 0;
+  left: auto;
+  max-width: min(40rem, calc(100vw - 2rem));
+}
+.pedidos-list .row-meta-details > summary,
+.kds-card .row-meta-details > summary,
+.order-card .row-meta-details > summary {
+  font-size: 0.85rem;
+  color: var(--color-text-link);
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.pedidos-list .inv-list__panel,
+.kds-card .inv-list__panel,
+.order-card .inv-list__panel {
+  margin-top: 0.75rem;
+}
 .grid .card.is-interactive .icon-lg {
   width: 18px;
   height: 18px;

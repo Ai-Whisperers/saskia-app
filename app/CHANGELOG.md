@@ -1,4 +1,13 @@
 
+## 2026-10-12 — Pedidos list leads with who, when, and next status
+
+The list shows the customer, the promised date, and the status with Cumplir.
+Canal, pago, líneas, total, ventana, and the other row actions sit under Ver
+detalles. Hoy / Mañana, Esta semana, Pendientes viejos, and Exportar CSV sit
+under Filtros. Search and Pendientes / Terminados / Todos stay on the page.
+The kitchen board keeps the three status columns, auto-refresh, and the chime.
+Sound, a tiempo / atrasados, and the revenue strip open from one click.
+
 ## 2026-10-12 — Producción Ver detalles stays below the row on a phone
 
 At 640px and below, an open Ver detalles panel sits under Listo, the

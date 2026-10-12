@@ -12,10 +12,15 @@
 <div class="board-nav">
   <a href="/pedidos">← Volver a pedidos</a>
   <span class="text-muted">Auto-refresh cada 30s · Actualizado: <span id="clock-live" class="clock-live">{{ now.strftime("%H:%M") }}</span></span>
-  <button type="button" id="sound-toggle" class="btn btn-sm btn-ghost" aria-pressed="false" aria-label="Activar sonido de nuevos pedidos">
-    🔕 Sonido desactivado
-  </button>
-  <a href="?sound=0" class="btn btn-sm btn-ghost" class="text-muted" title="Desactivar audio">🔇 Sin audio</a>
+  <details class="reorder-menu">
+    <summary>Más</summary>
+    <div class="reorder-menu__panel">
+      <button type="button" id="sound-toggle" class="btn btn-sm btn-ghost" aria-pressed="false" aria-label="Activar sonido de nuevos pedidos">
+        🔕 Sonido desactivado
+      </button>
+      <a href="?sound=0" class="btn btn-sm btn-ghost" title="Desactivar audio">🔇 Sin audio</a>
+    </div>
+  </details>
 </div>
 
 <h1><svg class="icon" aria-hidden="true"><use href="#icon-production"/></svg>  Cocina — pedidos del día</h1>
@@ -23,16 +28,20 @@
 
 {# ── Flash messages ── #}
 {{ ui.flash_toast(request) }}
-<div class="board-filters" role="group" aria-label="Filtrar pedidos">
-  <button type="button" class="filter-btn active" data-filter="all">Todos</button>
-  <button type="button" class="filter-btn" data-filter="on-time">A tiempo</button>
-  <button type="button" class="filter-btn" data-filter="overdue">Atrasados</button>
-</div>
-
-<div class="board-revenue" aria-live="polite" id="board-revenue">
-  <span><span id="rev-count">0</span> pedidos</span>
-  <span>Gs. <strong id="rev-total">0</strong> total</span>
-</div>
+<details class="reorder-menu" style="display:inline-block; position:relative; z-index:30; margin-bottom: var(--space-4);">
+  <summary>Filtros</summary>
+  <div class="reorder-menu__panel" style="min-width: 18rem;">
+    <div class="board-filters" role="group" aria-label="Filtrar pedidos">
+      <button type="button" class="filter-btn active" data-filter="all">Todos</button>
+      <button type="button" class="filter-btn" data-filter="on-time">A tiempo</button>
+      <button type="button" class="filter-btn" data-filter="overdue">Atrasados</button>
+    </div>
+    <div class="board-revenue" aria-live="polite" id="board-revenue">
+      <span><span id="rev-count">0</span> pedidos</span>
+      <span>Gs. <strong id="rev-total">0</strong> total</span>
+    </div>
+  </div>
+</details>
 
 {# Sound notification for new orders — plays a chime on page load #}
 <audio id="new-order-chime" preload="auto">
@@ -142,7 +151,7 @@
        data-today="{{ '1' if p.promised_date == today else '0' }}"
        data-total-gs="{{ p.total_gs|default(0) }}">
     <div class="card-header">
-      <span class="card-id">#{{ p.id }}</span>
+      {% if p.customer %}<div class="card-customer">{{ p.customer.name }}</div>{% endif %}
       <span class="card-status status-{{ p.status }}">
         {% if p.status == 'pending' %}Pendiente
         {% elif p.status == 'confirmed' %}Confirmado
@@ -150,31 +159,35 @@
         {% endif %}
       </span>
     </div>
-    {# Order-level note in card header (not just footer) #}
-    {% if p.notes %}
-    <div class="card-header-note">📋 {{ p.notes }}</div>
-    {% endif %}
     <div class="card-promise{% if p.promised_date < today and p.status == 'pending' %} is-overdue{% elif is_approaching %} is-approaching{% endif %}">
       📅 {{ p.promised_date.strftime("%d/%m") }}{% if p.promised_time %} · {{ p.promised_time }}{% endif %}
-      {% if p.channel %} · {{ p.channel }}{% endif %}
     </div>
-    {% if p.customer %}<div class="card-customer">{{ p.customer.name }}</div>{% endif %}
-    {# T-3: click-to-call — the cook phones the customer when the pedido is ready. #}
-    {% if p.customer_phone %}
-    <a class="card-customer-phone" href="tel:{{ p.customer_phone }}">📞 {{ p.customer_phone }}</a>
-    {% endif %}
-    <ul class="card-items">
-      {% for line in p.lines %}
-      <li>
-        <span class="item-qty">{{ "%.0f"|format(line.qty) }}×</span>
-        <span class="item-name">{{ fmt.entity_name(line.product) if line.product else '#' ~ line.product_id }}</span>
-        {% if line.notes %}<div class="item-note">📝 {{ line.notes }}</div>{% endif %}
-      </li>
-      {% endfor %}
-    </ul>
-    <div class="card-elapsed{% if elapsed_minutes > 60 %} long{% endif %}">
-      ⏱ {{ elapsed_minutes }} min
-    </div>
+    <details class="row-meta-details">
+      <summary>Ver detalles</summary>
+      <div class="inv-list__panel">
+        <span class="card-id">#{{ p.id }}</span>
+        {% if p.channel %}<span class="badge badge-neutral">{{ p.channel }}</span>{% endif %}
+        {% if p.notes %}
+        <div class="card-header-note">📋 {{ p.notes }}</div>
+        {% endif %}
+        {# T-3: click-to-call — the cook phones the customer when the pedido is ready. #}
+        {% if p.customer_phone %}
+        <a class="card-customer-phone" href="tel:{{ p.customer_phone }}">📞 {{ p.customer_phone }}</a>
+        {% endif %}
+        <ul class="card-items">
+          {% for line in p.lines %}
+          <li>
+            <span class="item-qty">{{ "%.0f"|format(line.qty) }}×</span>
+            <span class="item-name">{{ fmt.entity_name(line.product) if line.product else '#' ~ line.product_id }}</span>
+            {% if line.notes %}<div class="item-note">📝 {{ line.notes }}</div>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        <div class="card-elapsed{% if elapsed_minutes > 60 %} long{% endif %}">
+          ⏱ {{ elapsed_minutes }} min
+        </div>
+      </div>
+    </details>
   </div>
   {% endfor %}
 </div>
@@ -195,39 +208,50 @@
       {{ label }} <span class="count-badge">{{ col|length }}</span>
     </h2>
     {% for k in col %}
-    <div class="kds-card d-flex" style="border:1px solid var(--color-border);border-radius:var(--radius);padding:var(--space-3);margin-bottom:var(--space-2);">
-      <div class="d-flex" style="display:flex;justify-content:space-between;align-items:center;">
-        <strong>{{ k.label }}</strong>
-        {% import "_components/atoms.html" as a %}
-        {{ a.status_pill_for(k.status) }}
+    <div class="kds-card" style="display:flex; flex-direction:column; align-items:flex-start; gap:var(--space-1); border:1px solid var(--color-border);border-radius:var(--radius);padding:var(--space-3);margin-bottom:var(--space-2);">
+      <div class="d-flex" style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);">
+        <strong>{{ k.customer or k.label }}</strong>
+        {{ ui.status_pill_for(k.status) }}
       </div>
-      {% if k.customer %}<div class="text-muted text-sm" >{{ k.customer }}</div>{% endif %}
       <div class="text-muted text-xs" >para {{ k.promised }}</div>
-      {# Phase 14 (2026-10-01): ventana + invoice + delivery hint on the
-         kitchen card. Helps prep staff pace ASAP vs scheduled deliveries. #}
-      {% if k.ventana_text %}
-      <div style="font-size:var(--text-xs);margin-top:var(--space-1);padding:var(--space-1) var(--space-2);background:var(--color-surface);border-radius:var(--radius);">
-        🕒 {{ k.ventana_text }}
-      </div>
-      {% endif %}
-      {% if k.address_text %}
-      <div class="text-muted" style="font-size:var(--text-xs);margin-top:var(--space-1);">
-        📍 {{ k.address_text|truncate(40) }}
-      </div>
-      {% endif %}
-      {% if k.invoice_ruc %}
-      <div class="text-muted text-xs" >
-        🧾 {{ k.invoice_ruc }}{% if k.invoice_name %} — {{ k.invoice_name|truncate(20) }}{% endif %}
-      </div>
-      {% endif %}
-      {% if k.lines %}
-      <ul style="margin:var(--space-2) 0 0;padding-left:1.1rem;font-size:var(--text-sm);">
-        {% for ln in k.lines %}<li>{{ ln }}</li>{% endfor %}
-      </ul>
-      {% endif %}
       <div class="row-actions mt-2" style="margin-top:var(--space-2);display:flex;gap:var(--space-2);">
         <a class="btn btn-sm" href="/pedidos/{{ k.id }}">Abrir</a>
       </div>
+      <details class="row-meta-details">
+        <summary>Ver detalles</summary>
+        <div class="inv-list__panel">
+          {% if k.customer %}
+          <div class="inv-list__field">
+            <span class="inv-list__label">Pedido</span>
+            {{ k.label }}
+          </div>
+          {% endif %}
+          {# Phase 14: ventana + invoice + delivery hint stay one click away. #}
+          {% if k.ventana_text %}
+          <div class="inv-list__field">
+            <span class="inv-list__label">Ventana</span>
+            🕒 {{ k.ventana_text }}
+          </div>
+          {% endif %}
+          {% if k.address_text %}
+          <div class="inv-list__field">
+            <span class="inv-list__label">Dirección</span>
+            📍 {{ k.address_text|truncate(40) }}
+          </div>
+          {% endif %}
+          {% if k.invoice_ruc %}
+          <div class="inv-list__field">
+            <span class="inv-list__label">Factura</span>
+            🧾 {{ k.invoice_ruc }}{% if k.invoice_name %} — {{ k.invoice_name|truncate(20) }}{% endif %}
+          </div>
+          {% endif %}
+          {% if k.lines %}
+          <ul style="margin:var(--space-2) 0 0;padding-left:1.1rem;font-size:var(--text-sm);flex:1 1 100%;">
+            {% for ln in k.lines %}<li>{{ ln }}</li>{% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+      </details>
     </div>
     {% else %}
     <p class="text-muted" style="font-size:var(--text-sm);padding:var(--space-3);">Sin pedidos en este estado.</p>
