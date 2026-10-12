@@ -74,12 +74,15 @@ def test_tenant_created(sazon_db):
 
 
 def test_saskia_user_created(sazon_db):
-    """Saskia (admin) + 2 cashiers."""
+    """Saskia (admin) — operator §4.5 = NO cajeros per SASKIA-226."""
     users = sazon_db.execute(select(User)).scalars().all()
     usernames = {u.username for u in users}
     assert "saskia" in usernames
-    assert "lucia" in usernames
-    assert "diego" in usernames
+    # SASKIA-226 (2026-10-12) — operator confirmed in the 2026-10-08
+    # onboarding questionnaire §4.5 that she runs the POS solo. The
+    # demo cashier users (lucia, diego) are NOT seeded.
+    assert "lucia" not in usernames
+    assert "diego" not in usernames
 
 
 def test_saskia_can_login(sazon_db):
@@ -399,6 +402,9 @@ def test_idempotent_rerun(sazon_db, app_engine_session):
         assert n_cust >= 10
         assert n_sup >= 3
         assert n_t >= 1
-        assert n_u >= 3
+        # SASKIA-226 (2026-10-12) — operator §4.5 = NO cajeros. The
+        # default seed only creates Saskia (1 user). The admin + demo
+        # users come from init_db (not from seed_sazon).
+        assert n_u >= 1
     finally:
         session.close()

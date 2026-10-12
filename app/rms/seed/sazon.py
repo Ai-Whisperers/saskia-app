@@ -138,18 +138,12 @@ SASKIA_EMAIL = "La.vaquitaholandesa@gmail.com"
 SASKIA_FULL_NAME = "Saskia Weiss Vander"
 
 # Cashier accounts
-# NOTE (2026-10-12): The onboarding questionnaire §4.5 answered "no" —
-# Saskia runs the POS solo, no cajeros. The hard-coded CASHIER_USERS
-# below are placeholders carried over from the pre-questionnaire seed
-# and DO NOT match the La Vaquita Holandesa instance's actual user
-# roster. This is being addressed in a follow-up ticket (SASKIA-214)
-# that makes the cashier list configurable per instance. DO NOT seed
-# the La Vaquita Holandesa instance against this constant without
-# reviewing SASKIA-214 first.
-CASHIER_USERS = [
-    ("lucia", "lucia1234", "Lucía Fernández", "lucia@lavaquita.example"),
-    ("diego", "diego1234", "Diego Cabral", "diego@lavaquita.example"),
-]
+# SASKIA-226 (2026-10-12) — operator §4.5 of the 2026-10-08 onboarding
+# questionnaire answered "no" (Saskia runs the POS solo, no cajeros).
+# The list is empty. If a future operator needs cashiers, add them here
+# AND in the live DB (the seeder's _ensure_user branch is no-op for
+# already-existing users; for new users it WILL re-create them).
+CASHIER_USERS: list[tuple[str, str, str, str]] = []
 
 
 # === Data tables ===
@@ -5095,7 +5089,9 @@ def _seed_users(ctx: SeedContext):
         _u, was_created = _ensure_user(ctx.session, username, password, role="cashier")
         if was_created:
             ctx.report.users += 1
-    logger.info(f"seed: {ctx.report.users} users (Saskia + 2 cashiers)")
+    cashier_count = len(CASHIER_USERS)
+    user_label = "Saskia" if cashier_count == 0 else f"Saskia + {cashier_count} cashiers"
+    logger.info(f"seed: {ctx.report.users} users ({user_label})")
 
 
 def _seed_settingskv_branding(ctx: SeedContext):

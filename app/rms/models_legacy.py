@@ -2002,6 +2002,17 @@ class Tenant(Base):
     primary_color: Mapped[str] = mapped_column(String(16), nullable=False, default="#7b3f00")
     currency: Mapped[str] = mapped_column(String(8), nullable=False, default="Gs.")
     created_at: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    # SASKIA-226 (2026-10-12) — location columns added in migration 124
+    # to persist the operator's 2026-10-08 questionnaire answers
+    # (§22.1 barrio/zona, §22.2 estacionamiento). barrio/zona are
+    # nullable; has_parking needs a server_default so the default
+    # Tenant row that v8 INSERTs works on a fresh DB even though v8
+    # predates this column.
+    barrio: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    zona: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    has_parking: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
 
 
 class StockMovement(Base):
@@ -2098,6 +2109,16 @@ class ComplianceInfo(Base):
     # RESIMPLE-specific: timbrado number for Boleta Resimple (mandatory)
     timbrado_number: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     timbrado_expiry: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # ISO
+
+    # SASKIA-226 (2026-10-12) — MIPYME/MIE flag for §20 of the
+    # 2026-10-08 onboarding questionnaire. True if the operator is
+    # registered in the simplified tax regime (Ley 4.783/12).
+    # server_default ensures the column has a SQL DEFAULT (so v35's
+    # INSERT INTO compliance_info (...) works on a fresh DB even
+    # though v35 predates this column).
+    is_mipyme_mie: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
 
     # Next sequential invoice number per type. Updated atomically on each sale.
     next_boleta_resimple_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)

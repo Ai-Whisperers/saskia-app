@@ -1,3 +1,34 @@
+## 2026-10-12 — feat(settings): SASKIA-226 apply 2026-10-08 onboarding questionnaire answers to live saskia-vps DB
+
+**Scope**: `app/rms/migrations/_122_saskia226_questionnaire_apply.py` (NEW, 5 UPDATEs + 6 INSERTs to settings_kv), `app/rms/migrations/_123_drop_demo_cashiers.py` (NEW, soft-delete demo cashiers), `app/rms/migrations/_124_saskia226_questionnaire_columns.py` (NEW, add `compliance_info.is_mipyme_mie` + `tenant.barrio/zona/has_parking` columns), `app/rms/models_legacy.py` (Tenant + ComplianceInfo model updates with `server_default` for fresh-DB compatibility), `app/rms/seed/sazon.py` (CASHIER_USERS list emptied), `tests/test_migration_122.py` (NEW, 6 tests), `tests/test_migration_123.py` (NEW, 4 tests), `tests/test_migration_124.py` (NEW, 6 tests), `tests/test_sazon_seed.py` (2 tests updated to reflect §4.5 = NO cajeros).
+
+**Why**: the live saskia-vps DB was seeded with placeholder values ("Av. España 1234, casi Brasil, Asunción", "+595 21 555-1000", "hola@lavaquita.example") BEFORE the 2026-10-08 onboarding questionnaire was completed. The seeder's settings_kv branch is skip-on-existing (KV-wins), so re-running the seeder does NOT update already-seeded rows. Migrations 122-124 explicitly apply the operator's answers and the schema columns needed for the unanswered sections.
+
+**Migration 122 — 5 UPDATEs (operator answered before seeded, must override) + 6 INSERTs (new SASKIA-221 settings, insert-if-missing)**:
+- `branding.address` = "Laguán Grande, Arquitectos, Calle 17, Asunción" (§2.1)
+- `branding.contact_phone` = "+595 991 683805" (§2.3)
+- `branding.contact_email` = "La.vaquitaholandesa@gmail.com" (§2.4)
+- `sales.shop_whatsapp` = "+595 991 683805" (§8.1)
+- `ops.pickup_instructions` = "Tocar timbre. Si está cerrado, llamar al +595 991 683805." (§8.7)
+- `contact.phone`, `contact.email`, `contact.whatsapp` (NEW, §2.3/§2.4/§8.1)
+- `location.address_full`, `location.city`, `location.department` (NEW, §2.1)
+
+**Migration 123 — soft-delete demo cashier users (operator §4.5 = NO cajeros)**:
+- `lucia` and `diego` set to `is_active = 0` (soft-delete; row preserved for audit/reactivation)
+- `CASHIER_USERS` in `app/rms/seed/sazon.py` emptied to `[]` so the next seeder run does NOT recreate them
+- The seeder log message updated from "Saskia + 2 cashiers" to "Saskia" when CASHIER_USERS is empty
+
+**Migration 124 — schema columns for unanswered sections (idempotent ALTER TABLE on existing DBs)**:
+- `compliance_info.is_mipyme_mie BOOLEAN NOT NULL DEFAULT 0` — §20.1
+- `tenant.barrio VARCHAR(64) NULL` — §22.1
+- `tenant.zona VARCHAR(64) NULL` — §22.1
+- `tenant.has_parking BOOLEAN NOT NULL DEFAULT 0` — §22.2
+- The SQLAlchemy models (`Tenant`, `ComplianceInfo`) also have these columns with `server_default="0"` so fresh-DB init creates them via `Base.metadata.create_all` without breaking the v35 migration's INSERT.
+
+**Idempotency**: UPDATEs are no-ops if value_json already matches. INSERTs are no-ops if the key already exists. Migration 123 is a no-op if the users don't exist or are already inactive. Migration 124 uses `_column_exists()` to skip the ALTER if the column is already there. Re-running any of these migrations is safe.
+
+**Coverage**: 16 new tests (6 + 4 + 6), all green in 8.3s. Pre-existing test suites updated: `test_sazon_seed.py` (2 tests) reflects the §4.5 = NO cajeros decision. Full pre-existing test suite still passing (1 pre-existing failure in `test_P43_channel_enum_central::test_seed_sazon_channels_excludes_phone` unrelated to this PR — that test's regex falsely matches the dict-key `"phone"` in `BUSINESS_INFO` added in SASKIA-215).
+
 ## 2026-10-12 — feat(seed): SASKIA-220 add 5 new vertical packs (Food Truck, Quiosco, Chipería, Pastelería Industrial, Cervecería)
 
 **Scope**: `app/rms/seed/packs.py` (5 new PackData entries), `tests/test_packs_saskia220.py` (new, 16 tests).

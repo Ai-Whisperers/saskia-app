@@ -104,6 +104,13 @@ from app.rms.migrations._120_shop_whatsapp_rename import (
     _migration_120_shop_whatsapp_rename,
 )
 from app.rms.migrations._121_seasonal_event import _migration_121_seasonal_event
+from app.rms.migrations._122_saskia226_questionnaire_apply import (
+    _migration_122_saskia226_questionnaire_apply,
+)
+from app.rms.migrations._123_drop_demo_cashiers import _migration_123_drop_demo_cashiers
+from app.rms.migrations._124_saskia226_questionnaire_columns import (
+    _migration_124_saskia226_questionnaire_columns,
+)
 from app.rms.models.channels import Channel
 
 
@@ -4320,6 +4327,9 @@ MIGRATIONS = {
     119: _migration_119_recipe_photo_autolink,
     120: _migration_120_shop_whatsapp_rename,
     121: _migration_121_seasonal_event,
+    122: _migration_122_saskia226_questionnaire_apply,
+    123: _migration_123_drop_demo_cashiers,
+    124: _migration_124_saskia226_questionnaire_columns,
 }
 
 

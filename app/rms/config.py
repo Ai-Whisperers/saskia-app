@@ -89,7 +89,7 @@ BACKUP_DNI_FILE = os.getenv("AIW_RMS_BACKUP_DNI_FILE", "/etc/sazon/backup-dni")
 BACKDATE_WINDOW_DAYS = int(os.getenv("AIW_RMS_BACKDATE_DAYS", "7"))
 
 # Schema version (hand-rolled migrations; see db.py)
-CURRENT_SCHEMA_VERSION = 121  # 121 = SASKIA-216 (2026-10-12) — create seasonal_event table. 120 = SASKIA-215 (2026-10-12) — rename SettingsKV key shop_whatsapp → sales.shop_whatsapp. Renumbered from 118+119 → 120+121 because SASKIA-212's recipe work lands 118+119 on main first. 118 = recipe.instructions_backfill (SASKIA-212), 119 = recipe.photo_autolink (SASKIA-212).
+CURRENT_SCHEMA_VERSION = 124  # 124 = SASKIA-226 (2026-10-12) — add compliance_info.is_mipyme_mie + tenant.barrio/zona/has_parking columns for §20/§22 of the 2026-10-08 onboarding questionnaire. 123 = SASKIA-226 — soft-delete demo cashier users. 122 = SASKIA-226 — apply Saskia's 2026-10-08 questionnaire answers to live settings_kv. 121 = SASKIA-216 (2026-10-12) — create seasonal_event table. 120 = SASKIA-215 (2026-10-12) — rename SettingsKV key shop_whatsapp → sales.shop_whatsapp. Renumbered from 118+119 → 120+121 because SASKIA-212's recipe work lands 118+119 on main first. 118 = recipe.instructions_backfill (SASKIA-212), 119 = recipe.photo_autolink (SASKIA-212).
 # 116 = eod alert templates seeded (Batch C, 2026-10-08) + dietary_tag catalog tables (Batch C, 2026-10-08) (SASKIA-206)
 # 114 = settings consolidation AppMeta→settings_kv (Sprint 2.1)
 # 086 = monthly_closure table (Sprint 3.1 BACKLOG #15)
