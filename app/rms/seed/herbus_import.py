@@ -1,693 +1,171 @@
-"""app/rms/seed/herbus_import.py — Sazon HEREBUS data import (SASKIA-223).
+"""app/rms/seed/herbus_import.py — Sazon HEREBUS data import (SASKIA-225).
 
-SASKIA-223 (2026-10-12). Imports the operator's HEREBUS spreadsheet
-(1.2MB, 30 sheets) into the Sazon multi-tenant schema:
+SASKIA-225 (2026-10-12). Loads Saskia's real HEREBUS spreadsheet data from
+the canonical JSON snapshot at ``data/herebus_seed_canonical.json`` into the
+Sazon multi-tenant schema.
 
-  - 100 ingredients across 12 categories (ING-001 to ING-100)
-  - 23 recipes (REC-001 to REC-023 + REC-024 for the duplicate REC-006
-    that the spreadsheet used for BOTH Frikandel and Bitterballen)
-  - 7 packaging items (PKG-001 to PKG-007)
-  - ~20 supplier names (extracted from the operator's Notas)
+Source of truth: ``data/herebus_seed_canonical.json`` (generated from
+``data/herebus.xlsx`` on 2026-10-12; rebuild via
+``scripts/build_herebus_canonical.py``).
 
-The data is **inline** as Python lists — this seeder is the single
-source of truth for the HEREBUS data. The original .xlsx is a
-parallel spreadsheet the operator uses mentally.
+What it persists (all idempotent — re-runs skip existing rows by name):
 
-Idempotency: each block skips rows that already exist (matched by
-slug/natural key). Re-running the seed is safe.
+- **94 ingredients** (ING-001..ING-094) with real names, prices, and supplier
+  references from the xlsx. The 12 categories map cleanly to existing schema
+  fields. ``notes`` JSON encodes ``herbus_ing_id``, ``precio_ref``,
+  ``last_update``, and any freeform cooking/supplier notes.
 
-Dutch heritage flag: 4 ingredients (Speculaas, Ketjap Manis,
-Bladerdeeg/hojaldre, Harina de centeno) and 11 recipes (Stroopwafel,
-Ontbijtkoek, Frikandel, Ketjap Manis, Hojaldre/Bladerdeeg,
-Pastelitos Rosados/Roze, Galletas de Especuloos, Profiteroles de
-Den Bosch, Oliebollen, Goulash Croquettes, Veggie Bitterballen, plus
-the Mijn moeders appeltaart = Tarta de manzana) are marked with the
-`dutch_heritage` flag — the unique selling point of "La Vaquita
-Holandesa".
+- **7 packaging items** (MAT-01..MAT-07) modeled as ``Ingredient`` rows with
+  ``category="packaging"`` and ``subcategory`` = the packaging category.
 
-needs_confirm flag: ingredients that the operator added but hasn't
-confirmed prices for (78 of 100 per the spreadsheet Notas column).
-These get written to the DB but flagged in the UI for operator
-follow-up.
+- **22 recipes** (REC-001..REC-021 + REC-006 duplicate for bitterballen)
+  with all 222 ingredient lines. Yields come from either:
+    - Saskia's sheet (7 recipes with explicit ``B4`` yield), OR
+    - Proportion-based estimates (15 recipes; documented in the canonical JSON)
+  Each recipe preserves the inline cooking notes (column H of the sheet) as
+  ``recipe_line.notes``. The REC-006 data-entry error (Bitterballen AND
+  Frikandel both use REC-006) is preserved faithfully — operator can fix.
 
-Yield backfill flag: 23 of 23 recipes have empty B4 (yield) — the
-operator hasn't cooked them yet to count servings. Seeder uses 1.0
-default with a yellow warning, plus an AppMeta row
-`recipe_yield_backfill_pending=True`.
+- **3 ``AppMeta`` provenance rows**:
+    - ``herbus_seed_loaded``: true (with timestamp + counts)
+    - ``herbus_recipe_yield_estimates``: JSON map of estimated yields
+    - ``herbus_rec006_collision``: warning message about the duplicate (if any)
+
+Idempotency rules:
+- Ingredients: skip if ``Ingredient.name`` already exists.
+- Recipes: skip if ``Recipe.name`` already exists.
+- RecipeLines: skip if a line for the same recipe+ingredient already exists.
+- AppMeta: insert only if key doesn't exist (first-write-wins).
 """
 
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
-from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+logger = logging.getLogger(__name__)
+
+
 # ---------------------------------------------------------------------------
-# 100 INGREDIENTS (from HEREBUS_Inventory sheet, rows 5-104)
-#
-# Each row: {ing_id, name, category, pkg_qty, pkg_unit, bulk_price_gs,
-#           unit_price_gs, stock_qty, min_reorder, last_update,
-#           precio_ref, dutch_heritage, needs_confirm}
-#
-# Source: docs/intake/SASKIA-223-herbus-data-import.md (full table)
-# Backup: /tmp/herbus_ingredients.json (extracted from xlsx 2026-10-12)
+# Path to the canonical JSON snapshot. This file is the SINGLE source of
+# truth for HEREBUS data; rebuilding from the .xlsx is a separate step
+# (``scripts/build_herebus_canonical.py``).
 # ---------------------------------------------------------------------------
 
-HEREBUS_INGREDIENTS_RAW = """ING-001|Harina de centeno|Harinas y bases|1000|g|25000|25.0|1500|0|2026-07-10|repo: 9.800/kg|1|0
-ING-002|Harina de repostería|Harinas y bases|1000|g|6500|6.5|0|0|2026-07-10|precio = repo 6.500 / 1.000g|0|1
-ING-003|Harina de trigo|Harinas y bases|5000|g|17200|3.44|5000|5000|2026-07-10|repo: 5.500/kg|0|0
-ING-004|Harina Patentada|Harinas y bases|1000|g|0|0|0|0|2026-07-10|restaurado del respaldo — verificá precio y stock|0|1
-ING-005|Maicena|Harinas y bases|500|g|4250|8.5|0|0|2026-07-10|repo: 8.500/kg|0|1
-ING-006|Almidón de mandioca|Harinas y bases|1000|g|8000|8.0|0|0|2026-07-10|chipá almidón|0|1
-ING-007|Arroz para sushi|Harinas y bases|1000|g|8500|8.5|0|0|2026-07-10|0|0|1
-ING-008|Azúcar blanca|Endulzantes|1000|g|4500|4.5|0|0|2026-07-10|0|0|1
-ING-009|Azúcar morena|Endulzantes|1000|g|6200|6.2|0|0|2026-07-10|0|0|1
-ING-010|Azúcar impalpable|Endulzantes|500|g|5500|11.0|0|0|2026-07-10|0|0|1
-ING-011|Miel|Endulzantes|500|g|12000|24.0|0|0|2026-07-10|0|0|1
-ING-012|Melaza|Endulzantes|500|g|9500|19.0|0|0|2026-07-10|0|0|1
-ING-013|Leche|Lácteos y huevos|1000|ml|8500|8.5|0|0|2026-07-10|0|0|1
-ING-014|Leche condensada|Lácteos y huevos|395|g|9500|24.05|0|0|2026-07-10|0|0|1
-ING-015|Huevos|Lácteos y huevos|12|und|15000|1250|0|0|2026-07-10|0|0|1
-ING-016|Buttermilk|Lácteos y huevos|1000|ml|12000|12.0|0|0|2026-07-10|0|0|1
-ING-017|Crema agria|Lácteos y huevos|500|ml|18000|36.0|0|0|2026-07-10|0|0|1
-ING-018|Crema doble|Lácteos y huevos|500|ml|25000|50.0|0|0|2026-07-10|0|0|1
-ING-019|Queso crema|Lácteos y huevos|500|g|22000|44.0|0|0|2026-07-10|0|0|1
-ING-020|Queso Philadelphia|Lácteos y huevos|500|g|28000|56.0|0|0|2026-07-10|0|0|1
-ING-021|Queso crema light|Lácteos y huevos|500|g|20000|40.0|0|0|2026-07-10|0|0|1
-ING-022|Mantequilla|Lácteos y huevos|500|g|25000|50.0|0|0|2026-07-10|0|0|1
-ING-023|Mantequilla sin sal|Lácteos y huevos|500|g|27000|54.0|0|0|2026-07-10|0|0|1
-ING-024|Cacao en polvo|Cacao café y chocolate|500|g|18000|36.0|0|0|2026-07-10|0|0|1
-ING-025|Chocolate|Cacao café y chocolate|1000|g|45000|45.0|0|0|2026-07-10|0|0|1
-ING-026|Café instantáneo|Cacao café y chocolate|200|g|12000|60.0|0|0|2026-07-10|0|0|1
-ING-027|Vainilla|Especias y condimentos|100|g|8000|80.0|0|0|2026-07-10|0|0|1
-ING-028|Vainilla en rama|Especias y condimentos|10|g|15000|1500|0|0|2026-07-10|0|0|1
-ING-029|Esencia de vainilla|Especias y condimentos|100|ml|6500|65.0|0|0|2026-07-10|0|0|1
-ING-030|Sal|Especias y condimentos|1000|g|2500|2.5|0|0|2026-07-10|0|0|1
-ING-031|Sal marina|Especias y condimentos|500|g|4500|9.0|0|0|2026-07-10|0|0|1
-ING-032|Especias para Speculaas|Especias y condimentos|100|g|22000|220|0|0|2026-07-10|especia neerlandesa|1|1
-ING-033|Canela|Especias y condimentos|100|g|8500|85.0|0|0|2026-07-10|0|0|1
-ING-034|Clavo de olor|Especias y condimentos|50|g|12000|240|0|0|2026-07-10|0|0|1
-ING-035|Nuez moscada|Especias y condimentos|50|g|15000|300|0|0|2026-07-10|0|0|1
-ING-036|Jengibre|Especias y condimentos|100|g|9000|90.0|0|0|2026-07-10|0|0|1
-ING-037|Pimienta negra|Especias y condimentos|100|g|11000|110|0|0|2026-07-10|0|0|1
-ING-038|Orégano|Especias y condimentos|50|g|5000|100|0|0|2026-07-10|0|0|1
-ING-039|Albahaca|Especias y condimentos|50|g|6500|130|0|0|2026-07-10|0|0|1
-ING-040|Tomillo|Especias y condimentos|50|g|5500|110|0|0|2026-07-10|0|0|1
-ING-041|Pimentón|Especias y condimentos|100|g|7000|70.0|0|0|2026-07-10|0|0|1
-ING-042|Comino|Especias y condimentos|50|g|6500|130|0|0|2026-07-10|0|0|1
-ING-043|Curry|Especias y condimentos|100|g|12000|120|0|0|2026-07-10|0|0|1
-ING-044|Bicarbonato de sodio|Levaduras y gasificantes|500|g|5500|11.0|0|0|2026-07-10|0|0|1
-ING-045|Levadura fresca|Levaduras y gasificantes|500|g|14000|28.0|0|0|2026-07-10|0|0|1
-ING-046|Levadura seca|Levaduras y gasificantes|100|g|18000|180|0|0|2026-07-10|0|0|1
-ING-047|Polvo de hornear|Levaduras y gasificantes|200|g|7500|37.5|0|0|2026-07-10|0|0|1
-ING-048|Crema tártara|Levaduras y gasificantes|100|g|12000|120|0|0|2026-07-10|0|0|1
-ING-049|Frutilla|Frutas y frutos secos|500|g|18000|36.0|0|0|2026-07-10|0|0|1
-ING-050|Frambuesa|Frutas y frutos secos|250|g|22000|88.0|0|0|2026-07-10|0|0|1
-ING-051|Arándanos|Frutas y frutos secos|250|g|28000|112|0|0|2026-07-10|0|0|1
-ING-52|Mango|Frutas y frutos secos|500|g|12000|24.0|0|0|2026-07-10|0|0|1
-ING-053|Mburukuja|Frutas y frutos secos|500|g|15000|30.0|0|0|2026-07-10|0|0|1
-ING-054|Fruta confitada|Frutas y frutos secos|500|g|14000|28.0|0|0|2026-07-10|0|0|1
-ING-055|Pasas de uva|Frutas y frutos secos|500|g|16000|32.0|0|0|2026-07-10|0|0|1
-ING-056|Nueces|Frutas y frutos secos|500|g|28000|56.0|0|0|2026-07-10|0|0|1
-ING-057|Almendras|Frutas y frutos secos|500|g|32000|64.0|0|0|2026-07-10|0|0|1
-ING-058|Morrón|Verduras y legumbres|500|g|8000|16.0|0|0|2026-07-10|0|0|1
-ING-059|Cebolla|Verduras y legumbres|1000|g|4500|4.5|0|0|2026-07-10|0|0|1
-ING-060|Ajo|Verduras y legumbres|500|g|12000|24.0|0|0|2026-07-10|0|0|1
-ING-061|Apio|Verduras y legumbres|500|g|6500|13.0|0|0|2026-07-10|0|0|1
-ING-062|Zanahoria|Verduras y legumbres|1000|g|5500|5.5|0|0|2026-07-10|0|0|1
-ING-063|Echalote|Verduras y legumbres|500|g|14000|28.0|0|0|2026-07-10|0|0|1
-ING-064|Girgolas|Verduras y legumbres|500|g|18000|36.0|0|0|2026-07-10|0|0|1
-ING-065|Brócoli|Verduras y legumbres|500|g|10000|20.0|0|0|2026-07-10|0|0|1
-ING-066|Papa|Verduras y legumbres|1000|g|5000|5.0|0|0|2026-07-10|0|0|1
-ING-067|Lentejas|Verduras y legumbres|500|g|8500|17.0|0|0|2026-07-10|0|0|1
-ING-068|Poroto negro|Verduras y legumbres|500|g|12000|24.0|0|0|2026-07-10|0|0|1
-ING-069|Ketjap manis|Salsas y líquidos|500|ml|22000|44.0|0|0|2026-07-10|salsa neerlandesa-indonesia|1|1
-ING-070|Vinagre|Salsas y líquidos|1000|ml|4500|4.5|0|0|2026-07-10|0|0|1
-ING-071|Jugo de limón|Salsas y líquidos|500|ml|6000|12.0|0|0|2026-07-10|0|0|1
-ING-072|Aceite|Aceites y grasas|1000|ml|22000|22.0|0|0|2026-07-10|0|0|1
-ING-073|Manteca|Aceites y grasas|500|g|18000|36.0|0|0|2026-07-10|0|0|1
-ING-074|Aceite de oliva|Aceites y grasas|500|ml|35000|70.0|0|0|2026-07-10|0|0|1
-ING-075|Masa de hojaldre|Preparados y otros|1000|g|18000|18.0|0|0|2026-07-10|bladerdeeg|1|1
-ING-076|Masa choux|Preparados y otros|1000|g|12000|12.0|0|0|2026-07-10|masa para profiteroles|0|1
-ING-077|Masa de pizza|Preparados y otros|500|g|8500|17.0|0|0|2026-07-10|0|0|1
-ING-078|Crema pastelera|Preparados y otros|500|g|15000|30.0|0|0|2026-07-10|0|0|1
-ING-079|Merengue|Preparados y otros|500|g|10000|20.0|0|0|2026-07-10|0|0|1
-ING-080|Bizcocho|Preparados y otros|1000|g|22000|22.0|0|0|2026-07-10|base para tortas|0|1
-ING-081|Caramelo|Preparados y otros|500|g|14000|28.0|0|0|2026-07-10|0|0|1
-ING-082|Gelatina|Preparados y otros|100|g|8500|85.0|0|0|2026-07-10|0|0|1
-ING-083|Coco rallado|Preparados y otros|500|g|12000|24.0|0|0|2026-07-10|0|0|1
-ING-084|Hagelslag|Preparados y otros|500|g|28000|56.0|0|0|2026-07-10|chispas de chocolate neerlandesas|1|1
-ING-085|Pasta de tomate|Preparados y otros|500|g|8000|16.0|0|0|2026-07-10|0|0|1
-ING-086|Tomate triturado|Preparados y otros|1000|g|7500|7.5|0|0|2026-07-10|0|0|1
-ING-087|Salsa de soja|Preparados y otros|500|ml|14000|28.0|0|0|2026-07-10|0|0|1
-ING-088|Pechuga|Carnes|1000|g|28000|28.0|0|0|2026-07-10|0|0|1
-ING-089|Carne molida|Carnes|1000|g|32000|32.0|0|0|2026-07-10|0|0|1
-ING-090|Bola de lomo|Carnes|1000|g|38000|38.0|0|0|2026-07-10|0|0|1
-ING-091|Carnaza|Carnes|1000|g|30000|30.0|0|0|2026-07-10|0|0|1
-ING-092|Falda|Carnes|1000|g|35000|35.0|0|0|2026-07-10|0|0|1
-ING-093|Pan rallado|Preparados y otros|1000|g|6500|6.5|0|0|2026-07-10|0|0|1
-ING-094|Leudante|Preparados y otros|100|g|7500|75.0|0|0|2026-07-10|0|0|1
-ING-095|Crema chantilly|Preparados y otros|500|ml|18000|36.0|0|0|2026-07-10|0|0|1
-ING-096|Cebolla en copos|Especias y condimentos|100|g|10000|100|0|0|2026-07-10|0|0|0
-ING-097|Sésamo blanco|Especias y condimentos|100|g|7000|70.0|0|0|2026-07-10|0|0|0
-ING-098|Sésamo negro|Especias y condimentos|100|g|7000|70.0|0|0|2026-07-10|0|0|0
-ING-099|Amapola (semillas)|Especias y condimentos|100|g|8000|80.0|0|0|2026-07-10|0|0|0
-ING-100|Sal escamada (Maldon)|Especias y condimentos|100|g|15000|150|0|0|2026-07-10|sal premium|0|0"""
+CANONICAL_PATH = (
+    Path(__file__).resolve().parent.parent.parent.parent
+    / "data"
+    / "herebus_seed_canonical.json"
+)
 
 
-# Unit normalizer: maps any HEREBUS unit string to the Sazon constraint
-# `unit IN ('g', 'kg', 'ml', 'l', 'und')`
+# ---------------------------------------------------------------------------
+# Unit normalizer — keeps the Sazon unit constraint
+# ``unit IN ('g', 'kg', 'ml', 'l', 'und')`` (per app/rms/units.py).
+# ---------------------------------------------------------------------------
+
+_UNIT_ALIASES = {
+    "g": "g", "gr": "g", "gramo": "g", "gramos": "g",
+    "kg": "kg", "kilo": "kg", "kilos": "kg",
+    "ml": "ml", "millilitro": "ml", "millilitros": "ml",
+    "l": "l", "lt": "l", "litro": "l", "litros": "l",
+    "und": "und", "u": "und", "unidad": "und", "unidades": "und",
+    "pcs": "und", "pc": "und", "caja": "und", "cajas": "und",
+    "bolsa": "und", "bolsas": "und", "bandeja": "und", "bandejas": "und",
+    "cintillo": "und", "cintillos": "und", "papel": "und", "pack": "und",
+    "pliego": "und", "pliegos": "und", "bolsita": "und", "bolsitas": "und",
+    "tallo": "und", "tallos": "und", "atado": "und",
+    # Yield-unit aliases — Saskia uses Spanish for serving counts.
+    # These are units for recipe yield (porciones = servings, rebanadas = slices,
+    # molde = cake mold, plancha = sheet pan). All collapse to "und" since
+    # the production system counts servings as discrete items.
+    "porciones": "und",
+    "porcion": "und",
+    "rebanadas": "und",
+    "rebanada": "und",
+    "molde": "und",
+    "moldes": "und",
+    "plancha": "und",
+    "planchas": "und",
+    "torta": "und",
+    "tortas": "und",
+    "pastel": "und",
+    # Sheet quirks
+    "unidades de 40 cm": "und",  # MAT-02 cintillo packaging
+}
+
+
 def _normalize_unit(unit: str | None) -> str:
+    """Map any HEREBUS unit string to the canonical Sazon unit enum."""
     if not unit:
         return "und"
     u = unit.lower().strip()
-    if u in ("g", "gr", "gram", "grams", "gramo", "gramos"):
-        return "g"
-    if u in ("kg", "kilo", "kilos", "kilogramo", "kilogramos"):
-        return "kg"
-    if u in ("ml", "milliliter", "milliliters", "millilitro", "millilitros"):
-        return "ml"
-    if u in ("l", "lt", "liter", "liters", "litro", "litros"):
-        return "l"
-    if u in (
-        "und",
-        "u",
-        "unit",
-        "units",
-        "unidad",
-        "unidades",
-        "pcs",
-        "pc",
-        "piece",
-        "pieces",
-        "caja",
-        "cajas",
-        "box",
-        "boxes",
-        "pliego",
-        "pliegos",
-        "bolsa",
-        "bolsas",
-        "bolsita",
-        "bolsitas",
-        "bandeja",
-        "bandejas",
-        "cintillo",
-        "cintillos",
-        "papel",
-        "pack",
-        "packs",
-    ):
-        return "und"
-    # Default fallback
+    if u in _UNIT_ALIASES:
+        return _UNIT_ALIASES[u]
+    logger.warning("Unknown unit %r — defaulting to 'und'", unit)
     return "und"
 
 
-def _parse_ingredient_line(line: str) -> dict[str, Any]:
-    """Parse one pipe-delimited ingredient row into a dict."""
-    parts = line.split("|")
-    return {
-        "ing_id": parts[0].strip(),
-        "name": parts[1].strip(),
-        "category": parts[2].strip(),
-        "pkg_qty": float(parts[3]) if parts[3] else None,
-        "pkg_unit": parts[4].strip() if parts[4] else None,
-        "bulk_price_gs": float(parts[5]) if parts[5] else 0,
-        "unit_price_gs": float(parts[6]) if parts[6] else 0,
-        "stock_qty": float(parts[7]) if parts[7] else 0,
-        "min_reorder": float(parts[8]) if parts[8] else 0,
-        "last_update": parts[9].strip() if parts[9] else None,
-        "precio_ref": parts[10].strip() if parts[10] else "",
-        "dutch_heritage": bool(int(parts[11])),
-        "needs_confirm": bool(int(parts[12])),
-    }
+# ---------------------------------------------------------------------------
+# Dutch-heritage flagging (matches the recipe set Saskia marked as the unique
+# selling point of "La Vaquita Holandesa").
+# ---------------------------------------------------------------------------
 
+_DUTCH_INGREDIENTS = {
+    "ING-001": "Harina de centeno",
+    "ING-032": "Speculaas",
+    "ING-069": "Ketjap manis",
+    "ING-076": "Masa de hojaldre",
+}
 
-def _get_herbus_ingredients() -> list[dict[str, Any]]:
-    """Return all 100 ingredients as parsed dicts."""
-    return [
-        _parse_ingredient_line(line) for line in HEREBUS_INGREDIENTS_RAW.split("\n") if line.strip()
-    ]
+_DUTCH_RECIPES = {
+    "REC-003",  # Stroop wafel
+    "REC-004",  # Ontbijtkoek
+    "REC-006",  # Bitterballen (and Frikandel — operator's data error)
+    "REC-007",  # Ketjap Manis
+    "REC-008",  # Hojaldre / Bladerdeeg
+    "REC-009",  # Pastelitos Rosados / Roze koeken
+    "REC-010",  # Galletas de Especuloos / Speculaasjes
+    "REC-013",  # Tarta de manzana de mi madre (Mijn moeders appeltaart)
+    "REC-014",  # Proficteroles de Den Bosch (Bossche bollen)
+    "REC-015",  # Petisús de hojaldre y crema (Tompoezen)
+    "REC-016",  # Oliebollen / Buñuelos tradicionales
+    "REC-019",  # Goulash Croquettes
+    "REC-020",  # Veggie Bitterballen
+}
 
 
 # ---------------------------------------------------------------------------
-# 23 RECIPES + REC-024
+# Loaders
 # ---------------------------------------------------------------------------
 
-HEREBUS_RECIPES_RAW = [
-    {
-        "rec_id": "REC-001",
-        "sheet": "Recipe_Chocolate_Muffin_20x20_c",
-        "name": "Muffin de chocolate (20x20 cm)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": False,
-        "category": "muffin",
-        "ingredients": [
-            ("ING-003", 333, "g"),
-            ("ING-023", 117, "g"),
-            ("ING-047", 5, "g"),
-            ("ING-044", 5, "g"),
-            ("ING-024", 3, "g"),
-            ("ING-037", 17, "g"),
-            ("ING-009", 458, "g"),
-            ("ING-013", 167, "ml"),
-            ("ING-072", 250, "ml"),
-            ("ING-015", 167, "g"),
-            ("ING-017", 375, "ml"),
-            ("ING-027", 25, "g"),
-            ("ING-025", 333, "g"),
-        ],
-    },
-    {
-        "rec_id": "REC-002",
-        "sheet": "Recipe_Stroop_Waffle",
-        "name": "Stroopwafel",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": True,
-        "category": "galleta",
-        "ingredients": [
-            ("ING-001", 200, "g"),
-            ("ING-003", 200, "g"),
-            ("ING-023", 200, "g"),
-            ("ING-008", 200, "g"),
-            ("ING-015", 2, "und"),
-            ("ING-027", 5, "ml"),
-            ("ING-037", 2, "g"),
-            ("ING-045", 10, "g"),
-            ("ING-032", 15, "g"),
-            ("ING-026", 5, "g"),
-        ],
-    },
-    {
-        "rec_id": "REC-003",
-        "sheet": "Recipe_Cheesecake_20x20_cm",
-        "name": "Cheesecake (20x20 cm)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": False,
-        "category": "tarta",
-        "ingredients": [
-            ("ING-020", 500, "g"),
-            ("ING-008", 150, "g"),
-            ("ING-015", 3, "und"),
-            ("ING-027", 10, "ml"),
-            ("ING-023", 100, "g"),
-            ("ING-080", 300, "g"),
-        ],
-    },
-    {
-        "rec_id": "REC-004",
-        "sheet": "Recipe_Ontbijtkoek_700g_flour",
-        "name": "Ontbijtkoek (Dutch breakfast cake, 700g flour)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": True,
-        "category": "torta",
-        "ingredients": [
-            ("ING-001", 700, "g"),
-            ("ING-009", 500, "g"),
-            ("ING-012", 200, "g"),
-            ("ING-015", 2, "und"),
-            ("ING-032", 30, "g"),
-            ("ING-044", 15, "g"),
-            ("ING-013", 250, "ml"),
-        ],
-    },
-    {
-        "rec_id": "REC-005",
-        "sheet": "Recipe_Carrot_Cake_43x33x15_cm",
-        "name": "Carrot Cake (43x33x15 cm)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": False,
-        "category": "torta",
-        "ingredients": [
-            ("ING-003", 400, "g"),
-            ("ING-009", 350, "g"),
-            ("ING-032", 20, "g"),
-            ("ING-044", 8, "g"),
-            ("ING-037", 5, "g"),
-            ("ING-062", 350, "g"),
-            ("ING-015", 4, "und"),
-            ("ING-072", 250, "ml"),
-            ("ING-056", 150, "g"),
-        ],
-    },
-    {
-        "rec_id": "REC-006",
-        "sheet": "Recipe_Frikandel_100_pcs",
-        "name": "Frikandel (Dutch minced meat sausage, 100 pcs)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": True,
-        "category": "salchicha",
-        "ingredients": [
-            ("ING-089", 5000, "g"),
-            ("ING-093", 1000, "g"),
-            ("ING-030", 50, "g"),
-            ("ING-037", 20, "g"),
-            ("ING-042", 15, "g"),
-        ],
-    },
-    {
-        "rec_id": "REC-007",
-        "sheet": "Recipe_Ketjap_Manis_Quick_Versi",
-        "name": "Ketjap Manis (Quick Version, Indonesian-Dutch)",
-        "yield_qty": None,
-        "yield_unit": "ml",
-        "dutch_heritage": True,
-        "category": "salsa",
-        "ingredients": [
-            ("ING-087", 500, "ml"),
-            ("ING-009", 400, "g"),
-            ("ING-033", 5, "g"),
-            ("ING-036", 3, "g"),
-            ("ING-034", 2, "g"),
-        ],
-    },
-    {
-        "rec_id": "REC-008",
-        "sheet": "Recipe_Hojaldre_Bladerdeeg",
-        "name": "Hojaldre / Bladerdeeg (Dutch puff pastry)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": True,
-        "category": "masa",
-        "ingredients": [
-            ("ING-003", 500, "g"),
-            ("ING-023", 400, "g"),
-            ("ING-030", 10, "g"),
-            ("ING-013", 250, "ml"),
-        ],
-    },
-    {
-        "rec_id": "REC-009",
-        "sheet": "Recipe_Pastelitos_rosados_Roze_",
-        "name": "Pastelitos Rosados / Roze (Dutch-PY fusion)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": True,
-        "category": "pastelito",
-        "ingredients": [
-            ("ING-003", 500, "g"),
-            ("ING-008", 300, "g"),
-            ("ING-023", 250, "g"),
-            ("ING-015", 2, "und"),
-            ("ING-027", 10, "ml"),
-            ("ING-032", 5, "g"),
-            ("ING-049", 200, "g"),
-        ],
-    },
-    {
-        "rec_id": "REC-010",
-        "sheet": "Recipe_Galletas_de_especuloos_S",
-        "name": "Galletas de Especuloos (Speculaas)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": True,
-        "category": "galleta",
-        "ingredients": [
-            ("ING-003", 350, "g"),
-            ("ING-008", 250, "g"),
-            ("ING-023", 200, "g"),
-            ("ING-015", 1, "und"),
-            ("ING-032", 25, "g"),
-            ("ING-044", 5, "g"),
-            ("ING-027", 5, "ml"),
-        ],
-    },
-    {
-        "rec_id": "REC-011",
-        "sheet": "Recipe_Bizcocho_básico_25_cm_Ba",
-        "name": "Bizcocho básico (25 cm base)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": False,
-        "category": "bizcocho",
-        "ingredients": [
-            ("ING-003", 250, "g"),
-            ("ING-008", 200, "g"),
-            ("ING-015", 3, "und"),
-            ("ING-023", 100, "g"),
-            ("ING-013", 200, "ml"),
-            ("ING-047", 8, "g"),
-            ("ING-027", 5, "ml"),
-        ],
-    },
-    {
-        "rec_id": "REC-012",
-        "sheet": "Recipe_Bizcocho_básico_30_cm_Ba",
-        "name": "Bizcocho básico (30 cm base)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": False,
-        "category": "bizcocho",
-        "ingredients": [
-            ("ING-003", 350, "g"),
-            ("ING-008", 280, "g"),
-            ("ING-015", 4, "und"),
-            ("ING-023", 150, "g"),
-            ("ING-013", 280, "ml"),
-            ("ING-047", 10, "g"),
-            ("ING-027", 8, "ml"),
-        ],
-    },
-    {
-        "rec_id": "REC-013",
-        "sheet": "Recipe_Tarta_de_manzana_de_mi_m",
-        "name": "Tarta de manzana de mi madre (Mijn moeders appeltaart)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": True,
-        "category": "tarta",
-        "ingredients": [
-            ("ING-003", 300, "g"),
-            ("ING-008", 150, "g"),
-            ("ING-023", 150, "g"),
-            ("ING-015", 1, "und"),
-            ("ING-027", 5, "ml"),
-            ("ING-032", 10, "g"),
-            ("ING-044", 3, "g"),
-            ("ING-049", 600, "g"),
-            ("ING-010", 50, "g"),
-            ("ING-033", 5, "g"),
-            ("ING-034", 2, "g"),
-        ],
-    },
-    {
-        "rec_id": "REC-014",
-        "sheet": "Recipe_Proficteroles_de_Den_Bos",
-        "name": "Profiteroles de Den Bosch (Bossche Bollen)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": True,
-        "category": "bollen",
-        "ingredients": [
-            ("ING-003", 200, "g"),
-            ("ING-023", 100, "g"),
-            ("ING-015", 4, "und"),
-            ("ING-013", 250, "ml"),
-            ("ING-030", 3, "g"),
-            ("ING-025", 200, "g"),
-            ("ING-018", 250, "ml"),
-        ],
-    },
-    {
-        "rec_id": "REC-015",
-        "sheet": "Recipe_Petisús_de_hojaldre_y_cr",
-        "name": "Petisús de hojaldre y crema (cream puffs)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": False,
-        "category": "petisu",
-        "ingredients": [
-            ("ING-003", 250, "g"),
-            ("ING-023", 100, "g"),
-            ("ING-015", 4, "und"),
-            ("ING-013", 250, "ml"),
-            ("ING-030", 3, "g"),
-            ("ING-078", 300, "g"),
-        ],
-    },
-    {
-        "rec_id": "REC-016",
-        "sheet": "Recipe_Oliebollen_Buñuelos_trad",
-        "name": "Oliebollen / Buñuelos tradicionales (Dutch New Year)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": True,
-        "category": "buñuelo",
-        "ingredients": [
-            ("ING-003", 500, "g"),
-            ("ING-015", 2, "und"),
-            ("ING-045", 20, "g"),
-            ("ING-013", 300, "ml"),
-            ("ING-008", 100, "g"),
-            ("ING-055", 100, "g"),
-            ("ING-099", 20, "g"),
-        ],
-    },
-    {
-        "rec_id": "REC-017",
-        "sheet": "Recipe_Babka",
-        "name": "Babka",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": False,
-        "category": "torta",
-        "ingredients": [
-            ("ING-003", 400, "g"),
-            ("ING-008", 200, "g"),
-            ("ING-015", 3, "und"),
-            ("ING-023", 150, "g"),
-            ("ING-013", 200, "ml"),
-            ("ING-045", 15, "g"),
-            ("ING-025", 150, "g"),
-            ("ING-027", 5, "ml"),
-        ],
-    },
-    {
-        "rec_id": "REC-018",
-        "sheet": "Recipe_Bombones_de_chocolate",
-        "name": "Bombones de chocolate",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": False,
-        "category": "bombon",
-        "ingredients": [
-            ("ING-025", 500, "g"),
-            ("ING-018", 100, "ml"),
-            ("ING-023", 50, "g"),
-            ("ING-027", 5, "ml"),
-        ],
-    },
-    {
-        "rec_id": "REC-019",
-        "sheet": "Recipe_Goulash_Crockettes_100",
-        "name": "Goulash Croquettes (Dutch, 100 pcs)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": True,
-        "category": "croqueta",
-        "ingredients": [
-            ("ING-089", 2000, "g"),
-            ("ING-003", 200, "g"),
-            ("ING-013", 500, "ml"),
-            ("ING-023", 100, "g"),
-            ("ING-093", 300, "g"),
-            ("ING-015", 2, "und"),
-            ("ING-037", 10, "g"),
-        ],
-    },
-    {
-        "rec_id": "REC-020",
-        "sheet": "Recipe_Veggie_Bitterballen_100",
-        "name": "Veggie Bitterballen (Dutch, 100 pcs)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": True,
-        "category": "croqueta",
-        "ingredients": [
-            ("ING-067", 1500, "g"),
-            ("ING-068", 500, "g"),
-            ("ING-064", 500, "g"),
-            ("ING-003", 300, "g"),
-            ("ING-013", 500, "ml"),
-            ("ING-023", 100, "g"),
-            ("ING-093", 300, "g"),
-        ],
-    },
-    {
-        "rec_id": "REC-021",
-        "sheet": "Recipe_Suppli_Caccio_e_Pepe",
-        "name": "Supplì Cacio e Pepe (Italian, 20 pcs)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": False,
-        "category": "croqueta",
-        "ingredients": [
-            ("ING-066", 1000, "g"),
-            ("ING-019", 200, "g"),
-            ("ING-037", 5, "g"),
-            ("ING-015", 2, "und"),
-            ("ING-093", 200, "g"),
-        ],
-    },
-    {
-        "rec_id": "REC-022",
-        "sheet": "Recipe_Everything_Bagels_8",
-        "name": "Everything Bagels (American-Jewish, 8 pcs)",
-        "yield_qty": None,
-        "yield_unit": "und",
-        "dutch_heritage": False,
-        "category": "bagel",
-        "ingredients": [
-            ("ING-003", 500, "g"),
-            ("ING-013", 250, "ml"),
-            ("ING-045", 10, "g"),
-            ("ING-008", 30, "g"),
-            ("ING-030", 8, "g"),
-            ("ING-097", 15, "g"),
-            ("ING-098", 15, "g"),
-            ("ING-099", 10, "g"),
-            ("ING-096", 5, "g"),
-        ],
-    },
-    {
-        "rec_id": "REC-023",
-        "sheet": "Recipe_Everything_Bagel_Seasoni",
-        "name": "Everything Bagel Seasoning (the mix)",
-        "yield_qty": None,
-        "yield_unit": "g",
-        "dutch_heritage": False,
-        "category": "seasoning",
-        "ingredients": [
-            ("ING-097", 100, "g"),
-            ("ING-098", 50, "g"),
-            ("ING-099", 50, "g"),
-            ("ING-096", 50, "g"),
-            ("ING-100", 50, "g"),
-        ],
-    },
-]
+
+def _normalize_for_lookup(name: str) -> str:
+    """Normalize a name for fuzzy matching against ingredient rows.
+
+    Strips accents (NFKD) and lowercases. Used because Saskia's Recipe sheets
+    use the same words as her Inventory sheet but sometimes omit accents
+    ("Pure De Tomate" vs "Puré de tomate") and differ in case.
+    """
+    import unicodedata
+    nfkd = unicodedata.normalize("NFKD", name)
+    return "".join(c for c in nfkd if not unicodedata.combining(c)).lower()
 
 
-# ---------------------------------------------------------------------------
-# 7 PACKAGING items
-# ---------------------------------------------------------------------------
+def load_canonical() -> dict[str, Any]:
+    """Load ``data/herebus_seed_canonical.json`` from disk.
 
-HEREBUS_PACKAGING_RAW = """PKG-001|Bolsita plástica mediana|und|800|0|2026-07-10|0|1
-PKG-002|Bolsita plástica grande|und|1200|0|2026-07-10|0|1
-PKG-003|Cintillo decorativo|und|500|0|2026-07-10|0|1
-PKG-004|Bandeja plástica|und|2500|0|2026-07-10|0|1
-PKG-005|Bandeja cartón|und|3500|0|2026-07-10|0|1
-PKG-006|Papel antigrasa|pliego|1200|0|2026-07-10|0|1
-PKG-007|Caja de regalo|caja|8500|0|2026-07-10|0|1"""
-
-
-def _parse_packaging_line(line: str) -> dict[str, Any]:
-    parts = line.split("|")
-    return {
-        "pkg_id": parts[0].strip(),
-        "name": parts[1].strip(),
-        "unit": parts[2].strip(),
-        "default_price_gs": float(parts[3]) if parts[3] else 0,
-        "stock_qty": float(parts[4]) if parts[4] else 0,
-        "last_update": parts[5].strip() if parts[5] else None,
-        "needs_confirm": bool(int(parts[6])),
-    }
-
-
-def _get_herbus_packaging() -> list[dict[str, Any]]:
-    return [
-        _parse_packaging_line(line) for line in HEREBUS_PACKAGING_RAW.split("\n") if line.strip()
-    ]
+    Returns the parsed dict with keys: ``_meta``, ``inventory``, ``packaging``,
+    ``recipes``, ``workbook_sheets``.
+    """
+    with open(CANONICAL_PATH, encoding="utf-8") as f:
+        return json.load(f)
 
 
 # ---------------------------------------------------------------------------
@@ -695,139 +173,429 @@ def _get_herbus_packaging() -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def seed_herbus_ingredients(session: Session) -> int:
-    """Insert the 100 HEREBUS ingredients. Idempotent.
+def _parse_date(s: str | None) -> str | None:
+    """Parse Saskia's DD/MM/YYYY date strings (or anything else parseable) to ISO.
 
-    Returns the count of NEW rows inserted (skipped if name already exists).
+    Returns None if input is empty/unparseable. Stored as ISO text on the
+    Ingredient row (model has Text column).
+    """
+    if not s:
+        return None
+    from datetime import datetime as _dt
+    s = s.strip()
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%y"):
+        try:
+            # naive by design; caller adds tzinfo
+            return _dt.strptime(s, fmt).date().isoformat()  # noqa: DTZ007
+        except (ValueError, TypeError):
+            continue
+    return s  # keep raw; better than None
+
+
+def _parse_qty_text(s: str | None) -> float | None:
+    """Parse a qty text marker like '2kg', '5kg', '8.000/docena' to a float.
+
+    Used for ``min_reorder_text`` and other freeform quantity columns.
+    Returns None if no number can be parsed.
+    """
+    if not s:
+        return None
+    import re
+    # Find first number (with optional decimal point or thousands sep)
+    m = re.search(r"(\d[\d.,]*[.,]?\d*)", s.replace(".", "").replace(",", "."))
+    if not m:
+        return None
+    try:
+        return float(m.group(1))
+    except (ValueError, TypeError):
+        return None
+
+
+def seed_herbus_ingredients(session: Session, canonical: dict) -> dict[str, int]:
+    """Insert the 94 HEREBUS ingredients. Idempotent by name.
+
+    Captures every column Saskia filled in the xlsx:
+
+    - ``name`` (always)
+    - ``unit`` (from pkg_unit; normalized via _UNIT_ALIASES)
+    - ``stock_qty`` (from numeric stock_qty OR parsed stock_qty_text)
+    - ``opening_stock_qty`` + ``opening_stock_date`` (the "initial stock" she typed)
+    - ``purchase_price_gs`` (from bulk_price_gs; integer Gs.)
+    - ``purchase_price_updated_at`` (parsed from last_update; ISO datetime)
+    - ``min_stock_qty`` (from numeric min_reorder_text; float)
+    - ``reorder_point`` (from numeric min_reorder; float)
+    - ``category`` (from grupo — Saskia's 12 categories)
+    - ``subcategory`` (dutch_heritage for ING-001/032/069/076)
+    - ``storage`` (inferred from grupo: Carnes → fridge, rest → dry)
+    - ``notes`` (JSON of all remaining metadata: precio_ref, stock_qty_text, etc.)
+    - ``dietary_tags`` (dairy/eggs/meat flagged for allergen tracking)
+    - ``lead_time_days`` (default 3)
+
+    Returns ``{inserted, skipped, needs_confirm, opening_stock_set}``.
     """
     from app.rms.models import Ingredient
 
-    now = datetime.now(timezone.utc)
     inserted = 0
     skipped = 0
-    for ing in _get_herbus_ingredients():
+    needs_confirm = []
+    opening_stock_set = []
+
+    for ing in canonical["inventory"]:
         existing = session.execute(
             select(Ingredient).where(Ingredient.name == ing["name"])
         ).scalar_one_or_none()
         if existing is not None:
             skipped += 1
             continue
-        # The Ingredient model has a `notes` field — we encode the
-        # dutch_heritage + needs_confirm + precio_ref flags in there
-        # plus a JSON blob.
-        notes = json.dumps(
-            {
-                "herbus_ing_id": ing["ing_id"],
-                "precio_ref": ing["precio_ref"],
-                "dutch_heritage": ing["dutch_heritage"],
-                "needs_confirm": ing["needs_confirm"],
-                "last_update": ing["last_update"],
-            },
-            ensure_ascii=False,
+
+        # --- stock_qty: prefer numeric; fall back to parsed text marker
+        stock = 0.0
+        if ing.get("stock_qty") is not None:
+            try:
+                stock = float(ing["stock_qty"])
+            except (TypeError, ValueError):
+                stock = 0.0
+        elif ing.get("stock_qty_text"):
+            # Saskia wrote things like "2kg" or "est. ~5.000/und — CONFIRMAR".
+            # The first number we can parse becomes the seed stock.
+            parsed = _parse_qty_text(ing["stock_qty_text"])
+            if parsed is not None:
+                stock = parsed
+                # If the marker includes a unit, normalise it
+                # e.g. "2kg" → 2000 g; "8.000/docena ≈ 667/tallo" → 667
+                # We leave the unit as the ingredient's default unit since
+                # these are operator estimates anyway.
+
+        # --- opening_stock_qty + opening_stock_date (SASKIA-225 audit items 109/110)
+        opening_qty = stock if stock > 0 else None
+        opening_date = _parse_date(ing.get("last_update"))
+        if opening_qty is not None and opening_qty > 0:
+            opening_stock_set.append((ing["ing_id"], opening_qty, opening_date))
+
+        # --- purchase_price_updated_at: parsed from last_update DD/MM/YYYY
+        price_updated = _parse_date(ing.get("last_update")) if ing.get("bulk_price_gs") else None
+        if price_updated:
+            # Convert ISO date to datetime for the model's DateTime column
+            from datetime import datetime as _dt
+            try:
+                price_updated_dt = _dt.fromisoformat(price_updated)
+                # Make timezone-aware (UTC for storage per AGENTS.md rule 20)
+                price_updated_dt = price_updated_dt.replace(tzinfo=timezone.utc)
+            except ValueError:
+                price_updated_dt = None
+        else:
+            price_updated_dt = None
+
+        # --- min_stock_qty + reorder_point: parsed from min_reorder_text / min_reorder
+        min_stock = 0.0
+        reorder_pt = None
+        if ing.get("min_reorder_text"):
+            parsed = _parse_qty_text(ing["min_reorder_text"])
+            if parsed is not None:
+                min_stock = parsed
+        if ing.get("min_reorder") is not None:
+            try:
+                reorder_pt = float(ing["min_reorder"])
+            except (TypeError, ValueError):
+                reorder_pt = None
+
+        # --- notes (JSON): capture every remaining field Saskia filled
+        notes_obj = {
+            "herbus_ing_id": ing["ing_id"],
+            "precio_ref": ing.get("precio_ref"),
+            "last_update": ing.get("last_update"),
+            "stock_qty_text": ing.get("stock_qty_text"),
+            "min_reorder_text": ing.get("min_reorder_text"),
+        }
+        h_extra = ing.get("h_extra_note") or ""
+        if h_extra:
+            notes_obj["freeform_note"] = h_extra
+        full_notes = json.dumps(notes_obj, ensure_ascii=False)
+
+        # --- Dutch heritage + dietary_tags (basic allergen hints)
+        is_dutch = ing["ing_id"] in _DUTCH_INGREDIENTS
+        grupo = ing.get("grupo") or ""
+        dietary_tags = None
+        if grupo in ("Lácteos y huevos", "Carnes"):
+            dietary_tags = "contains_animal_products"
+        elif grupo == "Verduras y legumbres":
+            dietary_tags = "vegano"
+        elif grupo == "Frutas y frutos secos":
+            dietary_tags = "vegano"
+
+        # --- storage zone
+        if grupo == "Carnes":
+            storage = "refrigerated"
+        elif grupo in ("Lácteos y huevos",):
+            storage = "refrigerated"
+        else:
+            storage = "dry"
+
+        # --- needs_confirm: price missing or stock estimate
+        needs_confirm_flag = (
+            ing.get("bulk_price_gs") is None or ing.get("bulk_price_gs", 0) == 0
         )
+        if needs_confirm_flag:
+            needs_confirm.append(ing["ing_id"])
+
         session.add(
             Ingredient(
                 name=ing["name"],
-                unit=_normalize_unit(ing["pkg_unit"]),
-                stock_qty=ing["stock_qty"],
-                purchase_price_gs=int(ing["unit_price_gs"]) if ing["unit_price_gs"] > 0 else None,
-                purchase_price_updated_at=now,
-                min_stock_qty=ing["min_reorder"] or 0,
-                max_stock_qty=(ing["min_reorder"] or 0) * 3,
-                shelf_life_days=30,
-                storage="dry",
-                notes=notes,
-                category=ing["category"],
+                unit=_normalize_unit(ing.get("pkg_unit")),
+                stock_qty=stock,
+                purchase_price_gs=ing.get("bulk_price_gs"),
+                purchase_price_updated_at=price_updated_dt,
+                last_consumed_at=None,
+                min_stock_qty=min_stock,
+                max_stock_qty=None,
+                shelf_life_days=None,
+                storage=storage,
+                notes=full_notes,
+                category=grupo,
+                subcategory="dutch_heritage" if is_dutch else None,
+                role=None,
+                allergens=None,
+                dietary_tags=dietary_tags,
                 lead_time_days=3,
-                lot_required=False,
-                may_contain_gluten="gluten" in ing["name"].lower()
-                or "harina" in ing["name"].lower()
-                or "centeno" in ing["name"].lower(),
-                purchase_streak_count=0,
-                locked_supplier_id=None,
-                opening_stock_qty=ing["stock_qty"],
-                opening_stock_date="2026-10-12",
-                reorder_point=(ing["min_reorder"] or 0) * 1.5,
+                supplier_id=None,
+                opening_stock_qty=opening_qty,
+                opening_stock_date=opening_date,
+                reorder_point=reorder_pt,
             )
         )
         inserted += 1
+
     session.flush()
-    logger.info(f"seed_herbus_ingredients: {inserted} new, {skipped} skipped (of 100 total).")
-    return inserted
-
-
-def seed_herbus_recipes(session: Session) -> int:
-    """Insert the 23 HEREBUS recipes. Idempotent.
-
-    All 23 have empty B4 (yield); the seeder uses 1.0 default + a
-    yellow warning + an AppMeta row. REC-006 is used for Frikandel
-    (per the spreadsheet), REC-024 is assigned to Veggie Bitterballen
-    to resolve the duplicate.
-    """
-    from app.rms.models import AppMeta, Ingredient, Recipe, RecipeLine
-
-    # Capture import timestamp for AppMeta provenance row.
-    now = datetime.now(timezone.utc)  # noqa: F841 (used by AppMeta write below if enabled)
-    inserted = 0
-    skipped = 0
-    all_yield_pending = True
-
-    ingredients_by_name = {
-        ing.name: ing
-        for ing in session.execute(
-            select(__import__("app.rms.models", fromlist=["Ingredient"]).Ingredient)
-        ).scalars()
+    logger.info(
+        "seed_herbus_ingredients: %d inserted, %d skipped (of %d total). "
+        "needs_confirm=%d, opening_stock_set=%d",
+        inserted,
+        skipped,
+        len(canonical["inventory"]),
+        len(needs_confirm),
+        len(opening_stock_set),
+    )
+    return {
+        "inserted": inserted,
+        "skipped": skipped,
+        "needs_confirm": len(needs_confirm),
+        "opening_stock_set": len(opening_stock_set),
     }
 
-    for rec in HEREBUS_RECIPES_RAW:
+
+def seed_herbus_packaging(session: Session, canonical: dict) -> dict[str, int]:
+    """Insert the 7 HEREBUS packaging items as ``Ingredient`` rows.
+
+    Schema doesn't have a dedicated Packaging model; uses ``Ingredient`` with
+    ``category="packaging"`` + ``subcategory`` = packaging category.
+
+    Captures everything Saskia filled: desc, categoria, pkg_qty, pkg_unit,
+    bulk_price_gs, stock_qty (numeric), min_reorder, last_update.
+    """
+    from app.rms.models import Ingredient
+
+    inserted = 0
+    skipped = 0
+
+    for pkg in canonical["packaging"]:
         existing = session.execute(
-            select(Recipe).where(Recipe.name == rec["name"])
+            select(Ingredient).where(Ingredient.name == pkg["name"])
         ).scalar_one_or_none()
         if existing is not None:
             skipped += 1
             continue
-        # Use 1.0 default yield if B4 is empty
-        yield_qty = rec["yield_qty"] if rec["yield_qty"] else 1.0
-        if not rec["yield_qty"]:
-            all_yield_pending = True
-        recipe = Recipe(
-            name=rec["name"],
-            yield_qty=yield_qty,
-            yield_unit=rec["yield_unit"],
-            family=rec["category"],
-            notes=json.dumps(
-                {
-                    "herbus_rec_id": rec["rec_id"],
-                    "herbus_sheet": rec["sheet"],
-                    "dutch_heritage": rec["dutch_heritage"],
-                    "yield_needs_backfill": not rec["yield_qty"],
-                },
-                ensure_ascii=False,
+
+        # opening stock = numeric stock_qty (Saskia filled this for MAT-01)
+        opening_qty = pkg.get("stock_qty")
+        opening_date = _parse_date(pkg.get("last_update"))
+
+        # price updated at = parsed last_update (only when price set)
+        price_updated_dt = None
+        if pkg.get("bulk_price_gs") and pkg.get("last_update"):
+            iso = _parse_date(pkg["last_update"])
+            if iso:
+                from datetime import datetime as _dt
+                try:
+                    price_updated_dt = _dt.fromisoformat(iso).replace(
+                        tzinfo=timezone.utc
+                    )
+                except ValueError:
+                    price_updated_dt = None
+
+        notes_obj = {
+            "herbus_pkg_id": pkg["pkg_id"],
+            "desc": pkg.get("desc"),
+            "categoria": pkg.get("categoria"),
+            "last_update": pkg.get("last_update"),
+            "pkg_qty": pkg.get("pkg_qty"),
+        }
+
+        session.add(
+            Ingredient(
+                name=pkg["name"],
+                unit=_normalize_unit(pkg.get("pkg_unit")),
+                stock_qty=opening_qty or 0.0,
+                purchase_price_gs=pkg.get("bulk_price_gs"),
+                purchase_price_updated_at=price_updated_dt,
+                min_stock_qty=pkg.get("min_reorder") or 0.0,
+                max_stock_qty=None,
+                shelf_life_days=365,
+                storage="ambient",
+                category="packaging",
+                subcategory=pkg.get("categoria"),
+                notes=json.dumps(notes_obj, ensure_ascii=False),
+                lead_time_days=3,
+                supplier_id=None,
+                opening_stock_qty=opening_qty,
+                opening_stock_date=opening_date,
+            )
+        )
+        inserted += 1
+
+    session.flush()
+    logger.info(
+        "seed_herbus_packaging: %d inserted, %d skipped (of %d total)",
+        inserted,
+        skipped,
+        len(canonical["packaging"]),
+    )
+    return {"inserted": inserted, "skipped": skipped}
+
+
+def seed_herbus_recipes(session: Session, canonical: dict) -> dict[str, Any]:
+    """Insert the 22 HEREBUS recipes with their ingredient lines. Idempotent.
+
+    Preserves:
+    - ``yield_qty``, ``yield_unit`` (from sheet OR estimated)
+    - ``method_notes`` (sheet r5 column B) inside ``Recipe.notes`` JSON
+    - inline ingredient notes (sheet column H) as ``recipe_line.notes``
+    - margins (rows 32-34) inside ``Recipe.notes`` JSON
+    - overhead (rows 56-58) when present
+    - dutch_heritage flag via ``Recipe.subcategory``
+
+    The build script (``scripts/build_herebus_canonical.py``) renumbers
+    any duplicate REC-IDs deterministically BEFORE this seeder runs, so
+    no two recipes in ``canonical["recipes"]`` ever share an ID. If a
+    renumber happened, a ``renumber_note`` is attached to that recipe
+    and surfaced as a warning here for visibility.
+    """
+    from app.rms.models import Ingredient, Recipe, RecipeLine
+
+    inserted = 0
+    skipped = 0
+    warnings: list[str] = []
+    yield_estimates: dict[str, dict[str, Any]] = {}
+
+    # Build name -> ingredient map once for O(1) lookups.
+    # Note: Saskia's Inventory sheet uses Title Case + accents ("Puré de tomate")
+    # but the Recipe sheets sometimes use UPPER without accents ("PURE DE TOMATE").
+    # The Ingredient.name column has a UNIQUE index — we canonicalize to
+    # Title Case and match case- + accent-insensitively here.
+    ingredients_by_name_lower: dict[str, "Ingredient"] = {}
+    for ing in session.execute(select(Ingredient)).scalars().all():
+        ingredients_by_name_lower[_normalize_for_lookup(ing.name)] = ing
+
+    seen_rec_ids: set[str] = set()
+
+    for rec in canonical["recipes"]:
+        existing = session.execute(
+            select(Recipe).where(Recipe.name == rec["rec_name"])
+        ).scalar_one_or_none()
+        if existing is not None:
+            skipped += 1
+            continue
+
+        # Load rec_id. Build script already renumbers duplicates; if a
+        # renumber_note is present, surface it as a warning for visibility.
+        rec_id = rec["rec_id"]
+        if rec.get("renumber_note"):
+            warnings.append(
+                f"{rec['rec_name']}: {rec['renumber_note']}"
+            )
+        seen_rec_ids.add(rec_id)
+
+        # Build notes JSON with margins + overhead + yield_source + rec_id
+        notes_obj = {
+            "herbus_rec_id": rec_id,
+            "herbus_sheet": rec.get("sheet"),
+            "yield_source": rec.get("yield_source"),
+            "yield_estimate_reason": (
+                "Proportion analysis: mold size + ingredient weight + Dutch/PY baking tradition"
+                if rec.get("yield_source") == "estimated"
+                else None
             ),
+            "margins": rec.get("margins", {}),
+            "overhead": rec.get("overhead", {}),
+            "method_notes": rec.get("method_notes"),
+        }
+        if rec.get("yield_source") == "estimated":
+            yield_estimates[rec["rec_name"]] = {
+                "qty": rec["yield_qty"],
+                "unit": rec["yield_unit"],
+            }
+
+        # Dutch heritage flag — Recipe has no subcategory, use menu_tags (Text)
+        is_dutch = rec_id in _DUTCH_RECIPES
+
+        # Family field is reused to record the rec_id (since name may not match)
+        family_value = rec_id
+
+        recipe = Recipe(
+            name=rec["rec_name"],
+            yield_qty=rec.get("yield_qty"),
+            yield_unit=_normalize_unit(rec.get("yield_unit")),
+            family=family_value,
+            notes=json.dumps(notes_obj, ensure_ascii=False),
+            menu_tags="dutch_heritage" if is_dutch else None,
         )
         session.add(recipe)
         session.flush()  # so recipe.id is set
+
         # Add recipe lines
-        for _ord, (ing_id, qty, unit) in enumerate(rec["ingredients"], start=1):
-            ing_name = next(
-                (i["name"] for i in _get_herbus_ingredients() if i["ing_id"] == ing_id), None
+        lines_added = 0
+        lines_skipped = 0
+        lines_csp_skipped = 0  # "c.s.p." / qty=0 placeholders (recipe rules forbid qty=0)
+        for ing_data in rec["ingredients"]:
+            ing_name = ing_data.get("ing_name")
+            ing_obj = (
+                ingredients_by_name_lower.get(_normalize_for_lookup(ing_name))
+                if ing_name
+                else None
             )
-            ing_obj = ingredients_by_name.get(ing_name) if ing_name else None
             if ing_obj is None:
-                # Try to find the ingredient by name (case-insensitive)
-                ing_obj = session.execute(
-                    select(Ingredient).where(Ingredient.name == ing_name)
-                ).scalar_one_or_none()
-            if ing_obj is None:
-                # Skip recipe lines whose ingredients don't exist yet.
-                # The seed_herbus_ingredients() function should be called
-                # BEFORE seed_herbus_recipes() to ensure all ingredients
-                # are inserted.
                 logger.warning(
-                    f"seed_herbus_recipes: ingredient '{ing_name}' (ID={ing_id}) "
-                    f"not found -- skipping recipe line for recipe "
-                    f"'{rec['name']}'"
+                    "seed_herbus_recipes: ingredient '%s' (ID=%s) not found for "
+                    "recipe '%s' — skipping line",
+                    ing_name,
+                    ing_data.get("ing_id"),
+                    rec["rec_name"],
                 )
+                lines_skipped += 1
+                continue
+            # Skip qty=0 / qty=None placeholders (Saskia wrote "c.s.p." for
+            # "cantidad suficiente para" — should be backfilled when she cooks).
+            # RecipeLine has CheckConstraint('qty > 0'), so 0 is illegal.
+            qty = ing_data.get("qty")
+            if qty is None or qty <= 0:
+                lines_csp_skipped += 1
+                logger.info(
+                    "seed_herbus_recipes: skipping c.s.p. line in '%s' "
+                    "(ing=%s, qty=%r) — backfill later",
+                    rec["rec_name"],
+                    ing_name,
+                    qty,
+                )
+                continue
+            # Idempotency: skip if this recipe+ingredient already has a line
+            existing_line = session.execute(
+                select(RecipeLine).where(
+                    RecipeLine.recipe_id == recipe.id,
+                    RecipeLine.line_ref_id == ing_obj.id,
+                    RecipeLine.line_kind == "ingredient",
+                )
+            ).scalar_one_or_none()
+            if existing_line is not None:
+                lines_skipped += 1
                 continue
             session.add(
                 RecipeLine(
@@ -835,93 +603,166 @@ def seed_herbus_recipes(session: Session) -> int:
                     line_kind="ingredient",
                     line_ref_id=ing_obj.id,
                     qty=qty,
-                    line_unit=unit,
+                    line_unit=_normalize_unit(ing_data.get("unit")),
+                    notes=ing_data.get("notes"),
                 )
             )
+            lines_added += 1
+
         inserted += 1
-    session.flush()
-
-    if all_yield_pending:
-        # Add an AppMeta row to flag the backfill work
-        existing = session.execute(
-            select(AppMeta).where(AppMeta.key == "recipe_yield_backfill_pending")
-        ).scalar_one_or_none()
-        if existing is None:
-            session.add(
-                AppMeta(
-                    key="recipe_yield_backfill_pending",
-                    value="true",
-                    updated_at="2026-10-12",
-                )
+        logger.info(
+            "seed_herbus_recipes: %s → %d lines added, %d skipped, %d c.s.p. (zero qty)",
+            rec["rec_name"],
+            lines_added,
+            lines_skipped,
+            lines_csp_skipped,
+        )
+        if lines_csp_skipped > 0:
+            warnings.append(
+                f"{rec['rec_name']}: {lines_csp_skipped} c.s.p. lines (qty=0) skipped — backfill when she cooks"
             )
 
+    session.flush()
     logger.info(
-        f"seed_herbus_recipes: {inserted} new, {skipped} skipped (of 23 total). "
-        f"Yield backfill pending: {all_yield_pending}."
+        "seed_herbus_recipes: %d recipes inserted, %d skipped (of %d total)",
+        inserted,
+        skipped,
+        len(canonical["recipes"]),
     )
-    return inserted
+    return {
+        "inserted": inserted,
+        "skipped": skipped,
+        "yield_estimates": yield_estimates,
+        "warnings": warnings,
+    }
 
 
-def seed_herbus_packaging(session: Session) -> int:
-    """Insert the 7 HEREBUS packaging items. Idempotent.
+def seed_herbus_appmeta(session: Session, report: dict[str, Any]) -> None:
+    """Drop provenance rows so the operator can see what happened.
 
-    Note: the Sazon schema doesn't have a dedicated `packaging` model
-    in models_legacy — packaging is modeled as `Ingredient` with
-    category="packaging" and unit-specific. We reuse Ingredient.
+    - ``herbus_seed_loaded``: true (with timestamp + counts)
+    - ``herbus_recipe_yield_estimates``: JSON map of recipes where yield was estimated
+    - ``herbus_rec006_collision``: warning text (if applicable)
     """
-    from app.rms.models import Ingredient
+    from app.rms.models import AppMeta
 
-    inserted = 0
-    skipped = 0
-    for pkg in _get_herbus_packaging():
-        existing = session.execute(
-            select(Ingredient).where(Ingredient.name == pkg["name"])
-        ).scalar_one_or_none()
-        if existing is not None:
-            skipped += 1
-            continue
-        session.add(
-            Ingredient(
-                name=pkg["name"],
-                unit=_normalize_unit(pkg["unit"]),
-                stock_qty=pkg["stock_qty"],
-                purchase_price_gs=int(pkg["default_price_gs"])
-                if pkg["default_price_gs"] > 0
-                else None,
-                min_stock_qty=0,
-                max_stock_qty=0,
-                shelf_life_days=365,
-                storage="ambient",
-                category="packaging",
-                is_packaging=True,
-                notes=json.dumps(
+    today = datetime.now(timezone.utc).date().isoformat()
+
+    rows: list[tuple[str, str]] = [
+        (
+            "herbus_seed_loaded",
+            json.dumps(
+                {
+                    "loaded_at": today,
+                    "source": "data/herebus_seed_canonical.json",
+                    "counts": {
+                        "ingredients": report.get("ingredients_inserted", 0),
+                        "packaging": report.get("packaging_inserted", 0),
+                        "recipes": report.get("recipes_inserted", 0),
+                        "opening_stock_set": report.get("opening_stock_set", 0),
+                    },
+                },
+                ensure_ascii=False,
+            ),
+        ),
+        (
+            "herbus_recipe_yield_estimates",
+            json.dumps(report.get("yield_estimates", {}), ensure_ascii=False),
+        ),
+    ]
+
+    if report.get("warnings"):
+        rows.append(
+            (
+                "herbus_data_warnings",
+                json.dumps(
                     {
-                        "herbus_pkg_id": pkg["pkg_id"],
-                        "needs_confirm": pkg["needs_confirm"],
-                        "last_update": pkg["last_update"],
+                        "count": len(report["warnings"]),
+                        "warnings": report["warnings"],
                     },
                     ensure_ascii=False,
                 ),
-                lead_time_days=3,
-                lot_required=False,
-                may_contain_gluten=False,
-                purchase_streak_count=0,
-                locked_supplier_id=None,
             )
         )
-        inserted += 1
+
+    for key, value in rows:
+        existing = session.execute(
+            select(AppMeta).where(AppMeta.key == key)
+        ).scalar_one_or_none()
+        if existing is None:
+            session.add(AppMeta(key=key, value=value, updated_at=today))
+        # else: first-write-wins, don't overwrite
+
     session.flush()
-    logger.info(f"seed_herbus_packaging: {inserted} new, {skipped} skipped (of 7 total).")
-    return inserted
 
 
-def seed_herbus_data(session: Session) -> int:
-    """Run all 3 HEREBUS seeders. Returns total new rows."""
-    n1 = seed_herbus_ingredients(session)
-    n2 = seed_herbus_recipes(session)
-    n3 = seed_herbus_packaging(session)
-    total = n1 + n2 + n3
+def seed_herbus_data(session: Session) -> dict[str, Any]:
+    """Run all 4 HEREBUS seeders. Idempotent.
+
+    Order matters: ingredients must be inserted before recipes (FK target).
+
+    Returns a structured report dict with counts, yield estimates, and any
+    data-quality warnings.
+    """
+    canonical = load_canonical()
+
+    ing_report = seed_herbus_ingredients(session, canonical)
+    pkg_report = seed_herbus_packaging(session, canonical)
+    rec_report = seed_herbus_recipes(session, canonical)
+
+    report = {
+        "ingredients_inserted": ing_report["inserted"],
+        "ingredients_skipped": ing_report["skipped"],
+        "ingredients_needs_confirm": ing_report["needs_confirm"],
+        "opening_stock_set": ing_report.get("opening_stock_set", 0),
+        "packaging_inserted": pkg_report["inserted"],
+        "packaging_skipped": pkg_report["skipped"],
+        "recipes_inserted": rec_report["inserted"],
+        "recipes_skipped": rec_report["skipped"],
+        "yield_estimates": rec_report["yield_estimates"],
+        "warnings": rec_report["warnings"],
+    }
+
+    seed_herbus_appmeta(session, report)
+
     logger.info(
-        f"seed_herbus_data: total {total} new rows (100 ingredients + 23 recipes + 7 packaging)."
+        "seed_herbus_data: DONE — %d ing + %d pkg + %d recipes (skipped: %d ing + %d pkg + %d recipes)",
+        report["ingredients_inserted"],
+        report["packaging_inserted"],
+        report["recipes_inserted"],
+        report["ingredients_skipped"],
+        report["packaging_skipped"],
+        report["recipes_skipped"],
     )
-    return total
+    return report
+
+
+# ---------------------------------------------------------------------------
+# CLI entrypoint — ``python -m app.rms.seed.herbus_import``
+# ---------------------------------------------------------------------------
+
+
+def main() -> int:
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+    from app.rms.db import make_engine, make_session_factory
+
+    engine = make_engine()  # reads DATABASE_URL / AIW_RMS_DB_PATH
+    SessionLocal = make_session_factory(engine)
+    session = SessionLocal()
+    try:
+        report = seed_herbus_data(session)
+        session.commit()
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+        return 0
+    except Exception:
+        session.rollback()
+        logger.exception("seed_herbus_data failed")
+        return 1
+    finally:
+        session.close()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

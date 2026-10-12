@@ -16,7 +16,31 @@ Per SASKIA-210 decision (per-client INSTANCES, NOT shared-DB multi-tenant), the 
 
 **Idempotency**: Re-seeding the same pack on the same tenant is a complete no-op (all per-counter totals = 0). Verified by `test_seed_new_pack_idempotent`.
 
-## 2026-10-12 — feat(seed): SASKIA-223 HEREBUS data import + 4 new HEREBUS settings
+## 2026-10-12 — feat(seed): SASKIA-225 HEREBUS data import — REAL data from operator's xlsx (supersedes SASKIA-223 fabricated version)
+
+**Scope**: `app/rms/seed/herbus_import.py` (REWRITTEN — was fabricated pipe-delimited constants, now loads from JSON), `data/herebus_seed_canonical.json` (NEW, 85KB, source of truth), `scripts/build_herebus_canonical.py` (NEW, reverse-extracts the .xlsx), `tests/test_herbus_import.py` (REWRITTEN, 21 tests).
+
+**Why this supersedes SASKIA-223**: SASKIA-223 used a 100-row hardcoded constant that did NOT match the operator's actual xlsx. The new seeder reads `data/herebus_seed_canonical.json` (generated from `data/herebus.xlsx`) and uses ONLY the 94 ingredients + 7 packaging + 22 recipes that the operator actually typed.
+
+**What it persists** (all idempotent, re-runs skip existing rows by name):
+- **94 ingredients** (ING-001..ING-094) — Inventory sheet, with real names, prices, supplier references, and the 12 categories. Captures every column Saskia filled: bulk_price_gs (66), stock_qty (2 numeric), stock_qty_text (14 parsed into opening_stock_qty), last_update (28 parsed into purchase_price_updated_at + opening_stock_date), min_reorder_text (2 parsed into min_stock_qty), precio_ref (51 kept in notes JSON). Inferred: storage zone (refrigerated for Carnes/Lácteos, dry otherwise) and dietary_tags (vegano for Verduras/Frutas, contains_animal_products for Lácteos/Carnes).
+- **7 packaging items** (MAT-01..MAT-07) — Packaging sheet, modeled as `Ingredient` rows with `category='packaging'`.
+- **22 recipes** (REC-001..REC-021 + REC-006 duplicate for bitterballen). 7 have explicit yields from the sheet (Bombones=20, Cheesecake=170, Goulash=100, Stroop=12, Supplì=12, Veggie Bitterballen=100, bitterballen=100). 15 are estimated from proportion analysis (mold size + ingredient weight + Dutch/PY baking tradition). The REC-006 collision (Bitterballen AND Frikandel both use REC-006) is preserved as-is, with a warning recorded in `app_meta.herbus_rec006_collision`.
+- **198 recipe_lines** (222 total lines - 11 c.s.p. - 3 null - 10 dups). Inline cooking notes (column H) preserved on `recipe_line.notes`.
+- **3 `app_meta` provenance rows**: `herbus_seed_loaded` (counts + timestamp + opening_stock_set=16), `herbus_recipe_yield_estimates` (15 estimated yields), `herbus_data_warnings` (10 warnings: 9 c.s.p. + 1 REC-006 renumber).
+
+**Data-quality findings discovered during deep analysis**:
+1. REC-006 collision in source xlsx: `Recipe_Frikandel_100_pcs` and `recipe_bitterballen_100_pcs` both used REC-006. Resolved by deterministic renumber: Frikandel keeps REC-006, `recipe_bitterballen_100_pcs` (bitterballen) renumbered to **REC-022**. The renumber runs in `scripts/build_herebus_canonical.py:renumber_duplicates()` and is logged in `_meta.renumber_log` + the seeder surfaces it as a warning.
+2. 11 c.s.p. lines (qty=0 placeholders for "cantidad suficiente para") — skipped per `CheckConstraint('qty > 0')` and backfilled later.
+3. Case mismatch: Inventory uses Title Case ("Caldo de hongos en cubos") but some Recipe sheets use UPPER ("CALDO DE HONGOS EN CUBOS"). The seeder matches case-insensitively.
+4. Margins uniform across all recipes: WHOLESALE 0.3, RETAIL 0.5, EVENTUAL 0.35.
+5. Overhead (luz/gas/traslado) only filled for Bombones (REC-018) and Cheesecake (REC-002).
+6. Production_Planner, Waste_Tracker, Dashboard_PL sheets are empty (header + zero data rows).
+
+**Idempotency**: 94+7+22=123 inserted on fresh DB, 0 on re-seed. Verified by `test_seed_herbus_data_idempotent`.
+
+**Coverage**: 21 tests, all green in 30s.
+
 ## 2026-10-12 — feat(seed): SASKIA-223 HEREBUS data import + 4 new HEREBUS settings
 
 **Scope**: `app/rms/seed/herbus_import.py` (new), `app/rms/seed/sazon.py` (wire `seed_herbus_data` into `seed_sazon`, add `herbus_ingredients` to `SazonReport`), `app/rms/settings_registry.py` (new `HEREBUS` group, 4 new count settings), `tests/test_herbus_import.py` (new, 14 tests), `tests/test_settings.py` + `tests/test_saskia221_settings.py` (count updates).

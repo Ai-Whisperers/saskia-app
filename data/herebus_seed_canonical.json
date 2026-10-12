@@ -1,4 +1,37 @@
 {
+  "_meta": {
+    "source": "data/herebus.xlsx (operator's HEREBUS_FoodBiz workbook)",
+    "extracted_on": "2026-10-12",
+    "extracted_by": "scripts/build_herebus_canonical.py",
+    "counts": {
+      "ingredients": 94,
+      "packaging": 7,
+      "recipes": 22,
+      "yields_from_sheet": 7,
+      "yields_estimated": 15,
+      "yields_missing": 0,
+      "renumbered": 1
+    },
+    "renumber_log": [
+      {
+        "sheet": "recipe_bitterballen_100_pcs",
+        "recipe": "bitterballen",
+        "old_id": "REC-006",
+        "new_id": "REC-022",
+        "reason": "duplicate REC-ID in source xlsx",
+        "renumbered_on": "2026-10-12"
+      }
+    ],
+    "yield_estimation_method": "Estimated from proportion analysis: mold size (cm), ingredient weight (kg), and Dutch/PY baking tradition. Operator should backfill via /recetas/{id}/editar after first cook. Marked 'estimated' in each entry.",
+    "data_quality_notes": [
+      "ING-006 ('Pan rallado') is the only ingredient used in multiple recipes.",
+      "REC-006 collision in source xlsx: Recipe_Frikandel_100_pcs and recipe_bitterballen_100_pcs both used REC-006. recipe_bitterballen_100_pcs was renumbered to REC-022 (next free); Frikandel keeps REC-006. See renumber_log.",
+      "Stock values: 2 numeric (ING-001=1500, ING-003=5000); rest are NULL or text markers like '2kg' or 'est. CONFIRMAR'.",
+      "Pricing date: 07/10/2026 for most 'last_update' entries.",
+      "All margins uniformly WHOLESALE 0.3, RETAIL 0.5, EVENTUAL 0.35.",
+      "Overhead (luz/gas/traslado) only filled for Bombones (REC-018) and Cheesecake (REC-002)."
+    ]
+  },
   "workbook_sheets": [
     "Instructions",
     "Inventory",
@@ -34,40 +67,40 @@
       "ing_id": "ING-001",
       "name": "Harina de centeno",
       "grupo": "Harinas y bases",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 25000,
-      "unit_price": null,
-      "stock_qty": 1500,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "repo: 9.800/kg"
+      "bulk_price_gs": 25000,
+      "stock_qty": 1500.0,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "repo: 9.800/kg"
     },
     {
       "ing_id": "ING-002",
       "name": "Harina de repostería",
       "grupo": "Harinas y bases",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 6500,
-      "unit_price": null,
+      "bulk_price_gs": 6500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 6.500 / 1.000g"
+      "precio_ref": "precio = repo 6.500 / 1.000g"
     },
     {
       "ing_id": "ING-003",
       "name": "Harina de trigo",
       "grupo": "Harinas y bases",
-      "pkg_qty": 5000,
+      "pkg_qty": 5000.0,
       "pkg_unit": "g",
-      "bulk_price": 17200,
-      "unit_price": null,
-      "stock_qty": 5000,
-      "min_reorder": 5000,
-      "last_update": "",
-      "notes": "repo: 5.500/kg"
+      "bulk_price_gs": 17200,
+      "stock_qty": 5000.0,
+      "stock_qty_text": null,
+      "min_reorder_text": "5000",
+      "last_update": null,
+      "precio_ref": "repo: 5.500/kg"
     },
     {
       "ing_id": "ING-004",
@@ -75,129 +108,129 @@
       "grupo": "Harinas y bases",
       "pkg_qty": null,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "restaurado del respaldo — verificá precio y stock"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "restaurado del respaldo — verificá precio y stock"
     },
     {
       "ing_id": "ING-005",
       "name": "Maicena",
       "grupo": "Harinas y bases",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 8500,
-      "unit_price": null,
+      "bulk_price_gs": 8500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 8.500 / 1.000g"
+      "precio_ref": "precio = repo 8.500 / 1.000g"
     },
     {
       "ing_id": "ING-006",
       "name": "Pan rallado",
       "grupo": "Harinas y bases",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 3500,
-      "unit_price": null,
+      "bulk_price_gs": 3500,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "repo: 6.500/kg"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "repo: 6.500/kg"
     },
     {
       "ing_id": "ING-007",
       "name": "Azúcar",
       "grupo": "Endulzantes",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 8000,
-      "unit_price": null,
-      "stock_qty": "2kg",
-      "min_reorder": "5kg",
-      "last_update": "",
-      "notes": "repo: 4.800/kg"
+      "bulk_price_gs": 8000,
+      "stock_qty": null,
+      "stock_qty_text": "2kg",
+      "min_reorder_text": "5kg",
+      "last_update": null,
+      "precio_ref": "repo: 4.800/kg"
     },
     {
       "ing_id": "ING-008",
       "name": "Azúcar glas",
       "grupo": "Endulzantes",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 9500,
-      "unit_price": null,
+      "bulk_price_gs": 9500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 9.500 / 1.000g"
+      "precio_ref": "precio = repo 9.500 / 1.000g"
     },
     {
       "ing_id": "ING-009",
       "name": "Azúcar morena",
       "grupo": "Endulzantes",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 5800,
-      "unit_price": null,
+      "bulk_price_gs": 5800,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 5.800 / 1.000g"
+      "precio_ref": "precio = repo 5.800 / 1.000g"
     },
     {
       "ing_id": "ING-010",
       "name": "Melaza",
       "grupo": "Endulzantes",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 16500,
-      "unit_price": null,
+      "bulk_price_gs": 16500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 16.500 / 1.000g"
+      "precio_ref": "precio = repo 16.500 / 1.000g"
     },
     {
       "ing_id": "ING-011",
       "name": "Miel",
       "grupo": "Endulzantes",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 18500,
-      "unit_price": null,
+      "bulk_price_gs": 18500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 18.500 / 1.000g"
+      "precio_ref": "precio = repo 18.500 / 1.000g"
     },
     {
       "ing_id": "ING-012",
       "name": "Crema agria",
       "grupo": "Lácteos y huevos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 12500,
-      "unit_price": null,
+      "bulk_price_gs": 12500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 12.500 / 1.000g"
+      "precio_ref": "precio = repo 12.500 / 1.000g"
     },
     {
       "ing_id": "ING-013",
       "name": "Crema de leche",
       "grupo": "Lácteos y huevos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "ml",
-      "bulk_price": 22750,
-      "unit_price": null,
+      "bulk_price_gs": 22750,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "repo: 14.500/L"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "repo: 14.500/L"
     },
     {
       "ing_id": "ING-014",
@@ -205,51 +238,51 @@
       "grupo": "Lácteos y huevos",
       "pkg_qty": null,
       "pkg_unit": "ml",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-015",
       "name": "Huevos",
       "grupo": "Lácteos y huevos",
-      "pkg_qty": 30,
+      "pkg_qty": 30.0,
       "pkg_unit": "und",
-      "bulk_price": 18500,
-      "unit_price": null,
+      "bulk_price_gs": 18500,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "repo: 700/und"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "repo: 700/und"
     },
     {
       "ing_id": "ING-016",
       "name": "Leche",
       "grupo": "Lácteos y huevos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "ml",
-      "bulk_price": 5700,
-      "unit_price": null,
+      "bulk_price_gs": 5700,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "repo: 7.500/L"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "repo: 7.500/L"
     },
     {
       "ing_id": "ING-017",
       "name": "Manteca",
       "grupo": "Lácteos y huevos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 39800,
-      "unit_price": null,
+      "bulk_price_gs": 39800,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "repo: 16.500/kg"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "repo: 16.500/kg"
     },
     {
       "ing_id": "ING-018",
@@ -257,25 +290,25 @@
       "grupo": "Lácteos y huevos",
       "pkg_qty": null,
       "pkg_unit": "ml",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-019",
       "name": "Queso crema",
       "grupo": "Lácteos y huevos",
-      "pkg_qty": 1500,
+      "pkg_qty": 1500.0,
       "pkg_unit": "g",
-      "bulk_price": 162900,
-      "unit_price": null,
+      "bulk_price_gs": 162900,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 18.500 / 1.000g"
+      "precio_ref": "precio = repo 18.500 / 1.000g"
     },
     {
       "ing_id": "ING-020",
@@ -283,116 +316,116 @@
       "grupo": "Lácteos y huevos",
       "pkg_qty": null,
       "pkg_unit": "ml",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-021",
       "name": "Leche condensada",
       "grupo": "Lácteos y huevos",
-      "pkg_qty": 397,
+      "pkg_qty": 397.0,
       "pkg_unit": "g",
-      "bulk_price": 7345,
-      "unit_price": null,
+      "bulk_price_gs": 7345,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "repo: 18.500/kg -> lata 397 g = 7.345 Gs"
+      "precio_ref": "repo: 18.500/kg -> lata 397 g = 7.345 Gs"
     },
     {
       "ing_id": "ING-022",
       "name": "Leche en polvo",
       "grupo": "Lácteos y huevos",
       "pkg_qty": null,
-      "pkg_unit": "",
-      "bulk_price": null,
-      "unit_price": null,
+      "pkg_unit": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "alta 08/10/2026 — faltaba; la necesita Recipe_Frikandel (carga cantidad y precio)"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "alta 08/10/2026 — faltaba; la necesita Recipe_Frikandel (carga cantidad y precio)"
     },
     {
       "ing_id": "ING-023",
       "name": "Cacao en polvo",
       "grupo": "Cacao café y chocolate",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 18500,
-      "unit_price": null,
+      "bulk_price_gs": 18500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 18.500 / 1.000g"
+      "precio_ref": "precio = repo 18.500 / 1.000g"
     },
     {
       "ing_id": "ING-024",
       "name": "Café instantaneo",
       "grupo": "Cacao café y chocolate",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 22500,
-      "unit_price": null,
+      "bulk_price_gs": 22500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 22.500 / 1.000g"
+      "precio_ref": "precio = repo 22.500 / 1.000g"
     },
     {
       "ing_id": "ING-025",
       "name": "Chocolate",
       "grupo": "Cacao café y chocolate",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 23500,
-      "unit_price": null,
+      "bulk_price_gs": 23500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 23.500 / 1.000g"
+      "precio_ref": "precio = repo 23.500 / 1.000g"
     },
     {
       "ing_id": "ING-026",
       "name": "Laurel",
       "grupo": "Especias y condimentos",
       "pkg_qty": null,
-      "pkg_unit": "",
-      "bulk_price": null,
-      "unit_price": null,
+      "pkg_unit": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-027",
       "name": "Vainilla",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 19000,
-      "unit_price": null,
+      "bulk_price_gs": 19000,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "repo: 8.500/kg ess."
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "repo: 8.500/kg ess."
     },
     {
       "ing_id": "ING-028",
       "name": "Ajo",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 1,
+      "pkg_qty": 1.0,
       "pkg_unit": "und",
-      "bulk_price": 2500,
-      "unit_price": null,
+      "bulk_price_gs": 2500,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "repo: 12.500/kg"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "repo: 12.500/kg"
     },
     {
       "ing_id": "ING-029",
@@ -400,90 +433,90 @@
       "grupo": "Especias y condimentos",
       "pkg_qty": null,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "repo: 4.500/und (unidad distinta)"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "repo: 4.500/und (unidad distinta)"
     },
     {
       "ing_id": "ING-030",
       "name": "Canela",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 25,
+      "pkg_qty": 25.0,
       "pkg_unit": "g",
-      "bulk_price": 5000,
-      "unit_price": null,
+      "bulk_price_gs": 5000,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "repo: 4.500/kg"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "repo: 4.500/kg"
     },
     {
       "ing_id": "ING-031",
       "name": "Especias mixtas",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 7800,
-      "unit_price": null,
+      "bulk_price_gs": 7800,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 7.800 / 1.000g"
+      "precio_ref": "precio = repo 7.800 / 1.000g"
     },
     {
       "ing_id": "ING-032",
-      "name": "Mezcla de especias para Speculaas",
+      "name": "Speculaas",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 9500,
-      "unit_price": null,
+      "bulk_price_gs": 9500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 9.500 / 1.000g"
+      "precio_ref": "precio = repo 9.500 / 1.000g"
     },
     {
       "ing_id": "ING-033",
       "name": "Jengibre",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 8500,
-      "unit_price": null,
+      "bulk_price_gs": 8500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 8.500 / 1.000g"
+      "precio_ref": "precio = repo 8.500 / 1.000g"
     },
     {
       "ing_id": "ING-034",
       "name": "Jengibre molido",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 5000,
-      "unit_price": null,
+      "bulk_price_gs": 5000,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "pack asumido 1kg (repo: 6.500/kg)"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "pack asumido 1kg (repo: 6.500/kg)"
     },
     {
       "ing_id": "ING-035",
       "name": "Nuez moscada",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 8500,
-      "unit_price": null,
+      "bulk_price_gs": 8500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 8.500 / 1.000g"
+      "precio_ref": "precio = repo 8.500 / 1.000g"
     },
     {
       "ing_id": "ING-036",
@@ -491,116 +524,116 @@
       "grupo": "Especias y condimentos",
       "pkg_qty": null,
       "pkg_unit": "und",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-037",
       "name": "Sal",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 500,
+      "pkg_qty": 500.0,
       "pkg_unit": "g",
-      "bulk_price": 3500,
-      "unit_price": null,
+      "bulk_price_gs": 3500,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "repo: 2.800/kg"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "repo: 2.800/kg"
     },
     {
       "ing_id": "ING-038",
       "name": "Perejil",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 1,
+      "pkg_qty": 1.0,
       "pkg_unit": "und",
-      "bulk_price": 700,
-      "unit_price": null,
+      "bulk_price_gs": 700,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-039",
       "name": "Cebolla en polvo",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 25,
+      "pkg_qty": 25.0,
       "pkg_unit": "g",
-      "bulk_price": 5700,
-      "unit_price": null,
+      "bulk_price_gs": 5700,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-040",
       "name": "Ajo en polvo",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 25,
+      "pkg_qty": 25.0,
       "pkg_unit": "g",
-      "bulk_price": 6700,
-      "unit_price": null,
+      "bulk_price_gs": 6700,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-041",
       "name": "Knorr",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 57,
+      "pkg_qty": 57.0,
       "pkg_unit": "g",
-      "bulk_price": 5300,
-      "unit_price": null,
+      "bulk_price_gs": 5300,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-042",
       "name": "Pimienta",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 57,
+      "pkg_qty": 57.0,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-043",
       "name": "Mostaza",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 57,
+      "pkg_qty": 57.0,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-044",
       "name": "Bicarbonato de sodio",
       "grupo": "Levaduras y gasificantes",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 4500,
-      "unit_price": null,
+      "bulk_price_gs": 4500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 4.500 / 1.000g"
+      "precio_ref": "precio = repo 4.500 / 1.000g"
     },
     {
       "ing_id": "ING-045",
@@ -608,38 +641,38 @@
       "grupo": "Levaduras y gasificantes",
       "pkg_qty": null,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-046",
       "name": "Levadura seca",
       "grupo": "Levaduras y gasificantes",
-      "pkg_qty": 125,
+      "pkg_qty": 125.0,
       "pkg_unit": "g",
-      "bulk_price": 13000,
-      "unit_price": null,
+      "bulk_price_gs": 13000,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "repo: 5.800/kg"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "repo: 5.800/kg"
     },
     {
       "ing_id": "ING-047",
       "name": "Polvo de hornear",
       "grupo": "Levaduras y gasificantes",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 8500,
-      "unit_price": null,
+      "bulk_price_gs": 8500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 8.500 / 1.000g"
+      "precio_ref": "precio = repo 8.500 / 1.000g"
     },
     {
       "ing_id": "ING-048",
@@ -647,12 +680,12 @@
       "grupo": "Frutas y frutos secos",
       "pkg_qty": null,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-049",
@@ -660,25 +693,25 @@
       "grupo": "Frutas y frutos secos",
       "pkg_qty": null,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-050",
       "name": "Nueces",
       "grupo": "Frutas y frutos secos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 28500,
-      "unit_price": null,
+      "bulk_price_gs": 28500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 28.500 / 1.000g"
+      "precio_ref": "precio = repo 28.500 / 1.000g"
     },
     {
       "ing_id": "ING-051",
@@ -686,12 +719,12 @@
       "grupo": "Frutas y frutos secos",
       "pkg_qty": null,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-052",
@@ -699,12 +732,12 @@
       "grupo": "Frutas y frutos secos",
       "pkg_qty": null,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-053",
@@ -712,25 +745,25 @@
       "grupo": "Frutas y frutos secos",
       "pkg_qty": null,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-054",
       "name": "Fruta Confitada",
       "grupo": "Frutas y frutos secos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 12500,
-      "unit_price": null,
+      "bulk_price_gs": 12500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 12.500 / 1.000g | restaurado del respaldo — verificá precio y stock"
+      "precio_ref": "precio = repo 12.500 / 1.000g | restaurado del respaldo — verificá precio y stock"
     },
     {
       "ing_id": "ING-055",
@@ -738,12 +771,12 @@
       "grupo": "Frutas y frutos secos",
       "pkg_qty": null,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-056",
@@ -751,116 +784,116 @@
       "grupo": "Frutas y frutos secos",
       "pkg_qty": null,
       "pkg_unit": "und",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-057",
       "name": "Cebolla",
       "grupo": "Verduras y legumbres",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 8150,
-      "unit_price": null,
+      "bulk_price_gs": 8150,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "repo: 3.500/kg"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "repo: 3.500/kg"
     },
     {
       "ing_id": "ING-058",
       "name": "Zanahoria",
       "grupo": "Verduras y legumbres",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 3500,
-      "unit_price": null,
+      "bulk_price_gs": 3500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 3.500 / 1.000g"
+      "precio_ref": "precio = repo 3.500 / 1.000g"
     },
     {
       "ing_id": "ING-059",
       "name": "Garbanzo",
       "grupo": "Verduras y legumbres",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 29000,
-      "unit_price": null,
+      "bulk_price_gs": 29000,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-060",
       "name": "Cebolla morada",
       "grupo": "Verduras y legumbres",
-      "pkg_qty": 57,
+      "pkg_qty": 57.0,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-061",
       "name": "Panceta de cerdo",
       "grupo": "Carnes",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 28500,
-      "unit_price": null,
+      "bulk_price_gs": 28500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 28.500 / 1.000g"
+      "precio_ref": "precio = repo 28.500 / 1.000g"
     },
     {
       "ing_id": "ING-062",
       "name": "Pechuga de pollo",
       "grupo": "Carnes",
-      "pkg_qty": 1132,
+      "pkg_qty": 1132.0,
       "pkg_unit": "g",
-      "bulk_price": 23000,
-      "unit_price": null,
+      "bulk_price_gs": 23000,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "repo: 19.500/kg"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "repo: 19.500/kg"
     },
     {
       "ing_id": "ING-063",
       "name": "Bola de lomo",
       "grupo": "Carnes",
-      "pkg_qty": 500,
+      "pkg_qty": 500.0,
       "pkg_unit": "g",
-      "bulk_price": 37000,
-      "unit_price": null,
+      "bulk_price_gs": 37000,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-064",
       "name": "Carnaza de segunda",
       "grupo": "Carnes",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 40000,
-      "unit_price": null,
+      "bulk_price_gs": 40000,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-065",
@@ -868,25 +901,25 @@
       "grupo": "Salsas y líquidos",
       "pkg_qty": null,
       "pkg_unit": "ml",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-066",
       "name": "Jugo de limón",
       "grupo": "Salsas y líquidos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "ml",
-      "bulk_price": 6800,
-      "unit_price": null,
+      "bulk_price_gs": 6800,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 6.800 / 1.000ml"
+      "precio_ref": "precio = repo 6.800 / 1.000ml"
     },
     {
       "ing_id": "ING-067",
@@ -894,51 +927,51 @@
       "grupo": "Salsas y líquidos",
       "pkg_qty": null,
       "pkg_unit": "ml",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-068",
       "name": "Vinagre",
       "grupo": "Salsas y líquidos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "ml",
-      "bulk_price": 4500,
-      "unit_price": null,
+      "bulk_price_gs": 4500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 4.500 / 1.000ml"
+      "precio_ref": "precio = repo 4.500 / 1.000ml"
     },
     {
       "ing_id": "ING-069",
       "name": "Ketjap manis",
       "grupo": "Salsas y líquidos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "ml",
-      "bulk_price": 18500,
-      "unit_price": null,
+      "bulk_price_gs": 18500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 18.500 / 1.000ml"
+      "precio_ref": "precio = repo 18.500 / 1.000ml"
     },
     {
       "ing_id": "ING-070",
       "name": "Salsa de soja",
       "grupo": "Salsas y líquidos",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "ml",
-      "bulk_price": 7500,
-      "unit_price": null,
+      "bulk_price_gs": 7500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 7.500 / 1.000ml"
+      "precio_ref": "precio = repo 7.500 / 1.000ml"
     },
     {
       "ing_id": "ING-071",
@@ -946,25 +979,25 @@
       "grupo": "Salsas y líquidos",
       "pkg_qty": null,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "duplicado de ING-056 | restaurado del respaldo — verificá precio y stock"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "duplicado de ING-056 | restaurado del respaldo — verificá precio y stock"
     },
     {
       "ing_id": "ING-072",
       "name": "Aceite",
       "grupo": "Aceites y grasas",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "ml",
-      "bulk_price": 13500,
-      "unit_price": null,
+      "bulk_price_gs": 13500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 13.500 / 1.000ml"
+      "precio_ref": "precio = repo 13.500 / 1.000ml"
     },
     {
       "ing_id": "ING-073",
@@ -972,12 +1005,12 @@
       "grupo": "Preparados y otros",
       "pkg_qty": null,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-074",
@@ -985,12 +1018,12 @@
       "grupo": "Preparados y otros",
       "pkg_qty": null,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-075",
@@ -998,12 +1031,12 @@
       "grupo": "Preparados y otros",
       "pkg_qty": null,
       "pkg_unit": "und",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-076",
@@ -1011,246 +1044,246 @@
       "grupo": "Preparados y otros",
       "pkg_qty": null,
       "pkg_unit": "und",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-077",
       "name": "Gelatina",
       "grupo": "Preparados y otros",
-      "pkg_qty": 57,
+      "pkg_qty": 57.0,
       "pkg_unit": "g",
-      "bulk_price": null,
-      "unit_price": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-078",
       "name": "Cafe Espresso Molido",
       "grupo": "Preparados y otros",
-      "pkg_qty": 57,
+      "pkg_qty": 57.0,
       "pkg_unit": "g",
-      "bulk_price": 22500,
-      "unit_price": null,
+      "bulk_price_gs": 22500,
       "stock_qty": null,
-      "min_reorder": null,
+      "stock_qty_text": null,
+      "min_reorder_text": null,
       "last_update": "07/10/2026",
-      "notes": "precio = repo 22.500 / 1.000g | restaurado del respaldo — verificá precio y stock"
+      "precio_ref": "precio = repo 22.500 / 1.000g | restaurado del respaldo — verificá precio y stock"
     },
     {
       "ing_id": "ING-079",
       "name": "Galletas dulces (base cheesecake)",
       "grupo": "Preparados y otros",
       "pkg_qty": null,
-      "pkg_unit": "",
-      "bulk_price": null,
-      "unit_price": null,
+      "pkg_unit": null,
+      "bulk_price_gs": null,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "alta 07/10/2026 desde Recipe_Cheesecake fila 18 — cantidad y precio pendientes"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "alta 07/10/2026 desde Recipe_Cheesecake fila 18 — cantidad y precio pendientes"
     },
     {
       "ing_id": "ING-080",
       "name": "Gelatina sin sabor",
       "grupo": "Preparados y otros",
-      "pkg_qty": 100,
+      "pkg_qty": 100.0,
       "pkg_unit": "g",
-      "bulk_price": 24250,
-      "unit_price": null,
+      "bulk_price_gs": 24250,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "Copalsa 100 g = 24.250 (Casa Rica); Salemma 22.600"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "Copalsa 100 g = 24.250 (Casa Rica); Salemma 22.600"
     },
     {
       "ing_id": "ING-081",
       "name": "Caldo de carne en cubos",
       "grupo": "Preparados y otros",
-      "pkg_qty": 12,
+      "pkg_qty": 12.0,
       "pkg_unit": "und",
-      "bulk_price": 8360,
-      "unit_price": null,
+      "bulk_price_gs": 8360,
       "stock_qty": null,
-      "min_reorder": null,
-      "last_update": "",
-      "notes": "Maggi caldo carne x12 = 8.360 (Casa Rica) ~697/cubo; Knorr similar"
+      "stock_qty_text": null,
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": "Maggi caldo carne x12 = 8.360 (Casa Rica) ~697/cubo; Knorr similar"
     },
     {
       "ing_id": "ING-082",
       "name": "Morrón rojo",
       "grupo": "Verduras y legumbres",
-      "pkg_qty": 1,
+      "pkg_qty": 1.0,
       "pkg_unit": "und",
-      "bulk_price": 5000,
-      "unit_price": null,
-      "stock_qty": "est. mercado ~5.000/und — CONFIRMAR",
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "bulk_price_gs": 5000,
+      "stock_qty": null,
+      "stock_qty_text": "est. mercado ~5.000/und — CONFIRMAR",
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-083",
       "name": "Apio",
       "grupo": "Verduras y legumbres",
-      "pkg_qty": 1,
+      "pkg_qty": 1.0,
       "pkg_unit": "und",
-      "bulk_price": 667,
-      "unit_price": null,
-      "stock_qty": "8.000/docena (preciosdelagro) ≈ 667/tallo",
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "bulk_price_gs": 667,
+      "stock_qty": null,
+      "stock_qty_text": "8.000/docena (preciosdelagro) ≈ 667/tallo",
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-084",
       "name": "Puré de tomate",
       "grupo": "Preparados y otros",
-      "pkg_qty": 210,
+      "pkg_qty": 210.0,
       "pkg_unit": "g",
-      "bulk_price": 6500,
-      "unit_price": null,
-      "stock_qty": "est. lata Arcor 210g ~6.500 — CONFIRMAR",
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "bulk_price_gs": 6500,
+      "stock_qty": null,
+      "stock_qty_text": "est. lata Arcor 210g ~6.500 — CONFIRMAR",
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-085",
       "name": "Pimentón ahumado",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 100,
+      "pkg_qty": 100.0,
       "pkg_unit": "g",
-      "bulk_price": 12000,
-      "unit_price": null,
-      "stock_qty": "cocinar.com.py 12.000/100g",
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "bulk_price_gs": 12000,
+      "stock_qty": null,
+      "stock_qty_text": "cocinar.com.py 12.000/100g",
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-086",
       "name": "Falda de res",
       "grupo": "Carnes",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 34900,
-      "unit_price": null,
-      "stock_qty": "Supermas 34.900/kg",
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "bulk_price_gs": 34900,
+      "stock_qty": null,
+      "stock_qty_text": "Supermas 34.900/kg",
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-087",
       "name": "Alcaravea",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 100,
+      "pkg_qty": 100.0,
       "pkg_unit": "g",
-      "bulk_price": 12000,
-      "unit_price": null,
-      "stock_qty": "est. especia ~12.000/100g — CONFIRMAR",
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "bulk_price_gs": 12000,
+      "stock_qty": null,
+      "stock_qty_text": "est. especia ~12.000/100g — CONFIRMAR",
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-088",
       "name": "Cayena",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 100,
+      "pkg_qty": 100.0,
       "pkg_unit": "g",
-      "bulk_price": 12000,
-      "unit_price": null,
-      "stock_qty": "est. especia ~12.000/100g — CONFIRMAR",
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "bulk_price_gs": 12000,
+      "stock_qty": null,
+      "stock_qty_text": "est. especia ~12.000/100g — CONFIRMAR",
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-089",
       "name": "Echalote",
       "grupo": "Verduras y legumbres",
-      "pkg_qty": 1,
+      "pkg_qty": 1.0,
       "pkg_unit": "und",
-      "bulk_price": 4000,
-      "unit_price": null,
-      "stock_qty": "est. mercado ~4.000/und — CONFIRMAR",
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "bulk_price_gs": 4000,
+      "stock_qty": null,
+      "stock_qty_text": "est. mercado ~4.000/und — CONFIRMAR",
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-090",
       "name": "Girgolas frescas",
       "grupo": "Verduras y legumbres",
-      "pkg_qty": 1000,
+      "pkg_qty": 1000.0,
       "pkg_unit": "g",
-      "bulk_price": 40000,
-      "unit_price": null,
-      "stock_qty": "est. ~40.000/kg — CONFIRMAR",
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "bulk_price_gs": 40000,
+      "stock_qty": null,
+      "stock_qty_text": "est. ~40.000/kg — CONFIRMAR",
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-091",
       "name": "Tomillo fresco",
       "grupo": "Especias y condimentos",
-      "pkg_qty": 1,
+      "pkg_qty": 1.0,
       "pkg_unit": "und",
-      "bulk_price": 3000,
-      "unit_price": null,
-      "stock_qty": "est. atado chico ~3.000 — CONFIRMAR",
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "bulk_price_gs": 3000,
+      "stock_qty": null,
+      "stock_qty_text": "est. atado chico ~3.000 — CONFIRMAR",
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-092",
       "name": "Caldo de hongos en cubos",
       "grupo": "Preparados y otros",
-      "pkg_qty": 12,
+      "pkg_qty": 12.0,
       "pkg_unit": "und",
-      "bulk_price": 8360,
-      "unit_price": null,
-      "stock_qty": "est. Maggi x12 = 8.360 (como caldo carne)",
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "bulk_price_gs": 8360,
+      "stock_qty": null,
+      "stock_qty_text": "est. Maggi x12 = 8.360 (como caldo carne)",
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-093",
       "name": "Arroz para sushi",
       "grupo": "Harinas y bases",
-      "pkg_qty": 500,
+      "pkg_qty": 500.0,
       "pkg_unit": "g",
-      "bulk_price": 22400,
-      "unit_price": null,
-      "stock_qty": "Ypacaraí 22.400/500g",
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "bulk_price_gs": 22400,
+      "stock_qty": null,
+      "stock_qty_text": "Ypacaraí 22.400/500g",
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     },
     {
       "ing_id": "ING-094",
       "name": "Queso rallado",
       "grupo": "Lácteos y huevos",
-      "pkg_qty": 40,
+      "pkg_qty": 40.0,
       "pkg_unit": "g",
-      "bulk_price": 5250,
-      "unit_price": null,
-      "stock_qty": "Tregar 40g = 5.250 (Supermas)",
-      "min_reorder": null,
-      "last_update": "",
-      "notes": ""
+      "bulk_price_gs": 5250,
+      "stock_qty": null,
+      "stock_qty_text": "Tregar 40g = 5.250 (Supermas)",
+      "min_reorder_text": null,
+      "last_update": null,
+      "precio_ref": null
     }
   ],
   "packaging": [
@@ -1259,63 +1292,91 @@
       "name": "bolsita de 15x22",
       "desc": "saco pp cromus incoloro cant 100",
       "categoria": "bolsita",
-      "pkg_qty": 100,
+      "pkg_qty": 100.0,
       "pkg_unit": "und",
-      "bulk_price": 24918
+      "bulk_price_gs": 24918,
+      "stock_qty": 90.0,
+      "min_reorder": 100.0,
+      "last_update": null,
+      "notes": null
     },
     {
       "pkg_id": "MAT-02",
       "name": "cintillo 7mm 10m",
       "desc": "bandera py",
       "categoria": "decoracion",
-      "pkg_qty": 250,
+      "pkg_qty": 250.0,
       "pkg_unit": "unidades de 40 cm",
-      "bulk_price": 8000
+      "bulk_price_gs": 8000,
+      "stock_qty": null,
+      "min_reorder": null,
+      "last_update": null,
+      "notes": null
     },
     {
       "pkg_id": "MAT-03",
       "name": "bandeja isopor",
       "desc": "B-190 blanco",
       "categoria": "bandeja",
-      "pkg_qty": 100,
+      "pkg_qty": 100.0,
       "pkg_unit": "und",
-      "bulk_price": 25200
+      "bulk_price_gs": 25200,
+      "stock_qty": null,
+      "min_reorder": null,
+      "last_update": null,
+      "notes": null
     },
     {
       "pkg_id": "MAT-04",
       "name": "bandeja carton",
       "desc": "bandeja pegadas n*3",
       "categoria": "bandeja",
-      "pkg_qty": 25,
+      "pkg_qty": 25.0,
       "pkg_unit": "und",
-      "bulk_price": 8401
+      "bulk_price_gs": 8401,
+      "stock_qty": null,
+      "min_reorder": null,
+      "last_update": null,
+      "notes": null
     },
     {
       "pkg_id": "MAT-05",
       "name": "papel antigrasa blanco",
       "desc": "papel",
       "categoria": "papel",
-      "pkg_qty": 100,
+      "pkg_qty": 100.0,
       "pkg_unit": "und",
-      "bulk_price": 12000
+      "bulk_price_gs": 12000,
+      "stock_qty": null,
+      "min_reorder": null,
+      "last_update": null,
+      "notes": null
     },
     {
       "pkg_id": "MAT-06",
       "name": "bolsa de papel mediana",
       "desc": "para entrega de productos",
       "categoria": "bolsa",
-      "pkg_qty": 1,
+      "pkg_qty": 1.0,
       "pkg_unit": "und",
-      "bulk_price": 350
+      "bulk_price_gs": 350,
+      "stock_qty": null,
+      "min_reorder": null,
+      "last_update": "07/10/2026",
+      "notes": null
     },
     {
       "pkg_id": "MAT-07",
       "name": "caja torta 25cm",
-      "desc": "",
+      "desc": null,
       "categoria": "caja",
-      "pkg_qty": 1,
+      "pkg_qty": 1.0,
       "pkg_unit": "und",
-      "bulk_price": 2800
+      "bulk_price_gs": 2800,
+      "stock_qty": null,
+      "min_reorder": null,
+      "last_update": "07/10/2026",
+      "notes": null
     }
   ],
   "recipes": [
@@ -1323,261 +1384,290 @@
       "sheet": "Recipe_Babka",
       "rec_id": "REC-017",
       "rec_name": "Babka",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 12,
+      "yield_unit": "rebanadas",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-003",
-          "name": "Harina de trigo",
-          "qty": 350,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina de trigo",
+          "qty": 350.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 7,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 7.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-007",
-          "name": "Azúcar",
-          "qty": 60,
-          "unit": "g"
+          "ing_id": "ING-007",
+          "ing_name": "Azúcar",
+          "qty": 60.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-046",
-          "name": "Levadura seca",
-          "qty": 7,
-          "unit": "g"
+          "ing_id": "ING-046",
+          "ing_name": "Levadura seca",
+          "qty": 7.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-016",
-          "name": "Leche",
-          "qty": 175,
-          "unit": "ml"
+          "ing_id": "ING-016",
+          "ing_name": "Leche",
+          "qty": 175.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 1,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 1.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 170,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 170.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-025",
-          "name": "Chocolate",
-          "qty": 100,
-          "unit": "g"
+          "ing_id": "ING-025",
+          "ing_name": "Chocolate",
+          "qty": 100.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-023",
-          "name": "Cacao en polvo",
-          "qty": 30,
-          "unit": "g"
+          "ing_id": "ING-023",
+          "ing_name": "Cacao en polvo",
+          "qty": 30.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-008",
-          "name": "Azúcar glas",
-          "qty": 50,
-          "unit": "g"
+          "ing_id": "ING-008",
+          "ing_name": "Azúcar glas",
+          "qty": 50.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-065",
-          "name": "Agua",
-          "qty": 40,
-          "unit": "ml"
+          "ing_id": "ING-065",
+          "ing_name": "Agua",
+          "qty": 40.0,
+          "unit": "ml",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Bizcocho_básico_25_cm_Ba",
       "rec_id": "REC-011",
       "rec_name": "Bizcocho básico 25 cm (Basiscake)",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 12,
+      "yield_unit": "porciones",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-007",
-          "name": "Azúcar",
-          "qty": 200,
-          "unit": "g"
+          "ing_id": "ING-007",
+          "ing_name": "Azúcar",
+          "qty": 200.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 200,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 200.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-027",
-          "name": "Vainilla",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-027",
+          "ing_name": "Vainilla",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-036",
-          "name": "Ralladura de limón",
-          "qty": 0,
-          "unit": "und"
+          "ing_id": "ING-036",
+          "ing_name": "Ralladura de limón",
+          "qty": 0.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 0,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 0.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 4,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 4.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-003",
-          "name": "Harina de trigo",
-          "qty": 200,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina de trigo",
+          "qty": 200.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-047",
-          "name": "Polvo de hornear",
-          "qty": 2,
-          "unit": "g"
+          "ing_id": "ING-047",
+          "ing_name": "Polvo de hornear",
+          "qty": 2.0,
+          "unit": "g",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Bizcocho_básico_30_cm_Ba",
       "rec_id": "REC-012",
       "rec_name": "Bizcocho básico 30 cm (Basiscake)",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 16,
+      "yield_unit": "porciones",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-007",
-          "name": "Azúcar",
-          "qty": 250,
-          "unit": "g"
+          "ing_id": "ING-007",
+          "ing_name": "Azúcar",
+          "qty": 250.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 250,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 250.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-027",
-          "name": "Vainilla",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-027",
+          "ing_name": "Vainilla",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-036",
-          "name": "Ralladura de limón",
-          "qty": 0,
-          "unit": "und"
+          "ing_id": "ING-036",
+          "ing_name": "Ralladura de limón",
+          "qty": 0.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 0,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 0.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 5,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 5.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-003",
-          "name": "Harina de trigo",
-          "qty": 250,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina de trigo",
+          "qty": 250.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-047",
-          "name": "Polvo de hornear",
-          "qty": 2,
-          "unit": "g"
+          "ing_id": "ING-047",
+          "ing_name": "Polvo de hornear",
+          "qty": 2.0,
+          "unit": "g",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Bombones_de_chocolate",
       "rec_id": "REC-018",
       "rec_name": "Bombones de chocolate",
-      "yield_qty": 20,
+      "yield_qty": 20.0,
       "yield_unit": "unidades",
-      "yield_notes": "Brigadeiro de panela: cocinar a fuego medio-bajo revolviendo ~10-15 min hasta que se despegue de la olla. Rinde ~20 uds de 15 g — AJUSTA B4 al yield real.",
+      "yield_source": "sheet",
+      "method_notes": "Brigadeiro de panela: cocinar a fuego medio-bajo revolviendo ~10-15 min hasta que se despegue de la olla. Rinde ~20 uds de 15 g — AJUSTA B4 al yield real.",
       "ingredients": [
         {
-          "ing_ref": "ING-021",
-          "name": "Leche condensada",
-          "qty": 397,
-          "unit": "g"
+          "ing_id": "ING-021",
+          "ing_name": "Leche condensada",
+          "qty": 397.0,
+          "unit": "g",
+          "notes": "397 g (1 lata)"
         },
         {
-          "ing_ref": "ING-023",
-          "name": "Cacao en polvo",
-          "qty": 22,
-          "unit": "g"
+          "ing_id": "ING-023",
+          "ing_name": "Cacao en polvo",
+          "qty": 22.0,
+          "unit": "g",
+          "notes": "22 g"
         },
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 14,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 14.0,
+          "unit": "g",
+          "notes": "14 g"
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": "1 g"
+        }
+      ],
+      "packaging": [
+        {
+          "name": "bolsita MAT-01 (opcional)",
+          "qty_packs": null,
+          "unit": "und",
+          "price_pack_gs": 249,
+          "notes": "MAT-01 bolsita 15x22 (249 Gs/und). Carga en D27 cuantas bolsitas usas."
         }
       ],
       "margins": {
@@ -1585,181 +1675,217 @@
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
+      "overhead": {
+        "Electricidad": {
+          "value_gs": 0,
+          "note": "pone tu valor; en hornalla a gas dejalo en 0"
+        },
+        "Gas": {
+          "value_gs": 270,
+          "note": "estimado sobre 1.600 Gs/horno de 45-60 min"
+        },
+        "Traslado a compras": {
+          "value_gs": 13333,
+          "note": "tanque 320.000 Gs / 480 km = 667 Gs/km x 20 km (ida y vuelta)"
         }
-      ]
+      }
     },
     {
       "sheet": "Recipe_Carrot_Cake_43x33x15_cm",
       "rec_id": "REC-005",
       "rec_name": "Torta de zanahoria (43x33x1.5 cm)",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 24,
+      "yield_unit": "porciones",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-003",
-          "name": "Harina de trigo",
-          "qty": 372,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina de trigo",
+          "qty": 372.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-007",
-          "name": "Azúcar",
-          "qty": 266,
-          "unit": "g"
+          "ing_id": "ING-007",
+          "ing_name": "Azúcar",
+          "qty": 266.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-009",
-          "name": "Azúcar morena",
-          "qty": 306,
-          "unit": "g"
+          "ing_id": "ING-009",
+          "ing_name": "Azúcar morena",
+          "qty": 306.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-034",
-          "name": "Jengibre molido",
-          "qty": 4,
-          "unit": "g"
+          "ing_id": "ING-034",
+          "ing_name": "Jengibre molido",
+          "qty": 4.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-030",
-          "name": "Canela",
-          "qty": 7,
-          "unit": "g"
+          "ing_id": "ING-030",
+          "ing_name": "Canela",
+          "qty": 7.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 5,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 5.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-044",
-          "name": "Bicarbonato de sodio",
-          "qty": 9,
-          "unit": "g"
+          "ing_id": "ING-044",
+          "ing_name": "Bicarbonato de sodio",
+          "qty": 9.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-035",
-          "name": "Nuez moscada",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-035",
+          "ing_name": "Nuez moscada",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 5,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 5.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-027",
-          "name": "Vainilla",
-          "qty": 9,
-          "unit": "g"
+          "ing_id": "ING-027",
+          "ing_name": "Vainilla",
+          "qty": 9.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-072",
-          "name": "Aceite",
-          "qty": 392,
-          "unit": "ml"
+          "ing_id": "ING-072",
+          "ing_name": "Aceite",
+          "qty": 392.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-051",
-          "name": "Pasas",
-          "qty": 73,
-          "unit": "g"
+          "ing_id": "ING-051",
+          "ing_name": "Pasas",
+          "qty": 73.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-058",
-          "name": "Zanahoria",
-          "qty": 332,
-          "unit": "g"
+          "ing_id": "ING-058",
+          "ing_name": "Zanahoria",
+          "qty": 332.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-050",
-          "name": "Nueces",
-          "qty": 166,
-          "unit": "g"
+          "ing_id": "ING-050",
+          "ing_name": "Nueces",
+          "qty": 166.0,
+          "unit": "g",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Cheesecake_20x20_cm",
       "rec_id": "REC-002",
       "rec_name": "Cheesecake (30x50)",
-      "yield_qty": 170,
+      "yield_qty": 170.0,
       "yield_unit": "porciones",
-      "yield_notes": "Overhead estimado en filas 56-58 (luz, gas, traslado 10 km). Queso crema: compra completa 1,5 kg (162.900 ₲) cargada a este batch — dividila en D9 si rendís 2 hornadas.",
+      "yield_source": "sheet",
+      "method_notes": "Overhead estimado en filas 56-58 (luz, gas, traslado 10 km). Queso crema: compra completa 1,5 kg (162.900 ₲) cargada a este batch — dividila en D9 si rendís 2 hornadas.",
       "ingredients": [
         {
-          "ing_ref": "ING-019",
-          "name": "Queso crema",
-          "qty": 1500,
-          "unit": "g"
+          "ing_id": "ING-019",
+          "ing_name": "Queso crema",
+          "qty": 1500.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-007",
-          "name": "Azúcar",
-          "qty": 419,
-          "unit": "g"
+          "ing_id": "ING-007",
+          "ing_name": "Azúcar",
+          "qty": 419.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 11,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 11.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-013",
-          "name": "Crema de leche",
-          "qty": 950,
-          "unit": "ml"
+          "ing_id": "ING-013",
+          "ing_name": "Crema de leche",
+          "qty": 950.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-003",
-          "name": "Harina de trigo",
-          "qty": 70,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina de trigo",
+          "qty": 70.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-027",
-          "name": "Vainilla",
-          "qty": 15,
-          "unit": "ml"
+          "ing_id": "ING-027",
+          "ing_name": "Vainilla",
+          "qty": 15.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-066",
-          "name": "Jugo de limón",
-          "qty": 15,
-          "unit": "ml"
+          "ing_id": "ING-066",
+          "ing_name": "Jugo de limón",
+          "qty": 15.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 20,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 20.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-079",
-          "name": "Galletas dulces (base cheesecake)",
+          "ing_id": "ING-079",
+          "ing_name": "Galletas dulces (base cheesecake)",
           "qty": null,
-          "unit": ""
+          "unit": null,
+          "notes": "cargá cantidad (D18) y precio en Inventory"
+        }
+      ],
+      "packaging": [
+        {
+          "name": "pirotin",
+          "qty_packs": 170.0,
+          "unit": "und",
+          "price_pack_gs": 95,
+          "notes": "compra real: 170 pirotines × 95 ₲ = 16.150 ₲/pack"
         }
       ],
       "margins": {
@@ -1767,934 +1893,1037 @@
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
+      "overhead": {
+        "Electricidad": {
+          "value_gs": 970,
+          "note": "≈2,4 kWh × 403,82 ₲/kWh (ANDE R1 0-500 kWh/mes; fuera de punta ≈264 ₲)"
         },
-        {
-          "name": "170",
-          "qty": "und",
-          "unit_price": 95
+        "Gas": {
+          "value_gs": 1600,
+          "note": "≈45-60 min quemador (estimado; poné 0 si tu horno es eléctrico)"
+        },
+        "Traslado a compras": {
+          "value_gs": 13333,
+          "note": "tanque 320.000 ₲ ÷ 480 km ≈ 667 ₲/km × 20 km (ida y vuelta)"
         }
-      ]
+      }
     },
     {
       "sheet": "Recipe_Chocolate_Muffin_20x20_c",
       "rec_id": "REC-001",
       "rec_name": "Muffin de chocolate (20x20 cm)",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 16,
+      "yield_unit": "unidades",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-003",
-          "name": "Harina de trigo",
-          "qty": 333,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina de trigo",
+          "qty": 333.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-023",
-          "name": "Cacao en polvo",
-          "qty": 117,
-          "unit": "g"
+          "ing_id": "ING-023",
+          "ing_name": "Cacao en polvo",
+          "qty": 117.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-047",
-          "name": "Polvo de hornear",
-          "qty": 5,
-          "unit": "g"
+          "ing_id": "ING-047",
+          "ing_name": "Polvo de hornear",
+          "qty": 5.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-044",
-          "name": "Bicarbonato de sodio",
-          "qty": 5,
-          "unit": "g"
+          "ing_id": "ING-044",
+          "ing_name": "Bicarbonato de sodio",
+          "qty": 5.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-024",
-          "name": "Café instantaneo",
-          "qty": 3,
-          "unit": "g"
+          "ing_id": "ING-024",
+          "ing_name": "Café instantaneo",
+          "qty": 3.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 17,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 17.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-009",
-          "name": "Azúcar morena",
-          "qty": 458,
-          "unit": "g"
+          "ing_id": "ING-009",
+          "ing_name": "Azúcar morena",
+          "qty": 458.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-016",
-          "name": "Leche",
-          "qty": 167,
-          "unit": "ml"
+          "ing_id": "ING-016",
+          "ing_name": "Leche",
+          "qty": 167.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-072",
-          "name": "Aceite",
-          "qty": 250,
-          "unit": "ml"
+          "ing_id": "ING-072",
+          "ing_name": "Aceite",
+          "qty": 250.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 167,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 167.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-012",
-          "name": "Crema agria",
-          "qty": 375,
-          "unit": "ml"
+          "ing_id": "ING-012",
+          "ing_name": "Crema agria",
+          "qty": 375.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-027",
-          "name": "Vainilla",
-          "qty": 25,
-          "unit": "g"
+          "ing_id": "ING-027",
+          "ing_name": "Vainilla",
+          "qty": 25.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-025",
-          "name": "Chocolate",
-          "qty": 333,
-          "unit": "g"
+          "ing_id": "ING-025",
+          "ing_name": "Chocolate",
+          "qty": 333.0,
+          "unit": "g",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Frikandel_100_pcs",
       "rec_id": "REC-006",
       "rec_name": "Frikandel (100 unidades)",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 100,
+      "yield_unit": "unidades",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-062",
-          "name": "Pechuga de pollo",
-          "qty": 200,
-          "unit": "g"
+          "ing_id": "ING-062",
+          "ing_name": "Pechuga de pollo",
+          "qty": 200.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-064",
-          "name": "Carnaza de segunda",
-          "qty": 800,
-          "unit": "g"
+          "ing_id": "ING-064",
+          "ing_name": "Carnaza de segunda",
+          "qty": 800.0,
+          "unit": "g",
+          "notes": "confirmado por el usuario: carnaza de segunda (no panceta)"
         },
         {
-          "ing_ref": "ING-060",
-          "name": "Cebolla morada",
-          "qty": 100,
-          "unit": "g"
+          "ing_id": "ING-060",
+          "ing_name": "Cebolla morada",
+          "qty": 100.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-028",
-          "name": "Ajo",
-          "qty": 10,
-          "unit": "g"
+          "ing_id": "ING-028",
+          "ing_name": "Ajo",
+          "qty": 10.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-069",
-          "name": "Ketjap manis",
+          "ing_id": "ING-069",
+          "ing_name": "Ketjap manis",
           "qty": null,
-          "unit": "g"
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 1,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 1.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-006",
-          "name": "Pan rallado",
-          "qty": 50,
-          "unit": "g"
+          "ing_id": "ING-006",
+          "ing_name": "Pan rallado",
+          "qty": 50.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-031",
-          "name": "Especias mixtas",
-          "qty": 13,
-          "unit": "g"
+          "ing_id": "ING-031",
+          "ing_name": "Especias mixtas",
+          "qty": 13.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 16,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 16.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-022",
-          "name": "Leche en polvo",
-          "qty": 30,
-          "unit": "g"
+          "ing_id": "ING-022",
+          "ing_name": "Leche en polvo",
+          "qty": 30.0,
+          "unit": "g",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Galletas_de_especuloos_S",
       "rec_id": "REC-010",
       "rec_name": "Galletas de especuloos (Speculaasjes)",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 30,
+      "yield_unit": "unidades",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 190,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 190.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-009",
-          "name": "Azúcar morena",
-          "qty": 205,
-          "unit": "g"
+          "ing_id": "ING-009",
+          "ing_name": "Azúcar morena",
+          "qty": 205.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-036",
-          "name": "Ralladura de limón",
-          "qty": 0,
-          "unit": "und"
+          "ing_id": "ING-036",
+          "ing_name": "Ralladura de limón",
+          "qty": 0.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 0,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 0.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-020",
-          "name": "Suero de leche (buttermilk)",
-          "qty": 45,
-          "unit": "ml"
+          "ing_id": "ING-020",
+          "ing_name": "Suero de leche (buttermilk)",
+          "qty": 45.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-003",
-          "name": "Harina de trigo",
-          "qty": 400,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina de trigo",
+          "qty": 400.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-032",
-          "name": "Mezcla de especias para Speculaas",
-          "qty": 4,
-          "unit": "g"
+          "ing_id": "ING-032",
+          "ing_name": "Speculaas",
+          "qty": 4.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-044",
-          "name": "Bicarbonato de sodio",
-          "qty": 2,
-          "unit": "g"
+          "ing_id": "ING-044",
+          "ing_name": "Bicarbonato de sodio",
+          "qty": 2.0,
+          "unit": "g",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Goulash_Crockettes_100",
       "rec_id": "REC-019",
       "rec_name": "goulash crockettes",
-      "yield_qty": 100,
+      "yield_qty": 100.0,
       "yield_unit": "unidades",
-      "yield_notes": "Ragú de carne estilo goulash, empanizado y frito. Rinde ~100 croquetas de 25 g.",
+      "yield_source": "sheet",
+      "method_notes": "Ragú de carne estilo goulash, empanizado y frito. Rinde ~100 croquetas de 25 g.",
       "ingredients": [
         {
-          "ing_ref": "ING-072",
-          "name": "Aceite",
-          "qty": 40,
-          "unit": "ml"
+          "ing_id": "ING-072",
+          "ing_name": "Aceite",
+          "qty": 40.0,
+          "unit": "ml",
+          "notes": "rehogado (o manteca)"
         },
         {
-          "ing_ref": "ING-082",
-          "name": "Morron Rojo",
-          "qty": 1,
-          "unit": "und"
+          "ing_id": "ING-082",
+          "ing_name": "Morron Rojo",
+          "qty": 1.0,
+          "unit": "und",
+          "notes": "≈150 g, cubos chicos"
         },
         {
-          "ing_ref": "ING-057",
-          "name": "Cebolla",
-          "qty": 150,
-          "unit": "g"
+          "ing_id": "ING-057",
+          "ing_name": "Cebolla",
+          "qty": 150.0,
+          "unit": "g",
+          "notes": "picada fina"
         },
         {
-          "ing_ref": "ING-058",
-          "name": "Zanahoria",
-          "qty": 100,
-          "unit": "g"
+          "ing_id": "ING-058",
+          "ing_name": "Zanahoria",
+          "qty": 100.0,
+          "unit": "g",
+          "notes": "picada fina"
         },
         {
-          "ing_ref": "ING-083",
-          "name": "Apio",
-          "qty": 2,
-          "unit": "und"
+          "ing_id": "ING-083",
+          "ing_name": "Apio",
+          "qty": 2.0,
+          "unit": "und",
+          "notes": "2 tallos ≈100 g, picados"
         },
         {
-          "ing_ref": "ING-028",
-          "name": "Ajo",
-          "qty": 4,
-          "unit": "und"
+          "ing_id": "ING-028",
+          "ing_name": "Ajo",
+          "qty": 4.0,
+          "unit": "und",
+          "notes": "dientes picados"
         },
         {
-          "ing_ref": "ING-084",
-          "name": "Pure De Tomate",
-          "qty": 30,
-          "unit": "g"
+          "ing_id": "ING-084",
+          "ing_name": "Pure De Tomate",
+          "qty": 30.0,
+          "unit": "g",
+          "notes": "2 tbsp ≈ 1/7 lata 210 g"
         },
         {
-          "ing_ref": "ING-085",
-          "name": "Pimenton Ahumado",
-          "qty": 7,
-          "unit": "g"
+          "ing_id": "ING-085",
+          "ing_name": "Pimenton Ahumado",
+          "qty": 7.0,
+          "unit": "g",
+          "notes": "1 tbsp"
         },
         {
-          "ing_ref": "ING-086",
-          "name": "Falda De Res",
-          "qty": 600,
-          "unit": "g"
+          "ing_id": "ING-086",
+          "ing_name": "Falda De Res",
+          "qty": 600.0,
+          "unit": "g",
+          "notes": "rib flap/candy, cubos ~2 cm"
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 5,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 5.0,
+          "unit": "g",
+          "notes": "1/2 zanahoria de invierno, en trozos"
         },
         {
-          "ing_ref": "ING-042",
-          "name": "Pimienta",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-042",
+          "ing_name": "Pimienta",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": "1 hoja"
         },
         {
-          "ing_ref": "ING-081",
-          "name": "Caldo De Carne En Cubos",
+          "ing_id": "ING-081",
+          "ing_name": "Caldo De Carne En Cubos",
           "qty": 2.5,
-          "unit": "und"
+          "unit": "und",
+          "notes": "750 ml (1 cubo ≈ 300 ml)"
         },
         {
-          "ing_ref": "ING-087",
-          "name": "Alcaravea",
-          "qty": 2,
-          "unit": "g"
+          "ing_id": "ING-087",
+          "ing_name": "Alcaravea",
+          "qty": 2.0,
+          "unit": "g",
+          "notes": "1 tsp"
         },
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 80,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 80.0,
+          "unit": "g",
+          "notes": "ragú"
         },
         {
-          "ing_ref": "ING-003",
-          "name": "Harina De Trigo",
-          "qty": 100,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina De Trigo",
+          "qty": 100.0,
+          "unit": "g",
+          "notes": "ragú"
         },
         {
-          "ing_ref": "ING-080",
-          "name": "Gelatina Sin Sabor",
-          "qty": 5,
-          "unit": "g"
+          "ing_id": "ING-080",
+          "ing_name": "Gelatina Sin Sabor",
+          "qty": 5.0,
+          "unit": "g",
+          "notes": "3 hojas"
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 2,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 2.0,
+          "unit": "und",
+          "notes": "yemas"
         },
         {
-          "ing_ref": "ING-013",
-          "name": "Crema De Leche",
-          "qty": 50,
-          "unit": "g"
+          "ing_id": "ING-013",
+          "ing_name": "Crema De Leche",
+          "qty": 50.0,
+          "unit": "g",
+          "notes": "para batir"
         },
         {
-          "ing_ref": "ING-088",
-          "name": "Cayena",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-088",
+          "ing_name": "Cayena",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": "¼-½ tsp"
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 2,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 2.0,
+          "unit": "und",
+          "notes": "claras (de 3-4)"
         },
         {
-          "ing_ref": "ING-003",
-          "name": "Harina De Trigo",
-          "qty": 15,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina De Trigo",
+          "qty": 15.0,
+          "unit": "g",
+          "notes": "1 tbsp"
         },
         {
-          "ing_ref": "ING-072",
-          "name": "Aceite",
-          "qty": 500,
-          "unit": "ml"
+          "ing_id": "ING-072",
+          "ing_name": "Aceite",
+          "qty": 500.0,
+          "unit": "ml",
+          "notes": "fritura: girasol/maní"
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": []
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Hojaldre_Bladerdeeg",
       "rec_id": "REC-008",
       "rec_name": "Hojaldre (Bladerdeeg)",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 1,
+      "yield_unit": "plancha",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-003",
-          "name": "Harina de trigo",
-          "qty": 250,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina de trigo",
+          "qty": 250.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-065",
-          "name": "Agua",
-          "qty": 140,
-          "unit": "ml"
+          "ing_id": "ING-065",
+          "ing_name": "Agua",
+          "qty": 140.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 5,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 5.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 250,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 250.0,
+          "unit": "g",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Ketjap_Manis_Quick_Versi",
       "rec_id": "REC-007",
       "rec_name": "Ketjap manis (versión rápida)",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 500,
+      "yield_unit": "ml",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-070",
-          "name": "Salsa de soja",
-          "qty": 240,
-          "unit": "ml"
+          "ing_id": "ING-070",
+          "ing_name": "Salsa de soja",
+          "qty": 240.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-009",
-          "name": "Azúcar morena",
-          "qty": 240,
-          "unit": "g"
+          "ing_id": "ING-009",
+          "ing_name": "Azúcar morena",
+          "qty": 240.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-028",
-          "name": "Ajo",
-          "qty": 10,
-          "unit": "g"
+          "ing_id": "ING-028",
+          "ing_name": "Ajo",
+          "qty": 10.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-029",
-          "name": "Anís estrellado",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-029",
+          "ing_name": "Anís estrellado",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-033",
-          "name": "Jengibre",
-          "qty": 10,
-          "unit": "g"
+          "ing_id": "ING-033",
+          "ing_name": "Jengibre",
+          "qty": 10.0,
+          "unit": "g",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Oliebollen_Buñuelos_trad",
       "rec_id": "REC-016",
       "rec_name": "Oliebollen (Buñuelos tradicionales holandeses)",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 24,
+      "yield_unit": "unidades",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-051",
-          "name": "Pasas",
+          "ing_id": "ING-051",
+          "ing_name": "Pasas",
           "qty": null,
-          "unit": ""
+          "unit": null,
+          "notes": null
         },
         {
-          "ing_ref": "ING-045",
-          "name": "Levadura fresca",
-          "qty": 80,
-          "unit": "g"
+          "ing_id": "ING-045",
+          "ing_name": "Levadura fresca",
+          "qty": 80.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-016",
-          "name": "Leche",
-          "qty": 1000,
-          "unit": "ml"
+          "ing_id": "ING-016",
+          "ing_name": "Leche",
+          "qty": 1000.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-003",
-          "name": "Harina de trigo",
-          "qty": 1000,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina de trigo",
+          "qty": 1000.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-007",
-          "name": "Azúcar",
-          "qty": 45,
-          "unit": "g"
+          "ing_id": "ING-007",
+          "ing_name": "Azúcar",
+          "qty": 45.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-036",
-          "name": "Ralladura de limón",
-          "qty": 1,
-          "unit": "und"
+          "ing_id": "ING-036",
+          "ing_name": "Ralladura de limón",
+          "qty": 1.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 20,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 20.0,
+          "unit": "g",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Ontbijtkoek_700g_flour",
       "rec_id": "REC-004",
       "rec_name": "Ontbijtkoek (700g de harina)",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 1,
+      "yield_unit": "molde",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-001",
-          "name": "Harina de centeno",
-          "qty": 700,
-          "unit": "g"
+          "ing_id": "ING-001",
+          "ing_name": "Harina de centeno",
+          "qty": 700.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-010",
-          "name": "Melaza",
-          "qty": 560,
-          "unit": "g"
+          "ing_id": "ING-010",
+          "ing_name": "Melaza",
+          "qty": 560.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-011",
-          "name": "Miel",
-          "qty": 238,
-          "unit": "g"
+          "ing_id": "ING-011",
+          "ing_name": "Miel",
+          "qty": 238.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-068",
-          "name": "Vinagre",
-          "qty": 7,
-          "unit": "ml"
+          "ing_id": "ING-068",
+          "ing_name": "Vinagre",
+          "qty": 7.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-032",
-          "name": "Mezcla de especias para Speculaas",
-          "qty": 42,
-          "unit": "g"
+          "ing_id": "ING-032",
+          "ing_name": "Speculaas",
+          "qty": 42.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-044",
-          "name": "Bicarbonato de sodio",
-          "qty": 7,
-          "unit": "g"
+          "ing_id": "ING-044",
+          "ing_name": "Bicarbonato de sodio",
+          "qty": 7.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-047",
-          "name": "Polvo de hornear",
-          "qty": 14,
-          "unit": "g"
+          "ing_id": "ING-047",
+          "ing_name": "Polvo de hornear",
+          "qty": 14.0,
+          "unit": "g",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Pastelitos_rosados_Roze_",
       "rec_id": "REC-009",
       "rec_name": "Pastelitos rosados (Roze koeken)",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 12,
+      "yield_unit": "unidades",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 100,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 100.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-007",
-          "name": "Azúcar",
-          "qty": 100,
-          "unit": "g"
+          "ing_id": "ING-007",
+          "ing_name": "Azúcar",
+          "qty": 100.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 2,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 2.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-027",
-          "name": "Vainilla",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-027",
+          "ing_name": "Vainilla",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 0,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 0.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-003",
-          "name": "Harina de trigo",
-          "qty": 110,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina de trigo",
+          "qty": 110.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-005",
-          "name": "Maicena",
-          "qty": 20,
-          "unit": "g"
+          "ing_id": "ING-005",
+          "ing_name": "Maicena",
+          "qty": 20.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-047",
-          "name": "Polvo de hornear",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-047",
+          "ing_name": "Polvo de hornear",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-048",
-          "name": "Frambuesas",
-          "qty": 100,
-          "unit": "g"
+          "ing_id": "ING-048",
+          "ing_name": "Frambuesas",
+          "qty": 100.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-008",
-          "name": "Azúcar glas",
-          "qty": 200,
-          "unit": "g"
+          "ing_id": "ING-008",
+          "ing_name": "Azúcar glas",
+          "qty": 200.0,
+          "unit": "g",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Petisús_de_hojaldre_y_cr",
       "rec_id": "REC-015",
       "rec_name": "Petisús de hojaldre y crema (Tompoezen)",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 12,
+      "yield_unit": "unidades",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-076",
-          "name": "Masa de hojaldre",
-          "qty": 0,
-          "unit": "und"
+          "ing_id": "ING-076",
+          "ing_name": "Masa de hojaldre",
+          "qty": 0.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-014",
-          "name": "Crema pastelera",
-          "qty": 1,
-          "unit": "ml"
+          "ing_id": "ING-014",
+          "ing_name": "Crema pastelera",
+          "qty": 1.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-013",
-          "name": "Crema de leche",
-          "qty": 400,
-          "unit": "ml"
+          "ing_id": "ING-013",
+          "ing_name": "Crema de leche",
+          "qty": 400.0,
+          "unit": "ml",
+          "notes": "nata para montar = crema de leche"
         },
         {
-          "ing_ref": "ING-007",
-          "name": "Azúcar",
-          "qty": 45,
-          "unit": "g"
+          "ing_id": "ING-007",
+          "ing_name": "Azúcar",
+          "qty": 45.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-073",
-          "name": "Estabilizante para nata",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-073",
+          "ing_name": "Estabilizante para nata",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-008",
-          "name": "Azúcar glas",
-          "qty": 125,
-          "unit": "g"
+          "ing_id": "ING-008",
+          "ing_name": "Azúcar glas",
+          "qty": 125.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-067",
-          "name": "Jugo de remolacha",
-          "qty": 0,
-          "unit": "ml"
+          "ing_id": "ING-067",
+          "ing_name": "Jugo de remolacha",
+          "qty": 0.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-065",
-          "name": "Agua",
-          "qty": 2,
-          "unit": "ml"
+          "ing_id": "ING-065",
+          "ing_name": "Agua",
+          "qty": 2.0,
+          "unit": "ml",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Proficteroles_de_Den_Bos",
       "rec_id": "REC-014",
       "rec_name": "Proficteroles de Den Bosch (Bossche bollen)",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 12,
+      "yield_unit": "unidades",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-075",
-          "name": "Masa choux",
-          "qty": 1,
-          "unit": "und"
+          "ing_id": "ING-075",
+          "ing_name": "Masa choux",
+          "qty": 1.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-007",
-          "name": "Azúcar",
-          "qty": 200,
-          "unit": "g"
+          "ing_id": "ING-007",
+          "ing_name": "Azúcar",
+          "qty": 200.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-023",
-          "name": "Cacao en polvo",
-          "qty": 15,
-          "unit": "g"
+          "ing_id": "ING-023",
+          "ing_name": "Cacao en polvo",
+          "qty": 15.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-065",
-          "name": "Agua",
-          "qty": 100,
-          "unit": "ml"
+          "ing_id": "ING-065",
+          "ing_name": "Agua",
+          "qty": 100.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-025",
-          "name": "Chocolate",
-          "qty": 225,
-          "unit": "g"
+          "ing_id": "ING-025",
+          "ing_name": "Chocolate",
+          "qty": 225.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-013",
-          "name": "Crema de leche",
-          "qty": 750,
-          "unit": "ml"
+          "ing_id": "ING-013",
+          "ing_name": "Crema de leche",
+          "qty": 750.0,
+          "unit": "ml",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Stroop_Waffle",
       "rec_id": "REC-003",
       "rec_name": "Stroop wafel",
-      "yield_qty": 12,
-      "yield_unit": "12",
-      "yield_notes": "",
+      "yield_qty": 12.0,
+      "yield_unit": "unidades",
+      "yield_source": "sheet",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-003",
-          "name": "Harina de trigo",
-          "qty": 168,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina de trigo",
+          "qty": 168.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-007",
-          "name": "Azúcar",
-          "qty": 40,
-          "unit": "g"
+          "ing_id": "ING-007",
+          "ing_name": "Azúcar",
+          "qty": 40.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-016",
-          "name": "Leche",
-          "qty": 10,
-          "unit": "ml"
+          "ing_id": "ING-016",
+          "ing_name": "Leche",
+          "qty": 10.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-030",
-          "name": "Canela",
-          "qty": 2,
-          "unit": "g"
+          "ing_id": "ING-030",
+          "ing_name": "Canela",
+          "qty": 2.0,
+          "unit": "g",
+          "notes": "! used 45"
         },
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 77,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 77.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-027",
-          "name": "Vainilla",
-          "qty": 2,
-          "unit": "g"
+          "ing_id": "ING-027",
+          "ing_name": "Vainilla",
+          "qty": 2.0,
+          "unit": "g",
+          "notes": "used"
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 2,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 2.0,
+          "unit": "g",
+          "notes": "ajustar!"
         },
         {
-          "ing_ref": "ING-046",
-          "name": "Levadura seca",
-          "qty": 2,
-          "unit": "g"
+          "ing_id": "ING-046",
+          "ing_name": "Levadura seca",
+          "qty": 2.0,
+          "unit": "g",
+          "notes": "ajustar! used25"
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 1,
-          "unit": "Unidad"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 1.0,
+          "unit": "Unidad",
+          "notes": "use 25"
         },
         {
-          "ing_ref": "ING-007",
-          "name": "Azúcar",
-          "qty": 133,
-          "unit": "g"
+          "ing_id": "ING-007",
+          "ing_name": "Azúcar",
+          "qty": 133.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-013",
-          "name": "Crema de leche",
-          "qty": 67,
-          "unit": "g"
+          "ing_id": "ING-013",
+          "ing_name": "Crema de leche",
+          "qty": 67.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 10,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 10.0,
+          "unit": "g",
+          "notes": null
+        }
+      ],
+      "packaging": [
+        {
+          "name": "bolsita",
+          "size": "15x22",
+          "qty_packs": 100.0,
+          "unit": "1",
+          "price_pack_gs": 24918,
+          "notes": null
+        },
+        {
+          "name": "esticker",
+          "size": null,
+          "qty_packs": null,
+          "unit": null,
+          "price_pack_gs": null,
+          "notes": null
+        },
+        {
+          "name": "cintillo",
+          "size": "7mm* 40cm",
+          "qty_packs": 250.0,
+          "unit": "1",
+          "price_pack_gs": 8000,
+          "notes": "el paquete de cintillo tiene 10m dividido 40 es 250"
         }
       ],
       "margins": {
@@ -2702,427 +2931,472 @@
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        },
-        {
-          "name": "100",
-          "qty": 1,
-          "unit_price": 24918
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Suppli_Caccio_e_Pepe",
       "rec_id": "REC-021",
       "rec_name": "suppli cacio e pepe",
-      "yield_qty": 12,
+      "yield_qty": 12.0,
       "yield_unit": "unidades",
-      "yield_notes": "Supplì de arroz ~12 un (1.5 cup arroz crudo). Bola 40 g + rebozado.",
+      "yield_source": "sheet",
+      "method_notes": "Supplì de arroz ~12 un (1.5 cup arroz crudo). Bola 40 g + rebozado.",
       "ingredients": [
         {
-          "ing_ref": "ING-093",
-          "name": "Arroz Para Sushi",
-          "qty": 275,
-          "unit": "g"
+          "ing_id": "ING-093",
+          "ing_name": "Arroz Para Sushi",
+          "qty": 275.0,
+          "unit": "g",
+          "notes": "1.5 cup crudo"
         },
         {
-          "ing_ref": "ING-081",
-          "name": "Caldo De Carne En Cubos",
-          "qty": 1,
-          "unit": "und"
+          "ing_id": "ING-081",
+          "ing_name": "Caldo De Carne En Cubos",
+          "qty": 1.0,
+          "unit": "und",
+          "notes": "cocción del arroz"
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 1,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 1.0,
+          "unit": "und",
+          "notes": "ligazón"
         },
         {
-          "ing_ref": "ING-094",
-          "name": "Queso Rallado",
-          "qty": 50,
-          "unit": "g"
+          "ing_id": "ING-094",
+          "ing_name": "Queso Rallado",
+          "qty": 50.0,
+          "unit": "g",
+          "notes": "½ cup (cacio)"
         },
         {
-          "ing_ref": "ING-042",
-          "name": "Pimienta",
-          "qty": 5,
-          "unit": "g"
+          "ing_id": "ING-042",
+          "ing_name": "Pimienta",
+          "qty": 5.0,
+          "unit": "g",
+          "notes": "generosa (pepe)"
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 5,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 5.0,
+          "unit": "g",
+          "notes": "solo las claras, para rebozar (3-4 claras)"
         },
         {
-          "ing_ref": "ING-006",
-          "name": "Pan Rallado",
-          "qty": 60,
-          "unit": "g"
+          "ing_id": "ING-006",
+          "ing_name": "Pan Rallado",
+          "qty": 60.0,
+          "unit": "g",
+          "notes": "½ cup rebozado"
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": []
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Tarta_de_manzana_de_mi_m",
       "rec_id": "REC-013",
       "rec_name": "Tarta de manzana de mi madre (Mijn moeders appeltaart)",
-      "yield_qty": null,
-      "yield_unit": "",
-      "yield_notes": "",
+      "yield_qty": 10,
+      "yield_unit": "porciones",
+      "yield_source": "estimated",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-003",
-          "name": "Harina de trigo",
-          "qty": 350,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina de trigo",
+          "qty": 350.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-047",
-          "name": "Polvo de hornear",
-          "qty": 2,
-          "unit": "g"
+          "ing_id": "ING-047",
+          "ing_name": "Polvo de hornear",
+          "qty": 2.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-036",
-          "name": "Ralladura de limón",
-          "qty": 0,
-          "unit": "und"
+          "ing_id": "ING-036",
+          "ing_name": "Ralladura de limón",
+          "qty": 0.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-027",
-          "name": "Vainilla",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-027",
+          "ing_name": "Vainilla",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-007",
-          "name": "Azúcar",
-          "qty": 175,
-          "unit": "g"
+          "ing_id": "ING-007",
+          "ing_name": "Azúcar",
+          "qty": 175.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 0,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 0.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 250,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 250.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-056",
-          "name": "Manzana",
-          "qty": 6,
-          "unit": "und"
+          "ing_id": "ING-056",
+          "ing_name": "Manzana",
+          "qty": 6.0,
+          "unit": "und",
+          "notes": null
         },
         {
-          "ing_ref": "ING-030",
-          "name": "Canela",
-          "qty": 2,
-          "unit": "g"
+          "ing_id": "ING-030",
+          "ing_name": "Canela",
+          "qty": 2.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-074",
-          "name": "Polvo para natillas",
-          "qty": 3,
-          "unit": "g"
+          "ing_id": "ING-074",
+          "ing_name": "Polvo para natillas",
+          "qty": 3.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-009",
-          "name": "Azúcar morena",
-          "qty": 3,
-          "unit": "g"
+          "ing_id": "ING-009",
+          "ing_name": "Azúcar morena",
+          "qty": 3.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-051",
-          "name": "Pasas",
-          "qty": 60,
-          "unit": "g"
+          "ing_id": "ING-051",
+          "ing_name": "Pasas",
+          "qty": 60.0,
+          "unit": "g",
+          "notes": null
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": [
-        {
-          "name": "Cantidad packs",
-          "qty": "Unidad",
-          "unit_price": "Precio pack ₲"
-        }
-      ]
+      "overhead": {}
     },
     {
       "sheet": "Recipe_Veggie_Bitterballen_100",
       "rec_id": "REC-020",
       "rec_name": "bitterballen vegetariano",
-      "yield_qty": 100,
+      "yield_qty": 100.0,
       "yield_unit": "unidades",
-      "yield_notes": "Ragú de girgolas. Bola ~15 g. Caldo de hongos: 2 cubos Maggi en 350 ml frío.",
+      "yield_source": "sheet",
+      "method_notes": "Ragú de girgolas. Bola ~15 g. Caldo de hongos: 2 cubos Maggi en 350 ml frío.",
       "ingredients": [
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 85,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 85.0,
+          "unit": "g",
+          "notes": "ragú"
         },
         {
-          "ing_ref": "ING-089",
-          "name": "Echalote",
-          "qty": 2,
-          "unit": "und"
+          "ing_id": "ING-089",
+          "ing_name": "Echalote",
+          "qty": 2.0,
+          "unit": "und",
+          "notes": "≈60 g, picados"
         },
         {
-          "ing_ref": "ING-028",
-          "name": "Ajo",
-          "qty": 3,
-          "unit": "und"
+          "ing_id": "ING-028",
+          "ing_name": "Ajo",
+          "qty": 3.0,
+          "unit": "und",
+          "notes": "dientes"
         },
         {
-          "ing_ref": "ING-090",
-          "name": "Girgolas Frescas",
-          "qty": 300,
-          "unit": "g"
+          "ing_id": "ING-090",
+          "ing_name": "Girgolas Frescas",
+          "qty": 300.0,
+          "unit": "g",
+          "notes": "en tiras y picadas"
         },
         {
-          "ing_ref": "ING-091",
-          "name": "Tomillo Fresco",
-          "qty": 1,
-          "unit": "und"
+          "ing_id": "ING-091",
+          "ing_name": "Tomillo Fresco",
+          "qty": 1.0,
+          "unit": "und",
+          "notes": "3-4 ramas, solo hojas"
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 3,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 3.0,
+          "unit": "g",
+          "notes": "solo las claras, para rebozar (3-4 claras)"
         },
         {
-          "ing_ref": "ING-042",
-          "name": "Pimienta",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-042",
+          "ing_name": "Pimienta",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": "1 cda fina, para el caldo"
         },
         {
-          "ing_ref": "ING-003",
-          "name": "Harina De Trigo",
-          "qty": 75,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina De Trigo",
+          "qty": 75.0,
+          "unit": "g",
+          "notes": "a gusto"
         },
         {
-          "ing_ref": "ING-092",
-          "name": "Caldo De Hongos En Cubos",
-          "qty": 2,
-          "unit": "und"
+          "ing_id": "ING-092",
+          "ing_name": "Caldo De Hongos En Cubos",
+          "qty": 2.0,
+          "unit": "und",
+          "notes": "350 ml frío"
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 1,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 1.0,
+          "unit": "und",
+          "notes": "yema"
         },
         {
-          "ing_ref": "ING-013",
-          "name": "Crema De Leche",
-          "qty": 30,
-          "unit": "g"
+          "ing_id": "ING-013",
+          "ing_name": "Crema De Leche",
+          "qty": 30.0,
+          "unit": "g",
+          "notes": "1 hoja"
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 2,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 2.0,
+          "unit": "und",
+          "notes": "claras (de 3-4)"
         },
         {
-          "ing_ref": "ING-003",
-          "name": "Harina De Trigo",
-          "qty": 15,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina De Trigo",
+          "qty": 15.0,
+          "unit": "g",
+          "notes": "1 tbsp"
         },
         {
-          "ing_ref": "ING-006",
-          "name": "Pan Rallado",
-          "qty": 100,
-          "unit": "g"
+          "ing_id": "ING-006",
+          "ing_name": "Pan Rallado",
+          "qty": 100.0,
+          "unit": "g",
+          "notes": "fino + grueso"
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": []
+      "overhead": {}
     },
     {
       "sheet": "recipe_bitterballen_100_pcs",
-      "rec_id": "REC-006",
+      "rec_id": "REC-022",
       "rec_name": "bitterballen",
-      "yield_qty": 100,
+      "yield_qty": 100.0,
       "yield_unit": "unidades",
-      "yield_notes": "",
+      "yield_source": "sheet",
+      "method_notes": null,
       "ingredients": [
         {
-          "ing_ref": "ING-064",
-          "name": "Carnaza de segunda",
-          "qty": 400,
-          "unit": "g"
+          "ing_id": "ING-064",
+          "ing_name": "Carnaza de segunda",
+          "qty": 400.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-063",
-          "name": "Bola de lomo",
-          "qty": 400,
-          "unit": "g"
+          "ing_id": "ING-063",
+          "ing_name": "Bola de lomo",
+          "qty": 400.0,
+          "unit": "g",
+          "notes": null
         },
         {
-          "ing_ref": "ING-057",
-          "name": "Cebolla",
-          "qty": 150,
-          "unit": "g"
+          "ing_id": "ING-057",
+          "ing_name": "Cebolla",
+          "qty": 150.0,
+          "unit": "g",
+          "notes": "1 cebolla grande, en trozos"
         },
         {
-          "ing_ref": "ING-028",
-          "name": "Ajo",
-          "qty": 1,
-          "unit": "und"
+          "ing_id": "ING-028",
+          "ing_name": "Ajo",
+          "qty": 1.0,
+          "unit": "und",
+          "notes": "no esta en la receta original — borrar si no se usa"
         },
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 40,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 40.0,
+          "unit": "g",
+          "notes": "para la sopa"
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 2,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 2.0,
+          "unit": "und",
+          "notes": "solo las claras, para rebozar (3-4 claras)"
         },
         {
-          "ing_ref": "ING-043",
-          "name": "Mostaza",
-          "qty": 15,
-          "unit": "g"
+          "ing_id": "ING-043",
+          "ing_name": "Mostaza",
+          "qty": 15.0,
+          "unit": "g",
+          "notes": "1 cda fina, para el caldo"
         },
         {
-          "ing_ref": "ING-042",
-          "name": "Pimienta",
-          "qty": 3,
-          "unit": "g"
+          "ing_id": "ING-042",
+          "ing_name": "Pimienta",
+          "qty": 3.0,
+          "unit": "g",
+          "notes": "a gusto"
         },
         {
-          "ing_ref": "ING-037",
-          "name": "Sal",
-          "qty": 12,
-          "unit": "g"
+          "ing_id": "ING-037",
+          "ing_name": "Sal",
+          "qty": 12.0,
+          "unit": "g",
+          "notes": "a gusto"
         },
         {
-          "ing_ref": "ING-058",
-          "name": "Zanahoria",
-          "qty": 60,
-          "unit": "g"
+          "ing_id": "ING-058",
+          "ing_name": "Zanahoria",
+          "qty": 60.0,
+          "unit": "g",
+          "notes": "1/2 zanahoria de invierno, en trozos"
         },
         {
-          "ing_ref": "ING-026",
-          "name": "Laurel",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-026",
+          "ing_name": "Laurel",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": "1 hoja"
         },
         {
-          "ing_ref": "ING-017",
-          "name": "Manteca",
-          "qty": 80,
-          "unit": "g"
+          "ing_id": "ING-017",
+          "ing_name": "Manteca",
+          "qty": 80.0,
+          "unit": "g",
+          "notes": "para el ragu"
         },
         {
-          "ing_ref": "ING-003",
-          "name": "Harina de trigo",
-          "qty": 100,
-          "unit": "g"
+          "ing_id": "ING-003",
+          "ing_name": "Harina de trigo",
+          "qty": 100.0,
+          "unit": "g",
+          "notes": "+ 1 cda para rebozar"
         },
         {
-          "ing_ref": "ING-043",
-          "name": "Mostaza",
-          "qty": 5,
-          "unit": "g"
+          "ing_id": "ING-043",
+          "ing_name": "Mostaza",
+          "qty": 5.0,
+          "unit": "g",
+          "notes": "1-2 cditas (fina o gruesa), para el ragu"
         },
         {
-          "ing_ref": "ING-081",
-          "name": "Caldo de carne en cubos",
-          "qty": 2,
-          "unit": "und"
+          "ing_id": "ING-081",
+          "ing_name": "Caldo de carne en cubos",
+          "qty": 2.0,
+          "unit": "und",
+          "notes": "Maggi/Knorr: 1 L de caldo ~ 2 cubos"
         },
         {
-          "ing_ref": "ING-065",
-          "name": "Agua",
-          "qty": 1000,
-          "unit": "ml"
+          "ing_id": "ING-065",
+          "ing_name": "Agua",
+          "qty": 1000.0,
+          "unit": "ml",
+          "notes": "para el caldo y remojar la gelatina"
         },
         {
-          "ing_ref": "ING-013",
-          "name": "Crema de leche",
-          "qty": 50,
-          "unit": "ml"
+          "ing_id": "ING-013",
+          "ing_name": "Crema de leche",
+          "qty": 50.0,
+          "unit": "ml",
+          "notes": null
         },
         {
-          "ing_ref": "ING-015",
-          "name": "Huevos",
-          "qty": 2,
-          "unit": "und"
+          "ing_id": "ING-015",
+          "ing_name": "Huevos",
+          "qty": 2.0,
+          "unit": "und",
+          "notes": "solo las yemas, para el ragu"
         },
         {
-          "ing_ref": "ING-080",
-          "name": "Gelatina sin sabor",
+          "ing_id": "ING-080",
+          "ing_name": "Gelatina sin sabor",
           "qty": 4.9,
-          "unit": "g"
+          "unit": "g",
+          "notes": "3 hojas (4,9 g) remojadas en agua fria"
         },
         {
-          "ing_ref": "ING-038",
-          "name": "Perejil",
+          "ing_id": "ING-038",
+          "ing_name": "Perejil",
           "qty": 0.5,
-          "unit": "und"
+          "unit": "und",
+          "notes": "0,5 atado — precio tuyo: 700/und (ING-038)"
         },
         {
-          "ing_ref": "ING-006",
-          "name": "Pan rallado",
-          "qty": 100,
-          "unit": "g"
+          "ing_id": "ING-006",
+          "ing_name": "Pan rallado",
+          "qty": 100.0,
+          "unit": "g",
+          "notes": "para el rebozado"
         },
         {
-          "ing_ref": "ING-035",
-          "name": "Nuez moscada",
-          "qty": 1,
-          "unit": "g"
+          "ing_id": "ING-035",
+          "ing_name": "Nuez moscada",
+          "qty": 1.0,
+          "unit": "g",
+          "notes": "a gusto, para el ragu"
         }
       ],
+      "packaging": [],
       "margins": {
         "WHOLESALE": 0.3,
         "RETAIL": 0.5,
         "EVENTUAL": 0.35
       },
-      "packaging": []
+      "overhead": {},
+      "renumber_note": "renumbered from REC-006 to REC-022 (was duplicate in source xlsx)"
     }
-  ],
-  "production_planner": [],
-  "waste_tracker": [],
-  "dashboard_pl": []
+  ]
 }
