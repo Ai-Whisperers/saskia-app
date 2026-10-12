@@ -1,3 +1,22 @@
+## 2026-10-12 — feat(seed): SASKIA-220 add 5 new vertical packs (Food Truck, Quiosco, Chipería, Pastelería Industrial, Cervecería)
+
+**Scope**: `app/rms/seed/packs.py` (5 new PackData entries), `tests/test_packs_saskia220.py` (new, 16 tests).
+
+Per SASKIA-210 decision (per-client INSTANCES, NOT shared-DB multi-tenant), the Sazon seed registry is a library of vertical templates that future client instances can be seeded from. This PR adds 5 new templates (11 → 16 total):
+
+- **Food Truck** (slug: `food_truck`) — 4 suppliers, 22 ingredients, 6 recipes (choripán, perro caliente, hamburguesa, chipa, empanada, milanesa), 7 products, weekend-pico production templates (spring/summer peak).
+- **Quiosco/Minimarket** (slug: `quiosco`) — 4 suppliers, 23 ingredients, 1 recipe (sándwich J&Q), 13 products across 8 categories (Bebidas, Golosinas, Panificados, Lácteos, Alacena, Varios, Perfumería), 24/7 production templates.
+- **Chipería** (slug: `chiperia`) — 4 suppliers, 16 ingredients, 7 recipes (chipa clásica/jugosa, mbejú chicharrón/queso/almidón, sopa chipita, bollito), 7 products, weekend-pico templates (San Juan Ára chipa peak).
+- **Pastelería Industrial** (slug: `pasteleria_industrial`) — 5 suppliers, 26 ingredients, 6 recipes (tortas industriales 20-porción, empanada dulce, factura surtida, tartita membrillo), 6 products in 3 categories (Tortas, Pack, Factura), daily production templates.
+- **Cervecería** (slug: `cerveceria`) — 5 suppliers, 26 ingredients, 5 recipes (IPA, Pilsen, Munich 30L batches, choripán cervecero, picada cervecera), 5 products in 3 categories (Cerveza artesanal, Picada, Combos cerveceros), weekend-pico templates.
+
+**Cross-pack dep removed**: Cervecería's `chipa_cervecera` recipe was deleted because it referenced Chipería's `Almidón de mandioca` ingredient — cross-pack ingredient sharing is a SASKIA-210 design violation. Operators can buy chipería chipa wholesale instead.
+
+**Money safety**: All costs/prices are integer Gs (AGENTS.md hard rule 1). Verified by `test_pack_prices_are_integers_gs`.
+
+**Idempotency**: Re-seeding the same pack on the same tenant is a complete no-op (all per-counter totals = 0). Verified by `test_seed_new_pack_idempotent`.
+
+## 2026-10-12 — feat(seed): SASKIA-223 HEREBUS data import + 4 new HEREBUS settings
 ## 2026-10-12 — feat(seed): SASKIA-223 HEREBUS data import + 4 new HEREBUS settings
 
 **Scope**: `app/rms/seed/herbus_import.py` (new), `app/rms/seed/sazon.py` (wire `seed_herbus_data` into `seed_sazon`, add `herbus_ingredients` to `SazonReport`), `app/rms/settings_registry.py` (new `HEREBUS` group, 4 new count settings), `tests/test_herbus_import.py` (new, 14 tests), `tests/test_settings.py` + `tests/test_saskia221_settings.py` (count updates).
