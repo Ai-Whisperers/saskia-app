@@ -1,3 +1,20 @@
+## 2026-10-12 — feat(observability): bind matched route name to per-request log context (S2 robustness PR7)
+
+**Scope**: `app/rms/observability.py` (+~40), `tests/test_observability_extended.py` (new, 7 tests).
+
+Replaces the stub `bind_request_route()` (which used `logger.bind(route=...)` and didn't propagate to subsequent log lines) with a `contextvars.ContextVar`-backed binding. Per-request route survives `await` boundaries and is asyncio-safe — one request's route never leaks to a concurrent request.
+
+`RequestContextMiddleware.dispatch()` now resolves the matched route from `request.state.route` (set by `bind_request_route` inside the route handler) or `_current_route.get()` (set by `bind_request_route` from a middleware) and includes it in the access log line: `access method=POST path=/ventas route=/ventas/nueva status=201 elapsed_ms=42`. Falls back to `<unmatched>` for unmatched paths.
+
+Public API additions:
+
+- `bind_request_route(request, route_name | None)` — sets both `request.state.route` and the module-level `_current_route` ContextVar. When `route_name` is `None`, extracts from `request.scope["route"].path` (FastAPI's standard convention).
+- `get_current_route()` — returns the route bound for the current request, or `None`.
+
+Tests: 7 new (sets request.state; sets ContextVar; extracts from scope; per-request isolation under `asyncio.gather`; default value of fresh ContextVar; generate_request_id uniqueness × 100; unmatched fallback). Adjudication per S5 ruling 2026-10-12T21:13:00Z — additive file, no existing tests modified.
+
+No behaviour-preserving concerns — purely additive observability; previous access log format is replaced (no external log scraper depends on the exact field set per the log-format audit 2026-10-09).
+
 ## 2026-10-12 — refactor(rms): silent-except sweep in app/rms/ + new gate (S2 robustness PR3)
 
 **Scope**: `tests/test_silent_excepts_rms.py` (new, 166 tests), `app/rms/{observability,alert_templates,db_url,copilot,food_cost,public_tokens,seasonal,loyalty/suggestions,gerencia_snapshot,production_demand,notifications,sales/pre_sale_check,catalogs_tags,main}.py` (54 small additive lines).
