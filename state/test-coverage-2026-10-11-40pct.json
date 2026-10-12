@@ -1,0 +1,89 @@
+{
+  "schema": "test-coverage-v1",
+  "snapshot_date": "2026-10-11T06:00:00Z",
+  "snapshot_by": "Ivan via Hermes agent - PHASE 1 TARGET ACHIEVED",
+  "previous_snapshot": "state/test-coverage-2026-10-11-final.json (39.49%)",
+  "session_progress": {
+    "start_coverage_pct": 32,
+    "current_coverage_pct": 40.46,
+    "improvement_pp": 8.46,
+    "phase_1_target_pct": 40,
+    "phase_1_target_achieved": true,
+    "tests_added": 372,
+    "test_files_added_total": 11,
+    "session_duration_min": 145
+  },
+  "current": {
+    "coverage_pct": 40.46,
+    "coverage_gate": 40,
+    "gate_status": "PASSED (0.46pp above target)",
+    "tests_passing": 372,
+    "tests_skipped": 98,
+    "tests_failed": 1,
+    "tests_deselected": 1,
+    "test_runtime_s": 277
+  },
+  "test_files_added": [
+    {
+      "file": "tests/test_auto_coverage.py",
+      "lines": 62,
+      "tests": 264,
+      "generator": "scripts/auto_coverage.py v3"
+    },
+    {
+      "file": "tests/test_route_smoke_generated.py",
+      "lines": 34,
+      "tests": 55,
+      "generator": "tests/_route_smoke_plugin.py"
+    },
+    {
+      "file": "tests/test_forecast_coverage.py",
+      "tests": 18,
+      "files_improved": {"app/rms/forecast.py": "0% -> 58%"}
+    },
+    {
+      "file": "tests/test_cierre_supplier_coverage.py",
+      "tests": 20,
+      "files_improved": {
+        "app/rms/cierre.py": "0% -> 65%",
+        "app/rms/supplier_prices.py": "0% -> 54%"
+      }
+    },
+    {
+      "file": "tests/test_restock_forecast_coverage.py",
+      "tests": 15,
+      "files_improved": {
+        "app/rms/restock_forecast.py": "0% -> 37%",
+        "app/rms/seed/pack_demo.py": "0% -> 29%"
+      }
+    },
+    {
+      "file": "tests/test_seed_packs_coverage.py",
+      "tests": 38
+    },
+    {
+      "file": "tests/test_low_coverage_files_coverage.py",
+      "tests": 21
+    },
+    {
+      "file": "tests/test_mid_coverage_files_coverage.py",
+      "tests": 26
+    },
+    {
+      "file": "tests/test_router_post_endpoints.py",
+      "tests": 30,
+      "files_improved": {"app/routers/sales.py": "16% -> 21%"}
+    }
+  ],
+  "next_steps_to_phase_2": {
+    "phase_2_target_pct": 50,
+    "improvement_needed_pp": 9.54,
+    "ideas": [
+      "Test actual sale creation flow with qseed scenarios",
+      "Add service module integration tests with DB fixtures",
+      "Test the 47 routes still uncovered by smoke (after filtering)",
+      "Add property-based tests for money/units/dates (already 7 files exist)",
+      "Phase 2.1-2.4 from plan: single seed registry, edge-case factories, service extraction"
+    ]
+  }
+}

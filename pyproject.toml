@@ -66,7 +66,7 @@ packages = ["app"]
 #   pytest -m browser or e2e       # add multiple
 #   pytest -m "not manual"         # just exclude manual
 # CI gates (ci.yml) override this via --strict-markers + targeted selection.
-addopts = "-v --tb=short -p no:randomly --cov=app --cov-report=term-missing --cov-fail-under=35 -m 'not (browser or e2e or pg or manual)'"
+addopts = "-v --tb=short -p no:randomly --cov=app --cov-report=term-missing --cov-fail-under=40 -m 'not (browser or e2e or pg or manual)'"
 testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
