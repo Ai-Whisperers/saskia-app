@@ -1,3 +1,9 @@
+## 2026-10-12 — fix(deploy): staging-dir sweep race in deploy.sh (deploy-dev red X)
+
+**Scope**: `scripts/deploy.sh` (2 lines of logic + comments).
+
+PR #161's deploy-dev run failed AFTER the service converged: the build took ~5.5 min, so the `-mmin +5` stale-staging sweep deleted our own staging dir in the window between "service converged" and the `mv staging -> final` dir swap (`deploy.sh:224`), and the bare `mv` exited 1. Two fixes: (1) the swap is now guarded — a missing staging dir after a converged deploy logs a NOTE instead of failing the job; (2) the sweep threshold is raised from 5 to 30 minutes so no legitimate in-flight build can outlive it. Concurrent per-env deploys are unaffected (staging dirs are PID+timestamp-unique).
+
 ## 2026-10-12 — refactor(abstractions): SASKIA-211a endgame — remove the costing.py shim entirely
 
 **Scope**: 35 files. `app/rms/costing.py` (**deleted**), 17 app modules + 6 test files (import rewrites), `app/routers/herebus.py` (Unit bypass fix), `tests/test_abstraction_usage.py` (2 gates hardened), `tests/test_profitability_sales_split.py` (rewritten for the post-shim world).
