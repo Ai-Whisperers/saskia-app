@@ -57,6 +57,7 @@ def _migration_119_recipe_photo_autolink(conn: Any) -> None:
     if not photo_dir.is_dir():
         # No photos — nothing to do
         from app.rms.db import _bump_schema_version
+
         _bump_schema_version(conn, 119)
         return
 
@@ -77,9 +78,7 @@ def _migration_119_recipe_photo_autolink(conn: Any) -> None:
         photos.append((slug.lower(), name))
 
     # Get all recipes
-    recipes = conn.execute(
-        text("SELECT id, name, image_url FROM recipe")
-    ).fetchall()
+    recipes = conn.execute(text("SELECT id, name, image_url FROM recipe")).fetchall()
 
     written = 0
     skipped_already_linked = 0
@@ -99,8 +98,7 @@ def _migration_119_recipe_photo_autolink(conn: Any) -> None:
         for photo_slug, filename in photos:
             if (
                 photo_slug == recipe_slug
-                or photo_slug.startswith(recipe_slug + "_")
-                or photo_slug.startswith(recipe_slug)
+                or photo_slug.startswith((recipe_slug, recipe_slug + "_"))
                 or recipe_slug.startswith(photo_slug + "_")
             ):
                 match = filename
