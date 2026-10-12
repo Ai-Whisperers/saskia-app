@@ -161,10 +161,10 @@
           <span class="muted">—</span>
         {% endif %}
       </td>
-      <td>{{ r.line_count }}</td>
       <td class="num col-prep text-center" >{% if r.prep_minutes %}{{ r.prep_minutes }} min{% endif %}</td>
       <td class="num col-cook text-center" >{% if r.cook_minutes %}{{ r.cook_minutes }} min{% endif %}</td>
       <td class="num text-center" >{{ r.total_minutes_fmt }}</td>
+      <td class="num col-lineas text-center" >{{ r.line_count }}</td>
       {% if not station_hides_prices %}
       <td class="num">{% if r.batch_cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(r.batch_cost_gs) }}{% endif %}</td>
       <td class="num">{% if r.unit_cost_gs is none %}<em class="muted">—</em>{% else %}{{ m.gs(r.unit_cost_gs) }}{% endif %}</td>

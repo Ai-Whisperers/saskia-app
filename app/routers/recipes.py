@@ -9,6 +9,8 @@ only handles single values.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import (
     HTMLResponse,
@@ -25,6 +27,8 @@ from app.auth import require_login_or_disabled as require_login
 from app.rms.costing import (
     CostResult,
     batch_recipes_cost,
+    recipe_batch_cost_gs,
+    recipe_unit_cost_gs,
 )
 from app.rms.dependencies import get_session
 from app.rms.errors import BadRequest, Conflict, NotFound
@@ -46,6 +50,7 @@ from app.rms.recipe_intel import (
     infer_recipe_family_from_name,
     recipe_ingredient_count,
 )
+from app.rms.streaming_csv import stream_csv_rows
 from app.rms.units import Unit
 from app.services.template_render import render
 
@@ -309,11 +314,30 @@ async def recipes_list(
         list_tags_for_kind,  # canonical home (post-sense-dedup, 2026-10-09)
     )
 
+    # SASKIA-211: source families from BOTH Recipe.family (legacy)
+    # and the first tag of Recipe.menu_tags (post-menu_tags migration).
+    # Many recipes now have menu_tags set but family=None, so the
+    # dropdown would render empty if we only queried the legacy column.
     all_families = sorted(
         {
             f
-            for (f,) in session.execute(
-                select(Recipe.family).where(Recipe.family.is_not(None)).distinct()
+            for f in (
+                [
+                    f
+                    for (f,) in session.execute(
+                        select(Recipe.family).where(Recipe.family.is_not(None)).distinct()
+                    )
+                    if f
+                ]
+                + [
+                    tag.strip()
+                    for (mt,) in session.execute(
+                        select(Recipe.menu_tags).where(Recipe.menu_tags.is_not(None)).distinct()
+                    )
+                    if mt
+                    for tag in mt.split(",")
+                    if tag.strip()
+                ]
             )
             if f
         }
@@ -620,6 +644,67 @@ def _refresh_recipe_tag_cache(session: Session, recipe_id: int) -> None:
     return RedirectResponse(url="/recetas", status_code=303)
 
 
+@router.get("/export")
+def recipes_export_csv(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> StreamingResponse:
+    """Export all recipes as a CSV download (streaming)."""
+
+    recipes = session.scalars(select(Recipe).order_by(Recipe.name)).all()
+
+    def _iter():
+
+        for r in recipes:
+            batch = recipe_batch_cost_gs(session, r.id)
+            unit = recipe_unit_cost_gs(session, r.id)
+            line_count = (
+                session.scalar(
+                    select(func.count(RecipeLine.id)).where(RecipeLine.recipe_id == r.id)
+                )
+                or 0
+            )
+            yield [
+                r.id,
+                r.name,
+                r.family or "",
+                r.difficulty or "",
+                r.yield_qty or "",
+                r.yield_unit,
+                r.prep_minutes or "",
+                r.cook_minutes or "",
+                line_count,
+                batch.batch_cost_gs if batch.batch_cost_gs is not None else "",
+                unit.batch_cost_gs if unit.batch_cost_gs is not None else "",
+                r.dietary_tags or "",
+                r.notes or "",
+            ]
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    return StreamingResponse(
+        stream_csv_rows(
+            [
+                "id",
+                "name",
+                "family",
+                "difficulty",
+                "yield_qty",
+                "yield_unit",
+                "prep_minutes",
+                "cook_minutes",
+                "line_count",
+                "batch_cost_gs",
+                "unit_cost_gs",
+                "tags",
+                "notes",
+            ],
+            _iter(),
+        ),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename=rms-recetas-{timestamp}.csv"},
+    )
+
+
 @router.get("/{r_id}/set-photo", response_class=HTMLResponse)
 async def recipe_set_photo(
     request: Request,
@@ -912,6 +997,7 @@ async def recipe_edit(
             unit_cost,
             products_using,
             scale_factor,
+            session,
         ),
     )
 
@@ -1044,6 +1130,7 @@ def _build_recipe_edit_context(
     unit_cost: object,
     products_using: list[Product],
     scale_factor: float,
+    session: Session,
 ) -> dict:
     """Build the template context for the recipe edit form.
 
@@ -1063,8 +1150,8 @@ def _build_recipe_edit_context(
         "unit_cost": unit_cost,
         "products_using": products_using,
         "scale_factor": scale_factor,
-        "categories": list_cats(),
-        "all_tags": list_tags_for_kind("recipe"),
+        "categories": list_cats(session, "recipe_family"),
+        "all_tags": list_tags_for_kind(session, "recipe"),
     }
 
 
@@ -1461,87 +1548,29 @@ def recipe_families_api(
     Empty `q` returns every distinct family. The combo `allow-create` flag
     lets users type a brand-new family on the fly.
     """
-    stmt = (
-        select(Recipe.family)
-        .where(Recipe.family.isnot(None))
-        .where(Recipe.family != "")
+    # SASKIA-211: include menu_tags-derived families (first tag of comma list)
+    # so the combobox shows the current categorization, not just the
+    # legacy Recipe.family column which is often NULL post-migration.
+    family_rows = session.execute(
+        select(Recipe.family).where(Recipe.family.isnot(None)).where(Recipe.family != "").distinct()
+    ).all()
+    menu_tag_rows = session.execute(
+        select(Recipe.menu_tags)
+        .where(Recipe.menu_tags.isnot(None))
+        .where(Recipe.menu_tags != "")
         .distinct()
-        .order_by(Recipe.family)
+    ).all()
+    fams = sorted(
+        {
+            *(f for (f,) in family_rows if f),
+            *(tag.strip() for (mt,) in menu_tag_rows if mt for tag in mt.split(",") if tag.strip()),
+        }
     )
-    fams = [f for f in session.scalars(stmt).all() if f]
     if q:
         needle = q.strip().lower()
         fams = [f for f in fams if needle in f.lower()]
     fams = fams[:limit]
     return JSONResponse([{"label": f, "value": f} for f in fams])
-
-
-@router.get("/export")
-def recipes_export_csv(
-    request: Request,
-    session: Session = Depends(get_session),
-) -> StreamingResponse:
-    """Export all recipes as a CSV download (streaming)."""
-    from datetime import datetime, timezone
-
-    from starlette.responses import StreamingResponse
-
-    from app.rms.streaming_csv import stream_csv_rows
-
-    recipes = session.scalars(select(Recipe).order_by(Recipe.name)).all()
-
-    def _iter():
-        from app.rms.costing import recipe_batch_cost_gs, recipe_unit_cost_gs
-        from app.rms.models_legacy import RecipeLine
-
-        for r in recipes:
-            batch = recipe_batch_cost_gs(session, r.id)
-            unit = recipe_unit_cost_gs(session, r.id)
-            line_count = (
-                session.scalar(
-                    select(func.count(RecipeLine.id)).where(RecipeLine.recipe_id == r.id)
-                )
-                or 0
-            )
-            yield [
-                r.id,
-                r.name,
-                r.family or "",
-                r.difficulty or "",
-                r.yield_qty or "",
-                r.yield_unit,
-                r.prep_minutes or "",
-                r.cook_minutes or "",
-                line_count,
-                batch.batch_cost_gs if batch.batch_cost_gs is not None else "",
-                unit.batch_cost_gs if unit.batch_cost_gs is not None else "",
-                r.dietary_tags or "",
-                r.notes or "",
-            ]
-
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    return StreamingResponse(
-        stream_csv_rows(
-            [
-                "id",
-                "name",
-                "family",
-                "difficulty",
-                "yield_qty",
-                "yield_unit",
-                "prep_minutes",
-                "cook_minutes",
-                "line_count",
-                "batch_cost_gs",
-                "unit_cost_gs",
-                "tags",
-                "notes",
-            ],
-            _iter(),
-        ),
-        media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f"attachment; filename=rms-recetas-{timestamp}.csv"},
-    )
 
 
 __all__ = ["router"]

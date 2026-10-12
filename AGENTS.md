@@ -102,7 +102,7 @@ Supports **two deployment modes**:
 
 These are ideas that look good on paper but are wrong for Sazon at its current scale. Don't re-litigate them in PRs. **Each anti-rule was verified against the current repo state on 2026-10-07.**
 
-**Sazon IS multi-tenant** (per `pyproject.toml` `description = "Sistema de gestión de restaurante — multi-tenant"` and the `tenant` table from migration 008). So "don't go multi-tenant" is WRONG — it already is. The right anti-rule is "don't ADD multi-tenant SaaS complexity" (e.g. tenant-tiered billing, white-labeling, per-tenant DBs).
+**Sazon is SINGLE-TENANT per-client** (per SASKIA-210, 2026-10-07: Saskia/La Vaquita Holandesa is the only current client; the product is deployed as per-client INSTANCES — each client gets their own site + fully loaded data — not shared-DB multi-tenant). The `tenant` table from migration 008 is legacy infrastructure, not active multi-tenanting. So "don't go multi-tenant" IS right *as a forward direction*; the right anti-rule is "don't build RLS / ORM-level tenancy / cross-tenant analytics until we have ≥2 paying clients and a 1-base-Supabase template pattern to clone from". The `tenant` table is dormant and may be repurposed or dropped when we revive the multi-instance work.
 
 1. **Don't migrate to React/Vue/Tailwind/SPA.** Server-rendered Jinja2 + HTMX is correct. (HTMX IS already in use in `receta_form.html` and `produccion*.html`.) The fix for UX is design system + components, not a framework. **Enforce in CI: fail if templates/ add a React import.**
 
