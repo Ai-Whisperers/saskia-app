@@ -1,12 +1,15 @@
 """tests/integration/test_http_routes_full.py — Full HTTP route integration tests."""
+
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
 
 @pytest.fixture
 def client():
     from app.rms.main import app
+
     with patch("app.auth.is_auth_disabled", return_value=True):
         yield TestClient(app, raise_server_exceptions=False)
 

@@ -1,11 +1,11 @@
 """tests/concurrency/test_concurrent_writes.py — Threading and concurrency tests."""
-import pytest
+
+import os
+import shutil
+import tempfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import os
-import tempfile
-import shutil
 
 
 def test_threading_imports():
@@ -95,6 +95,7 @@ def test_db_concurrent_reads():
         def read():
             with sf() as s:
                 from sqlalchemy import text
+
                 r = s.execute(text("SELECT 1")).scalar()
                 results.append(r)
 

@@ -32,11 +32,11 @@ import json
 import re
 import sys
 import time
-import urllib3
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Optional
 
 import requests
+import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -121,7 +121,9 @@ def login(base: str) -> tuple[requests.Session, str]:
     r = s.post(
         f"{base}/login",
         data={"username": USERNAME, "password": PASSWORD, "next": "/puesto"},
-        verify=False, timeout=10, allow_redirects=True,
+        verify=False,
+        timeout=10,
+        allow_redirects=True,
     )
     r.raise_for_status()
     if "/puesto" not in r.url:
@@ -137,7 +139,9 @@ def login(base: str) -> tuple[requests.Session, str]:
     r = s.post(
         f"{base}/puesto",
         data={"station": "gerencia", "csrf_token": csrf},
-        verify=False, timeout=10, allow_redirects=True,
+        verify=False,
+        timeout=10,
+        allow_redirects=True,
     )
     r.raise_for_status()
     return s, csrf
@@ -145,7 +149,7 @@ def login(base: str) -> tuple[requests.Session, str]:
 
 def extract_recipe_id(html: str) -> Optional[int]:
     """Find the first recipe id in the /recetas list page."""
-    m = re.search(r'/recetas/(\d+)/(?:editar|set-photo)', html)
+    m = re.search(r"/recetas/(\d+)/(?:editar|set-photo)", html)
     if m:
         return int(m.group(1))
     m = re.search(r'href="/recetas/(\d+)"', html)
@@ -154,12 +158,19 @@ def extract_recipe_id(html: str) -> Optional[int]:
     return None
 
 
-def hit(s: requests.Session, method: str, path: str, base: str,
-        expected: str = "", allow_redirects: bool = True) -> RouteResult:
+def hit(
+    s: requests.Session,
+    method: str,
+    path: str,
+    base: str,
+    expected: str = "",
+    allow_redirects: bool = True,
+) -> RouteResult:
     t0 = time.perf_counter()
     try:
-        r = s.request(method, f"{base}{path}", verify=False, timeout=15,
-                       allow_redirects=allow_redirects)
+        r = s.request(
+            method, f"{base}{path}", verify=False, timeout=15, allow_redirects=allow_redirects
+        )
         elapsed = int((time.perf_counter() - t0) * 1000)
         ctype = r.headers.get("content-type", "")
         body = r.text
@@ -175,21 +186,33 @@ def hit(s: requests.Session, method: str, path: str, base: str,
             else:
                 fp = f"FOUND: {expected!r} at {idx}"
         return RouteResult(
-            method=method, path=path, status=r.status_code,
-            elapsed_ms=elapsed, content_type=ctype, body_len=len(body),
-            expected=expected, matched=matched, fingerprint=fp,
+            method=method,
+            path=path,
+            status=r.status_code,
+            elapsed_ms=elapsed,
+            content_type=ctype,
+            body_len=len(body),
+            expected=expected,
+            matched=matched,
+            fingerprint=fp,
         )
     except Exception as exc:
         elapsed = int((time.perf_counter() - t0) * 1000)
         return RouteResult(
-            method=method, path=path, status=0,
-            elapsed_ms=elapsed, content_type="", body_len=0,
-            expected=expected, matched=False, error=str(exc),
+            method=method,
+            path=path,
+            status=0,
+            elapsed_ms=elapsed,
+            content_type="",
+            body_len=0,
+            expected=expected,
+            matched=False,
+            error=str(exc),
         )
 
 
 def run(base: str = DEFAULT_BASE, as_json: bool = False) -> int:
-    print(f"== smoke_cocina_pages ==")
+    print("== smoke_cocina_pages ==")
     print(f"base: {base}")
     print(f"login as {USERNAME} ...", end=" ", flush=True)
     s, _csrf = login(base)
@@ -214,7 +237,7 @@ def run(base: str = DEFAULT_BASE, as_json: bool = False) -> int:
         if result.error:
             line += f"  ERR={result.error[:60]}"
         elif result.expected and not result.matched:
-            line += f"  fp-miss"
+            line += "  fp-miss"
         print(line)
 
     # 1. recetas list (extract a recipe id from it)
@@ -224,7 +247,10 @@ def run(base: str = DEFAULT_BASE, as_json: bool = False) -> int:
         print("ERROR: /recetas not 200; aborting recipe-id routes")
         recipe_id = None
     else:
-        recipe_id = extract_recipe_id(recetas_result.fingerprint or recetas_result.body_len and "") or None
+        recipe_id = (
+            extract_recipe_id(recetas_result.fingerprint or (recetas_result.body_len and ""))
+            or None
+        )
         if recipe_id is None:
             # Re-parse the body
             recipe_id = extract_recipe_id(s.get(f"{base}/recetas", verify=False, timeout=10).text)
@@ -314,7 +340,7 @@ def run(base: str = DEFAULT_BASE, as_json: bool = False) -> int:
     total_pass = sum(g.pass_count for g in groups.values())
     total_fail = sum(g.fail_count for g in groups.values())
     print()
-    print(f"== summary ==")
+    print("== summary ==")
     print(f"groups: {len(groups)}")
     print(f"pass:   {total_pass}")
     print(f"fail:   {total_fail}")
