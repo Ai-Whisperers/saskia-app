@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware import Middleware
 from starlette.types import ASGIApp
+from app.rms import db_dialect  # Import threadlocal functions
 
 # --- Global Cache (set by middleware) ---
 # Registered hosts (list[str]): all YAML tenants found at startup
@@ -79,6 +80,7 @@ class TenantResolutionMiddleware(BaseHTTPMiddleware):
     - Unknown host → 404 (no fallback; secure by design)
     - Tenant config supports ${VAR} env substitution
     - Populates request.state.tenant with TenantConfig
+    - Sets threadlocal tenant DB URL for database routing
     """
     def __init__(self, app: ASGIApp):
         # Load cache at startup
@@ -92,14 +94,45 @@ class TenantResolutionMiddleware(BaseHTTPMiddleware):
             tenant = _cache.get(host)
             if tenant:
                 request.state.tenant = tenant
+                # Set threadlocal DB URL for this request
+                try:
+                    db_url = tenant.database_url
+                    # Apply env var substitution if needed
+                    if "${" in db_url:
+                        # Simple ${VAR} replacement (if set, else keep literal)
+                        parts = []
+                        i = 0
+                        while i < len(db_url):
+                            if db_url.startswith("${", i):
+                                end = db_url.find("}", i)
+                                if end != -1:
+                                    var = db_url[i+2:end]
+                                    val = os.getenv(var)
+                                    parts.append(val if val is not None else db_url[i:end+1])
+                                    i = end + 1
+                                else:
+                                    parts.append(db_url[i])
+                                    i += 1
+                            else:
+                                parts.append(db_url[i])
+                                i += 1
+                        db_url = "".join(parts)
+                    db_dialect.set_tenant_db_url(db_url)
+                except Exception:
+                    # Fallback to None if URL is invalid/empty
+                    db_dialect.set_tenant_db_url(None)
             else:
                 # Fails closed: 404 if tenant routing enabled but host not known
+                # Clear threadlocal in case it was set from previous request
+                db_dialect.set_tenant_db_url(None)
                 return JSONResponse(
                     {"error": "Tenant not registered"},
                     status_code=404,
                 )
         else:
             request.state.tenant = None  # legacy mode: single tenant via env
+            # Clear threadlocal for non-tenant requests
+            db_dialect.set_tenant_db_url(None)
 
         return await call_next(request)
 

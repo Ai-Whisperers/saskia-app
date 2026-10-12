@@ -24,6 +24,27 @@ Test usage (default):
 from __future__ import annotations
 
 import os
+import threading
+from contextvars import ContextVar
+
+# Thread-local storage for tenant database URL
+# Set by middleware, used by get_database_url()
+_tenant_db_url: ContextVar[str | None] = ContextVar("tenant_db_url", default=None)
+
+def set_tenant_db_url(url: str | None):
+    """Set the tenant database URL for the current request (thread)."""
+    _tenant_db_url.set(url)
+
+def get_tenant_db_url_context() -> str | None:
+    """Get the tenant database URL from thread context."""
+    return _tenant_db_url.get()
+
+try:
+    # Only import if tenant routing is enabled (at runtime)
+    from app.rms.tenant import get_tenant_db_url as tenant_getter, registered_hosts
+except ImportError:
+    tenant_getter = None
+    registered_hosts = []
 from functools import lru_cache
 from pathlib import Path
 
@@ -67,13 +88,27 @@ def _set_sqlite_pragmas(dbapi_conn: object, _):
 def get_database_url() -> str:
     """Return the database URL, defaulting to local SQLite.
 
+    Tenant-aware:
+    1. Check thread-local tenant URL (set by middleware) 
+    2. Fall back to env/config logic (original behavior)
+    
     Order of precedence:
-    1. DATABASE_URL env var (production: Postgres)
-    2. AIW_RMS_DB_PATH env var (test/dev: SQLite at custom path)
-    3. config.DB_PATH (default: ~/.local/share/aiw-restaurant/rms.sqlite)
+    1. Tenant URL (thread-local, set by TenantResolutionMiddleware)
+    2. DATABASE_URL env var (production: Postgres)
+    3. AIW_RMS_DB_PATH env var (test/dev: SQLite at custom path)
+    4. config.DB_PATH (default: ~/.local/share/aiw-restaurant/rms.sqlite)
 
     Result is cached after first call — the URL never changes at runtime.
     """
+    # Check tenant URL first (thread-local, set by middleware)
+    tenant_url = get_tenant_db_url_context()
+    if tenant_url:
+        # If it's a Postgres URL without an explicit driver, add +psycopg
+        if tenant_url.startswith("postgresql://") and "+" not in tenant_url.split("//", 1)[0]:
+            tenant_url = "postgresql+psycopg://" + tenant_url[len("postgresql://") :]
+        return tenant_url
+    
+    # Fallback to original non-tenant logic
     url = os.getenv("DATABASE_URL")
     if url:
         # If it's a Postgres URL without an explicit driver, add +psycopg
