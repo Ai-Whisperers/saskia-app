@@ -157,7 +157,8 @@ def _merge_purpose_texts(rows: list, _re) -> str | None:
 def _whatsapp_href(supplier: Any, rows: Any) -> str | None:
     """Prefilled wa.me link for a supplier's open items (Py py-side so no
     custom Jinja filter is needed). Normalizes PY phones: 9-digit local
-    numbers get 595 prefix; already-international (starts with +) keep."""
+    numbers get 595 prefix; already-international (starts with +) keep.
+    """
     from urllib.parse import quote
 
     if supplier is None or not supplier.phone:
@@ -165,18 +166,32 @@ def _whatsapp_href(supplier: Any, rows: Any) -> str | None:
     open_rows = [r for r in rows if not r.purchased]
     if not open_rows:
         return None
-    digits = "".join(c for c in supplier.phone if c.isdigit())
+    digits = _normalize_py_phone(supplier.phone)
+    text = _build_wa_message(open_rows)
+    return f"https://wa.me/{digits}?text={quote(text)}"
+
+
+def _normalize_py_phone(phone: str) -> str:
+    """Strip non-digits, then add the PY country code (595) for 9-digit
+    local mobile numbers. Already-international numbers starting with
+    '595' pass through unchanged.
+    """
+    digits = "".join(c for c in phone if c.isdigit())
     if digits.startswith("595"):
-        pass
-    elif len(digits) == 9:  # PY mobile without country code
-        digits = "595" + digits
-    names = "\n".join(
+        return digits
+    if len(digits) == 9:
+        return "595" + digits
+    return digits
+
+
+def _build_wa_message(open_rows: list[Any]) -> str:
+    """Render the prefilled WhatsApp text body for one supplier's open items."""
+    lines = "\n".join(
         f"• {r.ingredient.name} ({r.qty_to_buy:g} {r.unit})"
         for r in open_rows
         if r.ingredient is not None
     )
-    text = f"Hola! Quiero hacer un pedido:\n{names}\nGracias!"
-    return f"https://wa.me/{digits}?text={quote(text)}"
+    return f"Hola! Quiero hacer un pedido:\n{lines}\nGracias!"
 
 
 @router.get("", response_class=HTMLResponse)
