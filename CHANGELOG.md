@@ -1,3 +1,7 @@
+## 2026-10-12 — fix(test): add allow-hardcoded-dates marker for cost-history fixtures
+
+**Scope**: `tests/test_cost_freshness.py` (1 line: docstring marker). The new `test_no_hardcoded_dates.py` gate (added in PR #164) flagged 8 `datetime(2026, ...)` literals as pre-existing on main. The gate allows the `# allow-hardcoded-dates: <reason>` marker in test docstrings; the dates are intentional fixtures for the cost-history window tests in cost_freshness (e.g. "30d stale" → None) so the marker is correct, not a refactor. Unblocks the fast-pr-gate smoke subset for all current and future PRs.
+
 ## 2026-10-12 — ci(tooling): fast PR gate + YAML self-check + SBOM + dependabot verification + PR template + `make audit`
 
 **Scope**: `.github/workflows/fast-pr-gate.yml` (new), `.github/workflows/release.yml` (+49 lines: pip-audit + CycloneDX SBOM + artifact upload), `.github/PULL_REQUEST_TEMPLATE.md` (new), `scripts/check_workflows_yaml.py` (new), `Makefile` (`+audit` target), `pyproject.toml` (`[dependency-groups].tooling +cyclonedx-bom`). No `app/**`, no `tests/**`, no ruff config changes — all additive tooling work.
