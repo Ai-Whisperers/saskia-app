@@ -453,20 +453,43 @@ def _compute_profile_nudges(session, all_customers: list) -> dict:
 
     Extracted from _render_directory to reduce complexity.
     """
+    return {
+        "sin_telefono": _count_missing(all_customers, _missing_phone),
+        "sin_dietary": _count_missing(all_customers, _missing_dietary),
+        "sin_direccion": _count_missing(
+            all_customers, lambda c: _missing_address(session, c)
+        ),
+        "sin_consent": _count_missing(all_customers, _missing_consent),
+    }
+
+
+def _count_missing(customers: list, predicate) -> int:
+    """Count how many customers satisfy `predicate(customer)`."""
+    return sum(1 for c in customers if predicate(c))
+
+
+def _missing_phone(c) -> bool:
+    """True when the customer has no usable phone number."""
+    return not (c.phone or "").strip()
+
+
+def _missing_dietary(c) -> bool:
+    """True when the customer has no dietary restrictions on file."""
+    return not (c.dietary_restrictions or "").strip()
+
+
+def _missing_address(session, c) -> bool:
+    """True when the customer has no CustomerAddress row on file."""
     from app.rms.models import CustomerAddress
 
-    return {
-        "sin_telefono": sum(1 for c in all_customers if not (c.phone or "").strip()),
-        "sin_dietary": sum(1 for c in all_customers if not (c.dietary_restrictions or "").strip()),
-        "sin_direccion": sum(
-            1
-            for c in all_customers
-            if not session.scalar(
-                select(CustomerAddress.id).where(CustomerAddress.customer_id == c.id).limit(1)
-            )
-        ),
-        "sin_consent": sum(1 for c in all_customers if not c.marketing_consent),
-    }
+    return not session.scalar(
+        select(CustomerAddress.id).where(CustomerAddress.customer_id == c.id).limit(1)
+    )
+
+
+def _missing_consent(c) -> bool:
+    """True when the customer has not opted in to marketing."""
+    return not c.marketing_consent
 
 
 def customer_to_api_payload(c: Customer, session: Session) -> dict:
