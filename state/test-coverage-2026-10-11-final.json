@@ -1,0 +1,97 @@
+{
+  "schema": "test-coverage-v1",
+  "snapshot_date": "2026-10-11T05:00:00Z",
+  "snapshot_by": "Ivan via Hermes agent (session continuation - coverage work)",
+  "previous_snapshot": "state/test-coverage-2026-10-11.json (37.91%)",
+  "session_progress": {
+    "start_coverage_pct": 32,
+    "current_coverage_pct": 39.49,
+    "improvement_pp": 7.49,
+    "tests_added_this_session_total": 342,
+    "test_files_added": 8,
+    "session_duration_min": 120
+  },
+  "current": {
+    "coverage_pct": 39.49,
+    "coverage_gate": 35,
+    "gate_status": "PASSED (4.49pp above gate)",
+    "tests_passing": 342,
+    "tests_skipped": 98,
+    "tests_failed": 1,
+    "tests_deselected": 1,
+    "test_runtime_s": 260
+  },
+  "test_files_added": [
+    {
+      "file": "tests/test_auto_coverage.py",
+      "lines": 62,
+      "tests": 264,
+      "generator": "scripts/auto_coverage.py v3"
+    },
+    {
+      "file": "tests/test_route_smoke_generated.py",
+      "lines": 34,
+      "tests": 55,
+      "generator": "tests/_route_smoke_plugin.py"
+    },
+    {
+      "file": "tests/test_forecast_coverage.py",
+      "tests": 18,
+      "files_improved": {"app/rms/forecast.py": "0% -> 58%"}
+    },
+    {
+      "file": "tests/test_cierre_supplier_coverage.py",
+      "tests": 20,
+      "files_improved": {
+        "app/rms/cierre.py": "0% -> 65%",
+        "app/rms/supplier_prices.py": "0% -> 54%"
+      }
+    },
+    {
+      "file": "tests/test_restock_forecast_coverage.py",
+      "tests": 15,
+      "files_improved": {
+        "app/rms/restock_forecast.py": "0% -> 37%",
+        "app/rms/seed/pack_demo.py": "0% -> 29%"
+      }
+    },
+    {
+      "file": "tests/test_seed_packs_coverage.py",
+      "tests": 38,
+      "files_covered": [
+        "seed/packs.py", "validation.py", "pre_sale_check_cart.py",
+        "product_similarity", "customer_merge", "ingredient_margins",
+        "menu_inventory", "invoicing", "seed_market_prices", "reports"
+      ]
+    },
+    {
+      "file": "tests/test_low_coverage_files_coverage.py",
+      "tests": 21,
+      "files_covered": [
+        "routers/sales", "routers/inventory", "routers/recipes",
+        "routers/dashboard", "routers/health", "routers/herebus",
+        "routers/customers", "routers/pedidos", "routers/products",
+        "routers/reportes", "services/import_xlsx"
+      ]
+    },
+    {
+      "file": "tests/test_mid_coverage_files_coverage.py",
+      "tests": 26,
+      "files_covered": [
+        "analytics", "accounting", "production", "scrapers", "waste",
+        "pre_sale_check", "demand_freshness", "settings_registry",
+        "notifications", "stations", "settings_runtime", "derived_intel",
+        "tagging/filters"
+      ]
+    }
+  ],
+  "remaining_0_percent_files": [
+    "app/rms/models/sales.py (90 stmts - deprecation stub, can't test)"
+  ],
+  "next_steps_to_40_percent": [
+    "Add real DB fixtures for POST routes (need valid request bodies)",
+    "Test the deep router logic that requires qseed data",
+    "Cover 18 routers at <25% with more targeted integration tests",
+    "Per plan Phase 1.4-1.18: deploy script test, backup drill, copy audit, WCAG"
+  ]
+}
