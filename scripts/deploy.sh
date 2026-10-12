@@ -225,10 +225,10 @@ run ssh -i "$KEY" -o StrictHostKeyChecking=no "$VPS" "
   # which would delete OUR staging dir between "service converged" and this
   # mv — the deploy itself already succeeded at that point, so treat a
   # missing staging dir as "someone else swept it", not a failure.
-  if [ -d "$REMOTE_DIR" ]; then
+  if [ -d $REMOTE_DIR ]; then
     rm -rf $REMOTE_DIR_FINAL && mv $REMOTE_DIR $REMOTE_DIR_FINAL
   else
-    echo "NOTE: staging dir was already swept (slow build); deploy had converged — skipping dir swap."
+    echo 'NOTE: staging dir was already swept (slow build); deploy had converged - skipping dir swap.'
   fi
   # Clean up older staging dirs (more than 30 minutes old — high enough that
   # no legitimate in-flight build outlives it) so they don't accumulate on
