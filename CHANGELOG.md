@@ -1,3 +1,27 @@
+## 2026-10-12 — fix(cocina): SASKIA-211 cocina-pages-audit fixes
+
+**Scope**: `app/routers/recipes.py`, `app/routers/produccion/forecast.py`, `app/templates/{recetas,receta_detalle,merma}.html`, `app/CHANGELOG.md`, `AGENTS.md`, `tests/test_cocina_pages_audit.py`.
+
+Bugs (live in production, caught by audit + curl):
+
+* `/recetas/{id}/editar` 500 — `list_categories()` called with no args (the `bc710dfb refactor` regressed it). Now `list_cats(session, "recipe_family")`.
+* `/recetas/export` 400 — `/export` route declared after `/{r_id}/...` so FastAPI tried to coerce `'export'` to int. Moved block to BEFORE the path-param routes. Also moved inline `from datetime`, `from starlette.responses`, `from app.rms.streaming_csv` to module top.
+* `/recetas` body cells in order Líneas | Prep | Cocción | Total while headers were Prep | Cocción | Total | Líneas. Moved the `<td>{{ r.line_count }}</td>` cell to after the total cell.
+* `/recetas` Familia filter dropdown empty because `all_families` was sourced only from `Recipe.family` (all NULL post `menu_tags` migration). Now sources from `Recipe.family` AND first tag of `Recipe.menu_tags`.
+* `/recetas/api/families` combobox endpoint — same fix as above.
+* `/recetas/{id}` detail page rendered a hardcoded 70/20/10 cost breakdown (Insumos 70% / Mano de obra 20% / Gastos generales 10%) that was literal multipliers of `batch_cost` — misleading. Removed the entire block until real `labor_cost_gs` / `overhead_cost_gs` fields exist on `Recipe`.
+* `/merma` forms had no programmatic labels. Added `aria-label` on the filter GET form and `aria-labelledby` + matching `<h2 id=...>` on the register POST form.
+* `produccion/forecast.py` `/api/forecast` route lacked `response_class=JSONResponse`. Added it.
+
+Doc:
+* `AGENTS.md` multi-tenant claim rewritten to match SASKIA-210 decision (single-tenant per-client instances, NOT shared-DB multi-tenant).
+
+Tests: new `tests/test_cocina_pages_audit.py` with 9 regression tests, RED-GREEN-REFACTOR, all 9 GREEN. Full cocina + eod + recetas + routers_helpers suite: 24/24 GREEN (in isolation).
+
+Out of scope (deferred): B9 export N+1, G1/G2/G3 feature gaps, cov-gate 40→42 (sibling session owns coverage work).
+
+---
+
 ## 2026-10-10 — docs(operations): Sprint 2.1 P0 fix branch — sales safe_commit + 4 dormant bugs
 
 **Scope**: `app/routers/sales.py`, `app/CHANGELOG.md`, `app/rms/messages.py`, `tests/`. Cherry-pick from `origin/fix/p0-bugs-2026-10-10` (8 commits, was PR #148).

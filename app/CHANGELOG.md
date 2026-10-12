@@ -1,3 +1,31 @@
+## 2026-10-12 — fix(cocina): SASKIA-211 cocina-pages-audit fixes
+
+**Scope**: `app/routers/recipes.py`, `app/routers/produccion/forecast.py`, `app/templates/recetas.html`, `app/templates/receta_detalle.html`, `app/templates/merma.html`, `AGENTS.md`, `tests/test_cocina_pages_audit.py` (new).
+
+Dormant real bugs + UI regressions + accessibility gaps + documentation rot identified in the cocina-pages deep audit at `docs/operations/2026-10-12-cocina-pages-audit.md`:
+
+1. **`/recetas/export` returned 400** because the `@router.get("/export")` handler was declared AFTER `/{r_id}/...` patterns, so FastAPI tried to parse "export" as `r_id` (an int) and rejected. **Fix**: moved the `/export` block to before the `/{r_id}` routes (around line 455), removed inline imports (`datetime`, `stream_csv_rows`, `costing helpers`, `RecipeLine` from `models_legacy` now redundant), and added module-top imports. Verified end-to-end with `test_recetas_export_returns_csv_not_400` and `test_recetas_export_csv_has_header_row`.
+
+2. **`/recetas` table had body cells in the order Líneas | Prep | Cocción | Total** while headers were Prep | Cocción | Total | Líneas. The operator was reading prep minutes under the "Líneas" column. **Fix**: moved `<td>{{ r.line_count }}</td>` from before prep to after total in `recetas.html`. Verified with `test_recetas_list_columns_match_headers`.
+
+3. **`/recetas` "Familia" filter dropdown was hidden for the current dataset** because `all_families` was sourced only from the legacy `Recipe.family` column (all NULL post-`menu_tags` migration). The audit'd seeded data only sets `menu_tags`, so the filter was silently invisible. **Fix**: also source families from the first tag of `Recipe.menu_tags` in BOTH the page-level `all_families` and the `/recetas/api/families` combobox endpoint. Verified with `test_recetas_familias_dropdown_shows_menu_tags` and `test_recetas_api_families_returns_nonempty`.
+
+4. **`/recetas/{id}` detail page rendered a hardcoded 70/20/10 cost breakdown** (Insumos 70% / Mano de obra 20% / Gastos generales 10%) — those numbers were literal multipliers of `batch_cost`, not real labor/overhead data. The audit doc shows the operator was misreading Gs. 0/Gs. 0/Gs. 0 as "real costs". **Fix**: removed the entire breakdown block in `receta_detalle.html` until real `labor_cost_gs` / `overhead_cost_gs` fields exist on Recipe. Verified with `test_receta_detalle_no_hardcoded_cost_breakdown`.
+
+5. **`/merma` forms had no programmatic labels** for screen-reader users. The two `<form>` tags (filter GET + register POST) were unlabelled. **Fix**: added `aria-label="Filtrar historial de mermas por fecha y motivo"` to the filter form and `aria-labelledby="merma-registrar-heading"` + matching `id` on the "Registrar merma de ingrediente" `<h2>` to the register form. Verified with `test_merma_forms_have_aria_labels`.
+
+6. **`@router.get("/api/forecast")` lacked `response_class=JSONResponse`** in `app/routers/produccion/forecast.py` — annotation says `-> JSONResponse` but FastAPI was still running JSON serialisation twice. **Fix**: added the decorator. Cosmetic / perf, not user-visible.
+
+7. **`AGENTS.md` was wrong about multi-tenanting.** It claimed "Sazon IS multi-tenant" citing the `tenant` table. The SASKIA-210 decision (2026-10-07) reversed that: Saskia/La Vaquita is the only client and the product deploys as per-client INSTANCES, not shared-DB multi-tenant. **Fix**: rewrote the anti-rule to match the SASKIA-210 decision; the `tenant` table is now correctly described as dormant legacy infrastructure.
+
+**Out of scope (acknowledged, deferred)**:
+
+- B9 (export N+1 query) — deferred; CSV export of <100 recipes is fast enough.
+- G1/G2/G3 (new feature gaps) — deferred: production timeline pinning, recipe branching, recipe cloning.
+- Test files for housekeeping items (cov-gate 40→42, `test_services_coverage.py`) — left untracked in this branch (worktree-shared with a sibling session doing coverage work); not part of the audit deliverable.
+
+**Test coverage**: `tests/test_cocina_pages_audit.py` (9 tests, 9 GREEN). Tests follow RED-GREEN-REFACTOR; each test was derived from a live bug observed in production or in the audit.
+
 ## 2026-10-10l — style(format): apply ruff format + fix brittle test assertions
 
 **Scope**: `app/routers/sales.py`, `app/rms/messages.py`, `tests/test_produccion_v3_phase0.py`, `tests/test_printer_trigger.py`, `tests/test_dashboard_aggregation_discount_fix.py`, `tests/test_crud_roundtrips_phase14_tier4.py`. `ruff format` reformatted 3 files for the lint gate; in the process, 3 test files were improved to be less brittle (the formatter was also a hint that the tests were over-specified).

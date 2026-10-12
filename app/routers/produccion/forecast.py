@@ -26,7 +26,7 @@ from app.routers.produccion._router import router
 from app.services.template_render import render
 
 
-@router.get("/api/forecast")
+@router.get("/api/forecast", response_class=JSONResponse)
 def produccion_api_forecast(
     for_date: str = Query(...),
     product_id: int | None = Query(None, ge=1),
