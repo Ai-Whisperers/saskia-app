@@ -90,6 +90,13 @@ NAV_GROUPS: list[tuple[str, list[dict]]] = [
             {"route": "/users", "label": "Usuarios", "icon": "icon-user"},
             {"route": "/excel", "label": "Excel", "icon": "icon-excel"},
             {"route": "/auditoria", "label": "Auditoría", "icon": "icon-list"},
+            # SASKIA-217: seasonal calendar (read-only operator view)
+            {
+                "route": "/api/admin/seasonal-calendar",
+                "label": "Calendario estacional",
+                "icon": "icon-calendar",
+                "sub": True,
+            },
             {"route": "/guia", "label": "Guía", "icon": "icon-help"},
         ],
     ),
@@ -138,6 +145,11 @@ CRUMBS: dict[str, list[tuple[str, str | None]]] = {
     "/pricing": [("Inicio", "/"), ("Precios por canal", None)],
     "/vs-mercado": [("Inicio", "/"), ("Precios vs mercado", None)],
     "/bank": [("Inicio", "/"), ("Banco", None)],
+    "/api/admin/seasonal-calendar": [
+        ("Inicio", "/"),
+        ("Sistema", None),
+        ("Calendario estacional", None),
+    ],
     "/riesgos": [("Inicio", "/"), ("Riesgos", None)],
     "/settings": [("Inicio", "/"), ("Configuración", None)],
     "/users": [("Inicio", "/"), ("Usuarios", None)],

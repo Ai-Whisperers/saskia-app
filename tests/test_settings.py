@@ -46,7 +46,9 @@ def test_settings_count():
     (CONTACT, MARKETING, TARGETING, POSITIONING, OPERATIONS, COMPLIANCE,
     GOALS) plus 4 more LOCATION settings. Total 74 → 101, total 16 → 23.
     """
-    assert len(SETTINGS) == 105  # SASKIA-221 (101) + SASKIA-223 (4 HEREBUS)
+    assert (
+        len(SETTINGS) == 106
+    )  # SASKIA-221 (101) + SASKIA-223 (4) + SASKIA-217 (1 seasonal.relevance_tags)
     groups = {s.group for s in SETTINGS}
     assert groups == {
         SettingGroup.GENERAL,
@@ -107,7 +109,9 @@ def test_settings_per_group_counts():
     assert by_group[SettingGroup.RATE_LIMIT] == 5
     # SASKIA-215 + SASKIA-221: location (6 = 2 from 215 + 4 from 221) / seasonal / recipe
     assert by_group[SettingGroup.LOCATION] == 6
-    assert by_group[SettingGroup.SEASONAL] == 1
+    assert (
+        by_group[SettingGroup.SEASONAL] == 2
+    )  # SASKIA-215 notif_lead_days + SASKIA-217 relevance_tags
     assert by_group[SettingGroup.RECIPE] == 2
     # SASKIA-221: 7 new groups
     assert by_group[SettingGroup.CONTACT] == 5
@@ -257,7 +261,7 @@ def test_list_settings_returns_74(session_factory):
     s = session_factory()
     try:
         all_settings = list_settings(s)
-        assert len(all_settings) == 105
+        assert len(all_settings) == 106
         entry = all_settings[0]
         for k in ("key", "value", "default", "description", "group", "choices"):
             assert k in entry
@@ -313,7 +317,7 @@ def test_settings_by_group_groups_correctly(session_factory):
         assert len(grouped["alerts"]) == 1
         assert len(grouped["rate_limit"]) == 5
         assert len(grouped["location"]) == 6  # 2 from SASKIA-215 + 4 from SASKIA-221
-        assert len(grouped["seasonal"]) == 1
+        assert len(grouped["seasonal"]) == 2
         assert len(grouped["recipe"]) == 2
         # SASKIA-221
         assert len(grouped["contact"]) == 5

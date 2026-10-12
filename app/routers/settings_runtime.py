@@ -1336,4 +1336,61 @@ def branding_admin_page(
     return render(request, "admin/branding.html", {"active_nav": "settings"})
 
 
+@router.get("/admin/seasonal-calendar", response_class=HTMLResponse)
+def seasonal_calendar_page(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_login_or_disabled),
+) -> object:
+    """Operator UI: upcoming seasonal events (SASKIA-217, read-only).
+
+    Reads the seasonal_event table (SASKIA-216/220 catalog), respects
+    seasonal.notif_lead_days (lead window badging) and
+    seasonal.relevance_tags (pack filter). Read-only — no mutations.
+    """
+    from app.rms.clock import today_local
+    from app.rms.seasonal import (
+        get_calendar_events,
+        lead_status,
+        notif_lead_days,
+        operator_relevance_tags,
+    )
+    from app.services.template_render import render
+
+    today = today_local().date()
+    lead = notif_lead_days(session)
+    tags = operator_relevance_tags(session)
+    events = get_calendar_events(session, relevance_tags=tags, lead_days=lead, today=today)
+
+    def _row(ev: object) -> dict:
+        return {
+            "name": ev.name_es or ev.name_en or ev.slug,
+            "slug": ev.slug,
+            "date": ev.event_date,
+            "days_away": (ev.event_date - today).days,
+            "status": lead_status(ev.event_date, lead, today),
+            "country": ev.country,
+            "category": ev.category or "",
+            "impact_tag": ev.impact_tag or "",
+            "impact_score": ev.impact_score,
+            "description": ev.description or "",
+        }
+
+    rows = [_row(ev) for ev in events]
+
+    inside = [r for r in rows if r["status"] == "inside"]
+    return render(
+        request,
+        "admin/seasonal_calendar.html",
+        {
+            "active_nav": "settings",
+            "rows": rows,
+            "inside_window": inside,
+            "lead_days": lead,
+            "relevance_tags": tags,
+            "today": today,
+        },
+    )
+
+
 __all__ = ["router"]

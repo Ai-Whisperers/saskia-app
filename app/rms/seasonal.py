@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
+from sqlalchemy.orm import Session
+
 from app.rms.workflow import (
     SeasonalEvent,
     active_events,
@@ -168,3 +170,101 @@ def _collect_matching_hints(
                 )
                 break
     return hints
+
+
+# ── SASKIA-217 (2026-10-12): DB-backed seasonal calendar ──────────────
+# Reads the seasonal_event table (SASKIA-216 migration 121), respecting
+# relevance_tags filtering and the seasonal.notif_lead_days setting.
+
+
+def get_calendar_events(
+    session: Session,
+    *,
+    relevance_tags: str | None = None,
+    lead_days: int = 30,
+    horizon_days: int = 180,
+    today: date | None = None,
+    limit: int = 0,
+) -> list[Any]:
+    """Return upcoming seasonal events visible to this operator.
+
+    Filters:
+    - events between today and today+horizon_days
+    - if relevance_tags is a comma-separated string (the operator's pack
+      tags, e.g. "panaderia,heladeria"), events whose relevance_tags
+      match ANY of them OR are universal (empty relevance_tags) are shown
+    - ordered by event_date; secondary sort impact_score desc
+    - limit=0 means no limit
+    """
+    from datetime import timedelta as _timedelta
+
+    from sqlalchemy import or_
+
+    from app.rms.clock import today_local
+    from app.rms.models import SeasonalEvent
+
+    today = today or today_local().date()
+    horizon = today + _timedelta(days=horizon_days)
+    q = session.query(SeasonalEvent).filter(
+        SeasonalEvent.event_date >= today,
+        SeasonalEvent.event_date <= horizon,
+    )
+    if relevance_tags:
+        tags = [t.strip() for t in relevance_tags.split(",") if t.strip()]
+        clauses = [SeasonalEvent.relevance_tags == ""]
+        clauses.extend(SeasonalEvent.relevance_tags.like(f"%{tag}%") for tag in tags)
+        q = q.filter(or_(*clauses))
+    q = q.order_by(SeasonalEvent.event_date, SeasonalEvent.impact_score.desc())
+    if limit:
+        q = q.limit(limit)
+    return q.all()
+
+
+def days_until_lead(event_date: date, lead_days: int, today: date | None = None) -> int:
+    """Days from today until the event enters its lead window (negative = already inside)."""
+    from app.rms.clock import today_local
+
+    today = today or today_local().date()
+    return (event_date - today).days - lead_days
+
+
+def lead_status(event_date: date, lead_days: int, today: date | None = None) -> str:
+    """Status label for an event: 'inside' | 'upcoming' | 'past'.
+
+    'inside' = within the lead window (event - today <= lead_days and event >= today).
+    Used by the UI to badge events that need attention now.
+    """
+    from app.rms.clock import today_local
+
+    today = today or today_local().date()
+    if event_date < today:
+        return "past"
+    if (event_date - today).days <= lead_days:
+        return "inside"
+    return "upcoming"
+
+
+def operator_relevance_tags(session: Session) -> str:
+    """Read the operator's pack relevance tags from settings, if configured.
+
+    Returns "" (universal only) when the setting is absent — the calendar
+    then shows every event with empty relevance_tags, which is tier 1.
+    """
+    from app.rms.settings_registry import settings_get
+
+    try:
+        value = settings_get(session, "seasonal.relevance_tags", "")
+        return str(value or "")
+    except Exception:
+        return ""
+
+
+def notif_lead_days(session: Session) -> int:
+    """Read seasonal.notif_lead_days setting (default 30)."""
+    from app.rms.settings_registry import settings_get
+
+    try:
+        raw = settings_get(session, "seasonal.notif_lead_days", "30")
+        return int(raw) if raw not in (None, "") else 30
+    except Exception:
+        return 30
