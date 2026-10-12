@@ -82,7 +82,7 @@ def margin_drift_all(
     the ingredient price-history tables make a full reconstruction a
     Phase-2 follow-up).
     """
-    from app.rms.costing import batch_products_cost_margin
+    from app.rms.profitability.cost import batch_products_cost_margin
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 

@@ -51,8 +51,8 @@ def _seed_polymorphic(session_factory):
 
 
 def test_resolve_line_target_ingredient(session_factory):
-    from app.rms.costing import resolve_line_target
     from app.rms.models import RecipeLine
+    from app.rms.profitability.cost import resolve_line_target
 
     flour_id, _, _muffin_id = _seed_polymorphic(session_factory)
     with session_factory() as s:
@@ -64,8 +64,8 @@ def test_resolve_line_target_ingredient(session_factory):
 
 
 def test_resolve_line_target_sub_recipe(session_factory):
-    from app.rms.costing import resolve_line_target
     from app.rms.models import RecipeLine
+    from app.rms.profitability.cost import resolve_line_target
 
     _, masa_id, _ = _seed_polymorphic(session_factory)
     with session_factory() as s:
@@ -78,7 +78,7 @@ def test_resolve_line_target_sub_recipe(session_factory):
 
 def test_resolve_line_target_unknown_kind(session_factory):
     """Manually craft a RecipeLine with bogus line_kind in-memory, not via DB."""
-    from app.rms.costing import resolve_line_target
+    from app.rms.profitability.cost import resolve_line_target
 
     with session_factory() as s:
         # Bypass the CHECK constraint by using a detached object
@@ -89,8 +89,8 @@ def test_resolve_line_target_unknown_kind(session_factory):
 
 def test_resolve_line_target_missing_ingredient(session_factory):
     """line_ref_id points to nonexistent ingredient → returns None."""
-    from app.rms.costing import resolve_line_target
     from app.rms.models import Recipe, RecipeLine
+    from app.rms.profitability.cost import resolve_line_target
 
     with session_factory() as s:
         rec = Recipe(name="R", yield_qty=10.0, yield_unit="und")
@@ -211,8 +211,8 @@ def test_recipe_line_defaults_line_unit_to_empty_string(session_factory):
 def test_costing_uses_line_unit_for_cross_unit_recipe(session_factory):
     """Roundtrip: 250 g of flour (ingredient in kg, Gs. 5000/kg) → Gs. 1250 cost."""
 
-    from app.rms.costing import recipe_batch_cost_gs
     from app.rms.models import Ingredient, Recipe, RecipeLine
+    from app.rms.profitability.cost import recipe_batch_cost_gs
 
     with session_factory() as s:
         flour = Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
@@ -242,8 +242,8 @@ def test_costing_uses_line_unit_for_cross_unit_recipe(session_factory):
 
 def test_costing_same_unit_recipe_unchanged(session_factory):
     """When line_unit == ingredient_unit, costing is unaffected (qty × price)."""
-    from app.rms.costing import recipe_batch_cost_gs
     from app.rms.models import Ingredient, Recipe, RecipeLine
+    from app.rms.profitability.cost import recipe_batch_cost_gs
 
     with session_factory() as s:
         flour = Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)
@@ -276,8 +276,8 @@ def test_costing_handles_empty_line_unit_as_legacy(session_factory):
     ingredient's unit (no conversion). This matches the historical behavior
     where recipe qty was assumed to match ingredient unit at import time.
     """
-    from app.rms.costing import recipe_batch_cost_gs
     from app.rms.models import Ingredient, Recipe, RecipeLine
+    from app.rms.profitability.cost import recipe_batch_cost_gs
 
     with session_factory() as s:
         flour = Ingredient(name="Harina", unit="kg", stock_qty=5.0, purchase_price_gs=5000)

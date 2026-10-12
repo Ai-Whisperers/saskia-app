@@ -323,7 +323,7 @@ def recipe_cost_per_gram(session: Session, recipe: Recipe) -> float | None:
 
     Uses recipe_batch_cost_gs (total batch) divided by yield in grams.
     """
-    from app.rms.costing import recipe_batch_cost_gs
+    from app.rms.profitability.cost import recipe_batch_cost_gs
 
     yield_g = recipe_yield_grams(recipe)
     if yield_g is None or yield_g <= 0:

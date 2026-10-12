@@ -28,6 +28,8 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from loguru import logger
+
 if TYPE_CHECKING:
     from app.rms.workflow import DailySummaryFull
 
@@ -118,7 +120,8 @@ def _prune_spool(now: datetime | None = None) -> int:
                 f.unlink()
                 removed += 1
         except OSError:
-            pass
+            # Spool prune — file vanished or perm denied. Best-effort cleanup.
+            logger.debug("notifications spool prune failed for %s", f, exc_info=True)
     return removed
 
 
@@ -192,6 +195,7 @@ def send_whatsapp_summary(body: str, *, to: str | None = None) -> NotifyResult:
                 error=None,
             )
     except Exception as e:  # network / twilio error
+        logger.warning("notifications whatsapp send failed: %s", e, exc_info=True)
         spool = _spool_message("whatsapp-FAILED", body)
         return NotifyResult(
             ok=False,
@@ -243,6 +247,7 @@ def send_email_summary(
             bytes_sent=len(body),
         )
     except Exception as e:
+        logger.warning("notifications email send failed: %s", e, exc_info=True)
         spool = _spool_message("email-FAILED", body)
         return NotifyResult(
             ok=False,

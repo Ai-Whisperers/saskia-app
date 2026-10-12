@@ -415,7 +415,7 @@ def make_sale(
     **kw,
 ) -> Sale:
     """Raw sale row (no stock movement). For a sale WITH stock application,
-    use app.rms.costing.apply_sale — as quick_seed does."""
+    use app.rms.sales.lifecycle.apply_sale — as quick_seed does."""
     sale = Sale(
         sold_at=at or _now(),
         product_id=product.id,

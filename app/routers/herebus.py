@@ -53,6 +53,7 @@ from app.rms.models import (
 )
 from app.rms.models.channels import Channel
 from app.rms.observability import record_audit
+from app.rms.units import Unit
 from app.services.template_render import render
 
 # Stub routers; each is a real prefix-based router for its module
@@ -139,7 +140,7 @@ async def wishlist_mark_purchased(
         if eq_ing is None:
             eq_ing = Ingredient(
                 name=eq_name,
-                unit="und",
+                unit=Unit.UNIT.value,
                 stock_qty=0.0,
                 purchase_price_gs=item.unit_price_gs,
                 min_stock_qty=0,
@@ -215,7 +216,7 @@ async def wishlist_send_to_shopping_list(
     if not eq_ing:
         eq_ing = Ingredient(
             name=f"[EQUIPMENT] {item.name}",
-            unit="und",
+            unit=Unit.UNIT.value,
             stock_qty=0,
             purchase_price_gs=item.unit_price_gs,
             min_stock_qty=0,
@@ -244,7 +245,7 @@ async def wishlist_send_to_shopping_list(
             ingredient_id=eq_ing.id,
             production_plan_id=None,
             qty_to_buy=item.quantity,
-            unit="und",
+            unit=Unit.UNIT.value,
             purpose_text=f"Wishlist #{item.id} — {item.buy_location or 'TBD'}",
         )
         session.add(sl)

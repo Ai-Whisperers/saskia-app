@@ -7,7 +7,7 @@ Sazon has a small but tightly-defined set of abstractions in ``app/rms/``:
   source of truth for ``now()`` (AGENTS.md rule 20: ASUNCION_TZ, no bare
   ``datetime.now()`` or ``datetime.utcnow()``)
 - ``app/rms/sales/lifecycle.py:apply_sale()`` — sale-path SSOT
-  (AGENTS.md rule 8). The ``app/rms/costing.py`` shim re-exports it for
+  (AGENTS.md rule 8). The ``app/rms/costing.py`` shim (removed 2026-10-12) re-exported it for
   backwards compatibility; new code MUST import from the canonical
   location.
 - ``app/rms/stock_ledger.py:apply_stock_delta()`` — the single helper
@@ -272,56 +272,33 @@ def _is_warn_only() -> bool:
 # ── Test 5: no deprecated costing imports for non-shimmed names ───────
 
 
-def test_no_deprecated_costing_imports_for_non_shimmed_names() -> None:
-    """``app/rms/costing.py`` is a deprecated 1.3 KB shim. Tests that
-    import from it must only import names that the shim re-exports.
+def test_no_deprecated_costing_imports_anywhere() -> None:
+    """``app/rms/costing.py`` was a deprecated re-export shim; it was
+    REMOVED on 2026-10-12 (SASKIA-211a follow-up). Any import of it now
+    fails at runtime with ModuleNotFoundError. This gate catches the
+    regression in source form (clearer message than the import error).
 
-    If a test imports ``X`` from ``app.rms.costing`` and ``X`` is NOT
-    in the shim's ``__all__``, the import will fail at runtime — or
-    worse, succeed via attribute lookup and silently use a stale
-    implementation. The existing ``test_costing_shim_re_exports``
-    covers the SHIM side. This test covers the CALLER side.
+    Canonical paths:
+    - read-side (costs, margins): ``app.rms.profitability.cost``
+    - transactional (apply/void): ``app.rms.sales.lifecycle``
     """
-    # Parse the shim's __all__.
-    shim_path = APP_DIR / "rms" / "costing.py"
-    shim_src = shim_path.read_text(encoding="utf-8")
-    shim_tree = ast.parse(shim_src)
-    shim_all: set[str] = set()
-    for node in ast.walk(shim_tree):
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == "__all__":
-                    if isinstance(node.value, (ast.List, ast.Tuple)):
-                        for elt in node.value.elts:
-                            if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
-                                shim_all.add(elt.value)
-
-    # Scan tests/ for `from app.rms.costing import X[, Y, ...]`
-    pat = re.compile(r"^\s*from\s+app\.rms\.costing\s+import\s+([^\n#]+)", re.M)
-    test_files = _walk_py(TESTS_DIR, exclude=TEST_ALLOWLIST)
-    drift: list[tuple[Path, str, set[str]]] = []
-    for path in test_files:
+    pat = re.compile(r"^\s*from\s+app\.rms\.costing\s+import\s+", re.M)
+    pat_mod = re.compile(r"^\s*import\s+app\.rms\.costing\b", re.M)
+    all_files = _walk_py(APP_DIR) + _walk_py(TESTS_DIR)
+    hits: list[Path] = []
+    for path in all_files:
         try:
             content = path.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
-        for m in pat.finditer(content):
-            names_str = m.group(1)
-            # Strip parenthesized multi-line imports and parens
-            names_str = names_str.replace("(", " ").replace(")", " ")
-            names = {n.strip() for n in names_str.split(",") if n.strip() and n.strip() != "*"}
-            bad = names - shim_all
-            if bad:
-                drift.append((path, names_str.strip()[:100], bad))
-    if drift:
-        msg = "\n".join(
-            f"  {p.relative_to(REPO_ROOT)}  imports {sorted(bad)} (not in shim __all__: {sorted(shim_all)[:8]}...)"
-            for p, ns, bad in drift
-        )
+        if pat.search(content) or pat_mod.search(content):
+            hits.append(path)
+    if hits:
+        msg = "\n".join(f"  {p.relative_to(REPO_ROOT)}" for p in hits[:20])
         pytest.fail(
-            f"Found {len(drift)} 'from app.rms.costing import ...' violation(s). "
-            f"Names not in the shim's __all__ are real bugs (the import will fail or use stale code). "
-            f"Violations:\n{msg}"
+            f"Found {len(hits)} file(s) importing the REMOVED shim "
+            f"'app.rms.costing'. Use 'app.rms.profitability.cost' (read-side) "
+            f"or 'app.rms.sales.lifecycle' (transactional) instead.\n{msg}"
         )
 
 
@@ -331,11 +308,9 @@ def test_no_deprecated_costing_imports_for_non_shimmed_names() -> None:
 def test_apply_sale_imported_from_canonical_path_in_tests() -> None:
     """AGENTS.md rule 8: ``apply_sale`` lives in ``app/rms/sales/lifecycle.py``.
 
-    Tests that import it from the shim (``app.rms.costing``) work
-    today but obscure the canonical path. New tests MUST import
-    from the canonical location; existing tests can be migrated in
-    a follow-up (this test warns on shim-imports but does not fail
-    hard, because there are 12 of them and the migration is non-trivial).
+    The deprecated ``app.rms.costing`` shim was removed 2026-10-12, so any
+    shim-import would crash at import time. This gate keeps the source clean:
+    tests must import ``apply_sale`` from the canonical path only.
     """
     canonical = "app.rms.sales.lifecycle"
     shim = "app.rms.costing"
@@ -357,18 +332,20 @@ def test_apply_sale_imported_from_canonical_path_in_tests() -> None:
         if pat_canonical.search(content):
             canonical_imports.append(path)
 
-    # Hard fail: zero shim-imports of apply_sale in NEW tests. Allow
-    # shim-imports only in tests that ALSO import from the canonical
-    # path (the shim-import is then a backwards-compat check).
-    bad = [p for p in shim_imports if p not in canonical_imports]
-    if bad:
-        msg = "\n".join(f"  {p.relative_to(REPO_ROOT)}" for p in bad[:20])
+    # Hard fail: zero shim-imports of apply_sale. The shim module no longer
+    # exists, so any remaining shim-import is a guaranteed crash.
+    if shim_imports:
+        msg = "\n".join(f"  {p.relative_to(REPO_ROOT)}" for p in shim_imports[:20])
         pytest.fail(
-            f"Found {len(bad)} test file(s) that import `apply_sale` ONLY from the "
-            f"deprecated shim `{shim}`. AGENTS.md rule 8 says the canonical path is "
-            f"`{canonical}`. Either update the import, or add a co-import from the "
-            f"canonical path so the shim-import is intentional. Violations:\n{msg}"
+            f"Found {len(shim_imports)} test file(s) that import `apply_sale` from the "
+            f"REMOVED shim `{shim}` (crashes at import time). Import from "
+            f"`{canonical}` instead. Violations:\n{msg}"
         )
+    # Sanity: the canonical import must be exercised somewhere.
+    assert canonical_imports, (
+        "No test imports apply_sale from the canonical path — the gate lost "
+        "its reference implementation."
+    )
 
 
 # ── Test 7: no direct StockMovement() in app outside the sale path ─────

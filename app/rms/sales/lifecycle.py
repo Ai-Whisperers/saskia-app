@@ -1,7 +1,7 @@
 """app/rms/sales/lifecycle.py — Sale apply/void + stock-move computation.
 
 Sprint 2.3 of the 2026-10-02 backend overhaul: split out of
-``app/rms/costing.py``. Owns the transactional sale path.
+``app/rms/costing.py`` (shim removed 2026-10-12). Owns the transactional sale path.
 """
 
 from __future__ import annotations

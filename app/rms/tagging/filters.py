@@ -219,8 +219,8 @@ def filter_recipes(session: Session, f: RecipeFilter) -> list[Recipe]:
     if f.margin_tier:
         # Phase 7 — thresholds come from the margin_tier table. Operators
         # adjust via /api/margin-tiers. See app/rms/margin_tier.py.
-        from app.rms.costing import recipe_batch_cost_gs
         from app.rms.margin_tier import filter_recipes_by_tier
+        from app.rms.profitability.cost import recipe_batch_cost_gs
 
         recipes_with_cost: list[tuple[Recipe, int | None]] = []
         for r in recipes:
