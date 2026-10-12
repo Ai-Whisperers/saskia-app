@@ -24,7 +24,7 @@ REPO_ROOT = _Path(__file__).resolve().parents[1]
 # pytest_plugins declaration in tests/browser/conftest.py is no longer
 # needed (pytest >=7 made it a hard error). The plugin auto-skips if
 # Chromium is missing — see tests/browser/helpers.py.
-pytest_plugins = ["tests.browser.helpers"]
+pytest_plugins = ["tests.browser.helpers", "tests._route_smoke_plugin"]
 
 # Mount internal routes (Auditoría, Ops) BEFORE app.rms.main is imported.
 # NAV-02: these routes are internal-only and gated off in production.
