@@ -1,0 +1,23 @@
+{
+  "schema": "test-coverage-v2",
+  "snapshot_date": "2026-10-12T12:30:00Z",
+  "snapshot_by": "Ivan via Hermes agent",
+  "coverage": 41.0,
+  "gate": 40,
+  "gate_status": "PASSED (+1.0pp margin)",
+  "tests": {
+    "run1_main": {"files": ["sales_helpers", "post_endpoints", "smoke", "forecast", "cierre", "restock", "seed", "low", "mid"], "passing": 227, "skipped": 7, "runtime": 150},
+    "run2_auto": {"files": ["test_auto_coverage.py"], "passing": 172, "skipped": 91, "deselected": 1, "runtime": 162}
+  },
+  "total_pass": 399,
+  "total_skipped": 98,
+  "total_runtime": 312,
+  "method": "coverage_combine - two separate pytest invocations, then `coverage combine` to merge .coverage files",
+  "key_files": {
+    "tests/test_sales_helpers.py": "27 sales router helpers, exercises private functions",
+    "tests/test_router_post_endpoints.py": "30 POST endpoint tests with qseed fixtures",
+    "tests/test_auto_coverage.py": "264 parametrized tests via inspect-based generation"
+  },
+  "sales_coverage": 27,
+  "previous": "state/test-coverage-2026-10-11-40pct.json (40.46%)"
+}
