@@ -1,3 +1,36 @@
+## 2026-10-12 — refactor(help): SASKIA-211x split _md_to_html dispatch into named handlers (CC 26→20)
+
+**Scope**: `app/routers/help.py` (orchestrator + private handlers).
+
+Lifted inline branches out of `_md_to_html` into named helpers:
+  - `_escape_html(text)`           CC 1  — `& < >` escape (called first in _apply_inline)
+  - `_apply_inline(text)`          CC 1  — bold / italic / code / link regex pipeline
+  - `_safe_url(url)`               CC 3  — http/https/path-only; rejects javascript:/vbscript:/data:
+  - `_flush_table(buf)`            CC 12 — pipe-table renderer (was inline closure)
+  - `_try_heading(line)`           CC 2  — `# ` … `###### `
+  - `_try_blockquote(s)`           CC 2  — `> `
+  - `_try_unordered_item(line)`    CC 2  — `- ` / `* `
+  - `_try_ordered_item(line)`      CC 2  — `1. ` …
+  - `_is_table_row(s)`             CC 2  — `|…|` line detector
+  - `_is_paragraph_continuation(l)` CC 6 — "is this a paragraph line?" (used in inner loop)
+  - `_md_to_html(md_text)` orchestrator CC 20 (was 26) — still over ceiling; next pass
+                                  will reduce via a dispatch table.
+
+Behavior preserved CHARACTER-FOR-CHARACTER: verified by snapshotting HEAD's
+`_md_to_html` output and the refactored version against three real
+user-guide files (README.md, 02-ventas.md, 06-recetas.md) — outputs
+identical byte-for-byte (14258 / 10888 / 4375 bytes).
+
+XSS guards preserved (test_security_dynamic::test_md_to_html_blocks_xss):
+  - HTML escape still happens FIRST in `_apply_inline` (4-parametrize cases pass)
+  - Link href still passes through `_safe_url` (javascript:/vbscript: rejected)
+
+Perf budget preserved (test_performance_benchmarks::test_md_to_html_under_50ms):
+  - The 4-regex inline pipeline is unchanged; only its host function moved.
+
+Known follow-up: the orchestrator's 8 inline branches still register CC 20.
+Next pass will move to a single-pattern dispatch (`(predicate, handler)` table)
+to bring the orchestrator to ≤10.
 ## 2026-10-12 — docs(adr): SASKIA-211x ADR-0001 orchestrator pattern
 
 **Scope**: `docs/architecture/decisions/0001-orchestrator-pattern.md` (new).
