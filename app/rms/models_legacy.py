@@ -2947,3 +2947,64 @@ SaleStockMove.affected_recipe_id = StockMovement.affected_recipe_id
 # provide. The remaining `join(SaleStockMove.sale)` references in the
 # codebase are dead code paths (never executed in current routes) and
 # should be rewritten to use StockMovement.reference_id joined to Sale.
+
+
+# ---------------------------------------------------------------------------
+# SASKIA-216 (2026-10-12): SeasonalEvent model.
+#
+# A date-anchored demand driver for production planning. Stores one row
+# per (event, year). The same event ("Semana Santa") can be stored as 3
+# rows: 2026, 2027, 2028. The slug identifies the event across years;
+# the date identifies the specific instance.
+#
+# Multi-tenant ready (per OOB-2026-10-12): the table is shared across
+# all tenants. The `country` column scopes geography (PY now, NL
+# heritage events tagged "heritage", future clients in AR/BR/etc.).
+# The `relevance_tags` CSV column is the per-vertical filter — empty
+# means ALL packs see it (universal); "panaderia" means only the
+# Panadería pack sees it; "panaderia,pasteleria" means both see it.
+# ---------------------------------------------------------------------------
+class SeasonalEvent(Base):
+    """A date-anchored demand driver for production planning (SASKIA-216)."""
+
+    __tablename__ = "seasonal_event"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Identity
+    slug: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    name_es: Mapped[str] = mapped_column(String(120), nullable=False)
+    name_nl: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    name_en: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Date
+    event_date = mapped_column(Date, nullable=False, index=True)
+    end_date = mapped_column(Date, nullable=True)
+    # Classification
+    country: Mapped[str] = mapped_column(String(2), nullable=False, default="PY", index=True)
+    category: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    # Demand impact (0.0 - 1.0)
+    impact_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    impact_tag: Mapped[str] = mapped_column(String(20), nullable=False, default="medium")
+    # Multi-tenant filter
+    relevance_tags: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    # Recurrence hint
+    is_annual: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    recurrence: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    # Audit
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "country", "slug", "event_date", name="uq_seasonal_event_country_slug_date"
+        ),
+        Index("ix_seasonal_event_country_date", "country", "event_date"),
+        Index("ix_seasonal_event_category_date", "category", "event_date"),
+    )

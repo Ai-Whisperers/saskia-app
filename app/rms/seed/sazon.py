@@ -114,6 +114,8 @@ from app.rms.models import (
     User,
     WasteLog,
 )
+from app.rms.seed.herbus_import import seed_herbus_data  # SASKIA-223
+from app.rms.seed.seasonal_events import seed_seasonal_events  # SASKIA-216
 from app.rms.tagging.ensure import ensure_starter_tags, ensure_tag, tag_target
 from app.rms.tagging.model import TagKind
 
@@ -128,12 +130,22 @@ TENANT_CURRENCY = "Gs."
 DEFAULT_TENANT_SLUG = "default"
 
 # Saskia (operator) credentials
+# Updated 2026-10-12 from onboarding questionnaire §4.1 + §4.3
+# (see docs/intake/SASKIA-213-vaquita-seed-data-update.md).
 SASKIA_USER = "saskia"
 SASKIA_PASSWORD = "saskia1234"  # noqa: S105
-SASKIA_EMAIL = "saskia@lavaquita.example"
-SASKIA_FULL_NAME = "Saskia Weiss"
+SASKIA_EMAIL = "La.vaquitaholandesa@gmail.com"
+SASKIA_FULL_NAME = "Saskia Weiss Vander"
 
 # Cashier accounts
+# NOTE (2026-10-12): The onboarding questionnaire §4.5 answered "no" —
+# Saskia runs the POS solo, no cajeros. The hard-coded CASHIER_USERS
+# below are placeholders carried over from the pre-questionnaire seed
+# and DO NOT match the La Vaquita Holandesa instance's actual user
+# roster. This is being addressed in a follow-up ticket (SASKIA-214)
+# that makes the cashier list configurable per instance. DO NOT seed
+# the La Vaquita Holandesa instance against this constant without
+# reviewing SASKIA-214 first.
 CASHIER_USERS = [
     ("lucia", "lucia1234", "Lucía Fernández", "lucia@lavaquita.example"),
     ("diego", "diego1234", "Diego Cabral", "diego@lavaquita.example"),
@@ -470,11 +482,19 @@ COMPLIANCE: dict[str, object] = {
 }
 
 # Business info (for branding / non-regulatory)
+# Updated 2026-10-12 from onboarding questionnaire §2.1 + §2.3 + §2.4 + §2.7
+# (see docs/intake/SASKIA-213-vaquita-seed-data-update.md).
 BUSINESS_INFO: dict[str, str] = {
-    "business_hours": "Lunes a sábado 7:00-19:00, domingo 8:00-13:00",
-    "address": "Av. España 1234, casi Brasil, Asunción",
-    "phone": "+595 21 555-1000",
-    "email": "hola@lavaquita.example",
+    "business_hours": "Martes a sábado de 9 am a 6 pm",
+    "address": "Laguán Grande, Arquitectos, Calle 17, Asunción",
+    "phone": "+595 991 683805",
+    "email": "La.vaquitaholandesa@gmail.com",
+    # SASKIA-215 (2026-10-12) — additional fields answered in the
+    # 2026-10-08 onboarding questionnaire. These feed the new
+    # LOCATION / SEASONAL / SALES settings on the seeder.
+    "barrio": "San Lorenzo",  # §22.1
+    "zona": "residencial",  # §22.2
+    "shop_whatsapp": "+595 991 683805",  # §8.1 (same as phone, per Saskia)
 }
 
 # Realistic Paraguayan bakery ingredients (50+).
@@ -4800,6 +4820,8 @@ class SazonReport:
     menu_items: int = 0
     production_plans: int = 0
     data_quality_fixes: dict = field(default_factory=dict)
+    seasonal_events: int = 0  # SASKIA-216
+    herbus_ingredients: int = 0  # SASKIA-223 (HEREBUS total new rows; logs split by category)
     skipped_existing: dict[str, int] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, int]:
@@ -5020,6 +5042,23 @@ def seed_sazon(
     _seed_appmeta_pins_idempotency__onboarding_gu(ctx)
     _seed_bank_transactions_a_few_recent_ones(ctx)
 
+    # SASKIA-216 (2026-10-12): seed the Tier 1 universal seasonal events.
+    # This is the OOB-driven "the website should load all of the thigns"
+    # catalog: PY legal holidays, commercial days, religious feasts, school
+    # calendar, NL heritage, sectoral -- all baked 2026-2028.
+    n_events = seed_seasonal_events(session)
+    ctx.report.seasonal_events = n_events
+    logger.info(f"seed: {n_events} seasonal_event rows (Tier 1)")
+
+    # SASKIA-223 (2026-10-12): HEREBUS data import. 100 ingredients,
+    # 23 recipes, 7 packaging. Idempotent (skips existing). The
+    # single seed_herbus_data() returns the total new rows; we don't
+    # split it here -- if you need the per-category counts, the
+    # herbus_import module's internal counters log them.
+    n_herbus = seed_herbus_data(session)
+    ctx.report.herbus_ingredients = n_herbus
+    logger.info(f"seed: HEREBUS import total={n_herbus} new rows")
+
     session.commit()
     return ctx.report
 
@@ -5060,15 +5099,18 @@ def _seed_users(ctx: SeedContext):
 
 
 def _seed_settingskv_branding(ctx: SeedContext):
-    """Section 3: SettingsKV (BRANDING).
+    """Section 3: SettingsKV (BRANDING + OPS + LOCATION + SEASONAL).
 
     Extracted from seed_sazon (refactored 2026-10-09).
+    Extended 2026-10-12 (SASKIA-215) to also write the LOCATION,
+    SEASONAL, and SALES.shop_whatsapp keys from BUSINESS_INFO +
+    the §16.6 lead-days default.
     """
 
     branding_settings = {
         "branding.business_name": TENANT_NAME,
         "branding.tagline": "Panadería artesanal desde 1985",
-        "branding.footer": "© 2025 La Vaquita Holandesa — Hecho con cariño en Asunción",
+        "branding.footer": "© 2026 La Vaquita Holandesa — Hecho con cariño en Asunción",
         "branding.business_type": "panaderia",
         "branding.accent_color": TENANT_COLOR,
         "branding.contact_email": BUSINESS_INFO["email"],
@@ -5083,7 +5125,28 @@ def _seed_settingskv_branding(ctx: SeedContext):
         + BUSINESS_INFO["phone"]
         + ".",
     }
-    for k, v in branding_settings.items():
+    # SASKIA-215 (2026-10-12) — additional settings filled from the
+    # 2026-10-08 onboarding questionnaire.
+    saskia215_settings = {
+        "location.barrio": BUSINESS_INFO.get("barrio", ""),
+        "location.zona": BUSINESS_INFO.get("zona", "residencial"),
+        "seasonal.notif_lead_days": 30,  # §16.6
+        "sales.shop_whatsapp": BUSINESS_INFO.get("shop_whatsapp", ""),
+    }
+    # SASKIA-221 (2026-10-12) -- 6 more settings from the remaining
+    # 16 sections of the 2026-10-08 onboarding questionnaire.
+    saskia221_settings = {
+        # CONTACT
+        "contact.phone": BUSINESS_INFO.get("phone", "+595 991 683805"),
+        "contact.email": BUSINESS_INFO.get("email", "La.vaquitaholandesa@gmail.com"),
+        "contact.whatsapp": BUSINESS_INFO.get("shop_whatsapp", "+595 991 683805"),
+        # LOCATION (3 new beyond the 2 from SASKIA-215)
+        "location.address_full": BUSINESS_INFO.get("address", ""),
+        "location.city": BUSINESS_INFO.get("city", "Asuncion"),
+        "location.department": BUSINESS_INFO.get("department", "Central"),
+    }
+    all_settings = {**branding_settings, **saskia215_settings, **saskia221_settings}
+    for k, v in all_settings.items():
         existing = ctx.session.execute(
             select(SettingsKV).where(SettingsKV.key == k)
         ).scalar_one_or_none()
@@ -5094,7 +5157,9 @@ def _seed_settingskv_branding(ctx: SeedContext):
             ctx.report.skipped_existing["settings_kv_existing"] = (
                 ctx.report.skipped_existing.get("settings_kv_existing", 0) + 1
             )
-    logger.info(f"seed: {ctx.report.settings_kv} settings_kv (BRANDING + OPS)")
+    logger.info(
+        f"seed: {ctx.report.settings_kv} settings_kv (BRANDING + OPS + LOCATION + SEASONAL + SALES)"
+    )
 
 
 def _seed_categories(ctx: SeedContext):

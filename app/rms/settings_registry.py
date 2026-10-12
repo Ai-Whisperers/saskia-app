@@ -75,6 +75,17 @@ class SettingGroup(str, Enum):
     EOD = "eod"  # Batch B2 (2026-10-07) — end-of-day anomaly detector thresholds
     ALERTS = "alerts"  # Batch B3 (2026-10-07) — alert dispatch rate limit
     RATE_LIMIT = "rate_limit"  # Batch B5 (2026-10-07) — login + write + read throttles
+    LOCATION = "location"  # SASKIA-215 (2026-10-12) — barrio / zona del local
+    SEASONAL = "seasonal"  # SASKIA-215 (2026-10-12) — calendario PY + notificaciones
+    RECIPE = "recipe"  # SASKIA-215 (2026-10-12) — mano de obra en recetas
+    CONTACT = "contact"  # SASKIA-221 (2026-10-12) — telefono, email, IG, FB
+    MARKETING = "marketing"  # SASKIA-221 (2026-10-12) — canal principal, web/WA
+    TARGETING = "targeting"  # SASKIA-221 (2026-10-12) — audiencia, edad, zona
+    POSITIONING = "positioning"  # SASKIA-221 (2026-10-12) — diferenciador, USPs
+    OPERATIONS = "operations"  # SASKIA-221 (2026-10-12) — solo, cajeros, delivery
+    COMPLIANCE = "compliance"  # SASKIA-221 (2026-10-12) — RUC, timbrado, INAN
+    GOALS = "goals"  # SASKIA-221 (2026-10-12) — target revenue, products, customers
+    HEREBUS = "herbus"  # SASKIA-223 (2026-10-12) — counts of imported HEREBUS data
 
 
 @dataclass
@@ -632,6 +643,284 @@ SETTINGS: list[Setting] = [
         "int",
         "Ventana deslizante para reads pesados (segundos)",
         SettingGroup.RATE_LIMIT,
+    ),
+    # SASKIA-215 (2026-10-12) — La Vaquita onboarding gaps.
+    # These settings unblock the §8.1, §16, §22 questionnaire
+    # answers that the previous registry couldn't persist.
+    # LOCATION (2)
+    Setting(
+        "location.barrio",
+        "",
+        "str",
+        "Barrio del local (Saskia §22.1: 'San Lorenzo')",
+        SettingGroup.LOCATION,
+    ),
+    Setting(
+        "location.zona",
+        "residencial",
+        "str",
+        "Tipo de zona donde está el local (Saskia §22.2: 'residencial')",
+        SettingGroup.LOCATION,
+        choices=["residencial", "comercial", "mixta", "industrial"],
+    ),
+    # SEASONAL (1)
+    Setting(
+        "seasonal.notif_lead_days",
+        "30",
+        "int",
+        "Días de anticipación para avisar picos estacionales (Saskia §16.6: 30)",
+        SettingGroup.SEASONAL,
+    ),
+    # RECIPE (2)
+    Setting(
+        "recipe.labor_cost_enabled",
+        "0",
+        "bool",
+        "Calcular costo de mano de obra en recetas (Saskia §7.4: sí)",
+        SettingGroup.RECIPE,
+    ),
+    Setting(
+        "recipe.labor_cost_per_hour_gs",
+        "25000",
+        "int",
+        "Costo de mano de obra por hora (Gs./h, default 25.000)",
+        SettingGroup.RECIPE,
+    ),
+    # SALES (1 new) — shop WhatsApp for orders
+    Setting(
+        "sales.shop_whatsapp",
+        "",
+        "str",
+        "WhatsApp del local para tomar pedidos (formato 5959XXXXXXXX sin + ni espacios; Saskia sec.8.1: '+595 991 683805')",
+        SettingGroup.SALES,
+    ),
+    # ---- SASKIA-221 (2026-10-12): 26 more settings ----
+    # CONTACT (4)
+    Setting(
+        "contact.phone",
+        "+595 991 683805",
+        "str",
+        "Telefono principal del local (Saskia sec.2.3).",
+        SettingGroup.CONTACT,
+    ),
+    Setting(
+        "contact.email",
+        "La.vaquitaholandesa@gmail.com",
+        "str",
+        "Email principal del local (Saskia sec.2.4).",
+        SettingGroup.CONTACT,
+    ),
+    Setting(
+        "contact.whatsapp",
+        "+595 991 683805",
+        "str",
+        "Alias de sales.shop_whatsapp (canonical key = sales.shop_whatsapp).",
+        SettingGroup.CONTACT,
+    ),
+    Setting(
+        "contact.instagram_handle",
+        "",
+        "str",
+        "Handle de Instagram (sin @). Saskia sec.7 = TBD.",
+        SettingGroup.CONTACT,
+    ),
+    Setting(
+        "contact.facebook",
+        "",
+        "str",
+        "URL o nombre de pagina de Facebook. Saskia sec.7 = TBD.",
+        SettingGroup.CONTACT,
+    ),
+    # LOCATION (3 new)
+    Setting(
+        "location.address_full",
+        "Laguan Grande, Arquitectos, Calle 17, Asuncion",
+        "str",
+        "Direccion completa (Saskia sec.2.1).",
+        SettingGroup.LOCATION,
+    ),
+    Setting(
+        "location.city",
+        "Asuncion",
+        "str",
+        "Ciudad del local (Saskia sec.2.1).",
+        SettingGroup.LOCATION,
+    ),
+    Setting(
+        "location.department",
+        "Central",
+        "str",
+        "Departamento del local (Saskia sec.2.1 = Central/San Lorenzo area).",
+        SettingGroup.LOCATION,
+    ),
+    Setting(
+        "location.reference_point",
+        "",
+        "str",
+        "Punto de referencia visible (ej. 'frente a la plaza', 'a 2 cuadras del super'). TBD.",
+        SettingGroup.LOCATION,
+    ),
+    # MARKETING (3)
+    Setting(
+        "marketing.primary_channel",
+        "whatsapp",
+        "str",
+        "Canal principal de captacion (whatsapp|instagram|facebook|web). Saskia sec.7.",
+        SettingGroup.MARKETING,
+        choices=["whatsapp", "instagram", "facebook", "web"],
+    ),
+    Setting(
+        "marketing.has_whatsapp_business",
+        "1",
+        "bool",
+        "Tiene WhatsApp Business instalado? Saskia sec.7.",
+        SettingGroup.MARKETING,
+    ),
+    Setting(
+        "marketing.has_website",
+        "0",
+        "bool",
+        "Tiene sitio web propio? (Saskia sec.7 = no per respuesta).",
+        SettingGroup.MARKETING,
+    ),
+    # TARGETING (3)
+    Setting(
+        "targeting.audience",
+        "familias + oficinistas",
+        "str",
+        "Audiencia objetivo (Saskia sec.9).",
+        SettingGroup.TARGETING,
+    ),
+    Setting(
+        "targeting.age_range",
+        "25-55",
+        "str",
+        "Rango de edad objetivo (Saskia sec.9).",
+        SettingGroup.TARGETING,
+    ),
+    Setting(
+        "targeting.area",
+        "San Lorenzo + Central",
+        "str",
+        "Zona geografica objetivo (Saskia sec.10).",
+        SettingGroup.TARGETING,
+    ),
+    # POSITIONING (2)
+    Setting(
+        "positioning.differentiator",
+        "Dutch heritage + product quality",
+        "str",
+        "Diferenciador principal vs competencia (Saskia sec.13-15).",
+        SettingGroup.POSITIONING,
+    ),
+    Setting(
+        "positioning.unique_selling_points",
+        "Recetas holandesas autenticas, ingredientes europeos importados (speculaas, ketjap manis, bladerdeeg, harina de centeno), chipa almidon tradicional, atencion personalizada",
+        "str",
+        "Lista de USPs separados por coma (Saskia sec.13-15).",
+        SettingGroup.POSITIONING,
+    ),
+    # OPERATIONS (5)
+    Setting(
+        "operations.is_solo",
+        "1",
+        "bool",
+        "Operacion unipersonal? (Saskia sec.4.5 = si).",
+        SettingGroup.OPERATIONS,
+    ),
+    Setting(
+        "operations.has_cashiers",
+        "0",
+        "bool",
+        "Tiene cajeros? (Saskia sec.4.5 = no).",
+        SettingGroup.OPERATIONS,
+    ),
+    Setting(
+        "operations.has_delivery",
+        "0",
+        "bool",
+        "Ofrece delivery? (Saskia sec.17).",
+        SettingGroup.OPERATIONS,
+    ),
+    Setting(
+        "operations.has_pickup",
+        "1",
+        "bool",
+        "Ofrece pickup? (Saskia sec.17).",
+        SettingGroup.OPERATIONS,
+    ),
+    Setting(
+        "operations.has_dine_in",
+        "0",
+        "bool",
+        "Tiene salon? (Saskia sec.17).",
+        SettingGroup.OPERATIONS,
+    ),
+    # COMPLIANCE (2)
+    Setting(
+        "compliance.ruc",
+        "",
+        "str",
+        "RUC de la razon social. Saskia sec.19 = TBD.",
+        SettingGroup.COMPLIANCE,
+    ),
+    Setting(
+        "compliance.timbrado",
+        "",
+        "str",
+        "Numero de timbrado. Saskia sec.19 = TBD.",
+        SettingGroup.COMPLIANCE,
+    ),
+    # GOALS (3)
+    Setting(
+        "goals.target_revenue_monthly_gs",
+        "0",
+        "int",
+        "Meta de ingreso mensual en Gs. Saskia sec.20 = TBD.",
+        SettingGroup.GOALS,
+    ),
+    Setting(
+        "goals.target_products",
+        "30",
+        "int",
+        "Meta de productos en catalogo (Saskia sec.11.4 = +30).",
+        SettingGroup.GOALS,
+    ),
+    Setting(
+        "goals.target_customers_daily",
+        "30",
+        "int",
+        "Meta de clientes diarios (Saskia sec.11.2 = 20-30).",
+        SettingGroup.GOALS,
+    ),
+    # ---- SASKIA-223 (2026-10-12): HEREBUS import counts ----
+    Setting(
+        "herbus.dutch_recipes_count",
+        "12",
+        "int",
+        "Cantidad de recetas del HEREBUS marcadas como Dutch heritage (de 23).",
+        SettingGroup.HEREBUS,
+    ),
+    Setting(
+        "herbus.italian_recipes_count",
+        "1",
+        "int",
+        "Cantidad de recetas del HEREBUS de origen italiano (Supplì).",
+        SettingGroup.HEREBUS,
+    ),
+    Setting(
+        "herbus.american_recipes_count",
+        "2",
+        "int",
+        "Cantidad de recetas del HEREBUS de origen americano/judío (Everything Bagels + Seasoning).",
+        SettingGroup.HEREBUS,
+    ),
+    Setting(
+        "herbus.needs_confirm_count",
+        "78",
+        "int",
+        "Cantidad de ingredientes del HEREBUS con precio/stock a confirmar (de 100).",
+        SettingGroup.HEREBUS,
     ),
 ]
 

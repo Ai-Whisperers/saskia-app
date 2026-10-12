@@ -100,6 +100,10 @@ from app.rms.migrations._118_recipe_instructions_backfill import (
 from app.rms.migrations._119_recipe_photo_autolink import (
     _migration_119_recipe_photo_autolink,
 )
+from app.rms.migrations._120_shop_whatsapp_rename import (
+    _migration_120_shop_whatsapp_rename,
+)
+from app.rms.migrations._121_seasonal_event import _migration_121_seasonal_event
 from app.rms.models.channels import Channel
 
 
@@ -4314,6 +4318,8 @@ MIGRATIONS = {
     117: _migration_117_ingredient_image_url,
     118: _migration_118_recipe_instructions_backfill,
     119: _migration_119_recipe_photo_autolink,
+    120: _migration_120_shop_whatsapp_rename,
+    121: _migration_121_seasonal_event,
 }
 
 
