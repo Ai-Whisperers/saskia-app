@@ -1,4 +1,10 @@
 
+## 2026-10-12 — Pedidos parked columns sort again
+
+Canal, Pago, Líneas, and Total sort from buttons inside Ver detalles.
+A `?sort=total_gs` link restores that order. Cliente, Fecha prometida,
+and Estado stay the list headers.
+
 ## 2026-10-12 — Pedidos list leads with who, when, and next status
 
 The list shows the customer, the promised date, and the status with Cumplir.

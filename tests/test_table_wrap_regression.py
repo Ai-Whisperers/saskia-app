@@ -98,6 +98,15 @@ def test_pedidos_list_leads_with_who_when_next_status():
     tbody = src[src.find("<tbody", table) : src.find("</tbody>", table)]
     details = tbody.find("<details")
     assert details > 0
+    # Parked sorts are real buttons the sorter binds, not L1 headers.
+    sorts_at = tbody.find("inv-list__sorts")
+    assert sorts_at > details
+    sorts = tbody[sorts_at:]
+    for key in ("channel", "payment", "lines", "total_gs"):
+        assert f'data-sort-key="{key}"' not in thead
+        assert "data-sort-control" in sorts
+        assert f'data-sort-key="{key}"' in sorts
+        assert f'data-sort-field="{key}"' in tbody
     assert 'data-period="{{ key }}"' in tbody
     assert 'data-status="{{ p.status }}"' in tbody
     assert tbody.find(">Cumplir<") < details

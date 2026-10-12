@@ -211,19 +211,26 @@
             <details class="row-meta-details">
               <summary>Ver detalles</summary>
               <div class="inv-list__panel">
-                <div class="inv-list__field" data-sort-key="channel">
+                {# Parked sorts stay one click away. The sorter binds these buttons. #}
+                <div class="inv-list__sorts">
+                  <button type="button" class="th-sort" data-sort-control data-sort-key="channel" aria-label="Ordenar por Canal">Canal</button>
+                  <button type="button" class="th-sort" data-sort-control data-sort-key="payment" aria-label="Ordenar por Pago">Pago</button>
+                  <button type="button" class="th-sort" data-sort-control data-sort-key="lines" aria-label="Ordenar por Líneas">Líneas</button>
+                  <button type="button" class="th-sort" data-sort-control data-sort-key="total_gs" aria-label="Ordenar por Total">Total</button>
+                </div>
+                <div class="inv-list__field" data-sort-field="channel" data-sort-value="{{ p.channel or '' }}">
                   <span class="inv-list__label">Canal</span>
                   <span class="badge badge-neutral">{{ p.channel }}</span>
                 </div>
-                <div class="inv-list__field" data-sort-key="payment">
+                <div class="inv-list__field" data-sort-field="payment" data-sort-value="{{ p.payment_method or '' }}">
                   <span class="inv-list__label">Pago</span>
                   <small class="text-muted">{{ p.payment_method or '—' }}</small>
                 </div>
-                <div class="inv-list__field" data-sort-key="lines">
+                <div class="inv-list__field" data-sort-field="lines" data-sort-value="{{ p.n_lines }}">
                   <span class="inv-list__label">Líneas</span>
                   <span class="num">{{ p.n_lines }}</span>
                 </div>
-                <div class="inv-list__field" data-sort-key="total_gs">
+                <div class="inv-list__field" data-sort-field="total_gs" data-sort-value="{{ p.total_gs }}">
                   <span class="inv-list__label">Total</span>
                   <strong>{{ m.gs(p.total_gs) }}</strong>
                 </div>
