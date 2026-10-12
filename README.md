@@ -1,6 +1,6 @@
-# Sazón — Bakery Management System
+# Sazón Restaurant Management System
 
-> **The operator's app** for one bakery (La Vaquita Feliz, Asunción, Paraguay). Full restaurant-management system: sales, inventory, recipes, production planning, customers, financials, audit. Local-first + hosted dual deployment.
+> **Multi-tenant restaurant management** (URL-based tenant routing, per-tenant Supabase DB). First tenant: La Vaquita Holandesa, Asunción, Paraguay. Full restaurant-management system: sales, inventory, recipes, production planning, customers, financials, audit. Local-first + hosted dual deployment.
 >
 > **Status (2026-10-09):** Schema v117 · 350 routes (51 routers) · 7,961 tests (718 files) · 131 templates · 1,530 commits.
 > **Active deployment:** [sazon-vps.paragu-ai.com](https://sazon-vps.paragu-ai.com) (VPS via Docker Swarm + Cloudflare Tunnel).

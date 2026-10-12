@@ -1,6 +1,6 @@
 # SASKIA-220 — Sazón Restaurant Management System (merge + rename + first tenant)
 
-**Status:** DRAFT. Awaiting Iván sign-off. Supersedes SASKIA-210.
+**Status:** APPROVED 2026-10-12 by Iván. Supersedes SASKIA-210.
 
 ## Context (why now)
 
@@ -138,19 +138,19 @@ not merged.
 
 ### Day 1 (TODAY) — Plan + sign-off
 - [x] Memory updated with SASKIA-210 reversal + SASKIA-220 plan (awaiting approval)
-- [ ] **This doc reviewed and approved by Iván** ← you are here
-- [ ] Identify what specific commits/branches from `saskia-app-vaquita` need to land in Sazon RMS
-- [ ] Decide tenant config file format (YAML vs JSON vs env-only)
+- [x] **This doc reviewed and approved by Iván** (2026-10-12)
+- [x] Identify: all 14 commits on `SASKIA-213-vaquita-seed-data-update` (fast-forward from main)
+- [x] Tenant config format: YAML (`pyyaml` already pinned in pyproject.toml — no new dep)
 
 ### Day 2 — Repo creation
-- [ ] Create `Ai-Whisperers/sazon-restaurant-management-system` (private) on github
-- [ ] Add SSH key access (already in place: github-hermes-agent)
+- [x] Create `Ai-Whisperers/sazon-restaurant-management-system` (private) on github
+- [x] Add SSH key access (already in place: github-hermes-agent)
 - [ ] Set repo description, topics, AGPL/MIT license file (decide on TBD)
 - [ ] Add CODEOWNERS, .gitignore, README skeleton
 
 ### Day 3 — Merge + rename
-- [ ] Add new remote to `saskia-app-vaquita` worktree
-- [ ] Cherry-pick or fast-forward all 8 vaquita commits → Sazon RMS main
+- [x] Add new remote `sazon` to `saskia-app-vaquita` worktree
+- [x] Fast-forward: pushed vaquita branch (14 commits) as new repo main (7c4f53b9)
 - [ ] Rename the codebase: `Sazón RMS` references everywhere (commit message, package name?)
 - [ ] Delete the old `Saskia-rms` references in the merged tree (keep "Sazón" branding)
 - [ ] First commit: "Initial Sazon Restaurant Management System import from saskia-app-vaquita"
