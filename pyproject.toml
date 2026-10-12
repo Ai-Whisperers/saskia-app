@@ -69,6 +69,9 @@ packages = ["app"]
 addopts = "-v --tb=short -p no:randomly --cov=app --cov-report=term-missing --cov-fail-under=35 -m 'not (browser or e2e or pg or manual)'"
 testpaths = ["tests"]
 pythonpath = ["."]
+# Each test's tmp_path builds a ~5MB app-copy fixture; default retention (3 runs x ~300 tests)
+# accumulated 44GB of pytest-of-hermes tmpdirs (disk hit 95% on 2026-10-12). Keep failed runs only.
+tmp_path_retention_policy = "failed"
 markers = [
     "browser: runs in a real headless browser via Playwright",
     "pg: real Postgres tests (testcontainers); skipped locally without Docker, run in CI",
