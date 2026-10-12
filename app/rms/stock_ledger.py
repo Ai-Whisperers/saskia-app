@@ -104,3 +104,10 @@ def apply_stock_delta(
     )
     session.add(movement)
     return movement
+
+
+__all__ = [
+    "MismatchPolicy",
+    "apply_stock_delta",
+    "qty_to_stock_unit",
+]
