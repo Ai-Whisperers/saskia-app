@@ -3,27 +3,26 @@
 Targets the gap: Static analysis only, no dynamic security tests.
 Exercises the app with malicious inputs to find vulnerabilities.
 """
-
 import pytest
 
 from tests._lib.auth import assert_safe_response
+from tests._lib.http import (
+    LOGIN_RATE_LIMITED_CODES,
+    LOGIN_SAFE_CODES,
+    METHOD_NOT_ALLOWED_CODES,
+    AUTH_CODES,
+)
+
 
 pytestmark = [pytest.mark.security, pytest.mark.smoke]
 
 
-SAFE_LOGIN_CODES = (200, 302, 303, 307, 400, 401, 403, 404, 422)
-SAFE_GENERAL_CODES = (200, 302, 303, 307, 401, 403, 404, 405, 500)
-
-
-@pytest.mark.parametrize(
-    "payload",
-    [
-        "'; DROP TABLE users; --",
-        "1' OR '1'='1",
-        "admin'--",
-        "' UNION SELECT * FROM user --",
-    ],
-)
+@pytest.mark.parametrize("payload", [
+    "'; DROP TABLE users; --",
+    "1' OR '1'='1",
+    "admin'--",
+    "' UNION SELECT * FROM user --",
+])
 def test_sql_injection_in_login(authed_client, payload):
     """Login form should not 500 on SQL injection attempts."""
     r = authed_client.post(
@@ -31,18 +30,15 @@ def test_sql_injection_in_login(authed_client, payload):
         data={"username": payload, "password": payload},
         follow_redirects=False,
     )
-    assert r.status_code in SAFE_LOGIN_CODES
+    assert r.status_code in LOGIN_SAFE_CODES
 
 
-@pytest.mark.parametrize(
-    "payload",
-    [
-        "<script>alert('XSS')</script>",
-        "<img src=x onerror=alert(1)>",
-        "javascript:alert(1)",
-        "<svg/onload=alert(1)>",
-    ],
-)
+@pytest.mark.parametrize("payload", [
+    "<script>alert('XSS')</script>",
+    "<img src=x onerror=alert(1)>",
+    "javascript:alert(1)",
+    "<svg/onload=alert(1)>",
+])
 def test_xss_in_login_form(authed_client, payload):
     """Login form should escape XSS in username field."""
     r = authed_client.post(
@@ -54,19 +50,15 @@ def test_xss_in_login_form(authed_client, payload):
         assert "<script>alert" not in r.text
 
 
-@pytest.mark.parametrize(
-    "payload",
-    [
-        "<script>alert(1)</script>",
-        "<img src=x onerror=alert(1)>",
-        "[click](javascript:alert(1))",
-        "[click](vbscript:msgbox(1))",
-    ],
-)
+@pytest.mark.parametrize("payload", [
+    "<script>alert(1)</script>",
+    "<img src=x onerror=alert(1)>",
+    "[click](javascript:alert(1))",
+    "[click](vbscript:msgbox(1))",
+])
 def test_md_to_html_blocks_xss(payload):
     """Markdown renderer should block XSS attempts."""
     from app.routers.help import _md_to_html
-
     result = _md_to_html(payload)
     assert "<script>" not in result
     assert "javascript:" not in result.lower()
@@ -76,21 +68,20 @@ def test_md_to_html_blocks_xss(payload):
 def test_post_endpoint_exists(authed_client):
     """State-changing POST endpoint should be reachable."""
     r = authed_client.get("/sales")
-    assert r.status_code in (200, 302, 303, 307, 400, 401, 403, 404, 405, 422, 500)
+    assert r.status_code in METHOD_NOT_ALLOWED_CODES
 
 
 def test_admin_path_response(authed_client):
     """Admin paths should respond (200, 404, or auth redirect)."""
     for path in ["/admin", "/users", "/settings"]:
         r = authed_client.get(path, follow_redirects=False)
-        assert r.status_code in SAFE_GENERAL_CODES
+        assert r.status_code in AUTH_CODES
 
 
 def test_password_hashing_uses_bcrypt():
     """Passwords should be hashed with bcrypt, not plaintext."""
     try:
         from app.auth import hash_password
-
         plain = "mysecret123"
         hashed = hash_password(plain)
         assert hashed != plain
@@ -115,4 +106,4 @@ def test_repeated_login_attempts_handled(authed_client):
             follow_redirects=False,
         )
     assert last_r is not None
-    assert last_r.status_code in (200, 302, 303, 307, 400, 401, 403, 404, 422, 429, 500)
+    assert last_r.status_code in LOGIN_RATE_LIMITED_CODES

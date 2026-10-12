@@ -5,8 +5,8 @@ test files. All helpers here are designed to be importable without side
 effects (no DB, no network, no monkeypatching at import time).
 
 Public API:
-- fresh_client() / fresh_client_with_auth() / fresh_client_auth_enabled()
-- freeze_now() / asuncion_now()
-- new_seed() / reseed()
-- make_test_ingredient() / make_test_product() / make_test_sale() (lightweight)
+- tests._lib.auth: fresh_client, auth_required_client, assert_safe_response
+- tests._lib.clock: FROZEN_NOW, FROZEN_TS, asuncion_now, utc_now, FrozenClock
+- tests._lib.seed: quick_ingredient, quick_product, quick_sale, quick_supplier, quick_customer
+- tests._lib.http: SAFE_CODES, AUTH_CODES, LOGIN_CODES, LOGIN_POST_CODES, etc
 """
