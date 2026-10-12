@@ -13,6 +13,25 @@
   <div class="card-body">✅ Foto actualizada.</div>
 </div>
 {% endif %}
+{% if request.query_params.get('uploaded') %}
+<div class="card mb-3" style="background:var(--color-success-soft);border-color:var(--color-border);">
+  <div class="card-body">📤 Archivo subido. Elegilo abajo para asignarlo a la receta.</div>
+</div>
+{% endif %}
+
+<form class="card mb-3" method="post" action="/recetas/{{ recipe.id }}/set-photo/upload"
+      enctype="multipart/form-data" id="recipe-upload-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="card-body" style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+    <label for="recipe-photo-file" class="muted" style="font-size:var(--text-sm);font-weight:600;">
+      📤 Subir nueva foto
+    </label>
+    <input type="file" name="file" id="recipe-photo-file" accept="image/png,image/jpeg,image/webp,image/gif" required
+           style="flex:1;min-width:200px;">
+    <button type="submit" class="btn btn-primary">Subir</button>
+    <span class="muted" style="font-size:var(--text-xs);">PNG, JPG, WebP o GIF · máx 5 MB</span>
+  </div>
+</form>
 
 <div class="grid d-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;">
   {% for p in photos %}

@@ -9,9 +9,10 @@ only handles single values.
 
 from __future__ import annotations
 
+import secrets as pysecrets
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import (
     HTMLResponse,
     JSONResponse,
@@ -766,7 +767,25 @@ async def recipe_set_photo(
     from app.rms import static_paths
 
     photo_dir = static_paths.recipes_dir()
-    photos = sorted([p.name for p in photo_dir.glob("*.jpg")]) if photo_dir.is_dir() else []
+    # Only image files (operator dropped junk like .sqlite sidecars in there
+    # in dev). Keeps the picker UI clean.
+    _IMAGE_EXTS = {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".gif",
+        ".JPG",
+        ".JPEG",
+        ".PNG",
+        ".WEBP",
+        ".GIF",
+    }
+    photos = (
+        sorted([p.name for p in photo_dir.iterdir() if p.is_file() and p.suffix in _IMAGE_EXTS])
+        if photo_dir.is_dir()
+        else []
+    )
     recipe = session.get(Recipe, r_id)
     return render(
         request,
@@ -797,6 +816,89 @@ async def recipe_save_photo(
         session.commit()
     return RedirectResponse(
         url=f"/recetas/{r_id}/set-photo?saved=1",
+        status_code=303,
+    )
+
+
+@router.post("/{r_id}/set-photo/upload")
+async def recipe_upload_photo(
+    request: Request,
+    r_id: int,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Upload a recipe photo (SASKIA-213).
+
+    Operators drop a JPG/PNG/WebP/GIF onto a recipe page and the file
+    lands in app/static/recipes/. The recipe is NOT auto-linked to the
+    new file — the operator still picks the file from the picker (so
+    the same photo can be re-used across recipes and re-picking is
+    auditable). A successful upload returns 303 to the picker page
+    with a flash toast.
+
+    Limits (same as product image upload for consistency):
+      - MIME: image/{png, jpeg, jpg, webp, gif}
+      - Max: 5 MB
+      - Empty body: 400
+    """
+    # Validate MIME type (reject before reading to keep error fast)
+    allowed_types = {
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/webp",
+        "image/gif",
+    }
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"Tipo de archivo no permitido: {file.content_type or 'desconocido'}. "
+                f"Usá uno de: PNG, JPG, WebP, GIF."
+            ),
+        )
+
+    content_bytes = await file.read()
+    if not content_bytes:
+        raise HTTPException(status_code=400, detail="Archivo vacío.")
+
+    max_size = 5 * 1024 * 1024
+    if len(content_bytes) > max_size:
+        size_kb = len(content_bytes) // 1024
+        raise HTTPException(
+            status_code=413,
+            detail=f"Imagen muy grande ({size_kb} KB). Máximo 5 MB.",
+        )
+
+    ext_map = {
+        "image/png": ".png",
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/webp": ".webp",
+        "image/gif": ".gif",
+    }
+    ext = ext_map[file.content_type]
+    name = f"{datetime.now(timezone.utc).strftime('%Y%m%d')}-{pysecrets.token_hex(8)}{ext}"
+
+    from app.rms.static_paths import recipes_dir
+
+    target_dir = recipes_dir()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / name
+    target.write_bytes(content_bytes)
+
+    record_audit(
+        request,
+        session=session,
+        action="write.recipe.photo.upload",
+        target_type="recipe",
+        target_id=r_id,
+        detail={"filename": name, "size": len(content_bytes), "mime": file.content_type},
+    )
+    session.commit()
+
+    return RedirectResponse(
+        url=f"/recetas/{r_id}/set-photo?uploaded=1",
         status_code=303,
     )
 
