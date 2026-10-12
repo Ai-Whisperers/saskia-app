@@ -1217,3 +1217,54 @@ form ui-date {
   .quick-sell-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
   .quick-sell-btn .qs-price { opacity: 1; position: static; height: auto; background: transparent; color: var(--color-accent); }
 }
+
+/* Inventario list: L1 is name, stock, cost, and alert. The disclosure
+   uses display:contents only while open so the parked columns sit on the
+   next grid row instead of inside the last column (the sticky scroller
+   would clip an absolutely positioned popover). */
+.inv-list__l1 {
+  display: grid;
+  grid-template-columns: minmax(12rem, 2.4fr) minmax(7.5rem, 1fr) minmax(8.5rem, 1.1fr) auto minmax(6.75rem, auto);
+  column-gap: 1rem;
+  row-gap: 0.75rem;
+  align-items: center;
+}
+.inv-list__stock,
+.inv-list__price { text-align: right; font-variant-numeric: tabular-nums; }
+.inv-list__details { grid-column: 5; grid-row: 1; justify-self: end; }
+.inv-list__details.row-meta-details > summary {
+  font-size: 0.85rem;
+  color: var(--color-text-link);
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.inv-list__details[open] { display: contents; }
+.inv-list__details[open] > summary { grid-column: 5; grid-row: 1; justify-self: end; }
+.inv-list__details[open] > .inv-list__panel {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+.inv-list__panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  align-items: flex-start;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+.inv-list__sorts,
+.inv-list__tags,
+.inv-list__actions { flex: 1 1 100%; }
+.inv-list__sorts,
+.inv-list__actions { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
+.inv-list__field { min-width: 10rem; }
+.inv-list__label {
+  display: block;
+  margin-bottom: 0.15rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.inv-list thead .inv-list__l1 > :last-child { justify-self: end; }
