@@ -1,3 +1,7 @@
+## 2026-10-12 — style: apply ruff format to S2 batch-1 files
+
+**Scope**: `app/rms/errors.py`, `app/rms/observability.py`, `app/rms/retry.py`, `tests/test_silent_excepts_rms.py` — pure formatting (line lengths, import grouping). No behavior change. Required by fast-pr-gate smoke gate.
+
 ## 2026-10-12 — feat(observability): bind matched route name to per-request log context (S2 robustness PR7)
 
 **Scope**: `app/rms/observability.py` (+~40), `tests/test_observability_extended.py` (new, 7 tests).
