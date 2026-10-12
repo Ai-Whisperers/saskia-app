@@ -132,8 +132,8 @@ def test_weight_qty_upper_bound_still_enforced(authed_client, session_factory, _
 
 def test_apply_sale_persists_fractional_qty(session_factory, _weight_seed):
     """Service layer already Float-safe: apply_sale stores 0.25 directly."""
-    from app.rms.costing import apply_sale
     from app.rms.models_legacy import Sale
+    from app.rms.sales.lifecycle import apply_sale
 
     s = sessionmaker(bind=session_factory.kw["bind"])()
     try:

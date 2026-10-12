@@ -21,6 +21,7 @@ from app.rms.models import MessageTemplate
 def _clear_templates(session):
     """Wipe message_template so each test starts from a known state."""
     from sqlalchemy import text
+
     session.execute(text("DELETE FROM message_template"))
     session.commit()
 
@@ -43,9 +44,7 @@ class TestAlertTemplate:
     """AlertTemplate is a value object — pin its dataclass + format() semantics."""
 
     def test_attributes_set(self):
-        tmpl = AlertTemplate(
-            key="k", subject="s", body="b {x}", locale="es-PY"
-        )
+        tmpl = AlertTemplate(key="k", subject="s", body="b {x}", locale="es-PY")
         assert tmpl.key == "k"
         assert tmpl.subject == "s"
         assert tmpl.body == "b {x}"
@@ -56,9 +55,7 @@ class TestAlertTemplate:
         assert tmpl.locale == "es-PY"
 
     def test_render_substitutes_kwargs(self):
-        tmpl = AlertTemplate(
-            key="k", subject="s", body="hola {name}, tenés {n} ventas"
-        )
+        tmpl = AlertTemplate(key="k", subject="s", body="hola {name}, tenés {n} ventas")
         assert tmpl.render(name="Ana", n=3) == "hola Ana, tenés 3 ventas"
 
     def test_render_missing_key_raises(self):
@@ -70,7 +67,9 @@ class TestAlertTemplate:
     def test_frozen(self):
         # The dataclass is frozen — assignment raises.
         tmpl = AlertTemplate(key="k", subject="s", body="b")
-        with pytest.raises(Exception):  # FrozenInstanceError subclass
+        from dataclasses import FrozenInstanceError
+
+        with pytest.raises(FrozenInstanceError):
             tmpl.key = "other"  # type: ignore[misc]
 
 

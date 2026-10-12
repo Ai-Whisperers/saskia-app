@@ -214,7 +214,7 @@ def _seed_sale(session_factory) -> int:
 
 def test_void_sale_persists_reason_and_voided_by(session_factory):
     """CIE-01 — void_sale() stores reason + voided_by on the Sale row."""
-    from app.rms.costing import void_sale
+    from app.rms.sales.lifecycle import void_sale
 
     sale_id = _seed_sale(session_factory)
     void_sale(
@@ -230,7 +230,7 @@ def test_void_sale_persists_reason_and_voided_by(session_factory):
 
 def test_void_sale_without_reason_still_works(session_factory):
     """CIE-01 — legacy callers (no reason) still void successfully."""
-    from app.rms.costing import void_sale
+    from app.rms.sales.lifecycle import void_sale
 
     sale_id = _seed_sale(session_factory)
     void_sale(session_factory(), sale_id)  # no reason, no voided_by
@@ -249,8 +249,8 @@ def test_void_sale_appends_reason_to_stock_movement(session_factory):
     a real StockMovement via the relationship, then voids and checks the
     reversal movement's reason carries the void reason.
     """
-    from app.rms.costing import apply_sale, void_sale
     from app.rms.models import Recipe, RecipeLine
+    from app.rms.sales.lifecycle import apply_sale, void_sale
 
     with session_factory() as s:
         ing = Ingredient(name="CIE_Flour_audit", stock_qty=1000.0, unit="g")
@@ -294,7 +294,7 @@ def test_void_sale_appends_reason_to_stock_movement(session_factory):
 
 def test_double_void_raises_valueerror(session_factory):
     """CIE-01 — idempotency preserved: voiding twice still raises."""
-    from app.rms.costing import void_sale
+    from app.rms.sales.lifecycle import void_sale
 
     sale_id = _seed_sale(session_factory)
     void_sale(session_factory(), sale_id, reason="primera")
@@ -361,7 +361,7 @@ def test_void_endpoint_already_voided_returns_409(client, session_factory):
 def test_void_sale_restores_stock_with_reason(session_factory):
     """CIE-01 — void_sale still restores stock correctly when a reason is
     provided (the audit trail must not break the core reversal semantics)."""
-    from app.rms.costing import void_sale
+    from app.rms.sales.lifecycle import void_sale
 
     # Set up: 1 ingredient, product with recipe, sale decrements stock
     with session_factory() as s:
@@ -411,7 +411,7 @@ def test_void_sale_restores_stock_with_reason(session_factory):
 
 def test_historial_renders_void_reason_and_by(client, session_factory):
     """CIE-01 — the history table surfaces void_reason and voided_by."""
-    from app.rms.costing import void_sale
+    from app.rms.sales.lifecycle import void_sale
 
     sale_id = _seed_sale(session_factory)
     void_sale(session_factory(), sale_id, reason="prueba auditoría", voided_by="admin")

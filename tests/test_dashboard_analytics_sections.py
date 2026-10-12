@@ -20,8 +20,8 @@ def _seed_min_sales(session_factory, days_back: int = 14):
     directly so the seed produces real analytics.
     """
 
-    from app.rms.costing import apply_sale
     from app.rms.models import Ingredient, Product, Recipe, RecipeLine
+    from app.rms.sales.lifecycle import apply_sale
 
     sf = session_factory
     with sf() as s:

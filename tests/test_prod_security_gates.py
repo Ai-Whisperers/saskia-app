@@ -92,7 +92,9 @@ def test_proprice_no_sellable_product_below_110pct_of_cost():
         cost = res.batch_cost_gs
         if cost is None or cost <= 0:
             continue
-        floor = int(Decimal(cost) * Decimal("1.1"))
+        from app.rms.money import to_int_gs
+
+        floor = to_int_gs(Decimal(cost) * Decimal("1.1"))
         if p.sale_price_gs < floor:
             offenders.append(
                 f"{p.name}: venta {p.sale_price_gs:,} < costo×1,1 = {floor:,} "

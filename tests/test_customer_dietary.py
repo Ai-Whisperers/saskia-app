@@ -25,8 +25,6 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from app.rms.customer_dietary import (
     DietaryPreference,
     DietaryProfile,

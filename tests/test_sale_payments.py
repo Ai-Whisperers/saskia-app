@@ -140,7 +140,7 @@ def test_void_removes_payment_rows(authed_client, session_factory, _seed):
     # void_sale directly (service) — the router path needs CSRF+form only
     s3 = sessionmaker(bind=session_factory.kw["bind"])()
     try:
-        from app.rms.costing import void_sale
+        from app.rms.sales.lifecycle import void_sale
 
         void_sale(s3, sale_id, reason="test")
     finally:

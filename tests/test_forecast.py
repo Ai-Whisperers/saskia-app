@@ -136,9 +136,7 @@ class TestForecastIngredientNoHistory:
     def test_no_consumption_means_target_is_2x_min(self, session_factory):
         # With zero consumption the recommendation is just "top up to 2x min"
         with session_factory() as s:
-            ing = _make_ingredient(
-                s, "_smoke_zero_ing", stock_qty=2.0, min_stock_qty=5.0
-            )
+            ing = _make_ingredient(s, "_smoke_zero_ing", stock_qty=2.0, min_stock_qty=5.0)
         with session_factory() as s:
             f = forecast_ingredient_consumption(s, ing.id)
         # target = 2*5 = 10, current = 2 → restock = 8
@@ -146,9 +144,7 @@ class TestForecastIngredientNoHistory:
 
     def test_no_consumption_stock_above_2x_min_means_no_restock(self, session_factory):
         with session_factory() as s:
-            ing = _make_ingredient(
-                s, "_smoke_full_ing", stock_qty=20.0, min_stock_qty=5.0
-            )
+            ing = _make_ingredient(s, "_smoke_full_ing", stock_qty=20.0, min_stock_qty=5.0)
         with session_factory() as s:
             f = forecast_ingredient_consumption(s, ing.id)
         assert f.recommended_restock_qty == 0.0  # already at 4x min
@@ -161,9 +157,7 @@ class TestForecastIngredientWithHistory:
             ing = _make_ingredient(s, "_smoke_h_ing", stock_qty=100.0, min_stock_qty=5.0)
             # 30 days of 0.5/day = 15.0 kg sold in last 30d
             for d in range(30):
-                _add_sale_movement(
-                    s, ing, 0.5, now - timedelta(days=d), reference_id=d + 1
-                )
+                _add_sale_movement(s, ing, 0.5, now - timedelta(days=d), reference_id=d + 1)
         with session_factory() as s:
             f = forecast_ingredient_consumption(s, ing.id)
         assert f.avg_daily_consumption == pytest.approx(0.5, rel=0.05)
@@ -173,9 +167,7 @@ class TestForecastIngredientWithHistory:
         with session_factory() as s:
             ing = _make_ingredient(s, "_smoke_d_ing", stock_qty=10.0, min_stock_qty=5.0)
             for d in range(30):
-                _add_sale_movement(
-                    s, ing, 1.0, now - timedelta(days=d), reference_id=d + 100
-                )
+                _add_sale_movement(s, ing, 1.0, now - timedelta(days=d), reference_id=d + 100)
         with session_factory() as s:
             f = forecast_ingredient_consumption(s, ing.id)
         # 10 stock / 1.0/day = 10 days (roughly)
@@ -198,9 +190,7 @@ class TestForecastIngredientWithHistory:
         with session_factory() as s:
             ing = _make_ingredient(s, "_smoke_r_ing", stock_qty=2.0, min_stock_qty=5.0)
             for d in range(30):
-                _add_sale_movement(
-                    s, ing, 1.0, now - timedelta(days=d), reference_id=d + 200
-                )
+                _add_sale_movement(s, ing, 1.0, now - timedelta(days=d), reference_id=d + 200)
         with session_factory() as s:
             f = forecast_ingredient_consumption(s, ing.id)
         # avg_daily=1.0 → target = max(2*5, 1*14) = max(10, 14) = 14
@@ -212,9 +202,7 @@ class TestForecastIngredientWithHistory:
         with session_factory() as s:
             ing = _make_ingredient(s, "_smoke_full_ing_2", stock_qty=100.0, min_stock_qty=5.0)
             for d in range(30):
-                _add_sale_movement(
-                    s, ing, 0.01, now - timedelta(days=d), reference_id=d + 300
-                )
+                _add_sale_movement(s, ing, 0.01, now - timedelta(days=d), reference_id=d + 300)
         with session_factory() as s:
             f = forecast_ingredient_consumption(s, ing.id)
         # avg_daily=0.01 → target = max(10, 0.14) = 10
@@ -225,7 +213,10 @@ class TestForecastIngredientWithHistory:
         now = datetime.now(timezone.utc)
         with session_factory() as s:
             ing = _make_ingredient(
-                s, "_smoke_p_ing", stock_qty=10.0, min_stock_qty=5.0,
+                s,
+                "_smoke_p_ing",
+                stock_qty=10.0,
+                min_stock_qty=5.0,
                 purchase_price_gs=3000,  # current stored price
             )
             _add_restock_event(s, ing, 7000, now - timedelta(days=2))  # newer
@@ -238,7 +229,10 @@ class TestForecastIngredientWithHistory:
     def test_falls_back_to_ingredient_price_when_no_event(self, session_factory):
         with session_factory() as s:
             ing = _make_ingredient(
-                s, "_smoke_no_evt", stock_qty=10.0, min_stock_qty=5.0,
+                s,
+                "_smoke_no_evt",
+                stock_qty=10.0,
+                min_stock_qty=5.0,
                 purchase_price_gs=4321,
             )
         with session_factory() as s:
@@ -250,7 +244,10 @@ class TestForecastIngredientWithHistory:
         now = datetime.now(timezone.utc)
         with session_factory() as s:
             ing = _make_ingredient(
-                s, "_smoke_only_manual", stock_qty=10.0, min_stock_qty=5.0,
+                s,
+                "_smoke_only_manual",
+                stock_qty=10.0,
+                min_stock_qty=5.0,
                 purchase_price_gs=3000,
             )
             e = IngredientPriceEvent(
@@ -309,8 +306,11 @@ class TestForecastIngredientWithHistory:
     def test_handles_null_stock_qty(self, session_factory):
         with session_factory() as s:
             ing = Ingredient(
-                name="_smoke_null_stock", unit="kg",
-                stock_qty=None, min_stock_qty=5.0, purchase_price_gs=1000,
+                name="_smoke_null_stock",
+                unit="kg",
+                stock_qty=None,
+                min_stock_qty=5.0,
+                purchase_price_gs=1000,
             )
             s.add(ing)
             s.commit()
@@ -359,7 +359,7 @@ class TestForecastAllIngredients:
         # c: 50 stock, 0.5/day → ~100 days (middle)
         now = datetime.now(timezone.utc)
         with session_factory() as s:
-            a = _make_ingredient(s, "_smoke_sort_a", stock_qty=100.0, min_stock_qty=5.0)
+            _make_ingredient(s, "_smoke_sort_a", stock_qty=100.0, min_stock_qty=5.0)
             b = _make_ingredient(s, "_smoke_sort_b", stock_qty=10.0, min_stock_qty=5.0)
             c = _make_ingredient(s, "_smoke_sort_c", stock_qty=50.0, min_stock_qty=5.0)
             # Give b and c some recent sales
@@ -386,30 +386,45 @@ class TestForecastAllIngredients:
 class TestProjectedStockoutIn7Days:
     def test_true_for_urgent(self):
         f = ConsumptionForecast(
-            ingredient_id=1, name="x", current_stock_qty=1.0,
-            min_stock_qty=5.0, avg_daily_consumption=1.0,
-            trend_pct=0.0, days_of_stock=3.0,
-            projected_stockout_at=None, recommended_restock_qty=5.0,
+            ingredient_id=1,
+            name="x",
+            current_stock_qty=1.0,
+            min_stock_qty=5.0,
+            avg_daily_consumption=1.0,
+            trend_pct=0.0,
+            days_of_stock=3.0,
+            projected_stockout_at=None,
+            recommended_restock_qty=5.0,
             last_restock_price_gs=None,
         )
         assert projected_stockout_in_7_days(f) is True
 
     def test_false_for_safe(self):
         f = ConsumptionForecast(
-            ingredient_id=1, name="x", current_stock_qty=100.0,
-            min_stock_qty=5.0, avg_daily_consumption=1.0,
-            trend_pct=0.0, days_of_stock=30.0,
-            projected_stockout_at=None, recommended_restock_qty=0.0,
+            ingredient_id=1,
+            name="x",
+            current_stock_qty=100.0,
+            min_stock_qty=5.0,
+            avg_daily_consumption=1.0,
+            trend_pct=0.0,
+            days_of_stock=30.0,
+            projected_stockout_at=None,
+            recommended_restock_qty=0.0,
             last_restock_price_gs=None,
         )
         assert projected_stockout_in_7_days(f) is False
 
     def test_false_for_infinite_days(self):
         f = ConsumptionForecast(
-            ingredient_id=1, name="x", current_stock_qty=10.0,
-            min_stock_qty=5.0, avg_daily_consumption=0.0,
-            trend_pct=0.0, days_of_stock=float("inf"),
-            projected_stockout_at=None, recommended_restock_qty=10.0,
+            ingredient_id=1,
+            name="x",
+            current_stock_qty=10.0,
+            min_stock_qty=5.0,
+            avg_daily_consumption=0.0,
+            trend_pct=0.0,
+            days_of_stock=float("inf"),
+            projected_stockout_at=None,
+            recommended_restock_qty=10.0,
             last_restock_price_gs=None,
         )
         assert projected_stockout_in_7_days(f) is False
@@ -439,9 +454,7 @@ class TestBatchForecastIngredients:
                     _add_sale_movement(s, ing, 1.0, now - timedelta(days=d), reference_id=d + 1000)
                 ings.append(ing)
         with session_factory() as s:
-            result = batch_forecast_ingredients(
-                s, [i.id for i in ings]
-            )
+            result = batch_forecast_ingredients(s, [i.id for i in ings])
         assert len(result) == 3
         for ing in ings:
             assert ing.id in result

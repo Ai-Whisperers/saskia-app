@@ -113,8 +113,8 @@ def test_apply_sale_simple_drops_stock(session_factory):
     = (0.3 / 12) * 1 = 0.025 for flour
     = (2 / 12) * 1 = 0.1666... for egg
     """
-    from app.rms.costing import apply_sale
     from app.rms.models import Ingredient
+    from app.rms.sales.lifecycle import apply_sale
 
     flour_id, egg_id, product_id = _seed_simple(session_factory)
 
@@ -141,8 +141,8 @@ def test_apply_sale_sub_recipe_walks_tree(session_factory):
     Masa contributes: (0.5/12) * 0.0833 = 0.00347 kg flour
     Stock drop: 10 - 0.00347 = 9.9965
     """
-    from app.rms.costing import apply_sale
     from app.rms.models import Ingredient
+    from app.rms.sales.lifecycle import apply_sale
 
     flour_id, product_id = _seed_sub_recipe(session_factory)
 
@@ -163,8 +163,8 @@ def test_apply_sale_sub_recipe_walks_tree(session_factory):
 
 def test_apply_sale_no_recipe_saves_without_stock_moves(session_factory):
     """Product with recipe_id=None: sale saved, no stock moves, has_recipe=False."""
-    from app.rms.costing import apply_sale
     from app.rms.models import Product, Sale
+    from app.rms.sales.lifecycle import apply_sale
 
     with session_factory() as s:
         s.add(Product(name="Mystery", portion_label="1", sale_price_gs=5000, recipe_id=None))
@@ -188,8 +188,9 @@ def test_apply_sale_null_yield_raises(session_factory):
     """Recipe with yield_qty=NULL → apply_sale raises RecipeWithoutYield."""
     import pytest
 
-    from app.rms.costing import RecipeWithoutYield, apply_sale
     from app.rms.models import Product, Recipe
+    from app.rms.profitability.cost import RecipeWithoutYield
+    from app.rms.sales.lifecycle import apply_sale
 
     with session_factory() as s:
         rec = Recipe(name="Sin rendimiento", yield_qty=None, yield_unit="und")
@@ -207,7 +208,7 @@ def test_apply_sale_zero_qty_raises(session_factory):
     """qty=0 → raises ValueError."""
     import pytest
 
-    from app.rms.costing import apply_sale
+    from app.rms.sales.lifecycle import apply_sale
 
     _seed_simple(session_factory)
 
@@ -220,7 +221,7 @@ def test_apply_sale_negative_qty_raises(session_factory):
     """qty=-1 → raises ValueError."""
     import pytest
 
-    from app.rms.costing import apply_sale
+    from app.rms.sales.lifecycle import apply_sale
 
     _seed_simple(session_factory)
 
@@ -233,7 +234,7 @@ def test_apply_sale_unknown_product_raises(session_factory):
     """Unknown product_id → raises ValueError."""
     import pytest
 
-    from app.rms.costing import apply_sale
+    from app.rms.sales.lifecycle import apply_sale
 
     with pytest.raises(ValueError, match=r"Product .* not found"):
         with session_factory() as s:

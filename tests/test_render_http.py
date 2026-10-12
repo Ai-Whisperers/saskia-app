@@ -14,7 +14,6 @@ takes (broken settings row, missing engine, station chooser).
 
 from __future__ import annotations
 
-import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 
@@ -62,7 +61,6 @@ class TestRenderFallbackBranches:
     def _make_request(self, client: TestClient, path: str = "/clientes") -> Request:
         """Build a real Request object the way the app does, with
         app.state.engine attached (or deliberately not)."""
-        r = client.get(path)
         # Reach into the ASGI scope to build a Request
         scope = {
             "type": "http",
