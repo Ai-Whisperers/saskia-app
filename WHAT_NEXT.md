@@ -6,8 +6,8 @@
 >
 > | Knob | 10-10 said | 10-12 measured |
 > |------|-----------|----------------|
-> | Schema | v117 | **v119** (`CURRENT_SCHEMA_VERSION = 119` at `app/rms/config.py:92` — migration 119 `recipe_photo_autolink`, SASKIA-213) |
-> | Migrations on disk | 36 | **38** (`app/rms/migrations/_*.py` files: ..._117, _118, _119) |
+> | Schema | v117 | **v121** (`CURRENT_SCHEMA_VERSION = 121` at `app/rms/config.py:92` — SASKIA-216 seasonal_event; 118/119 = SASKIA-212 recipes, 120 = SASKIA-215 shop_whatsapp) |
+> | Migrations on disk | 36 | **40** (`app/rms/migrations/_*.py` files: ..._120, _121) |
 > | Coverage gate | (26.12% actual vs 35% gate) | unchanged — gate is **35%** (`--cov-fail-under=35` in pyproject.toml) |
 > | Test files | 7,997 tests | 733 test files (collection not re-run this pass; see `pytest --collect-only`) |
 > | CHANGELOG gate | root CHANGELOG.md | confirmed — gate greps `CHANGELOG.md` (root); the ci.yml comment saying `app/CHANGELOG.md` is stale (fixed in this pass) |

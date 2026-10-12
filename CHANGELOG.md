@@ -24,6 +24,12 @@ Read-only operator page surfacing the seasonal_event catalog (SASKIA-216/220, 40
 - `seasonal.relevance_tags` setting (comma-separated pack tags) filters the calendar to the operator's vertical — universal events always visible
 - Empty state on unseeded DBs; no mutations (read-only)
 
+## 2026-10-12 — docs(agents): consolidate to ONE AGENTS.md + add rules 42-49
+
+**Scope**: `AGENTS.md`, `app/rms/AGENTS.md` (→ pointer stub), `WHAT_NEXT.md` (v121 refresh), `.github/workflows/ci.yml` (message string only). Rebased onto main @ 42f39885 (SASKIA-215/216 renumbered migrations to 120/121): counts refreshed to 295 py files / 90 tables / 121 migrations.
+
+`app/rms/AGENTS.md` was ~60% restatement of root rules and had already drifted (the phantom 95%/90% coverage gates lived only there). Merged its unique content into a new "`app/rms/` package conventions" section in the root file (units, recipe internals, `atomic_ddl_block` Postgres DDL guidance, module structure, tooling rules renumbered 38-41, make cheat sheet); the old file is now a pointer stub. Added hard rules 42-49 from the 2026-10-12 cross-repo research: single-rulebook rule, 3-environments discipline, sibling-session/`.hermes/` preflight, docs-drift "measure never trust" rule, AIW upstream context (templates-standard ancestry, this-file-wins), Saskia/Kiki name-collision disambiguation, data-tier discipline, 24h stabilization window. Rule count now 49. Link check: 0 broken.
+
 ## 2026-10-12 — docs(agents): drift-fix pass — every numeric claim re-verified against live repo
 
 **Scope**: `AGENTS.md`, `app/rms/AGENTS.md`, `WHAT_NEXT.md`, `.github/workflows/ci.yml` (comment only). +40 / -18.
@@ -142,8 +148,6 @@ Tests: new `tests/test_SASKIA_212_recipe_instructions_editor.py` with 7 RED→GR
 Out of scope (deferred): photos + image upload for recipe pages (Saskia already has recipes/needing-photos.json from earlier work); export N+1 (B9); cov-gate 40→42 (sibling session owns coverage work).
 
 ---
-
-
 ## 2026-10-12 — feat(settings): SASKIA-215 La Vaquita onboarding gaps (LOCATION/SEASONAL/RECIPE)
 
 **Scope**: `app/rms/settings_registry.py` (3 new groups + 6 new settings) + `app/rms/seed/sazon.py` (`BUSINESS_INFO` extended; `_seed_settingskv_branding` writes 4 answered settings) + `tests/test_settings.py` (count tests updated) + `tests/test_seed_vaquita_answers.py` (new — 3 tests) + `docs/intake/SASKIA-215-add-location-seasonal-recipe-settings.md` (new ticket).
@@ -181,7 +185,6 @@ Add the settings the 2026-10-08 questionnaire answered but the previous registry
 * Insurance / Employee / Payroll / GrowthPlan models — referenced by questionnaire but not needed for La Vaquita instance.
 * Per-tenant scope for SettingsKV (RLS) — separate, much larger.
 
-
 ## 2026-10-12 — docs(seed): SASKIA-213 La Vaquita seed data update
 
 **Scope**: `app/rms/seed/sazon.py` (constants only: `SASKIA_EMAIL`, `SASKIA_FULL_NAME`, `BUSINESS_INFO`, `branding.footer` year) + `docs/intake/SASKIA-213-vaquita-seed-data-update.md` (new ticket) + `docs/operations/2026-10-09-la-vaquita-onboarding-analysis.md` (new analysis).
@@ -216,7 +219,6 @@ Comment added to `CASHIER_USERS` documenting the §4.5 = "no" data point: the cu
 **Tests**: new `tests/test_seed_vaquita_constants.py` asserts the new `BUSINESS_INFO` and `SASKIA_*` values. Regression guard against placeholder regression.
 
 **No code-path changes**: only string-constant updates. No schema, no API, no auth, no money, no units, no datetime, no recipe, no stock. AGENTS.md `app/rms/` rules (Decimal, Unit, ASUNCION_TZ, polymorphic recipe_line, atomic stock moves) are not affected.
-
 
 ## 2026-10-12 — fix(cocina): SASKIA-211 cocina-pages-audit fixes
 

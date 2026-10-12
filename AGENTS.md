@@ -50,7 +50,7 @@ Supports **two deployment modes**:
 
 ### Migrations (8 sub-rules)
 
-12. **No Alembic.** Hand-rolled versioned migrations — **119 as of `_119_recipe_photo_autolink` (SASKIA-213, 2026-10-12)**, no gaps. Early migrations live as `_migration_NNN_*` functions in `app/rms/db.py` (through 083); newer ones as files in `app/rms/migrations/` imported into the db.py registry.
+12. **No Alembic.** Hand-rolled versioned migrations — **121 as of `_121_seasonal_event` (SASKIA-216, 2026-10-12)**, no gaps. Early migrations live as `_migration_NNN_*` functions in `app/rms/db.py` (through 083); newer ones as files in `app/rms/migrations/` imported into the db.py registry. (Note: 118+119 = SASKIA-212 recipe work; 120+121 = SASKIA-215/216, renumbered to avoid collision — see `config.py:92`.)
 13. **Every migration is forward-only.** No `downgrade` functions.
 14. **Never edit a shipped migration.** Create a new one. The old one is the persisted contract.
 15. **Never renumber or reorder.** Version number is the contract.
@@ -90,11 +90,82 @@ Supports **two deployment modes**:
 33. **Hosted uses Docker** (Dockerfile + docker-stack.yml). Local dev does NOT require Docker.
 34. **Healthz contract.** `/healthz` returns 200 only when the app can serve requests. `/healthz/deps` checks external deps (env vars present, no leaked secrets). `/healthz/backup` checks that the most recent DB backup is < 26h old. **All three endpoints MUST be fast (< 100ms) and MUST NOT return sensitive data.** A failed `/healthz` should not log the error to Sentry; it should page on-call.
 
-### Process (3 sub-rules)
+### Process (3 sub-rules; hard rules now number 1-49 across all groups)
 
 35. **CHANGELOG discipline.** Every PR that changes `app/`, `scripts/`, `tests/`, or `.github/` MUST also update the **root `CHANGELOG.md`** — the CI gate script (`grep -qx "CHANGELOG.md"` in ci.yml's "CHANGELOG discipline check" step) matches the root path only. Note: the comment above that step says `app/CHANGELOG.md`, which is stale; and both files exist and are actively written (root 110 KB, app/ 299 KB as of 2026-10-12). The gated canonical is root `CHANGELOG.md`; `app/CHANGELOG.md` is a secondary detailed log. When in doubt, update both.
 36. **Single-developer bus factor.** All code is written and reviewed by one person. To mitigate: ADRs in `docs/architecture/decisions/` (when needed), every commit has a clear message, every PR has a ticket, every behavior change has a regression test, every fix has a runbook.
 37. **PRs reference a ticket.** Use the `SASKIA-NNN-<slug>.md` convention.
+
+### Coordination & org context (7 sub-rules, added 2026-10-12)
+
+42. **This file is the single rulebook.** All agent rules live here; per-directory AGENTS.md files were consolidated on 2026-10-12 (the `app/rms/` file became the "package conventions" section above). Don't create new AGENTS.md files in subdirectories — extend this one.
+
+43. **Three environments, one VPS.** saskia-prod / saskia-test / saskia-dev run as separate Docker Swarm services behind one Traefik (see `docs/operations/worktree-policy.md` and `.github/workflows/deploy-*.yml`). Never deploy to prod without a green test-env run of the same build. A `docker service update` against the wrong env service name is a silent no-op — verify with `docker service ps saskia-<env>_web`.
+
+44. **Check `.hermes/` and sibling sessions before starting work.** Read `.hermes/HERMES-ORIENTATION.md` and check `git worktree list` + other branches' freshness. Two sessions landing the same feature hours apart has happened (loyalty-redeem, 2026-10-01): before implementing anything from a plan doc, `git log --all --grep="<keyword>"` to check whether a sibling already shipped it.
+
+45. **Docs drift — always measure, never trust counts.** Any numeric claim in any doc (test counts, coverage %, migration count, file counts) is stale within days. Before citing a baseline in a PR/plan, grep the source of truth (`CURRENT_SCHEMA_VERSION` in config.py, `pytest --collect-only`, `ls app/rms/migrations/`). This file's counts were last verified 2026-10-12.
+
+46. **AIW context (upstream, read-only).** This repo was generated from the AIW Python template (`templates-standard/repo-template/` — byte-identical `.flake8`/`cspell.json`/`ruff.toml`). The AIW org rulebook lives in `Ai-Whisperers/aiw-org` AGENTS.md. When an AIW-org rule conflicts with this file, THIS FILE WINS for Sazon work. Do not edit aiw-org repos from this repo's sessions.
+
+47. **Name collisions — don't conflate.** "Saskia" here = Saskia Weiss Vander, the bakery client. (An unrelated AIW design exercise uses "Saskia" for a hypothetical restaurant instance — different entity.) "Kiki" here = the assistant-agent persona for this repo. (AIW's human co-founder is also called Kiki/"Kyrian" — different entity.) Never mix client data or governance authority between them.
+
+48. **Data tier discipline.** Business data (Saskia's sales, suppliers, prices) is treated as local-only — it lives on the VPS/SQLite, never in free-tier cloud services. LLM API calls are the only routine external data flow. Any new integration that moves business data off-host requires explicit Iván OK.
+
+49. **Stabilization window after infrastructure changes.** After a schema migration lands on prod, a deploy-topology change, or any infra-affecting merge: no new workstream on that surface for 24h; verify prod (`/healthz` ×3, `/healthz/backup`, spot-check a page) before piling the next change.
+
+---
+
+## `app/rms/` package conventions (merged from app/rms/AGENTS.md 2026-10-12)
+
+**This is the ONLY AGENTS.md in the repo.** The former `app/rms/AGENTS.md` was merged
+into this section (its money/time/migration/testing rules were restatements of rules
+1-6, 20-21, 12-19 above and were dropped; only package-specific content survives here).
+
+### Units (extends rule 7)
+
+- All unit input goes through `app/rms/units.py:Unit.coerce()`.
+- Cross-family unit conversion (g→L, kg→und, etc.) is forbidden — raises `ValueError`.
+- Adding new units to the `Unit` enum requires operator OK + alias-map update.
+- Never store units as free-text in DB. Enum values only.
+
+### Recipe internals (extends rules 8-11)
+
+- `recipe_line` is polymorphic via `line_kind` ∈ {'ingredient', 'sub_recipe'}; `line_ref_id` points to `ingredient.id` or `recipe.id` depending on `line_kind`.
+- `yield_qty` is required for sales to be applied; sales with NULL `yield_qty` are rejected.
+- Void reverses stock moves fully, including sub-recipe expansion.
+- `sale_stock_move.affected_recipe_id` is for audit, not for re-walking — the tree walk during void uses the CURRENT recipe state, not the historical one.
+
+### Postgres DDL atomicity (migration gotcha, extends rules 12-19)
+
+**Postgres DDL auto-commits.** On SQLite this is a non-issue (DDL is transactional).
+On Postgres, each `ALTER TABLE` / `CREATE INDEX` is its own implicit commit — a failing
+5th ALTER leaves the first 4 applied. **Fix:** use `atomic_ddl_block(conn, [sql1, ...])`
+(defined in `app/rms/db.py`) instead of looping `conn.exec_driver_sql(sql)` in plain
+try/except — it wraps each statement in a SAVEPOINT on Postgres (no-op on SQLite).
+Per-statement try/except is still allowed **inside** the helper. Migration 081
+(`_migration_081_pedido_delivery_window`) is the reference example.
+
+### Module structure (when adding new files)
+
+- Pure logic (no DB, no IO): `app/rms/<module>.py` with public function exports.
+- DB-touching logic: `app/rms/<module>.py` taking `session: Session` as first arg.
+- Routers: `app/routers/<module>.py` exporting `router` (FastAPI APIRouter).
+- Templates: `app/templates/<page>.html` extending `base.html`.
+- Services (file IO, external): `app/services/<module>.py`.
+
+### Tooling rules (2026-10-08 hardening sweep)
+
+38. **No new `*_original.py` / `*_legacy.py` / `*_v2.py` files.** The pre-commit hook `forbid-legacy-modules` blocks these. For a fallback path use a `__deprecated__` attribute with a removal deadline.
+39. **No `from app.routers import X` from inside `app/rms/`.** Routers import rms; rms must never import routers. `scripts/check_imports.py` CI gate enforces this (violations are circular-import at startup).
+40. **Cyclomatic complexity ceiling: CC ≤ 10.** `make complexity` fails the commit. Extract helpers, use table lookup, split by concern.
+41. **No silent except blocks in `app/routers/`.** Pre-commit hook `no-silent-excepts` (AST scan). Always log + re-raise. Known violations tracked in IMPROVEMENT_BACKLOG.md Tier 9.
+
+### Make cheat sheet
+
+- `make check` — lightweight gate (ruff + warnings + duplicates + arch)
+- `make ci` — full test suite (what CI runs) · `make ci-extra` — slow static analysis
+- `make dead-code` (vulture) · `make complexity` (radon) · `make duplicates` / `make duplicates-code` · `make arch` (cycles + layered imports) · `make security` (bandit) · `make audit-cve` (pip-audit) · `make licenses` (reuse)
 
 ---
 
@@ -106,7 +177,7 @@ These are ideas that look good on paper but are wrong for Sazon at its current s
 
 1. **Don't migrate to React/Vue/Tailwind/SPA.** Server-rendered Jinja2 + HTMX is correct. (HTMX IS already in use in `receta_form.html` and `produccion*.html`.) The fix for UX is design system + components, not a framework. **Enforce in CI: fail if templates/ add a React import.**
 
-2. **Don't migrate to microservices.** The monolith is right for this scale. Sazon has 291 app/ python files, 89 tables, 119 migrations (counts verified 2026-10-12) — well within monolith territory. The right answer is "extract a function" or "extract a module", not "extract a service".
+2. **Don't migrate to microservices.** The monolith is right for this scale. Sazon has 295 app/ python files, 90 tables, 121 migrations (counts verified 2026-10-12) — well within monolith territory. The right answer is "extract a function" or "extract a module", not "extract a service".
 
 3. **Don't add GraphQL.** REST + OpenAPI is sufficient until 3+ external consumers. No graphene, strawberry, ariadne, hasura, stepzen, etc.
 

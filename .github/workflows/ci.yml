@@ -233,7 +233,7 @@ jobs:
                 # Allow if it's a docstring/comment line
                 if grep -nE "^(async def |    async def )" "$f" 2>/dev/null; then
                   echo "ERROR: $f contains an async def (route handler)"
-                  echo "  Per AGENTS.md Anti-rule 10 + app/rms/AGENTS.md: sync handlers only."
+                  echo "  Per AGENTS.md Anti-rule 10 + AGENTS.md app/rms package conventions: sync handlers only."
                   fail=1
                 fi
                 ;;
