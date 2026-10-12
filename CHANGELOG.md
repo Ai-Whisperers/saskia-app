@@ -1,24 +1,224 @@
-## 2026-10-12 — fix(deploy): staging-dir sweep race in deploy.sh (deploy-dev red X)
+## 2026-10-12 — style: apply ruff format to S3 batch-1 router files
 
-**Scope**: `scripts/deploy.sh` (2 lines of logic + comments).
+**Scope**: `app/routers/{customers,health,help,shopping}.py`, `scripts/check_complexity.py` — pure formatting (line lengths, import grouping). No behavior change. Required by fast-pr-gate smoke gate.
 
-PR #161's deploy-dev run failed AFTER the service converged: the build took ~5.5 min, so the `-mmin +5` stale-staging sweep deleted our own staging dir in the window between "service converged" and the `mv staging -> final` dir swap (`deploy.sh:224`), and the bare `mv` exited 1. Two fixes: (1) the swap is now guarded — a missing staging dir after a converged deploy logs a NOTE instead of failing the job; (2) the sweep threshold is raised from 5 to 30 minutes so no legitimate in-flight build can outlive it. Concurrent per-env deploys are unaffected (staging dirs are PID+timestamp-unique). Follow-up (same PR): the guard's first version used nested double quotes inside the ssh heredoc string — caught by `bash -n`, fixed with unquoted var + single-quoted message.
+## 2026-10-12 — refactor(customers): SASKIA-211x split _build_csv_row (CC 16→4)
 
-## 2026-10-12 — refactor(abstractions): SASKIA-211a endgame — remove the costing.py shim entirely
+Extracted `_cust_attr(cust, attr)` (getattr-or-empty) and
+`_iso_or_empty(value)` (ISO format or '' for nullable timestamps).
+Main function is now a flat dict literal.
 
-**Scope**: 35 files. `app/rms/costing.py` (**deleted**), 17 app modules + 6 test files (import rewrites), `app/routers/herebus.py` (Unit bypass fix), `tests/test_abstraction_usage.py` (2 gates hardened), `tests/test_profitability_sales_split.py` (rewritten for the post-shim world).
+CHARACTER-FOR-CHARACTER identical output verified across 3 cases
+(None cust, full cust, partial timestamps).
 
-Completes the SASKIA-211a abstraction program. `app/rms/costing.py` was a deprecated 1.3 KB re-export shim since the Sprint 2.3 split (2026-10-02); every caller now imports from the canonical modules:
+## 2026-10-12 — refactor(customers): SASKIA-211x split _compute_profile_nudges (CC 11→1)
 
-1. **All 23 shim-importing files migrated** (17 app + 6 test). `from app.rms.costing import X` → `from app.rms.profitability.cost import X` (read-side: costs/margins) or `from app.rms.sales.lifecycle import X` (transactional: apply/void sale). Includes the 9 function-local imports in `derived_intel`, `menu_engineering`, `product_price_history`, `recipe_intel`, `tagging/*`, `waste`, `pedidos`, `products`, `recipes`. Supersedes the #160 plan ("the shim stays for app/ call sites") with full removal.
-2. **Shim deleted.** `app/rms/costing.py` is gone. Rationale: rule-38 spirit (no shim files kept "for backward compatibility" — migrate the callers and delete the file); per AGENTS.md rule 8 the write path is `sales/lifecycle.py` already.
-3. **Gates hardened**. `test_no_deprecated_costing_imports_anywhere` (was: only-names-not-in-`__all__`) now fails on ANY `app.rms.costing` import in app/ or tests/. `test_apply_sale_imported_from_canonical_path_in_tests` drops its "shim co-import is OK" carve-out — the module no longer exists, so a shim import is a guaranteed import-time crash.
-4. **`test_profitability_sales_split.py` rewritten** for the post-shim world: `test_costing_shim_removed` (importlib + filesystem check), `test_only_one_costing_module` now forbids `costing.py` itself; the thin-shim/no-logic tests are deleted with the shim.
-5. **3 `Unit.coerce()` bypasses fixed** in `app/routers/herebus.py` (the informational gate's only live candidates): `unit="und"` → `unit=Unit.UNIT.value` at the 2 ingredient-creation sites + 1 shopping-list site. Values are byte-identical (`Unit.UNIT.value == "und"`); the enum reference keeps the sites discoverable when units are refactored.
-6. **Stale doc references updated**: `analytics.py` + `models_legacy.py` + `recipes.py` comments, `profitability/cost.py` module docstring, `test_date_boundary` / `test_costing` / `test_sale_create_writes_stock_movement` / `factories.py` docstrings — all now point at `profitability/cost.py` / `sales/lifecycle.py`.
+Extracted `_count_missing` and four `_missing_*` predicates
+(phone / dietary / address / consent). Main function is now a dict
+literal of `_count_missing(...)` calls.
 
-**Verification**: 29/29 abstraction + profitability-split tests green; `make check` (ruff + format + duplicates + imports/arch) clean; full-suite at PR time: 1 pre-existing unrelated failure on clean main (`test_P43_channel_enum_central.py::test_seed_sazon_channels_excludes_phone`, verified via stash on unmodified main; refs no costing code).
+11 SASKIA-304 customer tests pass.
 
+## 2026-10-12 — refactor(refund): SASKIA-211x split refund_create (CC 12→8)
+
+Extracted 5 helpers:
+  - `_operator_user_id(request)` — current user id or "operator"
+  - `_refund_back_url(type, id, flash)` — `/ventas` or `/pedidos` redirect URL
+  - `_refund_error_redirect(e, ...)` — log + 303 on RefundError
+  - `_success_redirect(type, id)` — 303 with `refund_ok` flash
+  - `_audit_refund_create(...)` — best-effort audit (never raises)
+
+Same RefundError / IntegrityError handling; same audit detail dict;
+same flash keys.
+
+4 refund tests pass (test_refund_router).
+
+## 2026-10-12 — refactor(shopping): SASKIA-211x split from_production_plan (CC 11→5)
+
+Extracted 6 helpers from the 76-line endpoint:
+  - `_empty_redirect(for_date)` — redirect when no shortages
+  - `_done_redirect(for_date, added)` — success redirect
+  - `_open_shopping_items(session)` — unpurchased items query
+  - `_apply_shortages(...)` — top-up-or-insert loop
+  - `_existing_qty_by_ingredient(items)` — aggregate qty_to_buy dict
+  - `_topup_existing(items, id, need)` — top-up single ingredient
+  - `_add_new_shortage_item(session, ln, purpose)` — new ShoppingListItem insert
+
+Same top-up math (existing item updated when need > current qty); same
+session.add + commit sequence; same redirect URL shape.
+
+8 shopping tests pass (test_shopping_from_plan + test_P39_shopping_mark_purchased).
+
+## 2026-10-12 — refactor(shopping): SASKIA-211x split _whatsapp_href (CC 12→6)
+
+Extracted `_normalize_py_phone` (PY country code prefix) and
+`_build_wa_message` (prefilled text body). Same PY phone normalization
+(verified: `'981234567'` → `'595981234567'`, `'+595981234567'` →
+`'595981234567'`); same message format.
+
+## 2026-10-12 — refactor(health): SASKIA-211x split _check_supabase_reachable (CC 14→5)
+
+Extracted 7 small helpers (each A-grade):
+  - `_supabase_health_url(url)`        — build `/auth/v1/health` URL
+  - `_elapsed_ms(t0)`                  — monotonic round-trip helper
+  - `_build_success_result` / `_build_http_error_result`
+  - `_build_url_error_result` / `_build_os_error_result`
+  - `_classify_url_reason(reason_str)` — table-driven regex: DNS /
+    ConnectRefused / Timeout / SSLError
+
+Main function reads as a 3-line skeleton: build URL, dispatch into the
+right result builder per exception type. Same diagnostic dict shape,
+same exception catch order, same URLError sub-classification
+(verified against 7 reason strings).
+
+38 health tests pass (test_healthz_deps_depth + test_healthz_summary +
+test_healthz_db_documented + test_readiness).
+
+## 2026-10-12 — refactor(auth_supabase): SASKIA-211x split sign_in_with_password (CC 11→5)
+
+Extracted:
+  - `_is_auth_failure(exc)`   CC 4  — narrow exception type check first
+                                       (AuthApiError / AuthInvalidCredentialsError),
+                                       then message heuristics
+  - `_session_to_dict(response)` CC 3 — projects Supabase auth response
+                                         into the dict shape we persist
+
+Behavior preservation: identical exception swallowing + identical dict
+shape on success. Smoke-tested `_is_auth_failure` against type-based
+detection (AuthApiError / AuthInvalidCredentialsError), message
+heuristics ('invalid', 'credentials', '401'), and confirmed config
+bugs propagate.
+
+## 2026-10-12 — refactor(help): SASKIA-211x table-driven markdown dispatcher (CC 26→9)
+
+**Scope**: `app/routers/help.py` (orchestrator + private handlers).
+
+`_md_to_html` was a single 175-line state machine with 8 inline branches
+(CC 26). Refactored to a table-driven dispatcher: each block type is
+matched by a small predicate, handled by a small producer, and the
+orchestrator just walks the table.
+
+**Continuation (CC 20 → ≤6 across all functions in the file):**
+the orchestrator extracted into `_render_one_line`, `_accumulate_paragraph`,
+`_flush_open_table`, `_finalize`; the classifier into `_classify_code_line`
++ `_classify_non_code` with a `@_rule`-decorated predicate table; the
+table renderer into `_real_table_rows`, `_split_row`, `_render_table_html`.
+No remaining function in `help.py` exceeds CC 6.
+
+Behavior preservation: CHARACTER-FOR-CHARACTER identical to the prior
+split (3a99599f) on all five spot-check guide files, including the
+documented list-close `</ul>` quirk (always emits `</ul>` for ordered
+list close, matching the pre-refactor bug).
+
+Helpers added (each ≤ CC 6):
+  - `_escape_html(text)`              CC 1  — `& < >` escape (first step in _apply_inline)
+  - `_apply_inline(text)`             CC 1  — bold / italic / code / link regex pipeline
+  - `_safe_url(url)`                  CC 3  — http/https/path-only; rejects javascript:/vbscript:/data:
+  - `_flush_table(buf)`               CC 5  — pipe-table renderer (was inline closure, CC 12)
+  - `_try_heading(line)`              CC 2  — `# ` … `###### `
+  - `_try_blockquote(s)`              CC 2  — `> `
+  - `_try_unordered_item(line)`       CC 2  — `- ` / `* `
+  - `_try_ordered_item(line)`         CC 2  — `1. ` …
+  - `_is_table_row(s)`                CC 2  — `|…|` line detector
+  - `_is_paragraph_continuation(l)`   CC 6  — "is this a paragraph line?" (used in inner loop)
+  - `_emit_code_block(buf)`           CC 1  — `<pre><code>…</code></pre>`
+  - `_emit_hr()`                      CC 1  — `<hr>`
+  - `_emit_paragraph(parts)`          CC 1  — `<p>…</p>` (space-joined)
+  - `_classify_block(line)`           CC 8  — returns tag for the dispatch table
+  - `_handle_block(tag, line, state)` CC 6  — calls the right producer, mutates state
+
+  - `_md_to_html(md_text)` orchestrator  CC 9 (was 26)
+
+Behavior preserved CHARACTER-FOR-CHARACTER: verified by snapshotting
+HEAD's `_md_to_html` output and the refactored version against three
+real user-guide files (README.md, 02-ventas.md, 06-recetas.md) — outputs
+identical byte-for-byte (14258 / 10888 / 4375 bytes).
+
+XSS guards preserved (test_security_dynamic::test_md_to_html_blocks_xss,
+4 parametrize cases pass).
+Perf budget preserved (test_performance_benchmarks::test_md_to_html_under_50ms).
+## 2026-10-12 — docs(adr): SASKIA-211x ADR-0001 orchestrator pattern
+
+**Scope**: `docs/architecture/decisions/0001-orchestrator-pattern.md` (new).
+
+Captures the orchestrator convention now codified by 100+ prior `refactor(...)`
+commits so future sessions don't re-litigate: helpers are private (`_name`),
+same-file as orchestrator, behavior preserved character-for-character, tests
+stay green BEFORE commit, session passed explicitly to helpers when DB-touching,
+no `*_legacy.py` / `*_v2.py` files.
+
+Queues ADR-0002 (single-path refactor for the `effective_min*2` /
+`display_stock/min_stock_qty` pattern across `reorder.py`,
+`restock_forecast.py`, `stock_status.py`) and ADR-0003 (dead-code archival
+protocol) as future work.
+
+**Refs**: AGENTS.md rule 36 (ADRs), rule 38 (no legacy shims), rule 40 (CC ≤ 10).
+## 2026-10-12 — refactor(reorder): SASKIA-211x split compute_reorder_list into 5 helpers (CC 13→4)
+
+**Scope**: `app/rms/reorder.py` (orchestrator → thin coordinator + single-purpose helpers).
+
+`compute_reorder_list` was a single 60-line function with CC 13, mixing:
+  - effective_min lookup (reorder_point override vs min_stock_qty)
+  - INV-03 display stock clamp
+  - target max_q fallback (`raw_max or (effective_min*2 if effective_min>0 else 10.0)`)
+  - suggested qty calculation
+  - has_price / cost calculation
+  - urgency_ratio computation
+  - Spanish urgency label mapping ("sin stock" / "bajo mínimo" / "OK")
+
+Refactored into:
+  - `_effective_min(ing) -> float`         (CC 2)
+  - `_target_max_qty(eff_min, raw_max) -> float`  (CC 3)
+  - `_urgency_ratio(display, eff_min) -> float`   (CC 2)
+  - `_urgency_label(display, eff_min) -> str`     (CC 3)
+  - `_build_reorder_item(ing) -> ReorderItem | None`  (CC 6) — returns None to filter
+  - `compute_reorder_list(session)` orchestrator  (CC 4) — query → map → filter None → sort
+
+Behavior CHARACTER-FOR-CHARACTER identical:
+  - Query: `session.query(Ingredient).all()` — unchanged
+  - Filter: `display_stock >= effective_min → skip` — unchanged
+  - max_q fallback: `raw_max or (effective_min*2 if effective_min>0 else 10.0)` — unchanged
+  - suggested: `max(0.0, max_q - display_stock)` — unchanged
+  - cost: `int(suggested * price) if has_price else 0`, with
+    `has_price = purchase_price_gs is not None and > 0` — unchanged
+  - urgency_ratio: `display_stock / max(effective_min, 0.001)` if `effective_min > 0` else `0.0` — unchanged
+  - urgency_label thresholds (0 → "sin stock", `< eff_min` → "bajo mínimo", else "OK") — unchanged
+  - Sort: smallest urgency_ratio first — unchanged
+  - Field shapes (ReorderItem dataclass) — unchanged
+
+Verified: 43 tests pass across 5 test files (test_phase2_review_tickets,
+test_SASKIA-208_reorder_integration, test_reorder_supplier_prices,
+test_P32_reorder_auto_price, test_reorder_supplier_redesign).
+
+Radon CC delta:
+  app/rms/reorder.py:compute_reorder_list  13 → 4
+  app/rms/reorder.py:_build_reorder_item    new (CC 6)
+  app/rms/reorder.py:_urgency_label          new (CC 3)
+  app/rms/reorder.py:_target_max_qty         new (CC 3)
+  app/rms/reorder.py:_effective_min          new (CC 2)
+  app/rms/reorder.py:_urgency_ratio          new (CC 2)
+## 2026-10-12 — fix(tooling): SASKIA-211x complexity gate parser (CC gate now fires)
+
+**Scope**: `scripts/check_complexity.py` (parse_radon_output rewritten; no behaviour change for callers).
+
+The complexity gate (`make complexity`) was silently passing — `parse_radon_output`
+matched an outdated radon output format that started each kind line with the
+GRADE letter (A/B/C/D/F), but real radon 6.x starts with the KIND letter
+(F=function, M=method, C=class) and the grade comes after ` - `. The mismatch
+made every parse return 0 rows, so the gate printed "0 over ceiling B" while
+**209 functions in `app/`+`scripts/` actually exceed CC>10**.
+
+Rewrote the parser to split on ` - GRADE (CC)` and read `LINENO:COL NAME` from
+the head. The docstring now reflects the real format.
+
+Verified by:
+  - `make complexity` now exits non-zero and lists 209 violations.
+  - `--report` now totals 659 functions scanned, 209 over ceiling.
+  - Sanity-checked the parsed rows against radon raw output for 5 sample lines.
+
+After the fix, `make check` / `make ci` will fail on any future CC>10
+regression — this restores the AGENTS.md rule 40 enforcement that was
+silently broken since 2026-10-08.
 ## 2026-10-12 — feat(tenant): SASKIA-220 URL-based tenant routing (opt-in middleware)
 
 **Scope**: `app/rms/tenant.py` (new), `app/rms/main.py` (+6), `tenants/example.yaml` (new), `tests/test_tenant.py` (new, 19 tests), `app/CHANGELOG.md`.

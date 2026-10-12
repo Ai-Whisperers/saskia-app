@@ -115,28 +115,38 @@ def sign_in_with_password(email: str, password: str) -> Optional[dict]:
     try:
         response = client.auth.sign_in_with_password({"email": email, "password": password})
     except Exception as exc:
-        # Supabase raises on bad creds; we want a clean None return.
-        # Narrow exception check to only catch auth failures, not config bugs.
-        msg = str(exc).lower()
-        exc_type = type(exc).__name__
-        is_auth_error = (
-            "invalid" in msg
-            or "credentials" in msg
-            or "401" in msg
-            or exc_type == "AuthApiError"
-            or exc_type == "AuthInvalidCredentialsError"
-        )
-        if is_auth_error:
+        if _is_auth_failure(exc):
             return None
         # Re-raise configuration errors (None client, missing env, etc.)
         raise
     if response is None or response.session is None:
         return None
+    return _session_to_dict(response)
+
+
+def _is_auth_failure(exc: BaseException) -> bool:
+    """True when `exc` is a Supabase bad-credentials error we want to swallow.
+
+    Narrow by exception type first (AuthApiError / AuthInvalidCredentialsError),
+    then fall back to message heuristics. Configuration bugs (None client,
+    missing env) raise other types and are NOT caught here — they propagate.
+    """
+    exc_type = type(exc).__name__
+    if exc_type in ("AuthApiError", "AuthInvalidCredentialsError"):
+        return True
+    msg = str(exc).lower()
+    return "invalid" in msg or "credentials" in msg or "401" in msg
+
+
+def _session_to_dict(response: object) -> dict:
+    """Project a Supabase auth response into the dict shape we persist."""
+    session = response.session
+    user = response.user
     return {
-        "access_token": response.session.access_token,
-        "refresh_token": response.session.refresh_token,
-        "user_id": response.user.id if response.user else None,
-        "email": response.user.email if response.user else None,
+        "access_token": session.access_token,
+        "refresh_token": session.refresh_token,
+        "user_id": user.id if user else None,
+        "email": user.email if user else None,
     }
 
 
