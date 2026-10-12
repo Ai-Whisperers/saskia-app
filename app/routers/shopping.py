@@ -439,52 +439,102 @@ def from_production_plan(
     plan = plan_production(session, for_date=for_date)
     shortages = [ln for ln in plan.lines if ln.qty_to_buy > 0]
     if not shortages:
-        return RedirectResponse(
-            url=f"/shopping-list?from_plan=0&for_date={for_date.isoformat()}",
-            status_code=303,
-        )
+        return _empty_redirect(for_date)
 
-    existing = (
-        session.execute(select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False)))
-        .scalars()
-        .all()
-    )
-    existing_by_ing = {}
-    for i in existing:
-        existing_by_ing[i.ingredient_id] = existing_by_ing.get(i.ingredient_id, 0) + float(
-            i.qty_to_buy
-        )
-
+    existing = _open_shopping_items(session)
     purpose = f"Plan producción {for_date.isoformat()}"
-    added = 0
-    for ln in shortages:
-        have = existing_by_ing.get(ln.ingredient_id, 0.0)
-        need = float(ln.qty_to_buy)
-        if ln.ingredient_id in existing_by_ing:
-            # Top up the open item if the plan needs more than already listed.
-            if need > have:
-                delta = need - have
-                for i in existing:
-                    if i.ingredient_id == ln.ingredient_id:
-                        i.qty_to_buy += delta
-                        break
-                added += 1
-            continue
-        session.add(
-            ShoppingListItem(
-                ingredient_id=ln.ingredient_id,
-                qty_to_buy=need,
-                unit=ln.unit,
-                purpose_text=purpose,
-                unit_price_snapshot_gs=_price_snapshot(session, ln.ingredient_id),
-            )
-        )
-        existing_by_ing[ln.ingredient_id] = need
-        added += 1
+    added = _apply_shortages(session, existing, shortages, purpose)
     session.commit()
+    return _done_redirect(for_date, added)
+
+
+def _empty_redirect(for_date: date) -> RedirectResponse:
+    """Redirect when the production plan has no shortages to import."""
+    return RedirectResponse(
+        url=f"/shopping-list?from_plan=0&for_date={for_date.isoformat()}",
+        status_code=303,
+    )
+
+
+def _done_redirect(for_date: date, added: int) -> RedirectResponse:
+    """Redirect after a successful import with the count of items added."""
     return RedirectResponse(
         url=f"/shopping-list?from_plan={added}&for_date={for_date.isoformat()}",
         status_code=303,
+    )
+
+
+def _open_shopping_items(session: Session) -> list[Any]:
+    """Return the unpurchased ShoppingListItem rows currently on the list."""
+    return (
+        session.execute(
+            select(ShoppingListItem).where(ShoppingListItem.purchased.is_(False))
+        )
+        .scalars()
+        .all()
+    )
+
+
+def _apply_shortages(
+    session: Session,
+    existing: list[Any],
+    shortages: list[Any],
+    purpose: str,
+) -> int:
+    """Merge each shortage into the open list, top-up-or-insert semantics.
+
+    An ingredient already on the open list is topped up to the max of the
+    two quantities (never duplicated). Returns the count of items
+    touched (top-ups + new inserts).
+    """
+    existing_by_ing: dict[Any, float] = _existing_qty_by_ingredient(existing)
+    added = 0
+    for ln in shortages:
+        need = float(ln.qty_to_buy)
+        if ln.ingredient_id in existing_by_ing:
+            added += _topup_existing(existing, ln.ingredient_id, need)
+            continue
+        _add_new_shortage_item(session, ln, purpose)
+        existing_by_ing[ln.ingredient_id] = need
+        added += 1
+    return added
+
+
+def _existing_qty_by_ingredient(existing: list[Any]) -> dict[Any, float]:
+    """Map ingredient_id → total qty_to_buy across open items."""
+    totals: dict[Any, float] = {}
+    for item in existing:
+        totals[item.ingredient_id] = totals.get(item.ingredient_id, 0.0) + float(
+            item.qty_to_buy
+        )
+    return totals
+
+
+def _topup_existing(existing: list[Any], ingredient_id: Any, need: float) -> int:
+    """Top up the open item for `ingredient_id` to the max of (current,
+    need). Returns 1 if a top-up happened, 0 if `need` was already met.
+    """
+    have = sum(float(i.qty_to_buy) for i in existing if i.ingredient_id == ingredient_id)
+    if need <= have:
+        return 0
+    delta = need - have
+    for item in existing:
+        if item.ingredient_id == ingredient_id:
+            item.qty_to_buy += delta
+            return 1
+    return 0  # unreachable: ingredient_id was in the dict
+
+
+def _add_new_shortage_item(session: Session, ln: Any, purpose: str) -> None:
+    """Insert a brand-new ShoppingListItem for a shortage not yet listed."""
+    session.add(
+        ShoppingListItem(
+            ingredient_id=ln.ingredient_id,
+            qty_to_buy=float(ln.qty_to_buy),
+            unit=ln.unit,
+            purpose_text=purpose,
+            unit_price_snapshot_gs=_price_snapshot(session, ln.ingredient_id),
+        )
     )
 
 
