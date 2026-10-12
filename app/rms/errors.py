@@ -324,7 +324,9 @@ class MenuNotFound(NotFound):
         ctx = {"entity": entity, **(context or {})}
         if id is not None:
             ctx["id"] = str(id)
-        super(NotFound, self).__init__(message, reason_code="menu_not_found", context=ctx)
+        super(NotFound, self).__init__(
+            message, reason_code="menu_not_found", context=ctx
+        )
         self.entity = entity
         self.entity_id = id
 
@@ -335,7 +337,6 @@ class RollbackError(DataIntegrityError):
 
     status_code = 500
     reason_code = "rollback_failed"
-
 
 # ─── Mapping helpers ──────────────────────────────────────────────
 
