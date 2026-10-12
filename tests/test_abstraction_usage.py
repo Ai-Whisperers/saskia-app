@@ -40,7 +40,6 @@ from typing import Iterable
 
 import pytest
 
-
 # ── Repo layout ─────────────────────────────────────────────────────────
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -157,8 +156,7 @@ def test_no_int_decimal_in_tests() -> None:
     hits = _scan_for_pattern(test_files, pat)
     if hits:
         msg = "\n".join(
-            f"  {p.relative_to(REPO_ROOT)}:{ln}  {txt.strip()[:120]}"
-            for p, ln, txt in hits
+            f"  {p.relative_to(REPO_ROOT)}:{ln}  {txt.strip()[:120]}" for p, ln, txt in hits
         )
         pytest.fail(
             f"Found {len(hits)} 'int(Decimal(...))' bypass(es) in tests. "
@@ -188,8 +186,7 @@ def test_no_bare_datetime_now_in_app() -> None:
     hits = _scan_for_pattern(app_files, pat)
     if hits:
         msg = "\n".join(
-            f"  {p.relative_to(REPO_ROOT)}:{ln}  {txt.strip()[:120]}"
-            for p, ln, txt in hits
+            f"  {p.relative_to(REPO_ROOT)}:{ln}  {txt.strip()[:120]}" for p, ln, txt in hits
         )
         pytest.fail(
             f"Found {len(hits)} bare 'datetime.now()' call(s) in app/. "
@@ -212,8 +209,7 @@ def test_no_datetime_utcnow_in_app() -> None:
     hits = _scan_for_pattern(app_files, pat)
     if hits:
         msg = "\n".join(
-            f"  {p.relative_to(REPO_ROOT)}:{ln}  {txt.strip()[:120]}"
-            for p, ln, txt in hits
+            f"  {p.relative_to(REPO_ROOT)}:{ln}  {txt.strip()[:120]}" for p, ln, txt in hits
         )
         pytest.fail(
             f"Found {len(hits)} 'datetime.utcnow()' call(s) in app/. "
@@ -253,8 +249,9 @@ def test_tests_prefer_clock_helpers_over_bare_now(helper: str) -> None:
         imported_names = {n.strip().split(" as ")[0] for n in m.group(1).split(",")}
         for line_no, line in enumerate(content.splitlines(), 1):
             if bare_now.search(line) and not line.lstrip().startswith("#"):
-                rel = path.relative_to(REPO_ROOT)
-                drift_files.append((path, line_no, line.strip()[:120], ",".join(sorted(imported_names))))
+                drift_files.append(
+                    (path, line_no, line.strip()[:120], ",".join(sorted(imported_names)))
+                )
     # Don't fail on this — it's informational, since some tests use
     # freezegun or mock the datetime class. The point is to make the
     # pattern visible. Operator can act on it or update the allowlist.
@@ -343,7 +340,9 @@ def test_apply_sale_imported_from_canonical_path_in_tests() -> None:
     canonical = "app.rms.sales.lifecycle"
     shim = "app.rms.costing"
     pat_shim = re.compile(r"^\s*from\s+app\.rms\.costing\s+import\s+[^\n#]*\bapply_sale\b", re.M)
-    pat_canonical = re.compile(r"^\s*from\s+app\.rms\.sales\.lifecycle\s+import\s+[^\n#]*\bapply_sale\b", re.M)
+    pat_canonical = re.compile(
+        r"^\s*from\s+app\.rms\.sales\.lifecycle\s+import\s+[^\n#]*\bapply_sale\b", re.M
+    )
 
     test_files = _walk_py(TESTS_DIR, exclude=TEST_ALLOWLIST)
     shim_imports: list[Path] = []
@@ -363,9 +362,7 @@ def test_apply_sale_imported_from_canonical_path_in_tests() -> None:
     # path (the shim-import is then a backwards-compat check).
     bad = [p for p in shim_imports if p not in canonical_imports]
     if bad:
-        msg = "\n".join(
-            f"  {p.relative_to(REPO_ROOT)}" for p in bad[:20]
-        )
+        msg = "\n".join(f"  {p.relative_to(REPO_ROOT)}" for p in bad[:20])
         pytest.fail(
             f"Found {len(bad)} test file(s) that import `apply_sale` ONLY from the "
             f"deprecated shim `{shim}`. AGENTS.md rule 8 says the canonical path is "
@@ -455,10 +452,7 @@ def test_to_int_gs_imports_canonical_path() -> None:
                 if module != "app.rms.money":
                     bad.append((path, module))
     if bad:
-        msg = "\n".join(
-            f"  {p.relative_to(REPO_ROOT)}  imports to_int_gs from {m}"
-            for p, m in bad
-        )
+        msg = "\n".join(f"  {p.relative_to(REPO_ROOT)}  imports to_int_gs from {m}" for p, m in bad)
         pytest.fail(
             f"Found {len(bad)} import(s) of `to_int_gs` from a non-canonical "
             f"location. The function is defined ONLY in `app.rms.money`. "
@@ -535,15 +529,13 @@ def test_test_file_is_self_consistent() -> None:
                 )
     imports_pytest = any(
         isinstance(node, (ast.Import, ast.ImportFrom))
-        and (getattr(node, "module", None) == "pytest"
-             or any(isinstance(n, ast.alias) and n.name == "pytest"
-                    for n in node.names))
+        and (
+            getattr(node, "module", None) == "pytest"
+            or any(isinstance(n, ast.alias) and n.name == "pytest" for n in node.names)
+        )
         for node in ast.walk(tree)
     )
     assert imports_pytest, "this test file must use pytest"
-
-
-
 
 
 # ── Test 11: no direct unit coercion outside units.py ────────────────
@@ -573,16 +565,17 @@ def test_unit_input_goes_through_unit_coerce() -> None:
     hits = _scan_for_pattern(app_files, pat)
     if hits:
         msg = "\n".join(
-            f"  {p.relative_to(REPO_ROOT)}:{ln}  {txt.strip()[:120]}"
-            for p, ln, txt in hits
+            f"  {p.relative_to(REPO_ROOT)}:{ln}  {txt.strip()[:120]}" for p, ln, txt in hits
         )
         # Soft-fail: this is informational because some sites are model
         # defaults (legitimate). Log and let the operator review.
         # Hard pass: don't fail the build. The pattern is heuristic.
         # To convert to a hard fail, uncomment the next line.
         # pytest.fail(f"Found direct unit-string assignments...")
-        print(f"INFO: {len(hits)} direct unit-string assignment(s); review for "
-              f"Unit.coerce() bypass:\n{msg}")
+        print(
+            f"INFO: {len(hits)} direct unit-string assignment(s); review for "
+            f"Unit.coerce() bypass:\n{msg}"
+        )
 
 
 # ── Test 12: auth check uses app.auth.is_auth_disabled ────────────────
@@ -594,7 +587,9 @@ def test_auth_checks_go_through_is_auth_disabled() -> None:
 
     Look for raw ``os.environ.get("AIW_RMS_AUTH"`` or similar bypasses.
     """
-    pat = re.compile(r"os\.environ\.get\s*\(\s*[\'\"](SASKIA_TEST_AUTH)|os\.environ\[[\'\"]SASKIA_TEST_AUTH[\'\"]")
+    pat = re.compile(
+        r"os\.environ\.get\s*\(\s*[\'\"](SASKIA_TEST_AUTH)|os\.environ\[[\'\"]SASKIA_TEST_AUTH[\'\"]"
+    )
     hits: list[tuple[Path, int, str]] = []
     for path in _walk_py(APP_DIR, exclude=ABSTRACTION_MODULES):
         try:
@@ -611,8 +606,7 @@ def test_auth_checks_go_through_is_auth_disabled() -> None:
                 hits.append((path, line_no, line.rstrip()))
     if hits:
         msg = "\n".join(
-            f"  {p.relative_to(REPO_ROOT)}:{ln}  {txt.strip()[:120]}"
-            for p, ln, txt in hits
+            f"  {p.relative_to(REPO_ROOT)}:{ln}  {txt.strip()[:120]}" for p, ln, txt in hits
         )
         pytest.fail(
             f"Found {len(hits)} direct env-var read(s) for auth state. "
@@ -635,8 +629,14 @@ def test_tier_tests_use_fixtures_not_inline_setup() -> None:
     """
     # When tests/_lib/ exists (sibling branch), check for inline
     # TestClient() construction in tier tests.
-    tier_dirs = ["tests/integration", "tests/concurrency", "tests/network",
-                 "tests/security", "tests/property", "tests/perf"]
+    tier_dirs = [
+        "tests/integration",
+        "tests/concurrency",
+        "tests/network",
+        "tests/security",
+        "tests/property",
+        "tests/perf",
+    ]
     inline_clients: list[Path] = []
     for td in tier_dirs:
         d = REPO_ROOT / td
@@ -656,13 +656,12 @@ def test_tier_tests_use_fixtures_not_inline_setup() -> None:
                     inline_clients.append(path)
     # Soft output: don't fail; show the migration list.
     if inline_clients:
-        msg = "\n".join(
-            f"  {p.relative_to(REPO_ROOT)}"
-            for p in inline_clients[:25]
+        msg = "\n".join(f"  {p.relative_to(REPO_ROOT)}" for p in inline_clients[:25])
+        print(
+            f"INFO: {len(inline_clients)} tier-test file(s) construct TestClient "
+            f"inline; consider migrating to tests._lib.auth.fresh_client(). "
+            f"Candidates:\n{msg}"
         )
-        print(f"INFO: {len(inline_clients)} tier-test file(s) construct TestClient "
-              f"inline; consider migrating to tests._lib.auth.fresh_client(). "
-              f"Candidates:\n{msg}")
 
 
 # ── Test 14: no direct subprocess / os.system in app ─────────────────
@@ -685,14 +684,14 @@ def test_no_subprocess_in_app() -> None:
     hits = _scan_for_pattern(app_files, pat)
     if hits:
         msg = "\n".join(
-            f"  {p.relative_to(REPO_ROOT)}:{ln}  {txt.strip()[:120]}"
-            for p, ln, txt in hits
+            f"  {p.relative_to(REPO_ROOT)}:{ln}  {txt.strip()[:120]}" for p, ln, txt in hits
         )
         # Soft-fail: subprocess is sometimes necessary (PDF rendering,
         # git backup, etc.). Print a warning; operator reviews.
-        print(f"INFO: {len(hits)} subprocess/os.system call(s) in app/; "
-              f"review for services-layer bypass:\n{msg}")
-
+        print(
+            f"INFO: {len(hits)} subprocess/os.system call(s) in app/; "
+            f"review for services-layer bypass:\n{msg}"
+        )
 
 
 # ── Operator notes ─────────────────────────────────────────────────────
