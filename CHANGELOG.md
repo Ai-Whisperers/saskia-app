@@ -1,3 +1,26 @@
+## 2026-10-12 — refactor(shopping): SASKIA-211x split from_production_plan (CC 11→5)
+
+Extracted 6 helpers from the 76-line endpoint:
+  - `_empty_redirect(for_date)` — redirect when no shortages
+  - `_done_redirect(for_date, added)` — success redirect
+  - `_open_shopping_items(session)` — unpurchased items query
+  - `_apply_shortages(...)` — top-up-or-insert loop
+  - `_existing_qty_by_ingredient(items)` — aggregate qty_to_buy dict
+  - `_topup_existing(items, id, need)` — top-up single ingredient
+  - `_add_new_shortage_item(session, ln, purpose)` — new ShoppingListItem insert
+
+Same top-up math (existing item updated when need > current qty); same
+session.add + commit sequence; same redirect URL shape.
+
+8 shopping tests pass (test_shopping_from_plan + test_P39_shopping_mark_purchased).
+
+## 2026-10-12 — refactor(shopping): SASKIA-211x split _whatsapp_href (CC 12→6)
+
+Extracted `_normalize_py_phone` (PY country code prefix) and
+`_build_wa_message` (prefilled text body). Same PY phone normalization
+(verified: `'981234567'` → `'595981234567'`, `'+595981234567'` →
+`'595981234567'`); same message format.
+
 ## 2026-10-12 — refactor(health): SASKIA-211x split _check_supabase_reachable (CC 14→5)
 
 Extracted 7 small helpers (each A-grade):
