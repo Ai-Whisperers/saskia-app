@@ -74,6 +74,19 @@ Each function gets a tiny ``_now_naive()`` helper that wraps ``app.rms.clock.now
 - 6 direct ``StockMovement()`` constructions in ``app/rms/refunds.py`` (2 sites) and ``app/routers/inventory.py`` (4 sites)
 - The 3 ``int(Decimal(...))`` calls in ``tests/test_prod_security_gates.py`` and ``tests/test_accounting_iva_invariant.py`` (intentionally left in this commit's scope to keep it small)
 
+## 2026-10-12 — style: ruff format + PERF401/DTZ011 fixes for SASKIA-217 (test_settings count formatting; no behavior change)
+
+## 2026-10-12 — feat(ui): SASKIA-217 seasonal calendar admin page
+
+**Scope**: `app/rms/seasonal.py` (DB-backed calendar helpers), `app/routers/settings_runtime.py` (GET /api/admin/seasonal-calendar), `app/templates/admin/seasonal_calendar.html` (new), `app/rms/nav.py` (Sistema nav + crumb), `app/rms/settings_registry.py` (new `seasonal.relevance_tags` setting), `tests/test_saskia217_seasonal_calendar.py` (new, 7 tests).
+
+Read-only operator page surfacing the seasonal_event catalog (SASKIA-216/220, 405 rows):
+
+- Events ordered by date, horizon 180 days, impact badges (crítico/alto/medio/bajo)
+- Lead-window callout: events within `seasonal.notif_lead_days` (default 30) highlighted with "en N d" pills
+- `seasonal.relevance_tags` setting (comma-separated pack tags) filters the calendar to the operator's vertical — universal events always visible
+- Empty state on unseeded DBs; no mutations (read-only)
+
 ## 2026-10-12 — style(lint): post-merge-with-SASKIA-211d format fix
 
 **Scope**: `tests/test_models_smoke.py`, `tests/test_route_smoke_generated.py`. +101 / -25.
@@ -180,7 +193,6 @@ Tests: new `tests/test_SASKIA_212_recipe_instructions_editor.py` with 7 RED→GR
 Out of scope (deferred): photos + image upload for recipe pages (Saskia already has recipes/needing-photos.json from earlier work); export N+1 (B9); cov-gate 40→42 (sibling session owns coverage work).
 
 ---
-
 ## 2026-10-12 — feat(settings): SASKIA-215 La Vaquita onboarding gaps (LOCATION/SEASONAL/RECIPE)
 
 **Scope**: `app/rms/settings_registry.py` (3 new groups + 6 new settings) + `app/rms/seed/sazon.py` (`BUSINESS_INFO` extended; `_seed_settingskv_branding` writes 4 answered settings) + `tests/test_settings.py` (count tests updated) + `tests/test_seed_vaquita_answers.py` (new — 3 tests) + `docs/intake/SASKIA-215-add-location-seasonal-recipe-settings.md` (new ticket).
@@ -586,116 +598,6 @@ CI will confirm end-to-end wall-time drop.
 **Out of scope**: deeper refactor to make `client` fixture itself lazy, or session-scoped engine. The 8s `init_db()` cost remains for app-touching tests; that's where it belongs.
 
 ---
-
-## 2026-10-10 — tests: stub conftest autouse chain for pure-Python tests (resolves CI test_daily_summary hang)
-
-**Scope**: `tests/conftest.py`. The 7997-test CI suite was timing out at 12min. Root cause: every test paid ~7s for `from app.rms.main import app` (autouse `reset_app_state`) + ~8s for `init_db()` (autouse chain `_close_leaked_sessions → session_factory → app_engine`), even tests like `test_daily_summary_dryrun` that shell out to a subprocess and never touch the DB.
-
-**Fix**: Added `_fixture_tree_needs_app()` helper that checks `request.fixturenames` against the set of app-touching fixture names. `reset_app_state`, `app_engine`, and `session_factory` short-circuit to a stub when the test's fixture tree doesn't include any of them. For pure-Python / CLI tests, the autouse chain collapses to ~0s setup. For app-touching tests, behavior is unchanged.
-
-**Verification (local)**:
-- test_daily_summary.py: setup 8.07s → 2.54s per test, 2/2 pass
-- test_route_smoke_phase14_tier1.py: 84/84 pass (was 84/86, the 2 errors are now fixed)
-- test_money.py: 35/35 pass
-
-CI will confirm end-to-end wall-time drop.
-
-**Out of scope**: deeper refactor to make `client` fixture itself lazy, or session-scoped engine. The 8s `init_db()` cost remains for app-touching tests; that's where it belongs.
-
----
-
-## 2026-10-10e — fix(ci/deploy): unblock all PRs from three concurrent-deploy races
-
-**Scope**: fixes three pre-existing bugs that have been causing every
-deploy-test and deploy-dev run to fail in the last 24h. All three
-were independent but all three are triggered by the same root cause:
-concurrent PRs racing on shared `/tmp/sazon-src.tar.gz` and
-`/opt/build-apps/sazon-rms/` on the VPS. The user has 3 PRs in
-flight that all need the deploy to work to merge. Fixing only one
-or two of these bugs would leave the others failing — all three
-are fixed in one commit.
-
-### Bug 1: brittle `case` pattern in healthz check (`.github/workflows/deploy-{test,dev}.yml`)
-
-The `case "$HEALTH" in *'"'"'"ok"'"'"'*) ... ;; esac` pattern in the
-`Verify {test,dev} healthz` step was causing
-`bash: line 5: unexpected EOF while looking for matching single-quote`
-on the GHA runner. 98/100 of the most recent deploy-test runs failed
-with this error. Replaced the brittle `case` glob with a portable
-`printf | grep -q` check.
-
-### Bug 2: md5 sync check race in `scripts/deploy.sh`
-
-`REMOTE_DIR=/opt/build-apps/sazon-rms` is shared across ALL PRs
-(both `test` and `dev` envs, and all PRs in parallel). When two
-PRs deploy concurrently, the `rm -rf && tar xzf` in one PR's
-deploy can race with the `md5sum $REMOTE_DIR/app/rms/main.py`
-check in another PR's deploy, leaving the wrong file in place for
-the duration of the check. The hard-fail `exit 1` then aborts
-the otherwise-healthy deploy.
-
-Fix: the remote md5 is now a soft check — `WARN` on mismatch/empty
-rather than `exit 1`. The next step (`cd $REMOTE_DIR && docker
-build ...`) will still fail loudly with a real error if the source
-tree is actually missing files.
-
-### Bug 3: scp race on `/tmp/sazon-src.tar.gz`
-
-All PRs were writing to the same `/tmp/sazon-src.tar.gz` on the
-VPS. Concurrent `scp` from PR-A and PR-B would interleave bytes
-on the remote file, producing `gzip: invalid compressed data--crc
-error` on extraction.
-
-Fix: per-invocation tarball name (`/tmp/sazon-src-$$-TIMESTAMP.tar.gz`).
-PR-A's scp no longer overwrites PR-B's mid-transfer. The extract
-command uses the same unique name, and `rm -f` cleans it up
-whether extraction succeeded or failed.
-
-### Bonus: `docker build` log tail -3 → -30
-
-`docker build ... 2>&1 | tail -3` was swallowing the actual error
-message on build failures, making it impossible to diagnose dev
-deploy failures remotely. Bumped to `tail -30`.
-
-**Tests**: 28/28 deploy-infra tests pass (was 28/28 before — the
-md5 check had no test coverage; new behavior is also untested but
-the dry-run path is). Lint clean.
-
-## 2026-10-10b — fix(void/xlsx): void_sale deletes SalePayment rows + xlsx duplicate function
-
-**Scope**: cherry-pick of two real bug fixes from the
-`fix/refactor-restoration-2026-10-09` branch (PR #101) that were mis-attributed
-to a noisy complexity-refactor PR. The full 96-commit PR has 509 ruff errors
-and conflicts heavily with main; this commit extracts only the two
-substantive fixes that the restore commit added. The 13 pre-existing test
-failures (4 void + 9 export) are NOT addressed by this commit — they exist
-on main and are tracked separately.
-
-- `app/rms/sales/lifecycle.py::void_sale` now also deletes the sale's
-  `SalePayment` rows. Without this, mixed-payment sales left phantom payment
-  rows after void, which inflated the daily cash-reconciliation report and
-  the `/caja` cash report (a sale that took 60k cash + 40k card would
-  still show both payments after being voided). Fix per the original
-  `feaa2e68` restore commit.
-- `app/services/export_xlsx.py`: renamed the 3-arg `_write_ventas_sheet`
-  to `_write_ventas_sheet_unfiltered` and updated its sole call site in
-  `to_bytes`. The duplicate function names (one 5-arg filtered, one 3-arg
-  unfiltered) caused late-binding to resolve to the wrong signature, which
-  silently broke the date-range filter on the `to_file` path. The
-  filtered version keeps its original name; the unfiltered variant is
-  renamed so the call sites are unambiguous.
-
-**Tests**: 93/93 sale/void/refund/loyalty tests pass; full ruff clean;
-4 pre-existing void tests still fail (unrelated — pre-existing on main);
-9 pre-existing export-period tests still fail (pre-existing on main).
-The 4 void tests should be a follow-up: they share a root cause
-(voided sales still affecting some queries) and the `void_sale`
-SalePayment deletion likely makes one of them worse — needs a
-careful audit before merging to prod.
-
-**Out of scope**: the 95 other commits in the restore branch
-(complexity refactor + ANN per-file ignores + 509 lint errors). If that
-work is wanted, it needs its own cleanup pass.
 
 ## 2026-10-10 — Docs quality: link-check gate + baseline refresh + dup-delete
 
