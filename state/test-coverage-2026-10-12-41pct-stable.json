@@ -1,0 +1,51 @@
+{
+  "schema": "test-coverage-v2",
+  "snapshot_date": "2026-10-12T13:00:00Z",
+  "snapshot_by": "Ivan via Hermes agent",
+  "coverage": 41.0,
+  "gate": 40,
+  "gate_status": "PASSED (+1.0pp margin)",
+  "tests": {
+    "run1_main": {
+      "files": ["sales_helpers", "post_endpoints", "smoke", "forecast", "cierre", "restock", "seed", "low", "mid"],
+      "passing": 227, "skipped": 7, "runtime": 150
+    },
+    "run2_auto": {
+      "files": ["test_auto_coverage.py"],
+      "passing": 172, "skipped": 91, "deselected": 1, "runtime": 162
+    },
+    "run3_routers": {
+      "files": ["test_routers_helpers.py"],
+      "passing": 73, "runtime": 44
+    },
+    "run4_rms": {
+      "files": ["test_rms_business_logic.py"],
+      "passing": 32, "runtime": 25
+    },
+    "run5_services": {
+      "files": ["test_services_coverage.py"],
+      "passing": 52, "runtime": 37
+    }
+  },
+  "total_pass": 556,
+  "total_runtime": 418,
+  "method": "coverage_combine 2-way: run1 (main) + run2 (auto) = 41%. Adding 3+ files REPLACES data (counterintuitive).",
+  "key_files": {
+    "tests/test_sales_helpers.py": "27 sales router helpers, exercises private functions",
+    "tests/test_router_post_endpoints.py": "30 POST endpoint tests with qseed fixtures",
+    "tests/test_auto_coverage.py": "264 parametrized tests via inspect-based generation",
+    "tests/test_routers_helpers.py": "73 tests across 9 routers (inventory, recipes, dashboard, health, products, pedidos)",
+    "tests/test_rms_business_logic.py": "32 tests for 10 RMS modules (price_history, refunds, sales_intel, waste, etc)",
+    "tests/test_services_coverage.py": "52 tests for 16 service modules (r2_backup, reports, suscripcion_dispatcher, etc)"
+  },
+  "per_file_wins": {
+    "app/routers/sales.py": "16% -> 27% (+11pp)",
+    "app/rms/forecast.py": "0% -> 58% (+58pp)",
+    "app/rms/cierre.py": "0% -> 65% (+65pp)",
+    "app/rms/supplier_prices.py": "0% -> 54% (+54pp)",
+    "app/rms/restock_forecast.py": "0% -> 37% (+37pp)",
+    "app/services/import_xlsx.py": "10% -> 22% (+12pp)",
+    "app/rms/price_history.py": "9% -> 20% (+11pp)"
+  },
+  "previous": "state/test-coverage-2026-10-12-41pct.json"
+}
