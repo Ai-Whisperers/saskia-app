@@ -1,0 +1,16 @@
+# Sazón RMS tenant config template (SASKIA-220).
+#
+# Copy to /etc/sazon/tenants/<host>.yaml on the server and fill in real
+# values. The presence of at least one *.yaml in that directory switches
+# the app into URL-based tenant routing mode.
+#
+# database_url supports ${ENV_VAR} references so the credential itself
+# lives in the environment (BWS-injected .env), never in this file.
+
+host: tenant.example.com          # must match the file name (minus .yaml)
+display_name: "Example Tenant"
+locale: es_PY
+database_url: ${SUPABASE_DB_URL_EXAMPLE}   # env var ref, or a literal URL
+branding:
+  primary_color: "#8B4513"
+  logo_path: /etc/sazon/tenants/tenant.example.com/logo.png

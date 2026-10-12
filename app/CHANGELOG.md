@@ -1,3 +1,16 @@
+## 2026-10-12 — feat(tenant): SASKIA-220 URL-based tenant routing (opt-in middleware)
+
+**What**: `app/rms/tenant.py` — Host-header tenant resolution. Disabled by default
+(no-op) until tenant YAML files exist in `/etc/sazon/tenants/` (or `TENANT_DIR`).
+Enabled → unknown host fails closed with 404. `tenants/example.yaml` documents the
+format; `${ENV_VAR}` refs in `database_url` resolve at load time, missing ref = error.
+
+**Why**: per-client-instance deployment model (SASKIA-210 decision) needs URL-based
+routing to a per-tenant DB, one codebase/one process.
+
+**Tests**: `tests/test_tenant.py` — 19 tests (disabled-mode no-op, host matching,
+fail-closed 404, env-var resolution, engine caching).
+
 ## 2026-10-12 — feat(seed): SASKIA-220 add 5 new vertical packs (Food Truck, Quiosco, Chipería, Pastelería Industrial, Cervecería)
 
 **Scope**: `app/rms/seed/packs.py` (5 new PackData entries), `tests/test_packs_saskia220.py` (new, 16 tests).
