@@ -92,7 +92,7 @@ Supports **two deployment modes**:
 
 ### Process (3 sub-rules; hard rules now number 1-49 across all groups)
 
-35. **CHANGELOG discipline.** Every PR that changes `app/`, `scripts/`, `tests/`, or `.github/` MUST also update the **root `CHANGELOG.md`** — the CI gate script (`grep -qx "CHANGELOG.md"` in ci.yml's "CHANGELOG discipline check" step) matches the root path only. Note: the comment above that step says `app/CHANGELOG.md`, which is stale; and both files exist and are actively written (root 110 KB, app/ 299 KB as of 2026-10-12). The gated canonical is root `CHANGELOG.md`; `app/CHANGELOG.md` is a secondary detailed log. When in doubt, update both.
+35. **CHANGELOG discipline.** Every PR that changes `app/`, `scripts/`, `tests/`, or `.github/` MUST also update the **root `CHANGELOG.md`** — the CI gate (`grep -qx "CHANGELOG.md"`) matches the root path only, and ci.yml now fails outright if `app/CHANGELOG.md` reappears. Root `CHANGELOG.md` is the ONLY changelog (decision 2026-10-12; the former `app/CHANGELOG.md` contents were folded into root, preserving all ticket history).
 36. **Single-developer bus factor.** All code is written and reviewed by one person. To mitigate: ADRs in `docs/architecture/decisions/` (when needed), every commit has a clear message, every PR has a ticket, every behavior change has a regression test, every fix has a runbook.
 37. **PRs reference a ticket.** Use the `SASKIA-NNN-<slug>.md` convention.
 
