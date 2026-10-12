@@ -89,7 +89,10 @@ def _flush_table(buf: list[str]) -> str:
 def _real_table_rows(buf: list[str]) -> list[str]:
     """Filter `buf` to the rows that count as a real table row (skip
     separator rows like `|---|---|`)."""
-    return [r for r in buf if r.strip() and not re.match(r"^\s*\|[\s\-:|]+\|\s*$", r)]
+    return [
+        r for r in buf
+        if r.strip() and not re.match(r"^\s*\|[\s\-:|]+\|\s*$", r)
+    ]
 
 
 def _split_row(line: str) -> list[str]:
@@ -360,12 +363,10 @@ def _close_open_list(out: list[str]) -> None:
 # dispatch table itself. The table is rebuilt every call so we don't share
 # mutable closures across requests.
 
-
 def _produce_code_open(line, stripped, state):
     state["in_code"] = True
     state["code_buf"] = []
     return None
-
 
 def _produce_code_end(line, stripped, state):
     emitted = _emit_code_block(state["code_buf"])
@@ -373,17 +374,14 @@ def _produce_code_end(line, stripped, state):
     state["code_buf"] = []
     return emitted
 
-
 def _produce_code_line(line, stripped, state):
     state["code_buf"].append(line)
     return None
-
 
 def _produce_table_row(line, stripped, state):
     state["table_buf"].append(line)
     state["in_table"] = True
     return None
-
 
 def _produce_heading(line, stripped, state):
     _close_open_list(state["out"])
@@ -392,15 +390,12 @@ def _produce_heading(line, stripped, state):
     level, html = heading
     return f"<h{level}>{html}</h{level}>"
 
-
 def _produce_hr(line, stripped, state):
     return _emit_hr()
-
 
 def _produce_blockquote(line, stripped, state):
     _close_open_list(state["out"])
     return _try_blockquote(stripped)
-
 
 def _produce_list_item(open_tag, item_fn):
     """Build a producer that opens the list tag on first call, then emits items.
@@ -408,15 +403,12 @@ def _produce_list_item(open_tag, item_fn):
     Captures `open_tag` (e.g. "<ul>") and `item_fn` (e.g. `_try_unordered_item`).
     A single closure replaces two near-identical inline branches.
     """
-
     def producer(line, stripped, state):
         if not _ListTracker.is_open():
             state["out"].append(open_tag)
             _ListTracker.open()
         return item_fn(line)
-
     return producer
-
 
 def _produce_blank(line, stripped, state):
     _close_open_list(state["out"])
@@ -541,7 +533,9 @@ def _flush_open_table(state: dict) -> None:
     state["in_table"] = False
 
 
-def _accumulate_paragraph(lines: list[str], i: int, first_stripped: str) -> tuple[str, int]:
+def _accumulate_paragraph(
+    lines: list[str], i: int, first_stripped: str
+) -> tuple[str, int]:
     """Collect a paragraph starting at `lines[i]` (already-stripped first
     line is `first_stripped`). Returns `(html, next_i)` where `next_i`
     points past the last paragraph line consumed.
