@@ -10,8 +10,8 @@ Usage:
         r = client.get("/")
         assert r.status_code in SAFE_CODES
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 # Safe response codes — any of these is acceptable for "page loaded"
 SAFE_CODES = (200, 302, 303, 307, 404, 500)
@@ -42,13 +42,13 @@ REQUIRES_LOGIN_CODES = (200, 302, 303, 307, 401, 403, 404, 500)
 
 
 __all__ = [
-    "SAFE_CODES",
     "AUTH_CODES",
     "AUTH_METHOD_CODES",
     "LOGIN_CODES",
     "LOGIN_POST_CODES",
-    "LOGIN_SAFE_CODES",
     "LOGIN_RATE_LIMITED_CODES",
+    "LOGIN_SAFE_CODES",
     "METHOD_NOT_ALLOWED_CODES",
     "REQUIRES_LOGIN_CODES",
+    "SAFE_CODES",
 ]

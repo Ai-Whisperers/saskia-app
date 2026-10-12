@@ -3,16 +3,16 @@
 Uses authed_client from conftest.py (auth disabled). For tests that need
 auth enabled, use the `client` fixture from conftest instead.
 """
+
 import pytest
 
 from tests._lib.auth import assert_safe_response
 from tests._lib.http import (
-    SAFE_CODES,
-    LOGIN_POST_CODES,
-    LOGIN_CODES,
     AUTH_METHOD_CODES,
+    LOGIN_CODES,
+    LOGIN_POST_CODES,
+    SAFE_CODES,
 )
-
 
 pytestmark = [pytest.mark.integration, pytest.mark.smoke]
 
@@ -28,7 +28,9 @@ def test_login_page_renders(authed_client):
 
 
 def test_login_post_invalid(authed_client):
-    r = authed_client.post("/login", data={"username": "x", "password": "y"}, follow_redirects=False)
+    r = authed_client.post(
+        "/login", data={"username": "x", "password": "y"}, follow_redirects=False
+    )
     assert r.status_code in LOGIN_POST_CODES
 
 

@@ -3,6 +3,7 @@
 Tests auth-enabled behavior. Uses the `_lib.auth.auth_required_client`
 context manager (xdist-safe) so tests verify the real auth gate.
 """
+
 import pytest
 
 from tests._lib.auth import auth_required_client
@@ -12,7 +13,6 @@ from tests._lib.http import (
     REQUIRES_LOGIN_CODES,
     SAFE_CODES,
 )
-
 
 pytestmark = [pytest.mark.integration, pytest.mark.auth, pytest.mark.security]
 
@@ -96,4 +96,6 @@ def test_login_get_returns_html():
     with auth_required_client() as c:
         r = c.get("/login", follow_redirects=False)
         if r.status_code == 200 and r.text:
-            assert "input" in r.text.lower() or "form" in r.text.lower() or "login" in r.text.lower()
+            assert (
+                "input" in r.text.lower() or "form" in r.text.lower() or "login" in r.text.lower()
+            )

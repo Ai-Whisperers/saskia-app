@@ -3,13 +3,14 @@
 Targets the gap: No resilience tests for external services.
 Uses mock to test that the app handles timeouts, 5xx, 4xx, and connection errors.
 """
-import pytest
-from unittest.mock import patch, MagicMock
+
+from unittest.mock import MagicMock, patch
+
 import httpx
+import pytest
 
 from tests._lib.auth import assert_safe_response
 from tests._lib.http import SAFE_CODES
-
 
 pytestmark = [pytest.mark.network, pytest.mark.smoke]
 
@@ -17,6 +18,7 @@ pytestmark = [pytest.mark.network, pytest.mark.smoke]
 def test_httpx_module_imports():
     """httpx should be importable for HTTP testing."""
     import httpx
+
     assert httpx is not None
 
 
@@ -36,6 +38,7 @@ def test_httpx_http_status_error():
 
 def test_request_timeout_caught():
     """A timeout should be catchable, not crash the app."""
+
     def fake_get(*args, **kwargs):
         raise httpx.TimeoutException("timeout")
 
@@ -48,6 +51,7 @@ def test_request_timeout_caught():
 
 def test_request_connection_error_caught():
     """Connection error should be catchable."""
+
     def fake_get(*args, **kwargs):
         raise httpx.ConnectError("connection refused")
 
@@ -98,6 +102,7 @@ def test_optional_dependencies_importable():
 def test_healthz_responds_under_2s(authed_client):
     """/healthz should respond fast even under load."""
     import time
+
     start = time.time()
     r = authed_client.get("/healthz", follow_redirects=False)
     elapsed = time.time() - start
