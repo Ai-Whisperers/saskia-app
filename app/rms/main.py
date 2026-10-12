@@ -64,6 +64,7 @@ from app.rms.db import make_session_factory
 from app.rms.db_dialect import _is_postgres, get_database_url, get_metadata
 from app.rms.db_dialect import make_engine as make_engine_dialect
 from app.rms.observability import RequestContextMiddleware
+from app.rms.tenant import TenantResolutionMiddleware, registered_hosts  # SASKIA-220
 from app.rms.security_headers import SecurityHeadersMiddleware
 from app.rms.session_lifecycle import SessionLifecycleMiddleware
 from app.routers import (
@@ -579,6 +580,11 @@ def create_app() -> FastAPI:
     # our access-log timing read. Re-registered GZip AFTER RequestContext
     # below so GZip is the INNERMOST middleware (closest to the route).
     app.add_middleware(RequestContextMiddleware)
+
+    # SASKIA-220: URL-based tenant routing. Opt-in — no-op until
+    # /etc/sazon/tenants/ (or TENANT_DIR) contains tenant YAML files.
+    # Unknown host fails closed with 404 when routing is enabled.
+    app.add_middleware(TenantResolutionMiddleware)
 
     # Cache headers for /static/*. Browser revalidation is wasteful for assets
     # that change only on deploys.

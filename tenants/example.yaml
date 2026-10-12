@@ -1,0 +1,13 @@
+# Sazón RMS tenant config template (SASKIA-220).
+#
+# Copy to /etc/sazon/tenants/<host>.yaml on the server and fill in real
+# values. The presence of at least one *.yaml in that directory switches
+# the app into tenant routing mode.
+#
+# Example for:
+#   https://la-vaquita.sazon.app
+#
+host: la-vaquita.sazon.app
+display_name: La Vaquita Feliz
+locale: es_PY
+database_url: ${VAQUITA_DB_URL}
