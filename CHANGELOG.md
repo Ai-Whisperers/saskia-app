@@ -1,3 +1,36 @@
+## 2026-10-12 — refactor(health): SASKIA-211x split _check_supabase_reachable (CC 14→5)
+
+Extracted 7 small helpers (each A-grade):
+  - `_supabase_health_url(url)`        — build `/auth/v1/health` URL
+  - `_elapsed_ms(t0)`                  — monotonic round-trip helper
+  - `_build_success_result` / `_build_http_error_result`
+  - `_build_url_error_result` / `_build_os_error_result`
+  - `_classify_url_reason(reason_str)` — table-driven regex: DNS /
+    ConnectRefused / Timeout / SSLError
+
+Main function reads as a 3-line skeleton: build URL, dispatch into the
+right result builder per exception type. Same diagnostic dict shape,
+same exception catch order, same URLError sub-classification
+(verified against 7 reason strings).
+
+38 health tests pass (test_healthz_deps_depth + test_healthz_summary +
+test_healthz_db_documented + test_readiness).
+
+## 2026-10-12 — refactor(auth_supabase): SASKIA-211x split sign_in_with_password (CC 11→5)
+
+Extracted:
+  - `_is_auth_failure(exc)`   CC 4  — narrow exception type check first
+                                       (AuthApiError / AuthInvalidCredentialsError),
+                                       then message heuristics
+  - `_session_to_dict(response)` CC 3 — projects Supabase auth response
+                                         into the dict shape we persist
+
+Behavior preservation: identical exception swallowing + identical dict
+shape on success. Smoke-tested `_is_auth_failure` against type-based
+detection (AuthApiError / AuthInvalidCredentialsError), message
+heuristics ('invalid', 'credentials', '401'), and confirmed config
+bugs propagate.
+
 ## 2026-10-12 — refactor(help): SASKIA-211x table-driven markdown dispatcher (CC 26→9)
 
 **Scope**: `app/routers/help.py` (orchestrator + private handlers).
