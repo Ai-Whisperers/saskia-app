@@ -128,9 +128,7 @@ def test_seeders_module_no_test_dunder_polycollect():
     import tests.seeders as s
 
     test_names = [n for n in dir(s) if n.startswith("test_")]
-    assert test_names == [], (
-        f"tests.seeders has test_* names that pollute collection: {test_names}"
-    )
+    assert test_names == [], f"tests.seeders has test_* names that pollute collection: {test_names}"
 
 
 def test_seeders_have_no_async_def():
@@ -139,10 +137,7 @@ def test_seeders_have_no_async_def():
 
     import tests.seeders as s
 
-    bad = [
-        name
-        for name, obj in inspect.getmembers(s, inspect.iscoroutinefunction)
-    ]
+    bad = [name for name, obj in inspect.getmembers(s, inspect.iscoroutinefunction)]
     assert bad == [], f"tests.seeders has async functions: {bad}"
 
 
