@@ -1,8 +1,15 @@
-"""tests/network/test_network_resilience.py — Phase 1 refactored."""
-import pytest
-from unittest.mock import patch, MagicMock
-import httpx
+"""tests/network/test_network_resilience.py — Network/timeout resilience tests.
 
+Targets the gap: No resilience tests for external services.
+Uses mock to test that the app handles timeouts, 5xx, 4xx, and connection errors.
+"""
+
+from unittest.mock import MagicMock, patch
+
+import httpx
+import pytest
+
+from tests._lib.auth import assert_safe_response
 
 pytestmark = [pytest.mark.network, pytest.mark.smoke]
 
@@ -10,6 +17,7 @@ pytestmark = [pytest.mark.network, pytest.mark.smoke]
 def test_httpx_module_imports():
     """httpx should be importable for HTTP testing."""
     import httpx
+
     assert httpx is not None
 
 
@@ -29,6 +37,7 @@ def test_httpx_http_status_error():
 
 def test_request_timeout_caught():
     """A timeout should be catchable, not crash the app."""
+
     def fake_get(*args, **kwargs):
         raise httpx.TimeoutException("timeout")
 
@@ -41,6 +50,7 @@ def test_request_timeout_caught():
 
 def test_request_connection_error_caught():
     """Connection error should be catchable."""
+
     def fake_get(*args, **kwargs):
         raise httpx.ConnectError("connection refused")
 
@@ -91,8 +101,9 @@ def test_optional_dependencies_importable():
 def test_healthz_responds_under_2s(authed_client):
     """/healthz should respond fast even under load."""
     import time
+
     start = time.time()
     r = authed_client.get("/healthz", follow_redirects=False)
     elapsed = time.time() - start
     assert elapsed < 2.0
-    assert r.status_code in (200, 302, 303, 307, 404, 500)
+    assert_safe_response(r, allow_redirects=True)

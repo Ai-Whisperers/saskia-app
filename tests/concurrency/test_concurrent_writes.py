@@ -1,9 +1,10 @@
 """tests/concurrency/test_concurrent_writes.py — Phase 1 refactored."""
-import pytest
+
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from sqlalchemy import text
 
+import pytest
+from sqlalchemy import text
 
 pytestmark = [pytest.mark.concurrency, pytest.mark.slow]
 
@@ -66,6 +67,7 @@ def test_concurrent_set_access():
 def test_two_threads_dont_deadlock():
     """Two threads with simple work should not deadlock."""
     import time
+
     done = [False, False]
 
     def worker(idx):
@@ -117,6 +119,7 @@ def test_lock_works():
 def test_rate_limit_module_imports():
     """rate_limit module should be importable and have expected functions."""
     from app.rms import rate_limit
+
     assert hasattr(rate_limit, "is_rate_limited")
     assert hasattr(rate_limit, "is_disabled")
     assert hasattr(rate_limit, "is_write_rate_limited")
@@ -126,6 +129,7 @@ def test_rate_limit_module_imports():
 def test_rate_limit_decision_thread_safe():
     """RateLimitDecision should be safe to share across threads."""
     from app.rms.rate_limit import RateLimitDecision
+
     decisions = []
     lock = threading.Lock()
 

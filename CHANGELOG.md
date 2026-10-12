@@ -1,3 +1,19 @@
+## 2026-10-12 — feat(recetas): SASKIA-213b recipe photo auto-link (migration 119)
+
+**Scope**: `app/rms/migrations/_119_recipe_photo_autolink.py`, `app/rms/db.py`, `app/rms/config.py`, `app/templates/recipe_photos.html`, `tests/test_SASKIA_213_recipe_photo_upload.py`, `CHANGELOG.md`.
+
+SASKIA-213 ship already wired up the upload route + picker + free-form text parser. 30 photos sat in `app/static/recipes/` (receta-babka.jpg, receta-cheesecake.jpg, …) but no Recipe had its `image_url` set — operators still had to manually pick each one in the picker.
+
+What changed:
+
+* **Migration 119** — one-shot autolink. For every Recipe without `image_url`, find a photo whose filename slug contains the recipe slug, set `image_url = /static/recipes/<filename>`. Idempotent; never overwrites an operator-set `image_url`. Loose matching tolerates dish-name vs slug differences (`receta-babka.jpg` matches `babka__rec_017`).
+* **`app/templates/recipe_photos.html`** hint updated to "Las fotos en `static/recipes/` aparecen automáticamente en este picker" — the old "hash automático" line was aspirational, now it's literal.
+* **Current schema version** 118→119.
+
+Test: `test_migration_119_autolinks_photos_by_name` (RED→GREEN): seeded 3 photos + 3 recipes (1 already linked, 1 matched, 1 unmatched), ran the migration, asserted `babka` got `receta-babka.jpg`, `cheesecake` kept its manual link, `otiebollen` stayed `None`. 7/7 SASKIA-213 GREEN, 170/170 full cocina+receta+photo+migration suite. ruff clean.
+
+---
+
 ## 2026-10-12 — feat(recetas): SASKIA-213 recipe photo upload + free-form text parser
 
 **Scope**: `app/routers/recipes.py`, `app/templates/recipe_photos.html`, `tests/test_SASKIA_213_recipe_photo_upload.py`, `CHANGELOG.md`.

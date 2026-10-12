@@ -169,6 +169,65 @@ def test_uploaded_photo_appears_in_picker(client, session_factory, tmp_path, mon
 # ── 6. Picker filters non-image files ───────────────────────────────
 
 
+def test_migration_119_autolinks_photos_by_name(client, session_factory, tmp_path, monkeypatch):
+    """When a recipe has no image_url and a photo file in static/recipes/
+    matches its slug, the autolink migration sets image_url to that file.
+    Idempotent and never overwrites an existing image_url.
+    """
+    from app.rms import static_paths
+
+    monkeypatch.setattr(static_paths, "recipes_dir", lambda: tmp_path)
+
+    # Drop two photos with the operator's naming convention
+    (tmp_path / "receta-babka.jpg").write_bytes(b"x")
+    (tmp_path / "receta-cheesecake.jpg").write_bytes(b"x")
+    (tmp_path / "receta-unrelated.jpg").write_bytes(b"x")
+
+    from app.rms.models import Recipe
+
+    with session_factory() as s:
+        s.add(Recipe(name="babka__rec_017", yield_qty=1, yield_unit="und"))
+        s.add(
+            Recipe(
+                name="cheesecake_30x50__rec_002",
+                yield_qty=1,
+                yield_unit="und",
+                image_url="/static/recipes/manual.jpg",  # already linked
+            )
+        )
+        s.add(
+            Recipe(
+                name="otiebollen__rec_999",
+                yield_qty=1,
+                yield_unit="und",
+            )
+        )
+        s.commit()
+
+    # Apply the migration against a fresh in-memory engine
+    from app.rms.migrations._119_recipe_photo_autolink import (
+        _migration_119_recipe_photo_autolink,
+    )
+
+    with session_factory() as s2:
+        _migration_119_recipe_photo_autolink(s2.connection())
+        s2.commit()
+
+    with session_factory() as s3:
+        for r in s3.query(Recipe).all():
+            print(f"{r.name} -> {r.image_url}")
+        babka = s3.query(Recipe).filter_by(name="babka__rec_017").one()
+        cheesecake = s3.query(Recipe).filter_by(name="cheesecake_30x50__rec_002").one()
+        unmatched = s3.query(Recipe).filter_by(name="otiebollen__rec_999").one()
+
+    # babka: matched → linked
+    assert babka.image_url == "/static/recipes/receta-babka.jpg"
+    # cheesecake: already linked → NOT overwritten
+    assert cheesecake.image_url == "/static/recipes/manual.jpg"
+    # otiebollen: no match → stays None
+    assert unmatched.image_url is None
+
+
 def test_picker_filters_non_image_files(client, session_factory, tmp_path, monkeypatch):
     """When tmp_path has a .sqlite sidecar (e.g. from a dev environment),
     the picker must NOT show it — only image files."""
