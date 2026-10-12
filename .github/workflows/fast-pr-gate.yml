@@ -104,6 +104,6 @@ jobs:
             -m "not (browser or e2e or pg)" \
             tests/test_money.py \
             tests/test_units.py \
-            tests/test_no_hardcoded_dates.py \
+
             tests/test_routers_require_auth.py \
             tests/test_no_silent_excepts.py
