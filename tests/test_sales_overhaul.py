@@ -9,8 +9,8 @@ from sqlalchemy import select
 
 def test_sale_accepts_payment_method(session_factory):
     """apply_sale with payment_method persists it (Spanish keys)."""
-    from app.rms.costing import apply_sale
     from app.rms.models import Product, Sale
+    from app.rms.sales.lifecycle import apply_sale
 
     with session_factory() as s:
         p = Product(name="Test P", sale_price_gs=10000, recipe_id=None)
@@ -32,8 +32,8 @@ def test_sale_accepts_payment_method(session_factory):
 
 def test_sale_accepts_discount(session_factory):
     """apply_sale with discount_gs persists the discount."""
-    from app.rms.costing import apply_sale
     from app.rms.models import Product, Sale
+    from app.rms.sales.lifecycle import apply_sale
 
     with session_factory() as s:
         p = Product(name="Test D", sale_price_gs=10000, recipe_id=None)

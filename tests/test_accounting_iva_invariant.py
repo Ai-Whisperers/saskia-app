@@ -16,6 +16,7 @@ from hypothesis import strategies as st
 
 from app.rms.accounting import extract_iva
 from app.rms.constants import IVA_DIVISOR, PARAGUAY_IVA_RATE
+from app.rms.money import to_int_gs
 
 # ─── Sanity: the constants exist where they should ─────────────────
 
@@ -61,7 +62,7 @@ def test_extract_iva_excluded_round_trip(gross: int) -> None:
     assert result.base_gs == gross, f"gross={gross} expected base={gross}, got {result.base_gs}"
     # iva is exact (gross * 0.10 in Decimal then int-truncated). Allow ±1
     # for the int() cast.
-    expected_iva = int(Decimal(gross) * PARAGUAY_IVA_RATE)
+    expected_iva = to_int_gs(Decimal(gross) * PARAGUAY_IVA_RATE)
     assert abs(result.iva_gs - expected_iva) <= 1, (
         f"gross={gross} expected iva≈{expected_iva}, got {result.iva_gs}"
     )
@@ -112,5 +113,5 @@ def test_included_uses_divisor_one_point_one() -> None:
     # If someone "simplifies" the divisor to 10/9 or 1.1 (float), this test
     # will catch it because the exact Decimal division matters for tax math.
     r = extract_iva(110_000, tax_mode="included")
-    expected_base = int(Decimal(110_000) / IVA_DIVISOR)
+    expected_base = to_int_gs(Decimal(110_000) / IVA_DIVISOR)
     assert r.base_gs == expected_base

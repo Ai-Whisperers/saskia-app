@@ -106,8 +106,54 @@ def apply_stock_delta(
     return movement
 
 
+def record_stock_movement(
+    session: Session,
+    ing_id: int,
+    qty: float,
+    *,
+    movement_type: str,
+    reason: str | None = None,
+    reference_id: int | None = None,
+    reference_type: str | None = None,
+    created_by: str | None = None,
+    recorded_at: datetime | None = None,
+    variant_id: int | None = None,
+) -> StockMovement:
+    """Append-only audit row WITHOUT bumping stock.
+
+    SASKIA-211a: the audit-only path (stock already bumped by a
+    variant-aware helper, or absolute-set flows like the initial
+    inventory load). Use ``apply_stock_delta()`` when the movement
+    itself should also move stock — this helper is for callers that
+    own the stock math (variant rollups, base→package unit conversion)
+    and only need the ledger row.
+
+    Same taxonomy constraint as the model: movement_type ∈
+    {sale, adjustment, merma, reorder, initial}. Does NOT commit —
+    the route owns the transaction (safe_commit pattern).
+    """
+    kwargs: dict[str, object] = {
+        "ingredient_id": ing_id,
+        "movement_type": movement_type,
+        "qty": float(qty),
+        "reason": reason,
+        "reference_id": reference_id,
+        "reference_type": reference_type,
+        "recorded_at": recorded_at or datetime.now(timezone.utc),
+        "created_by": created_by,
+    }
+    # variant_id: only when the schema actually has the column (the
+    # pre-2026-10-12 call sites did the same runtime check).
+    if variant_id is not None and "variant_id" in StockMovement.__table__.columns:
+        kwargs["variant_id"] = variant_id
+    movement = StockMovement(**kwargs)  # type: ignore[arg-type]
+    session.add(movement)
+    return movement
+
+
 __all__ = [
     "MismatchPolicy",
     "apply_stock_delta",
     "qty_to_stock_unit",
+    "record_stock_movement",
 ]

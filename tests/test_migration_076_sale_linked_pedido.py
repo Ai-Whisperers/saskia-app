@@ -40,8 +40,8 @@ def test_sale_linked_pedido_index_exists(session_factory):
 
 def test_apply_sale_sets_linked_pedido_id(session_factory):
     """apply_sale() persists linked_pedido_id when provided."""
-    from app.rms.costing import apply_sale
     from app.rms.models import Customer, Pedido, Sale
+    from app.rms.sales.lifecycle import apply_sale
 
     with session_factory() as s:
         c = Customer(name="Test Buyer", phone="0990001111")
@@ -157,8 +157,8 @@ def test_timeline_includes_fulfilled_sale_events(qseed, session_factory):
 
 def test_apply_sale_default_linked_pedido_is_none(session_factory):
     """Without the kwarg, linked_pedido_id stays NULL (POS-driven sales)."""
-    from app.rms.costing import apply_sale
     from app.rms.models import Customer, Sale
+    from app.rms.sales.lifecycle import apply_sale
 
     with session_factory() as s:
         c = Customer(name="POS Customer", phone="0992223333")

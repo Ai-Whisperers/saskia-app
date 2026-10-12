@@ -49,7 +49,7 @@ def test_void_sale_double_void_message_in_spanish(session_factory):
     """The 'ya anulada' message must be Spanish (UI-facing)."""
     import pytest
 
-    from app.rms.costing import apply_sale, void_sale
+    from app.rms.sales.lifecycle import apply_sale, void_sale
 
     _, product_id = _seed(session_factory)
     with session_factory() as s:
@@ -67,8 +67,8 @@ def test_void_sale_double_void_message_in_spanish(session_factory):
 
 def test_void_sale_preserves_sale_row(session_factory):
     """Void does not delete the sale — it only sets voided_at and reverses moves."""
-    from app.rms.costing import apply_sale, void_sale
     from app.rms.models import Sale
+    from app.rms.sales.lifecycle import apply_sale, void_sale
 
     _, product_id = _seed(session_factory)
     with session_factory() as s:
@@ -87,7 +87,7 @@ def test_void_sale_preserves_sale_row(session_factory):
 
 def test_void_sale_restored_moves_positive_qty(session_factory):
     """restored_moves in VoidSaleResult contains positive qty values."""
-    from app.rms.costing import apply_sale, void_sale
+    from app.rms.sales.lifecycle import apply_sale, void_sale
 
     _, product_id = _seed(session_factory)
     with session_factory() as s:
@@ -105,8 +105,8 @@ def test_void_sale_restored_moves_positive_qty(session_factory):
 
 def test_void_sale_no_moves_is_noop(session_factory):
     """Product with no recipe → no moves to restore; void just sets voided_at."""
-    from app.rms.costing import apply_sale, void_sale
     from app.rms.models import Product, Sale
+    from app.rms.sales.lifecycle import apply_sale, void_sale
 
     with session_factory() as s:
         s.add(Product(name="X", portion_label="1", sale_price_gs=5000, recipe_id=None))
@@ -127,8 +127,8 @@ def test_void_sale_no_moves_is_noop(session_factory):
 
 def test_void_sale_restores_to_exact_original_qty(session_factory):
     """Stock restored to original even after multiple sale/void cycles."""
-    from app.rms.costing import apply_sale, void_sale
     from app.rms.models import Ingredient
+    from app.rms.sales.lifecycle import apply_sale, void_sale
 
     flour_id, product_id = _seed(session_factory)
     original_stock = 2.0

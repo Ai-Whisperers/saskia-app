@@ -38,7 +38,9 @@ def fresh_db():
 
 
 def test_all_packs_present():
-    assert len(PACKS) == 11
+    # 11 original packs + 5 SASKIA-2026-10-12 verticals (Food Truck,
+    # Quiosco/Minimarket, Chipería, Pastelería Industrial, Cervecería).
+    assert len(PACKS) == 16
     assert "Pizzería" in PACKS
     assert "Panadería" in PACKS
 
@@ -48,9 +50,17 @@ def test_pack_data_integrity():
     for pack, data in PACKS.items():
         slugs = {r[0] for r in data.recipes}
         assert len(data.products) > 0, pack
-        assert len(data.recipes) == len(data.products), pack
+        # Kitchens (Pizzería, Panadería, ...) have a recipe per product.
+        # Resale-heavy packs (Quiosco/Minimarket, Food Truck drinks) sell
+        # bought-in items with no recipe: their product slug has no
+        # recipe counterpart and seed_pack() stores recipe_id=None.
+        if pack not in ("Food Truck", "Quiosco/Minimarket"):
+            assert len(data.recipes) == len(data.products), pack
         for pname, rslug, _cat, price, _src in data.products:
-            assert rslug in slugs, f"{pack}: producto {pname} sin receta {rslug}"
+            if rslug not in slugs:
+                assert pack in ("Food Truck", "Quiosco/Minimarket"), (
+                    f"{pack}: producto {pname} sin receta {rslug}"
+                )
             assert price > 0
         for _slug_, _ing, qty, _unit in data.recipe_lines:
             assert qty > 0, f"{pack}: línea con qty<=0 en {_slug_}"
@@ -96,7 +106,11 @@ def test_seed_all_packs_fresh_db():
             s.expire_all()
             prods = s.query(Product).count()
             assert prods == len(PACKS[pack].products), pack
-            assert s.query(Recipe).count() == prods, pack
+            if pack in ("Food Truck", "Quiosco/Minimarket"):
+                # resale packs: recipes only for kitchen-made items
+                assert s.query(Recipe).count() == len(PACKS[pack].recipes), pack
+            else:
+                assert s.query(Recipe).count() == prods, pack
             assert (
                 s.query(RecipeLine).filter(RecipeLine.qty > 0).count()
                 == s.query(RecipeLine).count()

@@ -248,8 +248,8 @@ def test_property_apply_void_returns_stock_to_identical_state(
     session_factory, sale_qty: float, line_qty: float, initial_stock: float
 ) -> None:
     """apply_sale then void_sale: stock_qty restored exactly."""
-    from app.rms.costing import apply_sale, void_sale
     from app.rms.models import Ingredient, Product, Recipe, RecipeLine
+    from app.rms.sales.lifecycle import apply_sale, void_sale
 
     # Limit line/sale qty so we don't drive stock negative (the recipe
     # tree supports negative stock, but for an invariant test we want

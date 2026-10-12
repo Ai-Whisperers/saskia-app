@@ -41,6 +41,7 @@ from sqlalchemy.orm import Session
 
 from app.rms.models import Sale
 from app.rms.models_legacy import Pedido, PedidoLine, Refund
+from app.rms.stock_ledger import apply_stock_delta
 
 # Valid target_type values (mirror the model CheckConstraint)
 VALID_TARGET_TYPES = frozenset({"sale", "pedido", "pedido_line"})
@@ -393,18 +394,16 @@ def _restock_for_target(
             ing = session.get(Ingredient, m.ingredient_id)
             if ing is None:
                 continue
-            ing.stock_qty = (ing.stock_qty or 0) + share
-            session.add(
-                StockMovement(
-                    ingredient_id=ing.id,
-                    movement_type="adjustment",
-                    qty=share,
-                    reason=f"Reembolso venta #{sale.id}" + (f" — {reason}" if reason else ""),
-                    reference_id=sale.id,
-                    reference_type="refund_sale",
-                    recorded_at=now_utc,
-                    created_by=recorded_by,
-                )
+            apply_stock_delta(
+                session,
+                ing,
+                share,
+                movement_type="adjustment",
+                reason=f"Reembolso venta #{sale.id}" + (f" — {reason}" if reason else ""),
+                reference_id=sale.id,
+                reference_type="refund_sale",
+                created_by=recorded_by,
+                recorded_at=now_utc,
             )
             restored.append((ing.id, share))
         return restored
@@ -431,19 +430,16 @@ def _restock_for_target(
             ing = session.get(Ingredient, rl.ingredient_id)
             if ing is None:
                 continue
-            ing.stock_qty = (ing.stock_qty or 0) + scaled
-            session.add(
-                StockMovement(
-                    ingredient_id=ing.id,
-                    movement_type="adjustment",
-                    qty=scaled,
-                    reason=f"Reembolso línea de pedido #{pl.id}"
-                    + (f" — {reason}" if reason else ""),
-                    reference_id=pl.id,
-                    reference_type="refund_pedido_line",
-                    recorded_at=now_utc,
-                    created_by=recorded_by,
-                )
+            apply_stock_delta(
+                session,
+                ing,
+                scaled,
+                movement_type="adjustment",
+                reason=f"Reembolso línea de pedido #{pl.id}" + (f" — {reason}" if reason else ""),
+                reference_id=pl.id,
+                reference_type="refund_pedido_line",
+                created_by=recorded_by,
+                recorded_at=now_utc,
             )
             restored.append((ing.id, scaled))
         return restored

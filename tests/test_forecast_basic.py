@@ -5,8 +5,8 @@ from datetime import datetime, timedelta, timezone
 
 def test_forecast_zero_consumption_via_apply_sale(qseed):
     """When sales happen through apply_sale, forecast sees real consumption."""
-    from app.rms.costing import apply_sale
     from app.rms.forecast import forecast_ingredient_consumption
+    from app.rms.sales.lifecycle import apply_sale
 
     data = qseed("basic")
     ing_id = data["ingredient"].id

@@ -158,12 +158,12 @@ def test_reverse_points_for_void_writes_negative_ledger(session_factory, qseed):
     """When a sale that earned points is voided, reverse the points via a void_reversal ledger row."""
     from datetime import datetime as _dt
 
-    from app.rms.costing import apply_sale
     from app.rms.customers import (
         award_points,
         reverse_points_for_void,
     )
     from app.rms.models import Customer, LoyaltyTransaction
+    from app.rms.sales.lifecycle import apply_sale
 
     data = qseed("basic")
     prod = data["product"]

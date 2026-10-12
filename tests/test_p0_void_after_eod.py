@@ -172,7 +172,7 @@ def test_void_sale_blocked_after_eod_closed(
     session_factory, yesterday: date, mark_yesterday_closed, sale_yesterday: int
 ) -> None:
     """void_sale raises ValueError with prefix 'void_after_eod_close:' for closed days."""
-    from app.rms.costing import void_sale
+    from app.rms.sales.lifecycle import void_sale
 
     with session_factory() as s:
         with pytest.raises(ValueError, match=r"^void_after_eod_close:\d{4}-\d{2}-\d{2}$"):
@@ -184,7 +184,7 @@ def test_void_sale_blocked_after_eod_closed(
 
 def test_void_sale_succeeds_when_eod_open(session_factory, sale_yesterday: int) -> None:
     """void_sale proceeds normally when yesterday's EOD is NOT closed."""
-    from app.rms.costing import void_sale
+    from app.rms.sales.lifecycle import void_sale
 
     with session_factory() as s:
         void_sale(s, sale_yesterday, reason="test", voided_by="operator")
@@ -197,7 +197,7 @@ def test_void_sale_already_voided_still_raises_valueerror(
     session_factory, sale_yesterday: int
 ) -> None:
     """Idempotency check still works: double-void raises the original ValueError."""
-    from app.rms.costing import void_sale
+    from app.rms.sales.lifecycle import void_sale
 
     with session_factory() as s:
         void_sale(s, sale_yesterday, reason="first", voided_by="operator")
