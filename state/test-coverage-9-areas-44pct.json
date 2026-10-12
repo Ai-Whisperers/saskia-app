@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-12",
+  "coverage": 44,
+  "missed": 14721,
+  "previous": 43,
+  "delta_pp": 1,
+  "key_wins": {
+    "all_9_areas_in_coverage": true,
+    "rate_limit_62%": "Concurrency test hit RateLimiter.allow",
+    "db_75%": "Migration tests hit init_db deeply",
+    "charts_100%": "Perf tests hit every chart function",
+    "upload_limits_100%": "Perf tests hit validate_upload",
+    "help_72%": "Property + security tests hit _md_to_html"
+  },
+  "by_area": {
+    "http_routes": "All 50 routers exercised (13-100%)",
+    "csrf_auth": "auth.py 61%, auth_supabase.py 42%",
+    "migrations": "db.py 75%, db_dialect.py 64%, db_url.py 62%",
+    "concurrency": "rate_limit.py 62%",
+    "network": "services 10-95%, integrations 28-100%",
+    "property": "money.py 60%, product_similarity.py 46%",
+    "perf": "charts.py 100%, upload_limits.py 100%",
+    "security": "auth.py 61% (via login + bcrypt tests)",
+    "e2e": "routers/help.py 72%, all routes tested"
+  },
+  "test_files": [
+    "tests/integration/test_http_routes_full.py",
+    "tests/integration/test_csrf_auth_real.py",
+    "tests/migrations/test_migration_roundtrips.py",
+    "tests/concurrency/test_concurrent_writes.py",
+    "tests/network/test_network_resilience.py",
+    "tests/property/test_property_based.py",
+    "tests/perf/test_performance_benchmarks.py",
+    "tests/security/test_security_dynamic.py",
+    "tests/e2e/test_playwright_ui_flows.py",
+    "tests/network/test_network_resilience_deep.py",
+    "tests/concurrency/test_concurrency_deep.py",
+    "tests/e2e/test_e2e_deep.py",
+    "tests/migrations/test_migration_deep.py"
+  ],
+  "test_count": "150+ new tests across 9 areas + deep variants",
+  "gate": 40,
+  "gate_status": "PASSED +4pp"
+}
