@@ -1,11 +1,12 @@
-"""tests/concurrency/test_concurrent_writes.py — Threading and concurrency tests."""
+"""tests/concurrency/test_concurrent_writes.py — Phase 1 refactored."""
 
-import os
-import shutil
-import tempfile
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import pytest
+from sqlalchemy import text
+
+pytestmark = [pytest.mark.concurrency, pytest.mark.slow]
 
 
 def test_threading_imports():
@@ -65,6 +66,8 @@ def test_concurrent_set_access():
 
 def test_two_threads_dont_deadlock():
     """Two threads with simple work should not deadlock."""
+    import time
+
     done = [False, False]
 
     def worker(idx):
@@ -79,33 +82,20 @@ def test_two_threads_dont_deadlock():
     assert done[0] and done[1]
 
 
-def test_db_concurrent_reads():
+def test_db_concurrent_reads(session_factory):
     """Concurrent DB reads should not crash."""
-    from app.rms.db import init_db, make_engine, make_session_factory
+    results = []
 
-    tmpdir = tempfile.mkdtemp()
-    try:
-        db_path = os.path.join(tmpdir, "test.sqlite")
-        engine = make_engine(f"sqlite:///{db_path}")
-        init_db(engine)
-        sf = make_session_factory(engine)
+    def read():
+        with session_factory() as s:
+            r = s.execute(text("SELECT 1")).scalar()
+            results.append(r)
 
-        results = []
-
-        def read():
-            with sf() as s:
-                from sqlalchemy import text
-
-                r = s.execute(text("SELECT 1")).scalar()
-                results.append(r)
-
-        threads = [threading.Thread(target=read) for _ in range(3)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join(timeout=5)
-    finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
+    threads = [threading.Thread(target=read) for _ in range(3)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
 
 
 def test_lock_works():
@@ -124,3 +114,38 @@ def test_lock_works():
     for t in threads:
         t.join(timeout=5)
     assert counter[0] == 5000
+
+
+def test_rate_limit_module_imports():
+    """rate_limit module should be importable and have expected functions."""
+    from app.rms import rate_limit
+
+    assert hasattr(rate_limit, "is_rate_limited")
+    assert hasattr(rate_limit, "is_disabled")
+    assert hasattr(rate_limit, "is_write_rate_limited")
+    assert hasattr(rate_limit, "is_read_rate_limited")
+
+
+def test_rate_limit_decision_thread_safe():
+    """RateLimitDecision should be safe to share across threads."""
+    from app.rms.rate_limit import RateLimitDecision
+
+    decisions = []
+    lock = threading.Lock()
+
+    def decide(idx):
+        d = RateLimitDecision(
+            allowed=(idx % 2 == 0),
+            current_count=idx,
+            limit=100,
+            retry_after_seconds=0,
+        )
+        with lock:
+            decisions.append(d)
+
+    threads = [threading.Thread(target=decide, args=(i,)) for i in range(20)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+    assert len(decisions) == 20

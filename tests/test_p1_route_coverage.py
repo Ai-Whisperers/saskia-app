@@ -57,12 +57,11 @@ def test_eod_completion_creates_summary_record(auth_client, session_factory):
 # --- /users ---
 
 
-@pytest.mark.skip(
-    reason="Pre-existing issue: admin role check returns 403/401 "
-    "instead of 200 when auth-bypass test user is used. "
-    "The auth gate IS being bypassed (other routes work); "
-    "the _require_admin role check is too strict for the fake user. "
-    "Tracked separately — out of scope for P1."
+@pytest.mark.xfail(
+    reason="Pre-existing: admin role check returns 403 (not 200) under the "
+    "auth-bypass test user. The auth gate IS being bypassed (other routes work); "
+    "the _require_admin check is too strict for the fake user. Tracked separately.",
+    strict=False,  # pass on /users returning 200 = fix landed
 )
 def test_users_page_loads(auth_client):
     """User management page must be reachable (200 or admin-required 403).

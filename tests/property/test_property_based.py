@@ -1,10 +1,12 @@
-"""tests/property/test_property_based.py — Property-based tests with hypothesis."""
+"""tests/property/test_property_based.py — Phase 1 refactored."""
 
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-# Strategy helpers
+pytestmark = [pytest.mark.property, pytest.mark.slow]
+
+
 text_strategy = st.text(
     min_size=0,
     max_size=50,
@@ -73,7 +75,7 @@ def test_jaccard_similarity_in_range(a, b):
         min_size=0,
         max_size=100,
         alphabet=st.characters(whitelist_categories=("Lu", "Ll"), max_codepoint=127),
-    )
+    ),
 )
 def test_slugify_no_spaces(a):
     """slugify should never have spaces in output."""
@@ -83,18 +85,27 @@ def test_slugify_no_spaces(a):
     assert " " not in result
 
 
-@given(
-    text=st.text(
-        min_size=1,
-        max_size=20,
-        alphabet=st.characters(whitelist_categories=("Ll",), max_codepoint=127),
-    )
-)
-def test_parse_gs_round_trip(text):
+@given(value=st.integers(min_value=0, max_value=1_000_000).map(str))
+def test_parse_gs_numeric_strings(value):
     """parse_gs should accept integer strings."""
     from app.rms.money import parse_gs
 
-    result = parse_gs(text)
+    result = parse_gs(value)
+    assert isinstance(result, (int, type(None)))
+
+
+@given(
+    a=st.text(
+        min_size=1,
+        max_size=10,
+        alphabet=st.characters(whitelist_categories=("Nd",), max_codepoint=57),
+    ),
+)
+def test_parse_gs_digit_strings(a):
+    """parse_gs should accept digit strings."""
+    from app.rms.money import parse_gs
+
+    result = parse_gs(a)
     assert isinstance(result, (int, type(None)))
 
 

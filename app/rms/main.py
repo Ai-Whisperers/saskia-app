@@ -113,6 +113,25 @@ from app.routers import (
 )
 
 
+def _log_file_format(record) -> str:
+    """Format for the file sink that tolerates missing request_id/user_id extras.
+
+    Loguru's static format string raises KeyError when the extra dict doesn't
+    have a requested key. Outside the request context (e.g. a startup log, or
+    an unhandled exception before the middleware binds) the extras are absent.
+    This function substitutes "-" for missing keys so the sink never crashes.
+    """
+    extra = record.get("extra", {}) or {}
+    rid = extra.get("request_id") or "-"
+    uid = extra.get("user_id") or "-"
+    return (
+        "{time:YYYY-MM-DD HH:mm:ss.SSS} | "
+        "{level: <7} | "
+        f"{rid} | {uid} | "
+        "{name}:{function}:{line} | {message}\n"
+    ).format(**record)
+
+
 def _configure_logging() -> None:
     """Configure loguru at import time.
 
@@ -174,7 +193,12 @@ def _configure_logging() -> None:
                 enqueue=True,  # thread-safe, non-blocking writes
                 backtrace=True,
                 diagnose=False,  # never leak env vars to disk
-                format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <7} | {extra[request_id]} | {extra[user_id]} | {name}:{function}:{line} | {message}",
+                # FIX-2 (2026-10-12, found by auto-generated route smoke test):
+                # the previous static format raised KeyError on {extra[request_id]}
+                # when an exception was logged outside the request context (e.g. the
+                # /copiloto/ask JSONDecodeError before middleware ran). Use a function
+                # that returns "-" for missing extras so the sink never blows up.
+                format=_log_file_format,
             )
         except Exception as exc:
             sys.stderr.write(f"WARN: could not initialise log file sink at {log_file!r}: {exc!r}\n")

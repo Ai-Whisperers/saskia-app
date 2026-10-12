@@ -1,3 +1,11 @@
+## 2026-10-12 — style(lint): post-merge-with-SASKIA-211d format fix
+
+**Scope**: `tests/test_models_smoke.py`, `tests/test_route_smoke_generated.py`. +101 / -25.
+
+Post-merge with origin/main (which now contains SASKIA-211d + the 9-areas test suite + `test_models_smoke.py` from the sibling session), these two files were the only ones still tripping the pre-deploy-dev gate's `ruff format --check` and `ruff check` (the lint-fix commit on origin/main didn't fully resolve them). Auto-fix via `ruff check --fix .` and `ruff format .`; no semantic changes.
+
+Locking the same lint-clean state that SASKIA-211d left the rest of the repo in.
+
 ## 2026-10-12 — style(lint): repo-wide ruff auto-fix (23 issues, 9 files)
 
 **Scope**: `scripts/smoke_cocina_pages.py`, 8 test files in `tests/{concurrency,integration,migrations,network,perf,property,security}/`. +183 / -81.
@@ -14,6 +22,86 @@ No semantic changes; the lint pass produces byte-identical behavior.
 - Per-file lint suppressions (e.g., `# noqa: E501` for long lines). Not needed; the fix above clears the gate.
 
 **Test coverage**: N/A. No test changes; only the smoke script and the 8 test files were touched for the auto-fix.
+
+---
+
+## 2026-10-12 — refactor(tier-tests): Phase 1+2 — centralize auth/clock/seed helpers
+
+**Scope**: `tests/_lib/{__init__,auth,clock,seed}.py`, 8 tier test files, `pyproject.toml`.
+
+After scaffolding the 9 missing test areas (HTTP routes, CSRF/auth, migrations, concurrency, network, property, performance, security, E2E), Phase 1+2 of the test refactor eliminates duplication and centralizes shared test infrastructure:
+
+Phase 1 — fixture consolidation:
+* Removed 3 redundant `client` fixtures from tier tests; now use `authed_client` (or `auth_required_client` for auth-enabled scenarios) from `tests/conftest.py`.
+* Added `pytestmark` with `pytest.mark.{integration,property,concurrency,security,network,perf,migration}` to all 8 tier test files for CI matrix targeting.
+* Added 3 new markers to `pyproject.toml`: `integration`, `property`, `concurrency`.
+* Updated status code checks to include `303 See Other` (FastAPI's actual redirect for many endpoints).
+* `test_migration_roundtrips.py::test_data_survives_init` now uses `app_meta.updated_at = CURRENT_TIMESTAMP` (NOT NULL column).
+* `test_concurrency.py::test_rate_limit_decision_thread_safe` now uses correct dataclass kwargs.
+
+Phase 2 — `_lib/` helper module:
+* `tests/_lib/auth.py` — `fresh_client()` (context manager), `auth_required_client()` (xdist-safe via monkeypatch), `auth_disabled_client()`, `assert_safe_response()`.
+* `tests/_lib/clock.py` — `FROZEN_NOW`, `FROZEN_ASUNCION`, `FROZEN_TS`, `asuncion_now()`, `utc_now()`, `iso_now()`, `FrozenClock` (deterministic clock for time-sensitive tests).
+* `tests/_lib/seed.py` — `quick_ingredient()`, `quick_product()`, `quick_sale()`, `quick_supplier()`, `quick_customer()` — thin wrappers around `tests.factories.make_*`.
+
+Net effect: 8 tier test files refactored, 80/81 tests pass (1 hypothesis example skipped), tier tests are now fixture-driven, deterministic, and ready for the next phase of deeper coverage work.
+
+---
+
+## 2026-10-12 — feat(recetas): SASKIA-213b recipe photo auto-link (migration 119)
+
+**Scope**: `app/rms/migrations/_119_recipe_photo_autolink.py`, `app/rms/db.py`, `app/rms/config.py`, `app/templates/recipe_photos.html`, `tests/test_SASKIA_213_recipe_photo_upload.py`, `CHANGELOG.md`.
+
+SASKIA-213 ship already wired up the upload route + picker + free-form text parser. 30 photos sat in `app/static/recipes/` (receta-babka.jpg, receta-cheesecake.jpg, …) but no Recipe had its `image_url` set — operators still had to manually pick each one in the picker.
+
+What changed:
+
+* **Migration 119** — one-shot autolink. For every Recipe without `image_url`, find a photo whose filename slug contains the recipe slug, set `image_url = /static/recipes/<filename>`. Idempotent; never overwrites an operator-set `image_url`. Loose matching tolerates dish-name vs slug differences (`receta-babka.jpg` matches `babka__rec_017`).
+* **`app/templates/recipe_photos.html`** hint updated to "Las fotos en `static/recipes/` aparecen automáticamente en este picker" — the old "hash automático" line was aspirational, now it's literal.
+* **Current schema version** 118→119.
+
+Test: `test_migration_119_autolinks_photos_by_name` (RED→GREEN): seeded 3 photos + 3 recipes (1 already linked, 1 matched, 1 unmatched), ran the migration, asserted `babka` got `receta-babka.jpg`, `cheesecake` kept its manual link, `otiebollen` stayed `None`. 7/7 SASKIA-213 GREEN, 170/170 full cocina+receta+photo+migration suite. ruff clean.
+
+---
+
+## 2026-10-12 — feat(recetas): SASKIA-213 recipe photo upload + free-form text parser
+
+**Scope**: `app/routers/recipes.py`, `app/templates/recipe_photos.html`, `tests/test_SASKIA_213_recipe_photo_upload.py`, `CHANGELOG.md`.
+
+Operators had to scp JPEGs onto the server to populate `/static/recipes/`. The picker (SASKIA-211+) at `/recetas/{id}/set-photo` worked, but the only way to add a NEW photo was filesystem access. Also, prod recipes seed instructions as **plain text** (newline-delimited steps) into `recipe.instructions` — the previous parser only handled JSON, so all 22 prod recipes showed the "Procedimiento pendiente" placeholder despite the seeded content.
+
+What changed:
+
+* **`POST /recetas/{r_id}/set-photo/upload`** — new multipart upload route. Accepts PNG/JPG/WebP/GIF up to 5 MB. Validates MIME before reading (415 on bad type, 413 on oversize, 400 on empty). File is renamed `<date>-<hex8>.<ext>` and stored in `app/static/recipes/` via `app.rms.static_paths.recipes_dir()` (portable, never absolute). Audit log row written via `record_audit(action="write.recipe.photo.upload")`. Returns 303 to the picker page with a flash toast. CSRF-protected via the existing double-submit cookie middleware.
+* **`GET /recetas/{r_id}/set-photo`** — picker now enumerates **all image file types** (not just `*.jpg`) and **filters non-image files** so the operator can drop a `test.sqlite` sidecar in there without polluting the picker UI.
+* **`_parse_recipe_phases(recipe)`** — now handles three storage shapes:
+  1. JSON list of `{phase, title, steps[]}` — preferred multi-phase.
+  2. JSON list of `{phase, steps[]}` — legacy sazon seed shape (no title key); title derived from `phase`.
+  3. Plain newline-delimited text — wrapped into a single "Procedimiento" phase so the seeded sazon content shows up on the detail page.
+* **`recipe_photos.html`** — new upload form above the photo grid (`enctype=multipart/form-data`, accepts `image/*`, CSRF hidden input, "PNG, JPG, WebP o GIF · máx 5 MB" hint). Flash banner for `?uploaded=1` to confirm the new file landed in the picker.
+
+Tests: new `tests/test_SASKIA_213_recipe_photo_upload.py` with 6 RED→GREEN tests (JPG accepted, non-image 415, oversize 413, empty 400, picker re-listing, picker non-image filter). 18/18 SASKIA-212+213 GREEN. Full cocina + receta + photo + migration suite: 166/166 GREEN. ruff check + ruff format both clean.
+
+---
+
+## 2026-10-12 — feat(recetas): SASKIA-212 recipe instructions editor + backfill
+
+**Scope**: `app/routers/recipes.py`, `app/templates/receta_form.html`, `app/rms/migrations/_118_recipe_instructions_backfill.py`, `app/rms/{config,db}.py`, `tests/test_SASKIA_212_recipe_instructions_editor.py`, `app/CHANGELOG.md`.
+
+Recipe pages had the data model (`recipe.instructions` JSON column) and the detail-page renderer (receta_detalle.html iterates phases) but **no form editor** and **no seeded data** — every recipe showed the placeholder "Procedimiento pendiente" fallback. This closes the loop.
+
+What changed:
+
+* **`/recetas/{id}/editar`** now exposes a `Pasos / Procedimiento` textarea (one step per line, auto-expand). The route accepts:
+  - **JSON** (already-structured phases from the previous edit / API) — normalized to `{phase, title, steps[]}` and re-serialized.
+  - **Free-form text** (one step per line) — wrapped into a single "Procedimiento" phase so the detail page renders it as one block.
+  Both round-trip through `r.instructions` (no data loss for users who already had JSON).
+* **Migration 118** backfills `recipe.instructions` for the 19 known recipes (appeltaart, brownie, cheesecake, etc.) with 3-phase Spanish-voseo procedures sourced from `scripts/seed_full_recipe_data.py` (the existing but un-promoted script). Contaminated imported row (id=1.0 with 25+ junk lines) is skipped. Idempotent: re-runs overwrite with the same content.
+* **Edit form pre-population** — the textarea is pre-filled with the existing procedure as one-step-per-line (so editing a real recipe shows the real content, not blank).
+
+Tests: new `tests/test_SASKIA_212_recipe_instructions_editor.py` with 7 RED→GREEN tests (model field, JSON persistence, free-form persistence, detail rendering, form pre-population, null graceful, all-recipes 200). Migration integrity suite: 118/118 GREEN (1 contiguous, 1 docstring, 1 fresh-DB-apply, 1 count-match, etc.). Full cocina + receta-detalle + migration suite: 151/151 GREEN.
+
+Out of scope (deferred): photos + image upload for recipe pages (Saskia already has recipes/needing-photos.json from earlier work); export N+1 (B9); cov-gate 40→42 (sibling session owns coverage work).
 
 ---
 

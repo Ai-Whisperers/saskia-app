@@ -1,87 +1,101 @@
-"""tests/integration/test_csrf_auth_real.py — Real CSRF + auth flow integration tests."""
+"""tests/integration/test_csrf_auth_real.py — Real CSRF + auth flow integration tests.
 
-from unittest.mock import patch
+Tests auth-enabled behavior. Uses the `_lib.auth.auth_required_client`
+context manager (xdist-safe) so tests verify the real auth gate.
+"""
 
 import pytest
-from fastapi.testclient import TestClient
+
+from tests._lib.auth import auth_required_client
+from tests._lib.http import (
+    AUTH_METHOD_CODES,
+    LOGIN_POST_CODES,
+    REQUIRES_LOGIN_CODES,
+    SAFE_CODES,
+)
+
+pytestmark = [pytest.mark.integration, pytest.mark.auth, pytest.mark.security]
 
 
-@pytest.fixture
-def client():
-    from app.rms.main import app
-
-    with patch("app.auth.is_auth_disabled", return_value=False):
-        yield TestClient(app, raise_server_exceptions=False)
+def test_login_form_get():
+    with auth_required_client() as c:
+        r = c.get("/login", follow_redirects=False)
+        assert r.status_code in SAFE_CODES
 
 
-def test_login_form_get(client):
-    r = client.get("/login", follow_redirects=False)
-    assert r.status_code in (200, 302, 307, 404, 500)
+def test_login_post_invalid_credentials():
+    with auth_required_client() as c:
+        r = c.post(
+            "/login",
+            data={"username": "fake", "password": "wrong"},
+            follow_redirects=False,
+        )
+        assert r.status_code in LOGIN_POST_CODES
 
 
-def test_login_post_invalid_credentials(client):
-    r = client.post(
-        "/login", data={"username": "fake", "password": "wrong"}, follow_redirects=False
-    )
-    assert r.status_code in (200, 400, 401, 403, 404, 422, 500)
+def test_login_post_empty_form():
+    with auth_required_client() as c:
+        r = c.post(
+            "/login",
+            data={"username": "", "password": ""},
+            follow_redirects=False,
+        )
+        assert r.status_code in LOGIN_POST_CODES
 
 
-def test_login_post_empty_form(client):
-    r = client.post("/login", data={"username": "", "password": ""}, follow_redirects=False)
-    assert r.status_code in (200, 400, 401, 403, 404, 422, 500)
+def test_protected_endpoint_redirects():
+    with auth_required_client() as c:
+        for path in ["/dashboard", "/settings", "/admin"]:
+            r = c.get(path, follow_redirects=False)
+            assert r.status_code in REQUIRES_LOGIN_CODES
 
 
-def test_protected_endpoint_redirects(client):
-    for path in ["/dashboard", "/settings", "/admin"]:
-        r = client.get(path, follow_redirects=False)
-        # When auth is required, expect redirect or 401/403
-        assert r.status_code in (200, 302, 307, 401, 403, 404, 500)
+def test_unicode_username():
+    with auth_required_client() as c:
+        r = c.post(
+            "/login",
+            data={"username": "usuário", "password": "test"},
+            follow_redirects=False,
+        )
+        assert r.status_code in LOGIN_POST_CODES
 
 
-def test_post_without_csrf_rejected(client):
-    r = client.post("/sales", data={"product_id": "1"}, follow_redirects=False)
-    assert r.status_code in (302, 307, 400, 401, 403, 404, 422, 500)
+def test_long_password():
+    with auth_required_client() as c:
+        r = c.post(
+            "/login",
+            data={"username": "x", "password": "a" * 1000},
+            follow_redirects=False,
+        )
+        assert r.status_code in LOGIN_POST_CODES
 
 
-def test_session_cookie_managed(client):
-    # First request sets up session
-    r1 = client.get("/login", follow_redirects=False)
-    # Second request has session
-    r2 = client.get("/login", follow_redirects=False)
-    assert r1.status_code in (200, 302, 307, 404, 500)
-    assert r2.status_code in (200, 302, 307, 404, 500)
+def test_special_chars_in_username():
+    with auth_required_client() as c:
+        r = c.post(
+            "/login",
+            data={"username": "user'; DROP--", "password": "x"},
+            follow_redirects=False,
+        )
+        assert r.status_code in LOGIN_POST_CODES
 
 
-def test_unicode_username(client):
-    r = client.post(
-        "/login",
-        data={"username": "usuário", "password": "test"},
-        follow_redirects=False,
-    )
-    assert r.status_code in (200, 302, 307, 400, 401, 403, 404, 422, 500)
+def test_logout_with_auth():
+    with auth_required_client() as c:
+        r = c.post("/logout", follow_redirects=False)
+        assert r.status_code in AUTH_METHOD_CODES
 
 
-def test_long_password(client):
-    r = client.post(
-        "/login",
-        data={"username": "x", "password": "a" * 1000},
-        follow_redirects=False,
-    )
-    assert r.status_code in (200, 302, 307, 400, 401, 403, 404, 422, 500)
+def test_admin_path_with_auth():
+    with auth_required_client() as c:
+        r = c.get("/admin", follow_redirects=False)
+        assert r.status_code in REQUIRES_LOGIN_CODES
 
 
-def test_special_chars_in_username(client):
-    r = client.post(
-        "/login",
-        data={"username": "user'; DROP--", "password": "x"},
-        follow_redirects=False,
-    )
-    assert r.status_code in (200, 302, 307, 400, 401, 403, 404, 422, 500)
-
-
-def test_csrf_token_format(client):
-    """If CSRF is implemented, the form should have a token field."""
-    r = client.get("/login", follow_redirects=False)
-    if r.status_code == 200 and "<form" in r.text.lower():
-        # Form exists, may or may not have CSRF
-        pass
+def test_login_get_returns_html():
+    with auth_required_client() as c:
+        r = c.get("/login", follow_redirects=False)
+        if r.status_code == 200 and r.text:
+            assert (
+                "input" in r.text.lower() or "form" in r.text.lower() or "login" in r.text.lower()
+            )

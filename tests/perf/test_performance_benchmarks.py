@@ -1,10 +1,12 @@
-"""tests/perf/test_performance_benchmarks.py — Performance budgets and load tests."""
+"""tests/perf/test_performance_benchmarks.py — Phase 1 refactored."""
 
 import time
 import timeit
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
+
+pytestmark = [pytest.mark.perf, pytest.mark.slow]
 
 
 def test_validate_upload_imports():

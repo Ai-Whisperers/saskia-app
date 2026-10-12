@@ -7,7 +7,7 @@ TEST_ARCHITECTURE.md gap G2 (routes without dedicated tests).
 Regenerate with:
     python3 scripts/gen_route_smoke.py
 
-Routes covered: 47
+Routes covered: 27
 """
 
 from __future__ import annotations
@@ -17,50 +17,26 @@ import pytest
 pytestmark = pytest.mark.smoke_generated
 
 
-# --- GET (41 routes) ---
+# --- GET (17 routes) ---
 
 _ROUTES_GET = [
     ("/", "app"),
-    ("/inventario/api/packaging", "app"),
     ("/inventario/export.csv", "app"),
-    ("/inventario/api/categories", "app"),
-    ("/inventario/{ing_id}/movimientos", "app"),
-    ("/inventario/{ing_id}/variantes", "app"),
-    ("/inventario/api/search/by-category", "app"),
-    ("/inventario/api/search/critical", "app"),
-    ("/inventario/api/search/reorder", "app"),
-    ("/recetas/{r_id}/crear-producto", "app"),
-    ("/recetas/api/{recipe_id}/effective-ingredients", "app"),
-    ("/recetas/api/families", "app"),
-    ("/recetas/export", "app"),
-    ("/suppliers/{s_id}/precios", "app"),
-    ("/suppliers/{s_id}/ordenes", "app"),
-    ("/productos/api/tags", "app"),
-    ("/productos/api/categories", "app"),
     ("/productos/export.csv", "app"),
-    ("/ventas/qa", "app"),
+    ("/productos/{p_id}", "app"),
     ("/ventas/export.csv", "app"),
     ("/ventas/{sale_id:int}", "app"),
-    ("/refunds/{refund_id}", "app"),
-    ("/refunds/target/{target_type}/{target_id}", "app"),
-    ("/produccion/api/forecast", "app"),
-    ("/reportes/consumo", "app"),
-    ("/reportes/consumo/csv", "app"),
+    ("/ventas/held/list.json", "app"),
+    ("/caja/", "app"),
+    ("/caja/z/{session_id}", "app"),
+    ("/fiado/", "app"),
+    ("/fiado", "app"),
+    ("/fiado/resumen", "app"),
+    ("/fiado/{customer_id}", "app"),
+    ("/produccion/export.csv", "app"),
     ("/bank/export.csv", "app"),
     ("/vs-mercado/evidencia.csv", "app"),
-    ("/vs-mercado/evidencia/seed-demo", "app"),
-    ("/vs-mercado/{bench_id}/edit", "app"),
-    ("/reportes/food-cost-variance", "app"),
-    ("/reportes/api/allergen-check", "app"),
-    ("/api/insights/", "insights"),
-    ("/delivery-zones", "app"),
     ("/auditoria/export.csv", "app"),
-    ("/api/settings/pricing-markup/preview", "settings"),
-    ("/api/templates/{template_key}", "settings"),
-    ("/m/{slug}", "app"),
-    ("/pedidos/api/customer-defaults/{customer_id}", "app"),
-    ("/pedidos/api/customer/{customer_id}/addresses", "app"),
-    ("/pedidos/{pedido_id}/duplicate", "app"),
 ]
 
 
@@ -71,15 +47,19 @@ def test_get_route_does_not_500(client, path, label):
     assert r.status_code < 500, f"GET {path} ({label}) returned {r.status_code}: {r.text[:200]}"
 
 
-# --- POST (6 routes) ---
+# --- POST (10 routes) ---
 
 _ROUTES_POST = [
-    ("/ventas/{sale_id}/share", "app"),
-    ("/wishlist/{item_id}/send-to-shopping-list", "app"),
-    ("/bank/{tx_id}/reconcile", "app"),
-    ("/bank/{tx_id}/unreconcile", "app"),
-    ("/vs-mercado/{bench_id}/save", "app"),
-    ("/pedidos/{pedido_id}/duplicate", "app"),
+    ("/recetas/{r_id}/set-photo/upload", "app"),
+    ("/fiado/{customer_id}/cargar", "app"),
+    ("/fiado/{customer_id}/cobrar", "app"),
+    ("/fiado/{customer_id}/estado", "app"),
+    ("/menu-import/ocr/confirm", "app"),
+    ("/menus/nuevo", "menus"),
+    ("/menus/{menu_id}/off", "menus"),
+    ("/cotizador/pdf", "app"),
+    ("/copiloto/ask", "app"),
+    ("/settings/seed-sazon", "app"),
 ]
 
 

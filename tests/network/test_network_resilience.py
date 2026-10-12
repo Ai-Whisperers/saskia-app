@@ -1,8 +1,18 @@
-"""tests/network/test_network_resilience.py — Network/timeout resilience tests."""
+"""tests/network/test_network_resilience.py — Network/timeout resilience tests.
+
+Targets the gap: No resilience tests for external services.
+Uses mock to test that the app handles timeouts, 5xx, 4xx, and connection errors.
+"""
 
 from unittest.mock import MagicMock, patch
 
 import httpx
+import pytest
+
+from tests._lib.auth import assert_safe_response
+from tests._lib.http import SAFE_CODES
+
+pytestmark = [pytest.mark.network, pytest.mark.smoke]
 
 
 def test_httpx_module_imports():
@@ -36,7 +46,7 @@ def test_request_timeout_caught():
         try:
             httpx.get("https://example.com")
         except httpx.TimeoutException:
-            pass  # Expected
+            pass
 
 
 def test_request_connection_error_caught():
@@ -77,30 +87,25 @@ def test_429_rate_limit_handled():
         assert r.status_code == 429
 
 
-def test_network_retry_logic():
-    """Retry logic should work with respx or tenacity."""
+def test_optional_dependencies_importable():
+    """Retry/respx libs may be optional; verify they exist if installed."""
     try:
-        import respx
-
-        assert respx is not None
+        import respx  # noqa
     except ImportError:
-        pass  # Optional
+        pass
     try:
-        import tenacity
-
-        assert tenacity is not None
+        import tenacity  # noqa
     except ImportError:
         pass
 
 
-def test_app_handles_network_failure():
-    """When the app calls external services, it should handle failures."""
+def test_healthz_responds_under_2s(authed_client):
+    """/healthz should respond fast even under load."""
+    import time
 
-    from fastapi.testclient import TestClient
-
-    from app.rms.main import app
-
-    client = TestClient(app, raise_server_exceptions=False)
-    # Most endpoints don't make external calls, so just verify the app starts
-    r = client.get("/healthz", follow_redirects=False)
-    assert r.status_code in (200, 302, 307, 404, 500)
+    start = time.time()
+    r = authed_client.get("/healthz", follow_redirects=False)
+    elapsed = time.time() - start
+    assert elapsed < 2.0
+    assert r.status_code in SAFE_CODES
+    assert_safe_response(r, allow_redirects=True)

@@ -9,9 +9,10 @@ only handles single values.
 
 from __future__ import annotations
 
+import secrets as pysecrets
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import (
     HTMLResponse,
     JSONResponse,
@@ -417,6 +418,7 @@ async def recipe_new(request: Request, session: Session = Depends(get_session)) 
                 }
                 | {r_row for r_row in session.scalars(select(Recipe.family)).all() if r_row}
             ),
+            "instructions_text": "",
         },
     )
 
@@ -497,6 +499,52 @@ def _parse_recipe_form(form: dict) -> dict:
     ]
     menu_tags = ",".join(dict.fromkeys(menu_tags_vals)) or None
 
+    # SASKIA-212: parse the structured `instructions` JSON. The form may
+    # submit either a textarea (free-form) or a hidden JSON field written
+    # by the steps editor JS. We accept both and pick the most-structured
+    # one available.
+    import json as _json
+
+    instructions_raw = str(form.get("instructions", "")).strip() or None
+    instructions_json: str | None = None
+    if instructions_raw:
+        # Attempt to parse as the structured format first.
+        parsed = None
+        if instructions_raw.startswith(("[", "{")):
+            try:
+                parsed = _json.loads(instructions_raw)
+            except Exception:
+                parsed = None
+
+        if isinstance(parsed, list) and all(
+            isinstance(p, dict) and "steps" in p and isinstance(p["steps"], list) for p in parsed
+        ):
+            # Normalize: ensure phase/title keys exist for the template.
+            normalized = [
+                {
+                    "phase": p.get("phase") or "Procedimiento",
+                    "title": p.get("title") or p.get("phase") or "Pasos",
+                    "steps": [str(s) for s in p["steps"] if str(s).strip()],
+                }
+                for p in parsed
+            ]
+            instructions_json = _json.dumps(normalized, ensure_ascii=False)
+        else:
+            # Free-form text (textarea). Wrap into a single phase so the
+            # detail page renders it as one block instead of dropping it.
+            steps = [line.strip() for line in instructions_raw.splitlines() if line.strip()]
+            if steps:
+                instructions_json = _json.dumps(
+                    [
+                        {
+                            "phase": "Procedimiento",
+                            "title": "Pasos",
+                            "steps": steps,
+                        }
+                    ],
+                    ensure_ascii=False,
+                )
+
     return {
         "name": name,
         "yield_qty": float(yield_qty_raw) if yield_qty_raw else None,
@@ -508,6 +556,7 @@ def _parse_recipe_form(form: dict) -> dict:
         "family": str(form.get("family", "")).strip() or None,
         "menu_tags": menu_tags,
         "dietary_tags": str(form.get("dietary_tags", "")).strip() or None,
+        "instructions": instructions_json,
     }
 
 
@@ -526,6 +575,8 @@ def _create_recipe_record(session: Session, fields: dict) -> Recipe:
         family=fields["family"],
         menu_tags=fields["menu_tags"],
         dietary_tags=fields["dietary_tags"],
+        # SASKIA-212: structured preparation steps (JSON, nullable).
+        instructions=fields.get("instructions"),
     )
     session.add(recipe)
     try:
@@ -716,7 +767,25 @@ async def recipe_set_photo(
     from app.rms import static_paths
 
     photo_dir = static_paths.recipes_dir()
-    photos = sorted([p.name for p in photo_dir.glob("*.jpg")]) if photo_dir.is_dir() else []
+    # Only image files (operator dropped junk like .sqlite sidecars in there
+    # in dev). Keeps the picker UI clean.
+    _IMAGE_EXTS = {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".gif",
+        ".JPG",
+        ".JPEG",
+        ".PNG",
+        ".WEBP",
+        ".GIF",
+    }
+    photos = (
+        sorted([p.name for p in photo_dir.iterdir() if p.is_file() and p.suffix in _IMAGE_EXTS])
+        if photo_dir.is_dir()
+        else []
+    )
     recipe = session.get(Recipe, r_id)
     return render(
         request,
@@ -747,6 +816,89 @@ async def recipe_save_photo(
         session.commit()
     return RedirectResponse(
         url=f"/recetas/{r_id}/set-photo?saved=1",
+        status_code=303,
+    )
+
+
+@router.post("/{r_id}/set-photo/upload")
+async def recipe_upload_photo(
+    request: Request,
+    r_id: int,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Upload a recipe photo (SASKIA-213).
+
+    Operators drop a JPG/PNG/WebP/GIF onto a recipe page and the file
+    lands in app/static/recipes/. The recipe is NOT auto-linked to the
+    new file — the operator still picks the file from the picker (so
+    the same photo can be re-used across recipes and re-picking is
+    auditable). A successful upload returns 303 to the picker page
+    with a flash toast.
+
+    Limits (same as product image upload for consistency):
+      - MIME: image/{png, jpeg, jpg, webp, gif}
+      - Max: 5 MB
+      - Empty body: 400
+    """
+    # Validate MIME type (reject before reading to keep error fast)
+    allowed_types = {
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/webp",
+        "image/gif",
+    }
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"Tipo de archivo no permitido: {file.content_type or 'desconocido'}. "
+                f"Usá uno de: PNG, JPG, WebP, GIF."
+            ),
+        )
+
+    content_bytes = await file.read()
+    if not content_bytes:
+        raise HTTPException(status_code=400, detail="Archivo vacío.")
+
+    max_size = 5 * 1024 * 1024
+    if len(content_bytes) > max_size:
+        size_kb = len(content_bytes) // 1024
+        raise HTTPException(
+            status_code=413,
+            detail=f"Imagen muy grande ({size_kb} KB). Máximo 5 MB.",
+        )
+
+    ext_map = {
+        "image/png": ".png",
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/webp": ".webp",
+        "image/gif": ".gif",
+    }
+    ext = ext_map[file.content_type]
+    name = f"{datetime.now(timezone.utc).strftime('%Y%m%d')}-{pysecrets.token_hex(8)}{ext}"
+
+    from app.rms.static_paths import recipes_dir
+
+    target_dir = recipes_dir()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / name
+    target.write_bytes(content_bytes)
+
+    record_audit(
+        request,
+        session=session,
+        action="write.recipe.photo.upload",
+        target_type="recipe",
+        target_id=r_id,
+        detail={"filename": name, "size": len(content_bytes), "mime": file.content_type},
+    )
+    session.commit()
+
+    return RedirectResponse(
+        url=f"/recetas/{r_id}/set-photo?uploaded=1",
         status_code=303,
     )
 
@@ -930,18 +1082,58 @@ def _resolve_vista(session, request: Request, r_id: int) -> tuple:
 
 
 def _parse_recipe_phases(r: Recipe):
-    """Parse instructions JSON for template.
+    """Parse instructions for template — return a list of phase dicts.
 
-    Extracted from recipe_detail to reduce complexity.
+    SASKIA-212: handles three storage shapes the codebase produces:
+      1. JSON list of {phase, title, steps[]} — preferred (multi-phase)
+      2. JSON list of {phase, steps[]} — legacy shape from seed (no title)
+      3. Plain free-form text (newline-delimited steps) — wrapped into a
+         single "Procedimiento" phase so users see the seeded content
+         instead of the "Procedimiento pendiente" placeholder.
+
+    Returns None only when instructions is missing or empty.
     """
     if not r.instructions:
         return None
     import json as _json
 
-    try:
-        return _json.loads(r.instructions)
-    except Exception:
+    raw = (r.instructions or "").strip()
+    if not raw:
         return None
+    # Try JSON first (multi-phase preferred)
+    try:
+        parsed = _json.loads(raw)
+        if isinstance(parsed, list) and parsed:
+            normalized = []
+            for p in parsed:
+                if not isinstance(p, dict):
+                    continue
+                steps = p.get("steps") or []
+                steps = [str(s).strip() for s in steps if str(s).strip()]
+                if not steps:
+                    continue
+                title = p.get("title") or p.get("phase") or "Pasos"
+                normalized.append(
+                    {
+                        "phase": p.get("phase") or title,
+                        "title": title,
+                        "steps": steps,
+                    }
+                )
+            return normalized or None
+    except Exception as exc:
+        # Free-form text fallback — non-JSON string. Log at debug because
+        # this is the expected path for sazon-seed recipes.
+        import logging
+
+        logging.getLogger(__name__).debug(
+            "recipe.instructions is not valid JSON, wrapping as single phase: %s", exc
+        )
+    # Plain text — split on newlines, drop blanks, wrap as one phase.
+    steps = [line.strip() for line in raw.splitlines() if line.strip()]
+    if not steps:
+        return None
+    return [{"phase": "Procedimiento", "title": "Procedimiento", "steps": steps}]
 
 
 def _derive_recipe_tags(session, r_id: int):
@@ -1139,6 +1331,27 @@ def _build_recipe_edit_context(
     from app.rms.categories import list_categories as list_cats
     from app.rms.tagging import list_tags_for_kind
 
+    # SASKIA-212: pre-render the structured `instructions` JSON as
+    # free-form text (one step per line) so the textarea can preload
+    # the existing recipe procedure in the same format users edit it.
+    instructions_text = ""
+    if r.instructions:
+        import json as _json
+
+        try:
+            phases = _json.loads(r.instructions)
+        except Exception:
+            phases = None
+        if isinstance(phases, list):
+            step_lines: list[str] = [
+                step.strip()
+                for phase in phases
+                if isinstance(phase, dict)
+                for step in phase.get("steps", [])
+                if isinstance(step, str) and step.strip()
+            ]
+            instructions_text = "\n".join(step_lines)
+
     return {
         "mode": "edit",
         "recipe": r,
@@ -1152,6 +1365,7 @@ def _build_recipe_edit_context(
         "scale_factor": scale_factor,
         "categories": list_cats(session, "recipe_family"),
         "all_tags": list_tags_for_kind(session, "recipe"),
+        "instructions_text": instructions_text,
     }
 
 
@@ -1214,6 +1428,8 @@ def _update_recipe_fields(r: Recipe, fields: dict) -> None:
     r.family = fields["family"]
     r.menu_tags = fields["menu_tags"]
     r.dietary_tags = fields["dietary_tags"]
+    # SASKIA-212: structured preparation steps.
+    r.instructions = fields.get("instructions")
 
 
 def _refresh_recipe_tag_cache_update(session: Session, recipe_id: int) -> None:
