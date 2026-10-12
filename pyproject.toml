@@ -378,7 +378,10 @@ omit = [
 ]
 # CI runners and hermes's sandbox sometimes can't write to CWD.
 # Use /tmp explicitly so the coverage data file is always writable.
-data_file = "/tmp/.coverage-sazon"
+# ${AIW_TEST_RUN_ID} lets parallel worktrees/sessions isolate their data
+# files (set it to the worktree name); empty in normal single-tree runs.
+# Verified: coverage.py expands env vars in data_file (tested 2026-10-12).
+data_file = "/tmp/.coverage-sazon-${AIW_TEST_RUN_ID}"
 
 [tool.coverage.report]
 show_missing = true
