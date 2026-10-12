@@ -1520,3 +1520,172 @@ Closes #114 and #115.
 - **SASKIA-212**: `ALLOWED_CHANNELS`, `CHANNELS_DISPLAY`, `CHANNEL_DEFAULT` in `app/rms/models/channels.py` were the last TODO from the docs-quality audit. Only one importer remained: `tests/test_P42_channel_enum_integration.py`. Migrated that test to use `Channel.default()` / `Channel.allowed_values()` directly, then deleted the 3 legacy constants + the deprecation comment.
 - **SASKIA-213**: `tests/test_dashboard_kpis_end_to_end.py` had a `# TODO: Fix _period_window` comment dating from when `?period=custom` (no dates) returned 500. The fix was already in place: `app/routers/dashboard.py:_resolve_period_window` routes the no-dates case through `_period_window("custom")` which falls back to today's window. Tightened the test to assert exactly 200 and dropped the stale KNOWN BUG / TODO comments.
 - `make todos` now reports 0 active code TODOs.
+
+---
+
+## 2026-09-23 — (app changelog [Unreleased]): UI audit patch set — Jinja globals, Russian fragments, dev hints
+
+### Fixed (UI audit patch set, 2026-09-23)
+- **`m.gs()` / `m.gs_full()` / `m.stock_badge()` / `m.top_list_card()` registered as Jinja globals** — these were referenced in 30+ templates but never defined; all money displays and stock badges were silently empty. Now defined in `app/services/template_render.py` with `gs` (returns `Gs. 8.696.000`), `gs_full` (alias), `gs_plain` (no prefix), `stock_badge` (3-tier: Agotado/Bajo/OK + Negativo), `margin_pct`, `top_list_card`. Backed by `tests/test_template_render_m.py`.
+- **Russian text fragments removed** from `/reportes` "retención" card description (`reportes.py:118`) and the `reportes_retencion.html` empty state — `впервые appeared` → "compraron por primera vez".
+- **Dev hints stripped from production UI** — `dashboard.html` footer "Source: Computed live from Sale table. Targets from HEREBUS_Analisis KPI_Dashboard sheet" → "Datos locales". Subtitle "KPIs en vivo desde HEREBUS_FoodBiz + ANALISIS sheets" → "KPIs en vivo · datos del local".
+- **Float precision noise in `/shopping-list` and `/reorder`** — `qty_to_buy` rounded to 4 decimal places at calc site (`shopping.py:246`) and `{{ "%.2f"|format(...) }}` replaced with `{{ ... |round(2) }}` in shopping_list.html, reorder.html, recetas.html, inventario.html (9 replacements).
+- **Modal backdrop clipping** — `dialog{position:relative; z-index:1}` rule was overriding `dialog.modal{position:fixed; inset:0; z-index:var(--z-modal)}`. Added specific override for `dialog.modal`.
+
+### Changed
+- **Stock badge tiers (W2.1)** — `m.stock_badge(stock, min)` returns 4 levels: Negativo (red) for stock<0, Agotado (red) for stock==0, Bajo (amber outline) for 0<stock<min, OK (muted gray) for stock>=min. CSS in `app/static/app.css`: `.badge--stock-out`, `.badge--stock-low`, `.badge--stock-ok`.
+- **Numeric/currency right-align (W2.5)** — added `table.data td.num, table.data td.currency{text-align:right;font-variant-numeric:tabular-nums}` rule. Existing `table .num` and `td.num` classes already honor this in app.css.
+- **`Dockerfile` copies `docs/` into the container** — root cause of `/guia` 404 was that the user-guide markdown lived at `docs/user-guide/*.md` on the host but was never bundled into the Docker image. Now both builder and runtime stages copy the directory.
+
+### Added
+- `tests/test_template_render_m.py` — 17 tests covering `m.gs`, `m.gs_plain`, `m.stock_badge`, `m.margin_pct`, `m.top_list_card` (all green).
+
+## 2026-09-07 — Fase 1.5 hardening ([2026.09.0])
+
+**Status:** Closed Fase 1 production hotfixes + hardened deploy CI. **On her PC** once operator syncs `main` branch.
+
+### Refactor (2026-09-23) — Phase 3.1: split app/rms/models.py
+
+The monolithic `app/rms/models.py` (1350 LOC, 36 model classes) was split into a
+per-domain sub-package at `app/rms/models/`:
+
+| File | Models |
+|---|---|
+| `core.py` | `Base` (shared declarative registry) |
+| `audit.py` | `AppMeta` |
+| `auth.py` | `User`, `AuditLog`, `SettingsKV`, `Tenant` |
+| `inventory.py` | `Ingredient`, `Recipe`, `RecipeLine`, `Product`, `IngredientPriceEvent`, `PriceHistory` |
+| `sales.py` | `Sale`, `SaleStockMove`, `Customer`, `Tag`, `TagLink`, `RecipePricing` |
+| `orders.py` | `Pedido`, `PedidoLine` |
+| `production.py` | `ProductionCompletion`, `ProductionPlanTemplate`, `ProductionPlanOverride`, `ProductionPlan` |
+| `procurement.py` | `Supplier`, `WasteLog`, `ShoppingListItem`, `StockMovement`, `ImportBatch` |
+| `delivery.py` | `DeliveryZone` |
+| `herbus_drive.py` | `WishlistItem`, `RiskItem`, `MarketBenchmark`, `BankTransaction`, `ComplianceInfo`, `MarketPriceReference` |
+
+**Backward compatibility:** `app/rms/models/__init__.py` re-exports every model
+class at the top level, so all 470+ existing `from app.rms.models import X`
+call sites in `app/` and `tests/` continue to work unchanged. Verified by AST
+analysis: **992 import symbols resolved, 0 missing.**
+
+**Migration:** no code changes required at any call site. `app/rms/models.py`
+deleted; the package `app/rms/models/` is now in its place.
+
+### Migration notes
+
+- The split moves files only — no model definitions, column types, FKs,
+  relationships, or constraints were altered.
+- The shared `Base` lives in `app/rms/models/core.py`. Import it via
+  `from app.rms.models.core import Base`. Domain modules import `Base` once at
+  module level; SQLAlchemy's mapper config attaches to the shared registry.
+- Cross-domain `relationship("X", back_populates="...")` strings resolve at
+  mapper-config time. Order of imports across the 9 sub-modules doesn't matter
+  because each class registers with the same `Base.registry` on import.
+
+### Verified
+
+- **35 mappers registered** (Base + 36 model classes - 1 = 35 tables; matches
+  the schema's prior count).
+- **1981 tests collected** with 0 collection errors.
+- **Full subset runs:** 1656 pass / 101 fail (vs `main`: 1656 / 101 — identical).
+
+### Added
+
+- **`docs/wishlist/`** (append-only bucket for future ideas; 21 seeds from
+  critical-path analysis). Includes `README.md` format spec and `raw/` /
+  `triaged/` / `rejected/` subdirs.
+- **`tests/test_hotfix_regressions.py`** — 15 fail-closed tests for the 5
+  production hotfixes landed on 2026-09-04 (HEAD /healthz, SUPABASE_SECRET_KEY
+  alias, supabase in Dockerfile pip list, /healthz/deps fingerprint,
+  row_counts_json JSONB match). Proven fail-closed by reverting the HEAD route
+  and confirming 2 tests fail with the original 405.
+- **`tests/test_migrate_cli.py`** — 5 tests covering the new `sazon
+  migrate` CLI (idempotent first/second run, schema detection across SQLite
+  and Postgres dialects, argv dispatch).
+- **CLI dispatch in `app/rms/main.py`**: `run()` now dispatches on sys.argv —
+  `sazon migrate` invokes `migrate()` (idempotent schema apply);
+  `sazon serve` and bare `sazon` start uvicorn (backward compatible).
+- **`migrate()` entry point** in `app/rms/main.py`: idempotent (checks
+  schema_version; no-op if already at target); supports both `DATABASE_URL`
+  (Postgres) and `AIW_RMS_DB_PATH` (SQLite) so it works for hosted and
+  local dev.
+- **CI: migrate smoke test** in `.github/workflows/ci.yml` — runs
+  `sazon migrate` against a fresh SQLite on every PR to catch migrate()
+  regressions.
+- **CI: CHANGELOG discipline check** — every PR touching `app/`, `scripts/`,
+  `tests/`, or `.github/` must also touch `app/CHANGELOG.md` or CI fails.
+
+### Changed
+
+- **`scripts/apply_neon_schema.py`** — now a thin wrapper around `migrate()`
+  with dialect-aware schema introspection (works on both PG and SQLite).
+- **`docs/operations/dashboard/refresh.sh`** — autodetects when `$PWD` is a
+  sazon-app git repo, falling back to the legacy scratch path only when
+  both are absent. Previously the hard-coded path didn't exist.
+- **`installer/README.md`** — clone URL corrected from `saskia.git` to
+  `sazon-app.git` (commit `6fef4a2`).
+
+### Test results
+
+- 354 tests pass (was 334; +20 from `test_hotfix_regressions` and
+  `test_migrate_cli`).
+- Coverage: 82% (was 81%; held at >= 80% gate).
+
+### Hotfixes locked in by the regression suite (commits on `main`)
+
+- `f1af406` — HEAD /healthz for UptimeRobot
+- `c093a75` — SUPABASE_SECRET_KEY / SUPABASE_PUBLISHABLE_KEY aliases
+- `99b37c6` — supabase SDK in Dockerfile pip list
+- `bb21eff` — /healthz/deps env fingerprint
+- `501bcff` — `row_counts_json` ORM type matches Postgres JSONB column
+
+## 2026-09-04 — (app changelog pre-templates): pre-signoff skeleton
+
+**Status:** Skeleton landed in pre-signoff commit `f82dfb3` of the engagement repo,
+which migrated to `sazon-app` repo. **Not yet on her PC.**
+
+### Added
+
+- `pyproject.toml` with Python 3.13, FastAPI 0.115, uvicorn[standard], SQLAlchemy 2.0,
+  openpyxl 3.1, Jinja2, pydantic 2.9, loguru. Dev: pytest, pytest-cov, hypothesis, ruff.
+- `LICENSE` (MIT).
+- `.gitignore` blocking `__pycache__/`, `.venv/`, `*.sqlite`, `*.log`, `.env`.
+- `.pre-commit-config.yaml` (ruff + smoke tests + secret detection).
+- `.github/workflows/ci.yml` (ruff + pytest + 80% coverage gate).
+- `app/rms/__init__.py` (package marker).
+- `app/rms/money.py` (Decimal helpers, Gs. formatting, strict parsing).
+- `app/rms/units.py` (Unit enum with alias coercion, intra-family conversion).
+- `app/routers/__init__.py`, `app/services/__init__.py`.
+- `app/routers/health.py` (`/healthz`, `/healthz/db`).
+- `app/services/auto_backup.py` (backup helper functions).
+- `app/docs/copy-vos.md` (UI copy bank template).
+- `app/docs/threat-model.md` (single-user, single-PC, single trust boundary).
+- `app/docs/architecture.md` (data flow, sources of truth, timezone).
+- `app/docs/upgrade-tiers.md` (Tier matrix for future upgrades).
+- `app/rms/AGENTS.md` (engineering conventions for `app/rms/`).
+- `tests/conftest.py`, `tests/test_money.py` (43 tests), `tests/test_units.py` (45 tests).
+- `installer/README.md` (install-session checklist).
+- `installer/run.bat` (Windows launcher using `uv`).
+- `docs/sessions/round-2-feedback.md` (review template).
+
+### Test results
+
+- 88 tests pass (43 money + 45 units).
+- ruff clean (lint + format).
+
+### Known gaps (for next sprint)
+
+- `app/rms/db.py` (SQLite engine + WAL + versioned migrations) — Task 1 of dev plan.
+- `app/rms/models.py` (7 tables + polymorphic recipe_line) — Task 1.
+- `app/rms/costing.py` (recipe_batch_cost, product_unit_cost, margin) — Task 2.
+- `app/rms/main.py` (FastAPI app with lifespan) — Task 1.
+- `app/routers/dashboard.py`, `products.py`, `recipes.py`, `inventory.py`, `sales.py`,
+  `excel_io.py` — Tasks 3-7.
+- `app/services/import_xlsx.py`, `export_xlsx.py`, `reports.py`, `r2_backup.py`
+  — Tasks 6, 9, 12.
+- `app/templates/base.html`, `inicio.html`, etc. — Tasks 3-7.
+- `installer/run.sh` (Mac) — Task 9.
+- `installer/r2-setup.md` — Task 9.
+- `tests/test_costing.py`, `test_stock_drop.py`, `test_void_sale.py`,
+  `test_import_roundtrip.py`, `test_healthz.py`, `test_r2_backup.py`,
+  `test_recipe_polymorphic.py` — Tasks 1, 2, 6, 9.
+- `tests/fixtures/stress.xlsx` (real-scale synthetic) — Task 6.

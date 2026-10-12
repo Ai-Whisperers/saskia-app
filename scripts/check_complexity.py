@@ -49,11 +49,14 @@ GRADE_MAX_CC = {
 def parse_radon_output(output: str) -> list[tuple[str, str, str, int, int]]:
     """Parse `radon cc -s -n B app/` output.
 
-    Returns list of (file, function, grade, cc, lineno) tuples.
-    radon output format:
+    Returns list of (file, name, grade, cc, lineno) tuples.
+    Real radon 6.x output format (with `-s` show-complexity, `-n GRADE`):
         path/to/file.py
-            F name (cc) line N
-            M name2 (cc) line N
+            F 108:0 function_name - C (11)
+            M 151:4 Class.method - C (18)
+            C 31:0 ClassName - A (1)
+    Where the leading letter is the KIND (F=function, M=method, C=class) and
+    the GRADE letter (A..F) comes after the ` - ` separator.
     """
     rows: list[tuple[str, str, str, int, int]] = []
     current_file = ""
@@ -65,23 +68,28 @@ def parse_radon_output(output: str) -> list[tuple[str, str, str, int, int]]:
             # file path line
             current_file = line.strip()
             continue
-        # function line: "    F name (cc) line N"
+        # Kind-prefixed line: "    KIND LINENO:COL NAME - GRADE (CC)"
         stripped = line.strip()
-        if not stripped or stripped[0] not in GRADE_ORDER:
+        if not stripped or stripped[0] not in ("F", "M", "C"):
             continue
         try:
-            grade = stripped[0]
-            rest = stripped[1:].strip()
-            # rest looks like: "function_name (CC) line N"
-            # find " (" then ")" then " line "
-            open_paren = rest.find(" (")
-            close_paren = rest.find(")")
-            line_marker = rest.find(" line ")
-            if -1 in (open_paren, close_paren, line_marker):
+            # Split on the last " - GRADE (CC)" so names containing " - " survive.
+            head, _, tail = stripped.rpartition(" - ")
+            if not tail:
                 continue
-            name = rest[:open_paren].strip()
-            cc = int(rest[open_paren + 2 : close_paren])
-            lineno = int(rest[line_marker + 6 :].strip())
+            # tail looks like "C (11)"
+            grade_part, _, cc_part = tail.partition(" ")
+            grade = grade_part.strip()
+            cc = int(cc_part.strip().strip("()"))
+            if grade not in GRADE_ORDER:
+                continue
+            # head looks like "F 108:0 function_name"
+            after_kind = head[1:].lstrip()
+            head_parts = after_kind.split(None, 1)
+            if len(head_parts) < 2:
+                continue
+            lineno = int(head_parts[0].split(":")[0])
+            name = head_parts[1]
             rows.append((current_file, name, grade, cc, lineno))
         except (ValueError, IndexError):
             continue
@@ -124,15 +132,6 @@ def main() -> int:
     # Default exclude: legacy archives
     excludes = list(set(["app/_archive", ".venv", "tests", *args.exclude]))
 
-    cmd = [
-        "radon",
-        "cc",
-        "-s",  # show only summary (grades)
-        "-n",
-        args.max_grade,
-        *args.paths,
-        *[f"--exclude {e}" for e in excludes if not any(c in e for c in [" ", "\t"])],
-    ]
     # radon --exclude is a single comma-list; rebuild cleanly
     cmd = [
         "radon",
