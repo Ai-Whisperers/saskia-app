@@ -388,35 +388,19 @@ def _build_csv_row(row: dict, cust) -> dict:
         "id": row["id"],
         "name": row["name"],
         "phone": row["phone"] or "",
-        "email": _cust_attr(cust, "email"),
-        "birthday": _cust_attr(cust, "birthday"),
-        "how_found": _cust_attr(cust, "how_found"),
-        "preferred_channel": _cust_attr(cust, "preferred_channel"),
+        "email": (cust.email if cust else "") or "",
+        "birthday": (cust.birthday if cust else "") or "",
+        "how_found": (cust.how_found if cust else "") or "",
+        "preferred_channel": (cust.preferred_channel if cust else "") or "",
         "marketing_consent": "si" if (cust and cust.marketing_consent) else "no",
-        "dietary_restrictions": _cust_attr(cust, "dietary_restrictions"),
+        "dietary_restrictions": (cust.dietary_restrictions if cust else "") or "",
         "n_sales": row["n_sales"],
         "lifetime_spend_gs": row["lifetime_spend_gs"],
         "tier": row["tier"],
         "points": row["points"],
-        "last_sale_at": _iso_or_empty(row["last_sale_at"]),
-        "created_at": _iso_or_empty(row["created_at"]),
+        "last_sale_at": row["last_sale_at"].isoformat() if row["last_sale_at"] else "",
+        "created_at": row["created_at"].isoformat() if row["created_at"] else "",
     }
-
-
-def _cust_attr(cust, attr: str) -> str:
-    """Return `getattr(cust, attr)` or '' when `cust` is None."""
-    if cust is None:
-        return ""
-    return getattr(cust, attr) or ""
-
-
-def _iso_or_empty(value) -> str:
-    """`value.isoformat()` if value is truthy, else ''. For datetime
-    columns that may be NULL (None) or a datetime.
-    """
-    if not value:
-        return ""
-    return value.isoformat()
 
 
 def _render_directory(
@@ -472,7 +456,9 @@ def _compute_profile_nudges(session, all_customers: list) -> dict:
     return {
         "sin_telefono": _count_missing(all_customers, _missing_phone),
         "sin_dietary": _count_missing(all_customers, _missing_dietary),
-        "sin_direccion": _count_missing(all_customers, lambda c: _missing_address(session, c)),
+        "sin_direccion": _count_missing(
+            all_customers, lambda c: _missing_address(session, c)
+        ),
         "sin_consent": _count_missing(all_customers, _missing_consent),
     }
 
