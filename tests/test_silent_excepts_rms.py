@@ -81,7 +81,9 @@ JUSTIFICATION_PATTERNS: tuple[str, ...] = (
     r"settings?\s+missing",
 )
 
-JUSTIFICATION_RE = re.compile("|".join(JUSTIFICATION_PATTERNS), re.IGNORECASE)
+JUSTIFICATION_RE = re.compile(
+    "|".join(JUSTIFICATION_PATTERNS), re.IGNORECASE
+)
 
 
 def _window_for_window(lines: list[str], start: int, end: int) -> str:
@@ -169,7 +171,9 @@ def _find_violations(source: str, lines: list[str]) -> list[tuple[int, str]]:
             findings.append(
                 (
                     first.lineno,
-                    _window_for_window(lines, handler.lineno, first.lineno + 1),
+                    _window_for_window(
+                        lines, handler.lineno, first.lineno + 1
+                    ),
                 )
             )
     return findings
@@ -183,13 +187,18 @@ def _scan_file(path: Path) -> list[tuple[str, int, str]]:
         return []
     source = path.read_text()
     lines = source.splitlines()
-    return [(pstr, line, window) for line, window in _find_violations(source, lines)]
+    return [
+        (pstr, line, window)
+        for line, window in _find_violations(source, lines)
+    ]
 
 
 @pytest.mark.parametrize(
     "rms_path",
     sorted(
-        p for p in Path("app/rms").rglob("*.py") if not any(ex in str(p) for ex in EXEMPT_PATHS)
+        p
+        for p in Path("app/rms").rglob("*.py")
+        if not any(ex in str(p) for ex in EXEMPT_PATHS)
     ),
 )
 def test_no_silent_except_in_rms(rms_path: Path) -> None:
@@ -212,7 +221,11 @@ def test_no_silent_except_in_rms(rms_path: Path) -> None:
 
 def test_rms_scan_count_is_nonzero() -> None:
     """Sanity: the test actually scanned real rms modules."""
-    rms = [p for p in Path("app/rms").rglob("*.py") if not any(ex in str(p) for ex in EXEMPT_PATHS)]
+    rms = [
+        p
+        for p in Path("app/rms").rglob("*.py")
+        if not any(ex in str(p) for ex in EXEMPT_PATHS)
+    ]
     assert len(rms) >= 50, f"Only {len(rms)} rms modules scanned — wrong dir?"
 
 

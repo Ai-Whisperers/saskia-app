@@ -1,3 +1,32 @@
+## 2026-10-12 — refactor(rms): silent-except sweep in app/rms/ + new gate (S2 robustness PR3)
+
+**Scope**: `tests/test_silent_excepts_rms.py` (new, 166 tests), `app/rms/{observability,alert_templates,db_url,copilot,food_cost,public_tokens,seasonal,loyalty/suggestions,gerencia_snapshot,production_demand,notifications,sales/pre_sale_check,catalogs_tags,main}.py` (54 small additive lines).
+
+Adds the second half of the rule-41 silent-except ban: a parametrised AST scan over every `app/rms/**/*.py` file that fails CI when a broad-except block (`except Exception/BaseException/RuntimeError/OSError/IOError`) silently swallows without logging, re-raising, or an explicit justification comment. Scoped narrowly — narrow catches like `except BadSignature` or `except AssertionError` are *not* silent and are skipped. Idempotent migration paths (`app/rms/db.py` migrations 001–083 + `app/rms/migrations/` 084+) are exempted — adding `logger.warning` to 58 ALTER TABLE guards would spam every startup without signal.
+
+Logged 23 genuine silent fallbacks across 14 files with `logger.debug` (defensive probes, settings-table fallback, list-comprehension fallbacks) and `logger.warning` (network failures, rate-limit probe errors). All are behavior-preserving: same return value, same control flow — the only change is one log line per failure.
+
+Affected files (one line per site):
+
+- `app/rms/observability.py:67` — `RequestContextMiddleware` URL probe
+- `app/rms/alert_templates.py:68` — template lookup fallback
+- `app/rms/db_url.py:50` — `db_url_safe` URL parse fallback
+- `app/rms/copilot.py:73,115` — context assembly + LLM-call fallbacks
+- `app/rms/food_cost.py:164` — waste-cost sum fallback
+- `app/rms/public_tokens.py:179` — rate-limit count fallback
+- `app/rms/seasonal.py:258,269` — settings lookup fallback
+- `app/rms/loyalty/suggestions.py:429` — redeem-presence check fallback
+- `app/rms/gerencia_snapshot.py:75,90,99,119` — production / reorder / EOD notice fallbacks
+- `app/rms/production_demand.py:374` — TTL settings lookup fallback
+- `app/rms/notifications.py:120,194,245` — spool prune / whatsapp / email fallbacks
+- `app/rms/sales/pre_sale_check.py:438` — recipe-cycle fallback
+- `app/rms/catalogs_tags.py:90` — tag catalog fetch fallback
+- `app/rms/main.py:343,687,1291` — migration retry / station auth / schema-version probes
+
+Tests: 166 new (1 parametrised × 154 files + 3 sanity). Combined with PR1 (`test_errors_extended.py` 36) + PR2 (`test_retry.py` 21) + this PR's 166 = 223 passing tests across the S2 robustness lane. Existing `tests/test_no_silent_excepts.py` (55, scanning `app/routers/`) untouched per the S1 arbitration.
+
+Adjudication on test file claims: `tests/test_silent_excepts_rms.py` is **additive** per the S1/s5-org arbitration ruling 2026-10-12T21:13:00Z; no existing tests were modified.
+
 ## 2026-10-12 — feat(rms): retry_transient helper for HTTP/DB transient errors (S2 robustness PR2)
 
 **Scope**: `app/rms/retry.py` (new, 184 lines), `tests/test_retry.py` (new, 21 tests).

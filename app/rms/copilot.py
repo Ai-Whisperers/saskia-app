@@ -10,6 +10,7 @@ prompt con anti-invención. La pregunta del usuario NUNCA se ejecuta.
 
 from __future__ import annotations
 
+from loguru import logger
 import re
 from typing import Any
 

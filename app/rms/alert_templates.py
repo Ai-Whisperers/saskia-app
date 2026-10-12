@@ -7,6 +7,7 @@ behavior even before the migration runs.
 
 Usage::
 
+from loguru import logger
     from app.rms.alert_templates import get_eod_alert_template
     tmpl = get_eod_alert_template(session, "eod.voided_rate")
     subject = tmpl["subject"]

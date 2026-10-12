@@ -5,6 +5,7 @@ Counts and one money total. The modules behind the menu keep the detail.
 
 from __future__ import annotations
 
+from loguru import logger
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
