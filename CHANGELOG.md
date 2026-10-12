@@ -1,3 +1,19 @@
+## 2026-10-12 — docs(adr): SASKIA-211x ADR-0001 orchestrator pattern
+
+**Scope**: `docs/architecture/decisions/0001-orchestrator-pattern.md` (new).
+
+Captures the orchestrator convention now codified by 100+ prior `refactor(...)`
+commits so future sessions don't re-litigate: helpers are private (`_name`),
+same-file as orchestrator, behavior preserved character-for-character, tests
+stay green BEFORE commit, session passed explicitly to helpers when DB-touching,
+no `*_legacy.py` / `*_v2.py` files.
+
+Queues ADR-0002 (single-path refactor for the `effective_min*2` /
+`display_stock/min_stock_qty` pattern across `reorder.py`,
+`restock_forecast.py`, `stock_status.py`) and ADR-0003 (dead-code archival
+protocol) as future work.
+
+**Refs**: AGENTS.md rule 36 (ADRs), rule 38 (no legacy shims), rule 40 (CC ≤ 10).
 ## 2026-10-12 — refactor(reorder): SASKIA-211x split compute_reorder_list into 5 helpers (CC 13→4)
 
 **Scope**: `app/rms/reorder.py` (orchestrator → thin coordinator + single-purpose helpers).
