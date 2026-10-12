@@ -43,20 +43,66 @@ pytestmark = pytest.mark.models_smoke
 # Note: SaleStockMove is the deprecated stub from the BACKLOG (its
 # __table__ is None); excluded from L1 by intent.
 _L1_MODELS = [
-    "AppMeta", "Ingredient", "IngredientVariant", "Recipe", "RecipeLine",
-    "Product", "Sale", "SalePayment", "CashSession", "CreditAccount",
-    "CreditTransaction", "Menu", "MenuItem", "ImportBatch", "User",
-    "AuditLog", "IngredientPriceEvent", "Customer", "Tag", "TagLink",
-    "ProductionCompletion", "FreezerTemperatureLog", "ProductionPlanTemplate",
-    "ProductionPlanOverride", "ProductionClosedDay", "ProductionDemandSnapshot",
-    "ProductionPlanAudit", "Supplier", "WasteLog", "Expense", "CustomerAddress",
-    "CustomerInvoiceProfile", "DeliveryZone", "WishlistItem", "RiskItem",
-    "RecipePricing", "PriceHistory", "ProductionPlan", "ShoppingListItem",
-    "MarketBenchmark", "BankTransaction", "SettingsKV", "Pedido", "PedidoLine",
-    "PedidoEvent", "Tenant", "StockMovement", "ComplianceInfo",
-    "CommunicationLog", "Channel", "Category", "DateRangePreset", "MarginTier",
-    "MarketPriceReference", "MessageTemplate", "PaymentMethod",
-    "StockStatusConfig", "StorageKeyword", "StorageType", "Suscripcion",
+    "AppMeta",
+    "Ingredient",
+    "IngredientVariant",
+    "Recipe",
+    "RecipeLine",
+    "Product",
+    "Sale",
+    "SalePayment",
+    "CashSession",
+    "CreditAccount",
+    "CreditTransaction",
+    "Menu",
+    "MenuItem",
+    "ImportBatch",
+    "User",
+    "AuditLog",
+    "IngredientPriceEvent",
+    "Customer",
+    "Tag",
+    "TagLink",
+    "ProductionCompletion",
+    "FreezerTemperatureLog",
+    "ProductionPlanTemplate",
+    "ProductionPlanOverride",
+    "ProductionClosedDay",
+    "ProductionDemandSnapshot",
+    "ProductionPlanAudit",
+    "Supplier",
+    "WasteLog",
+    "Expense",
+    "CustomerAddress",
+    "CustomerInvoiceProfile",
+    "DeliveryZone",
+    "WishlistItem",
+    "RiskItem",
+    "RecipePricing",
+    "PriceHistory",
+    "ProductionPlan",
+    "ShoppingListItem",
+    "MarketBenchmark",
+    "BankTransaction",
+    "SettingsKV",
+    "Pedido",
+    "PedidoLine",
+    "PedidoEvent",
+    "Tenant",
+    "StockMovement",
+    "ComplianceInfo",
+    "CommunicationLog",
+    "Channel",
+    "Category",
+    "DateRangePreset",
+    "MarginTier",
+    "MarketPriceReference",
+    "MessageTemplate",
+    "PaymentMethod",
+    "StockStatusConfig",
+    "StorageKeyword",
+    "StorageType",
+    "Suscripcion",
     "MonthlyClosure",
 ]
 
@@ -111,7 +157,9 @@ def test_model_roundtrips_through_db(session_factory, model_name, kwargs):
     and migration drift.
     """
     from datetime import datetime, timezone
+
     from sqlalchemy import select
+
     from app.rms import models
 
     cls = getattr(models, model_name)
@@ -121,8 +169,7 @@ def test_model_roundtrips_through_db(session_factory, model_name, kwargs):
     # CHECK constraints verbatim.
     ts_suffix = datetime.now(timezone.utc).strftime("%H%M%S%f")
     unique_kwargs = {
-        k: (f"{v}_{ts_suffix}" if k in ("name", "key") else v)
-        for k, v in kwargs.items()
+        k: (f"{v}_{ts_suffix}" if k in ("name", "key") else v) for k, v in kwargs.items()
     }
     with session_factory() as s:
         instance = cls(**unique_kwargs)
@@ -153,7 +200,8 @@ def test_sale_roundtrip_with_product(session_factory):
     would block the entire ventas vertical. This test pins the FK
     relationship.
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
+
     from app.rms import models
 
     ts = datetime.now(timezone.utc).strftime("%H%M%S%f")

@@ -19,24 +19,52 @@ pytestmark = pytest.mark.smoke_generated
 
 # --- GET (17 routes) ---
 
-_ROUTES_GET = [('/', 'app'), ('/inventario/export.csv', 'app'), ('/productos/export.csv', 'app'), ('/productos/{p_id}', 'app'), ('/ventas/export.csv', 'app'), ('/ventas/{sale_id:int}', 'app'), ('/ventas/held/list.json', 'app'), ('/caja/', 'app'), ('/caja/z/{session_id}', 'app'), ('/fiado/', 'app'), ('/fiado', 'app'), ('/fiado/resumen', 'app'), ('/fiado/{customer_id}', 'app'), ('/produccion/export.csv', 'app'), ('/bank/export.csv', 'app'), ('/vs-mercado/evidencia.csv', 'app'), ('/auditoria/export.csv', 'app')]
+_ROUTES_GET = [
+    ("/", "app"),
+    ("/inventario/export.csv", "app"),
+    ("/productos/export.csv", "app"),
+    ("/productos/{p_id}", "app"),
+    ("/ventas/export.csv", "app"),
+    ("/ventas/{sale_id:int}", "app"),
+    ("/ventas/held/list.json", "app"),
+    ("/caja/", "app"),
+    ("/caja/z/{session_id}", "app"),
+    ("/fiado/", "app"),
+    ("/fiado", "app"),
+    ("/fiado/resumen", "app"),
+    ("/fiado/{customer_id}", "app"),
+    ("/produccion/export.csv", "app"),
+    ("/bank/export.csv", "app"),
+    ("/vs-mercado/evidencia.csv", "app"),
+    ("/auditoria/export.csv", "app"),
+]
+
 
 @pytest.mark.parametrize("path,label", _ROUTES_GET)
 def test_get_route_does_not_500(client, path, label):
     """GET {path} ({label}) must not 5xx."""
     r = client.get(path)
-    assert r.status_code < 500, (
-        f"GET {path} ({label}) returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"GET {path} ({label}) returned {r.status_code}: {r.text[:200]}"
+
 
 # --- POST (10 routes) ---
 
-_ROUTES_POST = [('/recetas/{r_id}/set-photo/upload', 'app'), ('/fiado/{customer_id}/cargar', 'app'), ('/fiado/{customer_id}/cobrar', 'app'), ('/fiado/{customer_id}/estado', 'app'), ('/menu-import/ocr/confirm', 'app'), ('/menus/nuevo', 'menus'), ('/menus/{menu_id}/off', 'menus'), ('/cotizador/pdf', 'app'), ('/copiloto/ask', 'app'), ('/settings/seed-sazon', 'app')]
+_ROUTES_POST = [
+    ("/recetas/{r_id}/set-photo/upload", "app"),
+    ("/fiado/{customer_id}/cargar", "app"),
+    ("/fiado/{customer_id}/cobrar", "app"),
+    ("/fiado/{customer_id}/estado", "app"),
+    ("/menu-import/ocr/confirm", "app"),
+    ("/menus/nuevo", "menus"),
+    ("/menus/{menu_id}/off", "menus"),
+    ("/cotizador/pdf", "app"),
+    ("/copiloto/ask", "app"),
+    ("/settings/seed-sazon", "app"),
+]
+
 
 @pytest.mark.parametrize("path,label", _ROUTES_POST)
 def test_post_route_does_not_500(client, path, label):
     """POST {path} ({label}) must not 5xx."""
     r = client.post(path)
-    assert r.status_code < 500, (
-        f"POST {path} ({label}) returned {r.status_code}: {r.text[:200]}"
-    )
+    assert r.status_code < 500, f"POST {path} ({label}) returned {r.status_code}: {r.text[:200]}"

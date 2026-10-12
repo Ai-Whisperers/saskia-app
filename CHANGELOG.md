@@ -1,3 +1,11 @@
+## 2026-10-12 — style(lint): post-merge-with-SASKIA-211d format fix
+
+**Scope**: `tests/test_models_smoke.py`, `tests/test_route_smoke_generated.py`. +101 / -25.
+
+Post-merge with origin/main (which now contains SASKIA-211d + the 9-areas test suite + `test_models_smoke.py` from the sibling session), these two files were the only ones still tripping the pre-deploy-dev gate's `ruff format --check` and `ruff check` (the lint-fix commit on origin/main didn't fully resolve them). Auto-fix via `ruff check --fix .` and `ruff format .`; no semantic changes.
+
+Locking the same lint-clean state that SASKIA-211d left the rest of the repo in.
+
 ## 2026-10-12 — style(lint): repo-wide ruff auto-fix (23 issues, 9 files)
 
 **Scope**: `scripts/smoke_cocina_pages.py`, 8 test files in `tests/{concurrency,integration,migrations,network,perf,property,security}/`. +183 / -81.
