@@ -1,7 +1,7 @@
 # Sazón RMS — Makefile
 # Shortcuts for common dev tasks. Run `make help` to see all targets.
 
-.PHONY: help install test test-verbose test-coverage test-fast lint lint-fix format check serve migrate seed seed-reset backup fixtures clean ci-smoke pre-commit stats smoke check-warnings check-secrets ci dead-code complexity duplicates duplicates-code arch security audit-cve licenses ci-extra docs-lint-check docs-lint-baseline todos todos-stats audit
+.PHONY: help install test test-verbose test-coverage test-fast lint lint-fix format check serve migrate seed seed-reset backup fixtures clean ci-smoke pre-commit stats smoke check-warnings check-secrets ci dead-code complexity duplicates duplicates-code arch security audit-cve licenses ci-extra docs-lint-check docs-lint-baseline todos todos-stats audit workflow-yaml sbom-on-demand
 
 PYTHON ?= python3
 UV ?= uv
@@ -314,3 +314,33 @@ audit: audit-cve workflows-lint security complexity ## Full audit (slow; run bef
 	@$(PYTHON) scripts/check_workflows_yaml.py
 	@echo ""
 	@echo "=== audit complete ==="
+
+workflow-yaml: ## Workflow YAML self-check (standalone; PR #159 lesson).
+	$(PYTHON) scripts/check_workflows_yaml.py
+
+# s4-tooling batch-2 (2026-10-12): on-demand CycloneDX SBOM generator.
+# release.yml runs the same tool as part of its SBOM step, but that
+# only fires on CalVer tag pushes. Operators / auditors sometimes need
+# an out-of-band SBOM (e.g. customer security review between releases,
+# or verifying a dependency change before tagging). This target is the
+# local equivalent.
+#
+# Usage:
+#   make sbom-on-demand                       # default path (/tmp/...)
+#   make sbom-on-demand OUT=./out.cdx.json    # custom path
+#
+# Implementation note: cyclonedx-bom 7.x dropped --runtime, --name, --version
+# (project metadata now comes from --pyproject). The release.yml step still
+# uses the pre-7.x flags and would fail if a release ran today; that is a
+# pre-existing bug separate from this lane. See INBOX/s5-org/from-s4-batch2.md.
+OUT ?= /tmp/sbom-on-demand.cdx.json
+sbom-on-demand: ## Generate CycloneDX SBOM on demand (release-time tool, any time).
+	@echo "=== CycloneDX SBOM (on-demand) ==="
+	@mkdir -p $$(dirname "$(OUT)")
+	$(UV) run --group tooling --no-default-groups cyclonedx-py \
+	  environment --pyproject pyproject.toml \
+	  --of JSON --no-validate \
+	  -o "$(OUT)"
+	@echo ""
+	@echo "SBOM written to $(OUT) ($$(wc -c < "$(OUT)") bytes)"
+	@echo "JSON shape: ", $$(head -c 200 "$(OUT)")

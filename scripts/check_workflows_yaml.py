@@ -8,9 +8,10 @@ non-zero on any parse failure.
 
 Wired into:
   - `make audit` (pre-PR local)
+  - `make workflow-yaml` (standalone local target)
   - `.github/workflows/fast-pr-gate.yml` (CI, parallel to ci.yml)
-  - `.github/workflows/ci.yml` (existing — could be added as a self-check
-    step there too; see PR #159 followup)
+  - `.github/workflows/ci.yml` (CI, primary gate — covers the case
+    where fast-pr-gate is not enabled on a fork or branch)
 
 Idempotent and read-only.
 """

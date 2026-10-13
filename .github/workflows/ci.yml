@@ -71,6 +71,18 @@ jobs:
         # deps even if the lock file lists them.
         run: rm -rf .venv && uv sync --only-group dev-base --no-default-groups
 
+      # ---- Workflow YAML self-check (PR #159 lesson) ----
+      # ci.yml's safe_load(...) was broken since #112 and silently
+      # skipped the full suite. This step parses every workflow with
+      # yaml.safe_load and exits non-zero on any parse error — catches
+      # future regressions BEFORE the workflow tries to run. Same
+      # logic runs in fast-pr-gate.yml in parallel; ci.yml owns the
+      # primary gate so the check fires on forks/branches where
+      # fast-pr-gate is not enabled. See scripts/check_workflows_yaml.py
+      # and `make workflow-yaml` for the local equivalent.
+      - name: Workflow YAML self-check
+        run: python scripts/check_workflows_yaml.py
+
       - name: Lint (ruff)
         run: |
           uv run ruff check .
@@ -97,6 +109,40 @@ jobs:
         # so local dev loops are fast. CI runs the full suite via --no-cov
         # -m "not (pg)" and the dedicated -m pg job below.
         run: uv run pytest -n 2 --dist=loadscope --cov=app --cov-report=term-missing -m "not (pg)"
+
+      # ---- pip-audit (CVE scan, advisory) ----
+      # Moved from release.yml in the s4-tooling batch-2 pass
+      # (2026-10-12). On every PR + push, scan the locked dependency
+      # graph for known CVEs. Two flags make this purely advisory:
+      #   --no-fail-on-error : pip-audit exits 0 even when it finds CVEs
+      #   continue-on-error: true : belt-and-suspenders so a transient
+      #                            pip-audit failure (network, registry
+      #                            rate-limit) never blocks CI
+      # The blocking scan still lives on release.yml tag-push via the
+      # release workflow's own pip-audit step (kept as the hard gate
+      # for production-bound cuts).
+      # Output: uploade as a job summary via $GITHUB_STEP_SUMMARY so
+      # the finding list is visible in the PR without flooding the log.
+      - name: pip-audit (advisory)
+        if: always() && (success() || failure())
+        continue-on-error: true
+        env:
+          GITHUB_STEP_SUMMARY: ${{ github.step_summary }}
+        run: |
+          echo "=== pip-audit (advisory, --no-fail-on-error) ==="
+          uv run --group tooling --no-default-groups pip-audit \
+            --strict --progress-spinner off \
+            --no-fail-on-error 2>&1 | tee /tmp/pip-audit.txt | tail -40
+          # Surface findings in the run summary so reviewers see them
+          # without scraping the log.
+          {
+            echo "## pip-audit (advisory)"
+            echo ""
+            echo "\`\`\`"
+            cat /tmp/pip-audit.txt
+            echo ""
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY" || true
 
       # Tier 8.7 (2026-10-01): Page the operator when the test suite
       # fails on main. Uses the same Resend API the app uses
