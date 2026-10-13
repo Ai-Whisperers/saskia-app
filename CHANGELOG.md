@@ -1,3 +1,7 @@
+## 2026-10-12 — style: ruff check --fix + format on parametrized test files (F811/I001/RUF100)
+
+**Scope**: `tests/test_produccion_polish_parametrized.py`, `tests/test_production_demand_parametrized.py`, `tests/test_ui_components_parametrized.py` — auto-fix from `ruff check --fix` (3 errors) + `ruff format` (line lengths, import grouping). Behavior preserved.
+
 ## 2026-10-12 — test(smoke): clear KNOWN_FAILING_SMOKE (caja/abrir bug fixed)
 
 **Scope**: `scripts/gen_route_smoke.py` (KNOWN_FAILING_SMOKE list emptied), `tests/test_route_smoke_generated.py` (parametrized list emptied). 

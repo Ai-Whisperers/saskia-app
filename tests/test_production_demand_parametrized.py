@@ -16,12 +16,12 @@ Hypothesis property tests, integration tests (session_factory), and HTTP
 tests (authed_client) are intentionally NOT parametrized here — they have
 unique fixture setups and don't benefit from the simple data-table driver.
 """
+
 from __future__ import annotations
 
 import pytest
 
 from app.rms.production_demand import compute_demand_qty, split_pedidos_status
-
 
 # ─── Parametrize rows ─────────────────────────────────────────────
 #
@@ -29,42 +29,82 @@ from app.rms.production_demand import compute_demand_qty, split_pedidos_status
 # `(total, evento) == compute_demand_qty(...)` or
 # `(total, confirmed) == split_pedidos_status(...)` assertion.
 _COMPUTE_CASES: list[dict] = [
-    {"id": "compute_basic_no_multiplier",
-     "qty_forecast": 10.0, "qty_pedidos": 5.0, "seasonal_multiplier": 1.0,
-     "expected_total": 15.0, "expected_evento": 0.0,
-     "description": "plain sum: forecast=10, pedidos=5 → total=15, evento=0"},
-    {"id": "compute_with_multiplier",
-     "qty_forecast": 10.0, "qty_pedidos": 5.0, "seasonal_multiplier": 2.0,
-     "expected_total": 25.0, "expected_evento": 10.0,
-     "description": "seasonal_multiplier=2 boosts forecast (10*2=20), total=25, evento=10"},
-    {"id": "compute_zero_forecast",
-     "qty_forecast": 0.0, "qty_pedidos": 7.5, "seasonal_multiplier": 1.0,
-     "expected_total": 7.5, "expected_evento": 0.0,
-     "description": "zero forecast + pedidos → total=pedidos"},
-    {"id": "compute_zero_pedidos",
-     "qty_forecast": 8.0, "qty_pedidos": 0.0, "seasonal_multiplier": 1.5,
-     "expected_total": 12.0, "expected_evento": 4.0,
-     "description": "zero pedidos, multiplier=1.5 boosts forecast (8*1.5=12), evento=4"},
-    {"id": "compute_negative_inputs_clamped",
-     "qty_forecast": -5.0, "qty_pedidos": -3.0, "seasonal_multiplier": 0.5,
-     "expected_total": 0.0, "expected_evento": 0.0,
-     "description": "negative inputs clamped to 0, multiplier<=0 → 1.0"},
+    {
+        "id": "compute_basic_no_multiplier",
+        "qty_forecast": 10.0,
+        "qty_pedidos": 5.0,
+        "seasonal_multiplier": 1.0,
+        "expected_total": 15.0,
+        "expected_evento": 0.0,
+        "description": "plain sum: forecast=10, pedidos=5 → total=15, evento=0",
+    },
+    {
+        "id": "compute_with_multiplier",
+        "qty_forecast": 10.0,
+        "qty_pedidos": 5.0,
+        "seasonal_multiplier": 2.0,
+        "expected_total": 25.0,
+        "expected_evento": 10.0,
+        "description": "seasonal_multiplier=2 boosts forecast (10*2=20), total=25, evento=10",
+    },
+    {
+        "id": "compute_zero_forecast",
+        "qty_forecast": 0.0,
+        "qty_pedidos": 7.5,
+        "seasonal_multiplier": 1.0,
+        "expected_total": 7.5,
+        "expected_evento": 0.0,
+        "description": "zero forecast + pedidos → total=pedidos",
+    },
+    {
+        "id": "compute_zero_pedidos",
+        "qty_forecast": 8.0,
+        "qty_pedidos": 0.0,
+        "seasonal_multiplier": 1.5,
+        "expected_total": 12.0,
+        "expected_evento": 4.0,
+        "description": "zero pedidos, multiplier=1.5 boosts forecast (8*1.5=12), evento=4",
+    },
+    {
+        "id": "compute_negative_inputs_clamped",
+        "qty_forecast": -5.0,
+        "qty_pedidos": -3.0,
+        "seasonal_multiplier": 0.5,
+        "expected_total": 0.0,
+        "expected_evento": 0.0,
+        "description": "negative inputs clamped to 0, multiplier<=0 → 1.0",
+    },
 ]
 
 
 _SPLIT_CASES: list[dict] = [
-    {"id": "split_basic_pending_confirmed_ready",
-     "pending_qty": 3.0, "confirmed_qty": 5.0, "ready_qty": 2.0,
-     "expected_total": 10.0, "expected_confirmed": 7.0,
-     "description": "pending=3 + confirmed=5 + ready=2 → total=10, confirmed=7"},
-    {"id": "split_only_pending",
-     "pending_qty": 5.0, "confirmed_qty": 0.0, "ready_qty": 0.0,
-     "expected_total": 5.0, "expected_confirmed": 0.0,
-     "description": "all pending → confirmed=0, total=pending"},
-    {"id": "split_only_confirmed_and_ready",
-     "pending_qty": 0.0, "confirmed_qty": 4.0, "ready_qty": 6.0,
-     "expected_total": 10.0, "expected_confirmed": 10.0,
-     "description": "no pending → total == confirmed (riesgo gap 0)"},
+    {
+        "id": "split_basic_pending_confirmed_ready",
+        "pending_qty": 3.0,
+        "confirmed_qty": 5.0,
+        "ready_qty": 2.0,
+        "expected_total": 10.0,
+        "expected_confirmed": 7.0,
+        "description": "pending=3 + confirmed=5 + ready=2 → total=10, confirmed=7",
+    },
+    {
+        "id": "split_only_pending",
+        "pending_qty": 5.0,
+        "confirmed_qty": 0.0,
+        "ready_qty": 0.0,
+        "expected_total": 5.0,
+        "expected_confirmed": 0.0,
+        "description": "all pending → confirmed=0, total=pending",
+    },
+    {
+        "id": "split_only_confirmed_and_ready",
+        "pending_qty": 0.0,
+        "confirmed_qty": 4.0,
+        "ready_qty": 6.0,
+        "expected_total": 10.0,
+        "expected_confirmed": 10.0,
+        "description": "no pending → total == confirmed (riesgo gap 0)",
+    },
 ]
 
 

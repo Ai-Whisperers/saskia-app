@@ -20,90 +20,124 @@ The `client` fixture (live HTTP client against `SASKIA_TEST_URL`) and
 `_get(...)` helper are imported from the original test module to keep
 auth/cookies behaviour identical. Same server-alive skipif guard applies.
 """
+
 from __future__ import annotations
 
 import pytest
 
-from tests.test_ui_components import _get, client  # noqa: F401  (fixture)
-
+from tests.test_ui_components import _get
 
 # ─── Parametrize rows ─────────────────────────────────────────────
 #
 # A: static asset loads + sentinel string is present in body.
 _STATIC_ASSET_CASES: list[dict] = [
-    {"id": "ui_toast_js_contains_UIToast",
-     "asset": "/static/ui-toast.js",
-     "sentinel": "UIToast",
-     "description": "ui-toast.js exposes the UIToast class"},
-    {"id": "ui_toast_js_contains_show",
-     "asset": "/static/ui-toast.js",
-     "sentinel": "show",
-     "description": "ui-toast.js wires show()"},
-    {"id": "ui_toast_js_contains_dismissAll",
-     "asset": "/static/ui-toast.js",
-     "sentinel": "dismissAll",
-     "description": "ui-toast.js wires dismissAll()"},
-    {"id": "ui_skeleton_js_contains_ui_skeleton",
-     "asset": "/static/ui-skeleton.js",
-     "sentinel": "ui-skeleton",
-     "description": "ui-skeleton.js defines <ui-skeleton>"},
-    {"id": "ui_skeleton_js_contains_UISkeleton",
-     "asset": "/static/ui-skeleton.js",
-     "sentinel": "UISkeleton",
-     "description": "ui-skeleton.js exposes the UISkeleton class"},
-    {"id": "ui_date_js_contains_UIDate",
-     "asset": "/static/ui-date.js",
-     "sentinel": "UIDate",
-     "description": "ui-date.js exposes the UIDate class"},
-    {"id": "ui_combo_js_contains_UICombo",
-     "asset": "/static/ui-combo.js",
-     "sentinel": "UICombo",
-     "description": "ui-combo.js exposes the UICombo class"},
-    {"id": "ui_combo_js_custom_element_registered",
-     "asset": "/static/ui-combo.js",
-     "sentinel": "customElements.define('ui-combo'",
-     "description": "ui-combo custom element is registered"},
-    {"id": "app_js_includes_initConfirmForms",
-     "asset": "/static/app.js",
-     "sentinel": "initConfirmForms",
-     "description": "app.js includes initConfirmForms"},
-    {"id": "app_components_js_UIConfirmModal_defined",
-     "asset": "/static/app-components.js",
-     "sentinel": "UIConfirmModal",
-     "description": "app-components.js defines window.UIConfirmModal"},
+    {
+        "id": "ui_toast_js_contains_UIToast",
+        "asset": "/static/ui-toast.js",
+        "sentinel": "UIToast",
+        "description": "ui-toast.js exposes the UIToast class",
+    },
+    {
+        "id": "ui_toast_js_contains_show",
+        "asset": "/static/ui-toast.js",
+        "sentinel": "show",
+        "description": "ui-toast.js wires show()",
+    },
+    {
+        "id": "ui_toast_js_contains_dismissAll",
+        "asset": "/static/ui-toast.js",
+        "sentinel": "dismissAll",
+        "description": "ui-toast.js wires dismissAll()",
+    },
+    {
+        "id": "ui_skeleton_js_contains_ui_skeleton",
+        "asset": "/static/ui-skeleton.js",
+        "sentinel": "ui-skeleton",
+        "description": "ui-skeleton.js defines <ui-skeleton>",
+    },
+    {
+        "id": "ui_skeleton_js_contains_UISkeleton",
+        "asset": "/static/ui-skeleton.js",
+        "sentinel": "UISkeleton",
+        "description": "ui-skeleton.js exposes the UISkeleton class",
+    },
+    {
+        "id": "ui_date_js_contains_UIDate",
+        "asset": "/static/ui-date.js",
+        "sentinel": "UIDate",
+        "description": "ui-date.js exposes the UIDate class",
+    },
+    {
+        "id": "ui_combo_js_contains_UICombo",
+        "asset": "/static/ui-combo.js",
+        "sentinel": "UICombo",
+        "description": "ui-combo.js exposes the UICombo class",
+    },
+    {
+        "id": "ui_combo_js_custom_element_registered",
+        "asset": "/static/ui-combo.js",
+        "sentinel": "customElements.define('ui-combo'",
+        "description": "ui-combo custom element is registered",
+    },
+    {
+        "id": "app_js_includes_initConfirmForms",
+        "asset": "/static/app.js",
+        "sentinel": "initConfirmForms",
+        "description": "app.js includes initConfirmForms",
+    },
+    {
+        "id": "app_components_js_UIConfirmModal_defined",
+        "asset": "/static/app-components.js",
+        "sentinel": "UIConfirmModal",
+        "description": "app-components.js defines window.UIConfirmModal",
+    },
 ]
 
 
 # B: page renders + sentinel substring is present (status 200).
 _PAGE_CASES: list[dict] = [
-    {"id": "root_includes_toast_stack",
-     "path": "/",
-     "sentinel": "ui-toast-stack",
-     "description": "every page after login includes the toast-stack element"},
-    {"id": "root_includes_toast_script",
-     "path": "/",
-     "sentinel": "ui-toast.js",
-     "description": "every page after login includes the ui-toast.js script tag"},
-    {"id": "dashboard_includes_toast_stack",
-     "path": "/dashboard",
-     "sentinel": "ui-toast-stack",
-     "description": "dashboard renders and includes the toast-stack"},
-    {"id": "shopping_list_uses_confirm_form",
-     "path": "/shopping-list",
-     "sentinel": "js-confirm-form",
-     "description": "destructive pages use js-confirm-form class"},
-    {"id": "vs_mercado_chipa_grande",
-     "path": "/vs-mercado",
-     "sentinel": "Chipa grande",
-     "description": "Paraguay benchmarks row 'Chipa grande' renders"},
-    {"id": "vs_mercado_croissant",
-     "path": "/vs-mercado",
-     "sentinel": "Croissant",
-     "description": "Paraguay benchmarks row 'Croissant' renders"},
-    {"id": "vs_mercado_sopa_paraguaya",
-     "path": "/vs-mercado",
-     "sentinel": "Sopa paraguaya",
-     "description": "Paraguay benchmarks row 'Sopa paraguaya' renders"},
+    {
+        "id": "root_includes_toast_stack",
+        "path": "/",
+        "sentinel": "ui-toast-stack",
+        "description": "every page after login includes the toast-stack element",
+    },
+    {
+        "id": "root_includes_toast_script",
+        "path": "/",
+        "sentinel": "ui-toast.js",
+        "description": "every page after login includes the ui-toast.js script tag",
+    },
+    {
+        "id": "dashboard_includes_toast_stack",
+        "path": "/dashboard",
+        "sentinel": "ui-toast-stack",
+        "description": "dashboard renders and includes the toast-stack",
+    },
+    {
+        "id": "shopping_list_uses_confirm_form",
+        "path": "/shopping-list",
+        "sentinel": "js-confirm-form",
+        "description": "destructive pages use js-confirm-form class",
+    },
+    {
+        "id": "vs_mercado_chipa_grande",
+        "path": "/vs-mercado",
+        "sentinel": "Chipa grande",
+        "description": "Paraguay benchmarks row 'Chipa grande' renders",
+    },
+    {
+        "id": "vs_mercado_croissant",
+        "path": "/vs-mercado",
+        "sentinel": "Croissant",
+        "description": "Paraguay benchmarks row 'Croissant' renders",
+    },
+    {
+        "id": "vs_mercado_sopa_paraguaya",
+        "path": "/vs-mercado",
+        "sentinel": "Sopa paraguaya",
+        "description": "Paraguay benchmarks row 'Sopa paraguaya' renders",
+    },
 ]
 
 
