@@ -1,4 +1,4 @@
-"""Tests for app.rms.retry.retry_transient (S2 robustness PR2).
+"""Tests for app.retry.retry_transient (S2 robustness PR2).
 
 Covers:
 - Happy path: call succeeds first try, no sleep, no log warning.
@@ -20,7 +20,7 @@ import sqlite3
 
 import pytest
 
-from app.rms.retry import default_is_transient, retry_transient
+from app.retry import default_is_transient, retry_transient
 
 # ─── Helpers ──────────────────────────────────────────────────────
 
@@ -203,7 +203,7 @@ def test_base_delay_negative_raises_value_error():
 
 
 def test_transient_attempts_emit_warning_logs(caplog):
-    caplog.set_level(logging.WARNING, logger="app.rms.retry")
+    caplog.set_level(logging.WARNING, logger="app.retry")
     sleeper = FakeSleeper()
 
     def fn():
@@ -218,7 +218,7 @@ def test_transient_attempts_emit_warning_logs(caplog):
 
 
 def test_exhaustion_emits_error_log(caplog):
-    caplog.set_level(logging.ERROR, logger="app.rms.retry")
+    caplog.set_level(logging.ERROR, logger="app.retry")
     sleeper = FakeSleeper()
 
     def fn():
@@ -232,7 +232,7 @@ def test_exhaustion_emits_error_log(caplog):
 
 
 def test_terminal_error_does_not_log_warning(caplog):
-    caplog.set_level(logging.WARNING, logger="app.rms.retry")
+    caplog.set_level(logging.WARNING, logger="app.retry")
 
     def fn():
         raise ValueError("terminal")
@@ -276,7 +276,7 @@ def test_custom_is_transient_overrides_default():
 
 
 def test_op_name_in_logs(caplog):
-    caplog.set_level(logging.WARNING, logger="app.rms.retry")
+    caplog.set_level(logging.WARNING, logger="app.retry")
 
     def fn():
         raise ConnectionResetError("retry me")

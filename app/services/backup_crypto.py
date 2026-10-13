@@ -77,7 +77,7 @@ from typing import Final
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from app.rms.retry import retry_transient
+from app.retry import retry_transient
 
 # Wire-format constants. Don't change HEADER_VERSION without
 # bumping both the format AND the UnsupportedVersionError message

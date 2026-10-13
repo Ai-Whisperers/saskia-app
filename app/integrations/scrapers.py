@@ -20,7 +20,7 @@ Resilience:
 
   - **Timeouts**: every request has 12s timeout. Bots never hang forever.
   - **Transient retries**: HTTP errors are wrapped in
-    ``app.rms.retry.retry_transient`` (default ``attempts=3`` with
+    ``app.retry.retry_transient`` (default ``attempts=3`` with
     exponential backoff). Transient = 5xx, 429, connection / timeout.
     Non-transient 4xx (e.g. 404) re-raise immediately.
   - **Empty query**: returns empty list (no HTTP call).
@@ -49,7 +49,7 @@ from typing import Iterable
 
 import httpx
 
-from app.rms.retry import retry_transient
+from app.retry import retry_transient
 
 logger = logging.getLogger(__name__)
 

@@ -1,4 +1,32 @@
-## 2026-10-13 — refactor(rms): SASKIA-211z split _resolve_target (CC 21 → 4, D → A, 3 helpers)
+## 2026-10-13 — fix(arch): move app/rms/retry.py → app/retry.py (PR6 boundary violation fix)
+
+**Scope**: `app/retry.py` (new location, renamed from `app/rms/retry.py`, no body changes); 4 import-path updates; 1 deletion.
+
+**Why**: PR #187 was blocked by the `integrations/ must not import rms/` boundary rule enforced by `scripts/check_imports.py` (rule `("app.integrations", "app.rms", "integrations/ must not import rms/")`). PR6 wired `retry_transient` at `app/integrations/scrapers.py` and `app/services/backup_crypto.py`, but the helper lived at `app/rms/retry.py` — which made the wiring a one-way street: `app/integrations/ → app/rms/...` is a forbidden edge per the layering contract.
+
+**Fix**: relocate the helper to the neutral top-level `app/retry.py` so both `app/integrations/scrapers.py` AND `app/rms/...` callers can import it without violating any layering rule. No callers change semantics; only the import path.
+
+**Changes**:
+- `app/retry.py` — new (235 lines, identical body to the deleted `app/rms/retry.py`; only the docstring header updated from `app/rms/retry.py` to `app/retry.py`).
+- `app/rms/retry.py` — deleted (the file itself imported nothing from `app.rms`, so the move is mechanical and zero-risk).
+- `app/integrations/scrapers.py` — `from app.rms.retry import retry_transient` → `from app.retry import retry_transient`; docstring reference updated.
+- `app/services/backup_crypto.py` — `from app.rms.retry import retry_transient` → `from app.retry import retry_transient`.
+- `tests/test_retry.py` — `from app.rms.retry import default_is_transient, retry_transient` → `from app.retry import ...`; 4 `caplog.set_level(..., logger="app.rms.retry")` strings → `logger="app.retry"` (the module logger moves with the module).
+- `tests/test_retry_wiring.py` — `from app.rms.retry import default_is_transient, retry_transient` → `from app.retry import ...`.
+
+**No `check_imports.py` change needed.** The rule is `("app.integrations", "app.rms", "integrations/ must not import rms/")`. `app.retry` does NOT match the `app.rms` glob (`_matches("app.rms", "app.retry")` returns False because `app.rms` is a bare-glob exact-or-`app.rms.*`, and `app.retry` is neither). After the move, the import `app.integrations.scrapers → app.retry` is clean.
+
+**No `ALLOW_LIST` change needed.** The `app.integrations.barcode → app.rms.models` allow-list entry documents an unrelated exception (barcode lookup needs the `Product` model); it stays as-is.
+
+**Verification**:
+- `uv run rtk pytest tests/test_retry_wiring.py --no-cov` → 14 passed.
+- `uv run python scripts/check_imports.py` → `OK: no import cycles, no architecture rule violations.`
+- `uv run rtk pytest tests/test_retry.py tests/test_retry_wiring.py tests/test_scrapers.py tests/test_backup_crypto.py tests/test_backup_scheduler_encryption.py --no-cov` → 88 passed (no regressions on the combined PR2/PR6 surface).
+- `uv run rtk ruff check app/retry.py app/integrations/scrapers.py app/services/backup_crypto.py tests/test_retry.py tests/test_retry_wiring.py` → clean.
+
+**Historical CHANGELOG entries left intact.** The existing PR2 and PR6 entries above reference `app/rms/retry.py` because that is where the helper lived when those PRs landed. This entry documents the move. A future consolidation pass could rewrite the historical entries, but that would falsify the historical record of those PRs — not done here.
+
+## 2026-10-13 — test(s1-batch8): parametrize plan_production + forecast_restock (CC 28 + 26, D-grade, +17 cases)
 
 **Scope**: `app/rms/refunds.py` (split of `_resolve_target` only; `create_refund`, `_restock_for_target`, `_reverse_points_proportional`, `sum_refunds_for`, and the public `RefundError` / `RefundResult` are untouched). Continues the s3 batch-3/4/5/6 orchestrator pattern (most-recent: `sentry_before_send`, batch-6). The pairing sibling `_restock_for_target` (cc=29) is left for a future refund-batch per the from-s3-batch6.md "next-batch candidates" recommendation — pairing them in one PR would push the PR past the readable diff ceiling and obscure the orchestrator pattern review.
 

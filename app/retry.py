@@ -1,4 +1,4 @@
-"""app/rms/retry.py — Transient-error retry helper (S2 robustness PR2).
+"""app/retry.py — Transient-error retry helper (S2 robustness PR2).
 
 Wraps a callable in a bounded retry loop with exponential backoff + jitter.
 Distinguishes TRANSIENT (retryable) from TERMINAL (re-raise immediately)

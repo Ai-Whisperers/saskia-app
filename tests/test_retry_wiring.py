@@ -37,7 +37,7 @@ import httpx
 import pytest
 
 from app.integrations.scrapers import scrape_superseis
-from app.rms.retry import default_is_transient, retry_transient
+from app.retry import default_is_transient, retry_transient
 from app.services.backup_crypto import encrypt_backup
 
 # ─── Helpers ──────────────────────────────────────────────────────
