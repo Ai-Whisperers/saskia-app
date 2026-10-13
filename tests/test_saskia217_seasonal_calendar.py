@@ -1,4 +1,5 @@
 """Tests for SASKIA-217: /admin/seasonal-calendar UI page (read-only).
+# allow-hardcoded-dates: fixture: seasonal_event catalog uses fixed calendar dates; today=date(2026, 10, 12) is the test reference
 
 Covers:
 - Page renders (200) with the seeded catalog

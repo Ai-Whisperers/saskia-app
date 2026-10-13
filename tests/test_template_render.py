@@ -1,4 +1,5 @@
 """tests/test_template_render.py — Test app/services/template_render.py.
+# allow-hardcoded-dates: fixture: mock clock returns datetime(2026, 10, 12, ...) for time-of-day rendering, not relative-time
 
 Wraps FastAPI's Jinja2Templates with app-state globals:
   - now_year, now_str, greeting — time-aware helpers

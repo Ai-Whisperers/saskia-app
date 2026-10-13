@@ -1,4 +1,5 @@
 """tests/test_restock_forecast.py — Test app/rms/restock_forecast.py (Phase 4.5).
+# allow-hardcoded-dates: frozen-time fixture: FROZEN_NOW = datetime(2026, 10, 11) pins 'now' for weekday arithmetic (2026-10-11 is Sunday)
 
 The Poisson weekday restocking forecast (BACKLOG #5). Upgrades the
 flat 30-day average in forecast.py with a per-weekday Poisson rate

@@ -1,4 +1,5 @@
 """Parametrized coverage for two D-grade FastAPI route handlers.
+# allow-hardcoded-dates: frozen-time fixture: _ANCLA = datetime(2026, 10, 9) pins 'now' for parametrized driver
 
 S1 batch-4 (test coverage 30% → 33%): lock the entry-point behavior of two
 CC-21 routes that had no granular coverage before:

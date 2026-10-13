@@ -1,4 +1,5 @@
 """tests/test_write_env_file_duplicate_key.py — locked-in test for SASKIA-212.
+# allow-hardcoded-dates: fixture: revisionDate/creationDate are BWS API response data, not relative-time
 
 On 2026-10-12, BWS had two entries for `CF_R2_SECRET_ACCESS_KEY`:
 - id 1fa51e13, value 0b07e5cc... (DEAD, created 2026-08-25)

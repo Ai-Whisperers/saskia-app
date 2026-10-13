@@ -1,4 +1,5 @@
 """Tests for migration 120: SettingsKV key 'shop_whatsapp' → 'sales.shop_whatsapp'.
+# allow-hardcoded-dates: fixture: ts='2026-10-12T00:00:00' is migration data, not relative-time
 
 Verifies:
 - Schema bumps to 118

@@ -1,4 +1,5 @@
 """tests/test_render_http.py — Cover app/services/template_render.py::render() (Phase K).
+# allow-hardcoded-dates: fixture: sentinel = datetime(2020, 1, 1) is an arbitrary past date, not relative-time
 
 The render() function (template_render.py:311-424) is the single render
 path for every server-rendered page. It injects: request, csrf_token,

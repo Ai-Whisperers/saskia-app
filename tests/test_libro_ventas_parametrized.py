@@ -1,4 +1,5 @@
 """Parametrized coverage for app/rms/accounting.py:libro_ventas (CC 21, D-grade).
+# allow-hardcoded-dates: frozen-time fixture: _ANCLA = datetime(2026, 10, 9) pins 'now' for libro_ventas rows
 
 S1 batch-3 (test coverage 27% -> 30%): every row drives the function through
 a distinct report shape (empty, single day, week, month, post-void filter).

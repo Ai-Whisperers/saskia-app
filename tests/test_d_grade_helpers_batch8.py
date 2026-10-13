@@ -1,4 +1,5 @@
 """Parametrized coverage for two more D-grade helpers with no branch matrix.
+# allow-hardcoded-dates: frozen-time fixture: _ANCLA = datetime(2026, 6, 1) pins 'now' for Monday row picking
 
 S1 batch-8 (test coverage continuation): lock the branch matrix of two
 D-grade helpers that lack parametrized coverage:

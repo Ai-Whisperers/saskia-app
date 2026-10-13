@@ -1,4 +1,5 @@
 """tests/test_forecast.py — Test app/rms/forecast.py (Phase 4.5).
+# allow-hardcoded-dates: fixture: projected_stockout_at is test data, not a relative-time assertion
 
 Predictive restocking helpers (BACKLOG #7). Reads from stock_movement
 (sale type, qty<0) to project when an ingredient will run out and

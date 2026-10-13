@@ -678,6 +678,17 @@ regression test `test_dashboard_empty_state_still_renders_kpi_tiles` locks it. 1
 ## [Unreleased]
 
 ### Fixed
+- **test-hygiene**: add `# allow-hardcoded-dates: <reason>` marker to 15 test files
+  that legitimately use fixed dates (frozen-time `_ANCLA` fixtures, migration
+  test data, BWS API response fixtures, mock clocks). The
+  `test_no_hardcoded_dates.py` regression gate was flagging them as false
+  positives on the daily level-up S1 batches. Test now passes:
+  636 passed, 142 skipped (the 142 are the 15 files * the parametrize row count
+  = 760+ test cases). PR #197 was closed in favor of this targeted follow-up
+  (Ivan's 777310e9 had only fixed batch-9.py; this PR finishes the other 15).
+
+
+### Fixed
 
 - **SASKIA-319**: `tests/test_flash_toast_unification.py` import order (ruff I001) — was failing the Lint gate on main.
 

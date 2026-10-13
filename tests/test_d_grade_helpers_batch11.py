@@ -1,4 +1,5 @@
 """Parametrized coverage for two more D-grade helpers with no branch matrix.
+# allow-hardcoded-dates: frozen-time fixture: 2026-10-01T10:00 stamps in test data rows for stock-forecast
 
 S1 batch-11 (test coverage continuation): lock the branch matrix of two
 D-grade helpers that lack parametrized coverage:

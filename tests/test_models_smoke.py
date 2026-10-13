@@ -1,4 +1,5 @@
 """tests/test_models_smoke.py — Smoke test for all 65 ORM models.
+# allow-hardcoded-dates: fixture: updated_at='2026-10-12T00:00:00' is AppMeta row data, not relative-time
 
 Phase 4.4 (2026-10-12): each model in app/rms/models/ must be importable
 and instantiable. This is the canary that catches:

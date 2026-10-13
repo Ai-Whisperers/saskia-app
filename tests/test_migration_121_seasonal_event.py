@@ -1,4 +1,5 @@
 """Tests for SASKIA-216: migration 121 (create seasonal_event table).
+# allow-hardcoded-dates: fixture: event_date='2026-06-24' is seasonal_event row data, not relative-time
 
 Verifies:
 - Schema bumps to 119
