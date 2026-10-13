@@ -1,3 +1,56 @@
+## 2026-10-13 — refactor(rms): SASKIA-211ab split batch_recipes_cost (CC 18 → 7, C → B, 3 helpers)
+
+**Scope**: `app/rms/profitability/cost.py` (orchestrator + 3 private helpers, +60/-48) and `app/rms/sales/lifecycle.py` (thin re-export, -48). Continues the s3 batch-3/4/5/6/7/8 orchestrator pattern (most-recent: `apply_sale` in batch-8 / PR #190). The previous lifecycle.py:506 `batch_recipes_cost` was a full duplicate of the canonical body in `cost.py:378` (not a thin re-export as the s3 batch-8 CHANGELOG note claimed) — so the same CC-18 number appeared in two files. This PR refactors the canonical function and replaces the duplicate in `sales/lifecycle.py` with a `from app.rms.profitability.cost import batch_recipes_cost` re-export (so `lifecycle.batch_recipes_cost is cost.batch_recipes_cost` is now `True`).
+
+Orchestrator pattern: thin coordinator (`batch_recipes_cost`, CC 7 B — at the rule-40 ≤ 10 ceiling) + three single-purpose private helpers, all A or B grade. No behavior change — every branch from the pre-split implementation is preserved character-for-character. Public signature `batch_recipes_cost(session: Session, recipes: list[Recipe]) -> dict[int, tuple[CostResult, CostResult | None, int]]` is unchanged so the 132 test cases across the 8 most directly-touching test files (costing + yield-labor + prime-cost-batched + recipe-polymorphic + d-grade-helpers-batch9/10 + profitability-sales-split + dashboard-analytics-sections + qa-report/qa-round1) all keep passing without modification.
+
+Helpers extracted (all in `app/rms/profitability/cost.py`, immediately above the orchestrator):
+
+- `_empty_batch_recipes_result(recipes) -> dict[int, tuple[CostResult, CostResult | None, int]]` CC 2 (A) — builds the empty-result dict for the `if not recipe_ids` branch. Returns `{r.id: (CostResult(batch_cost_gs=None, missing_ingredient_names=[]), None, 0) for r in recipes}` so the public contract holds when every input recipe is `None` (or has no `.id`).
+- `_preload_recipe_costs(session, recipe_ids, all_lines) -> None` CC 9 (B) — pre-loads Ingredients + sub-recipe Recipe + RecipeLine rows into the SQLAlchemy identity map. Performs up to 3 SELECTs (ingredient → sub-recipe Recipe → sub-recipe RecipeLine) so the subsequent per-recipe walk in `recipe_batch_cost_gs` / `recipe_unit_cost_gs` hits the identity map instead of issuing N+1 queries. Branch order (ingredient first, sub-recipe second) and the `if new_recipe_ids:` guard on the sub-recipe RecipeLine SELECT are preserved from the pre-split implementation.
+- `_compute_recipe_costs(session, recipes, line_counts) -> dict[int, tuple[CostResult, CostResult | None, int]]` CC 4 (A) — loops over `recipes` (skipping `None` entries via the same `if r is None: continue` guard the pre-split inline code used) and calls `recipe_batch_cost_gs` + the optional `recipe_unit_cost_gs` (only when `batch.batch_cost_gs is not None` — the same gate the pre-split inline code used). Builds the final `{r.id: (batch, unit, line_counts.get(r.id, 0))}` output dict.
+
+Orchestrator (`batch_recipes_cost`, CC 7 B):
+
+```text
+1. if not recipes: return {}
+2. recipe_ids = {r.id for r in recipes if r is not None}
+3. if not recipe_ids: return _empty_batch_recipes_result(recipes)
+4. session.scalars(select(Recipe).where(Recipe.id.in_(recipe_ids))).all()
+5. all_lines = session.scalars(select(RecipeLine).where(RecipeLine.recipe_id.in_(recipe_ids))).all()
+6. line_counts = {rid: 0 for rid in recipe_ids}; accumulate from all_lines
+7. _preload_recipe_costs(session, recipe_ids, all_lines)
+8. return _compute_recipe_costs(session, recipes, line_counts)
+```
+
+`app/rms/sales/lifecycle.py:batch_recipes_cost` is now a thin re-export: `from app.rms.profitability.cost import batch_recipes_cost` plus the new entry in the `__all__` list. All other lifecycle.py imports (`Session`, `select`, `Recipe`, `RecipeLine`, `Ingredient`) are still used elsewhere in the file. `lifecycle.batch_recipes_cost is cost.batch_recipes_cost` is `True`, so `tests/test_profitability_sales_split.py::test_packages_exist` (the only test that imports `batch_recipes_cost` via `app.rms.profitability.cost`) keeps passing — and the duplicate CC-18 function in lifecycle.py is gone.
+
+**Verification**:
+
+- 132 tests pass across the 8 most directly-touching test files: `tests/test_profitability_sales_split.py` (5), `tests/test_costing.py` (16), `tests/test_costing_yield_labor.py` (8), `tests/test_prime_cost_batched.py` (5), `tests/test_recipe_polymorphic.py` (15), `tests/test_d_grade_helpers_batch9.py` (13), `tests/test_d_grade_helpers_batch10.py` (15), `tests/test_dashboard_analytics_sections.py` (12), `tests/test_qa_report_fixes.py` (18), `tests/test_qa_round1_user_journeys.py` (15), `tests/test_sazon_seed.py` (10). 75 of these touch `batch_recipes_cost` / `recipe_batch_cost_gs` / `recipe_unit_cost_gs` directly; the rest exercise the cost graph via the dashboard / recipes router call sites.
+- `uv run radon cc -s app/rms/profitability/cost.py`:
+  - `batch_recipes_cost` CC 18 → CC 7 (C → B, at the rule-40 ≤ 10 ceiling)
+  - 3 new helpers, all A or B grade (CC 2, 4, 9)
+  - no other functions in `cost.py` changed CC
+- `uv run radon cc -s app/rms/sales/lifecycle.py` — `batch_recipes_cost` no longer appears in the per-function table (it's now an imported symbol, not a local def). `apply_sale` (CC 10) and `void_sale` (CC 14) unchanged from the s3 batch-8 split.
+- `uv run python scripts/check_imports.py` — OK, no cycles, no arch violations
+- `uv run ruff check app/rms/profitability/cost.py app/rms/sales/lifecycle.py` — clean
+- `uv run ruff format --check app/rms/profitability/cost.py app/rms/sales/lifecycle.py` — already formatted
+- `from app.rms.profitability.cost import batch_recipes_cost; from app.rms.sales.lifecycle import batch_recipes_cost as sl; assert batch_recipes_cost is sl` — passes (same function object)
+
+**Helpers skipped** (already covered or out of scope):
+
+- `batch_products_cost_margin` (CC 17, C) and `recipe_unit_cost_gs` (CC 13, C) — both above the rule-40 ceiling but out of scope for this batch (C-grade by 1-2 notches above; will be a future s3 batch).
+- `apply_sale` (CC 10, B at the ceiling) — already split in s3 batch-8 (PR #190 / SASKIA-211aa).
+- `void_sale` (CC 14, C) — out of scope for this batch.
+- All other s1/s3 batches (margin_drift_all, _produccion_day_view, _pedido_resolve_customer / _pedido_persist_address_book_entry, sentry_before_send, _step_5_build_recipe_row, plan_production, forecast_restock, _restock_for_target, _resolve_target, compute_plan_accuracy, libro_ventas, batch_compute_prime_cost, import_benchmarks, _validate_workbook, _import_patch_ingredientes) — already covered in #179, #181, #182, #183, #184, #185, #186, #188, #189, #191.
+
+**Files changed**:
+
+- `app/rms/profitability/cost.py` (+60 / -48) — orchestrator + 3 helpers
+- `app/rms/sales/lifecycle.py` (+1 / -47) — added `batch_recipes_cost` to the `from app.rms.profitability.cost import` block, added `"batch_recipes_cost"` to `__all__`, removed the duplicate function body
+- `CHANGELOG.md` (+1 entry at top)
+
 ## 2026-10-13 — test(s1-batch11): parametrize _validate_workbook + _import_patch_ingredientes (CC 28 + 23, D-grade, +28 cases)
 
 **Scope**: `tests/test_d_grade_helpers_batch11.py` (new, ~825 lines). Continues the s1 batch-3/4/5/6/7/8/9/10 helper-coverage sweep (#174, #178, #179, #181, #184, #186, #189, #191). Picks the next 2 fresh D-grade offenders from `uv run scripts/check_complexity.py | grep '^ D cc=2[0-9]'` — `_validate_workbook` (CC 28, D-grade, `app/services/import_xlsx.py`) and `_import_patch_ingredientes` (CC 23, D-grade, `app/services/import_xlsx.py`). Both are in the same file and both are pure helpers (one takes an openpyxl Workbook, the other a Session + Workbook + ImportResult) — no FastAPI Request/Depends context needed.
