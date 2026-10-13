@@ -1,4 +1,27 @@
 
+## 2026-10-13 — Proveedores, movimientos, caja, banco, and fiado stay one click deep
+
+Proveedores leads with the name, the phone, and Nuevo proveedor. Contact,
+email, RUC, ingredients, prices, orders, edit, and deactivate sit under
+Ver detalles.
+
+Movimientos leads with the date, the type, and the quantity. Balances,
+reason, reference, and operator sit under Ver detalles. The page has no
+type or date filter.
+
+Caja keeps Abrir and Cerrar on the page. Recent sessions show when they
+opened and whether they closed. The opening amount, expected, counted,
+difference, and the Z ticket sit under Ver detalles.
+
+Banco leads with the date, the amount, and reconciliation. Currency,
+dates, category, and CSV sit under Filtros. The manual movement form
+stays its own disclosure. Account, category, counterparty, and description
+sit under Ver detalles.
+
+Fiado leads with the customer, the balance, and the account state. The
+limit and Ver sit under Ver detalles. The client ledger stays four columns,
+and Cobrar stays on that page.
+
 ## 2026-10-13 — Detalle stock-move dates show DD/MM/YYYY
 
 The stock-move Fecha cell rearranges `recorded_at_str` from

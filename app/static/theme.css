@@ -1572,3 +1572,119 @@ form ui-date {
 }
 .sale-detail__more > summary::-webkit-details-marker { display: none; }
 .sale-detail__panel { margin-top: 0.75rem; }
+
+/* Ops lists: proveedores, movimientos, caja sessions, banco, fiado.
+   Closed Ver detalles sits on the last track. Open, it is the full-width
+   second row. The panel stays inside the details; display:contents would
+   leave it in the first column. At 640px the disclosure does not share
+   a row with the L1 fields. Print shows the parked panel. */
+.supplier-list { --ops-cols: minmax(10rem, 2fr) minmax(8rem, 1fr) minmax(6.75rem, auto); }
+.move-list { --ops-cols: minmax(8.5rem, 1.1fr) minmax(7rem, 0.9fr) minmax(5.5rem, 0.7fr) minmax(6.75rem, auto); }
+.caja-list { --ops-cols: minmax(10rem, 1.6fr) minmax(8rem, 1fr) minmax(6.75rem, auto); }
+.bank-list { --ops-cols: minmax(7rem, 0.8fr) minmax(6.5rem, 0.7fr) minmax(14rem, 1.8fr) minmax(6.75rem, auto); }
+.fiado-list { --ops-cols: minmax(10rem, 1.6fr) minmax(7rem, 0.8fr) auto minmax(6.75rem, auto); }
+.ops-list__l1 {
+  display: grid;
+  grid-template-columns: var(--ops-cols);
+  column-gap: 0.75rem;
+  row-gap: 0.75rem;
+  align-items: center;
+}
+.ops-list__num { text-align: right; font-variant-numeric: tabular-nums; }
+.ops-list__details { grid-column: span 1 / -1; grid-row: 1; justify-self: end; }
+.ops-list__details.row-meta-details { display: block; position: static; }
+.ops-list__details.row-meta-details > summary {
+  font-size: 0.85rem;
+  color: var(--color-text-link);
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.ops-list__details[open] {
+  display: block;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: stretch;
+  min-width: 0;
+}
+.ops-list__details[open] > summary { display: block; text-align: right; margin-bottom: 0.35rem; }
+.ops-list__details[open] > .inv-list__panel { width: 100%; }
+.ops-list thead .ops-list__l1 > :last-child { justify-self: end; }
+.ops-list .inv-list__field {
+  min-width: 8rem;
+  max-width: 16rem;
+  overflow-wrap: anywhere;
+}
+.bank-list__conc .d-inline-flex { flex-wrap: wrap; }
+/* table-wrap sticks thead cells topnav-height below the scroller, which
+   paints the header over the first row. These lists scroll inside the wrap. */
+.table-wrap .ops-list thead th,
+.table-sticky-wrap .ops-list thead th { top: 0; }
+@media (max-width: 640px) {
+  .supplier-list .ops-list__l1,
+  .caja-list .ops-list__l1 { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+  .supplier-list__name,
+  .caja-list__when { grid-column: 1; grid-row: 1; }
+  .supplier-list__phone,
+  .caja-list__cierre { grid-column: 2; grid-row: 1; }
+  .supplier-list .ops-list__details,
+  .supplier-list .ops-list__details[open],
+  .caja-list .ops-list__details,
+  .caja-list .ops-list__details[open] {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .move-list .ops-list__l1,
+  .bank-list .ops-list__l1,
+  .fiado-list .ops-list__l1 { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto; }
+  .move-list__fecha,
+  .bank-list__fecha,
+  .fiado-list__cliente { grid-column: 1; grid-row: 1; }
+  .move-list__tipo,
+  .bank-list__importe,
+  .fiado-list__saldo { grid-column: 2; grid-row: 1; }
+  .move-list__qty,
+  .fiado-list__estado { grid-column: 3; grid-row: 1; }
+  .bank-list__conc { grid-column: 1 / -1; grid-row: 2; }
+  .move-list .ops-list__details,
+  .move-list .ops-list__details[open],
+  .fiado-list .ops-list__details,
+  .fiado-list .ops-list__details[open] {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .bank-list .ops-list__details,
+  .bank-list .ops-list__details[open] {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .ops-list__details[open] > summary,
+  .ops-list__details[open] > .inv-list__panel { grid-column: auto; grid-row: auto; width: 100%; }
+  .ops-list thead .ops-list__l1 > .ops-list__details { justify-self: stretch; }
+}
+@media print {
+  .ops-list details.ops-list__details {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .ops-list details.ops-list__details::details-content {
+    content-visibility: visible;
+    display: block;
+  }
+  .ops-list details.ops-list__details > .inv-list__panel {
+    display: flex !important;
+    width: 100%;
+  }
+}

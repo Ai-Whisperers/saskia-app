@@ -29,30 +29,49 @@
 </div>
 {% endif %}
 
-<table style="border-collapse:collapse;max-width:760px;">
+<div class="table-wrap">
+<table class="table is-hoverable is-striped mb-0 ops-list fiado-list" style="max-width:760px;">
   <thead>
     <tr>
-      <th class="text-left" style="padding:4px 10px;border-bottom:1px solid var(--border);">Cliente</th>
-      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Saldo</th>
-      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Límite</th>
-      <th style="text-align:center;padding:4px 10px;border-bottom:1px solid var(--border);">Estado</th>
-      <th style="padding:4px 10px;border-bottom:1px solid var(--border);"></th>
+      <th>
+        <div class="ops-list__l1">
+          <span class="fiado-list__cliente">Cliente</span>
+          <span class="fiado-list__saldo ops-list__num">Saldo</span>
+          <span class="fiado-list__estado">Estado</span>
+          <span class="ops-list__details">Ver detalles</span>
+        </div>
+      </th>
     </tr>
   </thead>
   <tbody>
     {% for r in rows %}
     <tr>
-      <td style="padding:4px 10px;">{{ r.nombre }}</td>
-      <td style="padding:4px 10px;color:{% if r.saldo > 0 %}var(--destructive,#b91c1c){% else %}var(--success,#15803d){% endif %};">
-        {{ m.gs_full(r.saldo) }}
+      <td>
+        <div class="ops-list__l1">
+          <div class="fiado-list__cliente">{{ r.nombre }}</div>
+          <div class="fiado-list__saldo ops-list__num" style="color:{% if r.saldo > 0 %}var(--destructive,#b91c1c){% else %}var(--success,#15803d){% endif %};">
+            {{ m.gs_full(r.saldo) }}
+          </div>
+          <div class="fiado-list__estado">{% if r.active %}activa{% else %}<strong>suspendida</strong>{% endif %}</div>
+          <details class="row-meta-details ops-list__details">
+            <summary>Ver detalles</summary>
+            <div class="inv-list__panel">
+              <div class="inv-list__field">
+                <span class="inv-list__label">Límite</span>
+                {% if r.limit_gs %}{{ m.gs_full(r.limit_gs) }}{% else %}—{% endif %}
+              </div>
+              <div class="inv-list__actions">
+                <a href="/fiado/{{ r.customer_id }}">Ver</a>
+              </div>
+            </div>
+          </details>
+        </div>
       </td>
-      <td style="padding:4px 10px;">{% if r.limit_gs %}{{ m.gs_full(r.limit_gs) }}{% else %}—{% endif %}</td>
-      <td style="padding:4px 10px;text-align:center;">{% if r.active %}activa{% else %}<strong>suspendida</strong>{% endif %}</td>
-      <td style="padding:4px 10px;text-align:center;"><a href="/fiado/{{ r.customer_id }}">Ver</a></td>
     </tr>
     {% else %}
-    <tr><td colspan="5" style="padding:10px;" class="text-muted">Sin cuentas de fiado todavía.</td></tr>
+    <tr><td class="text-muted">Sin cuentas de fiado todavía.</td></tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% endblock %}
