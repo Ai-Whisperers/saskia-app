@@ -814,7 +814,7 @@ async def _process_single_row(
         }
 
     price_result = _parse_price(price_raw, ing_name, sup_name, row_idx)
-    if price_result["error"]:
+    if price_result.get("error"):
         return {"status": "error", "data": price_result["error"]}
     price_int = price_result["price"]
 

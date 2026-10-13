@@ -5,7 +5,7 @@
 
 **URL activa:** `https://sazon-vps.paragu-ai.com`  *(si ves "service suspended", contactá al equipo — esa URL no es la correcta)*
 **URL alternativa (suspendida):** `https://sazon-rms.paragu-ai.com` — Render, NO usar
-**Versión del manual:** 2026-10-09 · schema 116 · commit `fd90cc5e` · 21 secciones + Phase 3 CI cleanup, production v2 features, station chooser + caja gate
+**Versión del manual:** 2026-10-13 · schema 124 · commit `08accb62` · 21 secciones + SASKIA-226 onboarding questionnaire applied (10 settings_kv, schema columns, demo cajeros soft-deleted)
 **Manual versión:** v1.5 (ver "Cómo verificar la versión" abajo)
 
 ## Índice rápido
@@ -117,7 +117,7 @@ Excel             → importar/exportar planilla
 
 ## Lo que podés hacer — y lo que todavía no
 
-| **Versión:** schema 116 · commit `fd90cc5e` · 2026-10-09 |
+| **Versión:** schema 124 · commit `08accb62` · 2026-10-13 |
 
 ### ✅ Funcionalidades activas (lista cerrada)
 
@@ -175,7 +175,7 @@ Tres formas:
 |---|---|---|
 | En el navegador | Pie de página de cualquier pantalla | "Sazón v1.0 · Sistema local · 2026" |
 | Al iniciar sesión | Header `X-Agent` en respuesta `/login` | `SaskiaRMS/1.0` |
-| En este manual | El número "v1.x" arriba | Dice `2026-10-05 · schema 101 · commit 62cccee` |
+| En este manual | El número "v1.x" arriba | Dice `2026-10-13 · schema 124 · commit 08accb62` |
 
 Si los tres no coinciden, **el manual está desactualizado** — avisá a Iván para que lo actualice.
 
