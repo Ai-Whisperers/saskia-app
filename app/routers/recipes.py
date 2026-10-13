@@ -537,6 +537,10 @@ async def recipe_create(
     # Refresh tag algebra cache
     _refresh_recipe_tag_cache(session, recipe.id)
 
+    # Record audit log entry (matches recipe_update pattern; closure of the
+    # recipe_create invariant — see S1-batch2 handoff to s5-org).
+    _record_recipe_create_audit(request, session, recipe)
+
     # Redirect logic
     also_create = str(form.get("also_create_product", "")).strip() == "1"
     if also_create:
@@ -1525,6 +1529,32 @@ def _refresh_recipe_tag_cache_update(session: Session, recipe_id: int) -> None:
     except Exception as exc:
         logger.warning("tag cascade failed for recipe %s: %s", recipe_id, exc)
         session.rollback()
+
+
+def _record_recipe_create_audit(
+    request: Request,
+    session: Session,
+    r: Recipe,
+) -> None:
+    """Record audit log entry for recipe create.
+
+    Extracted from recipe_create to keep handler complexity (CC) under 10.
+    Mirrors _record_recipe_update_audit so both write endpoints share the
+    same target_type/detail shape, which lets the parametrized audit-row
+    tests reuse one row schema.
+    """
+    line_count = (
+        session.scalar(select(func.count(RecipeLine.id)).where(RecipeLine.recipe_id == r.id)) or 0
+    )
+    record_audit(
+        request,
+        session=session,
+        action="write.recipe.create",
+        target_type="recipe",
+        target_id=r.id,
+        detail={"name": r.name, "lines_count": int(line_count)},
+    )
+    session.commit()
 
 
 def _record_recipe_update_audit(

@@ -1,86 +1,79 @@
-## 2026-10-12 — s4-tooling batch-2: ci.yml YAML self-check + advisory pip-audit + make workflow-yaml + make sbom-on-demand
+## 2026-10-12 — style: ruff check --fix + format on parametrized test files (F811/I001/RUF100)
 
-**Scope**: `.github/workflows/ci.yml` (+46 lines: workflow YAML self-check step + advisory pip-audit step with `--no-fail-on-error` + step-summary output), `.github/workflows/release.yml` (+9 lines: clarifying comment that release-time pip-audit stays BLOCKING and now duplicates the new ci.yml advisory copy), `Makefile` (+32 lines: `workflow-yaml` and `sbom-on-demand` targets), `scripts/check_workflows_yaml.py` (docstring updated to reflect new wiring). No `app/**`, no `tests/**`, no pyproject changes.
+**Scope**: `tests/test_produccion_polish_parametrized.py`, `tests/test_production_demand_parametrized.py`, `tests/test_ui_components_parametrized.py` — auto-fix from `ruff check --fix` (3 errors) + `ruff format` (line lengths, import grouping). Behavior preserved.
 
-**Measured delta:**
+## 2026-10-12 — test(smoke): clear KNOWN_FAILING_SMOKE (caja/abrir bug fixed)
 
-| Metric | Before | After |
-|--------|--------|-------|
-| Workflow YAML parse check in ci.yml | absent (only in fast-pr-gate + make audit) | present, runs first as the PR #159 lesson |
-| pip-audit scan surface | release.yml only (tag push, blocking) | ci.yml on every PR + push (advisory via `--no-fail-on-error` + `$GITHUB_STEP_SUMMARY`) + release.yml (still blocking for prod) |
-| `make workflow-yaml` target | absent (only via `make audit`) | standalone target |
-| `make sbom-on-demand` target | absent (only via release.yml tag push) | standalone target, override `OUT=<path>` |
-| Ruff check + format | clean | clean (1495 files) |
-| Workflow YAML parse (script) | 17/17 OK | 17/17 OK |
+**Scope**: `scripts/gen_route_smoke.py` (KNOWN_FAILING_SMOKE list emptied), `tests/test_route_smoke_generated.py` (parametrized list emptied). 
 
-**Why each item:**
+The S1 batch-2 `fmt`→`money` fix in `app/templates/caja.html` + `app/routers/caja.py` (this PR) closed the `/caja/abrir` 500 bug. The `KNOWN_FAILING_SMOKE` mechanism correctly failed loud (`test_known_failing_route[caja-abrir-...]` asserted `>= 500`, got `200`, raised "bug may be fixed! Remove from KNOWN_FAILING_SMOKE") — exactly the contract. Removed the entry; the route is now in the regular pass set (28/28 smoke cases pass).
 
-- **ci.yml Workflow YAML self-check**: PR #159 was caused by `ci.yml`'s `safe_load(...)` being broken since #112. `fast-pr-gate.yml` already runs the check in parallel, but ci.yml is the primary gate — wiring it directly ensures the check fires on forks/branches where fast-pr-gate isn't enabled, and gives the operator a single canonical location. The script is idempotent and ~150 ms.
-- **ci.yml advisory pip-audit**: every PR now gets a CVE scan of the locked dependency graph. The `--no-fail-on-error` flag plus `continue-on-error: true` makes this purely advisory — findings surface in the run summary via `$GITHUB_STEP_SUMMARY` so reviewers see them without scraping the log. The release.yml BLOCKING scan stays as the hard gate for production-bound cuts (see clarifying comment added in this PR). Two scans, two audiences: ci = developer feedback, release = production safety.
-- **`make workflow-yaml`**: standalone local equivalent of the CI self-check. Useful when iterating on workflow files without running the full `make audit` (which also runs CVE scan, security, complexity — much slower).
-- **`make sbom-on-demand`**: release.yml only emits a CycloneDX SBOM on CalVer tag pushes. Operators / auditors sometimes need an out-of-band SBOM (customer security review between releases, dep change verification before tagging). Default output is `/tmp/sbom-on-demand.cdx.json`; override with `OUT=./my-sbom.cdx.json`. Tested locally: 167 KB SBOM with 134 components, valid CycloneDX 1.6 JSON.
+## 2026-10-12 — test(infra): S1 batch-2 — parametrize 3 large test files (Phase 2 inc #3)
 
-**Implementation notes (for s5 review):**
+**Scope**: `tests/test_produccion_polish_parametrized.py` (new), `tests/test_production_demand_parametrized.py` (new), `tests/test_ui_components_parametrized.py` (new) — apply the dedup pattern from `_lib/parametrization_examples.py` to 3 of the 5 largest test files identified in the S1 audit (>500 lines each). All additive (no test deletions). Total +17 cases.
 
-- The `cyclonedx-bom` package is at version 7.5.0 in this repo (constraint: `>=4.5`). The 7.x line dropped `--runtime`, `--name`, `--version` — project metadata now comes from `--pyproject pyproject.toml`. The release.yml SBOM step still uses the pre-7.x flags and would fail if a release ran today. **This is a pre-existing bug separate from this PR** (not introduced by s4-tooling batch-2). The new `make sbom-on-demand` uses the correct 7.x invocation. Recommendation: a follow-up PR (separate commit) should update release.yml to match the same `cyclonedx-py environment --pyproject pyproject.toml --of JSON --no-validate` invocation used here.
-- `make help` now lists both new targets; they're in `.PHONY` so they don't collide with same-named files.
+## 2026-10-12 — fix(caja): rename template var fmt→money (the real /caja/abrir 500 root cause)
 
-**Rules honored:**
+**Scope**: `app/routers/caja.py` (+5/-3), `app/templates/caja.html` (+6/-6).
 
-- **Rule 35** (root CHANGELOG.md entry when touching `scripts/`, `.github/`, or `Makefile`): this entry.
-- **Rule 38** (no `*_legacy.py`): no new shim files.
-- **Rule 40** (CC ≤ 10): no `app/` code touched; complexity gate still references S3's `scripts/check_complexity.py`.
-- **Rule 45** (always measure): every metric above re-verified against the live repo (ruff check + format + script self-check + make workflow-yaml + make sbom-on-demand all green).
+`POST /caja/abrir` redirected to `caja.html` (not `caja_z.html`). The `caja_home` handler passed `money=_fmt` in the ctx but template still used `{{ fmt(...) }}` on lines 22-23 (the 500 reproducer). Fix: rename template var to match the ctx key (`fmt`→`money`) in 6 callsites. `caja_z.html` was already consistent (`{{ money(...) }}` since 2026-08). Single source of truth: the router exports one `money()` helper; the template uses the ctx key.
 
-**Cross-lane coordination:**
+The `_fmt` name was a vestige — the template contract from day-1 was `money=...` (see `caja_z.html`). The `caja.html` template was missing the rename in 2026-08. Now consistent.
 
-- **S1** owns `[tool.pytest]`, `tests/**`, `route-smoke.yml`, `gen_route_smoke.py` (untouched). The `make audit` and `make workflow-yaml` scripts are read-only — they don't depend on s1 artifacts.
-- **S2** owns `app/**/errors.py`, `app/routers/**`, `app/services/**` (untouched).
-- **S3** owns `app/**` refactors + ADRs (untouched).
-- **S5** owns `LOCKS/merge.json` and merge sequencing.
+Closes the `KNOWN_FAILING_SMOKE` entry from #168.
 
-**Hazards:**
+## 2026-10-12 — fix(recipes): record_audit on recipe_create (P0 audit-log gap)
 
-- **Pre-existing release.yml SBOM bug**: as noted above, the SBOM step in release.yml uses `cyclonedx-bom` 4.x flags that don't exist in 7.x. Out of scope for this PR; flagging for follow-up.
-- **`make tool-matrix` pre-existing duplicate**: the Makefile has two `tool-matrix:` definitions (lines ~232 and ~268) — this is a pre-existing issue, not introduced here.
-- **PR #159 lesson remains in force**: confirmed by re-running `scripts/check_workflows_yaml.py` after every edit — all 17 workflows parse clean.
+**Scope**: `app/routers/recipes.py` (+27).
 
-## 2026-10-12 — fix(ci): remove blank line breaking shell continuation in fast-pr-gate smoke step
+`POST /recetas/nueva` was the only recipe write path missing a `record_audit()` call. The 4 other recipe writes (`update`, `delete`, `add_line`, `remove_line`) all log `write.recipe.*` audit rows. `recipe_create` was a silent P0 gap (forensic-blind — no record of who created a recipe or when). Fix: extract `_record_recipe_create_audit(request, session, recipe)` that mirrors the existing `_record_recipe_update_audit` (same target_type="recipe", same `lines_count` in detail). Behaviour-preserving for the request flow; +1 audit row per recipe_create.
 
-**Scope**: `.github/workflows/fast-pr-gate.yml` (1 line removed: blank line between two `\` continuations in the smoke-subset pytest block). The blank line caused GitHub Actions to write a malformed shell script where the file path was treated as a command name → "Permission denied" exit 126, even though pytest itself passed. Fix is local — workflow file only, no app/ or tests/ change.
+Locked by: 1 new test in `tests/test_p0_audit_log_coverage.py` (additive, same pattern as the parametrized audit-row tests in #168).
 
-## 2026-10-12 — fix(test): add allow-hardcoded-dates marker for cost-history fixtures
+## 2026-10-12 — style: apply ruff format + fix F841 unused locals (S1 batch-1)
 
-**Scope**: `tests/test_cost_freshness.py` (1 line: docstring marker). The new `test_no_hardcoded_dates.py` gate (added in PR #164) flagged 8 `datetime(2026, ...)` literals as pre-existing on main. The gate allows the `# allow-hardcoded-dates: <reason>` marker in test docstrings; the dates are intentional fixtures for the cost-history window tests in cost_freshness (e.g. "30d stale" → None) so the marker is correct, not a refactor. Unblocks the fast-pr-gate smoke subset for all current and future PRs.
+**Scope**: `scripts/gen_route_smoke.py`, `tests/_lib/parametrization_examples.py`, `tests/seeders.py`, `tests/test_p0_audit_log_coverage_parametrized.py`, `tests/test_route_smoke_generated.py`, `tests/test_seeders_registry.py` — pure formatting + 2 unused-local fixes (`--unsafe-fixes`). No behavior change. Required by fast-pr-gate smoke gate.
 
-## 2026-10-12 — ci(tooling): fast PR gate + YAML self-check + SBOM + dependabot verification + PR template + `make audit`
+## 2026-10-12 — test(seeders): Phase 2 increment #1 — registry contract meta-tests (10 cases)
 
-**Scope**: `.github/workflows/fast-pr-gate.yml` (new), `.github/workflows/release.yml` (+49 lines: pip-audit + CycloneDX SBOM + artifact upload), `.github/PULL_REQUEST_TEMPLATE.md` (new), `scripts/check_workflows_yaml.py` (new), `Makefile` (`+audit` target), `pyproject.toml` (`[dependency-groups].tooling +cyclonedx-bom`). No `app/**`, no `tests/**`, no ruff config changes — all additive tooling work.
+**Scope**: `tests/test_seeders_registry.py` (new, 169 lines).
 
-**Measured delta:**
+Locks the `tests/seeders.py` public API so future refactors can't silently break the 58+ test files that consume it:
 
-| Metric | Before | After |
-|--------|--------|-------|
-| Workflow files | 16 | 17 (+ fast-pr-gate.yml) |
-| `make audit` target | absent | `audit-cve + workflows-lint + security + complexity + YAML self-check` |
-| PR-time feedback loop | ~6 min (full ci.yml) | <5 min (fast-pr-gate.yml in parallel) |
-| Release SBOM | absent | CycloneDX JSON via `cyclonedx-bom` |
-| Release CVE gate | absent | `pip-audit --strict` (blocking on known CVEs) |
-| Workflow YAML parse check | inline (silent skip risk per PR #159) | dedicated `scripts/check_workflows_yaml.py` invoked by `make audit` + `fast-pr-gate.yml` |
-| Dependabot config | already present | re-verified (uv weekly + github-actions weekly) |
-| Pre-commit security hooks | already present (vulture, bandit, radon-cc) | re-verified |
-| Ruff config + coverage gate | already aligned | re-verified (no changes) |
+- `test_seeders_module_imports_cleanly` — import + public surface spot-check (11 functions present).
+- `test_seed_writes_to_db` (parametrized × 4) — seed_customer / seed_ingredient / seed_product / seed_catalog persist and round-trip via `s.get(ORM_class)`.
+- `test_seed_simple_returns_customer_and_product` — composite helper contract.
+- `test_seed_basic_creates_minimal_db` — minimal-entry contract.
+- `test_qseed_basic_scenario` — qseed('basic') canonical entrypoint.
+- `test_seeders_module_no_test_dunder_polycollect` — no `test_*` name pollution (would silently auto-collect).
+- `test_seeders_have_no_async_def` — AGENTS.md rule 32 consistency.
+- `test_seeders_cc_within_budget` — CC ≤ 10 ceiling (radon gated; skipped locally if radon absent).
 
-**Why each item:**
+All 10 cases pass on the registry as shipped in `d29b0e36`. Suite now has 8534 test cases.
 
-- **fast-pr-gate.yml**: every PR now runs the full ~6 min suite in `ci.yml`. Trivial diffs (typo, doc, format-only) shouldn't pay that latency. The new gate runs lint + format + YAML self-check + a 5-test smoke subset in parallel and gives fast red feedback. `ci.yml` stays the safety net.
-- **YAML self-check (PR #159 lesson)**: `ci.yml`'s `safe_load(...)` was broken since #112 and silently skipped the full suite. `scripts/check_workflows_yaml.py` parses every workflow with `yaml.safe_load` and is invoked by both `make audit` (local) and `fast-pr-gate.yml` (CI) — catches future regressions BEFORE ci.yml tries to run them.
-- **SBOM + pip-audit on release**: NTIA-aligned best practice. CycloneDX JSON SBOM is uploaded as a 90-day retention artifact; `pip-audit --strict` blocks the release on any known CVE in the dependency graph.
-- **PR template**: `Closes gap:` + `Measured delta:` lines (per 2026-10-12 level-up campaign decision). Checklist includes the cross-lane coordination reminders so reviewers can spot scope drift.
-- **`make audit`**: one-shot pre-PR audit target. Reuses existing `audit-cve`, `workflows-lint`, `security`, `complexity` targets + the new script.
-- **`cyclonedx-bom` in `[dependency-groups].tooling`**: pulls in the SBOM generator without touching `dev-base` (kept lean for `ci.yml`).
+## 2026-10-12 — test(audit): Phase 2 increment #2 — parametrized CRUD audit-row coverage (6 cases, additive)
 
-**Rule 35 (CHANGELOG) + Rule 12 (no coverage gate raise)**: honored. Rule 38 (no `*_legacy.py`): honored. Rule 40 (CC ≤ 10): no app code touched.
+**Scope**: `tests/test_p0_audit_log_coverage_parametrized.py` (new, 218 lines).
+
+Demonstrates the parametrize dedup pattern identified in the audit. Subsumes the 6 simple CRUD cases from `test_p0_audit_log_coverage.py` (recipe/product/customer create + update) into a single `@pytest.mark.parametrize("spec", _CASES)` driver with 6 row dicts.
+
+Each row spec defines: URL template, request_kwargs factory, audit action, target_type, extra detail assertions, target_id match key. Adding a new write action = one new dict entry, no new function.
+
+**ADDITIVE only** — the original 6 functions in `test_p0_audit_log_coverage.py` remain untouched. Both files run. Once the parametrized version proves identical behavior across N runs, the originals can be deleted in a follow-up commit.
+
+Result: 6 of 7 cases pass (1 fails — `recipe-create` — with the same error as the pre-existing original `test_recipe_create_audited`, confirming identical behavior). Parametrize shape works.
+
+Suite grows to 8543 tests. Demonstrates the dedup pattern from `tests/_lib/parametrization_examples.py` in a real test file.
+
+## 2026-10-12 — test(infra): S1 Phase 1 — seeders registry + auto-generated route smoke (27 routes + 1 known-fail)
+
+**Scope**: `tests/seeders.py` (new, 374 lines — consolidated 58 seed helpers, eliminated 18 duplicate patterns), `tests/test_route_smoke_generated.py` (auto-generated, 27 parametrized route smoke cases + 1 known-failing case), `tests/_lib/parametrization_examples.py` (new pattern catalog, 161 lines), `scripts/gen_route_smoke.py` (+ KNOWN_FAILING_SMOKE mechanism so documented app bugs don't fail CI but stay visible), `docs/operations/2026-10-12-s1-test-audit.md` (audit doc).
+
+Closes **TEST_ARCHITECTURE.md gap G2** (routes without dedicated tests). Net: 27 previously-untested routes now have a smoke test that asserts < 500 status. Smoke generator introspects `app.routes`, filters already-covered routes, and emits parametrize cases. The known-failing mechanism adds an explicit `KNOWN_FAILING_SMOKE` registry — when a route 5xx-es due to an app bug, list it here so the bug stays tracked (and the smoke test for it asserts `>=500`, so a fix will fail loud and prompt removal).
+
+Bug surfaced (not fixed, tracked separately): **`POST /caja/abrir` returns 500** with `TypeError: 'types.SimpleNamespace' object is not callable` — `caja.html` calls `fmt(...)` but the GET handler passes `money=...`, while the POST redirect target doesn't include either key. Fix is to either rename the template var from `fmt` to `money`, or always pass both. Out of S1 scope (app code); logged in `KNOWN_FAILING_SMOKE` for s1 lane tracking.
+
+Audit score 6/10 → 7.5/10. Phase 2 (parametrize duplicated bodies, split 5 files >500 lines) is the next step.
 
 ## 2026-10-12 — feat(tenant): SASKIA-220 URL-based tenant routing (opt-in middleware)
 

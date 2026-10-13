@@ -75,8 +75,8 @@ def test_post_route_does_not_500(client, path, label):
 # Each route below 5xx-es due to an app bug tracked by its ticket.
 # Once the bug is fixed, remove the entry from KNOWN_FAILING_SMOKE
 # in scripts/gen_route_smoke.py and regenerate this file.
-_KNOWN_FAILING_PARAMS = [
-    pytest.param("POST", "/caja/abrir", id="caja-abrir-known-fail-SASKIA-TBD-caja-fmt-shadow"),
+_KNOWN_FAILING_PARAMS: list = [
+    # (empty — all known bugs in this category are now fixed as of S1 batch-2)
 ]
 
 
