@@ -1,3 +1,45 @@
+## 2026-10-13 — test(s1-batch9): parametrize compute_plan_accuracy + libro_ventas (CC 27 + 21, D-grade, +23 cases)
+
+**Scope**: `tests/test_d_grade_helpers_batch9.py` (new, 24 tests covering 23 parametrize rows + 1 row-count doc test). No source-code changes. Continues the s1 batch-5/6/7/8 parametrized-coverage pattern (most recent: `plan_production` + `forecast_restock`, s1-batch8 #186).
+
+**Helpers under test**:
+
+(1) `app/rms/plan_accuracy.py:compute_plan_accuracy` (CC 27, D-grade) — plan-vs-actual accuracy dashboard aggregator. 11 scenarios lock the major branches:
+
+- `empty_window_returns_zero_report` — `if not all_keys: return AccuracyReport(...)` early-exit
+- `perfect_match_accuracy_one` — planned=completed=sold, accuracy=1.0
+- `under_baked_low_accuracy` — completed < planned → under_baked > 0, accuracy=0.4
+- `over_baked_wasted_capacity` — completed > planned, sold < completed → over_baked > 0, demand_met < 1
+- `ad_hoc_completion_planned_zero` — `DailyAccuracyRow.accuracy` property's `None` branch (planned_qty <= 0)
+- `voided_sales_excluded_from_sold_qty` — `Sale.voided_at.is_(None)` filter in `_daily_sales`
+- `multi_product_summary_aggregation` — per-product ProductAccuracySummary, total aggregation
+- `orphan_fk_product_name_fallback` — `product_names.get(pid, f"#{pid}")` default fallback when planned_qty references a missing product
+- `worst_days_top5_populated` — `_top_worst_days` sort path
+- `best_days_excludes_planned_zero` — `_top_best_days` `if t["planned"] > 0` filter
+- `n_days_in_period_formula_3d` — `(end_date - start_date).days + 1` formula for 3-day span
+
+(2) `app/rms/accounting.py:libro_ventas` (CC 21, D-grade) — chronological Libro de Ventas (DNIT sales ledger). 12 scenarios lock the major branches:
+
+- `empty_window_returns_empty_list` — `sales_in_window()` empty list
+- `sale_outside_window_excluded` — `sales_in_window()` datetime filter
+- `voided_sale_excluded` — `Sale.voided_at.is_(None)` branch
+- `customer_name_resolved_when_customer_id_set` — `custs.get(r.customer_id)` hit branch
+- `customer_name_none_when_customer_id_null` — `if r.customer_id else None` branch
+- `factura_invoice_metadata_surfaced` — `getattr` pass-through for invoice_number / invoice_customer_ruc / invoice_customer_name
+- `boleta_resimple_uses_computed_iva` — `else: base_out = iva.base_gs` fallback when snapshotted iva fields are 0
+- `tax_mode_excluded_uses_gross_times_rate` — `extract_iva()` 'excluded' branch (gross * 0.10)
+- `refund_subtracts_from_gross` — `refunds_by_sale` lookup + subtraction (M1 path)
+- `full_refund_clamps_net_to_zero` — `net = max(iva.gross_gs - refunds_sum, 0)` clamp
+- `pedido_refund_not_counted` — `Refund.target_type == "sale"` filter (pedido-target refund ignored)
+- `product_name_comes_from_product_row` — `prods.get(r.product_id, f"#{r.product_id}")` hit branch
+
+**Implementation follows the `test_plan_accuracy.py` + `test_libro_ventas_refunds.py` fixture pattern**: each scenario owns its own in-memory SQLite engine (`make_engine("sqlite:///:memory:")` + `init_db(eng)`) with the session kept open for the lifetime of the test. This sidesteps the `:memory:` per-connection DB pitfall that bit `test_libro_ventas_refunds.py` (where `with SF() as s:` opens a fresh DB on every block).
+
+**Verification**: `uv run rtk pytest tests/test_d_grade_helpers_batch9.py --no-cov` → **24 passed** (11 plan_accuracy + 12 libro_ventas + 1 row-count doc). No regressions.
+
+`scripts/check_complexity.py` still lists both helpers in the D-grade offender list (CC unchanged at 27 + 21). Followup refactors are out of scope here — the next-step orchestrator-pattern refactor of `compute_plan_accuracy` and `libro_ventas` will land as separate S3 batches. Row-count assertion pins `len(_ROWS_ACCURACY) == 11` and `len(_ROWS_LIBRO_VENTAS) == 12` so future changes force a CHANGELOG update.
+
+
 ## 2026-10-13 — fix(arch): move app/rms/retry.py → app/retry.py (PR6 boundary violation fix)
 
 **Scope**: `app/retry.py` (new location, renamed from `app/rms/retry.py`, no body changes); 4 import-path updates; 1 deletion.
