@@ -2,7 +2,13 @@
 
 **Scope**: `tests/test_retry_wiring_2.py` (new, 12 tests), `app/services/r2_backup.py` + `app/integrations/email_outbound.py` (import path fixes from `app.rms.retry` → `app/retry.py`, post-#187 module move).
 
-Adopts the S2 robustness retry helper (`app/retry.py:retry_transient`, added in PR2) at the two S3+ wiring targets PR7 introduced:
+## 2026-10-13 — s3 batch-10: split produccion_shift_execute (CC 22→3)
+
+### Changed
+- **app/routers/produccion/operations.py** — split `produccion_shift_execute` (CC 22, D-grade) into 4 helpers all B-grade or better: `_check_shift_request_preconditions` (A, 4), `_persist_completed_completions` (B, 7), `_persist_done_checkboxes` (B, 7), `_parse_completed_field` (B, 6). Net +169/-95 (more docstrings; routes stays a slim 3-branch orchestrator).
+- **tests/test_s3_split_batch10.py** (new, 26.5 KB, 46 cases) — locks every branch of the 5 extracted helpers + a radon test to prevent future CC bloat.
+
+## [Unreleased]
 
 - `app/services/r2_backup.py` — wraps `Storage.put` / `Storage.get` (called from `encrypt_and_upload` and `download_and_decrypt`) in `retry_transient(attempts=3, is_transient=_r2_is_transient, ...)`. The classifier reads the embedded HTTP status from `botocore.exceptions.ClientError` and retries on 5xx / 429, re-raises on 4xx (NoSuchKey / 404 / InvalidArgument — operator-actionable).
 - `app/integrations/email_outbound.py` — wraps `smtplib.SMTP` send via `send_email_outbound(attempts=3, is_transient=_email_is_transient, ...)`. Transient on `SMTPConnectError` / `SMTPServerDisconnected` / `SMTPTimeoutError` / `socket.timeout`; terminal on `SMTPAuthenticationError` (bad creds, returns `False`) and `EmailConfigError` (raises immediately).

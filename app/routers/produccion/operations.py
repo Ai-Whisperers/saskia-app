@@ -18,15 +18,17 @@ Routes (9 POSTs):
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+from typing import Any
 
 from fastapi import Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from loguru import logger
 from sqlalchemy import select
+from sqlalchemy import text as _sa_text
 from sqlalchemy.orm import Session
 
 from app.auth import current_operator
-from app.rms.config import ASUNCION_TZ
+from app.rms.config import ASUNCION_TZ, BACKDATE_WINDOW_DAYS
 from app.rms.dependencies import get_session
 from app.rms.eod_completions import (
     close_day_for_product,
@@ -37,9 +39,11 @@ from app.rms.eod_completions import (
 from app.rms.models import (
     Product,
     ProductionClosedDay,
+    ProductionCompletion,
 )
 from app.rms.observability import record_audit
 from app.rms.production_demand import persist_plan_audit
+from app.rms.rate_limit import is_write_rate_limited
 from app.routers.produccion._router import router
 
 
@@ -401,38 +405,33 @@ async def produccion_override_bulk(
 # (operator said "I marked this done but produced nothing" — honest).
 
 
-@router.post("/shift-execute")
-async def produccion_shift_execute(
+def _check_shift_request_preconditions(
+    session: Session,
     request: Request,
-    for_date: date = Form(...),
-    session: Session = Depends(get_session),
-) -> RedirectResponse:
-    """Persist actual production qty per product (the "ya salió del horno" tracker).
+    for_date: date,
+) -> None:
+    """Guard rails for POST /produccion/shift-execute (CC <= 4).
 
-    T-2026-10-04 (Tier 5-K): if the form was opened before the latest
-    `updated_at` for this date (meaning another cook saved while you were
-    typing), we surface a soft warning via the redirect (no hard block —
-    last-write-wins remains, but the user knows they may have stomped).
-    The check uses the optional `form_opened_at` form field; older clients
-    without the field skip the check.
+    S3 batch-10: extracted from `produccion_shift_execute`. Two
+    pre-write concerns kept together because they share the "reject
+    before we touch the DB" entry-point and they both read
+    `app.rms.config.ASUNCION_TZ`.
+
+    1. **Rate limit.** Reuse the write-rate guard from the rest of the
+       app -- 429 if the operator spammed the form.
+    2. **Backdate window.** Reject `for_date` older than
+       `BACKDATE_WINDOW_DAYS` (default 7) so a stray 2020-01-01
+       backfill can't corrupt the 14-day rolling forecast, and reject
+       future dates (use /produccion/override for tomorrow's plan).
+
+    Raises:
+        HTTPException 429 on rate-limit hit; 400 on out-of-window date.
     """
-    from datetime import datetime, timezone
-
-    from app.rms.rate_limit import is_write_rate_limited
-
     if is_write_rate_limited(session, request):
         raise HTTPException(
             status_code=429,
             detail="Demasiadas acciones en 1 minuto. Esperá un momento.",
         )
-
-    # PRODUCCION-V3 Phase 0: backdate cap. Reject for_date older than
-    # BACKDATE_WINDOW_DAYS (default 7) — otherwise a stray 2020-01-01
-    # backfill would corrupt the 14-day rolling forecast. Also reject
-    # future dates (use /produccion/override for tomorrow's plan).
-    from datetime import timedelta
-
-    from app.rms.config import ASUNCION_TZ, BACKDATE_WINDOW_DAYS
 
     today_local = datetime.now(ASUNCION_TZ).date()
     if for_date > today_local:
@@ -453,72 +452,109 @@ async def produccion_shift_execute(
             ),
         )
 
-    form = await request.form()
-    form_opened_at_raw = form.get("form_opened_at")
-    user_id = str(current_operator(request))
 
-    # T-2026-10-04 (Tier 5-K): detect concurrent modification. Compare
-    # the form's open-time against the latest updated_at on this date.
-    # If form_opened_at < max(updated_at), someone else saved while
-    # we were filling it out.
-    concurrent_modify = False
-    if form_opened_at_raw:
-        try:
-            # The form sends naive local time; treat as UTC for compare.
-            form_opened_at = datetime.fromisoformat(str(form_opened_at_raw))
-            if form_opened_at.tzinfo is None:
-                form_opened_at = form_opened_at.replace(tzinfo=timezone.utc)
-            # Read max(updated_at) for this date.
-            latest_row = session.execute(
-                __import__("sqlalchemy").text(
-                    "SELECT MAX(updated_at) FROM production_completion WHERE for_date = :d"
-                ),
-                {"d": for_date.isoformat()},
-            ).scalar()
-            if latest_row is not None:
-                # SQLite returns strings; normalize.
-                if isinstance(latest_row, str):
-                    latest_ts = datetime.fromisoformat(latest_row)
-                    if latest_ts.tzinfo is None:
-                        latest_ts = latest_ts.replace(tzinfo=timezone.utc)
-                else:
-                    latest_ts = latest_row
-                if latest_ts > form_opened_at:
-                    concurrent_modify = True
-        except (ValueError, TypeError) as exc:
-            # T-2026-10-04: log the parse failure (was silent pass; now
-            # the operator log + test_no_silent_excepts can see it).
-            # Bad/missing format — skip the concurrent-edit check.
-            logger.debug(f"produccion.shift_execute: bad form_opened_at format: {exc!r}")
+def _detect_shift_concurrent_modify(
+    session: Session,
+    form: Any,
+    for_date: date,
+) -> bool:
+    """T-2026-10-04 (Tier 5-K): detect concurrent modification (CC <= 7).
 
+    S3 batch-10: extracted from `produccion_shift_execute`. Compare the
+    form's open-time against the latest `updated_at` on this
+    `for_date`. If `form_opened_at < max(updated_at)`, someone else
+    saved while we were filling it out. Returns ``True`` so the caller
+    can append the soft warning to the redirect.
+
+    Bad/missing `form_opened_at` formats are logged at DEBUG and the
+    check is skipped -- no silent pass (rule 41).
+    """
+    from datetime import timezone
+
+    form_opened_at_raw = form.get("form_opened_at") if form is not None else None
+    if not form_opened_at_raw:
+        return False
+    try:
+        form_opened_at = datetime.fromisoformat(str(form_opened_at_raw))
+        if form_opened_at.tzinfo is None:
+            # Form sends naive local time; treat as UTC for compare.
+            form_opened_at = form_opened_at.replace(tzinfo=timezone.utc)
+        latest_row = session.execute(
+            _sa_text("SELECT MAX(updated_at) FROM production_completion WHERE for_date = :d"),
+            {"d": for_date.isoformat()},
+        ).scalar()
+        if latest_row is None:
+            return False
+        # SQLite returns strings; normalize.
+        if isinstance(latest_row, str):
+            latest_ts = datetime.fromisoformat(latest_row)
+            if latest_ts.tzinfo is None:
+                latest_ts = latest_ts.replace(tzinfo=timezone.utc)
+        else:
+            latest_ts = latest_row
+        return latest_ts > form_opened_at
+    except (ValueError, TypeError) as exc:
+        logger.debug(f"produccion.shift_execute: bad form_opened_at format: {exc!r}")
+        return False
+
+
+def _parse_completed_field(
+    key: str,
+    value: Any,
+) -> tuple[int | None, float | None]:
+    """Parse one ``completed_<pid>`` form field (CC <= 3).
+
+    S3 batch-10: extracted from `produccion_shift_execute`. Returns
+    ``(product_id, qty)`` on success or ``(None, None)`` if the
+    field is malformed (non-numeric pid or non-numeric / negative
+    qty). Pure function -- no DB.
+    """
+    if not key.startswith("completed_"):
+        return (None, None)
+    if not isinstance(value, str):
+        return (None, None)
+    try:
+        product_id = int(key.removeprefix("completed_"))
+    except ValueError:
+        return (None, None)
+    try:
+        qty = float(value)
+    except (TypeError, ValueError):
+        return (None, None)
+    if qty < 0:
+        return (None, None)
+    return (product_id, qty)
+
+
+def _persist_completed_completions(
+    session: Session,
+    form: Any,
+    for_date: date,
+    user_id: str,
+) -> tuple[int, int]:
+    """Upsert every ``completed_<pid>`` form field (CC <= 9).
+
+    S3 batch-10: extracted from `produccion_shift_execute`. For each
+    field that looks like ``completed_<product_id> = <qty>`` (and the
+    product exists), capture the prior qty for the audit row, upsert
+    the completion, and record the audit. Returns
+    ``(saved, skipped)``.
+    """
     saved = 0
     skipped = 0
     for key, value in form.multi_items():
-        if not isinstance(value, str):
-            # skip file uploads / non-str values
-            continue
-        if not key.startswith("completed_"):
-            continue
-        try:
-            product_id = int(key.removeprefix("completed_"))
-        except ValueError:
-            skipped += 1
-            continue
-        try:
-            qty = float(value)
-        except (TypeError, ValueError):
-            skipped += 1
-            continue
-        if qty < 0:
-            skipped += 1
+        product_id, qty = _parse_completed_field(key, value)
+        if product_id is None or qty is None:
+            # Field isn't a completed_<pid>=<qty> (or is malformed) -- skip.
+            if key.startswith("completed_"):
+                # Was a completed_* field but failed validation; count it.
+                skipped += 1
             continue
         if session.get(Product, product_id) is None:
             skipped += 1
             continue
         # PRODUCCION-V2 Fase 1: capture old_qty for the audit log BEFORE
         # the upsert so the audit row shows before/after.
-        from app.rms.models import ProductionCompletion
-
         prior_completion = (
             session.query(ProductionCompletion)
             .filter(
@@ -544,21 +580,30 @@ async def produccion_shift_execute(
             changed_by=user_id,
         )
         saved += 1
+    return saved, skipped
 
-    # PRODUCCION-V3 Phase 0: persist closure status from the
-    # `done_<product_id>` checkbox. Previously the cook checked the
-    # box, the page rendered the row as done (CSS strikethrough), but
-    # the DB never saw `status='done'` — silent data loss. Now we
-    # scan for done_<pid> fields AFTER the completed_<pid> loop so a
-    # `done_<pid>=1` with no corresponding `completed_<pid>` still
-    # creates a row (cook marked it done with 0 units baked).
-    from app.rms.eod_completions import close_day_for_product
 
+def _persist_done_checkboxes(
+    session: Session,
+    form: Any,
+    for_date: date,
+) -> int:
+    """Mark ``done_<pid>=1`` checkboxes (CC <= 5).
+
+    S3 batch-10: extracted from `produccion_shift_execute`. Returns
+    the number of products marked done.
+
+    PRODUCCION-V3 Phase 0: previously the cook checked the box, the
+    page rendered the row as done (CSS strikethrough), but the DB
+    never saw `status='done'` -- silent data loss. We scan for
+    ``done_<pid>`` fields independently of ``completed_<pid>`` so a
+    ``done_<pid>=1`` with no corresponding ``completed_<pid>`` still
+    creates a row (cook marked it done with 0 units baked -- honest
+    input, not silent data loss).
+    """
     closed_count = 0
     for key, value in form.multi_items():
-        if not isinstance(value, str):
-            continue
-        if not key.startswith("done_"):
+        if not isinstance(value, str) or not key.startswith("done_"):
             continue
         try:
             product_id = int(key.removeprefix("done_"))
@@ -574,6 +619,35 @@ async def produccion_shift_execute(
                 status="done",
             )
             closed_count += 1
+    return closed_count
+
+
+@router.post("/shift-execute")
+async def produccion_shift_execute(
+    request: Request,
+    for_date: date = Form(...),
+    session: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Persist actual production qty per product (the "ya salió del horno" tracker).
+
+    T-2026-10-04 (Tier 5-K): if the form was opened before the latest
+    `updated_at` for this date (meaning another cook saved while you were
+    typing), we surface a soft warning via the redirect (no hard block --
+    last-write-wins remains, but the user knows they may have stomped).
+    The check uses the optional `form_opened_at` form field; older clients
+    without the field skip the check.
+
+    S3 batch-10 split: 4 single-purpose helpers (preconditions, concurrent
+    modify detect, completed_<pid> upserts, done_<pid> checkboxes) keep
+    the orchestrator at A-grade. CC dropped from 27 -> 3.
+    """
+    _check_shift_request_preconditions(session, request, for_date)
+
+    form = await request.form()
+    user_id = str(current_operator(request))
+    concurrent_modify = _detect_shift_concurrent_modify(session, form, for_date)
+    saved, skipped = _persist_completed_completions(session, form, for_date, user_id)
+    closed_count = _persist_done_checkboxes(session, form, for_date)
 
     record_audit(
         request,
@@ -594,7 +668,7 @@ async def produccion_shift_execute(
     # T-2026-10-04 (D.2): preserve shift context on redirect. If the
     # cook deep-linked into the PM shift and saved, we want to send
     # them back to the PM view (not default to ""). The form was
-    # already parsed at the top of the function — reuse it.
+    # already parsed at the top of the function -- reuse it.
     shift_ctx = str(form.get("shift", "")).strip()
     if shift_ctx in ("AM", "PM"):
         redirect_url += f"&shift={shift_ctx}"
