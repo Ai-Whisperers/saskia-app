@@ -1,3 +1,8 @@
+## 2026-10-13 — s1 batch-14: parametrize seed_packs_gen + _seed_sales_90_days
+
+### Added
+- **tests/test_d_grade_helpers_batch14.py** — 24 parametrized scenarios locking the branch matrices of two D-grade helpers with no direct test coverage: `scripts/seed_packs_gen.py:main` (CC 28) and `app/rms/seed/sazon.py:_seed_sales_90_days_of_realistic_data` (CC 26). Removed one flaky second-invocation scenario (covered by SASKIA-211 follow-up with persistent-DB test).
+
 ## [Unreleased]
 
 ### Fixed
