@@ -59,8 +59,6 @@ from app.integrations.email_outbound import (
 )
 from app.retry import default_is_transient, retry_transient
 from app.services.r2_backup import (
-    InMemoryStorage,
-    Storage,
     _r2_is_transient,
     download_and_decrypt,
     encrypt_and_upload,
@@ -164,7 +162,7 @@ def _patch_retry_with_sleeper(
         base_delay: float = 0.2,
         max_delay: float = 5.0,
         is_transient: Any = None,
-        sleep: Any = None,  # noqa: ARG001 - we always override to FakeSleeper
+        sleep: Any = None,
         op_name: str = "operation",
     ) -> Any:
         # ALWAYS override sleep with the FakeSleeper, even if the
@@ -182,7 +180,7 @@ def _patch_retry_with_sleeper(
 
     for full_dotted in module_dotted_paths:
         # full_dotted is "module.attr"; we want module."attr"
-        module_path, _, attr = full_dotted.rpartition(".")
+        _module_path, _, attr = full_dotted.rpartition(".")
         assert attr == "retry_transient", (
             f"_patch_retry_with_sleeper only patches .retry_transient, got {full_dotted!r}"
         )
