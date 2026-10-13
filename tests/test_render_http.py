@@ -12,6 +12,8 @@ path) plus direct calls for the fallback branches a healthy app never
 takes (broken settings row, missing engine, station chooser).
 """
 
+# allow-hardcoded-dates: fixture: sentinel = datetime(2020, 1, 1) is an arbitrary past date, not relative-time
+
 from __future__ import annotations
 
 from fastapi import Request

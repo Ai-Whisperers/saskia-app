@@ -16,6 +16,8 @@ These tests are FAIL-CLOSED — reverting the fix (going back to first-match-win
 must break the duplicate-key test.
 """
 
+# allow-hardcoded-dates: fixture: revisionDate/creationDate are BWS API response data, not relative-time
+
 from __future__ import annotations
 
 import importlib.util

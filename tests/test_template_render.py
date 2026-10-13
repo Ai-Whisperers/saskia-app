@@ -18,6 +18,8 @@ A regression here would either:
   - Show wrong stock badge (Agotado vs Negativo ordering)
 """
 
+# allow-hardcoded-dates: fixture: mock clock returns datetime(2026, 10, 12, ...) for time-of-day rendering, not relative-time
+
 from __future__ import annotations
 
 from datetime import datetime

@@ -25,6 +25,8 @@ A regression here would either:
   - Crash on an ingredient with no observed sales
 """
 
+# allow-hardcoded-dates: frozen-time fixture: FROZEN_NOW = datetime(2026, 10, 11) pins 'now' for weekday arithmetic (2026-10-11 is Sunday)
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

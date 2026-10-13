@@ -29,6 +29,8 @@ Spanish fiscal terminology in this file
   when > 0 (see accounting.py:259-266).
 """
 
+# allow-hardcoded-dates: frozen-time fixture: _ANCLA = datetime(2026, 10, 9) pins 'now' for libro_ventas rows
+
 from __future__ import annotations
 
 from dataclasses import dataclass

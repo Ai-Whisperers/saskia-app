@@ -1,4 +1,5 @@
 """Parametrized coverage for two more D-grade helpers with no branch matrix.
+# allow-hardcoded-dates: frozen-time fixture — see _ANCLA below
 
 S1 batch-13 (test coverage continuation): lock the branch matrix of two
 D-grade helpers that lack parametrized coverage:

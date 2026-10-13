@@ -8,6 +8,8 @@ Covers:
 - Empty DB shows the empty state, not a 500
 """
 
+# allow-hardcoded-dates: fixture: seasonal_event catalog uses fixed calendar dates; today=date(2026, 10, 12) is the test reference
+
 from __future__ import annotations
 
 from datetime import date, timedelta

@@ -1,4 +1,5 @@
 """Parametrized coverage for two D-grade RMS helpers with no direct unit tests.
+# allow-hardcoded-dates: frozen-time fixture — see _ANCLA below
 
 S1 batch-5 (test coverage 33% → ~35%): lock the entry-point behavior of two
 D-grade helpers that had no granular coverage before this file:
