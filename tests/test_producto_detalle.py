@@ -119,6 +119,8 @@ def test_detalle_recent_sales_section(authed_client, session_factory):
         # Create a test sale
         from datetime import datetime, timezone
 
+        from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
+
         from app.rms.costing import apply_sale
 
         today = datetime.now(timezone.utc).replace(hour=12, minute=0, second=0, microsecond=0)

@@ -1922,7 +1922,7 @@
   <form method="post" action="/produccion/ad-hoc" style="padding: var(--space-4);">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="for_date" value="{{ for_date }}">
-    <h3 style="margin: 0 0 var(--space-3) 0;">Horneado extra</h3>
+    <h3 style="margin: 0 0 var(--space-3) 0; color: #111827;">Horneado extra</h3>
     <p style="margin: 0 0 var(--space-3) 0; color: var(--color-text-muted); font-size: var(--text-sm);">
       {# T-2026-10-06e (UX): help text explaining the default qty so the operator
          understands what the pre-filled number means. #}
@@ -1930,7 +1930,7 @@
       Ajustá según tu criterio o dejá el valor si coincide con tu plan.
     </p>
     <div class="form-row mb-3" >
-      <label for="adhoc-product" style="display: block; margin-bottom: var(--space-1); font-weight: 600;">Producto</label>
+      <label for="adhoc-product" style="display: block; margin-bottom: var(--space-1); font-weight: 600; color: #111827;">Producto</label>
       {# T-2026-10-06f: <ui-combo> ships the product list inline as src=
          (a JSON-encoded list of {value, label, forecast_qty, pending_pedidos}
          objects). The JS listener reads getSelectedData() to pre-fill the
@@ -1952,14 +1952,14 @@
       </small>
     </div>
     <div class="form-row mb-3" >
-      <label for="adhoc-qty" style="display: block; margin-bottom: var(--space-1); font-weight: 600;">Cantidad horneada</label>
+      <label for="adhoc-qty" style="display: block; margin-bottom: var(--space-1); font-weight: 600; color: #111827;">Cantidad horneada</label>
       <input type="number" name="qty" id="adhoc-qty" required min="0.5" step="0.5">
       <small id="adhoc-qty-hint" style="color: var(--color-text-muted); font-size: var(--text-xs); display: block; margin-top: var(--space-1);">
         Sugerido: <span data-suggested>—</span> (rolling + pedidos). Ajustá si querés.
       </small>
     </div>
     <div class="form-row mb-3" >
-      <label for="adhoc-notes" style="display: block; margin-bottom: var(--space-1); font-weight: 600;">Nota (opcional)</label>
+      <label for="adhoc-notes" style="display: block; margin-bottom: var(--space-1); font-weight: 600; color: #111827;">Nota (opcional)</label>
       <input type="text" name="notes" id="adhoc-notes" maxlength="200"
              placeholder="ej: walk-in cumpleañero, sobrantes de masa">
     </div>

@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 def test_sale_accepts_payment_method(session_factory):
     """apply_sale with payment_method persists it (Spanish keys)."""
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
     from app.rms.costing import apply_sale
     from app.rms.models import Product, Sale
 
@@ -32,6 +33,7 @@ def test_sale_accepts_payment_method(session_factory):
 
 def test_sale_accepts_discount(session_factory):
     """apply_sale with discount_gs persists the discount."""
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
     from app.rms.costing import apply_sale
     from app.rms.models import Product, Sale
 

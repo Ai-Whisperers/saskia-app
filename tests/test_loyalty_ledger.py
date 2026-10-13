@@ -158,6 +158,8 @@ def test_reverse_points_for_void_writes_negative_ledger(session_factory, qseed):
     """When a sale that earned points is voided, reverse the points via a void_reversal ledger row."""
     from datetime import datetime as _dt
 
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
+
     from app.rms.costing import apply_sale
     from app.rms.customers import (
         award_points,

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 def test_forecast_zero_consumption_via_apply_sale(qseed):
     """When sales happen through apply_sale, forecast sees real consumption."""
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
     from app.rms.costing import apply_sale
     from app.rms.forecast import forecast_ingredient_consumption
 

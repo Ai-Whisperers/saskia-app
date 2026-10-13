@@ -108,6 +108,8 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
     """
     from datetime import datetime, timedelta, timezone
 
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
+
     from app.rms.costing import apply_sale
 
     sf = session_factory
@@ -260,6 +262,7 @@ def quick_seed(session_factory, scenario: str = "basic", seed: int = 42) -> dict
                 discount_gs=0,
                 channel="mostrador",
             )
+            from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
             from app.rms.costing import void_sale
 
             void_sale(s, sale_result.sale_id)

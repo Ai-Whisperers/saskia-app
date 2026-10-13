@@ -5186,7 +5186,7 @@ def _ensure_tenant_and_admin(session: Session, name: str, report: PackReport) ->
 
     Extracted from seed_pack to reduce complexity.
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     tenant = session.query(Tenant).filter(Tenant.slug == _slug(name)).one_or_none()
     if tenant is None:
@@ -5195,7 +5195,7 @@ def _ensure_tenant_and_admin(session: Session, name: str, report: PackReport) ->
             business_name=name,
             primary_color="#1976D2",
             currency="PYG",
-            created_at=datetime.utcnow().isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
         session.add(tenant)
         session.flush()
@@ -5205,7 +5205,7 @@ def _ensure_tenant_and_admin(session: Session, name: str, report: PackReport) ->
         user = User(
             username="admin",
             is_active=True,
-            created_at=datetime.utcnow().isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
             last_login_at=None,
             role="admin",
         )
@@ -5273,7 +5273,7 @@ def _create_pack_ingredient(
 
     Extracted from _seed_ingredients to reduce complexity.
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     min_stock = max(1.0, (cost or 1000) / 5000.0)
     return Ingredient(
@@ -5281,7 +5281,7 @@ def _create_pack_ingredient(
         unit=pkg_unit,
         stock_qty=0.0,
         purchase_price_gs=cost or None,
-        purchase_price_updated_at=datetime.utcnow(),
+        purchase_price_updated_at=datetime.now(timezone.utc),
         min_stock_qty=min_stock,
         max_stock_qty=min_stock * 3,
         shelf_life_days=None,
@@ -5293,7 +5293,7 @@ def _create_pack_ingredient(
         lot_required=False,
         may_contain_gluten=False,
         opening_stock_qty=0.0,
-        opening_stock_date=datetime.utcnow().date().isoformat(),
+        opening_stock_date=datetime.now(timezone.utc).date().isoformat(),
         reorder_point=min_stock * 1.5,
     )
 
@@ -5325,14 +5325,14 @@ def _seed_ingredient_price_events(
 
     Extracted from _seed_ingredients to reduce complexity.
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     for days_ago in (60, 30, 7):
         session.add(
             IngredientPriceEvent(
                 ingredient_id=ing_id,
                 price_gs=int(cost),
-                recorded_at=datetime.utcnow() - timedelta(days=days_ago),
+                recorded_at=datetime.now(timezone.utc) - timedelta(days=days_ago),
                 source="seed-pack",
             )
         )
@@ -5581,7 +5581,7 @@ def _seed_tags_and_templates(
     tags exist, adds pack-specific tags, and creates production plan
     templates.
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     ensure_starter_tags(session)
     for tag_name, color in ((pack.lower(), "#1976D2"), ("precio-ref", "#FF9800")):
@@ -5609,7 +5609,7 @@ def _seed_tags_and_templates(
                     product_id=pid,
                     qty=qty,
                     notes=note,
-                    updated_at=datetime.utcnow(),
+                    updated_at=datetime.now(timezone.utc),
                     updated_by="seed-pack",
                 )
             )

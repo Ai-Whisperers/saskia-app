@@ -318,10 +318,16 @@ class TestDeployDryRun(unittest.TestCase):
     """deploy.sh --dry-run exits 0 for each env and rejects unknown envs."""
 
     def test_dry_run_prod_on_feature_branch_refuses(self):
-        # The current test branch is feat/three-env-deploy, not main,
-        # so --env=prod should refuse with exit 1 (not 0). Deploy.sh
-        # writes error messages to stdout (not stderr) — verified with
-        # the dry-run output above. Use combined output for the check.
+        # This test only makes sense on a feature branch. deploy.sh
+        # allows deploys from main, so the refusal code path is only
+        # exercised on a feature branch. Skip on main (post-merge).
+        import subprocess as _sp
+        branch = _sp.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True, cwd=REPO_ROOT,
+        ).stdout.strip()
+        if branch == "main":
+            self.skipTest("non-main refusal only testable on a feature branch")
         r = subprocess.run(
             ["bash", str(SCRIPTS_DIR / "deploy.sh"), "--env=prod", "--dry-run"],
             capture_output=True,
@@ -440,6 +446,15 @@ class TestReleaseScript(unittest.TestCase):
     """release.sh version + branch validation."""
 
     def test_release_off_main_refuses(self):
+        # Only meaningful on a feature branch. On main the script allows
+        # the release. Skip on main (post-merge).
+        import subprocess as _sp
+        branch = _sp.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True, cwd=REPO_ROOT,
+        ).stdout.strip()
+        if branch == "main":
+            self.skipTest("non-main refusal only testable on a feature branch")
         r = subprocess.run(
             ["bash", str(SCRIPTS_DIR / "release.sh"), "--dry-run"],
             capture_output=True,
@@ -447,8 +462,6 @@ class TestReleaseScript(unittest.TestCase):
             timeout=10,
             cwd=REPO_ROOT,
         )
-        # We're on feat/three-env-deploy, so release.sh should refuse
-        # with a clear "must run from main" message.
         self.assertNotEqual(r.returncode, 0)
         out = r.stdout + r.stderr
         self.assertIn("main", out.lower())

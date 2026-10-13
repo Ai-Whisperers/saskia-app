@@ -60,6 +60,7 @@ def _seed(session_factory):
 
 def test_void_sale_restores_stock(session_factory):
     """Apply a sale, then void: stock restored to original."""
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
     from app.rms.costing import apply_sale, void_sale
     from app.rms.models import Ingredient
 
@@ -96,6 +97,7 @@ def test_void_sale_restores_stock(session_factory):
 
 def test_void_sale_sets_voided_at(session_factory):
     """After void, Sale.voided_at is set (not None)."""
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
     from app.rms.costing import apply_sale, void_sale
     from app.rms.models import Sale
 
@@ -120,6 +122,8 @@ def test_void_sale_double_void_raises(session_factory):
     """Voiding an already-voided sale → raises ValueError('ya anulada')."""
     import pytest
 
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
+
     from app.rms.costing import apply_sale, void_sale
 
     _, _, product_id = _seed(session_factory)
@@ -139,6 +143,8 @@ def test_void_sale_unknown_raises(session_factory):
     """Unknown sale_id → raises ValueError('Sale ... not found')."""
     import pytest
 
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
+
     from app.rms.costing import void_sale
 
     with pytest.raises(ValueError, match=r"Sale .* not found"):
@@ -148,6 +154,7 @@ def test_void_sale_unknown_raises(session_factory):
 
 def test_void_sale_sub_recipe_restores(session_factory):
     """Apply + void on sub-recipe sale: stock restored across the tree."""
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
     from app.rms.costing import apply_sale, void_sale
     from app.rms.models import Ingredient, Product, Recipe, RecipeLine
 

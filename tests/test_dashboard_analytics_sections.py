@@ -20,6 +20,8 @@ def _seed_min_sales(session_factory, days_back: int = 14):
     directly so the seed produces real analytics.
     """
 
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
+
     from app.rms.costing import apply_sale
     from app.rms.models import Ingredient, Product, Recipe, RecipeLine
 

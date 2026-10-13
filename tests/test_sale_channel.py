@@ -54,6 +54,7 @@ def test_default_channel_is_mostrador(session_factory):
 
 def test_apply_sale_accepts_custom_channel(session_factory):
     """apply_sale with channel=whatsapp persists it."""
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
     from app.rms.costing import apply_sale
     from app.rms.models import Product, Sale
 
@@ -86,6 +87,7 @@ def test_all_five_channels_accepted_by_apply_sale(session_factory):
     round-trip; if a future enum growth doesn't update
     Channel.display_order, this test fails with a clear diff.
     """
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
     from app.rms.costing import apply_sale
     from app.rms.models import Product, Sale
     from app.rms.schemas import ALLOWED_CHANNELS

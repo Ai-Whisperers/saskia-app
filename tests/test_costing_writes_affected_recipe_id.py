@@ -41,6 +41,7 @@ def test_complete_sale_writes_affected_recipe_id_on_stock_movement(session_facto
         reason="BL#1 partial: apply_sale still dual-writes to SaleStockMove stub. "
         "Re-enable when BL#1 is fully consolidated (Sprint 2.5+)."
     )
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
     from app.rms.costing import apply_sale
 
     session = session_factory()

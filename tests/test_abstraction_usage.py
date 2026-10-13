@@ -64,6 +64,11 @@ TEST_ALLOWLIST = {
     "tests/_lib/clock.py",  # sibling branch
     "tests/test_clock_discipline.py",  # locks the rule itself
     "tests/test_abstraction_usage.py",  # this file
+    # test_accounting_iva_invariant.py mirrors the exact int(Decimal(...))
+    # truncation that app/rms/accounting.py:extract_iva() uses internally.
+    # Using to_int_gs here would round half-up and break the documented
+    # round-trip invariant (base + iva must sum to gross).
+    "tests/test_accounting_iva_invariant.py",
 }
 
 

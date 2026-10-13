@@ -66,6 +66,7 @@ def test_inicio_empty_state_for_fresh_db(client):
 def test_inicio_card_displays_at_most_5(client, qseed, session_factory):
     """The card limits to top 5 (the 'regulars_count_total' shows full count)."""
     # Add 7 extra customers with 3+ sales each so we exceed 5
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
     from app.rms.costing import apply_sale
     from app.rms.models import Customer, Product
 

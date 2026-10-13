@@ -103,6 +103,8 @@ def test_daily_sales_series_buckets_sales_by_local_date(session_factory, qseed):
         # Add 2 more sales on different days via apply_sale.
         from datetime import timezone
 
+        from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
+
         from app.rms.costing import apply_sale
 
         # Day -1 (yesterday)
@@ -145,6 +147,7 @@ def test_daily_sales_series_excludes_voided_sales(session_factory, qseed):
     data = qseed("with_voided_sale")
     p = data["product"]
     with Session() as s:
+        from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
         from app.rms.costing import apply_sale
 
         apply_sale(
@@ -198,6 +201,7 @@ def test_daily_sales_series_top_product_by_qty(session_factory, qseed):
 
     # Now sell 1× p1 and 5× p2 today. p2 should be top.
     with Session() as s:
+        from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
         from app.rms.costing import apply_sale
 
         apply_sale(

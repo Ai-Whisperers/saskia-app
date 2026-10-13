@@ -143,6 +143,25 @@ _STORAGE_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
 # ---------------------------------------------------------------------------
 
 
+def _keyword_in(keyword: str, text: str) -> bool:
+    """Word-boundary keyword match: 'res' must NOT match 'fresco'.
+
+    Returns True iff `keyword` appears in `text` as a whole word (after
+    lowercasing + accented-char normalization). The point is to prevent
+    short category keywords like 'res' from matching inside unrelated
+    words like 'jengibre fresco'.
+
+    Boundary rule: a word character on either side disqualifies the match.
+    For accented chars (á, é, í, ó, ú, ñ) we use re.UNICODE so they count
+    as word characters.
+    """
+    import re as _re
+    norm_text = text.lower()
+    norm_kw = keyword.lower()
+    pattern = r"(?<![\w])" + _re.escape(norm_kw) + r"(?![\w])"
+    return bool(_re.search(pattern, norm_text, flags=_re.UNICODE))
+
+
 def infer_subcategory(name: str, category: str | None = None) -> str | None:
     """Return finer-grained subtype. None if no subcategory matches."""
     norm = _normalize(name)

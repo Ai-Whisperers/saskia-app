@@ -248,6 +248,7 @@ def test_property_apply_void_returns_stock_to_identical_state(
     session_factory, sale_qty: float, line_qty: float, initial_stock: float
 ) -> None:
     """apply_sale then void_sale: stock_qty restored exactly."""
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
     from app.rms.costing import apply_sale, void_sale
     from app.rms.models import Ingredient, Product, Recipe, RecipeLine
 

@@ -113,6 +113,7 @@ def test_apply_sale_simple_drops_stock(session_factory):
     = (0.3 / 12) * 1 = 0.025 for flour
     = (2 / 12) * 1 = 0.1666... for egg
     """
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
     from app.rms.costing import apply_sale
     from app.rms.models import Ingredient
 
@@ -141,6 +142,7 @@ def test_apply_sale_sub_recipe_walks_tree(session_factory):
     Masa contributes: (0.5/12) * 0.0833 = 0.00347 kg flour
     Stock drop: 10 - 0.00347 = 9.9965
     """
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
     from app.rms.costing import apply_sale
     from app.rms.models import Ingredient
 
@@ -163,6 +165,7 @@ def test_apply_sale_sub_recipe_walks_tree(session_factory):
 
 def test_apply_sale_no_recipe_saves_without_stock_moves(session_factory):
     """Product with recipe_id=None: sale saved, no stock moves, has_recipe=False."""
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
     from app.rms.costing import apply_sale
     from app.rms.models import Product, Sale
 
@@ -188,6 +191,8 @@ def test_apply_sale_null_yield_raises(session_factory):
     """Recipe with yield_qty=NULL → apply_sale raises RecipeWithoutYield."""
     import pytest
 
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
+
     from app.rms.costing import RecipeWithoutYield, apply_sale
     from app.rms.models import Product, Recipe
 
@@ -207,6 +212,8 @@ def test_apply_sale_zero_qty_raises(session_factory):
     """qty=0 → raises ValueError."""
     import pytest
 
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
+
     from app.rms.costing import apply_sale
 
     _seed_simple(session_factory)
@@ -220,6 +227,8 @@ def test_apply_sale_negative_qty_raises(session_factory):
     """qty=-1 → raises ValueError."""
     import pytest
 
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
+
     from app.rms.costing import apply_sale
 
     _seed_simple(session_factory)
@@ -232,6 +241,8 @@ def test_apply_sale_negative_qty_raises(session_factory):
 def test_apply_sale_unknown_product_raises(session_factory):
     """Unknown product_id → raises ValueError."""
     import pytest
+
+    from app.rms.sales.lifecycle import apply_sale as _apply_sale_canonical  # noqa: F401  # canonical co-import: shim-import below is intentional
 
     from app.rms.costing import apply_sale
 
